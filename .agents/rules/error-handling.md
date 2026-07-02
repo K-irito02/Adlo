@@ -62,7 +62,7 @@ alwaysApply: false
 - Preview bridge：浏览器预览模式（`preview-bridge/index.ts`）
 
 ### 一致性检查清单（新增/修改 IPC 方法后）
-- [ ] 接口定义在 `shared/ipc.ts` 更新
+- [ ] 接口定义在 `shared/ipc/index.ts`（或对应域文件 `shared/ipc/{domain}.ts`）更新
 - [ ] 三个桥接层同步实现
 - [ ] 返回类型统一为 `IpcResult<T>`
 - [ ] 错误类型使用 `AppError` 而非裸 `string`
@@ -71,7 +71,7 @@ alwaysApply: false
 
 ### 方法签名对齐示例
 ```ts
-// 接口定义（shared/ipc.ts）
+// 接口定义（shared/ipc/workspace.ts）
 interface WorkspaceBridge {
   reorder(input: ReorderWorkspacesInput): Promise<IpcResult<WorkspaceSummary[]>>;
 }

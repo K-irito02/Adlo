@@ -6,8 +6,8 @@
 
 | 目录 | 内容 | 数量 |
 |------|------|------|
-| [plans/](./plans/) | 重构/功能实施计划（按日期命名） | 12 |
-| [specs/](./specs/) | 功能规格文档（含部分子目录内 checklist + spec + tasks） | 18 |
+| [plans/](./plans/) | 重构/功能实施计划（按日期命名） | 35 |
+| [specs/](./specs/) | 功能规格文档（含部分子目录内 checklist + spec + tasks） | 25 |
 
 ## 归档约定
 

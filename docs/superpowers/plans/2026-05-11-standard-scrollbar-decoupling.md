@@ -53,8 +53,8 @@
 ### Task 5: Verify and sync docs
 
 **Files:**
-- Modify: `UIOperationManual/rightpanel/tools/files.md`
-- Modify: `UIOperationManual/rightpanel/tools/changes.md`
+- ~~Modify: `UIOperationManual/rightpanel/tools/files.md` (UIOperationManual 已删除)~~
+- ~~Modify: `UIOperationManual/rightpanel/tools/changes.md` (UIOperationManual 已删除)~~
 
 - [ ] Update the manual so ordinary mode no longer documents `滑块: 按比例 / 固定`.
 - [ ] Clarify that ordinary mode uses a modern proportional scrollbar and does not inherit minimap zoom/track behavior.

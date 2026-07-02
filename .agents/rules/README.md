@@ -25,13 +25,18 @@ alwaysApply: true
 | `desktop-ui-verification.md` | 桌面端 UI 验证流程、双端验证清单 | 修改 UI |
 | `dev-rules.md` | 代理交互与执行规则（询问卡片、终端命令、代码修改、问题排查） | 始终应用 |
 | `mandatory-testing.md` | 结束验收流程、强制红绿测试、测试材料管理 | 始终应用 |
-| `ui-patterns.md` | UI 模式速查：对话框、菜单、悬停、点击、颜色、Hint Card、按钮、文件树、Tooltip、Toast 等 20 类模式 | 始终应用（UI/UX 开发） |
+| `ui-patterns.md` | UI 模式速查：对话框、菜单、悬停、点击、颜色、Hint Card、按钮、文件树、Tooltip、Toast 等 22 类模式 | 始终应用 |
 
 ## 新增规则
 
+> 真源目录为 `.agents/rules/`，同步到 `.trae/rules/`。新增/修改规则在 `.agents/rules/` 操作，再同步。
+
 1. 在 `.agents/rules/` 新增 `*.md` 文件
-2. YAML 头部必填：`description`（英文）、`alwaysApply` 或 `globs`
-3. 在上表增加一行
+2. YAML 头部必填：`description`（英文）+ 触发方式（二选一）：
+   - `alwaysApply: true` — 始终应用（全局规则）
+   - `globs: <path-pattern>` — 仅匹配路径时应用（作用域规则，同时设 `alwaysApply: false`）
+3. 在上表「规则文件」增加一行
+4. 同步到 `.trae/rules/`
 
 ## 更新触发
 

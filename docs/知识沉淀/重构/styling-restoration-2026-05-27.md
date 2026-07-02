@@ -126,8 +126,6 @@ itemClassName={`adl-filetree__item${isDirectory ? " adl-filetree__node--director
 
 ### 5.2 需要更新的文档
 - `docs/superpowers/specs/2026-05-25-tree-layout-alignment.md`
-- `UIOperationManual/rightpanel/tools/files.md`
-- `UIOperationManual/rightpanel/tools/changes.md`
 
 ---
 

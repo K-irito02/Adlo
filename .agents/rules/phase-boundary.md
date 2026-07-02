@@ -13,17 +13,22 @@ alwaysApply: true
 | Phase 1 | 🚧 进行中 | 交互式 MVP、模型接入、上下文、变更预览 |
 | Phase 2 | ✅ 已完成切片 | 单 Agent 薄切片、终端流式输出 |
 
-## 排除项
+## 排除项（当前阶段不实现）
 
-| 排除项 | 原因 |
-|--------|------|
+| 排除项 | 计划阶段 |
+|--------|----------|
 | 多 Agent DAG | Phase 2+ |
 | MCP 协议 | Phase 2+ |
 | 插件市场 | Phase 2+ |
 | 浏览器自动化运行时 | Phase 2+ |
 | 复杂云协作 | Phase 3+ |
-| Zustand 状态管理变更 | 需遵循 `zustand-patterns.md` |
-| Rust 后端模式变更 | 需遵循 `rust-patterns.md` |
+
+## 受控变更（须遵循对应规则）
+
+| 变更类型 | 必须遵循 |
+|----------|----------|
+| Zustand 状态管理 | `zustand-patterns.md` |
+| Rust 后端模式 | `rust-patterns.md` |
 
 ## 新功能评估
 

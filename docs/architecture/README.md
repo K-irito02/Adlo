@@ -9,9 +9,7 @@
 | [system-overview.md](./system-overview.md) | 系统整体架构概览（Phase 0 + Phase 2 薄切片） |
 | [builtin-browser-implementation.md](./builtin-browser-implementation.md) | 内置浏览器实现方案 |
 | [internationalization.md](./internationalization.md) | 国际化架构设计 |
-| [renderer-shell-redesign.md](./renderer-shell-redesign.md) | 渲染器壳层重设计 |
 | [run-activity-and-run-summary.md](./run-activity-and-run-summary.md) | 运行活动与运行摘要 |
-| [stage-one-validation.md](./stage-one-validation.md) | 第一阶段验证 |
 | [task-governance.md](./task-governance.md) | 任务治理架构 |
 | [tech-stack-alignment.md](./tech-stack-alignment.md) | 技术栈对齐方案 |
 | [theming.md](./theming.md) | 主题系统架构 |

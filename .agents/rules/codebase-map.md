@@ -133,7 +133,7 @@ app/stores/
 
 ```
 frontend/src/
-├── shared/ipc.ts           # DigitalLifeBridge + 13 个子接口
+├── shared/ipc/             # DigitalLifeBridge + 13 个子接口（域拆分，index.ts barrel）
 ├── tauri-bridge.ts         # Tauri 模式桥接
 ├── mock-bridge.ts          # 纯内存回退入口（委托到 mock/ 子模块）
 ├── mock/                   # mock 桥接子模块（11 个子文件）

@@ -25,7 +25,7 @@ alwaysApply: false
 
 | 文件 | 职责 |
 |------|------|
-| `frontend/src/shared/ipc.ts` | `DigitalLifeBridge` 类型定义 |
+| `frontend/src/shared/ipc/index.ts` | `DigitalLifeBridge` 类型定义（域拆分为 13 个子接口，见 `shared/ipc/*.ts`） |
 | `src-tauri/src/commands/*.rs` | `#[tauri::command]` 处理 |
 | `src-tauri/capabilities/*.json` | Command 白名单 |
 | `crates/kernel` | `serde` 契约类型 |
@@ -49,7 +49,7 @@ alwaysApply: false
 - [ ] 在 `crates/kernel` 增加 `serde` 类型
 - [ ] 在 `src-tauri/src/commands/*.rs` 实现 `#[tauri::command]`
 - [ ] 在 `capabilities/*.json` 登记 capability
-- [ ] 在 `frontend/src/shared/ipc.ts` 对齐桥接契约
+- [ ] 在 `frontend/src/shared/ipc/index.ts` 对齐桥接契约
 - [ ] 在 `mock-bridge.ts` 和 `preview-bridge/` 同步实现浏览器模式对等方法
 - [ ] 在 `previewWorkspaceService.ts` 或 `previewTerminalService.ts` 同步实现浏览器开发态服务端 API
 
@@ -80,8 +80,8 @@ alwaysApply: false
 ## IPC/Bridge 架构规范
 
 ### Bridge 接口设计
-- `DigitalLifeBridge` 接口必须按领域拆分为命名子接口（参考 13 个子接口）
-- 子接口按功能分组: `workspace`, `conversation`, `patch`, `git`, `search`, `task`, `command`, `pty`, `model`, `window`, `events`, `storage`, `diagnostic`
+- `DigitalLifeBridge` 接口必须按领域拆分为命名子接口（当前 13 个：`window`, `app`, `workspace`, `retrieval`, `conversation`, `agent`, `patch`, `command`, `pty`, `task`, `run-activity`, `browser`, `github`）
+- 每个子接口对应 `shared/ipc/{domain}.ts` 一个域文件，新增域时同步增加子接口与文件
 - 每个子接口新增方法时，必须在 3 个实现层同步:
   1. Tauri Bridge (`tauri-bridge.ts`)
   2. Preview Bridge (`preview-bridge/`)
@@ -99,5 +99,5 @@ alwaysApply: false
 
 ## 相关文件
 
-- [frontend/src/shared/ipc.ts](../../ai-digital-life/frontend/src/shared/ipc.ts)
+- [frontend/src/shared/ipc/](../../ai-digital-life/frontend/src/shared/ipc) — DigitalLifeBridge 类型契约（域拆分）
 - [src-tauri/src/commands](../../ai-digital-life/src-tauri/src/commands)

@@ -166,5 +166,3 @@ if !content.starts_with(b"PK\x03\x04") {
 ```
 
 ## 6. 相关文档
-
-- [UIOperationManual 通信面板](../../../UIOperationManual/rightpanel/tools/communicate.md)

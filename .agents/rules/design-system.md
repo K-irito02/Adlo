@@ -81,7 +81,7 @@ const shouldShowSeparator =
   (activeTab === nextTab.id || hoveredTab === nextTab.id);
 ```
 
-详见 [tool-switcher.css](../frontend/src/styles/regions/rightpanel/tool-switcher.css) 和 [communication-panel.css](../frontend/src/styles/regions/rightpanel/communication-panel.css)。
+详见 [tool-switcher.css](../../ai-digital-life/frontend/src/styles/regions/rightpanel/tool-switcher.css) 和 [communication-panel.css](../../ai-digital-life/frontend/src/styles/regions/rightpanel/communication-panel.css)。
 
 ## CodeMirror 编辑器集成
 

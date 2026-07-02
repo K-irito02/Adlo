@@ -51,25 +51,13 @@ alwaysApply: false
 
 ## 重构门禁
 
-重构后必须执行完整验收流程（详见 [mandatory-testing.md](./mandatory-testing.md)），至少包含：
-- [ ] Rust 格式: `cargo fmt --all`
-- [ ] Rust Lint: `cargo clippy --workspace --all-targets -- -D warnings`
-- [ ] Rust 编译: `cargo check --workspace`
-- [ ] Rust 测试: `cargo test --workspace`
-- [ ] 前端 Lint: `pnpm --dir frontend run lint:fix`
-- [ ] 前端格式: `pnpm --dir frontend run format`
-- [ ] 前端类型检查: `pnpm --dir frontend run typecheck`
-- [ ] 前端测试: `pnpm --dir frontend run test`
-- [ ] 行为回归: 确认关键用户路径无退化
+重构后必须执行完整验收流程（L3 全量级），命令清单见上方「合并前必检」表，并额外确认：
+- [ ] 行为回归：关键用户路径无退化
+- [ ] 双端一致性：Tauri 桌面和浏览器模式下功能一致
 
-## 代码质量四维门禁（clippy + fmt + tsc + eslint）
+> 完整验收流程（触发条件、层级划分、修复约束）见 [mandatory-testing.md](./mandatory-testing.md)。
 
-| 检查项 | 命令 |
-|--------|------|
-| Rust Lint | `cargo clippy --workspace --all-targets -- -D warnings` |
-| Rust 格式 | `cargo fmt --all` |
-| 前端类型检查 | `cd frontend && npx tsc --noEmit` |
-| 前端 Lint | `cd frontend && npx eslint . --fix` |
+## 注意事项
 
 > **set-state-in-effect 修复规范**：禁止使用 `requestAnimationFrame` 等异步包装绕过 React 18/19 StrictMode 双重调用检测。正确做法是使用 `useRef` 守卫配合 cleanup 清理函数，或重构为不可变状态更新。`requestAnimationFrame` 反模式会导致时序竞争、测试 flaky 和内存泄漏。
 

@@ -176,7 +176,6 @@ CommunicationPanel 使用 `toggleNavigator('communicate')`（更新 `navigatorCo
 
 ### 6.3 文档
 
-- `UIOperationManual/rightpanel/tools/communicate.md` - 通信面板操作手册
 - `docs/重构洞察/REFACTORING_PROGRESS_REPORT.md` - 重构进度报告
 
 ---

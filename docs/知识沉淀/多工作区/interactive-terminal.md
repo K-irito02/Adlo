@@ -1,8 +1,5 @@
 # 交互式终端功能 — 经验教训
 
-> 来源: `interactive-terminal-discussion.md`
-> 方案对比: 当前方案增强版 vs Xterm.js+PTY vs CodeMirror 6 终端 vs 混合方案
-
 ## 最终决策
 方案二（Xterm.js + PTY）已在 Phase 2 实施完成。
 

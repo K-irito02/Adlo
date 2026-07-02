@@ -30,7 +30,7 @@ Why these matter:
 - Clicks `Approve`, then verifies the IPC bridge was called and the success banner appears.
 - Clicks `Restore this checkpoint`, then verifies the IPC bridge was called.
 
-Run via `npx vitest run` or `npm run test`.
+Run via `pnpm --dir frontend run test` or `pnpm exec vitest run`.
 
 ## 3. Right-panel editor regressions
 
@@ -50,7 +50,7 @@ The file / diff viewers, outline navigation, and shared custom scroll shells rel
 When touching `FilesPanel`, `ChangesPanel`, `DiffViewer`, sticky navigation, minimap sizing, minimap context menus, or custom scrollbar ownership, run at least:
 
 ```bash
-npm --prefix frontend test -- --run \
+pnpm --dir frontend test -- --run \
   src/app/regions/right-panel/cmMinimap.test.ts \
   src/app/regions/right-panel/cmPreviewStyling.test.ts \
   src/app/regions/right-panel/filesEditorOptions.test.ts \
@@ -62,12 +62,12 @@ npm --prefix frontend test -- --run \
 
 ## 4. Build verification
 
-`npm --prefix frontend run build` validates that:
+`pnpm --dir frontend run build` validates that:
 
 - All design-system imports type-check.
 - All CSS imports resolve and merge into a single bundle (32 kB gzipped 7 kB at the time of writing).
 
-`npm --prefix frontend run typecheck` covers the WebView frontend; `cargo check --workspace` covers the Rust backend.
+`pnpm --dir frontend run typecheck` covers the WebView frontend; `cargo check --workspace` covers the Rust backend.
 
 ## 5. Visual regression (next stage)
 
@@ -92,15 +92,15 @@ Phase 0 does **not** automate visual regression yet. The plan for Stage One:
 
 ```bash
 # Single test run (frontend)
-npm --prefix frontend test
+pnpm --dir frontend run test
 
 # Watch a specific design-system spec
-npx vitest tests/unit/design-system/theme.test.ts
+pnpm --dir frontend exec vitest src/app/utils/theme.test.ts
 
 # Type check (frontend + Rust backend)
-npm --prefix frontend run typecheck
+pnpm --dir frontend run typecheck
 cargo check --workspace
 
 # Build to verify CSS + JS bundle size
-npm --prefix frontend run build
+pnpm --dir frontend run build
 ```

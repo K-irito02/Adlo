@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-07-01（第九十轮）
+> 更新日期: 2026-07-02（第九十一轮）
 
 ## 完成状态
 
@@ -96,6 +96,7 @@
 | **第八十八轮** | **2026-06-30** | **重构洞察第20次执行（Phase 1 全部7项 + Phase 2 关键5项完成）：useBrowserTreeActions 718→18行（-700行）；ipc.ts 1322→953行；kernel/index.ts 1312→13行；useBrowserTreeActions 4子Hook；React.lazy恢复3组件；深层导入281处→@别名；BrowserTreeEntry 531→199(-332)；fileTree 482→360(-122)；useBrowserTreeData 504→433(-71)；App.tsx getState()→选择器；28+新文件创建；278测试通过** | ✅ |
 | **第八十九轮** | **2026-07-01** | **终验与合并：CodeMirror 多实例冲突修复（pnpm.overrides + resolve.dedupe + 5 direct deps）；ESLint 12→0 warnings（清理未使用导入/泛型/import type()→顶层导入）；TypeScript 预存错误修复（casing/JsonValue）；Clippy + cargo check + 类型检查 + 282 测试全通过；知识沉淀 WORKTREE-RERUN-ISSUES.md；文档更新；日志清理** | ✅ |
 | **第九十轮** | **2026-07-01** | **浏览器 Favicon/Title 同步修复（8 Task）：Favicon 缓存 localStorage 持久化 + 源优先级系统（com>iframe>http>google）+ HTTP prefetch/browser-mode submit 统一路由至 handlePageMeta + fetchPageMeta 纯函数化 + BrowserTabBar 通过 BrowserFavicon 订阅 favicon 变更 + 过期缓存 onError 驱逐 + 全部通过 287 测试 + ESLint/clippy/rustfmt 全 clean** | ✅ |
+| **第九十一轮** | **2026-07-01~02** | **refactoring-insight 全流程执行（6 阶段 18 任务，SDD 模式）：死代码 + IPC 契约修复 + CSS diff 合并（!important 147→115）+ 大文件域拆分（outline.ts 862行→14模块、ipc.ts 932行→16域文件）+ Store 切片提取 + Hook/组件分解 + Rust unwrap 治理 + i18n 硬编码修复 + leaf module 打破类型循环（详见下方第九十一轮章节）** | ✅ |
 
 ## 说明
 

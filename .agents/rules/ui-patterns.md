@@ -8,7 +8,7 @@ alwaysApply: true
 # UI 模式速查
 
 本文档是项目 UI/UX 标准的**唯一速查入口**。每个模式包含：场景识别 → 模式名 → 关键约束 → 权威文档链接。详细规范见
-`docs/design-system/` 和 `.trae/rules/` 中的对应文件。
+`docs/design-system/` 和本目录中的对应文件。
 
 ---
 
@@ -81,7 +81,7 @@ alwaysApply: true
 
 - 所有交互元素必须有 `:hover` 态
 - 颜色通过 `--surface-hover`（`rgba` 叠加），不依赖透明度微调
-- 文档：[design-system.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.trae/rules/design-system.md)
+- 文档：[design-system.md](./design-system.md)
   → 交互状态
 
 ### 列表/菜单行悬停
@@ -93,7 +93,7 @@ alwaysApply: true
 
 - 适用场景：卡片内容行 hover 背景延伸至卡片左右边缘
 - 关键：父元素 `z-index: 0` 创建局部层叠上下文，`::after` 的 `z-index: -1` 才能正确绘制
-- 文档：[css-architecture.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.trae/rules/css-architecture.md)
+- 文档：[css-architecture.md](./css-architecture.md)
   → 全宽悬停背景模式
 - 参考：[github-job-card-hover-and-status-dot-optimization-2026-06-14.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/github-job-card-hover-and-status-dot-optimization-2026-06-14.md)
 
@@ -101,13 +101,13 @@ alwaysApply: true
 
 - 父级 `:hover` 背景会穿透绝对定位子元素（子元素背景透明时）
 - 子元素必须显式设置遮罩背景（如 `var(--bg-card)`）+ `z-index` 覆盖父级
-- 文档：[css-architecture.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.trae/rules/css-architecture.md)
+- 文档：[css-architecture.md](./css-architecture.md)
   → 绝对定位与悬停隔离
 
 ### 文件树悬停传播
 
 - 虚拟化树：目录悬停 → JS 计算后代节点 → 添加 `is-hovered-by-ancestor` 类
-- 文档：[css-architecture.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.trae/rules/css-architecture.md)
+- 文档：[css-architecture.md](./css-architecture.md)
   → 悬停传播
 
 ---
@@ -246,7 +246,7 @@ alwaysApply: true
 - 实现（左侧）：[BrowserMenuHintItem.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser/BrowserMenuHintItem.tsx)
 - 经验：[hint-card-arrow-positioning-fix-2026-06-11.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/hint-card-arrow-positioning-fix-2026-06-11.md)
 - 子像素边框：[sub-card-border-subpixel-fix-2026-07-01.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/sub-card-border-subpixel-fix-2026-07-01.md)
-- DOM 生命周期：[component-architecture.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.trae/rules/component-architecture.md)
+- DOM 生命周期：[component-architecture.md](./component-architecture.md)
   → DOM 生命周期管理
 
 ---
@@ -277,7 +277,7 @@ alwaysApply: true
 
 ### 文档
 
-- 完整 CSS 模式：[css-architecture.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.trae/rules/css-architecture.md)
+- 完整 CSS 模式：[css-architecture.md](./css-architecture.md)
   → 虚拟化树形列表的 CSS 模式
 - 经验：[file-tree-virtualized-connecting-lines-fix-2026-06-11.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/file-tree-virtualized-connecting-lines-fix-2026-06-11.md)
 
@@ -486,7 +486,7 @@ renderEmptyState({ icon, title, description, action });
 
 - [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) →
   Empty state 章节
-- [css-architecture.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.trae/rules/css-architecture.md)
+- [css-architecture.md](./css-architecture.md)
   → 布局稳定性
 
 ---
@@ -539,7 +539,7 @@ renderEmptyState({ icon, title, description, action });
 
 ### 文档
 
-- [css-architecture.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.trae/rules/css-architecture.md)
+- [css-architecture.md](./css-architecture.md)
   → 布局稳定性
 - [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md) → Layout
 
@@ -630,7 +630,7 @@ z-index:3）在视觉上重叠，导致 Scrollbar 无法 hover/交互。
 | 我要选颜色变量                         | [§5 颜色](#5-颜色color) → [themes.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/themes.md)                                                                         |
 | 我要做按钮                             | [§6 按钮](#6-按钮button) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                |
 | 我要做 "!" 提示                        | [§7 Hint Card](#7--解释子卡片hint-card) → [ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ContextMenu.tsx)                    |
-| 我要做文件树                           | [§8 文件树](#8-文件树file-tree) → [css-architecture.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.trae/rules/css-architecture.md)                                                    |
+| 我要做文件树                           | [§8 文件树](#8-文件树file-tree) → [css-architecture.md](./css-architecture.md)                                                    |
 | 我要做 Tooltip                         | [§9 Tooltip](#9-tooltip) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                |
 | 我要做 Toast                           | [§10 Toast](#10-toast-通知) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                             |
 | 我要做输入框                           | [§11 输入框](#11-输入框input) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                           |
@@ -645,9 +645,9 @@ z-index:3）在视觉上重叠，导致 Scrollbar 无法 hover/交互。
 | 我要做无障碍                           | [§20 无障碍](#20-无障碍accessibility) → [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/accessibility.md)                                             |
 | 我要修 resize handle 与 scrollbar 重叠 | [§21 Resize Handle](#21-resize-handle--scrollbar) → [知识沉淀](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/resize-handle-pointer-events-diversion-2026-06-23.md) |
 | 我要做 hover text-overflow 遮罩       | [§22 Hover 渐变蒙版](#22-hover-渐变蒙版) → [知识沉淀](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/浏览器/browser-navigator-4-mode-2026-06-24.md)                          |
-| 我要写 CSS                             | [css-architecture.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.trae/rules/css-architecture.md)                                                                                      |
-| 我要拆组件                             | [component-architecture.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.trae/rules/component-architecture.md)                                                                          |
-| 我要查设计约束                         | [design-system.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/.trae/rules/design-system.md)                                                                                            |
+| 我要写 CSS                             | [css-architecture.md](./css-architecture.md)                                                                                      |
+| 我要拆组件                             | [component-architecture.md](./component-architecture.md)                                                                          |
+| 我要查设计约束                         | [design-system.md](./design-system.md)                                                                                            |
 
 ---
 
