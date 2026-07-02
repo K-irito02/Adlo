@@ -94,11 +94,6 @@ function getCSTTimestamp(): string {
  * 收集单条日志
  */
 function collectLog(level: LogEntry['level'], ...args: unknown[]) {
-  // 防止收集过程中不执行新的日志导致的无限循环
-  if (isWriting) {
-    return;
-  }
-
   debugLogs.push({
     timestamp: getCSTTimestamp(),
     level,
@@ -110,8 +105,10 @@ function collectLog(level: LogEntry['level'], ...args: unknown[]) {
     debugLogs.shift();
   }
 
-  // 防抖写入文件
-  debouncedWriteLogs();
+  // 防抖写入文件（仅当不在写入中时触发，避免并发写 + 死锁）
+  if (!isWriting) {
+    debouncedWriteLogs();
+  }
 }
 
 /**
@@ -191,6 +188,8 @@ async function getAppDirectory(): Promise<string | null> {
 // 文件写入功能
 // ============================================
 
+const WRITE_TIMEOUT_MS = 10_000;
+
 /**
  * 写入日志到项目目录
  */
@@ -203,12 +202,17 @@ async function writeLogsToProjectFile() {
     isWriting = true;
     const logContent = exportLogsAsText();
 
-    if (isTauriShell()) {
-      const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('write_debug_logs_to_project', { content: logContent });
-    } else {
-      await writeLogsToProjectFileBrowser(logContent);
-    }
+    const writePromise = isTauriShell()
+      ? (await import('@tauri-apps/api/core')).invoke('write_debug_logs_to_project', {
+          content: logContent,
+        })
+      : writeLogsToProjectFileBrowser(logContent);
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Write timeout')), WRITE_TIMEOUT_MS)
+    );
+
+    await Promise.race([writePromise, timeoutPromise]);
   } catch (err) {
     // 静默失败，但至少输出到原始 console，避免干扰正常调试
     originalError('[DebugLogCollector] Failed to write logs:', err);

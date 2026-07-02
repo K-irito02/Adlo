@@ -58,6 +58,45 @@ interface BrowserTabTreeProps {
   onlyOpenTabs?: boolean;
 }
 
+function findWorkspaceBookmarkUrl(
+  bookmarks: Record<string, WorkspaceBookmarkEntry[]>,
+  tabId: string,
+  uniqueKey: string
+): string | undefined {
+  for (const [wsId, entries] of Object.entries(bookmarks)) {
+    for (const entry of entries) {
+      if (entry.tabId === tabId && entry.url) {
+        const expected = `ws-bookmark-${wsId}-${entry.tabId}-${encodeURIComponent(entry.url)}`;
+        if (expected === uniqueKey) {
+          return entry.url;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+function findFolderBookmarkUrl(
+  folders: TabFolderState[],
+  tabId: string,
+  uniqueKey: string
+): string | undefined {
+  for (const folder of folders) {
+    if (!folder.tabs) {
+      continue;
+    }
+    for (const entry of folder.tabs) {
+      if (entry.tabId === tabId && entry.url) {
+        const expected = `folder-${folder.id}-${entry.tabId}-${encodeURIComponent(entry.url)}`;
+        if (expected === uniqueKey) {
+          return entry.url;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
 export function BrowserTabTree({
   workspaces,
   browserTabs,
@@ -94,8 +133,21 @@ export function BrowserTabTree({
   const handleOpenFile = useCallback(
     (nodePath: string) => {
       if (nodePath.startsWith('tab:')) {
-        const parts = nodePath.slice('tab:'.length).split(':');
-        const tabId = parts[parts.length - 1];
+        const rest = nodePath.slice('tab:'.length);
+        const lastColon = rest.lastIndexOf(':');
+        const uniqueKey = lastColon >= 0 ? rest.slice(0, lastColon) : '';
+        const tabId = lastColon >= 0 ? rest.slice(lastColon + 1) : rest;
+
+        if (uniqueKey.startsWith('ws-bookmark-') || uniqueKey.startsWith('folder-')) {
+          const bookmarkUrl = uniqueKey.startsWith('ws-bookmark-')
+            ? findWorkspaceBookmarkUrl(browserWorkspaceBookmarks, tabId, uniqueKey)
+            : findFolderBookmarkUrl(browserTabFolders, tabId, uniqueKey);
+          if (bookmarkUrl) {
+            callbacks.onOpenTab(bookmarkUrl);
+            return;
+          }
+        }
+
         const tab = browserTabs.find((t) => t.id === tabId);
         if (tab) {
           callbacks.onOpenTab(tab.url, tab.id);
@@ -104,17 +156,34 @@ export function BrowserTabTree({
       }
       if (nodePath.startsWith('bookmark:')) {
         const rest = nodePath.slice('bookmark:'.length);
-        const firstColon = rest.indexOf(':');
-        const wsId = firstColon >= 0 ? rest.slice(0, firstColon) : '';
-        const tabId = firstColon >= 0 ? rest.slice(firstColon + 1) : rest;
-        const entries = browserWorkspaceBookmarks[wsId];
-        if (entries) {
-          const entry = entries.find((e) => e.tabId === tabId);
-          if (entry?.url) {
-            callbacks.onOpenTab(entry.url);
+        const parts = rest.split(':');
+        if (parts.length >= 2) {
+          const first = parts[0];
+          const second = parts[1];
+          let url = '';
+          if (parts.length >= 3) {
+            try {
+              url = decodeURIComponent(parts.slice(2).join(':'));
+            } catch {
+              url = '';
+            }
+          }
+          if (second) {
+            const entries = browserWorkspaceBookmarks[first];
+            if (entries) {
+              const entry = entries.find((e) => e.tabId === second);
+              if (entry?.url) {
+                callbacks.onOpenTab(entry.url);
+                return;
+              }
+            }
+          }
+          if (url) {
+            callbacks.onOpenTab(url);
             return;
           }
         }
+        return;
       }
       if (nodePath.startsWith('history-entry:')) {
         const entryId = nodePath.slice('history-entry:'.length);
@@ -124,7 +193,7 @@ export function BrowserTabTree({
         }
       }
     },
-    [browserTabs, browserHistory, browserWorkspaceBookmarks, callbacks]
+    [browserTabs, browserHistory, browserWorkspaceBookmarks, browserTabFolders, callbacks]
   );
 
   return (
