@@ -211,6 +211,10 @@ export async function prefetchPageMeta(
     return null;
   }
 
+  if (options?.force) {
+    clearPageMetaCacheForUrl(url);
+  }
+
   if (isTauriShell()) {
     try {
       const timeoutPromise = new Promise<never>((_, reject) =>
@@ -227,10 +231,6 @@ export async function prefetchPageMeta(
       return null;
     }
     return null;
-  }
-
-  if (options?.force) {
-    clearPageMetaCacheForUrl(url);
   }
 
   try {
