@@ -67,53 +67,47 @@ description: Use when scanning a project for refactoring opportunities, code qua
 | 分支名 | `refactor-insight-main` |
 | 工作区路径 | `.worktrees/refactor-insight-main` |
 
-**原则：** 固定名称，长期复用。每次执行时从 `origin/main` 重建分支，完成后推送到远程。
+**原则：** 固定名称，长期复用。本地和远程均保留该分支，每次执行前重置为本地 `main` 的当前状态，重构完成后再次推送到远程。
 
-#### 首次创建 Worktree
+#### 准备工作树
 
 ```powershell
 cd <repo-root>/ai-digital-life
 git checkout main
-git pull
-# 如果本地已有旧分支则删除重建
-git branch -D refactor-insight-main 2>$null
-git push origin --delete refactor-insight-main 2>$null
-# 从 origin/main 创建新分支
-git branch refactor-insight-main origin/main
-git worktree add .worktrees/refactor-insight-main refactor-insight-main
-# 推送到远程仓库
-git switch refactor-insight-main
-git push -u origin refactor-insight-main
-git switch main
+
+# 检查本地分支是否存在
+$existsLocally = git branch --list refactor-insight-main
+
+# 检查 worktree 目录是否存在
+$wtExists = Test-Path -LiteralPath ".worktrees/refactor-insight-main"
+
+if ($wtExists) {
+  # 情况 A：worktree 已存在 → 重置为本地 main
+  git branch -f refactor-insight-main main
+  cd .worktrees/refactor-insight-main/ai-digital-life
+  git checkout refactor-insight-main
+  cd <repo-root>/ai-digital-life
+  git push -f origin refactor-insight-main
+} else {
+  # 情况 B：worktree 不存在 → 创建
+  git branch -f refactor-insight-main main
+  git push -f origin refactor-insight-main
+  git worktree add .worktrees/refactor-insight-main refactor-insight-main
+}
+
+# 进入工作树根目录，后续所有阶段在该目录下执行
+cd .worktrees/refactor-insight-main
 ```
 
-#### 复用已有 Worktree（后续轮次）
-
-```powershell
-# 在主仓库中重置分支
-cd <repo-root>/ai-digital-life
-git checkout main
-git pull
-git branch -D refactor-insight-main 2>$null
-git push origin --delete refactor-insight-main 2>$null
-git branch refactor-insight-main origin/main
-git push -u origin refactor-insight-main
-
-# 在 worktree 中重置
-cd .worktrees/refactor-insight-main/ai-digital-life
-git fetch origin
-git checkout refactor-insight-main
-git reset --hard origin/refactor-insight-main
-```
-
-如果 worktree 中的 `ai-digital-life` 子目录不存在（被清理），可在主仓库中重新创建：
+如果 worktree 目录存在但 `ai-digital-life` 子目录已被清理，需先清理 worktree 元数据再走情况 B：
 
 ```powershell
 cd <repo-root>/ai-digital-life
 git worktree remove .worktrees/refactor-insight-main 2>$null
 Remove-Item -Recurse -Force .worktrees/refactor-insight-main -ErrorAction SilentlyContinue
-git branch refactor-insight-main origin/main
-git push -u origin refactor-insight-main
+git worktree prune
+git branch -f refactor-insight-main main
+git push -f origin refactor-insight-main
 git worktree add .worktrees/refactor-insight-main refactor-insight-main
 ```
 
@@ -198,7 +192,11 @@ git worktree add .worktrees/refactor-insight-main refactor-insight-main
 ## 3️⃣ 生成洞察报告
 
 ### 输出文件
-`docs/重构洞察/refactor-insight-YYYY-MM-DD.md`（目录不存在则自动创建）
+`docs/重构洞察/refactor-insight-YYYY-MM-DD.md`（目录不存在则自动创建，也可提前手动创建）
+
+```powershell
+New-Item -ItemType Directory -Path "docs/重构洞察" -Force
+```
 
 ### 报告结构
 ```markdown
@@ -282,7 +280,7 @@ test-driven-development → 执行变更 → 验证 → requesting-code-review �
 3. **执行后验证**：运行类型检查 + 测试
 4. **任务完成后**：调用 `requesting-code-review` 进行代码审查
 
-> 💡 验证失败（3 次尝试后）：调用 `systematic-debugging` 系统化定位根因，不猜测性修复。
+> 💡 **验证失败处理**：若连续 3 次完整的 TDD 循环（红-绿-重构，含类型检查 + 测试运行）后验证仍未通过，调用 `systematic-debugging` 系统化定位根因，不猜测性修复。
 
 ### 5B. Inline Execution 模式
 
@@ -315,9 +313,113 @@ test-driven-development → 执行变更 → 验证 → requesting-code-review �
 - 无残留调试日志
 - ESLint / Prettier / Clippy / rustfmt 四维门禁通过
 
-### 6.2 合并到本地 main（不推送远程）
+### 6.2 变更影响映射与手动测试指引
 
-将所有重构任务的**最终代码状态**作为一次变更合并到本地 `main` 分支，**不推送到远程**，留给用户亲手测试。
+静态检查无法覆盖所有 UI/UX 场景。重构完成后，**必须生成变更影响映射表**，标明每项修改涉及的功能模块和 UI 区域，指导用户进行针对性手动测试。
+
+#### 生成方法
+
+在工作树根目录（`cd <repo-root>/ai-digital-life/.worktrees/refactor-insight-main`），执行以下命令获取变更集：
+
+```powershell
+git diff --stat main...refactor-insight-main
+```
+
+三点语法（`...`）将重构分支与 main 分岔点的内容进行比较，捕获该分支的完整增量。基于输出的文件列表，按映射表规则匹配：
+
+| 文件路径规则 | 涉及功能模块 | 需手动验证的 UI/UX 区域 |
+|-------------|-------------|----------------------|
+| `frontend/src/app/stores/slices/browser*.ts` | 浏览器面板 | 标签页导航/书签/历史记录/收藏文件夹 |
+| `frontend/src/app/features/browser/**` | 浏览器面板 | 浏览器 iframe/导航栏/标签列表/着陆页 |
+| `frontend/src/app/features/browser-tree/**` | 浏览器树 | 浏览器树条目/右键菜单/日期分组 |
+| `frontend/src/app/features/editor/cmTheme.ts` | CodeMirror 编辑器 | 编辑器差异视图/折叠标记/合并按钮 |
+| `frontend/src/app/features/diff-viewer/**` | 差异查看器 | 内联/并排差异视图/折叠行/merge 控制 |
+| `frontend/src/app/features/file-tree/**` | 文件树 | 文件树渲染/虚拟滚动/TreeNodeRow |
+| `frontend/src/app/features/patch-review/**` | 补丁审查 | 文件卡片/Hunk 卡片/决策按钮 |
+| `frontend/src/app/features/terminal/**` | 终端面板 | xterm 实例/标签栏/Shell 选择/PTY 控制 |
+| `frontend/src/app/features/workspace-terminal/**` | 工作区终端 | 终端标签/状态/路径展示 |
+| `frontend/src/app/stores/**` | 全局状态 | 所有面板数据一致性/持久化/存储 |
+| `frontend/src/app/stores/slices/*Slice.ts` | 对应切片 | 相应面板的数据加载/编辑/持久化 |
+| `frontend/src/app/stores/actions/*.ts` | 对应 action 域 | 相应面板的操作流程（打开/保存/删除等） |
+| `frontend/src/app/regions/**` | 对应区域面板 | 该面板的布局/渲染/交互 |
+| `frontend/src/preview-bridge/**` | 浏览器模式桥接 | 浏览器模式下所有面板的功能可用性 |
+| `frontend/src/tauri-bridge.ts` | Tauri IPC 桥接 | Tauri 桌面模式下所有 IPC 功能 |
+| `frontend/src/app/i18n/**` | 国际化 | 中英文切换后所有面板的文本显示完整性 |
+| `frontend/src/styles/**` | CSS 样式系统 | 受影响面板的布局/颜色/动画/响应式 |
+| `frontend/src/shared/**` | 共享模块 | 依赖该共享模块的所有功能路径 |
+| `src-tauri/src/**` | Tauri 后端 | 对应命令的后端功能 |
+| `crates/**` | Rust crate | 对应 crate 的后端功能 |
+| `docs/**` | 文档 | 无（仅文档变更，不影响功能） |
+| `*`（未匹配以上任何规则） | 需手动分析 | 通过 `git diff <file>` 分析文件依赖关系，使用项目目录结构确定受影响的功能模块和 UI 区域 |
+
+#### 输出文件
+
+`docs/重构洞察/regression-test-guide-YYYY-MM-DD.md`（与洞察报告同目录）
+
+#### 文件格式
+
+```markdown
+# 变更影响映射与手动测试指引
+
+**生成日期**：YYYY-MM-DD
+**重构轮次**：第 N 轮
+
+## 变更文件统计
+
+- 总计：N 个文件变更（+N / -N 行）
+- 新增：N 个文件
+- 删除：N 个文件
+
+## 变更影响映射
+
+| 变更范围（文件路径摘要） | 影响模块 | 建议手动验证 |
+|-------------------------|---------|-------------|
+| `<文件列表摘要>` | `<功能模块>` | `<UI/UX 测试项>` |
+
+## 手动测试清单
+
+- [ ] `<功能模块1>`：<具体测试项>
+- [ ] `<功能模块2>`：<具体测试项>
+```
+
+#### 示例
+
+如果本次变更修改了 `cmTheme.ts` + `editor-content.css` + `diff-viewer.css`，则生成：
+
+```markdown
+# 变更影响映射与手动测试指引
+
+**生成日期**：2026-07-03
+**重构轮次**：第 92 轮
+
+## 变更文件统计
+
+- 总计：5 个文件变更（+200 / -100 行）
+- 新增：2 个文件
+- 删除：0 个文件
+
+## 变更影响映射
+
+| 变更范围 | 影响模块 | 建议手动验证 |
+|----------|---------|-------------|
+| cmTheme.ts, editor-content.css, diff-viewer.css | CodeMirror 差异视图 | 打开一个包含差异的文件，切换 inline/side-by-side 模式，验证折叠行显示和 merge 控制按钮正常 |
+
+## 手动测试清单
+
+- [ ] CodeMirror 差异视图：打开包含差异的文件，切换 diff 模式
+- [ ] CodeMirror 差异视图：验证折叠行展开/收起
+- [ ] CodeMirror 差异视图：验证 accept/reject 按钮功能
+```
+
+#### 执行约束
+
+- 在 squash merge 的 `git commit` 之前完成映射分析并写入文件
+- 若映射结果为空（仅文档/配置文件变更），明确标注"仅文档变更，无功能影响"
+- 即使所有自动化测试通过，也不得跳过此步骤
+
+### 6.3 Squash 合并到本地 main + 推送重构分支到远程
+
+将所有重构任务的**最终代码状态**作为一次变更合并到本地 `main` 分支，然后将重构分支推送到远程以保留完整历史，供后续复盘查看。
 
 ```powershell
 # 1. 收集重构分支的所有提交信息（用于编写 commit message）
@@ -343,13 +445,17 @@ git merge --squash refactor-insight-main
 #    ## 核心改动
 #    - (列出主要变更点)
 git commit
+
+# 5. 将重构分支（含全部原始提交历史）推送到远程，保留完整工作记录
+#    注意：这条分支在下次执行前会被 Stage 0 重置为本地 main 的状态
+git push origin refactor-insight-main
 ```
 
 **注意：**
-- **不要执行 `git push`** — 本地 main 分支的合并结果留给用户亲手测试
-- 用户测试通过后，由用户自行决定是否推送
+- **不推送本地 main 到远程** — main 的合并结果留给用户亲手测试后自行决定推送时机
 - `git merge --squash` 不会保留重构分支的每个 commit 历史，main 上只产生一个 commit
 - commit message 需结构化：首行为重构轮次与核心摘要，正文分段列出所有提交记录和核心改动说明
+- 重构分支推送到远程后，下次执行 Stage 0 的"复用已有 Worktree"流程会将其重置为本地 main 的最新状态
 
 ---
 
