@@ -2,24 +2,27 @@ import { describe, expect, it } from 'vitest';
 import { formatRelativeTime, statusClass } from './githubPanelUtils';
 
 describe('formatRelativeTime', () => {
-  it('returns "刚刚" for recent timestamps', () => {
+  it('returns { key: "relativeTimeJustNow" } for recent timestamps', () => {
     const result = formatRelativeTime(new Date().toISOString());
-    expect(result).toBe('刚刚');
+    expect(result).toEqual({ key: 'relativeTimeJustNow', params: {} });
   });
 
-  it('returns minutes ago', () => {
+  it('returns minutes ago object', () => {
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-    expect(formatRelativeTime(fiveMinAgo)).toBe('5 分钟前');
+    const result = formatRelativeTime(fiveMinAgo);
+    expect(result).toEqual({ key: 'relativeTimeMinutesAgo', params: { n: 5 } });
   });
 
-  it('returns hours ago', () => {
+  it('returns hours ago object', () => {
     const twoHourAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-    expect(formatRelativeTime(twoHourAgo)).toBe('2 小时前');
+    const result = formatRelativeTime(twoHourAgo);
+    expect(result).toEqual({ key: 'relativeTimeHoursAgo', params: { n: 2 } });
   });
 
-  it('returns days ago', () => {
+  it('returns days ago object', () => {
     const threeDayAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-    expect(formatRelativeTime(threeDayAgo)).toBe('3 天前');
+    const result = formatRelativeTime(threeDayAgo);
+    expect(result).toEqual({ key: 'relativeTimeDaysAgo', params: { n: 3 } });
   });
 
   it('returns "—" for null', () => {

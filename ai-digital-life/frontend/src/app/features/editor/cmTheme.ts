@@ -488,14 +488,18 @@ export function rebuildThemes(): void {
   adlDarkTheme = buildThemeExtensions('dark');
 }
 
-export function getPhrasesExtension(locale: string): Extension {
-  if (locale === 'zh-CN') {
-    return EditorState.phrases.of({
-      '$ unchanged lines': '$ 行无变化',
-      'Revert this chunk': '还原此块',
-      Accept: '接受',
-      Reject: '拒绝',
-    });
-  }
-  return [];
+export interface CmPhrases {
+  unchangedLines: string;
+  restoreBlock: string;
+  accept: string;
+  reject: string;
+}
+
+export function getPhrasesExtension(phrases: CmPhrases): Extension {
+  return EditorState.phrases.of({
+    '$ unchanged lines': phrases.unchangedLines,
+    'Revert this chunk': phrases.restoreBlock,
+    Accept: phrases.accept,
+    Reject: phrases.reject,
+  });
 }

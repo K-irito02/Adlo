@@ -10,6 +10,7 @@ import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from 
 import { normalizeTabTitle } from '@utils/browserDisplayUtils';
 import { useBrowserTreeCache } from './useBrowserTreeCache';
 import { useBrowserTreeVirtualization } from './useBrowserTreeVirtualization';
+import { useTCopy } from '@app/i18n/useTCopy';
 
 export function countDirectFileChildren(node: BrowserTreeNode): number {
   let n = 0;
@@ -312,7 +313,8 @@ export function buildUserFolderCategoryTree(
 
 export function buildHistoryCategoryTree(
   history: BrowserHistoryState[],
-  browserTabs: BrowserTabState[]
+  browserTabs: BrowserTabState[],
+  dateLabels: { year: string; month: string; day: string; history: string }
 ): BrowserTreeNode[] {
   const groupMap = new Map<string, Map<string, Map<string, BrowserHistoryState[]>>>();
 
@@ -343,7 +345,7 @@ export function buildHistoryCategoryTree(
     const yearMap = groupMap.get(year)!;
     const yearNode: BrowserTreeNode = {
       path: `history:year:${year}`,
-      name: `${year}年`,
+      name: `${year}${dateLabels.year}`,
       kind: 'directory',
       children: [],
       nodeType: 'year',
@@ -354,7 +356,7 @@ export function buildHistoryCategoryTree(
       const monthMap = yearMap.get(month)!;
       const monthNode: BrowserTreeNode = {
         path: `history:month:${year}-${month}`,
-        name: `${Number(month)}月`,
+        name: `${Number(month)}${dateLabels.month}`,
         kind: 'directory',
         children: [],
         nodeType: 'month',
@@ -365,7 +367,7 @@ export function buildHistoryCategoryTree(
         const entries = monthMap.get(day)!;
         const dayNode: BrowserTreeNode = {
           path: `history:day:${year}-${month}-${day}`,
-          name: `${Number(day)}日`,
+          name: `${Number(day)}${dateLabels.day}`,
           kind: 'directory',
           children: entries
             .map((entry) => buildHistoryLeafNode(entry, entry.id, browserTabs))
@@ -381,7 +383,7 @@ export function buildHistoryCategoryTree(
 
   const historyRoot: BrowserTreeNode = {
     path: 'history:root',
-    name: '历史记录',
+    name: dateLabels.history,
     kind: 'directory',
     children: result,
     nodeType: 'history',
@@ -411,6 +413,13 @@ export function useBrowserTreeData(
     historyCategory: string;
   }
 ): UseBrowserTreeDataResult {
+  const { t } = useTCopy();
+  const dateLabels = {
+    year: t.browserDateYear,
+    month: t.browserDateMonth,
+    day: t.browserDateDay,
+    history: t.browserHistory,
+  };
   const {
     workspaceCategory,
     userFolderCategory,
@@ -427,6 +436,7 @@ export function useBrowserTreeData(
     browserBookmarks,
     browserBookmarkTabIdUrlMap,
     labels,
+    dateLabels,
   });
 
   const { counts } = useBrowserTreeVirtualization({

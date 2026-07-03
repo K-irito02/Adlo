@@ -20,4 +20,8 @@ export const communicateEn = {
   communicateRefreshAll: 'Refresh all',
   communicateNewDir: 'New directory',
   communicateHelp: 'Help',
+  relativeTimeJustNow: 'Just now',
+  relativeTimeMinutesAgo: '{n} min ago',
+  relativeTimeHoursAgo: '{n} hr ago',
+  relativeTimeDaysAgo: '{n} days ago',
 } as const;

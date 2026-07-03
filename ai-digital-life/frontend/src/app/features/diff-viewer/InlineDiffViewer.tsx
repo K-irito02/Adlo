@@ -18,13 +18,14 @@ import {
   COLLAPSE_UNCHANGED_CONFIG,
 } from './sharedExtensions';
 import { buildCollapsedUnchangedRanges, getMergeChunks } from './diffViewerUtils';
+import { useTCopy } from '@app/i18n/useTCopy';
 
 export const InlineDiffViewer = memo(function InlineDiffViewer({
   original,
   modified,
   language,
   theme,
-  locale,
+  locale: _locale,
   readOnly,
   lineNumbersEnabled,
   wordWrap,
@@ -48,6 +49,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
   extraExtensions: Extension[];
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
 }) {
+  const { t } = useTCopy();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [editorView, setEditorView] = useState<EditorView | null>(null);
@@ -87,6 +89,16 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
     };
   }, [language]);
 
+  const cmPhrases = useMemo(
+    () => ({
+      unchangedLines: t.cmFoldNoChanges,
+      restoreBlock: t.cmFoldRestore,
+      accept: t.cmFoldAccept,
+      reject: t.cmFoldReject,
+    }),
+    [t]
+  );
+
   // 扩展配置 - 语言扩展直接包含在内
   const staticExtensions = useMemo<Extension[]>(() => {
     const base = buildSharedExtensions(
@@ -95,7 +107,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
       readOnly,
       lineNumbersEnabled,
       wordWrap,
-      locale,
+      cmPhrases,
       langExtensions
     );
     return [
@@ -140,7 +152,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
     readOnly,
     lineNumbersEnabled,
     wordWrap,
-    locale,
+    cmPhrases,
     langExtensions,
     original,
     collapseUnchanged,

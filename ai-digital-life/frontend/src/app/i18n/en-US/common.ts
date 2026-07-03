@@ -125,4 +125,7 @@ export const commonEn = {
   newTabPage: 'New tab page',
   conversationMessageStream: 'Conversation message stream',
   jobCount: '{count} jobs',
+  debugCopyLogs: 'Copy Debug Logs',
+  debugCopied: 'Copied!',
+  debugCopyFailed: 'Copy Failed',
 } as const;

@@ -161,4 +161,8 @@ export const browserZh = {
   menuZoomInHint: '· 放大页面内容\n· 每次点击增加 10%',
   menuZoomOutHint: '· 缩小页面内容\n· 每次点击减少 10%',
   menuResetZoomHint: '· 将页面缩放比例重置为 100%',
+  browserDateYear: '年',
+  browserDateMonth: '月',
+  browserDateDay: '日',
+  browserNewTabFolder: '新建标签文件夹',
 } as const;

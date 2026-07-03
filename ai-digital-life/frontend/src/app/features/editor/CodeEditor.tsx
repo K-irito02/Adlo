@@ -22,12 +22,12 @@ import { createFoldGutterExtension } from './cmFoldGutter';
 import { FoldTooltipOverlay } from './FoldTooltipOverlay';
 import { scrollLeftSyncExtension } from './cmScrollSync';
 import { useFoldMarkerAutoHide } from './useFoldMarkerAutoHide';
+import { useTCopy } from '@app/i18n/useTCopy';
 
 export interface CodeEditorProps {
   value: string;
   language?: string;
   theme?: 'light' | 'dark';
-  locale?: string;
   readOnly?: boolean;
   lineNumbers?: boolean;
   wordWrap?: boolean;
@@ -45,7 +45,6 @@ export function CodeEditor({
   value,
   language = 'plaintext',
   theme = 'dark',
-  locale = 'en-US',
   readOnly = false,
   lineNumbers: lineNumbersEnabled = true,
   wordWrap = false,
@@ -54,6 +53,7 @@ export function CodeEditor({
   onMount,
   extensions: extraExtensions = [],
 }: CodeEditorProps) {
+  const { t } = useTCopy();
   const viewRef = useRef<EditorView | null>(null);
   const mountedRef = useRef(false);
   const [editorView, setEditorView] = useState<EditorView | null>(null);
@@ -78,6 +78,16 @@ export function CodeEditor({
 
   const foldMarkerState = useFoldMarkerAutoHide(wrapperRef, fileKey ?? value, editorView);
 
+  const cmPhrases = useMemo(
+    () => ({
+      unchangedLines: t.cmFoldNoChanges,
+      restoreBlock: t.cmFoldRestore,
+      accept: t.cmFoldAccept,
+      reject: t.cmFoldReject,
+    }),
+    [t]
+  );
+
   const baseExtensions = useMemo<Extension[]>(() => {
     const gutterEnabled = lineNumbersEnabled;
     const exts: Extension[] = [
@@ -97,10 +107,10 @@ export function CodeEditor({
       gutterHoverSync(),
       EditorState.readOnly.of(readOnly),
       ...langExtensions,
-      getPhrasesExtension(locale || 'en-US'),
+      getPhrasesExtension(cmPhrases),
     ];
     return exts;
-  }, [langExtensions, readOnly, lineNumbersEnabled, wordWrap, locale]);
+  }, [langExtensions, readOnly, lineNumbersEnabled, wordWrap, cmPhrases]);
 
   const allExtensions = useMemo<Extension[]>(() => {
     const exts: Extension[] = [...baseExtensions, ...extraExtensions];

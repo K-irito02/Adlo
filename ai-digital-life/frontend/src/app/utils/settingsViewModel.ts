@@ -18,7 +18,7 @@ export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[
       type: 'select',
       value: appInfo?.config.language ?? 'zh-CN',
       options: [
-        { value: 'zh-CN', label: '中文' },
+        { value: 'zh-CN', label: t.languageChinese },
         { value: 'en-US', label: 'English' },
       ],
     },

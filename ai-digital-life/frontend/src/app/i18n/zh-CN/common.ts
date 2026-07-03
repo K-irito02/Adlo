@@ -135,4 +135,7 @@ export const commonZh = {
   newTabPage: '新建标签页',
   conversationMessageStream: '对话消息流',
   jobCount: '{count} 个 Job',
+  debugCopyLogs: '复制调试日志',
+  debugCopied: '已复制!',
+  debugCopyFailed: '复制失败',
 } as const;

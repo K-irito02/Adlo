@@ -99,7 +99,7 @@ export function useBrowserMenus({
   }, [contextMenu.open, setContextMenu]);
 
   const browserMenuItems: BrowserMenuItem[] = [
-    { id: 'new-tab-folder', label: '新建标签文件夹', disabled: true },
+    { id: 'new-tab-folder', label: t.browserNewTabFolder, disabled: true },
     { id: 'sep-0', separator: true },
     { id: 'new-tab', label: t.browserNewTab, action: () => browserOpenTab() },
     { id: 'sep-1', separator: true },

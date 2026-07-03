@@ -287,7 +287,7 @@ export function RunSummaryBlock({
               })}
             </div>
           ) : (
-            <p className="adl-empty-hint">{t.auditEmpty ?? '暂无可展示的活动事件。'}</p>
+            <p className="adl-empty-hint">{t.auditEmpty}</p>
           )}
         </div>
       ) : null}

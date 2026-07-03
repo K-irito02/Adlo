@@ -20,6 +20,7 @@ export {
   AGENT_DECO_MODIFY_BLOCK_CLASS,
   AGENT_DECO_DELETE_BLOCK_CLASS,
 } from './cmTheme';
+export type { CmPhrases } from './cmTheme';
 
 export { getLanguageExtension } from './cmLanguages';
 

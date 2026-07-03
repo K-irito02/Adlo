@@ -21,6 +21,9 @@ import {
   BROWSER_BOOKMARKS_KEY,
   BROWSER_TREE_EXPANDED_KEY,
   BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
+  BROWSER_SHORTCUTS_KEY,
+  BROWSER_LOCAL_PORTS_KEY,
+  BROWSER_BG_CONFIG_KEY,
 } from './browserSliceShared';
 import type { BrowserHistoryState } from './browserHistorySlice';
 import type { TabFolderState } from './browserFoldersSlice';
@@ -39,9 +42,6 @@ export type {
 } from './browserLandingSlice';
 
 const BROWSER_NAVIGATOR_WIDTH_KEY = 'adl-ui:browser-navigator-width';
-const BROWSER_SHORTCUTS_KEY = 'adl-ui:browser-shortcuts';
-const BROWSER_LOCAL_PORTS_KEY = 'adl-ui:browser-local-ports';
-const BROWSER_BG_CONFIG_KEY = 'adl-ui:browser-bg-config';
 const BROWSER_NAVIGATE_IN_PLACE_KEY = 'adl-ui:browser-navigate-in-place';
 
 const BROWSER_NAVIGATOR_WIDTH_MIN = 180;

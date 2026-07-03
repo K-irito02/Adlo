@@ -84,4 +84,8 @@ export const changesZh = {
   changesPreviewFailedPdf: 'PDF 预览失败: {error}',
   changesExpandToLine: '展开至{line}行',
   changesCollapseToLine: '折叠至{line}行',
+  cmFoldNoChanges: '$ 行无变化',
+  cmFoldRestore: '还原此块',
+  cmFoldAccept: '接受',
+  cmFoldReject: '拒绝',
 } as const;

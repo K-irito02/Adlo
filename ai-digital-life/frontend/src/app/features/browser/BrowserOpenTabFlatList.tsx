@@ -1,11 +1,9 @@
 import React from 'react';
-import { TooltipSimple } from '@components/Tooltip';
-import { useTCopy } from '@i18n/useTCopy';
+import {
+  BrowserOpenTabFlatListItem,
+} from './BrowserOpenTabFlatListItem';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
-import { BrowserFavicon } from '@components/BrowserFavicon';
-import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
-import { useAppStore } from '@stores/slicedStore';
-import { IconClose } from '@icons';
+import { useTCopy } from '@i18n/useTCopy';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 interface BrowserOpenTabFlatListProps {
@@ -43,56 +41,14 @@ export function BrowserOpenTabFlatList({
       <div className="adl-browser-entry__tree adl-browser-entry__tree--flat">
         <ul className="adl-filetree" role="tree">
           {browserTabs.map((tab) => (
-            <li
+            <BrowserOpenTabFlatListItem
               key={tab.id}
-              className={`adl-filetree__item adl-filetree__node--file${tab.id === activeTabId ? ' is-active' : ''}${evictedTabIds?.has(tab.id) ? ' adl-filetree__item--evicted' : ''}`}
-              data-path={`tab:${tab.id}`}
-              role="treeitem"
-            >
-              <div className="adl-filetree__row" onClick={() => onSelectTab(tab.id)}>
-                <span
-                  className="adl-filetree__indent adl-filetree__indent--flat"
-                  aria-hidden="true"
-                />
-                <BrowserFavicon url={tab.url} />
-                <BrowserAudioIndicator
-                  isPlaying={tab.isPlayingAudio}
-                  isMuted={tab.isAudioMuted}
-                  onToggleMute={() => {
-                    const store = useAppStore.getState();
-                    const nextMuted = !store.browserTabsById[tab.id]?.isAudioMuted;
-                    store.browserToggleTabMute(tab.id);
-                    window.digitalLife?.browser?.muteTab?.(tab.id, nextMuted);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="adl-filetree__label"
-                  onClick={() => onSelectTab(tab.id)}
-                >
-                  <span className="adl-filetree__label-content">
-                    <span className="adl-filetree__label-text">{tab.title}</span>
-                  </span>
-                </button>
-                <span className="adl-filetree__meta adl-tree-node__meta--inline">
-                  <span className="adl-browser-node__actions">
-                    <TooltipSimple content={t.browserClose} placement="top">
-                      <button
-                        type="button"
-                        className="adl-icon-btn adl-icon-btn--xs adl-icon-btn--danger-hover"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onCloseTab(tab.id);
-                        }}
-                        aria-label={t.browserClose}
-                      >
-                        <IconClose size={12} decorative />
-                      </button>
-                    </TooltipSimple>
-                  </span>
-                </span>
-              </div>
-            </li>
+              tab={tab}
+              isActive={tab.id === activeTabId}
+              isEvicted={evictedTabIds?.has(tab.id) ?? false}
+              onSelectTab={onSelectTab}
+              onCloseTab={onCloseTab}
+            />
           ))}
         </ul>
       </div>

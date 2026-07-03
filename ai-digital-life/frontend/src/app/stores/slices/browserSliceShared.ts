@@ -73,3 +73,6 @@ export const BROWSER_BOOKMARKS_STORAGE_KEY = BROWSER_BOOKMARKS_KEY;
  * Enables snapshot lookup after tab navigation.
  */
 export const BROWSER_BOOKMARK_TABID_URL_MAP_KEY = 'adl-ui:browser-bookmark-tabid-url-map';
+export const BROWSER_SHORTCUTS_KEY = 'adl-ui:browser-shortcuts';
+export const BROWSER_LOCAL_PORTS_KEY = 'adl-ui:browser-local-ports';
+export const BROWSER_BG_CONFIG_KEY = 'adl-ui:browser-bg-config';

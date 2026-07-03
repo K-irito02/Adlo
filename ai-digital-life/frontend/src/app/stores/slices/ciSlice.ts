@@ -14,6 +14,7 @@ import type { StoreState } from '../StoreState';
 import type { DigitalLifeBridge } from '@shared/ipc';
 import { CI_ERROR_CODES } from '@shared/ciErrors';
 import { createDebouncedWrite } from '../shared';
+import { executeCiStatusRefresh } from './githubCiRefresh';
 
 // Local storage keys
 const CI_CONFIG_KEY = 'adl-ui:ci-config';
@@ -227,7 +228,6 @@ export const createCiSlice = (
     refreshCiStatus: async () => {
       const state = _get();
       const config = state.ciConfig;
-      const token = state.ciAccessToken;
       if (!config.owner || !config.repo) {
         set({
           ciError: CI_ERROR_CODES.CONFIG_MISSING_REPO,
@@ -239,37 +239,31 @@ export const createCiSlice = (
 
       set({ ciLoading: true, ciError: null });
 
-      try {
-        const bridge = getBridge();
-        if (!bridge || !bridge.ci) {
-          set({ ciError: 'bridge not ready', ciLoading: false });
-          return;
-        }
-        // Tauri 模式下 token 由后端 credential crate 注入；前端不传 accessToken
-        const accessToken = isTauriMode() ? null : token;
-        const result = await bridge.ci.getStatus({
+      const bridge = getBridge();
+      if (!bridge || !bridge.ci) {
+        set({ ciError: 'bridge not ready', ciLoading: false });
+        return;
+      }
+      const accessToken = isTauriMode() ? null : state.ciAccessToken;
+      const result = await executeCiStatusRefresh(
+        {
           owner: config.owner,
           repo: config.repo,
           branch: config.branch,
           workflowId: config.workflowId,
           accessToken,
-        });
+        },
+        (params) => bridge.ci.getStatus(params)
+      );
 
-        if (result.ok) {
-          set({
-            ciSnapshot: result.data,
-            ciJobs: result.data.jobs ?? [],
-            ciLoading: false,
-          });
-        } else {
-          set({
-            ciError: result.error?.message ?? CI_ERROR_CODES.FETCH_STATUS_FAILED,
-            ciLoading: false,
-          });
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        set({ ciError: message, ciLoading: false });
+      if (result.ok) {
+        set({
+          ciSnapshot: result.snapshot,
+          ciJobs: result.snapshot.jobs ?? [],
+          ciLoading: false,
+        });
+      } else {
+        set({ ciError: result.error, ciLoading: false });
       }
     },
 

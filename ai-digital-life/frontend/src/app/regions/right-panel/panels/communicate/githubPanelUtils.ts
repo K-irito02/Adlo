@@ -53,10 +53,14 @@ export function formatTime(iso?: string | null, locale: string = 'zh-CN'): strin
   }
 }
 
+export interface RelativeTimeResult {
+  key: string;
+  params: Record<string, number>;
+}
+
 export function formatRelativeTime(
-  iso: string | null | undefined,
-  locale: 'zh-CN' | 'en-US' = 'zh-CN'
-): string {
+  iso: string | null | undefined
+): RelativeTimeResult | string {
   if (!iso) {
     return '—';
   }
@@ -64,21 +68,31 @@ export function formatRelativeTime(
   const then = new Date(iso).getTime();
   const diffSec = Math.round((now - then) / 1000);
   if (diffSec < 60) {
-    return locale === 'en-US' ? 'Just now' : '刚刚';
+    return { key: 'relativeTimeJustNow', params: {} };
   }
   const diffMin = Math.floor(diffSec / 60);
   if (diffMin < 60) {
-    return locale === 'en-US' ? `${diffMin} min ago` : `${diffMin} 分钟前`;
+    return { key: 'relativeTimeMinutesAgo', params: { n: diffMin } };
   }
   const diffHour = Math.floor(diffMin / 60);
   if (diffHour < 24) {
-    return locale === 'en-US' ? `${diffHour} hr ago` : `${diffHour} 小时前`;
+    return { key: 'relativeTimeHoursAgo', params: { n: diffHour } };
   }
   const diffDay = Math.floor(diffHour / 24);
   if (diffDay < 30) {
-    return locale === 'en-US' ? `${diffDay} days ago` : `${diffDay} 天前`;
+    return { key: 'relativeTimeDaysAgo', params: { n: diffDay } };
   }
-  return formatTime(iso, locale);
+  const d = new Date(iso);
+  try {
+    return new Intl.DateTimeFormat(navigator.language, {
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(d);
+  } catch {
+    return iso;
+  }
 }
 
 export function statusClass(conclusion: string | null, status: string): string {

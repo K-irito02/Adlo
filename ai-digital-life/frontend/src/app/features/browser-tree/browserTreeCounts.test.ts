@@ -15,6 +15,8 @@ import {
   resolveChildCount,
 } from './useBrowserTreeData';
 
+const mockDateLabels = { year: '年', month: '月', day: '日', history: '历史记录' };
+
 const workspace: RecentWorkspaceEntry = makeWorkspace('ws-1', 'Workspace 1', '/tmp/ws-1');
 
 function makeWorkspace(id: string, name: string, path: string): RecentWorkspaceEntry {
@@ -267,7 +269,7 @@ describe('count rules per category type', () => {
       new Date(2025, 11, 25, 9).getTime()
     );
 
-    const tree = buildHistoryCategoryTree([e1, e2, e3, e4], []);
+    const tree = buildHistoryCategoryTree([e1, e2, e3, e4], [], mockDateLabels);
     expect(tree).toHaveLength(1);
     const root = tree[0];
 
@@ -308,7 +310,7 @@ describe('count rules per category type', () => {
 
   it('category top-level count equals nodes.length (history is always 1: history:root)', () => {
     const e1 = makeHistoryEntry('e1', 'E1', 'https://a.example', new Date(2026, 5, 2).getTime());
-    const tree = buildHistoryCategoryTree([e1], []);
+    const tree = buildHistoryCategoryTree([e1], [], mockDateLabels);
     expect(tree).toHaveLength(1);
   });
 });

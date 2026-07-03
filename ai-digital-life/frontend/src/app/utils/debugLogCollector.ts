@@ -4,6 +4,7 @@
  */
 
 import { isTauriShell } from '../../tauri-bridge';
+import { getAppCopy } from '@app/i18n';
 
 // ============================================
 // 类型定义
@@ -313,6 +314,7 @@ function createDraggableCopyButton() {
 
   // 缓存运行模式（窗口生命周期内不变）
   const isTauri = isTauriShell();
+  const i18n = getAppCopy();
 
   // 移除已存在的按钮
   const existing = document.getElementById('__dl-debug-button');
@@ -322,7 +324,7 @@ function createDraggableCopyButton() {
 
   const btn = document.createElement('button');
   btn.id = '__dl-debug-button';
-  btn.textContent = '复制调试日志';
+  btn.textContent = i18n.debugCopyLogs;
   const initialTop = isTauri ? '36px' : '10px';
   btn.style.cssText = `
     position: fixed;
@@ -369,18 +371,18 @@ function createDraggableCopyButton() {
         document.execCommand('copy');
         document.body.removeChild(textarea);
       }
-      btn.textContent = '已复制!';
+      btn.textContent = i18n.debugCopied;
       btn.style.background = '#4caf50';
       setTimeout(() => {
-        btn.textContent = '复制调试日志';
+        btn.textContent = i18n.debugCopyLogs;
         btn.style.background = '#007acc';
       }, 1500);
     } catch (err) {
       originalError('[DebugLogCollector] Failed to copy logs:', err);
-      btn.textContent = '复制失败';
+      btn.textContent = i18n.debugCopyFailed;
       btn.style.background = '#f44336';
       setTimeout(() => {
-        btn.textContent = '复制调试日志';
+        btn.textContent = i18n.debugCopyLogs;
         btn.style.background = '#007acc';
       }, 1500);
     }

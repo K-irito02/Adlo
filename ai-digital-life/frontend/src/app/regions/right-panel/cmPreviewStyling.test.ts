@@ -39,6 +39,8 @@ const regionsCssSource = [
   'changes-panel.css',
   'editor-surface.css',
   'editor-content.css',
+  'markdown-preview.css',
+  'highlightjs-theme.css',
   'diff-viewer.css',
   'diff-inline.css',
   'diff-side-by-side.css',

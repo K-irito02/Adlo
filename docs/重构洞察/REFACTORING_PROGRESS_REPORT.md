@@ -404,3 +404,82 @@ Bug 6 是最难排查的 Race Condition：
 - QuickActions 丢失 "Ctrl+N" 提示（UX 微小回退）
 - CRLF 警告 6202 个（仓库级治理决策，待用户确认）
 
+## 第九十二轮：refactoring-insight 第23次执行（2026-07-03）
+
+### 背景
+
+通过 `refactoring-insight` 技能系统性执行重构洞察工作流：6 阶段，34 项发现，13/17 任务完成。基于 origin/main 的 worktree（commit 4cd85c99）。
+
+### 修改的文件
+
+#### Phase 1：死代码 + 常量集中化 + React.memo（Tasks 1-3）
+| 文件 | 变更 |
+|------|------|
+| `frontend/src/preview-bridge/preview-window.ts` | 删除 `createPreviewWindowBridge()` 返回的死代码 `browser` 属性（10个方法，零消费方） |
+| `frontend/src/app/stores/slices/browserSliceShared.ts` | 新增 3 个导出常量：`BROWSER_SHORTCUTS_KEY`、`BROWSER_LOCAL_PORTS_KEY`、`BROWSER_BG_CONFIG_KEY` |
+| `frontend/src/app/stores/slices/browserSlice.ts` | 删除 3 个本地常量定义，改为从 leaf module import |
+| `frontend/src/app/stores/slices/browserLandingSlice.ts` | 同上 |
+| `frontend/src/app/features/browser/BrowserOpenTabFlatListItem.tsx` | **新建** — 从 BrowserOpenTabFlatList 提取的 React.memo 包裹子组件（91行） |
+| `frontend/src/app/features/browser/BrowserOpenTabFlatList.tsx` | 从 101 行减至 57 行，用子组件替代内联 `<li>` 渲染 |
+
+#### Phase 2：i18n 硬编码中文修复（Tasks 4-7）
+| 文件 | 变更 |
+|------|------|
+| `src/app/i18n/zh-CN/communicate.ts` + `en-US/communicate.ts` | 新增 4 key：`relativeTimeJustNow`/`MinutesAgo`/`HoursAgo`/`DaysAgo` |
+| `src/app/i18n/zh-CN/browser.ts` + `en-US/browser.ts` | 新增 4 key：`browserDateYear`/`DateMonth`/`DateDay`/`NewTabFolder` |
+| `src/app/i18n/zh-CN/changes.ts` + `en-US/changes.ts` | 新增 4 key：`cmFoldNoChanges`/`FoldRestore`/`FoldAccept`/`FoldReject` |
+| `src/app/i18n/zh-CN/common.ts` + `en-US/common.ts` | 新增 3 key：`debugCopyLogs`/`debugCopied`/`debugCopyFailed` |
+| `src/app/regions/.../communicate/githubPanelUtils.ts` | `formatRelativeTime` 改为返回结构化 key+params |
+| `src/app/features/browser-tree/useBrowserTreeData.ts` | 4 处硬编码中文 → i18n key |
+| `src/app/features/editor/cmTheme.ts` | 将 `getPhrasesExtension(locale)` 改为 `getPhrasesExtension(phrases: CmPhrases)` |
+| `src/app/features/editor/CodeEditor.tsx` + `SideBySideDiffViewer.tsx` + `InlineDiffViewer.tsx` | 更新为使用 `useTCopy()` 计算 `CmPhrases` |
+| `src/app/features/browser/useBrowserMenus.ts` | `'新建标签文件夹'` → `t.browserNewTabFolder` |
+| `src/app/utils/settingsViewModel.ts` | `'中文'` → i18n key |
+| `src/app/components/conversation/RunSummaryBlock.tsx` | 移除硬编码 fallback |
+| `src/app/utils/debugLogCollector.ts` | 5 处硬编码按钮文本 → `getAppCopy()` |
+| **总计**：26 文件修改，15 个新 i18n key，21 处硬编码消除 |
+
+#### Phase 3：Store 切片分解（Tasks 8-11）
+| 文件 | 变更 |
+|------|------|
+| `frontend/src/app/stores/actions/workspaceLifecycleActions.ts` | **新建** — 提取 `openWorkspace`/`clearWorkspaceContext`/`pickWorkspaceDirectory`（96行） |
+| `frontend/src/app/stores/actions/workspaceActions.ts` | 303→220 行（-83行，3个生命周期 action 移出） |
+| `frontend/src/app/stores/slices/githubCiRefresh.ts` | **新建** — 提取 `refreshCiStatus`/`refreshCiStatusForWorkspace` 共享 helper（52行） |
+| `frontend/src/app/stores/slices/githubSlice.ts` + `ciSlice.ts` | 改用共享 helper |
+| Task 8（githubRepoDeleteHelpers）和 Task 11（browserFoldersDeletionHelpers）| **已验证**：helpers 已在之前的重构中创建，本轮无需新增 |
+
+#### Phase 4：CSS 文件拆分（Tasks 14-15）
+| 文件 | 变更 |
+|------|------|
+| `frontend/src/styles/regions/statusbar-menu.css` | **新建** — 从 statusbar.css 提取菜单样式（456行） |
+| `frontend/src/styles/regions/statusbar.css` | 770→317 行（-453行，仅保留状态栏本体） |
+| `frontend/src/styles/regions/rightpanel/markdown-preview.css` | **新建** — 从 editor-content.css 提取 Markdown 预览样式（309行） |
+| `frontend/src/styles/regions/rightpanel/highlightjs-theme.css` | **新建** — 从 editor-content.css 提取 Highlight.js 主题样式（109行） |
+| `frontend/src/styles/regions/rightpanel/editor-content.css` | 719→306 行（-413行，仅保留 CodeMirror 布局） |
+| `frontend/src/app/regions/right-panel/cmPreviewStyling.test.ts` | 修复 — 添加拆分后 CSS 文件到测试读取列表 |
+
+### 核心改动
+
+1. **React.memo 组件化**：BrowserOpenTabFlatListItem 从内联 `<li>` 提取为独立 memo 组件
+2. **i18n 全量覆盖**：21 处硬编码中文清除，15 个新 i18n key（zh-CN + en-US 双语言）
+3. **Store 架构**：2 个新 helper 文件，2 个已验证已有（无需新增）
+4. **CSS 架构**：3 个大 CSS 文件拆分，2 个从 >500 行降至 <400 行
+
+### 红绿测试验证
+
+- TypeScript: 0 errors
+- 前端测试: 49 files / 299 tests / 0 failed
+- Cargo check: clean
+- Cargo clippy: 0 warnings
+
+### 关键经验
+
+详见 `docs/重构洞察/refactor-insight-2026-07-03.md` 和 `docs/superpowers/plans/refactor-plan-2026-07-03.md`
+
+### 待后续治理项
+
+- `useTerminalPanel.ts` (323行) — 未拆分（Task 12-13，本轮跳过）
+- `TerminalPanel.tsx` (378行) — 未提取 TerminalHeaderBar（Task 13，本轮跳过）
+- `BrowserPanel.tsx` (731行) — 未进一步拆分（本轮跳过）
+- Rust `webview2_message.rs` 5x Mutex → RwLock — 未迁移（Task 16，本轮跳过）
+

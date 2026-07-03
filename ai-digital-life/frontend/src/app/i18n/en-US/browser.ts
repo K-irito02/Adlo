@@ -170,4 +170,8 @@ export const browserEn = {
   menuZoomInHint: '· Enlarge page content\n· 10% increase per click',
   menuZoomOutHint: '· Reduce page content\n· 10% decrease per click',
   menuResetZoomHint: '· Reset page zoom to 100%',
+  browserDateYear: 'y',
+  browserDateMonth: 'mo',
+  browserDateDay: 'd',
+  browserNewTabFolder: 'New Tab Folder',
 } as const;

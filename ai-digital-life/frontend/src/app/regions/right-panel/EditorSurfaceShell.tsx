@@ -416,7 +416,6 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
           value={fileContent ?? ''}
           language={editorLanguage}
           theme={resolvedTheme}
-          locale={resolvedLocale}
           readOnly={previewEnabled || editorOptions.standardOptions.readOnly}
           lineNumbers={editorOptions.standardOptions.lineNumbers}
           wordWrap={editorOptions.standardOptions.wordWrap}

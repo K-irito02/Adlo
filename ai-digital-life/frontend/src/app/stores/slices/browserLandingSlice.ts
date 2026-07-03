@@ -1,5 +1,10 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, createDebouncedWrite } from '../shared';
+import {
+  BROWSER_SHORTCUTS_KEY,
+  BROWSER_LOCAL_PORTS_KEY,
+  BROWSER_BG_CONFIG_KEY,
+} from './browserSliceShared';
 
 export interface ShortcutSite {
   id: string;
@@ -29,10 +34,6 @@ export interface BackgroundConfig {
   fit: BackgroundFit;
   fileName?: string;
 }
-
-const BROWSER_SHORTCUTS_KEY = 'adl-ui:browser-shortcuts';
-const BROWSER_LOCAL_PORTS_KEY = 'adl-ui:browser-local-ports';
-const BROWSER_BG_CONFIG_KEY = 'adl-ui:browser-bg-config';
 
 const { scheduleWrite } = createDebouncedWrite(50);
 

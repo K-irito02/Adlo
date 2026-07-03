@@ -10,6 +10,7 @@ import {
   hydrateCiConfigDefaults,
   hydrateCiStatusDefaults,
 } from './githubSliceHelpers';
+import { executeCiStatusRefresh } from './githubCiRefresh';
 
 const CI_CONFIG_KEY = 'adl-ui:ci-config';
 const CI_ACCESS_TOKEN_KEY = 'adl-ui:ci-access-token';
@@ -196,7 +197,6 @@ export const createGitHubSlice = (
     refreshCiStatus: async () => {
       const state = _get();
       const config = state.ciConfig;
-      const token = state.ciAccessToken;
       if (!config.owner || !config.repo) {
         set({
           ciError: CI_ERROR_CODES.CONFIG_MISSING_REPO,
@@ -208,36 +208,31 @@ export const createGitHubSlice = (
 
       set({ ciLoading: true, ciError: null });
 
-      try {
-        const bridge = getBridge();
-        if (!bridge || !bridge.github) {
-          set({ ciError: 'bridge not ready', ciLoading: false });
-          return;
-        }
-        const accessToken = isTauriMode() ? null : token;
-        const result = await bridge.github.getStatus({
+      const bridge = getBridge();
+      if (!bridge || !bridge.github) {
+        set({ ciError: 'bridge not ready', ciLoading: false });
+        return;
+      }
+      const accessToken = isTauriMode() ? null : state.ciAccessToken;
+      const result = await executeCiStatusRefresh(
+        {
           owner: config.owner,
           repo: config.repo,
           branch: config.branch,
           workflowId: config.workflowId,
           accessToken,
-        });
+        },
+        (params) => bridge.github.getStatus(params)
+      );
 
-        if (result.ok) {
-          set({
-            ciSnapshot: result.data,
-            ciJobs: result.data.jobs ?? [],
-            ciLoading: false,
-          });
-        } else {
-          set({
-            ciError: result.error?.message ?? CI_ERROR_CODES.FETCH_STATUS_FAILED,
-            ciLoading: false,
-          });
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        set({ ciError: message, ciLoading: false });
+      if (result.ok) {
+        set({
+          ciSnapshot: result.snapshot,
+          ciJobs: result.snapshot.jobs ?? [],
+          ciLoading: false,
+        });
+      } else {
+        set({ ciError: result.error, ciLoading: false });
       }
     },
 
@@ -298,44 +293,39 @@ export const createGitHubSlice = (
         }
       }
       if (!config || !config.configured) {
-        const msg = CI_ERROR_CODES.CONFIG_MISSING_REPO;
-        set({ ciError: msg });
+        set({ ciError: CI_ERROR_CODES.CONFIG_MISSING_REPO });
         return;
       }
       set({ ciLoading: true, ciError: null });
-      try {
-        const bridge = getBridge();
-        if (!bridge || !bridge.github) {
-          const msg = 'bridge not ready';
-          set({ ciError: msg, ciLoading: false });
-          return;
-        }
-        const token = isTauriMode() ? null : (config.accessToken ?? state.ciAccessToken ?? '');
-        const result = await bridge.github.getStatus({
+      const bridge = getBridge();
+      if (!bridge || !bridge.github) {
+        set({ ciError: 'bridge not ready', ciLoading: false });
+        return;
+      }
+      const token = isTauriMode() ? null : (config.accessToken ?? state.ciAccessToken ?? '');
+      const result = await executeCiStatusRefresh(
+        {
           owner: config.owner,
           repo: config.repo,
           branch: config.branch,
           workflowId: config.workflowId,
           accessToken: token,
+        },
+        (params) => bridge.github.getStatus(params)
+      );
+      if (result.ok) {
+        set((state) => {
+          const nextSnapshots = { ...state.ciSnapshots, [id]: result.snapshot };
+          scheduleSnapshotsWrite(CI_SNAPSHOTS_KEY, nextSnapshots);
+          return {
+            ciSnapshot: result.snapshot,
+            ciJobs: result.snapshot.jobs ?? [],
+            ciLoading: false,
+            ciSnapshots: nextSnapshots,
+          };
         });
-        if (result.ok) {
-          set((state) => {
-            const nextSnapshots = { ...state.ciSnapshots, [id]: result.data };
-            scheduleSnapshotsWrite(CI_SNAPSHOTS_KEY, nextSnapshots);
-            return {
-              ciSnapshot: result.data,
-              ciJobs: result.data.jobs ?? [],
-              ciLoading: false,
-              ciSnapshots: nextSnapshots,
-            };
-          });
-        } else {
-          const msg = result.error?.message ?? CI_ERROR_CODES.FETCH_STATUS_FAILED;
-          set({ ciError: msg, ciLoading: false });
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        set({ ciError: message, ciLoading: false });
+      } else {
+        set({ ciError: result.error, ciLoading: false });
       }
     },
   };

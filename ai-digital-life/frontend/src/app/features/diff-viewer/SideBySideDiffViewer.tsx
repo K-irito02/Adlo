@@ -23,13 +23,14 @@ import {
   syncScrollPosition,
   getMergeChunks,
 } from './diffViewerUtils';
+import { useTCopy } from '@app/i18n/useTCopy';
 
 export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
   original,
   modified,
   language,
   theme,
-  locale,
+  locale: _locale,
   readOnly,
   lineNumbersEnabled,
   wordWrap,
@@ -53,6 +54,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
   extraExtensions: Extension[];
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
 }) {
+  const { t } = useTCopy();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mergeViewRef = useRef<MergeView | null>(null);
   const mergeViewARef = useRef<EditorView | null>(null);
@@ -99,6 +101,16 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     };
   }, [language]);
 
+  const cmPhrases = useMemo(
+    () => ({
+      unchangedLines: t.cmFoldNoChanges,
+      restoreBlock: t.cmFoldRestore,
+      accept: t.cmFoldAccept,
+      reject: t.cmFoldReject,
+    }),
+    [t]
+  );
+
   // 扩展配置 - 语言扩展直接包含在内
   const sharedExts = useMemo(
     () =>
@@ -108,10 +120,10 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
         readOnly,
         lineNumbersEnabled,
         wordWrap,
-        locale,
+        cmPhrases,
         langExtensions
       ),
-    [language, theme, readOnly, lineNumbersEnabled, wordWrap, locale, langExtensions]
+    [language, theme, readOnly, lineNumbersEnabled, wordWrap, cmPhrases, langExtensions]
   );
 
   const emitCollapsedUnchangedRanges = useCallback(

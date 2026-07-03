@@ -1,0 +1,309 @@
+/* ---------------- Markdown Preview ---------------- */
+
+.adl-unsupported-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--space-3);
+  color: var(--text-muted);
+  padding: var(--space-8);
+}
+
+.adl-unsupported-preview__icon {
+  width: 48px;
+  height: 48px;
+  opacity: 0.3;
+  color: var(--text-muted);
+}
+
+.adl-unsupported-preview__text {
+  font-size: var(--text-sm);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.adl-unsupported-preview__hint {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary, var(--text-muted));
+  opacity: 0.7;
+}
+
+.adl-markdown-preview {
+  overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
+  width: min(100%, 920px);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-10) 20vh;
+  font-size: var(--text-base, 15px);
+  line-height: 1.72;
+  color: var(--text-primary);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.adl-markdown-preview > *:first-child {
+  margin-top: 0;
+}
+
+.adl-markdown-preview > *:last-child {
+  margin-bottom: 0;
+}
+
+.adl-markdown-preview h1,
+.adl-markdown-preview h2,
+.adl-markdown-preview h3,
+.adl-markdown-preview h4,
+.adl-markdown-preview h5,
+.adl-markdown-preview h6 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+  color: var(--text-primary);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.adl-markdown-preview h1 {
+  font-size: 1.86em;
+  padding-bottom: 0.42em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.adl-markdown-preview h2 {
+  font-size: 1.42em;
+  padding-bottom: 0.36em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.adl-markdown-preview h3 {
+  font-size: 1.25em;
+}
+
+.adl-markdown-preview h4 {
+  font-size: 1.1em;
+}
+
+.adl-markdown-preview h5 {
+  font-size: 1em;
+}
+
+.adl-markdown-preview h6 {
+  font-size: 0.9em;
+  color: var(--text-secondary);
+}
+
+.adl-markdown-preview p {
+  margin: 0 0 1.05em;
+}
+
+.adl-markdown-preview a {
+  color: var(--accent, var(--primary));
+  text-decoration: none;
+  transition: text-decoration 0.15s;
+}
+
+.adl-markdown-preview a:hover {
+  text-decoration: underline;
+}
+
+.adl-markdown-preview strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.adl-markdown-preview em {
+  font-style: italic;
+}
+
+.adl-markdown-preview del {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.adl-markdown-preview img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md, 6px);
+  margin: 1em 0;
+}
+
+.adl-markdown-preview hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--border-subtle) 20%,
+    var(--border-subtle) 80%,
+    transparent
+  );
+  margin: 2em 0;
+}
+
+.adl-markdown-preview blockquote {
+  margin: 1.25em 0;
+  padding: 0.78em 1em;
+  border-left: 2px solid var(--accent, var(--primary));
+  background: color-mix(in srgb, var(--surface-subtle, rgba(128, 128, 128, 0.06)) 72%, transparent);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-secondary);
+}
+
+.adl-markdown-preview blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.adl-markdown-preview blockquote blockquote {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+}
+
+.adl-markdown-preview ul,
+.adl-markdown-preview ol {
+  margin: 0 0 1em;
+  padding-left: 2em;
+}
+
+.adl-markdown-preview li {
+  margin-bottom: 0.25em;
+}
+
+.adl-markdown-preview li > p {
+  margin-bottom: 0.5em;
+}
+
+.adl-markdown-preview li > ul,
+.adl-markdown-preview li > ol {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+.adl-markdown-preview ul {
+  list-style-type: disc;
+}
+
+.adl-markdown-preview ol {
+  list-style-type: decimal;
+}
+
+.adl-markdown-preview .adl-md-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 1.15em;
+  padding: 6px 14px;
+  background: var(--editor-gutter-bg, var(--surface-elevated, rgba(128, 128, 128, 0.08)));
+  border: 1px solid var(--border-subtle);
+  border-bottom: none;
+  border-radius: var(--radius-md, 6px) var(--radius-md, 6px) 0 0;
+}
+
+.adl-markdown-preview .adl-md-code-header + pre.hljs {
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.adl-markdown-preview .adl-md-code-lang {
+  font-size: var(--text-xs, 11px);
+  font-family: var(--font-mono, monospace);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.adl-markdown-preview pre {
+  margin: 0 0 1em;
+  border-radius: var(--radius-md, 6px);
+  overflow-x: auto;
+}
+
+.adl-markdown-preview pre.hljs {
+  background: var(--editor-bg, var(--surface-elevated, rgba(128, 128, 128, 0.08)));
+  border: 1px solid var(--border-subtle);
+  padding: 1em 1.15em;
+  font-size: var(--text-sm, 13px);
+  line-height: 1.65;
+  font-family: var(
+    --font-mono,
+    'Cascadia Code',
+    'Fira Code',
+    'JetBrains Mono',
+    'SF Mono',
+    Consolas,
+    monospace
+  );
+}
+
+.adl-markdown-preview pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+  border: none;
+}
+
+.adl-markdown-preview code {
+  background: color-mix(in srgb, var(--accent, var(--primary)) 10%, transparent);
+  padding: 0.15em 0.4em;
+  border-radius: var(--radius-sm, 3px);
+  font-size: 0.875em;
+  font-family: var(
+    --font-mono,
+    'Cascadia Code',
+    'Fira Code',
+    'JetBrains Mono',
+    'SF Mono',
+    Consolas,
+    monospace
+  );
+  color: var(--editor-syntax-string, var(--accent, var(--primary)));
+}
+
+.adl-markdown-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: var(--text-sm, 14px);
+}
+
+.adl-markdown-preview thead {
+  background: var(--surface-subtle, rgba(128, 128, 128, 0.06));
+}
+
+.adl-markdown-preview th {
+  padding: 0.6em 1em;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-subtle);
+  color: var(--text-primary);
+}
+
+.adl-markdown-preview td {
+  padding: 0.5em 1em;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.adl-markdown-preview tbody tr:nth-child(even) {
+  background: var(--surface-subtle, rgba(128, 128, 128, 0.03));
+}
+
+.adl-markdown-preview tbody tr:hover {
+  background: var(--bg-hover, rgba(128, 128, 128, 0.06));
+}
+
+.adl-markdown-preview input[type='checkbox'] {
+  margin-right: 0.5em;
+  accent-color: var(--accent, var(--primary));
+  transform: scale(1.1);
+  vertical-align: middle;
+}
+
+@media (max-width: 760px) {
+  .adl-markdown-preview {
+    padding: var(--space-6) var(--space-5) 18vh;
+  }
+}

@@ -20,4 +20,8 @@ export const communicateZh = {
   communicateRefreshAll: '刷新全部',
   communicateNewDir: '新建目录',
   communicateHelp: '帮助',
+  relativeTimeJustNow: '刚刚',
+  relativeTimeMinutesAgo: '{n} 分钟前',
+  relativeTimeHoursAgo: '{n} 小时前',
+  relativeTimeDaysAgo: '{n} 天前',
 } as const;

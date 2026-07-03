@@ -182,7 +182,6 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
                 value={changePreview.currentContent}
                 language={changePreviewLanguage}
                 theme={changePreviewTheme}
-                locale={changePreviewLocale}
                 readOnly={true}
                 lineNumbers={lineNumbersEnabled}
                 wordWrap={wordWrapEnabled}

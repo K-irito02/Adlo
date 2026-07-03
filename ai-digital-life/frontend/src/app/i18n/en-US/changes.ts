@@ -84,4 +84,8 @@ export const changesEn = {
   changesPreviewFailedPdf: 'PDF preview failed: {error}',
   changesExpandToLine: 'Expand to line {line}',
   changesCollapseToLine: 'Collapse to line {line}',
+  cmFoldNoChanges: '$ unchanged lines',
+  cmFoldRestore: 'Restore this block',
+  cmFoldAccept: 'Accept',
+  cmFoldReject: 'Reject',
 } as const;

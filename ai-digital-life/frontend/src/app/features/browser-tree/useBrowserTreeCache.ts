@@ -27,6 +27,12 @@ export interface UseBrowserTreeCacheInput {
     userFolderCategory: string;
     historyCategory: string;
   };
+  dateLabels: {
+    year: string;
+    month: string;
+    day: string;
+    history: string;
+  };
 }
 
 export interface UseBrowserTreeCacheResult {
@@ -48,6 +54,7 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
     browserBookmarks,
     browserBookmarkTabIdUrlMap,
     labels,
+    dateLabels,
   } = input;
 
   const tabIdToUrl = browserBookmarkTabIdUrlMap;
@@ -100,8 +107,8 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
   );
 
   const historyNodes = useMemo(
-    () => buildHistoryCategoryTree(browserHistory, browserTabs),
-    [browserHistory, browserTabs]
+    () => buildHistoryCategoryTree(browserHistory, browserTabs, dateLabels),
+    [browserHistory, browserTabs, dateLabels]
   );
 
   const historyCategory: BrowserCategoryState = useMemo(

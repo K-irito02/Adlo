@@ -1,10 +1,21 @@
 import React from 'react';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
-import { statusColor, formatCommit, formatTime, formatRelativeTime } from './githubPanelUtils';
+import { statusColor, formatCommit, formatTime, formatRelativeTime, type RelativeTimeResult } from './githubPanelUtils';
 import { JobRow } from './JobRow';
 import { TooltipSimple } from '@components/Tooltip';
 import { IconClock, IconClipboardList } from '@app/icons';
+
+function resolveRelativeTime(result: RelativeTimeResult | string, copy: Record<string, string>): string {
+  if (typeof result === 'string') {
+    return result;
+  }
+  let str = copy[result.key] ?? result.key;
+  for (const [k, v] of Object.entries(result.params)) {
+    str = str.replace(`{${k}}`, String(v));
+  }
+  return str;
+}
 
 function LoadingSkeleton() {
   return (
@@ -69,7 +80,7 @@ export function OverviewView({
               </span>
               <TooltipSimple content={formatTime(snapshot.latestRun.runStartedAt, locale)}>
                 <span className="adl-github-hero__time">
-                  {formatRelativeTime(snapshot.latestRun.runStartedAt, locale)}
+                  {resolveRelativeTime(formatRelativeTime(snapshot.latestRun.runStartedAt), copy)}
                 </span>
               </TooltipSimple>
             </div>
