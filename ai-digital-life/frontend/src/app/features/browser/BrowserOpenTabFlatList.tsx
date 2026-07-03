@@ -1,7 +1,5 @@
 import React from 'react';
-import {
-  BrowserOpenTabFlatListItem,
-} from './BrowserOpenTabFlatListItem';
+import { BrowserOpenTabFlatListItem } from './BrowserOpenTabFlatListItem';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import { useTCopy } from '@i18n/useTCopy';
 import type { BrowserTabState } from '@stores/slices/browserSlice';

@@ -1,12 +1,21 @@
 import React from 'react';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
-import { statusColor, formatCommit, formatTime, formatRelativeTime, type RelativeTimeResult } from './githubPanelUtils';
+import {
+  statusColor,
+  formatCommit,
+  formatTime,
+  formatRelativeTime,
+  type RelativeTimeResult,
+} from './githubPanelUtils';
 import { JobRow } from './JobRow';
 import { TooltipSimple } from '@components/Tooltip';
 import { IconClock, IconClipboardList } from '@app/icons';
 
-function resolveRelativeTime(result: RelativeTimeResult | string, copy: Record<string, string>): string {
+function resolveRelativeTime(
+  result: RelativeTimeResult | string,
+  copy: Record<string, string>
+): string {
   if (typeof result === 'string') {
     return result;
   }

@@ -58,9 +58,7 @@ export interface RelativeTimeResult {
   params: Record<string, number>;
 }
 
-export function formatRelativeTime(
-  iso: string | null | undefined
-): RelativeTimeResult | string {
+export function formatRelativeTime(iso: string | null | undefined): RelativeTimeResult | string {
   if (!iso) {
     return '—';
   }
