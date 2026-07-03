@@ -1,6 +1,6 @@
 # 重构洞察汇总
 
-> 本文档合并了 2026-05-21 至 2026-06-19 期间所有每日重构洞察报告的核心发现。
+> 本文档合并了 2026-05-21 至 2026-07-03 期间所有每日重构洞察报告的核心发现。
 > 各轮执行的详细结果见 [REFACTORING_PROGRESS_REPORT.md](./REFACTORING_PROGRESS_REPORT.md)。
 > 提炼的经验教训见 [../知识沉淀/重构/](../知识沉淀/重构/)。
 
@@ -42,6 +42,8 @@
 | 2026-06-29 | 24 | 🔄 部分解决 | 宏观扫描回归（!important 23→311、console.log 0→25）；console.log 清理（fetchPageMeta 6处）；App.tsx getState()→选择器；5 Hook 超 300 行；BrowserPanel(716行)/BrowserNavigator(495行)过大；kernel/index.ts(1158行)和 shared/ipc.ts(1296行)膨胀；React.lazy 几乎完全丢失 |
 | 2026-06-30 | 23 | ✅ 已解决 | 第20次执行：useBrowserTreeActions 718→18行（-700行）；ipc.ts 1322→953行；kernel/index.ts 1312→13行；React.lazy恢复3组件；深层导入281处→@别名；BrowserTreeEntry 531→199(-332)；fileTree 482→360(-122)；282测试通过 |
 | 2026-07-01 | — | ✅ 已解决 | 终验与合并：CodeMirror 多实例冲突修复（pnpm.overrides + resolve.dedupe）；ESLint 12→0 warnings；TS 预存错误修复；282测试+Clippy+cargo check全通过；知识沉淀WORKTREE-RERUN-ISSUES.md |
+| 2026-07-02 | 49 | ✅ 已解决 | 第22次洞察：35架构+14性能发现；19项🔴；BrowserPanel 841行；webview2_message.rs 655行；i18n硬编码21处；CSS 279 !important；Rust RwLock候选 |
+| 2026-07-03 | 34 | 🔄 部分解决 | 第23次洞察（13/17任务完成）：死代码删除+常量集中化+React.memo+i18n全量修复+Store切片分解+CSS文件拆分+质量门禁全clean |
 
 ## 各日洞察摘要
 

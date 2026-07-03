@@ -50,4 +50,16 @@
 
 5. **前端文件迁移风险**：`ui-store.ts`（12 consumers）和 `types.ts`（16 consumers）的迁移需逐文件验证 `tsc --noEmit`。批量移动文件的策略是：移动 → `tsc` 获取错误列表 → 逐文件修复。
 
+---
+
+## 第九十二轮（2026-07-03）：i18n 硬编码全量修复 + Store/CSS 分解
+
+1. **i18n 硬编码检查不能只查组件代码** — 本轮的 21 处硬编码中，只有约 1/3 在 `.tsx` 组件中，其余分布在工具函数（`debugLogCollector.ts`）、Store slice（`githubRepoSlice.ts`）、CSS 构建函数（`cmTheme.ts`）中。需要增加 `rg "[\u4e00-\u9fff]" --include="*.ts" --include="*.tsx"` 的定时巡检。
+
+2. **i18n key 注入策略** — 非组件文件（如 Store slice、工具函数）不能使用 `useTCopy()` hook，需将翻译函数或翻译结果作为参数传入，由调用方的组件层负责翻译。cmTheme.ts 的修复模式（`locale` → `phrases` 参数化）可作为模板。
+
+3. **CSS 拆分边界判定** — 文件超过 500 行后不应立即拆分，应先评估：该文件是否真的包含多个独立的关注点。`statusbar.css` 的菜单样式（453 行）与状态栏本体（315 行）明显可分；`editor-content.css` 的 CM 布局/Markdown 预览/Highlight.js 主题是三个独立子系统。比 500 行阈值更关键的是职责边界是否清晰。
+
+4. **`formatRelativeTime` 返回结构化类型** — 当函数返回值需要翻译时，不要返回纯字符串（给调用方一个 `string` 不知道是否需要翻译），应返回 `{ key: string; params: Record<string, number> }` 类型，调用方用 `useTCopy().t(key, params)` 显式翻译。这种模式消除了"这字符串是否已翻译"的歧义。
+
 > 完整重构进度见 [REFACTORING_PROGRESS_REPORT.md](../../重构洞察/REFACTORING_PROGRESS_REPORT.md)
