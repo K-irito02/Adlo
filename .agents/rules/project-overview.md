@@ -23,6 +23,7 @@ alwaysApply: true
 |------|------|
 | 仓库根目录 | 规划与治理：文档、`AGENTS.md`、`docs/development/`、`CONTRIBUTING.md`、`CONTEXT.md`、`SECURITY.md` |
 | `ai-digital-life/` | 实现工作区：Rust + Tauri 桌面应用 + WebView 前端 |
+| `references/` | 外部参考源码（本地拉取的开源项目，如 OpenCode，供开发参考与复用） |
 
 ## 架构层级
 

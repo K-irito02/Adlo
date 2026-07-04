@@ -21,8 +21,7 @@
 | 功能 | 说明 | 前置依赖 |
 |------|------|----------|
 | MCP (Model Context Protocol) | 模型上下文协议集成 | Phase 2 核心能力 |
-| Skills 技能系统 | 可扩展技能库 | Hooks 系统 |
-| 插件生态与市场 | 第三方插件支持 | MCP/Skills 成熟 |
+| 插件生态与市场 | 第三方插件支持 | MCP 成熟 |
 | 浏览器自动化运行时 | Web 自动化操作 | 安全沙箱 |
 | 云服务集成 | 云端能力对接 | 核心能力稳定 |
 | 多模态输入支持 | 图像、语音等输入 | 核心能力稳定 |
@@ -119,4 +118,4 @@ const FUTURE_FEATURES = {
 
 - [AGENTS.md](./AGENTS.md)
 - [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)
-- [phase-boundary.md](./.trae/rules/phase-boundary.md)
+- [phase-boundary.md](./.agents/rules/phase-boundary.md)

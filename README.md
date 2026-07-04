@@ -2,6 +2,8 @@
 
 AI 数字生命桌面应用的规划与治理仓库。当前阶段聚焦**单 Agent 交互式 MVP**，远期规划支持**移动端远程控制**桌面端/服务器。
 
+项目参考了 [OpenCode](https://github.com/anomalyco/opencode)（MIT 许可）开源项目，在架构设计、编码模式与功能实现上借鉴与复用。本地副本位于 `references/opencode/`。
+
 ## 仓库结构
 
 | 目录 | 职责 |

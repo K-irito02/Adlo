@@ -6,24 +6,7 @@
 
 ## 代码规范
 
-所有代码须遵循项目编码规范，详见 [AGENTS.md](./AGENTS.md#编码规范)。
-
-### 核心原则
-- **禁止 `any` 类型**：TypeScript 中使用精确类型
-- **禁止 `unwrap()`**：Rust 中使用 `?` 运算符
-- **禁止 `else`**：优先提前返回
-- **测试先行**：修改后必须通过强制验收流程
-- **重构小步提交**：单次变更聚焦一个职责
-
-### 分支命名
-- 格式：kebab-case，最多 3 个单词
-- 禁止斜杠、禁止类型前缀
-- 示例：`session-recovery`、`fix-scroll-state`
-
-### Commit 信息
-- 格式：`type(scope): summary`
-- 类型：`feat` / `fix` / `docs` / `chore` / `refactor` / `test`
-- Scope：`core` / `frontend` / `rust` / `stores` / `browser` / `terminal` / `ipc` / `docs` / `deps`
+所有代码须遵循项目编码规范（分支命名、Commit 格式、TypeScript/Rust 风格），详见 [AGENTS.md](./AGENTS.md#编码规范)。
 
 ---
 
@@ -61,14 +44,12 @@ pnpm run dev:both
 ```
 ├── AGENTS.md            # 项目治理规则
 ├── CONTEXT.md           # 领域术语表
-├── ai-digital-life/     # 实现工作区
-│   ├── src-tauri/       # Tauri 二进制与命令
-│   ├── crates/          # Rust 库 crate
-│   ├── frontend/        # React + Vite 前端
-│   └── Cargo.toml       # Rust 工作区根
-├── docs/                # 架构、设计、知识沉淀
-├── .trae/rules/         # AI 代理开发规则
-└── .opencode/skills/    # AI 代理技能
+├── .agents/             # AI 代理配置真源（rules/ + skills/）
+├── .trae/               # TRAE IDE 集成（rules/ + skills/ 同步副本）
+├── .opencode/           # OpenCode 集成（skills/ 真源）
+├── ai-digital-life/     # 实现工作区（Rust + Tauri + React）
+├── references/          # 外部参考源码（OpenCode 等）
+└── docs/                # 架构、设计、知识沉淀
 ```
 
 ---
@@ -95,7 +76,7 @@ pnpm run dev:both
 3. **UI 变更**必须附带 Before/After 截图或录屏
 4. **逻辑变更**必须说明验证方式（测试了什么、如何复现）
 5. **禁止 AI 生成的文字墙**：用简洁、自己的语言描述
-6. **通过强制验收流程**（详见 [mandatory-testing.md](./.trae/rules/mandatory-testing.md)）
+6. **通过强制验收流程**（详见 [mandatory-testing.md](./.agents/rules/mandatory-testing.md)）
 
 ### PR 审查要点
 

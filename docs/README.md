@@ -7,10 +7,11 @@
 | [architecture/](./architecture/) | 系统架构、技术栈对齐、国际化、主题、工作区与检索 |
 | [design-system/](./design-system/) | 设计 Token、主题、组件规范、可访问性、响应式、测试 |
 | [development/](./development/) | 工程约束、Agent 路由与拓扑、Hook 策略、代码库治理检查清单 |
-| [superpowers/](./superpowers/) | 功能设计文档（specs/）+ 实施计划（plans/） |
+| [superpowers/](./superpowers/) | 功能设计文档（specs/）+ 实施计划（plans/）归档，与 `.opencode/skills/` 技能系统无关 |
 | [knowledge/](./知识沉淀/) | 经验教训与总结（按领域分类：重构、浏览器、交互优化、代码质量、CI 监控、多工作区、浏览器自动化） |
 | [refactoring-insights/](./重构洞察/) | 重构进度报告、洞察总结、每日洞察记录 |
 | [analysis/opencode/](./analysis/opencode/) | OpenCode 源码深度分析系列文档（技术栈、架构、模块、UI、规范） |
+| [references/opencode/](../references/opencode/) | OpenCode 本地参考源码（MIT 许可，供开发参考与复用） |
 
 ## 基础设施配置
 

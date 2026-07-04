@@ -65,7 +65,7 @@
 | Tooltip | 禁止原生 `title`，必须使用 `TooltipSimple` |
 | 窗口 | 最小宽度 640px |
 
-详见 [docs/design-system/](../docs/design-system/) 和 [UI 模式速查](../.trae/rules/ui-patterns.md)
+详见 [docs/design-system/](../docs/design-system/) 和 [UI 模式速查](../.agents/rules/ui-patterns.md)
 
 ## Stores 架构（Zustand 切片合并模式）
 
@@ -132,7 +132,7 @@ app/stores/
 
 ## 问题排查规范
 
-排查问题时**先定位根本原因**，不急于添加预防措施/防御性代码/解决方案。无法定位根因时，使用调试日志收起器（最高优先级）、复制调试日志按钮等调试手段，**禁止凭空猜测**。详见 [仓库根 AGENTS.md](../AGENTS.md#问题排查规范) 和 [dev-rules.md](../.trae/rules/dev-rules.md#问题排查规范)。
+排查问题时**先定位根本原因**，不急于添加预防措施/防御性代码/解决方案。无法定位根因时，使用调试日志收起器（最高优先级）、复制调试日志按钮等调试手段，**禁止凭空猜测**。详见 [仓库根 AGENTS.md](../AGENTS.md#问题排查规范) 和 [dev-rules.md](../.agents/rules/dev-rules.md#问题排查规范)。
 
 ## 未发布阶段禁止兼容性代码
 
@@ -140,9 +140,11 @@ app/stores/
 
 ## 相关文件
 
-- [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则（含 Superpowers 技能系统）
+- [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则（含 Superpowers 技能系统、参考项目 OpenCode）
 - [技能系统入口](../.opencode/skills/using-superpowers/SKILL.md) — using-superpowers 入口技能
 - [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 远期规划
+- [references/opencode/](../references/opencode/) — 参考项目 OpenCode 本地源码（MIT 许可）
+- [docs/analysis/opencode/](../docs/analysis/opencode/) — OpenCode 深度分析文档
 
 ## 磁盘空间管理
 

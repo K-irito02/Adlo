@@ -86,7 +86,7 @@ document.body.innerHTML = renderHtml(html`
 | [`responsive.md`](./responsive.md) | Breakpoints, app-shell adaptations, grid presets |
 | [`testing.md`](./testing.md) | Unit + integration coverage strategy |
 
-> **UI 模式速查**：[`ui-patterns.md`](../../.trae/rules/ui-patterns.md) — 按场景（对话框、菜单、悬停、点击、颜色、Hint Card、按钮、文件树等 20 类）索引到本文档各章节，开发时快速定位。
+> **UI 模式速查**：[`ui-patterns.md`](../../.agents/rules/ui-patterns.md) — 按场景（对话框、菜单、悬停、点击、颜色、Hint Card、按钮、文件树等 20 类）索引到本文档各章节，开发时快速定位。
 
 ## Non-Negotiables
 

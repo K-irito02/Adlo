@@ -8,8 +8,26 @@
 
 | 目录 | 职责 |
 |------|------|
-| 仓库根目录 | 规划与治理：`AGENTS.md`、`docs/`、`.agents/`、`CONTRIBUTING.md`、`CONTEXT.md`、`SECURITY.md` |
+| 仓库根目录 | 规划与治理：`AGENTS.md`、`docs/`、`CONTRIBUTING.md`、`CONTEXT.md`、`SECURITY.md` |
+| `.agents/` | AI 代理配置真源（`rules/` 规则源目录、`skills/` 技能备份、`.skill-lock.json` 锁定文件） |
+| `.trae/` | TRAE IDE 集成（`rules/` 规则同步副本、`skills/` 技能同步副本） |
+| `.opencode/` | OpenCode IDE 集成（`skills/` 技能真源目录） |
+| `.superpowers/` | Superpowers 框架本地配置 |
 | `ai-digital-life/` | 实现工作区：Rust + Tauri 桌面应用 + WebView 前端 |
+| `references/` | 外部参考源码（本地拉取的开源项目，供开发参考与复用） |
+
+## 参考项目
+
+本项目的多项架构设计、编码模式与功能实现参考了 [OpenCode](https://github.com/anomalyco/opencode)（MIT 许可）开源项目。本地副本位于 `references/opencode/`，用于开发过程中查阅源码、借鉴设计模式与复用代码片段。
+
+| 参考项 | 说明 |
+|------|------|
+| 本地路径 | `references/opencode/`（Git 子模块或手动拉取，不参与本项目构建） |
+| 上游仓库 | [github.com/anomalyco/opencode](https://github.com/anomalyco/opencode) |
+| 许可 | MIT |
+| 深度分析 | [docs/analysis/opencode/](./docs/analysis/opencode/)（技术栈、架构、模块、UI、规范） |
+
+> 参考代码直接复用需遵守 MIT 许可要求，并在代码注释中标注来源。
 
 ## 当前阶段
 
@@ -27,20 +45,20 @@
 
 ## 代理开发规则
 
-规则文件真源位于 `.agents/rules/`（AI 代理直接读取），自动同步到 `.trae/rules/` 供 TRAE IDE 使用。全部规则索引见 [README.md](./.trae/rules/README.md)。必须遵守的规则：
+规则文件真源位于 `.agents/rules/`（AI 代理直接读取），自动同步到 `.trae/rules/` 供 TRAE IDE 使用。全部规则索引见 [README.md](./.agents/rules/README.md)。必须遵守的规则：
 
 > ⚠ **注意**：`.agents/rules/` 是规则文件的真源（Git 跟踪），`.trae/rules/` 是 TRAE IDE 的同步副本。修改规则请在 `.agents/rules/` 操作。
 
-- [dev-rules.md](.trae/rules/dev-rules.md) — 交互与执行规则（询问卡片、终端命令、代码修改、问题排查）
-- [mandatory-testing.md](.trae/rules/mandatory-testing.md) — 强制红绿测试
-- [quality-gates.md](.trae/rules/quality-gates.md) — 质量门禁
-- [error-handling.md](.trae/rules/error-handling.md) — 错误处理规范
+- [dev-rules.md](.agents/rules/dev-rules.md) — 交互与执行规则（询问卡片、终端命令、代码修改、问题排查）
+- [mandatory-testing.md](.agents/rules/mandatory-testing.md) — 强制红绿测试
+- [quality-gates.md](.agents/rules/quality-gates.md) — 质量门禁
+- [error-handling.md](.agents/rules/error-handling.md) — 错误处理规范
 
 ## 问题排查与调试
 
 排查问题时**先定位根本原因**，不要急于添加预防措施/防御性代码/解决方案。无法定位根因时，使用调试日志收起器（最高优先级）、复制调试日志按钮等调试手段，**禁止凭空猜测**。
 
-调试工具详情（日志收起器、复制按钮、自动写入等）见 [ai-digital-life/AGENTS.md#调试工具](./ai-digital-life/AGENTS.md#调试工具)，排查规范见 [dev-rules.md](.trae/rules/dev-rules.md#问题排查规范)。
+调试工具详情（日志收起器、复制按钮、自动写入等）见 [ai-digital-life/AGENTS.md#调试工具](./ai-digital-life/AGENTS.md#调试工具)，排查规范见 [dev-rules.md](.agents/rules/dev-rules.md#问题排查规范)。
 
 ## 磁盘空间
 
@@ -179,7 +197,7 @@ Scope 可选项：`core`、`frontend`、`rust`、`stores`、`browser`、`termina
 - 前端测试使用 Vitest，后端测试使用 `cargo test`
 - 避免 mock，优先测试真实实现
 - 禁止从仓库根目录运行测试（必须从包/工作区目录运行）
-- 修改后执行强制验收流程（见 [mandatory-testing.md](./.trae/rules/mandatory-testing.md)）
+- 修改后执行强制验收流程（见 [mandatory-testing.md](./.agents/rules/mandatory-testing.md)）
 
 ## 相关文档
 

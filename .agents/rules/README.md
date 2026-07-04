@@ -57,6 +57,7 @@ alwaysApply: true
 | CSS 架构变更 | `css-architecture.md` + `design-system.md` |
 | 错误处理/Loading 变更 | `error-handling.md` |
 | 重构验证 | `quality-gates.md`（重构门禁） |
+| 参考项目（references/）变更 | `project-overview.md`、`AGENTS.md` |
 
 ## MCP 服务器说明
 
