@@ -1,5 +1,6 @@
 import type { StoreApi } from 'zustand';
 import type { StoreState } from '../StoreState';
+import type { WorkspaceID } from '../../../shared/branded';
 import { clearError, captureError } from '../shared';
 import { scheduleCrossSliceWrite } from '../storageHelpers';
 import { stripWorkspaceFromBrowserState } from './browserCleanupHelpers';
@@ -15,7 +16,7 @@ export function createBrowserCleanupActions(
      * @writes workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTreeExpandedInFileNav, browserSlice.browserTabs, browserSlice.browserTabsById, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId, browserSlice.browserWorkspaceBookmarks
      * @see — 无桥接调用 (本地内存清理)
      */
-    cleanupRemovedWorkspaceTree: (workspaceId: string) => {
+    cleanupRemovedWorkspaceTree: (workspaceId: WorkspaceID) => {
       const state = get();
       const { [workspaceId]: _omit, ...restTrees } = state.workspaceTrees;
       const { [workspaceId]: _omitLoading, ...restLoading } = state.workspaceTreeLoading;
@@ -66,9 +67,9 @@ export function createBrowserCleanupActions(
      * @see mock-bridge.ts → workspace.removeFromSidebar
      * @see preview-bridge/index.ts → workspace.removeFromSidebar
      */
-    removeWorkspaceFromSidebar: async (workspaceId: string) => {
+    removeWorkspaceFromSidebar: async (workspaceId: WorkspaceID) => {
       clearError(get);
-      const result = await window.digitalLife.workspace.removeFromSidebar(workspaceId);
+      const result = await window.digitalLife.workspace.removeFromSidebar(workspaceId as string);
       if (!result.ok) {
         captureError(get, result.error);
         return;
@@ -88,9 +89,9 @@ export function createBrowserCleanupActions(
      * @see mock-bridge.ts → workspace.hideFromRightPanels
      * @see preview-bridge/index.ts → workspace.hideFromRightPanels
      */
-    hideWorkspaceFromRightPanels: async (workspaceId: string) => {
+    hideWorkspaceFromRightPanels: async (workspaceId: WorkspaceID) => {
       clearError(get);
-      const result = await window.digitalLife.workspace.hideFromRightPanels(workspaceId);
+      const result = await window.digitalLife.workspace.hideFromRightPanels(workspaceId as string);
       if (!result.ok) {
         captureError(get, result.error);
         return;

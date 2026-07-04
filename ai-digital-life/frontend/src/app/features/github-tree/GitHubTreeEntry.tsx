@@ -9,6 +9,7 @@ import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintIt
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { GitHubTreeNode, GitHubCategoryType } from './types';
+import { asWorkspaceID } from '@shared/branded';
 import type { SectionCallbacks } from './GitHubCategorySection';
 import { MultiTreeEntryShell } from '../tree/MultiTreeEntryShell';
 import { useMenuCloseOnOutsideClick } from '../tree/treeEntryMenus';
@@ -153,7 +154,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     gitHubDeleteFolderConfigRecursive,
     gitHubDeleteFolderDataRecursive,
     gitHubDeleteFolderConfigAndDataRecursive,
-    hideWorkspaceFromRightPanels,
+    hideWorkspaceFromRightPanels: (wsId: string) => hideWorkspaceFromRightPanels(asWorkspaceID(wsId)),
   });
 
   const handleExpandBtnClick = useCallback(

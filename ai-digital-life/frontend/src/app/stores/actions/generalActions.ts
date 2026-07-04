@@ -5,6 +5,8 @@ import type {
   ConversationBlock,
   GitSnapshot,
 } from '@ai-digital-life/kernel';
+import type { WorkspaceID } from '../../../shared/branded';
+import { asWorkspaceID } from '../../../shared/branded';
 import { themeController } from '@utils/theme';
 import { createEditorTab } from '@utils/editorTabs';
 import { loadConversationState, loadTaskCenterState } from '../loaders';
@@ -145,7 +147,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             get().fetchCommandHistory(),
             get().fetchGitBranches(),
             // 懒加载可见工作区的文件树和变更状态
-            ...visibleWorkspaces.map((w) => get().loadWorkspaceTree(w.id, w.path)),
+            ...visibleWorkspaces.map((w) => get().loadWorkspaceTree(asWorkspaceID(w.id), w.path)),
             ...visibleWorkspaces.map((w) => get().loadGitSnapshot(w.id, w.path)),
           ]);
           const errors = results

@@ -1,5 +1,7 @@
 import type { StoreState } from '../StoreState';
 import type { IpcResult, ReorderSessionsInput } from '@ai-digital-life/kernel';
+import type { WorkspaceID, SessionID } from '../../../shared/branded';
+import { asSessionID } from '../../../shared/branded';
 import { sessionFallbackTitle, refreshConversationSlice } from '../conversationUtils';
 import { getNextSessionRequestSeq, sessionRequestSeq } from '../shared';
 import type { StoreApi } from 'zustand';
@@ -34,10 +36,10 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see mock-bridge.ts → conversation.createSession
      * @see preview-bridge/index.ts → conversation.createSession
      */
-    createSession: async (workspaceId?: string) => {
+    createSession: async (workspaceId?: WorkspaceID) => {
       const result = await window.digitalLife.conversation.createSession(
         sessionFallbackTitle(get().appInfo),
-        workspaceId
+        workspaceId as string | undefined
       );
       if (!result.ok) {
         set({ error: result.error.message });
@@ -64,7 +66,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see mock-bridge.ts → conversation.createSession (通过 createSession)
      * @see preview-bridge/index.ts → conversation.createSession (通过 createSession)
      */
-    switchToWorkspace: async (workspaceId: string, _workspacePath: string) => {
+    switchToWorkspace: async (workspaceId: WorkspaceID, _workspacePath: string) => {
       const state = get();
       const workspaceSessions = state.sessions.filter(
         (s) => s.workspaceId === workspaceId && !s.archivedAt
@@ -74,7 +76,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
         const recentSession = [...workspaceSessions].sort(
           (a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0)
         )[0];
-        await get().selectSession(recentSession.id);
+        await get().selectSession(asSessionID(recentSession.id));
       } else {
         await get().createSession(workspaceId);
       }
@@ -87,10 +89,10 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see mock-bridge.ts → conversation.markSessionRead
      * @see preview-bridge/index.ts → conversation.markSessionRead
      */
-    selectSession: async (sessionId: string) => {
+    selectSession: async (sessionId: SessionID) => {
       const requestSeq = getNextSessionRequestSeq();
       set({ activeSessionId: sessionId, error: undefined });
-      const markReadResult = await window.digitalLife.conversation.markSessionRead({ sessionId });
+      const markReadResult = await window.digitalLife.conversation.markSessionRead({ sessionId: sessionId as string });
       if (requestSeq !== sessionRequestSeq) {
         return;
       }
@@ -122,9 +124,9 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see mock-bridge.ts → conversation.renameSession
      * @see preview-bridge/index.ts → conversation.renameSession
      */
-    renameSession: async (sessionId: string, title: string) => {
+    renameSession: async (sessionId: SessionID, title: string) => {
       const result = await window.digitalLife.conversation.renameSession({
-        sessionId,
+        sessionId: sessionId as string,
         title,
       });
       if (!result.ok) {
@@ -153,7 +155,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see mock-bridge.ts → conversation.pinSession
      * @see preview-bridge/index.ts → conversation.pinSession
      */
-    pinSession: async (sessionId: string) => {
+    pinSession: async (sessionId: SessionID) => {
       await sessionMutate(get, set, sessionId, (id) =>
         window.digitalLife.conversation.pinSession(id)
       );
@@ -166,7 +168,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see mock-bridge.ts → conversation.unpinSession
      * @see preview-bridge/index.ts → conversation.unpinSession
      */
-    unpinSession: async (sessionId: string) => {
+    unpinSession: async (sessionId: SessionID) => {
       await sessionMutate(get, set, sessionId, (id) =>
         window.digitalLife.conversation.unpinSession(id)
       );
@@ -179,7 +181,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see mock-bridge.ts → conversation.markSessionRead
      * @see preview-bridge/index.ts → conversation.markSessionRead
      */
-    markSessionRead: async (sessionId: string) => {
+    markSessionRead: async (sessionId: SessionID) => {
       await sessionMutate(get, set, sessionId, (id) =>
         window.digitalLife.conversation.markSessionRead({ sessionId: id })
       );
@@ -192,7 +194,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see mock-bridge.ts → conversation.markSessionUnread
      * @see preview-bridge/index.ts → conversation.markSessionUnread
      */
-    markSessionUnread: async (sessionId: string) => {
+    markSessionUnread: async (sessionId: SessionID) => {
       await sessionMutate(get, set, sessionId, (id) =>
         window.digitalLife.conversation.markSessionUnread(id)
       );
@@ -205,7 +207,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see mock-bridge.ts → conversation.archiveSession
      * @see preview-bridge/index.ts → conversation.archiveSession
      */
-    archiveSession: async (sessionId: string) => {
+    archiveSession: async (sessionId: SessionID) => {
       await sessionMutate(get, set, sessionId, (id) =>
         window.digitalLife.conversation.archiveSession(id)
       );
@@ -236,7 +238,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see mock-bridge.ts → conversation.deleteSession
      * @see preview-bridge/index.ts → conversation.deleteSession
      */
-    deleteSession: async (sessionId: string) => {
+    deleteSession: async (sessionId: SessionID) => {
       await sessionMutate(get, set, sessionId, (id) =>
         window.digitalLife.conversation.deleteSession(id)
       );
@@ -266,10 +268,10 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see mock-bridge.ts → conversation.markSessionRead
      * @see preview-bridge/index.ts → conversation.markSessionRead
      */
-    markAllSessionsRead: async (sessionIds: string[]) => {
+    markAllSessionsRead: async (sessionIds: SessionID[]) => {
       const results = await Promise.all(
         sessionIds.map((sessionId) =>
-          window.digitalLife.conversation.markSessionRead({ sessionId })
+          window.digitalLife.conversation.markSessionRead({ sessionId: sessionId as string })
         )
       );
       const failure = results.find((result) => !result.ok);

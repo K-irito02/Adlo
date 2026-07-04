@@ -1,5 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { DigitalLifeRunActivityEventV1, IndexingStatus } from '@ai-digital-life/kernel';
+import type { AgentRunID } from '../../../shared/branded';
 import type { StoreApi } from 'zustand';
 import { captureError } from '../shared';
 import { trimOldRuns, trimActivityList } from '../activityUtils';
@@ -183,9 +184,9 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
      * @see mock-bridge.ts → runActivity.listByRunId
      * @see preview-bridge/index.ts → runActivity.listByRunId
      */
-    fetchRunActivityByRunId: async (runId: string, limit?: number) => {
+    fetchRunActivityByRunId: async (runId: AgentRunID, limit?: number) => {
       const key = 'fetchRunActivityByRunId';
-      const existing = get().runActivityByRunId[runId];
+      const existing = get().runActivityByRunId[runId as string];
       if (existing && existing.length > 0) {
         return;
       }
@@ -194,12 +195,12 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
       }
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
-        const result = await window.digitalLife.runActivity.listByRunId(runId, limit);
+        const result = await window.digitalLife.runActivity.listByRunId(runId as string, limit);
         if (!result.ok) {
           captureError(get, result.error);
           return;
         }
-        get().setRunActivity(runId, result.data);
+        get().setRunActivity(runId as string, result.data);
       } finally {
         set({ isFetching: { ...get().isFetching, [key]: false } });
       }

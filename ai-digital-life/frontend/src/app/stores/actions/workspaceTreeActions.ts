@@ -1,6 +1,8 @@
 import type { StoreApi } from 'zustand';
 import type { StoreState } from '../StoreState';
 import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
+import type { WorkspaceID } from '../../../shared/branded';
+import { asWorkspaceID } from '../../../shared/branded';
 import { createLazyLoader, batchExpandAll, expandSingle } from '../shared';
 
 /**
@@ -43,7 +45,7 @@ export function createWorkspaceTreeActions(
      * @writes workspaceSlice.workspaceTreeExpandedInFileNav
      * @see — 无桥接调用
      */
-    toggleWorkspaceTreeInFileNav: (workspaceId: string) => {
+    toggleWorkspaceTreeInFileNav: (workspaceId: WorkspaceID) => {
       const current = get().workspaceTreeExpandedInFileNav;
       set({
         workspaceTreeExpandedInFileNav: {
@@ -61,7 +63,7 @@ export function createWorkspaceTreeActions(
      * @see mock-bridge.ts → workspace.listTreeForWorkspace (通过 loadWorkspaceTree)
      * @see preview-bridge/index.ts → workspace.listTreeForWorkspace (通过 loadWorkspaceTree)
      */
-    expandWorkspaceTreeInFileNav: async (workspaceId: string, workspacePath: string) => {
+    expandWorkspaceTreeInFileNav: async (workspaceId: WorkspaceID, workspacePath: string) => {
       const state = get();
       await expandSingle(
         state.workspaceTreeExpandedInFileNav,
@@ -80,7 +82,7 @@ export function createWorkspaceTreeActions(
      * @see mock-bridge.ts → workspace.listTreeForWorkspace
      * @see preview-bridge/index.ts → workspace.listTreeForWorkspace
      */
-    refreshOneWorkspaceTree: async (workspaceId: string, workspacePath: string) => {
+    refreshOneWorkspaceTree: async (workspaceId: WorkspaceID, workspacePath: string) => {
       set({
         workspaceTreeLoading: { ...get().workspaceTreeLoading, [workspaceId]: true },
         workspaceTreeErrors: { ...get().workspaceTreeErrors, [workspaceId]: undefined },
@@ -122,7 +124,7 @@ export function createWorkspaceTreeActions(
           if (!ws) {
             return Promise.resolve();
           }
-          return get().refreshOneWorkspaceTree(id, ws.path);
+          return get().refreshOneWorkspaceTree(asWorkspaceID(id), ws.path);
         })
       );
     },
@@ -141,7 +143,7 @@ export function createWorkspaceTreeActions(
         state.recentWorkspaces,
         state.workspaceTreeExpandedInFileNav,
         (next) => set({ workspaceTreeExpandedInFileNav: next }),
-        (entry) => get().loadWorkspaceTree(entry.id, entry.path),
+        (entry) => get().loadWorkspaceTree(asWorkspaceID(entry.id), entry.path),
         (id) => !!state.workspaceTrees[id]
       );
     },

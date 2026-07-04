@@ -4,6 +4,7 @@ import { MultiWorkspaceFileTree } from '@features/workspace-file-tree';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import { useAppStore } from '@stores/slicedStore';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
+import { asWorkspaceID } from '@shared/branded';
 
 interface FileNavigatorTreeProps {
   visibleWorkspaces: RecentWorkspaceEntry[];
@@ -83,10 +84,10 @@ const FileNavigatorTree = React.memo(function FileNavigatorTree({
           useAppStore.getState().openWorkspace(path);
         }}
         onPinWorkspace={(workspaceId: string) => {
-          useAppStore.getState().pinWorkspace(workspaceId);
+          useAppStore.getState().pinWorkspace(asWorkspaceID(workspaceId));
         }}
         onUnpinWorkspace={(workspaceId: string) => {
-          useAppStore.getState().unpinWorkspace(workspaceId);
+          useAppStore.getState().unpinWorkspace(asWorkspaceID(workspaceId));
         }}
         onHideFromRightPanels={onHideFromRightPanels}
         onToggleFileTreePath={onToggleFileTreePath}

@@ -68,6 +68,7 @@ import type {
   WorkspaceGitBranchSwitchInput,
 } from '@ai-digital-life/kernel';
 import type { MessageSendOptions } from '../utils/composerSend';
+import type { WorkspaceID, SessionID, AgentRunID } from '../../shared/branded';
 
 interface StoreStateBase
   extends
@@ -103,22 +104,22 @@ interface WorkspaceActions {
   openWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
   clearWorkspaceContext: () => Promise<void>;
   pickWorkspaceDirectory: () => Promise<string | undefined>;
-  pinWorkspace: (workspaceId: string) => Promise<void>;
-  unpinWorkspace: (workspaceId: string) => Promise<void>;
-  removeWorkspaceFromSidebar: (workspaceId: string) => Promise<void>;
+  pinWorkspace: (workspaceId: WorkspaceID) => Promise<void>;
+  unpinWorkspace: (workspaceId: WorkspaceID) => Promise<void>;
+  removeWorkspaceFromSidebar: (workspaceId: WorkspaceID) => Promise<void>;
   reorderWorkspaces: (input: ReorderWorkspacesInput) => Promise<void>;
   revealWorkspaceInFileManager: (workspacePath: string) => Promise<void>;
   createWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
   createWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
   refreshWorkspaceTree: () => Promise<void>;
-  loadWorkspaceTree: (workspaceId: string, workspacePath: string) => Promise<void>;
-  refreshOneWorkspaceTree: (workspaceId: string, workspacePath: string) => Promise<void>;
-  toggleWorkspaceTreeInFileNav: (workspaceId: string) => void;
-  expandWorkspaceTreeInFileNav: (workspaceId: string, workspacePath: string) => Promise<void>;
+  loadWorkspaceTree: (workspaceId: WorkspaceID, workspacePath: string) => Promise<void>;
+  refreshOneWorkspaceTree: (workspaceId: WorkspaceID, workspacePath: string) => Promise<void>;
+  toggleWorkspaceTreeInFileNav: (workspaceId: WorkspaceID) => void;
+  expandWorkspaceTreeInFileNav: (workspaceId: WorkspaceID, workspacePath: string) => Promise<void>;
   refreshAllWorkspaceTrees: () => Promise<void>;
-  cleanupRemovedWorkspaceTree: (workspaceId: string) => void;
-  hideWorkspaceFromRightPanels: (workspaceId: string) => Promise<void>;
-  showWorkspaceInRightPanels: (workspaceId: string) => Promise<void>;
+  cleanupRemovedWorkspaceTree: (workspaceId: WorkspaceID) => void;
+  hideWorkspaceFromRightPanels: (workspaceId: WorkspaceID) => Promise<void>;
+  showWorkspaceInRightPanels: (workspaceId: WorkspaceID) => Promise<void>;
   expandAllWorkspaceTreesInFileNav: () => Promise<void>;
   collapseAllWorkspaceTreesInFileNav: () => void;
   renameWorkspaceFile: (relativePath: string, newName: string) => Promise<void>;
@@ -128,19 +129,19 @@ interface WorkspaceActions {
 }
 
 interface SessionActions {
-  createSession: (workspaceId?: string) => Promise<void>;
-  selectSession: (sessionId: string) => Promise<void>;
-  switchToWorkspace: (workspaceId: string, workspacePath: string) => Promise<void>;
-  renameSession: (sessionId: string, title: string) => Promise<void>;
-  pinSession: (sessionId: string) => Promise<void>;
-  unpinSession: (sessionId: string) => Promise<void>;
-  markSessionRead: (sessionId: string) => Promise<void>;
-  markSessionUnread: (sessionId: string) => Promise<void>;
-  archiveSession: (sessionId: string) => Promise<void>;
+  createSession: (workspaceId?: WorkspaceID) => Promise<void>;
+  selectSession: (sessionId: SessionID) => Promise<void>;
+  switchToWorkspace: (workspaceId: WorkspaceID, workspacePath: string) => Promise<void>;
+  renameSession: (sessionId: SessionID, title: string) => Promise<void>;
+  pinSession: (sessionId: SessionID) => Promise<void>;
+  unpinSession: (sessionId: SessionID) => Promise<void>;
+  markSessionRead: (sessionId: SessionID) => Promise<void>;
+  markSessionUnread: (sessionId: SessionID) => Promise<void>;
+  archiveSession: (sessionId: SessionID) => Promise<void>;
   archiveAllSessions: () => Promise<void>;
   reorderSessions: (input: ReorderSessionsInput) => Promise<void>;
-  markAllSessionsRead: (sessionIds: string[]) => Promise<void>;
-  deleteSession: (sessionId: string) => Promise<void>;
+  markAllSessionsRead: (sessionIds: SessionID[]) => Promise<void>;
+  deleteSession: (sessionId: SessionID) => Promise<void>;
   sendMessage: (content: string, options?: MessageSendOptions) => Promise<void>;
   cancelActiveStream: () => Promise<void>;
 }
@@ -190,7 +191,7 @@ interface SearchActions {
 interface TaskActions {
   refreshTaskCenter: () => Promise<void>;
   decideApproval: (approvalId: string, decision: 'approved' | 'rejected') => Promise<void>;
-  fetchRunActivityByRunId: (runId: string, limit?: number) => Promise<void>;
+  fetchRunActivityByRunId: (runId: AgentRunID, limit?: number) => Promise<void>;
 }
 
 interface CommandActions {

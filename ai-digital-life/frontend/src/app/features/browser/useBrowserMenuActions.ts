@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { clearFaviconCacheForUrl, clearPageMetaCacheForUrl } from '@utils/fetchPageMeta';
+import { asWorkspaceID } from '@shared/branded';
 
 export function useBrowserMenuActions() {
   const { browserDeleteHistoryByLevel } = useAppStore(
@@ -11,7 +12,7 @@ export function useBrowserMenuActions() {
   );
 
   const handleRemoveFromArea = useCallback((workspaceId: string) => {
-    useAppStore.getState().hideWorkspaceFromRightPanels(workspaceId);
+    useAppStore.getState().hideWorkspaceFromRightPanels(asWorkspaceID(workspaceId));
   }, []);
 
   const handleDeleteHistoryLevel = useCallback(

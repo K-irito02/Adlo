@@ -20,6 +20,7 @@ import { ConversationPanel } from './left-sidebar/ConversationPanel';
 import { WorkspaceList } from './left-sidebar/WorkspaceList';
 import { SessionList } from './left-sidebar/SessionList';
 import type { SidebarSessionItem } from '../utils/sidebarViewModel';
+import { asWorkspaceID, asSessionID } from '../../shared/branded';
 
 interface LeftSidebarProps {
   collapsed: boolean;
@@ -100,14 +101,14 @@ const LeftSidebar = React.memo(function LeftSidebar({
 
   const commonSessionProps = useMemo(
     () => ({
-      onSelectSession: actions.selectSession,
-      onPinSession: actions.pinSession,
-      onUnpinSession: actions.unpinSession,
-      onRenameSession: actions.renameSession,
-      onArchiveSession: actions.archiveSession,
-      onMarkSessionRead: actions.markSessionRead,
-      onMarkSessionUnread: actions.markSessionUnread,
-      onDeleteSession: actions.deleteSession,
+      onSelectSession: (id: string) => actions.selectSession(asSessionID(id)),
+      onPinSession: (id: string) => actions.pinSession(asSessionID(id)),
+      onUnpinSession: (id: string) => actions.unpinSession(asSessionID(id)),
+      onRenameSession: (id: string, title: string) => actions.renameSession(asSessionID(id), title),
+      onArchiveSession: (id: string) => actions.archiveSession(asSessionID(id)),
+      onMarkSessionRead: (id: string) => actions.markSessionRead(asSessionID(id)),
+      onMarkSessionUnread: (id: string) => actions.markSessionUnread(asSessionID(id)),
+      onDeleteSession: (id: string) => actions.deleteSession(asSessionID(id)),
       onReorderSessions: actions.reorderSessions,
       activeSessionId,
       locale,
@@ -149,12 +150,12 @@ const LeftSidebar = React.memo(function LeftSidebar({
           setDragWorkspaceId={setDragWorkspaceId}
           onReorderWorkspaces={actions.reorderWorkspaces}
           onOpenWorkspace={actions.openWorkspace}
-          onSwitchToWorkspace={actions.switchToWorkspace}
-          onPinWorkspace={actions.pinWorkspace}
-          onUnpinWorkspace={actions.unpinWorkspace}
+          onSwitchToWorkspace={(id: string, path: string) => actions.switchToWorkspace(asWorkspaceID(id), path)}
+          onPinWorkspace={(id: string) => actions.pinWorkspace(asWorkspaceID(id))}
+          onUnpinWorkspace={(id: string) => actions.unpinWorkspace(asWorkspaceID(id))}
           onCreateSession={onCreateSession}
           onTriggerCreateWorkspace={onTriggerCreateWorkspace}
-          onSelectSession={actions.selectSession}
+          onSelectSession={(id: string) => actions.selectSession(asSessionID(id))}
           onContextMenu={(workspaceId, x, y) =>
             setMenuState({ type: 'workspace', workspaceId, x, y })
           }
@@ -229,13 +230,13 @@ const LeftSidebar = React.memo(function LeftSidebar({
               return workspace ? (
                 <SidebarContextMenu
                   items={buildWorkspaceMenuItems(workspace.workspace, sessionIds, t, {
-                    onPinWorkspace: actions.pinWorkspace,
-                    onUnpinWorkspace: actions.unpinWorkspace,
-                    onMarkAllSessionsRead: actions.markAllSessionsRead,
+                    onPinWorkspace: (id: string) => actions.pinWorkspace(asWorkspaceID(id)),
+                    onUnpinWorkspace: (id: string) => actions.unpinWorkspace(asWorkspaceID(id)),
+                    onMarkAllSessionsRead: (ids: string[]) => actions.markAllSessionsRead(ids.map(asSessionID)),
                     onArchiveAllSessions: actions.archiveAllSessions,
-                    onRemoveWorkspace: actions.removeWorkspaceFromSidebar,
+                    onRemoveWorkspace: (id: string) => actions.removeWorkspaceFromSidebar(asWorkspaceID(id)),
                     onRevealWorkspace: actions.revealWorkspaceInFileManager,
-                    onShowInRightPanels: actions.showWorkspaceInRightPanels,
+                    onShowInRightPanels: (id: string) => actions.showWorkspaceInRightPanels(asWorkspaceID(id)),
                   })}
                   x={menuState.x}
                   y={menuState.y}
@@ -256,14 +257,14 @@ const LeftSidebar = React.memo(function LeftSidebar({
                         });
                         setRenameDialogOpen(true);
                       },
-                      onMarkRead: () => actions.markSessionRead(sessionItem.session.id),
-                      onMarkUnread: () => actions.markSessionUnread(sessionItem.session.id),
-                      onArchive: () => actions.archiveSession(sessionItem.session.id),
+                      onMarkRead: () => actions.markSessionRead(asSessionID(sessionItem.session.id)),
+                      onMarkUnread: () => actions.markSessionUnread(asSessionID(sessionItem.session.id)),
+                      onArchive: () => actions.archiveSession(asSessionID(sessionItem.session.id)),
                       onCopyId: () => void navigator.clipboard?.writeText(sessionItem.session.id),
                       onExport: () => void exportSessionMarkdown(sessionItem.session),
-                      onPin: () => actions.pinSession(sessionItem.session.id),
-                      onUnpin: () => actions.unpinSession(sessionItem.session.id),
-                      onDelete: () => actions.deleteSession(sessionItem.session.id),
+                      onPin: () => actions.pinSession(asSessionID(sessionItem.session.id)),
+                      onUnpin: () => actions.unpinSession(asSessionID(sessionItem.session.id)),
+                      onDelete: () => actions.deleteSession(asSessionID(sessionItem.session.id)),
                     })}
                     x={menuState.x}
                     y={menuState.y}
@@ -282,7 +283,7 @@ const LeftSidebar = React.memo(function LeftSidebar({
           itemInfo={formatT(t, 'changesCurrentName', { name: sessionToRename.name })}
           placeholder={t.changesEnterSessionName}
           onConfirm={(newName) => {
-            actions.renameSession(sessionToRename.id, newName);
+            actions.renameSession(asSessionID(sessionToRename.id), newName);
             setRenameDialogOpen(false);
             setSessionToRename(null);
           }}

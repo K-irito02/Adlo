@@ -1,5 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { ReorderWorkspacesInput } from '@ai-digital-life/kernel';
+import type { WorkspaceID } from '../../../shared/branded';
 import { clearError, captureError } from '../shared';
 import type { StoreApi } from 'zustand';
 import { createBrowserCleanupActions } from './browserCleanupActions';
@@ -117,9 +118,9 @@ export function createWorkspaceActions(
      * @see mock-bridge.ts → workspace.pin
      * @see preview-bridge/index.ts → workspace.pin
      */
-    pinWorkspace: async (workspaceId: string) => {
+    pinWorkspace: async (workspaceId: WorkspaceID) => {
       clearError(get);
-      const result = await window.digitalLife.workspace.pin(workspaceId);
+      const result = await window.digitalLife.workspace.pin(workspaceId as string);
       if (!result.ok) {
         captureError(get, result.error);
         return;
@@ -134,9 +135,9 @@ export function createWorkspaceActions(
      * @see mock-bridge.ts → workspace.unpin
      * @see preview-bridge/index.ts → workspace.unpin
      */
-    unpinWorkspace: async (workspaceId: string) => {
+    unpinWorkspace: async (workspaceId: WorkspaceID) => {
       clearError(get);
-      const result = await window.digitalLife.workspace.unpin(workspaceId);
+      const result = await window.digitalLife.workspace.unpin(workspaceId as string);
       if (!result.ok) {
         captureError(get, result.error);
         return;
@@ -210,9 +211,9 @@ export function createWorkspaceActions(
      * @see mock-bridge.ts → workspace.showFromRightPanels
      * @see preview-bridge/index.ts → workspace.showFromRightPanels
      */
-    showWorkspaceInRightPanels: async (workspaceId: string) => {
+    showWorkspaceInRightPanels: async (workspaceId: WorkspaceID) => {
       clearError(get);
-      const result = await window.digitalLife.workspace.showInRightPanels(workspaceId);
+      const result = await window.digitalLife.workspace.showInRightPanels(workspaceId as string);
       if (!result.ok) {
         captureError(get, result.error);
         return;

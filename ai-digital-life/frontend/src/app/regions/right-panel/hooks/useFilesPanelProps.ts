@@ -4,6 +4,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { findPatchFileByPath } from '@features/patch-review';
 import { filterDiagnosticsForPath, detectEditorLanguage } from '@utils/workspacePaths';
+import { asWorkspaceID } from '@shared/branded';
 import type { FilesPanelProps } from '../types';
 import type { RightPanelProps } from '@regions/RightPanel';
 import type { EditorRef } from '@stores/types';
@@ -146,7 +147,7 @@ export function useFilesPanelProps(
     (workspaceId: string) => {
       const ws = recentWorkspaces.find((r) => r.id === workspaceId);
       if (ws) {
-        void actions.refreshOneWorkspaceTree(workspaceId, ws.path);
+        void actions.refreshOneWorkspaceTree(asWorkspaceID(workspaceId), ws.path);
       }
     },
     [recentWorkspaces, actions]
@@ -156,7 +157,7 @@ export function useFilesPanelProps(
     (workspaceId: string) => {
       const ws = recentWorkspaces.find((r) => r.id === workspaceId);
       if (ws) {
-        void actions.expandWorkspaceTreeInFileNav(workspaceId, ws.path);
+        void actions.expandWorkspaceTreeInFileNav(asWorkspaceID(workspaceId), ws.path);
       }
     },
     [recentWorkspaces, actions]
@@ -164,7 +165,7 @@ export function useFilesPanelProps(
 
   const handleHideFromRightPanels = useCallback(
     (workspaceId: string) => {
-      void actions.hideWorkspaceFromRightPanels(workspaceId);
+      void actions.hideWorkspaceFromRightPanels(asWorkspaceID(workspaceId));
     },
     [actions]
   );

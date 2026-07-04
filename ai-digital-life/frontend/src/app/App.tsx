@@ -17,6 +17,7 @@ const RightPanel = lazy(() =>
 );
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
+import { asSessionID } from '../shared/branded';
 
 export function App() {
   const error = useAppStore((state) => state.error);
@@ -164,7 +165,7 @@ export function App() {
             if (name) {
               const currentId = activeSessionId;
               if (currentId) {
-                await actions.renameSession(currentId, name);
+                await actions.renameSession(asSessionID(currentId), name);
               }
             }
             setNewSessionDialogOpen(false);

@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import type { ChangesPanelProps } from '../types';
+import { asWorkspaceID } from '@shared/branded';
 import type { RightPanelProps } from '@regions/RightPanel';
 
 export function useChangesPanelProps(
@@ -92,7 +93,7 @@ export function useChangesPanelProps(
 
   const handleHideFromRightPanels = useCallback(
     (workspaceId: string) => {
-      void actions.hideWorkspaceFromRightPanels(workspaceId);
+      void actions.hideWorkspaceFromRightPanels(asWorkspaceID(workspaceId));
     },
     [actions]
   );

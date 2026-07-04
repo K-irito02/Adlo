@@ -13,6 +13,7 @@ import {
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
+import { asWorkspaceID } from '@shared/branded';
 import { XtermTerminal } from '@components/terminal/XtermTerminal';
 import type { TerminalPanelProps } from '@regions/right-panel/types';
 import type { TerminalProfile } from '@stores/types';
@@ -140,7 +141,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
     (workspaceId: string) => {
       const ws = recentWorkspaces.find((r) => r.id === workspaceId);
       if (ws) {
-        hideWorkspaceFromRightPanels(workspaceId);
+        hideWorkspaceFromRightPanels(asWorkspaceID(workspaceId));
       }
     },
     [recentWorkspaces, hideWorkspaceFromRightPanels]

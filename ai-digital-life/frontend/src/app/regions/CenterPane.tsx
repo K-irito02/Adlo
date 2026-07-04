@@ -8,6 +8,7 @@ import { ApprovalCard } from '../components/approval/ApprovalCard';
 import { MessageStream } from '../components/MessageStream';
 import { useAppStore } from '../stores/slicedStore';
 import { useAppActions } from '../hooks/useAppActions';
+import { asAgentRunID } from '../../shared/branded';
 
 import { WelcomeState, ComposerFooter } from './center-pane';
 
@@ -109,7 +110,7 @@ const CenterPane = React.memo(function CenterPane() {
       }
     }
     runIds.forEach((runId) => {
-      void fetchRunActivityByRunId(runId, 500);
+      void fetchRunActivityByRunId(asAgentRunID(runId), 500);
     });
   }, [fetchRunActivityByRunId, messages]);
 
