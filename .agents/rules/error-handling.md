@@ -1,6 +1,6 @@
 ---
 description: Error handling, loading state, and unified action patterns across frontend and backend
-alwaysApply: false
+alwaysApply: true
 ---
 
 # 错误处理与加载状态规范

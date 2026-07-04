@@ -91,6 +91,30 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 
 详见 [AGENTS.md](../../AGENTS.md#调试工具)。
 
+## 编码风格规范
+
+### TypeScript 风格
+- **禁止 `any`**：使用精确类型，善用 `unknown` 和 type guard
+- **类型推断优先**：避免不必要的显式类型注解或接口定义
+- **禁止 `else`**：使用提前返回模式
+- **`const` 优先**：禁止 `let` 重赋值，用三元/提前返回替代
+- **禁止 import 别名**：不使用 `import { foo as bar }`
+- **禁止 star import**：不使用 `import * as Foo`
+- **避免不必要的解构**：使用点号保持上下文
+- **函数式方法**：`flatMap`、`filter`、`map` 优先于 `for` 循环
+- **减少中间变量**：内联仅使用一次的值，不预提取单次使用的 helper
+- **Happy Path 模式**：主函数保持 happy path，验证逻辑提取为下方小 helper
+
+### Rust 风格
+- 遵循 `rustfmt` 默认配置
+- **禁止 `unwrap()`**：使用 `?` 运算符或模式匹配
+- 错误类型使用 `thiserror` + `AppError` 统一处理
+
+### Commit 与分支规范
+- **分支命名**：kebab-case，最多 3 个单词，禁止斜杠/类型前缀
+- **Commit 信息**：`type(scope): summary`（feat/fix/docs/chore/refactor/test）
+- Scope 选项：`core` / `frontend` / `rust` / `stores` / `browser` / `terminal` / `ipc` / `docs` / `deps`
+
 ## 相关文件
 
 - [mandatory-testing.md](./mandatory-testing.md) — 测试要求 / 结束验收流程

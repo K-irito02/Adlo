@@ -23,7 +23,7 @@ alwaysApply: true
 | `commands.md` | 常用命令速查、脚本入口、环境设置 | 执行命令 |
 | `browser-automation.md` | 浏览器自动化工具选择、经验教训、操作规范 | 浏览器自动化/测试 |
 | `desktop-ui-verification.md` | 桌面端 UI 验证流程、双端验证清单 | 修改 UI |
-| `dev-rules.md` | 代理交互与执行规则（询问卡片、终端命令、代码修改、问题排查） | 始终应用 |
+| `dev-rules.md` | 代理交互与执行规则（询问卡片、终端命令、代码修改、问题排查、编码风格） | 始终应用 |
 | `mandatory-testing.md` | 结束验收流程、强制红绿测试、测试材料管理 | 始终应用 |
 | `ui-patterns.md` | UI 模式速查：对话框、菜单、悬停、点击、颜色、Hint Card、按钮、文件树、Tooltip、Toast 等 22 类模式 | 始终应用 |
 

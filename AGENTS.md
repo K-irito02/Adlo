@@ -8,7 +8,7 @@
 
 | 目录 | 职责 |
 |------|------|
-| 仓库根目录 | 规划与治理：`AGENTS.md`、`docs/`、`.agents/` |
+| 仓库根目录 | 规划与治理：`AGENTS.md`、`docs/`、`.agents/`、`CONTRIBUTING.md`、`CONTEXT.md`、`SECURITY.md` |
 | `ai-digital-life/` | 实现工作区：Rust + Tauri 桌面应用 + WebView 前端 |
 
 ## 当前阶段
@@ -134,9 +134,57 @@ npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$H
 3. **流程顺序**：过程类技能（brainstorming、systematic-debugging 等）先于实现类技能调用
 4. **用户指令优先**：用户明确指示不使用某技能时，以用户指令为准
 
+## 编码规范
+
+### 分支命名
+- 使用短横线分隔（kebab-case），最多 3 个单词
+- 禁止斜杠、禁止类型前缀（如 `feat/`、`fix/`）
+- 示例：`session-recovery`、`fix-scroll-state`、`browser-panel-fix`
+
+### Commit 与 PR 标题
+使用 Conventional Commit 风格：`type(scope): summary`
+
+| 类型 | 用途 | 示例 |
+|------|------|------|
+| `feat` | 新功能 | `feat(session): add message streaming` |
+| `fix` | Bug 修复 | `fix(browser): resolve crash on navigate` |
+| `docs` | 文档变更 | `docs: update contributing guide` |
+| `chore` | 维护任务 | `chore(deps): bump tauri version` |
+| `refactor` | 重构 | `refactor(stores): extract browser slice` |
+| `test` | 测试 | `test(workspace): add tree parsing` |
+
+Scope 可选项：`core`、`frontend`、`rust`、`stores`、`browser`、`terminal`、`ipc`、`docs`、`deps` 等。
+
+### TypeScript 风格指南
+- **禁止 `any`**：使用精确类型，善用 `unknown` 和 type guard
+- **类型推断优先**：避免不必要的显式类型注解
+- **禁止 `else`**：使用提前返回模式
+- **`const` 优先**：禁止 `let` 重赋值，用三元/提前返回替代
+- **禁止 import 别名**：不使用 `import { foo as bar }`
+- **禁止 star import**：不使用 `import * as Foo`
+- **避免不必要的解构**：使用点号保持上下文
+- **函数式方法**：`flatMap`、`filter`、`map` 优先于 `for` 循环
+- **减少中间变量**：内联仅使用一次的值
+- **Happy Path 模式**：主函数保持 happy path，验证逻辑提取为下方 helper
+
+### Rust 风格指南
+- 遵循 Rust 官方风格（`rustfmt` 默认配置）
+- 禁止 `unwrap()`：使用 `?` 运算符或模式匹配
+- 错误类型使用 `thiserror` + `AppError` 统一处理
+- 优先使用 `Result<T, AppError>` 而非裸 `String` 错误
+
+### 测试规范
+- 前端测试使用 Vitest，后端测试使用 `cargo test`
+- 避免 mock，优先测试真实实现
+- 禁止从仓库根目录运行测试（必须从包/工作区目录运行）
+- 修改后执行强制验收流程（见 [mandatory-testing.md](./.trae/rules/mandatory-testing.md)）
+
 ## 相关文档
 
 - [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md) — 实现工作区治理（技术栈、功能清单、Stores 架构）
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — 贡献指南
+- [CONTEXT.md](./CONTEXT.md) — 领域术语表
+- [SECURITY.md](./SECURITY.md) — 安全策略
 - [docs/development/project-engineering-constraints.md](./docs/development/project-engineering-constraints.md) — 工程约束
 - [docs/知识沉淀/README.md](./docs/知识沉淀/README.md) — 经验教训与总结索引

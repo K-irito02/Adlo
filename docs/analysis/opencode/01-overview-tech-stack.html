@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenCode 深度分析（一）：项目总览与技术栈</title>
+<style>
+:root{--bg:#fafafa;--card:#fff;--text:#1a1a2e;--text2:#555;--border:#e8e8e8;--accent:#6366f1;--code-bg:#f0f0f5;--tag-bg:#eef2ff;--tag-text:#4338ca;--table-stripe:#f9f9fb;--shadow:0 1px 3px rgba(0,0,0,.08)}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1117;--card:#161b22;--text:#c9d1d9;--text2:#8b949e;--border:#30363d;--accent:#7c8cff;--code-bg:#1c2128;--tag-bg:#1a2040;--tag-text:#8e9dff;--table-stripe:#111820;--shadow:0 1px 3px rgba(0,0,0,.3)}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh}
+.container{max-width:900px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:clamp(1.5rem,4vw,2rem);color:var(--accent);margin:32px 0 8px;padding-bottom:12px;border-bottom:2px solid var(--border);letter-spacing:-0.02em}
+h2{font-size:clamp(1.2rem,3vw,1.5rem);margin:40px 0 16px;padding-bottom:6px;border-bottom:1px solid var(--border);color:var(--text)}
+h3{font-size:1.15rem;margin:28px 0 10px;color:var(--text)}
+p{margin:12px 0}
+blockquote{margin:16px 0;padding:12px 20px;border-left:3px solid var(--accent);background:var(--card);border-radius:0 8px 8px 0;color:var(--text2);font-size:.93em}
+code{font-family:"JetBrains Mono","Fira Code",monospace;background:var(--code-bg);padding:2px 6px;border-radius:4px;font-size:.88em;word-break:break-word}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px 20px;overflow-x:auto;margin:16px 0;font-size:.85em;line-height:1.6}
+pre code{background:none;padding:0;font-size:inherit}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.93em;border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
+th{background:var(--accent);color:#fff;padding:10px 14px;text-align:left;font-weight:600}
+td{padding:9px 14px;border-bottom:1px solid var(--border)}
+tr:nth-child(even){background:var(--table-stripe)}
+tr:last-child td{border-bottom:none}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.tag{display:inline-block;background:var(--tag-bg);color:var(--tag-text);padding:2px 8px;border-radius:4px;font-size:.82em;font-weight:500;margin:2px}
+ul,ol{margin:10px 0 10px 24px}
+li{margin:6px 0}
+strong{color:var(--text)}
+hr{border:none;border-top:1px solid var(--border);margin:32px 0}
+.nav-top{padding:12px 0;border-bottom:1px solid var(--border);margin-bottom:24px;display:flex;flex-wrap:wrap;gap:8px;font-size:.88em}
+.nav-top a{padding:4px 10px;border-radius:6px;background:var(--card);border:1px solid var(--border);transition:all .2s}
+.nav-top a:hover{background:var(--accent);color:#fff;text-decoration:none;border-color:var(--accent)}
+.nav-top .active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.foot{text-align:center;padding:40px 0 20px;color:var(--text2);font-size:.85em}
+@media(max-width:640px){.container{padding:16px 12px 40px}pre{padding:12px 14px;font-size:.8em}table{font-size:.82em}th,td{padding:7px 10px}}
+</style>
+</head>
+<body>
+<div class="container">
+<nav class="nav-top">
+  <a href="01-overview-tech-stack.html" class="active">（一）技术栈</a>
+  <a href="02-architecture.html">（二）架构设计</a>
+  <a href="03-module-design.html">（三）模块设计</a>
+  <a href="04-ui-architecture.html">（四）UI 架构</a>
+  <a href="05-standards.html">（五）项目规范</a>
+</nav>
+
+<h1>OpenCode 深度分析（一）：项目总览与技术栈</h1>
+<blockquote>
+  源码仓库：<a href="https://github.com/sst/opencode">github.com/sst/opencode</a>（<code>dev</code> 分支）<br>
+  本地参考路径：<code>references/opencode/</code>
+</blockquote>
+
+<h2>1. 项目定位</h2>
+<p>OpenCode 是 SST 团队开发的一款<strong>完全开源的终端 AI 编码代理</strong>，通过命令行在终端中运行，核心能力对标 Claude Code，但架构更灵活、模型选择更多样。</p>
+
+<h3>核心特征</h3>
+<table>
+<tr><th>特征</th><th>说明</th></tr>
+<tr><td>100% 开源</td><td>MIT 许可，代码完全公开</td></tr>
+<tr><td>模型无关</td><td>推荐 Anthropic，同时支持 OpenAI、Google Gemini、本地模型</td></tr>
+<tr><td>TUI 优先</td><td>Neovim 用户打造，追求极致终端交互体验</td></tr>
+<tr><td>Client/Server 架构</td><td>支持远程驱动——后台运行，手机等设备远程操控</td></tr>
+<tr><td>多客户端</td><td>TUI / Web / Desktop(Electron) 三种客户端并存</td></tr>
+</table>
+
+<hr>
+
+<h2>2. 项目目录结构</h2>
+<pre><code>opencode/
+├── .github/              # CI/CD + PR/Issue 自动化（26个工作流）
+│   └── workflows/        # test, typecheck, publish, review, triage...
+├── .husky/               # pre-push hook（版本检查 + 类型检查）
+├── .opencode/            # 自我引导配置（OpenCode 用自身管理自身）
+│   ├── agent/            # 自动分类、重复检测 agent
+│   ├── command/          # 自动化命令
+│   ├── skills/           # Effect 编码规范
+│   └── tool/             # GitHub Triage 自定义工具
+├── packages/             # 30+ 个 Bun workspace 包
+│   ├── schema/           # 类型/契约定义层
+│   ├── llm/              # LLM 抽象层（Provider 路由 + 协议适配）
+│   ├── protocol/         # HTTP API 路由定义
+│   ├── core/             # 核心业务逻辑引擎
+│   ├── server/           # HTTP 服务组装
+│   ├── opencode/         # CLI 入口（yargs 命令路由）
+│   ├── tui/              # 终端 UI（SolidJS + opentui）
+│   ├── app/              # Web UI（SolidJS + Tailwind）
+│   ├── desktop/          # Electron 桌面应用
+│   ├── plugin/           # 插件 SDK
+│   ├── cli/              # 新版 CLI 入口
+│   ├── client/           # 生成的 HTTP 客户端（Promise + Effect）
+│   └── sdk/              # 嵌入式 SDK
+├── infra/                # SST 基础设施（AWS 部署）
+├── nix/                  # Nix 构建/开发环境
+├── AGENTS.md             # 编码规范（源头文件）
+├── CONTEXT.md            # 领域术语体系（80+ 个正式定义）
+├── CONTRIBUTING.md       # 贡献工作流
+└── SECURITY.md           # 安全边界定义</code></pre>
+
+<hr>
+
+<h2>3. 技术栈全景</h2>
+
+<h3>3.1 运行时与语言</h3>
+<table>
+<tr><th>技术</th><th>版本</th><th>用途</th></tr>
+<tr><td><strong>Bun</strong></td><td>1.3.14</td><td>主运行时（JavaScript/TypeScript）</td></tr>
+<tr><td><strong>TypeScript</strong></td><td>5.8.2</td><td>主语言</td></tr>
+<tr><td><strong>TypeScript Native</strong></td><td>7.0.0-dev</td><td>类型检查（<code>tsgo</code>，替代 <code>tsc</code>）</td></tr>
+<tr><td><strong>Golang</strong></td><td>1.24.x</td><td>部分底层组件</td></tr>
+</table>
+
+<h3>3.2 前端技术栈</h3>
+<table>
+<tr><th>技术</th><th>用途</th><th>说明</th></tr>
+<tr><td><strong>SolidJS</strong></td><td>UI 框架</td><td>TUI + Web + Desktop 统一使用</td></tr>
+<tr><td><strong>@opentui/core</strong></td><td>终端渲染引擎</td><td>TUI 专用的字符级渲染</td></tr>
+<tr><td><strong>@opentui/keymap</strong></td><td>键盘映射</td><td>模态键位绑定、Leader 键</td></tr>
+<tr><td><strong>Tailwind CSS v4</strong></td><td>Web 样式</td><td>原子化 CSS</td></tr>
+<tr><td><strong>@solidjs/router</strong></td><td>Web 路由</td><td>SolidJS 官方路由</td></tr>
+<tr><td><strong>@tanstack/solid-query</strong></td><td>服务端状态</td><td>Web 端数据缓存</td></tr>
+<tr><td><strong>@kobalte/core</strong></td><td>UI 原语</td><td>Dialog、Popover 等无障碍组件</td></tr>
+<tr><td><strong>shiki</strong></td><td>代码高亮</td><td>精确语法高亮</td></tr>
+<tr><td><strong>Vite</strong></td><td>构建工具</td><td>Web 端 HMR</td></tr>
+<tr><td><strong>Electron</strong></td><td>桌面壳层</td><td>包裹 Web UI</td></tr>
+</table>
+
+<h3>3.3 后端技术栈</h3>
+<table>
+<tr><th>技术</th><th>用途</th><th>说明</th></tr>
+<tr><td><strong>Effect-TS</strong></td><td>函数式编程框架</td><td>核心范式，所有 IO 通过 Effect 类型表达</td></tr>
+<tr><td><strong>Effect/Schema</strong></td><td>类型/契约定义</td><td>Schema.Struct、Class、TaggedErrorClass</td></tr>
+<tr><td><strong>Effect/HttpApi</strong></td><td>HTTP 路由</td><td>声明式路由定义，替代 Express/Koa</td></tr>
+<tr><td><strong>Drizzle ORM</strong></td><td>数据库</td><td>SQLite，轻量级 ORM</td></tr>
+<tr><td><strong>SQLite (libsql)</strong></td><td>本地存储</td><td>会话、消息、配置持久化</td></tr>
+<tr><td><strong>@lydell/node-pty</strong></td><td>伪终端</td><td>终端进程管理</td></tr>
+<tr><td><strong>Vercel AI SDK</strong></td><td>LLM 客户端</td><td><code>ai</code> 6.0.168</td></tr>
+<tr><td><strong>yargs</strong></td><td>CLI 框架</td><td>命令解析和路由</td></tr>
+</table>
+
+<h3>3.4 开发工具链</h3>
+<table>
+<tr><th>工具</th><th>用途</th></tr>
+<tr><td><strong>Bun Workspaces + Catalog</strong></td><td>包管理（exact + 最小发布年龄策略）</td></tr>
+<tr><td><strong>oxlint</strong></td><td>Lint 检查（替代 ESLint，type-aware）</td></tr>
+<tr><td><strong>Prettier</strong></td><td>代码格式化（semi:false, printWidth:120）</td></tr>
+<tr><td><strong>Husky</strong></td><td>Git hooks（pre-push 类型检查）</td></tr>
+<tr><td><strong>Turbo</strong></td><td>任务编排和缓存</td></tr>
+<tr><td><strong>Playwright</strong></td><td>E2E 测试</td></tr>
+<tr><td><strong>SST</strong></td><td>云基础设施部署</td></tr>
+<tr><td><strong>Sentry</strong></td><td>前端错误监控</td></tr>
+</table>
+
+<hr>
+
+<h2>4. 包管理与版本策略</h2>
+
+<h3>4.1 Bun Workspace + Catalog</h3>
+<p>所有跨包依赖版本在根 <code>package.json</code> 的 <code>workspaces.catalog</code> 中集中管理，各包使用 <code>"catalog:"</code> 引用。</p>
+
+<h3>4.2 供应链安全策略</h3>
+<pre><code>[install]
+exact = true                   # 精确版本锁定
+minimumReleaseAge = 259200     # 仅安装发布 ≥3 天的包</code></pre>
+
+<h3>4.3 包命名约定</h3>
+<p>所有内部包使用 <code>@opencode-ai/</code> scope：</p>
+<table>
+<tr><th>包名</th><th>职责</th></tr>
+<tr><td><code>@opencode-ai/schema</code></td><td>共享类型/domain 类型</td></tr>
+<tr><td><code>@opencode-ai/llm</code></td><td>LLM Provider 路由和协议适配</td></tr>
+<tr><td><code>@opencode-ai/protocol</code></td><td>HTTP 路径/载荷/错误/流</td></tr>
+<tr><td><code>@opencode-ai/core</code></td><td>核心业务逻辑</td></tr>
+<tr><td><code>@opencode-ai/server</code></td><td>HTTP 服务器</td></tr>
+<tr><td><code>@opencode-ai/client</code></td><td>生成的 HTTP 客户端</td></tr>
+<tr><td><code>@opencode-ai/app</code></td><td>SolidJS Web 前端</td></tr>
+<tr><td><code>@opencode-ai/desktop</code></td><td>Electron 桌面应用</td></tr>
+<tr><td><code>@opencode-ai/tui</code></td><td>终端 TUI</td></tr>
+<tr><td><code>@opencode-ai/plugin</code></td><td>插件 SDK</td></tr>
+</table>
+
+<hr>
+
+<h2>5. 对当前项目的借鉴要点</h2>
+<table>
+<tr><th>OpenCode 做法</th><th>可借鉴方向</th></tr>
+<tr><td>Effect-TS 函数式范式</td><td>Rust 后端已有类似模式（强类型 + Result），前端可参考</td></tr>
+<tr><td>Schema 驱动的类型系统</td><td>前后端共享类型契约，类似你的 <code>kernel/types/</code></td></tr>
+<tr><td>Monorepo + Bun Workspace + Catalog</td><td>已有 pnpm workspace，可参考 catalog 统一版本管理</td></tr>
+<tr><td>Drizzle ORM + SQLite</td><td>对比你当前 rusqlite 方案，风格类似</td></tr>
+<tr><td>Self-bootstrapping (.opencode/)</td><td>用 AI 管理 AI 项目的理念，可直接借鉴</td></tr>
+<tr><td>三端客户端共享核心</td><td>你桌面端 + 未来移动端的设计方向与此完全一致</td></tr>
+</table>
+
+<div class="foot">OpenCode 深度分析系列文档 | 源码参考：<a href="https://github.com/sst/opencode">sst/opencode</a></div>
+</div>
+</body>
+</html>

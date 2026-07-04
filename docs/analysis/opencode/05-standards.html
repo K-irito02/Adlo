@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenCode 深度分析（五）：项目规范与开发规范</title>
+<style>
+:root{--bg:#fafafa;--card:#fff;--text:#1a1a2e;--text2:#555;--border:#e8e8e8;--accent:#6366f1;--code-bg:#f0f0f5;--tag-bg:#eef2ff;--tag-text:#4338ca;--table-stripe:#f9f9fb;--shadow:0 1px 3px rgba(0,0,0,.08)}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1117;--card:#161b22;--text:#c9d1d9;--text2:#8b949e;--border:#30363d;--accent:#7c8cff;--code-bg:#1c2128;--tag-bg:#1a2040;--tag-text:#8e9dff;--table-stripe:#111820;--shadow:0 1px 3px rgba(0,0,0,.3)}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh}
+.container{max-width:900px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:clamp(1.5rem,4vw,2rem);color:var(--accent);margin:32px 0 8px;padding-bottom:12px;border-bottom:2px solid var(--border)}
+h2{font-size:clamp(1.2rem,3vw,1.5rem);margin:40px 0 16px;padding-bottom:6px;border-bottom:1px solid var(--border);color:var(--text)}
+h3{font-size:1.15rem;margin:28px 0 10px;color:var(--text)}
+p{margin:12px 0}
+blockquote{margin:16px 0;padding:12px 20px;border-left:3px solid var(--accent);background:var(--card);border-radius:0 8px 8px 0;color:var(--text2);font-size:.93em}
+code{font-family:"JetBrains Mono","Fira Code",monospace;background:var(--code-bg);padding:2px 6px;border-radius:4px;font-size:.88em;word-break:break-word}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px 20px;overflow-x:auto;margin:16px 0;font-size:.85em;line-height:1.6}
+pre code{background:none;padding:0;font-size:inherit}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.93em;border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
+th{background:var(--accent);color:#fff;padding:10px 14px;text-align:left;font-weight:600}
+td{padding:9px 14px;border-bottom:1px solid var(--border)}
+tr:nth-child(even){background:var(--table-stripe)}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.tag{display:inline-block;background:var(--tag-bg);color:var(--tag-text);padding:2px 8px;border-radius:4px;font-size:.82em;margin:2px}
+ul,ol{margin:10px 0 10px 24px}
+li{margin:6px 0}
+strong{color:var(--text)}
+hr{border:none;border-top:1px solid var(--border);margin:32px 0}
+.nav-top{padding:12px 0;border-bottom:1px solid var(--border);margin-bottom:24px;display:flex;flex-wrap:wrap;gap:8px;font-size:.88em}
+.nav-top a{padding:4px 10px;border-radius:6px;background:var(--card);border:1px solid var(--border);transition:all .2s}
+.nav-top a:hover{background:var(--accent);color:#fff;text-decoration:none;border-color:var(--accent)}
+.nav-top .active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.foot{text-align:center;padding:40px 0 20px;color:var(--text2);font-size:.85em}
+@media(max-width:640px){.container{padding:16px 12px 40px}pre{padding:12px 14px;font-size:.8em}table{font-size:.82em}th,td{padding:7px 10px}}
+</style>
+</head>
+<body>
+<div class="container">
+<nav class="nav-top">
+  <a href="01-overview-tech-stack.html">（一）技术栈</a>
+  <a href="02-architecture.html">（二）架构设计</a>
+  <a href="03-module-design.html">（三）模块设计</a>
+  <a href="04-ui-architecture.html">（四）UI 架构</a>
+  <a href="05-standards.html" class="active">（五）项目规范</a>
+</nav>
+
+<h1>OpenCode 深度分析（五）：项目规范与开发规范</h1>
+<blockquote>源码参考路径：<code>references/opencode/AGENTS.md</code>、<code>CONTRIBUTING.md</code>、<code>CONTEXT.md</code></blockquote>
+
+<h2>1. 编码规范</h2>
+
+<h3>1.1 通用原则</h3>
+<table>
+<tr><th>规则</th><th>说明</th></tr>
+<tr><td><strong>单函数原则</strong></td><td>逻辑保留在单一函数内，除非拆分带来复用收益</td></tr>
+<tr><td><strong>禁止预提取</strong></td><td>不要预先提取只使用一次的 helper</td></tr>
+<tr><td><strong>避免 try/catch</strong></td><td>用 <code>.catch(...)</code> 替代</td></tr>
+<tr><td><strong>禁止 any</strong></td><td>使用精确类型</td></tr>
+<tr><td><strong>类型推断优先</strong></td><td>避免显式类型注解，除非导出</td></tr>
+<tr><td><strong>函数式数组方法</strong></td><td><code>flatMap/filter/map</code> 优先于 <code>for</code></td></tr>
+</table>
+
+<h3>1.2 控制流：禁止 else + 提前返回</h3>
+<pre><code>// Good
+function foo() {
+  if (condition) return 1
+  return 2
+}
+
+// Bad
+function foo() {
+  if (condition) return 1
+  else return 2
+}</code></pre>
+
+<h3>1.3 Imports 规范</h3>
+<table>
+<tr><th>规则</th><th>说明</th></tr>
+<tr><td>禁止别名</td><td>不使用 <code>import { foo as bar }</code></td></tr>
+<tr><td>禁止 star imports</td><td>不使用 <code>import * as Foo</code></td></tr>
+<tr><td>动态导入</td><td>仅用于启动敏感的入口点中的重型模块</td></tr>
+</table>
+
+<h3>1.4 Drizzle Schema 定义</h3>
+<pre><code>// Good - snake_case 字段名
+const table = sqliteTable("session", {
+  id: text().primaryKey(),
+  project_id: text().notNull(),
+  created_at: integer().notNull(),
+})</code></pre>
+
+<hr>
+
+<h2>2. 分支、Commit 与 PR 约定</h2>
+
+<h3>2.1 分支命名</h3>
+<p>最多 3 个单词，短横线分隔，禁止斜杠/类型前缀。<br>示例：<code>session-recovery</code>、<code>fix-scroll-state</code></p>
+
+<h3>2.2 Commit 与 PR 标题</h3>
+<p>格式：<code>type(scope): summary</code></p>
+<table>
+<tr><th>类型</th><th>用途</th></tr>
+<tr><td><code>feat</code></td><td>新功能</td></tr>
+<tr><td><code>fix</code></td><td>Bug 修复</td></tr>
+<tr><td><code>docs</code></td><td>文档变更</td></tr>
+<tr><td><code>chore</code></td><td>维护任务</td></tr>
+<tr><td><code>refactor</code></td><td>重构</td></tr>
+<tr><td><code>test</code></td><td>测试</td></tr>
+</table>
+
+<h3>2.3 PR 要求</h3>
+<ol>
+  <li><strong>Issue First Policy</strong>：所有 PR 必须引用已有 issue</li>
+  <li><strong>完整模板</strong>：必须填写 What、Type、Verification、Checklist</li>
+  <li><strong>禁止 AI 文字墙</strong>：描述简洁、用自己语言</li>
+  <li><strong>UI 变更</strong>：必须附带截图/视频</li>
+  <li><strong>逻辑变更</strong>：必须说明验证方式</li>
+</ol>
+
+<hr>
+
+<h2>3. 格式化配置</h2>
+<table>
+<tr><th>工具</th><th>配置</th></tr>
+<tr><td><strong>Prettier</strong></td><td><code>semi: false</code>, <code>printWidth: 120</code></td></tr>
+<tr><td><strong>EditorConfig</strong></td><td>2 空格缩进、LF 换行、UTF-8</td></tr>
+<tr><td><strong>oxlint</strong></td><td>type-aware，关闭 Effect/SolidJS 冲突规则</td></tr>
+</table>
+
+<hr>
+
+<h2>4. 测试规范</h2>
+<ol>
+  <li><strong>尽可能避免 mock</strong>：不使用 <code>globalThis.*</code></li>
+  <li><strong>禁止从根目录运行测试</strong>：必须从各包目录运行</li>
+  <li><strong>禁止直接 tsc</strong>：始终使用 <code>bun typecheck</code></li>
+</ol>
+
+<hr>
+
+<h2>5. 代码生成规则</h2>
+<ul>
+  <li>修改公共 Protocol 或 Server HttpApi 后，运行 <code>bun run generate</code></li>
+  <li><strong>禁止</strong>直接编辑 <code>src/generated</code></li>
+  <li>CI 自动在 dev 分支 push 时生成并 commit</li>
+</ul>
+
+<hr>
+
+<h2>6. 自我引导模式</h2>
+<p>OpenCode 通过 <code>.opencode/</code> 实现自我管理：</p>
+<table>
+<tr><th>配置</th><th>文件</th><th>用途</th></tr>
+<tr><td>Agent</td><td><code>agent/triage.md</code></td><td>Issue 自动分类</td></tr>
+<tr><td>Agent</td><td><code>agent/duplicate-pr.md</code></td><td>重复 PR 检测</td></tr>
+<tr><td>Tool</td><td><code>tool/github-triage.ts</code></td><td>GitHub 自定义分配工具</td></tr>
+<tr><td>Skill</td><td><code>skills/effect/SKILL.md</code></td><td>Effect v4 编码指导</td></tr>
+<tr><td>Config</td><td><code>opencode.jsonc</code></td><td>Provider/Permission/MCP 配置</td></tr>
+</table>
+
+<hr>
+
+<h2>7. 对当前项目的规范借鉴</h2>
+<table>
+<tr><th>OpenCode 规范</th><th>可借鉴方向</th></tr>
+<tr><td>AGENTS.md 编码规范源</td><td>已有 <code>.trae/rules/**</code>，可补充 Happy Path 模式</td></tr>
+<tr><td>CONTEXT.md 领域术语</td><td>建议为复杂模块建立术语表</td></tr>
+<tr><td>Branch 命名（kebab-case）</td><td>可评估统一</td></tr>
+<tr><td>Commit 规范</td><td>建议采用 conventional commits</td></tr>
+<tr><td>禁止 AI 文字墙</td><td>建议作为贡献规范</td></tr>
+<tr><td>最小发布年龄策略</td><td>供应链安全性提升</td></tr>
+<tr><td>Self-bootstrapping</td><td>增强 <code>.trae/</code> 为 AI 管理入口</td></tr>
+</table>
+
+<div class="foot">OpenCode 深度分析系列文档 | 源码参考：<a href="https://github.com/sst/opencode">sst/opencode</a></div>
+</div>
+</body>
+</html>

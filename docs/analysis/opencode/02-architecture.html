@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenCode 深度分析（二）：架构设计与包依赖</title>
+<style>
+:root{--bg:#fafafa;--card:#fff;--text:#1a1a2e;--text2:#555;--border:#e8e8e8;--accent:#6366f1;--code-bg:#f0f0f5;--tag-bg:#eef2ff;--tag-text:#4338ca;--table-stripe:#f9f9fb;--shadow:0 1px 3px rgba(0,0,0,.08)}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1117;--card:#161b22;--text:#c9d1d9;--text2:#8b949e;--border:#30363d;--accent:#7c8cff;--code-bg:#1c2128;--tag-bg:#1a2040;--tag-text:#8e9dff;--table-stripe:#111820;--shadow:0 1px 3px rgba(0,0,0,.3)}}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;min-height:100vh}
+.container{max-width:900px;margin:0 auto;padding:24px 16px 60px}
+h1{font-size:clamp(1.5rem,4vw,2rem);color:var(--accent);margin:32px 0 8px;padding-bottom:12px;border-bottom:2px solid var(--border);letter-spacing:-0.02em}
+h2{font-size:clamp(1.2rem,3vw,1.5rem);margin:40px 0 16px;padding-bottom:6px;border-bottom:1px solid var(--border);color:var(--text)}
+h3{font-size:1.15rem;margin:28px 0 10px;color:var(--text)}
+p{margin:12px 0}
+blockquote{margin:16px 0;padding:12px 20px;border-left:3px solid var(--accent);background:var(--card);border-radius:0 8px 8px 0;color:var(--text2);font-size:.93em}
+code{font-family:"JetBrains Mono","Fira Code",monospace;background:var(--code-bg);padding:2px 6px;border-radius:4px;font-size:.88em;word-break:break-word}
+pre{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:16px 20px;overflow-x:auto;margin:16px 0;font-size:.85em;line-height:1.6}
+pre code{background:none;padding:0;font-size:inherit}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:.93em;border-radius:8px;overflow:hidden;box-shadow:var(--shadow)}
+th{background:var(--accent);color:#fff;padding:10px 14px;text-align:left;font-weight:600}
+td{padding:9px 14px;border-bottom:1px solid var(--border)}
+tr:nth-child(even){background:var(--table-stripe)}
+tr:last-child td{border-bottom:none}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.tag{display:inline-block;background:var(--tag-bg);color:var(--tag-text);padding:2px 8px;border-radius:4px;font-size:.82em;font-weight:500;margin:2px}
+ul,ol{margin:10px 0 10px 24px}
+li{margin:6px 0}
+strong{color:var(--text)}
+hr{border:none;border-top:1px solid var(--border);margin:32px 0}
+.nav-top{padding:12px 0;border-bottom:1px solid var(--border);margin-bottom:24px;display:flex;flex-wrap:wrap;gap:8px;font-size:.88em}
+.nav-top a{padding:4px 10px;border-radius:6px;background:var(--card);border:1px solid var(--border);transition:all .2s}
+.nav-top a:hover{background:var(--accent);color:#fff;text-decoration:none;border-color:var(--accent)}
+.nav-top .active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.foot{text-align:center;padding:40px 0 20px;color:var(--text2);font-size:.85em}
+@media(max-width:640px){.container{padding:16px 12px 40px}pre{padding:12px 14px;font-size:.8em}table{font-size:.82em}th,td{padding:7px 10px}}
+</style>
+</head>
+<body>
+<div class="container">
+<nav class="nav-top">
+  <a href="01-overview-tech-stack.html">（一）技术栈</a>
+  <a href="02-architecture.html" class="active">（二）架构设计</a>
+  <a href="03-module-design.html">（三）模块设计</a>
+  <a href="04-ui-architecture.html">（四）UI 架构</a>
+  <a href="05-standards.html">（五）项目规范</a>
+</nav>
+
+<h1>OpenCode 深度分析（二）：架构设计与包依赖</h1>
+<blockquote>源码参考路径：<code>references/opencode/packages/</code></blockquote>
+
+<h2>1. 整体架构理念</h2>
+<p>OpenCode 采用 <strong>Effect-TS 函数式编程范式</strong> 构建，核心设计理念：</p>
+<table>
+<tr><th>理念</th><th>描述</th></tr>
+<tr><td><strong>依赖倒置</strong></td><td>Schema→Protocol→Core→Server，高层不依赖低层</td></tr>
+<tr><td><strong>分层解耦</strong></td><td>每层只依赖下层，通过 Layer/Service 注入绑定</td></tr>
+<tr><td><strong>不可变值传递</strong></td><td>Schema 契约默认只读，运行时可变性显式声明</td></tr>
+<tr><td><strong>Effect 服务层组合</strong></td><td>所有 IO 通过 Effect 类型表达，服务通过 Layer 组合</td></tr>
+</table>
+
+<hr>
+
+<h2>2. 包依赖流向</h2>
+<pre><code>              ┌────────────────────────────────────────┐
+              │           schema (纯契约, 无依赖)        │
+              └─────┬──────────────────────────┬───────┘
+                    │                          │
+              ┌─────▼────────┐          ┌──────▼──────┐
+              │     llm       │          │   plugin    │←─ 纯类型契约
+              │ (依赖 schema)  │          └──────────────┘
+              └─────┬────────┘
+                    │
+              ┌─────▼────────┐
+              │   protocol    │  HTTP API 路由定义
+              │ (依llm+schema) │
+              └─────┬────────┘
+                    │
+              ┌─────▼────────┐
+              │     core      │  所有业务领域服务
+              │ (依sch+llm)   │  Agent, Session, Config, Git...
+              └─────┬────────┘
+                    │
+              ┌─────▼────────┐
+              │    server     │  HTTP 服务组装
+              │ (依core+proto) │
+              └─────┬────────┘
+                    │
+         ┌──────────┼──────────┐
+         │          │          │
+    ┌────▼───┐ ┌───▼────┐ ┌──▼──────┐
+    │opencode│ │  tui   │ │  app    │  客户端入口
+    │(CLI)   │ │(终端UI)│ │(Web UI) │
+    └────────┘ └────────┘ └─────────┘</code></pre>
+
+<h3>关键约束</h3>
+<ol>
+  <li><strong>Client 可依赖 Schema 和 Protocol</strong>，但绝不依赖 Core 或 Server</li>
+  <li><strong>Schema 和 Protocol 不得传递依赖</strong>：数据库、Drizzle、Session 执行、providers、watchers、原生模块、WASM</li>
+  <li><strong>sdk-next 组合 Client + Core + Server</strong>（内嵌SDK）</li>
+  <li><strong>Plugin 包是纯类型契约</strong>，Core 通过 PluginHost.make() 创建运行时宿主</li>
+</ol>
+
+<hr>
+
+<h2>3. Effect-TS 核心模式</h2>
+
+<h3>3.1 Service + Layer 依赖注入</h3>
+<p>每个领域模块定义三要素：</p>
+<pre><code>// 1. 服务接口声明
+class SessionV2 extends Context.Service("SessionV2")("SessionV2", {
+  create: Effect&lt;...&gt;,
+  prompt: Effect&lt;...&gt;,
+  list: Effect&lt;...&gt;,
+}) {}
+
+// 2. Layer 实现绑定
+const layer = Layer.effect(SessionV2, makeSessionV2Service)
+
+// 3. 节点定义（声明依赖关系）
+const node = makeLocationNode({
+  service: SessionV2,
+  layer,
+  deps: [Database.node, EventV2.node, SessionExecution.node]
+})</code></pre>
+
+<h3>3.2 Global vs Location 节点</h3>
+<table>
+<tr><th>类型</th><th>生命周期</th><th>示例</th></tr>
+<tr><td><code>makeGlobalNode</code></td><td>进程级单例</td><td>Database、Git、Global paths</td></tr>
+<tr><td><code>makeLocationNode</code></td><td>每工作目录独立实例</td><td>Agent、Config、Permission、Skill、Plugin</td></tr>
+</table>
+
+<h3>3.3 State 可重放变换</h3>
+<p><code>packages/core/src/state.ts</code> 提供 <code>transform()</code> + <code>reload()</code> 模式：</p>
+<ul>
+  <li>插件/配置通过 scoped transform 注册变更</li>
+  <li>Scope 关闭后自动回滚</li>
+  <li>状态重建：<code>initial()</code> → 重放所有 transform → 提交</li>
+</ul>
+
+<hr>
+
+<h2>4. 数据流架构</h2>
+<pre><code>┌───────────────────────────────────────────────┐
+│  Client (TUI / Web / Embedded)                 │
+│  ├─ HTTP RESTful API 调用                      │
+│  └─ SSE 事件流订阅                            │
+├───────────────────────────────────────────────┤
+│  Server (HTTP Layer)                           │
+│  ├─ 认证/授权 (Basic Auth / Embedded)          │
+│  └─ 请求路由 → Handler → Core Service          │
+├───────────────────────────────────────────────┤
+│  Core (Domain Layer)                           │
+│  ├─ Session Execution Engine                   │
+│  ├─ Tool Registry (bash/read/write/edit/grep)  │
+│  ├─ Permission Engine (deny/ask/allow)         │
+│  └─ Git Operations (clone/commit/diff)        │
+├───────────────────────────────────────────────┤
+│  LLM (Provider Layer)                          │
+│  ├─ Route = Protocol+Endpoint+Auth+Framing     │
+│  └─ Provider Facades (OpenAI/Anthropic/...)    │
+├───────────────────────────────────────────────┤
+│  Storage (Drizzle + SQLite)                    │
+│  ├─ sessions / messages / parts                │
+│  └─ events / permissions / config             │
+└───────────────────────────────────────────────┘</code></pre>
+
+<hr>
+
+<h2>5. Client/Server 通信架构</h2>
+<h3>三种客户端模式</h3>
+<table>
+<tr><th>模式</th><th>连接方式</th><th>使用场景</th></tr>
+<tr><td><strong>本地 (TUI)</strong></td><td>进程内直连</td><td>终端开发</td></tr>
+<tr><td><strong>Web</strong></td><td>HTTP + SSE (Sidecar 或远程)</td><td>浏览器访问</td></tr>
+<tr><td><strong>Embedded</strong></td><td>内存 HTTP Transport</td><td>插件/SDK 集成</td></tr>
+</table>
+
+<h3>桌面端 Sidecar 架构</h3>
+<pre><code>Electron Main Process
+├─ 启动 Sidecar 服务器（随机端口 + 密码认证）
+├─ 管理 WSL Sidecar（Windows）
+├─ IPC 通道（44 个 handler）
+│   ├─ 服务器管理 / 文件操作 / 剪贴板
+│   ├─ 窗口管理 / 自动更新 / WSL
+│   └─ 调试 / 深层链接
+└─ Electron Renderer Process
+    ├─ 加载 Web UI
+    ├─ contextBridge 暴露 window.api
+    └─ HTTP 连接 Sidecar/WSL/SSH 服务器</code></pre>
+
+<hr>
+
+<h2>6. 对当前项目的架构借鉴</h2>
+<table>
+<tr><th>OpenCode</th><th>你的项目</th><th>借鉴方向</th></tr>
+<tr><td>Schema 类型契约</td><td><code>kernel/types/</code> Rust struct</td><td>可建立独立 <code>types</code> crate</td></tr>
+<tr><td>IPC (HTTP API)</td><td>Tauri Command</td><td>Tauri Command 也是声明式 API</td></tr>
+<tr><td>状态管理 (Context)</td><td>Zustand store</td><td>借鉴分层 Context 模式</td></tr>
+<tr><td>依赖注入 (Layer)</td><td>Tauri State</td><td>已有 Rust DI，参考分层设计</td></tr>
+<tr><td>插件系统 (Plugin SDK)</td><td>暂无</td><td>先定义 trait，再在 core 实现宿主</td></tr>
+<tr><td>自我引导 (.opencode/)</td><td><code>.trae/rules/</code></td><td>增强为 AI 管理入口</td></tr>
+</table>
+
+<div class="foot">OpenCode 深度分析系列文档 | 源码参考：<a href="https://github.com/sst/opencode">sst/opencode</a></div>
+</div>
+</body>
+</html>

@@ -50,3 +50,6 @@ digitalLife/
 
 # Superpower IDE runtime cache
 .superpowers/
+
+# External reference code (not part of the project, for learning/reference only)
+references/opencode/
