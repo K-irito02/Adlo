@@ -14,6 +14,30 @@
 
 ---
 
+## 架构模式
+
+### 命名空间投影 (Namespace Projection)
+模块通过自己的导出命名空间暴露类型，消费者通过命名空间限定符访问：`import { Agent } from "./agent"` 后通过 `Agent.ID`、`Agent.Info` 引用。避免扁平化导入导致的命名冲突。对应本项目：`kernel/types/` 中 `AgentConfig`、`ConversationConfig` 等类型的组织方式。
+
+### Global 节点 vs Location 节点
+服务生命周期管理策略：
+- **Global 节点**：进程级单例，如 Database、Git、全局配置
+- **Location 节点**：每工作目录独立实例，如 Agent、Config、Permission、Skill
+
+对应本项目：进程级服务（`adl-logging`、`errors` crate）vs 工作区级服务（`workspace`、`pty` crate）。
+
+### Service + Layer 依赖注入
+每个领域模块定义三要素：Service 接口声明（方法签名）、Layer 实现绑定（具体实现注入）、节点定义（依赖关系声明）。对应本项目：Rust 中 `trait` 定义 + Tauri `manage()` 状态注入模式。
+
+### Schema 驱动类型系统
+使用结构化 Schema 定义公共数据模型作为前后端契约层：
+- 所有公共类型在一个独立层定义（本项目对应 `kernel/types/`）
+- 使用 branded types 增强类型安全（如工作区 ID 而非裸 `String`）
+- 契约默认只读，运行时可变性显式声明
+- 通过 serde 序列化/反序列化确保跨语言边界一致性
+
+---
+
 ## 后端概念
 
 ### Tauri Command

@@ -27,7 +27,9 @@
 
 ## 代理开发规则
 
-规则文件位于 `.trae/rules/`（自动从 `.agents/rules/` 同步），全部规则索引见 [README.md](./.trae/rules/README.md)。必须遵守的规则：
+规则文件真源位于 `.agents/rules/`（AI 代理直接读取），自动同步到 `.trae/rules/` 供 TRAE IDE 使用。全部规则索引见 [README.md](./.trae/rules/README.md)。必须遵守的规则：
+
+> ⚠ **注意**：`.agents/rules/` 是规则文件的真源（Git 跟踪），`.trae/rules/` 是 TRAE IDE 的同步副本。修改规则请在 `.agents/rules/` 操作。
 
 - [dev-rules.md](.trae/rules/dev-rules.md) — 交互与执行规则（询问卡片、终端命令、代码修改、问题排查）
 - [mandatory-testing.md](.trae/rules/mandatory-testing.md) — 强制红绿测试

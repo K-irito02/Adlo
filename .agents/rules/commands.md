@@ -66,6 +66,8 @@ alwaysApply: true
 ## Rust 编译
 
 执行 Rust 命令前必须设置 PATH:
+> ⚠ **重要**：执行 Rust 命令前必须设置 PATH，否则 `cargo` 命令不可用。
+
 ```powershell
 $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
 ```

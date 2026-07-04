@@ -12,6 +12,15 @@
 | [refactoring-insights/](./重构洞察/) | 重构进度报告、洞察总结、每日洞察记录 |
 | [analysis/opencode/](./analysis/opencode/) | OpenCode 源码深度分析系列文档（技术栈、架构、模块、UI、规范） |
 
+## 基础设施配置
+
+| 位置 | 内容 |
+|------|------|
+| [.editorconfig](../.editorconfig) | 编辑器格式配置（缩进、换行符、编码） |
+| [.github/workflows/](../.github/workflows/) | CI/CD 工作流（Quality Gates、Binary Size） |
+| [.prettierrc](../.prettierrc) | Prettier 格式化配置 |
+| [.prettierignore](../.prettierignore) | Prettier 忽略规则 |
+
 ## 快速导航
 
 - 系统架构总览 → [architecture/system-overview.md](./architecture/system-overview.md)
