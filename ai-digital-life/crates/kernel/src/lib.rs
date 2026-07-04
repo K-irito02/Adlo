@@ -1,4 +1,5 @@
 pub mod command_risk;
+pub use command_risk::*;
 pub mod config;
 pub mod events;
 pub mod logger;

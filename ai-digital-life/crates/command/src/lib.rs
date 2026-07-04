@@ -2,7 +2,8 @@
 
 use adl_errors::AppError;
 use adl_kernel::{
-    create_id, now_ms, CommandExecutionResult, CommandProfile, CommandRequest, RiskLevel,
+    create_id, now_ms, CommandExecutionResult, CommandProfile, CommandRequest, PermissionDecision,
+    PermissionEngine, RiskLevel,
 };
 use std::path::Path;
 use std::time::Duration;
@@ -64,6 +65,32 @@ pub async fn run_approved_command(
     request: CommandRequest,
     timeout_secs: Option<u64>,
 ) -> Result<CommandExecutionResult, AppError> {
+    run_command_internal(workspace_root, request, timeout_secs, true).await
+}
+
+pub async fn run_command_with_permission(
+    workspace_root: &Path,
+    request: CommandRequest,
+    timeout_secs: Option<u64>,
+    permission_engine: &PermissionEngine,
+    approval_granted: bool,
+) -> Result<CommandExecutionResult, AppError> {
+    let decision = permission_engine.evaluate(&request.command, &request.args);
+    match decision {
+        PermissionDecision::Deny => {
+            return Err(AppError::Security(format!(
+                "command denied by permission engine: {}",
+                request.command
+            )));
+        }
+        PermissionDecision::Ask if !approval_granted => {
+            return Err(AppError::ApprovalRequired(format!(
+                "command requires approval: {}",
+                request.command
+            )));
+        }
+        _ => {}
+    }
     run_command_internal(workspace_root, request, timeout_secs, true).await
 }
 
@@ -303,5 +330,23 @@ mod tests {
         assert!(request.is_none());
 
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn permission_engine_allows_low_risk_without_approval() {
+        let engine = PermissionEngine::with_defaults();
+        assert_eq!(
+            engine.evaluate("cargo", &["build".into()]),
+            PermissionDecision::Allow
+        );
+    }
+
+    #[test]
+    fn permission_engine_asks_medium_risk_without_approval() {
+        let engine = PermissionEngine::with_defaults();
+        assert_eq!(
+            engine.evaluate("npm", &["install".into()]),
+            PermissionDecision::Ask
+        );
     }
 }
