@@ -74,6 +74,35 @@ Tracing 日志系统的配置层，支持文件输出和结构化字段。通过
 ### IPC 域拆分
 桥接层按功能域拆分为多个子接口文件（`shared/ipc/` 目录），每个域文件定义该域的接口类型。
 
+### Branded Types（标记类型）
+编译时名义类型（nominal typing）模式，定义在 `frontend/src/shared/branded.ts`。使用 TypeScript `unique symbol` 交叉类型实现零运行时开销的类型安全：
+- `WorkspaceID`、`SessionID`、`TerminalSessionID`、`AgentRunID` 等 ID 类型
+- 赋值时必须显式转型（`asWorkspaceID(str)` / `asSessionID(str)`），防止 ID 类型间混用
+- 桥接层保持使用 `string` 传输，前端边界处通过 `as string` 剥离品牌
+
+### Typed Error Classes（类型化错误类）
+前端定义在 `frontend/src/shared/typedErrors.ts`，16 个具体错误类（`NotFoundError`、`NetworkError`、`ModelError` 等），对应 Rust `AppError` 的 16 个变体。支持 `instanceof` 判断，`fromIpcErrorCode(code, message)` 工厂函数从 IPC 错误码转换。
+
+### EventBuffer（事件缓冲区）
+前端定义在 `frontend/src/shared/eventBuffer.ts`，泛型缓冲区类，用于收集高频事件
+（模型流、终端输出）后批量刷出，减少 React re-render 次数：
+- `flush()` — 清空并返回所有缓冲事件
+- `drainWithReconciliation(mergeKey, reducer)` — 按 key 去重合并
+- `scheduleFlush(callback)` — 微任务级批量刷新
+
+### ConfigTransform（可重放配置变换）
+前端 `frontend/src/app/stores/configStateMachine.ts` 和 Rust `crates/kernel/src/types/config.rs` 共同实现。借鉴 OpenCode 的 `State.transform() + reload()` 模式：
+- `createConfigState(base)` — 创建状态 + transform 日志
+- `applyTransform(state, transform)` — 应用变换并追加日志
+- `reloadFromBase(base, transforms)` — 在新基线上重放
+- `rollbackLastTransform(state)` — 撤销最后一次变换
+
+### PermissionEngine（三态权限引擎）
+Rust 端 `crates/kernel/src/command_risk.rs`，基于 OpenCode 的 deny/ask/allow 三态模型：
+- `PermissionDecision` 枚举：`Allow < Ask < Deny`（PartialOrd 优先级）
+- `PermissionRule` 结构：`pattern` 支持 `*`（单段）和 `**`（多段）通配符
+- 无规则匹配时回退到 `RiskLevel` 映射：Low→Allow, Medium→Ask, High→Deny
+
 ### Design Token
 设计系统的基础原子值，定义在 `frontend/src/design-system/tokens.ts`。包含 ShadowToken、ColorToken、SpacingToken 等类型。
 

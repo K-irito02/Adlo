@@ -150,7 +150,9 @@ const LeftSidebar = React.memo(function LeftSidebar({
           setDragWorkspaceId={setDragWorkspaceId}
           onReorderWorkspaces={actions.reorderWorkspaces}
           onOpenWorkspace={actions.openWorkspace}
-          onSwitchToWorkspace={(id: string, path: string) => actions.switchToWorkspace(asWorkspaceID(id), path)}
+          onSwitchToWorkspace={(id: string, path: string) =>
+            actions.switchToWorkspace(asWorkspaceID(id), path)
+          }
           onPinWorkspace={(id: string) => actions.pinWorkspace(asWorkspaceID(id))}
           onUnpinWorkspace={(id: string) => actions.unpinWorkspace(asWorkspaceID(id))}
           onCreateSession={onCreateSession}
@@ -232,11 +234,14 @@ const LeftSidebar = React.memo(function LeftSidebar({
                   items={buildWorkspaceMenuItems(workspace.workspace, sessionIds, t, {
                     onPinWorkspace: (id: string) => actions.pinWorkspace(asWorkspaceID(id)),
                     onUnpinWorkspace: (id: string) => actions.unpinWorkspace(asWorkspaceID(id)),
-                    onMarkAllSessionsRead: (ids: string[]) => actions.markAllSessionsRead(ids.map(asSessionID)),
+                    onMarkAllSessionsRead: (ids: string[]) =>
+                      actions.markAllSessionsRead(ids.map(asSessionID)),
                     onArchiveAllSessions: actions.archiveAllSessions,
-                    onRemoveWorkspace: (id: string) => actions.removeWorkspaceFromSidebar(asWorkspaceID(id)),
+                    onRemoveWorkspace: (id: string) =>
+                      actions.removeWorkspaceFromSidebar(asWorkspaceID(id)),
                     onRevealWorkspace: actions.revealWorkspaceInFileManager,
-                    onShowInRightPanels: (id: string) => actions.showWorkspaceInRightPanels(asWorkspaceID(id)),
+                    onShowInRightPanels: (id: string) =>
+                      actions.showWorkspaceInRightPanels(asWorkspaceID(id)),
                   })}
                   x={menuState.x}
                   y={menuState.y}
@@ -257,8 +262,10 @@ const LeftSidebar = React.memo(function LeftSidebar({
                         });
                         setRenameDialogOpen(true);
                       },
-                      onMarkRead: () => actions.markSessionRead(asSessionID(sessionItem.session.id)),
-                      onMarkUnread: () => actions.markSessionUnread(asSessionID(sessionItem.session.id)),
+                      onMarkRead: () =>
+                        actions.markSessionRead(asSessionID(sessionItem.session.id)),
+                      onMarkUnread: () =>
+                        actions.markSessionUnread(asSessionID(sessionItem.session.id)),
                       onArchive: () => actions.archiveSession(asSessionID(sessionItem.session.id)),
                       onCopyId: () => void navigator.clipboard?.writeText(sessionItem.session.id),
                       onExport: () => void exportSessionMarkdown(sessionItem.session),

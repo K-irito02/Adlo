@@ -154,7 +154,8 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     gitHubDeleteFolderConfigRecursive,
     gitHubDeleteFolderDataRecursive,
     gitHubDeleteFolderConfigAndDataRecursive,
-    hideWorkspaceFromRightPanels: (wsId: string) => hideWorkspaceFromRightPanels(asWorkspaceID(wsId)),
+    hideWorkspaceFromRightPanels: (wsId: string) =>
+      hideWorkspaceFromRightPanels(asWorkspaceID(wsId)),
   });
 
   const handleExpandBtnClick = useCallback(

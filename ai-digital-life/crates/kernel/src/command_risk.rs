@@ -59,10 +59,6 @@ pub struct PermissionEngine {
 }
 
 impl PermissionEngine {
-    pub fn with_defaults() -> Self {
-        Self { rules: Vec::new() }
-    }
-
     pub fn add_rule(&mut self, rule: PermissionRule) {
         self.rules.push(rule);
     }
@@ -76,7 +72,9 @@ impl PermissionEngine {
         let mut best: Option<PermissionDecision> = None;
 
         for rule in &self.rules {
-            if pattern_matches(&rule.pattern, command, args) || pattern_matches(&rule.pattern, &joined, &[]) {
+            if pattern_matches(&rule.pattern, command, args)
+                || pattern_matches(&rule.pattern, &joined, &[])
+            {
                 let decision = rule.decision;
                 best = match best {
                     None => Some(decision),
@@ -100,18 +98,23 @@ fn pattern_matches(pattern: &str, command: &str, args: &[String]) -> bool {
     }
 
     let parts: Vec<&str> = pattern.split(':').collect();
-    let input_parts: Vec<&str> = std::iter::once(command)
-        .chain(args.iter().map(String::as_str))
-        .collect();
+    let input_parts: Vec<&str> =
+        std::iter::once(command).chain(args.iter().map(String::as_str)).collect();
 
     if parts.len() > input_parts.len() {
-        let last_is_wildcard = parts.last().map_or(false, |p| *p == "*");
-        if !last_is_wildcard { return false; }
+        let last_is_wildcard = parts.last().is_some_and(|p| *p == "*");
+        if !last_is_wildcard {
+            return false;
+        }
     }
 
     for (i, part) in parts.iter().enumerate() {
-        if *part == "**" { return true; }
-        if *part == "*" { continue; }
+        if *part == "**" {
+            return true;
+        }
+        if *part == "*" {
+            continue;
+        }
         match input_parts.get(i) {
             Some(input) if input == part => continue,
             _ => return false,
@@ -191,48 +194,36 @@ mod tests {
 
     #[test]
     fn permission_engine_defaults_allow_low_risk() {
-        let engine = PermissionEngine::with_defaults();
-        assert_eq!(
-            engine.evaluate("cargo", &["build".into()]),
-            PermissionDecision::Allow
-        );
+        let engine = PermissionEngine::default();
+        assert_eq!(engine.evaluate("cargo", &["build".into()]), PermissionDecision::Allow);
     }
 
     #[test]
     fn permission_engine_defaults_ask_medium_risk() {
-        let engine = PermissionEngine::with_defaults();
-        assert_eq!(
-            engine.evaluate("npm", &["install".into()]),
-            PermissionDecision::Ask
-        );
+        let engine = PermissionEngine::default();
+        assert_eq!(engine.evaluate("npm", &["install".into()]), PermissionDecision::Ask);
     }
 
     #[test]
     fn permission_engine_defaults_deny_high_risk() {
-        let engine = PermissionEngine::with_defaults();
-        assert_eq!(
-            engine.evaluate("rm", &["-rf".into(), "/".into()]),
-            PermissionDecision::Deny
-        );
+        let engine = PermissionEngine::default();
+        assert_eq!(engine.evaluate("rm", &["-rf".into(), "/".into()]), PermissionDecision::Deny);
     }
 
     #[test]
     fn permission_engine_wildcard_rule_overrides_default() {
-        let mut engine = PermissionEngine::with_defaults();
+        let mut engine = PermissionEngine::default();
         engine.add_rule(PermissionRule {
             pattern: "npm:*".into(),
             decision: PermissionDecision::Allow,
             tool_type: "command".into(),
         });
-        assert_eq!(
-            engine.evaluate("npm", &["install".into()]),
-            PermissionDecision::Allow
-        );
+        assert_eq!(engine.evaluate("npm", &["install".into()]), PermissionDecision::Allow);
     }
 
     #[test]
     fn permission_engine_exact_rule_overrides_wildcard() {
-        let mut engine = PermissionEngine::with_defaults();
+        let mut engine = PermissionEngine::default();
         engine.add_rule(PermissionRule {
             pattern: "npm:*".into(),
             decision: PermissionDecision::Allow,
@@ -255,10 +246,22 @@ mod tests {
 
     #[test]
     fn permission_engine_precedence_deny_over_ask_over_allow() {
-        let mut engine = PermissionEngine::with_defaults();
-        engine.add_rule(PermissionRule { pattern: "git:*".into(), decision: PermissionDecision::Allow, tool_type: "command".into() });
-        engine.add_rule(PermissionRule { pattern: "git:*".into(), decision: PermissionDecision::Deny, tool_type: "command".into() });
-        engine.add_rule(PermissionRule { pattern: "git:*".into(), decision: PermissionDecision::Ask, tool_type: "command".into() });
+        let mut engine = PermissionEngine::default();
+        engine.add_rule(PermissionRule {
+            pattern: "git:*".into(),
+            decision: PermissionDecision::Allow,
+            tool_type: "command".into(),
+        });
+        engine.add_rule(PermissionRule {
+            pattern: "git:*".into(),
+            decision: PermissionDecision::Deny,
+            tool_type: "command".into(),
+        });
+        engine.add_rule(PermissionRule {
+            pattern: "git:*".into(),
+            decision: PermissionDecision::Ask,
+            tool_type: "command".into(),
+        });
         assert_eq!(engine.evaluate("git", &["push".into()]), PermissionDecision::Deny);
     }
 

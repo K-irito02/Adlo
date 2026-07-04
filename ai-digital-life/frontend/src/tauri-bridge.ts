@@ -43,6 +43,7 @@ import type {
   WorkspaceSearchHit,
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
+import { EventBuffer } from './shared/eventBuffer';
 import { repoMapEntriesToTree } from './shared/repoMapFromEntries';
 
 async function invokeIpc<T>(cmd: string, args?: Record<string, unknown>): Promise<IpcResult<T>> {
@@ -104,8 +105,21 @@ export function createTauriBridge(): DigitalLifeBridge {
   const win = () => getCurrentWindow();
 
   return {
-    subscribeModelStream: (listener: (event: DigitalLifeModelStreamEventV1) => void) =>
-      subscribeChannel<DigitalLifeModelStreamEventV1>('digital-life://model-stream', listener),
+    subscribeModelStream: (listener: (event: DigitalLifeModelStreamEventV1) => void) => {
+      const buf = new EventBuffer<DigitalLifeModelStreamEventV1>();
+      const channelSub = subscribeChannel<DigitalLifeModelStreamEventV1>(
+        'digital-life://model-stream',
+        (payload) => {
+          buf.push(payload);
+          buf.scheduleFlush((events) => {
+            for (const event of events) {
+              listener(event);
+            }
+          });
+        }
+      );
+      return channelSub;
+    },
 
     subscribeRunActivity: (listener: (event: DigitalLifeRunActivityEventV1) => void) =>
       subscribeChannel<DigitalLifeRunActivityEventV1>('digital-life://run-activity', listener),

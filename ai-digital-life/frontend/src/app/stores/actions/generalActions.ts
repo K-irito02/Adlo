@@ -5,7 +5,6 @@ import type {
   ConversationBlock,
   GitSnapshot,
 } from '@ai-digital-life/kernel';
-import type { WorkspaceID } from '../../../shared/branded';
 import { asWorkspaceID } from '../../../shared/branded';
 import { themeController } from '@utils/theme';
 import { createEditorTab } from '@utils/editorTabs';

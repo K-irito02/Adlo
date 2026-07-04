@@ -82,14 +82,14 @@ pub async fn run_command_with_permission(
                 "command denied by permission engine: {}",
                 request.command
             )));
-        }
+        },
         PermissionDecision::Ask if !approval_granted => {
             return Err(AppError::ApprovalRequired(format!(
                 "command requires approval: {}",
                 request.command
             )));
-        }
-        _ => {}
+        },
+        _ => {},
     }
     run_command_internal(workspace_root, request, timeout_secs, true).await
 }
@@ -334,19 +334,13 @@ mod tests {
 
     #[test]
     fn permission_engine_allows_low_risk_without_approval() {
-        let engine = PermissionEngine::with_defaults();
-        assert_eq!(
-            engine.evaluate("cargo", &["build".into()]),
-            PermissionDecision::Allow
-        );
+        let engine = PermissionEngine::default();
+        assert_eq!(engine.evaluate("cargo", &["build".into()]), PermissionDecision::Allow);
     }
 
     #[test]
     fn permission_engine_asks_medium_risk_without_approval() {
-        let engine = PermissionEngine::with_defaults();
-        assert_eq!(
-            engine.evaluate("npm", &["install".into()]),
-            PermissionDecision::Ask
-        );
+        let engine = PermissionEngine::default();
+        assert_eq!(engine.evaluate("npm", &["install".into()]), PermissionDecision::Ask);
     }
 }

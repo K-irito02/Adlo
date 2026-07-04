@@ -194,6 +194,11 @@ pub struct LogEntrySummary {
     pub message: String,
 }
 
+/// 后端侧 ConfigTransform（序列化格式）。
+/// shape: `{"type":"SET_LANGUAGE","language":"en-US"}`
+/// 前端侧 ConfigTransform（frontend/src/app/stores/configStateMachine.ts）使用不同 shape：
+/// `{type:"SET_LANGUAGE", payload:{language:"en-US"}, timestamp:...}` — 二者有意不同，
+/// Rust 端为 IPC 线格式，前端为内部状态机追踪格式。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
