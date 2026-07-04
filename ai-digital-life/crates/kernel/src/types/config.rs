@@ -193,3 +193,26 @@ pub struct LogEntrySummary {
     pub scope: String,
     pub message: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+#[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ConfigTransform {
+    SetLanguage { language: String },
+    SetTheme { theme_mode: ThemeMode },
+    SetLogLevel { log_level: String },
+    SetPreference { key: String, value: serde_json::Value },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_transform_serializes_correctly() {
+        let t = ConfigTransform::SetLanguage { language: "en-US".into() };
+        let json = serde_json::to_string(&t).unwrap();
+        assert!(json.contains("SET_LANGUAGE"));
+        assert!(json.contains("en-US"));
+    }
+}
