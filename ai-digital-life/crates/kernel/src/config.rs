@@ -1,6 +1,6 @@
-use crate::types::{LogMode, ModelPreferences, ThemeMode};
-use crate::types::reference::ReferenceConfig;
 use crate::types::agent::AgentConfig;
+use crate::types::reference::ReferenceConfig;
+use crate::types::{LogMode, ModelPreferences, ThemeMode};
 use crate::CommandConfig;
 use crate::PermissionRulesetConfig;
 use adl_errors::AppError;
@@ -106,8 +106,8 @@ mod tests {
 #[cfg(test)]
 mod config_extension_tests {
     use super::*;
-    use crate::types::commands::CommandConfig;
     use crate::types::agent::AgentId;
+    use crate::types::commands::CommandConfig;
 
     #[test]
     fn app_config_has_commands_field() {

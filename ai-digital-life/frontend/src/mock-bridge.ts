@@ -1,9 +1,16 @@
 import { IpcErrorCode } from './shared/ipc';
-import type { AgentConfig, AudioStatePayload, CustomAgentBridge, DigitalLifeBridge, DurableBridge, PageMeta, PluginInfo, PtyOutputEvent, ReservedBridge } from './shared/ipc';
+import type {
+  AgentConfig,
+  AudioStatePayload,
+  CustomAgentBridge,
+  DigitalLifeBridge,
+  DurableBridge,
+  PageMeta,
+  PtyOutputEvent,
+  ReservedBridge,
+} from './shared/ipc';
 import type {
   CompactionBridge,
-  CompactionResult,
-  CompactionStatus,
   LspBridge,
   McpBridge,
   SessionForkBridge,
@@ -13,9 +20,7 @@ import type {
   SnapshotBridge,
   CommandsConfigBridge,
   CommandConfig,
-  CommandHint,
   PermissionBridge,
-  PermissionRule,
   PermissionRulesetConfig,
   PermissionDecision,
   ReferenceBridge,
@@ -23,7 +28,11 @@ import type {
   WebToolsBridge,
 } from './shared/ipc';
 import { applyPreferencePatch } from './shared/preferencesMerger';
-import type { CommandRequest, CommandRunResult, ConversationSessionRecord } from '@ai-digital-life/kernel';
+import type {
+  CommandRequest,
+  CommandRunResult,
+  ConversationSessionRecord,
+} from '@ai-digital-life/kernel';
 import { mockWorkspace } from './mock/mock-workspace';
 import { mockRetrieval } from './mock/mock-retrieval';
 import { mockConversation } from './mock/mock-conversation';
@@ -677,19 +686,34 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   } satisfies ReferenceBridge,
 
   durable: {
-    registerDurableSession: async () => ({ ok: true, data: undefined as any }),
-    heartbeatDurableSession: async () => ({ ok: true, data: undefined as any }),
+    registerDurableSession: async () => ({ ok: true, data: undefined }),
+    heartbeatDurableSession: async () => ({ ok: true, data: undefined }),
     findCrashedSessions: async () => ({ ok: true, data: [] }),
     recoverSession: async () => ({ ok: true, data: false }),
   } satisfies DurableBridge,
 
   reserved: {
-    acpGetStatus: async () => ({ ok: false, error: { code: IpcErrorCode.INTERNAL_ERROR, message: 'ACP not implemented' } }),
+    acpGetStatus: async () => ({
+      ok: false,
+      error: { code: IpcErrorCode.INTERNAL_ERROR, message: 'ACP not implemented' },
+    }),
     acpGetConfig: async () => ({ ok: true, data: { enabled: false, port: null } }),
-    httpApiGetStatus: async () => ({ ok: false, error: { code: IpcErrorCode.INTERNAL_ERROR, message: 'HTTP API not implemented' } }),
-    httpApiGetConfig: async () => ({ ok: true, data: { enabled: false, port: null, cors_origins: [] } }),
-    codemodeExecute: async () => ({ ok: false, error: { code: IpcErrorCode.INTERNAL_ERROR, message: 'CodeMode not implemented' } }),
-    codemodeGetConfig: async () => ({ ok: true, data: { enabled: false, max_concurrency: 8, timeout_ms: 30000, max_output_bytes: 1048576 } }),
+    httpApiGetStatus: async () => ({
+      ok: false,
+      error: { code: IpcErrorCode.INTERNAL_ERROR, message: 'HTTP API not implemented' },
+    }),
+    httpApiGetConfig: async () => ({
+      ok: true,
+      data: { enabled: false, port: null, cors_origins: [] },
+    }),
+    codemodeExecute: async () => ({
+      ok: false,
+      error: { code: IpcErrorCode.INTERNAL_ERROR, message: 'CodeMode not implemented' },
+    }),
+    codemodeGetConfig: async () => ({
+      ok: true,
+      data: { enabled: false, max_concurrency: 8, timeout_ms: 30000, max_output_bytes: 1048576 },
+    }),
   } satisfies ReservedBridge,
 
   customAgent: {

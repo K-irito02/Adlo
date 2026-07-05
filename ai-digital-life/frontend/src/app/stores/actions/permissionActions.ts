@@ -3,7 +3,10 @@ import type { StoreApi } from 'zustand';
 import type { PermissionRule } from '@shared/ipc';
 import { clearError, captureError } from '../shared';
 
-export function createPermissionActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
+export function createPermissionActions(
+  set: StoreApi<StoreState>['setState'],
+  get: () => StoreState
+) {
   return {
     fetchPermissionRules: async (dataDir: string) => {
       clearError(get);

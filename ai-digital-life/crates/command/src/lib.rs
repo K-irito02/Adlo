@@ -335,7 +335,10 @@ mod tests {
     #[test]
     fn permission_ruleset_allows_low_risk_without_approval() {
         let engine = PermissionRuleset::default();
-        assert_eq!(engine.evaluate("command", "cargo", &["build".into()]), PermissionDecision::Allow);
+        assert_eq!(
+            engine.evaluate("command", "cargo", &["build".into()]),
+            PermissionDecision::Allow
+        );
     }
 
     #[test]

@@ -1,12 +1,12 @@
 pub mod client;
+pub mod diagnostics;
 pub mod server_manager;
 pub mod symbols;
-pub mod diagnostics;
 
 pub use client::{LspClient, LspClientState};
-pub use server_manager::{LspServerManager, LanguageServerConfig};
-pub use symbols::{SymbolInfo, SymbolKind, DefinitionLocation};
 pub use diagnostics::DiagnosticInfo;
+pub use server_manager::{LanguageServerConfig, LspServerManager};
+pub use symbols::{DefinitionLocation, SymbolInfo, SymbolKind};
 
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +24,9 @@ impl LanguageServer {
     pub fn command(&self) -> Vec<&str> {
         match self {
             LanguageServer::RustAnalyzer => vec!["rust-analyzer"],
-            LanguageServer::TypeScriptLanguageServer => vec!["typescript-language-server", "--stdio"],
+            LanguageServer::TypeScriptLanguageServer => {
+                vec!["typescript-language-server", "--stdio"]
+            },
             LanguageServer::Pylsp => vec!["pylsp"],
             LanguageServer::Gopls => vec!["gopls", "serve"],
             LanguageServer::Custom(cmd) => vec![cmd.as_str()],
@@ -53,7 +55,10 @@ mod tests {
 
     #[test]
     fn ts_extension_maps_to_ts_server() {
-        assert_eq!(LanguageServer::from_file_extension("ts"), Some(LanguageServer::TypeScriptLanguageServer));
+        assert_eq!(
+            LanguageServer::from_file_extension("ts"),
+            Some(LanguageServer::TypeScriptLanguageServer)
+        );
     }
 
     #[test]

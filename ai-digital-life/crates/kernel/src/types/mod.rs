@@ -3,10 +3,10 @@ pub mod ci;
 pub mod command;
 pub mod commands;
 pub mod config;
-pub mod reference;
-pub mod reserved;
 pub mod conversation;
 pub mod model;
+pub mod reference;
+pub mod reserved;
 pub mod workspace;
 
 pub use agent::*;
@@ -14,10 +14,10 @@ pub use ci::*;
 pub use command::*;
 pub use commands::{CommandConfig, CommandHint};
 pub use config::*;
-pub use reference::{ReferenceConfig, ReferenceSource};
-pub use reserved::{AcpConfig, HttpApiConfig, CodeModeConfig};
 pub use conversation::*;
 pub use model::*;
+pub use reference::{ReferenceConfig, ReferenceSource};
+pub use reserved::{AcpConfig, CodeModeConfig, HttpApiConfig};
 pub use workspace::*;
 
 use serde::{Deserialize, Serialize};

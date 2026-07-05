@@ -268,15 +268,15 @@ const CenterPane = React.memo(function CenterPane() {
           <>
             <CompactionIndicator />
             <MessageStream
-            messages={messages}
-            streamingText={streamingAssistantText}
-            isStreaming={!!streamingAssistantText}
-            activeRun={activeRun}
-            streamingActiveRunId={streamingActiveRunId}
-            runActivityByRunId={runActivityByRunId}
-            runUsageByRunId={runUsageByRunId}
-            locale={locale}
-          />
+              messages={messages}
+              streamingText={streamingAssistantText}
+              isStreaming={!!streamingAssistantText}
+              activeRun={activeRun}
+              streamingActiveRunId={streamingActiveRunId}
+              runActivityByRunId={runActivityByRunId}
+              runUsageByRunId={runUsageByRunId}
+              locale={locale}
+            />
           </>
         )}
       </div>

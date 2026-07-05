@@ -14,7 +14,9 @@ export function LspSymbols({ workspaceId, filePath }: { workspaceId: string; fil
     }
   }, [workspaceId, filePath, lspGetSymbols]);
 
-  if (symbols.length === 0) return <p className="adl-lsp-empty">{t.lspNoSymbols}</p>;
+  if (symbols.length === 0) {
+    return <p className="adl-lsp-empty">{t.lspNoSymbols}</p>;
+  }
 
   return (
     <ul className="adl-lsp-symbols">

@@ -3,7 +3,10 @@ import type { StoreApi } from 'zustand';
 import type { ConversationSessionRecord } from '@ai-digital-life/kernel';
 import { clearError, captureError } from '../shared';
 
-export function createSessionForkActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
+export function createSessionForkActions(
+  set: StoreApi<StoreState>['setState'],
+  get: () => StoreState
+) {
   return {
     forkSession: async (
       parentSession: ConversationSessionRecord,

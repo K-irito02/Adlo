@@ -1,8 +1,8 @@
 pub mod hooks;
 pub mod registry;
 
-pub use hooks::{PluginHook, HookResult};
-pub use registry::{PluginRegistry, PluginInfo};
+pub use hooks::{HookResult, PluginHook};
+pub use registry::{PluginInfo, PluginRegistry};
 
 use async_trait::async_trait;
 

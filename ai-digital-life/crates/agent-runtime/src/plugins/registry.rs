@@ -1,4 +1,4 @@
-use super::{Plugin, HookType, PluginHook, HookResult};
+use super::{HookResult, HookType, Plugin, PluginHook};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -45,12 +45,15 @@ impl PluginRegistry {
     pub async fn list_plugins(&self) -> Vec<PluginInfo> {
         let plugins = self.plugins.read().await;
         let enabled = self.enabled.read().await;
-        plugins.values().map(|p| PluginInfo {
-            name: p.name().to_string(),
-            description: p.description().to_string(),
-            hooks: p.hooks().iter().map(|h| format!("{:?}", h)).collect(),
-            enabled: enabled.get(p.name()).copied().unwrap_or(false),
-        }).collect()
+        plugins
+            .values()
+            .map(|p| PluginInfo {
+                name: p.name().to_string(),
+                description: p.description().to_string(),
+                hooks: p.hooks().iter().map(|h| format!("{:?}", h)).collect(),
+                enabled: enabled.get(p.name()).copied().unwrap_or(false),
+            })
+            .collect()
     }
 
     pub async fn fire_hook(&self, hook: &PluginHook) -> HookResult {
@@ -99,10 +102,18 @@ mod tests {
 
     #[async_trait::async_trait]
     impl Plugin for TestPlugin {
-        fn name(&self) -> &str { "test-plugin" }
-        fn description(&self) -> &str { "A test plugin" }
-        fn hooks(&self) -> &[HookType] { &[HookType::ToolExecuteBefore] }
-        async fn on_hook(&self, _hook: &PluginHook) -> HookResult { HookResult::Pass }
+        fn name(&self) -> &str {
+            "test-plugin"
+        }
+        fn description(&self) -> &str {
+            "A test plugin"
+        }
+        fn hooks(&self) -> &[HookType] {
+            &[HookType::ToolExecuteBefore]
+        }
+        async fn on_hook(&self, _hook: &PluginHook) -> HookResult {
+            HookResult::Pass
+        }
     }
 
     #[tokio::test]

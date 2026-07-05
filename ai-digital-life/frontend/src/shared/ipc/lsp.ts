@@ -1,10 +1,31 @@
 import type { IpcResult } from '@ai-digital-life/kernel';
 
 export type SymbolKind =
-  'file' | 'module' | 'namespace' | 'package' | 'class' | 'method' |
-  'property' | 'field' | 'constructor' | 'enum' | 'interface' | 'function' |
-  'variable' | 'constant' | 'string' | 'number' | 'boolean' | 'array' |
-  'object' | 'key' | 'null' | 'struct' | 'event' | 'operator' | 'type_parameter';
+  | 'file'
+  | 'module'
+  | 'namespace'
+  | 'package'
+  | 'class'
+  | 'method'
+  | 'property'
+  | 'field'
+  | 'constructor'
+  | 'enum'
+  | 'interface'
+  | 'function'
+  | 'variable'
+  | 'constant'
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'array'
+  | 'object'
+  | 'key'
+  | 'null'
+  | 'struct'
+  | 'event'
+  | 'operator'
+  | 'type_parameter';
 
 export type DiagnosticSeverity = 'error' | 'warning' | 'information' | 'hint';
 

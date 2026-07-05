@@ -39,7 +39,13 @@ function buildCustomCommands(commands: CommandConfig[]): MergedCommand[] {
   }));
 }
 
-export function SlashCommandPopover({ t, open, onSelect, onClose, customCommands = [] }: SlashCommandPopoverProps) {
+export function SlashCommandPopover({
+  t,
+  open,
+  onSelect,
+  onClose,
+  customCommands = [],
+}: SlashCommandPopoverProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
 

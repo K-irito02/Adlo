@@ -1,6 +1,6 @@
+use super::agent::AgentId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
-use super::agent::AgentId;
 
 /// Configuration for a user-defined slash command.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -134,11 +134,8 @@ mod tests {
 
     #[test]
     fn render_template_substitutes_workspace() {
-        let result = CommandConfig::render_template(
-            "Analyze $WORKSPACE",
-            &[],
-            "/home/user/project",
-        );
+        let result =
+            CommandConfig::render_template("Analyze $WORKSPACE", &[], "/home/user/project");
         assert_eq!(result, "Analyze /home/user/project");
     }
 

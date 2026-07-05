@@ -41,9 +41,15 @@ impl Default for CodeModeConfig {
     }
 }
 
-fn default_max_concurrency() -> u32 { 8 }
-fn default_timeout_ms() -> u64 { 30_000 }
-fn default_max_output_bytes() -> usize { 1_048_576 }
+fn default_max_concurrency() -> u32 {
+    8
+}
+fn default_timeout_ms() -> u64 {
+    30_000
+}
+fn default_max_output_bytes() -> usize {
+    1_048_576
+}
 
 #[cfg(test)]
 mod tests {

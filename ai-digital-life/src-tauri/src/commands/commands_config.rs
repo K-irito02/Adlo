@@ -1,7 +1,7 @@
+use crate::commands::ipc;
 use adl_kernel::config::{load, save};
 use adl_kernel::types::commands::CommandConfig;
 use adl_kernel::IpcResult;
-use crate::commands::ipc;
 use std::path::Path;
 
 #[tauri::command]
@@ -39,10 +39,7 @@ pub fn update_custom_command(
         if let Some(pos) = config.commands.iter().position(|c| c.name == name) {
             config.commands[pos] = command;
         } else {
-            return Err(adl_errors::AppError::NotFound(format!(
-                "Command '{}' not found",
-                name
-            )));
+            return Err(adl_errors::AppError::NotFound(format!("Command '{}' not found", name)));
         }
         save(Path::new(&data_dir), &config)?;
         Ok(config.commands)
@@ -50,10 +47,7 @@ pub fn update_custom_command(
 }
 
 #[tauri::command]
-pub fn delete_custom_command(
-    data_dir: String,
-    name: String,
-) -> IpcResult<Vec<CommandConfig>> {
+pub fn delete_custom_command(data_dir: String, name: String) -> IpcResult<Vec<CommandConfig>> {
     ipc((|| {
         let mut config = load(Path::new(&data_dir))?;
         config.commands.retain(|c| c.name != name);

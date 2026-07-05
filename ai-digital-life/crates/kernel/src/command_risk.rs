@@ -48,7 +48,9 @@ impl PermissionDecision {
     /// Precedence: Deny > Ask > Allow. Returns the higher-precedence decision.
     pub fn merge(self, other: PermissionDecision) -> PermissionDecision {
         match (self, other) {
-            (PermissionDecision::Deny, _) | (_, PermissionDecision::Deny) => PermissionDecision::Deny,
+            (PermissionDecision::Deny, _) | (_, PermissionDecision::Deny) => {
+                PermissionDecision::Deny
+            },
             (PermissionDecision::Ask, _) | (_, PermissionDecision::Ask) => PermissionDecision::Ask,
             (PermissionDecision::Allow, PermissionDecision::Allow) => PermissionDecision::Allow,
         }
@@ -178,10 +180,7 @@ pub struct PermissionRulesetConfig {
 
 impl Default for PermissionRulesetConfig {
     fn default() -> Self {
-        Self {
-            custom_rules: Vec::new(),
-            include_defaults: true,
-        }
+        Self { custom_rules: Vec::new(), include_defaults: true }
     }
 }
 
@@ -276,15 +275,9 @@ pub fn evaluate_permission(
 
 /// Check for doom loop pattern (repeated failures).
 /// Returns Ask if the same command has failed more than 3 times in a row.
-pub fn doom_loop_check(
-    recent_failures: &[String],
-    command: &str,
-) -> PermissionDecision {
-    let consecutive_failures = recent_failures
-        .iter()
-        .rev()
-        .take_while(|c| c.as_str() == command)
-        .count();
+pub fn doom_loop_check(recent_failures: &[String], command: &str) -> PermissionDecision {
+    let consecutive_failures =
+        recent_failures.iter().rev().take_while(|c| c.as_str() == command).count();
 
     if consecutive_failures >= 3 {
         PermissionDecision::Ask
@@ -306,10 +299,7 @@ pub fn is_external_directory(path: &str, workspace_root: &str) -> bool {
 }
 
 /// Build a permission ruleset from config.
-pub fn build_ruleset(
-    custom_rules: &[PermissionRule],
-    include_defaults: bool,
-) -> PermissionRuleset {
+pub fn build_ruleset(custom_rules: &[PermissionRule], include_defaults: bool) -> PermissionRuleset {
     let mut ruleset = if include_defaults {
         PermissionRuleset::default_rules()
     } else {
@@ -389,14 +379,26 @@ mod tests {
 
     #[test]
     fn decision_merge_deny_wins() {
-        assert_eq!(PermissionDecision::Allow.merge(PermissionDecision::Deny), PermissionDecision::Deny);
-        assert_eq!(PermissionDecision::Deny.merge(PermissionDecision::Allow), PermissionDecision::Deny);
+        assert_eq!(
+            PermissionDecision::Allow.merge(PermissionDecision::Deny),
+            PermissionDecision::Deny
+        );
+        assert_eq!(
+            PermissionDecision::Deny.merge(PermissionDecision::Allow),
+            PermissionDecision::Deny
+        );
     }
 
     #[test]
     fn decision_merge_ask_over_allow() {
-        assert_eq!(PermissionDecision::Allow.merge(PermissionDecision::Ask), PermissionDecision::Ask);
-        assert_eq!(PermissionDecision::Ask.merge(PermissionDecision::Allow), PermissionDecision::Ask);
+        assert_eq!(
+            PermissionDecision::Allow.merge(PermissionDecision::Ask),
+            PermissionDecision::Ask
+        );
+        assert_eq!(
+            PermissionDecision::Ask.merge(PermissionDecision::Allow),
+            PermissionDecision::Ask
+        );
     }
 
     #[test]
@@ -412,19 +414,28 @@ mod tests {
     #[test]
     fn ruleset_defaults_allow_low_risk() {
         let ruleset = PermissionRuleset::default();
-        assert_eq!(ruleset.evaluate("command", "cargo", &["build".into()]), PermissionDecision::Allow);
+        assert_eq!(
+            ruleset.evaluate("command", "cargo", &["build".into()]),
+            PermissionDecision::Allow
+        );
     }
 
     #[test]
     fn ruleset_defaults_ask_medium_risk() {
         let ruleset = PermissionRuleset::default();
-        assert_eq!(ruleset.evaluate("command", "npm", &["install".into()]), PermissionDecision::Ask);
+        assert_eq!(
+            ruleset.evaluate("command", "npm", &["install".into()]),
+            PermissionDecision::Ask
+        );
     }
 
     #[test]
     fn ruleset_defaults_deny_high_risk() {
         let ruleset = PermissionRuleset::default();
-        assert_eq!(ruleset.evaluate("command", "rm", &["-rf".into(), "/".into()]), PermissionDecision::Deny);
+        assert_eq!(
+            ruleset.evaluate("command", "rm", &["-rf".into(), "/".into()]),
+            PermissionDecision::Deny
+        );
     }
 
     #[test]
@@ -525,11 +536,8 @@ mod tests {
 
     #[test]
     fn doom_loop_asks_at_threshold() {
-        let failures = vec![
-            "npm install".to_string(),
-            "npm install".to_string(),
-            "npm install".to_string(),
-        ];
+        let failures =
+            vec!["npm install".to_string(), "npm install".to_string(), "npm install".to_string()];
         assert_eq!(doom_loop_check(&failures, "npm install"), PermissionDecision::Ask);
     }
 

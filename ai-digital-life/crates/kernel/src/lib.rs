@@ -1,10 +1,10 @@
 pub mod command_risk;
 pub mod config_watcher;
 pub use command_risk::{
-    assess_command_risk, requires_approval,
-    build_ruleset, doom_loop_check, evaluate_permission, is_external_directory, risk_to_decision,
-    PermissionDecision, PermissionRule, PermissionRuleset, PermissionRulesetConfig,
-    pattern_matches as permission_pattern_matches,
+    assess_command_risk, build_ruleset, doom_loop_check, evaluate_permission,
+    is_external_directory, pattern_matches as permission_pattern_matches, requires_approval,
+    risk_to_decision, PermissionDecision, PermissionRule, PermissionRuleset,
+    PermissionRulesetConfig,
 };
 pub mod config;
 pub mod events;

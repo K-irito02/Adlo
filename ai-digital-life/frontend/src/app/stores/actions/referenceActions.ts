@@ -3,7 +3,10 @@ import type { StoreApi } from 'zustand';
 import type { ReferenceConfig } from '@shared/ipc';
 import { clearError, captureError } from '../shared';
 
-export function createReferenceActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
+export function createReferenceActions(
+  set: StoreApi<StoreState>['setState'],
+  get: () => StoreState
+) {
   return {
     fetchReferences: async (dataDir: string) => {
       set({ isFetchingReferences: true });

@@ -11,9 +11,30 @@ pub struct SymbolInfo {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SymbolKind {
-    File, Module, Namespace, Package, Class, Method, Property, Field,
-    Constructor, Enum, Interface, Function, Variable, Constant, String,
-    Number, Boolean, Array, Object, Key, Null, Struct, Event, Operator,
+    File,
+    Module,
+    Namespace,
+    Package,
+    Class,
+    Method,
+    Property,
+    Field,
+    Constructor,
+    Enum,
+    Interface,
+    Function,
+    Variable,
+    Constant,
+    String,
+    Number,
+    Boolean,
+    Array,
+    Object,
+    Key,
+    Null,
+    Struct,
+    Event,
+    Operator,
     TypeParameter,
 }
 

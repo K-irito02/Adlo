@@ -19,9 +19,7 @@ pub struct LspClient {
 
 impl LspClient {
     pub fn new(_workspace_root: PathBuf) -> Self {
-        Self {
-            servers: Arc::new(Mutex::new(HashMap::new())),
-        }
+        Self { servers: Arc::new(Mutex::new(HashMap::new())) }
     }
 
     pub async fn start_server(&self, server: LanguageServer) -> Result<(), adl_errors::AppError> {

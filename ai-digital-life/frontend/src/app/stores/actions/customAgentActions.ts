@@ -3,7 +3,10 @@ import type { StoreApi } from 'zustand';
 import type { AgentConfig } from '@shared/ipc';
 import { clearError, captureError } from '../shared';
 
-export function createCustomAgentActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
+export function createCustomAgentActions(
+  set: StoreApi<StoreState>['setState'],
+  get: () => StoreState
+) {
   return {
     fetchCustomAgents: async (dataDir: string) => {
       set({ isFetchingCustomAgents: true });

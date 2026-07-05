@@ -35,11 +35,18 @@ export function PermissionRulesetEditor({ onClose }: PermissionRulesetEditorProp
       <div className="adl-form">
         <label>
           {t.permissionRulesPattern}
-          <input value={pattern} onChange={(e) => setPattern(e.target.value)} placeholder="**/.env" />
+          <input
+            value={pattern}
+            onChange={(e) => setPattern(e.target.value)}
+            placeholder="**/.env"
+          />
         </label>
         <label>
           {t.permissionRulesDecision}
-          <select value={decision} onChange={(e) => setDecision(e.target.value as PermissionDecision)}>
+          <select
+            value={decision}
+            onChange={(e) => setDecision(e.target.value as PermissionDecision)}
+          >
             <option value="allow">{t.permissionDecisionsAllow}</option>
             <option value="ask">{t.permissionDecisionsAsk}</option>
             <option value="deny">{t.permissionDecisionsDeny}</option>
@@ -47,7 +54,11 @@ export function PermissionRulesetEditor({ onClose }: PermissionRulesetEditorProp
         </label>
         <label>
           {t.permissionRulesToolType}
-          <input value={toolType} onChange={(e) => setToolType(e.target.value)} placeholder="bash, write, read" />
+          <input
+            value={toolType}
+            onChange={(e) => setToolType(e.target.value)}
+            placeholder="bash, write, read"
+          />
         </label>
         <label className="adl-checkbox-label">
           <input type="checkbox" checked={always} onChange={(e) => setAlways(e.target.checked)} />
@@ -55,7 +66,11 @@ export function PermissionRulesetEditor({ onClose }: PermissionRulesetEditorProp
         </label>
         <label>
           {t.permissionRulesReason}
-          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why this rule exists" />
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Why this rule exists"
+          />
         </label>
         <div className="adl-form-actions">
           <button className="adl-btn adl-btn--primary" onClick={handleSave}>

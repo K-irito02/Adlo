@@ -1,4 +1,4 @@
-use adl_kernel::types::conversation::{ConversationSessionRecord, ConversationMessageRecord};
+use adl_kernel::types::conversation::{ConversationMessageRecord, ConversationSessionRecord};
 
 /// Fork a session from a specific message.
 pub fn fork_session(
@@ -9,7 +9,8 @@ pub fn fork_session(
     let fork_number = existing_fork_count + 1;
     let title = Some(format!("{} (fork #{})", parent_session.title, fork_number));
 
-    let mut child = crate::create_session(&parent_session.workspace_id, title, parent_session.unpinned_order);
+    let mut child =
+        crate::create_session(&parent_session.workspace_id, title, parent_session.unpinned_order);
     child.parent_id = Some(parent_session.id.clone());
     child
 }
@@ -71,15 +72,17 @@ mod tests {
 
     #[test]
     fn get_fork_context_includes_up_to_message() {
-        let messages: Vec<_> = (0..5).map(|i| ConversationMessageRecord {
-            id: format!("msg-{}", i),
-            session_id: "sess".to_string(),
-            run_id: None,
-            role: ConversationRole::User,
-            content: format!("Message {}", i),
-            blocks: vec![],
-            created_at: adl_kernel::now_ms(),
-        }).collect();
+        let messages: Vec<_> = (0..5)
+            .map(|i| ConversationMessageRecord {
+                id: format!("msg-{}", i),
+                session_id: "sess".to_string(),
+                run_id: None,
+                role: ConversationRole::User,
+                content: format!("Message {}", i),
+                blocks: vec![],
+                created_at: adl_kernel::now_ms(),
+            })
+            .collect();
 
         let context = get_fork_context(&messages, "msg-2");
         assert_eq!(context.len(), 3);

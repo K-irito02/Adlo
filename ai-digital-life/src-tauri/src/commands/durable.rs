@@ -6,7 +6,10 @@ static DURABLE_MANAGER: std::sync::LazyLock<Arc<DurableSessionManager>> =
     std::sync::LazyLock::new(|| Arc::new(DurableSessionManager::new()));
 
 #[tauri::command]
-pub async fn register_durable_session(session_id: String, run_id: String) -> Result<(), adl_errors::AppError> {
+pub async fn register_durable_session(
+    session_id: String,
+    run_id: String,
+) -> Result<(), adl_errors::AppError> {
     DURABLE_MANAGER.register_session(&session_id, &run_id).await;
     Ok(())
 }

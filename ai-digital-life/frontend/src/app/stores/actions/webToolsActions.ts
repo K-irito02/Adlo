@@ -2,7 +2,10 @@ import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import { clearError, captureError } from '../shared';
 
-export function createWebToolsActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
+export function createWebToolsActions(
+  set: StoreApi<StoreState>['setState'],
+  get: () => StoreState
+) {
   return {
     webFetch: async (url: string) => {
       set({ isWebFetching: true });

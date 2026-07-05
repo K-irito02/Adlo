@@ -47,7 +47,9 @@ export function WebSearchPanel() {
         <div className="adl-web-result">
           <div className="adl-web-result-header">
             <span>{t.webFetchTitle}</span>
-            <button type="button" onClick={clearWebResults}>{t.webClear}</button>
+            <button type="button" onClick={clearWebResults}>
+              {t.webClear}
+            </button>
           </div>
           <pre className="adl-web-result-content">{webFetchResult.content}</pre>
         </div>
@@ -57,12 +59,16 @@ export function WebSearchPanel() {
         <div className="adl-web-result">
           <div className="adl-web-result-header">
             <span>{t.webSearchTitle}</span>
-            <button type="button" onClick={clearWebResults}>{t.webClear}</button>
+            <button type="button" onClick={clearWebResults}>
+              {t.webClear}
+            </button>
           </div>
           <ul className="adl-web-search-results">
             {webSearchResults.results.map((r, i) => (
               <li key={i}>
-                <a href={r.url} target="_blank" rel="noopener noreferrer">{r.title}</a>
+                <a href={r.url} target="_blank" rel="noopener noreferrer">
+                  {r.title}
+                </a>
                 <p>{r.snippet}</p>
               </li>
             ))}

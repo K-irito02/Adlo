@@ -2,7 +2,10 @@ import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import { clearError, captureError } from '../shared';
 
-export function createSnapshotActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
+export function createSnapshotActions(
+  set: StoreApi<StoreState>['setState'],
+  get: () => StoreState
+) {
   return {
     createSnapshot: async (params: {
       workspaceId: string;
@@ -29,11 +32,7 @@ export function createSnapshotActions(set: StoreApi<StoreState>['setState'], get
       return result.data;
     },
 
-    revertToSnapshot: async (
-      workspaceId: string,
-      workspaceRoot: string,
-      snapshotId: string
-    ) => {
+    revertToSnapshot: async (workspaceId: string, workspaceRoot: string, snapshotId: string) => {
       clearError(get);
       const result = await window.digitalLife.snapshot.revertToSnapshot(
         workspaceId,

@@ -19,7 +19,15 @@ export interface CommandConfig {
 export interface CommandsConfigBridge {
   listCustomCommands(dataDir: string): Promise<IpcResult<CommandConfig[]>>;
   addCustomCommand(dataDir: string, command: CommandConfig): Promise<IpcResult<CommandConfig[]>>;
-  updateCustomCommand(dataDir: string, name: string, command: CommandConfig): Promise<IpcResult<CommandConfig[]>>;
+  updateCustomCommand(
+    dataDir: string,
+    name: string,
+    command: CommandConfig
+  ): Promise<IpcResult<CommandConfig[]>>;
   deleteCustomCommand(dataDir: string, name: string): Promise<IpcResult<CommandConfig[]>>;
-  renderCommandTemplate(template: string, args: string[], workspace: string): Promise<IpcResult<string>>;
+  renderCommandTemplate(
+    template: string,
+    args: string[],
+    workspace: string
+  ): Promise<IpcResult<string>>;
 }

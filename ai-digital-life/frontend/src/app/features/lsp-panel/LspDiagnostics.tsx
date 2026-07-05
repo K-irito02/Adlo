@@ -2,7 +2,13 @@ import { useEffect } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
 
-export function LspDiagnostics({ workspaceId, filePath }: { workspaceId: string; filePath?: string }) {
+export function LspDiagnostics({
+  workspaceId,
+  filePath,
+}: {
+  workspaceId: string;
+  filePath?: string;
+}) {
   const { t } = useTCopy();
   const diagnostics = useAppStore((s) => s.lspDiagnostics);
   const lspGetDiagnostics = useAppStore((s) => s.lspGetDiagnostics);
@@ -13,11 +19,11 @@ export function LspDiagnostics({ workspaceId, filePath }: { workspaceId: string;
     }
   }, [workspaceId, filePath, lspGetDiagnostics]);
 
-  const visible = filePath
-    ? diagnostics.filter((d) => d.file_path === filePath)
-    : diagnostics;
+  const visible = filePath ? diagnostics.filter((d) => d.file_path === filePath) : diagnostics;
 
-  if (visible.length === 0) return <p className="adl-lsp-empty">{t.lspNoDiagnostics}</p>;
+  if (visible.length === 0) {
+    return <p className="adl-lsp-empty">{t.lspNoDiagnostics}</p>;
+  }
 
   return (
     <div className="adl-lsp-diagnostics">

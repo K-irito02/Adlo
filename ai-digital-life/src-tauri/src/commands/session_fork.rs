@@ -11,6 +11,9 @@ pub async fn fork_session_cmd(
 }
 
 #[tauri::command]
-pub async fn list_session_forks(_workspace_id: String, _parent_session_id: String) -> Result<Vec<ConversationSessionRecord>, adl_errors::AppError> {
+pub async fn list_session_forks(
+    _workspace_id: String,
+    _parent_session_id: String,
+) -> Result<Vec<ConversationSessionRecord>, adl_errors::AppError> {
     Ok(vec![])
 }

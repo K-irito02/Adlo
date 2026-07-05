@@ -7,22 +7,26 @@ pub fn validate_reference(config: &ReferenceConfig) -> Result<(), adl_errors::Ap
             let path = Path::new(&config.path);
             if !path.exists() {
                 return Err(adl_errors::AppError::NotFound(format!(
-                    "Reference path does not exist: {}", config.path
+                    "Reference path does not exist: {}",
+                    config.path
                 )));
             }
             if !path.is_dir() {
                 return Err(adl_errors::AppError::InvalidInput(format!(
-                    "Reference path is not a directory: {}", config.path
+                    "Reference path is not a directory: {}",
+                    config.path
                 )));
             }
             Ok(())
-        }
+        },
         ReferenceSource::Git => {
             if config.path.is_empty() {
-                return Err(adl_errors::AppError::InvalidInput("Git reference URL is empty".to_string()));
+                return Err(adl_errors::AppError::InvalidInput(
+                    "Git reference URL is empty".to_string(),
+                ));
             }
             Ok(())
-        }
+        },
     }
 }
 
@@ -42,7 +46,9 @@ pub fn references_prompt(references: &[ReferenceConfig]) -> String {
         ));
     }
 
-    prompt.push_str("\nYou can read files from these directories to find relevant patterns and examples.\n");
+    prompt.push_str(
+        "\nYou can read files from these directories to find relevant patterns and examples.\n",
+    );
     prompt
 }
 

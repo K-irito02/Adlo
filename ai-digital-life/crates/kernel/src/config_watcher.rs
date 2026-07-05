@@ -22,14 +22,14 @@ impl ConfigWatcher {
             let path_clone = config_path.clone();
             let notify_tx_clone = notify_tx.clone();
             tokio::task::spawn_blocking(move || {
-                use notify::{Watcher, RecursiveMode, Event};
+                use notify::{Event, RecursiveMode, Watcher};
                 let (tx, rx) = std::sync::mpsc::channel::<notify::Result<Event>>();
                 let mut watcher = match notify::recommended_watcher(tx) {
                     Ok(w) => w,
                     Err(e) => {
                         tracing::error!("Failed to create file watcher: {}", e);
                         return;
-                    }
+                    },
                 };
                 if let Err(e) = watcher.watch(&path_clone, RecursiveMode::NonRecursive) {
                     tracing::error!("Failed to watch config file: {}", e);
@@ -48,10 +48,10 @@ impl ConfigWatcher {
                     Ok(new_config) => {
                         tracing::info!("Config file changed, reloading");
                         let _ = tx.send(Arc::new(new_config));
-                    }
+                    },
                     Err(e) => {
                         tracing::warn!("Failed to reload config: {}", e);
-                    }
+                    },
                 }
             }
         });
@@ -69,7 +69,7 @@ impl ConfigWatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::config::{ThemeMode, LogMode};
+    use crate::types::config::{LogMode, ThemeMode};
 
     fn test_config() -> AppConfig {
         AppConfig {

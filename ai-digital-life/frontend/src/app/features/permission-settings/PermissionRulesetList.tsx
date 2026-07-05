@@ -17,7 +17,11 @@ export function PermissionRulesetList() {
           <div className="adl-permission-list__info">
             <code>{rule.pattern}</code>
             <span className={`adl-badge adl-badge--${rule.decision}`}>
-              {rule.decision === 'allow' ? t.permissionDecisionsAllow : rule.decision === 'deny' ? t.permissionDecisionsDeny : t.permissionDecisionsAsk}
+              {rule.decision === 'allow'
+                ? t.permissionDecisionsAllow
+                : rule.decision === 'deny'
+                  ? t.permissionDecisionsDeny
+                  : t.permissionDecisionsAsk}
             </span>
             {rule.tool_type && <span className="adl-tag">{rule.tool_type}</span>}
           </div>

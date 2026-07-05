@@ -3,7 +3,10 @@ import type { StoreApi } from 'zustand';
 import type { CommandConfig } from '@shared/ipc';
 import { clearError, captureError } from '../shared';
 
-export function createCustomCommandActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
+export function createCustomCommandActions(
+  set: StoreApi<StoreState>['setState'],
+  get: () => StoreState
+) {
   return {
     fetchCustomCommands: async (dataDir: string) => {
       set({ isFetchingCommands: true });

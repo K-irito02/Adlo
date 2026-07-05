@@ -1,4 +1,4 @@
-use adl_agent_runtime::plugins::registry::{PluginRegistry, PluginInfo};
+use adl_agent_runtime::plugins::registry::{PluginInfo, PluginRegistry};
 use std::sync::Arc;
 
 #[allow(clippy::incompatible_msrv)]

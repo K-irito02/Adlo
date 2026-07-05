@@ -30,10 +30,8 @@ import type {
   SessionForkBridge,
   SymbolInfo,
   CompactionResult,
-  CompactionStatus,
   DiagnosticInfo,
   PermissionBridge,
-  PermissionRule,
   PermissionRulesetConfig,
   PermissionDecision,
   SnapshotBridge,
@@ -596,19 +594,29 @@ export function createTauriBridge(): DigitalLifeBridge {
     } satisfies WebToolsBridge,
 
     commandsConfig: {
-      listCustomCommands: (dataDir) => invokeIpc<CommandConfig[]>('list_custom_commands', { dataDir }),
-      addCustomCommand: (dataDir, command) => invokeIpc<CommandConfig[]>('add_custom_command', { dataDir, command }),
-      updateCustomCommand: (dataDir, name, command) => invokeIpc<CommandConfig[]>('update_custom_command', { dataDir, name, command }),
-      deleteCustomCommand: (dataDir, name) => invokeIpc<CommandConfig[]>('delete_custom_command', { dataDir, name }),
-      renderCommandTemplate: (template, args, workspace) => invokeIpc<string>('render_command_template', { template, args, workspace }),
+      listCustomCommands: (dataDir) =>
+        invokeIpc<CommandConfig[]>('list_custom_commands', { dataDir }),
+      addCustomCommand: (dataDir, command) =>
+        invokeIpc<CommandConfig[]>('add_custom_command', { dataDir, command }),
+      updateCustomCommand: (dataDir, name, command) =>
+        invokeIpc<CommandConfig[]>('update_custom_command', { dataDir, name, command }),
+      deleteCustomCommand: (dataDir, name) =>
+        invokeIpc<CommandConfig[]>('delete_custom_command', { dataDir, name }),
+      renderCommandTemplate: (template, args, workspace) =>
+        invokeIpc<string>('render_command_template', { template, args, workspace }),
     } satisfies CommandsConfigBridge,
 
     permission: {
-      listPermissionRules: (dataDir) => invokeIpc<PermissionRulesetConfig>('list_permission_rules', { dataDir }),
-      addPermissionRule: (dataDir, rule) => invokeIpc<PermissionRulesetConfig>('add_permission_rule', { dataDir, rule }),
-      deletePermissionRule: (dataDir, index) => invokeIpc<PermissionRulesetConfig>('delete_permission_rule', { dataDir, index }),
-      setPermissionIncludeDefaults: (dataDir, include) => invokeIpc<PermissionRulesetConfig>('set_permission_include_defaults', { dataDir, include }),
-      evaluatePermission: (dataDir, toolName, command, args) => invokeIpc<PermissionDecision>('evaluate_permission', { dataDir, toolName, command, args }),
+      listPermissionRules: (dataDir) =>
+        invokeIpc<PermissionRulesetConfig>('list_permission_rules', { dataDir }),
+      addPermissionRule: (dataDir, rule) =>
+        invokeIpc<PermissionRulesetConfig>('add_permission_rule', { dataDir, rule }),
+      deletePermissionRule: (dataDir, index) =>
+        invokeIpc<PermissionRulesetConfig>('delete_permission_rule', { dataDir, index }),
+      setPermissionIncludeDefaults: (dataDir, include) =>
+        invokeIpc<PermissionRulesetConfig>('set_permission_include_defaults', { dataDir, include }),
+      evaluatePermission: (dataDir, toolName, command, args) =>
+        invokeIpc<PermissionDecision>('evaluate_permission', { dataDir, toolName, command, args }),
     } satisfies PermissionBridge,
 
     compaction: {
@@ -619,11 +627,14 @@ export function createTauriBridge(): DigitalLifeBridge {
     sessionFork: {
       forkSession: (parentSession, forkMessageId, existingForkCount) =>
         invokeIpc<ConversationSessionRecord>('fork_session_cmd', {
-          parentSession, forkMessageId, existingForkCount,
+          parentSession,
+          forkMessageId,
+          existingForkCount,
         }),
       listSessionForks: (workspaceId, parentSessionId) =>
         invokeIpc<ConversationSessionRecord[]>('list_session_forks', {
-          workspaceId, parentSessionId,
+          workspaceId,
+          parentSessionId,
         }),
     } satisfies SessionForkBridge,
 
@@ -637,7 +648,12 @@ export function createTauriBridge(): DigitalLifeBridge {
       getDiagnostics: (workspaceId, filePath) =>
         invokeIpc<DiagnosticInfo[]>('lsp_get_diagnostics', { workspaceId, filePath }),
       gotoDefinition: (workspaceId, filePath, line, column) =>
-        invokeIpc<SymbolInfo | null>('lsp_goto_definition', { workspaceId, filePath, line, column }),
+        invokeIpc<SymbolInfo | null>('lsp_goto_definition', {
+          workspaceId,
+          filePath,
+          line,
+          column,
+        }),
     } satisfies LspBridge,
 
     plugin: {
@@ -652,8 +668,7 @@ export function createTauriBridge(): DigitalLifeBridge {
         invokeIpc<ReferenceConfig[]>('add_reference', { dataDir, reference }),
       removeReference: (dataDir, name) =>
         invokeIpc<ReferenceConfig[]>('remove_reference', { dataDir, name }),
-      getReferencesPrompt: (dataDir) =>
-        invokeIpc<string>('get_references_prompt', { dataDir }),
+      getReferencesPrompt: (dataDir) => invokeIpc<string>('get_references_prompt', { dataDir }),
     } satisfies ReferenceBridge,
 
     durable: {
@@ -661,10 +676,8 @@ export function createTauriBridge(): DigitalLifeBridge {
         invokeIpc<void>('register_durable_session', { sessionId, runId }),
       heartbeatDurableSession: (sessionId) =>
         invokeIpc<void>('heartbeat_durable_session', { sessionId }),
-      findCrashedSessions: () =>
-        invokeIpc<DurableSessionState[]>('find_crashed_sessions'),
-      recoverSession: (sessionId) =>
-        invokeIpc<boolean>('recover_session', { sessionId }),
+      findCrashedSessions: () => invokeIpc<DurableSessionState[]>('find_crashed_sessions'),
+      recoverSession: (sessionId) => invokeIpc<boolean>('recover_session', { sessionId }),
     } satisfies DurableBridge,
 
     reserved: {
@@ -677,8 +690,7 @@ export function createTauriBridge(): DigitalLifeBridge {
     } satisfies ReservedBridge,
 
     customAgent: {
-      listCustomAgents: (dataDir) =>
-        invokeIpc<AgentConfig[]>('list_custom_agents', { dataDir }),
+      listCustomAgents: (dataDir) => invokeIpc<AgentConfig[]>('list_custom_agents', { dataDir }),
       addCustomAgent: (dataDir, agent) =>
         invokeIpc<AgentConfig[]>('add_custom_agent', { dataDir, agent }),
       deleteCustomAgent: (dataDir, name) =>
