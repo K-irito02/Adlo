@@ -254,7 +254,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   },
 
   subagent: {
-    spawnSubagent: async (input) => ({
+    spawnSubagent: async (_parentSessionId, input) => ({
       ok: true,
       data: {
         task_id: input.task_id ?? `mock-task-${Date.now()}`,
@@ -611,9 +611,14 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   } satisfies PermissionBridge,
 
   compaction: {
-    compactSession: async () => ({
+    compactSession: async (_input) => ({
       ok: true,
-      data: { preserved_tokens: 20000, pruned_count: 5, pruned_tokens: 8000, summary_needed: true },
+      data: {
+        preservedMessages: [],
+        prunedCount: 0,
+        summary: null,
+        summaryNeeded: false,
+      },
     }),
   } satisfies CompactionBridge,
 

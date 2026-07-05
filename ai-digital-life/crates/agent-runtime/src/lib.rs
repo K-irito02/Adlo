@@ -1,7 +1,9 @@
 //! Single-agent sequential planning runtime.
 
 pub mod compaction;
+pub mod compaction_summary;
 pub mod durable;
+pub mod permission_check;
 pub mod plan_mode;
 pub mod plugins;
 pub mod prompt;
@@ -9,6 +11,8 @@ pub mod registry;
 pub mod router;
 pub mod token_counter;
 pub mod tools;
+
+pub use tools::registry::{global_registry, ToolDefinition, ToolExecutionResult, ToolRegistry};
 
 use adl_kernel::{
     create_id, now_ms, AgentId, AgentPlanStep, AgentRunDetail, AgentRunRecord, AgentRunStatus,
@@ -53,6 +57,23 @@ pub fn create_run(
         },
         steps,
     }
+}
+
+/// Inject Plan Mode system prompt into an agent run detail.
+///
+/// The prompt is stashed inside `run.summary` (which starts as `None`) using a
+/// `[PLAN_MODE_PROMPT]` marker so that `agent_pipeline::call_model` can read it
+/// back out and prepend it to the system message before invoking the model.
+/// `complete_plan` will overwrite `summary` with the final user-facing
+/// summary at the end of the run, so the plan prompt never leaks to the UI.
+pub fn inject_plan_mode_prompt(mut detail: AgentRunDetail, plan_prompt: &str) -> AgentRunDetail {
+    if let Some(summary) = &mut detail.run.summary {
+        summary.push_str("\n\n[PLAN_MODE_PROMPT]\n");
+        summary.push_str(plan_prompt);
+    } else {
+        detail.run.summary = Some(format!("[PLAN_MODE_PROMPT]\n{}", plan_prompt));
+    }
+    detail
 }
 
 pub fn complete_plan(

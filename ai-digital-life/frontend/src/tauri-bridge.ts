@@ -27,9 +27,10 @@ import type {
   CommandConfig,
   CustomAgentBridge,
   CompactionBridge,
+  CompactSessionInput,
   SessionForkBridge,
   SymbolInfo,
-  CompactionResult,
+  CompactSessionResult,
   DiagnosticInfo,
   PermissionBridge,
   PermissionRulesetConfig,
@@ -359,8 +360,8 @@ export function createTauriBridge(): DigitalLifeBridge {
     },
 
     subagent: {
-      spawnSubagent: (input: TaskToolInput) =>
-        invokeIpc<TaskToolOutput>('spawn_subagent', { input }),
+      spawnSubagent: (parentSessionId: string, input: TaskToolInput) =>
+        invokeIpc<TaskToolOutput>('spawn_subagent', { parentSessionId, input }),
       getSubagentTask: (taskId: string) =>
         invokeIpc<SubagentTask | null>('get_subagent_task', { taskId }),
       listActiveSubagents: (workspaceId: string) =>
@@ -620,8 +621,8 @@ export function createTauriBridge(): DigitalLifeBridge {
     } satisfies PermissionBridge,
 
     compaction: {
-      compactSession: (messagesJson, provider) =>
-        invokeIpc<CompactionResult>('compact_session_cmd', { messagesJson, provider }),
+      compactSession: (input) =>
+        invokeIpc<CompactSessionResult>('compact_session_cmd', { input }),
     } satisfies CompactionBridge,
 
     sessionFork: {

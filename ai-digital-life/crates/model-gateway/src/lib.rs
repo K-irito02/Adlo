@@ -137,20 +137,31 @@ impl ModelGateway {
 
     pub fn health(&self) -> ModelGatewayHealthSnapshot {
         let checked_at = now_ms();
-        let providers = [ModelProviderId::Deepseek, ModelProviderId::Minimax]
+        let all_providers = [
+            ModelProviderId::Deepseek,
+            ModelProviderId::Minimax,
+            ModelProviderId::Anthropic,
+            ModelProviderId::Openai,
+            ModelProviderId::Google,
+            ModelProviderId::Ollama,
+            ModelProviderId::Openrouter,
+        ];
+        let providers = all_providers
             .into_iter()
             .map(|provider_id| {
-                let has_secret = get_provider_secret(provider_id).is_ok();
-                ProviderHealthStatus {
-                    provider_id,
-                    healthy: has_secret,
-                    detail: if has_secret {
-                        "API key is configured.".into()
-                    } else {
-                        "API key is not configured; calls will use fallback after route failure."
-                            .into()
-                    },
-                }
+                // Ollama is a local service and does not require an API key;
+                // treat it as healthy without checking the keyring.
+                let is_ollama = matches!(provider_id, ModelProviderId::Ollama);
+                let has_secret = is_ollama || get_provider_secret(provider_id).is_ok();
+                let detail = if is_ollama {
+                    "Local Ollama service (no API key required).".to_string()
+                } else if has_secret {
+                    "API key is configured.".to_string()
+                } else {
+                    "API key is not configured; calls will use fallback after route failure."
+                        .to_string()
+                };
+                ProviderHealthStatus { provider_id, healthy: has_secret, detail }
             })
             .collect();
         ModelGatewayHealthSnapshot { checked_at, providers }

@@ -1,6 +1,7 @@
 use crate::state::AppState;
+use adl_agent_runtime::permission_check::{check_tool_permission, PermissionCheckResult};
 use adl_errors::AppError;
-use adl_kernel::{AgentRunDetail, ConversationScenario, ConversationSendResult};
+use adl_kernel::{AgentRunDetail, ConversationScenario, ConversationSendResult, PermissionRuleset};
 use adl_storage::EntityTable;
 
 use super::agent_pipeline_stream::emit_model_stream_events;
@@ -195,12 +196,46 @@ fn collect_symbol_context<F: Fn(serde_json::Value)>(
 pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
     ctx: CallModelContext<'_, F>,
 ) -> Result<(adl_kernel::ModelResponse, adl_kernel::ModelCallAuditRecord), AppError> {
-    let messages = adl_agent_runtime::build_model_messages(
+    let mut messages = adl_agent_runtime::build_model_messages(
         ctx.workspace,
         &ctx.input.prompt,
         ctx.scenario,
         &ctx.context,
     );
+
+    // === Plan Mode 集成：从 run detail.summary 读取注入的 plan prompt，
+    // 并追加到 system message 的末尾，使模型在 Plan 场景下遵循该指令。
+    if ctx.scenario == ConversationScenario::Plan {
+        if let Some(summary) = &ctx.detail.run.summary {
+            if let Some(plan_prompt_start) = summary.find("[PLAN_MODE_PROMPT]") {
+                let plan_prompt = &summary[plan_prompt_start..];
+                if let Some(first) = messages.first_mut() {
+                    if first.role == adl_kernel::ConversationRole::System {
+                        first.content.push_str("\n\n");
+                        first.content.push_str(plan_prompt);
+                    } else {
+                        // 系统消息不在首位时，前置一条 plan prompt 作为 system message
+                        messages.insert(
+                            0,
+                            adl_kernel::ModelChatMessage {
+                                role: adl_kernel::ConversationRole::System,
+                                content: plan_prompt.to_string(),
+                            },
+                        );
+                    }
+                } else {
+                    messages.insert(
+                        0,
+                        adl_kernel::ModelChatMessage {
+                            role: adl_kernel::ConversationRole::System,
+                            content: plan_prompt.to_string(),
+                        },
+                    );
+                }
+            }
+        }
+    }
+
     let gateway = {
         let config = ctx
             .state
@@ -267,6 +302,38 @@ pub(crate) fn generate_patches(
                         std::path::Path::new(&workspace.root_path),
                         &path,
                     )?;
+
+                    // 权限检查：CodeEdit 场景下的 apply_patch 操作需要通过 ruleset 拦截
+                    // 这是中心化拦截点（vs OpenCode 的 ctx.ask 分散式调用）
+                    let ruleset = build_ruleset_from_config();
+                    let tool_input = format!("patch {} {}", path, input.prompt);
+                    let doom_loop_count = 0u32; // TODO: 从 session 状态读取连续失败次数
+                    match check_tool_permission(
+                        "apply_patch",
+                        &tool_input,
+                        &ruleset,
+                        doom_loop_count,
+                    ) {
+                        PermissionCheckResult::Deny(reason) => {
+                            emit_activity(serde_json::json!({
+                                "type": "permission-denied",
+                                "tool": "apply_patch",
+                                "reason": reason
+                            }));
+                            return Ok(None);
+                        },
+                        PermissionCheckResult::Ask(reason) => {
+                            emit_activity(serde_json::json!({
+                                "type": "permission-ask",
+                                "tool": "apply_patch",
+                                "reason": reason
+                            }));
+                            // Ask 模式当前仅记录审计日志后继续执行
+                            // 完整的 Ask 需要前端审批 UI 流程，作为后续增量完善
+                        },
+                        PermissionCheckResult::Allow => {},
+                    }
+
                     Some(adl_agent_runtime::create_patch_from_document(
                         &workspace.id,
                         &session.id,
@@ -389,6 +456,13 @@ pub(crate) fn finalize_run<F: Fn(serde_json::Value)>(
         run_detail: detail,
         patch_set: ctx.patch_set.cloned(),
     })
+}
+
+/// Build the permission ruleset used by `generate_patches` to intercept
+/// `apply_patch` operations. Currently uses the default safety rules; future
+/// work will load user-configured rules from `PermissionRulesetConfig`.
+fn build_ruleset_from_config() -> PermissionRuleset {
+    adl_kernel::build_ruleset(&[], true)
 }
 
 #[cfg(test)]

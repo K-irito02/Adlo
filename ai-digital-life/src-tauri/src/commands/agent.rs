@@ -155,9 +155,28 @@ async fn start_run_inner(
         .unwrap_or_else(|_| crate::commands::workspace::virtual_global_workspace());
     let workspace_scope_id = session.workspace_id.clone();
     let session_id = session.id.clone();
-    let scenario = input.scenario.unwrap_or(ConversationScenario::CodeEdit);
+
+    // === Plan Mode 集成：检查状态并强制使用 Plan scenario ===
+    let plan_mode_active = is_plan_mode_active(&workspace_scope_id);
+    let scenario = if plan_mode_active {
+        ConversationScenario::Plan
+    } else {
+        input.scenario.unwrap_or(ConversationScenario::CodeEdit)
+    };
     let mut detail =
         adl_agent_runtime::create_run(&workspace_scope_id, &session.id, &input.prompt, scenario);
+
+    // === Plan Mode 集成：注入 system prompt 到 run detail ===
+    if plan_mode_active {
+        if let Some(plan_file) = get_plan_file_path(&workspace_scope_id) {
+            let plan_exists = std::path::Path::new(&plan_file).exists();
+            let plan_prompt = adl_agent_runtime::plan_mode::plan_mode_system_prompt(
+                &plan_file.to_string_lossy(),
+                plan_exists,
+            );
+            detail = adl_agent_runtime::inject_plan_mode_prompt(detail, &plan_prompt);
+        }
+    }
 
     let emit_activity =
         make_activity_emitter(app, state, &workspace_scope_id, &session_id, &detail.run.id);
@@ -217,6 +236,21 @@ async fn start_run_inner(
     crate::commands::audit::batch_save_audit_entries(state, audit_batch)?;
 
     Ok(result)
+}
+
+/// Returns `true` if Plan Mode is currently active for the given workspace.
+fn is_plan_mode_active(workspace_id: &str) -> bool {
+    let mutex = plan_mode_states();
+    let states = mutex.lock().unwrap_or_else(|e| e.into_inner());
+    states.get(workspace_id).map(|s| s.is_active()).unwrap_or(false)
+}
+
+/// Returns the plan file path configured for the active Plan Mode session in
+/// the given workspace, if any.
+fn get_plan_file_path(workspace_id: &str) -> Option<std::path::PathBuf> {
+    let mutex = plan_mode_states();
+    let states = mutex.lock().unwrap_or_else(|e| e.into_inner());
+    states.get(workspace_id).and_then(|s| s.plan_file.clone())
 }
 
 pub fn load_run_detail(state: &AppState, run_id: &str) -> Result<Option<AgentRunDetail>, AppError> {

@@ -70,7 +70,7 @@ import type { CompactionSlice } from './slices/compactionSlice';
 import type { WebToolsSlice } from './slices/webToolsSlice';
 import type { ReferenceSlice } from './slices/referenceSlice';
 import type { ReferenceConfig } from '@shared/ipc';
-import type { McpServerConfig, CommandConfig, PermissionRule, CompactionResult } from '@shared/ipc';
+import type { McpServerConfig, CommandConfig, PermissionRule, CompactSessionInput, CompactSessionResult } from '@shared/ipc';
 import type { AgentConfig, PluginInfo, SnapshotRecord, RevertResult } from '@shared/ipc';
 import type {
   AppPreferencePatch,
@@ -244,7 +244,7 @@ interface PermissionActions {
 }
 
 interface CompactionActions {
-  compactSession: (messagesJson: string, provider: string) => Promise<CompactionResult | null>;
+  compactSession: (input: CompactSessionInput) => Promise<CompactSessionResult | null>;
 }
 
 interface SessionForkActions {

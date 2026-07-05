@@ -1,12 +1,21 @@
 //! Provider API call — builds and sends chat completion requests to
-//! external model APIs (DeepSeek, MiniMax).
+//! external model APIs (DeepSeek, MiniMax, Anthropic, OpenAI, Google,
+//! Ollama, OpenRouter).
 //!
-//! [`call_provider`] handles the full request lifecycle: credential retrieval,
-//! URL construction, HTTP request, deserialization, and response mapping.
+//! [`call_provider`] handles credential retrieval and delegates to
+//! [`dispatch_to_provider`], which routes to either the OpenAI-compatible
+//! direct path (DeepSeek/MiniMax) or the appropriate `ProviderAdapter`
+//! implementation.
 
 use adl_errors::AppError;
 use adl_kernel::{ModelChatMessage, ModelProviderId, ModelResponse, ModelTokenUsage};
 
+use crate::adapter::{ChatOptions, ProviderAdapter};
+use crate::providers::anthropic::AnthropicProvider;
+use crate::providers::google::GoogleProvider;
+use crate::providers::ollama::OllamaProvider;
+use crate::providers::openai::OpenAIProvider;
+use crate::providers::openrouter::OpenRouterProvider;
 use crate::secret::get_provider_secret;
 use crate::wire::{ChatCompletionRequest, ChatCompletionResponse, WireMessage};
 use crate::ModelGateway;
@@ -20,19 +29,93 @@ pub(crate) async fn call_provider(
     model_id: &str,
     messages: &[ModelChatMessage],
 ) -> Result<ModelResponse, AppError> {
-    let api_key = tokio::task::spawn_blocking(move || get_provider_secret(provider))
-        .await
-        .map_err(|e| AppError::Security(e.to_string()))??;
-    let url = match provider {
-        ModelProviderId::Deepseek => format!("{DEEPSEEK_BASE_URL}/chat/completions"),
-        ModelProviderId::Minimax => format!("{MINIMAX_BASE_URL}/v1/chat/completions"),
-        _ => {
-            return Err(AppError::Internal(format!(
-                "provider {} not yet implemented",
-                provider.as_str()
-            )))
-        },
+    // Ollama is a local model server and does not require an API key.
+    // All other providers must have a credential configured.
+    let needs_api_key = !matches!(provider, ModelProviderId::Ollama);
+    let api_key = if needs_api_key {
+        tokio::task::spawn_blocking(move || get_provider_secret(provider))
+            .await
+            .map_err(|e| AppError::Security(e.to_string()))??
+    } else {
+        String::new()
     };
+    if needs_api_key && api_key.is_empty() {
+        return Err(AppError::Security(format!(
+            "API key for provider {} is not configured",
+            provider.as_str()
+        )));
+    }
+    dispatch_to_provider(gateway, provider, model_id, messages, &api_key).await
+}
+
+/// Route a chat request to the appropriate provider adapter or direct path.
+///
+/// This function is separated from [`call_provider`] so that tests can
+/// verify routing behavior without depending on the system keyring.
+pub(crate) async fn dispatch_to_provider(
+    gateway: &ModelGateway,
+    provider: ModelProviderId,
+    model_id: &str,
+    messages: &[ModelChatMessage],
+    api_key: &str,
+) -> Result<ModelResponse, AppError> {
+    let options = ChatOptions::default();
+    match provider {
+        ModelProviderId::Deepseek => {
+            call_deepseek_direct(gateway, api_key, model_id, messages).await
+        },
+        ModelProviderId::Minimax => call_minimax_direct(gateway, api_key, model_id, messages).await,
+        ModelProviderId::Anthropic => {
+            AnthropicProvider::new().chat(model_id, messages, &options, api_key).await
+        },
+        ModelProviderId::Openai => {
+            OpenAIProvider::new().chat(model_id, messages, &options, api_key).await
+        },
+        ModelProviderId::Google => {
+            GoogleProvider::new().chat(model_id, messages, &options, api_key).await
+        },
+        ModelProviderId::Ollama => {
+            OllamaProvider::new().chat(model_id, messages, &options, "").await
+        },
+        ModelProviderId::Openrouter => {
+            OpenRouterProvider::new().chat(model_id, messages, &options, api_key).await
+        },
+    }
+}
+
+/// DeepSeek direct call (preserves the existing stable implementation).
+async fn call_deepseek_direct(
+    gateway: &ModelGateway,
+    api_key: &str,
+    model_id: &str,
+    messages: &[ModelChatMessage],
+) -> Result<ModelResponse, AppError> {
+    let url = format!("{DEEPSEEK_BASE_URL}/chat/completions");
+    call_openai_compatible(gateway, url, api_key, model_id, messages, ModelProviderId::Deepseek)
+        .await
+}
+
+/// MiniMax direct call (preserves the existing stable implementation).
+async fn call_minimax_direct(
+    gateway: &ModelGateway,
+    api_key: &str,
+    model_id: &str,
+    messages: &[ModelChatMessage],
+) -> Result<ModelResponse, AppError> {
+    let url = format!("{MINIMAX_BASE_URL}/v1/chat/completions");
+    call_openai_compatible(gateway, url, api_key, model_id, messages, ModelProviderId::Minimax)
+        .await
+}
+
+/// OpenAI-compatible protocol call (shared by DeepSeek and MiniMax).
+async fn call_openai_compatible(
+    gateway: &ModelGateway,
+    url: String,
+    api_key: &str,
+    model_id: &str,
+    messages: &[ModelChatMessage],
+    provider: ModelProviderId,
+) -> Result<ModelResponse, AppError> {
     let request = ChatCompletionRequest {
         model: model_id.to_string(),
         messages: messages
@@ -84,4 +167,111 @@ pub(crate) async fn call_provider(
         }),
         route: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use adl_kernel::{ConversationRole, ModelChatMessage, ModelPreferences, ModelProviderId};
+
+    fn one_user_message() -> Vec<ModelChatMessage> {
+        vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }]
+    }
+
+    // Validates routing: Anthropic must NOT return "not yet implemented".
+    // Calls dispatch_to_provider directly with a fake api_key to bypass
+    // keyring availability issues in the test environment.
+    #[tokio::test]
+    async fn call_provider_routes_to_anthropic_adapter() {
+        let gateway = ModelGateway::new(ModelPreferences::default()).unwrap();
+        let messages = one_user_message();
+        let result = dispatch_to_provider(
+            &gateway,
+            ModelProviderId::Anthropic,
+            "claude-3-5-sonnet-20241022",
+            &messages,
+            "fake-key",
+        )
+        .await;
+        let err_str = result.map(|_| String::new()).unwrap_or_else(|e| e.to_string());
+        assert!(
+            !err_str.contains("not yet implemented"),
+            "Anthropic should be routed to adapter, got: {err_str}"
+        );
+    }
+
+    // Validates routing: OpenAI must NOT return "not yet implemented".
+    #[tokio::test]
+    async fn call_provider_routes_to_openai_adapter() {
+        let gateway = ModelGateway::new(ModelPreferences::default()).unwrap();
+        let messages = one_user_message();
+        let result = dispatch_to_provider(
+            &gateway,
+            ModelProviderId::Openai,
+            "gpt-4o",
+            &messages,
+            "fake-key",
+        )
+        .await;
+        let err_str = result.map(|_| String::new()).unwrap_or_else(|e| e.to_string());
+        assert!(
+            !err_str.contains("not yet implemented"),
+            "OpenAI should be routed to adapter, got: {err_str}"
+        );
+    }
+
+    // Validates routing: Ollama must NOT return "not yet implemented".
+    // Ollama needs no api_key; an empty string is passed.
+    #[tokio::test]
+    async fn call_provider_routes_to_ollama_adapter() {
+        let gateway = ModelGateway::new(ModelPreferences::default()).unwrap();
+        let messages = one_user_message();
+        let result =
+            dispatch_to_provider(&gateway, ModelProviderId::Ollama, "llama3", &messages, "").await;
+        let err_str = result.map(|_| String::new()).unwrap_or_else(|e| e.to_string());
+        assert!(
+            !err_str.contains("not yet implemented"),
+            "Ollama should be routed to adapter, got: {err_str}"
+        );
+    }
+
+    // Validates routing: Google must NOT return "not yet implemented".
+    #[tokio::test]
+    async fn call_provider_routes_to_google_adapter() {
+        let gateway = ModelGateway::new(ModelPreferences::default()).unwrap();
+        let messages = one_user_message();
+        let result = dispatch_to_provider(
+            &gateway,
+            ModelProviderId::Google,
+            "gemini-1.5-pro",
+            &messages,
+            "fake-key",
+        )
+        .await;
+        let err_str = result.map(|_| String::new()).unwrap_or_else(|e| e.to_string());
+        assert!(
+            !err_str.contains("not yet implemented"),
+            "Google should be routed to adapter, got: {err_str}"
+        );
+    }
+
+    // Validates routing: OpenRouter must NOT return "not yet implemented".
+    #[tokio::test]
+    async fn call_provider_routes_to_openrouter_adapter() {
+        let gateway = ModelGateway::new(ModelPreferences::default()).unwrap();
+        let messages = one_user_message();
+        let result = dispatch_to_provider(
+            &gateway,
+            ModelProviderId::Openrouter,
+            "openrouter/auto",
+            &messages,
+            "fake-key",
+        )
+        .await;
+        let err_str = result.map(|_| String::new()).unwrap_or_else(|e| e.to_string());
+        assert!(
+            !err_str.contains("not yet implemented"),
+            "OpenRouter should be routed to adapter, got: {err_str}"
+        );
+    }
 }

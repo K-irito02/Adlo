@@ -1,5 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
+import type { CompactSessionInput } from '@shared/ipc';
 import { clearError, captureError } from '../shared';
 
 export function createCompactionActions(
@@ -7,10 +8,10 @@ export function createCompactionActions(
   get: () => StoreState
 ) {
   return {
-    compactSession: async (messagesJson: string, provider: string) => {
+    compactSession: async (input: CompactSessionInput) => {
       set({ isCompacting: true });
       clearError(get);
-      const result = await window.digitalLife.compaction.compactSession(messagesJson, provider);
+      const result = await window.digitalLife.compaction.compactSession(input);
       if (!result.ok) {
         captureError(get, result.error);
         set({ isCompacting: false });
@@ -20,7 +21,7 @@ export function createCompactionActions(
       set({
         compactionStatus: {
           active: false,
-          pruned_count: result.data.pruned_count,
+          pruned_count: result.data.prunedCount,
           last_compacted_at: Date.now(),
         },
       });

@@ -1,10 +1,17 @@
-import type { IpcResult } from '@ai-digital-life/kernel';
+import type { IpcResult, ConversationMessageRecord, ModelProviderId } from '@ai-digital-life/kernel';
 
-export interface CompactionResult {
-  preserved_tokens: number;
-  pruned_count: number;
-  pruned_tokens: number;
-  summary_needed: boolean;
+export interface CompactSessionInput {
+  sessionId: string;
+  messagesJson: string;
+  previousSummary: string | null;
+  provider: ModelProviderId | null;
+}
+
+export interface CompactSessionResult {
+  preservedMessages: ConversationMessageRecord[];
+  prunedCount: number;
+  summary: string | null;
+  summaryNeeded: boolean;
 }
 
 export interface CompactionStatus {
@@ -14,5 +21,5 @@ export interface CompactionStatus {
 }
 
 export interface CompactionBridge {
-  compactSession(messagesJson: string, provider: string): Promise<IpcResult<CompactionResult>>;
+  compactSession(input: CompactSessionInput): Promise<IpcResult<CompactSessionResult>>;
 }

@@ -50,6 +50,7 @@ export interface SubagentTask {
 export interface SubagentBridge {
   /**
    * 派生一个子代理任务
+   * @param parentSessionId 父会话 ID（用于关联父子会话）
    * @param input 任务描述、提示词、子代理类型等
    * @returns 任务 ID 与初始状态
    * @command spawn_subagent
@@ -57,7 +58,10 @@ export interface SubagentBridge {
    * @see mock-bridge.ts → subagent.spawnSubagent
    * @see preview-bridge/index.ts → subagent.spawnSubagent
    */
-  spawnSubagent: (input: TaskToolInput) => Promise<IpcResult<TaskToolOutput>>;
+  spawnSubagent: (
+    parentSessionId: string,
+    input: TaskToolInput,
+  ) => Promise<IpcResult<TaskToolOutput>>;
   /**
    * 查询子代理任务详情
    * @param taskId 任务 ID
