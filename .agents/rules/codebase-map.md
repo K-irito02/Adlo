@@ -50,8 +50,9 @@ ai-digital-life/
 | `fs-ops` | notify 监听、原子写、路径作用域 |
 | `task` | 任务状态机、审批 |
 | `conversation` | 会话 / 消息 |
-| `agent-runtime` | 单 Agent 顺序规划 |
-| `model-gateway` | DeepSeek / MiniMax 路由 + 流式 |
+| `agent-runtime` | Agent 运行时（权限检查、Plan Mode、Compaction 摘要、ToolRegistry 统一注册） |
+| `model-gateway` | 多 Provider 路由（7 个 provider：DeepSeek/MiniMax/Anthropic/OpenAI/Google/Ollama/OpenRouter）+ 流式 |
+| `subagent` | 子代理管理（Task 工具、权限派生、后台执行） |
 | `change-engine` | patch 预览、应用、回滚、checkpoint |
 | `browser` | Tauri child WebView 生命周期管理（create/destroy/navigate/goBack/goForward/reload/setBounds/eval） |
 | `ci-status` | GitHub Actions CI 状态轮询、缓存、解析 |

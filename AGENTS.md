@@ -39,7 +39,7 @@
 
 技术栈详情与已实现功能清单见 [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)。
 
-> Phase 2 已于 2026-07-05 完成，覆盖 5 个子阶段（2-A 至 2-E）全部 18 项缺失能力，包含 430+ Rust 测试、326 前端测试，clippy 与 lint 零警告。
+> Phase 2 已于 2026-07-06 完成，覆盖 5 个子阶段（2-A 至 2-E）全部 18 项缺失能力，包含 323 Rust 测试、326 前端测试，clippy 与 lint 零警告。
 
 ## 重构历史
 

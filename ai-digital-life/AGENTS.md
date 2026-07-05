@@ -43,7 +43,7 @@
 | **2-D** | 自定义命令配置（模板变量 $1/$ARGUMENTS/$WORKSPACE）、权限系统升级为 Ruleset（Allow/Ask/Deny + 通配匹配 + doom_loop 检测） |
 | **2-E** | Session Fork、LSP 集成（rust-analyzer/ts-server/pylsp/gopls）、Plugin 系统（trait + hooks + registry）、Reference 系统、自定义 Agent 配置、Hot Reloadable Config、Durable Session Execution、ACP/HTTP API/CodeMode 预留接口 |
 
-> 430+ Rust 测试、326 前端测试，clippy 与 lint 零警告。
+> 323 Rust 测试、326 前端测试，clippy 与 lint 零警告。
 
 ### 重构历史
 
