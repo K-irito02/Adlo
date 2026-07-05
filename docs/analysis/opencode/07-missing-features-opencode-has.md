@@ -1,9 +1,10 @@
 # 本项目缺少但 OpenCode 有的内容（核心能力清单）
 
-> 生成日期：2026-07-05
+> 生成日期：2026-07-05（更新于 2026-07-06）
 > 对比对象：`ai-digital-life/`（本项目）vs `references/opencode/`（OpenCode）
 > 文档目的：列出本项目相对 OpenCode 缺失的能力，区分「应补齐」与「仅预留」
 > 范围说明：**TUI 终端、协作与分享、企业功能、云部署**等第三方服务高级功能**仅预留**，不在本文档展开实现细节
+> Phase 2 质量补丁（2026-07-06）完成：Snapshot/Revert（文件副本）、Permissions Ruleset（正则通配 + doom_loop）、MCP 集成（rmcp v1.8.0 3 transport）
 
 ---
 
@@ -34,7 +35,7 @@
 | **Sub-agent / Task 工具** | `task` 工具支持子代理调度 + **background 后台模式** + resume（task_id 复用）+ `deriveSubagentSessionPermission` 派生权限 | 无子代理，多 Agent DAG 在 Phase 2+ 排除项 | P0 |
 | **Plan Mode** | 独立 `plan` agent（只读分析）+ `plan_enter`/`plan_exit` 工具 + 计划文件持久化（`.opencode/plans/*.md`） | `/plan` 仅是斜杠命令，无独立 agent | P1 |
 | **Compaction（会话压缩）** | token-aware pruning（PRUNE_MINIMUM=20000、PRUNE_PROTECT=40000）+ 保护 skill 工具输出 + DEFAULT_TAIL_TURNS=2 | 长会话无优化，token 超限后无降级策略 | P1 |
-| **Snapshot / Revert** | 基于 git 的独立 gitdir 快照（`Global.Path/data/snapshot/<project_id>/<hash>`）+ 文件级 diff + revert + unrevert + 自动 prune（7 天 + 2MB 限制） | `crates/change-engine/` 有 checkpoint，但无 message-level revert | P1 |
+| **Snapshot / Revert** | 基于 git 的独立 gitdir 快照（`Global.Path/data/snapshot/<project_id>/<hash>`）+ 文件级 diff + revert + unrevert + 自动 prune（7 天 + 2MB 限制） | `crates/change-engine/` 有基于文件副本的快照 + revert + 自动 prune（7 天 + 2MB） | ✅ 已完成 |
 | **Session Fork / 分支** | `parent_id` 子会话 + Fork 从任意 message 分叉 + 标题累加 `(fork #N)` | 无会话分支概念 | P2 |
 | **Provider-specific Prompts** | 按模型选择 system prompt（anthropic/gpt/gemini/kimi/codex/beast/trinity/default 等 8+） | prompt 系统单一，无模型适配 | P1 |
 | **LSP 集成** | 完整 LSP 客户端 + `lsp` 工具（定义/引用/符号/诊断）+ SymbolKind 完整枚举 + 服务器启动管理 | 无 LSP，仅 `crates/outline/` 14 种语言大纲解析 | P2 |
@@ -43,7 +44,7 @@
 
 | 缺失能力 | OpenCode 实现 | 本项目现状 | 优先级 |
 |---------|--------------|----------|--------|
-| **MCP 完整集成** | `@modelcontextprotocol/sdk` 1.29.0 + 3 种 transport（Stdio/StreamableHTTP/SSE）+ **完整 OAuth**（动态客户端注册 + 回调服务器 + Token 存储）+ MCP 资源作为工具（list/read_mcp_resource） | 仅开发环境 `.mcp.json`（chrome-devtools 调试用），应用内无 MCP | P0 |
+| **MCP 完整集成** | `@modelcontextprotocol/sdk` 1.29.0 + 3 种 transport（Stdio/StreamableHTTP/SSE）+ **完整 OAuth**（动态客户端注册 + 回调服务器 + Token 存储）+ MCP 资源作为工具（list/read_mcp_resource） | `rmcp` v1.8.0 实现 Stdio/SSE/StreamableHTTP 3 transport + OAuth 支持 + `crates/mcp-client/` catalog/registry/client 完整架构 | ✅ 已完成 |
 | **Plugin 系统** | npm + 本地插件 + Hooks（`tool.execute.before/after`、`experimental.chat.system.transform` 等）+ 内置 10+ 插件（Copilot/Codex/Cloudflare/Azure/DigitalOcean/Snowflake/xAI/GitLab/Poe 等） | 无插件生态 | P2 |
 | **ACP（Agent Client Protocol）** | 与 Zed 等编辑器集成（agent/config-option/content/directory/error/event/permission/profile/service/session/tool/usage 完整模块） | 无 | P2（预留） |
 | **HTTP API 服务器** | Hono 20+ 路由组 + 完整 OpenAPI + 自动生成 SDK（client/sdk-js） | 仅 Tauri IPC，无 HTTP API | P2 |
@@ -65,9 +66,9 @@
 
 | 维度 | 本项目现状 | OpenCode 实现 | 建议 |
 |------|----------|--------------|------|
-| 模型 | 三级 RiskLevel（Low/Medium/High）+ 任务审批 | **Permission Ruleset**（allow/ask/deny + Wildcard 通配） | 升级为 Ruleset 模式 |
-| 评估 | `assess_command_risk` + `requires_approval` | `evaluate(permission, pattern, ...rulesets)` 找最后匹配规则 | 支持通配模式匹配 |
-| 特殊规则 | Tauri capabilities 白名单 | `.env` ask / `doom_loop` ask / `external_directory` ask + 白名单 allow | 补充 `.env`/`doom_loop` 规则 |
+| 模型 | **Permission Ruleset**（allow/ask/deny + Wildcard 通配）+ 三级 RiskLevel 降级兼容 | **Permission Ruleset**（allow/ask/deny + Wildcard 通配） | ✅ 已完成（Ruleset + 正则通配 + doom_loop） |
+| 评估 | `evaluate(permission, pattern, ...rulesets)` 找最后匹配规则 + `pattern_matches` 正则（OpenCode Wildcard.match 模式） | `evaluate(permission, pattern, ...rulesets)` 找最后匹配规则 | ✅ 已完成 |
+| 特殊规则 | Tauri capabilities 白名单 + `.env` ask + `doom_loop` ask | `.env` ask / `doom_loop` ask / `external_directory` ask + 白名单 allow | ✅ 已完成 |
 | 子代理权限 | 无 | `deriveSubagentSessionPermission` 派生 | 随 Sub-agent 一并实现 |
 | 持久化 | 审计日志 + ApprovalCard | `SessionTable.permission` + `state.approved` | 增加 session 级 permission 持久化 |
 
@@ -137,12 +138,12 @@
 
 - **Plan Mode** — 独立 `plan` agent 提升需求理解质量
 - **Compaction（会话压缩）** — 长会话必备，避免 token 浪费
-- **Snapshot / Revert** — message-level 回滚是用户体验关键
 - **Provider-specific Prompts** — 多 Provider 支持的前提
 - **多 LLM Provider 支持** — 降低单一 Provider 依赖风险
 - **WebFetch / WebSearch 工具** — Agent 必备的网络信息获取能力
 - **自定义命令配置** — 让用户扩展斜杠命令
-- **权限系统升级为 Ruleset** — 支持更灵活的权限规则
+
+以下已于 Phase 2 质量补丁中完成：~~Snapshot / Revert~~、~~权限系统升级为 Ruleset~~、~~MCP 完整集成~~
 
 ### 🎯 P2 — 后续（Phase 2+ 或 Phase 3）
 

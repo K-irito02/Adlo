@@ -1,8 +1,6 @@
-//! SSE (Server-Sent Events) transport for MCP servers.
-
 use crate::McpServerConfig;
+use rmcp::transport::StreamableHttpClientTransport;
 
-/// Connects to an MCP server via SSE.
 pub struct SseTransport {
     pub config: McpServerConfig,
 }
@@ -12,9 +10,18 @@ impl SseTransport {
         Self { config }
     }
 
-    pub async fn connect(&self) -> Result<(), adl_errors::AppError> {
-        tracing::info!(url = ?self.config.url, "SseTransport connect (stub)");
-        Ok(())
+    pub async fn connect(
+        &self,
+    ) -> Result<StreamableHttpClientTransport<reqwest::Client>, adl_errors::AppError> {
+        let url =
+            self.config.url.as_ref().ok_or_else(|| {
+                adl_errors::AppError::Internal("SSE transport requires a URL".into())
+            })?;
+
+        let transport = StreamableHttpClientTransport::from_uri(url.as_str());
+
+        tracing::info!(url = ?url, "SseTransport connected");
+        Ok(transport)
     }
 }
 

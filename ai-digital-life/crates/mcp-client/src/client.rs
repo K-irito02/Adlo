@@ -1,5 +1,8 @@
-use crate::catalog::McpCatalog;
+use crate::catalog::{McpCatalog, McpToolEntry};
 use crate::{McpServerConfig, McpTransportType};
+use rmcp::serve_client;
+use rmcp::service::{RoleClient, RunningService};
+use rmcp::transport::{StreamableHttpClientTransport, TokioChildProcess};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -14,11 +17,12 @@ pub enum McpClientState {
 }
 
 /// Manages connections to multiple MCP servers.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct McpClient {
     configs: Arc<Mutex<HashMap<String, McpServerConfig>>>,
     states: Arc<Mutex<HashMap<String, McpClientState>>>,
     catalog: Arc<Mutex<McpCatalog>>,
+    running_services: Arc<Mutex<HashMap<String, RunningService<RoleClient, ()>>>>,
 }
 
 impl McpClient {
@@ -27,6 +31,7 @@ impl McpClient {
             configs: Arc::new(Mutex::new(HashMap::new())),
             states: Arc::new(Mutex::new(HashMap::new())),
             catalog: Arc::new(Mutex::new(McpCatalog::new())),
+            running_services: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -39,6 +44,7 @@ impl McpClient {
     pub async fn remove_server(&self, name: &str) {
         self.configs.lock().await.remove(name);
         self.states.lock().await.remove(name);
+        self.disconnect_inner(name).await;
     }
 
     pub async fn connect(&self, name: &str) -> Result<(), adl_errors::AppError> {
@@ -49,30 +55,72 @@ impl McpClient {
             })?
         };
 
+        self.disconnect_inner(name).await;
         self.set_state(name, McpClientState::Connecting).await;
 
-        // Actual connection logic depends on transport type
-        // For now, mark as connected (full impl in transport modules)
-        match config.transport {
+        let running = match config.transport {
             McpTransportType::Stdio => {
-                // Will use rmcp StdioClientTransport
-                tracing::info!("Connecting to MCP server '{}' via stdio", name);
+                let command = config.command.clone().ok_or_else(|| {
+                    adl_errors::AppError::Internal("Stdio transport requires a command".into())
+                })?;
+                let mut cmd = tokio::process::Command::new(&command);
+                cmd.args(&config.args);
+                for (key, value) in &config.env {
+                    cmd.env(key, value);
+                }
+                let transport = TokioChildProcess::new(cmd).map_err(|e| {
+                    adl_errors::AppError::Io(format!("Failed to spawn MCP server: {}", e))
+                })?;
+                serve_client((), transport).await.map_err(|e| {
+                    adl_errors::AppError::Internal(format!("MCP connect failed: {}", e))
+                })?
             },
-            McpTransportType::Sse => {
-                tracing::info!("Connecting to MCP server '{}' via SSE", name);
+            McpTransportType::Sse | McpTransportType::StreamableHttp => {
+                let url = config.url.as_ref().ok_or_else(|| {
+                    adl_errors::AppError::Internal("HTTP transport requires a URL".into())
+                })?;
+                let transport = StreamableHttpClientTransport::from_uri(url.as_str());
+                serve_client((), transport).await.map_err(|e| {
+                    adl_errors::AppError::Internal(format!("MCP connect failed: {}", e))
+                })?
             },
-            McpTransportType::StreamableHttp => {
-                tracing::info!("Connecting to MCP server '{}' via StreamableHTTP", name);
-            },
+        };
+
+        let tools = running
+            .list_all_tools()
+            .await
+            .map_err(|e| adl_errors::AppError::Internal(format!("Failed to list tools: {}", e)))?;
+
+        {
+            let mut catalog = self.catalog.lock().await;
+            catalog.tools.retain(|t| t.server_name != name);
+            for tool in tools {
+                catalog.add_tool(McpToolEntry {
+                    server_name: name.to_string(),
+                    name: tool.name.to_string(),
+                    description: tool.description.unwrap_or_default().to_string(),
+                    input_schema: serde_json::Value::Object(tool.input_schema.as_ref().clone()),
+                });
+            }
         }
 
+        self.running_services.lock().await.insert(name.to_string(), running);
         self.set_state(name, McpClientState::Connected).await;
         Ok(())
     }
 
     pub async fn disconnect(&self, name: &str) -> Result<(), adl_errors::AppError> {
         self.set_state(name, McpClientState::Disconnected).await;
+        self.disconnect_inner(name).await;
         Ok(())
+    }
+
+    async fn disconnect_inner(&self, name: &str) {
+        if let Some(mut service) = self.running_services.lock().await.remove(name) {
+            if let Err(e) = service.close().await {
+                tracing::warn!(server = %name, "Error closing MCP connection: {}", e);
+            }
+        }
     }
 
     pub async fn get_state(&self, name: &str) -> McpClientState {

@@ -1,4 +1,5 @@
 use crate::RiskLevel;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -207,35 +208,69 @@ fn rule_matches(rule: &PermissionRule, tool_name: &str, command: &str, args: &[S
     args.iter().any(|arg| pattern_matches(&rule.pattern, arg))
 }
 
-/// Check if a pattern matches a string.
-/// Supports `*` (single segment) and `**` (multi-segment) wildcards.
+/// Check if a pattern matches a string using regex-based glob matching.
+/// Supports `*` and `**` (match any sequence) and `?` (match single char).
+/// Inspired by OpenCode's Wildcard.match — converts glob to regex.
 pub fn pattern_matches(pattern: &str, text: &str) -> bool {
     if pattern == "**" {
         return true;
     }
-    let pattern_parts: Vec<&str> = pattern.split('*').collect();
-    if pattern_parts.len() == 1 {
-        return pattern == text;
-    }
-    let mut text_idx = 0;
-    for (i, part) in pattern_parts.iter().enumerate() {
-        if part.is_empty() {
-            continue;
+    let regex_str = build_glob_regex(pattern);
+    Regex::new(&regex_str).is_ok_and(|re| re.is_match(text))
+}
+
+/// Convert a glob-like pattern to a regex pattern.
+/// - `*` or any run of `*` → `.*`
+/// - `?` → `.`
+/// - Special regex chars are escaped
+fn build_glob_regex(pattern: &str) -> String {
+    let mut re = String::with_capacity(pattern.len() + 4);
+    re.push('^');
+    let chars: Vec<char> = pattern.chars().collect();
+    let mut i = 0;
+    while i < chars.len() {
+        match chars[i] {
+            '*' => {
+                let mut count = 0;
+                while i + count < chars.len() && chars[i + count] == '*' {
+                    count += 1;
+                }
+                let prev_is_slash = i > 0 && chars[i - 1] == '/';
+                let next_is_slash = i + count < chars.len() && chars[i + count] == '/';
+                let at_start = i == 0;
+
+                if count >= 2 && prev_is_slash && next_is_slash {
+                    re.truncate(re.len() - 2);
+                    re.push_str("(?:/.*)?");
+                    i += count;
+                    continue;
+                }
+                if count >= 2 && at_start && next_is_slash {
+                    re.push_str("(?:.*/)?");
+                    i += count + 1;
+                    continue;
+                }
+                re.push_str(".*");
+                i += count;
+            },
+            '?' => {
+                re.push('.');
+                i += 1;
+            },
+            c @ ('.' | '+' | '^' | '$' | '{' | '}' | '[' | ']' | '\\' | '|' | '(' | ')' | '-'
+            | '/' | '"') => {
+                re.push('\\');
+                re.push(c);
+                i += 1;
+            },
+            c => {
+                re.push(c);
+                i += 1;
+            },
         }
-        if i == 0 {
-            if !text[text_idx..].starts_with(part) {
-                return false;
-            }
-            text_idx += part.len();
-        } else if i == pattern_parts.len() - 1 {
-            return text[text_idx..].ends_with(part);
-        } else if let Some(pos) = text[text_idx..].find(part) {
-            text_idx += pos + part.len();
-        } else {
-            return false;
-        }
     }
-    true
+    re.push('$');
+    re
 }
 
 fn default_decision(command: &str, args: &[String]) -> PermissionDecision {
@@ -484,6 +519,31 @@ mod tests {
     }
 
     #[test]
+    fn last_rule_overrides_earlier() {
+        let mut ruleset = PermissionRuleset::new();
+        ruleset.add_rule(PermissionRule {
+            pattern: "write".to_string(),
+            decision: PermissionDecision::Deny,
+            tool_type: String::new(),
+            always: true,
+            reason: "deny all writes".to_string(),
+        });
+        ruleset.add_rule(PermissionRule {
+            pattern: "write".to_string(),
+            decision: PermissionDecision::Allow,
+            tool_type: String::new(),
+            always: true,
+            reason: "override: allow writes".to_string(),
+        });
+        let result = ruleset.evaluate("write", "write src/main.rs", &[]);
+        assert_eq!(
+            result,
+            PermissionDecision::Allow,
+            "last rule should win (Allow) over earlier rule (Deny)"
+        );
+    }
+
+    #[test]
     fn permission_rule_serializes_snake_case() {
         let rule = PermissionRule {
             pattern: "test".to_string(),
@@ -575,5 +635,15 @@ mod tests {
         }];
         let ruleset = build_ruleset(&custom, false);
         assert_eq!(ruleset.rules.len(), 1);
+    }
+
+    #[test]
+    fn double_star_matches_zero_segments() {
+        assert!(pattern_matches("dir/**/file", "dir/file"), "** should match zero segments");
+        assert!(pattern_matches("dir/**/file", "dir/sub/file"), "** should match one segment");
+        assert!(
+            pattern_matches("dir/**/file", "dir/a/b/file"),
+            "** should match multiple segments"
+        );
     }
 }

@@ -11,8 +11,7 @@ pub struct RevertResult {
     pub error: Option<String>,
 }
 
-/// Revert workspace to a previous snapshot.
-/// This uses git to restore the file state captured in the snapshot.
+/// Revert workspace to a previous snapshot by restoring file copies.
 pub fn revert_to_snapshot(
     manager: &SnapshotManager,
     snapshot_id: &str,
@@ -22,76 +21,68 @@ pub fn revert_to_snapshot(
         adl_errors::AppError::NotFound(format!("Snapshot {} not found", snapshot_id))
     })?;
 
-    // If snapshot has a git commit, restore via git
-    if let Some(ref commit) = snapshot.git_commit {
-        match revert_via_git(workspace_root, commit) {
-            Ok(files) => {
-                return Ok(RevertResult {
-                    success: true,
-                    snapshot_id: snapshot_id.to_string(),
-                    message_id: snapshot.message_id.clone(),
-                    files_restored: files,
-                    error: None,
-                });
-            },
-            Err(e) => {
-                return Ok(RevertResult {
-                    success: false,
-                    snapshot_id: snapshot_id.to_string(),
-                    message_id: snapshot.message_id.clone(),
-                    files_restored: 0,
-                    error: Some(format!("Git revert failed: {}", e)),
-                });
-            },
-        }
+    let snapshot_dir = manager.snapshot_root.join(&snapshot.id);
+    let files_dir = snapshot_dir.join("files");
+
+    if !files_dir.exists() {
+        return Ok(RevertResult {
+            success: false,
+            snapshot_id: snapshot_id.to_string(),
+            message_id: snapshot.message_id.clone(),
+            files_restored: 0,
+            error: Some("Snapshot files directory not found".to_string()),
+        });
     }
 
-    // No git commit available
+    let mut restored = 0;
+    let mut errors = Vec::new();
+    restore_directory(&files_dir, workspace_root, &mut restored, &mut errors);
+
+    if !errors.is_empty() {
+        return Ok(RevertResult {
+            success: false,
+            snapshot_id: snapshot_id.to_string(),
+            message_id: snapshot.message_id.clone(),
+            files_restored: restored,
+            error: Some(format!("Failed to restore some files: {}", errors.join("; "))),
+        });
+    }
+
     Ok(RevertResult {
-        success: false,
+        success: true,
         snapshot_id: snapshot_id.to_string(),
         message_id: snapshot.message_id.clone(),
-        files_restored: 0,
-        error: Some("Snapshot has no git commit to revert to".to_string()),
+        files_restored: restored,
+        error: None,
     })
 }
 
-/// Revert workspace to a git commit.
-fn revert_via_git(workspace_root: &Path, commit: &str) -> Result<usize, String> {
-    use std::process::Command;
-
-    // git checkout <commit> -- .
-    let output = Command::new("git")
-        .arg("checkout")
-        .arg(commit)
-        .arg("--")
-        .arg(".")
-        .current_dir(workspace_root)
-        .output()
-        .map_err(|e| format!("Failed to run git: {}", e))?;
-
-    if !output.status.success() {
-        return Err(String::from_utf8_lossy(&output.stderr).to_string());
+/// Recursively restore files from src directory to dst directory.
+fn restore_directory(src: &Path, dst: &Path, restored: &mut usize, errors: &mut Vec<String>) {
+    if let Ok(entries) = std::fs::read_dir(src) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                restore_directory(&path, dst, restored, errors);
+            } else if let Ok(relative) = path.strip_prefix(src) {
+                let target = dst.join(relative);
+                if let Some(parent) = target.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                match std::fs::copy(&path, &target) {
+                    Ok(_) => *restored += 1,
+                    Err(e) => errors.push(format!("{}: {}", relative.display(), e)),
+                }
+            }
+        }
     }
-
-    // Count restored files from git diff
-    let diff_output = Command::new("git")
-        .arg("diff")
-        .arg("--name-only")
-        .arg("HEAD")
-        .current_dir(workspace_root)
-        .output()
-        .map_err(|e| format!("Failed to count restored files: {}", e))?;
-
-    let count =
-        String::from_utf8_lossy(&diff_output.stdout).lines().filter(|l| !l.is_empty()).count();
-
-    Ok(count)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::snapshot::SnapshotManager;
+    use std::fs;
 
     #[test]
     fn revert_result_serializes() {
@@ -118,5 +109,31 @@ mod tests {
         };
         assert!(!result.success);
         assert!(result.error.is_some());
+    }
+
+    #[test]
+    fn revert_restores_files_from_snapshot() {
+        let tmp_root =
+            std::env::temp_dir().join(format!("revert-integration-test-{}", std::process::id()));
+        let workspace_root = tmp_root.join("workspace");
+        let snap_root = tmp_root.join("snapshots");
+
+        fs::create_dir_all(&workspace_root).unwrap();
+        fs::write(workspace_root.join("readme.md"), b"original content").unwrap();
+
+        let manager = SnapshotManager::new(&snap_root, "integtest");
+        let record = manager.create_snapshot(&workspace_root, "msg_1", "sess_1", "ws_1").unwrap();
+        assert_eq!(record.file_count, 1);
+
+        fs::write(workspace_root.join("readme.md"), b"modified content").unwrap();
+
+        let result = revert_to_snapshot(&manager, &record.id, &workspace_root).unwrap();
+        assert!(result.success);
+        assert_eq!(result.files_restored, 1);
+
+        let restored = fs::read_to_string(workspace_root.join("readme.md")).unwrap();
+        assert_eq!(restored, "original content");
+
+        fs::remove_dir_all(&tmp_root).unwrap_or(());
     }
 }

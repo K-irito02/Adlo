@@ -22,7 +22,7 @@ pub struct SnapshotRecord {
 /// Manages message-level snapshots in an independent gitdir.
 #[derive(Debug, Clone)]
 pub struct SnapshotManager {
-    snapshot_root: PathBuf,
+    pub(crate) snapshot_root: PathBuf,
 }
 
 impl SnapshotManager {
@@ -46,12 +46,17 @@ impl SnapshotManager {
             adl_errors::AppError::Io(format!("Failed to create snapshot dir: {}", e))
         })?;
 
+        let files_dir = snapshot_dir.join("files");
+        std::fs::create_dir_all(&files_dir).map_err(|e| {
+            adl_errors::AppError::Io(format!("Failed to create snapshot files dir: {}", e))
+        })?;
+
         // Capture git state
         let git_snapshot = adl_workspace::capture_git_snapshot(workspace_root);
         let git_commit = git_snapshot.head;
 
-        // List files (skip large files >2MB)
-        let (file_count, total_bytes) = count_workspace_files(workspace_root)?;
+        // Copy files (skip large files >2MB)
+        let (file_count, total_bytes) = copy_workspace_files(workspace_root, &files_dir)?;
 
         let record = SnapshotRecord {
             id: snapshot_id,
@@ -155,43 +160,58 @@ impl SnapshotManager {
     }
 }
 
-/// Count files in workspace, skipping files >2MB.
-fn count_workspace_files(root: &Path) -> Result<(usize, u64), adl_errors::AppError> {
+/// Walk workspace files, copy them to destination, skip files >2MB and known dirs.
+fn copy_workspace_files(root: &Path, dest: &Path) -> Result<(usize, u64), adl_errors::AppError> {
     let mut count = 0;
     let mut total_bytes = 0u64;
+    let mut stack = vec![root.to_path_buf()];
 
-    fn walk(
-        dir: &Path,
-        count: &mut usize,
-        total_bytes: &mut u64,
-    ) -> Result<(), adl_errors::AppError> {
-        for entry in std::fs::read_dir(dir)? {
-            let entry = entry?;
+    while let Some(dir) = stack.pop() {
+        let entries = std::fs::read_dir(&dir).map_err(|e| {
+            adl_errors::AppError::Io(format!("Failed to read dir {:?}: {}", dir, e))
+        })?;
+        for entry in entries {
+            let entry =
+                entry.map_err(|e| adl_errors::AppError::Io(format!("Dir entry error: {}", e)))?;
             let path = entry.path();
             if path.is_dir() {
                 let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
                 if matches!(name, ".git" | "node_modules" | "target" | ".next" | "dist" | "build") {
                     continue;
                 }
-                walk(&path, count, total_bytes)?;
+                stack.push(path);
             } else {
-                let metadata = entry.metadata()?;
-                if metadata.len() <= 2 * 1024 * 1024 {
-                    *count += 1;
-                    *total_bytes += metadata.len();
+                let metadata = entry.metadata().map_err(|e| {
+                    adl_errors::AppError::Io(format!("Failed to read metadata: {}", e))
+                })?;
+                if metadata.len() > 2 * 1024 * 1024 {
+                    continue;
                 }
+                let relative = path.strip_prefix(root).map_err(|_| {
+                    adl_errors::AppError::Internal("Path outside workspace root".into())
+                })?;
+                let target = dest.join(relative);
+                if let Some(parent) = target.parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| {
+                        adl_errors::AppError::Io(format!("Failed to create dir: {}", e))
+                    })?;
+                }
+                std::fs::copy(&path, &target).map_err(|e| {
+                    adl_errors::AppError::Io(format!("Failed to copy {:?}: {}", path, e))
+                })?;
+                count += 1;
+                total_bytes += metadata.len();
             }
         }
-        Ok(())
     }
 
-    walk(root, &mut count, &mut total_bytes)?;
     Ok((count, total_bytes))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn snapshot_manager_creates_root() {
@@ -212,5 +232,33 @@ mod tests {
     fn snapshot_constants() {
         assert_eq!(SNAPSHOT_MAX_AGE_DAYS, 7);
         assert_eq!(SNAPSHOT_MAX_TOTAL_BYTES, 2 * 1024 * 1024);
+    }
+
+    #[test]
+    fn create_snapshot_copies_files() {
+        let tmp_root =
+            std::env::temp_dir().join(format!("snapshot-copy-test-{}", std::process::id()));
+        let workspace_root = tmp_root.join("workspace");
+        let snap_root = tmp_root.join("snapshots");
+
+        fs::create_dir_all(&workspace_root).unwrap();
+        fs::write(workspace_root.join("test.txt"), b"hello world").unwrap();
+        fs::create_dir(workspace_root.join("subdir")).unwrap();
+        fs::write(workspace_root.join("subdir").join("nested.txt"), b"nested content").unwrap();
+
+        let manager = SnapshotManager::new(&snap_root, "testproj");
+        let record = manager.create_snapshot(&workspace_root, "msg_1", "sess_1", "ws_1").unwrap();
+
+        assert_eq!(record.file_count, 2);
+        assert!(record.id.starts_with("snap"));
+
+        let files_dir = snap_root.join("snapshot").join("testproj").join(&record.id).join("files");
+        assert!(files_dir.join("test.txt").exists(), "file should be copied");
+        assert!(
+            files_dir.join("subdir").join("nested.txt").exists(),
+            "nested file should be copied"
+        );
+
+        fs::remove_dir_all(&tmp_root).unwrap_or(());
     }
 }

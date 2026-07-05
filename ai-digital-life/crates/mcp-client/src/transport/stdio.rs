@@ -1,8 +1,6 @@
-//! Stdio transport for MCP servers (subprocess communication).
-
 use crate::McpServerConfig;
+use rmcp::transport::TokioChildProcess;
 
-/// Connects to an MCP server via subprocess stdio.
 pub struct StdioTransport {
     pub config: McpServerConfig,
 }
@@ -12,9 +10,23 @@ impl StdioTransport {
         Self { config }
     }
 
-    pub async fn connect(&self) -> Result<(), adl_errors::AppError> {
-        tracing::info!(command = ?self.config.command, "StdioTransport connect (stub)");
-        Ok(())
+    pub async fn connect(&self) -> Result<TokioChildProcess, adl_errors::AppError> {
+        let command = self.config.command.clone().ok_or_else(|| {
+            adl_errors::AppError::Internal("Stdio transport requires a command".into())
+        })?;
+        let args: Vec<String> = self.config.args.clone();
+
+        let mut cmd = tokio::process::Command::new(&command);
+        cmd.args(&args);
+        for (key, value) in &self.config.env {
+            cmd.env(key, value);
+        }
+
+        let transport = TokioChildProcess::new(cmd)
+            .map_err(|e| adl_errors::AppError::Io(format!("Failed to spawn MCP server: {}", e)))?;
+
+        tracing::info!(command = ?self.config.command, "StdioTransport connected");
+        Ok(transport)
     }
 }
 

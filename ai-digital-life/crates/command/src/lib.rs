@@ -39,13 +39,25 @@ pub fn classify_profile(command: &str, args: &[String]) -> CommandProfile {
         .collect::<Vec<_>>()
         .join(" ")
         .to_lowercase();
-    if joined.contains(" test") || joined.contains("vitest") || joined.contains("cargo test") {
+    if joined == "cargo test"
+        || joined == "cargo test --workspace"
+        || joined.contains("vitest")
+        || joined.contains("pytest")
+        || joined.starts_with("cargo test ")
+        || joined.starts_with("npx vitest")
+        || joined.starts_with("npm test")
+        || joined.starts_with("npm run test ")
+        || joined == "npm run test"
+        || joined.starts_with("pnpm test")
+        || joined.starts_with("pnpm run test ")
+        || joined == "pnpm run test"
+    {
         CommandProfile::Test
     } else if joined.contains(" build") || joined.contains("cargo check") {
         CommandProfile::Build
-    } else if joined.contains("lint") || joined.contains("clippy") {
+    } else if joined.contains("lint") || joined.contains("clippy") || joined == "cargo fmt" {
         CommandProfile::Lint
-    } else if joined.contains("install") {
+    } else if joined.contains("install") || joined.starts_with("pnpm add") {
         CommandProfile::Install
     } else {
         CommandProfile::Custom
@@ -178,10 +190,12 @@ pub fn truncate_output(value: &str) -> String {
     if value.chars().count() <= MAX_CAPTURE_CHARS {
         return value.to_string();
     }
-    let head: String = value.chars().take(MAX_CAPTURE_CHARS / 2).collect();
-    let tail: String =
-        value.chars().rev().take(MAX_CAPTURE_CHARS / 2).collect::<String>().chars().rev().collect();
-    format!("{head}\n...[output truncated]...\n{tail}")
+    const TRUNCATION_MARKER: &str = "\n...[output truncated]...\n";
+    let remaining = MAX_CAPTURE_CHARS.saturating_sub(TRUNCATION_MARKER.chars().count());
+    let half = remaining / 2;
+    let head: String = value.chars().take(half).collect();
+    let tail: String = value.chars().rev().take(half).collect::<String>().chars().rev().collect();
+    format!("{head}{TRUNCATION_MARKER}{tail}")
 }
 
 pub fn validation_command(
@@ -225,6 +239,7 @@ mod tests {
     #[test]
     fn classify_profile_lint_commands() {
         assert_eq!(classify_profile("cargo", &["clippy".into()]), CommandProfile::Lint);
+        assert_eq!(classify_profile("cargo", &["fmt".into()]), CommandProfile::Lint);
         assert_eq!(classify_profile("npm", &["run".into(), "lint".into()]), CommandProfile::Lint);
     }
 
@@ -236,13 +251,43 @@ mod tests {
             classify_profile("pip", &["install".into(), "package".into()]),
             CommandProfile::Install
         );
-        assert_eq!(classify_profile("pnpm", &["add".into()]), CommandProfile::Custom);
+        assert_eq!(classify_profile("pnpm", &["add".into()]), CommandProfile::Install);
     }
 
     #[test]
     fn classify_profile_custom_commands() {
         assert_eq!(classify_profile("echo", &["hello".into()]), CommandProfile::Custom);
         assert_eq!(classify_profile("node", &["server.js".into()]), CommandProfile::Custom);
+    }
+
+    #[test]
+    fn classify_cargo_test() {
+        let profile = classify_profile("cargo", &["test".to_string(), "--workspace".to_string()]);
+        assert_eq!(profile, CommandProfile::Test);
+    }
+
+    #[test]
+    fn classify_npm_test() {
+        let profile = classify_profile("npm", &["test".to_string()]);
+        assert_eq!(profile, CommandProfile::Test);
+    }
+
+    #[test]
+    fn classify_npm_run_test() {
+        let profile = classify_profile("npm", &["run".to_string(), "test".to_string()]);
+        assert_eq!(profile, CommandProfile::Test);
+    }
+
+    #[test]
+    fn classify_pnpm_run_test() {
+        let profile = classify_profile("pnpm", &["run".to_string(), "test".to_string()]);
+        assert_eq!(profile, CommandProfile::Test);
+    }
+
+    #[test]
+    fn classify_echo_test_not_classified() {
+        let profile = classify_profile("echo", &["\"running test suite\"".to_string()]);
+        assert_ne!(profile, CommandProfile::Test, "echo with 'test' in msg should not be Test");
     }
 
     #[test]
@@ -278,6 +323,25 @@ mod tests {
         let result = truncate_output(&content);
         assert!(result.starts_with(head));
         assert!(result.ends_with(tail));
+    }
+
+    #[test]
+    fn truncate_output_short_string_stays_unchanged() {
+        let s = "hello world";
+        assert_eq!(truncate_output(s), s);
+    }
+
+    #[test]
+    fn truncate_output_long_string_fits_within_cap() {
+        let long = "a".repeat(MAX_CAPTURE_CHARS + 100);
+        let result = truncate_output(&long);
+        assert!(
+            result.chars().count() <= MAX_CAPTURE_CHARS,
+            "truncated output ({}) exceeded MAX_CAPTURE_CHARS ({})",
+            result.chars().count(),
+            MAX_CAPTURE_CHARS
+        );
+        assert!(result.contains("[output truncated]"));
     }
 
     #[test]

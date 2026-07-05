@@ -16,7 +16,7 @@ impl AgentRouter {
             return AgentId::Plan;
         }
         let trimmed = user_prompt.trim_start();
-        if trimmed.starts_with("/plan") {
+        if trimmed == "/plan" || trimmed.starts_with("/plan ") {
             return AgentId::Plan;
         }
         AgentId::Build
@@ -58,6 +58,24 @@ mod tests {
     fn code_edit_scenario_selects_build_agent() {
         let agent = AgentRouter::select(ConversationScenario::CodeEdit, "refactor the parser");
         assert_eq!(agent, AgentId::Build);
+    }
+
+    #[test]
+    fn plan_slash_command_exact_only() {
+        let agent = AgentRouter::select(ConversationScenario::Chat, "/plan");
+        assert_eq!(agent, AgentId::Plan);
+    }
+
+    #[test]
+    fn plan_slash_command_with_args() {
+        let agent = AgentRouter::select(ConversationScenario::Chat, "/plan analyze auth");
+        assert_eq!(agent, AgentId::Plan);
+    }
+
+    #[test]
+    fn planning_does_not_trigger_plan_mode() {
+        let agent = AgentRouter::select(ConversationScenario::Chat, "/planning the next steps");
+        assert_ne!(agent, AgentId::Plan);
     }
 
     #[test]

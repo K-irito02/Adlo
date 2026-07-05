@@ -43,7 +43,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "regis
 tracing-appender = "0.2"
 rusqlite = { version = "0.39", features = ["bundled"] }
 notify = "7"
-reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+reqwest = { version = "0.13.2", features = ["json", "rustls", "query", "form"], default-features = false }
 keyring = { version = "3", features = ["crypto-rust"] }
 tauri = "2"
 tauri-build = "2"
@@ -61,7 +61,7 @@ url = "2"
 async-trait = "0.1"
 tokio-stream = "0.1"
 tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
-rmcp = { version = "1", features = ["client", "server"] }
+rmcp = { version = "1", features = ["client", "server", "transport-child-process", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"] }
 rmcp-macros = "2"
 lsp-server = "0.7"
 lsp-types = "0.97"

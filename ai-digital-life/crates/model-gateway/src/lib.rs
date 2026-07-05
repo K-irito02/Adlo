@@ -121,7 +121,7 @@ impl ModelGateway {
                 let audit = audit_record(AuditInput {
                     workspace_id,
                     session_id,
-                    run_id: None,
+                    run_id,
                     provider_id: provider,
                     model_id,
                     scenario,

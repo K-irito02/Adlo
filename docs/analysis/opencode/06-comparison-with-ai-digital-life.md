@@ -31,7 +31,7 @@
 | **Sub-agent / Task 工具** | `task` 工具支持子代理调度 + **background 后台模式** + resume | 本项目的多 Agent DAG 在 Phase 2+ 排除项 |
 | **Plan Mode** | 独立 `plan` agent（只读分析）+ `plan_enter`/`plan_exit` 工具 + 计划文件持久化 | 本项目的 `/plan` 仅是斜杠命令，无独立 agent |
 | **Compaction（会话压缩）** | token-aware pruning（PRUNE_MINIMUM=20000）+ 保护 skill 输出 + 自动压缩 | 长会话场景无优化 |
-| **Snapshot / Revert** | 基于 git 的独立 gitdir 快照 + 文件级 diff + revert + unrevert + 自动 prune | 本项目的 checkpoint 在 change-engine 中，但无 message-level revert |
+| **Snapshot / Revert** | 基于 git 的独立 gitdir 快照 + 文件级 diff + revert + unrevert + 自动 prune | `crates/change-engine/` 有基于文件副本的快照 + revert，含自动 prune（7天+2MB） |
 | **Session Fork / 分支** | `parent_id` 子会话 + Fork 从某 message 分叉 + 标题累加 `(fork #N)` | 无会话分支 |
 | **Provider-specific Prompts** | 按模型选择 system prompt（anthropic/gpt/gemini/kimi/codex/beast 等 8+） | 本项目的 prompt 系统单一 |
 | **LSP 集成** | 完整 LSP 客户端 + lsp 工具（定义/引用/符号/诊断） | 无 LSP，仅大纲解析 |
@@ -40,7 +40,7 @@
 
 | 缺失能力 | OpenCode 实现 | 影响评估 |
 |---------|--------------|---------|
-| **MCP 完整集成** | `@modelcontextprotocol/sdk` + 3 种 transport + **完整 OAuth** + MCP 资源作为工具 | 本项目仅开发环境 `.mcp.json`，Phase 2+ 计划 |
+| **MCP 完整集成** | `@modelcontextprotocol/sdk` + 3 种 transport + **完整 OAuth** + MCP 资源作为工具 | `rmcp` v1.8.0 实现 Stdio/SSE/StreamableHTTP 3 transport + OAuth 支持 + tool catalog |
 | **Plugin 系统** | npm + 本地插件 + Hooks（before/after）+ 内置 10+ 插件（Copilot/Codex/Cloudflare 等） | 无插件生态 |
 | **ACP（Agent Client Protocol）** | 与 Zed 等编辑器集成 | 无 |
 | **HTTP API 服务器** | Hono 20+ 路由组 + 完整 OpenAPI + 自动生成 SDK | 本项目仅 Tauri IPC，无 HTTP API |
@@ -65,9 +65,9 @@
 
 | 维度 | AI Digital Life | OpenCode |
 |------|----------------|----------|
-| 模型 | 三级 RiskLevel（Low/Medium/High）+ 任务审批 | **Permission Ruleset**（allow/ask/deny + Wildcard 通配） |
-| 评估 | `assess_command_risk` + `requires_approval` | `evaluate(permission, pattern, ...rulesets)` 找最后匹配规则 |
-| 特殊规则 | Tauri capabilities 白名单 | `.env` ask / `doom_loop` ask / `external_directory` ask |
+| 模型 | **Permission Ruleset**（allow/ask/deny + Wildcard 通配）+ 三级 RiskLevel 降级 | **Permission Ruleset**（allow/ask/deny + Wildcard 通配） |
+| 评估 | `evaluate(permission, pattern, ...rulesets)` 找最后匹配规则 + `pattern_matches` 正则通配 | `evaluate(permission, pattern, ...rulesets)` 找最后匹配规则 |
+| 特殊规则 | Tauri capabilities 白名单 + `.env` ask + `doom_loop` ask | `.env` ask / `doom_loop` ask / `external_directory` ask |
 | 子代理权限 | 无 | `deriveSubagentSessionPermission` 派生 |
 | 持久化 | 审计日志 + ApprovalCard | `SessionTable.permission` + `state.approved` |
 
@@ -90,7 +90,7 @@
 | **Skills 系统** | 本项目有 Superpowers 23 个开发技能，OpenCode 有 SKILL.md 发现机制 |
 | **斜杠命令** | 都有内置命令 |
 | **i18n** | 都支持多语言 |
-| **MCP 配置** | 都有 `.mcp.json` 配置文件（本项目仅开发环境） |
+| **MCP 配置** | 都有 `.mcp.json` 配置文件 + 应用内 MCP transport |
 
 ---
 
@@ -128,9 +128,9 @@
 ### 🎯 最值得借鉴的 5 项 OpenCode 设计
 
 1. **多 Agent + Sub-agent 系统** — 本项目的单 Agent 是最大瓶颈，建议优先实现
-2. **MCP 完整集成** — 本项目已规划 Phase 2+，可参考 OpenCode 的 OAuth 实现
-3. **Permission Ruleset（allow/ask/deny + Wildcard）** — 比本项目的三级 RiskLevel 更灵活
-4. **Snapshot / Revert** — 基于 git 的 message-level 回滚，用户体验关键
+2. **MCP 完整集成** — 已实现（rmcp v1.8.0 + 3 transport），OAuth 可进一步深化
+3. **Permission Ruleset** — 已升级为 Ruleset + 正则通配，与 OpenCode 功能对齐
+4. **Snapshot / Revert** — 已实现（文件副本快照 + 安全 revert）
 5. **Compaction（会话压缩）** — 长会话必备，token-aware pruning
 
 ### 🎯 本项目核心护城河
@@ -158,12 +158,10 @@
 
 ## 六、结论与建议
 
-本项目在**桌面体验、性能、内置浏览器、CI 集成**方面领先 OpenCode，但在 **Agent 成熟度、MCP/Plugin 生态、多 Provider、Sub-agent、会话管理（Fork/Revert/Compaction）** 方面落后。
+本项目在**桌面体验、性能、内置浏览器、CI 集成**方面领先 OpenCode，在 **MCP 集成、Permission Ruleset、Snapshot/Revert** 方面已补齐至对齐程度。仍落后在 **Agent 成熟度、Plugin 生态、多 Provider、Sub-agent、会话管理（Fork/Compaction）** 方面。
 
-建议按 Phase 2+ 路线图优先补齐以下三项核心能力：
+建议后续优先补齐以下三项核心能力：
 
 1. **多 Agent 系统** — 参考 OpenCode 的 `build/plan/general/explore` 四类基础 agent
-2. **MCP 完整集成** — 参考 OpenCode 的 3 种 transport + OAuth 完整流程
-3. **Sub-agent / Task 工具** — 参考 OpenCode 的 background 后台模式 + resume 机制
-
-后续可继续补齐：Snapshot/Revert、Compaction、Permission Ruleset、LSP 集成、多 Provider 支持。
+2. **Sub-agent / Task 工具** — 参考 OpenCode 的 background 后台模式 + resume 机制
+3. **多 LLM Provider 支持** + Plugin 生态 — 降低单一 Provider 依赖，扩展工具链

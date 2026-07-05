@@ -1,8 +1,6 @@
-//! StreamableHTTP transport for MCP servers.
-
 use crate::McpServerConfig;
+use rmcp::transport::StreamableHttpClientTransport;
 
-/// Connects to an MCP server via StreamableHTTP.
 pub struct StreamableHttpTransport {
     pub config: McpServerConfig,
 }
@@ -12,9 +10,17 @@ impl StreamableHttpTransport {
         Self { config }
     }
 
-    pub async fn connect(&self) -> Result<(), adl_errors::AppError> {
-        tracing::info!(url = ?self.config.url, "StreamableHttpTransport connect (stub)");
-        Ok(())
+    pub async fn connect(
+        &self,
+    ) -> Result<StreamableHttpClientTransport<reqwest::Client>, adl_errors::AppError> {
+        let url = self.config.url.as_ref().ok_or_else(|| {
+            adl_errors::AppError::Internal("StreamableHTTP transport requires a URL".into())
+        })?;
+
+        let transport = StreamableHttpClientTransport::from_uri(url.as_str());
+
+        tracing::info!(url = ?url, "StreamableHttpTransport connected");
+        Ok(transport)
     }
 }
 
