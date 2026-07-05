@@ -1,0 +1,17 @@
+[package]
+name = "adl-subagent"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+adl-kernel = { path = "../kernel" }
+adl-agent-runtime = { path = "../agent-runtime" }
+adl-conversation = { path = "../conversation" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

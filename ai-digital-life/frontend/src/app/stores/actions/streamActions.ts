@@ -109,6 +109,17 @@ registerSlashCommand('/clear', (set, get) => {
   return true;
 });
 
+registerSlashCommand('/plan', async (_set, get) => {
+  const workspaceId = get().appInfo?.currentWorkspace?.id;
+  const workspaceRoot = get().appInfo?.currentWorkspace?.rootPath;
+  if (!workspaceId || !workspaceRoot) {
+    captureError(get, 'No active workspace: cannot enter plan mode');
+    return true;
+  }
+  await get().enterPlanMode(workspaceId, workspaceRoot);
+  return true;
+});
+
 async function dispatchSlashCommand(
   trimmed: string,
   set: StoreApi<StoreState>['setState'],

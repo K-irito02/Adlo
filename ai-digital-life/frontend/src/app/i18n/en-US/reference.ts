@@ -1,0 +1,15 @@
+export const referenceEn = {
+  referenceManagerTitle: 'Reference Repositories',
+  referenceManagerName: 'Name',
+  referenceManagerSource: 'Source',
+  referenceManagerPath: 'Path',
+  referenceManagerBranch: 'Branch',
+  referenceManagerEnabled: 'Enabled',
+  referenceManagerAdd: 'Add Reference',
+  referenceManagerRemove: 'Remove',
+  referenceManagerEmpty: 'No reference repositories yet',
+  referenceManagerLocal: 'Local',
+  referenceManagerGit: 'Git',
+  referenceManagerPrompt: 'Generate Prompt',
+  referenceManagerPromptCopied: 'Prompt copied',
+} as const;

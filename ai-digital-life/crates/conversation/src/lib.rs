@@ -1,5 +1,7 @@
 //! Conversation sessions and message persistence.
 
+pub mod fork;
+
 use adl_kernel::{
     create_id, now_ms, ConversationBlock, ConversationMessageRecord, ConversationRole,
     ConversationSessionRecord,
@@ -26,6 +28,7 @@ pub fn create_session(
         created_at: now,
         updated_at: now,
         last_message_at: now,
+        parent_id: None,
     }
 }
 
@@ -50,6 +53,18 @@ pub fn create_message(
 pub fn touch_session(session: &mut ConversationSessionRecord, message_at: i64) {
     session.updated_at = message_at;
     session.last_message_at = message_at;
+}
+
+/// Create a child session linked to a parent (for sub-agent tasks).
+pub fn create_child_session(
+    workspace_id: &str,
+    parent_session_id: &str,
+    title: &str,
+    unpinned_order: u32,
+) -> ConversationSessionRecord {
+    let mut session = create_session(workspace_id, Some(title.to_string()), unpinned_order as i32);
+    session.parent_id = Some(parent_session_id.to_string());
+    session
 }
 
 #[cfg(test)]
@@ -149,5 +164,22 @@ mod tests {
     fn create_message_id_format() {
         let msg = create_message("sess-1", ConversationRole::User, "test", vec![], None);
         assert!(msg.id.starts_with("message_"));
+    }
+}
+
+#[cfg(test)]
+mod child_session_tests {
+    use super::*;
+
+    #[test]
+    fn child_session_has_parent_id() {
+        let child = create_child_session("ws1", "parent-sess-123", "Sub-agent task", 0);
+        assert_eq!(child.parent_id, Some("parent-sess-123".to_string()));
+    }
+
+    #[test]
+    fn top_level_session_has_no_parent() {
+        let session = create_session("ws1", Some("Main session".to_string()), 0);
+        assert_eq!(session.parent_id, None);
     }
 }

@@ -1,9 +1,19 @@
 //! Single-agent sequential planning runtime.
 
+pub mod compaction;
+pub mod durable;
+pub mod plan_mode;
+pub mod plugins;
+pub mod prompt;
+pub mod registry;
+pub mod router;
+pub mod token_counter;
+pub mod tools;
+
 use adl_kernel::{
-    create_id, now_ms, AgentPlanStep, AgentRunDetail, AgentRunRecord, AgentRunStatus, ContextEntry,
-    ConversationBlock, ConversationScenario, ModelChatMessage, PatchSet, ValidationResult,
-    WorkspaceFileDocument, WorkspaceMeta,
+    create_id, now_ms, AgentId, AgentPlanStep, AgentRunDetail, AgentRunRecord, AgentRunStatus,
+    ContextEntry, ConversationBlock, ConversationScenario, ModelChatMessage, PatchSet,
+    ValidationResult, WorkspaceFileDocument, WorkspaceMeta,
 };
 
 pub fn create_run(
@@ -39,6 +49,7 @@ pub fn create_run(
             created_at: now,
             updated_at: now,
             completed_at: None,
+            agent_id: AgentId::Build,
         },
         steps,
     }

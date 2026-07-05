@@ -1,4 +1,8 @@
 use crate::types::{LogMode, ModelPreferences, ThemeMode};
+use crate::types::reference::ReferenceConfig;
+use crate::types::agent::AgentConfig;
+use crate::CommandConfig;
+use crate::PermissionRulesetConfig;
 use adl_errors::AppError;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -17,6 +21,20 @@ pub struct AppConfig {
     pub max_recent_workspaces: usize,
     #[serde(default)]
     pub model_preferences: ModelPreferences,
+    /// User-defined slash commands.
+    #[serde(default)]
+    pub commands: Vec<CommandConfig>,
+    /// Permission ruleset configuration.
+    #[serde(default)]
+    pub permissions: PermissionRulesetConfig,
+    /// Reference directories (extra accessible paths).
+    #[serde(default)]
+    #[ts(skip)]
+    pub references: Vec<ReferenceConfig>,
+    /// User-defined custom agent configurations.
+    #[serde(default)]
+    #[ts(skip)]
+    pub custom_agents: Vec<AgentConfig>,
 }
 
 impl Default for AppConfig {
@@ -29,6 +47,10 @@ impl Default for AppConfig {
             debug_log_mode: LogMode::default(),
             max_recent_workspaces: 10,
             model_preferences: ModelPreferences::default(),
+            commands: Vec::new(),
+            permissions: PermissionRulesetConfig::default(),
+            references: Vec::new(),
+            custom_agents: Vec::new(),
         }
     }
 }
@@ -78,5 +100,46 @@ mod tests {
         let loaded = load(&dir).unwrap();
         assert_eq!(loaded.language, "zh-CN");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod config_extension_tests {
+    use super::*;
+    use crate::types::commands::CommandConfig;
+    use crate::types::agent::AgentId;
+
+    #[test]
+    fn app_config_has_commands_field() {
+        let config = AppConfig::default();
+        assert!(config.commands.is_empty());
+        assert!(config.permissions.include_defaults);
+    }
+
+    #[test]
+    fn app_config_with_custom_commands() {
+        let config = AppConfig {
+            language: "en-US".into(),
+            theme_mode: crate::types::config::ThemeMode::Light,
+            log_level: "debug".into(),
+            terminal_log_mode: crate::types::config::LogMode::Overwrite,
+            debug_log_mode: crate::types::config::LogMode::Overwrite,
+            max_recent_workspaces: 10,
+            model_preferences: crate::types::config::ModelPreferences::default(),
+            commands: vec![CommandConfig {
+                name: "deploy".to_string(),
+                description: "Deploy to production".to_string(),
+                agent: AgentId::Build,
+                model: None,
+                template: "Deploy $ARGUMENTS to production".to_string(),
+                subtask: false,
+                hints: vec![],
+            }],
+            permissions: crate::PermissionRulesetConfig::default(),
+            references: vec![],
+            custom_agents: vec![],
+        };
+        assert_eq!(config.commands.len(), 1);
+        assert_eq!(config.commands[0].name, "deploy");
     }
 }

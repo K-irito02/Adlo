@@ -1,0 +1,16 @@
+export const permissionZh = {
+  permissionTitle: '权限规则',
+  permissionRulesCustom: '自定义规则',
+  permissionRulesDefaults: '包含默认安全规则',
+  permissionRulesAdd: '添加规则',
+  permissionRulesDelete: '删除',
+  permissionRulesPattern: '匹配模式',
+  permissionRulesDecision: '决策',
+  permissionRulesToolType: '工具类型',
+  permissionRulesAlways: '始终应用',
+  permissionRulesReason: '原因',
+  permissionRulesEmpty: '暂无自定义规则',
+  permissionDecisionsAllow: '允许',
+  permissionDecisionsAsk: '询问',
+  permissionDecisionsDeny: '拒绝',
+} as const;

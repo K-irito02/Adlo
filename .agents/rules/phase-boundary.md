@@ -10,15 +10,13 @@ alwaysApply: true
 | Phase | 状态 | 范围 |
 |-------|------|------|
 | Phase 0 | ✅ 已完成 | 架构底座、桌面壳层、安全边界、基础设施 |
-| Phase 1 | 🚧 进行中 | 交互式 MVP、模型接入、上下文、变更预览 |
-| Phase 2 | ✅ 已完成切片 | 单 Agent 薄切片、终端流式输出 |
+| Phase 1 | ✅ 已完成 | 交互式 MVP、模型接入、上下文、变更预览 |
+| Phase 2 | 🚧 进行中 | 多 Agent 系统、Sub-agent/Task 工具、Plan Mode、MCP、多 Provider、Compaction、Snapshot/Revert、WebFetch/WebSearch、自定义命令、权限 Ruleset |
 
 ## 排除项（当前阶段不实现）
 
 | 排除项 | 计划阶段 |
 |--------|----------|
-| 多 Agent DAG | Phase 2+ |
-| MCP 协议 | Phase 2+ |
 | 插件市场 | Phase 2+ |
 | 浏览器自动化运行时 | Phase 2+ |
 | 复杂云协作 | Phase 3+ |

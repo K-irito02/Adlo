@@ -117,3 +117,27 @@ export {
 
 // GitHub 切片（CI 配置 + CI 状态、分支/提交/远程操作）
 export { type GitHubSlice, type GitHubSection, createGitHubSlice } from './slices/githubSlice';
+
+// Agent 切片（多 Agent 系统）
+export { type AgentSlice, createAgentSlice } from './slices/agentSlice';
+
+// 自定义命令切片
+export { type CustomCommandSlice, createCustomCommandSlice } from './slices/customCommandSlice';
+
+// 权限切片
+export { type PermissionSlice, createPermissionSlice } from './slices/permissionSlice';
+
+// 压缩切片
+export { type CompactionSlice, createCompactionSlice } from './slices/compactionSlice';
+
+// MCP 切片
+export { type McpSlice, createMcpSlice } from './slices/mcpSlice';
+
+// Provider 切片
+export { type ProviderSlice, createProviderSlice } from './slices/providerSlice';
+
+// Web Tools 切片
+export { type WebToolsSlice, createWebToolsSlice } from './slices/webToolsSlice';
+
+// Reference 切片
+export { type ReferenceSlice, createReferenceSlice } from './slices/referenceSlice';

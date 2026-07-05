@@ -10,6 +10,17 @@ import { modelsZh } from './models';
 import { commonZh } from './common';
 import { ciZh } from './ci';
 import { communicateZh } from './communicate';
+import { agentZh } from './agent';
+import { mcpZh } from './mcp';
+import { providerZh } from './provider';
+import { commandsZh } from './commands';
+import { permissionZh } from './permission';
+import { webSearchZh } from './webSearch';
+import { sessionForkZh } from './sessionFork';
+import { lspZh } from './lsp';
+import { pluginZh } from './plugin';
+import { referenceZh } from './reference';
+import { customAgentZh } from './customAgent';
 
 export const zhCN = {
   ...menuZh,
@@ -24,4 +35,15 @@ export const zhCN = {
   ...commonZh,
   ...ciZh,
   ...communicateZh,
+  ...agentZh,
+  ...mcpZh,
+  ...providerZh,
+  ...commandsZh,
+  ...permissionZh,
+  ...webSearchZh,
+  ...sessionForkZh,
+  ...lspZh,
+  ...pluginZh,
+  ...referenceZh,
+  ...customAgentZh,
 } as const;

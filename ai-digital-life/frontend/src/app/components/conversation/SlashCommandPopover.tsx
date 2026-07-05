@@ -1,29 +1,54 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { SlashCommand } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
+import type { CommandConfig } from '@shared/ipc';
+
+export interface MergedCommand {
+  id: string;
+  label: string;
+  description: string;
+  isCustom: boolean;
+  config?: CommandConfig;
+}
 
 interface SlashCommandPopoverProps {
   t: CopyDict;
   open: boolean;
-  onSelect: (command: SlashCommand) => void;
+  onSelect: (command: MergedCommand) => void;
   onClose: () => void;
+  customCommands?: CommandConfig[];
 }
 
-function buildCommands(t: CopyDict): SlashCommand[] {
+function buildBuiltinCommands(t: CopyDict): MergedCommand[] {
   return [
-    { id: 'plan', label: '/plan', description: t.slashPlan as string },
-    { id: 'edit', label: '/edit', description: t.slashEdit as string },
-    { id: 'fix', label: '/fix', description: t.slashFix as string },
-    { id: 'explain', label: '/explain', description: t.slashExplain as string },
-    { id: 'test', label: '/test', description: t.slashTest as string },
-    { id: 'review', label: '/review', description: t.slashReview as string },
+    { id: 'plan', label: '/plan', description: t.slashPlan as string, isCustom: false },
+    { id: 'edit', label: '/edit', description: t.slashEdit as string, isCustom: false },
+    { id: 'fix', label: '/fix', description: t.slashFix as string, isCustom: false },
+    { id: 'explain', label: '/explain', description: t.slashExplain as string, isCustom: false },
+    { id: 'test', label: '/test', description: t.slashTest as string, isCustom: false },
+    { id: 'review', label: '/review', description: t.slashReview as string, isCustom: false },
   ];
 }
 
-export function SlashCommandPopover({ t, open, onSelect, onClose }: SlashCommandPopoverProps) {
+function buildCustomCommands(commands: CommandConfig[]): MergedCommand[] {
+  return commands.map((c) => ({
+    id: c.name,
+    label: `/${c.name}`,
+    description: c.description || 'Custom command',
+    isCustom: true,
+    config: c,
+  }));
+}
+
+export function SlashCommandPopover({ t, open, onSelect, onClose, customCommands = [] }: SlashCommandPopoverProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
-  const commands = useMemo(() => buildCommands(t), [t]);
+
+  const commands = useMemo(() => {
+    const builtin = buildBuiltinCommands(t);
+    const custom = buildCustomCommands(customCommands);
+    // show built-in first, then custom (separated by divider in UI)
+    return [...builtin, ...custom];
+  }, [t, customCommands]);
 
   useEffect(() => {
     if (open) {
@@ -68,6 +93,7 @@ export function SlashCommandPopover({ t, open, onSelect, onClose }: SlashCommand
     return null;
   }
 
+  const builtinCount = 6; // number of built-in commands
   return (
     <div
       ref={ref}
@@ -82,7 +108,7 @@ export function SlashCommandPopover({ t, open, onSelect, onClose }: SlashCommand
             key={cmd.id}
             role="option"
             aria-selected={idx === activeIndex}
-            className={`adl-slash-menu__item${idx === activeIndex ? ' is-active' : ''}`}
+            className={`adl-slash-menu__item${idx === activeIndex ? ' is-active' : ''}${cmd.isCustom ? ' is-custom' : ''}`}
             onClick={() => {
               onSelect(cmd);
               onClose();
@@ -91,6 +117,9 @@ export function SlashCommandPopover({ t, open, onSelect, onClose }: SlashCommand
           >
             <strong className="adl-slash-menu__label">{cmd.label}</strong>
             <span className="adl-slash-menu__desc">{cmd.description}</span>
+            {idx === builtinCount && customCommands.length > 0 && (
+              <span className="adl-slash-menu__divider" />
+            )}
           </li>
         ))}
       </ul>

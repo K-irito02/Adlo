@@ -13,6 +13,11 @@ tracing.workspace = true
 serde.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+tokenizers.workspace = true
+reqwest.workspace = true
+serde_json.workspace = true
+adl-credential = { path = "../credential" }
+async-trait.workspace = true
 
 [dev-dependencies]
 adl-workspace = { path = "../workspace" }

@@ -1,0 +1,15 @@
+export const referenceZh = {
+  referenceManagerTitle: '参考代码仓库',
+  referenceManagerName: '名称',
+  referenceManagerSource: '来源',
+  referenceManagerPath: '路径',
+  referenceManagerBranch: '分支',
+  referenceManagerEnabled: '启用',
+  referenceManagerAdd: '添加参考',
+  referenceManagerRemove: '移除',
+  referenceManagerEmpty: '暂无参考代码仓库',
+  referenceManagerLocal: '本地',
+  referenceManagerGit: 'Git',
+  referenceManagerPrompt: '生成提示词',
+  referenceManagerPromptCopied: '提示词已复制',
+} as const;

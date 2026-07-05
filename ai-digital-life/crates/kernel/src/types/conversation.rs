@@ -274,6 +274,13 @@ pub enum ConversationBlock {
         risk_level: RiskLevel,
         summary: String,
     },
+    /// A compaction summary replacing pruned messages.
+    Compaction {
+        summary: String,
+        pruned_count: usize,
+        pruned_token_estimate: usize,
+        preserved_token_estimate: usize,
+    },
     PatchSummary {
         id: String,
         patch_set_id: String,
@@ -290,6 +297,16 @@ pub enum ConversationBlock {
     FinalSummary {
         id: String,
         summary: String,
+    },
+    /// A sub-agent task spawned by the task tool.
+    Subagent {
+        task_id: String,
+        subagent_type: String,
+        description: String,
+        state: String, // "running" | "completed" | "error"
+        summary: String,
+        result: Option<String>,
+        error: Option<String>,
     },
 }
 
@@ -321,6 +338,9 @@ pub struct ConversationSessionRecord {
     pub created_at: TimestampMs,
     pub updated_at: TimestampMs,
     pub last_message_at: TimestampMs,
+    /// Parent session ID if this session is a sub-agent fork. None for top-level sessions.
+    #[serde(default)]
+    pub parent_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

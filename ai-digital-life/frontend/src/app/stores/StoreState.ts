@@ -19,7 +19,7 @@
  * | ClipboardSlice    | clipboardItems               | slices/clipboardSlice.ts|
  * | TerminalSlice     | terminalSessions             | slices/terminalSlice.ts|
  *
- * ### Action 接口（9 个，定义在 actions/）
+ * ### Action 接口（10 个，定义在 actions/）
  * | 接口               | 核心方法                      | 文件                       |
  * |--------------------|------------------------------|----------------------------|
  * | WorkspaceActions   | openWorkspace, refreshTree   | actions/workspaceActions.ts |
@@ -31,6 +31,7 @@
  * | TaskActions        | refreshTaskCenter            | (内联在 StoreState.ts)      |
  * | CommandActions     | runCommand                   | (内联在 StoreState.ts)      |
  * | DataFetchActions   | bootstrap, updatePreferences | actions/generalActions.ts   |
+ * | ProviderActions    | fetchProviders, setApiKey    | actions/providerActions.ts  |
  *
  * ### 根级字段
  * - `loading: boolean` — 应用启动状态
@@ -60,8 +61,20 @@ import type { CommunicateSlice } from './slices/communicateSlice';
 import type { GitHubRepoSlice } from './slices/githubRepoSlice';
 import type { GitHubTreeSlice } from './slices/githubTreeSlice';
 import type { GitHubSlice as GitHubSliceType } from './slices/githubSlice';
+import type { AgentSlice } from './slices/agentSlice';
+import type { CustomCommandSlice } from './slices/customCommandSlice';
+import type { PermissionSlice } from './slices/permissionSlice';
+import type { McpSlice } from './slices/mcpSlice';
+import type { ProviderSlice } from './slices/providerSlice';
+import type { CompactionSlice } from './slices/compactionSlice';
+import type { WebToolsSlice } from './slices/webToolsSlice';
+import type { ReferenceSlice } from './slices/referenceSlice';
+import type { ReferenceConfig } from '@shared/ipc';
+import type { McpServerConfig, CommandConfig, PermissionRule, CompactionResult } from '@shared/ipc';
+import type { AgentConfig, PluginInfo, SnapshotRecord, RevertResult } from '@shared/ipc';
 import type {
   AppPreferencePatch,
+  ConversationSessionRecord,
   ReorderSessionsInput,
   ReorderWorkspacesInput,
   WorkspaceGitBranchCreateInput,
@@ -69,6 +82,7 @@ import type {
 } from '@ai-digital-life/kernel';
 import type { MessageSendOptions } from '../utils/composerSend';
 import type { WorkspaceID, SessionID, AgentRunID } from '../../shared/branded';
+import type { DiagnosticInfo, SymbolInfo } from '@shared/ipc';
 
 interface StoreStateBase
   extends
@@ -94,10 +108,26 @@ interface StoreStateBase
     CommunicateSlice,
     GitHubRepoSlice,
     GitHubTreeSlice,
-    GitHubSliceType {
+    GitHubSliceType,
+    AgentSlice,
+    CustomCommandSlice,
+    PermissionSlice,
+    CompactionSlice,
+    WebToolsSlice,
+    McpSlice,
+    ProviderSlice,
+    ReferenceSlice {
   loading: boolean;
   error?: string;
   isFetching: Record<string, boolean>;
+  /** 自定义 Agent 列表 */
+  customAgents: AgentConfig[];
+  /** 是否正在拉取自定义 Agent 列表 */
+  isFetchingCustomAgents: boolean;
+  /** LSP 活跃服务器列表 */
+  lspActiveServers: string[];
+  /** LSP 诊断列表 */
+  lspDiagnostics: DiagnosticInfo[];
 }
 
 interface WorkspaceActions {
@@ -199,12 +229,112 @@ interface CommandActions {
   fetchCommandHistory: () => Promise<void>;
 }
 
+interface CustomCommandActions {
+  fetchCustomCommands: (dataDir: string) => Promise<void>;
+  addCustomCommand: (dataDir: string, command: CommandConfig) => Promise<void>;
+  updateCustomCommand: (dataDir: string, name: string, command: CommandConfig) => Promise<void>;
+  deleteCustomCommand: (dataDir: string, name: string) => Promise<void>;
+}
+
+interface PermissionActions {
+  fetchPermissionRules: (dataDir: string) => Promise<void>;
+  addPermissionRule: (dataDir: string, rule: PermissionRule) => Promise<void>;
+  deletePermissionRule: (dataDir: string, index: number) => Promise<void>;
+  setPermissionIncludeDefaults: (dataDir: string, include: boolean) => Promise<void>;
+}
+
+interface CompactionActions {
+  compactSession: (messagesJson: string, provider: string) => Promise<CompactionResult | null>;
+}
+
+interface SessionForkActions {
+  forkSession: (
+    parentSession: ConversationSessionRecord,
+    forkMessageId: string,
+    existingForkCount: number
+  ) => Promise<ConversationSessionRecord | null>;
+  listSessionForks: (
+    workspaceId: string,
+    parentSessionId: string
+  ) => Promise<ConversationSessionRecord[]>;
+}
+
 interface DataFetchActions {
   refreshModelHealth: () => Promise<void>;
   updatePreferences: (patch: AppPreferencePatch) => Promise<void>;
   fetchIndexStatus: () => Promise<void>;
   fetchRepoMap: () => Promise<void>;
   fetchAuditEntries: (limit?: number) => Promise<void>;
+}
+
+interface AgentActions {
+  fetchAgents: () => Promise<void>;
+  selectAgentForScenario: (scenario: string, userPrompt: string) => Promise<void>;
+  enterPlanMode: (workspaceId: string, workspaceRoot: string) => Promise<void>;
+  exitPlanMode: (workspaceId: string) => Promise<void>;
+  refreshPlanModeState: (workspaceId: string) => Promise<void>;
+}
+
+interface McpActions {
+  fetchMcpServers: () => Promise<void>;
+  fetchMcpCatalog: () => Promise<void>;
+  addMcpServer: (config: McpServerConfig) => Promise<void>;
+  removeMcpServer: (name: string) => Promise<void>;
+  connectMcpServer: (name: string) => Promise<void>;
+  disconnectMcpServer: (name: string) => Promise<void>;
+  loadMcpConfig: (path: string) => Promise<void>;
+}
+
+interface ProviderActions {
+  fetchProviders: () => Promise<void>;
+  setApiKey: (provider: string, apiKey: string) => Promise<void>;
+  clearApiKey: (provider: string) => Promise<void>;
+  checkApiKey: (provider: string) => Promise<void>;
+}
+
+interface WebToolsActions {
+  webFetch: (url: string) => Promise<void>;
+  webSearch: (query: string) => Promise<void>;
+  clearWebResults: () => void;
+}
+
+interface PluginActions {
+  listPlugins: () => Promise<PluginInfo[]>;
+  setPluginEnabled: (name: string, enabled: boolean) => Promise<void>;
+}
+
+interface LspActions {
+  lspStartServer: (workspaceId: string, workspaceRoot: string, server: string) => Promise<void>;
+  lspStopServer: (workspaceId: string, server: string) => Promise<void>;
+  lspGetSymbols: (workspaceId: string, filePath: string) => Promise<SymbolInfo[]>;
+  lspGetDiagnostics: (workspaceId: string, filePath?: string) => Promise<DiagnosticInfo[]>;
+}
+
+interface CustomAgentActions {
+  fetchCustomAgents: (dataDir: string) => Promise<void>;
+  addCustomAgent: (dataDir: string, agent: AgentConfig) => Promise<void>;
+  deleteCustomAgent: (dataDir: string, name: string) => Promise<void>;
+}
+
+interface ReferenceActions {
+  fetchReferences: (dataDir: string) => Promise<void>;
+  addReference: (dataDir: string, reference: ReferenceConfig) => Promise<void>;
+  removeReference: (dataDir: string, name: string) => Promise<void>;
+}
+
+interface SnapshotActions {
+  createSnapshot: (params: {
+    workspaceId: string;
+    workspaceRoot: string;
+    messageId: string;
+    sessionId: string;
+  }) => Promise<SnapshotRecord | null>;
+  listSnapshots: (workspaceId: string, workspaceRoot: string) => Promise<SnapshotRecord[]>;
+  revertToSnapshot: (
+    workspaceId: string,
+    workspaceRoot: string,
+    snapshotId: string
+  ) => Promise<RevertResult | null>;
 }
 
 export interface StoreState
@@ -218,6 +348,19 @@ export interface StoreState
     SearchActions,
     TaskActions,
     CommandActions,
-    DataFetchActions {
+    CustomCommandActions,
+    PermissionActions,
+    CompactionActions,
+    DataFetchActions,
+    AgentActions,
+    McpActions,
+    ProviderActions,
+    WebToolsActions,
+    LspActions,
+    CustomAgentActions,
+    ReferenceActions,
+    SnapshotActions,
+    SessionForkActions,
+    PluginActions {
   bootstrap: () => Promise<void>;
 }

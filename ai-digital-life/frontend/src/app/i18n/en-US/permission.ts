@@ -1,0 +1,16 @@
+export const permissionEn = {
+  permissionTitle: 'Permission Rules',
+  permissionRulesCustom: 'Custom Rules',
+  permissionRulesDefaults: 'Include default safety rules',
+  permissionRulesAdd: 'Add Rule',
+  permissionRulesDelete: 'Delete',
+  permissionRulesPattern: 'Pattern',
+  permissionRulesDecision: 'Decision',
+  permissionRulesToolType: 'Tool Type',
+  permissionRulesAlways: 'Always Apply',
+  permissionRulesReason: 'Reason',
+  permissionRulesEmpty: 'No custom rules yet',
+  permissionDecisionsAllow: 'Allow',
+  permissionDecisionsAsk: 'Ask',
+  permissionDecisionsDeny: 'Deny',
+} as const;

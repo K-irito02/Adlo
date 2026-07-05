@@ -2,9 +2,12 @@
 //! Routes requests through a priority-ordered provider chain and falls
 //! back to a local synthetic response when all providers fail.
 
+pub mod adapter;
 mod audit;
 mod fallback;
+pub mod prompts;
 mod provider;
+pub mod providers;
 mod route;
 mod secret;
 mod wire;

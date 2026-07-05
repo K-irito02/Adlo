@@ -4,12 +4,18 @@ use crate::commands::ipc;
 use crate::commands::{CallModelContext, FinalizeRunContext};
 use crate::error::CommandError;
 use crate::state::AppState;
+use adl_agent_runtime::plan_mode::PlanModeState;
+use adl_agent_runtime::registry::AgentRegistry;
+use adl_agent_runtime::router::AgentRouter;
 use adl_errors::AppError;
+use adl_kernel::types::agent::AgentConfig;
 use adl_kernel::{
     create_id, now_ms, AgentRunDetail, AgentRunStatus, ConversationScenario,
     ConversationSendResult, DigitalLifeRunActivityEventV1, IpcResult,
 };
 use adl_storage::EntityTable;
+use std::path::PathBuf;
+use std::sync::Mutex;
 use tauri::Emitter;
 
 const RUN_ACTIVITY_EVENT: &str = "digital-life://run-activity";
@@ -258,4 +264,98 @@ pub fn save_run_detail(state: &AppState, detail: &AgentRunDetail) -> Result<(), 
         )?;
     }
     Ok(())
+}
+
+/// Global plan mode state per workspace (keyed by workspace_id).
+static PLAN_MODE_STATES: std::sync::OnceLock<
+    Mutex<std::collections::HashMap<String, PlanModeState>>,
+> = std::sync::OnceLock::new();
+
+fn plan_mode_states() -> &'static Mutex<std::collections::HashMap<String, PlanModeState>> {
+    PLAN_MODE_STATES.get_or_init(|| Mutex::new(std::collections::HashMap::new()))
+}
+
+#[tauri::command]
+pub async fn list_agents() -> Result<Vec<AgentConfig>, adl_errors::AppError> {
+    list_agents_inner()
+}
+
+fn list_agents_inner() -> Result<Vec<AgentConfig>, adl_errors::AppError> {
+    let registry = AgentRegistry::new();
+    Ok(registry.list_primary().into_iter().cloned().collect())
+}
+
+#[tauri::command]
+pub async fn select_agent(
+    scenario: String,
+    user_prompt: String,
+) -> Result<AgentConfig, adl_errors::AppError> {
+    select_agent_inner(&scenario, &user_prompt)
+}
+
+fn select_agent_inner(
+    scenario: &str,
+    user_prompt: &str,
+) -> Result<AgentConfig, adl_errors::AppError> {
+    let conv_scenario = match scenario {
+        "plan" => ConversationScenario::Plan,
+        "code_edit" => ConversationScenario::CodeEdit,
+        _ => ConversationScenario::Chat,
+    };
+    let agent_id = AgentRouter::select(conv_scenario, user_prompt);
+    let registry = AgentRegistry::new();
+    registry
+        .get(agent_id)
+        .cloned()
+        .ok_or_else(|| adl_errors::AppError::Internal(format!("agent {:?} not found", agent_id)))
+}
+
+#[tauri::command]
+pub async fn enter_plan_mode(
+    workspace_id: String,
+    workspace_root: String,
+) -> Result<String, adl_errors::AppError> {
+    let mutex = plan_mode_states();
+    let mut states = mutex.lock().unwrap_or_else(|e| e.into_inner());
+    let state = states.entry(workspace_id).or_default();
+    let path = state.enter(&PathBuf::from(workspace_root));
+    Ok(path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub async fn exit_plan_mode(workspace_id: String) -> Result<Option<String>, adl_errors::AppError> {
+    let mutex = plan_mode_states();
+    let mut states = mutex.lock().unwrap_or_else(|e| e.into_inner());
+    let state = states.entry(workspace_id).or_default();
+    Ok(state.exit().map(|p| p.to_string_lossy().to_string()))
+}
+
+#[tauri::command]
+pub async fn get_plan_mode_state(workspace_id: String) -> Result<bool, adl_errors::AppError> {
+    let mutex = plan_mode_states();
+    let states = mutex.lock().unwrap_or_else(|e| e.into_inner());
+    Ok(states.get(&workspace_id).map(|s| s.is_active()).unwrap_or(false))
+}
+
+#[cfg(test)]
+mod multi_agent_tests {
+    use super::*;
+
+    #[test]
+    fn list_agents_returns_built_in() {
+        let result = list_agents_inner();
+        assert!(result.is_ok());
+        let agents = result.unwrap();
+        let names: Vec<&str> = agents.iter().map(|a| a.name.as_str()).collect();
+        assert!(names.contains(&"build"));
+        assert!(names.contains(&"plan"));
+    }
+
+    #[test]
+    fn select_agent_for_plan_scenario() {
+        let result = select_agent_inner("plan", "analyze auth");
+        assert!(result.is_ok());
+        let agent = result.unwrap();
+        assert_eq!(agent.id, adl_kernel::types::agent::AgentId::Plan);
+    }
 }

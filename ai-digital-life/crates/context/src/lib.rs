@@ -1,5 +1,7 @@
 //! Context selection and prompt assembly for agent requests.
 
+pub mod references;
+
 use adl_kernel::{
     create_id, estimate_tokens, ContextEntry, ConversationScenario, FileOutlineItem, PromptRule,
     WorkspaceMeta, WorkspaceSearchHit,

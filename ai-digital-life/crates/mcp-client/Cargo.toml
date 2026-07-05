@@ -1,0 +1,21 @@
+[package]
+name = "adl-mcp-client"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+adl-kernel = { path = "../kernel" }
+adl-errors = { path = "../errors" }
+adl-credential = { path = "../credential" }
+rmcp = { workspace = true }
+rmcp-macros = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+reqwest = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+async-trait.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

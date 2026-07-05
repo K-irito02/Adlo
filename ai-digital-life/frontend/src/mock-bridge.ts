@@ -1,6 +1,29 @@
-import type { AudioStatePayload, DigitalLifeBridge, PageMeta, PtyOutputEvent } from './shared/ipc';
+import { IpcErrorCode } from './shared/ipc';
+import type { AgentConfig, AudioStatePayload, CustomAgentBridge, DigitalLifeBridge, DurableBridge, PageMeta, PluginInfo, PtyOutputEvent, ReservedBridge } from './shared/ipc';
+import type {
+  CompactionBridge,
+  CompactionResult,
+  CompactionStatus,
+  LspBridge,
+  McpBridge,
+  SessionForkBridge,
+  McpServerConfig,
+  PluginBridge,
+  ProviderBridge,
+  SnapshotBridge,
+  CommandsConfigBridge,
+  CommandConfig,
+  CommandHint,
+  PermissionBridge,
+  PermissionRule,
+  PermissionRulesetConfig,
+  PermissionDecision,
+  ReferenceBridge,
+  ReferenceConfig,
+  WebToolsBridge,
+} from './shared/ipc';
 import { applyPreferencePatch } from './shared/preferencesMerger';
-import type { CommandRequest, CommandRunResult } from '@ai-digital-life/kernel';
+import type { CommandRequest, CommandRunResult, ConversationSessionRecord } from '@ai-digital-life/kernel';
 import { mockWorkspace } from './mock/mock-workspace';
 import { mockRetrieval } from './mock/mock-retrieval';
 import { mockConversation } from './mock/mock-conversation';
@@ -199,6 +222,42 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     getRun: async (_runId: string) => ({ ok: true, data: activeRun }),
     retryRun: async (_runId: string) => ({ ok: true, data: activeRun }),
     abortRun: async (_runId: string) => ({ ok: true, data: activeRun }),
+    listAgents: async () => ({ ok: true, data: [] }),
+    selectAgent: async (_scenario: string, _userPrompt: string) => ({
+      ok: true,
+      data: {
+        id: 'general',
+        name: 'General Agent',
+        description: 'Mock general agent for preview mode',
+        mode: 'primary',
+        hidden: false,
+        allows_write_tools: true,
+        prompt_template: '',
+        model_override: null,
+      },
+    }),
+    enterPlanMode: async (_workspaceId: string, _workspaceRoot: string) => ({
+      ok: true,
+      data: '/mock/path/plan.md',
+    }),
+    exitPlanMode: async (_workspaceId: string) => ({ ok: true, data: null }),
+    getPlanModeState: async (_workspaceId: string) => ({ ok: true, data: false }),
+  },
+
+  subagent: {
+    spawnSubagent: async (input) => ({
+      ok: true,
+      data: {
+        task_id: input.task_id ?? `mock-task-${Date.now()}`,
+        state: 'running',
+        summary: `Mock subagent spawned for: ${input.description}`,
+        result: null,
+        error: null,
+      },
+    }),
+    getSubagentTask: async (_taskId: string) => ({ ok: true, data: null }),
+    listActiveSubagents: async (_workspaceId: string) => ({ ok: true, data: [] }),
+    cancelSubagent: async (_taskId: string) => ({ ok: true, data: true }),
   },
 
   patch: mockPatch,
@@ -396,6 +455,251 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       },
     }),
   },
+
+  mcp: {
+    listMcpServers: async () => ({ ok: true, data: [] }),
+    addMcpServer: async (_config: McpServerConfig) => ({ ok: true, data: undefined }),
+    removeMcpServer: async (_name: string) => ({ ok: true, data: undefined }),
+    connectMcpServer: async (_name: string) => ({ ok: true, data: undefined }),
+    disconnectMcpServer: async (_name: string) => ({ ok: true, data: undefined }),
+    getMcpCatalog: async () => ({ ok: true, data: { tools: [], resources: [] } }),
+    loadMcpConfig: async (_path: string) => ({ ok: true, data: 0 }),
+  } satisfies McpBridge,
+
+  provider: {
+    setProviderApiKey: async (_provider: string, _apiKey: string) => ({ ok: true, data: true }),
+    clearProviderApiKey: async (_provider: string) => ({ ok: true, data: true }),
+    hasProviderApiKey: async (_provider: string) => ({ ok: true, data: false }),
+    listSupportedProviders: async () => ({
+      ok: true,
+      data: [
+        { id: 'deepseek', name: 'DeepSeek', requiresKey: true },
+        { id: 'minimax', name: 'MiniMax', requiresKey: true },
+        { id: 'openai', name: 'OpenAI', requiresKey: true },
+        { id: 'anthropic', name: 'Anthropic', requiresKey: true },
+        { id: 'google', name: 'Google Gemini', requiresKey: true },
+        { id: 'ollama', name: 'Ollama (Local)', requiresKey: false },
+        { id: 'openrouter', name: 'OpenRouter', requiresKey: true },
+      ],
+    }),
+  } satisfies ProviderBridge,
+
+  snapshot: {
+    createSnapshot: async (_params) => ({
+      ok: true,
+      data: {
+        id: `snap-${Date.now()}`,
+        message_id: _params.messageId,
+        session_id: _params.sessionId,
+        workspace_id: _params.workspaceId,
+        created_at: Date.now(),
+        git_commit: 'mock-commit-hash',
+        file_count: 3,
+        total_bytes: 1024,
+      },
+    }),
+    listSnapshots: async (_workspaceId, _workspaceRoot) => ({
+      ok: true,
+      data: [
+        {
+          id: 'snap-mock-1',
+          message_id: 'msg-mock-1',
+          session_id: 'session-mock-1',
+          workspace_id: _workspaceId,
+          created_at: Date.now() - 3600_000,
+          git_commit: 'abc1234',
+          file_count: 2,
+          total_bytes: 512,
+        },
+      ],
+    }),
+    revertToSnapshot: async (_workspaceId, _workspaceRoot, snapshotId) => ({
+      ok: true,
+      data: {
+        success: true,
+        snapshot_id: snapshotId,
+        message_id: 'msg-mock-1',
+        files_restored: 2,
+        error: null,
+      },
+    }),
+    pruneSnapshots: async (_workspaceId, _workspaceRoot) => ({
+      ok: true,
+      data: 1,
+    }),
+  } satisfies SnapshotBridge,
+
+  webTools: {
+    webFetch: async (url) => ({
+      ok: true,
+      data: {
+        url,
+        status: 200,
+        content_type: 'text/html',
+        content: '<html><body>Mock fetch result</body></html>',
+        truncated: false,
+        error: null,
+      },
+    }),
+    webSearch: async (query) => ({
+      ok: true,
+      data: {
+        query,
+        results: [
+          {
+            title: 'Mock Result 1',
+            url: 'https://example.com/1',
+            snippet: 'First mock result',
+            score: 0.95,
+          },
+          {
+            title: 'Mock Result 2',
+            url: 'https://example.com/2',
+            snippet: 'Second mock result',
+            score: 0.85,
+          },
+        ],
+        error: null,
+      },
+    }),
+  } satisfies WebToolsBridge,
+
+  commandsConfig: {
+    listCustomCommands: async () => ({ ok: true, data: [] as CommandConfig[] }),
+    addCustomCommand: async (_dataDir, command) => ({
+      ok: true,
+      data: [command] as CommandConfig[],
+    }),
+    updateCustomCommand: async (_dataDir, _name, command) => ({
+      ok: true,
+      data: [command] as CommandConfig[],
+    }),
+    deleteCustomCommand: async () => ({ ok: true, data: [] as CommandConfig[] }),
+    renderCommandTemplate: async (template, args, workspace) => ({
+      ok: true,
+      data: template.replace('$ARGUMENTS', args.join(' ')).replace('$WORKSPACE', workspace),
+    }),
+  } satisfies CommandsConfigBridge,
+
+  permission: {
+    listPermissionRules: async () => ({
+      ok: true,
+      data: { custom_rules: [], include_defaults: true } satisfies PermissionRulesetConfig,
+    }),
+    addPermissionRule: async (_dataDir, rule) => ({
+      ok: true,
+      data: { custom_rules: [rule], include_defaults: true } satisfies PermissionRulesetConfig,
+    }),
+    deletePermissionRule: async () => ({
+      ok: true,
+      data: { custom_rules: [], include_defaults: true } satisfies PermissionRulesetConfig,
+    }),
+    setPermissionIncludeDefaults: async (_dataDir, include) => ({
+      ok: true,
+      data: { custom_rules: [], include_defaults: include } satisfies PermissionRulesetConfig,
+    }),
+    evaluatePermission: async () => ({ ok: true, data: 'allow' as PermissionDecision }),
+  } satisfies PermissionBridge,
+
+  compaction: {
+    compactSession: async () => ({
+      ok: true,
+      data: { preserved_tokens: 20000, pruned_count: 5, pruned_tokens: 8000, summary_needed: true },
+    }),
+  } satisfies CompactionBridge,
+
+  sessionFork: {
+    forkSession: async (parentSession, _forkMessageId, _existingForkCount) => ({
+      ok: true,
+      data: {
+        ...parentSession,
+        id: `fork-${Date.now()}`,
+        title: `${parentSession.title} (fork #${_existingForkCount + 1})`,
+      } as ConversationSessionRecord,
+    }),
+    listSessionForks: async () => ({
+      ok: true,
+      data: [],
+    }),
+  } satisfies SessionForkBridge,
+
+  lsp: {
+    startServer: async () => ({ ok: true, data: undefined }),
+    stopServer: async () => ({ ok: true, data: undefined }),
+    getSymbols: async () => ({ ok: true, data: [] }),
+    getDiagnostics: async () => ({ ok: true, data: [] }),
+    gotoDefinition: async () => ({ ok: true, data: null }),
+  } satisfies LspBridge,
+
+  plugin: {
+    listPlugins: async () => ({
+      ok: true,
+      data: [
+        {
+          name: 'demo-plugin',
+          description: 'A demo plugin for preview',
+          hooks: ['ToolExecuteBefore'],
+          enabled: true,
+        },
+      ],
+    }),
+    setPluginEnabled: async (_name: string, _enabled: boolean) => ({
+      ok: true,
+      data: undefined,
+    }),
+  } satisfies PluginBridge,
+
+  reference: {
+    listReferences: async (_dataDir) => ({
+      ok: true,
+      data: [
+        {
+          name: 'opencode',
+          source: 'local' as const,
+          path: '/references/opencode',
+          branch: null,
+          enabled: true,
+        },
+      ] satisfies ReferenceConfig[],
+    }),
+    addReference: async (_dataDir, reference) => ({
+      ok: true,
+      data: [reference] satisfies ReferenceConfig[],
+    }),
+    removeReference: async () => ({
+      ok: true,
+      data: [] satisfies ReferenceConfig[],
+    }),
+    getReferencesPrompt: async () => ({
+      ok: true,
+      data: 'Mock reference prompt with 1 reference loaded.',
+    }),
+  } satisfies ReferenceBridge,
+
+  durable: {
+    registerDurableSession: async () => ({ ok: true, data: undefined as any }),
+    heartbeatDurableSession: async () => ({ ok: true, data: undefined as any }),
+    findCrashedSessions: async () => ({ ok: true, data: [] }),
+    recoverSession: async () => ({ ok: true, data: false }),
+  } satisfies DurableBridge,
+
+  reserved: {
+    acpGetStatus: async () => ({ ok: false, error: { code: IpcErrorCode.INTERNAL_ERROR, message: 'ACP not implemented' } }),
+    acpGetConfig: async () => ({ ok: true, data: { enabled: false, port: null } }),
+    httpApiGetStatus: async () => ({ ok: false, error: { code: IpcErrorCode.INTERNAL_ERROR, message: 'HTTP API not implemented' } }),
+    httpApiGetConfig: async () => ({ ok: true, data: { enabled: false, port: null, cors_origins: [] } }),
+    codemodeExecute: async () => ({ ok: false, error: { code: IpcErrorCode.INTERNAL_ERROR, message: 'CodeMode not implemented' } }),
+    codemodeGetConfig: async () => ({ ok: true, data: { enabled: false, max_concurrency: 8, timeout_ms: 30000, max_output_bytes: 1048576 } }),
+  } satisfies ReservedBridge,
+
+  customAgent: {
+    listCustomAgents: async () => ({ ok: true, data: [] as AgentConfig[] }),
+    addCustomAgent: async (_dataDir, agent) => ({
+      ok: true,
+      data: [agent] as AgentConfig[],
+    }),
+    deleteCustomAgent: async () => ({ ok: true, data: [] as AgentConfig[] }),
+  } satisfies CustomAgentBridge,
 };
 
 export function setupMockBridge(): void {

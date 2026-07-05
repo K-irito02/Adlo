@@ -11,6 +11,7 @@ import type { WorkspaceBridge } from './workspace';
 import type { RetrievalBridge } from './retrieval';
 import type { ConversationBridge } from './conversation';
 import type { AgentBridge } from './agent';
+import type { SubagentBridge } from './subagent';
 import type { PatchBridge } from './patch';
 import type { CommandBridge } from './command';
 import type { PtyBridge } from './pty';
@@ -18,6 +19,20 @@ import type { TaskBridge } from './task';
 import type { RunActivityBridge } from './run-activity';
 import type { BrowserBridge } from './browser';
 import type { GitHubBridge } from './github';
+import type { McpBridge } from './mcp';
+import type { ProviderBridge } from './provider';
+import type { SnapshotBridge } from './snapshot';
+import type { WebToolsBridge } from './web_tools';
+import type { CommandsConfigBridge } from './commands_config';
+import type { PermissionBridge } from './permission';
+import type { CompactionBridge } from './compaction';
+import type { SessionForkBridge } from './session_fork';
+import type { LspBridge } from './lsp';
+import type { ReferenceBridge } from './reference';
+import type { PluginBridge } from './plugin';
+import type { CustomAgentBridge } from './custom_agent';
+import type { DurableBridge } from './durable';
+import type { ReservedBridge } from './reserved';
 
 /**
  * Digital Life 全局桥接接口 - 汇总所有子能力
@@ -92,8 +107,14 @@ export interface DigitalLifeBridge {
   conversation: ConversationBridge;
   /** Agent 运行控制子模块 */
   agent: AgentBridge;
+  /** 子代理 (Sub-agent) 管理子模块 */
+  subagent: SubagentBridge;
+  /** MCP 服务器管理子模块 */
+  mcp: McpBridge;
   /** 补丁管理子模块 */
   patch: PatchBridge;
+  /** Provider API 密钥管理子模块 */
+  provider: ProviderBridge;
   /** 命令执行子模块 */
   command: CommandBridge;
   /** PTY 终端子模块 */
@@ -108,4 +129,28 @@ export interface DigitalLifeBridge {
   github: GitHubBridge;
   /** CI 状态子模块 (与 github 共用同一接口) */
   ci: GitHubBridge;
+  /** 快照管理子模块 */
+  snapshot: SnapshotBridge;
+  /** Web 工具子模块 (网页抓取/搜索) */
+  webTools: WebToolsBridge;
+  /** 自定义命令管理子模块 */
+  commandsConfig: CommandsConfigBridge;
+  /** 权限规则管理子模块 */
+  permission: PermissionBridge;
+  /** 会话压缩管理子模块 */
+  compaction: CompactionBridge;
+  /** 会话分叉管理子模块 */
+  sessionFork: SessionForkBridge;
+  /** 语言服务器 (LSP) 子模块 */
+  lsp: LspBridge;
+  /** 插件管理子模块 */
+  plugin: PluginBridge;
+  /** 参考代码仓库管理子模块 */
+  reference: ReferenceBridge;
+  /** 持久化会话管理子模块 */
+  durable: DurableBridge;
+  /** 预留功能 IPC 存根子模块 */
+  reserved: ReservedBridge;
+  /** 自定义 Agent 管理子模块 */
+  customAgent: CustomAgentBridge;
 }

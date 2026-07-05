@@ -2,7 +2,49 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { IpcErrorCode } from './shared/ipc';
-import type { DigitalLifeBridge, PtyOutputEvent, PtySessionInfo } from './shared/ipc';
+import type {
+  AcpConfig,
+  AgentConfig,
+  CodeModeConfig,
+  DigitalLifeBridge,
+  DurableBridge,
+  DurableSessionState,
+  HttpApiConfig,
+  LspBridge,
+  McpCatalog,
+  McpServerConfig,
+  McpServerInfo,
+  PluginBridge,
+  PluginInfo,
+  ProviderInfo,
+  ReferenceBridge,
+  ReferenceConfig,
+  PtyOutputEvent,
+  PtySessionInfo,
+  RevertResult,
+  ReservedBridge,
+  CommandsConfigBridge,
+  CommandConfig,
+  CustomAgentBridge,
+  CompactionBridge,
+  SessionForkBridge,
+  SymbolInfo,
+  CompactionResult,
+  CompactionStatus,
+  DiagnosticInfo,
+  PermissionBridge,
+  PermissionRule,
+  PermissionRulesetConfig,
+  PermissionDecision,
+  SnapshotBridge,
+  SnapshotRecord,
+  SubagentTask,
+  TaskToolInput,
+  TaskToolOutput,
+  WebFetchResult,
+  WebSearchResult,
+  WebToolsBridge,
+} from './shared/ipc';
 import type {
   AgentRunDetail,
   AppInfo,
@@ -307,6 +349,25 @@ export function createTauriBridge(): DigitalLifeBridge {
         invokeIpc<AgentRunDetail | undefined>('agent_retry_run', { runId }),
       abortRun: (runId: string) =>
         invokeIpc<AgentRunDetail | undefined>('agent_abort_run', { runId }),
+      listAgents: () => invokeIpc<AgentConfig[]>('list_agents'),
+      selectAgent: (scenario: string, userPrompt: string) =>
+        invokeIpc<AgentConfig>('select_agent', { scenario, userPrompt }),
+      enterPlanMode: (workspaceId: string, workspaceRoot: string) =>
+        invokeIpc<string>('enter_plan_mode', { workspaceId, workspaceRoot }),
+      exitPlanMode: (workspaceId: string) =>
+        invokeIpc<string | null>('exit_plan_mode', { workspaceId }),
+      getPlanModeState: (workspaceId: string) =>
+        invokeIpc<boolean>('get_plan_mode_state', { workspaceId }),
+    },
+
+    subagent: {
+      spawnSubagent: (input: TaskToolInput) =>
+        invokeIpc<TaskToolOutput>('spawn_subagent', { input }),
+      getSubagentTask: (taskId: string) =>
+        invokeIpc<SubagentTask | null>('get_subagent_task', { taskId }),
+      listActiveSubagents: (workspaceId: string) =>
+        invokeIpc<SubagentTask[]>('list_active_subagents', { workspaceId }),
+      cancelSubagent: (taskId: string) => invokeIpc<boolean>('cancel_subagent', { taskId }),
     },
 
     patch: {
@@ -494,5 +555,134 @@ export function createTauriBridge(): DigitalLifeBridge {
       getJobLogs: (config, runId) =>
         invokeIpc<Record<number, string>>('ci_get_job_logs', { config, runId }),
     },
+
+    mcp: {
+      listMcpServers: () => invokeIpc<McpServerInfo[]>('list_mcp_servers'),
+      addMcpServer: (config: McpServerConfig) => invokeIpc<void>('add_mcp_server', { config }),
+      removeMcpServer: (name: string) => invokeIpc<void>('remove_mcp_server', { name }),
+      connectMcpServer: (name: string) => invokeIpc<void>('connect_mcp_server', { name }),
+      disconnectMcpServer: (name: string) => invokeIpc<void>('disconnect_mcp_server', { name }),
+      getMcpCatalog: () => invokeIpc<McpCatalog>('get_mcp_catalog'),
+      loadMcpConfig: (path: string) => invokeIpc<number>('load_mcp_config', { path }),
+    },
+
+    provider: {
+      setProviderApiKey: (provider: string, apiKey: string) =>
+        invokeIpc<boolean>('set_provider_api_key', { providerId: provider, apiKey }),
+      clearProviderApiKey: (provider: string) =>
+        invokeIpc<boolean>('clear_provider_api_key', { providerId: provider }),
+      hasProviderApiKey: (provider: string) =>
+        invokeIpc<boolean>('has_provider_api_key', { providerId: provider }),
+      listSupportedProviders: () => invokeIpc<ProviderInfo[]>('list_supported_providers'),
+    },
+
+    snapshot: {
+      createSnapshot: (params) => invokeIpc<SnapshotRecord>('create_snapshot', params),
+      listSnapshots: (workspaceId, workspaceRoot) =>
+        invokeIpc<SnapshotRecord[]>('list_snapshots', { workspaceId, workspaceRoot }),
+      revertToSnapshot: (workspaceId, workspaceRoot, snapshotId) =>
+        invokeIpc<RevertResult>('revert_to_snapshot_cmd', {
+          workspaceId,
+          workspaceRoot,
+          snapshotId,
+        }),
+      pruneSnapshots: (workspaceId, workspaceRoot) =>
+        invokeIpc<number>('prune_snapshots', { workspaceId, workspaceRoot }),
+    } satisfies SnapshotBridge,
+
+    webTools: {
+      webFetch: (url) => invokeIpc<WebFetchResult>('web_fetch', { url }),
+      webSearch: (query) => invokeIpc<WebSearchResult>('web_search', { query }),
+    } satisfies WebToolsBridge,
+
+    commandsConfig: {
+      listCustomCommands: (dataDir) => invokeIpc<CommandConfig[]>('list_custom_commands', { dataDir }),
+      addCustomCommand: (dataDir, command) => invokeIpc<CommandConfig[]>('add_custom_command', { dataDir, command }),
+      updateCustomCommand: (dataDir, name, command) => invokeIpc<CommandConfig[]>('update_custom_command', { dataDir, name, command }),
+      deleteCustomCommand: (dataDir, name) => invokeIpc<CommandConfig[]>('delete_custom_command', { dataDir, name }),
+      renderCommandTemplate: (template, args, workspace) => invokeIpc<string>('render_command_template', { template, args, workspace }),
+    } satisfies CommandsConfigBridge,
+
+    permission: {
+      listPermissionRules: (dataDir) => invokeIpc<PermissionRulesetConfig>('list_permission_rules', { dataDir }),
+      addPermissionRule: (dataDir, rule) => invokeIpc<PermissionRulesetConfig>('add_permission_rule', { dataDir, rule }),
+      deletePermissionRule: (dataDir, index) => invokeIpc<PermissionRulesetConfig>('delete_permission_rule', { dataDir, index }),
+      setPermissionIncludeDefaults: (dataDir, include) => invokeIpc<PermissionRulesetConfig>('set_permission_include_defaults', { dataDir, include }),
+      evaluatePermission: (dataDir, toolName, command, args) => invokeIpc<PermissionDecision>('evaluate_permission', { dataDir, toolName, command, args }),
+    } satisfies PermissionBridge,
+
+    compaction: {
+      compactSession: (messagesJson, provider) =>
+        invokeIpc<CompactionResult>('compact_session_cmd', { messagesJson, provider }),
+    } satisfies CompactionBridge,
+
+    sessionFork: {
+      forkSession: (parentSession, forkMessageId, existingForkCount) =>
+        invokeIpc<ConversationSessionRecord>('fork_session_cmd', {
+          parentSession, forkMessageId, existingForkCount,
+        }),
+      listSessionForks: (workspaceId, parentSessionId) =>
+        invokeIpc<ConversationSessionRecord[]>('list_session_forks', {
+          workspaceId, parentSessionId,
+        }),
+    } satisfies SessionForkBridge,
+
+    lsp: {
+      startServer: (workspaceId, workspaceRoot, server) =>
+        invokeIpc<void>('lsp_start_server', { workspaceId, workspaceRoot, server }),
+      stopServer: (workspaceId, server) =>
+        invokeIpc<void>('lsp_stop_server', { workspaceId, server }),
+      getSymbols: (workspaceId, filePath) =>
+        invokeIpc<SymbolInfo[]>('lsp_get_symbols', { workspaceId, filePath }),
+      getDiagnostics: (workspaceId, filePath) =>
+        invokeIpc<DiagnosticInfo[]>('lsp_get_diagnostics', { workspaceId, filePath }),
+      gotoDefinition: (workspaceId, filePath, line, column) =>
+        invokeIpc<SymbolInfo | null>('lsp_goto_definition', { workspaceId, filePath, line, column }),
+    } satisfies LspBridge,
+
+    plugin: {
+      listPlugins: () => invokeIpc<PluginInfo[]>('list_plugins'),
+      setPluginEnabled: (name: string, enabled: boolean) =>
+        invokeIpc<void>('set_plugin_enabled', { name, enabled }),
+    } satisfies PluginBridge,
+
+    reference: {
+      listReferences: (dataDir) => invokeIpc<ReferenceConfig[]>('list_references', { dataDir }),
+      addReference: (dataDir, reference) =>
+        invokeIpc<ReferenceConfig[]>('add_reference', { dataDir, reference }),
+      removeReference: (dataDir, name) =>
+        invokeIpc<ReferenceConfig[]>('remove_reference', { dataDir, name }),
+      getReferencesPrompt: (dataDir) =>
+        invokeIpc<string>('get_references_prompt', { dataDir }),
+    } satisfies ReferenceBridge,
+
+    durable: {
+      registerDurableSession: (sessionId, runId) =>
+        invokeIpc<void>('register_durable_session', { sessionId, runId }),
+      heartbeatDurableSession: (sessionId) =>
+        invokeIpc<void>('heartbeat_durable_session', { sessionId }),
+      findCrashedSessions: () =>
+        invokeIpc<DurableSessionState[]>('find_crashed_sessions'),
+      recoverSession: (sessionId) =>
+        invokeIpc<boolean>('recover_session', { sessionId }),
+    } satisfies DurableBridge,
+
+    reserved: {
+      acpGetStatus: () => invokeIpc<unknown>('acp_get_status'),
+      acpGetConfig: () => invokeIpc<AcpConfig>('acp_get_config'),
+      httpApiGetStatus: () => invokeIpc<unknown>('http_api_get_status'),
+      httpApiGetConfig: () => invokeIpc<HttpApiConfig>('http_api_get_config'),
+      codemodeExecute: (code) => invokeIpc<unknown>('codemode_execute', { code }),
+      codemodeGetConfig: () => invokeIpc<CodeModeConfig>('codemode_get_config'),
+    } satisfies ReservedBridge,
+
+    customAgent: {
+      listCustomAgents: (dataDir) =>
+        invokeIpc<AgentConfig[]>('list_custom_agents', { dataDir }),
+      addCustomAgent: (dataDir, agent) =>
+        invokeIpc<AgentConfig[]>('add_custom_agent', { dataDir, agent }),
+      deleteCustomAgent: (dataDir, name) =>
+        invokeIpc<AgentConfig[]>('delete_custom_agent', { dataDir, name }),
+    } satisfies CustomAgentBridge,
   };
 }

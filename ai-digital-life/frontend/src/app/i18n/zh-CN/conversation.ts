@@ -120,4 +120,14 @@ export const conversationZh = {
   welcomeNoMatch: '未找到匹配的工作空间',
   welcomeOr: '—— 或 ——',
   welcomeQuickActions: '快速操作',
+
+  snapshotRevert: '回退到此快照',
+  snapshotRevertConfirm: '确定要回退到此快照吗？当前未提交的更改将丢失。',
+  snapshotCreated: '快照已创建',
+  snapshotReverted: '已回退到快照',
+  snapshotRevertFailed: '回退失败',
+  snapshotPruned: '已清理 {count} 个旧快照',
+  compactionActive: '正在压缩会话...',
+  compactionCompleted: '会话已压缩',
+  compactionPruned: '已精简 {count} 条消息',
 } as const;

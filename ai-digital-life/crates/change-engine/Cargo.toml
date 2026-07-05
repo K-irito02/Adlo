@@ -7,5 +7,7 @@ edition.workspace = true
 adl-kernel = { path = "../kernel" }
 adl-errors = { path = "../errors" }
 adl-fs-ops = { path = "../fs-ops" }
+adl-workspace = { path = "../workspace" }
+serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true

@@ -20,6 +20,9 @@ members = [
     "crates/ci-status",
     "crates/credential",
     "crates/adl-logging",
+    "crates/subagent",
+    "crates/mcp-client",
+    "crates/lsp-client",
     "src-tauri",
 ]
 
@@ -55,6 +58,13 @@ portable-pty = "0.8"
 dirs = "5"
 trash = "5"
 url = "2"
+async-trait = "0.1"
+tokio-stream = "0.1"
+tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
+rmcp = { version = "1", features = ["client", "server"] }
+rmcp-macros = "2"
+lsp-server = "0.7"
+lsp-types = "0.97"
 
 [profile.dev]
 opt-level = 0

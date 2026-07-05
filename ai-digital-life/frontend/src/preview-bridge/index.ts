@@ -101,6 +101,10 @@ export function setupPreviewBridge(): void {
     subscribeModelStream: modelBridge.subscribeModelStream,
     subscribeRunActivity: modelBridge.subscribeRunActivity,
     subscribeTerminalStream: modelBridge.subscribeTerminalStream,
+    mcp: mockDigitalLifeBridge.mcp,
+    provider: mockDigitalLifeBridge.provider,
+    commandsConfig: mockDigitalLifeBridge.commandsConfig,
+    permission: mockDigitalLifeBridge.permission,
   };
 
   (window as { digitalLife: DigitalLifeBridge }).digitalLife = previewBridge;

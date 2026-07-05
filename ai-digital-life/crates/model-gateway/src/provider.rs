@@ -26,6 +26,12 @@ pub(crate) async fn call_provider(
     let url = match provider {
         ModelProviderId::Deepseek => format!("{DEEPSEEK_BASE_URL}/chat/completions"),
         ModelProviderId::Minimax => format!("{MINIMAX_BASE_URL}/v1/chat/completions"),
+        _ => {
+            return Err(AppError::Internal(format!(
+                "provider {} not yet implemented",
+                provider.as_str()
+            )))
+        },
     };
     let request = ChatCompletionRequest {
         model: model_id.to_string(),

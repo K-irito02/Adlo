@@ -25,6 +25,9 @@ adl-browser = { path = "../crates/browser" }
 adl-ci-status = { path = "../crates/ci-status" }
 adl-credential = { path = "../crates/credential" }
 adl-logging = { path = "../crates/adl-logging" }
+adl-subagent = { path = "../crates/subagent" }
+adl-mcp-client = { path = "../crates/mcp-client" }
+adl-lsp-client = { path = "../crates/lsp-client" }
 
 tauri = { workspace = true, features = ["unstable"] }
 tauri-plugin-dialog.workspace = true
@@ -37,6 +40,7 @@ anyhow.workspace = true
 reqwest.workspace = true
 url.workspace = true
 uuid.workspace = true
+dirs.workspace = true
 
 [features]
 default = ["custom-protocol"]

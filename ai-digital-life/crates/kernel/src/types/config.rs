@@ -87,6 +87,11 @@ impl std::fmt::Display for LogMode {
 pub enum ModelProviderId {
     Deepseek,
     Minimax,
+    Openai,
+    Anthropic,
+    Google,
+    Ollama,
+    Openrouter,
 }
 
 impl ModelProviderId {
@@ -94,7 +99,25 @@ impl ModelProviderId {
         match self {
             Self::Deepseek => "deepseek",
             Self::Minimax => "minimax",
+            Self::Openai => "openai",
+            Self::Anthropic => "anthropic",
+            Self::Google => "google",
+            Self::Ollama => "ollama",
+            Self::Openrouter => "openrouter",
         }
+    }
+}
+
+/// Returns the default model ID for a provider.
+pub fn default_model_for_provider(provider: ModelProviderId) -> &'static str {
+    match provider {
+        ModelProviderId::Deepseek => "deepseek-chat",
+        ModelProviderId::Minimax => "MiniMax-M2.7",
+        ModelProviderId::Openai => "gpt-4o",
+        ModelProviderId::Anthropic => "claude-3-5-sonnet-20241022",
+        ModelProviderId::Google => "gemini-1.5-pro",
+        ModelProviderId::Ollama => "llama3.1",
+        ModelProviderId::Openrouter => "openrouter/auto",
     }
 }
 
@@ -219,5 +242,41 @@ mod tests {
         let json = serde_json::to_string(&t).unwrap();
         assert!(json.contains("SET_LANGUAGE"));
         assert!(json.contains("en-US"));
+    }
+}
+
+#[cfg(test)]
+mod provider_id_tests {
+    use super::*;
+
+    #[test]
+    fn new_providers_exist() {
+        assert_eq!(ModelProviderId::Openai.as_str(), "openai");
+        assert_eq!(ModelProviderId::Anthropic.as_str(), "anthropic");
+        assert_eq!(ModelProviderId::Google.as_str(), "google");
+        assert_eq!(ModelProviderId::Ollama.as_str(), "ollama");
+        assert_eq!(ModelProviderId::Openrouter.as_str(), "openrouter");
+    }
+
+    #[test]
+    fn existing_providers_preserved() {
+        assert_eq!(ModelProviderId::Deepseek.as_str(), "deepseek");
+        assert_eq!(ModelProviderId::Minimax.as_str(), "minimax");
+    }
+
+    #[test]
+    fn all_providers_have_default_model() {
+        for id in [
+            ModelProviderId::Deepseek,
+            ModelProviderId::Minimax,
+            ModelProviderId::Openai,
+            ModelProviderId::Anthropic,
+            ModelProviderId::Google,
+            ModelProviderId::Ollama,
+            ModelProviderId::Openrouter,
+        ] {
+            let model = default_model_for_provider(id);
+            assert!(!model.is_empty(), "Provider {:?} has no default model", id);
+        }
     }
 }

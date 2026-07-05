@@ -8,6 +8,7 @@ pub(crate) fn default_model(provider: ModelProviderId) -> &'static str {
     match provider {
         ModelProviderId::Deepseek => "deepseek-v4-pro",
         ModelProviderId::Minimax => "MiniMax-M2.7",
+        _ => "unknown",
     }
 }
 

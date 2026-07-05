@@ -44,84 +44,199 @@ pub enum PermissionDecision {
     Deny,
 }
 
+impl PermissionDecision {
+    /// Precedence: Deny > Ask > Allow. Returns the higher-precedence decision.
+    pub fn merge(self, other: PermissionDecision) -> PermissionDecision {
+        match (self, other) {
+            (PermissionDecision::Deny, _) | (_, PermissionDecision::Deny) => PermissionDecision::Deny,
+            (PermissionDecision::Ask, _) | (_, PermissionDecision::Ask) => PermissionDecision::Ask,
+            (PermissionDecision::Allow, PermissionDecision::Allow) => PermissionDecision::Allow,
+        }
+    }
+
+    pub fn is_allow(&self) -> bool {
+        matches!(self, PermissionDecision::Allow)
+    }
+
+    pub fn is_ask(&self) -> bool {
+        matches!(self, PermissionDecision::Ask)
+    }
+
+    pub fn is_deny(&self) -> bool {
+        matches!(self, PermissionDecision::Deny)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
-#[serde(rename_all = "camelCase")]
 pub struct PermissionRule {
     pub pattern: String,
     pub decision: PermissionDecision,
+    #[serde(default)]
     pub tool_type: String,
+    /// Whether this rule always applies (persists across session).
+    #[serde(default)]
+    pub always: bool,
+    /// Human-readable reason for this rule (shown in UI).
+    #[serde(default)]
+    pub reason: String,
+}
+
+impl Default for PermissionRule {
+    fn default() -> Self {
+        Self {
+            pattern: String::new(),
+            decision: PermissionDecision::Allow,
+            tool_type: String::new(),
+            always: false,
+            reason: String::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct PermissionEngine {
-    rules: Vec<PermissionRule>,
+pub struct PermissionRuleset {
+    pub rules: Vec<PermissionRule>,
 }
 
-impl PermissionEngine {
+impl PermissionRuleset {
+    pub fn new() -> Self {
+        Self { rules: Vec::new() }
+    }
+
     pub fn add_rule(&mut self, rule: PermissionRule) {
         self.rules.push(rule);
     }
 
-    pub fn evaluate(&self, command: &str, args: &[String]) -> PermissionDecision {
-        let joined = std::iter::once(command)
-            .chain(args.iter().map(String::as_str))
-            .collect::<Vec<_>>()
-            .join(":");
+    pub fn is_empty(&self) -> bool {
+        self.rules.is_empty()
+    }
 
-        let mut best: Option<PermissionDecision> = None;
-
+    /// Evaluate a permission request against the ruleset.
+    /// Returns the decision from the LAST matching rule (OpenCode behavior).
+    /// If no rule matches, returns the default decision (derived from RiskLevel).
+    pub fn evaluate(&self, tool_name: &str, command: &str, args: &[String]) -> PermissionDecision {
+        let mut decision = default_decision(command, args);
         for rule in &self.rules {
-            if pattern_matches(&rule.pattern, command, args)
-                || pattern_matches(&rule.pattern, &joined, &[])
-            {
-                let decision = rule.decision;
-                best = match best {
-                    None => Some(decision),
-                    Some(current) if decision > current => Some(decision),
-                    Some(current) => Some(current),
-                };
+            if rule_matches(rule, tool_name, command, args) {
+                decision = rule.decision;
             }
         }
+        decision
+    }
 
-        best.unwrap_or_else(|| default_decision(command, args))
+    /// Get the default ruleset with built-in safety rules.
+    pub fn default_rules() -> Self {
+        let mut ruleset = Self::new();
+
+        // Protect .env and .env.* files (catch bare filename and path variants)
+        for pattern in &[".env", "**/.env", "**/.env.*"] {
+            ruleset.add_rule(PermissionRule {
+                pattern: pattern.to_string(),
+                decision: PermissionDecision::Ask,
+                tool_type: "write".to_string(),
+                always: true,
+                reason: "Protecting environment files".to_string(),
+            });
+        }
+        ruleset.add_rule(PermissionRule {
+            pattern: "rm -rf /**".to_string(),
+            decision: PermissionDecision::Deny,
+            tool_type: "bash".to_string(),
+            always: true,
+            reason: "Preventing destructive recursive deletion".to_string(),
+        });
+        ruleset.add_rule(PermissionRule {
+            pattern: "git push --force*".to_string(),
+            decision: PermissionDecision::Ask,
+            tool_type: "bash".to_string(),
+            always: true,
+            reason: "Force push can overwrite remote history".to_string(),
+        });
+        ruleset.add_rule(PermissionRule {
+            pattern: "**/external/**".to_string(),
+            decision: PermissionDecision::Ask,
+            tool_type: "write".to_string(),
+            always: true,
+            reason: "External directory access".to_string(),
+        });
+        ruleset
     }
 }
 
-fn pattern_matches(pattern: &str, command: &str, args: &[String]) -> bool {
-    if !pattern.contains('*') {
-        let full = std::iter::once(command)
-            .chain(args.iter().map(String::as_str))
-            .collect::<Vec<_>>()
-            .join(":");
-        return full == pattern;
+/// Configuration for the permission ruleset (stored in app config).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+pub struct PermissionRulesetConfig {
+    /// Custom rules added by the user.
+    #[serde(default)]
+    pub custom_rules: Vec<PermissionRule>,
+    /// Whether to include the default safety rules.
+    #[serde(default = "default_true")]
+    pub include_defaults: bool,
+}
+
+impl Default for PermissionRulesetConfig {
+    fn default() -> Self {
+        Self {
+            custom_rules: Vec::new(),
+            include_defaults: true,
+        }
     }
+}
 
-    let parts: Vec<&str> = pattern.split(':').collect();
-    let input_parts: Vec<&str> =
-        std::iter::once(command).chain(args.iter().map(String::as_str)).collect();
+fn default_true() -> bool {
+    true
+}
 
-    if parts.len() > input_parts.len() {
-        let last_is_wildcard = parts.last().is_some_and(|p| *p == "*");
-        if !last_is_wildcard {
+/// Determine if a rule matches the current request.
+fn rule_matches(rule: &PermissionRule, tool_name: &str, command: &str, args: &[String]) -> bool {
+    if !rule.tool_type.is_empty() && rule.tool_type != tool_name {
+        return false;
+    }
+    if pattern_matches(&rule.pattern, tool_name) {
+        return true;
+    }
+    let full_command = if args.is_empty() {
+        command.to_string()
+    } else {
+        format!("{} {}", command, args.join(" "))
+    };
+    if pattern_matches(&rule.pattern, &full_command) {
+        return true;
+    }
+    args.iter().any(|arg| pattern_matches(&rule.pattern, arg))
+}
+
+/// Check if a pattern matches a string.
+/// Supports `*` (single segment) and `**` (multi-segment) wildcards.
+pub fn pattern_matches(pattern: &str, text: &str) -> bool {
+    if pattern == "**" {
+        return true;
+    }
+    let pattern_parts: Vec<&str> = pattern.split('*').collect();
+    if pattern_parts.len() == 1 {
+        return pattern == text;
+    }
+    let mut text_idx = 0;
+    for (i, part) in pattern_parts.iter().enumerate() {
+        if part.is_empty() {
+            continue;
+        }
+        if i == 0 {
+            if !text[text_idx..].starts_with(part) {
+                return false;
+            }
+            text_idx += part.len();
+        } else if i == pattern_parts.len() - 1 {
+            return text[text_idx..].ends_with(part);
+        } else if let Some(pos) = text[text_idx..].find(part) {
+            text_idx += pos + part.len();
+        } else {
             return false;
         }
     }
-
-    for (i, part) in parts.iter().enumerate() {
-        if *part == "**" {
-            return true;
-        }
-        if *part == "*" {
-            continue;
-        }
-        match input_parts.get(i) {
-            Some(input) if input == part => continue,
-            _ => return false,
-        }
-    }
-
-    parts.len() <= input_parts.len()
+    true
 }
 
 fn default_decision(command: &str, args: &[String]) -> PermissionDecision {
@@ -132,9 +247,87 @@ fn default_decision(command: &str, args: &[String]) -> PermissionDecision {
     }
 }
 
+/// Convert a legacy RiskLevel to a PermissionDecision.
+pub fn risk_to_decision(risk: RiskLevel) -> PermissionDecision {
+    match risk {
+        RiskLevel::Low => PermissionDecision::Allow,
+        RiskLevel::Medium => PermissionDecision::Ask,
+        RiskLevel::High => PermissionDecision::Deny,
+    }
+}
+
+/// Evaluate a permission request using both the ruleset and legacy risk assessment.
+/// The ruleset takes precedence; if no rule matches, falls back to risk-based decision.
+pub fn evaluate_permission(
+    ruleset: &PermissionRuleset,
+    tool_name: &str,
+    command: &str,
+    args: &[String],
+    risk: RiskLevel,
+) -> PermissionDecision {
+    let ruleset_decision = ruleset.evaluate(tool_name, command, args);
+
+    if !ruleset.is_empty() {
+        return ruleset_decision;
+    }
+
+    risk_to_decision(risk)
+}
+
+/// Check for doom loop pattern (repeated failures).
+/// Returns Ask if the same command has failed more than 3 times in a row.
+pub fn doom_loop_check(
+    recent_failures: &[String],
+    command: &str,
+) -> PermissionDecision {
+    let consecutive_failures = recent_failures
+        .iter()
+        .rev()
+        .take_while(|c| c.as_str() == command)
+        .count();
+
+    if consecutive_failures >= 3 {
+        PermissionDecision::Ask
+    } else {
+        PermissionDecision::Allow
+    }
+}
+
+/// Check if a path is external to the workspace.
+pub fn is_external_directory(path: &str, workspace_root: &str) -> bool {
+    let normalized_path = std::path::Path::new(path)
+        .canonicalize()
+        .unwrap_or_else(|_| std::path::PathBuf::from(path));
+    let normalized_root = std::path::Path::new(workspace_root)
+        .canonicalize()
+        .unwrap_or_else(|_| std::path::PathBuf::from(workspace_root));
+
+    !normalized_path.starts_with(&normalized_root)
+}
+
+/// Build a permission ruleset from config.
+pub fn build_ruleset(
+    custom_rules: &[PermissionRule],
+    include_defaults: bool,
+) -> PermissionRuleset {
+    let mut ruleset = if include_defaults {
+        PermissionRuleset::default_rules()
+    } else {
+        PermissionRuleset::new()
+    };
+
+    for rule in custom_rules {
+        ruleset.add_rule(rule.clone());
+    }
+
+    ruleset
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── Risk assessment tests ──
 
     #[test]
     fn shell_commands_are_high_risk() {
@@ -192,77 +385,112 @@ mod tests {
         assert!(!requires_approval(RiskLevel::Low));
     }
 
+    // ── PermissionDecision helper tests ──
+
     #[test]
-    fn permission_engine_defaults_allow_low_risk() {
-        let engine = PermissionEngine::default();
-        assert_eq!(engine.evaluate("cargo", &["build".into()]), PermissionDecision::Allow);
+    fn decision_merge_deny_wins() {
+        assert_eq!(PermissionDecision::Allow.merge(PermissionDecision::Deny), PermissionDecision::Deny);
+        assert_eq!(PermissionDecision::Deny.merge(PermissionDecision::Allow), PermissionDecision::Deny);
     }
 
     #[test]
-    fn permission_engine_defaults_ask_medium_risk() {
-        let engine = PermissionEngine::default();
-        assert_eq!(engine.evaluate("npm", &["install".into()]), PermissionDecision::Ask);
+    fn decision_merge_ask_over_allow() {
+        assert_eq!(PermissionDecision::Allow.merge(PermissionDecision::Ask), PermissionDecision::Ask);
+        assert_eq!(PermissionDecision::Ask.merge(PermissionDecision::Allow), PermissionDecision::Ask);
     }
 
     #[test]
-    fn permission_engine_defaults_deny_high_risk() {
-        let engine = PermissionEngine::default();
-        assert_eq!(engine.evaluate("rm", &["-rf".into(), "/".into()]), PermissionDecision::Deny);
+    fn decision_is_helpers() {
+        assert!(PermissionDecision::Allow.is_allow());
+        assert!(PermissionDecision::Ask.is_ask());
+        assert!(PermissionDecision::Deny.is_deny());
+        assert!(!PermissionDecision::Allow.is_deny());
+    }
+
+    // ── Ruleset tests ──
+
+    #[test]
+    fn ruleset_defaults_allow_low_risk() {
+        let ruleset = PermissionRuleset::default();
+        assert_eq!(ruleset.evaluate("command", "cargo", &["build".into()]), PermissionDecision::Allow);
     }
 
     #[test]
-    fn permission_engine_wildcard_rule_overrides_default() {
-        let mut engine = PermissionEngine::default();
-        engine.add_rule(PermissionRule {
-            pattern: "npm:*".into(),
+    fn ruleset_defaults_ask_medium_risk() {
+        let ruleset = PermissionRuleset::default();
+        assert_eq!(ruleset.evaluate("command", "npm", &["install".into()]), PermissionDecision::Ask);
+    }
+
+    #[test]
+    fn ruleset_defaults_deny_high_risk() {
+        let ruleset = PermissionRuleset::default();
+        assert_eq!(ruleset.evaluate("command", "rm", &["-rf".into(), "/".into()]), PermissionDecision::Deny);
+    }
+
+    #[test]
+    fn ruleset_default_rules_has_safety_rules() {
+        let ruleset = PermissionRuleset::default_rules();
+        assert!(ruleset.rules.len() >= 3);
+        assert!(ruleset.rules.iter().any(|r| r.pattern.contains(".env")));
+        assert!(ruleset.rules.iter().all(|r| r.always));
+        assert!(ruleset.rules.iter().all(|r| !r.reason.is_empty()));
+    }
+
+    #[test]
+    fn ruleset_default_evaluates_env_write_as_ask() {
+        let ruleset = PermissionRuleset::default_rules();
+        let decision = ruleset.evaluate("write", "write", &[".env".to_string()]);
+        assert_eq!(decision, PermissionDecision::Ask);
+    }
+
+    #[test]
+    fn ruleset_default_evaluates_rm_rf_as_deny() {
+        let ruleset = PermissionRuleset::default_rules();
+        let decision = ruleset.evaluate("bash", "rm", &["-rf".to_string(), "/".to_string()]);
+        assert_eq!(decision, PermissionDecision::Deny);
+    }
+
+    #[test]
+    fn ruleset_default_allows_normal_read() {
+        let ruleset = PermissionRuleset::default_rules();
+        let decision = ruleset.evaluate("read", "read", &["src/main.rs".to_string()]);
+        assert_eq!(decision, PermissionDecision::Allow);
+    }
+
+    #[test]
+    fn ruleset_custom_rule_overrides_default_last_wins() {
+        let mut ruleset = PermissionRuleset::default_rules();
+        // Override the built-in .env protection with an Allow rule (last match wins)
+        ruleset.add_rule(PermissionRule {
+            pattern: ".env".to_string(),
             decision: PermissionDecision::Allow,
-            tool_type: "command".into(),
+            tool_type: "write".to_string(),
+            always: true,
+            reason: "User override".to_string(),
         });
-        assert_eq!(engine.evaluate("npm", &["install".into()]), PermissionDecision::Allow);
+        let decision = ruleset.evaluate("write", "write", &[".env".to_string()]);
+        assert_eq!(decision, PermissionDecision::Allow);
     }
 
     #[test]
-    fn permission_engine_exact_rule_overrides_wildcard() {
-        let mut engine = PermissionEngine::default();
-        engine.add_rule(PermissionRule {
-            pattern: "npm:*".into(),
+    fn permission_rule_serializes_snake_case() {
+        let rule = PermissionRule {
+            pattern: "test".to_string(),
             decision: PermissionDecision::Allow,
-            tool_type: "command".into(),
-        });
-        engine.add_rule(PermissionRule {
-            pattern: "npm:install:express".into(),
-            decision: PermissionDecision::Deny,
-            tool_type: "command".into(),
-        });
-        assert_eq!(
-            engine.evaluate("npm", &["install".into(), "express".into()]),
-            PermissionDecision::Deny
-        );
-        assert_eq!(
-            engine.evaluate("npm", &["install".into(), "lodash".into()]),
-            PermissionDecision::Allow
-        );
+            tool_type: "bash".to_string(),
+            always: false,
+            reason: "test reason".to_string(),
+        };
+        let json = serde_json::to_string(&rule).expect("serialize");
+        assert!(json.contains("\"tool_type\""), "expected snake_case tool_type, got: {}", json);
+        assert!(!json.contains("\"toolType\""), "camelCase toolType leaked: {}", json);
     }
 
     #[test]
-    fn permission_engine_precedence_deny_over_ask_over_allow() {
-        let mut engine = PermissionEngine::default();
-        engine.add_rule(PermissionRule {
-            pattern: "git:*".into(),
-            decision: PermissionDecision::Allow,
-            tool_type: "command".into(),
-        });
-        engine.add_rule(PermissionRule {
-            pattern: "git:*".into(),
-            decision: PermissionDecision::Deny,
-            tool_type: "command".into(),
-        });
-        engine.add_rule(PermissionRule {
-            pattern: "git:*".into(),
-            decision: PermissionDecision::Ask,
-            tool_type: "command".into(),
-        });
-        assert_eq!(engine.evaluate("git", &["push".into()]), PermissionDecision::Deny);
+    fn permission_ruleset_config_default() {
+        let config = PermissionRulesetConfig::default();
+        assert!(config.include_defaults);
+        assert!(config.custom_rules.is_empty());
     }
 
     #[test]
@@ -270,5 +498,74 @@ mod tests {
         assert!(PermissionDecision::Deny > PermissionDecision::Ask);
         assert!(PermissionDecision::Ask > PermissionDecision::Allow);
         assert!(PermissionDecision::Deny > PermissionDecision::Allow);
+    }
+
+    // ── Evaluation helper tests ──
+
+    #[test]
+    fn risk_low_to_allow() {
+        assert_eq!(risk_to_decision(RiskLevel::Low), PermissionDecision::Allow);
+    }
+
+    #[test]
+    fn risk_medium_to_ask() {
+        assert_eq!(risk_to_decision(RiskLevel::Medium), PermissionDecision::Ask);
+    }
+
+    #[test]
+    fn risk_high_to_deny() {
+        assert_eq!(risk_to_decision(RiskLevel::High), PermissionDecision::Deny);
+    }
+
+    #[test]
+    fn doom_loop_allows_under_threshold() {
+        let failures = vec!["npm install".to_string(), "npm install".to_string()];
+        assert_eq!(doom_loop_check(&failures, "npm install"), PermissionDecision::Allow);
+    }
+
+    #[test]
+    fn doom_loop_asks_at_threshold() {
+        let failures = vec![
+            "npm install".to_string(),
+            "npm install".to_string(),
+            "npm install".to_string(),
+        ];
+        assert_eq!(doom_loop_check(&failures, "npm install"), PermissionDecision::Ask);
+    }
+
+    #[test]
+    fn doom_loop_resets_on_different_command() {
+        let failures = vec![
+            "npm install".to_string(),
+            "npm install".to_string(),
+            "npm install".to_string(),
+            "git status".to_string(),
+        ];
+        assert_eq!(doom_loop_check(&failures, "npm install"), PermissionDecision::Allow);
+    }
+
+    #[test]
+    fn build_ruleset_with_defaults() {
+        let ruleset = build_ruleset(&[], true);
+        assert!(!ruleset.rules.is_empty());
+    }
+
+    #[test]
+    fn build_ruleset_without_defaults() {
+        let ruleset = build_ruleset(&[], false);
+        assert!(ruleset.rules.is_empty());
+    }
+
+    #[test]
+    fn build_ruleset_with_custom_rules() {
+        let custom = vec![PermissionRule {
+            pattern: "**/*.test.rs".to_string(),
+            decision: PermissionDecision::Allow,
+            tool_type: "write".to_string(),
+            always: false,
+            reason: "Test files".to_string(),
+        }];
+        let ruleset = build_ruleset(&custom, false);
+        assert_eq!(ruleset.rules.len(), 1);
     }
 }

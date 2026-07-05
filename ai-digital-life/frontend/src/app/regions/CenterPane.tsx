@@ -10,6 +10,7 @@ import { useAppStore } from '../stores/slicedStore';
 import { useAppActions } from '../hooks/useAppActions';
 import { asAgentRunID } from '../../shared/branded';
 
+import { CompactionIndicator } from '../components/conversation/CompactionIndicator';
 import { WelcomeState, ComposerFooter } from './center-pane';
 
 type ButtonState = 'send' | 'stop' | 'retry' | 'waiting';
@@ -264,7 +265,9 @@ const CenterPane = React.memo(function CenterPane() {
             />
           </div>
         ) : (
-          <MessageStream
+          <>
+            <CompactionIndicator />
+            <MessageStream
             messages={messages}
             streamingText={streamingAssistantText}
             isStreaming={!!streamingAssistantText}
@@ -274,6 +277,7 @@ const CenterPane = React.memo(function CenterPane() {
             runUsageByRunId={runUsageByRunId}
             locale={locale}
           />
+          </>
         )}
       </div>
 

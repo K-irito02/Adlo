@@ -3,6 +3,8 @@
 pub mod language;
 pub mod patch_apply;
 pub mod patch_create;
+pub mod revert;
+pub mod snapshot;
 pub mod validation;
 
 pub use language::language_for_path;

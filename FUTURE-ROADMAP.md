@@ -8,13 +8,13 @@
 
 ### L2 智能体自动化
 
-| 功能 | 说明 | 前置依赖 |
-|------|------|----------|
-| 任务规划与执行控制 | 多步骤任务分解与并行执行 | 任务状态机、审批流成熟 |
-| 智能体配置与工作流 | 可配置的工作流引擎 | 单 Agent 闭环稳定 |
-| 子代理与多智能体协作 | 多 Agent DAG 编排 | Phase 2 核心闭环 |
-| 沙箱隔离执行 | 安全隔离的命令执行环境 | 权限与审计体系 |
-| Hooks 自动化 | 生命周期钩子系统 | 基础运行时稳定 |
+| 功能 | 说明 | 前置依赖 | 状态 |
+|------|------|----------|------|
+| 任务规划与执行控制 | 多步骤任务分解与并行执行 | 任务状态机、审批流成熟 | 🚧 进行中 |
+| 智能体配置与工作流 | 可配置的工作流引擎 | 单 Agent 闭环稳定 | 🚧 进行中 |
+| 子代理与多智能体协作 | 多 Agent DAG 编排 | Phase 2 核心闭环 | 🚧 进行中 |
+| 沙箱隔离执行 | 安全隔离的命令执行环境 | 权限与审计体系 | 待实现 |
+| Hooks 自动化 | 生命周期钩子系统 | 基础运行时稳定 | 待实现 |
 
 ### L3 生态与规模化
 
@@ -81,14 +81,14 @@
 ```typescript
 // Feature flags for future phases
 const FUTURE_FEATURES = {
-  multiAgent: false,        // Phase 2+
-  mcp: false,               // Phase 2+
+  multiAgent: true,         // Phase 2 — in progress
+  mcp: false,               // Phase 2-B
   sandbox: false,           // Phase 2+
-  cloudSync: false,        // Phase 3
+  cloudSync: false,         // Phase 3
   browserAutomation: false, // Phase 2+
-  plugins: false,           // Phase 2+
+  plugins: false,           // Phase 2-E
   collaboration: false,     // Phase 3+
-  multimodal: false,       // Phase 3+
+  multimodal: false,        // Phase 3+
 }
 ```
 

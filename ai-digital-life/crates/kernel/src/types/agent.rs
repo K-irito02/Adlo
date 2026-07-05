@@ -5,6 +5,200 @@ use super::command::CommandExecutionResult;
 use super::conversation::{ConversationScenario, DiagnosticSummary};
 use super::TimestampMs;
 
+/// Identifies a built-in or custom agent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+#[serde(rename_all = "lowercase")]
+pub enum AgentId {
+    /// Primary agent for building/editing code (default).
+    Build,
+    /// Primary agent for read-only planning.
+    Plan,
+    /// Sub-agent for multi-step general tasks.
+    General,
+    /// Sub-agent for codebase exploration.
+    Explore,
+    /// Hidden system agent for session compaction.
+    Compaction,
+    /// Hidden system agent for generating session titles.
+    Title,
+    /// Hidden system agent for generating session summaries.
+    Summary,
+    /// Custom user-defined agent.
+    Custom,
+}
+
+impl AgentId {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            AgentId::Build => "build",
+            AgentId::Plan => "plan",
+            AgentId::General => "general",
+            AgentId::Explore => "explore",
+            AgentId::Compaction => "compaction",
+            AgentId::Title => "title",
+            AgentId::Summary => "summary",
+            AgentId::Custom => "custom",
+        }
+    }
+}
+
+impl std::fmt::Display for AgentId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+/// Determines an agent's permissions and visibility.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AgentMode {
+    /// Top-level agent driven directly by user input.
+    Primary,
+    /// Spawned by another agent via the task tool.
+    Subagent,
+    /// System agent not shown to users.
+    Hidden,
+}
+
+impl AgentMode {
+    pub fn allows_write_tools(&self) -> bool {
+        matches!(self, AgentMode::Primary)
+    }
+
+    pub fn is_subagent(&self) -> bool {
+        matches!(self, AgentMode::Subagent)
+    }
+
+    pub fn is_hidden(&self) -> bool {
+        matches!(self, AgentMode::Hidden)
+    }
+}
+
+/// Configuration for a single agent instance.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentConfig {
+    pub id: AgentId,
+    pub name: String,
+    pub description: String,
+    pub mode: AgentMode,
+    pub hidden: bool,
+    /// When false, write tools (apply_patch, run_command) are disabled.
+    pub allows_write_tools: bool,
+    /// System prompt template identifier (resolved by prompt.rs).
+    pub prompt_template: String,
+    /// Optional model override; None uses workspace default.
+    pub model_override: Option<String>,
+}
+
+impl AgentConfig {
+    pub fn built_in(id: AgentId) -> Self {
+        match id {
+            AgentId::Build => Self {
+                id,
+                name: "build".to_string(),
+                description: "Primary agent for building and editing code".to_string(),
+                mode: AgentMode::Primary,
+                hidden: false,
+                allows_write_tools: true,
+                prompt_template: "build".to_string(),
+                model_override: None,
+            },
+            AgentId::Plan => Self {
+                id,
+                name: "plan".to_string(),
+                description: "Read-only planning agent for analysis without edits".to_string(),
+                mode: AgentMode::Primary,
+                hidden: false,
+                allows_write_tools: false,
+                prompt_template: "plan".to_string(),
+                model_override: None,
+            },
+            AgentId::General => Self {
+                id,
+                name: "general".to_string(),
+                description: "Sub-agent for multi-step general tasks".to_string(),
+                mode: AgentMode::Subagent,
+                hidden: false,
+                allows_write_tools: false,
+                prompt_template: "general".to_string(),
+                model_override: None,
+            },
+            AgentId::Explore => Self {
+                id,
+                name: "explore".to_string(),
+                description: "Sub-agent for codebase exploration".to_string(),
+                mode: AgentMode::Subagent,
+                hidden: false,
+                allows_write_tools: false,
+                prompt_template: "explore".to_string(),
+                model_override: None,
+            },
+            AgentId::Compaction => Self {
+                id,
+                name: "compaction".to_string(),
+                description: "System agent for session compaction".to_string(),
+                mode: AgentMode::Hidden,
+                hidden: true,
+                allows_write_tools: false,
+                prompt_template: "compaction".to_string(),
+                model_override: None,
+            },
+            AgentId::Title => Self {
+                id,
+                name: "title".to_string(),
+                description: "System agent for generating session titles".to_string(),
+                mode: AgentMode::Hidden,
+                hidden: true,
+                allows_write_tools: false,
+                prompt_template: "title".to_string(),
+                model_override: None,
+            },
+            AgentId::Summary => Self {
+                id,
+                name: "summary".to_string(),
+                description: "System agent for generating session summaries".to_string(),
+                mode: AgentMode::Hidden,
+                hidden: true,
+                allows_write_tools: false,
+                prompt_template: "summary".to_string(),
+                model_override: None,
+            },
+            AgentId::Custom => Self {
+                id,
+                name: "custom".to_string(),
+                description: "User-defined custom agent".to_string(),
+                mode: AgentMode::Primary,
+                hidden: false,
+                allows_write_tools: true,
+                prompt_template: "default".to_string(),
+                model_override: None,
+            },
+        }
+    }
+
+    pub fn all_built_in() -> Vec<AgentConfig> {
+        [
+            AgentId::Build,
+            AgentId::Plan,
+            AgentId::General,
+            AgentId::Explore,
+            AgentId::Compaction,
+            AgentId::Title,
+            AgentId::Summary,
+        ]
+        .iter()
+        .map(|id| AgentConfig::built_in(*id))
+        .collect()
+    }
+}
+
+/// Backward-compat default for `AgentRunRecord::agent_id` when deserializing
+/// older DB rows that predate the multi-agent system.
+fn default_agent_id() -> AgentId {
+    AgentId::Build
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "kebab-case")]
@@ -37,6 +231,10 @@ pub struct AgentRunRecord {
     pub created_at: TimestampMs,
     pub updated_at: TimestampMs,
     pub completed_at: Option<TimestampMs>,
+    /// Which built-in or custom agent produced this run. Defaults to `Build`
+    /// for rows serialized before multi-agent support landed.
+    #[serde(default = "default_agent_id")]
+    pub agent_id: AgentId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -153,4 +351,61 @@ pub struct PatchApplicationResult {
     pub validation: Option<ValidationResult>,
     pub command_result: Option<CommandExecutionResult>,
     pub rolled_back: bool,
+}
+
+#[cfg(test)]
+mod agent_mode_tests {
+    use super::*;
+
+    #[test]
+    fn agent_mode_primary_allows_write_tools() {
+        let mode = AgentMode::Primary;
+        assert!(mode.allows_write_tools());
+        assert!(!mode.is_subagent());
+        assert!(!mode.is_hidden());
+    }
+
+    #[test]
+    fn agent_mode_subagent_restricts_scope() {
+        let mode = AgentMode::Subagent;
+        assert!(!mode.allows_write_tools());
+        assert!(mode.is_subagent());
+        assert!(!mode.is_hidden());
+    }
+
+    #[test]
+    fn agent_mode_hidden_for_system_agents() {
+        let mode = AgentMode::Hidden;
+        assert!(!mode.allows_write_tools());
+        assert!(!mode.is_subagent());
+        assert!(mode.is_hidden());
+    }
+
+    #[test]
+    fn agent_config_build_is_primary() {
+        let build = AgentConfig::built_in(AgentId::Build);
+        assert_eq!(build.mode, AgentMode::Primary);
+        assert_eq!(build.name, "build");
+        assert!(!build.hidden);
+    }
+
+    #[test]
+    fn agent_config_plan_is_primary_readonly() {
+        let plan = AgentConfig::built_in(AgentId::Plan);
+        assert_eq!(plan.mode, AgentMode::Primary);
+        assert!(!plan.allows_write_tools);
+    }
+
+    #[test]
+    fn agent_config_explore_is_subagent() {
+        let explore = AgentConfig::built_in(AgentId::Explore);
+        assert_eq!(explore.mode, AgentMode::Subagent);
+    }
+
+    #[test]
+    fn agent_config_compaction_is_hidden() {
+        let compaction = AgentConfig::built_in(AgentId::Compaction);
+        assert_eq!(compaction.mode, AgentMode::Hidden);
+        assert!(compaction.hidden);
+    }
 }

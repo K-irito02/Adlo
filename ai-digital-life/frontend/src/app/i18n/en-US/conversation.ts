@@ -121,4 +121,14 @@ export const conversationEn = {
   welcomeNoMatch: 'No matching workspaces found',
   welcomeOr: '—— or ——',
   welcomeQuickActions: 'Quick actions',
+
+  snapshotRevert: 'Revert to snapshot',
+  snapshotRevertConfirm: 'Are you sure? Uncommitted changes will be lost.',
+  snapshotCreated: 'Snapshot created',
+  snapshotReverted: 'Reverted to snapshot',
+  snapshotRevertFailed: 'Revert failed',
+  snapshotPruned: 'Pruned {count} old snapshots',
+  compactionActive: 'Compacting session...',
+  compactionCompleted: 'Session compacted',
+  compactionPruned: 'Pruned {count} messages',
 } as const;
