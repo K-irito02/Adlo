@@ -11,3 +11,11 @@
 [alias]
 # 清理所有构建产物（释放 ~40 GB），然后完整重建
 rebuild = "clean && build"
+
+[profile.dev]
+# 禁用增量编译绕过 rustc 1.96.0 ICE bug：
+#   thread 'rustc' panicked at .../rustc_metadata/src/rmeta/encoder.rs:2448:51:
+#   no entry found for key
+# adl-subagent crate 在增量编译时触发此内部编译器错误，与代码逻辑无关。
+# 详见 https://github.com/rust-lang/rust/issues?q=is%3Aissue+rmeta+encoder+no+entry+found
+incremental = false
