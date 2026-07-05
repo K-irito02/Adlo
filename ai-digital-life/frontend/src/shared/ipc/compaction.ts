@@ -1,4 +1,8 @@
-import type { IpcResult, ConversationMessageRecord, ModelProviderId } from '@ai-digital-life/kernel';
+import type {
+  IpcResult,
+  ConversationMessageRecord,
+  ModelProviderId,
+} from '@ai-digital-life/kernel';
 
 export interface CompactSessionInput {
   sessionId: string;

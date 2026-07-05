@@ -621,8 +621,7 @@ export function createTauriBridge(): DigitalLifeBridge {
     } satisfies PermissionBridge,
 
     compaction: {
-      compactSession: (input) =>
-        invokeIpc<CompactSessionResult>('compact_session_cmd', { input }),
+      compactSession: (input) => invokeIpc<CompactSessionResult>('compact_session_cmd', { input }),
     } satisfies CompactionBridge,
 
     sessionFork: {
