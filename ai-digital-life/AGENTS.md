@@ -20,7 +20,7 @@
 
 ## 当前阶段
 
-**Phase 0 底座** + **Phase 2 单 Agent 薄切片**：
+**Phase 0 底座** + **Phase 2 完成 — 全功能交互式 MVP**：
 
 - Tauri 桌面壳、SQLite 状态
 - 工作区与对话、补丁预览/应用/回滚
@@ -32,6 +32,18 @@
 - Zustand 切片模式（23 切片 + 12 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
 - i18n 国际化（13 领域 / 936 keys，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
+
+### Phase 2 完整功能（18 项缺失能力）
+
+| 子阶段 | 新增能力 |
+|--------|---------|
+| **2-A** | 多 Agent 系统（Agent 注册表 + 路由）、Sub-agent / Task 工具、Plan Mode |
+| **2-B** | MCP 完整集成（Stdio/SSE/StreamableHTTP + OAuth）、多 LLM Provider（OpenAI/Anthropic/Google/Ollama/OpenRouter）、Provider-specific Prompts |
+| **2-C** | Token-aware Compaction（PRUNE_MINIMUM=20000）、Snapshot/Revert（message-level git 快照）、WebFetch / WebSearch 工具 |
+| **2-D** | 自定义命令配置（模板变量 $1/$ARGUMENTS/$WORKSPACE）、权限系统升级为 Ruleset（Allow/Ask/Deny + 通配匹配 + doom_loop 检测） |
+| **2-E** | Session Fork、LSP 集成（rust-analyzer/ts-server/pylsp/gopls）、Plugin 系统（trait + hooks + registry）、Reference 系统、自定义 Agent 配置、Hot Reloadable Config、Durable Session Execution、ACP/HTTP API/CodeMode 预留接口 |
+
+> 430+ Rust 测试、326 前端测试，clippy 与 lint 零警告。
 
 ### 重构历史
 

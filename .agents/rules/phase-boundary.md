@@ -11,15 +11,16 @@ alwaysApply: true
 |-------|------|------|
 | Phase 0 | ✅ 已完成 | 架构底座、桌面壳层、安全边界、基础设施 |
 | Phase 1 | ✅ 已完成 | 交互式 MVP、模型接入、上下文、变更预览 |
-| Phase 2 | 🚧 进行中 | 多 Agent 系统、Sub-agent/Task 工具、Plan Mode、MCP、多 Provider、Compaction、Snapshot/Revert、WebFetch/WebSearch、自定义命令、权限 Ruleset |
+| Phase 2 | ✅ 已完成 | 完整 18 项缺失能力：多 Agent / MCP / 多 Provider / Compaction / Snapshot-Revert / WebFetch-WebSearch / 自定义命令 / 权限 Ruleset / Session Fork / LSP / Plugin / Reference / Custom Agent / Hot Reload / Durable Session / ACP/HTTP API/CodeMode 预留 |
 
 ## 排除项（当前阶段不实现）
 
 | 排除项 | 计划阶段 |
 |--------|----------|
-| 插件市场 | Phase 2+ |
-| 浏览器自动化运行时 | Phase 2+ |
+| 插件市场（第三方插件加载） | Phase 3+ |
+| 浏览器自动化运行时 | Phase 3+ |
 | 复杂云协作 | Phase 3+ |
+| ACP / HTTP API / CodeMode（接口已预留，实现待后续） | Phase 3+ |
 
 ## 受控变更（须遵循对应规则）
 

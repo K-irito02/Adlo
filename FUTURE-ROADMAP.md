@@ -4,30 +4,45 @@
 
 ---
 
-## Phase 2+ 待实现功能
+## Phase 2 已完成功能
 
-### L2 智能体自动化
+以下为 Phase 2（5 个子阶段 2-A 至 2-E）已完成的 18 项缺失能力：
 
-| 功能 | 说明 | 前置依赖 | 状态 |
-|------|------|----------|------|
-| 任务规划与执行控制 | 多步骤任务分解与并行执行 | 任务状态机、审批流成熟 | 🚧 进行中 |
-| 智能体配置与工作流 | 可配置的工作流引擎 | 单 Agent 闭环稳定 | 🚧 进行中 |
-| 子代理与多智能体协作 | 多 Agent DAG 编排 | Phase 2 核心闭环 | 🚧 进行中 |
-| 沙箱隔离执行 | 安全隔离的命令执行环境 | 权限与审计体系 | 待实现 |
-| Hooks 自动化 | 生命周期钩子系统 | 基础运行时稳定 | 待实现 |
+| 功能 | 说明 | 子阶段 |
+|------|------|--------|
+| 多 Agent 系统 | Agent 注册表 + 路由（build/plan/general/explore/compaction/title/summary）| 2-A |
+| Sub-agent / Task 工具 | Sub-agent 生命周期管理 + 后台执行 + 恢复 | 2-A |
+| Plan Mode | 只读计划模式 + plan_enter/plan_exit + 工具门控 | 2-A |
+| MCP 完整集成 | Stdio/SSE/StreamableHTTP 传输 + OAuth + 工具适配 | 2-B |
+| 多 LLM Provider | OpenAI/Anthropic/Google/Ollama/OpenRouter 适配器 | 2-B |
+| Provider-specific Prompts | 按 Provider 定制的系统提示模板 | 2-B |
+| Compaction | Token-aware 会话压缩（PRUNE_MINIMUM=20000）| 2-C |
+| Snapshot / Revert | Message-level git 快照 + 回滚 | 2-C |
+| WebFetch / WebSearch | 网络获取 + Tavily 搜索工具 | 2-C |
+| 自定义命令 | 可配置斜杠命令（$1/$ARGUMENTS/$WORKSPACE 模板）| 2-D |
+| 权限 Ruleset | Allow/Ask/Deny 三态 + 通配匹配 + doom_loop 检测 | 2-D |
+| Session Fork | 会话分支（父/子关系）| 2-E |
+| LSP 集成 | rust-analyzer/ts-server/pylsp/gopls 支持 | 2-E |
+| Plugin 系统 | Plugin trait + 7 种 Hook + 启禁用管理 | 2-E |
+| Reference 系统 | 外部目录引用 + 上下文注入 | 2-E |
+| 自定义 Agent 配置 | 用户自定义 Agent 注册 | 2-E |
+| Hot Reload Config | notify 文件监听 + watch channel 热加载 | 2-E |
+| Durable Session | 心跳检测 + 崩溃恢复 + 重试 | 2-E |
+
+## Phase 3+ 待实现功能
 
 ### L3 生态与规模化
 
 | 功能 | 说明 | 前置依赖 |
 |------|------|----------|
-| MCP (Model Context Protocol) | 模型上下文协议集成 | Phase 2 核心能力 |
-| 插件生态与市场 | 第三方插件支持 | MCP 成熟 |
+| ACP (Agent Client Protocol) | 接口已预留，待实现 | Phase 2 核心能力 |
+| HTTP API 服务器 | 接口已预留，待实现 | Phase 2 核心能力 |
+| CodeMode 沙箱 | 接口已预留，实验性 | 安全沙箱 |
+| 插件市场 | 第三方插件加载（wasm/dylib）| Plugin 系统成熟 |
 | 浏览器自动化运行时 | Web 自动化操作 | 安全沙箱 |
 | 云服务集成 | 云端能力对接 | 核心能力稳定 |
 | 多模态输入支持 | 图像、语音等输入 | 核心能力稳定 |
 | CI/CD 集成 | 流水线自动化 | 核心能力稳定 |
-
-## Phase 3+ 待实现功能
 
 ### 团队协作
 
@@ -79,14 +94,32 @@
 以下功能将在 Phase 2+ 分阶段启用：
 
 ```typescript
-// Feature flags for future phases
-const FUTURE_FEATURES = {
-  multiAgent: true,         // Phase 2 — in progress
-  mcp: false,               // Phase 2-B
-  sandbox: false,           // Phase 2+
+// Feature flags — Phase 2 all features completed
+const FEATURE_FLAGS = {
+  multiAgent: true,         // Phase 2-A — completed
+  subagent: true,           // Phase 2-A — completed
+  planMode: true,           // Phase 2-A — completed
+  mcp: true,                // Phase 2-B — completed
+  multiProvider: true,      // Phase 2-B — completed
+  compaction: true,         // Phase 2-C — completed
+  snapshotRevert: true,     // Phase 2-C — completed
+  webFetch: true,           // Phase 2-C — completed
+  customCommands: true,     // Phase 2-D — completed
+  permissionRuleset: true,  // Phase 2-D — completed
+  sessionFork: true,        // Phase 2-E — completed
+  lsp: true,                // Phase 2-E — completed
+  pluginSystem: true,       // Phase 2-E — completed
+  referenceSystem: true,    // Phase 2-E — completed
+  customAgent: true,        // Phase 2-E — completed
+  hotReload: true,          // Phase 2-E — completed
+  durableSession: true,     // Phase 2-E — completed
+  acp: false,               // Phase 3+ — interface only
+  httpApi: false,           // Phase 3+ — interface only
+  codeMode: false,          // Phase 3+ — interface only
+  sandbox: false,           // Phase 3+
   cloudSync: false,         // Phase 3
-  browserAutomation: false, // Phase 2+
-  plugins: false,           // Phase 2-E
+  browserAutomation: false, // Phase 3+
+  plugins: false,           // Phase 3+ (marketplace)
   collaboration: false,     // Phase 3+
   multimodal: false,        // Phase 3+
 }
@@ -96,15 +129,25 @@ const FUTURE_FEATURES = {
 
 ## 决策记录
 
-### 排除在当前范围的原因
+### 已纳入并完成 Phase 2 的功能
+
+| 功能 | 说明 |
+|------|------|
+| 多 Agent DAG | Phase 2-A 已完成 — Agent 注册表 + 路由 + Sub-agent 系统 |
+| MCP 协议 | Phase 2-B 已完成 — 三种传输 + OAuth + 工具适配 |
+| 插件系统 | Phase 2-E 已完成 — Plugin trait + 7 种 Hook + 注册表 |
+| Session Fork | Phase 2-E 已完成 — 会话分支与父子关系 |
+| LSP 集成 | Phase 2-E 已完成 — 4 种语言服务器 + 诊断 + 符号 |
+| Reference 系统 | Phase 2-E 已完成 — 外部目录引用 + 上下文注入 |
+
+### 当前阶段排除项
 
 | 功能 | 原因 |
 |------|------|
-| 多 Agent DAG | Phase 2+ 能力，需要稳定的单 Agent 基础 |
-| MCP 协议 | Phase 2+ 能力，依赖核心 API 稳定 |
-| 插件市场 | Phase 2+ 能力，需要成熟的内核边界 |
-| 浏览器自动化 | Phase 2+ 能力，需要安全沙箱基础 |
+| 插件市场（第三方加载） | Phase 3+ 能力，需要 Plugin 系统成熟 & 安全边界完善 |
+| 浏览器自动化 | Phase 3+ 能力，需要安全沙箱基础 |
 | 复杂云协作 | Phase 3+ 能力，超出当前架构 |
+| ACP / HTTP API / CodeMode | 接口已预留，实装待 Phase 3+ |
 
 ---
 

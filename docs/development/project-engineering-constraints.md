@@ -15,9 +15,10 @@
 
 当前阶段边界：
 
-- `Phase 0` 重点是桌面壳层、安全边界、配置与持久化、工作区、检索、任务审批、恢复与迁移
-- `Phase 1` 在 `Phase 0` 基础上增加交互式 AI MVP 闭环
-- 未经显式决策，不得把 `Phase 2+` 的复杂能力伪装成当前阶段必需项
+- `Phase 0` 底座完成：桌面壳层、安全边界、配置与持久化、工作区、检索、任务审批、恢复与迁移
+- `Phase 1` 完成：在 `Phase 0` 基础上增加交互式 AI MVP 闭环
+- `Phase 2` 完成：18 项缺失能力（多 Agent / MCP / 多 Provider / Compaction / Snapshot-Revert / WebFetch-WebSearch / 自定义命令 / 权限 Ruleset / Session Fork / LSP / Plugin / Reference / Custom Agent / Hot Reload / Durable Session）
+- 未经显式决策，不得把 `Phase 3+` 的复杂能力伪装成当前阶段必需项
 
 ## 总体工程原则
 
