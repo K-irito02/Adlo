@@ -14,6 +14,8 @@ export function createBaseAppInfo(): AppInfo {
       themeMode: savedPreferences.themeMode ?? 'system',
       resolvedTheme: savedPreferences.resolvedTheme ?? 'light',
       logLevel: 'info',
+      terminalLogMode: 'overwrite',
+      debugLogMode: 'overwrite',
       maxRecentWorkspaces: 10,
       modelPreferences: savedPreferences.modelPreferences ?? {
         providers: {
@@ -29,6 +31,8 @@ export function createBaseAppInfo(): AppInfo {
           },
         },
       },
+      keybinds: {},
+      fonts: {},
     },
     recentLogs: [
       {

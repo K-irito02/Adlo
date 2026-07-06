@@ -34,11 +34,11 @@
 
   /* --- Typography Family --- */
   --font-sans:
-    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei',
-    'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif;
+    var(--font-sans-custom, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Microsoft YaHei', 'Noto Sans SC', 'Helvetica Neue', Arial, sans-serif;
   --font-mono:
-    'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', 'Menlo', 'Liberation Mono',
-    'Courier New', monospace;
+    var(--font-mono-custom, 'JetBrains Mono'), 'Fira Code', 'Cascadia Code', 'Consolas', 'Menlo',
+    'Liberation Mono', 'Courier New', monospace;
   --font-display: var(--font-sans);
 
   /* --- Typography Size (1.25 ratio) --- */

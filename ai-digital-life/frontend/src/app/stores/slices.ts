@@ -144,3 +144,6 @@ export { type ReferenceSlice, createReferenceSlice } from './slices/referenceSli
 
 // Durable 切片
 export { type DurableSlice, createDurableSlice } from './slices/durableSlice';
+
+// Toast 切片（全局通知）
+export { type ToastSlice, createToastSlice } from './slices/toastSlice';

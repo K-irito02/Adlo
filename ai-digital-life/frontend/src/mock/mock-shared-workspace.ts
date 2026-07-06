@@ -96,6 +96,8 @@ export const appInfo: AppInfo = {
     themeMode: "system" as const,
     resolvedTheme: "light" as const,
     logLevel: "info" as const,
+    terminalLogMode: "overwrite" as const,
+    debugLogMode: "overwrite" as const,
     maxRecentWorkspaces: 10,
     modelPreferences: {
       providers: {
@@ -110,7 +112,9 @@ export const appInfo: AppInfo = {
           modelId: "MiniMax-M2.7"
         }
       }
-    }
+    },
+    keybinds: {},
+    fonts: {}
   },
   currentWorkspace: {
     id: "workspace-mock-1",

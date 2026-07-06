@@ -70,6 +70,7 @@ import type { CompactionSlice } from './slices/compactionSlice';
 import type { WebToolsSlice } from './slices/webToolsSlice';
 import type { ReferenceSlice } from './slices/referenceSlice';
 import type { DurableSlice } from './slices/durableSlice';
+import type { ToastSlice } from './slices/toastSlice';
 import type { ReferenceConfig } from '@shared/ipc';
 import type {
   McpServerConfig,
@@ -124,7 +125,8 @@ interface StoreStateBase
     McpSlice,
     ProviderSlice,
     ReferenceSlice,
-    DurableSlice {
+    DurableSlice,
+    ToastSlice {
   loading: boolean;
   error?: string;
   isFetching: Record<string, boolean>;

@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import type { SettingItem } from '@ai-digital-life/kernel';
 import { useTCopy } from '../../i18n/useTCopy';
-import { IconEye, IconEyeOff } from '../../icons';
+import type { CopyDict } from '../../i18n';
+import { IconEye, IconEyeOff, IconRefreshCw } from '../../icons';
+import { FontControl } from './FontControl';
+import { getDefaultForSetting } from '../../../shared/defaultPreferences';
 
 interface SettingsControlsProps {
   items: SettingItem[];
@@ -59,19 +62,62 @@ function SelectControl({ item, onChange }: { item: SettingItem; onChange: (v: st
   );
 }
 
-function InputControl({ item, onChange }: { item: SettingItem; onChange: (v: string) => void }) {
+export function InputControl({
+  item,
+  onChange,
+}: {
+  item: SettingItem;
+  onChange: (v: string) => void;
+}) {
+  const [localValue, setLocalValue] = useState(String(item.value));
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setLocalValue(String(item.value));
+  }, [item.value]);
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const next = e.target.value;
+    setLocalValue(next);
+    if (item.type === 'readonly') {
+      return;
+    }
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(() => {
+      onChange(next);
+    }, 500);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <input
       type="text"
       className="adl-settings-input"
-      value={String(item.value)}
+      value={localValue}
       readOnly={item.type === 'readonly'}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={handleChange}
     />
   );
 }
 
-function PasswordControl({ item, onChange }: { item: SettingItem; onChange: (v: string) => void }) {
+function PasswordControl({
+  item,
+  onChange,
+  t,
+}: {
+  item: SettingItem;
+  onChange: (v: string) => void;
+  t: CopyDict;
+}) {
   const [visible, setVisible] = React.useState(false);
   return (
     <div className="adl-settings-password">
@@ -85,7 +131,7 @@ function PasswordControl({ item, onChange }: { item: SettingItem; onChange: (v: 
         type="button"
         className="adl-icon-btn adl-icon-btn--xs"
         onClick={() => setVisible((v) => !v)}
-        aria-label="Toggle visibility"
+        aria-label={t.settingsToggleVisibility}
       >
         {visible ? <IconEyeOff size={14} decorative /> : <IconEye size={14} decorative />}
       </button>
@@ -101,31 +147,54 @@ export function SettingsControls({ items, onChange, searchQuery }: SettingsContr
 
   return (
     <div className="adl-settings-controls">
-      {items.map((item) => (
-        <div key={item.id} className="adl-settings-row">
-          <div className="adl-settings-row__label">
-            <span>{highlightMatch(item.label, searchQuery ?? '')}</span>
-            {item.description && (
-              <small>{highlightMatch(item.description, searchQuery ?? '')}</small>
+      {items.map((item) => {
+        const defaultValue = getDefaultForSetting(item.id);
+        const canReset = item.type !== 'readonly' && defaultValue !== undefined;
+        return (
+          <div key={item.id} className="adl-settings-row">
+            <div className="adl-settings-row__label">
+              <span>{highlightMatch(item.label, searchQuery ?? '')}</span>
+              {item.description && (
+                <small>{highlightMatch(item.description, searchQuery ?? '')}</small>
+              )}
+            </div>
+            <div className="adl-settings-row__control">
+              {item.type === 'toggle' && (
+                <ToggleControl item={item} onChange={(v) => onChange(item.id, v)} />
+              )}
+              {item.type === 'select' && (
+                <SelectControl item={item} onChange={(v) => onChange(item.id, v)} />
+              )}
+              {item.type === 'input' && (
+                <InputControl item={item} onChange={(v) => onChange(item.id, v)} />
+              )}
+              {item.type === 'password' && (
+                <PasswordControl item={item} onChange={(v) => onChange(item.id, v)} t={t} />
+              )}
+              {item.type === 'readonly' && <InputControl item={item} onChange={() => {}} />}
+              {item.type === 'font' && (
+                <FontControl
+                  item={item}
+                  cssVar={item.cssVar ?? '--font-sans-custom'}
+                  onChange={(v) => onChange(item.id, v)}
+                  t={t}
+                />
+              )}
+            </div>
+            {canReset && (
+              <button
+                type="button"
+                className="adl-settings-row__reset"
+                aria-label={t.settingsResetToDefault}
+                title={t.settingsResetToDefault}
+                onClick={() => onChange(item.id, defaultValue)}
+              >
+                <IconRefreshCw size={14} decorative />
+              </button>
             )}
           </div>
-          <div className="adl-settings-row__control">
-            {item.type === 'toggle' && (
-              <ToggleControl item={item} onChange={(v) => onChange(item.id, v)} />
-            )}
-            {item.type === 'select' && (
-              <SelectControl item={item} onChange={(v) => onChange(item.id, v)} />
-            )}
-            {item.type === 'input' && (
-              <InputControl item={item} onChange={(v) => onChange(item.id, v)} />
-            )}
-            {item.type === 'password' && (
-              <PasswordControl item={item} onChange={(v) => onChange(item.id, v)} />
-            )}
-            {item.type === 'readonly' && <InputControl item={item} onChange={() => {}} />}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

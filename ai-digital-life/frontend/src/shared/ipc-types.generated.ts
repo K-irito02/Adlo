@@ -28,11 +28,19 @@ commands: Array<CommandConfig>,
 /**
  * Permission ruleset configuration.
  */
-permissions: PermissionRulesetConfig, };
+permissions: PermissionRulesetConfig, 
+/**
+ * User-defined keyboard shortcuts (command ID → keybinding string).
+ */
+keybinds: { [key in string]?: string }, 
+/**
+ * User-defined font preferences.
+ */
+fonts: FontPreferences, };
 
 export type AppInfo = { appName: string, version: string, config: ConfigSnapshot, currentWorkspace: WorkspaceMeta | null, recentLogs: Array<LogEntrySummary>, };
 
-export type AppPreferencePatch = { language: string | null, themeMode: ThemeMode | null, logLevel: string | null, terminalLogMode: LogMode | null, debugLogMode: LogMode | null, modelPreferences: { [key in ModelProviderId]?: ModelProviderPreferencePatch } | null, };
+export type AppPreferencePatch = { language?: string, themeMode?: ThemeMode, logLevel?: string, terminalLogMode?: LogMode, debugLogMode?: LogMode, modelPreferences?: { [key in ModelProviderId]?: ModelProviderPreferencePatch }, keybinds?: { [key in string]?: string }, fonts?: FontPreferences, };
 
 export type ApprovalDecision = "approved" | "rejected" | "timeout";
 
@@ -74,7 +82,7 @@ export type CommandRunResult = { status: string, taskId: string, request: Comman
 
 export type CommandRunStreamStart = { "mode": "started", executionId: string, taskId: string, request: CommandRequest, } | { "mode": "waitingApproval", taskId: string, request: CommandRequest, approvalRequest: ApprovalRequestSummary, };
 
-export type ConfigSnapshot = { language: string, themeMode: ThemeMode, resolvedTheme: Theme, logLevel: string, terminalLogMode: LogMode, debugLogMode: LogMode, maxRecentWorkspaces: number, modelPreferences: ModelPreferences, };
+export type ConfigSnapshot = { language: string, themeMode: ThemeMode, resolvedTheme: Theme, logLevel: string, terminalLogMode: LogMode, debugLogMode: LogMode, maxRecentWorkspaces: number, modelPreferences: ModelPreferences, keybinds: { [key in string]?: string }, fonts: FontPreferences, };
 
 /**
  * 后端侧 ConfigTransform（序列化格式）。
@@ -114,6 +122,11 @@ export type EventDiagnostics = { emitted: number, byType: { [key in string]?: nu
 export type FileOutlineItem = { id: string, label: string, kind: string, line: number, endLine?: number, depth?: number, };
 
 export type FilePatch = { id: string, patchSetId: string, relativePath: string, language: string | null, beforeContent: string, afterContent: string, beforeHash: string, hunks: Array<PatchHunk>, };
+
+/**
+ * User-defined font preferences. All fields optional — `None` means "use default".
+ */
+export type FontPreferences = { uiFont?: string, codeFont?: string, terminalFont?: string, };
 
 export type GitBranchSummary = { name: string, isCurrent: boolean, };
 
@@ -156,7 +169,7 @@ export type ModelProviderId = "deepseek" | "minimax" | "openai" | "anthropic" | 
 
 export type ModelProviderPreference = { enabled: boolean, priority: number, modelId: string, };
 
-export type ModelProviderPreferencePatch = { enabled: boolean | null, priority: number | null, modelId: string | null, };
+export type ModelProviderPreferencePatch = { enabled?: boolean, priority?: number, modelId?: string, };
 
 export type ModelResponse = { providerId: ModelProviderId, modelId: string, content: string, synthetic: boolean, requestId: string | null, usage: ModelTokenUsage | null, route: ModelRouteDecision | null, };
 

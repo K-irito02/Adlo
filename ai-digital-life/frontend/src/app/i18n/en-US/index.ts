@@ -22,6 +22,7 @@ import { pluginEn } from './plugin';
 import { referenceEn } from './reference';
 import { customAgentEn } from './customAgent';
 import { durableEn } from './durable';
+import { settingsEn } from './settings';
 
 export const enUS = {
   ...menuEn,
@@ -48,4 +49,5 @@ export const enUS = {
   ...referenceEn,
   ...customAgentEn,
   ...durableEn,
+  ...settingsEn,
 } as const;

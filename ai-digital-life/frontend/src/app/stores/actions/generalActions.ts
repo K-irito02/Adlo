@@ -1,16 +1,21 @@
 import type { StoreState } from '../StoreState';
 import type {
-  AppPreferencePatch,
   ConversationMessageRecord,
   ConversationBlock,
   GitSnapshot,
 } from '@ai-digital-life/kernel';
+import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
 import { asWorkspaceID } from '../../../shared/branded';
 import { themeController } from '@utils/theme';
 import { createEditorTab } from '@utils/editorTabs';
 import { loadConversationState, loadTaskCenterState } from '../loaders';
 import { workspaceContextModeFromInfo } from '../conversationUtils';
-import { workspaceRequestSeq, queueLowPriorityRefresh } from '../shared';
+import {
+  workspaceRequestSeq,
+  queueLowPriorityRefresh,
+  clearError,
+  captureTypedError,
+} from '../shared';
 import { resolveCurrentTheme } from '@shared/resolveTheme';
 import type { StoreApi } from 'zustand';
 
@@ -192,24 +197,36 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
      * @see preview-bridge/index.ts → app.updatePreferences, app.getModelHealth
      */
     updatePreferences: async (patch: AppPreferencePatch) => {
-      const result = await window.digitalLife.app.updatePreferences(patch);
-      if (!result.ok) {
-        set({ error: result.error.message });
+      const key = 'updatePreferences';
+      if (get().isFetching[key]) {
         return;
       }
-      const responseMode = result.data.config.themeMode;
-      themeController.setTheme({ mode: responseMode });
-      themeController.hydrate();
-      // result.data from Rust backend has stale resolvedTheme for system mode
-      // (build_app_info hardcodes Theme::Light for ThemeMode::System).
-      // Fix it here for store consistency.
-      result.data.config.resolvedTheme = resolveCurrentTheme(responseMode);
-      set((state: StoreState) => ({
-        appInfo: result.data,
-        sessions: state.sessions,
-      }));
-      if (patch.modelPreferences) {
-        await get().refreshModelHealth();
+      clearError(get);
+      set({ isFetching: { ...get().isFetching, [key]: true } });
+      try {
+        const result = await window.digitalLife.app.updatePreferences(patch);
+        if (!result.ok) {
+          captureTypedError(get, result.error);
+          return;
+        }
+        const responseMode = result.data.config.themeMode;
+        themeController.setTheme({ mode: responseMode });
+        themeController.hydrate();
+        // result.data from Rust backend has stale resolvedTheme for system mode
+        // (build_app_info hardcodes Theme::Light for ThemeMode::System).
+        // Fix it here for store consistency.
+        result.data.config.resolvedTheme = resolveCurrentTheme(responseMode);
+        set((state: StoreState) => ({
+          appInfo: result.data,
+          sessions: state.sessions,
+        }));
+        if (patch.modelPreferences) {
+          await get().refreshModelHealth();
+        }
+      } catch (error) {
+        captureTypedError(get, error);
+      } finally {
+        set({ isFetching: { ...get().isFetching, [key]: false } });
       }
     },
   };

@@ -17,6 +17,7 @@ const RightPanel = lazy(() =>
 );
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
+import { ToastContainer } from './components/Toast';
 import { asSessionID } from '../shared/branded';
 
 export function App() {
@@ -31,6 +32,8 @@ export function App() {
   );
   const actions = useAppActions();
   const setActiveRightTool = useAppStore((s) => s.setActiveRightTool);
+  const toasts = useAppStore((s) => s.toasts);
+  const removeToast = useAppStore((s) => s.removeToast);
 
   useDragDropWorkspace(actions);
 
@@ -69,8 +72,6 @@ export function App() {
   const [createWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
 
-  useKeyboardShortcuts(setNewSessionDialogOpen, setCreateWorkspaceModalOpen);
-
   const handleTriggerCreateWorkspace = useCallback(() => {
     setCreateWorkspaceModalOpen(true);
   }, []);
@@ -86,6 +87,13 @@ export function App() {
   const handleOpenSettings = useCallback(() => {
     setActiveRightTool('settings');
   }, [setActiveRightTool]);
+
+  useKeyboardShortcuts({
+    openNewSessionDialog: () => setNewSessionDialogOpen(true),
+    openCreateWorkspaceDialog: () => setCreateWorkspaceModalOpen(true),
+    openWorkspace: handleOpenFolder,
+    openSettings: handleOpenSettings,
+  });
 
   const handleOpenCommandPalette = useCallback(() => {
     setActiveRightTool('files');
@@ -173,6 +181,7 @@ export function App() {
           onCancel={() => setNewSessionDialogOpen(false)}
         />
       </main>
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </TCopyProvider>
   );
 }

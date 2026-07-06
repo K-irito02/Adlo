@@ -58,6 +58,9 @@ const props = useAppStore((s) => ({
   d: s.d,
   // ... 10+ 字段
 }));
+
+// ❌ ?? {} 字面量回退 — 每次渲染创建新对象，触发 useSyncExternalStore 无限循环
+const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds ?? {});
 ```
 
 ### 正确示例（推荐模式）
@@ -75,6 +78,10 @@ const { browserTabs, browserActiveTabId } = useAppStore(
 
 // ✅ 非响应式读取（回调中）
 const profile = useAppStore.getState().defaultTerminalProfile;
+
+// ✅ ?? 回退使用模块级常量 — 始终返回同一引用
+const EMPTY_OBJ: Record<string, string | undefined> = {};
+const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds ?? EMPTY_OBJ);
 ```
 
 ### 选择器优化审查清单（每次修改组件后）
@@ -83,9 +90,11 @@ const profile = useAppStore.getState().defaultTerminalProfile;
 - [ ] 是否选择了不必要的 slice 级别字段？
 - [ ] 回调闭包内是否应改用 `getState()`？
 - [ ] 频繁更新的字段（如 `isFetching`）是否与低频字段分离？
+- [ ] selector 中是否存在 `?? {}` / `?? []` 字面量回退？
 
 ## 禁止项
 - 禁止 `set: any` 类型
 - 禁止在组件渲染路径中直接调用 `localStorage.setItem()`
 - 禁止 `useAppStore((s) => ({ ... }))` 对象展开选择器
 - 禁止 selector 返回新创建的对象或数组（每次渲染都触发更新）
+- 禁止 selector 中使用 `?? {}` / `?? []` 等字面量回退值（每次渲染创建新引用，导致 `useSyncExternalStore` 无限循环）

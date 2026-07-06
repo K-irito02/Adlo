@@ -118,6 +118,8 @@ mod tests {
                 debug_log_mode: LogMode::default(),
                 max_recent_workspaces: 10,
                 model_preferences: ModelPreferences::default(),
+                keybinds: std::collections::BTreeMap::new(),
+                fonts: crate::types::config::FontPreferences::default(),
             },
             current_workspace: None,
             recent_logs: vec![],

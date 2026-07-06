@@ -126,6 +126,20 @@ pub fn app_update_preferences(
                     }
                 }
             }
+            if let Some(keybinds) = patch.keybinds {
+                config.keybinds = keybinds;
+            }
+            if let Some(fonts) = patch.fonts {
+                if let Some(ui) = fonts.ui_font {
+                    config.fonts.ui_font = Some(ui);
+                }
+                if let Some(code) = fonts.code_font {
+                    config.fonts.code_font = Some(code);
+                }
+                if let Some(term) = fonts.terminal_font {
+                    config.fonts.terminal_font = Some(term);
+                }
+            }
         }
 
         crate::setup::save_config(&state).map_err(|e| AppError::Config(e.to_string()))?;
@@ -164,6 +178,8 @@ pub fn build_app_info(state: &AppState) -> Result<AppInfo, AppError> {
             debug_log_mode: config.debug_log_mode,
             max_recent_workspaces: config.max_recent_workspaces,
             model_preferences: config.model_preferences.clone(),
+            keybinds: config.keybinds.clone(),
+            fonts: config.fonts.clone(),
         },
         current_workspace,
         recent_logs: vec![LogEntrySummary {

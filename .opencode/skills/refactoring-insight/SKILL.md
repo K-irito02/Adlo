@@ -71,45 +71,14 @@ description: Use when scanning a project for refactoring opportunities, code qua
 
 #### 准备工作树
 
-```powershell
-cd <repo-root>/ai-digital-life
-git checkout main
+基于本次对话上下文，由 Agent 自行判断 worktree 当前状态并执行相应操作：
 
-# 检查本地分支是否存在
-$existsLocally = git branch --list refactor-insight-main
-
-# 检查 worktree 目录是否存在
-$wtExists = Test-Path -LiteralPath ".worktrees/refactor-insight-main"
-
-if ($wtExists) {
-  # 情况 A：worktree 已存在 → 重置为本地 main
-  git branch -f refactor-insight-main main
-  cd .worktrees/refactor-insight-main/ai-digital-life
-  git checkout refactor-insight-main
-  cd <repo-root>/ai-digital-life
-  git push -f origin refactor-insight-main
-} else {
-  # 情况 B：worktree 不存在 → 创建
-  git branch -f refactor-insight-main main
-  git push -f origin refactor-insight-main
-  git worktree add .worktrees/refactor-insight-main refactor-insight-main
-}
-
-# 进入工作树根目录，后续所有阶段在该目录下执行
-cd .worktrees/refactor-insight-main
-```
-
-如果 worktree 目录存在但 `ai-digital-life` 子目录已被清理，需先清理 worktree 元数据再走情况 B：
-
-```powershell
-cd <repo-root>/ai-digital-life
-git worktree remove .worktrees/refactor-insight-main 2>$null
-Remove-Item -Recurse -Force .worktrees/refactor-insight-main -ErrorAction SilentlyContinue
-git worktree prune
-git branch -f refactor-insight-main main
-git push -f origin refactor-insight-main
-git worktree add .worktrees/refactor-insight-main refactor-insight-main
-```
+- 检查 `refactor-insight-main` 分支和 `.worktrees/refactor-insight-main` 目录是否存在
+- 若 worktree 已存在，重置为本地 `main` 的当前状态
+- 若不存在，创建分支并添加 worktree
+- 若目录受损或 `ai-digital-life` 子目录已被清理，先清理 worktree 元数据再重新创建
+- 进入工作树根目录后，后续所有阶段在该目录下执行
+- 完成后将分支推送到远程保留
 
 ### Worktree 重运行常见问题
 
@@ -192,11 +161,7 @@ git worktree add .worktrees/refactor-insight-main refactor-insight-main
 ## 3️⃣ 生成洞察报告
 
 ### 输出文件
-`docs/重构洞察/refactor-insight-YYYY-MM-DD.md`（目录不存在则自动创建，也可提前手动创建）
-
-```powershell
-New-Item -ItemType Directory -Path "docs/重构洞察" -Force
-```
+`docs/重构洞察/refactor-insight-YYYY-MM-DD.md`（确保输出目录存在，不存在则创建）
 
 ### 报告结构
 ```markdown
@@ -319,13 +284,7 @@ test-driven-development → 执行变更 → 验证 → requesting-code-review �
 
 #### 生成方法
 
-在工作树根目录（`cd <repo-root>/ai-digital-life/.worktrees/refactor-insight-main`），执行以下命令获取变更集：
-
-```powershell
-git diff --stat main...refactor-insight-main
-```
-
-三点语法（`...`）将重构分支与 main 分岔点的内容进行比较，捕获该分支的完整增量。基于输出的文件列表，按映射表规则匹配：
+基于本次重构分支的变更集，由 Agent 自行确定合适的 diff 命令（如三点语法 `main...refactor-insight-main` 捕获分支完整增量），获取变更文件列表后按映射表规则匹配：
 
 | 文件路径规则 | 涉及功能模块 | 需手动验证的 UI/UX 区域 |
 |-------------|-------------|----------------------|
@@ -421,41 +380,18 @@ git diff --stat main...refactor-insight-main
 
 将所有重构任务的**最终代码状态**作为一次变更合并到本地 `main` 分支，然后将重构分支推送到远程以保留完整历史，供后续复盘查看。
 
-```powershell
-# 1. 收集重构分支的所有提交信息（用于编写 commit message）
-cd <repo-root>/ai-digital-life
-git log main..refactor-insight-main --oneline --no-decorate
+由 Agent 自行判断并执行以下操作：
 
-# 2. 切换到主仓库的 main 分支
-cd <repo-root>/ai-digital-life
-git checkout main
-
-# 3. Squash 合并：将重构分支的最终代码状态作为一次变更暂存
-git merge --squash refactor-insight-main
-
-# 4. 提交合并，commit message 需包含本次所有重构工作的概要信息
-#    格式示例：
-#    refactor: 第 N 轮重构 — [核心改动摘要]
-#
-#    ## 重构提交清单
-#    - <commit-hash1> <commit-subject1>
-#    - <commit-hash2> <commit-subject2>
-#    - ...
-#
-#    ## 核心改动
-#    - (列出主要变更点)
-git commit
-
-# 5. 将重构分支（含全部原始提交历史）推送到远程，保留完整工作记录
-#    注意：这条分支在下次执行前会被 Stage 0 重置为本地 main 的状态
-git push origin refactor-insight-main
-```
+1. **收集提交信息**：获取重构分支的所有提交记录（`main..refactor-insight-main`），用于编写 commit message
+2. **切换到 main 分支**：切换到主仓库的本地 `main` 分支
+3. **Squash 合并**：将重构分支的最终代码状态作为一次变更暂存（`git merge --squash`）
+4. **提交合并**：commit message 需结构化，首行为重构轮次与核心摘要，正文分段列出所有提交记录和核心改动说明
+5. **推送重构分支到远程**：保留全部原始提交历史，供后续复盘
 
 **注意：**
 - **不推送本地 main 到远程** — main 的合并结果留给用户亲手测试后自行决定推送时机
 - `git merge --squash` 不会保留重构分支的每个 commit 历史，main 上只产生一个 commit
-- commit message 需结构化：首行为重构轮次与核心摘要，正文分段列出所有提交记录和核心改动说明
-- 重构分支推送到远程后，下次执行 Stage 0 的"复用已有 Worktree"流程会将其重置为本地 main 的最新状态
+- 重构分支推送到远程后，下次执行 Stage 0 会被重置为本地 main 的最新状态
 
 ---
 

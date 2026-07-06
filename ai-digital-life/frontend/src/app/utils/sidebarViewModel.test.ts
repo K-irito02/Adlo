@@ -78,6 +78,8 @@ describe('buildSidebarViewModel', () => {
         themeMode: 'system',
         resolvedTheme: 'light',
         logLevel: 'info',
+        terminalLogMode: 'overwrite',
+        debugLogMode: 'overwrite',
         maxRecentWorkspaces: 10,
         modelPreferences: {
           providers: {
@@ -85,6 +87,8 @@ describe('buildSidebarViewModel', () => {
             minimax: { enabled: true, priority: 2, modelId: 'MiniMax-M2.7' },
           },
         },
+        keybinds: {},
+        fonts: {},
       },
       currentWorkspace: {
         id: 'workspace_live',

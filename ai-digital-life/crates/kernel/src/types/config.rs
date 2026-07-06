@@ -164,22 +164,48 @@ impl Default for ModelPreferences {
 #[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct AppPreferencePatch {
+    #[ts(optional)]
     pub language: Option<String>,
+    #[ts(optional)]
     pub theme_mode: Option<ThemeMode>,
+    #[ts(optional)]
     pub log_level: Option<String>,
+    #[ts(optional)]
     pub terminal_log_mode: Option<LogMode>,
+    #[ts(optional)]
     pub debug_log_mode: Option<LogMode>,
+    #[ts(optional)]
     pub model_preferences:
         Option<std::collections::BTreeMap<ModelProviderId, ModelProviderPreferencePatch>>,
+    #[ts(optional)]
+    pub keybinds: Option<std::collections::BTreeMap<String, String>>,
+    #[ts(optional)]
+    pub fonts: Option<FontPreferences>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct ModelProviderPreferencePatch {
+    #[ts(optional)]
     pub enabled: Option<bool>,
+    #[ts(optional)]
     pub priority: Option<i32>,
+    #[ts(optional)]
     pub model_id: Option<String>,
+}
+
+/// User-defined font preferences. All fields optional — `None` means "use default".
+#[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+#[serde(rename_all = "camelCase")]
+pub struct FontPreferences {
+    #[ts(optional)]
+    pub ui_font: Option<String>,
+    #[ts(optional)]
+    pub code_font: Option<String>,
+    #[ts(optional)]
+    pub terminal_font: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -194,6 +220,8 @@ pub struct ConfigSnapshot {
     pub debug_log_mode: LogMode,
     pub max_recent_workspaces: usize,
     pub model_preferences: ModelPreferences,
+    pub keybinds: std::collections::BTreeMap<String, String>,
+    pub fonts: FontPreferences,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

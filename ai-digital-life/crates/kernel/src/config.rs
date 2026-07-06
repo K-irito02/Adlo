@@ -35,6 +35,12 @@ pub struct AppConfig {
     #[serde(default)]
     #[ts(skip)]
     pub custom_agents: Vec<AgentConfig>,
+    /// User-defined keyboard shortcuts (command ID → keybinding string).
+    #[serde(default)]
+    pub keybinds: std::collections::BTreeMap<String, String>,
+    /// User-defined font preferences.
+    #[serde(default)]
+    pub fonts: crate::types::config::FontPreferences,
 }
 
 impl Default for AppConfig {
@@ -51,6 +57,8 @@ impl Default for AppConfig {
             permissions: PermissionRulesetConfig::default(),
             references: Vec::new(),
             custom_agents: Vec::new(),
+            keybinds: std::collections::BTreeMap::new(),
+            fonts: crate::types::config::FontPreferences::default(),
         }
     }
 }
@@ -138,6 +146,8 @@ mod config_extension_tests {
             permissions: crate::PermissionRulesetConfig::default(),
             references: vec![],
             custom_agents: vec![],
+            keybinds: std::collections::BTreeMap::new(),
+            fonts: crate::types::config::FontPreferences::default(),
         };
         assert_eq!(config.commands.len(), 1);
         assert_eq!(config.commands[0].name, "deploy");

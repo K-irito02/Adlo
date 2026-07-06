@@ -2,7 +2,7 @@ import type {
   AppPreferencePatch,
   ConfigSnapshot,
   ModelProviderPreference,
-} from '@ai-digital-life/kernel';
+} from './ipc-types.generated';
 import { resolveCurrentTheme } from './resolveTheme';
 
 export function applyPreferencePatch(
@@ -20,6 +20,15 @@ export function applyPreferencePatch(
   } else if (nextConfig.themeMode === 'system') {
     nextConfig.resolvedTheme = resolveCurrentTheme('system');
   }
+  if (patch.logLevel) {
+    nextConfig.logLevel = patch.logLevel;
+  }
+  if (patch.terminalLogMode) {
+    nextConfig.terminalLogMode = patch.terminalLogMode;
+  }
+  if (patch.debugLogMode) {
+    nextConfig.debugLogMode = patch.debugLogMode;
+  }
   if (patch.modelPreferences) {
     const nextProviders = { ...nextConfig.modelPreferences.providers };
     for (const [providerId, providerPatch] of Object.entries(patch.modelPreferences) as [
@@ -27,16 +36,29 @@ export function applyPreferencePatch(
       Partial<ModelProviderPreference>,
     ][]) {
       const key = providerId as keyof typeof nextProviders;
-      if (key in nextProviders) {
+      const existing = nextProviders[key];
+      if (existing) {
         nextProviders[key] = {
-          ...nextProviders[key],
-          ...providerPatch,
+          enabled: providerPatch.enabled ?? existing.enabled,
+          priority: providerPatch.priority ?? existing.priority,
+          modelId: providerPatch.modelId ?? existing.modelId,
         };
       }
     }
     nextConfig.modelPreferences = {
       ...nextConfig.modelPreferences,
       providers: nextProviders,
+    };
+  }
+  if (patch.keybinds) {
+    nextConfig.keybinds = { ...patch.keybinds };
+  }
+  if (patch.fonts) {
+    nextConfig.fonts = {
+      ...nextConfig.fonts,
+      ...(patch.fonts.uiFont !== undefined ? { uiFont: patch.fonts.uiFont } : {}),
+      ...(patch.fonts.codeFont !== undefined ? { codeFont: patch.fonts.codeFont } : {}),
+      ...(patch.fonts.terminalFont !== undefined ? { terminalFont: patch.fonts.terminalFont } : {}),
     };
   }
 

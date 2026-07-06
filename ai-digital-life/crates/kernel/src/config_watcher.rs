@@ -84,6 +84,8 @@ mod tests {
             permissions: Default::default(),
             references: vec![],
             custom_agents: vec![],
+            keybinds: std::collections::BTreeMap::new(),
+            fonts: crate::types::config::FontPreferences::default(),
         }
     }
 

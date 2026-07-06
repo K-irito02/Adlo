@@ -13,21 +13,21 @@
 .adl-settings-panel__header h3 {
   flex: 1;
   margin: 0;
-  font-size: var(--font-size-base);
+  font-size: var(--text-base);
 }
 .adl-settings-panel__search {
   display: flex;
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
-  background: var(--bg-elevated);
+  background: var(--surface-raised);
   border-radius: var(--radius-sm);
 }
 .adl-settings-panel__search-input {
   background: none;
   border: none;
   color: var(--text-primary);
-  font-size: var(--font-size-xs);
+  font-size: var(--text-xs);
   outline: none;
   width: 140px;
 }
@@ -62,16 +62,16 @@
   border: none;
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   cursor: pointer;
   text-align: left;
 }
 .adl-settings-nav__item:hover {
-  background: var(--bg-hover);
+  background: var(--surface-hover);
   color: var(--text-primary);
 }
 .adl-settings-nav__item.is-active {
-  background: var(--bg-active);
+  background: var(--surface-active);
   color: var(--text-primary);
   font-weight: 600;
 }
@@ -93,12 +93,12 @@
   flex: 1;
 }
 .adl-settings-row__label span {
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   font-weight: 500;
 }
 .adl-settings-row__label small {
   display: block;
-  font-size: var(--font-size-xs);
+  font-size: var(--text-xs);
   color: var(--text-muted);
   margin-top: 2px;
 }
@@ -112,6 +112,10 @@
   cursor: pointer;
   padding: 0;
 }
+.adl-settings-toggle:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
 .adl-settings-toggle__track {
   display: block;
   width: 36px;
@@ -119,7 +123,7 @@
   border-radius: 10px;
   background: var(--border-default);
   position: relative;
-  transition: background 0.2s;
+  transition: var(--transition-colors);
 }
 .adl-settings-toggle.is-on .adl-settings-toggle__track {
   background: var(--accent);
@@ -131,8 +135,8 @@
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: white;
-  transition: transform 0.2s;
+  background: var(--text-inverse);
+  transition: var(--transition-transform);
 }
 .adl-settings-toggle.is-on .adl-settings-toggle__thumb {
   transform: translateX(16px);
@@ -140,19 +144,19 @@
 
 .adl-settings-select {
   padding: var(--space-1) var(--space-2);
-  background: var(--bg-elevated);
+  background: var(--surface-raised);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
 }
 .adl-settings-input {
   padding: var(--space-1) var(--space-2);
-  background: var(--bg-elevated);
+  background: var(--surface-raised);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   width: 200px;
 }
 .adl-settings-password {
@@ -163,4 +167,224 @@
 .adl-settings-highlight {
   background: color-mix(in srgb, var(--accent) 25%, transparent);
   border-radius: 2px;
+}
+
+.adl-settings-nav__item:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-settings-panel__search-input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-settings-font {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 200px;
+}
+
+.adl-settings-font__input {
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+}
+
+.adl-settings-font__preview {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-raised);
+  border-radius: var(--radius-sm);
+}
+
+.adl-settings-reset-all {
+  padding: var(--space-1) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-settings-reset-all:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.adl-settings-reset-all:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-settings-row__reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-settings-row__reset:hover {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+}
+
+.adl-settings-row__reset:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-settings-keybinds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.adl-settings-keybinds__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.adl-settings-keybinds__header h3 {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-wide);
+}
+
+.adl-settings-keybinds__search {
+  padding: var(--space-1) var(--space-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  width: 180px;
+}
+
+.adl-settings-keybinds__search:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-settings-keybinds__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.adl-settings-keybinds__group-title {
+  margin: 0 0 var(--space-1) 0;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-wide);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.adl-settings-keybinds__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.adl-settings-keybinds__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.adl-settings-keybinds__row:last-child {
+  border-bottom: none;
+}
+
+.adl-settings-keybinds__label {
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.adl-settings-keybind {
+  padding: var(--space-1) var(--space-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono, monospace);
+  cursor: pointer;
+  transition: var(--transition-colors);
+  min-width: 80px;
+  text-align: center;
+}
+
+.adl-settings-keybind:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent-strong);
+  color: var(--text-primary);
+}
+
+.adl-settings-keybind:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-settings-keybind.is-recording {
+  background: var(--accent-soft);
+  border-color: var(--accent-strong);
+  color: var(--accent-strong);
+  font-weight: var(--font-semibold);
+}
+
+.adl-settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.adl-settings-header__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.adl-settings-header__title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.adl-settings-header__desc {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.adl-settings-header__action {
+  flex-shrink: 0;
 }

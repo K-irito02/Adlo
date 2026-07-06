@@ -17,6 +17,7 @@ export interface ToastData {
   message: string;
   type?: ToastType;
   source?: string;
+  duration?: number;
 }
 
 const TOAST_BASE_TOP = 24;
@@ -105,6 +106,7 @@ export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
           key={toast.id}
           message={toast.message}
           type={toast.type}
+          duration={toast.duration}
           position={positionMap.get(toast.id)}
           onClose={() => onRemove(toast.id)}
         />

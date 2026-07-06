@@ -19,4 +19,9 @@ export const MODEL_OPTIONS: Record<ModelProviderId, ModelOption[]> = {
     { id: 'MiniMax-M2.7', label: 'MiniMax-M2.7' },
     { id: 'MiniMax-M2.5', label: 'MiniMax-M2.5' },
   ],
+  openai: [],
+  anthropic: [],
+  google: [],
+  ollama: [],
+  openrouter: [],
 };

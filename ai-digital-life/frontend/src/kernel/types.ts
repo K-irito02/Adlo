@@ -5,36 +5,24 @@ import type { RiskLevel } from './types-task';
 // Config / Preferences
 // ════════════════════════════════════════════════════════
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+// 本地导入 ConfigSnapshot 供手写 AppInfo 接口引用（re-export 不会把类型引入本地作用域）
+import type { ConfigSnapshot } from '../shared/ipc-types.generated';
+
+// 废弃手写类型，统一使用 ts-rs 生成类型作为真源
+export type {
+  AppPreferencePatch,
+  ConfigSnapshot,
+  ModelProviderPreference,
+  ModelProviderPreferencePatch,
+  ModelProviderId,
+  ThemeMode,
+  Theme,
+  LogMode,
+} from '../shared/ipc-types.generated';
+
 export type ResolvedTheme = 'light' | 'dark';
 export type LanguageCode = 'zh-CN' | 'en-US';
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type ModelProviderId = 'deepseek' | 'minimax';
-
-export interface ModelProviderPreference {
-  enabled: boolean;
-  priority: number;
-  modelId: string;
-}
-
-export interface ModelPreferences {
-  providers: Record<ModelProviderId, ModelProviderPreference>;
-}
-
-export interface AppPreferencePatch {
-  language?: LanguageCode;
-  themeMode?: ThemeMode;
-  modelPreferences?: Partial<Record<ModelProviderId, Partial<ModelProviderPreference>>>;
-}
-
-export interface ConfigSnapshot {
-  language: LanguageCode;
-  themeMode: ThemeMode;
-  resolvedTheme: ResolvedTheme;
-  logLevel: LogLevel;
-  maxRecentWorkspaces: number;
-  modelPreferences: ModelPreferences;
-}
 
 // ════════════════════════════════════════════════════════
 // Window / Workspace
@@ -320,7 +308,6 @@ export interface AuditEntry {
 
 export type SettingsGroupId =
   | 'general'
-  | 'model'
   | 'agent'
   | 'workspace'
   | 'shortcuts'
@@ -337,9 +324,10 @@ export interface SettingItem {
   groupId: SettingsGroupId;
   label: string;
   description?: string;
-  type: 'toggle' | 'select' | 'input' | 'password' | 'readonly';
+  type: 'toggle' | 'select' | 'input' | 'password' | 'readonly' | 'font';
   value: string | boolean | number;
   options?: Array<{ value: string; label: string }>;
+  cssVar?: '--font-sans-custom' | '--font-mono-custom';
 }
 
 export type GitFileStatus =

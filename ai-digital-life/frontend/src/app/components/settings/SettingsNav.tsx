@@ -1,4 +1,4 @@
-import React from 'react';
+import { useRef, type KeyboardEvent } from 'react';
 import type { SettingsGroupId } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
 import { useTCopy } from '../../i18n/useTCopy';
@@ -10,7 +10,6 @@ interface SettingsNavProps {
 
 const GROUPS: Array<{ id: SettingsGroupId; labelKey: keyof CopyDict }> = [
   { id: 'general', labelKey: 'settingsGeneral' },
-  { id: 'model', labelKey: 'settingsModel' },
   { id: 'agent', labelKey: 'settingsAgent' },
   { id: 'workspace', labelKey: 'settingsWorkspace' },
   { id: 'shortcuts', labelKey: 'settingsShortcuts' },
@@ -25,14 +24,47 @@ const GROUPS: Array<{ id: SettingsGroupId; labelKey: keyof CopyDict }> = [
 
 export function SettingsNav({ activeGroup, onSelectGroup }: SettingsNavProps) {
   const { t } = useTCopy();
+  const navRef = useRef<HTMLElement>(null);
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    const currentIndex = GROUPS.findIndex((g) => g.id === activeGroup);
+    if (currentIndex === -1) {
+      return;
+    }
+    let nextIndex: number | null = null;
+    if (e.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % GROUPS.length;
+    } else if (e.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + GROUPS.length) % GROUPS.length;
+    } else if (e.key === 'Home') {
+      nextIndex = 0;
+    } else if (e.key === 'End') {
+      nextIndex = GROUPS.length - 1;
+    }
+    if (nextIndex === null) {
+      return;
+    }
+    e.preventDefault();
+    onSelectGroup(GROUPS[nextIndex].id);
+    const buttons = navRef.current?.querySelectorAll('button');
+    buttons?.[nextIndex]?.focus();
+  };
+
   return (
-    <nav className="adl-settings-nav" aria-label="Settings groups">
+    <nav
+      ref={navRef}
+      className="adl-settings-nav"
+      aria-label={t.settingsTitle}
+      aria-orientation="vertical"
+      onKeyDown={handleKeyDown}
+    >
       <ul>
         {GROUPS.map((group) => (
           <li key={group.id}>
             <button
               type="button"
               className={`adl-settings-nav__item${activeGroup === group.id ? ' is-active' : ''}`}
+              aria-current={activeGroup === group.id ? 'page' : undefined}
               onClick={() => onSelectGroup(group.id)}
             >
               {t[group.labelKey] as string}
