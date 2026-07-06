@@ -92,6 +92,22 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
 
     let config_arc = Arc::new(RwLock::new(config.clone()));
 
+    // Background task: periodic check for crashed durable sessions
+    let recovery_manager = durable_manager.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+            let crashed = recovery_manager.find_crashed_sessions().await;
+            if !crashed.is_empty() {
+                tracing::info!("Found {} crashed durable sessions, initiating recovery", crashed.len());
+                for session in &crashed {
+                    recovery_manager.start_recovery(&session.session_id).await;
+                }
+            }
+        }
+    });
+
     // Create ConfigWatcher and start watching config.json
     let config_watcher = ConfigWatcher::new(config);
     let mut watcher_rx = config_watcher.subscribe();
