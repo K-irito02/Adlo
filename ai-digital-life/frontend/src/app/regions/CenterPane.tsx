@@ -126,14 +126,16 @@ const CenterPane = React.memo(function CenterPane() {
       setLatestSnapshotId(null);
       return;
     }
-    void listSnapshots(workspaceId, workspaceRoot).then((snapshots) => {
-      if (!snapshots.length) {
-        setLatestSnapshotId(null);
-        return;
-      }
-      const latest = snapshots.reduce((a, b) => (a.created_at > b.created_at ? a : b));
-      setLatestSnapshotId(latest.id);
-    });
+    void listSnapshots(workspaceId, workspaceRoot)
+      .then((snapshots) => {
+        if (!snapshots.length) {
+          setLatestSnapshotId(null);
+          return;
+        }
+        const latest = snapshots.reduce((a, b) => (a.created_at > b.created_at ? a : b));
+        setLatestSnapshotId(latest.id);
+      })
+      .catch(() => setLatestSnapshotId(null));
   }, [workspaceId, workspaceRoot, listSnapshots]);
 
   const buttonState: ButtonState = useMemo(() => {

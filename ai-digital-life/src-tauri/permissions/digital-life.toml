@@ -99,5 +99,9 @@ commands.allow = [
   "ci_set_access_token",
   "ci_clear_access_token",
   "ci_has_access_token",
-  "ci_get_job_logs"
+  "ci_get_job_logs",
+  "create_snapshot",
+  "list_snapshots",
+  "revert_to_snapshot_cmd",
+  "prune_snapshots"
 ]
