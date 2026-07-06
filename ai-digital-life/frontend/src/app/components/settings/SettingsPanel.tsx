@@ -6,11 +6,28 @@ import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { SettingsNav } from './SettingsNav';
 import { SettingsControls } from './SettingsControls';
+import { McpSettings } from '../../features/mcp/McpSettings';
+import { CommandSettings } from '../../features/command-editor/CommandSettings';
+import { PermissionSettings } from '../../features/permission-settings/PermissionSettings';
+import { PluginSettings } from '../../features/plugin-manager/PluginSettings';
+import { ReferenceSettings } from '../../features/reference-manager/ReferenceSettings';
+import { ProviderSettings } from '../../features/provider-manager/ProviderSettings';
+import { LspSettings } from '../../features/lsp-panel/LspSettings';
 
 interface SettingsPanelProps {
   settings: SettingItem[];
   onChangeSetting: (id: string, value: string | boolean | number) => void;
 }
+
+const SETTINGS_COMPONENTS: Record<string, React.ComponentType> = {
+  mcp: McpSettings,
+  commands: CommandSettings,
+  permissions: PermissionSettings,
+  plugins: PluginSettings,
+  references: ReferenceSettings,
+  providers: ProviderSettings,
+  lsp: LspSettings,
+};
 
 export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps) {
   const { t } = useTCopy();
@@ -57,7 +74,15 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
           <SettingsNav activeGroup={activeGroup} onSelectGroup={setActiveGroup} />
         )}
         <div className="adl-settings-panel__content">
-          <SettingsControls items={filtered} onChange={onChangeSetting} searchQuery={searchQuery} />
+          {!searchQuery.trim() && activeGroup in SETTINGS_COMPONENTS ? (
+            React.createElement(SETTINGS_COMPONENTS[activeGroup])
+          ) : (
+            <SettingsControls
+              items={filtered}
+              onChange={onChangeSetting}
+              searchQuery={searchQuery}
+            />
+          )}
         </div>
       </div>
     </div>

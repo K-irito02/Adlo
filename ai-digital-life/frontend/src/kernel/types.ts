@@ -318,7 +318,19 @@ export interface AuditEntry {
   detail?: string;
 }
 
-export type SettingsGroupId = 'general' | 'model' | 'agent' | 'workspace' | 'shortcuts';
+export type SettingsGroupId =
+  | 'general'
+  | 'model'
+  | 'agent'
+  | 'workspace'
+  | 'shortcuts'
+  | 'mcp'
+  | 'commands'
+  | 'permissions'
+  | 'plugins'
+  | 'references'
+  | 'providers'
+  | 'lsp';
 
 export interface SettingItem {
   id: string;

@@ -31,4 +31,11 @@ export const modelsEn = {
   settingsExcludeRules: 'Exclude rules',
   settingsIndexDepth: 'Index depth',
   settingsGitIntegration: 'Git integration',
+  settingsMcp: 'MCP',
+  settingsProviders: 'Providers',
+  settingsCommands: 'Commands',
+  settingsPermissions: 'Permissions',
+  settingsPlugins: 'Plugins',
+  settingsReferences: 'References',
+  settingsLsp: 'LSP',
 } as const;

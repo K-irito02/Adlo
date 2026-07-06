@@ -31,4 +31,11 @@ export const modelsZh = {
   settingsExcludeRules: '排除规则',
   settingsIndexDepth: '索引深度',
   settingsGitIntegration: 'Git 集成',
+  settingsMcp: 'MCP',
+  settingsProviders: 'Provider',
+  settingsCommands: '命令',
+  settingsPermissions: '权限',
+  settingsPlugins: '插件',
+  settingsReferences: '引用',
+  settingsLsp: 'LSP',
 } as const;

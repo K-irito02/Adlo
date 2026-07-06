@@ -14,6 +14,13 @@ const GROUPS: Array<{ id: SettingsGroupId; labelKey: keyof CopyDict }> = [
   { id: 'agent', labelKey: 'settingsAgent' },
   { id: 'workspace', labelKey: 'settingsWorkspace' },
   { id: 'shortcuts', labelKey: 'settingsShortcuts' },
+  { id: 'mcp', labelKey: 'settingsMcp' },
+  { id: 'providers', labelKey: 'settingsProviders' },
+  { id: 'commands', labelKey: 'settingsCommands' },
+  { id: 'permissions', labelKey: 'settingsPermissions' },
+  { id: 'plugins', labelKey: 'settingsPlugins' },
+  { id: 'references', labelKey: 'settingsReferences' },
+  { id: 'lsp', labelKey: 'settingsLsp' },
 ];
 
 export function SettingsNav({ activeGroup, onSelectGroup }: SettingsNavProps) {
