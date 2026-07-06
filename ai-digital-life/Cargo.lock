@@ -367,6 +367,7 @@ dependencies = [
  "adl-task",
  "adl-workspace",
  "anyhow",
+ "async-trait",
  "dirs 5.0.1",
  "reqwest",
  "serde",

@@ -41,6 +41,7 @@ reqwest.workspace = true
 url.workspace = true
 uuid.workspace = true
 dirs.workspace = true
+async-trait.workspace = true
 
 [features]
 default = ["custom-protocol"]

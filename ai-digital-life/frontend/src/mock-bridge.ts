@@ -661,6 +661,8 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       ok: true,
       data: undefined,
     }),
+    registerPlugin: async () => ({ ok: true, data: undefined }),
+    unregisterPlugin: async () => ({ ok: true, data: undefined }),
   } satisfies PluginBridge,
 
   reference: {

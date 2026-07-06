@@ -236,6 +236,8 @@ fn main() {
             commands::session_fork::list_session_forks,
             commands::plugin::list_plugins,
             commands::plugin::set_plugin_enabled,
+            commands::plugin::register_plugin,
+            commands::plugin::unregister_plugin,
             commands::reference::list_references,
             commands::reference::add_reference,
             commands::reference::remove_reference,

@@ -10,4 +10,6 @@ export interface PluginInfo {
 export interface PluginBridge {
   listPlugins(): Promise<IpcResult<PluginInfo[]>>;
   setPluginEnabled(name: string, enabled: boolean): Promise<IpcResult<void>>;
+  registerPlugin: (name: string, description: string, hooks: string[]) => Promise<IpcResult<void>>;
+  unregisterPlugin: (name: string) => Promise<IpcResult<void>>;
 }

@@ -142,6 +142,8 @@ commands.allow = [
   "lsp_goto_definition",
   "list_plugins",
   "set_plugin_enabled",
+  "register_plugin",
+  "unregister_plugin",
   "list_references",
   "add_reference",
   "remove_reference",

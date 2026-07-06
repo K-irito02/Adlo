@@ -659,6 +659,10 @@ export function createTauriBridge(): DigitalLifeBridge {
       listPlugins: () => invokeIpc<PluginInfo[]>('list_plugins'),
       setPluginEnabled: (name: string, enabled: boolean) =>
         invokeIpc<void>('set_plugin_enabled', { name, enabled }),
+      registerPlugin: (name, description, hooks) =>
+        invoke('register_plugin', { name, description, hooks }),
+      unregisterPlugin: (name) =>
+        invoke('unregister_plugin', { name }),
     } satisfies PluginBridge,
 
     reference: {
