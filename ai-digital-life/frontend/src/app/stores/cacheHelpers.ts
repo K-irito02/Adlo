@@ -148,7 +148,9 @@ export function captureError(get: () => StoreState, error: unknown): void {
         ? error.message
         : error && typeof error === 'object' && 'message' in error
           ? String((error as { message: string }).message)
-          : String(error);
+          : error
+            ? String(error)
+            : 'An unknown error occurred';
   get().setError(message);
 }
 
@@ -170,7 +172,8 @@ export function captureTypedError(get: () => StoreState, error: unknown): void {
     get().setError(`[${typed.code}] ${typed.message}`);
     return;
   }
-  const message = error instanceof Error ? error.message : String(error);
+  const message =
+    error instanceof Error ? error.message : error ? String(error) : 'An unknown error occurred';
   get().setError(`[INTERNAL_ERROR] Internal error: ${message}`);
 }
 
