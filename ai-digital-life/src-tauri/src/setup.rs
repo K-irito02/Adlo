@@ -1,4 +1,5 @@
 use crate::state::AppState;
+use adl_agent_runtime::durable::DurableSessionManager;
 use adl_browser::BrowserManager;
 use adl_kernel::{config as adl_config, events::EventBus, now_ms};
 use adl_pty::SessionManager;
@@ -67,6 +68,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     let db_path = data_dir.join("state").join("app-state.db");
     let db = Database::open(&db_path).context("failed to open database")?;
     db.init_schema().context("failed to init schema")?;
+    let durable_manager = DurableSessionManager::new(db.clone());
 
     adl_migration::run_pending(&db).context("failed to run migrations")?;
     info!("migrations complete");
@@ -98,6 +100,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         browser_manager: BrowserManager::new(),
         log_manager,
         started_at: now_ms(),
+        durable_manager,
     })
 }
 

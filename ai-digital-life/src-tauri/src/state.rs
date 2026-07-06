@@ -1,3 +1,4 @@
+use adl_agent_runtime::durable::DurableSessionManager;
 use adl_browser::BrowserManager;
 use adl_kernel::{config::AppConfig, events::EventBus, WorkspaceMeta};
 use adl_logging::LogManager;
@@ -18,4 +19,5 @@ pub struct AppState {
     pub browser_manager: BrowserManager,
     pub log_manager: LogManager,
     pub started_at: i64,
+    pub durable_manager: DurableSessionManager,
 }

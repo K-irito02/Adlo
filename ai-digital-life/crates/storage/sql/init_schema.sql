@@ -173,3 +173,13 @@ CREATE TABLE IF NOT EXISTS run_activity_events (
     updated_at INTEGER NOT NULL,
     json TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS durable_session_state (
+    session_id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'running',
+    checkpoint_message_id TEXT,
+    last_heartbeat INTEGER NOT NULL,
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
