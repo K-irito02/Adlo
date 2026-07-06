@@ -100,6 +100,8 @@ impl DurableSessionManager {
             _ => return vec![],
         };
         let rows = stmt.query_map(params![timeout, self.max_retries], |row| {
+            let _status: String = row.get(2)?;
+            debug_assert_eq!(_status, "running", "SQL WHERE clause guarantees status='running'");
             Ok(DurableSessionState {
                 session_id: row.get(0)?,
                 run_id: row.get(1)?,
@@ -158,8 +160,8 @@ mod tests {
         let path = std::env::temp_dir()
             .join(format!("test_durable_{}_{}.db", std::process::id(), unique));
         let _ = std::fs::remove_file(&path);
-        let db = adl_storage::Database::open(&path).unwrap();
-        db.init_schema().unwrap();
+        let db = adl_storage::Database::open(&path).expect("test db should open");
+        db.init_schema().expect("test schema should initialize");
         DurableSessionManager::new(db)
     }
 
@@ -168,6 +170,15 @@ mod tests {
         let manager = create_test_manager();
         manager.register_session("sess1", "run1").await;
         manager.complete("sess1").await;
+        let conn = manager.db.conn().expect("test db should provide connection");
+        let status: String = conn
+            .query_row(
+                "SELECT status FROM durable_session_state WHERE session_id = ?1",
+                params!["sess1"],
+                |row| row.get(0),
+            )
+            .expect("status query should succeed");
+        assert_eq!(status, "completed", "session status should be completed");
         let crashed = manager.find_crashed_sessions().await;
         assert!(crashed.is_empty(), "completed sessions should not be crashed");
     }
@@ -179,14 +190,14 @@ mod tests {
         let before = adl_kernel::now_ms();
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         manager.heartbeat("sess1").await;
-        let conn = manager.db.conn().unwrap();
+        let conn = manager.db.conn().expect("test db should provide connection");
         let last_heartbeat: i64 = conn
             .query_row(
                 "SELECT last_heartbeat FROM durable_session_state WHERE session_id = ?1",
                 params!["sess1"],
                 |row| row.get(0),
             )
-            .unwrap();
+            .expect("heartbeat query should succeed");
         assert!(last_heartbeat > before, "heartbeat should update timestamp");
     }
 

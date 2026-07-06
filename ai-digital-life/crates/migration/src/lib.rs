@@ -43,6 +43,22 @@ pub const MIGRATIONS: &[Migration] = &[
             CREATE INDEX idx_sessions_archived ON sessions(workspace_id, archived_at);
         "#,
     },
+    Migration {
+        version: 3,
+        description: "Add durable_session_state table",
+        sql: r#"
+            CREATE TABLE IF NOT EXISTS durable_session_state (
+                session_id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'running',
+                checkpoint_message_id TEXT,
+                last_heartbeat INTEGER NOT NULL,
+                retry_count INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+        "#,
+    },
 ];
 
 pub fn current_version(db: &Database) -> Result<i64, AppError> {
@@ -118,7 +134,7 @@ mod tests {
         let result = run_pending(&db);
         assert!(result.is_ok());
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, 3);
         let _ = std::fs::remove_file(&path);
     }
 
@@ -132,13 +148,13 @@ mod tests {
         run_pending(&db).unwrap();
         run_pending(&db).unwrap();
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 2);
+        assert_eq!(version, 3);
         let _ = std::fs::remove_file(&path);
     }
 
     #[test]
     fn migration_records_have_correct_structure() {
-        assert_eq!(MIGRATIONS.len(), 2);
+        assert_eq!(MIGRATIONS.len(), 3);
         let m1 = &MIGRATIONS[0];
         assert_eq!(m1.version, 1);
         assert_eq!(m1.description, "Initial schema");
@@ -148,5 +164,9 @@ mod tests {
             m2.description,
             "Add dedicated columns to sessions table for efficient querying"
         );
+        let m3 = &MIGRATIONS[2];
+        assert_eq!(m3.version, 3);
+        assert_eq!(m3.description, "Add durable_session_state table");
+        assert!(m3.sql.contains("durable_session_state"));
     }
 }
