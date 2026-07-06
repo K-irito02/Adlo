@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
 
 export function RevertButton({
@@ -13,6 +14,7 @@ export function RevertButton({
   onReverted?: () => void;
 }) {
   const { t } = useTCopy();
+  const revertToSnapshot = useAppStore((s) => s.revertToSnapshot);
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -25,14 +27,10 @@ export function RevertButton({
       return;
     }
     setLoading(true);
-    const result = await window.digitalLife.snapshot.revertToSnapshot(
-      workspaceId,
-      workspaceRoot,
-      snapshotId
-    );
+    const result = await revertToSnapshot(workspaceId, workspaceRoot, snapshotId);
     setLoading(false);
     setConfirming(false);
-    if (result.ok) {
+    if (result?.success) {
       onReverted?.();
     }
   };
