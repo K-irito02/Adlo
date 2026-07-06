@@ -21,6 +21,7 @@ import { lspEn } from './lsp';
 import { pluginEn } from './plugin';
 import { referenceEn } from './reference';
 import { customAgentEn } from './customAgent';
+import { durableEn } from './durable';
 
 export const enUS = {
   ...menuEn,
@@ -46,4 +47,5 @@ export const enUS = {
   ...pluginEn,
   ...referenceEn,
   ...customAgentEn,
+  ...durableEn,
 } as const;
