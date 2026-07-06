@@ -105,6 +105,17 @@ export function setupPreviewBridge(): void {
     provider: mockDigitalLifeBridge.provider,
     commandsConfig: mockDigitalLifeBridge.commandsConfig,
     permission: mockDigitalLifeBridge.permission,
+    // Phase 2 bridges (inherited from mock — add preview-specific overrides here if needed)
+    snapshot: mockDigitalLifeBridge.snapshot,
+    webTools: mockDigitalLifeBridge.webTools,
+    compaction: mockDigitalLifeBridge.compaction,
+    sessionFork: mockDigitalLifeBridge.sessionFork,
+    lsp: mockDigitalLifeBridge.lsp,
+    plugin: mockDigitalLifeBridge.plugin,
+    reference: mockDigitalLifeBridge.reference,
+    durable: mockDigitalLifeBridge.durable,
+    reserved: mockDigitalLifeBridge.reserved,
+    customAgent: mockDigitalLifeBridge.customAgent,
   };
 
   (window as { digitalLife: DigitalLifeBridge }).digitalLife = previewBridge;
