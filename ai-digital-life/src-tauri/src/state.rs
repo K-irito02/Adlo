@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex, RwLock};
 pub struct AppState {
     pub data_dir: PathBuf,
     pub db: Database,
-    pub config: RwLock<AppConfig>,
+    pub config: Arc<RwLock<AppConfig>>,
     pub event_bus: EventBus,
     pub current_workspace: RwLock<Option<WorkspaceMeta>>,
     pub editor_dirty_paths: Mutex<HashSet<String>>,
@@ -20,4 +20,6 @@ pub struct AppState {
     pub log_manager: LogManager,
     pub started_at: i64,
     pub durable_manager: DurableSessionManager,
+    #[allow(dead_code)]
+    pub config_watcher_rx: Option<tokio::sync::watch::Receiver<Arc<AppConfig>>>,
 }

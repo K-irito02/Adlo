@@ -1,13 +1,14 @@
 use crate::state::AppState;
 use adl_agent_runtime::durable::DurableSessionManager;
 use adl_browser::BrowserManager;
+use adl_kernel::config_watcher::ConfigWatcher;
 use adl_kernel::{config as adl_config, events::EventBus, now_ms};
 use adl_pty::SessionManager;
 use adl_storage::Database;
 use adl_workspace::strip_verbatim_prefix;
 use anyhow::Context;
 use std::path::{Path, PathBuf};
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use tauri::Manager;
 use tracing::{info, warn};
 
@@ -89,10 +90,33 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
             w
         });
 
+    let config_arc = Arc::new(RwLock::new(config.clone()));
+
+    // Create ConfigWatcher and start watching config.json
+    let config_watcher = ConfigWatcher::new(config);
+    let mut watcher_rx = config_watcher.subscribe();
+    let config_watcher_rx = Some(watcher_rx.clone());
+
+    let data_dir_watch = data_dir.clone();
+    let config_path = adl_config::config_path(&data_dir);
+    tokio::spawn(async move {
+        config_watcher.start_watching(config_path, data_dir_watch).await;
+    });
+
+    let config_arc_watcher = config_arc.clone();
+    tokio::spawn(async move {
+        while watcher_rx.changed().await.is_ok() {
+            let new_config = watcher_rx.borrow().clone();
+            if let Ok(mut cfg) = config_arc_watcher.write() {
+                *cfg = (*new_config).clone();
+            }
+        }
+    });
+
     Ok(AppState {
         data_dir,
         db,
-        config: RwLock::new(config),
+        config: config_arc,
         event_bus,
         current_workspace: RwLock::new(current_workspace),
         editor_dirty_paths: std::sync::Mutex::new(std::collections::HashSet::new()),
@@ -101,6 +125,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         log_manager,
         started_at: now_ms(),
         durable_manager,
+        config_watcher_rx,
     })
 }
 
