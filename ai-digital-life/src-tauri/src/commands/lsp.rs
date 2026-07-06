@@ -2,7 +2,7 @@ use crate::commands::ipc;
 use adl_errors::AppError;
 use adl_kernel::IpcResult;
 use adl_lsp_client::diagnostics::DiagnosticInfo;
-use adl_lsp_client::symbols::SymbolInfo;
+use adl_lsp_client::symbols::{SymbolInfo, SymbolKind};
 use adl_lsp_client::{LanguageServer, LspClient};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -65,26 +65,68 @@ pub async fn lsp_stop_server(
 
 #[tauri::command]
 pub async fn lsp_get_symbols(
-    _workspace_id: String,
-    _file_path: String,
+    workspace_id: String,
+    file_path: String,
 ) -> Result<IpcResult<Vec<SymbolInfo>>, AppError> {
-    Ok(ipc(Ok(vec![])))
+    let clients = LSP_CLIENTS.lock().await;
+    let Some(client) = clients.get(&workspace_id) else {
+        return Ok(ipc(Ok(vec![])));
+    };
+    let ext = std::path::Path::new(&file_path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+    let Some(server) = LanguageServer::from_file_extension(ext) else {
+        return Ok(ipc(Ok(vec![])));
+    };
+    Ok(ipc(client.get_symbols(&server, &file_path).await))
 }
 
 #[tauri::command]
 pub async fn lsp_get_diagnostics(
-    _workspace_id: String,
-    _file_path: Option<String>,
+    workspace_id: String,
+    file_path: Option<String>,
 ) -> Result<IpcResult<Vec<DiagnosticInfo>>, AppError> {
-    Ok(ipc(Ok(vec![])))
+    let Some(file_path) = file_path else {
+        return Ok(ipc(Ok(vec![])));
+    };
+    let clients = LSP_CLIENTS.lock().await;
+    let Some(client) = clients.get(&workspace_id) else {
+        return Ok(ipc(Ok(vec![])));
+    };
+    let ext = std::path::Path::new(&file_path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+    let Some(server) = LanguageServer::from_file_extension(ext) else {
+        return Ok(ipc(Ok(vec![])));
+    };
+    Ok(ipc(client.get_diagnostics(&server, &file_path).await))
 }
 
 #[tauri::command]
 pub async fn lsp_goto_definition(
-    _workspace_id: String,
-    _file_path: String,
-    _line: u32,
-    _column: u32,
+    workspace_id: String,
+    file_path: String,
+    line: u32,
+    column: u32,
 ) -> Result<IpcResult<Option<SymbolInfo>>, AppError> {
-    Ok(ipc(Ok(None)))
+    let clients = LSP_CLIENTS.lock().await;
+    let Some(client) = clients.get(&workspace_id) else {
+        return Ok(ipc(Ok(None)));
+    };
+    let ext = std::path::Path::new(&file_path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+    let Some(server) = LanguageServer::from_file_extension(ext) else {
+        return Ok(ipc(Ok(None)));
+    };
+    let loc = client.goto_definition(&server, &file_path, line, column).await?;
+    Ok(ipc(Ok(loc.map(|l| SymbolInfo {
+        name: String::new(),
+        kind: SymbolKind::Variable,
+        location: l,
+        container_name: None,
+    }))))
 }
