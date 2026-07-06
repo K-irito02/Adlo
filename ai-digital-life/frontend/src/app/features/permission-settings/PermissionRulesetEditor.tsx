@@ -57,7 +57,7 @@ export function PermissionRulesetEditor({ onClose }: PermissionRulesetEditorProp
           <input
             value={toolType}
             onChange={(e) => setToolType(e.target.value)}
-            placeholder="bash, write, read"
+            placeholder={t.permissionRulesToolTypePlaceholder}
           />
         </label>
         <label className="adl-checkbox-label">
@@ -69,7 +69,7 @@ export function PermissionRulesetEditor({ onClose }: PermissionRulesetEditorProp
           <input
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Why this rule exists"
+            placeholder={t.permissionRulesReasonPlaceholder}
           />
         </label>
         <div className="adl-form-actions">
@@ -77,7 +77,7 @@ export function PermissionRulesetEditor({ onClose }: PermissionRulesetEditorProp
             {t.permissionRulesAdd}
           </button>
           <button className="adl-btn" onClick={onClose}>
-            {t.commandsEditorCancel}
+            {t.permissionRulesCancel}
           </button>
         </div>
       </div>
