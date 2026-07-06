@@ -66,11 +66,7 @@ pub async fn register_plugin(
                 _ => None,
             })
             .collect();
-        let plugin = SimplePlugin {
-            name: name.clone(),
-            description,
-            hooks: hook_types,
-        };
+        let plugin = SimplePlugin { name: name.clone(), description, hooks: hook_types };
         PLUGIN_REGISTRY.register(Arc::new(plugin)).await;
         Ok(())
     }))
