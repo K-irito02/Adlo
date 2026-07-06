@@ -131,4 +131,7 @@ export const conversationEn = {
   compactionActive: 'Compacting session...',
   compactionCompleted: 'Session compacted',
   compactionPruned: 'Pruned {count} messages',
+
+  snapshotListTitle: 'Snapshots',
+  snapshotListEmpty: 'No snapshots yet',
 } as const;

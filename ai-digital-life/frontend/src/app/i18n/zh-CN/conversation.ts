@@ -130,4 +130,7 @@ export const conversationZh = {
   compactionActive: '正在压缩会话...',
   compactionCompleted: '会话已压缩',
   compactionPruned: '已精简 {count} 条消息',
+
+  snapshotListTitle: '快照列表',
+  snapshotListEmpty: '暂无快照',
 } as const;
