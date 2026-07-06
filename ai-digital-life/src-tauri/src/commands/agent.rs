@@ -178,6 +178,9 @@ async fn start_run_inner(
         }
     }
 
+    // Register durable session for crash recovery
+    state.durable_manager.register_session(&session.id, &detail.run.id).await;
+
     let emit_activity =
         make_activity_emitter(app, state, &workspace_scope_id, &session_id, &detail.run.id);
     let mut audit_batch: Vec<AuditBatchEntry> = Vec::with_capacity(5);
@@ -232,7 +235,7 @@ async fn start_run_inner(
         user_message,
         emit_activity: &emit_activity,
         audit_batch: &mut audit_batch,
-    })?;
+    }).await?;
     crate::commands::audit::batch_save_audit_entries(state, audit_batch)?;
 
     Ok(result)

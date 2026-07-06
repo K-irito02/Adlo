@@ -248,6 +248,9 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
         }
     }
 
+    // Heartbeat before model call to mark session as active
+    ctx.state.durable_manager.heartbeat(&ctx.session.id).await;
+
     let gateway = {
         let config = ctx
             .state
@@ -440,7 +443,7 @@ fn decide_audit_operation(
     }
 }
 
-pub(crate) fn finalize_run<F: Fn(serde_json::Value)>(
+pub(crate) async fn finalize_run<F: Fn(serde_json::Value)>(
     ctx: FinalizeRunContext<'_, F>,
 ) -> Result<ConversationSendResult, AppError> {
     let detail = adl_agent_runtime::complete_plan(ctx.detail, ctx.patch_set, ctx.scenario);
@@ -471,6 +474,9 @@ pub(crate) fn finalize_run<F: Fn(serde_json::Value)>(
       "type": "run-done",
       "status": detail.run.status
     }));
+
+    // Mark durable session as completed or failed
+    ctx.state.durable_manager.complete(&ctx.session.id).await;
 
     Ok(ConversationSendResult {
         session: ctx.session.clone(),
