@@ -36,6 +36,24 @@ struct WebSearchInput {
     query: String,
 }
 
+/// Input shape for the `read` tool.
+#[derive(Debug, serde::Deserialize)]
+struct ReadInput {
+    path: String,
+}
+
+/// Input shape for the `glob` tool.
+#[derive(Debug, serde::Deserialize)]
+struct GlobInput {
+    pattern: String,
+}
+
+/// Input shape for the `grep` tool.
+#[derive(Debug, serde::Deserialize)]
+struct GrepInput {
+    pattern: String,
+}
+
 impl ToolRegistry {
     pub fn new() -> Self {
         Self::default()
@@ -94,6 +112,30 @@ impl ToolRegistry {
                 let result = crate::tools::websearch::websearch(&parsed.query).await;
                 serde_json::to_string(&result).map_err(|e| {
                     AppError::Internal(format!("Failed to serialize websearch result: {}", e))
+                })?
+            },
+            "read" => {
+                let parsed: ReadInput = serde_json::from_str(input)
+                    .map_err(|e| AppError::Internal(format!("Invalid read input: {}", e)))?;
+                let result = crate::tools::read::read_file(&parsed.path).await;
+                serde_json::to_string(&result).map_err(|e| {
+                    AppError::Internal(format!("Failed to serialize read result: {}", e))
+                })?
+            },
+            "glob" => {
+                let parsed: GlobInput = serde_json::from_str(input)
+                    .map_err(|e| AppError::Internal(format!("Invalid glob input: {}", e)))?;
+                let result = crate::tools::glob::glob_files(&parsed.pattern).await;
+                serde_json::to_string(&result).map_err(|e| {
+                    AppError::Internal(format!("Failed to serialize glob result: {}", e))
+                })?
+            },
+            "grep" => {
+                let parsed: GrepInput = serde_json::from_str(input)
+                    .map_err(|e| AppError::Internal(format!("Invalid grep input: {}", e)))?;
+                let result = crate::tools::grep::grep_files(&parsed.pattern).await;
+                serde_json::to_string(&result).map_err(|e| {
+                    AppError::Internal(format!("Failed to serialize grep result: {}", e))
                 })?
             },
             other => {
@@ -241,15 +283,37 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn execute_registered_but_unimplemented_tool_returns_error() {
-        // read/glob/grep are registered but have no execute implementation
+    async fn execute_read_tool() {
         let registry = ToolRegistry::with_builtins();
-        let result = registry.execute("read", "{\"path\":\"/tmp/x\"}").await;
-        assert!(result.is_err());
-        let err_str = result.unwrap_err().to_string();
+        // Use a file that exists
+        let result = registry.execute("read", "{\"path\":\"_test_exec_read.txt\"}").await;
+        // May fail because file doesn't exist, but should not be "no execute implementation"
+        let err_str = result.as_ref().err().map(|e| e.to_string()).unwrap_or_default();
         assert!(
-            err_str.contains("no execute implementation"),
-            "expected no-execute error, got: {err_str}"
+            !err_str.contains("no execute implementation"),
+            "read tool should have an execute implementation, got: {err_str}"
+        );
+    }
+
+    #[tokio::test]
+    async fn execute_glob_tool() {
+        let registry = ToolRegistry::with_builtins();
+        let result = registry.execute("glob", "{\"pattern\":\"_nonexistent_*\"}").await;
+        let err_str = result.as_ref().err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            !err_str.contains("no execute implementation"),
+            "glob tool should have an execute implementation, got: {err_str}"
+        );
+    }
+
+    #[tokio::test]
+    async fn execute_grep_tool() {
+        let registry = ToolRegistry::with_builtins();
+        let result = registry.execute("grep", "{\"pattern\":\"nonexistent\"}").await;
+        let err_str = result.as_ref().err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            !err_str.contains("no execute implementation"),
+            "grep tool should have an execute implementation, got: {err_str}"
         );
     }
 
@@ -271,5 +335,23 @@ mod tests {
     fn websearch_input_parses_object_form() {
         let input: WebSearchInput = serde_json::from_str("{\"query\":\"rust async\"}").unwrap();
         assert_eq!(input.query, "rust async");
+    }
+
+    #[test]
+    fn read_input_parses_object_form() {
+        let input: ReadInput = serde_json::from_str("{\"path\":\"/tmp/x\"}").unwrap();
+        assert_eq!(input.path, "/tmp/x");
+    }
+
+    #[test]
+    fn glob_input_parses_object_form() {
+        let input: GlobInput = serde_json::from_str("{\"pattern\":\"*.rs\"}").unwrap();
+        assert_eq!(input.pattern, "*.rs");
+    }
+
+    #[test]
+    fn grep_input_parses_object_form() {
+        let input: GrepInput = serde_json::from_str("{\"pattern\":\"fn main\"}").unwrap();
+        assert_eq!(input.pattern, "fn main");
     }
 }
