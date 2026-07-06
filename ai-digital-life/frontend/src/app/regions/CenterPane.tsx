@@ -11,6 +11,8 @@ import { useAppActions } from '../hooks/useAppActions';
 import { asAgentRunID } from '../../shared/branded';
 
 import { CompactionIndicator } from '../components/conversation/CompactionIndicator';
+import { ForkButton } from '../features/session-fork/ForkButton';
+import { RevertButton } from '../components/conversation/RevertButton';
 import { WelcomeState, ComposerFooter } from './center-pane';
 
 type ButtonState = 'send' | 'stop' | 'retry' | 'waiting';
@@ -51,6 +53,7 @@ const CenterPane = React.memo(function CenterPane() {
   const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
   const hasWorkspace = !!appInfo?.currentWorkspace;
   const activeDetail = activeSessionId ? sessionDetails[activeSessionId] : undefined;
+  const listSnapshots = useAppStore((s) => s.listSnapshots);
 
   const handleSelectModel = useCallback(
     (providerId: ModelProviderId, modelId?: string) => {
@@ -76,6 +79,7 @@ const CenterPane = React.memo(function CenterPane() {
 
   const [draft, setDraft] = useState('');
   const [hasError, setHasError] = useState(false);
+  const [latestSnapshotId, setLatestSnapshotId] = useState<string | null>(null);
   const [composerFocused, setComposerFocused] = useState(false);
   const composerEditorRef = useRef<HTMLDivElement | null>(null);
   const composerInputRef = useRef<HTMLDivElement | null>(null);
@@ -114,6 +118,19 @@ const CenterPane = React.memo(function CenterPane() {
       void fetchRunActivityByRunId(asAgentRunID(runId), 500);
     });
   }, [fetchRunActivityByRunId, messages]);
+
+  const workspaceId = appInfo?.currentWorkspace?.id;
+  const workspaceRoot = appInfo?.currentWorkspace?.rootPath;
+  useEffect(() => {
+    if (!workspaceId || !workspaceRoot) {
+      setLatestSnapshotId(null);
+      return;
+    }
+    void listSnapshots(workspaceId, workspaceRoot).then((snapshots) => {
+      const latest = snapshots.reduce((a, b) => (a.created_at > b.created_at ? a : b));
+      setLatestSnapshotId(latest?.id ?? null);
+    });
+  }, [workspaceId, workspaceRoot, listSnapshots]);
 
   const buttonState: ButtonState = useMemo(() => {
     if (streamingActiveRunId) {
@@ -267,6 +284,20 @@ const CenterPane = React.memo(function CenterPane() {
         ) : (
           <>
             <CompactionIndicator />
+            <div className="adl-center__toolbar">
+              <ForkButton
+                parentSession={activeDetail.session}
+                forkMessageId={activeDetail.messages[activeDetail.messages.length - 1]?.id ?? ''}
+                existingForkCount={0}
+              />
+              {latestSnapshotId && appInfo?.currentWorkspace ? (
+                <RevertButton
+                  snapshotId={latestSnapshotId}
+                  workspaceId={appInfo.currentWorkspace.id}
+                  workspaceRoot={appInfo.currentWorkspace.rootPath}
+                />
+              ) : null}
+            </div>
             <MessageStream
               messages={messages}
               streamingText={streamingAssistantText}
