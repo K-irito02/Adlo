@@ -5,8 +5,10 @@ use adl_kernel::IpcResult;
 use std::sync::Arc;
 
 #[allow(clippy::incompatible_msrv)]
-static PLUGIN_REGISTRY: std::sync::LazyLock<Arc<PluginRegistry>> =
+pub(crate) static PLUGIN_REGISTRY: std::sync::LazyLock<Arc<PluginRegistry>> =
     std::sync::LazyLock::new(|| Arc::new(PluginRegistry::new()));
+
+
 
 #[tauri::command]
 pub async fn list_plugins() -> Result<IpcResult<Vec<PluginInfo>>, AppError> {

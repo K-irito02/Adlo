@@ -1,5 +1,6 @@
 use crate::state::AppState;
 use adl_agent_runtime::permission_check::{check_tool_permission, PermissionCheckResult};
+use adl_agent_runtime::plugins::hooks::{HookResult, PluginHook};
 use adl_errors::AppError;
 use adl_kernel::{AgentRunDetail, ConversationScenario, ConversationSendResult, PermissionRuleset};
 use adl_storage::EntityTable;
@@ -7,6 +8,7 @@ use adl_storage::EntityTable;
 use super::agent_pipeline_stream::emit_model_stream_events;
 use super::agent_pipeline_types::{CallModelContext, FinalizeRunContext};
 use super::audit::AuditBatchEntry;
+use super::plugin::PLUGIN_REGISTRY;
 use crate::commands::agent::StartRunInput;
 use crate::commands::conversation;
 
@@ -236,6 +238,16 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
         }
     }
 
+    // === Plugin Hook: ChatMessageBefore ===
+    let hook_msg = PluginHook::ChatMessageBefore {
+        messages: messages.iter().map(|m| serde_json::to_value(m).unwrap_or_default()).collect(),
+    };
+    if let HookResult::Modify(val) = PLUGIN_REGISTRY.fire_hook(&hook_msg).await {
+        if let Ok(modified) = serde_json::from_value::<Vec<adl_kernel::ModelChatMessage>>(val) {
+            messages = modified;
+        }
+    }
+
     let gateway = {
         let config = ctx
             .state
@@ -244,7 +256,7 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
             .map_err(|_| AppError::Internal("config lock poisoned".into()))?;
         adl_model_gateway::ModelGateway::new(config.model_preferences.clone())?
     };
-    let (model_response, model_audit) = gateway
+    let (mut model_response, model_audit) = gateway
         .chat(
             &ctx.workspace.id,
             &ctx.session.id,
@@ -253,6 +265,17 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
             messages,
         )
         .await;
+
+    // === Plugin Hook: ChatResponseAfter ===
+    let hook_resp = PluginHook::ChatResponseAfter {
+        response: serde_json::to_value(&model_response).unwrap_or_default(),
+    };
+    if let HookResult::Modify(val) = PLUGIN_REGISTRY.fire_hook(&hook_resp).await {
+        if let Ok(modified) = serde_json::from_value::<adl_kernel::ModelResponse>(val) {
+            model_response = modified;
+        }
+    }
+
     ctx.state.db.save_entity(
         EntityTable::ModelCallAudit,
         &model_audit.id,
