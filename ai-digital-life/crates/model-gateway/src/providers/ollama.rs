@@ -195,10 +195,7 @@ mod tests {
         let provider = OllamaProvider::new();
         let messages = vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }];
         let result = provider.chat_stream("llama3.1", &messages, &ChatOptions::default(), "").await;
-        let err = match result {
-            Err(e) => e.to_string(),
-            Ok(_) => panic!("expected Err"),
-        };
-        assert!(!err.contains("not yet implemented"));
+        let err_msg = result.as_ref().err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(!err_msg.contains("not yet implemented"), "Ollama streaming should not be stubbed");
     }
 }
