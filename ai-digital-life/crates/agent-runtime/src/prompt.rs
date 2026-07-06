@@ -11,9 +11,11 @@ pub fn agent_system_prompt(id: AgentId) -> String {
         AgentId::Compaction => COMPACTION_PROMPT.to_string(),
         AgentId::Title => TITLE_PROMPT.to_string(),
         AgentId::Summary => SUMMARY_PROMPT.to_string(),
-        AgentId::Custom => BUILD_PROMPT.to_string(),
+        AgentId::Custom => CUSTOM_PROMPT.to_string(),
     }
 }
+
+const CUSTOM_PROMPT: &str = "You are a custom agent configured by the user. Follow the user's custom instructions to complete the task.";
 
 /// Reminder injected into plan mode to prevent edits.
 pub fn plan_mode_reminder() -> &'static str {

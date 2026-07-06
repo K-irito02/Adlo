@@ -1,4 +1,5 @@
 use crate::commands::ipc;
+use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::config::{load, save};
 use adl_kernel::types::agent::AgentConfig;
@@ -45,4 +46,18 @@ pub async fn delete_custom_agent(
     name: String,
 ) -> Result<IpcResult<Vec<AgentConfig>>, AppError> {
     Ok(ipc(delete_custom_agent_inner(&data_dir, &name)))
+}
+
+#[tauri::command]
+pub async fn update_custom_agent(
+    state: tauri::State<'_, AppState>,
+    original_name: String,
+    agent: AgentConfig,
+) -> Result<IpcResult<()>, AppError> {
+    let mut config = state.config.write().map_err(|_| AppError::Internal("config lock".into()))?;
+    if let Some(existing) = config.custom_agents.iter_mut().find(|a| a.name == original_name) {
+        *existing = agent;
+    }
+    save(&state.data_dir, &config)?;
+    Ok(ipc(Ok(())))
 }

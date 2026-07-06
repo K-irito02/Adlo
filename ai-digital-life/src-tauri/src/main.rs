@@ -242,6 +242,7 @@ fn main() {
             commands::custom_agent::list_custom_agents,
             commands::custom_agent::add_custom_agent,
             commands::custom_agent::delete_custom_agent,
+            commands::custom_agent::update_custom_agent,
             commands::durable::register_durable_session,
             commands::durable::heartbeat_durable_session,
             commands::durable::find_crashed_sessions,

@@ -1,7 +1,9 @@
+use adl_errors::AppError;
 use adl_kernel::types::reference::{ReferenceConfig, ReferenceSource};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 
-pub fn validate_reference(config: &ReferenceConfig) -> Result<(), adl_errors::AppError> {
+pub fn validate_reference(config: &ReferenceConfig) -> Result<(), AppError> {
     match config.source {
         ReferenceSource::Local => {
             let path = Path::new(&config.path);
@@ -50,6 +52,32 @@ pub fn references_prompt(references: &[ReferenceConfig]) -> String {
         "\nYou can read files from these directories to find relevant patterns and examples.\n",
     );
     prompt
+}
+
+pub fn clone_git_reference_sync(ref_config: &ReferenceConfig) -> Result<PathBuf, AppError> {
+    match ref_config.source {
+        ReferenceSource::Git => {
+            static COUNTER: AtomicU64 = AtomicU64::new(0);
+            let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+            let dest = std::env::temp_dir().join(format!("adl-git-ref-{n}"));
+            let mut cmd = std::process::Command::new("git");
+            cmd.arg("clone");
+            if let Some(branch) = &ref_config.branch {
+                cmd.arg("--branch").arg(branch);
+            }
+            cmd.arg(&ref_config.path).arg(&dest);
+            let output = cmd.output()
+                .map_err(|e| AppError::Io(format!("Failed to clone git ref: {}", e)))?;
+            if !output.status.success() {
+                return Err(AppError::Internal(format!(
+                    "Git clone failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                )));
+            }
+            Ok(dest)
+        },
+        ReferenceSource::Local => Ok(PathBuf::from(&ref_config.path)),
+    }
 }
 
 #[cfg(test)]

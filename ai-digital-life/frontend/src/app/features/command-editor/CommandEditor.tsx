@@ -71,6 +71,8 @@ export function CommandEditor({ onClose, editing }: CommandEditorProps) {
           <select value={agent} onChange={(e) => setAgent(e.target.value)}>
             <option value="build">Build</option>
             <option value="plan">Plan</option>
+            <option value="general">General</option>
+            <option value="explore">Explore</option>
           </select>
         </label>
         <label>
