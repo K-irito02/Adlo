@@ -41,6 +41,26 @@ Phase 2 功能（多 Agent / MCP / Snapshot / Permissions 等）落地后，对�
 
 首轮审查发现 `classify_profile` 回归（npm run lint/pnpm install 被降级为 Custom），在合并前即修复。较之合并后修复，节省了 revert/回滚时间。
 
+### 7. Tauri 命令必须返回 `IpcResult<T>` 而非裸 `T`
+
+Phase 2 新增的 40+ Tauri 命令返回 `Result<T, AppError>`，前端通过 `invokeIpc<T>()` 调用，期望 Tauri 返回 `{ ok: true, data: T }` 格式。因 Rust 将 `Ok(T)` 序列化为原始值（如纯数组），前端 `result.ok` 为 `undefined` → 错误分支误触发 → `result.error` 为 `undefined` → 显示 "An unknown error occurred"。
+
+**修复模式**：命令返回 `Result<IpcResult<T>, AppError>` 并用 `ipc()` 包装。
+
+**陷阱**：`Ok(ipc({...?...}))` 中 `?` 传播到外层函数而非 `ipc()`，导致 `Err(AppError)` 直接返给 Tauri 而非编码为 `IpcResult::Error`。**必须将 fallible 逻辑提取为 helper 函数**：
+
+```rust
+fn helper_inner(...) -> Result<T, AppError> { ...?... }
+pub async fn cmd(...) -> Result<IpcResult<T>, AppError> {
+    Ok(ipc(helper_inner(...)))
+}
+```
+
+**检查清单**：
+- 每条 `#[tauri::command]` 检查返回类型是否含 `IpcResult<T>`
+- `ipc({})` 块内不得出现 `?` 操作符
+- 对照 `tauri-bridge.ts` 中 `invokeIpc<T>()` 调用验证 Rust 端返回类型
+
 ## 相关文件
 
 - [实施计划](../../superpowers/plans/2026-07-06-opencode-feature-defects-fix.md)

@@ -141,3 +141,6 @@ export { type WebToolsSlice, createWebToolsSlice } from './slices/webToolsSlice'
 
 // Reference 切片
 export { type ReferenceSlice, createReferenceSlice } from './slices/referenceSlice';
+
+// Durable 切片
+export { type DurableSlice, createDurableSlice } from './slices/durableSlice';

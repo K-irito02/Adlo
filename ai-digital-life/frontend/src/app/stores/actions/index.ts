@@ -22,3 +22,4 @@ export { createLspActions } from './lspActions';
 export { createReferenceActions } from './referenceActions';
 export { createPluginActions } from './pluginActions';
 export { createCustomAgentActions } from './customAgentActions';
+export { createDurableActions } from './durableActions';

@@ -310,8 +310,8 @@ fn plan_mode_states() -> &'static Mutex<std::collections::HashMap<String, PlanMo
 }
 
 #[tauri::command]
-pub async fn list_agents() -> Result<Vec<AgentConfig>, adl_errors::AppError> {
-    list_agents_inner()
+pub async fn list_agents() -> Result<IpcResult<Vec<AgentConfig>>, AppError> {
+    Ok(ipc(list_agents_inner()))
 }
 
 fn list_agents_inner() -> Result<Vec<AgentConfig>, adl_errors::AppError> {
@@ -323,8 +323,8 @@ fn list_agents_inner() -> Result<Vec<AgentConfig>, adl_errors::AppError> {
 pub async fn select_agent(
     scenario: String,
     user_prompt: String,
-) -> Result<AgentConfig, adl_errors::AppError> {
-    select_agent_inner(&scenario, &user_prompt)
+) -> Result<IpcResult<AgentConfig>, AppError> {
+    Ok(ipc(select_agent_inner(&scenario, &user_prompt)))
 }
 
 fn select_agent_inner(
@@ -348,27 +348,33 @@ fn select_agent_inner(
 pub async fn enter_plan_mode(
     workspace_id: String,
     workspace_root: String,
-) -> Result<String, adl_errors::AppError> {
-    let mutex = plan_mode_states();
-    let mut states = mutex.lock().unwrap_or_else(|e| e.into_inner());
-    let state = states.entry(workspace_id).or_default();
-    let path = state.enter(&PathBuf::from(workspace_root));
-    Ok(path.to_string_lossy().to_string())
+) -> Result<IpcResult<String>, AppError> {
+    Ok(ipc({
+        let mutex = plan_mode_states();
+        let mut states = mutex.lock().unwrap_or_else(|e| e.into_inner());
+        let state = states.entry(workspace_id).or_default();
+        let path = state.enter(&PathBuf::from(workspace_root));
+        Ok(path.to_string_lossy().to_string())
+    }))
 }
 
 #[tauri::command]
-pub async fn exit_plan_mode(workspace_id: String) -> Result<Option<String>, adl_errors::AppError> {
-    let mutex = plan_mode_states();
-    let mut states = mutex.lock().unwrap_or_else(|e| e.into_inner());
-    let state = states.entry(workspace_id).or_default();
-    Ok(state.exit().map(|p| p.to_string_lossy().to_string()))
+pub async fn exit_plan_mode(workspace_id: String) -> Result<IpcResult<Option<String>>, AppError> {
+    Ok(ipc({
+        let mutex = plan_mode_states();
+        let mut states = mutex.lock().unwrap_or_else(|e| e.into_inner());
+        let state = states.entry(workspace_id).or_default();
+        Ok(state.exit().map(|p| p.to_string_lossy().to_string()))
+    }))
 }
 
 #[tauri::command]
-pub async fn get_plan_mode_state(workspace_id: String) -> Result<bool, adl_errors::AppError> {
-    let mutex = plan_mode_states();
-    let states = mutex.lock().unwrap_or_else(|e| e.into_inner());
-    Ok(states.get(&workspace_id).map(|s| s.is_active()).unwrap_or(false))
+pub async fn get_plan_mode_state(workspace_id: String) -> Result<IpcResult<bool>, AppError> {
+    Ok(ipc({
+        let mutex = plan_mode_states();
+        let states = mutex.lock().unwrap_or_else(|e| e.into_inner());
+        Ok(states.get(&workspace_id).map(|s| s.is_active()).unwrap_or(false))
+    }))
 }
 
 #[cfg(test)]

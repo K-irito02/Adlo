@@ -38,6 +38,7 @@ import {
   createCompactionSlice,
   createWebToolsSlice,
   createReferenceSlice,
+  createDurableSlice,
 } from './slices';
 import type { StoreState as FullStoreState } from './StoreState';
 
@@ -66,6 +67,7 @@ import {
   createPluginActions,
   createReferenceActions,
   createCustomAgentActions,
+  createDurableActions,
 } from './actions';
 
 export {
@@ -114,6 +116,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createCompactionSlice(set, get), // 压缩状态
   ...createWebToolsSlice(set, get), // Web 工具（抓取/搜索）
   ...createReferenceSlice(set, get), // 参考代码仓库管理
+  ...createDurableSlice(set, get), // 持久化会话管理
 
   // ════════════════════════════════════════════════════════
   // 根级状态
@@ -151,6 +154,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createReferenceActions(set, get), // 参考代码仓库操作
   ...createPluginActions(set, get), // 插件管理操作
   ...createCustomAgentActions(set, get), // 自定义 Agent 操作
+  ...createDurableActions(set, get), // 持久化会话操作
 
   // ════════════════════════════════════════════════════════
   // 自定义 Agent 状态

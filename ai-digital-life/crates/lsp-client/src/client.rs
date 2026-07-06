@@ -50,22 +50,20 @@ impl LspClient {
 
         let cmd_parts = server.command();
         if cmd_parts.is_empty() {
-            servers.insert(server.clone(), LspServerHandle {
-                state: LspClientState::Error,
-                child: None,
-                stdin: None,
-            });
+            servers.insert(
+                server.clone(),
+                LspServerHandle { state: LspClientState::Error, child: None, stdin: None },
+            );
             return Err(adl_errors::AppError::InvalidInput("Empty LSP command".into()));
         }
 
         let program = cmd_parts[0];
         let args: Vec<&str> = cmd_parts[1..].to_vec();
 
-        servers.insert(server.clone(), LspServerHandle {
-            state: LspClientState::Starting,
-            child: None,
-            stdin: None,
-        });
+        servers.insert(
+            server.clone(),
+            LspServerHandle { state: LspClientState::Starting, child: None, stdin: None },
+        );
         drop(servers);
 
         let result = self.spawn_and_init(program, &args).await;
@@ -73,22 +71,24 @@ impl LspClient {
         let mut servers = self.servers.lock().await;
         match result {
             Ok((child, child_stdin)) => {
-                servers.insert(server.clone(), LspServerHandle {
-                    state: LspClientState::Running,
-                    child: Some(child),
-                    stdin: Some(child_stdin),
-                });
+                servers.insert(
+                    server.clone(),
+                    LspServerHandle {
+                        state: LspClientState::Running,
+                        child: Some(child),
+                        stdin: Some(child_stdin),
+                    },
+                );
                 tracing::info!("LSP server initialized: {:?}", server);
                 Ok(())
-            }
+            },
             Err(e) => {
-                servers.insert(server.clone(), LspServerHandle {
-                    state: LspClientState::Error,
-                    child: None,
-                    stdin: None,
-                });
+                servers.insert(
+                    server.clone(),
+                    LspServerHandle { state: LspClientState::Error, child: None, stdin: None },
+                );
                 Err(e)
-            }
+            },
         }
     }
 
@@ -105,27 +105,32 @@ impl LspClient {
             .spawn()
             .map_err(|e| adl_errors::AppError::Io(format!("Failed to spawn LSP server: {}", e)))?;
 
-        let mut child_stdin = child.stdin.take()
+        let mut child_stdin = child
+            .stdin
+            .take()
             .ok_or_else(|| adl_errors::AppError::Internal("Failed to capture stdin".into()))?;
-        let child_stdout = child.stdout.take()
+        let child_stdout = child
+            .stdout
+            .take()
             .ok_or_else(|| adl_errors::AppError::Internal("Failed to capture stdout".into()))?;
         let mut child_stdout = BufReader::new(child_stdout);
 
         let root_url = url::Url::from_directory_path(&self.workspace_root)
             .map_err(|_| adl_errors::AppError::InvalidInput("Invalid workspace path".into()))?;
-        let root_uri: lsp_types::Uri = root_url.to_string().parse()
+        let root_uri: lsp_types::Uri = root_url
+            .to_string()
+            .parse()
             .map_err(|e| adl_errors::AppError::Internal(format!("Invalid URI: {}", e)))?;
 
-        let folder_name = self.workspace_root.file_name()
+        let folder_name = self
+            .workspace_root
+            .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "workspace".to_string());
 
         let init_params = serde_json::to_value(InitializeParams {
             process_id: Some(std::process::id()),
-            workspace_folders: Some(vec![WorkspaceFolder {
-                uri: root_uri,
-                name: folder_name,
-            }]),
+            workspace_folders: Some(vec![WorkspaceFolder { uri: root_uri, name: folder_name }]),
             capabilities: ClientCapabilities::default(),
             ..Default::default()
         })
@@ -137,32 +142,37 @@ impl LspClient {
             init_params,
         ));
 
-        init_request.write(&mut child_stdin)
+        init_request
+            .write(&mut child_stdin)
             .map_err(|e| adl_errors::AppError::Io(format!("Failed to send initialize: {}", e)))?;
-        child_stdin.flush()
+        child_stdin
+            .flush()
             .map_err(|e| adl_errors::AppError::Io(format!("Failed to flush stdin: {}", e)))?;
 
-        let resp = Message::read(&mut child_stdout)
-            .map_err(|e| adl_errors::AppError::Io(format!("Failed to read initialize response: {}", e)))?;
+        let resp = Message::read(&mut child_stdout).map_err(|e| {
+            adl_errors::AppError::Io(format!("Failed to read initialize response: {}", e))
+        })?;
 
         match resp {
             Some(Message::Response(resp)) => {
                 if let Some(err) = resp.error {
-                    return Err(adl_errors::AppError::Internal(
-                        format!("LSP initialize error ({}): {}", err.code, err.message),
-                    ));
+                    return Err(adl_errors::AppError::Internal(format!(
+                        "LSP initialize error ({}): {}",
+                        err.code, err.message
+                    )));
                 }
-            }
+            },
             Some(other) => {
-                return Err(adl_errors::AppError::Internal(
-                    format!("Expected initialize response, got: {:?}", other),
-                ));
-            }
+                return Err(adl_errors::AppError::Internal(format!(
+                    "Expected initialize response, got: {:?}",
+                    other
+                )));
+            },
             None => {
                 return Err(adl_errors::AppError::Internal(
                     "LSP server closed connection during initialize".into(),
                 ));
-            }
+            },
         }
 
         let initialized = Message::Notification(lsp_server::Notification::new(
@@ -170,9 +180,11 @@ impl LspClient {
             serde_json::Value::Null,
         ));
 
-        initialized.write(&mut child_stdin)
+        initialized
+            .write(&mut child_stdin)
             .map_err(|e| adl_errors::AppError::Io(format!("Failed to send initialized: {}", e)))?;
-        child_stdin.flush()
+        child_stdin
+            .flush()
             .map_err(|e| adl_errors::AppError::Io(format!("Failed to flush stdin: {}", e)))?;
 
         Ok((child, child_stdin))
@@ -207,21 +219,11 @@ impl LspClient {
     }
 
     pub async fn get_state(&self, server: &LanguageServer) -> LspClientState {
-        self.servers
-            .lock()
-            .await
-            .get(server)
-            .map(|h| h.state)
-            .unwrap_or(LspClientState::Stopped)
+        self.servers.lock().await.get(server).map(|h| h.state).unwrap_or(LspClientState::Stopped)
     }
 
     pub async fn list_servers(&self) -> Vec<(LanguageServer, LspClientState)> {
-        self.servers
-            .lock()
-            .await
-            .iter()
-            .map(|(k, v)| (k.clone(), v.state))
-            .collect()
+        self.servers.lock().await.iter().map(|(k, v)| (k.clone(), v.state)).collect()
     }
 }
 
@@ -232,11 +234,21 @@ mod tests {
     #[tokio::test]
     async fn start_and_stop_server() {
         let client = LspClient::new(PathBuf::from("/workspace"));
-        let result = client.start_server(LanguageServer::Custom("nonexistent-lsp-xyzzy".to_string())).await;
+        let result =
+            client.start_server(LanguageServer::Custom("nonexistent-lsp-xyzzy".to_string())).await;
         assert!(result.is_err());
-        assert_eq!(client.get_state(&LanguageServer::Custom("nonexistent-lsp-xyzzy".to_string())).await, LspClientState::Error);
-        client.stop_server(&LanguageServer::Custom("nonexistent-lsp-xyzzy".to_string())).await.unwrap();
-        assert_eq!(client.get_state(&LanguageServer::Custom("nonexistent-lsp-xyzzy".to_string())).await, LspClientState::Stopped);
+        assert_eq!(
+            client.get_state(&LanguageServer::Custom("nonexistent-lsp-xyzzy".to_string())).await,
+            LspClientState::Error
+        );
+        client
+            .stop_server(&LanguageServer::Custom("nonexistent-lsp-xyzzy".to_string()))
+            .await
+            .unwrap();
+        assert_eq!(
+            client.get_state(&LanguageServer::Custom("nonexistent-lsp-xyzzy".to_string())).await,
+            LspClientState::Stopped
+        );
     }
 
     #[tokio::test]
@@ -249,9 +261,13 @@ mod tests {
     #[tokio::test]
     async fn start_server_fails_for_missing_command() {
         let client = LspClient::new(PathBuf::from("/tmp"));
-        let result = client.start_server(LanguageServer::Custom("nonexistent-lsp-server-xyzzy".to_string())).await;
+        let result = client
+            .start_server(LanguageServer::Custom("nonexistent-lsp-server-xyzzy".to_string()))
+            .await;
         assert!(result.is_err());
-        let state = client.get_state(&LanguageServer::Custom("nonexistent-lsp-server-xyzzy".to_string())).await;
+        let state = client
+            .get_state(&LanguageServer::Custom("nonexistent-lsp-server-xyzzy".to_string()))
+            .await;
         assert_eq!(state, LspClientState::Error);
     }
 
@@ -262,7 +278,11 @@ mod tests {
         let result = client.start_server(server.clone()).await;
         assert!(result.is_err(), "Should fail with LSP protocol error, not spawn failure");
         let state = client.get_state(&server).await;
-        assert_eq!(state, LspClientState::Error, "Server should be Error (protocol failure), not Starting");
+        assert_eq!(
+            state,
+            LspClientState::Error,
+            "Server should be Error (protocol failure), not Starting"
+        );
         client.stop_server(&server).await.unwrap();
     }
 }

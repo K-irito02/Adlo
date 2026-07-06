@@ -7,7 +7,8 @@ pub struct ReadInput {
 
 pub async fn read_file(path: &str) -> Result<String, AppError> {
     let path = path.replace("..", "");
-    let content = fs::read_to_string(&path).await
+    let content = fs::read_to_string(&path)
+        .await
         .map_err(|e| AppError::NotFound(format!("Cannot read file '{}': {}", path, e)))?;
     if content.len() > 51_200 {
         Ok(format!("{}...\n[Output truncated at 50KB]", &content[..51_200]))

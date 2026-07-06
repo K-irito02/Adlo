@@ -94,7 +94,7 @@ impl DurableSessionManager {
         let mut stmt = match conn.prepare(
             "SELECT session_id, run_id, status, checkpoint_message_id, last_heartbeat, retry_count
              FROM durable_session_state
-             WHERE status = 'running' AND last_heartbeat < ?1 AND retry_count < ?2"
+             WHERE status = 'running' AND last_heartbeat < ?1 AND retry_count < ?2",
         ) {
             Ok(s) => s,
             _ => return vec![],
@@ -137,14 +137,14 @@ impl DurableSessionManager {
                     &[&now, &session_id],
                 );
                 true
-            }
+            },
             Some(_) => {
                 let _ = self.db.execute(
                     "UPDATE durable_session_state SET status = 'failed', updated_at = ?1 WHERE session_id = ?2",
                     &[&now, &session_id],
                 );
                 false
-            }
+            },
             None => false,
         }
     }
@@ -157,8 +157,8 @@ mod tests {
     fn create_test_manager() -> DurableSessionManager {
         static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let unique = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let path = std::env::temp_dir()
-            .join(format!("test_durable_{}_{}.db", std::process::id(), unique));
+        let path =
+            std::env::temp_dir().join(format!("test_durable_{}_{}.db", std::process::id(), unique));
         let _ = std::fs::remove_file(&path);
         let db = adl_storage::Database::open(&path).expect("test db should open");
         db.init_schema().expect("test schema should initialize");

@@ -1,3 +1,6 @@
+use crate::commands::ipc;
+use adl_errors::AppError;
+use adl_kernel::IpcResult;
 use adl_lsp_client::diagnostics::DiagnosticInfo;
 use adl_lsp_client::symbols::SymbolInfo;
 use adl_lsp_client::{LanguageServer, LspClient};
@@ -21,12 +24,11 @@ fn parse_server(s: &str) -> LanguageServer {
     }
 }
 
-#[tauri::command]
-pub async fn lsp_start_server(
+async fn start_server_inner(
     workspace_id: String,
     workspace_root: String,
     server: String,
-) -> Result<(), adl_errors::AppError> {
+) -> Result<(), AppError> {
     let server_enum = parse_server(&server);
     let client = LspClient::new(PathBuf::from(&workspace_root));
     client.start_server(server_enum).await?;
@@ -35,11 +37,7 @@ pub async fn lsp_start_server(
     Ok(())
 }
 
-#[tauri::command]
-pub async fn lsp_stop_server(
-    workspace_id: String,
-    server: String,
-) -> Result<(), adl_errors::AppError> {
+async fn stop_server_inner(workspace_id: String, server: String) -> Result<(), AppError> {
     let server_enum = parse_server(&server);
     let clients = LSP_CLIENTS.lock().await;
     if let Some(client) = clients.get(&workspace_id) {
@@ -49,19 +47,36 @@ pub async fn lsp_stop_server(
 }
 
 #[tauri::command]
+pub async fn lsp_start_server(
+    workspace_id: String,
+    workspace_root: String,
+    server: String,
+) -> Result<IpcResult<()>, AppError> {
+    Ok(ipc(start_server_inner(workspace_id, workspace_root, server).await))
+}
+
+#[tauri::command]
+pub async fn lsp_stop_server(
+    workspace_id: String,
+    server: String,
+) -> Result<IpcResult<()>, AppError> {
+    Ok(ipc(stop_server_inner(workspace_id, server).await))
+}
+
+#[tauri::command]
 pub async fn lsp_get_symbols(
     _workspace_id: String,
     _file_path: String,
-) -> Result<Vec<SymbolInfo>, adl_errors::AppError> {
-    Ok(vec![])
+) -> Result<IpcResult<Vec<SymbolInfo>>, AppError> {
+    Ok(ipc(Ok(vec![])))
 }
 
 #[tauri::command]
 pub async fn lsp_get_diagnostics(
     _workspace_id: String,
     _file_path: Option<String>,
-) -> Result<Vec<DiagnosticInfo>, adl_errors::AppError> {
-    Ok(vec![])
+) -> Result<IpcResult<Vec<DiagnosticInfo>>, AppError> {
+    Ok(ipc(Ok(vec![])))
 }
 
 #[tauri::command]
@@ -70,6 +85,6 @@ pub async fn lsp_goto_definition(
     _file_path: String,
     _line: u32,
     _column: u32,
-) -> Result<Option<SymbolInfo>, adl_errors::AppError> {
-    Ok(None)
+) -> Result<IpcResult<Option<SymbolInfo>>, AppError> {
+    Ok(ipc(Ok(None)))
 }

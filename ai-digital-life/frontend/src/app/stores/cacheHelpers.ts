@@ -141,6 +141,19 @@ export function clearError(get: () => StoreState): void {
 
 /** 捕获错误并设置到全局错误状态 */
 export function captureError(get: () => StoreState, error: unknown): void {
+  if (
+    error === undefined ||
+    error === null ||
+    (typeof error === 'object' && !('message' in error) && !(error instanceof Error))
+  ) {
+    console.error('[ADL-DEBUG] captureError received unexpected value', {
+      error,
+      type: typeof error,
+      isObject: typeof error === 'object',
+      hasMessage: error !== null && typeof error === 'object' && 'message' in error,
+      stack: new Error().stack,
+    });
+  }
   const message =
     typeof error === 'string'
       ? error

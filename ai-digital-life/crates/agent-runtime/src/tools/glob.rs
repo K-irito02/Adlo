@@ -7,8 +7,15 @@ pub struct GlobInput {
 
 pub async fn glob_files(pattern: &str) -> Result<String, AppError> {
     let output = Command::new("powershell")
-        .args(["-Command", &format!("Get-ChildItem -Path '{}' -Recurse -Name | Select-Object -First 100", pattern.replace('\'', "''"))])
-        .output().await
+        .args([
+            "-Command",
+            &format!(
+                "Get-ChildItem -Path '{}' -Recurse -Name | Select-Object -First 100",
+                pattern.replace('\'', "''")
+            ),
+        ])
+        .output()
+        .await
         .map_err(|e| AppError::Internal(format!("glob failed: {}", e)))?;
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     Ok(stdout.lines().filter(|l| !l.is_empty()).collect::<Vec<_>>().join("\n"))

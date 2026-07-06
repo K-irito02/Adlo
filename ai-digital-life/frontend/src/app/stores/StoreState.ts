@@ -69,6 +69,7 @@ import type { ProviderSlice } from './slices/providerSlice';
 import type { CompactionSlice } from './slices/compactionSlice';
 import type { WebToolsSlice } from './slices/webToolsSlice';
 import type { ReferenceSlice } from './slices/referenceSlice';
+import type { DurableSlice } from './slices/durableSlice';
 import type { ReferenceConfig } from '@shared/ipc';
 import type {
   McpServerConfig,
@@ -122,7 +123,8 @@ interface StoreStateBase
     WebToolsSlice,
     McpSlice,
     ProviderSlice,
-    ReferenceSlice {
+    ReferenceSlice,
+    DurableSlice {
   loading: boolean;
   error?: string;
   isFetching: Record<string, boolean>;
@@ -322,6 +324,11 @@ interface CustomAgentActions {
   deleteCustomAgent: (dataDir: string, name: string) => Promise<void>;
 }
 
+interface DurableActions {
+  registerDurableSession: (sessionId: string, runId: string) => Promise<void>;
+  durableHeartbeat: (sessionId: string) => Promise<void>;
+}
+
 interface ReferenceActions {
   fetchReferences: (dataDir: string) => Promise<void>;
   addReference: (dataDir: string, reference: ReferenceConfig) => Promise<void>;
@@ -367,6 +374,7 @@ export interface StoreState
     ReferenceActions,
     SnapshotActions,
     SessionForkActions,
-    PluginActions {
+    PluginActions,
+    DurableActions {
   bootstrap: () => Promise<void>;
 }
