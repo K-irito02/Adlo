@@ -16,4 +16,10 @@ export const commandsEn = {
   commandsEditorTemplateRequired: 'Template is required',
   commandsEditorNameExists: 'Command name already exists',
   commandsEditorEmpty: 'No custom commands yet',
+  commandsEditorNamePlaceholder: 'my-command',
+  commandsEditorModelPlaceholder: 'optional',
+  commandsEditorAgentBuild: 'Build',
+  commandsEditorAgentPlan: 'Plan',
+  commandsEditorAgentGeneral: 'General',
+  commandsEditorAgentExplore: 'Explore',
 } as const;

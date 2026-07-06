@@ -16,4 +16,10 @@ export const commandsZh = {
   commandsEditorTemplateRequired: '模板不能为空',
   commandsEditorNameExists: '命令名称已存在',
   commandsEditorEmpty: '暂无自定义命令',
+  commandsEditorNamePlaceholder: '自定义命令名',
+  commandsEditorModelPlaceholder: '可选',
+  commandsEditorAgentBuild: '构建',
+  commandsEditorAgentPlan: '规划',
+  commandsEditorAgentGeneral: '通用',
+  commandsEditorAgentExplore: '探索',
 } as const;

@@ -60,7 +60,11 @@ export function CommandEditor({ onClose, editing }: CommandEditorProps) {
       <div className="adl-form">
         <label>
           {t.commandsEditorName}
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="my-command" />
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t.commandsEditorNamePlaceholder}
+          />
         </label>
         <label>
           {t.commandsEditorDescription}
@@ -69,15 +73,19 @@ export function CommandEditor({ onClose, editing }: CommandEditorProps) {
         <label>
           {t.commandsEditorAgent}
           <select value={agent} onChange={(e) => setAgent(e.target.value)}>
-            <option value="build">Build</option>
-            <option value="plan">Plan</option>
-            <option value="general">General</option>
-            <option value="explore">Explore</option>
+            <option value="build">{t.commandsEditorAgentBuild}</option>
+            <option value="plan">{t.commandsEditorAgentPlan}</option>
+            <option value="general">{t.commandsEditorAgentGeneral}</option>
+            <option value="explore">{t.commandsEditorAgentExplore}</option>
           </select>
         </label>
         <label>
           {t.commandsEditorModel}
-          <input value={model} onChange={(e) => setModel(e.target.value)} placeholder="optional" />
+          <input
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder={t.commandsEditorModelPlaceholder}
+          />
         </label>
         <label>
           {t.commandsEditorTemplate}
