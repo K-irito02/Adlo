@@ -1,4 +1,4 @@
-use crate::adapter::{ChatOptions, ProviderAdapter, StreamReader};
+use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
 use adl_kernel::types::config::ModelProviderId;
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
@@ -126,12 +126,61 @@ impl ProviderAdapter for GoogleProvider {
 
     async fn chat_stream(
         &self,
-        _model: &str,
-        _messages: &[ModelChatMessage],
+        model: &str,
+        messages: &[ModelChatMessage],
         _options: &ChatOptions,
-        _api_key: &str,
+        api_key: &str,
     ) -> Result<StreamReader, AppError> {
-        Err(AppError::Internal("Streaming not yet implemented".to_string()))
+        use tokio_stream::StreamExt;
+
+        let contents: Vec<serde_json::Value> = messages.iter().filter_map(|m| {
+            if m.role == ConversationRole::System {
+                return None;
+            }
+            Some(serde_json::json!({
+                "role": match m.role {
+                    ConversationRole::User => "user",
+                    ConversationRole::Assistant => "model",
+                    _ => "user",
+                },
+                "parts": [{"text": m.content}],
+            }))
+        }).collect();
+
+        let body = serde_json::json!({
+            "contents": contents,
+        });
+
+        let url = format!(
+            "{}/models/{}:streamGenerateContent?alt=sse&key={}",
+            self.base_url, model, api_key
+        );
+
+        let response = self.client
+            .post(&url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::Model(e.to_string()))?;
+
+        let stream = response.bytes_stream().map(|chunk| {
+            let chunk = chunk.map_err(|e| AppError::Model(e.to_string()))?;
+            let text = String::from_utf8_lossy(&chunk).to_string();
+            for line in text.lines() {
+                if let Some(data) = line.strip_prefix("data: ") {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
+                        if let Some(candidates) = json["candidates"].as_array() {
+                            if let Some(text) = candidates[0]["content"]["parts"][0]["text"].as_str() {
+                                return Ok(StreamChunk::Delta(text.to_string()));
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(StreamChunk::Delta(String::new()))
+        });
+
+        Ok(Box::pin(stream))
     }
 }
 
@@ -157,5 +206,17 @@ mod tests {
     fn default_uses_official_endpoint() {
         let p = GoogleProvider::new();
         assert_eq!(p.base_url, "https://generativelanguage.googleapis.com/v1beta");
+    }
+
+    #[tokio::test]
+    async fn google_chat_stream_routes_correctly() {
+        let provider = GoogleProvider::new();
+        let messages = vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }];
+        let result = provider.chat_stream("gemini-1.5-pro", &messages, &ChatOptions::default(), "fake-key").await;
+        let err = match result {
+            Err(e) => e.to_string(),
+            Ok(_) => panic!("expected Err"),
+        };
+        assert!(!err.contains("not yet implemented"));
     }
 }

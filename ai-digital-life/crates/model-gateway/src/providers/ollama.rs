@@ -1,4 +1,4 @@
-use crate::adapter::{ChatOptions, ProviderAdapter, StreamReader};
+use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
 use adl_kernel::types::config::ModelProviderId;
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
@@ -116,12 +116,53 @@ impl ProviderAdapter for OllamaProvider {
 
     async fn chat_stream(
         &self,
-        _model: &str,
-        _messages: &[ModelChatMessage],
+        model: &str,
+        messages: &[ModelChatMessage],
         _options: &ChatOptions,
         _api_key: &str,
     ) -> Result<StreamReader, AppError> {
-        Err(AppError::Internal("Streaming not yet implemented".to_string()))
+        use tokio_stream::StreamExt;
+
+        let body = serde_json::json!({
+            "model": model,
+            "messages": messages.iter().map(|m| {
+                serde_json::json!({
+                    "role": match m.role {
+                        ConversationRole::System => "system",
+                        ConversationRole::User => "user",
+                        ConversationRole::Assistant => "assistant",
+                        _ => "user",
+                    },
+                    "content": m.content,
+                })
+            }).collect::<Vec<_>>(),
+            "stream": true,
+        });
+
+        let response = self.client
+            .post(format!("{}/api/chat", self.base_url))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::Model(e.to_string()))?;
+
+        let stream = response.bytes_stream().map(|chunk| {
+            let chunk = chunk.map_err(|e| AppError::Model(e.to_string()))?;
+            let text = String::from_utf8_lossy(&chunk).to_string();
+            for line in text.lines() {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                    if json["done"].as_bool().unwrap_or(false) {
+                        return Ok(StreamChunk::Done(ModelTokenUsage { prompt_tokens: None, completion_tokens: None, total_tokens: None, estimated: None }));
+                    }
+                    if let Some(content) = json["message"]["content"].as_str() {
+                        return Ok(StreamChunk::Delta(content.to_string()));
+                    }
+                }
+            }
+            Ok(StreamChunk::Delta(String::new()))
+        });
+
+        Ok(Box::pin(stream))
     }
 }
 
@@ -147,5 +188,17 @@ mod tests {
     fn default_uses_local_endpoint() {
         let p = OllamaProvider::new();
         assert_eq!(p.base_url, "http://localhost:11434");
+    }
+
+    #[tokio::test]
+    async fn ollama_chat_stream_routes_correctly() {
+        let provider = OllamaProvider::new();
+        let messages = vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }];
+        let result = provider.chat_stream("llama3.1", &messages, &ChatOptions::default(), "").await;
+        let err = match result {
+            Err(e) => e.to_string(),
+            Ok(_) => panic!("expected Err"),
+        };
+        assert!(!err.contains("not yet implemented"));
     }
 }

@@ -1,4 +1,4 @@
-use crate::adapter::{ChatOptions, ProviderAdapter, StreamReader};
+use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
 use adl_kernel::types::config::ModelProviderId;
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
@@ -107,12 +107,56 @@ impl ProviderAdapter for OpenRouterProvider {
 
     async fn chat_stream(
         &self,
-        _model: &str,
-        _messages: &[ModelChatMessage],
+        model: &str,
+        messages: &[ModelChatMessage],
         _options: &ChatOptions,
-        _api_key: &str,
+        api_key: &str,
     ) -> Result<StreamReader, AppError> {
-        Err(AppError::Internal("Streaming not yet implemented".to_string()))
+        use tokio_stream::StreamExt;
+
+        let body = serde_json::json!({
+            "model": model,
+            "messages": messages.iter().map(|m| {
+                serde_json::json!({
+                    "role": match m.role {
+                        ConversationRole::System => "system",
+                        ConversationRole::User => "user",
+                        ConversationRole::Assistant => "assistant",
+                        ConversationRole::Tool => "tool",
+                    },
+                    "content": m.content,
+                })
+            }).collect::<Vec<_>>(),
+            "stream": true,
+        });
+
+        let response = self.client
+            .post(format!("{}/chat/completions", self.base_url))
+            .bearer_auth(api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::Model(e.to_string()))?;
+
+        let stream = response.bytes_stream().map(|chunk| {
+            let chunk = chunk.map_err(|e| AppError::Model(e.to_string()))?;
+            let text = String::from_utf8_lossy(&chunk).to_string();
+            for line in text.lines() {
+                if let Some(data) = line.strip_prefix("data: ") {
+                    if data == "[DONE]" {
+                        return Ok(StreamChunk::Done(ModelTokenUsage { prompt_tokens: None, completion_tokens: None, total_tokens: None, estimated: None }));
+                    }
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
+                        if let Some(delta) = json["choices"][0]["delta"]["content"].as_str() {
+                            return Ok(StreamChunk::Delta(delta.to_string()));
+                        }
+                    }
+                }
+            }
+            Ok(StreamChunk::Delta(String::new()))
+        });
+
+        Ok(Box::pin(stream))
     }
 }
 
@@ -138,5 +182,17 @@ mod tests {
     fn default_uses_official_endpoint() {
         let p = OpenRouterProvider::new();
         assert_eq!(p.base_url, "https://openrouter.ai/api/v1");
+    }
+
+    #[tokio::test]
+    async fn openrouter_chat_stream_routes_correctly() {
+        let provider = OpenRouterProvider::new();
+        let messages = vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }];
+        let result = provider.chat_stream("openrouter/auto", &messages, &ChatOptions::default(), "fake-key").await;
+        let is_stub = match &result {
+            Err(e) => e.to_string().contains("not yet implemented"),
+            Ok(_) => false,
+        };
+        assert!(!is_stub, "chat_stream should not return 'not yet implemented'");
     }
 }

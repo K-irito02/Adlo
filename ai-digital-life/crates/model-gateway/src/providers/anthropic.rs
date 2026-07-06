@@ -1,4 +1,4 @@
-use crate::adapter::{ChatOptions, ProviderAdapter, StreamReader};
+use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
 use adl_kernel::types::config::ModelProviderId;
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
@@ -128,12 +128,73 @@ impl ProviderAdapter for AnthropicProvider {
 
     async fn chat_stream(
         &self,
-        _model: &str,
-        _messages: &[ModelChatMessage],
+        model: &str,
+        messages: &[ModelChatMessage],
         _options: &ChatOptions,
-        _api_key: &str,
+        api_key: &str,
     ) -> Result<StreamReader, AppError> {
-        Err(AppError::Internal("Streaming not yet implemented".to_string()))
+        use tokio_stream::StreamExt;
+
+        let mut system_text = None;
+        let messages_arr: Vec<serde_json::Value> = messages.iter().filter_map(|m| {
+            if m.role == ConversationRole::System {
+                system_text = Some(m.content.clone());
+                None
+            } else {
+                Some(serde_json::json!({
+                    "role": match m.role {
+                        ConversationRole::User => "user",
+                        ConversationRole::Assistant => "assistant",
+                        _ => "user",
+                    },
+                    "content": m.content,
+                }))
+            }
+        }).collect();
+
+        let mut body = serde_json::json!({
+            "model": model,
+            "messages": messages_arr,
+            "max_tokens": 4096,
+            "stream": true,
+        });
+        if let Some(sys) = system_text {
+            body["system"] = serde_json::Value::String(sys);
+        }
+
+        let response = self.client
+            .post(format!("{}/messages", self.base_url))
+            .header("x-api-key", api_key)
+            .header("anthropic-version", "2023-06-01")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| AppError::Model(e.to_string()))?;
+
+        let stream = response.bytes_stream().map(|chunk| {
+            let chunk = chunk.map_err(|e| AppError::Model(e.to_string()))?;
+            let text = String::from_utf8_lossy(&chunk).to_string();
+            for line in text.lines() {
+                if let Some(data) = line.strip_prefix("data: ") {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
+                        match json["type"].as_str() {
+                            Some("content_block_delta") => {
+                                if let Some(delta) = json["delta"]["text"].as_str() {
+                                    return Ok(StreamChunk::Delta(delta.to_string()));
+                                }
+                            },
+                            Some("message_stop") => {
+                                return Ok(StreamChunk::Done(ModelTokenUsage { prompt_tokens: None, completion_tokens: None, total_tokens: None, estimated: None }));
+                            },
+                            _ => {},
+                        }
+                    }
+                }
+            }
+            Ok(StreamChunk::Delta(String::new()))
+        });
+
+        Ok(Box::pin(stream))
     }
 }
 
@@ -159,5 +220,17 @@ mod tests {
     fn default_uses_official_endpoint() {
         let p = AnthropicProvider::new();
         assert_eq!(p.base_url, "https://api.anthropic.com/v1");
+    }
+
+    #[tokio::test]
+    async fn anthropic_chat_stream_routes_correctly() {
+        let provider = AnthropicProvider::new();
+        let messages = vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }];
+        let result = provider.chat_stream("claude-3-5-sonnet-20241022", &messages, &ChatOptions::default(), "fake-key").await;
+        let is_stub = match &result {
+            Err(e) => e.to_string().contains("not yet implemented"),
+            Ok(_) => false,
+        };
+        assert!(!is_stub, "chat_stream should not return 'not yet implemented'");
     }
 }
