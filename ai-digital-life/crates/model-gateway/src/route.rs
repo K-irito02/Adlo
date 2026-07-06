@@ -1,3 +1,8 @@
+// TODO: dual-path routing — provider chain (this file) and direct ACP/HTTP API path
+// need to be unified under a single routing strategy. Currently the provider chain
+// handles interactive sessions; the HTTP API path (crate::http_api) operates
+// independently. These should share route config and fallback logic.
+
 //! Provider routing — priority-ordered provider chain and provider selection.
 //!
 //! [`route_chain`] builds a sorted list of enabled providers by priority.

@@ -245,9 +245,9 @@ pub fn assistant_blocks(
     scenario: ConversationScenario,
 ) -> Vec<ConversationBlock> {
     let plan_title = match scenario {
-        ConversationScenario::Plan => "执行计划",
-        ConversationScenario::Chat => "对话",
-        ConversationScenario::CodeEdit => "单 Agent 步骤",
+        ConversationScenario::Plan => "Plan execution",
+        ConversationScenario::Chat => "Chat",
+        ConversationScenario::CodeEdit => "Single agent step",
     };
     let mut blocks = vec![ConversationBlock::Plan {
         id: create_id("block"),
@@ -277,14 +277,14 @@ pub fn assistant_blocks(
         });
     }
     let final_text = if patch_set.is_some() {
-        "已在右侧生成补丁预览；请在变更面板中审阅并按需应用。".into()
+        "Patch preview generated on the right; review and apply in the changes panel.".into()
     } else {
         match scenario {
             ConversationScenario::CodeEdit => {
-                "未生成补丁：请使用 @file:相对路径 指向工作区文件，或切换到「规划/问答」模式。"
+                "No patch generated: use @file:relative-path to reference workspace files, or switch to Plan/QA mode."
                     .into()
             },
-            _ => "本轮无补丁输出。".into(),
+            _ => "No patch output for this turn.".into(),
         }
     };
     blocks.push(ConversationBlock::FinalSummary { id: create_id("block"), summary: final_text });
