@@ -128,7 +128,8 @@ impl ProviderAdapter for OpenAIProvider {
             "stream": true,
         });
 
-        let response = self.client
+        let response = self
+            .client
             .post(format!("{}/chat/completions", self.base_url))
             .bearer_auth(api_key)
             .json(&body)
@@ -142,7 +143,12 @@ impl ProviderAdapter for OpenAIProvider {
             for line in text.lines() {
                 if let Some(data) = line.strip_prefix("data: ") {
                     if data == "[DONE]" {
-                        return Ok(StreamChunk::Done(ModelTokenUsage { prompt_tokens: None, completion_tokens: None, total_tokens: None, estimated: None }));
+                        return Ok(StreamChunk::Done(ModelTokenUsage {
+                            prompt_tokens: None,
+                            completion_tokens: None,
+                            total_tokens: None,
+                            estimated: None,
+                        }));
                     }
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
                         if let Some(delta) = json["choices"][0]["delta"]["content"].as_str() {
@@ -185,10 +191,10 @@ mod tests {
     #[tokio::test]
     async fn chat_stream_returns_stream_reader() {
         let provider = OpenAIProvider::new();
-        let messages = vec![
-            ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() },
-        ];
-        let result = provider.chat_stream("gpt-4o", &messages, &ChatOptions::default(), "fake-key").await;
+        let messages =
+            vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }];
+        let result =
+            provider.chat_stream("gpt-4o", &messages, &ChatOptions::default(), "fake-key").await;
         let err = match result {
             Err(e) => e.to_string(),
             Ok(_) => panic!("expected Err"),

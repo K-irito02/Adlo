@@ -133,19 +133,22 @@ impl ProviderAdapter for GoogleProvider {
     ) -> Result<StreamReader, AppError> {
         use tokio_stream::StreamExt;
 
-        let contents: Vec<serde_json::Value> = messages.iter().filter_map(|m| {
-            if m.role == ConversationRole::System {
-                return None;
-            }
-            Some(serde_json::json!({
-                "role": match m.role {
-                    ConversationRole::User => "user",
-                    ConversationRole::Assistant => "model",
-                    _ => "user",
-                },
-                "parts": [{"text": m.content}],
-            }))
-        }).collect();
+        let contents: Vec<serde_json::Value> = messages
+            .iter()
+            .filter_map(|m| {
+                if m.role == ConversationRole::System {
+                    return None;
+                }
+                Some(serde_json::json!({
+                    "role": match m.role {
+                        ConversationRole::User => "user",
+                        ConversationRole::Assistant => "model",
+                        _ => "user",
+                    },
+                    "parts": [{"text": m.content}],
+                }))
+            })
+            .collect();
 
         let body = serde_json::json!({
             "contents": contents,
@@ -156,7 +159,8 @@ impl ProviderAdapter for GoogleProvider {
             self.base_url, model, api_key
         );
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .json(&body)
             .send()
@@ -170,7 +174,9 @@ impl ProviderAdapter for GoogleProvider {
                 if let Some(data) = line.strip_prefix("data: ") {
                     if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
                         if let Some(candidates) = json["candidates"].as_array() {
-                            if let Some(text) = candidates[0]["content"]["parts"][0]["text"].as_str() {
+                            if let Some(text) =
+                                candidates[0]["content"]["parts"][0]["text"].as_str()
+                            {
                                 return Ok(StreamChunk::Delta(text.to_string()));
                             }
                         }
@@ -211,8 +217,11 @@ mod tests {
     #[tokio::test]
     async fn google_chat_stream_routes_correctly() {
         let provider = GoogleProvider::new();
-        let messages = vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }];
-        let result = provider.chat_stream("gemini-1.5-pro", &messages, &ChatOptions::default(), "fake-key").await;
+        let messages =
+            vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }];
+        let result = provider
+            .chat_stream("gemini-1.5-pro", &messages, &ChatOptions::default(), "fake-key")
+            .await;
         let err = match result {
             Err(e) => e.to_string(),
             Ok(_) => panic!("expected Err"),

@@ -42,7 +42,7 @@ impl ConfigWatcher {
 
             while notify_rx.recv().await.is_some() {
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                notify_rx.recv().await;
+                while notify_rx.try_recv().is_ok() {}
 
                 match load(&data_dir) {
                     Ok(new_config) => {

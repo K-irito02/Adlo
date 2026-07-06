@@ -34,6 +34,7 @@ fn main() {
         .setup(|app| {
             let data_dir = setup::resolve_data_dir(app)?;
             let app_state = setup::init_app_state(data_dir)?;
+            setup::start_background_tasks(&app_state);
             app.manage(app_state);
             Ok(())
         })

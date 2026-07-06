@@ -235,7 +235,8 @@ async fn start_run_inner(
         user_message,
         emit_activity: &emit_activity,
         audit_batch: &mut audit_batch,
-    }).await?;
+    })
+    .await?;
     crate::commands::audit::batch_save_audit_entries(state, audit_batch)?;
 
     Ok(result)

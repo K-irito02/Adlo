@@ -66,7 +66,8 @@ pub fn clone_git_reference_sync(ref_config: &ReferenceConfig) -> Result<PathBuf,
                 cmd.arg("--branch").arg(branch);
             }
             cmd.arg(&ref_config.path).arg(&dest);
-            let output = cmd.output()
+            let output = cmd
+                .output()
                 .map_err(|e| AppError::Io(format!("Failed to clone git ref: {}", e)))?;
             if !output.status.success() {
                 return Err(AppError::Internal(format!(

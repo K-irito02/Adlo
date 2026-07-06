@@ -23,7 +23,10 @@ pub async fn list_session_forks(
 ) -> Result<IpcResult<Vec<ConversationSessionRecord>>, AppError> {
     let forks: Vec<ConversationSessionRecord> = state
         .db
-        .list_entities_by_workspace::<ConversationSessionRecord>(EntityTable::Sessions, &workspace_id)?
+        .list_entities_by_workspace::<ConversationSessionRecord>(
+            EntityTable::Sessions,
+            &workspace_id,
+        )?
         .into_iter()
         .filter(|s| s.parent_id.as_deref() == Some(&parent_session_id))
         .collect();

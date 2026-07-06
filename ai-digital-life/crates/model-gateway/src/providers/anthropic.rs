@@ -136,21 +136,24 @@ impl ProviderAdapter for AnthropicProvider {
         use tokio_stream::StreamExt;
 
         let mut system_text = None;
-        let messages_arr: Vec<serde_json::Value> = messages.iter().filter_map(|m| {
-            if m.role == ConversationRole::System {
-                system_text = Some(m.content.clone());
-                None
-            } else {
-                Some(serde_json::json!({
-                    "role": match m.role {
-                        ConversationRole::User => "user",
-                        ConversationRole::Assistant => "assistant",
-                        _ => "user",
-                    },
-                    "content": m.content,
-                }))
-            }
-        }).collect();
+        let messages_arr: Vec<serde_json::Value> = messages
+            .iter()
+            .filter_map(|m| {
+                if m.role == ConversationRole::System {
+                    system_text = Some(m.content.clone());
+                    None
+                } else {
+                    Some(serde_json::json!({
+                        "role": match m.role {
+                            ConversationRole::User => "user",
+                            ConversationRole::Assistant => "assistant",
+                            _ => "user",
+                        },
+                        "content": m.content,
+                    }))
+                }
+            })
+            .collect();
 
         let mut body = serde_json::json!({
             "model": model,
@@ -162,7 +165,8 @@ impl ProviderAdapter for AnthropicProvider {
             body["system"] = serde_json::Value::String(sys);
         }
 
-        let response = self.client
+        let response = self
+            .client
             .post(format!("{}/messages", self.base_url))
             .header("x-api-key", api_key)
             .header("anthropic-version", "2023-06-01")
@@ -184,7 +188,12 @@ impl ProviderAdapter for AnthropicProvider {
                                 }
                             },
                             Some("message_stop") => {
-                                return Ok(StreamChunk::Done(ModelTokenUsage { prompt_tokens: None, completion_tokens: None, total_tokens: None, estimated: None }));
+                                return Ok(StreamChunk::Done(ModelTokenUsage {
+                                    prompt_tokens: None,
+                                    completion_tokens: None,
+                                    total_tokens: None,
+                                    estimated: None,
+                                }));
                             },
                             _ => {},
                         }
@@ -225,8 +234,16 @@ mod tests {
     #[tokio::test]
     async fn anthropic_chat_stream_routes_correctly() {
         let provider = AnthropicProvider::new();
-        let messages = vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }];
-        let result = provider.chat_stream("claude-3-5-sonnet-20241022", &messages, &ChatOptions::default(), "fake-key").await;
+        let messages =
+            vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }];
+        let result = provider
+            .chat_stream(
+                "claude-3-5-sonnet-20241022",
+                &messages,
+                &ChatOptions::default(),
+                "fake-key",
+            )
+            .await;
         let is_stub = match &result {
             Err(e) => e.to_string().contains("not yet implemented"),
             Ok(_) => false,

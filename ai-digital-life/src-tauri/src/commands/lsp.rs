@@ -72,10 +72,7 @@ pub async fn lsp_get_symbols(
     let Some(client) = clients.get(&workspace_id) else {
         return Ok(ipc(Ok(vec![])));
     };
-    let ext = std::path::Path::new(&file_path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("");
+    let ext = std::path::Path::new(&file_path).extension().and_then(|e| e.to_str()).unwrap_or("");
     let Some(server) = LanguageServer::from_file_extension(ext) else {
         return Ok(ipc(Ok(vec![])));
     };
@@ -94,10 +91,7 @@ pub async fn lsp_get_diagnostics(
     let Some(client) = clients.get(&workspace_id) else {
         return Ok(ipc(Ok(vec![])));
     };
-    let ext = std::path::Path::new(&file_path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("");
+    let ext = std::path::Path::new(&file_path).extension().and_then(|e| e.to_str()).unwrap_or("");
     let Some(server) = LanguageServer::from_file_extension(ext) else {
         return Ok(ipc(Ok(vec![])));
     };
@@ -115,10 +109,7 @@ pub async fn lsp_goto_definition(
     let Some(client) = clients.get(&workspace_id) else {
         return Ok(ipc(Ok(None)));
     };
-    let ext = std::path::Path::new(&file_path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("");
+    let ext = std::path::Path::new(&file_path).extension().and_then(|e| e.to_str()).unwrap_or("");
     let Some(server) = LanguageServer::from_file_extension(ext) else {
         return Ok(ipc(Ok(None)));
     };

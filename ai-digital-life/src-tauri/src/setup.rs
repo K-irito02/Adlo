@@ -90,44 +90,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
             w
         });
 
-    let config_arc = Arc::new(RwLock::new(config.clone()));
-
-    // Background task: periodic check for crashed durable sessions
-    let recovery_manager = durable_manager.clone();
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
-        loop {
-            interval.tick().await;
-            let crashed = recovery_manager.find_crashed_sessions().await;
-            if !crashed.is_empty() {
-                tracing::info!("Found {} crashed durable sessions, initiating recovery", crashed.len());
-                for session in &crashed {
-                    recovery_manager.start_recovery(&session.session_id).await;
-                }
-            }
-        }
-    });
-
-    // Create ConfigWatcher and start watching config.json
-    let config_watcher = ConfigWatcher::new(config);
-    let mut watcher_rx = config_watcher.subscribe();
-    let config_watcher_rx = Some(watcher_rx.clone());
-
-    let data_dir_watch = data_dir.clone();
-    let config_path = adl_config::config_path(&data_dir);
-    tokio::spawn(async move {
-        config_watcher.start_watching(config_path, data_dir_watch).await;
-    });
-
-    let config_arc_watcher = config_arc.clone();
-    tokio::spawn(async move {
-        while watcher_rx.changed().await.is_ok() {
-            let new_config = watcher_rx.borrow().clone();
-            if let Ok(mut cfg) = config_arc_watcher.write() {
-                *cfg = (*new_config).clone();
-            }
-        }
-    });
+    let config_arc = Arc::new(RwLock::new(config));
 
     Ok(AppState {
         data_dir,
@@ -141,8 +104,63 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         log_manager,
         started_at: now_ms(),
         durable_manager,
-        config_watcher_rx,
     })
+}
+
+/// Start background tasks (config watcher, durable session recovery).
+/// Spawns a dedicated std thread with its own tokio runtime so it works during Tauri setup.
+pub fn start_background_tasks(state: &AppState) {
+    let data_dir = state.data_dir.clone();
+    let durable_manager = state.durable_manager.clone();
+    let config_arc = state.config.clone();
+
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Runtime::new().expect("failed to create background tokio runtime");
+        rt.block_on(async move {
+            let recovery_manager = durable_manager;
+            let data_dir_watch = data_dir.clone();
+
+            // Background task: periodic check for crashed durable sessions
+            let recovery_handle = tokio::spawn(async move {
+                let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
+                loop {
+                    interval.tick().await;
+                    let crashed = recovery_manager.find_crashed_sessions().await;
+                    if !crashed.is_empty() {
+                        tracing::info!(
+                            "Found {} crashed durable sessions, initiating recovery",
+                            crashed.len()
+                        );
+                        for session in &crashed {
+                            recovery_manager.start_recovery(&session.session_id).await;
+                        }
+                    }
+                }
+            });
+
+            // Create ConfigWatcher and start watching config.json
+            let initial_config = config_arc.read().unwrap_or_else(|e| e.into_inner()).clone();
+            let config_watcher = ConfigWatcher::new(initial_config);
+            let mut watcher_rx = config_watcher.subscribe();
+
+            let config_path = adl_config::config_path(&data_dir_watch);
+            let config_arc_watcher = config_arc.clone();
+            let watcher_handle = tokio::spawn(async move {
+                config_watcher.start_watching(config_path, data_dir_watch).await;
+            });
+
+            let config_update_handle = tokio::spawn(async move {
+                while watcher_rx.changed().await.is_ok() {
+                    let new_config = watcher_rx.borrow().clone();
+                    if let Ok(mut cfg) = config_arc_watcher.write() {
+                        *cfg = (*new_config).clone();
+                    }
+                }
+            });
+
+            let _ = tokio::try_join!(recovery_handle, watcher_handle, config_update_handle);
+        });
+    });
 }
 
 pub fn save_config(state: &AppState) -> anyhow::Result<()> {

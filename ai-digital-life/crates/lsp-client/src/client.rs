@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::process::{Child, ChildStdin, Command as StdCommand, Stdio};
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
-use tokio::sync::{Mutex, oneshot};
+use tokio::sync::{oneshot, Mutex};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LspClientState {
@@ -49,7 +49,11 @@ pub struct LspClient {
 
 impl LspClient {
     pub fn new(workspace_root: PathBuf) -> Self {
-        Self { servers: Arc::new(Mutex::new(HashMap::new())), workspace_root, next_id: Arc::new(AtomicI32::new(1)) }
+        Self {
+            servers: Arc::new(Mutex::new(HashMap::new())),
+            workspace_root,
+            next_id: Arc::new(AtomicI32::new(1)),
+        }
     }
 
     pub async fn start_server(&self, server: LanguageServer) -> Result<(), AppError> {
@@ -62,7 +66,12 @@ impl LspClient {
         if cmd_parts.is_empty() {
             servers.insert(
                 server.clone(),
-                LspServerHandle { state: LspClientState::Error, child: None, stdin: None, pending: HashMap::new() },
+                LspServerHandle {
+                    state: LspClientState::Error,
+                    child: None,
+                    stdin: None,
+                    pending: HashMap::new(),
+                },
             );
             return Err(AppError::InvalidInput("Empty LSP command".into()));
         }
@@ -72,7 +81,12 @@ impl LspClient {
 
         servers.insert(
             server.clone(),
-            LspServerHandle { state: LspClientState::Starting, child: None, stdin: None, pending: HashMap::new() },
+            LspServerHandle {
+                state: LspClientState::Starting,
+                child: None,
+                stdin: None,
+                pending: HashMap::new(),
+            },
         );
         drop(servers);
 
@@ -96,7 +110,12 @@ impl LspClient {
             Err(e) => {
                 servers.insert(
                     server.clone(),
-                    LspServerHandle { state: LspClientState::Error, child: None, stdin: None, pending: HashMap::new() },
+                    LspServerHandle {
+                        state: LspClientState::Error,
+                        child: None,
+                        stdin: None,
+                        pending: HashMap::new(),
+                    },
                 );
                 Err(e)
             },
@@ -156,9 +175,7 @@ impl LspClient {
         init_req
             .write(&mut child_stdin)
             .map_err(|e| AppError::Io(format!("Failed to send initialize: {}", e)))?;
-        child_stdin
-            .flush()
-            .map_err(|e| AppError::Io(format!("Failed to flush stdin: {}", e)))?;
+        child_stdin.flush().map_err(|e| AppError::Io(format!("Failed to flush stdin: {}", e)))?;
 
         let resp = lsp_server::Message::read(&mut reader)
             .map_err(|e| AppError::Io(format!("Failed to read initialize response: {}", e)))?;
@@ -193,26 +210,22 @@ impl LspClient {
         initialized
             .write(&mut child_stdin)
             .map_err(|e| AppError::Io(format!("Failed to send initialized: {}", e)))?;
-        child_stdin
-            .flush()
-            .map_err(|e| AppError::Io(format!("Failed to flush stdin: {}", e)))?;
+        child_stdin.flush().map_err(|e| AppError::Io(format!("Failed to flush stdin: {}", e)))?;
 
         let servers = self.servers.clone();
-        tokio::task::spawn_blocking(move || {
-            loop {
-                match lsp_server::Message::read(&mut reader) {
-                    Ok(Some(lsp_server::Message::Response(resp))) => {
-                        let mut map = servers.blocking_lock();
-                        for handle in map.values_mut() {
-                            if let Some(tx) = handle.pending.remove(&resp.id) {
-                                let _ = tx.send(resp);
-                                break;
-                            }
+        tokio::task::spawn_blocking(move || loop {
+            match lsp_server::Message::read(&mut reader) {
+                Ok(Some(lsp_server::Message::Response(resp))) => {
+                    let mut map = servers.blocking_lock();
+                    for handle in map.values_mut() {
+                        if let Some(tx) = handle.pending.remove(&resp.id) {
+                            let _ = tx.send(resp);
+                            break;
                         }
-                    },
-                    Ok(_) => continue,
-                    Err(_) => break,
-                }
+                    }
+                },
+                Ok(_) => continue,
+                Err(_) => break,
             }
         });
 
@@ -232,9 +245,9 @@ impl LspClient {
 
         {
             let mut servers = self.servers.lock().await;
-            let handle = servers
-                .get_mut(server)
-                .ok_or_else(|| AppError::NotFound(format!("LSP server {:?} not started", server)))?;
+            let handle = servers.get_mut(server).ok_or_else(|| {
+                AppError::NotFound(format!("LSP server {:?} not started", server))
+            })?;
 
             let stdin = handle
                 .stdin
@@ -249,16 +262,14 @@ impl LspClient {
 
             msg.write(stdin)
                 .map_err(|e| AppError::Io(format!("Failed to send LSP request: {}", e)))?;
-            stdin
-                .flush()
-                .map_err(|e| AppError::Io(format!("Failed to flush stdin: {}", e)))?;
+            stdin.flush().map_err(|e| AppError::Io(format!("Failed to flush stdin: {}", e)))?;
 
             handle.pending.insert(req_id, tx);
         }
 
-        let resp = rx
-            .await
-            .map_err(|_| AppError::Internal("LSP request cancelled - server disconnected".into()))?;
+        let resp = rx.await.map_err(|_| {
+            AppError::Internal("LSP request cancelled - server disconnected".into())
+        })?;
 
         if let Some(err) = resp.error {
             return Err(AppError::Internal(format!("LSP error ({}): {}", err.code, err.message)));
@@ -288,7 +299,8 @@ impl LspClient {
         })
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-        let result: serde_json::Value = self.request(server, "textDocument/diagnostic", params).await?;
+        let result: serde_json::Value =
+            self.request(server, "textDocument/diagnostic", params).await?;
 
         let items = result
             .get("items")
@@ -304,7 +316,9 @@ impl LspClient {
                 severity: match d.severity {
                     Some(lsp_types::DiagnosticSeverity::ERROR) => DiagnosticSeverity::Error,
                     Some(lsp_types::DiagnosticSeverity::WARNING) => DiagnosticSeverity::Warning,
-                    Some(lsp_types::DiagnosticSeverity::INFORMATION) => DiagnosticSeverity::Information,
+                    Some(lsp_types::DiagnosticSeverity::INFORMATION) => {
+                        DiagnosticSeverity::Information
+                    },
                     Some(lsp_types::DiagnosticSeverity::HINT) => DiagnosticSeverity::Hint,
                     _ => DiagnosticSeverity::Hint,
                 },
@@ -336,7 +350,8 @@ impl LspClient {
         })
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-        let result: serde_json::Value = self.request(server, "textDocument/documentSymbol", params).await?;
+        let result: serde_json::Value =
+            self.request(server, "textDocument/documentSymbol", params).await?;
 
         let symbols: Vec<DocumentSymbol> = serde_json::from_value(result).unwrap_or_default();
 
@@ -366,7 +381,8 @@ impl LspClient {
         })
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-        let result: serde_json::Value = self.request(server, "textDocument/definition", params).await?;
+        let result: serde_json::Value =
+            self.request(server, "textDocument/definition", params).await?;
 
         if let Ok(loc) = serde_json::from_value::<Location>(result.clone()) {
             Ok(Some(DefinitionLocation {

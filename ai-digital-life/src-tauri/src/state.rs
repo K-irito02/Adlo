@@ -20,6 +20,4 @@ pub struct AppState {
     pub log_manager: LogManager,
     pub started_at: i64,
     pub durable_manager: DurableSessionManager,
-    #[allow(dead_code)]
-    pub config_watcher_rx: Option<tokio::sync::watch::Receiver<Arc<AppConfig>>>,
 }

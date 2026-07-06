@@ -55,9 +55,10 @@ pub async fn update_custom_agent(
     agent: AgentConfig,
 ) -> Result<IpcResult<()>, AppError> {
     let mut config = state.config.write().map_err(|_| AppError::Internal("config lock".into()))?;
-    if let Some(existing) = config.custom_agents.iter_mut().find(|a| a.name == original_name) {
-        *existing = agent;
-    }
+    let found = config.custom_agents.iter_mut().find(|a| a.name == original_name);
+    let existing = found
+        .ok_or_else(|| AppError::NotFound(format!("Custom agent '{}' not found", original_name)))?;
+    *existing = agent;
     save(&state.data_dir, &config)?;
     Ok(ipc(Ok(())))
 }

@@ -139,7 +139,8 @@ impl ProviderAdapter for OllamaProvider {
             "stream": true,
         });
 
-        let response = self.client
+        let response = self
+            .client
             .post(format!("{}/api/chat", self.base_url))
             .json(&body)
             .send()
@@ -152,7 +153,12 @@ impl ProviderAdapter for OllamaProvider {
             for line in text.lines() {
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
                     if json["done"].as_bool().unwrap_or(false) {
-                        return Ok(StreamChunk::Done(ModelTokenUsage { prompt_tokens: None, completion_tokens: None, total_tokens: None, estimated: None }));
+                        return Ok(StreamChunk::Done(ModelTokenUsage {
+                            prompt_tokens: None,
+                            completion_tokens: None,
+                            total_tokens: None,
+                            estimated: None,
+                        }));
                     }
                     if let Some(content) = json["message"]["content"].as_str() {
                         return Ok(StreamChunk::Delta(content.to_string()));
@@ -193,7 +199,8 @@ mod tests {
     #[tokio::test]
     async fn ollama_chat_stream_routes_correctly() {
         let provider = OllamaProvider::new();
-        let messages = vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }];
+        let messages =
+            vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }];
         let result = provider.chat_stream("llama3.1", &messages, &ChatOptions::default(), "").await;
         let err_msg = result.as_ref().err().map(|e| e.to_string()).unwrap_or_default();
         assert!(!err_msg.contains("not yet implemented"), "Ollama streaming should not be stubbed");

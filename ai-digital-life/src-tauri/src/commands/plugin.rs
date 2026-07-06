@@ -8,8 +8,6 @@ use std::sync::Arc;
 pub(crate) static PLUGIN_REGISTRY: std::sync::LazyLock<Arc<PluginRegistry>> =
     std::sync::LazyLock::new(|| Arc::new(PluginRegistry::new()));
 
-
-
 #[tauri::command]
 pub async fn list_plugins() -> Result<IpcResult<Vec<PluginInfo>>, AppError> {
     Ok(ipc(Ok(PLUGIN_REGISTRY.list_plugins().await)))
