@@ -9,9 +9,16 @@ export function DurableStatusIndicator({ sessionId }: { sessionId: string }) {
     return null;
   }
 
+  const statusLabels: Record<string, string> = {
+    running: t.durableSessionRunning,
+    completed: t.durableSessionCompleted,
+    failed: t.durableSessionFailed,
+    crashed: t.durableSessionCrashed,
+  };
+
   return (
     <span className={`adl-durable-status adl-durable-status--${info.status}`} role="status">
-      {t.durableSessionRunning}
+      {statusLabels[info.status] ?? t.durableSessionRunning}
     </span>
   );
 }
