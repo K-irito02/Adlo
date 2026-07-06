@@ -30,17 +30,22 @@ async fn start_server_inner(
     server: String,
 ) -> Result<(), AppError> {
     let server_enum = parse_server(&server);
+    let mut clients = LSP_CLIENTS.lock().await;
+    if let Some(old) = clients.remove(&workspace_id) {
+        drop(clients);
+        let _ = old.stop_server(&server_enum).await;
+        clients = LSP_CLIENTS.lock().await;
+    }
     let client = LspClient::new(PathBuf::from(&workspace_root));
     client.start_server(server_enum).await?;
-    let mut clients = LSP_CLIENTS.lock().await;
     clients.insert(workspace_id, Arc::new(client));
     Ok(())
 }
 
 async fn stop_server_inner(workspace_id: String, server: String) -> Result<(), AppError> {
     let server_enum = parse_server(&server);
-    let clients = LSP_CLIENTS.lock().await;
-    if let Some(client) = clients.get(&workspace_id) {
+    let mut clients = LSP_CLIENTS.lock().await;
+    if let Some(client) = clients.remove(&workspace_id) {
         client.stop_server(&server_enum).await?;
     }
     Ok(())
