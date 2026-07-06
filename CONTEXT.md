@@ -136,10 +136,13 @@ Rust 端 `crates/kernel/src/command_risk.rs`，基于 OpenCode 的 deny/ask/allo
 已完成。包括 Rust crate 架构、Tauri 壳层、安全边界（capability 权限策略）、SQLite 持久化、日志系统。
 
 ### Phase 1 - 交互式 MVP
-进行中。包括模型接入（model-gateway）、会话/消息管理、上下文管理、变更预览/应用/回滚。
+已完成。包括模型接入（model-gateway）、会话/消息管理、上下文管理、变更预览/应用/回滚。
 
 ### Phase 2 - Agent 生态
-进行中（部分切片已完成）。包括单 Agent 执行引擎、终端流式输出、任务管理与审批。
+已完成（2026-07-06）。包括 18 项缺失能力：多 Agent 系统、Sub-agent/Task 工具、Plan Mode、MCP 完整集成、多 LLM Provider、Provider-specific Prompts、Compaction、Snapshot/Revert、WebFetch/WebSearch、自定义命令、权限 Ruleset、Session Fork、LSP 集成、Plugin 系统、Reference 系统、自定义 Agent 配置、Hot Reload Config、Durable Session。
+
+### Phase 3+ - 生态与规模化
+规划中。包括 ACP、HTTP API、CodeMode 沙箱、插件市场、浏览器自动化运行时、云服务集成、多模态输入、CI/CD 集成等。
 
 ---
 

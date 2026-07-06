@@ -8,6 +8,15 @@
 
 所有代码须遵循项目编码规范（分支命名、Commit 格式、TypeScript/Rust 风格），详见 [AGENTS.md](./AGENTS.md#编码规范)。
 
+### 核心原则
+
+- **禁止 `any` 类型**：TypeScript 中使用精确类型，善用 `unknown` 和 type guard
+- **禁止 `unwrap()`**：Rust 中使用 `?` 运算符或模式匹配
+- **禁止 `else`**：优先提前返回模式
+- **测试先行**：修改后必须通过强制验收流程
+- **重构小步提交**：单次变更聚焦一个职责
+- **双端一致**：所有功能必须在 Tauri 桌面和浏览器模式下保持一致
+
 ---
 
 ## 开发环境
@@ -24,7 +33,7 @@
 
 ### 本地开发
 
-```bash
+```powershell
 # 1. 设置 Node.js 环境（每次新终端执行）
 $env:Path = "D:\Program Files\nodejs;$env:Path"
 
@@ -42,11 +51,12 @@ pnpm run dev:both
 ### 目录结构
 
 ```
-├── AGENTS.md            # 项目治理规则
+├── AGENTS.md            # 项目治理规则、编码规范、技能系统
 ├── CONTEXT.md           # 领域术语表
-├── .agents/             # AI 代理配置真源（rules/ + skills/）
-├── .trae/               # TRAE IDE 集成（rules/ + skills/ 同步副本）
-├── .opencode/           # OpenCode 集成（skills/ 真源）
+├── SECURITY.md          # 安全策略
+├── FUTURE-ROADMAP.md    # 远期规划
+├── .agents/rules/       # AI 代理规则真源（同步到 .trae/rules/）
+├── .opencode/skills/    # 技能真源（同步到 .agents/skills/ 和 .trae/skills/）
 ├── ai-digital-life/     # 实现工作区（Rust + Tauri + React）
 ├── references/          # 外部参考源码（OpenCode 等）
 └── docs/                # 架构、设计、知识沉淀
@@ -104,3 +114,13 @@ pnpm run dev:both
 - 关注代码本身而非个人
 - 建设性反馈优于批评
 - 禁止提交 AI 自动生成的低质量贡献
+
+---
+
+## 相关文档
+
+- [AGENTS.md](./AGENTS.md) — 项目治理规则、编码规范、技能系统
+- [CONTEXT.md](./CONTEXT.md) — 领域术语表
+- [SECURITY.md](./SECURITY.md) — 安全策略
+- [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
+- [docs/](./docs/) — 架构设计、知识沉淀、设计系统
