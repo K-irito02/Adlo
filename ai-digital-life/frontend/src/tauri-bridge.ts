@@ -27,7 +27,6 @@ import type {
   CommandConfig,
   CustomAgentBridge,
   CompactionBridge,
-  CompactSessionInput,
   SessionForkBridge,
   SymbolInfo,
   CompactSessionResult,
