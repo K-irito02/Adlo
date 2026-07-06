@@ -294,7 +294,6 @@ const CenterPane = React.memo(function CenterPane() {
               <ForkButton
                 parentSession={activeDetail.session}
                 forkMessageId={activeDetail.messages[activeDetail.messages.length - 1]?.id ?? ''}
-                existingForkCount={0}
               />
               {latestSnapshotId && appInfo?.currentWorkspace ? (
                 <RevertButton

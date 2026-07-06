@@ -8,17 +8,9 @@ export function createSessionForkActions(
   get: () => StoreState
 ) {
   return {
-    forkSession: async (
-      parentSession: ConversationSessionRecord,
-      forkMessageId: string,
-      existingForkCount: number
-    ) => {
+    forkSession: async (parentSession: ConversationSessionRecord, forkMessageId: string) => {
       clearError(get);
-      const result = await window.digitalLife.sessionFork.forkSession(
-        parentSession,
-        forkMessageId,
-        existingForkCount
-      );
+      const result = await window.digitalLife.sessionFork.forkSession(parentSession, forkMessageId);
       if (!result.ok) {
         captureError(get, result.error);
         return null;

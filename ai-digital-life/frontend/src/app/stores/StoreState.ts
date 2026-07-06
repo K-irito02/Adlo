@@ -258,8 +258,7 @@ interface CompactionActions {
 interface SessionForkActions {
   forkSession: (
     parentSession: ConversationSessionRecord,
-    forkMessageId: string,
-    existingForkCount: number
+    forkMessageId: string
   ) => Promise<ConversationSessionRecord | null>;
   listSessionForks: (
     workspaceId: string,

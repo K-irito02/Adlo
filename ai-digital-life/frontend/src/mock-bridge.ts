@@ -28,11 +28,7 @@ import type {
   WebToolsBridge,
 } from './shared/ipc';
 import { applyPreferencePatch } from './shared/preferencesMerger';
-import type {
-  CommandRequest,
-  CommandRunResult,
-  ConversationSessionRecord,
-} from '@ai-digital-life/kernel';
+import type { CommandRequest, CommandRunResult } from '@ai-digital-life/kernel';
 import { mockWorkspace } from './mock/mock-workspace';
 import { mockRetrieval } from './mock/mock-retrieval';
 import { mockConversation } from './mock/mock-conversation';
@@ -623,13 +619,14 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   } satisfies CompactionBridge,
 
   sessionFork: {
-    forkSession: async (parentSession, _forkMessageId, _existingForkCount) => ({
+    forkSession: async (parentSession, _forkMessageId) => ({
       ok: true,
       data: {
         ...parentSession,
-        id: `fork-${Date.now()}`,
-        title: `${parentSession.title} (fork #${_existingForkCount + 1})`,
-      } as ConversationSessionRecord,
+        id: `${parentSession.id}-fork-${Date.now()}`,
+        title: `${parentSession.title} (fork)`,
+        parent_id: parentSession.id,
+      },
     }),
     listSessionForks: async () => ({
       ok: true,

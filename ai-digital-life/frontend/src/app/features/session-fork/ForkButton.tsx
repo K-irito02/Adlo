@@ -6,11 +6,9 @@ import type { ConversationSessionRecord } from '@ai-digital-life/kernel';
 export function ForkButton({
   parentSession,
   forkMessageId,
-  existingForkCount,
 }: {
   parentSession: ConversationSessionRecord;
   forkMessageId: string;
-  existingForkCount: number;
 }) {
   const { t } = useTCopy();
   const [forking, setForking] = useState(false);
@@ -18,7 +16,7 @@ export function ForkButton({
 
   const handleFork = async () => {
     setForking(true);
-    await forkSession(parentSession, forkMessageId, existingForkCount);
+    await forkSession(parentSession, forkMessageId);
     setForking(false);
   };
 

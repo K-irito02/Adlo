@@ -4,8 +4,7 @@ import type { ConversationSessionRecord } from '@ai-digital-life/kernel';
 export interface SessionForkBridge {
   forkSession(
     parentSession: ConversationSessionRecord,
-    forkMessageId: string,
-    existingForkCount: number
+    forkMessageId: string
   ): Promise<IpcResult<ConversationSessionRecord>>;
   listSessionForks(
     workspaceId: string,

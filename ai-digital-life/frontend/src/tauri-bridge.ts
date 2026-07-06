@@ -624,12 +624,8 @@ export function createTauriBridge(): DigitalLifeBridge {
     } satisfies CompactionBridge,
 
     sessionFork: {
-      forkSession: (parentSession, forkMessageId, existingForkCount) =>
-        invokeIpc<ConversationSessionRecord>('fork_session_cmd', {
-          parentSession,
-          forkMessageId,
-          existingForkCount,
-        }),
+      forkSession: (parentSession, forkMessageId) =>
+        invoke('fork_session_cmd', { parentSession, forkMessageId }),
       listSessionForks: (workspaceId, parentSessionId) =>
         invokeIpc<ConversationSessionRecord[]>('list_session_forks', {
           workspaceId,
@@ -661,8 +657,7 @@ export function createTauriBridge(): DigitalLifeBridge {
         invokeIpc<void>('set_plugin_enabled', { name, enabled }),
       registerPlugin: (name, description, hooks) =>
         invoke('register_plugin', { name, description, hooks }),
-      unregisterPlugin: (name) =>
-        invoke('unregister_plugin', { name }),
+      unregisterPlugin: (name) => invoke('unregister_plugin', { name }),
     } satisfies PluginBridge,
 
     reference: {
