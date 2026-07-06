@@ -1,7 +1,16 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { AgentStepType, RiskLevel } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
-import { IconChevronDown, IconChevronRight, IconTarget } from '../../icons';
+import {
+  IconChevronDown,
+  IconChevronRight,
+  IconTarget,
+  IconSearch,
+  IconFileText,
+  IconPencil,
+  IconTerminal,
+  IconCheck,
+} from '../../icons';
 
 export interface PlanStep {
   id: string;
@@ -17,15 +26,6 @@ interface PlanCardProps {
   steps: PlanStep[];
   expanded?: boolean;
 }
-
-const STEP_TYPE_ICON: Record<AgentStepType, string> = {
-  analyze: '🔍',
-  search: '🔎',
-  read: '📖',
-  edit: '✏️',
-  command: '⌨️',
-  verify: '✅',
-};
 
 function stepTypeLabel(t: CopyDict, type: AgentStepType): string {
   const map: Record<AgentStepType, keyof CopyDict> = {
@@ -80,7 +80,12 @@ export function PlanCard({ t, title, steps, expanded: initialExpanded = true }: 
             <li key={step.id} className={`adl-plan-card__step ${statusClass(step.status)}`}>
               <span className="adl-plan-card__step-num">{idx + 1}</span>
               <span className="adl-plan-card__step-icon" aria-hidden="true">
-                {STEP_TYPE_ICON[step.stepType]}
+                {step.stepType === 'analyze' && <IconTarget size={14} decorative />}
+                {step.stepType === 'search' && <IconSearch size={14} decorative />}
+                {step.stepType === 'read' && <IconFileText size={14} decorative />}
+                {step.stepType === 'edit' && <IconPencil size={14} decorative />}
+                {step.stepType === 'command' && <IconTerminal size={14} decorative />}
+                {step.stepType === 'verify' && <IconCheck size={14} decorative />}
               </span>
               <span className="adl-plan-card__step-title">{step.title}</span>
               <span className="adl-chip adl-chip--xs adl-chip--muted">
