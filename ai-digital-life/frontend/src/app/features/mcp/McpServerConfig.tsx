@@ -67,7 +67,7 @@ export function McpServerConfig({ onClose }: McpServerConfigFormProps) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. my-mcp-server"
+            placeholder={t.mcpConfigNamePlaceholder}
           />
         </label>
 
@@ -93,7 +93,7 @@ export function McpServerConfig({ onClose }: McpServerConfigFormProps) {
                 type="text"
                 value={command}
                 onChange={(e) => setCommand(e.target.value)}
-                placeholder="e.g. npx"
+                placeholder={t.mcpConfigCommandPlaceholder}
               />
             </label>
 
@@ -103,7 +103,7 @@ export function McpServerConfig({ onClose }: McpServerConfigFormProps) {
                 type="text"
                 value={args}
                 onChange={(e) => setArgs(e.target.value)}
-                placeholder="e.g. -y, @modelcontextprotocol/server-filesystem"
+                placeholder={t.mcpConfigArgsPlaceholder}
               />
             </label>
           </>
@@ -116,7 +116,7 @@ export function McpServerConfig({ onClose }: McpServerConfigFormProps) {
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="e.g. http://localhost:3000/sse"
+              placeholder={t.mcpConfigUrlPlaceholder}
             />
           </label>
         )}

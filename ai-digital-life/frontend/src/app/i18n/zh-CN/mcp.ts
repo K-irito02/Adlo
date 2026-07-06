@@ -24,4 +24,8 @@ export const mcpZh = {
   mcpResources: '资源',
   mcpServerList: '服务器列表',
   mcpAddServer: '添加新服务器',
+  mcpConfigNamePlaceholder: '例如 my-mcp-server',
+  mcpConfigCommandPlaceholder: '例如 npx',
+  mcpConfigArgsPlaceholder: '例如 -y, @modelcontextprotocol/server-filesystem',
+  mcpConfigUrlPlaceholder: '例如 http://localhost:3000/sse',
 } as const;

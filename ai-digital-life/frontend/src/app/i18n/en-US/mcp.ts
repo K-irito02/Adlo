@@ -24,4 +24,8 @@ export const mcpEn = {
   mcpResources: 'Resources',
   mcpServerList: 'Server List',
   mcpAddServer: 'Add New Server',
+  mcpConfigNamePlaceholder: 'e.g. my-mcp-server',
+  mcpConfigCommandPlaceholder: 'e.g. npx',
+  mcpConfigArgsPlaceholder: 'e.g. -y, @modelcontextprotocol/server-filesystem',
+  mcpConfigUrlPlaceholder: 'e.g. http://localhost:3000/sse',
 } as const;
