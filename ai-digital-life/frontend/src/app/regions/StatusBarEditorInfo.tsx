@@ -1,8 +1,9 @@
 import React from 'react';
 import type { AppInfo, ModelGatewayHealthSnapshot } from '@ai-digital-life/kernel';
+import { useShallow } from 'zustand/react/shallow';
+import { useAppStore } from '../stores/slicedStore';
 import { useTCopy } from '../i18n/useTCopy';
-import { MODEL_PROVIDER_IDS } from '../utils/constants';
-import { MODEL_OPTIONS } from '../utils/constants';
+import { CustomScrollArea } from '../features/file-tree/CustomScrollArea';
 import { IconCheck } from '../icons';
 import { TooltipSimple } from '../components/Tooltip';
 import { modelHealthLabel, modelHealthTone } from './StatusBar/utils';
@@ -17,7 +18,6 @@ interface StatusBarEditorInfoProps {
   isOpen: boolean;
   onToggle: () => void;
   onRequestClose: () => void;
-  onSelectModel: (providerId: string, modelId?: string) => void;
 }
 
 const StatusBarEditorInfo = React.memo(function StatusBarEditorInfo({
@@ -30,9 +30,14 @@ const StatusBarEditorInfo = React.memo(function StatusBarEditorInfo({
   isOpen,
   onToggle,
   onRequestClose,
-  onSelectModel,
 }: StatusBarEditorInfoProps) {
   const { t } = useTCopy();
+  const { providers, selectModel } = useAppStore(
+    useShallow((s) => ({
+      providers: s.providers,
+      selectModel: s.selectModel,
+    }))
+  );
 
   return (
     <>
@@ -59,50 +64,59 @@ const StatusBarEditorInfo = React.memo(function StatusBarEditorInfo({
           </TooltipSimple>
         </button>
         {isOpen ? (
-          <div className="adl-statusbar__menu adl-statusbar__menu--model" role="menu">
-            {MODEL_PROVIDER_IDS.flatMap((providerId) => {
-              const health = modelHealth?.providers.find(
-                (provider) => provider.providerId === providerId
-              );
-              const preference = appInfo?.config.modelPreferences.providers[providerId];
-              if (!preference) {
-                return [];
-              }
-
-              const configured = { id: preference.modelId, label: preference.modelId };
-              const baseOptions = MODEL_OPTIONS[providerId] ?? [];
-              const options = baseOptions.some((option) => option.id === configured.id)
-                ? baseOptions
-                : [configured, ...baseOptions];
-
-              return options.map((option) => {
-                const isActive =
-                  providerId === activeProviderId && option.id === activeProviderModelId;
-                return (
-                  <button
-                    key={`${providerId}:${option.id}`}
-                    type="button"
-                    role="menuitem"
-                    className={`adl-statusbar__menu-option${isActive ? ' is-active' : ''}`}
-                    onClick={() => {
-                      onSelectModel(providerId, option.id);
-                      onRequestClose();
-                    }}
-                  >
-                    <span className="adl-statusbar__menu-option-main">{option.label}</span>
-                    {isActive ? (
-                      <IconCheck size={14} decorative />
+          <div className="adl-model-picker__dropdown adl-model-picker__dropdown--statusbar" role="menu">
+            {providers.length === 0 ? (
+              <div className="adl-model-picker__empty">{t.providerNoProviders}</div>
+            ) : (
+              <CustomScrollArea
+                shellClassName="adl-model-picker__scroll-shell"
+                scrollClassName="adl-model-picker__scroll"
+                scrollbarClassName="adl-model-picker__scrollbar"
+                thumbClassName="adl-model-picker__scrollbar-thumb"
+              >
+                {providers.map((p) => (
+                  <div key={p.id} className="adl-model-picker__group">
+                    <div className="adl-model-picker__group-header">{p.name}</div>
+                    {p.models.length === 0 ? (
+                      <div className="adl-model-picker__no-models">{t.modelUnavailable}</div>
                     ) : (
-                      <span
-                        className={`adl-statusbar__model-option-dot adl-statusbar__model-option-dot--${modelHealthTone(health?.healthy)}`}
-                        aria-label={modelHealthLabel(t, health?.healthy)}
-                        role="img"
-                      />
+                      p.models.map((m) => {
+                        const isActive = activeProviderId === p.id && activeProviderModelId === m.id;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            role="menuitem"
+                            className={`adl-model-picker__option${isActive ? ' is-active' : ''}`}
+                            aria-selected={isActive}
+                            onClick={() => {
+                              selectModel(p.id, m.id);
+                              onRequestClose();
+                            }}
+                          >
+                            <span className="adl-model-picker__option-name">{m.name}</span>
+                            {isActive ? (
+                              <IconCheck size={14} decorative />
+                            ) : (
+                              <span
+                                className={`adl-model-picker__option-dot adl-model-picker__option-dot--${modelHealthTone(
+                                  modelHealth?.providers.find((h) => h.providerId === p.id)?.healthy
+                                )}`}
+                                aria-label={modelHealthLabel(
+                                  t,
+                                  modelHealth?.providers.find((h) => h.providerId === p.id)?.healthy
+                                )}
+                                role="img"
+                              />
+                            )}
+                          </button>
+                        );
+                      })
                     )}
-                  </button>
-                );
-              });
-            })}
+                  </div>
+                ))}
+              </CustomScrollArea>
+            )}
           </div>
         ) : null}
       </div>

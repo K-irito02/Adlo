@@ -8,16 +8,11 @@ import {
 } from '../../icons';
 import type { CopyDict } from '../../i18n';
 import type { GitSnapshot } from '@ai-digital-life/kernel';
-import { MODEL_OPTIONS } from '../../utils/constants';
 
 export type GitStatus = 'synced' | 'dirty' | 'unpushed' | 'conflict' | 'no-repo';
 
-export function modelLabel(providerId: string, modelId?: string): string {
-  if (!modelId) {
-    return '—';
-  }
-  const option = (MODEL_OPTIONS[providerId] ?? []).find((candidate) => candidate.id === modelId);
-  return option?.label ?? modelId;
+export function modelLabel(_providerId: string, modelId?: string): string {
+  return modelId ?? '—';
 }
 
 export function gitIcon(status: GitStatus, size: 12 | 14 | 16 = 12) {

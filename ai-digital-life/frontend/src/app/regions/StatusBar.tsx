@@ -30,7 +30,6 @@ interface StatusBarProps {
   isStreaming: boolean;
   activeRun?: AgentRunDetail;
   workspaceContextMode: 'workspace' | 'global';
-  onSelectModel: (providerId: string, modelId?: string) => void;
   onOpenWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
   onClearWorkspaceContext: () => Promise<void>;
   onPickWorkspaceDirectory: () => Promise<string | undefined>;
@@ -50,7 +49,6 @@ const StatusBar = React.memo(function StatusBar({
   isStreaming: _isStreaming,
   activeRun: _activeRun,
   workspaceContextMode,
-  onSelectModel,
   onOpenWorkspace,
   onClearWorkspaceContext,
   onPickWorkspaceDirectory,
@@ -246,7 +244,6 @@ const StatusBar = React.memo(function StatusBar({
         isOpen={openMenu === 'model'}
         onToggle={() => setOpenMenu((current) => (current === 'model' ? undefined : 'model'))}
         onRequestClose={() => setOpenMenu(undefined)}
-        onSelectModel={onSelectModel}
       />
     </ContainerTag>
   );

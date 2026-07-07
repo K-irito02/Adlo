@@ -3,7 +3,6 @@ import { IconArrowUp, IconMic, IconPlus, IconRefreshCw, IconStopCircle } from '.
 import { ContextBuilderPopover } from '../../components/conversation/ContextBuilderPopover';
 import { TooltipSimple } from '../../components/Tooltip';
 import { StatusBar } from '../StatusBar';
-import { ModelPicker } from '../../components/models/ModelPicker';
 import type { ChatMode, ContextChip } from '../../stores/types';
 import { useTCopy } from '../../i18n/useTCopy';
 import type {
@@ -44,7 +43,6 @@ export interface ComposerFooterProps {
   recentWorkspaces: RecentWorkspaceEntry[];
   gitSnapshot: GitSnapshot | undefined;
   gitBranches: GitBranchSummary[];
-  handleSelectModel: (providerId: string, modelId?: string) => void;
   actions: {
     openWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
     clearWorkspaceContext: () => Promise<void>;
@@ -84,7 +82,6 @@ export function ComposerFooter(props: ComposerFooterProps) {
     recentWorkspaces,
     gitSnapshot,
     gitBranches,
-    handleSelectModel,
     actions,
   } = props;
 
@@ -122,7 +119,6 @@ export function ComposerFooter(props: ComposerFooterProps) {
             onAddChip={addContextChip}
           />
         </div>
-        <ModelPicker />
         <div className="adl-composer__editor" ref={composerEditorRef}>
           <div
             ref={composerInputRef}
@@ -203,7 +199,6 @@ export function ComposerFooter(props: ComposerFooterProps) {
         recentWorkspaces={recentWorkspaces}
         gitSnapshot={gitSnapshot}
         gitBranches={gitBranches}
-        onSelectModel={handleSelectModel}
         onOpenWorkspace={actions.openWorkspace}
         onClearWorkspaceContext={actions.clearWorkspaceContext}
         onPickWorkspaceDirectory={actions.pickWorkspaceDirectory}

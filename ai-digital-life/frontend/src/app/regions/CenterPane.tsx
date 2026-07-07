@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow';
 import type { Locale } from '../i18n';
 import { useTCopy } from '../i18n/useTCopy';
-import { MODEL_PROVIDER_IDS } from '../utils/constants';
 import { ApprovalCard } from '../components/approval/ApprovalCard';
 import { MessageStream } from '../components/MessageStream';
 import { useAppStore } from '../stores/slicedStore';
@@ -53,26 +52,6 @@ const CenterPane = React.memo(function CenterPane() {
   const hasWorkspace = !!appInfo?.currentWorkspace;
   const activeDetail = activeSessionId ? sessionDetails[activeSessionId] : undefined;
   const listSnapshots = useAppStore((s) => s.listSnapshots);
-
-  const handleSelectModel = useCallback(
-    (providerId: string, modelId?: string) => {
-      const patch: Record<string, { priority?: number; enabled?: boolean; modelId?: string }> =
-        {} as Record<string, { priority?: number; enabled?: boolean; modelId?: string }>;
-      for (const id of MODEL_PROVIDER_IDS) {
-        if (id === providerId) {
-          patch[id] = {
-            priority: 1,
-            enabled: true,
-            ...(modelId ? { modelId } : {}),
-          };
-        } else {
-          patch[id] = { priority: 2 };
-        }
-      }
-      void actions.updatePreferences({ modelPreferences: patch });
-    },
-    [actions]
-  );
 
   const [draft, setDraft] = useState('');
   const [hasError, setHasError] = useState(false);
@@ -342,7 +321,6 @@ const CenterPane = React.memo(function CenterPane() {
         recentWorkspaces={recentWorkspaces}
         gitSnapshot={gitSnapshot}
         gitBranches={gitBranches}
-        handleSelectModel={handleSelectModel}
         actions={actions}
       />
     </section>
