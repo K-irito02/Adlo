@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use adl_kernel::types::config::ModelDefinition;
 use crate::adapter::ProviderAdapter;
+use adl_kernel::types::config::ModelDefinition;
 
 /// API protocol type used by a provider.
 #[derive(Clone, Debug)]

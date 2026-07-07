@@ -9,7 +9,9 @@ use adl_model_gateway::providers::google::GoogleProvider;
 use adl_model_gateway::providers::ollama::OllamaProvider;
 use adl_model_gateway::providers::openai::OpenAIProvider;
 use adl_model_gateway::providers::openrouter::OpenRouterProvider;
-use adl_model_gateway::registry::{ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry};
+use adl_model_gateway::registry::{
+    ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry,
+};
 use adl_pty::SessionManager;
 use adl_storage::Database;
 use adl_workspace::strip_verbatim_prefix;
@@ -127,19 +129,17 @@ fn register_builtin_providers() -> ProviderRegistry {
             api_type: ApiType::OpenAICompatible,
             default_base_url: Some("https://api.deepseek.com".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(vec![
-                adl_kernel::types::config::ModelDefinition {
-                    id: "deepseek-chat".into(),
-                    provider_id: "deepseek".into(),
-                    name: "DeepSeek Chat".into(),
-                    capabilities: vec![
+            models: ModelSource::Static(vec![adl_kernel::types::config::ModelDefinition {
+                id: "deepseek-chat".into(),
+                provider_id: "deepseek".into(),
+                name: "DeepSeek Chat".into(),
+                capabilities: vec![
                     adl_kernel::types::config::ModelCapability::Text,
                     adl_kernel::types::config::ModelCapability::Streaming,
                 ],
-                    tier: Some(adl_kernel::types::config::ModelTier::Standard),
-                    ..Default::default()
-                },
-            ]),
+                tier: Some(adl_kernel::types::config::ModelTier::Standard),
+                ..Default::default()
+            }]),
             built_in: true,
         },
         Box::new(OpenAIProvider::with_base_url("https://api.deepseek.com".into())),
@@ -153,19 +153,17 @@ fn register_builtin_providers() -> ProviderRegistry {
             api_type: ApiType::OpenAICompatible,
             default_base_url: Some("https://api.minimax.io".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(vec![
-                adl_kernel::types::config::ModelDefinition {
-                    id: "MiniMax-M2.7".into(),
-                    provider_id: "minimax".into(),
-                    name: "MiniMax M2.7".into(),
-                    capabilities: vec![
-                        adl_kernel::types::config::ModelCapability::Text,
-                        adl_kernel::types::config::ModelCapability::Streaming,
-                    ],
-                    tier: Some(adl_kernel::types::config::ModelTier::Standard),
-                    ..Default::default()
-                },
-            ]),
+            models: ModelSource::Static(vec![adl_kernel::types::config::ModelDefinition {
+                id: "MiniMax-M2.7".into(),
+                provider_id: "minimax".into(),
+                name: "MiniMax M2.7".into(),
+                capabilities: vec![
+                    adl_kernel::types::config::ModelCapability::Text,
+                    adl_kernel::types::config::ModelCapability::Streaming,
+                ],
+                tier: Some(adl_kernel::types::config::ModelTier::Standard),
+                ..Default::default()
+            }]),
             built_in: true,
         },
         Box::new(OpenAIProvider::with_base_url("https://api.minimax.io".into())),

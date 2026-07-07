@@ -69,10 +69,7 @@ mod tests {
         let counter = TokenCounter::new();
         let ascii = "a".repeat(100);
         let cjk = "字".repeat(100);
-        assert!(
-            counter.count(&cjk, "openai")
-                > counter.count(&ascii, "openai")
-        );
+        assert!(counter.count(&cjk, "openai") > counter.count(&ascii, "openai"));
     }
 
     #[test]
@@ -93,8 +90,7 @@ mod tests {
         let counter = TokenCounter::new();
         let messages = vec!["Hello".to_string(), "World".to_string()];
         let sum = counter.count_messages(&messages, "openai");
-        let individual = counter.count("Hello", "openai")
-            + counter.count("World", "openai");
+        let individual = counter.count("Hello", "openai") + counter.count("World", "openai");
         assert_eq!(sum, individual);
     }
 }

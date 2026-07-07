@@ -187,7 +187,9 @@ async fn spawn_subagent_inner(
 /// `ModelGateway::chat`. Returns the raw response content string.
 async fn execute_subagent_llm_call(
     model_preferences: ModelPreferences,
-    provider_registry: std::sync::Arc<std::sync::RwLock<adl_model_gateway::registry::ProviderRegistry>>,
+    provider_registry: std::sync::Arc<
+        std::sync::RwLock<adl_model_gateway::registry::ProviderRegistry>,
+    >,
     workspace_id: &str,
     session_id: &str,
     prompt: &str,

@@ -24,8 +24,8 @@ pub(crate) async fn call_provider(
             let provider = provider.to_string();
             move || get_provider_secret(&provider)
         })
-            .await
-            .map_err(|e| AppError::Security(e.to_string()))??
+        .await
+        .map_err(|e| AppError::Security(e.to_string()))??
     } else {
         String::new()
     };
@@ -202,14 +202,8 @@ mod tests {
     async fn call_provider_routes_to_openai_adapter() {
         let gateway = build_test_gateway();
         let messages = one_user_message();
-        let result = dispatch_to_provider(
-            &gateway,
-            "openai",
-            "gpt-4o",
-            &messages,
-            "fake-key",
-        )
-        .await;
+        let result =
+            dispatch_to_provider(&gateway, "openai", "gpt-4o", &messages, "fake-key").await;
         let err_str = result.map(|_| String::new()).unwrap_or_else(|e| e.to_string());
         assert!(
             !err_str.contains("not yet implemented"),
@@ -222,8 +216,7 @@ mod tests {
     async fn call_provider_routes_to_ollama_adapter() {
         let gateway = build_test_gateway();
         let messages = one_user_message();
-        let result =
-            dispatch_to_provider(&gateway, "ollama", "llama3", &messages, "").await;
+        let result = dispatch_to_provider(&gateway, "ollama", "llama3", &messages, "").await;
         let err_str = result.map(|_| String::new()).unwrap_or_else(|e| e.to_string());
         assert!(
             !err_str.contains("not yet implemented"),
@@ -236,14 +229,8 @@ mod tests {
     async fn call_provider_routes_to_google_adapter() {
         let gateway = build_test_gateway();
         let messages = one_user_message();
-        let result = dispatch_to_provider(
-            &gateway,
-            "google",
-            "gemini-1.5-pro",
-            &messages,
-            "fake-key",
-        )
-        .await;
+        let result =
+            dispatch_to_provider(&gateway, "google", "gemini-1.5-pro", &messages, "fake-key").await;
         let err_str = result.map(|_| String::new()).unwrap_or_else(|e| e.to_string());
         assert!(
             !err_str.contains("not yet implemented"),
@@ -256,14 +243,9 @@ mod tests {
     async fn call_provider_routes_to_openrouter_adapter() {
         let gateway = build_test_gateway();
         let messages = one_user_message();
-        let result = dispatch_to_provider(
-            &gateway,
-            "openrouter",
-            "openrouter/auto",
-            &messages,
-            "fake-key",
-        )
-        .await;
+        let result =
+            dispatch_to_provider(&gateway, "openrouter", "openrouter/auto", &messages, "fake-key")
+                .await;
         let err_str = result.map(|_| String::new()).unwrap_or_else(|e| e.to_string());
         assert!(
             !err_str.contains("not yet implemented"),

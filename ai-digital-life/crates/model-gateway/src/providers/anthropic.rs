@@ -41,7 +41,12 @@ impl ProviderAdapter for AnthropicProvider {
                 id: "claude-3-5-sonnet-20241022".into(),
                 provider_id: "anthropic".into(),
                 name: "Claude 3.5 Sonnet".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
+                capabilities: vec![
+                    ModelCapability::Text,
+                    ModelCapability::Vision,
+                    ModelCapability::ToolUse,
+                    ModelCapability::Streaming,
+                ],
                 tier: Some(ModelTier::Premium),
                 context_window: Some(200000),
                 ..Default::default()
@@ -50,7 +55,12 @@ impl ProviderAdapter for AnthropicProvider {
                 id: "claude-3-5-haiku-20241022".into(),
                 provider_id: "anthropic".into(),
                 name: "Claude 3.5 Haiku".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
+                capabilities: vec![
+                    ModelCapability::Text,
+                    ModelCapability::Vision,
+                    ModelCapability::ToolUse,
+                    ModelCapability::Streaming,
+                ],
                 tier: Some(ModelTier::Standard),
                 context_window: Some(200000),
                 ..Default::default()
@@ -59,7 +69,11 @@ impl ProviderAdapter for AnthropicProvider {
                 id: "claude-3-opus-20240229".into(),
                 provider_id: "anthropic".into(),
                 name: "Claude 3 Opus".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse],
+                capabilities: vec![
+                    ModelCapability::Text,
+                    ModelCapability::Vision,
+                    ModelCapability::ToolUse,
+                ],
                 tier: Some(ModelTier::Premium),
                 context_window: Some(200000),
                 ..Default::default()

@@ -1,8 +1,6 @@
 //! Fallback response generation when all providers fail.
 
-use adl_kernel::{
-    estimate_tokens, ConversationRole, ModelChatMessage, ModelTokenUsage,
-};
+use adl_kernel::{estimate_tokens, ConversationRole, ModelChatMessage, ModelTokenUsage};
 
 pub(crate) fn default_model(provider: &str) -> &'static str {
     match provider {

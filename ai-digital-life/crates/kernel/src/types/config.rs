@@ -190,8 +190,7 @@ pub struct AppPreferencePatch {
     #[ts(optional)]
     pub debug_log_mode: Option<LogMode>,
     #[ts(optional)]
-    pub model_preferences:
-        Option<std::collections::BTreeMap<String, ModelProviderPreferencePatch>>,
+    pub model_preferences: Option<std::collections::BTreeMap<String, ModelProviderPreferencePatch>>,
     #[ts(optional)]
     pub keybinds: Option<std::collections::BTreeMap<String, String>>,
     #[ts(optional)]

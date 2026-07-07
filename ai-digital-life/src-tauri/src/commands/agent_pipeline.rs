@@ -269,10 +269,8 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
                 .map(|(pid, pref)| (pid.clone(), pref.priority))
                 .collect();
             providers.sort_by_key(|(_, priority)| *priority);
-            let first = providers
-                .first()
-                .map(|(p, _)| p.clone())
-                .unwrap_or_else(|| "deepseek".to_string());
+            let first =
+                providers.first().map(|(p, _)| p.clone()).unwrap_or_else(|| "deepseek".to_string());
             let model = config
                 .model_preferences
                 .providers
@@ -296,17 +294,10 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
     };
 
     let started = std::time::Instant::now();
-    let stream = gateway
-        .chat_stream_for_model(&provider_id, &model_id, messages)
-        .await?;
-    let mut model_response = consume_stream_to_response(
-        ctx.app,
-        &ctx.detail.run.id,
-        stream,
-        &provider_id,
-        &model_id,
-    )
-    .await;
+    let stream = gateway.chat_stream_for_model(&provider_id, &model_id, messages).await?;
+    let mut model_response =
+        consume_stream_to_response(ctx.app, &ctx.detail.run.id, stream, &provider_id, &model_id)
+            .await;
 
     // === Plugin Hook: ChatResponseAfter ===
     let hook_resp = PluginHook::ChatResponseAfter {
@@ -332,14 +323,8 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
             chain: vec![provider_id.clone()],
             synthetic: None,
         },
-        prompt_tokens: model_response
-            .usage
-            .as_ref()
-            .and_then(|u| u.prompt_tokens),
-        completion_tokens: model_response
-            .usage
-            .as_ref()
-            .and_then(|u| u.completion_tokens),
+        prompt_tokens: model_response.usage.as_ref().and_then(|u| u.prompt_tokens),
+        completion_tokens: model_response.usage.as_ref().and_then(|u| u.completion_tokens),
         latency_ms: started.elapsed().as_millis() as i64,
         error: None,
         streamed: true,

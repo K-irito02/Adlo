@@ -29,9 +29,9 @@ mod tests {
 
     #[test]
     fn every_provider_has_prompt() {
-        for provider in [
-            "deepseek", "minimax", "openai", "anthropic", "google", "ollama", "openrouter",
-        ] {
+        for provider in
+            ["deepseek", "minimax", "openai", "anthropic", "google", "ollama", "openrouter"]
+        {
             let prompt = provider_prompt(provider);
             assert!(!prompt.is_empty(), "Provider {provider} has empty prompt");
         }

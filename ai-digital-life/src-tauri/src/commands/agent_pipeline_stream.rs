@@ -36,43 +36,37 @@ pub(crate) async fn consume_stream_to_response(
     let mut final_usage: Option<ModelTokenUsage> = None;
     let mut seq = 1usize;
 
-    emit_stream_event(app, run_id, 0, "route", serde_json::json!({
-        "providerId": provider_id,
-        "modelId": model_id,
-        "reason": "streaming route",
-    }));
+    emit_stream_event(
+        app,
+        run_id,
+        0,
+        "route",
+        serde_json::json!({
+            "providerId": provider_id,
+            "modelId": model_id,
+            "reason": "streaming route",
+        }),
+    );
 
     while let Some(chunk_result) = stream.next().await {
         match chunk_result {
             Ok(StreamChunk::Delta(text)) => {
                 full_content.push_str(&text);
-                emit_stream_event(
-                    app,
-                    run_id,
-                    seq,
-                    "delta",
-                    serde_json::json!({ "text": text }),
-                );
+                emit_stream_event(app, run_id, seq, "delta", serde_json::json!({ "text": text }));
                 seq += 1;
-            }
-            Ok(StreamChunk::ToolCallDelta { .. }) => {}
+            },
+            Ok(StreamChunk::ToolCallDelta { .. }) => {},
             Ok(StreamChunk::Done(usage)) => {
                 final_usage = Some(usage);
-            }
+            },
             Err(e) => {
                 tracing::warn!(error = %e, "stream read error");
-            }
+            },
         }
     }
 
     if let Some(ref usage) = final_usage {
-        emit_stream_event(
-            app,
-            run_id,
-            seq,
-            "usage",
-            serde_json::json!({ "usage": usage }),
-        );
+        emit_stream_event(app, run_id, seq, "usage", serde_json::json!({ "usage": usage }));
         seq += 1;
     }
 
@@ -118,7 +112,8 @@ mod tests {
     async fn consume_empty_stream() {
         let app = test_app_handle();
         let stream = test_stream(vec![]);
-        let response = consume_stream_to_response(&app, "test-run", stream, "deepseek", "test-model").await;
+        let response =
+            consume_stream_to_response(&app, "test-run", stream, "deepseek", "test-model").await;
         assert_eq!(response.content, "");
         assert!(response.usage.is_none());
         assert_eq!(response.provider_id, "deepseek");
@@ -130,7 +125,8 @@ mod tests {
     async fn consume_single_delta() {
         let app = test_app_handle();
         let stream = test_stream(vec![Ok(StreamChunk::Delta("Hello ".to_string()))]);
-        let response = consume_stream_to_response(&app, "test-run", stream, "deepseek", "test-model").await;
+        let response =
+            consume_stream_to_response(&app, "test-run", stream, "deepseek", "test-model").await;
         assert_eq!(response.content, "Hello ");
     }
 
@@ -142,7 +138,8 @@ mod tests {
             Ok(StreamChunk::Delta("Hello ".to_string())),
             Ok(StreamChunk::Delta("World".to_string())),
         ]);
-        let response = consume_stream_to_response(&app, "test-run", stream, "deepseek", "test-model").await;
+        let response =
+            consume_stream_to_response(&app, "test-run", stream, "deepseek", "test-model").await;
         assert_eq!(response.content, "Hello World");
     }
 
@@ -160,7 +157,8 @@ mod tests {
             Ok(StreamChunk::Delta("hi".to_string())),
             Ok(StreamChunk::Done(usage.clone())),
         ]);
-        let response = consume_stream_to_response(&app, "test-run", stream, "deepseek", "test-model").await;
+        let response =
+            consume_stream_to_response(&app, "test-run", stream, "deepseek", "test-model").await;
         assert_eq!(response.content, "hi");
         let u = response.usage.expect("should have usage");
         assert_eq!(u.prompt_tokens, Some(10));
@@ -180,7 +178,8 @@ mod tests {
             }),
             Ok(StreamChunk::Delta("content".to_string())),
         ]);
-        let response = consume_stream_to_response(&app, "test-run", stream, "deepseek", "test-model").await;
+        let response =
+            consume_stream_to_response(&app, "test-run", stream, "deepseek", "test-model").await;
         assert_eq!(response.content, "text content");
     }
 }

@@ -59,7 +59,11 @@ impl ProviderAdapter for OllamaProvider {
                 id: "deepseek-r1".into(),
                 provider_id: "ollama".into(),
                 name: "DeepSeek R1".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::Reasoning, ModelCapability::Streaming],
+                capabilities: vec![
+                    ModelCapability::Text,
+                    ModelCapability::Reasoning,
+                    ModelCapability::Streaming,
+                ],
                 tier: Some(ModelTier::Standard),
                 context_window: Some(128000),
                 ..Default::default()

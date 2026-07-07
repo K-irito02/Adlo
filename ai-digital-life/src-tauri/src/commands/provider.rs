@@ -2,8 +2,8 @@ use crate::commands::ipc;
 use adl_errors::AppError;
 use adl_kernel::types::config::{ModelCapability, ModelDefinition};
 use adl_kernel::IpcResult;
-use adl_model_gateway::registry::{ApiType, AuthType, ModelSource, ProviderDefinition};
 use adl_model_gateway::providers::openai::OpenAIProvider;
+use adl_model_gateway::registry::{ApiType, AuthType, ModelSource, ProviderDefinition};
 use serde::Serialize;
 
 type CmdResult<T> = Result<IpcResult<T>, AppError>;
@@ -96,10 +96,9 @@ pub async fn test_provider_connection(
 
     match adapter.test_connection(&api_key, &base_url).await {
         Ok(_) => Ok(ipc(Ok(ConnectionTestResult { connected: true, error: None }))),
-        Err(e) => Ok(ipc(Ok(ConnectionTestResult {
-            connected: false,
-            error: Some(e.to_string()),
-        }))),
+        Err(e) => {
+            Ok(ipc(Ok(ConnectionTestResult { connected: false, error: Some(e.to_string()) })))
+        },
     }
 }
 
@@ -242,12 +241,32 @@ pub struct ProviderInfo {
 #[tauri::command]
 pub fn list_supported_providers() -> IpcResult<Vec<ProviderInfo>> {
     ipc(Ok(vec![
-        ProviderInfo { id: "deepseek".to_string(), name: "DeepSeek".to_string(), requires_key: true },
+        ProviderInfo {
+            id: "deepseek".to_string(),
+            name: "DeepSeek".to_string(),
+            requires_key: true,
+        },
         ProviderInfo { id: "minimax".to_string(), name: "MiniMax".to_string(), requires_key: true },
         ProviderInfo { id: "openai".to_string(), name: "OpenAI".to_string(), requires_key: true },
-        ProviderInfo { id: "anthropic".to_string(), name: "Anthropic".to_string(), requires_key: true },
-        ProviderInfo { id: "google".to_string(), name: "Google Gemini".to_string(), requires_key: true },
-        ProviderInfo { id: "ollama".to_string(), name: "Ollama (Local)".to_string(), requires_key: false },
-        ProviderInfo { id: "openrouter".to_string(), name: "OpenRouter".to_string(), requires_key: true },
+        ProviderInfo {
+            id: "anthropic".to_string(),
+            name: "Anthropic".to_string(),
+            requires_key: true,
+        },
+        ProviderInfo {
+            id: "google".to_string(),
+            name: "Google Gemini".to_string(),
+            requires_key: true,
+        },
+        ProviderInfo {
+            id: "ollama".to_string(),
+            name: "Ollama (Local)".to_string(),
+            requires_key: false,
+        },
+        ProviderInfo {
+            id: "openrouter".to_string(),
+            name: "OpenRouter".to_string(),
+            requires_key: true,
+        },
     ]))
 }

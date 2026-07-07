@@ -64,10 +64,7 @@ impl ProviderAdapter for OpenAIProvider {
             .await
             .map_err(|e| AppError::Internal(format!("fetch models request failed: {e}")))?;
         if !resp.status().is_success() {
-            return Err(AppError::Internal(format!(
-                "fetch models returned {}",
-                resp.status()
-            )));
+            return Err(AppError::Internal(format!("fetch models returned {}", resp.status())));
         }
         let body: OpenAIModelsResponse = resp
             .json()
@@ -98,10 +95,7 @@ impl ProviderAdapter for OpenAIProvider {
         if resp.status().is_success() {
             Ok(())
         } else {
-            Err(AppError::Internal(format!(
-                "connection test returned {}",
-                resp.status()
-            )))
+            Err(AppError::Internal(format!("connection test returned {}", resp.status())))
         }
     }
 
@@ -111,7 +105,12 @@ impl ProviderAdapter for OpenAIProvider {
                 id: "gpt-4o".into(),
                 provider_id: "openai".into(),
                 name: "GPT-4o".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
+                capabilities: vec![
+                    ModelCapability::Text,
+                    ModelCapability::Vision,
+                    ModelCapability::ToolUse,
+                    ModelCapability::Streaming,
+                ],
                 tier: Some(ModelTier::Premium),
                 context_window: Some(128000),
                 ..Default::default()
@@ -120,7 +119,11 @@ impl ProviderAdapter for OpenAIProvider {
                 id: "gpt-4o-mini".into(),
                 provider_id: "openai".into(),
                 name: "GPT-4o Mini".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::ToolUse, ModelCapability::Streaming],
+                capabilities: vec![
+                    ModelCapability::Text,
+                    ModelCapability::ToolUse,
+                    ModelCapability::Streaming,
+                ],
                 tier: Some(ModelTier::Standard),
                 context_window: Some(128000),
                 ..Default::default()
@@ -129,7 +132,12 @@ impl ProviderAdapter for OpenAIProvider {
                 id: "gpt-4-turbo".into(),
                 provider_id: "openai".into(),
                 name: "GPT-4 Turbo".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
+                capabilities: vec![
+                    ModelCapability::Text,
+                    ModelCapability::Vision,
+                    ModelCapability::ToolUse,
+                    ModelCapability::Streaming,
+                ],
                 tier: Some(ModelTier::Premium),
                 context_window: Some(128000),
                 ..Default::default()
@@ -138,7 +146,11 @@ impl ProviderAdapter for OpenAIProvider {
                 id: "gpt-3.5-turbo".into(),
                 provider_id: "openai".into(),
                 name: "GPT-3.5 Turbo".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::ToolUse, ModelCapability::Streaming],
+                capabilities: vec![
+                    ModelCapability::Text,
+                    ModelCapability::ToolUse,
+                    ModelCapability::Streaming,
+                ],
                 tier: Some(ModelTier::Standard),
                 context_window: Some(16384),
                 ..Default::default()

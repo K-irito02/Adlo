@@ -44,7 +44,12 @@ impl ProviderAdapter for GoogleProvider {
                 id: "gemini-1.5-pro".into(),
                 provider_id: "google".into(),
                 name: "Gemini 1.5 Pro".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
+                capabilities: vec![
+                    ModelCapability::Text,
+                    ModelCapability::Vision,
+                    ModelCapability::ToolUse,
+                    ModelCapability::Streaming,
+                ],
                 tier: Some(ModelTier::Premium),
                 context_window: Some(2097152),
                 ..Default::default()
@@ -53,7 +58,12 @@ impl ProviderAdapter for GoogleProvider {
                 id: "gemini-1.5-flash".into(),
                 provider_id: "google".into(),
                 name: "Gemini 1.5 Flash".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
+                capabilities: vec![
+                    ModelCapability::Text,
+                    ModelCapability::Vision,
+                    ModelCapability::ToolUse,
+                    ModelCapability::Streaming,
+                ],
                 tier: Some(ModelTier::Standard),
                 context_window: Some(1048576),
                 ..Default::default()
@@ -62,7 +72,12 @@ impl ProviderAdapter for GoogleProvider {
                 id: "gemini-2.0-flash".into(),
                 provider_id: "google".into(),
                 name: "Gemini 2.0 Flash".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
+                capabilities: vec![
+                    ModelCapability::Text,
+                    ModelCapability::Vision,
+                    ModelCapability::ToolUse,
+                    ModelCapability::Streaming,
+                ],
                 tier: Some(ModelTier::Standard),
                 context_window: Some(1048576),
                 ..Default::default()

@@ -5,9 +5,7 @@
 pub mod adapter;
 pub mod registry;
 pub use adl_kernel::types::config::ModelDefinition;
-pub use registry::{
-    ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry,
-};
+pub use registry::{ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry};
 mod audit;
 mod fallback;
 pub mod prompts;
@@ -18,14 +16,14 @@ mod secret;
 
 pub use secret::{clear_provider_secret, get_provider_secret, set_provider_secret};
 
+use crate::adapter::StreamReader;
 use adl_errors::AppError;
 use adl_kernel::{
     create_id, now_ms, ConversationScenario, ModelCallAuditRecord, ModelChatMessage,
-    ModelGatewayHealthSnapshot, ModelPreferences, ModelResponse,
-    ModelRouteDecision, ProviderHealthStatus,
+    ModelGatewayHealthSnapshot, ModelPreferences, ModelResponse, ModelRouteDecision,
+    ProviderHealthStatus,
 };
 use audit::{audit_record, AuditInput};
-use crate::adapter::StreamReader;
 use fallback::{deterministic_fallback, estimate_usage};
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
@@ -36,7 +34,9 @@ pub struct ModelGateway {
     pub(crate) registry: Arc<RwLock<ProviderRegistry>>,
 }
 
-fn fallback_models(def: &registry::ProviderDefinition) -> Vec<adl_kernel::types::config::ModelDefinition> {
+fn fallback_models(
+    def: &registry::ProviderDefinition,
+) -> Vec<adl_kernel::types::config::ModelDefinition> {
     match &def.models {
         registry::ModelSource::Static(models) => models.clone(),
         registry::ModelSource::Dynamic { .. } => vec![],
@@ -234,7 +234,8 @@ impl ModelGateway {
                 .get(provider)
                 .map(|pref| pref.model_id.clone())
                 .unwrap_or_else(|| fallback::default_model(provider).to_string());
-            match crate::provider::call_provider_stream(self, provider, &model_id, &messages).await {
+            match crate::provider::call_provider_stream(self, provider, &model_id, &messages).await
+            {
                 Ok(stream) => return Ok(stream),
                 Err(e) => last_error = Some(e),
             }
@@ -262,9 +263,9 @@ impl ModelGateway {
                 .registry
                 .read()
                 .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?;
-            let adapter = registry
-                .get_adapter_owned(provider_id)
-                .ok_or_else(|| AppError::NotFound(format!("adapter '{}' not found", provider_id)))?;
+            let adapter = registry.get_adapter_owned(provider_id).ok_or_else(|| {
+                AppError::NotFound(format!("adapter '{}' not found", provider_id))
+            })?;
             let def = registry
                 .get(provider_id)
                 .ok_or_else(|| AppError::NotFound(format!("provider '{}' not found", provider_id)))?
@@ -289,18 +290,23 @@ impl ModelGateway {
             Ok(r) => r,
             Err(_) => return ModelGatewayHealthSnapshot { checked_at, providers: vec![] },
         };
-        let providers: Vec<ProviderHealthStatus> = registry.list_all().iter().map(|def| {
-            let is_ollama = def.id == "ollama";
-            let has_secret = is_ollama || get_provider_secret(&def.id).is_ok();
-            let detail = if is_ollama {
-                "Local Ollama service (no API key required)."
-            } else if has_secret {
-                "API key is configured."
-            } else {
-                "API key is not configured; calls will use fallback after route failure."
-            }.to_string();
-            ProviderHealthStatus { provider_id: def.id.clone(), healthy: has_secret, detail }
-        }).collect();
+        let providers: Vec<ProviderHealthStatus> = registry
+            .list_all()
+            .iter()
+            .map(|def| {
+                let is_ollama = def.id == "ollama";
+                let has_secret = is_ollama || get_provider_secret(&def.id).is_ok();
+                let detail = if is_ollama {
+                    "Local Ollama service (no API key required)."
+                } else if has_secret {
+                    "API key is configured."
+                } else {
+                    "API key is not configured; calls will use fallback after route failure."
+                }
+                .to_string();
+                ProviderHealthStatus { provider_id: def.id.clone(), healthy: has_secret, detail }
+            })
+            .collect();
         ModelGatewayHealthSnapshot { checked_at, providers }
     }
 }
@@ -311,9 +317,11 @@ mod tests {
 
     #[test]
     fn gateway_routes_by_priority() {
-        let gateway =
-            ModelGateway::new(ModelPreferences::default(), Arc::new(RwLock::new(ProviderRegistry::new())))
-                .unwrap();
+        let gateway = ModelGateway::new(
+            ModelPreferences::default(),
+            Arc::new(RwLock::new(ProviderRegistry::new())),
+        )
+        .unwrap();
         let route = route::route_chain(gateway.preferences());
         assert_eq!(route[0], "deepseek");
     }
