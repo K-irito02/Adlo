@@ -81,6 +81,47 @@ impl std::fmt::Display for LogMode {
     }
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+#[serde(rename_all = "camelCase")]
+pub struct ModelDefinition {
+    pub id: String,
+    pub provider_id: String,
+    pub name: String,
+    #[ts(optional)]
+    pub description: Option<String>,
+    #[ts(optional)]
+    pub context_window: Option<u32>,
+    #[ts(optional)]
+    pub max_output: Option<u32>,
+    pub capabilities: Vec<ModelCapability>,
+    #[ts(optional)]
+    pub tier: Option<ModelTier>,
+    #[ts(optional)]
+    pub released: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+#[serde(rename_all = "lowercase")]
+pub enum ModelCapability {
+    Text,
+    Vision,
+    ToolUse,
+    Streaming,
+    Reasoning,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+#[serde(rename_all = "lowercase")]
+pub enum ModelTier {
+    Free,
+    LowCost,
+    Standard,
+    Premium,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash, TS)]
 #[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "lowercase")]

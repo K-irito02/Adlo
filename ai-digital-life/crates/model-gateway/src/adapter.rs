@@ -1,6 +1,6 @@
 use adl_errors::AppError;
 use adl_kernel::types::agent::AgentId;
-use adl_kernel::types::config::ModelProviderId;
+use adl_kernel::types::config::{ModelDefinition, ModelProviderId};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use async_trait::async_trait;
 use std::pin::Pin;
@@ -43,7 +43,19 @@ pub struct ToolDefinition {
 pub trait ProviderAdapter: Send + Sync {
     fn provider_name(&self) -> &'static str;
     fn provider_id(&self) -> ModelProviderId;
-    fn supported_models(&self) -> &'static [&'static str];
+    fn supported_models(&self) -> Vec<ModelDefinition>;
+
+    fn supports_dynamic_models(&self) -> bool {
+        false
+    }
+
+    fn fetch_models(
+        &self,
+        _api_key: &str,
+        _base_url: &str,
+    ) -> Result<Vec<ModelDefinition>, AppError> {
+        Err(AppError::Internal("dynamic model fetch not supported".to_string()))
+    }
 
     async fn chat(
         &self,
@@ -80,8 +92,13 @@ mod tests {
         fn provider_id(&self) -> ModelProviderId {
             ModelProviderId::Openai
         }
-        fn supported_models(&self) -> &'static [&'static str] {
-            &["stub-model"]
+        fn supported_models(&self) -> Vec<ModelDefinition> {
+            vec![ModelDefinition {
+                id: "stub-model".into(),
+                provider_id: "openai".into(),
+                name: "Stub Model".into(),
+                ..Default::default()
+            }]
         }
 
         async fn chat(

@@ -1,6 +1,6 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
-use adl_kernel::types::config::ModelProviderId;
+use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelProviderId, ModelTier};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use adl_kernel::ConversationRole;
 use async_trait::async_trait;
@@ -38,8 +38,36 @@ impl ProviderAdapter for GoogleProvider {
     fn provider_id(&self) -> ModelProviderId {
         ModelProviderId::Google
     }
-    fn supported_models(&self) -> &'static [&'static str] {
-        &["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"]
+    fn supported_models(&self) -> Vec<ModelDefinition> {
+        vec![
+            ModelDefinition {
+                id: "gemini-1.5-pro".into(),
+                provider_id: "google".into(),
+                name: "Gemini 1.5 Pro".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
+                tier: Some(ModelTier::Premium),
+                context_window: Some(2097152),
+                ..Default::default()
+            },
+            ModelDefinition {
+                id: "gemini-1.5-flash".into(),
+                provider_id: "google".into(),
+                name: "Gemini 1.5 Flash".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
+                tier: Some(ModelTier::Standard),
+                context_window: Some(1048576),
+                ..Default::default()
+            },
+            ModelDefinition {
+                id: "gemini-2.0-flash".into(),
+                provider_id: "google".into(),
+                name: "Gemini 2.0 Flash".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
+                tier: Some(ModelTier::Standard),
+                context_window: Some(1048576),
+                ..Default::default()
+            },
+        ]
     }
 
     async fn chat(
@@ -199,7 +227,7 @@ mod tests {
         let p = GoogleProvider::new();
         assert_eq!(p.provider_name(), "google");
         assert_eq!(p.provider_id(), ModelProviderId::Google);
-        assert!(p.supported_models().contains(&"gemini-1.5-pro"));
+        assert!(p.supported_models().iter().any(|m| m.id == "gemini-1.5-pro"));
     }
 
     #[test]

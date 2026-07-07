@@ -1,6 +1,6 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
-use adl_kernel::types::config::ModelProviderId;
+use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelProviderId, ModelTier};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use adl_kernel::ConversationRole;
 use async_trait::async_trait;
@@ -35,8 +35,36 @@ impl ProviderAdapter for AnthropicProvider {
     fn provider_id(&self) -> ModelProviderId {
         ModelProviderId::Anthropic
     }
-    fn supported_models(&self) -> &'static [&'static str] {
-        &["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]
+    fn supported_models(&self) -> Vec<ModelDefinition> {
+        vec![
+            ModelDefinition {
+                id: "claude-3-5-sonnet-20241022".into(),
+                provider_id: "anthropic".into(),
+                name: "Claude 3.5 Sonnet".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
+                tier: Some(ModelTier::Premium),
+                context_window: Some(200000),
+                ..Default::default()
+            },
+            ModelDefinition {
+                id: "claude-3-5-haiku-20241022".into(),
+                provider_id: "anthropic".into(),
+                name: "Claude 3.5 Haiku".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
+                tier: Some(ModelTier::Standard),
+                context_window: Some(200000),
+                ..Default::default()
+            },
+            ModelDefinition {
+                id: "claude-3-opus-20240229".into(),
+                provider_id: "anthropic".into(),
+                name: "Claude 3 Opus".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse],
+                tier: Some(ModelTier::Premium),
+                context_window: Some(200000),
+                ..Default::default()
+            },
+        ]
     }
 
     async fn chat(
@@ -216,7 +244,7 @@ mod tests {
         let p = AnthropicProvider::new();
         assert_eq!(p.provider_name(), "anthropic");
         assert_eq!(p.provider_id(), ModelProviderId::Anthropic);
-        assert!(p.supported_models().contains(&"claude-3-5-sonnet-20241022"));
+        assert!(p.supported_models().iter().any(|m| m.id == "claude-3-5-sonnet-20241022"));
     }
 
     #[test]

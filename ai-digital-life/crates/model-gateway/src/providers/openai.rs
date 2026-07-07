@@ -1,6 +1,6 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
-use adl_kernel::types::config::ModelProviderId;
+use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelProviderId, ModelTier};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use adl_kernel::ConversationRole;
 use async_trait::async_trait;
@@ -35,8 +35,45 @@ impl ProviderAdapter for OpenAIProvider {
     fn provider_id(&self) -> ModelProviderId {
         ModelProviderId::Openai
     }
-    fn supported_models(&self) -> &'static [&'static str] {
-        &["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+    fn supported_models(&self) -> Vec<ModelDefinition> {
+        vec![
+            ModelDefinition {
+                id: "gpt-4o".into(),
+                provider_id: "openai".into(),
+                name: "GPT-4o".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
+                tier: Some(ModelTier::Premium),
+                context_window: Some(128000),
+                ..Default::default()
+            },
+            ModelDefinition {
+                id: "gpt-4o-mini".into(),
+                provider_id: "openai".into(),
+                name: "GPT-4o Mini".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::ToolUse, ModelCapability::Streaming],
+                tier: Some(ModelTier::Standard),
+                context_window: Some(128000),
+                ..Default::default()
+            },
+            ModelDefinition {
+                id: "gpt-4-turbo".into(),
+                provider_id: "openai".into(),
+                name: "GPT-4 Turbo".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse],
+                tier: Some(ModelTier::Premium),
+                context_window: Some(128000),
+                ..Default::default()
+            },
+            ModelDefinition {
+                id: "gpt-3.5-turbo".into(),
+                provider_id: "openai".into(),
+                name: "GPT-3.5 Turbo".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::ToolUse],
+                tier: Some(ModelTier::Standard),
+                context_window: Some(16384),
+                ..Default::default()
+            },
+        ]
     }
 
     async fn chat(
@@ -173,7 +210,17 @@ mod tests {
         let p = OpenAIProvider::new();
         assert_eq!(p.provider_name(), "openai");
         assert_eq!(p.provider_id(), ModelProviderId::Openai);
-        assert!(p.supported_models().contains(&"gpt-4o"));
+        assert!(p.supported_models().iter().any(|m| m.id == "gpt-4o"));
+    }
+
+    #[test]
+    fn test_supported_models_returns_typed_definitions() {
+        let p = OpenAIProvider::new();
+        let models = p.supported_models();
+        assert!(!models.is_empty());
+        let gpt4o = models.iter().find(|m| m.id == "gpt-4o");
+        assert!(gpt4o.is_some());
+        assert_eq!(gpt4o.unwrap().provider_id, "openai");
     }
 
     #[test]

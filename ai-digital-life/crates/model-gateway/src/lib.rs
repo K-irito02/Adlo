@@ -4,8 +4,9 @@
 
 pub mod adapter;
 pub mod registry;
+pub use adl_kernel::types::config::ModelDefinition;
 pub use registry::{
-    ApiType, AuthType, ModelDefinition, ModelSource, ProviderDefinition, ProviderRegistry,
+    ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry,
 };
 mod audit;
 mod fallback;

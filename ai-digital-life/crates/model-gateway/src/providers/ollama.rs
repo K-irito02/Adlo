@@ -1,6 +1,6 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
-use adl_kernel::types::config::ModelProviderId;
+use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelProviderId, ModelTier};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use adl_kernel::ConversationRole;
 use async_trait::async_trait;
@@ -35,8 +35,36 @@ impl ProviderAdapter for OllamaProvider {
     fn provider_id(&self) -> ModelProviderId {
         ModelProviderId::Ollama
     }
-    fn supported_models(&self) -> &'static [&'static str] {
-        &["llama3.1", "qwen2.5", "deepseek-r1"]
+    fn supported_models(&self) -> Vec<ModelDefinition> {
+        vec![
+            ModelDefinition {
+                id: "llama3.1".into(),
+                provider_id: "ollama".into(),
+                name: "Llama 3.1".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Streaming],
+                tier: Some(ModelTier::Standard),
+                context_window: Some(128000),
+                ..Default::default()
+            },
+            ModelDefinition {
+                id: "qwen2.5".into(),
+                provider_id: "ollama".into(),
+                name: "Qwen 2.5".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Streaming],
+                tier: Some(ModelTier::Standard),
+                context_window: Some(128000),
+                ..Default::default()
+            },
+            ModelDefinition {
+                id: "deepseek-r1".into(),
+                provider_id: "ollama".into(),
+                name: "DeepSeek R1".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Reasoning, ModelCapability::Streaming],
+                tier: Some(ModelTier::Standard),
+                context_window: Some(128000),
+                ..Default::default()
+            },
+        ]
     }
 
     async fn chat(
@@ -181,7 +209,7 @@ mod tests {
         let p = OllamaProvider::new();
         assert_eq!(p.provider_name(), "ollama");
         assert_eq!(p.provider_id(), ModelProviderId::Ollama);
-        assert!(p.supported_models().contains(&"llama3.1"));
+        assert!(p.supported_models().iter().any(|m| m.id == "llama3.1"));
     }
 
     #[test]

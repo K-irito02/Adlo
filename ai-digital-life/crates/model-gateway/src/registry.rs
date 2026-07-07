@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use adl_kernel::types::config::ModelDefinition;
 use crate::adapter::ProviderAdapter;
 
 /// API protocol type used by a provider.
@@ -26,10 +27,6 @@ pub enum ModelSource {
     Dynamic { endpoint: Option<String> },
 }
 
-/// Placeholder for model definition — will be replaced in Task A2.
-#[derive(Clone, Debug)]
-pub struct ModelDefinition;
-
 /// Describes a registered provider.
 #[derive(Clone, Debug)]
 pub struct ProviderDefinition {
@@ -47,6 +44,12 @@ pub struct ProviderDefinition {
 pub struct ProviderRegistry {
     providers: HashMap<String, ProviderDefinition>,
     adapters: HashMap<String, Box<dyn ProviderAdapter + Send + Sync>>,
+}
+
+impl Default for ProviderRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ProviderRegistry {
@@ -101,8 +104,13 @@ mod tests {
         fn provider_id(&self) -> ModelProviderId {
             ModelProviderId::Openai
         }
-        fn supported_models(&self) -> &'static [&'static str] {
-            &["test-model"]
+        fn supported_models(&self) -> Vec<ModelDefinition> {
+            vec![ModelDefinition {
+                id: "test-model".into(),
+                provider_id: "openai".into(),
+                name: "Test Model".into(),
+                ..Default::default()
+            }]
         }
 
         async fn chat(

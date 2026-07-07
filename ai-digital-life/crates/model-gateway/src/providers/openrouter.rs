@@ -1,6 +1,6 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
-use adl_kernel::types::config::ModelProviderId;
+use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelProviderId, ModelTier};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use adl_kernel::ConversationRole;
 use async_trait::async_trait;
@@ -35,8 +35,33 @@ impl ProviderAdapter for OpenRouterProvider {
     fn provider_id(&self) -> ModelProviderId {
         ModelProviderId::Openrouter
     }
-    fn supported_models(&self) -> &'static [&'static str] {
-        &["openrouter/auto", "anthropic/claude-3.5-sonnet", "openai/gpt-4o"]
+    fn supported_models(&self) -> Vec<ModelDefinition> {
+        vec![
+            ModelDefinition {
+                id: "openrouter/auto".into(),
+                provider_id: "openrouter".into(),
+                name: "OpenRouter Auto".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Streaming],
+                tier: Some(ModelTier::Standard),
+                ..Default::default()
+            },
+            ModelDefinition {
+                id: "anthropic/claude-3.5-sonnet".into(),
+                provider_id: "openrouter".into(),
+                name: "Claude 3.5 Sonnet".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse],
+                tier: Some(ModelTier::Premium),
+                ..Default::default()
+            },
+            ModelDefinition {
+                id: "openai/gpt-4o".into(),
+                provider_id: "openrouter".into(),
+                name: "GPT-4o".into(),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse],
+                tier: Some(ModelTier::Premium),
+                ..Default::default()
+            },
+        ]
     }
 
     async fn chat(
@@ -175,7 +200,7 @@ mod tests {
         let p = OpenRouterProvider::new();
         assert_eq!(p.provider_name(), "openrouter");
         assert_eq!(p.provider_id(), ModelProviderId::Openrouter);
-        assert!(p.supported_models().contains(&"openrouter/auto"));
+        assert!(p.supported_models().iter().any(|m| m.id == "openrouter/auto"));
     }
 
     #[test]
