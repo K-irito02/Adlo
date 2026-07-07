@@ -6,7 +6,6 @@ import { ProviderConfig } from './ProviderConfig';
 export function ProviderList() {
   const { t } = useTCopy();
   const providers = useAppStore((s) => s.providers);
-  const configuredProviders = useAppStore((s) => s.configuredProviders);
   const isFetchingProviders = useAppStore((s) => s.isFetchingProviders);
   const fetchProviders = useAppStore((s) => s.fetchProviders);
   const clearApiKey = useAppStore((s) => s.clearApiKey);
@@ -47,7 +46,7 @@ export function ProviderList() {
       ) : (
         <ul className="adl-provider-items">
           {providers.map((provider) => {
-            const isConfigured = configuredProviders.includes(provider.id);
+            const isConfigured = provider.configured || provider.hasKey;
             const isConfiguring = configuring === provider.id;
             return (
               <li key={provider.id} className="adl-provider-item">

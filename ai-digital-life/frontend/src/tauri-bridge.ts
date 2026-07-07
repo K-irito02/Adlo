@@ -579,7 +579,7 @@ export function createTauriBridge(): DigitalLifeBridge {
       listSupportedProviders: () => invokeIpc<ProviderInfo[]>('list_supported_providers'),
       listProviders: () => invokeIpc<ProviderStatus[]>('list_providers'),
       saveProviderConfig: (providerId: string, config: Record<string, unknown>) =>
-        invokeIpc<boolean>('save_provider_config', { providerId, config }),
+        invokeIpc<void>('save_provider_config', { providerId, config }),
       testProviderConnection: (providerId: string) =>
         invokeIpc<ConnectionTestResult>('test_provider_connection', { providerId }),
       fetchProviderModels: (providerId: string) =>

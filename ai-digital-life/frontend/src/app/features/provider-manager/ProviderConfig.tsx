@@ -10,7 +10,8 @@ interface ProviderConfigProps {
 export function ProviderConfig({ providerId, onCancel }: ProviderConfigProps) {
   const { t } = useTCopy();
   const setApiKey = useAppStore((s) => s.setApiKey);
-  const configuredProviders = useAppStore((s) => s.configuredProviders);
+  const providers = useAppStore((s) => s.providers);
+  const configuredProviders = providers.filter((p) => p.configured || p.hasKey).map((p) => p.id);
   const [apiKey, setApiKeyLocal] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);

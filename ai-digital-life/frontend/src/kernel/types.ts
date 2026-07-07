@@ -12,8 +12,11 @@ import type { ConfigSnapshot } from '../shared/ipc-types.generated';
 export type {
   AppPreferencePatch,
   ConfigSnapshot,
+  ModelCapability,
+  ModelDefinition,
   ModelProviderPreference,
   ModelProviderPreferencePatch,
+  ModelTier,
   ThemeMode,
   Theme,
   LogMode,
