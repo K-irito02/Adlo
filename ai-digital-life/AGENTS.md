@@ -39,11 +39,12 @@
 |--------|---------|
 | **2-A** | 多 Agent 系统（Agent 注册表 + 路由）、Sub-agent / Task 工具、Plan Mode |
 | **2-B** | MCP 完整集成（Stdio/SSE/StreamableHTTP + OAuth）、多 LLM Provider（OpenAI/Anthropic/Google/Ollama/OpenRouter）、Provider-specific Prompts |
+| **2-B 增强** | Provider 动态注册系统（ProviderRegistry 取代 ModelProviderId enum）、(provider, model) 对路由、SSE 真实流式传输（取代 post-hoc chunking）、ModelPicker UI 组件、ProviderManager 管理面板、动态模型获取 (fetch_models) |
 | **2-C** | Token-aware Compaction（PRUNE_MINIMUM=20000）、Snapshot/Revert（message-level git 快照）、WebFetch / WebSearch 工具 |
 | **2-D** | 自定义命令配置（模板变量 $1/$ARGUMENTS/$WORKSPACE）、权限系统升级为 Ruleset（Allow/Ask/Deny + 通配匹配 + doom_loop 检测） |
 | **2-E** | Session Fork、LSP 集成（rust-analyzer/ts-server/pylsp/gopls）、Plugin 系统（trait + hooks + registry）、Reference 系统、自定义 Agent 配置、Hot Reloadable Config、Durable Session Execution、ACP/HTTP API/CodeMode 预留接口 |
 
-> 323 Rust 测试、326 前端测试，clippy 与 lint 零警告。
+> 508 Rust 测试、431 前端测试，clippy 与 lint 零警告。
 
 ### 重构历史
 
@@ -90,10 +91,11 @@ app/stores/
 ├── storageHelpers.ts            # localStorage 读写工具
 ├── cacheHelpers.ts              # 缓存系统（TTL/LRU）、请求序列
 ├── selectors.ts                 # 性能选择器（useShallow）
-├── slices/                      # 23 个独立切片（含 5 浏览器 + 3 GitHub 子切片）
+├── slices/                      # 24 个独立切片（含 5 浏览器 + 3 GitHub 子切片）
 │   ├── uiSlice.ts / workspaceSlice.ts / gitSlice.ts
 │   ├── sessionSlice.ts / editorSlice.ts / patchSlice.ts
 │   ├── searchSlice.ts / diagnosticSlice.ts / taskSlice.ts
+│   ├── providerSlice.ts             # 提供商与模型选择状态（selectedProviderId/selectedModelId）
 │   ├── commandSlice.ts / clipboardSlice.ts / terminalSlice.ts
 │   ├── ciSlice.ts                   # CI 状态（轮询、快照、Section 切换）
 │   ├── communicateSlice.ts          # 通信面板共享状态
@@ -110,6 +112,7 @@ app/stores/
     ├── workspaceActions.ts（448 行） / sessionActions.ts / editorActions.ts
     ├── patchActions.ts / gitActions.ts / fetchActions.ts
     ├── streamActions.ts / generalActions.ts / searchActions.ts
+    ├── providerActions.ts            # 提供商管理（setApiKey/testConnection/fetchModels/selectModel）
     ├── taskActions.ts / commandActions.ts / browserCleanupActions.ts（112 行）
 ```
 

@@ -45,6 +45,7 @@
 | [refactoring-execution-2026-06-27.md](./重构/refactoring-execution-2026-06-27.md)                       | 2026-06-27 重构洞察执行       | SDD 子代理驱动重构、model-gateway 模块化、BrowserEntrySubEntries 工具提取、browserUrlUtils 提取、[browser-debug] 清理 |
 | [terminal-pty-evaluation.md](./重构/terminal-pty-evaluation.md)                                         | 重构洞察                      | Terminal 与 PTY crate 职责边界评估报告                                                                           |
 | [theme-unified-management-2026-06-30.md](./重构/theme-unified-management-2026-06-30.md)                 | 2026-06-30 方案 C 重构执行    | Theme 统一管理：ThemeController 为唯一真实来源、useResolvedTheme hook、resolveCurrentTheme 共享函数、消除 4 处内联 matchMedia |
+| [provider-model-streaming-redesign-2026-07-07.md](./重构/provider-model-streaming-redesign-2026-07-07.md) | 2026-07-07 Phase ABC 重构执行 | Provider 动态注册系统、Model 选择路由、SSE 真实流式传输 |
 
 ### 多工作区
 

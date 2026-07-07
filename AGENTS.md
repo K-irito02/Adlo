@@ -36,14 +36,15 @@
 | Phase 0 | ✅ 已完成 | 架构底座、桌面壳层、安全边界、基础设施 |
 | Phase 1 | ✅ 已完成 | 交互式 MVP、模型接入、上下文、变更预览 |
 | Phase 2 | ✅ 已完成 | 完整 18 项缺失能力实现 — 多 Agent / MCP / 多 Provider / Compaction / Snapshot-Revert / WebFetch-WebSearch / 自定义命令 / 权限 Ruleset / Session Fork / LSP / Plugin / Reference / Custom Agent / Hot Reload / Durable Session |
+| Phase 2 增强 | ✅ 已完成 | Provider 动态注册系统（ProviderRegistry）、(provider, model) 对路由、SSE 真实流式传输、ModelPicker UI、ProviderManager 管理面板、动态模型获取 |
 
 技术栈详情与已实现功能清单见 [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)。
 
-> Phase 2 已于 2026-07-06 完成，覆盖 5 个子阶段（2-A 至 2-E）全部 18 项缺失能力，包含 323 Rust 测试、326 前端测试，clippy 与 lint 零警告。
+> Phase 2 已于 2026-07-06 完成。Phase 2 增强（Provider 动态注册、模型选择路由、SSE 流式传输）于 2026-07-07 完成。包含 508 Rust 测试、431 前端测试，clippy 与 lint 零警告。
 
 ## 重构历史
 
-共完成 **91 轮**迭代重构，完整记录见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
+共完成 **92 轮**迭代重构，完整记录见 [REFACTORING_PROGRESS_REPORT.md](./docs/重构洞察/REFACTORING_PROGRESS_REPORT.md)。
 
 ## 代理开发规则
 
