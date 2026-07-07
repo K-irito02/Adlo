@@ -376,7 +376,6 @@
 
 /* Scroll shell: wraps scrollable area + custom scrollbar */
 .adl-model-picker__scroll-shell {
-  position: relative;
   display: flex;
   max-height: 260px;
 }
@@ -393,9 +392,9 @@
 
 .adl-model-picker__scrollbar {
   position: absolute;
-  top: 0;
+  top: var(--space-1);
   right: 0;
-  bottom: 0;
+  bottom: var(--space-1);
   width: 10px;
   z-index: 3;
   opacity: 0;
