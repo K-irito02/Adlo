@@ -1,7 +1,6 @@
 use crate::token_counter::{
     TokenCounter, DEFAULT_TAIL_TURNS, PRUNE_PROTECT, PRUNE_PROTECTED_TOOLS, TOOL_OUTPUT_MAX_CHARS,
 };
-use adl_kernel::types::config::ModelProviderId;
 use adl_kernel::types::conversation::{ConversationBlock, ConversationMessageRecord};
 
 /// Result of a compaction operation.
@@ -28,7 +27,7 @@ pub struct CompactionResult {
 /// 4. Prune remaining messages, replacing with a summary
 pub fn compact_messages(
     messages: &[ConversationMessageRecord],
-    provider: ModelProviderId,
+    provider: &str,
     counter: &TokenCounter,
 ) -> CompactionResult {
     let total_tokens: usize = messages.iter().map(|m| counter.count(&m.content, provider)).sum();
@@ -128,7 +127,7 @@ mod tests {
     fn no_compaction_below_threshold() {
         let counter = TokenCounter::new();
         let messages = vec![make_message(ConversationRole::User, "short message")];
-        let result = compact_messages(&messages, ModelProviderId::Openai, &counter);
+        let result = compact_messages(&messages, "openai", &counter);
         assert_eq!(result.pruned_count, 0);
         assert!(!result.summary_needed);
     }
@@ -148,7 +147,7 @@ mod tests {
             })
             .collect();
 
-        let result = compact_messages(&messages, ModelProviderId::Openai, &counter);
+        let result = compact_messages(&messages, "openai", &counter);
         assert!(result.pruned_count > 0);
         assert!(result.summary_needed);
         // Should preserve last 4 messages (2 turns × 2 messages)

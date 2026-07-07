@@ -1,4 +1,3 @@
-use adl_kernel::types::config::ModelProviderId;
 use std::sync::OnceLock;
 
 /// Compaction thresholds (matching OpenCode defaults).
@@ -20,11 +19,11 @@ impl TokenCounter {
         Self { fallback: adl_kernel::estimate_tokens }
     }
 
-    pub fn count(&self, text: &str, _provider: ModelProviderId) -> usize {
+    pub fn count(&self, text: &str, _provider: &str) -> usize {
         (self.fallback)(text)
     }
 
-    pub fn count_messages(&self, messages: &[String], provider: ModelProviderId) -> usize {
+    pub fn count_messages(&self, messages: &[String], provider: &str) -> usize {
         messages.iter().map(|m| self.count(m, provider)).sum()
     }
 
@@ -56,13 +55,13 @@ mod tests {
     #[test]
     fn count_returns_positive_for_nonempty() {
         let counter = TokenCounter::new();
-        assert!(counter.count("Hello, world!", ModelProviderId::Openai) > 0);
+        assert!(counter.count("Hello, world!", "openai") > 0);
     }
 
     #[test]
     fn count_empty_returns_minimum() {
         let counter = TokenCounter::new();
-        assert_eq!(counter.count("", ModelProviderId::Openai), 1);
+        assert_eq!(counter.count("", "openai"), 1);
     }
 
     #[test]
@@ -71,8 +70,8 @@ mod tests {
         let ascii = "a".repeat(100);
         let cjk = "字".repeat(100);
         assert!(
-            counter.count(&cjk, ModelProviderId::Openai)
-                > counter.count(&ascii, ModelProviderId::Openai)
+            counter.count(&cjk, "openai")
+                > counter.count(&ascii, "openai")
         );
     }
 
@@ -93,9 +92,9 @@ mod tests {
     fn count_messages_sums() {
         let counter = TokenCounter::new();
         let messages = vec!["Hello".to_string(), "World".to_string()];
-        let sum = counter.count_messages(&messages, ModelProviderId::Openai);
-        let individual = counter.count("Hello", ModelProviderId::Openai)
-            + counter.count("World", ModelProviderId::Openai);
+        let sum = counter.count_messages(&messages, "openai");
+        let individual = counter.count("Hello", "openai")
+            + counter.count("World", "openai");
         assert_eq!(sum, individual);
     }
 }

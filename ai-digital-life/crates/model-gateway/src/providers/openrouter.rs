@@ -1,6 +1,6 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
-use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelProviderId, ModelTier};
+use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelTier};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use adl_kernel::ConversationRole;
 use async_trait::async_trait;
@@ -32,8 +32,8 @@ impl ProviderAdapter for OpenRouterProvider {
     fn provider_name(&self) -> &'static str {
         "openrouter"
     }
-    fn provider_id(&self) -> ModelProviderId {
-        ModelProviderId::Openrouter
+    fn provider_id(&self) -> &'static str {
+        "openrouter"
     }
     fn supported_models(&self) -> Vec<ModelDefinition> {
         vec![
@@ -115,7 +115,7 @@ impl ProviderAdapter for OpenRouterProvider {
         let content = json["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string();
 
         Ok(ModelResponse {
-            provider_id: ModelProviderId::Openrouter,
+            provider_id: "openrouter".to_string(),
             model_id: model.to_string(),
             content,
             synthetic: false,
@@ -199,7 +199,7 @@ mod tests {
     fn provider_metadata() {
         let p = OpenRouterProvider::new();
         assert_eq!(p.provider_name(), "openrouter");
-        assert_eq!(p.provider_id(), ModelProviderId::Openrouter);
+        assert_eq!(p.provider_id(), "openrouter");
         assert!(p.supported_models().iter().any(|m| m.id == "openrouter/auto"));
     }
 

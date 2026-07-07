@@ -88,7 +88,6 @@ impl ProviderRegistry {
 #[cfg(test)]
 mod tests {
     use adl_errors::AppError;
-    use adl_kernel::types::config::ModelProviderId;
     use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 
     use super::*;
@@ -101,8 +100,8 @@ mod tests {
         fn provider_name(&self) -> &'static str {
             "test"
         }
-        fn provider_id(&self) -> ModelProviderId {
-            ModelProviderId::Openai
+        fn provider_id(&self) -> &'static str {
+            "openai"
         }
         fn supported_models(&self) -> Vec<ModelDefinition> {
             vec![ModelDefinition {
@@ -121,7 +120,7 @@ mod tests {
             _api_key: &str,
         ) -> Result<ModelResponse, AppError> {
             Ok(ModelResponse {
-                provider_id: ModelProviderId::Openai,
+                provider_id: "openai".to_string(),
                 model_id: "test-model".to_string(),
                 content: "test response".to_string(),
                 synthetic: false,

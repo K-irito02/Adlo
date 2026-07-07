@@ -5,7 +5,6 @@ use adl_agent_runtime::compaction::compact_messages;
 use adl_agent_runtime::compaction_summary::{build_context_from_messages, build_summary_prompt};
 use adl_agent_runtime::token_counter::TokenCounter;
 use adl_errors::AppError;
-use adl_kernel::types::config::ModelProviderId;
 use adl_kernel::types::conversation::ConversationMessageRecord;
 use adl_kernel::{ConversationRole, ConversationScenario, IpcResult, ModelChatMessage};
 use adl_model_gateway::ModelGateway;
@@ -17,7 +16,7 @@ pub struct CompactSessionInput {
     pub session_id: String,
     pub messages_json: String,
     pub previous_summary: Option<String>,
-    pub provider: Option<ModelProviderId>,
+    pub provider: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -42,9 +41,9 @@ pub async fn compact_session_cmd(
     let messages: Vec<ConversationMessageRecord> = serde_json::from_str(&input.messages_json)
         .map_err(|e| AppError::Internal(format!("invalid messages_json: {e}")))?;
 
-    let provider = input.provider.unwrap_or(ModelProviderId::Deepseek);
+    let provider = input.provider.unwrap_or_else(|| "deepseek".to_string());
     let counter = TokenCounter::new();
-    let compaction_result = compact_messages(&messages, provider, &counter);
+    let compaction_result = compact_messages(&messages, &provider, &counter);
 
     let summary = if compaction_result.summary_needed {
         let preserved_ids: std::collections::HashSet<&str> =

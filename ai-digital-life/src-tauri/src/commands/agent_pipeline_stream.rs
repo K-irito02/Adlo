@@ -235,7 +235,7 @@ mod tests {
     fn emit_model_stream_events_empty_content() {
         let app = test_app_handle();
         let response = adl_kernel::ModelResponse {
-            provider_id: adl_kernel::ModelProviderId::Deepseek,
+            provider_id: "deepseek".to_string(),
             model_id: "test-model".into(),
             content: String::new(),
             synthetic: false,
@@ -260,7 +260,7 @@ mod tests {
     fn emit_model_stream_events_short_content() {
         let app = test_app_handle();
         let response = adl_kernel::ModelResponse {
-            provider_id: adl_kernel::ModelProviderId::Deepseek,
+            provider_id: "deepseek".to_string(),
             model_id: "test-model".into(),
             content: "Hello World".into(),
             synthetic: false,
@@ -277,7 +277,7 @@ mod tests {
         let app = test_app_handle();
         let content = "a".repeat(250);
         let response = adl_kernel::ModelResponse {
-            provider_id: adl_kernel::ModelProviderId::Deepseek,
+            provider_id: "deepseek".to_string(),
             model_id: "test-model".into(),
             content,
             synthetic: false,
@@ -302,7 +302,7 @@ mod tests {
     fn emit_model_stream_events_no_route() {
         let app = test_app_handle();
         let response = adl_kernel::ModelResponse {
-            provider_id: adl_kernel::ModelProviderId::Minimax,
+            provider_id: "minimax".to_string(),
             model_id: "test-model".into(),
             content: "some content".into(),
             synthetic: false,
@@ -323,7 +323,7 @@ mod tests {
     fn emit_model_stream_events_no_usage() {
         let app = test_app_handle();
         let response = adl_kernel::ModelResponse {
-            provider_id: adl_kernel::ModelProviderId::Deepseek,
+            provider_id: "deepseek".to_string(),
             model_id: "test-model".into(),
             content: "no usage info".into(),
             synthetic: false,

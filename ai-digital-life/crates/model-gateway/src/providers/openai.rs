@@ -1,6 +1,6 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
-use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelProviderId, ModelTier};
+use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelTier};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use adl_kernel::ConversationRole;
 use async_trait::async_trait;
@@ -32,8 +32,8 @@ impl ProviderAdapter for OpenAIProvider {
     fn provider_name(&self) -> &'static str {
         "openai"
     }
-    fn provider_id(&self) -> ModelProviderId {
-        ModelProviderId::Openai
+    fn provider_id(&self) -> &'static str {
+        "openai"
     }
     fn supported_models(&self) -> Vec<ModelDefinition> {
         vec![
@@ -125,7 +125,7 @@ impl ProviderAdapter for OpenAIProvider {
         let content = json["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string();
 
         Ok(ModelResponse {
-            provider_id: ModelProviderId::Openai,
+            provider_id: "openai".to_string(),
             model_id: model.to_string(),
             content,
             synthetic: false,
@@ -209,7 +209,7 @@ mod tests {
     fn provider_metadata() {
         let p = OpenAIProvider::new();
         assert_eq!(p.provider_name(), "openai");
-        assert_eq!(p.provider_id(), ModelProviderId::Openai);
+        assert_eq!(p.provider_id(), "openai");
         assert!(p.supported_models().iter().any(|m| m.id == "gpt-4o"));
     }
 

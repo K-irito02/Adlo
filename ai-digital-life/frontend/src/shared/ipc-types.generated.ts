@@ -40,7 +40,7 @@ fonts: FontPreferences, };
 
 export type AppInfo = { appName: string, version: string, config: ConfigSnapshot, currentWorkspace: WorkspaceMeta | null, recentLogs: Array<LogEntrySummary>, };
 
-export type AppPreferencePatch = { language?: string, themeMode?: ThemeMode, logLevel?: string, terminalLogMode?: LogMode, debugLogMode?: LogMode, modelPreferences?: { [key in ModelProviderId]?: ModelProviderPreferencePatch }, keybinds?: { [key in string]?: string }, fonts?: FontPreferences, };
+export type AppPreferencePatch = { language?: string, themeMode?: ThemeMode, logLevel?: string, terminalLogMode?: LogMode, debugLogMode?: LogMode, modelPreferences?: { [key in string]?: ModelProviderPreferencePatch }, keybinds?: { [key in string]?: string }, fonts?: FontPreferences, };
 
 export type ApprovalDecision = "approved" | "rejected" | "timeout";
 
@@ -115,7 +115,7 @@ parentId: string | null, };
 
 export type DiagnosticSummary = { id: string, source: string, severity: string, message: string, path: string | null, line: number | null, column: number | null, };
 
-export type DigitalLifeRunActivityEventV1 = { "type": "run-start", v: number, runId: string, seq: bigint, ts: bigint, scenario: ConversationScenario, } | { "type": "context-added", v: number, runId: string, seq: bigint, ts: bigint, contextType: string, label: string, path: string | null, tokenEstimate: number | null, truncated: boolean | null, } | { "type": "file-read", v: number, runId: string, seq: bigint, ts: bigint, path: string, bytes: number | null, tokenEstimate: number | null, truncated: boolean | null, } | { "type": "search", v: number, runId: string, seq: bigint, ts: bigint, query: string, hitCount: number | null, samplePaths: Array<string> | null, } | { "type": "command", v: number, runId: string, seq: bigint, ts: bigint, phase: string, command: string, args: Array<string> | null, exitCode: number | null, } | { "type": "patch", v: number, runId: string, seq: bigint, ts: bigint, phase: string, patchSetId: string, fileCount: number | null, hunkCount: number | null, } | { "type": "approval", v: number, runId: string, seq: bigint, ts: bigint, phase: string, approvalId: string, decision: string | null, reason: string | null, } | { "type": "model", v: number, runId: string, seq: bigint, ts: bigint, phase: string, providerId: ModelProviderId | null, modelId: string | null, reason: string | null, usage: ModelTokenUsage | null, message: string | null, } | { "type": "error", v: number, runId: string, seq: bigint, ts: bigint, message: string, } | { "type": "run-done", v: number, runId: string, seq: bigint, ts: bigint, status: AgentRunStatus, };
+export type DigitalLifeRunActivityEventV1 = { "type": "run-start", v: number, runId: string, seq: bigint, ts: bigint, scenario: ConversationScenario, } | { "type": "context-added", v: number, runId: string, seq: bigint, ts: bigint, contextType: string, label: string, path: string | null, tokenEstimate: number | null, truncated: boolean | null, } | { "type": "file-read", v: number, runId: string, seq: bigint, ts: bigint, path: string, bytes: number | null, tokenEstimate: number | null, truncated: boolean | null, } | { "type": "search", v: number, runId: string, seq: bigint, ts: bigint, query: string, hitCount: number | null, samplePaths: Array<string> | null, } | { "type": "command", v: number, runId: string, seq: bigint, ts: bigint, phase: string, command: string, args: Array<string> | null, exitCode: number | null, } | { "type": "patch", v: number, runId: string, seq: bigint, ts: bigint, phase: string, patchSetId: string, fileCount: number | null, hunkCount: number | null, } | { "type": "approval", v: number, runId: string, seq: bigint, ts: bigint, phase: string, approvalId: string, decision: string | null, reason: string | null, } | { "type": "model", v: number, runId: string, seq: bigint, ts: bigint, phase: string, providerId: string | null, modelId: string | null, reason: string | null, usage: ModelTokenUsage | null, message: string | null, } | { "type": "error", v: number, runId: string, seq: bigint, ts: bigint, message: string, } | { "type": "run-done", v: number, runId: string, seq: bigint, ts: bigint, status: AgentRunStatus, };
 
 export type EventDiagnostics = { emitted: number, byType: { [key in string]?: number }, };
 
@@ -157,23 +157,27 @@ export type MigrationDiagnostics = { change: string, fromVersion: string | null,
 
 export type MigrationScriptStatus = { scriptId: string, status: string, error: string | null, };
 
-export type ModelCallAuditRecord = { id: string, requestId: string, workspaceId: string, sessionId: string, runId: string | null, providerId: ModelProviderId, modelId: string, scenario: ConversationScenario, routeMeta: ModelRouteDecision, promptTokens: number | null, completionTokens: number | null, latencyMs: bigint, error: string | null, streamed: boolean, createdAt: bigint, };
+export type ModelCallAuditRecord = { id: string, requestId: string, workspaceId: string, sessionId: string, runId: string | null, providerId: string, modelId: string, scenario: ConversationScenario, routeMeta: ModelRouteDecision, promptTokens: number | null, completionTokens: number | null, latencyMs: bigint, error: string | null, streamed: boolean, createdAt: bigint, };
+
+export type ModelCapability = "text" | "vision" | "tooluse" | "streaming" | "reasoning";
 
 export type ModelChatMessage = { role: ConversationRole, content: string, };
 
+export type ModelDefinition = { id: string, providerId: string, name: string, description?: string, contextWindow?: number, maxOutput?: number, capabilities: Array<ModelCapability>, tier?: ModelTier, released?: string, };
+
 export type ModelGatewayHealthSnapshot = { checkedAt: bigint, providers: Array<ProviderHealthStatus>, };
 
-export type ModelPreferences = { providers: { [key in ModelProviderId]?: ModelProviderPreference }, };
-
-export type ModelProviderId = "deepseek" | "minimax" | "openai" | "anthropic" | "google" | "ollama" | "openrouter";
+export type ModelPreferences = { providers: { [key in string]?: ModelProviderPreference }, };
 
 export type ModelProviderPreference = { enabled: boolean, priority: number, modelId: string, };
 
 export type ModelProviderPreferencePatch = { enabled?: boolean, priority?: number, modelId?: string, };
 
-export type ModelResponse = { providerId: ModelProviderId, modelId: string, content: string, synthetic: boolean, requestId: string | null, usage: ModelTokenUsage | null, route: ModelRouteDecision | null, };
+export type ModelResponse = { providerId: string, modelId: string, content: string, synthetic: boolean, requestId: string | null, usage: ModelTokenUsage | null, route: ModelRouteDecision | null, };
 
 export type ModelRouteDecision = { reason: string, chain: Array<string>, synthetic: boolean | null, };
+
+export type ModelTier = "free" | "lowcost" | "standard" | "premium";
 
 export type ModelTokenUsage = { promptTokens: number | null, completionTokens: number | null, totalTokens: number | null, estimated: boolean | null, };
 
@@ -216,7 +220,7 @@ export type PlanConversationItem = { id: string, title: string, detail: string |
 
 export type PromptRule = { id: string, kind: string, content: string, };
 
-export type ProviderHealthStatus = { providerId: ModelProviderId, healthy: boolean, detail: string, };
+export type ProviderHealthStatus = { providerId: string, healthy: boolean, detail: string, };
 
 export type RecentWorkspaceEntry = { id: string, path: string, rootPath: string, name: string, lastOpenedAt: bigint, isPinned: boolean, pinnedOrder: number, unpinnedOrder: number, removedFromSidebar: boolean, available: boolean, hiddenFromRightPanels: boolean, };
 

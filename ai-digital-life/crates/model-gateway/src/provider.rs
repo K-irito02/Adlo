@@ -8,7 +8,7 @@
 //! implementation.
 
 use adl_errors::AppError;
-use adl_kernel::{ModelChatMessage, ModelProviderId, ModelResponse, ModelTokenUsage};
+use adl_kernel::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 
 use crate::adapter::{ChatOptions, ProviderAdapter};
 use crate::providers::anthropic::AnthropicProvider;
@@ -25,15 +25,18 @@ const MINIMAX_BASE_URL: &str = "https://api.minimax.io";
 
 pub(crate) async fn call_provider(
     gateway: &ModelGateway,
-    provider: ModelProviderId,
+    provider: &str,
     model_id: &str,
     messages: &[ModelChatMessage],
 ) -> Result<ModelResponse, AppError> {
     // Ollama is a local model server and does not require an API key.
     // All other providers must have a credential configured.
-    let needs_api_key = !matches!(provider, ModelProviderId::Ollama);
+    let needs_api_key = provider != "ollama";
     let api_key = if needs_api_key {
-        tokio::task::spawn_blocking(move || get_provider_secret(provider))
+        tokio::task::spawn_blocking({
+            let provider = provider.to_string();
+            move || get_provider_secret(&provider)
+        })
             .await
             .map_err(|e| AppError::Security(e.to_string()))??
     } else {
@@ -41,8 +44,7 @@ pub(crate) async fn call_provider(
     };
     if needs_api_key && api_key.is_empty() {
         return Err(AppError::Security(format!(
-            "API key for provider {} is not configured",
-            provider.as_str()
+            "API key for provider {provider} is not configured"
         )));
     }
     dispatch_to_provider(gateway, provider, model_id, messages, &api_key).await
@@ -54,32 +56,33 @@ pub(crate) async fn call_provider(
 /// verify routing behavior without depending on the system keyring.
 pub(crate) async fn dispatch_to_provider(
     gateway: &ModelGateway,
-    provider: ModelProviderId,
+    provider: &str,
     model_id: &str,
     messages: &[ModelChatMessage],
     api_key: &str,
 ) -> Result<ModelResponse, AppError> {
     let options = ChatOptions::default();
     match provider {
-        ModelProviderId::Deepseek => {
+        "deepseek" => {
             call_deepseek_direct(gateway, api_key, model_id, messages).await
         },
-        ModelProviderId::Minimax => call_minimax_direct(gateway, api_key, model_id, messages).await,
-        ModelProviderId::Anthropic => {
+        "minimax" => call_minimax_direct(gateway, api_key, model_id, messages).await,
+        "anthropic" => {
             AnthropicProvider::new().chat(model_id, messages, &options, api_key).await
         },
-        ModelProviderId::Openai => {
+        "openai" => {
             OpenAIProvider::new().chat(model_id, messages, &options, api_key).await
         },
-        ModelProviderId::Google => {
+        "google" => {
             GoogleProvider::new().chat(model_id, messages, &options, api_key).await
         },
-        ModelProviderId::Ollama => {
+        "ollama" => {
             OllamaProvider::new().chat(model_id, messages, &options, "").await
         },
-        ModelProviderId::Openrouter => {
+        "openrouter" => {
             OpenRouterProvider::new().chat(model_id, messages, &options, api_key).await
         },
+        _ => Err(AppError::Internal(format!("unknown provider: {provider}"))),
     }
 }
 
@@ -91,7 +94,7 @@ async fn call_deepseek_direct(
     messages: &[ModelChatMessage],
 ) -> Result<ModelResponse, AppError> {
     let url = format!("{DEEPSEEK_BASE_URL}/chat/completions");
-    call_openai_compatible(gateway, url, api_key, model_id, messages, ModelProviderId::Deepseek)
+    call_openai_compatible(gateway, url, api_key, model_id, messages, "deepseek")
         .await
 }
 
@@ -103,7 +106,7 @@ async fn call_minimax_direct(
     messages: &[ModelChatMessage],
 ) -> Result<ModelResponse, AppError> {
     let url = format!("{MINIMAX_BASE_URL}/v1/chat/completions");
-    call_openai_compatible(gateway, url, api_key, model_id, messages, ModelProviderId::Minimax)
+    call_openai_compatible(gateway, url, api_key, model_id, messages, "minimax")
         .await
 }
 
@@ -114,7 +117,7 @@ async fn call_openai_compatible(
     api_key: &str,
     model_id: &str,
     messages: &[ModelChatMessage],
-    provider: ModelProviderId,
+    provider: &str,
 ) -> Result<ModelResponse, AppError> {
     let request = ChatCompletionRequest {
         model: model_id.to_string(),
@@ -143,7 +146,7 @@ async fn call_openai_compatible(
         .map_err(|e| AppError::Model(e.to_string()))?;
     if !response.status().is_success() {
         return Err(AppError::Model(format!(
-            "provider {provider:?} returned HTTP {}",
+            "provider {provider} returned HTTP {}",
             response.status()
         )));
     }
@@ -154,7 +157,7 @@ async fn call_openai_compatible(
             AppError::Model(format!("API returned empty choices array (model={model_id})"))
         })?;
     Ok(ModelResponse {
-        provider_id: provider,
+        provider_id: provider.to_string(),
         model_id: body.model.unwrap_or_else(|| model_id.into()),
         content,
         synthetic: false,
@@ -172,7 +175,7 @@ async fn call_openai_compatible(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adl_kernel::{ConversationRole, ModelChatMessage, ModelPreferences, ModelProviderId};
+    use adl_kernel::{ConversationRole, ModelChatMessage, ModelPreferences};
 
     fn one_user_message() -> Vec<ModelChatMessage> {
         vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }]
@@ -187,7 +190,7 @@ mod tests {
         let messages = one_user_message();
         let result = dispatch_to_provider(
             &gateway,
-            ModelProviderId::Anthropic,
+            "anthropic",
             "claude-3-5-sonnet-20241022",
             &messages,
             "fake-key",
@@ -207,7 +210,7 @@ mod tests {
         let messages = one_user_message();
         let result = dispatch_to_provider(
             &gateway,
-            ModelProviderId::Openai,
+            "openai",
             "gpt-4o",
             &messages,
             "fake-key",
@@ -227,7 +230,7 @@ mod tests {
         let gateway = ModelGateway::new(ModelPreferences::default()).unwrap();
         let messages = one_user_message();
         let result =
-            dispatch_to_provider(&gateway, ModelProviderId::Ollama, "llama3", &messages, "").await;
+            dispatch_to_provider(&gateway, "ollama", "llama3", &messages, "").await;
         let err_str = result.map(|_| String::new()).unwrap_or_else(|e| e.to_string());
         assert!(
             !err_str.contains("not yet implemented"),
@@ -242,7 +245,7 @@ mod tests {
         let messages = one_user_message();
         let result = dispatch_to_provider(
             &gateway,
-            ModelProviderId::Google,
+            "google",
             "gemini-1.5-pro",
             &messages,
             "fake-key",
@@ -262,7 +265,7 @@ mod tests {
         let messages = one_user_message();
         let result = dispatch_to_provider(
             &gateway,
-            ModelProviderId::Openrouter,
+            "openrouter",
             "openrouter/auto",
             &messages,
             "fake-key",

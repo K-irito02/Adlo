@@ -1,6 +1,6 @@
 use adl_errors::AppError;
 use adl_kernel::types::agent::AgentId;
-use adl_kernel::types::config::{ModelDefinition, ModelProviderId};
+use adl_kernel::types::config::ModelDefinition;
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use async_trait::async_trait;
 use std::pin::Pin;
@@ -42,7 +42,7 @@ pub struct ToolDefinition {
 #[async_trait]
 pub trait ProviderAdapter: Send + Sync {
     fn provider_name(&self) -> &'static str;
-    fn provider_id(&self) -> ModelProviderId;
+    fn provider_id(&self) -> &'static str;
     fn supported_models(&self) -> Vec<ModelDefinition>;
 
     fn supports_dynamic_models(&self) -> bool {
@@ -89,8 +89,8 @@ mod tests {
         fn provider_name(&self) -> &'static str {
             "stub"
         }
-        fn provider_id(&self) -> ModelProviderId {
-            ModelProviderId::Openai
+        fn provider_id(&self) -> &'static str {
+            "openai"
         }
         fn supported_models(&self) -> Vec<ModelDefinition> {
             vec![ModelDefinition {
@@ -109,7 +109,7 @@ mod tests {
             _api_key: &str,
         ) -> Result<ModelResponse, AppError> {
             Ok(ModelResponse {
-                provider_id: ModelProviderId::Openai,
+                provider_id: "openai".to_string(),
                 model_id: "stub-model".to_string(),
                 content: "stub response".to_string(),
                 synthetic: false,

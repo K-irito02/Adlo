@@ -122,43 +122,17 @@ pub enum ModelTier {
     Premium,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Hash, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
-#[serde(rename_all = "lowercase")]
-pub enum ModelProviderId {
-    Deepseek,
-    Minimax,
-    Openai,
-    Anthropic,
-    Google,
-    Ollama,
-    Openrouter,
-}
-
-impl ModelProviderId {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Deepseek => "deepseek",
-            Self::Minimax => "minimax",
-            Self::Openai => "openai",
-            Self::Anthropic => "anthropic",
-            Self::Google => "google",
-            Self::Ollama => "ollama",
-            Self::Openrouter => "openrouter",
-        }
-    }
-}
-
 /// Returns the default model ID for a provider.
-pub fn default_model_for_provider(provider: ModelProviderId) -> &'static str {
+pub fn default_model_for_provider(provider: &str) -> &'static str {
     match provider {
-        ModelProviderId::Deepseek => "deepseek-chat",
-        ModelProviderId::Minimax => "MiniMax-M2.7",
-        ModelProviderId::Openai => "gpt-4o",
-        ModelProviderId::Anthropic => "claude-3-5-sonnet-20241022",
-        ModelProviderId::Google => "gemini-1.5-pro",
-        ModelProviderId::Ollama => "llama3.1",
-        ModelProviderId::Openrouter => "openrouter/auto",
+        "deepseek" => "deepseek-chat",
+        "minimax" => "MiniMax-M2.7",
+        "openai" => "gpt-4o",
+        "anthropic" => "claude-3-5-sonnet-20241022",
+        "google" => "gemini-1.5-pro",
+        "ollama" => "llama3.1",
+        "openrouter" => "openrouter/auto",
+        _ => "unknown",
     }
 }
 
@@ -175,14 +149,14 @@ pub struct ModelProviderPreference {
 #[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct ModelPreferences {
-    pub providers: std::collections::BTreeMap<ModelProviderId, ModelProviderPreference>,
+    pub providers: std::collections::BTreeMap<String, ModelProviderPreference>,
 }
 
 impl Default for ModelPreferences {
     fn default() -> Self {
         let mut providers = std::collections::BTreeMap::new();
         providers.insert(
-            ModelProviderId::Deepseek,
+            "deepseek".to_string(),
             ModelProviderPreference {
                 enabled: true,
                 priority: 1,
@@ -190,7 +164,7 @@ impl Default for ModelPreferences {
             },
         );
         providers.insert(
-            ModelProviderId::Minimax,
+            "minimax".to_string(),
             ModelProviderPreference {
                 enabled: true,
                 priority: 2,
@@ -217,7 +191,7 @@ pub struct AppPreferencePatch {
     pub debug_log_mode: Option<LogMode>,
     #[ts(optional)]
     pub model_preferences:
-        Option<std::collections::BTreeMap<ModelProviderId, ModelProviderPreferencePatch>>,
+        Option<std::collections::BTreeMap<String, ModelProviderPreferencePatch>>,
     #[ts(optional)]
     pub keybinds: Option<std::collections::BTreeMap<String, String>>,
     #[ts(optional)]
@@ -319,33 +293,10 @@ mod provider_id_tests {
     use super::*;
 
     #[test]
-    fn new_providers_exist() {
-        assert_eq!(ModelProviderId::Openai.as_str(), "openai");
-        assert_eq!(ModelProviderId::Anthropic.as_str(), "anthropic");
-        assert_eq!(ModelProviderId::Google.as_str(), "google");
-        assert_eq!(ModelProviderId::Ollama.as_str(), "ollama");
-        assert_eq!(ModelProviderId::Openrouter.as_str(), "openrouter");
-    }
-
-    #[test]
-    fn existing_providers_preserved() {
-        assert_eq!(ModelProviderId::Deepseek.as_str(), "deepseek");
-        assert_eq!(ModelProviderId::Minimax.as_str(), "minimax");
-    }
-
-    #[test]
     fn all_providers_have_default_model() {
-        for id in [
-            ModelProviderId::Deepseek,
-            ModelProviderId::Minimax,
-            ModelProviderId::Openai,
-            ModelProviderId::Anthropic,
-            ModelProviderId::Google,
-            ModelProviderId::Ollama,
-            ModelProviderId::Openrouter,
-        ] {
+        for id in ["deepseek", "minimax", "openai", "anthropic", "google", "ollama", "openrouter"] {
             let model = default_model_for_provider(id);
-            assert!(!model.is_empty(), "Provider {:?} has no default model", id);
+            assert!(!model.is_empty(), "Provider {id} has no default model");
         }
     }
 }

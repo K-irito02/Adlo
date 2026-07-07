@@ -22,7 +22,7 @@ pub use secret::{clear_provider_secret, get_provider_secret, set_provider_secret
 use adl_errors::AppError;
 use adl_kernel::{
     create_id, now_ms, ConversationScenario, ModelCallAuditRecord, ModelChatMessage,
-    ModelGatewayHealthSnapshot, ModelPreferences, ModelProviderId, ModelResponse,
+    ModelGatewayHealthSnapshot, ModelPreferences, ModelResponse,
     ModelRouteDecision, ProviderHealthStatus,
 };
 use audit::{audit_record, AuditInput};
@@ -61,7 +61,7 @@ impl ModelGateway {
         let route = route::route_chain(&self.preferences);
         let route_meta = ModelRouteDecision {
             reason: "provider priority and enabled state".into(),
-            chain: route.iter().map(|provider| provider.as_str().to_string()).collect(),
+            chain: route.clone(),
             synthetic: None,
         };
 
@@ -83,7 +83,7 @@ impl ModelGateway {
                     workspace_id,
                     session_id,
                     run_id,
-                    provider_id: resp_provider_id,
+                    provider_id: resp_provider_id.clone(),
                     model_id,
                     scenario,
                     route_meta,
@@ -105,7 +105,7 @@ impl ModelGateway {
                 )
             },
             Err(last_error) => {
-                let provider = ModelProviderId::Deepseek;
+                let provider = "deepseek".to_string();
                 let model_id = "synthetic-local".to_string();
                 let content = deterministic_fallback(&messages, last_error.as_deref());
                 let usage = Some(estimate_usage(&messages));
@@ -115,7 +115,7 @@ impl ModelGateway {
                     synthetic: Some(true),
                 };
                 let response = ModelResponse {
-                    provider_id: provider,
+                    provider_id: provider.clone(),
                     model_id: model_id.clone(),
                     content,
                     synthetic: true,
@@ -143,20 +143,14 @@ impl ModelGateway {
     pub fn health(&self) -> ModelGatewayHealthSnapshot {
         let checked_at = now_ms();
         let all_providers = [
-            ModelProviderId::Deepseek,
-            ModelProviderId::Minimax,
-            ModelProviderId::Anthropic,
-            ModelProviderId::Openai,
-            ModelProviderId::Google,
-            ModelProviderId::Ollama,
-            ModelProviderId::Openrouter,
+            "deepseek", "minimax", "anthropic", "openai", "google", "ollama", "openrouter",
         ];
         let providers = all_providers
             .into_iter()
             .map(|provider_id| {
                 // Ollama is a local service and does not require an API key;
                 // treat it as healthy without checking the keyring.
-                let is_ollama = matches!(provider_id, ModelProviderId::Ollama);
+                let is_ollama = provider_id == "ollama";
                 let has_secret = is_ollama || get_provider_secret(provider_id).is_ok();
                 let detail = if is_ollama {
                     "Local Ollama service (no API key required).".to_string()
@@ -166,7 +160,7 @@ impl ModelGateway {
                     "API key is not configured; calls will use fallback after route failure."
                         .to_string()
                 };
-                ProviderHealthStatus { provider_id, healthy: has_secret, detail }
+                ProviderHealthStatus { provider_id: provider_id.to_string(), healthy: has_secret, detail }
             })
             .collect();
         ModelGatewayHealthSnapshot { checked_at, providers }
@@ -181,6 +175,6 @@ mod tests {
     fn gateway_routes_by_priority() {
         let gateway = ModelGateway::new(ModelPreferences::default()).unwrap();
         let route = route::route_chain(gateway.preferences());
-        assert_eq!(route[0], ModelProviderId::Deepseek);
+        assert_eq!(route[0], "deepseek");
     }
 }

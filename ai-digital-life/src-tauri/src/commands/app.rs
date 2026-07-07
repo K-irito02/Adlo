@@ -107,12 +107,13 @@ pub fn app_update_preferences(
             }
             if let Some(model_preferences) = patch.model_preferences {
                 for (provider, patch) in model_preferences {
+                    let provider_id = provider.clone();
                     let entry =
                         config.model_preferences.providers.entry(provider).or_insert_with(|| {
                             adl_kernel::ModelProviderPreference {
                                 enabled: true,
                                 priority: 10,
-                                model_id: provider.as_str().to_string(),
+                                model_id: provider_id.clone(),
                             }
                         });
                     if let Some(enabled) = patch.enabled {

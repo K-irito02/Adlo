@@ -1,7 +1,7 @@
 //! Audit record generation for model API calls.
 
 use adl_kernel::{
-    create_id, now_ms, ConversationScenario, ModelCallAuditRecord, ModelProviderId,
+    create_id, now_ms, ConversationScenario, ModelCallAuditRecord,
     ModelRouteDecision, ModelTokenUsage,
 };
 use std::time::Instant;
@@ -10,7 +10,7 @@ pub(crate) struct AuditInput<'a> {
     pub(crate) workspace_id: &'a str,
     pub(crate) session_id: &'a str,
     pub(crate) run_id: Option<&'a str>,
-    pub(crate) provider_id: ModelProviderId,
+    pub(crate) provider_id: String,
     pub(crate) model_id: String,
     pub(crate) scenario: ConversationScenario,
     pub(crate) route_meta: ModelRouteDecision,

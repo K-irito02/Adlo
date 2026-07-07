@@ -1,19 +1,19 @@
 use crate::commands::ipc;
-use adl_kernel::{IpcResult, ModelProviderId};
+use adl_kernel::IpcResult;
 
 #[tauri::command]
-pub fn set_provider_api_key(provider_id: ModelProviderId, api_key: String) -> IpcResult<bool> {
-    ipc(adl_model_gateway::set_provider_secret(provider_id, &api_key).map(|_| true))
+pub fn set_provider_api_key(provider_id: String, api_key: String) -> IpcResult<bool> {
+    ipc(adl_model_gateway::set_provider_secret(&provider_id, &api_key).map(|_| true))
 }
 
 #[tauri::command]
-pub fn clear_provider_api_key(provider_id: ModelProviderId) -> IpcResult<bool> {
-    ipc(adl_model_gateway::clear_provider_secret(provider_id).map(|_| true))
+pub fn clear_provider_api_key(provider_id: String) -> IpcResult<bool> {
+    ipc(adl_model_gateway::clear_provider_secret(&provider_id).map(|_| true))
 }
 
 #[tauri::command]
-pub fn has_provider_api_key(provider_id: ModelProviderId) -> IpcResult<bool> {
-    ipc(Ok(adl_model_gateway::get_provider_secret(provider_id).is_ok()))
+pub fn has_provider_api_key(provider_id: String) -> IpcResult<bool> {
+    ipc(Ok(adl_model_gateway::get_provider_secret(&provider_id).is_ok()))
 }
 
 #[derive(serde::Serialize)]

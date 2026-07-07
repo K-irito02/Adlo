@@ -1,6 +1,6 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
-use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelProviderId, ModelTier};
+use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelTier};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use adl_kernel::ConversationRole;
 use async_trait::async_trait;
@@ -32,8 +32,8 @@ impl ProviderAdapter for AnthropicProvider {
     fn provider_name(&self) -> &'static str {
         "anthropic"
     }
-    fn provider_id(&self) -> ModelProviderId {
-        ModelProviderId::Anthropic
+    fn provider_id(&self) -> &'static str {
+        "anthropic"
     }
     fn supported_models(&self) -> Vec<ModelDefinition> {
         vec![
@@ -139,7 +139,7 @@ impl ProviderAdapter for AnthropicProvider {
         };
 
         Ok(ModelResponse {
-            provider_id: ModelProviderId::Anthropic,
+            provider_id: "anthropic".to_string(),
             model_id: model.to_string(),
             content,
             synthetic: false,
@@ -243,7 +243,7 @@ mod tests {
     fn provider_metadata() {
         let p = AnthropicProvider::new();
         assert_eq!(p.provider_name(), "anthropic");
-        assert_eq!(p.provider_id(), ModelProviderId::Anthropic);
+        assert_eq!(p.provider_id(), "anthropic");
         assert!(p.supported_models().iter().any(|m| m.id == "claude-3-5-sonnet-20241022"));
     }
 

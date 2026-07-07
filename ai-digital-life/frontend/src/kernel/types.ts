@@ -14,12 +14,12 @@ export type {
   ConfigSnapshot,
   ModelProviderPreference,
   ModelProviderPreferencePatch,
-  ModelProviderId,
   ThemeMode,
   Theme,
   LogMode,
 } from '../shared/ipc-types.generated';
 
+export type ModelProviderId = string;
 export type ResolvedTheme = 'light' | 'dark';
 export type LanguageCode = 'zh-CN' | 'en-US';
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';

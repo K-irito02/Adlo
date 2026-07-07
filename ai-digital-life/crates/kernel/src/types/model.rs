@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use super::agent::AgentRunStatus;
-use super::config::ModelProviderId;
 use super::conversation::{ConversationRole, ConversationScenario};
 use super::TimestampMs;
 
@@ -37,7 +36,7 @@ pub struct ModelRouteDecision {
 #[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct ModelResponse {
-    pub provider_id: ModelProviderId,
+    pub provider_id: String,
     pub model_id: String,
     pub content: String,
     pub synthetic: bool,
@@ -125,7 +124,7 @@ pub enum DigitalLifeRunActivityEventV1 {
         seq: i64,
         ts: TimestampMs,
         phase: String,
-        provider_id: Option<ModelProviderId>,
+        provider_id: Option<String>,
         model_id: Option<String>,
         reason: Option<String>,
         usage: Option<ModelTokenUsage>,
@@ -172,7 +171,7 @@ pub struct RunActivityEventRecord {
 #[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct ProviderHealthStatus {
-    pub provider_id: ModelProviderId,
+    pub provider_id: String,
     pub healthy: bool,
     pub detail: String,
 }
@@ -194,7 +193,7 @@ pub struct ModelCallAuditRecord {
     pub workspace_id: String,
     pub session_id: String,
     pub run_id: Option<String>,
-    pub provider_id: ModelProviderId,
+    pub provider_id: String,
     pub model_id: String,
     pub scenario: ConversationScenario,
     pub route_meta: ModelRouteDecision,

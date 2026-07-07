@@ -1,6 +1,6 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
-use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelProviderId, ModelTier};
+use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelTier};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use adl_kernel::ConversationRole;
 use async_trait::async_trait;
@@ -32,8 +32,8 @@ impl ProviderAdapter for OllamaProvider {
     fn provider_name(&self) -> &'static str {
         "ollama"
     }
-    fn provider_id(&self) -> ModelProviderId {
-        ModelProviderId::Ollama
+    fn provider_id(&self) -> &'static str {
+        "ollama"
     }
     fn supported_models(&self) -> Vec<ModelDefinition> {
         vec![
@@ -127,7 +127,7 @@ impl ProviderAdapter for OllamaProvider {
         };
 
         Ok(ModelResponse {
-            provider_id: ModelProviderId::Ollama,
+            provider_id: "ollama".to_string(),
             model_id: model.to_string(),
             content,
             synthetic: false,
@@ -208,7 +208,7 @@ mod tests {
     fn provider_metadata() {
         let p = OllamaProvider::new();
         assert_eq!(p.provider_name(), "ollama");
-        assert_eq!(p.provider_id(), ModelProviderId::Ollama);
+        assert_eq!(p.provider_id(), "ollama");
         assert!(p.supported_models().iter().any(|m| m.id == "llama3.1"));
     }
 

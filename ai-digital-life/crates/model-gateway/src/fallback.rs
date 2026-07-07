@@ -1,13 +1,13 @@
 //! Fallback response generation when all providers fail.
 
 use adl_kernel::{
-    estimate_tokens, ConversationRole, ModelChatMessage, ModelProviderId, ModelTokenUsage,
+    estimate_tokens, ConversationRole, ModelChatMessage, ModelTokenUsage,
 };
 
-pub(crate) fn default_model(provider: ModelProviderId) -> &'static str {
+pub(crate) fn default_model(provider: &str) -> &'static str {
     match provider {
-        ModelProviderId::Deepseek => "deepseek-v4-pro",
-        ModelProviderId::Minimax => "MiniMax-M2.7",
+        "deepseek" => "deepseek-v4-pro",
+        "minimax" => "MiniMax-M2.7",
         _ => "unknown",
     }
 }

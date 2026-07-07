@@ -1,6 +1,6 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use adl_errors::AppError;
-use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelProviderId, ModelTier};
+use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelTier};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use adl_kernel::ConversationRole;
 use async_trait::async_trait;
@@ -35,8 +35,8 @@ impl ProviderAdapter for GoogleProvider {
     fn provider_name(&self) -> &'static str {
         "google"
     }
-    fn provider_id(&self) -> ModelProviderId {
-        ModelProviderId::Google
+    fn provider_id(&self) -> &'static str {
+        "google"
     }
     fn supported_models(&self) -> Vec<ModelDefinition> {
         vec![
@@ -137,7 +137,7 @@ impl ProviderAdapter for GoogleProvider {
         let total_tokens = json["usageMetadata"]["totalTokenCount"].as_u64().map(|v| v as u32);
 
         Ok(ModelResponse {
-            provider_id: ModelProviderId::Google,
+            provider_id: "google".to_string(),
             model_id: model.to_string(),
             content,
             synthetic: false,
@@ -226,7 +226,7 @@ mod tests {
     fn provider_metadata() {
         let p = GoogleProvider::new();
         assert_eq!(p.provider_name(), "google");
-        assert_eq!(p.provider_id(), ModelProviderId::Google);
+        assert_eq!(p.provider_id(), "google");
         assert!(p.supported_models().iter().any(|m| m.id == "gemini-1.5-pro"));
     }
 
