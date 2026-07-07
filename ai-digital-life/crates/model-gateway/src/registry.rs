@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use adl_kernel::types::config::ModelDefinition;
 use crate::adapter::ProviderAdapter;
@@ -43,7 +44,7 @@ pub struct ProviderDefinition {
 /// Registry of known providers with their definitions and adapters.
 pub struct ProviderRegistry {
     providers: HashMap<String, ProviderDefinition>,
-    adapters: HashMap<String, Box<dyn ProviderAdapter + Send + Sync>>,
+    adapters: HashMap<String, Arc<dyn ProviderAdapter + Send + Sync>>,
 }
 
 impl Default for ProviderRegistry {
@@ -64,7 +65,7 @@ impl ProviderRegistry {
     ) {
         let id = def.id.clone();
         self.providers.insert(id.clone(), def);
-        self.adapters.insert(id, adapter);
+        self.adapters.insert(id, Arc::from(adapter));
     }
 
     pub fn get(&self, id: &str) -> Option<&ProviderDefinition> {
@@ -72,7 +73,11 @@ impl ProviderRegistry {
     }
 
     pub fn get_adapter(&self, id: &str) -> Option<&(dyn ProviderAdapter + Send + Sync)> {
-        self.adapters.get(id).map(|b| b.as_ref())
+        self.adapters.get(id).map(|a| a.as_ref())
+    }
+
+    pub fn get_adapter_owned(&self, id: &str) -> Option<Arc<dyn ProviderAdapter + Send + Sync>> {
+        self.adapters.get(id).cloned()
     }
 
     pub fn list_all(&self) -> Vec<&ProviderDefinition> {

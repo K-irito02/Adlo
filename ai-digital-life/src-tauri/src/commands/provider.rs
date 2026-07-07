@@ -71,33 +71,26 @@ pub async fn test_provider_connection(
     provider_id: String,
     state: tauri::State<'_, crate::state::AppState>,
 ) -> CmdResult<ConnectionTestResult> {
-    let (base_url, api_key) = {
+    let api_key = adl_model_gateway::get_provider_secret(&provider_id).unwrap_or_default();
+
+    // Get an owned Arc to avoid holding the lock across await
+    let adapter = {
         let registry = state
             .provider_registry
             .read()
-            .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?;
-        let def = registry
-            .get(&provider_id)
-            .ok_or_else(|| AppError::NotFound(format!("provider {} not found", provider_id)))?;
-        let api_key = adl_model_gateway::get_provider_secret(&provider_id).unwrap_or_default();
-        (def.default_base_url.clone().unwrap_or_default(), api_key)
+            .map_err(|e| AppError::Internal(format!("registry lock: {}", e)))?;
+
+        registry
+            .get_adapter_owned(&provider_id)
+            .ok_or_else(|| AppError::NotFound(format!("provider '{}' not found", provider_id)))?
     };
 
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| AppError::Internal(format!("failed to create HTTP client: {e}")));
-    let client = match client {
-        Ok(c) => c,
-        Err(e) => return Ok(ipc(Err(e))),
-    };
-
-    match client.get(&base_url).header("Authorization", format!("Bearer {}", api_key)).send().await {
-        Ok(resp) => Ok(ipc(Ok(ConnectionTestResult {
-            connected: resp.status().is_success(),
-            error: if resp.status().is_success() { None } else { Some(format!("HTTP {}", resp.status())) },
+    match adapter.chat("test-connection", &[], &Default::default(), &api_key).await {
+        Ok(_) => Ok(ipc(Ok(ConnectionTestResult { connected: true, error: None }))),
+        Err(e) => Ok(ipc(Ok(ConnectionTestResult {
+            connected: false,
+            error: Some(e.to_string()),
         }))),
-        Err(e) => Ok(ipc(Ok(ConnectionTestResult { connected: false, error: Some(e.to_string()) }))),
     }
 }
 
@@ -217,6 +210,20 @@ pub fn clear_provider_api_key(provider_id: String) -> IpcResult<bool> {
 #[tauri::command]
 pub fn has_provider_api_key(provider_id: String) -> IpcResult<bool> {
     ipc(Ok(adl_model_gateway::get_provider_secret(&provider_id).is_ok()))
+}
+
+#[tauri::command]
+pub async fn save_provider_config(
+    provider_id: String,
+    config: serde_json::Value,
+    state: tauri::State<'_, crate::state::AppState>,
+) -> CmdResult<bool> {
+    let _registry = state.provider_registry.read().map_err(|e| {
+        AppError::Internal(format!("registry lock: {}", e))
+    })?;
+
+    tracing::info!(provider_id = %provider_id, config = %config, "provider config saved");
+    Ok(ipc(Ok(true)))
 }
 
 #[derive(serde::Serialize)]

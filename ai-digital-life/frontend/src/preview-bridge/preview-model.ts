@@ -1,4 +1,5 @@
 import type { AppPreferencePatch, AppInfo, IpcResult } from '@ai-digital-life/kernel';
+import type { ProviderStatus, ConnectionTestResult, ProviderInfo } from '../shared/ipc';
 import { applyPreferencePatch } from '../shared/preferencesMerger';
 import { mockDigitalLifeBridge } from '../mock-bridge';
 import { persistPreviewPreferences, loadPreviewPreferences } from './storage';
@@ -73,6 +74,18 @@ export function createPreviewModelBridge(
           },
         };
       },
+    },
+    provider: {
+      listProviders: () => Promise.resolve({ ok: true, data: [] as ProviderStatus[] }),
+      saveProviderConfig: () => Promise.resolve({ ok: true, data: undefined }),
+      testProviderConnection: () => Promise.resolve({ ok: true, data: { connected: false, error: null } }),
+      fetchProviderModels: () => Promise.resolve({ ok: true, data: [] }),
+      addCustomProvider: () => Promise.resolve({ ok: true, data: true }),
+      removeCustomProvider: () => Promise.resolve({ ok: true, data: true }),
+      setProviderApiKey: () => Promise.resolve({ ok: true, data: true }),
+      clearProviderApiKey: () => Promise.resolve({ ok: true, data: true }),
+      hasProviderApiKey: () => Promise.resolve({ ok: true, data: false }),
+      listSupportedProviders: () => Promise.resolve({ ok: true, data: [] as ProviderInfo[] }),
     },
     subscribeModelStream: mockDigitalLifeBridge.subscribeModelStream,
     subscribeRunActivity: mockDigitalLifeBridge.subscribeRunActivity,

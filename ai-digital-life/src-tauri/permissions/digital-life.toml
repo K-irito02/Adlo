@@ -124,6 +124,7 @@ commands.allow = [
   "add_custom_provider",
   "remove_custom_provider",
   "list_supported_providers",
+  "save_provider_config",
   "set_provider_api_key",
   "clear_provider_api_key",
   "has_provider_api_key",

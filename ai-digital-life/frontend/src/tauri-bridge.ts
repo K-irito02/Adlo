@@ -576,8 +576,8 @@ export function createTauriBridge(): DigitalLifeBridge {
         invokeIpc<boolean>('has_provider_api_key', { providerId: provider }),
       listSupportedProviders: () => invokeIpc<ProviderInfo[]>('list_supported_providers'),
       listProviders: () => invokeIpc<ProviderStatus[]>('list_providers'),
-      saveProviderConfig: (_providerId: string, _config: Record<string, unknown>) =>
-        Promise.resolve({ ok: true, data: undefined } as IpcResult<void>),
+      saveProviderConfig: (providerId: string, config: Record<string, unknown>) =>
+        invokeIpc<boolean>('save_provider_config', { providerId, config }),
       testProviderConnection: (providerId: string) =>
         invokeIpc<ConnectionTestResult>('test_provider_connection', { providerId }),
       fetchProviderModels: (providerId: string) =>
