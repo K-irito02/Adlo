@@ -17,6 +17,8 @@ import type {
   PluginBridge,
   PluginInfo,
   ProviderInfo,
+  ProviderStatus,
+  ConnectionTestResult,
   ReferenceBridge,
   ReferenceConfig,
   PtyOutputEvent,
@@ -63,6 +65,7 @@ import type {
   GitSnapshot,
   HealthSnapshot,
   IpcResult,
+  ModelDefinition,
   ModelGatewayHealthSnapshot,
   PatchApplicationResult,
   PatchSet,
@@ -572,6 +575,17 @@ export function createTauriBridge(): DigitalLifeBridge {
       hasProviderApiKey: (provider: string) =>
         invokeIpc<boolean>('has_provider_api_key', { providerId: provider }),
       listSupportedProviders: () => invokeIpc<ProviderInfo[]>('list_supported_providers'),
+      listProviders: () => invokeIpc<ProviderStatus[]>('list_providers'),
+      saveProviderConfig: (_providerId: string, _config: Record<string, unknown>) =>
+        Promise.resolve({ ok: true, data: undefined } as IpcResult<void>),
+      testProviderConnection: (providerId: string) =>
+        invokeIpc<ConnectionTestResult>('test_provider_connection', { providerId }),
+      fetchProviderModels: (providerId: string) =>
+        invokeIpc<ModelDefinition[]>('fetch_provider_models', { providerId }),
+      addCustomProvider: (name: string, baseUrl: string, apiKey: string, models: string[]) =>
+        invokeIpc<boolean>('add_custom_provider', { name, baseUrl, apiKey, models }),
+      removeCustomProvider: (providerId: string) =>
+        invokeIpc<boolean>('remove_custom_provider', { providerId }),
     },
 
     snapshot: {

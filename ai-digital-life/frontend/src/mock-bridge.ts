@@ -487,6 +487,21 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
         { id: 'openrouter', name: 'OpenRouter', requiresKey: true },
       ],
     }),
+    listProviders: async () => ({ ok: true, data: [] }),
+    saveProviderConfig: async (_providerId: string, _config: Record<string, unknown>) => ({
+      ok: true,
+      data: undefined,
+    }),
+    testProviderConnection: async (_providerId: string) => ({
+      ok: true,
+      data: { connected: false, error: 'mock: no connection' },
+    }),
+    fetchProviderModels: async (_providerId: string) => ({ ok: true, data: [] }),
+    addCustomProvider: async (_name: string, _baseUrl: string, _apiKey: string, _models: string[]) => ({
+      ok: true,
+      data: true,
+    }),
+    removeCustomProvider: async (_providerId: string) => ({ ok: true, data: true }),
   } satisfies ProviderBridge,
 
   snapshot: {
