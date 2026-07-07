@@ -1,6 +1,6 @@
 # 重构进度报告
 
-> 更新日期: 2026-07-02（第九十一轮）
+> 更新日期: 2026-07-08（第九十三轮）
 
 ## 完成状态
 
@@ -97,6 +97,8 @@
 | **第八十九轮** | **2026-07-01** | **终验与合并：CodeMirror 多实例冲突修复（pnpm.overrides + resolve.dedupe + 5 direct deps）；ESLint 12→0 warnings（清理未使用导入/泛型/import type()→顶层导入）；TypeScript 预存错误修复（casing/JsonValue）；Clippy + cargo check + 类型检查 + 282 测试全通过；知识沉淀 WORKTREE-RERUN-ISSUES.md；文档更新；日志清理** | ✅ |
 | **第九十轮** | **2026-07-01** | **浏览器 Favicon/Title 同步修复（8 Task）：Favicon 缓存 localStorage 持久化 + 源优先级系统（com>iframe>http>google）+ HTTP prefetch/browser-mode submit 统一路由至 handlePageMeta + fetchPageMeta 纯函数化 + BrowserTabBar 通过 BrowserFavicon 订阅 favicon 变更 + 过期缓存 onError 驱逐 + 全部通过 287 测试 + ESLint/clippy/rustfmt 全 clean** | ✅ |
 | **第九十一轮** | **2026-07-01~02** | **refactoring-insight 全流程执行（6 阶段 18 任务，SDD 模式）：死代码 + IPC 契约修复 + CSS diff 合并（!important 147→115）+ 大文件域拆分（outline.ts 862行→14模块、ipc.ts 932行→16域文件）+ Store 切片提取 + Hook/组件分解 + Rust unwrap 治理 + i18n 硬编码修复 + leaf module 打破类型循环（详见下方第九十一轮章节）** | ✅ |
+| **第九十二轮** | **2026-07-03** | **refactoring-insight 第23次执行（34项发现，13/17任务完成）：死代码清理 + i18n 硬编码修复（21处）+ Store 切片分解（workspaceLifecycleActions + githubCiRefresh）+ CSS 文件拆分（statusbar/editor-content/markdown-preview/highlightjs-theme）** | ✅ |
+| **第九十三轮** | **2026-07-08** | **OpenCode 功能审计缺陷修复（10项）：核心正确性（Plan Mode write 白名单、Compaction 阈值修正、Subagent 权限继承）、可靠性（DurableSession 错误处理、Plugin hook 链式传播、默认模型动态解析、SubagentManager 状态更新）、WebTools 增强（WebFetch 5MB/30s/HTML→Markdown）、MCP 完善（SSE/StreamableHTTP 拆分、自动重连）** | ✅ |
 
 ## 说明
 
@@ -482,4 +484,53 @@ Bug 6 是最难排查的 Race Condition：
 - `TerminalPanel.tsx` (378行) — 未提取 TerminalHeaderBar（Task 13，本轮跳过）
 - `BrowserPanel.tsx` (731行) — 未进一步拆分（本轮跳过）
 - Rust `webview2_message.rs` 5x Mutex → RwLock — 未迁移（Task 16，本轮跳过）
+
+## 第九十三轮：OpenCode 功能审计缺陷修复（2026-07-08）
+
+### 背景
+
+Phase 2 功能完成后，对照 OpenCode 进行功能审计，发现 10 项实现缺陷，分为 4 组修复：核心正确性（3项）、可靠性（4项）、WebTools 增强（1项）、MCP 完善（2项）。Squash commit `5a83ebfb` on `main`。
+
+### 修改的文件
+
+#### Group A: 核心正确性（3项）
+
+| 缺陷 | 修复 |
+|------|------|
+| Plan Mode 完全禁止 `write` 工具 | `write` 工具加入白名单，但限制仅可写 plan 文件路径 |
+| Compaction 触发阈值错误使用 PRUNE_PROTECT(40000) | 改为 PRUNE_MINIMUM(20000) 作为触发点，PRUNE_PROTECT 作为保护区 |
+| Subagent 权限继承未考虑父 Agent 限制 | `derive_subagent_permission` 使用父 Agent 的 `allowed_tools`，write 工具强制 deny |
+
+#### Group B: 可靠性（4项）
+
+| 缺陷 | 修复 |
+|------|------|
+| DurableSession 所有错误用 `let _ =` 静默吞掉 | 替换为 `tracing::warn!` 或返回 `Result` |
+| Plugin hook 执行结果未链式传播 | `fire_hook` 链式传递 Modify 结果；插件存储从 HashMap 改为 Vec 保证有序执行 |
+| 默认模型解析硬编码 match | `default_model()` 查询 ProviderRegistry 动态解析 |
+| SubagentManager.update_status 未知 ID 静默忽略 | 返回 `Result` 以报错未知 ID |
+
+#### Group C: WebTools 增强（1项）
+
+| 缺陷 | 修复 |
+|------|------|
+| WebFetch 无大小限制、无超时、无格式选择 | 5MB 限制 + 30s 超时 + HTML→Markdown（html2text）+ 格式选择（text/markdown/html） |
+
+#### Group D: MCP 完善（2项）
+
+| 缺陷 | 修复 |
+|------|------|
+| SSE 与 StreamableHTTP transport 合并处理 | 拆分为独立 match arm + 文档说明差异 |
+| MCP 连接断开无自动重连 | 实现 `auto_reconnect()` + `ToolListChanged` 通知（rmcp `ClientHandler` trait） |
+
+### 核心改动
+
+1. **Compaction 阈值语义明确化**：PRUNE_MINIMUM(20000) 是触发点，PRUNE_PROTECT(40000) 是保护区下限，两者职责不同
+2. **Plugin hook 有序执行**：从 HashMap 无序存储改为 Vec 有序存储，确保 hook 按注册顺序执行且结果链式传播
+3. **DurableSession 错误可见性**：静默失败是 bug，所有错误必须通过 `tracing::warn!` 或 `Result` 返回暴露
+4. **MCP 自动重连机制**：通过 rmcp `ClientHandler` trait 实现断线重连 + 工具列表变更通知
+
+### 关键经验
+
+详见 `docs/知识沉淀/代码质量/opencode-audit-fix-2026-07.md`
 

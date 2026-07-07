@@ -38,17 +38,17 @@
 | 子阶段 | 新增能力 |
 |--------|---------|
 | **2-A** | 多 Agent 系统（Agent 注册表 + 路由）、Sub-agent / Task 工具、Plan Mode |
-| **2-B** | MCP 完整集成（Stdio/SSE/StreamableHTTP + OAuth）、多 LLM Provider（OpenAI/Anthropic/Google/Ollama/OpenRouter）、Provider-specific Prompts |
+| **2-B** | MCP 完整集成（Stdio/SSE/StreamableHTTP 独立 transport + OAuth + 自动重连 ClientHandler）、多 LLM Provider（OpenAI/Anthropic/Google/Ollama/OpenRouter）、Provider-specific Prompts |
 | **2-B 增强** | Provider 动态注册系统（ProviderRegistry 取代 ModelProviderId enum）、(provider, model) 对路由、SSE 真实流式传输（取代 post-hoc chunking）、ModelPicker UI 组件、ProviderManager 管理面板、动态模型获取 (fetch_models) |
-| **2-C** | Token-aware Compaction（PRUNE_MINIMUM=20000）、Snapshot/Revert（message-level git 快照）、WebFetch / WebSearch 工具 |
+| **2-C** | Token-aware Compaction（PRUNE_MINIMUM=20000 触发 / PRUNE_PROTECT=40000 保护区）、Snapshot/Revert（message-level git 快照）、WebFetch / WebSearch 工具（WebFetch: 5MB 限制 + 30s 超时 + HTML→Markdown + 格式选择 text/markdown/html） |
 | **2-D** | 自定义命令配置（模板变量 $1/$ARGUMENTS/$WORKSPACE）、权限系统升级为 Ruleset（Allow/Ask/Deny + 通配匹配 + doom_loop 检测） |
-| **2-E** | Session Fork、LSP 集成（rust-analyzer/ts-server/pylsp/gopls）、Plugin 系统（trait + hooks + registry）、Reference 系统、自定义 Agent 配置、Hot Reloadable Config、Durable Session Execution、ACP/HTTP API/CodeMode 预留接口 |
+| **2-E** | Session Fork、LSP 集成（rust-analyzer/ts-server/pylsp/gopls）、Plugin 系统（trait + hooks 链式传播 + Vec 有序注册 + registry）、Reference 系统、自定义 Agent 配置、Hot Reloadable Config、Durable Session Execution、ACP/HTTP API/CodeMode 预留接口 |
 
 > 508 Rust 测试、431 前端测试，clippy 与 lint 零警告。
 
 ### 重构历史
 
-共完成 **91 轮**迭代重构，完整记录见 [根目录 AGENTS.md](../AGENTS.md#重构历史)。
+共完成 **93 轮**迭代重构，完整记录见 [根目录 AGENTS.md](../AGENTS.md#重构历史)。
 
 ## 安全边界
 

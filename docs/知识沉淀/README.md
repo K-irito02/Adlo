@@ -115,6 +115,7 @@
 | [tech-stack-optimization-2026-06-09.md](./代码质量/tech-stack-optimization-2026-06-09.md)                                                   | 2026-06-09 技术栈优化           | 9 条经验（ts-rs 类型冲突、tokio 特性精简、密钥降级、highlight.js 按需等）                                          |
 | [diff-viewer-empty-line-hover-scroll-fix-2026-06-13.md](./代码质量/diff-viewer-empty-line-hover-scroll-fix-2026-06-13.md)                   | 2026-06-13 修复执行             | 变更查看器空行悬停背景色修复 + 快速滚动闪烁修复（CSS :has 陷阱、MergeView compartment、collapseUnchanged minSize） |
 | [opencode-feature-defects-2026-07-06.md](./代码质量/opencode-feature-defects-2026-07-06.md)                                           | 2026-07-06 缺陷修复执行        | OpenCode 对照 8 项实现缺陷修复（truncate_output 边界、classify_profile 平衡、pattern_matches 正则、Snapshot 文件副本、MCP transport 真实化） |
+| [opencode-audit-fix-2026-07.md](./代码质量/opencode-audit-fix-2026-07.md)                                           | 2026-07-08 审计缺陷修复执行    | OpenCode 功能审计 10 项缺陷修复（Compaction 阈值语义、Plugin hook 有序链式传播、DurableSession 错误可见性、MCP 自动重连、Subagent 权限继承） |
 
 ### 浏览器自动化
 
