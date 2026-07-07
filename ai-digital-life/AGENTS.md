@@ -159,7 +159,7 @@ app/stores/
 - [技能系统入口](../.opencode/skills/using-superpowers/SKILL.md) — using-superpowers 入口技能
 - [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 远期规划
 - [references/opencode/](../references/opencode/) — 参考项目 OpenCode 本地源码（MIT 许可）
-- [docs/analysis/opencode/](../docs/analysis/opencode/) — OpenCode 深度分析文档
+- [docs/analysis/opencode/](../docs/analysis/opencode/) — OpenCode 源码地图
 
 ## 磁盘空间管理
 

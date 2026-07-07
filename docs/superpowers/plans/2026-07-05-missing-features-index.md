@@ -2,8 +2,8 @@
 
 > **生成日期：** 2026-07-05
 > **前置文档：**
-> - [07-missing-features-opencode-has.md](../../analysis/opencode/07-missing-features-opencode-has.md) — 缺失能力清单
-> - [08-tech-stack-changes-for-missing-features.md](../../analysis/opencode/08-tech-stack-changes-for-missing-features.md) — 技术栈变更分析
+> - [comparison/gap-analysis.md](../../analysis/opencode/comparison/gap-analysis.md) — 缺失能力清单与差距分析
+> - [01-project-overview.md](../../analysis/opencode/01-project-overview.md) — 项目总览与技术栈
 > **本文目的：** 将 18 项「应补齐的缺失能力」拆分为 5 个独立可执行的实施计划，每个计划产出可独立测试的软件。
 
 ---

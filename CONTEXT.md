@@ -7,7 +7,7 @@
 ## 参考项目
 
 ### OpenCode
-本项目的主要参考开源项目（MIT 许可），由 SST/Anomaly 团队开发。终端优先的 AI 编码代理，支持 TUI/Web/Desktop 多客户端。本地副本位于 `references/opencode/`，深度分析见 [docs/analysis/opencode/](./docs/analysis/opencode/)。
+本项目的主要参考开源项目（MIT 许可），由 SST/Anomaly 团队开发。终端优先的 AI 编码代理，支持 TUI/Web/Desktop 多客户端。本地副本位于 `references/opencode/`，源码地图见 [docs/analysis/opencode/](./docs/analysis/opencode/)。
 
 > 本项目的架构设计、编码模式与功能实现多处借鉴 OpenCode，包括但不限于：命名空间投影、Service+Layer 依赖注入、Schema 驱动类型系统、三态权限引擎、ConfigTransform 可重放配置变换。
 

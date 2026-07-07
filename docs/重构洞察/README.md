@@ -22,6 +22,21 @@
 | [refactor-insight-2026-06-30.md](./refactor-insight-2026-06-30.md) | 2026-06-30 |
 | [refactor-insight-2026-07-01.md](./refactor-insight-2026-07-01.md) | 2026-07-01 |
 | [refactor-insight-2026-07-02.md](./refactor-insight-2026-07-02.md) | 2026-07-02 |
+| [refactor-insight-2026-07-03.md](./refactor-insight-2026-07-03.md) | 2026-07-03 |
+| [refactor-insight-2026-07-04.md](./refactor-insight-2026-07-04.md) | 2026-07-04 |
+
+## 审计报告
+
+| 文件 | 日期 |
+|------|------|
+| [opencode-audit-2026-07-07.md](./opencode-audit-2026-07-07.md) | 2026-07-07 |
+
+## 回归测试指南
+
+| 文件 | 日期 |
+|------|------|
+| [regression-test-guide-2026-07-04.md](./regression-test-guide-2026-07-04.md) | 2026-07-04 |
+| [regression-test-guide-2026-07-07.md](./regression-test-guide-2026-07-07.md) | 2026-07-07 |
 
 ## 实施计划
 

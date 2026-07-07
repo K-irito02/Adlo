@@ -10,7 +10,7 @@
 | [superpowers/](./superpowers/) | 功能设计文档（specs/）+ 实施计划（plans/）归档，与 `.opencode/skills/` 技能系统无关 |
 | [knowledge/](./知识沉淀/) | 经验教训与总结（按领域分类：重构、浏览器、交互优化、代码质量、CI 监控、多工作区、浏览器自动化） |
 | [refactoring-insights/](./重构洞察/) | 重构进度报告、洞察总结、每日洞察记录 |
-| [analysis/opencode/](./analysis/opencode/) | OpenCode 源码深度分析系列文档（技术栈、架构、模块、UI、规范） |
+| [analysis/opencode/](./analysis/opencode/) | OpenCode 源码地图 — 渐进式索引（快查/总览/架构/包索引/功能深度/编码模式/差距分析） |
 | [references/opencode/](../references/opencode/) | OpenCode 本地参考源码（MIT 许可，供开发参考与复用） |
 
 ## 基础设施配置
@@ -30,7 +30,7 @@
 - 日志系统手册 → [development/log-system-manual.md](./development/log-system-manual.md)
 - 重构进度 → [重构洞察/REFACTORING_PROGRESS_REPORT.md](./重构洞察/REFACTORING_PROGRESS_REPORT.md)
 - 经验教训索引 → [知识沉淀/README.md](./知识沉淀/README.md)
-- OpenCode 深度分析 → [analysis/opencode/](./analysis/opencode/)
+- OpenCode 源码地图 → [analysis/opencode/README.md](./analysis/opencode/README.md)
 - 贡献指南 → [CONTRIBUTING.md](../CONTRIBUTING.md)
 - 安全策略 → [SECURITY.md](../SECURITY.md)
 - 领域术语表 → [CONTEXT.md](../CONTEXT.md)

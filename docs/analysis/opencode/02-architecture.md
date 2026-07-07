@@ -1,196 +1,239 @@
-# OpenCode 深度分析（二）：架构设计与包依赖
+# OpenCode 架构设计
 
-> 源码参考路径：`references/opencode/packages/`
+> 源码参考：`references/opencode/packages/`
 
----
-
-## 1. 整体架构理念
-
-OpenCode 采用 **Effect-TS 函数式编程范式** 构建，核心设计理念：
-
-| 理念 | 描述 |
-|------|------|
-| **依赖倒置** | Schema→Protocol→Core→Server，高层不依赖低层 |
-| **分层解耦** | 每层只依赖下层，通过 Layer/Service 注入绑定 |
-| **不可变值传递** | Schema 契约默认只读，运行时可变性显式声明 |
-| **Effect 服务层组合** | 所有 IO 通过 `Effect` 类型表达，服务通过 `Layer` 组合 |
-
----
-
-## 2. 包依赖流向
+## 分层架构
 
 ```
-              ┌────────────────────────────────────────┐
-              │           schema (纯契约, 无依赖)         │
-              └─────┬──────────────────────────┬───────┘
-                    │                          │
-              ┌─────▼────────┐          ┌──────▼──────┐
-              │     llm       │          │   plugin    │←─ 纯类型契约
-              │ (依赖 schema)  │          └──────────────┘
-              └─────┬────────┘
-                    │
-              ┌─────▼────────┐
-              │   protocol    │  HTTP API 路由定义
-              │ (依llm+schema) │
-              └─────┬────────┘
-                    │
-              ┌─────▼────────┐
-              │     core      │  所有业务领域服务
-              │ (依sch+llm)   │  Agent, Session, Config, Git, Permission...
-              └─────┬────────┘
-                    │
-              ┌─────▼────────┐
-              │    server     │  HTTP 服务组装
-              │ (依core+proto) │
-              └─────┬────────┘
-                    │
-         ┌──────────┼──────────┐
-         │          │          │
-    ┌────▼───┐ ┌───▼────┐ ┌──▼──────┐
-    │opencode│ │  tui   │ │  app    │  客户端入口
-    │(CLI)   │ │(终端UI)│ │(Web UI) │
-    └────────┘ └────────┘ └─────────┘
+Layer 0: Schema (纯类型契约)
+   └─ 仅依赖 effect（运行时）
+   └─ 56 个文件，定义所有公共类型
+   └─ Schema.Struct / Schema.Class / Branded Types
+
+Layer 1: LLM & Protocol (独立领域)
+   ├─ llm: 依赖 schema，定义 LLM 抽象
+   │   ├─ route/    → 四轴路由（Protocol/Auth/Endpoint/Framing）
+   │   ├─ protocols/ → 6 种 API 协议实现
+   │   └─ providers/ → 12 个 Provider facade
+   └─ protocol: 依赖 schema，定义 HTTP API
+       └─ groups/   → 18 路由组（类型安全路由定义）
+
+Layer 2: Core (核心业务)
+   └─ 依赖 schema + llm（不依赖 protocol/server）
+   └─ ~50 领域服务文件 + 8 业务子目录
+   └─ 所有 Effect Service（Agent/Session/Config/Permission/...）
+
+Layer 3: Server (HTTP 组装)
+   └─ 依赖 core + protocol
+   └─ 将 Protocol 路由组注入 Core 服务实现
+   └─ 添加认证/CORS/中间件
+
+Layer 4: CLI 入口 (opencode)
+   └─ 依赖所有下层包
+   └─ yargs 命令路由 + Effect 运行时引导
+   └─ 组装所有 Layer 为可执行应用
+
+Layer 5: 客户端 (TUI/Web/Desktop)
+   └─ 通过 HTTP Client 与服务端通信
+   └─ SolidJS 组件 + 各自渲染引擎
 ```
 
-### 关键约束
-
-1. **Client 可依赖 Schema 和 Protocol，但绝不依赖 Core 或 Server**
-2. **Schema 和 Protocol 不得传递依赖**：数据库、Drizzle、Session 执行、providers、watchers、原生模块、WASM
-3. **sdk-next 组合 Client + Core + Server**（内嵌SDK）
-4. **Plugin 包是纯类型契约**，Core 通过 `PluginHost.make()` 创建运行时宿主
-
----
-
-## 3. Effect-TS 核心模式
-
-### 3.1 Service + Layer 依赖注入
-
-每个领域模块定义三要素：
-
-```typescript
-// 1. 服务接口声明
-class SessionV2 extends Context.Service<"SessionV2">()("SessionV2", {
-  create: Effect<...>,
-  prompt: Effect<...>,
-  list: Effect<...>,
-}) {}
-
-// 2. Layer 实现绑定
-const layer = Layer.effect(SessionV2, makeSessionV2Service)
-
-// 3. 节点定义（声明依赖关系）
-const node = makeLocationNode({
-  service: SessionV2,
-  layer,
-  deps: [Database.node, EventV2.node, SessionExecution.node]
-})
-```
-
-### 3.2 Global vs Location 节点
-
-| 类型 | 生命周期 | 示例 |
-|------|----------|------|
-| `makeGlobalNode` | 进程级单例 | Database、Git、Global paths |
-| `makeLocationNode` | 每工作目录独立实例 | Agent、Config、Permission、Skill、Plugin |
-
-### 3.3 State 可重放变换
-
-`packages/core/src/state.ts` 提供 `transform()` + `reload()` 模式：
-
-```typescript
-// 插件/配置通过 scoped transform 注册变更
-State.transform(state, PluginAdded({ ... }))
-// Scope 关闭后自动回滚
-// 状态重建：initial() → 重放所有 transform → 提交
-```
-
----
-
-## 4. 数据流架构
+## 包依赖矩阵
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  Client (TUI / Web / Embedded)                       │
-│  ├─ HTTP RESTful API 调用                            │
-│  └─ SSE 事件流订阅                                   │
-├─────────────────────────────────────────────────────┤
-│  Server (HTTP Layer)                                 │
-│  ├─ 认证/授权 (Basic Auth / Embedded)                │
-│  ├─ 中间件链 (Auth -> SchemaError -> Routes)         │
-│  └─ 请求路由 → Handler → Core Service                │
-├─────────────────────────────────────────────────────┤
-│  Core (Domain Layer)                                 │
-│  ├─ Session Execution Engine                         │
-│  │   └─ SessionPrompt → LLM Stream → Tool Dispatch   │
-│  ├─ Tool Registry (bash/read/write/edit/grep/glob)  │
-│  ├─ Permission Engine (deny/ask/allow)               │
-│  └─ Git Operations (clone/commit/diff/worktree)     │
-├─────────────────────────────────────────────────────┤
-│  LLM (Provider Layer)                                │
-│  ├─ Route = Protocol + Endpoint + Auth + Framing    │
-│  ├─ Provider Facades (OpenAI/Anthropic/Google...)    │
-│  └─ Tool Runtime (typed + dynamic)                   │
-├─────────────────────────────────────────────────────┤
-│  Storage (Drizzle + SQLite)                          │
-│  ├─ sessions / messages / parts                      │
-│  ├─ events / permissions / config                    │
-│  └─ projections / compacted transcripts             │
-└─────────────────────────────────────────────────────┘
+            schema ─────────────────────────────┐
+            │                  │                 │
+            ▼                  ▼                 ▼
+           llm             protocol           plugin
+            │                  │                 │
+            ▼                  │                 │
+           core ◄──────────────┘                 │
+            │                                    │
+            ▼                                    │
+          server                                 │
+            │                                    │
+            ▼                                    │
+         opencode ◄──────────────────────────────┘
+            │
+   ┌────────┼────────┐
+   ▼        ▼        ▼
+  app      tui    desktop
+
+独立生态:
+  client    → 仅依赖 schema + protocol
+  sdk-next  → 组合 client + core + server (嵌入式)
 ```
 
----
+## 核心设计模式
 
-## 5. Client/Server 通信架构
+### 1. Effect-TS 服务层模式
 
-### 5.1 HTTP API 协议
+每个领域模块遵循统一的三组件模式：
 
-- 使用 Effect `HttpApi` 框架声明式路由定义
-- 每个路由组通过 middleware 注入 Location/Session 上下文
-- 支持 HTTP RESTful + SSE 事件流
+```ts
+// ① 服务接口（纯类型契约）
+export interface Interface {
+  list(): Effect<Info[], Error>
+  get(id: ID): Effect<Info, Error>
+}
 
-### 5.2 三种客户端模式
+// ② Context.Tag（依赖注入标记）
+export const Service = Context.GenericTag<Interface>("@opencode/Service")
 
-| 模式 | 连接方式 | 使用场景 |
-|------|----------|----------|
-| **本地 (TUI)** | 进程内直连 | 终端开发 |
-| **Web** | HTTP + SSE (Sidecar 或远程) | 浏览器访问 |
-| **Embedded** | 内存 HTTP Transport | 插件/SDK 集成 |
-
-### 5.3 桌面端 Sidecar 架构
-
-```
-┌──────────────────────────────────────────────────────┐
-│ Electron Main Process                                  │
-│  ├─ 启动本地 Sidecar 服务器（随机端口 + 密码认证）       │
-│  ├─ 管理 WSL Sidecar（Windows）                        │
-│  ├─ IPC 处理（文件选择器、剪贴板、原生通知）            │
-│  └─ 自动更新                                           │
-├──────────────────────────────────────────────────────┤
-│ Electron Renderer Process                              │
-│  ├─ 加载 Web UI                                       │
-│  ├─ contextBridge 暴露 window.api                     │
-│  └─ HTTP 连接 Sidecar 服务器                          │
-└──────────────────────────────────────────────────────┘
+// ③ Layer 实现（具体服务）
+export const node = Layer.effect(Service, Effect.gen(function*() {
+  // 通过 yield* 获取依赖
+  const db = yield* Database.Service
+  return { list, get } satisfies Interface
+}))
 ```
 
----
+### 2. 四轴路由分解（LLM 层）
 
-## 6. 对当前项目的架构借鉴
+一次 Provider 调用被分解为四个正交维度：
 
-### 你的项目 (Tauri + Rust) vs OpenCode (Electron + TypeScript)
+```
+Route = {
+  Protocol   — 语义 API 契约（body 构造/stream 解析/事件状态机）
+  Endpoint   — URL 构造（baseURL/path/query）
+  Auth       — 每请求传输认证（bearer token/API key header/passthrough）
+  Framing    — 字节流→帧（SSE/AWS event-stream/二进制）
+}
+```
 
-| 维度 | 你的项目 | OpenCode | 借鉴方向 |
-|------|----------|----------|----------|
-| **类型契约** | `kernel/types/` Rust struct | `schema/` Effect Schema | 可建立独立 `types` crate 作为公共契约 |
-| **IPC** | Tauri Command | HTTP API (Effect HttpApi) | Tauri Command 本质也是声明式 API 定义 |
-| **状态管理** | Zustand store | SolidJS Context + createStore | 借鉴分层 Context 模式 |
-| **依赖注入** | Tauri State | Effect Layer | 已有 Rust DI 模式，可参考分层设计 |
-| **插件系统** | 暂无 | Plugin SDK (纯契约 + 宿主实现) | 先定义插件契约 trait，再在 core 实现宿主 |
-| **自我引导** | `.trae/rules/` | `.opencode/` | 可增强 `.trae/` 目录作为 AI 管理入口 |
-| **Sidecar** | Tauri 内置 | Electron 手动管理 | Tauri 有更好的内置支持 |
+**价值**：DeepSeek/TogetherAI/Cerebras 等共享 `OpenAIChat.protocol`，每个只需 5-15 行配置，而非 300-400 行克隆代码。
 
-### 关键可复用模式
+### 3. Protocol-Server 分离
 
-1. **服务分层**：参考 OpenCode 的 Schema→Core→Server 分层，你的项目可对应为 `kernel` (types)→`crates/*` (domain)→Tauri Commands (API)
-2. **Location Scope**：OpenCode 的 Global vs Location 节点划分，可对应你的进程级 vs 工作区级服务
-3. **State 可重放变换**：配置/插件的增量变更+自动回滚机制，适合你的插件热加载需求
+Protocol 定义路由结构（纯类型，无实现），Server 注入具体依赖：
+
+```
+protocol/src/groups/session.ts   → 定义路由签名: POST /session, GET /session/:id
+server/src/handlers/session.ts   → 注入 Core Session 服务实现
+```
+
+**价值**：同一路由定义可生成 Promise SDK、Effect SDK、嵌入式 SDK 三种客户端。
+
+### 4. Context Source 代数（System Context）
+
+System Context 通过可组合的 Context Source 构建：
+
+```ts
+// 每个 Context Source 是一个独立观察
+interface ContextSource<T> {
+  id: string
+  render(): Effect<T>
+}
+
+// 通过 Registry 组合
+const systemContext = yield* ContextRegistry.render()
+```
+
+### 5. State 模式（非 Zustand）
+
+OpenCode 不使用 Zustand，而是自定义 `State.create()` 模式：
+
+```ts
+// Draft: 纯状态 CRUD
+interface Draft<T> {
+  list(): Effect<T[]>
+  get(id: ID): Effect<T>
+  update(id: ID, input: Partial<T>): Effect<T>
+  remove(id: ID): Effect<void>
+}
+
+// Transformable: 可变形状态
+interface Transformable<T> extends Draft<T> {
+  reload(): Effect<void>
+  transform(fn: (items: T[]) => T[]): Effect<void>
+}
+```
+
+### 6. 工具系统抽象
+
+```
+Tool.Definition<Input, Output>
+├── description: string
+├── input: Schema.Codec<Input>
+├── output: Schema.Codec<Output>
+├── execute(ctx: Tool.Context, input: Input): Effect<Output>
+└── toModelOutput(output: Output): string
+
+Tool.Context = {
+  sessionID, agent, assistantMessageID, toolCallID
+}
+
+Tool.withPermission(tool) → 用权限检查包装工具执行
+```
+
+### 7. 权限模型（V2）
+
+```
+PermissionV2:
+  Ruleset[] → 规则集列表（按优先级）
+    Rule = { effect: "allow"|"deny", action, resource }
+  
+  evaluate(action, resource, rules) → "allow" | "deny"
+  
+  Policy:
+    evaluate(action, resource, fallback) → Effect
+    → last-match-wins 策略
+
+  Assert:
+    assert(input) → Effect<AskResult>
+    → 检查 rules → match → 允许
+    → 无 match → 弹出请求 → 等待用户批准/拒绝
+```
+
+### 8. 条件导入（双平台）
+
+```json
+// package.json imports 字段
+{
+  "#sqlite": { "bun": "./src/database/sqlite.bun.ts", "node": "./src/database/sqlite.node.ts" },
+  "#pty":    { "bun": "./src/pty/pty.bun.ts", "node": "./src/pty/pty.node.ts" },
+  "#fff":    { "bun": "./src/filesystem/fff.bun.ts", "node": "./src/filesystem/fff.node.ts" }
+}
+```
+
+## 数据流
+
+```
+用户输入 (TUI/Web/CLI)
+  │
+  ▼
+Session Runner (core/src/session/runner/)
+  ├─ 组装 System Context (Context Sources)
+  ├─ 构建 Prompt (Provider-specific templates)
+  ├─ 插入 Session History (compacted)
+  │
+  ▼
+LLM Layer (llm/src/)
+  ├─ Route.make() → 四维分解
+  ├─ Protocol.stream() → API 调用
+  ├─ ToolRuntime → 工具调用拦截
+  │
+  ▼
+Tool Execution (core/src/tool/)
+  ├─ Tool.withPermission() → 权限检查
+  ├─ execute() → 实际执行
+  └─ toModelOutput() → 格式化输出
+  │
+  ▼
+Response → Session 持久化 → UI 更新
+```
+
+## 关键常量
+
+| 常量 | 值 | 文件 |
+|------|-----|------|
+| `PRUNE_MINIMUM` | 20000 | compaction |
+| `PRUNE_PROTECT` | 40000 | compaction |
+| `DEFAULT_TAIL_TURNS` | 2 | compaction |
+| `DEFAULT_TIMEOUT_MS` | 120000 (2min) | tool/bash.ts |
+| `MAX_TIMEOUT_MS` | 600000 (10min) | tool/bash.ts |
+| `MAX_CAPTURE_BYTES` | 1048576 (1MB) | tool/bash.ts |
+| `SUPPORTED_IMAGE_MIMES` | jpeg/png/gif/webp | tool/read.ts |
+| `FILE_LIMIT` | 10 | tool/skill.ts |
+| 快照 prune 周期 | 7 天 | snapshot |
+| 快照大小限制 | 2MB | snapshot |
