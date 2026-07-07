@@ -149,6 +149,14 @@ mod tests {
         ) -> Result<StreamReader, AppError> {
             Err(AppError::Internal("streaming not supported".to_string()))
         }
+
+        async fn fetch_models(
+            &self,
+            _api_key: &str,
+            _base_url: &str,
+        ) -> Result<Vec<ModelDefinition>, AppError> {
+            Err(AppError::Internal("dynamic model fetch not supported".to_string()))
+        }
     }
 
     #[test]

@@ -173,7 +173,7 @@ impl ModelGateway {
         if adapter.supports_dynamic_models() {
             let api_key = crate::get_provider_secret(provider_id).unwrap_or_default();
             let base_url = def.default_base_url.as_deref().unwrap_or("");
-            match adapter.fetch_models(&api_key, base_url) {
+            match adapter.fetch_models(&api_key, base_url).await {
                 Ok(models) if !models.is_empty() => Ok(models),
                 _ => Ok(fallback_models(&def)),
             }

@@ -101,34 +101,31 @@ pub async fn fetch_provider_models(
     provider_id: String,
     state: tauri::State<'_, crate::state::AppState>,
 ) -> CmdResult<Vec<ModelDefinition>> {
-    let result = (|| -> Result<Vec<ModelDefinition>, AppError> {
+    let (adapter, def, api_key) = {
         let registry = state
             .provider_registry
             .read()
             .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?;
         let adapter = registry
-            .get_adapter(&provider_id)
-            .ok_or_else(|| {
-                let msg = "adapter ".to_string() + &provider_id + " not found";
-                AppError::NotFound(msg)
-            })?;
+            .get_adapter_owned(&provider_id)
+            .ok_or_else(|| AppError::NotFound(format!("adapter '{}' not found", provider_id)))?;
         let def = registry
             .get(&provider_id)
-            .ok_or_else(|| {
-                let msg = "provider ".to_string() + &provider_id + " not found";
-                AppError::NotFound(msg)
-            })?;
+            .ok_or_else(|| AppError::NotFound(format!("provider '{}' not found", provider_id)))?
+            .clone();
         let api_key = adl_model_gateway::get_provider_secret(&provider_id).unwrap_or_default();
-        let base_url = def.default_base_url.as_deref().unwrap_or("");
-        if adapter.supports_dynamic_models() {
-            match adapter.fetch_models(&api_key, base_url) {
-                Ok(models) => Ok(models),
-                Err(_) => Ok(fallback_models(def)),
-            }
-        } else {
-            Ok(fallback_models(def))
+        let base_url = def.default_base_url.clone().unwrap_or_default();
+        (adapter, def, (api_key, base_url))
+    };
+    let (api_key, base_url) = api_key;
+    let result = if adapter.supports_dynamic_models() {
+        match adapter.fetch_models(&api_key, &base_url).await {
+            Ok(models) if !models.is_empty() => Ok(models),
+            _ => Ok(fallback_models(&def)),
         }
-    })();
+    } else {
+        Ok(fallback_models(&def))
+    };
     Ok(ipc(result))
 }
 

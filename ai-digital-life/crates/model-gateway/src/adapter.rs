@@ -49,7 +49,7 @@ pub trait ProviderAdapter: Send + Sync {
         false
     }
 
-    fn fetch_models(
+    async fn fetch_models(
         &self,
         _api_key: &str,
         _base_url: &str,

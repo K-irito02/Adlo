@@ -50,44 +50,40 @@ impl ProviderAdapter for OpenAIProvider {
         true
     }
 
-    fn fetch_models(
+    async fn fetch_models(
         &self,
         api_key: &str,
         base_url: &str,
     ) -> Result<Vec<ModelDefinition>, AppError> {
-        let rt = tokio::runtime::Runtime::new()
-            .map_err(|e| AppError::Internal(format!("runtime error: {e}")))?;
-        rt.block_on(async {
-            let url = format!("{}/models", base_url.trim_end_matches('/'));
-            let resp = self
-                .client
-                .get(&url)
-                .header("Authorization", format!("Bearer {}", api_key))
-                .send()
-                .await
-                .map_err(|e| AppError::Internal(format!("fetch models request failed: {e}")))?;
-            if !resp.status().is_success() {
-                return Err(AppError::Internal(format!(
-                    "fetch models returned {}",
-                    resp.status()
-                )));
-            }
-            let body: OpenAIModelsResponse = resp
-                .json()
-                .await
-                .map_err(|e| AppError::Internal(format!("fetch models parse failed: {e}")))?;
-            Ok(body
-                .data
-                .into_iter()
-                .map(|m| ModelDefinition {
-                    id: m.id.clone(),
-                    provider_id: "openai".to_string(),
-                    name: m.id,
-                    capabilities: vec![ModelCapability::Text],
-                    ..Default::default()
-                })
-                .collect())
-        })
+        let url = format!("{}/models", base_url.trim_end_matches('/'));
+        let resp = self
+            .client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .send()
+            .await
+            .map_err(|e| AppError::Internal(format!("fetch models request failed: {e}")))?;
+        if !resp.status().is_success() {
+            return Err(AppError::Internal(format!(
+                "fetch models returned {}",
+                resp.status()
+            )));
+        }
+        let body: OpenAIModelsResponse = resp
+            .json()
+            .await
+            .map_err(|e| AppError::Internal(format!("fetch models parse failed: {e}")))?;
+        Ok(body
+            .data
+            .into_iter()
+            .map(|m| ModelDefinition {
+                id: m.id.clone(),
+                provider_id: "openai".to_string(),
+                name: m.id,
+                capabilities: vec![ModelCapability::Text],
+                ..Default::default()
+            })
+            .collect())
     }
 
     async fn test_connection(&self, api_key: &str, base_url: &str) -> Result<(), AppError> {
