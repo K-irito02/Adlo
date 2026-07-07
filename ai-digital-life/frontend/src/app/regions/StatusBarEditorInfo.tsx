@@ -1,5 +1,5 @@
 import React from 'react';
-import type { AppInfo, ModelGatewayHealthSnapshot, ModelProviderId } from '@ai-digital-life/kernel';
+import type { AppInfo, ModelGatewayHealthSnapshot } from '@ai-digital-life/kernel';
 import { useTCopy } from '../i18n/useTCopy';
 import { MODEL_PROVIDER_IDS } from '../utils/constants';
 import { MODEL_OPTIONS } from '../utils/constants';
@@ -11,13 +11,13 @@ interface StatusBarEditorInfoProps {
   appInfo?: AppInfo;
   modelHealth?: ModelGatewayHealthSnapshot;
   activeModelLabel: string;
-  activeProviderId: ModelProviderId | undefined;
+  activeProviderId: string | undefined;
   activeProviderModelId: string | undefined;
   activeProviderHealthHealthy: boolean | undefined;
   isOpen: boolean;
   onToggle: () => void;
   onRequestClose: () => void;
-  onSelectModel: (providerId: ModelProviderId, modelId?: string) => void;
+  onSelectModel: (providerId: string, modelId?: string) => void;
 }
 
 const StatusBarEditorInfo = React.memo(function StatusBarEditorInfo({

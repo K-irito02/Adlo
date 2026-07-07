@@ -3,6 +3,7 @@ import { IconArrowUp, IconMic, IconPlus, IconRefreshCw, IconStopCircle } from '.
 import { ContextBuilderPopover } from '../../components/conversation/ContextBuilderPopover';
 import { TooltipSimple } from '../../components/Tooltip';
 import { StatusBar } from '../StatusBar';
+import { ModelPicker } from '../../components/models/ModelPicker';
 import type { ChatMode, ContextChip } from '../../stores/types';
 import { useTCopy } from '../../i18n/useTCopy';
 import type {
@@ -12,7 +13,6 @@ import type {
   AppInfo,
   GitBranchSummary,
   ModelGatewayHealthSnapshot,
-  ModelProviderId,
   WorkspaceGitBranchSwitchInput,
   WorkspaceGitBranchCreateInput,
 } from '@ai-digital-life/kernel';
@@ -44,7 +44,7 @@ export interface ComposerFooterProps {
   recentWorkspaces: RecentWorkspaceEntry[];
   gitSnapshot: GitSnapshot | undefined;
   gitBranches: GitBranchSummary[];
-  handleSelectModel: (providerId: ModelProviderId, modelId?: string) => void;
+  handleSelectModel: (providerId: string, modelId?: string) => void;
   actions: {
     openWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
     clearWorkspaceContext: () => Promise<void>;
@@ -122,6 +122,7 @@ export function ComposerFooter(props: ComposerFooterProps) {
             onAddChip={addContextChip}
           />
         </div>
+        <ModelPicker />
         <div className="adl-composer__editor" ref={composerEditorRef}>
           <div
             ref={composerInputRef}

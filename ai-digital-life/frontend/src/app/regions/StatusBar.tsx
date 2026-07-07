@@ -4,7 +4,6 @@ import type {
   AppInfo,
   GitBranchSummary,
   GitSnapshot,
-  ModelProviderId,
   ModelGatewayHealthSnapshot,
   RecentWorkspaceEntry,
   WorkspaceGitBranchCreateInput,
@@ -31,7 +30,7 @@ interface StatusBarProps {
   isStreaming: boolean;
   activeRun?: AgentRunDetail;
   workspaceContextMode: 'workspace' | 'global';
-  onSelectModel: (providerId: ModelProviderId, modelId?: string) => void;
+  onSelectModel: (providerId: string, modelId?: string) => void;
   onOpenWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
   onClearWorkspaceContext: () => Promise<void>;
   onPickWorkspaceDirectory: () => Promise<string | undefined>;
@@ -99,7 +98,7 @@ const StatusBar = React.memo(function StatusBar({
 
   const activeModelLabel = !activeProvider?.id
     ? '—'
-    : modelLabel(activeProvider.id as ModelProviderId, activeProvider.modelId);
+    : modelLabel(activeProvider.id, activeProvider.modelId);
 
   const workspaceStatusLabel = useMemo(() => {
     if (currentWorkspace) {
@@ -241,7 +240,7 @@ const StatusBar = React.memo(function StatusBar({
         appInfo={appInfo}
         modelHealth={modelHealth}
         activeModelLabel={activeModelLabel}
-        activeProviderId={activeProvider?.id as ModelProviderId | undefined}
+        activeProviderId={activeProvider?.id}
         activeProviderModelId={activeProvider?.modelId}
         activeProviderHealthHealthy={activeProviderHealth?.healthy}
         isOpen={openMenu === 'model'}

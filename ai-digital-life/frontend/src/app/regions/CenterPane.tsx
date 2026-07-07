@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import type { ModelProviderId } from '@ai-digital-life/kernel';
 import type { Locale } from '../i18n';
 import { useTCopy } from '../i18n/useTCopy';
 import { MODEL_PROVIDER_IDS } from '../utils/constants';
@@ -56,11 +55,9 @@ const CenterPane = React.memo(function CenterPane() {
   const listSnapshots = useAppStore((s) => s.listSnapshots);
 
   const handleSelectModel = useCallback(
-    (providerId: ModelProviderId, modelId?: string) => {
-      const patch: Record<
-        ModelProviderId,
-        { priority?: number; enabled?: boolean; modelId?: string }
-      > = {} as Record<ModelProviderId, { priority?: number; enabled?: boolean; modelId?: string }>;
+    (providerId: string, modelId?: string) => {
+      const patch: Record<string, { priority?: number; enabled?: boolean; modelId?: string }> =
+        {} as Record<string, { priority?: number; enabled?: boolean; modelId?: string }>;
       for (const id of MODEL_PROVIDER_IDS) {
         if (id === providerId) {
           patch[id] = {
