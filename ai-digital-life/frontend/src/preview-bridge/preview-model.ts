@@ -78,7 +78,8 @@ export function createPreviewModelBridge(
     provider: {
       listProviders: () => Promise.resolve({ ok: true, data: [] as ProviderStatus[] }),
       saveProviderConfig: () => Promise.resolve({ ok: true, data: undefined }),
-      testProviderConnection: () => Promise.resolve({ ok: true, data: { connected: false, error: null } }),
+      testProviderConnection: () =>
+        Promise.resolve({ ok: true, data: { connected: false, error: null } }),
       fetchProviderModels: () => Promise.resolve({ ok: true, data: [] }),
       addCustomProvider: () => Promise.resolve({ ok: true, data: true }),
       removeCustomProvider: () => Promise.resolve({ ok: true, data: true }),

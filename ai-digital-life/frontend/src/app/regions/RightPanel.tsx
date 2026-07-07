@@ -16,8 +16,8 @@ const TerminalPanel = lazy(() =>
 const AuditPanel = lazy(() =>
   import('../components/approval/AuditPanel').then((m) => ({ default: m.AuditPanel }))
 );
-const ModelHealthPanel = lazy(() =>
-  import('../components/models/ModelHealthPanel').then((m) => ({ default: m.ModelHealthPanel }))
+const ProviderManager = lazy(() =>
+  import('../components/models/ProviderManager').then((m) => ({ default: m.ProviderManager }))
 );
 const SettingsPanel = lazy(() =>
   import('../components/settings/SettingsPanel').then((m) => ({ default: m.SettingsPanel }))
@@ -33,7 +33,6 @@ import type {
   BrowserPanelProps,
   TerminalPanelProps,
   AuditPanelProps,
-  ModelPanelProps,
   SettingsPanelProps,
 } from './right-panel/types';
 import type { PatchDirection, PatchReviewFilter } from '../features/patch-review';
@@ -46,7 +45,7 @@ import { useChangesPanelProps } from './right-panel/hooks/useChangesPanelProps';
 import { useBrowserPanelProps } from './right-panel/hooks/useBrowserPanelProps';
 import { useTerminalPanelProps } from './right-panel/hooks/useTerminalPanelProps';
 import { useAuditPanelProps } from './right-panel/hooks/useAuditPanelProps';
-import { useModelPanelProps } from './right-panel/hooks/useModelPanelProps';
+
 import { useSettingsPanelProps } from './right-panel/hooks/useSettingsPanelProps';
 
 export interface RightPanelProps {
@@ -83,7 +82,6 @@ interface ActiveToolPanelProps {
   browserProps: BrowserPanelProps;
   terminalProps: TerminalPanelProps;
   auditProps: AuditPanelProps;
-  modelProps: ModelPanelProps;
   settingsProps: SettingsPanelProps;
 }
 
@@ -99,7 +97,6 @@ function areActiveToolPanelPropsEqual(
     prevProps.browserProps === nextProps.browserProps &&
     prevProps.terminalProps === nextProps.terminalProps &&
     prevProps.auditProps === nextProps.auditProps &&
-    prevProps.modelProps === nextProps.modelProps &&
     prevProps.settingsProps === nextProps.settingsProps
   );
 }
@@ -116,7 +113,6 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
   browserProps,
   terminalProps,
   auditProps,
-  modelProps,
   settingsProps,
 }: ActiveToolPanelProps) {
   const panelId = `${idBase}-${activeTool}-panel`;
@@ -156,10 +152,7 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
       </div>
       <div hidden={activeTool !== 'models'} style={{ height: '100%', minHeight: 0 }}>
         <Suspense fallback={<PanelSkeleton />}>
-          <ModelHealthPanel
-            modelHealth={modelProps.modelHealth}
-            onRefresh={modelProps.onRefreshModelHealth}
-          />
+          <ProviderManager />
         </Suspense>
       </div>
       <div hidden={activeTool !== 'settings'} style={{ height: '100%', minHeight: 0 }}>
@@ -204,7 +197,6 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
   );
   const terminalProps = useTerminalPanelProps(panelProps);
   const auditProps = useAuditPanelProps(panelProps);
-  const modelProps = useModelPanelProps(panelProps);
   const settingsProps = useSettingsPanelProps(panelProps);
 
   const panelIdBase = useId();
@@ -264,7 +256,6 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
           browserProps={browserProps}
           terminalProps={terminalProps}
           auditProps={auditProps}
-          modelProps={modelProps}
           settingsProps={settingsProps}
         />
       </div>

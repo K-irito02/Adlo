@@ -298,7 +298,16 @@ interface ProviderActions {
   fetchProviders: () => Promise<void>;
   setApiKey: (provider: string, apiKey: string) => Promise<void>;
   clearApiKey: (provider: string) => Promise<void>;
-  checkApiKey: (provider: string) => Promise<void>;
+  testConnection: (providerId: string) => Promise<void>;
+  addCustomProvider: (
+    name: string,
+    baseUrl: string,
+    apiKey: string,
+    models: string[]
+  ) => Promise<void>;
+  removeCustomProvider: (providerId: string) => Promise<void>;
+  selectModel: (providerId: string, modelId: string) => void;
+  fetchModels: (providerId: string) => Promise<void>;
 }
 
 interface WebToolsActions {

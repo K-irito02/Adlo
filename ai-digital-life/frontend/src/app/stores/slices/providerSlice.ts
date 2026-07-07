@@ -1,25 +1,25 @@
-import type { ProviderInfo } from '@shared/ipc';
+import type { ProviderStatus, ConnectionTestResult } from '@shared/ipc';
 import type { StoreState } from '../StoreState';
 
 export interface ProviderSlice {
-  providers: ProviderInfo[];
-  configuredProviders: string[];
+  providers: ProviderStatus[];
+  selectedProviderId: string | null;
+  selectedModelId: string | null;
+  recentModelIds: string[];
   isFetchingProviders: boolean;
-
-  setProviders: (providers: ProviderInfo[]) => void;
-  setConfiguredProviders: (configured: string[]) => void;
-  setIsFetchingProviders: (fetching: boolean) => void;
+  connectionTestResults: Record<string, ConnectionTestResult>;
+  testingProviderId: string | null;
 }
 
 export const createProviderSlice = (
-  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  _set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   _get: () => StoreState
 ): ProviderSlice => ({
   providers: [],
-  configuredProviders: [],
+  selectedProviderId: null,
+  selectedModelId: null,
+  recentModelIds: [],
   isFetchingProviders: false,
-
-  setProviders: (providers) => set({ providers }),
-  setConfiguredProviders: (configured) => set({ configuredProviders: configured }),
-  setIsFetchingProviders: (fetching) => set({ isFetchingProviders: fetching }),
+  connectionTestResults: {},
+  testingProviderId: null,
 });

@@ -32,6 +32,11 @@ export interface ProviderBridge {
   saveProviderConfig(providerId: string, config: Record<string, unknown>): Promise<IpcResult<void>>;
   testProviderConnection(providerId: string): Promise<IpcResult<ConnectionTestResult>>;
   fetchProviderModels(providerId: string): Promise<IpcResult<ModelDefinition[]>>;
-  addCustomProvider(name: string, baseUrl: string, apiKey: string, models: string[]): Promise<IpcResult<boolean>>;
+  addCustomProvider(
+    name: string,
+    baseUrl: string,
+    apiKey: string,
+    models: string[]
+  ): Promise<IpcResult<boolean>>;
   removeCustomProvider(providerId: string): Promise<IpcResult<boolean>>;
 }

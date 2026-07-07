@@ -497,7 +497,12 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
       data: { connected: false, error: 'mock: no connection' },
     }),
     fetchProviderModels: async (_providerId: string) => ({ ok: true, data: [] }),
-    addCustomProvider: async (_name: string, _baseUrl: string, _apiKey: string, _models: string[]) => ({
+    addCustomProvider: async (
+      _name: string,
+      _baseUrl: string,
+      _apiKey: string,
+      _models: string[]
+    ) => ({
       ok: true,
       data: true,
     }),

@@ -10,24 +10,13 @@ export function createProviderActions(
     fetchProviders: async () => {
       set({ isFetchingProviders: true });
       clearError(get);
-      const result = await window.digitalLife.provider.listSupportedProviders();
+      const result = await window.digitalLife.provider.listProviders();
       if (!result.ok) {
         captureError(get, result.error);
         set({ isFetchingProviders: false });
         return;
       }
       set({ providers: result.data, isFetchingProviders: false });
-
-      const checkResults = await Promise.all(
-        result.data.map((p) => window.digitalLife.provider.hasProviderApiKey(p.id))
-      );
-      const configured = result.data
-        .filter((_, i) => {
-          const r = checkResults[i];
-          return r.ok && r.data;
-        })
-        .map((p) => p.id);
-      set({ configuredProviders: configured });
     },
 
     setApiKey: async (provider: string, apiKey: string) => {
@@ -37,7 +26,7 @@ export function createProviderActions(
         captureError(get, result.error);
         return;
       }
-      await get().checkApiKey(provider);
+      await get().fetchProviders();
     },
 
     clearApiKey: async (provider: string) => {
@@ -47,27 +36,69 @@ export function createProviderActions(
         captureError(get, result.error);
         return;
       }
-      set({
-        configuredProviders: get().configuredProviders.filter((id) => id !== provider),
-      });
+      await get().fetchProviders();
     },
 
-    checkApiKey: async (provider: string) => {
+    testConnection: async (providerId: string) => {
       clearError(get);
-      const result = await window.digitalLife.provider.hasProviderApiKey(provider);
+      set({ testingProviderId: providerId });
+      const result = await window.digitalLife.provider.testProviderConnection(providerId);
+      set({ testingProviderId: null });
       if (!result.ok) {
         captureError(get, result.error);
         return;
       }
-      if (result.data) {
-        if (!get().configuredProviders.includes(provider)) {
-          set({ configuredProviders: [...get().configuredProviders, provider] });
-        }
-      } else {
-        set({
-          configuredProviders: get().configuredProviders.filter((id) => id !== provider),
-        });
+      set({
+        connectionTestResults: {
+          ...get().connectionTestResults,
+          [providerId]: result.data,
+        },
+      });
+    },
+
+    addCustomProvider: async (name: string, baseUrl: string, apiKey: string, models: string[]) => {
+      clearError(get);
+      const result = await window.digitalLife.provider.addCustomProvider(
+        name,
+        baseUrl,
+        apiKey,
+        models
+      );
+      if (!result.ok) {
+        captureError(get, result.error);
+        return;
       }
+      await get().fetchProviders();
+    },
+
+    removeCustomProvider: async (providerId: string) => {
+      clearError(get);
+      const result = await window.digitalLife.provider.removeCustomProvider(providerId);
+      if (!result.ok) {
+        captureError(get, result.error);
+        return;
+      }
+      await get().fetchProviders();
+    },
+
+    selectModel: (providerId: string, modelId: string) => {
+      const { recentModelIds } = get();
+      const updated = [modelId, ...recentModelIds.filter((id) => id !== modelId)].slice(0, 10);
+      set({ selectedProviderId: providerId, selectedModelId: modelId, recentModelIds: updated });
+    },
+
+    fetchModels: async (providerId: string) => {
+      clearError(get);
+      const result = await window.digitalLife.provider.fetchProviderModels(providerId);
+      if (!result.ok) {
+        captureError(get, result.error);
+        return;
+      }
+      set({
+        providers: get().providers.map((p) =>
+          p.id === providerId ? { ...p, models: result.data } : p
+        ),
+      });
     },
   };
 }
