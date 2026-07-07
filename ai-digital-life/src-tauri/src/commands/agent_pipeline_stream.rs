@@ -59,7 +59,9 @@ pub(crate) async fn consume_stream_to_response(
             Ok(StreamChunk::Done(usage)) => {
                 final_usage = Some(usage);
             }
-            Err(_e) => {}
+            Err(e) => {
+                tracing::warn!(error = %e, "stream read error");
+            }
         }
     }
 

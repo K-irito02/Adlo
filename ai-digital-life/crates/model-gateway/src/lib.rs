@@ -285,27 +285,22 @@ impl ModelGateway {
 
     pub fn health(&self) -> ModelGatewayHealthSnapshot {
         let checked_at = now_ms();
-        let all_providers = [
-            "deepseek", "minimax", "anthropic", "openai", "google", "ollama", "openrouter",
-        ];
-        let providers = all_providers
-            .into_iter()
-            .map(|provider_id| {
-                // Ollama is a local service and does not require an API key;
-                // treat it as healthy without checking the keyring.
-                let is_ollama = provider_id == "ollama";
-                let has_secret = is_ollama || get_provider_secret(provider_id).is_ok();
-                let detail = if is_ollama {
-                    "Local Ollama service (no API key required).".to_string()
-                } else if has_secret {
-                    "API key is configured.".to_string()
-                } else {
-                    "API key is not configured; calls will use fallback after route failure."
-                        .to_string()
-                };
-                ProviderHealthStatus { provider_id: provider_id.to_string(), healthy: has_secret, detail }
-            })
-            .collect();
+        let registry = match self.registry.read() {
+            Ok(r) => r,
+            Err(_) => return ModelGatewayHealthSnapshot { checked_at, providers: vec![] },
+        };
+        let providers: Vec<ProviderHealthStatus> = registry.list_all().iter().map(|def| {
+            let is_ollama = def.id == "ollama";
+            let has_secret = is_ollama || get_provider_secret(&def.id).is_ok();
+            let detail = if is_ollama {
+                "Local Ollama service (no API key required)."
+            } else if has_secret {
+                "API key is configured."
+            } else {
+                "API key is not configured; calls will use fallback after route failure."
+            }.to_string();
+            ProviderHealthStatus { provider_id: def.id.clone(), healthy: has_secret, detail }
+        }).collect();
         ModelGatewayHealthSnapshot { checked_at, providers }
     }
 }

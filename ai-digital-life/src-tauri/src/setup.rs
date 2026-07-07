@@ -132,7 +132,10 @@ fn register_builtin_providers() -> ProviderRegistry {
                     id: "deepseek-chat".into(),
                     provider_id: "deepseek".into(),
                     name: "DeepSeek Chat".into(),
-                    capabilities: vec![adl_kernel::types::config::ModelCapability::Text],
+                    capabilities: vec![
+                    adl_kernel::types::config::ModelCapability::Text,
+                    adl_kernel::types::config::ModelCapability::Streaming,
+                ],
                     tier: Some(adl_kernel::types::config::ModelTier::Standard),
                     ..Default::default()
                 },
@@ -155,7 +158,10 @@ fn register_builtin_providers() -> ProviderRegistry {
                     id: "MiniMax-M2.7".into(),
                     provider_id: "minimax".into(),
                     name: "MiniMax M2.7".into(),
-                    capabilities: vec![adl_kernel::types::config::ModelCapability::Text],
+                    capabilities: vec![
+                        adl_kernel::types::config::ModelCapability::Text,
+                        adl_kernel::types::config::ModelCapability::Streaming,
+                    ],
                     tier: Some(adl_kernel::types::config::ModelTier::Standard),
                     ..Default::default()
                 },

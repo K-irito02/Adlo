@@ -33,13 +33,14 @@ fn map_def_to_status(def: &ProviderDefinition) -> ProviderStatus {
         ModelSource::Static(list) => list.clone(),
         ModelSource::Dynamic { .. } => vec![],
     };
+    let has_secret = def.id == "ollama" || adl_model_gateway::get_provider_secret(&def.id).is_ok();
     ProviderStatus {
         id: def.id.clone(),
         name: def.name.clone(),
         description: def.description.clone(),
         api_type: format!("{:?}", def.api_type),
         built_in: def.built_in,
-        configured: true,
+        configured: has_secret,
         has_key: adl_model_gateway::get_provider_secret(&def.id).is_ok(),
         requires_key: matches!(def.auth_type, adl_model_gateway::registry::AuthType::ApiKey),
         base_url: def.default_base_url.clone(),
@@ -75,19 +76,25 @@ pub async fn test_provider_connection(
 ) -> CmdResult<ConnectionTestResult> {
     let api_key = adl_model_gateway::get_provider_secret(&provider_id).unwrap_or_default();
 
-    // Get an owned Arc to avoid holding the lock across await
-    let adapter = {
+    let (adapter, base_url) = {
         let registry = state
             .provider_registry
             .read()
             .map_err(|e| AppError::Internal(format!("registry lock: {}", e)))?;
 
-        registry
-            .get_adapter_owned(&provider_id)
+        let def = registry
+            .get(&provider_id)
             .ok_or_else(|| AppError::NotFound(format!("provider '{}' not found", provider_id)))?
+            .clone();
+
+        let adapter = registry
+            .get_adapter_owned(&provider_id)
+            .ok_or_else(|| AppError::NotFound(format!("adapter '{}' not found", provider_id)))?;
+
+        (adapter, def.default_base_url.unwrap_or_default())
     };
 
-    match adapter.chat("test-connection", &[], &Default::default(), &api_key).await {
+    match adapter.test_connection(&api_key, &base_url).await {
         Ok(_) => Ok(ipc(Ok(ConnectionTestResult { connected: true, error: None }))),
         Err(e) => Ok(ipc(Ok(ConnectionTestResult {
             connected: false,
@@ -215,11 +222,11 @@ pub fn has_provider_api_key(provider_id: String) -> IpcResult<bool> {
 pub async fn save_provider_config(
     provider_id: String,
     config: serde_json::Value,
-    state: tauri::State<'_, crate::state::AppState>,
 ) -> CmdResult<bool> {
-    let _registry = state.provider_registry.read().map_err(|e| {
-        AppError::Internal(format!("registry lock: {}", e))
-    })?;
+    if let Some(api_key) = config.get("apiKey").and_then(|v| v.as_str()).filter(|s| !s.is_empty()) {
+        adl_model_gateway::set_provider_secret(&provider_id, api_key)
+            .map_err(|e| AppError::Security(e.to_string()))?;
+    }
 
     tracing::info!(provider_id = %provider_id, config = %config, "provider config saved");
     Ok(ipc(Ok(true)))

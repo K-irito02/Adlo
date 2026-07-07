@@ -1,6 +1,6 @@
 export const DIFF_LAYOUT_STORAGE_KEY = 'adl-diff-side-by-side';
 
-export const MODEL_PROVIDER_IDS: string[] = ['deepseek', 'minimax'];
+export const MODEL_PROVIDER_IDS: string[] = ['deepseek', 'minimax', 'openai', 'anthropic', 'google', 'ollama', 'openrouter'];
 
 export interface ModelOption {
   id: string;
