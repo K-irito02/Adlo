@@ -59,7 +59,7 @@ impl ProviderAdapter for OpenAIProvider {
                 id: "gpt-4-turbo".into(),
                 provider_id: "openai".into(),
                 name: "GPT-4 Turbo".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse],
+                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
                 tier: Some(ModelTier::Premium),
                 context_window: Some(128000),
                 ..Default::default()
@@ -68,7 +68,7 @@ impl ProviderAdapter for OpenAIProvider {
                 id: "gpt-3.5-turbo".into(),
                 provider_id: "openai".into(),
                 name: "GPT-3.5 Turbo".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::ToolUse],
+                capabilities: vec![ModelCapability::Text, ModelCapability::ToolUse, ModelCapability::Streaming],
                 tier: Some(ModelTier::Standard),
                 context_window: Some(16384),
                 ..Default::default()

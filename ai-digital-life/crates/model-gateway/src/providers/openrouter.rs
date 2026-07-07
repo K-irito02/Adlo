@@ -49,7 +49,7 @@ impl ProviderAdapter for OpenRouterProvider {
                 id: "anthropic/claude-3.5-sonnet".into(),
                 provider_id: "openrouter".into(),
                 name: "Claude 3.5 Sonnet".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse],
+                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
                 tier: Some(ModelTier::Premium),
                 ..Default::default()
             },
@@ -57,7 +57,7 @@ impl ProviderAdapter for OpenRouterProvider {
                 id: "openai/gpt-4o".into(),
                 provider_id: "openrouter".into(),
                 name: "GPT-4o".into(),
-                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse],
+                capabilities: vec![ModelCapability::Text, ModelCapability::Vision, ModelCapability::ToolUse, ModelCapability::Streaming],
                 tier: Some(ModelTier::Premium),
                 ..Default::default()
             },
