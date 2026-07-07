@@ -37,4 +37,8 @@ export const providerEn = {
   providerManagerApiKeyPlaceholder: 'Enter API key...',
   providerManagerBuiltIn: 'Built-in',
   providerManagerCustom: 'Custom',
+  providerCustomNamePlaceholder: 'e.g. My Provider',
+  providerCustomUrlPlaceholder: 'https://api.example.com/v1',
+  providerCustomModelsPlaceholder: 'gpt-4o, claude-3-opus',
+  providerRefreshAria: 'Refresh providers',
 } as const;

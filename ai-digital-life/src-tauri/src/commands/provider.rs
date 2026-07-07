@@ -17,6 +17,7 @@ pub struct ProviderStatus {
     pub built_in: bool,
     pub configured: bool,
     pub has_key: bool,
+    pub requires_key: bool,
     pub base_url: Option<String>,
     pub models: Vec<ModelDefinition>,
 }
@@ -40,6 +41,7 @@ fn map_def_to_status(def: &ProviderDefinition) -> ProviderStatus {
         built_in: def.built_in,
         configured: true,
         has_key: adl_model_gateway::get_provider_secret(&def.id).is_ok(),
+        requires_key: matches!(def.auth_type, adl_model_gateway::registry::AuthType::ApiKey),
         base_url: def.default_base_url.clone(),
         models,
     }

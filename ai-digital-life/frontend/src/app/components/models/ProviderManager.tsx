@@ -123,7 +123,7 @@ export function ProviderManager() {
             className="adl-btn adl-btn--ghost adl-btn--xs"
             onClick={() => void fetchProviders()}
             disabled={isFetchingProviders}
-            aria-label="Refresh providers"
+            aria-label={t.providerRefreshAria}
           >
             <IconRefreshCw size={12} decorative className={isFetchingProviders ? 'adl-spin' : ''} />
           </button>
@@ -140,20 +140,20 @@ export function ProviderManager() {
 
       <ul className="adl-provider-manager__list">
         {providers.map((provider) => {
-          const isExpanded = !!expanded[provider.providerId];
-          const result = testResult(provider.providerId);
-          const isTesting = testingProviderId === provider.providerId;
-          const isFetchingModels = fetchingModelsId === provider.providerId;
+          const isExpanded = !!expanded[provider.id];
+          const result = testResult(provider.id);
+          const isTesting = testingProviderId === provider.id;
+          const isFetchingModels = fetchingModelsId === provider.id;
 
           return (
             <li
-              key={provider.providerId}
+              key={provider.id}
               className={`adl-provider-manager__item${isExpanded ? ' is-expanded' : ''}`}
             >
               <button
                 type="button"
                 className="adl-provider-manager__item-header"
-                onClick={() => toggleExpand(provider.providerId)}
+                onClick={() => toggleExpand(provider.id)}
               >
                 <span className="adl-provider-manager__status-dot">
                   {provider.hasKey || !provider.requiresKey ? (
@@ -204,11 +204,11 @@ export function ProviderManager() {
                       </label>
                       <div className="adl-provider-manager__key-input-group">
                         <input
-                          type={expanded[provider.providerId]?.showKey ? 'text' : 'password'}
+                          type={expanded[provider.id]?.showKey ? 'text' : 'password'}
                           className="adl-provider-manager__key-input"
                           placeholder={t.providerManagerApiKeyPlaceholder}
-                          value={expanded[provider.providerId]?.apiKeyInput ?? ''}
-                          onChange={(e) => handleApiKeyChange(provider.providerId, e.target.value)}
+                          value={expanded[provider.id]?.apiKeyInput ?? ''}
+                          onChange={(e) => handleApiKeyChange(provider.id, e.target.value)}
                         />
                         <button
                           type="button"
@@ -216,15 +216,17 @@ export function ProviderManager() {
                           onClick={() =>
                             setExpanded((prev) => ({
                               ...prev,
-                              [provider.providerId]: {
-                                ...prev[provider.providerId],
-                                showKey: !prev[provider.providerId]?.showKey,
+                              [provider.id]: {
+                                ...prev[provider.id],
+                                showKey: !prev[provider.id]?.showKey,
                               },
                             }))
                           }
-                          aria-label={expanded[provider.providerId]?.showKey ? 'Hide' : 'Show'}
+                          aria-label={
+                            expanded[provider.id]?.showKey ? t.providerHideKey : t.providerShowKey
+                          }
                         >
-                          {expanded[provider.providerId]?.showKey ? (
+                          {expanded[provider.id]?.showKey ? (
                             <IconEyeOff size={12} decorative />
                           ) : (
                             <IconEye size={12} decorative />
@@ -235,8 +237,8 @@ export function ProviderManager() {
                         <button
                           type="button"
                           className="adl-btn adl-btn--ghost adl-btn--xs"
-                          onClick={() => handleSaveApiKey(provider.providerId)}
-                          disabled={!expanded[provider.providerId]?.apiKeyInput}
+                          onClick={() => handleSaveApiKey(provider.id)}
+                          disabled={!expanded[provider.id]?.apiKeyInput}
                         >
                           {t.providerManagerSaveKey}
                         </button>
@@ -244,7 +246,7 @@ export function ProviderManager() {
                           <button
                             type="button"
                             className="adl-btn adl-btn--ghost adl-btn--xs"
-                            onClick={() => handleClearApiKey(provider.providerId)}
+                            onClick={() => handleClearApiKey(provider.id)}
                           >
                             {t.providerClear}
                           </button>
@@ -257,7 +259,7 @@ export function ProviderManager() {
                     <button
                       type="button"
                       className="adl-btn adl-btn--ghost adl-btn--xs"
-                      onClick={() => handleTestConnection(provider.providerId)}
+                      onClick={() => handleTestConnection(provider.id)}
                       disabled={isTesting}
                     >
                       {isTesting ? '...' : t.providerManagerTestConnection}
@@ -265,11 +267,11 @@ export function ProviderManager() {
                     <button
                       type="button"
                       className="adl-btn adl-btn--ghost adl-btn--xs"
-                      onClick={() => handleFetchModels(provider.providerId)}
+                      onClick={() => handleFetchModels(provider.id)}
                       disabled={isFetchingModels}
                     >
                       <IconRefreshCw
-                        size={10}
+                        size={12}
                         decorative
                         className={isFetchingModels ? 'adl-spin' : ''}
                       />
@@ -279,7 +281,7 @@ export function ProviderManager() {
                       <button
                         type="button"
                         className="adl-btn adl-btn--ghost adl-btn--xs adl-provider-manager__remove-btn"
-                        onClick={() => handleRemoveCustomProvider(provider.providerId)}
+                        onClick={() => handleRemoveCustomProvider(provider.id)}
                       >
                         {t.providerManagerRemoveProvider}
                       </button>

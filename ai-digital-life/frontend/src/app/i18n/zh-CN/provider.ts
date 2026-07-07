@@ -37,4 +37,8 @@ export const providerZh = {
   providerManagerApiKeyPlaceholder: '输入 API 密钥...',
   providerManagerBuiltIn: '内置',
   providerManagerCustom: '自定义',
+  providerCustomNamePlaceholder: '例如：我的提供商',
+  providerCustomUrlPlaceholder: 'https://api.example.com/v1',
+  providerCustomModelsPlaceholder: 'gpt-4o, claude-3-opus',
+  providerRefreshAria: '刷新提供商列表',
 } as const;

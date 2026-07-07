@@ -14,6 +14,7 @@ export interface ProviderStatus {
   builtIn: boolean;
   configured: boolean;
   hasKey: boolean;
+  requiresKey: boolean;
   baseUrl: string | null;
   models: ModelDefinition[];
 }

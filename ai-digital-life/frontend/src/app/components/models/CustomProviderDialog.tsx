@@ -68,7 +68,7 @@ export function CustomProviderDialog({ onClose }: CustomProviderDialogProps) {
               className="adl-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. My Provider"
+              placeholder={t.providerCustomNamePlaceholder}
             />
           </label>
 
@@ -79,7 +79,7 @@ export function CustomProviderDialog({ onClose }: CustomProviderDialogProps) {
               className="adl-input"
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
-              placeholder="https://api.example.com/v1"
+              placeholder={t.providerCustomUrlPlaceholder}
             />
           </label>
 
@@ -103,7 +103,7 @@ export function CustomProviderDialog({ onClose }: CustomProviderDialogProps) {
               className="adl-input"
               value={models}
               onChange={(e) => setModels(e.target.value)}
-              placeholder="gpt-4o, claude-3-opus"
+              placeholder={t.providerCustomModelsPlaceholder}
             />
           </label>
         </div>
