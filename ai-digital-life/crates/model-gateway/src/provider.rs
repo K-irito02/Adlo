@@ -6,7 +6,7 @@
 use adl_errors::AppError;
 use adl_kernel::{ModelChatMessage, ModelResponse};
 
-use crate::adapter::ChatOptions;
+use crate::adapter::{ChatOptions, StreamReader};
 use crate::secret::get_provider_secret;
 use crate::ModelGateway;
 
@@ -35,6 +35,38 @@ pub(crate) async fn call_provider(
         )));
     }
     dispatch_to_provider(gateway, provider, model_id, messages, &api_key).await
+}
+
+pub(crate) async fn call_provider_stream(
+    gateway: &ModelGateway,
+    provider: &str,
+    model_id: &str,
+    messages: &[ModelChatMessage],
+) -> Result<StreamReader, AppError> {
+    let needs_api_key = provider != "ollama";
+    let api_key = if needs_api_key {
+        tokio::task::spawn_blocking({
+            let provider = provider.to_string();
+            move || get_provider_secret(&provider)
+        })
+        .await
+        .map_err(|e| AppError::Security(e.to_string()))??
+    } else {
+        String::new()
+    };
+    if needs_api_key && api_key.is_empty() {
+        return Err(AppError::Security(format!(
+            "API key for provider {provider} is not configured"
+        )));
+    }
+    let options = ChatOptions::default();
+    let adapter = gateway
+        .registry
+        .read()
+        .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?
+        .get_adapter_owned(provider)
+        .ok_or_else(|| AppError::Internal(format!("unknown provider: {provider}")))?;
+    adapter.chat_stream(model_id, messages, &options, &api_key).await
 }
 
 /// Route a chat request to the appropriate provider adapter via registry

@@ -25,6 +25,7 @@ use adl_kernel::{
     ModelRouteDecision, ProviderHealthStatus,
 };
 use audit::{audit_record, AuditInput};
+use crate::adapter::StreamReader;
 use fallback::{deterministic_fallback, estimate_usage};
 use std::sync::{Arc, RwLock};
 use std::time::Instant;
@@ -210,6 +211,46 @@ impl ModelGateway {
                 (response, audit)
             },
         }
+    }
+
+    pub fn resolve_route(&self) -> Vec<String> {
+        route::route_chain(&self.preferences)
+    }
+
+    pub async fn chat_stream(
+        &self,
+        _workspace_id: &str,
+        _session_id: &str,
+        _run_id: Option<&str>,
+        _scenario: ConversationScenario,
+        messages: Vec<ModelChatMessage>,
+    ) -> Result<StreamReader, AppError> {
+        let route = route::route_chain(&self.preferences);
+        let mut last_error: Option<AppError> = None;
+        for provider in &route {
+            let model_id = self
+                .preferences
+                .providers
+                .get(provider)
+                .map(|pref| pref.model_id.clone())
+                .unwrap_or_else(|| fallback::default_model(provider).to_string());
+            match crate::provider::call_provider_stream(self, provider, &model_id, &messages).await {
+                Ok(stream) => return Ok(stream),
+                Err(e) => last_error = Some(e),
+            }
+        }
+        Err(last_error.unwrap_or_else(|| {
+            AppError::Internal("no providers configured for streaming".to_string())
+        }))
+    }
+
+    pub async fn chat_stream_for_model(
+        &self,
+        provider_id: &str,
+        model_id: &str,
+        messages: Vec<ModelChatMessage>,
+    ) -> Result<StreamReader, AppError> {
+        crate::provider::call_provider_stream(self, provider_id, model_id, &messages).await
     }
 
     pub async fn fetch_models(

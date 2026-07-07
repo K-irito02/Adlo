@@ -5,7 +5,7 @@ use adl_errors::AppError;
 use adl_kernel::{AgentRunDetail, ConversationScenario, ConversationSendResult, PermissionRuleset};
 use adl_storage::EntityTable;
 
-use super::agent_pipeline_stream::emit_model_stream_events;
+use super::agent_pipeline_stream::consume_stream_to_response;
 use super::agent_pipeline_types::{CallModelContext, FinalizeRunContext};
 use super::audit::AuditBatchEntry;
 use super::plugin::PLUGIN_REGISTRY;
@@ -251,6 +251,38 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
     // Heartbeat before model call to mark session as active
     ctx.state.durable_manager.heartbeat(&ctx.session.id).await;
 
+    // Resolve provider and model for streaming
+    let (provider_id, model_id) = {
+        let config = ctx
+            .state
+            .config
+            .read()
+            .map_err(|_| AppError::Internal("config lock poisoned".into()))?;
+        if let (Some(pid), Some(mid)) = (&ctx.provider_id, &ctx.model_id) {
+            (pid.clone(), mid.clone())
+        } else {
+            let mut providers: Vec<(String, i32)> = config
+                .model_preferences
+                .providers
+                .iter()
+                .filter(|(_, pref)| pref.enabled)
+                .map(|(pid, pref)| (pid.clone(), pref.priority))
+                .collect();
+            providers.sort_by_key(|(_, priority)| *priority);
+            let first = providers
+                .first()
+                .map(|(p, _)| p.clone())
+                .unwrap_or_else(|| "deepseek".to_string());
+            let model = config
+                .model_preferences
+                .providers
+                .get(&first)
+                .map(|p| p.model_id.clone())
+                .unwrap_or_else(|| "deepseek-chat".to_string());
+            (first, model)
+        }
+    };
+
     let gateway = {
         let config = ctx
             .state
@@ -262,21 +294,19 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
             ctx.state.provider_registry.clone(),
         )?
     };
-    let (mut model_response, model_audit) = if let (Some(pid), Some(mid)) = (&ctx.provider_id, &ctx.model_id) {
-        gateway
-            .chat_for_model(pid, mid, messages)
-            .await
-    } else {
-        gateway
-            .chat(
-                &ctx.workspace.id,
-                &ctx.session.id,
-                Some(ctx.detail.run.id.as_str()),
-                ctx.scenario,
-                messages,
-            )
-            .await
-    };
+
+    let started = std::time::Instant::now();
+    let stream = gateway
+        .chat_stream_for_model(&provider_id, &model_id, messages)
+        .await?;
+    let mut model_response = consume_stream_to_response(
+        ctx.app,
+        &ctx.detail.run.id,
+        stream,
+        &provider_id,
+        &model_id,
+    )
+    .await;
 
     // === Plugin Hook: ChatResponseAfter ===
     let hook_resp = PluginHook::ChatResponseAfter {
@@ -288,6 +318,34 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
         }
     }
 
+    let model_audit = adl_kernel::ModelCallAuditRecord {
+        id: adl_kernel::create_id("modelaudit"),
+        request_id: adl_kernel::create_id("modelreq"),
+        workspace_id: ctx.workspace.id.clone(),
+        session_id: ctx.session.id.clone(),
+        run_id: Some(ctx.detail.run.id.clone()),
+        provider_id: model_response.provider_id.clone(),
+        model_id: model_response.model_id.clone(),
+        scenario: ctx.scenario,
+        route_meta: adl_kernel::ModelRouteDecision {
+            reason: "streaming dispatch".into(),
+            chain: vec![provider_id.clone()],
+            synthetic: None,
+        },
+        prompt_tokens: model_response
+            .usage
+            .as_ref()
+            .and_then(|u| u.prompt_tokens),
+        completion_tokens: model_response
+            .usage
+            .as_ref()
+            .and_then(|u| u.completion_tokens),
+        latency_ms: started.elapsed().as_millis() as i64,
+        error: None,
+        streamed: true,
+        created_at: adl_kernel::now_ms(),
+    };
+
     ctx.state.db.save_entity(
         EntityTable::ModelCallAudit,
         &model_audit.id,
@@ -296,7 +354,7 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
         Some(if model_response.synthetic { "synthetic" } else { "ok" }),
         &model_audit,
     )?;
-    emit_model_stream_events(ctx.app, &ctx.detail.run.id, &model_response);
+
     (ctx.emit_activity)(serde_json::json!({
       "type": "model",
       "phase": "done",
