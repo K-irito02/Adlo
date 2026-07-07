@@ -3,6 +3,10 @@
 //! back to a local synthetic response when all providers fail.
 
 pub mod adapter;
+pub mod registry;
+pub use registry::{
+    ApiType, AuthType, ModelDefinition, ModelSource, ProviderDefinition, ProviderRegistry,
+};
 mod audit;
 mod fallback;
 pub mod prompts;
