@@ -12,9 +12,12 @@ pub struct PluginInfo {
     pub enabled: bool,
 }
 
+type PluginEntry = (String, Arc<dyn Plugin>);
+
 #[derive(Clone, Default)]
 pub struct PluginRegistry {
-    plugins: Arc<RwLock<HashMap<String, Arc<dyn Plugin>>>>,
+    /// Ordered by insertion time so that hooks fire deterministically.
+    plugins: Arc<RwLock<Vec<PluginEntry>>>,
     enabled: Arc<RwLock<HashMap<String, bool>>>,
 }
 
@@ -26,11 +29,16 @@ impl PluginRegistry {
     pub async fn register(&self, plugin: Arc<dyn Plugin>) {
         let name = plugin.name().to_string();
         self.enabled.write().await.insert(name.clone(), true);
-        self.plugins.write().await.insert(name, plugin);
+        let mut plugins = self.plugins.write().await;
+        if let Some(entry) = plugins.iter_mut().find(|(n, _)| n == &name) {
+            entry.1 = plugin;
+        } else {
+            plugins.push((name, plugin));
+        }
     }
 
     pub async fn unregister(&self, name: &str) {
-        self.plugins.write().await.remove(name);
+        self.plugins.write().await.retain(|(n, _)| n != name);
         self.enabled.write().await.remove(name);
     }
 
@@ -46,8 +54,8 @@ impl PluginRegistry {
         let plugins = self.plugins.read().await;
         let enabled = self.enabled.read().await;
         plugins
-            .values()
-            .map(|p| PluginInfo {
+            .iter()
+            .map(|(_, p)| PluginInfo {
                 name: p.name().to_string(),
                 description: p.description().to_string(),
                 hooks: p.hooks().iter().map(|h| format!("{:?}", h)).collect(),
@@ -61,9 +69,10 @@ impl PluginRegistry {
         let plugins = self.plugins.read().await;
         let enabled = self.enabled.read().await;
 
+        let mut current_hook = hook.clone();
         let mut result = HookResult::Pass;
 
-        for plugin in plugins.values() {
+        for (_, plugin) in plugins.iter() {
             if !enabled.get(plugin.name()).copied().unwrap_or(false) {
                 continue;
             }
@@ -71,10 +80,13 @@ impl PluginRegistry {
                 continue;
             }
 
-            match plugin.on_hook(hook).await {
+            match plugin.on_hook(&current_hook).await {
                 HookResult::Pass => continue,
                 HookResult::Abort(msg) => return HookResult::Abort(msg),
-                HookResult::Modify(val) => result = HookResult::Modify(val),
+                HookResult::Modify(val) => {
+                    current_hook = update_hook_with_modification(&current_hook, &val);
+                    result = HookResult::Modify(val);
+                },
             }
         }
 
@@ -91,6 +103,24 @@ fn hook_to_type(hook: &PluginHook) -> HookType {
         PluginHook::ChatResponseAfter { .. } => HookType::ChatResponseAfter,
         PluginHook::SessionCreateBefore { .. } => HookType::SessionCreateBefore,
         PluginHook::SessionCreateAfter { .. } => HookType::SessionCreateAfter,
+    }
+}
+
+/// Update a hook with modification data from a previous plugin.
+fn update_hook_with_modification(
+    hook: &PluginHook,
+    modification: &serde_json::Value,
+) -> PluginHook {
+    match hook {
+        PluginHook::ChatSystemTransform { system_prompt } => {
+            let new_prompt = modification
+                .get("system_prompt")
+                .and_then(|v| v.as_str())
+                .unwrap_or(system_prompt.as_str())
+                .to_string();
+            PluginHook::ChatSystemTransform { system_prompt: new_prompt }
+        },
+        other => other.clone(),
     }
 }
 
@@ -145,5 +175,119 @@ mod tests {
         };
         let result = registry.fire_hook(&hook).await;
         assert!(matches!(result, HookResult::Pass));
+    }
+
+    #[tokio::test]
+    async fn fire_hook_chains_multiple_modify_results() {
+        struct PluginA;
+
+        #[async_trait::async_trait]
+        impl Plugin for PluginA {
+            fn name(&self) -> &str {
+                "plugin-a"
+            }
+            fn description(&self) -> &str {
+                "A"
+            }
+            fn hooks(&self) -> &[HookType] {
+                &[HookType::ChatSystemTransform]
+            }
+            async fn on_hook(&self, _hook: &PluginHook) -> HookResult {
+                HookResult::Modify(serde_json::json!({ "system_prompt": "Part A" }))
+            }
+        }
+
+        struct PluginB;
+
+        #[async_trait::async_trait]
+        impl Plugin for PluginB {
+            fn name(&self) -> &str {
+                "plugin-b"
+            }
+            fn description(&self) -> &str {
+                "B"
+            }
+            fn hooks(&self) -> &[HookType] {
+                &[HookType::ChatSystemTransform]
+            }
+            async fn on_hook(&self, hook: &PluginHook) -> HookResult {
+                if let PluginHook::ChatSystemTransform { system_prompt } = hook {
+                    let combined = format!("{} + Part B", system_prompt);
+                    HookResult::Modify(serde_json::json!({ "system_prompt": combined }))
+                } else {
+                    HookResult::Pass
+                }
+            }
+        }
+
+        let registry = PluginRegistry::new();
+        registry.register(Arc::new(PluginA)).await;
+        registry.register(Arc::new(PluginB)).await;
+
+        let hook = PluginHook::ChatSystemTransform { system_prompt: "Original".to_string() };
+        let result = registry.fire_hook(&hook).await;
+
+        if let HookResult::Modify(val) = result {
+            let prompt = val["system_prompt"].as_str().map_or("", |s| s);
+            assert!(
+                prompt.contains("Part A"),
+                "should contain Plugin A's modification, got: {}",
+                prompt,
+            );
+            assert!(
+                prompt.contains("Part B"),
+                "should contain Plugin B's modification, got: {}",
+                prompt,
+            );
+        } else {
+            panic!("Expected Modify result, got {:?}", result);
+        }
+    }
+
+    #[tokio::test]
+    async fn fire_hook_abort_short_circuits_chain() {
+        struct ModifyingPlugin;
+
+        #[async_trait::async_trait]
+        impl Plugin for ModifyingPlugin {
+            fn name(&self) -> &str {
+                "modifying"
+            }
+            fn description(&self) -> &str {
+                "Modifies"
+            }
+            fn hooks(&self) -> &[HookType] {
+                &[HookType::ChatSystemTransform]
+            }
+            async fn on_hook(&self, _hook: &PluginHook) -> HookResult {
+                HookResult::Modify(serde_json::json!({ "system_prompt": "Modified" }))
+            }
+        }
+
+        struct AbortingPlugin;
+
+        #[async_trait::async_trait]
+        impl Plugin for AbortingPlugin {
+            fn name(&self) -> &str {
+                "aborting"
+            }
+            fn description(&self) -> &str {
+                "Aborts"
+            }
+            fn hooks(&self) -> &[HookType] {
+                &[HookType::ChatSystemTransform]
+            }
+            async fn on_hook(&self, _hook: &PluginHook) -> HookResult {
+                HookResult::Abort("stop".to_string())
+            }
+        }
+
+        let registry = PluginRegistry::new();
+        registry.register(Arc::new(ModifyingPlugin)).await;
+        registry.register(Arc::new(AbortingPlugin)).await;
+
+        let hook = PluginHook::ChatSystemTransform { system_prompt: "Original".to_string() };
+        let result = registry.fire_hook(&hook).await;
+        assert!(matches!(result, HookResult::Abort(_)));
     }
 }

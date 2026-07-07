@@ -31,15 +31,27 @@ pub(crate) async fn select_provider(
     messages: &[ModelChatMessage],
 ) -> Result<(String, String, ModelResponse), Option<String>> {
     let mut last_error = None;
-    for provider in route {
-        let model_id = gateway
-            .preferences()
-            .providers
-            .get(provider)
-            .map(|pref| pref.model_id.clone())
-            .unwrap_or_else(|| default_model(provider).to_string());
-        match crate::provider::call_provider(gateway, provider, &model_id, messages).await {
-            Ok(response) => return Ok((provider.clone(), model_id, response)),
+    let resolved: Vec<(String, String)> = {
+        let registry = match gateway.registry.read() {
+            Ok(r) => r,
+            Err(_) => return Err(Some("provider registry lock poisoned".to_string())),
+        };
+        route
+            .iter()
+            .map(|provider| {
+                let model_id = gateway
+                    .preferences()
+                    .providers
+                    .get(provider)
+                    .map(|pref| pref.model_id.clone())
+                    .unwrap_or_else(|| default_model(provider, &registry));
+                (provider.clone(), model_id)
+            })
+            .collect()
+    };
+    for (provider, model_id) in &resolved {
+        match crate::provider::call_provider(gateway, provider, model_id, messages).await {
+            Ok(response) => return Ok((provider.clone(), model_id.clone(), response)),
             Err(error) => {
                 last_error = Some(error.to_string());
             },

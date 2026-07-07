@@ -11,7 +11,7 @@ pub async fn register_durable_session(
     run_id: String,
 ) -> Result<IpcResult<()>, AppError> {
     Ok(ipc({
-        state.durable_manager.register_session(&session_id, &run_id).await;
+        state.durable_manager.register_session(&session_id, &run_id).await?;
         Ok(())
     }))
 }

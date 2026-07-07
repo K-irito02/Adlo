@@ -104,7 +104,15 @@ async fn spawn_subagent_inner(
         let subagent_type = input.subagent_type.clone();
 
         tokio::spawn(async move {
-            manager_clone.update_status(&task_id_clone, SubagentStatus::Running).await;
+            if let Err(e) =
+                manager_clone.update_status(&task_id_clone, SubagentStatus::Running).await
+            {
+                tracing::error!(
+                    "Failed to set subagent {} to Running: {}",
+                    task_id_clone.as_str(),
+                    e
+                );
+            }
             let result = execute_subagent_llm_call(
                 model_preferences,
                 provider_registry,
@@ -116,7 +124,15 @@ async fn spawn_subagent_inner(
             .await;
             match result {
                 Ok(content) => {
-                    manager_clone.update_status(&task_id_clone, SubagentStatus::Completed).await;
+                    if let Err(e) =
+                        manager_clone.update_status(&task_id_clone, SubagentStatus::Completed).await
+                    {
+                        tracing::error!(
+                            "Failed to set subagent {} to Completed: {}",
+                            task_id_clone.as_str(),
+                            e
+                        );
+                    }
                     tracing::info!(
                         "Background subagent {} ({}) completed: {} chars",
                         task_id_clone.as_str(),
@@ -131,7 +147,15 @@ async fn spawn_subagent_inner(
                         subagent_type,
                         e
                     );
-                    manager_clone.update_status(&task_id_clone, SubagentStatus::Failed).await;
+                    if let Err(e) =
+                        manager_clone.update_status(&task_id_clone, SubagentStatus::Failed).await
+                    {
+                        tracing::error!(
+                            "Failed to set subagent {} to Failed: {}",
+                            task_id_clone.as_str(),
+                            e
+                        );
+                    }
                 },
             }
         });
@@ -146,7 +170,7 @@ async fn spawn_subagent_inner(
     }
 
     // 前台模式：同步执行并等待结果
-    manager.update_status(&task_id, SubagentStatus::Running).await;
+    manager.update_status(&task_id, SubagentStatus::Running).await?;
     let result = execute_subagent_llm_call(
         model_preferences,
         provider_registry,
@@ -159,7 +183,7 @@ async fn spawn_subagent_inner(
 
     match result {
         Ok(content) => {
-            manager.update_status(&task_id, SubagentStatus::Completed).await;
+            manager.update_status(&task_id, SubagentStatus::Completed).await?;
             Ok(TaskToolOutput {
                 task_id: task_id.as_str().to_string(),
                 state: "completed".to_string(),
@@ -169,7 +193,7 @@ async fn spawn_subagent_inner(
             })
         },
         Err(e) => {
-            manager.update_status(&task_id, SubagentStatus::Failed).await;
+            manager.update_status(&task_id, SubagentStatus::Failed).await?;
             Ok(TaskToolOutput {
                 task_id: task_id.as_str().to_string(),
                 state: "failed".to_string(),
@@ -251,7 +275,7 @@ pub async fn cancel_subagent(task_id: String) -> Result<IpcResult<bool>, Command
 
 async fn cancel_subagent_inner(task_id: String) -> Result<bool, AppError> {
     let id = SubagentId::from_str(&task_id);
-    subagent_manager().update_status(&id, SubagentStatus::Aborted).await;
+    subagent_manager().update_status(&id, SubagentStatus::Aborted).await?;
     Ok(true)
 }
 

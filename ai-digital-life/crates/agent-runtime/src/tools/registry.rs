@@ -19,15 +19,22 @@ pub struct ToolExecutionResult {
 }
 
 /// Registry of all tools available to the agent.
+///
+/// Holds an optional plan mode context that is consulted before executing
+/// `write` tool calls — only writes targeting the plan file are permitted
+/// while plan mode is active.
 #[derive(Debug, Default)]
 pub struct ToolRegistry {
     tools: HashMap<String, ToolDefinition>,
+    plan_mode_active: bool,
+    plan_file_path: Option<String>,
 }
 
 /// Input shape for the `webfetch` tool (matches its parameters schema).
 #[derive(Debug, serde::Deserialize)]
 struct WebFetchInput {
     url: String,
+    format: Option<String>,
 }
 
 /// Input shape for the `websearch` tool (matches its parameters schema).
@@ -86,6 +93,18 @@ impl ToolRegistry {
         self.tools.keys().cloned().collect()
     }
 
+    /// Set plan mode context — when active, `write` tool calls are constrained
+    /// to the plan file path via `is_write_allowed_for_plan_file`.
+    pub fn set_plan_mode_context(&mut self, active: bool, plan_file_path: Option<String>) {
+        self.plan_mode_active = active;
+        self.plan_file_path = plan_file_path;
+    }
+
+    /// Returns whether plan mode is currently active on this registry.
+    pub fn is_plan_mode_active(&self) -> bool {
+        self.plan_mode_active
+    }
+
     /// Execute a tool by name.
     ///
     /// `input` is a JSON string. For `webfetch` it must be `{"url":"..."}`;
@@ -97,11 +116,46 @@ impl ToolRegistry {
         if !self.tools.contains_key(name) {
             return Err(AppError::Internal(format!("Tool '{}' not found in registry", name)));
         }
+
+        // === Plan Mode gate: enforce tool whitelist and write path constraint ===
+        if self.plan_mode_active {
+            if !crate::plan_mode::is_tool_allowed_in_plan_mode(name) {
+                return Err(AppError::Internal(format!(
+                    "Tool '{}' is not allowed in Plan Mode",
+                    name
+                )));
+            }
+            if name == "write" {
+                let write_target = Self::extract_write_target(input);
+                if let Some(plan_path) = &self.plan_file_path {
+                    if !crate::plan_mode::is_write_allowed_for_plan_file(
+                        &write_target,
+                        std::path::Path::new(plan_path),
+                    ) {
+                        return Err(AppError::Internal(format!(
+                            "Plan Mode: write blocked — '{}' is not the plan file",
+                            write_target
+                        )));
+                    }
+                } else {
+                    return Err(AppError::Internal(
+                        "Plan Mode: write blocked — no plan file path configured".into(),
+                    ));
+                }
+            }
+        }
+
         let output = match name {
             "webfetch" => {
                 let parsed: WebFetchInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid webfetch input: {}", e)))?;
-                let result = crate::tools::webfetch::webfetch(&parsed.url).await;
+                let format = match parsed.format.as_deref() {
+                    Some("text") => crate::tools::webfetch::WebFetchFormat::Text,
+                    Some("html") => crate::tools::webfetch::WebFetchFormat::Html,
+                    _ => crate::tools::webfetch::WebFetchFormat::default(),
+                };
+                let result =
+                    crate::tools::webfetch::webfetch_with_format(&parsed.url, format).await;
                 serde_json::to_string(&result).map_err(|e| {
                     AppError::Internal(format!("Failed to serialize webfetch result: {}", e))
                 })?
@@ -147,6 +201,18 @@ impl ToolRegistry {
         };
         Ok(ToolExecutionResult { tool_name: name.to_string(), output, success: true })
     }
+
+    /// Extract the `path` field from a write tool's JSON input.
+    ///
+    /// Falls back to the raw input string when the field is missing or the
+    /// input is not valid JSON, so that the plan mode path constraint still
+    /// has a value to check against.
+    fn extract_write_target(input: &str) -> String {
+        serde_json::from_str::<serde_json::Value>(input)
+            .ok()
+            .and_then(|v| v.get("path")?.as_str().map(String::from))
+            .unwrap_or_else(|| input.to_string())
+    }
 }
 
 /// Global tool registry instance.
@@ -160,7 +226,7 @@ fn webfetch_tool_definition() -> ToolDefinition {
     ToolDefinition {
         name: "webfetch".to_string(),
         description:
-            "Fetch content from a URL via HTTP GET. Returns text content (truncated to 50KB)."
+            "Fetch content from a URL via HTTP GET. Returns content in the specified format (markdown, text, or html). Max 5MB, 30s timeout."
                 .to_string(),
         parameters: serde_json::json!({
             "type": "object",
@@ -168,6 +234,11 @@ fn webfetch_tool_definition() -> ToolDefinition {
                 "url": {
                     "type": "string",
                     "description": "The URL to fetch"
+                },
+                "format": {
+                    "type": "string",
+                    "enum": ["markdown", "text", "html"],
+                    "description": "Output format: 'markdown' (default, HTML converted to markdown), 'text' (plain text), 'html' (raw HTML)"
                 }
             },
             "required": ["url"]
@@ -353,5 +424,110 @@ mod tests {
     fn grep_input_parses_object_form() {
         let input: GrepInput = serde_json::from_str("{\"pattern\":\"fn main\"}").unwrap();
         assert_eq!(input.pattern, "fn main");
+    }
+
+    #[test]
+    fn plan_mode_default_is_inactive() {
+        let registry = ToolRegistry::with_builtins();
+        assert!(!registry.is_plan_mode_active());
+    }
+
+    #[test]
+    fn plan_mode_set_context_activates() {
+        let mut registry = ToolRegistry::with_builtins();
+        registry.set_plan_mode_context(true, Some("/tmp/plan.md".into()));
+        assert!(registry.is_plan_mode_active());
+    }
+
+    #[tokio::test]
+    async fn plan_mode_blocks_non_whitelisted_tool() {
+        let mut registry = ToolRegistry::with_builtins();
+        // Register a fake tool that is NOT in the plan mode whitelist
+        registry.register(ToolDefinition {
+            name: "apply_patch".into(),
+            description: "test".into(),
+            parameters: serde_json::json!({}),
+        });
+        registry.set_plan_mode_context(true, Some("/tmp/plan.md".into()));
+        let result = registry.execute("apply_patch", "{}").await;
+        assert!(result.is_err(), "non-whitelisted tool should be blocked in plan mode");
+        let err = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(err.contains("not allowed in Plan Mode"), "error should mention plan mode: {err}");
+    }
+
+    #[tokio::test]
+    async fn plan_mode_blocks_write_to_non_plan_file() {
+        let mut registry = ToolRegistry::with_builtins();
+        // Register write tool so it passes the "tool exists" check
+        registry.register(ToolDefinition {
+            name: "write".into(),
+            description: "test".into(),
+            parameters: serde_json::json!({}),
+        });
+        registry
+            .set_plan_mode_context(true, Some("/workspace/.ai-digital-life/plans/plan.md".into()));
+        let result = registry
+            .execute("write", "{\"path\":\"/workspace/src/main.rs\",\"content\":\"hello\"}")
+            .await;
+        assert!(result.is_err(), "write to non-plan file should be blocked");
+        let err = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(err.contains("write blocked"), "error should mention write blocked: {err}");
+    }
+
+    #[tokio::test]
+    async fn plan_mode_blocks_write_with_suffix_bypass() {
+        let mut registry = ToolRegistry::with_builtins();
+        registry.register(ToolDefinition {
+            name: "write".into(),
+            description: "test".into(),
+            parameters: serde_json::json!({}),
+        });
+        registry
+            .set_plan_mode_context(true, Some("/workspace/.ai-digital-life/plans/plan.md".into()));
+        let result = registry
+            .execute(
+                "write",
+                "{\"path\":\"/workspace/.ai-digital-life/plans/plan.md.evil\",\"content\":\"x\"}",
+            )
+            .await;
+        assert!(result.is_err(), "suffix bypass should be blocked");
+    }
+
+    #[tokio::test]
+    async fn plan_mode_blocks_write_when_no_plan_file_configured() {
+        let mut registry = ToolRegistry::with_builtins();
+        registry.register(ToolDefinition {
+            name: "write".into(),
+            description: "test".into(),
+            parameters: serde_json::json!({}),
+        });
+        registry.set_plan_mode_context(true, None);
+        let result =
+            registry.execute("write", "{\"path\":\"anything.md\",\"content\":\"x\"}").await;
+        assert!(result.is_err(), "write should be blocked when no plan file is configured");
+        let err = result.err().map(|e| e.to_string()).unwrap_or_default();
+        assert!(
+            err.contains("no plan file path configured"),
+            "error should mention missing plan file: {err}"
+        );
+    }
+
+    #[test]
+    fn extract_write_target_from_json_path() {
+        let target =
+            ToolRegistry::extract_write_target("{\"path\":\"/foo/bar.md\",\"content\":\"x\"}");
+        assert_eq!(target, "/foo/bar.md");
+    }
+
+    #[test]
+    fn extract_write_target_falls_back_to_raw_input() {
+        let target = ToolRegistry::extract_write_target("not-json");
+        assert_eq!(target, "not-json");
+    }
+
+    #[test]
+    fn extract_write_target_falls_back_when_no_path_field() {
+        let target = ToolRegistry::extract_write_target("{\"content\":\"hello\"}");
+        assert_eq!(target, "{\"content\":\"hello\"}");
     }
 }

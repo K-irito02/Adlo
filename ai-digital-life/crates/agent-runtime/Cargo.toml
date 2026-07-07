@@ -20,6 +20,7 @@ adl-credential = { path = "../credential" }
 async-trait.workspace = true
 adl-storage = { path = "../storage" }
 rusqlite.workspace = true
+html2text = "0.17"
 
 [dev-dependencies]
 adl-workspace = { path = "../workspace" }

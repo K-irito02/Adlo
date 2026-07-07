@@ -79,13 +79,20 @@ impl SubagentManager {
         self.tasks.lock().await.get(id).cloned()
     }
 
-    pub async fn update_status(&self, id: &SubagentId, status: SubagentStatus) {
-        if let Some(task) = self.tasks.lock().await.get_mut(id) {
-            task.status = status;
-            if status.is_terminal() {
-                task.completed_at = Some(adl_kernel::now_ms());
-            }
+    pub async fn update_status(
+        &self,
+        id: &SubagentId,
+        status: SubagentStatus,
+    ) -> Result<(), adl_errors::AppError> {
+        let mut tasks = self.tasks.lock().await;
+        let task = tasks.get_mut(id).ok_or_else(|| {
+            adl_errors::AppError::NotFound(format!("Subagent '{}' not found", id.as_str()))
+        })?;
+        task.status = status;
+        if status.is_terminal() {
+            task.completed_at = Some(adl_kernel::now_ms());
         }
+        Ok(())
     }
 
     pub async fn list_active(&self) -> Vec<super::SubagentTask> {
@@ -96,5 +103,63 @@ impl SubagentManager {
 impl Default for SubagentManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_test_task(id: &str) -> super::super::SubagentTask {
+        super::super::SubagentTask {
+            id: SubagentId::from_str(id),
+            parent_session_id: "sess_parent".to_string(),
+            child_session_id: "sess_child".to_string(),
+            subagent_type: "coder".to_string(),
+            prompt: "test prompt".to_string(),
+            background: false,
+            status: SubagentStatus::Pending,
+            created_at: 0,
+            completed_at: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn update_status_returns_error_for_unknown_id() {
+        let manager = SubagentManager::new();
+        let unknown_id = SubagentId::from_str("sub_nonexistent");
+        let result = manager.update_status(&unknown_id, SubagentStatus::Completed).await;
+        assert!(result.is_err(), "should return error for unknown ID");
+        let err = result.err().map(|e| e.to_string());
+        assert!(err.is_some_and(|msg| msg.contains("sub_nonexistent")));
+    }
+
+    #[tokio::test]
+    async fn update_status_succeeds_for_registered_task() {
+        let manager = SubagentManager::new();
+        let task = make_test_task("sub_abc");
+        manager.register(task).await;
+
+        let id = SubagentId::from_str("sub_abc");
+        let result = manager.update_status(&id, SubagentStatus::Running).await;
+        assert!(result.is_ok(), "should succeed for registered task");
+
+        let updated = manager.get(&id).await;
+        assert!(updated.is_some());
+        assert_eq!(updated.map(|t| t.status), Some(SubagentStatus::Running));
+    }
+
+    #[tokio::test]
+    async fn update_status_sets_completed_at_for_terminal_status() {
+        let manager = SubagentManager::new();
+        let task = make_test_task("sub_def");
+        manager.register(task).await;
+
+        let id = SubagentId::from_str("sub_def");
+        let result = manager.update_status(&id, SubagentStatus::Completed).await;
+        assert!(result.is_ok());
+
+        let updated = manager.get(&id).await;
+        assert!(updated.is_some_and(|t| t.completed_at.is_some()));
     }
 }

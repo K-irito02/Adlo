@@ -14,6 +14,7 @@ export interface AgentConfig {
   allows_write_tools: boolean;
   prompt_template: string;
   model_override: string | null;
+  allowed_tools: string[];
 }
 
 /**

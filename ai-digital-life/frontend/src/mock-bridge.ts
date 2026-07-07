@@ -239,6 +239,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
         allows_write_tools: true,
         prompt_template: '',
         model_override: null,
+        allowed_tools: [],
       },
     }),
     enterPlanMode: async (_workspaceId: string, _workspaceRoot: string) => ({
@@ -555,7 +556,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   } satisfies SnapshotBridge,
 
   webTools: {
-    webFetch: async (url) => ({
+    webFetch: async (url, format) => ({
       ok: true,
       data: {
         url,
@@ -563,6 +564,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
         content_type: 'text/html',
         content: '<html><body>Mock fetch result</body></html>',
         truncated: false,
+        format: format ?? 'markdown',
         error: null,
       },
     }),

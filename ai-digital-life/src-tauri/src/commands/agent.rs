@@ -181,7 +181,7 @@ async fn start_run_inner(
     }
 
     // Register durable session for crash recovery
-    state.durable_manager.register_session(&session.id, &detail.run.id).await;
+    state.durable_manager.register_session(&session.id, &detail.run.id).await?;
 
     let emit_activity =
         make_activity_emitter(app, state, &workspace_scope_id, &session_id, &detail.run.id);

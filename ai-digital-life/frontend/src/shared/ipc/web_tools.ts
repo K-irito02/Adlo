@@ -6,6 +6,7 @@ export interface WebFetchResult {
   content_type: string | null;
   content: string;
   truncated: boolean;
+  format: string;
   error: string | null;
 }
 
@@ -23,6 +24,6 @@ export interface WebSearchResult {
 }
 
 export interface WebToolsBridge {
-  webFetch(url: string): Promise<IpcResult<WebFetchResult>>;
+  webFetch(url: string, format?: string): Promise<IpcResult<WebFetchResult>>;
   webSearch(query: string): Promise<IpcResult<WebSearchResult>>;
 }

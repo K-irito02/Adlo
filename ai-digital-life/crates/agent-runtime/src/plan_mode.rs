@@ -36,8 +36,24 @@ pub fn plan_agent_id() -> AgentId {
 pub fn is_tool_allowed_in_plan_mode(tool_name: &str) -> bool {
     matches!(
         tool_name,
-        "read" | "list_tree" | "search" | "outline" | "glob" | "grep" | "webfetch" | "websearch"
+        "read"
+            | "list_tree"
+            | "search"
+            | "outline"
+            | "glob"
+            | "grep"
+            | "webfetch"
+            | "websearch"
+            | "write"
     )
+}
+
+/// Check if a write operation targets the plan file (only plan file writes are allowed).
+pub fn is_write_allowed_for_plan_file(write_target: &str, plan_file: &Path) -> bool {
+    let target_normalized = write_target.replace('\\', "/");
+    let plan_normalized = plan_file.to_string_lossy().replace('\\', "/");
+    target_normalized == plan_normalized
+        || target_normalized.ends_with(&format!("/{}", &plan_normalized))
 }
 
 /// Plan Mode system prompt template (参考 OpenCode packages/opencode/src/session/prompt/plan-mode.txt)
@@ -53,7 +69,7 @@ const PLAN_MODE_TEMPLATE: &str = r#"You are operating in Plan Mode. Your goal is
 ## Constraints
 - You MUST NOT make any edits to source files (with the exception of the plan file).
 - You MUST NOT run any commands that modify the filesystem.
-- You MAY use: read, list_tree, search, outline, glob, grep, webfetch, websearch.
+- You MAY use: read, list_tree, search, outline, glob, grep, webfetch, websearch, write (plan file only).
 - Your turn should only end with either asking the user a question or calling plan_exit.
 
 ## Plan File
@@ -95,10 +111,12 @@ pub fn plan_mode_system_prompt(plan_file_path: &str, plan_exists: bool) -> Strin
     PLAN_MODE_TEMPLATE.replace("{PLAN_INFO}", &plan_info)
 }
 
-/// Filter tool list for Plan Mode — only allow read-only tools.
+/// Filter tool list for Plan Mode — only allow read-only tools plus `write`.
 ///
-/// Tools that are not in the read-only allowlist (e.g. `apply_patch`, `write`,
-/// `run_command`) are removed from the returned list.
+/// Tools that are not in the allowlist (e.g. `apply_patch`, `run_command`)
+/// are removed from the returned list. The `write` tool is allowed but callers
+/// must further constrain it to the plan file path via
+/// `is_write_allowed_for_plan_file`.
 pub fn filter_tools_for_plan_mode(tool_names: &[String]) -> Vec<String> {
     tool_names.iter().filter(|name| is_tool_allowed_in_plan_mode(name)).cloned().collect()
 }
@@ -137,7 +155,56 @@ mod tests {
     fn write_tools_blocked_in_plan_mode() {
         assert!(!is_tool_allowed_in_plan_mode("apply_patch"));
         assert!(!is_tool_allowed_in_plan_mode("run_command"));
-        assert!(!is_tool_allowed_in_plan_mode("write"));
+    }
+
+    #[test]
+    fn write_tool_allowed_in_plan_mode() {
+        assert!(is_tool_allowed_in_plan_mode("write"));
+    }
+
+    #[test]
+    fn run_command_still_blocked_in_plan_mode() {
+        assert!(!is_tool_allowed_in_plan_mode("run_command"));
+        assert!(!is_tool_allowed_in_plan_mode("apply_patch"));
+    }
+
+    #[test]
+    fn write_path_constraint_allows_plan_file() {
+        let plan_file = std::path::Path::new("/workspace/.ai-digital-life/plans/plan-abc.md");
+        assert!(is_write_allowed_for_plan_file(
+            "/workspace/.ai-digital-life/plans/plan-abc.md",
+            plan_file
+        ));
+    }
+
+    #[test]
+    fn write_path_constraint_blocks_other_files() {
+        let plan_file = std::path::Path::new("/workspace/.ai-digital-life/plans/plan-abc.md");
+        assert!(!is_write_allowed_for_plan_file("/workspace/src/main.rs", plan_file));
+    }
+
+    #[test]
+    fn write_path_constraint_blocks_suffix_bypass() {
+        let plan_file = std::path::Path::new(".ai-digital-life/plans/plan.md");
+        // Should NOT match even though it contains the plan path as a prefix
+        assert!(!is_write_allowed_for_plan_file(".ai-digital-life/plans/plan.md.evil", plan_file));
+    }
+
+    #[test]
+    fn write_path_constraint_blocks_directory_suffix_bypass() {
+        let plan_file = std::path::Path::new(".ai-digital-life/plans/plan.md");
+        // A path that appends a directory separator + extra chars should not match
+        assert!(!is_write_allowed_for_plan_file(
+            ".ai-digital-life/plans/plan.md/secret.txt",
+            plan_file
+        ));
+    }
+
+    #[test]
+    fn write_path_constraint_allows_windows_separators() {
+        let plan_file = std::path::Path::new(".ai-digital-life\\plans\\plan.md");
+        // Windows-style backslash path should match after normalization
+        assert!(is_write_allowed_for_plan_file(".ai-digital-life/plans/plan.md", plan_file));
     }
 
     #[test]
@@ -178,7 +245,7 @@ mod tests {
     }
 
     #[test]
-    fn filter_tools_removes_write_tools() {
+    fn filter_tools_removes_write_tools_except_write() {
         let tools = vec![
             "read".to_string(),
             "apply_patch".to_string(),
@@ -187,8 +254,8 @@ mod tests {
         ];
         let filtered = filter_tools_for_plan_mode(&tools);
         assert!(!filtered.contains(&"apply_patch".to_string()), "apply_patch should be filtered");
-        assert!(!filtered.contains(&"write".to_string()), "write should be filtered");
         assert!(!filtered.contains(&"run_command".to_string()), "run_command should be filtered");
+        assert!(filtered.contains(&"write".to_string()), "write should be kept in plan mode");
         assert!(filtered.contains(&"read".to_string()), "read should be kept");
     }
 }

@@ -61,6 +61,7 @@ fn register_builtin_providers() -> ProviderRegistry {
             auth_type: AuthType::ApiKey,
             models: ModelSource::Static(OpenAIProvider::new().supported_models()),
             built_in: true,
+            default_model: Some("gpt-4o".into()),
         },
         Box::new(OpenAIProvider::new()),
     );
@@ -75,6 +76,7 @@ fn register_builtin_providers() -> ProviderRegistry {
             auth_type: AuthType::ApiKey,
             models: ModelSource::Static(AnthropicProvider::new().supported_models()),
             built_in: true,
+            default_model: Some("claude-sonnet-4-20250514".into()),
         },
         Box::new(AnthropicProvider::new()),
     );
@@ -89,6 +91,7 @@ fn register_builtin_providers() -> ProviderRegistry {
             auth_type: AuthType::ApiKey,
             models: ModelSource::Static(GoogleProvider::new().supported_models()),
             built_in: true,
+            default_model: Some("gemini-2.5-pro".into()),
         },
         Box::new(GoogleProvider::new()),
     );
@@ -103,6 +106,7 @@ fn register_builtin_providers() -> ProviderRegistry {
             auth_type: AuthType::None,
             models: ModelSource::Static(OllamaProvider::new().supported_models()),
             built_in: true,
+            default_model: None,
         },
         Box::new(OllamaProvider::new()),
     );
@@ -117,6 +121,7 @@ fn register_builtin_providers() -> ProviderRegistry {
             auth_type: AuthType::ApiKey,
             models: ModelSource::Static(OpenRouterProvider::new().supported_models()),
             built_in: true,
+            default_model: Some("openai/gpt-4o".into()),
         },
         Box::new(OpenRouterProvider::new()),
     );
@@ -141,6 +146,7 @@ fn register_builtin_providers() -> ProviderRegistry {
                 ..Default::default()
             }]),
             built_in: true,
+            default_model: Some("deepseek-chat".into()),
         },
         Box::new(OpenAIProvider::with_base_url("https://api.deepseek.com".into())),
     );
@@ -165,6 +171,7 @@ fn register_builtin_providers() -> ProviderRegistry {
                 ..Default::default()
             }]),
             built_in: true,
+            default_model: Some("MiniMax-M2.7".into()),
         },
         Box::new(OpenAIProvider::with_base_url("https://api.minimax.io".into())),
     );

@@ -605,7 +605,7 @@ export function createTauriBridge(): DigitalLifeBridge {
     } satisfies SnapshotBridge,
 
     webTools: {
-      webFetch: (url) => invokeIpc<WebFetchResult>('web_fetch', { url }),
+      webFetch: (url, format) => invokeIpc<WebFetchResult>('web_fetch', { url, format }),
       webSearch: (query) => invokeIpc<WebSearchResult>('web_search', { query }),
     } satisfies WebToolsBridge,
 

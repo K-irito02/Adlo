@@ -119,6 +119,7 @@ mod tests {
                 auth_type: AuthType::ApiKey,
                 models: ModelSource::Static(vec![]),
                 built_in: true,
+                default_model: None,
             },
             Box::new(AnthropicProvider::new()),
         );
@@ -132,6 +133,7 @@ mod tests {
                 auth_type: AuthType::ApiKey,
                 models: ModelSource::Static(vec![]),
                 built_in: true,
+                default_model: None,
             },
             Box::new(OpenAIProvider::new()),
         );
@@ -145,6 +147,7 @@ mod tests {
                 auth_type: AuthType::None,
                 models: ModelSource::Static(vec![]),
                 built_in: true,
+                default_model: None,
             },
             Box::new(OllamaProvider::new()),
         );
@@ -158,6 +161,7 @@ mod tests {
                 auth_type: AuthType::ApiKey,
                 models: ModelSource::Static(vec![]),
                 built_in: true,
+                default_model: None,
             },
             Box::new(GoogleProvider::new()),
         );
@@ -171,6 +175,7 @@ mod tests {
                 auth_type: AuthType::ApiKey,
                 models: ModelSource::Static(vec![]),
                 built_in: true,
+                default_model: None,
             },
             Box::new(OpenRouterProvider::new()),
         );

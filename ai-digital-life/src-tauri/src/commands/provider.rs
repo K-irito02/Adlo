@@ -169,6 +169,7 @@ pub async fn add_custom_provider(
         auth_type: AuthType::ApiKey,
         models: ModelSource::Static(model_defs),
         built_in: false,
+        default_model: None,
     };
 
     {

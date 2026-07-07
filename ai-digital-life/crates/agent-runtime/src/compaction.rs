@@ -1,5 +1,5 @@
 use crate::token_counter::{
-    TokenCounter, DEFAULT_TAIL_TURNS, PRUNE_PROTECT, PRUNE_PROTECTED_TOOLS, TOOL_OUTPUT_MAX_CHARS,
+    TokenCounter, DEFAULT_TAIL_TURNS, PRUNE_MINIMUM, PRUNE_PROTECTED_TOOLS, TOOL_OUTPUT_MAX_CHARS,
 };
 use adl_kernel::types::conversation::{ConversationBlock, ConversationMessageRecord};
 
@@ -21,7 +21,7 @@ pub struct CompactionResult {
 /// Compact a conversation by pruning old messages while preserving recent context.
 ///
 /// Algorithm (matching OpenCode):
-/// 1. If total tokens < PRUNE_PROTECT, no compaction needed
+/// 1. If total tokens < PRUNE_MINIMUM, no compaction needed
 /// 2. Preserve the last DEFAULT_TAIL_TURNS turns (user+assistant pairs)
 /// 3. Preserve messages with protected tool outputs
 /// 4. Prune remaining messages, replacing with a summary
@@ -32,7 +32,7 @@ pub fn compact_messages(
 ) -> CompactionResult {
     let total_tokens: usize = messages.iter().map(|m| counter.count(&m.content, provider)).sum();
 
-    if total_tokens < PRUNE_PROTECT {
+    if total_tokens < PRUNE_MINIMUM {
         return CompactionResult {
             preserved: messages.to_vec(),
             preserved_tokens: total_tokens,
@@ -108,6 +108,7 @@ pub fn truncate_tool_output(output: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::token_counter::PRUNE_PROTECT;
     use adl_kernel::create_id;
     use adl_kernel::types::conversation::ConversationRole;
 
@@ -166,5 +167,59 @@ mod tests {
     fn truncate_short_output_unchanged() {
         let short = "short output";
         assert_eq!(truncate_tool_output(short), short);
+    }
+
+    #[test]
+    fn compaction_triggers_at_prune_minimum() {
+        let counter = TokenCounter::new();
+        // PRUNE_MINIMUM = 20000, so ~25200 tokens should trigger compaction
+        // With estimate_tokens, ~4 ASCII chars = 1 token
+        // "hello world " = 12 chars, repeat(1400) = 16800 chars ≈ 4200 tokens per message
+        // 6 messages × 4200 = 25200 tokens total (above PRUNE_MINIMUM, below PRUNE_PROTECT)
+        let big_content = "hello world ".repeat(1400);
+        let messages: Vec<_> = (0..6)
+            .map(|i| {
+                make_message(
+                    if i % 2 == 0 { ConversationRole::User } else { ConversationRole::Assistant },
+                    &big_content,
+                )
+            })
+            .collect();
+
+        let total: usize = messages.iter().map(|m| counter.count(&m.content, "openai")).sum();
+        assert!(total >= PRUNE_MINIMUM, "total {} should exceed PRUNE_MINIMUM", total);
+        assert!(
+            total < PRUNE_PROTECT,
+            "total {} should be below PRUNE_PROTECT for this test to be meaningful",
+            total
+        );
+
+        let result = compact_messages(&messages, "openai", &counter);
+        assert!(result.summary_needed, "compaction should trigger when tokens >= PRUNE_MINIMUM");
+        assert!(result.pruned_count > 0, "should have pruned some messages");
+    }
+
+    #[test]
+    fn compaction_protects_recent_tokens() {
+        let counter = TokenCounter::new();
+        // Create messages exceeding PRUNE_PROTECT (40000 tokens)
+        // CJK: each char ≈ 2 tokens, so 50000 chars ≈ 100000 tokens per message
+        let big_content = "你".repeat(50000);
+        let messages: Vec<_> = (0..10)
+            .map(|i| {
+                make_message(
+                    if i % 2 == 0 { ConversationRole::User } else { ConversationRole::Assistant },
+                    &big_content,
+                )
+            })
+            .collect();
+
+        let result = compact_messages(&messages, "openai", &counter);
+        // Should preserve tail turns (2 turns = 4 messages) + any protected messages
+        assert!(
+            result.preserved.len() <= 4,
+            "should preserve only tail turns, got {}",
+            result.preserved.len()
+        );
     }
 }

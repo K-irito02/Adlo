@@ -39,6 +39,7 @@ pub struct ProviderDefinition {
     pub auth_type: AuthType,
     pub models: ModelSource,
     pub built_in: bool,
+    pub default_model: Option<String>,
 }
 
 /// Registry of known providers with their definitions and adapters.
@@ -171,6 +172,7 @@ mod tests {
             auth_type: AuthType::ApiKey,
             models: ModelSource::Static(vec![]),
             built_in: true,
+            default_model: Some("test-default".into()),
         };
         reg.register(def.clone(), Box::new(TestAdapter));
         assert!(reg.get("test-provider").is_some());

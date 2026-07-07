@@ -89,6 +89,9 @@ pub struct AgentConfig {
     pub prompt_template: String,
     /// Optional model override; None uses workspace default.
     pub model_override: Option<String>,
+    /// Tools explicitly allowed by this agent (inherited from parent for subagents).
+    #[serde(default)]
+    pub allowed_tools: Vec<String>,
 }
 
 impl AgentConfig {
@@ -103,6 +106,7 @@ impl AgentConfig {
                 allows_write_tools: true,
                 prompt_template: "build".to_string(),
                 model_override: None,
+                allowed_tools: vec![],
             },
             AgentId::Plan => Self {
                 id,
@@ -113,6 +117,7 @@ impl AgentConfig {
                 allows_write_tools: false,
                 prompt_template: "plan".to_string(),
                 model_override: None,
+                allowed_tools: vec![],
             },
             AgentId::General => Self {
                 id,
@@ -123,6 +128,7 @@ impl AgentConfig {
                 allows_write_tools: false,
                 prompt_template: "general".to_string(),
                 model_override: None,
+                allowed_tools: vec![],
             },
             AgentId::Explore => Self {
                 id,
@@ -133,6 +139,7 @@ impl AgentConfig {
                 allows_write_tools: false,
                 prompt_template: "explore".to_string(),
                 model_override: None,
+                allowed_tools: vec![],
             },
             AgentId::Compaction => Self {
                 id,
@@ -143,6 +150,7 @@ impl AgentConfig {
                 allows_write_tools: false,
                 prompt_template: "compaction".to_string(),
                 model_override: None,
+                allowed_tools: vec![],
             },
             AgentId::Title => Self {
                 id,
@@ -153,6 +161,7 @@ impl AgentConfig {
                 allows_write_tools: false,
                 prompt_template: "title".to_string(),
                 model_override: None,
+                allowed_tools: vec![],
             },
             AgentId::Summary => Self {
                 id,
@@ -163,6 +172,7 @@ impl AgentConfig {
                 allows_write_tools: false,
                 prompt_template: "summary".to_string(),
                 model_override: None,
+                allowed_tools: vec![],
             },
             AgentId::Custom => Self {
                 id,
@@ -173,6 +183,7 @@ impl AgentConfig {
                 allows_write_tools: true,
                 prompt_template: "default".to_string(),
                 model_override: None,
+                allowed_tools: vec![],
             },
         }
     }

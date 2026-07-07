@@ -28,7 +28,7 @@ impl TokenCounter {
     }
 
     pub fn needs_compaction(&self, total_tokens: usize) -> bool {
-        total_tokens >= PRUNE_PROTECT
+        total_tokens >= PRUNE_MINIMUM
     }
 
     pub fn compaction_target(&self) -> usize {
@@ -75,8 +75,8 @@ mod tests {
     #[test]
     fn needs_compaction_at_threshold() {
         let counter = TokenCounter::new();
-        assert!(counter.needs_compaction(PRUNE_PROTECT));
-        assert!(!counter.needs_compaction(PRUNE_PROTECT - 1));
+        assert!(counter.needs_compaction(PRUNE_MINIMUM));
+        assert!(!counter.needs_compaction(PRUNE_MINIMUM - 1));
     }
 
     #[test]
@@ -92,5 +92,24 @@ mod tests {
         let sum = counter.count_messages(&messages, "openai");
         let individual = counter.count("Hello", "openai") + counter.count("World", "openai");
         assert_eq!(sum, individual);
+    }
+
+    #[test]
+    fn needs_compaction_uses_prune_minimum() {
+        let counter = TokenCounter::new();
+        // Should trigger at PRUNE_MINIMUM (20000), not PRUNE_PROTECT (40000)
+        assert!(
+            counter.needs_compaction(PRUNE_MINIMUM),
+            "needs_compaction should return true at PRUNE_MINIMUM"
+        );
+        assert!(
+            !counter.needs_compaction(PRUNE_MINIMUM - 1),
+            "needs_compaction should return false below PRUNE_MINIMUM"
+        );
+        // Values between PRUNE_MINIMUM and PRUNE_PROTECT should also trigger
+        assert!(
+            counter.needs_compaction(PRUNE_MINIMUM + 1000),
+            "needs_compaction should return true between PRUNE_MINIMUM and PRUNE_PROTECT"
+        );
     }
 }
