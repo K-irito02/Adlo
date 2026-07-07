@@ -257,7 +257,10 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
             .config
             .read()
             .map_err(|_| AppError::Internal("config lock poisoned".into()))?;
-        adl_model_gateway::ModelGateway::new(config.model_preferences.clone())?
+        adl_model_gateway::ModelGateway::new(
+            config.model_preferences.clone(),
+            ctx.state.provider_registry.clone(),
+        )?
     };
     let (mut model_response, model_audit) = gateway
         .chat(

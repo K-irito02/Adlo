@@ -67,7 +67,7 @@ pub async fn compact_session_cmd(
                 .config
                 .read()
                 .map_err(|_| AppError::Internal("config lock poisoned".into()))?;
-            ModelGateway::new(config.model_preferences.clone())?
+            ModelGateway::new(config.model_preferences.clone(), state.provider_registry.clone())?
         };
 
         let (response, _audit) = gateway

@@ -175,7 +175,9 @@ async fn call_openai_compatible(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::registry::ProviderRegistry;
     use adl_kernel::{ConversationRole, ModelChatMessage, ModelPreferences};
+    use std::sync::{Arc, RwLock};
 
     fn one_user_message() -> Vec<ModelChatMessage> {
         vec![ModelChatMessage { role: ConversationRole::User, content: "hi".to_string() }]
@@ -186,7 +188,11 @@ mod tests {
     // keyring availability issues in the test environment.
     #[tokio::test]
     async fn call_provider_routes_to_anthropic_adapter() {
-        let gateway = ModelGateway::new(ModelPreferences::default()).unwrap();
+        let gateway = ModelGateway::new(
+                ModelPreferences::default(),
+                Arc::new(RwLock::new(ProviderRegistry::new())),
+            )
+            .unwrap();
         let messages = one_user_message();
         let result = dispatch_to_provider(
             &gateway,
@@ -206,7 +212,11 @@ mod tests {
     // Validates routing: OpenAI must NOT return "not yet implemented".
     #[tokio::test]
     async fn call_provider_routes_to_openai_adapter() {
-        let gateway = ModelGateway::new(ModelPreferences::default()).unwrap();
+        let gateway = ModelGateway::new(
+                ModelPreferences::default(),
+                Arc::new(RwLock::new(ProviderRegistry::new())),
+            )
+            .unwrap();
         let messages = one_user_message();
         let result = dispatch_to_provider(
             &gateway,
@@ -227,7 +237,11 @@ mod tests {
     // Ollama needs no api_key; an empty string is passed.
     #[tokio::test]
     async fn call_provider_routes_to_ollama_adapter() {
-        let gateway = ModelGateway::new(ModelPreferences::default()).unwrap();
+        let gateway = ModelGateway::new(
+                ModelPreferences::default(),
+                Arc::new(RwLock::new(ProviderRegistry::new())),
+            )
+            .unwrap();
         let messages = one_user_message();
         let result =
             dispatch_to_provider(&gateway, "ollama", "llama3", &messages, "").await;
@@ -241,7 +255,11 @@ mod tests {
     // Validates routing: Google must NOT return "not yet implemented".
     #[tokio::test]
     async fn call_provider_routes_to_google_adapter() {
-        let gateway = ModelGateway::new(ModelPreferences::default()).unwrap();
+        let gateway = ModelGateway::new(
+                ModelPreferences::default(),
+                Arc::new(RwLock::new(ProviderRegistry::new())),
+            )
+            .unwrap();
         let messages = one_user_message();
         let result = dispatch_to_provider(
             &gateway,
@@ -261,7 +279,11 @@ mod tests {
     // Validates routing: OpenRouter must NOT return "not yet implemented".
     #[tokio::test]
     async fn call_provider_routes_to_openrouter_adapter() {
-        let gateway = ModelGateway::new(ModelPreferences::default()).unwrap();
+        let gateway = ModelGateway::new(
+                ModelPreferences::default(),
+                Arc::new(RwLock::new(ProviderRegistry::new())),
+            )
+            .unwrap();
         let messages = one_user_message();
         let result = dispatch_to_provider(
             &gateway,

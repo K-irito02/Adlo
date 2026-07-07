@@ -28,21 +28,33 @@ use adl_kernel::{
 use audit::{audit_record, AuditInput};
 use fallback::{deterministic_fallback, estimate_usage};
 use reqwest::Client;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 #[derive(Clone)]
 pub struct ModelGateway {
     pub(crate) client: Client,
     pub(crate) preferences: ModelPreferences,
+    pub(crate) registry: Arc<RwLock<ProviderRegistry>>,
+}
+
+fn fallback_models(def: &registry::ProviderDefinition) -> Vec<adl_kernel::types::config::ModelDefinition> {
+    match &def.models {
+        registry::ModelSource::Static(models) => models.clone(),
+        registry::ModelSource::Dynamic { .. } => vec![],
+    }
 }
 
 impl ModelGateway {
-    pub fn new(preferences: ModelPreferences) -> Result<Self, AppError> {
+    pub fn new(
+        preferences: ModelPreferences,
+        registry: Arc<RwLock<ProviderRegistry>>,
+    ) -> Result<Self, AppError> {
         let client = Client::builder()
             .timeout(Duration::from_secs(60))
             .build()
             .map_err(|e| AppError::Model(e.to_string()))?;
-        Ok(Self { client, preferences })
+        Ok(Self { client, preferences, registry })
     }
 
     pub fn preferences(&self) -> &ModelPreferences {
@@ -140,6 +152,36 @@ impl ModelGateway {
         }
     }
 
+    pub async fn fetch_models(
+        &self,
+        provider_id: &str,
+    ) -> Result<Vec<adl_kernel::types::config::ModelDefinition>, AppError> {
+        let (adapter, def) = {
+            let registry = self
+                .registry
+                .read()
+                .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?;
+            let adapter = registry
+                .get_adapter_owned(provider_id)
+                .ok_or_else(|| AppError::NotFound(format!("adapter '{}' not found", provider_id)))?;
+            let def = registry
+                .get(provider_id)
+                .ok_or_else(|| AppError::NotFound(format!("provider '{}' not found", provider_id)))?
+                .clone();
+            (adapter, def)
+        };
+        if adapter.supports_dynamic_models() {
+            let api_key = crate::get_provider_secret(provider_id).unwrap_or_default();
+            let base_url = def.default_base_url.as_deref().unwrap_or("");
+            match adapter.fetch_models(&api_key, base_url) {
+                Ok(models) if !models.is_empty() => Ok(models),
+                _ => Ok(fallback_models(&def)),
+            }
+        } else {
+            Ok(fallback_models(&def))
+        }
+    }
+
     pub fn health(&self) -> ModelGatewayHealthSnapshot {
         let checked_at = now_ms();
         let all_providers = [
@@ -173,7 +215,9 @@ mod tests {
 
     #[test]
     fn gateway_routes_by_priority() {
-        let gateway = ModelGateway::new(ModelPreferences::default()).unwrap();
+        let gateway =
+            ModelGateway::new(ModelPreferences::default(), Arc::new(RwLock::new(ProviderRegistry::new())))
+                .unwrap();
         let route = route::route_chain(gateway.preferences());
         assert_eq!(route[0], "deepseek");
     }

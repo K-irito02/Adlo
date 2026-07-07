@@ -76,6 +76,11 @@ pub trait ProviderAdapter: Send + Sync {
     fn estimate_tokens(&self, text: &str) -> usize {
         adl_kernel::estimate_tokens(text)
     }
+
+    async fn test_connection(&self, api_key: &str, base_url: &str) -> Result<(), AppError> {
+        let _ = (api_key, base_url);
+        Err(AppError::Internal("connection test not supported".to_string()))
+    }
 }
 
 #[cfg(test)]

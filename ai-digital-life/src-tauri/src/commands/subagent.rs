@@ -91,6 +91,7 @@ async fn spawn_subagent_inner(
             state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
         config.model_preferences.clone()
     };
+    let provider_registry = state.provider_registry.clone();
 
     // 6. 执行子 agent LLM 调用
     if input.background {
@@ -106,6 +107,7 @@ async fn spawn_subagent_inner(
             manager_clone.update_status(&task_id_clone, SubagentStatus::Running).await;
             let result = execute_subagent_llm_call(
                 model_preferences,
+                provider_registry,
                 &workspace_id,
                 &child_session_id_clone,
                 &prompt,
@@ -147,6 +149,7 @@ async fn spawn_subagent_inner(
     manager.update_status(&task_id, SubagentStatus::Running).await;
     let result = execute_subagent_llm_call(
         model_preferences,
+        provider_registry,
         &parent_session.workspace_id,
         &child_session_id,
         &input.prompt,
@@ -184,6 +187,7 @@ async fn spawn_subagent_inner(
 /// `ModelGateway::chat`. Returns the raw response content string.
 async fn execute_subagent_llm_call(
     model_preferences: ModelPreferences,
+    provider_registry: std::sync::Arc<std::sync::RwLock<adl_model_gateway::registry::ProviderRegistry>>,
     workspace_id: &str,
     session_id: &str,
     prompt: &str,
@@ -201,7 +205,7 @@ async fn execute_subagent_llm_call(
         content: prompt.to_string(),
     });
 
-    let gateway = adl_model_gateway::ModelGateway::new(model_preferences)?;
+    let gateway = adl_model_gateway::ModelGateway::new(model_preferences, provider_registry)?;
     let (response, _audit) =
         gateway.chat(workspace_id, session_id, None, ConversationScenario::Chat, messages).await;
 

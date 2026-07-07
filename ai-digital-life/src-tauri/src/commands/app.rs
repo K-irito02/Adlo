@@ -72,7 +72,10 @@ pub fn app_get_model_health(
     crate::commands::ipc_try(|| {
         let config =
             state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
-        let gateway = adl_model_gateway::ModelGateway::new(config.model_preferences.clone())?;
+        let gateway = adl_model_gateway::ModelGateway::new(
+            config.model_preferences.clone(),
+            state.provider_registry.clone(),
+        )?;
         Ok(gateway.health())
     })
 }
