@@ -3,6 +3,13 @@ use adl_agent_runtime::durable::DurableSessionManager;
 use adl_browser::BrowserManager;
 use adl_kernel::config_watcher::ConfigWatcher;
 use adl_kernel::{config as adl_config, events::EventBus, now_ms};
+use adl_model_gateway::adapter::ProviderAdapter;
+use adl_model_gateway::providers::anthropic::AnthropicProvider;
+use adl_model_gateway::providers::google::GoogleProvider;
+use adl_model_gateway::providers::ollama::OllamaProvider;
+use adl_model_gateway::providers::openai::OpenAIProvider;
+use adl_model_gateway::providers::openrouter::OpenRouterProvider;
+use adl_model_gateway::registry::{ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry};
 use adl_pty::SessionManager;
 use adl_storage::Database;
 use adl_workspace::strip_verbatim_prefix;
@@ -37,6 +44,128 @@ pub fn resolve_data_dir(app: &tauri::App) -> anyhow::Result<PathBuf> {
     std::fs::create_dir_all(&dir)?;
     info!(?dir, "data directory resolved");
     Ok(dir)
+}
+
+fn register_builtin_providers() -> ProviderRegistry {
+    let mut registry = ProviderRegistry::new();
+
+    registry.register(
+        ProviderDefinition {
+            id: "openai".into(),
+            name: "OpenAI".into(),
+            description: "OpenAI GPT series models".into(),
+            api_type: ApiType::OpenAICompatible,
+            default_base_url: Some("https://api.openai.com/v1".into()),
+            auth_type: AuthType::ApiKey,
+            models: ModelSource::Static(OpenAIProvider::new().supported_models()),
+            built_in: true,
+        },
+        Box::new(OpenAIProvider::new()),
+    );
+
+    registry.register(
+        ProviderDefinition {
+            id: "anthropic".into(),
+            name: "Anthropic".into(),
+            description: "Anthropic Claude series models".into(),
+            api_type: ApiType::AnthropicNative,
+            default_base_url: Some("https://api.anthropic.com".into()),
+            auth_type: AuthType::ApiKey,
+            models: ModelSource::Static(AnthropicProvider::new().supported_models()),
+            built_in: true,
+        },
+        Box::new(AnthropicProvider::new()),
+    );
+
+    registry.register(
+        ProviderDefinition {
+            id: "google".into(),
+            name: "Google Gemini".into(),
+            description: "Google Gemini models".into(),
+            api_type: ApiType::GoogleNative,
+            default_base_url: Some("https://generativelanguage.googleapis.com".into()),
+            auth_type: AuthType::ApiKey,
+            models: ModelSource::Static(GoogleProvider::new().supported_models()),
+            built_in: true,
+        },
+        Box::new(GoogleProvider::new()),
+    );
+
+    registry.register(
+        ProviderDefinition {
+            id: "ollama".into(),
+            name: "Ollama".into(),
+            description: "Local Ollama models".into(),
+            api_type: ApiType::Ollama,
+            default_base_url: Some("http://localhost:11434".into()),
+            auth_type: AuthType::None,
+            models: ModelSource::Static(OllamaProvider::new().supported_models()),
+            built_in: true,
+        },
+        Box::new(OllamaProvider::new()),
+    );
+
+    registry.register(
+        ProviderDefinition {
+            id: "openrouter".into(),
+            name: "OpenRouter".into(),
+            description: "OpenRouter unified API".into(),
+            api_type: ApiType::OpenAICompatible,
+            default_base_url: Some("https://openrouter.ai/api/v1".into()),
+            auth_type: AuthType::ApiKey,
+            models: ModelSource::Static(OpenRouterProvider::new().supported_models()),
+            built_in: true,
+        },
+        Box::new(OpenRouterProvider::new()),
+    );
+
+    registry.register(
+        ProviderDefinition {
+            id: "deepseek".into(),
+            name: "DeepSeek".into(),
+            description: "DeepSeek chat models".into(),
+            api_type: ApiType::OpenAICompatible,
+            default_base_url: Some("https://api.deepseek.com".into()),
+            auth_type: AuthType::ApiKey,
+            models: ModelSource::Static(vec![
+                adl_kernel::types::config::ModelDefinition {
+                    id: "deepseek-chat".into(),
+                    provider_id: "deepseek".into(),
+                    name: "DeepSeek Chat".into(),
+                    capabilities: vec![adl_kernel::types::config::ModelCapability::Text],
+                    tier: Some(adl_kernel::types::config::ModelTier::Standard),
+                    ..Default::default()
+                },
+            ]),
+            built_in: true,
+        },
+        Box::new(OpenAIProvider::with_base_url("https://api.deepseek.com".into())),
+    );
+
+    registry.register(
+        ProviderDefinition {
+            id: "minimax".into(),
+            name: "MiniMax".into(),
+            description: "MiniMax models".into(),
+            api_type: ApiType::OpenAICompatible,
+            default_base_url: Some("https://api.minimax.io".into()),
+            auth_type: AuthType::ApiKey,
+            models: ModelSource::Static(vec![
+                adl_kernel::types::config::ModelDefinition {
+                    id: "MiniMax-M2.7".into(),
+                    provider_id: "minimax".into(),
+                    name: "MiniMax M2.7".into(),
+                    capabilities: vec![adl_kernel::types::config::ModelCapability::Text],
+                    tier: Some(adl_kernel::types::config::ModelTier::Standard),
+                    ..Default::default()
+                },
+            ]),
+            built_in: true,
+        },
+        Box::new(OpenAIProvider::with_base_url("https://api.minimax.io".into())),
+    );
+
+    registry
 }
 
 pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
@@ -91,6 +220,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         });
 
     let config_arc = Arc::new(RwLock::new(config));
+    let provider_registry = Arc::new(RwLock::new(register_builtin_providers()));
 
     Ok(AppState {
         data_dir,
@@ -104,6 +234,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         log_manager,
         started_at: now_ms(),
         durable_manager,
+        provider_registry,
     })
 }
 

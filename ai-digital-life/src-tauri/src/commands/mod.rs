@@ -14,7 +14,6 @@ pub mod custom_agent;
 pub mod durable;
 pub mod lsp;
 pub mod mcp;
-pub mod model;
 pub mod patch;
 pub mod permission;
 pub mod platform;

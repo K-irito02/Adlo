@@ -2,6 +2,7 @@ use adl_agent_runtime::durable::DurableSessionManager;
 use adl_browser::BrowserManager;
 use adl_kernel::{config::AppConfig, events::EventBus, WorkspaceMeta};
 use adl_logging::LogManager;
+use adl_model_gateway::registry::ProviderRegistry;
 use adl_pty::SessionManager;
 use adl_storage::Database;
 use std::collections::HashSet;
@@ -20,4 +21,5 @@ pub struct AppState {
     pub log_manager: LogManager,
     pub started_at: i64,
     pub durable_manager: DurableSessionManager,
+    pub provider_registry: Arc<RwLock<ProviderRegistry>>,
 }

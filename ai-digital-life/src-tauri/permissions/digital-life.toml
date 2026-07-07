@@ -71,8 +71,6 @@ commands.allow = [
   "task_decide_approval",
   "task_get_checkpoint_preview",
   "task_restore_checkpoint",
-  "model_set_provider_secret",
-  "model_clear_provider_secret",
   "workspace_rename_file",
   "workspace_delete_file",
   "workspace_duplicate_file",
