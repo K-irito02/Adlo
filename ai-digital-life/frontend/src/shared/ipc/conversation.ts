@@ -155,6 +155,8 @@ export interface ConversationBridge {
     sessionId: string;
     content: string;
     scenario?: 'chat' | 'plan' | 'code-edit';
+    providerId?: string;
+    modelId?: string;
   }) => Promise<IpcResult<ConversationSendResult>>;
   /**
    * 取消正在处理的消息

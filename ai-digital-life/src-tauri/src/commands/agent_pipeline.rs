@@ -262,15 +262,21 @@ pub(crate) async fn call_model<F: Fn(serde_json::Value)>(
             ctx.state.provider_registry.clone(),
         )?
     };
-    let (mut model_response, model_audit) = gateway
-        .chat(
-            &ctx.workspace.id,
-            &ctx.session.id,
-            Some(ctx.detail.run.id.as_str()),
-            ctx.scenario,
-            messages,
-        )
-        .await;
+    let (mut model_response, model_audit) = if let (Some(pid), Some(mid)) = (&ctx.provider_id, &ctx.model_id) {
+        gateway
+            .chat_for_model(pid, mid, messages)
+            .await
+    } else {
+        gateway
+            .chat(
+                &ctx.workspace.id,
+                &ctx.session.id,
+                Some(ctx.detail.run.id.as_str()),
+                ctx.scenario,
+                messages,
+            )
+            .await
+    };
 
     // === Plugin Hook: ChatResponseAfter ===
     let hook_resp = PluginHook::ChatResponseAfter {

@@ -15,6 +15,8 @@ pub struct SendMessageInput {
     pub session_id: String,
     pub content: String,
     pub scenario: Option<ConversationScenario>,
+    pub provider_id: Option<String>,
+    pub model_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -94,6 +96,8 @@ pub async fn conversation_send_message(
             session_id: input.session_id,
             prompt: input.content,
             scenario: input.scenario,
+            provider_id: input.provider_id,
+            model_id: input.model_id,
         },
     )
     .await

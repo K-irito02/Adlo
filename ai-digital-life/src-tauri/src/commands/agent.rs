@@ -47,6 +47,8 @@ pub struct StartRunInput {
     pub session_id: String,
     pub prompt: String,
     pub scenario: Option<ConversationScenario>,
+    pub provider_id: Option<String>,
+    pub model_id: Option<String>,
 }
 
 #[tauri::command]
@@ -213,6 +215,8 @@ async fn start_run_inner(
         app,
         emit_activity: &emit_activity,
         audit_batch: &mut audit_batch,
+        provider_id: input.provider_id.clone(),
+        model_id: input.model_id.clone(),
     })
     .await?;
     let patch_set = agent_pipeline::generate_patches(

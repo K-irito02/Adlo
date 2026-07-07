@@ -334,6 +334,8 @@ export function createTauriBridge(): DigitalLifeBridge {
         sessionId: string;
         content: string;
         scenario?: 'chat' | 'plan' | 'code-edit';
+        providerId?: string;
+        modelId?: string;
       }) => invokeIpc<ConversationSendResult>('conversation_send_message', { input }),
       cancelMessage: (runId: string) =>
         invokeIpc<AgentRunDetail | undefined>('conversation_cancel_message', { runId }),

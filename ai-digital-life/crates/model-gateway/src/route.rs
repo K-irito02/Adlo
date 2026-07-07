@@ -47,3 +47,17 @@ pub(crate) async fn select_provider(
     }
     Err(last_error)
 }
+
+/// Direct dispatch to a specific provider/model pair, bypassing the
+/// priority-ordered route chain.
+pub(crate) async fn select_provider_for_model(
+    gateway: &ModelGateway,
+    provider_id: &str,
+    model_id: &str,
+    messages: &[ModelChatMessage],
+) -> Result<(String, String, ModelResponse), Option<String>> {
+    match crate::provider::call_provider(gateway, provider_id, model_id, messages).await {
+        Ok(response) => Ok((provider_id.to_string(), model_id.to_string(), response)),
+        Err(error) => Err(Some(error.to_string())),
+    }
+}

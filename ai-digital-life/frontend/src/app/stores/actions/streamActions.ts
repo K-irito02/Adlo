@@ -229,10 +229,17 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
       );
 
       try {
+        const { selectedProviderId, selectedModelId } = get();
         const result = await window.digitalLife.conversation.sendMessage({
           sessionId,
           content: prompt,
           scenario,
+          ...(selectedProviderId && selectedModelId
+            ? {
+                providerId: selectedProviderId,
+                modelId: selectedModelId,
+              }
+            : {}),
         });
         if (!result.ok) {
           captureError(get, result.error);

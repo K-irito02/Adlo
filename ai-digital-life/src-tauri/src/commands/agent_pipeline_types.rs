@@ -18,6 +18,8 @@ pub struct CallModelContext<'a, F: Fn(serde_json::Value)> {
     pub app: &'a tauri::AppHandle,
     pub emit_activity: F,
     pub audit_batch: &'a mut Vec<AuditBatchEntry>,
+    pub provider_id: Option<String>,
+    pub model_id: Option<String>,
 }
 
 pub struct FinalizeRunContext<'a, F: Fn(serde_json::Value)> {

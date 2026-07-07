@@ -15,7 +15,6 @@ mod provider;
 pub mod providers;
 mod route;
 mod secret;
-mod wire;
 
 pub use secret::{clear_provider_secret, get_provider_secret, set_provider_secret};
 
@@ -27,13 +26,11 @@ use adl_kernel::{
 };
 use audit::{audit_record, AuditInput};
 use fallback::{deterministic_fallback, estimate_usage};
-use reqwest::Client;
 use std::sync::{Arc, RwLock};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 #[derive(Clone)]
 pub struct ModelGateway {
-    pub(crate) client: Client,
     pub(crate) preferences: ModelPreferences,
     pub(crate) registry: Arc<RwLock<ProviderRegistry>>,
 }
@@ -50,11 +47,7 @@ impl ModelGateway {
         preferences: ModelPreferences,
         registry: Arc<RwLock<ProviderRegistry>>,
     ) -> Result<Self, AppError> {
-        let client = Client::builder()
-            .timeout(Duration::from_secs(60))
-            .build()
-            .map_err(|e| AppError::Model(e.to_string()))?;
-        Ok(Self { client, preferences, registry })
+        Ok(Self { preferences, registry })
     }
 
     pub fn preferences(&self) -> &ModelPreferences {
@@ -143,6 +136,73 @@ impl ModelGateway {
                     model_id,
                     scenario,
                     route_meta: route,
+                    started,
+                    usage,
+                    error: last_error,
+                });
+                (response, audit)
+            },
+        }
+    }
+
+    /// Send a chat message to a specific provider/model pair, bypassing the
+    /// priority-ordered route chain. Falls back to synthetic response on failure.
+    pub async fn chat_for_model(
+        &self,
+        provider_id: &str,
+        model_id: &str,
+        messages: Vec<ModelChatMessage>,
+    ) -> (ModelResponse, ModelCallAuditRecord) {
+        let started = Instant::now();
+
+        match route::select_provider_for_model(self, provider_id, model_id, &messages).await {
+            Ok((_pid, _mid, response)) => {
+                let audit = audit_record(AuditInput {
+                    workspace_id: "",
+                    session_id: "",
+                    run_id: None,
+                    provider_id: response.provider_id.clone(),
+                    model_id: response.model_id.clone(),
+                    scenario: ConversationScenario::CodeEdit,
+                    route_meta: ModelRouteDecision {
+                        reason: format!("direct dispatch to {provider_id}/{model_id}"),
+                        chain: vec![provider_id.to_string()],
+                        synthetic: None,
+                    },
+                    started,
+                    usage: response.usage.clone(),
+                    error: None,
+                });
+                (response, audit)
+            },
+            Err(last_error) => {
+                let content = deterministic_fallback(&messages, last_error.as_deref());
+                let usage = Some(estimate_usage(&messages));
+                let response = ModelResponse {
+                    provider_id: provider_id.to_string(),
+                    model_id: model_id.to_string(),
+                    content,
+                    synthetic: true,
+                    request_id: Some(create_id("modelreq")),
+                    usage: usage.clone(),
+                    route: Some(ModelRouteDecision {
+                        reason: "direct dispatch failed; used local deterministic fallback".into(),
+                        chain: vec![provider_id.to_string()],
+                        synthetic: Some(true),
+                    }),
+                };
+                let audit = audit_record(AuditInput {
+                    workspace_id: "",
+                    session_id: "",
+                    run_id: None,
+                    provider_id: provider_id.to_string(),
+                    model_id: model_id.to_string(),
+                    scenario: ConversationScenario::CodeEdit,
+                    route_meta: ModelRouteDecision {
+                        reason: "direct dispatch failed; used local deterministic fallback".into(),
+                        chain: vec!["synthetic-local".into()],
+                        synthetic: Some(true),
+                    },
                     started,
                     usage,
                     error: last_error,

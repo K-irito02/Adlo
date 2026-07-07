@@ -92,7 +92,7 @@ export const mockConversation: ConversationBridge = {
     }
     return { ok: true, data: true };
   },
-  sendMessage: async ({ sessionId, content }) => {
+  sendMessage: async ({ sessionId, content, providerId, modelId }) => {
     const result = createSendResult(sessionId, content);
     return {
       ok: true,
