@@ -65,6 +65,8 @@ const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchRe
     onDiffMount,
   } = props;
 
+  const changesEditorOptions = useEditorOptions();
+
   const activeCardRef = useRef<Record<string, HTMLElement | null>>({});
   const changesDiffViewerRef = useRef<HTMLDivElement | null>(null);
 
@@ -105,7 +107,6 @@ const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchRe
   const changePreviewTheme = useResolvedTheme();
   const changePreviewLocale = appInfo?.config.language ?? 'zh-CN';
 
-  const changesEditorOptions = useEditorOptions();
   const diffExtensions = useMemo(() => [], []);
   const validation = latestPatchApplication?.validation;
 

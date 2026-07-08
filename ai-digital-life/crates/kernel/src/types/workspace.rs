@@ -49,6 +49,8 @@ pub struct GitSnapshot {
 pub struct GitBranchSummary {
     pub name: String,
     pub is_current: bool,
+    pub local: bool,
+    pub remote: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

@@ -78,6 +78,8 @@ export interface GitSnapshot {
 export interface GitBranchSummary {
   name: string;
   isCurrent: boolean;
+  local: boolean;
+  remote: boolean;
 }
 
 export interface WorkspaceGitBranchSwitchInput {

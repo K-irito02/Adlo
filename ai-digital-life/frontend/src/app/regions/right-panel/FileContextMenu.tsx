@@ -23,7 +23,6 @@ interface FileContextMenuProps {
   checkState: {
     lineNumbersEnabled: boolean;
     wordWrapEnabled: boolean;
-    agentAnnotationsEnabled: boolean;
   };
 }
 
@@ -78,11 +77,7 @@ function FileContextMenu({ menuItems, checkState }: FileContextMenuProps) {
                       ? checkState.wordWrapEnabled
                         ? 'true'
                         : 'false'
-                      : item.id === 'agent-annotations'
-                        ? checkState.agentAnnotationsEnabled
-                          ? 'true'
-                          : 'false'
-                        : undefined
+                      : undefined
                 }
                 className="adl-menu__item"
                 disabled={item.disabled}

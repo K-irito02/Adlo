@@ -37,6 +37,8 @@ import { useChangesPanelFilters } from './useChangesPanelFilters';
 import { useChangesPanelSort } from './useChangesPanelSort';
 import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
 import { useChangesPanelDialogs } from './useChangesPanelDialogs';
+import { joinPathSegments } from '@app/utils/workspacePaths';
+import type { ChangesMenuItem } from '../ChangesTopToolbar';
 
 export function useChangesPanelState(props: ChangesPanelProps) {
   const { t, formatT } = useTCopy();
@@ -127,7 +129,26 @@ export function useChangesPanelState(props: ChangesPanelProps) {
   const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
 
-  const changesMenuItems = useMemo(
+  const copyToClipboard = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {}
+  }, []);
+
+  const navigatorRelativePath = selectedPatchFilePath ?? selectedChangePreviewPath;
+
+  const navigatorAbsolutePath = useMemo(() => {
+    if (!navigatorRelativePath) {
+      return undefined;
+    }
+    const wsPath = props.appInfo?.currentWorkspace?.rootPath ?? props.appInfo?.currentWorkspace?.path;
+    if (!wsPath) {
+      return undefined;
+    }
+    return joinPathSegments(wsPath, navigatorRelativePath);
+  }, [navigatorRelativePath, props.appInfo]);
+
+  const baseMenuItems = useMemo(
     () =>
       computeChangesMenuItems(
         t,
@@ -138,6 +159,28 @@ export function useChangesPanelState(props: ChangesPanelProps) {
       ),
     [t, lineNumbersEnabled, wordWrapEnabled]
   );
+
+  const changesMenuItems = useMemo(() => {
+    if (!navigatorRelativePath) {
+      return baseMenuItems;
+    }
+    const copyItems: ChangesMenuItem[] = [
+      {
+        id: 'copy-relative',
+        label: t.fileCopyRelativePath,
+        disabled: false,
+        action: () => void copyToClipboard(navigatorRelativePath),
+      },
+      {
+        id: 'copy-full',
+        label: t.fileCopyFullPath,
+        disabled: !navigatorAbsolutePath,
+        action: () => navigatorAbsolutePath ? void copyToClipboard(navigatorAbsolutePath) : undefined,
+      },
+      { id: 'sep-path', separator: true },
+    ];
+    return [...copyItems, ...baseMenuItems];
+  }, [baseMenuItems, t, navigatorRelativePath, navigatorAbsolutePath, copyToClipboard]);
 
   useEffect(() => {
     if (!navigatorSelectedPath) {
@@ -214,12 +257,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     [collapsedPatchHunkIds, onSelectPatchFile]
   );
 
-  const copyToClipboard = useCallback(async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {}
-  }, []);
-
   const {
     changesRenameDialogOpen,
     changesRenamingPath,
@@ -246,6 +283,8 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     onOpenFile,
     isNodeDeleted,
     showMenuForDirectories: false,
+    showClipboard: false,
+    showGitActions: true,
   });
 
   const renderNavigatorMeta = useCallback((node: WorkspaceTreeNode) => {

@@ -114,6 +114,7 @@ export const TreeNodeRow = React.memo(function TreeNodeRow({
         <button
           type="button"
           className={`adl-tree-node__label${labelClassName ? ` ${labelClassName}` : ''}`}
+          title={nodePath}
           onMouseEnter={onLabelMouseEnter}
           onMouseLeave={onLabelMouseLeave}
           onFocus={onLabelFocus}

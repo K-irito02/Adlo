@@ -287,11 +287,20 @@ export function createTauriBridge(): DigitalLifeBridge {
           listener
         ),
       getGitStatus: () => invokeIpc<GitSnapshot>('workspace_get_git_status'),
-      listGitBranches: () => invokeIpc<GitBranchSummary[]>('workspace_list_git_branches'),
+      listGitBranches: (rootPath?: string) =>
+        invokeIpc<GitBranchSummary[]>('workspace_list_git_branches', {
+          workspacePath: rootPath,
+        }),
       switchGitBranch: (input: WorkspaceGitBranchSwitchInput) =>
         invokeIpc<WorkspaceGitBranchChangeResult>('workspace_switch_git_branch', { input }),
       createGitBranch: (input: WorkspaceGitBranchCreateInput) =>
         invokeIpc<WorkspaceGitBranchChangeResult>('workspace_create_git_branch', { input }),
+      stageFile: (relativePath: string, workspacePath?: string) =>
+        invokeIpc<void>('workspace_git_stage_file', { relativePath, workspacePath }),
+      unstageFile: (relativePath: string, workspacePath?: string) =>
+        invokeIpc<void>('workspace_git_unstage_file', { relativePath, workspacePath }),
+      discardFile: (relativePath: string, workspacePath?: string) =>
+        invokeIpc<void>('workspace_git_discard_file', { relativePath, workspacePath }),
     },
 
     retrieval: {

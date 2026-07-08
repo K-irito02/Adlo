@@ -138,13 +138,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     return joinPathSegments(rootPath, selectedFilePath);
   }, [appInfo?.currentWorkspace?.path, appInfo?.currentWorkspace?.rootPath, selectedFilePath]);
 
-  const activeFilePatch = useMemo(() => {
-    if (!activePatchSet || !selectedPatchFilePath) {
-      return undefined;
-    }
-    return activePatchSet.filePatches.find((c) => c.relativePath === selectedPatchFilePath);
-  }, [activePatchSet, selectedPatchFilePath]);
-
   const handleCopyPath = useCallback(async (value?: string) => {
     if (!value) {
       return;
@@ -182,27 +175,19 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
 
   const fileMenuItems: (FileMenuItem | FileMenuDivider)[] = useMemo(
     () => [
-      { id: 'save', label: t.fileSave as string, shortcut: 'Ctrl+S', disabled: true },
-      { id: 'discard', label: t.fileDiscardChanges as string, disabled: true },
-      { id: 'sep-1', separator: true },
       {
         id: 'copy-relative',
         label: t.fileCopyRelativePath as string,
-        shortcut: 'Ctrl+K Shift+C',
+        shortcut: 'Ctrl+Shift+C',
         disabled: !selectedFilePath,
         action: () => void handleCopyPath(selectedFilePath),
       },
       {
-        id: 'copy-absolute',
-        label: t.fileCopyAbsolutePath as string,
-        shortcut: 'Ctrl+K Shift+A',
+        id: 'copy-full',
+        label: t.fileCopyFullPath as string,
+        shortcut: 'Ctrl+Alt+C',
         disabled: !selectedAbsolutePath,
         action: () => void handleCopyPath(selectedAbsolutePath),
-      },
-      {
-        id: 'diff-view',
-        label: t.fileDiffView as string,
-        disabled: !filePatch || filePatch.relativePath !== selectedFilePath,
       },
       { id: 'sep-2', separator: true },
       {
@@ -216,22 +201,12 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         shortcut: t.fileWordWrapShortcut as string,
         action: () => editorOptions.setWordWrapEnabled((v) => !v),
       },
-      {
-        id: 'agent-annotations',
-        label:
-          `${t.agentChangeAnnotations} ${editorOptions.agentAnnotationsEnabled ? '✓' : ''}`.trim(),
-        disabled: !activeFilePatch,
-        action: () => editorOptions.setAgentAnnotationsEnabled((v) => !v),
-      },
     ],
     [
       t,
       selectedFilePath,
       selectedAbsolutePath,
-      filePatch,
       editorOptions,
-
-      activeFilePatch,
       handleCopyPath,
     ]
   );
@@ -305,7 +280,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
             checkState={{
               lineNumbersEnabled: editorOptions.lineNumbersEnabled,
               wordWrapEnabled: editorOptions.wordWrapEnabled,
-              agentAnnotationsEnabled: editorOptions.agentAnnotationsEnabled,
             }}
           />
         </div>

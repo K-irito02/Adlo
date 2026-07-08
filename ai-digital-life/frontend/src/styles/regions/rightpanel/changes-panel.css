@@ -26,6 +26,129 @@
   width: 100%;
 }
 
+/* Branch sub-card in changes menu */
+.adl-changes-branch-submenu {
+  position: absolute;
+  top: var(--adl-changes-branch-sub-top, 0);
+  left: calc(100% + var(--space-1));
+  z-index: calc(var(--z-popover) + 1);
+  width: min(260px, calc(100vw - var(--space-6)));
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.adl-changes-branch-search {
+  flex-shrink: 0;
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.adl-changes-branch-search input {
+  width: 100%;
+  height: 28px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  outline: none;
+}
+
+.adl-changes-branch-search input:focus {
+  border-color: var(--accent);
+}
+
+.adl-changes-branch-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 300px;
+  padding: var(--space-1);
+}
+
+.adl-changes-branch-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.adl-changes-branch-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.adl-changes-branch-list::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb, var(--border));
+  border-radius: 3px;
+}
+
+.adl-changes-branch-list::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover, var(--text-tertiary));
+}
+
+.adl-changes-branch-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.adl-changes-branch-item:hover {
+  background: var(--bg-hover);
+}
+
+.adl-changes-branch-item.is-current {
+  color: var(--accent);
+  font-weight: var(--font-semibold);
+}
+
+.adl-changes-branch-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.adl-changes-branch-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 var(--space-1);
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: var(--font-medium);
+  line-height: 1;
+}
+
+.adl-changes-branch-badge--local {
+  background: var(--badge-info-bg, var(--accent-subtle));
+  color: var(--badge-info-fg, var(--accent));
+}
+
+.adl-changes-branch-badge--remote {
+  background: var(--badge-neutral-bg, var(--surface-subtle));
+  color: var(--badge-neutral-fg, var(--text-secondary));
+}
+
+.adl-changes-branch-empty {
+  padding: var(--space-3);
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
 /* Branch menu dropdown — portal-rendered with position:fixed to escape overflow clipping */
 .adl-branch-menu__dropdown {
   position: fixed;

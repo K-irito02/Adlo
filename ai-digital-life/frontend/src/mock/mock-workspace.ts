@@ -241,15 +241,15 @@ export const mockWorkspace: WorkspaceBridge = {
     ok: true,
     data: currentWorkspaceMeta?.gitSnapshot ?? emptyGitSnapshot()
   }),
-  listGitBranches: async () => {
+  listGitBranches: async (_rootPath?: string) => {
     if (!currentWorkspaceMeta) {
       return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
     }
     const currentBranch = currentWorkspaceMeta.gitSnapshot?.branch ?? "main";
     const branches: GitBranchSummary[] = [
-      { name: currentBranch, isCurrent: true },
-      { name: "main", isCurrent: currentBranch === "main" },
-      { name: "experiment/mock", isCurrent: currentBranch === "experiment/mock" }
+      { name: currentBranch, isCurrent: true, local: true, remote: true },
+      { name: "main", isCurrent: currentBranch === "main", local: true, remote: true },
+      { name: "experiment/mock", isCurrent: currentBranch === "experiment/mock", local: true, remote: false }
     ].filter((branch, index, list) => list.findIndex((item) => item.name === branch.name) === index);
     return { ok: true, data: branches };
   },
@@ -288,7 +288,53 @@ export const mockWorkspace: WorkspaceBridge = {
     };
     return { ok: true, data: result };
   },
-  createGitBranch: async (input: WorkspaceGitBranchCreateInput) => {
+    stageFile: async (relativePath: string, _workspacePath?: string) => {
+      if (!currentWorkspaceMeta) {
+        return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+      }
+      const snapshot = currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot();
+      const updated: GitSnapshot = {
+        ...snapshot,
+        staged: [...new Set([...snapshot.staged, relativePath])],
+        unstaged: snapshot.unstaged.filter((p) => p !== relativePath),
+        capturedAt: Date.now(),
+      };
+      const ws = { ...currentWorkspaceMeta, gitSnapshot: updated };
+      setMockCurrentWorkspace(ws);
+      return { ok: true, data: undefined };
+    },
+    unstageFile: async (relativePath: string, _workspacePath?: string) => {
+      if (!currentWorkspaceMeta) {
+        return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+      }
+      const snapshot = currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot();
+      const updated: GitSnapshot = {
+        ...snapshot,
+        staged: snapshot.staged.filter((p) => p !== relativePath),
+        unstaged: [...new Set([...snapshot.unstaged, relativePath])],
+        capturedAt: Date.now(),
+      };
+      const ws = { ...currentWorkspaceMeta, gitSnapshot: updated };
+      setMockCurrentWorkspace(ws);
+      return { ok: true, data: undefined };
+    },
+    discardFile: async (relativePath: string, _workspacePath?: string) => {
+      if (!currentWorkspaceMeta) {
+        return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+      }
+      const snapshot = currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot();
+      const updated: GitSnapshot = {
+        ...snapshot,
+        staged: snapshot.staged.filter((p) => p !== relativePath),
+        unstaged: snapshot.unstaged.filter((p) => p !== relativePath),
+        untracked: snapshot.untracked.filter((p) => p !== relativePath),
+        capturedAt: Date.now(),
+      };
+      const ws = { ...currentWorkspaceMeta, gitSnapshot: updated };
+      setMockCurrentWorkspace(ws);
+      return { ok: true, data: undefined };
+    },
+    createGitBranch: async (input: WorkspaceGitBranchCreateInput) => {
     if (!currentWorkspaceMeta) {
       return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
     }

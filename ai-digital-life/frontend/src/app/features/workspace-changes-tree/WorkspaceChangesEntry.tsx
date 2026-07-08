@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@ai-digital-life/kernel';
 import type { CopyDict } from '@i18n';
+import { useAppStore } from '@stores/slicedStore';
 import {
   IconRefreshCw,
   IconPin,
@@ -16,6 +17,7 @@ import {
 } from '@icons';
 import { FileTree, type FileTreeContextMenuItem } from '@features/file-tree';
 import { TooltipSimple } from '@components/Tooltip';
+import { BranchMenuItem } from '@regions/right-panel/panels/BranchSubCard';
 
 export interface WorkspaceChangesEntryProps {
   workspace: RecentWorkspaceEntry;
@@ -76,6 +78,34 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   renderMeta,
   renderCount,
 }: WorkspaceChangesEntryProps) {
+  const wrappedGetContextMenuItems = useCallback(
+    (node: WorkspaceTreeNode) => {
+      const items = getContextMenuItems(node);
+      return items.map((item) => {
+        if (item.separator || !item.action) {
+          return item;
+        }
+        if (item.id === 'stage' || item.id === 'unstage' || item.id === 'discard') {
+          return {
+            ...item,
+            action: (targetNode: WorkspaceTreeNode) => {
+              const s = useAppStore.getState();
+              if (item.id === 'stage') {
+                void s.stageWorkspaceFile(targetNode.path, workspace.path);
+              } else if (item.id === 'unstage') {
+                void s.unstageWorkspaceFile(targetNode.path, workspace.path);
+              } else {
+                void s.discardWorkspaceFile(targetNode.path, workspace.path);
+              }
+            },
+          } as FileTreeContextMenuItem<WorkspaceTreeNode>;
+        }
+        return item;
+      });
+    },
+    [getContextMenuItems, workspace.path]
+  );
+
   const effectiveSelectedPath = useMemo(() => {
     if (selectedChangePreviewWorkspaceId === workspace.id) {
       return selectedChangePreviewPath;
@@ -84,7 +114,9 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   }, [selectedChangePreviewWorkspaceId, workspace.id, selectedChangePreviewPath]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [branchSubOpen, setBranchSubOpen] = useState(false);
   const menuId = `ws-changes-menu-${workspace.id}`;
+  const branchMenuItemRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -285,6 +317,63 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
               data-menu-id={menuId}
               style={{ top: menuPosition.top, left: menuPosition.left }}
             >
+              <BranchMenuItem
+                triggerRef={branchMenuItemRef}
+                isSubOpen={branchSubOpen}
+                onSubOpenChange={setBranchSubOpen}
+                workspacePath={workspace.path}
+              />
+              <div className="adl-multitree-entry__menu-sep" role="separator" />
+              <button
+                type="button"
+                className="adl-multitree-entry__menu-item"
+                role="menuitem"
+                disabled
+              >
+                {t.changesStageAll}
+              </button>
+              <button
+                type="button"
+                className="adl-multitree-entry__menu-item"
+                role="menuitem"
+                disabled
+              >
+                {t.changesUnstageAll}
+              </button>
+              <button
+                type="button"
+                className="adl-multitree-entry__menu-item"
+                role="menuitem"
+                disabled
+              >
+                {t.changesCommit}
+              </button>
+              <button
+                type="button"
+                className="adl-multitree-entry__menu-item"
+                role="menuitem"
+                disabled
+              >
+                {t.changesPush}
+              </button>
+              <button
+                type="button"
+                className="adl-multitree-entry__menu-item"
+                role="menuitem"
+                disabled
+              >
+                {t.changesPull}
+              </button>
+              <div className="adl-multitree-entry__menu-sep" role="separator" />
+              <button
+                type="button"
+                className="adl-multitree-entry__menu-item"
+                role="menuitem"
+                disabled
+              >
+                {t.changesDiscardAll}
+              </button>
+              <div className="adl-multitree-entry__menu-sep" role="separator" />
               <button
                 type="button"
                 className="adl-multitree-entry__menu-item"
@@ -348,7 +437,7 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
               externalChangePath={externalChangePath}
               onToggle={onToggleFileTreePath}
               onOpenFile={(path) => onOpenChangePreview(workspace.path, path)}
-              getContextMenuItems={getContextMenuItems}
+              getContextMenuItems={wrappedGetContextMenuItems}
               contextMenuPersistRef={contextMenuPersistRef}
               clearMenuHighlightRef={clearMenuHighlightRef}
               expandLabel={expandLabel}

@@ -5,7 +5,7 @@ use adl_kernel::{
     now_ms, GitBranchSummary, GitSnapshot, IpcResult, WorkspaceGitBranchChangeResult,
     WorkspaceGitBranchCreateInput, WorkspaceGitBranchSwitchInput, WorkspaceMeta, WorkspaceStatus,
 };
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub(crate) fn persist_workspace_meta(
     state: &AppState,
@@ -66,10 +66,17 @@ pub fn workspace_get_git_status(
 #[tauri::command]
 pub fn workspace_list_git_branches(
     state: tauri::State<'_, AppState>,
+    workspace_path: Option<String>,
 ) -> IpcResult<Vec<GitBranchSummary>> {
-    ipc(crate::commands::workspace::with_workspace(&state, |workspace| {
-        adl_workspace::list_git_branches(PathBuf::from(&workspace.root_path).as_path())
-    }))
+    let path = match workspace_path {
+        Some(p) => PathBuf::from(p),
+        None => {
+            return ipc(crate::commands::workspace::with_workspace(&state, |workspace| {
+                adl_workspace::list_git_branches(PathBuf::from(&workspace.root_path).as_path())
+            }));
+        },
+    };
+    ipc(adl_workspace::list_git_branches(path.as_path()))
 }
 
 #[tauri::command]
@@ -124,6 +131,56 @@ pub fn workspace_create_git_branch(
             stashed_changes,
             branch_name,
         )
+    })
+}
+
+fn run_git_file_op(
+    state: &AppState,
+    workspace_path: Option<String>,
+    relative_path: &str,
+    op: impl FnOnce(&Path, &str) -> Result<(), AppError>,
+) -> IpcResult<()> {
+    let path = match workspace_path {
+        Some(p) => PathBuf::from(p),
+        None => {
+            return ipc(crate::commands::workspace::with_workspace(state, |workspace| {
+                op(PathBuf::from(&workspace.root_path).as_path(), relative_path)
+            }));
+        },
+    };
+    ipc(op(path.as_path(), relative_path))
+}
+
+#[tauri::command]
+pub fn workspace_git_stage_file(
+    state: tauri::State<'_, AppState>,
+    relative_path: String,
+    workspace_path: Option<String>,
+) -> IpcResult<()> {
+    run_git_file_op(&state, workspace_path, &relative_path, |root, path| {
+        adl_workspace::stage_file(root, path)
+    })
+}
+
+#[tauri::command]
+pub fn workspace_git_unstage_file(
+    state: tauri::State<'_, AppState>,
+    relative_path: String,
+    workspace_path: Option<String>,
+) -> IpcResult<()> {
+    run_git_file_op(&state, workspace_path, &relative_path, |root, path| {
+        adl_workspace::unstage_file(root, path)
+    })
+}
+
+#[tauri::command]
+pub fn workspace_git_discard_file(
+    state: tauri::State<'_, AppState>,
+    relative_path: String,
+    workspace_path: Option<String>,
+) -> IpcResult<()> {
+    run_git_file_op(&state, workspace_path, &relative_path, |root, path| {
+        adl_workspace::discard_file_changes(root, path)
     })
 }
 

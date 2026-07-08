@@ -209,6 +209,9 @@ interface GitActions {
   fetchGitBranches: () => Promise<void>;
   switchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<void>;
   createGitBranch: (input: WorkspaceGitBranchCreateInput) => Promise<void>;
+  stageWorkspaceFile: (relativePath: string, workspacePath?: string) => Promise<void>;
+  unstageWorkspaceFile: (relativePath: string, workspacePath?: string) => Promise<void>;
+  discardWorkspaceFile: (relativePath: string, workspacePath?: string) => Promise<void>;
 }
 
 interface PatchActions {

@@ -91,8 +91,20 @@ pub fn workspace_create_folder(
 pub fn workspace_read_file(
     state: tauri::State<'_, AppState>,
     relative_path: String,
+    workspace_path: Option<String>,
 ) -> IpcResult<WorkspaceFileDocument> {
-    workspace_cmd!(&state, adl_workspace::read_file, &relative_path)
+    let root = match workspace_path {
+        Some(p) => PathBuf::from(p),
+        None => {
+            return ipc(with_workspace(&state, |workspace| {
+                adl_workspace::read_file(
+                    PathBuf::from(&workspace.root_path).as_path(),
+                    &relative_path,
+                )
+            }));
+        },
+    };
+    ipc(adl_workspace::read_file(root.as_path(), &relative_path))
 }
 
 #[tauri::command]

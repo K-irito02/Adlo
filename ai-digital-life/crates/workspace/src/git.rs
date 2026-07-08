@@ -83,16 +83,52 @@ pub fn list_git_branches(root: &Path) -> Result<Vec<GitBranchSummary>, AppError>
             first_non_empty_line(value)
                 .ok_or_else(|| AppError::Workspace("failed to resolve current branch".into()))
         })?;
-    let output = run_git_required(root, &["branch", "--format=%(refname:short)"])?;
-    let mut branches: Vec<GitBranchSummary> = output
+    let local_output = run_git_required(root, &["branch", "--format=%(refname:short)"])?;
+    let remote_output =
+        run_git_required(root, &["branch", "-r", "--format=%(refname:short)"]).unwrap_or_default();
+
+    let local_branches: Vec<String> = local_output
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
-        .map(|name| GitBranchSummary { name: name.to_string(), is_current: name == current_branch })
+        .map(|s| s.to_string())
         .collect();
-    if branches.is_empty() {
+
+    let remote_branches: std::collections::HashSet<String> = remote_output
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .filter_map(|line| line.split_once('/').map(|(_, name)| name.to_string()))
+        .collect();
+
+    if local_branches.is_empty() {
         return Err(AppError::Workspace("no local branches found".into()));
     }
+
+    let mut seen = std::collections::HashSet::new();
+    let mut branches: Vec<GitBranchSummary> = Vec::new();
+
+    for name in &local_branches {
+        seen.insert(name.clone());
+        branches.push(GitBranchSummary {
+            name: name.clone(),
+            is_current: name == &current_branch,
+            local: true,
+            remote: remote_branches.contains(name),
+        });
+    }
+
+    for name in &remote_branches {
+        if !seen.contains(name) {
+            branches.push(GitBranchSummary {
+                name: name.clone(),
+                is_current: false,
+                local: false,
+                remote: true,
+            });
+        }
+    }
+
     branches.sort_by(|left, right| {
         right.is_current.cmp(&left.is_current).then_with(|| left.name.cmp(&right.name))
     });
@@ -262,6 +298,42 @@ pub(crate) fn git_file_exists(root: &Path, relative_path: &str) -> Result<bool, 
 fn stash_workspace_changes(root: &Path) -> Result<(), AppError> {
     let message = format!("adl-auto-stash-{}", now_ms());
     run_git_required(root, &["stash", "push", "--include-untracked", "--message", &message])?;
+    Ok(())
+}
+
+pub fn stage_file(root: &Path, relative_path: &str) -> Result<(), AppError> {
+    match run_git_required(root, &["add", "--", relative_path]) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            warn!(path = %relative_path, root = %root.display(), error = %e, "stage_file failed");
+            Err(e)
+        },
+    }
+}
+
+pub fn unstage_file(root: &Path, relative_path: &str) -> Result<(), AppError> {
+    match run_git_required(root, &["restore", "--staged", "--", relative_path]) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            warn!(path = %relative_path, root = %root.display(), error = %e, "unstage_file failed");
+            Err(e)
+        },
+    }
+}
+
+pub fn discard_file_changes(root: &Path, relative_path: &str) -> Result<(), AppError> {
+    match run_git_required(
+        root,
+        &["restore", "--source=HEAD", "--staged", "--worktree", "--", relative_path],
+    ) {
+        Ok(_) => return Ok(()),
+        Err(_) => {},
+    }
+    let is_tracked =
+        run_git(root, &["ls-files", "--", relative_path]).and_then(first_non_empty_line).is_some();
+    if !is_tracked {
+        run_git_required(root, &["clean", "-f", "--", relative_path])?;
+    }
     Ok(())
 }
 

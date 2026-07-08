@@ -43,12 +43,12 @@ export function createPreviewGitBridge(
       const params = new URLSearchParams({ rootPath: ctx.currentWorkspace.rootPath });
       return requestPreviewApi<GitSnapshot>(`/workspace/git-status?${params.toString()}`);
     },
-    listGitBranches: async (): Promise<IpcResult<GitBranchSummary[]>> => {
-      const err = requireWorkspace();
-      if (err) {
-        return err;
+    listGitBranches: async (rootPath?: string): Promise<IpcResult<GitBranchSummary[]>> => {
+      const root = rootPath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
       }
-      const params = new URLSearchParams({ rootPath: ctx.currentWorkspace!.rootPath });
+      const params = new URLSearchParams({ rootPath: root });
       return requestPreviewApi<GitBranchSummary[]>(`/workspace/git-branches?${params.toString()}`);
     },
     switchGitBranch: async (
@@ -90,6 +90,36 @@ export function createPreviewGitBridge(
         setMockActiveWorkspace(result.data.workspace);
       }
       return result;
+    },
+    stageFile: async (relativePath: string, workspacePath?: string): Promise<IpcResult<void>> => {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
+      }
+      return requestPreviewApi<void>('/workspace/git-stage-file', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath: root, relativePath }),
+      });
+    },
+    unstageFile: async (relativePath: string, workspacePath?: string): Promise<IpcResult<void>> => {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
+      }
+      return requestPreviewApi<void>('/workspace/git-unstage-file', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath: root, relativePath }),
+      });
+    },
+    discardFile: async (relativePath: string, workspacePath?: string): Promise<IpcResult<void>> => {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
+      }
+      return requestPreviewApi<void>('/workspace/git-discard-file', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath: root, relativePath }),
+      });
     },
   };
 }

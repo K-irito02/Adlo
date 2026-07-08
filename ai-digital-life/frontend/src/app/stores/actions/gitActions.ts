@@ -21,6 +21,64 @@ async function refreshAfterBranchChange(get: () => StoreState) {
   }
 }
 
+function moveInSnapshot(
+  snapshot: GitSnapshot,
+  relativePath: string,
+  operation: 'stage' | 'unstage' | 'discard'
+): GitSnapshot {
+  const capturedAt = Date.now();
+  if (operation === 'stage') {
+    return {
+      ...snapshot,
+      staged: [...new Set([...snapshot.staged, relativePath])],
+      unstaged: snapshot.unstaged.filter((p) => p !== relativePath),
+      untracked: snapshot.untracked.filter((p) => p !== relativePath),
+      capturedAt,
+    };
+  }
+  if (operation === 'unstage') {
+    return {
+      ...snapshot,
+      staged: snapshot.staged.filter((p) => p !== relativePath),
+      unstaged: [...new Set([...snapshot.unstaged, relativePath])],
+      capturedAt,
+    };
+  }
+  return {
+    ...snapshot,
+    staged: snapshot.staged.filter((p) => p !== relativePath),
+    unstaged: snapshot.unstaged.filter((p) => p !== relativePath),
+    untracked: snapshot.untracked.filter((p) => p !== relativePath),
+    capturedAt,
+  };
+}
+
+function applyGitOperation(
+  get: () => StoreState,
+  set: StoreApi<StoreState>['setState'],
+  workspacePath: string | undefined,
+  relativePath: string,
+  operation: 'stage' | 'unstage' | 'discard'
+) {
+  const state = get();
+  const patches: Partial<StoreState> = {};
+  if (state.gitSnapshot) {
+    patches.gitSnapshot = moveInSnapshot(state.gitSnapshot, relativePath, operation);
+  }
+  if (workspacePath) {
+    const ws = state.recentWorkspaces.find(
+      (w) => w.path === workspacePath || w.rootPath === workspacePath
+    );
+    if (ws && state.gitSnapshots[ws.id]) {
+      patches.gitSnapshots = {
+        ...state.gitSnapshots,
+        [ws.id]: moveInSnapshot(state.gitSnapshots[ws.id], relativePath, operation),
+      };
+    }
+  }
+  set(patches);
+}
+
 export function createGitActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     /**
@@ -261,6 +319,48 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
         (entry) => get().loadGitSnapshot(entry.id, entry.path),
         (id) => !!state.gitSnapshots[id]
       );
+    },
+
+    stageWorkspaceFile: async (relativePath: string, workspacePath?: string) => {
+      clearError(get);
+      const path =
+        workspacePath ??
+        get().appInfo?.currentWorkspace?.rootPath ??
+        get().appInfo?.currentWorkspace?.path;
+      const result = await window.digitalLife.workspace.stageFile(relativePath, path);
+      if (!result.ok) {
+        captureError(get, result.error);
+        return;
+      }
+      applyGitOperation(get, set, path, relativePath, 'stage');
+    },
+
+    unstageWorkspaceFile: async (relativePath: string, workspacePath?: string) => {
+      clearError(get);
+      const path =
+        workspacePath ??
+        get().appInfo?.currentWorkspace?.rootPath ??
+        get().appInfo?.currentWorkspace?.path;
+      const result = await window.digitalLife.workspace.unstageFile(relativePath, path);
+      if (!result.ok) {
+        captureError(get, result.error);
+        return;
+      }
+      applyGitOperation(get, set, path, relativePath, 'unstage');
+    },
+
+    discardWorkspaceFile: async (relativePath: string, workspacePath?: string) => {
+      clearError(get);
+      const path =
+        workspacePath ??
+        get().appInfo?.currentWorkspace?.rootPath ??
+        get().appInfo?.currentWorkspace?.path;
+      const result = await window.digitalLife.workspace.discardFile(relativePath, path);
+      if (!result.ok) {
+        captureError(get, result.error);
+        return;
+      }
+      applyGitOperation(get, set, path, relativePath, 'discard');
     },
   };
 }

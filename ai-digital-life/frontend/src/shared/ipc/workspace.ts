@@ -341,14 +341,15 @@ export interface WorkspaceBridge {
    */
   getGitStatus: () => Promise<IpcResult<GitSnapshot>>;
   /**
-   * 获取当前工作区的 Git 分支列表
+   * 获取工作区的 Git 分支列表
+   * @param rootPath 可选 — 指定工作区路径，默认使用当前活动工作区
    * @returns 本地/远程分支摘要列表
    * @command workspace_list_git_branches
    * @see tauri-bridge.ts → workspace.listGitBranches
    * @see mock-bridge.ts → workspace.listGitBranches
    * @see preview-bridge/index.ts → workspace.listGitBranches
    */
-  listGitBranches: () => Promise<IpcResult<GitBranchSummary[]>>;
+  listGitBranches: (rootPath?: string) => Promise<IpcResult<GitBranchSummary[]>>;
   /**
    * 切换 Git 分支
    * @param input 切换参数 (分支名称/工作区等)
@@ -373,4 +374,36 @@ export interface WorkspaceBridge {
   createGitBranch: (
     input: WorkspaceGitBranchCreateInput
   ) => Promise<IpcResult<WorkspaceGitBranchChangeResult>>;
+  /**
+   * 暂存文件的更改
+   * @param relativePath 相对于工作区的文件路径
+   * @returns 是否成功
+   * @command workspace_git_stage_file
+   * @see tauri-bridge.ts → workspace.stageFile
+   * @see mock-bridge.ts → workspace.stageFile
+   * @see preview-bridge/index.ts → workspace.stageFile
+   */
+  stageFile: (relativePath: string, workspacePath?: string) => Promise<IpcResult<void>>;
+  /**
+   * 取消暂存文件的更改
+   * @param relativePath 相对于工作区的文件路径
+   * @param workspacePath 可选 — 指定工作区路径，默认使用当前活动工作区
+   * @returns 是否成功
+   * @command workspace_git_unstage_file
+   * @see tauri-bridge.ts → workspace.unstageFile
+   * @see mock-bridge.ts → workspace.unstageFile
+   * @see preview-bridge/index.ts → workspace.unstageFile
+   */
+  unstageFile: (relativePath: string, workspacePath?: string) => Promise<IpcResult<void>>;
+  /**
+   * 放弃文件的更改 (还原为 HEAD 版本)
+   * @param relativePath 相对于工作区的文件路径
+   * @param workspacePath 可选 — 指定工作区路径，默认使用当前活动工作区
+   * @returns 是否成功
+   * @command workspace_git_discard_file
+   * @see tauri-bridge.ts → workspace.discardFile
+   * @see mock-bridge.ts → workspace.discardFile
+   * @see preview-bridge/index.ts → workspace.discardFile
+   */
+  discardFile: (relativePath: string, workspacePath?: string) => Promise<IpcResult<void>>;
 }

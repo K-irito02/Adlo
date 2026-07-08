@@ -22,18 +22,6 @@ use tauri::Manager;
 use tracing::{info, warn};
 
 fn resolve_project_root() -> PathBuf {
-    // The true project root has .git (unlike ai-digital-life/ which also has AGENTS.md).
-    if let Ok(cwd) = std::env::current_dir() {
-        if cwd.join(".git").exists() {
-            return cwd;
-        }
-        if let Some(parent) = cwd.parent() {
-            if parent.join(".git").exists() {
-                return parent.to_path_buf();
-            }
-        }
-    }
-    // Fall back: CARGO_MANIFEST_DIR → src-tauri → ai-digital-life → project root
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
         .and_then(Path::parent)

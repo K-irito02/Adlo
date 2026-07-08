@@ -5,7 +5,9 @@ import {
   IconCopy,
   IconFiles,
   IconFolderOpen,
+  IconMinus,
   IconPencil,
+  IconPlus,
   IconTrash,
   IconUpload,
 } from '@app/icons';
@@ -25,6 +27,8 @@ export interface UseFileContextMenuItemsParams {
   onOpenFile?: (relativePath: string) => void;
   isNodeDeleted?: (node: FileTreeRenderableNode) => boolean;
   showMenuForDirectories?: boolean;
+  showClipboard?: boolean;
+  showGitActions?: boolean;
 }
 
 export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
@@ -39,6 +43,8 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
     onOpenFile,
     isNodeDeleted,
     showMenuForDirectories = true,
+    showClipboard = true,
+    showGitActions = false,
   } = params;
 
   const getContextMenuItems = useCallback(
@@ -64,6 +70,53 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
           action: (targetNode) => onOpenFile(targetNode.path),
         });
         items.push({ id: 'sep0', separator: true });
+      }
+
+      if (showGitActions) {
+        const states: string[] = (node as unknown as { states?: string[] }).states ?? [];
+        const hasStaged = states.includes('staged');
+        const hasUnstaged = states.includes('modified') || states.includes('untracked');
+
+        if (hasStaged) {
+          items.push({
+            id: 'unstage',
+            label: t.changesUnstage as string,
+            icon: <IconMinus size={14} />,
+            action: async (targetNode) => {
+              const s = useAppStore.getState();
+              await s.unstageWorkspaceFile(targetNode.path);
+            },
+          });
+        }
+
+        if (hasUnstaged) {
+          items.push({
+            id: 'stage',
+            label: t.changesStage as string,
+            icon: <IconPlus size={14} />,
+            action: async (targetNode) => {
+              const s = useAppStore.getState();
+              await s.stageWorkspaceFile(targetNode.path);
+            },
+          });
+        }
+
+        if (hasUnstaged) {
+          items.push({
+            id: 'discard',
+            label: t.changesDiscard as string,
+            icon: <IconTrash size={14} />,
+            danger: true,
+            action: async (targetNode) => {
+              const s = useAppStore.getState();
+              await s.discardWorkspaceFile(targetNode.path);
+            },
+          });
+        }
+
+        if (hasStaged || hasUnstaged) {
+          items.push({ id: 'git-sep', separator: true });
+        }
       }
 
       items.push({
@@ -110,55 +163,57 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
         },
       });
 
-      items.push({ id: 'sep2', separator: true });
+      if (showClipboard) {
+        items.push({ id: 'sep2', separator: true });
 
-      items.push({
-        id: 'cut',
-        label: t.fileContextCut as string,
-        icon: <IconClipboardList size={14} />,
-        action: (targetNode) => {
-          store.setClipboard('cut', targetNode.path, targetNode.kind);
-        },
-      });
+        items.push({
+          id: 'cut',
+          label: t.fileContextCut as string,
+          icon: <IconClipboardList size={14} />,
+          action: (targetNode) => {
+            store.setClipboard('cut', targetNode.path, targetNode.kind);
+          },
+        });
 
-      items.push({
-        id: 'copy-op',
-        label: t.fileContextCopy as string,
-        icon: <IconCopy size={14} />,
-        action: (targetNode) => {
-          store.setClipboard('copy', targetNode.path, targetNode.kind);
-        },
-      });
+        items.push({
+          id: 'copy-op',
+          label: t.fileContextCopy as string,
+          icon: <IconCopy size={14} />,
+          action: (targetNode) => {
+            store.setClipboard('copy', targetNode.path, targetNode.kind);
+          },
+        });
 
-      items.push({
-        id: 'paste',
-        label: t.fileContextPaste as string,
-        icon: <IconUpload size={14} />,
-        disabled: !hasClipboard,
-        action: async (targetNode) => {
-          const sourcePath = store.clipboardSourcePath;
-          const operation = store.clipboardOperation;
-          if (!sourcePath || !operation) {
-            return;
-          }
-          const targetDir =
-            targetNode.kind === 'directory'
-              ? targetNode.path
-              : targetNode.path.substring(0, targetNode.path.lastIndexOf('/') + 1);
-          const sourceName = sourcePath.split('/').pop() || sourcePath;
-          const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
-          if (operation === 'copy') {
-            await store.duplicateWorkspaceFile(sourcePath, newPath);
-          } else if (operation === 'cut') {
-            if (sourcePath === newPath) {
-              store.clearClipboard();
+        items.push({
+          id: 'paste',
+          label: t.fileContextPaste as string,
+          icon: <IconUpload size={14} />,
+          disabled: !hasClipboard,
+          action: async (targetNode) => {
+            const sourcePath = store.clipboardSourcePath;
+            const operation = store.clipboardOperation;
+            if (!sourcePath || !operation) {
               return;
             }
-            await store.moveWorkspaceFile(sourcePath, newPath);
-          }
-          store.clearClipboard();
-        },
-      });
+            const targetDir =
+              targetNode.kind === 'directory'
+                ? targetNode.path
+                : targetNode.path.substring(0, targetNode.path.lastIndexOf('/') + 1);
+            const sourceName = sourcePath.split('/').pop() || sourcePath;
+            const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
+            if (operation === 'copy') {
+              await store.duplicateWorkspaceFile(sourcePath, newPath);
+            } else if (operation === 'cut') {
+              if (sourcePath === newPath) {
+                store.clearClipboard();
+                return;
+              }
+              await store.moveWorkspaceFile(sourcePath, newPath);
+            }
+            store.clearClipboard();
+          },
+        });
+      }
 
       items.push({ id: 'sep3', separator: true });
 
@@ -199,6 +254,8 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
       onOpenFile,
       isNodeDeleted,
       showMenuForDirectories,
+      showClipboard,
+      showGitActions,
     ]
   );
 

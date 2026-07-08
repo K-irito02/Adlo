@@ -7,10 +7,8 @@ import { ChangesTreePanel } from './ChangesTreePanel';
 import { PatchReviewSection } from './PatchReviewSection';
 import { LazyDiffEditor, SuspenseWrapper } from '@components/LazyComponents';
 import { useChangesPanelState } from './ChangesPanel/useChangesPanelState';
-import { useBranchSelection } from './ChangesPanel/useBranchSelection';
 
 const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) {
-  const { selectedBranch, branchOptions, handleSelectBranch } = useBranchSelection(props);
   const {
     t,
     formatT,
@@ -103,9 +101,6 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
         placement="top"
         navigatorCollapsed={navigatorCollapsed}
         onToggleNavigator={() => toggleNavigator('changes')}
-        branchOptions={branchOptions}
-        selectedBranch={selectedBranch}
-        onSelectBranch={handleSelectBranch}
         hasActivePatchSet={!!activePatchSet}
         diffSideBySide={props.diffSideBySide}
         onSetDiffLayout={props.onSetDiffLayout}

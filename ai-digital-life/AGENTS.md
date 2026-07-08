@@ -75,7 +75,7 @@
 |------|------|
 | 颜色 | 必须使用 CSS 自定义属性 `var(--…)` |
 | 图标 | SVG 格式，继承 `currentColor`，禁止 emoji。动画反馈场景可例外使用 `lucide-animated`（MIT 许可）|
-| Tooltip | 禁止原生 `title`，必须使用 `TooltipSimple` |
+| Tooltip | 优先使用 `TooltipSimple` 组件。对于文件/路径展示等需要系统原生复制行为的场景，可根据实际判断使用原生 `title` 属性 |
 | 窗口 | 最小宽度 640px |
 
 详见 [docs/design-system/](../docs/design-system/) 和 [UI 模式速查](../.agents/rules/ui-patterns.md)

@@ -128,7 +128,7 @@ export type FilePatch = { id: string, patchSetId: string, relativePath: string, 
  */
 export type FontPreferences = { uiFont?: string, codeFont?: string, terminalFont?: string, };
 
-export type GitBranchSummary = { name: string, isCurrent: boolean, };
+export type GitBranchSummary = { name: string, isCurrent: boolean, local: boolean, remote: boolean, };
 
 export type GitSnapshot = { isRepo: boolean, branch: string | null, head: string | null, ahead: number | null, behind: number | null, staged: Array<string>, unstaged: Array<string>, untracked: Array<string>, conflicts: Array<string>, capturedAt: bigint, };
 

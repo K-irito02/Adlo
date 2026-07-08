@@ -70,14 +70,6 @@ export function computeChangesMenuItems(
       checked: wordWrapEnabled,
       action: toggleWordWrap,
     },
-    { id: 'sep-display', separator: true },
-    { id: 'stage-all', label: t.changesStageAll, disabled: true },
-    { id: 'unstage-all', label: t.changesUnstageAll, disabled: true },
-    { id: 'commit', label: t.changesCommit, disabled: true },
-    { id: 'push', label: t.changesPush, disabled: true },
-    { id: 'pull', label: t.changesPull, disabled: true },
-    { id: 'sep-1', separator: true },
-    { id: 'discard-all', label: t.changesDiscardAll, disabled: true },
   ];
 }
 
