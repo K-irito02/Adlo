@@ -41,6 +41,9 @@ vi.mock('@i18n/useTCopy', () => ({
     },
     formatT: vi.fn(),
   })),
+  // NOTE: 24 chart-internal i18n keys (gitVisChartLegendHigh, etc.) are intentionally
+  // omitted — chart sub-components only export option objects rendered by a mocked
+  // echarts instance, so i18n key resolution is never exercised in this test.
 }));
 
 describe('GitVisualizationView', () => {

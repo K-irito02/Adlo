@@ -13,8 +13,6 @@ import {
   TooltipComponent,
   LegendComponent,
   GridComponent,
-  TitleComponent,
-  DataZoomComponent,
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 
@@ -30,11 +28,10 @@ echarts.use([
   TooltipComponent,
   LegendComponent,
   GridComponent,
-  TitleComponent,
-  DataZoomComponent,
   CanvasRenderer,
 ]);
 
 export { echarts };
+export { graphic } from 'echarts/core';
 export type { EChartsType } from 'echarts/core';
 export type { EChartsOption } from 'echarts/types/dist/shared';

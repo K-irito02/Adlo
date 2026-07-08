@@ -5,8 +5,7 @@ import { useChartTheme } from '../hooks/useChartTheme';
 import { generateCodeLineEvolutionData } from '../data/gitVisMockData';
 import { useTCopy } from '@i18n/useTCopy';
 
-// 注意：echarts.graphic.LinearGradient 需要单独导入
-import { graphic } from 'echarts/core';
+import { graphic } from '../echartsSetup';
 
 export const CodeLineEvolution = React.memo(function CodeLineEvolution() {
   const theme = useChartTheme();
