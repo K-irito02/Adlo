@@ -160,6 +160,7 @@ app/stores/
 - [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 远期规划
 - [references/opencode/](../references/opencode/) — 参考项目 OpenCode 本地源码（MIT 许可）
 - [docs/analysis/opencode/](../docs/analysis/opencode/) — OpenCode 源码地图
+- [docs/analysis/ai-digital-life/](../docs/analysis/ai-digital-life/) — ADL 源码地图（本项目的渐进式索引）
 
 ## 磁盘空间管理
 

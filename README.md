@@ -11,6 +11,7 @@ AI 数字生命桌面应用的规划与治理仓库。当前阶段聚焦**单 Ag
 | [ai-digital-life/](./ai-digital-life/) | 实现工作区：Rust + Tauri 2.x 桌面应用 |
 | [docs/](./docs/) | 架构设计、开发约束、知识沉淀 |
 | [docs/analysis/opencode/](./docs/analysis/opencode/) | OpenCode 源码地图（渐进式索引） |
+| [docs/analysis/ai-digital-life/](./docs/analysis/ai-digital-life/) | AI Digital Life 源码地图（渐进式索引） |
 | [references/](./references/) | 外部参考源码（OpenCode 等） |
 | [.agents/rules/](./.agents/rules/) | AI 代理规则源目录（同步到 `.trae/rules/`） |
 | [.trae/rules/](./.trae/rules/) | AI 代理规则（IDE 加载，由 `.agents/rules/` 同步） |
@@ -44,4 +45,5 @@ AI 数字生命桌面应用的规划与治理仓库。当前阶段聚焦**单 Ag
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
 - [docs/知识沉淀/README.md](./docs/知识沉淀/README.md) — 经验教训索引
 - [docs/analysis/opencode/README.md](./docs/analysis/opencode/README.md) — OpenCode 源码地图（渐进式索引）
+- [docs/analysis/ai-digital-life/README.md](./docs/analysis/ai-digital-life/README.md) — ADL 源码地图（渐进式索引）
 - [.opencode/skills/using-superpowers/SKILL.md](./.opencode/skills/using-superpowers/SKILL.md) — 技能系统入口

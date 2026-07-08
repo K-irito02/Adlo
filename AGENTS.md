@@ -25,7 +25,8 @@
 | 本地路径 | `references/opencode/`（Git 子模块或手动拉取，不参与本项目构建） |
 | 上游仓库 | [github.com/anomalyco/opencode](https://github.com/anomalyco/opencode) |
 | 许可 | MIT |
-| 源码地图 | [docs/analysis/opencode/](./docs/analysis/opencode/)（渐进式索引 — 快查/总览/架构/包索引/功能深度/编码模式/差距分析） |
+| 源码地图 (OpenCode) | [docs/analysis/opencode/](./docs/analysis/opencode/)（渐进式索引 — 快查/总览/架构/包索引/功能深度/编码模式/差距分析） |
+| 源码地图 (ADL) | [docs/analysis/ai-digital-life/](./docs/analysis/ai-digital-life/)（本项目的渐进式索引） |
 
 > 参考代码直接复用需遵守 MIT 许可要求，并在代码注释中标注来源。
 
