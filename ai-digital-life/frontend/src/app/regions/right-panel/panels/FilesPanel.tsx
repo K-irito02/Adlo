@@ -202,13 +202,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         action: () => editorOptions.setWordWrapEnabled((v) => !v),
       },
     ],
-    [
-      t,
-      selectedFilePath,
-      selectedAbsolutePath,
-      editorOptions,
-      handleCopyPath,
-    ]
+    [t, selectedFilePath, selectedAbsolutePath, editorOptions, handleCopyPath]
   );
 
   const resolvedTheme = useResolvedTheme();

@@ -64,7 +64,10 @@ const StatusBarEditorInfo = React.memo(function StatusBarEditorInfo({
           </TooltipSimple>
         </button>
         {isOpen ? (
-          <div className="adl-model-picker__dropdown adl-model-picker__dropdown--statusbar" role="menu">
+          <div
+            className="adl-model-picker__dropdown adl-model-picker__dropdown--statusbar"
+            role="menu"
+          >
             {providers.length === 0 ? (
               <div className="adl-model-picker__empty">{t.providerNoProviders}</div>
             ) : (
@@ -81,7 +84,8 @@ const StatusBarEditorInfo = React.memo(function StatusBarEditorInfo({
                       <div className="adl-model-picker__no-models">{t.modelUnavailable}</div>
                     ) : (
                       p.models.map((m) => {
-                        const isActive = activeProviderId === p.id && activeProviderModelId === m.id;
+                        const isActive =
+                          activeProviderId === p.id && activeProviderModelId === m.id;
                         return (
                           <button
                             key={m.id}
