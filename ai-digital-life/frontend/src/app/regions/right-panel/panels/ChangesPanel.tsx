@@ -5,7 +5,11 @@ import { ChangesConfirmDialogs } from './ChangesConfirmDialogs';
 import { RenameDialog } from '@components/RenameDialog';
 import { ChangesTreePanel } from './ChangesTreePanel';
 import { PatchReviewSection } from './PatchReviewSection';
-import { LazyDiffEditor, SuspenseWrapper } from '@components/LazyComponents';
+import {
+  LazyDiffEditor,
+  LazyGitVisualizationView,
+  SuspenseWrapper,
+} from '@components/LazyComponents';
 import { useChangesPanelState } from './ChangesPanel/useChangesPanelState';
 
 const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) {
@@ -79,6 +83,8 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     allChangesExpanded,
     canToggleNavigatorStructure,
     structureToggleExpanded,
+    showGitVisualization,
+    onToggleGitVisualization,
     changesNavigatorTitle,
     changesTreeData,
     changeCounts,
@@ -154,6 +160,8 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
           canToggleNavigatorStructure={canToggleNavigatorStructure}
           structureToggleExpanded={structureToggleExpanded}
           onToggleStructure={handleToggleNavigatorStructure}
+          showGitVisualization={showGitVisualization}
+          onToggleGitVisualization={onToggleGitVisualization}
           changesNavigatorTitle={changesNavigatorTitle}
           changeOutline={changeOutline}
           expandedOutlineIds={expandedOutlineIds}
@@ -167,7 +175,11 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
         />
 
         <div className={`adl-tool-primary${activePatchSet ? ' adl-tool-primary--scrollable' : ''}`}>
-          {activePatchSet ? (
+          {showGitVisualization ? (
+            <SuspenseWrapper>
+              <LazyGitVisualizationView />
+            </SuspenseWrapper>
+          ) : activePatchSet ? (
             <PatchReviewSection
               activePatchSet={activePatchSet}
               selectedPatchFilePath={selectedPatchFilePath}

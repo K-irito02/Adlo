@@ -54,6 +54,8 @@ interface TreeCallbacks {
   onRefreshAll: () => void;
   onStatusFilterClick: (filter: ChangeFileState) => void;
   onToggleStructure: () => void;
+  showGitVisualization: boolean;
+  onToggleGitVisualization: () => void;
   onExpandedOutlineIdsChange: (ids: Set<string>) => void;
   handleRevealOutlineLine: (line: number) => void;
 }
@@ -119,6 +121,8 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     canToggleNavigatorStructure,
     structureToggleExpanded,
     onToggleStructure,
+    showGitVisualization,
+    onToggleGitVisualization,
     changesNavigatorTitle,
     changeOutline,
     expandedOutlineIds,
@@ -160,6 +164,8 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
         canToggleNavigatorStructure={canToggleNavigatorStructure}
         structureToggleExpanded={structureToggleExpanded}
         onToggleStructure={onToggleStructure}
+        showGitVisualization={showGitVisualization}
+        onToggleGitVisualization={onToggleGitVisualization}
       />
       {changesNavigatorMode === 'outline' ? (
         changeOutline.length > 0 ? (

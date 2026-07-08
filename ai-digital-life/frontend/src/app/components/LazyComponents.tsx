@@ -18,6 +18,12 @@ export const LazyGitHubPanel = React.lazy(() =>
   }))
 );
 
+export const LazyGitVisualizationView = React.lazy(() =>
+  import('@features/git-visualization').then((m) => ({
+    default: m.GitVisualizationView,
+  }))
+);
+
 export function SuspenseWrapper({ children }: { children: React.ReactNode }) {
   return (
     <Suspense fallback={<div className="skeleton" style={{ flex: 1 }} />}>{children}</Suspense>

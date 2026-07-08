@@ -14,6 +14,7 @@ import type {
 } from './uiSliceTypes';
 import {
   CHANGES_PREVIEW_ENABLED_KEY,
+  SHOW_GIT_VISUALIZATION_KEY,
   FILE_PREVIEW_MODE_KEY,
   FILES_NAVIGATOR_MODE_KEY,
   CHANGES_NAVIGATOR_MODE_KEY,
@@ -45,6 +46,7 @@ export {
   CHANGES_NAVIGATOR_MODE_KEY,
   FILE_PREVIEW_MODE_KEY,
   CHANGES_PREVIEW_ENABLED_KEY,
+  SHOW_GIT_VISUALIZATION_KEY,
   SESSION_TABS_EXPANDED_KEY,
   ACTIVE_RIGHT_TOOL_KEY,
   RIGHT_PANEL_WIDTH_MIN,
@@ -101,6 +103,7 @@ function hydrateUIDefaults(
     const changesNavigatorMode = readChangesNavigatorMode();
     const filePreviewModeByPath = readJson<FilePreviewModeState>(FILE_PREVIEW_MODE_KEY, {});
     const changesPreviewEnabled = readFlag(CHANGES_PREVIEW_ENABLED_KEY, true);
+    const showGitVisualization = readFlag(SHOW_GIT_VISUALIZATION_KEY, false);
     const expandedSessionWorkspaces = readJson<Record<string, boolean>>(
       SESSION_TABS_EXPANDED_KEY,
       {}
@@ -121,6 +124,7 @@ function hydrateUIDefaults(
       changesNavigatorMode,
       filePreviewModeByPath,
       changesPreviewEnabled,
+      showGitVisualization,
       expandedSessionWorkspaces,
       navigatorCollapsedByTool,
     });
@@ -191,6 +195,7 @@ export const createUISlice = (
     changesNavigatorMode: 'tree',
     filePreviewModeByPath: {},
     changesPreviewEnabled: true,
+    showGitVisualization: false,
     contextChips: [],
     contextMenuOpen: false,
     fileMenuOpen: false,
@@ -221,6 +226,10 @@ export const createUISlice = (
     setChangesPreviewEnabled: (previewEnabled) => {
       writeFlag(CHANGES_PREVIEW_ENABLED_KEY, previewEnabled);
       set({ changesPreviewEnabled: previewEnabled });
+    },
+    setShowGitVisualization: (show) => {
+      writeFlag(SHOW_GIT_VISUALIZATION_KEY, show);
+      set({ showGitVisualization: show });
     },
     setChangesNavigatorMode: (mode) => {
       writeChangesNavigatorMode(mode);

@@ -95,4 +95,52 @@ export const changesEn = {
   changesStage: 'Stage',
   changesUnstage: 'Unstage',
   changesDiscard: 'Discard',
+  gitVisualization: 'Git Visualization',
+  gitVisCommitGraph: 'Commit Network · Branches & Merges',
+  gitVisCalendarHeatmap: 'Commit Calendar Heatmap',
+  gitVisClockHeatmap: 'Commit Time Distribution',
+  gitVisContributorStats: 'Contributor Overview',
+  gitVisFileTreemap: 'File Modification Heatmap',
+  gitVisCodeLineEvolution: 'Code Line Evolution',
+  gitVisCollabSankey: 'Collaboration Sankey',
+  gitVisCommitGraphDesc:
+    'Node = commit (hash abbreviation), edge = parent-child relationship, color distinguishes branches, arrow points to parent.',
+  gitVisCalendarHeatmapDesc:
+    'Daily commit count over the past year. Darker color = more commits. Quickly identify active periods.',
+  gitVisClockHeatmapDesc:
+    'Y-axis = day of week, X-axis = hour. Color block = commit frequency. Discover team work rhythm.',
+  gitVisContributorStatsDesc:
+    'Bar chart: commit count; Line: added/deleted lines (right axis). Comprehensive activity assessment.',
+  gitVisFileTreemapDesc:
+    'Rectangle area = modification count/code volume, color = recent modification time (hot red, cold blue). Locate "hotspot files".',
+  gitVisCodeLineEvolutionDesc:
+    'Cumulative added (+) and deleted (-) lines, waterfall stacked. Reflects project growth and refactoring pace.',
+  gitVisCollabSankeyDesc:
+    'Left = authors, right = modules, flow width = modification contribution. Identify "module silos" or "full-stack players".',
+  gitVisMockDataNote:
+    'All data is mock-generated for visualization demonstration. When connecting to a real Git repository, extract real data and adapt.',
+  gitVisChartCommitTooltipNode: 'Commit {name}',
+  gitVisChartCommitTooltipBranch: 'Branch: {branch}',
+  gitVisChartCommitTooltipEdge: 'Parent → Child commit',
+  gitVisChartLegendHigh: 'High',
+  gitVisChartLegendLow: 'Low',
+  gitVisChartLegendMany: 'Many',
+  gitVisChartLegendFew: 'Few',
+  gitVisChartDaySun: 'Sun',
+  gitVisChartDayMon: 'Mon',
+  gitVisChartDayTue: 'Tue',
+  gitVisChartDayWed: 'Wed',
+  gitVisChartDayThu: 'Thu',
+  gitVisChartDayFri: 'Fri',
+  gitVisChartDaySat: 'Sat',
+  gitVisChartSeriesCommits: 'Commits',
+  gitVisChartSeriesAdded: 'Lines added',
+  gitVisChartSeriesDeleted: 'Lines deleted',
+  gitVisChartSeriesCodeLines: 'Code lines',
+  gitVisChartSeriesCumulativeAdded: 'Cumulative added',
+  gitVisChartSeriesCumulativeDeleted: 'Cumulative deleted',
+  gitVisChartTooltipHeatmap: 'Modification heat: {value}',
+  gitVisChartTooltipCommitCount: 'Commit count: {value}',
+  gitVisChartTooltipContribution: 'Contribution: {value}',
+  gitVisChartTooltipTotal: 'Total: {value}',
 } as const;

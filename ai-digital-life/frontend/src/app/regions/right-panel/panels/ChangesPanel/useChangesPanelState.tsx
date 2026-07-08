@@ -87,6 +87,8 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     onPinWorkspace,
     onUnpinWorkspace,
   } = useChangesPanelStore();
+  const showGitVisualization = useAppStore((s) => s.showGitVisualization);
+  const setShowGitVisualization = useAppStore((s) => s.setShowGitVisualization);
   const snapshot = props.gitSnapshot ?? appInfo?.currentWorkspace?.gitSnapshot;
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
   const [wordWrapEnabled, setWordWrapEnabled] = useState(true);
@@ -141,7 +143,8 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     if (!navigatorRelativePath) {
       return undefined;
     }
-    const wsPath = props.appInfo?.currentWorkspace?.rootPath ?? props.appInfo?.currentWorkspace?.path;
+    const wsPath =
+      props.appInfo?.currentWorkspace?.rootPath ?? props.appInfo?.currentWorkspace?.path;
     if (!wsPath) {
       return undefined;
     }
@@ -175,7 +178,8 @@ export function useChangesPanelState(props: ChangesPanelProps) {
         id: 'copy-full',
         label: t.fileCopyFullPath,
         disabled: !navigatorAbsolutePath,
-        action: () => navigatorAbsolutePath ? void copyToClipboard(navigatorAbsolutePath) : undefined,
+        action: () =>
+          navigatorAbsolutePath ? void copyToClipboard(navigatorAbsolutePath) : undefined,
       },
       { id: 'sep-path', separator: true },
     ];
@@ -497,6 +501,8 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     allChangesExpanded,
     canToggleNavigatorStructure,
     structureToggleExpanded,
+    showGitVisualization,
+    onToggleGitVisualization: () => setShowGitVisualization(!showGitVisualization),
     changesNavigatorTitle,
     changesTreeData,
     changeCounts,

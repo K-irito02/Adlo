@@ -3,6 +3,7 @@ import {
   IconFileText,
   IconFiles,
   IconFoldVertical,
+  IconGitFork,
   IconList,
   IconRefreshCw,
   IconUnfoldVertical,
@@ -29,6 +30,8 @@ export interface ChangesNavigatorToolbarProps {
   canToggleNavigatorStructure: boolean;
   structureToggleExpanded: boolean;
   onToggleStructure: () => void;
+  showGitVisualization: boolean;
+  onToggleGitVisualization: () => void;
 }
 
 export function ChangesNavigatorToolbar({
@@ -49,6 +52,8 @@ export function ChangesNavigatorToolbar({
   canToggleNavigatorStructure,
   structureToggleExpanded,
   onToggleStructure,
+  showGitVisualization,
+  onToggleGitVisualization,
 }: ChangesNavigatorToolbarProps) {
   const { t } = useTCopy();
   return (
@@ -123,6 +128,17 @@ export function ChangesNavigatorToolbar({
             </button>
           </TooltipSimple>
         </div>
+        <TooltipSimple content={t.gitVisualization} placement="top">
+          <button
+            type="button"
+            className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${showGitVisualization ? ' is-active' : ''}`}
+            aria-pressed={showGitVisualization ? 'true' : 'false'}
+            onClick={onToggleGitVisualization}
+            aria-label={t.gitVisualization}
+          >
+            <IconGitFork size={14} decorative />
+          </button>
+        </TooltipSimple>
       </div>
       {changesNavigatorMode !== 'outline' ? (
         <div className="adl-tool-navigator__summary" aria-label={t.toolChanges}>
