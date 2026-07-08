@@ -127,6 +127,7 @@ body,
   --text-primary: #222222;
   --text-secondary: #767676;
   --text-muted: #a0a0a0;
+  --text-tertiary: #a0a0a0;
   --text-disabled: #c0c0c0;
   --text-hint: #a0a0a0;
   --text-inverse: #ffffff;
@@ -367,6 +368,7 @@ body,
   --text-primary: #d8d8d8;
   --text-secondary: #9a9a9a;
   --text-muted: #707070;
+  --text-tertiary: #707070;
   --text-disabled: #505050;
   --text-hint: #707070;
   --text-inverse: #141414;
