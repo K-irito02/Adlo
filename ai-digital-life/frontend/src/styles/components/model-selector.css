@@ -350,8 +350,12 @@
 }
 
 @keyframes adl-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .adl-spin {
@@ -415,8 +419,9 @@
   min-height: 24px;
   border-radius: 999px;
   background: color-mix(in srgb, var(--text-muted) 34%, transparent);
-  transition: width var(--duration-150) var(--ease-default),
-              background var(--duration-150) var(--ease-default);
+  transition:
+    width var(--duration-150) var(--ease-default),
+    background var(--duration-150) var(--ease-default);
 }
 
 .adl-model-picker__scrollbar:hover .adl-model-picker__scrollbar-thumb,
