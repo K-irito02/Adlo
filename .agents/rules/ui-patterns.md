@@ -81,8 +81,7 @@ alwaysApply: true
 
 - 所有交互元素必须有 `:hover` 态
 - 颜色通过 `--surface-hover`（`rgba` 叠加），不依赖透明度微调
-- 文档：[design-system.md](./design-system.md)
-  → 交互状态
+- 文档：[design-system.md](./design-system.md) → 交互状态
 
 ### 列表/菜单行悬停
 
@@ -93,22 +92,19 @@ alwaysApply: true
 
 - 适用场景：卡片内容行 hover 背景延伸至卡片左右边缘
 - 关键：父元素 `z-index: 0` 创建局部层叠上下文，`::after` 的 `z-index: -1` 才能正确绘制
-- 文档：[css-architecture.md](./css-architecture.md)
-  → 全宽悬停背景模式
+- 文档：[css-architecture.md](./css-architecture.md) → 全宽悬停背景模式
 - 参考：[github-job-card-hover-and-status-dot-optimization-2026-06-14.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/github-job-card-hover-and-status-dot-optimization-2026-06-14.md)
 
 ### 父子悬停隔离
 
 - 父级 `:hover` 背景会穿透绝对定位子元素（子元素背景透明时）
 - 子元素必须显式设置遮罩背景（如 `var(--bg-card)`）+ `z-index` 覆盖父级
-- 文档：[css-architecture.md](./css-architecture.md)
-  → 绝对定位与悬停隔离
+- 文档：[css-architecture.md](./css-architecture.md) → 绝对定位与悬停隔离
 
 ### 文件树悬停传播
 
 - 虚拟化树：目录悬停 → JS 计算后代节点 → 添加 `is-hovered-by-ancestor` 类
-- 文档：[css-architecture.md](./css-architecture.md)
-  → 悬停传播
+- 文档：[css-architecture.md](./css-architecture.md) → 悬停传播
 
 ---
 
@@ -221,7 +217,8 @@ alwaysApply: true
 - 三个独立 `position: fixed` 元素：卡片 + 箭头填充 + 箭头边框
 - 箭头使用 CSS 边框三角形（非 clip-path）
   - 默认（右侧卡片）：`border-right: 5px` → 指向左侧（←）
-  - 左侧卡片（`--left` 变体）：`border-left: 5px` → 指向右侧（→），需显式 `border-right: 0` 覆盖基础类
+  - 左侧卡片（`--left` 变体）：`border-left: 5px` → 指向右侧（→），需显式 `border-right: 0`
+    覆盖基础类
   - 向下卡片（`--down` 变体）：`border-top: 5px` → 指向上方（↑）
 - 阴影：`var(--shadow-md)`，圆角：`var(--radius-md)`
 - `line-height: 1.5` 避免奇偶高度导致子像素边框渲染不对称
@@ -237,7 +234,8 @@ alwaysApply: true
 - 动态 DOM 必须绑定到组件生命周期（useEffect cleanup 移除）
 - 使用 `useRef<HTMLElement[]>` 存储引用，避免内存泄漏
 - 父级 hover 背景隔离：子卡片需显式背景 + z-index
-- `line-height` 必须为整数因子（如 `1.5`），避免 `line-height * font-size` 产生半像素值，否则 `translateY(-50%)` 导致子像素定位，1px 边框抗锯齿不对称
+- `line-height` 必须为整数因子（如 `1.5`），避免 `line-height * font-size` 产生半像素值，否则
+  `translateY(-50%)` 导致子像素定位，1px 边框抗锯齿不对称
 
 ### 文档
 
@@ -246,8 +244,7 @@ alwaysApply: true
 - 实现（左侧）：[BrowserMenuHintItem.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser/BrowserMenuHintItem.tsx)
 - 经验：[hint-card-arrow-positioning-fix-2026-06-11.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/hint-card-arrow-positioning-fix-2026-06-11.md)
 - 子像素边框：[sub-card-border-subpixel-fix-2026-07-01.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/sub-card-border-subpixel-fix-2026-07-01.md)
-- DOM 生命周期：[component-architecture.md](./component-architecture.md)
-  → DOM 生命周期管理
+- DOM 生命周期：[component-architecture.md](./component-architecture.md) → DOM 生命周期管理
 
 ---
 
@@ -277,8 +274,7 @@ alwaysApply: true
 
 ### 文档
 
-- 完整 CSS 模式：[css-architecture.md](./css-architecture.md)
-  → 虚拟化树形列表的 CSS 模式
+- 完整 CSS 模式：[css-architecture.md](./css-architecture.md) → 虚拟化树形列表的 CSS 模式
 - 经验：[file-tree-virtualized-connecting-lines-fix-2026-06-11.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/file-tree-virtualized-connecting-lines-fix-2026-06-11.md)
 
 ---
@@ -486,8 +482,7 @@ renderEmptyState({ icon, title, description, action });
 
 - [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) →
   Empty state 章节
-- [css-architecture.md](./css-architecture.md)
-  → 布局稳定性
+- [css-architecture.md](./css-architecture.md) → 布局稳定性
 
 ---
 
@@ -539,8 +534,7 @@ renderEmptyState({ icon, title, description, action });
 
 ### 文档
 
-- [css-architecture.md](./css-architecture.md)
-  → 布局稳定性
+- [css-architecture.md](./css-architecture.md) → 布局稳定性
 - [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md) → Layout
 
 ---
@@ -621,41 +615,120 @@ z-index:3）在视觉上重叠，导致 Scrollbar 无法 hover/交互。
 
 ## 快速索引
 
-| 场景                                   | 查哪个文档                                                                                                                                                                             |
-| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 我要做个对话框                         | [§1 对话框](#1-对话框dialog) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                            |
-| 我要做个菜单                           | [§2 菜单](#2-菜单menu) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                  |
-| 我要调悬停颜色                         | [§3 悬停效果](#3-悬停效果hover) → [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md)                                                                 |
-| 我要调点击反馈                         | [§4 点击效果](#4-点击效果click--active) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                 |
-| 我要选颜色变量                         | [§5 颜色](#5-颜色color) → [themes.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/themes.md)                                                                         |
-| 我要做按钮                             | [§6 按钮](#6-按钮button) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                |
-| 我要做 "!" 提示                        | [§7 Hint Card](#7--解释子卡片hint-card) → [ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ContextMenu.tsx)                    |
-| 我要做文件树                           | [§8 文件树](#8-文件树file-tree) → [css-architecture.md](./css-architecture.md)                                                    |
-| 我要做 Tooltip                         | [§9 Tooltip](#9-tooltip) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                |
-| 我要做 Toast                           | [§10 Toast](#10-toast-通知) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                             |
-| 我要做输入框                           | [§11 输入框](#11-输入框input) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                           |
-| 我要做卡片                             | [§12 卡片](#12-卡片card) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                |
-| 我要做状态标签                         | [§13 Pill](#13-状态指示pill--badge) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                     |
-| 我要做导航                             | [§14 导航](#14-导航navigation) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                          |
-| 我要做加载态                           | [§15 加载态](#15-加载态loading--skeleton) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                               |
-| 我要做空状态                           | [§16 空状态](#16-空状态empty-state) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                     |
-| 我要做动画                             | [§17 动画](#17-动画与动效motion) → [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md)                                                                |
-| 我要调布局                             | [§18 布局](#18-布局layout) → [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md)                                                                      |
-| 我要调响应式                           | [§19 响应式](#19-响应式responsive) → [responsive.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/responsive.md)                                                      |
-| 我要做无障碍                           | [§20 无障碍](#20-无障碍accessibility) → [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/accessibility.md)                                             |
-| 我要修 resize handle 与 scrollbar 重叠 | [§21 Resize Handle](#21-resize-handle--scrollbar) → [知识沉淀](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/resize-handle-pointer-events-diversion-2026-06-23.md) |
-| 我要做 hover text-overflow 遮罩       | [§22 Hover 渐变蒙版](#22-hover-渐变蒙版) → [知识沉淀](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/浏览器/browser-navigator-4-mode-2026-06-24.md)                          |
-| 我要写 CSS                             | [css-architecture.md](./css-architecture.md)                                                                                      |
-| 我要拆组件                             | [component-architecture.md](./component-architecture.md)                                                                          |
-| 我要查设计约束                         | [design-system.md](./design-system.md)                                                                                            |
+| 场景                                   | 查哪个文档                                                                                                                                                                                    |
+| -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 我要做个对话框                         | [§1 对话框](#1-对话框dialog) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                   |
+| 我要做个菜单                           | [§2 菜单](#2-菜单menu) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                         |
+| 我要调悬停颜色                         | [§3 悬停效果](#3-悬停效果hover) → [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md)                                                                        |
+| 我要调点击反馈                         | [§4 点击效果](#4-点击效果click--active) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                        |
+| 我要选颜色变量                         | [§5 颜色](#5-颜色color) → [themes.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/themes.md)                                                                                |
+| 我要做按钮                             | [§6 按钮](#6-按钮button) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                       |
+| 我要做 "!" 提示                        | [§7 Hint Card](#7--解释子卡片hint-card) → [ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ContextMenu.tsx)                           |
+| 我要做文件树                           | [§8 文件树](#8-文件树file-tree) → [css-architecture.md](./css-architecture.md)                                                                                                                |
+| 我要做 Tooltip                         | [§9 Tooltip](#9-tooltip) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                       |
+| 我要做 Toast                           | [§10 Toast](#10-toast-通知) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                    |
+| 我要做输入框                           | [§11 输入框](#11-输入框input) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                  |
+| 我要做卡片                             | [§12 卡片](#12-卡片card) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                       |
+| 我要做状态标签                         | [§13 Pill](#13-状态指示pill--badge) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                            |
+| 我要做导航                             | [§14 导航](#14-导航navigation) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                 |
+| 我要做加载态                           | [§15 加载态](#15-加载态loading--skeleton) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                      |
+| 我要做空状态                           | [§16 空状态](#16-空状态empty-state) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                            |
+| 我要做动画                             | [§17 动画](#17-动画与动效motion) → [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md)                                                                       |
+| 我要调布局                             | [§18 布局](#18-布局layout) → [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md)                                                                             |
+| 我要调响应式                           | [§19 响应式](#19-响应式responsive) → [responsive.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/responsive.md)                                                             |
+| 我要做无障碍                           | [§20 无障碍](#20-无障碍accessibility) → [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/accessibility.md)                                                    |
+| 我要修 resize handle 与 scrollbar 重叠 | [§21 Resize Handle](#21-resize-handle--scrollbar) → [知识沉淀](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/resize-handle-pointer-events-diversion-2026-06-23.md)        |
+| 我要做 hover text-overflow 遮罩        | [§23 Hover 渐变蒙版](#23-hover-渐变蒙版) → [知识沉淀](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/浏览器/browser-navigator-4-mode-2026-06-24.md)                                 |
+| 我要做子卡片菜单（分支切换等）         | [§22 子卡片菜单](#22-子卡片菜单sub-card-menu) → [BranchSubCard.tsx](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx) |
+| 我要写 CSS                             | [css-architecture.md](./css-architecture.md)                                                                                                                                                  |
+| 我要拆组件                             | [component-architecture.md](./component-architecture.md)                                                                                                                                      |
+| 我要查设计约束                         | [design-system.md](./design-system.md)                                                                                                                                                        |
 
 ---
 
-## 22. Hover 渐变蒙版
+## 22. 子卡片菜单（Sub-Card Menu）
 
 ### 场景
 
-Hover 时，`.adl-filetree__label` 文字超出 `.adl-filetree__meta`（或关闭按钮）的覆盖范围，露出遮不住的文字。常见于 `<button>` flex 子项忽略 `min-width: 0` 导致溢出。
+菜单项悬停时弹出子卡片（如变更面板的"切换分支"功能），子卡片与菜单卡片之间存在间距，且子卡片需跟随菜单项垂直位置。
+
+### 标准
+
+| 属性       | 值                                                                               |
+| ---------- | -------------------------------------------------------------------------------- |
+| 子卡片定位 | `position: absolute`，相对于菜单项容器                                           |
+| 水平偏移   | `left: anchor(right)` + `margin-left: var(--space-px)`（CSS Anchor Positioning） |
+| 垂直对齐   | `top: var(--adl-changes-branch-sub-top, 0)`（父菜单传入 CSS 变量动态控制）       |
+| 背景       | `var(--bg-card)`                                                                 |
+| 边框       | `1px solid var(--border)`                                                        |
+| 圆角       | `var(--radius-lg)`                                                               |
+| 阴影       | `var(--shadow-lg)`                                                               |
+
+### 悬停延迟规范
+
+主菜单到子卡片的过渡使用 **200ms 延迟关闭**，防止鼠标意外移出时子卡片立即隐藏：
+
+- 主菜单项 `onMouseLeave`：启动 200ms `setTimeout`，到期才隐藏子卡片
+- 子卡片 `onMouseEnter`：清除延迟计时器，保持子卡片显示
+- 子卡片 `onMouseLeave`：立即隐藏（用户已明确离开子卡片区域）
+- 参考实现：`TerminalShellSelector.tsx`（`handleMouseLeaveSubMenu` /
+  `handleMouseEnterSubMenuContent`）
+- 关键文件：`BranchSubCard.tsx` `BranchMenuItem` 中的 `leaveTimerRef`
+
+### > 图标固定在最右侧
+
+- ">" 图标作为 flex 项的直属子项（而非内嵌在按钮内），通过 wrapper 容器的 `display: flex` +
+  `flex: 1` 确保图标永远在最右侧
+- 按钮内仅包含 icon + label（flex: 1），arrow 作为按钮的兄弟元素
+- 结构示例：
+  ```html
+  <div class="adl-multitree-entry__menu-item--with-sub">
+    <button><!-- icon + label --></button>
+    <span class="...arrow"><IconChevronRight /></span>
+  </div>
+  ```
+- `adl-multitree-entry__menu-item-arrow` 使用 `flex-shrink: 0` + 默认 `order` 使其位于最右
+
+### 标签显示规则（动态标签）
+
+对于功能选项的名称：
+
+- **默认态**（未悬停）：显示当前值（如当前分支名称）
+- **悬停态**：显示功能说明文字（如"切换分支"）
+- 分支名过长时使用 `text-overflow: ellipsis` 省略截断
+- 右侧 ">" 图标固定在容器最右侧（见上节）
+- 实现参考：`BranchSubCard.tsx` 的 `BranchMenuItem` 组件
+
+### 悬停背景规范
+
+- 唯一悬停背景由 wrapper 容器（`.adl-multitree-entry__menu-item--with-sub:hover`）提供
+- 内部按钮 (`button.adl-multitree-entry__menu-item--with-sub-btn`) 无独立背景
+- 按钮内仅保留 `background: transparent; cursor: pointer`
+
+### 子卡片内分支项：原生 Tooltip
+
+- 每个分支 `<button>` 设置 `title={branch.name}`，悬停时系统原生 tooltip 完整显示分支名称
+- 解决省略截断后分支名显示不完整的问题
+
+### 关键文件
+
+- 组件：`BranchSubCard.tsx`
+- CSS：`changes-panel.css`（`.adl-changes-branch-submenu`、`.adl-changes-branch-item`）、`file-operations.css`（`.adl-multitree-entry__menu-item--with-sub`）
+- 参考实现：`TerminalShellSelector.tsx`（`.adl-menu__dropdown--right` 水平偏移模式 + 延迟关闭模式）
+
+### 文档
+
+- 经验沉淀：[知识沉淀/交互优化/](./docs/知识沉淀/交互优化/)
+
+---
+
+## 23. Hover 渐变蒙版
+
+### 场景
+
+Hover 时，`.adl-filetree__label` 文字超出
+`.adl-filetree__meta`（或关闭按钮）的覆盖范围，露出遮不住的文字。常见于 `<button>` flex 子项忽略
+`min-width: 0` 导致溢出。
 
 ### 方案：`::after` 伪元素渐变蒙版
 
@@ -663,13 +736,15 @@ Hover 时，`.adl-filetree__label` 文字超出 `.adl-filetree__meta`（或关�
 
 ```css
 .row {
-  position: relative;          /* 确保伪元素定位正确 */
+  position: relative; /* 确保伪元素定位正确 */
 }
 
 .row::after {
   content: '';
   position: absolute;
-  top: 0; right: 0; bottom: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
   width: 40px;
   background: linear-gradient(
     to right,
@@ -677,24 +752,136 @@ Hover 时，`.adl-filetree__label` 文字超出 `.adl-filetree__meta`（或关�
     var(--bg-occlusion) 40%,
     var(--bg-occlusion) 100%
   );
-  opacity: 0;                  /* 默认隐藏 */
-  pointer-events: none;        /* 不阻塞交互 */
+  opacity: 0; /* 默认隐藏 */
+  pointer-events: none; /* 不阻塞交互 */
   transition: opacity var(--duration-150) var(--ease-default);
-  z-index: 1;                  /* 在 meta (z-index:2) 之下 */
+  z-index: 1; /* 在 meta (z-index:2) 之下 */
 }
 
 .row:hover::after {
-  opacity: 1;                  /* hover 时显示 */
+  opacity: 1; /* hover 时显示 */
 }
 ```
 
 ### 关键约束
 
-| 约束 | 理由 |
-|------|------|
-| `z-index: 1` | 必须小于 meta 的 z-index (2)，确保关闭按钮可点击 |
-| `pointer-events: none` | 不阻塞 bottom/right 区域的点击 |
-| `width: 40px` | 匹配关闭按钮区域宽度（右 padding 12px + 按钮 22px + gap 8px ≈ 42px） |
-| 仅 hover 显示 | 避免常驻视觉干扰 |
-| `--bg-occlusion` | 与 meta 遮罩色一致，视觉无缝 |
-| `text-overflow: clip` | 配合蒙版，无省略号 |
+| 约束                   | 理由                                                                 |
+| ---------------------- | -------------------------------------------------------------------- |
+| `z-index: 1`           | 必须小于 meta 的 z-index (2)，确保关闭按钮可点击                     |
+| `pointer-events: none` | 不阻塞 bottom/right 区域的点击                                       |
+| `width: 40px`          | 匹配关闭按钮区域宽度（右 padding 12px + 按钮 22px + gap 8px ≈ 42px） |
+| 仅 hover 显示          | 避免常驻视觉干扰                                                     |
+| `--bg-occlusion`       | 与 meta 遮罩色一致，视觉无缝                                         |
+| `text-overflow: clip`  | 配合蒙版，无省略号                                                   |
+
+---
+
+## 25. 子卡片间距全局标准
+
+### 标准
+
+所有子卡片/子菜单（sub-card / sub-menu / sub-dropdown）与主菜单卡片之间的水平间距必须统一为
+**1px**，使用 **CSS `calc(100% + Npx)`** 实现，其中 `N` 需根据每个位置的父容器偏移量手动调校。
+
+### 实现方案
+
+```
+                           ┌──────────────────────┐
+                           │  主菜单卡片            │
+                           │  ┌───────────┐         │
+                           │  │ 菜单项     │ → → →  │  ← 菜单项宽度 = N px
+                           │  │ (触发元素) │         │
+                           │  └───────────┘         │
+                           └──────────────────────┘
+                                   │ calc(100% + Npx)
+                                   ▼
+                           ┌──────────────┐
+                           │  子卡片        │
+                           └──────────────┘
+```
+
+**关键发现：** CSS Anchor Positioning 在当前 WebView 版本中 `CSS.supports` 返回 true，
+但 `position-anchor` 在运行时解析失败（`computed positionAnchor: "none"`），且 `@supports`
+块整体被浏览器忽略。因此**所有子卡片使用 `absolute + calc(100% + Npx)` 回退方案**，
+`@supports (position-anchor)` 块保留作为未来兼容，但不可依赖。
+
+### `Npx` 值的精确计算
+
+`100%` 相对于 **offsetParent 的 content-box 宽度**（非 border-box）。
+当 offsetParent 有 `border: 1px` 时，content-box 比 border-box 少 2px。
+
+此外，当 offsetParent 比主菜单卡片窄时（例如在 `display: grid` 或 `flex` 列中），
+子菜单的 `left` 需对齐到**主菜单卡片的右边缘**，而非 offsetParent 的右边缘。
+
+计算方式：
+```
+N = (主菜单卡片右边缘 + 1px) - offsetParent content-box 左边缘 - offsetParent content-box 宽度
+```
+
+**实际数值（当前布局下验证）：**
+
+| # | 位置 | offsetParent | border | content-box width | `N` 值 |
+|---|------|------------|--------|-------------------|--------|
+| 1 | split-btn menu/settings | `.adl-split-btn` (relative) | 1px | 300px | 11 |
+| 2 | statusbar branch submenu | `.adl-statusbar__submenu-wrap` (relative) | 0px | ~116px | 10 |
+| 3 | changes-panel branch sub-card | `.adl-multitree-entry__menu-item--with-sub` (relative) | 0px | ~166px | 6 |
+
+### 代码模板
+
+```css
+/* Trigger anchor-name (retained for future anchor support): */
+[data-anchor-name='my-trigger'] {
+  anchor-name: --my-trigger;
+}
+
+/* Sub-card: */
+.sub-card {
+  position: absolute;
+  top: 0;
+  left: calc(100% + Npx);
+  /* ...rest of styles */
+}
+
+/* Anchor positioning fallback (kept as future-compat, not relied upon): */
+@supports (position-anchor) {
+  .sub-card {
+    position-anchor: --my-trigger;
+    left: anchor(right);
+    top: anchor(top);
+    margin-left: var(--space-px);
+  }
+}
+```
+
+### 全部位置清单
+
+| # | 组件 | CSS 选择器 | offsetParent | `N` | 调试日志 key |
+|---|------|-----------|-------------|-----|------------|
+| 1 | 变更面板分支子卡片 | `.adl-changes-branch-submenu` | `.adl-multree-entry__menu-item--with-sub` | 6 | `gap from menu right edge` |
+| 2 | 终端面板右键子菜单 | `.adl-menu__dropdown--right` | `.adl-menu__item--has-sub` | 6 | - |
+| 3 | 选择文件夹拆分按钮菜单 | `.adl-split-btn__menu` | `.adl-split-btn` | 11 | `gap from workspace menu right` |
+| 4 | 选择文件夹拆分按钮设置面板 | `.adl-split-btn__settings` | `.adl-split-btn` | 11 | - |
+| 5 | 状态栏分支子菜单 | `.adl-statusbar__submenu` | `.adl-statusbar__submenu-wrap` | 10 | `gap from trigger right` |
+| 6 | 标题栏品牌 Tooltip | `.adl-titlebar__brand-tooltip` | —（dead code） | - | - |
+
+### 验证方法
+
+打开子卡片后查看 debug-logs.txt，搜索对应 key，确认值 = 1：
+
+```
+[ADL-DEBUG] actual gap from workspace menu right: 1
+[ADL-DEBUG] actual gap from menu right edge: 1
+```
+
+### 已知问题
+
+- Anchor Positioning 在 Tauri WebView2 中 `CSS.supports` 返回 true 但实际不工作，
+  `@supports` 块被浏览器忽略（不应用内部规则）。
+- `left: calc(100% + Npx)` 中的 `N` 是布局敏感的：改变 offsetParent 的 border、padding、
+  width，或主菜单卡片的 width 都会改变所需 N 值。
+- 添加新的子卡片位置时，使用上述公式精确计算 N，并用 log 验证。不要用猜的方式。
+
+### 文档
+
+- CSS 变量 `--space-px: 1px`（`tokens.css:15`）是间隙的唯一来源（仅用于 anchor block）
+- 浏览器兼容性：Chromium 125+（2024年5月），Tauri WebView2 始终是最新版本

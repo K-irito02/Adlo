@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@ai-digital-life/kernel';
 import type { CopyDict } from '@i18n';
@@ -116,7 +116,8 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [branchSubOpen, setBranchSubOpen] = useState(false);
   const menuId = `ws-changes-menu-${workspace.id}`;
-  const branchMenuItemRef = useRef<HTMLButtonElement | null>(null);
+
+  const currentBranch = useAppStore((s) => s.gitSnapshots[workspace.id]?.branch);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -318,10 +319,10 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
               style={{ top: menuPosition.top, left: menuPosition.left }}
             >
               <BranchMenuItem
-                triggerRef={branchMenuItemRef}
                 isSubOpen={branchSubOpen}
                 onSubOpenChange={setBranchSubOpen}
                 workspacePath={workspace.path}
+                currentBranch={currentBranch}
               />
               <div className="adl-multitree-entry__menu-sep" role="separator" />
               <button

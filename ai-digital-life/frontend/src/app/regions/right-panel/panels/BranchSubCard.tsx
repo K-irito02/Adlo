@@ -6,20 +6,20 @@ import type { GitBranchSummary } from '@ai-digital-life/kernel';
 
 interface BranchSubCardProps {
   subRef: React.RefObject<HTMLDivElement | null>;
-  triggerRef: React.RefObject<HTMLElement | null>;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect?: (branchName: string) => void;
   workspacePath?: string;
+  onSubEnter?: () => void;
 }
 
 export function BranchSubCard({
   subRef,
-  triggerRef,
   isOpen,
   onOpenChange,
   onSelect,
   workspacePath,
+  onSubEnter,
 }: BranchSubCardProps) {
   const { t } = useTCopy();
   const [branchSearch, setBranchSearch] = useState('');
@@ -87,13 +87,8 @@ export function BranchSubCard({
       ref={subRef}
       className="adl-changes-branch-submenu"
       role="menu"
-      onMouseLeave={(e) => {
-        const related = e.relatedTarget as Node | null;
-        if (triggerRef.current?.contains(related)) {
-          return;
-        }
-        onOpenChange(false);
-      }}
+      onMouseEnter={onSubEnter}
+      onMouseLeave={() => onOpenChange(false)}
     >
       <div className="adl-changes-branch-search">
         <input
@@ -117,6 +112,7 @@ export function BranchSubCard({
               aria-checked={branch.name === currentBranch}
               className={`adl-changes-branch-item${branch.name === currentBranch ? ' is-current' : ''}`}
               onClick={() => handleSelect(branch.name)}
+              title={branch.name}
             >
               <span className="adl-changes-branch-item-name">{branch.name}</span>
               {branch.local ? (
@@ -139,61 +135,94 @@ export function BranchSubCard({
 }
 
 export function BranchMenuItem({
-  triggerRef,
   isSubOpen,
   onSubOpenChange,
   onSelect,
   workspacePath,
+  currentBranch,
 }: {
-  triggerRef: React.RefObject<HTMLButtonElement | null>;
   isSubOpen: boolean;
   onSubOpenChange: (open: boolean) => void;
   onSelect?: (branchName: string) => void;
   workspacePath?: string;
+  currentBranch?: string;
 }) {
   const { t } = useTCopy();
   const subRef = useRef<HTMLDivElement | null>(null);
+  const [hovered, setHovered] = useState(false);
+  const [isOnWrapper, setIsOnWrapper] = useState(false);
+  const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (leaveTimerRef.current !== null) {
+        clearTimeout(leaveTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleMenuEnter = () => {
+    setIsOnWrapper(true);
+    if (leaveTimerRef.current !== null) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
     onSubOpenChange(true);
+    setHovered(true);
   };
 
   const handleMenuLeave = (e: React.MouseEvent) => {
+    setIsOnWrapper(false);
     const related = e.relatedTarget as Node | null;
     if (subRef.current?.contains(related)) {
       return;
     }
-    onSubOpenChange(false);
+    leaveTimerRef.current = setTimeout(() => {
+      onSubOpenChange(false);
+      setHovered(false);
+      leaveTimerRef.current = null;
+    }, 200);
   };
 
+  const handleSubEnter = () => {
+    if (leaveTimerRef.current !== null) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
+    }
+  };
+
+  const handleSubLeave = () => {
+    onSubOpenChange(false);
+    setHovered(false);
+  };
+
+  const label =
+    isOnWrapper || (!isSubOpen && hovered)
+      ? t.changesBranchSwitch
+      : currentBranch || t.changesBranchSwitch;
+
   return (
-    <>
-      <button
-        ref={triggerRef}
-        type="button"
-        role="menuitem"
-        className="adl-menu__item adl-multitree-entry__menu-item--with-sub"
-        onMouseEnter={handleMenuEnter}
-        onMouseLeave={handleMenuLeave}
-        aria-haspopup="menu"
-        aria-expanded={isSubOpen}
-      >
-        <IconGitBranch size={14} decorative />
-        <span className="adl-multitree-entry__menu-item-content">
-          <span className="adl-multitree-entry__menu-item-label">{t.changesBranchSwitch}</span>
-          <span className="adl-multitree-entry__menu-item-arrow">
-            <IconChevronRight size={14} decorative />
-          </span>
-        </span>
-      </button>
+    <div
+      className="adl-multitree-entry__menu-item--with-sub"
+      data-anchor-name="branch-sub-trigger"
+      onMouseEnter={handleMenuEnter}
+      onMouseLeave={handleMenuLeave}
+    >
+      <IconGitBranch size={14} decorative />
+      <span className="adl-multitree-entry__menu-item-content">
+        <span className="adl-multitree-entry__menu-item-label">{label}</span>
+      </span>
+      <span className="adl-multitree-entry__menu-item-arrow">
+        <IconChevronRight size={14} decorative />
+      </span>
       <BranchSubCard
         subRef={subRef}
-        triggerRef={triggerRef}
         isOpen={isSubOpen}
-        onOpenChange={onSubOpenChange}
+        onOpenChange={handleSubLeave}
         onSelect={onSelect}
+        onSubEnter={handleSubEnter}
         workspacePath={workspacePath}
       />
-    </>
+    </div>
   );
 }

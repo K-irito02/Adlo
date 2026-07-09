@@ -135,6 +135,7 @@ export function WorkspaceSplitButton({
     setActionError('');
     setSettingPanelOpen(false);
     setSplitMenuOpen(true);
+    // no debug needed
   };
 
   const handleSplitDropLeave = () => {
@@ -196,6 +197,7 @@ export function WorkspaceSplitButton({
         <button
           type="button"
           className="adl-split-btn__drop"
+          data-anchor-name="split-btn-menu-trigger"
           onMouseEnter={handleSplitDropEnter}
           onMouseLeave={handleSplitDropLeave}
           aria-haspopup="menu"
@@ -291,6 +293,7 @@ export function WorkspaceSplitButton({
             <button
               type="button"
               className="adl-split-btn__dots"
+              data-anchor-name="split-btn-settings-trigger"
               onMouseEnter={handleSettingsEnter}
               onMouseLeave={handleSettingsLeave}
             >

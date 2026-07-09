@@ -29,6 +29,15 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
+@supports (position-anchor) {
+  .adl-menu__dropdown--right {
+    position-anchor: --terminal-sub-trigger;
+    left: anchor(right) !important;
+    top: anchor(top) !important;
+    margin-left: var(--space-px) !important;
+  }
+}
+
 .adl-split-pill {
   display: inline-flex;
   align-items: stretch;

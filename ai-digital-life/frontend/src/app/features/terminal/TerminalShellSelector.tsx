@@ -162,6 +162,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
               <div
                 key={item.id}
                 className={`adl-menu__item adl-menu__item--has-sub${activeSubMenuId === item.id ? ' is-open' : ''}`}
+                style={{ anchorName: '--terminal-sub-trigger' } as React.CSSProperties}
                 onMouseEnter={() => handleMouseEnterSubMenu(item.id)}
                 onMouseLeave={handleMouseLeaveSubMenu}
               >
