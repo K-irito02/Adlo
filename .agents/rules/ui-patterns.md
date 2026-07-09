@@ -244,7 +244,64 @@ alwaysApply: true
 - 实现（左侧）：[BrowserMenuHintItem.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser/BrowserMenuHintItem.tsx)
 - 经验：[hint-card-arrow-positioning-fix-2026-06-11.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/hint-card-arrow-positioning-fix-2026-06-11.md)
 - 子像素边框：[sub-card-border-subpixel-fix-2026-07-01.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/sub-card-border-subpixel-fix-2026-07-01.md)
-- DOM 生命周期：[component-architecture.md](./component-architecture.md) → DOM 生命周期管理
+- DOM 生命周期：[component-architecture.md](./component-architecture.md)
+  → DOM 生命周期管理
+
+### Hover Bridge（间隙桥接模式）
+
+当子卡片/下拉菜单通过 `position: absolute` 定位在触发元素右侧且有间隙时（如 `left: calc(100% + 6px)`），鼠标穿过间隙会导致 CSS `:hover` 短暂失效，触发背景闪烁。
+
+**解决方案**：在触发元素上添加 `::after` 伪元素，填满间隙：
+
+```css
+.trigger::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 100%;      /* 从触发元素右边缘向外延伸 */
+  width: 6px;      /* 等于间隙宽度 */
+  height: 100%;
+  background: transparent;
+}
+```
+
+**关键约束**：
+- 伪元素必须是触发元素的 DOM 子节点，确保鼠标在 bridge 上时 CSS `:hover` 保持激活
+- bridge 宽度必须等于触发元素与子卡片之间的间隙（通常由 `calc(100% + Npx)` 中的 N 决定）
+- 子卡片必须渲染在触发元素的 DOM 子树内（非 Portal），否则 bridge 无法覆盖间隙
+- 使用 `left: 100%`（向外延伸），**不要用** `right: 0`（会向内延伸，无法覆盖间隙）
+
+**实现文件**：[BranchSubCard.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx)、[file-tree-browser.css](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/styles/regions/rightpanel/file-tree-browser.css)
+
+### Dual-Text Label（双文本标签模式）
+
+当标签文本在两种状态间切换（如"切换分支" ↔ 当前分支名），且两种文本长度不同时，直接替换文本会导致容器宽度变化，产生视觉跳动。
+
+**解决方案**：使用 CSS Grid 将两个文本叠放在同一网格单元中，容器宽度取两者最大值，通过 `opacity` 过渡切换：
+
+```css
+.label--dual {
+  display: grid;
+}
+.label--dual .label-text {
+  grid-area: 1 / 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: opacity 0.12s ease;
+}
+.label--dual .label-text[data-active="false"] {
+  opacity: 0;
+}
+```
+
+**关键约束**：
+- 两个文本始终渲染，仅通过 `data-active` 属性控制可见性
+- 网格容器宽度由两个文本中较宽者决定，切换时宽度不变
+- 过渡时长应短（~120ms），确保响应灵敏
+- 需要 `overflow: hidden; text-overflow: ellipsis` 处理超长文本
+
+**实现文件**：[BranchSubCard.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx)、[file-tree-browser.css](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/styles/regions/rightpanel/file-tree-browser.css)
 
 ---
 

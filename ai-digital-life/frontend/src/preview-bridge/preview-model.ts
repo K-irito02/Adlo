@@ -1,5 +1,5 @@
 import type { AppPreferencePatch, AppInfo, IpcResult } from '@ai-digital-life/kernel';
-import type { ProviderStatus, ConnectionTestResult, ProviderInfo } from '../shared/ipc';
+import type { ProviderStatus, ProviderInfo } from '../shared/ipc';
 import { applyPreferencePatch } from '../shared/preferencesMerger';
 import { mockDigitalLifeBridge } from '../mock-bridge';
 import { persistPreviewPreferences, loadPreviewPreferences } from './storage';

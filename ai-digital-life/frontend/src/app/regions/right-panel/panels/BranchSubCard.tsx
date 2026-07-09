@@ -11,6 +11,8 @@ interface BranchSubCardProps {
   onSelect?: (branchName: string) => void;
   workspacePath?: string;
   onSubEnter?: () => void;
+  /** 鼠标离开子卡片回调。传入后 onMouseLeave 不再关闭子卡片，关闭由父组件统一管理。 */
+  onSubLeave?: () => void;
 }
 
 export function BranchSubCard({
@@ -20,6 +22,7 @@ export function BranchSubCard({
   onSelect,
   workspacePath,
   onSubEnter,
+  onSubLeave,
 }: BranchSubCardProps) {
   const { t } = useTCopy();
   const [branchSearch, setBranchSearch] = useState('');
@@ -88,7 +91,7 @@ export function BranchSubCard({
       className="adl-changes-branch-submenu"
       role="menu"
       onMouseEnter={onSubEnter}
-      onMouseLeave={() => onOpenChange(false)}
+      onMouseLeave={onSubLeave ?? (() => onOpenChange(false))}
     >
       <div className="adl-changes-branch-search">
         <input
@@ -149,8 +152,8 @@ export function BranchMenuItem({
 }) {
   const { t } = useTCopy();
   const subRef = useRef<HTMLDivElement | null>(null);
-  const [hovered, setHovered] = useState(false);
   const [isOnWrapper, setIsOnWrapper] = useState(false);
+  const [isOnSub, setIsOnSub] = useState(false);
   const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -161,14 +164,18 @@ export function BranchMenuItem({
     };
   }, []);
 
-  const handleMenuEnter = () => {
-    setIsOnWrapper(true);
+  const clearLeaveTimer = () => {
     if (leaveTimerRef.current !== null) {
       clearTimeout(leaveTimerRef.current);
       leaveTimerRef.current = null;
     }
+  };
+
+  const handleMenuEnter = () => {
+    setIsOnWrapper(true);
+    setIsOnSub(false);
+    clearLeaveTimer();
     onSubOpenChange(true);
-    setHovered(true);
   };
 
   const handleMenuLeave = (e: React.MouseEvent) => {
@@ -177,29 +184,28 @@ export function BranchMenuItem({
     if (subRef.current?.contains(related)) {
       return;
     }
+    clearLeaveTimer();
     leaveTimerRef.current = setTimeout(() => {
       onSubOpenChange(false);
-      setHovered(false);
+      setIsOnSub(false);
       leaveTimerRef.current = null;
     }, 200);
   };
 
   const handleSubEnter = () => {
-    if (leaveTimerRef.current !== null) {
-      clearTimeout(leaveTimerRef.current);
-      leaveTimerRef.current = null;
-    }
+    setIsOnSub(true);
+    clearLeaveTimer();
   };
 
   const handleSubLeave = () => {
-    onSubOpenChange(false);
-    setHovered(false);
+    setIsOnSub(false);
   };
 
-  const label =
-    isOnWrapper || (!isSubOpen && hovered)
-      ? t.changesBranchSwitch
-      : currentBranch || t.changesBranchSwitch;
+  const handleSubClose = () => {
+    clearLeaveTimer();
+    onSubOpenChange(false);
+    setIsOnSub(false);
+  };
 
   return (
     <div
@@ -210,7 +216,20 @@ export function BranchMenuItem({
     >
       <IconGitBranch size={14} decorative />
       <span className="adl-multitree-entry__menu-item-content">
-        <span className="adl-multitree-entry__menu-item-label">{label}</span>
+        <span className="adl-multitree-entry__menu-item-label adl-multitree-entry__menu-item-label--dual">
+          <span
+            className="adl-multitree-entry__menu-item-label-text"
+            data-active={isOnWrapper && !isOnSub}
+          >
+            {t.changesBranchSwitch}
+          </span>
+          <span
+            className="adl-multitree-entry__menu-item-label-text"
+            data-active={!(isOnWrapper && !isOnSub)}
+          >
+            {currentBranch || t.changesBranchSwitch}
+          </span>
+        </span>
       </span>
       <span className="adl-multitree-entry__menu-item-arrow">
         <IconChevronRight size={14} decorative />
@@ -218,9 +237,10 @@ export function BranchMenuItem({
       <BranchSubCard
         subRef={subRef}
         isOpen={isSubOpen}
-        onOpenChange={handleSubLeave}
+        onOpenChange={handleSubClose}
         onSelect={onSelect}
         onSubEnter={handleSubEnter}
+        onSubLeave={handleSubLeave}
         workspacePath={workspacePath}
       />
     </div>
