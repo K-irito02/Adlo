@@ -3,6 +3,7 @@ import { IconCheck, IconChevronRight, IconGitBranch, IconPendingCommit } from '@
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { SearchInput } from '@components/SearchInput';
+import { TooltipSimple } from '@components/Tooltip';
 import { Spinner } from '@components/Spinner';
 import { CopyButton } from '@components/CopyButton';
 import { useStashConfirm } from '@hooks/useStashConfirm';
@@ -193,7 +194,11 @@ export function BranchSubCard({
             >
               <span className="adl-changes-branch-item-name">{branch.name}</span>
               {branch.name === currentBranch ? <IconCheck size={14} decorative /> : null}
-              {(branch.hasStash || (branch.name === currentBranch && hasDirtyChanges)) ? <IconPendingCommit size={14} decorative /> : null}
+              {(branch.hasStash || (branch.name === currentBranch && hasDirtyChanges)) ? (
+                <TooltipSimple content={t.changesPendingCommit as string} placement="top">
+                  <span className="adl-icon-pending-commit"><IconPendingCommit size={14} decorative /></span>
+                </TooltipSimple>
+              ) : null}
               {branch.local ? (
                 <span className="adl-changes-branch-badge adl-changes-branch-badge--local">
                   {t.changesBranchLocal}

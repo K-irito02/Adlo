@@ -16,4 +16,5 @@
 
 .adl-copy-btn:hover {
   color: var(--text-primary);
+  background: var(--bg-hover);
 }

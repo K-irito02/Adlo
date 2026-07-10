@@ -684,6 +684,23 @@
   color: var(--text-primary);
 }
 
+.adl-icon-pending-commit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  transition: var(--transition-colors);
+  cursor: default;
+}
+
+.adl-icon-pending-commit:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .adl-changes-empty {
   display: flex;
   align-items: center;
