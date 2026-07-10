@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import { useAppStore } from './stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -109,6 +109,39 @@ export function App() {
   }, [setActiveRightTool]);
 
   const activeSessionId = useAppStore((s) => s.activeSessionId);
+
+  // TEMPORARY: mock notifications for UI/UX testing — remove after testing
+  useEffect(() => {
+    const addNotif = useAppStore.getState().addNotification;
+    const t = Date.now();
+    addNotif({
+      type: 'conflict',
+      title: '合并冲突',
+      summary: '检测到 5 个文件的合并冲突，请解决后再切换分支',
+      fullInfo: '冲突操作: Stash pop 恢复暂存变更\n从分支: feature/login\n切换到: main\n发生时间: 2026-07-10T12:00:00.000Z\n冲突文件:\n  - src/auth/login.tsx\n  - src/auth/LoginForm.tsx\n  - src/i18n/zh-CN/auth.ts\n  - src/styles/auth.css\n  - src/tests/auth.test.ts',
+    });
+    addNotif({
+      type: 'conflict',
+      title: '合并冲突',
+      summary: '检测到 2 个文件的合并冲突',
+      fullInfo: '冲突操作: Stash pop 恢复暂存变更\n从分支: fix/header\n切换到: main\n发生时间: 2026-07-10T12:05:00.000Z\n冲突文件:\n  - src/components/Header.tsx\n  - src/styles/header.css',
+    });
+    addNotif({
+      type: 'conflict',
+      title: '合并冲突',
+      summary: '检测到 3 个文件的合并冲突',
+      fullInfo: '冲突操作: Stash pop 恢复暂存变更\n从分支: feature/dashboard\n切换到: main\n发生时间: 2026-07-10T12:10:00.000Z\n冲突文件:\n  - src/pages/Dashboard.tsx\n  - src/components/Chart.tsx\n  - src/utils/dataProcessor.ts',
+    });
+    // Stagger timestamps for visual variety (recent → older)
+    setTimeout(() => {
+      useAppStore.setState((s) => ({
+        notifications: s.notifications.map((n, i) => ({
+          ...n,
+          timestamp: t - i * 120000, // now, 2min ago, 4min ago
+        })),
+      }));
+    }, 100);
+  }, []);
 
   return (
     <TCopyProvider t={t} locale={locale}>
