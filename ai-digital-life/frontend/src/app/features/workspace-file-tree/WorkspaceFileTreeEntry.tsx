@@ -16,6 +16,8 @@ import {
 } from '@icons';
 import { FileTree, type FileTreeContextMenuItem } from '@features/file-tree';
 import { TooltipSimple } from '@components/Tooltip';
+import { useAppStore } from '@stores/slicedStore';
+import { BranchMenuItem } from '@regions/right-panel/panels/BranchSubCard';
 
 export interface WorkspaceFileTreeEntryProps {
   workspace: RecentWorkspaceEntry;
@@ -74,6 +76,9 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const menuId = `ws-menu-${workspace.id}`;
+  const [branchSubOpen, setBranchSubOpen] = useState(false);
+  const gitSnapshot = useAppStore((s) => s.gitSnapshots[workspace.id]);
+  const currentBranch = gitSnapshot?.branch ?? '';
 
   useEffect(() => {
     if (!menuOpen) {
@@ -279,6 +284,14 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
               data-menu-id={menuId}
               style={{ top: menuPosition.top, left: menuPosition.left }}
             >
+              <BranchMenuItem
+                isSubOpen={branchSubOpen}
+                onSubOpenChange={setBranchSubOpen}
+                workspacePath={workspace.path}
+                currentBranch={currentBranch}
+                isRepo={gitSnapshot?.isRepo ?? false}
+              />
+              <div className="adl-multitree-entry__menu-sep" role="separator" />
               <button
                 type="button"
                 className="adl-multitree-entry__menu-item"

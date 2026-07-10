@@ -117,7 +117,8 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   const [branchSubOpen, setBranchSubOpen] = useState(false);
   const menuId = `ws-changes-menu-${workspace.id}`;
 
-  const currentBranch = useAppStore((s) => s.gitSnapshots[workspace.id]?.branch);
+  const gitSnapshot = useAppStore((s) => s.gitSnapshots[workspace.id]);
+  const currentBranch = gitSnapshot?.branch ?? '';
 
   useEffect(() => {
     if (!menuOpen) {
@@ -323,6 +324,7 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
                 onSubOpenChange={setBranchSubOpen}
                 workspacePath={workspace.path}
                 currentBranch={currentBranch}
+                isRepo={gitSnapshot?.isRepo ?? false}
               />
               <div className="adl-multitree-entry__menu-sep" role="separator" />
               <button
