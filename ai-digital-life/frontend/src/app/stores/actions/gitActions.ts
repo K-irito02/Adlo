@@ -179,6 +179,7 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
             }
           : state.appInfo,
         gitSnapshot: result.data.gitSnapshot,
+        gitStashRestored: result.data.hasRestored,
         workspaceContextMode: 'workspace' as const,
       }));
       await refreshAfterBranchChange(get);

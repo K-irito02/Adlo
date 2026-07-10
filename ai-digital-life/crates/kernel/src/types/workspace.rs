@@ -51,6 +51,7 @@ pub struct GitBranchSummary {
     pub is_current: bool,
     pub local: bool,
     pub remote: bool,
+    pub has_stash: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -79,6 +80,7 @@ pub struct WorkspaceGitBranchChangeResult {
     pub previous_branch: Option<String>,
     pub current_branch: String,
     pub stashed_changes: bool,
+    pub has_restored: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

@@ -8,9 +8,11 @@ import type { StoreState } from '../StoreState';
 export interface GitSlice {
   gitSnapshot?: GitSnapshot;
   gitBranches: GitBranchSummary[];
+  gitStashRestored?: boolean;
 
   setGitSnapshot: (snapshot: GitSnapshot | undefined) => void;
   setGitBranches: (branches: GitBranchSummary[]) => void;
+  setGitStashRestored: (restored: boolean) => void;
   clearGitState: () => void;
 }
 
@@ -22,5 +24,6 @@ export const createGitSlice = (
 
   setGitSnapshot: (snapshot) => set({ gitSnapshot: snapshot }),
   setGitBranches: (branches) => set({ gitBranches: branches }),
-  clearGitState: () => set({ gitSnapshot: undefined, gitBranches: [] }),
+  setGitStashRestored: (restored) => set({ gitStashRestored: restored }),
+  clearGitState: () => set({ gitSnapshot: undefined, gitBranches: [], gitStashRestored: undefined }),
 });

@@ -105,6 +105,19 @@ pub fn list_git_branches(root: &Path) -> Result<Vec<GitBranchSummary>, AppError>
         return Err(AppError::Workspace("no local branches found".into()));
     }
 
+    let stash_list = run_git_required(root, &["stash", "list", "--format=%s"]).unwrap_or_default();
+    let stashed_branches: std::collections::HashSet<String> = stash_list
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            let marker = "adl-auto-stash:";
+            trimmed.find(marker).and_then(|pos| {
+                let after_marker = &trimmed[pos + marker.len()..];
+                after_marker.split(':').next().map(|s| s.to_string())
+            })
+        })
+        .collect();
+
     let mut seen = std::collections::HashSet::new();
     let mut branches: Vec<GitBranchSummary> = Vec::new();
 
@@ -115,6 +128,7 @@ pub fn list_git_branches(root: &Path) -> Result<Vec<GitBranchSummary>, AppError>
             is_current: name == &current_branch,
             local: true,
             remote: remote_branches.contains(name),
+            has_stash: stashed_branches.contains(name.as_str()),
         });
     }
 
@@ -125,6 +139,7 @@ pub fn list_git_branches(root: &Path) -> Result<Vec<GitBranchSummary>, AppError>
                 is_current: false,
                 local: false,
                 remote: true,
+                has_stash: stashed_branches.contains(name.as_str()),
             });
         }
     }
@@ -139,12 +154,13 @@ pub fn switch_git_branch(
     root: &Path,
     branch_name: &str,
     allow_stash: bool,
-) -> Result<(GitSnapshot, bool, Option<String>), AppError> {
+) -> Result<(GitSnapshot, bool, Option<String>, bool), AppError> {
     let snapshot = capture_git_snapshot(root);
     if !snapshot.is_repo {
         return Err(AppError::Workspace("active workspace is not a Git repository".into()));
     }
     let previous_branch = snapshot.branch.clone();
+
     let should_stash = git_has_local_changes(&snapshot);
     if should_stash && !allow_stash {
         return Err(AppError::InvalidInput(
@@ -152,10 +168,14 @@ pub fn switch_git_branch(
         ));
     }
     if should_stash {
-        stash_workspace_changes(root)?;
+        stash_workspace_changes(root, &previous_branch.clone().unwrap_or_default())?;
     }
+
     run_git_required(root, &["switch", branch_name])?;
-    Ok((capture_git_snapshot(root), should_stash, previous_branch))
+
+    let has_restored = pop_auto_stash(root, branch_name)?;
+
+    Ok((capture_git_snapshot(root), should_stash, previous_branch, has_restored))
 }
 
 pub fn create_git_branch(
@@ -181,7 +201,7 @@ pub fn create_git_branch(
         ));
     }
     if should_stash {
-        stash_workspace_changes(root)?;
+        stash_workspace_changes(root, &previous_branch.clone().unwrap_or_default())?;
     }
     if base_branch != current_branch {
         run_git_required(root, &["switch", base_branch])?;
@@ -295,10 +315,37 @@ pub(crate) fn git_file_exists(root: &Path, relative_path: &str) -> Result<bool, 
     Ok(output.status.success())
 }
 
-fn stash_workspace_changes(root: &Path) -> Result<(), AppError> {
-    let message = format!("adl-auto-stash-{}", now_ms());
+fn stash_workspace_changes(root: &Path, branch_name: &str) -> Result<(), AppError> {
+    let message = format!("adl-auto-stash:{}:{}", branch_name, now_ms());
     run_git_required(root, &["stash", "push", "--include-untracked", "--message", &message])?;
     Ok(())
+}
+
+pub fn has_auto_stash(root: &Path, branch_name: &str) -> bool {
+    let stash_list = match run_git_required(root, &["stash", "list", "--format=%s"]) {
+        Ok(s) => s,
+        Err(_) => return false,
+    };
+    let needle = format!("adl-auto-stash:{}:", branch_name);
+    stash_list.lines().any(|line| line.contains(&needle))
+}
+
+pub fn pop_auto_stash(root: &Path, target_branch: &str) -> Result<bool, AppError> {
+    let stash_list = run_git_required(root, &["stash", "list", "--format=%s"])?;
+    let needle = format!("adl-auto-stash:{}:", target_branch);
+    let lines: Vec<&str> = stash_list.lines().collect();
+    for (i, line) in lines.iter().rev().enumerate() {
+        if line.contains(&needle) {
+            let index = lines.len() - 1 - i;
+            let stash_ref = format!("stash@{{{}}}", index);
+            let pop_result = run_git_required(root, &["stash", "pop", "--index", &stash_ref]);
+            match pop_result {
+                Ok(_) => return Ok(true),
+                Err(_) => return Ok(false),
+            }
+        }
+    }
+    Ok(true)
 }
 
 pub fn stage_file(root: &Path, relative_path: &str) -> Result<(), AppError> {
@@ -369,5 +416,131 @@ async fn capture_git_paths_with_fallback_async(root: &Path, args: &[&str]) -> Ve
             warn!(error = %e, "git command timed out, returning empty list");
             Vec::new()
         },
+    }
+}
+
+#[cfg(test)]
+mod git_tests {
+    use super::*;
+    use std::path::Path;
+    use std::process::Command;
+
+    fn run_git_test(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .status()
+            .expect("git should be available");
+        assert!(status.success(), "git command failed: git {}", args.join(" "));
+    }
+
+    fn init_git_repo(dir: &Path) {
+        run_git_test(dir, &["init"]);
+        run_git_test(dir, &["config", "user.email", "adl-tests@example.com"]);
+        run_git_test(dir, &["config", "user.name", "ADL Tests"]);
+    }
+
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn has_auto_stash_returns_true_when_stash_exists() {
+        let dir = std::env::temp_dir().join(format!("adl-has-stash-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("readme.md"), "# Test").unwrap();
+        run_git_test(&dir, &["add", "readme.md"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+
+        std::fs::write(dir.join("readme.md"), "# Modified").unwrap();
+        stash_workspace_changes(&dir, "main").unwrap();
+
+        assert!(has_auto_stash(&dir, "main"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn has_auto_stash_returns_false_for_unrelated_branch() {
+        let dir = std::env::temp_dir().join(format!("adl-no-stash-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("readme.md"), "# Test").unwrap();
+        run_git_test(&dir, &["add", "readme.md"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+
+        std::fs::write(dir.join("readme.md"), "# Modified").unwrap();
+        stash_workspace_changes(&dir, "main").unwrap();
+
+        assert!(!has_auto_stash(&dir, "feature"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn has_auto_stash_returns_false_when_no_stash() {
+        let dir = std::env::temp_dir().join(format!("adl-clean-stash-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("readme.md"), "# Test").unwrap();
+        run_git_test(&dir, &["add", "readme.md"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+
+        assert!(!has_auto_stash(&dir, "main"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn pop_auto_stash_restores_changes() {
+        let dir = std::env::temp_dir().join(format!("adl-pop-stash-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("readme.md"), "# Test").unwrap();
+        run_git_test(&dir, &["add", "readme.md"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+
+        std::fs::write(dir.join("readme.md"), "# Modified").unwrap();
+        stash_workspace_changes(&dir, "main").unwrap();
+
+        assert!(has_auto_stash(&dir, "main"));
+        let restored = pop_auto_stash(&dir, "main").unwrap();
+        assert!(restored);
+
+        let content = std::fs::read_to_string(dir.join("readme.md")).unwrap();
+        assert_eq!(content, "# Modified");
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn pop_auto_stash_returns_true_when_no_stash() {
+        let dir = std::env::temp_dir().join(format!("adl-pop-none-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("readme.md"), "# Test").unwrap();
+        run_git_test(&dir, &["add", "readme.md"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+
+        let restored = pop_auto_stash(&dir, "main").unwrap();
+        assert!(restored);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn list_git_branches_includes_has_stash() {
+        let dir = std::env::temp_dir().join(format!("adl-has-stash-list-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("readme.md"), "# Test").unwrap();
+        run_git_test(&dir, &["add", "readme.md"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+
+        std::fs::write(dir.join("readme.md"), "# Modified").unwrap();
+        stash_workspace_changes(&dir, "master").unwrap();
+
+        let branches = list_git_branches(&dir).unwrap();
+        let master = branches.iter().find(|b| b.name == "master").expect("master branch exists");
+        assert!(master.has_stash);
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

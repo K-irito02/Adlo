@@ -90,11 +90,12 @@ pub fn workspace_switch_git_branch(
         if branch_name.is_empty() {
             return Err(AppError::InvalidInput("branch name is required".into()));
         }
-        let (git_snapshot, stashed_changes, previous_branch) = adl_workspace::switch_git_branch(
-            PathBuf::from(&workspace.root_path).as_path(),
-            branch_name,
-            input.allow_stash,
-        )?;
+        let (git_snapshot, stashed_changes, previous_branch, has_restored) =
+            adl_workspace::switch_git_branch(
+                PathBuf::from(&workspace.root_path).as_path(),
+                branch_name,
+                input.allow_stash,
+            )?;
         build_branch_change_result(
             &state,
             workspace,
@@ -102,6 +103,7 @@ pub fn workspace_switch_git_branch(
             previous_branch,
             stashed_changes,
             branch_name,
+            has_restored,
         )
     })
 }
@@ -130,6 +132,7 @@ pub fn workspace_create_git_branch(
             previous_branch,
             stashed_changes,
             branch_name,
+            false,
         )
     })
 }
@@ -191,6 +194,7 @@ fn build_branch_change_result(
     previous_branch: Option<String>,
     stashed_changes: bool,
     branch_name: &str,
+    has_restored: bool,
 ) -> Result<WorkspaceGitBranchChangeResult, AppError> {
     let current_branch = git_snapshot.branch.clone().unwrap_or_else(|| branch_name.to_string());
     let updated_workspace = update_workspace_after_git_change(state, workspace, &git_snapshot)?;
@@ -200,5 +204,6 @@ fn build_branch_change_result(
         previous_branch,
         current_branch,
         stashed_changes,
+        has_restored,
     })
 }

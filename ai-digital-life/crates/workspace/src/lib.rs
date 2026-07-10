@@ -13,7 +13,8 @@ pub use detect::{
 pub use fs::{create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry};
 pub use git::{
     capture_git_snapshot, capture_git_snapshot_async, create_git_branch, discard_file_changes,
-    git_has_local_changes, list_git_branches, stage_file, switch_git_branch, unstage_file,
+    git_has_local_changes, has_auto_stash, list_git_branches, pop_auto_stash, stage_file,
+    switch_git_branch, unstage_file,
 };
 pub use preview::read_change_preview;
 pub use search::{search_text, search_text_async};
