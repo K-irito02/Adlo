@@ -6,5 +6,5 @@ export const notificationZh = {
   notifClose: '关闭',
   notifCopyFullInfo: '复制完整冲突信息',
   notifConflictTitle: '合并冲突',
-  notifCopyHint: '点击左下角按钮复制完整冲突信息',
+  notifCopyHint: '点击左侧按钮复制完整冲突信息',
 } as const;

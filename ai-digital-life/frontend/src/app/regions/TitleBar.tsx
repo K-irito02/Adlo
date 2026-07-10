@@ -140,7 +140,7 @@ const TitleBar = React.memo(function TitleBar({
 }: TitleBarProps) {
   const { t } = useTCopy();
   const notifications = useAppStore((s) => s.notifications);
-  const markAsRead = useAppStore((s) => s.markAsRead);
+  const removeNotification = useAppStore((s) => s.removeNotification);
   const markAllAsRead = useAppStore((s) => s.markAllAsRead);
   const clearAll = useAppStore((s) => s.clearAll);
   const setReadByVisibility = useAppStore((s) => s.setReadByVisibility);
@@ -377,51 +377,52 @@ const TitleBar = React.memo(function TitleBar({
               <LanguageIcon language={language} />
             </button>
           </TooltipSimple>
-          <TooltipSimple content={t.notifTitle as string} placement="bottom">
-            <button
-              type="button"
-              className="adl-icon-btn adl-iconstrip__button"
-              onClick={toggleNotifDropdown}
-              aria-label={t.notifTitle as string}
-              style={{ position: 'relative' }}
-            >
-              <IconBell size={16} decorative />
-              {unreadCount > 0 && (
-                <span className="adl-notif-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
-              )}
-            </button>
-          </TooltipSimple>
-          {notifOpen && (
-            <div className="adl-notif-dropdown">
-              <div className="adl-notif-dropdown__header">
-                <span className="adl-notif-dropdown__title">{t.notifTitle}</span>
-                <div className="adl-notif-dropdown__actions">
-                  <button type="button" className="adl-notif-dropdown__action-btn" onClick={() => { markAllAsRead(); setNotifOpen(false); }}>
-                    {t.notifMarkAllRead}
-                  </button>
-                  <button type="button" className="adl-notif-dropdown__action-btn" onClick={() => { clearAll(); setNotifOpen(false); }}>
-                    {t.notifClearAll}
-                  </button>
+          <div className="adl-notif-wrapper" style={{ position: 'relative', display: 'inline-flex' }}>
+            <TooltipSimple content={t.notifTitle as string} placement="bottom">
+              <button
+                type="button"
+                className="adl-icon-btn adl-iconstrip__button"
+                onClick={toggleNotifDropdown}
+                aria-label={t.notifTitle as string}
+              >
+                <IconBell size={16} decorative />
+                {unreadCount > 0 && (
+                  <span className="adl-notif-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                )}
+              </button>
+            </TooltipSimple>
+            {notifOpen && (
+              <div className="adl-notif-dropdown">
+                <div className="adl-notif-dropdown__header">
+                  <span className="adl-notif-dropdown__title">{t.notifTitle}</span>
+                  <div className="adl-notif-dropdown__actions">
+                    <button type="button" className="adl-notif-dropdown__action-btn" onClick={() => { markAllAsRead(); setNotifOpen(false); }}>
+                      {t.notifMarkAllRead}
+                    </button>
+                    <button type="button" className="adl-notif-dropdown__action-btn" onClick={() => { clearAll(); setNotifOpen(false); }}>
+                      {t.notifClearAll}
+                    </button>
+                  </div>
+                </div>
+                <div className="adl-notif-dropdown__body" ref={notifListRef}>
+                  {notifications.length === 0 ? (
+                    <div className="adl-notif-dropdown__empty">{t.notifEmpty}</div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div key={n.id} data-notif-id={n.id}>
+                        <NotificationCard
+                          notification={n}
+                          onClose={(id) => {
+                            removeNotification(id);
+                          }}
+                        />
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
-              <div className="adl-notif-dropdown__body" ref={notifListRef}>
-                {notifications.length === 0 ? (
-                  <div className="adl-notif-dropdown__empty">{t.notifEmpty}</div>
-                ) : (
-                  notifications.map((n) => (
-                    <div key={n.id} data-notif-id={n.id}>
-                      <NotificationCard
-                        notification={n}
-                        onClose={(id) => {
-                          markAsRead(id);
-                        }}
-                      />
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
         <div
           className="adl-titlebar__panel-group adl-iconstrip"
