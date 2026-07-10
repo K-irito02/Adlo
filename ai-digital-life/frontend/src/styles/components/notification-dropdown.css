@@ -69,13 +69,14 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
   scrollbar-width: thin;
   cursor: grab;
   user-select: none;
   overflow-anchor: none;
+}
+
+.adl-notif-dropdown__body > * + * {
+  margin-top: 6px;
 }
 
 .adl-notif-dropdown__body:active {
