@@ -45,6 +45,10 @@ export function BranchSubCard({
   const openWorkspace = useAppStore((s) => s.openWorkspace);
   const currentWorkspacePath = useAppStore((s) => s.appInfo?.currentWorkspace?.path);
 
+  const hasDirtyChanges = (gitSnapshot?.staged.length ?? 0) > 0
+    || (gitSnapshot?.unstaged.length ?? 0) > 0
+    || (gitSnapshot?.untracked.length ?? 0) > 0;
+
   const { needsConfirm, confirm, cancel, initiateSwitch } = useStashConfirm({
     snapshot: gitSnapshot,
     onConfirm: async (action) => {
@@ -189,7 +193,7 @@ export function BranchSubCard({
             >
               <span className="adl-changes-branch-item-name">{branch.name}</span>
               {branch.name === currentBranch ? <IconCheck size={14} decorative /> : null}
-              {branch.hasStash ? <IconPendingCommit size={14} decorative /> : null}
+              {(branch.hasStash || (branch.name === currentBranch && hasDirtyChanges)) ? <IconPendingCommit size={14} decorative /> : null}
               {branch.local ? (
                 <span className="adl-changes-branch-badge adl-changes-branch-badge--local">
                   {t.changesBranchLocal}
