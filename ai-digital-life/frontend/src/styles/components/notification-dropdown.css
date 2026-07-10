@@ -1,6 +1,6 @@
 .adl-notif-dropdown {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   right: 0;
   z-index: var(--z-dropdown, 500);
   width: 420px;
@@ -18,14 +18,15 @@
   content: '';
   position: absolute;
   top: -6px;
-  right: 18px;
-  width: 12px;
-  height: 12px;
+  right: 20px;
+  width: 10px;
+  height: 10px;
   background: var(--bg-primary);
   border: 1px solid var(--border-default);
   border-right: none;
   border-bottom: none;
   transform: rotate(45deg);
+  z-index: 1;
 }
 
 .adl-notif-dropdown__header {
@@ -67,10 +68,12 @@
 .adl-notif-dropdown__body {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 8px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  scrollbar-width: thin;
 }
 
 .adl-notif-dropdown__empty {

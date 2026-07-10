@@ -414,7 +414,6 @@ const TitleBar = React.memo(function TitleBar({
                         notification={n}
                         onClose={(id) => {
                           markAsRead(id);
-                          setNotifOpen(false);
                         }}
                       />
                     </div>

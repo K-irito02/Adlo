@@ -67,6 +67,13 @@
   gap: 8px;
 }
 
+.adl-notif-card__footer-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
 .adl-notif-card__copy-btn {
   display: inline-flex;
   align-items: center;
@@ -79,6 +86,13 @@
 
 .adl-notif-card__copy-btn:hover {
   color: var(--text-primary);
+}
+
+.adl-notif-card__copy-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  opacity: 0.7;
 }
 
 .adl-notif-card__time {

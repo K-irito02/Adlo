@@ -45,11 +45,16 @@ export function NotificationCard({ notification, onClose, showCopy = true }: Not
       </div>
       <div className="adl-notif-card__body">{notification.summary}</div>
       <div className="adl-notif-card__footer">
-        {showCopy && (
-          <span className="adl-notif-card__copy-btn">
-            <CopyButton text={notification.fullInfo} size={12} tooltip={t.notifCopyFullInfo as string} />
-          </span>
-        )}
+        <div className="adl-notif-card__footer-left">
+          {showCopy && (
+            <>
+              <span className="adl-notif-card__copy-btn">
+                <CopyButton text={notification.fullInfo} size={12} tooltip={t.notifCopyFullInfo as string} />
+              </span>
+              <span className="adl-notif-card__copy-hint">{t.notifCopyHint as string}</span>
+            </>
+          )}
+        </div>
         <span className="adl-notif-card__time">{formatRelativeTime(notification.timestamp, t)}</span>
       </div>
     </div>
