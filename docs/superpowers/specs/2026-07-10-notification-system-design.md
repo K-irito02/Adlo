@@ -1,7 +1,7 @@
 # Notification System + Conflict Card + Hover Effects
 
 **Date:** 2026-07-10
-**Status:** Draft
+**Status:** Final — implemented 2026-07-10
 
 ## Overview
 
@@ -304,6 +304,68 @@ When generating `fullInfo` for conflict notifications, include:
 | `markAllAsRead()` marks all as read | Badge disappears |
 | 100+ notifications | Scrollable list, no limit |
 | Settings still accessible | Via right panel settings panel |
+
+## Final Implementation Notes
+
+### Deviations from Original Design
+- **Badge color**: Changed from green to inverse theme colors (`background: var(--text-primary); color: var(--bg-strong)`) — light theme = black-on-white, dark theme = white-on-black
+- **Badge position**: `top: 2px; right: 4px` from button's top-right corner
+- **Dropdown arrow**: `right: 13px` (not `20px`) based on debug measurement `btnCenterFromDocRight=236, ddRightFromDocRight=218`
+- **Conflict modal width**: `380px` (not `480px`)
+- **Conflict card border**: Removed in modal context via `.adl-conflict-modal .adl-notif-card { border: none; }`
+- **Hint text**: "点击左侧按钮复制完整冲突信息" added to card footer
+- **X button in dropdown**: Calls `removeNotification(id)` (not just `markAsRead`)
+- **Dropdown close**: "Mark all read" and "Clear all" close the dropdown; individual card X does not
+- **Scroll behavior**: Native Chromium momentum scroll (not intercepted)
+- **Read tracking**: IntersectionObserver collects IDs during session, flushed to store on dropdown close (no live store updates during scrolling)
+
+### Project Standards Established
+| Standard | Pattern |
+|----------|---------|
+| Notification slice | Zustand slice in `stores/slices/notificationSlice.ts` |
+| Notification card | `components/NotificationCard.tsx` |
+| Conflict modal | Portal-based `ConflictModal.tsx` with overlay |
+| Notification button | Bell icon in title bar with green/theme-inverse badge |
+| Read tracking | IntersectionObserver → `seenDuringSessionRef` → flush on close |
+| Drag-to-scroll | `mousedown`/`mousemove`/`mouseup` handlers with 3px dead zone |
+| Notification i18n | `i18n/en-US/notification.ts` and `zh-CN/notification.ts` |
+| Dropdown structure | Header (title + actions) + Body (scrollable card list) + Arrow (`::before`) |
+
+### Files Created
+```
+frontend/src/app/stores/slices/notificationSlice.ts       # Zustand slice
+frontend/src/app/stores/slices/notificationSlice.test.ts  # 9 tests
+frontend/src/app/components/NotificationCard.tsx          # Reusable card
+frontend/src/app/components/NotificationCard.test.tsx     # 3 tests
+frontend/src/app/components/ConflictModal.tsx             # Portal modal
+frontend/src/app/components/ConflictModal.test.tsx        # 2 tests
+frontend/src/app/components/NotificationCard.test.tsx     # Update
+frontend/src/app/i18n/en-US/notification.ts               # EN i18n (7 keys)
+frontend/src/app/i18n/zh-CN/notification.ts               # ZH i18n (7 keys)
+frontend/src/styles/components/notification-card.css      # Card styles
+frontend/src/styles/components/notification-badge.css     # Badge styles
+frontend/src/styles/components/notification-dropdown.css  # Dropdown styles
+frontend/src/styles/components/conflict-modal.css         # Modal styles
+frontend/src/app/stores/actions/gitActions-conflict-notification.test.ts
+```
+
+### Files Modified
+```
+frontend/src/app/stores/slices.ts                   # Register slice
+frontend/src/app/stores/StoreState.ts               # Add to interface
+frontend/src/app/stores/slicedStore.ts              # Spread slice
+frontend/src/app/stores/actions/gitActions.ts       # Conflict notification
+frontend/src/app/App.tsx                            # ConflictModal wiring
+frontend/src/app/regions/TitleBar.tsx               # Notification button + dropdown
+frontend/src/app/icons/status.tsx                   # IconBell
+frontend/src/app/icons/index.ts                     # Register IconBell
+frontend/src/styles/components.css                  # Import CSS files
+frontend/src/styles/components/copy-button.css      # Hover background
+frontend/src/styles/regions/rightpanel/changes-panel.css  # Icon hover
+frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx  # Tooltip
+frontend/src/app/i18n/en-US/changes.ts              # changesPendingCommit key
+frontend/src/app/i18n/zh-CN/changes.ts              # changesPendingCommit key
+```
 
 ## Testing
 
