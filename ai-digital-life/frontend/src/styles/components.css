@@ -31,3 +31,6 @@
 @import './components/form-layout.css';
 @import './components/composer-extras.css';
 @import './components/copy-button.css';
+@import './components/notification-card.css';
+@import './components/notification-badge.css';
+@import './components/notification-dropdown.css';

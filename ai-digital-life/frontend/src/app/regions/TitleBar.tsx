@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import { useTCopy } from '../i18n/useTCopy';
 import {
+  IconBell,
   IconClose,
   IconCopy,
   IconEye,
@@ -16,7 +17,6 @@ import {
   IconPanelRight,
   IconPanelRightClose,
   IconSearch,
-  IconSettings,
   IconSun,
   IconSquare,
 } from '../icons';
@@ -24,6 +24,7 @@ import logoUrl from '/logo-chatgpt.png?url';
 import { useAppStore } from '../stores/slicedStore';
 import { isTauriShell } from '../../tauri-bridge';
 import { TooltipSimple } from '../components/Tooltip';
+import { NotificationCard } from '../components/NotificationCard';
 import { useFileMenuItems, useViewMenuItems, useHelpMenuItems } from './titleBarMenus';
 import type { MenuItem } from './titleBarMenus';
 
@@ -138,6 +139,68 @@ const TitleBar = React.memo(function TitleBar({
   onSelectLanguage,
 }: TitleBarProps) {
   const { t } = useTCopy();
+  const notifications = useAppStore((s) => s.notifications);
+  const markAsRead = useAppStore((s) => s.markAsRead);
+  const markAllAsRead = useAppStore((s) => s.markAllAsRead);
+  const clearAll = useAppStore((s) => s.clearAll);
+  const setReadByVisibility = useAppStore((s) => s.setReadByVisibility);
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications]
+  );
+
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+  const notifListRef = useRef<HTMLDivElement>(null);
+
+  const toggleNotifDropdown = useCallback(() => {
+    setNotifOpen((v) => !v);
+  }, []);
+
+  // close on outside click
+  useEffect(() => {
+    if (!notifOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [notifOpen]);
+
+  // close on Escape
+  useEffect(() => {
+    if (!notifOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setNotifOpen(false);
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [notifOpen]);
+
+  // IntersectionObserver for read tracking
+  useEffect(() => {
+    if (!notifOpen || !notifListRef.current) return;
+    const container = notifListRef.current;
+    const unreadCards = container.querySelectorAll('[data-notif-id]');
+    if (unreadCards.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleIds = entries
+          .filter((e) => e.isIntersecting)
+          .map((e) => (e.target as HTMLElement).getAttribute('data-notif-id')!)
+          .filter(Boolean);
+        if (visibleIds.length > 0) {
+          setReadByVisibility(visibleIds);
+        }
+      },
+      { root: container, threshold: 0.5 }
+    );
+    unreadCards.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [notifOpen, setReadByVisibility]);
+
   const [isMaximized, setIsMaximized] = useState(false);
   const {
     leftCollapsed,
@@ -293,11 +356,7 @@ const TitleBar = React.memo(function TitleBar({
       </div>
       <div className="adl-titlebar__drag" aria-hidden="true" data-tauri-drag-region />
       <div className="adl-titlebar__right">
-        <div
-          className="adl-titlebar__action-group adl-iconstrip"
-          role="group"
-          aria-label="Titlebar actions"
-        >
+        <div className="adl-titlebar__action-group" ref={notifRef}>
           <TooltipSimple content={t.theme} placement="bottom">
             <button
               type="button"
@@ -318,16 +377,51 @@ const TitleBar = React.memo(function TitleBar({
               <LanguageIcon language={language} />
             </button>
           </TooltipSimple>
-          <TooltipSimple content={t.menuSettings} placement="bottom">
+          <TooltipSimple content="通知" placement="bottom">
             <button
               type="button"
               className="adl-icon-btn adl-iconstrip__button"
-              onClick={onOpenSettings}
-              aria-label={t.menuSettings}
+              onClick={toggleNotifDropdown}
+              aria-label="通知"
+              style={{ position: 'relative' }}
             >
-              <IconSettings size={16} decorative />
+              <IconBell size={16} decorative />
+              {unreadCount > 0 && (
+                <span className="adl-notif-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+              )}
             </button>
           </TooltipSimple>
+          {notifOpen && (
+            <div className="adl-notif-dropdown">
+              <div className="adl-notif-dropdown__header">
+                <span className="adl-notif-dropdown__title">{t.notifTitle}</span>
+                <div className="adl-notif-dropdown__actions">
+                  <button type="button" className="adl-notif-dropdown__action-btn" onClick={markAllAsRead}>
+                    {t.notifMarkAllRead}
+                  </button>
+                  <button type="button" className="adl-notif-dropdown__action-btn" onClick={clearAll}>
+                    {t.notifClearAll}
+                  </button>
+                </div>
+              </div>
+              <div className="adl-notif-dropdown__body" ref={notifListRef}>
+                {notifications.length === 0 ? (
+                  <div className="adl-notif-dropdown__empty">{t.notifEmpty}</div>
+                ) : (
+                  notifications.map((n) => (
+                    <div key={n.id} data-notif-id={n.id}>
+                      <NotificationCard
+                        notification={n}
+                        onClose={(id) => {
+                          markAsRead(id);
+                        }}
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
         <div
           className="adl-titlebar__panel-group adl-iconstrip"
