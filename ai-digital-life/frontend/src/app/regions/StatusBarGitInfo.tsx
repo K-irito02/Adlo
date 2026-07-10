@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   GitBranchSummary,
+  GitSnapshot,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
 } from '@ai-digital-life/kernel';
@@ -8,17 +9,14 @@ import { useTCopy } from '../i18n/useTCopy';
 import { IconCheck, IconChevronRight, IconGitBranch, IconPlus } from '../icons';
 import { TooltipSimple } from '../components/Tooltip';
 import { gitIcon, gitStatusLabel, type GitStatus } from './StatusBar/utils';
-
-type PendingBranchAction =
-  | { kind: 'switch'; input: WorkspaceGitBranchSwitchInput }
-  | { kind: 'create'; input: WorkspaceGitBranchCreateInput };
+import { useStashConfirm } from '../hooks/useStashConfirm';
 
 interface StatusBarGitInfoProps {
   gitStatus: GitStatus;
   hasWorkspace: boolean;
   currentBranch: string;
   gitBranches: GitBranchSummary[];
-  hasDirtyChanges: boolean;
+  gitSnapshot?: GitSnapshot;
   isOpen: boolean;
   onToggle: () => void;
   onRequestClose: () => void;
@@ -32,7 +30,7 @@ const StatusBarGitInfo = React.memo(function StatusBarGitInfo({
   hasWorkspace,
   currentBranch,
   gitBranches,
-  hasDirtyChanges,
+  gitSnapshot,
   isOpen,
   onToggle,
   onRequestClose,
@@ -44,8 +42,22 @@ const StatusBarGitInfo = React.memo(function StatusBarGitInfo({
   const [branchDraft, setBranchDraft] = useState('');
   const [baseBranchDraft, setBaseBranchDraft] = useState('');
   const [baseBranchMenuOpen, setBaseBranchMenuOpen] = useState(false);
-  const [pendingBranchAction, setPendingBranchAction] = useState<PendingBranchAction>();
   const baseBranchMenuWrapRef = useRef<HTMLDivElement>(null);
+
+  const { needsConfirm, confirm, cancel, initiateSwitch, initiateCreate } =
+    useStashConfirm({
+      snapshot: gitSnapshot,
+      onConfirm: async (action) => {
+        if (action.kind === 'switch') {
+          await onSwitchGitBranch(action.input);
+        } else {
+          await onCreateGitBranch(action.input);
+          setBranchDraft('');
+          setBaseBranchDraft('');
+        }
+        onRequestClose();
+      },
+    });
 
   useEffect(() => {
     if (isOpen && hasWorkspace) {
@@ -66,40 +78,16 @@ const StatusBarGitInfo = React.memo(function StatusBarGitInfo({
     return () => document.removeEventListener('mousedown', onPointerDown);
   }, [baseBranchMenuOpen]);
 
-  const handleSwitchBranch = async (input: WorkspaceGitBranchSwitchInput) => {
-    await onSwitchGitBranch(input);
-    setPendingBranchAction(undefined);
-    onRequestClose();
-  };
-
-  const handleCreateBranch = async (input: WorkspaceGitBranchCreateInput) => {
-    await onCreateGitBranch(input);
-    setPendingBranchAction(undefined);
-    onRequestClose();
-    setBranchDraft('');
-    setBaseBranchDraft('');
-  };
-
   const handleSubmitCreateBranch = async () => {
     const branchName = branchDraft.trim();
     if (!branchName) {
       return;
     }
-    const input: WorkspaceGitBranchCreateInput = {
+    initiateCreate({
       branchName,
       baseBranch: baseBranchDraft.trim() || undefined,
       allowStash: false,
-    };
-    const requiresStash =
-      hasDirtyChanges && Boolean(input.baseBranch) && input.baseBranch !== currentBranch;
-    if (requiresStash) {
-      setPendingBranchAction({
-        kind: 'create',
-        input: { ...input, allowStash: true },
-      });
-      return;
-    }
-    await handleCreateBranch(input);
+    });
   };
 
   const baseBranchLabel = useMemo(() => {
@@ -143,7 +131,7 @@ const StatusBarGitInfo = React.memo(function StatusBarGitInfo({
               <p className="adl-statusbar__menu-hint">{currentBranch}</p>
             </div>
 
-            {pendingBranchAction ? (
+            {needsConfirm ? (
               <div className="adl-statusbar__menu-section adl-statusbar__menu-section--warning">
                 <strong className="adl-statusbar__menu-subtitle">
                   {t.branchStashConfirmTitle}
@@ -153,11 +141,7 @@ const StatusBarGitInfo = React.memo(function StatusBarGitInfo({
                   <button
                     type="button"
                     className="adl-btn adl-btn--primary adl-btn--sm"
-                    onClick={() =>
-                      void (pendingBranchAction.kind === 'switch'
-                        ? handleSwitchBranch(pendingBranchAction.input)
-                        : handleCreateBranch(pendingBranchAction.input))
-                    }
+                    onClick={() => void confirm()}
                   >
                     <IconCheck size={14} decorative />
                     {t.approve}
@@ -165,7 +149,7 @@ const StatusBarGitInfo = React.memo(function StatusBarGitInfo({
                   <button
                     type="button"
                     className="adl-btn adl-btn--ghost adl-btn--sm"
-                    onClick={() => setPendingBranchAction(undefined)}
+                    onClick={cancel}
                   >
                     {t.cancel}
                   </button>
@@ -185,18 +169,7 @@ const StatusBarGitInfo = React.memo(function StatusBarGitInfo({
                       if (branch.isCurrent) {
                         return;
                       }
-                      const input: WorkspaceGitBranchSwitchInput = {
-                        branchName: branch.name,
-                        allowStash: false,
-                      };
-                      if (hasDirtyChanges) {
-                        setPendingBranchAction({
-                          kind: 'switch',
-                          input: { ...input, allowStash: true },
-                        });
-                        return;
-                      }
-                      void handleSwitchBranch(input);
+                      initiateSwitch({ branchName: branch.name, allowStash: false });
                     }}
                   >
                     <span className="adl-statusbar__menu-option-main">{branch.name}</span>

@@ -146,7 +146,7 @@ const StatusBar = React.memo(function StatusBar({
         hasWorkspace={hasWorkspace}
         currentBranch={currentBranch}
         gitBranches={gitBranches}
-        hasDirtyChanges={hasDirtyChanges}
+        gitSnapshot={effectiveGitSnapshot}
         isOpen={openMenu === 'branch'}
         onToggle={() => setOpenMenu((current) => (current === 'branch' ? undefined : 'branch'))}
         onRequestClose={() => setOpenMenu(undefined)}
