@@ -335,7 +335,8 @@
   transition: opacity 0.12s ease;
 }
 
-.adl-multitree-entry__menu-item-label--dual .adl-multitree-entry__menu-item-label-text[data-active="false"] {
+.adl-multitree-entry__menu-item-label--dual
+  .adl-multitree-entry__menu-item-label-text[data-active='false'] {
   opacity: 0;
 }
 

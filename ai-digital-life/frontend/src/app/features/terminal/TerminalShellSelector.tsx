@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { IconChevronDown, IconChevronRight, IconPlus } from '@icons';
+import { IconCheck, IconChevronDown, IconChevronRight, IconPlus } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import type { TerminalProfile } from '@stores/types';
 import type { TerminalShellMenuItem, WorkspaceMenuItem } from './useTerminalPanel';
@@ -187,7 +187,9 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
                       >
                         <span>{subItem.label}</span>
                         {subItem.workspaceId === terminalWorkspaceId && (
-                          <span className="adl-menu__check">✓</span>
+                          <span className="adl-menu__check">
+                            <IconCheck size={14} decorative />
+                          </span>
                         )}
                       </button>
                     ))}

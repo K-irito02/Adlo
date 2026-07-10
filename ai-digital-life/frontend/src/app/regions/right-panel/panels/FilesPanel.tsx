@@ -192,12 +192,12 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       { id: 'sep-2', separator: true },
       {
         id: 'line-numbers',
-        label: `${t.fileLineNumbers} ${editorOptions.lineNumbersEnabled ? '✓' : ''}`.trim(),
+        label: `${t.fileLineNumbers} ${editorOptions.lineNumbersEnabled ? '✔' : ''}`.trim(),
         action: () => editorOptions.setLineNumbersEnabled((v) => !v),
       },
       {
         id: 'word-wrap',
-        label: `${t.fileWordWrap} ${editorOptions.wordWrapEnabled ? '✓' : ''}`.trim(),
+        label: `${t.fileWordWrap} ${editorOptions.wordWrapEnabled ? '✔' : ''}`.trim(),
         shortcut: t.fileWordWrapShortcut as string,
         action: () => editorOptions.setWordWrapEnabled((v) => !v),
       },

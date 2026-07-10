@@ -254,6 +254,55 @@
   border-width: 2px;
 }
 
+/* Spinner — SVG gradient spinner with size/speed variants */
+.adl-spinner {
+  display: inline-block;
+  color: var(--text-secondary);
+}
+
+.adl-spinner--sm {
+  width: 16px;
+  height: 16px;
+}
+
+.adl-spinner--default {
+  width: 20px;
+  height: 20px;
+}
+
+.adl-spinner--md {
+  width: 24px;
+  height: 24px;
+}
+
+.adl-spinner--lg {
+  width: 32px;
+  height: 32px;
+}
+
+.adl-spinner__svg {
+  width: 100%;
+  height: 100%;
+}
+
+.adl-spinner--slow {
+  animation: adl-spinner-spin 2s linear infinite;
+}
+
+.adl-spinner--normal {
+  animation: adl-spinner-spin 1s linear infinite;
+}
+
+.adl-spinner--fast {
+  animation: adl-spinner-spin 0.5s linear infinite;
+}
+
+@keyframes adl-spinner-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Evicted tab fading effect */
 .adl-tool-list__item--evicted .adl-tool-list__tab-icon {
   opacity: 0.35;
