@@ -17,7 +17,7 @@
   content: '';
   position: absolute;
   top: -6px;
-  right: 23px;
+  right: 13px;
   width: 10px;
   height: 10px;
   background: var(--bg-card);
@@ -73,6 +73,12 @@
   flex-direction: column;
   gap: 6px;
   scrollbar-width: thin;
+  cursor: grab;
+  user-select: none;
+}
+
+.adl-notif-dropdown__body:active {
+  cursor: grabbing;
 }
 
 .adl-notif-dropdown__empty {

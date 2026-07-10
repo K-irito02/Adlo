@@ -201,8 +201,9 @@ const TitleBar = React.memo(function TitleBar({
     return () => document.removeEventListener('keydown', handleKey);
   }, [notifOpen]);
 
-  // IntersectionObserver for read tracking (debounced via seenRef to avoid scroll jank)
+  // IntersectionObserver for read tracking — rAF-batched to avoid scroll jank
   const seenIdsRef = useRef(new Set<string>());
+  const rafRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (!notifOpen || !notifListRef.current) return;
     const container = notifListRef.current;
@@ -220,7 +221,11 @@ const TitleBar = React.memo(function TitleBar({
           }
         }
         if (newIds.length > 0) {
-          setReadByVisibility(newIds);
+          if (rafRef.current !== undefined) cancelAnimationFrame(rafRef.current);
+          rafRef.current = requestAnimationFrame(() => {
+            setReadByVisibility(newIds);
+            rafRef.current = undefined;
+          });
         }
       },
       { root: container, threshold: 0.5 }
@@ -229,8 +234,35 @@ const TitleBar = React.memo(function TitleBar({
     return () => {
       observer.disconnect();
       seenIdsRef.current.clear();
+      if (rafRef.current !== undefined) cancelAnimationFrame(rafRef.current);
     };
   }, [notifOpen, setReadByVisibility]);
+
+  // Drag-to-scroll on notification body
+  const dragRef = useRef<{ startY: number; startScroll: number; dragging: boolean } | null>(null);
+  const handleBodyMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!notifListRef.current) return;
+    dragRef.current = { startY: e.clientY, startScroll: notifListRef.current.scrollTop, dragging: false };
+  }, []);
+  useEffect(() => {
+    if (!notifOpen) return;
+    const el = notifListRef.current;
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current || !el) return;
+      const dy = e.clientY - dragRef.current.startY;
+      if (Math.abs(dy) > 3) dragRef.current.dragging = true;
+      if (dragRef.current.dragging) {
+        el.scrollTop = dragRef.current.startScroll - dy;
+      }
+    };
+    const onUp = () => { dragRef.current = null; };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    return () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+  }, [notifOpen]);
 
   const [isMaximized, setIsMaximized] = useState(false);
   const {
@@ -436,7 +468,7 @@ const TitleBar = React.memo(function TitleBar({
                     </button>
                   </div>
                 </div>
-                <div className="adl-notif-dropdown__body" ref={notifListRef}>
+                <div className="adl-notif-dropdown__body" ref={notifListRef} onMouseDown={handleBodyMouseDown}>
                   {notifications.length === 0 ? (
                     <div className="adl-notif-dropdown__empty">{t.notifEmpty}</div>
                   ) : (
