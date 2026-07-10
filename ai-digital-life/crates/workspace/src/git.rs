@@ -369,12 +369,11 @@ pub fn unstage_file(root: &Path, relative_path: &str) -> Result<(), AppError> {
 }
 
 pub fn discard_file_changes(root: &Path, relative_path: &str) -> Result<(), AppError> {
-    match run_git_required(
+    if run_git_required(
         root,
         &["restore", "--source=HEAD", "--staged", "--worktree", "--", relative_path],
-    ) {
-        Ok(_) => return Ok(()),
-        Err(_) => {},
+    ).is_ok() {
+        return Ok(());
     }
     let is_tracked =
         run_git(root, &["ls-files", "--", relative_path]).and_then(first_non_empty_line).is_some();

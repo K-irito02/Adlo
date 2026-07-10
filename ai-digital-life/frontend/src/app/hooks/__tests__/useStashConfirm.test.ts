@@ -11,8 +11,8 @@ const cleanSnapshot: GitSnapshot = {
   unstaged: [] as string[],
   untracked: [] as string[],
   conflicts: [] as string[],
-  ahead: null,
-  behind: null,
+  ahead: undefined,
+  behind: undefined,
   capturedAt: 0,
 };
 
