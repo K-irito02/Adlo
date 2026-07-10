@@ -154,7 +154,33 @@ const TitleBar = React.memo(function TitleBar({
   const notifListRef = useRef<HTMLDivElement>(null);
 
   const toggleNotifDropdown = useCallback(() => {
-    setNotifOpen((v) => !v);
+    setNotifOpen((v) => {
+      if (!v) {
+        setTimeout(() => {
+          const btn = document.querySelector('.adl-notif-wrapper button');
+          const dd = document.querySelector('.adl-notif-dropdown');
+          if (btn && dd) {
+            const br = btn.getBoundingClientRect();
+            const dr = dd.getBoundingClientRect();
+            const btnCenterFromDocRight = document.documentElement.clientWidth - (br.left + br.width / 2);
+            const ddRightFromDocRight = document.documentElement.clientWidth - dr.right;
+            const arrowRightPx = btnCenterFromDocRight - ddRightFromDocRight - 5;
+            console.log('[ADL-ARROW]', JSON.stringify({
+              btnW: br.width,
+              btnCenterFromDocRight: Math.round(btnCenterFromDocRight),
+              ddRight: Math.round(dr.right),
+              ddLeft: Math.round(dr.left),
+              ddW: Math.round(dr.width),
+              ddRightFromDocRight: Math.round(ddRightFromDocRight),
+              idealArrowRight: Math.round(arrowRightPx),
+            }));
+          } else {
+            console.log('[ADL-ARROW] btn or dd not found');
+          }
+        }, 50);
+      }
+      return !v;
+    });
   }, []);
 
   // close on outside click
