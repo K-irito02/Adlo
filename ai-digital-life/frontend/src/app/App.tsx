@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import { useAppStore } from './stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -18,6 +18,7 @@ const RightPanel = lazy(() =>
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
 import { ToastContainer } from './components/Toast';
+import { ConflictModal } from './components/ConflictModal';
 import { asSessionID } from '../shared/branded';
 
 export function App() {
@@ -34,6 +35,14 @@ export function App() {
   const setActiveRightTool = useAppStore((s) => s.setActiveRightTool);
   const toasts = useAppStore((s) => s.toasts);
   const removeToast = useAppStore((s) => s.removeToast);
+  const notifications = useAppStore((s) => s.notifications);
+  const activePopupId = useAppStore((s) => s.activePopupId);
+  const dismissPopup = useAppStore((s) => s.dismissPopup);
+
+  const activeNotification = useMemo(
+    () => notifications.find((n) => n.id === activePopupId),
+    [notifications, activePopupId]
+  );
 
   useDragDropWorkspace(actions);
 
@@ -182,6 +191,12 @@ export function App() {
         />
       </main>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+      {activeNotification && (
+        <ConflictModal
+          notification={activeNotification}
+          onDismiss={dismissPopup}
+        />
+      )}
     </TCopyProvider>
   );
 }

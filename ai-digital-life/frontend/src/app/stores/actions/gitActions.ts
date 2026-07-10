@@ -171,6 +171,7 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
         captureError(get, result.error);
         return;
       }
+      const { hasRestored, gitSnapshot, previousBranch, currentBranch } = result.data;
       set((state: StoreState) => ({
         appInfo: state.appInfo
           ? {
@@ -178,10 +179,27 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
               currentWorkspace: result.data.workspace,
             }
           : state.appInfo,
-        gitSnapshot: result.data.gitSnapshot,
-        gitStashRestored: result.data.hasRestored,
+        gitSnapshot: gitSnapshot,
+        gitStashRestored: hasRestored,
         workspaceContextMode: 'workspace' as const,
       }));
+      if (!hasRestored && gitSnapshot.conflicts.length > 0) {
+        const summary = `检测到 ${gitSnapshot.conflicts.length} 个文件的合并冲突`;
+        const fullInfo = [
+          `冲突操作: Stash pop 恢复暂存变更`,
+          `从分支: ${previousBranch ?? 'unknown'}`,
+          `切换到: ${currentBranch}`,
+          `发生时间: ${new Date().toISOString()}`,
+          `冲突文件:`,
+          ...gitSnapshot.conflicts.map(f => `  - ${f}`),
+        ].join('\n');
+        get().addNotification({
+          type: 'conflict',
+          title: '合并冲突',
+          summary,
+          fullInfo,
+        });
+      }
       await refreshAfterBranchChange(get);
     },
 
