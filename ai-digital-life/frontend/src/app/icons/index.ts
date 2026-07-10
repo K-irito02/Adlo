@@ -146,4 +146,5 @@ export {
   IconBrain,
   IconVolume2,
   IconVolumeX,
+  IconPendingCommit,
 } from './status';

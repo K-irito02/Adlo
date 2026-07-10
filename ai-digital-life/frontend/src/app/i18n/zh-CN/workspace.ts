@@ -83,4 +83,5 @@ export const workspaceZh = {
   fileTreeView: '文件树',
   repoMapView: '仓库地图',
   addToFileTree: '在文件树中显示',
+  fileCopyBranchName: '复制分支名',
 } as const;

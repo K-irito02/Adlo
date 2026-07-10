@@ -72,31 +72,6 @@
   display: block;
 }
 
-.adl-tool-panel--browser .adl-tool-search__copy {
-  display: none;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: color var(--duration-150) var(--ease-default);
-}
-
-.adl-tool-panel--browser .adl-tool-search__copy:hover {
-  color: var(--text-primary);
-}
-
-.adl-tool-panel--browser .adl-tool-search--address.is-expanded .adl-tool-search__copy,
-.adl-tool-panel--browser .adl-tool-search--address:hover .adl-tool-search__copy {
-  display: flex;
-}
-
 .adl-tool-search--compact {
   min-width: 180px;
   max-width: 280px;

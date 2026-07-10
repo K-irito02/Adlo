@@ -57,19 +57,6 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
     }
   }, [addressExpanded, addressInputRef]);
 
-  const handleCopyUrl = (url: string) => {
-    if (url) {
-      navigator.clipboard?.writeText(url).catch(() => {
-        const textarea = document.createElement('textarea');
-        textarea.value = url;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-      });
-    }
-  };
-
   return {
     address,
     addressExpanded,
@@ -79,6 +66,5 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
     handleAddressKeyDown,
     handleAddressBlur,
     handleSearchClick,
-    handleCopyUrl,
   };
 }

@@ -92,7 +92,6 @@ interface BrowserPanelContentProps {
     handleAddressKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
     handleAddressBlur: () => void;
     handleSearchClick: () => void;
-    handleCopyUrl: (url: string) => void;
   };
   navigatorMode: BrowserNavigatorMode;
   setNavigatorMode: React.Dispatch<React.SetStateAction<BrowserNavigatorMode>>;
@@ -317,7 +316,6 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
         onAddressKeyDown={urlState.handleAddressKeyDown}
         onAddressBlur={urlState.handleAddressBlur}
         onSearchClick={urlState.handleSearchClick}
-        onCopyUrl={urlState.handleCopyUrl}
         onNewTab={() => browserOpenTab(undefined, t.browserNewTabPage)}
         onOpenBookmarkDialog={urlState.address ? handleOpenBookmarkDialog : () => {}}
         onToggleBrowserMenu={() => setBrowserMenuOpen((value) => !value)}
