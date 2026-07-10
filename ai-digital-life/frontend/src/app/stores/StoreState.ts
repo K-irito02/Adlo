@@ -71,6 +71,7 @@ import type { WebToolsSlice } from './slices/webToolsSlice';
 import type { ReferenceSlice } from './slices/referenceSlice';
 import type { DurableSlice } from './slices/durableSlice';
 import type { ToastSlice } from './slices/toastSlice';
+import type { NotificationSlice } from './slices/notificationSlice';
 import type { ReferenceConfig } from '@shared/ipc';
 import type {
   McpServerConfig,
@@ -126,7 +127,8 @@ interface StoreStateBase
     ProviderSlice,
     ReferenceSlice,
     DurableSlice,
-    ToastSlice {
+    ToastSlice,
+    NotificationSlice {
   loading: boolean;
   error?: string;
   isFetching: Record<string, boolean>;

@@ -40,6 +40,7 @@ import {
   createReferenceSlice,
   createDurableSlice,
   createToastSlice,
+  createNotificationSlice,
 } from './slices';
 import type { StoreState as FullStoreState } from './StoreState';
 
@@ -119,6 +120,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createReferenceSlice(set, get), // 参考代码仓库管理
   ...createDurableSlice(set, get), // 持久化会话管理
   ...createToastSlice(set, get), // 全局 Toast 通知
+  ...createNotificationSlice(set, get), // 通知系统
 
   // ════════════════════════════════════════════════════════
   // 根级状态
