@@ -164,18 +164,14 @@ const TitleBar = React.memo(function TitleBar({
             const dr = dd.getBoundingClientRect();
             const btnCenterFromDocRight = document.documentElement.clientWidth - (br.left + br.width / 2);
             const ddRightFromDocRight = document.documentElement.clientWidth - dr.right;
-            const arrowRightPx = btnCenterFromDocRight - ddRightFromDocRight - 5;
+            const dist = btnCenterFromDocRight - ddRightFromDocRight;
             console.log('[ADL-ARROW]', JSON.stringify({
               btnW: br.width,
               btnCenterFromDocRight: Math.round(btnCenterFromDocRight),
               ddRight: Math.round(dr.right),
-              ddLeft: Math.round(dr.left),
-              ddW: Math.round(dr.width),
               ddRightFromDocRight: Math.round(ddRightFromDocRight),
-              idealArrowRight: Math.round(arrowRightPx),
+              distCenterToDdRight: Math.round(dist),
             }));
-          } else {
-            console.log('[ADL-ARROW] btn or dd not found');
           }
         }, 50);
       }
@@ -205,26 +201,35 @@ const TitleBar = React.memo(function TitleBar({
     return () => document.removeEventListener('keydown', handleKey);
   }, [notifOpen]);
 
-  // IntersectionObserver for read tracking
+  // IntersectionObserver for read tracking (debounced via seenRef to avoid scroll jank)
+  const seenIdsRef = useRef(new Set<string>());
   useEffect(() => {
     if (!notifOpen || !notifListRef.current) return;
     const container = notifListRef.current;
-    const unreadCards = container.querySelectorAll('[data-notif-id]');
-    if (unreadCards.length === 0) return;
+    const cards = container.querySelectorAll('[data-notif-id]');
+    if (cards.length === 0) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        const visibleIds = entries
-          .filter((e) => e.isIntersecting)
-          .map((e) => (e.target as HTMLElement).getAttribute('data-notif-id')!)
-          .filter(Boolean);
-        if (visibleIds.length > 0) {
-          setReadByVisibility(visibleIds);
+        const newIds: string[] = [];
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          const id = (e.target as HTMLElement).getAttribute('data-notif-id');
+          if (id && !seenIdsRef.current.has(id)) {
+            seenIdsRef.current.add(id);
+            newIds.push(id);
+          }
+        }
+        if (newIds.length > 0) {
+          setReadByVisibility(newIds);
         }
       },
       { root: container, threshold: 0.5 }
     );
-    unreadCards.forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
+    cards.forEach((el) => observer.observe(el));
+    return () => {
+      observer.disconnect();
+      seenIdsRef.current.clear();
+    };
   }, [notifOpen, setReadByVisibility]);
 
   const [isMaximized, setIsMaximized] = useState(false);
