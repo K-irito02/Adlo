@@ -86,5 +86,4 @@ export const workspaceEn = {
   fileTreeView: 'File Tree',
   repoMapView: 'Repo Map',
   addToFileTree: 'Show in file tree',
-  fileCopyBranchName: 'Copy branch name',
 } as const;

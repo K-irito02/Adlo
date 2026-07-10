@@ -112,6 +112,7 @@ export interface WorkspaceGitBranchChangeResult {
   previousBranch?: string;
   currentBranch: string;
   stashedChanges: boolean;
+  hasRestored: boolean;
 }
 
 // ════════════════════════════════════════════════════════

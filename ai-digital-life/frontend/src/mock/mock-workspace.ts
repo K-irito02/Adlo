@@ -284,7 +284,8 @@ export const mockWorkspace: WorkspaceBridge = {
       gitSnapshot,
       previousBranch,
       currentBranch: input.branchName,
-      stashedChanges: dirty
+      stashedChanges: dirty,
+      hasRestored: false
     };
     return { ok: true, data: result };
   },
@@ -367,7 +368,8 @@ export const mockWorkspace: WorkspaceBridge = {
       gitSnapshot,
       previousBranch,
       currentBranch: input.branchName,
-      stashedChanges: shouldStash
+      stashedChanges: shouldStash,
+      hasRestored: false
     };
     return { ok: true, data: result };
   },

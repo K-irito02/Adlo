@@ -61,4 +61,5 @@ export const fileEn = {
   fileExpand: 'Expand',
   filePin: 'Pin',
   fileUnpin: 'Unpin',
+  fileCopyBranchName: 'Copy branch name',
 } as const;
