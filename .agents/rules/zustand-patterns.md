@@ -17,6 +17,29 @@ alwaysApply: false
 - 禁止使用对象展开选择器 `(state) => ({ a: state.a, b: state.b })`（Zustand v5 中会导致无限循环）
 - 每个组件只选择自己需要的字段，禁止选择整个 slice 或 `useAppStore()` 无参调用
 
+## Selector 双模式（get* + use*）
+
+每个领域选择器同时提供纯函数版本（`get*`）和 React Hook 版本（`use*`），分场景使用：
+
+```ts
+// 定义在 selectors.ts 中
+export const patchSelectors = {
+  // 纯函数 — action 内部使用
+  getActivePatchSet: (state: StoreState) => state.activePatchSet,
+
+  // Hook — 组件使用，对象/数组用 useShallow
+  useActivePatchSet: () => useAppStore(useShallow((s) => s.activePatchSet)),
+
+  // 派生选择器
+  hasActivePatchSet: (state: StoreState) => Boolean(state.activePatchSet),
+  useHasActivePatchSet: () => useAppStore((s) => Boolean(s.activePatchSet)),
+};
+```
+
+- 返回对象/数组的 Hook 使用 `useShallow` 包裹，原始值不需要
+- 纯函数版本用于 action 中通过 `get()` 读取状态
+- 领域 selector 按文件拆分（`workspaceSelectors.ts`、`sessionSelectors.ts` 等）
+
 ## 非响应式读取
 - 在 `useCallback` / `useEffect` 闭包中需要最新值时，使用 `useAppStore.getState()` 而非闭包捕获的变量
 - 示例：terminal 创建时读取 `defaultTerminalProfile` 应使用 `useAppStore.getState().defaultTerminalProfile`
@@ -24,6 +47,39 @@ alwaysApply: false
 ## localStorage 持久化
 - 使用 `storageScheduler` 进行异步批量写入，禁止同步 `localStorage.setItem()` 在渲染路径中
 - storageScheduler 使用 `requestIdleCallback`（超时 500ms）+ `setTimeout` 回退
+
+## LRU + TTL 缓存
+
+文件文档和变更预览使用基于 Map 的 LRU（最近最少使用）+ TTL（过期时间）缓存：
+
+```ts
+// 缓存结构
+type TTLCacheEntry<V> = { value: V; expiresAt: number };
+
+// 读取时自动检查过期 + LRU 移动（delete + set 移到末尾）
+function getCachedLruTTL<V>(cache: Map<string, TTLCacheEntry<V>>, key: string): V | undefined {
+  const entry = cache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() > entry.expiresAt) { cache.delete(key); return undefined; }
+  cache.delete(key);
+  cache.set(key, entry);
+  return entry.value;
+}
+
+// 设置时驱逐超出限制的最旧条目
+function setCachedLruTTL<V>(cache, key, value, limit, ttlMs): void {
+  if (cache.has(key)) cache.delete(key);
+  cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+  while (cache.size > limit) { cache.delete(cache.keys().next().value); }
+}
+```
+
+| 缓存 | TTL | 限制 |
+|------|-----|------|
+| 文件文档 | 5 分钟 | 32 条目 |
+| 变更预览 | 1 分钟 | 32 条目 |
+
+配合请求序列号（`fileRequestSeq`）防止过时请求覆盖最新数据。
 
 ## Slice 设计
 - 每个 slice 专注单一领域（UI / workspace / git / session / editor / patch / search / diagnostic / task / command / clipboard / terminal）

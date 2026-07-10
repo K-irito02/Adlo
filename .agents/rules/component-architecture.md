@@ -44,6 +44,53 @@ features/{domain}/
 - 结合 `React.memo` 避免同时挂载所有面板
 - 每个面板通过独立 hook 从 Store 选择所需字段，禁止透传大 props 对象
 
+## Context + Portal + Hook 组合模式
+
+Tooltip、ContextMenu 等复杂 UI 组件采用三层分离架构：
+
+```
+Hook（状态逻辑） → Context（跨组件通信） → Portal（渲染到 body）
+```
+
+### 三层职责
+
+| 层 | 职责 | 示例 |
+|----|------|------|
+| Hook | 管理 open/close、延迟定时器、位置计算、ref 回调 | `useTooltip()` |
+| Context | 跨组件传递状态，避免 props drilling | `TooltipContext.Provider` |
+| Portal | 通过 `createPortal` 渲染到 `document.body`，避免 z-index 问题 | `TooltipContent` |
+
+### 约束
+
+- 全局事件监听（`mousedown`/`keydown`）必须在 `useEffect` cleanup 中移除
+- 弹出层使用 `position: fixed`，定位计算在 Hook 中完成
+- 状态逻辑不依赖组件渲染，Hook 可独立测试
+
+### 示例结构
+
+```tsx
+// 1. Hook — 纯状态逻辑
+function useTooltip(options) {
+  const [isOpen, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  // 定时器、位置计算、ResizeObserver...
+  return { triggerRef, isOpen, position };
+}
+
+// 2. Context Provider — 跨组件共享
+function Tooltip({ children, ...props }) {
+  const tooltip = useTooltip(props);
+  return <TooltipContext.Provider value={tooltip}>{children}</TooltipContext.Provider>;
+}
+
+// 3. Portal — 渲染到 body
+function TooltipContent({ children }) {
+  const ctx = useTooltipContext();
+  if (!ctx.isOpen) return null;
+  return createPortal(<div style={{ position: 'fixed', ...ctx.position }}>{children}</div>, document.body);
+}
+```
+
 ## 虚拟化与列表性能
 
 ### 列表项数量阈值
