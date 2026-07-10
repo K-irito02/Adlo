@@ -75,6 +75,7 @@
   scrollbar-width: thin;
   cursor: grab;
   user-select: none;
+  overflow-anchor: none;
 }
 
 .adl-notif-dropdown__body:active {

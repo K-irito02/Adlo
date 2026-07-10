@@ -238,6 +238,30 @@ const TitleBar = React.memo(function TitleBar({
     };
   }, [notifOpen, setReadByVisibility]);
 
+  // TEMP DEBUG: monitor scroll for auto-bounce
+  const prevScrollRef = useRef(0);
+  useEffect(() => {
+    if (!notifOpen || !notifListRef.current) return;
+    const el = notifListRef.current;
+    let ticking = false;
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(() => {
+          const st = Math.round(el.scrollTop);
+          const delta = st - prevScrollRef.current;
+          if (delta !== 0 && prevScrollRef.current !== 0) {
+            console.log('[ADL-SCROLL]', JSON.stringify({ scrollTop: st, delta, maxScroll: Math.round(el.scrollHeight - el.clientHeight) }));
+          }
+          prevScrollRef.current = st;
+          ticking = false;
+        });
+      }
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [notifOpen]);
+
   // Drag-to-scroll on notification body
   const dragRef = useRef<{ startY: number; startScroll: number; dragging: boolean } | null>(null);
   const handleBodyMouseDown = useCallback((e: React.MouseEvent) => {
