@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import { useAppStore } from './stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -109,42 +109,6 @@ export function App() {
   }, [setActiveRightTool]);
 
   const activeSessionId = useAppStore((s) => s.activeSessionId);
-
-  // TEMPORARY: mock notifications for UI/UX testing — remove after testing
-  useEffect(() => {
-    const addNotif = useAppStore.getState().addNotification;
-    const mockNotifs = [
-      { summary: '检测到 5 个文件的合并冲突', branch: 'feature/login', files: ['src/auth/login.tsx', 'src/auth/LoginForm.tsx', 'src/i18n/zh-CN/auth.ts', 'src/styles/auth.css', 'src/tests/auth.test.ts'] },
-      { summary: '检测到 2 个文件的合并冲突', branch: 'fix/header', files: ['src/components/Header.tsx', 'src/styles/header.css'] },
-      { summary: '检测到 3 个文件的合并冲突', branch: 'feature/dashboard', files: ['src/pages/Dashboard.tsx', 'src/components/Chart.tsx', 'src/utils/dataProcessor.ts'] },
-      { summary: '检测到 4 个文件的合并冲突', branch: 'refactor/api', files: ['src/api/routes.ts', 'src/api/controllers.ts', 'src/api/middleware.ts', 'src/tests/api.test.ts'] },
-      { summary: '检测到 1 个文件的合并冲突', branch: 'hotfix/typo', files: ['src/utils/constants.ts'] },
-      { summary: '检测到 6 个文件的合并冲突', branch: 'feature/chat', files: ['src/chat/ChatPanel.tsx', 'src/chat/MessageBubble.tsx', 'src/chat/ChatInput.tsx', 'src/hooks/useChat.ts', 'src/styles/chat.css', 'src/tests/chat.test.ts'] },
-      { summary: '检测到 3 个文件的合并冲突', branch: 'fix/search', files: ['src/search/SearchBar.tsx', 'src/search/SearchResults.tsx', 'src/styles/search.css'] },
-      { summary: '检测到 2 个文件的合并冲突', branch: 'feature/export', files: ['src/export/Exporter.ts', 'src/export/formats.ts'] },
-      { summary: '检测到 4 个文件的合并冲突', branch: 'perf/optimize', files: ['src/utils/cache.ts', 'src/utils/lazyLoad.ts', 'src/utils/memoize.ts', 'src/tests/perf.test.ts'] },
-      { summary: '检测到 5 个文件的合并冲突', branch: 'feature/settings', files: ['src/settings/SettingsPanel.tsx', 'src/settings/SettingsNav.tsx', 'src/settings/KeybindSettings.tsx', 'src/settings/ThemeSettings.tsx', 'src/styles/settings.css'] },
-      { summary: '检测到 3 个文件的合并冲突', branch: 'fix/auth', files: ['src/auth/AuthProvider.tsx', 'src/auth/useAuth.ts', 'src/tests/auth.test.ts'] },
-      { summary: '检测到 2 个文件的合并冲突', branch: 'feature/i18n', files: ['src/i18n/en-US/common.ts', 'src/i18n/zh-CN/common.ts'] },
-    ];
-    mockNotifs.forEach((m, i) => {
-      addNotif({
-        type: 'conflict',
-        title: '合并冲突',
-        summary: m.summary,
-        fullInfo: `冲突操作: Stash pop 恢复暂存变更\n从分支: ${m.branch}\n切换到: main\n发生时间: ${new Date(Date.now() - i * 300000).toISOString()}\n冲突文件:\n${m.files.map(f => `  - ${f}`).join('\n')}`,
-      });
-    });
-    // Stagger timestamps: newest first, 5min intervals
-    setTimeout(() => {
-      useAppStore.setState((s) => ({
-        notifications: s.notifications.map((n, i) => ({
-          ...n,
-          timestamp: Date.now() - i * 300000,
-        })),
-      }));
-    }, 100);
-  }, []);
 
   return (
     <TCopyProvider t={t} locale={locale}>

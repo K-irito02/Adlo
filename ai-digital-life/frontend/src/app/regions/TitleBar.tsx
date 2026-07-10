@@ -179,9 +179,8 @@ const TitleBar = React.memo(function TitleBar({
     return () => document.removeEventListener('keydown', handleKey);
   }, [notifOpen]);
 
-  // IntersectionObserver for read tracking — rAF-batched to avoid scroll jank
-  const seenIdsRef = useRef(new Set<string>());
-  const rafRef = useRef<number | undefined>(undefined);
+  // Read tracking: collect seen IDs during session, flush to store only when dropdown closes
+  const seenDuringSessionRef = useRef(new Set<string>());
   useEffect(() => {
     if (!notifOpen || !notifListRef.current) return;
     const container = notifListRef.current;
@@ -189,31 +188,24 @@ const TitleBar = React.memo(function TitleBar({
     if (cards.length === 0) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        const newIds: string[] = [];
         for (const e of entries) {
           if (!e.isIntersecting) continue;
           const id = (e.target as HTMLElement).getAttribute('data-notif-id');
-          if (id && !seenIdsRef.current.has(id)) {
-            seenIdsRef.current.add(id);
-            newIds.push(id);
-          }
-        }
-        if (newIds.length > 0) {
-          if (rafRef.current !== undefined) cancelAnimationFrame(rafRef.current);
-          rafRef.current = requestAnimationFrame(() => {
-            setReadByVisibility(newIds);
-            rafRef.current = undefined;
-          });
+          if (id) seenDuringSessionRef.current.add(id);
         }
       },
       { root: container, threshold: 0.5 }
     );
     cards.forEach((el) => observer.observe(el));
-    return () => {
-      observer.disconnect();
-      seenIdsRef.current.clear();
-      if (rafRef.current !== undefined) cancelAnimationFrame(rafRef.current);
-    };
+    return () => observer.disconnect();
+  }, [notifOpen]);
+
+  // Flush seen IDs to store when dropdown closes
+  useEffect(() => {
+    if (!notifOpen && seenDuringSessionRef.current.size > 0) {
+      setReadByVisibility([...seenDuringSessionRef.current]);
+      seenDuringSessionRef.current.clear();
+    }
   }, [notifOpen, setReadByVisibility]);
 
   // Drag-to-scroll on notification body
@@ -419,7 +411,7 @@ const TitleBar = React.memo(function TitleBar({
             </button>
           </TooltipSimple>
           <div className="adl-notif-wrapper" style={{ position: 'relative', display: 'inline-flex' }}>
-            <TooltipSimple content={t.notifTitle as string} placement="bottom">
+            <TooltipSimple content={t.notifButtonTooltip as string} placement="bottom">
               <button
                 type="button"
                 className="adl-icon-btn adl-iconstrip__button"
@@ -446,7 +438,7 @@ const TitleBar = React.memo(function TitleBar({
                     </button>
                   </div>
                 </div>
-                <div className="adl-notif-dropdown__body" ref={notifListRef} onMouseDown={handleBodyMouseDown}>
+                <div className="adl-notif-dropdown__body" ref={notifListRef} onMouseDown={handleBodyMouseDown} tabIndex={-1}>
                   {notifications.length === 0 ? (
                     <div className="adl-notif-dropdown__empty">{t.notifEmpty}</div>
                   ) : (
