@@ -57,20 +57,114 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.adl-changes-branch-search input {
+.adl-changes-branch-search .adl-tool-search {
+  min-width: 0;
   width: 100%;
   height: 28px;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--border);
+  border: none;
   border-radius: var(--radius-sm);
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-  outline: none;
+  background: var(--surface-subtle);
+  box-shadow: none;
 }
 
-.adl-changes-branch-search input:focus {
-  border-color: var(--accent);
+.adl-changes-branch-search .adl-tool-search:focus-within {
+  outline: none;
+  box-shadow: none;
+}
+
+.adl-changes-branch-search .adl-tool-search input {
+  border: none;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+}
+
+.adl-changes-branch-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-2) var(--space-1-5);
+  border-bottom: 1px solid var(--border-subtle);
+  background: linear-gradient(180deg, var(--surface-subtle), transparent);
+}
+
+.adl-changes-branch-filter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 36px;
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: center;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  line-height: inherit;
+  transition: border-color var(--duration-150) var(--ease-default), background-color var(--duration-150) var(--ease-default);
+}
+
+.adl-changes-branch-filter:hover {
+  background: transparent;
+  border-color: var(--border-default);
+}
+
+.adl-changes-branch-filter.is-active {
+  background: transparent;
+}
+
+.adl-changes-branch-filter-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.adl-changes-branch-filter-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: var(--font-semibold);
+  line-height: 1;
+  letter-spacing: 0.04em;
+}
+
+.adl-changes-branch-filter-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1;
+}
+
+.adl-changes-branch-confirm {
+  padding: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.adl-changes-branch-confirm p {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.adl-changes-branch-confirm-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
 }
 
 .adl-changes-branch-list {
@@ -117,7 +211,6 @@
 }
 
 .adl-changes-branch-item.is-current {
-  color: var(--accent);
   font-weight: var(--font-semibold);
 }
 
@@ -142,8 +235,8 @@
 }
 
 .adl-changes-branch-badge--local {
-  background: var(--badge-info-bg, var(--accent-subtle));
-  color: var(--badge-info-fg, var(--accent));
+  background: var(--badge-neutral-bg, var(--surface-subtle));
+  color: var(--badge-neutral-fg, var(--text-secondary));
 }
 
 .adl-changes-branch-badge--remote {
@@ -156,6 +249,14 @@
   text-align: center;
   color: var(--text-tertiary);
   font-size: var(--text-sm);
+}
+
+/* Branch loading spinner */
+.adl-changes-branch-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
 }
 
 /* Branch menu dropdown — portal-rendered with position:fixed to escape overflow clipping */

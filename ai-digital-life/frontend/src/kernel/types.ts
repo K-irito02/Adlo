@@ -80,6 +80,7 @@ export interface GitBranchSummary {
   isCurrent: boolean;
   local: boolean;
   remote: boolean;
+  hasStash: boolean;
 }
 
 export interface WorkspaceGitBranchSwitchInput {

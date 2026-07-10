@@ -1,7 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { IconCheck, IconChevronRight, IconGitBranch } from '@icons';
+import { IconCheck, IconChevronRight, IconGitBranch, IconPendingCommit } from '@icons';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
+import { SearchInput } from '@components/SearchInput';
+import { Spinner } from '@components/Spinner';
+import { CopyButton } from '@components/CopyButton';
+import { useStashConfirm } from '@hooks/useStashConfirm';
 import type { GitBranchSummary } from '@ai-digital-life/kernel';
 
 interface BranchSubCardProps {
@@ -11,8 +15,8 @@ interface BranchSubCardProps {
   onSelect?: (branchName: string) => void;
   workspacePath?: string;
   onSubEnter?: () => void;
-  /** 鼠标离开子卡片回调。传入后 onMouseLeave 不再关闭子卡片，关闭由父组件统一管理。 */
   onSubLeave?: () => void;
+  isRepo?: boolean;
 }
 
 export function BranchSubCard({
@@ -23,27 +27,51 @@ export function BranchSubCard({
   workspacePath,
   onSubEnter,
   onSubLeave,
+  isRepo: isRepoProp,
 }: BranchSubCardProps) {
   const { t } = useTCopy();
   const [branchSearch, setBranchSearch] = useState('');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [localBranches, setLocalBranches] = useState<GitBranchSummary[] | null>(null);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(false);
+  const [localFilterActive, setLocalFilterActive] = useState(false);
+  const [remoteFilterActive, setRemoteFilterActive] = useState(false);
 
   const storeBranches = useAppStore((s) => s.gitBranches);
   const switchGitBranch = useAppStore((s) => s.switchGitBranch);
   const fetchGitBranches = useAppStore((s) => s.fetchGitBranches);
   const gitSnapshot = useAppStore((s) => s.gitSnapshot);
   const currentBranch = gitSnapshot?.branch ?? '';
+  const openWorkspace = useAppStore((s) => s.openWorkspace);
+  const currentWorkspacePath = useAppStore((s) => s.appInfo?.currentWorkspace?.path);
 
-  const gitBranches = localBranches ?? storeBranches;
+  const { needsConfirm, confirm, cancel, initiateSwitch } = useStashConfirm({
+    snapshot: gitSnapshot,
+    onConfirm: async (action) => {
+      if (action.kind === 'switch') {
+        if (workspacePath && workspacePath !== currentWorkspacePath) {
+          await openWorkspace(workspacePath);
+        }
+        await switchGitBranch(action.input);
+      }
+      onOpenChange(false);
+    },
+  });
+
+  const gitBranches = useMemo(
+    () => (workspacePath ? (localBranches ?? []) : (localBranches ?? storeBranches)),
+    [workspacePath, localBranches, storeBranches]
+  );
 
   useEffect(() => {
     if (isOpen) {
       if (workspacePath) {
+        setIsLoadingBranches(true);
         window.digitalLife.workspace.listGitBranches(workspacePath).then((result) => {
           if (result.ok) {
             setLocalBranches(result.data);
           }
+          setIsLoadingBranches(false);
         });
       } else {
         fetchGitBranches();
@@ -61,25 +89,34 @@ export function BranchSubCard({
     if (!isOpen) {
       setBranchSearch('');
       setLocalBranches(null);
+      setIsLoadingBranches(false);
     }
   }, [isOpen]);
 
-  const filteredBranches = useMemo(() => {
-    const q = branchSearch.toLowerCase().trim();
-    if (!q) {
-      return gitBranches;
-    }
-    return gitBranches.filter((b) => b.name.toLowerCase().includes(q));
-  }, [gitBranches, branchSearch]);
+  const localCount = useMemo(() => gitBranches.filter(b => b.local).length, [gitBranches]);
+  const remoteCount = useMemo(() => gitBranches.filter(b => b.remote).length, [gitBranches]);
 
-  const handleSelect = useCallback(
-    (branchName: string) => {
-      onSelect?.(branchName);
-      onOpenChange(false);
-      switchGitBranch({ branchName, allowStash: false });
-    },
-    [onSelect, onOpenChange, switchGitBranch]
-  );
+  const filteredBranches = useMemo(() => {
+    let result = gitBranches;
+    const q = branchSearch.toLowerCase().trim();
+    if (q) {
+      result = result.filter((b) => b.name.toLowerCase().includes(q));
+    }
+    const bothActive = localFilterActive && remoteFilterActive;
+    const noneActive = !localFilterActive && !remoteFilterActive;
+    if (!bothActive && !noneActive) {
+      if (localFilterActive) result = result.filter(b => b.local);
+      if (remoteFilterActive) result = result.filter(b => b.remote);
+    }
+    return result;
+  }, [gitBranches, branchSearch, localFilterActive, remoteFilterActive]);
+
+  const isRepo = isRepoProp ?? (gitBranches.length > 0 || !!currentBranch);
+
+  const handleSelect = useCallback(async (branchName: string) => {
+    onSelect?.(branchName);
+    initiateSwitch({ branchName, allowStash: false });
+  }, [onSelect, initiateSwitch]);
 
   if (!isOpen) {
     return null;
@@ -94,18 +131,51 @@ export function BranchSubCard({
       onMouseLeave={onSubLeave ?? (() => onOpenChange(false))}
     >
       <div className="adl-changes-branch-search">
-        <input
-          ref={searchInputRef}
-          type="text"
+        <SearchInput
           value={branchSearch}
-          onChange={(e) => setBranchSearch(e.currentTarget.value)}
+          onChange={setBranchSearch}
           placeholder={t.changesBranchSearch as string}
-          aria-label={t.changesBranchSearch as string}
+          ariaLabel={t.changesBranchSearch as string}
+          inputRef={searchInputRef}
         />
       </div>
+      <div className="adl-changes-branch-filters">
+        <button
+          type="button"
+          className={`adl-changes-branch-filter${localFilterActive ? ' is-active' : ''}`}
+          onClick={() => setLocalFilterActive(v => !v)}
+          aria-pressed={localFilterActive}
+        >
+          <span className="adl-changes-branch-filter-label">{t.changesBranchLocal}</span>
+          <strong className="adl-changes-branch-filter-value">
+            <span className="adl-changes-branch-filter-code" aria-hidden="true">L:</span>
+            {localCount}
+          </strong>
+        </button>
+        <button
+          type="button"
+          className={`adl-changes-branch-filter${remoteFilterActive ? ' is-active' : ''}`}
+          onClick={() => setRemoteFilterActive(v => !v)}
+          aria-pressed={remoteFilterActive}
+        >
+          <span className="adl-changes-branch-filter-label">{t.changesBranchRemote}</span>
+          <strong className="adl-changes-branch-filter-value">
+            <span className="adl-changes-branch-filter-code" aria-hidden="true">R:</span>
+            {remoteCount}
+          </strong>
+        </button>
+      </div>
       <div className="adl-changes-branch-list">
-        {filteredBranches.length === 0 ? (
-          <div className="adl-changes-branch-empty">{t.noResults}</div>
+        {isLoadingBranches ? (
+          <div className="adl-changes-branch-loading">
+            <Spinner size="sm" />
+          </div>
+        ) : !isRepo ? (
+          <div className="adl-changes-branch-empty">{t.changesBranchInitRepo}</div>
+        ) : gitBranches.length <= 1 && !branchSearch ? (
+          <div className="adl-changes-branch-empty">{t.changesBranchNoOther}</div>
+        ) : filteredBranches.length === 0 && branchSearch ? (
+          <div className="adl-changes-branch-empty">{t.changesBranchSearchNone}</div>
         ) : (
           filteredBranches.map((branch) => (
             <button
@@ -118,6 +188,8 @@ export function BranchSubCard({
               title={branch.name}
             >
               <span className="adl-changes-branch-item-name">{branch.name}</span>
+              {branch.name === currentBranch ? <IconCheck size={14} decorative /> : null}
+              {branch.hasStash ? <IconPendingCommit size={14} decorative /> : null}
               {branch.local ? (
                 <span className="adl-changes-branch-badge adl-changes-branch-badge--local">
                   {t.changesBranchLocal}
@@ -128,11 +200,24 @@ export function BranchSubCard({
                   {t.changesBranchRemote}
                 </span>
               ) : null}
-              {branch.name === currentBranch ? <IconCheck size={14} decorative /> : null}
+              <CopyButton text={branch.name} size={12} />
             </button>
           ))
         )}
       </div>
+      {needsConfirm ? (
+        <div className="adl-changes-branch-confirm">
+          <p>{t.changesBranchStashConfirm}</p>
+          <div className="adl-changes-branch-confirm-actions">
+            <button type="button" className="adl-btn adl-btn--primary adl-btn--sm" onClick={confirm}>
+              {t.approve}
+            </button>
+            <button type="button" className="adl-btn adl-btn--ghost adl-btn--sm" onClick={cancel}>
+              {t.cancel}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -143,12 +228,14 @@ export function BranchMenuItem({
   onSelect,
   workspacePath,
   currentBranch,
+  isRepo,
 }: {
   isSubOpen: boolean;
   onSubOpenChange: (open: boolean) => void;
   onSelect?: (branchName: string) => void;
   workspacePath?: string;
   currentBranch?: string;
+  isRepo?: boolean;
 }) {
   const { t } = useTCopy();
   const subRef = useRef<HTMLDivElement | null>(null);
@@ -242,6 +329,7 @@ export function BranchMenuItem({
         onSubEnter={handleSubEnter}
         onSubLeave={handleSubLeave}
         workspacePath={workspacePath}
+        isRepo={isRepo}
       />
     </div>
   );

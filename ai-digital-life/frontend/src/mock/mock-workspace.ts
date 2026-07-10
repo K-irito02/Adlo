@@ -247,9 +247,9 @@ export const mockWorkspace: WorkspaceBridge = {
     }
     const currentBranch = currentWorkspaceMeta.gitSnapshot?.branch ?? "main";
     const branches: GitBranchSummary[] = [
-      { name: currentBranch, isCurrent: true, local: true, remote: true },
-      { name: "main", isCurrent: currentBranch === "main", local: true, remote: true },
-      { name: "experiment/mock", isCurrent: currentBranch === "experiment/mock", local: true, remote: false }
+      { name: currentBranch, isCurrent: true, local: true, remote: true, hasStash: false },
+      { name: "main", isCurrent: currentBranch === "main", local: true, remote: true, hasStash: false },
+      { name: "experiment/mock", isCurrent: currentBranch === "experiment/mock", local: true, remote: false, hasStash: false }
     ].filter((branch, index, list) => list.findIndex((item) => item.name === branch.name) === index);
     return { ok: true, data: branches };
   },
