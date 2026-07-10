@@ -34,7 +34,7 @@ export function NotificationCard({ notification, onClose, showCopy = true }: Not
           type="button"
           className="adl-notif-card__close"
           onClick={() => onClose(notification.id)}
-          aria-label="Close"
+          aria-label={t.notifClose}
         >
           <IconClose size={14} />
         </button>
@@ -43,7 +43,7 @@ export function NotificationCard({ notification, onClose, showCopy = true }: Not
       <div className="adl-notif-card__footer">
         {showCopy && (
           <span className="adl-notif-card__copy-btn">
-            <CopyButton text={notification.fullInfo} size={12} tooltip="复制完整冲突信息" tooltipCopied="已复制" />
+            <CopyButton text={notification.fullInfo} size={12} tooltip={t.notifCopyFullInfo as string} />
           </span>
         )}
         <span className="adl-notif-card__time">{formatRelativeTime(notification.timestamp)}</span>

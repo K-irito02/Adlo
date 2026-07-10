@@ -3,4 +3,6 @@ export const notificationEn = {
   notifMarkAllRead: 'Mark all read',
   notifClearAll: 'Clear all',
   notifEmpty: 'No notifications',
+  notifClose: 'Close',
+  notifCopyFullInfo: 'Copy full conflict details',
 } as const;

@@ -3,4 +3,6 @@ export const notificationZh = {
   notifMarkAllRead: '全部已读',
   notifClearAll: '清空',
   notifEmpty: '暂无通知',
+  notifClose: '关闭',
+  notifCopyFullInfo: '复制完整冲突信息',
 } as const;
