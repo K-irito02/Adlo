@@ -61,6 +61,7 @@ export const changesEn = {
   conflictViewDiff: 'View diff',
   batchAcceptAll: 'Accept all',
   batchRejectAll: 'Reject all',
+  changesPendingCommit: 'Pending changes',
   gitModified: 'Modified',
   gitAdded: 'Added',
   gitDeleted: 'Deleted',

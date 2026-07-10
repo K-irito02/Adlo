@@ -23,6 +23,7 @@ import { referenceZh } from './reference';
 import { customAgentZh } from './customAgent';
 import { durableZh } from './durable';
 import { settingsZh } from './settings';
+import { notificationZh } from './notification';
 
 export const zhCN = {
   ...menuZh,
@@ -50,4 +51,5 @@ export const zhCN = {
   ...customAgentZh,
   ...durableZh,
   ...settingsZh,
+  ...notificationZh,
 } as const;

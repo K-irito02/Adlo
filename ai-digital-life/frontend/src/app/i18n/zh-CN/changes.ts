@@ -61,6 +61,7 @@ export const changesZh = {
   conflictViewDiff: '查看差异',
   batchAcceptAll: '全部接受',
   batchRejectAll: '全部拒绝',
+  changesPendingCommit: '有未提交的更改',
   gitModified: '已修改',
   gitAdded: '新增',
   gitDeleted: '已删除',
