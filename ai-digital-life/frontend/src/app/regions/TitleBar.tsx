@@ -154,52 +154,7 @@ const TitleBar = React.memo(function TitleBar({
   const notifListRef = useRef<HTMLDivElement>(null);
 
   const toggleNotifDropdown = useCallback(() => {
-    setNotifOpen((v) => {
-      if (!v) {
-        setTimeout(() => {
-          const root = document.documentElement;
-          const rs = getComputedStyle(root);
-          const bgPrimary = rs.getPropertyValue('--bg-primary').trim();
-          const zDropdown = rs.getPropertyValue('--z-dropdown').trim();
-          const dbg: string[] = [];
-          dbg.push(`CSS vars: --bg-primary="${bgPrimary}" --z-dropdown="${zDropdown}"`);
-
-          const dd = document.querySelector('.adl-notif-dropdown') as HTMLElement | null;
-          if (dd) {
-            const s = getComputedStyle(dd);
-            dbg.push(`dropdown bg=${s.backgroundColor} bg-clip=${s.backgroundClip} opacity=${s.opacity} pos=${s.position} top=${s.top} right=${s.right} zIdx=${s.zIndex} disp=${s.display} w=${s.width} h=${s.height}`);
-            const p = dd.offsetParent as HTMLElement | null;
-            if (p) {
-              const ps = getComputedStyle(p);
-              dbg.push(`offsetParent tag=${p.tagName} cls=${p.className} bg=${ps.backgroundColor} pos=${ps.position} w=${ps.width} h=${ps.height}`);
-            }
-            // Visual test: set inline bg to verify
-            const prevBg = dd.style.backgroundColor;
-            dd.style.backgroundColor = '#333';
-            setTimeout(() => { dd.style.backgroundColor = prevBg; }, 3000);
-            dbg.push('set inline bg=#333 for 3s to test — check if dropdown becomes visible');
-          } else {
-            dbg.push('dropdown element not found in DOM');
-          }
-
-          const badge = document.querySelector('.adl-notif-badge') as HTMLElement | null;
-          if (badge) {
-            const s = getComputedStyle(badge);
-            const p = badge.offsetParent as HTMLElement | null;
-            dbg.push(`badge bg=${s.backgroundColor} pos=${s.position} top=${s.top} right=${s.right} w=${s.width} h=${s.height} disp=${s.display}`);
-            if (p) {
-              const ps = getComputedStyle(p);
-              dbg.push(`badge offsetParent tag=${p.tagName} cls=${p.className} pos=${ps.position}`);
-            }
-          } else {
-            dbg.push('badge not found');
-          }
-
-          dbg.forEach((l) => console.log('[ADL-NOTIF]', l));
-        }, 100);
-      }
-      return !v;
-    });
+    setNotifOpen((v) => !v);
   }, []);
 
   // close on outside click
