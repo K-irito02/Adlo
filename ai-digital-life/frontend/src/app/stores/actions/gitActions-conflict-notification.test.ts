@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockAddNotification = vi.fn();
 let storeState: any = {};
 
 vi.mock('@stores/slicedStore', () => ({
@@ -12,7 +11,7 @@ import { createNotificationSlice } from '../../stores/slices/notificationSlice';
 interface TestStore {
   state: Record<string, any>;
   set: (fn: any) => void;
-  get: () => Record<string, any>;
+  get: () => any;
 }
 
 function createStore(): TestStore {
@@ -20,7 +19,9 @@ function createStore(): TestStore {
   store.set = (fn: any) => {
     if (typeof fn === 'function') {
       const update = fn(store.state);
-      if (update) Object.assign(store.state, update);
+      if (update) {
+        Object.assign(store.state, update);
+      }
     }
   };
   store.get = () => store.state;
@@ -39,11 +40,12 @@ describe('conflict notification data generation', () => {
 
   it('addNotification creates correct structure for conflict type', () => {
     const store = createStore();
-    const id = store.state.addNotification({
+    store.state.addNotification({
       type: 'conflict',
       title: '合并冲突',
       summary: '检测到 2 个文件的合并冲突',
-      fullInfo: '冲突操作: Stash pop 恢复暂存变更\n从分支: source\n切换到: target\n冲突文件:\n  - f1.ts\n  - f2.ts',
+      fullInfo:
+        '冲突操作: Stash pop 恢复暂存变更\n从分支: source\n切换到: target\n冲突文件:\n  - f1.ts\n  - f2.ts',
     });
 
     expect(store.state.notifications).toHaveLength(1);
@@ -69,13 +71,23 @@ describe('conflict notification data generation', () => {
 
   it('first conflict notification sets activePopupId', () => {
     const store = createStore();
-    const id = store.state.addNotification({ type: 'conflict', title: 'T', summary: 'S', fullInfo: 'F' });
+    const id = store.state.addNotification({
+      type: 'conflict',
+      title: 'T',
+      summary: 'S',
+      fullInfo: 'F',
+    });
     expect(store.state.activePopupId).toBe(id);
   });
 
   it('dismissPopup clears popup and marks notification read', () => {
     const store = createStore();
-    const id = store.state.addNotification({ type: 'conflict', title: 'T', summary: 'S', fullInfo: 'F' });
+    const id = store.state.addNotification({
+      type: 'conflict',
+      title: 'T',
+      summary: 'S',
+      fullInfo: 'F',
+    });
     store.state.dismissPopup();
     expect(store.state.activePopupId).toBeNull();
     const n = store.state.notifications.find((n: any) => n.id === id);
@@ -84,8 +96,18 @@ describe('conflict notification data generation', () => {
 
   it('removeNotification removes card without closing dropdown', () => {
     const store = createStore();
-    const id = store.state.addNotification({ type: 'conflict', title: 'T', summary: 'S', fullInfo: 'F' });
-    const id2 = store.state.addNotification({ type: 'conflict', title: 'T2', summary: 'S2', fullInfo: 'F2' });
+    const id = store.state.addNotification({
+      type: 'conflict',
+      title: 'T',
+      summary: 'S',
+      fullInfo: 'F',
+    });
+    const id2 = store.state.addNotification({
+      type: 'conflict',
+      title: 'T2',
+      summary: 'S2',
+      fullInfo: 'F2',
+    });
     store.state.removeNotification(id);
     expect(store.state.notifications).toHaveLength(1);
     expect(store.state.notifications[0].id).toBe(id2);
