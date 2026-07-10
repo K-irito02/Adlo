@@ -7,7 +7,16 @@ import type { NotificationData } from '@stores/slices/notificationSlice';
 afterEach(cleanup);
 
 const mockT = new Proxy({} as Record<string, string>, {
-  get: (_, key) => (typeof key === 'string' ? key : ''),
+  get: (_, key) => {
+    const formatMap: Record<string, string> = {
+      relativeTimeJustNow: 'Just now',
+      relativeTimeMinutesAgo: '{n} 分钟前',
+      relativeTimeHoursAgo: '{n} 小时前',
+      relativeTimeDaysAgo: '{n} 天前',
+      notifConflictTitle: 'Conflict',
+    };
+    return key in formatMap ? formatMap[key as string] : (typeof key === 'string' ? key : '');
+  },
 });
 
 const mockNotif: NotificationData = {

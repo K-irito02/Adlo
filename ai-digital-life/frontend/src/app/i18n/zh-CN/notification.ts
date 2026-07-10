@@ -5,4 +5,5 @@ export const notificationZh = {
   notifEmpty: '暂无通知',
   notifClose: '关闭',
   notifCopyFullInfo: '复制完整冲突信息',
+  notifConflictTitle: '合并冲突',
 } as const;

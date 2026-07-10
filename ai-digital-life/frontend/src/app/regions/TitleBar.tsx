@@ -377,12 +377,12 @@ const TitleBar = React.memo(function TitleBar({
               <LanguageIcon language={language} />
             </button>
           </TooltipSimple>
-          <TooltipSimple content="通知" placement="bottom">
+          <TooltipSimple content={t.notifTitle as string} placement="bottom">
             <button
               type="button"
               className="adl-icon-btn adl-iconstrip__button"
               onClick={toggleNotifDropdown}
-              aria-label="通知"
+              aria-label={t.notifTitle as string}
               style={{ position: 'relative' }}
             >
               <IconBell size={16} decorative />
@@ -396,10 +396,10 @@ const TitleBar = React.memo(function TitleBar({
               <div className="adl-notif-dropdown__header">
                 <span className="adl-notif-dropdown__title">{t.notifTitle}</span>
                 <div className="adl-notif-dropdown__actions">
-                  <button type="button" className="adl-notif-dropdown__action-btn" onClick={markAllAsRead}>
+                  <button type="button" className="adl-notif-dropdown__action-btn" onClick={() => { markAllAsRead(); setNotifOpen(false); }}>
                     {t.notifMarkAllRead}
                   </button>
-                  <button type="button" className="adl-notif-dropdown__action-btn" onClick={clearAll}>
+                  <button type="button" className="adl-notif-dropdown__action-btn" onClick={() => { clearAll(); setNotifOpen(false); }}>
                     {t.notifClearAll}
                   </button>
                 </div>
@@ -414,6 +414,7 @@ const TitleBar = React.memo(function TitleBar({
                         notification={n}
                         onClose={(id) => {
                           markAsRead(id);
+                          setNotifOpen(false);
                         }}
                       />
                     </div>

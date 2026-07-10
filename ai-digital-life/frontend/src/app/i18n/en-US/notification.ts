@@ -5,4 +5,5 @@ export const notificationEn = {
   notifEmpty: 'No notifications',
   notifClose: 'Close',
   notifCopyFullInfo: 'Copy full conflict details',
+  notifConflictTitle: 'Merge conflict',
 } as const;
