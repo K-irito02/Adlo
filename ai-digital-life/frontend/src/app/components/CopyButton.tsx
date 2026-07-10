@@ -30,7 +30,7 @@ export function CopyButton({
     ? (tooltipCopied ?? t.copySuccessClipboard)
     : (tooltip ?? t.fileCopyBranchName);
 
-  const handleClick = (e: React.MouseEvent) => {
+  const handleClick = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
     navigator.clipboard?.writeText(text).catch(() => {
       const textarea = document.createElement('textarea');
@@ -52,16 +52,24 @@ export function CopyButton({
     }, 600);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      handleClick(e);
+    }
+  };
+
   return (
     <TooltipSimple content={content} placement="top">
-      <button
-        type="button"
+      <span
+        role="button"
+        tabIndex={0}
         className={`adl-copy-btn${copied ? ' is-copied' : ''}${className ? ` ${className}` : ''}`}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
         aria-label={content}
       >
         <CopyIcon ref={copyIconRef} size={size} />
-      </button>
+      </span>
     </TooltipSimple>
   );
 }
