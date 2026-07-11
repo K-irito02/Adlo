@@ -1,4 +1,5 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
+use crate::http_helper::{HttpRequestBuilder, send_chat_request, send_stream_request};
 use adl_errors::AppError;
 use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelTier};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
@@ -123,25 +124,10 @@ impl ProviderAdapter for GoogleProvider {
         }
 
         let url = format!("{}/models/{}:generateContent?key={}", self.base_url, model, api_key);
-        let resp = self
-            .client
-            .post(&url)
+        let builder = HttpRequestBuilder::new(self.client.clone(), url)
             .header("Content-Type", "application/json")
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| AppError::Internal(format!("Google request failed: {}", e)))?;
-
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(AppError::Internal(format!("Google error {}: {}", status, text)));
-        }
-
-        let json: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| AppError::Internal(format!("Google parse failed: {}", e)))?;
+            .json(body);
+        let json = send_chat_request(&builder, "Google").await?;
 
         let content =
             json["candidates"][0]["content"]["parts"][0]["text"].as_str().unwrap_or("").to_string();
@@ -202,13 +188,8 @@ impl ProviderAdapter for GoogleProvider {
             self.base_url, model, api_key
         );
 
-        let response = self
-            .client
-            .post(&url)
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| AppError::Model(e.to_string()))?;
+        let builder = HttpRequestBuilder::new(self.client.clone(), url).json(body);
+        let response = send_stream_request(&builder, "Google").await?;
 
         let stream = response.bytes_stream().map(|chunk| {
             let chunk = chunk.map_err(|e| AppError::Model(e.to_string()))?;

@@ -10,12 +10,7 @@ import { themeController } from '@utils/theme';
 import { createEditorTab } from '@utils/editorTabs';
 import { loadConversationState, loadTaskCenterState } from '../loaders';
 import { workspaceContextModeFromInfo } from '../conversationUtils';
-import {
-  workspaceRequestSeq,
-  queueLowPriorityRefresh,
-  clearError,
-  captureTypedError,
-} from '../shared';
+import { workspaceRequestSeq, queueLowPriorityRefresh, clearError, captureError } from '../shared';
 import { resolveCurrentTheme } from '@shared/resolveTheme';
 import type { StoreApi } from 'zustand';
 
@@ -206,7 +201,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       try {
         const result = await window.digitalLife.app.updatePreferences(patch);
         if (!result.ok) {
-          captureTypedError(get, result.error);
+          captureError(get, result.error);
           return;
         }
         const responseMode = result.data.config.themeMode;
@@ -224,7 +219,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           await get().refreshModelHealth();
         }
       } catch (error) {
-        captureTypedError(get, error);
+        captureError(get, error);
       } finally {
         set({ isFetching: { ...get().isFetching, [key]: false } });
       }

@@ -89,7 +89,7 @@ export interface BrowserNavigatorProps {
   >;
 
   navigatorQuery: string;
-  searchScope: string;
+  searchScope: BrowserSearchScope;
   searchResults: Array<{ title: string; url: string; source: string }>;
   navigatorSearchRef: React.RefObject<HTMLDivElement | null>;
   navigatorSearchInputRef: React.RefObject<HTMLInputElement | null>;

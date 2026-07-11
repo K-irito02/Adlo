@@ -18,7 +18,6 @@ dependencies = [
  "chrono",
  "html2text",
  "reqwest",
- "rusqlite",
  "serde",
  "serde_json",
  "tokenizers",
@@ -35,7 +34,6 @@ dependencies = [
  "once_cell",
  "serde",
  "serde_json",
- "tauri",
  "tokio",
  "tracing",
  "url",
@@ -142,6 +140,7 @@ name = "adl-kernel"
 version = "0.1.0"
 dependencies = [
  "adl-errors",
+ "adl-logging",
  "chrono",
  "notify",
  "regex",
@@ -159,13 +158,13 @@ dependencies = [
 name = "adl-logging"
 version = "0.1.0"
 dependencies = [
- "adl-kernel",
  "chrono",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tracing",
  "tracing-subscriber",
+ "ts-rs",
 ]
 
 [[package]]
@@ -254,6 +253,7 @@ dependencies = [
 name = "adl-storage"
 version = "0.1.0"
 dependencies = [
+ "adl-agent-runtime",
  "adl-errors",
  "adl-kernel",
  "r2d2",

@@ -3,6 +3,7 @@ mod browser_meta;
 mod browser_navigation;
 mod browser_pool;
 mod browser_webview;
+pub mod webview_handle;
 mod webview2_audio;
 mod webview2_cleanup;
 mod webview2_favicon;
@@ -12,9 +13,14 @@ mod webview2_postmessage;
 mod webview2_profile;
 mod webview2_title;
 
+pub use browser_events::{navigation_handler};
 pub use browser_meta::PageMeta;
+pub use browser_navigation::{resolve_url, INIT_SCRIPT};
 pub use browser_pool::BrowserPool;
-pub use browser_webview::{Bounds, BrowserManager};
+pub use browser_webview::{BrowserManager, webview_label, BROWSER_WEBVIEW_LABEL};
+pub use webview_handle::{Bounds, WebViewHandle, WebView2EventBridge, EventBridgeRef};
 pub use webview2_audio::{mute_tab, setup_audio_changed_handler};
 pub use webview2_cleanup::{clear_cache, clear_cookies};
 pub use webview2_profile::set_color_scheme as webview2_set_color_scheme;
+
+pub use browser_webview::setup_webview2_handlers;

@@ -1,4 +1,5 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
+use crate::http_helper::{HttpRequestBuilder, send_chat_request, send_stream_request};
 use adl_errors::AppError;
 use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelTier};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
@@ -99,28 +100,13 @@ impl ProviderAdapter for OpenRouterProvider {
         });
 
         let url = format!("{}/chat/completions", self.base_url);
-        let resp = self
-            .client
-            .post(&url)
+        let builder = HttpRequestBuilder::new(self.client.clone(), url)
             .header("Authorization", format!("Bearer {}", api_key))
             .header("Content-Type", "application/json")
             .header("HTTP-Referer", "https://ai-digital-life.local")
             .header("X-Title", "AI Digital Life")
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| AppError::Internal(format!("OpenRouter request failed: {}", e)))?;
-
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(AppError::Internal(format!("OpenRouter error {}: {}", status, text)));
-        }
-
-        let json: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| AppError::Internal(format!("OpenRouter parse failed: {}", e)))?;
+            .json(body);
+        let json = send_chat_request(&builder, "OpenRouter").await?;
 
         let content = json["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string();
 
@@ -165,14 +151,11 @@ impl ProviderAdapter for OpenRouterProvider {
             "stream": true,
         });
 
-        let response = self
-            .client
-            .post(format!("{}/chat/completions", self.base_url))
-            .bearer_auth(api_key)
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| AppError::Model(e.to_string()))?;
+        let url = format!("{}/chat/completions", self.base_url);
+        let builder = HttpRequestBuilder::new(self.client.clone(), url)
+            .header("Authorization", format!("Bearer {}", api_key))
+            .json(body);
+        let response = send_stream_request(&builder, "OpenRouter").await?;
 
         let stream = response.bytes_stream().map(|chunk| {
             let chunk = chunk.map_err(|e| AppError::Model(e.to_string()))?;

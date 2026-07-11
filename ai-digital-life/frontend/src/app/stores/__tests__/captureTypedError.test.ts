@@ -1,27 +1,27 @@
 import { describe, it, expect, vi } from 'vitest';
 import { NotFoundError, NetworkError } from '../../../shared/typedErrors';
-import { captureTypedError } from '../shared';
+import { captureError } from '../shared';
 import type { StoreState } from '../StoreState';
 
-describe('captureTypedError', () => {
+describe('captureError', () => {
   it('calls setError with formatted AppError message', () => {
     const setError = vi.fn();
     const get = vi.fn(() => ({ setError })) as unknown as () => StoreState;
-    captureTypedError(get, new NotFoundError('file'));
+    captureError(get, new NotFoundError('file'));
     expect(setError).toHaveBeenCalledWith('[NOT_FOUND] Not found: file');
   });
 
-  it('calls setError with NetworkError', () => {
+  it('calls setError with formatted code+message object', () => {
     const setError = vi.fn();
     const get = vi.fn(() => ({ setError })) as unknown as () => StoreState;
-    captureTypedError(get, new NetworkError('timeout'));
+    captureError(get, { code: 'NETWORK_ERROR', message: 'timeout' });
     expect(setError).toHaveBeenCalledWith('[NETWORK_ERROR] Network error: timeout');
   });
 
-  it('falls back for non-AppError', () => {
+  it('falls back to plain message for strings', () => {
     const setError = vi.fn();
     const get = vi.fn(() => ({ setError })) as unknown as () => StoreState;
-    captureTypedError(get, 'plain error');
-    expect(setError).toHaveBeenCalledWith('[INTERNAL_ERROR] Internal error: plain error');
+    captureError(get, 'plain error');
+    expect(setError).toHaveBeenCalledWith('plain error');
   });
 });

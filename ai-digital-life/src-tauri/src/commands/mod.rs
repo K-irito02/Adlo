@@ -46,7 +46,7 @@ pub fn ipc<T>(result: Result<T, AppError>) -> IpcResult<T> {
         Ok(data) => IpcResult::ok(data),
         Err(error) => {
             let cmd_err = CommandError::from(error);
-            IpcResult::err(cmd_err.code.to_string(), cmd_err.message)
+            IpcResult::err(cmd_err.code, cmd_err.message)
         },
     }
 }

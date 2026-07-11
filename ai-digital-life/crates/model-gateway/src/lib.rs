@@ -3,6 +3,7 @@
 //! back to a local synthetic response when all providers fail.
 
 pub mod adapter;
+pub mod http_helper;
 pub mod registry;
 pub use adl_kernel::types::config::ModelDefinition;
 pub use registry::{ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry};

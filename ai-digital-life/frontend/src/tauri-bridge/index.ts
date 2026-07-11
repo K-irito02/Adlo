@@ -17,25 +17,25 @@ import {
   createTauriAppBridge,
   createTauriCommandBridge,
   createTauriCommandsConfigBridge,
-  createTauriCompactionBridge,
   createTauriCustomAgentBridge,
-  createTauriDurableBridge,
-  createTauriLspBridge,
   createTauriMcpBridge,
   createTauriPatchBridge,
-  createTauriPermissionBridge,
-  createTauriPtyBridge,
-  createTauriReferenceBridge,
   createTauriReservedBridge,
   createTauriRetrievalBridge,
   createTauriRunActivityBridge,
-  createTauriSnapshotBridge,
   createTauriTaskBridge,
-  createTauriWebToolsBridge,
   createTauriWindowBridge,
   createTauriSessionForkBridge,
-  createTauriPluginBridge,
 } from './misc';
+import { createTauriCompactionBridge } from './compaction';
+import { createTauriDurableBridge } from './durable';
+import { createTauriLspBridge } from './lsp';
+import { createTauriPermissionBridge } from './permission';
+import { createTauriPluginBridge } from './plugin';
+import { createTauriPtyBridge } from './pty';
+import { createTauriReferenceBridge } from './reference';
+import { createTauriSnapshotBridge } from './snapshot';
+import { createTauriWebToolsBridge } from './web-tools';
 
 export function createTauriBridge(): DigitalLifeBridge {
   return {

@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use adl_kernel::types::config::LogMode;
+use adl_logging::LogMode;
 use tauri::webview::PageLoadEvent;
 use tauri::Manager;
 
@@ -9,7 +9,9 @@ mod error;
 mod run_activity_seq;
 mod setup;
 mod state;
+mod tauri_webview_handle;
 mod terminal;
+mod webview_event_bridge;
 
 fn parse_cli_log_mode() -> Option<LogMode> {
     let args: Vec<String> = std::env::args().collect();

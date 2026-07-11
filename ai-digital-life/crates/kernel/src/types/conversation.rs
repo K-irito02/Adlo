@@ -320,7 +320,7 @@ pub struct PlanConversationItem {
     pub status: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
 #[serde(rename_all = "camelCase")]
 pub struct ConversationSessionRecord {

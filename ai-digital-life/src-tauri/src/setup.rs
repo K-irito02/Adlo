@@ -1,5 +1,5 @@
 use crate::state::AppState;
-use adl_agent_runtime::durable::DurableSessionManager;
+use adl_storage::durable::DurableSessionManager;
 use adl_browser::BrowserManager;
 use adl_kernel::config_watcher::ConfigWatcher;
 use adl_kernel::{config as adl_config, events::EventBus, now_ms};
@@ -188,9 +188,14 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     let log_dir = project_root.join(".adl-logs");
     std::fs::create_dir_all(&log_dir)?;
 
-    let log_manager =
-        adl_logging::LogManager::init(&adl_logging::LogConfig::from_app_config(&config), &log_dir)
-            .context("failed to init log manager")?;
+    let log_manager = adl_logging::LogManager::init(
+        &adl_logging::LogConfig {
+            terminal_log_mode: config.terminal_log_mode,
+            debug_log_mode: config.debug_log_mode,
+        },
+        &log_dir,
+    )
+    .context("failed to init log manager")?;
 
     info!(?log_dir, "log manager initialized");
 

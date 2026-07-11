@@ -1,6 +1,5 @@
 use crate::commands::ipc;
 use crate::commands::workspace_git::persist_workspace_meta;
-use crate::error::IpcErrorCode;
 use crate::state::AppState;
 use crate::workspace_cmd;
 use adl_errors::AppError;
@@ -211,7 +210,7 @@ pub fn workspace_delete_file(
             IpcResult::ok(true)
         },
         Ok(false) => IpcResult::ok(false),
-        Err(e) => IpcResult::err(IpcErrorCode::InternalError.to_string(), e.to_string()),
+        Err(e) => IpcResult::err("INTERNAL_ERROR", e.to_string()),
     }
 }
 

@@ -26,9 +26,6 @@ pub(crate) mod shared {
     use std::time::Instant;
 
     use once_cell::sync::Lazy;
-    use tauri::Webview;
-    use tracing::{error, warn};
-    use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2;
 
     pub(crate) static POSTMESSAGE_RECEIVED_COUNT: AtomicU64 = AtomicU64::new(0);
     pub(crate) static DOCUMENT_TITLE_CHANGED_COUNT: AtomicU64 = AtomicU64::new(0);
@@ -90,52 +87,6 @@ pub(crate) mod shared {
         }
 
         true
-    }
-
-    /// Generic helper that wraps the `webview.with_webview(...)` boilerplate
-    /// common to all four `setup_*` handlers.
-    ///
-    /// - Acquires the `ICoreWebView2` from the platform webview controller.
-    /// - Invokes `handler_setup(&core)` to perform the handler-specific
-    ///   registration (cast, create handler closure, call `add_*`).
-    /// - Logs the standard "FAILED to get CoreWebView2" and "with_webview
-    ///   FAILED" messages with `method_name` for context.
-    /// - Returns `Err(format!("{}: {}", error_prefix, e))` on with_webview
-    ///   failure so each caller can preserve its own error format.
-    ///
-    /// The `handler_setup` closure runs on the webview thread (inside
-    /// `with_webview`) and is responsible for its own success/failure
-    /// logging of the `add_*` registration call.
-    pub(crate) fn register_webview2_handler<F>(
-        webview: Webview,
-        method_name: &'static str,
-        error_prefix: &'static str,
-        handler_setup: F,
-    ) -> Result<(), String>
-    where
-        F: FnOnce(&ICoreWebView2) + Send + 'static,
-    {
-        let result = webview.with_webview(move |platform_wv| unsafe {
-            let controller = platform_wv.controller();
-
-            let core = match controller.CoreWebView2() {
-                Ok(c) => c,
-                Err(e) => {
-                    error!("[ADL-META-RECV] {}: FAILED to get CoreWebView2: {}", method_name, e);
-                    return;
-                },
-            };
-
-            handler_setup(&core);
-        });
-
-        match result {
-            Ok(_) => Ok(()),
-            Err(e) => {
-                warn!("[ADL-META-RECV] {}: with_webview FAILED: {}, falling back", method_name, e);
-                Err(format!("{}: {}", error_prefix, e))
-            },
-        }
     }
 }
 

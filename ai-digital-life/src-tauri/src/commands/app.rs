@@ -226,7 +226,7 @@ pub fn app_set_log_mode(
         "debug" => adl_logging::LogTarget::Debug,
         other => return Err(format!("Invalid log target: {other}")),
     };
-    let log_mode: adl_kernel::types::config::LogMode =
+    let log_mode: adl_logging::LogMode =
         mode.parse().map_err(|e: String| format!("Invalid log mode: {e}"))?;
 
     state.log_manager.set_mode(log_target, log_mode).map_err(|e| e.to_string())?;

@@ -6,7 +6,7 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_agent_runtime::plan_mode::PlanModeState;
 use adl_agent_runtime::registry::AgentRegistry;
-use adl_agent_runtime::router::AgentRouter;
+use adl_agent_runtime::router;
 use adl_errors::AppError;
 use adl_kernel::types::agent::AgentConfig;
 use adl_kernel::{
@@ -344,7 +344,7 @@ fn select_agent_inner(
         "code_edit" => ConversationScenario::CodeEdit,
         _ => ConversationScenario::Chat,
     };
-    let agent_id = AgentRouter::select(conv_scenario, user_prompt);
+    let agent_id = router::select(conv_scenario, user_prompt);
     let registry = AgentRegistry::new();
     registry
         .get(agent_id)

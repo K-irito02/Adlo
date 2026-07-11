@@ -1,10 +1,31 @@
+use std::sync::Arc;
+
 use crate::commands::ipc;
 use crate::error::CommandError;
 use crate::state::AppState;
-use adl_browser::{Bounds, PageMeta};
+use crate::tauri_webview_handle::TauriWebViewHandle;
+use crate::webview_event_bridge::TauriWebView2EventBridge;
+use adl_browser::webview_handle::{Bounds, WebViewHandle, EventBridgeRef};
+use adl_browser::{PageMeta, webview_label};
 use adl_errors::AppError;
 use adl_kernel::IpcResult;
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
+
+fn new_window_handler(
+    app: &tauri::AppHandle,
+    url: &url::Url,
+) -> tauri::webview::NewWindowResponse<tauri::Wry> {
+    if url.scheme() == "http" || url.scheme() == "https" {
+        if let Some(window) = app.get_window("main") {
+            if let Some(webview) = window.get_webview(adl_browser::BROWSER_WEBVIEW_LABEL) {
+                if let Ok(parsed_url) = adl_browser::resolve_url(url.as_str()) {
+                    let _ = webview.navigate(parsed_url);
+                }
+            }
+        }
+    }
+    tauri::webview::NewWindowResponse::Deny
+}
 
 #[tauri::command]
 pub async fn browser_create_for_tab(
@@ -17,7 +38,94 @@ pub async fn browser_create_for_tab(
 
     app.run_on_main_thread(move || {
         let state = app_inner.state::<AppState>();
-        let result = state.browser_manager.create_for_tab(&app_inner, &tab_id, &url);
+        let label = webview_label(&tab_id);
+
+        let window = match app_inner.get_window("main") {
+            Some(w) => w,
+            None => {
+                let _ = tx.send(Err(AppError::Internal("main window not found".into())));
+                return;
+            }
+        };
+
+        let target = match adl_browser::resolve_url(&url) {
+            Ok(u) => u,
+            Err(e) => {
+                let _ = tx.send(Err(e));
+                return;
+            }
+        };
+
+        let app_nav = app_inner.clone();
+        let app_handle = app_inner.clone();
+        let webview_builder =
+            tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(target))
+                .initialization_script(adl_browser::INIT_SCRIPT)
+                .on_navigation(move |url| {
+                    adl_browser::navigation_handler(url, &|normalized| {
+                        let _ = app_nav.emit(
+                            "digital-life://browser-url-changed",
+                            serde_json::json!({ "url": normalized }),
+                        );
+                    })
+                })
+                .on_new_window(move |url, _window_features| {
+                    new_window_handler(&app_handle, &url)
+                });
+
+        if let Err(e) = window.add_child(
+            webview_builder,
+            tauri::LogicalPosition::new(-10000.0, -10000.0),
+            tauri::LogicalSize::new(800.0, 600.0),
+        ) {
+            let _ = tx.send(Err(AppError::Internal(format!(
+                "failed to create webview for tab {tab_id}: {e}"
+            ))));
+            return;
+        }
+
+        tracing::info!(tab_id = &tab_id, url = &url, "browser webview created for tab");
+
+        if let Some(webview) = window.get_webview(&label) {
+            let bridge: EventBridgeRef =
+                Arc::new(TauriWebView2EventBridge::new(app_inner.clone()));
+
+            #[cfg(windows)]
+            {
+                let bridge_clone = bridge.clone();
+                let tab_id_clone = tab_id.clone();
+                let label_clone = label.clone();
+                let _ = webview.with_webview(move |platform_wv| unsafe {
+                    let controller = platform_wv.controller();
+                    if let Ok(core) = controller.CoreWebView2() {
+                        adl_browser::setup_webview2_handlers(&core, &tab_id_clone, &label_clone, &bridge_clone);
+                    }
+                });
+            }
+            #[cfg(not(windows))]
+            {
+                adl_browser::setup_webview2_handlers(&tab_id, &label);
+            }
+
+            let cs = state.browser_manager.current_color_scheme();
+            #[cfg(windows)]
+            {
+                let _ = webview.with_webview(move |platform_wv| unsafe {
+                    let controller = platform_wv.controller();
+                    if let Ok(core) = controller.CoreWebView2() {
+                        adl_browser::webview2_set_color_scheme(&core, &cs);
+                    }
+                });
+            }
+            #[cfg(not(windows))]
+            {
+                adl_browser::webview2_set_color_scheme(&cs);
+            }
+        }
+
+        let handle: Arc<dyn WebViewHandle> =
+            Arc::new(TauriWebViewHandle::new(app_inner.clone(), label));
+        let result = state.browser_manager.create_for_tab(handle, &tab_id);
         let _ = tx.send(result);
     })
     .map_err(|e| AppError::Internal(format!("main thread dispatch failed: {e}")))?;
@@ -27,67 +135,60 @@ pub async fn browser_create_for_tab(
 
 #[tauri::command]
 pub fn browser_activate_tab(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     tab_id: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.activate_tab(&app, &tab_id)))
+    Ok(ipc(state.browser_manager.activate_tab(&tab_id)))
 }
 
 #[tauri::command]
 pub fn browser_destroy_tab(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     tab_id: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.destroy_tab(&app, &tab_id)))
+    Ok(ipc(state.browser_manager.destroy_tab(&tab_id)))
 }
 
 #[tauri::command]
 pub fn browser_navigate_tab(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     tab_id: String,
     url: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.navigate_tab(&app, &tab_id, &url)))
+    Ok(ipc(state.browser_manager.navigate_tab(&tab_id, &url)))
 }
 
 #[tauri::command]
 pub fn browser_set_tab_bounds(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     tab_id: String,
     bounds: Bounds,
 ) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.set_tab_bounds(&app, &tab_id, bounds)))
+    Ok(ipc(state.browser_manager.set_tab_bounds(&tab_id, bounds)))
 }
 
 #[tauri::command]
 pub fn browser_go_back_tab(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     tab_id: String,
 ) -> Result<IpcResult<bool>, CommandError> {
-    Ok(ipc(state.browser_manager.go_back_tab(&app, &tab_id)))
+    Ok(ipc(state.browser_manager.go_back_tab(&tab_id)))
 }
 
 #[tauri::command]
 pub fn browser_go_forward_tab(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     tab_id: String,
 ) -> Result<IpcResult<bool>, CommandError> {
-    Ok(ipc(state.browser_manager.go_forward_tab(&app, &tab_id)))
+    Ok(ipc(state.browser_manager.go_forward_tab(&tab_id)))
 }
 
 #[tauri::command]
 pub fn browser_reload_tab(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     tab_id: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.reload_tab(&app, &tab_id)))
+    Ok(ipc(state.browser_manager.reload_tab(&tab_id)))
 }
 
 #[tauri::command]
@@ -102,53 +203,48 @@ pub async fn browser_fetch_page_meta(
 
 #[tauri::command]
 pub fn browser_mute_tab(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     tab_id: String,
     muted: bool,
 ) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.mute_tab(&app, &tab_id, muted)))
+    Ok(ipc(state.browser_manager.mute_tab(&tab_id, muted)))
 }
 
 #[tauri::command]
 pub fn browser_set_color_scheme(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     color_scheme: String,
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::info!(color_scheme, "browser_set_color_scheme command invoked");
-    Ok(ipc(state.browser_manager.set_color_scheme_for_all(&app, &color_scheme)))
+    Ok(ipc(state.browser_manager.set_color_scheme_for_all(&color_scheme)))
 }
 
 #[tauri::command]
 pub fn browser_set_zoom(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     tab_id: String,
     zoom_factor: f64,
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::info!(tab_id = %tab_id, zoom_factor = zoom_factor, "browser_set_zoom command invoked");
-    Ok(ipc(state.browser_manager.set_zoom(&app, &tab_id, zoom_factor)))
+    Ok(ipc(state.browser_manager.set_zoom(&tab_id, zoom_factor)))
 }
 
 #[tauri::command]
 pub fn browser_clear_cookies(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     tab_id: String,
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::info!(tab_id = %tab_id, "browser_clear_cookies command invoked");
-    Ok(ipc(state.browser_manager.clear_cookies_for_tab(&app, &tab_id)))
+    Ok(ipc(state.browser_manager.clear_cookies_for_tab(&tab_id)))
 }
 
 #[tauri::command]
 pub fn browser_clear_cache(
-    app: tauri::AppHandle,
     state: State<'_, AppState>,
     tab_id: String,
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::info!(tab_id = %tab_id, "browser_clear_cache command invoked");
-    Ok(ipc(state.browser_manager.clear_cache_for_tab(&app, &tab_id)))
+    Ok(ipc(state.browser_manager.clear_cache_for_tab(&tab_id)))
 }
 
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";

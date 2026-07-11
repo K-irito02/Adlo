@@ -1,3 +1,4 @@
+pub use adl_logging::LogMode;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -43,42 +44,6 @@ pub enum LogLevel {
     Info,
     Warn,
     Error,
-}
-
-/// 日志文件写入模式
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
-#[serde(rename_all = "snake_case")]
-pub enum LogMode {
-    /// 每次启动覆盖文件
-    #[default]
-    Overwrite,
-    /// 每次启动追加到文件
-    Append,
-    /// 每次启动创建独立会话文件
-    Multi,
-}
-
-impl std::str::FromStr for LogMode {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "overwrite" => Ok(Self::Overwrite),
-            "append" => Ok(Self::Append),
-            "multi" => Ok(Self::Multi),
-            other => Err(format!("Invalid LogMode: {other}. Expected overwrite|append|multi")),
-        }
-    }
-}
-
-impl std::fmt::Display for LogMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Overwrite => write!(f, "overwrite"),
-            Self::Append => write!(f, "append"),
-            Self::Multi => write!(f, "multi"),
-        }
-    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]

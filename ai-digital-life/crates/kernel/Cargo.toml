@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 adl-errors = { path = "../errors" }
+adl-logging = { path = "../adl-logging" }
 serde.workspace = true
 serde_json.workspace = true
 ts-rs = { version = "10", features = ["serde-compat", "serde-json-impl"] }

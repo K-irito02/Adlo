@@ -1,20 +1,11 @@
 #[cfg(windows)]
 mod imp {
-    use tauri::Webview;
     use webview2_com::CallDevToolsProtocolMethodCompletedHandler;
+    use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2;
     use windows::core::HSTRING;
 
-    pub fn clear_cookies(webview: &Webview) {
-        let _ = webview.with_webview(move |platform_wv| unsafe {
-            let controller = platform_wv.controller();
-            let core = match controller.CoreWebView2() {
-                Ok(c) => c,
-                Err(e) => {
-                    tracing::warn!("clear_cookies: failed to get CoreWebView2: {e}");
-                    return;
-                },
-            };
-
+    pub fn clear_cookies(core: &ICoreWebView2) {
+        unsafe {
             let method = HSTRING::from("Network.clearBrowserCookies");
             let params = HSTRING::from("{}");
 
@@ -33,20 +24,11 @@ mod imp {
                 Ok(_) => tracing::info!("cdp: Network.clearBrowserCookies called"),
                 Err(e) => tracing::warn!("cdp: Network.clearBrowserCookies failed: {e}"),
             }
-        });
+        }
     }
 
-    pub fn clear_cache(webview: &Webview) {
-        let _ = webview.with_webview(move |platform_wv| unsafe {
-            let controller = platform_wv.controller();
-            let core = match controller.CoreWebView2() {
-                Ok(c) => c,
-                Err(e) => {
-                    tracing::warn!("clear_cache: failed to get CoreWebView2: {e}");
-                    return;
-                },
-            };
-
+    pub fn clear_cache(core: &ICoreWebView2) {
+        unsafe {
             let method = HSTRING::from("Network.clearBrowserCache");
             let params = HSTRING::from("{}");
 
@@ -65,19 +47,17 @@ mod imp {
                 Ok(_) => tracing::info!("cdp: Network.clearBrowserCache called"),
                 Err(e) => tracing::warn!("cdp: Network.clearBrowserCache failed: {e}"),
             }
-        });
+        }
     }
 }
 
 #[cfg(not(windows))]
 mod imp {
-    use tauri::Webview;
-
-    pub fn clear_cookies(_webview: &Webview) {
+    pub fn clear_cookies() {
         tracing::debug!("clear_cookies: not supported on non-Windows");
     }
 
-    pub fn clear_cache(_webview: &Webview) {
+    pub fn clear_cache() {
         tracing::debug!("clear_cache: not supported on non-Windows");
     }
 }

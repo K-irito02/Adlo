@@ -8,13 +8,6 @@ pub struct LogConfig {
 }
 
 impl LogConfig {
-    pub fn from_app_config(app_config: &adl_kernel::config::AppConfig) -> Self {
-        Self {
-            terminal_log_mode: app_config.terminal_log_mode,
-            debug_log_mode: app_config.debug_log_mode,
-        }
-    }
-
     pub fn merge_cli(&mut self, cli_mode: LogMode) {
         self.terminal_log_mode = cli_mode;
         self.debug_log_mode = cli_mode;

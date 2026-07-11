@@ -2,10 +2,10 @@
 mod imp {
     use std::any::Any;
     use std::collections::HashMap;
+    use std::sync::Arc;
     use std::sync::Mutex;
 
     use once_cell::sync::Lazy;
-    use tauri::{Emitter, Manager, Webview};
     use webview2_com::IsDocumentPlayingAudioChangedEventHandler;
     use webview2_com::IsMutedChangedEventHandler;
     use webview2_com::Microsoft::Web::WebView2::Win32::{
@@ -14,54 +14,40 @@ mod imp {
     use windows::core::IUnknown;
     use windows::core::Interface;
 
+    use crate::WebView2EventBridge;
+
     type EventRegistrationToken = i64;
 
-    /// Wrapper that makes COM handlers (which are `!Send` due to raw COM pointers)
-    /// storable behind a `Mutex`. The handlers' closures capture only `Send` types
-    /// (AppHandle, String), and COM's AddRef/Release are thread-safe.
-    #[allow(dead_code)] // Inner field is write-only: struct exists to keep COM handlers alive, never downcast
+    #[allow(dead_code)]
     struct HandlerBox(Box<dyn Any>);
     unsafe impl Send for HandlerBox {}
 
-    /// Stores COM handler interface pointers to prevent premature drop.
-    /// WebView2 internally calls AddRef on handlers, but keeping the Rust-side
-    /// wrappers alive is a defense-in-depth measure against potential COM interop edge cases.
     static HANDLER_STORE: Lazy<Mutex<HashMap<String, Vec<HandlerBox>>>> =
         Lazy::new(|| Mutex::new(HashMap::new()));
 
     pub fn cleanup_audio_handler(tab_id: &str) {
-        // Recover from poisoned lock — clearing stale data is safe
         let mut store = HANDLER_STORE.lock().unwrap_or_else(|e| e.into_inner());
         store.remove(tab_id);
     }
 
-    pub fn setup_audio_changed_handler(webview: Webview, tab_id: &str) -> Result<(), String> {
-        let app = webview.app_handle().clone();
+    pub fn setup_audio_changed_handler(
+        core: &ICoreWebView2,
+        tab_id: &str,
+        bridge: &Arc<dyn WebView2EventBridge>,
+    ) -> Result<(), String> {
         let tid = tab_id.to_string();
-
-        // Remove any stale handlers for this tab before creating new ones
         cleanup_audio_handler(&tid);
 
-        let result = webview.with_webview(move |platform_wv| unsafe {
-            let controller = platform_wv.controller();
-
-            let core = match controller.CoreWebView2() {
-                Ok(c) => c,
-                Err(e) => {
-                    tracing::error!(tab_id = %tid, "failed to get CoreWebView2: {e}");
-                    return;
-                },
-            };
-
+        unsafe {
             let core17: ICoreWebView2_17 = match core.cast() {
                 Ok(c) => c,
                 Err(e) => {
                     tracing::error!(tab_id = %tid, "ICoreWebView2_17 not available: {e}");
-                    return;
+                    return Ok(());
                 },
             };
 
-            let app_for_audio = app.clone();
+            let bridge_for_audio = bridge.clone();
             let tid_for_audio = tid.clone();
             let audio_handler = IsDocumentPlayingAudioChangedEventHandler::create(Box::new(
                 move |sender: Option<ICoreWebView2>, _args: Option<IUnknown>| {
@@ -82,15 +68,7 @@ mod imp {
                     let mut is_muted_val: windows::core::BOOL = windows::core::BOOL(0);
                     let _ = core18.IsMuted(&mut is_muted_val);
                     let is_muted = is_muted_val.0 != 0;
-                    let app = app_for_audio.clone();
-                    let _ = app.emit(
-                        "digital-life://browser-audio-changed",
-                        serde_json::json!({
-                            "tabId": tid_for_audio,
-                            "isPlaying": is_playing,
-                            "isMuted": is_muted,
-                        }),
-                    );
+                    bridge_for_audio.emit_audio_changed(&tid_for_audio, is_playing, is_muted);
                     Ok(())
                 },
             ));
@@ -100,18 +78,18 @@ mod imp {
                 .add_IsDocumentPlayingAudioChanged(&audio_handler, &mut token as *mut _ as *mut _)
             {
                 tracing::error!(tab_id = %tid, "add_IsDocumentPlayingAudioChanged failed: {e}");
-                return;
+                return Ok(());
             }
 
             let core18: ICoreWebView2_18 = match core17.cast() {
                 Ok(c) => c,
                 Err(e) => {
                     tracing::error!(tab_id = %tid, "ICoreWebView2_18 not available: {e}");
-                    return;
+                    return Ok(());
                 },
             };
 
-            let app_for_mute = app.clone();
+            let bridge_for_mute = bridge.clone();
             let tid_for_mute = tid.clone();
             let mute_handler = IsMutedChangedEventHandler::create(Box::new(
                 move |sender: Option<ICoreWebView2>, _args: Option<IUnknown>| {
@@ -125,14 +103,7 @@ mod imp {
                     let mut is_muted_val: windows::core::BOOL = windows::core::BOOL(0);
                     let _ = core18.IsMuted(&mut is_muted_val);
                     let is_muted = is_muted_val.0 != 0;
-                    let app = app_for_mute.clone();
-                    let _ = app.emit(
-                        "digital-life://browser-audio-changed",
-                        serde_json::json!({
-                            "tabId": tid_for_mute,
-                            "isMuted": is_muted,
-                        }),
-                    );
+                    bridge_for_mute.emit_audio_changed(&tid_for_mute, false, is_muted);
                     Ok(())
                 },
             ));
@@ -142,70 +113,52 @@ mod imp {
                 core18.add_IsMutedChanged(&mute_handler, &mut mute_token as *mut _ as *mut _)
             {
                 tracing::error!(tab_id = %tid, "add_IsMutedChanged failed: {e}");
-                return;
+                return Ok(());
             }
 
-            // Store handlers to keep them alive — recovers from poisoned lock
             let mut store = HANDLER_STORE.lock().unwrap_or_else(|e| e.into_inner());
             let entry = store.entry(tid.clone()).or_default();
             entry.push(HandlerBox(Box::new(audio_handler)));
             entry.push(HandlerBox(Box::new(mute_handler)));
 
             tracing::info!(tab_id = %tid, "audio handlers registered (ICoreWebView2_17 + _18)");
-        });
-
-        match result {
-            Ok(_) => Ok(()),
-            Err(e) => Err(format!("with_webview failed: {e}")),
         }
+
+        Ok(())
     }
 
-    pub fn mute_tab(webview: &Webview, muted: bool) -> Result<(), String> {
-        let result = webview.with_webview(move |platform_wv| unsafe {
-            let controller = platform_wv.controller();
-
-            let core = match controller.CoreWebView2() {
-                Ok(c) => c,
-                Err(e) => {
-                    tracing::error!("failed to get CoreWebView2: {e}");
-                    return;
-                },
-            };
-
+    pub fn mute_tab(core: &ICoreWebView2, muted: bool) -> Result<(), String> {
+        unsafe {
             let core18: ICoreWebView2_18 = match core.cast() {
                 Ok(c) => c,
                 Err(e) => {
                     tracing::error!("ICoreWebView2_18 not available for mute: {e}");
-                    return;
+                    return Err(format!("ICoreWebView2_18 not available: {e}"));
                 },
             };
 
             if let Err(e) = core18.SetIsMuted(muted) {
                 tracing::error!("SetIsMuted failed: {e}");
-                return;
+                return Err(format!("SetIsMuted failed: {e}"));
             }
 
             tracing::info!(muted = %muted, "tab audio mute toggled");
-        });
-
-        match result {
-            Ok(_) => Ok(()),
-            Err(e) => Err(format!("with_webview failed: {e}")),
         }
+
+        Ok(())
     }
 }
 
 #[cfg(not(windows))]
 mod imp {
-    use tauri::Webview;
     use tracing::debug;
 
-    pub fn setup_audio_changed_handler(_webview: Webview, _tab_id: &str) -> Result<(), String> {
+    pub fn setup_audio_changed_handler(_tab_id: &str) -> Result<(), String> {
         debug!("audio handler not available on non-Windows");
         Ok(())
     }
 
-    pub fn mute_tab(_webview: &Webview, _muted: bool) -> Result<(), String> {
+    pub fn mute_tab(_muted: bool) -> Result<(), String> {
         debug!("mute tab not available on non-Windows");
         Ok(())
     }

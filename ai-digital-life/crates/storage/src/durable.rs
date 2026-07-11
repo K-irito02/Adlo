@@ -23,7 +23,7 @@ pub enum DurableStatus {
 
 #[derive(Clone)]
 pub struct DurableSessionManager {
-    pub(crate) db: adl_storage::Database,
+    pub(crate) db: crate::Database,
     max_retries: u32,
     heartbeat_timeout_ms: u64,
 }
@@ -38,7 +38,7 @@ impl std::fmt::Debug for DurableSessionManager {
 }
 
 impl DurableSessionManager {
-    pub fn new(db: adl_storage::Database) -> Self {
+    pub fn new(db: crate::Database) -> Self {
         Self { db, max_retries: 3, heartbeat_timeout_ms: 30_000 }
     }
 
@@ -234,7 +234,7 @@ mod tests {
         let path =
             std::env::temp_dir().join(format!("test_durable_{}_{}.db", std::process::id(), unique));
         let _ = std::fs::remove_file(&path);
-        let db = adl_storage::Database::open(&path).expect("test db should open");
+        let db = crate::Database::open(&path).expect("test db should open");
         db.init_schema().expect("test schema should initialize");
         DurableSessionManager::new(db)
     }

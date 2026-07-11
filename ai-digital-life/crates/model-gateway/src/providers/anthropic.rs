@@ -1,4 +1,5 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
+use crate::http_helper::{HttpRequestBuilder, send_chat_request, send_stream_request};
 use adl_errors::AppError;
 use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelTier};
 use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
@@ -121,27 +122,12 @@ impl ProviderAdapter for AnthropicProvider {
         }
 
         let url = format!("{}/messages", self.base_url);
-        let resp = self
-            .client
-            .post(&url)
+        let builder = HttpRequestBuilder::new(self.client.clone(), url)
             .header("x-api-key", api_key)
             .header("anthropic-version", "2023-06-01")
             .header("Content-Type", "application/json")
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| AppError::Internal(format!("Anthropic request failed: {}", e)))?;
-
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let text = resp.text().await.unwrap_or_default();
-            return Err(AppError::Internal(format!("Anthropic error {}: {}", status, text)));
-        }
-
-        let json: serde_json::Value = resp
-            .json()
-            .await
-            .map_err(|e| AppError::Internal(format!("Anthropic parse failed: {}", e)))?;
+            .json(body);
+        let json = send_chat_request(&builder, "Anthropic").await?;
 
         let content = json["content"][0]["text"].as_str().unwrap_or("").to_string();
 
@@ -207,15 +193,12 @@ impl ProviderAdapter for AnthropicProvider {
             body["system"] = serde_json::Value::String(sys);
         }
 
-        let response = self
-            .client
-            .post(format!("{}/messages", self.base_url))
+        let url = format!("{}/messages", self.base_url);
+        let builder = HttpRequestBuilder::new(self.client.clone(), url)
             .header("x-api-key", api_key)
             .header("anthropic-version", "2023-06-01")
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| AppError::Model(e.to_string()))?;
+            .json(body);
+        let response = send_stream_request(&builder, "Anthropic").await?;
 
         let stream = response.bytes_stream().map(|chunk| {
             let chunk = chunk.map_err(|e| AppError::Model(e.to_string()))?;

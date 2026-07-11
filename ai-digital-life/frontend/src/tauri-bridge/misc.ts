@@ -4,45 +4,23 @@ import type {
   AppBridge,
   CommandBridge,
   CommandsConfigBridge,
-  CompactionBridge,
   CustomAgentBridge,
-  DurableBridge,
-  DurableSessionState,
-  LspBridge,
   McpBridge,
   McpCatalog,
   McpServerConfig,
   McpServerInfo,
   PatchBridge,
-  PermissionBridge,
-  PermissionDecision,
-  PermissionRulesetConfig,
-  PluginBridge,
-  PluginInfo,
-  PtyBridge,
-  PtySessionInfo,
-  ReferenceBridge,
-  ReferenceConfig,
   ReservedBridge,
   RetrievalBridge,
   RunActivityBridge,
   SessionForkBridge,
-  SnapshotBridge,
-  SnapshotRecord,
-  SymbolInfo,
-  CompactSessionResult,
-  DiagnosticInfo,
   TaskBridge,
-  WebFetchResult,
-  WebSearchResult,
-  WebToolsBridge,
   WindowBridge,
   AcpConfig,
   AgentConfig,
   CodeModeConfig,
   CommandConfig,
   HttpApiConfig,
-  RevertResult,
 } from '../shared/ipc';
 import type {
   AppInfo,
@@ -88,7 +66,6 @@ export function createTauriWindowBridge(): WindowBridge {
           if (active) {
             ul = unlisten;
           } else {
-            /* unlisten() is typed () => void but actually async; catch rejection via wrapper */
             void Promise.resolve(unlisten()).catch(() => {});
           }
         });
@@ -149,19 +126,6 @@ export function createTauriCommandBridge(): CommandBridge {
   };
 }
 
-export function createTauriPtyBridge(): PtyBridge {
-  return {
-    create: (input: { shell?: string; cwd?: string; cols: number; rows: number }) =>
-      invokeIpc<{ sessionId: string }>('pty_create', { input }),
-    input: (sessionId: string, data: string) =>
-      invokeIpc<boolean>('pty_input', { sessionId, data }),
-    resize: (sessionId: string, cols: number, rows: number) =>
-      invokeIpc<boolean>('pty_resize', { sessionId, cols, rows }),
-    kill: (sessionId: string) => invokeIpc<boolean>('pty_kill', { sessionId }),
-    list: () => invokeIpc<PtySessionInfo[]>('pty_list'),
-  };
-}
-
 export function createTauriTaskBridge(): TaskBridge {
   return {
     getSnapshot: () => invokeIpc<TaskCenterSnapshot>('task_get_snapshot'),
@@ -201,29 +165,6 @@ export function createTauriMcpBridge(): McpBridge {
   };
 }
 
-export function createTauriSnapshotBridge() {
-  return {
-    createSnapshot: (params) => invokeIpc<SnapshotRecord>('create_snapshot', params),
-    listSnapshots: (workspaceId, workspaceRoot) =>
-      invokeIpc<SnapshotRecord[]>('list_snapshots', { workspaceId, workspaceRoot }),
-    revertToSnapshot: (workspaceId, workspaceRoot, snapshotId) =>
-      invokeIpc<RevertResult>('revert_to_snapshot_cmd', {
-        workspaceId,
-        workspaceRoot,
-        snapshotId,
-      }),
-    pruneSnapshots: (workspaceId, workspaceRoot) =>
-      invokeIpc<number>('prune_snapshots', { workspaceId, workspaceRoot }),
-  } satisfies SnapshotBridge;
-}
-
-export function createTauriWebToolsBridge() {
-  return {
-    webFetch: (url, format) => invokeIpc<WebFetchResult>('web_fetch', { url, format }),
-    webSearch: (query) => invokeIpc<WebSearchResult>('web_search', { query }),
-  } satisfies WebToolsBridge;
-}
-
 export function createTauriCommandsConfigBridge() {
   return {
     listCustomCommands: (dataDir) =>
@@ -239,27 +180,6 @@ export function createTauriCommandsConfigBridge() {
   } satisfies CommandsConfigBridge;
 }
 
-export function createTauriPermissionBridge() {
-  return {
-    listPermissionRules: (dataDir) =>
-      invokeIpc<PermissionRulesetConfig>('list_permission_rules', { dataDir }),
-    addPermissionRule: (dataDir, rule) =>
-      invokeIpc<PermissionRulesetConfig>('add_permission_rule', { dataDir, rule }),
-    deletePermissionRule: (dataDir, index) =>
-      invokeIpc<PermissionRulesetConfig>('delete_permission_rule', { dataDir, index }),
-    setPermissionIncludeDefaults: (dataDir, include) =>
-      invokeIpc<PermissionRulesetConfig>('set_permission_include_defaults', { dataDir, include }),
-    evaluatePermission: (dataDir, toolName, command, args) =>
-      invokeIpc<PermissionDecision>('evaluate_permission', { dataDir, toolName, command, args }),
-  } satisfies PermissionBridge;
-}
-
-export function createTauriCompactionBridge() {
-  return {
-    compactSession: (input) => invokeIpc<CompactSessionResult>('compact_session_cmd', { input }),
-  } satisfies CompactionBridge;
-}
-
 export function createTauriSessionForkBridge() {
   return {
     forkSession: (parentSession, forkMessageId) =>
@@ -270,59 +190,6 @@ export function createTauriSessionForkBridge() {
         parentSessionId,
       }),
   } satisfies SessionForkBridge;
-}
-
-export function createTauriLspBridge() {
-  return {
-    startServer: (workspaceId, workspaceRoot, server) =>
-      invokeIpc<void>('lsp_start_server', { workspaceId, workspaceRoot, server }),
-    stopServer: (workspaceId, server) =>
-      invokeIpc<void>('lsp_stop_server', { workspaceId, server }),
-    getSymbols: (workspaceId, filePath) =>
-      invokeIpc<SymbolInfo[]>('lsp_get_symbols', { workspaceId, filePath }),
-    getDiagnostics: (workspaceId, filePath) =>
-      invokeIpc<DiagnosticInfo[]>('lsp_get_diagnostics', { workspaceId, filePath }),
-    gotoDefinition: (workspaceId, filePath, line, column) =>
-      invokeIpc<SymbolInfo | null>('lsp_goto_definition', {
-        workspaceId,
-        filePath,
-        line,
-        column,
-      }),
-  } satisfies LspBridge;
-}
-
-export function createTauriPluginBridge() {
-  return {
-    listPlugins: () => invokeIpc<PluginInfo[]>('list_plugins'),
-    setPluginEnabled: (name: string, enabled: boolean) =>
-      invokeIpc<void>('set_plugin_enabled', { name, enabled }),
-    registerPlugin: (name, description, hooks) =>
-      invokeIpc<void>('register_plugin', { name, description, hooks }),
-    unregisterPlugin: (name) => invokeIpc<void>('unregister_plugin', { name }),
-  } satisfies PluginBridge;
-}
-
-export function createTauriReferenceBridge() {
-  return {
-    listReferences: (dataDir) => invokeIpc<ReferenceConfig[]>('list_references', { dataDir }),
-    addReference: (dataDir, reference) =>
-      invokeIpc<ReferenceConfig[]>('add_reference', { dataDir, reference }),
-    removeReference: (dataDir, name) =>
-      invokeIpc<ReferenceConfig[]>('remove_reference', { dataDir, name }),
-    getReferencesPrompt: (dataDir) => invokeIpc<string>('get_references_prompt', { dataDir }),
-  } satisfies ReferenceBridge;
-}
-
-export function createTauriDurableBridge() {
-  return {
-    registerDurableSession: (sessionId, runId) =>
-      invokeIpc<void>('register_durable_session', { sessionId, runId }),
-    heartbeatDurableSession: (sessionId) =>
-      invokeIpc<void>('heartbeat_durable_session', { sessionId }),
-    findCrashedSessions: () => invokeIpc<DurableSessionState[]>('find_crashed_sessions'),
-    recoverSession: (sessionId) => invokeIpc<boolean>('recover_session', { sessionId }),
-  } satisfies DurableBridge;
 }
 
 export function createTauriReservedBridge() {

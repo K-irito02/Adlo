@@ -154,6 +154,16 @@ export function captureError(get: () => StoreState, error: unknown): void {
       stack: new Error().stack,
     });
   }
+  if (error instanceof AppError) {
+    get().setError(`[${error.code}] ${error.message}`);
+    return;
+  }
+  if (error && typeof error === 'object' && 'code' in error && 'message' in error) {
+    const { code, message } = error as { code: string; message: string };
+    const typed = fromIpcErrorCode(code, message);
+    get().setError(`[${typed.code}] ${typed.message}`);
+    return;
+  }
   const message =
     typeof error === 'string'
       ? error
@@ -170,23 +180,6 @@ export function captureError(get: () => StoreState, error: unknown): void {
 /** 设置全局错误消息 */
 export function setError(get: () => StoreState, message: string): void {
   get().setError(message);
-}
-
-/** 捕获错误并设置为格式化后的全局错误状态（支持 AppError 类型判断） */
-export function captureTypedError(get: () => StoreState, error: unknown): void {
-  if (error instanceof AppError) {
-    get().setError(`[${error.code}] ${error.message}`);
-    return;
-  }
-  if (error && typeof error === 'object' && 'code' in error && 'message' in error) {
-    const { code, message } = error as { code: string; message: string };
-    const typed = fromIpcErrorCode(code, message);
-    get().setError(`[${typed.code}] ${typed.message}`);
-    return;
-  }
-  const message =
-    error instanceof Error ? error.message : error ? String(error) : 'An unknown error occurred';
-  get().setError(`[INTERNAL_ERROR] Internal error: ${message}`);
 }
 
 /** 低优先级刷新辅助（使用微任务队列，比 setTimeout(0) 更早执行） */

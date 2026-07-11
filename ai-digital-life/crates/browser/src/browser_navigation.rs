@@ -2,7 +2,7 @@ use adl_errors::AppError;
 use url::Url;
 
 /// 初始化脚本：确保所有链接点击都在当前 WebView 中打开
-pub(crate) const INIT_SCRIPT: &str = r#"
+pub const INIT_SCRIPT: &str = r#"
 (function() {
     console.log('[ADL Browser] Initialization script loaded');
     
@@ -492,7 +492,7 @@ pub(crate) const INIT_SCRIPT: &str = r#"
 })();
 "#;
 
-pub(crate) fn resolve_url(raw: &str) -> Result<Url, AppError> {
+pub fn resolve_url(raw: &str) -> Result<Url, AppError> {
     let trimmed = raw.trim();
     if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("about:blank") {
         return Url::parse("data:text/html,<html><body></body></html>")

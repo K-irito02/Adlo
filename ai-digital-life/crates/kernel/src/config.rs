@@ -1,6 +1,7 @@
 use crate::types::agent::AgentConfig;
 use crate::types::reference::ReferenceConfig;
-use crate::types::{LogMode, ModelPreferences, ThemeMode};
+use crate::types::{ModelPreferences, ThemeMode};
+use adl_logging::LogMode;
 use crate::CommandConfig;
 use crate::PermissionRulesetConfig;
 use adl_errors::AppError;
@@ -130,8 +131,8 @@ mod config_extension_tests {
             language: "en-US".into(),
             theme_mode: crate::types::config::ThemeMode::Light,
             log_level: "debug".into(),
-            terminal_log_mode: crate::types::config::LogMode::Overwrite,
-            debug_log_mode: crate::types::config::LogMode::Overwrite,
+            terminal_log_mode: adl_logging::LogMode::Overwrite,
+            debug_log_mode: adl_logging::LogMode::Overwrite,
             max_recent_workspaces: 10,
             model_preferences: crate::types::config::ModelPreferences::default(),
             commands: vec![CommandConfig {
