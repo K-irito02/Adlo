@@ -1,9 +1,7 @@
-use adl_errors::AppError;
-use adl_kernel::{
-    ConversationScenario, ModelCallAuditRecord, ModelChatMessage, ModelResponse,
-};
-use adl_storage::EntityTable;
 use adl_agent_runtime::plugins::hooks::{HookResult, PluginHook};
+use adl_errors::AppError;
+use adl_kernel::{ConversationScenario, ModelCallAuditRecord, ModelChatMessage, ModelResponse};
+use adl_storage::EntityTable;
 
 use crate::commands::agent_pipeline_stream::consume_stream_to_response;
 use crate::commands::agent_pipeline_types::CallModelContext;

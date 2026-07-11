@@ -17,9 +17,7 @@ mod imp {
     use webview2_com::Microsoft::Web::WebView2::Win32::{ICoreWebView2, ICoreWebView2_15};
     use windows::core::{IUnknown, Interface};
 
-    use crate::webview2_message::shared::{
-        FAVICON_CACHE, FAVICON_CHANGED_COUNT,
-    };
+    use crate::webview2_message::shared::{FAVICON_CACHE, FAVICON_CHANGED_COUNT};
 
     pub fn setup_favicon_changed_handler(core: &ICoreWebView2) -> Result<(), String> {
         info!("[ADL-META-RECV] Method 4 (FaviconChanged): setting up handler");

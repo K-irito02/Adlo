@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { TooltipSimple } from '@components/Tooltip';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
@@ -8,6 +8,13 @@ import { useBrowserTreeEntryMenu } from './BrowserTreeEntryMenu';
 import type { BrowserTreeEntryMenuSlots } from './BrowserTreeEntryMenu';
 import { BrowserTreeEntryChildren } from './BrowserTreeEntryChildren';
 import { getEntryHoverButtons, getEntryMoreMenuItems } from './browserTreeEntryUtils';
+
+function countAllFileChildren(node: BrowserTreeNode): number {
+  return node.children.reduce(
+    (n, child) => n + (child.kind === 'file' ? 1 : countAllFileChildren(child)),
+    0
+  );
+}
 
 interface BrowserTreeEntryProps {
   node: BrowserTreeNode;
@@ -77,7 +84,12 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     [node, onSelectTreePath]
   );
 
-  const count = counts.get(node.path) ?? 0;
+  const count = useMemo(() => {
+    if (isFlatMode || node.nodeType === 'history') {
+      return countAllFileChildren(node);
+    }
+    return counts.get(node.path) ?? 0;
+  }, [node, isFlatMode, counts]);
 
   const entryBtns = getEntryHoverButtons(node.nodeType, categoryType, t);
   const entryMenuItems = getEntryMoreMenuItems(

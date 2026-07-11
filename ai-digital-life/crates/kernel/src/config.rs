@@ -1,10 +1,10 @@
 use crate::types::agent::AgentConfig;
 use crate::types::reference::ReferenceConfig;
 use crate::types::{ModelPreferences, ThemeMode};
-use adl_logging::LogMode;
 use crate::CommandConfig;
 use crate::PermissionRulesetConfig;
 use adl_errors::AppError;
+use adl_logging::LogMode;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use ts_rs::TS;

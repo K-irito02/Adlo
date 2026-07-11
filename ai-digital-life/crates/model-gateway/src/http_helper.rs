@@ -57,9 +57,7 @@ pub async fn send_chat_request(
         return Err(AppError::Internal(format!("{provider_name} error {status}: {body}")));
     }
 
-    resp.json()
-        .await
-        .map_err(|e| AppError::Internal(format!("{provider_name} parse failed: {e}")))
+    resp.json().await.map_err(|e| AppError::Internal(format!("{provider_name} parse failed: {e}")))
 }
 
 /// Send a streaming chat request.
@@ -111,8 +109,8 @@ mod tests {
     fn builder_sets_body() {
         let client = Client::new();
         let body = json!({"model": "gpt-4", "messages": []});
-        let builder = HttpRequestBuilder::new(client.clone(), "http://example.com/chat")
-            .json(body.clone());
+        let builder =
+            HttpRequestBuilder::new(client.clone(), "http://example.com/chat").json(body.clone());
         assert_eq!(builder.body, Some(body));
     }
 
@@ -132,10 +130,8 @@ mod tests {
 
     #[tokio::test]
     async fn send_chat_request_returns_error_on_timeout() {
-        let client = Client::builder()
-            .timeout(std::time::Duration::from_millis(50))
-            .build()
-            .unwrap();
+        let client =
+            Client::builder().timeout(std::time::Duration::from_millis(50)).build().unwrap();
         let builder = HttpRequestBuilder::new(client, "http://127.0.0.1:1/chat");
         let result = send_chat_request(&builder, "Test").await;
         assert!(result.is_err());
@@ -145,10 +141,8 @@ mod tests {
 
     #[tokio::test]
     async fn send_stream_request_returns_error_on_timeout() {
-        let client = Client::builder()
-            .timeout(std::time::Duration::from_millis(50))
-            .build()
-            .unwrap();
+        let client =
+            Client::builder().timeout(std::time::Duration::from_millis(50)).build().unwrap();
         let builder = HttpRequestBuilder::new(client, "http://127.0.0.1:1/chat");
         let result = send_stream_request(&builder, "Test").await;
         assert!(result.is_err());

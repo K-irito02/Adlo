@@ -29,7 +29,9 @@ pub fn setup_webview2_handlers(
     if let Err(e) = crate::webview2_message::setup_favicon_changed_handler(core) {
         tracing::warn!(tab_id = tab_id, error = %e, "favicon changed handler setup failed");
     }
-    if let Err(e) = crate::webview2_message::setup_history_changed_handler(core, label.to_string(), bridge) {
+    if let Err(e) =
+        crate::webview2_message::setup_history_changed_handler(core, label.to_string(), bridge)
+    {
         tracing::warn!(tab_id = tab_id, error = %e, "history changed handler setup failed");
     }
     if let Err(e) = crate::webview2_audio::setup_audio_changed_handler(core, tab_id, bridge) {
@@ -75,7 +77,9 @@ impl BrowserManager {
     where
         F: FnOnce(&Arc<dyn WebViewHandle>) -> Result<R, AppError>,
     {
-        let handle = self.handles.lock()
+        let handle = self
+            .handles
+            .lock()
             .map_err(|e| AppError::Internal(format!("handles lock poisoned: {e}")))?
             .get(tab_id)
             .cloned()
@@ -115,7 +119,9 @@ impl BrowserManager {
 
         for entry_id in &tab_ids {
             let handle = {
-                let guard = self.handles.lock()
+                let guard = self
+                    .handles
+                    .lock()
                     .map_err(|e| AppError::Internal(format!("handles lock poisoned: {e}")))?;
                 guard.get(entry_id).cloned()
             };
@@ -136,9 +142,10 @@ impl BrowserManager {
 
         crate::webview2_audio::cleanup_audio_handler(tab_id);
 
-        let mut handles = self.handles.lock().map_err(|e| {
-            AppError::Internal(format!("handles lock poisoned: {e}"))
-        })?;
+        let mut handles = self
+            .handles
+            .lock()
+            .map_err(|e| AppError::Internal(format!("handles lock poisoned: {e}")))?;
         if let Some(handle) = handles.remove(tab_id) {
             let _ = handle.close();
         }
@@ -214,16 +221,14 @@ impl BrowserManager {
 
         for tab_id in &tab_ids {
             let handle = {
-                let guard = self.handles.lock()
+                let guard = self
+                    .handles
+                    .lock()
                     .map_err(|e| AppError::Internal(format!("handles lock poisoned: {e}")))?;
                 guard.get(tab_id).cloned()
             };
             if let Some(handle) = handle {
-                tracing::info!(
-                    tab_id = tab_id,
-                    color_scheme,
-                    "calling set_color_scheme for tab"
-                );
+                tracing::info!(tab_id = tab_id, color_scheme, "calling set_color_scheme for tab");
                 handle.set_color_scheme(color_scheme)?;
             } else {
                 tracing::warn!(tab_id = tab_id, "browser webview not found for set_color_scheme");

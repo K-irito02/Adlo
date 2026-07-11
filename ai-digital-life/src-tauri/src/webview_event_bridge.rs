@@ -24,10 +24,8 @@ impl WebView2EventBridge for TauriWebView2EventBridge {
     }
 
     fn emit_url_changed(&self, url: &str) {
-        let _ = self.app.emit(
-            "digital-life://browser-url-changed",
-            serde_json::json!({ "url": url }),
-        );
+        let _ =
+            self.app.emit("digital-life://browser-url-changed", serde_json::json!({ "url": url }));
     }
 
     fn emit_audio_changed(&self, tab_id: &str, is_playing: bool, is_muted: bool) {

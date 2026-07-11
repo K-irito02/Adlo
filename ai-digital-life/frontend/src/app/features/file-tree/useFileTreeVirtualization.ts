@@ -81,10 +81,12 @@ export function useFileTreeVirtualization<T extends FileTreeRenderableNode>(
   // FLIP animation: smooth position transitions via Web Animation API
   const prevPositionsRef = useRef<Map<string, number>>(new Map());
   const flipAnimationsRef = useRef<Map<string, Animation>>(new Map());
+  const wasHiddenRef = useRef(true);
 
   useLayoutEffect(() => {
     if (!flipAnimation) {
       prevPositionsRef.current = new Map();
+      wasHiddenRef.current = true;
       return;
     }
 
@@ -95,6 +97,8 @@ export function useFileTreeVirtualization<T extends FileTreeRenderableNode>(
 
     flipAnimationsRef.current.forEach((anim) => anim.cancel());
     flipAnimationsRef.current = new Map();
+
+    const isVisible = container.offsetParent !== null;
 
     const ulEl = container.querySelector('.adl-filetree');
     if (!ulEl) {
@@ -110,6 +114,15 @@ export function useFileTreeVirtualization<T extends FileTreeRenderableNode>(
         newPositions.set(path, rect.top - ulRect.top);
       }
     });
+
+    // Skip FLIP animation when transitioning from hidden to visible (e.g., panel switch)
+    // to avoid unwanted entrance animations from zero positions.
+    if (wasHiddenRef.current) {
+      prevPositionsRef.current = newPositions;
+      wasHiddenRef.current = !isVisible;
+      return;
+    }
+    wasHiddenRef.current = !isVisible;
 
     let hasDelta = false;
     const deltas = new Map<string, number>();

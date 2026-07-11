@@ -6,8 +6,8 @@
 
 #[cfg(windows)]
 mod imp {
-    use std::sync::Arc;
     use std::sync::atomic::Ordering;
+    use std::sync::Arc;
 
     use tracing::{debug, info, warn};
     use webview2_com::take_pwstr;
@@ -16,12 +16,14 @@ mod imp {
     use windows::core::IUnknown;
 
     use crate::webview2_message::shared::{
-        should_emit_and_update, DOCUMENT_TITLE_CHANGED_COUNT,
-        FAVICON_CACHE,
+        should_emit_and_update, DOCUMENT_TITLE_CHANGED_COUNT, FAVICON_CACHE,
     };
     use crate::WebView2EventBridge;
 
-    pub fn setup_document_title_handler(core: &ICoreWebView2, bridge: &Arc<dyn WebView2EventBridge>) -> Result<(), String> {
+    pub fn setup_document_title_handler(
+        core: &ICoreWebView2,
+        bridge: &Arc<dyn WebView2EventBridge>,
+    ) -> Result<(), String> {
         info!("[ADL-META-RECV] Method 3 (DocumentTitleChanged): setting up handler");
         unsafe {
             let bridge_for_handler = bridge.clone();
@@ -79,8 +81,7 @@ mod imp {
                         return Ok(());
                     }
 
-                    let count =
-                        DOCUMENT_TITLE_CHANGED_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
+                    let count = DOCUMENT_TITLE_CHANGED_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
                     info!(
                         "[ADL-META-RECV] ◄ Method 3 (DocumentTitleChanged): RECEIVED ✓ (#{}) | title: {} | favicon: {} | url: {}",
                         count,

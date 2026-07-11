@@ -5,8 +5,8 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use crate::tauri_webview_handle::TauriWebViewHandle;
 use crate::webview_event_bridge::TauriWebView2EventBridge;
-use adl_browser::webview_handle::{Bounds, WebViewHandle, EventBridgeRef};
-use adl_browser::{PageMeta, webview_label};
+use adl_browser::webview_handle::{Bounds, EventBridgeRef, WebViewHandle};
+use adl_browser::{webview_label, PageMeta};
 use adl_errors::AppError;
 use adl_kernel::IpcResult;
 use tauri::{Emitter, Manager, State};
@@ -45,7 +45,7 @@ pub async fn browser_create_for_tab(
             None => {
                 let _ = tx.send(Err(AppError::Internal("main window not found".into())));
                 return;
-            }
+            },
         };
 
         let target = match adl_browser::resolve_url(&url) {
@@ -53,7 +53,7 @@ pub async fn browser_create_for_tab(
             Err(e) => {
                 let _ = tx.send(Err(e));
                 return;
-            }
+            },
         };
 
         let app_nav = app_inner.clone();
@@ -69,9 +69,7 @@ pub async fn browser_create_for_tab(
                         );
                     })
                 })
-                .on_new_window(move |url, _window_features| {
-                    new_window_handler(&app_handle, &url)
-                });
+                .on_new_window(move |url, _window_features| new_window_handler(&app_handle, &url));
 
         if let Err(e) = window.add_child(
             webview_builder,
@@ -87,8 +85,7 @@ pub async fn browser_create_for_tab(
         tracing::info!(tab_id = &tab_id, url = &url, "browser webview created for tab");
 
         if let Some(webview) = window.get_webview(&label) {
-            let bridge: EventBridgeRef =
-                Arc::new(TauriWebView2EventBridge::new(app_inner.clone()));
+            let bridge: EventBridgeRef = Arc::new(TauriWebView2EventBridge::new(app_inner.clone()));
 
             #[cfg(windows)]
             {
@@ -98,7 +95,12 @@ pub async fn browser_create_for_tab(
                 let _ = webview.with_webview(move |platform_wv| unsafe {
                     let controller = platform_wv.controller();
                     if let Ok(core) = controller.CoreWebView2() {
-                        adl_browser::setup_webview2_handlers(&core, &tab_id_clone, &label_clone, &bridge_clone);
+                        adl_browser::setup_webview2_handlers(
+                            &core,
+                            &tab_id_clone,
+                            &label_clone,
+                            &bridge_clone,
+                        );
                     }
                 });
             }

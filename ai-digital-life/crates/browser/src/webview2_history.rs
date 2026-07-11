@@ -8,8 +8,8 @@
 
 #[cfg(windows)]
 mod imp {
-    use std::sync::Arc;
     use std::sync::atomic::Ordering;
+    use std::sync::Arc;
 
     use tracing::{info, warn};
     use webview2_com::take_pwstr;
@@ -20,9 +20,7 @@ mod imp {
     use windows::core::IUnknown;
 
     use crate::browser_events::POLL_FAST_NOW;
-    use crate::webview2_message::shared::{
-        HISTORY_CHANGED_COUNT, LAST_HISTORY_URL,
-    };
+    use crate::webview2_message::shared::{HISTORY_CHANGED_COUNT, LAST_HISTORY_URL};
     use crate::WebView2EventBridge;
 
     fn dedup_history_url(clean_url: &str) -> bool {

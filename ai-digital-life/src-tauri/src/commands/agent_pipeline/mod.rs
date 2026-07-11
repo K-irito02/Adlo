@@ -1,14 +1,14 @@
-mod prepare;
+mod audit_helper;
 mod context;
 pub(crate) mod model_caller;
 mod patch_generator;
-mod audit_helper;
+mod prepare;
 
-pub use prepare::prepare_run;
+pub(crate) use audit_helper::finalize_run;
 pub use context::collect_context;
 pub use model_caller::call_model;
 pub use patch_generator::generate_patches;
-pub(crate) use audit_helper::finalize_run;
+pub use prepare::prepare_run;
 
 #[cfg(test)]
 mod tests {

@@ -1,6 +1,5 @@
 //! Single-agent sequential planning runtime.
 
-pub mod session_repo;
 pub mod compaction;
 pub mod compaction_summary;
 pub mod permission_check;
@@ -9,6 +8,7 @@ pub mod plugins;
 pub mod prompt;
 pub mod registry;
 pub mod router;
+pub mod session_repo;
 pub mod token_counter;
 pub mod tools;
 

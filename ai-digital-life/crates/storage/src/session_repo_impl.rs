@@ -1,14 +1,16 @@
-use adl_agent_runtime::session_repo::{SessionRepository, SessionQuery};
+use crate::EntityTable;
+use adl_agent_runtime::session_repo::{SessionQuery, SessionRepository};
 use adl_errors::AppError;
 use adl_kernel::ConversationSessionRecord;
-use crate::EntityTable;
 
 pub struct StorageSessionRepository {
     db: crate::Database,
 }
 
 impl StorageSessionRepository {
-    pub fn new(db: crate::Database) -> Self { Self { db } }
+    pub fn new(db: crate::Database) -> Self {
+        Self { db }
+    }
 }
 
 impl SessionRepository for StorageSessionRepository {
@@ -16,11 +18,24 @@ impl SessionRepository for StorageSessionRepository {
         self.db.load_entity::<ConversationSessionRecord>(EntityTable::Sessions, id)
     }
     fn save_session(&self, session: &ConversationSessionRecord) -> Result<(), AppError> {
-        self.db.save_entity(EntityTable::Sessions, &session.id, Some(&session.workspace_id), Some(&session.id), None, session)
+        self.db.save_entity(
+            EntityTable::Sessions,
+            &session.id,
+            Some(&session.workspace_id),
+            Some(&session.id),
+            None,
+            session,
+        )
     }
-    fn list_sessions(&self, query: &SessionQuery) -> Result<Vec<ConversationSessionRecord>, AppError> {
-        let mut sessions: Vec<ConversationSessionRecord> = self.db.list_entities(EntityTable::Sessions)?;
-        if let Some(ws_id) = &query.workspace_id { sessions.retain(|s| &s.workspace_id == ws_id); }
+    fn list_sessions(
+        &self,
+        query: &SessionQuery,
+    ) -> Result<Vec<ConversationSessionRecord>, AppError> {
+        let mut sessions: Vec<ConversationSessionRecord> =
+            self.db.list_entities(EntityTable::Sessions)?;
+        if let Some(ws_id) = &query.workspace_id {
+            sessions.retain(|s| &s.workspace_id == ws_id);
+        }
         Ok(sessions)
     }
 }

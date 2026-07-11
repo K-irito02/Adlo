@@ -69,8 +69,8 @@ impl ConfigWatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adl_logging::LogMode;
     use crate::types::config::ThemeMode;
+    use adl_logging::LogMode;
 
     fn test_config() -> AppConfig {
         AppConfig {

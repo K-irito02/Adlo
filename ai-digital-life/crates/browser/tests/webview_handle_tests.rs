@@ -1,22 +1,46 @@
-use adl_browser::webview_handle::{WebViewHandle, Bounds};
+use adl_browser::webview_handle::{Bounds, WebViewHandle};
 
 struct MockHandle {
     id: String,
 }
 
 impl WebViewHandle for MockHandle {
-    fn navigate(&self, _url: &str) -> Result<(), adl_errors::AppError> { Ok(()) }
-    fn close(&self) -> Result<(), adl_errors::AppError> { Ok(()) }
-    fn set_bounds(&self, _bounds: Bounds) -> Result<(), adl_errors::AppError> { Ok(()) }
-    fn eval_js(&self, _js: &str) -> Result<String, adl_errors::AppError> { Ok("".into()) }
-    fn set_color_scheme(&self, _scheme: &str) -> Result<(), adl_errors::AppError> { Ok(()) }
-    fn id(&self) -> &str { &self.id }
-    fn show(&self) -> Result<(), adl_errors::AppError> { Ok(()) }
-    fn hide(&self) -> Result<(), adl_errors::AppError> { Ok(()) }
-    fn set_zoom(&self, _factor: f64) -> Result<(), adl_errors::AppError> { Ok(()) }
-    fn mute(&self, _muted: bool) -> Result<(), adl_errors::AppError> { Ok(()) }
-    fn clear_cookies(&self) -> Result<(), adl_errors::AppError> { Ok(()) }
-    fn clear_cache(&self) -> Result<(), adl_errors::AppError> { Ok(()) }
+    fn navigate(&self, _url: &str) -> Result<(), adl_errors::AppError> {
+        Ok(())
+    }
+    fn close(&self) -> Result<(), adl_errors::AppError> {
+        Ok(())
+    }
+    fn set_bounds(&self, _bounds: Bounds) -> Result<(), adl_errors::AppError> {
+        Ok(())
+    }
+    fn eval_js(&self, _js: &str) -> Result<String, adl_errors::AppError> {
+        Ok("".into())
+    }
+    fn set_color_scheme(&self, _scheme: &str) -> Result<(), adl_errors::AppError> {
+        Ok(())
+    }
+    fn id(&self) -> &str {
+        &self.id
+    }
+    fn show(&self) -> Result<(), adl_errors::AppError> {
+        Ok(())
+    }
+    fn hide(&self) -> Result<(), adl_errors::AppError> {
+        Ok(())
+    }
+    fn set_zoom(&self, _factor: f64) -> Result<(), adl_errors::AppError> {
+        Ok(())
+    }
+    fn mute(&self, _muted: bool) -> Result<(), adl_errors::AppError> {
+        Ok(())
+    }
+    fn clear_cookies(&self) -> Result<(), adl_errors::AppError> {
+        Ok(())
+    }
+    fn clear_cache(&self) -> Result<(), adl_errors::AppError> {
+        Ok(())
+    }
 }
 
 #[test]

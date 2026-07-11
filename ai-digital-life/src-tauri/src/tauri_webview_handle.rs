@@ -21,37 +21,31 @@ impl TauriWebViewHandle {
 
 impl WebViewHandle for TauriWebViewHandle {
     fn navigate(&self, url: &str) -> Result<(), AppError> {
-        let parsed = url::Url::parse(url)
-            .map_err(|e| AppError::Internal(e.to_string()))?;
+        let parsed = url::Url::parse(url).map_err(|e| AppError::Internal(e.to_string()))?;
         let _ = self.webview()?.navigate(parsed);
         Ok(())
     }
 
     fn close(&self) -> Result<(), AppError> {
-        self.webview()?
-            .close()
-            .map_err(|e| AppError::Internal(e.to_string()))
+        self.webview()?.close().map_err(|e| AppError::Internal(e.to_string()))
     }
 
     fn set_bounds(&self, bounds: Bounds) -> Result<(), AppError> {
         let rect = tauri::Rect {
             position: tauri::Position::Physical(tauri::PhysicalPosition::new(
-                bounds.x as i32, bounds.y as i32,
+                bounds.x as i32,
+                bounds.y as i32,
             )),
             size: tauri::Size::Physical(tauri::PhysicalSize::new(
                 bounds.width.max(0.0) as u32,
                 bounds.height.max(0.0) as u32,
             )),
         };
-        self.webview()?
-            .set_bounds(rect)
-            .map_err(|e| AppError::Internal(e.to_string()))
+        self.webview()?.set_bounds(rect).map_err(|e| AppError::Internal(e.to_string()))
     }
 
     fn eval_js(&self, js: &str) -> Result<String, AppError> {
-        self.webview()?
-            .eval(js)
-            .map_err(|e| AppError::Internal(e.to_string()))?;
+        self.webview()?.eval(js).map_err(|e| AppError::Internal(e.to_string()))?;
         Ok(String::new())
     }
 
@@ -79,21 +73,15 @@ impl WebViewHandle for TauriWebViewHandle {
     }
 
     fn show(&self) -> Result<(), AppError> {
-        self.webview()?
-            .show()
-            .map_err(|e| AppError::Internal(e.to_string()))
+        self.webview()?.show().map_err(|e| AppError::Internal(e.to_string()))
     }
 
     fn hide(&self) -> Result<(), AppError> {
-        self.webview()?
-            .hide()
-            .map_err(|e| AppError::Internal(e.to_string()))
+        self.webview()?.hide().map_err(|e| AppError::Internal(e.to_string()))
     }
 
     fn set_zoom(&self, factor: f64) -> Result<(), AppError> {
-        self.webview()?
-            .set_zoom(factor)
-            .map_err(|e| AppError::Internal(e.to_string()))
+        self.webview()?.set_zoom(factor).map_err(|e| AppError::Internal(e.to_string()))
     }
 
     fn mute(&self, muted: bool) -> Result<(), AppError> {
