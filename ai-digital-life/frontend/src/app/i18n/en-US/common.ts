@@ -37,7 +37,7 @@ export const commonEn = {
   statusHealthy: 'healthy',
   statusDegraded: 'degraded',
   rejectApproval: 'Reject',
-  noApprovals: 'No pending approvals.',
+  noApprovals: 'No pending approvals',
   retryStep: 'Retry',
   expandDetails: 'Expand details',
   collapseDetails: 'Collapse details',

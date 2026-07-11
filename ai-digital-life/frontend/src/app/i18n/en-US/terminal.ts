@@ -16,7 +16,7 @@ export const terminalEn = {
   terminalLiveShell: 'live stream shell',
   terminalPlaceholderShell: 'UI shell placeholder',
   terminalShellLabel: 'Shell',
-  terminalNoRecentCommands: 'No recent commands yet.',
+  terminalNoRecentCommands: 'No recent commands yet',
   terminalPlaceholderNotice:
     'Additional terminal tabs and split panes are high-fidelity UI shells in this release. Only the primary live tab is currently backed by governed command streaming.',
   terminalMoreActions: 'More actions',

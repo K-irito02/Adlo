@@ -8,7 +8,7 @@ export const fileZh = {
   searchResults: '检索结果',
   outline: '文档大纲',
   diagnostics: '诊断',
-  noDiagnostics: '当前没有诊断。',
+  noDiagnostics: '当前没有诊断',
   externalChange: '外部修改',
   externalFileChanged: '检测到该文件已被外部程序修改。',
   reloadFile: '重新加载',

@@ -16,7 +16,7 @@ export const terminalZh = {
   terminalLiveShell: '实时命令流 Shell',
   terminalPlaceholderShell: '前端壳层占位',
   terminalShellLabel: 'Shell',
-  terminalNoRecentCommands: '还没有最近命令。',
+  terminalNoRecentCommands: '还没有最近命令',
   terminalPlaceholderNotice:
     '额外终端标签和分屏在本轮先完成高保真前端壳；只有主实时标签接入了受治理的命令流。',
   terminalMoreActions: '更多终端操作',

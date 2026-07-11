@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
+import { LoadingRow } from '../../components/LoadingRow';
 
 export function CustomAgentManager() {
   const { t } = useTCopy();
@@ -16,7 +17,7 @@ export function CustomAgentManager() {
   }, [dataDir, fetchCustomAgents]);
 
   if (isFetching) {
-    return <div>{t.loading}</div>;
+    return <LoadingRow variant="center" />;
   }
 
   return (

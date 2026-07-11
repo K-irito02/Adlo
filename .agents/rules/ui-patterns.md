@@ -505,7 +505,16 @@ alwaysApply: true
 
 ## 15. 加载态（Loading / Skeleton）
 
-### 骨架屏
+### 统一加载行 → `LoadingRow`
+
+- 文件：[LoadingRow.tsx](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/LoadingRow.tsx)
+- CSS：[loading-row.css](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/styles/components/loading-row.css)
+- 组合：CSS border spinner（14px）+ 文字从左到右扫光闪烁动画
+- 用法：`<LoadingRow variant="row" />`（树条目内联）或 `<LoadingRow variant="center" />`（面板居中）
+- 内置 `role="status"` + `aria-label`
+- `prefers-reduced-motion` 自动降级
+
+### 骨骼屏
 
 - 类名：`.skeleton`
 - 动效：`@keyframes skeleton-shimmer`
@@ -523,14 +532,17 @@ alwaysApply: true
 
 ## 16. 空状态（Empty State）
 
-### API
+### 统一空状态行 → `EmptyRow`
 
-```ts
-renderEmptyState({ icon, title, description, action });
-```
+- 文件：[LoadingRow.tsx](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/LoadingRow.tsx)（与 LoadingRow 同文件）
+- 用法：`<EmptyRow variant="row" message={t.noContent as string} />` 或 `variant="center"`
+- 文字居中对齐（`width: 100%` + `text-align: center`）
+- 内置 `role="status"` + `aria-label={message}`
 
-### 规范
+### 核心规范
 
+- **禁止句号结尾**：所有空状态文字提示结尾不得有句号 "。" 或英文句点 "."
+- **居中显示**：空状态文字必须在各自显示区域内水平居中
 - 图标 + 标题 + 描述 + 可选操作按钮
 - 占位/添加元素的 `border-width` 必须与真实元素一致（`box-sizing: border-box`）
 - 仅 `border-style` 改为 `dashed` 即可视觉区分

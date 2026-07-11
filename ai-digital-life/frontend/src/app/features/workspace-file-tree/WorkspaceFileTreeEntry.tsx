@@ -10,12 +10,12 @@ import {
   IconFolder,
   IconFolderOpen,
   IconAlertTriangle,
-  IconLoader,
   IconCopy,
   IconEyeOff,
 } from '@icons';
 import { FileTree, type FileTreeContextMenuItem } from '@features/file-tree';
 import { TooltipSimple } from '@components/Tooltip';
+import { LoadingRow, EmptyRow } from '@components/LoadingRow';
 import { useAppStore } from '@stores/slicedStore';
 import { BranchMenuItem } from '@regions/right-panel/panels/BranchSubCard';
 
@@ -337,10 +337,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
       {isExpanded ? (
         <div className="adl-multitree-entry__tree">
           {isLoading ? (
-            <div className="adl-multitree-entry__loading">
-              <IconLoader size={14} decorative />
-              <span>{t.loading as string}</span>
-            </div>
+            <LoadingRow />
           ) : error ? (
             <div className="adl-multitree-entry__error">
               <IconAlertTriangle size={14} decorative />
@@ -362,9 +359,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
               collapseLabel={collapseLabel}
             />
           ) : (
-            <div className="adl-multitree-entry__empty">
-              <span>{t.workspaceEmpty as string}</span>
-            </div>
+            <EmptyRow message={t.workspaceEmpty as string} />
           )}
         </div>
       ) : null}

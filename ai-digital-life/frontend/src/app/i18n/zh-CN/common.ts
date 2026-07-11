@@ -36,7 +36,7 @@ export const commonZh = {
   statusHealthy: '健康',
   statusDegraded: '降级',
   rejectApproval: '拒绝',
-  noApprovals: '当前没有待处理审批。',
+  noApprovals: '当前没有待处理审批',
   retryStep: '重试',
   expandDetails: '展开详情',
   collapseDetails: '收起详情',

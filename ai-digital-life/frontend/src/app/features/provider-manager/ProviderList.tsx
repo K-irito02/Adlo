@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
+import { LoadingRow } from '../../components/LoadingRow';
 import { ProviderConfig } from './ProviderConfig';
 
 export function ProviderList() {
@@ -33,7 +34,7 @@ export function ProviderList() {
     return (
       <div className="adl-provider-list">
         <h2>{t.providerTitle}</h2>
-        <p className="adl-empty-state">{t.loading}</p>
+        <LoadingRow variant="center" />
       </div>
     );
   }

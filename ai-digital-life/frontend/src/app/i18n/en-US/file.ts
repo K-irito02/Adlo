@@ -8,7 +8,7 @@ export const fileEn = {
   searchResults: 'Search Results',
   outline: 'Document Outline',
   diagnostics: 'Diagnostics',
-  noDiagnostics: 'No diagnostics for the current file.',
+  noDiagnostics: 'No diagnostics for the current file',
   externalChange: 'External Change',
   externalFileChanged: 'This file was changed outside the editor.',
   reloadFile: 'Reload File',

@@ -4,8 +4,8 @@ import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { SearchInput } from '@components/SearchInput';
 import { TooltipSimple } from '@components/Tooltip';
-import { Spinner } from '@components/Spinner';
 import { CopyButton } from '@components/CopyButton';
+import { LoadingRow, EmptyRow } from '@components/LoadingRow';
 import { useStashConfirm } from '@hooks/useStashConfirm';
 import type { GitBranchSummary } from '@ai-digital-life/kernel';
 
@@ -184,15 +184,13 @@ export function BranchSubCard({
       </div>
       <div className="adl-changes-branch-list">
         {isLoadingBranches ? (
-          <div className="adl-changes-branch-loading">
-            <Spinner size="sm" />
-          </div>
+          <LoadingRow variant="center" />
         ) : !isRepo ? (
-          <div className="adl-changes-branch-empty">{t.changesBranchInitRepo}</div>
+          <EmptyRow variant="center" message={t.changesBranchInitRepo as string} />
         ) : gitBranches.length <= 1 && !branchSearch ? (
-          <div className="adl-changes-branch-empty">{t.changesBranchNoOther}</div>
+          <EmptyRow variant="center" message={t.changesBranchNoOther as string} />
         ) : filteredBranches.length === 0 && branchSearch ? (
-          <div className="adl-changes-branch-empty">{t.changesBranchSearchNone}</div>
+          <EmptyRow variant="center" message={t.changesBranchSearchNone as string} />
         ) : (
           filteredBranches.map((branch) => (
             <button
