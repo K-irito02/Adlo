@@ -1,7 +1,7 @@
 import type { StoreState } from '../StoreState';
 import type { ReorderWorkspacesInput } from '@ai-digital-life/kernel';
 import type { WorkspaceID } from '../../../shared/branded';
-import { clearError, captureTypedError } from '../shared';
+import { clearError, captureError } from '../shared';
 import type { StoreApi } from 'zustand';
 import { createBrowserCleanupActions } from './browserCleanupActions';
 import { createWorkspaceTreeActions } from './workspaceTreeActions';
@@ -32,7 +32,7 @@ export function createWorkspaceActions(
       clearError(get);
       const result = await window.digitalLife.workspace.renameFile(relativePath, newName);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       await get().refreshWorkspaceTree();
@@ -60,7 +60,7 @@ export function createWorkspaceActions(
       clearError(get);
       const result = await window.digitalLife.workspace.deleteFile(relativePath);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       await get().refreshWorkspaceTree();
@@ -85,7 +85,7 @@ export function createWorkspaceActions(
       clearError(get);
       const result = await window.digitalLife.workspace.moveFile(relativePath, newPath);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       await get().refreshWorkspaceTree();
@@ -105,7 +105,7 @@ export function createWorkspaceActions(
         dstRelativePath
       );
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       await get().refreshWorkspaceTree();
@@ -122,7 +122,7 @@ export function createWorkspaceActions(
       clearError(get);
       const result = await window.digitalLife.workspace.pin(workspaceId as string);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({ recentWorkspaces: result.data });
@@ -139,7 +139,7 @@ export function createWorkspaceActions(
       clearError(get);
       const result = await window.digitalLife.workspace.unpin(workspaceId as string);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({ recentWorkspaces: result.data });
@@ -156,7 +156,7 @@ export function createWorkspaceActions(
       clearError(get);
       const result = await window.digitalLife.workspace.reorder(input);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({ recentWorkspaces: result.data });
@@ -174,7 +174,7 @@ export function createWorkspaceActions(
       clearError(get);
       const result = await window.digitalLife.workspace.revealInFileManager(workspacePath);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
       }
     },
 
@@ -190,7 +190,7 @@ export function createWorkspaceActions(
       clearError(get);
       const result = await window.digitalLife.workspace.listTree();
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       const appInfo = get().appInfo;
@@ -215,7 +215,7 @@ export function createWorkspaceActions(
       clearError(get);
       const result = await window.digitalLife.workspace.showInRightPanels(workspaceId as string);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({ recentWorkspaces: result.data });

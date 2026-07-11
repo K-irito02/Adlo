@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
-import { clearError, captureTypedError } from '../shared';
+import { clearError, captureError } from '../shared';
 
 export function createProviderActions(
   set: StoreApi<StoreState>['setState'],
@@ -12,7 +12,7 @@ export function createProviderActions(
       clearError(get);
       const result = await window.digitalLife.provider.listProviders();
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         set({ isFetchingProviders: false });
         return;
       }
@@ -23,7 +23,7 @@ export function createProviderActions(
       clearError(get);
       const result = await window.digitalLife.provider.setProviderApiKey(provider, apiKey);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       await get().fetchProviders();
@@ -33,7 +33,7 @@ export function createProviderActions(
       clearError(get);
       const result = await window.digitalLife.provider.clearProviderApiKey(provider);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       await get().fetchProviders();
@@ -45,7 +45,7 @@ export function createProviderActions(
       const result = await window.digitalLife.provider.testProviderConnection(providerId);
       set({ testingProviderId: null });
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({
@@ -65,7 +65,7 @@ export function createProviderActions(
         models
       );
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       await get().fetchProviders();
@@ -75,7 +75,7 @@ export function createProviderActions(
       clearError(get);
       const result = await window.digitalLife.provider.removeCustomProvider(providerId);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       await get().fetchProviders();
@@ -91,7 +91,7 @@ export function createProviderActions(
       clearError(get);
       const result = await window.digitalLife.provider.fetchProviderModels(providerId);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({

@@ -1,7 +1,7 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import type { AgentConfig } from '@shared/ipc';
-import { clearError, captureTypedError } from '../shared';
+import { clearError, captureError } from '../shared';
 
 export function createCustomAgentActions(
   set: StoreApi<StoreState>['setState'],
@@ -14,7 +14,7 @@ export function createCustomAgentActions(
       const bridge = window.digitalLife;
       const result = await bridge.customAgent.listCustomAgents(dataDir);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         set({ isFetchingCustomAgents: false });
         return;
       }
@@ -26,7 +26,7 @@ export function createCustomAgentActions(
       const bridge = window.digitalLife;
       const result = await bridge.customAgent.addCustomAgent(dataDir, agent);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({ customAgents: result.data });
@@ -37,7 +37,7 @@ export function createCustomAgentActions(
       const bridge = window.digitalLife;
       const result = await bridge.customAgent.deleteCustomAgent(dataDir, name);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({ customAgents: result.data });

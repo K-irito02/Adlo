@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
-import { postMutationRefresh, clearError, captureTypedError } from '../shared';
+import { postMutationRefresh, clearError, captureError } from '../shared';
 
 export function createTaskActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
@@ -18,7 +18,7 @@ export function createTaskActions(set: StoreApi<StoreState>['setState'], get: ()
         decision,
       });
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({
@@ -39,7 +39,7 @@ export function createTaskActions(set: StoreApi<StoreState>['setState'], get: ()
       clearError(get);
       const result = await window.digitalLife.task.restoreCheckpoint(checkpointId);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({ taskCenter: result.data });

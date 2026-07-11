@@ -1,7 +1,7 @@
 import type { StoreState } from '../StoreState';
 import { mapPatchToEditorTab } from '@utils/editorTabs';
 import type { StoreApi } from 'zustand';
-import { postMutationRefresh, clearError, captureTypedError } from '../shared';
+import { postMutationRefresh, clearError, captureError } from '../shared';
 
 export function createPatchActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
@@ -24,7 +24,7 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
         decision,
       });
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({ activePatchSet: result.data });
@@ -42,7 +42,7 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
       clearError(get);
       const result = await window.digitalLife.patch.applyPatchSet(patchSetId);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({
@@ -97,7 +97,7 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
       clearError(get);
       const result = await window.digitalLife.patch.rollbackPatchSet(patchSetId);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({

@@ -1,7 +1,7 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import type { ConversationSessionRecord } from '@ai-digital-life/kernel';
-import { clearError, captureTypedError } from '../shared';
+import { clearError, captureError } from '../shared';
 
 export function createSessionForkActions(
   set: StoreApi<StoreState>['setState'],
@@ -12,7 +12,7 @@ export function createSessionForkActions(
       clearError(get);
       const result = await window.digitalLife.sessionFork.forkSession(parentSession, forkMessageId);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return null;
       }
       return result.data;
@@ -25,7 +25,7 @@ export function createSessionForkActions(
         parentSessionId
       );
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return [];
       }
       return result.data;

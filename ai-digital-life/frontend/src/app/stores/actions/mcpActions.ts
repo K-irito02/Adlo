@@ -1,7 +1,7 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import type { McpServerConfig } from '@shared/ipc';
-import { clearError, captureTypedError } from '../shared';
+import { clearError, captureError } from '../shared';
 
 export function createMcpActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
@@ -17,7 +17,7 @@ export function createMcpActions(set: StoreApi<StoreState>['setState'], get: () 
       clearError(get);
       const result = await window.digitalLife.mcp.listMcpServers();
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         set({ isFetchingMcp: false });
         return;
       }
@@ -47,7 +47,7 @@ export function createMcpActions(set: StoreApi<StoreState>['setState'], get: () 
       clearError(get);
       const result = await window.digitalLife.mcp.addMcpServer(config);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       await get().fetchMcpServers();
@@ -62,7 +62,7 @@ export function createMcpActions(set: StoreApi<StoreState>['setState'], get: () 
       clearError(get);
       const result = await window.digitalLife.mcp.removeMcpServer(name);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       await get().fetchMcpServers();
@@ -77,7 +77,7 @@ export function createMcpActions(set: StoreApi<StoreState>['setState'], get: () 
       clearError(get);
       const result = await window.digitalLife.mcp.connectMcpServer(name);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       await get().fetchMcpServers();
@@ -92,7 +92,7 @@ export function createMcpActions(set: StoreApi<StoreState>['setState'], get: () 
       clearError(get);
       const result = await window.digitalLife.mcp.disconnectMcpServer(name);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       await get().fetchMcpServers();
@@ -107,7 +107,7 @@ export function createMcpActions(set: StoreApi<StoreState>['setState'], get: () 
       clearError(get);
       const result = await window.digitalLife.mcp.loadMcpConfig(path);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       await get().fetchMcpServers();

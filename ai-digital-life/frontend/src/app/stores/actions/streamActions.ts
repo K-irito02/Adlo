@@ -19,7 +19,7 @@ import {
   type MessageSendOptions,
 } from '@utils/composerSend';
 import type { StoreApi } from 'zustand';
-import { postMutationRefresh, captureTypedError } from '../shared';
+import { postMutationRefresh, captureError } from '../shared';
 
 function createModelStreamSubscriber(
   set: StoreApi<StoreState>['setState']
@@ -84,7 +84,7 @@ registerSlashCommand('/apply', async (set, get) => {
   if (ps) {
     await get().applyPatchSet(ps.id);
   } else {
-    captureTypedError(get, getAppCopy(get().appInfo).patchesNoneApplyable);
+    captureError(get, getAppCopy(get().appInfo).patchesNoneApplyable);
   }
   return true;
 });
@@ -94,7 +94,7 @@ registerSlashCommand('/rollback', async (set, get) => {
   if (ps) {
     await get().rollbackPatchSet(ps.id);
   } else {
-    captureTypedError(get, getAppCopy(get().appInfo).patchesNoneRollback);
+    captureError(get, getAppCopy(get().appInfo).patchesNoneRollback);
   }
   return true;
 });
@@ -105,7 +105,7 @@ registerSlashCommand('/model', (set, get) => {
 });
 
 registerSlashCommand('/clear', (set, get) => {
-  captureTypedError(get, getAppCopy(get().appInfo).clearCommandNotImplemented);
+  captureError(get, getAppCopy(get().appInfo).clearCommandNotImplemented);
   return true;
 });
 
@@ -113,7 +113,7 @@ registerSlashCommand('/plan', async (_set, get) => {
   const workspaceId = get().appInfo?.currentWorkspace?.id;
   const workspaceRoot = get().appInfo?.currentWorkspace?.rootPath;
   if (!workspaceId || !workspaceRoot) {
-    captureTypedError(get, 'No active workspace: cannot enter plan mode');
+    captureError(get, 'No active workspace: cannot enter plan mode');
     return true;
   }
   await get().enterPlanMode(workspaceId, workspaceRoot);
@@ -216,7 +216,7 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
           sessionFallbackTitle(get().appInfo)
         );
         if (!created.ok) {
-          captureTypedError(get, created.error);
+          captureError(get, created.error);
           return;
         }
         sessionId = created.data.id;
@@ -242,7 +242,7 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
             : {}),
         });
         if (!result.ok) {
-          captureTypedError(get, result.error);
+          captureError(get, result.error);
           return;
         }
 
@@ -278,7 +278,7 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
       }
       const result = await window.digitalLife.conversation.cancelMessage(runId);
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
       }
     },
   };

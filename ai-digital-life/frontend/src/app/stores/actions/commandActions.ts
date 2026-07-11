@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
-import { postMutationRefresh, clearError, captureTypedError } from '../shared';
+import { postMutationRefresh, clearError, captureError } from '../shared';
 
 export function createCommandActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
@@ -25,7 +25,7 @@ export function createCommandActions(set: StoreApi<StoreState>['setState'], get:
         args,
       });
       if (!result.ok) {
-        captureTypedError(get, result.error);
+        captureError(get, result.error);
         return;
       }
       set({ latestCommandRun: result.data });
