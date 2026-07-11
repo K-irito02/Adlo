@@ -6,8 +6,8 @@ alwaysApply: false
 # Rust 模式规范
 
 ## 编译期缓存
-- 任何被多次调用的 `Regex::new()` 必须使用 `OnceLock<Regex>` 缓存
-- 字符串到枚举映射必须使用 `static HashMap`（`OnceLock<HashMap>`）而非多次 `match` 或 `if/else` 链
+- 任何被多次调用的 `Regex::new()` 必须使用 `LazyLock<Regex>` 缓存（MSRV 1.85+，优先于 `OnceLock`）
+- 字符串到枚举映射必须使用 `static HashMap`（`LazyLock<HashMap>`）而非多次 `match` 或 `if/else` 链
 - SQL 预构建：热路径查询必须预构建 SQL 字符串，禁止在函数体内使用 `format!()` 拼接
 
 ## 数据库

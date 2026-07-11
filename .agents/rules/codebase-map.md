@@ -122,12 +122,6 @@ app/stores/
 │   ├── taskActions.ts           # 任务审批/恢复操作
 │   ├── commandActions.ts        # 命令执行操作
 │   └── browserCleanupActions.ts # 浏览器清理操作
-│
-└── (已删除)                     # 4 个遗留独立 Store
-    ├── useWorkspaceStore.ts      # ❌ 已删除
-    ├── useSessionStore.ts        # ❌ 已删除
-    ├── useEditorStore.ts         # ❌ 已删除
-    └── usePatchStore.ts          # ❌ 已删除
 ```
 
 ## 桥接层架构
@@ -135,9 +129,19 @@ app/stores/
 ```
 frontend/src/
 ├── shared/ipc/             # DigitalLifeBridge + 13 个子接口（域拆分，index.ts barrel）
-├── tauri-bridge.ts         # Tauri 模式桥接
-├── mock-bridge.ts          # 纯内存回退入口（委托到 mock/ 子模块）
-├── mock/                   # mock 桥接子模块（11 个子文件）
+├── tauri-bridge.ts         # Tauri 模式桥接 barrel（1 行 re-export）
+├── tauri-bridge/           # Tauri 桥接子模块（9 个子文件）
+│   ├── index.ts            # 组合入口
+│   ├── shared.ts           # 共享工具函数
+│   ├── agent.ts            # Agent 操作
+│   ├── browser.ts          # 浏览器操作
+│   ├── ci-github.ts        # CI/GitHub 集成
+│   ├── conversation.ts     # 会话管理
+│   ├── misc.ts             # 杂项（终端、诊断、事件等）
+│   ├── provider.ts         # Provider 管理
+│   └── workspace.ts        # 工作区操作
+├── mock-bridge.ts          # 纯内存回退入口（144 行，委托到 mock/ 子模块）
+├── mock/                   # mock 桥接子模块（20 个子文件）
 │   ├── shared.ts           # 共享可变状态 re-export（仅 57 行）
 │   ├── mock-shared-pty.ts  # PTY 终端共享状态
 │   ├── mock-shared-workspace.ts# 工作区/文档/Git/App/模型共享状态
@@ -148,7 +152,16 @@ frontend/src/
 │   ├── mock-patch.ts       # 补丁操作模拟
 │   ├── mock-terminal.ts    # 终端操作模拟
 │   ├── mock-task.ts        # 任务/审批模拟
-│   └── mock-retrieval.ts   # 检索模拟
+│   ├── mock-retrieval.ts   # 检索模拟
+│   ├── mock-agent.ts       # Agent 操作模拟
+│   ├── mock-app.ts         # App 信息模拟
+│   ├── mock-browser.ts     # 浏览器操作模拟
+│   ├── mock-ci.ts          # CI/GitHub 模拟
+│   ├── mock-mcp.ts         # MCP 操作模拟
+│   ├── mock-misc.ts        # 杂项模拟（终端、诊断、事件）
+│   ├── mock-provider.ts    # Provider 管理模拟
+│   ├── mock-snapshot.ts    # 快照操作模拟
+│   └── mock-window.ts      # 窗口控制模拟
 ├── preview-bridge/         # 浏览器模式桥接模块（13 个子模块）
 │   ├── index.ts            # 组合入口（setupPreviewBridge，仅 75 行组合导出）
 │   ├── api.ts              # 请求封装（requestPreviewApi）
@@ -211,7 +224,7 @@ frontend/src/
 
 ```
 features/browser/
-├── BrowserPanel.tsx          # 浏览器面板主壳（~650行）
+├── BrowserPanel.tsx          # 浏览器面板主壳（~458行）
 ├── BrowserPanelDialogs.tsx   # 对话框提取（CreateTab/Bookmark/Rename/Toast）
 ├── BrowserPanelContent.tsx   # 内容区域（WebView/iframe + 着陆页 + WebView 错误）
 ├── BrowserNavigator.tsx      # 导航器壳（工具栏 + 模式切换，~120行）
@@ -228,11 +241,15 @@ features/browser/
 ├── BrowserIframeStack.tsx    # 多 iframe 堆叠管理器
 ├── BookmarkToFolderDialog.tsx# 收藏到目录对话框
 ├── browser-landing/          # 着陆页（快捷键网格、端口、自定义背景）
+├── useBrowserPanelMenuItems.ts   # 菜单项构建 Hook（提取自 BrowserPanel）
+├── useBrowserPanelAddressSubmit.ts# 地址提交逻辑 Hook（提取自 BrowserPanel）
+├── useBrowserPanelEffects.ts     # 副作用 Hook（提取自 BrowserPanel）
+├── useBrowserPanelCloseHandlers.ts# 关闭处理 Hook（提取自 BrowserPanel）
 ├── * (useBrowser*.ts)        # 15 个浏览器 Hook（按功能域拆分）
 └── browserPanelHelpers.ts    # 工具函数（重命名/删除/目录树构建）
 ```
 
-> 2026-06-29 重构：BrowserNavigator 495→~120 行、BrowserPanel 716→~650 行。提取 4 个导航模式子组件（OpenMode/TabsMode/ListMode/SearchMode）和 1 个对话框组件（BrowserPanelDialogs）。
+> 2026-07-10 重构：BrowserPanel 650→458 行，提取 4 个 Hook（menuItems/addressSubmit/effects/closeHandlers）。桥接层拆分：tauri-bridge.ts 689→1 行（9 个子文件），mock-bridge.ts 759→144 行（新增 9 个 mock 子文件）。
 
 ## 索引策略
 
