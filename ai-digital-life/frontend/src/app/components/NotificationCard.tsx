@@ -14,20 +14,35 @@ interface NotificationCardProps {
 function formatRelativeTime(ts: number, t: CopyDict): string {
   const diff = Date.now() - ts;
   const seconds = Math.floor(diff / 1000);
-  if (seconds < 0) return '';
-  if (seconds < 60) return t.relativeTimeJustNow;
+  if (seconds < 0) {
+    return '';
+  }
+  if (seconds < 60) {
+    return t.relativeTimeJustNow;
+  }
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return formatT(t, 'relativeTimeMinutesAgo', { n: minutes });
+  if (minutes < 60) {
+    return formatT(t, 'relativeTimeMinutesAgo', { n: minutes });
+  }
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return formatT(t, 'relativeTimeHoursAgo', { n: hours });
+  if (hours < 24) {
+    return formatT(t, 'relativeTimeHoursAgo', { n: hours });
+  }
   const days = Math.floor(hours / 24);
-  if (days < 30) return formatT(t, 'relativeTimeDaysAgo', { n: days });
+  if (days < 30) {
+    return formatT(t, 'relativeTimeDaysAgo', { n: days });
+  }
   return formatT(t, 'relativeTimeDaysAgo', { n: Math.floor(days / 30) * 30 });
 }
 
-export function NotificationCard({ notification, onClose, showCopy = true }: NotificationCardProps) {
+export function NotificationCard({
+  notification,
+  onClose,
+  showCopy = true,
+}: NotificationCardProps) {
   const { t } = useTCopy();
-  const displayTitle = notification.type === 'conflict' ? (t.notifConflictTitle as string) : notification.title;
+  const displayTitle =
+    notification.type === 'conflict' ? (t.notifConflictTitle as string) : notification.title;
 
   return (
     <div className="adl-notif-card" role="alert">
@@ -49,13 +64,19 @@ export function NotificationCard({ notification, onClose, showCopy = true }: Not
           {showCopy && (
             <>
               <span className="adl-notif-card__copy-btn">
-                <CopyButton text={notification.fullInfo} size={12} tooltip={t.notifCopyFullInfo as string} />
+                <CopyButton
+                  text={notification.fullInfo}
+                  size={12}
+                  tooltip={t.notifCopyFullInfo as string}
+                />
               </span>
               <span className="adl-notif-card__copy-hint">{t.notifCopyHint as string}</span>
             </>
           )}
         </div>
-        <span className="adl-notif-card__time">{formatRelativeTime(notification.timestamp, t)}</span>
+        <span className="adl-notif-card__time">
+          {formatRelativeTime(notification.timestamp, t)}
+        </span>
       </div>
     </div>
   );

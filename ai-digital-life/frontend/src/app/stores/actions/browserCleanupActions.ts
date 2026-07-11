@@ -1,7 +1,7 @@
 import type { StoreApi } from 'zustand';
 import type { StoreState } from '../StoreState';
 import type { WorkspaceID } from '../../../shared/branded';
-import { clearError, captureError } from '../shared';
+import { clearError, captureTypedError } from '../shared';
 import { scheduleCrossSliceWrite } from '../storageHelpers';
 import { stripWorkspaceFromBrowserState } from './browserCleanupHelpers';
 
@@ -71,7 +71,7 @@ export function createBrowserCleanupActions(
       clearError(get);
       const result = await window.digitalLife.workspace.removeFromSidebar(workspaceId as string);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       set({ recentWorkspaces: result.data });
@@ -93,7 +93,7 @@ export function createBrowserCleanupActions(
       clearError(get);
       const result = await window.digitalLife.workspace.hideFromRightPanels(workspaceId as string);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       set({ recentWorkspaces: result.data });

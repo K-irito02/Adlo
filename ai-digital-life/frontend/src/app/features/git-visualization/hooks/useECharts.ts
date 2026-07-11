@@ -30,7 +30,7 @@ export function useECharts(option: EChartsOption) {
       chart.dispose();
       chartRef.current = undefined;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: init chart + ResizeObserver once; option updates handled by the effect below
   }, []);
 
   useEffect(() => {

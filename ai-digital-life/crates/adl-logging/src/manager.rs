@@ -39,6 +39,7 @@ pub struct LogManager {
     terminal_sessions: Arc<Mutex<SessionTracker>>,
     debug_sessions: Arc<Mutex<SessionTracker>>,
     #[allow(dead_code)]
+    // Lifetime anchor: keeps the Arc alive so TerminalMakeWriter's clone remains valid
     terminal_file: Arc<Mutex<Option<TerminalFileState>>>,
 }
 

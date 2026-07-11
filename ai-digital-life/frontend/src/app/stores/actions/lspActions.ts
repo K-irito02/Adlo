@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
-import { clearError, captureError } from '../shared';
+import { clearError, captureTypedError } from '../shared';
 
 export function createLspActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
@@ -8,7 +8,7 @@ export function createLspActions(set: StoreApi<StoreState>['setState'], get: () 
       clearError(get);
       const result = await window.digitalLife.lsp.startServer(workspaceId, workspaceRoot, server);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       set({ lspActiveServers: [...get().lspActiveServers, server] });
@@ -18,7 +18,7 @@ export function createLspActions(set: StoreApi<StoreState>['setState'], get: () 
       clearError(get);
       const result = await window.digitalLife.lsp.stopServer(workspaceId, server);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       set({ lspActiveServers: get().lspActiveServers.filter((s) => s !== server) });
@@ -28,7 +28,7 @@ export function createLspActions(set: StoreApi<StoreState>['setState'], get: () 
       clearError(get);
       const result = await window.digitalLife.lsp.getSymbols(workspaceId, filePath);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return [];
       }
       return result.data;
@@ -38,7 +38,7 @@ export function createLspActions(set: StoreApi<StoreState>['setState'], get: () 
       clearError(get);
       const result = await window.digitalLife.lsp.getDiagnostics(workspaceId, filePath);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return [];
       }
       set({ lspDiagnostics: result.data });

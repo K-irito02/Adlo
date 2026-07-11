@@ -36,6 +36,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri",
+ "tokio",
  "tracing",
  "url",
  "urlencoding",

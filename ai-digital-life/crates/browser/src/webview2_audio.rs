@@ -19,7 +19,7 @@ mod imp {
     /// Wrapper that makes COM handlers (which are `!Send` due to raw COM pointers)
     /// storable behind a `Mutex`. The handlers' closures capture only `Send` types
     /// (AppHandle, String), and COM's AddRef/Release are thread-safe.
-    #[allow(dead_code)]
+    #[allow(dead_code)] // Inner field is write-only: struct exists to keep COM handlers alive, never downcast
     struct HandlerBox(Box<dyn Any>);
     unsafe impl Send for HandlerBox {}
 

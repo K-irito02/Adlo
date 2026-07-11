@@ -25,7 +25,6 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
     }
   }, [open]);
 
-  /* eslint-disable react-hooks/exhaustive-deps */
   const handleConfirm = useCallback(() => {
     const trimmedPort = port.trim();
     if (!trimmedPort) {
@@ -37,8 +36,7 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
       return;
     }
     onConfirm(num, label.trim() || undefined);
-  }, [port, label, onConfirm]);
-  /* eslint-enable react-hooks/exhaustive-deps */
+  }, [port, label, onConfirm, t]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

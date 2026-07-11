@@ -1,7 +1,7 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import type { ReferenceConfig } from '@shared/ipc';
-import { clearError, captureError } from '../shared';
+import { clearError, captureTypedError } from '../shared';
 
 export function createReferenceActions(
   set: StoreApi<StoreState>['setState'],
@@ -14,7 +14,7 @@ export function createReferenceActions(
       const bridge = window.digitalLife;
       const result = await bridge.reference.listReferences(dataDir);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         set({ isFetchingReferences: false });
         return;
       }
@@ -26,7 +26,7 @@ export function createReferenceActions(
       const bridge = window.digitalLife;
       const result = await bridge.reference.addReference(dataDir, reference);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       set({ references: result.data });
@@ -37,7 +37,7 @@ export function createReferenceActions(
       const bridge = window.digitalLife;
       const result = await bridge.reference.removeReference(dataDir, name);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       set({ references: result.data });

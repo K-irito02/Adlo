@@ -4,13 +4,10 @@ import type { AppInfo } from '@ai-digital-life/kernel';
 import { useTCopy } from '../i18n/useTCopy';
 import {
   IconBell,
-  IconClose,
-  IconCopy,
   IconEye,
   IconLangEn,
   IconLangZh,
   IconMonitor,
-  IconMinus,
   IconMoon,
   IconPanelLeft,
   IconPanelLeftClose,
@@ -18,7 +15,6 @@ import {
   IconPanelRightClose,
   IconSearch,
   IconSun,
-  IconSquare,
 } from '../icons';
 import logoUrl from '/logo-chatgpt.png?url';
 import { useAppStore } from '../stores/slicedStore';
@@ -26,7 +22,8 @@ import { isTauriShell } from '../../tauri-bridge';
 import { TooltipSimple } from '../components/Tooltip';
 import { NotificationCard } from '../components/NotificationCard';
 import { useFileMenuItems, useViewMenuItems, useHelpMenuItems } from './titleBarMenus';
-import type { MenuItem } from './titleBarMenus';
+import { MenuDropdown } from './MenuDropdown';
+import { WindowControls } from './WindowControls';
 
 interface TitleBarProps {
   appInfo?: AppInfo;
@@ -59,76 +56,6 @@ function LanguageIcon({ language }: { language: AppInfo['config']['language'] | 
   }
 }
 
-function MenuDropdown({
-  id,
-  label,
-  open,
-  items,
-  onToggle,
-  onClose,
-}: {
-  id: string;
-  label: string;
-  open: boolean;
-  items: MenuItem[];
-  onToggle: () => void;
-  onClose: () => void;
-}) {
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const handler = (event: MouseEvent) => {
-      if (!wrapperRef.current?.contains(event.target as Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open, onClose]);
-
-  return (
-    <div ref={wrapperRef} className="adl-menu" data-menu-id={id}>
-      <button
-        type="button"
-        className={`adl-menu__trigger adl-iconstrip__button adl-iconstrip__button--label${open ? ' is-open' : ''}`}
-        onClick={onToggle}
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        {label}
-      </button>
-      {open ? (
-        <div className="adl-menu__dropdown" role="menu">
-          {items.map((item, index) => {
-            if (item.separator) {
-              return <div key={`sep-${index}`} className="adl-menu__sep" role="separator" />;
-            }
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="menuitem"
-                className="adl-menu__item"
-                disabled={item.disabled}
-                onClick={() => {
-                  item.action?.();
-                  onClose();
-                }}
-              >
-                <span>{item.label}</span>
-                {item.shortcut ? <span className="adl-menu__shortcut">{item.shortcut}</span> : null}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 const TitleBar = React.memo(function TitleBar({
   appInfo,
   onOpenSettings,
@@ -144,10 +71,7 @@ const TitleBar = React.memo(function TitleBar({
   const markAllAsRead = useAppStore((s) => s.markAllAsRead);
   const clearAll = useAppStore((s) => s.clearAll);
   const setReadByVisibility = useAppStore((s) => s.setReadByVisibility);
-  const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.read).length,
-    [notifications]
-  );
+  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
 
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -159,7 +83,9 @@ const TitleBar = React.memo(function TitleBar({
 
   // close on outside click
   useEffect(() => {
-    if (!notifOpen) return;
+    if (!notifOpen) {
+      return;
+    }
     const handleClick = (e: MouseEvent) => {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
         setNotifOpen(false);
@@ -171,9 +97,13 @@ const TitleBar = React.memo(function TitleBar({
 
   // close on Escape
   useEffect(() => {
-    if (!notifOpen) return;
+    if (!notifOpen) {
+      return;
+    }
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setNotifOpen(false);
+      if (e.key === 'Escape') {
+        setNotifOpen(false);
+      }
     };
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
@@ -182,16 +112,24 @@ const TitleBar = React.memo(function TitleBar({
   // Read tracking: collect seen IDs during session, flush to store only when dropdown closes
   const seenDuringSessionRef = useRef(new Set<string>());
   useEffect(() => {
-    if (!notifOpen || !notifListRef.current) return;
+    if (!notifOpen || !notifListRef.current) {
+      return;
+    }
     const container = notifListRef.current;
     const cards = container.querySelectorAll('[data-notif-id]');
-    if (cards.length === 0) return;
+    if (cards.length === 0) {
+      return;
+    }
     const observer = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          if (!e.isIntersecting) continue;
+          if (!e.isIntersecting) {
+            continue;
+          }
           const id = (e.target as HTMLElement).getAttribute('data-notif-id');
-          if (id) seenDuringSessionRef.current.add(id);
+          if (id) {
+            seenDuringSessionRef.current.add(id);
+          }
         }
       },
       { root: container, threshold: 0.5 }
@@ -211,21 +149,35 @@ const TitleBar = React.memo(function TitleBar({
   // Drag-to-scroll on notification body
   const dragRef = useRef<{ startY: number; startScroll: number; dragging: boolean } | null>(null);
   const handleBodyMouseDown = useCallback((e: React.MouseEvent) => {
-    if (!notifListRef.current) return;
-    dragRef.current = { startY: e.clientY, startScroll: notifListRef.current.scrollTop, dragging: false };
+    if (!notifListRef.current) {
+      return;
+    }
+    dragRef.current = {
+      startY: e.clientY,
+      startScroll: notifListRef.current.scrollTop,
+      dragging: false,
+    };
   }, []);
   useEffect(() => {
-    if (!notifOpen) return;
+    if (!notifOpen) {
+      return;
+    }
     const el = notifListRef.current;
     const onMove = (e: MouseEvent) => {
-      if (!dragRef.current || !el) return;
+      if (!dragRef.current || !el) {
+        return;
+      }
       const dy = e.clientY - dragRef.current.startY;
-      if (Math.abs(dy) > 3) dragRef.current.dragging = true;
+      if (Math.abs(dy) > 3) {
+        dragRef.current.dragging = true;
+      }
       if (dragRef.current.dragging) {
         el.scrollTop = dragRef.current.startScroll - dy;
       }
     };
-    const onUp = () => { dragRef.current = null; };
+    const onUp = () => {
+      dragRef.current = null;
+    };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
     return () => {
@@ -234,7 +186,6 @@ const TitleBar = React.memo(function TitleBar({
     };
   }, [notifOpen]);
 
-  const [isMaximized, setIsMaximized] = useState(false);
   const {
     leftCollapsed,
     rightCollapsed,
@@ -269,46 +220,6 @@ const TitleBar = React.memo(function TitleBar({
   const language = appInfo?.config.language ?? 'zh-CN';
   const nextLanguage = language === 'zh-CN' ? 'en-US' : 'zh-CN';
 
-  useEffect(() => {
-    if (!isTauriShell()) {
-      return;
-    }
-    let cancelled = false;
-    const syncMaximized = async () => {
-      try {
-        const next = await window.digitalLife.window.isMaximized();
-        if (!cancelled) {
-          setIsMaximized(next);
-        }
-      } catch {
-        /* ignore */
-      }
-    };
-    void syncMaximized();
-    const unsub = window.digitalLife.window.onResized(syncMaximized);
-    return () => {
-      cancelled = true;
-      unsub();
-    };
-  }, []);
-
-  const handleMinimize = useCallback(() => {
-    if (!isTauriShell()) {
-      return;
-    }
-    void window.digitalLife.window.minimize();
-  }, []);
-  const handleMaximize = useCallback(async () => {
-    if (!isTauriShell()) {
-      return;
-    }
-    await window.digitalLife.window.maximize();
-    try {
-      setIsMaximized(await window.digitalLife.window.isMaximized());
-    } catch {
-      /* ignore */
-    }
-  }, []);
   const handleClose = useCallback(() => {
     if (!isTauriShell()) {
       return;
@@ -410,7 +321,10 @@ const TitleBar = React.memo(function TitleBar({
               <LanguageIcon language={language} />
             </button>
           </TooltipSimple>
-          <div className="adl-notif-wrapper" style={{ position: 'relative', display: 'inline-flex' }}>
+          <div
+            className="adl-notif-wrapper"
+            style={{ position: 'relative', display: 'inline-flex' }}
+          >
             <TooltipSimple content={t.notifButtonTooltip as string} placement="bottom">
               <button
                 type="button"
@@ -430,15 +344,34 @@ const TitleBar = React.memo(function TitleBar({
                 <div className="adl-notif-dropdown__header">
                   <span className="adl-notif-dropdown__title">{t.notifTitle}</span>
                   <div className="adl-notif-dropdown__actions">
-                    <button type="button" className="adl-notif-dropdown__action-btn" onClick={() => { markAllAsRead(); setNotifOpen(false); }}>
+                    <button
+                      type="button"
+                      className="adl-notif-dropdown__action-btn"
+                      onClick={() => {
+                        markAllAsRead();
+                        setNotifOpen(false);
+                      }}
+                    >
                       {t.notifMarkAllRead}
                     </button>
-                    <button type="button" className="adl-notif-dropdown__action-btn" onClick={() => { clearAll(); setNotifOpen(false); }}>
+                    <button
+                      type="button"
+                      className="adl-notif-dropdown__action-btn"
+                      onClick={() => {
+                        clearAll();
+                        setNotifOpen(false);
+                      }}
+                    >
                       {t.notifClearAll}
                     </button>
                   </div>
                 </div>
-                <div className="adl-notif-dropdown__body" ref={notifListRef} onMouseDown={handleBodyMouseDown} tabIndex={-1}>
+                <div
+                  className="adl-notif-dropdown__body"
+                  ref={notifListRef}
+                  onMouseDown={handleBodyMouseDown}
+                  tabIndex={-1}
+                >
                   {notifications.length === 0 ? (
                     <div className="adl-notif-dropdown__empty">{t.notifEmpty}</div>
                   ) : (
@@ -504,49 +437,7 @@ const TitleBar = React.memo(function TitleBar({
             </button>
           </TooltipSimple>
         </div>
-        <div
-          className="adl-titlebar__window-group adl-iconstrip"
-          role="group"
-          aria-label="Window controls"
-        >
-          <TooltipSimple content={t.windowMinimize} placement="bottom">
-            <button
-              type="button"
-              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn"
-              onClick={handleMinimize}
-              aria-label={t.windowMinimize}
-            >
-              <IconMinus size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple
-            content={isMaximized ? t.windowRestore : t.windowMaximize}
-            placement="bottom"
-          >
-            <button
-              type="button"
-              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn"
-              onClick={handleMaximize}
-              aria-label={isMaximized ? t.windowRestore : t.windowMaximize}
-            >
-              {isMaximized ? (
-                <IconCopy size={14} decorative />
-              ) : (
-                <IconSquare size={12} decorative />
-              )}
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.windowClose} placement="bottom">
-            <button
-              type="button"
-              className="adl-icon-btn adl-iconstrip__button adl-iconstrip__button--window adl-window-btn adl-window-btn--close"
-              onClick={handleClose}
-              aria-label={t.windowClose}
-            >
-              <IconClose size={14} decorative />
-            </button>
-          </TooltipSimple>
-        </div>
+        <WindowControls t={t} onClose={handleClose} />
       </div>
     </header>
   );

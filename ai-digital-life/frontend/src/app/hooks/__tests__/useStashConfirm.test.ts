@@ -26,7 +26,10 @@ describe('useStashConfirm', () => {
     const onConfirm = vi.fn();
     const { result } = renderHook(() => useStashConfirm({ snapshot: cleanSnapshot, onConfirm }));
     act(() => result.current.initiateSwitch({ branchName: 'feature', allowStash: false }));
-    expect(onConfirm).toHaveBeenCalledWith({ kind: 'switch', input: { branchName: 'feature', allowStash: false } });
+    expect(onConfirm).toHaveBeenCalledWith({
+      kind: 'switch',
+      input: { branchName: 'feature', allowStash: false },
+    });
     expect(result.current.needsConfirm).toBe(false);
   });
 
@@ -43,7 +46,10 @@ describe('useStashConfirm', () => {
     const { result } = renderHook(() => useStashConfirm({ snapshot: dirtySnapshot, onConfirm }));
     act(() => result.current.initiateSwitch({ branchName: 'feature', allowStash: false }));
     await act(async () => result.current.confirm());
-    expect(onConfirm).toHaveBeenCalledWith({ kind: 'switch', input: { branchName: 'feature', allowStash: true } });
+    expect(onConfirm).toHaveBeenCalledWith({
+      kind: 'switch',
+      input: { branchName: 'feature', allowStash: true },
+    });
   });
 
   it('clears pending on cancel', () => {
@@ -58,15 +64,30 @@ describe('useStashConfirm', () => {
   it('initiateCreate works directly when clean', () => {
     const onConfirm = vi.fn();
     const { result } = renderHook(() => useStashConfirm({ snapshot: cleanSnapshot, onConfirm }));
-    act(() => result.current.initiateCreate({ branchName: 'new-branch', baseBranch: 'main', allowStash: false }));
-    expect(onConfirm).toHaveBeenCalledWith({ kind: 'create', input: { branchName: 'new-branch', baseBranch: 'main', allowStash: false } });
+    act(() =>
+      result.current.initiateCreate({
+        branchName: 'new-branch',
+        baseBranch: 'main',
+        allowStash: false,
+      })
+    );
+    expect(onConfirm).toHaveBeenCalledWith({
+      kind: 'create',
+      input: { branchName: 'new-branch', baseBranch: 'main', allowStash: false },
+    });
     expect(result.current.needsConfirm).toBe(false);
   });
 
   it('initiateCreate sets pending when dirty', () => {
     const onConfirm = vi.fn();
     const { result } = renderHook(() => useStashConfirm({ snapshot: dirtySnapshot, onConfirm }));
-    act(() => result.current.initiateCreate({ branchName: 'new-branch', baseBranch: 'main', allowStash: false }));
+    act(() =>
+      result.current.initiateCreate({
+        branchName: 'new-branch',
+        baseBranch: 'main',
+        allowStash: false,
+      })
+    );
     expect(onConfirm).not.toHaveBeenCalled();
     expect(result.current.needsConfirm).toBe(true);
   });
@@ -74,9 +95,18 @@ describe('useStashConfirm', () => {
   it('initiateCreate confirms with allowStash:true when dirty', async () => {
     const onConfirm = vi.fn();
     const { result } = renderHook(() => useStashConfirm({ snapshot: dirtySnapshot, onConfirm }));
-    act(() => result.current.initiateCreate({ branchName: 'new-branch', baseBranch: 'main', allowStash: false }));
+    act(() =>
+      result.current.initiateCreate({
+        branchName: 'new-branch',
+        baseBranch: 'main',
+        allowStash: false,
+      })
+    );
     await act(async () => result.current.confirm());
-    expect(onConfirm).toHaveBeenCalledWith({ kind: 'create', input: { branchName: 'new-branch', baseBranch: 'main', allowStash: true } });
+    expect(onConfirm).toHaveBeenCalledWith({
+      kind: 'create',
+      input: { branchName: 'new-branch', baseBranch: 'main', allowStash: true },
+    });
     expect(result.current.needsConfirm).toBe(false);
   });
 
@@ -101,7 +131,10 @@ describe('useStashConfirm', () => {
     const { result } = renderHook(() => useStashConfirm({ snapshot: undefined, onConfirm }));
     act(() => result.current.initiateSwitch({ branchName: 'feature', allowStash: false }));
     // undefined snapshot = no dirty changes, so switches directly
-    expect(onConfirm).toHaveBeenCalledWith({ kind: 'switch', input: { branchName: 'feature', allowStash: false } });
+    expect(onConfirm).toHaveBeenCalledWith({
+      kind: 'switch',
+      input: { branchName: 'feature', allowStash: false },
+    });
     expect(result.current.needsConfirm).toBe(false);
   });
 });

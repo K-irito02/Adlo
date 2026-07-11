@@ -271,7 +271,7 @@ export function useBrowserPageMeta(
       state.browserOpenTab(cleanUrl, pageTitle);
       state.browserAddToHistory(cleanUrl, pageTitle);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: handler reads latest state via refs and useAppStore.getState(); adding deps would recreate the callback and break the subscription
     []
   );
 

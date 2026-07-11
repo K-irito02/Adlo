@@ -20,4 +20,4 @@ doc-valid-idents = [
 ]
 allow-unwrap-in-tests = true
 allow-expect-in-tests = true
-msrv = "1.77"
+msrv = "1.85"

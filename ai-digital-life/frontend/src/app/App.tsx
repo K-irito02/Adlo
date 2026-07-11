@@ -192,10 +192,7 @@ export function App() {
       </main>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       {activeNotification && (
-        <ConflictModal
-          notification={activeNotification}
-          onDismiss={dismissPopup}
-        />
+        <ConflictModal notification={activeNotification} onDismiss={dismissPopup} />
       )}
     </TCopyProvider>
   );

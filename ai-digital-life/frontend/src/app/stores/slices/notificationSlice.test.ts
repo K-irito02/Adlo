@@ -73,8 +73,18 @@ describe('notificationSlice', () => {
 
   it('setReadByVisibility marks visible unread notifications', () => {
     const { get } = createStore();
-    const id1 = get().addNotification({ type: 'conflict', title: 'T1', summary: 'S', fullInfo: 'F' });
-    const id2 = get().addNotification({ type: 'conflict', title: 'T2', summary: 'S', fullInfo: 'F' });
+    const id1 = get().addNotification({
+      type: 'conflict',
+      title: 'T1',
+      summary: 'S',
+      fullInfo: 'F',
+    });
+    const id2 = get().addNotification({
+      type: 'conflict',
+      title: 'T2',
+      summary: 'S',
+      fullInfo: 'F',
+    });
     get().setReadByVisibility([id1]);
     const n1 = get().notifications.find((n: NotificationData) => n.id === id1);
     const n2 = get().notifications.find((n: NotificationData) => n.id === id2);

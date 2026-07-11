@@ -25,5 +25,6 @@ export const createGitSlice = (
   setGitSnapshot: (snapshot) => set({ gitSnapshot: snapshot }),
   setGitBranches: (branches) => set({ gitBranches: branches }),
   setGitStashRestored: (restored) => set({ gitStashRestored: restored }),
-  clearGitState: () => set({ gitSnapshot: undefined, gitBranches: [], gitStashRestored: undefined }),
+  clearGitState: () =>
+    set({ gitSnapshot: undefined, gitBranches: [], gitStashRestored: undefined }),
 });

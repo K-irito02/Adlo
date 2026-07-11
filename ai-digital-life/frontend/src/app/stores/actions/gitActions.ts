@@ -11,7 +11,7 @@ import {
   expandSingle,
   createLazyLoader,
   clearError,
-  captureError,
+  captureTypedError,
 } from '../shared';
 
 async function refreshAfterBranchChange(get: () => StoreState) {
@@ -168,7 +168,7 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
       clearError(get);
       const result = await window.digitalLife.workspace.switchGitBranch(input);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       const { hasRestored, gitSnapshot, previousBranch, currentBranch } = result.data;
@@ -191,7 +191,7 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
           `切换到: ${currentBranch}`,
           `发生时间: ${new Date().toISOString()}`,
           `冲突文件:`,
-          ...gitSnapshot.conflicts.map(f => `  - ${f}`),
+          ...gitSnapshot.conflicts.map((f) => `  - ${f}`),
         ].join('\n');
         get().addNotification({
           type: 'conflict',
@@ -214,7 +214,7 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
       clearError(get);
       const result = await window.digitalLife.workspace.createGitBranch(input);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       set((state: StoreState) => ({
@@ -348,7 +348,7 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
         get().appInfo?.currentWorkspace?.path;
       const result = await window.digitalLife.workspace.stageFile(relativePath, path);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       applyGitOperation(get, set, path, relativePath, 'stage');
@@ -362,7 +362,7 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
         get().appInfo?.currentWorkspace?.path;
       const result = await window.digitalLife.workspace.unstageFile(relativePath, path);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       applyGitOperation(get, set, path, relativePath, 'unstage');
@@ -376,7 +376,7 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
         get().appInfo?.currentWorkspace?.path;
       const result = await window.digitalLife.workspace.discardFile(relativePath, path);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       applyGitOperation(get, set, path, relativePath, 'discard');

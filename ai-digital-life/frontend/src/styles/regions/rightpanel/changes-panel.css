@@ -105,7 +105,9 @@
   font-size: inherit;
   color: inherit;
   line-height: inherit;
-  transition: border-color var(--duration-150) var(--ease-default), background-color var(--duration-150) var(--ease-default);
+  transition:
+    border-color var(--duration-150) var(--ease-default),
+    background-color var(--duration-150) var(--ease-default);
 }
 
 .adl-changes-branch-filter:hover {

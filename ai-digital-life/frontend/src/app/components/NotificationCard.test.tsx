@@ -15,7 +15,7 @@ const mockT = new Proxy({} as Record<string, string>, {
       relativeTimeDaysAgo: '{n} 天前',
       notifConflictTitle: 'Merge conflict',
     };
-    return key in formatMap ? formatMap[key as string] : (typeof key === 'string' ? key : '');
+    return key in formatMap ? formatMap[key as string] : typeof key === 'string' ? key : '';
   },
 });
 
@@ -30,25 +30,41 @@ const mockNotif: NotificationData = {
 };
 
 function TestProvider({ children }: { children: React.ReactNode }) {
-  return <TCopyProvider t={mockT as any} locale="en-US">{children}</TCopyProvider>;
+  return (
+    <TCopyProvider t={mockT as any} locale="en-US">
+      {children}
+    </TCopyProvider>
+  );
 }
 
 describe('NotificationCard', () => {
   it('renders title and summary', () => {
-    render(<TestProvider><NotificationCard notification={mockNotif} onClose={vi.fn()} /></TestProvider>);
+    render(
+      <TestProvider>
+        <NotificationCard notification={mockNotif} onClose={vi.fn()} />
+      </TestProvider>
+    );
     expect(screen.getByText('Merge conflict')).toBeTruthy();
     expect(screen.getByText('2 files with conflicts')).toBeTruthy();
   });
 
   it('calls onClose when X is clicked', () => {
     const onClose = vi.fn();
-    render(<TestProvider><NotificationCard notification={mockNotif} onClose={onClose} /></TestProvider>);
+    render(
+      <TestProvider>
+        <NotificationCard notification={mockNotif} onClose={onClose} />
+      </TestProvider>
+    );
     screen.getByRole('button', { name: /close/i }).click();
     expect(onClose).toHaveBeenCalledWith('n1');
   });
 
   it('renders relative time', () => {
-    render(<TestProvider><NotificationCard notification={mockNotif} onClose={vi.fn()} /></TestProvider>);
+    render(
+      <TestProvider>
+        <NotificationCard notification={mockNotif} onClose={vi.fn()} />
+      </TestProvider>
+    );
     expect(screen.getByText(/2 分钟前/)).toBeTruthy();
   });
 });

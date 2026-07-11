@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
 
@@ -11,7 +11,10 @@ export function ProviderConfig({ providerId, onCancel }: ProviderConfigProps) {
   const { t } = useTCopy();
   const setApiKey = useAppStore((s) => s.setApiKey);
   const providers = useAppStore((s) => s.providers);
-  const configuredProviders = providers.filter((p) => p.configured || p.hasKey).map((p) => p.id);
+  const configuredProviders = useMemo(
+    () => providers.filter((p) => p.configured || p.hasKey).map((p) => p.id),
+    [providers]
+  );
   const [apiKey, setApiKeyLocal] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [saving, setSaving] = useState(false);

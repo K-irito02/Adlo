@@ -9,7 +9,6 @@ use std::sync::Arc;
 
 type LspClientMap = Arc<tokio::sync::Mutex<std::collections::HashMap<String, Arc<LspClient>>>>;
 
-#[allow(clippy::incompatible_msrv)]
 static LSP_CLIENTS: std::sync::LazyLock<LspClientMap> = std::sync::LazyLock::new(|| {
     Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()))
 });

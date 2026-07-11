@@ -44,20 +44,19 @@ const StatusBarGitInfo = React.memo(function StatusBarGitInfo({
   const [baseBranchMenuOpen, setBaseBranchMenuOpen] = useState(false);
   const baseBranchMenuWrapRef = useRef<HTMLDivElement>(null);
 
-  const { needsConfirm, confirm, cancel, initiateSwitch, initiateCreate } =
-    useStashConfirm({
-      snapshot: gitSnapshot,
-      onConfirm: async (action) => {
-        if (action.kind === 'switch') {
-          await onSwitchGitBranch(action.input);
-        } else {
-          await onCreateGitBranch(action.input);
-          setBranchDraft('');
-          setBaseBranchDraft('');
-        }
-        onRequestClose();
-      },
-    });
+  const { needsConfirm, confirm, cancel, initiateSwitch, initiateCreate } = useStashConfirm({
+    snapshot: gitSnapshot,
+    onConfirm: async (action) => {
+      if (action.kind === 'switch') {
+        await onSwitchGitBranch(action.input);
+      } else {
+        await onCreateGitBranch(action.input);
+        setBranchDraft('');
+        setBaseBranchDraft('');
+      }
+      onRequestClose();
+    },
+  });
 
   useEffect(() => {
     if (isOpen && hasWorkspace) {

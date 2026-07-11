@@ -1,7 +1,7 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import type { CommandConfig } from '@shared/ipc';
-import { clearError, captureError } from '../shared';
+import { clearError, captureTypedError } from '../shared';
 
 export function createCustomCommandActions(
   set: StoreApi<StoreState>['setState'],
@@ -14,7 +14,7 @@ export function createCustomCommandActions(
       const bridge = window.digitalLife;
       const result = await bridge.commandsConfig.listCustomCommands(dataDir);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         set({ isFetchingCommands: false });
         return;
       }
@@ -26,7 +26,7 @@ export function createCustomCommandActions(
       const bridge = window.digitalLife;
       const result = await bridge.commandsConfig.addCustomCommand(dataDir, command);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       set({ customCommands: result.data });
@@ -37,7 +37,7 @@ export function createCustomCommandActions(
       const bridge = window.digitalLife;
       const result = await bridge.commandsConfig.updateCustomCommand(dataDir, name, command);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       set({ customCommands: result.data });
@@ -48,7 +48,7 @@ export function createCustomCommandActions(
       const bridge = window.digitalLife;
       const result = await bridge.commandsConfig.deleteCustomCommand(dataDir, name);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       set({ customCommands: result.data });

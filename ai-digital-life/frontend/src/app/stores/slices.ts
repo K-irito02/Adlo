@@ -149,4 +149,8 @@ export { type DurableSlice, createDurableSlice } from './slices/durableSlice';
 export { type ToastSlice, createToastSlice } from './slices/toastSlice';
 
 // 通知切片（冲突通知与弹出式管理）
-export { type NotificationSlice, type NotificationData, createNotificationSlice } from './slices/notificationSlice';
+export {
+  type NotificationSlice,
+  type NotificationData,
+  createNotificationSlice,
+} from './slices/notificationSlice';

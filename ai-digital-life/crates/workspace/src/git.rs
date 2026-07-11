@@ -372,7 +372,9 @@ pub fn discard_file_changes(root: &Path, relative_path: &str) -> Result<(), AppE
     if run_git_required(
         root,
         &["restore", "--source=HEAD", "--staged", "--worktree", "--", relative_path],
-    ).is_ok() {
+    )
+    .is_ok()
+    {
         return Ok(());
     }
     let is_tracked =

@@ -309,7 +309,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
     return () => {
       unsubUrl();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: read .current at cleanup time to clear all timers pending at unmount, not those captured at effect setup
       for (const timer of fallbackTimeoutsRef.current.values()) {
         clearTimeout(timer);
       }

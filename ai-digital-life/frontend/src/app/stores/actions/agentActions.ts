@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
-import { clearError, captureError } from '../shared';
+import { clearError, captureTypedError } from '../shared';
 
 export function createAgentActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
@@ -16,7 +16,7 @@ export function createAgentActions(set: StoreApi<StoreState>['setState'], get: (
       clearError(get);
       const result = await window.digitalLife.agent.listAgents();
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         set({ isFetchingAgents: false });
         return;
       }
@@ -32,7 +32,7 @@ export function createAgentActions(set: StoreApi<StoreState>['setState'], get: (
       clearError(get);
       const result = await window.digitalLife.agent.selectAgent(scenario, userPrompt);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       set({ selectedAgent: result.data });
@@ -47,7 +47,7 @@ export function createAgentActions(set: StoreApi<StoreState>['setState'], get: (
       clearError(get);
       const result = await window.digitalLife.agent.enterPlanMode(workspaceId, workspaceRoot);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       set({ planModeActive: true, planFile: result.data });
@@ -62,7 +62,7 @@ export function createAgentActions(set: StoreApi<StoreState>['setState'], get: (
       clearError(get);
       const result = await window.digitalLife.agent.exitPlanMode(workspaceId);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       set({ planModeActive: false, planFile: null });

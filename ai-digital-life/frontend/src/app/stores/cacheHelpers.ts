@@ -173,7 +173,6 @@ export function setError(get: () => StoreState, message: string): void {
 }
 
 /** 捕获错误并设置为格式化后的全局错误状态（支持 AppError 类型判断） */
-// TODO: 集成到现有 captureError 或逐步替换 Action 中旧的 captureError 调用
 export function captureTypedError(get: () => StoreState, error: unknown): void {
   if (error instanceof AppError) {
     get().setError(`[${error.code}] ${error.message}`);

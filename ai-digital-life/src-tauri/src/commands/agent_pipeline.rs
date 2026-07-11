@@ -761,4 +761,190 @@ mod tests {
 
     // ========== emit_model_stream_events logic tests ==========
     // These tests have been moved to the agent_pipeline_stream submodule.
+
+    // ========== collect_symbol_context characterization tests ==========
+
+    /// Build a minimal `WorkspaceMeta` for tests, overriding `root_path`.
+    fn make_test_workspace(root_path: String) -> adl_kernel::WorkspaceMeta {
+        adl_kernel::WorkspaceMeta {
+            id: String::new(),
+            path: String::new(),
+            root_path,
+            name: String::new(),
+            r#type: adl_kernel::WorkspaceType::Unknown,
+            status: adl_kernel::WorkspaceStatus::Ready,
+            git_snapshot: None,
+            created_at: 0,
+            updated_at: 0,
+            last_opened_at: 0,
+        }
+    }
+
+    /// Build a minimal `AgentRunDetail` for tests.
+    fn make_test_detail() -> AgentRunDetail {
+        AgentRunDetail {
+            run: adl_kernel::AgentRunRecord {
+                id: "run-1".into(),
+                workspace_id: String::new(),
+                session_id: String::new(),
+                prompt: String::new(),
+                scenario: ConversationScenario::CodeEdit,
+                status: adl_kernel::AgentRunStatus::Draft,
+                summary: None,
+                patch_set_id: None,
+                created_at: 0,
+                updated_at: 0,
+                completed_at: None,
+                agent_id: adl_kernel::AgentId::Build,
+            },
+            steps: vec![],
+        }
+    }
+
+    #[test]
+    fn test_collect_symbol_context_no_symbol_in_prompt() {
+        let workspace = make_test_workspace(String::new());
+        let input = StartRunInput {
+            session_id: String::new(),
+            prompt: "Just a regular prompt without symbols".into(),
+            scenario: None,
+            provider_id: None,
+            model_id: None,
+        };
+        let detail = make_test_detail();
+        let mut audit_batch = Vec::new();
+        let activities = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let activities_clone = activities.clone();
+        let emit = move |v: serde_json::Value| {
+            activities_clone.lock().unwrap().push(v);
+        };
+
+        let result = collect_symbol_context(
+            &workspace,
+            &input,
+            &detail,
+            "scope-1",
+            "session-1",
+            &emit,
+            &mut audit_batch,
+        );
+
+        assert!(result.is_empty(), "No symbol in prompt should yield no context");
+        assert!(audit_batch.is_empty(), "No audit entries without symbol");
+        assert!(activities.lock().unwrap().is_empty(), "No activity events without symbol");
+    }
+
+    #[test]
+    fn test_collect_symbol_context_symbol_but_empty_root_path() {
+        let workspace = make_test_workspace(String::new());
+        let input = StartRunInput {
+            session_id: String::new(),
+            prompt: "Fix the bug in @symbol:MyClass".into(),
+            scenario: None,
+            provider_id: None,
+            model_id: None,
+        };
+        let detail = make_test_detail();
+        let mut audit_batch = Vec::new();
+        let activities = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let activities_clone = activities.clone();
+        let emit = move |v: serde_json::Value| {
+            activities_clone.lock().unwrap().push(v);
+        };
+
+        let result = collect_symbol_context(
+            &workspace,
+            &input,
+            &detail,
+            "scope-1",
+            "session-1",
+            &emit,
+            &mut audit_batch,
+        );
+
+        assert_eq!(result.len(), 1, "Symbol context entry should be added");
+        assert!(audit_batch.is_empty(), "No audit entries without search");
+        let acts = activities.lock().unwrap();
+        assert_eq!(acts.len(), 1, "One context-added activity event");
+        assert_eq!(acts[0]["contextType"], "symbol");
+    }
+
+    #[test]
+    fn test_collect_symbol_context_symbol_with_search_success() {
+        // Create a temp directory with a file containing the symbol
+        let temp_dir = std::env::temp_dir().join("adl_test_symbol_search");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        let test_file = temp_dir.join("test.rs");
+        std::fs::write(&test_file, "struct MyClass { }").unwrap();
+
+        let workspace = make_test_workspace(temp_dir.to_string_lossy().to_string());
+        let input = StartRunInput {
+            session_id: String::new(),
+            prompt: "Fix the bug in @symbol:MyClass".into(),
+            scenario: None,
+            provider_id: None,
+            model_id: None,
+        };
+        let detail = make_test_detail();
+        let mut audit_batch = Vec::new();
+        let activities = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let activities_clone = activities.clone();
+        let emit = move |v: serde_json::Value| {
+            activities_clone.lock().unwrap().push(v);
+        };
+
+        let result = collect_symbol_context(
+            &workspace,
+            &input,
+            &detail,
+            "scope-1",
+            "session-1",
+            &emit,
+            &mut audit_batch,
+        );
+
+        // 1 symbol context + up to 6 search hit contexts
+        assert!(!result.is_empty(), "At least symbol context should be present");
+        assert_eq!(audit_batch.len(), 1, "One audit entry for search");
+        assert_eq!(audit_batch[0].operation_type, "search");
+        let acts = activities.lock().unwrap();
+        assert!(!acts.is_empty(), "At least context-added event");
+
+        // Cleanup
+        std::fs::remove_dir_all(&temp_dir).ok();
+    }
+
+    #[test]
+    fn test_collect_symbol_context_symbol_with_search_failure() {
+        // Use a non-existent path to trigger search_text failure
+        let workspace = make_test_workspace("/nonexistent/path/that/does/not/exist".into());
+        let input = StartRunInput {
+            session_id: String::new(),
+            prompt: "Fix the bug in @symbol:MyClass".into(),
+            scenario: None,
+            provider_id: None,
+            model_id: None,
+        };
+        let detail = make_test_detail();
+        let mut audit_batch = Vec::new();
+        let activities = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let activities_clone = activities.clone();
+        let emit = move |v: serde_json::Value| {
+            activities_clone.lock().unwrap().push(v);
+        };
+
+        let result = collect_symbol_context(
+            &workspace,
+            &input,
+            &detail,
+            "scope-1",
+            "session-1",
+            &emit,
+            &mut audit_batch,
+        );
+
+        // Symbol context added, but search fails silently → only 1 entry
+        assert_eq!(result.len(), 1, "Only symbol context, search failed");
+        assert!(audit_batch.is_empty(), "No audit entries on search failure");
+    }
 }

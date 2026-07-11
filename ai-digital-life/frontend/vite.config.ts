@@ -228,6 +228,10 @@ export default defineConfig({
           if (id.includes('zustand')) return 'vendor-zustand';
           if (id.includes('markdown-it') || id.includes('react-markdown') || id.includes('remark-gfm')) return 'vendor-markdown';
           if (id.includes('pdfjs-dist')) return 'vendor-pdf';
+          if (id.includes('echarts')) return 'vendor-echarts';
+          if (id.includes('highlight.js') || id.includes('highlight.js/')) return 'vendor-highlight';
+          if (id.includes('mammoth')) return 'vendor-mammoth';
+          if (id.includes('motion') || id.includes('framer-motion')) return 'vendor-motion';
           return undefined;
         },
       },

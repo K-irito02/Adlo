@@ -13,7 +13,7 @@ import {
   clearWorkspaceCaches,
   workspaceRequestSeq,
   clearError,
-  captureError,
+  captureTypedError,
 } from '../shared';
 
 export function createWorkspaceLifecycleActions(
@@ -41,7 +41,7 @@ export function createWorkspaceLifecycleActions(
         return { ok: false, error: 'Request superseded' };
       }
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return { ok: false, error: result.error.message };
       }
       await get().bootstrap();
@@ -69,7 +69,7 @@ export function createWorkspaceLifecycleActions(
         return;
       }
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return;
       }
       await get().bootstrap();
@@ -87,7 +87,7 @@ export function createWorkspaceLifecycleActions(
       clearError(get);
       const result = await window.digitalLife.workspace.pickDirectory();
       if (!result.ok) {
-        captureError(get, result.error);
+        captureTypedError(get, result.error);
         return undefined;
       }
       return result.data?.trim() || undefined;

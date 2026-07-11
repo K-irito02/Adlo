@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { useBrowserToast } from './useBrowserToast';
 import { useBrowserDialogs } from './useBrowserDialogs';
 import { useShallow } from 'zustand/react/shallow';
@@ -6,7 +6,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useBrowserTabs } from './useBrowserTabs';
 import { useBrowserWebView } from './useBrowserWebView';
 import { useBrowserUrlChange } from './useBrowserUrlChange';
-import { useBrowserSearch, findInBrowserLookupIndex } from './useBrowserSearch';
+import { useBrowserSearch } from './useBrowserSearch';
 import { useBrowserTreeActions } from './useBrowserTreeActions';
 import { useBrowserNavigation } from './useBrowserNavigation';
 import { useBrowserUrlState } from './useBrowserUrlState';
@@ -25,11 +25,14 @@ import {
   buildBookmarkDirectoryTree,
 } from './browserPanelHelpers';
 import { BrowserPanelDialogs } from './BrowserPanelDialogs';
-import { checkEmbed, isEmbedBlocked } from './checkEmbed';
 import { setCachedFavicon } from '@utils/fetchPageMeta';
 import { getGoogleFaviconUrl } from '@utils/favicon';
 import { useBrowserIframeState } from './useBrowserIframeState';
 import { useBrowserNavigatorState } from './useBrowserNavigatorState';
+import { useBrowserPanelMenuItems } from './useBrowserPanelMenuItems';
+import { useBrowserPanelAddressSubmit } from './useBrowserPanelAddressSubmit';
+import { useBrowserPanelCloseHandlers } from './useBrowserPanelCloseHandlers';
+import { useBrowserPanelEffects } from './useBrowserPanelEffects';
 import { useBrowserZoomState } from './useBrowserZoomState';
 
 export function BrowserPanel(props: BrowserPanelProps) {
@@ -218,47 +221,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
     overlayActive: hasOverlayActive,
   });
 
-  const wrappedHandleCloseTab = useCallback(
-    (tabId: string) => {
-      handleCloseTab(tabId);
-      // removeFromPool = destroyTabWebView, 在 Tauri 模式下销毁 WebView 并停止音频
-      removeFromPool(tabId);
-    },
-    [handleCloseTab, removeFromPool]
-  );
-
-  const handleCloseAllTabs = useCallback(
-    (workspaceId?: string) => {
-      const beforeState = useAppStore.getState();
-      const tabIdsToDestroy = beforeState.browserTabs.map((t) => t.id);
-      _handleCloseAllTabs(workspaceId);
-      if (!workspaceId) {
-        if (isTauriShell()) {
-          for (const tid of tabIdsToDestroy) {
-            removeFromPool(tid);
-          }
-        } else {
-          document.querySelectorAll<HTMLIFrameElement>('.adl-browser-iframe').forEach((el) => {
-            try {
-              el.src = 'about:blank';
-            } catch {
-              /* ignore */
-            }
-          });
-        }
-      }
-    },
-    [_handleCloseAllTabs, removeFromPool]
-  );
-
-  const handleClearTabDirectories = useCallback(() => {
-    _handleClearTabDirectories();
-    const s = useAppStore.getState();
-    s.browserClearAllWorkspaceBookmarks?.();
-    // Safety sweep: remove any bookmark URLs that remained orphaned after
-    // the workspace bookmark nuke (e.g. star-button bookmarks not in folders).
-    s.browserRemoveOrphanedBookmarks?.();
-  }, [_handleClearTabDirectories]);
+  const { wrappedHandleCloseTab, handleCloseAllTabs, handleClearTabDirectories } =
+    useBrowserPanelCloseHandlers({
+      handleCloseTab,
+      originalCloseAllTabs: _handleCloseAllTabs,
+      originalClearTabDirectories: _handleClearTabDirectories,
+      removeFromPool,
+    });
 
   const { handlePageMeta: _handlePageMeta } = useBrowserPageMeta(
     pendingNavigationsRef,
@@ -285,225 +254,28 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setIframeLoadError,
   });
 
-  const isTauri = isTauriShell();
+  const { browserMenuItems } = useBrowserPanelMenuItems({
+    activeTab,
+    browserNavigateActiveTab,
+    zoomLevel,
+    setZoomLevel,
+    t,
+  });
 
-  const browserMenuItems = useMemo(
-    () => [
-      {
-        id: 'hard-reload',
-        label: t.browserHardReload,
-        hint: t.browserHardReloadHint,
-        action: () => {
-          const tabTitle =
-            activeTab?.title && !/^https?:\/\//i.test(activeTab.title)
-              ? activeTab.title
-              : undefined;
-          browserNavigateActiveTab(activeTab?.url ?? 'about:blank', tabTitle);
-        },
-      },
-      {
-        id: 'copy-url',
-        label: t.browserCopyCurrentUrl,
-        hint: t.browserCopyCurrentUrlHint,
-        action: () => void navigator.clipboard?.writeText(activeTab?.url ?? 'about:blank'),
-      },
-      { id: 'sep-1', separator: true as const },
-      {
-        id: 'clear-history',
-        label: t.browserClearHistory,
-        hint: t.browserClearHistoryHint,
-        action: () => useAppStore.getState().browserClearHistory(),
-      },
-      {
-        id: 'clear-cookies',
-        label: t.browserClearCookies,
-        hint: t.browserClearCookiesHint,
-        disabled: !isTauri,
-        action: () => {
-          if (!activeTab?.id) {
-            return;
-          }
-          if (isTauri) {
-            window.digitalLife?.browser?.clearCookies?.(activeTab.id);
-          }
-        },
-      },
-      {
-        id: 'clear-cache',
-        label: t.browserClearCache,
-        hint: t.browserClearCacheHint,
-        disabled: !isTauri,
-        action: () => {
-          if (!activeTab?.id) {
-            return;
-          }
-          if (isTauri) {
-            window.digitalLife?.browser?.clearCache?.(activeTab.id);
-          }
-        },
-      },
-      {
-        id: 'devtools',
-        label: t.browserDeveloperTools,
-        hint: t.browserDeveloperToolsHint,
-        disabled: !isTauri,
-        action: async () => {
-          try {
-            const { invoke } = await import('@tauri-apps/api/core');
-            await invoke('plugin:webview|internal_toggle_devtools');
-          } catch {
-            // DevTools toggle may not be available
-          }
-        },
-      },
-      { id: 'sep-2', separator: true as const },
-      {
-        id: 'zoom-in',
-        label: t.menuZoomIn,
-        hint: t.menuZoomInHint,
-        action: () => {
-          if (!activeTab?.id) {
-            return;
-          }
-          const next = Math.min(2, Math.round((zoomLevel + 0.1) * 10) / 10);
-          if (isTauri) {
-            window.digitalLife?.browser?.setZoom?.(activeTab.id, next);
-          } else {
-            document.documentElement.style.zoom = String(next);
-          }
-          setZoomLevel(next);
-        },
-      },
-      {
-        id: 'zoom-out',
-        label: t.menuZoomOut,
-        hint: t.menuZoomOutHint,
-        action: () => {
-          if (!activeTab?.id) {
-            return;
-          }
-          const next = Math.max(0.5, Math.round((zoomLevel - 0.1) * 10) / 10);
-          if (isTauri) {
-            window.digitalLife?.browser?.setZoom?.(activeTab.id, next);
-          } else {
-            document.documentElement.style.zoom = String(next);
-          }
-          setZoomLevel(next);
-        },
-      },
-      {
-        id: 'zoom-reset',
-        label: t.menuZoomReset,
-        hint: t.menuResetZoomHint,
-        action: () => {
-          if (!activeTab?.id) {
-            return;
-          }
-          if (isTauri) {
-            window.digitalLife?.browser?.setZoom?.(activeTab.id, 1.0);
-          } else {
-            document.documentElement.style.zoom = '1';
-          }
-          setZoomLevel(1.0);
-        },
-      },
-    ],
-    [activeTab, browserNavigateActiveTab, t, isTauri, zoomLevel, setZoomLevel]
-  );
-
-  const submitAddress = useCallback(async () => {
-    const input = address.trim();
-    if (!input) {
-      addressSubmittedForTabRef.current = 'about:blank';
-      setAddress('');
-      useAppStore.getState().setShowLandingPage(true);
-      return;
-    }
-
-    addressSubmittedForTabRef.current = '';
-    useAppStore.getState().setShowLandingPage(false);
-    const matchedItem = findInBrowserLookupIndex(browserLookupIndex, input);
-    const finalUrl = matchedItem?.url
-      ? matchedItem.url
-      : /^[a-z]+:\/\/|about:/i.test(input.trim())
-        ? input.trim()
-        : `https://${input.trim()}`;
-
-    const version = ++submitVersionRef.current;
-
-    if (!isTauriShell()) {
-      const cached = isEmbedBlocked(finalUrl);
-      if (cached !== undefined) {
-        if (submitVersionRef.current !== version) {
-          return;
-        }
-        if (cached) {
-          setIframeBlockedDetected(true);
-          setIframeLoadError(true);
-        } else {
-          validatedUrlsRef.current.add(finalUrl);
-        }
-        if (!cached) {
-          navigateBrowser(finalUrl);
-        }
-      } else {
-        const blocked = await checkEmbed(finalUrl);
-        if (submitVersionRef.current !== version) {
-          return;
-        }
-
-        if (blocked) {
-          setIframeBlockedDetected(true);
-          setIframeLoadError(true);
-        } else {
-          validatedUrlsRef.current.add(finalUrl);
-        }
-
-        if (!blocked) {
-          navigateBrowser(finalUrl);
-        }
-      }
-    }
-
-    // Always defer tab creation until real title arrives via handlePageMeta
-    handleNavigationStart(finalUrl);
-    setAddress(finalUrl);
-    if (isTauriShell()) {
-      browserNavigateActiveTab(finalUrl, undefined);
-    }
-
-    if (!isTauriShell() && finalUrl) {
-      import('@utils/fetchPageMeta').then((mod) => {
-        mod.fetchPageMeta(finalUrl).then((meta) => {
-          if (!meta) {
-            useAppStore.getState().browserAddToHistory(finalUrl, finalUrl);
-            return;
-          }
-          _handlePageMeta(
-            {
-              title: meta.title || finalUrl,
-              favicon: meta.favicon || '',
-              url: finalUrl,
-            },
-            'http'
-          );
-        });
-      });
-    }
-  }, [
+  const { submitAddress } = useBrowserPanelAddressSubmit({
     address,
+    setAddress,
     browserLookupIndex,
     handleNavigationStart,
     navigateBrowser,
     browserNavigateActiveTab,
     setIframeLoadError,
     setIframeBlockedDetected,
-    _handlePageMeta,
-    setAddress,
+    handlePageMeta: _handlePageMeta,
     addressSubmittedForTabRef,
     submitVersionRef,
     validatedUrlsRef,
-  ]);
+  });
 
   const visibleWorkspaces = useMemo(
     () =>
@@ -543,66 +315,21 @@ export function BrowserPanel(props: BrowserPanelProps) {
     activeTabUrl,
   });
 
-  useEffect(() => {
-    const url = activeTab?.url ?? '';
-    addressSubmittedForTabRef.current = url || 'about:blank';
-    setAddress(url === 'about:blank' ? '' : url);
-
-    if (url && url !== '' && url !== 'about:blank') {
-      useAppStore.getState().setShowLandingPage(false);
-    }
-
-    if (!isTauriShell() && url && url !== '' && url !== 'about:blank') {
-      requestAnimationFrame(() => {
-        setIframeHistory((prev) => {
-          if (prev.entries[prev.index] === url) {
-            return prev;
-          }
-          const newEntries = prev.entries.slice(0, prev.index + 1);
-          newEntries.push(url);
-          if (newEntries.length > 50) {
-            newEntries.shift();
-          }
-          return { index: newEntries.length - 1, entries: newEntries };
-        });
-      });
-    }
-  }, [activeTab?.id, activeTab?.url, setAddress, setIframeHistory, addressSubmittedForTabRef]);
-
-  useEffect(() => {
-    if (!browserMenuOpen && !addressExpanded && navigatorMode !== 'search') {
-      return;
-    }
-    const handlePointerDown = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (!browserMenuRef.current?.contains(target)) {
-        setBrowserMenuOpen(false);
-      }
-      if (!addressSearchRef.current?.contains(target)) {
-        setAddressExpanded(false);
-      }
-      if (navigatorMode === 'search' && !navigatorSearchRef.current?.contains(target)) {
-        const isModeBtn = (target as HTMLElement).closest(
-          '.adl-tool-navigator__context--secondary .adl-tool-context__iconbtn'
-        );
-        if (!isModeBtn) {
-          setNavigatorMode('tabs');
-        }
-      }
-    };
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [
-    addressExpanded,
+  useBrowserPanelEffects({
+    activeTab,
+    addressSubmittedForTabRef,
+    setAddress,
+    setIframeHistory,
     browserMenuOpen,
+    setBrowserMenuOpen,
     browserMenuRef,
+    addressExpanded,
+    setAddressExpanded,
     addressSearchRef,
     navigatorMode,
-    navigatorSearchRef,
-    setBrowserMenuOpen,
-    setAddressExpanded,
     setNavigatorMode,
-  ]);
+    navigatorSearchRef,
+  });
 
   const evictedTabIds = useMemo(() => {
     const result = new Set(browserTabs.filter((t) => !isTabInPool(t.id)).map((t) => t.id));

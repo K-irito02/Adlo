@@ -1,10 +1,14 @@
 pub mod command_risk;
 pub mod config_watcher;
+pub mod doom_loop;
+pub mod permission_types;
 pub use command_risk::{
-    assess_command_risk, build_ruleset, doom_loop_check, evaluate_permission,
-    is_external_directory, pattern_matches as permission_pattern_matches, requires_approval,
-    risk_to_decision, PermissionDecision, PermissionRule, PermissionRuleset,
-    PermissionRulesetConfig,
+    assess_command_risk, build_ruleset, evaluate_permission,
+    pattern_matches as permission_pattern_matches, requires_approval, risk_to_decision,
+};
+pub use doom_loop::{doom_loop_check, is_external_directory};
+pub use permission_types::{
+    PermissionDecision, PermissionRule, PermissionRuleset, PermissionRulesetConfig,
 };
 pub mod config;
 pub mod events;

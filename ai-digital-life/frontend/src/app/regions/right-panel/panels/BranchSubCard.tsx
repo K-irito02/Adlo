@@ -46,9 +46,10 @@ export function BranchSubCard({
   const openWorkspace = useAppStore((s) => s.openWorkspace);
   const currentWorkspacePath = useAppStore((s) => s.appInfo?.currentWorkspace?.path);
 
-  const hasDirtyChanges = (gitSnapshot?.staged.length ?? 0) > 0
-    || (gitSnapshot?.unstaged.length ?? 0) > 0
-    || (gitSnapshot?.untracked.length ?? 0) > 0;
+  const hasDirtyChanges =
+    (gitSnapshot?.staged.length ?? 0) > 0 ||
+    (gitSnapshot?.unstaged.length ?? 0) > 0 ||
+    (gitSnapshot?.untracked.length ?? 0) > 0;
 
   const { needsConfirm, confirm, cancel, initiateSwitch } = useStashConfirm({
     snapshot: gitSnapshot,
@@ -98,8 +99,8 @@ export function BranchSubCard({
     }
   }, [isOpen]);
 
-  const localCount = useMemo(() => gitBranches.filter(b => b.local).length, [gitBranches]);
-  const remoteCount = useMemo(() => gitBranches.filter(b => b.remote).length, [gitBranches]);
+  const localCount = useMemo(() => gitBranches.filter((b) => b.local).length, [gitBranches]);
+  const remoteCount = useMemo(() => gitBranches.filter((b) => b.remote).length, [gitBranches]);
 
   const filteredBranches = useMemo(() => {
     let result = gitBranches;
@@ -110,18 +111,25 @@ export function BranchSubCard({
     const bothActive = localFilterActive && remoteFilterActive;
     const noneActive = !localFilterActive && !remoteFilterActive;
     if (!bothActive && !noneActive) {
-      if (localFilterActive) result = result.filter(b => b.local);
-      if (remoteFilterActive) result = result.filter(b => b.remote);
+      if (localFilterActive) {
+        result = result.filter((b) => b.local);
+      }
+      if (remoteFilterActive) {
+        result = result.filter((b) => b.remote);
+      }
     }
     return result;
   }, [gitBranches, branchSearch, localFilterActive, remoteFilterActive]);
 
   const isRepo = isRepoProp ?? (gitBranches.length > 0 || !!currentBranch);
 
-  const handleSelect = useCallback(async (branchName: string) => {
-    onSelect?.(branchName);
-    initiateSwitch({ branchName, allowStash: false });
-  }, [onSelect, initiateSwitch]);
+  const handleSelect = useCallback(
+    async (branchName: string) => {
+      onSelect?.(branchName);
+      initiateSwitch({ branchName, allowStash: false });
+    },
+    [onSelect, initiateSwitch]
+  );
 
   if (!isOpen) {
     return null;
@@ -148,24 +156,28 @@ export function BranchSubCard({
         <button
           type="button"
           className={`adl-changes-branch-filter${localFilterActive ? ' is-active' : ''}`}
-          onClick={() => setLocalFilterActive(v => !v)}
+          onClick={() => setLocalFilterActive((v) => !v)}
           aria-pressed={localFilterActive}
         >
           <span className="adl-changes-branch-filter-label">{t.changesBranchLocal}</span>
           <strong className="adl-changes-branch-filter-value">
-            <span className="adl-changes-branch-filter-code" aria-hidden="true">L:</span>
+            <span className="adl-changes-branch-filter-code" aria-hidden="true">
+              L:
+            </span>
             {localCount}
           </strong>
         </button>
         <button
           type="button"
           className={`adl-changes-branch-filter${remoteFilterActive ? ' is-active' : ''}`}
-          onClick={() => setRemoteFilterActive(v => !v)}
+          onClick={() => setRemoteFilterActive((v) => !v)}
           aria-pressed={remoteFilterActive}
         >
           <span className="adl-changes-branch-filter-label">{t.changesBranchRemote}</span>
           <strong className="adl-changes-branch-filter-value">
-            <span className="adl-changes-branch-filter-code" aria-hidden="true">R:</span>
+            <span className="adl-changes-branch-filter-code" aria-hidden="true">
+              R:
+            </span>
             {remoteCount}
           </strong>
         </button>
@@ -194,9 +206,11 @@ export function BranchSubCard({
             >
               <span className="adl-changes-branch-item-name">{branch.name}</span>
               {branch.name === currentBranch ? <IconCheck size={14} decorative /> : null}
-              {(branch.hasStash || (branch.name === currentBranch && hasDirtyChanges)) ? (
+              {branch.hasStash || (branch.name === currentBranch && hasDirtyChanges) ? (
                 <TooltipSimple content={t.changesPendingCommit as string} placement="top">
-                  <span className="adl-icon-pending-commit"><IconPendingCommit size={14} decorative /></span>
+                  <span className="adl-icon-pending-commit">
+                    <IconPendingCommit size={14} decorative />
+                  </span>
                 </TooltipSimple>
               ) : null}
               {branch.local ? (
@@ -218,7 +232,11 @@ export function BranchSubCard({
         <div className="adl-changes-branch-confirm">
           <p>{t.changesBranchStashConfirm}</p>
           <div className="adl-changes-branch-confirm-actions">
-            <button type="button" className="adl-btn adl-btn--primary adl-btn--sm" onClick={confirm}>
+            <button
+              type="button"
+              className="adl-btn adl-btn--primary adl-btn--sm"
+              onClick={confirm}
+            >
               {t.approve}
             </button>
             <button type="button" className="adl-btn adl-btn--ghost adl-btn--sm" onClick={cancel}>

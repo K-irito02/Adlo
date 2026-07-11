@@ -1,44 +1,19 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import type { ChangesPanelProps } from '@regions/right-panel/types';
-import type { ReorderWorkspacesInput } from '@ai-digital-life/kernel';
 import { useTCopy } from '@app/i18n/useTCopy';
-import {
-  buildChangeEntries,
-  buildChangeTree,
-  type ChangeTreeNode,
-} from '@regions/right-panel/changesTree';
-import { collectDirectoryPaths } from '@features/file-tree';
+import type { ChangeTreeNode } from '@regions/right-panel/changesTree';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
-import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from '@features/outline';
 import { getPrimaryBadge } from '@regions/right-panel/ChangesPanel/utils';
-import { summarizePatchSet } from '@features/patch-review';
 import { useChangesPanelStore } from '../useChangesPanelStore';
 import { useFileContextMenuItems } from '@regions/right-panel/hooks/useFileContextMenuItems';
-import {
-  isNodeDeleted,
-  computeChangesMenuItems,
-  computeVisibleWorkspaces,
-  computeChangesTreeData,
-  computeChangeCounts,
-  computeTotalChangesStats,
-  computeExpandedPathsByWs,
-  computeDirtyPathsSet,
-  computeHasExpandedDirectories,
-  revealOutlineLine,
-  selectNavigatorNode,
-  toggleAllDirectories,
-  toggleAllOutlineItems,
-  toggleWorkspaceExpand,
-  refreshOneWorkspace,
-  refreshAllChanges,
-} from './useChangesPanelStateUtils';
-import { useChangesPanelFilters } from './useChangesPanelFilters';
+import { isNodeDeleted, computeChangesMenuItems } from './useChangesPanelStateUtils';
 import { useChangesPanelSort } from './useChangesPanelSort';
 import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
 import { useChangesPanelDialogs } from './useChangesPanelDialogs';
-import { joinPathSegments } from '@app/utils/workspacePaths';
 import type { ChangesMenuItem } from '../ChangesTopToolbar';
+import { useChangesFilters } from './useChangesFilters';
+import { useChangesActions } from './useChangesActions';
 
 export function useChangesPanelState(props: ChangesPanelProps) {
   const { t, formatT } = useTCopy();
@@ -94,62 +69,80 @@ export function useChangesPanelState(props: ChangesPanelProps) {
   const [wordWrapEnabled, setWordWrapEnabled] = useState(true);
   const editorRef = useRef<DiffEditorRef | EditorRef | null>(null);
   const changesPreviewContainerRef = useRef<HTMLDivElement | null>(null);
-  const patchSummaries = useMemo(
-    () => summarizePatchSet(activePatchSet, collapsedPatchHunkIds),
-    [activePatchSet, collapsedPatchHunkIds]
-  );
-  const changeEntries = useMemo(
-    () => buildChangeEntries(snapshot, patchSummaries),
-    [patchSummaries, snapshot]
-  );
-  const { changesStatusFilter, filteredChangeEntries, onStatusFilterClick } =
-    useChangesPanelFilters(changeEntries);
-  const treeNodes = useMemo(() => buildChangeTree(filteredChangeEntries), [filteredChangeEntries]);
-  const directoryPaths = useMemo(() => collectDirectoryPaths(treeNodes), [treeNodes]);
-  const hasExpandedDirectories = useMemo(
-    () => computeHasExpandedDirectories(directoryPaths, expandedPaths),
-    [directoryPaths, expandedPaths]
-  );
-  const navigatorSelectedPath = selectedPatchFilePath ?? selectedChangePreviewPath;
-  const changeOutline = useMemo(
-    () =>
-      changePreview
-        ? buildOutlineFromContent(changePreview.currentContent, changePreview.path)
-        : [],
-    [changePreview]
-  );
-  const defaultExpandedOutlineIds = useMemo(
-    () => getDefaultExpandedOutlineIds(changeOutline),
-    [changeOutline]
-  );
-  const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(
-    () => defaultExpandedOutlineIds
-  );
-  useEffect(() => {
-    setExpandedOutlineIds(defaultExpandedOutlineIds);
-  }, [defaultExpandedOutlineIds]);
-  const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
-  const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
 
-  const copyToClipboard = useCallback(async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {}
-  }, []);
+  const {
+    patchSummaries,
+    changeEntries,
+    filteredChangeEntries,
+    changesStatusFilter,
+    onStatusFilterClick,
+    treeNodes,
+    directoryPaths,
+    hasExpandedDirectories,
+    navigatorSelectedPath,
+    changeOutline,
+    defaultExpandedOutlineIds,
+    expandedOutlineIds,
+    setExpandedOutlineIds,
+    hasExpandableOutlineItems,
+    hasExpandedOutlineItems,
+    navigatorRelativePath,
+    navigatorAbsolutePath,
+    activeWorkspaceId,
+    visibleWorkspaces,
+    changesTreeData,
+    changeCounts,
+    totalChangeCount,
+    totalChangesStats,
+    expandedPathsByWs,
+    dirtyPathsSet,
+  } = useChangesFilters({
+    activePatchSet,
+    collapsedPatchHunkIds,
+    snapshot,
+    changePreview,
+    selectedPatchFilePath,
+    selectedChangePreviewPath,
+    appInfo,
+    recentWorkspaces,
+    workspaceChangesExpanded,
+    gitSnapshots,
+    activePatchSets,
+    expandedPaths,
+    dirtyEditorPaths: props.dirtyEditorPaths,
+  });
 
-  const navigatorRelativePath = selectedPatchFilePath ?? selectedChangePreviewPath;
-
-  const navigatorAbsolutePath = useMemo(() => {
-    if (!navigatorRelativePath) {
-      return undefined;
-    }
-    const wsPath =
-      props.appInfo?.currentWorkspace?.rootPath ?? props.appInfo?.currentWorkspace?.path;
-    if (!wsPath) {
-      return undefined;
-    }
-    return joinPathSegments(wsPath, navigatorRelativePath);
-  }, [navigatorRelativePath, props.appInfo]);
+  const {
+    copyToClipboard,
+    handleDiffMount,
+    handleRevealOutlineLine,
+    handleToggleAllDirectories,
+    handleToggleAllOutlineItems,
+    onSelectNavigatorNode,
+    onToggleExpand,
+    onRefreshOne,
+    handleToggleFileTreePath,
+    handleReorderWorkspaces,
+    onRefreshAll,
+  } = useChangesActions({
+    editorRef,
+    changesPreviewContainerRef,
+    changePreview,
+    previewEnabled,
+    directoryPaths,
+    hasExpandedDirectories,
+    hasExpandableOutlineItems,
+    hasExpandedOutlineItems,
+    defaultExpandedOutlineIds,
+    setExpandedOutlineIds,
+    collapsedPatchHunkIds,
+    onSelectPatchFile,
+    recentWorkspaces,
+    visibleWorkspaces,
+    collapseAllChangesTreePaths,
+    setChangesTreePathExpanded,
+    toggleChangesTreePath,
+  });
 
   const baseMenuItems = useMemo(
     () =>
@@ -192,74 +185,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     }
     expandChangesTreePathChain(navigatorSelectedPath);
   }, [expandChangesTreePathChain, navigatorSelectedPath]);
-
-  const handleDiffMount = useCallback((editor: DiffEditorRef | EditorRef) => {
-    editorRef.current = editor;
-  }, []);
-
-  const getModifiedEditor = useCallback((): EditorRef | null => {
-    const ref = editorRef.current;
-    if (!ref) {
-      return null;
-    }
-    if ('getModifiedEditor' in ref) {
-      return (ref as DiffEditorRef).getModifiedEditor();
-    }
-    return ref as EditorRef;
-  }, []);
-
-  const handleRevealOutlineLine = useCallback(
-    (line: number) => {
-      revealOutlineLine(
-        line,
-        changePreview,
-        previewEnabled,
-        editorRef,
-        changesPreviewContainerRef,
-        getModifiedEditor
-      );
-    },
-    [getModifiedEditor, changePreview, previewEnabled]
-  );
-
-  const handleToggleAllDirectories = useCallback(() => {
-    toggleAllDirectories(
-      directoryPaths,
-      hasExpandedDirectories,
-      collapseAllChangesTreePaths,
-      setChangesTreePathExpanded
-    );
-  }, [
-    directoryPaths,
-    hasExpandedDirectories,
-    collapseAllChangesTreePaths,
-    setChangesTreePathExpanded,
-  ]);
-
-  const handleToggleAllOutlineItems = useCallback(() => {
-    toggleAllOutlineItems(
-      hasExpandableOutlineItems,
-      hasExpandedOutlineItems,
-      defaultExpandedOutlineIds,
-      setExpandedOutlineIds
-    );
-  }, [hasExpandableOutlineItems, hasExpandedOutlineItems, defaultExpandedOutlineIds]);
-
-  const onSelectNavigatorNode = useCallback(
-    (workspacePath: string, relativePath: string) => {
-      const s = useAppStore.getState();
-      selectNavigatorNode(
-        workspacePath,
-        relativePath,
-        collapsedPatchHunkIds,
-        onSelectPatchFile,
-        s.activePatchSets,
-        s.activePatchSet,
-        s.openChangePreviewForWorkspace
-      );
-    },
-    [collapsedPatchHunkIds, onSelectPatchFile]
-  );
 
   const {
     changesRenameDialogOpen,
@@ -314,14 +239,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     ) : null;
   }, []);
 
-  const activeWorkspaceId = appInfo?.currentWorkspace?.path
-    ? recentWorkspaces.find((w) => w.path === appInfo.currentWorkspace?.path)?.id
-    : undefined;
-
-  const visibleWorkspaces = useMemo(
-    () => computeVisibleWorkspaces(recentWorkspaces),
-    [recentWorkspaces]
-  );
   const {
     changesNavigatorMode,
     setChangesNavigatorMode,
@@ -340,80 +257,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     t,
     handleToggleAllOutlineItems
   );
-  const changesTreeData = useMemo(
-    () =>
-      computeChangesTreeData(
-        workspaceChangesExpanded,
-        gitSnapshots,
-        activePatchSets,
-        collapsedPatchHunkIds,
-        changesNavigatorMode,
-        changesStatusFilter
-      ),
-    [
-      workspaceChangesExpanded,
-      gitSnapshots,
-      activePatchSets,
-      collapsedPatchHunkIds,
-      changesNavigatorMode,
-      changesStatusFilter,
-    ]
-  );
-  const changeCounts = useMemo(
-    () => computeChangeCounts(visibleWorkspaces, gitSnapshots),
-    [visibleWorkspaces, gitSnapshots]
-  );
-  const totalChangeCount = useMemo(
-    () => Object.values(changeCounts).reduce((s, c) => s + c, 0),
-    [changeCounts]
-  );
-  const totalChangesStats = useMemo(
-    () => computeTotalChangesStats(visibleWorkspaces, gitSnapshots),
-    [visibleWorkspaces, gitSnapshots]
-  );
-  const expandedPathsByWs = useMemo(
-    () => computeExpandedPathsByWs(workspaceChangesExpanded, expandedPaths),
-    [workspaceChangesExpanded, expandedPaths]
-  );
-  const dirtyPathsSet = useMemo(
-    () => computeDirtyPathsSet(props.dirtyEditorPaths),
-    [props.dirtyEditorPaths]
-  );
-
-  const onToggleExpand = useCallback(
-    (workspaceId: string) => {
-      toggleWorkspaceExpand(workspaceId, recentWorkspaces, (id, p) =>
-        useAppStore.getState().expandWorkspaceChangesInFileNav(id, p)
-      );
-    },
-    [recentWorkspaces]
-  );
-
-  const onRefreshOne = useCallback(
-    (workspaceId: string) => {
-      refreshOneWorkspace(workspaceId, recentWorkspaces, (id, p) =>
-        useAppStore.getState().refreshGitSnapshot(id, p)
-      );
-    },
-    [recentWorkspaces]
-  );
-
-  const handleToggleFileTreePath = useCallback(
-    (_wsId: string, path: string) => {
-      toggleChangesTreePath(path);
-    },
-    [toggleChangesTreePath]
-  );
-
-  const handleReorderWorkspaces = useCallback((input: ReorderWorkspacesInput) => {
-    useAppStore.getState().reorderWorkspaces(input);
-  }, []);
-
-  const onRefreshAll = useCallback(() => {
-    refreshAllChanges(visibleWorkspaces, (id, p) =>
-      useAppStore.getState().refreshGitSnapshot(id, p)
-    );
-  }, [visibleWorkspaces]);
 
   return {
     t,

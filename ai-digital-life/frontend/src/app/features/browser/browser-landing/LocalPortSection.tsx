@@ -96,7 +96,7 @@ export function LocalPortSection({
     if (browserLocalPorts.length === 0) {
       scanPorts();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: initial port scan; scanPorts is stable via useCallback and reads latest state from stores
   }, []);
 
   const handleRefresh = useCallback(() => {

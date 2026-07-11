@@ -49,8 +49,8 @@ mod imp {
     /// `chrome.webview.postMessage`. This handles SPA navigations (e.g.
     /// YouTube auto-play) where `document.title` is not updated by the page.
     fn spawn_spa_fallback(app: AppHandle, label: String, url: String) {
-        std::thread::spawn(move || {
-            std::thread::sleep(std::time::Duration::from_millis(2000));
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
             // Check if meta was already emitted for this URL
             let already_emitted = {
                 if let Ok(last_url) = LAST_EMIT_URL.lock() {

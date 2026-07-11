@@ -7,7 +7,6 @@ use adl_kernel::IpcResult;
 use async_trait::async_trait;
 use std::sync::Arc;
 
-#[allow(clippy::incompatible_msrv)]
 pub(crate) static PLUGIN_REGISTRY: std::sync::LazyLock<Arc<PluginRegistry>> =
     std::sync::LazyLock::new(|| Arc::new(PluginRegistry::new()));
 

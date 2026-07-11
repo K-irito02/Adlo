@@ -30,8 +30,10 @@ function notifId() {
 }
 
 export const createNotificationSlice = (
-  set: (partial: Partial<NotificationSlice> | ((state: NotificationSlice) => Partial<NotificationSlice>)) => void,
-  get: () => NotificationSlice,
+  set: (
+    partial: Partial<NotificationSlice> | ((state: NotificationSlice) => Partial<NotificationSlice>)
+  ) => void,
+  get: () => NotificationSlice
 ): NotificationSlice => ({
   notifications: [],
   activePopupId: null,
@@ -53,9 +55,7 @@ export const createNotificationSlice = (
 
   markAsRead: (id) => {
     set((state) => ({
-      notifications: state.notifications.map((n) =>
-        n.id === id ? { ...n, read: true } : n
-      ),
+      notifications: state.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
     }));
   },
 
@@ -76,7 +76,9 @@ export const createNotificationSlice = (
   },
 
   setReadByVisibility: (visibleIds) => {
-    if (visibleIds.length === 0) return;
+    if (visibleIds.length === 0) {
+      return;
+    }
     const idSet = new Set(visibleIds);
     set((state) => ({
       notifications: state.notifications.map((n) =>

@@ -23,6 +23,10 @@ describe('outline panel wiring', () => {
     new URL('./panels/ChangesPanel/useChangesPanelState.tsx', import.meta.url),
     'utf8'
   );
+  const changesFiltersSource = readFileSync(
+    new URL('./panels/ChangesPanel/useChangesFilters.ts', import.meta.url),
+    'utf8'
+  );
   const changesTreePanelSource = readFileSync(
     new URL('./panels/ChangesTreePanel.tsx', import.meta.url),
     'utf8'
@@ -55,9 +59,7 @@ describe('outline panel wiring', () => {
 
   it('uses the shared outline tree and outline mode in the changes panel', () => {
     expect(changesTreePanelSource).toContain('MultiWorkspaceChangesTree');
-    expect(changesPanelStateSource).toContain(
-      'buildOutlineFromContent(changePreview.currentContent'
-    );
+    expect(changesFiltersSource).toContain('buildOutlineFromContent(changePreview.currentContent');
     expect(changesPanelStateSource).toContain('handleRevealOutlineLine');
     expect(changesPanelStateSource).toContain('handleToggleAllOutlineItems');
   });

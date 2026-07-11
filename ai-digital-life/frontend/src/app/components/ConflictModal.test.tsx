@@ -15,28 +15,45 @@ const mockT = new Proxy({} as Record<string, string>, {
       relativeTimeDaysAgo: '{n} 天前',
       notifConflictTitle: 'Conflict',
     };
-    return key in formatMap ? formatMap[key as string] : (typeof key === 'string' ? key : '');
+    return key in formatMap ? formatMap[key as string] : typeof key === 'string' ? key : '';
   },
 });
 
 const mockNotif: NotificationData = {
-  id: 'n1', type: 'conflict', title: 'Conflict', summary: 'Summary',
-  fullInfo: 'Details', timestamp: Date.now(), read: false,
+  id: 'n1',
+  type: 'conflict',
+  title: 'Conflict',
+  summary: 'Summary',
+  fullInfo: 'Details',
+  timestamp: Date.now(),
+  read: false,
 };
 
 function TestProvider({ children }: { children: React.ReactNode }) {
-  return <TCopyProvider t={mockT as any} locale="en-US">{children}</TCopyProvider>;
+  return (
+    <TCopyProvider t={mockT as any} locale="en-US">
+      {children}
+    </TCopyProvider>
+  );
 }
 
 describe('ConflictModal', () => {
   it('renders NotificationCard', () => {
-    render(<TestProvider><ConflictModal notification={mockNotif} onDismiss={vi.fn()} /></TestProvider>);
+    render(
+      <TestProvider>
+        <ConflictModal notification={mockNotif} onDismiss={vi.fn()} />
+      </TestProvider>
+    );
     expect(screen.getByText('Conflict')).toBeTruthy();
   });
 
   it('calls onDismiss when X is clicked', () => {
     const onDismiss = vi.fn();
-    render(<TestProvider><ConflictModal notification={mockNotif} onDismiss={onDismiss} /></TestProvider>);
+    render(
+      <TestProvider>
+        <ConflictModal notification={mockNotif} onDismiss={onDismiss} />
+      </TestProvider>
+    );
     screen.getByRole('button', { name: /close/i }).click();
     expect(onDismiss).toHaveBeenCalledWith('n1');
   });
