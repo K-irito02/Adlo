@@ -182,17 +182,11 @@ export function setError(get: () => StoreState, message: string): void {
   get().setError(message);
 }
 
-/** 低优先级刷新辅助（使用微任务队列，比 setTimeout(0) 更早执行） */
+/** 低优先级刷新辅助（使用 setTimeout(0) 允许浏览器先渲染再执行） */
 export function queueLowPriorityRefresh(refresh: () => Promise<void>): void {
-  if (typeof queueMicrotask === 'function') {
-    queueMicrotask(() => {
-      void refresh();
-    });
-  } else {
-    window.setTimeout(() => {
-      void refresh();
-    }, 0);
-  }
+  window.setTimeout(() => {
+    void refresh();
+  }, 0);
 }
 
 /** 自增并返回下一个序列值 */
