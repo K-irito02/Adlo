@@ -39,6 +39,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       }
 
       if (!appInfoResult.ok) {
+        document.getElementById('adl-loading')?.classList.add('is-hidden');
         set({ loading: false, error: appInfoResult.error.message });
         return;
       }
@@ -121,6 +122,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             : appInfoResult.data;
 
         console.log(`[ADL-PERF] bootstrap TOTAL: ${(performance.now() - t0).toFixed(1)}ms`);
+        document.getElementById('adl-loading')?.classList.add('is-hidden');
         set({
           ...nextState,
           appInfo: appInfoWithGitSnapshot,
@@ -166,6 +168,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         return;
       }
 
+      document.getElementById('adl-loading')?.classList.add('is-hidden');
       set({
         ...(nextState as StoreState),
         dirtyEditorPaths: [],
