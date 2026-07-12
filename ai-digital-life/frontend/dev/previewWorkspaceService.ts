@@ -45,6 +45,15 @@ const IGNORED_DIRS = new Set([
   '.cache',
 ]);
 const ROOT_MARKERS = ['.git', 'Cargo.toml', 'package.json', 'pyproject.toml', 'go.mod', 'pom.xml'];
+
+interface RetrievalCacheEntry {
+  snapshot: RetrievalSnapshot;
+  mtimeMs: number;
+}
+
+const retrievalCache = new Map<string, RetrievalCacheEntry>();
+const CACHE_TTL_MS = 5_000;
+
 const API_PREFIX = '/__adl_preview_api__';
 const GIT_CANDIDATE_PATHS =
   process.platform === 'win32'
@@ -823,6 +832,31 @@ async function collectInner(
 }
 
 async function buildRetrievalSnapshot(
+  workspaceId: string,
+  rootPath: string
+): Promise<RetrievalSnapshot> {
+  const cached = retrievalCache.get(rootPath);
+  if (cached) {
+    try {
+      const stats = await fs.stat(rootPath);
+      if (stats.mtimeMs === cached.mtimeMs) {
+        return cached.snapshot;
+      }
+    } catch {
+      // stat failed, fall through to rebuild
+    }
+  }
+  const snapshot = await buildRetrievalSnapshotInner(workspaceId, rootPath);
+  try {
+    const stats = await fs.stat(rootPath);
+    retrievalCache.set(rootPath, { snapshot, mtimeMs: stats.mtimeMs });
+  } catch {
+    // can't stat root path, don't cache
+  }
+  return snapshot;
+}
+
+async function buildRetrievalSnapshotInner(
   workspaceId: string,
   rootPath: string
 ): Promise<RetrievalSnapshot> {
