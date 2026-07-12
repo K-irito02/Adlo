@@ -14,14 +14,19 @@ pub struct GoogleProvider {
 
 impl GoogleProvider {
     pub fn new() -> Self {
-        Self {
-            client: Client::new(),
-            base_url: "https://generativelanguage.googleapis.com/v1beta".to_string(),
-        }
+        Self { client: Client::new(), base_url: "https://generativelanguage.googleapis.com/v1beta".to_string() }
+    }
+
+    pub fn with_client(client: Client) -> Self {
+        Self { client, base_url: "https://generativelanguage.googleapis.com/v1beta".to_string() }
     }
 
     pub fn with_base_url(base_url: String) -> Self {
         Self { client: Client::new(), base_url }
+    }
+
+    pub fn with_client_and_base_url(client: Client, base_url: String) -> Self {
+        Self { client, base_url }
     }
 }
 
