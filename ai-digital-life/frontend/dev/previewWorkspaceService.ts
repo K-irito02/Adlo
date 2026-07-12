@@ -776,8 +776,16 @@ async function collectInner(
     const nodePath = relativePath(rootPath, entryPath);
 
     if (entry.isDirectory()) {
+      const { nodeRemaining: nr } = getRemaining();
+      if (nr === 0) break;
+      setRemaining({ nodeRemaining: nr - 1 });
+
       const childNodes: WorkspaceTreeNode[] = [];
       await collectInner(rootPath, entryPath, depth + 1, files, childNodes, getRemaining, setRemaining);
+      childNodes.sort((left: WorkspaceTreeNode, right: WorkspaceTreeNode) => {
+        if (left.kind !== right.kind) return left.kind === 'directory' ? -1 : 1;
+        return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+      });
       nodes.push({ path: nodePath, name: entry.name, kind: 'directory', children: childNodes });
       continue;
     }
