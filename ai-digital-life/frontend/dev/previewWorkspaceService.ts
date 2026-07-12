@@ -48,11 +48,11 @@ const ROOT_MARKERS = ['.git', 'Cargo.toml', 'package.json', 'pyproject.toml', 'g
 
 interface RetrievalCacheEntry {
   snapshot: RetrievalSnapshot;
-  mtimeMs: number;
+  capturedAt: number;
 }
 
 const retrievalCache = new Map<string, RetrievalCacheEntry>();
-const CACHE_TTL_MS = 5_000;
+const CACHE_TTL_MS = 10_000;
 
 const API_PREFIX = '/__adl_preview_api__';
 const GIT_CANDIDATE_PATHS =
@@ -835,24 +835,13 @@ async function buildRetrievalSnapshot(
   workspaceId: string,
   rootPath: string
 ): Promise<RetrievalSnapshot> {
-  const cached = retrievalCache.get(rootPath);
-  if (cached) {
-    try {
-      const stats = await fs.stat(rootPath);
-      if (stats.mtimeMs === cached.mtimeMs) {
-        return cached.snapshot;
-      }
-    } catch {
-      // stat failed, fall through to rebuild
-    }
+  const now = nowMs();
+  const cached = retrievalCache.get(workspaceId);
+  if (cached && (now - cached.capturedAt) < CACHE_TTL_MS) {
+    return cached.snapshot;
   }
   const snapshot = await buildRetrievalSnapshotInner(workspaceId, rootPath);
-  try {
-    const stats = await fs.stat(rootPath);
-    retrievalCache.set(rootPath, { snapshot, mtimeMs: stats.mtimeMs });
-  } catch {
-    // can't stat root path, don't cache
-  }
+  retrievalCache.set(workspaceId, { snapshot, capturedAt: now });
   return snapshot;
 }
 
