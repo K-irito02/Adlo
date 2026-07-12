@@ -16,6 +16,7 @@ use adl_storage::durable::DurableSessionManager;
 use adl_storage::Database;
 use adl_workspace::strip_verbatim_prefix;
 use anyhow::Context;
+use reqwest::Client;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use tauri::Manager;
@@ -36,7 +37,7 @@ pub fn resolve_data_dir(app: &tauri::App) -> anyhow::Result<PathBuf> {
     Ok(dir)
 }
 
-fn register_builtin_providers() -> ProviderRegistry {
+fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
     let mut registry = ProviderRegistry::new();
 
     registry.register(
@@ -47,11 +48,11 @@ fn register_builtin_providers() -> ProviderRegistry {
             api_type: ApiType::OpenAICompatible,
             default_base_url: Some("https://api.openai.com/v1".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(OpenAIProvider::new().supported_models()),
+            models: ModelSource::Static(OpenAIProvider::with_client(shared_client.clone()).supported_models()),
             built_in: true,
             default_model: Some("gpt-4o".into()),
         },
-        Box::new(OpenAIProvider::new()),
+        Box::new(OpenAIProvider::with_client(shared_client.clone())),
     );
 
     registry.register(
@@ -62,11 +63,11 @@ fn register_builtin_providers() -> ProviderRegistry {
             api_type: ApiType::AnthropicNative,
             default_base_url: Some("https://api.anthropic.com".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(AnthropicProvider::new().supported_models()),
+            models: ModelSource::Static(AnthropicProvider::with_client(shared_client.clone()).supported_models()),
             built_in: true,
             default_model: Some("claude-sonnet-4-20250514".into()),
         },
-        Box::new(AnthropicProvider::new()),
+        Box::new(AnthropicProvider::with_client(shared_client.clone())),
     );
 
     registry.register(
@@ -77,11 +78,11 @@ fn register_builtin_providers() -> ProviderRegistry {
             api_type: ApiType::GoogleNative,
             default_base_url: Some("https://generativelanguage.googleapis.com".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(GoogleProvider::new().supported_models()),
+            models: ModelSource::Static(GoogleProvider::with_client(shared_client.clone()).supported_models()),
             built_in: true,
             default_model: Some("gemini-2.5-pro".into()),
         },
-        Box::new(GoogleProvider::new()),
+        Box::new(GoogleProvider::with_client(shared_client.clone())),
     );
 
     registry.register(
@@ -92,11 +93,11 @@ fn register_builtin_providers() -> ProviderRegistry {
             api_type: ApiType::Ollama,
             default_base_url: Some("http://localhost:11434".into()),
             auth_type: AuthType::None,
-            models: ModelSource::Static(OllamaProvider::new().supported_models()),
+            models: ModelSource::Static(OllamaProvider::with_client(shared_client.clone()).supported_models()),
             built_in: true,
             default_model: None,
         },
-        Box::new(OllamaProvider::new()),
+        Box::new(OllamaProvider::with_client(shared_client.clone())),
     );
 
     registry.register(
@@ -107,11 +108,11 @@ fn register_builtin_providers() -> ProviderRegistry {
             api_type: ApiType::OpenAICompatible,
             default_base_url: Some("https://openrouter.ai/api/v1".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(OpenRouterProvider::new().supported_models()),
+            models: ModelSource::Static(OpenRouterProvider::with_client(shared_client.clone()).supported_models()),
             built_in: true,
             default_model: Some("openai/gpt-4o".into()),
         },
-        Box::new(OpenRouterProvider::new()),
+        Box::new(OpenRouterProvider::with_client(shared_client.clone())),
     );
 
     registry.register(
@@ -136,7 +137,10 @@ fn register_builtin_providers() -> ProviderRegistry {
             built_in: true,
             default_model: Some("deepseek-chat".into()),
         },
-        Box::new(OpenAIProvider::with_base_url("https://api.deepseek.com".into())),
+        Box::new(OpenAIProvider::with_client_and_base_url(
+            shared_client.clone(),
+            "https://api.deepseek.com".into(),
+        )),
     );
 
     registry.register(
@@ -161,7 +165,10 @@ fn register_builtin_providers() -> ProviderRegistry {
             built_in: true,
             default_model: Some("MiniMax-M2.7".into()),
         },
-        Box::new(OpenAIProvider::with_base_url("https://api.minimax.io".into())),
+        Box::new(OpenAIProvider::with_client_and_base_url(
+            shared_client.clone(),
+            "https://api.minimax.io".into(),
+        )),
     );
 
     registry
@@ -224,7 +231,15 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         });
 
     let config_arc = Arc::new(RwLock::new(config));
-    let provider_registry = Arc::new(RwLock::new(register_builtin_providers()));
+
+    let shared_client = Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .pool_max_idle_per_host(16)
+        .user_agent("ai-digital-life/1.0")
+        .build()
+        .context("failed to build shared HTTP client")?;
+
+    let provider_registry = Arc::new(RwLock::new(register_builtin_providers(&shared_client)));
 
     Ok(AppState {
         data_dir,
