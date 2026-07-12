@@ -141,7 +141,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             return;
           }
           const results = await Promise.allSettled([
-            get().fetchIndexStatus(),
+            // fetchIndexStatus removed — already loaded during bootstrap
             get().fetchAuditEntries(40),
             get().fetchCommandHistory(),
             get().fetchGitBranches(),
