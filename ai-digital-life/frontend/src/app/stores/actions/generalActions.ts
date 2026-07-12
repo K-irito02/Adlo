@@ -25,6 +25,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
      * @see preview-bridge/index.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, task.listAuditEntries, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
      */
     bootstrap: async () => {
+      const t0 = performance.now();
       const requestSeq = workspaceRequestSeq;
 
       const [appInfoResult, recentResult, modelHealthResult] = await Promise.all([
@@ -32,6 +33,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         window.digitalLife.workspace.listRecent(),
         window.digitalLife.app.getModelHealth(),
       ]);
+      console.log(`[ADL-PERF] bootstrap batch1 (getInfo+listRecent+getModelHealth): ${(performance.now() - t0).toFixed(1)}ms`);
       if (requestSeq !== workspaceRequestSeq) {
         return;
       }
@@ -46,6 +48,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         appInfoResult.data.config.themeMode
       );
 
+      const t1 = performance.now();
       const [conversationState, taskCenter] = await Promise.all([
         loadConversationState(),
         loadTaskCenterState(),
@@ -53,6 +56,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       if (requestSeq !== workspaceRequestSeq) {
         return;
       }
+      console.log(`[ADL-PERF] bootstrap batch2 (loadConversation+taskCenter): ${(performance.now() - t1).toFixed(1)}ms`);
 
       const recentWorkspaces = recentResult.ok ? recentResult.data : [];
       // 为右侧面板设置默认展开所有可见工作区
@@ -89,6 +93,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             ? window.digitalLife.patch.getPatchSet(patchBlock.patchSetId)
             : null;
 
+        const t2 = performance.now();
         const [gitStatusResult, patchResult] = await Promise.all([
           window.digitalLife.workspace.getGitStatus(),
           patchPromise,
@@ -96,6 +101,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         if (requestSeq !== workspaceRequestSeq) {
           return;
         }
+        console.log(`[ADL-PERF] bootstrap batch3 (getGitStatus): ${(performance.now() - t2).toFixed(1)}ms`);
 
         const gitSnapshot = gitStatusResult.ok ? gitStatusResult.data : undefined;
         const gitSnapshots: Record<string, GitSnapshot> = {};
@@ -114,6 +120,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
               }
             : appInfoResult.data;
 
+        console.log(`[ADL-PERF] bootstrap TOTAL: ${(performance.now() - t0).toFixed(1)}ms`);
         set({
           ...nextState,
           appInfo: appInfoWithGitSnapshot,

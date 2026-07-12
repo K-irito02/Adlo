@@ -21,6 +21,10 @@ import { ToastContainer } from './components/Toast';
 import { ConflictModal } from './components/ConflictModal';
 import { asSessionID } from '../shared/branded';
 
+const bundleLoadMs = (window as unknown as Record<string, unknown>).__BUNDLE_LOAD_MS as number || performance.now();
+const APP_MOUNT_MS = performance.now();
+console.log(`[ADL-PERF] react mount: ${(APP_MOUNT_MS - bundleLoadMs).toFixed(1)}ms`);
+
 export function App() {
   const error = useAppStore((state) => state.error);
   const { appInfo, leftCollapsed, rightCollapsed, rightPanelWidth } = useAppStore(

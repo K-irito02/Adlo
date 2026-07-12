@@ -48,7 +48,9 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             api_type: ApiType::OpenAICompatible,
             default_base_url: Some("https://api.openai.com/v1".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(OpenAIProvider::with_client(shared_client.clone()).supported_models()),
+            models: ModelSource::Static(
+                OpenAIProvider::with_client(shared_client.clone()).supported_models(),
+            ),
             built_in: true,
             default_model: Some("gpt-4o".into()),
         },
@@ -63,7 +65,9 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             api_type: ApiType::AnthropicNative,
             default_base_url: Some("https://api.anthropic.com".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(AnthropicProvider::with_client(shared_client.clone()).supported_models()),
+            models: ModelSource::Static(
+                AnthropicProvider::with_client(shared_client.clone()).supported_models(),
+            ),
             built_in: true,
             default_model: Some("claude-sonnet-4-20250514".into()),
         },
@@ -78,7 +82,9 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             api_type: ApiType::GoogleNative,
             default_base_url: Some("https://generativelanguage.googleapis.com".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(GoogleProvider::with_client(shared_client.clone()).supported_models()),
+            models: ModelSource::Static(
+                GoogleProvider::with_client(shared_client.clone()).supported_models(),
+            ),
             built_in: true,
             default_model: Some("gemini-2.5-pro".into()),
         },
@@ -93,7 +99,9 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             api_type: ApiType::Ollama,
             default_base_url: Some("http://localhost:11434".into()),
             auth_type: AuthType::None,
-            models: ModelSource::Static(OllamaProvider::with_client(shared_client.clone()).supported_models()),
+            models: ModelSource::Static(
+                OllamaProvider::with_client(shared_client.clone()).supported_models(),
+            ),
             built_in: true,
             default_model: None,
         },
@@ -108,7 +116,9 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             api_type: ApiType::OpenAICompatible,
             default_base_url: Some("https://openrouter.ai/api/v1".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(OpenRouterProvider::with_client(shared_client.clone()).supported_models()),
+            models: ModelSource::Static(
+                OpenRouterProvider::with_client(shared_client.clone()).supported_models(),
+            ),
             built_in: true,
             default_model: Some("openai/gpt-4o".into()),
         },
@@ -175,6 +185,8 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
 }
 
 pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
+    let t0 = std::time::Instant::now();
+
     let mut config = match adl_config::load(&data_dir) {
         Ok(c) => c,
         Err(e) => {
@@ -182,6 +194,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
             adl_config::AppConfig::default()
         },
     };
+    info!("[ADL-PERF] config load: {}ms", t0.elapsed().as_millis());
 
     // CLI log mode override
     if let Ok(cli_mode) = std::env::var("ADL_CLI_LOG_MODE") {
@@ -195,6 +208,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     let log_dir = project_root.join(".adl-logs");
     std::fs::create_dir_all(&log_dir)?;
 
+    let t1 = std::time::Instant::now();
     let log_manager = adl_logging::LogManager::init(
         &adl_logging::LogConfig {
             terminal_log_mode: config.terminal_log_mode,
@@ -203,22 +217,27 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         &log_dir,
     )
     .context("failed to init log manager")?;
-
-    info!(?log_dir, "log manager initialized");
+    info!("[ADL-PERF] log init: {}ms", t1.elapsed().as_millis());
 
     let db_path = data_dir.join("state").join("app-state.db");
+    let t2 = std::time::Instant::now();
     let db = Database::open(&db_path).context("failed to open database")?;
     db.init_schema().context("failed to init schema")?;
+    info!("[ADL-PERF] db open+init: {}ms", t2.elapsed().as_millis());
     let durable_manager = DurableSessionManager::new(db.clone());
 
+    let t4 = std::time::Instant::now();
     adl_migration::run_pending(&db).context("failed to run migrations")?;
-    info!("migrations complete");
+    info!("[ADL-PERF] migrations: {}ms", t4.elapsed().as_millis());
 
     // Run-activity housekeeping (best-effort).
+    let t5 = std::time::Instant::now();
     crate::run_activity_seq::init_run_activity_seq_seed();
     let _ = db.prune_run_activity_events(Some(30_i64 * 24 * 60 * 60 * 1_000), Some(200_000));
+    info!("[ADL-PERF] housekeeping: {}ms", t5.elapsed().as_millis());
 
     let event_bus = EventBus::default();
+    let t6 = std::time::Instant::now();
     let current_workspace: Option<adl_kernel::WorkspaceMeta> = db
         .get_state("current_workspace")
         .ok()
@@ -229,17 +248,24 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
             w.root_path = strip_verbatim_prefix(&w.root_path);
             w
         });
+    info!("[ADL-PERF] load workspace: {}ms", t6.elapsed().as_millis());
 
     let config_arc = Arc::new(RwLock::new(config));
 
+    let t7 = std::time::Instant::now();
     let shared_client = Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .pool_max_idle_per_host(16)
         .user_agent("ai-digital-life/1.0")
         .build()
         .context("failed to build shared HTTP client")?;
+    info!("[ADL-PERF] http client: {}ms", t7.elapsed().as_millis());
 
+    let t8 = std::time::Instant::now();
     let provider_registry = Arc::new(RwLock::new(register_builtin_providers(&shared_client)));
+    info!("[ADL-PERF] register providers: {}ms", t8.elapsed().as_millis());
+
+    info!("[ADL-PERF] init_app_state TOTAL: {}ms", t0.elapsed().as_millis());
 
     Ok(AppState {
         data_dir,

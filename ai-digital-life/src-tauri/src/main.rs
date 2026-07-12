@@ -3,6 +3,7 @@
 use adl_logging::LogMode;
 use tauri::webview::PageLoadEvent;
 use tauri::Manager;
+use tracing::info;
 
 mod commands;
 mod error;
@@ -34,8 +35,11 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
+            let t0 = std::time::Instant::now();
             let data_dir = setup::resolve_data_dir(app)?;
+            info!("[ADL-PERF] resolve_data_dir: {}ms", t0.elapsed().as_millis());
             let app_state = setup::init_app_state(data_dir)?;
+            info!("[ADL-PERF] setup COMPLETE: {}ms", t0.elapsed().as_millis());
             setup::start_background_tasks(&app_state);
             app.manage(app_state);
             Ok(())
