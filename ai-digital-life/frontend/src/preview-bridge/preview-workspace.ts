@@ -335,7 +335,7 @@ export function createPreviewWorkspaceBridge(
       if (!ctx.currentWorkspace) {
         return { ok: true, data: undefined };
       }
-      if (ctx.retrievalStatus && (Date.now() - ctx.retrievalStatus.completedAt) < 10_000) {
+      if (ctx.retrievalStatus?.completedAt && Date.now() - ctx.retrievalStatus.completedAt < 10_000) {
         return { ok: true, data: ctx.retrievalStatus };
       }
       const params = new URLSearchParams({
