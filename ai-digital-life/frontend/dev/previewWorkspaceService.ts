@@ -723,12 +723,103 @@ async function createGitBranch(
   };
 }
 
+interface CollectResult {
+  files: string[];
+  tree: WorkspaceTreeNode[];
+}
+
+async function collectFilesAndBuildTree(rootPath: string): Promise<CollectResult> {
+  const files: string[] = [];
+  const entries: WorkspaceTreeNode[] = [];
+  let fileRemaining = MAX_COLLECTED_FILES;
+  let nodeRemaining = MAX_TREE_NODES;
+
+  await collectInner(rootPath, rootPath, 0, files, entries, () => ({
+    fileRemaining,
+    nodeRemaining,
+  }), (updates: { fileRemaining?: number; nodeRemaining?: number }) => {
+    if (updates.fileRemaining !== undefined) fileRemaining = updates.fileRemaining;
+    if (updates.nodeRemaining !== undefined) nodeRemaining = updates.nodeRemaining;
+  });
+
+  entries.sort((left, right) => {
+    if (left.kind !== right.kind) return left.kind === 'directory' ? -1 : 1;
+    return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+  });
+
+  return { files, tree: entries };
+}
+
+async function collectInner(
+  rootPath: string,
+  currentPath: string,
+  depth: number,
+  files: string[],
+  nodes: WorkspaceTreeNode[],
+  getRemaining: () => { fileRemaining: number; nodeRemaining: number },
+  setRemaining: (updates: { fileRemaining?: number; nodeRemaining?: number }) => void,
+): Promise<void> {
+  if (depth > MAX_TREE_DEPTH) return;
+  const { fileRemaining, nodeRemaining } = getRemaining();
+  if (fileRemaining === 0 && nodeRemaining === 0) return;
+
+  let entries;
+  try {
+    entries = await fs.readdir(currentPath, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    if (IGNORED_DIRS.has(entry.name) || entry.isSymbolicLink()) continue;
+    const entryPath = path.join(currentPath, entry.name);
+    const nodePath = relativePath(rootPath, entryPath);
+
+    if (entry.isDirectory()) {
+      const childNodes: WorkspaceTreeNode[] = [];
+      await collectInner(rootPath, entryPath, depth + 1, files, childNodes, getRemaining, setRemaining);
+      nodes.push({ path: nodePath, name: entry.name, kind: 'directory', children: childNodes });
+      continue;
+    }
+
+    if (!entry.isFile()) continue;
+
+    const { nodeRemaining: nr, fileRemaining: fr } = getRemaining();
+    if (nr === 0) break;
+    setRemaining({ nodeRemaining: nr - 1 });
+
+    nodes.push({ path: nodePath, name: entry.name, kind: 'file', children: [] });
+
+    if (fr === 0) continue;
+    let stats;
+    try {
+      stats = await fs.stat(entryPath);
+    } catch {
+      continue;
+    }
+    if (stats.size > DEFAULT_MAX_FILE_BYTES) continue;
+
+    // Read first 4KB to check UTF-8 validity
+    try {
+      const fd = await fs.open(entryPath, 'r');
+      const buffer = Buffer.alloc(4096);
+      const { bytesRead } = await fd.read(buffer, 0, 4096, 0);
+      await fd.close();
+      Buffer.from(buffer.subarray(0, bytesRead)).toString('utf8');
+      files.push(entryPath);
+      setRemaining({ fileRemaining: fr - 1 });
+    } catch {
+      // Binary file, skip
+    }
+  }
+}
+
 async function buildRetrievalSnapshot(
   workspaceId: string,
   rootPath: string
 ): Promise<RetrievalSnapshot> {
-  const files: string[] = [];
-  await collectTextFiles(rootPath, rootPath, files);
+  const { files, tree } = await collectFilesAndBuildTree(rootPath);
+
   const extensionCounts = new Map<string, number>();
   for (const filePath of files) {
     const extension = path.extname(filePath) || '[none]';
@@ -739,16 +830,14 @@ async function buildRetrievalSnapshot(
     .sort((left, right) => right.count - left.count)
     .slice(0, 12);
 
-  const flattenTree = (nodes: WorkspaceTreeNode[], entries: RepoMapEntry[]) => {
+  const flattenTree = (nodes: WorkspaceTreeNode[], repoMap: RepoMapEntry[]) => {
     for (const node of nodes) {
-      entries.push({ path: node.path, type: node.kind });
+      repoMap.push({ path: node.path, type: node.kind });
       if (node.children.length > 0) {
-        flattenTree(node.children, entries);
+        flattenTree(node.children, repoMap);
       }
     }
   };
-
-  const tree = await listTree(rootPath);
   const repoMap: RepoMapEntry[] = [];
   flattenTree(tree, repoMap);
 
