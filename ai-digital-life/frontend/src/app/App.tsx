@@ -21,6 +21,8 @@ import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
 import { ToastContainer } from './components/Toast';
 import { ConflictModal } from './components/ConflictModal';
 import { asSessionID } from '../shared/branded';
+import { AnimatePresence, motion } from 'motion/react';
+import StartupOverlay from './components/StartupOverlay';
 
 export function App() {
   const error = useAppStore((state) => state.error);
@@ -39,6 +41,7 @@ export function App() {
   const notifications = useAppStore((s) => s.notifications);
   const activePopupId = useAppStore((s) => s.activePopupId);
   const dismissPopup = useAppStore((s) => s.dismissPopup);
+  const appReady = useAppStore((s) => s.appReady);
 
   const activeNotification = useMemo(
     () => notifications.find((n) => n.id === activePopupId),
@@ -124,89 +127,103 @@ export function App() {
   }
 
   return (
-    <TCopyProvider t={t} locale={locale}>
-      <main className="adl-shell adl-ide">
-        <TitleBar
-          appInfo={appInfo}
-          onOpenSettings={handleOpenSettings}
-          onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
-          onOpenFolder={handleOpenFolder}
-          onOpenCommandPalette={handleOpenCommandPalette}
-          onCycleTheme={handleCycleTheme}
-          onSelectLanguage={handleSelectLanguage}
-        />
+    <>
+      <TCopyProvider t={t} locale={locale}>
+        <main className="adl-shell adl-ide">
+          <TitleBar
+            appInfo={appInfo}
+            onOpenSettings={handleOpenSettings}
+            onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
+            onOpenFolder={handleOpenFolder}
+            onOpenCommandPalette={handleOpenCommandPalette}
+            onCycleTheme={handleCycleTheme}
+            onSelectLanguage={handleSelectLanguage}
+          />
 
-        {error ? (
-          <div className="adl-banner adl-banner--error" role="alert">
-            {error}
-          </div>
-        ) : null}
+          {error ? (
+            <div className="adl-banner adl-banner--error" role="alert">
+              {error}
+            </div>
+          ) : null}
 
-        <div
-          className={`adl-shell__body${leftCollapsed ? ' is-left-collapsed' : ''}${rightCollapsed ? ' is-right-collapsed' : ''}`}
-          style={{ '--rightpanel-width': `${rightPanelWidth}px` } as React.CSSProperties}
-        >
-          <ErrorBoundary t={t}>
-            <LeftSidebar
-              collapsed={leftCollapsed}
-              onCreateSession={() => setNewSessionDialogOpen(true)}
-              onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
-            />
-          </ErrorBoundary>
-
-          <ErrorBoundary t={t}>
-            <CenterPane />
-          </ErrorBoundary>
-
-          <ErrorBoundary t={t}>
-            <Suspense fallback={<div className="skeleton" style={{ flex: 1 }} />}>
-              <RightPanel
-                collapsed={rightCollapsed}
-                standardEditorRef={standardEditorRef}
-                selectedPatchFilePath={selectedPatchFilePath}
-                selectedPatchHunkId={selectedPatchHunkId}
-                collapsedPatchHunkIds={collapsedPatchHunkIds}
-                patchReviewFilter={patchReviewFilter}
-                onOpenFileAtLine={handleOpenFileAtLine}
-                onDiffMount={handleDiffMount}
-                onSendSelection={() => void handleSendSelection()}
-                onSelectPatchFile={handleSelectPatchFile}
-                onSelectPatchHunk={handleSelectPatchHunk}
-                onTogglePatchHunkCollapse={handleTogglePatchHunkCollapse}
-                onSetAllPatchHunksCollapsed={handleSetAllPatchHunksCollapsed}
-                onSetPatchReviewFilter={setPatchReviewFilter}
-                onJumpPatchHunk={handleJumpPatchHunk}
+          <div
+            className={`adl-shell__body${leftCollapsed ? ' is-left-collapsed' : ''}${rightCollapsed ? ' is-right-collapsed' : ''}`}
+            style={{ '--rightpanel-width': `${rightPanelWidth}px` } as React.CSSProperties}
+          >
+            <ErrorBoundary t={t}>
+              <LeftSidebar
+                collapsed={leftCollapsed}
+                onCreateSession={() => setNewSessionDialogOpen(true)}
+                onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
               />
-            </Suspense>
-          </ErrorBoundary>
-        </div>
+            </ErrorBoundary>
 
-        <CreateWorkspaceModal
-          open={createWorkspaceModalOpen}
-          onPickWorkspaceDirectory={actions.pickWorkspaceDirectory}
-          onOpenWorkspace={actions.openWorkspace}
-          onClose={() => setCreateWorkspaceModalOpen(false)}
-        />
+            <ErrorBoundary t={t}>
+              <CenterPane />
+            </ErrorBoundary>
 
-        <NewSessionDialog
-          open={newSessionDialogOpen}
-          onCreate={async (name) => {
-            await actions.createSession();
-            if (name) {
-              const currentId = activeSessionId;
-              if (currentId) {
-                await actions.renameSession(asSessionID(currentId), name);
+            <ErrorBoundary t={t}>
+              <Suspense fallback={<div className="skeleton" style={{ flex: 1 }} />}>
+                <RightPanel
+                  collapsed={rightCollapsed}
+                  standardEditorRef={standardEditorRef}
+                  selectedPatchFilePath={selectedPatchFilePath}
+                  selectedPatchHunkId={selectedPatchHunkId}
+                  collapsedPatchHunkIds={collapsedPatchHunkIds}
+                  patchReviewFilter={patchReviewFilter}
+                  onOpenFileAtLine={handleOpenFileAtLine}
+                  onDiffMount={handleDiffMount}
+                  onSendSelection={() => void handleSendSelection()}
+                  onSelectPatchFile={handleSelectPatchFile}
+                  onSelectPatchHunk={handleSelectPatchHunk}
+                  onTogglePatchHunkCollapse={handleTogglePatchHunkCollapse}
+                  onSetAllPatchHunksCollapsed={handleSetAllPatchHunksCollapsed}
+                  onSetPatchReviewFilter={setPatchReviewFilter}
+                  onJumpPatchHunk={handleJumpPatchHunk}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+
+          <CreateWorkspaceModal
+            open={createWorkspaceModalOpen}
+            onPickWorkspaceDirectory={actions.pickWorkspaceDirectory}
+            onOpenWorkspace={actions.openWorkspace}
+            onClose={() => setCreateWorkspaceModalOpen(false)}
+          />
+
+          <NewSessionDialog
+            open={newSessionDialogOpen}
+            onCreate={async (name) => {
+              await actions.createSession();
+              if (name) {
+                const currentId = activeSessionId;
+                if (currentId) {
+                  await actions.renameSession(asSessionID(currentId), name);
+                }
               }
-            }
-            setNewSessionDialogOpen(false);
-          }}
-          onCancel={() => setNewSessionDialogOpen(false)}
-        />
-      </main>
-      <ToastContainer toasts={toasts} onRemove={removeToast} />
-      {activeNotification && (
-        <ConflictModal notification={activeNotification} onDismiss={dismissPopup} />
-      )}
-    </TCopyProvider>
+              setNewSessionDialogOpen(false);
+            }}
+            onCancel={() => setNewSessionDialogOpen(false)}
+          />
+        </main>
+        <ToastContainer toasts={toasts} onRemove={removeToast} />
+        {activeNotification && (
+          <ConflictModal notification={activeNotification} onDismiss={dismissPopup} />
+        )}
+      </TCopyProvider>
+      <AnimatePresence>
+        {!appReady && (
+          <motion.div
+            key="startup-overlay"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: 'easeInOut' }}
+          >
+            <StartupOverlay />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
