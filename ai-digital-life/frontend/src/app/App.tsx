@@ -123,7 +123,23 @@ export function App() {
 
   // Guard: wait for i18n before rendering (safe to return after all hooks)
   if (!t) {
-    return <div className="adl-shell adl-ide" />;
+    return (
+      <>
+        <div className="adl-shell adl-ide" />
+        <AnimatePresence>
+          {!appReady && (
+            <motion.div
+              key="startup-overlay"
+              initial={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5, ease: 'easeInOut' }}
+            >
+              <StartupOverlay />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </>
+    );
   }
 
   return (
