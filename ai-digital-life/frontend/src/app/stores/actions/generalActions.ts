@@ -93,6 +93,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           workspaceTrees: {},
           dirtyEditorPaths: [],
           error: undefined,
+          appReady: true,
         });
 
         if (patchResult?.ok) {
@@ -165,6 +166,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         searchQuery: '',
         searchResults: [],
         externalFileChange: undefined,
+        appReady: true,
       });
     },
 

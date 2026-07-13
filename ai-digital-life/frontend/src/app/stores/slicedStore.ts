@@ -126,6 +126,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   // 根级状态
   // ════════════════════════════════════════════════════════
   loading: true,
+  appReady: false,
   error: undefined,
   isFetching: {},
   lspActiveServers: [],

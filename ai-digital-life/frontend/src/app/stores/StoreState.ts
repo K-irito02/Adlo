@@ -130,6 +130,7 @@ interface StoreStateBase
     ToastSlice,
     NotificationSlice {
   loading: boolean;
+  appReady: boolean;
   error?: string;
   isFetching: Record<string, boolean>;
   /** 自定义 Agent 列表 */
