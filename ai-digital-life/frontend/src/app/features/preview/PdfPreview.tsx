@@ -1,11 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import * as pdfjsLib from 'pdfjs-dist';
 import { useTCopy } from '@i18n/useTCopy';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url
-).toString();
+import type * as PdfJsType from 'pdfjs-dist';
 
 export interface PdfPreviewProps {
   data: ArrayBuffer;
@@ -21,33 +16,33 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
 
   useEffect(() => {
     let cancelled = false;
+    let pdfjs: typeof PdfJsType;
+
+    async function initPdfjs() {
+      if (!pdfjs) {
+        pdfjs = await import('pdfjs-dist');
+        pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+          'pdfjs-dist/build/pdf.worker.min.mjs',
+          import.meta.url
+        ).toString();
+      }
+    }
 
     async function renderPage() {
       try {
-        const pdf = await pdfjsLib.getDocument({ data }).promise;
-        if (cancelled) {
-          return;
-        }
+        await initPdfjs();
+        const pdf = await pdfjs!.getDocument({ data }).promise;
+        if (cancelled) return;
         setNumPages(pdf.numPages);
         const page = await pdf.getPage(currentPage);
-        if (cancelled) {
-          return;
-        }
-
+        if (cancelled) return;
         const canvas = canvasRef.current;
-        if (!canvas) {
-          return;
-        }
-
+        if (!canvas) return;
         const viewport = page.getViewport({ scale: 1.5 });
         canvas.width = viewport.width;
         canvas.height = viewport.height;
-
         const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          return;
-        }
-
+        if (!ctx) return;
         await page.render({ canvas, canvasContext: ctx, viewport }).promise;
       } catch (err) {
         if (!cancelled) {
