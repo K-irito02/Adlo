@@ -10,6 +10,7 @@ import {
   BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
 } from './browserSliceShared';
 import { computeToggleBookmarkOutcome, computeBookmarkTabOutcome } from './browserBookmarkHelpers';
+import { formatNewFolderNameByLocale } from '@i18n';
 
 export interface BrowserBookmark {
   url: string;
@@ -89,13 +90,15 @@ export const createBrowserBookmarkSlice = (
     });
   },
 
-  browserBookmarkTab: (tabId, folderId, newFolderName, workspaceId) => {
+  browserBookmarkTab: async (tabId, folderId, newFolderName, workspaceId) => {
+    const locale = (_get().appInfo?.config.language ?? 'zh-CN') as 'zh-CN' | 'en-US';
+    const folders = _get().browserTabFolders;
+    const resolvedName = newFolderName?.trim() || (await formatNewFolderNameByLocale(locale, folders.length + 1));
     set((state) => {
-      const locale = state.appInfo?.config.language === 'en-US' ? 'en-US' : 'zh-CN';
       const outcome = computeBookmarkTabOutcome(state, {
         tabId,
         folderId,
-        newFolderName,
+        newFolderName: resolvedName,
         workspaceId,
         newFolderId: createUiId('tab-folder'),
         now: Date.now(),

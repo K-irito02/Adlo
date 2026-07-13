@@ -1,6 +1,6 @@
 import type { ChatMode, ContextChip } from '../stores/types';
 import type { Locale } from '../i18n';
-import { copy } from '../i18n';
+import { loadLocale } from '../i18n/i18nLoader';
 
 export interface MessageSendOptions {
   mode?: ChatMode;
@@ -20,11 +20,11 @@ export function chatModeToScenario(mode: ChatMode): 'chat' | 'plan' | 'code-edit
 }
 
 /** 将上下文 chip 以低优先级附注形式拼入用户内容（符合「外部材料」与方案中的 reference-material 分层）。 */
-export function augmentPromptWithChips(
+export async function augmentPromptWithChips(
   content: string,
   chips: ContextChip[] | undefined,
   locale: Locale = 'zh-CN'
-): string {
+): Promise<string> {
   if (!chips?.length) {
     return content;
   }
@@ -32,7 +32,8 @@ export function augmentPromptWithChips(
     const detail = c.detail ? ` — ${c.detail}` : '';
     return `- [${c.kind}] ${c.label}${detail}`;
   });
-  const prefix = copy[locale].composerContextPrefix;
+  const t = await loadLocale(locale);
+  const prefix = t.composerContextPrefix;
   return `${prefix}\n${lines.join('\n')}\n\n${content}`;
 }
 
@@ -41,11 +42,11 @@ const SLASH_PREFIX = /^\/(plan|edit|chat|ask)\b\s*/i;
 /**
  * 若用户以 `/plan`、`/edit`、`/chat`、`/ask` 开头，覆盖本轮 scenario 并剥除前缀（与侧栏模式组合时以前缀为准）。
  */
-export function applySlashScenarioOverride(
+export async function applySlashScenarioOverride(
   content: string,
   base: 'chat' | 'plan' | 'code-edit',
   locale: Locale = 'zh-CN'
-): { scenario: 'chat' | 'plan' | 'code-edit'; prompt: string } {
+): Promise<{ scenario: 'chat' | 'plan' | 'code-edit'; prompt: string }> {
   const trimmed = content.trimStart();
   const match = trimmed.match(SLASH_PREFIX);
   if (!match) {
@@ -61,6 +62,7 @@ export function applySlashScenarioOverride(
     scenario = 'chat';
   }
   const rest = trimmed.slice(match[0]!.length).trim();
-  const fallback = scenario === 'plan' ? copy[locale].composerStructuredPlan : content;
+  const t = await loadLocale(locale);
+  const fallback = scenario === 'plan' ? t.composerStructuredPlan : content;
   return { scenario, prompt: rest || fallback };
 }

@@ -1,8 +1,8 @@
 import type { AppInfo } from '@ai-digital-life/kernel';
 import type { CopyDict, Locale } from './types';
-import { copy } from './types';
+import { loadLocale } from './i18nLoader';
 
-export function getAppCopy(appInfo?: AppInfo): CopyDict {
+export async function getAppCopy(appInfo?: AppInfo): Promise<CopyDict> {
   const locale: Locale = appInfo?.config.language === 'en-US' ? 'en-US' : 'zh-CN';
-  return copy[locale];
+  return loadLocale(locale);
 }

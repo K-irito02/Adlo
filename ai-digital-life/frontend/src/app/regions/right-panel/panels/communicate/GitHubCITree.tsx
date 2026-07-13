@@ -3,7 +3,6 @@ import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useNavigatorResize } from '@app/hooks/useNavigatorResize';
 import { workspaceSelectors } from '@stores/selectors';
-import { getAppCopy } from '@app/i18n';
 import { useTCopy } from '@app/i18n/useTCopy';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import type { SectionCallbacks } from '@features/github-tree/GitHubCategorySection';
@@ -161,9 +160,6 @@ export function GitHubCITree({
     return () => document.removeEventListener('click', handleGlobalClick);
   }, [handleSelectTreePath]);
 
-  const appInfo = workspaceSelectors.useAppInfo();
-  const copy = getAppCopy(appInfo);
-
   const visibleWorkspaces = workspaces;
 
   const handleTogglePath = useCallback(
@@ -271,7 +267,7 @@ export function GitHubCITree({
       <GitHubCITreeContent
         showHelp={showHelp}
         handleHelpNav={handleHelpNav}
-        copy={copy}
+        copy={t}
         workspaces={workspaces}
         gitHubWorkspaceConfigs={gitHubWorkspaceConfigs}
         gitHubCiFolders={gitHubCiFolders}

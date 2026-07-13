@@ -10,8 +10,8 @@ import {
   sessionFallbackTitle,
   refreshConversationSlice,
   workspaceContextModeFromInfo,
-  getAppCopy,
 } from '../conversationUtils';
+import { loadLocale } from '@app/i18n/i18nLoader';
 import {
   applySlashScenarioOverride,
   augmentPromptWithChips,
@@ -79,12 +79,17 @@ function registerSlashCommand(command: string, handler: SlashCommandHandler): vo
   slashCommandRegistry.set(command, handler);
 }
 
+function localeFrom(get: () => StoreState) {
+  return get().appInfo?.config.language === 'en-US' ? 'en-US' : 'zh-CN';
+}
+
 registerSlashCommand('/apply', async (set, get) => {
   const ps = get().activePatchSet;
   if (ps) {
     await get().applyPatchSet(ps.id);
   } else {
-    captureError(get, getAppCopy(get().appInfo).patchesNoneApplyable);
+    const dict = await loadLocale(localeFrom(get));
+    captureError(get, dict.patchesNoneApplyable);
   }
   return true;
 });
@@ -94,7 +99,8 @@ registerSlashCommand('/rollback', async (set, get) => {
   if (ps) {
     await get().rollbackPatchSet(ps.id);
   } else {
-    captureError(get, getAppCopy(get().appInfo).patchesNoneRollback);
+    const dict = await loadLocale(localeFrom(get));
+    captureError(get, dict.patchesNoneRollback);
   }
   return true;
 });
@@ -104,8 +110,9 @@ registerSlashCommand('/model', (set, get) => {
   return true;
 });
 
-registerSlashCommand('/clear', (set, get) => {
-  captureError(get, getAppCopy(get().appInfo).clearCommandNotImplemented);
+registerSlashCommand('/clear', async (set, get) => {
+  const dict = await loadLocale(localeFrom(get));
+  captureError(get, dict.clearCommandNotImplemented);
   return true;
 });
 
@@ -200,8 +207,8 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
       const mode = options?.mode ?? get().chatMode ?? 'ask';
       const baseScenario = chatModeToScenario(mode);
       const locale = get().appInfo?.config.language === 'en-US' ? 'en-US' : 'zh-CN';
-      const withChips = augmentPromptWithChips(content, options?.chips, locale);
-      const { scenario, prompt } = applySlashScenarioOverride(withChips, baseScenario, locale);
+      const withChips = await augmentPromptWithChips(content, options?.chips, locale);
+      const { scenario, prompt } = await applySlashScenarioOverride(withChips, baseScenario, locale);
 
       set({
         streamingAssistantText: '',
@@ -213,7 +220,7 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
 
       if (!sessionId) {
         const created = await window.digitalLife.conversation.createSession(
-          sessionFallbackTitle(get().appInfo)
+          await sessionFallbackTitle(get().appInfo)
         );
         if (!created.ok) {
           captureError(get, created.error);

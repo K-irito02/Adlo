@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { DiagnosticSummary } from '@ai-digital-life/kernel';
-import type { Locale } from '../i18n';
-import { copy } from '../i18n';
+import type { CopyDict, Locale } from '../i18n';
+import { loadLocale } from '../i18n/i18nLoader';
 import { buildSelectionPrompt } from '../utils/selectionPrompt';
 import type { EditorRef, DiffEditorRef } from '../stores/types';
 
@@ -16,12 +16,11 @@ export function useEditorReveal(
   locale: Locale,
   setEditorHint: (hint: string | undefined) => void,
   pendingRevealRef: React.MutableRefObject<{ path: string; line: number } | null>,
-  setPendingReveal: (path: string, line: number) => void
+  setPendingReveal: (path: string, line: number) => void,
+  t: CopyDict
 ) {
   const standardEditorRef = useRef<EditorRef | null>(null);
   const diffEditorRef = useRef<EditorRef | DiffEditorRef | null>(null);
-
-  const t = copy[locale];
 
   useEffect(() => {
     if (!activeDiagnostic?.line) {
@@ -74,7 +73,8 @@ export function useEditorReveal(
       return;
     }
     setEditorHint(undefined);
-    await actions.sendMessage(buildSelectionPrompt(locale, selectedFilePath, selectedText));
+    const prompt = await buildSelectionPrompt(locale, selectedFilePath, selectedText);
+    await actions.sendMessage(prompt);
   }, [locale, selectedFilePath, actions, t.noSelection, setEditorHint]);
 
   const handleOpenFileAtLine = useCallback(

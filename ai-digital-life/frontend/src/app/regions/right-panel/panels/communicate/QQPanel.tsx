@@ -1,10 +1,8 @@
 import React from 'react';
-import { workspaceSelectors } from '@stores/selectors';
-import { getAppCopy } from '@app/i18n';
+import { useTCopy } from '@app/i18n/useTCopy';
 
 export function QQPanel() {
-  const appInfo = workspaceSelectors.useAppInfo();
-  const copy = getAppCopy(appInfo);
+  const { t } = useTCopy();
   return (
     <div className="adl-communicate__primary-scroll">
       <div className="adl-communicate__placeholder">
@@ -13,8 +11,8 @@ export function QQPanel() {
             <path d="M8 4a4 4 0 0 0-4 4v10a4 4 0 0 0 4 4h3v5a1 1 0 0 0 1.7.72L18.42 22H24a4 4 0 0 0 4-4V8a4 4 0 0 0-4-4H8z" />
           </svg>
         </div>
-        <h3 className="adl-communicate__placeholder-title">{copy.communicateQQTitle}</h3>
-        <p className="adl-communicate__placeholder-desc">{copy.communicateQQDesc}</p>
+        <h3 className="adl-communicate__placeholder-title">{t.communicateQQTitle}</h3>
+        <p className="adl-communicate__placeholder-desc">{t.communicateQQDesc}</p>
       </div>
     </div>
   );

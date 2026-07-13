@@ -1,12 +1,12 @@
 import type { AppInfo, ConversationDetail } from '@ai-digital-life/kernel';
-import { copy } from '../i18n';
+import { loadLocale } from '../i18n/i18nLoader';
 import { getAppCopy as getAppCopyFromI18n } from '../i18n/getAppCopy';
 import { loadConversationState } from './loaders';
 
-export function sessionFallbackTitle(appInfo?: AppInfo): string {
-  return appInfo?.config.language === 'en-US'
-    ? copy['en-US'].sessionFallback
-    : copy['zh-CN'].sessionFallback;
+export async function sessionFallbackTitle(appInfo?: AppInfo): Promise<string> {
+  const lang = appInfo?.config.language === 'en-US' ? 'en-US' : 'zh-CN';
+  const dict = await loadLocale(lang);
+  return dict.sessionFallback;
 }
 
 export function workspaceContextModeFromInfo(appInfo?: AppInfo): 'workspace' | 'global' {

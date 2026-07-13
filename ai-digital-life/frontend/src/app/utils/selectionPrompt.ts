@@ -1,10 +1,10 @@
 import type { Locale } from '../i18n';
-import { copy } from '../i18n';
+import { loadLocale } from '../i18n/i18nLoader';
 
-export function buildSelectionPrompt(locale: Locale, filePath: string, selection: string): string {
+export async function buildSelectionPrompt(locale: Locale, filePath: string, selection: string): Promise<string> {
   if (locale === 'en-US') {
     return `@${filePath}\n\nContinue from this selection:\n\`\`\`\n${selection}\n\`\`\``;
   }
-  const t = copy[locale];
+  const t = await loadLocale(locale);
   return `@${filePath}\n\n${t.selectionPromptZh}\`\`\`\n${selection}\n\`\`\``;
 }

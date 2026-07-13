@@ -4,7 +4,7 @@
  */
 
 import { isTauriShell } from '../../tauri-bridge';
-import { getAppCopy } from '@app/i18n';
+import { loadLocale } from '@app/i18n/i18nLoader';
 
 // ============================================
 // 类型定义
@@ -171,7 +171,12 @@ async function getAppDirectory(): Promise<string | null> {
   lastAppDirAttempt = now;
   appDirCacheReady = true;
   try {
-    const response = await fetch('/__adl_preview_api__/workspace/app-directory');
+    const controller = new AbortController();
+    const fetchTimeout = setTimeout(() => controller.abort(), 2000);
+    const response = await fetch('/__adl_preview_api__/workspace/app-directory', {
+      signal: controller.signal,
+    });
+    clearTimeout(fetchTimeout);
     if (!response.ok) {
       cachedAppDirectory = null;
       return null;
@@ -235,11 +240,15 @@ async function writeLogsToProjectFileBrowser(content: string) {
     (typeof localStorage !== 'undefined' ? localStorage.getItem('adl_log_mode_debug') : null) ??
     'overwrite';
 
+  const controller = new AbortController();
+  const fetchTimeout = setTimeout(() => controller.abort(), 3000);
   const response = await fetch('/__adl_preview_api__/workspace/write-debug-logs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ rootPath: appDirectory, content, mode }),
+    signal: controller.signal,
   });
+  clearTimeout(fetchTimeout);
 
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -307,14 +316,14 @@ function restoreConsole() {
 // 可拖拽按钮功能
 // ============================================
 
-function createDraggableCopyButton() {
+async function createDraggableCopyButton() {
   if (typeof document === 'undefined') {
     return;
   }
 
   // 缓存运行模式（窗口生命周期内不变）
   const isTauri = isTauriShell();
-  const i18n = getAppCopy();
+  const i18n = await loadLocale('zh-CN');
 
   // 移除已存在的按钮
   const existing = document.getElementById('__dl-debug-button');
@@ -461,6 +470,13 @@ if (typeof window !== 'undefined') {
   global.__exportDebugLogs = exportLogsAsText;
   global.__clearDebugLogs = clearLogs;
   global.__restoreConsole = restoreConsole;
+  global.__forceFlushDebugLogs = async () => {
+    if (writeTimeoutId) {
+      clearTimeout(writeTimeoutId);
+      writeTimeoutId = null;
+    }
+    await writeLogsToProjectFile();
+  };
 
   // 页面加载后显示可拖拽按钮
   if (document.readyState === 'loading') {

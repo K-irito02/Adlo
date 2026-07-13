@@ -21,10 +21,6 @@ import { ToastContainer } from './components/Toast';
 import { ConflictModal } from './components/ConflictModal';
 import { asSessionID } from '../shared/branded';
 
-const bundleLoadMs = (window as unknown as Record<string, unknown>).__BUNDLE_LOAD_MS as number || performance.now();
-const APP_MOUNT_MS = performance.now();
-console.log(`[ADL-PERF] react mount: ${(APP_MOUNT_MS - bundleLoadMs).toFixed(1)}ms`);
-
 export function App() {
   const error = useAppStore((state) => state.error);
   const { appInfo, leftCollapsed, rightCollapsed, rightPanelWidth } = useAppStore(
@@ -51,6 +47,11 @@ export function App() {
   useDragDropWorkspace(actions);
 
   const { locale, t } = useAppStartup(appInfo);
+
+  if (!t) {
+    return <div className="adl-shell adl-ide" />;
+  }
+
   const {
     standardEditorRef,
     selectedPatchFilePath,
@@ -66,7 +67,7 @@ export function App() {
     handleSetAllPatchHunksCollapsed,
     setPatchReviewFilter,
     handleJumpPatchHunk,
-  } = usePatchReviewWithEditor(locale);
+  } = usePatchReviewWithEditor(locale, t);
 
   const handleCycleTheme = useCallback(() => {
     const mode = appInfo?.config.themeMode ?? 'system';
@@ -137,7 +138,7 @@ export function App() {
           className={`adl-shell__body${leftCollapsed ? ' is-left-collapsed' : ''}${rightCollapsed ? ' is-right-collapsed' : ''}`}
           style={{ '--rightpanel-width': `${rightPanelWidth}px` } as React.CSSProperties}
         >
-          <ErrorBoundary>
+          <ErrorBoundary t={t}>
             <LeftSidebar
               collapsed={leftCollapsed}
               onCreateSession={() => setNewSessionDialogOpen(true)}
@@ -145,11 +146,11 @@ export function App() {
             />
           </ErrorBoundary>
 
-          <ErrorBoundary>
+          <ErrorBoundary t={t}>
             <CenterPane />
           </ErrorBoundary>
 
-          <ErrorBoundary>
+          <ErrorBoundary t={t}>
             <Suspense fallback={<div className="skeleton" style={{ flex: 1 }} />}>
               <RightPanel
                 collapsed={rightCollapsed}

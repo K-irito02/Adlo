@@ -1,8 +1,7 @@
 import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import { workspaceSelectors } from '@stores/selectors';
-import { getAppCopy } from '@app/i18n';
+import { useTCopy } from '@app/i18n/useTCopy';
 import { resolveCiErrorMessage, resolveCiFolderName } from '@shared/ciErrors';
 import { GitHubSettingsDialog } from './GitHubSettingsDialog';
 
@@ -36,15 +35,14 @@ export function GitHubCISettings({
   const settingsInitialRepo = settingsConfig?.repo ?? '';
   const settingsInitialBranch = settingsConfig?.branch ?? 'main';
 
-  const appInfo = workspaceSelectors.useAppInfo();
-  const copy = getAppCopy(appInfo);
+  const { t } = useTCopy();
 
   const settingsName = settingsWorkspaceId
     ? (workspaces.find((w) => w.id === settingsWorkspaceId)?.name ?? settingsWorkspaceId)
     : settingsFolderId
       ? resolveCiFolderName(
           gitHubCiFolders.find((f) => f.id === settingsFolderId)?.name ?? settingsFolderId,
-          copy
+          t
         )
       : '';
 
@@ -97,8 +95,8 @@ export function GitHubCISettings({
       initialRepo={settingsInitialRepo}
       initialBranch={settingsInitialBranch}
       initialToken={ciAccessToken}
-      error={resolveCiErrorMessage(ciError, copy)}
-      copy={copy}
+      error={resolveCiErrorMessage(ciError, t)}
+      copy={t}
       onSave={handleSave}
       onCancel={handleCancel}
     />

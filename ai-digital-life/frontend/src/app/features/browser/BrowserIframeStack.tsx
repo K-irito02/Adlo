@@ -142,6 +142,7 @@ export function BrowserIframeStack({
                   style={{ display: isActive ? 'block' : 'none' }}
                 >
                   <ErrorBoundary
+                    t={t}
                     fallback={
                       <ExternalLinkError
                         errorKey="browserCannotOpenEmbedded"

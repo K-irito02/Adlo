@@ -1,13 +1,11 @@
 import React, { Component, type ReactNode } from 'react';
-import { IconAlertTriangle } from '../icons';
-import { copy } from '../i18n';
-import type { Locale } from '../i18n';
+import type { CopyDict } from '../i18n/types';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
-  locale?: Locale;
+  t: CopyDict;
 }
 
 interface ErrorBoundaryState {
@@ -35,8 +33,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       if (this.props.fallback) {
         return this.props.fallback;
       }
-      const currentLocale = this.props.locale ?? 'zh-CN';
-      const t = copy[currentLocale];
+      const t = this.props.t;
       return (
         <div
           className="adl-error-boundary"
@@ -54,7 +51,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             height: '100%',
           }}
         >
-          <IconAlertTriangle size={24} decorative className="adl-error-boundary__icon" />
           <p>{t.panelError}</p>
           <button
             onClick={() => this.setState({ hasError: false, error: null })}

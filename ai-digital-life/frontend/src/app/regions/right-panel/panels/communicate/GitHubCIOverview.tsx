@@ -2,8 +2,6 @@ import React, { useMemo } from 'react';
 import { IconChevronRight } from '@app/icons';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import { workspaceSelectors } from '@stores/selectors';
-import { getAppCopy } from '@app/i18n';
 import { useTCopy } from '@app/i18n/useTCopy';
 import { resolveCiErrorMessage, resolveCiFolderName } from '@shared/ciErrors';
 import type { GitHubCiFolderState } from '@stores/slices/githubRepoSlice';
@@ -116,15 +114,12 @@ export function GitHubCIOverview({ showHelp, onViewLogs }: GitHubCIOverviewProps
     return null;
   }, [activeCiWorkspaceId, activeCiFolderId, gitHubWorkspaceConfigs, gitHubCiFolders]);
 
-  const appInfo = workspaceSelectors.useAppInfo();
-  const copy = getAppCopy(appInfo);
-
   if (showHelp) {
-    return <HelpView copy={copy} />;
+    return <HelpView copy={t} />;
   }
 
   if (activeWorkspaceSection === 'help') {
-    return <HelpView copy={copy} />;
+    return <HelpView copy={t} />;
   }
 
   if (!(activeCiWorkspaceId || activeCiFolderId) || !activeConfig) {
@@ -181,7 +176,7 @@ export function GitHubCIOverview({ showHelp, onViewLogs }: GitHubCIOverviewProps
           snapshot={ciSnapshot}
           loading={ciLoading}
           branch={activeConfig.branch}
-          copy={copy}
+          copy={t}
           locale={locale}
           onViewLogs={onViewLogs}
         />
@@ -197,9 +192,9 @@ export function GitHubCIOverview({ showHelp, onViewLogs }: GitHubCIOverviewProps
 
   const categoryLabel =
     folderCategory === 'workspace'
-      ? copy.ciWorkspaceCategory
+      ? t.ciWorkspaceCategory
       : folderCategory === 'user'
-        ? copy.ciUserFolderCategory
+        ? t.ciUserFolderCategory
         : '';
 
   const hasActiveItem = !!(activeCiWorkspaceId || activeCiFolderId);

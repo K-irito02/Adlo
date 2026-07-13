@@ -12,14 +12,14 @@ describe('composerSend', () => {
     expect(chatModeToScenario('debug')).toBe('code-edit');
   });
 
-  it('augments with chips', () => {
-    const out = augmentPromptWithChips('hello', [{ id: '1', kind: 'file', label: 'x.rs' }]);
+  it('augments with chips', async () => {
+    const out = await augmentPromptWithChips('hello', [{ id: '1', kind: 'file', label: 'x.rs' }]);
     expect(out).toContain('x.rs');
     expect(out).toContain('hello');
   });
 
-  it('overrides scenario from /plan prefix', () => {
-    const { scenario, prompt } = applySlashScenarioOverride('/plan do thing', 'chat');
+  it('overrides scenario from /plan prefix', async () => {
+    const { scenario, prompt } = await applySlashScenarioOverride('/plan do thing', 'chat');
     expect(scenario).toBe('plan');
     expect(prompt).toContain('do thing');
   });

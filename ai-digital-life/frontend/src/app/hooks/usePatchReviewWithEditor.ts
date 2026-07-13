@@ -1,12 +1,12 @@
 import { useCallback, useRef } from 'react';
-import type { Locale } from '../i18n';
+import type { CopyDict, Locale } from '../i18n';
 import { useAppStore } from '../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppActions } from './useAppActions';
 import { usePatchReview } from './usePatchReview';
 import { useEditorReveal } from './useEditorReveal';
 
-export function usePatchReviewWithEditor(locale: Locale) {
+export function usePatchReviewWithEditor(locale: Locale, t: CopyDict) {
   const { selectedFilePath, fileLastModifiedAt } = useAppStore(
     useShallow((s) => ({
       selectedFilePath: s.selectedFilePath,
@@ -44,7 +44,8 @@ export function usePatchReviewWithEditor(locale: Locale) {
       locale,
       setEditorHint,
       pendingRevealRef,
-      setPendingReveal
+      setPendingReveal,
+      t
     );
 
   return {

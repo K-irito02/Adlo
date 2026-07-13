@@ -38,7 +38,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      */
     createSession: async (workspaceId?: WorkspaceID) => {
       const result = await window.digitalLife.conversation.createSession(
-        sessionFallbackTitle(get().appInfo),
+        await sessionFallbackTitle(get().appInfo),
         workspaceId as string | undefined
       );
       if (!result.ok) {
