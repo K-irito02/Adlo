@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import type { AppInfo } from '@ai-digital-life/kernel';
+import type { CopyDict, Locale } from './i18n';
 import { useAppStore } from './stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppActions } from './hooks/useAppActions';
@@ -48,10 +49,12 @@ export function App() {
 
   const { locale, t } = useAppStartup(appInfo);
 
-  if (!t) {
-    return <div className="adl-shell adl-ide" />;
-  }
-
+  // All hooks MUST be called unconditionally (React Hooks Rule).
+  // Deconstruct after guard so downstream types are non-null.
+  const patchReview = usePatchReviewWithEditor(
+    (locale ?? 'zh-CN') as Locale,
+    (t ?? {}) as CopyDict
+  );
   const {
     standardEditorRef,
     selectedPatchFilePath,
@@ -67,7 +70,12 @@ export function App() {
     handleSetAllPatchHunksCollapsed,
     setPatchReviewFilter,
     handleJumpPatchHunk,
-  } = usePatchReviewWithEditor(locale, t);
+  } = patchReview;
+
+  // Guard: wait for i18n before rendering (safe to return after all hooks)
+  if (!t) {
+    return <div className="adl-shell adl-ide" />;
+  }
 
   const handleCycleTheme = useCallback(() => {
     const mode = appInfo?.config.themeMode ?? 'system';
