@@ -6,7 +6,6 @@ use super::conversation::{ConversationRole, ConversationScenario};
 use super::TimestampMs;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct ModelChatMessage {
     pub role: ConversationRole,
@@ -14,7 +13,6 @@ pub struct ModelChatMessage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct ModelTokenUsage {
     pub prompt_tokens: Option<u32>,
@@ -24,7 +22,6 @@ pub struct ModelTokenUsage {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct ModelRouteDecision {
     pub reason: String,
@@ -33,7 +30,6 @@ pub struct ModelRouteDecision {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct ModelResponse {
     pub provider_id: String,
@@ -46,7 +42,6 @@ pub struct ModelResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum DigitalLifeRunActivityEventV1 {
     #[serde(rename_all = "camelCase")]
@@ -154,7 +149,6 @@ impl DigitalLifeRunActivityEventV1 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct RunActivityEventRecord {
     pub id: String,
@@ -168,7 +162,6 @@ pub struct RunActivityEventRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct ProviderHealthStatus {
     pub provider_id: String,
@@ -177,7 +170,6 @@ pub struct ProviderHealthStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct ModelGatewayHealthSnapshot {
     pub checked_at: TimestampMs,
@@ -185,7 +177,6 @@ pub struct ModelGatewayHealthSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct ModelCallAuditRecord {
     pub id: String,
@@ -206,7 +197,6 @@ pub struct ModelCallAuditRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct PromptRule {
     pub id: String,
@@ -215,7 +205,6 @@ pub struct PromptRule {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct ContextEntry {
     pub id: String,

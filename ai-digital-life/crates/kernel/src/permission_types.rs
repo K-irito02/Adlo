@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "lowercase")]
 pub enum PermissionDecision {
     Allow,

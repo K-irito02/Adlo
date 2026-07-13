@@ -1,5 +1,5 @@
-use adl_errors::AppError;
 use crate::types::conversation::ConversationSessionRecord;
+use adl_errors::AppError;
 
 /// Query parameters for listing sessions.
 pub struct SessionQuery {

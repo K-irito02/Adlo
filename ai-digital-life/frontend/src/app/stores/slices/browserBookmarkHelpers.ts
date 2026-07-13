@@ -168,7 +168,7 @@ export function computeBookmarkTabOutcome(
   state: BrowserBookmarkHelpersState,
   params: BookmarkTabParams
 ): BookmarkOutcome {
-  const { tabId, folderId, newFolderName, workspaceId, newFolderId, now, locale } = params;
+  const { tabId, folderId, newFolderName, workspaceId, newFolderId, now } = params;
   const tab = state.browserTabs.find((t) => t.id === tabId);
   if (!tab || !tab.url) {
     return {

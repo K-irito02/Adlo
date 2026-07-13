@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { NotFoundError, NetworkError } from '../../../shared/typedErrors';
+import { NotFoundError } from '../../../shared/typedErrors';
 import { captureError } from '../shared';
 import type { StoreState } from '../StoreState';
 

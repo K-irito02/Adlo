@@ -52,7 +52,10 @@ function renderCommandOutputBlock(
   return <CommandOutputBlock key={block.id} t={t} block={block} />;
 }
 
-function renderPatchSummaryBlock(block: PatchSummaryConversationBlock, t: CopyDict): React.ReactElement {
+function renderPatchSummaryBlock(
+  block: PatchSummaryConversationBlock,
+  t: CopyDict
+): React.ReactElement {
   return (
     <section key={block.id} className="adl-block adl-block--patch">
       <h4>{t.patch}</h4>
@@ -75,7 +78,10 @@ function renderToolCallBlock(block: ToolCallConversationBlock, t: CopyDict): Rea
   );
 }
 
-function renderValidationResultBlock(block: ValidationResultConversationBlock, t: CopyDict): React.ReactElement {
+function renderValidationResultBlock(
+  block: ValidationResultConversationBlock,
+  t: CopyDict
+): React.ReactElement {
   return (
     <section key={block.id} className="adl-block adl-block--validation">
       <h4>{t.validation}</h4>

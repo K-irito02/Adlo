@@ -4,7 +4,6 @@ use ts_rs::TS;
 use super::TimestampMs;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "lowercase")]
 pub enum WorkspaceType {
     Node,
@@ -16,7 +15,6 @@ pub enum WorkspaceType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "lowercase")]
 pub enum WorkspaceStatus {
     Initializing,
@@ -28,7 +26,6 @@ pub enum WorkspaceStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct GitSnapshot {
     pub is_repo: bool,
@@ -44,7 +41,6 @@ pub struct GitSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct GitBranchSummary {
     pub name: String,
@@ -55,7 +51,6 @@ pub struct GitBranchSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceGitBranchSwitchInput {
     pub branch_name: String,
@@ -63,7 +58,6 @@ pub struct WorkspaceGitBranchSwitchInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceGitBranchCreateInput {
     pub branch_name: String,
@@ -72,7 +66,6 @@ pub struct WorkspaceGitBranchCreateInput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceGitBranchChangeResult {
     pub workspace: WorkspaceMeta,
@@ -84,7 +77,6 @@ pub struct WorkspaceGitBranchChangeResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceMeta {
     pub id: String,
@@ -100,7 +92,6 @@ pub struct WorkspaceMeta {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct RecentWorkspaceEntry {
     pub id: String,
@@ -117,7 +108,6 @@ pub struct RecentWorkspaceEntry {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "lowercase")]
 pub enum RetrievalStatusV1 {
     Idle,
@@ -128,7 +118,6 @@ pub enum RetrievalStatusV1 {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct RetrievalFileTypeCount {
     pub extension: String,
@@ -136,7 +125,6 @@ pub struct RetrievalFileTypeCount {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct RepoMapEntry {
     pub path: String,
@@ -144,7 +132,6 @@ pub struct RepoMapEntry {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct RetrievalSnapshot {
     pub workspace_id: String,
@@ -161,7 +148,6 @@ pub struct RetrievalSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct HealthSnapshot {
     pub timestamp: TimestampMs,
@@ -169,7 +155,6 @@ pub struct HealthSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct HealthComponent {
     pub name: String,
@@ -179,7 +164,6 @@ pub struct HealthComponent {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "lowercase")]
 pub enum HealthStatus {
     Healthy,
@@ -188,7 +172,6 @@ pub enum HealthStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeDiagnosticsSnapshot {
     pub lifecycle: RuntimeLifecycleSnapshot,
@@ -198,7 +181,6 @@ pub struct RuntimeDiagnosticsSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeLifecycleSnapshot {
     pub current_started_at: TimestampMs,
@@ -208,7 +190,6 @@ pub struct RuntimeLifecycleSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct MigrationDiagnostics {
     pub change: String,
@@ -219,7 +200,6 @@ pub struct MigrationDiagnostics {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct MigrationScriptStatus {
     pub script_id: String,
@@ -228,7 +208,6 @@ pub struct MigrationScriptStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct EventDiagnostics {
     pub emitted: usize,
@@ -236,7 +215,6 @@ pub struct EventDiagnostics {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct RuntimeErrorSummary {
     pub id: String,
@@ -246,7 +224,6 @@ pub struct RuntimeErrorSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceSearchHit {
     pub path: String,
@@ -255,7 +232,6 @@ pub struct WorkspaceSearchHit {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceFileDocument {
     pub path: String,
@@ -264,7 +240,6 @@ pub struct WorkspaceFileDocument {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "lowercase")]
 pub enum WorkspaceChangeKind {
     Added,
@@ -273,7 +248,6 @@ pub enum WorkspaceChangeKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "lowercase")]
 pub enum WorkspaceChangeStatus {
     Staged,
@@ -283,7 +257,6 @@ pub enum WorkspaceChangeStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceChangePreview {
     pub path: String,
@@ -296,7 +269,6 @@ pub struct WorkspaceChangePreview {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceFileChangedEvent {
     pub path: String,
@@ -304,7 +276,6 @@ pub struct WorkspaceFileChangedEvent {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceTreeNode {
     pub path: String,
@@ -314,7 +285,6 @@ pub struct WorkspaceTreeNode {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct FileOutlineItem {
     pub id: String,

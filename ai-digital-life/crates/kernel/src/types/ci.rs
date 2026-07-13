@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct CiRepoConfig {
     pub owner: String,
@@ -13,7 +12,6 @@ pub struct CiRepoConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct CiWorkflowRunSummary {
     pub run_id: u64,
@@ -30,7 +28,6 @@ pub struct CiWorkflowRunSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct CiJobSummary {
     pub job_id: u64,
@@ -45,7 +42,6 @@ pub struct CiJobSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct CiStepSummary {
     pub name: String,
@@ -58,7 +54,6 @@ pub struct CiStepSummary {
 pub type CiJobLogMap = std::collections::HashMap<u64, String>;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct CiStatusSnapshot {
     pub repo: String,

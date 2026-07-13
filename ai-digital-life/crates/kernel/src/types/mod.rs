@@ -76,7 +76,6 @@ pub fn estimate_tokens(text: &str) -> usize {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct IpcError {
     pub code: String,
@@ -84,7 +83,6 @@ pub struct IpcError {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(untagged)]
 pub enum IpcResult<T> {
     Ok { ok: bool, data: T },

@@ -195,17 +195,15 @@ impl LogManager {
     pub async fn prune_sessions_async(&self, target: LogTarget) -> LogResult<usize> {
         let terminal_sessions = self.terminal_sessions.clone();
         let debug_sessions = self.debug_sessions.clone();
-        spawn_blocking(move || {
-            match target {
-                LogTarget::Terminal => terminal_sessions
-                    .lock()
-                    .map_err(|_| LogError::Session("terminal session lock poisoned".into()))?
-                    .prune_old_sessions(),
-                LogTarget::Debug => debug_sessions
-                    .lock()
-                    .map_err(|_| LogError::Session("debug session lock poisoned".into()))?
-                    .prune_old_sessions(),
-            }
+        spawn_blocking(move || match target {
+            LogTarget::Terminal => terminal_sessions
+                .lock()
+                .map_err(|_| LogError::Session("terminal session lock poisoned".into()))?
+                .prune_old_sessions(),
+            LogTarget::Debug => debug_sessions
+                .lock()
+                .map_err(|_| LogError::Session("debug session lock poisoned".into()))?
+                .prune_old_sessions(),
         })
         .await
         .map_err(|e| LogError::Session(format!("spawn_blocking failed: {e}")))?
@@ -453,7 +451,10 @@ mod tests {
         let manager = LogManager {
             config: config.clone(),
             log_dir: dir.path().to_path_buf(),
-            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(dir.path(), "terminal-logs"))),
+            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(
+                dir.path(),
+                "terminal-logs",
+            ))),
             debug_sessions: Arc::new(Mutex::new(SessionTracker::new(dir.path(), "debug-logs"))),
             terminal_file: Arc::new(Mutex::new(None)),
         };

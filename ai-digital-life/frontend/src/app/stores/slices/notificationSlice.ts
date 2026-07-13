@@ -1,5 +1,3 @@
-import type { StoreState } from '../StoreState';
-
 export interface NotificationData {
   id: string;
   type: 'conflict';

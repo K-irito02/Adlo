@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "lowercase")]
 pub enum ThemeMode {
     Light,
@@ -12,7 +11,6 @@ pub enum ThemeMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "lowercase")]
 pub enum Theme {
     Light,
@@ -20,7 +18,6 @@ pub enum Theme {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "kebab-case")]
 pub enum LanguageCode {
     ZhCn,
@@ -37,7 +34,6 @@ impl LanguageCode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
     Debug,
@@ -47,7 +43,6 @@ pub enum LogLevel {
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct ModelDefinition {
     pub id: String,
@@ -67,7 +62,6 @@ pub struct ModelDefinition {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "lowercase")]
 pub enum ModelCapability {
     Text,
@@ -78,7 +72,6 @@ pub enum ModelCapability {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "lowercase")]
 pub enum ModelTier {
     Free,
@@ -102,7 +95,6 @@ pub fn default_model_for_provider(provider: &str) -> &'static str {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct ModelProviderPreference {
     pub enabled: bool,
@@ -111,7 +103,6 @@ pub struct ModelProviderPreference {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct ModelPreferences {
     pub providers: std::collections::BTreeMap<String, ModelProviderPreference>,
@@ -141,7 +132,6 @@ impl Default for ModelPreferences {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct AppPreferencePatch {
     #[ts(optional)]
@@ -163,7 +153,6 @@ pub struct AppPreferencePatch {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct ModelProviderPreferencePatch {
     #[ts(optional)]
@@ -176,7 +165,6 @@ pub struct ModelProviderPreferencePatch {
 
 /// User-defined font preferences. All fields optional — `None` means "use default".
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct FontPreferences {
     #[ts(optional)]
@@ -188,7 +176,6 @@ pub struct FontPreferences {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct ConfigSnapshot {
     pub language: String,
@@ -204,7 +191,6 @@ pub struct ConfigSnapshot {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct AppInfo {
     pub app_name: String,
@@ -215,7 +201,6 @@ pub struct AppInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(rename_all = "camelCase")]
 pub struct LogEntrySummary {
     pub timestamp: super::TimestampMs,
@@ -230,7 +215,6 @@ pub struct LogEntrySummary {
 /// `{type:"SET_LANGUAGE", payload:{language:"en-US"}, timestamp:...}` — 二者有意不同，
 /// Rust 端为 IPC 线格式，前端为内部状态机追踪格式。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ConfigTransform {
     SetLanguage { language: String },

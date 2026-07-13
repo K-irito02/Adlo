@@ -2,7 +2,6 @@ import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useNavigatorResize } from '@app/hooks/useNavigatorResize';
-import { workspaceSelectors } from '@stores/selectors';
 import { useTCopy } from '@app/i18n/useTCopy';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import type { SectionCallbacks } from '@features/github-tree/GitHubCategorySection';
