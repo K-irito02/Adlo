@@ -11,7 +11,6 @@ import type { BrowserTabState } from './browserSliceShared';
 import type { TabFolderState, BookmarkTabItem } from './browserFoldersTypes';
 import type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserBookmarkSlice';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
-import { formatNewFolderNameByLocale } from '@i18n';
 
 /** Subset of StoreState needed by bookmark helpers. */
 export interface BrowserBookmarkHelpersState {
@@ -197,7 +196,7 @@ export function computeBookmarkTabOutcome(
 
   if (!targetFolderId && newFolderName) {
     const folderCount = nextFolders.length;
-    const folderName = newFolderName.trim() || formatNewFolderNameByLocale(locale, folderCount + 1);
+    const folderName = newFolderName.trim() || `New Folder ${folderCount + 1}`;
     const newFolder: TabFolderState = {
       id: newFolderId,
       name: folderName,
