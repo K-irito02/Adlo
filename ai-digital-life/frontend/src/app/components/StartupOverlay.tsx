@@ -14,7 +14,9 @@ function getSystemTheme(): ResolvedTheme {
 function getThemeFromRoot(): ResolvedTheme {
   if (typeof document !== 'undefined') {
     const t = document.documentElement.dataset.theme;
-    if (t === 'dark' || t === 'light') return t;
+    if (t === 'dark' || t === 'light') {
+      return t;
+    }
   }
   return getSystemTheme();
 }
@@ -26,7 +28,10 @@ function getDisplayText(): string {
   return 'Kora';
 }
 
-const THEME_COLORS: Record<ResolvedTheme, { bg: string; trail: string; particle: string; stroke: string }> = {
+const THEME_COLORS: Record<
+  ResolvedTheme,
+  { bg: string; trail: string; particle: string; stroke: string }
+> = {
   dark: { bg: 'bg-black', trail: '0, 0, 0', particle: '#818cf8', stroke: '#c7d2fe' },
   light: { bg: 'bg-white', trail: '255, 255, 255', particle: '#4f46e5', stroke: '#3730a3' },
 };
