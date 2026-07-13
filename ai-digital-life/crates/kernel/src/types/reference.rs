@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "lowercase")]
 pub enum ReferenceSource {
     Local,

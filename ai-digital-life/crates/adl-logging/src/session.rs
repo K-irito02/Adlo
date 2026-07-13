@@ -29,32 +29,19 @@ impl SessionTracker {
     }
 
     pub fn prune_old_sessions(&self) -> LogResult<usize> {
-        let mut sessions: Vec<PathBuf> = match std::fs::read_dir(&self.log_dir) {
-            Ok(entries) => entries
-                .filter_map(|entry| entry.ok())
-                .map(|e| e.path())
-                .filter(|p| {
-                    p.file_name()
-                        .and_then(|n| n.to_str())
-                        .map(|name| {
-                            name.starts_with(&format!("{}-", self.prefix)) && name.ends_with(".txt")
-                        })
-                        .unwrap_or(false)
-                })
-                .collect(),
-            Err(e) => return Err(LogError::Session(format!("read_dir failed: {e}"))),
-        };
+        let sessions = list_session_files(&self.log_dir, &self.prefix)?;
 
         if sessions.len() <= MAX_SESSIONS {
             return Ok(0);
         }
 
+        let mut sessions = sessions;
         sessions.sort();
         let to_remove = sessions.len() - MAX_SESSIONS;
         let mut removed = 0;
 
         for path in sessions.iter().take(to_remove) {
-            if let Err(e) = std::fs::remove_file(path) {
+            if let Err(e) = remove_session_file(path) {
                 tracing::warn!("Failed to prune session file {:?}: {e}", path);
             } else {
                 removed += 1;
@@ -63,6 +50,25 @@ impl SessionTracker {
 
         Ok(removed)
     }
+}
+
+fn list_session_files(log_dir: &Path, prefix: &str) -> LogResult<Vec<PathBuf>> {
+    let entries = std::fs::read_dir(log_dir)
+        .map_err(|e| LogError::Session(format!("read_dir failed: {e}")))?;
+    Ok(entries
+        .filter_map(|entry| entry.ok())
+        .map(|e| e.path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .map(|name| name.starts_with(&format!("{prefix}-")) && name.ends_with(".txt"))
+                .unwrap_or(false)
+        })
+        .collect())
+}
+
+fn remove_session_file(path: &Path) -> std::io::Result<()> {
+    std::fs::remove_file(path)
 }
 
 fn session_timestamp() -> String {

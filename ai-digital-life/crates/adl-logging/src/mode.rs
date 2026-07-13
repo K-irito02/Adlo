@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "snake_case")]
 pub enum LogMode {
     #[default]

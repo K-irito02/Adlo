@@ -8,6 +8,8 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 
+use tokio::task::spawn_blocking;
+
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter, Layer, Registry};
@@ -171,7 +173,7 @@ impl LogManager {
         Ok(())
     }
 
-    pub fn prune_sessions(&self, target: LogTarget) -> LogResult<usize> {
+    pub fn prune_sessions_sync(&self, target: LogTarget) -> LogResult<usize> {
         match target {
             LogTarget::Terminal => self
                 .terminal_sessions
@@ -184,6 +186,29 @@ impl LogManager {
                 .map_err(|_| LogError::Session("debug session lock poisoned".into()))?
                 .prune_old_sessions(),
         }
+    }
+
+    pub fn prune_sessions(&self, target: LogTarget) -> LogResult<usize> {
+        self.prune_sessions_sync(target)
+    }
+
+    pub async fn prune_sessions_async(&self, target: LogTarget) -> LogResult<usize> {
+        let terminal_sessions = self.terminal_sessions.clone();
+        let debug_sessions = self.debug_sessions.clone();
+        spawn_blocking(move || {
+            match target {
+                LogTarget::Terminal => terminal_sessions
+                    .lock()
+                    .map_err(|_| LogError::Session("terminal session lock poisoned".into()))?
+                    .prune_old_sessions(),
+                LogTarget::Debug => debug_sessions
+                    .lock()
+                    .map_err(|_| LogError::Session("debug session lock poisoned".into()))?
+                    .prune_old_sessions(),
+            }
+        })
+        .await
+        .map_err(|e| LogError::Session(format!("spawn_blocking failed: {e}")))?
     }
 
     pub fn config(&self) -> Result<LogConfig, LogError> {
@@ -311,6 +336,7 @@ fn open_terminal_file(log_dir: &Path, mode: LogMode, session_ts: &str) -> std::i
 mod tests {
     use super::*;
     use std::env::temp_dir;
+    use tempfile::tempdir;
 
     fn test_log_dir(prefix: &str) -> PathBuf {
         let dir = temp_dir().join(format!("adl-logging-{prefix}"));
@@ -415,5 +441,29 @@ mod tests {
         manager.set_mode(LogTarget::Debug, LogMode::Append).unwrap();
         let cfg = config.read().unwrap();
         assert_eq!(cfg.debug_log_mode, LogMode::Append);
+    }
+
+    #[tokio::test]
+    async fn prune_sessions_async_works() {
+        let dir = tempdir().unwrap();
+        let config = Arc::new(RwLock::new(LogConfig {
+            terminal_log_mode: LogMode::Overwrite,
+            debug_log_mode: LogMode::Overwrite,
+        }));
+        let manager = LogManager {
+            config: config.clone(),
+            log_dir: dir.path().to_path_buf(),
+            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(dir.path(), "terminal-logs"))),
+            debug_sessions: Arc::new(Mutex::new(SessionTracker::new(dir.path(), "debug-logs"))),
+            terminal_file: Arc::new(Mutex::new(None)),
+        };
+
+        for i in 0..35 {
+            let path = dir.path().join(format!("terminal-logs-2026-06-27_{:02}0000.txt", i));
+            std::fs::write(&path, "data").unwrap();
+        }
+
+        let removed = manager.prune_sessions_async(LogTarget::Terminal).await.unwrap();
+        assert!(removed >= 5, "removed {removed}, expected >=5");
     }
 }

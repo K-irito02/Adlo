@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "lowercase")]
 pub enum PermissionDecision {
     Allow,
@@ -37,7 +37,7 @@ impl PermissionDecision {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 pub struct PermissionRule {
     pub pattern: String,
     pub decision: PermissionDecision,
@@ -135,7 +135,7 @@ impl PermissionRuleset {
 
 /// Configuration for the permission ruleset (stored in app config).
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 pub struct PermissionRulesetConfig {
     /// Custom rules added by the user.
     #[serde(default)]

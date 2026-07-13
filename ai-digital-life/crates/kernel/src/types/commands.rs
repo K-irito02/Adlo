@@ -4,7 +4,7 @@ use ts_rs::TS;
 
 /// Configuration for a user-defined slash command.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../../frontend/src/shared/ipc-types.generated.ts")]
+
 pub struct CommandConfig {
     /// The command name (without leading /). E.g., "refactor", "deploy".
     pub name: String,
@@ -33,7 +33,7 @@ fn default_agent_id() -> AgentId {
 
 /// A hint about a command parameter.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../../frontend/src/shared/ipc-types.generated.ts")]
+
 pub struct CommandHint {
     /// The variable name (e.g., "1", "ARGUMENTS", "WORKSPACE").
     pub variable: String,

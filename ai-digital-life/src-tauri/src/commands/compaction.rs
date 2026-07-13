@@ -43,14 +43,10 @@ pub async fn compact_session_cmd(
 
     let provider = input.provider.unwrap_or_else(|| "deepseek".to_string());
     let counter = TokenCounter::new();
-    let compaction_result = compact_messages(&messages, &provider, &counter);
+    let compaction_result = compact_messages(messages, &provider, &counter);
 
     let summary = if compaction_result.summary_needed {
-        let preserved_ids: std::collections::HashSet<&str> =
-            compaction_result.preserved.iter().map(|m| m.id.as_str()).collect();
-        let pruned_messages: Vec<_> =
-            messages.iter().filter(|m| !preserved_ids.contains(m.id.as_str())).cloned().collect();
-        let context = build_context_from_messages(&pruned_messages);
+        let context = build_context_from_messages(&compaction_result.pruned);
         let prompt = build_summary_prompt(input.previous_summary.as_deref(), &context);
 
         let model_messages = vec![

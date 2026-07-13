@@ -8,6 +8,8 @@ use adl_kernel::types::conversation::{ConversationBlock, ConversationMessageReco
 pub struct CompactionResult {
     /// Messages to keep (recent ones + protected).
     pub preserved: Vec<ConversationMessageRecord>,
+    /// Messages that were pruned (only populated when `summary_needed` is true).
+    pub pruned: Vec<ConversationMessageRecord>,
     /// Estimated token count of preserved messages.
     pub preserved_tokens: usize,
     /// Number of messages pruned.
@@ -25,8 +27,10 @@ pub struct CompactionResult {
 /// 2. Preserve the last DEFAULT_TAIL_TURNS turns (user+assistant pairs)
 /// 3. Preserve messages with protected tool outputs
 /// 4. Prune remaining messages, replacing with a summary
+///
+/// Takes ownership of `messages` to avoid per-message clones on the hot path.
 pub fn compact_messages(
-    messages: &[ConversationMessageRecord],
+    messages: Vec<ConversationMessageRecord>,
     provider: &str,
     counter: &TokenCounter,
 ) -> CompactionResult {
@@ -34,7 +38,8 @@ pub fn compact_messages(
 
     if total_tokens < PRUNE_MINIMUM {
         return CompactionResult {
-            preserved: messages.to_vec(),
+            preserved: messages,
+            pruned: Vec::new(),
             preserved_tokens: total_tokens,
             pruned_count: 0,
             pruned_tokens: 0,
@@ -42,40 +47,33 @@ pub fn compact_messages(
         };
     }
 
-    // Preserve last N turns (a turn = user message + assistant response)
+    // Single pass: decide preservation per message without HashSet allocation
     let tail_messages = DEFAULT_TAIL_TURNS * 2;
     let split_point = messages.len().saturating_sub(tail_messages);
 
-    // Find protected messages (with skill tool outputs)
-    let mut preserved_indices: std::collections::HashSet<usize> = std::collections::HashSet::new();
-    for (i, msg) in messages.iter().enumerate() {
-        if i >= split_point {
-            preserved_indices.insert(i);
-        }
-        // Check if message contains protected tool output
-        if has_protected_tool_output(msg) {
-            preserved_indices.insert(i);
-        }
-    }
+    let mut preserved = Vec::with_capacity(tail_messages);
+    let mut pruned = Vec::new();
+    let mut preserved_tokens = 0usize;
+    let mut pruned_tokens = 0usize;
 
-    let mut preserved = Vec::new();
-    let mut pruned_count = 0;
-    let mut pruned_tokens = 0;
-    let mut preserved_tokens = 0;
-
-    for (i, msg) in messages.iter().enumerate() {
+    for (i, msg) in messages.into_iter().enumerate() {
         let msg_tokens = counter.count(&msg.content, provider);
-        if preserved_indices.contains(&i) {
-            preserved.push(msg.clone());
+        let should_preserve = i >= split_point || has_protected_tool_output(&msg);
+
+        if should_preserve {
+            preserved.push(msg);
             preserved_tokens += msg_tokens;
         } else {
-            pruned_count += 1;
+            pruned.push(msg);
             pruned_tokens += msg_tokens;
         }
     }
 
+    let pruned_count = pruned.len();
+
     CompactionResult {
         preserved,
+        pruned,
         preserved_tokens,
         pruned_count,
         pruned_tokens,
@@ -128,7 +126,7 @@ mod tests {
     fn no_compaction_below_threshold() {
         let counter = TokenCounter::new();
         let messages = vec![make_message(ConversationRole::User, "short message")];
-        let result = compact_messages(&messages, "openai", &counter);
+        let result = compact_messages(messages, "openai", &counter);
         assert_eq!(result.pruned_count, 0);
         assert!(!result.summary_needed);
     }
@@ -148,7 +146,7 @@ mod tests {
             })
             .collect();
 
-        let result = compact_messages(&messages, "openai", &counter);
+        let result = compact_messages(messages, "openai", &counter);
         assert!(result.pruned_count > 0);
         assert!(result.summary_needed);
         // Should preserve last 4 messages (2 turns × 2 messages)
@@ -194,7 +192,7 @@ mod tests {
             total
         );
 
-        let result = compact_messages(&messages, "openai", &counter);
+        let result = compact_messages(messages, "openai", &counter);
         assert!(result.summary_needed, "compaction should trigger when tokens >= PRUNE_MINIMUM");
         assert!(result.pruned_count > 0, "should have pruned some messages");
     }
@@ -214,7 +212,7 @@ mod tests {
             })
             .collect();
 
-        let result = compact_messages(&messages, "openai", &counter);
+        let result = compact_messages(messages, "openai", &counter);
         // Should preserve tail turns (2 turns = 4 messages) + any protected messages
         assert!(
             result.preserved.len() <= 4,

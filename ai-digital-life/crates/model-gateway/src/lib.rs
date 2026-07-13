@@ -37,10 +37,10 @@ pub struct ModelGateway {
 
 fn fallback_models(
     def: &registry::ProviderDefinition,
-) -> Vec<adl_kernel::types::config::ModelDefinition> {
+) -> &[adl_kernel::types::config::ModelDefinition] {
     match &def.models {
-        registry::ModelSource::Static(models) => models.clone(),
-        registry::ModelSource::Dynamic { .. } => vec![],
+        registry::ModelSource::Static(models) => models.as_slice(),
+        registry::ModelSource::Dynamic { .. } => &[],
     }
 }
 
@@ -289,10 +289,10 @@ impl ModelGateway {
             let base_url = def.default_base_url.as_deref().unwrap_or("");
             match adapter.fetch_models(&api_key, base_url).await {
                 Ok(models) if !models.is_empty() => Ok(models),
-                _ => Ok(fallback_models(&def)),
+                _ => Ok(fallback_models(&def).to_vec()),
             }
         } else {
-            Ok(fallback_models(&def))
+            Ok(fallback_models(&def).to_vec())
         }
     }
 

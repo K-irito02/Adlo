@@ -7,7 +7,7 @@ use super::TimestampMs;
 
 /// Identifies a built-in or custom agent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "lowercase")]
 pub enum AgentId {
     /// Primary agent for building/editing code (default).
@@ -211,7 +211,7 @@ fn default_agent_id() -> AgentId {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "kebab-case")]
 pub enum AgentRunStatus {
     Draft,
@@ -228,7 +228,7 @@ pub enum AgentRunStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "camelCase")]
 pub struct AgentRunRecord {
     pub id: String,
@@ -249,7 +249,7 @@ pub struct AgentRunRecord {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "camelCase")]
 pub struct AgentPlanStep {
     pub id: String,
@@ -262,7 +262,7 @@ pub struct AgentPlanStep {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "camelCase")]
 pub struct AgentRunDetail {
     pub run: AgentRunRecord,
@@ -270,7 +270,7 @@ pub struct AgentRunDetail {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "lowercase")]
 pub enum PatchHunkDecision {
     Pending,
@@ -279,7 +279,7 @@ pub enum PatchHunkDecision {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "kebab-case")]
 pub enum PatchSetStatus {
     Draft,
@@ -291,7 +291,7 @@ pub enum PatchSetStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "camelCase")]
 pub struct PatchHunk {
     pub id: String,
@@ -309,7 +309,7 @@ pub struct PatchHunk {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "camelCase")]
 pub struct FilePatch {
     pub id: String,
@@ -323,7 +323,7 @@ pub struct FilePatch {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "camelCase")]
 pub struct PatchSet {
     pub id: String,
@@ -340,7 +340,7 @@ pub struct PatchSet {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "camelCase")]
 pub struct ValidationResult {
     pub id: String,
@@ -354,7 +354,7 @@ pub struct ValidationResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "camelCase")]
 pub struct PatchApplicationResult {
     pub patch_set: PatchSet,

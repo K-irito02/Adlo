@@ -5,7 +5,7 @@ use super::conversation::{ApprovalRequestSummary, RiskLevel};
 use super::TimestampMs;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "lowercase")]
 pub enum CommandProfile {
     Build,
@@ -16,7 +16,7 @@ pub enum CommandProfile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "camelCase")]
 pub struct CommandProfileSummary {
     pub id: String,
@@ -24,7 +24,7 @@ pub struct CommandProfileSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "camelCase")]
 pub struct CommandRequest {
     pub id: String,
@@ -39,7 +39,7 @@ pub struct CommandRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "camelCase")]
 pub struct CommandExecutionResult {
     pub request: CommandRequest,
@@ -54,7 +54,7 @@ pub struct CommandExecutionResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "camelCase")]
 pub struct CommandRunResult {
     pub status: String,
@@ -65,7 +65,7 @@ pub struct CommandRunResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../../frontend/src/shared/ipc-types.generated.ts")]
+
 #[serde(rename_all = "camelCase", tag = "mode")]
 pub enum CommandRunStreamStart {
     #[serde(rename_all = "camelCase")]
