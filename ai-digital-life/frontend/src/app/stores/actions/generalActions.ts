@@ -22,6 +22,12 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
      */
     bootstrap: async () => {
       const requestSeq = workspaceRequestSeq;
+      const bootStartedAt = Date.now();
+      const completeStartup = () => {
+        const elapsed = Date.now() - bootStartedAt;
+        const remaining = Math.max(0, 1500 - elapsed);
+        setTimeout(() => set({ appReady: true }), remaining);
+      };
 
       const [appInfoResult, recentResult, modelHealthResult] = await Promise.all([
         window.digitalLife.app.getInfo(),
@@ -93,7 +99,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           workspaceTrees: {},
           dirtyEditorPaths: [],
           error: undefined,
-          appReady: true,
         });
 
         if (patchResult?.ok) {
@@ -107,6 +112,8 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             openTabs: initialPath ? [createEditorTab(initialPath)] : [],
           });
         }
+
+        completeStartup();
 
         // Defer git status to low priority (it can take ~400ms)
         queueLowPriorityRefresh(async () => {
@@ -166,8 +173,8 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         searchQuery: '',
         searchResults: [],
         externalFileChange: undefined,
-        appReady: true,
       });
+      completeStartup();
     },
 
     /**
