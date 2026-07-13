@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import mammoth from 'mammoth';
 import { useTCopy } from '@i18n/useTCopy';
 
 export interface DocxPreviewProps {
@@ -13,17 +12,26 @@ export function DocxPreview({ data, theme = 'dark' }: DocxPreviewProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    mammoth
-      .convertToHtml({ arrayBuffer: data })
-      .then((result) => {
+    let cancelled = false;
+
+    async function convertDocx() {
+      try {
+        const mammoth = await import('mammoth');
+        if (cancelled) return;
+        const result = await mammoth.default.convertToHtml({ arrayBuffer: data });
+        if (cancelled) return;
         setHtml(result.value);
-        if (result.messages.length > 0) {
-          /* DOCX conversion warnings */
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : String(err));
         }
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : String(err));
-      });
+      }
+    }
+
+    convertDocx();
+    return () => {
+      cancelled = true;
+    };
   }, [data]);
 
   if (error) {
