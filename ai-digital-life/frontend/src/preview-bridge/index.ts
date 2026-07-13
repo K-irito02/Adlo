@@ -32,7 +32,7 @@ export function setupPreviewBridge(): void {
 
   const ptyBridge = createPtyBridge();
   const audioMonitor = new BrowserAudioMonitor();
-  (window as unknown as Record<string, unknown>)['__adlAudioMonitor'] = audioMonitor;
+  window.__adlAudioMonitor = audioMonitor;
   const { workspace, retrieval, ensureCurrentWorkspaceRestored } = createPreviewWorkspaceBridge(
     ctx,
     setMockActiveWorkspace

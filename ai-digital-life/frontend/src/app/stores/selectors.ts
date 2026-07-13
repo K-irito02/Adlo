@@ -17,10 +17,6 @@ export { sessionSelectors } from './sessionSelectors';
 export { editorSelectors } from './editorSelectors';
 export { terminalSelectors } from './terminalSelectors';
 export { browserSelectors } from './browserSelectors';
-export { communicateSelectors } from './communicateSelectors';
-export { filesSelectors } from './filesSelectors';
-export { changesSelectors } from './changesSelectors';
-export { ciSelectors } from './ciSelectors';
 
 // ============================================
 // 补丁相关的选择器

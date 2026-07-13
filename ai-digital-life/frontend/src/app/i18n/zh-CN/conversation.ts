@@ -133,4 +133,8 @@ export const conversationZh = {
 
   snapshotListTitle: '快照列表',
   snapshotListEmpty: '暂无快照',
+
+  patch: '补丁',
+  tool: '工具',
+  validation: '验证',
 } as const;

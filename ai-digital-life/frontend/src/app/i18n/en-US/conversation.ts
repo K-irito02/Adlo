@@ -134,4 +134,8 @@ export const conversationEn = {
 
   snapshotListTitle: 'Snapshots',
   snapshotListEmpty: 'No snapshots yet',
+
+  patch: 'Patch',
+  tool: 'Tool',
+  validation: 'Validation',
 } as const;

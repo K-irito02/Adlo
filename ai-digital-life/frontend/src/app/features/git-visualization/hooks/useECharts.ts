@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { EChartsOption } from '../echartsSetup';
-import { echarts, type EChartsType } from '../echartsSetup';
+import { init, type EChartsType } from '../echartsSetup';
 
 /**
  * 管理 ECharts 实例生命周期：初始化、option 更新、resize 响应、卸载清理。
@@ -16,7 +16,7 @@ export function useECharts(option: EChartsOption) {
       return;
     }
 
-    const chart = echarts.init(container);
+    const chart = init(container);
     chartRef.current = chart;
     chart.setOption(option);
 

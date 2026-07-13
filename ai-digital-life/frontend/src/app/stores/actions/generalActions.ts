@@ -20,14 +20,9 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
      */
     bootstrap: async () => {
       const requestSeq = workspaceRequestSeq;
-      const ts = performance.now();
-      console.log(`[BOOT-TIMING] bootstrap start`);
       const completeStartup = () => {
-        console.log(`[BOOT-TIMING] phase2 complete at ${Math.round(performance.now() - ts)}ms`);
         setTimeout(() => {
-          console.log(`[BOOT-TIMING] appReady set at ${Math.round(performance.now() - ts)}ms`);
           set({ appReady: true });
-          console.log(`[BOOT-TIMING] appReady done at ${Math.round(performance.now() - ts)}ms`);
         }, 0);
       };
 
@@ -82,7 +77,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       void window.digitalLife.workspace.setEditorDirtyPaths([]);
 
       // 尽早渲染 UI，不等 getGitStatus
-      console.log(`[BOOT-TIMING] phase1 complete at ${Math.round(performance.now() - ts)}ms`);
       set(nextState);
 
       if (appInfoResult.data.currentWorkspace) {
@@ -130,9 +124,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
               gitSnapshot: gitResult.data,
               gitSnapshots: { [appInfoResult.data.currentWorkspace.id]: gitResult.data },
             });
-            console.log(
-              `[BOOT-TIMING] git status loaded at ${Math.round(performance.now() - ts)}ms`
-            );
           }
         });
 
@@ -192,7 +183,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             }
           }
 
-          console.log(`[BOOT-TIMING] workspaces loaded at ${Math.round(performance.now() - ts)}ms`);
           completeStartup();
         });
         return;

@@ -1,7 +1,8 @@
 import type { AppInfo, ConversationDetail } from '@ai-digital-life/kernel';
 import { loadLocale } from '../i18n/i18nLoader';
-import { getAppCopy as getAppCopyFromI18n } from '../i18n/getAppCopy';
 import { loadConversationState } from './loaders';
+
+export { getAppCopy } from '../i18n/getAppCopy';
 
 export async function sessionFallbackTitle(appInfo?: AppInfo): Promise<string> {
   const lang = appInfo?.config.language === 'en-US' ? 'en-US' : 'zh-CN';
@@ -11,10 +12,6 @@ export async function sessionFallbackTitle(appInfo?: AppInfo): Promise<string> {
 
 export function workspaceContextModeFromInfo(appInfo?: AppInfo): 'workspace' | 'global' {
   return appInfo?.currentWorkspace ? 'workspace' : 'global';
-}
-
-export function getAppCopy(appInfo?: AppInfo) {
-  return getAppCopyFromI18n(appInfo);
 }
 
 export function hasConversationMessages(detail?: ConversationDetail): boolean {

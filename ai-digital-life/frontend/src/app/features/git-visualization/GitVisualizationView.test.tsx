@@ -5,14 +5,12 @@ import { GitVisualizationView } from './GitVisualizationView';
 
 // Mock ECharts to avoid canvas rendering in jsdom
 vi.mock('./echartsSetup', () => ({
-  echarts: {
-    init: vi.fn(() => ({
-      setOption: vi.fn(),
-      resize: vi.fn(),
-      dispose: vi.fn(),
-    })),
-    use: vi.fn(),
-  },
+  init: vi.fn(() => ({
+    setOption: vi.fn(),
+    resize: vi.fn(),
+    dispose: vi.fn(),
+  })),
+  use: vi.fn(),
   graphic: { LinearGradient: vi.fn() },
 }));
 

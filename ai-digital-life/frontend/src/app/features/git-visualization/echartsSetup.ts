@@ -1,4 +1,4 @@
-import * as echarts from 'echarts/core';
+import { use, init } from 'echarts/core';
 import {
   GraphChart,
   HeatmapChart,
@@ -16,7 +16,8 @@ import {
 } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 
-echarts.use([
+// eslint-disable-next-line react-hooks/rules-of-hooks
+use([
   GraphChart,
   HeatmapChart,
   BarChart,
@@ -31,7 +32,7 @@ echarts.use([
   CanvasRenderer,
 ]);
 
-export { echarts };
+export { use, init };
 export { graphic } from 'echarts/core';
 export type { EChartsType } from 'echarts/core';
 export type { EChartsOption } from 'echarts/types/dist/shared';

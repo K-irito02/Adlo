@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { IconAlertTriangle, IconGlobe } from '@icons';
 import { isTauriShell } from '@tauri-bridge';
-import { open as shellOpen } from '@tauri-apps/plugin-shell';
+import { open } from '@tauri-apps/plugin-shell';
 import type { CopyDict, CopyKey } from '@i18n/types';
 
 export interface ExternalLinkErrorProps {
@@ -20,7 +20,7 @@ export function ExternalLinkError({
   const handleExternalOpen = useCallback(() => {
     const url = activeTabUrl ?? 'about:blank';
     if (isTauriShell()) {
-      shellOpen(url).catch(() => {});
+      open(url).catch(() => {});
     } else {
       const w = window as { trae?: { openExternal: (url: string) => void } };
       if (w.trae?.openExternal) {

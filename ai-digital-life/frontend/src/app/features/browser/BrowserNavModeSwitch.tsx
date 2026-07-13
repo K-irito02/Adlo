@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import * as SwitchPrimitives from '@radix-ui/react-switch';
+import { Root as SwitchRoot, Thumb as SwitchThumb } from '@radix-ui/react-switch';
 import { motion } from 'motion/react';
 
 interface BrowserNavModeSwitchProps {
@@ -28,7 +28,7 @@ export function BrowserNavModeSwitch({
   const [isTapped, setIsTapped] = useState(false);
 
   return (
-    <SwitchPrimitives.Root checked={checked} onCheckedChange={onCheckedChange} asChild>
+    <SwitchRoot checked={checked} onCheckedChange={onCheckedChange} asChild>
       <motion.button
         className="adl-browser-nav-mode-switch"
         style={{
@@ -46,7 +46,7 @@ export function BrowserNavModeSwitch({
         onBlur={onBlur}
         onClick={onClick}
       >
-        <SwitchPrimitives.Thumb asChild>
+        <SwitchThumb asChild>
           <motion.div
             whileTap="tap"
             className="adl-browser-nav-mode-switch__thumb"
@@ -58,8 +58,8 @@ export function BrowserNavModeSwitch({
                 : { width: 14, transition: { duration: 0.1 } }
             }
           />
-        </SwitchPrimitives.Thumb>
+        </SwitchThumb>
       </motion.button>
-    </SwitchPrimitives.Root>
+    </SwitchRoot>
   );
 }

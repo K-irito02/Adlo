@@ -52,10 +52,10 @@ function renderCommandOutputBlock(
   return <CommandOutputBlock key={block.id} t={t} block={block} />;
 }
 
-function renderPatchSummaryBlock(block: PatchSummaryConversationBlock): React.ReactElement {
+function renderPatchSummaryBlock(block: PatchSummaryConversationBlock, t: CopyDict): React.ReactElement {
   return (
     <section key={block.id} className="adl-block adl-block--patch">
-      <h4>Patch</h4>
+      <h4>{t.patch}</h4>
       <p>{block.summary}</p>
       <p>
         {block.fileCount} files / {block.hunkCount} hunks
@@ -64,10 +64,10 @@ function renderPatchSummaryBlock(block: PatchSummaryConversationBlock): React.Re
   );
 }
 
-function renderToolCallBlock(block: ToolCallConversationBlock): React.ReactElement {
+function renderToolCallBlock(block: ToolCallConversationBlock, t: CopyDict): React.ReactElement {
   return (
     <section key={block.id} className="adl-block adl-block--tool">
-      <h4>Tool</h4>
+      <h4>{t.tool}</h4>
       <p>{block.toolName}</p>
       <p>{block.summary}</p>
       <span className="adl-pill adl-pill--muted">{block.status}</span>
@@ -75,10 +75,10 @@ function renderToolCallBlock(block: ToolCallConversationBlock): React.ReactEleme
   );
 }
 
-function renderValidationResultBlock(block: ValidationResultConversationBlock): React.ReactElement {
+function renderValidationResultBlock(block: ValidationResultConversationBlock, t: CopyDict): React.ReactElement {
   return (
     <section key={block.id} className="adl-block adl-block--validation">
-      <h4>Validation</h4>
+      <h4>{t.validation}</h4>
       <p>{block.summary}</p>
       <span className="adl-pill adl-pill--muted">{block.status}</span>
       {block.diagnostics.length > 0 ? (
@@ -129,11 +129,11 @@ function renderMessageBlock(
     case 'command-output':
       return renderCommandOutputBlock(block, t);
     case 'patch-summary':
-      return renderPatchSummaryBlock(block);
+      return renderPatchSummaryBlock(block, t);
     case 'tool-call':
-      return renderToolCallBlock(block);
+      return renderToolCallBlock(block, t);
     case 'validation-result':
-      return renderValidationResultBlock(block);
+      return renderValidationResultBlock(block, t);
     case 'final-summary':
       return renderFinalSummaryBlock(block);
     case 'markdown':
