@@ -27,9 +27,8 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
   }, [t]);
 
   useEffect(() => {
-    if (!t) return;
     void actions.bootstrap();
-  }, [t, actions, actions.bootstrap]);
+  }, [actions, actions.bootstrap]);
 
   useEffect(() => {
     return window.digitalLife.workspace.onFileChanged((event) => {
