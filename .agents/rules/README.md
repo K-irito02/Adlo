@@ -79,7 +79,7 @@ Trae IDE 内置浏览器自动化工具（18 个 MCP 工具），支持导航、
 
 ## 技能系统
 
-本项目使用 **Superpowers 技能系统** 增强 AI 代理能力，共 23 个技能（含新增 closing-workflow）。
+本项目使用 **Superpowers 技能系统** 增强 AI 代理能力，共 24 个技能（含新增 root-cause-resolution）。
 
 | 项目 | 说明 |
 |------|------|

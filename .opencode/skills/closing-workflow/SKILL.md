@@ -1,6 +1,6 @@
 ---
 name: closing-workflow
-description: End-of-work closing procedures after completing code changes, bug fixes, or feature implementations. Performs log review, code review loop, quality checks, doc sync, and cleanup.
+description: End-of-work closing procedures after completing code changes, bug fixes, or feature implementations. Performs log review, code review loop with mandatory fixes, quality checks, mandatory doc sync, and cleanup.
 ---
 
 # Closing Workflow
@@ -9,7 +9,7 @@ description: End-of-work closing procedures after completing code changes, bug f
 
 所有任务和问题已解决后，执行标准收尾流程确保工作质量与项目整洁。
 
-**流程概览：** 前置检查 → 日志审查 → 代码审查循环 → 质量检测 → 文档同步 → 项目清理 → 最终总结
+**流程概览：** 前置检查 → 日志审查 → 代码审查循环（含强制修复） → 质量检测 → 文档同步（强制） → 项目清理 → 最终总结
 
 ## When to Invoke
 
@@ -60,14 +60,31 @@ Get-ChildItem -Path "ai-digital-life\src-tauri\target\debug\incremental" -ErrorA
 
 ## Step 1: 日志审查
 
-### 1a. 检查日志目录
+### 1a. 重要：日志文件已被 Git 忽略
 
-1. 检查 `.adl-logs` 目录是否存在
+以下日志文件/目录已在 `.gitignore` 中排除，**`Glob` 和 `Grep` 工具可能无法找到它们**。必须使用 **`LS` 和 `Read` 工具**直接操作，指定精确的绝对路径：
+
+| 日志位置 | 绝对路径 | 说明 |
+|----------|----------|------|
+| ADL 日志目录 | `<workspace_root>/.adl-logs/` | 应用运行时日志 |
+| Tauri 调试日志 | `<workspace_root>/debug-logs.txt` | Tauri 桌面模式调试日志 |
+| 浏览器调试日志 | `<workspace_root>/debug-logs-browser.txt` | 浏览器预览模式调试日志 |
+| 运行日志目录 | `<workspace_root>/ai-digital-life/.run-logs/` | 本地开发运行日志 |
+| 诊断日志目录 | `<workspace_root>/ai-digital-life/diagnostic-logs/` | 诊断服务日志 |
+
+> `<workspace_root>` 为当前工作区根目录（本项目中为 `e:\AI-DIGITAL-LIFE\SourceWorkspace`）。
+
+### 1b. 检查日志目录
+
+1. 使用 `LS` 工具列出 `.adl-logs` 目录
    - 若目录不存在 → 跳过此步骤，直接进入 Step 2
-   - 若目录存在 → 列出所有日志文件，读取内容
-2. 同时检查根目录调试日志文件：`debug-logs.txt`、`debug-logs-browser.txt`（若存在则读取）
+   - 若目录存在 → 使用 `Read` 工具读取每个日志文件内容
+2. 使用 `Read` 工具直接读取根目录调试日志文件（指定精确路径）：
+   - `<workspace_root>/debug-logs.txt`
+   - `<workspace_root>/debug-logs-browser.txt`
+3. 同样检查 `ai-digital-life/.run-logs/` 和 `ai-digital-life/diagnostic-logs/`（若存在）
 
-### 1b. 分析日志
+### 1c. 分析日志
 
 审视日志中记录的错误、警告、异常信息，按优先级处理：
 
@@ -78,13 +95,13 @@ Get-ChildItem -Path "ai-digital-life\src-tauri\target\debug\incremental" -ErrorA
 | P2 | 警告（deprecation、性能） | 评估是否需要修复 |
 | P3 | 信息性日志 | 确认无异常后忽略 |
 
-### 1c. 完成条件
+### 1d. 完成条件
 
 确认无未解决的 P0/P1 问题，或所有问题已记录待后续处理 → 继续 Step 2。
 
 ---
 
-## Step 2: 代码审查循环
+## Step 2: 代码审查循环（含强制修复）
 
 ### 2a. 收集变更来源
 
@@ -104,7 +121,7 @@ Get-ChildItem -Path "ai-digital-life\src-tauri\target\debug\incremental" -ErrorA
 
 **汇总**：将三类变更的 diff 合并，作为子代理的完整审查素材。
 
-### 2b. 执行审查循环
+### 2b. 执行审查（子代理）
 
 使用 Task 工具（`subagent_type: "general_purpose_task"`）开启子代理。
 
@@ -122,23 +139,61 @@ For each issue found, report:
 1. File path and line range
 2. Severity (critical/high/medium/low)
 3. Description of the problem
-4. Suggested fix
+4. Suggested fix (specific code change recommendation)
 
 Here is the complete diff to review:
 [PASTE FULL DIFF HERE]
 ```
 
-**循环规则：**
+### 2c. 强制修复循环（主代理 ↔ 子代理）
+
+**这是强制执行步骤，不得跳过。**
 
 ```
-子代理审查发现问题 → 主代理验证问题存在性 → 主代理修复 → 子代理再次审查（基于完整 diff）
-                      ↻ 直到子代理确认无任何问题 ↻
+子代理审查发现问题
+       ↓
+主代理逐个分析问题
+       ↓
+  ┌─ 问题是否需要与用户确认？ ──→ YES ──→ 弹出 AskUserQuestion 询问卡片
+  │         ↓ NO                           │
+  │  问题是否有多套解决方案？──→ YES ──→ 弹出 AskUserQuestion 询问卡片
+  │         ↓ NO                           │  列出每套方案的优缺点及注意事项
+  │   主代理直接修复代码                   │  等待用户决策后再修复
+  │         ↓                              ↓
+  └─ 修复完成 ←────────────────────────────┘
+       ↓
+子代理再次审查（基于完整 diff）
+       ↓
+  ┌─ 仍有问题？──→ YES ──→ 重复上述循环
+  └─ 无问题 ──→ 审查通过
 ```
 
-**约束：**
+**询问卡片触发条件（必须使用 AskUserQuestion 工具）：**
+
+| 触发条件 | 示例 |
+|----------|------|
+| 修复方案可能影响现有功能或 UI/UX | 修改共享模块、变更公共 API 签名 |
+| 问题涉及业务逻辑决策，Agent 无法自行判断 | 错误处理策略、默认值选择、边界行为 |
+| 存在多套技术上均可行的解决方案 | 重构方式选择、架构调整方向 |
+| 修复需要引入新的依赖或工具 | 新增 npm 包 / Rust crate |
+| 修复涉及安全策略或权限模型 | 权限放宽、数据访问模式变更 |
+
+**询问卡片格式要求：**
+- 列出所有可行方案（2-4 个选项）
+- 每个方案说明优缺点
+- 每个方案列出注意事项/风险
+- 标注推荐方案（如适用）
+
+**修复约束：**
+- 仅修复审查发现的问题，不做无关变更
+- 修复时遵循项目编码规范（`.agents/rules/`）
+- 所有修改不得破坏现有功能效果及 UI/UX
+- 修复后必须在子代理重新审查前确认变更已生效
+
+**迭代控制：**
 - **最大迭代次数：3 轮**。超过 3 轮仍有问题，向用户报告剩余问题并等待指示
 - 子代理每次审查应基于完整的变更 diff，而非仅审查上次发现的问题点
-- 修复时遵循项目编码规范，仅修复审查发现的问题，不做无关变更
+- 每轮修复后，必须重新运行子代理审查，不可凭主代理自我判断跳过
 
 **完成条件：** 子代理确认无任何问题，或达到最大迭代次数后用户确认可继续。
 
@@ -189,16 +244,27 @@ Here is the complete diff to review:
 
 ---
 
-## Step 4: 总结与文档同步
+## Step 4: 总结与文档同步（强制）
+
+> **此步骤为强制步骤，不可跳过。** 禁止以下偷懒行为：
+> - ❌ 依赖其他技能生成的计划文档（如 writing-plans 的 plan.md）作为文档同步的替代
+> - ❌ 依赖 commit 信息作为变更总结的替代
+> - ❌ 声称"无需更新文档"而不逐项检查清单
+> - ❌ 仅更新规则文件而遗漏技能文件、治理文档、架构文档的检查
+> - ❌ 以"变更太小"为由跳过整个 Step 4
 
 ### 4a. 变更总结
 
 1. 分析所有已解决的任务与问题，总结架构与功能模块的变化
 2. 将经验教训沉淀为知识，将 UI/UX 与功能的特殊要求沉淀为项目标准
+3. **必须输出具体的总结内容**（而非仅说"已总结"），包括：
+   - 本次变更涉及的功能模块列表
+   - 架构决策或模式变更
+   - 值得记录的经验教训
 
-### 4b. 文档检查清单
+### 4b. 文档检查清单（逐项检查，不可跳过）
 
-按以下清单逐项检查是否需要更新，**仅更新有变更相关的文件**：
+按以下清单**逐项检查**是否需要更新，**仅更新有变更相关的文件**。每项检查后必须明确记录"需要更新"或"无需更新"：
 
 | 类别 | 路径 | 检查内容 |
 |------|------|----------|
@@ -231,7 +297,7 @@ Here is the complete diff to review:
 2. 判断是否可作为项目设计标准确立（可复用、跨模块一致性）
 3. 若确立为标准，更新相关设计文档和组件代码
 
-**完成条件：** 所有相关文档已更新，内容简洁规范无冗余，规则与技能已同步。
+**完成条件：** 所有相关文档已更新，内容简洁规范无冗余，规则与技能已同步。**必须在最终总结中列出本次更新了哪些具体文件。**
 
 ---
 
@@ -257,9 +323,9 @@ Here is the complete diff to review:
 |------|------|
 | 前置检查 | ✅ / ⏭️ 跳过 |
 | 日志审查 | ✅ 无问题 / ⚠️ 发现 N 个问题已修复 / ⏭️ 跳过 |
-| 代码审查 | ✅ 审查通过 / ⚠️ 经 N 轮审查修复 / ⏭️ 跳过 |
+| 代码审查 | ✅ 审查通过 / ⚠️ 经 N 轮审查修复（含 M 次用户确认） / ⏭️ 跳过 |
 | 质量检测 | ✅ 全部通过 / ⚠️ 部分失败（说明） |
-| 文档同步 | ✅ 已更新 N 个文件 / ⏭️ 无需更新 |
+| 文档同步 | ✅ 已更新 N 个文件（列出具体文件） / ⏭️ 无需更新 |
 | 项目清理 | ✅ 已清理 / ⏭️ 无需清理 |
 
 [若有点击提交，注明 commit hash 和变更概要]
@@ -272,10 +338,10 @@ Here is the complete diff to review:
 | Step | 操作 | 关键命令/工具 | 完成条件 |
 |------|------|--------------|----------|
 | 0. 前置检查 | 环境 PATH + 工作区状态 + 磁盘空间 | `git branch`/`git status` | 环境就绪，无阻塞问题 |
-| 1. 日志审查 | 检查 `.adl-logs` + 调试日志 | `LS`/`Read` | 无未解决的 P0/P1 问题 |
-| 2. 代码审查 | 收集变更 → 子代理循环审查 | `git diff`/`git diff --cached`/`git diff origin/HEAD..HEAD` + Task 工具 | 子代理确认无问题 或 达 3 轮上限 |
+| 1. 日志审查 | 检查 `.adl-logs` + 调试日志（**使用 LS/Read 直接操作，因日志文件被 gitignore**） | `LS`/`Read`（禁止 Glob/Grep） | 无未解决的 P0/P1 问题 |
+| 2. 代码审查 | 收集变更 → 子代理审查 → **强制修复** → 循环重审 | `git diff`/`git diff --cached`/`git diff origin/HEAD..HEAD` + Task 工具 + AskUserQuestion | 子代理确认无问题 或 达 3 轮上限 |
 | 3. 质量检测 | Lint/Format/Typecheck/Tests | ESLint/Prettier/Clippy/rustfmt/tsc/cargo check/vitest/cargo test | 零警告零错误，测试全通过 |
-| 4. 文档同步 | 更新相关文档，提取规则与设计规范 | Write/Edit + 规则/技能同步 | 内容简洁无冗余，规则与技能已同步 |
+| 4. 文档同步 | **强制**更新相关文档，提取规则与设计规范 | Write/Edit + 规则/技能同步 | 逐项检查清单完成，列出具体更新文件 |
 | 5. 项目清理 | 清理临时/调试文件 | DeleteFile | 目录结构清晰干净 |
 | 6. 最终总结 | 输出收尾总结表格 | 文本输出 | 用户已了解收尾结果 |
 
@@ -286,10 +352,17 @@ Here is the complete diff to review:
 ### 流程类
 - 跳过前置检查直接执行命令（PATH 未设置导致命令失败）
 - 跳过日志审查直接进入代码审查
+- 使用 Glob/Grep 搜索日志文件（日志文件已被 gitignore，必须用 LS/Read 直接操作）
 - 一次性审查后未循环就认为代码无问题
+- **子代理审查发现问题但未实际修复代码**（仅口头确认或记录）
 - 质量检测发现警告/错误但未修复
 - 仅运行格式化/Lint 而跳过类型检查和测试
 - 未输出最终总结
+
+### 询问卡片类
+- 审查发现问题需要用户确认但未弹出询问卡片（直接自行决定）
+- 存在多套解决方案但未列出选项和优缺点（直接选择一种）
+- 修复可能影响现有功能但未与用户确认
 
 ### 变更采集类
 - **采集变更时遗漏某种类型** — 未暂存、已暂存、已提交本地变更三类需独立采集并合并
@@ -305,6 +378,8 @@ Here is the complete diff to review:
 - **提取规则时遗漏 `.trae/rules/` 同步** — 两个规则目录必须保持内容一致
 - **仅更新文档而未将可复用的编码/设计模式提取为标准**
 - **技能文件修改后未在三个目录间同步** — `.opencode/skills/`、`.agents/skills/`、`.trae/skills/` 必须保持一致
+- **跳过 Step 4 文档同步** — 此步骤为强制步骤，不可跳过
+- **依赖其他技能的计划文档、commit 信息等作为文档同步的替代** — 必须逐项检查文档清单
 
 ### 清理类
 - 遗留调试日志或临时文件
