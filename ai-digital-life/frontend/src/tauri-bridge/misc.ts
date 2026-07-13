@@ -53,6 +53,7 @@ export function createTauriWindowBridge(): WindowBridge {
     close: () => win().close(),
     isMaximized: () => win().isMaximized(),
     setTitle: (title: string) => win().setTitle(title),
+    show: () => win().show(),
     onResized: (listener: () => void) => {
       let active = true;
       let ul: UnlistenFn | undefined;

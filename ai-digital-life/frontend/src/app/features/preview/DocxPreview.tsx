@@ -17,9 +17,13 @@ export function DocxPreview({ data, theme = 'dark' }: DocxPreviewProps) {
     async function convertDocx() {
       try {
         const mammoth = await import('mammoth');
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         const result = await mammoth.default.convertToHtml({ arrayBuffer: data });
-        if (cancelled) return;
+        if (cancelled) {
+          return;
+        }
         setHtml(result.value);
       } catch (err) {
         if (!cancelled) {

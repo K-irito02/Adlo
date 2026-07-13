@@ -27,6 +27,15 @@ fn parse_cli_log_mode() -> Option<LogMode> {
 }
 
 fn main() {
+    tracing::info!("[ADL-PERF] app start");
+
+    // 移除了 --disable-gpu-compositing 以启用 GPU 合成加速，
+    // 解决软件渲染导致的启动绘制缓慢和主线程阻塞问题。
+    std::env::set_var(
+        "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection"
+    );
+
     if let Some(mode) = parse_cli_log_mode() {
         std::env::set_var("ADL_CLI_LOG_MODE", mode.to_string());
     }
@@ -45,6 +54,9 @@ fn main() {
             Ok(())
         })
         .on_page_load(|webview, payload| {
+            if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {
+                tracing::info!("[ADL-PERF] main webview page load finished: url={}", payload.url());
+            }
             if !webview.label().starts_with("adl-browser-view") {
                 return;
             }

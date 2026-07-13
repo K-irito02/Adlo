@@ -15,14 +15,18 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
   useTaskCenterPolling(appInfo);
 
   useEffect(() => {
-    if (!appInfo) return;
+    if (!appInfo) {
+      return;
+    }
     const lang = (appInfo.config.language ?? 'zh-CN') as Locale;
     setLocale(lang);
     loadLocale(lang).then(setT);
   }, [appInfo]);
 
   useEffect(() => {
-    if (!t) return;
+    if (!t) {
+      return;
+    }
     void window.digitalLife.window.setTitle(t['brandHoverName']);
   }, [t]);
 

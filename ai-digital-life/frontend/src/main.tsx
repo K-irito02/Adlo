@@ -1,4 +1,3 @@
-(window as unknown as Record<string, unknown>).__BUNDLE_LOAD_MS = performance.now();
 import { createRoot } from 'react-dom/client';
 import type { DigitalLifeBridge } from './shared/ipc';
 import { setupPreviewBridge } from './preview-bridge';

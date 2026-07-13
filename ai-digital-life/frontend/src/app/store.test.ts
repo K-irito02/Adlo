@@ -48,6 +48,5 @@ describe('store utility functions', () => {
       const result = (detail?.messages.length ?? 0) > 0;
       expect(result).toBe(false);
     });
-
   });
 });

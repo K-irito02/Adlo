@@ -16,4 +16,7 @@ export const mockWindow: WindowBridge = {
     // browser mode has no window resize events to subscribe to
     return () => {};
   },
+  show: async () => {
+    // browser mode: no-op
+  },
 };

@@ -1,9 +1,5 @@
 import type { StoreState } from '../StoreState';
-import type {
-  ConversationMessageRecord,
-  ConversationBlock,
-  GitSnapshot,
-} from '@ai-digital-life/kernel';
+import type { ConversationMessageRecord, ConversationBlock } from '@ai-digital-life/kernel';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
 import { asWorkspaceID } from '../../../shared/branded';
 import { themeController } from '@utils/theme';
@@ -25,7 +21,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
      * @see preview-bridge/index.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, task.listAuditEntries, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
      */
     bootstrap: async () => {
-      const t0 = performance.now();
       const requestSeq = workspaceRequestSeq;
 
       const [appInfoResult, recentResult, modelHealthResult] = await Promise.all([
@@ -33,13 +28,11 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         window.digitalLife.workspace.listRecent(),
         window.digitalLife.app.getModelHealth(),
       ]);
-      console.log(`[ADL-PERF] bootstrap batch1 (getInfo+listRecent+getModelHealth): ${(performance.now() - t0).toFixed(1)}ms`);
       if (requestSeq !== workspaceRequestSeq) {
         return;
       }
 
       if (!appInfoResult.ok) {
-        document.getElementById('adl-loading')?.classList.add('is-hidden');
         set({ loading: false, error: appInfoResult.error.message });
         return;
       }
@@ -49,7 +42,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         appInfoResult.data.config.themeMode
       );
 
-      const t1 = performance.now();
       const [conversationState, taskCenter] = await Promise.all([
         loadConversationState(),
         loadTaskCenterState(),
@@ -57,7 +49,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       if (requestSeq !== workspaceRequestSeq) {
         return;
       }
-      console.log(`[ADL-PERF] bootstrap batch2 (loadConversation+taskCenter): ${(performance.now() - t1).toFixed(1)}ms`);
 
       const recentWorkspaces = recentResult.ok ? recentResult.data : [];
       // 为右侧面板设置默认展开所有可见工作区
@@ -82,6 +73,9 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
 
       void window.digitalLife.workspace.setEditorDirtyPaths([]);
 
+      // 尽早渲染 UI，不等 getGitStatus
+      set(nextState);
+
       if (appInfoResult.data.currentWorkspace) {
         const patchBlock = conversationState.detail?.messages.length
           ? conversationState.detail.messages
@@ -89,46 +83,14 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
               .find((block: ConversationBlock) => block.type === 'patch-summary')
           : undefined;
 
-        const patchPromise =
+        const patchResult =
           patchBlock?.type === 'patch-summary'
-            ? window.digitalLife.patch.getPatchSet(patchBlock.patchSetId)
+            ? await window.digitalLife.patch.getPatchSet(patchBlock.patchSetId)
             : null;
 
-        const t2 = performance.now();
-        const [gitStatusResult, patchResult] = await Promise.all([
-          window.digitalLife.workspace.getGitStatus(),
-          patchPromise,
-        ]);
-        if (requestSeq !== workspaceRequestSeq) {
-          return;
-        }
-        console.log(`[ADL-PERF] bootstrap batch3 (getGitStatus): ${(performance.now() - t2).toFixed(1)}ms`);
-
-        const gitSnapshot = gitStatusResult.ok ? gitStatusResult.data : undefined;
-        const gitSnapshots: Record<string, GitSnapshot> = {};
-        if (gitSnapshot && appInfoResult.data.currentWorkspace) {
-          gitSnapshots[appInfoResult.data.currentWorkspace.id] = gitSnapshot;
-        }
-
-        const appInfoWithGitSnapshot =
-          gitSnapshot && appInfoResult.data.currentWorkspace
-            ? {
-                ...appInfoResult.data,
-                currentWorkspace: {
-                  ...appInfoResult.data.currentWorkspace,
-                  gitSnapshot,
-                },
-              }
-            : appInfoResult.data;
-
-        console.log(`[ADL-PERF] bootstrap TOTAL: ${(performance.now() - t0).toFixed(1)}ms`);
-        document.getElementById('adl-loading')?.classList.add('is-hidden');
         set({
           ...nextState,
-          appInfo: appInfoWithGitSnapshot,
           workspaceTrees: {},
-          gitSnapshot,
-          gitSnapshots,
           dirtyEditorPaths: [],
           error: undefined,
         });
@@ -145,16 +107,31 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           });
         }
 
+        // Defer git status to low priority (it can take ~400ms)
+        queueLowPriorityRefresh(async () => {
+          if (requestSeq !== workspaceRequestSeq) {
+            return;
+          }
+          const gitResult = await window.digitalLife.workspace.getGitStatus();
+          if (requestSeq !== workspaceRequestSeq) {
+            return;
+          }
+          if (gitResult.ok && appInfoResult.data.currentWorkspace) {
+            set({
+              gitSnapshot: gitResult.data,
+              gitSnapshots: { [appInfoResult.data.currentWorkspace.id]: gitResult.data },
+            });
+          }
+        });
+
         queueLowPriorityRefresh(async () => {
           if (requestSeq !== workspaceRequestSeq) {
             return;
           }
           const results = await Promise.allSettled([
-            // fetchIndexStatus removed — already loaded during bootstrap
             get().fetchAuditEntries(40),
             get().fetchCommandHistory(),
             get().fetchGitBranches(),
-            // 懒加载可见工作区的文件树和变更状态
             ...visibleWorkspaces.map((w) => get().loadWorkspaceTree(asWorkspaceID(w.id), w.path)),
             ...visibleWorkspaces.map((w) => get().loadGitSnapshot(w.id, w.path)),
           ]);
@@ -168,9 +145,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         return;
       }
 
-      document.getElementById('adl-loading')?.classList.add('is-hidden');
       set({
-        ...(nextState as StoreState),
         dirtyEditorPaths: [],
         openTabs: [],
         selectedFilePath: undefined,

@@ -58,10 +58,14 @@ export const createBrowserFoldersSlice = (
   browserTabTreeExpanded: {},
   browserWorkspaceExpanded: {},
 
-  browserCreateTabFolder: async (name?: string, parentId?: string, parentType?: 'workspace' | 'folder') => {
+  browserCreateTabFolder: async (
+    name?: string,
+    parentId?: string,
+    parentType?: 'workspace' | 'folder'
+  ) => {
     const folderCount = _get().browserTabFolders.length;
     const locale = (_get().appInfo?.config.language ?? 'zh-CN') as 'zh-CN' | 'en-US';
-    const folderName = name?.trim() || await formatNewFolderNameByLocale(locale, folderCount + 1);
+    const folderName = name?.trim() || (await formatNewFolderNameByLocale(locale, folderCount + 1));
     set((state) => {
       const newFolder: TabFolderState = {
         id: createUiId('tab-folder'),

@@ -1,5 +1,6 @@
 use crate::commands::ipc;
 use crate::state::AppState;
+use tauri::Manager;
 use adl_errors::AppError;
 use adl_kernel::{
     now_ms, GitBranchSummary, GitSnapshot, IpcResult, WorkspaceGitBranchChangeResult,
@@ -45,22 +46,20 @@ fn update_workspace_after_git_change(
 }
 
 #[tauri::command]
-pub fn workspace_get_git_status(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_get_git_status(
+    app: tauri::AppHandle,
     workspace_path: Option<String>,
-) -> IpcResult<GitSnapshot> {
-    let path = match workspace_path {
+) -> Result<IpcResult<GitSnapshot>, AppError> {
+    let state = app.state::<AppState>();
+    let path_buf = match workspace_path {
         Some(p) => PathBuf::from(p),
         None => {
-            return ipc(crate::commands::workspace::with_workspace(&state, |workspace| {
-                Ok(adl_workspace::capture_git_snapshot(
-                    PathBuf::from(&workspace.root_path).as_path(),
-                ))
-            }));
+            let ws = crate::commands::workspace::current_workspace(&state)?;
+            PathBuf::from(&ws.root_path)
         },
     };
-    let snapshot = adl_workspace::capture_git_snapshot(path.as_path());
-    ipc(Ok(snapshot))
+    let snapshot = adl_workspace::capture_git_snapshot_async(&path_buf).await;
+    Ok(ipc(Ok(snapshot)))
 }
 
 #[tauri::command]

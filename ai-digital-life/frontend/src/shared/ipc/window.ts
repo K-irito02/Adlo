@@ -57,4 +57,11 @@ export interface WindowBridge {
    * @see preview-bridge/index.ts → 继承 mock-bridge
    */
   onResized: (listener: () => void) => () => void;
+  /**
+   * 显示窗口（用于窗口初始隐藏后，应用加载完成后再显示）
+   * @command core:window:allow-show
+   * @see tauri-bridge.ts → window.show
+   * @see mock-bridge.ts → window.show
+   */
+  show: () => Promise<void>;
 }

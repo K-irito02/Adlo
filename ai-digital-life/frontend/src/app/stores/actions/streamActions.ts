@@ -208,7 +208,11 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
       const baseScenario = chatModeToScenario(mode);
       const locale = get().appInfo?.config.language === 'en-US' ? 'en-US' : 'zh-CN';
       const withChips = await augmentPromptWithChips(content, options?.chips, locale);
-      const { scenario, prompt } = await applySlashScenarioOverride(withChips, baseScenario, locale);
+      const { scenario, prompt } = await applySlashScenarioOverride(
+        withChips,
+        baseScenario,
+        locale
+      );
 
       set({
         streamingAssistantText: '',

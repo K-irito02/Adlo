@@ -69,6 +69,20 @@ lsp-types = "0.97"
 [profile.dev]
 opt-level = 0
 
+# Override: optimize regex & glob crates in debug to speed up generate_context!() ACL resolution
+# which compiles ~300-500 glob::Pattern instances at startup (each triggers regex compilation)
+[profile.dev.package.regex]
+opt-level = 3
+
+[profile.dev.package.regex-automata]
+opt-level = 3
+
+[profile.dev.package.regex-syntax]
+opt-level = 3
+
+[profile.dev.package.glob]
+opt-level = 3
+
 [profile.release]
 codegen-units = 1
 lto = true
