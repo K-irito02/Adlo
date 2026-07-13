@@ -1,5 +1,5 @@
 /** Stable empty object for Zustand selector fallback — prevents useSyncExternalStore infinite loops. */
-export const EMPTY_KEYBINDS: Record<string, string | undefined> = {};
+export const EMPTY_KEYBINDS: Record<string, string> = {};
 
 const MODIFIER_KEYS = new Set(['Control', 'Shift', 'Alt', 'Meta']);
 

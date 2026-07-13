@@ -21,7 +21,6 @@ interface StatusBarEditorInfoProps {
 }
 
 const StatusBarEditorInfo = React.memo(function StatusBarEditorInfo({
-  _appInfo,
   modelHealth,
   activeModelLabel,
   activeProviderId,
