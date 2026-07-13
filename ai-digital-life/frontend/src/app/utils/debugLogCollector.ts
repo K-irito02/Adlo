@@ -323,7 +323,9 @@ async function createDraggableCopyButton() {
 
   // 缓存运行模式（窗口生命周期内不变）
   const isTauri = isTauriShell();
-  const i18n = await loadLocale('zh-CN');
+  const detectedLocale =
+    typeof navigator !== 'undefined' && navigator.language?.startsWith('zh') ? 'zh-CN' : 'en-US';
+  const i18n = await loadLocale(detectedLocale as 'zh-CN' | 'en-US');
 
   // 移除已存在的按钮
   const existing = document.getElementById('__dl-debug-button');

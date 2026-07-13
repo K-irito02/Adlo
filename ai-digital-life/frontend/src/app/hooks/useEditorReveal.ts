@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { DiagnosticSummary } from '@ai-digital-life/kernel';
 import type { CopyDict, Locale } from '../i18n';
-import { loadLocale } from '../i18n/i18nLoader';
 import { buildSelectionPrompt } from '../utils/selectionPrompt';
 import type { EditorRef, DiffEditorRef } from '../stores/types';
 
