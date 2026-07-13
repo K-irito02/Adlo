@@ -743,13 +743,21 @@ async function collectFilesAndBuildTree(rootPath: string): Promise<CollectResult
   let fileRemaining = MAX_COLLECTED_FILES;
   let nodeRemaining = MAX_TREE_NODES;
 
-  await collectInner(rootPath, rootPath, 0, files, entries, () => ({
-    fileRemaining,
-    nodeRemaining,
-  }), (updates: { fileRemaining?: number; nodeRemaining?: number }) => {
-    if (updates.fileRemaining !== undefined) fileRemaining = updates.fileRemaining;
-    if (updates.nodeRemaining !== undefined) nodeRemaining = updates.nodeRemaining;
-  });
+  await collectInner(
+    rootPath,
+    rootPath,
+    0,
+    files,
+    entries,
+    () => ({
+      fileRemaining,
+      nodeRemaining,
+    }),
+    (updates: { fileRemaining?: number; nodeRemaining?: number }) => {
+      if (updates.fileRemaining !== undefined) fileRemaining = updates.fileRemaining;
+      if (updates.nodeRemaining !== undefined) nodeRemaining = updates.nodeRemaining;
+    }
+  );
 
   entries.sort((left, right) => {
     if (left.kind !== right.kind) return left.kind === 'directory' ? -1 : 1;
@@ -766,7 +774,7 @@ async function collectInner(
   files: string[],
   nodes: WorkspaceTreeNode[],
   getRemaining: () => { fileRemaining: number; nodeRemaining: number },
-  setRemaining: (updates: { fileRemaining?: number; nodeRemaining?: number }) => void,
+  setRemaining: (updates: { fileRemaining?: number; nodeRemaining?: number }) => void
 ): Promise<void> {
   if (depth > MAX_TREE_DEPTH) return;
   const { fileRemaining, nodeRemaining } = getRemaining();
@@ -790,7 +798,15 @@ async function collectInner(
       setRemaining({ nodeRemaining: nr - 1 });
 
       const childNodes: WorkspaceTreeNode[] = [];
-      await collectInner(rootPath, entryPath, depth + 1, files, childNodes, getRemaining, setRemaining);
+      await collectInner(
+        rootPath,
+        entryPath,
+        depth + 1,
+        files,
+        childNodes,
+        getRemaining,
+        setRemaining
+      );
       childNodes.sort((left: WorkspaceTreeNode, right: WorkspaceTreeNode) => {
         if (left.kind !== right.kind) return left.kind === 'directory' ? -1 : 1;
         return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
@@ -837,7 +853,7 @@ async function buildRetrievalSnapshot(
 ): Promise<RetrievalSnapshot> {
   const now = nowMs();
   const cached = retrievalCache.get(workspaceId);
-  if (cached && (now - cached.capturedAt) < CACHE_TTL_MS) {
+  if (cached && now - cached.capturedAt < CACHE_TTL_MS) {
     return cached.snapshot;
   }
   const snapshot = await buildRetrievalSnapshotInner(workspaceId, rootPath);
