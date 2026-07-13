@@ -4,7 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-adl-agent-runtime = { path = "../agent-runtime" }
 adl-kernel = { path = "../kernel" }
 adl-errors = { path = "../errors" }
 rusqlite.workspace = true

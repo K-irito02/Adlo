@@ -255,7 +255,6 @@ dependencies = [
 name = "adl-storage"
 version = "0.1.0"
 dependencies = [
- "adl-agent-runtime",
  "adl-errors",
  "adl-kernel",
  "r2d2",

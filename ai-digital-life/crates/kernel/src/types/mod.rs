@@ -7,6 +7,7 @@ pub mod conversation;
 pub mod model;
 pub mod reference;
 pub mod reserved;
+pub mod session;
 pub mod workspace;
 
 pub use agent::*;

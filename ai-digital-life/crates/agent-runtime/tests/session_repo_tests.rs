@@ -1,4 +1,4 @@
-use adl_agent_runtime::session_repo::{SessionQuery, SessionRepository};
+use adl_kernel::types::session::{SessionQuery, SessionRepository};
 
 struct MockRepo;
 
