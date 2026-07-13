@@ -7,5 +7,4 @@ export type { MarkdownPreviewProps, DocxPreviewProps, PdfPreviewProps } from './
 export { MarkdownPreview } from './MarkdownPreview';
 export { renderMarkdownPreviewHtml } from './markdownPreviewUtils';
 export type { MarkdownPreviewProps as MarkdownPreviewComponentProps } from './markdownPreviewUtils';
-export { DocxPreview } from './DocxPreview';
-export { PdfPreview } from './PdfPreview';
+
