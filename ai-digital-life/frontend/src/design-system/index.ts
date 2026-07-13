@@ -22,6 +22,7 @@ export {
   ThemeController,
   isThemeMode,
   resolveThemeMode,
+  systemPrefersDark,
   type ThemeMode,
   type ResolvedTheme,
   type ThemeControllerOptions,

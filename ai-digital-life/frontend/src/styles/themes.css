@@ -72,9 +72,16 @@
         transition-property: none for complete disable.
    -------------------------------------------------------------------------- */
 
-html,
-body,
-[data-theme] {
+/* 主题切换过渡。启动期间禁用过渡避免覆盖层闪烁（由 main.tsx 恢复） */
+html.no-transition,
+html.no-transition body,
+html.no-transition [data-theme] {
+  transition: none !important;
+}
+
+html:not(.no-transition),
+html:not(.no-transition) body,
+html:not(.no-transition) [data-theme] {
   transition:
     background-color var(--duration-200) var(--ease-default),
     color var(--duration-200) var(--ease-default);

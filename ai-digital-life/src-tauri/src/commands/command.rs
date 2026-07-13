@@ -5,6 +5,7 @@ use adl_command::{build_request, run_command};
 use adl_errors::AppError;
 use adl_kernel::{CommandRequest, CommandRunResult, IpcResult, RiskLevel, TaskOperation};
 use adl_storage::EntityTable;
+use tauri::Manager;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -24,17 +25,22 @@ pub async fn command_run(
 }
 
 #[tauri::command]
-pub fn command_list_recent(
-    state: tauri::State<'_, AppState>,
+pub async fn command_list_recent(
+    app: tauri::AppHandle,
     limit: Option<usize>,
-) -> IpcResult<Vec<CommandRequest>> {
-    crate::commands::ipc_try(|| {
-        let mut requests: Vec<CommandRequest> =
-            state.db.list_entities(EntityTable::CommandRequests)?;
+) -> Result<IpcResult<Vec<CommandRequest>>, CommandError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let limit_val = limit.unwrap_or(20);
+    let requests = tokio::task::spawn_blocking(move || -> Result<Vec<CommandRequest>, AppError> {
+        let mut requests: Vec<CommandRequest> = db.list_entities(EntityTable::CommandRequests)?;
         requests.sort_by_key(|request| std::cmp::Reverse(request.created_at));
-        requests.truncate(limit.unwrap_or(20));
+        requests.truncate(limit_val);
         Ok(requests)
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(requests)))
 }
 
 async fn command_run_inner(

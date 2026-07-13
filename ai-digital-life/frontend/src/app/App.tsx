@@ -122,27 +122,30 @@ export function App() {
   const activeSessionId = useAppStore((s) => s.activeSessionId);
   const [overlayHidden, setOverlayHidden] = useState(false);
   const startedAt = useRef(0);
-  const hasLoggedReady = useRef(false);
 
+  // 覆盖层时序控制：
+  // - 最短 3.5s：保证动画效果完整展示
+  // - 最长 8s：超时强制退出，防止 appReady 卡住导致界面永远不出现
+  const OVERLAY_MIN_MS = 3500;
+  const OVERLAY_MAX_MS = 8000;
+
+  // 最长 8s 超时强制退出
+  useEffect(() => {
+    startedAt.current = performance.now();
+    const maxTimer = setTimeout(() => {
+      setOverlayHidden(true);
+    }, OVERLAY_MAX_MS);
+    return () => clearTimeout(maxTimer);
+  }, []);
+
+  // appReady + 最短 3.5s 双条件
   useEffect(() => {
     if (!t || !appReady) {
-      startedAt.current = performance.now();
-      setOverlayHidden(false);
-      hasLoggedReady.current = false;
       return;
     }
-    if (!hasLoggedReady.current) {
-      console.log(
-        `[OVERLAY-TIMING] ready at ${Math.round(performance.now() - startedAt.current)}ms`
-      );
-      hasLoggedReady.current = true;
-    }
     const elapsed = performance.now() - startedAt.current;
-    const remaining = Math.max(0, 3500 - elapsed);
+    const remaining = Math.max(0, OVERLAY_MIN_MS - elapsed);
     const timer = setTimeout(() => {
-      console.log(
-        `[OVERLAY-TIMING] hidden at ${Math.round(performance.now() - startedAt.current)}ms`
-      );
       setOverlayHidden(true);
     }, remaining);
     return () => clearTimeout(timer);
@@ -160,6 +163,7 @@ export function App() {
               initial={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5, ease: 'easeInOut' }}
+              style={{ pointerEvents: 'none' }}
             >
               <StartupOverlay />
             </motion.div>
@@ -262,6 +266,7 @@ export function App() {
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5, ease: 'easeInOut' }}
+            style={{ pointerEvents: 'none' }}
           >
             <StartupOverlay />
           </motion.div>

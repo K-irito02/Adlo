@@ -1,12 +1,12 @@
 use crate::commands::ipc;
 use crate::state::AppState;
-use tauri::Manager;
 use adl_errors::AppError;
 use adl_kernel::{
     now_ms, GitBranchSummary, GitSnapshot, IpcResult, WorkspaceGitBranchChangeResult,
     WorkspaceGitBranchCreateInput, WorkspaceGitBranchSwitchInput, WorkspaceMeta, WorkspaceStatus,
 };
 use std::path::{Path, PathBuf};
+use tauri::Manager;
 
 pub(crate) fn persist_workspace_meta(
     state: &AppState,
@@ -63,19 +63,23 @@ pub async fn workspace_get_git_status(
 }
 
 #[tauri::command]
-pub fn workspace_list_git_branches(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_list_git_branches(
+    app: tauri::AppHandle,
     workspace_path: Option<String>,
-) -> IpcResult<Vec<GitBranchSummary>> {
+) -> Result<IpcResult<Vec<GitBranchSummary>>, AppError> {
+    let state = app.state::<AppState>();
     let path = match workspace_path {
         Some(p) => PathBuf::from(p),
         None => {
-            return ipc(crate::commands::workspace::with_workspace(&state, |workspace| {
-                adl_workspace::list_git_branches(PathBuf::from(&workspace.root_path).as_path())
-            }));
+            let ws = crate::commands::workspace::current_workspace(&state)?;
+            PathBuf::from(&ws.root_path)
         },
     };
-    ipc(adl_workspace::list_git_branches(path.as_path()))
+    let branches =
+        tokio::task::spawn_blocking(move || adl_workspace::list_git_branches(path.as_path()))
+            .await
+            .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(branches)))
 }
 
 #[tauri::command]

@@ -1,16 +1,8 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { useAppStore } from '../stores/slicedStore';
+import { systemPrefersDark, type ResolvedTheme } from '../../design-system';
 import FlowFieldBackground from './flow-field-background';
-
-type ResolvedTheme = 'light' | 'dark';
-
-function getSystemTheme(): ResolvedTheme {
-  if (typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    return 'dark';
-  }
-  return 'light';
-}
 
 function getThemeFromRoot(): ResolvedTheme {
   if (typeof document !== 'undefined') {
@@ -19,7 +11,7 @@ function getThemeFromRoot(): ResolvedTheme {
       return t;
     }
   }
-  return getSystemTheme();
+  return systemPrefersDark() ? 'dark' : 'light';
 }
 
 function getDisplayText(language: string): string {
@@ -46,18 +38,23 @@ export default function StartupOverlay() {
   );
   const displayText = useMemo(() => getDisplayText(displayLang), [displayLang]);
 
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => setTheme(getThemeFromRoot());
-    mq.addEventListener('change', handleChange);
+  // 移除 index.html 中的静态预加载覆盖层，让 React 覆盖层接管
+  useLayoutEffect(() => {
+    const preload = document.getElementById('preload-overlay');
+    if (preload) {
+      preload.remove();
+    }
+  }, []);
 
+  // 监听 data-theme 属性变化——ThemeController 是主题真源，
+  // 系统主题变化时（themeMode === 'system'）ThemeController 会更新 data-theme，
+  // 此处 MutationObserver 会捕获到变化并同步覆盖层主题。
+  useEffect(() => {
     const observer = new MutationObserver(() => {
       setTheme(getThemeFromRoot());
     });
     observer.observe(document.documentElement, { attributeFilter: ['data-theme'] });
-
     return () => {
-      mq.removeEventListener('change', handleChange);
       observer.disconnect();
     };
   }, []);
@@ -65,11 +62,20 @@ export default function StartupOverlay() {
   const colors = THEME_COLORS[theme];
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: colors.bgHex }}>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        backgroundColor: colors.bgHex,
+        pointerEvents: 'none',
+        cursor: 'default',
+      }}
+    >
       <FlowFieldBackground
-        particleCount={600}
+        particleCount={20}
         color={colors.particle}
-        trailOpacity={0.15}
+        trailOpacity={0.12}
         trailColor={colors.trail}
         bgColor={colors.bgHex}
         speed={1}

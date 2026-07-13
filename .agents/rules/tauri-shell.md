@@ -53,6 +53,60 @@ alwaysApply: false
 - [ ] 在 `mock-bridge.ts` 和 `preview-bridge/` 同步实现浏览器模式对等方法
 - [ ] 在 `previewWorkspaceService.ts` 或 `previewTerminalService.ts` 同步实现浏览器开发态服务端 API
 
+## Tauri 命令 async 规范
+
+**所有涉及 I/O 的 Tauri 命令必须使用 `async fn` + `spawn_blocking` 模式**，禁止在主线程执行文件系统遍历、git 子进程、数据库查询等阻塞操作。
+
+### 原因
+
+Tauri v2 的同步 `#[tauri::command] fn` 在主线程（tao 事件循环）上执行。若命令执行耗时操作（文件 I/O、git 子进程、数据库查询），tao 事件循环被阻塞 → Windows 消息队列停止处理 → 窗口"未响应"。
+
+### 标准模式
+
+```rust
+// ❌ 错误：同步命令阻塞主线程
+#[tauri::command]
+pub fn workspace_list_tree(state: tauri::State<'_, AppState>) -> IpcResult<Vec<WorkspaceTreeNode>> {
+    ipc(adl_workspace::list_tree(...))
+}
+
+// ✅ 正确：async + spawn_blocking 将 I/O 移到阻塞线程池
+#[tauri::command]
+pub async fn workspace_list_tree(
+    app: tauri::AppHandle,
+    workspace_path: Option<String>,
+) -> Result<IpcResult<Vec<WorkspaceTreeNode>>, AppError> {
+    let state = app.state::<AppState>();
+    let path = /* resolve path */;
+    let tree = tokio::task::spawn_blocking(move || adl_workspace::list_tree(path.as_path()))
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(tree)))
+}
+```
+
+### 判断标准
+
+| 操作类型 | 是否必须 async |
+|----------|---------------|
+| 文件系统遍历 (`list_tree`, `read_dir`) | 必须 |
+| git 子进程调用 | 必须 |
+| 数据库读写（SQLite 通过 r2d2 pool） | 必须 |
+| 网络请求 | 必须 |
+| 仅内存读写（Mutex/RwLock、Atomic 操作） | 可选 |
+| Emit 事件 | 可选 |
+
+### 已修复命令（2026-07-14）
+
+| 命令 | 文件 | 修复前 |
+|------|------|--------|
+| `workspace_list_tree` | `commands/workspace.rs` | `pub fn` |
+| `workspace_list_git_branches` | `commands/workspace_git.rs` | `pub fn` |
+| `command_list_recent` | `commands/command.rs` | `pub fn` |
+| `task_list_audit_entries` | `commands/task.rs` | `pub fn` |
+
+参考：[tauri-sync-command-blocking-2026-07-14.md](../../docs/知识沉淀/Tauri后端/tauri-sync-command-blocking-2026-07-14.md)
+
 ## 双端一致性
 
 所有功能必须在 Tauri 桌面应用和浏览器模式下共同可用。

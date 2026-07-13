@@ -158,31 +158,43 @@ xterm.js 主题色从 CSS 自定义属性读取，非硬编码：
 `ThemeController`（`design-system/theme.ts`）是唯一真实来源。所有消费者通过 `useResolvedTheme()` hook 或 MutationObserver 读取当前主题，禁止直接读取 `appInfo.config.resolvedTheme`。
 
 ```
-ThemeController (singleton, matchMedia 解析)
-  ├─ useResolvedTheme() hook     → React 组件 (FilesPanel, DiffViewer, CodeEditor)
-  ├─ MutationObserver            → xterm.js 终端
-  ├─ useBrowserThemeSync         → Tauri WebView 颜色方案
-  └─ DOM data-theme / color-scheme → CSS 变量
+启动时序（消除主题闪烁）：
+  index.html 内联脚本（同步读 localStorage，设置 data-theme + colorScheme）
+    → ThemeController 构造函数（读 localStorage 初始化状态，不写 DOM）
+    → useThemeSync（appInfo 加载后调 setTheme，同步 DOM + localStorage）
+    → setTheme → syncRoot（写 data-theme + colorScheme + localStorage）
+
+运行时：
+  ThemeController (singleton, systemPrefersDark() 解析)
+    ├─ useResolvedTheme() hook     → React 组件 (FilesPanel, DiffViewer, CodeEditor)
+    ├─ MutationObserver            → xterm.js 终端、StartupOverlay
+    ├─ useBrowserThemeSync         → Tauri WebView 颜色方案
+    └─ DOM data-theme / color-scheme → CSS 变量
 ```
 
 ### 核心文件
 
 | 文件 | 职责 |
 |------|------|
-| `design-system/theme.ts` | `ThemeController` 类 + `resolveThemeMode()` 纯函数 |
+| `index.html` | 内联脚本同步设置 data-theme + colorScheme（从 localStorage 缓存） |
+| `design-system/theme.ts` | `ThemeController` 类 + `resolveThemeMode()` + `systemPrefersDark()` |
 | `app/utils/theme.ts` | `ThemeController` 单例 |
 | `app/hooks/useResolvedTheme.ts` | React hook 订阅 ThemeController |
-| `shared/resolveTheme.ts` | `resolveCurrentTheme()` matchMedia 包装函数 |
-| `styles/themes.css` | `[data-theme]` CSS 变量 |
+| `app/hooks/useThemeSync.ts` | appInfo 加载后同步主题控制器，移除 no-transition 类 |
+| `shared/resolveTheme.ts` | `resolveCurrentTheme()` 包装函数（使用 `systemPrefersDark()`） |
+| `styles/themes.css` | `[data-theme]` CSS 变量 + `no-transition` 类 |
 
 ### 规则
 
 - `ThemeMode`（`'light' | 'dark' | 'system'`）由 Rust 后端持久化，通过 `app.updatePreferences` 修改
-- `ResolvedTheme`（`'light' | 'dark'`）必须在前端通过 `window.matchMedia` 解析，禁止在后端解析 `System` 模式
+- `ResolvedTheme`（`'light' | 'dark'`）必须在前端通过 `systemPrefersDark()` 解析，禁止在后端解析 `System` 模式
+- 应用内用户选择优先：即使 OS 是 dark，用户选 light 就用 light
+- localStorage 双缓存：`adl-theme-mode`（用户选择的 mode）+ `adl-resolved-theme`（已解析主题），供 index.html 内联脚本在下次启动时同步读取
 - React 组件必须使用 `useResolvedTheme()` 获取当前主题，禁止读取 `appInfo.config.resolvedTheme`
-- 非 React 上下文（xterm.js）通过 MutationObserver 监听 `<html data-theme>` 属性变化
+- 非 React 上下文（xterm.js、StartupOverlay）通过 MutationObserver 监听 `<html data-theme>` 属性变化
 - `themeController.setTheme()` 只需传 `mode`，不需要传 `resolvedTheme`（Controller 自行解析）
 - 修改偏好时调用 `actions.updatePreferences({ themeMode })`，不要直接修改 store
+- 禁止直接调用 `window.matchMedia('(prefers-color-scheme: dark)')`，必须使用 `systemPrefersDark()` 统一函数
 
 ## Design Token 类型定义
 

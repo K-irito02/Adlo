@@ -14,6 +14,7 @@
 | [交互优化](./交互优化/)         | 跨功能面板的交互/UX 问题修复经验                                                                                                                                                                                                                                                   | 19     |
 | [CI 监控](./CI监控/)            | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离、数据缓存、Rate Limit 保护）                                                                                                                                                                            | 6      |
 | [日志系统](./日志系统/)         | 日志系统统一改造经验（OpenOptions 权限、ANSI 控制、FormatTime、MakeWriter 兼容、双端一致性）                                                                                                                                                                                       | 1      |
+| [Tauri 后端](./Tauri后端/)   | Tauri 命令性能、Rust 异步模式、主线程阻塞等后端经验                                                                                                                                                                                                                                 | 1      |
 
 ## 索引
 
@@ -154,3 +155,9 @@
 | [ci-panel-help-system-2026-06-13.md](./CI监控/ci-panel-help-system-2026-06-13.md)                                               | 2026-06-13 操作手册完善  | CI 面板帮助系统增强（全局点击冲突、帮助按钮 toggle、手册内容扩展、TOC 导航）                                                                     |
 | [github-ci-per-directory-binding-2026-06-14.md](./CI监控/github-ci-per-directory-binding-2026-06-14.md)                         | 2026-06-14 Bug 修复      | GitHub CI 按目录独立绑定（`renderChildMeta` 设置误开工作区、共享 state 污染、store sync set 覆盖、日志/快照持久化、token 恢复、Rate Limit 保护） |
 | [github-title-path-header-fix-2026-06-14.md](./CI监控/github-title-path-header-fix-2026-06-14.md)                               | 2026-06-14 Bug 修复      | GitHub 标题路径提示行修复（垂直居中、消失、路径不完整、分类标识、全局点击范围守卫、`data-path` 归属）                                            |
+
+### Tauri 后端
+
+| 文件                                                                                                                | 来源                               | 说明                                                                                                 |
+| ------------------------------------------------------------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| [tauri-sync-command-blocking-2026-07-14.md](./Tauri后端/tauri-sync-command-blocking-2026-07-14.md)                  | 2026-07-14 启动期"未响应"根因修复  | Tauri 同步命令阻塞主线程：根因分析、证据链、修复方案、async + spawn_blocking 模式、经验教训         |

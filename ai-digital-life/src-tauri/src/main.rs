@@ -33,7 +33,7 @@ fn main() {
     // 解决软件渲染导致的启动绘制缓慢和主线程阻塞问题。
     std::env::set_var(
         "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection"
+        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection",
     );
 
     if let Some(mode) = parse_cli_log_mode() {
@@ -56,6 +56,11 @@ fn main() {
         .on_page_load(|webview, payload| {
             if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {
                 tracing::info!("[ADL-PERF] main webview page load finished: url={}", payload.url());
+                // 窗口配置了 visible: false，在页面加载完成后才显示窗口，
+                // 消除 WebView2 默认白色背景导致的启动闪烁。
+                let window = webview.window();
+                let _ = window.show();
+                tracing::info!("[ADL-PERF] main window shown after page load");
             }
             if !webview.label().starts_with("adl-browser-view") {
                 return;

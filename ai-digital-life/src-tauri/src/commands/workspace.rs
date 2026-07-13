@@ -11,6 +11,7 @@ use adl_kernel::{
 use adl_storage::EntityTable;
 use std::path::PathBuf;
 use tauri::Emitter;
+use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
@@ -128,16 +129,22 @@ pub fn workspace_get_change_preview(
 }
 
 #[tauri::command]
-pub fn workspace_list_tree(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_list_tree(
+    app: tauri::AppHandle,
     workspace_path: Option<String>,
-) -> IpcResult<Vec<WorkspaceTreeNode>> {
-    match workspace_path {
-        Some(path) => ipc(adl_workspace::list_tree(PathBuf::from(&path).as_path())),
-        None => ipc(with_workspace(&state, |workspace| {
-            adl_workspace::list_tree(PathBuf::from(&workspace.root_path).as_path())
-        })),
-    }
+) -> Result<IpcResult<Vec<WorkspaceTreeNode>>, AppError> {
+    let state = app.state::<AppState>();
+    let path = match workspace_path {
+        Some(p) => PathBuf::from(p),
+        None => {
+            let ws = current_workspace(&state)?;
+            PathBuf::from(&ws.root_path)
+        },
+    };
+    let tree = tokio::task::spawn_blocking(move || adl_workspace::list_tree(path.as_path()))
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(tree)))
 }
 
 #[tauri::command]

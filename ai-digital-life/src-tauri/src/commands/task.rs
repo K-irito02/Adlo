@@ -10,6 +10,7 @@ use adl_kernel::{
     TaskRecord, TaskStatus, WorkspaceMeta,
 };
 use adl_storage::EntityTable;
+use tauri::Manager;
 
 /// 审批决策输入
 #[derive(Debug, serde::Deserialize)]
@@ -40,11 +41,19 @@ pub fn task_list_pending_approvals(
 
 /// 列出审计条目
 #[tauri::command]
-pub fn task_list_audit_entries(
-    state: tauri::State<'_, AppState>,
+pub async fn task_list_audit_entries(
+    app: tauri::AppHandle,
     limit: Option<usize>,
-) -> IpcResult<Vec<AuditEntry>> {
-    ipc(crate::commands::audit::list_audit_entries(&state, limit))
+) -> Result<IpcResult<Vec<AuditEntry>>, CommandError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let limit_val = limit.unwrap_or(50);
+    let entries = tokio::task::spawn_blocking(move || -> Result<Vec<AuditEntry>, AppError> {
+        crate::commands::audit::list_audit_entries_with_db(&db, limit_val)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(entries)))
 }
 
 /// 处理审批决策

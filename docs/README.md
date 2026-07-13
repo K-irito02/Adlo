@@ -8,7 +8,7 @@
 | [design-system/](./design-system/) | 设计 Token、主题、组件规范、可访问性、响应式、测试 |
 | [development/](./development/) | 工程约束、Agent 路由与拓扑、Hook 策略、代码库治理检查清单 |
 | [superpowers/](./superpowers/) | 功能设计文档（specs/）+ 实施计划（plans/）归档，与 `.opencode/skills/` 技能系统无关 |
-| [knowledge/](./知识沉淀/) | 经验教训与总结（按领域分类：重构、浏览器、交互优化、代码质量、CI 监控、多工作区、浏览器自动化） |
+| [knowledge/](./知识沉淀/) | 经验教训与总结（按领域分类：重构、浏览器、交互优化、代码质量、CI 监控、多工作区、浏览器自动化、Tauri 后端） |
 | [refactoring-insights/](./重构洞察/) | 重构进度报告、洞察总结、每日洞察记录 |
 | [analysis/opencode/](./analysis/opencode/) | OpenCode 源码地图 — 渐进式索引（快查/总览/架构/包索引/功能深度/编码模式/差距分析） |
 | [analysis/ai-digital-life/](./analysis/ai-digital-life/) | AI Digital Life 源码地图 — 渐进式索引（快查/总览/架构/包索引/10 功能深度/4 编码模式） |

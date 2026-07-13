@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="light">
+<html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -8,9 +8,50 @@
     <meta name="theme-color" content="#2563eb" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0b1224" media="(prefers-color-scheme: dark)" />
     <title>AI Digital Life</title>
+    <script>
+      // 在页面渲染前同步设置 data-theme，消除主题闪烁。
+      // 优先读取 localStorage 缓存（用户上次选择的 themeMode + resolvedTheme），
+      // 其次用 OS 系统偏好。
+      // 与 ThemeController 共享相同的 localStorage key 和解析逻辑。
+      var html = document.documentElement;
+      html.classList.add('no-transition');
+      var cachedMode = null;
+      var cachedResolved = null;
+      try {
+        cachedMode = localStorage.getItem('adl-theme-mode');
+        cachedResolved = localStorage.getItem('adl-resolved-theme');
+      } catch (e) {}
+      var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      // 应用内用户选择优先：如果有缓存的 resolvedTheme 直接用；
+      // 否则根据 cachedMode 解析；最后 fallback 到 OS 偏好。
+      var resolved;
+      if (cachedResolved === 'dark' || cachedResolved === 'light') {
+        resolved = cachedResolved;
+      } else if (cachedMode === 'light' || cachedMode === 'dark') {
+        resolved = cachedMode;
+      } else {
+        resolved = prefersDark ? 'dark' : 'light';
+      }
+      html.dataset.theme = resolved;
+      html.style.colorScheme = resolved;
+    </script>
+    <style>
+      #preload-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        cursor: default;
+        pointer-events: auto;
+        background: #fff;
+      }
+      html[data-theme='dark'] #preload-overlay {
+        background: #000;
+      }
+    </style>
     <script type="module" src="/src/main.tsx"></script>
   </head>
   <body>
+    <div id="preload-overlay"></div>
     <div id="app" role="application"></div>
   </body>
 </html>

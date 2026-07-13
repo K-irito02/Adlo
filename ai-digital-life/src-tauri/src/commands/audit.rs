@@ -72,12 +72,13 @@ pub fn batch_save_audit_entries(
     Ok(saved)
 }
 
-pub fn list_audit_entries(
-    state: &AppState,
-    limit: Option<usize>,
+/// 从数据库查询审计条目（可在线程池中调用）
+pub fn list_audit_entries_with_db(
+    db: &adl_storage::Database,
+    limit: usize,
 ) -> Result<Vec<AuditEntry>, AppError> {
-    let mut entries: Vec<AuditEntry> = state.db.list_entities(EntityTable::AuditRecords)?;
+    let mut entries: Vec<AuditEntry> = db.list_entities(EntityTable::AuditRecords)?;
     entries.sort_by_key(|entry| std::cmp::Reverse(entry.timestamp));
-    entries.truncate(limit.unwrap_or(50));
+    entries.truncate(limit);
     Ok(entries)
 }

@@ -1,7 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { ConversationMessageRecord, ConversationBlock } from '@ai-digital-life/kernel';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
-import { themeController } from '@utils/theme';
 import { createEditorTab } from '@utils/editorTabs';
 import { loadConversationState, loadTaskCenterState } from '../loaders';
 import { workspaceContextModeFromInfo } from '../conversationUtils';
@@ -245,11 +244,9 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           return;
         }
         const responseMode = result.data.config.themeMode;
-        themeController.setTheme({ mode: responseMode });
-        themeController.hydrate();
         // result.data from Rust backend has stale resolvedTheme for system mode
         // (build_app_info hardcodes Theme::Light for ThemeMode::System).
-        // Fix it here for store consistency.
+        // Fix it here for store consistency; useThemeSync 会通过 appInfo 变化触发 setTheme。
         result.data.config.resolvedTheme = resolveCurrentTheme(responseMode);
         set((state: StoreState) => ({
           appInfo: result.data,

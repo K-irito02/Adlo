@@ -6,6 +6,8 @@ describe('ThemeController color-scheme', () => {
   let root: HTMLElement;
 
   beforeEach(() => {
+    localStorage.removeItem('adl-theme-mode');
+    localStorage.removeItem('adl-resolved-theme');
     root = document.createElement('html');
     const mq = {
       matches: false,

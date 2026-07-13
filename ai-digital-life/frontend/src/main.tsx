@@ -3,7 +3,6 @@ import type { DigitalLifeBridge } from './shared/ipc';
 import { setupPreviewBridge } from './preview-bridge';
 import { createTauriBridge, isTauriShell } from './tauri-bridge';
 import { App } from './app/App';
-import { themeController } from './app/utils/theme';
 import './app/utils/debugLogCollector'; // 调试日志收集器
 import './styles/index.css';
 
@@ -42,8 +41,6 @@ declare global {
     digitalLife: DigitalLifeBridge;
   }
 }
-
-void themeController.hydrate();
 
 const container = document.getElementById('app');
 if (!container) {
