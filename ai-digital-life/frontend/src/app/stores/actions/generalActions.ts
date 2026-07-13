@@ -1,7 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { ConversationMessageRecord, ConversationBlock } from '@ai-digital-life/kernel';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
-import { asWorkspaceID } from '../../../shared/branded';
 import { themeController } from '@utils/theme';
 import { createEditorTab } from '@utils/editorTabs';
 import { loadConversationState, loadTaskCenterState } from '../loaders';
@@ -22,11 +21,15 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
      */
     bootstrap: async () => {
       const requestSeq = workspaceRequestSeq;
-      const bootStartedAt = Date.now();
+      const ts = performance.now();
+      console.log(`[BOOT-TIMING] bootstrap start`);
       const completeStartup = () => {
-        const elapsed = Date.now() - bootStartedAt;
-        const remaining = Math.max(0, 1500 - elapsed);
-        setTimeout(() => set({ appReady: true }), remaining);
+        console.log(`[BOOT-TIMING] phase2 complete at ${Math.round(performance.now() - ts)}ms`);
+        setTimeout(() => {
+          console.log(`[BOOT-TIMING] appReady set at ${Math.round(performance.now() - ts)}ms`);
+          set({ appReady: true });
+          console.log(`[BOOT-TIMING] appReady done at ${Math.round(performance.now() - ts)}ms`);
+        }, 0);
       };
 
       const [appInfoResult, recentResult, modelHealthResult] = await Promise.all([
@@ -80,6 +83,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       void window.digitalLife.workspace.setEditorDirtyPaths([]);
 
       // 尽早渲染 UI，不等 getGitStatus
+      console.log(`[BOOT-TIMING] phase1 complete at ${Math.round(performance.now() - ts)}ms`);
       set(nextState);
 
       if (appInfoResult.data.currentWorkspace) {
@@ -113,8 +117,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           });
         }
 
-        completeStartup();
-
         // Defer git status to low priority (it can take ~400ms)
         queueLowPriorityRefresh(async () => {
           if (requestSeq !== workspaceRequestSeq) {
@@ -129,6 +131,9 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
               gitSnapshot: gitResult.data,
               gitSnapshots: { [appInfoResult.data.currentWorkspace.id]: gitResult.data },
             });
+            console.log(
+              `[BOOT-TIMING] git status loaded at ${Math.round(performance.now() - ts)}ms`
+            );
           }
         });
 
@@ -136,19 +141,60 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           if (requestSeq !== workspaceRequestSeq) {
             return;
           }
-          const results = await Promise.allSettled([
+          await Promise.allSettled([
             get().fetchAuditEntries(40),
             get().fetchCommandHistory(),
             get().fetchGitBranches(),
-            ...visibleWorkspaces.map((w) => get().loadWorkspaceTree(asWorkspaceID(w.id), w.path)),
-            ...visibleWorkspaces.map((w) => get().loadGitSnapshot(w.id, w.path)),
           ]);
-          const errors = results
-            .filter((r) => r.status === 'rejected')
-            .map((r) => (r as PromiseRejectedResult).reason);
-          if (errors.length > 0) {
-            /* low-priority refresh failures */
+
+          if (visibleWorkspaces.length > 0) {
+            const wsResults = await Promise.allSettled(
+              visibleWorkspaces.map(async (w) => {
+                const [tree, snapshot] = await Promise.all([
+                  window.digitalLife.workspace.listTreeForWorkspace(w.path),
+                  window.digitalLife.workspace.listGitStatusForWorkspace(w.path),
+                ]);
+                return {
+                  id: w.id,
+                  tree: tree.ok ? tree.data : undefined,
+                  snapshot: snapshot.ok ? snapshot.data : undefined,
+                };
+              })
+            );
+            const batch: Partial<StoreState> = {};
+            for (const r of wsResults) {
+              if (r.status !== 'fulfilled') {
+                continue;
+              }
+              const { id, tree, snapshot } = r.value;
+              if (tree !== undefined) {
+                if (!batch.workspaceTrees) {
+                  batch.workspaceTrees = { ...get().workspaceTrees };
+                }
+                batch.workspaceTrees[id] = tree;
+                if (!batch.workspaceTreeLoading) {
+                  batch.workspaceTreeLoading = { ...get().workspaceTreeLoading };
+                }
+                batch.workspaceTreeLoading[id] = false;
+              }
+              if (snapshot !== undefined) {
+                if (!batch.gitSnapshots) {
+                  batch.gitSnapshots = { ...get().gitSnapshots };
+                }
+                batch.gitSnapshots[id] = snapshot;
+                if (!batch.workspaceChangesTreeLoading) {
+                  batch.workspaceChangesTreeLoading = { ...get().workspaceChangesTreeLoading };
+                }
+                batch.workspaceChangesTreeLoading[id] = false;
+              }
+            }
+            if (Object.keys(batch).length > 0) {
+              set(batch);
+            }
           }
+
+          console.log(`[BOOT-TIMING] workspaces loaded at ${Math.round(performance.now() - ts)}ms`);
+          completeStartup();
         });
         return;
       }

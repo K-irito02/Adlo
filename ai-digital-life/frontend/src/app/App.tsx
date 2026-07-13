@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import type { CopyDict, Locale } from './i18n';
 import { useAppStore } from './stores/slicedStore';
@@ -120,6 +120,33 @@ export function App() {
   }, [setActiveRightTool]);
 
   const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const [overlayHidden, setOverlayHidden] = useState(false);
+  const startedAt = useRef(0);
+  const hasLoggedReady = useRef(false);
+
+  useEffect(() => {
+    if (!t || !appReady) {
+      startedAt.current = performance.now();
+      setOverlayHidden(false);
+      hasLoggedReady.current = false;
+      return;
+    }
+    if (!hasLoggedReady.current) {
+      console.log(
+        `[OVERLAY-TIMING] ready at ${Math.round(performance.now() - startedAt.current)}ms`
+      );
+      hasLoggedReady.current = true;
+    }
+    const elapsed = performance.now() - startedAt.current;
+    const remaining = Math.max(0, 3500 - elapsed);
+    const timer = setTimeout(() => {
+      console.log(
+        `[OVERLAY-TIMING] hidden at ${Math.round(performance.now() - startedAt.current)}ms`
+      );
+      setOverlayHidden(true);
+    }, remaining);
+    return () => clearTimeout(timer);
+  }, [t, appReady]);
 
   // Guard: wait for i18n before rendering (safe to return after all hooks)
   if (!t) {
@@ -127,7 +154,7 @@ export function App() {
       <>
         <div className="adl-shell adl-ide" />
         <AnimatePresence>
-          {!appReady && (
+          {!overlayHidden && (
             <motion.div
               key="startup-overlay"
               initial={{ opacity: 1 }}
@@ -229,7 +256,7 @@ export function App() {
         )}
       </TCopyProvider>
       <AnimatePresence>
-        {!appReady && (
+        {!overlayHidden && (
           <motion.div
             key="startup-overlay"
             initial={{ opacity: 1 }}

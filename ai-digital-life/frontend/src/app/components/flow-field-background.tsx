@@ -1,23 +1,21 @@
 import React, { useEffect, useRef } from 'react';
 
 interface FlowFieldBackgroundProps {
-  className?: string;
   color?: string;
+  bgColor?: string;
   trailColor?: string;
   trailOpacity?: number;
   particleCount?: number;
   speed?: number;
-  containerClass?: string;
 }
 
 export default function FlowFieldBackground({
-  className = '',
   color = '#6366f1',
+  bgColor = '#000',
   trailColor = '0, 0, 0',
   trailOpacity = 0.15,
   particleCount = 600,
   speed = 1,
-  containerClass = 'bg-black',
 }: FlowFieldBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -132,7 +130,6 @@ export default function FlowFieldBackground({
       canvas.style.height = `${height}px`;
 
       particles = [];
-      // 初始只创建 200 个粒子，其余在 animate 中渐进补充
       const initialCount = 200;
       for (let i = 0; i < initialCount; i++) {
         particles.push(new Particle());
@@ -160,7 +157,6 @@ export default function FlowFieldBackground({
         });
       }
 
-      // 每帧补充最多 10 个粒子，直到达到目标数量
       if (particles.length < particleCount) {
         const batchSize = Math.min(10, particleCount - particles.length);
         for (let i = 0; i < batchSize; i++) {
@@ -193,8 +189,7 @@ export default function FlowFieldBackground({
     };
 
     init();
-    // 预填全黑背景，消除 trail 累积期视觉卡顿
-    ctx.fillStyle = '#000';
+    ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, width, height);
     animate();
 
@@ -208,14 +203,20 @@ export default function FlowFieldBackground({
       window.removeEventListener('pointerleave', handlePointerLeave);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [color, trailColor, trailOpacity, particleCount, speed]);
+  }, [color, bgColor, trailColor, trailOpacity, particleCount, speed]);
 
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full ${containerClass} overflow-hidden${className ? ` ${className}` : ''}`}
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        backgroundColor: bgColor,
+      }}
     >
-      <canvas ref={canvasRef} className="block w-full h-full" />
+      <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />
     </div>
   );
 }

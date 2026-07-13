@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { motion } from 'motion/react';
+import { useAppStore } from '../stores/slicedStore';
 import FlowFieldBackground from './flow-field-background';
 
 type ResolvedTheme = 'light' | 'dark';
@@ -21,8 +22,8 @@ function getThemeFromRoot(): ResolvedTheme {
   return getSystemTheme();
 }
 
-function getDisplayText(): string {
-  if (typeof navigator !== 'undefined' && navigator.language.startsWith('zh')) {
+function getDisplayText(language: string): string {
+  if (language.startsWith('zh')) {
     return '可燃';
   }
   return 'Kora';
@@ -30,15 +31,20 @@ function getDisplayText(): string {
 
 const THEME_COLORS: Record<
   ResolvedTheme,
-  { bg: string; trail: string; particle: string; stroke: string }
+  { bgHex: string; trail: string; particle: string; stroke: string }
 > = {
-  dark: { bg: 'bg-black', trail: '0, 0, 0', particle: '#818cf8', stroke: '#c7d2fe' },
-  light: { bg: 'bg-white', trail: '255, 255, 255', particle: '#4f46e5', stroke: '#3730a3' },
+  dark: { bgHex: '#000', trail: '0, 0, 0', particle: '#818cf8', stroke: '#c7d2fe' },
+  light: { bgHex: '#fff', trail: '255, 255, 255', particle: '#4f46e5', stroke: '#3730a3' },
 };
 
 export default function StartupOverlay() {
   const [theme, setTheme] = useState<ResolvedTheme>(getThemeFromRoot);
-  const displayText = useMemo(getDisplayText, []);
+  const storeLanguage = useAppStore((s) => s.appInfo?.config.language);
+  const displayLang = useMemo(
+    () => storeLanguage ?? (typeof navigator !== 'undefined' ? navigator.language : 'en'),
+    [storeLanguage]
+  );
+  const displayText = useMemo(() => getDisplayText(displayLang), [displayLang]);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
@@ -59,17 +65,26 @@ export default function StartupOverlay() {
   const colors = THEME_COLORS[theme];
 
   return (
-    <div className="fixed inset-0 z-9999">
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: colors.bgHex }}>
       <FlowFieldBackground
         particleCount={600}
         color={colors.particle}
         trailOpacity={0.15}
         trailColor={colors.trail}
+        bgColor={colors.bgHex}
         speed={1}
-        containerClass={colors.bg}
       />
-      <div className="absolute inset-0 flex items-center justify-center select-none">
-        <svg viewBox="0 0 500 120" className="w-80 max-w-[80vw]" aria-hidden="true">
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          userSelect: 'none',
+        }}
+      >
+        <svg viewBox="0 0 500 120" style={{ width: '320px', maxWidth: '80vw' }} aria-hidden="true">
           <motion.text
             x="250"
             y="60"
