@@ -72,11 +72,6 @@ export function App() {
     handleJumpPatchHunk,
   } = patchReview;
 
-  // Guard: wait for i18n before rendering (safe to return after all hooks)
-  if (!t) {
-    return <div className="adl-shell adl-ide" />;
-  }
-
   const handleCycleTheme = useCallback(() => {
     const mode = appInfo?.config.themeMode ?? 'system';
     const next: AppInfo['config']['themeMode'] =
@@ -122,6 +117,11 @@ export function App() {
   }, [setActiveRightTool]);
 
   const activeSessionId = useAppStore((s) => s.activeSessionId);
+
+  // Guard: wait for i18n before rendering (safe to return after all hooks)
+  if (!t) {
+    return <div className="adl-shell adl-ide" />;
+  }
 
   return (
     <TCopyProvider t={t} locale={locale}>
