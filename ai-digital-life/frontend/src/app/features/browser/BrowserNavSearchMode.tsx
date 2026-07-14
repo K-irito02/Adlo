@@ -1,4 +1,3 @@
-import React from 'react';
 import { SearchResultItem } from './BrowserSearchOverlay';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 

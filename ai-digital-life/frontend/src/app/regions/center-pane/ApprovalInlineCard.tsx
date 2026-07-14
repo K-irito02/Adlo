@@ -1,4 +1,3 @@
-import React from 'react';
 import { IconMessageQuestion } from '../../icons';
 import type { ApprovalRequestSummary } from '@ai-digital-life/kernel';
 import { useTCopy } from '../../i18n/useTCopy';

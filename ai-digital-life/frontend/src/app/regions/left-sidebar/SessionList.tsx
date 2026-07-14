@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReorderSessionsInput } from '@ai-digital-life/kernel';
 import type { CopyDict, Locale } from '../../i18n';
 import { RenameDialog } from '../../components/RenameDialog';

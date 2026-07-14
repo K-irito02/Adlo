@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserOpenTabFlatList } from './BrowserOpenTabFlatList';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 

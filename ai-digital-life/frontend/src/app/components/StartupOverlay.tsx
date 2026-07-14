@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { useAppStore } from '../stores/slicedStore';
 import { systemPrefersDark, type ResolvedTheme } from '../../design-system';

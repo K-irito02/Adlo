@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserTabTree } from '@features/browser-tree';
 import type { BrowserNavTabsModeProps } from './BrowserNavTabsMode';
 

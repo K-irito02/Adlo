@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { WelcomeState, type WelcomeStateProps } from './WelcomeState';
 import { MessageStream, type MessageStreamProps } from './MessageStream';
 import { Composer, type ComposerProps } from './Composer';

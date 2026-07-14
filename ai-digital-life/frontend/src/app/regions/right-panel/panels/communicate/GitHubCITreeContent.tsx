@@ -1,4 +1,3 @@
-import React from 'react';
 import { GitHubTree } from '@features/github-tree/GitHubTree';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import type { SectionCallbacks } from '@features/github-tree/GitHubCategorySection';

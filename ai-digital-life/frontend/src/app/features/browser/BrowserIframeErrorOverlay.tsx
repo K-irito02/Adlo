@@ -1,4 +1,3 @@
-import React from 'react';
 import { ExternalLinkError } from './ExternalLinkError';
 import { OrbitalLoader } from '@components/OrbitalLoader';
 import type { BrowserTabState } from '@stores/slices/browserSlice';

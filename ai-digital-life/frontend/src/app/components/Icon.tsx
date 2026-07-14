@@ -1,4 +1,3 @@
-import React from 'react';
 import { renderIcon, type IconName, type IconSize } from '../../design-system/icons';
 
 interface IconProps {

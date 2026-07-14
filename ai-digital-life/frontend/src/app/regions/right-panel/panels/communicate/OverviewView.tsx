@@ -1,4 +1,3 @@
-import React from 'react';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { StatusDot } from './StatusDot';
 import {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FileOutlineItem } from '@ai-digital-life/kernel';
 import { buildOutlineTree, type OutlineNode, getDefaultExpandedOutlineIds } from './outlineModel';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';

@@ -1,4 +1,3 @@
-import React from 'react';
 import { make } from './helper';
 
 export const IconPlus = make(

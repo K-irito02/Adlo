@@ -1,4 +1,3 @@
-import React from 'react';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type { BrowserTabState, TabFolderState } from '@stores/slices/browserSlice';
 import { useTCopy } from '@i18n/useTCopy';

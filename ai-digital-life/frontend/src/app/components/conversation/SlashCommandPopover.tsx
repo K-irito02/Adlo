@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CopyDict } from '../../i18n';
 import type { CommandConfig } from '@shared/ipc';
 

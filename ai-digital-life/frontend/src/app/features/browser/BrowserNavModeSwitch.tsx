@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Root as SwitchRoot, Thumb as SwitchThumb } from '@radix-ui/react-switch';
 import { motion } from 'motion/react';
 

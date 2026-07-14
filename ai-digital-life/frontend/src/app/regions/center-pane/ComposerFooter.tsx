@@ -1,4 +1,3 @@
-import React from 'react';
 import { IconArrowUp, IconMic, IconPlus, IconRefreshCw, IconStopCircle } from '../../icons';
 import { ContextBuilderPopover } from '../../components/conversation/ContextBuilderPopover';
 import { TooltipSimple } from '../../components/Tooltip';

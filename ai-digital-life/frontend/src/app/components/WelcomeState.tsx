@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTCopy } from '../i18n/useTCopy';
 import { Icon } from './Icon';
 

@@ -1,4 +1,3 @@
-import React from 'react';
 import type { CopyDict } from '../../i18n';
 import { IconAlertTriangle } from '../../icons';
 

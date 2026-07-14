@@ -1,4 +1,3 @@
-import React from 'react';
 import type { PatchReviewFilter } from './patchReview';
 import { useTCopy } from '@i18n/useTCopy';
 

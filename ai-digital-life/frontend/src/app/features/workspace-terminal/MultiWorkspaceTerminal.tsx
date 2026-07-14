@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type { TerminalTabState } from '@stores/slices/terminalSlice';
 import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';

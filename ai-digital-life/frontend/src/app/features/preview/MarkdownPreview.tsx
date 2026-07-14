@@ -1,4 +1,3 @@
-import React from 'react';
 import type { MarkdownPreviewProps } from './markdownPreviewUtils';
 import { useMarkdownPreviewHtml } from './markdownPreviewUtils';
 

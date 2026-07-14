@@ -1,4 +1,3 @@
-import React from 'react';
 import { IconGlobe } from '@icons';
 
 export function SearchResultItem({

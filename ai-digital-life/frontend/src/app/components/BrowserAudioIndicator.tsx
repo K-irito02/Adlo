@@ -1,4 +1,3 @@
-import React from 'react';
 import { useTCopy } from '../i18n/useTCopy';
 import { IconVolume2, IconVolumeX } from '../icons';
 import { TooltipSimple } from './Tooltip';

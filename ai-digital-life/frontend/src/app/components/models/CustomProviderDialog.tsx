@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
 import { IconClose } from '../../icons';

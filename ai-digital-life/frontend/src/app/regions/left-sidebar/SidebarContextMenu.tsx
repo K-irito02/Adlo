@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { IconFolder, IconFolderOpen } from '../../icons';
 import type { SidebarMenuItem } from './SidebarContextMenu.utils';
 

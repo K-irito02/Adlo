@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { List, useListRef } from 'react-window';
 import { useAppStore } from '@stores/slicedStore';
 import type { CiJobSummary } from '@ai-digital-life/kernel';

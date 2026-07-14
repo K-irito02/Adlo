@@ -1,4 +1,3 @@
-import React from 'react';
 import { GitHubTreeEntry } from './GitHubTreeEntry';
 import type { GitHubCategoryState, GitHubCategoryType } from './types';
 

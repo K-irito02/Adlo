@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import type * as PdfJsType from 'pdfjs-dist';
 

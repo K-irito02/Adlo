@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTCopy } from '../i18n/useTCopy';
 import { IconChevronRight, IconFolder, IconFolderOpen } from '../icons';
 import { TooltipSimple } from './Tooltip';

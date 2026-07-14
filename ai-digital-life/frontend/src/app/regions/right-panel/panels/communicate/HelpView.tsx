@@ -1,5 +1,3 @@
-import React from 'react';
-
 const sectionH3: React.CSSProperties = {
   fontSize: 'var(--text-xs)',
   fontWeight: 600,

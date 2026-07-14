@@ -1,4 +1,3 @@
-import React from 'react';
 import { IconHash } from '@icons';
 import { useTCopy } from '@i18n/useTCopy';
 

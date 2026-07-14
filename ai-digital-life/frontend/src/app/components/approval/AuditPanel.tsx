@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { AuditEntry, RiskLevel } from '@ai-digital-life/kernel';
 import type { CopyDict } from '../../i18n';
 import { useTCopy } from '../../i18n/useTCopy';

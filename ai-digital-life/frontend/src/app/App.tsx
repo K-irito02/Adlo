@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import type { CopyDict, Locale } from './i18n';
 import { useAppStore } from './stores/slicedStore';

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconFolder, IconFolderOpen, IconLightbulb, IconMessageSquare } from '../../icons';
 import { WorkspaceSplitButton } from '../../components/WorkspaceSplitButton';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';

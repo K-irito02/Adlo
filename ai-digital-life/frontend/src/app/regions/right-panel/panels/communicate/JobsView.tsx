@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { JobRow } from './JobRow';
 import { useTCopy } from '@app/i18n/useTCopy';

@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { BrowserTreeEntry } from './BrowserTreeEntry';
 import type { BrowserCategoryState, BrowserCategoryType } from './types';
 

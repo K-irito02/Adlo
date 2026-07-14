@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { GitHubLogViewer } from './GitHubLogViewer';
 

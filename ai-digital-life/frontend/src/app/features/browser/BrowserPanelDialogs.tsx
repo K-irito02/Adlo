@@ -1,4 +1,3 @@
-import React from 'react';
 import { RenameDialog } from '@components/RenameDialog';
 import { ToastContainer } from '@components/Toast';
 import { CreateTabDialog } from './browser-landing';

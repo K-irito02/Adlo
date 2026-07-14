@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { writeConversationPanelHeight, clampConversationPanelHeight } from './ResizeHandle.utils';
 import { useTCopy } from '../../i18n/useTCopy';
 

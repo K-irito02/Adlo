@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useBrowserTreeData } from './useBrowserTreeData';
 import { BrowserCategorySection } from './BrowserCategorySection';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';

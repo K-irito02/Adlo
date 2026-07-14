@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserTabTree } from '@features/browser-tree';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { BrowserBookmark } from '@stores/slices/browserSlice';

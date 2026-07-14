@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import { useCallback } from 'react';
 import { IconAlertTriangle, IconGlobe } from '@icons';
 import { isTauriShell } from '@tauri-bridge';
 import { open } from '@tauri-apps/plugin-shell';

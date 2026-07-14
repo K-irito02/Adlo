@@ -1,4 +1,3 @@
-import React from 'react';
 import { useGithubTreeData } from './useGithubTreeData';
 import type { SubEntryLabels } from './useGithubTreeData';
 import { GitHubCategorySection, type SectionCallbacks } from './GitHubCategorySection';

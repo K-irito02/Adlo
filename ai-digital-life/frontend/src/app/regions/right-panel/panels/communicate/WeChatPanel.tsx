@@ -1,4 +1,3 @@
-import React from 'react';
 import { useTCopy } from '@app/i18n/useTCopy';
 
 export function WeChatPanel() {

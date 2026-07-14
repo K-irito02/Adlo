@@ -1,4 +1,3 @@
-import React from 'react';
 import { IconArrowLeft, IconArrowRight } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { useTCopy } from '@i18n/useTCopy';
