@@ -140,7 +140,9 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
   const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch {}
+    } catch {
+      console.warn('[WorkspaceFileTreeEntry] clipboard write failed');
+    }
   }, []);
 
   const handleCopyFullPath = useCallback(async () => {

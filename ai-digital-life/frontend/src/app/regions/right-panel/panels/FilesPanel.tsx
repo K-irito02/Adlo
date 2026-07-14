@@ -144,7 +144,9 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     }
     try {
       await navigator.clipboard.writeText(value);
-    } catch {}
+    } catch {
+      console.warn('[FilesPanel] clipboard write failed');
+    }
   }, []);
 
   const handleNavigateLine = useCallback(

@@ -240,7 +240,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch {}
+    } catch {
+      console.warn('[FileNavigatorShell] clipboard write failed');
+    }
   }, []);
 
   const { getContextMenuItems } = useFileContextMenuItems({

@@ -180,7 +180,9 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   const copyToClipboard = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch {}
+    } catch {
+      console.warn('[WorkspaceChangesEntry] clipboard write failed');
+    }
   }, []);
 
   const handleCopyFullPath = useCallback(async () => {

@@ -124,7 +124,9 @@ export function WorkspaceSplitButton({
     if (persistMode) {
       try {
         localStorage.setItem('adl_workspace_menu_mode', mode);
-      } catch {}
+      } catch {
+        console.warn('[WorkspaceSplitButton] failed to persist menu mode');
+      }
     }
   };
 
@@ -323,7 +325,9 @@ export function WorkspaceSplitButton({
                     setDefaultCreateDir(val);
                     try {
                       localStorage.setItem('adl_workspace_default_create_dir', val);
-                    } catch {}
+                    } catch {
+                      console.warn('[WorkspaceSplitButton] failed to persist create dir default');
+                    }
                   }}
                   placeholder={t.workspacePlaceholder}
                 />
@@ -337,7 +341,9 @@ export function WorkspaceSplitButton({
                         setDefaultCreateDir(path);
                         try {
                           localStorage.setItem('adl_workspace_default_create_dir', path);
-                        } catch {}
+                        } catch {
+                          console.warn('[WorkspaceSplitButton] failed to persist create dir path');
+                        }
                       }
                     });
                   }}

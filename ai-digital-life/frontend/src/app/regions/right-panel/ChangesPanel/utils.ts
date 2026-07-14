@@ -18,7 +18,9 @@ export function readSelectedBranch(initialBranch: string): string {
 export function writeSelectedBranch(branch: string) {
   try {
     window.localStorage.setItem(CHANGES_BRANCH_STORAGE_KEY, branch);
-  } catch {}
+  } catch {
+    console.warn('[ChangesPanel/utils] failed to persist selected branch');
+  }
 }
 
 export function getChangeKindLabel(changeKind: 'added' | 'modified' | 'deleted', t: CopyDict) {
