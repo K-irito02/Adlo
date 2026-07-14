@@ -162,7 +162,7 @@ fn emit_approval_decided_event(
         .map(|task| task.session_id)
         .unwrap_or_else(|| approval.task_id.clone());
     let ts = adl_kernel::now_ms();
-    let seq = crate::run_activity_seq::next_run_activity_seq(ts);
+    let seq = adl_agent_runtime::run_activity_seq::next_run_activity_seq(ts);
     let decision_str = match decision {
         ApprovalDecision::Approved => "approved",
         ApprovalDecision::Rejected => "rejected",
@@ -315,7 +315,7 @@ fn emit_command_activity_event(
     exit_code: Option<i32>,
 ) {
     let ts = adl_kernel::now_ms();
-    let seq = crate::run_activity_seq::next_run_activity_seq(ts);
+    let seq = adl_agent_runtime::run_activity_seq::next_run_activity_seq(ts);
     let event = adl_kernel::DigitalLifeRunActivityEventV1::Command {
         v: 1,
         run_id: run_id.to_string(),

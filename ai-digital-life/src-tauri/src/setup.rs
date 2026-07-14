@@ -232,7 +232,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
 
     // Run-activity housekeeping (best-effort).
     let t5 = std::time::Instant::now();
-    crate::run_activity_seq::init_run_activity_seq_seed();
+    adl_agent_runtime::run_activity_seq::init_run_activity_seq_seed();
     let _ = db.prune_run_activity_events(Some(30_i64 * 24 * 60 * 60 * 1_000), Some(200_000));
     info!("[ADL-PERF] housekeeping: {}ms", t5.elapsed().as_millis());
 

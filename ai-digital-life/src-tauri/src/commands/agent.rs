@@ -111,7 +111,7 @@ fn make_activity_emitter<'a>(
     let run_id = run_id.to_string();
     move |event: serde_json::Value| {
         let ts = now_ms();
-        let seq = crate::run_activity_seq::next_run_activity_seq(ts);
+        let seq = adl_agent_runtime::run_activity_seq::next_run_activity_seq(ts);
         let payload = match event {
             serde_json::Value::Object(mut obj) => {
                 let event_type = obj

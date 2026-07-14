@@ -85,7 +85,7 @@ fn emit_patch_rollback_activity(
     run_id: &str,
 ) {
     let ts = adl_kernel::now_ms();
-    let seq = crate::run_activity_seq::next_run_activity_seq(ts);
+    let seq = adl_agent_runtime::run_activity_seq::next_run_activity_seq(ts);
     let event = adl_kernel::DigitalLifeRunActivityEventV1::Patch {
         v: 1,
         run_id: run_id.to_string(),
@@ -194,7 +194,7 @@ fn emit_patch_apply_event(
 ) -> Result<(), AppError> {
     if let Some(run_id) = &patch_set.run_id {
         let ts = adl_kernel::now_ms();
-        let seq = crate::run_activity_seq::next_run_activity_seq(ts);
+        let seq = adl_agent_runtime::run_activity_seq::next_run_activity_seq(ts);
         let event = adl_kernel::DigitalLifeRunActivityEventV1::Patch {
             v: 1,
             run_id: run_id.to_string(),

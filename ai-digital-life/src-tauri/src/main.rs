@@ -7,7 +7,6 @@ use tracing::info;
 
 mod commands;
 mod error;
-mod run_activity_seq;
 mod setup;
 mod state;
 mod tauri_webview_handle;
