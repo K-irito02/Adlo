@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type { CopyDict } from '@i18n';
@@ -17,6 +17,7 @@ import {
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { TerminalTabBar } from '../terminal/TerminalTabBar';
+import { useClickOutside } from '@hooks';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -79,6 +80,8 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
     }))
   );
   const subHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const menuContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -102,43 +105,34 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
 
   const defaultProfileLabel = profileLabels[currentProfile];
 
+  const closeMenu = useCallback(() => {
+    if (subHideTimerRef.current) {
+      clearTimeout(subHideTimerRef.current);
+    }
+    setMenuOpen(false);
+    setMenuPosition(null);
+    setSubHover(false);
+  }, []);
+
+  const clickOutsideRefs = useMemo(() => [headerRef, menuContainerRef] as const, []);
+
+  useClickOutside(clickOutsideRefs, menuOpen, {
+    onOutsideClick: closeMenu,
+    onEscape: closeMenu,
+  });
+
   useEffect(() => {
     if (!menuOpen) {
       return;
     }
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      const menuEl = document.querySelector(`[data-menu-id="${menuId}"]`);
-      const subMenuEl = document.querySelector(`[data-menu-id="${subMenuId}"]`);
-      const zone = document.querySelector(`[data-menu-zone-id="${menuId}"]`);
-      if (zone?.contains(target)) {
-        return;
-      }
-      if (menuEl?.contains(target)) {
-        return;
-      }
-      if (subMenuEl?.contains(target)) {
-        return;
-      }
-      setMenuOpen(false);
-    };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setMenuOpen(false);
-      }
-    };
     const handleScroll = () => {
       setMenuOpen(false);
     };
-    window.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('keydown', handleEscape);
     window.addEventListener('scroll', handleScroll, true);
     return () => {
-      window.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('keydown', handleEscape);
       window.removeEventListener('scroll', handleScroll, true);
     };
-  }, [menuOpen, menuId, subMenuId]);
+  }, [menuOpen]);
 
   const handleNameClick = useCallback(() => {
     onToggleExpand();
@@ -170,15 +164,6 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
     subHideTimerRef.current = setTimeout(() => {
       setSubHover(false);
     }, 150);
-  }, []);
-
-  const closeMenu = useCallback(() => {
-    if (subHideTimerRef.current) {
-      clearTimeout(subHideTimerRef.current);
-    }
-    setMenuOpen(false);
-    setMenuPosition(null);
-    setSubHover(false);
   }, []);
 
   const handleMoreClick = useCallback((e: React.MouseEvent) => {
@@ -249,7 +234,7 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
       key={renderKey}
       className={`adl-multitree-entry${isIndependent ? ' adl-multitree-entry--independent' : ''}${!workspace.available ? ' is-unavailable' : ''}`}
     >
-      <div className="adl-multitree-entry__header" data-menu-zone-id={menuId}>
+      <div className="adl-multitree-entry__header" data-menu-zone-id={menuId} ref={headerRef}>
         <div className="adl-multitree-entry__expand">
           <TooltipSimple content={isExpanded ? t.fileCollapse : t.fileExpand} placement="top">
             <button
@@ -333,71 +318,71 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
 
       {menuOpen && menuPosition
         ? createPortal(
-            <div
-              className="adl-multitree-entry__menu"
-              role="menu"
-              data-menu-id={menuId}
-              style={{ top: menuPosition.top, left: menuPosition.left }}
-            >
-              {!isIndependent && (
-                <button
-                  type="button"
-                  className="adl-multitree-entry__menu-item"
-                  role="menuitem"
-                  onClick={handleHideFromRightPanels}
-                >
-                  <IconEyeOff size={14} />
-                  {t.terminalRemoveFromView}
-                </button>
-              )}
-              {!isIndependent && <div className="adl-multitree-entry__menu-sep" role="separator" />}
+            <div ref={menuContainerRef}>
               <div
-                ref={subMenuTriggerRef}
-                className="adl-multitree-entry__menu-item adl-multitree-entry__menu-item--with-sub"
-                data-sub-menu-id={subMenuId}
-                onMouseEnter={showSubMenu}
-                onMouseLeave={hideSubMenuDelayed}
+                className="adl-multitree-entry__menu"
+                role="menu"
+                data-menu-id={menuId}
+                style={{ top: menuPosition.top, left: menuPosition.left }}
               >
-                <IconTerminal size={14} />
-                <span className="adl-multitree-entry__menu-item-content">
-                  {formatT(t, 'terminalDefaultProfile', { profile: defaultProfileLabel })}
-                </span>
-                <span className="adl-multitree-entry__menu-item-arrow">
-                  <IconChevronRight size={12} decorative />
-                </span>
-              </div>
-            </div>,
-            document.body
-          )
-        : null}
-
-      {menuOpen && subHover && subMenuPosition
-        ? createPortal(
-            <div
-              className="adl-multitree-entry__menu adl-multitree-entry__menu--sub"
-              role="menu"
-              data-menu-id={subMenuId}
-              style={{ top: subMenuPosition.top, left: subMenuPosition.left }}
-              onMouseEnter={showSubMenu}
-              onMouseLeave={hideSubMenuDelayed}
-            >
-              {(['powershell', 'bash', 'cmd'] as TerminalProfile[]).map((profile) => (
-                <button
-                  key={profile}
-                  type="button"
-                  className={`adl-multitree-entry__menu-item${profile === currentProfile ? ' is-active' : ''}`}
-                  role="menuitemradio"
-                  aria-checked={profile === currentProfile}
-                  onClick={() => handleSelectDefaultProfile(profile)}
+                {!isIndependent && (
+                  <button
+                    type="button"
+                    className="adl-multitree-entry__menu-item"
+                    role="menuitem"
+                    onClick={handleHideFromRightPanels}
+                  >
+                    <IconEyeOff size={14} />
+                    {t.terminalRemoveFromView}
+                  </button>
+                )}
+                {!isIndependent && (
+                  <div className="adl-multitree-entry__menu-sep" role="separator" />
+                )}
+                <div
+                  ref={subMenuTriggerRef}
+                  className="adl-multitree-entry__menu-item adl-multitree-entry__menu-item--with-sub"
+                  data-sub-menu-id={subMenuId}
+                  onMouseEnter={showSubMenu}
+                  onMouseLeave={hideSubMenuDelayed}
                 >
-                  <span className="adl-multitree-entry__menu-item-label">
-                    {profileLabels[profile]}
+                  <IconTerminal size={14} />
+                  <span className="adl-multitree-entry__menu-item-content">
+                    {formatT(t, 'terminalDefaultProfile', { profile: defaultProfileLabel })}
                   </span>
-                  {profile === currentProfile ? (
-                    <span className="adl-multitree-entry__menu-item-check">√</span>
-                  ) : null}
-                </button>
-              ))}
+                  <span className="adl-multitree-entry__menu-item-arrow">
+                    <IconChevronRight size={12} decorative />
+                  </span>
+                </div>
+              </div>
+              {subHover && subMenuPosition ? (
+                <div
+                  className="adl-multitree-entry__menu adl-multitree-entry__menu--sub"
+                  role="menu"
+                  data-menu-id={subMenuId}
+                  style={{ top: subMenuPosition.top, left: subMenuPosition.left }}
+                  onMouseEnter={showSubMenu}
+                  onMouseLeave={hideSubMenuDelayed}
+                >
+                  {(['powershell', 'bash', 'cmd'] as TerminalProfile[]).map((profile) => (
+                    <button
+                      key={profile}
+                      type="button"
+                      className={`adl-multitree-entry__menu-item${profile === currentProfile ? ' is-active' : ''}`}
+                      role="menuitemradio"
+                      aria-checked={profile === currentProfile}
+                      onClick={() => handleSelectDefaultProfile(profile)}
+                    >
+                      <span className="adl-multitree-entry__menu-item-label">
+                        {profileLabels[profile]}
+                      </span>
+                      {profile === currentProfile ? (
+                        <span className="adl-multitree-entry__menu-item-check">√</span>
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </div>,
             document.body
           )

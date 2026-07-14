@@ -95,4 +95,60 @@ describe('useClickOutside', () => {
     expect(onOutsideClick).not.toHaveBeenCalled();
     expect(onEscape).not.toHaveBeenCalled();
   });
+
+  describe('with multiple refs', () => {
+    function multiSetup(enabled = true) {
+      const target1 = document.createElement('div');
+      const target2 = document.createElement('div');
+      document.body.appendChild(target1);
+      document.body.appendChild(target2);
+      const outside = document.createElement('div');
+      document.body.appendChild(outside);
+
+      const ref1 = { current: target1 } as React.RefObject<Element | null>;
+      const ref2 = { current: target2 } as React.RefObject<Element | null>;
+      const onOutsideClick = vi.fn();
+      const onEscape = vi.fn();
+
+      const { rerender, unmount } = renderHook(
+        (props: {
+          refs: readonly React.RefObject<Element | null>[];
+          enabled: boolean;
+          onOutsideClick: () => void;
+          onEscape: () => void;
+        }) => useClickOutside(props.refs, props.enabled, {
+          onOutsideClick: props.onOutsideClick,
+          onEscape: props.onEscape,
+        }),
+        {
+          initialProps: {
+            refs: [ref1, ref2],
+            enabled,
+            onOutsideClick,
+            onEscape,
+          },
+        }
+      );
+
+      return { target1, target2, outside, onOutsideClick, onEscape, rerender, unmount };
+    }
+
+    it('calls onOutsideClick when clicking outside all refs', () => {
+      const { outside, onOutsideClick } = multiSetup();
+      dispatchMouseDown(outside);
+      expect(onOutsideClick).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call onOutsideClick when clicking inside first ref', () => {
+      const { target1, onOutsideClick } = multiSetup();
+      dispatchMouseDown(target1);
+      expect(onOutsideClick).not.toHaveBeenCalled();
+    });
+
+    it('does not call onOutsideClick when clicking inside second ref', () => {
+      const { target2, onOutsideClick } = multiSetup();
+      dispatchMouseDown(target2);
+      expect(onOutsideClick).not.toHaveBeenCalled();
+    });
+  });
 });

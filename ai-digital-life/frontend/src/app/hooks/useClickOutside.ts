@@ -5,8 +5,10 @@ export interface UseClickOutsideOptions {
   onEscape?: () => void;
 }
 
+type ClickOutsideRef = RefObject<Element | null>;
+
 export function useClickOutside(
-  ref: RefObject<Element | null>,
+  ref: ClickOutsideRef | readonly ClickOutsideRef[],
   enabled: boolean,
   { onOutsideClick, onEscape }: UseClickOutsideOptions
 ): void {
@@ -15,8 +17,11 @@ export function useClickOutside(
       return;
     }
 
+    const refs = Array.isArray(ref) ? ref : [ref];
+
     const handleMouseDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      const isOutside = refs.every((r) => !r.current?.contains(e.target as Node));
+      if (isOutside) {
         onOutsideClick?.();
       }
     };
