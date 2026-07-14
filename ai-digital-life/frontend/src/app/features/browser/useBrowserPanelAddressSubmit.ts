@@ -1,5 +1,4 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
-import { isTauriShell } from '@tauri-bridge';
 import { useAppStore } from '@stores/slicedStore';
 import { findInBrowserLookupIndex } from './useBrowserSearch';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
@@ -55,7 +54,7 @@ export function useBrowserPanelAddressSubmit({
 
     const version = ++submitVersionRef.current;
 
-    if (!isTauriShell()) {
+    if (!useAppStore.getState().isTauri) {
       const cached = isEmbedBlocked(finalUrl);
       if (cached !== undefined) {
         if (submitVersionRef.current !== version) {
@@ -92,11 +91,11 @@ export function useBrowserPanelAddressSubmit({
     // Always defer tab creation until real title arrives via handlePageMeta
     handleNavigationStart(finalUrl);
     setAddress(finalUrl);
-    if (isTauriShell()) {
+    if (useAppStore.getState().isTauri) {
       browserNavigateActiveTab(finalUrl, undefined);
     }
 
-    if (!isTauriShell() && finalUrl) {
+    if (!useAppStore.getState().isTauri && finalUrl) {
       import('@utils/fetchPageMeta').then((mod) => {
         mod.fetchPageMeta(finalUrl).then((meta) => {
           if (!meta) {

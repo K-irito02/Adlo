@@ -5,7 +5,6 @@ import {
   type RefObject,
   type SetStateAction,
 } from 'react';
-import { isTauriShell } from '@tauri-bridge';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
@@ -55,7 +54,7 @@ export function useBrowserPanelEffects({
       useAppStore.getState().setShowLandingPage(false);
     }
 
-    if (!isTauriShell() && url && url !== '' && url !== 'about:blank') {
+    if (!useAppStore.getState().isTauri && url && url !== '' && url !== 'about:blank') {
       requestAnimationFrame(() => {
         setIframeHistory((prev) => {
           if (prev.entries[prev.index] === url) {

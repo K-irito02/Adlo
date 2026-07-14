@@ -6,7 +6,6 @@ import { BrowserNavigator } from './BrowserNavigator';
 import { useNavigatorResize } from '@hooks/useNavigatorResize';
 import { computeNavigatorCount, findTabByUrl } from './useBrowserTabs';
 import { BrowserIframeStack } from './BrowserIframeStack';
-import { isTauriShell } from '@tauri-bridge';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import type { BrowserSearchScope } from './useBrowserSearch';
 import type { BrowserMenuItem } from './useBrowserMenus';
@@ -230,7 +229,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
         const activeTabId = state.browserActiveTabId;
         if (activeTabId && state.browserTabs.find((t) => t.id === activeTabId)) {
           state.browserNavigateActiveTab(url);
-          if (isTauriShell()) {
+          if (useAppStore.getState().isTauri) {
             window.digitalLife?.browser?.navigateTab(activeTabId, url).catch(() => {});
           }
           return;

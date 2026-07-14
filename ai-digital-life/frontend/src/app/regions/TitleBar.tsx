@@ -19,7 +19,6 @@ import {
 } from '../icons';
 import logoUrl from '/logo-chatgpt.png?url';
 import { useAppStore } from '../stores/slicedStore';
-import { isTauriShell } from '../../tauri-bridge';
 import { TooltipSimple } from '../components/Tooltip';
 import { NotificationCard } from '../components/NotificationCard';
 import { useFileMenuItems, useViewMenuItems, useHelpMenuItems } from './titleBarMenus';
@@ -199,7 +198,7 @@ const TitleBar = React.memo(function TitleBar({
   const nextLanguage = language === 'zh-CN' ? 'en-US' : 'zh-CN';
 
   const handleClose = useCallback(() => {
-    if (!isTauriShell()) {
+    if (!useAppStore.getState().isTauri) {
       return;
     }
     void window.digitalLife.window.close();

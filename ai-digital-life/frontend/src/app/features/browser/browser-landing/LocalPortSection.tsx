@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { createUiId } from '@stores/shared';
-import { isTauriShell } from '@tauri-bridge';
 import type { LocalPort } from '@stores/slices/browserSlice';
 import './LocalPortSection.css';
 
@@ -55,7 +54,7 @@ export function LocalPortSection({
     try {
       let discovered: Array<{ host: string; port: number }> = [];
 
-      if (isTauriShell()) {
+      if (useAppStore.getState().isTauri) {
         // Tauri 模式：暂不支持服务端扫描，保持端口列表不变
       } else {
         const response = await fetch(SCAN_API);

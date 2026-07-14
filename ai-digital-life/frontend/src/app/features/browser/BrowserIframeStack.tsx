@@ -4,7 +4,6 @@ import { ErrorBoundary } from '@components/ErrorBoundary';
 import { ExternalLinkError } from './ExternalLinkError';
 import { BrowserIframeErrorOverlay } from './BrowserIframeErrorOverlay';
 import { useAppStore } from '@stores/slicedStore';
-import { isTauriShell } from '@tauri-bridge';
 import { BrowserLandingPage } from './browser-landing';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { CopyDict } from '@i18n/types';
@@ -47,6 +46,7 @@ export function BrowserIframeStack({
   const inactiveIframeRef = useRef<HTMLIFrameElement | null>(null);
   const iframeLruOrderRef = useRef<string[]>([]);
   const [evictedTabIds, setEvictedTabIds] = useState<Set<string>>(() => new Set());
+  const isTauri = useAppStore(s => s.isTauri);
 
   useEffect(() => {
     if (!window.digitalLife?.browser?.onAudioStateChanged) {
@@ -63,7 +63,7 @@ export function BrowserIframeStack({
   }, []);
 
   useEffect(() => {
-    if (isTauriShell() || !activeTab) {
+    if (isTauri || !activeTab) {
       return;
     }
     const audioMonitor = (window as unknown as Record<string, unknown>)['__adlAudioMonitor'] as
@@ -84,7 +84,7 @@ export function BrowserIframeStack({
   }, [browserTabs, activatedTabIdsRef]);
 
   useEffect(() => {
-    if (isTauriShell() || !activeTab) {
+    if (isTauri || !activeTab) {
       return;
     }
     const tabId = activeTab.id;
@@ -110,7 +110,7 @@ export function BrowserIframeStack({
         </div>
       ) : (
         <div className="adl-browser-iframe-stack">
-          {!isTauriShell() &&
+          {!isTauri &&
             browserTabs.map((tab) => {
               const isActive = tab.id === activeTab?.id;
               const wasActivated = isActive || activatedTabIdsRef.current.has(tab.id);
@@ -167,7 +167,7 @@ export function BrowserIframeStack({
               );
             })}
 
-          {isTauriShell() && (
+          {isTauri && (
             <BrowserIframeErrorOverlay
               t={t}
               activeTab={activeTab}

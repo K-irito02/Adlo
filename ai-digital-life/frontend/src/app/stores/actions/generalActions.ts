@@ -6,6 +6,7 @@ import { loadConversationState, loadTaskCenterState } from '../loaders';
 import { workspaceContextModeFromInfo } from '../conversationUtils';
 import { workspaceRequestSeq, queueLowPriorityRefresh, clearError, captureError } from '../shared';
 import { resolveCurrentTheme } from '@shared/resolveTheme';
+import { isTauriShell } from '../../../tauri-bridge';
 import type { StoreApi } from 'zustand';
 
 export function createGeneralActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
@@ -60,6 +61,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       );
 
       const nextState: Partial<StoreState> = {
+        isTauri: isTauriShell(),
         appInfo: appInfoResult.data,
         modelHealth: modelHealthResult.ok ? modelHealthResult.data : undefined,
         recentWorkspaces,

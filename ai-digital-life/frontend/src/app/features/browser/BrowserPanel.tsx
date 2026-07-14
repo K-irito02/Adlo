@@ -16,7 +16,6 @@ import { useBrowserMenus } from './useBrowserMenus';
 import { BrowserContextMenu } from './BrowserContextMenu';
 import { BrowserPanelContent } from './BrowserPanelContent';
 import { useBrowserThemeSync } from './useBrowserThemeSync';
-import { isTauriShell } from '@tauri-bridge';
 import type { BrowserPanelProps } from '@regions/right-panel/types';
 import { useTCopy } from '@i18n/useTCopy';
 import {
@@ -339,8 +338,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
     return result;
   }, [browserTabs, activeTab?.id, isTabInPool]);
 
+  const isTauri = useAppStore(s => s.isTauri);
   const isEmbedPending =
-    !isTauriShell() &&
+    !isTauri &&
     !!activeTab?.url &&
     activeTab?.url !== 'about:blank' &&
     !validatedUrlsRef.current.has(activeTab.url ?? '') &&

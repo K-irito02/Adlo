@@ -133,6 +133,7 @@ interface StoreStateBase
   appReady: boolean;
   error?: string;
   isFetching: Record<string, boolean>;
+  isTauri: boolean;
   /** 自定义 Agent 列表 */
   customAgents: AgentConfig[];
   /** 是否正在拉取自定义 Agent 列表 */

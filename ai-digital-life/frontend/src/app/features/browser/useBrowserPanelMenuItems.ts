@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { isTauriShell } from '@tauri-bridge';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserMenuItem } from './useBrowserMenus';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
@@ -20,7 +19,7 @@ export function useBrowserPanelMenuItems({
   setZoomLevel,
   t,
 }: UseBrowserPanelMenuItemsParams): { browserMenuItems: BrowserMenuItem[] } {
-  const isTauri = isTauriShell();
+  const isTauri = useAppStore(s => s.isTauri);
 
   const browserMenuItems = useMemo(
     () => [

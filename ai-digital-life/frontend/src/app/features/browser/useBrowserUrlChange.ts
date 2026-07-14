@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { isTauriShell } from '@tauri-bridge';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { PageMeta } from '@shared/ipc';
 import { fetchPageMeta, prefetchPageMeta } from '@utils/fetchPageMeta';
@@ -168,7 +167,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
   }, [setIframeLoadError]);
 
   useEffect(() => {
-    if (!isTauriShell()) {
+    if (!useAppStore.getState().isTauri) {
       return;
     }
 

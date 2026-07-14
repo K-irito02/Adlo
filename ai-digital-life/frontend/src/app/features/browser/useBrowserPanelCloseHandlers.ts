@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { isTauriShell } from '@tauri-bridge';
 import { useAppStore } from '@stores/slicedStore';
 
 interface UseBrowserPanelCloseHandlersParams {
@@ -34,7 +33,7 @@ export function useBrowserPanelCloseHandlers({
       const tabIdsToDestroy = beforeState.browserTabs.map((t) => t.id);
       originalCloseAllTabs(workspaceId);
       if (!workspaceId) {
-        if (isTauriShell()) {
+        if (useAppStore.getState().isTauri) {
           for (const tid of tabIdsToDestroy) {
             removeFromPool(tid);
           }
