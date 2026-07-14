@@ -11,151 +11,94 @@ import {
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
+import { useNavigatorResize } from '@hooks/useNavigatorResize';
 import { resolveFolderWorkspaceId } from './browserPanelHelpers';
 import { BrowserNavOpenMode } from './BrowserNavOpenMode';
 import { BrowserNavTabsMode } from './BrowserNavTabsMode';
 import { BrowserNavListMode } from './BrowserNavListMode';
 import { BrowserNavSearchMode } from './BrowserNavSearchMode';
-import type { BrowserNavigatorMode } from './useBrowserTabs';
-import type { BrowserSearchScope } from './useBrowserSearch';
-import type {
-  BrowserTabState,
-  BrowserBookmark,
-  WorkspaceBookmarkEntry,
-} from '@stores/slices/browserSlice';
-import type { TabFolderState } from '@stores/slices/browserFoldersSlice';
-import type { BrowserHistoryState } from '@stores/slices/browserHistorySlice';
+import { useBrowserPanelState } from './BrowserPanelStateContext';
+import { useBrowserPanelActions } from './BrowserPanelActionsContext';
+import { useAppStore } from '@stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import type { ToastType } from '@components/Toast';
-import type { CopyDict } from '@i18n/types';
+import type { BrowserBookmark, WorkspaceBookmarkEntry } from '@stores/slices/browserSlice';
+import type { BrowserHistoryState } from '@stores/slices/browserHistorySlice';
 
-export interface BrowserNavigatorProps {
-  t: CopyDict;
-  navigatorTitle: string;
-  openTabCount: number;
-  allTreeExpanded: boolean;
-  navigatorMode: BrowserNavigatorMode;
-  browserNavigatorWidth: number;
-  activeTabId: string;
-  evictedTabIds?: ReadonlySet<string>;
+export function BrowserNavigator() {
+  const {
+    t,
+    navigatorTitle,
+    openTabCount,
+    allTreeExpanded,
+    navigatorMode,
+    browserNavigatorWidth,
+    activeTab,
+    evictedTabIds,
+    navigatorQuery,
+    searchScope,
+    searchResults,
+    navigatorSearchRef,
+    navigatorSearchInputRef,
+    selectedTreePath,
+    selectedTreePathRef,
+    visibleWorkspaces,
+    browserTabs,
+    browserTabFolders,
+    tabTreeExpanded,
+  } = useBrowserPanelState();
 
-  onExpandAllTree: () => void;
-  onCollapseAllTree: () => void;
-  onSetNavigatorMode: React.Dispatch<React.SetStateAction<BrowserNavigatorMode>>;
+  const activeTabId = activeTab?.id ?? '';
 
-  visibleWorkspaces: RecentWorkspaceEntry[];
-  browserTabs: BrowserTabState[];
-  browserTabFolders: TabFolderState[];
-  browserHistory: BrowserHistoryState[];
-  browserWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>;
-  browserBookmarks?: BrowserBookmark[];
-  browserBookmarkTabIdUrlMap?: Record<string, string>;
-  tabTreeExpanded: Record<string, boolean>;
-  selectedTreePath: string | null;
-  selectedTreePathRef: React.MutableRefObject<string | null>;
+  const {
+    handleExpandAllTree,
+    handleCollapseAllTree,
+    setNavigatorMode,
+    handleSelectTreePath,
+    handleToggleTreePath,
+    handleDeleteAllChildTabs,
+    handleDeleteOwnChildTabs,
+    handleOpenAllInNewTabs,
+    handleRemoveFromArea,
+    handleDeleteDirectory,
+    handleDeleteHistoryLevel,
+    handleCloseAllTabs,
+    handleClearTabDirectories,
+    browserOpenTab,
+    handleOpenTabFromTree,
+    handleRefreshTab,
+    handleEditTab,
+    handleDeleteTab,
+    handleCopyTabLink,
+    handleOpenTabInNewTab,
+    handleOpenTabInCurrentTab,
+    onBookmarkTab,
+    onRemoveBookmarkTab,
+    handleCloseTab,
+    handleSetCreateTabDialog: setCreateTabDialog,
+    setCreateDirDialog,
+    setRenameFolderState,
+    setNavigatorQuery,
+    setSearchScope,
+    showToast,
+  } = useBrowserPanelActions();
 
-  onSelectTreePath: (path: string | null) => void;
-  onToggleTreePath: (path: string) => void;
-  onDeleteAllChildTabs: (categoryType: string, nodePath: string) => void;
-  onDeleteOwnChildTabs: (categoryType: string, nodePath: string) => void;
-  onOpenAllInNewTabs: (categoryType: string, nodePath: string) => void;
-  onRemoveFromArea: (workspaceId: string) => void;
-  onDeleteDirectory: (folderId: string) => void;
-  onDeleteHistoryLevel: (level: 'label' | 'year' | 'month' | 'day', nodePath: string) => void;
-  onCloseAllTabs: () => void;
-  onClearTabDirectories: () => void;
-  onOpenTab: (url?: string, title?: string, workspaceId?: string) => void;
-  onOpenTabFromTree: (url: string, tabId?: string) => void;
+  const { browserBookmarks, browserBookmarkTabIdUrlMap, browserHistory, browserWorkspaceBookmarks, setBrowserNavigatorWidth } = useAppStore(
+    useShallow((state) => ({
+      browserBookmarks: state.browserBookmarks,
+      browserBookmarkTabIdUrlMap: state.browserBookmarkTabIdUrlMap,
+      browserHistory: state.browserHistory,
+      browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
+      setBrowserNavigatorWidth: state.setBrowserNavigatorWidth,
+    }))
+  );
 
-  onRefreshTab: (tabId: string, url: string) => void;
-  onEditTab: (tabId: string, name: string, url: string) => void;
-  onDeleteTab: (tabId: string, url: string) => void;
-  onCopyTabLink: (url: string) => void;
-  onOpenTabInNewTab: (url: string, title: string) => void;
-  onOpenTabInCurrentTab: (tabId: string) => void;
-  onBookmarkTab?: (url: string, title: string) => void;
-  onCloseTabHandler?: (tabId: string) => void;
-  onRemoveBookmarkTab?: (tabId: string, url: string) => void;
+  const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
+    onWidthCommit: setBrowserNavigatorWidth,
+    minWidth: 180,
+    maxWidth: 300,
+  });
 
-  onCreateTabDialog: React.Dispatch<
-    React.SetStateAction<{ open: boolean; workspaceId?: string; folderId?: string }>
-  >;
-  onCreateDirDialog: React.Dispatch<
-    React.SetStateAction<{ open: boolean; parentPath: string | null }>
-  >;
-  onRenameFolder: React.Dispatch<
-    React.SetStateAction<{ open: boolean; folderId: string; currentName: string }>
-  >;
-
-  navigatorQuery: string;
-  searchScope: BrowserSearchScope;
-  searchResults: Array<{ title: string; url: string; source: string }>;
-  navigatorSearchRef: React.RefObject<HTMLDivElement | null>;
-  navigatorSearchInputRef: React.RefObject<HTMLInputElement | null>;
-  onSetNavigatorQuery: React.Dispatch<React.SetStateAction<string>>;
-  onSetSearchScope: React.Dispatch<React.SetStateAction<BrowserSearchScope>>;
-
-  onNavigatorResizeStart: (event: React.PointerEvent<HTMLDivElement>) => void;
-
-  showToast: (message: string, type?: ToastType, source?: string) => void;
-}
-
-export function BrowserNavigator({
-  t,
-  navigatorTitle,
-  openTabCount,
-  allTreeExpanded,
-  navigatorMode,
-  browserNavigatorWidth,
-  evictedTabIds,
-  activeTabId,
-  onExpandAllTree: handleExpandAllTree,
-  onCollapseAllTree: handleCollapseAllTree,
-  onSetNavigatorMode: setNavigatorMode,
-  visibleWorkspaces,
-  browserTabs,
-  browserTabFolders,
-  browserHistory,
-  browserWorkspaceBookmarks,
-  browserBookmarks,
-  browserBookmarkTabIdUrlMap,
-  tabTreeExpanded,
-  selectedTreePath,
-  selectedTreePathRef,
-  onSelectTreePath: handleSelectTreePath,
-  onToggleTreePath: handleToggleTreePath,
-  onDeleteAllChildTabs: handleDeleteAllChildTabs,
-  onDeleteOwnChildTabs: handleDeleteOwnChildTabs,
-  onOpenAllInNewTabs: handleOpenAllInNewTabs,
-  onRemoveFromArea: handleRemoveFromArea,
-  onDeleteDirectory: handleDeleteDirectory,
-  onDeleteHistoryLevel: handleDeleteHistoryLevel,
-  onCloseAllTabs: handleCloseAllTabs,
-  onClearTabDirectories: handleClearTabDirectories,
-  onOpenTab: browserOpenTab,
-  onOpenTabFromTree: handleOpenTabFromTree,
-  onRefreshTab: handleRefreshTab,
-  onEditTab: handleEditTab,
-  onDeleteTab: handleDeleteTab,
-  onCopyTabLink: handleCopyTabLink,
-  onOpenTabInNewTab: handleOpenTabInNewTab,
-  onOpenTabInCurrentTab: handleOpenTabInCurrentTab,
-  onBookmarkTab: handleBookmarkTab,
-  onRemoveBookmarkTab: handleRemoveBookmarkTab,
-  onCloseTabHandler: handleCloseTabHandler,
-  onCreateTabDialog: setCreateTabDialog,
-  onCreateDirDialog: setCreateDirDialog,
-  onRenameFolder: setRenameFolderState,
-  navigatorQuery,
-  searchScope,
-  searchResults,
-  navigatorSearchRef,
-  navigatorSearchInputRef,
-  onSetNavigatorQuery: setNavigatorQuery,
-  onSetSearchScope: setSearchScope,
-  onNavigatorResizeStart: handleNavigatorResizeStart,
-  showToast,
-}: BrowserNavigatorProps) {
   return (
     <aside className="adl-tool-navigator" aria-label={t.toolBrowser}>
       <div className="adl-tool-navigator__context">
@@ -178,7 +121,6 @@ export function BrowserNavigator({
         </div>
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
           <span className="adl-tool-navigator__context-count">{openTabCount}</span>
-          {/* Mode: 已打开的标签 */}
           <TooltipSimple content={t.browserOpenTabs} placement="top">
             <button
               type="button"
@@ -194,7 +136,6 @@ export function BrowserNavigator({
       </div>
       <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-          {/* Mode: 标签目录 */}
           <TooltipSimple content={t.browserTabDir} placement="top">
             <button
               type="button"
@@ -206,7 +147,6 @@ export function BrowserNavigator({
               <IconFolder size={14} decorative />
             </button>
           </TooltipSimple>
-          {/* Mode: 文件列表 */}
           <TooltipSimple content={t.browserViewModeList} placement="top">
             <button
               type="button"
@@ -218,7 +158,6 @@ export function BrowserNavigator({
               <IconLayoutList size={14} decorative />
             </button>
           </TooltipSimple>
-          {/* Mode: 搜索标签 */}
           <TooltipSimple content={t.browserSearchTabs} placement="top">
             <button
               type="button"
@@ -232,7 +171,6 @@ export function BrowserNavigator({
           </TooltipSimple>
         </div>
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-          {/* 新建标签: only in open and tabs modes */}
           <span
             style={{ display: navigatorMode === 'open' || navigatorMode === 'tabs' ? '' : 'none' }}
           >
@@ -269,7 +207,6 @@ export function BrowserNavigator({
               </button>
             </TooltipSimple>
           </span>
-          {/* 新建目录: only in tabs mode */}
           <span style={{ display: navigatorMode === 'tabs' ? '' : 'none' }}>
             <TooltipSimple content={t.browserCreateDir} placement="top">
               <button
@@ -285,7 +222,6 @@ export function BrowserNavigator({
               </button>
             </TooltipSimple>
           </span>
-          {/* 清空所有已打开标签: only in open mode */}
           <span style={{ display: navigatorMode === 'open' ? '' : 'none' }}>
             <TooltipSimple content={t.browserClearAllOpenTabs} placement="top">
               <button
@@ -298,7 +234,6 @@ export function BrowserNavigator({
               </button>
             </TooltipSimple>
           </span>
-          {/* 删除工作区与非工作区全部标签: only in tabs and list modes */}
           <span
             style={{ display: navigatorMode === 'tabs' || navigatorMode === 'list' ? '' : 'none' }}
           >
@@ -316,7 +251,6 @@ export function BrowserNavigator({
         </div>
       </div>
 
-      {/* Body */}
       {navigatorMode === 'open' ? (
         <BrowserNavOpenMode
           browserTabs={browserTabs}
@@ -328,11 +262,11 @@ export function BrowserNavigator({
               handleOpenTabFromTree(tab.url, tab.id);
             }
           }}
-          onCloseTab={(tabId) => handleCloseTabHandler?.(tabId)}
+          onCloseTab={(tabId) => handleCloseTab(tabId)}
         />
       ) : navigatorMode === 'tabs' ? (
         <BrowserNavTabsMode
-          visibleWorkspaces={visibleWorkspaces}
+          visibleWorkspaces={visibleWorkspaces as RecentWorkspaceEntry[]}
           browserTabs={browserTabs}
           browserTabFolders={browserTabFolders}
           browserHistory={browserHistory}
@@ -363,8 +297,8 @@ export function BrowserNavigator({
           onCopyTabLink={handleCopyTabLink}
           onOpenTabInNewTab={handleOpenTabInNewTab}
           onOpenTabInCurrentTab={handleOpenTabInCurrentTab}
-          onBookmarkTab={handleBookmarkTab}
-          onRemoveBookmarkTab={handleRemoveBookmarkTab}
+          onBookmarkTab={onBookmarkTab}
+          onRemoveBookmarkTab={onRemoveBookmarkTab}
           labels={{
             workspaceCategory: t.browserCategoryWorkspace,
             userFolderCategory: t.browserCategoryUserFolder,
@@ -373,7 +307,7 @@ export function BrowserNavigator({
         />
       ) : navigatorMode === 'list' ? (
         <BrowserNavListMode
-          visibleWorkspaces={visibleWorkspaces}
+          visibleWorkspaces={visibleWorkspaces as RecentWorkspaceEntry[]}
           browserTabs={browserTabs}
           browserTabFolders={browserTabFolders}
           browserHistory={browserHistory}

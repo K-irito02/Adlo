@@ -5,6 +5,7 @@ import type { BrowserNavigatorMode } from './useBrowserTabs';
 import type { BrowserSearchScope } from './useBrowserSearch';
 import type { BrowserMenuItem } from './useBrowserMenus';
 import type { CopyDict } from '@i18n/types';
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 
 export interface BrowserPanelState {
   t: CopyDict;
@@ -48,7 +49,7 @@ export interface BrowserPanelState {
   };
   navigatorCollapsed: boolean;
   browserNavigatorWidth: number;
-  visibleWorkspaces: { id: string; name: string }[];
+  visibleWorkspaces: RecentWorkspaceEntry[];
   handlePointerDown: (e: React.PointerEvent) => void;
   openTabCount: number;
   navigatorTitle: string;

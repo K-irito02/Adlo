@@ -1,10 +1,7 @@
-import { useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { BrowserToolbar } from './BrowserToolbar';
 import { BrowserNavigator } from './BrowserNavigator';
-import { useNavigatorResize } from '@hooks/useNavigatorResize';
-import { computeNavigatorCount, findTabByUrl } from './useBrowserTabs';
 import { BrowserIframeStack } from './BrowserIframeStack';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
 import type { BrowserSearchScope } from './useBrowserSearch';
@@ -107,49 +104,8 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     isBrowserVisible,
     activeTab,
     hasActiveTab,
-    isBookmarked,
     browserTabs,
-    handleCloseTab: _handleCloseTab,
-    handleCloseAllTabs,
-    handleClearTabDirectories,
-    handleDoubleClick: _handleDoubleClick,
-    handleOpenBookmarkDialog,
-    handleEditTab,
-    handleSetCreateTabDialog,
-    setCreateDirDialog,
-    setRenameFolderState,
-    navigatorQuery,
-    searchScope,
-    searchResults,
-    navigatorSearchRef,
-    navigatorSearchInputRef,
-    setNavigatorQuery,
-    setSearchScope,
-    browserTabFolders,
-    tabTreeExpanded,
-    allTreeExpanded,
-    handleToggleTreePath,
-    handleDeleteAllChildTabs,
-    handleDeleteOwnChildTabs,
-    handleOpenAllInNewTabs,
-    handleRemoveFromArea,
-    handleDeleteDirectory,
-    handleDeleteHistoryLevel,
-    handleExpandAllTree,
-    handleCollapseAllTree,
-    handleRefreshTab,
-    handleDeleteTab,
-    handleCopyTabLink,
-    handleOpenTabInNewTab,
-    handleOpenTabInCurrentTab,
-    onBookmarkTab,
-    onRemoveBookmarkTab,
-    browserMenuOpen,
-    browserMenuRef,
-    browserMenuItems,
-    setBrowserMenuOpen,
     loadingTabId,
-    evictedTabIds,
     iframeRef,
     primaryRef,
     handleIframeLoad,
@@ -158,138 +114,17 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
     iframeLoadError,
     isEmbedPending,
     validatedUrlsRef,
-    handleGoBack,
-    handleGoForward,
-    handleReload,
-    urlState,
-    navigatorMode,
-    setNavigatorMode,
-    selectedTreePath,
-    selectedTreePathRef,
-    handleSelectTreePath,
     activatedTabIdsRef,
-    showToast,
   } = props;
 
-  const {
-    browserNavigatorWidth,
-    navigatorCollapsedByTool,
-    setBrowserNavigatorWidth,
-    toggleBrowserNavigator,
-    browserNavigateInPlace,
-    setBrowserNavigateInPlace,
-    recentWorkspaces,
-    browserBookmarks,
-    browserBookmarkTabIdUrlMap,
-    browserHistory,
-    browserWorkspaceBookmarks,
-    browserOpenTab,
-  } = useAppStore(
+  const { browserNavigatorWidth, navigatorCollapsedByTool } = useAppStore(
     useShallow((state) => ({
       browserNavigatorWidth: state.browserNavigatorWidth,
       navigatorCollapsedByTool: state.navigatorCollapsedByTool,
-      setBrowserNavigatorWidth: state.setBrowserNavigatorWidth,
-      toggleBrowserNavigator: state.toggleBrowserNavigator,
-      browserNavigateInPlace: state.browserNavigateInPlace,
-      setBrowserNavigateInPlace: state.setBrowserNavigateInPlace,
-      recentWorkspaces: state.recentWorkspaces,
-      browserBookmarks: state.browserBookmarks,
-      browserBookmarkTabIdUrlMap: state.browserBookmarkTabIdUrlMap,
-      browserHistory: state.browserHistory,
-      browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
-      browserOpenTab: state.browserOpenTab,
     }))
   );
 
   const navigatorCollapsed = navigatorCollapsedByTool.browser ?? false;
-
-  const handleToggleNavigateMode = useCallback(
-    (checked: boolean) => {
-      setBrowserNavigateInPlace(checked);
-    },
-    [setBrowserNavigateInPlace]
-  );
-
-  const handleOpenTabFromTree = useCallback(
-    (url: string, tabId?: string) => {
-      if (tabId) {
-        const tab = browserTabs.find((t) => t.id === tabId);
-        if (tab) {
-          useAppStore.getState().browserSelectTab(tabId);
-          return;
-        }
-      }
-      const existingTabId = findTabByUrl(browserTabs, url);
-      if (existingTabId) {
-        useAppStore.getState().browserSelectTab(existingTabId);
-        return;
-      }
-      if (browserNavigateInPlace) {
-        const state = useAppStore.getState();
-        const activeTabId = state.browserActiveTabId;
-        if (activeTabId && state.browserTabs.find((t) => t.id === activeTabId)) {
-          state.browserNavigateActiveTab(url);
-          if (useAppStore.getState().isTauri) {
-            window.digitalLife?.browser?.navigateTab(activeTabId, url).catch(() => {});
-          }
-          return;
-        }
-      }
-      browserOpenTab(url, undefined, undefined);
-    },
-    [browserTabs, browserOpenTab, browserNavigateInPlace]
-  );
-
-  const visibleWorkspaces = useMemo(
-    () =>
-      recentWorkspaces.filter(
-        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
-      ),
-    [recentWorkspaces]
-  );
-
-  const navigatorCount = useMemo(
-    () =>
-      computeNavigatorCount(
-        navigatorMode,
-        navigatorQuery,
-        browserTabs,
-        browserBookmarks,
-        browserHistory,
-        searchResults,
-        [],
-        []
-      ),
-    [navigatorMode, navigatorQuery, browserTabs, browserBookmarks, browserHistory, searchResults]
-  );
-
-  const openTabCount = navigatorCount;
-
-  const rawNavigatorTitle =
-    navigatorMode === 'open'
-      ? t.browserOpenTabs
-      : navigatorMode === 'tabs'
-        ? t.browserTabDir
-        : navigatorMode === 'list'
-          ? t.browserViewModeList
-          : t.browserSearchTabs;
-
-  const navigatorTitle = rawNavigatorTitle;
-
-  const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
-    onWidthCommit: setBrowserNavigatorWidth,
-    minWidth: 180,
-    maxWidth: 300,
-  });
-
-  const toggleNavigator = useCallback(
-    (tool: string) => {
-      if (tool === 'browser') {
-        toggleBrowserNavigator();
-      }
-    },
-    [toggleBrowserNavigator]
-  );
 
   return (
     <>
@@ -303,62 +138,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
           } as React.CSSProperties
         }
       >
-        <BrowserNavigator
-          t={t}
-          navigatorTitle={navigatorTitle}
-          openTabCount={openTabCount}
-          allTreeExpanded={allTreeExpanded}
-          navigatorMode={navigatorMode}
-          browserNavigatorWidth={browserNavigatorWidth}
-          activeTabId={activeTab?.id ?? ''}
-          evictedTabIds={evictedTabIds}
-          onExpandAllTree={handleExpandAllTree}
-          onCollapseAllTree={handleCollapseAllTree}
-          onSetNavigatorMode={setNavigatorMode}
-          visibleWorkspaces={visibleWorkspaces}
-          browserTabs={browserTabs}
-          browserTabFolders={browserTabFolders}
-          browserHistory={browserHistory}
-          browserWorkspaceBookmarks={browserWorkspaceBookmarks}
-          browserBookmarks={browserBookmarks}
-          browserBookmarkTabIdUrlMap={browserBookmarkTabIdUrlMap}
-          tabTreeExpanded={tabTreeExpanded}
-          selectedTreePath={selectedTreePath}
-          selectedTreePathRef={selectedTreePathRef}
-          onSelectTreePath={handleSelectTreePath}
-          onToggleTreePath={handleToggleTreePath}
-          onDeleteAllChildTabs={handleDeleteAllChildTabs}
-          onDeleteOwnChildTabs={handleDeleteOwnChildTabs}
-          onOpenAllInNewTabs={handleOpenAllInNewTabs}
-          onRemoveFromArea={handleRemoveFromArea}
-          onDeleteDirectory={handleDeleteDirectory}
-          onDeleteHistoryLevel={handleDeleteHistoryLevel}
-          onCloseAllTabs={handleCloseAllTabs}
-          onClearTabDirectories={handleClearTabDirectories}
-          onOpenTab={browserOpenTab}
-          onOpenTabFromTree={handleOpenTabFromTree}
-          onRefreshTab={handleRefreshTab}
-          onEditTab={handleEditTab}
-          onDeleteTab={handleDeleteTab}
-          onCopyTabLink={handleCopyTabLink}
-          onOpenTabInNewTab={handleOpenTabInNewTab}
-          onOpenTabInCurrentTab={handleOpenTabInCurrentTab}
-          onBookmarkTab={onBookmarkTab}
-          onRemoveBookmarkTab={onRemoveBookmarkTab}
-          onCloseTabHandler={_handleCloseTab}
-          onCreateTabDialog={handleSetCreateTabDialog}
-          onCreateDirDialog={setCreateDirDialog}
-          onRenameFolder={setRenameFolderState}
-          navigatorQuery={navigatorQuery}
-          searchScope={searchScope}
-          searchResults={searchResults}
-          navigatorSearchRef={navigatorSearchRef}
-          navigatorSearchInputRef={navigatorSearchInputRef}
-          onSetNavigatorQuery={setNavigatorQuery}
-          onSetSearchScope={setSearchScope}
-          onNavigatorResizeStart={handleNavigatorResizeStart}
-          showToast={showToast}
-        />
+        <BrowserNavigator />
 
         <div className="adl-tool-primary adl-tool-primary--browser" ref={primaryRef}>
           <BrowserIframeStack
