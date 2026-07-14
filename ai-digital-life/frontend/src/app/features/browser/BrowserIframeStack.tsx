@@ -46,7 +46,7 @@ export function BrowserIframeStack({
   const inactiveIframeRef = useRef<HTMLIFrameElement | null>(null);
   const iframeLruOrderRef = useRef<string[]>([]);
   const [evictedTabIds, setEvictedTabIds] = useState<Set<string>>(() => new Set());
-  const isTauri = useAppStore(s => s.isTauri);
+  const isTauri = useAppStore((s) => s.isTauri);
 
   useEffect(() => {
     if (!window.digitalLife?.browser?.onAudioStateChanged) {

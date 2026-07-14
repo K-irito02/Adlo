@@ -116,10 +116,11 @@ describe('useClickOutside', () => {
           enabled: boolean;
           onOutsideClick: () => void;
           onEscape: () => void;
-        }) => useClickOutside(props.refs, props.enabled, {
-          onOutsideClick: props.onOutsideClick,
-          onEscape: props.onEscape,
-        }),
+        }) =>
+          useClickOutside(props.refs, props.enabled, {
+            onOutsideClick: props.onOutsideClick,
+            onEscape: props.onEscape,
+          }),
         {
           initialProps: {
             refs: [ref1, ref2],

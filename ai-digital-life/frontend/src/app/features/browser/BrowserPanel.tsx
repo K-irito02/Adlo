@@ -338,7 +338,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     return result;
   }, [browserTabs, activeTab?.id, isTabInPool]);
 
-  const isTauri = useAppStore(s => s.isTauri);
+  const isTauri = useAppStore((s) => s.isTauri);
   const isEmbedPending =
     !isTauri &&
     !!activeTab?.url &&

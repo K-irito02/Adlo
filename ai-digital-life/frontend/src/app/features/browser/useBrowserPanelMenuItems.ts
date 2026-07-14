@@ -19,7 +19,7 @@ export function useBrowserPanelMenuItems({
   setZoomLevel,
   t,
 }: UseBrowserPanelMenuItemsParams): { browserMenuItems: BrowserMenuItem[] } {
-  const isTauri = useAppStore(s => s.isTauri);
+  const isTauri = useAppStore((s) => s.isTauri);
 
   const browserMenuItems = useMemo(
     () => [

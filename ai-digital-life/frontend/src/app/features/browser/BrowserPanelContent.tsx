@@ -293,33 +293,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
 
   return (
     <>
-      <BrowserToolbar
-        t={t}
-        navigatorCollapsed={navigatorCollapsed}
-        address={urlState.address}
-        addressExpanded={urlState.addressExpanded}
-        addressSearchRef={urlState.addressSearchRef}
-        addressInputRef={urlState.addressInputRef}
-        activeTab={activeTab}
-        isBookmarked={urlState.address ? isBookmarked : false}
-        browserMenuOpen={browserMenuOpen}
-        browserMenuRef={browserMenuRef}
-        browserMenuItems={browserMenuItems}
-        onToggleNavigator={() => toggleNavigator('browser')}
-        onGoBack={handleGoBack}
-        onGoForward={handleGoForward}
-        onReload={handleReload}
-        browserNavigateInPlace={browserNavigateInPlace}
-        onToggleNavigateMode={handleToggleNavigateMode}
-        onAddressChange={urlState.handleAddressChange}
-        onAddressKeyDown={urlState.handleAddressKeyDown}
-        onAddressBlur={urlState.handleAddressBlur}
-        onSearchClick={urlState.handleSearchClick}
-        onNewTab={() => browserOpenTab(undefined, t.browserNewTabPage)}
-        onOpenBookmarkDialog={urlState.address ? handleOpenBookmarkDialog : () => {}}
-        onToggleBrowserMenu={() => setBrowserMenuOpen((value) => !value)}
-        onCloseBrowserMenu={() => setBrowserMenuOpen(false)}
-      />
+      <BrowserToolbar />
 
       <div
         className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? ' is-navigator-collapsed' : ''}`}

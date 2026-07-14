@@ -13,67 +13,31 @@ import {
 import { TooltipSimple } from '@components/Tooltip';
 import { CopyButton } from '@components/CopyButton';
 import { BrowserNavModeSwitch } from './BrowserNavModeSwitch';
-import type { CopyDict } from '@i18n';
-import type { BrowserTabState } from '@stores/slices/browserSlice';
-import type { BrowserMenuItem } from './useBrowserMenus';
 import { BrowserMenuDropdown } from './BrowserMenuDropdown';
+import { useBrowserPanelState } from './BrowserPanelStateContext';
+import { useBrowserPanelActions } from './BrowserPanelActionsContext';
+import { useAppStore } from '@stores/slicedStore';
 
-interface BrowserToolbarProps {
-  t: CopyDict;
-  navigatorCollapsed: boolean;
-  address: string;
-  addressExpanded: boolean;
-  addressSearchRef: React.RefObject<HTMLLabelElement | null>;
-  addressInputRef: React.RefObject<HTMLInputElement | null>;
-  activeTab?: BrowserTabState;
-  isBookmarked: boolean;
-  browserMenuOpen: boolean;
-  browserMenuRef: React.RefObject<HTMLDivElement | null>;
-  browserMenuItems: BrowserMenuItem[];
-  onToggleNavigator: () => void;
-  onGoBack: () => void;
-  onGoForward: () => void;
-  onReload: () => void;
-  onAddressChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onAddressKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
-  onAddressBlur: () => void;
-  onSearchClick: () => void;
-  browserNavigateInPlace: boolean;
-  onNewTab: () => void;
-  onOpenBookmarkDialog: () => void;
-  onToggleNavigateMode: (checked: boolean) => void;
-  onToggleBrowserMenu: () => void;
-  onCloseBrowserMenu: () => void;
-}
-
-export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserToolbarProps) {
+export const BrowserToolbar = React.memo(function BrowserToolbar() {
   const {
     t,
-    address,
-    addressExpanded,
-    addressSearchRef,
-    addressInputRef,
+    navigatorCollapsed,
     activeTab,
     isBookmarked,
     browserMenuOpen,
     browserMenuRef,
     browserMenuItems,
-    navigatorCollapsed,
-    onToggleNavigator,
-    onGoBack,
-    onGoForward,
-    onReload,
-    browserNavigateInPlace,
-    onToggleNavigateMode,
-    onAddressChange,
-    onAddressKeyDown,
-    onAddressBlur,
-    onSearchClick,
-    onNewTab,
-    onOpenBookmarkDialog,
-    onToggleBrowserMenu,
-    onCloseBrowserMenu,
-  } = props;
+    urlState: { address, addressExpanded, addressSearchRef, addressInputRef,
+               handleAddressChange, handleAddressKeyDown, handleAddressBlur, handleSearchClick },
+  } = useBrowserPanelState();
+
+  const {
+    handleGoBack, handleGoForward, handleReload, browserOpenTab,
+    handleOpenBookmarkDialog, setBrowserMenuOpen,
+    handleToggleNavigateMode, toggleNavigator,
+  } = useBrowserPanelActions();
+
+  const browserNavigateInPlace = useAppStore(s => s.browserNavigateInPlace);
 
   return (
     <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolBrowser}>
@@ -82,7 +46,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
           <button
             type="button"
             className="adl-tool-context__iconbtn adl-tool-context__iconbtn--leading"
-            onClick={onToggleNavigator}
+            onClick={() => toggleNavigator('browser')}
             aria-label={t.panelNavigatorToggle}
           >
             {navigatorCollapsed ? (
@@ -96,7 +60,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
           <button
             type="button"
             className="adl-tool-context__iconbtn"
-            onClick={onGoBack}
+            onClick={handleGoBack}
             aria-label={t.browserBack}
           >
             <IconArrowLeft size={14} decorative />
@@ -106,7 +70,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
           <button
             type="button"
             className="adl-tool-context__iconbtn"
-            onClick={onGoForward}
+            onClick={handleGoForward}
             aria-label={t.browserForward}
           >
             <IconArrowRight size={14} decorative />
@@ -116,7 +80,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
           <button
             type="button"
             className="adl-tool-context__iconbtn"
-            onClick={onReload}
+            onClick={handleReload}
             aria-label={t.browserRefresh}
           >
             <IconRefreshCw size={14} decorative />
@@ -128,7 +92,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
         >
           <BrowserNavModeSwitch
             checked={browserNavigateInPlace}
-            onCheckedChange={onToggleNavigateMode}
+            onCheckedChange={handleToggleNavigateMode}
             leftLabel={t.browserNavigateNewTab}
             rightLabel={t.browserNavigateInPlace}
           />
@@ -136,7 +100,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
         <label
           ref={addressSearchRef}
           className={`adl-tool-search adl-tool-search--address${addressExpanded ? ' is-expanded' : ''}`}
-          onClick={onSearchClick}
+          onClick={handleSearchClick}
         >
           <IconLink
             size={14}
@@ -150,9 +114,9 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
             ref={addressInputRef}
             type="search"
             value={address}
-            onChange={onAddressChange}
-            onKeyDown={onAddressKeyDown}
-            onBlur={onAddressBlur}
+            onChange={handleAddressChange}
+            onKeyDown={handleAddressKeyDown}
+            onBlur={handleAddressBlur}
             placeholder={t.browserAddress}
             aria-label={t.browserAddress}
           />
@@ -167,7 +131,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
               className="adl-copy-btn"
               onClick={(e) => {
                 e.stopPropagation();
-                onNewTab();
+                browserOpenTab(undefined, t.browserNewTabPage);
               }}
             >
               <IconPlus size={14} decorative />
@@ -181,7 +145,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
             type="button"
             className="adl-tool-context__iconbtn"
             aria-label={isBookmarked ? t.unbookmark : t.bookmark}
-            onClick={onOpenBookmarkDialog}
+            onClick={() => { if (address) handleOpenBookmarkDialog(); }}
           >
             {isBookmarked ? (
               <IconStarFilled size={14} decorative />
@@ -194,8 +158,8 @@ export const BrowserToolbar = React.memo(function BrowserToolbar(props: BrowserT
           menuOpen={browserMenuOpen}
           menuRef={browserMenuRef}
           menuItems={browserMenuItems}
-          onToggle={onToggleBrowserMenu}
-          onClose={onCloseBrowserMenu}
+          onToggle={() => setBrowserMenuOpen(v => !v)}
+          onClose={() => setBrowserMenuOpen(false)}
         />
       </div>
     </div>
