@@ -1,7 +1,7 @@
 use crate::commands::ipc;
 use adl_errors::AppError;
-use adl_types::IpcResult;
 use adl_mcp_client::{McpCatalog, McpClient, McpServerConfig};
+use adl_types::IpcResult;
 use std::sync::{Arc, OnceLock};
 
 static MCP_CLIENT: OnceLock<Arc<McpClient>> = OnceLock::new();

@@ -35,9 +35,7 @@ pub struct ModelGateway {
     pub(crate) registry: Arc<RwLock<ProviderRegistry>>,
 }
 
-fn fallback_models(
-    def: &registry::ProviderDefinition,
-) -> &[adl_types::config::ModelDefinition] {
+fn fallback_models(def: &registry::ProviderDefinition) -> &[adl_types::config::ModelDefinition] {
     match &def.models {
         registry::ModelSource::Static(models) => models.as_slice(),
         registry::ModelSource::Dynamic { .. } => &[],

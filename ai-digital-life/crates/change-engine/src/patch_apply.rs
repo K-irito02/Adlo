@@ -1,7 +1,5 @@
 use adl_errors::AppError;
-use adl_types::{
-    create_id, now_ms, CheckpointRecord, PatchHunkDecision, PatchSet, PatchSetStatus,
-};
+use adl_types::{create_id, now_ms, CheckpointRecord, PatchHunkDecision, PatchSet, PatchSetStatus};
 use std::path::Path;
 use tracing::warn;
 

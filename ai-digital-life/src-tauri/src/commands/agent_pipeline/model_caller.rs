@@ -1,6 +1,6 @@
 use adl_errors::AppError;
-use adl_types::{ConversationScenario, ModelCallAuditRecord, ModelChatMessage, ModelResponse};
 use adl_storage::EntityTable;
+use adl_types::{ConversationScenario, ModelCallAuditRecord, ModelChatMessage, ModelResponse};
 
 use crate::commands::agent_pipeline_stream::consume_stream_to_response;
 use crate::commands::agent_pipeline_types::CallModelContext;

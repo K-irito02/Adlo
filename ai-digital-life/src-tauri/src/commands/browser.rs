@@ -31,9 +31,8 @@ fn resolve_window_and_url(
     app: &tauri::AppHandle,
     url: &str,
 ) -> Result<(tauri::Window<tauri::Wry>, url::Url), AppError> {
-    let window = app
-        .get_window("main")
-        .ok_or_else(|| AppError::Internal("main window not found".into()))?;
+    let window =
+        app.get_window("main").ok_or_else(|| AppError::Internal("main window not found".into()))?;
     let target = adl_browser::resolve_url(url)
         .map_err(|e| AppError::Internal(format!("failed to resolve URL: {e}")))?;
     Ok((window, target))
@@ -82,10 +81,7 @@ fn setup_webview2_handlers_for_platform(
     }
 }
 
-fn apply_color_scheme_for_platform(
-    webview: &tauri::Webview<tauri::Wry>,
-    color_scheme: &str,
-) {
+fn apply_color_scheme_for_platform(webview: &tauri::Webview<tauri::Wry>, color_scheme: &str) {
     #[cfg(windows)]
     {
         let cs = color_scheme.to_string();
@@ -108,8 +104,7 @@ fn register_webview_with_manager(
     label: String,
     tab_id: &str,
 ) -> Result<Option<String>, AppError> {
-    let handle: Arc<dyn WebViewHandle> =
-        Arc::new(TauriWebViewHandle::new(app_handle, label));
+    let handle: Arc<dyn WebViewHandle> = Arc::new(TauriWebViewHandle::new(app_handle, label));
     state
         .browser_manager
         .create_for_tab(handle, tab_id)
@@ -139,7 +134,9 @@ pub async fn browser_create_for_tab(
                     tauri::LogicalPosition::new(-10000.0, -10000.0),
                     tauri::LogicalSize::new(800.0, 600.0),
                 )
-                .map_err(|e| AppError::Internal(format!("failed to create webview for tab {tab_id}: {e}")))?;
+                .map_err(|e| {
+                    AppError::Internal(format!("failed to create webview for tab {tab_id}: {e}"))
+                })?;
 
             tracing::info!(tab_id = &tab_id, url = &url, "browser webview created for tab");
 
@@ -158,10 +155,7 @@ pub async fn browser_create_for_tab(
     })
     .map_err(|e| AppError::Internal(format!("main thread dispatch: {e}")))?;
 
-    Ok(ipc(
-        rx.await
-            .map_err(|e| AppError::Internal(format!("creation channel: {e}")))?,
-    ))
+    Ok(ipc(rx.await.map_err(|e| AppError::Internal(format!("creation channel: {e}")))?))
 }
 
 #[tauri::command]

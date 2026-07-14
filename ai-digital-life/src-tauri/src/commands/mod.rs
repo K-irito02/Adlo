@@ -34,8 +34,8 @@ pub mod workspace_sidebar;
 
 use crate::error::CommandError;
 use adl_errors::AppError;
-use adl_types::IpcResult;
 use adl_storage::EntityTable;
+use adl_types::IpcResult;
 use tauri::Emitter;
 
 pub use self::agent_pipeline_types::{CallModelContext, FinalizeRunContext, RunActivityContext};
@@ -96,7 +96,7 @@ macro_rules! workspace_cmd {
 #[cfg(test)]
 mod tests {
     use super::*;
-use adl_types::IpcResult;
+    use adl_types::IpcResult;
 
     #[test]
     fn ipc_ok_wraps_data() {

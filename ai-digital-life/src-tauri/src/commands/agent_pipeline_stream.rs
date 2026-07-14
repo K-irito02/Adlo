@@ -1,5 +1,5 @@
-use adl_types::{ModelResponse, ModelRouteDecision, ModelTokenUsage};
 use adl_model_gateway::adapter::{StreamChunk, StreamReader};
+use adl_types::{ModelResponse, ModelRouteDecision, ModelTokenUsage};
 use tauri::Emitter;
 use tokio_stream::StreamExt;
 

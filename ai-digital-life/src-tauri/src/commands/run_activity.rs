@@ -1,8 +1,8 @@
 use crate::commands::ipc;
 use crate::state::AppState;
 use adl_errors::AppError;
-use adl_types::{DigitalLifeRunActivityEventV1, IpcResult};
 use adl_storage::EntityTable;
+use adl_types::{DigitalLifeRunActivityEventV1, IpcResult};
 
 #[tauri::command]
 pub fn run_activity_list_by_run_id(

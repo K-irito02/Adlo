@@ -100,8 +100,8 @@ mod tests {
 
     #[test]
     fn context_from_messages_preserves_role() {
-        use adl_types::create_id;
         use adl_types::conversation::ConversationRole;
+        use adl_types::create_id;
 
         let msgs = vec![
             ConversationMessageRecord {

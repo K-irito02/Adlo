@@ -1,11 +1,11 @@
 use adl_browser::BrowserManager;
 use adl_kernel::{config::AppConfig, events::EventBus};
-use adl_types::WorkspaceMeta;
 use adl_logging::LogManager;
 use adl_model_gateway::registry::ProviderRegistry;
 use adl_pty::SessionManager;
 use adl_storage::durable::DurableSessionManager;
 use adl_storage::Database;
+use adl_types::WorkspaceMeta;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};

@@ -6,7 +6,6 @@ mod purge;
 pub mod repository;
 mod session;
 
-
 pub use connection::Database;
 pub use entity_table::EntityTable;
 pub use purge::WorkspacePurgeReport;

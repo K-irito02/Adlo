@@ -4,12 +4,12 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_command::run_approved_command;
 use adl_errors::AppError;
+use adl_storage::EntityTable;
 use adl_types::{
     ApprovalDecision, ApprovalRecord, ApprovalRequestSummary, AuditEntry, CheckpointPayloadPreview,
     CheckpointRecord, CommandExecutionResult, CommandRequest, IpcResult, TaskCenterSnapshot,
     TaskRecord, TaskStatus, WorkspaceMeta,
 };
-use adl_storage::EntityTable;
 use tauri::Manager;
 
 /// 审批决策输入

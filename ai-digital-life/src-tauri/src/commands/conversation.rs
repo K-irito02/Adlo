@@ -3,11 +3,11 @@ use crate::commands::ipc_try;
 use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
+use adl_storage::EntityTable;
 use adl_types::{
     ConversationDetail, ConversationMessageRecord, ConversationRole, ConversationScenario,
     ConversationSendResult, ConversationSessionRecord, IpcResult,
 };
-use adl_storage::EntityTable;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -107,8 +107,8 @@ pub fn truncate_tool_output(output: &str) -> String {
 mod tests {
     use super::*;
     use crate::token_counter::PRUNE_PROTECT;
-    use adl_types::create_id;
     use adl_types::conversation::ConversationRole;
+    use adl_types::create_id;
 
     fn make_message(role: ConversationRole, content: &str) -> ConversationMessageRecord {
         ConversationMessageRecord {

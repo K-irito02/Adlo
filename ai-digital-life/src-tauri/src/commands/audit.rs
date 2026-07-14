@@ -1,7 +1,7 @@
 use crate::state::AppState;
 use adl_errors::AppError;
-use adl_types::{create_id, now_ms, AuditEntry, RiskLevel};
 use adl_storage::EntityTable;
+use adl_types::{create_id, now_ms, AuditEntry, RiskLevel};
 
 pub struct AuditBatchEntry {
     pub workspace_id: String,

@@ -5,11 +5,11 @@ use crate::state::AppState;
 use adl_agent_runtime::prompt::agent_system_prompt;
 use adl_agent_runtime::registry::AgentRegistry;
 use adl_errors::AppError;
-use adl_types::agent::AgentId;
-use adl_types::{ConversationScenario, IpcResult, ModelChatMessage, ModelPreferences};
 use adl_subagent::{
     SubagentId, SubagentManager, SubagentStatus, SubagentTask, TaskToolInput, TaskToolOutput,
 };
+use adl_types::agent::AgentId;
+use adl_types::{ConversationScenario, IpcResult, ModelChatMessage, ModelPreferences};
 use std::sync::OnceLock;
 
 /// Global sub-agent manager instance (shared across all commands).

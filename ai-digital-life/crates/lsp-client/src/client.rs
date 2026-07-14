@@ -3,9 +3,8 @@ use crate::symbols::{DefinitionLocation, SymbolInfo, SymbolKind};
 use crate::LanguageServer;
 use adl_errors::AppError;
 use lsp_types::{
-    DocumentDiagnosticParams, DocumentSymbol, DocumentSymbolParams,
-    GotoDefinitionParams, Location, Position, TextDocumentIdentifier,
-    TextDocumentPositionParams,
+    DocumentDiagnosticParams, DocumentSymbol, DocumentSymbolParams, GotoDefinitionParams, Location,
+    Position, TextDocumentIdentifier, TextDocumentPositionParams,
 };
 use std::collections::HashMap;
 use std::io::{BufReader, Write};
@@ -358,28 +357,32 @@ fn spawn_lsp_process(
         .spawn()
         .map_err(|e| AppError::Io(format!("Failed to spawn LSP server: {e}")))?;
 
-    let child_stdin = child.stdin.take()
-        .ok_or_else(|| AppError::Internal("Failed to capture stdin".into()))?;
-    let child_stdout = child.stdout.take()
-        .ok_or_else(|| AppError::Internal("Failed to capture stdout".into()))?;
+    let child_stdin =
+        child.stdin.take().ok_or_else(|| AppError::Internal("Failed to capture stdin".into()))?;
+    let child_stdout =
+        child.stdout.take().ok_or_else(|| AppError::Internal("Failed to capture stdout".into()))?;
 
     Ok((child, child_stdin, BufReader::new(child_stdout)))
 }
 
-fn build_initialize_params(
-    workspace_root: &Path,
-) -> Result<serde_json::Value, AppError> {
+fn build_initialize_params(workspace_root: &Path) -> Result<serde_json::Value, AppError> {
     let root_url = url::Url::from_directory_path(workspace_root)
         .map_err(|_| AppError::InvalidInput("Invalid workspace path".into()))?;
-    let root_uri: lsp_types::Uri = root_url.to_string().parse()
+    let root_uri: lsp_types::Uri = root_url
+        .to_string()
+        .parse()
         .map_err(|e| AppError::Internal(format!("Invalid URI: {e}")))?;
-    let folder_name = workspace_root.file_name()
+    let folder_name = workspace_root
+        .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "workspace".to_string());
 
     serde_json::to_value(lsp_types::InitializeParams {
         process_id: Some(std::process::id()),
-        workspace_folders: Some(vec![lsp_types::WorkspaceFolder { uri: root_uri, name: folder_name }]),
+        workspace_folders: Some(vec![lsp_types::WorkspaceFolder {
+            uri: root_uri,
+            name: folder_name,
+        }]),
         capabilities: lsp_types::ClientCapabilities::default(),
         ..Default::default()
     })
@@ -391,7 +394,7 @@ fn perform_lsp_handshake(
     writer: &mut ChildStdin,
     init_params: &serde_json::Value,
 ) -> Result<(), AppError> {
-    use lsp_server::{Message, Request, Notification};
+    use lsp_server::{Message, Notification, Request};
 
     let init_req = Message::Request(Request::new(
         lsp_server::RequestId::from(1),
@@ -401,20 +404,21 @@ fn perform_lsp_handshake(
     init_req.write(writer).map_err(|e| AppError::Io(format!("write initialize: {e}")))?;
     writer.flush().map_err(|e| AppError::Io(format!("flush initialize: {e}")))?;
 
-    let resp = Message::read(reader)
-        .map_err(|e| AppError::Io(format!("read init response: {e}")))?;
+    let resp =
+        Message::read(reader).map_err(|e| AppError::Io(format!("read init response: {e}")))?;
 
     match resp {
         Some(Message::Response(resp)) => {
             if let Some(err) = resp.error {
-                return Err(AppError::Internal(
-                    format!("LSP init error ({:?}): {}", err.code, err.message)
-                ));
+                return Err(AppError::Internal(format!(
+                    "LSP init error ({:?}): {}",
+                    err.code, err.message
+                )));
             }
         },
-        Some(other) => return Err(AppError::Internal(
-            format!("Expected init response, got: {other:?}")
-        )),
+        Some(other) => {
+            return Err(AppError::Internal(format!("Expected init response, got: {other:?}")))
+        },
         None => return Err(AppError::Internal("LSP closed during initialize".into())),
     }
 

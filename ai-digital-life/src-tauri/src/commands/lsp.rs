@@ -1,9 +1,9 @@
 use crate::commands::ipc;
 use adl_errors::AppError;
-use adl_types::IpcResult;
 use adl_lsp_client::diagnostics::DiagnosticInfo;
 use adl_lsp_client::symbols::{SymbolInfo, SymbolKind};
 use adl_lsp_client::{LanguageServer, LspClient};
+use adl_types::IpcResult;
 use std::path::PathBuf;
 use std::sync::Arc;
 

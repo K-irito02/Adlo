@@ -130,6 +130,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   isFetching: {},
   lspActiveServers: [],
   lspDiagnostics: [],
+  isTauri: false,
 
   // ════════════════════════════════════════════════════════
   // 跨切片 Actions（10 个领域模块）

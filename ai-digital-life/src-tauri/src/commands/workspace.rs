@@ -3,12 +3,12 @@ use crate::commands::workspace_git::persist_workspace_meta;
 use crate::state::AppState;
 use crate::workspace_cmd;
 use adl_errors::AppError;
+use adl_storage::EntityTable;
 use adl_types::{
     now_ms, FileOutlineItem, IpcResult, RetrievalSnapshot, WorkspaceChangePreview,
     WorkspaceFileChangedEvent, WorkspaceFileDocument, WorkspaceMeta, WorkspaceSearchHit,
     WorkspaceStatus, WorkspaceTreeNode, WorkspaceType,
 };
-use adl_storage::EntityTable;
 use std::path::PathBuf;
 use tauri::Emitter;
 use tauri::Manager;

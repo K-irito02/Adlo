@@ -8,12 +8,12 @@ use adl_agent_runtime::plan_mode::PlanModeState;
 use adl_agent_runtime::registry::AgentRegistry;
 use adl_agent_runtime::router;
 use adl_errors::AppError;
+use adl_storage::EntityTable;
 use adl_types::agent::AgentConfig;
 use adl_types::{
     create_id, now_ms, AgentRunDetail, AgentRunStatus, ConversationScenario,
     ConversationSendResult, DigitalLifeRunActivityEventV1, IpcResult,
 };
-use adl_storage::EntityTable;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::Emitter;

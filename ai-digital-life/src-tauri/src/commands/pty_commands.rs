@@ -3,8 +3,8 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use crate::terminal::TauriEventEmitter;
 use adl_errors::AppError;
-use adl_types::IpcResult;
 use adl_pty::PtySessionInfo;
+use adl_types::IpcResult;
 use std::path::PathBuf;
 
 #[derive(Debug, serde::Deserialize)]

@@ -1,8 +1,8 @@
 use crate::commands::ipc;
 use crate::state::AppState;
 use adl_errors::AppError;
-use adl_types::IpcResult;
 use adl_storage::durable::DurableSessionState;
+use adl_types::IpcResult;
 
 #[tauri::command]
 pub async fn register_durable_session(

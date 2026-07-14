@@ -5,9 +5,9 @@ use adl_agent_runtime::compaction::compact_messages;
 use adl_agent_runtime::compaction_summary::{build_context_from_messages, build_summary_prompt};
 use adl_agent_runtime::token_counter::TokenCounter;
 use adl_errors::AppError;
+use adl_model_gateway::ModelGateway;
 use adl_types::conversation::ConversationMessageRecord;
 use adl_types::{ConversationRole, ConversationScenario, IpcResult, ModelChatMessage};
-use adl_model_gateway::ModelGateway;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
