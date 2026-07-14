@@ -56,6 +56,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     navigatorCollapsedByTool,
     toggleNavigator,
     setBrowserNavigateInPlace,
+    browserNavigateInPlace,
+    browserSelectTab,
   } = useAppStore(
     useShallow((state) => ({
       browserOpenTab: state.browserOpenTab,
@@ -68,6 +70,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
       navigatorCollapsedByTool: state.navigatorCollapsedByTool,
       toggleNavigator: state.toggleNavigator,
       setBrowserNavigateInPlace: state.setBrowserNavigateInPlace,
+      browserNavigateInPlace: state.browserNavigateInPlace,
+      browserSelectTab: state.browserSelectTab,
     }))
   );
 
@@ -365,12 +369,17 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const handleOpenTabFromTree = useCallback(
     (url: string, tabId?: string) => {
       if (tabId) {
-        browserNavigateActiveTab(url, tabId);
+        // Clicking an existing tab → switch to it (unaffected by toggle)
+        browserSelectTab(tabId);
+      } else if (browserNavigateInPlace) {
+        // "Current tab" mode → navigate within the active tab
+        browserNavigateActiveTab(url);
       } else {
+        // "New tab" mode → open a new tab
         browserOpenTab(url, url);
       }
     },
-    [browserOpenTab, browserNavigateActiveTab]
+    [browserOpenTab, browserNavigateActiveTab, browserSelectTab, browserNavigateInPlace]
   );
 
   const handleToggleNavigateMode = useCallback(

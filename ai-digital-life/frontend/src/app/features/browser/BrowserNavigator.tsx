@@ -89,6 +89,9 @@ export function BrowserNavigator() {
     browserHistory,
     browserWorkspaceBookmarks,
     setBrowserNavigatorWidth,
+    browserSelectTab,
+    browserNavigateInPlace,
+    browserNavigateActiveTab,
   } = useAppStore(
     useShallow((state) => ({
       browserBookmarks: state.browserBookmarks,
@@ -96,6 +99,9 @@ export function BrowserNavigator() {
       browserHistory: state.browserHistory,
       browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
       setBrowserNavigatorWidth: state.setBrowserNavigatorWidth,
+      browserSelectTab: state.browserSelectTab,
+      browserNavigateInPlace: state.browserNavigateInPlace,
+      browserNavigateActiveTab: state.browserNavigateActiveTab,
     }))
   );
 
@@ -203,6 +209,8 @@ export function BrowserNavigator() {
                       wsId = resolveFolderWorkspaceId(fId, browserTabFolders);
                     }
                     setCreateTabDialog({ open: true, workspaceId: wsId, folderId: fId });
+                  } else if (browserNavigateInPlace) {
+                    browserNavigateActiveTab('about:blank');
                   } else {
                     browserOpenTab(undefined, t.browserNewTabPage);
                   }
@@ -263,10 +271,7 @@ export function BrowserNavigator() {
           activeTabId={activeTabId}
           evictedTabIds={evictedTabIds}
           onSelectTab={(tabId) => {
-            const tab = browserTabs.find((t) => t.id === tabId);
-            if (tab) {
-              handleOpenTabFromTree(tab.url, tab.id);
-            }
+            browserSelectTab(tabId);
           }}
           onCloseTab={(tabId) => handleCloseTab(tabId)}
         />

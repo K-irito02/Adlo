@@ -51,6 +51,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
   } = useBrowserPanelActions();
 
   const browserNavigateInPlace = useAppStore((s) => s.browserNavigateInPlace);
+  const browserNavigateActiveTab = useAppStore((s) => s.browserNavigateActiveTab);
 
   return (
     <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolBrowser}>
@@ -144,7 +145,11 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
               className="adl-copy-btn"
               onClick={(e) => {
                 e.stopPropagation();
-                browserOpenTab(undefined, t.browserNewTabPage);
+                if (browserNavigateInPlace) {
+                  browserNavigateActiveTab('about:blank');
+                } else {
+                  browserOpenTab(undefined, t.browserNewTabPage);
+                }
               }}
             >
               <IconPlus size={14} decorative />
