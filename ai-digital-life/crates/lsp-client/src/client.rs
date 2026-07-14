@@ -3,14 +3,14 @@ use crate::symbols::{DefinitionLocation, SymbolInfo, SymbolKind};
 use crate::LanguageServer;
 use adl_errors::AppError;
 use lsp_types::{
-    ClientCapabilities, DocumentDiagnosticParams, DocumentSymbol, DocumentSymbolParams,
-    GotoDefinitionParams, InitializeParams, Location, Position, TextDocumentIdentifier,
-    TextDocumentPositionParams, WorkspaceFolder,
+    DocumentDiagnosticParams, DocumentSymbol, DocumentSymbolParams,
+    GotoDefinitionParams, Location, Position, TextDocumentIdentifier,
+    TextDocumentPositionParams,
 };
 use std::collections::HashMap;
 use std::io::{BufReader, Write};
-use std::path::PathBuf;
-use std::process::{Child, ChildStdin, Command as StdCommand, Stdio};
+use std::path::{Path, PathBuf};
+use std::process::{Child, ChildStdin, ChildStdout, Command as StdCommand, Stdio};
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
 use tokio::sync::{oneshot, Mutex};
@@ -127,108 +127,10 @@ impl LspClient {
         program: &str,
         args: &[&str],
     ) -> Result<(Child, ChildStdin), AppError> {
-        let mut child = StdCommand::new(program)
-            .args(args)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| AppError::Io(format!("Failed to spawn LSP server: {}", e)))?;
-
-        let mut child_stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| AppError::Internal("Failed to capture stdin".into()))?;
-        let child_stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| AppError::Internal("Failed to capture stdout".into()))?;
-        let mut reader = BufReader::new(child_stdout);
-
-        let root_url = url::Url::from_directory_path(&self.workspace_root)
-            .map_err(|_| AppError::InvalidInput("Invalid workspace path".into()))?;
-        let root_uri: lsp_types::Uri = root_url
-            .to_string()
-            .parse()
-            .map_err(|e| AppError::Internal(format!("Invalid URI: {}", e)))?;
-
-        let folder_name = self
-            .workspace_root
-            .file_name()
-            .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "workspace".to_string());
-
-        let init_params = serde_json::to_value(InitializeParams {
-            process_id: Some(std::process::id()),
-            workspace_folders: Some(vec![WorkspaceFolder { uri: root_uri, name: folder_name }]),
-            capabilities: ClientCapabilities::default(),
-            ..Default::default()
-        })
-        .map_err(|e| AppError::Internal(e.to_string()))?;
-
-        let init_req = lsp_server::Message::Request(lsp_server::Request::new(
-            lsp_server::RequestId::from(1),
-            "initialize".to_string(),
-            init_params,
-        ));
-
-        init_req
-            .write(&mut child_stdin)
-            .map_err(|e| AppError::Io(format!("Failed to send initialize: {}", e)))?;
-        child_stdin.flush().map_err(|e| AppError::Io(format!("Failed to flush stdin: {}", e)))?;
-
-        let resp = lsp_server::Message::read(&mut reader)
-            .map_err(|e| AppError::Io(format!("Failed to read initialize response: {}", e)))?;
-
-        match resp {
-            Some(lsp_server::Message::Response(resp)) => {
-                if let Some(err) = resp.error {
-                    return Err(AppError::Internal(format!(
-                        "LSP initialize error ({}): {}",
-                        err.code, err.message
-                    )));
-                }
-            },
-            Some(other) => {
-                return Err(AppError::Internal(format!(
-                    "Expected initialize response, got: {:?}",
-                    other
-                )));
-            },
-            None => {
-                return Err(AppError::Internal(
-                    "LSP server closed connection during initialize".into(),
-                ));
-            },
-        }
-
-        let initialized = lsp_server::Message::Notification(lsp_server::Notification::new(
-            "initialized".to_string(),
-            serde_json::Value::Null,
-        ));
-
-        initialized
-            .write(&mut child_stdin)
-            .map_err(|e| AppError::Io(format!("Failed to send initialized: {}", e)))?;
-        child_stdin.flush().map_err(|e| AppError::Io(format!("Failed to flush stdin: {}", e)))?;
-
-        let servers = self.servers.clone();
-        tokio::task::spawn_blocking(move || loop {
-            match lsp_server::Message::read(&mut reader) {
-                Ok(Some(lsp_server::Message::Response(resp))) => {
-                    let mut map = servers.blocking_lock();
-                    for handle in map.values_mut() {
-                        if let Some(tx) = handle.pending.remove(&resp.id) {
-                            let _ = tx.send(resp);
-                            break;
-                        }
-                    }
-                },
-                Ok(_) => continue,
-                Err(_) => break,
-            }
-        });
-
+        let (child, mut child_stdin, mut reader) = spawn_lsp_process(program, args)?;
+        let init_params = build_initialize_params(self.workspace_root.as_path())?;
+        perform_lsp_handshake(&mut reader, &mut child_stdin, &init_params)?;
+        spawn_response_dispatcher(reader, self.servers.clone());
         Ok((child, child_stdin))
     }
 
@@ -442,6 +344,112 @@ impl LspClient {
     pub async fn list_servers(&self) -> Vec<(LanguageServer, LspClientState)> {
         self.servers.lock().await.iter().map(|(k, v)| (k.clone(), v.state)).collect()
     }
+}
+
+fn spawn_lsp_process(
+    program: &str,
+    args: &[&str],
+) -> Result<(Child, ChildStdin, BufReader<ChildStdout>), AppError> {
+    let mut child = StdCommand::new(program)
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| AppError::Io(format!("Failed to spawn LSP server: {e}")))?;
+
+    let child_stdin = child.stdin.take()
+        .ok_or_else(|| AppError::Internal("Failed to capture stdin".into()))?;
+    let child_stdout = child.stdout.take()
+        .ok_or_else(|| AppError::Internal("Failed to capture stdout".into()))?;
+
+    Ok((child, child_stdin, BufReader::new(child_stdout)))
+}
+
+fn build_initialize_params(
+    workspace_root: &Path,
+) -> Result<serde_json::Value, AppError> {
+    let root_url = url::Url::from_directory_path(workspace_root)
+        .map_err(|_| AppError::InvalidInput("Invalid workspace path".into()))?;
+    let root_uri: lsp_types::Uri = root_url.to_string().parse()
+        .map_err(|e| AppError::Internal(format!("Invalid URI: {e}")))?;
+    let folder_name = workspace_root.file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "workspace".to_string());
+
+    serde_json::to_value(lsp_types::InitializeParams {
+        process_id: Some(std::process::id()),
+        workspace_folders: Some(vec![lsp_types::WorkspaceFolder { uri: root_uri, name: folder_name }]),
+        capabilities: lsp_types::ClientCapabilities::default(),
+        ..Default::default()
+    })
+    .map_err(|e| AppError::Internal(e.to_string()))
+}
+
+fn perform_lsp_handshake(
+    reader: &mut BufReader<ChildStdout>,
+    writer: &mut ChildStdin,
+    init_params: &serde_json::Value,
+) -> Result<(), AppError> {
+    use lsp_server::{Message, Request, Notification};
+
+    let init_req = Message::Request(Request::new(
+        lsp_server::RequestId::from(1),
+        "initialize".to_string(),
+        init_params.clone(),
+    ));
+    init_req.write(writer).map_err(|e| AppError::Io(format!("write initialize: {e}")))?;
+    writer.flush().map_err(|e| AppError::Io(format!("flush initialize: {e}")))?;
+
+    let resp = Message::read(reader)
+        .map_err(|e| AppError::Io(format!("read init response: {e}")))?;
+
+    match resp {
+        Some(Message::Response(resp)) => {
+            if let Some(err) = resp.error {
+                return Err(AppError::Internal(
+                    format!("LSP init error ({:?}): {}", err.code, err.message)
+                ));
+            }
+        },
+        Some(other) => return Err(AppError::Internal(
+            format!("Expected init response, got: {other:?}")
+        )),
+        None => return Err(AppError::Internal("LSP closed during initialize".into())),
+    }
+
+    let initialized = Message::Notification(Notification::new(
+        "initialized".to_string(),
+        serde_json::Value::Null,
+    ));
+    initialized.write(writer).map_err(|e| AppError::Io(format!("write initialized: {e}")))?;
+    writer.flush().map_err(|e| AppError::Io(format!("flush initialized: {e}")))?;
+
+    Ok(())
+}
+
+fn spawn_response_dispatcher(
+    reader: BufReader<ChildStdout>,
+    servers: Arc<Mutex<HashMap<LanguageServer, LspServerHandle>>>,
+) {
+    tokio::task::spawn_blocking(move || {
+        let mut reader = reader;
+        loop {
+            match lsp_server::Message::read(&mut reader) {
+                Ok(Some(lsp_server::Message::Response(resp))) => {
+                    let mut map = servers.blocking_lock();
+                    for handle in map.values_mut() {
+                        if let Some(tx) = handle.pending.remove(&resp.id) {
+                            let _ = tx.send(resp);
+                            break;
+                        }
+                    }
+                },
+                Ok(_) => continue,
+                Err(_) => break,
+            }
+        }
+    });
 }
 
 fn symbol_kind_from_lsp(kind: lsp_types::SymbolKind) -> SymbolKind {
