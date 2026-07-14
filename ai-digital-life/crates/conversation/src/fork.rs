@@ -3,7 +3,6 @@ use adl_kernel::types::conversation::{ConversationMessageRecord, ConversationSes
 /// Fork a session from a specific message.
 pub fn fork_session(
     parent_session: &ConversationSessionRecord,
-    _fork_message_id: &str,
     existing_fork_count: u32,
 ) -> ConversationSessionRecord {
     let fork_number = existing_fork_count + 1;
@@ -58,7 +57,7 @@ mod tests {
     #[test]
     fn fork_session_creates_child_with_parent_id() {
         let parent = make_parent("parent-123", "Original session");
-        let child = fork_session(&parent, "msg-5", 0);
+        let child = fork_session(&parent, 0);
         assert_eq!(child.parent_id, Some("parent-123".to_string()));
         assert!(child.title.contains("(fork #1)"));
     }
@@ -66,7 +65,7 @@ mod tests {
     #[test]
     fn fork_number_increments() {
         let parent = make_parent("parent-123", "Original");
-        let child = fork_session(&parent, "msg-5", 2);
+        let child = fork_session(&parent, 2);
         assert!(child.title.contains("(fork #3)"));
     }
 

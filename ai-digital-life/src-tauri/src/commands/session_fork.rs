@@ -10,7 +10,7 @@ use adl_storage::EntityTable;
 pub async fn fork_session_cmd(
     state: tauri::State<'_, AppState>,
     parent_session: ConversationSessionRecord,
-    fork_message_id: String,
+    _fork_message_id: String,
 ) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
     let existing_fork_count = state
         .db
@@ -21,7 +21,7 @@ pub async fn fork_session_cmd(
         .into_iter()
         .filter(|s| s.parent_id.as_deref() == Some(&parent_session.id))
         .count() as u32;
-    Ok(ipc(Ok(fork_session(&parent_session, &fork_message_id, existing_fork_count))))
+    Ok(ipc(Ok(fork_session(&parent_session, existing_fork_count))))
 }
 
 #[tauri::command]
