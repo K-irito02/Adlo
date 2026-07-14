@@ -1,2 +1,18 @@
-[2026-07-15 02:27:24.716] [WARN] [TAURI] Couldn't find callback id 1310087344. This might happen when the app is reloaded while Rust is running an asynchronous operation.
-[2026-07-15 02:27:48.581] [WARN] [TAURI] Couldn't find callback id 863910242. This might happen when the app is reloaded while Rust is running an asynchronous operation.
+[2026-07-15 03:42:47.522] [WARN] [TAURI] Couldn't find callback id 560890645. This might happen when the app is reloaded while Rust is running an asynchronous operation.
+[2026-07-15 03:42:57.879] [WARN] [TAURI] Couldn't find callback id 802739396. This might happen when the app is reloaded while Rust is running an asynchronous operation.
+[2026-07-15 03:43:01.918] [WARN] [TAURI] Couldn't find callback id 2292131415. This might happen when the app is reloaded while Rust is running an asynchronous operation.
+[2026-07-15 03:43:15.191] [WARN] [TAURI] Couldn't find callback id 3289863409. This might happen when the app is reloaded while Rust is running an asynchronous operation.
+[2026-07-15 03:45:27.387] [WARN] [TAURI] Couldn't find callback id 3694134558. This might happen when the app is reloaded while Rust is running an asynchronous operation.
+[2026-07-15 03:45:40.338] [WARN] [TAURI] Couldn't find callback id 3060961134. This might happen when the app is reloaded while Rust is running an asynchronous operation.
+[2026-07-15 03:45:40.343] [WARN] [TAURI] Couldn't find callback id 3060961134. This might happen when the app is reloaded while Rust is running an asynchronous operation.
+[2026-07-15 03:45:40.936] [WARN] [TAURI] Couldn't find callback id 3025807784. This might happen when the app is reloaded while Rust is running an asynchronous operation.
+[2026-07-15 03:45:45.883] [WARN] [TAURI] Couldn't find callback id 1099537458. This might happen when the app is reloaded while Rust is running an asynchronous operation.
+[2026-07-15 03:52:12.156] [DEBUG] [vite] hot updated: /src/app/features/browser/BrowserPanel.tsx
+[2026-07-15 03:52:12.183] [ERROR] %o
+
+%s
+
+%s
+ {} The above error occurred in the <BrowserPanel> component. React will try to recreate this component tree from scratch using the error boundary you provided, ErrorBoundary.
+[2026-07-15 03:52:12.184] [ERROR] ErrorBoundary caught: {} {"componentStack":"\n    at BrowserPanel (http://127.0.0.1:5173/src/app/features/browser/BrowserPanel.tsx?t=1784058732140:40:16)\n    at Suspense (<anonymous>)\n    at div (<anonymous>)\n    at div (<anonymous>)\n    at ActiveToolPanel (http://127.0.0.1:5173/src/app/regions/RightPanel.tsx:37:70)\n    at div (<anonymous>)\n    at aside (<anonymous>)\n    at RightPanel (http://127.0.0.1:5173/src/app/regions/RightPanel.tsx:276:10)\n    at Suspense (<anonymous>)\n    at ErrorBoundary (http://127.0.0.1:5173/src/app/components/ErrorBoundary.tsx:6:3)\n    at div (<anonymous>)\n    at main (<anonymous>)\n    at TCopyProvider (http://127.0.0.1:5173/src/app/i18n/TCopyContext.tsx:7:33)\n    at App (http://127.0.0.1:5173/src/app/App.tsx:28:16)"}
+[2026-07-15 03:52:19.930] [DEBUG] [vite] hot updated: /src/app/features/browser/BrowserPanel.tsx

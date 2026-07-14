@@ -21,6 +21,7 @@ mod imp {
 
     pub fn setup_webview2_messaging(
         core: &ICoreWebView2,
+        tab_id: &str,
         bridge: &Arc<dyn WebView2EventBridge>,
     ) -> Result<(), String> {
         info!("[ADL-META-RECV] Method 1 (postMessage): setting up handler");
@@ -37,6 +38,7 @@ mod imp {
             };
 
             let bridge_for_handler = bridge.clone();
+            let tab_id_for_handler = tab_id.to_string();
             let handler = webview2_com::WebMessageReceivedEventHandler::create(Box::new(
                 move |_sender: Option<ICoreWebView2>,
                       args: Option<ICoreWebView2WebMessageReceivedEventArgs>| {
@@ -95,7 +97,7 @@ mod imp {
                                     url.chars().take(80).collect::<String>()
                                 );
 
-                            bridge_for_handler.emit_meta_changed(&title, &favicon, &url);
+                            bridge_for_handler.emit_meta_changed(&tab_id_for_handler, &title, &favicon, &url);
                         }
                     }
 
@@ -125,7 +127,7 @@ mod imp {
 mod imp {
     use tracing::debug;
 
-    pub fn setup_webview2_messaging() -> Result<(), String> {
+    pub fn setup_webview2_messaging(_tab_id: &str) -> Result<(), String> {
         debug!("webview2 messaging not available on this platform (non-Windows), using fallback");
         Ok(())
     }

@@ -178,7 +178,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       return;
     }
 
-    const unsubUrl = browser.onUrlChanged((url) => {
+    const unsubUrl = browser.onUrlChanged((tabId, url) => {
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         return;
       }
@@ -189,13 +189,12 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
       const state = useAppStore.getState();
 
-      const activeTabId = state.browserActiveTabId;
-      const activeTab = activeTabId
-        ? state.browserTabs.find((t: BrowserTabState) => t.id === activeTabId)
+      const eventTab = tabId
+        ? state.browserTabs.find((t: BrowserTabState) => t.id === tabId)
         : undefined;
 
-      const urlChanged = activeTab && normalizeUrlForCompare(activeTab.url) !== normalizedUrl;
-      const noTabExists = !activeTab && !activeTabId;
+      const urlChanged = eventTab && normalizeUrlForCompare(eventTab.url) !== normalizedUrl;
+      const noTabExists = !eventTab;
 
       if (noTabExists || urlChanged) {
         if (noTabExists && pendingPrefetchRef.current.has(normalizedUrl)) {
@@ -210,7 +209,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         // 防止 SPA URL 规范化（如 YouTube 移除 tracking params、Bilibili 添加 vd_source）
         // 用 real-title 条目替换掉 placeholder。检查 same dedupKey 下是否已有真实标题。
         const dedupKey = historyDedupKey(normalizedUrl);
-        const existingReal = s.browserHistory.find(
+        const existingEntry = s.browserHistory.find(
           (h) => historyDedupKey(h.url) === dedupKey && h.title !== h.url
         );
 
@@ -221,7 +220,18 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         // WebView already navigated, we must not navigate again).
         webViewSelfNavigatedRef.current = true;
 
-        if (existingReal) {
+        if (eventTab && tabId) {
+          // Use the tabId from the event to update the correct tab,
+          // not the currently active tab (which may differ if user
+          // switched tabs before this event was processed).
+          s.browserUpdateTab(tabId, { url: normalizedUrl, title: '' });
+          if (existingEntry) {
+            s.browserAddToHistory(normalizedUrl, existingEntry.title);
+            s.browserUpdateHistoryTitle(normalizedUrl, existingEntry.title);
+          } else {
+            s.browserAddToHistory(normalizedUrl, normalizedUrl);
+          }
+        } else if (existingEntry) {
           s.browserNavigateActiveTab(normalizedUrl);
         } else {
           s.browserAddToHistory(normalizedUrl, normalizedUrl);
@@ -284,15 +294,18 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
         const fallbackDelay = noTabExists ? 8000 : 15000;
         const timerId = setTimeout(() => {
+          if (captureGeneration !== navigationGenerationRef.current) {
+            fallbackTimeoutsRef.current.delete(normalizedUrl);
+            return;
+          }
           const s = useAppStore.getState();
-          const activeTabId = s.browserActiveTabId;
-          const curTab = activeTabId
-            ? s.browserTabs.find((t: BrowserTabState) => t.id === activeTabId)
+          const curTab = tabId
+            ? s.browserTabs.find((t: BrowserTabState) => t.id === tabId)
             : undefined;
           if (curTab) {
             const tabUrlMatches = normalizeUrlForCompare(curTab.url) === normalizedUrl;
             if (!tabUrlMatches) {
-              s.browserNavigateActiveTab(normalizedUrl, normalizedUrl);
+              s.browserUpdateTab(tabId, { url: normalizedUrl, title: normalizedUrl });
             } else if (!curTab.title) {
               s.browserUpdateTab(curTab.id, { title: normalizedUrl });
             }

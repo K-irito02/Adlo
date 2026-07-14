@@ -40,11 +40,13 @@ fn resolve_window_and_url(
 
 fn build_webview_builder(
     label: &str,
+    tab_id: &str,
     target: url::Url,
     app_handle: tauri::AppHandle,
     color_scheme: &str,
 ) -> tauri::webview::WebviewBuilder<tauri::Wry> {
     let app_nav = app_handle.clone();
+    let tab_id_owned = tab_id.to_string();
     let init_script = adl_browser::init_script_with_background(color_scheme);
     tracing::debug!(color_scheme, "build_webview_builder: generated init_script with background");
     tauri::webview::WebviewBuilder::new(label, tauri::WebviewUrl::External(target))
@@ -62,7 +64,7 @@ fn build_webview_builder(
                 tracing::debug!(normalized_url = %normalized, "on_navigation: emitting browser-url-changed");
                 let _ = app_nav.emit(
                     "digital-life://browser-url-changed",
-                    serde_json::json!({ "url": normalized }),
+                    serde_json::json!({ "tabId": tab_id_owned, "url": normalized }),
                 );
             })
         })
@@ -224,7 +226,7 @@ pub async fn browser_create_for_tab(
             // setup in apply_theme_and_navigate_for_platform.
             let blank_url = url::Url::parse("about:blank")
                 .map_err(|e| AppError::Internal(format!("failed to parse about:blank: {e}")))?;
-            let webview_builder = build_webview_builder(&label, blank_url, app_inner.clone(), &cs);
+            let webview_builder = build_webview_builder(&label, &tab_id, blank_url, app_inner.clone(), &cs);
 
             window
                 .add_child(

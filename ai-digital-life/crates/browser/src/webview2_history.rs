@@ -38,6 +38,7 @@ mod imp {
 
     fn build_history_handler(
         bridge: Arc<dyn WebView2EventBridge>,
+        tab_id: String,
         label: String,
     ) -> ICoreWebView2HistoryChangedEventHandler {
         HistoryChangedEventHandler::create(Box::new(
@@ -64,7 +65,7 @@ mod imp {
 
                 POLL_FAST_NOW.store(true, Ordering::Release);
 
-                bridge.emit_url_changed(&clean_url);
+                bridge.emit_url_changed(&tab_id, &clean_url);
 
                 let count = HISTORY_CHANGED_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
                 info!(
@@ -82,14 +83,14 @@ mod imp {
 
     pub fn setup_history_changed_handler(
         core: &ICoreWebView2,
-        label: String,
+        tab_id: &str,
+        label: &str,
         bridge: &Arc<dyn WebView2EventBridge>,
     ) -> Result<(), String> {
         info!("[ADL-META-RECV] Method 5 (HistoryChanged): setting up handler");
         unsafe {
             let bridge_for_handler = bridge.clone();
-            let label_for_handler = label.clone();
-            let handler = build_history_handler(bridge_for_handler, label_for_handler);
+            let handler = build_history_handler(bridge_for_handler, tab_id.to_string(), label.to_string());
 
             let mut token: i64 = 0;
             match core.add_HistoryChanged(&handler, &mut token as *mut _ as *mut _) {
@@ -116,7 +117,7 @@ mod imp {
 mod imp {
     use tracing::debug;
 
-    pub fn setup_history_changed_handler(_label: String) -> Result<(), String> {
+    pub fn setup_history_changed_handler(_tab_id: &str, _label: &str) -> Result<(), String> {
         debug!(
             "history changed handler not available on this platform (non-Windows), using fallback"
         );

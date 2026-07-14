@@ -20,17 +20,17 @@ pub fn setup_webview2_handlers(
     label: &str,
     bridge: &Arc<dyn WebView2EventBridge>,
 ) {
-    if let Err(e) = crate::webview2_message::setup_webview2_messaging(core, bridge) {
+    if let Err(e) = crate::webview2_message::setup_webview2_messaging(core, tab_id, bridge) {
         tracing::warn!(tab_id = tab_id, error = %e, "webview2 messaging setup failed");
     }
-    if let Err(e) = crate::webview2_message::setup_document_title_handler(core, bridge) {
+    if let Err(e) = crate::webview2_message::setup_document_title_handler(core, tab_id, bridge) {
         tracing::warn!(tab_id = tab_id, error = %e, "document title handler setup failed");
     }
     if let Err(e) = crate::webview2_message::setup_favicon_changed_handler(core) {
         tracing::warn!(tab_id = tab_id, error = %e, "favicon changed handler setup failed");
     }
     if let Err(e) =
-        crate::webview2_message::setup_history_changed_handler(core, label.to_string(), bridge)
+        crate::webview2_message::setup_history_changed_handler(core, tab_id, label, bridge)
     {
         tracing::warn!(tab_id = tab_id, error = %e, "history changed handler setup failed");
     }

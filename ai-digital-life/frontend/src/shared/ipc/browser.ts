@@ -41,9 +41,9 @@ export interface BrowserBridge {
   /** Reload a specific tab */
   reloadTab: (tabId: string) => Promise<void>;
   /** Subscribe to URL changes (global event) */
-  onUrlChanged: (listener: (url: string) => void) => () => void;
+  onUrlChanged: (listener: (tabId: string, url: string) => void) => () => void;
   /** Subscribe to page meta changes */
-  onMetaChanged: (listener: (meta: PageMeta) => void) => () => void;
+  onMetaChanged: (listener: (tabId: string, meta: PageMeta) => void) => () => void;
   /** Mute or unmute a tab */
   muteTab: (tabId: string, muted: boolean) => Promise<void>;
   /** Subscribe to audio state changes */

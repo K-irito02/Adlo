@@ -25,12 +25,12 @@ export function createTauriBrowserBridge(): BrowserBridge {
       invokeIpc<boolean>('browser_go_forward_tab', { tabId }).then((r) => r.ok && !!r.data),
     reloadTab: (tabId: string) =>
       invokeIpc<void>('browser_reload_tab', { tabId }).then(() => undefined),
-    onUrlChanged: (listener: (url: string) => void) => {
+    onUrlChanged: (listener: (tabId: string, url: string) => void) => {
       let active = true;
       let ul: UnlistenFn | undefined;
-      void listen<{ url: string }>('digital-life://browser-url-changed', (event) => {
+      void listen<{ tabId: string; url: string }>('digital-life://browser-url-changed', (event) => {
         if (active) {
-          listener(event.payload.url);
+          listener(event.payload.tabId, event.payload.url);
         }
       }).then((unlisten) => {
         if (active) {
@@ -45,14 +45,15 @@ export function createTauriBrowserBridge(): BrowserBridge {
         void Promise.resolve(ul?.()).catch(() => {});
       };
     },
-    onMetaChanged: (listener: (meta: { title: string; favicon: string; url: string }) => void) => {
+    onMetaChanged: (listener: (tabId: string, meta: { title: string; favicon: string; url: string }) => void) => {
       let active = true;
       let ul: UnlistenFn | undefined;
-      void listen<{ title: string; favicon: string; url: string }>(
+      void listen<{ tabId: string; title: string; favicon: string; url: string }>(
         'digital-life://browser-meta-changed',
         (event) => {
           if (active) {
-            listener(event.payload);
+            const { tabId, ...meta } = event.payload;
+            listener(tabId, meta);
           }
         }
       ).then((unlisten) => {

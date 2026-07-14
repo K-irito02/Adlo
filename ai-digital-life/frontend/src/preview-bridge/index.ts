@@ -84,8 +84,8 @@ export function setupPreviewBridge(): void {
       goBackTab: (_tabId: string) => Promise.resolve(false),
       goForwardTab: (_tabId: string) => Promise.resolve(false),
       reloadTab: (_tabId: string) => Promise.resolve(),
-      onUrlChanged: (_listener: (url: string) => void) => () => {},
-      onMetaChanged: (_listener: (meta: PageMeta) => void) => () => {},
+      onUrlChanged: (_listener: (tabId: string, url: string) => void) => () => {},
+      onMetaChanged: (_listener: (tabId: string, meta: PageMeta) => void) => () => {},
       muteTab: (tabId: string, muted: boolean) => {
         audioMonitor.setMuted(tabId, muted);
         return Promise.resolve();

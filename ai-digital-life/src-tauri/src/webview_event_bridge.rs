@@ -12,10 +12,11 @@ impl TauriWebView2EventBridge {
 }
 
 impl WebView2EventBridge for TauriWebView2EventBridge {
-    fn emit_meta_changed(&self, title: &str, favicon: &str, url: &str) {
+    fn emit_meta_changed(&self, tab_id: &str, title: &str, favicon: &str, url: &str) {
         let _ = self.app.emit(
             "digital-life://browser-meta-changed",
             serde_json::json!({
+                "tabId": tab_id,
                 "title": title,
                 "favicon": favicon,
                 "url": url,
@@ -23,9 +24,11 @@ impl WebView2EventBridge for TauriWebView2EventBridge {
         );
     }
 
-    fn emit_url_changed(&self, url: &str) {
-        let _ =
-            self.app.emit("digital-life://browser-url-changed", serde_json::json!({ "url": url }));
+    fn emit_url_changed(&self, tab_id: &str, url: &str) {
+        let _ = self.app.emit(
+            "digital-life://browser-url-changed",
+            serde_json::json!({ "tabId": tab_id, "url": url }),
+        );
     }
 
     fn emit_audio_changed(&self, tab_id: &str, is_playing: bool, is_muted: bool) {

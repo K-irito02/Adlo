@@ -27,8 +27,8 @@ pub trait WebViewHandle: Send + Sync {
 /// Bridge for emitting events from native WebView2 handlers back to the platform layer.
 /// Implemented in `src-tauri/` using `tauri::AppHandle`.
 pub trait WebView2EventBridge: Send + Sync {
-    fn emit_meta_changed(&self, title: &str, favicon: &str, url: &str);
-    fn emit_url_changed(&self, url: &str);
+    fn emit_meta_changed(&self, tab_id: &str, title: &str, favicon: &str, url: &str);
+    fn emit_url_changed(&self, tab_id: &str, url: &str);
     fn emit_audio_changed(&self, tab_id: &str, is_playing: bool, is_muted: bool);
     fn spawn_spa_fallback(&self, label: &str, url: &str);
 }

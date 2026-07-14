@@ -22,11 +22,13 @@ mod imp {
 
     pub fn setup_document_title_handler(
         core: &ICoreWebView2,
+        tab_id: &str,
         bridge: &Arc<dyn WebView2EventBridge>,
     ) -> Result<(), String> {
         info!("[ADL-META-RECV] Method 3 (DocumentTitleChanged): setting up handler");
         unsafe {
             let bridge_for_handler = bridge.clone();
+            let tab_id_for_handler = tab_id.to_string();
             let handler = DocumentTitleChangedEventHandler::create(Box::new(
                 move |sender: Option<ICoreWebView2>, _args: Option<IUnknown>| {
                     let Some(sender) = sender else {
@@ -90,7 +92,7 @@ mod imp {
                         url.chars().take(80).collect::<String>()
                     );
 
-                    bridge_for_handler.emit_meta_changed(&title, &favicon, &url);
+                    bridge_for_handler.emit_meta_changed(&tab_id_for_handler, &title, &favicon, &url);
 
                     Ok(())
                 },
@@ -121,7 +123,7 @@ mod imp {
 mod imp {
     use tracing::debug;
 
-    pub fn setup_document_title_handler() -> Result<(), String> {
+    pub fn setup_document_title_handler(_tab_id: &str) -> Result<(), String> {
         debug!(
             "document title handler not available on this platform (non-Windows), using fallback"
         );
