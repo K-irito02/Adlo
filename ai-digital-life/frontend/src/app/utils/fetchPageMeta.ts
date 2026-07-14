@@ -13,7 +13,6 @@ interface CacheEntry {
 const metaCache = new Map<string, CacheEntry>();
 const faviconUrlCache = new Map<string, string>();
 const faviconPinned = new Set<string>();
-const titleLockedTabs = new Set<string>();
 
 const FAVICON_CACHE_KEY = 'adl-ui:browser-favicon-cache';
 const PERSIST_DEBOUNCE_MS = 500;
@@ -58,14 +57,6 @@ function loadPersistedFaviconCache(): void {
 loadPersistedFaviconCache();
 const faviconListeners = new Map<string, Set<() => void>>();
 const globalFaviconListeners = new Set<(url: string) => void>();
-
-export function lockTabTitle(tabId: string): void {
-  titleLockedTabs.add(tabId);
-}
-
-export function isTabTitleLocked(tabId: string): boolean {
-  return titleLockedTabs.has(tabId);
-}
 
 function normalizeUrlForCache(url: string): string {
   try {
@@ -160,10 +151,6 @@ export function clearFaviconCacheForUrl(url: string): void {
 
 export function clearPageMetaCacheForUrl(url: string): void {
   metaCache.delete(url);
-}
-
-export function unlockTabTitle(tabId: string): void {
-  titleLockedTabs.delete(tabId);
 }
 
 export async function fetchPageMeta(

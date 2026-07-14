@@ -15,17 +15,18 @@ export function normalizeTabTitle(title: string | undefined, _url: string): stri
 }
 
 /**
- * Normalize URL for history dedup — matches by hostname+pathname,
- * ignoring query params, hash, trailing slash, and www. prefix.
- * This prevents duplicate entries when the same page is visited
- * with different tracking parameters or URL variants.
+ * Normalize URL for history dedup — matches by hostname+pathname+query string,
+ * ignoring hash, trailing slash, and www. prefix.
+ * Query string is included so SPA pages with different query params (e.g. YouTube
+ * `?v=AAA` vs `?v=BBB`) get separate history entries.
  */
 export function historyDedupKey(url: string): string {
   try {
     const u = new URL(url);
     const hostname = u.hostname.replace(/^www\./, '');
     const path = u.pathname.length > 1 ? u.pathname.replace(/\/+$/, '') : u.pathname;
-    return `${hostname}${path}`;
+    const query = u.search || '';
+    return `${hostname}${path}${query}`;
   } catch {
     return url;
   }

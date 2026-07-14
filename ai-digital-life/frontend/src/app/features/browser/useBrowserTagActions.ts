@@ -5,8 +5,6 @@ import {
   prefetchPageMeta,
   clearFaviconCacheForUrl,
   clearPageMetaCacheForUrl,
-  unlockTabTitle,
-  isTabTitleLocked,
   setCachedFavicon,
 } from '@utils/fetchPageMeta';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
@@ -51,9 +49,7 @@ export function useBrowserTagActions() {
 
       const title = meta?.title || hostnameFromUrl(url);
       if (tab) {
-        if (!isTabTitleLocked(tabId)) {
-          browserUpdateTab(tabId, { title });
-        }
+        browserUpdateTab(tabId, { title });
       } else {
         const isHistoryEntry = state.browserHistory.some((h) => h.id === tabId);
         if (isHistoryEntry) {
@@ -85,7 +81,6 @@ export function useBrowserTagActions() {
           clearFaviconCacheForUrl(url);
           clearPageMetaCacheForUrl(url);
         }
-        unlockTabTitle(tabId);
         browserCloseTab(tabId);
       }
     },

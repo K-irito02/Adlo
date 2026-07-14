@@ -1,11 +1,7 @@
 import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import {
-  clearFaviconCacheForUrl,
-  clearPageMetaCacheForUrl,
-  unlockTabTitle,
-} from '@utils/fetchPageMeta';
+import { clearFaviconCacheForUrl, clearPageMetaCacheForUrl } from '@utils/fetchPageMeta';
 
 export function useBrowserBookmarkActions() {
   const { browserRemoveTabBookmarks } = useAppStore(
@@ -26,7 +22,6 @@ export function useBrowserBookmarkActions() {
         clearFaviconCacheForUrl(url);
         clearPageMetaCacheForUrl(url);
       }
-      unlockTabTitle(tabId);
     },
     [browserRemoveTabBookmarks]
   );

@@ -3,11 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
-import {
-  clearFaviconCacheForUrl,
-  clearPageMetaCacheForUrl,
-  unlockTabTitle,
-} from '@utils/fetchPageMeta';
+import { clearFaviconCacheForUrl, clearPageMetaCacheForUrl } from '@utils/fetchPageMeta';
 
 export type BrowserNavigatorMode = 'open' | 'tabs' | 'list' | 'search';
 
@@ -116,7 +112,6 @@ export function useBrowserTabs() {
           clearFaviconCacheForUrl(tab.url);
           clearPageMetaCacheForUrl(tab.url);
         }
-        unlockTabTitle(tabId);
       }
       browserCloseTab(tabId);
     },
@@ -127,14 +122,10 @@ export function useBrowserTabs() {
     (workspaceId?: string) => {
       if (!workspaceId) {
         const state = useAppStore.getState();
-        const allTabIds = state.browserTabs.map((t) => t.id);
         const allUrls = state.browserTabs.map((t) => t.url).filter((u): u is string => !!u);
         for (const url of allUrls) {
           clearFaviconCacheForUrl(url);
           clearPageMetaCacheForUrl(url);
-        }
-        for (const tabId of allTabIds) {
-          unlockTabTitle(tabId);
         }
       }
       browserCloseAllTabs(workspaceId);

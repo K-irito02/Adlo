@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
-import { setCachedFavicon, isTabTitleLocked, getCachedFavicon } from '@utils/fetchPageMeta';
+import { setCachedFavicon, getCachedFavicon } from '@utils/fetchPageMeta';
 import type { ToastType } from '@components/Toast';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
@@ -232,9 +232,7 @@ export function useBrowserPageMeta(
 
       if (exactMatch) {
         if (exactMatch.title !== pageTitle) {
-          if (!isTabTitleLocked(exactMatch.id)) {
-            state.browserUpdateTab(exactMatch.id, { title: pageTitle });
-          }
+          state.browserUpdateTab(exactMatch.id, { title: pageTitle });
           state.browserAddToHistory(cleanUrl, pageTitle);
           state.browserUpdateHistoryTitle(cleanUrl, pageTitle);
         }
@@ -250,12 +248,10 @@ export function useBrowserPageMeta(
         }
         processedMetaRef.current.set(cleanUrl, { timestamp: Date.now(), source });
 
-        if (!isTabTitleLocked(activeTab.id)) {
-          state.browserUpdateTab(activeTab.id, {
-            url: cleanUrl,
-            title: pageTitle,
-          });
-        }
+        state.browserUpdateTab(activeTab.id, {
+          url: cleanUrl,
+          title: pageTitle,
+        });
         state.browserAddToHistory(cleanUrl, pageTitle);
         state.browserUpdateHistoryTitle(cleanUrl, pageTitle);
         return;

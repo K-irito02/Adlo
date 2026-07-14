@@ -1,11 +1,7 @@
 import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import {
-  clearFaviconCacheForUrl,
-  clearPageMetaCacheForUrl,
-  unlockTabTitle,
-} from '@utils/fetchPageMeta';
+import { clearFaviconCacheForUrl, clearPageMetaCacheForUrl } from '@utils/fetchPageMeta';
 import {
   findFolderByIdLocal,
   collectAllDescendantTabIdsLocal,
@@ -199,7 +195,6 @@ export function useBrowserFolderCrud() {
         );
         allTabUrls.push(...folderEntries);
       }
-      const unlocked = new Set<string>();
       if (!nodePath.startsWith('folder:')) {
         for (const tabId of tabIds) {
           const url =
@@ -212,10 +207,6 @@ export function useBrowserFolderCrud() {
       for (const { tabId, url } of allTabUrls) {
         if (tabId && url) {
           browserRemoveTabBookmarks(tabId, url);
-          if (!unlocked.has(tabId)) {
-            unlockTabTitle(tabId);
-            unlocked.add(tabId);
-          }
         }
       }
 
@@ -301,7 +292,6 @@ export function useBrowserFolderCrud() {
         clearFaviconCacheForUrl(url);
         clearPageMetaCacheForUrl(url);
       }
-      const unlocked = new Set<string>();
       if (nodePath.startsWith('folder:')) {
         const folderId = nodePath.slice('folder:'.length);
         const folder = state.browserTabFolders.find((f) => f.id === folderId);
@@ -309,10 +299,6 @@ export function useBrowserFolderCrud() {
           for (const item of folder.tabs) {
             if (item.tabId && item.url) {
               browserRemoveTabBookmarks(item.tabId, item.url);
-              if (!unlocked.has(item.tabId)) {
-                unlockTabTitle(item.tabId);
-                unlocked.add(item.tabId);
-              }
             }
           }
         }
@@ -321,10 +307,6 @@ export function useBrowserFolderCrud() {
           const url = state.browserTabs.find((t) => t.id === tabId)?.url || '';
           if (tabId && url) {
             browserRemoveTabBookmarks(tabId, url);
-            if (!unlocked.has(tabId)) {
-              unlockTabTitle(tabId);
-              unlocked.add(tabId);
-            }
           }
         }
       }
@@ -443,14 +425,9 @@ export function useBrowserFolderCrud() {
             }
           };
           collectFolderTabEntries(actualId);
-          const unlocked = new Set<string>();
           for (const { tabId, url } of allTabUrls) {
             if (tabId && url) {
               browserRemoveTabBookmarks(tabId, url);
-              if (!unlocked.has(tabId)) {
-                unlockTabTitle(tabId);
-                unlocked.add(tabId);
-              }
             }
           }
         }

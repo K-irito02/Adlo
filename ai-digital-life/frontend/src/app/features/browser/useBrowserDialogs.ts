@@ -1,12 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
-import {
-  getCachedFavicon,
-  setCachedFavicon,
-  prefetchPageMeta,
-  lockTabTitle,
-} from '@utils/fetchPageMeta';
+import { getCachedFavicon, setCachedFavicon, prefetchPageMeta } from '@utils/fetchPageMeta';
 import { getGoogleFaviconUrl } from '@utils/favicon';
 import type { ToastType } from '@components/Toast';
 
@@ -103,10 +98,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       setIsCreatingTab(false);
       setCreateTabDialog({ open: false });
       browserOpenTab(url, title, folderId ? undefined : workspaceId, folderId || undefined);
-      const tabId = useAppStore.getState().browserActiveTabId;
-      if (tabId) {
-        lockTabTitle(tabId);
-      }
       bookmarkNewTab(workspaceId, folderId);
     },
     [browserOpenTab, createTabDialog, bookmarkNewTab]
@@ -134,9 +125,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       const { tabId } = editTabDialog;
       if (tabId) {
         browserUpdateTab(tabId, { title: name.trim() || undefined, url: url.trim() || undefined });
-        if (name.trim()) {
-          lockTabTitle(tabId);
-        }
       }
       setEditTabDialog({ open: false, tabId: '', name: '', url: '' });
     },
