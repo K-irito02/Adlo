@@ -217,7 +217,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleDoubleClick,
   });
 
+  const startupOverlayHidden = useAppStore((s) => s.startupOverlayHidden);
+
   const hasOverlayActive =
+    !startupOverlayHidden ||
     createTabDialog.open ||
     editTabDialog.open ||
     bookmarkDialogOpen ||

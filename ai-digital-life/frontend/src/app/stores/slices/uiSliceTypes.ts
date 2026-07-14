@@ -75,6 +75,7 @@ export interface UISlice {
   filePreviewModeByPath: FilePreviewModeState;
   changesPreviewEnabled: boolean;
   showGitVisualization: boolean;
+  startupOverlayHidden: boolean;
   expandedSessionWorkspaces: Record<string, boolean>;
   contextChips: ContextChip[];
   contextMenuOpen: boolean;
@@ -107,6 +108,7 @@ export interface UISlice {
   setFilePreviewModeForPath: (path: string, previewEnabled: boolean) => void;
   setChangesPreviewEnabled: (previewEnabled: boolean) => void;
   setShowGitVisualization: (show: boolean) => void;
+  setStartupOverlayHidden: (hidden: boolean) => void;
   setChangesNavigatorMode: (mode: ChangesNavigatorMode) => void;
   setChangesTreePathExpanded: (path: string, expanded: boolean) => void;
   toggleChangesTreePath: (path: string) => void;

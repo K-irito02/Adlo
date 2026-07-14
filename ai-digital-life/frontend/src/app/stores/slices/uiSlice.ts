@@ -196,6 +196,7 @@ export const createUISlice = (
     filePreviewModeByPath: {},
     changesPreviewEnabled: true,
     showGitVisualization: false,
+    startupOverlayHidden: false,
     contextChips: [],
     contextMenuOpen: false,
     fileMenuOpen: false,
@@ -231,6 +232,7 @@ export const createUISlice = (
       writeFlag(SHOW_GIT_VISUALIZATION_KEY, show);
       set({ showGitVisualization: show });
     },
+    setStartupOverlayHidden: (hidden) => set({ startupOverlayHidden: hidden }),
     setChangesNavigatorMode: (mode) => {
       writeChangesNavigatorMode(mode);
       set({ changesNavigatorMode: mode });

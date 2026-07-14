@@ -120,6 +120,7 @@ export function App() {
   }, [setActiveRightTool]);
 
   const activeSessionId = useAppStore((s) => s.activeSessionId);
+  const setStartupOverlayHidden = useAppStore((s) => s.setStartupOverlayHidden);
   const [overlayHidden, setOverlayHidden] = useState(false);
   const startedAt = useRef(0);
 
@@ -148,6 +149,12 @@ export function App() {
     }, remaining);
     return () => clearTimeout(timer);
   }, [t, appReady]);
+
+  // 同步 overlayHidden 到 UI store，供 BrowserPanel 纳入 hasOverlayActive 计算
+  // 确保启动覆盖层显示期间 WebView2 保持离屏
+  useEffect(() => {
+    setStartupOverlayHidden(overlayHidden);
+  }, [overlayHidden, setStartupOverlayHidden]);
 
   // Guard: wait for i18n before rendering (safe to return after all hooks)
   if (!t) {
