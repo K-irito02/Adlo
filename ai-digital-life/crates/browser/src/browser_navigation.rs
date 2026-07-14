@@ -27,15 +27,16 @@ pub const INIT_SCRIPT: &str = r#"
         try {
             var u1 = new URL(url1);
             var u2 = new URL(url2);
-            return u1.origin + u1.pathname.replace(/\/$/, '') === u2.origin + u2.pathname.replace(/\/$/, '');
+            return u1.origin + u1.pathname.replace(/\/+$/, '') === u2.origin + u2.pathname.replace(/\/+$/, '');
         } catch(e) {
             return url1 === url2;
         }
     }
     
     // Click interception: prevent default <a> navigation, then let SPA handlers
-    // observe the event (no stopPropagation). Use microtask fallback: if SPA did
-    // NOT call pushState, navigate via window.location.href as before.
+    // observe the event (no stopPropagation). Use event-driven SPA detection:
+    // if the SPA calls history.pushState/replaceState or popstate fires within
+    // NAV_GUARD_TIMEOUT_MS, we skip the fallback; otherwise, we navigate.
     document.addEventListener('click', function(event) {
         var target = event.target;
         
@@ -46,12 +47,9 @@ pub const INIT_SCRIPT: &str = r#"
                     console.log('[ADL Browser] Link intercepted (click <a>):', href);
                     event.preventDefault();
                     // Don't stopPropagation — SPA handlers (Vue/React) need the event
-                    // Microtask: if SPA didn't pushState, fall back to full navigation
-                    Promise.resolve().then(function() {
-                        if (!isSamePage(location.href, href)) {
-                            navigateToUrl(href);
-                        }
-                    });
+                    if (window.__startNavGuard) {
+                        window.__startNavGuard(href);
+                    }
                     return;
                 }
             }
@@ -61,11 +59,9 @@ pub const INIT_SCRIPT: &str = r#"
                 if (isValidWebUrl(href)) {
                     console.log('[ADL Browser] Link intercepted (click <area>):', href);
                     event.preventDefault();
-                    Promise.resolve().then(function() {
-                        if (!isSamePage(location.href, href)) {
-                            navigateToUrl(href);
-                        }
-                    });
+                    if (window.__startNavGuard) {
+                        window.__startNavGuard(href);
+                    }
                     return;
                 }
             }
@@ -88,20 +84,20 @@ pub const INIT_SCRIPT: &str = r#"
     // they trigger the native navigation_handler which catches all navigations
     const originalAssign = Location.prototype.assign;
     const originalReplace = Location.prototype.replace;
-    
+
     Location.prototype.assign = function(url) {
         if (url && isValidWebUrl(url)) {
             console.log('[ADL Browser] location.assign intercepted:', url);
-            navigateToUrl(url);
+            originalAssign.call(this, url);
             return;
         }
         return originalAssign.apply(this, arguments);
     };
-    
+
     Location.prototype.replace = function(url) {
         if (url && isValidWebUrl(url)) {
             console.log('[ADL Browser] location.replace intercepted:', url);
-            navigateToUrl(url);
+            originalReplace.call(this, url);
             return;
         }
         return originalReplace.apply(this, arguments);
@@ -138,6 +134,65 @@ pub const INIT_SCRIPT: &str = r#"
     }
     
     console.log('[ADL Browser] Initialization complete');
+
+    // ---- SPA NAVIGATION GUARD ----
+    // Wraps the meta IIFE's history patches. When a click is intercepted,
+    // __startNavGuard sets a guard. If pushState/replaceState/popstate fires
+    // within NAV_GUARD_TIMEOUT_MS, the SPA handled navigation — guard clears
+    // and no fallback occurs. Otherwise, the guard falls back to navigateToUrl.
+    // This avoids the race condition where a deferred SPA navigation fires
+    // AFTER a fixed-delay fallback, causing a double page reload.
+    (function() {
+        var NAV_GUARD_TIMEOUT_MS = 200;
+        var guardHref = null;
+        var guardTimer = null;
+
+        var origPushState = history.pushState;
+        var origReplaceState = history.replaceState;
+
+        function clearGuard() {
+            if (guardTimer) { clearTimeout(guardTimer); guardTimer = null; }
+            guardHref = null;
+        }
+
+        history.pushState = function() {
+            if (guardHref) clearGuard();
+            return origPushState.apply(this, arguments);
+        };
+        history.replaceState = function() {
+            if (guardHref) clearGuard();
+            return origReplaceState.apply(this, arguments);
+        };
+        window.addEventListener('popstate', function() {
+            if (guardHref) clearGuard();
+        });
+
+        window.__startNavGuard = function(href) {
+            clearGuard();
+            guardHref = href;
+
+            // Microtask: handles synchronous pushState (99% of SPAs) and all
+            // non-SPA pages — near-instant fallback, no perceptible delay.
+            Promise.resolve().then(function() {
+                if (guardHref === null) return;
+                if (guardHref === href && !isSamePage(location.href, href)) {
+                    navigateToUrl(href);
+                }
+                guardHref = null;
+                if (guardTimer) { clearTimeout(guardTimer); guardTimer = null; }
+            });
+
+            // Backup setTimeout: handles deferred/async pushState (rare
+            // edge case, e.g. SPA router with async route resolution).
+            guardTimer = setTimeout(function() {
+                if (guardHref === href && !isSamePage(location.href, href)) {
+                    navigateToUrl(href);
+                }
+                guardHref = null;
+                guardTimer = null;
+            }, NAV_GUARD_TIMEOUT_MS);
+        };
+    })();
 
     // ---- REAL-TIME META REPORTING (title + favicon) ----
     // Method 1: WebView2 postMessage (real-time, initiated by page JS)

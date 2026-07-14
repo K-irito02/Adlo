@@ -97,7 +97,12 @@ mod imp {
                                     url.chars().take(80).collect::<String>()
                                 );
 
-                            bridge_for_handler.emit_meta_changed(&tab_id_for_handler, &title, &favicon, &url);
+                            bridge_for_handler.emit_meta_changed(
+                                &tab_id_for_handler,
+                                &title,
+                                &favicon,
+                                &url,
+                            );
                         }
                     }
 

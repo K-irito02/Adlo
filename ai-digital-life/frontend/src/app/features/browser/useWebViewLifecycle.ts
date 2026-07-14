@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { isTauriShell } from '@tauri-bridge';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { getResolvedTheme } from './useBrowserThemeSync';
+import { normalizeUrlForCompare } from './browserUrlUtils';
 
 interface UseWebViewLifecycleOptions {
   activeTab?: BrowserTabState;
@@ -19,12 +20,13 @@ interface UseWebViewLifecycleOptions {
   hideWebViewRequestedRef: React.RefObject<boolean>;
   updateWebViewBounds: () => void;
   /**
-   * Set to `true` by `useBrowserUrlChange` when `onUrlChanged` fires,
-   * indicating the WebView already navigated on its own. When `true`,
-   * `useWebViewLifecycle` skips `navigateTabInPool` to avoid a redundant
-   * double-navigation (e.g. YouTube's `?themeRefresh=1`).
+   * Set of URLs recorded by `useBrowserUrlChange` when `onUrlChanged` fires,
+   * indicating the WebView already navigated on its own. When the tab's URL
+   * is found in this Set, `useWebViewLifecycle` skips `navigateTabInPool`
+   * to avoid a redundant double-navigation (e.g. YouTube's `?themeRefresh=1`
+   * or Bilibili's server redirects).
    */
-  webViewSelfNavigatedRef: React.RefObject<boolean>;
+  webViewSelfNavigatedRef: React.RefObject<Set<string>>;
 }
 
 /**
@@ -132,14 +134,19 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
           const urlChanged = prevUrl !== undefined && prevUrl !== tab.url;
 
           if (urlChanged) {
-            // Check if this URL change came from the WebView itself (via
-            // onUrlChanged). If so, the WebView already navigated — skip
-            // navigateTabInPool to avoid a redundant double-navigation.
-            if (webViewSelfNavigatedRef.current) {
-              webViewSelfNavigatedRef.current = false;
-            } else {
+            // Check if this URL was recorded by useBrowserUrlChange (via
+            // onUrlChanged). If so, the WebView already navigated on its
+            // own — skip navigateTabInPool to avoid a redundant double-
+            // navigation. Using Set.has() instead of a boolean so that
+            // redirect chains (URL-A → URL-B) are both tracked and neither
+            // triggers a redundant navigation. Normalize before checking
+            // to account for trailing-slash differences between event
+            // sources (onUrlChanged vs meta events).
+            const selfNav = webViewSelfNavigatedRef.current;
+            if (!selfNav.has(normalizeUrlForCompare(tab.url))) {
               await navigateTabInPool(currentTabId, tab.url);
             }
+            selfNav.delete(normalizeUrlForCompare(tab.url));
           }
         }
         await activateTabInPool(currentTabId);

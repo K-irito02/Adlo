@@ -10,7 +10,7 @@ interface UseBrowserWebViewOptions {
   webViewDisabled?: boolean;
   isVisible: boolean;
   overlayActive: boolean;
-  webViewSelfNavigatedRef: React.RefObject<boolean>;
+  webViewSelfNavigatedRef: React.RefObject<Set<string>>;
 }
 
 /**

@@ -19,7 +19,7 @@ interface UseBrowserUrlChangeOptions {
   onNavigationStart?: (url: string) => void;
   markUrlSeen: (url: string) => void;
   setIframeLoadError: React.Dispatch<React.SetStateAction<boolean>>;
-  webViewSelfNavigatedRef: React.MutableRefObject<boolean>;
+  webViewSelfNavigatedRef: React.MutableRefObject<Set<string>>;
 }
 
 export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
@@ -216,9 +216,18 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         // Mark that this URL change came from the WebView itself (via
         // onUrlChanged). This tells useWebViewLifecycle to skip
         // navigateTabInPool, preventing a redundant double-navigation
-        // (e.g. YouTube's ?themeRefresh=1 triggers onUrlChanged → the
-        // WebView already navigated, we must not navigate again).
-        webViewSelfNavigatedRef.current = true;
+        // (e.g. YouTube's ?themeRefresh=1 or Bilibili's tracking-param
+        // redirect — the WebView already navigated, we must not navigate
+        // again). Using a Set so redirects (URL-A → URL-B) are both
+        // tracked and neither triggers a redundant navigation.
+        const set = webViewSelfNavigatedRef.current;
+        set.add(normalizedUrl);
+        if (set.size > 10) {
+          const first = set.values().next().value;
+          if (first) {
+            set.delete(first);
+          }
+        }
 
         if (eventTab && tabId) {
           // Use the tabId from the event to update the correct tab,

@@ -90,7 +90,8 @@ mod imp {
         info!("[ADL-META-RECV] Method 5 (HistoryChanged): setting up handler");
         unsafe {
             let bridge_for_handler = bridge.clone();
-            let handler = build_history_handler(bridge_for_handler, tab_id.to_string(), label.to_string());
+            let handler =
+                build_history_handler(bridge_for_handler, tab_id.to_string(), label.to_string());
 
             let mut token: i64 = 0;
             match core.add_HistoryChanged(&handler, &mut token as *mut _ as *mut _) {

@@ -79,10 +79,14 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const activatedTabIdsRef = useRef(new Set<string>());
   const pendingNavigationsRef = useRef<Set<string>>(new Set());
-  /** Shared between useBrowserUrlChange and useWebViewLifecycle: when
-   *  onUrlChanged fires, this is set to true so useWebViewLifecycle skips
-   *  navigateTabInPool (the WebView already navigated on its own). */
-  const webViewSelfNavigatedRef = useRef(false);
+  /** Shared between useBrowserUrlChange and useWebViewLifecycle: tracks
+   *  URLs that were navigated by the WebView itself (via onUrlChanged).
+   *  A Set is used instead of a boolean to handle server redirects: when
+   *  on_navigation fires for URL-A then URL-B (redirect), both are added
+   *  to the set so useWebViewLifecycle skips navigateTabInPool for both —
+   *  avoiding a double page reload (the bug with Bilibili's tracking-param
+   *  redirects). Kept capped at 10 to avoid unbounded growth. */
+  const webViewSelfNavigatedRef = useRef(new Set<string>());
 
   const handleNavigationStart = useCallback((url: string) => {
     // Track pending navigation so handlePageMeta creates tab only when real title arrives

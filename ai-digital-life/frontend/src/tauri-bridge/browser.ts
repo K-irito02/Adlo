@@ -45,7 +45,9 @@ export function createTauriBrowserBridge(): BrowserBridge {
         void Promise.resolve(ul?.()).catch(() => {});
       };
     },
-    onMetaChanged: (listener: (tabId: string, meta: { title: string; favicon: string; url: string }) => void) => {
+    onMetaChanged: (
+      listener: (tabId: string, meta: { title: string; favicon: string; url: string }) => void
+    ) => {
       let active = true;
       let ul: UnlistenFn | undefined;
       void listen<{ tabId: string; title: string; favicon: string; url: string }>(

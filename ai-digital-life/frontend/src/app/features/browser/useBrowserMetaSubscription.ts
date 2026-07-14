@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { isTauriShell } from '@tauri-bridge';
 import { useAppStore } from '@stores';
+import { normalizeUrlForCompare } from './browserUrlUtils';
 
 export function useBrowserMetaSubscription(
   handlePageMeta: (meta: { title: string; favicon: string; url: string }) => void
@@ -17,8 +18,9 @@ export function useBrowserMetaSubscription(
       if (tabId) {
         const state = useAppStore.getState();
         const eventTab = state.browserTabs.find((t) => t.id === tabId);
-        if (eventTab && eventTab.url !== meta.url) {
-          state.browserUpdateTab(tabId, { url: meta.url });
+        const normalizedMetaUrl = normalizeUrlForCompare(meta.url);
+        if (eventTab && normalizeUrlForCompare(eventTab.url) !== normalizedMetaUrl) {
+          state.browserUpdateTab(tabId, { url: normalizedMetaUrl });
         }
       }
       handlePageMeta(meta);
