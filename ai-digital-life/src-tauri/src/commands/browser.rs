@@ -42,18 +42,24 @@ fn build_webview_builder(
     label: &str,
     target: url::Url,
     app_handle: tauri::AppHandle,
+    color_scheme: &str,
 ) -> tauri::webview::WebviewBuilder<tauri::Wry> {
     let app_nav = app_handle.clone();
+    let init_script = adl_browser::init_script_with_background(color_scheme);
+    tracing::debug!(color_scheme, "build_webview_builder: generated init_script with background");
     tauri::webview::WebviewBuilder::new(label, tauri::WebviewUrl::External(target))
-        .initialization_script(adl_browser::INIT_SCRIPT)
+        .initialization_script(init_script)
         .on_navigation(move |url| {
             // Skip about:blank — used as the initial URL during WebView creation
             // to allow background color and CDP color scheme to be applied before
             // the real page's first paint. See browser_create_for_tab.
             if url.as_str().starts_with("about:blank") {
+                tracing::debug!(raw_url = %url.as_str(), "on_navigation: skipped about:blank");
                 return true;
             }
+            tracing::debug!(raw_url = %url.as_str(), "on_navigation: ENTER");
             adl_browser::navigation_handler(url, &|normalized| {
+                tracing::debug!(normalized_url = %normalized, "on_navigation: emitting browser-url-changed");
                 let _ = app_nav.emit(
                     "digital-life://browser-url-changed",
                     serde_json::json!({ "url": normalized }),
@@ -87,49 +93,89 @@ fn setup_webview2_handlers_for_platform(
     }
 }
 
-/// Apply the color scheme (background color + CDP prefers-color-scheme) and then
-/// navigate the WebView from the initial `about:blank` to the real target URL.
+/// Apply the color scheme (background color + Profile PreferredColorScheme) and
+/// then navigate the WebView from the initial `about:blank` to the real target URL.
 ///
 /// On Windows, all three operations happen inside `with_webview` to guarantee
-/// ordering: background color is set and CDP color scheme is applied BEFORE the
-/// real page's first paint, eliminating the white flash and theme flicker.
+/// ordering: background color is set and Profile color scheme is applied BEFORE
+/// the real page's first paint, eliminating the white flash and theme flicker.
+///
+/// **Race condition handling**: `with_webview` is asynchronous — the closure is
+/// queued and executed on the next message-loop iteration. If the user switches
+/// theme between `browser_create_for_tab` and the closure's execution, the
+/// originally captured `color_scheme` would be stale. To fix this, the closure
+/// re-reads `BrowserManager::current_color_scheme()` at execution time, ensuring
+/// it always uses the latest theme. This prevents the scenario where:
+///   1. closure_A (from create) sets Profile=light + Navigate
+///   2. closure_B (from set_color_scheme_for_all) sets Profile=dark
+///   3. YouTube detects the change and triggers ?themeRefresh=1 (flicker)
 ///
 /// On non-Windows, there is no WebView2 flash issue, so we simply navigate.
 fn apply_theme_and_navigate_for_platform(
     webview: &tauri::Webview<tauri::Wry>,
-    color_scheme: &str,
+    app_handle: tauri::AppHandle,
     real_url: &str,
 ) {
     #[cfg(windows)]
     {
-        let cs = color_scheme.to_string();
         let url_owned = real_url.to_string();
+        let app_for_closure = app_handle.clone();
+        tracing::debug!(url = &url_owned, "apply_theme_and_navigate_for_platform: ENTER (windows)");
         let _ = webview.with_webview(move |platform_wv| unsafe {
             let controller = platform_wv.controller();
 
-            // Set background color via ICoreWebView2Controller2 (eliminates white flash)
+            // Re-read the latest color scheme from BrowserManager at closure
+            // execution time. `with_webview` is async, so the theme may have
+            // changed since browser_create_for_tab was called. Using the latest
+            // value ensures the Profile and Navigate use the same theme, avoiding
+            // a stale-theme → new-theme transition that triggers YouTube's
+            // ?themeRefresh=1 flicker.
+            let cs = match app_for_closure.try_state::<AppState>() {
+                Some(state) => state.browser_manager.current_color_scheme(),
+                None => {
+                    tracing::warn!("apply_theme: AppState not found, falling back to dark");
+                    "dark".to_string()
+                }
+            };
+            tracing::debug!(
+                latest_cs = &cs,
+                url = &url_owned,
+                "apply_theme: closure executing with latest color scheme"
+            );
+
+            // 1. Set background color via ICoreWebView2Controller2
             let (r, g, b) = adl_browser::theme_to_rgb(&cs);
+            tracing::debug!(color_scheme = &cs, r, g, b, "apply_theme: set_default_background_color");
             if let Err(e) = adl_browser::set_default_background_color(&controller, r, g, b) {
                 tracing::warn!(error = %e, "failed to set WebView2 default background color");
             }
 
-            // Apply CDP color scheme, then navigate to the real URL
+            // 2. Set Profile PreferredColorScheme (synchronous, native WebView2 API)
+            //    This takes effect before any page load, so the page's first paint
+            //    always sees the correct prefers-color-scheme.
             if let Ok(core) = controller.CoreWebView2() {
-                adl_browser::webview2_set_color_scheme(&core, &cs);
+                tracing::debug!(color_scheme = &cs, "apply_theme: calling set_profile_color_scheme");
+                adl_browser::webview2_set_profile_color_scheme(&core, &cs);
+
+                // 3. Navigate immediately — no need to wait for any callback
+                tracing::debug!(url = &url_owned, "apply_theme: navigate_core");
                 if let Err(e) = adl_browser::navigate_core(&core, &url_owned) {
                     tracing::warn!(error = %e, url = %url_owned, "failed to navigate WebView2 to real URL");
                 }
+            } else {
+                tracing::warn!("apply_theme: failed to get CoreWebView2");
             }
         });
     }
     #[cfg(not(windows))]
     {
         // On non-Windows, navigate to the real URL via Tauri's cross-platform API.
-        // No WebView2 background color / CDP flash issue exists on these platforms.
+        // No WebView2 background color / Profile color scheme flash issue exists
+        // on these platforms.
         if let Ok(parsed) = url::Url::parse(real_url) {
             let _ = webview.navigate(parsed);
         }
-        adl_browser::webview2_set_color_scheme(color_scheme);
+        let _ = app_handle;
     }
 }
 
@@ -159,17 +205,26 @@ pub async fn browser_create_for_tab(
     app.run_on_main_thread(move || {
         let state = app_inner.state::<AppState>();
         let label = webview_label(&tab_id);
+        tracing::debug!(tab_id = &tab_id, url = &url, color_scheme = ?&color_scheme, "browser_create_for_tab: ENTER");
 
         let result = (|| -> Result<Option<String>, AppError> {
             let (window, _target) = resolve_window_and_url(&app_inner, &url)?;
 
+            // Resolve the color scheme early — it's needed for the init script
+            // (hardcoded background color in INIT_SCRIPT). The init script uses
+            // this value to set document.documentElement.style.backgroundColor
+            // before page CSS loads. apply_theme_and_navigate_for_platform will
+            // re-read the latest color scheme at closure execution time, so this
+            // value only affects the INIT_SCRIPT background color.
+            let cs = color_scheme.unwrap_or_else(|| state.browser_manager.current_color_scheme());
+
             // Create the WebView with about:blank as the initial URL to prevent
-            // the real page from loading before the background color and CDP
+            // the real page from loading before the background color and Profile
             // color scheme are applied. The real URL is navigated to after theme
             // setup in apply_theme_and_navigate_for_platform.
             let blank_url = url::Url::parse("about:blank")
                 .map_err(|e| AppError::Internal(format!("failed to parse about:blank: {e}")))?;
-            let webview_builder = build_webview_builder(&label, blank_url, app_inner.clone());
+            let webview_builder = build_webview_builder(&label, blank_url, app_inner.clone(), &cs);
 
             window
                 .add_child(
@@ -187,19 +242,37 @@ pub async fn browser_create_for_tab(
                 let bridge: EventBridgeRef =
                     Arc::new(TauriWebView2EventBridge::new(app_inner.clone()));
                 setup_webview2_handlers_for_platform(&webview, &tab_id, &label, bridge.clone());
-
-                // Use the caller-provided color scheme if available; otherwise fall
-                // back to the manager's current scheme. Passing the resolved theme
-                // from the frontend eliminates the "dark" default race condition
-                // where BrowserManager.current_color_scheme() may still be "dark"
-                // even when the app is in light mode.
-                let cs = color_scheme
-                    .clone()
-                    .unwrap_or_else(|| state.browser_manager.current_color_scheme());
-                apply_theme_and_navigate_for_platform(&webview, &cs, &url);
             }
 
-            register_webview_with_manager(&state, app_inner.clone(), label.clone(), &tab_id)
+            // Register the webview with BrowserManager BEFORE calling
+            // apply_theme_and_navigate_for_platform. This ensures the webview is
+            // in the manager's map when set_color_scheme_for_all runs, so any
+            // pending theme change can update it. apply_theme_and_navigate_for_platform
+            // will also re-read the latest color scheme at closure execution time,
+            // handling the race where the theme was changed between
+            // browser_create_for_tab and the with_webview closure execution.
+            let register_result = register_webview_with_manager(
+                &state,
+                app_inner.clone(),
+                label.clone(),
+                &tab_id,
+            );
+
+            match register_result {
+                Ok(result) => {
+                    if let Some(webview) = window.get_webview(&label) {
+                        apply_theme_and_navigate_for_platform(&webview, app_inner.clone(), &url);
+                    }
+                    Ok(result)
+                }
+                Err(e) => {
+                    // Clean up the orphan WebView to prevent resource leaks
+                    if let Some(webview) = window.get_webview(&label) {
+                        let _ = webview.close();
+                    }
+                    Err(e)
+                }
+            }
         })();
 
         let _ = tx.send(result);

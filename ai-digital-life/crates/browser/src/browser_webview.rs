@@ -155,9 +155,14 @@ impl BrowserManager {
     }
 
     pub fn navigate_tab(&self, tab_id: &str, url: &str) -> Result<(), AppError> {
+        tracing::debug!(tab_id = tab_id, url = url, "BrowserManager::navigate_tab: ENTER");
         self.with_handle(tab_id, |handle| {
             handle.navigate(url)?;
-            tracing::info!(tab_id = tab_id, url = url, "browser navigate for tab");
+            tracing::debug!(
+                tab_id = tab_id,
+                url = url,
+                "BrowserManager::navigate_tab: navigate() succeeded"
+            );
             Ok(())
         })
     }

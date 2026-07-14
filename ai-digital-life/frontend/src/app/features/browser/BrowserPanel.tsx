@@ -79,6 +79,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const activatedTabIdsRef = useRef(new Set<string>());
   const pendingNavigationsRef = useRef<Set<string>>(new Set());
+  /** Shared between useBrowserUrlChange and useWebViewLifecycle: when
+   *  onUrlChanged fires, this is set to true so useWebViewLifecycle skips
+   *  navigateTabInPool (the WebView already navigated on its own). */
+  const webViewSelfNavigatedRef = useRef(false);
 
   const handleNavigationStart = useCallback((url: string) => {
     // Track pending navigation so handlePageMeta creates tab only when real title arrives
@@ -238,6 +242,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     webViewDisabled: false,
     isVisible: isBrowserVisible,
     overlayActive: hasOverlayActive,
+    webViewSelfNavigatedRef,
   });
 
   const { wrappedHandleCloseTab, handleCloseAllTabs, handleClearTabDirectories } =
@@ -271,6 +276,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     onNavigationStart: handleNavigationStart,
     markUrlSeen,
     setIframeLoadError,
+    webViewSelfNavigatedRef,
   });
 
   const { browserMenuItems } = useBrowserPanelMenuItems({

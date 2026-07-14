@@ -236,6 +236,12 @@ export function useBrowserPageMeta(
           state.browserAddToHistory(cleanUrl, pageTitle);
           state.browserUpdateHistoryTitle(cleanUrl, pageTitle);
         }
+        // Also update the active tab's title if it's a different tab with the
+        // same URL (e.g. user opened the same link in multiple tabs — only
+        // the first tab would get the title without this).
+        if (activeTab && activeTab.id !== exactMatch.id && activeTab.title !== pageTitle) {
+          state.browserUpdateTab(activeTab.id, { title: pageTitle });
+        }
         return;
       }
 

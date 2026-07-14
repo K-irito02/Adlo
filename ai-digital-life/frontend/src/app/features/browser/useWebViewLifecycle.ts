@@ -13,10 +13,18 @@ interface UseWebViewLifecycleOptions {
     colorScheme?: 'light' | 'dark'
   ) => Promise<string | null>;
   activateTabInPool: (tabId: string) => Promise<void>;
+  navigateTabInPool: (tabId: string, url: string) => Promise<void>;
   webViewActiveRef: React.RefObject<boolean>;
   overlayActiveRef: React.RefObject<boolean>;
   hideWebViewRequestedRef: React.RefObject<boolean>;
   updateWebViewBounds: () => void;
+  /**
+   * Set to `true` by `useBrowserUrlChange` when `onUrlChanged` fires,
+   * indicating the WebView already navigated on its own. When `true`,
+   * `useWebViewLifecycle` skips `navigateTabInPool` to avoid a redundant
+   * double-navigation (e.g. YouTube's `?themeRefresh=1`).
+   */
+  webViewSelfNavigatedRef: React.RefObject<boolean>;
 }
 
 /**
@@ -36,14 +44,20 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     isTabInPool,
     createWebViewForTab,
     activateTabInPool,
+    navigateTabInPool,
     webViewActiveRef,
     overlayActiveRef,
     hideWebViewRequestedRef,
     updateWebViewBounds,
+    webViewSelfNavigatedRef,
   } = options;
 
   const [loadingTabId, setLoadingTabId] = useState<string | null>(null);
   const prevActiveTabIdRef = useRef<string | null>(null);
+  /** Tracks the URL each tab's WebView is currently showing, so we can detect
+   *  same-tab URL changes (e.g. "current tab" mode navigation) and call
+   *  `navigateTab` instead of just `activateTab`. */
+  const tabUrlMapRef = useRef<Map<string, string>>(new Map());
 
   // When active tab changes: create WebView if not in pool, then activate
   useEffect(() => {
@@ -75,13 +89,33 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
             width: 1,
             height: 1,
           })
-          .catch(() => {});
+          .catch((e) => {
+            console.warn('[useWebViewLifecycle] failed to hide previous tab WebView:', e);
+          });
       }
     }
     prevActiveTabIdRef.current = tab?.id ?? null;
 
     if (!tab || !tab.url || tab.url === 'about:blank' || tab.url.trim() === '') {
       webViewActiveRef.current = false;
+      // Hide the current tab's WebView so stale content doesn't remain
+      // visible when the tab transitions to about:blank (e.g. "+" button
+      // in "current tab" mode).
+      if (tab?.id && isTabInPool(tab.id)) {
+        window.digitalLife?.browser
+          ?.setTabBounds(tab.id, {
+            x: -10000,
+            y: -10000,
+            width: 1,
+            height: 1,
+          })
+          .catch((e) => {
+            console.warn('[useWebViewLifecycle] failed to hide about:blank WebView:', e);
+          });
+      }
+      if (tab?.id) {
+        tabUrlMapRef.current.set(tab.id, tab.url);
+      }
       return;
     }
 
@@ -91,9 +125,26 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
       try {
         if (!isTabInPool(currentTabId)) {
           await createWebViewForTab(currentTabId, tab.url, getResolvedTheme());
+        } else {
+          // WebView already exists: if the URL changed since last activation
+          // (e.g. "current tab" mode navigation), navigate to the new URL.
+          const prevUrl = tabUrlMapRef.current.get(currentTabId);
+          const urlChanged = prevUrl !== undefined && prevUrl !== tab.url;
+
+          if (urlChanged) {
+            // Check if this URL change came from the WebView itself (via
+            // onUrlChanged). If so, the WebView already navigated — skip
+            // navigateTabInPool to avoid a redundant double-navigation.
+            if (webViewSelfNavigatedRef.current) {
+              webViewSelfNavigatedRef.current = false;
+            } else {
+              await navigateTabInPool(currentTabId, tab.url);
+            }
+          }
         }
         await activateTabInPool(currentTabId);
         webViewActiveRef.current = true;
+        tabUrlMapRef.current.set(currentTabId, tab.url);
         // Don't reset hide guard or reposition WebView if an overlay is
         // currently active — doing so would undo the overlay-detection
         // mechanism and cause a hide↔show ping-pong cycle (observed as
@@ -120,17 +171,21 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
       }
     };
 
-    activateOrCreate().catch(() => {});
+    activateOrCreate().catch((e) => {
+      console.warn('[useWebViewLifecycle] activateOrCreate failed:', e);
+    });
   }, [
     activeTab,
     webViewDisabled,
     isTabInPool,
     createWebViewForTab,
     activateTabInPool,
+    navigateTabInPool,
     updateWebViewBounds,
     hideWebViewRequestedRef,
     overlayActiveRef,
     webViewActiveRef,
+    webViewSelfNavigatedRef,
   ]);
 
   // Cleanup on unmount

@@ -5,13 +5,13 @@ use url::Url;
 pub const INIT_SCRIPT: &str = r#"
 (function() {
     console.log('[ADL Browser] Initialization script loaded');
-    
+
     // 检查是否是有效的网页 URL
     function isValidWebUrl(href) {
         if (!href || typeof href !== 'string') return false;
         return href.startsWith('http://') || href.startsWith('https://') || href.startsWith('//');
     }
-    
+
     // 处理导航（确保在当前窗口中打开）
     function navigateToUrl(href) {
         console.log('[ADL Browser] Navigating to:', href);
@@ -491,6 +491,24 @@ pub const INIT_SCRIPT: &str = r#"
     })();
 })();
 "#;
+
+/// Generate an initialization script with a hardcoded background color based on
+/// the color scheme. This avoids relying on `prefers-color-scheme` media query
+/// which may return stale values during the `about:blank` phase (before
+/// `SetPreferredColorScheme` is applied via Profile API).
+///
+/// The background color is set via inline style on `document.documentElement`
+/// before the page's CSS loads, preventing theme flash.
+pub fn init_script_with_background(color_scheme: &str) -> String {
+    // Color values must match `theme_to_rgb` in webview2_background.rs
+    let bg = match color_scheme {
+        "light" => "#f8f8f8",
+        _ => "#141414",
+    };
+    format!(
+        "(function() {{ try {{ document.documentElement.style.backgroundColor = '{bg}'; }} catch(e) {{}} }})();\n{INIT_SCRIPT}"
+    )
+}
 
 pub fn resolve_url(raw: &str) -> Result<Url, AppError> {
     let trimmed = raw.trim();

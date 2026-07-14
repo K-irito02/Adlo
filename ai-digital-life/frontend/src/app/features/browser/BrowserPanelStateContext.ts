@@ -46,6 +46,7 @@ export interface BrowserPanelState {
     handleAddressKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
     handleAddressBlur: () => void;
     handleSearchClick: () => void;
+    handlePlusClick: () => void;
   };
   navigatorCollapsed: boolean;
   browserNavigatorWidth: number;

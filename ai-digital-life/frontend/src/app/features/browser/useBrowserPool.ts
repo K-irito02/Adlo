@@ -80,6 +80,15 @@ export function useBrowserPool() {
     }
   }, []);
 
+  const navigateTabInPool = useCallback(async (tabId: string, url: string) => {
+    if (isTauriShell()) {
+      const bridge = window.digitalLife?.browser;
+      if (bridge) {
+        await bridge.navigateTab(tabId, url);
+      }
+    }
+  }, []);
+
   const removeFromPool = useCallback(
     (tabId: string) => {
       poolSetRef.current.delete(tabId);
@@ -108,6 +117,7 @@ export function useBrowserPool() {
     isTabInPool,
     createWebViewForTab,
     activateTabInPool,
+    navigateTabInPool,
     removeFromPool: destroyTabWebView,
     poolVersion,
   };

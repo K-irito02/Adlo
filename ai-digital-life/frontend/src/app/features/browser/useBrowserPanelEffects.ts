@@ -50,10 +50,6 @@ export function useBrowserPanelEffects({
     addressSubmittedForTabRef.current = url || 'about:blank';
     setAddress(url === 'about:blank' ? '' : url);
 
-    if (url && url !== '' && url !== 'about:blank') {
-      useAppStore.getState().setShowLandingPage(false);
-    }
-
     if (!useAppStore.getState().isTauri && url && url !== '' && url !== 'about:blank') {
       requestAnimationFrame(() => {
         setIframeHistory((prev) => {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   IconArrowLeft,
   IconArrowRight,
@@ -19,6 +19,8 @@ import { useBrowserPanelActions } from './BrowserPanelActionsContext';
 import { useAppStore } from '@stores/slicedStore';
 
 export const BrowserToolbar = React.memo(function BrowserToolbar() {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const {
     t,
     navigatorCollapsed,
@@ -36,6 +38,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
       handleAddressKeyDown,
       handleAddressBlur,
       handleSearchClick,
+      handlePlusClick,
     },
   } = useBrowserPanelState();
 
@@ -50,8 +53,13 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
     toggleNavigator,
   } = useBrowserPanelActions();
 
+  const handleRefreshClick = () => {
+    setIsRefreshing(true);
+    handleReload();
+    setTimeout(() => setIsRefreshing(false), 600);
+  };
+
   const browserNavigateInPlace = useAppStore((s) => s.browserNavigateInPlace);
-  const browserNavigateActiveTab = useAppStore((s) => s.browserNavigateActiveTab);
 
   return (
     <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolBrowser}>
@@ -94,10 +102,14 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
           <button
             type="button"
             className="adl-tool-context__iconbtn"
-            onClick={handleReload}
+            onClick={handleRefreshClick}
             aria-label={t.browserRefresh}
           >
-            <IconRefreshCw size={14} decorative />
+            <IconRefreshCw
+              size={14}
+              decorative
+              className={isRefreshing ? 'adl-refresh-spin' : ''}
+            />
           </button>
         </TooltipSimple>
         <TooltipSimple
@@ -146,7 +158,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
               onClick={(e) => {
                 e.stopPropagation();
                 if (browserNavigateInPlace) {
-                  browserNavigateActiveTab('about:blank');
+                  handlePlusClick();
                 } else {
                   browserOpenTab(undefined, t.browserNewTabPage);
                 }

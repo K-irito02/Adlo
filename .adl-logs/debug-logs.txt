@@ -1,0 +1,2 @@
+[2026-07-15 02:27:24.716] [WARN] [TAURI] Couldn't find callback id 1310087344. This might happen when the app is reloaded while Rust is running an asynchronous operation.
+[2026-07-15 02:27:48.581] [WARN] [TAURI] Couldn't find callback id 863910242. This might happen when the app is reloaded while Rust is running an asynchronous operation.

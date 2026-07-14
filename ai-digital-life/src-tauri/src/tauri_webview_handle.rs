@@ -56,14 +56,23 @@ impl WebViewHandle for TauriWebViewHandle {
             let scheme_owned = scheme.to_string();
             let _ = wv.with_webview(move |platform_wv| unsafe {
                 let controller = platform_wv.controller();
+
+                // Update the default background color to match the new theme.
+                let (r, g, b) = adl_browser::theme_to_rgb(&scheme_owned);
+                if let Err(e) = adl_browser::set_default_background_color(&controller, r, g, b) {
+                    tracing::warn!(error = %e, scheme = %scheme_owned, "set_color_scheme: failed to update default background color");
+                }
+
+                // Set the Profile's PreferredColorScheme — WebView2 native API,
+                // synchronous, takes effect before any page load.
                 if let Ok(core) = controller.CoreWebView2() {
-                    adl_browser::webview2_set_color_scheme(&core, &scheme_owned);
+                    adl_browser::webview2_set_profile_color_scheme(&core, &scheme_owned);
                 }
             });
         }
         #[cfg(not(windows))]
         {
-            adl_browser::webview2_set_color_scheme(scheme);
+            let _ = scheme;
         }
         Ok(())
     }

@@ -37,14 +37,19 @@ export function useBrowserPanelAddressSubmit({
   const submitAddress = useCallback(async () => {
     const input = address.trim();
     if (!input) {
-      addressSubmittedForTabRef.current = 'about:blank';
-      setAddress('');
-      useAppStore.getState().setShowLandingPage(true);
+      // Empty input: restore the address bar to the current tab's URL
+      // instead of showing the landing page. This ensures that pressing
+      // Enter with an empty address bar (e.g. after clicking "+") does
+      // not change anything — the user must enter a URL to navigate.
+      const state = useAppStore.getState();
+      const activeTab = state.browserTabs.find((t) => t.id === state.browserActiveTabId);
+      const currentUrl = activeTab?.url ?? '';
+      addressSubmittedForTabRef.current = currentUrl || 'about:blank';
+      setAddress(currentUrl === 'about:blank' ? '' : currentUrl);
       return;
     }
 
     addressSubmittedForTabRef.current = '';
-    useAppStore.getState().setShowLandingPage(false);
     const matchedItem = findInBrowserLookupIndex(browserLookupIndex, input);
     const finalUrl = matchedItem?.url
       ? matchedItem.url

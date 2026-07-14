@@ -46,6 +46,7 @@ export function BrowserNavigator() {
     browserTabs,
     browserTabFolders,
     tabTreeExpanded,
+    urlState: { handlePlusClick },
   } = useBrowserPanelState();
 
   const activeTabId = activeTab?.id ?? '';
@@ -91,7 +92,6 @@ export function BrowserNavigator() {
     setBrowserNavigatorWidth,
     browserSelectTab,
     browserNavigateInPlace,
-    browserNavigateActiveTab,
   } = useAppStore(
     useShallow((state) => ({
       browserBookmarks: state.browserBookmarks,
@@ -101,7 +101,6 @@ export function BrowserNavigator() {
       setBrowserNavigatorWidth: state.setBrowserNavigatorWidth,
       browserSelectTab: state.browserSelectTab,
       browserNavigateInPlace: state.browserNavigateInPlace,
-      browserNavigateActiveTab: state.browserNavigateActiveTab,
     }))
   );
 
@@ -210,7 +209,7 @@ export function BrowserNavigator() {
                     }
                     setCreateTabDialog({ open: true, workspaceId: wsId, folderId: fId });
                   } else if (browserNavigateInPlace) {
-                    browserNavigateActiveTab('about:blank');
+                    handlePlusClick();
                   } else {
                     browserOpenTab(undefined, t.browserNewTabPage);
                   }

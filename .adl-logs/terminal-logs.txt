@@ -1,0 +1,154 @@
+2026-07-15T02:26:54.192  INFO ThreadId(01) ai_digital_life::setup: [ADL-PERF] log init: 2ms
+2026-07-15T02:26:54.216  INFO ThreadId(01) adl_storage::connection: database pool opened (max_size=8) path="C:\\Users\\31432\\AppData\\Roaming\\com.ai-digital-life.app\\state\\app-state.db"
+2026-07-15T02:26:54.219  INFO ThreadId(01) adl_storage::connection: schema initialized
+2026-07-15T02:26:54.221  INFO ThreadId(01) ai_digital_life::setup: [ADL-PERF] db open+init: 25ms
+2026-07-15T02:26:54.225  INFO ThreadId(01) ai_digital_life::setup: [ADL-PERF] migrations: 0ms
+2026-07-15T02:26:54.228  INFO ThreadId(01) ai_digital_life::setup: [ADL-PERF] housekeeping: 1ms
+2026-07-15T02:26:54.231  INFO ThreadId(01) ai_digital_life::setup: [ADL-PERF] load workspace: 2ms
+2026-07-15T02:26:54.231  INFO ThreadId(01) ai_digital_life::setup: [ADL-PERF] http client: 0ms
+2026-07-15T02:26:54.233  INFO ThreadId(01) ai_digital_life::setup: [ADL-PERF] register providers: 0ms
+2026-07-15T02:26:54.233  INFO ThreadId(01) ai_digital_life::setup: [ADL-PERF] init_app_state TOTAL: 52ms
+2026-07-15T02:26:54.233  INFO ThreadId(01) ai_digital_life: [ADL-PERF] setup COMPLETE: 56ms
+2026-07-15T02:26:54.881  INFO ThreadId(01) ai_digital_life: [ADL-PERF] main webview page load finished: url=http://127.0.0.1:5173/
+2026-07-15T02:26:54.894  INFO ThreadId(01) ai_digital_life: [ADL-PERF] main window shown after page load
+2026-07-15T02:26:57.291  INFO ThreadId(01) ai_digital_life::commands::browser: browser_set_color_scheme command invoked color_scheme="dark"
+2026-07-15T02:26:57.292  INFO ThreadId(01) adl_browser::browser_webview: set_color_scheme_for_all starting tab_count=0 color_scheme="dark"
+2026-07-15T02:27:12.981  INFO ThreadId(01) ai_digital_life::commands::browser: browser webview created for tab tab_id="browser-e288945a-e0ec-4d8f-90fc-ce940c92d738" url="https://www.bilibili.com/"
+2026-07-15T02:27:12.981  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] Method 1 (postMessage): setting up handler
+2026-07-15T02:27:12.981  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] Method 1 (postMessage): handler REGISTERED ✓ (token=22), REAL-TIME SYNC ENABLED
+2026-07-15T02:27:12.981  INFO ThreadId(01) adl_browser::webview2_title::imp: [ADL-META-RECV] Method 3 (DocumentTitleChanged): setting up handler
+2026-07-15T02:27:12.983  INFO ThreadId(01) adl_browser::webview2_title::imp: [ADL-META-RECV] Method 3 (DocumentTitleChanged): handler REGISTERED ✓ (token=20), NATIVE TITLE DETECTION ENABLED
+2026-07-15T02:27:12.983  INFO ThreadId(01) adl_browser::webview2_favicon::imp: [ADL-META-RECV] Method 4 (FaviconChanged): setting up handler
+2026-07-15T02:27:12.983  INFO ThreadId(01) adl_browser::webview2_favicon::imp: [ADL-META-RECV] Method 4 (FaviconChanged): handler REGISTERED ✓ (token=20), NATIVE FAVICON DETECTION ENABLED
+2026-07-15T02:27:12.983  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] Method 5 (HistoryChanged): setting up handler
+2026-07-15T02:27:12.984  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] Method 5 (HistoryChanged): handler REGISTERED ✓ (token=20), SPA NAVIGATION DETECTION ENABLED
+2026-07-15T02:27:12.989  INFO ThreadId(01) adl_browser::webview2_audio::imp: audio handlers registered (ICoreWebView2_17 + _18) tab_id=browser-e288945a-e0ec-4d8f-90fc-ce940c92d738
+2026-07-15T02:27:12.990  INFO ThreadId(01) adl_browser::browser_webview: browser webview registered for tab tab_id="browser-e288945a-e0ec-4d8f-90fc-ce940c92d738"
+2026-07-15T02:27:13.339  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#1) | url: https://www.bilibili.com/
+2026-07-15T02:27:13.346  INFO ThreadId(01) adl_browser::webview2_title::imp: [ADL-META-RECV] ◄ Method 3 (DocumentTitleChanged): RECEIVED ✓ (#1) | title: 哔哩哔哩 (゜-゜)つロ 干杯~-bilibili | favicon: ✓ | url: https://www.bilibili.com/
+2026-07-15T02:27:13.886  INFO ThreadId(01) ai_digital_life: browser page finished loading url=https://www.bilibili.com/
+2026-07-15T02:27:14.087  INFO ThreadId(55) ai_digital_life: browser on_page_load: calling eval
+2026-07-15T02:27:14.087  INFO ThreadId(55) ai_digital_life: browser on_page_load: eval ok
+2026-07-15T02:27:23.419  INFO ThreadId(28) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.bilibili.com/video/BV184NQ65Evx
+2026-07-15T02:27:23.805  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#2) | url: https://www.bilibili.com/video/BV184NQ65Evx/
+2026-07-15T02:27:23.827  INFO ThreadId(01) adl_browser::webview2_title::imp: [ADL-META-RECV] ◄ Method 3 (DocumentTitleChanged): RECEIVED ✓ (#2) | title: 《龙族：卡塞尔之门》IF线特别剧情「白月长明外」PV | 跨越千年，宿命相见 | favicon: (empty) | url: https://www.bilibili.com/video/BV184NQ65Evx/
+2026-07-15T02:27:24.035  INFO ThreadId(22) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.bilibili.com/video/BV184NQ65Evx body_len=101522
+2026-07-15T02:27:24.040  WARN ThreadId(22) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.bilibili.com/video/BV184NQ65Evx
+2026-07-15T02:27:24.041  INFO ThreadId(22) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.bilibili.com/video/BV184NQ65Evx title= favicon_len=36
+2026-07-15T02:27:24.050  INFO ThreadId(01) ai_digital_life: browser page finished loading url=https://www.bilibili.com/video/BV184NQ65Evx/
+2026-07-15T02:27:24.251  INFO ThreadId(56) ai_digital_life: browser on_page_load: calling eval
+2026-07-15T02:27:24.252  INFO ThreadId(56) ai_digital_life: browser on_page_load: eval ok
+2026-07-15T02:27:24.668  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#3) | url: https://www.bilibili.com/video/BV184NQ65Evx/?vd_source=f204375acc1cfd2f8f45cdb2b
+2026-07-15T02:27:24.681  INFO ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.bilibili.com/video/BV184NQ65Evx?vd_source=f204375acc1cfd2f8f45cdb2b892c08a
+2026-07-15T02:27:24.687  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#1) | title: 《龙族：卡塞尔之门》IF线特别剧情「白月长明外」PV | 跨越千年，宿命相见 | url: https://www.bilibili.com/video/BV184NQ65Evx/?vd_source=f204375acc1cfd2f8f45cdb2b
+2026-07-15T02:27:25.124  INFO ThreadId(22) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.bilibili.com/video/BV184NQ65Evx?vd_source=f204375acc1cfd2f8f45cdb2b892c08a body_len=96929
+2026-07-15T02:27:25.128  WARN ThreadId(22) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.bilibili.com/video/BV184NQ65Evx?vd_source=f204375acc1cfd2f8f45cdb2b892c08a
+2026-07-15T02:27:25.128  INFO ThreadId(22) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.bilibili.com/video/BV184NQ65Evx?vd_source=f204375acc1cfd2f8f45cdb2b892c08a title= favicon_len=36
+2026-07-15T02:27:26.506  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#2) | title: 《龙族：卡塞尔之门》IF线特别剧情「白月长明外」PV | 跨越千年，宿命相见 | url: https://www.bilibili.com/video/BV184NQ65Evx/?vd_source=f204375acc1cfd2f8f45cdb2b
+2026-07-15T02:27:26.677  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#3) | title: 《龙族：卡塞尔之门》IF线特别剧情「白月长明外」PV | 跨越千年，宿命相见 | url: https://www.bilibili.com/video/BV184NQ65Evx/?vd_source=f204375acc1cfd2f8f45cdb2b
+2026-07-15T02:27:33.287  INFO ThreadId(22) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.bilibili.com/video/BV11FMb65Ec5?spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900
+2026-07-15T02:27:33.413  INFO ThreadId(01) ai_digital_life: browser page finished loading url=https://www.bilibili.com/video/BV184NQ65Evx/?vd_source=f204375acc1cfd2f8f45cdb2b892c08a
+2026-07-15T02:27:33.597  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#4) | url: https://www.bilibili.com/video/BV11FMb65Ec5?vd_source=f204375acc1cfd2f8f45cdb2b8
+2026-07-15T02:27:33.601  INFO ThreadId(28) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.bilibili.com/video/BV11FMb65Ec5?vd_source=f204375acc1cfd2f8f45cdb2b892c08a&spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900
+2026-07-15T02:27:33.615  INFO ThreadId(57) ai_digital_life: browser on_page_load: calling eval
+2026-07-15T02:27:33.616  INFO ThreadId(57) ai_digital_life: browser on_page_load: eval ok
+2026-07-15T02:27:33.843  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#5) | url: https://www.bilibili.com/video/BV11FMb65Ec5/?spm_id_from=333.788.recommend_more_
+2026-07-15T02:27:33.851  INFO ThreadId(01) adl_browser::webview2_title::imp: [ADL-META-RECV] ◄ Method 3 (DocumentTitleChanged): RECEIVED ✓ (#3) | title: 精灵们需要繁衍子孙每天都希望男主积极一点_哔哩哔哩_bilibili | favicon: (empty) | url: https://www.bilibili.com/video/BV11FMb65Ec5/?spm_id_from=333.788.recommend_more_
+2026-07-15T02:27:33.878  INFO ThreadId(22) ai_digital_life::commands::browser: fetch_page_meta_inner: skipped (dedup within 3000ms) url=https://www.bilibili.com/video/BV11FMb65Ec5?spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900
+2026-07-15T02:27:33.913  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.bilibili.com/video/BV11FMb65Ec5?spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900 body_len=82054
+2026-07-15T02:27:33.926  WARN ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.bilibili.com/video/BV11FMb65Ec5?spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900
+2026-07-15T02:27:33.926  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.bilibili.com/video/BV11FMb65Ec5?spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900 title= favicon_len=36
+2026-07-15T02:27:34.016  INFO ThreadId(01) ai_digital_life: browser page finished loading url=https://www.bilibili.com/video/BV11FMb65Ec5/?spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900
+2026-07-15T02:27:34.217  INFO ThreadId(58) ai_digital_life: browser on_page_load: calling eval
+2026-07-15T02:27:34.217  INFO ThreadId(58) ai_digital_life: browser on_page_load: eval ok
+2026-07-15T02:27:34.376  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#6) | url: https://www.bilibili.com/video/BV11FMb65Ec5/?spm_id_from=333.788.recommend_more_
+2026-07-15T02:27:34.399  INFO ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.bilibili.com/video/BV11FMb65Ec5?spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900&vd_source=f204375acc1cfd2f8f45cdb2b892c08a
+2026-07-15T02:27:34.771  INFO ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.bilibili.com/video/BV11FMb65Ec5?vd_source=f204375acc1cfd2f8f45cdb2b892c08a&spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900 body_len=82113
+2026-07-15T02:27:34.774  WARN ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.bilibili.com/video/BV11FMb65Ec5?vd_source=f204375acc1cfd2f8f45cdb2b892c08a&spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900
+2026-07-15T02:27:34.775  INFO ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.bilibili.com/video/BV11FMb65Ec5?vd_source=f204375acc1cfd2f8f45cdb2b892c08a&spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900 title= favicon_len=36
+2026-07-15T02:27:34.777  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#4) | title: 精灵们需要繁衍子孙每天都希望男主积极一点_哔哩哔哩_bilibili | url: https://www.bilibili.com/video/BV11FMb65Ec5/?spm_id_from=333.788.recommend_more_
+2026-07-15T02:27:34.889  INFO ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.bilibili.com/video/BV11FMb65Ec5?spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900&vd_source=f204375acc1cfd2f8f45cdb2b892c08a body_len=81884
+2026-07-15T02:27:34.894  WARN ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.bilibili.com/video/BV11FMb65Ec5?spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900&vd_source=f204375acc1cfd2f8f45cdb2b892c08a
+2026-07-15T02:27:34.894  INFO ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.bilibili.com/video/BV11FMb65Ec5?spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900&vd_source=f204375acc1cfd2f8f45cdb2b892c08a title= favicon_len=36
+2026-07-15T02:27:36.222  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#5) | title: 精灵们需要繁衍子孙每天都希望男主积极一点_哔哩哔哩_bilibili | url: https://www.bilibili.com/video/BV11FMb65Ec5/?spm_id_from=333.788.recommend_more_
+2026-07-15T02:27:36.379  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#6) | title: 精灵们需要繁衍子孙每天都希望男主积极一点_哔哩哔哩_bilibili | url: https://www.bilibili.com/video/BV11FMb65Ec5/?spm_id_from=333.788.recommend_more_
+2026-07-15T02:27:48.034  INFO ThreadId(28) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.bilibili.com/video/BV1GUiCBKEUJ?spm_id_from=333.788.recommend_more_video.5&trackid=web_related_0.router-related-2479604-97qjn.1784053653516.437
+2026-07-15T02:27:48.084  INFO ThreadId(01) ai_digital_life: browser page finished loading url=https://www.bilibili.com/video/BV11FMb65Ec5/?spm_id_from=333.788.recommend_more_video.1&trackid=web_related_0.router-related-2479604-fjzqj.1784053643469.900&vd_source=f204375acc1cfd2f8f45cdb2b892c08a
+2026-07-15T02:27:48.285  INFO ThreadId(60) ai_digital_life: browser on_page_load: calling eval
+2026-07-15T02:27:48.285  INFO ThreadId(60) ai_digital_life: browser on_page_load: eval ok
+2026-07-15T02:27:48.335  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#7) | url: https://www.bilibili.com/video/BV1GUiCBKEUJ?spm_id_from=333.788.recommend_more_v
+2026-07-15T02:27:48.339  INFO ThreadId(28) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.bilibili.com/video/BV1GUiCBKEUJ?spm_id_from=333.788.recommend_more_video.5&trackid=web_related_0.router-related-2479604-97qjn.1784053653516.437&vd_source=f204375acc1cfd2f8f45cdb2b892c08a
+2026-07-15T02:27:48.545  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#8) | url: https://www.bilibili.com/video/BV1GUiCBKEUJ/?spm_id_from=333.788.recommend_more_
+2026-07-15T02:27:48.551  INFO ThreadId(22) ai_digital_life::commands::browser: fetch_page_meta_inner: skipped (dedup within 3000ms) url=https://www.bilibili.com/video/BV1GUiCBKEUJ?spm_id_from=333.788.recommend_more_video.5&trackid=web_related_0.router-related-2479604-97qjn.1784053653516.437
+2026-07-15T02:27:48.554  INFO ThreadId(01) adl_browser::webview2_title::imp: [ADL-META-RECV] ◄ Method 3 (DocumentTitleChanged): RECEIVED ✓ (#4) | title: “ 从 天 而 降 的 奖 励”_哔哩哔哩_bilibili | favicon: (empty) | url: https://www.bilibili.com/video/BV1GUiCBKEUJ/?spm_id_from=333.788.recommend_more_
+2026-07-15T02:27:48.596  INFO ThreadId(28) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.bilibili.com/video/BV1GUiCBKEUJ?spm_id_from=333.788.recommend_more_video.5&trackid=web_related_0.router-related-2479604-97qjn.1784053653516.437 body_len=93613
+2026-07-15T02:27:48.600  WARN ThreadId(28) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.bilibili.com/video/BV1GUiCBKEUJ?spm_id_from=333.788.recommend_more_video.5&trackid=web_related_0.router-related-2479604-97qjn.1784053653516.437
+2026-07-15T02:27:48.600  INFO ThreadId(28) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.bilibili.com/video/BV1GUiCBKEUJ?spm_id_from=333.788.recommend_more_video.5&trackid=web_related_0.router-related-2479604-97qjn.1784053653516.437 title= favicon_len=36
+2026-07-15T02:27:48.749  INFO ThreadId(01) ai_digital_life: browser page finished loading url=https://www.bilibili.com/video/BV1GUiCBKEUJ/?spm_id_from=333.788.recommend_more_video.5&trackid=web_related_0.router-related-2479604-97qjn.1784053653516.437
+2026-07-15T02:27:48.854  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.bilibili.com/video/BV1GUiCBKEUJ?spm_id_from=333.788.recommend_more_video.5&trackid=web_related_0.router-related-2479604-97qjn.1784053653516.437&vd_source=f204375acc1cfd2f8f45cdb2b892c08a body_len=93710
+2026-07-15T02:27:48.857  WARN ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.bilibili.com/video/BV1GUiCBKEUJ?spm_id_from=333.788.recommend_more_video.5&trackid=web_related_0.router-related-2479604-97qjn.1784053653516.437&vd_source=f204375acc1cfd2f8f45cdb2b892c08a
+2026-07-15T02:27:48.857  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.bilibili.com/video/BV1GUiCBKEUJ?spm_id_from=333.788.recommend_more_video.5&trackid=web_related_0.router-related-2479604-97qjn.1784053653516.437&vd_source=f204375acc1cfd2f8f45cdb2b892c08a title= favicon_len=36
+2026-07-15T02:27:48.950  INFO ThreadId(61) ai_digital_life: browser on_page_load: calling eval
+2026-07-15T02:27:48.950  INFO ThreadId(61) ai_digital_life: browser on_page_load: eval ok
+2026-07-15T02:27:49.138  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#9) | url: https://www.bilibili.com/video/BV1GUiCBKEUJ/?spm_id_from=333.788.recommend_more_
+2026-07-15T02:27:49.151  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: skipped (dedup within 3000ms) url=https://www.bilibili.com/video/BV1GUiCBKEUJ?spm_id_from=333.788.recommend_more_video.5&trackid=web_related_0.router-related-2479604-97qjn.1784053653516.437&vd_source=f204375acc1cfd2f8f45cdb2b892c08a
+2026-07-15T02:27:49.330  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#7) | title: “  从   天  而  降  的  奖  励”_哔哩哔哩_bilibili | url: https://www.bilibili.com/video/BV1GUiCBKEUJ/?spm_id_from=333.788.recommend_more_
+2026-07-15T02:27:51.141  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#8) | title: “  从   天  而  降  的  奖  励”_哔哩哔哩_bilibili | url: https://www.bilibili.com/video/BV1GUiCBKEUJ/?spm_id_from=333.788.recommend_more_
+2026-07-15T02:27:51.141  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#9) | title: “  从   天  而  降  的  奖  励”_哔哩哔哩_bilibili | url: https://www.bilibili.com/video/BV1GUiCBKEUJ/?spm_id_from=333.788.recommend_more_
+2026-07-15T02:28:01.805  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#10) | url: https://www.bilibili.com/video/BV184NQ65Evx/?vd_source=f204375acc1cfd2f8f45cdb2b
+2026-07-15T02:28:01.811  INFO ThreadId(01) adl_browser::webview2_title::imp: [ADL-META-RECV] ◄ Method 3 (DocumentTitleChanged): RECEIVED ✓ (#5) | title: 《龙族：卡塞尔之门》IF线特别剧情「白月长明外」PV | 跨越千年，宿命相见 | favicon: ✓ | url: https://www.bilibili.com/video/BV184NQ65Evx/?vd_source=f204375acc1cfd2f8f45cdb2b
+2026-07-15T02:28:01.985  INFO ThreadId(01) ai_digital_life: browser page finished loading url=https://www.bilibili.com/video/BV184NQ65Evx/?vd_source=f204375acc1cfd2f8f45cdb2b892c08a
+2026-07-15T02:28:02.186  INFO ThreadId(62) ai_digital_life: browser on_page_load: calling eval
+2026-07-15T02:28:02.187  INFO ThreadId(62) ai_digital_life: browser on_page_load: eval ok
+2026-07-15T02:28:03.405  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#10) | title: 《龙族：卡塞尔之门》IF线特别剧情「白月长明外」PV | 跨越千年，宿命相见 | url: https://www.bilibili.com/video/BV184NQ65Evx/?vd_source=f204375acc1cfd2f8f45cdb2b
+2026-07-15T02:29:08.158  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#11) | url: https://www.douyin.com/
+2026-07-15T02:29:08.227  INFO ThreadId(01) adl_browser::webview2_title::imp: [ADL-META-RECV] ◄ Method 3 (DocumentTitleChanged): RECEIVED ✓ (#6) | title: douyin.com | favicon: ✓ | url: https://www.douyin.com/
+2026-07-15T02:29:08.227  INFO ThreadId(01) ai_digital_life: browser page finished loading url=https://www.douyin.com/
+2026-07-15T02:29:08.429  INFO ThreadId(63) ai_digital_life: browser on_page_load: calling eval
+2026-07-15T02:29:08.429  INFO ThreadId(63) ai_digital_life: browser on_page_load: eval ok
+2026-07-15T02:29:08.740  INFO ThreadId(01) adl_browser::webview2_title::imp: [ADL-META-RECV] ◄ Method 3 (DocumentTitleChanged): RECEIVED ✓ (#7) | title: 抖音-记录美好生活 | favicon: ✓ | url: https://www.douyin.com/
+2026-07-15T02:29:11.047  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#12) | url: https://www.douyin.com/jingxuan
+2026-07-15T02:29:11.051  INFO ThreadId(22) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.douyin.com/jingxuan
+2026-07-15T02:29:11.317  INFO ThreadId(01) ai_digital_life: browser page finished loading url=https://www.douyin.com/jingxuan
+2026-07-15T02:29:11.518  INFO ThreadId(65) ai_digital_life: browser on_page_load: calling eval
+2026-07-15T02:29:11.519  INFO ThreadId(65) ai_digital_life: browser on_page_load: eval ok
+2026-07-15T02:29:11.648  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.douyin.com/jingxuan body_len=72914
+2026-07-15T02:29:11.652  WARN ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.douyin.com/jingxuan
+2026-07-15T02:29:11.652  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.douyin.com/jingxuan title= favicon_len=34
+2026-07-15T02:29:11.703  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#11) | title: 抖音精选电脑版 - 抖音旗下优质视频平台 | url: https://www.douyin.com/jingxuan
+2026-07-15T02:29:12.021  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#12) | title: 抖音精选电脑版 - 抖音旗下优质视频平台 | url: https://www.douyin.com/jingxuan
+2026-07-15T02:29:14.841  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#13) | url: https://www.douyin.com/jingxuan?modal_id=7661246055661382309
+2026-07-15T02:29:14.850  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.douyin.com/jingxuan?modal_id=7661246055661382309
+2026-07-15T02:29:14.990  INFO ThreadId(28) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.douyin.com/jingxuan?modal_id=7661246055661382309 body_len=72914
+2026-07-15T02:29:14.993  WARN ThreadId(28) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.douyin.com/jingxuan?modal_id=7661246055661382309
+2026-07-15T02:29:14.993  INFO ThreadId(28) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.douyin.com/jingxuan?modal_id=7661246055661382309 title= favicon_len=34
+2026-07-15T02:29:17.141  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#13) | title: 抖音精选电脑版 - 抖音旗下优质视频平台 | url: https://www.douyin.com/jingxuan?modal_id=7661246055661382309
+2026-07-15T02:30:34.696  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#14) | url: https://www.douyin.com/jingxuan?modal_id=7655750945019530559
+2026-07-15T02:30:34.710  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.douyin.com/jingxuan?modal_id=7655750945019530559
+2026-07-15T02:30:34.849  INFO ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.douyin.com/jingxuan?modal_id=7655750945019530559 body_len=72914
+2026-07-15T02:30:34.852  WARN ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.douyin.com/jingxuan?modal_id=7655750945019530559
+2026-07-15T02:30:34.852  INFO ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.douyin.com/jingxuan?modal_id=7655750945019530559 title= favicon_len=34
+2026-07-15T02:30:36.710  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#14) | title: 抖音精选电脑版 - 抖音旗下优质视频平台 | url: https://www.douyin.com/jingxuan?modal_id=7655750945019530559
+2026-07-15T02:30:41.294  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#15) | url: https://www.douyin.com/jingxuan
+2026-07-15T02:30:41.305  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#16) | url: https://www.douyin.com/jingxuan?modal_id=7647907920252949425
+2026-07-15T02:30:41.317  INFO ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.douyin.com/jingxuan
+2026-07-15T02:30:41.336  INFO ThreadId(28) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.douyin.com/jingxuan?modal_id=7647907920252949425
+2026-07-15T02:30:41.491  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.douyin.com/jingxuan body_len=72914
+2026-07-15T02:30:41.494  WARN ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.douyin.com/jingxuan
+2026-07-15T02:30:41.495  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.douyin.com/jingxuan title= favicon_len=34
+2026-07-15T02:30:41.515  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.douyin.com/jingxuan?modal_id=7647907920252949425 body_len=72914
+2026-07-15T02:30:41.518  WARN ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.douyin.com/jingxuan?modal_id=7647907920252949425
+2026-07-15T02:30:41.518  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.douyin.com/jingxuan?modal_id=7647907920252949425 title= favicon_len=34
+2026-07-15T02:30:43.310  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#15) | title: 抖音精选电脑版 - 抖音旗下优质视频平台 | url: https://www.douyin.com/jingxuan?modal_id=7647907920252949425
+2026-07-15T02:31:59.512  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#17) | url: https://www.douyin.com/jingxuan
+2026-07-15T02:31:59.527  INFO ThreadId(01) adl_browser::webview2_history::imp: [ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#18) | url: https://www.douyin.com/jingxuan?modal_id=7640844002783271851
+2026-07-15T02:31:59.542  INFO ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.douyin.com/jingxuan
+2026-07-15T02:31:59.570  INFO ThreadId(33) ai_digital_life::commands::browser: fetch_page_meta_inner: start url=https://www.douyin.com/jingxuan?modal_id=7640844002783271851
+2026-07-15T02:31:59.707  INFO ThreadId(22) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.douyin.com/jingxuan body_len=72914
+2026-07-15T02:31:59.708  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: HTTP success url=https://www.douyin.com/jingxuan?modal_id=7640844002783271851 body_len=72914
+2026-07-15T02:31:59.710  WARN ThreadId(22) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.douyin.com/jingxuan
+2026-07-15T02:31:59.711  INFO ThreadId(22) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.douyin.com/jingxuan title= favicon_len=34
+2026-07-15T02:31:59.711  WARN ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: <title> not found, returning empty title url=https://www.douyin.com/jingxuan?modal_id=7640844002783271851
+2026-07-15T02:31:59.711  INFO ThreadId(31) ai_digital_life::commands::browser: fetch_page_meta_inner: result url=https://www.douyin.com/jingxuan?modal_id=7640844002783271851 title= favicon_len=34
+2026-07-15T02:32:01.518  INFO ThreadId(01) adl_browser::webview2_postmessage::imp: [ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#16) | title: 抖音精选电脑版 - 抖音旗下优质视频平台 | url: https://www.douyin.com/jingxuan?modal_id=7640844002783271851
+2026-07-15T02:35:05.193  INFO ThreadId(01) adl_browser::browser_webview: browser webview destroyed for tab tab_id="browser-e288945a-e0ec-4d8f-90fc-ce940c92d738"

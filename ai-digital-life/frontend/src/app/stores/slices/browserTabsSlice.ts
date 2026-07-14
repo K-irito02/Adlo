@@ -113,12 +113,7 @@ export const createBrowserTabsSlice = (
 
   browserSelectTab: (tabId) => {
     scheduleWrite(BROWSER_ACTIVE_TAB_KEY, tabId);
-    set((state) => {
-      if (state.browserActiveTabId === tabId && state.showLandingPage) {
-        return { browserActiveTabId: tabId, showLandingPage: false };
-      }
-      return { browserActiveTabId: tabId };
-    });
+    set({ browserActiveTabId: tabId });
   },
 
   browserCloseTab: (tabId) =>

@@ -56,6 +56,16 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
     setAddressExpanded(true);
   }, [setAddressExpanded]);
 
+  // "+" button in "current tab" mode: clear the address bar and expand it
+  // for editing, WITHOUT navigating or removing the current webview. The
+  // current page stays visible until the user enters a new URL and presses
+  // Enter. If the user clicks away without entering a URL, handleAddressBlur
+  // restores the original URL via activeTabUrl.
+  const handlePlusClick = useCallback(() => {
+    setAddress('');
+    setAddressExpanded(true);
+  }, [setAddress, setAddressExpanded]);
+
   useEffect(() => {
     if (addressExpanded) {
       addressInputRef.current?.focus();
@@ -73,6 +83,7 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
       handleAddressKeyDown,
       handleAddressBlur,
       handleSearchClick,
+      handlePlusClick,
     }),
     [
       address,
@@ -83,6 +94,7 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
       handleAddressKeyDown,
       handleAddressBlur,
       handleSearchClick,
+      handlePlusClick,
     ]
   );
 }

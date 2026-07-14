@@ -19,6 +19,7 @@ interface UseBrowserUrlChangeOptions {
   onNavigationStart?: (url: string) => void;
   markUrlSeen: (url: string) => void;
   setIframeLoadError: React.Dispatch<React.SetStateAction<boolean>>;
+  webViewSelfNavigatedRef: React.MutableRefObject<boolean>;
 }
 
 export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
@@ -28,6 +29,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
     iframeRef,
     expectedNavigationUrlRef,
     setAddress,
+    webViewSelfNavigatedRef,
     browserNavigateActiveTab,
     browserUpdateTab,
     onPageMeta,
@@ -212,6 +214,13 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           (h) => historyDedupKey(h.url) === dedupKey && h.title !== h.url
         );
 
+        // Mark that this URL change came from the WebView itself (via
+        // onUrlChanged). This tells useWebViewLifecycle to skip
+        // navigateTabInPool, preventing a redundant double-navigation
+        // (e.g. YouTube's ?themeRefresh=1 triggers onUrlChanged → the
+        // WebView already navigated, we must not navigate again).
+        webViewSelfNavigatedRef.current = true;
+
         if (existingReal) {
           s.browserNavigateActiveTab(normalizedUrl);
         } else {
@@ -314,7 +323,14 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       }
       fallbackTimeoutsRef.current.clear();
     };
-  }, [markUrlSeen, setAddress, onNavigationStart, onPageMeta, expectedNavigationUrlRef]);
+  }, [
+    markUrlSeen,
+    setAddress,
+    onNavigationStart,
+    onPageMeta,
+    expectedNavigationUrlRef,
+    webViewSelfNavigatedRef,
+  ]);
 
   return {
     handleIframeLoad,
