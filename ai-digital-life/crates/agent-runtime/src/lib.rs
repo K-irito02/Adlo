@@ -8,7 +8,7 @@ pub mod prompt;
 pub mod registry;
 pub mod router;
 pub mod run_activity_seq;
-pub mod session_repo;
+
 pub mod token_counter;
 pub mod tools;
 

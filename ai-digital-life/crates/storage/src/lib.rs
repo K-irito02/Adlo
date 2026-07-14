@@ -5,7 +5,7 @@ mod entity_table;
 mod purge;
 pub mod repository;
 mod session;
-pub mod session_repo_impl;
+
 
 pub use connection::Database;
 pub use entity_table::EntityTable;
