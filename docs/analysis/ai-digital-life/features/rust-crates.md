@@ -1,13 +1,23 @@
-# Rust Crates (22 个)
+# Rust Crates (23 个)
 
 > 路径前缀: `ai-digital-life/crates/`
+>
+> **2026-07-14 更新**: 原来 adl-kernel 中的纯类型定义已拆分到独立的 `adl-types` crate。adl-kernel 仅保留运行时模块（config_watcher、events、logger、command_risk、config）。下游 crate 按需依赖 adl-types、adl-kernel 或两者。
 
-## 1. kernel（核心类型）
+## 1. types（纯类型）
+
+| 项目 | 值 |
+|------|-----|
+| 路径 | `crates/types/` |
+| 用途 | 纯类型定义（无运行时依赖）：agent/ci/command/config/conversation/model/reference/reserved/session/workspace 类型 + doom_loop + permission_types |
+| 依赖 | serde、serde_json、uuid、chrono、ts-rs、adl-errors、adl-logging |
+
+## 2. kernel（运行时）
 
 | 项目 | 值 |
 |------|-----|
 | 路径 | `crates/kernel/` |
-| 用途 | 核心类型定义、ID 生成、Token 估算、Config Watcher、命令风险评估、事件系统、日志初始化 |
+| 用途 | 运行时模块：Config Watcher、命令风险评估、事件系统、日志初始化 |
 | 文件数 | ~15 |
 
 **关键类型/模块:**

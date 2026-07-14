@@ -77,7 +77,7 @@ Rust 增量编译缓存 `target/debug/incremental/` 每次编译创建新会话�
 - UI/UX 或功能变更后跳过红绿测试
 - 在 capability 文件中使用 `"all"` / `"**"` 通配权限
 - 功能或显示效果仅在 Tauri 或浏览器单一模式下可用（必须双端一致）
-- WebView URL 变化被动触发 Tauri navigateTab（必须由前端发起操作显式调用，见 `browserpanel.tsx:submitAddress`、`BrowserPanelContent.tsx:handleOpenTabFromTree`）
+- WebView URL 变化被动触发 Tauri navigateTab（必须由前端发起操作显式调用，见 `browserpanel.tsx:submitAddress`、`BrowserPanelActionsContext.ts:handleOpenTabFromTree`）
 - 任何 UI 展示文本硬编码（包括但不限于按钮/Tooltip/aria-label/占位符/过滤器标签/相对时间/日期格式/面包屑标签映射），必须使用 i18n key
 - 语言切换时依赖 Zustand store 易变数据的渲染条件缺少 fallback 导致标题行/路径栏消失
 - 错误提示/状态提示常驻显示（必须仅在活跃错误状态下可见）

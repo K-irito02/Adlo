@@ -13,7 +13,7 @@
 | Plan Mode | `plan_mode.rs` | `PlanModeState`, `plan_mode_system_prompt()`, `filter_tools_for_plan_mode()`, `is_tool_allowed_in_plan_mode()`, `is_write_allowed_for_plan_file()` | Plan 模式激活/退出状态管理、只读工具白名单 (read/list_tree/search/outline/glob/grep/webfetch/websearch/write)、Plan system prompt 生成、write 路径约束（仅允许写入 plan file） |
 | Compaction | `compaction.rs` | `CompactionResult`, `compact_messages()`, `truncate_tool_output()` | 会话消息压缩：超出 `PRUNE_MINIMUM=20000` tokens 时触发，保留最后 2 轮对话 + 受保护的 skill 工具输出，摘要标记 |
 | Compaction Summary | `compaction_summary.rs` | — | Compaction 摘要清理辅助 |
-| Token Counter | `token_counter.rs` | `TokenCounter`, `global_counter()` | Token 计数（基于 `adl_kernel::estimate_tokens`），阈值常量 (`PRUNE_MINIMUM`, `PRUNE_PROTECT`, `DEFAULT_TAIL_TURNS`, `TOOL_OUTPUT_MAX_CHARS` 等) |
+| Token Counter | `token_counter.rs` | `TokenCounter`, `global_counter()` | Token 计数（基于 `adl_types::estimate_tokens`），阈值常量 (`PRUNE_MINIMUM`, `PRUNE_PROTECT`, `DEFAULT_TAIL_TURNS`, `TOOL_OUTPUT_MAX_CHARS` 等) |
 | Tool Registry | `tools/registry.rs` | `ToolRegistry`, `ToolDefinition`, `ToolExecutionResult`, `global_registry()` | 5 个内置工具注册和执行：`webfetch`、`websearch`、`read`、`glob`、`grep`。Plan Mode 时对非白名单工具返回错误，write 工具仅允许写入 plan file |
 | Plugins | `plugins/registry.rs`, `hooks.rs` | `PluginHook` trait, `PluginRegistry` | 插件 Hook 注册表和调用链 |
 | Agent Registry | `registry.rs` | `AgentRegistry` | 7 个内置 Agent 注册和查找 (`AgentRegistry::new()`) |

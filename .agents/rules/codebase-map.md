@@ -226,7 +226,8 @@ frontend/src/
 features/browser/
 ├── BrowserPanel.tsx          # 浏览器面板主壳（~458行）
 ├── BrowserPanelDialogs.tsx   # 对话框提取（CreateTab/Bookmark/Rename/Toast）
-├── BrowserPanelContent.tsx   # 内容区域（WebView/iframe + 着陆页 + WebView 错误）
+├── BrowserPanelStateContext.tsx  # 面板状态上下文（取代 BrowserPanelContent 的 props 传递）
+├── BrowserPanelActionsContext.tsx # 面板操作上下文
 ├── BrowserNavigator.tsx      # 导航器壳（工具栏 + 模式切换，~120行）
 ├── BrowserNavOpenMode.tsx    # 已打开标签模式（封装 BrowserOpenTabFlatList）
 ├── BrowserNavTabsMode.tsx    # 标签目录树模式（封装 BrowserTabTree）
