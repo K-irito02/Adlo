@@ -1,7 +1,7 @@
 use crate::commands::ipc;
 use crate::state::AppState;
 use adl_errors::AppError;
-use adl_kernel::{
+use adl_types::{
     now_ms, AppInfo, AppPreferencePatch, ConfigSnapshot, EventDiagnostics, HealthComponent,
     HealthSnapshot, HealthStatus, IpcResult, LogEntrySummary, MigrationDiagnostics,
     ModelGatewayHealthSnapshot, RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot, APP_NAME,
@@ -113,7 +113,7 @@ pub fn app_update_preferences(
                     let provider_id = provider.clone();
                     let entry =
                         config.model_preferences.providers.entry(provider).or_insert_with(|| {
-                            adl_kernel::ModelProviderPreference {
+                            adl_types::ModelProviderPreference {
                                 enabled: true,
                                 priority: 10,
                                 model_id: provider_id.clone(),
@@ -156,16 +156,16 @@ pub fn build_app_info(state: &AppState) -> Result<AppInfo, AppError> {
     let config =
         state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
     let resolved = match config.theme_mode {
-        adl_kernel::ThemeMode::Light => adl_kernel::Theme::Light,
-        adl_kernel::ThemeMode::Dark => adl_kernel::Theme::Dark,
-        adl_kernel::ThemeMode::System => adl_kernel::Theme::Light,
+        adl_types::ThemeMode::Light => adl_types::Theme::Light,
+        adl_types::ThemeMode::Dark => adl_types::Theme::Dark,
+        adl_types::ThemeMode::System => adl_types::Theme::Light,
     };
     let current_workspace = state
         .current_workspace
         .read()
         .map_err(|_| AppError::Internal("workspace lock poisoned".into()))?
         .clone()
-        .map(|mut w: adl_kernel::WorkspaceMeta| {
+        .map(|mut w: adl_types::WorkspaceMeta| {
             w.path = strip_verbatim_prefix(&w.path);
             w.root_path = strip_verbatim_prefix(&w.root_path);
             w

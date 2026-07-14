@@ -16,7 +16,7 @@ pub struct TokenCounter {
 
 impl TokenCounter {
     pub fn new() -> Self {
-        Self { fallback: adl_kernel::estimate_tokens }
+        Self { fallback: adl_types::estimate_tokens }
     }
 
     pub fn count(&self, text: &str, _provider: &str) -> usize {

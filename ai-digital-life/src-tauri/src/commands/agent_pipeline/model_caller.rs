@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use adl_kernel::{ConversationScenario, ModelCallAuditRecord, ModelChatMessage, ModelResponse};
+use adl_types::{ConversationScenario, ModelCallAuditRecord, ModelChatMessage, ModelResponse};
 use adl_storage::EntityTable;
 
 use crate::commands::agent_pipeline_stream::consume_stream_to_response;
@@ -23,7 +23,7 @@ pub async fn call_model<F: Fn(serde_json::Value)>(
             if let Some(plan_prompt_start) = summary.find("[PLAN_MODE_PROMPT]") {
                 let plan_prompt = &summary[plan_prompt_start..];
                 if let Some(first) = messages.first_mut() {
-                    if first.role == adl_kernel::ConversationRole::System {
+                    if first.role == adl_types::ConversationRole::System {
                         first.content.push_str("\n\n");
                         first.content.push_str(plan_prompt);
                     } else {
@@ -31,7 +31,7 @@ pub async fn call_model<F: Fn(serde_json::Value)>(
                         messages.insert(
                             0,
                             ModelChatMessage {
-                                role: adl_kernel::ConversationRole::System,
+                                role: adl_types::ConversationRole::System,
                                 content: plan_prompt.to_string(),
                             },
                         );
@@ -40,7 +40,7 @@ pub async fn call_model<F: Fn(serde_json::Value)>(
                     messages.insert(
                         0,
                         ModelChatMessage {
-                            role: adl_kernel::ConversationRole::System,
+                            role: adl_types::ConversationRole::System,
                             content: plan_prompt.to_string(),
                         },
                     );
@@ -101,15 +101,15 @@ pub async fn call_model<F: Fn(serde_json::Value)>(
             .await;
 
     let model_audit = ModelCallAuditRecord {
-        id: adl_kernel::create_id("modelaudit"),
-        request_id: adl_kernel::create_id("modelreq"),
+        id: adl_types::create_id("modelaudit"),
+        request_id: adl_types::create_id("modelreq"),
         workspace_id: ctx.workspace.id.clone(),
         session_id: ctx.session.id.clone(),
         run_id: Some(ctx.detail.run.id.clone()),
         provider_id: model_response.provider_id.clone(),
         model_id: model_response.model_id.clone(),
         scenario: ctx.scenario,
-        route_meta: adl_kernel::ModelRouteDecision {
+        route_meta: adl_types::ModelRouteDecision {
             reason: "streaming dispatch".into(),
             chain: vec![provider_id.clone()],
             synthetic: None,
@@ -119,7 +119,7 @@ pub async fn call_model<F: Fn(serde_json::Value)>(
         latency_ms: started.elapsed().as_millis() as i64,
         error: None,
         streamed: true,
-        created_at: adl_kernel::now_ms(),
+        created_at: adl_types::now_ms(),
     };
 
     ctx.state.db.save_entity(
@@ -143,7 +143,7 @@ pub async fn call_model<F: Fn(serde_json::Value)>(
         workspace_id: ctx.workspace.id.clone(),
         session_id: Some(ctx.session.id.clone()),
         operation_type: "model".into(),
-        risk_level: adl_kernel::RiskLevel::Low,
+        risk_level: adl_types::RiskLevel::Low,
         summary: format!(
             "Model call done: {:?}/{}",
             model_response.provider_id, model_response.model_id

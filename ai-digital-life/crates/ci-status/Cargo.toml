@@ -8,7 +8,7 @@ name = "adl_ci_status"
 path = "src/lib.rs"
 
 [dependencies]
-adl-kernel = { path = "../kernel" }
+adl-types = { path = "../types" }
 adl-errors = { path = "../errors" }
 serde.workspace = true
 serde_json.workspace = true

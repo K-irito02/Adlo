@@ -1,7 +1,8 @@
 use crate::state::AppState;
 use adl_browser::BrowserManager;
 use adl_kernel::config_watcher::ConfigWatcher;
-use adl_kernel::{config as adl_config, events::EventBus, now_ms};
+use adl_kernel::{config as adl_config, events::EventBus};
+use adl_types::now_ms;
 use adl_model_gateway::adapter::ProviderAdapter;
 use adl_model_gateway::providers::anthropic::AnthropicProvider;
 use adl_model_gateway::providers::google::GoogleProvider;
@@ -133,15 +134,15 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             api_type: ApiType::OpenAICompatible,
             default_base_url: Some("https://api.deepseek.com".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(vec![adl_kernel::types::config::ModelDefinition {
+            models: ModelSource::Static(vec![adl_types::types::config::ModelDefinition {
                 id: "deepseek-chat".into(),
                 provider_id: "deepseek".into(),
                 name: "DeepSeek Chat".into(),
                 capabilities: vec![
-                    adl_kernel::types::config::ModelCapability::Text,
-                    adl_kernel::types::config::ModelCapability::Streaming,
+                    adl_types::types::config::ModelCapability::Text,
+                    adl_types::types::config::ModelCapability::Streaming,
                 ],
-                tier: Some(adl_kernel::types::config::ModelTier::Standard),
+                tier: Some(adl_types::types::config::ModelTier::Standard),
                 ..Default::default()
             }]),
             built_in: true,
@@ -161,15 +162,15 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             api_type: ApiType::OpenAICompatible,
             default_base_url: Some("https://api.minimax.io".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(vec![adl_kernel::types::config::ModelDefinition {
+            models: ModelSource::Static(vec![adl_types::types::config::ModelDefinition {
                 id: "MiniMax-M2.7".into(),
                 provider_id: "minimax".into(),
                 name: "MiniMax M2.7".into(),
                 capabilities: vec![
-                    adl_kernel::types::config::ModelCapability::Text,
-                    adl_kernel::types::config::ModelCapability::Streaming,
+                    adl_types::types::config::ModelCapability::Text,
+                    adl_types::types::config::ModelCapability::Streaming,
                 ],
-                tier: Some(adl_kernel::types::config::ModelTier::Standard),
+                tier: Some(adl_types::types::config::ModelTier::Standard),
                 ..Default::default()
             }]),
             built_in: true,
@@ -238,12 +239,12 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
 
     let event_bus = EventBus::default();
     let t6 = std::time::Instant::now();
-    let current_workspace: Option<adl_kernel::WorkspaceMeta> = db
+    let current_workspace: Option<adl_types::WorkspaceMeta> = db
         .get_state("current_workspace")
         .ok()
         .flatten()
         .and_then(|value| serde_json::from_str(&value).ok())
-        .map(|mut w: adl_kernel::WorkspaceMeta| {
+        .map(|mut w: adl_types::WorkspaceMeta| {
             w.path = strip_verbatim_prefix(&w.path);
             w.root_path = strip_verbatim_prefix(&w.root_path);
             w

@@ -1,6 +1,6 @@
 use crate::commands::ipc;
 use adl_ci_status::CiStatusClient;
-use adl_kernel::{CiJobLogMap, CiRepoConfig, CiStatusSnapshot, IpcResult};
+use adl_types::{CiJobLogMap, CiRepoConfig, CiStatusSnapshot, IpcResult};
 
 #[tauri::command]
 pub async fn ci_get_status(config: CiRepoConfig) -> IpcResult<CiStatusSnapshot> {

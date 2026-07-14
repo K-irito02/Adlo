@@ -1,6 +1,6 @@
 use crate::commands::ipc;
 use crate::state::AppState;
-use adl_kernel::IpcResult;
+use adl_types::IpcResult;
 use adl_storage::EntityTable;
 use std::path::PathBuf;
 use tauri::Emitter;
@@ -8,7 +8,7 @@ use tauri::Emitter;
 #[tauri::command]
 pub fn retrieval_get_status(
     state: tauri::State<'_, AppState>,
-) -> IpcResult<Option<adl_kernel::RetrievalSnapshot>> {
+) -> IpcResult<Option<adl_types::RetrievalSnapshot>> {
     ipc(crate::commands::workspace::latest_retrieval(&state))
 }
 

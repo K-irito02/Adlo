@@ -1,7 +1,7 @@
 use crate::token_counter::{
     TokenCounter, DEFAULT_TAIL_TURNS, PRUNE_MINIMUM, PRUNE_PROTECTED_TOOLS, TOOL_OUTPUT_MAX_CHARS,
 };
-use adl_kernel::types::conversation::{ConversationBlock, ConversationMessageRecord};
+use adl_types::conversation::{ConversationBlock, ConversationMessageRecord};
 
 /// Result of a compaction operation.
 #[derive(Debug, Clone)]
@@ -107,8 +107,8 @@ pub fn truncate_tool_output(output: &str) -> String {
 mod tests {
     use super::*;
     use crate::token_counter::PRUNE_PROTECT;
-    use adl_kernel::create_id;
-    use adl_kernel::types::conversation::ConversationRole;
+    use adl_types::create_id;
+    use adl_types::conversation::ConversationRole;
 
     fn make_message(role: ConversationRole, content: &str) -> ConversationMessageRecord {
         ConversationMessageRecord {
@@ -118,7 +118,7 @@ mod tests {
             role,
             content: content.to_string(),
             blocks: vec![],
-            created_at: adl_kernel::now_ms(),
+            created_at: adl_types::now_ms(),
         }
     }
 

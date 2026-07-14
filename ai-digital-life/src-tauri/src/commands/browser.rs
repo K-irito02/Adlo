@@ -8,7 +8,7 @@ use crate::webview_event_bridge::TauriWebView2EventBridge;
 use adl_browser::webview_handle::{Bounds, EventBridgeRef, WebViewHandle};
 use adl_browser::{webview_label, PageMeta};
 use adl_errors::AppError;
-use adl_kernel::IpcResult;
+use adl_types::IpcResult;
 use tauri::{Emitter, Manager, State};
 
 fn new_window_handler(

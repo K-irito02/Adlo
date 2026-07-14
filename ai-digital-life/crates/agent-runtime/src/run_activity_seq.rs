@@ -1,4 +1,4 @@
-use adl_kernel::now_ms;
+use adl_types::now_ms;
 use std::sync::atomic::{AtomicI64, Ordering};
 
 /// Global monotonic sequence generator for `DigitalLifeRunActivityEventV1.seq`.

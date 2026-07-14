@@ -2,7 +2,7 @@
 
 pub mod references;
 
-use adl_kernel::{
+use adl_types::{
     create_id, estimate_tokens, ContextEntry, ConversationScenario, FileOutlineItem, PromptRule,
     WorkspaceMeta, WorkspaceSearchHit,
 };

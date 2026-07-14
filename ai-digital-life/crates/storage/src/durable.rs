@@ -47,7 +47,7 @@ impl DurableSessionManager {
         session_id: &str,
         run_id: &str,
     ) -> Result<(), adl_errors::AppError> {
-        let now = adl_kernel::now_ms();
+        let now = adl_types::now_ms();
         self.db
             .execute(
                 "INSERT OR REPLACE INTO durable_session_state
@@ -64,7 +64,7 @@ impl DurableSessionManager {
     }
 
     pub async fn heartbeat(&self, session_id: &str) {
-        let now = adl_kernel::now_ms();
+        let now = adl_types::now_ms();
         if let Err(e) = self.db.execute(
             "UPDATE durable_session_state SET last_heartbeat = ?1, updated_at = ?1 WHERE session_id = ?2",
             &[&now, &session_id],
@@ -78,7 +78,7 @@ impl DurableSessionManager {
     }
 
     pub async fn checkpoint(&self, session_id: &str, message_id: &str) {
-        let now = adl_kernel::now_ms();
+        let now = adl_types::now_ms();
         if let Err(e) = self.db.execute(
             "UPDATE durable_session_state SET checkpoint_message_id = ?1, updated_at = ?2 WHERE session_id = ?3",
             &[&message_id, &now, &session_id],
@@ -93,7 +93,7 @@ impl DurableSessionManager {
     }
 
     pub async fn complete(&self, session_id: &str) {
-        let now = adl_kernel::now_ms();
+        let now = adl_types::now_ms();
         if let Err(e) = self.db.execute(
             "UPDATE durable_session_state SET status = 'completed', updated_at = ?1 WHERE session_id = ?2",
             &[&now, &session_id],
@@ -107,7 +107,7 @@ impl DurableSessionManager {
     }
 
     pub async fn fail(&self, session_id: &str) {
-        let now = adl_kernel::now_ms();
+        let now = adl_types::now_ms();
         if let Err(e) = self.db.execute(
             "UPDATE durable_session_state SET status = 'failed', updated_at = ?1 WHERE session_id = ?2",
             &[&now, &session_id],
@@ -121,7 +121,7 @@ impl DurableSessionManager {
     }
 
     pub async fn find_crashed_sessions(&self) -> Vec<DurableSessionState> {
-        let now = adl_kernel::now_ms();
+        let now = adl_types::now_ms();
         let timeout = now - self.heartbeat_timeout_ms as i64;
         let conn = match self.db.conn() {
             Ok(c) => c,
@@ -172,7 +172,7 @@ impl DurableSessionManager {
     }
 
     pub async fn start_recovery(&self, session_id: &str) -> bool {
-        let now = adl_kernel::now_ms();
+        let now = adl_types::now_ms();
         let conn = match self.db.conn() {
             Ok(c) => c,
             Err(e) => {
@@ -261,7 +261,7 @@ mod tests {
     async fn heartbeat_updates_timestamp() {
         let manager = create_test_manager();
         manager.register_session("sess1", "run1").await.unwrap();
-        let before = adl_kernel::now_ms();
+        let before = adl_types::now_ms();
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         manager.heartbeat("sess1").await;
         let conn = manager.db.conn().expect("test db should provide connection");
@@ -279,7 +279,7 @@ mod tests {
     async fn find_crashed_sessions() {
         let manager = create_test_manager();
         manager.register_session("crashed", "run1").await.unwrap();
-        let old_time = adl_kernel::now_ms() - 60_000;
+        let old_time = adl_types::now_ms() - 60_000;
         let _ = manager.db.execute(
             "UPDATE durable_session_state SET last_heartbeat = ?1 WHERE session_id = ?2",
             &[&old_time, &"crashed"],

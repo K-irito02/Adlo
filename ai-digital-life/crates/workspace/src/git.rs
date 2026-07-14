@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use adl_kernel::{now_ms, GitBranchSummary, GitSnapshot};
+use adl_types::{now_ms, GitBranchSummary, GitSnapshot};
 use std::path::Path;
 use std::process::Command;
 use std::time::Duration;

@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use adl_kernel::{AgentRunDetail, ContextEntry, WorkspaceMeta};
+use adl_types::{AgentRunDetail, ContextEntry, WorkspaceMeta};
 
 use crate::commands::agent::StartRunInput;
 use crate::commands::audit::AuditBatchEntry;
@@ -77,7 +77,7 @@ fn collect_file_context<F: Fn(serde_json::Value)>(
                     workspace_id: workspace_scope_id.to_string(),
                     session_id: Some(session_id.to_string()),
                     operation_type: "file-read".into(),
-                    risk_level: adl_kernel::RiskLevel::Low,
+                    risk_level: adl_types::RiskLevel::Low,
                     summary: format!("Read file context: {rel}"),
                     decision: Some("auto".into()),
                     detail: Some(format!("runId={}; bytes={}", detail.run.id, doc.content.len())),
@@ -142,7 +142,7 @@ fn collect_symbol_context<F: Fn(serde_json::Value)>(
                     workspace_id: workspace_scope_id.to_string(),
                     session_id: Some(session_id.to_string()),
                     operation_type: "search".into(),
-                    risk_level: adl_kernel::RiskLevel::Low,
+                    risk_level: adl_types::RiskLevel::Low,
                     summary: format!("Workspace search for `{sym}` ({}) hits.", hits.len()),
                     decision: Some("auto".into()),
                     detail: Some(format!("runId={}", detail.run.id)),
@@ -157,7 +157,7 @@ fn collect_symbol_context<F: Fn(serde_json::Value)>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adl_kernel::ConversationScenario;
+    use adl_types::ConversationScenario;
 
     fn make_test_workspace(root_path: String) -> WorkspaceMeta {
         WorkspaceMeta {
@@ -165,8 +165,8 @@ mod tests {
             path: String::new(),
             root_path,
             name: String::new(),
-            r#type: adl_kernel::WorkspaceType::Unknown,
-            status: adl_kernel::WorkspaceStatus::Ready,
+            r#type: adl_types::WorkspaceType::Unknown,
+            status: adl_types::WorkspaceStatus::Ready,
             git_snapshot: None,
             created_at: 0,
             updated_at: 0,
@@ -176,19 +176,19 @@ mod tests {
 
     fn make_test_detail() -> AgentRunDetail {
         AgentRunDetail {
-            run: adl_kernel::AgentRunRecord {
+            run: adl_types::AgentRunRecord {
                 id: "run-1".into(),
                 workspace_id: String::new(),
                 session_id: String::new(),
                 prompt: String::new(),
                 scenario: ConversationScenario::CodeEdit,
-                status: adl_kernel::AgentRunStatus::Draft,
+                status: adl_types::AgentRunStatus::Draft,
                 summary: None,
                 patch_set_id: None,
                 created_at: 0,
                 updated_at: 0,
                 completed_at: None,
-                agent_id: adl_kernel::AgentId::Build,
+                agent_id: adl_types::AgentId::Build,
             },
             steps: vec![],
         }

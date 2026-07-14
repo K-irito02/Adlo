@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-adl-kernel = { path = "../kernel" }
+adl-types = { path = "../types" }
 adl-errors = { path = "../errors" }
 adl-fs-ops = { path = "../fs-ops" }
 adl-workspace = { path = "../workspace" }

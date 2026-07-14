@@ -40,7 +40,7 @@ impl SnapshotManager {
         session_id: &str,
         workspace_id: &str,
     ) -> Result<SnapshotRecord, adl_errors::AppError> {
-        let snapshot_id = adl_kernel::create_id("snap");
+        let snapshot_id = adl_types::create_id("snap");
         let snapshot_dir = self.snapshot_root.join(&snapshot_id);
         std::fs::create_dir_all(&snapshot_dir).map_err(|e| {
             adl_errors::AppError::Io(format!("Failed to create snapshot dir: {}", e))
@@ -63,7 +63,7 @@ impl SnapshotManager {
             message_id: message_id.to_string(),
             session_id: session_id.to_string(),
             workspace_id: workspace_id.to_string(),
-            created_at: adl_kernel::now_ms() as u64,
+            created_at: adl_types::now_ms() as u64,
             git_commit,
             file_count,
             total_bytes,
@@ -142,7 +142,7 @@ impl SnapshotManager {
     /// SNAPSHOT_MAX_TOTAL_BYTES.
     pub fn prune_snapshots(&self) -> Result<usize, adl_errors::AppError> {
         let snapshots = self.list_snapshots()?;
-        let now = adl_kernel::now_ms() as u64;
+        let now = adl_types::now_ms() as u64;
         let max_age_ms = SNAPSHOT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
         let mut pruned = 0;
         let mut total_bytes: u64 = snapshots.iter().map(|s| s.total_bytes).sum();

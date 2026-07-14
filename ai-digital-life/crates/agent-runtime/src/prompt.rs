@@ -1,4 +1,4 @@
-use adl_kernel::types::agent::AgentId;
+use adl_types::agent::AgentId;
 
 /// Returns the system prompt for the given agent.
 /// These are minimal stubs; Phase 2-B will expand with provider-specific prompts.

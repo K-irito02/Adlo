@@ -1,6 +1,6 @@
 //! Task state machine, approval, and audit helpers.
 
-use adl_kernel::{
+use adl_types::{
     create_id, now_ms, ApprovalPolicySummary, ApprovalRecord, ApprovalRequestSummary, AuditRecord,
     RiskLevel, TaskOperation, TaskRecord, TaskStatus, TaskSummary,
 };

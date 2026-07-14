@@ -34,7 +34,7 @@ pub mod workspace_sidebar;
 
 use crate::error::CommandError;
 use adl_errors::AppError;
-use adl_kernel::IpcResult;
+use adl_types::IpcResult;
 use adl_storage::EntityTable;
 use tauri::Emitter;
 
@@ -57,7 +57,7 @@ pub fn ipc_try<T>(f: impl FnOnce() -> Result<T, AppError>) -> IpcResult<T> {
 pub(crate) fn save_and_emit_run_activity(ctx: RunActivityContext<'_>) {
     let _ = ctx.state.db.save_entity(
         EntityTable::RunActivityEvents,
-        &adl_kernel::create_id("runact"),
+        &adl_types::create_id("runact"),
         Some(ctx.workspace_id),
         Some(ctx.session_id),
         Some(ctx.run_id),
@@ -96,7 +96,7 @@ macro_rules! workspace_cmd {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adl_kernel::IpcResult;
+use adl_types::IpcResult;
 
     #[test]
     fn ipc_ok_wraps_data() {

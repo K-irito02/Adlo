@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use adl_kernel::FileOutlineItem;
+use adl_types::FileOutlineItem;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 

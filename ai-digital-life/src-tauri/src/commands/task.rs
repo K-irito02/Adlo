@@ -4,7 +4,7 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_command::run_approved_command;
 use adl_errors::AppError;
-use adl_kernel::{
+use adl_types::{
     ApprovalDecision, ApprovalRecord, ApprovalRequestSummary, AuditEntry, CheckpointPayloadPreview,
     CheckpointRecord, CommandExecutionResult, CommandRequest, IpcResult, TaskCenterSnapshot,
     TaskRecord, TaskStatus, WorkspaceMeta,
@@ -85,7 +85,7 @@ async fn decide_approval_inner(
             ApprovalDecision::Rejected => TaskStatus::Rejected,
             ApprovalDecision::Timeout => TaskStatus::Failed,
         };
-        task.updated_at = adl_kernel::now_ms();
+        task.updated_at = adl_types::now_ms();
         state.db.save_entity(
             EntityTable::Tasks,
             &task.id,
@@ -133,7 +133,7 @@ fn save_approval_decision(
 ) -> Result<(), AppError> {
     approval.decision = Some(decision);
     approval.reason = reason;
-    approval.decided_at = Some(adl_kernel::now_ms());
+    approval.decided_at = Some(adl_types::now_ms());
     state.db.save_entity(
         EntityTable::Approvals,
         &approval.id,
@@ -161,14 +161,14 @@ fn emit_approval_decided_event(
         .load_entity::<TaskRecord>(EntityTable::Tasks, &approval.task_id)?
         .map(|task| task.session_id)
         .unwrap_or_else(|| approval.task_id.clone());
-    let ts = adl_kernel::now_ms();
+    let ts = adl_types::now_ms();
     let seq = adl_agent_runtime::run_activity_seq::next_run_activity_seq(ts);
     let decision_str = match decision {
         ApprovalDecision::Approved => "approved",
         ApprovalDecision::Rejected => "rejected",
         ApprovalDecision::Timeout => "timeout",
     };
-    let event = adl_kernel::DigitalLifeRunActivityEventV1::Approval {
+    let event = adl_types::DigitalLifeRunActivityEventV1::Approval {
         v: 1,
         run_id: run_id.to_string(),
         seq,
@@ -230,7 +230,7 @@ pub fn task_restore_checkpoint(
                 &checkpoint.workspace_id,
                 Some(&checkpoint.session_id),
                 "patch-rollback",
-                adl_kernel::RiskLevel::Medium,
+                adl_types::RiskLevel::Medium,
                 format!("Restored checkpoint {}.", checkpoint.id),
                 Some("approved"),
                 Some(&checkpoint.description),
@@ -291,8 +291,8 @@ fn load_workspace_for_task(state: &AppState, task: &TaskRecord) -> Result<Worksp
 /// 更新任务状态为运行中
 fn update_task_to_running(state: &AppState, task: &mut TaskRecord) -> Result<(), AppError> {
     task.status = TaskStatus::Running;
-    task.started_at = Some(adl_kernel::now_ms());
-    task.updated_at = adl_kernel::now_ms();
+    task.started_at = Some(adl_types::now_ms());
+    task.updated_at = adl_types::now_ms();
     state.db.save_entity(
         EntityTable::Tasks,
         &task.id,
@@ -314,9 +314,9 @@ fn emit_command_activity_event(
     phase: &str,
     exit_code: Option<i32>,
 ) {
-    let ts = adl_kernel::now_ms();
+    let ts = adl_types::now_ms();
     let seq = adl_agent_runtime::run_activity_seq::next_run_activity_seq(ts);
-    let event = adl_kernel::DigitalLifeRunActivityEventV1::Command {
+    let event = adl_types::DigitalLifeRunActivityEventV1::Command {
         v: 1,
         run_id: run_id.to_string(),
         seq,
@@ -403,8 +403,8 @@ fn save_command_result(
     )?;
     task.status = if result.success { TaskStatus::Completed } else { TaskStatus::Failed };
     task.result_json = Some(serde_json::to_string(result)?);
-    task.completed_at = Some(adl_kernel::now_ms());
-    task.updated_at = adl_kernel::now_ms();
+    task.completed_at = Some(adl_types::now_ms());
+    task.updated_at = adl_types::now_ms();
     state.db.save_entity(
         EntityTable::Tasks,
         &task.id,
@@ -440,7 +440,7 @@ fn snapshot(state: &AppState) -> Result<TaskCenterSnapshot, AppError> {
         .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))?
         .clone()
     {
-        let conversation_sessions: Vec<adl_kernel::ConversationSessionRecord> =
+        let conversation_sessions: Vec<adl_types::ConversationSessionRecord> =
             state.db.list_entities_by_workspace(EntityTable::Sessions, &workspace.id)?;
         conversation_sessions
             .into_iter()
@@ -452,13 +452,13 @@ fn snapshot(state: &AppState) -> Result<TaskCenterSnapshot, AppError> {
                     .filter(|task| task.session_id == session.id)
                     .max_by_key(|task| task.updated_at)
                     .map(|task| task.id.clone());
-                adl_kernel::SessionMeta {
+                adl_types::SessionMeta {
                     id: session.id,
                     workspace_id: session.workspace_id,
-                    status: adl_kernel::SessionStatus::Active,
+                    status: adl_types::SessionStatus::Active,
                     approval_mode: "manual".into(),
                     current_task_id,
-                    summary: adl_kernel::SessionSummary::default(),
+                    summary: adl_types::SessionSummary::default(),
                     created_at: session.created_at,
                     updated_at: session.updated_at,
                 }

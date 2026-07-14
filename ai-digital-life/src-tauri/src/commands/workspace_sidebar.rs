@@ -1,7 +1,7 @@
 use crate::commands::ipc;
 use crate::state::AppState;
 use adl_errors::AppError;
-use adl_kernel::{IpcResult, RecentWorkspaceEntry, WorkspaceMeta};
+use adl_types::{IpcResult, RecentWorkspaceEntry, WorkspaceMeta};
 use adl_storage::EntityTable;
 use adl_workspace::strip_verbatim_prefix;
 use std::collections::HashMap;

@@ -1,5 +1,5 @@
-use adl_kernel::types::agent::AgentId;
-use adl_kernel::types::conversation::ConversationScenario;
+use adl_types::agent::AgentId;
+use adl_types::conversation::ConversationScenario;
 
 /// Select the agent to handle a user message.
 /// Rules (first match wins):

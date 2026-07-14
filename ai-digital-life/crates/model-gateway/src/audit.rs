@@ -1,6 +1,6 @@
 //! Audit record generation for model API calls.
 
-use adl_kernel::{
+use adl_types::{
     create_id, now_ms, ConversationScenario, ModelCallAuditRecord, ModelRouteDecision,
     ModelTokenUsage,
 };

@@ -5,7 +5,7 @@
 pub mod adapter;
 pub mod http_helper;
 pub mod registry;
-pub use adl_kernel::types::config::ModelDefinition;
+pub use adl_types::config::ModelDefinition;
 pub use registry::{ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry};
 mod audit;
 mod fallback;
@@ -19,7 +19,7 @@ pub use secret::{clear_provider_secret, get_provider_secret, set_provider_secret
 
 use crate::adapter::StreamReader;
 use adl_errors::AppError;
-use adl_kernel::{
+use adl_types::{
     create_id, now_ms, ConversationScenario, ModelCallAuditRecord, ModelChatMessage,
     ModelGatewayHealthSnapshot, ModelPreferences, ModelResponse, ModelRouteDecision,
     ProviderHealthStatus,
@@ -37,7 +37,7 @@ pub struct ModelGateway {
 
 fn fallback_models(
     def: &registry::ProviderDefinition,
-) -> &[adl_kernel::types::config::ModelDefinition] {
+) -> &[adl_types::config::ModelDefinition] {
     match &def.models {
         registry::ModelSource::Static(models) => models.as_slice(),
         registry::ModelSource::Dynamic { .. } => &[],
@@ -269,7 +269,7 @@ impl ModelGateway {
     pub async fn fetch_models(
         &self,
         provider_id: &str,
-    ) -> Result<Vec<adl_kernel::types::config::ModelDefinition>, AppError> {
+    ) -> Result<Vec<adl_types::config::ModelDefinition>, AppError> {
         let (adapter, def) = {
             let registry = self
                 .registry

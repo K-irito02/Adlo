@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use adl_kernel::{WorkspaceChangeKind, WorkspaceChangePreview, WorkspaceChangeStatus};
+use adl_types::{WorkspaceChangeKind, WorkspaceChangePreview, WorkspaceChangeStatus};
 use std::path::Path;
 
 pub fn read_change_preview(

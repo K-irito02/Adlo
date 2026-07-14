@@ -1,7 +1,7 @@
 use crate::commands::ipc;
 use crate::state::AppState;
 use adl_errors::AppError;
-use adl_kernel::{DigitalLifeRunActivityEventV1, IpcResult};
+use adl_types::{DigitalLifeRunActivityEventV1, IpcResult};
 use adl_storage::EntityTable;
 
 #[tauri::command]

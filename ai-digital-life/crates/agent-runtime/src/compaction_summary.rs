@@ -4,7 +4,7 @@
 //! to build the prompt and context used when the model gateway generates a
 //! summary of pruned conversation messages.
 
-use adl_kernel::types::conversation::{ConversationMessageRecord, ConversationRole};
+use adl_types::conversation::{ConversationMessageRecord, ConversationRole};
 
 /// Summary template (参考 OpenCode packages/core/src/session/compaction.ts line 16-39)
 const SUMMARY_TEMPLATE: &str = r#"Output exactly the Markdown structure shown inside <template> and keep the section order unchanged. Do not include the <template> tags in your response.
@@ -100,8 +100,8 @@ mod tests {
 
     #[test]
     fn context_from_messages_preserves_role() {
-        use adl_kernel::create_id;
-        use adl_kernel::types::conversation::ConversationRole;
+        use adl_types::create_id;
+        use adl_types::conversation::ConversationRole;
 
         let msgs = vec![
             ConversationMessageRecord {
@@ -111,7 +111,7 @@ mod tests {
                 role: ConversationRole::User,
                 content: "hello".to_string(),
                 blocks: vec![],
-                created_at: adl_kernel::now_ms(),
+                created_at: adl_types::now_ms(),
             },
             ConversationMessageRecord {
                 id: create_id("msg"),
@@ -120,7 +120,7 @@ mod tests {
                 role: ConversationRole::Assistant,
                 content: "hi there".to_string(),
                 blocks: vec![],
-                created_at: adl_kernel::now_ms(),
+                created_at: adl_types::now_ms(),
             },
         ];
         let ctx = build_context_from_messages(&msgs);

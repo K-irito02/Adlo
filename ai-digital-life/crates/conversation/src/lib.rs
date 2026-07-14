@@ -2,7 +2,7 @@
 
 pub mod fork;
 
-use adl_kernel::{
+use adl_types::{
     create_id, now_ms, ConversationBlock, ConversationMessageRecord, ConversationRole,
     ConversationSessionRecord,
 };
@@ -70,7 +70,7 @@ pub fn create_child_session(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adl_kernel::{ConversationBlock, ConversationRole};
+    use adl_types::{ConversationBlock, ConversationRole};
 
     #[test]
     fn create_session_with_title() {

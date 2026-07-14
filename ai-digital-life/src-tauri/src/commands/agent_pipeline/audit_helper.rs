@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use adl_kernel::ConversationSendResult;
+use adl_types::ConversationSendResult;
 
 use crate::commands::agent;
 use crate::commands::agent_pipeline_types::FinalizeRunContext;
@@ -23,7 +23,7 @@ pub(crate) async fn finalize_run<F: Fn(serde_json::Value)>(
     let blocks = adl_agent_runtime::assistant_blocks(&detail, ctx.patch_set, ctx.scenario);
     let assistant_message = adl_conversation::create_message(
         &ctx.session.id,
-        adl_kernel::ConversationRole::Assistant,
+        adl_types::ConversationRole::Assistant,
         ctx.model_response.content.as_str(),
         blocks,
         Some(detail.run.id.as_str()),
@@ -53,7 +53,7 @@ pub(crate) async fn finalize_run<F: Fn(serde_json::Value)>(
 fn decide_audit_operation(
     workspace_id: &str,
     session_id: &str,
-    patch_set: Option<&adl_kernel::PatchSet>,
+    patch_set: Option<&adl_types::PatchSet>,
     run_id: &str,
     summary: &str,
 ) -> AuditBatchEntry {
@@ -62,9 +62,9 @@ fn decide_audit_operation(
         session_id: Some(session_id.to_string()),
         operation_type: if patch_set.is_some() { "patch-apply".into() } else { "approval".into() },
         risk_level: if patch_set.is_some() {
-            adl_kernel::RiskLevel::Medium
+            adl_types::RiskLevel::Medium
         } else {
-            adl_kernel::RiskLevel::Low
+            adl_types::RiskLevel::Low
         },
         summary: summary.to_string(),
         decision: Some("auto".into()),
@@ -110,7 +110,7 @@ mod tests {
             workspace_id: "ws-1".into(),
             session_id: Some("sess-1".into()),
             operation_type: "approval".into(),
-            risk_level: adl_kernel::RiskLevel::Low,
+            risk_level: adl_types::RiskLevel::Low,
             summary: "Agent run started in CodeEdit mode.".into(),
             decision: Some("auto".into()),
             detail: Some("runId=run-1".into()),

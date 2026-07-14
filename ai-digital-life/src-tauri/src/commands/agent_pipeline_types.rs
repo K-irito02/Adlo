@@ -1,7 +1,7 @@
 use crate::commands::agent::StartRunInput;
 use crate::commands::audit::AuditBatchEntry;
 use crate::state::AppState;
-use adl_kernel::{
+use adl_types::{
     AgentRunDetail, ContextEntry, ConversationMessageRecord, ConversationScenario,
     ConversationSessionRecord, DigitalLifeRunActivityEventV1, ModelResponse, PatchSet,
     WorkspaceMeta,

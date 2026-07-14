@@ -1,6 +1,6 @@
 use crate::commands::ipc;
 use adl_errors::AppError;
-use adl_kernel::IpcResult;
+use adl_types::IpcResult;
 use adl_mcp_client::{McpCatalog, McpClient, McpServerConfig};
 use std::sync::{Arc, OnceLock};
 

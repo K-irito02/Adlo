@@ -5,7 +5,8 @@
 //! so that `apply_patch` operations are intercepted by the permission ruleset before
 //! execution. This is central interception (vs OpenCode's decentralized `ctx.ask`).
 
-use adl_kernel::command_risk::{evaluate_permission, PermissionDecision, PermissionRuleset};
+use adl_kernel::command_risk::evaluate_permission;
+use adl_types::permission_types::{PermissionDecision, PermissionRuleset};
 
 /// Result of a permission check for a tool call.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,7 +49,7 @@ pub fn check_tool_permission(
     let parts: Vec<&str> = tool_input.split_whitespace().collect();
     let command = parts.first().copied().unwrap_or("");
     let args: Vec<String> = parts.iter().skip(1).map(|s| s.to_string()).collect();
-    let risk = adl_kernel::assess_command_risk(command, &args, false);
+    let risk = adl_kernel::command_risk::assess_command_risk(command, &args, false);
 
     // 3. 评估规则集（ruleset 优先，无匹配规则时回退到 risk-based decision）
     let decision = evaluate_permission(ruleset, tool_name, command, &args, risk);
@@ -67,7 +68,7 @@ pub fn check_tool_permission(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adl_kernel::command_risk::PermissionRule;
+    use adl_types::permission_types::PermissionRule;
 
     #[test]
     fn allow_when_ruleset_permits() {

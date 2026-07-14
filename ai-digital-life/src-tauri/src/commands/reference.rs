@@ -2,8 +2,8 @@ use crate::commands::ipc;
 use adl_context::references::{references_prompt, validate_reference};
 use adl_errors::AppError;
 use adl_kernel::config::{load, save};
-use adl_kernel::types::reference::ReferenceConfig;
-use adl_kernel::IpcResult;
+use adl_types::reference::ReferenceConfig;
+use adl_types::IpcResult;
 
 fn list_references_inner(data_dir: &str) -> Result<Vec<ReferenceConfig>, AppError> {
     let config = load(std::path::Path::new(data_dir))?;

@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use adl_kernel::{
+use adl_types::{
     now_ms, RepoMapEntry, RetrievalFileTypeCount, RetrievalSnapshot, RetrievalStatusV1,
     WorkspaceTreeNode,
 };

@@ -4,6 +4,6 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-adl-kernel = { path = "../kernel" }
+adl-types = { path = "../types" }
 adl-errors = { path = "../errors" }
 serde.workspace = true

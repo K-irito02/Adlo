@@ -1,7 +1,7 @@
 use crate::commands::ipc;
 use crate::state::AppState;
 use adl_errors::AppError;
-use adl_kernel::{
+use adl_types::{
     now_ms, GitBranchSummary, GitSnapshot, IpcResult, WorkspaceGitBranchChangeResult,
     WorkspaceGitBranchCreateInput, WorkspaceGitBranchSwitchInput, WorkspaceMeta, WorkspaceStatus,
 };

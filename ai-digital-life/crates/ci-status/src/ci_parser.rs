@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use adl_kernel::{CiJobSummary, CiStepSummary, CiWorkflowRunSummary};
+use adl_types::{CiJobSummary, CiStepSummary, CiWorkflowRunSummary};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::io::Cursor;

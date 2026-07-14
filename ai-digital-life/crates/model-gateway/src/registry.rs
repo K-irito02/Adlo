@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::adapter::ProviderAdapter;
-use adl_kernel::types::config::ModelDefinition;
+use adl_types::config::ModelDefinition;
 
 /// API protocol type used by a provider.
 #[derive(Clone, Debug)]
@@ -94,7 +94,7 @@ impl ProviderRegistry {
 #[cfg(test)]
 mod tests {
     use adl_errors::AppError;
-    use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
+    use adl_types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 
     use super::*;
     use crate::adapter::{ChatOptions, StreamReader};

@@ -8,6 +8,7 @@ tauri-build.workspace = true
 
 [dependencies]
 adl-kernel = { path = "../crates/kernel" }
+adl-types = { path = "../crates/types" }
 adl-errors = { path = "../crates/errors" }
 adl-storage = { path = "../crates/storage" }
 adl-migration = { path = "../crates/migration" }

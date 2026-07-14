@@ -21,7 +21,7 @@ pub use search::{search_text, search_text_async};
 pub use tree::{build_retrieval_snapshot, build_retrieval_snapshot_async, list_tree};
 
 use adl_errors::AppError;
-use adl_kernel::FileOutlineItem;
+use adl_types::FileOutlineItem;
 
 pub fn outline(root: &Path, relative_path: &str) -> Result<Vec<FileOutlineItem>, AppError> {
     let doc = read_file(root, relative_path)?;
@@ -29,7 +29,7 @@ pub fn outline(root: &Path, relative_path: &str) -> Result<Vec<FileOutlineItem>,
     adl_outline::outline(&doc.content, relative_path, total_lines)
 }
 
-use adl_kernel::WorkspaceFileDocument;
+use adl_types::WorkspaceFileDocument;
 use std::path::Path;
 
 pub(crate) const DEFAULT_MAX_FILE_BYTES: u64 = 1024 * 1024;
@@ -58,7 +58,7 @@ pub fn get_absolute_path(root: &Path, relative_path: &str) -> Result<String, App
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adl_kernel::{WorkspaceChangeKind, WorkspaceChangeStatus, WorkspaceType};
+    use adl_types::{WorkspaceChangeKind, WorkspaceChangeStatus, WorkspaceType};
     use std::path::Path;
     use std::process::Command;
 

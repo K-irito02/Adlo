@@ -1,4 +1,4 @@
-use adl_kernel::types::conversation::{ConversationMessageRecord, ConversationSessionRecord};
+use adl_types::conversation::{ConversationMessageRecord, ConversationSessionRecord};
 
 /// Fork a session from a specific message.
 pub fn fork_session(
@@ -32,7 +32,7 @@ pub fn get_fork_context(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adl_kernel::types::conversation::ConversationRole;
+    use adl_types::conversation::ConversationRole;
 
     fn make_parent(id: &str, title: &str) -> ConversationSessionRecord {
         ConversationSessionRecord {
@@ -47,9 +47,9 @@ mod tests {
             last_read_at: None,
             archived_at: None,
             title_updated_at: None,
-            created_at: adl_kernel::now_ms(),
-            updated_at: adl_kernel::now_ms(),
-            last_message_at: adl_kernel::now_ms(),
+            created_at: adl_types::now_ms(),
+            updated_at: adl_types::now_ms(),
+            last_message_at: adl_types::now_ms(),
             parent_id: None,
         }
     }
@@ -79,7 +79,7 @@ mod tests {
                 role: ConversationRole::User,
                 content: format!("Message {}", i),
                 blocks: vec![],
-                created_at: adl_kernel::now_ms(),
+                created_at: adl_types::now_ms(),
             })
             .collect();
 

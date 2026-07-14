@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use adl_kernel::types::reference::{ReferenceConfig, ReferenceSource};
+use adl_types::reference::{ReferenceConfig, ReferenceSource};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 

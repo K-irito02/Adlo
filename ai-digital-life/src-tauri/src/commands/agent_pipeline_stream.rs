@@ -1,4 +1,4 @@
-use adl_kernel::{ModelResponse, ModelRouteDecision, ModelTokenUsage};
+use adl_types::{ModelResponse, ModelRouteDecision, ModelTokenUsage};
 use adl_model_gateway::adapter::{StreamChunk, StreamReader};
 use tauri::Emitter;
 use tokio_stream::StreamExt;

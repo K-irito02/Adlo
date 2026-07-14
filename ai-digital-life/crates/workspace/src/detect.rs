@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use adl_kernel::{now_ms, RecentWorkspaceEntry, WorkspaceMeta, WorkspaceStatus, WorkspaceType};
+use adl_types::{now_ms, RecentWorkspaceEntry, WorkspaceMeta, WorkspaceStatus, WorkspaceType};
 use std::path::{Path, PathBuf};
 
 pub fn strip_verbatim_prefix(s: &str) -> String {

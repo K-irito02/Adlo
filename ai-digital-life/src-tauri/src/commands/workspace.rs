@@ -3,7 +3,7 @@ use crate::commands::workspace_git::persist_workspace_meta;
 use crate::state::AppState;
 use crate::workspace_cmd;
 use adl_errors::AppError;
-use adl_kernel::{
+use adl_types::{
     now_ms, FileOutlineItem, IpcResult, RetrievalSnapshot, WorkspaceChangePreview,
     WorkspaceFileChangedEvent, WorkspaceFileDocument, WorkspaceMeta, WorkspaceSearchHit,
     WorkspaceStatus, WorkspaceTreeNode, WorkspaceType,
@@ -259,7 +259,7 @@ pub fn current_workspace(state: &AppState) -> Result<WorkspaceMeta, AppError> {
 pub fn virtual_global_workspace() -> WorkspaceMeta {
     let now = now_ms();
     WorkspaceMeta {
-        id: adl_kernel::GLOBAL_WORKSPACE_ID.to_string(),
+        id: adl_types::GLOBAL_WORKSPACE_ID.to_string(),
         path: String::new(),
         root_path: String::new(),
         name: "Global Conversation".into(),

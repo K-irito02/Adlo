@@ -1,6 +1,6 @@
 //! Fallback response generation when all providers fail.
 
-use adl_kernel::{estimate_tokens, ConversationRole, ModelChatMessage, ModelTokenUsage};
+use adl_types::{estimate_tokens, ConversationRole, ModelChatMessage, ModelTokenUsage};
 
 use crate::registry::{ModelSource, ProviderRegistry};
 
@@ -50,8 +50,8 @@ mod tests {
     use crate::adapter::{ChatOptions, StreamReader};
     use crate::registry::{ApiType, AuthType, ModelSource, ProviderDefinition};
     use adl_errors::AppError;
-    use adl_kernel::types::config::ModelDefinition;
-    use adl_kernel::types::model::{ModelChatMessage, ModelResponse};
+    use adl_types::config::ModelDefinition;
+    use adl_types::model::{ModelChatMessage, ModelResponse};
 
     struct DummyAdapter;
 

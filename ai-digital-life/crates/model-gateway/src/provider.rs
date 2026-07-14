@@ -4,7 +4,7 @@
 //! `ProviderAdapter` via registry lookup.
 
 use adl_errors::AppError;
-use adl_kernel::{ModelChatMessage, ModelResponse};
+use adl_types::{ModelChatMessage, ModelResponse};
 
 use crate::adapter::{ChatOptions, StreamReader};
 use crate::secret::get_provider_secret;
@@ -100,7 +100,7 @@ mod tests {
     use crate::providers::openai::OpenAIProvider;
     use crate::providers::openrouter::OpenRouterProvider;
     use crate::registry::{ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry};
-    use adl_kernel::{ConversationRole, ModelChatMessage, ModelPreferences};
+    use adl_types::{ConversationRole, ModelChatMessage, ModelPreferences};
     use std::sync::{Arc, RwLock};
 
     fn one_user_message() -> Vec<ModelChatMessage> {

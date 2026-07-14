@@ -1,5 +1,5 @@
 use crate::PatchProposal;
-use adl_kernel::{
+use adl_types::{
     create_id, now_ms, FilePatch, PatchHunk, PatchHunkDecision, PatchSet, PatchSetStatus,
 };
 

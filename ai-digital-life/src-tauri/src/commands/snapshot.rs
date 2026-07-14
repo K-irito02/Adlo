@@ -2,7 +2,7 @@ use crate::commands::ipc;
 use adl_change_engine::revert::{revert_to_snapshot, RevertResult};
 use adl_change_engine::snapshot::{SnapshotManager, SnapshotRecord};
 use adl_errors::AppError;
-use adl_kernel::IpcResult;
+use adl_types::IpcResult;
 use std::path::PathBuf;
 
 fn get_snapshot_manager(

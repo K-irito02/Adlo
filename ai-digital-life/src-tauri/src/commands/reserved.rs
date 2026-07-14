@@ -1,6 +1,6 @@
 use crate::commands::ipc;
 use adl_errors::AppError;
-use adl_kernel::IpcResult;
+use adl_types::IpcResult;
 
 #[tauri::command]
 pub async fn acp_get_status() -> Result<IpcResult<serde_json::Value>, AppError> {
@@ -8,9 +8,9 @@ pub async fn acp_get_status() -> Result<IpcResult<serde_json::Value>, AppError> 
 }
 
 #[tauri::command]
-pub async fn acp_get_config() -> Result<IpcResult<adl_kernel::types::reserved::AcpConfig>, AppError>
+pub async fn acp_get_config() -> Result<IpcResult<adl_types::types::reserved::AcpConfig>, AppError>
 {
-    Ok(ipc(Ok(adl_kernel::types::reserved::AcpConfig::default())))
+    Ok(ipc(Ok(adl_types::types::reserved::AcpConfig::default())))
 }
 
 #[tauri::command]
@@ -22,8 +22,8 @@ pub async fn http_api_get_status() -> Result<IpcResult<serde_json::Value>, AppEr
 
 #[tauri::command]
 pub async fn http_api_get_config(
-) -> Result<IpcResult<adl_kernel::types::reserved::HttpApiConfig>, AppError> {
-    Ok(ipc(Ok(adl_kernel::types::reserved::HttpApiConfig::default())))
+) -> Result<IpcResult<adl_types::types::reserved::HttpApiConfig>, AppError> {
+    Ok(ipc(Ok(adl_types::types::reserved::HttpApiConfig::default())))
 }
 
 #[tauri::command]
@@ -35,6 +35,6 @@ pub async fn codemode_execute(_code: String) -> Result<IpcResult<serde_json::Val
 
 #[tauri::command]
 pub async fn codemode_get_config(
-) -> Result<IpcResult<adl_kernel::types::reserved::CodeModeConfig>, AppError> {
-    Ok(ipc(Ok(adl_kernel::types::reserved::CodeModeConfig::default())))
+) -> Result<IpcResult<adl_types::types::reserved::CodeModeConfig>, AppError> {
+    Ok(ipc(Ok(adl_types::types::reserved::CodeModeConfig::default())))
 }

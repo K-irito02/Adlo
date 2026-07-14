@@ -3,7 +3,7 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_command::{build_request, run_command};
 use adl_errors::AppError;
-use adl_kernel::{CommandRequest, CommandRunResult, IpcResult, RiskLevel, TaskOperation};
+use adl_types::{CommandRequest, CommandRunResult, IpcResult, RiskLevel, TaskOperation};
 use adl_storage::EntityTable;
 use tauri::Manager;
 
@@ -113,7 +113,7 @@ fn approval_for_command(
     state: &AppState,
     workspace_id: &str,
     request: &CommandRequest,
-) -> Result<(adl_kernel::TaskRecord, adl_kernel::ApprovalRecord), AppError> {
+) -> Result<(adl_types::TaskRecord, adl_types::ApprovalRecord), AppError> {
     let operation = TaskOperation {
         kind: "command.run".into(),
         target: Some(format!("{} {}", request.command, request.args.join(" "))),

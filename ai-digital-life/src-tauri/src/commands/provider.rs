@@ -1,7 +1,7 @@
 use crate::commands::ipc;
 use adl_errors::AppError;
-use adl_kernel::types::config::{ModelCapability, ModelDefinition};
-use adl_kernel::IpcResult;
+use adl_types::config::{ModelCapability, ModelDefinition};
+use adl_types::IpcResult;
 use adl_model_gateway::providers::openai::OpenAIProvider;
 use adl_model_gateway::registry::{ApiType, AuthType, ModelSource, ProviderDefinition};
 use serde::Serialize;

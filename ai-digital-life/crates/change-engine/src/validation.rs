@@ -1,4 +1,4 @@
-use adl_kernel::{
+use adl_types::{
     create_id, now_ms, DiagnosticSummary, PatchApplicationResult, PatchSet, ValidationResult,
 };
 
@@ -6,7 +6,7 @@ pub fn validation_result_from_command(
     workspace_id: &str,
     run_id: Option<String>,
     patch_set_id: Option<String>,
-    command_result: Option<&adl_kernel::CommandExecutionResult>,
+    command_result: Option<&adl_types::CommandExecutionResult>,
 ) -> ValidationResult {
     match command_result {
         Some(result) if result.success => ValidationResult {
@@ -45,7 +45,7 @@ pub fn validation_result_from_command(
 pub fn application_result(
     patch_set: PatchSet,
     validation: Option<ValidationResult>,
-    command_result: Option<adl_kernel::CommandExecutionResult>,
+    command_result: Option<adl_types::CommandExecutionResult>,
     rolled_back: bool,
 ) -> PatchApplicationResult {
     PatchApplicationResult {

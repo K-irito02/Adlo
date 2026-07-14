@@ -1,5 +1,6 @@
 use adl_browser::BrowserManager;
-use adl_kernel::{config::AppConfig, events::EventBus, WorkspaceMeta};
+use adl_kernel::{config::AppConfig, events::EventBus};
+use adl_types::WorkspaceMeta;
 use adl_logging::LogManager;
 use adl_model_gateway::registry::ProviderRegistry;
 use adl_pty::SessionManager;

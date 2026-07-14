@@ -1,4 +1,4 @@
-use adl_kernel::types::agent::AgentId;
+use adl_types::agent::AgentId;
 use std::path::{Path, PathBuf};
 
 /// State of plan mode for a workspace.
@@ -12,7 +12,7 @@ impl PlanModeState {
     pub fn enter(&mut self, workspace_root: &Path) -> PathBuf {
         self.active = true;
         let plan_dir = workspace_root.join(".ai-digital-life").join("plans");
-        let plan_file = plan_dir.join(format!("plan-{}.md", adl_kernel::create_id("plan")));
+        let plan_file = plan_dir.join(format!("plan-{}.md", adl_types::create_id("plan")));
         self.plan_file = Some(plan_file.clone());
         plan_file
     }

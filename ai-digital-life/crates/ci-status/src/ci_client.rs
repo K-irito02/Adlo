@@ -1,7 +1,7 @@
 use crate::ci_cache::CiLogCache;
 use crate::ci_parser;
 use adl_errors::AppError;
-use adl_kernel::{CiJobSummary, CiRepoConfig, CiStatusSnapshot, CiWorkflowRunSummary};
+use adl_types::{CiJobSummary, CiRepoConfig, CiStatusSnapshot, CiWorkflowRunSummary};
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -65,7 +65,7 @@ impl CiStatusClient {
             latest_run: Some(run),
             jobs,
             logs: None,
-            captured_at_ms: adl_kernel::now_ms(),
+            captured_at_ms: adl_types::now_ms(),
             error: None,
         })
     }

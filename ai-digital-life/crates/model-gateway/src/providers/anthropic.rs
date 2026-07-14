@@ -1,9 +1,9 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
 use crate::http_helper::{send_chat_request, send_stream_request, HttpRequestBuilder};
 use adl_errors::AppError;
-use adl_kernel::types::config::{ModelCapability, ModelDefinition, ModelTier};
-use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
-use adl_kernel::ConversationRole;
+use adl_types::config::{ModelCapability, ModelDefinition, ModelTier};
+use adl_types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
+use adl_types::ConversationRole;
 use async_trait::async_trait;
 use reqwest::Client;
 

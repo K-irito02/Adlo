@@ -1,4 +1,4 @@
-use adl_kernel::types::agent::{AgentConfig, AgentMode};
+use adl_types::agent::{AgentConfig, AgentMode};
 
 /// Derive the permission configuration for a sub-agent from its parent.
 /// Sub-agents inherit a restricted subset of the parent's permissions:
@@ -25,7 +25,7 @@ pub fn derive_subagent_permission(parent: &AgentConfig, subagent: &AgentConfig) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use adl_kernel::types::agent::AgentId;
+    use adl_types::agent::AgentId;
 
     #[test]
     fn subagent_never_gets_write_tools() {

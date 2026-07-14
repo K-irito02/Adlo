@@ -14,7 +14,7 @@ pub mod tools;
 
 pub use tools::registry::{global_registry, ToolDefinition, ToolExecutionResult, ToolRegistry};
 
-use adl_kernel::{
+use adl_types::{
     create_id, now_ms, AgentId, AgentPlanStep, AgentRunDetail, AgentRunRecord, AgentRunStatus,
     ContextEntry, ConversationBlock, ConversationScenario, ModelChatMessage, PatchSet,
     ValidationResult, WorkspaceFileDocument, WorkspaceMeta,
@@ -170,10 +170,10 @@ pub fn build_model_messages(
     let prompt = adl_context::assemble_prompt(scenario, user_prompt, context);
     vec![
         ModelChatMessage {
-            role: adl_kernel::ConversationRole::System,
+            role: adl_types::ConversationRole::System,
             content: format!("Workspace: {} ({})", workspace.name, workspace.root_path),
         },
-        ModelChatMessage { role: adl_kernel::ConversationRole::User, content: prompt },
+        ModelChatMessage { role: adl_types::ConversationRole::User, content: prompt },
     ]
 }
 
@@ -255,7 +255,7 @@ pub fn assistant_blocks(
         items: detail
             .steps
             .iter()
-            .map(|step| adl_kernel::PlanConversationItem {
+            .map(|step| adl_types::PlanConversationItem {
                 id: step.id.clone(),
                 title: step.title.clone(),
                 detail: step.detail.clone(),

@@ -5,8 +5,8 @@ use crate::state::AppState;
 use adl_agent_runtime::prompt::agent_system_prompt;
 use adl_agent_runtime::registry::AgentRegistry;
 use adl_errors::AppError;
-use adl_kernel::types::agent::AgentId;
-use adl_kernel::{ConversationScenario, IpcResult, ModelChatMessage, ModelPreferences};
+use adl_types::agent::AgentId;
+use adl_types::{ConversationScenario, IpcResult, ModelChatMessage, ModelPreferences};
 use adl_subagent::{
     SubagentId, SubagentManager, SubagentStatus, SubagentTask, TaskToolInput, TaskToolOutput,
 };
@@ -43,7 +43,7 @@ fn resolve_agent_id(subagent_type: &str) -> AgentId {
 
 async fn spawn_subagent_inner(
     state: &AppState,
-    parent_session: &adl_kernel::ConversationSessionRecord,
+    parent_session: &adl_types::ConversationSessionRecord,
     input: TaskToolInput,
 ) -> Result<TaskToolOutput, AppError> {
     let task_id = input.task_id.as_deref().map(SubagentId::from_str).unwrap_or_default();
@@ -76,7 +76,7 @@ async fn spawn_subagent_inner(
         prompt: input.prompt.clone(),
         background: input.background,
         status: SubagentStatus::Pending,
-        created_at: adl_kernel::now_ms(),
+        created_at: adl_types::now_ms(),
         completed_at: None,
     };
     let manager = subagent_manager();
@@ -222,12 +222,12 @@ async fn execute_subagent_llm_call(
     let mut messages: Vec<ModelChatMessage> = Vec::new();
     if let Some(sys) = system_prompt {
         messages.push(ModelChatMessage {
-            role: adl_kernel::ConversationRole::System,
+            role: adl_types::ConversationRole::System,
             content: sys.to_string(),
         });
     }
     messages.push(ModelChatMessage {
-        role: adl_kernel::ConversationRole::User,
+        role: adl_types::ConversationRole::User,
         content: prompt.to_string(),
     });
 

@@ -1,9 +1,8 @@
 use crate::commands::ipc;
 use adl_kernel::config::{load, save};
-use adl_kernel::{
-    build_ruleset, evaluate_ruleset, IpcResult, PermissionDecision, PermissionRule,
-    PermissionRulesetConfig,
-};
+use adl_kernel::{build_ruleset, evaluate_ruleset};
+use adl_types::IpcResult;
+use adl_types::permission_types::{PermissionDecision, PermissionRule, PermissionRulesetConfig};
 use std::path::Path;
 
 #[tauri::command]

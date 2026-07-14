@@ -1,7 +1,7 @@
 //! File system operations: path scoping, atomic writes, and checkpoint payloads.
 
 use adl_errors::AppError;
-use adl_kernel::{CheckpointPayloadAsset, CheckpointPayloadPreview};
+use adl_types::{CheckpointPayloadAsset, CheckpointPayloadPreview};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Component, Path, PathBuf};

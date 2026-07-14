@@ -1,10 +1,11 @@
 //! Governed command execution with bounded output capture.
 
 use adl_errors::AppError;
-use adl_kernel::{
-    create_id, evaluate_ruleset, now_ms, CommandExecutionResult, CommandProfile, CommandRequest,
-    PermissionDecision, PermissionRuleset, RiskLevel,
+use adl_types::{
+    create_id, now_ms, CommandExecutionResult, CommandProfile, CommandRequest, RiskLevel,
 };
+use adl_types::permission_types::{PermissionDecision, PermissionRuleset};
+use adl_kernel::{assess_command_risk, evaluate_ruleset};
 use std::path::Path;
 use std::time::Duration;
 use tokio::process::Command;
@@ -19,7 +20,7 @@ pub fn build_request(
     args: Vec<String>,
     shell: bool,
 ) -> CommandRequest {
-    let risk = adl_kernel::command_risk::assess_command_risk(&command, &args, shell);
+    let risk = assess_command_risk(&command, &args, shell);
     CommandRequest {
         id: create_id("command"),
         workspace_id: workspace_id.to_string(),

@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use adl_kernel::WorkspaceSearchHit;
+use adl_types::WorkspaceSearchHit;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};

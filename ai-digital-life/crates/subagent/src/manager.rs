@@ -1,4 +1,4 @@
-use adl_kernel::types::agent::AgentId;
+use adl_types::agent::AgentId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -10,7 +10,7 @@ pub struct SubagentId(String);
 
 impl SubagentId {
     pub fn new() -> Self {
-        Self(format!("sub_{}", adl_kernel::create_id("sub")))
+        Self(format!("sub_{}", adl_types::create_id("sub")))
     }
 
     #[allow(clippy::should_implement_trait)]
@@ -90,7 +90,7 @@ impl SubagentManager {
         })?;
         task.status = status;
         if status.is_terminal() {
-            task.completed_at = Some(adl_kernel::now_ms());
+            task.completed_at = Some(adl_types::now_ms());
         }
         Ok(())
     }

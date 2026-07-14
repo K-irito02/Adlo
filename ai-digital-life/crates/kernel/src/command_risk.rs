@@ -1,4 +1,4 @@
-use crate::RiskLevel;
+use adl_types::RiskLevel;
 use regex::Regex;
 
 // Re-export moved types/functions for backward compatibility.

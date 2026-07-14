@@ -13,6 +13,7 @@ dependencies = [
  "adl-fs-ops",
  "adl-kernel",
  "adl-storage",
+ "adl-types",
  "adl-workspace",
  "async-trait",
  "chrono",
@@ -49,7 +50,7 @@ version = "0.1.0"
 dependencies = [
  "adl-errors",
  "adl-fs-ops",
- "adl-kernel",
+ "adl-types",
  "adl-workspace",
  "serde",
  "serde_json",
@@ -61,7 +62,7 @@ name = "adl-ci-status"
 version = "0.1.0"
 dependencies = [
  "adl-errors",
- "adl-kernel",
+ "adl-types",
  "lru",
  "reqwest",
  "serde",
@@ -77,6 +78,7 @@ version = "0.1.0"
 dependencies = [
  "adl-errors",
  "adl-kernel",
+ "adl-types",
  "tokio",
  "tracing",
  "uuid",
@@ -87,7 +89,7 @@ name = "adl-context"
 version = "0.1.0"
 dependencies = [
  "adl-errors",
- "adl-kernel",
+ "adl-types",
  "serde",
  "tracing",
 ]
@@ -97,7 +99,7 @@ name = "adl-conversation"
 version = "0.1.0"
 dependencies = [
  "adl-errors",
- "adl-kernel",
+ "adl-types",
  "serde",
 ]
 
@@ -130,7 +132,7 @@ name = "adl-fs-ops"
 version = "0.1.0"
 dependencies = [
  "adl-errors",
- "adl-kernel",
+ "adl-types",
  "serde_json",
  "sha2",
 ]
@@ -221,7 +223,7 @@ version = "0.1.0"
 dependencies = [
  "adl-credential",
  "adl-errors",
- "adl-kernel",
+ "adl-types",
  "async-trait",
  "reqwest",
  "serde",
@@ -235,7 +237,7 @@ name = "adl-outline"
 version = "0.1.0"
 dependencies = [
  "adl-errors",
- "adl-kernel",
+ "adl-types",
  "regex",
 ]
 
@@ -244,7 +246,7 @@ name = "adl-pty"
 version = "0.1.0"
 dependencies = [
  "adl-errors",
- "adl-kernel",
+ "adl-types",
  "dirs 5.0.1",
  "portable-pty",
  "serde",
@@ -257,7 +259,7 @@ name = "adl-storage"
 version = "0.1.0"
 dependencies = [
  "adl-errors",
- "adl-kernel",
+ "adl-types",
  "r2d2",
  "r2d2_sqlite",
  "rusqlite",
@@ -274,7 +276,7 @@ dependencies = [
  "adl-agent-runtime",
  "adl-conversation",
  "adl-errors",
- "adl-kernel",
+ "adl-types",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -288,6 +290,7 @@ version = "0.1.0"
 dependencies = [
  "adl-errors",
  "adl-kernel",
+ "adl-types",
  "serde_json",
 ]
 
@@ -310,8 +313,8 @@ version = "0.1.0"
 dependencies = [
  "adl-errors",
  "adl-fs-ops",
- "adl-kernel",
  "adl-outline",
+ "adl-types",
  "serde",
  "tokio",
  "tracing",
@@ -383,6 +386,7 @@ dependencies = [
  "adl-storage",
  "adl-subagent",
  "adl-task",
+ "adl-types",
  "adl-workspace",
  "anyhow",
  "async-trait",

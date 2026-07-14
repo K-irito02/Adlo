@@ -69,7 +69,7 @@ impl ConfigWatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::config::ThemeMode;
+    use adl_types::types::config::ThemeMode;
     use adl_logging::LogMode;
 
     fn test_config() -> AppConfig {
@@ -86,7 +86,7 @@ mod tests {
             references: vec![],
             custom_agents: vec![],
             keybinds: std::collections::BTreeMap::new(),
-            fonts: crate::types::config::FontPreferences::default(),
+            fonts: adl_types::types::config::FontPreferences::default(),
         }
     }
 

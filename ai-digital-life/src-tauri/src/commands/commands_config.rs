@@ -1,7 +1,7 @@
 use crate::commands::ipc;
 use adl_kernel::config::{load, save};
-use adl_kernel::types::commands::CommandConfig;
-use adl_kernel::IpcResult;
+use adl_types::commands::CommandConfig;
+use adl_types::IpcResult;
 use std::path::Path;
 
 #[tauri::command]

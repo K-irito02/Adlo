@@ -4,7 +4,7 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_command::{run_command, validation_command};
 use adl_errors::AppError;
-use adl_kernel::{IpcResult, PatchApplicationResult, PatchHunkDecision, PatchSet, PatchSetStatus};
+use adl_types::{IpcResult, PatchApplicationResult, PatchHunkDecision, PatchSet, PatchSetStatus};
 use adl_storage::EntityTable;
 
 #[derive(Debug, serde::Deserialize)]
@@ -64,7 +64,7 @@ pub fn patch_rollback_patch_set(
             &workspace.id,
             Some(&patch_set.session_id),
             "patch-rollback",
-            adl_kernel::RiskLevel::Medium,
+            adl_types::RiskLevel::Medium,
             format!("Rolled back {} on user request.", patch_set.title),
             Some("approved"),
             None,
@@ -80,13 +80,13 @@ pub fn patch_rollback_patch_set(
 fn emit_patch_rollback_activity(
     app: &tauri::AppHandle,
     state: &AppState,
-    workspace: &adl_kernel::WorkspaceMeta,
+    workspace: &adl_types::WorkspaceMeta,
     patch_set: &PatchSet,
     run_id: &str,
 ) {
-    let ts = adl_kernel::now_ms();
+    let ts = adl_types::now_ms();
     let seq = adl_agent_runtime::run_activity_seq::next_run_activity_seq(ts);
-    let event = adl_kernel::DigitalLifeRunActivityEventV1::Patch {
+    let event = adl_types::DigitalLifeRunActivityEventV1::Patch {
         v: 1,
         run_id: run_id.to_string(),
         seq,
@@ -115,15 +115,15 @@ fn emit_patch_rollback_activity(
         extra: payload,
     });
     if let Ok(Some(detail)) = crate::commands::agent::load_run_detail(state, run_id) {
-        let validation = adl_kernel::ValidationResult {
-            id: adl_kernel::create_id("validation"),
+        let validation = adl_types::ValidationResult {
+            id: adl_types::create_id("validation"),
             workspace_id: workspace.id.clone(),
             run_id: Some(run_id.to_string()),
             patch_set_id: Some(patch_set.id.clone()),
             status: "failed".into(),
             summary: "User requested rollback.".into(),
             diagnostics: vec![],
-            created_at: adl_kernel::now_ms(),
+            created_at: adl_types::now_ms(),
         };
         let detail = adl_agent_runtime::complete_after_patch(detail, &validation, true);
         let _ = crate::commands::agent::save_run_detail(state, &detail);
@@ -159,7 +159,7 @@ async fn apply_patch_set_inner(
         &workspace.id,
         Some(&patch_set.session_id),
         "patch-apply",
-        adl_kernel::RiskLevel::Medium,
+        adl_types::RiskLevel::Medium,
         format!("Applied accepted hunks for {}.", patch_set.title),
         Some("auto"),
         Some(&format!("checkpointId={}", checkpoint.id)),
@@ -189,13 +189,13 @@ fn validate_patch_set(state: &AppState, patch_set: &PatchSet) -> Result<(), AppE
 fn emit_patch_apply_event(
     app: &tauri::AppHandle,
     state: &AppState,
-    workspace: &adl_kernel::WorkspaceMeta,
+    workspace: &adl_types::WorkspaceMeta,
     patch_set: &PatchSet,
 ) -> Result<(), AppError> {
     if let Some(run_id) = &patch_set.run_id {
-        let ts = adl_kernel::now_ms();
+        let ts = adl_types::now_ms();
         let seq = adl_agent_runtime::run_activity_seq::next_run_activity_seq(ts);
-        let event = adl_kernel::DigitalLifeRunActivityEventV1::Patch {
+        let event = adl_types::DigitalLifeRunActivityEventV1::Patch {
             v: 1,
             run_id: run_id.to_string(),
             seq,
@@ -236,7 +236,7 @@ fn emit_patch_apply_event(
 async fn save_and_verify_patch(
     state: &AppState,
     _app: &tauri::AppHandle,
-    workspace: &adl_kernel::WorkspaceMeta,
+    workspace: &adl_types::WorkspaceMeta,
     mut patch_set: PatchSet,
     root: &std::path::Path,
 ) -> Result<PatchApplicationResult, AppError> {
@@ -273,7 +273,7 @@ async fn save_and_verify_patch(
         &workspace.id,
         Some(&patch_set.session_id),
         "command",
-        adl_kernel::RiskLevel::Low,
+        adl_types::RiskLevel::Low,
         validation.summary.clone(),
         Some("auto"),
         Some(&format!("validationStatus={}", validation.status)),
@@ -288,7 +288,7 @@ async fn save_and_verify_patch(
             &workspace.id,
             Some(&patch_set.session_id),
             "patch-rollback",
-            adl_kernel::RiskLevel::Medium,
+            adl_types::RiskLevel::Medium,
             format!("Rolled back {} after failed validation.", patch_set.title),
             Some("auto"),
             Some(&validation.summary),

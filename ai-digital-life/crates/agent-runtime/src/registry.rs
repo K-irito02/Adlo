@@ -1,4 +1,4 @@
-use adl_kernel::types::agent::{AgentConfig, AgentId, AgentMode};
+use adl_types::agent::{AgentConfig, AgentId, AgentMode};
 use std::collections::HashMap;
 
 /// Registry of available agents (built-in + custom).

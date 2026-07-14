@@ -8,8 +8,8 @@ use adl_agent_runtime::plan_mode::PlanModeState;
 use adl_agent_runtime::registry::AgentRegistry;
 use adl_agent_runtime::router;
 use adl_errors::AppError;
-use adl_kernel::types::agent::AgentConfig;
-use adl_kernel::{
+use adl_types::agent::AgentConfig;
+use adl_types::{
     create_id, now_ms, AgentRunDetail, AgentRunStatus, ConversationScenario,
     ConversationSendResult, DigitalLifeRunActivityEventV1, IpcResult,
 };
@@ -78,7 +78,7 @@ pub fn agent_retry_run(
             return Ok(None);
         };
         detail.run.status = AgentRunStatus::Ready;
-        detail.run.updated_at = adl_kernel::now_ms();
+        detail.run.updated_at = adl_types::now_ms();
         save_run_detail(&state, &detail)?;
         Ok(Some(detail))
     })
@@ -263,11 +263,11 @@ fn get_plan_file_path(workspace_id: &str) -> Option<std::path::PathBuf> {
 
 pub fn load_run_detail(state: &AppState, run_id: &str) -> Result<Option<AgentRunDetail>, AppError> {
     let Some(run) =
-        state.db.load_entity::<adl_kernel::AgentRunRecord>(EntityTable::AgentRuns, run_id)?
+        state.db.load_entity::<adl_types::AgentRunRecord>(EntityTable::AgentRuns, run_id)?
     else {
         return Ok(None);
     };
-    let mut steps: Vec<adl_kernel::AgentPlanStep> =
+    let mut steps: Vec<adl_types::AgentPlanStep> =
         state.db.list_entities(EntityTable::AgentSteps)?;
     steps.retain(|step| step.run_id == run_id);
     steps.sort_by_key(|step| step.created_at);
@@ -404,6 +404,6 @@ mod multi_agent_tests {
         let result = select_agent_inner("plan", "analyze auth");
         assert!(result.is_ok());
         let agent = result.unwrap();
-        assert_eq!(agent.id, adl_kernel::types::agent::AgentId::Plan);
+        assert_eq!(agent.id, adl_types::types::agent::AgentId::Plan);
     }
 }

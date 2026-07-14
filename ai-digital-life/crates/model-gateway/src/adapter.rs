@@ -1,7 +1,7 @@
 use adl_errors::AppError;
-use adl_kernel::types::agent::AgentId;
-use adl_kernel::types::config::ModelDefinition;
-use adl_kernel::types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
+use adl_types::agent::AgentId;
+use adl_types::config::ModelDefinition;
+use adl_types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use async_trait::async_trait;
 use std::pin::Pin;
 
@@ -74,7 +74,7 @@ pub trait ProviderAdapter: Send + Sync {
     ) -> Result<StreamReader, AppError>;
 
     fn estimate_tokens(&self, text: &str) -> usize {
-        adl_kernel::estimate_tokens(text)
+        adl_types::estimate_tokens(text)
     }
 
     async fn test_connection(&self, api_key: &str, base_url: &str) -> Result<(), AppError> {

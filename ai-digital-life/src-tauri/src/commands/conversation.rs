@@ -3,7 +3,7 @@ use crate::commands::ipc_try;
 use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
-use adl_kernel::{
+use adl_types::{
     ConversationDetail, ConversationMessageRecord, ConversationRole, ConversationScenario,
     ConversationSendResult, ConversationSessionRecord, IpcResult,
 };
@@ -111,8 +111,8 @@ pub fn conversation_rename_session(
     crate::commands::ipc_try(|| {
         let mut session = require_session(&state, &input.session_id)?;
         session.title = input.title;
-        session.title_updated_at = Some(adl_kernel::now_ms());
-        session.updated_at = adl_kernel::now_ms();
+        session.title_updated_at = Some(adl_types::now_ms());
+        session.updated_at = adl_types::now_ms();
         save_session(&state, &session)?;
         Ok(session)
     })
@@ -142,8 +142,8 @@ pub fn conversation_archive_session(
     crate::commands::ipc_try(|| {
         let mut session = require_session(&state, &session_id)?;
         session.status = "archived".into();
-        session.archived_at = Some(adl_kernel::now_ms());
-        session.updated_at = adl_kernel::now_ms();
+        session.archived_at = Some(adl_types::now_ms());
+        session.updated_at = adl_types::now_ms();
         save_session(&state, &session)?;
         Ok(session)
     })
@@ -159,8 +159,8 @@ pub fn conversation_archive_all_in_workspace(
             state.db.list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
         for session in &mut sessions {
             session.status = "archived".into();
-            session.archived_at = Some(adl_kernel::now_ms());
-            session.updated_at = adl_kernel::now_ms();
+            session.archived_at = Some(adl_types::now_ms());
+            session.updated_at = adl_types::now_ms();
             save_session(&state, session)?;
         }
         Ok(sessions)
@@ -177,7 +177,7 @@ pub fn active_workspace_scope_id(state: &AppState) -> String {
         })
         .as_ref()
         .map(|workspace| workspace.id.clone())
-        .unwrap_or_else(|| adl_kernel::GLOBAL_WORKSPACE_ID.to_string())
+        .unwrap_or_else(|| adl_types::GLOBAL_WORKSPACE_ID.to_string())
 }
 
 #[tauri::command]
@@ -192,13 +192,13 @@ pub fn conversation_reorder_sessions(
             if let Some(order) = input.pinned_ids.iter().position(|id| id == &session.id) {
                 session.is_pinned = true;
                 session.pinned_order = order as i32;
-                session.updated_at = adl_kernel::now_ms();
+                session.updated_at = adl_types::now_ms();
                 save_session(&state, session)?;
             }
             if let Some(order) = input.unpinned_ids.iter().position(|id| id == &session.id) {
                 session.is_pinned = false;
                 session.unpinned_order = order as i32;
-                session.updated_at = adl_kernel::now_ms();
+                session.updated_at = adl_types::now_ms();
                 save_session(&state, session)?;
             }
         }
@@ -231,7 +231,7 @@ pub fn conversation_mark_session_read(
     crate::commands::ipc_try(|| {
         let mut session = require_session(&state, &input.session_id)?;
         session.manual_unread = false;
-        session.last_read_at = Some(input.read_at.unwrap_or_else(adl_kernel::now_ms));
+        session.last_read_at = Some(input.read_at.unwrap_or_else(adl_types::now_ms));
         save_session(&state, &session)?;
         Ok(session)
     })
@@ -241,7 +241,7 @@ pub fn conversation_mark_session_read(
 pub fn conversation_cancel_message(
     state: tauri::State<'_, AppState>,
     run_id: String,
-) -> IpcResult<Option<adl_kernel::AgentRunDetail>> {
+) -> IpcResult<Option<adl_types::AgentRunDetail>> {
     crate::commands::ipc_try(|| {
         let Some(detail) = crate::commands::agent::load_run_detail(&state, &run_id)? else {
             return Ok(None);
@@ -329,7 +329,7 @@ fn set_pinned(
     crate::commands::ipc_try(|| {
         let mut session = require_session(state, session_id)?;
         session.is_pinned = pinned;
-        session.updated_at = adl_kernel::now_ms();
+        session.updated_at = adl_types::now_ms();
         save_session(state, &session)?;
         Ok(session)
     })

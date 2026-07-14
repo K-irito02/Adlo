@@ -1,8 +1,8 @@
-use crate::types::agent::AgentConfig;
-use crate::types::reference::ReferenceConfig;
-use crate::types::{ModelPreferences, ThemeMode};
-use crate::CommandConfig;
-use crate::PermissionRulesetConfig;
+use adl_types::types::agent::AgentConfig;
+use adl_types::types::reference::ReferenceConfig;
+use adl_types::types::{ModelPreferences, ThemeMode};
+use adl_types::CommandConfig;
+use adl_types::permission_types::PermissionRulesetConfig;
 use adl_errors::AppError;
 use adl_logging::LogMode;
 use serde::{Deserialize, Serialize};
@@ -41,7 +41,7 @@ pub struct AppConfig {
     pub keybinds: std::collections::BTreeMap<String, String>,
     /// User-defined font preferences.
     #[serde(default)]
-    pub fonts: crate::types::config::FontPreferences,
+    pub fonts: adl_types::types::config::FontPreferences,
 }
 
 impl Default for AppConfig {
@@ -59,7 +59,7 @@ impl Default for AppConfig {
             references: Vec::new(),
             custom_agents: Vec::new(),
             keybinds: std::collections::BTreeMap::new(),
-            fonts: crate::types::config::FontPreferences::default(),
+            fonts: adl_types::types::config::FontPreferences::default(),
         }
     }
 }
@@ -115,8 +115,8 @@ mod tests {
 #[cfg(test)]
 mod config_extension_tests {
     use super::*;
-    use crate::types::agent::AgentId;
-    use crate::types::commands::CommandConfig;
+    use adl_types::types::agent::AgentId;
+    use adl_types::types::commands::CommandConfig;
 
     #[test]
     fn app_config_has_commands_field() {
@@ -129,12 +129,12 @@ mod config_extension_tests {
     fn app_config_with_custom_commands() {
         let config = AppConfig {
             language: "en-US".into(),
-            theme_mode: crate::types::config::ThemeMode::Light,
+            theme_mode: adl_types::types::config::ThemeMode::Light,
             log_level: "debug".into(),
             terminal_log_mode: adl_logging::LogMode::Overwrite,
             debug_log_mode: adl_logging::LogMode::Overwrite,
             max_recent_workspaces: 10,
-            model_preferences: crate::types::config::ModelPreferences::default(),
+            model_preferences: adl_types::types::config::ModelPreferences::default(),
             commands: vec![CommandConfig {
                 name: "deploy".to_string(),
                 description: "Deploy to production".to_string(),
@@ -144,11 +144,11 @@ mod config_extension_tests {
                 subtask: false,
                 hints: vec![],
             }],
-            permissions: crate::PermissionRulesetConfig::default(),
+            permissions: adl_types::permission_types::PermissionRulesetConfig::default(),
             references: vec![],
             custom_agents: vec![],
             keybinds: std::collections::BTreeMap::new(),
-            fonts: crate::types::config::FontPreferences::default(),
+            fonts: adl_types::types::config::FontPreferences::default(),
         };
         assert_eq!(config.commands.len(), 1);
         assert_eq!(config.commands[0].name, "deploy");

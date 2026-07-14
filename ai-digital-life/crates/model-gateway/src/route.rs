@@ -9,7 +9,7 @@
 //! [`select_provider`] tries each provider in route order and returns the
 //! first successful response or the last error.
 
-use adl_kernel::{ModelChatMessage, ModelPreferences, ModelResponse};
+use adl_types::{ModelChatMessage, ModelPreferences, ModelResponse};
 
 use crate::fallback::default_model;
 use crate::ModelGateway;

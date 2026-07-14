@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use adl_kernel::WorkspaceFileDocument;
+use adl_types::WorkspaceFileDocument;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -138,5 +138,5 @@ pub(crate) fn file_modified_at(path: &Path) -> i64 {
         .ok()
         .and_then(|time| time.duration_since(std::time::UNIX_EPOCH).ok())
         .map(|duration| duration.as_millis() as i64)
-        .unwrap_or_else(adl_kernel::now_ms)
+        .unwrap_or_else(adl_types::now_ms)
 }
