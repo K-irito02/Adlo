@@ -27,6 +27,95 @@ fn new_window_handler(
     tauri::webview::NewWindowResponse::Deny
 }
 
+fn resolve_window_and_url(
+    app: &tauri::AppHandle,
+    url: &str,
+) -> Result<(tauri::Window<tauri::Wry>, url::Url), AppError> {
+    let window = app
+        .get_window("main")
+        .ok_or_else(|| AppError::Internal("main window not found".into()))?;
+    let target = adl_browser::resolve_url(url)
+        .map_err(|e| AppError::Internal(format!("failed to resolve URL: {e}")))?;
+    Ok((window, target))
+}
+
+fn build_webview_builder(
+    label: &str,
+    target: url::Url,
+    app_handle: tauri::AppHandle,
+) -> tauri::webview::WebviewBuilder<tauri::Wry> {
+    let app_nav = app_handle.clone();
+    tauri::webview::WebviewBuilder::new(label, tauri::WebviewUrl::External(target))
+        .initialization_script(adl_browser::INIT_SCRIPT)
+        .on_navigation(move |url| {
+            adl_browser::navigation_handler(url, &|normalized| {
+                let _ = app_nav.emit(
+                    "digital-life://browser-url-changed",
+                    serde_json::json!({ "url": normalized }),
+                );
+            })
+        })
+        .on_new_window(move |url, _window_features| new_window_handler(&app_handle, &url))
+}
+
+fn setup_webview2_handlers_for_platform(
+    webview: &tauri::Webview<tauri::Wry>,
+    tab_id: &str,
+    label: &str,
+    bridge: EventBridgeRef,
+) {
+    #[cfg(windows)]
+    {
+        let bridge = bridge.clone();
+        let tab_id = tab_id.to_string();
+        let label = label.to_string();
+        let _ = webview.with_webview(move |platform_wv| unsafe {
+            let controller = platform_wv.controller();
+            if let Ok(core) = controller.CoreWebView2() {
+                adl_browser::setup_webview2_handlers(&core, &tab_id, &label, &bridge);
+            }
+        });
+    }
+    #[cfg(not(windows))]
+    {
+        adl_browser::setup_webview2_handlers(tab_id, label);
+    }
+}
+
+fn apply_color_scheme_for_platform(
+    webview: &tauri::Webview<tauri::Wry>,
+    color_scheme: &str,
+) {
+    #[cfg(windows)]
+    {
+        let cs = color_scheme.to_string();
+        let _ = webview.with_webview(move |platform_wv| unsafe {
+            let controller = platform_wv.controller();
+            if let Ok(core) = controller.CoreWebView2() {
+                adl_browser::webview2_set_color_scheme(&core, &cs);
+            }
+        });
+    }
+    #[cfg(not(windows))]
+    {
+        adl_browser::webview2_set_color_scheme(color_scheme);
+    }
+}
+
+fn register_webview_with_manager(
+    state: &AppState,
+    app_handle: tauri::AppHandle,
+    label: String,
+    tab_id: &str,
+) -> Result<Option<String>, AppError> {
+    let handle: Arc<dyn WebViewHandle> =
+        Arc::new(TauriWebViewHandle::new(app_handle, label));
+    state
+        .browser_manager
+        .create_for_tab(handle, tab_id)
+        .map_err(|e| AppError::Internal(format!("failed to register browser: {e}")))
+}
+
 #[tauri::command]
 pub async fn browser_create_for_tab(
     app: tauri::AppHandle,
@@ -40,99 +129,39 @@ pub async fn browser_create_for_tab(
         let state = app_inner.state::<AppState>();
         let label = webview_label(&tab_id);
 
-        let window = match app_inner.get_window("main") {
-            Some(w) => w,
-            None => {
-                let _ = tx.send(Err(AppError::Internal("main window not found".into())));
-                return;
-            },
-        };
+        let result = (|| -> Result<Option<String>, AppError> {
+            let (window, target) = resolve_window_and_url(&app_inner, &url)?;
+            let webview_builder = build_webview_builder(&label, target, app_inner.clone());
 
-        let target = match adl_browser::resolve_url(&url) {
-            Ok(u) => u,
-            Err(e) => {
-                let _ = tx.send(Err(e));
-                return;
-            },
-        };
+            window
+                .add_child(
+                    webview_builder,
+                    tauri::LogicalPosition::new(-10000.0, -10000.0),
+                    tauri::LogicalSize::new(800.0, 600.0),
+                )
+                .map_err(|e| AppError::Internal(format!("failed to create webview for tab {tab_id}: {e}")))?;
 
-        let app_nav = app_inner.clone();
-        let app_handle = app_inner.clone();
-        let webview_builder =
-            tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(target))
-                .initialization_script(adl_browser::INIT_SCRIPT)
-                .on_navigation(move |url| {
-                    adl_browser::navigation_handler(url, &|normalized| {
-                        let _ = app_nav.emit(
-                            "digital-life://browser-url-changed",
-                            serde_json::json!({ "url": normalized }),
-                        );
-                    })
-                })
-                .on_new_window(move |url, _window_features| new_window_handler(&app_handle, &url));
+            tracing::info!(tab_id = &tab_id, url = &url, "browser webview created for tab");
 
-        if let Err(e) = window.add_child(
-            webview_builder,
-            tauri::LogicalPosition::new(-10000.0, -10000.0),
-            tauri::LogicalSize::new(800.0, 600.0),
-        ) {
-            let _ = tx.send(Err(AppError::Internal(format!(
-                "failed to create webview for tab {tab_id}: {e}"
-            ))));
-            return;
-        }
-
-        tracing::info!(tab_id = &tab_id, url = &url, "browser webview created for tab");
-
-        if let Some(webview) = window.get_webview(&label) {
-            let bridge: EventBridgeRef = Arc::new(TauriWebView2EventBridge::new(app_inner.clone()));
-
-            #[cfg(windows)]
-            {
-                let bridge_clone = bridge.clone();
-                let tab_id_clone = tab_id.clone();
-                let label_clone = label.clone();
-                let _ = webview.with_webview(move |platform_wv| unsafe {
-                    let controller = platform_wv.controller();
-                    if let Ok(core) = controller.CoreWebView2() {
-                        adl_browser::setup_webview2_handlers(
-                            &core,
-                            &tab_id_clone,
-                            &label_clone,
-                            &bridge_clone,
-                        );
-                    }
-                });
-            }
-            #[cfg(not(windows))]
-            {
-                adl_browser::setup_webview2_handlers(&tab_id, &label);
+            if let Some(webview) = window.get_webview(&label) {
+                let bridge: EventBridgeRef =
+                    Arc::new(TauriWebView2EventBridge::new(app_inner.clone()));
+                setup_webview2_handlers_for_platform(&webview, &tab_id, &label, bridge.clone());
+                let cs = state.browser_manager.current_color_scheme();
+                apply_color_scheme_for_platform(&webview, &cs);
             }
 
-            let cs = state.browser_manager.current_color_scheme();
-            #[cfg(windows)]
-            {
-                let _ = webview.with_webview(move |platform_wv| unsafe {
-                    let controller = platform_wv.controller();
-                    if let Ok(core) = controller.CoreWebView2() {
-                        adl_browser::webview2_set_color_scheme(&core, &cs);
-                    }
-                });
-            }
-            #[cfg(not(windows))]
-            {
-                adl_browser::webview2_set_color_scheme(&cs);
-            }
-        }
+            register_webview_with_manager(&state, app_inner.clone(), label.clone(), &tab_id)
+        })();
 
-        let handle: Arc<dyn WebViewHandle> =
-            Arc::new(TauriWebViewHandle::new(app_inner.clone(), label));
-        let result = state.browser_manager.create_for_tab(handle, &tab_id);
         let _ = tx.send(result);
     })
-    .map_err(|e| AppError::Internal(format!("main thread dispatch failed: {e}")))?;
+    .map_err(|e| AppError::Internal(format!("main thread dispatch: {e}")))?;
 
-    Ok(ipc(rx.await.map_err(|e| AppError::Internal(format!("creation channel error: {e}")))?))
+    Ok(ipc(
+        rx.await
+            .map_err(|e| AppError::Internal(format!("creation channel: {e}")))?,
+    ))
 }
 
 #[tauri::command]
