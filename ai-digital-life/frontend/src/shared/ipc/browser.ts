@@ -18,7 +18,11 @@ export interface AudioStatePayload {
  */
 export interface BrowserBridge {
   /** Create a WebView for a specific tab. Returns evicted tab_id if pool was full. */
-  createForTab: (tabId: string, url: string) => Promise<string | null>;
+  createForTab: (
+    tabId: string,
+    url: string,
+    colorScheme?: 'light' | 'dark'
+  ) => Promise<string | null>;
   /** Activate tab: show its WebView, hide others, update LRU. */
   activateTab: (tabId: string) => Promise<void>;
   /** Destroy a tab's WebView (on tab close). */

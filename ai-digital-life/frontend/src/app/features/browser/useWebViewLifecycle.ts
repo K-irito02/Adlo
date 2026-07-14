@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { isTauriShell } from '@tauri-bridge';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { getResolvedTheme } from './useBrowserThemeSync';
 
 interface UseWebViewLifecycleOptions {
   activeTab?: BrowserTabState;
   webViewDisabled: boolean;
   isTabInPool: (tabId: string) => boolean;
-  createWebViewForTab: (tabId: string, url: string) => Promise<string | null>;
+  createWebViewForTab: (
+    tabId: string,
+    url: string,
+    colorScheme?: 'light' | 'dark'
+  ) => Promise<string | null>;
   activateTabInPool: (tabId: string) => Promise<void>;
   webViewActiveRef: React.RefObject<boolean>;
   overlayActiveRef: React.RefObject<boolean>;
@@ -85,7 +90,7 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
       setLoadingTabId(currentTabId);
       try {
         if (!isTabInPool(currentTabId)) {
-          await createWebViewForTab(currentTabId, tab.url);
+          await createWebViewForTab(currentTabId, tab.url, getResolvedTheme());
         }
         await activateTabInPool(currentTabId);
         webViewActiveRef.current = true;
@@ -95,14 +100,23 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
         // flickering when the tab change effect re-fires due to a store
         // update while a menu/dialog is open).
         if (!hideWebViewRequestedRef.current && !overlayActiveRef.current) {
+          // Clear loadingTabId AFTER updateWebViewBounds runs, so the
+          // loading overlay stays visible until the WebView is correctly
+          // positioned. Clearing too early (e.g. in a finally block)
+          // causes the overlay to disappear before the WebView is moved
+          // on-screen, producing a brief flash of stale content.
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
               updateWebViewBounds();
+              setLoadingTabId(null);
             });
           });
+        } else {
+          setLoadingTabId(null);
         }
-      } finally {
+      } catch (e) {
         setLoadingTabId(null);
+        throw e;
       }
     };
 

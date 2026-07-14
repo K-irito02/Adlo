@@ -69,7 +69,8 @@ export function setupPreviewBridge(): void {
     patch: patchBridge,
     command: commandBridge,
     browser: {
-      createForTab: (_tabId: string, _url: string) => Promise.resolve(null),
+      createForTab: (_tabId: string, _url: string, _colorScheme?: 'light' | 'dark') =>
+        Promise.resolve(null),
       activateTab: (_tabId: string) => Promise.resolve(),
       destroyTab: (_tabId: string) => {
         audioMonitor.stopMonitoring(_tabId);

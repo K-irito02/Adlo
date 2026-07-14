@@ -1,7 +1,8 @@
 import type { BrowserBridge, PageMeta, AudioStatePayload } from "../shared/ipc";
 
 export const mockBrowser: BrowserBridge = {
-  createForTab: (_tabId: string, _url: string) => Promise.resolve(null),
+  createForTab: (_tabId: string, _url: string, _colorScheme?: 'light' | 'dark') =>
+    Promise.resolve(null),
   activateTab: (_tabId: string) => Promise.resolve(),
   destroyTab: (_tabId: string) => Promise.resolve(),
   navigateTab: (_tabId: string, _url: string) => Promise.resolve(),

@@ -37,13 +37,13 @@ export function useBrowserPool() {
   }, []);
 
   const createWebViewForTab = useCallback(
-    async (tabId: string, _url: string): Promise<string | null> => {
+    async (tabId: string, _url: string, colorScheme?: 'light' | 'dark'): Promise<string | null> => {
       let rustEvicted: string | null = null;
 
       if (isTauriShell()) {
         const bridge = window.digitalLife?.browser;
         if (bridge) {
-          rustEvicted = await bridge.createForTab(tabId, _url);
+          rustEvicted = await bridge.createForTab(tabId, _url, colorScheme);
         }
       }
 
