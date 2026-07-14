@@ -21,39 +21,32 @@ pub fn revert_to_snapshot(
         adl_errors::AppError::NotFound(format!("Snapshot {} not found", snapshot_id))
     })?;
 
+    let owned_snapshot_id = snapshot_id.to_string();
+    let owned_message_id = snapshot.message_id.clone();
+
     let snapshot_dir = manager.snapshot_root.join(&snapshot.id);
     let files_dir = snapshot_dir.join("files");
 
-    if !files_dir.exists() {
-        return Ok(RevertResult {
-            success: false,
-            snapshot_id: snapshot_id.to_string(),
-            message_id: snapshot.message_id.clone(),
-            files_restored: 0,
-            error: Some("Snapshot files directory not found".to_string()),
-        });
-    }
+    let (files_restored, error) = if !files_dir.exists() {
+        (0, Some("Snapshot files directory not found".to_string()))
+    } else {
+        let mut restored = 0;
+        let mut errors = Vec::new();
+        restore_directory(&files_dir, workspace_root, &mut restored, &mut errors);
 
-    let mut restored = 0;
-    let mut errors = Vec::new();
-    restore_directory(&files_dir, workspace_root, &mut restored, &mut errors);
-
-    if !errors.is_empty() {
-        return Ok(RevertResult {
-            success: false,
-            snapshot_id: snapshot_id.to_string(),
-            message_id: snapshot.message_id.clone(),
-            files_restored: restored,
-            error: Some(format!("Failed to restore some files: {}", errors.join("; "))),
-        });
-    }
+        if !errors.is_empty() {
+            (restored, Some(format!("Failed to restore some files: {}", errors.join("; "))))
+        } else {
+            (restored, None)
+        }
+    };
 
     Ok(RevertResult {
-        success: true,
-        snapshot_id: snapshot_id.to_string(),
-        message_id: snapshot.message_id.clone(),
-        files_restored: restored,
-        error: None,
+        success: error.is_none(),
+        snapshot_id: owned_snapshot_id,
+        message_id: owned_message_id,
+        files_restored,
+        error,
     })
 }
 
