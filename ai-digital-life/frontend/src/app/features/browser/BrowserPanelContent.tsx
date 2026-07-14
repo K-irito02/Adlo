@@ -98,25 +98,7 @@ interface BrowserPanelContentProps {
   showToast: (message: string, type?: 'success' | 'warning' | 'error') => void;
 }
 
-export function BrowserPanelContent(props: BrowserPanelContentProps) {
-  const {
-    t,
-    isBrowserVisible,
-    activeTab,
-    hasActiveTab,
-    browserTabs,
-    loadingTabId,
-    iframeRef,
-    primaryRef,
-    handleIframeLoad,
-    handleIframeError,
-    iframeBlockedDetected,
-    iframeLoadError,
-    isEmbedPending,
-    validatedUrlsRef,
-    activatedTabIdsRef,
-  } = props;
-
+export function BrowserPanelContent({ primaryRef }: BrowserPanelContentProps) {
   const { browserNavigatorWidth, navigatorCollapsedByTool } = useAppStore(
     useShallow((state) => ({
       browserNavigatorWidth: state.browserNavigatorWidth,
@@ -141,22 +123,7 @@ export function BrowserPanelContent(props: BrowserPanelContentProps) {
         <BrowserNavigator />
 
         <div className="adl-tool-primary adl-tool-primary--browser" ref={primaryRef}>
-          <BrowserIframeStack
-            t={t}
-            activeTab={activeTab}
-            hasActiveTab={hasActiveTab}
-            browserTabs={browserTabs}
-            isBrowserVisible={isBrowserVisible}
-            loadingTabId={loadingTabId}
-            iframeRef={iframeRef}
-            handleIframeLoad={handleIframeLoad}
-            handleIframeError={handleIframeError}
-            iframeBlockedDetected={iframeBlockedDetected}
-            iframeLoadError={iframeLoadError}
-            isEmbedPending={isEmbedPending}
-            validatedUrlsRef={validatedUrlsRef}
-            activatedTabIdsRef={activatedTabIdsRef}
-          />
+          <BrowserIframeStack />
         </div>
       </div>
     </>

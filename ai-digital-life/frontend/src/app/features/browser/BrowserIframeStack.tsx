@@ -1,48 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { SafeIframe } from './SafeIframe';
 import { ErrorBoundary } from '@components/ErrorBoundary';
 import { ExternalLinkError } from './ExternalLinkError';
 import { BrowserIframeErrorOverlay } from './BrowserIframeErrorOverlay';
 import { useAppStore } from '@stores/slicedStore';
 import { BrowserLandingPage } from './browser-landing';
-import type { BrowserTabState } from '@stores/slices/browserSlice';
-import type { CopyDict } from '@i18n/types';
+import { useBrowserPanelState } from './BrowserPanelStateContext';
+import { useBrowserPanelActions } from './BrowserPanelActionsContext';
 
 const IFRAME_POOL_SIZE = 5;
 
-interface BrowserIframeStackProps {
-  t: CopyDict;
-  activeTab: BrowserTabState | undefined;
-  hasActiveTab: boolean;
-  browserTabs: BrowserTabState[];
-  isBrowserVisible: boolean;
-  loadingTabId: string | null;
-  iframeRef: React.RefObject<HTMLIFrameElement | null>;
-  handleIframeLoad: () => void;
-  handleIframeError: () => void;
-  iframeBlockedDetected: boolean;
-  iframeLoadError: boolean;
-  isEmbedPending: boolean;
-  validatedUrlsRef: React.MutableRefObject<Set<string>>;
-  activatedTabIdsRef: React.MutableRefObject<Set<string>>;
-}
-
-export function BrowserIframeStack({
-  t,
-  activeTab,
-  hasActiveTab,
-  browserTabs,
-  isBrowserVisible,
-  loadingTabId,
-  iframeRef,
-  handleIframeLoad,
-  handleIframeError,
-  iframeBlockedDetected,
-  iframeLoadError,
-  isEmbedPending,
-  validatedUrlsRef,
-  activatedTabIdsRef,
-}: BrowserIframeStackProps) {
+export const BrowserIframeStack = memo(function BrowserIframeStack() {
+  const {
+    t,
+    activeTab,
+    hasActiveTab,
+    browserTabs,
+    isBrowserVisible,
+    loadingTabId,
+    iframeRef,
+    iframeBlockedDetected,
+    iframeLoadError,
+    isEmbedPending,
+    validatedUrlsRef,
+    activatedTabIdsRef,
+  } = useBrowserPanelState();
+  const { handleIframeLoad, handleIframeError } = useBrowserPanelActions();
   const inactiveIframeRef = useRef<HTMLIFrameElement | null>(null);
   const iframeLruOrderRef = useRef<string[]>([]);
   const [evictedTabIds, setEvictedTabIds] = useState<Set<string>>(() => new Set());
@@ -181,4 +164,4 @@ export function BrowserIframeStack({
       )}
     </>
   );
-}
+});
