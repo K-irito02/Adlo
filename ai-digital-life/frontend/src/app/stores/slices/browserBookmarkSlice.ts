@@ -94,7 +94,9 @@ export const createBrowserBookmarkSlice = (
     const locale = (_get().appInfo?.config.language ?? 'zh-CN') as 'zh-CN' | 'en-US';
     const folders = _get().browserTabFolders;
     const resolvedName =
-      newFolderName?.trim() || (await formatNewFolderNameByLocale(locale, folders.length + 1));
+      newFolderName != null
+        ? newFolderName.trim() || (await formatNewFolderNameByLocale(locale, folders.length + 1))
+        : undefined;
     set((state) => {
       const outcome = computeBookmarkTabOutcome(state, {
         tabId,

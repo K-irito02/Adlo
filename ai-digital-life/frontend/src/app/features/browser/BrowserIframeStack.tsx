@@ -55,7 +55,7 @@ export const BrowserIframeStack = memo(function BrowserIframeStack() {
     if (audioMonitor) {
       audioMonitor.startMonitoring(activeTab.id, iframeRef.current);
     }
-  }, [activeTab, iframeRef]);
+  }, [activeTab, iframeRef, isTauri]);
 
   useEffect(() => {
     const currentTabIds = new Set(browserTabs.map((t) => t.id));
@@ -83,7 +83,7 @@ export const BrowserIframeStack = memo(function BrowserIframeStack() {
         });
       }
     }
-  }, [activeTab]);
+  }, [activeTab, isTauri]);
 
   return (
     <>

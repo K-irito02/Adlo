@@ -22,8 +22,6 @@ import { useBrowserPanelActions } from './BrowserPanelActionsContext';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import type { BrowserBookmark, WorkspaceBookmarkEntry } from '@stores/slices/browserSlice';
-import type { BrowserHistoryState } from '@stores/slices/browserHistorySlice';
 
 export function BrowserNavigator() {
   const {
