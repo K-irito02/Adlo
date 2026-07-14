@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 interface UseBrowserUrlStateOptions {
   address: string;
@@ -23,32 +23,44 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
     activeTabUrl,
   } = options;
 
-  const handleAddressChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setAddress(event.target.value);
-  };
+  const handleAddressChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      setAddress(event.target.value);
+    },
+    [setAddress],
+  );
 
-  const handleAddressKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      submitAddress();
-    } else if (event.key === 'Escape') {
+  const handleAddressKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === 'Enter') {
+        submitAddress();
+      } else if (event.key === 'Escape') {
+        if (activeTabUrl !== undefined) {
+          setAddress(activeTabUrl);
+        }
+        setAddressExpanded(false);
+        addressInputRef.current?.blur();
+      }
+    },
+    [submitAddress, activeTabUrl, setAddress, setAddressExpanded, addressInputRef],
+  );
+
+  const handleAddressBlur = useCallback(
+    () => {
+      setAddressExpanded(false);
       if (activeTabUrl !== undefined) {
         setAddress(activeTabUrl);
       }
-      setAddressExpanded(false);
-      addressInputRef.current?.blur();
-    }
-  };
+    },
+    [setAddressExpanded, activeTabUrl, setAddress],
+  );
 
-  const handleAddressBlur = () => {
-    setAddressExpanded(false);
-    if (activeTabUrl !== undefined) {
-      setAddress(activeTabUrl);
-    }
-  };
-
-  const handleSearchClick = () => {
-    setAddressExpanded(true);
-  };
+  const handleSearchClick = useCallback(
+    () => {
+      setAddressExpanded(true);
+    },
+    [setAddressExpanded],
+  );
 
   useEffect(() => {
     if (addressExpanded) {
@@ -57,14 +69,18 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
     }
   }, [addressExpanded, addressInputRef]);
 
-  return {
-    address,
-    addressExpanded,
-    addressSearchRef,
-    addressInputRef,
-    handleAddressChange,
-    handleAddressKeyDown,
-    handleAddressBlur,
-    handleSearchClick,
-  };
+  return useMemo(
+    () => ({
+      address,
+      addressExpanded,
+      addressSearchRef,
+      addressInputRef,
+      handleAddressChange,
+      handleAddressKeyDown,
+      handleAddressBlur,
+      handleSearchClick,
+    }),
+    [address, addressExpanded, addressSearchRef, addressInputRef,
+     handleAddressChange, handleAddressKeyDown, handleAddressBlur, handleSearchClick],
+  );
 }
