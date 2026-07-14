@@ -1,0 +1,15 @@
+[package]
+name = "adl-types"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+adl-errors = { path = "../errors" }
+adl-logging = { path = "../adl-logging" }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ts-rs = { version = "10", features = ["serde-compat", "serde-json-impl"] }

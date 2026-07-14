@@ -141,6 +141,7 @@ version = "0.1.0"
 dependencies = [
  "adl-errors",
  "adl-logging",
+ "adl-types",
  "chrono",
  "notify",
  "regex",
@@ -288,6 +289,19 @@ dependencies = [
  "adl-errors",
  "adl-kernel",
  "serde_json",
+]
+
+[[package]]
+name = "adl-types"
+version = "0.1.0"
+dependencies = [
+ "adl-errors",
+ "adl-logging",
+ "chrono",
+ "serde",
+ "serde_json",
+ "ts-rs",
+ "uuid",
 ]
 
 [[package]]

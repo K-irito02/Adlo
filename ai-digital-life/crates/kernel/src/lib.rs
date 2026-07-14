@@ -1,29 +1,27 @@
+// Transitional re-export — TODO: remove after all crates migrated to adl-types
+pub use adl_types::*;
+
 pub mod command_risk;
+pub mod config;
 pub mod config_watcher;
-pub mod doom_loop;
-pub mod permission_types;
+pub mod events;
+pub mod logger;
+
 pub use command_risk::{
-    assess_command_risk, build_ruleset, evaluate_permission,
+    assess_command_risk, build_ruleset, evaluate_permission, evaluate_ruleset,
     pattern_matches as permission_pattern_matches, requires_approval, risk_to_decision,
 };
 pub use doom_loop::{doom_loop_check, is_external_directory};
 pub use permission_types::{
     PermissionDecision, PermissionRule, PermissionRuleset, PermissionRulesetConfig,
 };
-pub mod config;
-pub mod events;
-pub mod logger;
-pub mod types;
 
-pub use types::*;
-
-// 按 domain 分组 re-export，提高类型可发现性
 pub mod domain {
-    pub use crate::types::agent::*;
-    pub use crate::types::ci::*;
-    pub use crate::types::command::*;
-    pub use crate::types::config::*;
-    pub use crate::types::conversation::*;
-    pub use crate::types::model::*;
-    pub use crate::types::workspace::*;
+    pub use adl_types::types::agent::*;
+    pub use adl_types::types::ci::*;
+    pub use adl_types::types::command::*;
+    pub use adl_types::types::config::*;
+    pub use adl_types::types::conversation::*;
+    pub use adl_types::types::model::*;
+    pub use adl_types::types::workspace::*;
 }

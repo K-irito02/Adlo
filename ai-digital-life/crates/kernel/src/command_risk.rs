@@ -4,8 +4,8 @@ use regex::Regex;
 // Re-export moved types/functions for backward compatibility.
 // External consumers import from `adl_kernel::command_risk::{...}` — keep these working.
 // `pub use` also brings the names into module scope, so no separate `use` is needed.
-pub use crate::doom_loop::{doom_loop_check, is_external_directory};
-pub use crate::permission_types::{
+pub use adl_types::doom_loop::{doom_loop_check, is_external_directory};
+pub use adl_types::permission_types::{
     PermissionDecision, PermissionRule, PermissionRuleset, PermissionRulesetConfig,
 };
 
@@ -148,6 +148,24 @@ pub fn risk_to_decision(risk: RiskLevel) -> PermissionDecision {
     }
 }
 
+/// Evaluate a permission request against the ruleset.
+/// Returns the decision from the LAST matching rule (OpenCode behavior).
+/// If no rule matches, returns the default decision (derived from RiskLevel).
+pub fn evaluate_ruleset(
+    ruleset: &PermissionRuleset,
+    tool_name: &str,
+    command: &str,
+    args: &[String],
+) -> PermissionDecision {
+    let mut decision = default_decision(command, args);
+    for rule in &ruleset.rules {
+        if rule_matches(rule, tool_name, command, args) {
+            decision = rule.decision;
+        }
+    }
+    decision
+}
+
 /// Evaluate a permission request using both the ruleset and legacy risk assessment.
 /// The ruleset takes precedence; if no rule matches, falls back to risk-based decision.
 pub fn evaluate_permission(
@@ -157,7 +175,7 @@ pub fn evaluate_permission(
     args: &[String],
     risk: RiskLevel,
 ) -> PermissionDecision {
-    let ruleset_decision = ruleset.evaluate(tool_name, command, args);
+    let ruleset_decision = evaluate_ruleset(ruleset, tool_name, command, args);
 
     if !ruleset.is_empty() {
         return ruleset_decision;

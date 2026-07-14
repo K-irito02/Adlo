@@ -2,8 +2,8 @@
 
 use adl_errors::AppError;
 use adl_kernel::{
-    create_id, now_ms, CommandExecutionResult, CommandProfile, CommandRequest, PermissionDecision,
-    PermissionRuleset, RiskLevel,
+    create_id, evaluate_ruleset, now_ms, CommandExecutionResult, CommandProfile, CommandRequest,
+    PermissionDecision, PermissionRuleset, RiskLevel,
 };
 use std::path::Path;
 use std::time::Duration;
@@ -87,7 +87,7 @@ pub async fn run_command_with_permission(
     permission_engine: &PermissionRuleset,
     approval_granted: bool,
 ) -> Result<CommandExecutionResult, AppError> {
-    let decision = permission_engine.evaluate("command", &request.command, &request.args);
+    let decision = evaluate_ruleset(permission_engine, "command", &request.command, &request.args);
     match decision {
         PermissionDecision::Deny => {
             return Err(AppError::Security(format!(
@@ -400,7 +400,7 @@ mod tests {
     fn permission_ruleset_allows_low_risk_without_approval() {
         let engine = PermissionRuleset::default();
         assert_eq!(
-            engine.evaluate("command", "cargo", &["build".into()]),
+            evaluate_ruleset(&engine, "command", "cargo", &["build".into()]),
             PermissionDecision::Allow
         );
     }
@@ -408,6 +408,9 @@ mod tests {
     #[test]
     fn permission_ruleset_asks_medium_risk_without_approval() {
         let engine = PermissionRuleset::default();
-        assert_eq!(engine.evaluate("command", "npm", &["install".into()]), PermissionDecision::Ask);
+        assert_eq!(
+            evaluate_ruleset(&engine, "command", "npm", &["install".into()]),
+            PermissionDecision::Ask
+        );
     }
 }

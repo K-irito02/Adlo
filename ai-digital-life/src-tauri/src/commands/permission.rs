@@ -1,7 +1,8 @@
 use crate::commands::ipc;
 use adl_kernel::config::{load, save};
 use adl_kernel::{
-    build_ruleset, IpcResult, PermissionDecision, PermissionRule, PermissionRulesetConfig,
+    build_ruleset, evaluate_ruleset, IpcResult, PermissionDecision, PermissionRule,
+    PermissionRulesetConfig,
 };
 use std::path::Path;
 
@@ -66,6 +67,6 @@ pub fn evaluate_permission(
         let config = load(Path::new(&data_dir))?;
         let ruleset =
             build_ruleset(&config.permissions.custom_rules, config.permissions.include_defaults);
-        Ok(ruleset.evaluate(&tool_name, &command, &args))
+        Ok(evaluate_ruleset(&ruleset, &tool_name, &command, &args))
     })())
 }

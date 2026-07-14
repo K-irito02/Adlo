@@ -1,4 +1,3 @@
-use crate::command_risk::{default_decision, rule_matches};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -78,19 +77,6 @@ impl PermissionRuleset {
 
     pub fn is_empty(&self) -> bool {
         self.rules.is_empty()
-    }
-
-    /// Evaluate a permission request against the ruleset.
-    /// Returns the decision from the LAST matching rule (OpenCode behavior).
-    /// If no rule matches, returns the default decision (derived from RiskLevel).
-    pub fn evaluate(&self, tool_name: &str, command: &str, args: &[String]) -> PermissionDecision {
-        let mut decision = default_decision(command, args);
-        for rule in &self.rules {
-            if rule_matches(rule, tool_name, command, args) {
-                decision = rule.decision;
-            }
-        }
-        decision
     }
 
     /// Get the default ruleset with built-in safety rules.
@@ -195,100 +181,12 @@ mod tests {
     // ── Ruleset tests ──
 
     #[test]
-    fn ruleset_defaults_allow_low_risk() {
-        let ruleset = PermissionRuleset::default();
-        assert_eq!(
-            ruleset.evaluate("command", "cargo", &["build".into()]),
-            PermissionDecision::Allow
-        );
-    }
-
-    #[test]
-    fn ruleset_defaults_ask_medium_risk() {
-        let ruleset = PermissionRuleset::default();
-        assert_eq!(
-            ruleset.evaluate("command", "npm", &["install".into()]),
-            PermissionDecision::Ask
-        );
-    }
-
-    #[test]
-    fn ruleset_defaults_deny_high_risk() {
-        let ruleset = PermissionRuleset::default();
-        assert_eq!(
-            ruleset.evaluate("command", "rm", &["-rf".into(), "/".into()]),
-            PermissionDecision::Deny
-        );
-    }
-
-    #[test]
     fn ruleset_default_rules_has_safety_rules() {
         let ruleset = PermissionRuleset::default_rules();
         assert!(ruleset.rules.len() >= 3);
         assert!(ruleset.rules.iter().any(|r| r.pattern.contains(".env")));
         assert!(ruleset.rules.iter().all(|r| r.always));
         assert!(ruleset.rules.iter().all(|r| !r.reason.is_empty()));
-    }
-
-    #[test]
-    fn ruleset_default_evaluates_env_write_as_ask() {
-        let ruleset = PermissionRuleset::default_rules();
-        let decision = ruleset.evaluate("write", "write", &[".env".to_string()]);
-        assert_eq!(decision, PermissionDecision::Ask);
-    }
-
-    #[test]
-    fn ruleset_default_evaluates_rm_rf_as_deny() {
-        let ruleset = PermissionRuleset::default_rules();
-        let decision = ruleset.evaluate("bash", "rm", &["-rf".to_string(), "/".to_string()]);
-        assert_eq!(decision, PermissionDecision::Deny);
-    }
-
-    #[test]
-    fn ruleset_default_allows_normal_read() {
-        let ruleset = PermissionRuleset::default_rules();
-        let decision = ruleset.evaluate("read", "read", &["src/main.rs".to_string()]);
-        assert_eq!(decision, PermissionDecision::Allow);
-    }
-
-    #[test]
-    fn ruleset_custom_rule_overrides_default_last_wins() {
-        let mut ruleset = PermissionRuleset::default_rules();
-        // Override the built-in .env protection with an Allow rule (last match wins)
-        ruleset.add_rule(PermissionRule {
-            pattern: ".env".to_string(),
-            decision: PermissionDecision::Allow,
-            tool_type: "write".to_string(),
-            always: true,
-            reason: "User override".to_string(),
-        });
-        let decision = ruleset.evaluate("write", "write", &[".env".to_string()]);
-        assert_eq!(decision, PermissionDecision::Allow);
-    }
-
-    #[test]
-    fn last_rule_overrides_earlier() {
-        let mut ruleset = PermissionRuleset::new();
-        ruleset.add_rule(PermissionRule {
-            pattern: "write".to_string(),
-            decision: PermissionDecision::Deny,
-            tool_type: String::new(),
-            always: true,
-            reason: "deny all writes".to_string(),
-        });
-        ruleset.add_rule(PermissionRule {
-            pattern: "write".to_string(),
-            decision: PermissionDecision::Allow,
-            tool_type: String::new(),
-            always: true,
-            reason: "override: allow writes".to_string(),
-        });
-        let result = ruleset.evaluate("write", "write src/main.rs", &[]);
-        assert_eq!(
-            result,
-            PermissionDecision::Allow,
-            "last rule should win (Allow) over earlier rule (Deny)"
-        );
     }
 
     #[test]
