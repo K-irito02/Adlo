@@ -80,7 +80,7 @@ import type {
   CompactSessionInput,
   CompactSessionResult,
 } from '@shared/ipc';
-import type { AgentConfig, PluginInfo, SnapshotRecord, RevertResult } from '@shared/ipc';
+import type { AgentConfig, SnapshotRecord, RevertResult } from '@shared/ipc';
 import type {
   AppPreferencePatch,
   ConversationSessionRecord,
@@ -322,11 +322,6 @@ interface WebToolsActions {
   clearWebResults: () => void;
 }
 
-interface PluginActions {
-  listPlugins: () => Promise<PluginInfo[]>;
-  setPluginEnabled: (name: string, enabled: boolean) => Promise<void>;
-}
-
 interface LspActions {
   lspStartServer: (workspaceId: string, workspaceRoot: string, server: string) => Promise<void>;
   lspStopServer: (workspaceId: string, server: string) => Promise<void>;
@@ -390,7 +385,6 @@ export interface StoreState
     ReferenceActions,
     SnapshotActions,
     SessionForkActions,
-    PluginActions,
     DurableActions {
   bootstrap: () => Promise<void>;
 }

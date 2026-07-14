@@ -321,7 +321,6 @@ export type SettingsGroupId =
   | 'mcp'
   | 'commands'
   | 'permissions'
-  | 'plugins'
   | 'references'
   | 'providers'
   | 'lsp';

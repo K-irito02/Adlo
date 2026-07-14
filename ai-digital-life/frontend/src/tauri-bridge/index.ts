@@ -31,7 +31,6 @@ import { createTauriCompactionBridge } from './compaction';
 import { createTauriDurableBridge } from './durable';
 import { createTauriLspBridge } from './lsp';
 import { createTauriPermissionBridge } from './permission';
-import { createTauriPluginBridge } from './plugin';
 import { createTauriPtyBridge } from './pty';
 import { createTauriReferenceBridge } from './reference';
 import { createTauriSnapshotBridge } from './snapshot';
@@ -95,7 +94,6 @@ export function createTauriBridge(): DigitalLifeBridge {
     compaction: createTauriCompactionBridge(),
     sessionFork: createTauriSessionForkBridge(),
     lsp: createTauriLspBridge(),
-    plugin: createTauriPluginBridge(),
     reference: createTauriReferenceBridge(),
     durable: createTauriDurableBridge(),
     reserved: createTauriReservedBridge(),

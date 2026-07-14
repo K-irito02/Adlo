@@ -89,10 +89,6 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS).toHaveProperty('lspTitle');
   });
 
-  it('includes plugin domain keys', () => {
-    expect(enUS).toHaveProperty('pluginManager');
-  });
-
   it('includes reference domain keys', () => {
     expect(enUS).toHaveProperty('referenceManagerTitle');
   });

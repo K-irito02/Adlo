@@ -1,4 +1,3 @@
-use adl_agent_runtime::plugins::hooks::{HookResult, PluginHook};
 use adl_errors::AppError;
 use adl_kernel::{ConversationScenario, ModelCallAuditRecord, ModelChatMessage, ModelResponse};
 use adl_storage::EntityTable;
@@ -6,7 +5,6 @@ use adl_storage::EntityTable;
 use crate::commands::agent_pipeline_stream::consume_stream_to_response;
 use crate::commands::agent_pipeline_types::CallModelContext;
 use crate::commands::audit::AuditBatchEntry;
-use crate::commands::plugin::PLUGIN_REGISTRY;
 
 pub async fn call_model<F: Fn(serde_json::Value)>(
     ctx: CallModelContext<'_, F>,
@@ -48,16 +46,6 @@ pub async fn call_model<F: Fn(serde_json::Value)>(
                     );
                 }
             }
-        }
-    }
-
-    // === Plugin Hook: ChatMessageBefore ===
-    let hook_msg = PluginHook::ChatMessageBefore {
-        messages: messages.iter().map(|m| serde_json::to_value(m).unwrap_or_default()).collect(),
-    };
-    if let HookResult::Modify(val) = PLUGIN_REGISTRY.fire_hook(&hook_msg).await {
-        if let Ok(modified) = serde_json::from_value::<Vec<ModelChatMessage>>(val) {
-            messages = modified;
         }
     }
 
@@ -108,19 +96,9 @@ pub async fn call_model<F: Fn(serde_json::Value)>(
 
     let started = std::time::Instant::now();
     let stream = gateway.chat_stream_for_model(&provider_id, &model_id, messages).await?;
-    let mut model_response =
+    let model_response =
         consume_stream_to_response(ctx.app, &ctx.detail.run.id, stream, &provider_id, &model_id)
             .await;
-
-    // === Plugin Hook: ChatResponseAfter ===
-    let hook_resp = PluginHook::ChatResponseAfter {
-        response: serde_json::to_value(&model_response).unwrap_or_default(),
-    };
-    if let HookResult::Modify(val) = PLUGIN_REGISTRY.fire_hook(&hook_resp).await {
-        if let Ok(modified) = serde_json::from_value::<ModelResponse>(val) {
-            model_response = modified;
-        }
-    }
 
     let model_audit = ModelCallAuditRecord {
         id: adl_kernel::create_id("modelaudit"),

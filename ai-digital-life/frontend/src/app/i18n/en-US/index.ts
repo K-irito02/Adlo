@@ -18,7 +18,6 @@ import { permissionEn } from './permission';
 import { webSearchEn } from './webSearch';
 import { sessionForkEn } from './sessionFork';
 import { lspEn } from './lsp';
-import { pluginEn } from './plugin';
 import { referenceEn } from './reference';
 import { customAgentEn } from './customAgent';
 import { durableEn } from './durable';
@@ -46,7 +45,6 @@ export const enUS = {
   ...webSearchEn,
   ...sessionForkEn,
   ...lspEn,
-  ...pluginEn,
   ...referenceEn,
   ...customAgentEn,
   ...durableEn,

@@ -15,13 +15,11 @@ export const settingsZh = {
   settingsProviders: '模型供应商',
   settingsCommands: '自定义命令',
   settingsPermissions: '权限规则',
-  settingsPlugins: '插件',
   settingsReferences: '引用',
   settingsLsp: '语言服务',
 
   // 设置分区描述
   settingsProvidersDesc: '配置模型 API 供应商和凭证',
-  settingsPluginsDesc: '管理已安装的插件和扩展',
   settingsReferencesDesc: '管理参考材料和文档',
   settingsAgentDesc: '配置自定义智能体行为和预设',
 

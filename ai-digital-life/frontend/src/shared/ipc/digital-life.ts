@@ -29,7 +29,6 @@ import type { CompactionBridge } from './compaction';
 import type { SessionForkBridge } from './session_fork';
 import type { LspBridge } from './lsp';
 import type { ReferenceBridge } from './reference';
-import type { PluginBridge } from './plugin';
 import type { CustomAgentBridge } from './custom_agent';
 import type { DurableBridge } from './durable';
 import type { ReservedBridge } from './reserved';
@@ -143,8 +142,6 @@ export interface DigitalLifeBridge {
   sessionFork: SessionForkBridge;
   /** 语言服务器 (LSP) 子模块 */
   lsp: LspBridge;
-  /** 插件管理子模块 */
-  plugin: PluginBridge;
   /** 参考代码仓库管理子模块 */
   reference: ReferenceBridge;
   /** 持久化会话管理子模块 */

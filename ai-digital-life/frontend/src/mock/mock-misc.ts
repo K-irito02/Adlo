@@ -11,7 +11,6 @@ import type {
   PermissionBridge,
   PermissionDecision,
   PermissionRulesetConfig,
-  PluginBridge,
   ReferenceBridge,
   ReferenceConfig,
   ReservedBridge,
@@ -157,26 +156,6 @@ export const mockLsp: LspBridge = {
   getSymbols: async () => ({ ok: true, data: [] }),
   getDiagnostics: async () => ({ ok: true, data: [] }),
   gotoDefinition: async () => ({ ok: true, data: null }),
-};
-
-export const mockPlugin: PluginBridge = {
-  listPlugins: async () => ({
-    ok: true,
-    data: [
-      {
-        name: 'demo-plugin',
-        description: 'A demo plugin for preview',
-        hooks: ['ToolExecuteBefore'],
-        enabled: true,
-      },
-    ],
-  }),
-  setPluginEnabled: async (_name: string, _enabled: boolean) => ({
-    ok: true,
-    data: undefined,
-  }),
-  registerPlugin: async () => ({ ok: true, data: undefined }),
-  unregisterPlugin: async () => ({ ok: true, data: undefined }),
 };
 
 export const mockReference: ReferenceBridge = {

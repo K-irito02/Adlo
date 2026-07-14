@@ -4,7 +4,6 @@ pub mod compaction;
 pub mod compaction_summary;
 pub mod permission_check;
 pub mod plan_mode;
-pub mod plugins;
 pub mod prompt;
 pub mod registry;
 pub mod router;

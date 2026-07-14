@@ -111,7 +111,6 @@ export function setupPreviewBridge(): void {
     compaction: mockDigitalLifeBridge.compaction,
     sessionFork: mockDigitalLifeBridge.sessionFork,
     lsp: mockDigitalLifeBridge.lsp,
-    plugin: mockDigitalLifeBridge.plugin,
     reference: mockDigitalLifeBridge.reference,
     durable: mockDigitalLifeBridge.durable,
     reserved: mockDigitalLifeBridge.reserved,

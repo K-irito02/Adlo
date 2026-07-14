@@ -18,7 +18,6 @@ import { permissionZh } from './permission';
 import { webSearchZh } from './webSearch';
 import { sessionForkZh } from './sessionFork';
 import { lspZh } from './lsp';
-import { pluginZh } from './plugin';
 import { referenceZh } from './reference';
 import { customAgentZh } from './customAgent';
 import { durableZh } from './durable';
@@ -46,7 +45,6 @@ export const zhCN = {
   ...webSearchZh,
   ...sessionForkZh,
   ...lspZh,
-  ...pluginZh,
   ...referenceZh,
   ...customAgentZh,
   ...durableZh,

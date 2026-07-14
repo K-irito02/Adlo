@@ -17,7 +17,6 @@ pub mod mcp;
 pub mod patch;
 pub mod permission;
 pub mod platform;
-pub mod plugin;
 pub mod provider;
 pub mod pty_commands;
 pub mod reference;

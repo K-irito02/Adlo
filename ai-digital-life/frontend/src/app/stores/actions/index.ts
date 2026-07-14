@@ -20,6 +20,5 @@ export { createWebToolsActions } from './webToolsActions';
 export { createSessionForkActions } from './sessionForkActions';
 export { createLspActions } from './lspActions';
 export { createReferenceActions } from './referenceActions';
-export { createPluginActions } from './pluginActions';
 export { createCustomAgentActions } from './customAgentActions';
 export { createDurableActions } from './durableActions';

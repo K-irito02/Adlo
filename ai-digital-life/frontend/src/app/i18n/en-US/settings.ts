@@ -15,13 +15,11 @@ export const settingsEn = {
   settingsProviders: 'Model Providers',
   settingsCommands: 'Custom Commands',
   settingsPermissions: 'Permission Rules',
-  settingsPlugins: 'Plugins',
   settingsReferences: 'References',
   settingsLsp: 'Language Server',
 
   // Settings section descriptions
   settingsProvidersDesc: 'Configure model API providers and credentials',
-  settingsPluginsDesc: 'Manage installed plugins and extensions',
   settingsReferencesDesc: 'Manage reference materials and documentation',
   settingsAgentDesc: 'Configure custom agent behaviors and presets',
 

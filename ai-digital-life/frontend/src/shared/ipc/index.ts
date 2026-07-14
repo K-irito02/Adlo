@@ -23,7 +23,6 @@ export * from './compaction';
 export * from './session_fork';
 export * from './lsp';
 export * from './reference';
-export * from './plugin';
 export * from './custom_agent';
 export * from './durable';
 export * from './reserved';

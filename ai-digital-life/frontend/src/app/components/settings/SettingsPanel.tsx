@@ -11,7 +11,6 @@ import { McpSettings } from '../../features/mcp/McpSettings';
 import { CommandSettings } from '../../features/command-editor/CommandSettings';
 import { CustomAgentSettings } from '../../features/custom-agent/CustomAgentSettings';
 import { PermissionSettings } from '../../features/permission-settings/PermissionSettings';
-import { PluginSettings } from '../../features/plugin-manager/PluginSettings';
 import { ReferenceSettings } from '../../features/reference-manager/ReferenceSettings';
 import { ProviderSettings } from '../../features/provider-manager/ProviderSettings';
 import { LspSettings } from '../../features/lsp-panel/LspSettings';
@@ -27,7 +26,6 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   mcp: McpSettings,
   commands: CommandSettings,
   permissions: PermissionSettings,
-  plugins: PluginSettings,
   references: ReferenceSettings,
   providers: ProviderSettings,
   lsp: LspSettings,

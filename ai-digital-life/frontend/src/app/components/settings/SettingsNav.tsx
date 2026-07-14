@@ -17,7 +17,6 @@ const GROUPS: Array<{ id: SettingsGroupId; labelKey: keyof CopyDict }> = [
   { id: 'providers', labelKey: 'settingsProviders' },
   { id: 'commands', labelKey: 'settingsCommands' },
   { id: 'permissions', labelKey: 'settingsPermissions' },
-  { id: 'plugins', labelKey: 'settingsPlugins' },
   { id: 'references', labelKey: 'settingsReferences' },
   { id: 'lsp', labelKey: 'settingsLsp' },
 ];

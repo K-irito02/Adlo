@@ -66,7 +66,6 @@ import {
   createWebToolsActions,
   createSessionForkActions,
   createLspActions,
-  createPluginActions,
   createReferenceActions,
   createCustomAgentActions,
   createDurableActions,
@@ -157,7 +156,6 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createSessionForkActions(set, get), // 会话分叉操作
   ...createLspActions(set, get), // LSP 操作
   ...createReferenceActions(set, get), // 参考代码仓库操作
-  ...createPluginActions(set, get), // 插件管理操作
   ...createCustomAgentActions(set, get), // 自定义 Agent 操作
   ...createDurableActions(set, get), // 持久化会话操作
 
