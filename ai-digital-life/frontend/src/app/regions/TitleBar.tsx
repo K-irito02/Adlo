@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useClickOutside } from '../hooks/useClickOutside';
 import { useShallow } from 'zustand/react/shallow';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import { useTCopy } from '../i18n/useTCopy';
@@ -81,33 +82,10 @@ const TitleBar = React.memo(function TitleBar({
     setNotifOpen((v) => !v);
   }, []);
 
-  // close on outside click
-  useEffect(() => {
-    if (!notifOpen) {
-      return;
-    }
-    const handleClick = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
-        setNotifOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [notifOpen]);
-
-  // close on Escape
-  useEffect(() => {
-    if (!notifOpen) {
-      return;
-    }
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setNotifOpen(false);
-      }
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, [notifOpen]);
+  useClickOutside(notifRef, notifOpen, {
+    onOutsideClick: () => setNotifOpen(false),
+    onEscape: () => setNotifOpen(false),
+  });
 
   // Read tracking: collect seen IDs during session, flush to store only when dropdown closes
   const seenDuringSessionRef = useRef(new Set<string>());

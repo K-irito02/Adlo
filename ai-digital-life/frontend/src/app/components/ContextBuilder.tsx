@@ -3,6 +3,7 @@ import { type IconName } from '../../design-system/icons';
 import { TooltipSimple } from './Tooltip';
 import { Icon } from './Icon';
 import { useTCopy } from '../i18n/useTCopy';
+import { useClickOutside } from '../hooks/useClickOutside';
 
 interface ContextBuilderProps {
   onAddContext: (type: string, value?: string) => void;
@@ -65,47 +66,29 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
   const [searchQuery, setSearchQuery] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const menuRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 
+  useClickOutside(containerRef, isOpen, {
+    onOutsideClick: () => {
+      setIsOpen(false);
+      setSearchQuery('');
+      setFocusedIndex(-1);
+    },
+    onEscape: () => {
+      setIsOpen(false);
+      setSearchQuery('');
+      setFocusedIndex(-1);
+      buttonRef.current?.focus();
+    },
+  });
+
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(e.target as Node) &&
-        !buttonRef.current?.contains(e.target as Node)
-      ) {
-        setIsOpen(false);
-        setSearchQuery('');
-        setFocusedIndex(-1);
-      }
-    }
-
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setIsOpen(false);
-        setSearchQuery('');
-        setFocusedIndex(-1);
-        buttonRef.current?.focus();
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-
-    if (searchInputRef.current) {
+    if (isOpen && searchInputRef.current) {
       searchInputRef.current.focus();
     }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
   }, [isOpen]);
 
   const filteredItems = useMemo(() => {
@@ -187,7 +170,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
   }, [focusedIndex]);
 
   return (
-    <div className="context-builder">
+    <div className="context-builder" ref={containerRef}>
       <TooltipSimple content={t.contextAddContext} placement="top">
         <button
           ref={buttonRef}
