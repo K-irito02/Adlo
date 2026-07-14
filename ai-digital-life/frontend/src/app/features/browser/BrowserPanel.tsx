@@ -14,8 +14,13 @@ import { useBrowserPageMeta } from './useBrowserPageMeta';
 import { useBrowserMetaSubscription } from './useBrowserMetaSubscription';
 import { useBrowserMenus } from './useBrowserMenus';
 import { BrowserContextMenu } from './BrowserContextMenu';
-import { BrowserPanelContent } from './BrowserPanelContent';
 import { useBrowserThemeSync } from './useBrowserThemeSync';
+import { BrowserPanelStateCtx } from './BrowserPanelStateContext';
+import { BrowserPanelActionsCtx } from './BrowserPanelActionsContext';
+import type { BrowserPanelActions } from './BrowserPanelActionsContext';
+import { BrowserToolbar } from './BrowserToolbar';
+import { BrowserNavigator } from './BrowserNavigator';
+import { BrowserIframeStack } from './BrowserIframeStack';
 import type { BrowserPanelProps } from '@regions/right-panel/types';
 import { useTCopy } from '@i18n/useTCopy';
 import {
@@ -47,6 +52,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
     recentWorkspaces,
     browserBookmarks,
     browserHistory,
+    browserNavigatorWidth,
+    navigatorCollapsedByTool,
+    toggleNavigator,
+    setBrowserNavigateInPlace,
   } = useAppStore(
     useShallow((state) => ({
       browserOpenTab: state.browserOpenTab,
@@ -55,6 +64,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
       recentWorkspaces: state.recentWorkspaces,
       browserBookmarks: state.browserBookmarks,
       browserHistory: state.browserHistory,
+      browserNavigatorWidth: state.browserNavigatorWidth,
+      navigatorCollapsedByTool: state.navigatorCollapsedByTool,
+      toggleNavigator: state.toggleNavigator,
+      setBrowserNavigateInPlace: state.setBrowserNavigateInPlace,
     }))
   );
 
@@ -347,112 +360,248 @@ export function BrowserPanel(props: BrowserPanelProps) {
     !iframeBlockedDetected &&
     !iframeLoadError;
 
+  const navigatorCollapsed = navigatorCollapsedByTool.browser ?? false;
+
+  const handleOpenTabFromTree = useCallback(
+    (url: string, tabId?: string) => {
+      if (tabId) {
+        browserNavigateActiveTab(url, tabId);
+      } else {
+        browserOpenTab(url, url);
+      }
+    },
+    [browserOpenTab, browserNavigateActiveTab]
+  );
+
+  const handleToggleNavigateMode = useCallback(
+    (checked: boolean) => {
+      setBrowserNavigateInPlace(checked);
+    },
+    [setBrowserNavigateInPlace]
+  );
+
+  const openTabCount = browserTabs.length;
+  const navigatorTitle = t.toolBrowser;
+
+  const handlePointerDown = useCallback((_e: React.PointerEvent) => {}, []);
+
+  const actionsValue = useMemo<BrowserPanelActions>(
+    () => ({
+      handleCloseTab: wrappedHandleCloseTab,
+      handleCloseAllTabs,
+      handleClearTabDirectories,
+      handleDoubleClick,
+      handleOpenBookmarkDialog,
+      handleEditTab,
+      handleSetCreateTabDialog,
+      setCreateDirDialog,
+      setRenameFolderState,
+      setNavigatorQuery,
+      setSearchScope,
+      handleToggleTreePath,
+      handleDeleteAllChildTabs,
+      handleDeleteOwnChildTabs,
+      handleOpenAllInNewTabs,
+      handleRemoveFromArea,
+      handleDeleteDirectory,
+      handleDeleteHistoryLevel,
+      handleExpandAllTree,
+      handleCollapseAllTree,
+      handleRefreshTab,
+      handleDeleteTab,
+      handleCopyTabLink,
+      handleOpenTabInNewTab,
+      handleOpenTabInCurrentTab,
+      onBookmarkTab: handleBookmarkFromUrl,
+      onRemoveBookmarkTab: handleRemoveBookmarkTab,
+      setBrowserMenuOpen,
+      handleOpenTabFromTree,
+      handleIframeLoad,
+      handleIframeError,
+      handleGoBack,
+      handleGoForward,
+      handleReload,
+      setNavigatorMode,
+      handleSelectTreePath,
+      showToast,
+      browserOpenTab,
+      handleToggleNavigateMode,
+      toggleNavigator: toggleNavigator as (tool: string) => void,
+    }),
+    [
+      wrappedHandleCloseTab,
+      handleCloseAllTabs,
+      handleClearTabDirectories,
+      handleDoubleClick,
+      handleOpenBookmarkDialog,
+      handleEditTab,
+      handleSetCreateTabDialog,
+      setCreateDirDialog,
+      setRenameFolderState,
+      setNavigatorQuery,
+      setSearchScope,
+      handleToggleTreePath,
+      handleDeleteAllChildTabs,
+      handleDeleteOwnChildTabs,
+      handleOpenAllInNewTabs,
+      handleRemoveFromArea,
+      handleDeleteDirectory,
+      handleDeleteHistoryLevel,
+      handleExpandAllTree,
+      handleCollapseAllTree,
+      handleRefreshTab,
+      handleDeleteTab,
+      handleCopyTabLink,
+      handleOpenTabInNewTab,
+      handleOpenTabInCurrentTab,
+      handleBookmarkFromUrl,
+      handleRemoveBookmarkTab,
+      setBrowserMenuOpen,
+      handleOpenTabFromTree,
+      handleIframeLoad,
+      handleIframeError,
+      handleGoBack,
+      handleGoForward,
+      handleReload,
+      setNavigatorMode,
+      handleSelectTreePath,
+      showToast,
+      browserOpenTab,
+      handleToggleNavigateMode,
+      toggleNavigator,
+    ]
+  );
+
+  const stateMemo = useMemo(
+    () => ({
+      t,
+      isBrowserVisible,
+      activeTab,
+      hasActiveTab,
+      isBookmarked,
+      browserTabs,
+      browserTabFolders,
+      tabTreeExpanded,
+      allTreeExpanded,
+      navigatorQuery,
+      searchScope,
+      searchResults,
+      browserMenuOpen,
+      browserMenuRef,
+      browserMenuItems,
+      loadingTabId,
+      evictedTabIds,
+      iframeRef,
+      primaryRef,
+      iframeBlockedDetected,
+      iframeLoadError,
+      isEmbedPending,
+      validatedUrlsRef,
+      navigatorMode,
+      navigatorSearchRef,
+      navigatorSearchInputRef,
+      selectedTreePath,
+      selectedTreePathRef,
+      activatedTabIdsRef,
+      urlState,
+      navigatorCollapsed,
+      browserNavigatorWidth,
+      visibleWorkspaces,
+      handlePointerDown,
+      openTabCount,
+      navigatorTitle,
+    }),
+    [
+      t,
+      isBrowserVisible,
+      activeTab,
+      hasActiveTab,
+      isBookmarked,
+      browserTabs,
+      browserTabFolders,
+      tabTreeExpanded,
+      allTreeExpanded,
+      navigatorQuery,
+      searchScope,
+      searchResults,
+      browserMenuOpen,
+      browserMenuRef,
+      browserMenuItems,
+      loadingTabId,
+      evictedTabIds,
+      iframeRef,
+      primaryRef,
+      iframeBlockedDetected,
+      iframeLoadError,
+      isEmbedPending,
+      validatedUrlsRef,
+      navigatorMode,
+      navigatorSearchRef,
+      navigatorSearchInputRef,
+      selectedTreePath,
+      selectedTreePathRef,
+      activatedTabIdsRef,
+      urlState,
+      navigatorCollapsed,
+      browserNavigatorWidth,
+      visibleWorkspaces,
+      handlePointerDown,
+      openTabCount,
+      navigatorTitle,
+    ]
+  );
+
   return (
-    <div className="adl-tool-panel adl-tool-panel--browser">
-      <BrowserPanelContent
-        t={t}
-        isBrowserVisible={isBrowserVisible}
-        activeTab={activeTab}
-        hasActiveTab={hasActiveTab}
-        isBookmarked={isBookmarked}
-        browserTabs={browserTabs}
-        handleCloseTab={wrappedHandleCloseTab}
-        handleCloseAllTabs={handleCloseAllTabs}
-        handleClearTabDirectories={handleClearTabDirectories}
-        handleDoubleClick={handleDoubleClick}
-        handleOpenBookmarkDialog={handleOpenBookmarkDialog}
-        handleEditTab={handleEditTab}
-        handleSetCreateTabDialog={handleSetCreateTabDialog}
-        setCreateDirDialog={setCreateDirDialog}
-        setRenameFolderState={setRenameFolderState}
-        navigatorQuery={navigatorQuery}
-        searchScope={searchScope}
-        searchResults={searchResults}
-        navigatorSearchRef={navigatorSearchRef}
-        navigatorSearchInputRef={navigatorSearchInputRef}
-        setNavigatorQuery={setNavigatorQuery}
-        setSearchScope={setSearchScope}
-        browserTabFolders={browserTabFolders}
-        tabTreeExpanded={tabTreeExpanded}
-        allTreeExpanded={allTreeExpanded}
-        handleToggleTreePath={handleToggleTreePath}
-        handleDeleteAllChildTabs={handleDeleteAllChildTabs}
-        handleDeleteOwnChildTabs={handleDeleteOwnChildTabs}
-        handleOpenAllInNewTabs={handleOpenAllInNewTabs}
-        handleRemoveFromArea={handleRemoveFromArea}
-        handleDeleteDirectory={handleDeleteDirectory}
-        handleDeleteHistoryLevel={handleDeleteHistoryLevel}
-        handleExpandAllTree={handleExpandAllTree}
-        handleCollapseAllTree={handleCollapseAllTree}
-        handleRefreshTab={handleRefreshTab}
-        handleDeleteTab={handleDeleteTab}
-        handleCopyTabLink={handleCopyTabLink}
-        handleOpenTabInNewTab={handleOpenTabInNewTab}
-        handleOpenTabInCurrentTab={handleOpenTabInCurrentTab}
-        onBookmarkTab={handleBookmarkFromUrl}
-        onRemoveBookmarkTab={handleRemoveBookmarkTab}
-        browserMenuOpen={browserMenuOpen}
-        browserMenuRef={browserMenuRef}
-        browserMenuItems={browserMenuItems}
-        setBrowserMenuOpen={setBrowserMenuOpen}
-        activatedTabIdsRef={activatedTabIdsRef}
-        loadingTabId={loadingTabId}
-        evictedTabIds={evictedTabIds}
-        iframeRef={iframeRef}
-        primaryRef={primaryRef}
-        handleIframeLoad={handleIframeLoad}
-        handleIframeError={handleIframeError}
-        iframeBlockedDetected={iframeBlockedDetected}
-        iframeLoadError={iframeLoadError}
-        isEmbedPending={isEmbedPending}
-        validatedUrlsRef={validatedUrlsRef}
-        handleGoBack={handleGoBack}
-        handleGoForward={handleGoForward}
-        handleReload={handleReload}
-        urlState={urlState}
-        navigatorMode={navigatorMode}
-        setNavigatorMode={setNavigatorMode}
-        selectedTreePath={selectedTreePath}
-        selectedTreePathRef={selectedTreePathRef}
-        handleSelectTreePath={handleSelectTreePath}
-        showToast={showToast}
-      />
+    <BrowserPanelStateCtx.Provider value={stateMemo}>
+      <BrowserPanelActionsCtx.Provider value={actionsValue}>
+        <div className="adl-tool-panel adl-tool-panel--browser">
+          <BrowserToolbar />
+          <div
+            className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? ' is-navigator-collapsed' : ''}`}
+            style={{ '--adl-files-nav-width': `${browserNavigatorWidth}px` } as React.CSSProperties}
+          >
+            <BrowserNavigator />
+            <div className="adl-tool-primary adl-tool-primary--browser" ref={primaryRef}>
+              <BrowserIframeStack />
+            </div>
+          </div>
+          <BrowserContextMenu
+            contextMenu={contextMenu}
+            onTogglePin={handleTogglePin}
+            onRename={handleRenameFromContextMenu(browserTabs, contextMenu, handleDoubleClick)}
+            onDelete={handleDeleteFromContextMenu(contextMenu, wrappedHandleCloseTab)}
+            onCopyUrl={handleCopyUrlFromMenu}
+            onOpenInNewTab={handleOpenInNewTab}
+            onOpenInCurrentTab={handleOpenInCurrentTab}
+            onEdit={handleRenameFromContextMenu(browserTabs, contextMenu, handleDoubleClick)}
+            onCut={() => {}}
+          />
 
-      <BrowserContextMenu
-        contextMenu={contextMenu}
-        onTogglePin={handleTogglePin}
-        onRename={handleRenameFromContextMenu(browserTabs, contextMenu, handleDoubleClick)}
-        onDelete={handleDeleteFromContextMenu(contextMenu, wrappedHandleCloseTab)}
-        onCopyUrl={handleCopyUrlFromMenu}
-        onOpenInNewTab={handleOpenInNewTab}
-        onOpenInCurrentTab={handleOpenInCurrentTab}
-        onEdit={handleRenameFromContextMenu(browserTabs, contextMenu, handleDoubleClick)}
-        onCut={() => {}}
-      />
-
-      <BrowserPanelDialogs
-        t={t}
-        createTabDialog={createTabDialog}
-        editTabDialog={editTabDialog}
-        isCreatingTab={isCreatingTab}
-        handleCreateTabConfirm={handleCreateTabConfirm}
-        handleCreateTabCancel={handleCreateTabCancel}
-        handleEditTabConfirm={handleEditTabConfirm}
-        handleEditTabCancel={handleEditTabCancel}
-        bookmarkDialogOpen={bookmarkDialogOpen}
-        bookmarkTreeData={bookmarkTreeData}
-        handleBookmarkAddToFolder={handleBookmarkAddToFolder}
-        handleBookmarkCreateDir={handleBookmarkCreateDir}
-        setBookmarkDialogOpen={setBookmarkDialogOpen}
-        setBookmarkName={setBookmarkName}
-        bookmarkName={bookmarkName}
-        renameFolderState={renameFolderState}
-        setRenameFolderState={setRenameFolderState}
-        createDirDialog={createDirDialog}
-        setCreateDirDialog={setCreateDirDialog}
-        toastMessages={toastMessages}
-        removeToast={removeToast}
-      />
-    </div>
+          <BrowserPanelDialogs
+            t={t}
+            createTabDialog={createTabDialog}
+            editTabDialog={editTabDialog}
+            isCreatingTab={isCreatingTab}
+            handleCreateTabConfirm={handleCreateTabConfirm}
+            handleCreateTabCancel={handleCreateTabCancel}
+            handleEditTabConfirm={handleEditTabConfirm}
+            handleEditTabCancel={handleEditTabCancel}
+            bookmarkDialogOpen={bookmarkDialogOpen}
+            bookmarkTreeData={bookmarkTreeData}
+            handleBookmarkAddToFolder={handleBookmarkAddToFolder}
+            handleBookmarkCreateDir={handleBookmarkCreateDir}
+            setBookmarkDialogOpen={setBookmarkDialogOpen}
+            setBookmarkName={setBookmarkName}
+            bookmarkName={bookmarkName}
+            renameFolderState={renameFolderState}
+            setRenameFolderState={setRenameFolderState}
+            createDirDialog={createDirDialog}
+            setCreateDirDialog={setCreateDirDialog}
+            toastMessages={toastMessages}
+            removeToast={removeToast}
+          />
+        </div>
+      </BrowserPanelActionsCtx.Provider>
+    </BrowserPanelStateCtx.Provider>
   );
 }

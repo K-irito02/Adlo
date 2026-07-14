@@ -83,7 +83,13 @@ export function BrowserNavigator() {
     showToast,
   } = useBrowserPanelActions();
 
-  const { browserBookmarks, browserBookmarkTabIdUrlMap, browserHistory, browserWorkspaceBookmarks, setBrowserNavigatorWidth } = useAppStore(
+  const {
+    browserBookmarks,
+    browserBookmarkTabIdUrlMap,
+    browserHistory,
+    browserWorkspaceBookmarks,
+    setBrowserNavigatorWidth,
+  } = useAppStore(
     useShallow((state) => ({
       browserBookmarks: state.browserBookmarks,
       browserBookmarkTabIdUrlMap: state.browserBookmarkTabIdUrlMap,

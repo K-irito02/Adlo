@@ -27,17 +27,30 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
     browserMenuOpen,
     browserMenuRef,
     browserMenuItems,
-    urlState: { address, addressExpanded, addressSearchRef, addressInputRef,
-               handleAddressChange, handleAddressKeyDown, handleAddressBlur, handleSearchClick },
+    urlState: {
+      address,
+      addressExpanded,
+      addressSearchRef,
+      addressInputRef,
+      handleAddressChange,
+      handleAddressKeyDown,
+      handleAddressBlur,
+      handleSearchClick,
+    },
   } = useBrowserPanelState();
 
   const {
-    handleGoBack, handleGoForward, handleReload, browserOpenTab,
-    handleOpenBookmarkDialog, setBrowserMenuOpen,
-    handleToggleNavigateMode, toggleNavigator,
+    handleGoBack,
+    handleGoForward,
+    handleReload,
+    browserOpenTab,
+    handleOpenBookmarkDialog,
+    setBrowserMenuOpen,
+    handleToggleNavigateMode,
+    toggleNavigator,
   } = useBrowserPanelActions();
 
-  const browserNavigateInPlace = useAppStore(s => s.browserNavigateInPlace);
+  const browserNavigateInPlace = useAppStore((s) => s.browserNavigateInPlace);
 
   return (
     <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolBrowser}>
@@ -145,7 +158,11 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
             type="button"
             className="adl-tool-context__iconbtn"
             aria-label={isBookmarked ? t.unbookmark : t.bookmark}
-            onClick={() => { if (address) handleOpenBookmarkDialog(); }}
+            onClick={() => {
+              if (address) {
+                handleOpenBookmarkDialog();
+              }
+            }}
           >
             {isBookmarked ? (
               <IconStarFilled size={14} decorative />
@@ -158,7 +175,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
           menuOpen={browserMenuOpen}
           menuRef={browserMenuRef}
           menuItems={browserMenuItems}
-          onToggle={() => setBrowserMenuOpen(v => !v)}
+          onToggle={() => setBrowserMenuOpen((v) => !v)}
           onClose={() => setBrowserMenuOpen(false)}
         />
       </div>
