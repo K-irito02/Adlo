@@ -54,6 +54,9 @@ export default function FlowFieldBackground({
     // 避免粒子在 0x0 空间内不可见。窗口显示后 resize 事件会修正尺寸。
     const width = container.clientWidth || window.innerWidth;
     const height = container.clientHeight || window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    // 每次启动生成随机频率缩放因子，使流场结构每次都不同
+    const freqScale = 0.4 + Math.random() * 1.6;
 
     worker.postMessage(
       {
@@ -61,29 +64,49 @@ export default function FlowFieldBackground({
         canvas: offscreen,
         width,
         height,
+        dpr,
         particleCount,
         color,
         bgColor,
         trailColor,
         trailOpacity,
         speed,
+        freqScale,
       },
       [offscreen]
     );
 
+    // 缓存 canvas 边界避免每次 pointermove 触发 reflow
+    let canvasLeft = 0;
+    let canvasTop = 0;
+    const updateCanvasBounds = () => {
+      const rect = canvas.getBoundingClientRect();
+      canvasLeft = rect.left;
+      canvasTop = rect.top;
+    };
+    updateCanvasBounds();
+
+    let resizePending = false;
     const handleResize = () => {
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      worker.postMessage({ type: 'resize', width: w, height: h });
+      if (!resizePending) {
+        resizePending = true;
+        requestAnimationFrame(() => {
+          resizePending = false;
+          const w = container.clientWidth;
+          const h = container.clientHeight;
+          const newDpr = window.devicePixelRatio || 1;
+          worker.postMessage({ type: 'resize', width: w, height: h, dpr: newDpr });
+          updateCanvasBounds();
+        });
+      }
     };
 
     let mousePending = false;
     let mouseX = -1000;
     let mouseY = -1000;
     const handlePointerMove = (e: PointerEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      mouseX = e.clientX - rect.left;
-      mouseY = e.clientY - rect.top;
+      mouseX = e.clientX - canvasLeft;
+      mouseY = e.clientY - canvasTop;
       if (!mousePending) {
         mousePending = true;
         requestAnimationFrame(() => {
@@ -105,7 +128,6 @@ export default function FlowFieldBackground({
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('pointermove', handlePointerMove);
       document.documentElement.removeEventListener('pointerleave', handlePointerLeave);
-      worker.postMessage({ type: 'destroy' });
       worker.terminate();
       workerRef.current = null;
     };

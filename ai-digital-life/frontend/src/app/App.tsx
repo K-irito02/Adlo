@@ -123,9 +123,7 @@ export function App() {
   const [overlayHidden, setOverlayHidden] = useState(false);
   const startedAt = useRef(0);
 
-  // 覆盖层时序控制：
-  // - 最短 3.5s：保证动画效果完整展示
-  // - 最长 8s：超时强制退出，防止 appReady 卡住导致界面永远不出现
+  // 覆盖层超时逻辑
   const OVERLAY_MIN_MS = 3500;
   const OVERLAY_MAX_MS = 8000;
 
@@ -163,7 +161,6 @@ export function App() {
               initial={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5, ease: 'easeInOut' }}
-              style={{ pointerEvents: 'none' }}
             >
               <StartupOverlay />
             </motion.div>
@@ -266,7 +263,6 @@ export function App() {
             initial={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5, ease: 'easeInOut' }}
-            style={{ pointerEvents: 'none' }}
           >
             <StartupOverlay />
           </motion.div>

@@ -35,6 +35,7 @@ test-artifacts/
 
 # Trae auto-generated code review snapshots (pre-push review artifacts)
 trae-agentReviewBeforePushToRemote/
+.Logo图标设计/
 
 # Deprecated Electron-era planning documents (Rust + Tauri is the current target)
 digitalLife/

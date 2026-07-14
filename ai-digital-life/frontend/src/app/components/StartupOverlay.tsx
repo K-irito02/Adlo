@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { useAppStore } from '../stores/slicedStore';
 import { systemPrefersDark, type ResolvedTheme } from '../../design-system';
 import FlowFieldBackground from './flow-field-background';
+import LogoSvg from './LogoSvg';
 
 function getThemeFromRoot(): ResolvedTheme {
   if (typeof document !== 'undefined') {
@@ -14,19 +15,12 @@ function getThemeFromRoot(): ResolvedTheme {
   return systemPrefersDark() ? 'dark' : 'light';
 }
 
-function getDisplayText(language: string): string {
-  if (language.startsWith('zh')) {
-    return '可燃';
-  }
-  return 'Kora';
-}
-
 const THEME_COLORS: Record<
   ResolvedTheme,
   { bgHex: string; trail: string; particle: string; stroke: string }
 > = {
-  dark: { bgHex: '#000', trail: '0, 0, 0', particle: '#818cf8', stroke: '#c7d2fe' },
-  light: { bgHex: '#fff', trail: '255, 255, 255', particle: '#4f46e5', stroke: '#3730a3' },
+  dark: { bgHex: '#000', trail: '0, 0, 0', particle: '#818cf8', stroke: '#fff' },
+  light: { bgHex: '#fff', trail: '255, 255, 255', particle: '#000', stroke: '#000' },
 };
 
 export default function StartupOverlay() {
@@ -36,7 +30,6 @@ export default function StartupOverlay() {
     () => storeLanguage ?? (typeof navigator !== 'undefined' ? navigator.language : 'en'),
     [storeLanguage]
   );
-  const displayText = useMemo(() => getDisplayText(displayLang), [displayLang]);
 
   // 移除 index.html 中的静态预加载覆盖层，让 React 覆盖层接管
   useLayoutEffect(() => {
@@ -68,17 +61,16 @@ export default function StartupOverlay() {
         inset: 0,
         zIndex: 9999,
         backgroundColor: colors.bgHex,
-        pointerEvents: 'none',
         cursor: 'default',
       }}
     >
       <FlowFieldBackground
-        particleCount={20}
+        particleCount={520}
         color={colors.particle}
-        trailOpacity={0.12}
+        trailOpacity={0.1}
         trailColor={colors.trail}
         bgColor={colors.bgHex}
-        speed={1}
+        speed={0.1}
       />
       <div
         style={{
@@ -88,34 +80,22 @@ export default function StartupOverlay() {
           alignItems: 'center',
           justifyContent: 'center',
           userSelect: 'none',
+          pointerEvents: 'none',
         }}
       >
-        <svg viewBox="0 0 500 120" style={{ width: '320px', maxWidth: '80vw' }} aria-hidden="true">
-          <motion.text
-            x="250"
-            y="60"
-            textAnchor="middle"
-            dominantBaseline="central"
-            fontSize="80"
-            fontWeight="900"
-            fontFamily="system-ui, sans-serif"
-            fill="none"
-            stroke={colors.stroke}
-            strokeWidth={3}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeDasharray={5000}
-            initial={{ strokeDashoffset: 5000 }}
-            animate={{ strokeDashoffset: [5000, 0, -5000] }}
-            transition={{
-              duration: 3,
-              ease: [0.42, 0, 0.58, 1],
-              repeat: Infinity,
-            }}
-          >
-            {displayText}
-          </motion.text>
-        </svg>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <LogoSvg
+            language={displayLang}
+            color={colors.stroke}
+            width={320}
+            staggerDelay={0.15}
+            drawDuration={3}
+          />
+        </motion.div>
       </div>
     </div>
   );
