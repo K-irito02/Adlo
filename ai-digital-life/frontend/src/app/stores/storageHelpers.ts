@@ -122,4 +122,26 @@ export function createDebouncedWrite(waitMs: number) {
   return { scheduleWrite, scheduleNumberWrite };
 }
 
-export const { scheduleWrite: scheduleCrossSliceWrite } = createDebouncedWrite(50);
+const crossSliceWriter = createDebouncedWrite(50);
+export const scheduleCrossSliceWrite = crossSliceWriter.scheduleWrite;
+
+/**
+ * 创建绑定到指定 localStorage key 的持久化写入函数。
+ * 使用共享的去抖写入调度器（50ms），跨 slice 合并写入。
+ * 替代各 slice 中重复的 `const { scheduleWrite } = createDebouncedWrite(50);` 样板。
+ * @param key localStorage 键名
+ * @returns 接受 value 参数的写入函数
+ */
+export function makePersistedWriter(key: string): (value: unknown) => void {
+  return (value: unknown) => scheduleCrossSliceWrite(key, value);
+}
+
+/**
+ * 创建绑定到指定 localStorage key 的数字持久化写入函数。
+ * 与 makePersistedWriter 共享同一 50ms 去抖实例，确保 JSON 与数字写入合并到同一次 flush。
+ * @param key localStorage 键名
+ * @returns 接受 number value 参数的写入函数
+ */
+export function makePersistedNumberWriter(key: string): (value: number) => void {
+  return (value: number) => crossSliceWriter.scheduleNumberWrite(key, value);
+}
