@@ -242,7 +242,7 @@ Main agent verifies report
 | No skipping | Main agent MUST NOT skip the re-check cycle or declare success without sub-agent confirmation |
 | Per-problem loop | Each problem runs its own independent loop with its own sub-agent |
 | Termination | Loop ends only when the sub-agent reports "no issues found" |
-| Max 3 cycles | After 3 full loops (report → implement → re-check → still issues), escalate to user |
+| Deadlock prevention | If the same issue persists after 3 full loops (report → implement → re-check → same issue), escalate to user |
 
 ### Step 1: Root Cause Verification (Per-Problem Report Loop)
 
@@ -251,15 +251,27 @@ Main agent verifies report
 For EACH problem, dispatch a read-only sub-agent (`subagent_type: "search"`) with these instructions:
 
 ```
-Analyze the changes made to fix [PROBLEM_DESCRIPTION]. Determine:
-1. Was the true root cause identified and fixed? Or was a symptom addressed?
-2. Is the fix at the correct layer of the architecture?
-3. Are there any remaining gaps or edge cases?
+Analyze the changes made to fix [PROBLEM_DESCRIPTION]. Perform a comprehensive review:
 
-Review the git diff of all changed files relevant to this problem. If the fix addresses
-a symptom rather than the root cause, explain why and what the actual root cause appears to be.
+**1. Root Cause & Correctness:**
+- Was the true root cause identified and fixed? Or was a symptom addressed?
+- Are there any remaining gaps or edge cases?
+- Is the fix complete (handles all trigger conditions, not just the observed case)?
 
-CRITICAL: Do NOT modify any files. Produce a structured report only.
+**2. Technical Approach & Design Quality:**
+- Is the chosen solution appropriate? Are there simpler or more robust alternatives?
+- Code-level design: naming, function responsibility, readability, SOLID principles
+- Module-level design: coupling, cohesion, interface design, dependency direction
+- Architecture-level design: is the fix at the correct layer? Does it maintain architectural consistency?
+
+**3. Side Effects & Safety:**
+- Could this fix introduce regressions or new bugs?
+- Are there performance implications?
+- Does it affect other components or shared state?
+
+Review the git diff of all changed files relevant to this problem.
+
+CRITICAL: Do NOT modify any files. Produce a structured report only. For each issue found, include severity (critical/high/medium/low) and suggested fix.
 ```
 
 **Loop execution:**
@@ -268,7 +280,7 @@ CRITICAL: Do NOT modify any files. Produce a structured report only.
 3. If verified reports identify issues → implement deeper fixes
 4. Re-dispatch same sub-agent(s) for re-check
 5. If all sub-agents report "no issues" → proceed to Step 2
-6. If issues remain after 3 cycles → escalate (see below)
+6. If the same issue persists after 3 cycles → escalate (see below)
 
 **Escalation:** "Problem [N] was fixed at the symptom level, not the root cause. The root cause appears to be [explanation]. Do you want to continue investigating?" Only proceed to Step 2 for problems where root cause is confirmed.
 
@@ -306,7 +318,7 @@ CRITICAL: Do NOT modify any files. Produce a structured report only.
 3. Apply verified removals
 4. Re-dispatch same sub-agent(s) for re-check
 5. If all sub-agents report "no issues found" → proceed to Step 3
-6. If issues remain after 3 cycles → escalate to user
+6. If the same issue persists after 3 cycles → escalate to user
 
 ### Step 3: Final Validation
 
@@ -402,7 +414,7 @@ Stop and re-evaluate if you find yourself:
 - **Adding multiple defensive checks "just in case"** — Each has a cost; only add what's proven necessary
 - **Skipping log analysis after user testing** — You're blind without evidence
 - **Removing code without understanding why it was added** — That "redundant" check might cover a subtle edge case
-- **Iterating past 3 cycles without architectural discussion** — The problem is likely systemic
+- **Iterating past 3 cycles on the same issue without escalation** — The problem is likely systemic; escalate to user
 - **Using `Glob`/`Grep`/`SearchCodebase` to read `.gitignore`-protected log directories** — Use `LS` + `Read` instead
 - **Concluding "no logs exist" after using the wrong tool** — Verify with `LS` before drawing conclusions
 - **User confirms "问题已解决" but you do NOT proceed to Phase 4** — Trigger detection is mandatory

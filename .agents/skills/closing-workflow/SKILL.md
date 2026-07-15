@@ -1,6 +1,6 @@
 ---
 name: closing-workflow
-description: End-of-work closing procedures after completing code changes, bug fixes, or feature implementations. Performs log review, code review loop with mandatory fixes, quality checks, mandatory doc sync, and cleanup.
+description: End-of-work closing procedures after completing code changes, bug fixes, or feature implementations. Performs log review, multi-agent parallel code review with mandatory fixes, quality checks, mandatory doc sync, and cleanup.
 ---
 
 # Closing Workflow
@@ -9,7 +9,7 @@ description: End-of-work closing procedures after completing code changes, bug f
 
 所有任务和问题已解决后，执行标准收尾流程确保工作质量与项目整洁。
 
-**流程概览：** 前置检查 → 日志审查 → 代码审查循环（含强制修复） → 质量检测 → 文档同步（强制） → 项目清理 → 最终总结
+**流程概览：** 前置检查 → 日志审查 → 代码审查（多Agent并行 + 强制修复循环） → 质量检测 → 文档同步（强制） → 项目清理 → 最终总结
 
 ## When to Invoke
 
@@ -76,13 +76,14 @@ Get-ChildItem -Path "ai-digital-life\src-tauri\target\debug\incremental" -ErrorA
 
 ### 1b. 检查日志目录
 
-1. 使用 `LS` 工具列出 `.adl-logs` 目录
-   - 若目录不存在 → 跳过此步骤，直接进入 Step 2
-   - 若目录存在 → 使用 `Read` 工具读取每个日志文件内容
-2. 使用 `Read` 工具直接读取根目录调试日志文件（指定精确路径）：
-   - `<workspace_root>/debug-logs.txt`
-   - `<workspace_root>/debug-logs-browser.txt`
-3. 同样检查 `ai-digital-life/.run-logs/` 和 `ai-digital-life/diagnostic-logs/`（若存在）
+逐项检查以下日志位置，**每项独立判断是否存在**（一项不存在不影响其他项的检查）：
+
+1. 使用 `LS` 工具列出 `.adl-logs` 目录，若存在则用 `Read` 读取每个文件内容
+2. 使用 `Read` 工具读取 `<workspace_root>/debug-logs.txt`（若不存在则跳过）
+3. 使用 `Read` 工具读取 `<workspace_root>/debug-logs-browser.txt`（若不存在则跳过）
+4. 同样检查 `ai-digital-life/.run-logs/` 和 `ai-digital-life/diagnostic-logs/`（若存在）
+
+> 若所有日志位置均不存在 → 跳过整个 Step 1，直接进入 Step 2。
 
 ### 1c. 分析日志
 
@@ -101,7 +102,7 @@ Get-ChildItem -Path "ai-digital-life\src-tauri\target\debug\incremental" -ErrorA
 
 ---
 
-## Step 2: 代码审查循环（含强制修复）
+## Step 2: 代码审查（多Agent并行 + 强制修复循环）
 
 ### 2a. 收集变更来源
 
@@ -118,39 +119,94 @@ Get-ChildItem -Path "ai-digital-life\src-tauri\target\debug\incremental" -ErrorA
 - 已推送至远程的代码视为已验证，**不纳入审查**
 - 如涉及工作树分支、多分支操作，自行确定当前审查目标分支
 - 若三类均无变更 → 跳过 Step 2，直接进入 Step 3
+- `git diff origin/HEAD..HEAD` 依赖上游分支：若分支未设置 upstream（报错 `fatal: ambiguous argument 'origin/HEAD..HEAD'`），则仅采集前两类变更
 
 **汇总**：将三类变更的 diff 合并，作为子代理的完整审查素材。
 
-### 2b. 执行审查（子代理）
+### 2b. 按任务拆分，多Agent并行审查
 
-使用 Task 工具（`subagent_type: "general_purpose_task"`）开启子代理。
+**核心思路**：根据本次会话中已解决的任务/问题数量，为每个任务派发一个独立子代理，**并行审查**。每个 Agent 对分配给自己的任务做**全面审查**（技术方案、设计质量、正确性、安全性、性能、最佳实践等全部维度），而非只审查单一维度。审查完成后合并结果，进入修复循环。
 
-**子代理任务模板：**
+#### 2b-1. 确定 Agent 数量
+
+回顾本次会话中已解决的任务和问题，按任务粒度拆分：
+
+| 条件 | 策略 |
+|------|------|
+| 仅 1 个任务 | 使用 **1 个 Agent**，对该任务做全面审查 |
+| 2 个及以上任务 | 使用 **N 个 Agent**（N = 任务数），每个 Agent 负责一个任务的全面审查 |
+
+> 若任务过多（如 > 5 个），将小型任务合并派发，避免 Agent 数量过多。
+
+#### 2b-2. 为每个任务准备审查素材
+
+对每个任务，提取其相关的变更文件子集作为该 Agent 的审查素材。若多个任务修改了相同文件（难以拆分），则给每个 Agent 完整的 diff，但在 prompt 中明确指定其负责审查的任务范围。
+
+#### 2b-3. 并行派发
+
+使用 Task 工具（`subagent_type: "general_purpose_task"`），在**同一条消息中同时派发 N 个 Task 工具调用**，确保真正并行执行。
+
+每个 Agent 使用以下统一 prompt 模板（替换 `[TASK_DESCRIPTION]` 和 `[TASK_DIFF]`）：
 
 ```
-Review the following code diff for issues. Check for:
-- Logic errors, missing edge cases, boundary conditions
-- Security vulnerabilities, performance problems
-- Code that is incomplete or not robust
-- Opportunities for improvement
-- Violations of project coding standards (see .agents/rules/)
+You are reviewing code changes for the following completed task:
+
+[TASK_DESCRIPTION]
+
+Perform a **comprehensive review** covering ALL of the following aspects:
+
+**1. Technical Approach & Design Quality:**
+- Is the technical solution appropriate and well-chosen? Are there simpler or more robust alternatives?
+- Code-level design: naming clarity, function/class responsibility, readability, adherence to SOLID principles
+- Module-level design: coupling and cohesion, interface design, dependency direction, module boundaries
+- Architecture-level design: pattern selection, layering, extensibility, consistency with project architecture
+
+**2. Correctness:**
+- Logic errors (wrong conditions, inverted booleans, off-by-one)
+- Missing edge cases and boundary conditions (null, empty, extremes)
+- Race conditions and async ordering problems
+- Type mismatches or unsafe type assertions
+- Incomplete or broken error handling paths
+
+**3. Security & Performance:**
+- Security vulnerabilities (injection, XSS, path traversal, unsafe eval)
+- Unsafe operations (unwrap in Rust, any in TypeScript, missing authorization checks)
+- Performance problems (N+1 queries, unnecessary allocations, missing memoization)
+- Resource leaks (unclosed handles, unchecked memory growth, missing cleanup)
+
+**4. Best Practices & Standards:**
+- Violations of project coding standards (see .agents/rules/ for reference)
+- i18n coverage gaps (hardcoded Chinese/English text in UI components)
+- Error handling patterns (empty catch blocks, silent failures, missing captureError)
+- Loading state management (missing isFetching, declared-but-unused loading fields)
+- Promise handling (missing .catch(), Promise.allSettled without rejection check)
+- IPC bridge contract consistency (three bridges must align)
 
 For each issue found, report:
 1. File path and line range
 2. Severity (critical/high/medium/low)
-3. Description of the problem
-4. Suggested fix (specific code change recommendation)
+3. Category (design / correctness / security / performance / standards)
+4. Description of the problem
+5. Suggested fix (specific code change recommendation)
 
-Here is the complete diff to review:
-[PASTE FULL DIFF HERE]
+Here is the diff for this task:
+[TASK_DIFF]
 ```
 
-### 2c. 强制修复循环（主代理 ↔ 子代理）
+#### 2b-4. 合并结果
+
+所有子代理返回后，主代理执行合并：
+
+1. **去重**：同一文件同一行的同类问题，保留描述最详细的那份
+2. **排序**：按 severity 降序排列（critical → high → medium → low）
+3. **输出合并清单**：列出所有问题，标注来源任务，供后续修复循环使用
+
+### 2c. 强制修复循环（主代理 ↔ 合并结果）
 
 **这是强制执行步骤，不得跳过。**
 
 ```
-子代理审查发现问题
+合并后的审查问题清单
        ↓
 主代理逐个分析问题
        ↓
@@ -162,7 +218,7 @@ Here is the complete diff to review:
   │         ↓                              ↓
   └─ 修复完成 ←────────────────────────────┘
        ↓
-子代理再次审查（基于完整 diff）
+重新执行多Agent并行审查（基于当前完整 diff，按任务拆分）
        ↓
   ┌─ 仍有问题？──→ YES ──→ 重复上述循环
   └─ 无问题 ──→ 审查通过
@@ -188,20 +244,23 @@ Here is the complete diff to review:
 - 仅修复审查发现的问题，不做无关变更
 - 修复时遵循项目编码规范（`.agents/rules/`）
 - 所有修改不得破坏现有功能效果及 UI/UX
-- 修复后必须在子代理重新审查前确认变更已生效
+- 修复后必须在重新审查前确认变更已生效
 
 **迭代控制：**
-- **最大迭代次数：3 轮**。超过 3 轮仍有问题，向用户报告剩余问题并等待指示
-- 子代理每次审查应基于完整的变更 diff，而非仅审查上次发现的问题点
-- 每轮修复后，必须重新运行子代理审查，不可凭主代理自我判断跳过
+- **持续循环直到审查通过**：每轮修复后重新运行多Agent审查，若仍有问题则继续修复，直到所有 Agent 均报告零问题为止
+- 每轮重新审查应基于当前完整的变更 diff，而非仅审查上次发现的问题点
+- 每轮修复后，必须重新运行多Agent审查，不可凭主代理自我判断跳过
+- 若同一问题经 3 轮修复仍未解决，向用户报告该问题并等待指示（防止死循环）
 
-**完成条件：** 子代理确认无任何问题，或达到最大迭代次数后用户确认可继续。
+**完成条件：** 所有 Agent 确认无任何问题，审查通过。
 
 ---
 
 ## Step 3: 代码质量检测与修复
 
-> **注意：** 此步骤与 `mandatory-testing.md` 规则中的验收流程一致。若 `mandatory-testing.md` 已通过 alwaysApply 规则自动触发并完成，则此步骤可跳过（避免重复执行）。若不确定是否已执行，则运行本步骤。
+> **注意：** 此步骤与 `mandatory-testing.md` 规则中的验收流程一致。判断逻辑：
+> - 若在本轮对话中已由 `mandatory-testing.md` 的 alwaysApply 规则触发并**完整执行过**（包含 Lint + Format + Typecheck + Tests 全部通过），则跳过本步骤
+> - 若仅执行了部分（如只跑了 Lint 未跑测试），或不确定是否已完整执行，则运行本步骤全部内容
 
 ### 3a. 执行环境
 
@@ -303,9 +362,13 @@ Here is the complete diff to review:
 
 ## Step 5: 项目清理
 
-1. 移除 `.adl-logs/` 中超过 7 天的日志文件（若目录存在）
+1. 移除 `.adl-logs/` 中超过 7 天的日志文件（若目录存在）。使用 PowerShell 判断文件年龄：
+   ```powershell
+   Get-ChildItem -Path ".adl-logs" -File | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) }
+   ```
+   对上述命令返回的文件使用 DeleteFile 工具逐项删除
 2. 移除根目录下的调试日志文件（`debug-logs.txt`、`debug-logs-browser.txt`），若不存在则跳过
-3. 移除 `test-artifacts/` 中不再需要的临时截图、录屏、测试报告（保留近 3 天内的文件）
+3. 移除 `test-artifacts/` 中超过 3 天的临时文件（截图、录屏、测试报告），同理用 `LastWriteTime` 判断
 4. 保持目录结构清晰、干净
 
 > 清理操作使用 DeleteFile 工具，删除前确认文件存在，避免因文件不存在而报错。
@@ -323,7 +386,7 @@ Here is the complete diff to review:
 |------|------|
 | 前置检查 | ✅ / ⏭️ 跳过 |
 | 日志审查 | ✅ 无问题 / ⚠️ 发现 N 个问题已修复 / ⏭️ 跳过 |
-| 代码审查 | ✅ 审查通过 / ⚠️ 经 N 轮审查修复（含 M 次用户确认） / ⏭️ 跳过 |
+| 代码审查 | ✅ 审查通过（N Agent 并行） / ⚠️ 经 N 轮审查修复（含 M 次用户确认） / ⏭️ 跳过 |
 | 质量检测 | ✅ 全部通过 / ⚠️ 部分失败（说明） |
 | 文档同步 | ✅ 已更新 N 个文件（列出具体文件） / ⏭️ 无需更新 |
 | 项目清理 | ✅ 已清理 / ⏭️ 无需清理 |
@@ -338,11 +401,11 @@ Here is the complete diff to review:
 | Step | 操作 | 关键命令/工具 | 完成条件 |
 |------|------|--------------|----------|
 | 0. 前置检查 | 环境 PATH + 工作区状态 + 磁盘空间 | `git branch`/`git status` | 环境就绪，无阻塞问题 |
-| 1. 日志审查 | 检查 `.adl-logs` + 调试日志（**使用 LS/Read 直接操作，因日志文件被 gitignore**） | `LS`/`Read`（禁止 Glob/Grep） | 无未解决的 P0/P1 问题 |
-| 2. 代码审查 | 收集变更 → 子代理审查 → **强制修复** → 循环重审 | `git diff`/`git diff --cached`/`git diff origin/HEAD..HEAD` + Task 工具 + AskUserQuestion | 子代理确认无问题 或 达 3 轮上限 |
+| 1. 日志审查 | 检查各日志位置（**使用 LS/Read 直接操作，因日志文件被 gitignore**） | `LS`/`Read`（禁止 Glob/Grep） | 无未解决的 P0/P1 问题 |
+| 2. 代码审查 | 收集变更 → 按任务拆分 → 多Agent并行审查（每个Agent全面审查一个任务） → 合并结果 → **强制修复** → 循环重审 | `git diff` + Task 工具（N 并行，N=任务数） + AskUserQuestion | 所有 Agent 确认无问题 |
 | 3. 质量检测 | Lint/Format/Typecheck/Tests | ESLint/Prettier/Clippy/rustfmt/tsc/cargo check/vitest/cargo test | 零警告零错误，测试全通过 |
 | 4. 文档同步 | **强制**更新相关文档，提取规则与设计规范 | Write/Edit + 规则/技能同步 | 逐项检查清单完成，列出具体更新文件 |
-| 5. 项目清理 | 清理临时/调试文件 | DeleteFile | 目录结构清晰干净 |
+| 5. 项目清理 | 清理临时/调试文件，按 `LastWriteTime` 判断年龄 | DeleteFile + PowerShell | 目录结构清晰干净 |
 | 6. 最终总结 | 输出收尾总结表格 | 文本输出 | 用户已了解收尾结果 |
 
 ---
@@ -358,6 +421,8 @@ Here is the complete diff to review:
 - 质量检测发现警告/错误但未修复
 - 仅运行格式化/Lint 而跳过类型检查和测试
 - 未输出最终总结
+- **多Agent模式下未真正并行派发**（串行调用 Task 工具而非同一条消息中派发多个）
+- **多Agent模式下未按任务拆分**（按维度拆分而非按任务拆分，或任务数 > 1 时仍只用 1 个 Agent）
 
 ### 询问卡片类
 - 审查发现问题需要用户确认但未弹出询问卡片（直接自行决定）
@@ -367,12 +432,17 @@ Here is the complete diff to review:
 ### 变更采集类
 - **采集变更时遗漏某种类型** — 未暂存、已暂存、已提交本地变更三类需独立采集并合并
 - **将已推送的远程提交纳入审查** — 已推送至远程的代码视为已验证
-- 审查循环超过 3 轮未向用户报告
+- **`git diff origin/HEAD..HEAD` 失败时未降级处理** — 分支无 upstream 时仅采集前两类
+- **同一问题经 3 轮修复仍未解决但未向用户报告** — 防止死循环
 
 ### 修复类
 - **修复质量检测问题时引入无关变更** — 仅修复工具报告的问题
 - **测试失败后未分析根因直接重试** — 先区分实现 bug 与测试过时
 - 修复后未重新运行类型检查和编译检查
+
+### 合并类
+- **多Agent结果未去重** — 同一问题被多个 Agent 报告时需合并为一条
+- **合并后未按 severity 排序** — 影响修复优先级判断
 
 ### 同步类
 - **提取规则时遗漏 `.trae/rules/` 同步** — 两个规则目录必须保持内容一致
@@ -384,6 +454,7 @@ Here is the complete diff to review:
 ### 清理类
 - 遗留调试日志或临时文件
 - 删除文件前未确认文件存在导致报错
+- 清理时未用 `LastWriteTime` 判断文件年龄（直接全删或保留错误）
 
 ### Git 安全
 - 执行破坏性 git 操作（`push --force`、`reset --hard`、`checkout .`、`branch -D`）除非用户明确要求
