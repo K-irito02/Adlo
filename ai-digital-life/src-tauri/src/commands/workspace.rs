@@ -1,7 +1,6 @@
 use crate::commands::ipc;
 use crate::commands::workspace_git::persist_workspace_meta;
 use crate::state::AppState;
-use crate::workspace_cmd;
 use adl_errors::AppError;
 use adl_storage::EntityTable;
 use adl_types::{
@@ -79,61 +78,80 @@ pub fn workspace_pick_directory(app: tauri::AppHandle) -> IpcResult<Option<Strin
 }
 
 #[tauri::command]
-pub fn workspace_create_file(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_create_file(
+    app: tauri::AppHandle,
     relative_path: String,
     content: String,
-) -> IpcResult<WorkspaceFileDocument> {
-    workspace_cmd!(&state, adl_workspace::create_file, &relative_path, &content)
+) -> Result<IpcResult<WorkspaceFileDocument>, AppError> {
+    let state = app.state::<AppState>();
+    let ws = current_workspace(&state)?;
+    let root_path = ws.root_path;
+    let result = tokio::task::spawn_blocking(move || {
+        adl_workspace::create_file(PathBuf::from(root_path).as_path(), &relative_path, &content)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(result)))
 }
 
 #[tauri::command]
-pub fn workspace_create_folder(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_create_folder(
+    app: tauri::AppHandle,
     relative_path: String,
-) -> IpcResult<bool> {
-    workspace_cmd!(&state, adl_workspace::create_folder, &relative_path)
+) -> Result<IpcResult<bool>, AppError> {
+    let state = app.state::<AppState>();
+    let ws = current_workspace(&state)?;
+    let root_path = ws.root_path;
+    let result = tokio::task::spawn_blocking(move || {
+        adl_workspace::create_folder(PathBuf::from(root_path).as_path(), &relative_path)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(result)))
 }
 
 #[tauri::command]
-pub fn workspace_read_file(
-    state: tauri::State<'_, AppState>,
-    relative_path: String,
-    workspace_path: Option<String>,
-) -> IpcResult<WorkspaceFileDocument> {
-    let root = match workspace_path {
-        Some(p) => PathBuf::from(p),
-        None => {
-            return ipc(with_workspace(&state, |workspace| {
-                adl_workspace::read_file(
-                    PathBuf::from(&workspace.root_path).as_path(),
-                    &relative_path,
-                )
-            }));
-        },
-    };
-    ipc(adl_workspace::read_file(root.as_path(), &relative_path))
-}
-
-#[tauri::command]
-pub fn workspace_get_change_preview(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_read_file(
+    app: tauri::AppHandle,
     relative_path: String,
     workspace_path: Option<String>,
-) -> IpcResult<WorkspaceChangePreview> {
-    let root = match workspace_path {
-        Some(p) => PathBuf::from(p),
+) -> Result<IpcResult<WorkspaceFileDocument>, AppError> {
+    let state = app.state::<AppState>();
+    let root_path = match workspace_path {
+        Some(p) => p,
         None => {
-            return ipc(with_workspace(&state, |workspace| {
-                adl_workspace::read_change_preview(
-                    PathBuf::from(&workspace.root_path).as_path(),
-                    &relative_path,
-                )
-            }));
+            let ws = current_workspace(&state)?;
+            ws.root_path
         },
     };
-    let preview = adl_workspace::read_change_preview(root.as_path(), &relative_path);
-    ipc(preview)
+    let result = tokio::task::spawn_blocking(move || {
+        adl_workspace::read_file(PathBuf::from(root_path).as_path(), &relative_path)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(result)))
+}
+
+#[tauri::command]
+pub async fn workspace_get_change_preview(
+    app: tauri::AppHandle,
+    relative_path: String,
+    workspace_path: Option<String>,
+) -> Result<IpcResult<WorkspaceChangePreview>, AppError> {
+    let state = app.state::<AppState>();
+    let root_path = match workspace_path {
+        Some(p) => p,
+        None => {
+            let ws = current_workspace(&state)?;
+            ws.root_path
+        },
+    };
+    let result = tokio::task::spawn_blocking(move || {
+        adl_workspace::read_change_preview(PathBuf::from(root_path).as_path(), &relative_path)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(result)))
 }
 
 #[tauri::command]
@@ -156,19 +174,35 @@ pub async fn workspace_list_tree(
 }
 
 #[tauri::command]
-pub fn workspace_search(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_search(
+    app: tauri::AppHandle,
     query: String,
-) -> IpcResult<Vec<WorkspaceSearchHit>> {
-    workspace_cmd!(&state, adl_workspace::search_text, &query)
+) -> Result<IpcResult<Vec<WorkspaceSearchHit>>, AppError> {
+    let state = app.state::<AppState>();
+    let ws = current_workspace(&state)?;
+    let root_path = ws.root_path;
+    let result = tokio::task::spawn_blocking(move || {
+        adl_workspace::search_text(PathBuf::from(root_path).as_path(), &query)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(result)))
 }
 
 #[tauri::command]
-pub fn workspace_outline(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_outline(
+    app: tauri::AppHandle,
     relative_path: String,
-) -> IpcResult<Vec<FileOutlineItem>> {
-    workspace_cmd!(&state, adl_workspace::outline, &relative_path)
+) -> Result<IpcResult<Vec<FileOutlineItem>>, AppError> {
+    let state = app.state::<AppState>();
+    let ws = current_workspace(&state)?;
+    let root_path = ws.root_path;
+    let result = tokio::task::spawn_blocking(move || {
+        adl_workspace::outline(PathBuf::from(root_path).as_path(), &relative_path)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(result)))
 }
 
 #[tauri::command]
@@ -199,60 +233,101 @@ pub fn workspace_emit_file_changed(
 }
 
 #[tauri::command]
-pub fn workspace_rename_file(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_rename_file(
+    app: tauri::AppHandle,
     relative_path: String,
     new_name: String,
-) -> IpcResult<bool> {
-    workspace_cmd!(&state, adl_workspace::rename_entry, &relative_path, &new_name)
+) -> Result<IpcResult<bool>, AppError> {
+    let state = app.state::<AppState>();
+    let ws = current_workspace(&state)?;
+    let root_path = ws.root_path;
+    let result = tokio::task::spawn_blocking(move || {
+        adl_workspace::rename_entry(PathBuf::from(root_path).as_path(), &relative_path, &new_name)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(result)))
 }
 
 #[tauri::command]
-pub fn workspace_delete_file(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_delete_file(
     app: tauri::AppHandle,
     relative_path: String,
-) -> IpcResult<bool> {
-    let succeeded = with_workspace(&state, |workspace| {
-        adl_workspace::delete_entry(PathBuf::from(&workspace.root_path).as_path(), &relative_path)
-    });
+) -> Result<IpcResult<bool>, AppError> {
+    let state = app.state::<AppState>();
+    let ws = current_workspace(&state)?;
+    let root_path = ws.root_path;
+    let rel_path = relative_path.clone();
+    let succeeded = tokio::task::spawn_blocking(move || {
+        adl_workspace::delete_entry(PathBuf::from(root_path).as_path(), &rel_path)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+
     match succeeded {
-        Ok(true) => {
+        true => {
             let _ = app.emit(
                 "digital-life://workspace-file-changed",
                 WorkspaceFileChangedEvent { path: relative_path, last_modified_at: now_ms() },
             );
-            IpcResult::ok(true)
+            Ok(ipc(Ok(true)))
         },
-        Ok(false) => IpcResult::ok(false),
-        Err(e) => IpcResult::err("INTERNAL_ERROR", e.to_string()),
+        false => Ok(ipc(Ok(false))),
     }
 }
 
 #[tauri::command]
-pub fn workspace_duplicate_file(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_duplicate_file(
+    app: tauri::AppHandle,
     relative_path: String,
     new_path: String,
-) -> IpcResult<bool> {
-    workspace_cmd!(&state, adl_workspace::duplicate_entry, &relative_path, &new_path)
+) -> Result<IpcResult<bool>, AppError> {
+    let state = app.state::<AppState>();
+    let ws = current_workspace(&state)?;
+    let root_path = ws.root_path;
+    let result = tokio::task::spawn_blocking(move || {
+        adl_workspace::duplicate_entry(
+            PathBuf::from(root_path).as_path(),
+            &relative_path,
+            &new_path,
+        )
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(result)))
 }
 
 #[tauri::command]
-pub fn workspace_get_absolute_path(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_get_absolute_path(
+    app: tauri::AppHandle,
     relative_path: String,
-) -> IpcResult<String> {
-    workspace_cmd!(&state, adl_workspace::get_absolute_path, &relative_path)
+) -> Result<IpcResult<String>, AppError> {
+    let state = app.state::<AppState>();
+    let ws = current_workspace(&state)?;
+    let root_path = ws.root_path;
+    let result = tokio::task::spawn_blocking(move || {
+        adl_workspace::get_absolute_path(PathBuf::from(root_path).as_path(), &relative_path)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(result)))
 }
 
 #[tauri::command]
-pub fn workspace_move_file(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_move_file(
+    app: tauri::AppHandle,
     relative_path: String,
     new_path: String,
-) -> IpcResult<bool> {
-    workspace_cmd!(&state, adl_workspace::move_entry, &relative_path, &new_path)
+) -> Result<IpcResult<bool>, AppError> {
+    let state = app.state::<AppState>();
+    let ws = current_workspace(&state)?;
+    let root_path = ws.root_path;
+    let result = tokio::task::spawn_blocking(move || {
+        adl_workspace::move_entry(PathBuf::from(root_path).as_path(), &relative_path, &new_path)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(result)))
 }
 
 pub fn current_workspace(state: &AppState) -> Result<WorkspaceMeta, AppError> {
@@ -278,13 +353,6 @@ pub fn virtual_global_workspace() -> WorkspaceMeta {
         updated_at: now,
         last_opened_at: now,
     }
-}
-
-pub fn with_workspace<T>(
-    state: &AppState,
-    f: impl FnOnce(WorkspaceMeta) -> Result<T, AppError>,
-) -> Result<T, AppError> {
-    f(current_workspace(state)?)
 }
 
 pub fn latest_retrieval(state: &AppState) -> Result<Option<RetrievalSnapshot>, AppError> {
