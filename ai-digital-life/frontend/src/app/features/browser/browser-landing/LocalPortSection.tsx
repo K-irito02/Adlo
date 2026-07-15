@@ -84,7 +84,8 @@ export function LocalPortSection({
       if (newPorts.length > 0) {
         browserSetLocalPorts([...browserLocalPorts, ...newPorts]);
       }
-    } catch {
+    } catch (e) {
+      console.warn('[LocalPortSection] port scan failed:', e);
     } finally {
       scanningRef.current = false;
       browserSetPortScanning(false);
