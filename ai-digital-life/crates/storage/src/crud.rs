@@ -84,6 +84,39 @@ impl Database {
         self.list_entities_filtered(table, Some(("status", status)), None)
     }
 
+    /// Lists entities whose JSON payload contains `"runId": <run_id>`.
+    ///
+    /// Used by `load_run_detail` to fetch `AgentPlanStep` rows for a single
+    /// run without scanning the whole `agent_steps` table. The `runId` field
+    /// is the camelCase serialization of `AgentPlanStep.run_id` (serde
+    /// `rename_all = "camelCase"`).
+    ///
+    /// Order is `updated_at ASC` so callers see steps in chronological order
+    /// (matches the previous `steps.sort_by_key(|s| s.created_at)` behavior;
+    /// `updated_at` ASC is a close proxy and avoids an extra in-memory sort).
+    ///
+    /// Other entities that happen to carry a `runId` field (e.g.
+    /// `RunActivityEvents` serialized form) can also be queried this way.
+    pub fn list_entities_by_run<T: DeserializeOwned>(
+        &self,
+        table: EntityTable,
+        run_id: &str,
+    ) -> Result<Vec<T>, AppError> {
+        let sql = format!(
+            "SELECT json FROM {} WHERE json_extract(json, '$.runId') = ?1 \
+             ORDER BY updated_at ASC",
+            table.table_name()
+        );
+        let conn = self.conn()?;
+        let mut stmt = conn.prepare(&sql).map_err(|e| AppError::Storage(e.to_string()))?;
+        let rows: Vec<String> = stmt
+            .query_map(params![run_id], |row| row.get::<_, String>(0))
+            .map_err(|e| AppError::Storage(e.to_string()))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+        rows.into_iter().map(|json| serde_json::from_str(&json).map_err(AppError::from)).collect()
+    }
+
     /// Counts consecutive failed runs for a session, scanning the most recent
     /// runs in `updated_at DESC` order. Stops at the first non-`"failed"` row.
     ///
@@ -268,5 +301,92 @@ mod doom_loop_count_tests {
         save_run(&db, sid, AgentRunStatus::Failed, 300);
         let count = db.count_consecutive_failed_runs_by_session(sid).unwrap();
         assert_eq!(count, 1);
+    }
+}
+
+#[cfg(test)]
+mod list_by_run_tests {
+    use super::*;
+    use crate::connection::Database;
+    use adl_types::AgentPlanStep;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static RUN_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    fn unique_id(prefix: &str) -> String {
+        format!("{prefix}-{}", RUN_SEQ.fetch_add(1, Ordering::SeqCst))
+    }
+
+    /// Opens a temp-file database with schema initialized.
+    ///
+    /// Uses `Database::open` + `init_schema` (the existing test pattern) rather
+    /// than `Database::from_connection`, which is not part of the public API.
+    /// Each call uses a unique file name via `RUN_SEQ` so parallel test runs
+    /// don't collide.
+    fn open_test_db() -> Database {
+        let id = RUN_SEQ.fetch_add(1, Ordering::SeqCst);
+        let path = std::env::temp_dir().join(format!("adl-list-by-run-{id}.db"));
+        let _ = std::fs::remove_file(&path);
+        let db = Database::open(&path).expect("test db should open");
+        db.init_schema().expect("schema should init");
+        db
+    }
+
+    fn save_step(db: &Database, run_id: &str, session_id: &str, ts: i64, status: &str) {
+        let step = AgentPlanStep {
+            id: unique_id("step"),
+            run_id: run_id.to_string(),
+            title: format!("step-{ts}"),
+            detail: None,
+            status: status.to_string(),
+            created_at: ts,
+            updated_at: ts,
+        };
+        let json = serde_json::to_string(&step).expect("serialize step");
+        // Bypass `save_entity` (which stamps the SQL `updated_at` column with
+        // `now_ms()`) so the column equals `ts` and `ORDER BY updated_at ASC`
+        // is deterministic in tests. Uses the same column layout as
+        // `INSERT_SQL_TEMPLATE` in `entity_table.rs`.
+        let conn = db.conn().expect("get conn");
+        conn.execute(
+            "INSERT OR REPLACE INTO agent_steps \
+             (id, workspace_id, session_id, status, updated_at, json) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![&step.id, "ws-test", session_id, status, ts, json],
+        )
+        .expect("insert step");
+    }
+
+    #[test]
+    fn returns_only_steps_matching_run_id() {
+        let db = open_test_db();
+        save_step(&db, "run-A", "sess-1", 100, "pending");
+        save_step(&db, "run-A", "sess-1", 200, "pending");
+        save_step(&db, "run-B", "sess-1", 150, "pending");
+        let steps: Vec<AgentPlanStep> =
+            db.list_entities_by_run(EntityTable::AgentSteps, "run-A").unwrap();
+        assert_eq!(steps.len(), 2, "expected 2 steps for run-A, got {}", steps.len());
+        assert!(steps.iter().all(|s| s.run_id == "run-A"));
+    }
+
+    #[test]
+    fn returns_empty_for_unknown_run_id() {
+        let db = open_test_db();
+        save_step(&db, "run-A", "sess-1", 100, "pending");
+        let steps: Vec<AgentPlanStep> =
+            db.list_entities_by_run(EntityTable::AgentSteps, "run-missing").unwrap();
+        assert!(steps.is_empty());
+    }
+
+    #[test]
+    fn orders_by_updated_at_ascending() {
+        let db = open_test_db();
+        save_step(&db, "run-X", "sess-1", 300, "pending");
+        save_step(&db, "run-X", "sess-1", 100, "pending");
+        save_step(&db, "run-X", "sess-1", 200, "pending");
+        let steps: Vec<AgentPlanStep> =
+            db.list_entities_by_run(EntityTable::AgentSteps, "run-X").unwrap();
+        let timestamps: Vec<i64> = steps.iter().map(|s| s.updated_at).collect();
+        assert_eq!(timestamps, vec![100, 200, 300]);
     }
 }

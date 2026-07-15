@@ -302,8 +302,11 @@ pub fn load_run_detail(state: &AppState, run_id: &str) -> Result<Option<AgentRun
         return Ok(None);
     };
     let mut steps: Vec<adl_types::AgentPlanStep> =
-        state.db.list_entities(EntityTable::AgentSteps)?;
-    steps.retain(|step| step.run_id == run_id);
+        state.db.list_entities_by_run(EntityTable::AgentSteps, run_id)?;
+    // Defensive: storage layer orders by updated_at ASC, but the original
+    // behavior sorted by created_at. Keep the in-memory sort to preserve
+    // exact historical ordering in case updated_at and created_at diverge
+    // (e.g. a step was re-saved after status change).
     steps.sort_by_key(|step| step.created_at);
     Ok(Some(AgentRunDetail { run, steps }))
 }
