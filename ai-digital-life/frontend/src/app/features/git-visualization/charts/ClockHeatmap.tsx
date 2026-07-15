@@ -12,7 +12,7 @@ const PAD = 40;
 export const ClockHeatmap = React.memo(function ClockHeatmap() {
   const theme = useBklitTheme();
   const data = useMemo(() => toClockHeatmapData(), []);
-  const maxVal = Math.max(...data.map((d) => d.value));
+  const maxVal = data.length > 0 ? Math.max(...data.map((d) => d.value)) : 1;
   const colorScale = useMemo(
     () =>
       scaleLinear<string>({

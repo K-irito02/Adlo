@@ -22,13 +22,14 @@ export const ContributorStats = React.memo(function ContributorStats() {
       }),
     [data]
   );
+  const barMax = data.length > 0 ? Math.max(...data.map((d) => d.commits)) * 1.2 : 1;
   const yScale = useMemo(
     () =>
       scaleLinear({
-        domain: [0, Math.max(...data.map((d) => d.commits)) * 1.2],
+        domain: [0, barMax],
         range: [HEIGHT - MARGIN.bottom, MARGIN.top],
       }),
-    [data]
+    [barMax]
   );
   const lineMax = data.length > 0 ? Math.max(...data.flatMap((d) => [d.added, d.deleted])) * 1.2 : 1;
   const yLineScale = useMemo(
