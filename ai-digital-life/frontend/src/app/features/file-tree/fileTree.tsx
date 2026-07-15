@@ -32,7 +32,7 @@ interface VirtualNodeProps<T extends FileTreeRenderableNode> {
   expandLabel: string;
   collapseLabel: string;
   flat?: boolean;
-  style: React.CSSProperties;
+  top: number;
   trunkHeight?: number;
   hoveredDescendantPaths?: Set<string>;
 }
@@ -56,7 +56,7 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   expandLabel,
   collapseLabel,
   flat,
-  style,
+  top,
   trunkHeight,
   hoveredDescendantPaths,
 }: VirtualNodeProps<T>) {
@@ -76,9 +76,46 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   const customIconBefore = renderIconBefore?.(node);
   const nodeClassName = getNodeClassName?.(node);
   const isHoveredDescendant = hoveredDescendantPaths?.has(flatNode.node.path) ?? false;
-  const itemStyle: React.CSSProperties = trunkHeight
-    ? ({ ...style, '--adl-trunk-height': `${trunkHeight}px` } as React.CSSProperties)
-    : style;
+  // Cache the style object so TreeNodeRow's React.memo sees a stable
+  // reference when `top` and `trunkHeight` are unchanged. Previously a
+  // new object literal was created on every parent render, defeating
+  // memoization for every visible row.
+  const itemStyle = useMemo<React.CSSProperties>(() => {
+    const base: React.CSSProperties = {
+      position: 'absolute',
+      top,
+      left: 0,
+      right: 0,
+      height: VIRTUAL_ITEM_HEIGHT,
+    };
+    return trunkHeight
+      ? ({ ...base, '--adl-trunk-height': `${trunkHeight}px` } as React.CSSProperties)
+      : base;
+  }, [top, trunkHeight]);
+
+  // Stabilize callbacks passed to TreeNodeRow (React.memo). Previously
+  // three inline arrow functions were created on every render, defeating
+  // TreeNodeRow's memo even when node.path was unchanged.
+  const handleToggle = useCallback(() => onToggle(node.path), [onToggle, node.path]);
+
+  const handleActivate = useCallback(() => {
+    if (isDirectory) {
+      onToggle(node.path);
+    } else {
+      onOpenFile(node.path);
+    }
+  }, [isDirectory, onToggle, onOpenFile, node.path]);
+
+  // useMemo (not useCallback) because the result can be `undefined`
+  // when onShowContextMenu is not provided. useCallback always returns
+  // a function, which would break the `undefined` contract.
+  const handleContextMenu = useMemo(
+    () =>
+      onShowContextMenu
+        ? (event: React.MouseEvent<HTMLDivElement>) => onShowContextMenu(event, node)
+        : undefined,
+    [onShowContextMenu, node]
+  );
 
   return (
     <TreeNodeRow
@@ -91,14 +128,8 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
       isContextMenuTarget={isContextMenuTarget}
       expandLabel={expandLabel}
       collapseLabel={collapseLabel}
-      onToggle={isDirectory ? () => onToggle(node.path) : undefined}
-      onActivate={() => {
-        if (isDirectory) {
-          onToggle(node.path);
-        } else {
-          onOpenFile(node.path);
-        }
-      }}
+      onToggle={isDirectory ? handleToggle : undefined}
+      onActivate={handleActivate}
       itemClassName={`adl-filetree__item${isDirectory ? ' adl-filetree__node--directory' : ' adl-filetree__node--file'}${nodeClassName ? ` ${nodeClassName}` : ''}${isHoveredDescendant ? ' is-hovered-by-ancestor' : ''}`}
       rowClassName="adl-filetree__row"
       labelClassName="adl-filetree__label"
@@ -133,7 +164,7 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
         ) : undefined
       }
       metaClassName="adl-filetree__meta adl-tree-node__meta--inline"
-      onContextMenu={onShowContextMenu ? (event) => onShowContextMenu(event, node) : undefined}
+      onContextMenu={handleContextMenu}
       style={itemStyle}
     />
   );
@@ -310,13 +341,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
                 flat={flat}
                 trunkHeight={trunkHeightMap[flatNode.node.path]}
                 hoveredDescendantPaths={hoveredDescendantPaths}
-                style={{
-                  position: 'absolute',
-                  top: absoluteIndex * VIRTUAL_ITEM_HEIGHT,
-                  left: 0,
-                  right: 0,
-                  height: VIRTUAL_ITEM_HEIGHT,
-                }}
+                top={absoluteIndex * VIRTUAL_ITEM_HEIGHT}
               />
             );
           })}
