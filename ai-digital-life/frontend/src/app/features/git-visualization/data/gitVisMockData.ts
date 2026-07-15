@@ -271,6 +271,27 @@ export function toCalendarHeatmapData(): BklitHeatmapCell[] {
   })
 }
 
+export interface CommitTimelineRow {
+  date: string
+  count: number
+  cumulative: number
+}
+
+export const mockCommitTimelineData: CommitTimelineRow[] = [
+  { date: '2026-01-01', count: 1, cumulative: 1 },
+  { date: '2026-01-03', count: 1, cumulative: 2 },
+  { date: '2026-01-05', count: 1, cumulative: 3 },
+  { date: '2026-01-06', count: 1, cumulative: 4 },
+  { date: '2026-01-07', count: 1, cumulative: 5 },
+  { date: '2026-01-08', count: 1, cumulative: 6 },
+  { date: '2026-01-09', count: 1, cumulative: 7 },
+  { date: '2026-01-10', count: 1, cumulative: 8 },
+  { date: '2026-01-11', count: 1, cumulative: 9 },
+  { date: '2026-01-12', count: 1, cumulative: 10 },
+  { date: '2026-01-13', count: 1, cumulative: 11 },
+  { date: '2026-01-14', count: 1, cumulative: 12 },
+]
+
 export function toContributorData(): BklitContributorRow[] {
   return contributorNames.map((name, i) => ({
     name,

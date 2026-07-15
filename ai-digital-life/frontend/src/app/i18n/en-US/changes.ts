@@ -108,6 +108,7 @@ export const changesEn = {
   gitVisFileTreemap: 'File Modification Heatmap',
   gitVisCodeLineEvolution: 'Code Line Evolution',
   gitVisCollabSankey: 'Collaboration Sankey',
+  gitVisCommitTimeline: 'Commit Timeline',
   gitVisCommitGraphDesc:
     'Node = commit (hash abbreviation), edge = parent-child relationship, color distinguishes branches, arrow points to parent.',
   gitVisCalendarHeatmapDesc:
@@ -122,6 +123,8 @@ export const changesEn = {
     'Cumulative added (+) and deleted (-) lines, waterfall stacked. Reflects project growth and refactoring pace.',
   gitVisCollabSankeyDesc:
     'Left = authors, right = modules, flow width = modification contribution. Identify "module silos" or "full-stack players".',
+  gitVisCommitTimelineDesc:
+    'Scatter plot = individual commits, line = cumulative growth. Track project velocity over time.',
   gitVisMockDataNote:
     'All data is mock-generated for visualization demonstration. When connecting to a real Git repository, extract real data and adapt.',
   gitVisChartCommitTooltipNode: 'Commit {name}',

@@ -108,6 +108,7 @@ export const changesZh = {
   gitVisFileTreemap: '文件修改热度',
   gitVisCodeLineEvolution: '代码行数演变',
   gitVisCollabSankey: '协作桑基图',
+  gitVisCommitTimeline: '提交时间线',
   gitVisCommitGraphDesc: '节点 = 提交（哈希缩写），边 = 父子关系，颜色区分分支，箭头指向父提交。',
   gitVisCalendarHeatmapDesc: '近一年每日提交次数，颜色越深提交越密集，可快速识别活跃周期。',
   gitVisClockHeatmapDesc: '纵轴 = 星期，横轴 = 小时，色块表示该时段提交频次，发现团队工作节奏。',
@@ -117,6 +118,8 @@ export const changesZh = {
   gitVisCodeLineEvolutionDesc: '累计新增（+）与删除（-）行数，瀑布式堆叠，反映项目增长与重构节奏。',
   gitVisCollabSankeyDesc:
     '左侧 = 作者，右侧 = 模块，流宽度 = 修改贡献量，识别"模块孤岛"或"全能型选手"。',
+  gitVisCommitTimelineDesc:
+    '散点图 = 单次提交，折线 = 累计增长。追踪项目随时间推移的开发速度。',
   gitVisMockDataNote:
     '所有数据均为模拟生成，用于展示可视化效果。实际接入 Git 仓库时，需提取真实数据并适配。',
   gitVisChartCommitTooltipNode: '提交 {name}',
