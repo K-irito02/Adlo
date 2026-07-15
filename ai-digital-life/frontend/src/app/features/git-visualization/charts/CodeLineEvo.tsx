@@ -18,7 +18,8 @@ export const CodeLineEvo = React.memo(function CodeLineEvo() {
     () => scaleLinear({ domain: [0, data.length - 1], range: [MARGIN.left, WIDTH - MARGIN.right] }),
     [data]
   );
-  const yMax = data.length > 0 ? Math.max(...data.map((d) => Math.max(d.added, d.deleted))) * 1.1 : 1;
+  const yMax =
+    data.length > 0 ? Math.max(...data.map((d) => Math.max(d.added, d.deleted))) * 1.1 : 1;
   const yScale = useMemo(
     () => scaleLinear({ domain: [0, yMax], range: [HEIGHT - MARGIN.bottom, MARGIN.top] }),
     [yMax]
@@ -45,7 +46,7 @@ export const CodeLineEvo = React.memo(function CodeLineEvo() {
         <AxisBottom
           top={HEIGHT - MARGIN.bottom}
           scale={xScale}
-          tickFormat={(val) => data[Math.round(val)]?.date ?? ''}
+          tickFormat={(val) => data[Math.round(Number(val))]?.date ?? ''}
         />
       </svg>
     </div>

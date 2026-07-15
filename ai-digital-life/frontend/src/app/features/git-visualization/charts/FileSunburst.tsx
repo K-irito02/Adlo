@@ -10,6 +10,9 @@ interface FileNode {
   value?: number;
   children?: FileNode[];
 }
+interface PartitionNode {
+  x0: number; x1: number; y0: number; y1: number;
+}
 
 const W = 300;
 const H = 300;
@@ -19,11 +22,9 @@ export const FileSunburst = React.memo(function FileSunburst() {
   const theme = useBklitTheme();
 
   const arcs = useMemo(() => {
-    const root = hierarchy(fileTreemapData as FileNode).sum(
-      (d) => d.value ?? 0
-    );
-    partition<unknown>().size([2 * Math.PI, R])(root);
-    const makeArc = arc<{ x0: number; x1: number; y0: number; y1: number }>()
+    const root = hierarchy(fileTreemapData as FileNode).sum((d) => d.value ?? 0);
+    partition<FileNode>().size([2 * Math.PI, R])(root);
+    const makeArc = arc<any, PartitionNode>()
       .startAngle((d) => d.x0)
       .endAngle((d) => d.x1)
       .innerRadius((d) => d.y0)
@@ -32,7 +33,7 @@ export const FileSunburst = React.memo(function FileSunburst() {
       .descendants()
       .filter((d) => d.depth > 0)
       .map((d, i) => ({
-        path: makeArc(d),
+        path: makeArc(d as unknown as PartitionNode),
         color: theme.seriesColors[i % theme.seriesColors.length],
         name: (d.data as FileNode).name,
       }));
