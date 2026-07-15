@@ -82,21 +82,34 @@ export default tseslint.config(
   {
     files: ['src/**/*.{ts,tsx}'],
     ignores: [
-      'src/shared/ipc/**',
+      'src/shared/**',
       'src/tauri-bridge/**',
       'src/preview-bridge/**',
       'src/mock/**',
       'src/app/stores/**',
+      'src/app/regions/**',
+      'src/app/utils/**',
+      'src/app/hooks/**',
+      'src/app/App.tsx',
     ],
     rules: {
       'no-restricted-imports': [
-        'warn',
+        'error',
         {
           paths: [
             {
               name: '@ai-digital-life/kernel',
               message:
-                '禁止在 bridge 层和 stores 之外直接导入 @ai-digital-life/kernel。请通过 shared/ipc/ 的类型定义或 bridge 层访问这些类型。Phase 2 将迁移现有违规文件并将此规则升级为 error。',
+                'UI 层禁止直接从 @ai-digital-life/kernel 导入。请从 @shared/ipc 导入类型，或在 shared/ipc/<domain>.ts 中添加 re-export。',
+              allowTypeImports: false,
+            },
+          ],
+          patterns: [
+            {
+              group: ['@ai-digital-life/kernel/*'],
+              message:
+                'UI 层禁止直接从 @ai-digital-life/kernel 子路径导入。请从 @shared/ipc 导入。',
+              allowTypeImports: false,
             },
           ],
         },
