@@ -1,27 +1,21 @@
-"use client";
+'use client';
 
-import type { Transition } from "motion/react";
-import {
-  createContext,
-  type ReactNode,
-  type RefObject,
-  useContext,
-  useMemo,
-} from "react";
-import type { ArcDatum, Focus, SunburstEnterTiming } from "./sunburst";
-import type { SunburstNode } from "./sunburst-data";
+import type { Transition } from 'motion/react';
+import { createContext, type ReactNode, type RefObject, useContext, useMemo } from 'react';
+import type { ArcDatum, Focus, SunburstEnterTiming } from './sunburst';
+import type { SunburstNode } from './sunburst-data';
 
 export const sunburstCssVars = {
-  background: "var(--chart-background)",
-  foreground: "var(--chart-foreground)",
-  foregroundMuted: "var(--chart-foreground-muted)",
-  label: "var(--chart-label)",
-  ring: "var(--chart-background)",
-  slice1: "var(--chart-1)",
-  slice2: "var(--chart-2)",
-  slice3: "var(--chart-3)",
-  slice4: "var(--chart-4)",
-  slice5: "var(--chart-5)",
+  background: 'var(--chart-background)',
+  foreground: 'var(--chart-foreground)',
+  foregroundMuted: 'var(--chart-foreground-muted)',
+  label: 'var(--chart-label)',
+  ring: 'var(--chart-background)',
+  slice1: 'var(--chart-1)',
+  slice2: 'var(--chart-2)',
+  slice3: 'var(--chart-3)',
+  slice4: 'var(--chart-4)',
+  slice5: 'var(--chart-5)',
 };
 
 export const defaultSunburstColors = [
@@ -70,11 +64,7 @@ export interface SunburstStableContextValue {
   growAmountForArc: (arcId: string) => number;
 
   getColor: (categoryIndex: number, nodeColor?: string) => string;
-  getFill: (
-    arcIndex: number,
-    fillOverride?: string,
-    colorOverride?: string
-  ) => string;
+  getFill: (arcIndex: number, fillOverride?: string, colorOverride?: string) => string;
   getFillOpacity: (relativeDepth: number, override?: number) => number;
 
   isRelated: (arc: ArcDatum) => boolean;
@@ -89,15 +79,10 @@ export interface SunburstStableContextValue {
   containerRef: RefObject<HTMLDivElement | null>;
 }
 
-export type SunburstContextValue = SunburstStableContextValue &
-  SunburstHoverContextValue;
+export type SunburstContextValue = SunburstStableContextValue & SunburstHoverContextValue;
 
-const SunburstStableContext = createContext<SunburstStableContextValue | null>(
-  null
-);
-const SunburstHoverContext = createContext<SunburstHoverContextValue | null>(
-  null
-);
+const SunburstStableContext = createContext<SunburstStableContextValue | null>(null);
+const SunburstHoverContext = createContext<SunburstHoverContextValue | null>(null);
 
 export function SunburstProvider({
   children,
@@ -172,19 +157,12 @@ export function SunburstProvider({
       hoveredArc: value.hoveredArc,
       setHoveredArc: value.setHoveredArc,
     }),
-    [
-      value.hoveredArcIndex,
-      value.setHoveredArcIndex,
-      value.hoveredArc,
-      value.setHoveredArc,
-    ]
+    [value.hoveredArcIndex, value.setHoveredArcIndex, value.hoveredArc, value.setHoveredArc]
   );
 
   return (
     <SunburstStableContext.Provider value={stable}>
-      <SunburstHoverContext.Provider value={hover}>
-        {children}
-      </SunburstHoverContext.Provider>
+      <SunburstHoverContext.Provider value={hover}>{children}</SunburstHoverContext.Provider>
     </SunburstStableContext.Provider>
   );
 }
@@ -192,7 +170,7 @@ export function SunburstProvider({
 export function useSunburstStable() {
   const ctx = useContext(SunburstStableContext);
   if (!ctx) {
-    throw new Error("useSunburstStable must be used within SunburstChart");
+    throw new Error('useSunburstStable must be used within SunburstChart');
   }
   return ctx;
 }
@@ -200,7 +178,7 @@ export function useSunburstStable() {
 export function useSunburstHover() {
   const ctx = useContext(SunburstHoverContext);
   if (!ctx) {
-    throw new Error("useSunburstHover must be used within SunburstChart");
+    throw new Error('useSunburstHover must be used within SunburstChart');
   }
   return ctx;
 }

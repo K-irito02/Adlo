@@ -1,6 +1,6 @@
-import type { Transition } from "motion/react";
-import type { HeatmapColumn } from "./heatmap-context";
-import { getHeatmapContributionLevel } from "./heatmap-utils";
+import type { Transition } from 'motion/react';
+import type { HeatmapColumn } from './heatmap-context';
+import { getHeatmapContributionLevel } from './heatmap-utils';
 
 /** Default enter duration when no motion props are passed (ms). */
 export const HEATMAP_DEFAULT_ENTER_DURATION_MS = 1600;
@@ -10,7 +10,7 @@ export const HEATMAP_DEFAULT_ENTER_EASE = [0.85, 0, 0.916, 0.282] as const;
 
 /** Default enter transition for {@link HeatmapChart}. */
 export const HEATMAP_DEFAULT_ENTER_TRANSITION: Transition = {
-  type: "tween",
+  type: 'tween',
   duration: HEATMAP_DEFAULT_ENTER_DURATION_MS / 1000,
   ease: HEATMAP_DEFAULT_ENTER_EASE,
 };
@@ -54,9 +54,7 @@ export interface HeatmapLevelRange {
 }
 
 /** Min/max contribution levels present in the dataset. */
-export function computeHeatmapLevelRange(
-  data: HeatmapColumn[]
-): HeatmapLevelRange {
+export function computeHeatmapLevelRange(data: HeatmapColumn[]): HeatmapLevelRange {
   let min = Number.POSITIVE_INFINITY;
   let max = Number.NEGATIVE_INFINITY;
 
@@ -86,8 +84,8 @@ export function resolveHeatmapEnterFadeDurationSec(
 ): number {
   if (
     enterTransition &&
-    "duration" in enterTransition &&
-    typeof enterTransition.duration === "number"
+    'duration' in enterTransition &&
+    typeof enterTransition.duration === 'number'
   ) {
     return enterTransition.duration;
   }
@@ -111,15 +109,10 @@ export function computeHeatmapEnterFadeDelayMs({
   enterStaggerScale: number;
   fadeDurationSec: number;
 }): number {
-  const random = seededRandom(
-    heatmapCellSeed(column, row) + revealEpoch * 524_287
-  );
+  const random = seededRandom(heatmapCellSeed(column, row) + revealEpoch * 524_287);
   const fadeMs = fadeDurationSec * 1000;
   const maxDelayMs = Math.max(0, animationDurationMs - fadeMs);
-  const spreadMs =
-    maxDelayMs *
-    HEATMAP_ENTER_STAGGER_SPREAD *
-    Math.max(enterStaggerScale, 0.25);
+  const spreadMs = maxDelayMs * HEATMAP_ENTER_STAGGER_SPREAD * Math.max(enterStaggerScale, 0.25);
 
   return random() * spreadMs;
 }

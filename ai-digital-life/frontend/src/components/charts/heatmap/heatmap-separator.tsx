@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { memo, useEffect, useId, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
-import { cn } from "@/lib/utils";
-import { useHeatmap } from "./heatmap-context";
+import { memo, useEffect, useId, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { cn } from '@/lib/utils';
+import { useHeatmap } from './heatmap-context';
 import {
   buildHeatmapSeparatorGradientStops,
   getHeatmapSeparatorLineY,
@@ -11,10 +11,10 @@ import {
   type HeatmapSeparatorGradient,
   type HeatmapSeparatorStrokeStyle,
   resolveHeatmapSeparatorStrokeDasharray,
-} from "./heatmap-utils";
+} from './heatmap-utils';
 
 /** Marker for reliably identifying {@link HeatmapSeparator} in chart child trees. */
-export const HEATMAP_SEPARATOR_MARKER = "__isHeatmapSeparator" as const;
+export const HEATMAP_SEPARATOR_MARKER = '__isHeatmapSeparator' as const;
 
 export interface HeatmapSeparatorProps {
   /**
@@ -27,7 +27,7 @@ export interface HeatmapSeparatorProps {
    * Group columns by fixed interval (`every`) or calendar quarter (`quarter`).
    * Default: `"every"`.
    */
-  groupBy?: "every" | "quarter";
+  groupBy?: 'every' | 'quarter';
   /** Additional class name for each separator group. */
   className?: string;
   /**
@@ -83,18 +83,17 @@ export const HeatmapSeparator = memo(function HeatmapSeparator({
   showLabels = false,
   labelFormat = (quarter) => `Q${quarter}`,
   labelClassName,
-  strokeStyle = "solid",
+  strokeStyle = 'solid',
   strokeDasharray,
-  stroke = "var(--border)",
+  stroke = 'var(--border)',
   gradient,
   strokeWidth = 1,
   strokeOpacity = 1,
 }: HeatmapSeparatorProps) {
-  const { gap, innerHeight, margin, separatorLayout, xScale, containerRef } =
-    useHeatmap();
+  const { gap, innerHeight, margin, separatorLayout, xScale, containerRef } = useHeatmap();
 
   const [mounted, setMounted] = useState(false);
-  const reactId = useId().replace(/:/g, "");
+  const reactId = useId().replace(/:/g, '');
   const gradientId = `heatmap-separator-gradient-${reactId}`;
 
   useEffect(() => {
@@ -158,16 +157,11 @@ export const HeatmapSeparator = memo(function HeatmapSeparator({
                 top: labelTop,
                 left: tick.x,
                 width: 0,
-                display: "flex",
-                justifyContent: "flex-start",
+                display: 'flex',
+                justifyContent: 'flex-start',
               }}
             >
-              <span
-                className={cn(
-                  "whitespace-nowrap text-chart-label text-xs",
-                  labelClassName
-                )}
-              >
+              <span className={cn('whitespace-nowrap text-chart-label text-xs', labelClassName)}>
                 {tick.label}
               </span>
             </div>
@@ -237,10 +231,8 @@ export const HeatmapSeparator = memo(function HeatmapSeparator({
   );
 });
 
-(HeatmapSeparator as unknown as Record<string, boolean>)[
-  HEATMAP_SEPARATOR_MARKER
-] = true;
+(HeatmapSeparator as unknown as Record<string, boolean>)[HEATMAP_SEPARATOR_MARKER] = true;
 
-HeatmapSeparator.displayName = "HeatmapSeparator";
+HeatmapSeparator.displayName = 'HeatmapSeparator';
 
 export default HeatmapSeparator;

@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { memo, type ReactNode, useMemo } from "react";
-import type { Focus } from "./sunburst";
-import { useSunburstStable } from "./sunburst-context";
+import { memo, type ReactNode, useMemo } from 'react';
+import type { Focus } from './sunburst';
+import { useSunburstStable } from './sunburst-context';
 
 export interface SunburstBreadcrumbItem {
   id: string;
@@ -41,10 +41,10 @@ export const SunburstBreadcrumb = memo(function SunburstBreadcrumb({
   children,
 }: SunburstBreadcrumbProps) {
   return (
-    <nav aria-label="Drill-down path" className={className ?? "mb-4"}>
+    <nav aria-label="Drill-down path" className={className ?? 'mb-4'}>
       {children}
     </nav>
   );
 });
 
-SunburstBreadcrumb.displayName = "SunburstBreadcrumb";
+SunburstBreadcrumb.displayName = 'SunburstBreadcrumb';

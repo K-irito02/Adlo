@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { memo, type ReactNode } from "react";
-import type { ArcDatum, Focus } from "./sunburst";
-import { useSunburstHover, useSunburstStable } from "./sunburst-context";
+import { memo, type ReactNode } from 'react';
+import type { ArcDatum, Focus } from './sunburst';
+import { useSunburstHover, useSunburstStable } from './sunburst-context';
 
 export interface SunburstHintContext {
   hintText: string;
@@ -15,27 +15,24 @@ export interface SunburstHintProps {
   children?: ReactNode | ((context: SunburstHintContext) => ReactNode);
 }
 
-export const SunburstHint = memo(function SunburstHint({
-  className,
-  children,
-}: SunburstHintProps) {
+export const SunburstHint = memo(function SunburstHint({ className, children }: SunburstHintProps) {
   const { focus } = useSunburstStable();
   const { hoveredArc } = useSunburstHover();
 
   const hintText = (() => {
     if (hoveredArc) {
-      return hoveredArc.trail.join("  ›  ");
+      return hoveredArc.trail.join('  ›  ');
     }
     if (focus.depth === 0) {
-      return "Click a segment to zoom in · hover to inspect";
+      return 'Click a segment to zoom in · hover to inspect';
     }
-    return "Click the center to zoom out";
+    return 'Click the center to zoom out';
   })();
 
   const context: SunburstHintContext = { hintText, hoveredArc, focus };
 
   let content: ReactNode;
-  if (typeof children === "function") {
+  if (typeof children === 'function') {
     content = children(context);
   } else if (children == null) {
     content = hintText;
@@ -46,9 +43,7 @@ export const SunburstHint = memo(function SunburstHint({
   return (
     <div
       aria-live="polite"
-      className={
-        className ?? "mt-3 min-h-5 text-center text-muted-foreground text-sm"
-      }
+      className={className ?? 'mt-3 min-h-5 text-center text-muted-foreground text-sm'}
       style={{ minHeight: 20 }}
     >
       {content}
@@ -56,4 +51,4 @@ export const SunburstHint = memo(function SunburstHint({
   );
 });
 
-SunburstHint.displayName = "SunburstHint";
+SunburstHint.displayName = 'SunburstHint';

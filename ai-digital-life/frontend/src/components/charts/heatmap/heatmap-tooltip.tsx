@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import { memo } from "react";
-import { TooltipBox } from "../tooltip/tooltip-box";
-import { useHeatmap, useHeatmapInteraction } from "./heatmap-context";
+import { memo } from 'react';
+import { TooltipBox } from '../tooltip/tooltip-box';
+import { useHeatmap, useHeatmapInteraction } from './heatmap-context';
 import {
   formatHeatmapContributionLabel,
   formatHeatmapTooltipDate,
   formatHeatmapTooltipWeekday,
-} from "./heatmap-utils";
-import { useDelayedTooltipData } from "./use-delayed-tooltip-data";
+} from './heatmap-utils';
+import { useDelayedTooltipData } from './use-delayed-tooltip-data';
 
 export interface HeatmapTooltipProps {
   /** Custom contribution line (bottom section). Default: `N contribution(s)`. */
@@ -40,7 +40,7 @@ export interface HeatmapTooltipProps {
 
 export const HeatmapTooltip = memo(function HeatmapTooltip({
   formatLabel = formatHeatmapContributionLabel,
-  className = "",
+  className = '',
   panelStyle,
   backgroundColor,
   showDelay = 0,
@@ -80,15 +80,13 @@ export const HeatmapTooltip = memo(function HeatmapTooltip({
             {formatHeatmapTooltipWeekday(date)}
           </div>
           <div className="my-2 border-chart-tooltip-muted/30 border-t" />
-          <div className="text-chart-tooltip-foreground text-sm">
-            {formatLabel(count, date)}
-          </div>
+          <div className="text-chart-tooltip-foreground text-sm">{formatLabel(count, date)}</div>
         </div>
       </div>
     </TooltipBox>
   );
 });
 
-HeatmapTooltip.displayName = "HeatmapTooltip";
+HeatmapTooltip.displayName = 'HeatmapTooltip';
 
 export default HeatmapTooltip;

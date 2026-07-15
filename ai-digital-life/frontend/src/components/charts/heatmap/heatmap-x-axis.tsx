@@ -1,21 +1,19 @@
-"use client";
+'use client';
 
-import { memo, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
-import { cn } from "@/lib/utils";
-import { useHeatmap } from "./heatmap-context";
-import { getHeatmapColumnMonthAnchor } from "./heatmap-utils";
+import { memo, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { cn } from '@/lib/utils';
+import { useHeatmap } from './heatmap-context';
+import { getHeatmapColumnMonthAnchor } from './heatmap-utils';
 
 export interface HeatmapXAxisProps {
   /** Additional class name for labels */
   className?: string;
 }
 
-const monthFmt = new Intl.DateTimeFormat(undefined, { month: "short" });
+const monthFmt = new Intl.DateTimeFormat(undefined, { month: 'short' });
 
-export const HeatmapXAxis = memo(function HeatmapXAxis({
-  className,
-}: HeatmapXAxisProps) {
+export const HeatmapXAxis = memo(function HeatmapXAxis({ className }: HeatmapXAxisProps) {
   const { containerRef, data, margin, xScale } = useHeatmap();
   const [mounted, setMounted] = useState(false);
 
@@ -25,7 +23,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
 
   const labels = useMemo(() => {
     const ticks: { label: string; x: number; key: string }[] = [];
-    let lastMonthKey = "";
+    let lastMonthKey = '';
 
     for (let columnIndex = 0; columnIndex < data.length; columnIndex++) {
       const column = data[columnIndex];
@@ -68,16 +66,11 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
           top: 0,
           left: tick.x,
           width: 0,
-          display: "flex",
-          justifyContent: "flex-start",
+          display: 'flex',
+          justifyContent: 'flex-start',
         }}
       >
-        <span
-          className={cn(
-            "whitespace-nowrap text-chart-label text-xs",
-            className
-          )}
-        >
+        <span className={cn('whitespace-nowrap text-chart-label text-xs', className)}>
           {tick.label}
         </span>
       </div>
@@ -86,6 +79,6 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
   );
 });
 
-HeatmapXAxis.displayName = "HeatmapXAxis";
+HeatmapXAxis.displayName = 'HeatmapXAxis';
 
 export default HeatmapXAxis;

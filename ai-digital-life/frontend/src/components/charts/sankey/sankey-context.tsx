@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import type { SankeyGraph, SankeyLink, SankeyNode } from "d3-sankey";
-import type { Transition } from "motion/react";
+import type { SankeyGraph, SankeyLink, SankeyNode } from 'd3-sankey';
+import type { Transition } from 'motion/react';
 import {
   createContext,
   type Dispatch,
   type RefObject,
   type SetStateAction,
   useContext,
-} from "react";
+} from 'react';
 
 export interface Margin {
   top: number;
@@ -19,7 +19,7 @@ export interface Margin {
 
 export interface SankeyNodeDatum {
   name: string;
-  category?: "source" | "landing" | "outcome";
+  category?: 'source' | 'landing' | 'outcome';
   [key: string]: unknown;
 }
 
@@ -31,7 +31,7 @@ export interface SankeyLinkDatum {
 }
 
 export interface SankeyTooltipData {
-  type: "node" | "link";
+  type: 'node' | 'link';
   nodeIndex?: number;
   linkIndex?: number;
   x: number;
@@ -87,24 +87,22 @@ export function SankeyProvider({
   children: React.ReactNode;
   value: SankeyContextValue;
 }) {
-  return (
-    <SankeyContext.Provider value={value}>{children}</SankeyContext.Provider>
-  );
+  return <SankeyContext.Provider value={value}>{children}</SankeyContext.Provider>;
 }
 
 export function useSankey(): SankeyContextValue {
   const context = useContext(SankeyContext);
   if (!context) {
-    throw new Error("useSankey must be used within a SankeyProvider");
+    throw new Error('useSankey must be used within a SankeyProvider');
   }
   return context;
 }
 
 // CSS variables for sankey theming
 export const sankeyCssVars = {
-  background: "var(--chart-background)",
-  foreground: "var(--chart-foreground)",
-  nodePrimary: "var(--chart-line-primary)",
-  nodeSecondary: "var(--chart-line-secondary)",
-  linkColor: "var(--chart-foreground-muted, hsl(0, 0%, 50%))",
+  background: 'var(--chart-background)',
+  foreground: 'var(--chart-foreground)',
+  nodePrimary: 'var(--chart-line-primary)',
+  nodeSecondary: 'var(--chart-line-secondary)',
+  linkColor: 'var(--chart-foreground-muted, hsl(0, 0%, 50%))',
 };

@@ -1,20 +1,17 @@
-"use client";
+'use client';
 
-import { motion } from "motion/react";
-import { memo, useCallback } from "react";
-import { cn } from "@/lib/utils";
-import {
-  defaultHeatmapColorScale,
-  type HeatmapLevelStyles,
-} from "./heatmap-colors";
-import { useHeatmapInteractionOptional } from "./heatmap-context";
-import { HeatmapLegendGradient } from "./heatmap-legend-gradient";
-import { HeatmapLegendSwatch } from "./heatmap-legend-swatch";
+import { motion } from 'motion/react';
+import { memo, useCallback } from 'react';
+import { cn } from '@/lib/utils';
+import { defaultHeatmapColorScale, type HeatmapLevelStyles } from './heatmap-colors';
+import { useHeatmapInteractionOptional } from './heatmap-context';
+import { HeatmapLegendGradient } from './heatmap-legend-gradient';
+import { HeatmapLegendSwatch } from './heatmap-legend-swatch';
 import {
   getHeatmapContributionLevel,
   isHeatmapHoverEffectEnabled,
   resolveHeatmapHoverStyle,
-} from "./heatmap-utils";
+} from './heatmap-utils';
 
 export const HEATMAP_LEGEND_LEVELS = [0, 1, 2, 3, 4] as const;
 
@@ -25,7 +22,7 @@ const HEATMAP_INACTIVE_TRANSITION = {
   ease: [0.4, 0, 0.2, 1] as const,
 };
 
-export type HeatmapLegendVariant = "swatches" | "gradient";
+export type HeatmapLegendVariant = 'swatches' | 'gradient';
 
 export interface HeatmapLegendProps {
   /** Side label before the swatches. Default: "Less" */
@@ -39,7 +36,7 @@ export interface HeatmapLegendProps {
   /** Corner radius for swatches. Default: 2 */
   cornerRadius?: number;
   /** Horizontal alignment within the legend cell. Default: "end" */
-  align?: "start" | "center" | "end";
+  align?: 'start' | 'center' | 'end';
   /** Legend layout — discrete swatches or a continuous gradient bar. Default: `"swatches"` */
   variant?: HeatmapLegendVariant;
   /** Gradient bar width in swatch units when `variant="gradient"`. Default: 5 */
@@ -64,13 +61,13 @@ export interface HeatmapLegendProps {
 }
 
 export const HeatmapLegend = memo(function HeatmapLegend({
-  lessLabel = "Less",
-  moreLabel = "More",
+  lessLabel = 'Less',
+  moreLabel = 'More',
   cellSize = 11,
   gap = 2,
   cornerRadius = 2,
-  align = "end",
-  variant = "swatches",
+  align = 'end',
+  variant = 'swatches',
   gradientSpan = 5,
   fontSize,
   labelClassName,
@@ -88,31 +85,24 @@ export const HeatmapLegend = memo(function HeatmapLegend({
     levelStylesProp ??
     (HEATMAP_LEGEND_LEVELS.map((level) => ({
       color: colorScale(level),
-      fillMode: "solid" as const,
-      pattern: "none" as const,
+      fillMode: 'solid' as const,
+      pattern: 'none' as const,
     })) as unknown as HeatmapLevelStyles);
 
-  const {
-    hoveredLegendLevel,
-    tooltipData,
-    setHoveredCell,
-    setHoveredLegendLevel,
-    setTooltipData,
-  } = interaction ?? {
-    hoveredLegendLevel: null,
-    tooltipData: null,
-    setHoveredCell: () => undefined,
-    setHoveredLegendLevel: () => undefined,
-    setTooltipData: () => undefined,
-  };
+  const { hoveredLegendLevel, tooltipData, setHoveredCell, setHoveredLegendLevel, setTooltipData } =
+    interaction ?? {
+      hoveredLegendLevel: null,
+      tooltipData: null,
+      setHoveredCell: () => undefined,
+      setHoveredLegendLevel: () => undefined,
+      setTooltipData: () => undefined,
+    };
 
   const highlightedLevel =
-    hoveredLegendLevel ??
-    (tooltipData ? getHeatmapContributionLevel(tooltipData.count) : null);
+    hoveredLegendLevel ?? (tooltipData ? getHeatmapContributionLevel(tooltipData.count) : null);
   const hoverParams = { inactiveOpacity, inactiveScale, activeScale };
   const inactiveEnabled = isHeatmapHoverEffectEnabled(hoverParams);
-  const isDimming =
-    isInteractive && highlightedLevel !== null && inactiveEnabled;
+  const isDimming = isInteractive && highlightedLevel !== null && inactiveEnabled;
 
   const handleLegendEnter = useCallback(
     (level: number) => {
@@ -140,16 +130,16 @@ export const HeatmapLegend = memo(function HeatmapLegend({
   return (
     <div
       className={cn(
-        "flex w-full items-center gap-1.5 text-chart-label text-xs",
-        align === "start" && "justify-start",
-        align === "center" && "justify-center",
-        align === "end" && "justify-end",
+        'flex w-full items-center gap-1.5 text-chart-label text-xs',
+        align === 'start' && 'justify-start',
+        align === 'center' && 'justify-center',
+        align === 'end' && 'justify-end',
         className
       )}
       style={labelStyle}
     >
       <span className={labelClassName}>{lessLabel}</span>
-      {variant === "gradient" ? (
+      {variant === 'gradient' ? (
         <HeatmapLegendGradient
           activeScale={activeScale}
           cellSize={cellSize}
@@ -171,11 +161,7 @@ export const HeatmapLegend = memo(function HeatmapLegend({
           {HEATMAP_LEGEND_LEVELS.map((level) => {
             const isHighlighted = highlightedLevel === level;
             const isDimmed = isDimming && !isHighlighted;
-            const hoverStyle = resolveHeatmapHoverStyle(
-              isHighlighted,
-              isDimmed,
-              hoverParams
-            );
+            const hoverStyle = resolveHeatmapHoverStyle(isHighlighted, isDimmed, hoverParams);
             const style = levelStyles[level];
 
             return (
@@ -191,7 +177,7 @@ export const HeatmapLegend = memo(function HeatmapLegend({
                 onPointerEnter={() => handleLegendEnter(level)}
                 onPointerLeave={handleLegendLeave}
                 style={{
-                  cursor: isInteractive ? "pointer" : undefined,
+                  cursor: isInteractive ? 'pointer' : undefined,
                 }}
                 transition={HEATMAP_INACTIVE_TRANSITION}
               >
@@ -211,6 +197,6 @@ export const HeatmapLegend = memo(function HeatmapLegend({
   );
 });
 
-HeatmapLegend.displayName = "HeatmapLegend";
+HeatmapLegend.displayName = 'HeatmapLegend';
 
 export default HeatmapLegend;

@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { Fragment, memo } from "react";
-import { renderPatternPreset } from "../pattern-preset";
+import { Fragment, memo } from 'react';
+import { renderPatternPreset } from '../pattern-preset';
 import {
   type HeatmapLevelStyles,
   heatmapLevelPatternId,
   heatmapLevelPatternRenderOptions,
   isHeatmapLevelPattern,
-} from "./heatmap-colors";
+} from './heatmap-colors';
 
 export const HeatmapPatternDefs = memo(function HeatmapPatternDefs({
   levelStyles,
@@ -25,11 +25,7 @@ export const HeatmapPatternDefs = memo(function HeatmapPatternDefs({
       return [];
     }
 
-    const node = renderPatternPreset(
-      pattern,
-      id,
-      heatmapLevelPatternRenderOptions(style)
-    );
+    const node = renderPatternPreset(pattern, id, heatmapLevelPatternRenderOptions(style));
 
     return node ? [<Fragment key={id}>{node}</Fragment>] : [];
   });
@@ -41,4 +37,4 @@ export const HeatmapPatternDefs = memo(function HeatmapPatternDefs({
   return <defs>{nodes}</defs>;
 });
 
-HeatmapPatternDefs.displayName = "HeatmapPatternDefs";
+HeatmapPatternDefs.displayName = 'HeatmapPatternDefs';

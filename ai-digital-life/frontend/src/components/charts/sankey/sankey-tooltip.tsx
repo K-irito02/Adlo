@@ -1,20 +1,16 @@
-"use client";
+'use client';
 
-import type { SankeyLink, SankeyNode } from "d3-sankey";
-import { intFmt } from "../chart-formatters";
-import { TooltipBox } from "../tooltip/tooltip-box";
-import { TooltipContent, type TooltipRow } from "../tooltip/tooltip-content";
-import {
-  type SankeyLinkDatum,
-  type SankeyNodeDatum,
-  useSankey,
-} from "./sankey-context";
+import type { SankeyLink, SankeyNode } from 'd3-sankey';
+import { intFmt } from '../chart-formatters';
+import { TooltipBox } from '../tooltip/tooltip-box';
+import { TooltipContent, type TooltipRow } from '../tooltip/tooltip-content';
+import { type SankeyLinkDatum, type SankeyNodeDatum, useSankey } from './sankey-context';
 
 // Helper to get node name from link source/target
 type NodeOrIndex = SankeyNode<SankeyNodeDatum, SankeyLinkDatum> | number;
 
 function getNodeName(nodeOrIndex: NodeOrIndex, fallbackIndex: number): string {
-  if (typeof nodeOrIndex === "number") {
+  if (typeof nodeOrIndex === 'number') {
     return `Node ${nodeOrIndex}`;
   }
   return nodeOrIndex.name ?? `Node ${fallbackIndex}`;
@@ -41,18 +37,9 @@ export function SankeyTooltip({
   nodeContent,
   linkContent,
   formatValue = intFmt,
-  className = "",
+  className = '',
 }: SankeyTooltipProps) {
-  const {
-    tooltipData,
-    containerRef,
-    width,
-    height,
-    margin,
-    nodes,
-    links,
-    mousePos,
-  } = useSankey();
+  const { tooltipData, containerRef, width, height, margin, nodes, links, mousePos } = useSankey();
 
   if (!tooltipData) {
     return null;
@@ -63,7 +50,7 @@ export function SankeyTooltip({
   const y = mousePos ? mousePos.y : tooltipData.y + margin.top;
 
   // Render node tooltip
-  if (tooltipData.type === "node" && tooltipData.nodeIndex !== undefined) {
+  if (tooltipData.type === 'node' && tooltipData.nodeIndex !== undefined) {
     const node = nodes[tooltipData.nodeIndex];
     if (!node) {
       return null;
@@ -92,8 +79,8 @@ export function SankeyTooltip({
     // Default node tooltip
     const rows: TooltipRow[] = [
       {
-        color: "var(--chart-line-primary)",
-        label: "Sessions",
+        color: 'var(--chart-line-primary)',
+        label: 'Sessions',
         value: formatValue(totalValue),
       },
     ];
@@ -114,21 +101,15 @@ export function SankeyTooltip({
   }
 
   // Render link tooltip
-  if (tooltipData.type === "link" && tooltipData.linkIndex !== undefined) {
+  if (tooltipData.type === 'link' && tooltipData.linkIndex !== undefined) {
     const link = links[tooltipData.linkIndex];
     if (!link) {
       return null;
     }
 
     // Get source and target names
-    const sourceName = getNodeName(
-      link.source as NodeOrIndex,
-      tooltipData.linkIndex
-    );
-    const targetName = getNodeName(
-      link.target as NodeOrIndex,
-      tooltipData.linkIndex
-    );
+    const sourceName = getNodeName(link.source as NodeOrIndex, tooltipData.linkIndex);
+    const targetName = getNodeName(link.target as NodeOrIndex, tooltipData.linkIndex);
 
     // Custom content
     if (linkContent) {
@@ -150,8 +131,8 @@ export function SankeyTooltip({
     // Default link tooltip
     const rows: TooltipRow[] = [
       {
-        color: "var(--chart-foreground-muted)",
-        label: "Flow",
+        color: 'var(--chart-foreground-muted)',
+        label: 'Flow',
         value: formatValue(link.value),
       },
     ];
@@ -174,6 +155,6 @@ export function SankeyTooltip({
   return null;
 }
 
-SankeyTooltip.displayName = "SankeyTooltip";
+SankeyTooltip.displayName = 'SankeyTooltip';
 
 export default SankeyTooltip;

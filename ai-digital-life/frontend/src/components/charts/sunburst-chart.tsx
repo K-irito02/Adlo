@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import type { Transition } from "motion/react";
-import { animate, motion } from "motion/react";
+import type { Transition } from 'motion/react';
+import { animate, motion } from 'motion/react';
 import {
   Children,
   isValidElement,
@@ -13,7 +13,7 @@ import {
   useMemo,
   useRef,
   useState,
-} from "react";
+} from 'react';
 import {
   type ArcDatum,
   buildArcs,
@@ -21,17 +21,17 @@ import {
   buildSunburstEnterTiming,
   defaultSunburstGrowPadding,
   maxHoverSegmentThickness,
-} from "./sunburst";
+} from './sunburst';
 import {
   defaultSunburstColors,
   opacityForRelativeDepth,
   type SunburstContextValue,
   SunburstProvider,
-} from "./sunburst-context";
-import type { SunburstNode } from "./sunburst-data";
+} from './sunburst-context';
+import type { SunburstNode } from './sunburst-data';
 
-export type { ArcDatum, Focus } from "./sunburst";
-export type { SunburstNode } from "./sunburst-data";
+export type { ArcDatum, Focus } from './sunburst';
+export type { SunburstNode } from './sunburst-data';
 
 const DEFAULT_HOVER_POP = 8;
 
@@ -39,30 +39,26 @@ function componentDisplayName(child: ReactElement): string {
   return (
     (child.type as { displayName?: string }).displayName ||
     (child.type as { name?: string }).name ||
-    ""
+    ''
   );
 }
 
 function isDefsComponent(child: ReactElement): boolean {
   const name = componentDisplayName(child);
   return (
-    name.includes("Gradient") ||
-    name.includes("Pattern") ||
-    name === "LinearGradient" ||
-    name === "RadialGradient"
+    name.includes('Gradient') ||
+    name.includes('Pattern') ||
+    name === 'LinearGradient' ||
+    name === 'RadialGradient'
   );
 }
 
 function isOutsideSvgComponent(name: string): boolean {
-  return name === "SunburstBreadcrumb" || name === "SunburstHint";
+  return name === 'SunburstBreadcrumb' || name === 'SunburstHint';
 }
 
-function isSunburstSegment(
-  child: ReactNode
-): child is ReactElement<{ index: number }> {
-  return (
-    isValidElement(child) && componentDisplayName(child) === "SunburstSegment"
-  );
+function isSunburstSegment(child: ReactNode): child is ReactElement<{ index: number }> {
+  return isValidElement(child) && componentDisplayName(child) === 'SunburstSegment';
 }
 
 /** Inner rings last so parent segments win hit testing at ring boundaries. */
@@ -120,10 +116,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
 }: SunburstChartProps) {
   const fullRadius = size / 2;
   const containerRef = useRef<HTMLDivElement>(null);
-  const { arcs, maxDepth, focusById, rootId } = useMemo(
-    () => buildArcs(data),
-    [data]
-  );
+  const { arcs, maxDepth, focusById, rootId } = useMemo(() => buildArcs(data), [data]);
 
   const growPadding = useMemo(
     () => paddingProp ?? defaultSunburstGrowPadding(maxDepth, size, hoverPop),
@@ -132,12 +125,8 @@ const SunburstChartCore = memo(function SunburstChartCore({
   const radius = Math.max(8, fullRadius - growPadding);
 
   const [skipEnterAnimation, setSkipEnterAnimation] = useState(false);
-  const [internalHoveredArc, setInternalHoveredArc] = useState<ArcDatum | null>(
-    null
-  );
-  const [internalHoveredIndex, setInternalHoveredIndex] = useState<
-    number | null
-  >(null);
+  const [internalHoveredArc, setInternalHoveredArc] = useState<ArcDatum | null>(null);
+  const [internalHoveredIndex, setInternalHoveredIndex] = useState<number | null>(null);
   const growRef = useRef<Map<string, number>>(new Map());
   const [growTick, setGrowTick] = useState(0);
 
@@ -149,9 +138,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
   const focusId = isFocusControlled ? focusIdProp : internalFocusId;
 
   const isHoverControlled = hoveredIndexProp !== undefined;
-  const hoveredArcIndex = isHoverControlled
-    ? hoveredIndexProp
-    : internalHoveredIndex;
+  const hoveredArcIndex = isHoverControlled ? hoveredIndexProp : internalHoveredIndex;
   const hoveredArc = useMemo(() => {
     if (hoveredArcIndex != null) {
       return arcs[hoveredArcIndex] ?? null;
@@ -209,14 +196,14 @@ const SunburstChartCore = memo(function SunburstChartCore({
   // biome-ignore lint/correctness/useExhaustiveDependencies: replay when data or playKey changes
   useEffect(() => {
     setSkipEnterAnimation(
-      typeof window !== "undefined" &&
-        window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true
+      typeof window !== 'undefined' &&
+        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
     );
   }, [playKey, arcs]);
 
   const prefersReduced = () =>
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
   const growControls = useRef<ReturnType<typeof animate> | null>(null);
   const zoomControls = useRef<ReturnType<typeof animate> | null>(null);
@@ -261,14 +248,12 @@ const SunburstChartCore = memo(function SunburstChartCore({
   );
 
   const isDescendant = useCallback(
-    (d: ArcDatum, ancestorId: string) =>
-      d.id === ancestorId || d.id.startsWith(`${ancestorId} / `),
+    (d: ArcDatum, ancestorId: string) => d.id === ancestorId || d.id.startsWith(`${ancestorId} / `),
     []
   );
 
   const isOnHoverPath = useCallback(
-    (d: ArcDatum, hoveredId: string) =>
-      d.id === hoveredId || hoveredId.startsWith(`${d.id} / `),
+    (d: ArcDatum, hoveredId: string) => d.id === hoveredId || hoveredId.startsWith(`${d.id} / `),
     []
   );
 
@@ -277,9 +262,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
       if (!hoveredArc) {
         return true;
       }
-      return (
-        isDescendant(d, hoveredArc.id) || hoveredArc.id.startsWith(`${d.id} / `)
-      );
+      return isDescendant(d, hoveredArc.id) || hoveredArc.id.startsWith(`${d.id} / `);
     },
     [hoveredArc, isDescendant]
   );
@@ -288,15 +271,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
   useEffect(() => {
     const targets =
       hoveredArc && focus
-        ? buildHoverGrowTargets(
-            arcs,
-            hoveredArc,
-            focus,
-            maxDepth,
-            radius,
-            hoverPop,
-            isOnHoverPath
-          )
+        ? buildHoverGrowTargets(arcs, hoveredArc, focus, maxDepth, radius, hoverPop, isOnHoverPath)
         : new Map<string, number>();
     const starts = new Map(growRef.current);
     const ids = new Set<string>([...starts.keys(), ...targets.keys()]);
@@ -333,9 +308,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
     if (nodeColor) {
       return nodeColor;
     }
-    return defaultSunburstColors[
-      categoryIndex % defaultSunburstColors.length
-    ] as string;
+    return defaultSunburstColors[categoryIndex % defaultSunburstColors.length] as string;
   }, []);
 
   const getFill = useCallback(
@@ -347,9 +320,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
       if (!arc) {
         return defaultSunburstColors[0] as string;
       }
-      return (
-        colorOverride ?? arc.fill ?? arc.color ?? getColor(arc.categoryIndex)
-      );
+      return colorOverride ?? arc.fill ?? arc.color ?? getColor(arc.categoryIndex);
     },
     [arcs, getColor]
   );
@@ -377,8 +348,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
 
   const childArray = Children.toArray(children);
   const defsChildren = childArray.filter(
-    (child): child is ReactElement =>
-      isValidElement(child) && isDefsComponent(child)
+    (child): child is ReactElement => isValidElement(child) && isDefsComponent(child)
   );
 
   const outsideChildren: ReactNode[] = [];
@@ -401,9 +371,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
   }
 
   const segmentChildren = svgChildren.filter(isSunburstSegment);
-  const otherSvgChildren = svgChildren.filter(
-    (child) => !isSunburstSegment(child)
-  );
+  const otherSvgChildren = svgChildren.filter((child) => !isSunburstSegment(child));
   const orderedSegments = sortSunburstSegments(segmentChildren, arcs);
   const orderedSvgChildren = [...orderedSegments, ...otherSvgChildren];
 
@@ -442,27 +410,18 @@ const SunburstChartCore = memo(function SunburstChartCore({
 
   return (
     <SunburstProvider value={providerValue}>
-      <div
-        className={className}
-        ref={containerRef}
-        style={{ maxWidth: "100%", width: size }}
-      >
+      <div className={className} ref={containerRef} style={{ maxWidth: '100%', width: size }}>
         {outsideChildren.filter(
-          (child) =>
-            isValidElement(child) &&
-            componentDisplayName(child) === "SunburstBreadcrumb"
+          (child) => isValidElement(child) && componentDisplayName(child) === 'SunburstBreadcrumb'
         )}
-        <div
-          className="mx-auto w-full"
-          style={{ aspectRatio: "1 / 1", maxWidth: size }}
-        >
+        <div className="mx-auto w-full" style={{ aspectRatio: '1 / 1', maxWidth: size }}>
           <motion.svg
             animate={{ opacity: 1 }}
             aria-label={`Sunburst chart of ${data.name}`}
             initial={{ opacity: 0 }}
             onPointerLeave={() => setHoveredArc(null)}
             role="img"
-            style={{ display: "block", overflow: "visible" }}
+            style={{ display: 'block', overflow: 'visible' }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             viewBox={`${-fullRadius} ${-fullRadius} ${size} ${size}`}
             width="100%"
@@ -472,9 +431,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
           </motion.svg>
         </div>
         {outsideChildren.filter(
-          (child) =>
-            isValidElement(child) &&
-            componentDisplayName(child) === "SunburstHint"
+          (child) => isValidElement(child) && componentDisplayName(child) === 'SunburstHint'
         )}
       </div>
     </SunburstProvider>
@@ -485,4 +442,4 @@ export function SunburstChart(props: SunburstChartProps) {
   return <SunburstChartCore {...props} />;
 }
 
-SunburstChart.displayName = "SunburstChart";
+SunburstChart.displayName = 'SunburstChart';

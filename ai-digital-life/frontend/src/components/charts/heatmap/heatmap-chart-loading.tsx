@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useMemo } from "react";
-import type { Margin } from "../chart-context";
-import { generateHeatmapSkeletonFromTarget } from "./generate-heatmap-skeleton-data";
-import { HeatmapCells } from "./heatmap-cells";
-import { HeatmapChart } from "./heatmap-chart";
-import type { HeatmapColumn } from "./heatmap-context";
-import { HeatmapXAxis } from "./heatmap-x-axis";
-import { HeatmapYAxis } from "./heatmap-y-axis";
+import { useMemo } from 'react';
+import type { Margin } from '../chart-context';
+import { generateHeatmapSkeletonFromTarget } from './generate-heatmap-skeleton-data';
+import { HeatmapCells } from './heatmap-cells';
+import { HeatmapChart } from './heatmap-chart';
+import type { HeatmapColumn } from './heatmap-context';
+import { HeatmapXAxis } from './heatmap-x-axis';
+import { HeatmapYAxis } from './heatmap-y-axis';
 
 export interface HeatmapChartLoadingProps {
   /** Target column data used to size the skeleton grid. */
@@ -32,13 +32,10 @@ export function HeatmapChartLoading({
   margin,
   gap = 2,
   cornerRadius = 2,
-  label = "Loading",
-  className = "",
+  label = 'Loading',
+  className = '',
 }: HeatmapChartLoadingProps) {
-  const skeletonData = useMemo(
-    () => generateHeatmapSkeletonFromTarget(data),
-    [data]
-  );
+  const skeletonData = useMemo(() => generateHeatmapSkeletonFromTarget(data), [data]);
 
   return (
     <HeatmapChart

@@ -126,7 +126,7 @@ mod tests {
         let cfg = AppConfig::default();
         save(&dir, &cfg).unwrap();
         let loaded = load(&dir).unwrap();
-        assert_eq!(loaded.language, "zh-CN");
+        assert_eq!(loaded.language, DEFAULT_LANGUAGE);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

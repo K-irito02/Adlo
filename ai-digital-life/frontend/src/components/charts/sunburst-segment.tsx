@@ -1,17 +1,13 @@
-"use client";
+'use client';
 
-import { motion, useTransform } from "motion/react";
-import { memo, useMemo } from "react";
-import { applyHoverGrow, arcPath, transitionGeometry } from "./sunburst";
-import {
-  sunburstCssVars,
-  useSunburstHover,
-  useSunburstStable,
-} from "./sunburst-context";
-import { useEnterComplete } from "./use-enter-complete";
-import { useMountProgress } from "./use-mount-progress";
+import { motion, useTransform } from 'motion/react';
+import { memo, useMemo } from 'react';
+import { applyHoverGrow, arcPath, transitionGeometry } from './sunburst';
+import { sunburstCssVars, useSunburstHover, useSunburstStable } from './sunburst-context';
+import { useEnterComplete } from './use-enter-complete';
+import { useMountProgress } from './use-mount-progress';
 
-const HOVER_DIM_TRANSITION = { duration: 0.16, ease: "easeOut" as const };
+const HOVER_DIM_TRANSITION = { duration: 0.16, ease: 'easeOut' as const };
 
 export interface SunburstSegmentProps {
   index: number;
@@ -50,8 +46,7 @@ export const SunburstSegment = memo(function SunburstSegment({
   const { setHoveredArc, setHoveredArcIndex } = useSunburstHover();
 
   const arc = arcs[index];
-  const segmentDelay =
-    (arc ? enterTiming.segmentDelays.get(arc.id)?.delay : undefined) ?? 0;
+  const segmentDelay = (arc ? enterTiming.segmentDelays.get(arc.id)?.delay : undefined) ?? 0;
   const replayId = arc?.id ?? `missing-${index}`;
 
   const base = useMemo(() => {
@@ -76,10 +71,10 @@ export const SunburstSegment = memo(function SunburstSegment({
   const enterComplete = useEnterComplete(enterProgress);
   const enterScale = useTransform(enterProgress, [0, 1], [0, 1]);
   const animatedHitPath = useTransform(enterProgress, (value) =>
-    base ? (arcPath(base, value, 1) ?? "") : ""
+    base ? (arcPath(base, value, 1) ?? '') : ''
   );
   const animatedVisualPath = useTransform(enterProgress, (value) =>
-    visualGeometry ? (arcPath(visualGeometry, value, 1) ?? "") : ""
+    visualGeometry ? (arcPath(visualGeometry, value, 1) ?? '') : ''
   );
 
   if (!arc) {
@@ -105,8 +100,8 @@ export const SunburstSegment = memo(function SunburstSegment({
   const layerOpacity = related ? 1 : 0.25;
 
   const groupStyle = {
-    cursor: arc.hasChildren ? ("pointer" as const) : ("default" as const),
-    transformOrigin: "0px 0px",
+    cursor: arc.hasChildren ? ('pointer' as const) : ('default' as const),
+    transformOrigin: '0px 0px',
   };
 
   const hitHandlers = {
@@ -120,9 +115,9 @@ export const SunburstSegment = memo(function SunburstSegment({
   const visualPathProps = {
     fill: segmentFill,
     fillOpacity,
-    pointerEvents: "none" as const,
+    pointerEvents: 'none' as const,
     stroke: sunburstCssVars.ring,
-    strokeLinejoin: "round" as const,
+    strokeLinejoin: 'round' as const,
     strokeWidth: 1,
   };
 
@@ -160,4 +155,4 @@ export const SunburstSegment = memo(function SunburstSegment({
   );
 });
 
-SunburstSegment.displayName = "SunburstSegment";
+SunburstSegment.displayName = 'SunburstSegment';

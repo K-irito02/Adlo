@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { memo } from "react";
-import { renderPatternPreset } from "../pattern-preset";
+import { memo } from 'react';
+import { renderPatternPreset } from '../pattern-preset';
 import {
   type HeatmapLevelStyle,
   heatmapLevelPatternId,
   heatmapLevelPatternRenderOptions,
   isHeatmapLevelPattern,
-} from "./heatmap-colors";
+} from './heatmap-colors';
 
 export const HeatmapLegendSwatch = memo(function HeatmapLegendSwatch({
   level,
@@ -41,11 +41,7 @@ export const HeatmapLegendSwatch = memo(function HeatmapLegendSwatch({
         className="block shrink-0 overflow-hidden"
         style={{ ...shellStyle, opacity }}
       >
-        <svg
-          aria-hidden="true"
-          className="block size-full"
-          viewBox={`0 0 ${cellSize} ${cellSize}`}
-        >
+        <svg aria-hidden="true" className="block size-full" viewBox={`0 0 ${cellSize} ${cellSize}`}>
           {patternNode ? <defs>{patternNode}</defs> : null}
           <rect
             fill={patternNode ? `url(#${patternId})` : style.color}
@@ -67,10 +63,10 @@ export const HeatmapLegendSwatch = memo(function HeatmapLegendSwatch({
         ...shellStyle,
         backgroundColor: style.color,
         border: level === 0 ? `1px solid ${style.color}` : undefined,
-        boxSizing: "border-box",
+        boxSizing: 'border-box',
       }}
     />
   );
 });
 
-HeatmapLegendSwatch.displayName = "HeatmapLegendSwatch";
+HeatmapLegendSwatch.displayName = 'HeatmapLegendSwatch';

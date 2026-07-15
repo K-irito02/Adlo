@@ -1,4 +1,4 @@
-export { generateHeatmapSkeletonFromTarget } from "./generate-heatmap-skeleton-data";
+export { generateHeatmapSkeletonFromTarget } from './generate-heatmap-skeleton-data';
 export {
   computeHeatmapEnterFadeDelayMs,
   computeHeatmapLevelRange,
@@ -14,17 +14,10 @@ export {
   type HeatmapLevelRange,
   heatmapLoadingCellParticipates,
   resolveHeatmapEnterFadeDurationSec,
-} from "./heatmap-animation";
-export { HeatmapCells, type HeatmapCellsProps } from "./heatmap-cells";
-export {
-  HeatmapChart,
-  type HeatmapChartProps,
-  type HeatmapLayout,
-} from "./heatmap-chart";
-export {
-  HeatmapChartLoading,
-  type HeatmapChartLoadingProps,
-} from "./heatmap-chart-loading";
+} from './heatmap-animation';
+export { HeatmapCells, type HeatmapCellsProps } from './heatmap-cells';
+export { HeatmapChart, type HeatmapChartProps, type HeatmapLayout } from './heatmap-chart';
+export { HeatmapChartLoading, type HeatmapChartLoadingProps } from './heatmap-chart-loading';
 export {
   buildHeatmapColorScale,
   buildHeatmapColorScaleFromStyles,
@@ -42,7 +35,7 @@ export {
   levelColorsFromStyles,
   levelStylesFromColors,
   resolveHeatmapLevelStyles,
-} from "./heatmap-colors";
+} from './heatmap-colors';
 export {
   type HeatmapBin,
   type HeatmapColumn,
@@ -56,22 +49,19 @@ export {
   useHeatmap,
   useHeatmapInteraction,
   useHeatmapInteractionOptional,
-} from "./heatmap-context";
+} from './heatmap-context';
 export {
   HEATMAP_LEGEND_LEVELS,
   HeatmapLegend,
   type HeatmapLegendProps,
   type HeatmapLegendVariant,
-} from "./heatmap-legend";
+} from './heatmap-legend';
 export {
   resolveHeatmapSeparatorConfig,
   resolveHeatmapSeparatorConfigWithData,
-} from "./heatmap-resolve-separator";
-export {
-  HeatmapSeparator,
-  type HeatmapSeparatorProps,
-} from "./heatmap-separator";
-export { HeatmapTooltip, type HeatmapTooltipProps } from "./heatmap-tooltip";
+} from './heatmap-resolve-separator';
+export { HeatmapSeparator, type HeatmapSeparatorProps } from './heatmap-separator';
+export { HeatmapTooltip, type HeatmapTooltipProps } from './heatmap-tooltip';
 export {
   buildHeatmapLegendGradient,
   buildHeatmapQuarterSeparatorGroups,
@@ -134,6 +124,6 @@ export {
   resolveHeatmapWeekRange,
   rotateHeatmapColumnBins,
   shouldShowHeatmapYAxisTick,
-} from "./heatmap-utils";
-export { HeatmapXAxis, type HeatmapXAxisProps } from "./heatmap-x-axis";
-export { HeatmapYAxis, type HeatmapYAxisProps } from "./heatmap-y-axis";
+} from './heatmap-utils';
+export { HeatmapXAxis, type HeatmapXAxisProps } from './heatmap-x-axis';
+export { HeatmapYAxis, type HeatmapYAxisProps } from './heatmap-y-axis';

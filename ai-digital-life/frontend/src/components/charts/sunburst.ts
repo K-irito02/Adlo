@@ -1,4 +1,4 @@
-import type { SunburstNode } from "./sunburst-data";
+import type { SunburstNode } from './sunburst-data';
 
 export interface ArcDatum {
   id: string;
@@ -38,7 +38,7 @@ export interface ArcGeometry {
 
 const TOP = -Math.PI / 2;
 const TWO_PI = 2 * Math.PI;
-const ID_SEP = " / ";
+const ID_SEP = ' / ';
 /** Drill-down navigation hub is smaller than one ring to leave room for hover grow. */
 const DRILL_CENTER_SCALE = 0.65;
 /** Extra hub shrink per focus level beyond the first drill. */
@@ -171,11 +171,7 @@ export function buildArcs(data: SunburstNode) {
   };
 }
 
-export function ringOptions(
-  focusDepth: number,
-  maxDepth: number,
-  radius: number
-) {
+export function ringOptions(focusDepth: number, maxDepth: number, radius: number) {
   const oneLevelCenterR = radius / maxDepth;
   if (focusDepth === 0) {
     // Root view — segments fill from the center, no navigation hub gap.
@@ -224,11 +220,7 @@ export function geometryFor(
   };
 }
 
-export function lerpGeometry(
-  from: ArcGeometry,
-  to: ArcGeometry,
-  progress: number
-): ArcGeometry {
+export function lerpGeometry(from: ArcGeometry, to: ArcGeometry, progress: number): ArcGeometry {
   const t = Math.min(1, Math.max(0, progress));
   const fromMid = (from.a0 + from.a1) / 2;
   const toMid = (to.a0 + to.a1) / 2;
@@ -310,10 +302,7 @@ export interface SunburstEnterTiming {
 }
 
 /** Matches ring chart expand — each ring/segment grows from the chart center. */
-export function buildSunburstEnterTiming(
-  arcs: ArcDatum[],
-  staggerScale = 1
-): SunburstEnterTiming {
+export function buildSunburstEnterTiming(arcs: ArcDatum[], staggerScale = 1): SunburstEnterTiming {
   const scale = Math.max(0.25, staggerScale);
   const byDepth = new Map<number, ArcDatum[]>();
 
@@ -327,9 +316,7 @@ export function buildSunburstEnterTiming(
   let maxDelay = 0;
 
   for (const [, ringArcs] of byDepth) {
-    const sorted = [...ringArcs].sort(
-      (a, b) => clockwiseFraction(a.a0) - clockwiseFraction(b.a0)
-    );
+    const sorted = [...ringArcs].sort((a, b) => clockwiseFraction(a.a0) - clockwiseFraction(b.a0));
     const ringIndex = (sorted[0]?.depth ?? 1) - 1;
 
     for (const [index, arc] of sorted.entries()) {
@@ -352,10 +339,7 @@ export interface SunburstRevealSchedule {
 }
 
 /** @deprecated Use buildSunburstEnterTiming */
-export function buildRevealSchedule(
-  arcs: ArcDatum[],
-  staggerScale = 1
-): SunburstRevealSchedule {
+export function buildRevealSchedule(arcs: ArcDatum[], staggerScale = 1): SunburstRevealSchedule {
   const timing = buildSunburstEnterTiming(arcs, staggerScale);
   const ringStarts = new Map<number, number>();
   for (const arc of arcs) {
@@ -426,8 +410,7 @@ export function arcPath(
   const currentA0 = a0;
   const currentA1 = a0 + span * p;
   const currentInner = innerR < 1 ? 0 : innerR;
-  const currentOuter =
-    innerR < 1 ? outerR * radialP : innerR + (outerR - innerR) * radialP;
+  const currentOuter = innerR < 1 ? outerR * radialP : innerR + (outerR - innerR) * radialP;
 
   return arcPathFromRadii(currentA0, currentA1, currentInner, currentOuter);
 }
@@ -478,10 +461,7 @@ export function geomCentroidRadius(geometry: ArcGeometry): number {
 }
 
 /** Visible path length from focus to hovered arc (in ring count). */
-export function visibleHoverPathLength(
-  hoveredDepth: number,
-  focusDepth: number
-): number {
+export function visibleHoverPathLength(hoveredDepth: number, focusDepth: number): number {
   return Math.max(1, hoveredDepth - focusDepth);
 }
 
@@ -525,20 +505,14 @@ export function buildHoverGrowTargets(
   const { ringWidth } = ringOptions(focus.depth, maxDepth, radius);
   const pathLength = visibleHoverPathLength(hoveredArc.depth, focus.depth);
   const segmentGrow = hoverGrowForPathSegment(hoverPop, ringWidth, pathLength);
-  const maxExpandedThickness = maxHoverSegmentThickness(
-    maxDepth,
-    radius,
-    hoverPop
-  );
+  const maxExpandedThickness = maxHoverSegmentThickness(maxDepth, radius, hoverPop);
 
   for (const d of arcs) {
     if (!isOnHoverPath(d, hoveredArc.id) || d.depth <= focus.depth) {
       continue;
     }
     const base = geometryFor(d, focus, maxDepth, radius);
-    const baseThickness = base
-      ? base.outerR - base.innerR
-      : maxExpandedThickness;
+    const baseThickness = base ? base.outerR - base.innerR : maxExpandedThickness;
     const allowedGrow =
       baseThickness >= maxExpandedThickness
         ? 0
@@ -558,11 +532,7 @@ export function defaultSunburstGrowPadding(
   const fullRadius = size / 2;
   const rootRingWidth = fullRadius / Math.max(1, maxDepth);
   const pathLength = Math.max(1, maxDepth - 1);
-  const segmentGrow = hoverGrowForPathSegment(
-    hoverPop,
-    rootRingWidth,
-    pathLength
-  );
+  const segmentGrow = hoverGrowForPathSegment(hoverPop, rootRingWidth, pathLength);
   return Math.ceil(segmentGrow * pathLength + segmentGrow);
 }
 
@@ -618,11 +588,7 @@ export function applyHoverGrow(
   };
 }
 
-export function localProgress(
-  progress: number,
-  delay: number,
-  duration: number
-): number {
+export function localProgress(progress: number, delay: number, duration: number): number {
   if (progress <= delay) {
     return 0;
   }

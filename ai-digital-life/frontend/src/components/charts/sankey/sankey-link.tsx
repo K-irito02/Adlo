@@ -1,23 +1,16 @@
-"use client";
+'use client';
 
-import type {
-  SankeyLink as SankeyLinkType,
-  SankeyNode as SankeyNodeType,
-} from "d3-sankey";
-import { motion, useTransform } from "motion/react";
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useMountProgress } from "../use-mount-progress";
-import {
-  type SankeyLinkDatum,
-  type SankeyNodeDatum,
-  useSankey,
-} from "./sankey-context";
+import type { SankeyLink as SankeyLinkType, SankeyNode as SankeyNodeType } from 'd3-sankey';
+import { motion, useTransform } from 'motion/react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useMountProgress } from '../use-mount-progress';
+import { type SankeyLinkDatum, type SankeyNodeDatum, useSankey } from './sankey-context';
 
 // Helper to get node index from link source/target
 type NodeOrIndex = SankeyNodeType<SankeyNodeDatum, SankeyLinkDatum> | number;
 
 function getNodeIndex(nodeOrIndex: NodeOrIndex): number | undefined {
-  if (typeof nodeOrIndex === "number") {
+  if (typeof nodeOrIndex === 'number') {
     return nodeOrIndex;
   }
   return nodeOrIndex.index;
@@ -26,7 +19,7 @@ function getNodeIndex(nodeOrIndex: NodeOrIndex): number | undefined {
 function getNodeObject(
   nodeOrIndex: NodeOrIndex
 ): SankeyNodeType<SankeyNodeDatum, SankeyLinkDatum> | null {
-  if (typeof nodeOrIndex === "number") {
+  if (typeof nodeOrIndex === 'number') {
     return null;
   }
   return nodeOrIndex;
@@ -34,18 +27,16 @@ function getNodeObject(
 
 // Default node color palette using CSS variables
 const defaultColors = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
 ];
 
-function getDefaultNodeColor(
-  node: SankeyNodeType<SankeyNodeDatum, SankeyLinkDatum>
-): string {
+function getDefaultNodeColor(node: SankeyNodeType<SankeyNodeDatum, SankeyLinkDatum>): string {
   const index = node.index ?? 0;
-  return defaultColors[index % defaultColors.length] ?? "var(--chart-1)";
+  return defaultColors[index % defaultColors.length] ?? 'var(--chart-1)';
 }
 
 export interface SankeyLinkProps {
@@ -58,15 +49,9 @@ export interface SankeyLinkProps {
   /** Use gradient from source to target color. Default: true */
   useGradient?: boolean;
   /** Custom function to get node color (for gradient) */
-  getNodeColor?: (
-    node: SankeyNodeType<SankeyNodeDatum, SankeyLinkDatum>,
-    index: number
-  ) => string;
+  getNodeColor?: (node: SankeyNodeType<SankeyNodeDatum, SankeyLinkDatum>, index: number) => string;
   /** Custom link color function (overrides gradient) */
-  getLinkColor?: (
-    link: SankeyLinkType<SankeyNodeDatum, SankeyLinkDatum>,
-    index: number
-  ) => string;
+  getLinkColor?: (link: SankeyLinkType<SankeyNodeDatum, SankeyLinkDatum>, index: number) => string;
   /** Pattern definitions to render in defs. Use @visx/pattern components (PatternLines, PatternCircles, etc.) */
   patterns?: React.ReactNode;
   /** Return pattern ID for a link, or null/undefined to use gradient/solid color */
@@ -142,7 +127,7 @@ function AnimatedLink({
   const targetOpacity = getTargetOpacity();
 
   // Dasharray for path reveal
-  const dashArray = pathLength > 0 ? `${pathLength} ${pathLength}` : "none";
+  const dashArray = pathLength > 0 ? `${pathLength} ${pathLength}` : 'none';
 
   // Ensure opacity values are always numbers
   const initialOpacity = strokeOpacity ?? 0.5;
@@ -161,10 +146,10 @@ function AnimatedLink({
       strokeDasharray={dashArray}
       strokeWidth={Math.max(1, width)}
       style={{
-        cursor: "pointer",
+        cursor: 'pointer',
         strokeDashoffset,
       }}
-      transition={{ duration: 0.18, ease: "easeOut" }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
     />
   );
 }
@@ -206,7 +191,7 @@ export function SankeyLink({
       if (getLinkColor) {
         return getLinkColor(link, index);
       }
-      return stroke || "var(--chart-line-primary)";
+      return stroke || 'var(--chart-line-primary)';
     },
     [getLinkColor, stroke]
   );
@@ -226,12 +211,8 @@ export function SankeyLink({
 
       // Always define a gradient so `url(#...)` never points to a missing id.
       // Use fallback colors if nodes can't be resolved
-      const sourceColor = sourceNode
-        ? getNodeColorFn(sourceNode)
-        : "var(--chart-1)";
-      const targetColor = targetNode
-        ? getNodeColorFn(targetNode)
-        : "var(--chart-1)";
+      const sourceColor = sourceNode ? getNodeColorFn(sourceNode) : 'var(--chart-1)';
+      const targetColor = targetNode ? getNodeColorFn(targetNode) : 'var(--chart-1)';
       const gradientId = `link-gradient-${index}`;
 
       // Get absolute x positions for gradient
@@ -270,7 +251,7 @@ export function SankeyLink({
         const linkWidth = link.width ?? 1;
 
         // Skip if path is empty
-        if (!path || path.trim() === "") {
+        if (!path || path.trim() === '') {
           return null;
         }
 
@@ -278,10 +259,8 @@ export function SankeyLink({
         const tIdx = getNodeIndex(link.target as NodeOrIndex);
 
         // Use fallback indices if we can't resolve
-        const sourceIdx =
-          sIdx ?? (typeof link.source === "number" ? link.source : -1);
-        const targetIdx =
-          tIdx ?? (typeof link.target === "number" ? link.target : -1);
+        const sourceIdx = sIdx ?? (typeof link.source === 'number' ? link.source : -1);
+        const targetIdx = tIdx ?? (typeof link.target === 'number' ? link.target : -1);
 
         const isHighlighted =
           hoveredLinkIndex === index ||
@@ -292,7 +271,7 @@ export function SankeyLink({
         const handleMouseEnter = () => {
           setHoveredLinkIndex(index);
           setTooltipData({
-            type: "link",
+            type: 'link',
             linkIndex: index,
             x: 0,
             y: 0,
@@ -325,7 +304,7 @@ export function SankeyLink({
             index={index}
             isFaded={isFaded}
             isHighlighted={isHighlighted}
-            key={`link-${sourceIdx}-${targetIdx}-${link.width ?? link.value ?? ""}`}
+            key={`link-${sourceIdx}-${targetIdx}-${link.width ?? link.value ?? ''}`}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             path={path}
@@ -340,6 +319,6 @@ export function SankeyLink({
   );
 }
 
-SankeyLink.displayName = "SankeyLink";
+SankeyLink.displayName = 'SankeyLink';
 
 export default SankeyLink;

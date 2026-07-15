@@ -1,12 +1,9 @@
-"use client";
+'use client';
 
-import { motion } from "motion/react";
-import { memo } from "react";
-import type { HeatmapLevelStyles } from "./heatmap-colors";
-import {
-  buildHeatmapLegendGradient,
-  resolveHeatmapHoverStyle,
-} from "./heatmap-utils";
+import { motion } from 'motion/react';
+import { memo } from 'react';
+import type { HeatmapLevelStyles } from './heatmap-colors';
+import { buildHeatmapLegendGradient, resolveHeatmapHoverStyle } from './heatmap-utils';
 
 const HEATMAP_INACTIVE_TRANSITION = {
   duration: 0.22,
@@ -53,10 +50,7 @@ export const HeatmapLegendGradient = memo(function HeatmapLegendGradient({
   const gradient = buildHeatmapLegendGradient(levelStyles);
 
   return (
-    <div
-      className="relative shrink-0"
-      style={{ width: barWidth, height: barHeight }}
-    >
+    <div className="relative shrink-0" style={{ width: barWidth, height: barHeight }}>
       <motion.div
         animate={{
           opacity: isDimming && highlightedLevel === null ? inactiveOpacity : 1,
@@ -95,8 +89,8 @@ export const HeatmapLegendGradient = memo(function HeatmapLegendGradient({
               left: index * segmentWidth,
               width: segmentWidth,
               height: barHeight,
-              cursor: isInteractive ? "pointer" : undefined,
-              transformOrigin: "center center",
+              cursor: isInteractive ? 'pointer' : undefined,
+              transformOrigin: 'center center',
             }}
             transition={HEATMAP_INACTIVE_TRANSITION}
           />
@@ -106,6 +100,6 @@ export const HeatmapLegendGradient = memo(function HeatmapLegendGradient({
   );
 });
 
-HeatmapLegendGradient.displayName = "HeatmapLegendGradient";
+HeatmapLegendGradient.displayName = 'HeatmapLegendGradient';
 
 export default HeatmapLegendGradient;

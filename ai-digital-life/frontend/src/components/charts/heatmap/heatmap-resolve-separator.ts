@@ -1,23 +1,18 @@
-import type { ReactElement, ReactNode } from "react";
-import { Children, isValidElement } from "react";
-import { resolveChartChildElement } from "../chart-child-passthrough";
-import type { HeatmapColumn } from "./heatmap-context";
-import {
-  HEATMAP_SEPARATOR_MARKER,
-  HeatmapSeparator,
-} from "./heatmap-separator";
+import type { ReactElement, ReactNode } from 'react';
+import { Children, isValidElement } from 'react';
+import { resolveChartChildElement } from '../chart-child-passthrough';
+import type { HeatmapColumn } from './heatmap-context';
+import { HEATMAP_SEPARATOR_MARKER, HeatmapSeparator } from './heatmap-separator';
 import type {
   HeatmapSeparatorGroupBy,
   HeatmapSeparatorLayout,
   HeatmapSeparatorParsedConfig,
-} from "./heatmap-utils";
-import { resolveHeatmapSeparatorLayout } from "./heatmap-utils";
+} from './heatmap-utils';
+import { resolveHeatmapSeparatorLayout } from './heatmap-utils';
 
 function getChildComponentName(child: ReactElement): string {
   const childType = child.type as { displayName?: string; name?: string };
-  return typeof child.type === "function"
-    ? childType.displayName || childType.name || ""
-    : "";
+  return typeof child.type === 'function' ? childType.displayName || childType.name || '' : '';
 }
 
 function isHeatmapSeparatorElement(child: ReactElement): boolean {
@@ -26,23 +21,21 @@ function isHeatmapSeparatorElement(child: ReactElement): boolean {
   return (
     resolved.type === HeatmapSeparator ||
     type[HEATMAP_SEPARATOR_MARKER] === true ||
-    getChildComponentName(resolved) === "HeatmapSeparator"
+    getChildComponentName(resolved) === 'HeatmapSeparator'
   );
 }
 
-function readHeatmapSeparatorConfig(
-  child: ReactElement
-): HeatmapSeparatorParsedConfig | null {
+function readHeatmapSeparatorConfig(child: ReactElement): HeatmapSeparatorParsedConfig | null {
   const props = resolveChartChildElement(child).props as {
     every?: number;
     groupBy?: HeatmapSeparatorGroupBy;
     spacing?: number;
   };
-  const groupBy = props.groupBy ?? "every";
+  const groupBy = props.groupBy ?? 'every';
 
-  if (groupBy === "quarter") {
+  if (groupBy === 'quarter') {
     return {
-      groupBy: "quarter",
+      groupBy: 'quarter',
       spacing: props.spacing ?? 0,
     };
   }
@@ -52,7 +45,7 @@ function readHeatmapSeparatorConfig(
   }
 
   return {
-    groupBy: "every",
+    groupBy: 'every',
     every: props.every,
     spacing: props.spacing ?? 0,
   };
@@ -98,9 +91,9 @@ function normalizeHeatmapSeparatorConfig(
     return null;
   }
 
-  if (config.groupBy === "quarter") {
+  if (config.groupBy === 'quarter') {
     return {
-      groupBy: "quarter",
+      groupBy: 'quarter',
       spacing: config.spacing ?? 0,
     };
   }
@@ -110,7 +103,7 @@ function normalizeHeatmapSeparatorConfig(
   }
 
   return {
-    groupBy: "every",
+    groupBy: 'every',
     every: config.every,
     spacing: config.spacing ?? 0,
   };

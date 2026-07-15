@@ -1,23 +1,19 @@
-"use client";
+'use client';
 
-import type { SankeyNode as SankeyNodeType } from "d3-sankey";
-import { motion, type Transition } from "motion/react";
-import { type ReactNode, useCallback, useMemo } from "react";
-import { intFmt } from "../chart-formatters";
-import { transitionWithDelay } from "../motion-utils";
-import {
-  type SankeyLinkDatum,
-  type SankeyNodeDatum,
-  useSankey,
-} from "./sankey-context";
+import type { SankeyNode as SankeyNodeType } from 'd3-sankey';
+import { motion, type Transition } from 'motion/react';
+import { type ReactNode, useCallback, useMemo } from 'react';
+import { intFmt } from '../chart-formatters';
+import { transitionWithDelay } from '../motion-utils';
+import { type SankeyLinkDatum, type SankeyNodeDatum, useSankey } from './sankey-context';
 
 // Helper to get node index from link source/target
 type NodeOrIndex = SankeyNodeType<SankeyNodeDatum, SankeyLinkDatum> | number;
 
-export type SankeyLabelOrientation = "horizontal" | "vertical";
+export type SankeyLabelOrientation = 'horizontal' | 'vertical';
 
 function getNodeIndex(nodeOrIndex: NodeOrIndex): number | undefined {
-  if (typeof nodeOrIndex === "number") {
+  if (typeof nodeOrIndex === 'number') {
     return nodeOrIndex;
   }
   return nodeOrIndex.index;
@@ -41,13 +37,10 @@ export interface SankeyNodeProps {
    */
   labelOrientation?: SankeyLabelOrientation;
   /** Custom node color function */
-  getNodeColor?: (
-    node: SankeyNodeType<SankeyNodeDatum, SankeyLinkDatum>,
-    index: number
-  ) => string;
+  getNodeColor?: (node: SankeyNodeType<SankeyNodeDatum, SankeyLinkDatum>, index: number) => string;
 }
 
-type TextAnchor = "start" | "middle" | "end";
+type TextAnchor = 'start' | 'middle' | 'end';
 
 interface NodeLabelLayout {
   x: number;
@@ -83,16 +76,16 @@ function getNodeLabelLayouts({
   const centerY = y + height / 2;
   const initialX = isLeftSide ? x + 8 : x + width - 8;
 
-  if (labelOrientation === "horizontal") {
+  if (labelOrientation === 'horizontal') {
     const labelX = isLeftSide ? x - LABEL_OFFSET : x + width + LABEL_OFFSET;
-    const textAnchor: TextAnchor = isLeftSide ? "end" : "start";
+    const textAnchor: TextAnchor = isLeftSide ? 'end' : 'start';
 
     return {
       name: {
         x: labelX,
         y: centerY,
         textAnchor,
-        dy: "0.35em",
+        dy: '0.35em',
         textLocalX: 0,
         rotate: 0,
         initialX,
@@ -103,7 +96,7 @@ function getNodeLabelLayouts({
             x: labelX,
             y: centerY + VALUE_LABEL_GAP,
             textAnchor,
-            dy: "0.35em",
+            dy: '0.35em',
             textLocalX: 0,
             rotate: 0,
             initialX,
@@ -126,8 +119,8 @@ function getNodeLabelLayouts({
     name: {
       x: labelX,
       y: centerY,
-      textAnchor: "middle",
-      dy: "0.35em",
+      textAnchor: 'middle',
+      dy: '0.35em',
       textLocalX: nameLocalX,
       rotate,
       initialX,
@@ -137,8 +130,8 @@ function getNodeLabelLayouts({
       ? {
           x: labelX,
           y: centerY,
-          textAnchor: "middle",
-          dy: "0.35em",
+          textAnchor: 'middle',
+          dy: '0.35em',
           textLocalX: valueLocalX,
           rotate,
           initialX,
@@ -235,10 +228,8 @@ function AnimatedNode({
   const { enterTransition, revealEpoch } = useSankey();
 
   const nodeAnimDuration = animationDuration * 0.6;
-  const staggerDelaySec =
-    ((index / totalNodes) * nodeAnimDuration * 0.4) / 1000;
-  const nameLabelDelaySec =
-    staggerDelaySec + (nodeAnimDuration * 0.6 * 0.3) / 1000;
+  const staggerDelaySec = ((index / totalNodes) * nodeAnimDuration * 0.4) / 1000;
+  const nameLabelDelaySec = staggerDelaySec + (nodeAnimDuration * 0.6 * 0.3) / 1000;
   const valueLabelDelaySec = nameLabelDelaySec + 0.06;
 
   const nodeEnter = transitionWithDelay(enterTransition, staggerDelaySec);
@@ -258,11 +249,7 @@ function AnimatedNode({
   });
 
   return (
-    <motion.g
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      style={{ cursor: "pointer" }}
-    >
+    <motion.g onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} style={{ cursor: 'pointer' }}>
       <motion.rect
         animate={{ opacity: nodeOpacity, scaleY: 1 }}
         fill={fill}
@@ -311,7 +298,7 @@ export function SankeyNode({
   fadedOpacity = 0.4,
   showLabels = true,
   showValueLabels = true,
-  labelOrientation = "horizontal",
+  labelOrientation = 'horizontal',
   getNodeColor: getNodeColorProp,
 }: SankeyNodeProps) {
   const {
@@ -329,21 +316,18 @@ export function SankeyNode({
   // Default colors using CSS variables
   const defaultColors = useMemo(
     () => [
-      "var(--chart-1)",
-      "var(--chart-2)",
-      "var(--chart-3)",
-      "var(--chart-4)",
-      "var(--chart-5)",
+      'var(--chart-1)',
+      'var(--chart-2)',
+      'var(--chart-3)',
+      'var(--chart-4)',
+      'var(--chart-5)',
     ],
     []
   );
 
   // Get color for a node
   const getColor = useCallback(
-    (
-      node: SankeyNodeType<SankeyNodeDatum, SankeyLinkDatum>,
-      index: number
-    ): string => {
+    (node: SankeyNodeType<SankeyNodeDatum, SankeyLinkDatum>, index: number): string => {
       if (fill) {
         return fill;
       }
@@ -351,7 +335,7 @@ export function SankeyNode({
         return getNodeColorProp(node, index);
       }
 
-      return defaultColors[index % defaultColors.length] ?? "var(--chart-1)";
+      return defaultColors[index % defaultColors.length] ?? 'var(--chart-1)';
     },
     [fill, getNodeColorProp, defaultColors]
   );
@@ -405,9 +389,9 @@ export function SankeyNode({
         for (const l of links) {
           const sIdx = getNodeIndex(l.source as NodeOrIndex);
           const tIdx = getNodeIndex(l.target as NodeOrIndex);
-          if (node.category === "source" && sIdx === index) {
+          if (node.category === 'source' && sIdx === index) {
             displayValue += l.value;
-          } else if (node.category !== "source" && tIdx === index) {
+          } else if (node.category !== 'source' && tIdx === index) {
             displayValue += l.value;
           }
         }
@@ -415,7 +399,7 @@ export function SankeyNode({
         const handleMouseEnter = () => {
           setHoveredNodeIndex(index);
           setTooltipData({
-            type: "node",
+            type: 'node',
             nodeIndex: index,
             x: 0,
             y: 0,
@@ -457,6 +441,6 @@ export function SankeyNode({
   );
 }
 
-SankeyNode.displayName = "SankeyNode";
+SankeyNode.displayName = 'SankeyNode';
 
 export default SankeyNode;

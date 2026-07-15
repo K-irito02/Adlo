@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { memo, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
-import { cn } from "@/lib/utils";
-import { useHeatmap } from "./heatmap-context";
+import { memo, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { cn } from '@/lib/utils';
+import { useHeatmap } from './heatmap-context';
 import {
   formatHeatmapYAxisLabel,
   getHeatmapDayLabels,
@@ -11,7 +11,7 @@ import {
   type HeatmapYAxisTickFilter,
   resolveHeatmapRowOpacity,
   shouldShowHeatmapYAxisTick,
-} from "./heatmap-utils";
+} from './heatmap-utils';
 
 export interface HeatmapYAxisProps {
   /** Additional class name for labels */
@@ -26,12 +26,11 @@ export interface HeatmapYAxisProps {
 
 export const HeatmapYAxis = memo(function HeatmapYAxis({
   className,
-  tickFilter = "odd",
-  labelFormat = "full",
+  tickFilter = 'odd',
+  labelFormat = 'full',
   rowOpacity,
 }: HeatmapYAxisProps) {
-  const { containerRef, margin, binHeight, gap, yScale, weekStartDay } =
-    useHeatmap();
+  const { containerRef, margin, binHeight, gap, yScale, weekStartDay } = useHeatmap();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -64,17 +63,14 @@ export const HeatmapYAxis = memo(function HeatmapYAxis({
           top: tick.y,
           left: 4,
           width: Math.max(margin.left - 12, 0),
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          transform: "translateY(-50%)",
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          transform: 'translateY(-50%)',
         }}
       >
         <span
-          className={cn(
-            "whitespace-nowrap text-chart-label text-xs",
-            className
-          )}
+          className={cn('whitespace-nowrap text-chart-label text-xs', className)}
           style={{ opacity: resolveHeatmapRowOpacity(tick.row, rowOpacity) }}
         >
           {tick.label}
@@ -85,6 +81,6 @@ export const HeatmapYAxis = memo(function HeatmapYAxis({
   );
 });
 
-HeatmapYAxis.displayName = "HeatmapYAxis";
+HeatmapYAxis.displayName = 'HeatmapYAxis';
 
 export default HeatmapYAxis;
