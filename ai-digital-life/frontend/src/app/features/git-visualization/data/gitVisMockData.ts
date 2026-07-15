@@ -212,69 +212,73 @@ export const sankeyLinks = [
 // ── Bklit/visx data adapter interfaces ──
 
 export interface BklitAreaRow {
-  date: string
-  added: number
-  deleted: number
+  date: string;
+  added: number;
+  deleted: number;
 }
 
 export interface BklitSankeyNode {
-  id: string
-  label: string
+  id: string;
+  label: string;
 }
 
 export interface BklitSankeyLink {
-  source: string
-  target: string
-  value: number
+  source: string;
+  target: string;
+  value: number;
 }
 
 export interface BklitHeatmapCell {
-  x: number
-  y: number
-  value: number
+  x: number;
+  y: number;
+  value: number;
 }
 
 export interface BklitContributorRow {
-  name: string
-  commits: number
-  added: number
-  deleted: number
+  name: string;
+  commits: number;
+  added: number;
+  deleted: number;
 }
 
 // ── Bklit/visx data adapters ──
 
-export function toBklitAreaData(raw: ReturnType<typeof generateCodeLineEvolutionData>): BklitAreaRow[] {
+export function toBklitAreaData(
+  raw: ReturnType<typeof generateCodeLineEvolutionData>
+): BklitAreaRow[] {
   return raw.dates.map((date, i) => ({
     date,
     added: raw.added[i],
     deleted: raw.deleted[i],
-  }))
+  }));
 }
 
 export function toBklitSankeyData(): { nodes: BklitSankeyNode[]; links: BklitSankeyLink[] } {
   return {
-    nodes: sankeyNodes.map(n => ({ id: n.name, label: n.name })),
+    nodes: sankeyNodes.map((n) => ({ id: n.name, label: n.name })),
     links: sankeyLinks,
-  }
+  };
 }
 
 export function toClockHeatmapData(): BklitHeatmapCell[] {
-  return clockHeatmapData.map(([hour, day, count]) => ({ x: hour, y: day, value: count }))
+  return clockHeatmapData.map(([hour, day, count]) => ({ x: hour, y: day, value: count }));
 }
 
 export function toCalendarHeatmapData(): BklitHeatmapCell[] {
   return generateCalendarData().map(([dateStr, count]) => {
-    const d = new Date(dateStr)
-    const weekStart = new Date(d.getFullYear(), 0, 1)
-    const weekNum = Math.ceil(((d.getTime() - weekStart.getTime()) / 86400000 + weekStart.getDay() + 1) / 7)
-    return { x: d.getDay(), y: weekNum, value: count }
-  })
+    const d = new Date(dateStr);
+    const weekStart = new Date(d.getFullYear(), 0, 1);
+    const weekNum = Math.ceil(
+      ((d.getTime() - weekStart.getTime()) / 86400000 + weekStart.getDay() + 1) / 7
+    );
+    return { x: d.getDay(), y: weekNum, value: count };
+  });
 }
 
 export interface CommitTimelineRow {
-  date: string
-  count: number
-  cumulative: number
+  date: string;
+  count: number;
+  cumulative: number;
 }
 
 export const mockCommitTimelineData: CommitTimelineRow[] = [
@@ -290,7 +294,7 @@ export const mockCommitTimelineData: CommitTimelineRow[] = [
   { date: '2026-01-12', count: 1, cumulative: 10 },
   { date: '2026-01-13', count: 1, cumulative: 11 },
   { date: '2026-01-14', count: 1, cumulative: 12 },
-]
+];
 
 export function toContributorData(): BklitContributorRow[] {
   return contributorNames.map((name, i) => ({
@@ -298,5 +302,5 @@ export function toContributorData(): BklitContributorRow[] {
     commits: contributorCommits[i],
     added: contributorAdded[i],
     deleted: contributorDeleted[i],
-  }))
+  }));
 }

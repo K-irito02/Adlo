@@ -101,25 +101,23 @@ export const changesZh = {
   changesUnstage: '取消暂存',
   changesDiscard: '放弃更改',
   gitVisualization: 'Git 可视化',
-  gitVisCommitGraph: '提交网络 · 分支与合并',
   gitVisCalendarHeatmap: '提交日历热力图',
   gitVisClockHeatmap: '提交时间分布',
   gitVisContributorStats: '贡献者概览',
-  gitVisFileTreemap: '文件修改热度',
-  gitVisCodeLineEvolution: '代码行数演变',
+  gitVisCodeLineEvo: '代码行数演变',
   gitVisCollabSankey: '协作桑基图',
   gitVisCommitTimeline: '提交时间线',
-  gitVisCommitGraphDesc: '节点 = 提交（哈希缩写），边 = 父子关系，颜色区分分支，箭头指向父提交。',
+  gitVisFileSunburst: '文件修改旭日图',
   gitVisCalendarHeatmapDesc: '近一年每日提交次数，颜色越深提交越密集，可快速识别活跃周期。',
   gitVisClockHeatmapDesc: '纵轴 = 星期，横轴 = 小时，色块表示该时段提交频次，发现团队工作节奏。',
   gitVisContributorStatsDesc: '柱状图：提交次数；折线：新增/删除行数（右轴），综合评估活跃度。',
-  gitVisFileTreemapDesc:
-    '矩形面积 = 修改次数/代码量，颜色 = 最近修改时间（红热蓝冷），定位"热点文件"。',
-  gitVisCodeLineEvolutionDesc: '累计新增（+）与删除（-）行数，瀑布式堆叠，反映项目增长与重构节奏。',
+  gitVisCodeLineEvoDesc: '累计新增（+）与删除（-）行数，Area + Line 图表，反映项目增长与重构节奏。',
   gitVisCollabSankeyDesc:
     '左侧 = 作者，右侧 = 模块，流宽度 = 修改贡献量，识别"模块孤岛"或"全能型选手"。',
   gitVisCommitTimelineDesc:
     '散点图 = 单次提交，折线 = 累计增长。追踪项目随时间推移的开发速度。',
+  gitVisFileSunburstDesc:
+    '按文件类型分类的旭日分区图，扇形角度 = 修改次数/代码量，按类别定位"热点文件"。',
   gitVisMockDataNote:
     '所有数据均为模拟生成，用于展示可视化效果。实际接入 Git 仓库时，需提取真实数据并适配。',
   gitVisChartCommitTooltipNode: '提交 {name}',

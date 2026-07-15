@@ -101,30 +101,27 @@ export const changesEn = {
   changesUnstage: 'Unstage',
   changesDiscard: 'Discard',
   gitVisualization: 'Git Visualization',
-  gitVisCommitGraph: 'Commit Network · Branches & Merges',
   gitVisCalendarHeatmap: 'Commit Calendar Heatmap',
   gitVisClockHeatmap: 'Commit Time Distribution',
   gitVisContributorStats: 'Contributor Overview',
-  gitVisFileTreemap: 'File Modification Heatmap',
-  gitVisCodeLineEvolution: 'Code Line Evolution',
+  gitVisCodeLineEvo: 'Code Line Evolution',
   gitVisCollabSankey: 'Collaboration Sankey',
   gitVisCommitTimeline: 'Commit Timeline',
-  gitVisCommitGraphDesc:
-    'Node = commit (hash abbreviation), edge = parent-child relationship, color distinguishes branches, arrow points to parent.',
+  gitVisFileSunburst: 'File Modification Sunburst',
   gitVisCalendarHeatmapDesc:
     'Daily commit count over the past year. Darker color = more commits. Quickly identify active periods.',
   gitVisClockHeatmapDesc:
     'Y-axis = day of week, X-axis = hour. Color block = commit frequency. Discover team work rhythm.',
   gitVisContributorStatsDesc:
     'Bar chart: commit count; Line: added/deleted lines (right axis). Comprehensive activity assessment.',
-  gitVisFileTreemapDesc:
-    'Rectangle area = modification count/code volume, color = recent modification time (hot red, cold blue). Locate "hotspot files".',
-  gitVisCodeLineEvolutionDesc:
-    'Cumulative added (+) and deleted (-) lines, waterfall stacked. Reflects project growth and refactoring pace.',
+  gitVisCodeLineEvoDesc:
+    'Cumulative added (+) and deleted (-) lines, Area + Line chart. Reflects project growth and refactoring pace.',
   gitVisCollabSankeyDesc:
     'Left = authors, right = modules, flow width = modification contribution. Identify "module silos" or "full-stack players".',
   gitVisCommitTimelineDesc:
     'Scatter plot = individual commits, line = cumulative growth. Track project velocity over time.',
+  gitVisFileSunburstDesc:
+    'Sunburst partition by file type. Arc angle = modification count/code volume. Locate "hotspot files" by category.',
   gitVisMockDataNote:
     'All data is mock-generated for visualization demonstration. When connecting to a real Git repository, extract real data and adapt.',
   gitVisChartCommitTooltipNode: 'Commit {name}',

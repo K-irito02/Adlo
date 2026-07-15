@@ -3,45 +3,45 @@ import { render } from '@testing-library/react';
 import React from 'react';
 import { GitVisualizationView } from './GitVisualizationView';
 
-// Mock ECharts to avoid canvas rendering in jsdom
-vi.mock('./echartsSetup', () => ({
-  init: vi.fn(() => ({
-    setOption: vi.fn(),
-    resize: vi.fn(),
-    dispose: vi.fn(),
-  })),
-  use: vi.fn(),
-  graphic: { LinearGradient: vi.fn() },
-}));
-
 vi.mock('@hooks/useResolvedTheme', () => ({
   useResolvedTheme: vi.fn(() => 'light'),
+}));
+
+vi.mock('../hooks/useBklitTheme', () => ({
+  useBklitTheme: () => ({
+    accent: '#3b82f6',
+    muted: '#94a3b8',
+    background: '#ffffff',
+    text: '#1e293b',
+    seriesColors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'],
+    heatmapColors: ['#f1f5f9', '#bfdbfe', '#60a5fa', '#3b82f6', '#1d4ed8'],
+    grid: '#e2e8f0',
+    tooltipBg: '#1e293b',
+    tooltipText: '#f8fafc',
+  }),
 }));
 
 vi.mock('@i18n/useTCopy', () => ({
   useTCopy: vi.fn(() => ({
     t: {
-      gitVisCommitGraph: 'Commit Network',
       gitVisCalendarHeatmap: 'Calendar Heatmap',
       gitVisClockHeatmap: 'Clock Heatmap',
-      gitVisContributorStats: 'Contributors',
-      gitVisFileTreemap: 'File Treemap',
-      gitVisCodeLineEvolution: 'Code Line Evolution',
+      gitVisCodeLineEvo: 'Code Line Evolution',
       gitVisCollabSankey: 'Collaboration Sankey',
-      gitVisCommitGraphDesc: 'desc',
+      gitVisCommitTimeline: 'Commit Timeline',
+      gitVisContributorStats: 'Contributors',
+      gitVisFileSunburst: 'File Sunburst',
       gitVisCalendarHeatmapDesc: 'desc',
       gitVisClockHeatmapDesc: 'desc',
-      gitVisContributorStatsDesc: 'desc',
-      gitVisFileTreemapDesc: 'desc',
-      gitVisCodeLineEvolutionDesc: 'desc',
+      gitVisCodeLineEvoDesc: 'desc',
       gitVisCollabSankeyDesc: 'desc',
+      gitVisCommitTimelineDesc: 'desc',
+      gitVisContributorStatsDesc: 'desc',
+      gitVisFileSunburstDesc: 'desc',
       gitVisMockDataNote: 'note',
     },
     formatT: vi.fn(),
   })),
-  // NOTE: 24 chart-internal i18n keys (gitVisChartLegendHigh, etc.) are intentionally
-  // omitted — chart sub-components only export option objects rendered by a mocked
-  // echarts instance, so i18n key resolution is never exercised in this test.
 }));
 
 describe('GitVisualizationView', () => {
