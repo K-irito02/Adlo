@@ -241,7 +241,6 @@ fn collect_retrieval_inner(
             repo_map.push(RepoMapEntry { path: relative, r#type: "directory".to_string() });
             collect_retrieval_inner(root, &path, max_file_bytes, files, extensions, repo_map)?;
         } else if path.is_file() {
-            repo_map.push(RepoMapEntry { path: relative.clone(), r#type: "file".to_string() });
             if files.len() < MAX_COLLECTED_FILES
                 && adl_fs_ops::read_text_file(root, &relative, max_file_bytes).is_ok()
             {
@@ -253,6 +252,7 @@ fn collect_retrieval_inner(
                 *extensions.entry(ext).or_insert(0) += 1;
                 files.push(path);
             }
+            repo_map.push(RepoMapEntry { path: relative, r#type: "file".to_string() });
         }
     }
     Ok(())

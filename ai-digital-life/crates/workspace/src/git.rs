@@ -116,8 +116,8 @@ fn parse_stashed_branches(output: &str) -> std::collections::HashSet<String> {
 /// branches. The current branch is flagged. Results are sorted: current branch
 /// first, then alphabetical by name.
 fn build_branch_summaries(
-    local_branches: &[String],
-    remote_branches: &std::collections::HashSet<String>,
+    local_branches: Vec<String>,
+    remote_branches: std::collections::HashSet<String>,
     stashed_branches: &std::collections::HashSet<String>,
     current_branch: &str,
 ) -> Vec<GitBranchSummary> {
@@ -125,24 +125,22 @@ fn build_branch_summaries(
     let mut branches: Vec<GitBranchSummary> = Vec::new();
 
     for name in local_branches {
+        let is_current = name == current_branch;
+        let remote = remote_branches.contains(&name);
+        let has_stash = stashed_branches.contains(name.as_str());
         seen.insert(name.clone());
-        branches.push(GitBranchSummary {
-            name: name.clone(),
-            is_current: name == current_branch,
-            local: true,
-            remote: remote_branches.contains(name),
-            has_stash: stashed_branches.contains(name.as_str()),
-        });
+        branches.push(GitBranchSummary { name, is_current, local: true, remote, has_stash });
     }
 
     for name in remote_branches {
-        if !seen.contains(name) {
+        if !seen.contains(&name) {
+            let has_stash = stashed_branches.contains(name.as_str());
             branches.push(GitBranchSummary {
-                name: name.clone(),
+                name,
                 is_current: false,
                 local: false,
                 remote: true,
-                has_stash: stashed_branches.contains(name.as_str()),
+                has_stash,
             });
         }
     }
@@ -173,12 +171,7 @@ pub fn list_git_branches(root: &Path) -> Result<Vec<GitBranchSummary>, AppError>
     let stash_list = run_git_required(root, &["stash", "list", "--format=%s"]).unwrap_or_default();
     let stashed_branches = parse_stashed_branches(&stash_list);
 
-    Ok(build_branch_summaries(
-        &local_branches,
-        &remote_branches,
-        &stashed_branches,
-        &current_branch,
-    ))
+    Ok(build_branch_summaries(local_branches, remote_branches, &stashed_branches, &current_branch))
 }
 
 pub fn switch_git_branch(
@@ -641,7 +634,7 @@ mod git_tests {
             ["develop".to_string()].into_iter().collect();
         let current = "main";
 
-        let summaries = build_branch_summaries(&local, &remote, &stashed, current);
+        let summaries = build_branch_summaries(local, remote, &stashed, current);
 
         assert_eq!(summaries.len(), 3); // main, develop, release
 
@@ -671,7 +664,7 @@ mod git_tests {
         let stashed = std::collections::HashSet::new();
         let current = "main";
 
-        let summaries = build_branch_summaries(&local, &remote, &stashed, current);
+        let summaries = build_branch_summaries(local, remote, &stashed, current);
 
         assert_eq!(summaries[0].name, "main"); // current first
         assert!(summaries[0].is_current);
