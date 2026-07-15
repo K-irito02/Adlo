@@ -33,7 +33,14 @@ export {
 };
 
 // Helper functions
-import { clamp, readJson, readNumber, createUiId, createDebouncedWrite } from '../shared';
+import {
+  clamp,
+  readJson,
+  readNumber,
+  createUiId,
+  makePersistedWriter,
+  makePersistedNumberWriter,
+} from '../shared';
 import { STORAGE_HYDRATION_DELAY_MS } from '../constants';
 
 function deriveTerminalTitle(profile: TerminalProfile, count: number): string {
@@ -72,8 +79,14 @@ function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
   };
 }
 
-// Batch write scheduler — coalesces multiple localStorage writes into one
-const { scheduleWrite, scheduleNumberWrite } = createDebouncedWrite(50);
+// Persisted writers — coalesce multiple localStorage writes via shared 50ms scheduler
+const writeTerminalTabs = makePersistedWriter(TERMINAL_TABS_KEY);
+const writeTerminalActiveTab = makePersistedWriter(TERMINAL_ACTIVE_TAB_KEY);
+const writeDefaultProfile = makePersistedWriter(TERMINAL_DEFAULT_PROFILE_KEY);
+const writeWorkspaceDefaultProfiles = makePersistedWriter(TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY);
+const writeNavigatorCollapsed = makePersistedWriter(TERMINAL_NAVIGATOR_COLLAPSED_KEY);
+const writeWorkspaceExpanded = makePersistedWriter(TERMINAL_WORKSPACE_EXPANDED_KEY);
+const writeNavigatorWidth = makePersistedNumberWriter(TERMINAL_NAVIGATOR_WIDTH_KEY);
 
 // Lazy localStorage hydration — reads persisted values in idle time
 let _defaultsHydrated = false;
@@ -201,8 +214,8 @@ export const createTerminalSlice = (
           sortOrder: maxSortOrder + 1,
         };
         const nextTabs = sortTabs([...state.terminalTabs, tab]);
-        scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
-        scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, tab.id);
+        writeTerminalTabs(nextTabs);
+        writeTerminalActiveTab(tab.id);
         return {
           terminalTabs: nextTabs,
           terminalTabsById: buildTabsById(nextTabs),
@@ -211,7 +224,7 @@ export const createTerminalSlice = (
       }),
 
     terminalSelectTab: (tabId) => {
-      scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, tabId);
+      writeTerminalActiveTab(tabId);
       set({ terminalActiveTabId: tabId });
     },
 
@@ -223,8 +236,8 @@ export const createTerminalSlice = (
           state.terminalActiveTabId === tabId
             ? (nextTabs[nextTabs.length - 1]?.id ?? '')
             : state.terminalActiveTabId;
-        scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
-        scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, nextActive);
+        writeTerminalTabs(nextTabs);
+        writeTerminalActiveTab(nextActive);
         return {
           terminalTabs: nextTabs,
           terminalTabsById: buildTabsById(nextTabs),
@@ -239,7 +252,7 @@ export const createTerminalSlice = (
             tab.id === state.terminalActiveTabId ? { ...tab, ...patch } : tab
           )
         );
-        scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
+        writeTerminalTabs(nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
       }),
 
@@ -248,7 +261,7 @@ export const createTerminalSlice = (
         const nextTabs = sortTabs(
           state.terminalTabs.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab))
         );
-        scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
+        writeTerminalTabs(nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
       }),
 
@@ -266,7 +279,7 @@ export const createTerminalSlice = (
             return tab;
           })
         );
-        scheduleWrite(TERMINAL_TABS_KEY, nextTabs);
+        writeTerminalTabs(nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
       }),
 
@@ -284,7 +297,7 @@ export const createTerminalSlice = (
           sortOrder: index,
         }));
 
-        scheduleWrite(TERMINAL_TABS_KEY, reorderedWithSort);
+        writeTerminalTabs(reorderedWithSort);
         return {
           terminalTabs: reorderedWithSort,
           terminalTabsById: buildTabsById(reorderedWithSort),
@@ -292,8 +305,8 @@ export const createTerminalSlice = (
       }),
 
     terminalCloseAllTabs: () => {
-      scheduleWrite(TERMINAL_TABS_KEY, []);
-      scheduleWrite(TERMINAL_ACTIVE_TAB_KEY, '');
+      writeTerminalTabs([]);
+      writeTerminalActiveTab('');
       set({ terminalTabs: [], terminalTabsById: {}, terminalActiveTabId: '' });
     },
 
@@ -303,7 +316,7 @@ export const createTerminalSlice = (
       } catch {
         /* ignore */
       }
-      scheduleWrite(TERMINAL_DEFAULT_PROFILE_KEY, profile);
+      writeDefaultProfile(profile);
       set({ defaultTerminalProfile: profile });
     },
 
@@ -318,14 +331,14 @@ export const createTerminalSlice = (
         } catch {
           /* ignore */
         }
-        scheduleWrite(TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY, nextWorkspaceProfiles);
+        writeWorkspaceDefaultProfiles(nextWorkspaceProfiles);
         return { workspaceDefaultProfiles: nextWorkspaceProfiles };
       });
     },
 
     setTerminalNavigatorWidth: (width) => {
       const next = clamp(width, TERMINAL_NAVIGATOR_WIDTH_MIN, TERMINAL_NAVIGATOR_WIDTH_MAX);
-      scheduleNumberWrite(TERMINAL_NAVIGATOR_WIDTH_KEY, next);
+      writeNavigatorWidth(next);
       set({ terminalNavigatorWidth: next });
     },
 
@@ -335,19 +348,19 @@ export const createTerminalSlice = (
           ...state.navigatorCollapsedByTool,
           terminal: !(state.navigatorCollapsedByTool.terminal ?? false),
         };
-        scheduleWrite(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next);
+        writeNavigatorCollapsed(next);
         return { navigatorCollapsedByTool: next };
       }),
 
     setTerminalNavigatorCollapsed: (collapsed) =>
       set((state) => {
         const next = { ...state.navigatorCollapsedByTool, terminal: collapsed };
-        scheduleWrite(TERMINAL_NAVIGATOR_COLLAPSED_KEY, next);
+        writeNavigatorCollapsed(next);
         return { navigatorCollapsedByTool: next };
       }),
 
     setTerminalWorkspaceExpanded: (expanded) => {
-      scheduleWrite(TERMINAL_WORKSPACE_EXPANDED_KEY, expanded);
+      writeWorkspaceExpanded(expanded);
       set({ terminalWorkspaceExpanded: expanded });
     },
 

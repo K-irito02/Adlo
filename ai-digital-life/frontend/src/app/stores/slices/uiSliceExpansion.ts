@@ -3,7 +3,7 @@
  * 管理文件树/变更树/会话标签的展开状态
  */
 import type { StoreState } from '../StoreState';
-import { createDebouncedWrite, writeJson } from '../shared';
+import { makePersistedWriter, writeJson } from '../shared';
 import type { TreeExpansionState, UISlice } from './uiSliceTypes';
 import {
   FILE_TREE_EXPANDED_KEY,
@@ -11,7 +11,8 @@ import {
   SESSION_TABS_EXPANDED_KEY,
 } from './uiSliceTypes';
 
-const { scheduleWrite } = createDebouncedWrite(50);
+const writeFileTreeExpanded = makePersistedWriter(FILE_TREE_EXPANDED_KEY);
+const writeChangesTreeExpanded = makePersistedWriter(CHANGES_TREE_EXPANDED_KEY);
 
 function setTreePathExpandedInState(
   current: TreeExpansionState,
@@ -83,7 +84,7 @@ export function createUIExpansionSlice(
           return state;
         }
         const allPaths = { ...state.expandedFileTreePaths, [workspaceId]: next };
-        scheduleWrite(FILE_TREE_EXPANDED_KEY, allPaths);
+        writeFileTreeExpanded(allPaths);
         return { expandedFileTreePaths: allPaths };
       }),
     toggleFileTreePath: (workspaceId, path) =>
@@ -91,7 +92,7 @@ export function createUIExpansionSlice(
         const current = state.expandedFileTreePaths[workspaceId] ?? {};
         const next = toggleTreePathExpandedInState(current, path);
         const allPaths = { ...state.expandedFileTreePaths, [workspaceId]: next };
-        scheduleWrite(FILE_TREE_EXPANDED_KEY, allPaths);
+        writeFileTreeExpanded(allPaths);
         return { expandedFileTreePaths: allPaths };
       }),
     expandFileTreePathChain: (workspaceId, path) =>
@@ -102,13 +103,13 @@ export function createUIExpansionSlice(
           return state;
         }
         const allPaths = { ...state.expandedFileTreePaths, [workspaceId]: next };
-        scheduleWrite(FILE_TREE_EXPANDED_KEY, allPaths);
+        writeFileTreeExpanded(allPaths);
         return { expandedFileTreePaths: allPaths };
       }),
     collapseAllFileTreePaths: (workspaceId) =>
       set((state) => {
         const allPaths = { ...state.expandedFileTreePaths, [workspaceId]: {} };
-        scheduleWrite(FILE_TREE_EXPANDED_KEY, allPaths);
+        writeFileTreeExpanded(allPaths);
         return { expandedFileTreePaths: allPaths };
       }),
     setChangesTreePathExpanded: (path, expanded) =>
@@ -117,13 +118,13 @@ export function createUIExpansionSlice(
         if (next === state.expandedChangesTreePaths) {
           return state;
         }
-        scheduleWrite(CHANGES_TREE_EXPANDED_KEY, next);
+        writeChangesTreeExpanded(next);
         return { expandedChangesTreePaths: next };
       }),
     toggleChangesTreePath: (path) =>
       set((state) => {
         const next = toggleTreePathExpandedInState(state.expandedChangesTreePaths, path);
-        scheduleWrite(CHANGES_TREE_EXPANDED_KEY, next);
+        writeChangesTreeExpanded(next);
         return { expandedChangesTreePaths: next };
       }),
     expandChangesTreePathChain: (path) =>
@@ -132,11 +133,11 @@ export function createUIExpansionSlice(
         if (next === state.expandedChangesTreePaths) {
           return state;
         }
-        scheduleWrite(CHANGES_TREE_EXPANDED_KEY, next);
+        writeChangesTreeExpanded(next);
         return { expandedChangesTreePaths: next };
       }),
     collapseAllChangesTreePaths: () => {
-      scheduleWrite(CHANGES_TREE_EXPANDED_KEY, {});
+      writeChangesTreeExpanded({});
       set({ expandedChangesTreePaths: {} });
     },
     toggleSessionWorkspace: (workspaceId) =>

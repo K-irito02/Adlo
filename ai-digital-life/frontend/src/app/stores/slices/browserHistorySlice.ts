@@ -1,5 +1,5 @@
 import type { StoreState } from '../StoreState';
-import { createUiId, createDebouncedWrite } from '../shared';
+import { createUiId, makePersistedWriter } from '../shared';
 import { historyDedupKey } from '@utils/browserDisplayUtils';
 import { BROWSER_HISTORY_KEY } from './browserSliceShared';
 
@@ -10,7 +10,7 @@ export interface BrowserHistoryState {
   visitedAt: number;
 }
 
-const { scheduleWrite } = createDebouncedWrite(50);
+const writeHistory = makePersistedWriter(BROWSER_HISTORY_KEY);
 
 export const BROWSER_HISTORY_STORAGE_KEY = BROWSER_HISTORY_KEY;
 
@@ -56,13 +56,13 @@ export const createBrowserHistorySlice = (
         visitedAt: now,
       };
       const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100);
-      scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
+      writeHistory(nextHistory);
       return { browserHistory: nextHistory };
     });
   },
 
   browserClearHistory: () => {
-    scheduleWrite(BROWSER_HISTORY_KEY, []);
+    writeHistory([]);
     set({ browserHistory: [] });
   },
 
@@ -78,7 +78,7 @@ export const createBrowserHistorySlice = (
       const nextHistory = state.browserHistory.map((h) =>
         historyDedupKey(h.url) === dedupKey ? { ...h, title } : h
       );
-      scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
+      writeHistory(nextHistory);
       return { browserHistory: nextHistory };
     });
   },
@@ -112,7 +112,7 @@ export const createBrowserHistorySlice = (
           return `${y}-${m}-${dy}` !== dayKey;
         });
       }
-      scheduleWrite(BROWSER_HISTORY_KEY, filtered);
+      writeHistory(filtered);
       return { browserHistory: filtered };
     });
   },
@@ -123,7 +123,7 @@ export const createBrowserHistorySlice = (
       if (nextHistory.length === state.browserHistory.length) {
         return state;
       }
-      scheduleWrite(BROWSER_HISTORY_KEY, nextHistory);
+      writeHistory(nextHistory);
       return { browserHistory: nextHistory };
     });
   },

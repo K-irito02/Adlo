@@ -5,7 +5,7 @@
 import type { ToolId, FilesNavigatorMode, ChangesNavigatorMode } from '../types';
 import type { StoreState } from '../StoreState';
 import { BROWSER_NAVIGATOR_COLLAPSED_KEY, STORAGE_HYDRATION_DELAY_MS } from '../constants';
-import { readFlag, writeFlag, readJson, createDebouncedWrite } from '../shared';
+import { readFlag, writeFlag, readJson, makePersistedWriter } from '../shared';
 import type {
   TreeExpansionState,
   FileTreeExpansionState,
@@ -80,8 +80,9 @@ function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
   };
 }
 
-// Batch write scheduler
-const { scheduleWrite } = createDebouncedWrite(50);
+// Persisted writers — coalesce localStorage writes via shared 50ms scheduler
+const writeFilePreviewMode = makePersistedWriter(FILE_PREVIEW_MODE_KEY);
+const writeNavigatorCollapsed = makePersistedWriter(BROWSER_NAVIGATOR_COLLAPSED_KEY);
 
 // Lazy localStorage hydration
 let _defaultsHydrated = false;
@@ -221,7 +222,7 @@ export const createUISlice = (
     setFilePreviewModeForPath: (path, previewEnabled) =>
       set((state) => {
         const next = { ...state.filePreviewModeByPath, [path]: previewEnabled };
-        scheduleWrite(FILE_PREVIEW_MODE_KEY, next);
+        writeFilePreviewMode(next);
         return { filePreviewModeByPath: next };
       }),
     setChangesPreviewEnabled: (previewEnabled) => {
@@ -282,7 +283,7 @@ export const createUISlice = (
     setNavigatorCollapsed: (tool, collapsed) =>
       set((state) => {
         const next = { ...state.navigatorCollapsedByTool, [tool]: collapsed };
-        scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
+        writeNavigatorCollapsed(next);
         return { navigatorCollapsedByTool: next };
       }),
     toggleNavigator: (tool) =>
@@ -291,7 +292,7 @@ export const createUISlice = (
           ...state.navigatorCollapsedByTool,
           [tool]: !(state.navigatorCollapsedByTool[tool] ?? false),
         };
-        scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
+        writeNavigatorCollapsed(next);
         return { navigatorCollapsedByTool: next };
       }),
   };

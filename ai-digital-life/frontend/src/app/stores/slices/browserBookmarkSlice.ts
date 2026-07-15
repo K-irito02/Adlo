@@ -1,8 +1,8 @@
 import type { StoreState } from '../StoreState';
-import { createUiId, createDebouncedWrite } from '../shared';
+import { createUiId, makePersistedWriter } from '../shared';
 // Cross-slice constants centralized in the shared leaf module to break the
 // foldersSlice <-> bookmarkSlice import cycle. Re-imported here because this
-// slice writes to them internally (see scheduleWrite calls below).
+// slice writes to them internally (see writer calls below).
 import {
   BROWSER_BOOKMARKS_KEY,
   BROWSER_TAB_FOLDERS_KEY,
@@ -24,7 +24,10 @@ export interface WorkspaceBookmarkEntry {
   title: string;
 }
 
-const { scheduleWrite } = createDebouncedWrite(50);
+const writeBookmarks = makePersistedWriter(BROWSER_BOOKMARKS_KEY);
+const writeTabFolders = makePersistedWriter(BROWSER_TAB_FOLDERS_KEY);
+const writeWorkspaceBookmarks = makePersistedWriter(BROWSER_WORKSPACE_BOOKMARKS_KEY);
+const writeBookmarkTabIdUrlMap = makePersistedWriter(BROWSER_BOOKMARK_TABID_URL_MAP_KEY);
 
 export const BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY = BROWSER_WORKSPACE_BOOKMARKS_KEY;
 // `BROWSER_BOOKMARKS_STORAGE_KEY` and `BROWSER_BOOKMARK_TABID_URL_MAP_KEY` now
@@ -72,19 +75,16 @@ export const createBrowserBookmarkSlice = (
         return state;
       }
       if (outcome.bookmarksChanged) {
-        scheduleWrite(BROWSER_BOOKMARKS_KEY, outcome.partial.browserBookmarks);
+        writeBookmarks(outcome.partial.browserBookmarks);
       }
       if (outcome.foldersChanged) {
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, outcome.partial.browserTabFolders);
+        writeTabFolders(outcome.partial.browserTabFolders);
       }
       if (outcome.wsBookmarksChanged) {
-        scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, outcome.partial.browserWorkspaceBookmarks);
+        writeWorkspaceBookmarks(outcome.partial.browserWorkspaceBookmarks);
       }
       if (outcome.tabIdUrlMapChanged) {
-        scheduleWrite(
-          BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
-          outcome.partial.browserBookmarkTabIdUrlMap
-        );
+        writeBookmarkTabIdUrlMap(outcome.partial.browserBookmarkTabIdUrlMap);
       }
       return outcome.partial;
     });
@@ -111,19 +111,16 @@ export const createBrowserBookmarkSlice = (
         return state;
       }
       if (outcome.foldersChanged) {
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, outcome.partial.browserTabFolders);
+        writeTabFolders(outcome.partial.browserTabFolders);
       }
       if (outcome.bookmarksChanged) {
-        scheduleWrite(BROWSER_BOOKMARKS_KEY, outcome.partial.browserBookmarks);
+        writeBookmarks(outcome.partial.browserBookmarks);
       }
       if (outcome.wsBookmarksChanged) {
-        scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, outcome.partial.browserWorkspaceBookmarks);
+        writeWorkspaceBookmarks(outcome.partial.browserWorkspaceBookmarks);
       }
       if (outcome.tabIdUrlMapChanged) {
-        scheduleWrite(
-          BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
-          outcome.partial.browserBookmarkTabIdUrlMap
-        );
+        writeBookmarkTabIdUrlMap(outcome.partial.browserBookmarkTabIdUrlMap);
       }
       return outcome.partial;
     });
@@ -138,7 +135,7 @@ export const createBrowserBookmarkSlice = (
       const nextBookmarks = state.browserBookmarks.map((b) =>
         b.url === url ? { ...b, title } : b
       );
-      scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
+      writeBookmarks(nextBookmarks);
       return { browserBookmarks: nextBookmarks };
     });
   },
@@ -166,7 +163,7 @@ export const createBrowserBookmarkSlice = (
         }
       }
       if (wsChanged) {
-        scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
+        writeWorkspaceBookmarks(nextWorkspaceBookmarks);
       }
 
       // Remove from folders — when scopeFolderId is provided, only remove from that specific folder
@@ -196,7 +193,7 @@ export const createBrowserBookmarkSlice = (
             return folder;
           });
       if (nextFolders !== state.browserTabFolders) {
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+        writeTabFolders(nextFolders);
       }
 
       // Only remove from global bookmarks if this URL no longer exists in any folder or workspace
@@ -208,10 +205,10 @@ export const createBrowserBookmarkSlice = (
         ? state.browserBookmarks
         : state.browserBookmarks.filter((b) => b.url !== url);
       if (!urlStillExists) {
-        scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
+        writeBookmarks(nextBookmarks);
       }
 
-      scheduleWrite(BROWSER_BOOKMARK_TABID_URL_MAP_KEY, nextTabIdUrlMap);
+      writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
       return {
         browserBookmarks: nextBookmarks,
         browserWorkspaceBookmarks: nextWorkspaceBookmarks,
@@ -246,13 +243,13 @@ export const createBrowserBookmarkSlice = (
       if (nextBookmarks.length === state.browserBookmarks.length) {
         return state;
       }
-      scheduleWrite(BROWSER_BOOKMARKS_KEY, nextBookmarks);
+      writeBookmarks(nextBookmarks);
       return { browserBookmarks: nextBookmarks };
     }),
 
   browserClearAllWorkspaceBookmarks: () => {
-    scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, {});
-    scheduleWrite(BROWSER_BOOKMARK_TABID_URL_MAP_KEY, {});
+    writeWorkspaceBookmarks({});
+    writeBookmarkTabIdUrlMap({});
     set({
       browserWorkspaceBookmarks: {},
       browserBookmarkTabIdUrlMap: {},

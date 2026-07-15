@@ -6,7 +6,14 @@
  * BrowserSlice 类型定义自身字段，所有子切片类型单独注册。
  */
 import type { StoreState } from '../StoreState';
-import { clamp, readJson, readNumber, createUiId, createDebouncedWrite } from '../shared';
+import {
+  clamp,
+  readJson,
+  readNumber,
+  createUiId,
+  makePersistedWriter,
+  makePersistedNumberWriter,
+} from '../shared';
 import { BROWSER_NAVIGATOR_COLLAPSED_KEY, STORAGE_HYDRATION_DELAY_MS } from '../constants';
 
 import type { BrowserTabState } from './browserSliceShared';
@@ -48,7 +55,11 @@ const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
 const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
 const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
 
-const { scheduleWrite, scheduleNumberWrite } = createDebouncedWrite(50);
+const writeTabs = makePersistedWriter(BROWSER_TABS_KEY);
+const writeActiveTab = makePersistedWriter(BROWSER_ACTIVE_TAB_KEY);
+const writeNavigateInPlace = makePersistedWriter(BROWSER_NAVIGATE_IN_PLACE_KEY);
+const writeNavigatorCollapsed = makePersistedWriter(BROWSER_NAVIGATOR_COLLAPSED_KEY);
+const writeNavigatorWidth = makePersistedNumberWriter(BROWSER_NAVIGATOR_WIDTH_KEY);
 
 function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState> {
   const result: Record<string, BrowserTabState> = {};
@@ -229,8 +240,8 @@ export const createBrowserSlice = (
           nextTabs = [...nextTabs, newTab];
           nextActiveTabId = newTab.id;
           activeTab = newTab;
-          scheduleWrite(BROWSER_TABS_KEY, nextTabs);
-          scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActiveTabId);
+          writeTabs(nextTabs);
+          writeActiveTab(nextActiveTabId);
         } else {
           nextTabs = nextTabs.map((tab) => {
             if (tab.id === state.browserActiveTabId) {
@@ -242,7 +253,7 @@ export const createBrowserSlice = (
             }
             return tab;
           });
-          scheduleWrite(BROWSER_TABS_KEY, nextTabs);
+          writeTabs(nextTabs);
         }
 
         // History entry is created by handlePageMeta (via browserAddToHistory)
@@ -258,12 +269,12 @@ export const createBrowserSlice = (
 
     setBrowserNavigatorWidth: (width) => {
       const next = clamp(width, BROWSER_NAVIGATOR_WIDTH_MIN, BROWSER_NAVIGATOR_WIDTH_MAX);
-      scheduleNumberWrite(BROWSER_NAVIGATOR_WIDTH_KEY, next);
+      writeNavigatorWidth(next);
       set({ browserNavigatorWidth: next });
     },
 
     setBrowserNavigateInPlace: (value: boolean) => {
-      scheduleWrite(BROWSER_NAVIGATE_IN_PLACE_KEY, value);
+      writeNavigateInPlace(value);
       set({ browserNavigateInPlace: value });
     },
 
@@ -273,14 +284,14 @@ export const createBrowserSlice = (
           ...state.navigatorCollapsedByTool,
           browser: !(state.navigatorCollapsedByTool?.browser ?? false),
         };
-        scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
+        writeNavigatorCollapsed(next);
         return { navigatorCollapsedByTool: next };
       }),
 
     setBrowserNavigatorCollapsed: (collapsed) =>
       set((state) => {
         const next = { ...state.navigatorCollapsedByTool, browser: collapsed };
-        scheduleWrite(BROWSER_NAVIGATOR_COLLAPSED_KEY, next);
+        writeNavigatorCollapsed(next);
         return { navigatorCollapsedByTool: next };
       }),
 

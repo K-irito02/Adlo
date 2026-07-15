@@ -13,7 +13,7 @@ import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-l
 import type { StoreState } from '../StoreState';
 import type { DigitalLifeBridge } from '@shared/ipc';
 import { CI_ERROR_CODES } from '@shared/ciErrors';
-import { createDebouncedWrite } from '../shared';
+import { makePersistedWriter } from '../shared';
 import { executeCiStatusRefresh } from './githubCiRefresh';
 
 // Local storage keys
@@ -21,8 +21,8 @@ const CI_CONFIG_KEY = 'adl-ui:ci-config';
 const CI_ACCESS_TOKEN_KEY = 'adl-ui:ci-access-token';
 const CI_AUTO_REFRESH_ON_PUSH_KEY = 'adl-ui:ci-auto-refresh-on-push';
 
-// Batch write scheduler — coalesces multiple localStorage writes into one
-const { scheduleWrite } = createDebouncedWrite(50);
+// Persisted writer — coalesces localStorage writes via shared 50ms scheduler
+const writeCiConfig = makePersistedWriter(CI_CONFIG_KEY);
 
 function getBridge(): DigitalLifeBridge | null {
   if (typeof window === 'undefined') {
@@ -155,7 +155,7 @@ export const createCiSlice = (
 
     setCiConfig: (config) => {
       set({ ciConfig: config });
-      scheduleWrite(CI_CONFIG_KEY, {
+      writeCiConfig({
         owner: config.owner,
         repo: config.repo,
         branch: config.branch,

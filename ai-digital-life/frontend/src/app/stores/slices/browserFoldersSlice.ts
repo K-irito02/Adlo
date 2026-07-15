@@ -1,5 +1,5 @@
 import type { StoreState } from '../StoreState';
-import { createUiId, createDebouncedWrite } from '../shared';
+import { createUiId, makePersistedWriter } from '../shared';
 import { formatNewFolderNameByLocale } from '@i18n';
 import type { TabFolderState, TabFolderStateUpdate } from './browserFoldersTypes';
 import {
@@ -26,7 +26,15 @@ export {
   BROWSER_WORKSPACE_EXPANDED_STORAGE_KEY,
 } from './browserFoldersUtils';
 
-const { scheduleWrite } = createDebouncedWrite(50);
+const writeTabFolders = makePersistedWriter(BROWSER_TAB_FOLDERS_KEY);
+const writeTreeExpanded = makePersistedWriter(BROWSER_TREE_EXPANDED_KEY);
+const writeWorkspaceExpanded = makePersistedWriter(BROWSER_WORKSPACE_EXPANDED_KEY);
+const writeTabs = makePersistedWriter(BROWSER_TABS_KEY);
+const writeActiveTab = makePersistedWriter(BROWSER_ACTIVE_TAB_KEY);
+const writeHistory = makePersistedWriter(BROWSER_HISTORY_KEY);
+const writeWorkspaceBookmarks = makePersistedWriter(BROWSER_WORKSPACE_BOOKMARKS_KEY);
+const writeBookmarks = makePersistedWriter(BROWSER_BOOKMARKS_STORAGE_KEY);
+const writeBookmarkTabIdUrlMap = makePersistedWriter(BROWSER_BOOKMARK_TABID_URL_MAP_KEY);
 
 export interface BrowserFoldersSlice {
   browserTabFolders: TabFolderState[];
@@ -76,7 +84,7 @@ export const createBrowserFoldersSlice = (
         parentType: parentType as 'workspace' | 'folder' | undefined,
       };
       const resultFolders = [...state.browserTabFolders, newFolder];
-      scheduleWrite(BROWSER_TAB_FOLDERS_KEY, resultFolders);
+      writeTabFolders(resultFolders);
       return { browserTabFolders: resultFolders };
     });
   },
@@ -89,7 +97,7 @@ export const createBrowserFoldersSlice = (
         }
         return folder;
       });
-      scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+      writeTabFolders(nextFolders);
       return { browserTabFolders: nextFolders };
     }),
 
@@ -102,7 +110,7 @@ export const createBrowserFoldersSlice = (
       const nextFolders = state.browserTabFolders.filter(
         (folder) => !idsToDelete.includes(folder.id)
       );
-      scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+      writeTabFolders(nextFolders);
       return { browserTabFolders: nextFolders };
     }),
 
@@ -123,7 +131,7 @@ export const createBrowserFoldersSlice = (
         }
         return folder;
       });
-      scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+      writeTabFolders(nextFolders);
       return { browserTabFolders: nextFolders };
     });
   },
@@ -134,13 +142,13 @@ export const createBrowserFoldersSlice = (
         ...state.browserTabTreeExpanded,
         [path]: !(state.browserTabTreeExpanded[path] ?? false),
       };
-      scheduleWrite(BROWSER_TREE_EXPANDED_KEY, next);
+      writeTreeExpanded(next);
       return { browserTabTreeExpanded: next };
     }),
 
   browserCollapseAllTreePaths: () =>
     set((_state) => {
-      scheduleWrite(BROWSER_TREE_EXPANDED_KEY, {});
+      writeTreeExpanded({});
       return { browserTabTreeExpanded: {} };
     }),
 
@@ -150,7 +158,7 @@ export const createBrowserFoldersSlice = (
       for (const p of paths) {
         next[p] = true;
       }
-      scheduleWrite(BROWSER_TREE_EXPANDED_KEY, next);
+      writeTreeExpanded(next);
       return { browserTabTreeExpanded: next };
     }),
 
@@ -161,17 +169,17 @@ export const createBrowserFoldersSlice = (
         return state;
       }
       if (outcome.wsChanged) {
-        scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, outcome.partial.browserWorkspaceBookmarks);
+        writeWorkspaceBookmarks(outcome.partial.browserWorkspaceBookmarks);
       }
       if (outcome.foldersChanged) {
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, outcome.partial.browserTabFolders);
+        writeTabFolders(outcome.partial.browserTabFolders);
       }
       if (outcome.tabsChanged) {
-        scheduleWrite(BROWSER_TABS_KEY, outcome.partial.browserTabs);
-        scheduleWrite(BROWSER_ACTIVE_TAB_KEY, outcome.partial.browserActiveTabId);
+        writeTabs(outcome.partial.browserTabs);
+        writeActiveTab(outcome.partial.browserActiveTabId);
       }
       if (outcome.historyChanged) {
-        scheduleWrite(BROWSER_HISTORY_KEY, outcome.partial.browserHistory);
+        writeHistory(outcome.partial.browserHistory);
       }
       return outcome.partial;
     }),
@@ -183,17 +191,17 @@ export const createBrowserFoldersSlice = (
         return state;
       }
       if (outcome.wsChanged) {
-        scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, outcome.partial.browserWorkspaceBookmarks);
+        writeWorkspaceBookmarks(outcome.partial.browserWorkspaceBookmarks);
       }
       if (outcome.foldersChanged) {
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, outcome.partial.browserTabFolders);
+        writeTabFolders(outcome.partial.browserTabFolders);
       }
       if (outcome.tabsChanged) {
-        scheduleWrite(BROWSER_TABS_KEY, outcome.partial.browserTabs);
-        scheduleWrite(BROWSER_ACTIVE_TAB_KEY, outcome.partial.browserActiveTabId);
+        writeTabs(outcome.partial.browserTabs);
+        writeActiveTab(outcome.partial.browserActiveTabId);
       }
       if (outcome.historyChanged) {
-        scheduleWrite(BROWSER_HISTORY_KEY, outcome.partial.browserHistory);
+        writeHistory(outcome.partial.browserHistory);
       }
       return outcome.partial;
     }),
@@ -244,10 +252,10 @@ export const createBrowserFoldersSlice = (
         return f;
       });
 
-      scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
-      scheduleWrite(BROWSER_BOOKMARKS_STORAGE_KEY, nextBookmarks);
-      scheduleWrite(BROWSER_BOOKMARK_TABID_URL_MAP_KEY, nextTabIdUrlMap);
-      scheduleWrite(BROWSER_WORKSPACE_BOOKMARKS_KEY, nextWorkspaceBookmarks);
+      writeTabFolders(nextFolders);
+      writeBookmarks(nextBookmarks);
+      writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
+      writeWorkspaceBookmarks(nextWorkspaceBookmarks);
       return {
         browserTabFolders: nextFolders,
         browserBookmarks: nextBookmarks,
@@ -258,7 +266,7 @@ export const createBrowserFoldersSlice = (
   },
 
   setBrowserWorkspaceExpanded: (expanded) => {
-    scheduleWrite(BROWSER_WORKSPACE_EXPANDED_KEY, expanded);
+    writeWorkspaceExpanded(expanded);
     set({ browserWorkspaceExpanded: expanded });
   },
 });

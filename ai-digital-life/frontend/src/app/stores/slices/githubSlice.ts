@@ -2,7 +2,7 @@ import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-l
 import type { StoreState } from '../StoreState';
 import type { GitWorkspaceCiConfig } from './githubRepoSliceTypes';
 import { CI_ERROR_CODES } from '@shared/ciErrors';
-import { createDebouncedWrite, readJson } from '../shared';
+import { createDebouncedWrite, makePersistedWriter, readJson } from '../shared';
 import {
   type GitHubSection,
   getBridge,
@@ -19,9 +19,14 @@ const ACTIVE_GITHUB_SECTION_KEY = 'adl-ui:active-github-section';
 const CI_SNAPSHOTS_KEY = 'adl-ui:ci-snapshots';
 const CI_LOG_CACHES_KEY = 'adl-ui:ci-log-caches';
 
-const { scheduleWrite } = createDebouncedWrite(50);
-const { scheduleWrite: scheduleSnapshotsWrite } = createDebouncedWrite(300);
-const { scheduleWrite: scheduleLogCachesWrite } = createDebouncedWrite(300);
+// 50ms: shared cross-slice writer for config
+const writeCiConfig = makePersistedWriter(CI_CONFIG_KEY);
+// 300ms: independent writers for bulkier CI snapshots/log caches
+const snapshotsWriter = createDebouncedWrite(300);
+const logCachesWriter = createDebouncedWrite(300);
+const writeCiSnapshots = (value: unknown) => snapshotsWriter.scheduleWrite(CI_SNAPSHOTS_KEY, value);
+const writeCiLogCaches = (value: unknown) =>
+  logCachesWriter.scheduleWrite(CI_LOG_CACHES_KEY, value);
 
 export type { GitHubSection } from './githubSliceHelpers';
 
@@ -128,7 +133,7 @@ export const createGitHubSlice = (
 
     setCiConfig: (config) => {
       set({ ciConfig: config });
-      scheduleWrite(CI_CONFIG_KEY, {
+      writeCiConfig({
         owner: config.owner,
         repo: config.repo,
         branch: config.branch,
@@ -268,7 +273,7 @@ export const createGitHubSlice = (
           ...state.ciLogCaches,
           [dirId]: { ...existing, ...data },
         };
-        scheduleLogCachesWrite(CI_LOG_CACHES_KEY, next);
+        writeCiLogCaches(next);
         return { ciLogCaches: next };
       });
     },
@@ -316,7 +321,7 @@ export const createGitHubSlice = (
       if (result.ok) {
         set((state) => {
           const nextSnapshots = { ...state.ciSnapshots, [id]: result.snapshot };
-          scheduleSnapshotsWrite(CI_SNAPSHOTS_KEY, nextSnapshots);
+          writeCiSnapshots(nextSnapshots);
           return {
             ciSnapshot: result.snapshot,
             ciJobs: result.snapshot.jobs ?? [],

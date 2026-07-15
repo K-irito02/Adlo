@@ -1,5 +1,5 @@
 import type { StoreState } from '../StoreState';
-import { createUiId, createDebouncedWrite } from '../shared';
+import { createUiId, makePersistedWriter } from '../shared';
 import {
   BROWSER_TABS_KEY,
   BROWSER_ACTIVE_TAB_KEY,
@@ -14,7 +14,10 @@ import type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShare
 // `./browserSliceShared` to break the cross-slice type import cycle.
 export type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
 
-const { scheduleWrite } = createDebouncedWrite(50);
+const writeTabFolders = makePersistedWriter(BROWSER_TAB_FOLDERS_KEY);
+const writeBookmarkTabIdUrlMap = makePersistedWriter(BROWSER_BOOKMARK_TABID_URL_MAP_KEY);
+const writeTabs = makePersistedWriter(BROWSER_TABS_KEY);
+const writeActiveTab = makePersistedWriter(BROWSER_ACTIVE_TAB_KEY);
 
 function sortTabs(tabs: BrowserTabState[]): BrowserTabState[] {
   return [...tabs].sort((a, b) => {
@@ -93,14 +96,14 @@ export const createBrowserTabsSlice = (
           }
           return f;
         });
-        scheduleWrite(BROWSER_TAB_FOLDERS_KEY, nextFolders);
+        writeTabFolders(nextFolders);
         if (tab.url && !nextTabIdUrlMap[tab.id]) {
           nextTabIdUrlMap = { ...nextTabIdUrlMap, [tab.id]: tab.url };
-          scheduleWrite(BROWSER_BOOKMARK_TABID_URL_MAP_KEY, nextTabIdUrlMap);
+          writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
         }
       }
-      scheduleWrite(BROWSER_TABS_KEY, nextTabs);
-      scheduleWrite(BROWSER_ACTIVE_TAB_KEY, tab.id);
+      writeTabs(nextTabs);
+      writeActiveTab(tab.id);
       return {
         browserTabs: nextTabs,
         browserTabsById: buildTabsById(nextTabs),
@@ -112,7 +115,7 @@ export const createBrowserTabsSlice = (
     }),
 
   browserSelectTab: (tabId) => {
-    scheduleWrite(BROWSER_ACTIVE_TAB_KEY, tabId);
+    writeActiveTab(tabId);
     set({ browserActiveTabId: tabId });
   },
 
@@ -125,8 +128,8 @@ export const createBrowserTabsSlice = (
           ? (nextTabs[nextTabs.length - 1]?.id ?? '')
           : state.browserActiveTabId;
 
-      scheduleWrite(BROWSER_TABS_KEY, nextTabs);
-      scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActive);
+      writeTabs(nextTabs);
+      writeActiveTab(nextActive);
       return {
         browserTabs: nextTabs,
         browserTabsById: buildTabsById(nextTabs),
@@ -139,7 +142,7 @@ export const createBrowserTabsSlice = (
       const nextTabs = sortTabs(
         state.browserTabs.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab))
       );
-      scheduleWrite(BROWSER_TABS_KEY, nextTabs);
+      writeTabs(nextTabs);
       return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
     }),
 
@@ -160,7 +163,7 @@ export const createBrowserTabsSlice = (
       });
       const hasMuteChange = isMuted !== undefined;
       if (hasMuteChange) {
-        scheduleWrite(BROWSER_TABS_KEY, nextTabs);
+        writeTabs(nextTabs);
       }
       return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
     }),
@@ -170,7 +173,7 @@ export const createBrowserTabsSlice = (
       const nextTabs = state.browserTabs.map((tab) =>
         tab.id === tabId ? { ...tab, isAudioMuted: !tab.isAudioMuted } : tab
       );
-      scheduleWrite(BROWSER_TABS_KEY, nextTabs);
+      writeTabs(nextTabs);
       return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
     }),
 
@@ -188,7 +191,7 @@ export const createBrowserTabsSlice = (
           return tab;
         })
       );
-      scheduleWrite(BROWSER_TABS_KEY, nextTabs);
+      writeTabs(nextTabs);
       return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
     }),
 
@@ -206,7 +209,7 @@ export const createBrowserTabsSlice = (
         sortOrder: index,
       }));
 
-      scheduleWrite(BROWSER_TABS_KEY, reorderedWithSort);
+      writeTabs(reorderedWithSort);
       return {
         browserTabs: reorderedWithSort,
         browserTabsById: buildTabsById(reorderedWithSort),
@@ -222,8 +225,8 @@ export const createBrowserTabsSlice = (
         nextTabs = [];
       }
       const nextActive = nextTabs.length > 0 ? nextTabs[nextTabs.length - 1].id : '';
-      scheduleWrite(BROWSER_TABS_KEY, nextTabs);
-      scheduleWrite(BROWSER_ACTIVE_TAB_KEY, nextActive);
+      writeTabs(nextTabs);
+      writeActiveTab(nextActive);
       return {
         browserTabs: nextTabs,
         browserTabsById: buildTabsById(nextTabs),

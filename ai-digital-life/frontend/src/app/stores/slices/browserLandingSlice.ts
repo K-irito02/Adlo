@@ -1,5 +1,5 @@
 import type { StoreState } from '../StoreState';
-import { createUiId, createDebouncedWrite } from '../shared';
+import { createUiId, makePersistedWriter } from '../shared';
 import {
   BROWSER_SHORTCUTS_KEY,
   BROWSER_LOCAL_PORTS_KEY,
@@ -35,7 +35,9 @@ export interface BackgroundConfig {
   fileName?: string;
 }
 
-const { scheduleWrite } = createDebouncedWrite(50);
+const writeShortcuts = makePersistedWriter(BROWSER_SHORTCUTS_KEY);
+const writeLocalPorts = makePersistedWriter(BROWSER_LOCAL_PORTS_KEY);
+const writeBgConfig = makePersistedWriter(BROWSER_BG_CONFIG_KEY);
 
 export interface BrowserLandingSlice {
   browserShortcuts: ShortcutSite[];
@@ -86,7 +88,7 @@ export const createBrowserLandingSlice = (
         createdAt: Date.now(),
       };
       const nextShortcuts = [...state.browserShortcuts, newSite];
-      scheduleWrite(BROWSER_SHORTCUTS_KEY, nextShortcuts);
+      writeShortcuts(nextShortcuts);
       return { browserShortcuts: nextShortcuts };
     });
     return id;
@@ -95,14 +97,14 @@ export const createBrowserLandingSlice = (
   browserRenameShortcut: (id, name) =>
     set((state) => {
       const nextShortcuts = state.browserShortcuts.map((s) => (s.id === id ? { ...s, name } : s));
-      scheduleWrite(BROWSER_SHORTCUTS_KEY, nextShortcuts);
+      writeShortcuts(nextShortcuts);
       return { browserShortcuts: nextShortcuts };
     }),
 
   browserDeleteShortcut: (id) =>
     set((state) => {
       const nextShortcuts = state.browserShortcuts.filter((s) => s.id !== id);
-      scheduleWrite(BROWSER_SHORTCUTS_KEY, nextShortcuts);
+      writeShortcuts(nextShortcuts);
       return { browserShortcuts: nextShortcuts };
     }),
 
@@ -116,14 +118,14 @@ export const createBrowserLandingSlice = (
         return { ...site, sortOrder: idx };
       });
       const nextShortcuts = [...ordered, ...other];
-      scheduleWrite(BROWSER_SHORTCUTS_KEY, nextShortcuts);
+      writeShortcuts(nextShortcuts);
       return { browserShortcuts: nextShortcuts };
     }),
 
   browserSetLocalPorts: (ports) =>
     set(() => {
       const withSort = ports.map((p, idx) => ({ ...p, sortOrder: p.sortOrder ?? idx }));
-      scheduleWrite(BROWSER_LOCAL_PORTS_KEY, withSort);
+      writeLocalPorts(withSort);
       return { browserLocalPorts: withSort };
     }),
 
@@ -145,7 +147,7 @@ export const createBrowserLandingSlice = (
         sortOrder: maxSortOrder + 1,
       };
       const nextPorts = [...state.browserLocalPorts, newPort];
-      scheduleWrite(BROWSER_LOCAL_PORTS_KEY, nextPorts);
+      writeLocalPorts(nextPorts);
       return { browserLocalPorts: nextPorts };
     });
     return id;
@@ -154,14 +156,14 @@ export const createBrowserLandingSlice = (
   browserDeleteLocalPort: (id) =>
     set((state) => {
       const nextPorts = state.browserLocalPorts.filter((p) => p.id !== id);
-      scheduleWrite(BROWSER_LOCAL_PORTS_KEY, nextPorts);
+      writeLocalPorts(nextPorts);
       return { browserLocalPorts: nextPorts };
     }),
 
   browserUpdateLocalPort: (id, patch) =>
     set((state) => {
       const nextPorts = state.browserLocalPorts.map((p) => (p.id === id ? { ...p, ...patch } : p));
-      scheduleWrite(BROWSER_LOCAL_PORTS_KEY, nextPorts);
+      writeLocalPorts(nextPorts);
       return { browserLocalPorts: nextPorts };
     }),
 
@@ -175,20 +177,20 @@ export const createBrowserLandingSlice = (
         return { ...port, sortOrder: idx };
       });
       const nextPorts = [...ordered, ...other];
-      scheduleWrite(BROWSER_LOCAL_PORTS_KEY, nextPorts);
+      writeLocalPorts(nextPorts);
       return { browserLocalPorts: nextPorts };
     }),
 
   browserSetPortScanning: (scanning) => set({ browserPortScanning: scanning }),
 
   browserSetBgConfig: (config) => {
-    scheduleWrite(BROWSER_BG_CONFIG_KEY, config);
+    writeBgConfig(config);
     set({ browserBgConfig: config });
   },
 
   browserResetBgConfig: () => {
     const defaultConfig: BackgroundConfig = { mode: 'default', fit: 'cover' };
-    scheduleWrite(BROWSER_BG_CONFIG_KEY, defaultConfig);
+    writeBgConfig(defaultConfig);
     set({ browserBgConfig: defaultConfig });
   },
 });

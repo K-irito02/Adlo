@@ -9,7 +9,7 @@ import { createDebouncedWrite, readJson } from '../shared';
 const GH_WORKSPACE_CONFIGS_KEY = 'adl-ui:github-workspace-configs';
 const GH_CI_FOLDERS_KEY = 'adl-ui:github-ci-folders';
 
-const { scheduleWrite: schedulePersist } = createDebouncedWrite(300);
+const persistWriter = createDebouncedWrite(300);
 
 /** Strip accessToken for secure localStorage persistence */
 export function stripTokenFromConfig(
@@ -32,11 +32,11 @@ export function scheduleWorkspaceConfigsWrite(configs: Record<string, GitWorkspa
   for (const [id, cfg] of Object.entries(configs)) {
     stripped[id] = stripTokenFromConfig(cfg);
   }
-  schedulePersist(GH_WORKSPACE_CONFIGS_KEY, stripped);
+  persistWriter.scheduleWrite(GH_WORKSPACE_CONFIGS_KEY, stripped);
 }
 
 export function scheduleFoldersWrite(folders: GitHubCiFolderState[]): void {
-  schedulePersist(GH_CI_FOLDERS_KEY, stripTokenFromFolders(folders));
+  persistWriter.scheduleWrite(GH_CI_FOLDERS_KEY, stripTokenFromFolders(folders));
 }
 
 export async function hydrateGitHubConfigs(): Promise<Record<string, GitWorkspaceCiConfig>> {
