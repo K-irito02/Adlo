@@ -77,36 +77,28 @@ pub fn git_has_local_changes(snapshot: &GitSnapshot) -> bool {
     !snapshot.staged.is_empty() || !snapshot.unstaged.is_empty() || !snapshot.untracked.is_empty()
 }
 
-pub fn list_git_branches(root: &Path) -> Result<Vec<GitBranchSummary>, AppError> {
-    let current_branch =
-        run_git_required(root, &["branch", "--show-current"]).and_then(|value| {
-            first_non_empty_line(value)
-                .ok_or_else(|| AppError::Workspace("failed to resolve current branch".into()))
-        })?;
-    let local_output = run_git_required(root, &["branch", "--format=%(refname:short)"])?;
-    let remote_output =
-        run_git_required(root, &["branch", "-r", "--format=%(refname:short)"]).unwrap_or_default();
+/// Parse `git branch --format=%(refname:short)` output into a list of local branch names.
+/// Skips empty lines and trims whitespace.
+fn parse_local_branches(output: &str) -> Vec<String> {
+    output.lines().map(str::trim).filter(|line| !line.is_empty()).map(|s| s.to_string()).collect()
+}
 
-    let local_branches: Vec<String> = local_output
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(|s| s.to_string())
-        .collect();
-
-    let remote_branches: std::collections::HashSet<String> = remote_output
+/// Parse `git branch -r --format=%(refname:short)` output into a set of branch names
+/// (stripping the remote prefix, e.g. `origin/main` → `main`).
+fn parse_remote_branch_names(output: &str) -> std::collections::HashSet<String> {
+    output
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
         .filter_map(|line| line.split_once('/').map(|(_, name)| name.to_string()))
-        .collect();
+        .collect()
+}
 
-    if local_branches.is_empty() {
-        return Err(AppError::Workspace("no local branches found".into()));
-    }
-
-    let stash_list = run_git_required(root, &["stash", "list", "--format=%s"]).unwrap_or_default();
-    let stashed_branches: std::collections::HashSet<String> = stash_list
+/// Parse `git stash list --format=%s` output to extract branch names from
+/// `adl-auto-stash:<branch>:...` markers. Returns a set of branch names that
+/// have an auto-stash entry.
+fn parse_stashed_branches(output: &str) -> std::collections::HashSet<String> {
+    output
         .lines()
         .filter_map(|line| {
             let trimmed = line.trim();
@@ -116,23 +108,34 @@ pub fn list_git_branches(root: &Path) -> Result<Vec<GitBranchSummary>, AppError>
                 after_marker.split(':').next().map(|s| s.to_string())
             })
         })
-        .collect();
+        .collect()
+}
 
+/// Build the final list of `GitBranchSummary` entries from parsed components.
+/// Local branches are listed first (marked with `local: true`), then remote-only
+/// branches. The current branch is flagged. Results are sorted: current branch
+/// first, then alphabetical by name.
+fn build_branch_summaries(
+    local_branches: &[String],
+    remote_branches: &std::collections::HashSet<String>,
+    stashed_branches: &std::collections::HashSet<String>,
+    current_branch: &str,
+) -> Vec<GitBranchSummary> {
     let mut seen = std::collections::HashSet::new();
     let mut branches: Vec<GitBranchSummary> = Vec::new();
 
-    for name in &local_branches {
+    for name in local_branches {
         seen.insert(name.clone());
         branches.push(GitBranchSummary {
             name: name.clone(),
-            is_current: name == &current_branch,
+            is_current: name == current_branch,
             local: true,
             remote: remote_branches.contains(name),
             has_stash: stashed_branches.contains(name.as_str()),
         });
     }
 
-    for name in &remote_branches {
+    for name in remote_branches {
         if !seen.contains(name) {
             branches.push(GitBranchSummary {
                 name: name.clone(),
@@ -147,7 +150,35 @@ pub fn list_git_branches(root: &Path) -> Result<Vec<GitBranchSummary>, AppError>
     branches.sort_by(|left, right| {
         right.is_current.cmp(&left.is_current).then_with(|| left.name.cmp(&right.name))
     });
-    Ok(branches)
+    branches
+}
+
+pub fn list_git_branches(root: &Path) -> Result<Vec<GitBranchSummary>, AppError> {
+    let current_branch =
+        run_git_required(root, &["branch", "--show-current"]).and_then(|value| {
+            first_non_empty_line(value)
+                .ok_or_else(|| AppError::Workspace("failed to resolve current branch".into()))
+        })?;
+    let local_output = run_git_required(root, &["branch", "--format=%(refname:short)"])?;
+    let remote_output =
+        run_git_required(root, &["branch", "-r", "--format=%(refname:short)"]).unwrap_or_default();
+
+    let local_branches = parse_local_branches(&local_output);
+    let remote_branches = parse_remote_branch_names(&remote_output);
+
+    if local_branches.is_empty() {
+        return Err(AppError::Workspace("no local branches found".into()));
+    }
+
+    let stash_list = run_git_required(root, &["stash", "list", "--format=%s"]).unwrap_or_default();
+    let stashed_branches = parse_stashed_branches(&stash_list);
+
+    Ok(build_branch_summaries(
+        &local_branches,
+        &remote_branches,
+        &stashed_branches,
+        &current_branch,
+    ))
 }
 
 pub fn switch_git_branch(
@@ -543,5 +574,108 @@ mod git_tests {
         let master = branches.iter().find(|b| b.name == "master").expect("master branch exists");
         assert!(master.has_stash);
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // === 纯解析函数测试（无需 git in PATH）===
+
+    #[test]
+    fn parse_local_branches_handles_basic_output() {
+        let output = "main\nfeature/branch-1\ndevelop\n";
+        let branches = parse_local_branches(output);
+        assert_eq!(branches, vec!["main", "feature/branch-1", "develop"]);
+    }
+
+    #[test]
+    fn parse_local_branches_skips_empty_lines() {
+        let output = "main\n\n\ndevelop\n";
+        let branches = parse_local_branches(output);
+        assert_eq!(branches, vec!["main", "develop"]);
+    }
+
+    #[test]
+    fn parse_local_branches_handles_empty_output() {
+        let output = "";
+        let branches = parse_local_branches(output);
+        assert!(branches.is_empty());
+    }
+
+    #[test]
+    fn parse_remote_branch_names_extracts_branch_after_slash() {
+        let output = "origin/main\norigin/feature/test\nupstream/develop\n";
+        let names = parse_remote_branch_names(output);
+        assert!(names.contains("main"));
+        assert!(names.contains("feature/test"));
+        assert!(names.contains("develop"));
+        assert_eq!(names.len(), 3);
+    }
+
+    #[test]
+    fn parse_remote_branch_names_skips_empty_lines() {
+        let output = "origin/main\n\norigin/develop\n";
+        let names = parse_remote_branch_names(output);
+        assert_eq!(names.len(), 2);
+    }
+
+    #[test]
+    fn parse_stashed_branches_extracts_adl_auto_stash_markers() {
+        let output = "adl-auto-stash:main:WIP on main\nadl-auto-stash:feature:WIP on feature\nstash@{2}: other stash";
+        let stashed = parse_stashed_branches(output);
+        assert!(stashed.contains("main"));
+        assert!(stashed.contains("feature"));
+        assert_eq!(stashed.len(), 2);
+    }
+
+    #[test]
+    fn parse_stashed_branches_returns_empty_for_no_adl_markers() {
+        let output = "stash@{0}: WIP on main\nstash@{1}: WIP on develop";
+        let stashed = parse_stashed_branches(output);
+        assert!(stashed.is_empty());
+    }
+
+    #[test]
+    fn build_branch_summaries_merges_local_and_remote() {
+        let local: Vec<String> = vec!["main".to_string(), "develop".to_string()];
+        let remote: std::collections::HashSet<String> =
+            ["main".to_string(), "release".to_string()].into_iter().collect();
+        let stashed: std::collections::HashSet<String> =
+            ["develop".to_string()].into_iter().collect();
+        let current = "main";
+
+        let summaries = build_branch_summaries(&local, &remote, &stashed, current);
+
+        assert_eq!(summaries.len(), 3); // main, develop, release
+
+        let main = summaries.iter().find(|s| s.name == "main").unwrap();
+        assert!(main.is_current);
+        assert!(main.local);
+        assert!(main.remote);
+        assert!(!main.has_stash);
+
+        let develop = summaries.iter().find(|s| s.name == "develop").unwrap();
+        assert!(!develop.is_current);
+        assert!(develop.local);
+        assert!(!develop.remote);
+        assert!(develop.has_stash);
+
+        let release = summaries.iter().find(|s| s.name == "release").unwrap();
+        assert!(!release.is_current);
+        assert!(!release.local);
+        assert!(release.remote);
+        assert!(!release.has_stash);
+    }
+
+    #[test]
+    fn build_branch_summaries_sorts_current_first_then_alphabetical() {
+        let local: Vec<String> = vec!["zebra".to_string(), "alpha".to_string(), "main".to_string()];
+        let remote = std::collections::HashSet::new();
+        let stashed = std::collections::HashSet::new();
+        let current = "main";
+
+        let summaries = build_branch_summaries(&local, &remote, &stashed, current);
+
+        assert_eq!(summaries[0].name, "main"); // current first
+        assert!(summaries[0].is_current);
+        assert_eq!(summaries[1].name, "alpha"); // alphabetical
+        assert_eq!(summaries[2].name, "zebra");
     }
 }
