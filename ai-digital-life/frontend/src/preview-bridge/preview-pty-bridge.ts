@@ -1,6 +1,6 @@
 import type { PtyOutputEvent } from '../shared/ipc';
 import type { PtySessionInfo } from '../shared/ipc';
-import { requestPreviewApi } from './api';
+import { requestPreviewApi } from './preview-api';
 
 const MAX_PTY_LISTENERS = 32;
 const PTY_POLL_INTERVAL_MS = 1000;

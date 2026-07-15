@@ -8,7 +8,7 @@ import {
   setMockCurrentWorkspace,
   setOnMockStateChange,
   type MockBridgeState,
-} from './mock/shared';
+} from './mock/mock-shared';
 
 // Domain imports — already-split mocks
 import { mockWorkspace } from './mock/mock-workspace';

@@ -11,13 +11,13 @@ import type {
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
 import { IpcErrorCode } from '../shared/ipc';
-import { requestPreviewApi } from './api';
+import { requestPreviewApi } from './preview-api';
 import {
   persistRecentWorkspaces,
   updateRecentWorkspaces,
   loadActiveWorkspacePath,
   persistActiveWorkspacePath,
-} from './storage';
+} from './preview-storage';
 import { repoMapEntriesToTree } from '../shared/repoMapFromEntries';
 import type { PreviewContext, PreviewWorkspaceOpenPayload } from './preview-context';
 

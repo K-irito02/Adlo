@@ -7,7 +7,7 @@ import {
   listScopedSessions,
   messagesBySession,
   sessions,
-} from "./shared";
+} from "./mock-shared";
 
 export const mockConversation: ConversationBridge = {
   createSession: async (title?: string, workspaceId?: string) => {

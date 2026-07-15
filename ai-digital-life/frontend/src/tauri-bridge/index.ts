@@ -6,13 +6,13 @@ import type {
   DigitalLifeTerminalStreamEventV1,
 } from '@ai-digital-life/kernel';
 import { EventBuffer } from '../shared/eventBuffer';
-import { subscribeChannel } from './shared';
-import { createTauriWorkspaceBridge } from './workspace';
-import { createTauriBrowserBridge } from './browser';
-import { createTauriConversationBridge } from './conversation';
-import { createTauriAgentBridge, createTauriSubagentBridge } from './agent';
-import { createTauriCiBridge, createTauriGithubBridge } from './ci-github';
-import { createTauriProviderBridge } from './provider';
+import { subscribeChannel } from './tauri-shared';
+import { createTauriWorkspaceBridge } from './tauri-workspace';
+import { createTauriBrowserBridge } from './tauri-browser';
+import { createTauriConversationBridge } from './tauri-conversation';
+import { createTauriAgentBridge, createTauriSubagentBridge } from './tauri-agent';
+import { createTauriCiBridge, createTauriGithubBridge } from './tauri-ci-github';
+import { createTauriProviderBridge } from './tauri-provider';
 import {
   createTauriAppBridge,
   createTauriCommandBridge,
@@ -26,15 +26,15 @@ import {
   createTauriTaskBridge,
   createTauriWindowBridge,
   createTauriSessionForkBridge,
-} from './misc';
-import { createTauriCompactionBridge } from './compaction';
-import { createTauriDurableBridge } from './durable';
-import { createTauriLspBridge } from './lsp';
-import { createTauriPermissionBridge } from './permission';
-import { createTauriPtyBridge } from './pty';
-import { createTauriReferenceBridge } from './reference';
-import { createTauriSnapshotBridge } from './snapshot';
-import { createTauriWebToolsBridge } from './web-tools';
+} from './tauri-misc';
+import { createTauriCompactionBridge } from './tauri-compaction';
+import { createTauriDurableBridge } from './tauri-durable';
+import { createTauriLspBridge } from './tauri-lsp';
+import { createTauriPermissionBridge } from './tauri-permission';
+import { createTauriPtyBridge } from './tauri-pty';
+import { createTauriReferenceBridge } from './tauri-reference';
+import { createTauriSnapshotBridge } from './tauri-snapshot';
+import { createTauriWebToolsBridge } from './tauri-web-tools';
 
 export function createTauriBridge(): DigitalLifeBridge {
   return {
@@ -101,4 +101,4 @@ export function createTauriBridge(): DigitalLifeBridge {
   };
 }
 
-export { isTauriShell } from './shared';
+export { isTauriShell } from './tauri-shared';

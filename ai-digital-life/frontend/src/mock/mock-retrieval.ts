@@ -3,7 +3,7 @@ import type { RepoMapNode } from "@ai-digital-life/kernel";
 import {
   currentWorkspaceMeta,
   modelHealth,
-} from "./shared";
+} from "./mock-shared";
 
 export const mockRetrieval: RetrievalBridge = {
   getStatus: async () => ({

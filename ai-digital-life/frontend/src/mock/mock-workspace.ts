@@ -25,7 +25,7 @@ import {
   recentWorkspaces,
   setMockCurrentWorkspace,
   workspaceRoot,
-} from "./shared";
+} from "./mock-shared";
 import { buildOutlineFromContent } from "../shared/outline";
 import type { FileOutlineItem } from "@ai-digital-life/kernel";
 

@@ -8,7 +8,7 @@ import {
   messagesBySession,
   sessions,
   setActivePatchSet,
-} from "./shared";
+} from "./mock-shared";
 
 export const mockPatch: PatchBridge = {
   getPatchSet: async () => ({ ok: true, data: activePatchSet }),

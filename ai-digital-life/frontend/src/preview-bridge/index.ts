@@ -1,7 +1,7 @@
 import type { AudioStatePayload, DigitalLifeBridge, PageMeta } from '../shared/ipc';
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from '../mock-bridge';
-import { createPtyBridge } from './ptyBridge';
-import { loadRecentWorkspaces } from './storage';
+import { createPtyBridge } from './preview-pty-bridge';
+import { loadRecentWorkspaces } from './preview-storage';
 import type { PreviewContext } from './preview-context';
 import { createBaseAppInfo, createPreviewModelBridge } from './preview-model';
 import { createPreviewWorkspaceBridge } from './preview-workspace';

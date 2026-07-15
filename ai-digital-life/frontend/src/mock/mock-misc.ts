@@ -19,7 +19,7 @@ import type {
   WebToolsBridge,
 } from "../shared/ipc";
 import type { CommandRequest, CommandRunResult } from "@ai-digital-life/kernel";
-import { currentWorkspaceMeta } from "./shared";
+import { currentWorkspaceMeta } from "./mock-shared";
 
 export const mockCommand: CommandBridge = {
   run: async (input) => ({

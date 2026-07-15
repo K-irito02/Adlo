@@ -1,5 +1,5 @@
 import type { AgentBridge, SubagentBridge } from "../shared/ipc";
-import { activeRun } from "./shared";
+import { activeRun } from "./mock-shared";
 import { mockConversation } from "./mock-conversation";
 
 export const mockAgent: AgentBridge = {

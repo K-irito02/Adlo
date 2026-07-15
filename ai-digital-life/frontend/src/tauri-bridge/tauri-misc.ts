@@ -43,7 +43,7 @@ import type {
   RuntimeDiagnosticsSnapshot,
   TaskCenterSnapshot,
 } from '@ai-digital-life/kernel';
-import { invokeIpc } from './shared';
+import { invokeIpc } from './tauri-shared';
 import { repoMapEntriesToTree } from '../shared/repoMapFromEntries';
 
 export function createTauriWindowBridge(): WindowBridge {

@@ -5,7 +5,7 @@ import type {
   ProviderStatus,
 } from '../shared/ipc';
 import type { ModelDefinition } from '@ai-digital-life/kernel';
-import { invokeIpc } from './shared';
+import { invokeIpc } from './tauri-shared';
 
 export function createTauriProviderBridge(): ProviderBridge {
   return {

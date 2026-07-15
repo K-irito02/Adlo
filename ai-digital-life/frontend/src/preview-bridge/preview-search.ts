@@ -1,5 +1,5 @@
 import type { WorkspaceSearchHit, FileOutlineItem } from '@ai-digital-life/kernel';
-import { requestPreviewApi } from './api';
+import { requestPreviewApi } from './preview-api';
 import type { PreviewContext } from './preview-context';
 
 export function createPreviewSearchBridge(ctx: PreviewContext) {

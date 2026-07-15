@@ -6,7 +6,7 @@ import type {
   ConversationSessionRecord,
   ReorderSessionsInput,
 } from '@ai-digital-life/kernel';
-import { invokeIpc } from './shared';
+import { invokeIpc } from './tauri-shared';
 
 export function createTauriConversationBridge(): ConversationBridge {
   return {

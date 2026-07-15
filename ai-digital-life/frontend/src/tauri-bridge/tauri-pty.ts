@@ -1,5 +1,5 @@
 import type { PtyBridge, PtySessionInfo } from '../shared/ipc';
-import { invokeIpc } from './shared';
+import { invokeIpc } from './tauri-shared';
 
 export function createTauriPtyBridge(): PtyBridge {
   return {

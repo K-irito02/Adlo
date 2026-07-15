@@ -1,5 +1,5 @@
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
-import { requestPreviewApi } from './api';
+import { requestPreviewApi } from './preview-api';
 
 export function createPreviewTaskBridge() {
   const ciGetStatus = async (config: {

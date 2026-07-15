@@ -8,7 +8,7 @@ import type {
   WorkspaceMeta,
 } from '@ai-digital-life/kernel';
 import { IpcErrorCode } from '../shared/ipc';
-import { requestPreviewApi } from './api';
+import { requestPreviewApi } from './preview-api';
 import type { PreviewContext } from './preview-context';
 
 export function createPreviewGitBridge(

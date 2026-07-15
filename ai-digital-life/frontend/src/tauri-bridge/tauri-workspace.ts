@@ -14,7 +14,7 @@ import type {
   WorkspaceSearchHit,
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
-import { invokeIpc, subscribeChannel } from './shared';
+import { invokeIpc, subscribeChannel } from './tauri-shared';
 
 export function createTauriWorkspaceBridge(): WorkspaceBridge {
   return {

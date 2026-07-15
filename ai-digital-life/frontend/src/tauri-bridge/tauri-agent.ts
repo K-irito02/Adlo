@@ -7,7 +7,7 @@ import type {
   TaskToolOutput,
 } from '../shared/ipc';
 import type { AgentRunDetail, ConversationSendResult } from '@ai-digital-life/kernel';
-import { invokeIpc } from './shared';
+import { invokeIpc } from './tauri-shared';
 
 export function createTauriAgentBridge(): AgentBridge {
   return {

@@ -2,7 +2,7 @@ import type { AppPreferencePatch, AppInfo, IpcResult } from '@ai-digital-life/ke
 import type { ProviderStatus, ProviderInfo } from '../shared/ipc';
 import { applyPreferencePatch } from '../shared/preferencesMerger';
 import { mockDigitalLifeBridge } from '../mock-bridge';
-import { persistPreviewPreferences, loadPreviewPreferences } from './storage';
+import { persistPreviewPreferences, loadPreviewPreferences } from './preview-storage';
 import type { PreviewContext } from './preview-context';
 
 export function createBaseAppInfo(): AppInfo {

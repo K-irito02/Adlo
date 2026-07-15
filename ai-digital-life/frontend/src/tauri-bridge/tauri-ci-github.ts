@@ -1,6 +1,6 @@
 import type { GitHubBridge } from '../shared/ipc';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
-import { invokeIpc } from './shared';
+import { invokeIpc } from './tauri-shared';
 
 export function createTauriCiBridge(): GitHubBridge {
   return {

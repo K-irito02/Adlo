@@ -12,7 +12,7 @@ vi.mock('@tauri-apps/api/event', () => ({
   listen: vi.fn(() => Promise.resolve(() => {})),
 }));
 
-import { createTauriWorkspaceBridge } from '../workspace';
+import { createTauriWorkspaceBridge } from '../tauri-workspace';
 
 function okResult<T>(data: T) {
   return { ok: true as const, data };

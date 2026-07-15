@@ -6,7 +6,7 @@ import {
   getMockPrompt,
   MAX_PTY_LISTENERS,
   ptyOutputListeners,
-} from "./shared";
+} from "./mock-shared";
 
 export const mockPty: PtyBridge = {
   create: async (input) => {

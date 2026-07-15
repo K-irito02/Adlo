@@ -1,5 +1,5 @@
 import type { SnapshotBridge, SnapshotRecord, RevertResult } from '../shared/ipc';
-import { invokeIpc } from './shared';
+import { invokeIpc } from './tauri-shared';
 
 export function createTauriSnapshotBridge(): SnapshotBridge {
   return {
