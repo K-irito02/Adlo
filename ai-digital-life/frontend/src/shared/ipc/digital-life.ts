@@ -4,7 +4,11 @@ import type {
   DigitalLifeTerminalStreamEventV1,
 } from '@ai-digital-life/kernel';
 
-export type { DigitalLifeModelStreamEventV1, DigitalLifeRunActivityEventV1, DigitalLifeTerminalStreamEventV1 };
+export type {
+  DigitalLifeModelStreamEventV1,
+  DigitalLifeRunActivityEventV1,
+  DigitalLifeTerminalStreamEventV1,
+};
 
 import type { PtyOutputEvent } from './pty';
 import type { WindowBridge } from './window';

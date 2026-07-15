@@ -1,4 +1,4 @@
-import type { FileOutlineItem } from '@ai-digital-life/kernel';
+import type { FileOutlineItem } from '@shared/ipc';
 import { buildOutlineFromContent } from '@shared/outline';
 
 export type OutlineNode = FileOutlineItem & {

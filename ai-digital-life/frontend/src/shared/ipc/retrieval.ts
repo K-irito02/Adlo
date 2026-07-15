@@ -1,6 +1,11 @@
-import type { IpcResult, RepoMapNode, RetrievalSnapshot } from '@ai-digital-life/kernel';
+import type {
+  IndexingStatus,
+  IpcResult,
+  RepoMapNode,
+  RetrievalSnapshot,
+} from '@ai-digital-life/kernel';
 
-export type { IpcResult, RepoMapNode, RetrievalSnapshot };
+export type { IndexingStatus, IpcResult, RepoMapNode, RetrievalSnapshot };
 
 /**
  * 内容索引与检索桥接能力

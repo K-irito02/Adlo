@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { FontControl } from './FontControl';
-import type { SettingItem } from '@ai-digital-life/kernel';
+import type { SettingItem } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
 
 const mockItem: SettingItem = {

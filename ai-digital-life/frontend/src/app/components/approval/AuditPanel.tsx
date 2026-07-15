@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { AuditEntry, RiskLevel } from '@ai-digital-life/kernel';
+import type { AuditEntry, RiskLevel } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
 import { useTCopy } from '../../i18n/useTCopy';
 import { IconClock, IconFilter } from '../../icons';

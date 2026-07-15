@@ -6,7 +6,7 @@ import type {
   AgentRunDetail,
   ModelTokenUsage,
   DigitalLifeRunActivityEventV1,
-} from '@ai-digital-life/kernel';
+} from '@shared/ipc';
 import { IconBrain } from '../icons';
 import { MessageBlocks } from '../features/conversation/MessageBlocks';
 import { RunSummaryBlock } from './conversation/RunSummaryBlock';

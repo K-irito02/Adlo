@@ -5,6 +5,8 @@ import type {
   IpcResult,
   ModelGatewayHealthSnapshot,
   RuntimeDiagnosticsSnapshot,
+  SettingItem,
+  SettingsGroupId,
 } from '@ai-digital-life/kernel';
 
 export type {
@@ -14,6 +16,8 @@ export type {
   IpcResult,
   ModelGatewayHealthSnapshot,
   RuntimeDiagnosticsSnapshot,
+  SettingItem,
+  SettingsGroupId,
 };
 
 /**

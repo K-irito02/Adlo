@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { ExecutionStepConversationBlock } from '@ai-digital-life/kernel';
+import type { ExecutionStepConversationBlock } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
 import { IconChevronDown, IconChevronRight, IconRefreshCw } from '../../icons';
 

@@ -1,4 +1,4 @@
-import type { AppInfo } from '@ai-digital-life/kernel';
+import type { AppInfo } from '@shared/ipc';
 import type { CopyDict, Locale } from './types';
 import { loadLocale } from './i18nLoader';
 

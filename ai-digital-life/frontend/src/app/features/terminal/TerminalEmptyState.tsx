@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { IconTerminal } from '@icons';
 import type { TerminalProfile } from '@stores/types';
 import type { CopyDict } from '@i18n';
-import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { RecentWorkspaceEntry } from '@shared/ipc';
 
 function ShellPrefix({ profile }: { profile?: TerminalProfile }) {
   const map: Record<string, { text: string; color: string }> = {

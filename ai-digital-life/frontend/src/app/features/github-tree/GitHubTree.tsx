@@ -2,7 +2,7 @@ import { useGithubTreeData } from './useGithubTreeData';
 import type { SubEntryLabels } from './useGithubTreeData';
 import { GitHubCategorySection, type SectionCallbacks } from './GitHubCategorySection';
 import { CustomScrollArea } from '../file-tree/CustomScrollArea';
-import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type { GitWorkspaceCiConfig, GitHubCiFolderState } from '@stores/slices/githubRepoSlice';
 import { useTCopy } from '@i18n/useTCopy';
 

@@ -5,7 +5,7 @@ import type { BrowserNavigatorMode } from './useBrowserTabs';
 import type { BrowserSearchScope } from './useBrowserSearch';
 import type { BrowserMenuItem } from './useBrowserMenus';
 import type { CopyDict } from '@i18n/types';
-import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { RecentWorkspaceEntry } from '@shared/ipc';
 
 export interface BrowserPanelState {
   t: CopyDict;

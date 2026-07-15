@@ -1,6 +1,6 @@
-import type { IpcResult } from '@ai-digital-life/kernel';
+import type { IpcResult, ReferenceItem, ReferenceKind } from '@ai-digital-life/kernel';
 
-export type { IpcResult };
+export type { IpcResult, ReferenceItem, ReferenceKind };
 
 export type ReferenceSource = 'local' | 'git';
 

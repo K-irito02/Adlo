@@ -21,7 +21,7 @@ import { useBrowserPanelState } from './BrowserPanelStateContext';
 import { useBrowserPanelActions } from './BrowserPanelActionsContext';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { RecentWorkspaceEntry } from '@shared/ipc';
 
 export function BrowserNavigator() {
   const {

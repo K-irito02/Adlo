@@ -1,4 +1,4 @@
-import type { FilePatch, PatchHunk, PatchHunkDecision, PatchSet } from '@ai-digital-life/kernel';
+import type { FilePatch, PatchHunk, PatchHunkDecision, PatchSet } from '@shared/ipc';
 
 export type PatchChangeKind = 'added' | 'modified' | 'deleted';
 export type PatchReviewFilter = 'all' | 'pending' | 'accepted' | 'rejected';

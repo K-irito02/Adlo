@@ -3,7 +3,7 @@ import { useBrowserTreeData } from './useBrowserTreeData';
 import { BrowserCategorySection } from './BrowserCategorySection';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import type { BrowserCategoryType } from './types';
-import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type {
   BrowserTabState,
   TabFolderState,

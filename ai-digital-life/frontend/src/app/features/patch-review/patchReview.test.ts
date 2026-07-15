@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PatchSet } from '@ai-digital-life/kernel';
+import type { PatchSet } from '@shared/ipc';
 import {
   countReviewedHunks,
   derivePatchFileChangeKind,

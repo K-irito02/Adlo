@@ -1,6 +1,12 @@
-import type { AgentRunDetail, ConversationSendResult, IpcResult } from '@ai-digital-life/kernel';
+import type {
+  AgentRunDetail,
+  AgentStepType,
+  ConversationSendResult,
+  IpcResult,
+  RiskLevel,
+} from '@ai-digital-life/kernel';
 
-export type { AgentRunDetail, ConversationSendResult, IpcResult };
+export type { AgentRunDetail, AgentStepType, ConversationSendResult, IpcResult, RiskLevel };
 
 /**
  * Agent 配置 (镜像 Rust AgentConfig 结构体)

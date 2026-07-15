@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { FileOutlineItem } from '@ai-digital-life/kernel';
+import type { FileOutlineItem } from '@shared/ipc';
 import { buildOutlineTree, type OutlineNode, getDefaultExpandedOutlineIds } from './outlineModel';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import { TreeNodeRow } from '@features/file-tree/TreeNodeRow';

@@ -3,7 +3,7 @@ import { IconFileText } from '@icons';
 import { getChangeKindLabel } from '@regions/right-panel/ChangesPanel/utils';
 import { PatchHunkCard } from './PatchHunkCard';
 import type { PatchFileSummary } from './patchReview';
-import type { PatchHunkDecision } from '@ai-digital-life/kernel';
+import type { PatchHunkDecision } from '@shared/ipc';
 import { useTCopy } from '@i18n/useTCopy';
 
 export interface PatchFileCardProps {

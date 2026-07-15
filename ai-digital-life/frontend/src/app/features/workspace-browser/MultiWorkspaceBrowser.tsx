@@ -1,4 +1,4 @@
-import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type { BrowserTabState, TabFolderState } from '@stores/slices/browserSlice';
 import { useTCopy } from '@i18n/useTCopy';
 

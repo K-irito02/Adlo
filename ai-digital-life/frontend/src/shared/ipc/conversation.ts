@@ -1,19 +1,41 @@
 import type {
   AgentRunDetail,
+  CommandOutputConversationBlock,
+  ConversationBlock,
   ConversationDetail,
   ConversationSendResult,
   ConversationSessionRecord,
+  ExecutionStepConversationBlock,
+  ExecutionSummaryConversationBlock,
+  FinalSummaryConversationBlock,
   IpcResult,
+  MarkdownConversationBlock,
+  ModelTokenUsage,
+  PatchSummaryConversationBlock,
+  PlanConversationBlock,
   ReorderSessionsInput,
+  ToolCallConversationBlock,
+  ValidationResultConversationBlock,
 } from '@ai-digital-life/kernel';
 
 export type {
   AgentRunDetail,
+  CommandOutputConversationBlock,
+  ConversationBlock,
   ConversationDetail,
   ConversationSendResult,
   ConversationSessionRecord,
+  ExecutionStepConversationBlock,
+  ExecutionSummaryConversationBlock,
+  FinalSummaryConversationBlock,
   IpcResult,
+  MarkdownConversationBlock,
+  ModelTokenUsage,
+  PatchSummaryConversationBlock,
+  PlanConversationBlock,
   ReorderSessionsInput,
+  ToolCallConversationBlock,
+  ValidationResultConversationBlock,
 };
 
 /**

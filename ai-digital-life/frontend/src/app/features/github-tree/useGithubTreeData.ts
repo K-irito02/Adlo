@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type { GitWorkspaceCiConfig, GitHubCiFolderState } from '@stores/slices/githubRepoSlice';
 import { useTCopy } from '@i18n/useTCopy';
 import { resolveCiFolderName } from '@shared/ciErrors';

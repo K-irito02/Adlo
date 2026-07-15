@@ -1,4 +1,4 @@
-import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
+import type { WorkspaceTreeNode } from '@shared/ipc';
 import type { FileBadgeVariant } from '@icons';
 
 export type FileTreeVisualTone =

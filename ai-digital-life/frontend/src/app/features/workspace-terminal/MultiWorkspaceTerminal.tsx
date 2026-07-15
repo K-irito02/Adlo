@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type { TerminalTabState } from '@stores/slices/terminalSlice';
 import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';
 import { WorkspaceTerminalEntry } from './WorkspaceTerminalEntry';

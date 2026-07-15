@@ -1,9 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import type {
-  RecentWorkspaceEntry,
-  WorkspaceTreeNode,
-  ReorderWorkspacesInput,
-} from '@ai-digital-life/kernel';
+import type { RecentWorkspaceEntry, WorkspaceTreeNode, ReorderWorkspacesInput } from '@shared/ipc';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
 import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';
 import { WorkspaceChangesEntry } from './WorkspaceChangesEntry';

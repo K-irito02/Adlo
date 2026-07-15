@@ -1,5 +1,5 @@
 import { useRef, type KeyboardEvent } from 'react';
-import type { SettingsGroupId } from '@ai-digital-life/kernel';
+import type { SettingsGroupId } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
 import { useTCopy } from '../../i18n/useTCopy';
 

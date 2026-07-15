@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
-import type { SettingItem } from '@ai-digital-life/kernel';
+import type { SettingItem } from '@shared/ipc';
 import { InputControl, SettingsControls } from './SettingsControls';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import type { CopyDict } from '../../i18n';

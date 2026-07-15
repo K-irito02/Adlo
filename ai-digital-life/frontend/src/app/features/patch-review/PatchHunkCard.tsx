@@ -2,7 +2,7 @@ import React from 'react';
 import { IconChevronDown, IconChevronRight, IconTarget } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import type { PatchHunkSummary } from './patchReview';
-import type { PatchHunkDecision } from '@ai-digital-life/kernel';
+import type { PatchHunkDecision } from '@shared/ipc';
 import { useTCopy } from '@i18n/useTCopy';
 
 export interface PatchHunkCardProps {

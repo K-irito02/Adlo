@@ -1,6 +1,20 @@
-import type { IpcResult, PatchApplicationResult, PatchSet } from '@ai-digital-life/kernel';
+import type {
+  FilePatch,
+  IpcResult,
+  PatchApplicationResult,
+  PatchHunk,
+  PatchHunkDecision,
+  PatchSet,
+} from '@ai-digital-life/kernel';
 
-export type { IpcResult, PatchApplicationResult, PatchSet };
+export type {
+  FilePatch,
+  IpcResult,
+  PatchApplicationResult,
+  PatchHunk,
+  PatchHunkDecision,
+  PatchSet,
+};
 
 /**
  * 补丁/Patch 管理桥接能力

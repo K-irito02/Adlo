@@ -11,7 +11,7 @@ import type {
   ExecutionStepConversationBlock,
   ExecutionSummaryConversationBlock,
   CommandOutputConversationBlock,
-} from '@ai-digital-life/kernel';
+} from '@shared/ipc';
 import type { CopyDict } from '@i18n';
 import { PlanCard, type PlanStep } from '@components/agent/PlanCard';
 import { StepBlock } from '@components/agent/StepBlock';

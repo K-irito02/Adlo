@@ -1,5 +1,5 @@
 import React from 'react';
-import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { RecentWorkspaceEntry } from '@shared/ipc';
 
 export interface MultiWorkspaceContainerProps {
   visibleWorkspaces: RecentWorkspaceEntry[];

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, type ChangeEvent } from 'react';
-import type { SettingItem } from '@ai-digital-life/kernel';
+import type { SettingItem } from '@shared/ipc';
 import { useTCopy } from '../../i18n/useTCopy';
 import type { CopyDict } from '../../i18n';
 import { IconEye, IconEyeOff, IconRefreshCw } from '../../icons';

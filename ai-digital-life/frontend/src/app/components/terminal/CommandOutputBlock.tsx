@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CommandOutputConversationBlock } from '@ai-digital-life/kernel';
+import type { CommandOutputConversationBlock } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
 import { IconChevronDown, IconChevronRight, IconTerminal } from '../../icons';
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type ChangeEvent } from 'react';
-import type { SettingItem } from '@ai-digital-life/kernel';
+import type { SettingItem } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
 
 const PLACEHOLDER_BY_CSS_VAR: Record<string, string> = {

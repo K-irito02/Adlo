@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import type { SettingItem, SettingsGroupId } from '@ai-digital-life/kernel';
+import type { SettingItem, SettingsGroupId } from '@shared/ipc';
 import { useTCopy } from '../../i18n/useTCopy';
 import { IconSearch, IconSettings } from '../../icons';
 import { useAppStore } from '../../stores/slicedStore';

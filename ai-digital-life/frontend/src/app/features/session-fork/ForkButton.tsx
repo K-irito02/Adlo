@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
-import type { ConversationSessionRecord } from '@ai-digital-life/kernel';
+import type { ConversationSessionRecord } from '@shared/ipc';
 
 export function ForkButton({
   parentSession,

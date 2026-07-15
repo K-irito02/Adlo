@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { AgentStepType, RiskLevel } from '@ai-digital-life/kernel';
+import type { AgentStepType, RiskLevel } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
 import {
   IconChevronDown,
