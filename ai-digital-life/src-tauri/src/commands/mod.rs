@@ -5,6 +5,7 @@ pub mod agent_pipeline_types;
 pub mod app;
 pub mod audit;
 pub mod browser;
+pub(crate) mod browser_webview_setup;
 pub mod ci;
 pub mod command;
 pub mod commands_config;
