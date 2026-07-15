@@ -1,7 +1,5 @@
 import { useCallback } from 'react';
 import { IconAlertTriangle, IconGlobe } from '@icons';
-import { isTauriShell } from '@tauri-bridge';
-import { open } from '@tauri-apps/plugin-shell';
 import type { CopyDict, CopyKey } from '@i18n/types';
 
 export interface ExternalLinkErrorProps {
@@ -19,16 +17,7 @@ export function ExternalLinkError({
 }: ExternalLinkErrorProps) {
   const handleExternalOpen = useCallback(() => {
     const url = activeTabUrl ?? 'about:blank';
-    if (isTauriShell()) {
-      open(url).catch(() => {});
-    } else {
-      const w = window as { trae?: { openExternal: (url: string) => void } };
-      if (w.trae?.openExternal) {
-        w.trae.openExternal(url);
-      } else {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
-    }
+    void window.digitalLife?.window?.openExternal(url);
   }, [activeTabUrl]);
 
   const containerClass =
