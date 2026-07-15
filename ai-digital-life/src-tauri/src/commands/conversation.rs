@@ -167,9 +167,7 @@ pub fn conversation_archive_all_in_workspace(
         // save_session call acquired its own connection and ran an
         // implicit auto-commit transaction, so a mid-loop failure left
         // the workspace half-archived.
-        state
-            .db
-            .transaction(|conn| state.db.save_sessions_batch_on_conn(conn, &sessions))?;
+        state.db.transaction(|conn| state.db.save_sessions_batch_on_conn(conn, &sessions))?;
         Ok(sessions)
     })
 }
@@ -212,9 +210,7 @@ pub fn conversation_reorder_sessions(
         // each pinned/unpinned match called save_session immediately,
         // so a mid-loop failure left the sidebar in a partially
         // reordered state.
-        state.db.transaction(|conn| {
-            state.db.save_sessions_batch_on_conn(conn, &sessions)
-        })?;
+        state.db.transaction(|conn| state.db.save_sessions_batch_on_conn(conn, &sessions))?;
         sessions.sort_by_key(|session| {
             (
                 !session.is_pinned,

@@ -480,8 +480,7 @@ mod sessions_batch_tests {
         ];
         let ids: Vec<String> = sessions.iter().map(|s| s.id.clone()).collect();
 
-        db.transaction(|conn| db.save_sessions_batch_on_conn(conn, &sessions))
-            .unwrap();
+        db.transaction(|conn| db.save_sessions_batch_on_conn(conn, &sessions)).unwrap();
 
         for id in &ids {
             let loaded: Option<ConversationSessionRecord> =
@@ -494,8 +493,7 @@ mod sessions_batch_tests {
     fn batch_rolls_back_on_failure() {
         let db = open_test_db();
         let sessions = vec![make_session("ws-2", "active"), make_session("ws-2", "active")];
-        db.transaction(|conn| db.save_sessions_batch_on_conn(conn, &sessions))
-            .unwrap();
+        db.transaction(|conn| db.save_sessions_batch_on_conn(conn, &sessions)).unwrap();
         let all: Vec<ConversationSessionRecord> =
             db.list_entities_by_workspace(EntityTable::Sessions, "ws-2").unwrap();
         assert_eq!(all.len(), 2);
