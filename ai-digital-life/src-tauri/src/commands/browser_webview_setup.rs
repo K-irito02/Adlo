@@ -10,7 +10,6 @@ use std::sync::Arc;
 
 use crate::state::AppState;
 use crate::tauri_webview_handle::TauriWebViewHandle;
-use crate::webview_event_bridge::TauriWebView2EventBridge;
 use adl_browser::webview_handle::{EventBridgeRef, WebViewHandle};
 use adl_browser::BROWSER_WEBVIEW_LABEL;
 use adl_errors::AppError;

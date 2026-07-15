@@ -285,8 +285,7 @@ mod tests {
 
     #[test]
     fn extract_title_falls_back_to_og_title() {
-        let html =
-            "<html><head><meta property=\"og:title\" content=\"OG Title\"></head></html>";
+        let html = "<html><head><meta property=\"og:title\" content=\"OG Title\"></head></html>";
         assert_eq!(extract_title(html), Some("OG Title".to_string()));
     }
 
@@ -325,8 +324,7 @@ mod tests {
 
     #[test]
     fn extract_favicon_prefers_svg_over_ico() {
-        let html = "<link rel=\"icon\" href=\"/favicon.ico\">"
-            .to_string()
+        let html = "<link rel=\"icon\" href=\"/favicon.ico\">".to_string()
             + "<link rel=\"icon\" href=\"/icon.svg\">";
         let result = extract_favicon(&html, "https://example.com");
         assert_eq!(result, Some("https://example.com/icon.svg".to_string()));
@@ -363,10 +361,7 @@ mod tests {
     #[test]
     fn google_favicon_url_returns_s2_for_public_host() {
         let result = google_favicon_url("https://example.com/page");
-        assert_eq!(
-            result,
-            "https://www.google.com/s2/favicons?domain=example.com&sz=64"
-        );
+        assert_eq!(result, "https://www.google.com/s2/favicons?domain=example.com&sz=64");
     }
 
     #[test]

@@ -3,7 +3,7 @@ mod browser_meta;
 mod browser_navigation;
 mod browser_pool;
 mod browser_webview;
-mod html_meta;
+pub mod html_meta;
 mod webview2_audio;
 mod webview2_background;
 mod webview2_cleanup;
@@ -21,8 +21,7 @@ pub use browser_navigation::{init_script_with_background, resolve_url, INIT_SCRI
 pub use browser_pool::BrowserPool;
 pub use browser_webview::{webview_label, BrowserManager, BROWSER_WEBVIEW_LABEL};
 pub use html_meta::{
-    extract_favicon, extract_title, google_favicon_url, html_entity_decode,
-    origin_favicon_fallback,
+    extract_favicon, extract_title, google_favicon_url, html_entity_decode, origin_favicon_fallback,
 };
 pub use webview2_audio::{mute_tab, setup_audio_changed_handler};
 pub use webview2_background::theme_to_rgb;
