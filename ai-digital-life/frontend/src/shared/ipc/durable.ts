@@ -1,5 +1,7 @@
 import type { IpcResult } from '@ai-digital-life/kernel';
 
+export type { IpcResult };
+
 export type DurableStatus = 'running' | 'paused' | 'completed' | 'failed' | 'recovering';
 
 export interface DurableSessionState {

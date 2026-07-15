@@ -7,6 +7,15 @@ import type {
   ReorderSessionsInput,
 } from '@ai-digital-life/kernel';
 
+export type {
+  AgentRunDetail,
+  ConversationDetail,
+  ConversationSendResult,
+  ConversationSessionRecord,
+  IpcResult,
+  ReorderSessionsInput,
+};
+
 /**
  * 对话会话管理桥接能力
  * 用于: 创建/列出/获取/重命名/置顶/归档/删除会话、发送消息、取消消息

@@ -1,5 +1,7 @@
 import type { IpcResult, ModelDefinition } from '@ai-digital-life/kernel';
 
+export type { IpcResult, ModelDefinition };
+
 export interface ProviderInfo {
   id: string;
   name: string;

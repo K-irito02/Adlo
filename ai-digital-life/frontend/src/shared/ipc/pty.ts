@@ -1,5 +1,7 @@
 import type { IpcResult } from '@ai-digital-life/kernel';
 
+export type { IpcResult };
+
 export interface PtySessionInfo {
   sessionId: string;
   shell: string;

@@ -1,5 +1,7 @@
 import type { IpcResult, PatchApplicationResult, PatchSet } from '@ai-digital-life/kernel';
 
+export type { IpcResult, PatchApplicationResult, PatchSet };
+
 /**
  * 补丁/Patch 管理桥接能力
  * 用于: 获取 patch 集、决策单个 hunk、应用/回滚 patch

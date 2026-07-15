@@ -1,6 +1,8 @@
 import type { IpcResult } from '@ai-digital-life/kernel';
 import type { ConversationSessionRecord } from '@ai-digital-life/kernel';
 
+export type { ConversationSessionRecord, IpcResult };
+
 export interface SessionForkBridge {
   forkSession(
     parentSession: ConversationSessionRecord,

@@ -1,5 +1,7 @@
 import type { DigitalLifeRunActivityEventV1, IpcResult } from '@ai-digital-life/kernel';
 
+export type { DigitalLifeRunActivityEventV1, IpcResult };
+
 /**
  * Agent 运行活动日志桥接能力
  * 用于: 查询指定 Agent run 的活动日志流

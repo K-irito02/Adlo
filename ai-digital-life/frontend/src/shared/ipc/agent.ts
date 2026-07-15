@@ -1,5 +1,7 @@
 import type { AgentRunDetail, ConversationSendResult, IpcResult } from '@ai-digital-life/kernel';
 
+export type { AgentRunDetail, ConversationSendResult, IpcResult };
+
 /**
  * Agent 配置 (镜像 Rust AgentConfig 结构体)
  * 用于: 描述内置/自定义 Agent 的元信息与能力边界

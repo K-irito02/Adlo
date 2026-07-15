@@ -1,5 +1,7 @@
 import type { IpcResult, RepoMapNode, RetrievalSnapshot } from '@ai-digital-life/kernel';
 
+export type { IpcResult, RepoMapNode, RetrievalSnapshot };
+
 /**
  * 内容索引与检索桥接能力
  * 用于: 获取检索状态快照、代码仓库映射、重建索引

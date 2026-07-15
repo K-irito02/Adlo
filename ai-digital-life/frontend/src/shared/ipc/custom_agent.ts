@@ -1,6 +1,8 @@
 import type { AgentConfig } from './agent';
 import type { IpcResult } from '@ai-digital-life/kernel';
 
+export type { IpcResult };
+
 export type AgentMode = 'primary' | 'subagent' | 'hidden';
 export type AgentIdType =
   | 'build'

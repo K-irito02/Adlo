@@ -6,6 +6,14 @@ import type {
   TaskCenterSnapshot,
 } from '@ai-digital-life/kernel';
 
+export type {
+  ApprovalRequestSummary,
+  AuditEntry,
+  CheckpointPayloadPreview,
+  IpcResult,
+  TaskCenterSnapshot,
+};
+
 /**
  * 任务中心与审批管理桥接能力
  * 用于: 获取任务快照、列出待审批项、检查点预览/恢复、审批决策、审计日志

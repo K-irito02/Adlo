@@ -1,5 +1,7 @@
 import type { IpcResult } from '@ai-digital-life/kernel';
 
+export type { IpcResult };
+
 export type McpTransportType = 'stdio' | 'sse' | 'streamable_http';
 
 export interface McpServerConfig {

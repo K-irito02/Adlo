@@ -1,5 +1,7 @@
 import type { IpcResult } from '@ai-digital-life/kernel';
 
+export type { IpcResult };
+
 export type PermissionDecision = 'allow' | 'ask' | 'deny';
 
 export interface PermissionRule {

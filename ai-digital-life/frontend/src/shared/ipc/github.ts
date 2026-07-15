@@ -1,5 +1,7 @@
 import type { IpcResult } from '@ai-digital-life/kernel';
 
+export type { IpcResult };
+
 /**
  * GitHub/CI 集成桥接能力
  * 用于: 获取 GitHub Actions/CI 运行状态、配置访问令牌、获取作业日志

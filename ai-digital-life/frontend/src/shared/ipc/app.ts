@@ -7,6 +7,15 @@ import type {
   RuntimeDiagnosticsSnapshot,
 } from '@ai-digital-life/kernel';
 
+export type {
+  AppInfo,
+  AppPreferencePatch,
+  HealthSnapshot,
+  IpcResult,
+  ModelGatewayHealthSnapshot,
+  RuntimeDiagnosticsSnapshot,
+};
+
 /**
  * 应用信息与健康状态桥接能力
  * 用于: 获取应用名称、版本、配置、当前工作区、健康状态、诊断信息、模型网关状态

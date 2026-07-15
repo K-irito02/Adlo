@@ -1,5 +1,7 @@
 import type { IpcResult } from '@ai-digital-life/kernel';
 
+export type { IpcResult };
+
 /**
  * Task Tool 输入 (镜像 Rust TaskToolInput)
  * 用于: 派生子代理执行后台任务

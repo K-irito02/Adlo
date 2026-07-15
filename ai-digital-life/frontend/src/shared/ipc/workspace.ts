@@ -16,6 +16,24 @@ import type {
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
 
+export type {
+  FileOutlineItem,
+  GitBranchSummary,
+  GitSnapshot,
+  IpcResult,
+  RecentWorkspaceEntry,
+  ReorderWorkspacesInput,
+  WorkspaceChangePreview,
+  WorkspaceFileChangedEvent,
+  WorkspaceFileDocument,
+  WorkspaceGitBranchChangeResult,
+  WorkspaceGitBranchCreateInput,
+  WorkspaceGitBranchSwitchInput,
+  WorkspaceMeta,
+  WorkspaceSearchHit,
+  WorkspaceTreeNode,
+};
+
 /**
  * 工作区管理桥接能力
  * 用于: 工作区列表/打开/关闭/目录选择/固定/排序/侧边栏管理/文件树/Git 状态/文件操作/搜索

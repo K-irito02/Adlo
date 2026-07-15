@@ -4,6 +4,8 @@ import type {
   ModelProviderId,
 } from '@ai-digital-life/kernel';
 
+export type { ConversationMessageRecord, IpcResult, ModelProviderId };
+
 export interface CompactSessionInput {
   sessionId: string;
   messagesJson: string;

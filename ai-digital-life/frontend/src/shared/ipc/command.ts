@@ -1,5 +1,7 @@
 import type { CommandRequest, CommandRunResult, IpcResult } from '@ai-digital-life/kernel';
 
+export type { CommandRequest, CommandRunResult, IpcResult };
+
 /**
  * 命令执行桥接能力
  * 用于: 执行系统命令、查询最近执行的命令
