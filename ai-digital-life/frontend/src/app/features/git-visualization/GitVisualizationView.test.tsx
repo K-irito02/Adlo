@@ -1,7 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, cleanup } from '@testing-library/react';
 import React from 'react';
 import { GitVisualizationView } from './GitVisualizationView';
+
+afterEach(cleanup);
 
 function createMotionValue(initial = 0) {
   const listeners: Record<string, Array<(v: unknown) => void>> = {};
