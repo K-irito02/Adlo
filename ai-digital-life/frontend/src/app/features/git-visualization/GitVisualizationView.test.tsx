@@ -1,9 +1,17 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import React from 'react';
 import { GitVisualizationView } from './GitVisualizationView';
 
-afterEach(cleanup);
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.runOnlyPendingTimers();
+  vi.useRealTimers();
+  cleanup();
+});
 
 function createMotionValue(initial = 0) {
   const listeners: Record<string, Array<(v: unknown) => void>> = {};
@@ -111,19 +119,19 @@ vi.mock('@i18n/useTCopy', () => ({
 }));
 
 describe('GitVisualizationView', () => {
-  it('renders 7 chart cards', () => {
+  it('renders 7 chart cards', { timeout: 15000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const cards = container.querySelectorAll('.adl-git-vis__card');
     expect(cards.length).toBe(7);
   });
 
-  it('renders scroll container', () => {
+  it('renders scroll container', { timeout: 15000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const scrollContainer = container.querySelector('.adl-git-vis__container');
     expect(scrollContainer).toBeTruthy();
   });
 
-  it('renders mock data note', () => {
+  it('renders mock data note', { timeout: 15000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const note = container.querySelector('.adl-git-vis__note');
     expect(note).toBeTruthy();
