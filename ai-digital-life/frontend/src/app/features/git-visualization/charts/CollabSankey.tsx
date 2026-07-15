@@ -27,8 +27,8 @@ export const CollabSankey = React.memo(function CollabSankey() {
                   key={i}
                   x={node.x0}
                   y={node.y0}
-                  width={node.x1! - node.x0!}
-                  height={node.y1! - node.y0!}
+                  width={(node.x1 ?? node.x0 ?? 0) - (node.x0 ?? 0)}
+                  height={(node.y1 ?? node.y0 ?? 0) - (node.y0 ?? 0)}
                   fill={theme.seriesColors[i % theme.seriesColors.length]}
                   rx={3}
                 />

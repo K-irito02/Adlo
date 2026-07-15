@@ -3,7 +3,7 @@ import { scaleLinear } from '@visx/scale';
 import { useBklitTheme } from '../hooks/useBklitTheme';
 import { toClockHeatmapData } from '../data/gitVisMockData';
 
-const W = 600;
+const W = 640;
 const H = 300;
 const CELL_W = 25;
 const CELL_H = 25;

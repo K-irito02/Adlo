@@ -5,6 +5,12 @@ import { Group } from '@visx/group';
 import { useBklitTheme } from '../hooks/useBklitTheme';
 import { fileTreemapData } from '../data/gitVisMockData';
 
+interface FileNode {
+  name: string;
+  value?: number;
+  children?: FileNode[];
+}
+
 const W = 300;
 const H = 300;
 const R = Math.min(W, H) / 2;
@@ -13,8 +19,8 @@ export const FileSunburst = React.memo(function FileSunburst() {
   const theme = useBklitTheme();
 
   const arcs = useMemo(() => {
-    const root = hierarchy(fileTreemapData as unknown as { value: number }).sum(
-      (d) => d.value || 0
+    const root = hierarchy(fileTreemapData as FileNode).sum(
+      (d) => d.value ?? 0
     );
     partition<unknown>().size([2 * Math.PI, R])(root);
     const makeArc = arc<{ x0: number; x1: number; y0: number; y1: number }>()
@@ -28,7 +34,7 @@ export const FileSunburst = React.memo(function FileSunburst() {
       .map((d, i) => ({
         path: makeArc(d),
         color: theme.seriesColors[i % theme.seriesColors.length],
-        name: (d.data as unknown as { name: string }).name,
+        name: (d.data as FileNode).name,
       }));
   }, [theme]);
 

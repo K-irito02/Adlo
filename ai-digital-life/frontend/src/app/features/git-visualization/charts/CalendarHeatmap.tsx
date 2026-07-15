@@ -8,11 +8,12 @@ const H = 600;
 const CELL_W = 10;
 const CELL_H = 10;
 const PAD = 40;
+const DAY_LABELS = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
 
 export const CalendarHeatmap = React.memo(function CalendarHeatmap() {
   const theme = useBklitTheme();
   const data = useMemo(() => toCalendarHeatmapData(), []);
-  const maxVal = Math.max(...data.map((d) => d.value));
+  const maxVal = data.length > 0 ? Math.max(...data.map((d) => d.value)) : 1;
   const colorScale = useMemo(
     () =>
       scaleLinear<string>({
@@ -25,6 +26,13 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap() {
   return (
     <div className="adl-git-vis__chart">
       <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`}>
+        {DAY_LABELS.map((label, i) =>
+          label ? (
+            <text key={i} x={0} y={PAD + (i + 0.8) * CELL_H} fontSize={8} fill={theme.muted}>
+              {label}
+            </text>
+          ) : null
+        )}
         {data.map((d, i) => (
           <rect
             key={i}

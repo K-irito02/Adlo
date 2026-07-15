@@ -24,13 +24,14 @@ export const CommitTimeline = React.memo(function CommitTimeline() {
       }),
     [dateNums]
   );
+  const yMax = data.length > 0 ? Math.max(...data.map((d) => d.cumulative)) * 1.1 : 1;
   const yScale = useMemo(
     () =>
       scaleLinear({
-        domain: [0, Math.max(...data.map((d) => d.cumulative)) * 1.1],
+        domain: [0, yMax],
         range: [H - MARGIN.bottom, MARGIN.top],
       }),
-    [data]
+    [yMax]
   );
 
   return (
