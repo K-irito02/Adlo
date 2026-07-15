@@ -7,7 +7,7 @@
  */
 import type { StoreState } from '../StoreState';
 import { clamp, readJson, readNumber, createUiId, createDebouncedWrite } from '../shared';
-import { BROWSER_NAVIGATOR_COLLAPSED_KEY } from '../constants';
+import { BROWSER_NAVIGATOR_COLLAPSED_KEY, STORAGE_HYDRATION_DELAY_MS } from '../constants';
 
 import type { BrowserTabState } from './browserSliceShared';
 import type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserBookmarkSlice';
@@ -176,7 +176,7 @@ function hydrateBrowserDefaults(
   if (typeof requestIdleCallback === 'function') {
     requestIdleCallback(doHydrate, { timeout: 1000 });
   } else {
-    setTimeout(doHydrate, 200);
+    setTimeout(doHydrate, STORAGE_HYDRATION_DELAY_MS);
   }
 }
 

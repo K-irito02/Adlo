@@ -4,7 +4,7 @@
  */
 import type { ToolId, FilesNavigatorMode, ChangesNavigatorMode } from '../types';
 import type { StoreState } from '../StoreState';
-import { BROWSER_NAVIGATOR_COLLAPSED_KEY } from '../constants';
+import { BROWSER_NAVIGATOR_COLLAPSED_KEY, STORAGE_HYDRATION_DELAY_MS } from '../constants';
 import { readFlag, writeFlag, readJson, createDebouncedWrite } from '../shared';
 import type {
   TreeExpansionState,
@@ -132,7 +132,7 @@ function hydrateUIDefaults(
   if (typeof requestIdleCallback === 'function') {
     requestIdleCallback(doHydrate, { timeout: 1000 });
   } else {
-    setTimeout(doHydrate, 200);
+    setTimeout(doHydrate, STORAGE_HYDRATION_DELAY_MS);
   }
 }
 

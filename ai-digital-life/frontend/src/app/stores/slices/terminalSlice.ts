@@ -34,6 +34,7 @@ export {
 
 // Helper functions
 import { clamp, readJson, readNumber, createUiId, createDebouncedWrite } from '../shared';
+import { STORAGE_HYDRATION_DELAY_MS } from '../constants';
 
 function deriveTerminalTitle(profile: TerminalProfile, count: number): string {
   const label = profile === 'powershell' ? 'PowerShell' : profile === 'bash' ? 'Bash' : 'CMD';
@@ -119,7 +120,7 @@ function hydrateTerminalDefaults(
   if (typeof requestIdleCallback === 'function') {
     requestIdleCallback(doHydrate, { timeout: 1000 });
   } else {
-    setTimeout(doHydrate, 200);
+    setTimeout(doHydrate, STORAGE_HYDRATION_DELAY_MS);
   }
 }
 

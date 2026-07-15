@@ -9,6 +9,7 @@ import type {
   GitSnapshot,
 } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
+import { STORAGE_HYDRATION_DELAY_MS } from '../constants';
 
 // Local storage keys
 const WORKSPACE_TREE_EXPANDED_KEY = 'adl-ui:workspace-tree-expanded';
@@ -85,7 +86,7 @@ function hydrateWorkspaceDefaults(
   if (typeof requestIdleCallback === 'function') {
     requestIdleCallback(doHydrate, { timeout: 1000 });
   } else {
-    setTimeout(doHydrate, 200);
+    setTimeout(doHydrate, STORAGE_HYDRATION_DELAY_MS);
   }
 }
 
