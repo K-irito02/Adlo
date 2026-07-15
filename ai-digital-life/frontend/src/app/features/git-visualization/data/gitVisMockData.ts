@@ -208,3 +208,74 @@ export const sankeyLinks = [
   { source: 'Fiona', target: '文档', value: 70 },
   { source: 'Fiona', target: '测试', value: 40 },
 ];
+
+// ── Bklit/visx data adapter interfaces ──
+
+export interface BklitAreaRow {
+  date: string
+  added: number
+  deleted: number
+}
+
+export interface BklitSankeyNode {
+  id: string
+  label: string
+}
+
+export interface BklitSankeyLink {
+  source: string
+  target: string
+  value: number
+}
+
+export interface BklitHeatmapCell {
+  x: number
+  y: number
+  value: number
+}
+
+export interface BklitContributorRow {
+  name: string
+  commits: number
+  added: number
+  deleted: number
+}
+
+// ── Bklit/visx data adapters ──
+
+export function toBklitAreaData(raw: ReturnType<typeof generateCodeLineEvolutionData>): BklitAreaRow[] {
+  return raw.dates.map((date, i) => ({
+    date,
+    added: raw.added[i],
+    deleted: raw.deleted[i],
+  }))
+}
+
+export function toBklitSankeyData(): { nodes: BklitSankeyNode[]; links: BklitSankeyLink[] } {
+  return {
+    nodes: sankeyNodes.map(n => ({ id: n.name, label: n.name })),
+    links: sankeyLinks,
+  }
+}
+
+export function toClockHeatmapData(): BklitHeatmapCell[] {
+  return clockHeatmapData.map(([hour, day, count]) => ({ x: hour, y: day, value: count }))
+}
+
+export function toCalendarHeatmapData(): BklitHeatmapCell[] {
+  return generateCalendarData().map(([dateStr, count]) => {
+    const d = new Date(dateStr)
+    const weekStart = new Date(d.getFullYear(), 0, 1)
+    const weekNum = Math.ceil(((d.getTime() - weekStart.getTime()) / 86400000 + weekStart.getDay() + 1) / 7)
+    return { x: d.getDay(), y: weekNum, value: count }
+  })
+}
+
+export function toContributorData(): BklitContributorRow[] {
+  return contributorNames.map((name, i) => ({
+    name,
+    commits: contributorCommits[i],
+    added: contributorAdded[i],
+    deleted: contributorDeleted[i],
+  }))
+}
