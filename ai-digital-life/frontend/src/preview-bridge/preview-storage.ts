@@ -1,4 +1,4 @@
-import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { AppInfo, RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 
 const PREVIEW_RECENT_STORAGE_KEY = 'adl.preview.recent-workspaces.v1';
 const PREVIEW_PREFERENCES_STORAGE_KEY = 'adl.preview.preferences.v1';
@@ -8,7 +8,6 @@ type PreviewPreferenceState = Pick<
   AppInfo['config'],
   'language' | 'themeMode' | 'resolvedTheme' | 'modelPreferences'
 >;
-import type { AppInfo } from '@ai-digital-life/kernel';
 
 export function loadRecentWorkspaces(): RecentWorkspaceEntry[] {
   try {
