@@ -1,56 +1,33 @@
 import React, { useMemo } from 'react';
-import { hierarchy, partition } from 'd3-hierarchy';
-import { arc } from 'd3-shape';
-import { Group } from '@visx/group';
-import { useBklitTheme } from '../hooks/useBklitTheme';
+import { SunburstChart } from '@/components/charts/sunburst-chart';
+import { SunburstSegment } from '@/components/charts/sunburst-segment';
+import { SunburstCenter } from '@/components/charts/sunburst-center';
 import { fileTreemapData } from '../data/gitVisMockData';
 
-interface FileNode {
-  name: string;
-  value?: number;
-  children?: FileNode[];
+function countDescendants(node: { children?: { children?: unknown }[] }): number {
+  if (!node.children) {
+    return 0;
+  }
+  let count = node.children.length;
+  for (const child of node.children) {
+    if ('children' in child) {
+      count += countDescendants(child as { children?: { children?: unknown }[] });
+    }
+  }
+  return count;
 }
-interface PartitionNode {
-  x0: number; x1: number; y0: number; y1: number;
-}
-
-const W = 300;
-const H = 300;
-const R = Math.min(W, H) / 2;
 
 export const FileSunburst = React.memo(function FileSunburst() {
-  const theme = useBklitTheme();
-
-  const arcs = useMemo(() => {
-    const root = hierarchy(fileTreemapData as FileNode).sum((d) => d.value ?? 0);
-    partition<FileNode>().size([2 * Math.PI, R])(root);
-    const makeArc = arc<any, PartitionNode>()
-      .startAngle((d) => d.x0)
-      .endAngle((d) => d.x1)
-      .innerRadius((d) => d.y0)
-      .outerRadius((d) => d.y1);
-    return root
-      .descendants()
-      .filter((d) => d.depth > 0)
-      .map((d, i) => ({
-        path: makeArc(d as unknown as PartitionNode),
-        color: theme.seriesColors[i % theme.seriesColors.length],
-        name: (d.data as FileNode).name,
-      }));
-  }, [theme]);
-
+  const segments = useMemo(() => {
+    const n = countDescendants(fileTreemapData);
+    return Array.from({ length: n }, (_, i) => <SunburstSegment key={i} index={i} />);
+  }, []);
   return (
-    <div className="adl-git-vis__chart">
-      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <Group top={H / 2} left={W / 2}>
-          {arcs.map(
-            (a, i) =>
-              a.path && (
-                <path key={i} d={a.path} fill={a.color} stroke={theme.background} strokeWidth={1} />
-              )
-          )}
-        </Group>
-      </svg>
+    <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
+      <SunburstChart data={fileTreemapData} size={320}>
+        <SunburstCenter />
+        {segments}
+      </SunburstChart>
     </div>
   );
 });

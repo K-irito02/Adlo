@@ -117,6 +117,7 @@
 | [diff-viewer-empty-line-hover-scroll-fix-2026-06-13.md](./代码质量/diff-viewer-empty-line-hover-scroll-fix-2026-06-13.md)                   | 2026-06-13 修复执行             | 变更查看器空行悬停背景色修复 + 快速滚动闪烁修复（CSS :has 陷阱、MergeView compartment、collapseUnchanged minSize） |
 | [opencode-feature-defects-2026-07-06.md](./代码质量/opencode-feature-defects-2026-07-06.md)                                           | 2026-07-06 缺陷修复执行        | OpenCode 对照 8 项实现缺陷修复（truncate_output 边界、classify_profile 平衡、pattern_matches 正则、Snapshot 文件副本、MCP transport 真实化） |
 | [opencode-audit-fix-2026-07.md](./代码质量/opencode-audit-fix-2026-07.md)                                           | 2026-07-08 审计缺陷修复执行    | OpenCode 功能审计 10 项缺陷修复（Compaction 阈值语义、Plugin hook 有序链式传播、DurableSession 错误可见性、MCP 自动重连、Subagent 权限继承） |
+| [echarts-visx-migration-2026-07-15.md](./代码质量/echarts-visx-migration-2026-07-15.md) | 2026-07-15 Git 可视化重构执行 | ECharts→visx 迁移经验 8 条（增量替换、版本管理、类型声明、子包粒度、热力图、旭日图、Math.max 空数组、tickFormat 类型兼容性） |
 
 ### 浏览器自动化
 

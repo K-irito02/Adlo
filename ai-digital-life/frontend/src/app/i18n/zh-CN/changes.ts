@@ -102,6 +102,9 @@ export const changesZh = {
   changesDiscard: '放弃更改',
   gitVisualization: 'Git 可视化',
   gitVisCalendarHeatmap: '提交日历热力图',
+  gitVisContribution: '次提交',
+  gitVisContributions: '次提交',
+  gitVisCommits: '次提交',
   gitVisClockHeatmap: '提交时间分布',
   gitVisContributorStats: '贡献者概览',
   gitVisCodeLineEvo: '代码行数演变',
@@ -114,11 +117,9 @@ export const changesZh = {
   gitVisCodeLineEvoDesc: '累计新增（+）与删除（-）行数，Area + Line 图表，反映项目增长与重构节奏。',
   gitVisCollabSankeyDesc:
     '左侧 = 作者，右侧 = 模块，流宽度 = 修改贡献量，识别"模块孤岛"或"全能型选手"。',
-  gitVisCommitTimelineDesc:
-    '散点图 = 单次提交，折线 = 累计增长。追踪项目随时间推移的开发速度。',
+  gitVisCommitTimelineDesc: '散点图 = 单次提交，折线 = 累计增长。追踪项目随时间推移的开发速度。',
   gitVisFileSunburstDesc:
     '按文件类型分类的旭日分区图，扇形角度 = 修改次数/代码量，按类别定位"热点文件"。',
   gitVisMockDataNote:
     '所有数据均为模拟生成，用于展示可视化效果。实际接入 Git 仓库时，需提取真实数据并适配。',
-
 } as const;

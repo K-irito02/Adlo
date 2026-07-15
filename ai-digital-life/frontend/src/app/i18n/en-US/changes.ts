@@ -102,6 +102,9 @@ export const changesEn = {
   changesDiscard: 'Discard',
   gitVisualization: 'Git Visualization',
   gitVisCalendarHeatmap: 'Commit Calendar Heatmap',
+  gitVisContribution: 'contribution',
+  gitVisContributions: 'contributions',
+  gitVisCommits: 'commits',
   gitVisClockHeatmap: 'Commit Time Distribution',
   gitVisContributorStats: 'Contributor Overview',
   gitVisCodeLineEvo: 'Code Line Evolution',
@@ -124,5 +127,4 @@ export const changesEn = {
     'Sunburst partition by file type. Arc angle = modification count/code volume. Locate "hotspot files" by category.',
   gitVisMockDataNote:
     'All data is mock-generated for visualization demonstration. When connecting to a real Git repository, extract real data and adapt.',
-
 } as const;

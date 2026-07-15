@@ -2,12 +2,22 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { CalendarHeatmap } from './CalendarHeatmap';
 
-vi.mock('../hooks/useBklitTheme', () => ({
-  useBklitTheme: () => ({
-    heatmapColors: ['#f1f5f9', '#bfdbfe', '#60a5fa', '#3b82f6', '#1d4ed8'],
-    background: '#fff',
-    muted: '#94a3b8',
+vi.mock('@i18n/useTCopy', () => ({
+  useTCopy: () => ({
+    t: {
+      gitVisContribution: 'contribution',
+      gitVisContributions: 'contributions',
+    },
+    formatT: vi.fn(),
   }),
+}));
+
+vi.mock('@visx/responsive', () => ({
+  ParentSize: ({
+    children,
+  }: {
+    children: (args: { width: number; height: number }) => React.ReactNode;
+  }) => children({ width: 600, height: 200 }),
 }));
 
 describe('CalendarHeatmap', () => {

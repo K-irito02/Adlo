@@ -3,9 +3,9 @@ import {
   toBklitAreaData,
   generateCodeLineEvolutionData,
   toClockHeatmapData,
-  toCalendarHeatmapData,
   toContributorData,
   toBklitSankeyData,
+  toHeatmapColumns,
 } from './gitVisMockData';
 
 describe('bklit data adapters', () => {
@@ -25,13 +25,6 @@ describe('bklit data adapters', () => {
     expect(result[0]).toHaveProperty('value');
   });
 
-  it('toCalendarHeatmapData converts calendar data', () => {
-    const result = toCalendarHeatmapData();
-    expect(result.length).toBeGreaterThan(0);
-    expect(result[0]).toHaveProperty('x'); // day of week
-    expect(result[0]).toHaveProperty('y'); // week number
-  });
-
   it('toContributorData converts contributor arrays', () => {
     const result = toContributorData();
     expect(result.length).toBe(6);
@@ -47,5 +40,13 @@ describe('bklit data adapters', () => {
     expect(result.links.length).toBe(13);
     expect(result.nodes[0]).toHaveProperty('id');
     expect(result.nodes[0]).toHaveProperty('label');
+  });
+
+  it('toHeatmapColumns converts calendar data to columns', () => {
+    const result = toHeatmapColumns();
+    expect(result.length).toBeGreaterThan(0);
+    expect(result[0]).toHaveProperty('bin');
+    expect(result[0]).toHaveProperty('bins');
+    expect(Array.isArray(result[0].bins)).toBe(true);
   });
 });

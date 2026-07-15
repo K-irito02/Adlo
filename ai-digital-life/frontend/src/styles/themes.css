@@ -335,6 +335,26 @@ html:not(.no-transition) [data-theme] {
   --adl-file-badge-ink-database: #0f766e;
   --adl-loader-bg: #ffffff;
   --adl-loader-line: #000000;
+
+  /* === Bklit-UI Chart Tokens (light) === */
+  --chart-background: var(--bg);
+  --chart-foreground: var(--text-primary);
+  --chart-foreground-muted: var(--text-muted);
+  --chart-label: var(--text-secondary);
+  --chart-line-primary: var(--accent);
+  --chart-1: #2563eb;
+  --chart-2: #059669;
+  --chart-3: #d97706;
+  --chart-4: #dc2626;
+  --chart-5: #7c3aed;
+  --chart-scale-pattern-color: rgba(0, 0, 0, 0.15);
+  --chart-scale-01: #f1f5f9;
+  --chart-scale-02: #bfdbfe;
+  --chart-scale-03: #60a5fa;
+  --chart-scale-04: #3b82f6;
+  --chart-scale-05: #1d4ed8;
+  --chart-tooltip-background: #1e293b;
+  --chart-grid: #e2e8f0;
 }
 
 /* ===== DARK THEME =====
@@ -619,6 +639,26 @@ html:not(.no-transition) [data-theme] {
      where a white overlay is intentional in both light and dark themes. */
   --overlay-bg-1: rgba(255, 255, 255, 0.12);
   --overlay-bg-2: rgba(255, 255, 255, 0.18);
+
+  /* === Bklit-UI Chart Tokens (dark) === */
+  --chart-background: var(--bg);
+  --chart-foreground: var(--text-primary);
+  --chart-foreground-muted: var(--text-muted);
+  --chart-label: var(--text-secondary);
+  --chart-line-primary: var(--accent);
+  --chart-1: #60a5fa;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #f87171;
+  --chart-5: #a78bfa;
+  --chart-scale-pattern-color: rgba(255, 255, 255, 0.15);
+  --chart-scale-01: #1e293b;
+  --chart-scale-02: #1e3a5f;
+  --chart-scale-03: #2563eb;
+  --chart-scale-04: #3b82f6;
+  --chart-scale-05: #60a5fa;
+  --chart-tooltip-background: #f8fafc;
+  --chart-grid: #334155;
 }
 
 /* -------- High-contrast preference --------

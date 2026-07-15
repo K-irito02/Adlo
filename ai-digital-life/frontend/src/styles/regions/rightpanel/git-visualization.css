@@ -40,7 +40,8 @@
 
 .adl-git-vis__chart {
   width: 100%;
-  height: 360px;
+  max-height: 360px;
+  overflow-y: auto;
   flex-shrink: 0;
 }
 

@@ -4,9 +4,9 @@
   "rsc": false,
   "tsx": true,
   "tailwind": {
-    "config": null,
+    "config": "",
     "css": "src/styles/tailwind.css",
-    "baseColor": "slate",
+    "baseColor": "neutral",
     "cssVariables": true
   },
   "aliases": {
@@ -15,5 +15,8 @@
     "ui": "@/components/ui",
     "lib": "@/lib",
     "hooks": "@/hooks"
+  },
+  "registries": {
+    "@bklit": "https://ui.bklit.com/r/{name}.json"
   }
 }

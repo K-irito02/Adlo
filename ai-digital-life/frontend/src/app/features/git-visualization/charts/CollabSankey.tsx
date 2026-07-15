@@ -1,52 +1,22 @@
 import React, { useMemo } from 'react';
-import { Sankey } from '@visx/sankey';
+import { SankeyChart } from '@/components/charts/sankey/sankey-chart';
+import { SankeyNode } from '@/components/charts/sankey/sankey-node';
+import { SankeyLink } from '@/components/charts/sankey/sankey-link';
+import { SankeyTooltip } from '@/components/charts/sankey/sankey-tooltip';
 import { useBklitTheme } from '../hooks/useBklitTheme';
-import { toBklitSankeyData } from '../data/gitVisMockData';
-
-const WIDTH = 600;
-const HEIGHT = 300;
+import { toBklitSankeyChartData } from '../data/gitVisMockData';
 
 export const CollabSankey = React.memo(function CollabSankey() {
   const theme = useBklitTheme();
-  const { nodes, links } = useMemo(() => toBklitSankeyData(), []);
+  const data = useMemo(() => toBklitSankeyChartData(), []);
 
   return (
-    <div className="adl-git-vis__chart">
-      <svg width="100%" height={HEIGHT} viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
-        <Sankey
-          root={{ nodes, links }}
-          nodeWidth={20}
-          nodePadding={10}
-          size={[WIDTH, HEIGHT]}
-          nodeId={(d: { id: string }) => d.id}
-        >
-          {({ graph, createPath }) => (
-            <>
-              {graph.nodes.map((node, i) => (
-                <rect
-                  key={i}
-                  x={node.x0}
-                  y={node.y0}
-                  width={(node.x1 ?? node.x0 ?? 0) - (node.x0 ?? 0)}
-                  height={(node.y1 ?? node.y0 ?? 0) - (node.y0 ?? 0)}
-                  fill={theme.seriesColors[i % theme.seriesColors.length]}
-                  rx={3}
-                />
-              ))}
-              {graph.links.map((link, i) => (
-                <path
-                  key={i}
-                  d={createPath(link) ?? ''}
-                  stroke={theme.muted}
-                  strokeWidth={Math.max(1, link.width ?? 1)}
-                  fill="none"
-                  opacity={0.6}
-                />
-              ))}
-            </>
-          )}
-        </Sankey>
-      </svg>
+    <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
+      <SankeyChart data={data}>
+        <SankeyNode getNodeColor={(node, i) => theme.seriesColors[i % theme.seriesColors.length]} />
+        <SankeyLink />
+        <SankeyTooltip />
+      </SankeyChart>
     </div>
   );
 });

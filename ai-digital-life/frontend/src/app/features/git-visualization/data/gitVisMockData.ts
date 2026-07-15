@@ -1,3 +1,5 @@
+import type { HeatmapColumn } from '@/components/charts/heatmap/heatmap-context';
+
 /** Git 可视化模拟数据，从 Git可视化设计.md 提取 */
 
 export interface CommitNode {
@@ -215,6 +217,7 @@ export interface BklitAreaRow {
   date: string;
   added: number;
   deleted: number;
+  [key: string]: unknown;
 }
 
 export interface BklitSankeyNode {
@@ -228,6 +231,18 @@ export interface BklitSankeyLink {
   value: number;
 }
 
+export interface BklitSankeyNodeDatum {
+  name: string;
+  [key: string]: unknown;
+}
+
+export interface BklitSankeyLinkDatum {
+  source: number;
+  target: number;
+  value: number;
+  [key: string]: unknown;
+}
+
 export interface BklitHeatmapCell {
   x: number;
   y: number;
@@ -239,6 +254,7 @@ export interface BklitContributorRow {
   commits: number;
   added: number;
   deleted: number;
+  [key: string]: unknown;
 }
 
 // ── Bklit/visx data adapters ──
@@ -264,21 +280,44 @@ export function toClockHeatmapData(): BklitHeatmapCell[] {
   return clockHeatmapData.map(([hour, day, count]) => ({ x: hour, y: day, value: count }));
 }
 
-export function toCalendarHeatmapData(): BklitHeatmapCell[] {
-  return generateCalendarData().map(([dateStr, count]) => {
+export function toHeatmapColumns(): HeatmapColumn[] {
+  const raw = generateCalendarData();
+  const weekMap = new Map<number, { count: number; bin: number; date: Date }[]>();
+  for (const [dateStr, count] of raw) {
     const d = new Date(dateStr);
     const weekStart = new Date(d.getFullYear(), 0, 1);
+    const weekStartDay = weekStart.getDay();
     const weekNum = Math.ceil(
-      ((d.getTime() - weekStart.getTime()) / 86400000 + weekStart.getDay() + 1) / 7
+      ((d.getTime() - weekStart.getTime()) / 86400000 + weekStartDay + 1) / 7
     );
-    return { x: d.getDay(), y: weekNum, value: count };
-  });
+    if (!weekMap.has(weekNum)) {
+      weekMap.set(weekNum, []);
+    }
+    weekMap.get(weekNum)!.push({ count, bin: d.getDay(), date: d });
+  }
+  return [...weekMap.entries()].sort(([a], [b]) => a - b).map(([bin, bins]) => ({ bin, bins }));
+}
+
+export function toBklitSankeyChartData(): {
+  nodes: BklitSankeyNodeDatum[];
+  links: BklitSankeyLinkDatum[];
+} {
+  const nameToIndex = new Map(sankeyNodes.map((n, i) => [n.name, i]));
+  return {
+    nodes: sankeyNodes.map((n) => ({ name: n.name })),
+    links: sankeyLinks.map((l) => ({
+      source: nameToIndex.get(l.source) ?? 0,
+      target: nameToIndex.get(l.target) ?? 0,
+      value: l.value,
+    })),
+  };
 }
 
 export interface CommitTimelineRow {
   date: string;
   count: number;
   cumulative: number;
+  [key: string]: unknown;
 }
 
 export const mockCommitTimelineData: CommitTimelineRow[] = [
