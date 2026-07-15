@@ -80,6 +80,30 @@ export default tseslint.config(
     },
   },
   {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: [
+      'src/shared/ipc/**',
+      'src/tauri-bridge/**',
+      'src/preview-bridge/**',
+      'src/mock/**',
+      'src/app/stores/**',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'warn',
+        {
+          paths: [
+            {
+              name: '@ai-digital-life/kernel',
+              message:
+                '禁止在 bridge 层和 stores 之外直接导入 @ai-digital-life/kernel。请通过 shared/ipc/ 的类型定义或 bridge 层访问这些类型。Phase 2 将迁移现有违规文件并将此规则升级为 error。',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
