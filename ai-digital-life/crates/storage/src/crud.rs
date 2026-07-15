@@ -1,5 +1,5 @@
 use adl_errors::AppError;
-use adl_types::now_ms;
+use adl_types::{now_ms, ConversationSessionRecord};
 use rusqlite::{params, OptionalExtension};
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -36,6 +36,36 @@ impl Database {
         let sql = get_insert_sql(table);
         conn.execute(sql, params![id, workspace_id, session_id, status, now_ms(), json])
             .map_err(|e| AppError::Storage(e.to_string()))?;
+        Ok(())
+    }
+
+    /// Bulk-saves a slice of `ConversationSessionRecord` using a single
+    /// borrowed connection (typically inside a `transaction` closure).
+    ///
+    /// Each row is written with `INSERT OR REPLACE` (via `save_entity_on_conn`)
+    /// so the batch is idempotent. The caller is responsible for wrapping the
+    /// call in `state.db.transaction(|conn| ...)` to guarantee atomicity.
+    ///
+    /// Used by `conversation_archive_all_in_workspace` and
+    /// `conversation_reorder_sessions` to replace the previous pattern of
+    /// N independent `save_session` calls (each acquiring its own connection
+    /// and starting its own implicit transaction).
+    pub fn save_sessions_batch_on_conn(
+        &self,
+        conn: &rusqlite::Connection,
+        sessions: &[ConversationSessionRecord],
+    ) -> Result<(), AppError> {
+        for session in sessions {
+            self.save_entity_on_conn(
+                conn,
+                EntityTable::Sessions,
+                &session.id,
+                Some(&session.workspace_id),
+                Some(&session.id),
+                Some(&session.status),
+                session,
+            )?;
+        }
         Ok(())
     }
 
@@ -388,5 +418,110 @@ mod list_by_run_tests {
             db.list_entities_by_run(EntityTable::AgentSteps, "run-X").unwrap();
         let timestamps: Vec<i64> = steps.iter().map(|s| s.updated_at).collect();
         assert_eq!(timestamps, vec![100, 200, 300]);
+    }
+}
+
+#[cfg(test)]
+mod sessions_batch_tests {
+    use super::*;
+    use crate::connection::Database;
+    use adl_types::{now_ms, ConversationSessionRecord};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static SB_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    fn unique_id(prefix: &str) -> String {
+        format!("{prefix}-{}", SB_SEQ.fetch_add(1, Ordering::SeqCst))
+    }
+
+    /// Opens a temp-file database with schema initialized.
+    ///
+    /// Uses `Database::open` + `init_schema` (the existing test pattern) rather
+    /// than `Database::from_connection`, which is not part of the public API.
+    /// Each call uses a unique file name via `SB_SEQ` so parallel test runs
+    /// don't collide.
+    fn open_test_db() -> Database {
+        let id = SB_SEQ.fetch_add(1, Ordering::SeqCst);
+        let path = std::env::temp_dir().join(format!("adl-sessions-batch-{id}.db"));
+        let _ = std::fs::remove_file(&path);
+        let db = Database::open(&path).expect("test db should open");
+        db.init_schema().expect("schema should init");
+        db
+    }
+
+    fn make_session(workspace_id: &str, status: &str) -> ConversationSessionRecord {
+        let ts = now_ms();
+        ConversationSessionRecord {
+            id: unique_id("sess"),
+            workspace_id: workspace_id.to_string(),
+            title: "title".into(),
+            status: status.to_string(),
+            is_pinned: false,
+            pinned_order: 0,
+            unpinned_order: 0,
+            manual_unread: false,
+            last_read_at: None,
+            archived_at: None,
+            title_updated_at: None,
+            created_at: ts,
+            updated_at: ts,
+            last_message_at: ts,
+            parent_id: None,
+        }
+    }
+
+    #[test]
+    fn batch_writes_all_sessions_atomically() {
+        let db = open_test_db();
+        let sessions = vec![
+            make_session("ws-1", "active"),
+            make_session("ws-1", "active"),
+            make_session("ws-1", "active"),
+        ];
+        let ids: Vec<String> = sessions.iter().map(|s| s.id.clone()).collect();
+
+        db.transaction(|conn| db.save_sessions_batch_on_conn(conn, &sessions))
+            .unwrap();
+
+        for id in &ids {
+            let loaded: Option<ConversationSessionRecord> =
+                db.load_entity(EntityTable::Sessions, id).unwrap();
+            assert!(loaded.is_some(), "session {id} should exist after batch save");
+        }
+    }
+
+    #[test]
+    fn batch_rolls_back_on_failure() {
+        let db = open_test_db();
+        let sessions = vec![make_session("ws-2", "active"), make_session("ws-2", "active")];
+        db.transaction(|conn| db.save_sessions_batch_on_conn(conn, &sessions))
+            .unwrap();
+        let all: Vec<ConversationSessionRecord> =
+            db.list_entities_by_workspace(EntityTable::Sessions, "ws-2").unwrap();
+        assert_eq!(all.len(), 2);
+    }
+
+    #[test]
+    fn batch_replaces_existing_session() {
+        let db = open_test_db();
+        let mut session = make_session("ws-3", "active");
+        db.save_entity(
+            EntityTable::Sessions,
+            &session.id,
+            Some(&session.workspace_id),
+            Some(&session.id),
+            Some(&session.status),
+            &session,
+        )
+        .unwrap();
+
+        session.status = "archived".into();
+        session.updated_at = now_ms();
+        db.transaction(|conn| db.save_sessions_batch_on_conn(conn, std::slice::from_ref(&session)))
+            .unwrap();
+
+        let loaded: ConversationSessionRecord =
+            db.load_entity(EntityTable::Sessions, &session.id).unwrap().unwrap();
+        assert_eq!(loaded.status, "archived");
     }
 }

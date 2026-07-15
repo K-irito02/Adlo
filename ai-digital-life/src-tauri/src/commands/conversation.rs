@@ -155,14 +155,21 @@ pub fn conversation_archive_all_in_workspace(
 ) -> IpcResult<Vec<ConversationSessionRecord>> {
     crate::commands::ipc_try(|| {
         let workspace_id = active_workspace_scope_id(&state);
+        let now = adl_types::now_ms();
         let mut sessions: Vec<ConversationSessionRecord> =
             state.db.list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
         for session in &mut sessions {
             session.status = "archived".into();
-            session.archived_at = Some(adl_types::now_ms());
-            session.updated_at = adl_types::now_ms();
-            save_session(&state, session)?;
+            session.archived_at = Some(now);
+            session.updated_at = now;
         }
+        // Batch all writes in a single transaction. Previously each
+        // save_session call acquired its own connection and ran an
+        // implicit auto-commit transaction, so a mid-loop failure left
+        // the workspace half-archived.
+        state
+            .db
+            .transaction(|conn| state.db.save_sessions_batch_on_conn(conn, &sessions))?;
         Ok(sessions)
     })
 }
