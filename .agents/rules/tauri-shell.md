@@ -25,7 +25,7 @@ alwaysApply: false
 
 | 文件 | 职责 |
 |------|------|
-| `frontend/src/shared/ipc/index.ts` | `DigitalLifeBridge` 类型定义（域拆分为 13 个子接口，见 `shared/ipc/*.ts`） |
+| `frontend/src/shared/ipc/digital-life.ts` | `DigitalLifeBridge` 类型定义（域拆分为 27 个子接口，见 `shared/ipc/*.ts`） |
 | `src-tauri/src/commands/*.rs` | `#[tauri::command]` 处理 |
 | `src-tauri/capabilities/*.json` | Command 白名单 |
 | `crates/kernel` | `serde` 契约类型 |
@@ -134,7 +134,7 @@ pub async fn workspace_list_tree(
 ## IPC/Bridge 架构规范
 
 ### Bridge 接口设计
-- `DigitalLifeBridge` 接口必须按领域拆分为命名子接口（当前 13 个：`window`, `app`, `workspace`, `retrieval`, `conversation`, `agent`, `patch`, `command`, `pty`, `task`, `run-activity`, `browser`, `github`）
+- `DigitalLifeBridge` 接口必须按领域拆分为命名子接口（当前 27 个：`window`, `app`, `workspace`, `retrieval`, `conversation`, `agent`, `subagent`, `mcp`, `patch`, `provider`, `command`, `pty`, `task`, `run-activity`, `browser`, `github`, `snapshot`, `web-tools`, `commands-config`, `permission`, `compaction`, `session-fork`, `lsp`, `reference`, `durable`, `reserved`, `custom-agent`；注：`ci` 属性复用 `GitHubBridge` 接口，不计入独立子接口数）
 - 每个子接口对应 `shared/ipc/{domain}.ts` 一个域文件，新增域时同步增加子接口与文件
 - 每个子接口新增方法时，必须在 3 个实现层同步:
   1. Tauri Bridge (`tauri-bridge.ts`)
