@@ -193,22 +193,28 @@ pub fn conversation_reorder_sessions(
     input: ReorderSessionsInput,
 ) -> IpcResult<Vec<ConversationSessionRecord>> {
     crate::commands::ipc_try(|| {
+        let now = adl_types::now_ms();
         let mut sessions: Vec<ConversationSessionRecord> =
             state.db.list_entities_by_workspace(EntityTable::Sessions, &input.workspace_id)?;
         for session in &mut sessions {
             if let Some(order) = input.pinned_ids.iter().position(|id| id == &session.id) {
                 session.is_pinned = true;
                 session.pinned_order = order as i32;
-                session.updated_at = adl_types::now_ms();
-                save_session(&state, session)?;
+                session.updated_at = now;
             }
             if let Some(order) = input.unpinned_ids.iter().position(|id| id == &session.id) {
                 session.is_pinned = false;
                 session.unpinned_order = order as i32;
-                session.updated_at = adl_types::now_ms();
-                save_session(&state, session)?;
+                session.updated_at = now;
             }
         }
+        // Batch all order updates in a single transaction. Previously
+        // each pinned/unpinned match called save_session immediately,
+        // so a mid-loop failure left the sidebar in a partially
+        // reordered state.
+        state.db.transaction(|conn| {
+            state.db.save_sessions_batch_on_conn(conn, &sessions)
+        })?;
         sessions.sort_by_key(|session| {
             (
                 !session.is_pinned,
