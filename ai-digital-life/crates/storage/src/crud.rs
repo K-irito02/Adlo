@@ -84,6 +84,34 @@ impl Database {
         self.list_entities_filtered(table, Some(("status", status)), None)
     }
 
+    /// Counts consecutive failed runs for a session, scanning the most recent
+    /// runs in `updated_at DESC` order. Stops at the first non-`"failed"` row.
+    ///
+    /// Caps the scan at 20 rows for safety (a doom loop > 20 is irrelevant —
+    /// the guard triggers at 3). Returns `0` if the session has no runs or the
+    /// most recent run is not failed.
+    ///
+    /// Backs `DoomLoopState` for the patch generator's permission check.
+    pub fn count_consecutive_failed_runs_by_session(
+        &self,
+        session_id: &str,
+    ) -> Result<u32, AppError> {
+        let sql = "SELECT status FROM agent_runs \
+                   WHERE session_id = ?1 \
+                   ORDER BY updated_at DESC \
+                   LIMIT 20";
+        let conn = self.conn()?;
+        let mut stmt = conn.prepare(sql).map_err(|e| AppError::Storage(e.to_string()))?;
+        let statuses: Vec<String> = stmt
+            .query_map(params![session_id], |row| row.get::<_, String>(0))
+            .map_err(|e| AppError::Storage(e.to_string()))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+        let failed = "failed";
+        let count = statuses.iter().take_while(|s| s.as_str() == failed).count() as u32;
+        Ok(count)
+    }
+
     fn list_entities_filtered<T: DeserializeOwned>(
         &self,
         table: EntityTable,
@@ -154,5 +182,91 @@ impl Database {
             .execute(&sql, params![workspace_id])
             .map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(changed)
+    }
+}
+
+#[cfg(test)]
+mod doom_loop_count_tests {
+    use super::*;
+    use crate::connection::Database;
+    use adl_types::{AgentId, AgentRunRecord, AgentRunStatus, ConversationScenario};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+
+    fn unique_id(prefix: &str) -> String {
+        format!("{prefix}-{}", SEQ.fetch_add(1, Ordering::SeqCst))
+    }
+
+    /// Opens a temp-file database with schema initialized.
+    ///
+    /// Uses `Database::open` + `init_schema` (the existing test pattern) rather
+    /// than `Database::from_connection`, which is not part of the public API.
+    /// Each call uses a unique file name via `SEQ` so parallel test runs don't
+    /// collide.
+    fn open_test_db() -> Database {
+        let id = SEQ.fetch_add(1, Ordering::SeqCst);
+        let path = std::env::temp_dir().join(format!("adl-doom-loop-{id}.db"));
+        let _ = std::fs::remove_file(&path);
+        let db = Database::open(&path).expect("test db should open");
+        db.init_schema().expect("schema should init");
+        db
+    }
+
+    fn save_run(db: &Database, session_id: &str, status: AgentRunStatus, ts: i64) {
+        let run = AgentRunRecord {
+            id: unique_id("run"),
+            workspace_id: "ws-test".into(),
+            session_id: session_id.into(),
+            prompt: "test".into(),
+            scenario: ConversationScenario::Chat,
+            status,
+            summary: None,
+            patch_set_id: None,
+            created_at: ts,
+            updated_at: ts,
+            completed_at: Some(ts),
+            agent_id: AgentId::Build,
+        };
+        let status_str = run.status.as_status_str();
+        db.save_entity(
+            EntityTable::AgentRuns,
+            &run.id,
+            Some(&run.workspace_id),
+            Some(&run.session_id),
+            Some(status_str),
+            &run,
+        )
+        .expect("save_entity should succeed");
+    }
+
+    #[test]
+    fn returns_zero_when_no_runs() {
+        let db = open_test_db();
+        let count = db.count_consecutive_failed_runs_by_session("sess-empty").unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn counts_consecutive_failed_at_head() {
+        let db = open_test_db();
+        let sid = "sess-fail-3";
+        save_run(&db, sid, AgentRunStatus::Succeeded, 100);
+        save_run(&db, sid, AgentRunStatus::Failed, 200);
+        save_run(&db, sid, AgentRunStatus::Failed, 300);
+        save_run(&db, sid, AgentRunStatus::Failed, 400);
+        let count = db.count_consecutive_failed_runs_by_session(sid).unwrap();
+        assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn stops_at_first_non_failed() {
+        let db = open_test_db();
+        let sid = "sess-mixed";
+        save_run(&db, sid, AgentRunStatus::Failed, 100);
+        save_run(&db, sid, AgentRunStatus::Succeeded, 200);
+        save_run(&db, sid, AgentRunStatus::Failed, 300);
+        let count = db.count_consecutive_failed_runs_by_session(sid).unwrap();
+        assert_eq!(count, 1);
     }
 }

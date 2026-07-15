@@ -225,6 +225,26 @@ pub enum AgentRunStatus {
     Aborted,
 }
 
+impl AgentRunStatus {
+    /// Lowercase kebab string used in the `agent_runs.status` column.
+    /// MUST stay in sync with `commands::agent::save_run_detail`.
+    pub fn as_status_str(&self) -> &'static str {
+        match self {
+            Self::Draft => "draft",
+            Self::Planning => "planning",
+            Self::Ready => "ready",
+            Self::Executing => "executing",
+            Self::WaitingApproval => "waiting-approval",
+            Self::Applying => "applying",
+            Self::Verifying => "verifying",
+            Self::Succeeded => "succeeded",
+            Self::Failed => "failed",
+            Self::RolledBack => "rolled-back",
+            Self::Aborted => "aborted",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AgentRunRecord {

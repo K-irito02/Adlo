@@ -31,7 +31,8 @@ pub fn generate_patches(
                     // 这是中心化拦截点（vs OpenCode 的 ctx.ask 分散式调用）
                     let ruleset = build_ruleset_from_config();
                     let tool_input = format!("patch {} {}", path, input.prompt);
-                    let doom_loop_count = 0u32; // TODO: 从 session 状态读取连续失败次数
+                    let doom_loop_count =
+                        state.db.count_consecutive_failed_runs_by_session(&session.id)?;
                     match check_tool_permission(
                         "apply_patch",
                         &tool_input,
