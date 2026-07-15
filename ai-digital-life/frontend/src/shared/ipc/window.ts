@@ -64,4 +64,13 @@ export interface WindowBridge {
    * @see mock-bridge.ts → window.show
    */
   show: () => Promise<void>;
+  /**
+   * 在系统默认浏览器中打开外部 URL
+   * @param url 要打开的 URL
+   * @command 无独立命令 (Tauri 模式通过 @tauri-apps/plugin-shell 的 open() 实现)
+   * @see tauri-bridge.ts → window.openExternal
+   * @see mock-bridge.ts → window.openExternal
+   * @see preview-bridge/index.ts → window.openExternal
+   */
+  openExternal: (url: string) => Promise<void>;
 }

@@ -1,5 +1,6 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { type UnlistenFn } from '@tauri-apps/api/event';
+import { open } from '@tauri-apps/plugin-shell';
 import type {
   AppBridge,
   CommandBridge,
@@ -54,6 +55,7 @@ export function createTauriWindowBridge(): WindowBridge {
     isMaximized: () => win().isMaximized(),
     setTitle: (title: string) => win().setTitle(title),
     show: () => win().show(),
+    openExternal: (url: string) => open(url),
     onResized: (listener: () => void) => {
       let active = true;
       let ul: UnlistenFn | undefined;

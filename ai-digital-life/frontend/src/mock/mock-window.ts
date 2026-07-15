@@ -19,4 +19,7 @@ export const mockWindow: WindowBridge = {
   show: async () => {
     // browser mode: no-op
   },
+  openExternal: async (url: string) => {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  },
 };
