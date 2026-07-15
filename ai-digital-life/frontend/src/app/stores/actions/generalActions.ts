@@ -9,6 +9,31 @@ import { resolveCurrentTheme } from '@shared/resolveTheme';
 import { isTauriShell } from '../../../tauri-bridge';
 import type { StoreApi } from 'zustand';
 
+/**
+ * 批量累加辅助函数 — 在 Partial<StoreState> 中累积 Record 字段的变更。
+ *
+ * 首次调用时从当前 store 状态浅拷贝初始化 batch 字段，
+ * 后续调用直接在已初始化的 batch 字段上追加，避免每次都展开整个 Record。
+ *
+ * @param batch - 累积变更的 Partial<StoreState> 对象
+ * @param get - Zustand store 的 get 函数，用于读取当前状态
+ * @param key - StoreState 中类型为 Record<string, V> 的字段名
+ * @param id - 要写入的 Record key
+ * @param value - 要写入的 Record value
+ */
+export function accumulateBatch<K extends keyof StoreState>(
+  batch: Partial<StoreState>,
+  get: () => StoreState,
+  key: K,
+  id: string,
+  value: StoreState[K] extends Record<string, infer V> ? V : never
+): void {
+  if (!batch[key]) {
+    batch[key] = { ...(get()[key] as Record<string, unknown>) } as StoreState[K];
+  }
+  (batch[key] as Record<string, unknown>)[id] = value;
+}
+
 export function createGeneralActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     /**
@@ -160,24 +185,12 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
               }
               const { id, tree, snapshot } = r.value;
               if (tree !== undefined) {
-                if (!batch.workspaceTrees) {
-                  batch.workspaceTrees = { ...get().workspaceTrees };
-                }
-                batch.workspaceTrees[id] = tree;
-                if (!batch.workspaceTreeLoading) {
-                  batch.workspaceTreeLoading = { ...get().workspaceTreeLoading };
-                }
-                batch.workspaceTreeLoading[id] = false;
+                accumulateBatch(batch, get, 'workspaceTrees', id, tree);
+                accumulateBatch(batch, get, 'workspaceTreeLoading', id, false);
               }
               if (snapshot !== undefined) {
-                if (!batch.gitSnapshots) {
-                  batch.gitSnapshots = { ...get().gitSnapshots };
-                }
-                batch.gitSnapshots[id] = snapshot;
-                if (!batch.workspaceChangesTreeLoading) {
-                  batch.workspaceChangesTreeLoading = { ...get().workspaceChangesTreeLoading };
-                }
-                batch.workspaceChangesTreeLoading[id] = false;
+                accumulateBatch(batch, get, 'gitSnapshots', id, snapshot);
+                accumulateBatch(batch, get, 'workspaceChangesTreeLoading', id, false);
               }
             }
             if (Object.keys(batch).length > 0) {

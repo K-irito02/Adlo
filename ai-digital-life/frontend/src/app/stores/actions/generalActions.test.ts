@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useAppStore } from '../slicedStore';
+import { accumulateBatch } from './generalActions';
+import type { StoreState } from '../StoreState';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
 
 // Mock themeController 依赖（updatePreferences 成功路径会调用）
@@ -112,5 +114,52 @@ describe('updatePreferences action', () => {
     await store.updatePreferences({ language: 'en-US' } as AppPreferencePatch);
     // 不应调用 mock（防重入）
     expect(mockUpdatePreferences).not.toHaveBeenCalled();
+  });
+});
+
+describe('accumulateBatch', () => {
+  // 构造最小 StoreState 子集，仅包含测试所需的 Record 字段
+  function makeMockGet(overrides: Partial<StoreState> = {}): () => StoreState {
+    const base = {
+      workspaceTrees: {},
+      workspaceTreeLoading: {},
+      gitSnapshots: {},
+      workspaceChangesTreeLoading: {},
+    } as unknown as StoreState;
+    return () => ({ ...base, ...overrides }) as StoreState;
+  }
+
+  it('initializes batch field from store state on first call', () => {
+    const batch: Partial<StoreState> = {};
+    const get = makeMockGet({
+      workspaceTrees: { existing: [] } as unknown as StoreState['workspaceTrees'],
+    });
+    accumulateBatch(batch, get, 'workspaceTrees', 'new-id', [] as never);
+    expect(batch.workspaceTrees).toBeDefined();
+    expect(batch.workspaceTrees).toHaveProperty('existing');
+    expect(batch.workspaceTrees).toHaveProperty('new-id');
+  });
+
+  it('accumulates multiple entries into same batch field', () => {
+    const batch: Partial<StoreState> = {};
+    const get = makeMockGet();
+    accumulateBatch(batch, get, 'workspaceTreeLoading', 'id1', false);
+    accumulateBatch(batch, get, 'workspaceTreeLoading', 'id2', false);
+    expect(batch.workspaceTreeLoading).toHaveProperty('id1', false);
+    expect(batch.workspaceTreeLoading).toHaveProperty('id2', false);
+  });
+
+  it('does not re-initialize batch field on subsequent calls', () => {
+    const batch: Partial<StoreState> = {};
+    const get = makeMockGet({
+      gitSnapshots: { stale: { id: 'stale' } } as unknown as StoreState['gitSnapshots'],
+    });
+    accumulateBatch(batch, get, 'gitSnapshots', 'first', { id: 'first' } as never);
+    // 第二次调用不应重新从 get() 拷贝（否则会覆盖 first）
+    accumulateBatch(batch, get, 'gitSnapshots', 'second', { id: 'second' } as never);
+    expect(batch.gitSnapshots).toHaveProperty('first');
+    expect(batch.gitSnapshots).toHaveProperty('second');
+    // stale 不应在 batch 中（batch 从 get() 拷贝时包含 stale，但第一次调用后就不再拷贝）
+    expect(batch.gitSnapshots).toHaveProperty('stale');
   });
 });
