@@ -83,111 +83,139 @@ pub async fn workspace_list_git_branches(
 }
 
 #[tauri::command]
-pub fn workspace_switch_git_branch(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_switch_git_branch(
+    app: tauri::AppHandle,
     input: WorkspaceGitBranchSwitchInput,
-) -> IpcResult<WorkspaceGitBranchChangeResult> {
-    crate::commands::ipc_try(|| {
-        let workspace = crate::commands::workspace::current_workspace(&state)?;
-        let branch_name = input.branch_name.trim();
-        if branch_name.is_empty() {
-            return Err(AppError::InvalidInput("branch name is required".into()));
-        }
-        let (git_snapshot, stashed_changes, previous_branch, has_restored) =
+) -> Result<IpcResult<WorkspaceGitBranchChangeResult>, AppError> {
+    let state = app.state::<AppState>();
+    let workspace = crate::commands::workspace::current_workspace(&state)?;
+    let branch_name = input.branch_name.trim().to_string();
+    if branch_name.is_empty() {
+        return Ok(ipc(Err(AppError::InvalidInput("branch name is required".into()))));
+    }
+    let root_path = workspace.root_path.clone();
+    let allow_stash = input.allow_stash;
+    let branch_name_for_closure = branch_name.clone();
+    let (git_snapshot, stashed_changes, previous_branch, has_restored) =
+        tokio::task::spawn_blocking(move || {
             adl_workspace::switch_git_branch(
-                PathBuf::from(&workspace.root_path).as_path(),
-                branch_name,
-                input.allow_stash,
-            )?;
-        build_branch_change_result(
-            &state,
-            workspace,
-            git_snapshot,
-            previous_branch,
-            stashed_changes,
-            branch_name,
-            has_restored,
-        )
-    })
+                PathBuf::from(root_path).as_path(),
+                &branch_name_for_closure,
+                allow_stash,
+            )
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let result = build_branch_change_result(
+        &state,
+        workspace,
+        git_snapshot,
+        previous_branch,
+        stashed_changes,
+        &branch_name,
+        has_restored,
+    )?;
+    Ok(ipc(Ok(result)))
 }
 
 #[tauri::command]
-pub fn workspace_create_git_branch(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_create_git_branch(
+    app: tauri::AppHandle,
     input: WorkspaceGitBranchCreateInput,
-) -> IpcResult<WorkspaceGitBranchChangeResult> {
-    crate::commands::ipc_try(|| {
-        let workspace = crate::commands::workspace::current_workspace(&state)?;
-        let branch_name = input.branch_name.trim();
-        if branch_name.is_empty() {
-            return Err(AppError::InvalidInput("branch name is required".into()));
-        }
-        let (git_snapshot, stashed_changes, previous_branch) = adl_workspace::create_git_branch(
-            PathBuf::from(&workspace.root_path).as_path(),
-            branch_name,
-            input.base_branch.as_deref(),
-            input.allow_stash,
-        )?;
-        build_branch_change_result(
-            &state,
-            workspace,
-            git_snapshot,
-            previous_branch,
-            stashed_changes,
-            branch_name,
-            false,
+) -> Result<IpcResult<WorkspaceGitBranchChangeResult>, AppError> {
+    let state = app.state::<AppState>();
+    let workspace = crate::commands::workspace::current_workspace(&state)?;
+    let branch_name = input.branch_name.trim().to_string();
+    if branch_name.is_empty() {
+        return Ok(ipc(Err(AppError::InvalidInput("branch name is required".into()))));
+    }
+    let root_path = workspace.root_path.clone();
+    let base_branch = input.base_branch;
+    let allow_stash = input.allow_stash;
+    let branch_name_for_closure = branch_name.clone();
+    let (git_snapshot, stashed_changes, previous_branch) = tokio::task::spawn_blocking(move || {
+        adl_workspace::create_git_branch(
+            PathBuf::from(root_path).as_path(),
+            &branch_name_for_closure,
+            base_branch.as_deref(),
+            allow_stash,
         )
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let result = build_branch_change_result(
+        &state,
+        workspace,
+        git_snapshot,
+        previous_branch,
+        stashed_changes,
+        &branch_name,
+        false,
+    )?;
+    Ok(ipc(Ok(result)))
 }
 
-fn run_git_file_op(
+async fn run_git_file_op(
     state: &AppState,
     workspace_path: Option<String>,
-    relative_path: &str,
-    op: impl FnOnce(&Path, &str) -> Result<(), AppError>,
-) -> IpcResult<()> {
-    let path = match workspace_path {
-        Some(p) => PathBuf::from(p),
+    relative_path: String,
+    op: fn(&Path, &str) -> Result<(), AppError>,
+) -> Result<(), AppError> {
+    let root_path = match workspace_path {
+        Some(p) => p,
         None => {
-            return ipc(crate::commands::workspace::with_workspace(state, |workspace| {
-                op(PathBuf::from(&workspace.root_path).as_path(), relative_path)
-            }));
+            let ws = crate::commands::workspace::current_workspace(state)?;
+            ws.root_path
         },
     };
-    ipc(op(path.as_path(), relative_path))
+    tokio::task::spawn_blocking(move || {
+        let path = PathBuf::from(root_path);
+        op(path.as_path(), &relative_path)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
 }
 
 #[tauri::command]
-pub fn workspace_git_stage_file(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_git_stage_file(
+    app: tauri::AppHandle,
     relative_path: String,
     workspace_path: Option<String>,
-) -> IpcResult<()> {
-    run_git_file_op(&state, workspace_path, &relative_path, |root, path| {
+) -> Result<IpcResult<()>, AppError> {
+    let state = app.state::<AppState>();
+    run_git_file_op(&state, workspace_path, relative_path, |root, path| {
         adl_workspace::stage_file(root, path)
     })
+    .await?;
+    Ok(ipc(Ok(())))
 }
 
 #[tauri::command]
-pub fn workspace_git_unstage_file(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_git_unstage_file(
+    app: tauri::AppHandle,
     relative_path: String,
     workspace_path: Option<String>,
-) -> IpcResult<()> {
-    run_git_file_op(&state, workspace_path, &relative_path, |root, path| {
+) -> Result<IpcResult<()>, AppError> {
+    let state = app.state::<AppState>();
+    run_git_file_op(&state, workspace_path, relative_path, |root, path| {
         adl_workspace::unstage_file(root, path)
     })
+    .await?;
+    Ok(ipc(Ok(())))
 }
 
 #[tauri::command]
-pub fn workspace_git_discard_file(
-    state: tauri::State<'_, AppState>,
+pub async fn workspace_git_discard_file(
+    app: tauri::AppHandle,
     relative_path: String,
     workspace_path: Option<String>,
-) -> IpcResult<()> {
-    run_git_file_op(&state, workspace_path, &relative_path, |root, path| {
+) -> Result<IpcResult<()>, AppError> {
+    let state = app.state::<AppState>();
+    run_git_file_op(&state, workspace_path, relative_path, |root, path| {
         adl_workspace::discard_file_changes(root, path)
     })
+    .await?;
+    Ok(ipc(Ok(())))
 }
 
 fn build_branch_change_result(
