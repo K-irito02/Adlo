@@ -46,12 +46,20 @@ export function BrowserPanelFrame(props: BrowserPanelFrameProps) {
           <BrowserContextMenu
             contextMenu={props.contextMenu}
             onTogglePin={props.handleTogglePin}
-            onRename={handleRenameFromContextMenu(browserTabs, props.contextMenu, props.handleDoubleClick)}
+            onRename={handleRenameFromContextMenu(
+              browserTabs,
+              props.contextMenu,
+              props.handleDoubleClick
+            )}
             onDelete={handleDeleteFromContextMenu(props.contextMenu, props.wrappedHandleCloseTab)}
             onCopyUrl={props.handleCopyUrlFromMenu}
             onOpenInNewTab={props.handleOpenInNewTab}
             onOpenInCurrentTab={props.handleOpenInCurrentTab}
-            onEdit={handleRenameFromContextMenu(browserTabs, props.contextMenu, props.handleDoubleClick)}
+            onEdit={handleRenameFromContextMenu(
+              browserTabs,
+              props.contextMenu,
+              props.handleDoubleClick
+            )}
             onCut={() => {}}
           />
 

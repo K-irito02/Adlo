@@ -1,36 +1,18 @@
-import { useCallback, useMemo, useRef } from 'react';
-import { useBrowserToast } from './useBrowserToast';
-import { useBrowserDialogs } from './useBrowserDialogs';
+import { useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useBrowserTabs } from './useBrowserTabs';
 import { useBrowserWebView } from './useBrowserWebView';
-import { useBrowserUrlChange } from './useBrowserUrlChange';
 import { useBrowserSearch } from './useBrowserSearch';
 import { useBrowserTreeActions } from './useBrowserTreeActions';
 import { useBrowserNavigation } from './useBrowserNavigation';
 import { useBrowserUrlState } from './useBrowserUrlState';
-import { useBrowserPageMeta } from './useBrowserPageMeta';
-import { useBrowserMetaSubscription } from './useBrowserMetaSubscription';
 import { useBrowserMenus } from './useBrowserMenus';
-import { BrowserContextMenu } from './BrowserContextMenu';
 import { useBrowserThemeSync } from './useBrowserThemeSync';
-import { BrowserPanelStateCtx } from './BrowserPanelStateContext';
-import { BrowserPanelActionsCtx } from './BrowserPanelActionsContext';
 import type { BrowserPanelActions } from './BrowserPanelActionsContext';
-import { BrowserToolbar } from './BrowserToolbar';
-import { BrowserNavigator } from './BrowserNavigator';
-import { BrowserIframeStack } from './BrowserIframeStack';
 import type { BrowserPanelProps } from '@regions/right-panel/types';
 import { useTCopy } from '@i18n/useTCopy';
-import {
-  handleRenameFromContextMenu,
-  handleDeleteFromContextMenu,
-  buildBookmarkDirectoryTree,
-} from './browserPanelHelpers';
-import { BrowserPanelDialogs } from './BrowserPanelDialogs';
-import { setCachedFavicon } from '@utils/fetchPageMeta';
-import { getGoogleFaviconUrl } from '@utils/favicon';
+import { buildBookmarkDirectoryTree } from './browserPanelHelpers';
 import { useBrowserIframeState } from './useBrowserIframeState';
 import { useBrowserNavigatorState } from './useBrowserNavigatorState';
 import { useBrowserPanelMenuItems } from './useBrowserPanelMenuItems';
@@ -38,6 +20,11 @@ import { useBrowserPanelAddressSubmit } from './useBrowserPanelAddressSubmit';
 import { useBrowserPanelCloseHandlers } from './useBrowserPanelCloseHandlers';
 import { useBrowserPanelEffects } from './useBrowserPanelEffects';
 import { useBrowserZoomState } from './useBrowserZoomState';
+import { useBrowserDialogs } from './useBrowserDialogs';
+import { useBrowserToast } from './useBrowserToast';
+import { useBrowserPanelHandlers } from './useBrowserPanelHandlers';
+import { useBrowserPanelMetaWiring } from './useBrowserPanelMetaWiring';
+import { BrowserPanelFrame } from './BrowserPanelFrame';
 
 export function BrowserPanel(props: BrowserPanelProps) {
   const { t } = useTCopy();
@@ -77,8 +64,21 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const { toastMessages, showToast, removeToast } = useBrowserToast();
 
+  const {
+    pendingNavigationsRef,
+    handleNavigationStart,
+    handleOpenTabFromTree,
+    handleToggleNavigateMode,
+    handlePointerDown,
+  } = useBrowserPanelHandlers({
+    browserOpenTab,
+    browserNavigateActiveTab,
+    browserSelectTab,
+    browserNavigateInPlace,
+    setBrowserNavigateInPlace,
+  });
+
   const activatedTabIdsRef = useRef(new Set<string>());
-  const pendingNavigationsRef = useRef<Set<string>>(new Set());
   /** Shared between useBrowserUrlChange and useWebViewLifecycle: tracks
    *  URLs that were navigated by the WebView itself (via onUrlChanged).
    *  A Set is used instead of a boolean to handle server redirects: when
@@ -87,17 +87,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
    *  avoiding a double page reload (the bug with Bilibili's tracking-param
    *  redirects). Kept capped at 10 to avoid unbounded growth. */
   const webViewSelfNavigatedRef = useRef(new Set<string>());
-
-  const handleNavigationStart = useCallback((url: string) => {
-    // Track pending navigation so handlePageMeta creates tab only when real title arrives
-    pendingNavigationsRef.current.add(url);
-    // Preload Google S2 favicon so image is already loading when tab renders
-    const faviconUrl = getGoogleFaviconUrl(url);
-    if (faviconUrl) {
-      setCachedFavicon(url, faviconUrl);
-      new Image().src = faviconUrl;
-    }
-  }, []);
 
   const {
     activeTab,
@@ -257,30 +246,24 @@ export function BrowserPanel(props: BrowserPanelProps) {
       removeFromPool,
     });
 
-  const { handlePageMeta: _handlePageMeta } = useBrowserPageMeta(
-    pendingNavigationsRef,
-    undefined,
-    showToast,
-    markUrlSeen
-  );
-
-  useBrowserMetaSubscription((meta) => {
-    _handlePageMeta(meta, 'com');
-  });
-
-  const { handleIframeLoad, handleIframeError } = useBrowserUrlChange({
+  const {
+    handleIframeLoad,
+    handleIframeError,
+    handlePageMeta: _handlePageMeta,
+  } = useBrowserPanelMetaWiring({
     activeTab,
     activeTabRef,
     iframeRef,
     expectedNavigationUrlRef,
+    pendingNavigationsRef,
+    webViewSelfNavigatedRef,
+    markUrlSeen,
     setAddress,
+    setIframeLoadError,
     browserNavigateActiveTab,
     browserUpdateTab,
-    onPageMeta: _handlePageMeta,
+    showToast,
     onNavigationStart: handleNavigationStart,
-    markUrlSeen,
-    setIframeLoadError,
-    webViewSelfNavigatedRef,
   });
 
   const { browserMenuItems } = useBrowserPanelMenuItems({
@@ -379,33 +362,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const navigatorCollapsed = navigatorCollapsedByTool.browser ?? false;
 
-  const handleOpenTabFromTree = useCallback(
-    (url: string, tabId?: string) => {
-      if (tabId) {
-        // Clicking an existing tab → switch to it (unaffected by toggle)
-        browserSelectTab(tabId);
-      } else if (browserNavigateInPlace) {
-        // "Current tab" mode → navigate within the active tab
-        browserNavigateActiveTab(url);
-      } else {
-        // "New tab" mode → open a new tab
-        browserOpenTab(url, url);
-      }
-    },
-    [browserOpenTab, browserNavigateActiveTab, browserSelectTab, browserNavigateInPlace]
-  );
-
-  const handleToggleNavigateMode = useCallback(
-    (checked: boolean) => {
-      setBrowserNavigateInPlace(checked);
-    },
-    [setBrowserNavigateInPlace]
-  );
-
   const openTabCount = browserTabs.length;
   const navigatorTitle = t.toolBrowser;
-
-  const handlePointerDown = useCallback((_e: React.PointerEvent) => {}, []);
 
   const actionsValue = useMemo<BrowserPanelActions>(
     () => ({
@@ -574,56 +532,36 @@ export function BrowserPanel(props: BrowserPanelProps) {
   );
 
   return (
-    <BrowserPanelStateCtx.Provider value={stateMemo}>
-      <BrowserPanelActionsCtx.Provider value={actionsValue}>
-        <div className="adl-tool-panel adl-tool-panel--browser">
-          <BrowserToolbar />
-          <div
-            className={`adl-tool-surface adl-tool-surface--files${navigatorCollapsed ? ' is-navigator-collapsed' : ''}`}
-            style={{ '--adl-files-nav-width': `${browserNavigatorWidth}px` } as React.CSSProperties}
-          >
-            <BrowserNavigator />
-            <div className="adl-tool-primary adl-tool-primary--browser" ref={primaryRef}>
-              <BrowserIframeStack />
-            </div>
-          </div>
-          <BrowserContextMenu
-            contextMenu={contextMenu}
-            onTogglePin={handleTogglePin}
-            onRename={handleRenameFromContextMenu(browserTabs, contextMenu, handleDoubleClick)}
-            onDelete={handleDeleteFromContextMenu(contextMenu, wrappedHandleCloseTab)}
-            onCopyUrl={handleCopyUrlFromMenu}
-            onOpenInNewTab={handleOpenInNewTab}
-            onOpenInCurrentTab={handleOpenInCurrentTab}
-            onEdit={handleRenameFromContextMenu(browserTabs, contextMenu, handleDoubleClick)}
-            onCut={() => {}}
-          />
-
-          <BrowserPanelDialogs
-            t={t}
-            createTabDialog={createTabDialog}
-            editTabDialog={editTabDialog}
-            isCreatingTab={isCreatingTab}
-            handleCreateTabConfirm={handleCreateTabConfirm}
-            handleCreateTabCancel={handleCreateTabCancel}
-            handleEditTabConfirm={handleEditTabConfirm}
-            handleEditTabCancel={handleEditTabCancel}
-            bookmarkDialogOpen={bookmarkDialogOpen}
-            bookmarkTreeData={bookmarkTreeData}
-            handleBookmarkAddToFolder={handleBookmarkAddToFolder}
-            handleBookmarkCreateDir={handleBookmarkCreateDir}
-            setBookmarkDialogOpen={setBookmarkDialogOpen}
-            setBookmarkName={setBookmarkName}
-            bookmarkName={bookmarkName}
-            renameFolderState={renameFolderState}
-            setRenameFolderState={setRenameFolderState}
-            createDirDialog={createDirDialog}
-            setCreateDirDialog={setCreateDirDialog}
-            toastMessages={toastMessages}
-            removeToast={removeToast}
-          />
-        </div>
-      </BrowserPanelActionsCtx.Provider>
-    </BrowserPanelStateCtx.Provider>
+    <BrowserPanelFrame
+      stateValue={stateMemo}
+      actionsValue={actionsValue}
+      contextMenu={contextMenu}
+      handleTogglePin={handleTogglePin}
+      handleCopyUrlFromMenu={handleCopyUrlFromMenu}
+      handleOpenInNewTab={handleOpenInNewTab}
+      handleOpenInCurrentTab={handleOpenInCurrentTab}
+      wrappedHandleCloseTab={wrappedHandleCloseTab}
+      handleDoubleClick={handleDoubleClick}
+      createTabDialog={createTabDialog}
+      editTabDialog={editTabDialog}
+      isCreatingTab={isCreatingTab}
+      handleCreateTabConfirm={handleCreateTabConfirm}
+      handleCreateTabCancel={handleCreateTabCancel}
+      handleEditTabConfirm={handleEditTabConfirm}
+      handleEditTabCancel={handleEditTabCancel}
+      bookmarkDialogOpen={bookmarkDialogOpen}
+      bookmarkTreeData={bookmarkTreeData}
+      handleBookmarkAddToFolder={handleBookmarkAddToFolder}
+      handleBookmarkCreateDir={handleBookmarkCreateDir}
+      setBookmarkDialogOpen={setBookmarkDialogOpen}
+      setBookmarkName={setBookmarkName}
+      bookmarkName={bookmarkName}
+      renameFolderState={renameFolderState}
+      setRenameFolderState={setRenameFolderState}
+      createDirDialog={createDirDialog}
+      setCreateDirDialog={setCreateDirDialog}
+      toastMessages={toastMessages}
+      removeToast={removeToast}
+    />
   );
 }
