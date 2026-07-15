@@ -9,6 +9,10 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use ts_rs::TS;
 
+const DEFAULT_LANGUAGE: &str = "zh-CN";
+const DEFAULT_LOG_LEVEL: &str = "info";
+const DEFAULT_MAX_RECENT_WORKSPACES: usize = 10;
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 
 pub struct AppConfig {
@@ -62,12 +66,12 @@ impl AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            language: "zh-CN".into(),
+            language: DEFAULT_LANGUAGE.into(),
             theme_mode: ThemeMode::System,
-            log_level: "info".into(),
+            log_level: DEFAULT_LOG_LEVEL.into(),
             terminal_log_mode: LogMode::default(),
             debug_log_mode: LogMode::default(),
-            max_recent_workspaces: 10,
+            max_recent_workspaces: DEFAULT_MAX_RECENT_WORKSPACES,
             model_preferences: ModelPreferences::default(),
             commands: Vec::new(),
             permissions: PermissionRulesetConfig::default(),
