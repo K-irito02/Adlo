@@ -219,7 +219,7 @@ terminalSelectors.ts
 | 桥接 | 路径 | 说明 |
 |------|------|------|
 | Tauri | `frontend/src/tauri-bridge.ts` | 调用 `window.__TAURI__?.invoke()`，Tauri 模式 |
-| 预览 | `frontend/src/preview-bridge/ptyBridge.ts` | HTTP polling 到 Vite 中间件，浏览器模式 |
+| 预览 | `frontend/src/preview-bridge/preview-pty-bridge.ts` | HTTP polling 到 Vite 中间件，浏览器模式 |
 | Mock | `frontend/src/mock-bridge.ts` | 纯内存模拟，测试模式 |
 
 ## 文件参考指南
@@ -258,6 +258,6 @@ terminalSelectors.ts
 | `frontend/src/app/features/workspace-terminal/MultiWorkspaceTerminal.tsx` | 多工作区终端容器 |
 | `frontend/src/app/features/workspace-terminal/WorkspaceTerminalEntry.tsx` | 工作区终端条目 |
 | `frontend/src/shared/ipc/pty.ts` | PTY IPC 接口定义 |
-| `frontend/src/preview-bridge/ptyBridge.ts` | 浏览器模式 PTY 桥接 |
+| `frontend/src/preview-bridge/preview-pty-bridge.ts` | 浏览器模式 PTY 桥接 |
 | `frontend/src/tauri-bridge.ts` | Tauri 模式桥接 |
 | `frontend/src/mock-bridge.ts` | Mock 模式桥接 |

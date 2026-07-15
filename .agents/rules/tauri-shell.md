@@ -142,8 +142,10 @@ pub async fn workspace_list_tree(
   3. Mock Bridge (`mock-bridge.ts` + `mock/` 子模块)
 
 ### Bridge 文件组织
-- Preview Bridge: `index.ts`(组合) + `api.ts`(HTTP) + `storage.ts`(localStorage) + `ptyBridge.ts`(轮询/SSE)
-- Mock Bridge: `shared.ts`(共享状态) + per-domain mock 文件 (`mock-workspace.ts`, `mock-conversation.ts`, ...)
+- 命名约定：`<bridge>-<domain>.ts`（`index.ts` 作为目录入口豁免）
+- Tauri Bridge: `index.ts`(组合) + per-domain `tauri-<domain>.ts`（如 `tauri-workspace.ts`、`tauri-shared.ts`）
+- Preview Bridge: `index.ts`(组合) + `preview-api.ts`(HTTP) + `preview-storage.ts`(localStorage) + `preview-pty-bridge.ts`(轮询/SSE) + per-domain `preview-<domain>.ts`
+- Mock Bridge: `mock-bridge.ts`(组合) + `mock-shared.ts`(共享状态) + per-domain `mock-<domain>.ts`（如 `mock-workspace.ts`、`mock-conversation.ts`）
 - 单个 bridge 文件 > 600 行时，按上述模式拆分
 
 ### PTY 终端规范

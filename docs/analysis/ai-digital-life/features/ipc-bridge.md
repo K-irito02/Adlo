@@ -301,7 +301,7 @@ mock-bridge.ts
 | `frontend/src/shared/typedErrors.ts` | 16 个 AppError 子类 + fromIpcErrorCode 工厂 |
 | `frontend/src/tauri-bridge.ts` | Tauri 模式桥接实现 |
 | `frontend/src/preview-bridge/index.ts` | 预览模式桥接入口 |
-| `frontend/src/preview-bridge/ptyBridge.ts` | 预览模式 PTY 桥接 |
+| `frontend/src/preview-bridge/preview-pty-bridge.ts` | 预览模式 PTY 桥接 |
 | `frontend/src/preview-bridge/preview-workspace.ts` | 预览模式工作区桥接 |
 | `frontend/src/preview-bridge/preview-git.ts` | 预览模式 Git 桥接 |
 | `frontend/src/preview-bridge/preview-patch.ts` | 预览模式补丁桥接 |

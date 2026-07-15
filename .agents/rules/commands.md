@@ -46,7 +46,7 @@ alwaysApply: true
 由于 Vite 开发服务器会主动中断长时间运行的 SSE（Server-Sent Events）连接，浏览器模式下的终端功能使用**轮询（polling）机制**替代 SSE：
 
 - **轮询间隔**：100ms（确保良好的响应性）
-- **实现位置**：`frontend/src/preview-bridge/ptyBridge.ts`
+- **实现位置**：`frontend/src/preview-bridge/preview-pty-bridge.ts`
 - **服务器端**：`frontend/dev/previewTerminalService.ts`（缓存终端输出）
 - **注意事项**：修改中间件代码后必须**重启开发服务器**才能生效
 
