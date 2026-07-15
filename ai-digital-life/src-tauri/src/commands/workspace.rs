@@ -15,34 +15,42 @@ use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
-pub fn workspace_open(
+pub async fn workspace_open(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AppState>,
     workspace_path: String,
-) -> IpcResult<WorkspaceMeta> {
-    crate::commands::ipc_try(|| {
-        let (meta, _recent) =
-            adl_workspace::open_workspace(PathBuf::from(workspace_path).as_path())?;
-        persist_workspace_meta(&state, &meta)?;
-        state.event_bus.emit(adl_kernel::events::AppEvent::WorkspaceOpened(meta.id.clone()));
+) -> Result<IpcResult<WorkspaceMeta>, AppError> {
+    let state = app.state::<AppState>();
+    let path = PathBuf::from(workspace_path);
 
+    // Phase 1: open workspace (file I/O) + build retrieval snapshot (tree walk) in spawn_blocking
+    let (meta, snapshot) = tokio::task::spawn_blocking(move || {
+        let (meta, _recent) = adl_workspace::open_workspace(path.as_path())?;
         let snapshot = adl_workspace::build_retrieval_snapshot(
             &meta.id,
             PathBuf::from(&meta.root_path).as_path(),
         )?;
-        state.db.save_entity(
-            EntityTable::RetrievalSnapshots,
-            &meta.id,
-            Some(&meta.id),
-            None,
-            Some("completed"),
-            &snapshot,
-        )?;
-        let _ = app.emit("digital-life://retrieval-status", &snapshot);
-        state.event_bus.emit(adl_kernel::events::AppEvent::RetrievalStatusChanged(meta.id.clone()));
-        super::workspace_sidebar::upsert_sidebar_after_open(&state, &meta)?;
-        Ok(meta)
+        Ok::<_, AppError>((meta, snapshot))
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+
+    // Phase 2: persist to DB + emit events (back on async runtime, state access is safe)
+    persist_workspace_meta(&state, &meta)?;
+    state.event_bus.emit(adl_kernel::events::AppEvent::WorkspaceOpened(meta.id.clone()));
+
+    state.db.save_entity(
+        EntityTable::RetrievalSnapshots,
+        &meta.id,
+        Some(&meta.id),
+        None,
+        Some("completed"),
+        &snapshot,
+    )?;
+    let _ = app.emit("digital-life://retrieval-status", &snapshot);
+    state.event_bus.emit(adl_kernel::events::AppEvent::RetrievalStatusChanged(meta.id.clone()));
+    super::workspace_sidebar::upsert_sidebar_after_open(&state, &meta)?;
+
+    Ok(ipc(Ok(meta)))
 }
 
 #[tauri::command]
