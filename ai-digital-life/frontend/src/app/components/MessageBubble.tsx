@@ -25,7 +25,6 @@ export function MessageBubble({ id, role, content, timestamp }: MessageBubblePro
     if (now - new Date(timestamp).getTime() >= EDIT_WINDOW_MS) {
       return;
     }
-    // TODO: implement edit logic
   }, [timestamp]);
 
   const formattedTime = useMemo(() => {
