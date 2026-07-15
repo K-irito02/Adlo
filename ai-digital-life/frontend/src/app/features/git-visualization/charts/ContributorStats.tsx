@@ -31,7 +31,8 @@ export const ContributorStats = React.memo(function ContributorStats() {
       }),
     [barMax]
   );
-  const lineMax = data.length > 0 ? Math.max(...data.flatMap((d) => [d.added, d.deleted])) * 1.2 : 1;
+  const lineMax =
+    data.length > 0 ? Math.max(...data.flatMap((d) => [d.added, d.deleted])) * 1.2 : 1;
   const yLineScale = useMemo(
     () =>
       scaleLinear({
@@ -41,15 +42,17 @@ export const ContributorStats = React.memo(function ContributorStats() {
     [lineMax]
   );
 
+  if (data.length === 0) return null;
+
   return (
     <svg width="100%" height={HEIGHT} viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
       {data.map((d) => (
         <rect
           key={d.name}
-          x={x0Scale(d.name)}
-          y={yScale(d.commits)}
+          x={x0Scale(d.name) ?? 0}
+          y={yScale(d.commits) ?? 0}
           width={x0Scale.bandwidth()}
-          height={HEIGHT - MARGIN.bottom - yScale(d.commits)}
+          height={Math.max(0, (HEIGHT - MARGIN.bottom - (yScale(d.commits) ?? 0)))}
           fill={theme.accent}
           rx={4}
         />
