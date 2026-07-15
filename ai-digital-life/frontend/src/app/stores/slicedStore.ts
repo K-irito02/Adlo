@@ -42,6 +42,7 @@ import {
   createToastSlice,
   createNotificationSlice,
 } from './slices';
+import { hydrateGitHubRepoSlice } from './slices/githubRepoSliceHelpers';
 import type { StoreState as FullStoreState } from './StoreState';
 
 import {
@@ -166,6 +167,9 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   customAgents: [],
   isFetchingCustomAgents: false,
 }));
+
+// 显式 hydration：在 store 创建后从 localStorage 恢复 GitHub Repo slice 的持久化状态
+void hydrateGitHubRepoSlice(useSlicedAppStore.setState);
 
 // Type safety: compile-time assertion that the store satisfies StoreState
 // Uses the "never" type trick: if StoreState and actual store types don't match,

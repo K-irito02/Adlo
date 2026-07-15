@@ -3,6 +3,7 @@
  * 从 githubRepoSlice.ts 提取的 localStorage 持久化逻辑
  */
 import type { GitWorkspaceCiConfig, GitHubCiFolderState } from './githubRepoSliceTypes';
+import type { StoreState } from '../StoreState';
 import { createDebouncedWrite, readJson } from '../shared';
 
 const GH_WORKSPACE_CONFIGS_KEY = 'adl-ui:github-workspace-configs';
@@ -118,4 +119,27 @@ export function collectAffectedWorkspaceIds(
     }
   }
   return affectedWorkspaceIds;
+}
+
+/**
+ * 显式 hydration 函数：从 localStorage 恢复 GitHub Repo slice 的持久化状态。
+ * 应在 store 创建后由启动流程调用，替代 slice 工厂中的构造时副作用。
+ * @param set Zustand set 函数（来自 store 实例）
+ */
+export async function hydrateGitHubRepoSlice(
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void
+): Promise<void> {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  const configs = await hydrateGitHubConfigs();
+  if (Object.keys(configs).length > 0) {
+    set({ gitHubWorkspaceConfigs: configs });
+  }
+
+  const folders = await hydrateGitHubFolders();
+  if (folders.length > 0) {
+    set({ gitHubCiFolders: folders });
+  }
 }

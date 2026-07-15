@@ -5,8 +5,6 @@ import type { GitWorkspaceCiConfig, GitHubCiFolderState } from './githubRepoSlic
 import {
   scheduleWorkspaceConfigsWrite,
   scheduleFoldersWrite,
-  hydrateGitHubConfigs,
-  hydrateGitHubFolders,
   collectDescendantFolderIds,
 } from './githubRepoSliceHelpers';
 import { computeFolderDeleteOutcome } from './githubRepoDeleteHelpers';
@@ -64,19 +62,6 @@ export const createGitHubRepoSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   _get: () => StoreState
 ): GitHubRepoSlice => {
-  if (typeof window !== 'undefined') {
-    void hydrateGitHubConfigs().then((configs) => {
-      if (Object.keys(configs).length > 0) {
-        set({ gitHubWorkspaceConfigs: configs });
-      }
-    });
-    void hydrateGitHubFolders().then((folders) => {
-      if (folders.length > 0) {
-        set({ gitHubCiFolders: folders });
-      }
-    });
-  }
-
   return {
     gitHubWorkspaceConfigs: {},
     activeCiWorkspaceId: null,
