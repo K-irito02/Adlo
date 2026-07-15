@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import { handlePreviewWorkspaceApi, isPreviewWorkspaceApiRequest } from "./dev/previewWorkspaceService";
 import { handlePreviewTerminalApi, isPreviewTerminalApiRequest } from "./dev/previewTerminalService";
@@ -12,6 +13,7 @@ if (process.env.BUILD_ANALYZE === "true") {
 
 export default defineConfig({
   plugins: [
+    tailwindcss(),
     react(),
     visualizerPlugin,
     {
@@ -203,6 +205,7 @@ export default defineConfig({
       "@hooks": path.resolve(__dirname, "src/app/hooks"),
       "@shared": path.resolve(__dirname, "src/shared"),
       "@root": path.resolve(__dirname, "src"),
+      "@": path.resolve(__dirname, "src"),
     },
   },
   server: {
@@ -228,7 +231,6 @@ export default defineConfig({
           if (id.includes('zustand')) return 'vendor-zustand';
           if (id.includes('markdown-it') || id.includes('react-markdown') || id.includes('remark-gfm')) return 'vendor-markdown';
           if (id.includes('pdfjs-dist')) return 'vendor-pdf';
-          if (id.includes('echarts')) return 'vendor-echarts';
           if (id.includes('highlight.js') || id.includes('highlight.js/')) return 'vendor-highlight';
           if (id.includes('mammoth')) return 'vendor-mammoth';
           if (id.includes('motion') || id.includes('framer-motion')) return 'vendor-motion';

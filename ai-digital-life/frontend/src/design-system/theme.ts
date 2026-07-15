@@ -169,6 +169,7 @@ export class ThemeController {
     }
     this.root.dataset.theme = this.currentResolvedTheme;
     this.root.style.colorScheme = this.currentResolvedTheme;
+    this.root.classList.toggle('dark', this.currentResolvedTheme === 'dark');
     try {
       localStorage.setItem(LS_KEY_MODE, this.currentThemeMode);
       localStorage.setItem(LS_KEY_RESOLVED, this.currentResolvedTheme);

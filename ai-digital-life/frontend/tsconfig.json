@@ -34,7 +34,8 @@
       "@hooks/*": ["src/app/hooks/*"],
       "@shared": ["src/shared"],
       "@shared/*": ["src/shared/*"],
-      "@root/*": ["src/*"]
+      "@root/*": ["src/*"],
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]

@@ -5,6 +5,7 @@ import { createTauriBridge, isTauriShell } from './tauri-bridge';
 import { App } from './app/App';
 import './app/utils/debugLogCollector'; // 调试日志收集器
 import './styles/index.css';
+import './styles/tailwind.css';
 
 if (typeof window !== 'undefined' && !window.digitalLife) {
   if (isTauriShell()) {
