@@ -15,8 +15,10 @@ pub struct AppConfig {
     pub language: String,
     pub theme_mode: ThemeMode,
     pub log_level: String,
+    /// 终端日志模式（派生为 LogConfig.terminal_log_mode）。
     #[serde(default)]
     pub terminal_log_mode: LogMode,
+    /// 调试日志模式（派生为 LogConfig.debug_log_mode）。
     #[serde(default)]
     pub debug_log_mode: LogMode,
     pub max_recent_workspaces: usize,
@@ -42,6 +44,19 @@ pub struct AppConfig {
     /// User-defined font preferences.
     #[serde(default)]
     pub fonts: adl_types::types::config::FontPreferences,
+}
+
+impl AppConfig {
+    /// 从 AppConfig 提取 LogConfig（日志子系统运行时视图）。
+    ///
+    /// 所有权关系：AppConfig 是配置真源，LogConfig 是其子视图。
+    /// 调用方应通过此方法派生 LogConfig，避免手动复制字段导致不一致。
+    pub fn to_log_config(&self) -> adl_logging::config::LogConfig {
+        adl_logging::config::LogConfig {
+            terminal_log_mode: self.terminal_log_mode,
+            debug_log_mode: self.debug_log_mode,
+        }
+    }
 }
 
 impl Default for AppConfig {
@@ -109,6 +124,18 @@ mod tests {
         let loaded = load(&dir).unwrap();
         assert_eq!(loaded.language, "zh-CN");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn to_log_config_derives_correct_modes() {
+        let config = AppConfig {
+            terminal_log_mode: LogMode::Overwrite,
+            debug_log_mode: LogMode::Multi,
+            ..Default::default()
+        };
+        let log_config = config.to_log_config();
+        assert_eq!(log_config.terminal_log_mode, LogMode::Overwrite);
+        assert_eq!(log_config.debug_log_mode, LogMode::Multi);
     }
 }
 
