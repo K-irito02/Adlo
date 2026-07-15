@@ -1,58 +1,30 @@
-import React, { useMemo } from 'react';
-import type { EChartsOption } from '../echartsSetup';
-import { useECharts } from '../hooks/useECharts';
-import { useChartTheme } from '../hooks/useChartTheme';
-import { sankeyNodes, sankeyLinks } from '../data/gitVisMockData';
-import { useTCopy } from '@i18n/useTCopy';
-import { formatT } from '@i18n/formatT';
+import React, { useMemo } from 'react'
+import { Sankey } from '@visx/sankey'
+import { useBklitTheme } from '../hooks/useBklitTheme'
+import { toBklitSankeyData } from '../data/gitVisMockData'
+
+const WIDTH = 600; const HEIGHT = 300
 
 export const CollabSankey = React.memo(function CollabSankey() {
-  const theme = useChartTheme();
-  const { t } = useTCopy();
+  const theme = useBklitTheme()
+  const { nodes, links } = useMemo(() => toBklitSankeyData(), [])
 
-  const option = useMemo<EChartsOption>(
-    () => ({
-      tooltip: {
-        trigger: 'item',
-        triggerOn: 'mousemove',
-        backgroundColor: theme.tooltipBg,
-        textStyle: { color: theme.tooltipText },
-        formatter: (params: unknown) => {
-          const p = params as {
-            dataType: string;
-            data: { source?: string; target?: string; name?: string; value?: number };
-          };
-          if (p.dataType === 'edge') {
-            return `${p.data.source} → ${p.data.target}<br/>${formatT(t, 'gitVisChartTooltipContribution', { value: p.data.value ?? 0 })}`;
-          }
-          return `${p.data.name}<br/>${formatT(t, 'gitVisChartTooltipTotal', { value: p.data.value ?? 0 })}`;
-        },
-      },
-      series: [
-        {
-          type: 'sankey',
-          layout: 'none',
-          emphasis: { focus: 'adjacency' },
-          data: sankeyNodes,
-          links: sankeyLinks,
-          label: {
-            fontSize: 11,
-            color: theme.labelColor,
-          },
-          lineStyle: {
-            color: 'gradient',
-            curveness: 0.5,
-          },
-          itemStyle: {
-            borderColor: theme.treemapBorderColor,
-            borderWidth: 1,
-          },
-        },
-      ],
-    }),
-    [theme, t]
-  );
-
-  const ref = useECharts(option);
-  return <div ref={ref} className="adl-git-vis__chart" />;
-});
+  return (
+    <div className="adl-git-vis__chart">
+      <svg width="100%" height={HEIGHT} viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
+        <Sankey root={{ nodes, links }} nodeWidth={20} nodePadding={10} size={[WIDTH, HEIGHT]} nodeId={(d: { id: string }) => d.id}>
+          {({ graph, createPath }) => (
+            <>
+              {graph.nodes.map((node, i) => (
+                <rect key={i} x={node.x0} y={node.y0} width={node.x1! - node.x0!} height={node.y1! - node.y0!} fill={theme.seriesColors[i % theme.seriesColors.length]} rx={3} />
+              ))}
+              {graph.links.map((link, i) => (
+                <path key={i} d={createPath(link) ?? ''} stroke={theme.muted} strokeWidth={Math.max(1, link.width ?? 1)} fill="none" opacity={0.6} />
+              ))}
+            </>
+          )}
+        </Sankey>
+      </svg>
+    </div>
+  )
+})
