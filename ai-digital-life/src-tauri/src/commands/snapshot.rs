@@ -49,7 +49,9 @@ pub async fn list_snapshots(
 ) -> Result<IpcResult<Vec<SnapshotRecord>>, AppError> {
     Ok(ipc({
         let manager = get_snapshot_manager(&workspace_id, &workspace_root)?;
-        manager.list_snapshots()
+        tokio::task::spawn_blocking(move || manager.list_snapshots())
+            .await
+            .map_err(|e| AppError::Internal(format!("List snapshots task failed: {}", e)))?
     }))
 }
 
@@ -75,6 +77,8 @@ pub async fn prune_snapshots(
 ) -> Result<IpcResult<usize>, AppError> {
     Ok(ipc({
         let manager = get_snapshot_manager(&workspace_id, &workspace_root)?;
-        manager.prune_snapshots()
+        tokio::task::spawn_blocking(move || manager.prune_snapshots())
+            .await
+            .map_err(|e| AppError::Internal(format!("Prune snapshots task failed: {}", e)))?
     }))
 }
