@@ -16,7 +16,7 @@ use adl_types::{
 };
 use std::path::PathBuf;
 use std::sync::Mutex;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 const RUN_ACTIVITY_EVENT: &str = "digital-life://run-activity";
 
@@ -61,42 +61,76 @@ pub async fn agent_start_run(
 }
 
 #[tauri::command]
-pub fn agent_get_run(
-    state: tauri::State<'_, AppState>,
+pub async fn agent_get_run(
+    app: tauri::AppHandle,
     run_id: String,
-) -> IpcResult<Option<AgentRunDetail>> {
-    ipc(load_run_detail(&state, &run_id))
+) -> Result<IpcResult<Option<AgentRunDetail>>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let detail = tokio::task::spawn_blocking(move || {
+        let run = db.load_entity::<adl_types::AgentRunRecord>(EntityTable::AgentRuns, &run_id)?;
+        let Some(run) = run else {
+            return Ok(None);
+        };
+        let mut steps: Vec<adl_types::AgentPlanStep> = db.list_entities(EntityTable::AgentSteps)?;
+        steps.retain(|step| step.run_id == run_id);
+        steps.sort_by_key(|step| step.created_at);
+        Ok::<_, AppError>(Some(AgentRunDetail { run, steps }))
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(detail)))
 }
 
 #[tauri::command]
-pub fn agent_retry_run(
-    state: tauri::State<'_, AppState>,
+pub async fn agent_retry_run(
+    app: tauri::AppHandle,
     run_id: String,
-) -> IpcResult<Option<AgentRunDetail>> {
-    crate::commands::ipc_try(|| {
-        let Some(mut detail) = load_run_detail(&state, &run_id)? else {
+) -> Result<IpcResult<Option<AgentRunDetail>>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let detail = tokio::task::spawn_blocking(move || {
+        let run = db.load_entity::<adl_types::AgentRunRecord>(EntityTable::AgentRuns, &run_id)?;
+        let Some(run) = run else {
             return Ok(None);
         };
+        let mut steps: Vec<adl_types::AgentPlanStep> = db.list_entities(EntityTable::AgentSteps)?;
+        steps.retain(|step| step.run_id == run_id);
+        steps.sort_by_key(|step| step.created_at);
+        let mut detail = AgentRunDetail { run, steps };
         detail.run.status = AgentRunStatus::Ready;
-        detail.run.updated_at = adl_types::now_ms();
-        save_run_detail(&state, &detail)?;
-        Ok(Some(detail))
+        detail.run.updated_at = now_ms();
+        save_run_detail_with_db(&db, &detail)?;
+        Ok::<_, AppError>(Some(detail))
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(detail)))
 }
 
 #[tauri::command]
-pub fn agent_abort_run(
-    state: tauri::State<'_, AppState>,
+pub async fn agent_abort_run(
+    app: tauri::AppHandle,
     run_id: String,
-) -> IpcResult<Option<AgentRunDetail>> {
-    crate::commands::ipc_try(|| {
-        let Some(detail) = load_run_detail(&state, &run_id)? else {
+) -> Result<IpcResult<Option<AgentRunDetail>>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let detail = tokio::task::spawn_blocking(move || {
+        let run = db.load_entity::<adl_types::AgentRunRecord>(EntityTable::AgentRuns, &run_id)?;
+        let Some(run) = run else {
             return Ok(None);
         };
+        let mut steps: Vec<adl_types::AgentPlanStep> = db.list_entities(EntityTable::AgentSteps)?;
+        steps.retain(|step| step.run_id == run_id);
+        steps.sort_by_key(|step| step.created_at);
+        let detail = AgentRunDetail { run, steps };
         let detail = adl_agent_runtime::abort_run(detail);
-        save_run_detail(&state, &detail)?;
-        Ok(Some(detail))
+        save_run_detail_with_db(&db, &detail)?;
+        Ok::<_, AppError>(Some(detail))
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(detail)))
 }
 
 fn make_activity_emitter<'a>(
@@ -275,7 +309,16 @@ pub fn load_run_detail(state: &AppState, run_id: &str) -> Result<Option<AgentRun
 }
 
 pub fn save_run_detail(state: &AppState, detail: &AgentRunDetail) -> Result<(), AppError> {
-    state.db.save_entity(
+    save_run_detail_with_db(&state.db, detail)
+}
+
+/// `save_run_detail` 的核心实现，直接接受 `&Database`，便于在 `spawn_blocking` 闭包中
+/// 复用（闭包内无法访问 `&AppState`）。
+pub fn save_run_detail_with_db(
+    db: &adl_storage::Database,
+    detail: &AgentRunDetail,
+) -> Result<(), AppError> {
+    db.save_entity(
         EntityTable::AgentRuns,
         &detail.run.id,
         Some(&detail.run.workspace_id),
@@ -296,7 +339,7 @@ pub fn save_run_detail(state: &AppState, detail: &AgentRunDetail) -> Result<(), 
         &detail.run,
     )?;
     for step in &detail.steps {
-        state.db.save_entity(
+        db.save_entity(
             EntityTable::AgentSteps,
             &step.id,
             Some(&detail.run.workspace_id),
