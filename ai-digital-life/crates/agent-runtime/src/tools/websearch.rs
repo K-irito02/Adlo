@@ -4,6 +4,7 @@ use std::time::Duration;
 
 const TIMEOUT_SECS: u64 = 15;
 const MAX_RESULTS: usize = 10;
+const TAVILY_API_URL: &str = "https://api.tavily.com/search";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebSearchResult {
@@ -54,7 +55,7 @@ pub async fn websearch(query: &str) -> WebSearchResult {
         "search_depth": "basic",
     });
 
-    match client.post("https://api.tavily.com/search").json(&body).send().await {
+    match client.post(TAVILY_API_URL).json(&body).send().await {
         Ok(resp) => {
             if !resp.status().is_success() {
                 return WebSearchResult {

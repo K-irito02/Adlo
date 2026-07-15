@@ -7,6 +7,8 @@ use adl_types::ConversationRole;
 use async_trait::async_trait;
 use reqwest::Client;
 
+const DEFAULT_BASE_URL: &str = "https://api.anthropic.com/v1";
+
 pub struct AnthropicProvider {
     pub client: Client,
     pub base_url: String,
@@ -14,11 +16,11 @@ pub struct AnthropicProvider {
 
 impl AnthropicProvider {
     pub fn new() -> Self {
-        Self { client: Client::new(), base_url: "https://api.anthropic.com/v1".to_string() }
+        Self { client: Client::new(), base_url: DEFAULT_BASE_URL.to_string() }
     }
 
     pub fn with_client(client: Client) -> Self {
-        Self { client, base_url: "https://api.anthropic.com/v1".to_string() }
+        Self { client, base_url: DEFAULT_BASE_URL.to_string() }
     }
 
     pub fn with_base_url(base_url: String) -> Self {

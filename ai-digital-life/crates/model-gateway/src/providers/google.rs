@@ -7,6 +7,8 @@ use adl_types::ConversationRole;
 use async_trait::async_trait;
 use reqwest::Client;
 
+const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
+
 pub struct GoogleProvider {
     pub client: Client,
     pub base_url: String,
@@ -14,14 +16,11 @@ pub struct GoogleProvider {
 
 impl GoogleProvider {
     pub fn new() -> Self {
-        Self {
-            client: Client::new(),
-            base_url: "https://generativelanguage.googleapis.com/v1beta".to_string(),
-        }
+        Self { client: Client::new(), base_url: DEFAULT_BASE_URL.to_string() }
     }
 
     pub fn with_client(client: Client) -> Self {
-        Self { client, base_url: "https://generativelanguage.googleapis.com/v1beta".to_string() }
+        Self { client, base_url: DEFAULT_BASE_URL.to_string() }
     }
 
     pub fn with_base_url(base_url: String) -> Self {

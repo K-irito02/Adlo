@@ -8,6 +8,8 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
 
+const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
+
 #[derive(Deserialize)]
 struct OpenAIModelItem {
     id: String,
@@ -25,11 +27,11 @@ pub struct OpenAIProvider {
 
 impl OpenAIProvider {
     pub fn new() -> Self {
-        Self { client: Client::new(), base_url: "https://api.openai.com/v1".to_string() }
+        Self { client: Client::new(), base_url: DEFAULT_BASE_URL.to_string() }
     }
 
     pub fn with_client(client: Client) -> Self {
-        Self { client, base_url: "https://api.openai.com/v1".to_string() }
+        Self { client, base_url: DEFAULT_BASE_URL.to_string() }
     }
 
     pub fn with_base_url(base_url: String) -> Self {
