@@ -49,7 +49,7 @@ pub(crate) fn parse_shell_outline(content: &str, powershell: bool) -> Vec<Outlin
         } {
             drafts.push(OutlineDraft {
                 label: captures[1].to_string(),
-                kind: "function".to_string(),
+                kind: "function",
                 line,
                 depth: depth + 1,
             });
@@ -60,7 +60,7 @@ pub(crate) fn parse_shell_outline(content: &str, powershell: bool) -> Vec<Outlin
         } {
             drafts.push(OutlineDraft {
                 label: captures[1].to_ascii_lowercase(),
-                kind: "heading".to_string(),
+                kind: "heading",
                 line,
                 depth: depth + 1,
             });

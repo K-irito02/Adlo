@@ -132,7 +132,7 @@ pub(crate) fn parse_brace_outline(content: &str) -> Vec<OutlineDraft> {
                 }
                 drafts.push(OutlineDraft {
                     label: label.to_string(),
-                    kind: (*kind).to_string(),
+                    kind,
                     line: index + 1,
                     depth: effective_depth + 1,
                 });

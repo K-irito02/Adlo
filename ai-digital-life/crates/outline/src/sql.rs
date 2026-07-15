@@ -36,7 +36,7 @@ pub(crate) fn parse_sql_outline(content: &str) -> Vec<OutlineDraft> {
         if let Some(captures) = create_table_regex().captures(trimmed) {
             drafts.push(OutlineDraft {
                 label: format!("table {}", captures[1].replace('"', "")),
-                kind: "type".to_string(),
+                kind: "type",
                 line,
                 depth: 1,
             });
@@ -47,11 +47,7 @@ pub(crate) fn parse_sql_outline(content: &str) -> Vec<OutlineDraft> {
             let category = captures[1].to_ascii_lowercase();
             drafts.push(OutlineDraft {
                 label: format!("{category} {}", captures[2].replace('"', "")),
-                kind: if category == "function" {
-                    "function".to_string()
-                } else {
-                    "heading".to_string()
-                },
+                kind: if category == "function" { "function" } else { "heading" },
                 line,
                 depth: 1,
             });
@@ -61,7 +57,7 @@ pub(crate) fn parse_sql_outline(content: &str) -> Vec<OutlineDraft> {
         if let Some(captures) = alter_table_regex().captures(trimmed) {
             drafts.push(OutlineDraft {
                 label: format!("alter {}", captures[1].replace('"', "")),
-                kind: "heading".to_string(),
+                kind: "heading",
                 line,
                 depth: 1,
             });
@@ -76,7 +72,7 @@ pub(crate) fn parse_sql_outline(content: &str) -> Vec<OutlineDraft> {
             if let Some(captures) = column_regex().captures(trimmed) {
                 drafts.push(OutlineDraft {
                     label: captures[1].replace('"', ""),
-                    kind: "property".to_string(),
+                    kind: "property",
                     line,
                     depth: 2,
                 });

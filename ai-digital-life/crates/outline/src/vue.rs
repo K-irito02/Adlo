@@ -40,7 +40,7 @@ pub(crate) fn parse_vue_outline(content: &str) -> Vec<OutlineDraft> {
 
         drafts.push(OutlineDraft {
             label: section.clone(),
-            kind: "heading".to_string(),
+            kind: "heading",
             line: start_line,
             depth: 1,
         });

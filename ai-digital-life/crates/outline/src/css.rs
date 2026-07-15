@@ -13,7 +13,7 @@ pub(crate) fn parse_css_outline(content: &str) -> Vec<OutlineDraft> {
             if !label.is_empty() && !label.contains(':') {
                 drafts.push(OutlineDraft {
                     label: label.to_string(),
-                    kind: "heading".to_string(),
+                    kind: "heading",
                     line: index + 1,
                     depth: brace_depth + 1,
                 });

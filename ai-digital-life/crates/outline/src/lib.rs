@@ -17,7 +17,7 @@ mod yaml;
 #[derive(Clone)]
 pub(crate) struct OutlineDraft {
     pub(crate) label: String,
-    pub(crate) kind: String,
+    pub(crate) kind: &'static str,
     pub(crate) line: usize,
     pub(crate) depth: usize,
 }
@@ -148,7 +148,7 @@ fn finalize_outline_items(
             FileOutlineItem {
                 id,
                 label: item.label,
-                kind: item.kind,
+                kind: item.kind.to_string(),
                 line: item.line,
                 end_line: Some(end_lines[i]),
                 depth: Some(item.depth),
@@ -180,7 +180,7 @@ fn parse_config_outline(content: &str) -> Vec<OutlineDraft> {
             current_section_depth = label.split('.').filter(|part| !part.is_empty()).count().max(1);
             drafts.push(OutlineDraft {
                 label,
-                kind: "heading".to_string(),
+                kind: "heading",
                 line: index + 1,
                 depth: current_section_depth,
             });
@@ -191,7 +191,7 @@ fn parse_config_outline(content: &str) -> Vec<OutlineDraft> {
             if value.starts_with('{') || value.starts_with('[') || value.is_empty() {
                 drafts.push(OutlineDraft {
                     label: captures[1].to_string(),
-                    kind: "heading".to_string(),
+                    kind: "heading",
                     line: index + 1,
                     depth: current_section_depth + 1,
                 });

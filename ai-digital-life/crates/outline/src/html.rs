@@ -130,7 +130,7 @@ pub(crate) fn parse_html_outline(content: &str) -> Vec<OutlineDraft> {
             if should_outline_html_tag(&tag, attrs) {
                 drafts.push(OutlineDraft {
                     label: format_html_tag_label(&tag, attrs),
-                    kind: "heading".to_string(),
+                    kind: "heading",
                     line: index + 1,
                     depth: tag_stack.len() + 1,
                 });

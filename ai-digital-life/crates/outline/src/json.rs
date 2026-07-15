@@ -23,7 +23,7 @@ pub(crate) fn parse_json_outline(content: &str) -> Vec<OutlineDraft> {
             if value.is_empty() || value.starts_with('{') || value.starts_with('[') {
                 drafts.push(OutlineDraft {
                     label: captures[1].to_string(),
-                    kind: "heading".to_string(),
+                    kind: "heading",
                     line: index + 1,
                     depth: effective_depth + 1,
                 });

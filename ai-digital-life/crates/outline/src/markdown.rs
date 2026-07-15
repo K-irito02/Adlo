@@ -27,7 +27,7 @@ pub(crate) fn parse_markdown_outline(content: &str) -> Vec<OutlineDraft> {
         }
         drafts.push(OutlineDraft {
             label: label.to_string(),
-            kind: "heading".to_string(),
+            kind: "heading",
             line: index + 1,
             depth,
         });

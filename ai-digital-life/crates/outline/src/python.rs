@@ -28,7 +28,7 @@ pub(crate) fn parse_python_outline(content: &str) -> Vec<OutlineDraft> {
             indent_stack.push(indent);
             drafts.push(OutlineDraft {
                 label: captures[1].to_string(),
-                kind: "class".to_string(),
+                kind: "class",
                 line: index + 1,
                 depth: indent_stack.len(),
             });
@@ -38,7 +38,7 @@ pub(crate) fn parse_python_outline(content: &str) -> Vec<OutlineDraft> {
             indent_stack.push(indent);
             drafts.push(OutlineDraft {
                 label: captures[1].to_string(),
-                kind: "function".to_string(),
+                kind: "function",
                 line: index + 1,
                 depth: indent_stack.len(),
             });

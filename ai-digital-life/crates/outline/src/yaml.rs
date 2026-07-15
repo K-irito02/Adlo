@@ -33,7 +33,7 @@ pub(crate) fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
             indent_stack.push(indent);
             drafts.push(OutlineDraft {
                 label: format!("- {}", captures[1].trim()),
-                kind: "heading".to_string(),
+                kind: "heading",
                 line: index + 1,
                 depth: indent_stack.len(),
             });
@@ -52,7 +52,7 @@ pub(crate) fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
             indent_stack.push(indent);
             drafts.push(OutlineDraft {
                 label: captures[1].trim().trim_matches('"').trim_matches('\'').to_string(),
-                kind: "heading".to_string(),
+                kind: "heading",
                 line: index + 1,
                 depth: indent_stack.len(),
             });
@@ -62,7 +62,7 @@ pub(crate) fn parse_yaml_outline(content: &str) -> Vec<OutlineDraft> {
             indent_stack.push(indent);
             drafts.push(OutlineDraft {
                 label: "- item".to_string(),
-                kind: "heading".to_string(),
+                kind: "heading",
                 line: index + 1,
                 depth: indent_stack.len(),
             });
