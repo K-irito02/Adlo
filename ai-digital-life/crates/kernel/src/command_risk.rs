@@ -1,13 +1,6 @@
+use adl_types::permission_types::{PermissionDecision, PermissionRule, PermissionRuleset};
 use adl_types::RiskLevel;
 use regex::Regex;
-
-// Re-export moved types/functions for backward compatibility.
-// External consumers import from `adl_kernel::command_risk::{...}` — keep these working.
-// `pub use` also brings the names into module scope, so no separate `use` is needed.
-pub use adl_types::doom_loop::{doom_loop_check, is_external_directory};
-pub use adl_types::permission_types::{
-    PermissionDecision, PermissionRule, PermissionRuleset, PermissionRulesetConfig,
-};
 
 pub fn assess_command_risk(command: &str, args: &[String], shell: bool) -> RiskLevel {
     let command_lower = command.to_lowercase();
