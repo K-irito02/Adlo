@@ -25,19 +25,20 @@ type HeatmapLinearScale = ReturnType<typeof scaleLinear<number>>;
 export interface HeatmapBin {
   count: number;
   bin: number;
-  date: Date;
+  date?: Date;
 }
 
 export interface HeatmapColumn {
   bin: number;
   bins: HeatmapBin[];
+  columnLabel?: string;
 }
 
 export interface HeatmapTooltipData {
   column: number;
   row: number;
   count: number;
-  date: Date;
+  date?: Date;
   x: number;
   y: number;
 }
@@ -62,11 +63,13 @@ export interface HeatmapContextValue {
   binWidth: number;
   binHeight: number;
   gap: number;
-  weekStartDay: HeatmapWeekStartDay;
+  weekStartDay?: HeatmapWeekStartDay;
   xScale: (columnIndex: number) => number;
   yScale: (rowIndex: number) => number;
   separatorLayout: HeatmapSeparatorLayout | null;
-  timeXScale: HeatmapTimeScale;
+  timeXScale: HeatmapTimeScale | null;
+  rowLabels?: string[];
+  columnLabels?: string[];
   brushYScale: HeatmapLinearScale;
   isReady: boolean;
   colorScale: (count: number | null | undefined) => string;
