@@ -13,7 +13,10 @@ export interface HeatmapXAxisProps {
   tickEvery?: number;
 }
 
-export const HeatmapXAxis = memo(function HeatmapXAxis({ className, tickEvery = 1 }: HeatmapXAxisProps) {
+export const HeatmapXAxis = memo(function HeatmapXAxis({
+  className,
+  tickEvery = 1,
+}: HeatmapXAxisProps) {
   const { containerRef, data, margin, xScale, binWidth, columnLabels, locale } = useHeatmap();
   const [mounted, setMounted] = useState(false);
 
@@ -62,7 +65,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({ className, tickEvery = 
     }
 
     return ticks;
-  }, [columnLabels, data, locale, margin.left, xScale]);
+  }, [columnLabels, data, locale, margin.left, tickEvery, xScale]);
 
   const container = containerRef.current;
   if (!(mounted && container)) {
@@ -83,10 +86,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({ className, tickEvery = 
           overflow: 'hidden',
         }}
       >
-        <span
-          className={cn('truncate text-chart-label text-xs', className)}
-          title={tick.label}
-        >
+        <span className={cn('truncate text-chart-label text-xs', className)} title={tick.label}>
           {tick.label}
         </span>
       </div>
