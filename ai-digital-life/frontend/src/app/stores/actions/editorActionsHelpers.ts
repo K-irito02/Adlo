@@ -24,6 +24,7 @@ import {
   getCachedChangePreview,
   setCachedChangePreview,
 } from '../shared';
+import { clearError, captureError } from '../cacheHelpers';
 import type {
   FileOutlineItem,
   IpcResult,
@@ -39,11 +40,12 @@ export interface OpenFileConfig {
 
 export async function openFileGeneric(
   set: StoreApi<StoreState>['setState'],
-  _get: () => StoreState,
+  get: () => StoreState,
   relativePath: string,
   requestSeq: number,
   config: OpenFileConfig
 ) {
+  clearError(get);
   const cachedDocument = getCachedFileDocument(config.cacheKey);
 
   const applyDocument = (document: CachedFileDocument, outlineOverride?: FileOutlineItem[]) => {
@@ -90,7 +92,7 @@ export async function openFileGeneric(
     return;
   }
   if (!fileResult.ok) {
-    set({ error: fileResult.error.message });
+    captureError(get, fileResult.error);
     return;
   }
   const nextOutline = buildOutlineFromContent(fileResult.data.content, relativePath);
@@ -139,6 +141,7 @@ export async function openChangePreviewGeneric(
     return;
   }
   if (!result.ok) {
+    captureError(get, result.error);
     set({
       selectedChangePreviewPath: relativePath,
       selectedChangePreviewWorkspaceId: config.workspaceId,

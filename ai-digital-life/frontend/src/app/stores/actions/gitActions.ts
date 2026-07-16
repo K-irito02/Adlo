@@ -151,10 +151,12 @@ export function createGitActions(set: StoreApi<StoreState>['setState'], get: () 
       }
       const result = await window.digitalLife.workspace.listGitBranches();
       if (!result.ok) {
-        set({ error: result.error.message, gitBranches: [] });
+        captureError(get, result.error);
+        set({ gitBranches: [] });
         return;
       }
-      set({ error: undefined, gitBranches: result.data });
+      clearError(get);
+      set({ gitBranches: result.data });
     },
 
     /**

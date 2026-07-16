@@ -8,6 +8,7 @@ import {
   getNextChangePreviewRequestSeq,
 } from '../shared';
 import type { StoreApi } from 'zustand';
+import { clearError, captureError } from '../cacheHelpers';
 import { openFileGeneric, openChangePreviewGeneric } from './editorActionsHelpers';
 
 export function createEditorActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
@@ -89,9 +90,10 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
      * @see preview-bridge/index.ts → workspace.createFile
      */
     createWorkspaceFile: async (relativePath: string, content = '') => {
+      clearError(get);
       const result = await window.digitalLife.workspace.createFile(relativePath, content);
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return undefined;
       }
       await get().refreshWorkspaceTree();
@@ -127,13 +129,14 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
      * @see preview-bridge/index.ts → workspace.createFolder
      */
     createWorkspaceFolder: async (relativePath: string) => {
+      clearError(get);
       const result = await window.digitalLife.workspace.createFolder(relativePath);
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return undefined;
       }
       await get().refreshWorkspaceTree();
-      set({ error: undefined });
+      clearError(get);
       return relativePath;
     },
 

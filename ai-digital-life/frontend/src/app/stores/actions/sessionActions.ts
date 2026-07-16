@@ -4,6 +4,7 @@ import type { WorkspaceID, SessionID } from '../../../shared/branded';
 import { asSessionID } from '../../../shared/branded';
 import { sessionFallbackTitle, refreshConversationSlice } from '../conversationUtils';
 import { getNextSessionRequestSeq, sessionRequestSeq } from '../shared';
+import { clearError, captureError } from '../cacheHelpers';
 import type { StoreApi } from 'zustand';
 
 async function sessionMutate<T>(
@@ -12,9 +13,10 @@ async function sessionMutate<T>(
   sessionId: string,
   ipcCall: (sessionId: string) => Promise<IpcResult<T>>
 ) {
+  clearError(get);
   const result = await ipcCall(sessionId);
   if (!result.ok) {
-    set({ error: result.error.message });
+    captureError(get, result.error);
     return;
   }
   const conversationState = await refreshConversationSlice(get().activeSessionId);
@@ -37,12 +39,13 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see preview-bridge/index.ts → conversation.createSession
      */
     createSession: async (workspaceId?: WorkspaceID) => {
+      clearError(get);
       const result = await window.digitalLife.conversation.createSession(
         await sessionFallbackTitle(get().appInfo),
         workspaceId as string | undefined
       );
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       const conversationState = await refreshConversationSlice(result.data.id);
@@ -90,6 +93,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see preview-bridge/index.ts → conversation.markSessionRead
      */
     selectSession: async (sessionId: SessionID) => {
+      clearError(get);
       const requestSeq = getNextSessionRequestSeq();
       set({ activeSessionId: sessionId, error: undefined });
       const markReadResult = await window.digitalLife.conversation.markSessionRead({
@@ -99,7 +103,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
         return;
       }
       if (!markReadResult.ok) {
-        set({ error: markReadResult.error.message });
+        captureError(get, markReadResult.error);
         return;
       }
       const conversationState = await refreshConversationSlice(sessionId);
@@ -127,12 +131,13 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see preview-bridge/index.ts → conversation.renameSession
      */
     renameSession: async (sessionId: SessionID, title: string) => {
+      clearError(get);
       const result = await window.digitalLife.conversation.renameSession({
         sessionId: sessionId as string,
         title,
       });
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       await refreshConversationSlice(get().activeSessionId ?? sessionId);
@@ -224,9 +229,10 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see preview-bridge/index.ts → conversation.archiveAllInWorkspace
      */
     archiveAllSessions: async () => {
+      clearError(get);
       const result = await window.digitalLife.conversation.archiveAllInWorkspace();
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       const conversationState = await refreshConversationSlice(get().activeSessionId);
@@ -254,9 +260,10 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see preview-bridge/index.ts → conversation.reorderSessions
      */
     reorderSessions: async (input: ReorderSessionsInput) => {
+      clearError(get);
       const result = await window.digitalLife.conversation.reorderSessions(input);
       if (!result.ok) {
-        set({ error: result.error.message });
+        captureError(get, result.error);
         return;
       }
       set({ sessions: result.data });
@@ -271,6 +278,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      * @see preview-bridge/index.ts → conversation.markSessionRead
      */
     markAllSessionsRead: async (sessionIds: SessionID[]) => {
+      clearError(get);
       const results = await Promise.all(
         sessionIds.map((sessionId) =>
           window.digitalLife.conversation.markSessionRead({ sessionId: sessionId as string })
@@ -278,7 +286,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
       );
       const failure = results.find((result) => !result.ok);
       if (failure && !failure.ok) {
-        set({ error: failure.error.message });
+        captureError(get, failure.error);
         return;
       }
       const conversationState = await refreshConversationSlice(get().activeSessionId);

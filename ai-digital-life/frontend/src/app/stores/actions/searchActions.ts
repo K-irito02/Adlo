@@ -1,5 +1,6 @@
 import type { StoreState } from '../StoreState';
 import { createDebouncedSearch } from '../shared';
+import { clearError, captureError } from '../cacheHelpers';
 import type { StoreApi } from 'zustand';
 
 const debouncedSearch = createDebouncedSearch(300);
@@ -28,7 +29,7 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
           return;
         }
         if (!result.ok) {
-          set({ error: result.error.message });
+          captureError(get, result.error);
           return;
         }
         set({ searchResults: result.data });
