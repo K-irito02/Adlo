@@ -140,43 +140,64 @@ const RowComponent = React.memo(
     );
   },
   (prevProps, nextProps) => {
-    // 优化比较，只比较真正需要变化才会重新渲染的属性
     if (prevProps.index !== nextProps.index) {
       return false;
     }
-    if (prevProps.streamItems !== nextProps.streamItems) {
-      return false;
-    }
 
-    // 只在内容真正变化时才重新渲染相关部分
     const item = prevProps.streamItems[prevProps.index];
     const nextItem = nextProps.streamItems[nextProps.index];
 
-    // 如果项类型不同，必须重新渲染
+    // If the item type changed (or item is missing), re-render
     if (!item || !nextItem || item.type !== nextItem.type) {
       return false;
     }
 
-    // 对于流式文本，每次都要更新
-    if (item.type === 'streaming-message' && prevProps.streamingText !== nextProps.streamingText) {
-      return false;
-    }
-
-    // 检查其他需要变化的属性
-    if (prevProps.activeRun !== nextProps.activeRun) {
-      return false;
-    }
-    if (prevProps.runActivityByRunId !== nextProps.runActivityByRunId) {
-      return false;
-    }
-    if (prevProps.runUsageByRunId !== nextProps.runUsageByRunId) {
-      return false;
-    }
+    // locale affects all rows through `t` from useTCopy()
     if (prevProps.locale !== nextProps.locale) {
       return false;
     }
 
-    return true;
+    // Per-row-type dependency comparison — only re-render when props
+    // that actually flow into the row's render output have changed.
+    // This is the fix for the re-render storm: previously, ANY change
+    // to streamItems (which depends on streamingText) forced ALL rows
+    // to re-render. Now, non-streaming rows compare only their actual
+    // dependencies.
+    switch (item.type) {
+      case 'message':
+        // message row uses: item.message (reference), locale (checked above)
+        return item.message === (nextItem as typeof item).message;
+
+      case 'streaming-message':
+        // streaming-message row uses: streamingText, locale (checked above)
+        return prevProps.streamingText === nextProps.streamingText;
+
+      case 'run-summary':
+        // run-summary row uses: item.runId, activeRun, runActivityByRunId, runUsageByRunId, locale (checked above)
+        return (
+          item.runId === (nextItem as typeof item).runId &&
+          prevProps.activeRun === nextProps.activeRun &&
+          prevProps.runActivityByRunId === nextProps.runActivityByRunId &&
+          prevProps.runUsageByRunId === nextProps.runUsageByRunId
+        );
+
+      case 'streaming-run-summary':
+        // streaming-run-summary row uses: item.runId, runActivityByRunId, runUsageByRunId, locale (checked above)
+        return (
+          item.runId === (nextItem as typeof item).runId &&
+          prevProps.runActivityByRunId === nextProps.runActivityByRunId &&
+          prevProps.runUsageByRunId === nextProps.runUsageByRunId
+        );
+
+      case 'approval-hint':
+        // approval-hint row uses: locale (checked above, via t.approvalWaitingHint)
+        // activeRun only affects whether the item EXISTS in streamItems (already checked via type comparison)
+        return true;
+
+      default:
+        // Unknown type — re-render to be safe
+        return false;
+    }
   }
 );
 
