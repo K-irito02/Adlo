@@ -204,18 +204,33 @@ pub async fn remove_custom_provider(
 }
 
 #[tauri::command]
-pub fn set_provider_api_key(provider_id: String, api_key: String) -> IpcResult<bool> {
-    ipc(adl_model_gateway::set_provider_secret(&provider_id, &api_key).map(|_| true))
+pub async fn set_provider_api_key(
+    provider_id: String,
+    api_key: String,
+) -> Result<IpcResult<bool>, AppError> {
+    tokio::task::spawn_blocking(move || {
+        adl_model_gateway::set_provider_secret(&provider_id, &api_key)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(true)))
 }
 
 #[tauri::command]
-pub fn clear_provider_api_key(provider_id: String) -> IpcResult<bool> {
-    ipc(adl_model_gateway::clear_provider_secret(&provider_id).map(|_| true))
+pub async fn clear_provider_api_key(provider_id: String) -> Result<IpcResult<bool>, AppError> {
+    tokio::task::spawn_blocking(move || adl_model_gateway::clear_provider_secret(&provider_id))
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(true)))
 }
 
 #[tauri::command]
-pub fn has_provider_api_key(provider_id: String) -> IpcResult<bool> {
-    ipc(Ok(adl_model_gateway::get_provider_secret(&provider_id).is_ok()))
+pub async fn has_provider_api_key(provider_id: String) -> Result<IpcResult<bool>, AppError> {
+    let result =
+        tokio::task::spawn_blocking(move || adl_model_gateway::get_provider_secret(&provider_id))
+            .await
+            .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?;
+    Ok(ipc(Ok(result.is_ok())))
 }
 
 #[tauri::command]

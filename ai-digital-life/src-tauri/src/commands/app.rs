@@ -7,6 +7,7 @@ use adl_types::{
     ModelGatewayHealthSnapshot, RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot, APP_NAME,
 };
 use adl_workspace::strip_verbatim_prefix;
+use tauri::Manager;
 
 #[tauri::command]
 pub fn app_get_info(state: tauri::State<'_, AppState>) -> IpcResult<AppInfo> {
@@ -81,75 +82,78 @@ pub fn app_get_model_health(
 }
 
 #[tauri::command]
-pub fn app_update_preferences(
-    state: tauri::State<'_, AppState>,
+pub async fn app_update_preferences(
+    app: tauri::AppHandle,
     patch: AppPreferencePatch,
-) -> IpcResult<AppInfo> {
-    crate::commands::ipc_try(|| {
-        {
-            let mut config = state
-                .config
-                .write()
-                .map_err(|_| AppError::Internal("config lock poisoned".into()))?;
-            if let Some(language) = patch.language {
-                config.language = language;
-            }
-            if let Some(mode) = patch.theme_mode {
-                config.theme_mode = mode;
-            }
-            if let Some(level) = patch.log_level {
-                config.log_level = level;
-            }
-            if let Some(mode) = patch.terminal_log_mode {
-                config.terminal_log_mode = mode;
-                let _ = state.log_manager.set_mode(adl_logging::LogTarget::Terminal, mode);
-            }
-            if let Some(mode) = patch.debug_log_mode {
-                config.debug_log_mode = mode;
-                let _ = state.log_manager.set_mode(adl_logging::LogTarget::Debug, mode);
-            }
-            if let Some(model_preferences) = patch.model_preferences {
-                for (provider, patch) in model_preferences {
-                    let provider_id = provider.clone();
-                    let entry =
-                        config.model_preferences.providers.entry(provider).or_insert_with(|| {
-                            adl_types::ModelProviderPreference {
-                                enabled: true,
-                                priority: 10,
-                                model_id: provider_id.clone(),
-                            }
-                        });
-                    if let Some(enabled) = patch.enabled {
-                        entry.enabled = enabled;
-                    }
-                    if let Some(priority) = patch.priority {
-                        entry.priority = priority;
-                    }
-                    if let Some(model_id) = patch.model_id {
-                        entry.model_id = model_id;
-                    }
+) -> Result<IpcResult<AppInfo>, AppError> {
+    let state = app.state::<AppState>();
+    {
+        let mut config =
+            state.config.write().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
+        if let Some(language) = patch.language {
+            config.language = language;
+        }
+        if let Some(mode) = patch.theme_mode {
+            config.theme_mode = mode;
+        }
+        if let Some(level) = patch.log_level {
+            config.log_level = level;
+        }
+        if let Some(mode) = patch.terminal_log_mode {
+            config.terminal_log_mode = mode;
+            let _ = state.log_manager.set_mode(adl_logging::LogTarget::Terminal, mode);
+        }
+        if let Some(mode) = patch.debug_log_mode {
+            config.debug_log_mode = mode;
+            let _ = state.log_manager.set_mode(adl_logging::LogTarget::Debug, mode);
+        }
+        if let Some(model_preferences) = patch.model_preferences {
+            for (provider, patch) in model_preferences {
+                let provider_id = provider.clone();
+                let entry =
+                    config.model_preferences.providers.entry(provider).or_insert_with(|| {
+                        adl_types::ModelProviderPreference {
+                            enabled: true,
+                            priority: 10,
+                            model_id: provider_id.clone(),
+                        }
+                    });
+                if let Some(enabled) = patch.enabled {
+                    entry.enabled = enabled;
                 }
-            }
-            if let Some(keybinds) = patch.keybinds {
-                config.keybinds = keybinds;
-            }
-            if let Some(fonts) = patch.fonts {
-                if let Some(ui) = fonts.ui_font {
-                    config.fonts.ui_font = Some(ui);
+                if let Some(priority) = patch.priority {
+                    entry.priority = priority;
                 }
-                if let Some(code) = fonts.code_font {
-                    config.fonts.code_font = Some(code);
-                }
-                if let Some(term) = fonts.terminal_font {
-                    config.fonts.terminal_font = Some(term);
+                if let Some(model_id) = patch.model_id {
+                    entry.model_id = model_id;
                 }
             }
         }
-
-        crate::setup::save_config(&state).map_err(|e| AppError::Config(e.to_string()))?;
-        state.event_bus.emit(adl_kernel::events::AppEvent::ConfigChanged);
-        build_app_info(&state)
-    })
+        if let Some(keybinds) = patch.keybinds {
+            config.keybinds = keybinds;
+        }
+        if let Some(fonts) = patch.fonts {
+            if let Some(ui) = fonts.ui_font {
+                config.fonts.ui_font = Some(ui);
+            }
+            if let Some(code) = fonts.code_font {
+                config.fonts.code_font = Some(code);
+            }
+            if let Some(term) = fonts.terminal_font {
+                config.fonts.terminal_font = Some(term);
+            }
+        }
+    }
+    let config_clone =
+        state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?.clone();
+    let data_dir = state.data_dir.clone();
+    tokio::task::spawn_blocking(move || crate::setup::save_config_to_dir(&data_dir, &config_clone))
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
+        .map_err(|e| AppError::Config(e.to_string()))?;
+    state.event_bus.emit(adl_kernel::events::AppEvent::ConfigChanged);
+    let info = build_app_info(&state)?;
+    Ok(ipc(Ok(info)))
 }
 
 pub fn build_app_info(state: &AppState) -> Result<AppInfo, AppError> {
@@ -206,21 +210,23 @@ pub fn write_debug_logs_to_project(
 
 /// 写入调试日志到文件（委托 LogManager）
 #[tauri::command]
-pub fn write_debug_logs(
-    _app: tauri::AppHandle,
-    state: tauri::State<AppState>,
-    content: String,
-) -> Result<(), String> {
-    state.log_manager.write_debug_logs(&content).map_err(|e| e.to_string())
+pub async fn write_debug_logs(app: tauri::AppHandle, content: String) -> Result<(), String> {
+    let state = app.state::<AppState>();
+    let log_manager = state.log_manager.clone();
+    tokio::task::spawn_blocking(move || log_manager.write_debug_logs(&content))
+        .await
+        .map_err(|e| format!("spawn_blocking failed: {e}"))?
+        .map_err(|e| e.to_string())
 }
 
 /// 运行时切换日志模式
 #[tauri::command]
-pub fn app_set_log_mode(
-    state: tauri::State<'_, AppState>,
+pub async fn app_set_log_mode(
+    app: tauri::AppHandle,
     target: String,
     mode: String,
 ) -> Result<(), String> {
+    let state = app.state::<AppState>();
     let log_target: adl_logging::LogTarget = match target.as_str() {
         "terminal" => adl_logging::LogTarget::Terminal,
         "debug" => adl_logging::LogTarget::Debug,
@@ -238,7 +244,12 @@ pub fn app_set_log_mode(
             adl_logging::LogTarget::Debug => config.debug_log_mode = log_mode,
         }
     }
-    crate::setup::save_config(&state).map_err(|e| e.to_string())?;
+    let config_clone = state.config.read().map_err(|_| "config lock poisoned".to_string())?.clone();
+    let data_dir = state.data_dir.clone();
+    tokio::task::spawn_blocking(move || crate::setup::save_config_to_dir(&data_dir, &config_clone))
+        .await
+        .map_err(|e| format!("spawn_blocking failed: {e}"))?
+        .map_err(|e| e.to_string())?;
 
     Ok(())
 }

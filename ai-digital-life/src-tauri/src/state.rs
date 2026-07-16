@@ -19,7 +19,7 @@ pub struct AppState {
     pub editor_dirty_paths: Mutex<HashSet<String>>,
     pub pty_sessions: Arc<Mutex<SessionManager>>,
     pub browser_manager: BrowserManager,
-    pub log_manager: LogManager,
+    pub log_manager: Arc<LogManager>,
     pub started_at: i64,
     pub durable_manager: DurableSessionManager,
     pub provider_registry: Arc<RwLock<ProviderRegistry>>,

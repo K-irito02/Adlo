@@ -277,7 +277,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         editor_dirty_paths: std::sync::Mutex::new(std::collections::HashSet::new()),
         pty_sessions: std::sync::Arc::new(std::sync::Mutex::new(SessionManager::new())),
         browser_manager: BrowserManager::new(),
-        log_manager,
+        log_manager: Arc::new(log_manager),
         started_at: now_ms(),
         durable_manager,
         provider_registry,
@@ -340,8 +340,10 @@ pub fn start_background_tasks(state: &AppState) {
     });
 }
 
-pub fn save_config(state: &AppState) -> anyhow::Result<()> {
-    let config = state.config.read().map_err(|_| anyhow::anyhow!("config lock poisoned"))?;
-    adl_config::save(&state.data_dir, &config)?;
+/// Save `config` to `data_dir`. The caller is expected to clone the config
+/// out under a read lock first — this function performs no locking itself,
+/// making it safe to call inside `spawn_blocking`.
+pub fn save_config_to_dir(data_dir: &Path, config: &adl_config::AppConfig) -> anyhow::Result<()> {
+    adl_config::save(data_dir, config)?;
     Ok(())
 }
