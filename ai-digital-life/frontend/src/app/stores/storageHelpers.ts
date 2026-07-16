@@ -8,8 +8,8 @@ export function readJson<T>(key: string, fallback: T): T {
     if (raw) {
       return JSON.parse(raw) as T;
     }
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('storageHelpers.readJson failed:', err);
   }
   return fallback;
 }
@@ -18,11 +18,7 @@ export function writeJson(key: string, value: unknown): void {
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
   } catch (err) {
-    if (err instanceof DOMException && err.name === 'QuotaExceededError') {
-      /* quota exceeded */
-    } else {
-      /* write failed */
-    }
+    console.warn('storageHelpers.writeJson failed:', err);
   }
 }
 
@@ -32,8 +28,8 @@ export function readNumber(key: string, fallback: number, min: number, max: numb
     if (Number.isFinite(raw)) {
       return clamp(raw, min, max);
     }
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('storageHelpers.readNumber failed:', err);
   }
   return fallback;
 }
@@ -42,11 +38,7 @@ export function writeNumber(key: string, value: number): void {
   try {
     window.localStorage.setItem(key, String(value));
   } catch (err) {
-    if (err instanceof DOMException && err.name === 'QuotaExceededError') {
-      /* quota exceeded */
-    } else {
-      /* write failed */
-    }
+    console.warn('storageHelpers.writeNumber failed:', err);
   }
 }
 export function readFlag(key: string, fallback: boolean): boolean {
@@ -58,8 +50,8 @@ export function readFlag(key: string, fallback: boolean): boolean {
     if (raw === '0') {
       return false;
     }
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('storageHelpers.readFlag failed:', err);
   }
   return fallback;
 }
@@ -68,11 +60,7 @@ export function writeFlag(key: string, value: boolean): void {
   try {
     window.localStorage.setItem(key, value ? '1' : '0');
   } catch (err) {
-    if (err instanceof DOMException && err.name === 'QuotaExceededError') {
-      /* quota exceeded */
-    } else {
-      /* write failed */
-    }
+    console.warn('storageHelpers.writeFlag failed:', err);
   }
 }
 
