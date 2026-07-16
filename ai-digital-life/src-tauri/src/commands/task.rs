@@ -46,13 +46,14 @@ pub async fn task_list_pending_approvals(
 ) -> Result<IpcResult<Vec<ApprovalRequestSummary>>, AppError> {
     let state = app.state::<AppState>();
     let db = state.db.clone();
-    let approvals = tokio::task::spawn_blocking(move || -> Result<Vec<ApprovalRequestSummary>, AppError> {
-        let approvals: Vec<ApprovalRecord> =
-            db.list_entities_by_status(EntityTable::Approvals, "pending")?;
-        Ok(approvals.into_iter().map(|approval| approval.request).collect())
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let approvals =
+        tokio::task::spawn_blocking(move || -> Result<Vec<ApprovalRequestSummary>, AppError> {
+            let approvals: Vec<ApprovalRecord> =
+                db.list_entities_by_status(EntityTable::Approvals, "pending")?;
+            Ok(approvals.into_iter().map(|approval| approval.request).collect())
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(approvals)))
 }
 

@@ -50,22 +50,23 @@ pub async fn conversation_create_session(
     let state = app.state::<AppState>();
     let db = state.db.clone();
     let wid = workspace_id.unwrap_or_else(|| active_workspace_scope_id(&state));
-    let session = tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
-        let existing: Vec<ConversationSessionRecord> =
-            db.list_entities_by_workspace(EntityTable::Sessions, &wid)?;
-        let session = adl_conversation::create_session(&wid, title, existing.len() as i32);
-        db.save_entity(
-            EntityTable::Sessions,
-            &session.id,
-            Some(&wid),
-            Some(&session.id),
-            Some(&session.status),
-            &session,
-        )?;
-        Ok(session)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let session =
+        tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
+            let existing: Vec<ConversationSessionRecord> =
+                db.list_entities_by_workspace(EntityTable::Sessions, &wid)?;
+            let session = adl_conversation::create_session(&wid, title, existing.len() as i32);
+            db.save_entity(
+                EntityTable::Sessions,
+                &session.id,
+                Some(&wid),
+                Some(&session.id),
+                Some(&session.status),
+                &session,
+            )?;
+            Ok(session)
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(session)))
 }
 
@@ -91,11 +92,9 @@ pub async fn conversation_get_session(
 ) -> Result<IpcResult<Option<ConversationDetail>>, AppError> {
     let state = app.state::<AppState>();
     let db = state.db.clone();
-    let detail = tokio::task::spawn_blocking(move || {
-        get_session_detail_with_db(&db, &session_id)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let detail = tokio::task::spawn_blocking(move || get_session_detail_with_db(&db, &session_id))
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(detail)))
 }
 
@@ -126,16 +125,17 @@ pub async fn conversation_rename_session(
 ) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
     let state = app.state::<AppState>();
     let db = state.db.clone();
-    let session = tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
-        let mut session = require_session_with_db(&db, &input.session_id)?;
-        session.title = input.title;
-        session.title_updated_at = Some(adl_types::now_ms());
-        session.updated_at = adl_types::now_ms();
-        save_session_with_db(&db, &session)?;
-        Ok(session)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let session =
+        tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
+            let mut session = require_session_with_db(&db, &input.session_id)?;
+            session.title = input.title;
+            session.title_updated_at = Some(adl_types::now_ms());
+            session.updated_at = adl_types::now_ms();
+            save_session_with_db(&db, &session)?;
+            Ok(session)
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(session)))
 }
 
@@ -146,11 +146,9 @@ pub async fn conversation_pin_session(
 ) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
     let state = app.state::<AppState>();
     let db = state.db.clone();
-    let session = tokio::task::spawn_blocking(move || {
-        set_pinned_with_db(&db, &session_id, true)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let session = tokio::task::spawn_blocking(move || set_pinned_with_db(&db, &session_id, true))
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(session)))
 }
 
@@ -161,11 +159,9 @@ pub async fn conversation_unpin_session(
 ) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
     let state = app.state::<AppState>();
     let db = state.db.clone();
-    let session = tokio::task::spawn_blocking(move || {
-        set_pinned_with_db(&db, &session_id, false)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let session = tokio::task::spawn_blocking(move || set_pinned_with_db(&db, &session_id, false))
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(session)))
 }
 
@@ -176,16 +172,17 @@ pub async fn conversation_archive_session(
 ) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
     let state = app.state::<AppState>();
     let db = state.db.clone();
-    let session = tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
-        let mut session = require_session_with_db(&db, &session_id)?;
-        session.status = "archived".into();
-        session.archived_at = Some(adl_types::now_ms());
-        session.updated_at = adl_types::now_ms();
-        save_session_with_db(&db, &session)?;
-        Ok(session)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let session =
+        tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
+            let mut session = require_session_with_db(&db, &session_id)?;
+            session.status = "archived".into();
+            session.archived_at = Some(adl_types::now_ms());
+            session.updated_at = adl_types::now_ms();
+            save_session_with_db(&db, &session)?;
+            Ok(session)
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(session)))
 }
 
@@ -196,20 +193,21 @@ pub async fn conversation_archive_all_in_workspace(
     let state = app.state::<AppState>();
     let db = state.db.clone();
     let workspace_id = active_workspace_scope_id(&state);
-    let sessions = tokio::task::spawn_blocking(move || -> Result<Vec<ConversationSessionRecord>, AppError> {
-        let now = adl_types::now_ms();
-        let mut sessions: Vec<ConversationSessionRecord> =
-            db.list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
-        for session in &mut sessions {
-            session.status = "archived".into();
-            session.archived_at = Some(now);
-            session.updated_at = now;
-        }
-        db.transaction(|conn| db.save_sessions_batch_on_conn(conn, &sessions))?;
-        Ok(sessions)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let sessions =
+        tokio::task::spawn_blocking(move || -> Result<Vec<ConversationSessionRecord>, AppError> {
+            let now = adl_types::now_ms();
+            let mut sessions: Vec<ConversationSessionRecord> =
+                db.list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
+            for session in &mut sessions {
+                session.status = "archived".into();
+                session.archived_at = Some(now);
+                session.updated_at = now;
+            }
+            db.transaction(|conn| db.save_sessions_batch_on_conn(conn, &sessions))?;
+            Ok(sessions)
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(sessions)))
 }
 
@@ -233,33 +231,34 @@ pub async fn conversation_reorder_sessions(
 ) -> Result<IpcResult<Vec<ConversationSessionRecord>>, AppError> {
     let state = app.state::<AppState>();
     let db = state.db.clone();
-    let sessions = tokio::task::spawn_blocking(move || -> Result<Vec<ConversationSessionRecord>, AppError> {
-        let now = adl_types::now_ms();
-        let mut sessions: Vec<ConversationSessionRecord> =
-            db.list_entities_by_workspace(EntityTable::Sessions, &input.workspace_id)?;
-        for session in &mut sessions {
-            if let Some(order) = input.pinned_ids.iter().position(|id| id == &session.id) {
-                session.is_pinned = true;
-                session.pinned_order = order as i32;
-                session.updated_at = now;
+    let sessions =
+        tokio::task::spawn_blocking(move || -> Result<Vec<ConversationSessionRecord>, AppError> {
+            let now = adl_types::now_ms();
+            let mut sessions: Vec<ConversationSessionRecord> =
+                db.list_entities_by_workspace(EntityTable::Sessions, &input.workspace_id)?;
+            for session in &mut sessions {
+                if let Some(order) = input.pinned_ids.iter().position(|id| id == &session.id) {
+                    session.is_pinned = true;
+                    session.pinned_order = order as i32;
+                    session.updated_at = now;
+                }
+                if let Some(order) = input.unpinned_ids.iter().position(|id| id == &session.id) {
+                    session.is_pinned = false;
+                    session.unpinned_order = order as i32;
+                    session.updated_at = now;
+                }
             }
-            if let Some(order) = input.unpinned_ids.iter().position(|id| id == &session.id) {
-                session.is_pinned = false;
-                session.unpinned_order = order as i32;
-                session.updated_at = now;
-            }
-        }
-        db.transaction(|conn| db.save_sessions_batch_on_conn(conn, &sessions))?;
-        sessions.sort_by_key(|session| {
-            (
-                !session.is_pinned,
-                if session.is_pinned { session.pinned_order } else { session.unpinned_order },
-            )
-        });
-        Ok(sessions)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+            db.transaction(|conn| db.save_sessions_batch_on_conn(conn, &sessions))?;
+            sessions.sort_by_key(|session| {
+                (
+                    !session.is_pinned,
+                    if session.is_pinned { session.pinned_order } else { session.unpinned_order },
+                )
+            });
+            Ok(sessions)
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(sessions)))
 }
 
@@ -287,15 +286,16 @@ pub async fn conversation_mark_session_read(
 ) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
     let state = app.state::<AppState>();
     let db = state.db.clone();
-    let session = tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
-        let mut session = require_session_with_db(&db, &input.session_id)?;
-        session.manual_unread = false;
-        session.last_read_at = Some(input.read_at.unwrap_or_else(adl_types::now_ms));
-        save_session_with_db(&db, &session)?;
-        Ok(session)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let session =
+        tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
+            let mut session = require_session_with_db(&db, &input.session_id)?;
+            session.manual_unread = false;
+            session.last_read_at = Some(input.read_at.unwrap_or_else(adl_types::now_ms));
+            save_session_with_db(&db, &session)?;
+            Ok(session)
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(session)))
 }
 
@@ -306,20 +306,22 @@ pub async fn conversation_cancel_message(
 ) -> Result<IpcResult<Option<adl_types::AgentRunDetail>>, AppError> {
     let state = app.state::<AppState>();
     let db = state.db.clone();
-    let detail = tokio::task::spawn_blocking(move || -> Result<Option<adl_types::AgentRunDetail>, AppError> {
-        let Some(run) =
-            db.load_entity::<adl_types::AgentRunRecord>(EntityTable::AgentRuns, &run_id)?
-        else {
-            return Ok(None);
-        };
-        let mut steps: Vec<adl_types::AgentPlanStep> =
-            db.list_entities_by_run(EntityTable::AgentSteps, &run_id)?;
-        steps.sort_by_key(|step| step.created_at);
-        let detail = adl_types::AgentRunDetail { run, steps };
-        let detail = adl_agent_runtime::abort_run(detail);
-        crate::commands::agent::save_run_detail_with_db(&db, &detail)?;
-        Ok(Some(detail))
-    })
+    let detail = tokio::task::spawn_blocking(
+        move || -> Result<Option<adl_types::AgentRunDetail>, AppError> {
+            let Some(run) =
+                db.load_entity::<adl_types::AgentRunRecord>(EntityTable::AgentRuns, &run_id)?
+            else {
+                return Ok(None);
+            };
+            let mut steps: Vec<adl_types::AgentPlanStep> =
+                db.list_entities_by_run(EntityTable::AgentSteps, &run_id)?;
+            steps.sort_by_key(|step| step.created_at);
+            let detail = adl_types::AgentRunDetail { run, steps };
+            let detail = adl_agent_runtime::abort_run(detail);
+            crate::commands::agent::save_run_detail_with_db(&db, &detail)?;
+            Ok(Some(detail))
+        },
+    )
     .await
     .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(detail)))
@@ -332,14 +334,15 @@ pub async fn conversation_mark_session_unread(
 ) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
     let state = app.state::<AppState>();
     let db = state.db.clone();
-    let session = tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
-        let mut session = require_session_with_db(&db, &session_id)?;
-        session.manual_unread = true;
-        save_session_with_db(&db, &session)?;
-        Ok(session)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let session =
+        tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
+            let mut session = require_session_with_db(&db, &session_id)?;
+            session.manual_unread = true;
+            save_session_with_db(&db, &session)?;
+            Ok(session)
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(session)))
 }
 
