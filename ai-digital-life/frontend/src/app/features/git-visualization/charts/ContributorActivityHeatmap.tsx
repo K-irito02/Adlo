@@ -29,7 +29,7 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
         rowLabels={contributorNames}
         margin={{ top: 28, right: 16, bottom: 0, left: 80 }}
         gap={2}
-        binSize={20}
+        binSize={22}
         animate={true}
       >
         <HeatmapCells cornerRadius={2} />

@@ -119,9 +119,9 @@ export const changesZh = {
   gitVisCalendarHeatmapDesc: '近一年每日提交次数，颜色越深提交越密集，可快速识别活跃周期。',
   gitVisClockHeatmapDesc: '纵轴 = 星期，横轴 = 小时，色块表示该时段提交频次，发现团队工作节奏。',
   gitVisContributorModuleDesc: '行 = 贡献者，列 = 模块，颜色深浅反映跨领域活跃度。',
-  gitVisCodeLineEvoDesc: '累计新增（+）与删除（-）行数，Area + Line 图表，反映项目增长与重构节奏。',
-  gitVisContributorActivityDesc: '行 = 贡献者，列 = 时间段，颜色深浅反映贡献量。',
-  gitVisCommitTimelineDesc: '散点图 = 单次提交，折线 = 累计增长。追踪项目随时间推移的开发速度。',
+  gitVisCodeLineEvoDesc: '40 周内累计新增（+）与删除（-）行数，反映项目增长与重构节奏。',
+  gitVisContributorActivityDesc: '行 = 6 位贡献者，列 = 48 周时间段，颜色深浅 = 每人每周提交量。',
+  gitVisCommitTimelineDesc: '累计提交增长折线图，展示两周内的项目开发速度。',
   gitVisFileSunburstDesc:
     '按文件类型分类的旭日分区图，扇形角度 = 修改次数/代码量，按类别定位"热点文件"。',
   gitVisMockDataNote:

@@ -123,11 +123,11 @@ export const changesEn = {
   gitVisContributorModuleDesc:
     'Rows = contributors, columns = modules. Color intensity shows cross-domain activity.',
   gitVisCodeLineEvoDesc:
-    'Cumulative added (+) and deleted (-) lines, Area + Line chart. Reflects project growth and refactoring pace.',
+    'Cumulative added (+) and deleted (-) lines over 40 weeks. Tracks project growth and refactoring pace.',
   gitVisContributorActivityDesc:
-    'Rows = contributors, columns = time. Color intensity reflects contribution volume.',
+    'Rows = contributors (6), columns = weeks (48). Color intensity = weekly commit volume per person.',
   gitVisCommitTimelineDesc:
-    'Scatter plot = individual commits, line = cumulative growth. Track project velocity over time.',
+    'Cumulative commit growth over time. Line chart showing project velocity over a 2-week period.',
   gitVisFileSunburstDesc:
     'Sunburst partition by file type. Arc angle = modification count/code volume. Locate "hotspot files" by category.',
   gitVisMockDataNote:

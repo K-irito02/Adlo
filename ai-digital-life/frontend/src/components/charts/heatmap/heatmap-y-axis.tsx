@@ -73,11 +73,13 @@ export const HeatmapYAxis = memo(function HeatmapYAxis({
           alignItems: 'center',
           justifyContent: 'flex-end',
           transform: 'translateY(-50%)',
+          overflow: 'hidden',
         }}
       >
         <span
-          className={cn('whitespace-nowrap text-chart-label text-xs', className)}
+          className={cn('truncate text-chart-label text-xs', className)}
           style={{ opacity: resolveHeatmapRowOpacity(tick.row, rowOpacity) }}
+          title={tick.label}
         >
           {tick.label}
         </span>

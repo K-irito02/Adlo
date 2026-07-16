@@ -40,7 +40,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
         rowLabels={contributorNames}
         margin={{ top: 28, right: 16, bottom: 0, left: 80 }}
         gap={2}
-        binSize={28}
+        binSize={36}
         animate={true}
       >
         <HeatmapCells cornerRadius={2} />

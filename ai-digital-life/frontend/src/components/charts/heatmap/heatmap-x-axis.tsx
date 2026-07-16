@@ -14,7 +14,7 @@ export interface HeatmapXAxisProps {
 }
 
 export const HeatmapXAxis = memo(function HeatmapXAxis({ className, tickEvery = 1 }: HeatmapXAxisProps) {
-  const { containerRef, data, margin, xScale, columnLabels, locale } = useHeatmap();
+  const { containerRef, data, margin, xScale, binWidth, columnLabels, locale } = useHeatmap();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -77,12 +77,16 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({ className, tickEvery = 
         style={{
           top: 0,
           left: tick.x,
-          width: 0,
+          width: binWidth,
           display: 'flex',
           justifyContent: 'flex-start',
+          overflow: 'hidden',
         }}
       >
-        <span className={cn('whitespace-nowrap text-chart-label text-xs', className)}>
+        <span
+          className={cn('truncate text-chart-label text-xs', className)}
+          title={tick.label}
+        >
           {tick.label}
         </span>
       </div>
