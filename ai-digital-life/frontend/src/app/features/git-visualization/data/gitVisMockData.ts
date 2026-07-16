@@ -151,8 +151,6 @@ export function generateCodeLineEvolutionData(): {
   return { dates, added, deleted };
 }
 
-
-
 // ── Bklit/visx data adapter interfaces ──
 
 export interface BklitAreaRow {
@@ -174,8 +172,6 @@ export function toBklitAreaData(
   }));
 }
 
-
-
 export function toHeatmapColumns(): HeatmapColumn[] {
   const raw = generateCalendarData();
   const weekMap = new Map<number, { count: number; bin: number; date: Date }[]>();
@@ -191,27 +187,27 @@ export function toHeatmapColumns(): HeatmapColumn[] {
     }
     weekMap.get(weekNum)!.push({ count, bin: d.getDay(), date: d });
   }
-  return [...weekMap.entries()].sort(([a], [b]) => a - b).map(([weekNum, bins]) => {
-    const existingDays = new Set(bins.map((b) => b.bin));
-    const sortedBins = [...bins].sort((a, b) => a.bin - b.bin);
-    const weekDate = new Date(sortedBins[0].date);
-    weekDate.setDate(weekDate.getDate() - sortedBins[0].bin);
-    const allBins: HeatmapBin[] = [];
-    for (let day = 0; day < 7; day++) {
-      if (existingDays.has(day)) {
-        const existing = bins.find((b) => b.bin === day)!;
-        allBins.push(existing);
-      } else {
-        const date = new Date(weekDate);
-        date.setDate(date.getDate() + day);
-        allBins.push({ count: 0, bin: day, date });
+  return [...weekMap.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([weekNum, bins]) => {
+      const existingDays = new Set(bins.map((b) => b.bin));
+      const sortedBins = [...bins].sort((a, b) => a.bin - b.bin);
+      const weekDate = new Date(sortedBins[0].date);
+      weekDate.setDate(weekDate.getDate() - sortedBins[0].bin);
+      const allBins: HeatmapBin[] = [];
+      for (let day = 0; day < 7; day++) {
+        if (existingDays.has(day)) {
+          const existing = bins.find((b) => b.bin === day)!;
+          allBins.push(existing);
+        } else {
+          const date = new Date(weekDate);
+          date.setDate(date.getDate() + day);
+          allBins.push({ count: 0, bin: day, date });
+        }
       }
-    }
-    return { bin: weekNum, bins: allBins };
-  });
+      return { bin: weekNum, bins: allBins };
+    });
 }
-
-
 
 export interface CommitTimelineRow {
   date: string;
@@ -285,12 +281,12 @@ export function generateContributorActivityData(): HeatmapColumn[] {
 export const moduleNames = ['前端', '后端', '数据库', '测试', '文档'];
 
 export const contributorModuleMatrix: number[][] = [
-  [80, 30,  0,  0,  0],
-  [20, 70, 40,  0,  0],
-  [ 0, 60,  0, 50,  0],
-  [90,  0,  0,  0, 30],
-  [ 0,  0, 80, 20,  0],
-  [ 0,  0,  0, 40, 70],
+  [80, 30, 0, 0, 0],
+  [20, 70, 40, 0, 0],
+  [0, 60, 0, 50, 0],
+  [90, 0, 0, 0, 30],
+  [0, 0, 80, 20, 0],
+  [0, 0, 0, 40, 70],
 ];
 
 export function generateContributorModuleData(): HeatmapColumn[] {
@@ -303,5 +299,3 @@ export function generateContributorModuleData(): HeatmapColumn[] {
     })),
   }));
 }
-
-

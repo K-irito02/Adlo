@@ -9,7 +9,13 @@ import {
 } from '@/components/charts/heatmap';
 import { generateContributorModuleData, contributorNames } from '../data/gitVisMockData';
 
-const MODULE_KEYS = ['gitVisModuleFrontend', 'gitVisModuleBackend', 'gitVisModuleDatabase', 'gitVisModuleTesting', 'gitVisModuleDocs'] as const;
+const MODULE_KEYS = [
+  'gitVisModuleFrontend',
+  'gitVisModuleBackend',
+  'gitVisModuleDatabase',
+  'gitVisModuleTesting',
+  'gitVisModuleDocs',
+] as const;
 
 export const ContributorModuleHeatmap = React.memo(function ContributorModuleHeatmap() {
   const { t, locale } = useTCopy();

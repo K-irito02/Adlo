@@ -317,7 +317,9 @@ function HeatmapChartInner({
 
   const resolvedColumnLabels = useMemo(() => {
     const hasAnyLabel = visibleData.some((col) => col.columnLabel != null);
-    if (!hasAnyLabel) return undefined;
+    if (!hasAnyLabel) {
+      return undefined;
+    }
     return visibleData.map((col) => col.columnLabel ?? '');
   }, [visibleData]);
 
