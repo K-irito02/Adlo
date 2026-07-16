@@ -91,6 +91,8 @@ export interface HeatmapContextValue {
   revealMode: HeatmapRevealMode;
   loadingLabel?: string;
   showLoadingLabel: boolean;
+  /** Optional app locale for locale-aware date/time formatting. */
+  locale?: string;
 }
 
 /** How cells transition into view after loading or on first mount. */

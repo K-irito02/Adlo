@@ -10,7 +10,7 @@ import {
 import { generateContributorActivityData, contributorNames } from '../data/gitVisMockData';
 
 export const ContributorActivityHeatmap = React.memo(function ContributorActivityHeatmap() {
-  const { t } = useTCopy();
+  const { t, locale } = useTCopy();
   const data = useMemo(() => generateContributorActivityData(), []);
 
   const formatLabel = useCallback(
@@ -25,9 +25,11 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
       <HeatmapChart
         data={data}
+        locale={locale}
         rowLabels={contributorNames}
         margin={{ top: 28, right: 16, bottom: 0, left: 80 }}
         gap={2}
+        binSize={16}
         animate={true}
       >
         <HeatmapCells cornerRadius={2} />

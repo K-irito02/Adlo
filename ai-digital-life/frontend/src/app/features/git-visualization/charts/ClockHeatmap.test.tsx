@@ -6,6 +6,7 @@ import { ClockHeatmap } from './ClockHeatmap';
 vi.mock('@i18n/useTCopy', () => ({
   useTCopy: () => ({
     t: { gitVisCommits: 'commits' },
+    locale: 'en-US',
     formatT: vi.fn(),
   }),
 }));

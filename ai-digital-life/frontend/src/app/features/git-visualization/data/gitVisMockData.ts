@@ -191,7 +191,24 @@ export function toHeatmapColumns(): HeatmapColumn[] {
     }
     weekMap.get(weekNum)!.push({ count, bin: d.getDay(), date: d });
   }
-  return [...weekMap.entries()].sort(([a], [b]) => a - b).map(([bin, bins]) => ({ bin, bins }));
+  return [...weekMap.entries()].sort(([a], [b]) => a - b).map(([weekNum, bins]) => {
+    const existingDays = new Set(bins.map((b) => b.bin));
+    const sortedBins = [...bins].sort((a, b) => a.bin - b.bin);
+    const weekDate = new Date(sortedBins[0].date);
+    weekDate.setDate(weekDate.getDate() - sortedBins[0].bin);
+    const allBins: HeatmapBin[] = [];
+    for (let day = 0; day < 7; day++) {
+      if (existingDays.has(day)) {
+        const existing = bins.find((b) => b.bin === day)!;
+        allBins.push(existing);
+      } else {
+        const date = new Date(weekDate);
+        date.setDate(date.getDate() + day);
+        allBins.push({ count: 0, bin: day, date });
+      }
+    }
+    return { bin: weekNum, bins: allBins };
+  });
 }
 
 
@@ -260,7 +277,7 @@ export function generateContributorActivityData(): HeatmapColumn[] {
       const count = Math.floor(pseudoRandom() * maxWeekly);
       bins.push({ count, bin: c });
     }
-    columns.push({ bin: w, bins });
+    columns.push({ bin: w, bins, columnLabel: `W${w + 1}` });
   }
   return columns;
 }

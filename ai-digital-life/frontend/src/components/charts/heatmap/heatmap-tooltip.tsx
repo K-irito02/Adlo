@@ -47,7 +47,7 @@ export const HeatmapTooltip = memo(function HeatmapTooltip({
   hideDelay = 120,
   instant = false,
 }: HeatmapTooltipProps) {
-  const { containerRef, width, height } = useHeatmap();
+  const { containerRef, width, height, locale } = useHeatmap();
   const { tooltipData } = useHeatmapInteraction();
   const displayData = useDelayedTooltipData(tooltipData, showDelay, hideDelay);
 
@@ -76,10 +76,10 @@ export const HeatmapTooltip = memo(function HeatmapTooltip({
           {date && (
             <>
               <div className="font-medium text-chart-tooltip-foreground text-xs">
-                {formatHeatmapTooltipDate(date)}
+                {formatHeatmapTooltipDate(date, locale)}
               </div>
               <div className="mt-0.5 text-chart-tooltip-muted text-xs">
-                {formatHeatmapTooltipWeekday(date)}
+                {formatHeatmapTooltipWeekday(date, locale)}
               </div>
             </>
           )}

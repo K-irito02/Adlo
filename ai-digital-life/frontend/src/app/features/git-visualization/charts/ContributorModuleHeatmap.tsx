@@ -9,9 +9,20 @@ import {
 } from '@/components/charts/heatmap';
 import { generateContributorModuleData, contributorNames } from '../data/gitVisMockData';
 
+const MODULE_KEYS = ['gitVisModuleFrontend', 'gitVisModuleBackend', 'gitVisModuleDatabase', 'gitVisModuleTesting', 'gitVisModuleDocs'] as const;
+
 export const ContributorModuleHeatmap = React.memo(function ContributorModuleHeatmap() {
-  const { t } = useTCopy();
-  const data = useMemo(() => generateContributorModuleData(), []);
+  const { t, locale } = useTCopy();
+  const rawData = useMemo(() => generateContributorModuleData(), []);
+
+  const data = useMemo(
+    () =>
+      rawData.map((col, i) => ({
+        ...col,
+        columnLabel: t[MODULE_KEYS[i] as keyof typeof t] as string,
+      })),
+    [rawData, t]
+  );
 
   const formatLabel = useCallback(
     (count: number) => {
@@ -25,9 +36,11 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
       <HeatmapChart
         data={data}
+        locale={locale}
         rowLabels={contributorNames}
         margin={{ top: 28, right: 16, bottom: 0, left: 80 }}
         gap={2}
+        binSize={20}
         animate={true}
       >
         <HeatmapCells cornerRadius={2} />

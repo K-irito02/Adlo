@@ -11,7 +11,12 @@ export const CodeLineEvo = React.memo(function CodeLineEvo() {
 
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
-      <LineChart data={data} xDataKey="date" margin={{ top: 20, right: 20, bottom: 40, left: 60 }}>
+      <LineChart
+        data={data}
+        xDataKey="date"
+        margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
+        style={{ maxHeight: 280 }}
+      >
         <Line dataKey="added" stroke={theme.accent} />
         <Line dataKey="deleted" stroke={theme.seriesColors[1]} />
         <Grid />

@@ -5,7 +5,16 @@ import { ContributorModuleHeatmap } from './ContributorModuleHeatmap';
 
 vi.mock('@i18n/useTCopy', () => ({
   useTCopy: () => ({
-    t: { gitVisContribution: 'contribution', gitVisContributions: 'contributions' },
+    t: {
+      gitVisContribution: 'contribution',
+      gitVisContributions: 'contributions',
+      gitVisModuleFrontend: 'Frontend',
+      gitVisModuleBackend: 'Backend',
+      gitVisModuleDatabase: 'Database',
+      gitVisModuleTesting: 'Testing',
+      gitVisModuleDocs: 'Documentation',
+    },
+    locale: 'en-US',
     formatT: vi.fn(),
   }),
 }));

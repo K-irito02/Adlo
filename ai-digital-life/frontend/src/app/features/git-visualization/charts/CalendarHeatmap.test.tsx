@@ -8,6 +8,7 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisContribution: 'contribution',
       gitVisContributions: 'contributions',
     },
+    locale: 'en-US',
     formatT: vi.fn(),
   }),
 }));

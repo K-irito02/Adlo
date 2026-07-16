@@ -16,6 +16,7 @@ afterEach(() => {
 vi.mock('@i18n/useTCopy', () => ({
   useTCopy: () => ({
     t: { gitVisContribution: 'contribution', gitVisContributions: 'contributions' },
+    locale: 'en-US',
     formatT: vi.fn(),
   }),
 }));

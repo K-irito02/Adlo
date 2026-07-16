@@ -196,13 +196,9 @@ export function filterHeatmapColumns(
   });
 }
 
-const heatmapTooltipWeekdayFmt = new Intl.DateTimeFormat(undefined, {
-  weekday: 'long',
-});
-
 /** Tooltip header date — e.g. `January 20, 2026` (locale-adaptive). */
-export function formatHeatmapTooltipDate(date: Date): string {
-  return new Intl.DateTimeFormat(undefined, {
+export function formatHeatmapTooltipDate(date: Date, locale?: string): string {
+  return new Intl.DateTimeFormat(locale ?? undefined, {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -210,8 +206,10 @@ export function formatHeatmapTooltipDate(date: Date): string {
 }
 
 /** Tooltip weekday line — e.g. `Monday`. */
-export function formatHeatmapTooltipWeekday(date: Date): string {
-  return heatmapTooltipWeekdayFmt.format(date);
+export function formatHeatmapTooltipWeekday(date: Date, locale?: string): string {
+  return new Intl.DateTimeFormat(locale ?? undefined, {
+    weekday: 'long',
+  }).format(date);
 }
 
 /** Tooltip contribution line — e.g. `3 contributions`. */

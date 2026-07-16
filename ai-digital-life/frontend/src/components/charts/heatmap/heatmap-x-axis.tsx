@@ -11,10 +11,8 @@ export interface HeatmapXAxisProps {
   className?: string;
 }
 
-const monthFmt = new Intl.DateTimeFormat(undefined, { month: 'short' });
-
 export const HeatmapXAxis = memo(function HeatmapXAxis({ className }: HeatmapXAxisProps) {
-  const { containerRef, data, margin, xScale, columnLabels } = useHeatmap();
+  const { containerRef, data, margin, xScale, columnLabels, locale } = useHeatmap();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -32,6 +30,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({ className }: HeatmapXAx
         .filter((tick) => tick.label);
     }
 
+    const monthFmt = new Intl.DateTimeFormat(locale ?? undefined, { month: 'short' });
     const ticks: { label: string; x: number; key: string }[] = [];
     let lastMonthKey = '';
 
@@ -54,13 +53,13 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({ className }: HeatmapXAx
       ticks.push({
         label: monthFmt.format(monthAnchor),
         x: margin.left + xScale(columnIndex),
-        key: monthKey,
+        key: `x-${columnIndex}-${monthKey}`,
       });
       lastMonthKey = monthKey;
     }
 
     return ticks;
-  }, [columnLabels, data, margin.left, xScale]);
+  }, [columnLabels, data, locale, margin.left, xScale]);
 
   const container = containerRef.current;
   if (!(mounted && container)) {

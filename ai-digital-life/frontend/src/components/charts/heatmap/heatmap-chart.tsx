@@ -126,6 +126,8 @@ export interface HeatmapChartProps {
   weekStartDay?: HeatmapWeekStartDay;
   /** Label mode: row labels for each row (overrides calendar day labels). */
   rowLabels?: string[];
+  /** Optional app locale for locale-aware date/time formatting in axis labels and tooltip. */
+  locale?: string;
   /** Child components (HeatmapCells, HeatmapXAxis, HeatmapYAxis) */
   children: ReactNode;
 }
@@ -225,6 +227,7 @@ interface HeatmapChartInnerProps {
   columnSeparators?: HeatmapSeparatorParsedConfig;
   weekStartDay: HeatmapWeekStartDay;
   rowLabels?: string[];
+  locale?: string;
   children: ReactNode;
 }
 
@@ -258,6 +261,7 @@ function HeatmapChartInner({
   showLoadingLabel,
   columnSeparators,
   weekStartDay,
+  locale,
   rowLabels,
   children,
 }: HeatmapChartInnerProps) {
@@ -377,6 +381,7 @@ function HeatmapChartInner({
       revealMode,
       loadingLabel,
       showLoadingLabel,
+      locale,
     }),
     [
       animateCells,
@@ -406,6 +411,7 @@ function HeatmapChartInner({
       separatorLayout,
       showLoadingCells,
       showLoadingLabel,
+      locale,
       resolvedColumnLabels,
       revealEpoch,
       rowLabels,
@@ -613,6 +619,7 @@ export function HeatmapChart({
   columnSeparators,
   weekStartDay = 0,
   rowLabels,
+  locale,
   children,
 }: HeatmapChartProps) {
   const margin = { ...DEFAULT_MARGIN, ...marginProp };
@@ -670,6 +677,7 @@ export function HeatmapChart({
             margin={margin}
             revealEpoch={revealEpoch}
             revealMode={revealMode}
+            locale={locale}
             rowLabels={rowLabels}
             showLoadingCells={showLoadingCells}
             showLoadingLabel={showLoadingLabel}
