@@ -77,15 +77,19 @@ export function createPreviewWorkspaceBridge(
     }
   };
 
-  const requireWorkspace = () => {
-    if (!ctx.currentWorkspace) {
-      return {
-        ok: false as const,
-        error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
-      };
-    }
-    return null;
-  };
+  function withWorkspace<T, A extends unknown[]>(
+    fn: (rootPath: string, ...args: A) => Promise<IpcResult<T>>
+  ): (...args: A) => Promise<IpcResult<T>> {
+    return async (...args: A) => {
+      if (!ctx.currentWorkspace) {
+        return {
+          ok: false as const,
+          error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
+        };
+      }
+      return fn(ctx.currentWorkspace.rootPath, ...args);
+    };
+  }
 
   const workspace = {
     listRecent: async (): Promise<IpcResult<RecentWorkspaceEntry[]>> => ({
@@ -199,58 +203,35 @@ export function createPreviewWorkspaceBridge(
         method: 'POST',
         body: JSON.stringify({ path: workspacePath }),
       }),
-    createFile: async (relativePath: string, content = '') => {
-      const err = requireWorkspace();
-      if (err) {
-        return err;
-      }
-      return requestPreviewApi<WorkspaceFileDocument>('/workspace/create-file', {
+    createFile: (relativePath: string, content = '') =>
+      withWorkspace<WorkspaceFileDocument, [string, string]>(async (rootPath, rp, c) =>
+        requestPreviewApi<WorkspaceFileDocument>('/workspace/create-file', {
+          method: 'POST',
+          body: JSON.stringify({ rootPath, relativePath: rp, content: c }),
+        })
+      )(relativePath, content),
+    createFolder: withWorkspace<boolean, [string]>(async (rootPath, relativePath) =>
+      requestPreviewApi<boolean>('/workspace/create-folder', {
         method: 'POST',
-        body: JSON.stringify({
-          rootPath: ctx.currentWorkspace!.rootPath,
-          relativePath,
-          content,
-        }),
-      });
-    },
-    createFolder: async (relativePath: string) => {
-      const err = requireWorkspace();
-      if (err) {
-        return err;
-      }
-      return requestPreviewApi<boolean>('/workspace/create-folder', {
-        method: 'POST',
-        body: JSON.stringify({ rootPath: ctx.currentWorkspace!.rootPath, relativePath }),
-      });
-    },
-    readFile: async (relativePath: string) => {
-      const err = requireWorkspace();
-      if (err) {
-        return err;
-      }
-      const params = new URLSearchParams({
-        rootPath: ctx.currentWorkspace!.rootPath,
-        relativePath,
-      });
+        body: JSON.stringify({ rootPath, relativePath }),
+      })
+    ),
+    readFile: withWorkspace<WorkspaceFileDocument, [string]>(async (rootPath, relativePath) => {
+      const params = new URLSearchParams({ rootPath, relativePath });
       return requestPreviewApi<WorkspaceFileDocument>(`/workspace/file?${params.toString()}`);
-    },
+    }),
     readFileForWorkspace: async (workspacePath: string, relativePath: string) => {
       const params = new URLSearchParams({ rootPath: workspacePath, relativePath });
       return requestPreviewApi<WorkspaceFileDocument>(`/workspace/file?${params.toString()}`);
     },
-    getChangePreview: async (relativePath: string) => {
-      const err = requireWorkspace();
-      if (err) {
-        return err;
+    getChangePreview: withWorkspace<WorkspaceChangePreview, [string]>(
+      async (rootPath, relativePath) => {
+        const params = new URLSearchParams({ rootPath, relativePath });
+        return requestPreviewApi<WorkspaceChangePreview>(
+          `/workspace/change-preview?${params.toString()}`
+        );
       }
-      const params = new URLSearchParams({
-        rootPath: ctx.currentWorkspace!.rootPath,
-        relativePath,
-      });
-      return requestPreviewApi<WorkspaceChangePreview>(
-        `/workspace/change-preview?${params.toString()}`
-      );
-    },
+    ),
     getChangePreviewForWorkspace: async (workspacePath: string, relativePath: string) => {
       const params = new URLSearchParams({ rootPath: workspacePath, relativePath });
       return requestPreviewApi<WorkspaceChangePreview>(
@@ -264,69 +245,35 @@ export function createPreviewWorkspaceBridge(
       const params = new URLSearchParams({ rootPath: ctx.currentWorkspace.rootPath });
       return requestPreviewApi<WorkspaceTreeNode[]>(`/workspace/tree?${params.toString()}`);
     },
-    renameFile: async (relativePath: string, newName: string) => {
-      const err = requireWorkspace();
-      if (err) {
-        return err;
-      }
-      return requestPreviewApi<boolean>('/workspace/rename-file', {
+    renameFile: withWorkspace<boolean, [string, string]>(async (rootPath, relativePath, newName) =>
+      requestPreviewApi<boolean>('/workspace/rename-file', {
         method: 'POST',
-        body: JSON.stringify({
-          rootPath: ctx.currentWorkspace!.rootPath,
-          relativePath,
-          newName,
-        }),
-      });
-    },
-    deleteFile: async (relativePath: string) => {
-      const err = requireWorkspace();
-      if (err) {
-        return err;
-      }
-      return requestPreviewApi<boolean>('/workspace/delete-file', {
+        body: JSON.stringify({ rootPath, relativePath, newName }),
+      })
+    ),
+    deleteFile: withWorkspace<boolean, [string]>(async (rootPath, relativePath) =>
+      requestPreviewApi<boolean>('/workspace/delete-file', {
         method: 'POST',
-        body: JSON.stringify({ rootPath: ctx.currentWorkspace!.rootPath, relativePath }),
-      });
-    },
-    duplicateFile: async (srcRelativePath: string, dstRelativePath: string) => {
-      const err = requireWorkspace();
-      if (err) {
-        return err;
-      }
-      return requestPreviewApi<boolean>('/workspace/duplicate-file', {
-        method: 'POST',
-        body: JSON.stringify({
-          rootPath: ctx.currentWorkspace!.rootPath,
-          srcRelativePath,
-          dstRelativePath,
-        }),
-      });
-    },
-    getAbsolutePath: async (relativePath: string) => {
-      const err = requireWorkspace();
-      if (err) {
-        return err;
-      }
-      const params = new URLSearchParams({
-        rootPath: ctx.currentWorkspace!.rootPath,
-        relativePath,
-      });
+        body: JSON.stringify({ rootPath, relativePath }),
+      })
+    ),
+    duplicateFile: withWorkspace<boolean, [string, string]>(
+      async (rootPath, srcRelativePath, dstRelativePath) =>
+        requestPreviewApi<boolean>('/workspace/duplicate-file', {
+          method: 'POST',
+          body: JSON.stringify({ rootPath, srcRelativePath, dstRelativePath }),
+        })
+    ),
+    getAbsolutePath: withWorkspace<string, [string]>(async (rootPath, relativePath) => {
+      const params = new URLSearchParams({ rootPath, relativePath });
       return requestPreviewApi<string>(`/workspace/absolute-path?${params.toString()}`);
-    },
-    moveFile: async (relativePath: string, newPath: string) => {
-      const err = requireWorkspace();
-      if (err) {
-        return err;
-      }
-      return requestPreviewApi<boolean>('/workspace/move-file', {
+    }),
+    moveFile: withWorkspace<boolean, [string, string]>(async (rootPath, relativePath, newPath) =>
+      requestPreviewApi<boolean>('/workspace/move-file', {
         method: 'POST',
-        body: JSON.stringify({
-          rootPath: ctx.currentWorkspace!.rootPath,
-          relativePath,
-          newPath,
-        }),
-      });
-    },
+        body: JSON.stringify({ rootPath, relativePath, newPath }),
+      })
+    ),
     setEditorDirtyPaths: async () => ({ ok: true as const, data: true }),
   };
 

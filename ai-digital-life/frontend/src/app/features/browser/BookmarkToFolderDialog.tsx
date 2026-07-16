@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   IconChevronDown,
@@ -11,6 +11,7 @@ import {
 } from '@icons';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import type { FileTreeRenderableNode } from '@features/file-tree/fileTree.utils';
+import { TooltipSimple } from '../../components/Tooltip';
 
 interface BookmarkToFolderDialogProps {
   open: boolean;
@@ -170,20 +171,8 @@ export function BookmarkToFolderDialog({
 
   const isAllExpanded = allPaths.length > 0 && expandedSet.size >= allPaths.length;
 
-  const hintRef = useRef<HTMLSpanElement>(null);
-  const subCardsRef = useRef<HTMLDivElement[]>([]);
-
-  useEffect(() => {
-    return () => {
-      subCardsRef.current.forEach((el) => el.remove());
-      subCardsRef.current = [];
-    };
-  }, []);
-
   useEffect(() => {
     if (!open) {
-      subCardsRef.current.forEach((el) => el.remove());
-      subCardsRef.current = [];
       return;
     }
     if (open) {
@@ -272,56 +261,6 @@ export function BookmarkToFolderDialog({
     [onBookmarkNameChange]
   );
 
-  const handleHintEnter = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      const btn = (e.target as HTMLElement).closest('.adl-bookmark-dir-toolbar__btn-hint');
-      if (!btn) {
-        return;
-      }
-      subCardsRef.current.forEach((el) => el.remove());
-      subCardsRef.current = [];
-
-      const btnRect = btn.getBoundingClientRect();
-      const centerY = btnRect.top + btnRect.height / 2;
-
-      const lines = ((t.browserCreateDirHint ?? '') as string).split('\n');
-      const card = document.createElement('div');
-      card.className = 'adl-sub-hint-card';
-      for (const line of lines) {
-        const item = document.createElement('div');
-        item.textContent = line;
-        card.appendChild(item);
-      }
-      card.style.left = `${btnRect.right + 4}px`;
-      card.style.top = `${centerY}px`;
-      card.style.transform = 'translateY(-50%)';
-
-      const arrow = document.createElement('div');
-      arrow.className = 'adl-sub-hint-card__arrow';
-      arrow.style.left = `${btnRect.right - 4}px`;
-      arrow.style.top = `${centerY - 4}px`;
-
-      const arrowBorder = document.createElement('div');
-      arrowBorder.className = 'adl-sub-hint-card__arrow-border';
-      arrowBorder.style.left = `${btnRect.right - 5}px`;
-      arrowBorder.style.top = `${centerY - 5}px`;
-
-      document.body.appendChild(card);
-      document.body.appendChild(arrow);
-      document.body.appendChild(arrowBorder);
-
-      subCardsRef.current = [card, arrow, arrowBorder];
-    },
-    [t]
-  );
-
-  const handleHintLeave = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    subCardsRef.current.forEach((el) => el.remove());
-    subCardsRef.current = [];
-  }, []);
-
   const hasContent = workspaceNodes.length > 0 || userFolderNodes.length > 0;
 
   if (!open) {
@@ -364,14 +303,19 @@ export function BookmarkToFolderDialog({
               <IconFolderPlus size={14} decorative />
               <span>{t.browserCreateDir as string}</span>
             </span>
-            <span
-              ref={hintRef}
-              className="adl-bookmark-dir-toolbar__btn-hint"
-              onMouseEnter={handleHintEnter}
-              onMouseLeave={handleHintLeave}
+            <TooltipSimple
+              content={
+                <>
+                  {((t.browserCreateDirHint ?? '') as string).split('\n').map((line, i) => (
+                    <div key={i}>{line}</div>
+                  ))}
+                </>
+              }
+              placement="left"
+              showArrow
             >
-              !
-            </span>
+              <span className="adl-bookmark-dir-toolbar__btn-hint">!</span>
+            </TooltipSimple>
           </button>
         </div>
 
