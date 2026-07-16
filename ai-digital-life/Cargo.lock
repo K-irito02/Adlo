@@ -177,7 +177,6 @@ name = "adl-lsp-client"
 version = "0.1.0"
 dependencies = [
  "adl-errors",
- "adl-kernel",
  "lsp-server",
  "lsp-types",
  "serde",
@@ -194,7 +193,6 @@ version = "0.1.0"
 dependencies = [
  "adl-credential",
  "adl-errors",
- "adl-kernel",
  "async-trait",
  "reqwest",
  "rmcp",
