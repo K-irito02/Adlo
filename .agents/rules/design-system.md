@@ -42,7 +42,7 @@ alwaysApply: false
 | `--surface-active` | 选中/激活态稍深底色（如菜单项 active） |
 | `--surface-raised` | 弹出层背景（菜单、popover） |
 
-详见 [tokens.md](../../docs/design-system/tokens.md)。
+详见 [tokens.md](../../docs/design-system/foundations/tokens.md)。
 
 ## 工具条/标签栏（IconStrip）
 

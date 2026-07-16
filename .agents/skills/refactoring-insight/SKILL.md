@@ -252,7 +252,16 @@ Recommend an execution order based on risk:
 
 ### 5.1 Output Location
 
-Ask the user where to place the report. If they don't have a preference, suggest a reasonable location based on the project structure (e.g., a `docs/` directory if one exists, or the project root). Use a naming convention like `refactor-insight-YYYY-MM-DD.md`.
+Write the report to `docs/refactoring-insight/report/` (relative to the project root). **Do not hardcode the absolute path** — derive the project root from context (e.g., the working directory or git root).
+
+Auto-create the directory if it doesn't exist:
+```bash
+mkdir -p docs/refactoring-insight/report
+# or on Windows:
+# New-Item -ItemType Directory -Path "docs/refactoring-insight/report" -Force
+```
+
+Use a naming convention like `refactor-insight-YYYY-MM-DD.md`.
 
 ### 5.2 Report Structure
 

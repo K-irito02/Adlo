@@ -35,7 +35,7 @@ alwaysApply: true
 ### 对话框通用规范
 
 - 背景：`var(--bg-card)`，边框：`var(--border-default)`，阴影：`var(--shadow-lg)`，圆角：`var(--radius-lg)`
-- 文档：[components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)
+- 文档：[components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)
   → Modal 章节
 
 ---
@@ -57,14 +57,14 @@ alwaysApply: true
 - 选项行：hover 用 `--surface-hover` 背景，**无边框轮廓**
 - 输入框：minimal chrome，hover/focus 浅灰背景
 - 无蓝色 chrome，禁止 `adl-btn--primary`
-- 文档：[components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)
+- 文档：[components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)
   → StatusBar menus 章节
 
 ### CodeMirror 右键菜单 → `.adl-cm-minimap-context-menu`
 
 - 方案 C·极简线条风：underline 分段控件 + `::before` 左侧指示线 + 直角背景
 - 选中态：深色背景 + 实线左侧指示线，无 checkbox
-- 文档：[components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)
+- 文档：[components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)
   → Context menu 章节
 
 ### 菜单分隔线规范
@@ -114,7 +114,7 @@ alwaysApply: true
 
 - `:active` 时 `translateY(1px)` 下沉 + 加深 accent
 - `:focus-visible` 时 3px 焦点环（`--focus-ring`）
-- 文档：[components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)
+- 文档：[components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)
   → Button 章节
 
 ### 复制按钮动画
@@ -135,7 +135,7 @@ alwaysApply: true
 ### 核心约束
 
 - **禁止硬编码颜色值**（hex、rgb、hsl 等），一律使用 `var(--...)`
-- 文档：[tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md)、[themes.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/themes.md)
+- 文档：[tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/foundations/tokens.md)、[themes.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/foundations/themes.md)
 
 ### 语义 Token 速查
 
@@ -164,7 +164,7 @@ alwaysApply: true
 
 - 通过 `<html data-theme="dark">` 切换
 - 所有语义 token 自动切换，组件无需感知
-- 文档：[themes.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/themes.md)
+- 文档：[themes.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/foundations/themes.md)
 
 ---
 
@@ -191,9 +191,9 @@ alwaysApply: true
 
 ### 文档
 
-- 完整 API：[components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)
+- 完整 API：[components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)
   → Button 章节
-- 状态矩阵：[components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)
+- 状态矩阵：[components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)
   → State coverage matrix### 危险操作按钮 → `adl-icon-btn--danger-hover`
 
 - 用于"关闭选项卡"等危险操作按钮，常驻隐藏、hover 时显示
@@ -366,9 +366,9 @@ alwaysApply: true
 
 ### 文档
 
-- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) →
+- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md) →
   Tooltip design 章节
-- [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md) →
+- [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/foundations/tokens.md) →
   Tooltip 章节
 
 ---
@@ -401,7 +401,7 @@ alwaysApply: true
 
 ### 文档
 
-- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) →
+- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md) →
   Toast Notification 章节
 
 ---
@@ -422,9 +422,9 @@ alwaysApply: true
 
 ### 文档
 
-- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) →
+- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md) →
   Component catalogue 章节
-- [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/accessibility.md)
+- [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/guidelines/accessibility.md)
   → Forms 章节
 
 ---
@@ -446,7 +446,7 @@ alwaysApply: true
 
 ### 文档
 
-- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) →
+- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md) →
   Card 章节
 
 ---
@@ -470,9 +470,9 @@ alwaysApply: true
 
 ### 文档
 
-- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) →
+- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md) →
   Pill / Badge 章节
-- [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/accessibility.md)
+- [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/guidelines/accessibility.md)
   → Color & Contrast 章节
 
 ---
@@ -498,7 +498,7 @@ alwaysApply: true
 
 ### 文档
 
-- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) →
+- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md) →
   Navigation item / Icon strip / Segmented control 章节
 
 ---
@@ -525,7 +525,7 @@ alwaysApply: true
 
 ### 文档
 
-- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) →
+- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md) →
   Component catalogue / Button 章节
 
 ---
@@ -549,7 +549,7 @@ alwaysApply: true
 
 ### 文档
 
-- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md) →
+- [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md) →
   Empty state 章节
 - [css-architecture.md](./css-architecture.md) → 布局稳定性
 
@@ -572,8 +572,8 @@ alwaysApply: true
 
 ### 文档
 
-- [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md) → Motion 章节
-- [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/accessibility.md)
+- [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/foundations/tokens.md) → Motion 章节
+- [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/guidelines/accessibility.md)
   → Motion 章节
 
 ---
@@ -583,7 +583,7 @@ alwaysApply: true
 ### 间距
 
 - 4px 基准网格：`--space-1`(4px) → `--space-24`(96px)
-- 文档：[tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md) →
+- 文档：[tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/foundations/tokens.md) →
   Spacing
 
 ### 关键布局 Token
@@ -604,7 +604,7 @@ alwaysApply: true
 ### 文档
 
 - [css-architecture.md](./css-architecture.md) → 布局稳定性
-- [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md) → Layout
+- [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/foundations/tokens.md) → Layout
 
 ---
 
@@ -626,7 +626,7 @@ alwaysApply: true
 
 ### 文档
 
-- [responsive.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/responsive.md)
+- [responsive.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/guidelines/responsive.md)
 
 ---
 
@@ -648,7 +648,7 @@ alwaysApply: true
 
 ### 文档
 
-- [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/accessibility.md)
+- [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/guidelines/accessibility.md)
 
 ---
 
@@ -686,26 +686,26 @@ z-index:3）在视觉上重叠，导致 Scrollbar 无法 hover/交互。
 
 | 场景                                   | 查哪个文档                                                                                                                                                                                    |
 | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 我要做个对话框                         | [§1 对话框](#1-对话框dialog) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                   |
-| 我要做个菜单                           | [§2 菜单](#2-菜单menu) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                         |
-| 我要调悬停颜色                         | [§3 悬停效果](#3-悬停效果hover) → [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md)                                                                        |
-| 我要调点击反馈                         | [§4 点击效果](#4-点击效果click--active) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                        |
-| 我要选颜色变量                         | [§5 颜色](#5-颜色color) → [themes.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/themes.md)                                                                                |
-| 我要做按钮                             | [§6 按钮](#6-按钮button) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                       |
+| 我要做个对话框                         | [§1 对话框](#1-对话框dialog) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                                   |
+| 我要做个菜单                           | [§2 菜单](#2-菜单menu) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                                         |
+| 我要调悬停颜色                         | [§3 悬停效果](#3-悬停效果hover) → [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/foundations/tokens.md)                                                                        |
+| 我要调点击反馈                         | [§4 点击效果](#4-点击效果click--active) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                        |
+| 我要选颜色变量                         | [§5 颜色](#5-颜色color) → [themes.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/foundations/themes.md)                                                                                |
+| 我要做按钮                             | [§6 按钮](#6-按钮button) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                                       |
 | 我要做 "!" 提示                        | [§7 Hint Card](#7--解释子卡片hint-card) → [ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ContextMenu.tsx)                           |
 | 我要做文件树                           | [§8 文件树](#8-文件树file-tree) → [css-architecture.md](./css-architecture.md)                                                                                                                |
-| 我要做 Tooltip                         | [§9 Tooltip](#9-tooltip) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                       |
-| 我要做 Toast                           | [§10 Toast](#10-toast-通知) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                    |
-| 我要做输入框                           | [§11 输入框](#11-输入框input) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                  |
-| 我要做卡片                             | [§12 卡片](#12-卡片card) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                       |
-| 我要做状态标签                         | [§13 Pill](#13-状态指示pill--badge) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                            |
-| 我要做导航                             | [§14 导航](#14-导航navigation) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                                 |
-| 我要做加载态                           | [§15 加载态](#15-加载态loading--skeleton) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                      |
-| 我要做空状态                           | [§16 空状态](#16-空状态empty-state) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components.md)                                                            |
-| 我要做动画                             | [§17 动画](#17-动画与动效motion) → [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md)                                                                       |
-| 我要调布局                             | [§18 布局](#18-布局layout) → [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/tokens.md)                                                                             |
-| 我要调响应式                           | [§19 响应式](#19-响应式responsive) → [responsive.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/responsive.md)                                                             |
-| 我要做无障碍                           | [§20 无障碍](#20-无障碍accessibility) → [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/accessibility.md)                                                    |
+| 我要做 Tooltip                         | [§9 Tooltip](#9-tooltip) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                                       |
+| 我要做 Toast                           | [§10 Toast](#10-toast-通知) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                                    |
+| 我要做输入框                           | [§11 输入框](#11-输入框input) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                                  |
+| 我要做卡片                             | [§12 卡片](#12-卡片card) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                                       |
+| 我要做状态标签                         | [§13 Pill](#13-状态指示pill--badge) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                            |
+| 我要做导航                             | [§14 导航](#14-导航navigation) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                                 |
+| 我要做加载态                           | [§15 加载态](#15-加载态loading--skeleton) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                      |
+| 我要做空状态                           | [§16 空状态](#16-空状态empty-state) → [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md)                                                            |
+| 我要做动画                             | [§17 动画](#17-动画与动效motion) → [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/foundations/tokens.md)                                                                       |
+| 我要调布局                             | [§18 布局](#18-布局layout) → [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/foundations/tokens.md)                                                                             |
+| 我要调响应式                           | [§19 响应式](#19-响应式responsive) → [responsive.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/guidelines/responsive.md)                                                             |
+| 我要做无障碍                           | [§20 无障碍](#20-无障碍accessibility) → [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/guidelines/accessibility.md)                                                    |
 | 我要修 resize handle 与 scrollbar 重叠 | [§21 Resize Handle](#21-resize-handle--scrollbar) → [知识沉淀](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/交互优化/resize-handle-pointer-events-diversion-2026-06-23.md)        |
 | 我要做 hover text-overflow 遮罩        | [§23 Hover 渐变蒙版](#23-hover-渐变蒙版) → [知识沉淀](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/知识沉淀/浏览器/browser-navigator-4-mode-2026-06-24.md)                                 |
 | 我要做子卡片菜单（分支切换等）         | [§22 子卡片菜单](#22-子卡片菜单sub-card-menu) → [BranchSubCard.tsx](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx) |

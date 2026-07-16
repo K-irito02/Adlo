@@ -130,7 +130,7 @@ app/stores/
 
 - [README.md](./README.md)
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
-- [docs/architecture/system-overview.md](../docs/architecture/system-overview.md)
+- [docs/architecture/core/system-overview.md](../docs/architecture/core/system-overview.md)
 - [docs/design-system/README.md](../docs/design-system/README.md)
 
 ## 调试工具
