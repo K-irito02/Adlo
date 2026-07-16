@@ -32,10 +32,11 @@ impl SnapshotManager {
     }
 
     /// Create a snapshot of the current workspace state.
-    /// This captures the git HEAD commit hash and file list.
+    /// The git HEAD commit hash is provided by the caller; this captures the file list.
     pub fn create_snapshot(
         &self,
         workspace_root: &Path,
+        git_commit: Option<String>,
         message_id: &str,
         session_id: &str,
         workspace_id: &str,
@@ -50,10 +51,6 @@ impl SnapshotManager {
         std::fs::create_dir_all(&files_dir).map_err(|e| {
             adl_errors::AppError::Io(format!("Failed to create snapshot files dir: {}", e))
         })?;
-
-        // Capture git state
-        let git_snapshot = adl_workspace::capture_git_snapshot(workspace_root);
-        let git_commit = git_snapshot.head;
 
         // Copy files (skip large files >2MB)
         let (file_count, total_bytes) = copy_workspace_files(workspace_root, &files_dir)?;
@@ -247,7 +244,8 @@ mod tests {
         fs::write(workspace_root.join("subdir").join("nested.txt"), b"nested content").unwrap();
 
         let manager = SnapshotManager::new(&snap_root, "testproj");
-        let record = manager.create_snapshot(&workspace_root, "msg_1", "sess_1", "ws_1").unwrap();
+        let record =
+            manager.create_snapshot(&workspace_root, None, "msg_1", "sess_1", "ws_1").unwrap();
 
         assert_eq!(record.file_count, 2);
         assert!(record.id.starts_with("snap"));

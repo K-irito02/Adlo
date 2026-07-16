@@ -115,7 +115,8 @@ mod tests {
         fs::write(workspace_root.join("readme.md"), b"original content").unwrap();
 
         let manager = SnapshotManager::new(&snap_root, "integtest");
-        let record = manager.create_snapshot(&workspace_root, "msg_1", "sess_1", "ws_1").unwrap();
+        let record =
+            manager.create_snapshot(&workspace_root, None, "msg_1", "sess_1", "ws_1").unwrap();
         assert_eq!(record.file_count, 1);
 
         fs::write(workspace_root.join("readme.md"), b"modified content").unwrap();

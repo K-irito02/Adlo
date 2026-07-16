@@ -35,7 +35,14 @@ pub async fn create_snapshot(
         let manager = get_snapshot_manager(&workspace_id, &workspace_root)?;
         let root = PathBuf::from(&workspace_root);
         tokio::task::spawn_blocking(move || {
-            manager.create_snapshot(&root, &message_id, &session_id, &workspace_id)
+            let git_snapshot = adl_workspace::capture_git_snapshot(&root);
+            manager.create_snapshot(
+                &root,
+                git_snapshot.head,
+                &message_id,
+                &session_id,
+                &workspace_id,
+            )
         })
         .await
         .map_err(|e| AppError::Internal(format!("Snapshot task failed: {}", e)))?

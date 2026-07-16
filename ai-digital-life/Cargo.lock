@@ -51,7 +51,6 @@ dependencies = [
  "adl-errors",
  "adl-fs-ops",
  "adl-types",
- "adl-workspace",
  "serde",
  "serde_json",
  "tracing",
