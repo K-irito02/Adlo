@@ -331,8 +331,8 @@ Here is the diff for this task:
 | 技能文件 | `.opencode/skills/`、`.agents/skills/`、`.trae/skills/` | 本次变更是否影响技能指令或触发条件 |
 | 治理文档 | `AGENTS.md`、`CONTEXT.md` | 是否新增术语、功能、架构层级 |
 | 架构文档 | `docs/architecture/`、`docs/development/` | 是否涉及架构决策或开发流程变更 |
-| 知识沉淀 | `docs/知识沉淀/` | 是否有值得记录的经验教训 |
-| 操作手册 | `UIOperationManual/` | 是否涉及 UI 交互变更 |
+| 知识沉淀 | `docs/knowledge-base/` | 是否有值得记录的经验教训 |
+| 操作手册 | `docs/operations/ui-manual/` | 是否涉及 UI 交互变更 |
 
 ### 4c. 规则提取与同步
 

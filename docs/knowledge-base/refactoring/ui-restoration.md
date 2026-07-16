@@ -26,7 +26,7 @@
 4. **渐进式修改**：每次只修改一个样式属性，验证后再继续
 
 详细记录请查看：
-- `docs/superpowers/specs/ui/2026-05-25-tree-layout-alignment.md` - 层级树布局优化文档
+- `docs/specs/ui/2026-05-25-tree-layout-alignment.md` - 层级树布局优化文档
 - `docs/development/file-tree-outline-styling-restoration-2026-05-27.md` - 完整工作总结
 
 ---

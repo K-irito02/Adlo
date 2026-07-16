@@ -2,7 +2,7 @@
 
 > 日期: 2026-05-24
 > 关联计划: `.trae/documents/multi-workspace-right-panel-plan.md`
-> 关联教训: [知识沉淀/多工作区/changes-terminal-panel.md](../../知识沉淀/多工作区/changes-terminal-panel.md)
+> 关联教训: [knowledge-base/multi-workspace/changes-terminal-panel.md](../../knowledge-base/multi-workspace/changes-terminal-panel.md)
 
 ## 背景
 

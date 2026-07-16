@@ -105,7 +105,7 @@ pub async fn workspace_list_tree(
 | `command_list_recent` | `commands/command.rs` | `pub fn` |
 | `task_list_audit_entries` | `commands/task.rs` | `pub fn` |
 
-参考：[tauri-sync-command-blocking-2026-07-14.md](../../docs/知识沉淀/Tauri后端/tauri-sync-command-blocking-2026-07-14.md)
+参考：[tauri-sync-command-blocking-2026-07-14.md](../../docs/knowledge-base/tauri-backend/tauri-sync-command-blocking-2026-07-14.md)
 
 ## 双端一致性
 

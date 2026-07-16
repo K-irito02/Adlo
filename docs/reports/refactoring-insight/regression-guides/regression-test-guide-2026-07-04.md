@@ -17,8 +17,8 @@
 | AGENTS.md | 项目治理规则 | 仅文档变更，无功能影响 |
 | docs/README.md | 文档索引 | 仅文档变更，无功能影响 |
 | .agents/rules/commands.md | 开发规则 | 仅文档变更，无功能影响 |
-| docs/superpowers/plans/*.md | 实施计划 | 仅文档变更，无功能影响 |
-| docs/refactoring-insight/report/*.md | 重构报告 | 仅文档变更，无功能影响 |
+| docs/plans/*.md | 实施计划 | 仅文档变更，无功能影响 |
+| docs/reports/refactoring-insight/report/*.md | 重构报告 | 仅文档变更，无功能影响 |
 
 ## 手动测试清单
 

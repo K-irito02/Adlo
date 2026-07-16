@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript + React 19 + Zustand + Tauri 2.x + Rust
 
-**洞察报告:** `docs/refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-01.md`
+**洞察报告:** `docs/reports/refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-01.md`
 
 ## Global Constraints
 

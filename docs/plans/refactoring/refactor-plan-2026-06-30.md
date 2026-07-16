@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript/React, Rust/Tauri, Zustand, CSS
 
-**洞察报告:** [refactor-insight-2026-06-30.md](../../../refactoring-insight/report/daily-insights/2026-06/refactor-insight-2026-06-30.md)
+**洞察报告:** [refactor-insight-2026-06-30.md](../../../reports/refactoring-insight/report/daily-insights/2026-06/refactor-insight-2026-06-30.md)
 
 ## Global Constraints
 
@@ -557,4 +557,4 @@ cargo test -p adl-workspace
 ---
 
 > 由 writing-plans 生成于 2026-06-30
-> 基于洞察报告: [refactor-insight-2026-06-30.md](../../../refactoring-insight/report/daily-insights/2026-06/refactor-insight-2026-06-30.md)
+> 基于洞察报告: [refactor-insight-2026-06-30.md](../../../reports/refactoring-insight/report/daily-insights/2026-06/refactor-insight-2026-06-30.md)

@@ -2,7 +2,7 @@
 
 > 本文档合并了 2026-05-21 至 2026-07-03 期间所有每日重构洞察报告的核心发现。
 > 各轮执行的详细结果见 [REFACTORING_PROGRESS_REPORT.md](./REFACTORING_PROGRESS_REPORT.md)。
-> 提炼的经验教训见 [../知识沉淀/重构/](../知识沉淀/重构/)。
+> 提炼的经验教训见 [../knowledge-base/refactoring/](../knowledge-base/refactoring/)。
 
 ## 按日期索引
 

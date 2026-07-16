@@ -1524,7 +1524,7 @@ No "TBD", "TODO", "implement later", "add appropriate error handling" patterns f
 
 ## Execution Handoff
 
-Plan complete and saved to `docs/superpowers/plans/2026-06-12-i18n-full-localization.md`.
+Plan complete and saved to `docs/plans/2026-06-12-i18n-full-localization.md`.
 
 This plan covers 6 sub-plans (A-F), each producing working, testable software independently after Sub-plan A is complete. Sub-plans B-F can be executed in parallel.
 

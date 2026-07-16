@@ -83,4 +83,4 @@ interface ChangesToolbarNavigatorProps {
 ✅ TypeScript 类型检查通过  
 ✅ 183 个前端测试全部通过
 
-> 经验教训已迁移至 [知识沉淀/多工作区/stats-fix.md](../../知识沉淀/多工作区/stats-fix.md)
+> 经验教训已迁移至 [knowledge-base/multi-workspace/stats-fix.md](../../knowledge-base/multi-workspace/stats-fix.md)

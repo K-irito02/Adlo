@@ -77,6 +77,9 @@ description: "Organizes project documentation files into a clear, standardized h
 ```
 docs/
 ├── README.md                          # 文档总入口（链接到各子目录）
+├── analysis/                          # 分析/源码地图
+│   ├── ai-digital-life/               #   ADL 源码地图
+│   └── opencode/                      #   OpenCode 源码地图
 ├── architecture/                      # 架构设计文档
 │   ├── core/                          #   核心架构
 │   ├── cross-cutting/                 #   横切关注点
@@ -87,35 +90,45 @@ docs/
 │   └── guidelines/                    #   指南（无障碍、响应式）
 ├── development/                       # 开发指南
 │   ├── agents/                        #   Agent 开发规范
-│   ├── setup/                         #   环境搭建
-│   └── workflows/                     #   工作流
-├── features/                          # 功能模块文档
-│   ├── browser/                       #   浏览器模块
-│   ├── terminal/                      #   终端模块
-│   └── ...                            #   其他模块（按实际模块扩展）
-├── operations/                        # 运维/操作手册
-│   ├── ui-manual/                     #   UI 操作手册
-│   └── deployment/                    #   部署文档
-├── analysis/                          # 分析/调研报告
-│   ├── ai-digital-life/               #   本项目分析
-│   └── opencode/                      #   参考项目分析
-├── knowledge-base/                    # 知识沉淀（经验教训）
-│   ├── browser/                       #   浏览器相关
+│   └── (files)                        #   工程约束、日志系统手册
+├── knowledge-base/                    # 经验教训知识库
+│   ├── browser/                       #   浏览器经验
+│   ├── browser-automation/            #   浏览器自动化经验
+│   ├── ci-monitoring/                 #   CI 监控经验
+│   ├── code-quality/                  #   代码质量经验
+│   ├── interaction/                   #   交互优化经验
+│   ├── logging/                       #   日志系统经验
+│   ├── multi-workspace/               #   多工作区经验
 │   ├── refactoring/                   #   重构经验
-│   ├── quality/                       #   代码质量
-│   └── ...                            #   其他领域（按实际领域扩展）
-├── plans/                             # 规划/方案文档
+│   └── tauri-backend/                #   Tauri 后端经验
+├── operations/                        # 运维/操作手册
+│   └── ui-manual/                     #   UI 操作手册
+│       ├── _shared/                   #     共享定义
+│       ├── center/                    #     中心区域
+│       ├── leftbar/                   #     左侧栏
+│       ├── rightpanel/                #     右侧面板
+│       └── titlebar/                  #     标题栏
+├── plans/                             # 实施方案规划
 │   ├── browser/                       #   浏览器规划
-│   ├── refactoring/                   #   重构规划
+│   ├── git/                           #   Git 可视化规划
 │   ├── phase2/                        #   Phase 2 规划
-│   └── ...                            #   其他规划（按实际主题扩展）
-├── specs/                             # 规格/设计文档
+│   ├── refactoring/                   #   重构规划
+│   ├── startup/                       #   启动性能规划
+│   └── ui/                            #   UI 规划
+├── reports/                           # 报告/日志
+│   └── refactoring-insight/           #   重构洞察报告
+│       ├── audit/                     #     审计报告
+│       ├── daily-insights/            #     每日洞察
+│       ├── phase-reports/             #     阶段报告
+│       ├── progress/                  #     进度报告
+│       └── regression-guides/         #     回归测试指南
+├── specs/                             # 功能规格设计
 │   ├── browser/                       #   浏览器规格
+│   ├── git/                           #   Git 可视化规格
 │   ├── multi-workspace/               #   多工作区规格
-│   └── ...                            #   其他规格（按实际主题扩展）
-└── reports/                           # 报告/日志
-    ├── refactoring-insight/           #   重构洞察报告
-    └── sdd/                           #   SDD 任务报告
+│   ├── refactoring/                   #   重构规格
+│   └── ui/                            #   UI 规格
+└── superpowers/                       # 旧目录（仅 README.md 重定向）
 ```
 
 **2.1.1 整理完成后同步更新技能文件**
@@ -211,7 +224,7 @@ docs/
 ├─ 分区 A：docs/architecture/ + docs/design-system/ + docs/development/
 ├─ 分区 B：docs/analysis/ + docs/knowledge-base/
 ├─ 分区 C：docs/plans/ + docs/specs/
-├─ 分区 D：docs/reports/ + docs/refactoring-insight/
+├─ 分区 D：docs/reports/
 ├─ 分区 E：根目录散落文件 + UIOperationManual/
 └─ 分区 F：docs/superpowers/
 ```

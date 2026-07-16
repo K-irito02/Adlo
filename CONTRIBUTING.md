@@ -59,7 +59,7 @@ pnpm run dev:both
 ├── .opencode/skills/    # 技能真源（同步到 .agents/skills/ 和 .trae/skills/）
 ├── ai-digital-life/     # 实现工作区（Rust + Tauri + React）
 ├── references/          # 外部参考源码（OpenCode 等）
-└── docs/                # 架构、设计、知识沉淀
+└── docs/                # 架构、设计、知识库
 ```
 
 ---
@@ -123,4 +123,4 @@ pnpm run dev:both
 - [CONTEXT.md](./CONTEXT.md) — 领域术语表
 - [SECURITY.md](./SECURITY.md) — 安全策略
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
-- [docs/](./docs/) — 架构设计、知识沉淀、设计系统
+- [docs/](./docs/) — 架构设计、知识库、设计系统

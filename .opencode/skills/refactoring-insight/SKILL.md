@@ -252,13 +252,13 @@ Recommend an execution order based on risk:
 
 ### 5.1 Output Location
 
-Write the report to `docs/refactoring-insight/report/` (relative to the project root). **Do not hardcode the absolute path** — derive the project root from context (e.g., the working directory or git root).
+Write the report to `docs/reports/refactoring-insight/report/` (relative to the project root). **Do not hardcode the absolute path** — derive the project root from context (e.g., the working directory or git root).
 
 Auto-create the directory if it doesn't exist:
 ```bash
-mkdir -p docs/refactoring-insight/report
+mkdir -p docs/reports/refactoring-insight/report
 # or on Windows:
-# New-Item -ItemType Directory -Path "docs/refactoring-insight/report" -Force
+# New-Item -ItemType Directory -Path "docs/reports/refactoring-insight/report" -Force
 ```
 
 Use a naming convention like `refactor-insight-YYYY-MM-DD.md`.

@@ -176,7 +176,7 @@ CommunicationPanel 使用 `toggleNavigator('communicate')`（更新 `navigatorCo
 
 ### 6.3 文档
 
-- `docs/refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md` - 重构进度报告
+- `docs/reports/refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md` - 重构进度报告
 
 ---
 

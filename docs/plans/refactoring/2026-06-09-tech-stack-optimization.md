@@ -1785,7 +1785,7 @@ git commit -m "test: add Windows-specific PTY compatibility tests"
 
 ## Execution Handoff
 
-Plan complete and saved to `docs/superpowers/plans/2026-06-09-tech-stack-optimization.md`.
+Plan complete and saved to `docs/plans/2026-06-09-tech-stack-optimization.md`.
 
 **Two execution options:**
 

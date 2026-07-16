@@ -28,7 +28,7 @@
 | Zustand slices | 51 files (24+ logical slices) |
 | Zustand action modules | 34 |
 | Tauri IPC commands | 176 whitelisted across 35 command modules |
-| Existing refactoring reports | 19 in docs/refactoring-insight/report/ |
+| Existing refactoring reports | 19 in docs/reports/refactoring-insight/report/ |
 | Refactoring iterations | 93 rounds total |
 | Rust `.unwrap()` in production paths | ~328 |
 | Rust `.expect()` in production paths | ~19 |

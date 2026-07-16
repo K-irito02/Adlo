@@ -167,4 +167,4 @@ rowOffset={((depth - 1) * 14) + 4}
 - ✅ **文档大纲**：恢复到63c4579版本效果（层级缩进14px、按钮20px、悬停效果正常）
 - ✅ **样式隔离**：两种树组件的样式完全独立，互不影响
 
-> 经验教训已迁移至 [知识沉淀/多工作区/tree-layout-alignment.md](../../知识沉淀/多工作区/tree-layout-alignment.md)
+> 经验教训已迁移至 [知识沉淀/多工作区/tree-layout-alignment.md](../../knowledge-base/multi-workspace/tree-layout-alignment.md)

@@ -125,7 +125,7 @@ itemClassName={`adl-filetree__item${isDirectory ? " adl-filetree__node--director
 - `frontend/src/styles/regions/rightpanel/file-tree.css` — 新增 outline 子级连接竖线对齐规则
 
 ### 5.2 需要更新的文档
-- `docs/superpowers/specs/ui/2026-05-25-tree-layout-alignment.md`
+- `docs/specs/ui/2026-05-25-tree-layout-alignment.md`
 
 ---
 

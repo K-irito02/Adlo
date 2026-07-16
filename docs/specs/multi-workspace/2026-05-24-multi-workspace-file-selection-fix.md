@@ -125,7 +125,7 @@ openChangePreviewForWorkspace: (
 4. 系统设置 `selectedFilePath` 和 `selectedFileWorkspaceId`
 5. 文件树组件根据这两个状态判断是否高亮
 
-> 经验教训已迁移至 [知识沉淀/多工作区/file-selection-fix.md](../../知识沉淀/多工作区/file-selection-fix.md)
+> 经验教训已迁移至 [knowledge-base/multi-workspace/file-selection-fix.md](../../knowledge-base/multi-workspace/file-selection-fix.md)
 
 ## 验证结果
 

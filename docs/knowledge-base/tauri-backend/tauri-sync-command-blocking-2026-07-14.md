@@ -85,4 +85,4 @@ pub async fn workspace_list_tree(
 
 - [tauri-shell.md](../../.trae/rules/tauri-shell.md) — Tauri 命令 async 规范
 - [dev-rules.md](../../.trae/rules/dev-rules.md) — 常见根因速查
-- [startup-overlay-design.md](../../superpowers/specs/ui/2026-07-13-startup-overlay-design.md) — 覆盖层设计文档
+- [startup-overlay-design.md](../../specs/ui/2026-07-13-startup-overlay-design.md) — 覆盖层设计文档

@@ -102,7 +102,7 @@
 
 ## 说明
 
-各轮重构的详细信息请参考对应的重构洞察报告文件，位于 `docs/refactoring-insight/report/` 目录下。
+各轮重构的详细信息请参考对应的重构洞察报告文件，位于 `docs/reports/refactoring-insight/report/` 目录下。
 
 ## 2026-06-11 重构洞察修复计划第 43-55 轮
 
@@ -286,7 +286,7 @@ Bug 6 是最难排查的 Race Condition：
 
 ### 关键经验
 
-详见 `docs/知识沉淀/浏览器/2026-06/browser-history-recording-fix-2026-06-26.md`
+详见 `docs/knowledge-base/browser/2026-06/browser-history-recording-fix-2026-06-26.md`
 
 ## 第八十二轮：FLIP 动画重构 + 浏览器标签标题修复（2026-06-26）
 
@@ -321,7 +321,7 @@ Bug 6 是最难排查的 Race Condition：
 
 ### 关键经验
 
-详见 `docs/知识沉淀/浏览器/2026-06/browser-tab-title-deferred-update-2026-06-26.md`
+详见 `docs/knowledge-base/browser/2026-06/browser-tab-title-deferred-update-2026-06-26.md`
 
 ## 第九十一轮：refactoring-insight 全流程执行（2026-07-01~02）
 
@@ -397,7 +397,7 @@ Bug 6 是最难排查的 Race Condition：
 
 ### 关键经验
 
-详见 `docs/知识沉淀/重构/2026-07/refactoring-insight-execution-2026-07-01.md`
+详见 `docs/knowledge-base/重构/2026-07/refactoring-insight-execution-2026-07-01.md`
 
 ### 待后续治理项
 
@@ -476,7 +476,7 @@ Bug 6 是最难排查的 Race Condition：
 
 ### 关键经验
 
-详见 `docs/refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-03.md` 和 `docs/superpowers/plans/refactoring/refactor-plan-2026-07-03.md`
+详见 `docs/refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-03.md` 和 `docs/plans/refactoring/refactor-plan-2026-07-03.md`
 
 ### 待后续治理项
 
@@ -532,5 +532,5 @@ Phase 2 功能完成后，对照 OpenCode 进行功能审计，发现 10 项实�
 
 ### 关键经验
 
-详见 `docs/知识沉淀/代码质量/2026-07/opencode-audit-fix-2026-07.md`
+详见 `docs/knowledge-base/code-quality/2026-07/opencode-audit-fix-2026-07.md`
 

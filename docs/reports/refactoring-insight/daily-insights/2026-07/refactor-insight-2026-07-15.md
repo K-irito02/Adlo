@@ -66,7 +66,7 @@ Impact
 
 ### 1. Critical — Tauri Main-Thread Blocking
 
-> **Theme**: Multiple sync `#[tauri::command] pub fn` calls perform I/O (file system, git subprocesses, DB queries) on the Tauri main thread, blocking the tao event loop and causing window "未响应" (not responding). This **directly violates** the project rule documented in `.trae/rules/dev-rules.md` "常见根因速查" and `docs/知识沉淀/Tauri后端/tauri-sync-command-blocking-2026-07-14.md`. The correct `async fn` + `tokio::task::spawn_blocking` pattern already exists in adjacent code in the same files.
+> **Theme**: Multiple sync `#[tauri::command] pub fn` calls perform I/O (file system, git subprocesses, DB queries) on the Tauri main thread, blocking the tao event loop and causing window "未响应" (not responding). This **directly violates** the project rule documented in `.trae/rules/dev-rules.md` "常见根因速查" and `docs/knowledge-base/tauri-backend/tauri-sync-command-blocking-2026-07-14.md`. The correct `async fn` + `tokio::task::spawn_blocking` pattern already exists in adjacent code in the same files.
 
 #### C1 — Sync `pub fn` git commands spawn subprocesses on main thread
 

@@ -135,7 +135,7 @@ terminalCreateTab(finalProfile, workspaceId ?? "");
 
 原来的代码直接传递原始的 `profile` 参数，而不是计算好的 `finalProfile`，导致工作区默认终端类型设置没有被正确应用。
 
-> 经验教训已迁移至 [知识沉淀/多工作区/terminal-binding.md](../../知识沉淀/多工作区/terminal-binding.md)
+> 经验教训已迁移至 [knowledge-base/multi-workspace/terminal-binding.md](../../knowledge-base/multi-workspace/terminal-binding.md)
 
 ## 验证结果
 

@@ -1,9 +1,9 @@
 # 内置浏览器实现总结
 
-> **2026-06-30 更新**：修复书签删除跨域污染——`browserRemoveTabBookmarks` 工作区过滤从 `tabId`-only 改为 `(tabId, url)` 对，新增 `scopeFolderId` 参数限定文件夹范围。详见 [browser-folder-delete-bookmark-cleanup-2026-06-30.md#phase-3-架构洞察](../知识沉淀/浏览器/browser-folder-delete-bookmark-cleanup-2026-06-30.md#phase-3-架构洞察)。  
-> **2026-06-28 更新**：修复 SPA 导航标题同步（Bilibili/YouTube 手动点击无响应/标题延迟 + 清空标签删除收藏目录标签）。详见 [browser-spa-navigation-title-sync-fix-2026-06-28.md](../知识沉淀/浏览器/browser-spa-navigation-title-sync-fix-2026-06-28.md)。  
-> **2026-06-26 更新**：修复历史记录不记录的 6 个 Bug。详见 [browser-history-recording-fix-2026-06-26.md](../知识沉淀/浏览器/browser-history-recording-fix-2026-06-26.md)。  
-> **2026-06-25 更新**：标签创建策略从"立即创建+hostname 占位"重构为"延迟创建+同步渲染"。详见 [browser-tab-meta-deferred-creation-2026-06-25.md](../知识沉淀/浏览器/browser-tab-meta-deferred-creation-2026-06-25.md)。
+> **2026-06-30 更新**：修复书签删除跨域污染——`browserRemoveTabBookmarks` 工作区过滤从 `tabId`-only 改为 `(tabId, url)` 对，新增 `scopeFolderId` 参数限定文件夹范围。详见 [browser-folder-delete-bookmark-cleanup-2026-06-30.md#phase-3-架构洞察](../knowledge-base/browser/browser-folder-delete-bookmark-cleanup-2026-06-30.md#phase-3-架构洞察)。  
+> **2026-06-28 更新**：修复 SPA 导航标题同步（Bilibili/YouTube 手动点击无响应/标题延迟 + 清空标签删除收藏目录标签）。详见 [browser-spa-navigation-title-sync-fix-2026-06-28.md](../knowledge-base/browser/browser-spa-navigation-title-sync-fix-2026-06-28.md)。  
+> **2026-06-26 更新**：修复历史记录不记录的 6 个 Bug。详见 [browser-history-recording-fix-2026-06-26.md](../knowledge-base/browser/browser-history-recording-fix-2026-06-26.md)。  
+> **2026-06-25 更新**：标签创建策略从"立即创建+hostname 占位"重构为"延迟创建+同步渲染"。详见 [browser-tab-meta-deferred-creation-2026-06-25.md](../knowledge-base/browser/browser-tab-meta-deferred-creation-2026-06-25.md)。
 
 ## 摘要
 为右侧面板浏览器工具实现了完整的双模式内置浏览器功能。Tauri 桌面模式使用原生 child WebView（multiwebview），浏览器预览模式使用 `<iframe>` 直连 + 外部浏览器降级按钮。
@@ -68,7 +68,7 @@
 | `browserHistory` | `BrowserHistoryEntry[]` | `adl-ui:browser-history` |
 | `browserNavigatorWidth` | `number` | `adl-ui:browser-navigator-width` |
 
-> 经验教训已迁移至 [知识沉淀/浏览器/builtin-browser.md](../知识沉淀/浏览器/builtin-browser.md)
+> 经验教训已迁移至 [knowledge-base/browser/builtin-browser.md](../knowledge-base/browser/builtin-browser.md)
 
 ## 快捷键
 
@@ -103,7 +103,7 @@
 | 标题栏按钮圆角问题 | 为 `.adl-titlebar .adl-iconstrip__button` 添加 `border-radius: 0` | `titlebar.css` |
 | Tauri 模式标题栏按钮点击不工作 | 为 `.adl-titlebar .tooltip-trigger` 添加 `-webkit-app-region: no-drag` 和 `pointer-events: auto` | `titlebar.css` |
 
-> 经验教训已迁移至 [知识沉淀/浏览器/builtin-browser.md](../知识沉淀/浏览器/builtin-browser.md)
+> 经验教训已迁移至 [knowledge-base/browser/builtin-browser.md](../knowledge-base/browser/builtin-browser.md)
 
 ## 浏览器功能修复（2026-05-28）
 
@@ -115,7 +115,7 @@
 | React Strict Mode 双重挂载导致 invoke 冲突 | 开发环境下 React 18 mount→unmount→remount，两次 `browser_create` 竞争导致 IPC 序列化混乱 | 引入 `creatingRef` 防止重复调用；`Promise.race` + 10s 超时防止无限挂起；清理时仅在真正的卸载阶段才销毁 WebView | `BrowserPanel.tsx` |
 | WebView 覆盖标题栏导致按钮失效 | `add_child` 使用 `getBoundingClientRect()` 坐标可能错误定位，WebView2 HWND 覆盖 HTML 内容 | WebView 始终创建在屏幕外 `(-10000,-10000)`，创建成功后再通过 `set_bounds` 移动到正确位置 | `crates/browser/src/lib.rs`, `BrowserPanel.tsx` |
 
-> 经验教训已迁移至 [知识沉淀/浏览器/builtin-browser.md](../知识沉淀/浏览器/builtin-browser.md)
+> 经验教训已迁移至 [knowledge-base/browser/builtin-browser.md](../knowledge-base/browser/builtin-browser.md)
 
 ## 浏览器功能修复（2026-05-30）
 
@@ -131,7 +131,7 @@
 | 对话框/菜单被 WebView 覆盖 | Tauri 原生 child WebView 在 OS 层级高于 HTML 元素，CSS z-index 无法控制 | 对话框打开时将 WebView 移动到屏幕外 `(-10000,-10000,1,1)`，关闭时通过 `updateWebViewBounds()` 恢复；`webViewVisibleRef` 防止 resize observer 误触恢复 | `useBrowserPanel.ts`, `BrowserPanel.tsx` |
 | 对话框关闭时网页意外刷新 | WebView 创建 effect 依赖数组包含 `webViewDisabled`，对话框关闭触发 effect 重新执行 → `browser_navigate` 导致刷新 | 从创建 effect 依赖数组中移除 `webViewDisabled`，创建 effect 仅响应 URL/标签变化 | `useBrowserPanel.ts` |
 
-> 经验教训已迁移至 [知识沉淀/浏览器/builtin-browser.md](../知识沉淀/浏览器/builtin-browser.md)
+> 经验教训已迁移至 [knowledge-base/browser/builtin-browser.md](../knowledge-base/browser/builtin-browser.md)
 
 ## 浏览器功能修复（2026-06-01）
 
@@ -146,7 +146,7 @@
 | 搜索区域按钮文字过长 | 国际化文案过长 | 将"收藏标签搜索/历史标签搜索/全部搜索"改为"收藏/历史/全部" | `copy.ts` |
 | 搜索区域按钮布局不均匀 | flex 布局设置不当 | 使用 `grid-template-columns: repeat(3, 1fr)` 实现均匀分布 | `browser-panel.css` |
 
-> 经验教训已迁移至 [知识沉淀/浏览器/builtin-browser.md](../知识沉淀/浏览器/builtin-browser.md)
+> 经验教训已迁移至 [knowledge-base/browser/builtin-browser.md](../knowledge-base/browser/builtin-browser.md)
 
 ### 修改文件清单
 
@@ -172,7 +172,7 @@
 |------|----------|------|
 | `frontend/src/app/features/browser/useBrowserPanel.ts` | 修改 | 添加 URL 变化事件监听，同步更新地址栏和标签页 |
 
-> 详细经验教训已记录在 [知识沉淀/浏览器/browser-url-sync-fix-2026-06-04.md](../知识沉淀/浏览器/browser-url-sync-fix-2026-06-04.md)
+> 详细经验教训已记录在 [knowledge-base/browser/browser-url-sync-fix-2026-06-04.md](../knowledge-base/browser/browser-url-sync-fix-2026-06-04.md)
 
 ## 浏览器导航模式切换 + 自动刷新修复（2026-06-20）
 
@@ -221,9 +221,9 @@
 | `frontend/src/app/features/browser/useBrowserWebView.ts` | 修改 | `isUrlRecentlySeen` 三层递进去重（精确→归一化→hostname+pathname）；TTL 3000ms |
 | `frontend/src/styles/regions/rightpanel/browser-toolbar.css` | 修改 | 新增 Switch 样式 |
 
-> **2026-06-25 补充**：后续新增了 WebView2 原生 DocumentTitleChanged/FaviconChanged COM 事件处理（`crates/browser/src/webview2_message.rs`），以及 Rust 侧多源去重（`should_emit_and_update`）。详细信息见 [browser-meta-sync-mechanism-2026-06-25.md](../知识沉淀/浏览器/browser-meta-sync-mechanism-2026-06-25.md)。
+> **2026-06-25 补充**：后续新增了 WebView2 原生 DocumentTitleChanged/FaviconChanged COM 事件处理（`crates/browser/src/webview2_message.rs`），以及 Rust 侧多源去重（`should_emit_and_update`）。详细信息见 [browser-meta-sync-mechanism-2026-06-25.md](../knowledge-base/browser/browser-meta-sync-mechanism-2026-06-25.md)。
 | `frontend/src/app/i18n/zh-CN/browser.ts` | 修改 | 新增 `browserNavigateInPlace`, `browserNavigateNewTab` |
 | `frontend/src/app/i18n/en-US/browser.ts` | 修改 | 新增 `browserNavigateInPlace`, `browserNavigateNewTab` |
 | `frontend/crates/browser/src/browser_navigation.rs` | 修改 | 移除 `stopImmediatePropagation` |
 
-> 详细经验教训已记录在 [知识沉淀/浏览器/browser-navigation-mode-toggle-2026-06-20.md](../知识沉淀/浏览器/browser-navigation-mode-toggle-2026-06-20.md)
+> 详细经验教训已记录在 [knowledge-base/browser/browser-navigation-mode-toggle-2026-06-20.md](../knowledge-base/browser/browser-navigation-mode-toggle-2026-06-20.md)

@@ -45,7 +45,7 @@
 
 ## 重构历史
 
-共完成 **93 轮**迭代重构，完整记录见 [REFACTORING_PROGRESS_REPORT.md](./docs/refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)。
+共完成 **93 轮**迭代重构，完整记录见 [REFACTORING_PROGRESS_REPORT.md](./docs/reports/refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)。
 
 ## 代理开发规则
 
@@ -212,4 +212,4 @@ Scope 可选项：`core`、`frontend`、`rust`、`stores`、`browser`、`termina
 - [CONTEXT.md](./CONTEXT.md) — 领域术语表
 - [SECURITY.md](./SECURITY.md) — 安全策略
 - [docs/development/project-engineering-constraints.md](./docs/development/project-engineering-constraints.md) — 工程约束
-- [docs/知识沉淀/README.md](./docs/知识沉淀/README.md) — 经验教训与总结索引
+- [docs/knowledge-base/README.md](./docs/knowledge-base/README.md) — 经验教训与总结索引

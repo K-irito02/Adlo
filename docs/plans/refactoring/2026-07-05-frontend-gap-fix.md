@@ -1683,7 +1683,7 @@ All method names consistent across IPC interfaces, bridges, and store actions e.
 
 ---
 
-**Plan complete and saved to `docs/superpowers/plans/2026-07-05-frontend-gap-fix.md`.**
+**Plan complete and saved to `docs/plans/2026-07-05-frontend-gap-fix.md`.**
 
 Two execution options:
 
