@@ -111,7 +111,11 @@ const TitleBarNotifications = React.memo(function TitleBarNotifications({
   }, [notifOpen]);
 
   return (
-    <div className="adl-notif-wrapper" style={{ position: 'relative', display: 'inline-flex' }}>
+    <div
+      className="adl-notif-wrapper"
+      ref={notifRef}
+      style={{ position: 'relative', display: 'inline-flex' }}
+    >
       <TooltipSimple content={t.notifButtonTooltip as string} placement="bottom">
         <button
           type="button"
