@@ -29,11 +29,11 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
         rowLabels={contributorNames}
         margin={{ top: 28, right: 16, bottom: 0, left: 80 }}
         gap={2}
-        binSize={16}
+        binSize={20}
         animate={true}
       >
         <HeatmapCells cornerRadius={2} />
-        <HeatmapXAxis />
+        <HeatmapXAxis tickEvery={4} />
         <HeatmapYAxis />
         <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
       </HeatmapChart>

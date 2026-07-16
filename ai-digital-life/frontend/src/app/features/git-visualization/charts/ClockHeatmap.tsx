@@ -36,11 +36,11 @@ export const ClockHeatmap = React.memo(function ClockHeatmap() {
         locale={locale}
         margin={{ top: 28, right: 16, bottom: 0, left: 40 }}
         gap={2}
-        binSize={20}
+        binSize={26}
         animate={true}
       >
         <HeatmapCells cornerRadius={2} />
-        <HeatmapXAxis />
+        <HeatmapXAxis tickEvery={2} />
         <HeatmapYAxis />
         <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
       </HeatmapChart>

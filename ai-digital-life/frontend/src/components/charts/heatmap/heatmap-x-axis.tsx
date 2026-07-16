@@ -9,9 +9,11 @@ import { getHeatmapColumnMonthAnchor } from './heatmap-utils';
 export interface HeatmapXAxisProps {
   /** Additional class name for labels */
   className?: string;
+  /** Show every N-th label (1 = all). Helps prevent overlap on dense grids. Default: 1 */
+  tickEvery?: number;
 }
 
-export const HeatmapXAxis = memo(function HeatmapXAxis({ className }: HeatmapXAxisProps) {
+export const HeatmapXAxis = memo(function HeatmapXAxis({ className, tickEvery = 1 }: HeatmapXAxisProps) {
   const { containerRef, data, margin, xScale, columnLabels, locale } = useHeatmap();
   const [mounted, setMounted] = useState(false);
 
@@ -21,13 +23,14 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({ className }: HeatmapXAx
 
   const labels = useMemo(() => {
     if (columnLabels) {
+      const every = Math.max(1, tickEvery);
       return columnLabels
         .map((label, columnIndex) => ({
           label,
           x: margin.left + xScale(columnIndex),
           key: `col-${columnIndex}`,
         }))
-        .filter((tick) => tick.label);
+        .filter((tick, i) => tick.label && i % every === 0);
     }
 
     const monthFmt = new Intl.DateTimeFormat(locale ?? undefined, { month: 'short' });
