@@ -1,4 +1,4 @@
-import type { HeatmapColumn } from '@/components/charts/heatmap/heatmap-context';
+import type { HeatmapColumn, HeatmapBin } from '@/components/charts/heatmap/heatmap-context';
 
 /** Git 可视化模拟数据，从 Git可视化设计.md 提取 */
 
@@ -75,37 +75,8 @@ export function generateCalendarData(): [string, number][] {
   return data;
 }
 
-/** 时钟热力图数据：[hour, day, count] */
-export const clockHeatmapData: [number, number, number][] = (() => {
-  const data: [number, number, number][] = [];
-  let seed = 123;
-  const pseudoRandom = () => {
-    seed = (seed * 9301 + 49297) % 233280;
-    return seed / 233280;
-  };
-  for (let d = 0; d < 7; d++) {
-    for (let h = 0; h < 24; h++) {
-      let base: number;
-      if (h >= 9 && h <= 18) {
-        base = Math.floor(pseudoRandom() * 6) + 3;
-      } else if (h >= 19 && h <= 23) {
-        base = Math.floor(pseudoRandom() * 3);
-      } else {
-        base = Math.floor(pseudoRandom() * 2);
-      }
-      if (d === 0 || d === 6) {
-        base = Math.floor(base * 0.3);
-      }
-      data.push([h, d, base]);
-    }
-  }
-  return data;
-})();
-
 export const contributorNames = ['Alex', 'Ben', 'Cara', 'Diana', 'Evan', 'Fiona'];
-export const contributorCommits = [45, 38, 27, 53, 19, 32];
-export const contributorAdded = [3200, 2800, 1500, 4100, 900, 2200];
-export const contributorDeleted = [1200, 800, 600, 1800, 300, 700];
+export const contributorTotalCommits = [45, 38, 27, 53, 19, 32];
 
 /** Treemap 数据 */
 export const fileTreemapData = {
@@ -180,78 +151,12 @@ export function generateCodeLineEvolutionData(): {
   return { dates, added, deleted };
 }
 
-/** 桑基图数据 */
-export const sankeyNodes = [
-  { name: 'Alex' },
-  { name: 'Ben' },
-  { name: 'Cara' },
-  { name: 'Diana' },
-  { name: 'Evan' },
-  { name: 'Fiona' },
-  { name: '前端' },
-  { name: '后端' },
-  { name: '数据库' },
-  { name: '测试' },
-  { name: '文档' },
-];
 
-export const sankeyLinks = [
-  { source: 'Alex', target: '前端', value: 80 },
-  { source: 'Alex', target: '后端', value: 30 },
-  { source: 'Ben', target: '前端', value: 20 },
-  { source: 'Ben', target: '后端', value: 70 },
-  { source: 'Ben', target: '数据库', value: 40 },
-  { source: 'Cara', target: '后端', value: 60 },
-  { source: 'Cara', target: '测试', value: 50 },
-  { source: 'Diana', target: '前端', value: 90 },
-  { source: 'Diana', target: '文档', value: 30 },
-  { source: 'Evan', target: '数据库', value: 80 },
-  { source: 'Evan', target: '测试', value: 20 },
-  { source: 'Fiona', target: '文档', value: 70 },
-  { source: 'Fiona', target: '测试', value: 40 },
-];
 
 // ── Bklit/visx data adapter interfaces ──
 
 export interface BklitAreaRow {
   date: string;
-  added: number;
-  deleted: number;
-  [key: string]: unknown;
-}
-
-export interface BklitSankeyNode {
-  id: string;
-  label: string;
-}
-
-export interface BklitSankeyLink {
-  source: string;
-  target: string;
-  value: number;
-}
-
-export interface BklitSankeyNodeDatum {
-  name: string;
-  [key: string]: unknown;
-}
-
-export interface BklitSankeyLinkDatum {
-  source: number;
-  target: number;
-  value: number;
-  [key: string]: unknown;
-}
-
-export interface BklitHeatmapCell {
-  x: number;
-  y: number;
-  value: number;
-}
-
-export interface BklitContributorRow {
-  name: string;
-  commits: number;
   added: number;
   deleted: number;
   [key: string]: unknown;
@@ -269,16 +174,7 @@ export function toBklitAreaData(
   }));
 }
 
-export function toBklitSankeyData(): { nodes: BklitSankeyNode[]; links: BklitSankeyLink[] } {
-  return {
-    nodes: sankeyNodes.map((n) => ({ id: n.name, label: n.name })),
-    links: sankeyLinks,
-  };
-}
 
-export function toClockHeatmapData(): BklitHeatmapCell[] {
-  return clockHeatmapData.map(([hour, day, count]) => ({ x: hour, y: day, value: count }));
-}
 
 export function toHeatmapColumns(): HeatmapColumn[] {
   const raw = generateCalendarData();
@@ -298,20 +194,7 @@ export function toHeatmapColumns(): HeatmapColumn[] {
   return [...weekMap.entries()].sort(([a], [b]) => a - b).map(([bin, bins]) => ({ bin, bins }));
 }
 
-export function toBklitSankeyChartData(): {
-  nodes: BklitSankeyNodeDatum[];
-  links: BklitSankeyLinkDatum[];
-} {
-  const nameToIndex = new Map(sankeyNodes.map((n, i) => [n.name, i]));
-  return {
-    nodes: sankeyNodes.map((n) => ({ name: n.name })),
-    links: sankeyLinks.map((l) => ({
-      source: nameToIndex.get(l.source) ?? 0,
-      target: nameToIndex.get(l.target) ?? 0,
-      value: l.value,
-    })),
-  };
-}
+
 
 export interface CommitTimelineRow {
   date: string;
@@ -335,11 +218,73 @@ export const mockCommitTimelineData: CommitTimelineRow[] = [
   { date: '2026-01-14', count: 1, cumulative: 12 },
 ];
 
-export function toContributorData(): BklitContributorRow[] {
-  return contributorNames.map((name, i) => ({
-    name,
-    commits: contributorCommits[i],
-    added: contributorAdded[i],
-    deleted: contributorDeleted[i],
+export function generateClockHeatmapData(): HeatmapColumn[] {
+  const columns: HeatmapColumn[] = [];
+  let seed = 123;
+  const pseudoRandom = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  for (let h = 0; h < 24; h++) {
+    const bins: HeatmapBin[] = [];
+    for (let d = 0; d < 7; d++) {
+      let base: number;
+      if (h >= 9 && h <= 18) {
+        base = Math.floor(pseudoRandom() * 6) + 3;
+      } else if (h >= 19 && h <= 23) {
+        base = Math.floor(pseudoRandom() * 3);
+      } else {
+        base = Math.floor(pseudoRandom() * 2);
+      }
+      if (d === 0 || d === 6) {
+        base = Math.floor(base * 0.3);
+      }
+      bins.push({ count: base, bin: d });
+    }
+    columns.push({ bin: h, bins, columnLabel: String(h) });
+  }
+  return columns;
+}
+
+export function generateContributorActivityData(): HeatmapColumn[] {
+  const columns: HeatmapColumn[] = [];
+  let seed = 456;
+  const pseudoRandom = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  for (let w = 0; w < 48; w++) {
+    const bins: HeatmapBin[] = [];
+    for (let c = 0; c < contributorNames.length; c++) {
+      const maxWeekly = Math.ceil(contributorTotalCommits[c] / 12);
+      const count = Math.floor(pseudoRandom() * maxWeekly);
+      bins.push({ count, bin: c });
+    }
+    columns.push({ bin: w, bins });
+  }
+  return columns;
+}
+
+export const moduleNames = ['前端', '后端', '数据库', '测试', '文档'];
+
+export const contributorModuleMatrix: number[][] = [
+  [80, 30,  0,  0,  0],
+  [20, 70, 40,  0,  0],
+  [ 0, 60,  0, 50,  0],
+  [90,  0,  0,  0, 30],
+  [ 0,  0, 80, 20,  0],
+  [ 0,  0,  0, 40, 70],
+];
+
+export function generateContributorModuleData(): HeatmapColumn[] {
+  return moduleNames.map((module, mi) => ({
+    bin: mi,
+    columnLabel: module,
+    bins: contributorModuleMatrix.map((row, ci) => ({
+      count: row[mi],
+      bin: ci,
+    })),
   }));
 }
+
+
