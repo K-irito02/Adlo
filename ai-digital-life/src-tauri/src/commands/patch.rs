@@ -6,6 +6,7 @@ use adl_command::{run_command, validation_command};
 use adl_errors::AppError;
 use adl_storage::EntityTable;
 use adl_types::{IpcResult, PatchApplicationResult, PatchHunkDecision, PatchSet, PatchSetStatus};
+use tauri::{Emitter, Manager};
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,25 +17,37 @@ pub struct HunkDecisionInput {
 }
 
 #[tauri::command]
-pub fn patch_get_patch_set(
-    state: tauri::State<'_, AppState>,
+pub async fn patch_get_patch_set(
+    app: tauri::AppHandle,
     patch_set_id: String,
-) -> IpcResult<Option<PatchSet>> {
-    ipc(state.db.load_entity(EntityTable::PatchSets, &patch_set_id))
+) -> Result<IpcResult<Option<PatchSet>>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let patch_set = tokio::task::spawn_blocking(move || {
+        db.load_entity::<PatchSet>(EntityTable::PatchSets, &patch_set_id)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(patch_set)))
 }
 
 #[tauri::command]
-pub fn patch_set_hunk_decision(
-    state: tauri::State<'_, AppState>,
+pub async fn patch_set_hunk_decision(
+    app: tauri::AppHandle,
     input: HunkDecisionInput,
-) -> IpcResult<PatchSet> {
-    crate::commands::ipc_try(|| {
-        let patch_set = require_patch_set(&state, &input.patch_set_id)?;
+) -> Result<IpcResult<PatchSet>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let patch_set = tokio::task::spawn_blocking(move || -> Result<PatchSet, AppError> {
+        let patch_set = require_patch_set_with_db(&db, &input.patch_set_id)?;
         let patch_set =
             adl_change_engine::set_hunk_decision(patch_set, &input.hunk_id, input.decision)?;
-        save_patch_set(&state, &patch_set)?;
+        save_patch_set_with_db(&db, &patch_set)?;
         Ok(patch_set)
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(patch_set)))
 }
 
 #[tauri::command]
@@ -47,21 +60,23 @@ pub async fn patch_apply_patch_set(
 }
 
 #[tauri::command]
-pub fn patch_rollback_patch_set(
+pub async fn patch_rollback_patch_set(
     app: tauri::AppHandle,
-    state: tauri::State<'_, AppState>,
     patch_set_id: String,
-) -> IpcResult<PatchSet> {
-    crate::commands::ipc_try(|| {
-        let patch_set = require_patch_set(&state, &patch_set_id)?;
-        let workspace = crate::commands::workspace::current_workspace(&state)?;
-        let patch_set = adl_change_engine::rollback_patch_set(
-            patch_set,
-            std::path::Path::new(&workspace.root_path),
-        )?;
-        let _ = crate::commands::audit::save_audit_entry(
-            &state,
-            &workspace.id,
+) -> Result<IpcResult<PatchSet>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let workspace = crate::commands::workspace::current_workspace(&state)?;
+    let root_path = workspace.root_path.clone();
+    let workspace_id = workspace.id.clone();
+
+    let patch_set = tokio::task::spawn_blocking(move || -> Result<PatchSet, AppError> {
+        let patch_set = require_patch_set_with_db(&db, &patch_set_id)?;
+        let patch_set =
+            adl_change_engine::rollback_patch_set(patch_set, std::path::Path::new(&root_path))?;
+        let _ = crate::commands::audit::save_audit_entry_with_db(
+            &db,
+            &workspace_id,
             Some(&patch_set.session_id),
             "patch-rollback",
             adl_types::RiskLevel::Medium,
@@ -70,64 +85,27 @@ pub fn patch_rollback_patch_set(
             None,
         );
         if let Some(run_id) = &patch_set.run_id {
-            emit_patch_rollback_activity(&app, &state, &workspace, &patch_set, run_id);
+            let Some(run) =
+                db.load_entity::<adl_types::AgentRunRecord>(EntityTable::AgentRuns, run_id)?
+            else {
+                return Ok(patch_set);
+            };
+            let mut steps: Vec<adl_types::AgentPlanStep> =
+                db.list_entities_by_run(EntityTable::AgentSteps, run_id)?;
+            steps.sort_by_key(|step| step.created_at);
+            let mut detail = adl_types::AgentRunDetail { run: run.clone(), steps };
+            detail.run.status = adl_types::AgentRunStatus::RolledBack;
+            detail.run.updated_at = adl_types::now_ms();
+            crate::commands::agent::save_run_detail_with_db(&db, &detail)?;
         }
-        save_patch_set(&state, &patch_set)?;
+        save_patch_set_with_db(&db, &patch_set)?;
         Ok(patch_set)
     })
-}
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
 
-fn emit_patch_rollback_activity(
-    app: &tauri::AppHandle,
-    state: &AppState,
-    workspace: &adl_types::WorkspaceMeta,
-    patch_set: &PatchSet,
-    run_id: &str,
-) {
-    let ts = adl_types::now_ms();
-    let seq = adl_agent_runtime::run_activity_seq::next_run_activity_seq(ts);
-    let event = adl_types::DigitalLifeRunActivityEventV1::Patch {
-        v: 1,
-        run_id: run_id.to_string(),
-        seq,
-        ts,
-        phase: "rolled-back".into(),
-        patch_set_id: patch_set.id.clone(),
-        file_count: Some(patch_set.file_patches.len()),
-        hunk_count: Some(patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()),
-    };
-    let payload = serde_json::json!({
-        "phase": "rolled-back",
-        "patchSetId": patch_set.id,
-        "fileCount": patch_set.file_patches.len(),
-        "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
-    });
-    crate::commands::save_and_emit_run_activity(RunActivityContext {
-        state,
-        app,
-        workspace_id: &workspace.id,
-        session_id: &patch_set.session_id,
-        run_id,
-        event: &event,
-        event_type: "patch",
-        seq,
-        ts,
-        extra: payload,
-    });
-    if let Ok(Some(detail)) = crate::commands::agent::load_run_detail(state, run_id) {
-        let validation = adl_types::ValidationResult {
-            id: adl_types::create_id("validation"),
-            workspace_id: workspace.id.clone(),
-            run_id: Some(run_id.to_string()),
-            patch_set_id: Some(patch_set.id.clone()),
-            status: "failed".into(),
-            summary: "User requested rollback.".into(),
-            diagnostics: vec![],
-            created_at: adl_types::now_ms(),
-        };
-        let detail = adl_agent_runtime::complete_after_patch(detail, &validation, true);
-        let _ = crate::commands::agent::save_run_detail(state, &detail);
-    }
+    let _ = app.emit("digital-life://patch-rolled-back", &patch_set);
+    Ok(ipc(Ok(patch_set)))
 }
 
 async fn apply_patch_set_inner(
@@ -328,6 +306,36 @@ fn save_patch_set(state: &AppState, patch_set: &PatchSet) -> Result<(), AppError
         PatchSetStatus::RolledBack => "rolled-back",
     };
     state.db.save_entity(
+        EntityTable::PatchSets,
+        &patch_set.id,
+        Some(&patch_set.workspace_id),
+        Some(&patch_set.session_id),
+        Some(status),
+        patch_set,
+    )
+}
+
+fn require_patch_set_with_db(
+    db: &adl_storage::Database,
+    patch_set_id: &str,
+) -> Result<PatchSet, AppError> {
+    db.load_entity::<PatchSet>(EntityTable::PatchSets, patch_set_id)?
+        .ok_or_else(|| AppError::NotFound(format!("patch_set {patch_set_id}")))
+}
+
+fn save_patch_set_with_db(
+    db: &adl_storage::Database,
+    patch_set: &PatchSet,
+) -> Result<(), AppError> {
+    let status = match patch_set.status {
+        PatchSetStatus::Draft => "draft",
+        PatchSetStatus::Ready => "ready",
+        PatchSetStatus::Applying => "applying",
+        PatchSetStatus::Applied => "applied",
+        PatchSetStatus::Failed => "failed",
+        PatchSetStatus::RolledBack => "rolled-back",
+    };
+    db.save_entity(
         EntityTable::PatchSets,
         &patch_set.id,
         Some(&patch_set.workspace_id),
