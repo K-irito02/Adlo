@@ -124,6 +124,8 @@ export interface HeatmapChartProps {
    * Rotates column bins for display without reshaping source data.
    */
   weekStartDay?: HeatmapWeekStartDay;
+  /** Label mode: row labels for each row (overrides calendar day labels). */
+  rowLabels?: string[];
   /** Child components (HeatmapCells, HeatmapXAxis, HeatmapYAxis) */
   children: ReactNode;
 }
@@ -222,6 +224,7 @@ interface HeatmapChartInnerProps {
   showLoadingLabel: boolean;
   columnSeparators?: HeatmapSeparatorParsedConfig;
   weekStartDay: HeatmapWeekStartDay;
+  rowLabels?: string[];
   children: ReactNode;
 }
 
@@ -255,6 +258,7 @@ function HeatmapChartInner({
   showLoadingLabel,
   columnSeparators,
   weekStartDay,
+  rowLabels,
   children,
 }: HeatmapChartInnerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -307,12 +311,20 @@ function HeatmapChartInner({
   );
   const yScale = useMemo(() => (rowIndex: number) => rowIndex * binHeight, [binHeight]);
 
+  const resolvedColumnLabels = useMemo(() => {
+    const hasAnyLabel = data.some((col) => col.columnLabel != null);
+    if (!hasAnyLabel) return undefined;
+    return data.map((col) => col.columnLabel ?? '');
+  }, [data]);
+
   const timeExtent = useMemo(() => getHeatmapTimeExtent(data), [data]);
 
   const timeXScale = useMemo(() => {
-    const domain = timeExtent ?? [new Date(), new Date()];
+    if (!timeExtent) {
+      return null;
+    }
     return scaleTime({
-      domain,
+      domain: timeExtent,
       range: [0, innerWidth],
     });
   }, [innerWidth, timeExtent]);
@@ -342,6 +354,8 @@ function HeatmapChartInner({
       yScale,
       separatorLayout,
       timeXScale,
+      columnLabels: resolvedColumnLabels,
+      rowLabels,
       brushYScale,
       isReady: chartWidth >= 10 && height >= 10,
       colorScale,
@@ -392,7 +406,9 @@ function HeatmapChartInner({
       separatorLayout,
       showLoadingCells,
       showLoadingLabel,
+      resolvedColumnLabels,
       revealEpoch,
+      rowLabels,
       timeXScale,
       visibleData,
       weekStartDay,
@@ -596,6 +612,7 @@ export function HeatmapChart({
   loadingCellRandomness = HEATMAP_DEFAULT_LOADING_CELL_RANDOMNESS,
   columnSeparators,
   weekStartDay = 0,
+  rowLabels,
   children,
 }: HeatmapChartProps) {
   const margin = { ...DEFAULT_MARGIN, ...marginProp };
@@ -653,6 +670,7 @@ export function HeatmapChart({
             margin={margin}
             revealEpoch={revealEpoch}
             revealMode={revealMode}
+            rowLabels={rowLabels}
             showLoadingCells={showLoadingCells}
             showLoadingLabel={showLoadingLabel}
             sizingColumnCount={sizingColumnCount}

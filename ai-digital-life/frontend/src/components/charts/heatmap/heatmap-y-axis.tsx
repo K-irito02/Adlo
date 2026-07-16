@@ -30,24 +30,30 @@ export const HeatmapYAxis = memo(function HeatmapYAxis({
   labelFormat = 'full',
   rowOpacity,
 }: HeatmapYAxisProps) {
-  const { containerRef, margin, binHeight, gap, yScale, weekStartDay } = useHeatmap();
+  const { containerRef, margin, binHeight, gap, yScale, rowLabels, weekStartDay } = useHeatmap();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const labels = useMemo(
-    () =>
-      getHeatmapDayLabels(weekStartDay)
-        .map((label, row) => ({
-          row,
-          label: formatHeatmapYAxisLabel(label, labelFormat),
-          y: margin.top + yScale(row) + (binHeight - gap) / 2,
-        }))
-        .filter((tick) => shouldShowHeatmapYAxisTick(tick.row, tickFilter)),
-    [binHeight, gap, labelFormat, margin.top, tickFilter, weekStartDay, yScale]
-  );
+  const labels = useMemo(() => {
+    if (rowLabels) {
+      return rowLabels.map((label, row) => ({
+        row,
+        label,
+        y: margin.top + yScale(row) + (binHeight - gap) / 2,
+      }));
+    }
+
+    return getHeatmapDayLabels(weekStartDay)
+      .map((label, row) => ({
+        row,
+        label: formatHeatmapYAxisLabel(label, labelFormat),
+        y: margin.top + yScale(row) + (binHeight - gap) / 2,
+      }))
+      .filter((tick) => shouldShowHeatmapYAxisTick(tick.row, tickFilter));
+  }, [binHeight, gap, labelFormat, margin.top, rowLabels, tickFilter, weekStartDay, yScale]);
 
   const container = containerRef.current;
   if (!(mounted && container)) {
