@@ -26,6 +26,9 @@ alwaysApply: true
 | `dev-rules.md` | 代理交互与执行规则（询问卡片、终端命令、代码修改、问题排查、编码风格） | 始终应用 |
 | `mandatory-testing.md` | 结束验收流程、强制红绿测试、测试材料管理 | 始终应用 |
 | `ui-patterns.md` | UI 模式速查：对话框、菜单、悬停、点击、颜色、Hint Card、按钮、文件树、Tooltip、Toast 等 22 类模式 | 始终应用 |
+| `tauri-command-ipc-wrapper-pattern.md` | Tauri 命令统一使用 ipc()/ipc_try() 包装器 | Tauri Command 变更 |
+| `tagged-enum-camelcase-serde-pattern.md` | Rust↔TS 共享类型 serde 序列化规范 | 新增共享类型 |
+| `usetcopy-i18n-context-pattern.md` | 前端 i18n useTCopy() 上下文模式实现 | 前端 UI 开发 |
 
 ## 新增规则
 
@@ -58,6 +61,9 @@ alwaysApply: true
 | 错误处理/Loading 变更 | `error-handling.md` |
 | 重构验证 | `quality-gates.md`（重构门禁） |
 | 参考项目（references/）变更 | `project-overview.md`、`AGENTS.md` |
+| IPC 包装模式变更 | `tauri-command-ipc-wrapper-pattern.md` |
+| Serde 序列化规范变更 | `tagged-enum-camelcase-serde-pattern.md` |
+| i18n 实现模式变更 | `usetcopy-i18n-context-pattern.md` |
 
 ## MCP 服务器说明
 
