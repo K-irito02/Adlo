@@ -3,9 +3,9 @@ import { useTCopy } from '@i18n/useTCopy';
 import { CalendarHeatmap } from './charts/CalendarHeatmap';
 import { ClockHeatmap } from './charts/ClockHeatmap';
 import { CodeLineEvo } from './charts/CodeLineEvo';
-import { CollabSankey } from './charts/CollabSankey';
 import { CommitTimeline } from './charts/CommitTimeline';
-import { ContributorStats } from './charts/ContributorStats';
+import { ContributorActivityHeatmap } from './charts/ContributorActivityHeatmap';
+import { ContributorModuleHeatmap } from './charts/ContributorModuleHeatmap';
 import { FileSunburst } from './charts/FileSunburst';
 
 interface ChartCardProps {
@@ -39,14 +39,14 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
       <ChartCard title={t.gitVisCodeLineEvo} desc={t.gitVisCodeLineEvoDesc}>
         <CodeLineEvo />
       </ChartCard>
-      <ChartCard title={t.gitVisCollabSankey} desc={t.gitVisCollabSankeyDesc}>
-        <CollabSankey />
+      <ChartCard title={t.gitVisContributorActivity} desc={t.gitVisContributorActivityDesc}>
+        <ContributorActivityHeatmap />
       </ChartCard>
       <ChartCard title={t.gitVisCommitTimeline} desc={t.gitVisCommitTimelineDesc}>
         <CommitTimeline />
       </ChartCard>
-      <ChartCard title={t.gitVisContributorStats} desc={t.gitVisContributorStatsDesc}>
-        <ContributorStats />
+      <ChartCard title={t.gitVisContributorModule} desc={t.gitVisContributorModuleDesc}>
+        <ContributorModuleHeatmap />
       </ChartCard>
       <ChartCard title={t.gitVisFileSunburst} desc={t.gitVisFileSunburstDesc}>
         <FileSunburst />

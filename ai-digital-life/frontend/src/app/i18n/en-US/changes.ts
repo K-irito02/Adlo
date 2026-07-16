@@ -106,21 +106,21 @@ export const changesEn = {
   gitVisContributions: 'contributions',
   gitVisCommits: 'commits',
   gitVisClockHeatmap: 'Commit Time Distribution',
-  gitVisContributorStats: 'Contributor Overview',
+  gitVisContributorModule: 'Contributor × Module',
   gitVisCodeLineEvo: 'Code Line Evolution',
-  gitVisCollabSankey: 'Collaboration Sankey',
+  gitVisContributorActivity: 'Contributor Activity',
   gitVisCommitTimeline: 'Commit Timeline',
   gitVisFileSunburst: 'File Modification Sunburst',
   gitVisCalendarHeatmapDesc:
     'Daily commit count over the past year. Darker color = more commits. Quickly identify active periods.',
   gitVisClockHeatmapDesc:
     'Y-axis = day of week, X-axis = hour. Color block = commit frequency. Discover team work rhythm.',
-  gitVisContributorStatsDesc:
-    'Bar chart: commit count; Line: added/deleted lines (right axis). Comprehensive activity assessment.',
+  gitVisContributorModuleDesc:
+    'Rows = contributors, columns = modules. Color intensity shows cross-domain activity.',
   gitVisCodeLineEvoDesc:
     'Cumulative added (+) and deleted (-) lines, Area + Line chart. Reflects project growth and refactoring pace.',
-  gitVisCollabSankeyDesc:
-    'Left = authors, right = modules, flow width = modification contribution. Identify "module silos" or "full-stack players".',
+  gitVisContributorActivityDesc:
+    'Rows = contributors, columns = time. Color intensity reflects contribution volume.',
   gitVisCommitTimelineDesc:
     'Scatter plot = individual commits, line = cumulative growth. Track project velocity over time.',
   gitVisFileSunburstDesc:
