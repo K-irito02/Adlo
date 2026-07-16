@@ -108,8 +108,5 @@ pub fn list_audit_entries_with_db(
     db: &adl_storage::Database,
     limit: usize,
 ) -> Result<Vec<AuditEntry>, AppError> {
-    let mut entries: Vec<AuditEntry> = db.list_entities(EntityTable::AuditRecords)?;
-    entries.sort_by_key(|entry| std::cmp::Reverse(entry.timestamp));
-    entries.truncate(limit);
-    Ok(entries)
+    db.list_entities_with_limit(EntityTable::AuditRecords, limit)
 }

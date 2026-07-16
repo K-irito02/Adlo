@@ -90,6 +90,17 @@ impl Database {
         self.list_entities_filtered(table, None, None)
     }
 
+    /// List entities with a SQL-level LIMIT, ordered by updated_at DESC.
+    /// Useful for tables that grow unboundedly (e.g., audit records).
+    /// Subject to the 1000-row safety cap inherited from `list_entities_filtered`.
+    pub fn list_entities_with_limit<T: DeserializeOwned>(
+        &self,
+        table: EntityTable,
+        limit: usize,
+    ) -> Result<Vec<T>, AppError> {
+        self.list_entities_filtered(table, None, Some(limit))
+    }
+
     pub fn list_entities_by_workspace<T: DeserializeOwned>(
         &self,
         table: EntityTable,
@@ -521,5 +532,84 @@ mod sessions_batch_tests {
         let loaded: ConversationSessionRecord =
             db.load_entity(EntityTable::Sessions, &session.id).unwrap().unwrap();
         assert_eq!(loaded.status, "archived");
+    }
+}
+
+#[cfg(test)]
+mod list_entities_with_limit_tests {
+    use super::*;
+    use crate::connection::Database;
+    use adl_types::{AuditEntry, RiskLevel};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static LE_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    fn open_test_db() -> Database {
+        let id = LE_SEQ.fetch_add(1, Ordering::SeqCst);
+        let path = std::env::temp_dir().join(format!("adl-list-limit-{id}.db"));
+        let _ = std::fs::remove_file(&path);
+        let db = Database::open(&path).expect("test db should open");
+        db.init_schema().expect("schema should init");
+        db
+    }
+
+    /// Inserts an audit entry with a controlled `updated_at` column value.
+    ///
+    /// Bypasses `save_entity` (which stamps `updated_at` with `now_ms()`) so
+    /// that `ORDER BY updated_at DESC` is deterministic in tests. Uses the
+    /// same column layout as `INSERT_SQL_TEMPLATE` in `entity_table.rs`.
+    /// Mirrors the `save_step` pattern in `list_by_run_tests`.
+    fn save_audit_at(db: &Database, id: &str, ts: i64) {
+        let entry = AuditEntry {
+            id: id.to_string(),
+            timestamp: ts,
+            operation_type: "test".to_string(),
+            summary: format!("entry {id}"),
+            risk_level: RiskLevel::Low,
+            decision: Some("allow".to_string()),
+            detail: None,
+        };
+        let json = serde_json::to_string(&entry).expect("serialize audit entry");
+        let conn = db.conn().expect("get conn");
+        conn.execute(
+            "INSERT OR REPLACE INTO audit_records \
+             (id, workspace_id, session_id, status, updated_at, json) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![id, "ws-test", "sess-test", "test", ts, json],
+        )
+        .expect("insert audit entry");
+    }
+
+    #[test]
+    fn list_entities_with_limit_returns_fewer_rows() {
+        let db = open_test_db();
+        // Insert 10 audit entries with strictly increasing updated_at.
+        // ts = 1000 + i ensures each row has a unique, increasing updated_at
+        // so ORDER BY updated_at DESC deterministically returns the latest 5.
+        for i in 0..10 {
+            save_audit_at(&db, &format!("audit-limit-{i}"), 1000 + i);
+        }
+        // Request only 5
+        let result: Vec<AuditEntry> =
+            db.list_entities_with_limit(EntityTable::AuditRecords, 5).unwrap();
+        assert_eq!(result.len(), 5, "should return only 5 entries");
+        // ORDER BY updated_at DESC returns the most recent 5 first.
+        // Since updated_at = 1000 + i, the most recent 5 are i=9, 8, 7, 6, 5.
+        let ids: std::collections::HashSet<String> = result.iter().map(|e| e.id.clone()).collect();
+        for i in 5..10 {
+            assert!(
+                ids.contains(&format!("audit-limit-{i}")),
+                "expected audit-limit-{i} in results, got: {:?}",
+                ids
+            );
+        }
+    }
+
+    #[test]
+    fn list_entities_with_limit_rejects_over_cap() {
+        let db = open_test_db();
+        let result: Result<Vec<AuditEntry>, _> =
+            db.list_entities_with_limit(EntityTable::AuditRecords, 1001);
+        assert!(result.is_err(), "limit > 1000 should be rejected");
     }
 }
