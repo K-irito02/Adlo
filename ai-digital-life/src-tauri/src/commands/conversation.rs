@@ -1,5 +1,4 @@
 use crate::commands::ipc;
-use crate::commands::ipc_try;
 use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
@@ -8,6 +7,7 @@ use adl_types::{
     ConversationDetail, ConversationMessageRecord, ConversationRole, ConversationScenario,
     ConversationSendResult, ConversationSessionRecord, IpcResult,
 };
+use tauri::Manager;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -42,45 +42,61 @@ pub struct MarkSessionReadInput {
 }
 
 #[tauri::command]
-pub fn conversation_create_session(
-    state: tauri::State<'_, AppState>,
+pub async fn conversation_create_session(
+    app: tauri::AppHandle,
     title: Option<String>,
     workspace_id: Option<String>,
-) -> IpcResult<ConversationSessionRecord> {
-    crate::commands::ipc_try(|| {
-        let workspace_id = workspace_id.unwrap_or_else(|| active_workspace_scope_id(&state));
+) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let wid = workspace_id.unwrap_or_else(|| active_workspace_scope_id(&state));
+    let session = tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
         let existing: Vec<ConversationSessionRecord> =
-            state.db.list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
-        let session = adl_conversation::create_session(&workspace_id, title, existing.len() as i32);
-        state.db.save_entity(
+            db.list_entities_by_workspace(EntityTable::Sessions, &wid)?;
+        let session = adl_conversation::create_session(&wid, title, existing.len() as i32);
+        db.save_entity(
             EntityTable::Sessions,
             &session.id,
-            Some(&workspace_id),
+            Some(&wid),
             Some(&session.id),
             Some(&session.status),
             &session,
         )?;
         Ok(session)
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(session)))
 }
 
 #[tauri::command]
-pub fn conversation_list_sessions(
-    state: tauri::State<'_, AppState>,
-) -> IpcResult<Vec<ConversationSessionRecord>> {
-    crate::commands::ipc_try(|| {
-        state
-            .db
-            .list_entities_by_workspace(EntityTable::Sessions, &active_workspace_scope_id(&state))
+pub async fn conversation_list_sessions(
+    app: tauri::AppHandle,
+) -> Result<IpcResult<Vec<ConversationSessionRecord>>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let workspace_id = active_workspace_scope_id(&state);
+    let sessions = tokio::task::spawn_blocking(move || {
+        db.list_entities_by_workspace(EntityTable::Sessions, &workspace_id)
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(sessions)))
 }
 
 #[tauri::command]
-pub fn conversation_get_session(
-    state: tauri::State<'_, AppState>,
+pub async fn conversation_get_session(
+    app: tauri::AppHandle,
     session_id: String,
-) -> IpcResult<Option<ConversationDetail>> {
-    ipc(get_session_detail(&state, &session_id))
+) -> Result<IpcResult<Option<ConversationDetail>>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let detail = tokio::task::spawn_blocking(move || {
+        get_session_detail_with_db(&db, &session_id)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(detail)))
 }
 
 #[tauri::command]
@@ -104,72 +120,97 @@ pub async fn conversation_send_message(
 }
 
 #[tauri::command]
-pub fn conversation_rename_session(
-    state: tauri::State<'_, AppState>,
+pub async fn conversation_rename_session(
+    app: tauri::AppHandle,
     input: RenameSessionInput,
-) -> IpcResult<ConversationSessionRecord> {
-    crate::commands::ipc_try(|| {
-        let mut session = require_session(&state, &input.session_id)?;
+) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let session = tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
+        let mut session = require_session_with_db(&db, &input.session_id)?;
         session.title = input.title;
         session.title_updated_at = Some(adl_types::now_ms());
         session.updated_at = adl_types::now_ms();
-        save_session(&state, &session)?;
+        save_session_with_db(&db, &session)?;
         Ok(session)
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(session)))
 }
 
 #[tauri::command]
-pub fn conversation_pin_session(
-    state: tauri::State<'_, AppState>,
+pub async fn conversation_pin_session(
+    app: tauri::AppHandle,
     session_id: String,
-) -> IpcResult<ConversationSessionRecord> {
-    set_pinned(&state, &session_id, true)
+) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let session = tokio::task::spawn_blocking(move || {
+        set_pinned_with_db(&db, &session_id, true)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(session)))
 }
 
 #[tauri::command]
-pub fn conversation_unpin_session(
-    state: tauri::State<'_, AppState>,
+pub async fn conversation_unpin_session(
+    app: tauri::AppHandle,
     session_id: String,
-) -> IpcResult<ConversationSessionRecord> {
-    set_pinned(&state, &session_id, false)
+) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let session = tokio::task::spawn_blocking(move || {
+        set_pinned_with_db(&db, &session_id, false)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(session)))
 }
 
 #[tauri::command]
-pub fn conversation_archive_session(
-    state: tauri::State<'_, AppState>,
+pub async fn conversation_archive_session(
+    app: tauri::AppHandle,
     session_id: String,
-) -> IpcResult<ConversationSessionRecord> {
-    crate::commands::ipc_try(|| {
-        let mut session = require_session(&state, &session_id)?;
+) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let session = tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
+        let mut session = require_session_with_db(&db, &session_id)?;
         session.status = "archived".into();
         session.archived_at = Some(adl_types::now_ms());
         session.updated_at = adl_types::now_ms();
-        save_session(&state, &session)?;
+        save_session_with_db(&db, &session)?;
         Ok(session)
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(session)))
 }
 
 #[tauri::command]
-pub fn conversation_archive_all_in_workspace(
-    state: tauri::State<'_, AppState>,
-) -> IpcResult<Vec<ConversationSessionRecord>> {
-    crate::commands::ipc_try(|| {
-        let workspace_id = active_workspace_scope_id(&state);
+pub async fn conversation_archive_all_in_workspace(
+    app: tauri::AppHandle,
+) -> Result<IpcResult<Vec<ConversationSessionRecord>>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let workspace_id = active_workspace_scope_id(&state);
+    let sessions = tokio::task::spawn_blocking(move || -> Result<Vec<ConversationSessionRecord>, AppError> {
         let now = adl_types::now_ms();
         let mut sessions: Vec<ConversationSessionRecord> =
-            state.db.list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
+            db.list_entities_by_workspace(EntityTable::Sessions, &workspace_id)?;
         for session in &mut sessions {
             session.status = "archived".into();
             session.archived_at = Some(now);
             session.updated_at = now;
         }
-        // Batch all writes in a single transaction. Previously each
-        // save_session call acquired its own connection and ran an
-        // implicit auto-commit transaction, so a mid-loop failure left
-        // the workspace half-archived.
-        state.db.transaction(|conn| state.db.save_sessions_batch_on_conn(conn, &sessions))?;
+        db.transaction(|conn| db.save_sessions_batch_on_conn(conn, &sessions))?;
         Ok(sessions)
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(sessions)))
 }
 
 pub fn active_workspace_scope_id(state: &AppState) -> String {
@@ -186,14 +227,16 @@ pub fn active_workspace_scope_id(state: &AppState) -> String {
 }
 
 #[tauri::command]
-pub fn conversation_reorder_sessions(
-    state: tauri::State<'_, AppState>,
+pub async fn conversation_reorder_sessions(
+    app: tauri::AppHandle,
     input: ReorderSessionsInput,
-) -> IpcResult<Vec<ConversationSessionRecord>> {
-    crate::commands::ipc_try(|| {
+) -> Result<IpcResult<Vec<ConversationSessionRecord>>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let sessions = tokio::task::spawn_blocking(move || -> Result<Vec<ConversationSessionRecord>, AppError> {
         let now = adl_types::now_ms();
         let mut sessions: Vec<ConversationSessionRecord> =
-            state.db.list_entities_by_workspace(EntityTable::Sessions, &input.workspace_id)?;
+            db.list_entities_by_workspace(EntityTable::Sessions, &input.workspace_id)?;
         for session in &mut sessions {
             if let Some(order) = input.pinned_ids.iter().position(|id| id == &session.id) {
                 session.is_pinned = true;
@@ -206,11 +249,7 @@ pub fn conversation_reorder_sessions(
                 session.updated_at = now;
             }
         }
-        // Batch all order updates in a single transaction. Previously
-        // each pinned/unpinned match called save_session immediately,
-        // so a mid-loop failure left the sidebar in a partially
-        // reordered state.
-        state.db.transaction(|conn| state.db.save_sessions_batch_on_conn(conn, &sessions))?;
+        db.transaction(|conn| db.save_sessions_batch_on_conn(conn, &sessions))?;
         sessions.sort_by_key(|session| {
             (
                 !session.is_pinned,
@@ -219,61 +258,95 @@ pub fn conversation_reorder_sessions(
         });
         Ok(sessions)
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(sessions)))
 }
 
 #[tauri::command]
-pub fn conversation_delete_session(
-    state: tauri::State<'_, AppState>,
+pub async fn conversation_delete_session(
+    app: tauri::AppHandle,
     session_id: String,
-) -> IpcResult<bool> {
-    ipc_try(|| {
-        state.db.delete_entities_by_session(EntityTable::ConversationMessages, &session_id)?;
-        state.db.delete_entity(EntityTable::Sessions, &session_id)
+) -> Result<IpcResult<bool>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let result = tokio::task::spawn_blocking(move || -> Result<bool, AppError> {
+        db.delete_entities_by_session(EntityTable::ConversationMessages, &session_id)?;
+        db.delete_entity(EntityTable::Sessions, &session_id)?;
+        Ok(true)
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(result)))
 }
 
 #[tauri::command]
-pub fn conversation_mark_session_read(
-    state: tauri::State<'_, AppState>,
+pub async fn conversation_mark_session_read(
+    app: tauri::AppHandle,
     input: MarkSessionReadInput,
-) -> IpcResult<ConversationSessionRecord> {
-    crate::commands::ipc_try(|| {
-        let mut session = require_session(&state, &input.session_id)?;
+) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let session = tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
+        let mut session = require_session_with_db(&db, &input.session_id)?;
         session.manual_unread = false;
         session.last_read_at = Some(input.read_at.unwrap_or_else(adl_types::now_ms));
-        save_session(&state, &session)?;
+        save_session_with_db(&db, &session)?;
         Ok(session)
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(session)))
 }
 
 #[tauri::command]
-pub fn conversation_cancel_message(
-    state: tauri::State<'_, AppState>,
+pub async fn conversation_cancel_message(
+    app: tauri::AppHandle,
     run_id: String,
-) -> IpcResult<Option<adl_types::AgentRunDetail>> {
-    crate::commands::ipc_try(|| {
-        let Some(detail) = crate::commands::agent::load_run_detail(&state, &run_id)? else {
+) -> Result<IpcResult<Option<adl_types::AgentRunDetail>>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let detail = tokio::task::spawn_blocking(move || -> Result<Option<adl_types::AgentRunDetail>, AppError> {
+        let Some(run) =
+            db.load_entity::<adl_types::AgentRunRecord>(EntityTable::AgentRuns, &run_id)?
+        else {
             return Ok(None);
         };
+        let mut steps: Vec<adl_types::AgentPlanStep> =
+            db.list_entities_by_run(EntityTable::AgentSteps, &run_id)?;
+        steps.sort_by_key(|step| step.created_at);
+        let detail = adl_types::AgentRunDetail { run, steps };
         let detail = adl_agent_runtime::abort_run(detail);
-        crate::commands::agent::save_run_detail(&state, &detail)?;
+        crate::commands::agent::save_run_detail_with_db(&db, &detail)?;
         Ok(Some(detail))
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(detail)))
 }
 
 #[tauri::command]
-pub fn conversation_mark_session_unread(
-    state: tauri::State<'_, AppState>,
+pub async fn conversation_mark_session_unread(
+    app: tauri::AppHandle,
     session_id: String,
-) -> IpcResult<ConversationSessionRecord> {
-    crate::commands::ipc_try(|| {
-        let mut session = require_session(&state, &session_id)?;
+) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
+    let state = app.state::<AppState>();
+    let db = state.db.clone();
+    let session = tokio::task::spawn_blocking(move || -> Result<ConversationSessionRecord, AppError> {
+        let mut session = require_session_with_db(&db, &session_id)?;
         session.manual_unread = true;
-        save_session(&state, &session)?;
+        save_session_with_db(&db, &session)?;
         Ok(session)
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    Ok(ipc(Ok(session)))
 }
 
+/// Legacy sync variant retained alongside `get_session_detail_with_db`.
+/// Prefer `get_session_detail_with_db` inside `spawn_blocking` closures where
+/// `&AppState` cannot be borrowed.
+#[allow(dead_code)]
 pub fn get_session_detail(
     state: &AppState,
     session_id: &str,
@@ -330,6 +403,10 @@ pub fn save_message(
     )
 }
 
+/// Legacy sync variant retained alongside `set_pinned_with_db`.
+/// Prefer `set_pinned_with_db` inside `spawn_blocking` closures where
+/// `&AppState` cannot be borrowed.
+#[allow(dead_code)]
 fn set_pinned(
     state: &AppState,
     session_id: &str,
@@ -342,4 +419,53 @@ fn set_pinned(
         save_session(state, &session)?;
         Ok(session)
     })
+}
+
+fn require_session_with_db(
+    db: &adl_storage::Database,
+    session_id: &str,
+) -> Result<ConversationSessionRecord, AppError> {
+    db.load_entity::<ConversationSessionRecord>(EntityTable::Sessions, session_id)?
+        .ok_or_else(|| AppError::NotFound(format!("session {session_id}")))
+}
+
+fn save_session_with_db(
+    db: &adl_storage::Database,
+    session: &ConversationSessionRecord,
+) -> Result<(), AppError> {
+    db.save_entity(
+        EntityTable::Sessions,
+        &session.id,
+        Some(&session.workspace_id),
+        Some(&session.id),
+        Some(&session.status),
+        session,
+    )
+}
+
+fn set_pinned_with_db(
+    db: &adl_storage::Database,
+    session_id: &str,
+    pinned: bool,
+) -> Result<ConversationSessionRecord, AppError> {
+    let mut session = require_session_with_db(db, session_id)?;
+    session.is_pinned = pinned;
+    session.updated_at = adl_types::now_ms();
+    save_session_with_db(db, &session)?;
+    Ok(session)
+}
+
+fn get_session_detail_with_db(
+    db: &adl_storage::Database,
+    session_id: &str,
+) -> Result<Option<ConversationDetail>, AppError> {
+    let Some(session) =
+        db.load_entity::<ConversationSessionRecord>(EntityTable::Sessions, session_id)?
+    else {
+        return Ok(None);
+    };
+    let mut messages: Vec<ConversationMessageRecord> =
+        db.list_entities_by_session(EntityTable::ConversationMessages, session_id)?;
+    messages.sort_by_key(|message| message.created_at);
+    Ok(Some(ConversationDetail { session, messages }))
 }
