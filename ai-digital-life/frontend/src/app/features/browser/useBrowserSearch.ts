@@ -61,7 +61,9 @@ export function useBrowserSearch(options: UseBrowserSearchOptions) {
 
   const quickLinks = useMemo(
     () => [
-      { title: t.browserLocalPreview, url: 'http://localhost:5173/' },
+      ...(import.meta.env.DEV
+        ? [{ title: t.browserLocalPreview, url: `http://localhost:${import.meta.env.VITE_PORT ?? 5173}/` }]
+        : []),
       { title: t.browserBlankTab, url: 'about:blank' },
     ],
     [t.browserBlankTab, t.browserLocalPreview]
