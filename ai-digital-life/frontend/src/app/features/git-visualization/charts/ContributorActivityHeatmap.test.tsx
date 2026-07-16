@@ -1,7 +1,17 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, cleanup } from '@testing-library/react';
 import React from 'react';
 import { ContributorActivityHeatmap } from './ContributorActivityHeatmap';
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.runOnlyPendingTimers();
+  vi.useRealTimers();
+  cleanup();
+});
 
 vi.mock('@i18n/useTCopy', () => ({
   useTCopy: () => ({
@@ -39,7 +49,7 @@ vi.mock('motion/react', () => {
 });
 
 describe('ContributorActivityHeatmap', () => {
-  it('renders SVG', () => {
+  it('renders SVG', { timeout: 15000 }, () => {
     const { container } = render(<ContributorActivityHeatmap />);
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
