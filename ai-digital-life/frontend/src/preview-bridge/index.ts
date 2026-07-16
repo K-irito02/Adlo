@@ -16,6 +16,25 @@ import { createPreviewPatchBridge } from './preview-patch';
 import { createPreviewCommandBridge } from './preview-command';
 import { BrowserAudioMonitor } from './preview-browser-audio';
 
+const warnedBridges = new Set<string>();
+
+function warnMockBridge<T extends object>(bridgeName: string, bridge: T): T {
+  return new Proxy(bridge, {
+    get(target, prop, receiver) {
+      const key = `${bridgeName}.${String(prop)}`;
+      const targetRecord = target as Record<string, unknown>;
+      if (!warnedBridges.has(key) && typeof targetRecord[prop as string] === 'function') {
+        warnedBridges.add(key);
+        console.warn(
+          `[preview-bridge] "${key}" is using a mock implementation in preview mode. ` +
+            `Behavior may differ from Tauri mode. Implement a real preview bridge for production fidelity.`
+        );
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+}
+
 export function setupPreviewBridge(): void {
   if (typeof window === 'undefined' || (window as { digitalLife?: unknown }).digitalLife) {
     return;
@@ -102,20 +121,20 @@ export function setupPreviewBridge(): void {
     subscribeModelStream: modelBridge.subscribeModelStream,
     subscribeRunActivity: modelBridge.subscribeRunActivity,
     subscribeTerminalStream: modelBridge.subscribeTerminalStream,
-    mcp: mockDigitalLifeBridge.mcp,
-    provider: mockDigitalLifeBridge.provider,
-    commandsConfig: mockDigitalLifeBridge.commandsConfig,
-    permission: mockDigitalLifeBridge.permission,
+    mcp: warnMockBridge('mcp', mockDigitalLifeBridge.mcp),
+    provider: warnMockBridge('provider', mockDigitalLifeBridge.provider),
+    commandsConfig: warnMockBridge('commandsConfig', mockDigitalLifeBridge.commandsConfig),
+    permission: warnMockBridge('permission', mockDigitalLifeBridge.permission),
     // Phase 2 bridges (inherited from mock — add preview-specific overrides here if needed)
-    snapshot: mockDigitalLifeBridge.snapshot,
-    webTools: mockDigitalLifeBridge.webTools,
-    compaction: mockDigitalLifeBridge.compaction,
-    sessionFork: mockDigitalLifeBridge.sessionFork,
-    lsp: mockDigitalLifeBridge.lsp,
-    reference: mockDigitalLifeBridge.reference,
-    durable: mockDigitalLifeBridge.durable,
-    reserved: mockDigitalLifeBridge.reserved,
-    customAgent: mockDigitalLifeBridge.customAgent,
+    snapshot: warnMockBridge('snapshot', mockDigitalLifeBridge.snapshot),
+    webTools: warnMockBridge('webTools', mockDigitalLifeBridge.webTools),
+    compaction: warnMockBridge('compaction', mockDigitalLifeBridge.compaction),
+    sessionFork: warnMockBridge('sessionFork', mockDigitalLifeBridge.sessionFork),
+    lsp: warnMockBridge('lsp', mockDigitalLifeBridge.lsp),
+    reference: warnMockBridge('reference', mockDigitalLifeBridge.reference),
+    durable: warnMockBridge('durable', mockDigitalLifeBridge.durable),
+    reserved: warnMockBridge('reserved', mockDigitalLifeBridge.reserved),
+    customAgent: warnMockBridge('customAgent', mockDigitalLifeBridge.customAgent),
   };
 
   (window as { digitalLife: DigitalLifeBridge }).digitalLife = previewBridge;
