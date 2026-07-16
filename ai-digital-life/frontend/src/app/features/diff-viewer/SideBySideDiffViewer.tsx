@@ -23,6 +23,7 @@ import {
   syncScrollPosition,
   getMergeChunks,
 } from './diffViewerUtils';
+import { setupDiffResizer } from './useDiffResizer';
 import { useTCopy } from '@app/i18n/useTCopy';
 
 export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
@@ -214,107 +215,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     mv.a.scrollDOM.addEventListener('scroll', handleScrollA, { passive: true });
     mv.b.scrollDOM.addEventListener('scroll', handleScrollB, { passive: true });
 
-    const editorsContainer = mv.dom.querySelector<HTMLElement>('.cm-mergeViewEditors');
-    const resizerEl = document.createElement('div');
-    let resizerCleanup: (() => void) | null = null;
-    const wrapperB = mv.b.dom?.parentNode as HTMLElement | null;
-    if (editorsContainer && wrapperB && editorsContainer.contains(wrapperB)) {
-      const wrapperA = mv.a.dom.parentNode as HTMLElement;
-      resizerEl.className = 'adl-cm-diff-resizer';
-      editorsContainer.insertBefore(resizerEl, wrapperB);
-
-      const SAVED_RATIO_KEY = 'adl-diff-resizer-ratio';
-      const MIN_WIDTH = 200;
-      const resizerWidth = 6;
-      let ratio = parseFloat(localStorage.getItem(SAVED_RATIO_KEY) ?? '0.5');
-      if (Number.isNaN(ratio) || ratio <= 0 || ratio >= 1) {
-        ratio = 0.5;
-      }
-
-      const applyRatio = (totalWidth: number) => {
-        const avail = totalWidth - resizerWidth;
-        const widthA = Math.max(MIN_WIDTH, Math.min(avail - MIN_WIDTH, avail * ratio));
-        wrapperA.style.flex = 'none';
-        wrapperA.style.width = `${widthA}px`;
-        wrapperB.style.flex = '1 1 0';
-        wrapperB.style.width = 'auto';
-      };
-
-      const applyCurrentRatio = () => {
-        applyRatio(editorsContainer.offsetWidth);
-      };
-
-      applyCurrentRatio();
-
-      const startResize = (clientX: number) => {
-        const startX = clientX;
-        const startWidthA = wrapperA.offsetWidth;
-        const totalWidth = editorsContainer.offsetWidth;
-
-        resizerEl.classList.add('adl-cm-diff-resizer--dragging');
-        document.body.style.cursor = 'col-resize';
-        document.body.style.userSelect = 'none';
-
-        const onMove = (currentX: number) => {
-          const deltaX = currentX - startX;
-          const avail = totalWidth - resizerWidth;
-          const newWidthA = Math.max(MIN_WIDTH, Math.min(avail - MIN_WIDTH, startWidthA + deltaX));
-          ratio = newWidthA / avail;
-          localStorage.setItem(SAVED_RATIO_KEY, ratio.toString());
-          wrapperA.style.flex = 'none';
-          wrapperA.style.width = `${newWidthA}px`;
-          wrapperB.style.flex = '1 1 0';
-          wrapperB.style.width = 'auto';
-        };
-
-        const onEnd = () => {
-          resizerEl.classList.remove('adl-cm-diff-resizer--dragging');
-          document.body.style.cursor = '';
-          document.body.style.userSelect = '';
-          document.removeEventListener('mousemove', onMouseMove);
-          document.removeEventListener('mouseup', onMouseUp);
-          document.removeEventListener('touchmove', onTouchMove);
-          document.removeEventListener('touchend', onTouchEnd);
-        };
-
-        const onMouseMove = (moveEvent: MouseEvent) => {
-          onMove(moveEvent.clientX);
-        };
-        const onMouseUp = () => onEnd();
-
-        const onTouchMove = (touchEvent: TouchEvent) => {
-          onMove(touchEvent.touches[0].clientX);
-        };
-        const onTouchEnd = () => onEnd();
-
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-        document.addEventListener('touchmove', onTouchMove, { passive: false });
-        document.addEventListener('touchend', onTouchEnd);
-      };
-
-      const onResizerMouseDown = (e: MouseEvent) => {
-        e.preventDefault();
-        startResize(e.clientX);
-      };
-
-      const onResizerTouchStart = (e: TouchEvent) => {
-        e.preventDefault();
-        startResize(e.touches[0].clientX);
-      };
-
-      resizerEl.addEventListener('mousedown', onResizerMouseDown);
-      resizerEl.addEventListener('touchstart', onResizerTouchStart, { passive: false });
-
-      const resizeObserver = new ResizeObserver(applyCurrentRatio);
-      resizeObserver.observe(editorsContainer);
-
-      resizerCleanup = () => {
-        resizerEl.removeEventListener('mousedown', onResizerMouseDown);
-        resizerEl.removeEventListener('touchstart', onResizerTouchStart);
-        resizeObserver.disconnect();
-      };
-    }
+    const resizerCleanup = setupDiffResizer(mv);
 
     mergeViewRef.current = mv;
     mergeViewARef.current = mv.a;
@@ -339,10 +240,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
         );
         scrollHandlersRef.current = null;
       }
-      if (resizerCleanup) {
-        resizerCleanup();
-        resizerCleanup = null;
-      }
+      resizerCleanup();
       if (mergeViewRef.current) {
         mergeViewRef.current.destroy();
         mergeViewRef.current = null;
