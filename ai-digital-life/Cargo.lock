@@ -161,6 +161,7 @@ dependencies = [
 name = "adl-logging"
 version = "0.1.0"
 dependencies = [
+ "adl-types",
  "chrono",
  "serde",
  "serde_json",
@@ -297,7 +298,6 @@ name = "adl-types"
 version = "0.1.0"
 dependencies = [
  "adl-errors",
- "adl-logging",
  "chrono",
  "serde",
  "serde_json",
