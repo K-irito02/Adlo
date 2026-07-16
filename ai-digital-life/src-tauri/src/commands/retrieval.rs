@@ -1,9 +1,11 @@
 use crate::commands::ipc;
 use crate::state::AppState;
+use adl_errors::AppError;
 use adl_storage::EntityTable;
 use adl_types::IpcResult;
 use std::path::PathBuf;
 use tauri::Emitter;
+use tauri::Manager;
 
 #[tauri::command]
 pub fn retrieval_get_status(
@@ -13,28 +15,34 @@ pub fn retrieval_get_status(
 }
 
 #[tauri::command]
-pub fn retrieval_rebuild_index(
-    app: tauri::AppHandle,
-    state: tauri::State<'_, AppState>,
-) -> IpcResult<bool> {
-    crate::commands::ipc_try(|| {
-        let workspace = crate::commands::workspace::current_workspace(&state)?;
-        let snapshot = adl_workspace::build_retrieval_snapshot(
-            &workspace.id,
-            PathBuf::from(&workspace.root_path).as_path(),
-        )?;
-        state.db.save_entity(
-            EntityTable::RetrievalSnapshots,
-            &workspace.id,
-            Some(&workspace.id),
-            None,
-            Some("completed"),
-            &snapshot,
-        )?;
-        let _ = app.emit("digital-life://retrieval-status", &snapshot);
-        state
-            .event_bus
-            .emit(adl_kernel::events::AppEvent::RetrievalStatusChanged(workspace.id.clone()));
-        Ok(true)
+pub async fn retrieval_rebuild_index(app: tauri::AppHandle) -> Result<IpcResult<bool>, AppError> {
+    let state = app.state::<AppState>();
+    let workspace = crate::commands::workspace::current_workspace(&state)?;
+    let workspace_id = workspace.id.clone();
+    let root_path = workspace.root_path.clone();
+    let db = state.db.clone();
+
+    let snapshot = tokio::task::spawn_blocking({
+        let workspace_id = workspace_id.clone();
+        move || {
+            adl_workspace::build_retrieval_snapshot(
+                &workspace_id,
+                PathBuf::from(&root_path).as_path(),
+            )
+        }
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+
+    db.save_entity(
+        EntityTable::RetrievalSnapshots,
+        &workspace_id,
+        Some(&workspace_id),
+        None,
+        Some("completed"),
+        &snapshot,
+    )?;
+    let _ = app.emit("digital-life://retrieval-status", &snapshot);
+    state.event_bus.emit(adl_kernel::events::AppEvent::RetrievalStatusChanged(workspace_id));
+    Ok(ipc(Ok(true)))
 }
