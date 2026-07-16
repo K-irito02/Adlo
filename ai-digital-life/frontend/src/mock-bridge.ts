@@ -10,15 +10,13 @@ import {
   type MockBridgeState,
 } from './mock/mock-shared';
 
-// Domain imports — already-split mocks
+// Domain imports — all split into per-domain files
 import { mockWorkspace } from './mock/mock-workspace';
 import { mockRetrieval } from './mock/mock-retrieval';
 import { mockConversation } from './mock/mock-conversation';
 import { mockPatch } from './mock/mock-patch';
 import { mockPty } from './mock/mock-terminal';
 import { mockTask } from './mock/mock-task';
-
-// Domain imports — newly split mocks
 import { mockWindow } from './mock/mock-window';
 import { mockApp } from './mock/mock-app';
 import { mockAgent, mockSubagent } from './mock/mock-agent';
@@ -27,20 +25,18 @@ import { mockCi, mockGithub } from './mock/mock-ci';
 import { mockMcp } from './mock/mock-mcp';
 import { mockProvider } from './mock/mock-provider';
 import { mockSnapshot } from './mock/mock-snapshot';
-import {
-  mockCommand,
-  mockRunActivity,
-  mockWebTools,
-  mockCommandsConfig,
-  mockPermission,
-  mockCompaction,
-  mockSessionFork,
-  mockLsp,
-  mockReference,
-  mockDurable,
-  mockReserved,
-  mockCustomAgent,
-} from './mock/mock-misc';
+import { mockCommand } from './mock/mock-command';
+import { mockRunActivity } from './mock/mock-run-activity';
+import { mockWebTools } from './mock/mock-web-tools';
+import { mockCommandsConfig } from './mock/mock-commands-config';
+import { mockPermission } from './mock/mock-permission';
+import { mockCompaction } from './mock/mock-compaction';
+import { mockSessionFork } from './mock/mock-session-fork';
+import { mockLsp } from './mock/mock-lsp';
+import { mockReference } from './mock/mock-reference';
+import { mockDurable } from './mock/mock-durable';
+import { mockReserved } from './mock/mock-reserved';
+import { mockCustomAgent } from './mock/mock-custom-agent';
 
 const MOCK_BRIDGE_STORAGE_KEY = 'ai-digital-life-mock-bridge-state';
 let persistenceEnabled = false;

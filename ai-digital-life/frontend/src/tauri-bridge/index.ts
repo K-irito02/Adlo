@@ -7,34 +7,32 @@ import type {
 } from '@ai-digital-life/kernel';
 import { EventBuffer } from '../shared/eventBuffer';
 import { subscribeChannel } from './tauri-shared';
-import { createTauriWorkspaceBridge } from './tauri-workspace';
+import { createTauriAppBridge } from './tauri-app';
 import { createTauriBrowserBridge } from './tauri-browser';
-import { createTauriConversationBridge } from './tauri-conversation';
-import { createTauriAgentBridge, createTauriSubagentBridge } from './tauri-agent';
-import { createTauriCiBridge, createTauriGithubBridge } from './tauri-ci-github';
-import { createTauriProviderBridge } from './tauri-provider';
-import {
-  createTauriAppBridge,
-  createTauriCommandBridge,
-  createTauriCommandsConfigBridge,
-  createTauriCustomAgentBridge,
-  createTauriMcpBridge,
-  createTauriPatchBridge,
-  createTauriReservedBridge,
-  createTauriRetrievalBridge,
-  createTauriRunActivityBridge,
-  createTauriTaskBridge,
-  createTauriWindowBridge,
-  createTauriSessionForkBridge,
-} from './tauri-misc';
+import { createTauriCommandBridge } from './tauri-command';
+import { createTauriCommandsConfigBridge } from './tauri-commands-config';
 import { createTauriCompactionBridge } from './tauri-compaction';
+import { createTauriConversationBridge } from './tauri-conversation';
+import { createTauriCustomAgentBridge } from './tauri-custom-agent';
 import { createTauriDurableBridge } from './tauri-durable';
 import { createTauriLspBridge } from './tauri-lsp';
+import { createTauriMcpBridge } from './tauri-mcp';
+import { createTauriPatchBridge } from './tauri-patch';
 import { createTauriPermissionBridge } from './tauri-permission';
+import { createTauriProviderBridge } from './tauri-provider';
 import { createTauriPtyBridge } from './tauri-pty';
 import { createTauriReferenceBridge } from './tauri-reference';
+import { createTauriReservedBridge } from './tauri-reserved';
+import { createTauriRetrievalBridge } from './tauri-retrieval';
+import { createTauriRunActivityBridge } from './tauri-run-activity';
+import { createTauriSessionForkBridge } from './tauri-session-fork';
 import { createTauriSnapshotBridge } from './tauri-snapshot';
+import { createTauriTaskBridge } from './tauri-task';
 import { createTauriWebToolsBridge } from './tauri-web-tools';
+import { createTauriWindowBridge } from './tauri-window';
+import { createTauriWorkspaceBridge } from './tauri-workspace';
+import { createTauriAgentBridge, createTauriSubagentBridge } from './tauri-agent';
+import { createTauriCiBridge, createTauriGithubBridge } from './tauri-ci-github';
 
 export function createTauriBridge(): DigitalLifeBridge {
   return {
