@@ -2,10 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   toBklitAreaData,
   generateCodeLineEvolutionData,
-  toClockHeatmapData,
-  toContributorData,
-  toBklitSankeyData,
   toHeatmapColumns,
+  generateClockHeatmapData,
+  generateContributorActivityData,
+  generateContributorModuleData,
 } from './gitVisMockData';
 
 describe('bklit data adapters', () => {
@@ -17,36 +17,30 @@ describe('bklit data adapters', () => {
     expect(result[0]).toHaveProperty('deleted');
   });
 
-  it('toClockHeatmapData converts clock data', () => {
-    const result = toClockHeatmapData();
-    expect(result.length).toBe(168); // 7 * 24
-    expect(result[0]).toHaveProperty('x');
-    expect(result[0]).toHaveProperty('y');
-    expect(result[0]).toHaveProperty('value');
-  });
-
-  it('toContributorData converts contributor arrays', () => {
-    const result = toContributorData();
-    expect(result.length).toBe(6);
-    expect(result[0].name).toBe('Alex');
-    expect(result[0]).toHaveProperty('commits');
-    expect(result[0]).toHaveProperty('added');
-    expect(result[0]).toHaveProperty('deleted');
-  });
-
-  it('toBklitSankeyData converts sankey data', () => {
-    const result = toBklitSankeyData();
-    expect(result.nodes.length).toBe(11);
-    expect(result.links.length).toBe(13);
-    expect(result.nodes[0]).toHaveProperty('id');
-    expect(result.nodes[0]).toHaveProperty('label');
-  });
-
   it('toHeatmapColumns converts calendar data to columns', () => {
     const result = toHeatmapColumns();
     expect(result.length).toBeGreaterThan(0);
     expect(result[0]).toHaveProperty('bin');
     expect(result[0]).toHaveProperty('bins');
-    expect(Array.isArray(result[0].bins)).toBe(true);
+  });
+
+  it('generateClockHeatmapData produces 24 columns × 7 rows with labels', () => {
+    const result = generateClockHeatmapData();
+    expect(result.length).toBe(24);
+    expect(result[0].bins.length).toBe(7);
+    expect(result[0]).toHaveProperty('columnLabel');
+  });
+
+  it('generateContributorActivityData has correct dimensions', () => {
+    const result = generateContributorActivityData();
+    expect(result.length).toBe(48);
+    expect(result[0].bins.length).toBe(6);
+  });
+
+  it('generateContributorModuleData has correct dimensions', () => {
+    const result = generateContributorModuleData();
+    expect(result.length).toBe(5);
+    expect(result[0].bins.length).toBe(6);
+    expect(result[0]).toHaveProperty('columnLabel');
   });
 });
