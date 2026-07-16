@@ -17,7 +17,8 @@ export function loadRecentWorkspaces(): RecentWorkspaceEntry[] {
     }
     const parsed = JSON.parse(raw) as RecentWorkspaceEntry[];
     return Array.isArray(parsed) ? parsed : [];
-  } catch {
+  } catch (err) {
+    console.warn('preview-storage: loadRecentWorkspaces failed:', err);
     return [];
   }
 }
@@ -25,8 +26,8 @@ export function loadRecentWorkspaces(): RecentWorkspaceEntry[] {
 export function persistRecentWorkspaces(entries: RecentWorkspaceEntry[]) {
   try {
     window.localStorage.setItem(PREVIEW_RECENT_STORAGE_KEY, JSON.stringify(entries.slice(0, 12)));
-  } catch {
-    // ignore persistence errors in preview mode
+  } catch (err) {
+    console.warn('preview-storage: persistRecentWorkspaces failed:', err);
   }
 }
 
@@ -55,7 +56,8 @@ export function loadPreviewPreferences(): Partial<PreviewPreferenceState> {
     }
     const parsed = JSON.parse(raw) as Partial<PreviewPreferenceState>;
     return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
+  } catch (err) {
+    console.warn('preview-storage: loadPreviewPreferences failed:', err);
     return {};
   }
 }
@@ -71,15 +73,16 @@ export function persistPreviewPreferences(config: PreviewPreferenceState) {
         modelPreferences: config.modelPreferences,
       } satisfies PreviewPreferenceState)
     );
-  } catch {
-    // ignore persistence errors in preview mode
+  } catch (err) {
+    console.warn('preview-storage: persistPreviewPreferences failed:', err);
   }
 }
 
 export function loadActiveWorkspacePath(): string | undefined {
   try {
     return window.localStorage.getItem(PREVIEW_ACTIVE_WORKSPACE_STORAGE_KEY)?.trim() || undefined;
-  } catch {
+  } catch (err) {
+    console.warn('preview-storage: loadActiveWorkspacePath failed:', err);
     return undefined;
   }
 }
@@ -91,7 +94,7 @@ export function persistActiveWorkspacePath(workspacePath?: string) {
       return;
     }
     window.localStorage.setItem(PREVIEW_ACTIVE_WORKSPACE_STORAGE_KEY, workspacePath.trim());
-  } catch {
-    // ignore persistence errors in preview mode
+  } catch (err) {
+    console.warn('preview-storage: persistActiveWorkspacePath failed:', err);
   }
 }

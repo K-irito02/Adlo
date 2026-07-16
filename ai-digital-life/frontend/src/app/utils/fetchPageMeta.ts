@@ -30,8 +30,8 @@ function schedulePersistFaviconCache(): void {
         obj[key] = value;
       }
       localStorage.setItem(FAVICON_CACHE_KEY, JSON.stringify(obj));
-    } catch {
-      // localStorage quota exceeded or unavailable — silently skip
+    } catch (err) {
+      console.warn('fetchPageMeta: localStorage persist failed:', err);
     }
   }, PERSIST_DEBOUNCE_MS);
 }
@@ -48,8 +48,8 @@ function loadPersistedFaviconCache(): void {
         faviconUrlCache.set(key, value);
       }
     }
-  } catch {
-    // Corrupted data or unavailable — start fresh
+  } catch (err) {
+    console.warn('fetchPageMeta: localStorage load failed, starting fresh:', err);
   }
 }
 
@@ -66,7 +66,8 @@ function normalizeUrlForCache(url: string): string {
       u.pathname = u.pathname.replace(/\/+$/, '');
     }
     return u.toString();
-  } catch {
+  } catch (err) {
+    console.warn('fetchPageMeta: URL normalization failed:', err);
     const noHash = url.split('#')[0] || url;
     if (noHash.length > 8 && noHash.endsWith('/')) {
       return noHash.replace(/\/+$/, '');
@@ -106,8 +107,8 @@ export function setCachedFavicon(url: string, favicon: string, pin?: boolean): v
     listeners.forEach((fn) => {
       try {
         fn();
-      } catch {
-        /* ignore listener errors */
+      } catch (err) {
+        console.warn('fetchPageMeta: favicon listener threw:', err);
       }
     });
   }
@@ -115,8 +116,8 @@ export function setCachedFavicon(url: string, favicon: string, pin?: boolean): v
   globalFaviconListeners.forEach((fn) => {
     try {
       fn(cacheKey);
-    } catch {
-      /* ignore listener errors */
+    } catch (err) {
+      console.warn('fetchPageMeta: favicon listener threw:', err);
     }
   });
 }
@@ -183,7 +184,8 @@ export async function fetchPageMeta(
     metaCache.set(url, { ...data, fetchedAt: Date.now() });
 
     return { title: data.title, favicon: data.favicon };
-  } catch {
+  } catch (err) {
+    console.warn('fetchPageMeta: fetch failed:', err);
     return null;
   }
 }
@@ -214,7 +216,8 @@ export async function prefetchPageMeta(
       if (result?.ok && result.data) {
         return { title: result.data.title, favicon: result.data.favicon };
       }
-    } catch {
+    } catch (err) {
+      console.warn('fetchPageMeta: fetch failed:', err);
       return null;
     }
     return null;
@@ -228,7 +231,8 @@ export async function prefetchPageMeta(
       ReturnType<typeof fetchPageMeta>
     >;
     return meta;
-  } catch {
+  } catch (err) {
+    console.warn('fetchPageMeta: fetch failed:', err);
     return null;
   }
 }
