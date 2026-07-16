@@ -1,27 +1,19 @@
 import React, { lazy, Suspense, useCallback, useMemo } from 'react';
 import { EditorView } from '@codemirror/view';
-import {
-  getAgentDecorationExtensions,
-  type AgentHunkDecoration,
-} from './editor-support/agentDecorations';
-import { categorizeFile } from './fileTypeRouter';
+import { getAgentDecorationExtensions } from './editor-support/agentDecorations';
 import { FilePreviewRenderers } from './FilePreviewRenderers';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { StickyContext } from './editor-support/stickyContextView';
 import { DiffToolbar } from './DiffToolbar';
-import {
-  derivePatchHunkChangeKind,
-  summarizePatchFile,
-  type PatchHunkSummary,
-} from '@features/patch-review';
+import type { PatchHunkSummary } from '@features/patch-review';
 import { useStickyContext, useWrapColumn, useAgentDecorations, useEditorStateCache } from './hooks';
 import type { UseEditorOptionsResult } from './hooks';
-import type { PreviewDiffVisualRange } from '@features/diff-viewer';
 import { IconChevronDown, IconChevronRight } from '@icons';
 import type { RightPanelViewProps } from './types';
 import { useTCopy } from '@i18n/useTCopy';
+import { useDiffStickyRanges } from './useDiffStickyRanges';
 
 const CodeEditor = lazy(() =>
   import('../../features/editor').then((m) => ({ default: m.CodeEditor }))
@@ -64,53 +56,6 @@ interface EditorSurfaceShellProps extends Pick<
   editorOptions: UseEditorOptionsResult;
 }
 
-function buildStickyDiffRangesFromHunks(
-  hunks: NonNullable<ReturnType<typeof summarizePatchFile>>['hunks']
-): PreviewDiffVisualRange[] {
-  return hunks.flatMap((hunk) => {
-    const anchorLine = Math.max(1, hunk.newStart || hunk.oldStart || 1);
-    const lineSpan = Math.max(1, hunk.newLines || hunk.oldLines || 1);
-    if (hunk.changeKind === 'added') {
-      return [
-        {
-          startLine: anchorLine,
-          endLine: anchorLine + lineSpan - 1,
-          type: 'insert' as const,
-          tone: 'strong' as const,
-          contentColumns: 1,
-        },
-      ];
-    }
-    if (hunk.changeKind === 'deleted') {
-      return [
-        {
-          startLine: anchorLine,
-          endLine: anchorLine,
-          type: 'delete' as const,
-          tone: 'base' as const,
-          contentColumns: 1,
-        },
-      ];
-    }
-    return [
-      {
-        startLine: anchorLine,
-        endLine: anchorLine + lineSpan - 1,
-        type: 'insert' as const,
-        tone: 'strong' as const,
-        contentColumns: 1,
-      },
-      {
-        startLine: anchorLine,
-        endLine: anchorLine + lineSpan - 1,
-        type: 'delete' as const,
-        tone: 'base' as const,
-        contentColumns: 1,
-      },
-    ];
-  });
-}
-
 const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorSurfaceShellProps) {
   const { t } = useTCopy();
   const {
@@ -135,94 +80,33 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
 
   const filePreviewModeByPath = useAppStore(useShallow((s) => s.filePreviewModeByPath));
 
-  const fileCategory = useMemo(() => categorizeFile(selectedFilePath), [selectedFilePath]);
-
-  const previewEnabled = selectedFilePath
-    ? (filePreviewModeByPath[selectedFilePath] ?? fileCategory === 'markdown')
-    : false;
-
-  const hasActivePatch = !!(filePatch && filePatch.relativePath === selectedFilePath);
-
-  const activeFilePatch = useMemo(() => {
-    if (!props.activePatchSet || !props.selectedPatchFilePath) {
-      return undefined;
-    }
-    return props.activePatchSet.filePatches.find(
-      (c) => c.relativePath === props.selectedPatchFilePath
-    );
-  }, [props.activePatchSet, props.selectedPatchFilePath]);
-
-  const activeFilePatchSummary = useMemo(
-    () =>
-      activeFilePatch
-        ? summarizePatchFile(activeFilePatch, props.collapsedPatchHunkIds)
-        : undefined,
-    [activeFilePatch, props.collapsedPatchHunkIds]
-  );
-
-  const stickyDiffRanges = useMemo(
-    () =>
-      activeFilePatchSummary
-        ? buildStickyDiffRangesFromHunks(activeFilePatchSummary.hunks)
-        : undefined,
-    [activeFilePatchSummary]
-  );
-
-  const agentHunkDecorations = useMemo<AgentHunkDecoration[]>(() => {
-    if (!activeFilePatch || !selectedFilePath) {
-      return [];
-    }
-    return activeFilePatch.hunks.map((hunk) => {
-      const changeKind = derivePatchHunkChangeKind(hunk);
-      const startLine = Math.max(1, hunk.newStart || hunk.oldStart || 1);
-      const lineSpan = Math.max(1, hunk.newLines || hunk.oldLines || 1);
-      const endLine = startLine + lineSpan - 1;
-      return {
-        startLine,
-        endLine,
-        changeKind,
-        decision: (hunk.decision === 'accepted'
-          ? 'accepted'
-          : hunk.decision === 'rejected'
-            ? 'rejected'
-            : 'pending') as 'accepted' | 'rejected' | 'pending',
-        isSelected: props.selectedPatchHunkId === hunk.id,
-        hunkId: hunk.id,
-      };
-    });
-  }, [activeFilePatch, props.selectedPatchHunkId, selectedFilePath]);
+  const {
+    fileCategory,
+    previewEnabled,
+    hasActivePatch,
+    activeFilePatch,
+    activeFilePatchSummary,
+    agentHunkDecorations,
+    stickyContextInput,
+  } = useDiffStickyRanges({
+    selectedFilePath,
+    fileContent,
+    filePatch,
+    filePreviewModeByPath,
+    activePatchSet: props.activePatchSet,
+    selectedPatchFilePath: props.selectedPatchFilePath,
+    collapsedPatchHunkIds: props.collapsedPatchHunkIds,
+    selectedPatchHunkId: props.selectedPatchHunkId,
+    outline,
+    getStickySourceEditor,
+    editorSurfaceRef,
+    wordWrapEnabled: editorOptions.wordWrapEnabled,
+    diffSideBySide,
+  });
 
   const editorExtensions = useMemo(() => [...getAgentDecorationExtensions()], []);
 
   const diffEditorExtensions = useMemo(() => [...getAgentDecorationExtensions()], []);
-
-  const stickyContextContent =
-    filePatch && filePatch.relativePath === selectedFilePath
-      ? (filePatch.afterContent ?? '')
-      : (fileContent ?? '');
-
-  const stickyContextInput = useMemo(
-    () => ({
-      selectedFilePath,
-      content: stickyContextContent,
-      outline,
-      getStickySourceEditor,
-      wordWrapEnabled: editorOptions.wordWrapEnabled,
-      diffSideBySide,
-      editorSurfaceRef,
-      stickyDiffRanges,
-    }),
-    [
-      selectedFilePath,
-      stickyContextContent,
-      outline,
-      getStickySourceEditor,
-      editorOptions.wordWrapEnabled,
-      diffSideBySide,
-      editorSurfaceRef,
-      stickyDiffRanges,
-    ]
-  );
 
   const stickyContextModel = useStickyContext(stickyContextInput);
 
