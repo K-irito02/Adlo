@@ -1,19 +1,17 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import type { ChangesPanelProps } from '@regions/right-panel/types';
 import { useTCopy } from '@app/i18n/useTCopy';
-import type { ChangeTreeNode } from '@regions/right-panel/changesTree';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
-import { getPrimaryBadge } from '@regions/right-panel/ChangesPanel/utils';
 import { useChangesPanelStore } from '../useChangesPanelStore';
 import { useFileContextMenuItems } from '@regions/right-panel/hooks/useFileContextMenuItems';
-import { isNodeDeleted, computeChangesMenuItems } from './useChangesPanelStateUtils';
+import { isNodeDeleted } from './useChangesPanelStateUtils';
 import { useChangesPanelSort } from './useChangesPanelSort';
-import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
 import { useChangesPanelDialogs } from './useChangesPanelDialogs';
-import type { ChangesMenuItem } from '../ChangesTopToolbar';
 import { useChangesFilters } from './useChangesFilters';
 import { useChangesActions } from './useChangesActions';
+import { useChangesPanelMenuItems } from './useChangesPanelMenuItems';
+import { useChangesPanelRenderers } from './useChangesPanelRenderers';
 
 export function useChangesPanelState(props: ChangesPanelProps) {
   const { t, formatT } = useTCopy();
@@ -144,40 +142,16 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     toggleChangesTreePath,
   });
 
-  const baseMenuItems = useMemo(
-    () =>
-      computeChangesMenuItems(
-        t,
-        lineNumbersEnabled,
-        wordWrapEnabled,
-        () => setLineNumbersEnabled((v) => !v),
-        () => setWordWrapEnabled((v) => !v)
-      ),
-    [t, lineNumbersEnabled, wordWrapEnabled]
-  );
-
-  const changesMenuItems = useMemo(() => {
-    if (!navigatorRelativePath) {
-      return baseMenuItems;
-    }
-    const copyItems: ChangesMenuItem[] = [
-      {
-        id: 'copy-relative',
-        label: t.fileCopyRelativePath,
-        disabled: false,
-        action: () => void copyToClipboard(navigatorRelativePath),
-      },
-      {
-        id: 'copy-full',
-        label: t.fileCopyFullPath,
-        disabled: !navigatorAbsolutePath,
-        action: () =>
-          navigatorAbsolutePath ? void copyToClipboard(navigatorAbsolutePath) : undefined,
-      },
-      { id: 'sep-path', separator: true },
-    ];
-    return [...copyItems, ...baseMenuItems];
-  }, [baseMenuItems, t, navigatorRelativePath, navigatorAbsolutePath, copyToClipboard]);
+  const { changesMenuItems } = useChangesPanelMenuItems({
+    t,
+    lineNumbersEnabled,
+    wordWrapEnabled,
+    setLineNumbersEnabled,
+    setWordWrapEnabled,
+    navigatorRelativePath,
+    navigatorAbsolutePath,
+    copyToClipboard,
+  });
 
   useEffect(() => {
     if (!navigatorSelectedPath) {
@@ -216,28 +190,7 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     showGitActions: true,
   });
 
-  const renderNavigatorMeta = useCallback((node: WorkspaceTreeNode) => {
-    const cn = node as ChangeTreeNode;
-    return (
-      <span className="adl-filetree__count-badge">
-        {cn.kind === 'directory'
-          ? cn.fileCount
-          : cn.totalHunks > 0
-            ? `${cn.reviewedHunks}/${cn.totalHunks}`
-            : '1'}
-      </span>
-    );
-  }, []);
-
-  const renderNavigatorCount = useCallback((node: WorkspaceTreeNode) => {
-    const cn = node as ChangeTreeNode;
-    const badge = getPrimaryBadge(cn);
-    return badge ? (
-      <span className={`adl-filetree__status-badge adl-filetree__status-badge--${badge.tone}`}>
-        {badge.label}
-      </span>
-    ) : null;
-  }, []);
+  const { renderNavigatorMeta, renderNavigatorCount } = useChangesPanelRenderers();
 
   const {
     changesNavigatorMode,
