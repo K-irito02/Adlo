@@ -13,6 +13,22 @@ The design intent originates in the Phase 0 specification (stageOne). This folde
 - **Performance-first**: tree-shake friendly modules, virtualisation for big lists, debounced inputs, no synchronous layout thrash.
 - **Test coverage** for every public design-system helper.
 
+## Directory Structure
+
+```
+docs/design-system/
+├── README.md                # This file — overview & index
+├── foundations/             # Core design primitives
+│   ├── tokens.md            # Design tokens (spacing/typography/radius/shadow/...)
+│   └── themes.md            # Color schemes, mode resolution, ThemeController
+├── components/
+│   └── components.md        # UI component specs (Button/Card/Pill/Modal/Toast/...)
+└── guidelines/              # Quality & usage practices
+    ├── accessibility.md     # WCAG AA, keyboard nav, screen reader, contrast
+    ├── responsive.md        # Breakpoints, app-shell adaptation, containers
+    └── testing.md           # Unit/integration/build coverage strategy
+```
+
 ## Layered Architecture
 
 ```
@@ -27,7 +43,7 @@ frontend/src/
 │   │   └── actions/       # 8 个跨切片 action 模块
 │   ├── i18n/              # 国际化拆分（13 领域 / 936 keys，TCopyContext + useTCopy 驱动）
 │   ├── icons/             # SVG 图标拆分（5 文件：core/file/badges/actions/status）
-│   │   │                   # - badges/  文件类型徽章图标（20 语义化图标，见 components.md）
+│   │   │                   # - badges/  文件类型徽章图标（20 语义化图标，见 components/components.md）
 │   ├── features/          # 功能模块（file-tree/terminal/browser/diff-viewer/...）
 │   └── regions/           # 布局区域（left-sidebar/right-panel/center-pane）
 ├── styles/
@@ -77,14 +93,14 @@ document.body.innerHTML = renderHtml(html`
 
 ## Module Index
 
-| Document | Topic |
-| --- | --- |
-| [`tokens.md`](./tokens.md) | Spacing / typography / radius / shadow / z-index / motion tokens |
-| [`themes.md`](./themes.md) | The 5 color schemes × light/dark resolution rules |
-| [`components.md`](./components.md) | Button / Input / Card / Pill / Banner / Modal / Tooltip / etc. |
-| [`accessibility.md`](./accessibility.md) | Keyboard, screen reader, contrast, reduced motion |
-| [`responsive.md`](./responsive.md) | Breakpoints, app-shell adaptations, grid presets |
-| [`testing.md`](./testing.md) | Unit + integration coverage strategy |
+| Document | Category | Topic |
+| --- | --- | --- |
+| [`foundations/tokens.md`](./foundations/tokens.md) | Foundations | Spacing / typography / radius / shadow / z-index / motion tokens |
+| [`foundations/themes.md`](./foundations/themes.md) | Foundations | The 5 color schemes × light/dark resolution rules |
+| [`components/components.md`](./components/components.md) | Components | Button / Input / Card / Pill / Banner / Modal / Tooltip / etc. |
+| [`guidelines/accessibility.md`](./guidelines/accessibility.md) | Guidelines | Keyboard, screen reader, contrast, reduced motion |
+| [`guidelines/responsive.md`](./guidelines/responsive.md) | Guidelines | Breakpoints, app-shell adaptations, grid presets |
+| [`guidelines/testing.md`](./guidelines/testing.md) | Guidelines | Unit + integration coverage strategy |
 
 > **UI 模式速查**：[`ui-patterns.md`](../../.agents/rules/ui-patterns.md) — 按场景（对话框、菜单、悬停、点击、颜色、Hint Card、按钮、文件树等 20 类）索引到本文档各章节，开发时快速定位。
 

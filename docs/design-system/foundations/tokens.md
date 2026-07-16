@@ -1,0 +1,103 @@
+# Design Tokens
+
+Source of truth: `[frontend/src/styles/tokens.css](../../frontend/src/styles/tokens.css)`.
+
+Tokens are the only acceptable way to express atomic design decisions in the codebase. Components MUST refer to them via CSS custom properties — `color: #fff` is forbidden, `color: var(--text-on-accent)` is required.
+
+## Spacing (4 px grid)
+
+
+| Token         | Value |
+| ------------- | ----- |
+| `--space-px`  | 1 px  |
+| `--space-0-5` | 2 px  |
+| `--space-1`   | 4 px  |
+| `--space-2`   | 8 px  |
+| `--space-3`   | 12 px |
+| `--space-4`   | 16 px |
+| `--space-5`   | 20 px |
+| `--space-6`   | 24 px |
+| `--space-8`   | 32 px |
+| `--space-10`  | 40 px |
+| `--space-12`  | 48 px |
+| `--space-16`  | 64 px |
+| `--space-20`  | 80 px |
+| `--space-24`  | 96 px |
+
+
+## Typography
+
+- Family: `--font-sans` (Inter + system stack), `--font-mono` (JetBrains Mono / Fira Code), `--font-display` (alias of sans).
+- Size scale: `--text-xs` (12 px) → `--text-5xl` (48 px) on a 1.25 ratio.
+- Weights: `--font-light` (300) → `--font-extrabold` (800).
+- Line heights: `--leading-none` (1) → `--leading-relaxed` (1.625).
+- Tracking: `--tracking-tight` (-0.025em) → `--tracking-widest` (0.1em).
+
+## Radius
+
+`--radius-none`, `--radius-sm` (2 px), `--radius` (4 px), `--radius-md` (6 px), `--radius-lg` (8 px), `--radius-xl` (12 px), `--radius-2xl` (16 px), `--radius-3xl` (24 px), `--radius-full` (pill).
+
+## Shadow
+
+`--shadow-sm`, `--shadow`, `--shadow-md`, `--shadow-lg`, `--shadow-xl`, `--shadow-2xl`, `--shadow-inner`, plus `--shadow-soft` (theme-aware ambient).
+
+## Motion
+
+
+| Group     | Tokens                                                                                                               |
+| --------- | -------------------------------------------------------------------------------------------------------------------- |
+| Duration  | `--duration-75` … `--duration-1000`                                                                                  |
+| Easing    | `--ease-default` (220 emphasis), `--ease-enter`, `--ease-exit`, `--ease-spring`, `--ease-snap`, `--ease-linear`      |
+| Composite | `--transition-colors`, `--transition-shadow`, `--transition-transform`, `--transition-opacity`, `--transition-modal` |
+
+
+`prefers-reduced-motion: reduce` automatically collapses every duration to 1 ms.
+
+## Z-Index
+
+Strict layering tokens — nothing else may declare arbitrary z-index numbers:
+
+`--z-base` (0), `--z-raised` (10), `--z-dropdown` (20), `--z-sticky` (30), `--z-overlay` (40), `--z-modal-backdrop` (50), `--z-modal` (60), `--z-popover` (70), `--z-toast` (80), `--z-tooltip` (90), `--z-max` (9999).
+
+## Icons
+
+`--icon-xs` (12 px) → `--icon-2xl` (48 px). All icons inherit `currentColor`. For animated click-feedback icons, `lucide-animated` is the permitted third-party library.
+
+## Layout
+
+- `--titlebar-height` (36 px), `--statusbar-height` (28 px)
+- `--sidebar-width` (248 px), `--sidebar-width-collapsed` (64 px)
+- `--content-max-width` (1440 px)
+- `--adl-editor-minimap-width` (84 px) - Minimap 宽度，用于编辑器内容区域的右侧 padding
+
+## Surface (interactive)
+
+| Token | Light | Dark | Source |
+|-------|-------|------|--------|
+| `--surface-hover` | `rgba(34, 34, 34, 0.06)` | `rgba(255, 255, 255, 0.08)` | `themes.css` |
+| `--surface-active` | `rgba(34, 34, 34, 0.08)` | `rgba(255, 255, 255, 0.12)` | `themes.css` |
+
+`--surface-hover` 用于鼠标悬停态的轻微底色（如菜单项 hover）。
+`--surface-active` 用于选中/激活态的稍深底色（如菜单项 active）。
+`--surface-raised` 是弹出层（菜单、popover）的背景，定义在 `themes.css` 中。
+
+## Focus
+
+- `--focus-ring-width` (3 px, boosted to 4 px under `prefers-contrast: more`)
+- `--focus-ring` (theme-aware, see `themes.css`)
+
+## Tooltip
+
+| Token | Value | Source |
+|-------|-------|--------|
+| `--tooltip-bg` | `rgba(0, 0, 0, 0.86)` (default), `rgba(255, 255, 255, 0.86)` (dark mode) | `tokens.css`, `themes.css` |
+| `--tooltip-fg` | `#fff` (default), `#111` (dark mode) | `tokens.css`, `themes.css` |
+| `--tooltip-shadow` | `0 4px 12px rgba(0, 0, 0, 0.28)` (default), `0 4px 12px rgba(0, 0, 0, 0.08)` (dark mode) | `tokens.css`, `themes.css` |
+| `--tooltip-radius` | `6px` | `tokens.css` |
+
+Tooltip uses inverse theming: light mode → dark tooltip, dark mode → light tooltip. Arrow is rendered via `clip-path: polygon(50% 0%, 0% 100%, 100% 100%)` (upward triangle) with `rotate()` transforms for each side. Animation is pure opacity transition (no scale) to avoid conflict with arrow rotation.
+
+## Reduced Motion / Reduced Data
+
+- All transition + animation durations collapse to 1 ms when `prefers-reduced-motion: reduce` is set.
+- Decorative gradients in `body` background are dropped when `prefers-reduced-data: reduce` is set.

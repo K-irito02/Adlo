@@ -6,8 +6,17 @@
 
 | 目录 | 内容 | 数量 |
 |------|------|------|
-| [plans/](./plans/) | 重构/功能实施计划（按日期命名） | 35 |
-| [specs/](./specs/) | 功能规格文档（含部分子目录内 checklist + spec + tasks） | 25 |
+| [specs/browser/](./specs/browser/) | 浏览器功能规格设计 | 3 |
+| [specs/git/](./specs/git/) | Git 可视化规格设计 | 3 |
+| [specs/multi-workspace/](./specs/multi-workspace/) | 多工作区规格设计 | 6 |
+| [specs/refactoring/](./specs/refactoring/) | 重构/功能规格（含 spec.md + checklist.md + tasks.md 完整式） | 4 |
+| [specs/ui/](./specs/ui/) | UI/UX 通用规格设计（含 CI、启动、Provider 等） | 10 |
+| [plans/browser/](./plans/browser/) | 浏览器功能实施计划 | 14 |
+| [plans/git/](./plans/git/) | Git 可视化实施计划 | 3 |
+| [plans/phase2/](./plans/phase2/) | Phase 2 实施计划（Agent 核心、Provider 生态等） | 8 |
+| [plans/refactoring/](./plans/refactoring/) | 重构/代码质量/架构清理实施计划 | 34 |
+| [plans/startup/](./plans/startup/) | 启动性能优化实施计划 | 4 |
+| [plans/ui/](./plans/ui/) | UI/UX 实施计划（含 i18n、CI、通知、主题等） | 15 |
 
 ## 归档约定
 
@@ -19,4 +28,4 @@
 ## 相关文档
 
 - [知识沉淀/](../../docs/知识沉淀/) — 实施过程中沉淀的经验教训（按领域分类）
-- [重构洞察/](../../docs/重构洞察/) — 重构阶段总结与洞察报告
+- [refactoring-insight/](../../docs/refactoring-insight/) — 重构阶段总结与洞察报告
