@@ -179,6 +179,10 @@ export function filterHeatmapColumns(
     return columns;
   }
 
+  if (columns.length > 0 && columns[0].bins[0]?.date == null) {
+    return columns;
+  }
+
   const start = Math.min(xDomain[0].getTime(), xDomain[1].getTime());
   const end = Math.max(xDomain[0].getTime(), xDomain[1].getTime());
 
@@ -234,9 +238,9 @@ export function getHeatmapDayLabels(weekStartDay: HeatmapWeekStartDay = 0): read
 /** Rotates Sun-first column bins so display row 0 starts on `weekStartDay`. */
 export function rotateHeatmapColumnBins(
   columns: HeatmapColumn[],
-  weekStartDay: HeatmapWeekStartDay = 0
+  weekStartDay?: HeatmapWeekStartDay
 ): HeatmapColumn[] {
-  if (weekStartDay === 0) {
+  if (weekStartDay == null || weekStartDay === 0) {
     return columns;
   }
 
@@ -674,6 +678,9 @@ export interface HeatmapDisplayRange {
 
 /** Whether a bin falls outside the contribution display window (not merely inactive). */
 export function isHeatmapGhostBin(bin: HeatmapBin, range: HeatmapDisplayRange): boolean {
+  if (bin.date == null) {
+    return false;
+  }
   const time = bin.date.getTime();
   if (range.end && time > range.end.getTime()) {
     return true;
