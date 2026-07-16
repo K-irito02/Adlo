@@ -316,10 +316,10 @@ function HeatmapChartInner({
   const yScale = useMemo(() => (rowIndex: number) => rowIndex * binHeight, [binHeight]);
 
   const resolvedColumnLabels = useMemo(() => {
-    const hasAnyLabel = data.some((col) => col.columnLabel != null);
+    const hasAnyLabel = visibleData.some((col) => col.columnLabel != null);
     if (!hasAnyLabel) return undefined;
-    return data.map((col) => col.columnLabel ?? '');
-  }, [data]);
+    return visibleData.map((col) => col.columnLabel ?? '');
+  }, [visibleData]);
 
   const timeExtent = useMemo(() => getHeatmapTimeExtent(data), [data]);
 

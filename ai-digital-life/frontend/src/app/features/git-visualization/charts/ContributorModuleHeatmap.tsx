@@ -19,7 +19,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
     () =>
       rawData.map((col, i) => ({
         ...col,
-        columnLabel: t[MODULE_KEYS[i] as keyof typeof t] as string,
+        columnLabel: t[MODULE_KEYS[i] as keyof typeof t],
       })),
     [rawData, t]
   );

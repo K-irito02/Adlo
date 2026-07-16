@@ -22,7 +22,7 @@ export const ClockHeatmap = React.memo(function ClockHeatmap() {
 
   const formatLabel = useCallback(
     (count: number) => {
-      const word = count === 1 ? t.gitVisCommits : t.gitVisCommits;
+      const word = count === 1 ? t.gitVisContribution : t.gitVisContributions;
       return `${count} ${word}`;
     },
     [t]
