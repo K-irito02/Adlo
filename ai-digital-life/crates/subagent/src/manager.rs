@@ -3,9 +3,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use ts_rs::TS;
 
 /// Unique identifier for a sub-agent task.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc/generated/")]
 pub struct SubagentId(String);
 
 impl SubagentId {
@@ -30,8 +32,9 @@ impl Default for SubagentId {
 }
 
 /// Status of a sub-agent task.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc/generated/")]
 pub enum SubagentStatus {
     Pending,
     Running,

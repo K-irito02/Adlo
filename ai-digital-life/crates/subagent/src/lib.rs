@@ -8,9 +8,12 @@ pub use permission::derive_subagent_permission;
 pub use task_tool::{TaskToolInput, TaskToolOutput};
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// A sub-agent task spawned by the task tool.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc/generated/")]
+#[serde(rename_all = "camelCase")]
 pub struct SubagentTask {
     pub id: SubagentId,
     pub parent_session_id: String,

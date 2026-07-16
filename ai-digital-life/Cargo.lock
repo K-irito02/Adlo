@@ -202,6 +202,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "ts-rs",
 ]
 
 [[package]]
@@ -280,6 +281,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "ts-rs",
 ]
 
 [[package]]

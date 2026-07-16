@@ -11,7 +11,7 @@ export type { AgentRunDetail, AgentStepType, ConversationSendResult, IpcResult, 
 /**
  * Agent 配置 (镜像 Rust AgentConfig 结构体)
  * 用于: 描述内置/自定义 Agent 的元信息与能力边界
- * 注意: Rust 端未启用 rename_all = "camelCase", 字段保持 snake_case
+ * Rust 端已启用 rename_all = "camelCase", 字段为 camelCase
  */
 export interface AgentConfig {
   id: 'build' | 'plan' | 'general' | 'explore' | 'compaction' | 'title' | 'summary' | 'custom';
@@ -19,10 +19,10 @@ export interface AgentConfig {
   description: string;
   mode: 'primary' | 'subagent' | 'hidden';
   hidden: boolean;
-  allows_write_tools: boolean;
-  prompt_template: string;
-  model_override: string | null;
-  allowed_tools: string[];
+  allowsWriteTools: boolean;
+  promptTemplate: string;
+  modelOverride: string | null;
+  allowedTools: string[];
 }
 
 /**

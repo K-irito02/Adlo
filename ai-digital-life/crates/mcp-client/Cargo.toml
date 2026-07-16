@@ -18,3 +18,6 @@ async-trait.workspace = true
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+ts-rs = { version = "10", features = ["serde-compat", "serde-json-impl"] }

@@ -5,13 +5,13 @@ export type { IpcResult };
 /**
  * Task Tool 输入 (镜像 Rust TaskToolInput)
  * 用于: 派生子代理执行后台任务
- * 注意: Rust 端未启用 rename_all = "camelCase", 字段保持 snake_case
+ * Rust 端已启用 rename_all = "camelCase", 字段为 camelCase
  */
 export interface TaskToolInput {
   description: string;
   prompt: string;
-  subagent_type: string;
-  task_id: string | null;
+  subagentType: string;
+  taskId: string | null;
   background: boolean;
 }
 
@@ -20,7 +20,7 @@ export interface TaskToolInput {
  * 用于: 子代理任务派生后的即时返回值
  */
 export interface TaskToolOutput {
-  task_id: string;
+  taskId: string;
   state: 'running' | 'completed' | 'error';
   summary: string;
   result: string | null;
@@ -33,14 +33,14 @@ export interface TaskToolOutput {
  */
 export interface SubagentTask {
   id: string;
-  parent_session_id: string;
-  child_session_id: string;
-  subagent_type: string;
+  parentSessionId: string;
+  childSessionId: string;
+  subagentType: string;
   prompt: string;
   background: boolean;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'aborted';
-  created_at: number;
-  completed_at: number | null;
+  createdAt: number;
+  completedAt: number | null;
 }
 
 /**

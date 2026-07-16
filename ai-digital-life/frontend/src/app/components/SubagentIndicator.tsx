@@ -27,7 +27,7 @@ export function SubagentIndicator() {
     <div className="adl-subagent-indicator" role="status" aria-live="polite">
       {activeSubagents.map((task) => (
         <span key={task.id} className={`adl-subagent-badge adl-subagent-${task.status}`}>
-          {t.agentSubagentTask}: {task.subagent_type} — {statusLabel(task.status)}
+          {t.agentSubagentTask}: {task.subagentType} — {statusLabel(task.status)}
         </span>
       ))}
     </div>

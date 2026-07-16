@@ -19,10 +19,10 @@ export const mockAgent: AgentBridge = {
       description: 'Mock general agent for preview mode',
       mode: 'primary',
       hidden: false,
-      allows_write_tools: true,
-      prompt_template: '',
-      model_override: null,
-      allowed_tools: [],
+      allowsWriteTools: true,
+      promptTemplate: '',
+      modelOverride: null,
+      allowedTools: [],
     },
   }),
   enterPlanMode: async (_workspaceId: string, _workspaceRoot: string) => ({
@@ -37,7 +37,7 @@ export const mockSubagent: SubagentBridge = {
   spawnSubagent: async (_parentSessionId, input) => ({
     ok: true,
     data: {
-      task_id: input.task_id ?? `mock-task-${Date.now()}`,
+      taskId: input.taskId ?? `mock-task-${Date.now()}`,
       state: 'running',
       summary: `Mock subagent spawned for: ${input.description}`,
       result: null,

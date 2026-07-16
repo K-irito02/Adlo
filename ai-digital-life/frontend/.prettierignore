@@ -5,6 +5,7 @@ coverage
 
 # Auto-generated
 src/shared/ipc-types.generated.ts
+src/shared/ipc/generated/
 src/vite-env.d.ts
 
 # Test fixtures & mocks (mirrors ESLint ignores)

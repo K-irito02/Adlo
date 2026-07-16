@@ -10,9 +10,12 @@ pub use client::{McpClient, McpClientState};
 pub use registry::{McpServerRegistry, McpTransportType};
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// Configuration for a single MCP server (from .mcp.json or user config).
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc/generated/")]
+#[serde(rename_all = "camelCase")]
 pub struct McpServerConfig {
     pub name: String,
     pub transport: McpTransportType,

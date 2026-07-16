@@ -18,6 +18,7 @@ export default tseslint.config(
       'src/mock/**',
       'src/types/**',
       'src/shared/ipc-types.generated.ts',
+      'src/shared/ipc/generated/**',
       '*.config.ts',
       '*.config.js',
       '*.d.ts',

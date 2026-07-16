@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 /// Input parameters for the task tool.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc/generated/")]
+#[serde(rename_all = "camelCase")]
 pub struct TaskToolInput {
     pub description: String,
     pub prompt: String,
@@ -11,7 +14,9 @@ pub struct TaskToolInput {
 }
 
 /// Output returned by the task tool.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc/generated/")]
+#[serde(rename_all = "camelCase")]
 pub struct TaskToolOutput {
     pub task_id: String,
     pub state: String,

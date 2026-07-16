@@ -8,6 +8,7 @@ use super::TimestampMs;
 /// Identifies a built-in or custom agent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc/generated/")]
 pub enum AgentId {
     /// Primary agent for building/editing code (default).
     Build,
@@ -49,8 +50,9 @@ impl std::fmt::Display for AgentId {
 }
 
 /// Determines an agent's permissions and visibility.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc/generated/")]
 pub enum AgentMode {
     /// Top-level agent driven directly by user input.
     Primary,
@@ -75,7 +77,9 @@ impl AgentMode {
 }
 
 /// Configuration for a single agent instance.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export, export_to = "../../../frontend/src/shared/ipc/generated/")]
+#[serde(rename_all = "camelCase")]
 pub struct AgentConfig {
     pub id: AgentId,
     pub name: String,
