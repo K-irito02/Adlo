@@ -313,8 +313,8 @@ export const createTerminalSlice = (
     setDefaultTerminalProfile: (profile) => {
       try {
         window.localStorage.setItem(TERMINAL_DEFAULT_PROFILE_KEY, JSON.stringify(profile));
-      } catch {
-        /* ignore */
+      } catch (err) {
+        console.warn('terminalSlice: localStorage operation failed:', err);
       }
       writeDefaultProfile(profile);
       set({ defaultTerminalProfile: profile });
@@ -328,8 +328,8 @@ export const createTerminalSlice = (
             TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
             JSON.stringify(nextWorkspaceProfiles)
           );
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('terminalSlice: localStorage operation failed:', err);
         }
         writeWorkspaceDefaultProfiles(nextWorkspaceProfiles);
         return { workspaceDefaultProfiles: nextWorkspaceProfiles };

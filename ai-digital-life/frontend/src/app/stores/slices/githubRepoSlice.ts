@@ -90,8 +90,8 @@ export const createGitHubRepoSlice = (
       if (typeof window !== 'undefined') {
         try {
           window.localStorage.removeItem(GH_WORKSPACE_CONFIGS_KEY);
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('githubRepoSlice: localStorage operation failed:', err);
         }
       }
       set({
@@ -293,8 +293,8 @@ export const createGitHubRepoSlice = (
       if (typeof window !== 'undefined') {
         try {
           window.localStorage.removeItem(GH_CI_FOLDERS_KEY);
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('githubRepoSlice: localStorage operation failed:', err);
         }
       }
       set({
@@ -319,8 +319,8 @@ export const createGitHubRepoSlice = (
         if (typeof window !== 'undefined') {
           try {
             window.localStorage.removeItem(GH_WORKSPACE_CONFIGS_KEY);
-          } catch {
-            /* ignore */
+          } catch (err) {
+            console.warn('githubRepoSlice: localStorage operation failed:', err);
           }
         }
         scheduleFoldersWrite(nextFolders);
@@ -334,8 +334,8 @@ export const createGitHubRepoSlice = (
         if (typeof window !== 'undefined') {
           try {
             window.localStorage.removeItem(GH_WORKSPACE_CONFIGS_KEY);
-          } catch {
-            /* ignore */
+          } catch (err) {
+            console.warn('githubRepoSlice: localStorage operation failed:', err);
           }
         }
         scheduleFoldersWrite(nextFolders);
@@ -354,8 +354,8 @@ export const createGitHubRepoSlice = (
         try {
           window.localStorage.removeItem(GH_WORKSPACE_CONFIGS_KEY);
           window.localStorage.removeItem(GH_CI_FOLDERS_KEY);
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('githubRepoSlice: localStorage operation failed:', err);
         }
       }
       set({

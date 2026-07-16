@@ -9,8 +9,8 @@ export function readConversationPanelHeight(): number {
     if (Number.isFinite(raw)) {
       return Math.max(MIN_CONVERSATION_PANEL_HEIGHT, Math.min(MAX_CONVERSATION_PANEL_HEIGHT, raw));
     }
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('ResizeHandle: localStorage operation failed:', err);
   }
   return DEFAULT_CONVERSATION_PANEL_HEIGHT;
 }
@@ -18,8 +18,8 @@ export function readConversationPanelHeight(): number {
 export function writeConversationPanelHeight(value: number): void {
   try {
     window.localStorage.setItem(CONVERSATION_PANEL_HEIGHT_KEY, String(value));
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('ResizeHandle: localStorage operation failed:', err);
   }
 }
 

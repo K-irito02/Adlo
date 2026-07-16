@@ -143,8 +143,8 @@ function readFilesNavigatorMode(): FilesNavigatorMode {
     if (raw === 'tree' || raw === 'search' || raw === 'outline') {
       return raw;
     }
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('uiSlice: localStorage operation failed:', err);
   }
   return 'tree';
 }
@@ -152,8 +152,8 @@ function readFilesNavigatorMode(): FilesNavigatorMode {
 function writeFilesNavigatorMode(mode: FilesNavigatorMode): void {
   try {
     window.localStorage.setItem(FILES_NAVIGATOR_MODE_KEY, mode);
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('uiSlice: localStorage operation failed:', err);
   }
 }
 
@@ -163,8 +163,8 @@ function readChangesNavigatorMode(): ChangesNavigatorMode {
     if (raw === 'tree' || raw === 'list' || raw === 'outline') {
       return raw;
     }
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('uiSlice: localStorage operation failed:', err);
   }
   return 'tree';
 }
@@ -172,8 +172,8 @@ function readChangesNavigatorMode(): ChangesNavigatorMode {
 function writeChangesNavigatorMode(mode: ChangesNavigatorMode): void {
   try {
     window.localStorage.setItem(CHANGES_NAVIGATOR_MODE_KEY, mode);
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('uiSlice: localStorage operation failed:', err);
   }
 }
 

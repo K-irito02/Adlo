@@ -33,15 +33,16 @@ export const createCommunicateSlice = (
         if (p === 'github' || p === 'feishu' || p === 'qq' || p === 'wechat' || p === 'email') {
           return p as PlatformId;
         }
-      } catch {
-        /* ignore */
+      } catch (err) {
+        console.warn('communicateSlice: localStorage operation failed:', err);
       }
       return undefined;
     })();
     const storedCollapsed = (() => {
       try {
         return window.localStorage.getItem(COMMUNICATE_NAVIGATOR_COLLAPSED_KEY) === '1';
-      } catch {
+      } catch (err) {
+        console.warn('communicateSlice: localStorage operation failed:', err);
         return false;
       }
     })();
@@ -74,8 +75,8 @@ export const createCommunicateSlice = (
       if (typeof window !== 'undefined') {
         try {
           window.localStorage.setItem(ACTIVE_PLATFORM_KEY, platform);
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('communicateSlice: localStorage operation failed:', err);
         }
       }
     },
@@ -86,8 +87,8 @@ export const createCommunicateSlice = (
         if (typeof window !== 'undefined') {
           try {
             window.localStorage.setItem(COMMUNICATE_NAVIGATOR_COLLAPSED_KEY, next ? '1' : '0');
-          } catch {
-            /* ignore */
+          } catch (err) {
+            console.warn('communicateSlice: localStorage operation failed:', err);
           }
         }
         return { communicateNavigatorCollapsed: next };

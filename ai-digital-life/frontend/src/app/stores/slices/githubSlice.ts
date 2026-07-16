@@ -125,8 +125,8 @@ export const createGitHubSlice = (
       if (typeof window !== 'undefined') {
         try {
           window.localStorage.setItem(ACTIVE_GITHUB_SECTION_KEY, section);
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('githubSlice: localStorage/bridge operation failed:', err);
         }
       }
     },
@@ -148,8 +148,8 @@ export const createGitHubSlice = (
       if (bridge && bridge.github && typeof bridge.github.setAccessToken === 'function') {
         try {
           await bridge.github.setAccessToken(sanitized);
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('githubSlice: localStorage/bridge operation failed:', err);
         }
       }
 
@@ -161,8 +161,8 @@ export const createGitHubSlice = (
           } else {
             window.localStorage.removeItem(CI_ACCESS_TOKEN_KEY);
           }
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('githubSlice: localStorage/bridge operation failed:', err);
         }
       }
     },
@@ -173,8 +173,8 @@ export const createGitHubSlice = (
       if (bridge && bridge.github && typeof bridge.github.clearAccessToken === 'function') {
         try {
           await bridge.github.clearAccessToken();
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('githubSlice: localStorage/bridge operation failed:', err);
         }
       }
 
@@ -182,8 +182,8 @@ export const createGitHubSlice = (
       if (typeof window !== 'undefined') {
         try {
           window.localStorage.removeItem(CI_ACCESS_TOKEN_KEY);
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('githubSlice: localStorage/bridge operation failed:', err);
         }
       }
     },
@@ -193,8 +193,8 @@ export const createGitHubSlice = (
       if (typeof window !== 'undefined') {
         try {
           window.localStorage.setItem(CI_AUTO_REFRESH_ON_PUSH_KEY, enabled ? '1' : '0');
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('githubSlice: localStorage/bridge operation failed:', err);
         }
       }
     },

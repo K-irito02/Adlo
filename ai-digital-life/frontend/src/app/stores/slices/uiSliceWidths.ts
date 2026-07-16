@@ -46,8 +46,8 @@ export function readRightTool(): ToolId {
     ) {
       return raw;
     }
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('uiSliceWidths: localStorage operation failed:', err);
   }
   return 'files';
 }
@@ -55,8 +55,8 @@ export function readRightTool(): ToolId {
 function writeRightTool(tool: ToolId): void {
   try {
     window.localStorage.setItem(ACTIVE_RIGHT_TOOL_KEY, tool);
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('uiSliceWidths: localStorage operation failed:', err);
   }
 }
 

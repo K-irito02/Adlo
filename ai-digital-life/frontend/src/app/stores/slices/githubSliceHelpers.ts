@@ -69,8 +69,8 @@ export async function hydrateCiConfigDefaults(): Promise<{
     } else if (rawFlag === '1') {
       autoRefresh = true;
     }
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('githubSliceHelpers: localStorage/bridge operation failed:', err);
   }
 
   let token = '';
@@ -86,8 +86,8 @@ export async function hydrateCiConfigDefaults(): Promise<{
       if (hasResult && hasResult.ok && hasResult.data) {
         token = '::stored::';
       }
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.warn('githubSliceHelpers: localStorage/bridge operation failed:', err);
     }
   } else if (bridge && bridge.github && typeof bridge.github.hasAccessToken === 'function') {
     try {
@@ -96,8 +96,8 @@ export async function hydrateCiConfigDefaults(): Promise<{
         const storedToken = window.localStorage.getItem(CI_ACCESS_TOKEN_KEY);
         token = typeof storedToken === 'string' && storedToken.length > 0 ? storedToken : '';
       }
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.warn('githubSliceHelpers: localStorage/bridge operation failed:', err);
     }
   }
 
@@ -107,8 +107,8 @@ export async function hydrateCiConfigDefaults(): Promise<{
       if (typeof storedToken === 'string' && storedToken.length > 0) {
         token = storedToken;
       }
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.warn('githubSliceHelpers: localStorage/bridge operation failed:', err);
     }
   }
 
@@ -134,8 +134,8 @@ export async function hydrateCiStatusDefaults(): Promise<{
     ) {
       activeGitHubSection = storedSection as GitHubSection;
     }
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('githubSliceHelpers: localStorage/bridge operation failed:', err);
   }
 
   return { activeGitHubSection };

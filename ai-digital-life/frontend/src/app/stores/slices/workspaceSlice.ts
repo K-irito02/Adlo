@@ -10,31 +10,11 @@ import type {
 } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
 import { STORAGE_HYDRATION_DELAY_MS } from '../constants';
+import { readJson, writeJson } from '../shared';
 
 // Local storage keys
 const WORKSPACE_TREE_EXPANDED_KEY = 'adl-ui:workspace-tree-expanded';
 const WORKSPACE_CHANGES_EXPANDED_KEY = 'adl-ui:workspace-changes-expanded';
-
-// Helper functions
-function readJson<T>(key: string, fallback: T): T {
-  try {
-    const raw = window.localStorage.getItem(key);
-    if (raw) {
-      return JSON.parse(raw) as T;
-    }
-  } catch {
-    /* ignore */
-  }
-  return fallback;
-}
-
-function writeJson(key: string, value: unknown): void {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* ignore */
-  }
-}
 
 // Batch write scheduler — coalesces multiple localStorage writes into one
 const pendingWrites = new Map<string, unknown>();

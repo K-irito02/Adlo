@@ -79,8 +79,8 @@ async function hydrateCiDefaults(): Promise<{
     } else if (rawFlag === '1') {
       autoRefresh = true;
     }
-  } catch {
-    /* ignore */
+  } catch (err) {
+    console.warn('ciSlice: localStorage/bridge operation failed:', err);
   }
 
   // Token 读取：Tauri 模式走 credential crate，浏览器模式走 server API
@@ -92,8 +92,8 @@ async function hydrateCiDefaults(): Promise<{
       if (hasResult && hasResult.ok && hasResult.data) {
         token = '::stored::'; // 标记后端已有 token（不在前端回显）
       }
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.warn('ciSlice: localStorage/bridge operation failed:', err);
     }
   } else if (bridge && bridge.ci && typeof bridge.ci.hasAccessToken === 'function') {
     // 浏览器预览模式：尝试从 server 读取
@@ -104,8 +104,8 @@ async function hydrateCiDefaults(): Promise<{
         const storedToken = window.localStorage.getItem(CI_ACCESS_TOKEN_KEY);
         token = typeof storedToken === 'string' && storedToken.length > 0 ? storedToken : '';
       }
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.warn('ciSlice: localStorage/bridge operation failed:', err);
     }
   }
 
@@ -171,8 +171,8 @@ export const createCiSlice = (
       if (bridge && bridge.ci && typeof bridge.ci.setAccessToken === 'function') {
         try {
           await bridge.ci.setAccessToken(sanitized);
-        } catch {
-          /* ignore - 继续使用 localStorage 存储 */
+        } catch (err) {
+          console.warn('ciSlice: localStorage/bridge operation failed:', err);
         }
       }
 
@@ -185,8 +185,8 @@ export const createCiSlice = (
           } else {
             window.localStorage.removeItem(CI_ACCESS_TOKEN_KEY);
           }
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('ciSlice: localStorage/bridge operation failed:', err);
         }
       }
     },
@@ -198,8 +198,8 @@ export const createCiSlice = (
       if (bridge && bridge.ci && typeof bridge.ci.clearAccessToken === 'function') {
         try {
           await bridge.ci.clearAccessToken();
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('ciSlice: localStorage/bridge operation failed:', err);
         }
       }
 
@@ -208,8 +208,8 @@ export const createCiSlice = (
       if (typeof window !== 'undefined') {
         try {
           window.localStorage.removeItem(CI_ACCESS_TOKEN_KEY);
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('ciSlice: localStorage/bridge operation failed:', err);
         }
       }
     },
@@ -219,8 +219,8 @@ export const createCiSlice = (
       if (typeof window !== 'undefined') {
         try {
           window.localStorage.setItem(CI_AUTO_REFRESH_ON_PUSH_KEY, enabled ? '1' : '0');
-        } catch {
-          /* ignore */
+        } catch (err) {
+          console.warn('ciSlice: localStorage/bridge operation failed:', err);
         }
       }
     },
