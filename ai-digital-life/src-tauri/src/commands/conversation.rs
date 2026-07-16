@@ -346,25 +346,6 @@ pub async fn conversation_mark_session_unread(
     Ok(ipc(Ok(session)))
 }
 
-/// Legacy sync variant retained alongside `get_session_detail_with_db`.
-/// Prefer `get_session_detail_with_db` inside `spawn_blocking` closures where
-/// `&AppState` cannot be borrowed.
-#[allow(dead_code)]
-pub fn get_session_detail(
-    state: &AppState,
-    session_id: &str,
-) -> Result<Option<ConversationDetail>, AppError> {
-    let Some(session) =
-        state.db.load_entity::<ConversationSessionRecord>(EntityTable::Sessions, session_id)?
-    else {
-        return Ok(None);
-    };
-    let mut messages: Vec<ConversationMessageRecord> =
-        state.db.list_entities_by_session(EntityTable::ConversationMessages, session_id)?;
-    messages.sort_by_key(|message| message.created_at);
-    Ok(Some(ConversationDetail { session, messages }))
-}
-
 pub fn require_session(
     state: &AppState,
     session_id: &str,
@@ -404,24 +385,6 @@ pub fn save_message(
         }),
         message,
     )
-}
-
-/// Legacy sync variant retained alongside `set_pinned_with_db`.
-/// Prefer `set_pinned_with_db` inside `spawn_blocking` closures where
-/// `&AppState` cannot be borrowed.
-#[allow(dead_code)]
-fn set_pinned(
-    state: &AppState,
-    session_id: &str,
-    pinned: bool,
-) -> IpcResult<ConversationSessionRecord> {
-    crate::commands::ipc_try(|| {
-        let mut session = require_session(state, session_id)?;
-        session.is_pinned = pinned;
-        session.updated_at = adl_types::now_ms();
-        save_session(state, &session)?;
-        Ok(session)
-    })
 }
 
 fn require_session_with_db(

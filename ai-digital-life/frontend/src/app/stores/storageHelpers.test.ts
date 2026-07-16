@@ -2,9 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   readJson,
   writeJson,
-  readNumber,
   writeNumber,
-  readFlag,
   writeFlag,
 } from './storageHelpers';
 
