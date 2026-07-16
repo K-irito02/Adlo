@@ -1,16 +1,15 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { IconSettings, IconRefreshCw, IconMoreVertical, IconFolder } from '@icons';
 import { FileTree } from '../file-tree';
-import { TooltipSimple } from '@components/Tooltip';
-import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
 import { useMenuCloseOnOutsideClick } from '../tree/treeEntryMenus';
+import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
 import type { GitHubTreeNode, GitHubCategoryType } from './types';
 import type { SectionCallbacks } from './GitHubCategorySection';
-import { SUB_ENTRY_ICONS, getChildNodeMoreMenuItems } from './GitHubEntryMenus';
+import { buildChildFolderMenuItems } from './GitHubChildMenuLogic';
+import { renderChildMeta, renderChildCount, renderSubEntryIcon } from './GitHubEntryRenderers';
 
 interface GitHubEntrySubEntriesProps {
   node: GitHubTreeNode;
@@ -63,99 +62,24 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
   const [childMenuState, setChildMenuState] = useState<{
     x: number;
     y: number;
-    nodePath: string;
-    nodeType: string;
+    childNode: GitHubTreeNode;
   } | null>(null);
 
   useMenuCloseOnOutsideClick(!!childMenuState, 'github-child-menu', () => setChildMenuState(null));
 
-  const renderSubEntryIcon = useCallback((childNode: GitHubTreeNode) => {
-    if (childNode.nodeType === 'folder') {
-      return (
-        <span
-          className="adl-filetree__file-icon adl-filetree__file-icon--default"
-          aria-hidden="true"
-        >
-          <IconFolder size={14} decorative />
-        </span>
-      );
-    }
-    const parts = childNode.path.split(':');
-    const section = parts[parts.length - 1];
-    const icon = section ? SUB_ENTRY_ICONS[section] : null;
-    if (icon) {
-      return <span className="adl-github-entry__icon">{icon}</span>;
-    }
-    return undefined;
-  }, []);
-
-  const renderChildMeta = useCallback(
-    (childNode: GitHubTreeNode) => {
-      if (childNode.nodeType !== 'folder') {
-        return null;
-      }
-      const childFolderId = childNode.path.startsWith('github-folder:')
-        ? childNode.path.slice('github-folder:'.length)
-        : '';
-
-      return (
-        <span className="adl-browser-node__actions">
-          <TooltipSimple content={t.refresh} placement="top">
-            <button
-              type="button"
-              className="adl-icon-btn adl-icon-btn--xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                callbacks.onRefreshWorkspace(childFolderId);
-              }}
-              aria-label={t.refresh}
-            >
-              <IconRefreshCw size={12} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.settings} placement="top">
-            <button
-              type="button"
-              className="adl-icon-btn adl-icon-btn--xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                callbacks.onOpenFolderSettings(childFolderId);
-              }}
-              aria-label={t.settings}
-            >
-              <IconSettings size={12} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.moreActions} placement="top">
-            <button
-              type="button"
-              className="adl-icon-btn adl-icon-btn--xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                setChildMenuState({
-                  x: e.clientX + 4,
-                  y: e.clientY,
-                  nodePath: childNode.path,
-                  nodeType: childNode.nodeType,
-                });
-              }}
-              aria-label={t.moreActions}
-            >
-              <IconMoreVertical size={12} decorative />
-            </button>
-          </TooltipSimple>
-        </span>
-      );
-    },
-    [callbacks, t]
+  const pinnedFolderIds = useMemo(
+    () => new Set(gitHubCiFolders.filter((f) => f.pinnedOrder !== undefined).map((f) => f.id)),
+    [gitHubCiFolders]
   );
 
-  const renderChildCount = useCallback((childNode: GitHubTreeNode) => {
-    if (childNode.kind === 'directory') {
-      return childNode.children.length;
-    }
-    return undefined;
+  const handleOpenChildMenu = useCallback((childNode: GitHubTreeNode, x: number, y: number) => {
+    setChildMenuState({ x, y, childNode });
   }, []);
+
+  const childMetaRenderer = useCallback(
+    (childNode: GitHubTreeNode) => renderChildMeta(childNode, t, callbacks, handleOpenChildMenu),
+    [t, callbacks, handleOpenChildMenu]
+  );
 
   const handleChildClick = useCallback(
     (path: string) => {
@@ -178,66 +102,47 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
     [onSelectTreePath, callbacks]
   );
 
-  const handleChildContextMenu = useCallback(
-    (childNode: GitHubTreeNode) => {
-      const childFolderId = childNode.path.startsWith('github-folder:')
-        ? childNode.path.slice('github-folder:'.length)
-        : '';
-      const childIsPinned =
-        gitHubCiFolders.find((f) => f.id === childFolderId)?.pinnedOrder !== undefined;
-      const isWorkspaceChild = childNode.nodeType === 'folder' && !!node.workspaceId;
-      const isUserFolderChild =
-        childNode.nodeType === 'folder' && !node.workspaceId && childNode.path.includes('/');
-      const isUserFolderRoot =
-        childNode.nodeType === 'folder' && !node.workspaceId && !childNode.path.includes('/');
-      const showDeleteFolder: boolean = isWorkspaceChild || isUserFolderChild || isUserFolderRoot;
-
-      return getChildNodeMoreMenuItems(
-        childNode.nodeType,
-        childNode.path,
-        childNode.name,
+  const buildMenuItems = useCallback(
+    (child: GitHubTreeNode, name: string) =>
+      buildChildFolderMenuItems({
+        child,
+        name,
         categoryType,
-        onStartRename,
-        () => clearCiState(),
-        () => {
-          if (node.workspaceId) {
-            callbacks.onDeleteWorkspaceConfig(node.workspaceId);
-          } else {
-            gitHubDeleteFolderConfig(childFolderId);
-          }
-        },
-        () => clearCiState(),
-        () => {
-          if (node.workspaceId) {
-            callbacks.onDeleteWorkspaceConfig(node.workspaceId);
-            clearCiState();
-          } else {
-            gitHubDeleteFolderConfig(childFolderId);
-            clearCiState();
-          }
-        },
-        () => {
-          if (node.workspaceId) {
-            callbacks.onOpenSettings(node.workspaceId);
-          } else {
-            callbacks.onOpenFolderSettings(childFolderId);
-          }
-        },
-        () => gitHubPinFolder(childFolderId),
-        () => gitHubUnpinFolder(childFolderId),
-        childIsPinned,
-        () => {
-          gitHubDeleteFolder(childFolderId);
-          clearCiState();
-        },
-        showDeleteFolder,
+        workspaceId: node.workspaceId,
+        pinnedFolderIds,
         t,
-        () => gitHubDeleteFolderConfigRecursive(childFolderId),
-        () => {
-          gitHubDeleteFolderDataRecursive(childFolderId);
-        },
-        () => gitHubDeleteFolderConfigAndDataRecursive(childFolderId)
-      ).map((item) => {
+        onStartRename,
+        clearCiState,
+        callbacks,
+        gitHubDeleteFolderConfig,
+        gitHubDeleteFolderConfigRecursive,
+        gitHubDeleteFolderDataRecursive,
+        gitHubDeleteFolderConfigAndDataRecursive,
+        gitHubDeleteFolder,
+        gitHubPinFolder,
+        gitHubUnpinFolder,
+      }),
+    [
+      categoryType,
+      node.workspaceId,
+      pinnedFolderIds,
+      t,
+      onStartRename,
+      clearCiState,
+      callbacks,
+      gitHubDeleteFolderConfig,
+      gitHubDeleteFolderConfigRecursive,
+      gitHubDeleteFolderDataRecursive,
+      gitHubDeleteFolderConfigAndDataRecursive,
+      gitHubDeleteFolder,
+      gitHubPinFolder,
+      gitHubUnpinFolder,
+    ]
+  );
+
+  const handleChildContextMenu = useCallback(
+    (childNode: GitHubTreeNode) =>
+      buildMenuItems(childNode, childNode.name).map((item) => {
         if ('separator' in item) {
           return { id: item.id, separator: true as const };
         }
@@ -249,24 +154,8 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
           hasHint: item.hasHint,
           hint: item.hint,
         };
-      });
-    },
-    [
-      categoryType,
-      onStartRename,
-      clearCiState,
-      callbacks,
-      node.workspaceId,
-      gitHubDeleteFolderConfig,
-      gitHubDeleteFolderConfigRecursive,
-      gitHubDeleteFolderDataRecursive,
-      gitHubDeleteFolderConfigAndDataRecursive,
-      gitHubCiFolders,
-      gitHubPinFolder,
-      gitHubUnpinFolder,
-      gitHubDeleteFolder,
-      t,
-    ]
+      }),
+    [buildMenuItems]
   );
 
   const handleChildMenuClick = useCallback((action: () => void) => {
@@ -283,7 +172,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
           expandedPaths={expandedPaths}
           onToggle={handleChildClick}
           onOpenFile={handleChildOpenFile}
-          renderMeta={renderChildMeta}
+          renderMeta={childMetaRenderer}
           renderCount={renderChildCount}
           renderIconBefore={renderSubEntryIcon}
           getContextMenuItems={handleChildContextMenu}
@@ -306,71 +195,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
             zIndex: 9999,
           }}
         >
-          {(() => {
-            const childFolderId = childMenuState.nodePath.startsWith('github-folder:')
-              ? childMenuState.nodePath.slice('github-folder:'.length)
-              : '';
-            const childIsPinned =
-              gitHubCiFolders.find((f) => f.id === childFolderId)?.pinnedOrder !== undefined;
-            const isWorkspaceChild = childMenuState.nodeType === 'folder' && !!node.workspaceId;
-            const isUserFolderChild =
-              childMenuState.nodeType === 'folder' &&
-              !node.workspaceId &&
-              childMenuState.nodePath.includes('/');
-            const isUserFolderRoot =
-              childMenuState.nodeType === 'folder' &&
-              !node.workspaceId &&
-              !childMenuState.nodePath.includes('/');
-            const showDeleteFolder: boolean =
-              isWorkspaceChild || isUserFolderChild || isUserFolderRoot;
-
-            return getChildNodeMoreMenuItems(
-              childMenuState.nodeType,
-              childMenuState.nodePath,
-              '',
-              categoryType,
-              onStartRename,
-              () => clearCiState(),
-              () => {
-                if (node.workspaceId) {
-                  callbacks.onDeleteWorkspaceConfig(node.workspaceId);
-                } else {
-                  gitHubDeleteFolderConfig(childFolderId);
-                }
-              },
-              () => clearCiState(),
-              () => {
-                if (node.workspaceId) {
-                  callbacks.onDeleteWorkspaceConfig(node.workspaceId);
-                  clearCiState();
-                } else {
-                  gitHubDeleteFolderConfig(childFolderId);
-                  clearCiState();
-                }
-              },
-              () => {
-                if (node.workspaceId) {
-                  callbacks.onOpenSettings(node.workspaceId);
-                } else {
-                  callbacks.onOpenFolderSettings(childFolderId);
-                }
-              },
-              () => gitHubPinFolder(childFolderId),
-              () => gitHubUnpinFolder(childFolderId),
-              childIsPinned,
-              () => {
-                gitHubDeleteFolder(childFolderId);
-                clearCiState();
-              },
-              showDeleteFolder,
-              t,
-              () => gitHubDeleteFolderConfigRecursive(childFolderId),
-              () => {
-                gitHubDeleteFolderDataRecursive(childFolderId);
-              },
-              () => gitHubDeleteFolderConfigAndDataRecursive(childFolderId)
-            );
-          })().map((item) => {
+          {buildMenuItems(childMenuState.childNode, '').map((item) => {
             if ('separator' in item) {
               return (
                 <div key={item.id} className="adl-multitree-entry__menu-sep" role="separator" />
