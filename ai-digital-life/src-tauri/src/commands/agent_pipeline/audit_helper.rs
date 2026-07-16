@@ -20,7 +20,7 @@ pub(crate) async fn finalize_run<F: Fn(serde_json::Value)>(
         summary,
     ));
 
-    let blocks = adl_agent_runtime::assistant_blocks(&detail, ctx.patch_set, ctx.scenario);
+    let blocks = adl_conversation::assistant_blocks(&detail, ctx.patch_set, ctx.scenario);
     let assistant_message = adl_conversation::create_message(
         &ctx.session.id,
         adl_types::ConversationRole::Assistant,

@@ -59,7 +59,7 @@ pub fn generate_patches(
                         PermissionCheckResult::Allow => {},
                     }
 
-                    Some(adl_agent_runtime::create_patch_from_document(
+                    Some(adl_change_engine::create_patch_from_document(
                         &workspace.id,
                         &session.id,
                         Some(detail.run.id.as_str()),

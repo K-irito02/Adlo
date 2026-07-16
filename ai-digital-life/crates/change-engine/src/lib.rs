@@ -1,5 +1,6 @@
 //! Patch preview, application, rollback, and checkpoint helpers.
 
+pub mod document_patch;
 pub mod language;
 pub mod patch_apply;
 pub mod patch_create;
@@ -7,6 +8,7 @@ pub mod revert;
 pub mod snapshot;
 pub mod validation;
 
+pub use document_patch::create_patch_from_document;
 pub use language::language_for_path;
 pub use patch_apply::{apply_patch_set, rollback_patch_set};
 pub use patch_create::create_single_file_patch_set;

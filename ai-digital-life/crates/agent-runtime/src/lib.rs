@@ -16,8 +16,8 @@ pub use tools::registry::{global_registry, ToolDefinition, ToolExecutionResult, 
 
 use adl_types::{
     create_id, now_ms, AgentId, AgentPlanStep, AgentRunDetail, AgentRunRecord, AgentRunStatus,
-    ContextEntry, ConversationBlock, ConversationScenario, ModelChatMessage, PatchSet,
-    ValidationResult, WorkspaceFileDocument, WorkspaceMeta,
+    ContextEntry, ConversationScenario, ModelChatMessage, PatchSet, ValidationResult,
+    WorkspaceMeta,
 };
 
 pub fn create_run(
@@ -212,83 +212,6 @@ pub fn target_symbol_from_prompt(prompt: &str) -> Option<String> {
         let t = token.trim_matches(|ch: char| ch == '`' || ch == ',' || ch == '.' || ch == ')');
         t.strip_prefix("@symbol:").map(str::trim).filter(|s| !s.is_empty()).map(String::from)
     })
-}
-
-pub fn create_patch_from_document(
-    workspace_id: &str,
-    session_id: &str,
-    run_id: Option<&str>,
-    prompt: &str,
-    document: &WorkspaceFileDocument,
-) -> PatchSet {
-    let note = format!("// AI Digital Life task: {}\n", prompt.trim());
-    let after = if document.content.starts_with(&note) {
-        document.content.clone()
-    } else {
-        format!("{note}{}", document.content)
-    };
-    adl_change_engine::create_single_file_patch_set(adl_change_engine::PatchProposal {
-        workspace_id,
-        session_id,
-        run_id: run_id.map(|s| s.to_string()),
-        relative_path: &document.path,
-        before_content: &document.content,
-        after_content: &after,
-        title: format!("Update {}", document.path),
-        summary: format!("Patch preview for {}", document.path),
-    })
-}
-
-pub fn assistant_blocks(
-    detail: &AgentRunDetail,
-    patch_set: Option<&PatchSet>,
-    scenario: ConversationScenario,
-) -> Vec<ConversationBlock> {
-    let plan_title = match scenario {
-        ConversationScenario::Plan => "Plan execution",
-        ConversationScenario::Chat => "Chat",
-        ConversationScenario::CodeEdit => "Single agent step",
-    };
-    let mut blocks = vec![ConversationBlock::Plan {
-        id: create_id("block"),
-        title: plan_title.into(),
-        items: detail
-            .steps
-            .iter()
-            .map(|step| adl_types::PlanConversationItem {
-                id: step.id.clone(),
-                title: step.title.clone(),
-                detail: step.detail.clone(),
-                status: step.status.clone(),
-            })
-            .collect(),
-    }];
-    if let Some(patch_set) = patch_set {
-        blocks.push(ConversationBlock::PatchSummary {
-            id: create_id("block"),
-            patch_set_id: patch_set.id.clone(),
-            summary: patch_set.summary.clone(),
-            file_count: patch_set.file_patches.len(),
-            hunk_count: patch_set
-                .file_patches
-                .iter()
-                .map(|file_patch| file_patch.hunks.len())
-                .sum(),
-        });
-    }
-    let final_text = if patch_set.is_some() {
-        "Patch preview generated on the right; review and apply in the changes panel.".into()
-    } else {
-        match scenario {
-            ConversationScenario::CodeEdit => {
-                "No patch generated: use @file:relative-path to reference workspace files, or switch to Plan/QA mode."
-                    .into()
-            },
-            _ => "No patch output for this turn.".into(),
-        }
-    };
-    blocks.push(ConversationBlock::FinalSummary { id: create_id("block"), summary: final_text });
-    blocks
 }
 
 #[cfg(test)]

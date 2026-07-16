@@ -1,6 +1,9 @@
 //! Conversation sessions and message persistence.
 
+pub mod blocks;
 pub mod fork;
+
+pub use blocks::assistant_blocks;
 
 use adl_types::{
     create_id, now_ms, ConversationBlock, ConversationMessageRecord, ConversationRole,

@@ -19,7 +19,7 @@ fn single_agent_patch_preview_apply_and_rollback_flow() {
         "add a task note to @file:src/lib.rs",
         ConversationScenario::CodeEdit,
     );
-    let mut patch = adl_agent_runtime::create_patch_from_document(
+    let mut patch = adl_change_engine::create_patch_from_document(
         &workspace.id,
         "session-test",
         Some(run.run.id.as_str()),
