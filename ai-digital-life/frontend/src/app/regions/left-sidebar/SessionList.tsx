@@ -1,14 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { ReorderSessionsInput } from '@ai-digital-life/kernel';
 import type { CopyDict, Locale } from '../../i18n';
 import { RenameDialog } from '../../components/RenameDialog';
 import { useTCopy } from '../../i18n/useTCopy';
 import { getVisibleSidebarSessions, type SidebarSessionItem } from '../../utils/sidebarViewModel';
 import SessionListRow from './SessionListRow';
-
-import { moveIdWithinBucket, moveIdToBucketEnd, moveIdAfterTarget } from '../../utils/dragUtils';
-
-const DROP_FLASH_DURATION_MS = 900;
+import { useSessionDragDrop } from './useSessionDragDrop';
 
 function mergeEphemeralVisibleSessions(
   allItems: SidebarSessionItem[],
@@ -65,42 +62,20 @@ export function SessionList({
   onSessionContextMenu,
 }: SessionListProps) {
   const { t, formatT } = useTCopy();
-  const [dragSessionId, setDragSessionId] = useState<string>();
-  const [dragOverSessionId, setDragOverSessionId] = useState<string>();
-  const [droppedSessionId, setDroppedSessionId] = useState<string>();
+  const {
+    dragSessionId,
+    setDragSessionId,
+    dragOverSessionId,
+    setDragOverSessionTarget,
+    droppedSessionId,
+    handleSessionDrop,
+    handleSessionDropAfterVisibleTarget,
+    handleSessionDropToBucketEnd,
+  } = useSessionDragDrop({ sessionItems, workspaceId, onReorderSessions });
   const [expandedSessionLists, setExpandedSessionLists] = useState<Record<string, boolean>>({});
   const [hoveredSessionId, setHoveredSessionId] = useState<string>();
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [sessionToRename, setSessionToRename] = useState<{ id: string; name: string } | null>(null);
-
-  const [dropFlashTimer, setDropFlashTimer] = useState<number | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (dropFlashTimer !== null) {
-        window.clearTimeout(dropFlashTimer);
-      }
-    };
-  }, [dropFlashTimer]);
-
-  const setDragOverSessionTarget = useCallback((nextSessionId: string | undefined) => {
-    setDragOverSessionId(nextSessionId);
-  }, []);
-
-  const flashDroppedSession = useCallback(
-    (sessionId: string) => {
-      if (dropFlashTimer !== null) {
-        window.clearTimeout(dropFlashTimer);
-      }
-      setDroppedSessionId(sessionId);
-      const id = window.setTimeout(() => {
-        setDroppedSessionId((current) => (current === sessionId ? undefined : current));
-        setDropFlashTimer(null);
-      }, DROP_FLASH_DURATION_MS);
-      setDropFlashTimer(id);
-    },
-    [dropFlashTimer]
-  );
 
   const handleStartRename = useCallback((sessionId: string, sessionName: string) => {
     setSessionToRename({ id: sessionId, name: sessionName });
@@ -122,105 +97,6 @@ export function SessionList({
     setRenameDialogOpen(false);
     setSessionToRename(null);
   }, []);
-
-  const handleSessionDrop = useCallback(
-    (targetSessionId: string, isPinnedBucket: boolean) => {
-      if (!dragSessionId || dragSessionId === targetSessionId || !workspaceId) {
-        return;
-      }
-      const bucketItems = sessionItems
-        .filter((item) => item.session.isPinned === isPinnedBucket)
-        .map((item) => item.session.id);
-      if (!bucketItems.includes(dragSessionId)) {
-        return;
-      }
-      const nextIds = moveIdWithinBucket(bucketItems, dragSessionId, targetSessionId);
-      const pinnedIds = isPinnedBucket
-        ? nextIds
-        : sessionItems.filter((item) => item.session.isPinned).map((item) => item.session.id);
-      const unpinnedIds = isPinnedBucket
-        ? sessionItems.filter((item) => !item.session.isPinned).map((item) => item.session.id)
-        : nextIds;
-      onReorderSessions({ workspaceId, pinnedIds, unpinnedIds });
-      flashDroppedSession(dragSessionId);
-      setDragSessionId(undefined);
-      setDragOverSessionTarget(undefined);
-    },
-    [
-      dragSessionId,
-      flashDroppedSession,
-      onReorderSessions,
-      sessionItems,
-      setDragOverSessionTarget,
-      workspaceId,
-    ]
-  );
-
-  const handleSessionDropAfterVisibleTarget = useCallback(
-    (targetSessionId: string, isPinnedBucket: boolean) => {
-      if (!dragSessionId || dragSessionId === targetSessionId || !workspaceId) {
-        return;
-      }
-      const bucketItems = sessionItems
-        .filter((item) => item.session.isPinned === isPinnedBucket)
-        .map((item) => item.session.id);
-      if (!bucketItems.includes(dragSessionId)) {
-        return;
-      }
-      const nextIds = moveIdAfterTarget(bucketItems, dragSessionId, targetSessionId);
-      const pinnedIds = isPinnedBucket
-        ? nextIds
-        : sessionItems.filter((item) => item.session.isPinned).map((item) => item.session.id);
-      const unpinnedIds = isPinnedBucket
-        ? sessionItems.filter((item) => !item.session.isPinned).map((item) => item.session.id)
-        : nextIds;
-      onReorderSessions({ workspaceId, pinnedIds, unpinnedIds });
-      flashDroppedSession(dragSessionId);
-      setDragSessionId(undefined);
-      setDragOverSessionTarget(undefined);
-    },
-    [
-      dragSessionId,
-      flashDroppedSession,
-      onReorderSessions,
-      sessionItems,
-      setDragOverSessionTarget,
-      workspaceId,
-    ]
-  );
-
-  const handleSessionDropToBucketEnd = useCallback(
-    (isPinnedBucket: boolean) => {
-      if (!dragSessionId || !workspaceId) {
-        return;
-      }
-      const bucketItems = sessionItems
-        .filter((item) => item.session.isPinned === isPinnedBucket)
-        .map((item) => item.session.id);
-      if (!bucketItems.includes(dragSessionId)) {
-        return;
-      }
-      const nextIds = moveIdToBucketEnd(bucketItems, dragSessionId);
-      const pinnedIds = isPinnedBucket
-        ? nextIds
-        : sessionItems.filter((item) => item.session.isPinned).map((item) => item.session.id);
-      const unpinnedIds = isPinnedBucket
-        ? sessionItems.filter((item) => !item.session.isPinned).map((item) => item.session.id)
-        : nextIds;
-      onReorderSessions({ workspaceId, pinnedIds, unpinnedIds });
-      flashDroppedSession(dragSessionId);
-      setDragSessionId(undefined);
-      setDragOverSessionTarget(undefined);
-    },
-    [
-      dragSessionId,
-      flashDroppedSession,
-      onReorderSessions,
-      sessionItems,
-      setDragOverSessionTarget,
-      workspaceId,
-    ]
-  );
 
   const expanded = expandedSessionLists[listKey] ?? false;
   const tailDropTargetId = `${listKey}::tail`;
