@@ -12,14 +12,13 @@ import { useNavigatorResize } from '@hooks/useNavigatorResize';
 import { OutlineTree, getDefaultExpandedOutlineIds } from '@features/outline';
 import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
 import { useFileCreation, useSearchPanel } from './hooks';
-import { useFileContextMenuItems } from './hooks/useFileContextMenuItems';
-import { ConfirmDialog } from '@components/ConfirmDialog';
-import { RenameDialog } from '@components/RenameDialog';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { SearchHit } from './hooks/useSearchPanel';
 import { FileNavigatorToolbar } from './FileNavigatorToolbar';
 import { FileNavigatorTree } from './FileNavigatorTree';
+import { FileNavigatorRenaming } from './FileNavigatorRenaming';
+import { useFileNavigatorContextMenu } from './FileNavigatorContextMenu';
 
 interface FileNavigatorShellProps {
   selectedFilePath: string | undefined;
@@ -63,7 +62,7 @@ interface FileNavigatorShellProps {
 }
 
 const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNavigatorShellProps) {
-  const { t, formatT } = useTCopy();
+  const { t } = useTCopy();
   const {
     selectedFilePath,
     selectedFileWorkspaceId,
@@ -234,26 +233,13 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
   const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
-  const contextMenuPersistRef = useRef(false);
-  const clearMenuHighlightRef = useRef<(() => void) | undefined>(undefined);
-
-  const copyToClipboard = useCallback(async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      console.warn('[FileNavigatorShell] clipboard write failed');
-    }
-  }, []);
-
-  const { getContextMenuItems } = useFileContextMenuItems({
-    t,
-    copyToClipboard,
-    contextMenuPersistRef,
-    setRenamingPath,
-    setRenameDialogOpen,
-    setDeleteConfirmPath,
-    showMenuForDirectories: true,
-  });
+  const { getContextMenuItems, contextMenuPersistRef, clearMenuHighlightRef } =
+    useFileNavigatorContextMenu({
+      t,
+      setRenamingPath,
+      setRenameDialogOpen,
+      setDeleteConfirmPath,
+    });
 
   const handleRenameConfirm = useCallback(
     async (newName: string) => {
@@ -466,28 +452,16 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
         currentWidth={filesNavigatorWidth}
         onPointerDown={handleNavigatorResizeStart}
       />
-      {deleteConfirmPath ? (
-        <ConfirmDialog
-          title={t.fileDeleteConfirm as string}
-          message={t.fileDeleteMessage as string}
-          confirmLabel={t.fileDeleteAction as string}
-          cancelLabel={t.cancel as string}
-          danger
-          onConfirm={handleDeleteConfirm}
-          onCancel={handleDeleteCancel}
-        />
-      ) : null}
-      {renameDialogOpen && renamingPath ? (
-        <RenameDialog
-          open={renameDialogOpen}
-          initialValue={renamingPath.split('/').pop() || ''}
-          title={t.changesRename}
-          itemInfo={formatT(t, 'changesCurrentPath', { path: renamingPath })}
-          placeholder={t.changesEnterNewName}
-          onConfirm={handleRenameConfirm}
-          onCancel={handleRenameCancel}
-        />
-      ) : null}
+      <FileNavigatorRenaming
+        renameDialogOpen={renameDialogOpen}
+        renamingPath={renamingPath}
+        deleteConfirmPath={deleteConfirmPath}
+        t={t}
+        onConfirmRename={handleRenameConfirm}
+        onCancelRename={handleRenameCancel}
+        onConfirmDelete={handleDeleteConfirm}
+        onCancelDelete={handleDeleteCancel}
+      />
     </aside>
   );
 });
