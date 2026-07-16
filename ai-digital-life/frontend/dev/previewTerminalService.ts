@@ -335,6 +335,41 @@ export async function handlePreviewTerminalApi(
     return true;
   }
 
+  // GET /__adl_preview_api__/pty/output-since?sessionId=xxx&cursor=12345
+  // Returns incremental output since cursor (IpcResult format)
+  if (request.method === 'GET' && requestUrl.pathname === `${API_PREFIX}/pty/output-since`) {
+    const sessionId = requestUrl.searchParams.get('sessionId');
+    const cursorStr = requestUrl.searchParams.get('cursor');
+    const cursor = cursorStr ? parseInt(cursorStr, 10) : 0;
+
+    if (!sessionId) {
+      writeJson(
+        response,
+        { ok: false, error: { code: 'INVALID_INPUT', message: 'sessionId required' } },
+        400
+      );
+      return true;
+    }
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      // Return empty output with cursor 0 for missing sessions (client will reset)
+      writeJson(response, {
+        ok: true,
+        data: { sessionId, newOutput: '', newCursor: 0 },
+      });
+      return true;
+    }
+
+    const safeCursor = Math.max(0, Math.min(cursor, session.output.length));
+    const newOutput = session.output.slice(safeCursor);
+    writeJson(response, {
+      ok: true,
+      data: { sessionId, newOutput, newCursor: session.output.length },
+    });
+    return true;
+  }
+
   // GET /__adl_preview_api__/pty/list
   if (request.method === 'GET' && requestUrl.pathname === `${API_PREFIX}/pty/list`) {
     const infos = Array.from(sessions.entries()).map(([id, s]) => ({
@@ -344,7 +379,7 @@ export async function handlePreviewTerminalApi(
       cols: 80,
       rows: 24,
       status: 'Running' as const,
-      output: s.output,
+      // NOTE: 'output' field intentionally omitted — clients use /pty/output-since for incremental output
     }));
     writeJson(response, { ok: true, data: infos });
     return true;

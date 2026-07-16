@@ -12,36 +12,48 @@ export function createPtyBridge() {
   let shouldPoll = false;
   let ptyPollingListenersCount = 0;
   let consecutiveErrors = 0;
-  const sessionOutputBuffers = new Map<string, string>();
+  const sessionCursors = new Map<string, number>();
 
   async function pollOnce(): Promise<void> {
     if (!shouldPoll) {
       return;
     }
-    const result = await requestPreviewApi<PtySessionInfo[]>('/pty/list');
+    const listResult = await requestPreviewApi<PtySessionInfo[]>('/pty/list');
     if (!shouldPoll) {
       return;
     }
 
-    if (result.ok) {
+    if (listResult.ok) {
       consecutiveErrors = 0;
-      const sessions = result.data;
-      for (const session of sessions) {
-        if (session.output) {
-          const lastOutput = sessionOutputBuffers.get(session.sessionId) || '';
-          if (session.output !== lastOutput) {
-            const newOutput = session.output.slice(lastOutput.length);
-            if (newOutput) {
-              const event: PtyOutputEvent = {
-                sessionId: session.sessionId,
-                data: newOutput,
-              };
-              ptyOutputListeners.forEach((fn) => fn(event));
-            }
-            sessionOutputBuffers.set(session.sessionId, session.output);
-          }
+      const sessions = listResult.data;
+
+      // Fetch incremental output for each session in parallel
+      const outputPromises = sessions.map(async (session) => {
+        const cursor = sessionCursors.get(session.sessionId) ?? 0;
+        const sinceResult = await requestPreviewApi<{
+          sessionId: string;
+          newOutput: string;
+          newCursor: number;
+        }>(`/pty/output-since?sessionId=${encodeURIComponent(session.sessionId)}&cursor=${cursor}`);
+
+        if (!sinceResult.ok) {
+          return;
         }
-      }
+
+        const { newOutput, newCursor } = sinceResult.data;
+        // Update cursor regardless of whether there's new output (advances the watermark)
+        sessionCursors.set(session.sessionId, newCursor);
+
+        if (newOutput) {
+          const event: PtyOutputEvent = {
+            sessionId: session.sessionId,
+            data: newOutput,
+          };
+          ptyOutputListeners.forEach((fn) => fn(event));
+        }
+      });
+
+      await Promise.allSettled(outputPromises);
     } else {
       consecutiveErrors += 1;
     }
@@ -64,7 +76,7 @@ export function createPtyBridge() {
       clearTimeout(pollTimeoutId);
       pollTimeoutId = null;
     }
-    sessionOutputBuffers.clear();
+    sessionCursors.clear();
   }
 
   return {
@@ -112,7 +124,7 @@ export function createPtyBridge() {
           body: JSON.stringify({ sessionId, cols, rows }),
         }),
       kill: async (sessionId: string) => {
-        sessionOutputBuffers.delete(sessionId);
+        sessionCursors.delete(sessionId);
         return requestPreviewApi<boolean>('/pty/kill', {
           method: 'POST',
           body: JSON.stringify({ sessionId }),
