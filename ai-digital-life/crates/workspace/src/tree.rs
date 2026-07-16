@@ -221,6 +221,45 @@ fn collect_retrieval_data(
     Ok((files, extensions, repo_map))
 }
 
+/// Check if a file is likely a text file without reading its content.
+/// Uses file size (via metadata) and extension-based filtering.
+/// Binary extensions are excluded; unknown extensions are allowed if size is within limit.
+///
+/// This replaces `read_text_file(...).is_ok()` probes in tree walk, eliminating
+/// full file content reads just to validate readability. Tradeoff: extension-based
+/// filtering is less precise than `looks_binary` byte inspection, but avoids the
+/// I/O cost of reading every file in large workspaces.
+fn is_text_file(root: &Path, relative: &str, max_file_bytes: u64) -> bool {
+    let full_path = root.join(relative);
+
+    // Check file size via metadata (no content read)
+    let metadata = match fs::metadata(&full_path) {
+        Ok(m) => m,
+        Err(_) => return false,
+    };
+    if !metadata.is_file() || metadata.len() > max_file_bytes {
+        return false;
+    }
+
+    // Exclude known binary extensions
+    const BINARY_EXTENSIONS: &[&str] = &[
+        "exe", "dll", "so", "dylib", "bin", "obj", "o", "a", "lib", "png", "jpg", "jpeg", "gif",
+        "bmp", "ico", "tiff", "webp", "zip", "tar", "gz", "bz2", "7z", "rar", "xz", "mp3", "mp4",
+        "avi", "mov", "wmv", "flv", "wav", "ogg", "pdf", "doc", "docx", "xls", "xlsx", "ppt",
+        "pptx", "sqlite", "db", "mdb", "wasm", "class",
+    ];
+    let ext = std::path::Path::new(relative)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    if BINARY_EXTENSIONS.contains(&ext.as_str()) {
+        return false;
+    }
+
+    true
+}
+
 fn collect_retrieval_inner(
     root: &Path,
     dir: &Path,
@@ -241,9 +280,7 @@ fn collect_retrieval_inner(
             repo_map.push(RepoMapEntry { path: relative, r#type: "directory".to_string() });
             collect_retrieval_inner(root, &path, max_file_bytes, files, extensions, repo_map)?;
         } else if path.is_file() {
-            if files.len() < MAX_COLLECTED_FILES
-                && adl_fs_ops::read_text_file(root, &relative, max_file_bytes).is_ok()
-            {
+            if files.len() < MAX_COLLECTED_FILES && is_text_file(root, &relative, max_file_bytes) {
                 let ext = path
                     .extension()
                     .and_then(|value| value.to_str())
@@ -372,7 +409,7 @@ fn collect_text_files_inner_int(
             )?;
         } else if path.is_file() {
             let relative = relative_path(root, &path);
-            if adl_fs_ops::read_text_file(root, &relative, max_file_bytes).is_ok() {
+            if is_text_file(root, &relative, max_file_bytes) {
                 if let Some(ref mut ext_map) = extensions {
                     let ext = path
                         .extension()
@@ -394,4 +431,74 @@ fn should_ignore(name: &str) -> bool {
 
 pub(crate) fn relative_path(root: &Path, path: &Path) -> String {
     path.strip_prefix(root).unwrap_or(path).to_string_lossy().replace('\\', "/")
+}
+
+#[cfg(test)]
+mod is_text_file_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TF_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    fn unique_tmp_dir(prefix: &str) -> std::path::PathBuf {
+        let id = TF_SEQ.fetch_add(1, Ordering::SeqCst);
+        let path = std::env::temp_dir().join(format!("{prefix}-{id}"));
+        let _ = std::fs::remove_dir_all(&path);
+        std::fs::create_dir_all(&path).expect("temp dir creation should succeed");
+        path
+    }
+
+    fn cleanup(path: &std::path::Path) {
+        let _ = std::fs::remove_dir_all(path);
+    }
+
+    #[test]
+    fn is_text_file_returns_true_for_txt() {
+        let tmp = unique_tmp_dir("tree-test-txt");
+        std::fs::write(tmp.join("test.txt"), b"hello").unwrap();
+        assert!(is_text_file(&tmp, "test.txt", 1024 * 1024));
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn is_text_file_returns_false_for_binary_extension() {
+        let tmp = unique_tmp_dir("tree-test-bin");
+        // .exe is in BINARY_EXTENSIONS — rejected without reading content
+        std::fs::write(tmp.join("test.exe"), b"\x4d\x5a").unwrap();
+        assert!(!is_text_file(&tmp, "test.exe", 1024 * 1024));
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn is_text_file_returns_false_for_oversized() {
+        let tmp = unique_tmp_dir("tree-test-big");
+        // Write a file over the 1-byte limit
+        std::fs::write(tmp.join("big.txt"), b"hello world").unwrap();
+        assert!(!is_text_file(&tmp, "big.txt", 1));
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn is_text_file_returns_false_for_missing_file() {
+        let tmp = unique_tmp_dir("tree-test-missing");
+        assert!(!is_text_file(&tmp, "nonexistent.txt", 1024 * 1024));
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn is_text_file_returns_true_for_unknown_extension() {
+        let tmp = unique_tmp_dir("tree-test-unknown");
+        std::fs::write(tmp.join("file.xyz"), b"some text content").unwrap();
+        // Unknown extensions are allowed (tradeoff: may include some binary files)
+        assert!(is_text_file(&tmp, "file.xyz", 1024 * 1024));
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn is_text_file_returns_true_for_no_extension() {
+        let tmp = unique_tmp_dir("tree-test-noext");
+        std::fs::write(tmp.join("README"), b"readme content").unwrap();
+        assert!(is_text_file(&tmp, "README", 1024 * 1024));
+        cleanup(&tmp);
+    }
 }
