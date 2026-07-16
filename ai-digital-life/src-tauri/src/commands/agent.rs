@@ -72,8 +72,8 @@ pub async fn agent_get_run(
         let Some(run) = run else {
             return Ok(None);
         };
-        let mut steps: Vec<adl_types::AgentPlanStep> = db.list_entities(EntityTable::AgentSteps)?;
-        steps.retain(|step| step.run_id == run_id);
+        let mut steps: Vec<adl_types::AgentPlanStep> =
+            db.list_entities_by_run(EntityTable::AgentSteps, &run_id)?;
         steps.sort_by_key(|step| step.created_at);
         Ok::<_, AppError>(Some(AgentRunDetail { run, steps }))
     })
@@ -94,8 +94,8 @@ pub async fn agent_retry_run(
         let Some(run) = run else {
             return Ok(None);
         };
-        let mut steps: Vec<adl_types::AgentPlanStep> = db.list_entities(EntityTable::AgentSteps)?;
-        steps.retain(|step| step.run_id == run_id);
+        let mut steps: Vec<adl_types::AgentPlanStep> =
+            db.list_entities_by_run(EntityTable::AgentSteps, &run_id)?;
         steps.sort_by_key(|step| step.created_at);
         let mut detail = AgentRunDetail { run, steps };
         detail.run.status = AgentRunStatus::Ready;
@@ -120,8 +120,8 @@ pub async fn agent_abort_run(
         let Some(run) = run else {
             return Ok(None);
         };
-        let mut steps: Vec<adl_types::AgentPlanStep> = db.list_entities(EntityTable::AgentSteps)?;
-        steps.retain(|step| step.run_id == run_id);
+        let mut steps: Vec<adl_types::AgentPlanStep> =
+            db.list_entities_by_run(EntityTable::AgentSteps, &run_id)?;
         steps.sort_by_key(|step| step.created_at);
         let detail = AgentRunDetail { run, steps };
         let detail = adl_agent_runtime::abort_run(detail);
