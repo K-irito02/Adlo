@@ -158,4 +158,4 @@ const handleConfirmRename = useCallback((newName: string) => {
 
 - [CI → 通信面板重构 + 日志查看器经验](./ci-to-communication-refactor-and-log-viewer-2026-06-10.md)
 - [CI 状态监控模块经验](./ci-module-lessons-2026-06-09.md)
-- [重命名弹窗交互标准化](../../../docs/知识沉淀/交互优化/rename-dialog-standardization-2026-06-08.md)
+- [重命名弹窗交互标准化](../../../docs/知识沉淀/交互优化/2026-06/rename-dialog-standardization-2026-06-08.md)

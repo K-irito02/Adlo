@@ -76,4 +76,4 @@ GitHub CI 子面板（概览/工作流/任务/日志）中存在 15 处硬编码
 
 - 翻译 key 真源：`frontend/src/app/i18n/zh-CN/ci.ts`、`frontend/src/app/i18n/en-US/ci.ts`
 - 工程约束：`docs/development/project-engineering-constraints.md`
-- 架构文档：`docs/architecture/internationalization.md`
+- 架构文档：`docs/architecture/cross-cutting/internationalization.md`

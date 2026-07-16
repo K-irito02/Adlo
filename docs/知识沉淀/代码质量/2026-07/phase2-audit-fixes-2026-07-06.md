@@ -54,4 +54,4 @@ Tauri 2.x 的 `capabilities/*.json`（项目实际使用 `permissions/*.toml`）
 
 ## 相关文件
 
-- [实施计划](../../superpowers/plans/2026-07-06-phase2-audit-fixes.md)
+- [实施计划](../../superpowers/plans/phase2/2026-07-06-phase2-audit-fixes.md)
