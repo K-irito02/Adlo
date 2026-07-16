@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useMemo } from 'react';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
 import { useAppStore } from '@stores/slicedStore';
@@ -11,13 +10,12 @@ import {
   IconFolder,
   IconFolderOpen,
   IconAlertTriangle,
-  IconCopy,
-  IconEyeOff,
 } from '@icons';
 import { FileTree, type FileTreeContextMenuItem } from '@features/file-tree';
 import { TooltipSimple } from '@components/Tooltip';
 import { LoadingRow, EmptyRow } from '@components/LoadingRow';
-import { BranchMenuItem } from '@regions/right-panel/panels/BranchSubCard';
+import { useWorkspaceChangesActions } from './WorkspaceChangesActions';
+import { WorkspaceChangesMenu } from './WorkspaceChangesMenu';
 
 export interface WorkspaceChangesEntryProps {
   workspace: RecentWorkspaceEntry;
@@ -78,33 +76,34 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   renderMeta,
   renderCount,
 }: WorkspaceChangesEntryProps) {
-  const wrappedGetContextMenuItems = useCallback(
-    (node: WorkspaceTreeNode) => {
-      const items = getContextMenuItems(node);
-      return items.map((item) => {
-        if (item.separator || !item.action) {
-          return item;
-        }
-        if (item.id === 'stage' || item.id === 'unstage' || item.id === 'discard') {
-          return {
-            ...item,
-            action: (targetNode: WorkspaceTreeNode) => {
-              const s = useAppStore.getState();
-              if (item.id === 'stage') {
-                void s.stageWorkspaceFile(targetNode.path, workspace.path);
-              } else if (item.id === 'unstage') {
-                void s.unstageWorkspaceFile(targetNode.path, workspace.path);
-              } else {
-                void s.discardWorkspaceFile(targetNode.path, workspace.path);
-              }
-            },
-          } as FileTreeContextMenuItem<WorkspaceTreeNode>;
-        }
-        return item;
-      });
-    },
-    [getContextMenuItems, workspace.path]
-  );
+  const {
+    menuOpen,
+    menuPosition,
+    branchSubOpen,
+    setBranchSubOpen,
+    menuId,
+    isPinned,
+    handleNameClick,
+    handleNameContextMenu,
+    handleNameKeyDown,
+    handleMoreClick,
+    closeMenu,
+    handleCopyFullPath,
+    handleCopyRelativePath,
+    handleRevealInFileManager,
+    handleHideFromRightPanels,
+    handleRefreshClick,
+    handlePinClick,
+    wrappedGetContextMenuItems,
+  } = useWorkspaceChangesActions({
+    workspace,
+    onToggleExpand,
+    onHideFromRightPanels,
+    onPinWorkspace,
+    onUnpinWorkspace,
+    onRefreshTree,
+    getContextMenuItems,
+  });
 
   const effectiveSelectedPath = useMemo(() => {
     if (selectedChangePreviewWorkspaceId === workspace.id) {
@@ -112,129 +111,9 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
     }
     return undefined;
   }, [selectedChangePreviewWorkspaceId, workspace.id, selectedChangePreviewPath]);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
-  const [branchSubOpen, setBranchSubOpen] = useState(false);
-  const menuId = `ws-changes-menu-${workspace.id}`;
 
   const gitSnapshot = useAppStore((s) => s.gitSnapshots[workspace.id]);
   const currentBranch = gitSnapshot?.branch ?? '';
-
-  useEffect(() => {
-    if (!menuOpen) {
-      return;
-    }
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      const menuEl = document.querySelector(`[data-menu-id="${menuId}"]`);
-      const btn = document.querySelector(`[data-menu-btn-id="${menuId}"]`);
-      if (btn?.contains(target)) {
-        return;
-      }
-      if (menuEl?.contains(target)) {
-        return;
-      }
-      setMenuOpen(false);
-    };
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setMenuOpen(false);
-      }
-    };
-    const handleScroll = () => {
-      setMenuOpen(false);
-    };
-    window.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('keydown', handleEscape);
-    window.addEventListener('scroll', handleScroll, true);
-    return () => {
-      window.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('keydown', handleEscape);
-      window.removeEventListener('scroll', handleScroll, true);
-    };
-  }, [menuOpen, menuId]);
-
-  const handleNameClick = useCallback(() => {
-    onToggleExpand();
-  }, [onToggleExpand]);
-
-  const handleNameContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setMenuPosition({ top: e.clientY, left: e.clientX + 4 });
-    setMenuOpen(true);
-  }, []);
-
-  const handleMoreClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setMenuPosition({ top: rect.top, left: rect.right + 4 });
-    setMenuOpen((prev) => !prev);
-  }, []);
-
-  const closeMenu = useCallback(() => {
-    setMenuOpen(false);
-    setMenuPosition(null);
-  }, []);
-
-  const copyToClipboard = useCallback(async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      console.warn('[WorkspaceChangesEntry] clipboard write failed');
-    }
-  }, []);
-
-  const handleCopyFullPath = useCallback(async () => {
-    closeMenu();
-    await copyToClipboard(workspace.path);
-  }, [workspace.path, closeMenu, copyToClipboard]);
-
-  const handleCopyRelativePath = useCallback(async () => {
-    closeMenu();
-    await copyToClipboard(workspace.name);
-  }, [workspace.name, closeMenu, copyToClipboard]);
-
-  const handleRevealInFileManager = useCallback(async () => {
-    closeMenu();
-    await window.digitalLife.workspace.revealInFileManager(workspace.path);
-  }, [workspace.path, closeMenu]);
-
-  const handleHideFromRightPanels = useCallback(() => {
-    closeMenu();
-    onHideFromRightPanels(workspace.id);
-  }, [onHideFromRightPanels, workspace.id, closeMenu]);
-
-  const isPinned = workspace.isPinned;
-
-  const handleNameKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        handleNameClick();
-      }
-    },
-    [handleNameClick]
-  );
-
-  const handleRefreshClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onRefreshTree();
-    },
-    [onRefreshTree]
-  );
-
-  const handlePinClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (isPinned) {
-        onUnpinWorkspace(workspace.id);
-      } else {
-        onPinWorkspace(workspace.id);
-      }
-    },
-    [isPinned, onPinWorkspace, onUnpinWorkspace, workspace.id]
-  );
 
   return (
     <div
@@ -313,113 +192,22 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
         </div>
       </div>
 
-      {menuOpen && menuPosition
-        ? createPortal(
-            <div
-              className="adl-multitree-entry__menu"
-              role="menu"
-              data-menu-id={menuId}
-              style={{ top: menuPosition.top, left: menuPosition.left }}
-            >
-              <BranchMenuItem
-                isSubOpen={branchSubOpen}
-                onSubOpenChange={setBranchSubOpen}
-                workspacePath={workspace.path}
-                currentBranch={currentBranch}
-                isRepo={gitSnapshot?.isRepo ?? false}
-              />
-              <div className="adl-multitree-entry__menu-sep" role="separator" />
-              <button
-                type="button"
-                className="adl-multitree-entry__menu-item"
-                role="menuitem"
-                disabled
-              >
-                {t.changesStageAll}
-              </button>
-              <button
-                type="button"
-                className="adl-multitree-entry__menu-item"
-                role="menuitem"
-                disabled
-              >
-                {t.changesUnstageAll}
-              </button>
-              <button
-                type="button"
-                className="adl-multitree-entry__menu-item"
-                role="menuitem"
-                disabled
-              >
-                {t.changesCommit}
-              </button>
-              <button
-                type="button"
-                className="adl-multitree-entry__menu-item"
-                role="menuitem"
-                disabled
-              >
-                {t.changesPush}
-              </button>
-              <button
-                type="button"
-                className="adl-multitree-entry__menu-item"
-                role="menuitem"
-                disabled
-              >
-                {t.changesPull}
-              </button>
-              <div className="adl-multitree-entry__menu-sep" role="separator" />
-              <button
-                type="button"
-                className="adl-multitree-entry__menu-item"
-                role="menuitem"
-                disabled
-              >
-                {t.changesDiscardAll}
-              </button>
-              <div className="adl-multitree-entry__menu-sep" role="separator" />
-              <button
-                type="button"
-                className="adl-multitree-entry__menu-item"
-                role="menuitem"
-                onClick={handleHideFromRightPanels}
-              >
-                <IconEyeOff size={14} />
-                {t.fileRemoveFromView}
-              </button>
-              <button
-                type="button"
-                className="adl-multitree-entry__menu-item"
-                role="menuitem"
-                onClick={handleRevealInFileManager}
-              >
-                <IconFolderOpen size={14} />
-                {t.sessionMenuRevealFolder as string}
-              </button>
-              <div className="adl-multitree-entry__menu-sep" role="separator" />
-              <button
-                type="button"
-                className="adl-multitree-entry__menu-item"
-                role="menuitem"
-                onClick={handleCopyFullPath}
-              >
-                <IconCopy size={14} />
-                {t.fileCopyFullPath}
-              </button>
-              <button
-                type="button"
-                className="adl-multitree-entry__menu-item"
-                role="menuitem"
-                onClick={handleCopyRelativePath}
-              >
-                <IconCopy size={14} />
-                {t.fileCopyRelativePath}
-              </button>
-            </div>,
-            document.body
-          )
-        : null}
+      <WorkspaceChangesMenu
+        menuOpen={menuOpen}
+        menuPosition={menuPosition}
+        menuId={menuId}
+        branchSubOpen={branchSubOpen}
+        setBranchSubOpen={setBranchSubOpen}
+        workspace={workspace}
+        gitSnapshot={gitSnapshot}
+        currentBranch={currentBranch}
+        t={t}
+        onHideFromRightPanels={handleHideFromRightPanels}
+        onRevealInFileManager={handleRevealInFileManager}
+        onCopyFullPath={handleCopyFullPath}
+        onCopyRelativePath={handleCopyRelativePath}
+        onClose={closeMenu}
+      />
 
       {isExpanded ? (
         <div className="adl-multitree-entry__tree">
