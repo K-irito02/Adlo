@@ -43,6 +43,37 @@ pub fn save_audit_entry(
     Ok(entry)
 }
 
+/// 与 [`save_audit_entry`] 相同，但接受 `&Database` 而非 `&AppState`，便于在 `spawn_blocking` 中调用
+pub fn save_audit_entry_with_db(
+    db: &adl_storage::Database,
+    workspace_id: &str,
+    session_id: Option<&str>,
+    operation_type: &str,
+    risk_level: RiskLevel,
+    summary: impl Into<String>,
+    decision: Option<&str>,
+    detail: Option<&str>,
+) -> Result<AuditEntry, AppError> {
+    let entry = AuditEntry {
+        id: create_id("audit"),
+        timestamp: now_ms(),
+        operation_type: operation_type.to_string(),
+        summary: summary.into(),
+        risk_level,
+        decision: decision.map(str::to_string),
+        detail: detail.map(str::to_string),
+    };
+    db.save_entity(
+        EntityTable::AuditRecords,
+        &entry.id,
+        Some(workspace_id),
+        session_id,
+        Some(operation_type),
+        &entry,
+    )?;
+    Ok(entry)
+}
+
 pub fn batch_save_audit_entries(
     state: &AppState,
     entries: Vec<AuditBatchEntry>,
