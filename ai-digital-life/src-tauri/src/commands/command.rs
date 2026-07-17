@@ -3,7 +3,7 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_command::{build_request, run_command};
 use adl_errors::AppError;
-use adl_storage::EntityTable;
+use adl_storage::{Database, EntityTable};
 use adl_types::{CommandRequest, CommandRunResult, IpcResult, RiskLevel, TaskOperation};
 use tauri::Manager;
 
@@ -44,33 +44,51 @@ pub async fn command_list_recent(
 }
 
 async fn command_run_inner(
-    app: &tauri::AppHandle,
+    _app: &tauri::AppHandle,
     state: &AppState,
     input: CommandRunInput,
 ) -> Result<CommandRunResult, AppError> {
     let workspace = crate::commands::workspace::current_workspace(state)?;
     let request =
         build_request(&workspace.id, None, input.command, input.args, input.shell.unwrap_or(false));
-    state.db.save_entity(
-        EntityTable::CommandRequests,
-        &request.id,
-        Some(&workspace.id),
-        None,
-        Some("created"),
-        &request,
-    )?;
+
     if request.risk_level != RiskLevel::Low {
-        let (task, approval) = approval_for_command(app, state, &workspace.id, &request)?;
-        let _ = crate::commands::audit::save_audit_entry(
-            state,
-            &workspace.id,
-            Some("command"),
-            "approval",
-            request.risk_level,
-            format!("Command requires approval: {} {}", request.command, request.args.join(" ")),
-            None,
-            Some(&format!("taskId={}", task.id)),
-        );
+        // Risky path: save request + task + approval + audit in one spawn_blocking,
+        // then return early (command does NOT execute — it awaits approval).
+        let db = state.db.clone();
+        let workspace_id = workspace.id.clone();
+        let request_clone = request.clone();
+        let audit_summary =
+            format!("Command requires approval: {} {}", request.command, request.args.join(" "));
+
+        let (task, approval) = tokio::task::spawn_blocking(
+            move || -> Result<(adl_types::TaskRecord, adl_types::ApprovalRecord), AppError> {
+                db.save_entity(
+                    EntityTable::CommandRequests,
+                    &request_clone.id,
+                    Some(&workspace_id),
+                    None,
+                    Some("created"),
+                    &request_clone,
+                )?;
+                let (task, approval) =
+                    approval_for_command_with_db(&db, &workspace_id, &request_clone)?;
+                let _ = crate::commands::audit::save_audit_entry_with_db(
+                    &db,
+                    &workspace_id,
+                    Some("command"),
+                    "approval",
+                    request_clone.risk_level,
+                    audit_summary,
+                    None,
+                    Some(&format!("taskId={}", task.id)),
+                );
+                Ok((task, approval))
+            },
+        )
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+
         return Ok(CommandRunResult {
             status: "waiting-approval".into(),
             task_id: task.id,
@@ -79,26 +97,67 @@ async fn command_run_inner(
             approval_request: Some(approval.request),
         });
     }
+
+    // Low-risk path: save request first (so it's recorded even if run_command fails),
+    // then execute, then save execution result + audit. Each DB-write cluster runs
+    // in spawn_blocking to keep the async runtime worker thread free during SQLite I/O.
+    {
+        let db = state.db.clone();
+        let workspace_id = workspace.id.clone();
+        let request_clone = request.clone();
+        tokio::task::spawn_blocking(move || -> Result<(), AppError> {
+            db.save_entity(
+                EntityTable::CommandRequests,
+                &request_clone.id,
+                Some(&workspace_id),
+                None,
+                Some("created"),
+                &request_clone,
+            )
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    }
+
     let result =
         run_command(std::path::Path::new(&workspace.root_path), request.clone(), None).await?;
-    state.db.save_entity(
-        EntityTable::CommandExecutions,
-        &result.request.id,
-        Some(&workspace.id),
-        None,
-        Some(if result.success { "completed" } else { "failed" }),
-        &result,
-    )?;
-    let _ = crate::commands::audit::save_audit_entry(
-        state,
-        &workspace.id,
-        Some("command"),
-        "command",
-        request.risk_level,
-        result.summary.clone(),
-        Some("auto"),
-        Some(&format!("command={} {}", request.command, request.args.join(" "))),
-    );
+
+    {
+        let db = state.db.clone();
+        let workspace_id = workspace.id.clone();
+        let request_clone = request.clone();
+        let result_clone = result.clone();
+        let audit_summary = result.summary.clone();
+        let risk_level = request.risk_level;
+        tokio::task::spawn_blocking(move || -> Result<(), AppError> {
+            db.save_entity(
+                EntityTable::CommandExecutions,
+                &result_clone.request.id,
+                Some(&workspace_id),
+                None,
+                Some(if result_clone.success { "completed" } else { "failed" }),
+                &result_clone,
+            )?;
+            let _ = crate::commands::audit::save_audit_entry_with_db(
+                &db,
+                &workspace_id,
+                Some("command"),
+                "command",
+                risk_level,
+                audit_summary,
+                Some("auto"),
+                Some(&format!(
+                    "command={} {}",
+                    request_clone.command,
+                    request_clone.args.join(" ")
+                )),
+            );
+            Ok(())
+        })
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    }
+
     Ok(CommandRunResult {
         status: "completed".into(),
         task_id: result.request.id.clone(),
@@ -108,9 +167,8 @@ async fn command_run_inner(
     })
 }
 
-fn approval_for_command(
-    _app: &tauri::AppHandle,
-    state: &AppState,
+fn approval_for_command_with_db(
+    db: &Database,
     workspace_id: &str,
     request: &CommandRequest,
 ) -> Result<(adl_types::TaskRecord, adl_types::ApprovalRecord), AppError> {
@@ -127,7 +185,7 @@ fn approval_for_command(
     let mut approval = approval;
     approval.run_id = request.run_id.clone();
     task.approval_id = Some(approval.id.clone());
-    state.db.save_entity(
+    db.save_entity(
         EntityTable::Tasks,
         &task.id,
         Some(workspace_id),
@@ -135,7 +193,7 @@ fn approval_for_command(
         Some("waiting-approval"),
         &task,
     )?;
-    state.db.save_entity(
+    db.save_entity(
         EntityTable::Approvals,
         &approval.id,
         Some(workspace_id),
