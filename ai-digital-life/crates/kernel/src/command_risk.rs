@@ -132,7 +132,10 @@ pub(crate) fn default_decision(command: &str, args: &[String]) -> PermissionDeci
     }
 }
 
-/// Convert a legacy RiskLevel to a PermissionDecision.
+/// Map a `RiskLevel` to its default `PermissionDecision`.
+///
+/// Used as the fallback when no ruleset rule matches: low-risk commands are
+/// allowed, medium-risk commands prompt the user, high-risk commands are denied.
 pub fn risk_to_decision(risk: RiskLevel) -> PermissionDecision {
     match risk {
         RiskLevel::Low => PermissionDecision::Allow,
@@ -159,8 +162,13 @@ pub fn evaluate_ruleset(
     decision
 }
 
-/// Evaluate a permission request using both the ruleset and legacy risk assessment.
-/// The ruleset takes precedence; if no rule matches, falls back to risk-based decision.
+/// Evaluate a permission request against the ruleset, falling back to risk-based
+/// default when the ruleset is empty.
+///
+/// When the ruleset contains at least one rule, `evaluate_ruleset` decides (last
+/// matching rule wins, or default if none match). When the ruleset is empty,
+/// the caller-provided `risk` decides via `risk_to_decision`. The `risk`
+/// parameter is only consulted when `ruleset.is_empty()` is true.
 pub fn evaluate_permission(
     ruleset: &PermissionRuleset,
     tool_name: &str,
