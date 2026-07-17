@@ -1,4 +1,4 @@
-import type { AudioStatePayload } from '../shared/ipc';
+import type { AudioStatePayload } from '../shared/ipc/browser';
 
 type StateListener = (payload: AudioStatePayload) => void;
 

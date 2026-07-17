@@ -1,4 +1,4 @@
-import type { LspBridge } from "../shared/ipc";
+import type { LspBridge } from "../shared/ipc/lsp";
 
 export const mockLsp: LspBridge = {
   startServer: async () => ({ ok: true, data: undefined }),

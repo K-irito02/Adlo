@@ -1,5 +1,4 @@
-import type { PtyOutputEvent } from '../shared/ipc';
-import type { PtySessionInfo } from '../shared/ipc';
+import type { PtyOutputEvent, PtySessionInfo } from '../shared/ipc/pty';
 import { requestPreviewApi } from './preview-api';
 
 const MAX_PTY_LISTENERS = 32;

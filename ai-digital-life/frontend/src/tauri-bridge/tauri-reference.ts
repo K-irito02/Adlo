@@ -1,4 +1,4 @@
-import type { ReferenceBridge, ReferenceConfig } from '../shared/ipc';
+import type { ReferenceBridge, ReferenceConfig } from '../shared/ipc/reference';
 import { invokeIpc } from './tauri-shared';
 
 export function createTauriReferenceBridge(): ReferenceBridge {

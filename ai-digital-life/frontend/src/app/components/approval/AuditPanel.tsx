@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import type { AuditEntry, RiskLevel } from '@shared/ipc';
+import type { RiskLevel } from '@shared/ipc';
+import type { AuditEntry } from '@shared/ipc/task';
 import type { CopyDict } from '../../i18n';
 import { useTCopy } from '../../i18n/useTCopy';
 import { IconClock, IconFilter } from '../../icons';

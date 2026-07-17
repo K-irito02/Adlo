@@ -1,7 +1,7 @@
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { type UnlistenFn } from '@tauri-apps/api/event';
 import { open } from '@tauri-apps/plugin-shell';
-import type { WindowBridge } from '../shared/ipc';
+import type { WindowBridge } from '../shared/ipc/window';
 
 export function createTauriWindowBridge(): WindowBridge {
   const win = () => getCurrentWindow();

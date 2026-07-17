@@ -1,4 +1,4 @@
-import type { ReferenceConfig } from '@shared/ipc';
+import type { ReferenceConfig } from '@shared/ipc/reference';
 import type { StoreState } from '../StoreState';
 
 export interface ReferenceSlice {

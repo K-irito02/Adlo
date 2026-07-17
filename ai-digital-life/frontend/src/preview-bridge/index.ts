@@ -1,4 +1,5 @@
-import type { AudioStatePayload, DigitalLifeBridge, PageMeta } from '../shared/ipc';
+import type { AudioStatePayload, PageMeta } from '../shared/ipc/browser';
+import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from '../mock-bridge';
 import { createPtyBridge } from './preview-pty-bridge';
 import { loadRecentWorkspaces } from './preview-storage';

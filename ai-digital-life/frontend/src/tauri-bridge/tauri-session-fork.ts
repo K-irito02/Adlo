@@ -1,4 +1,4 @@
-import type { SessionForkBridge } from '../shared/ipc';
+import type { SessionForkBridge } from '../shared/ipc/session_fork';
 import type { ConversationSessionRecord } from '@ai-digital-life/kernel';
 import { invokeIpc } from './tauri-shared';
 

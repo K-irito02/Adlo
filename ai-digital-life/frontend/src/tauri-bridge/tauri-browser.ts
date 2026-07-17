@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { BrowserBridge } from '../shared/ipc';
+import type { BrowserBridge } from '../shared/ipc/browser';
 import { invokeIpc } from './tauri-shared';
 
 export function createTauriBrowserBridge(): BrowserBridge {

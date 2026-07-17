@@ -5,8 +5,8 @@ import type {
   ConversationMessageRecord,
   AgentRunDetail,
   ModelTokenUsage,
-  DigitalLifeRunActivityEventV1,
 } from '@shared/ipc';
+import type { DigitalLifeRunActivityEventV1 } from '@shared/ipc/digital-life';
 import { IconBrain } from '../icons';
 import { MessageBlocks } from '../features/conversation/MessageBlocks';
 import { RunSummaryBlock } from './conversation/RunSummaryBlock';

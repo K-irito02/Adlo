@@ -1,4 +1,4 @@
-import { IpcErrorCode } from "../shared/ipc";
+import { IpcErrorCode } from "../shared/ipc/shared";
 import type { WorkspaceBridge } from "../shared/ipc";
 import type {
   GitBranchSummary,

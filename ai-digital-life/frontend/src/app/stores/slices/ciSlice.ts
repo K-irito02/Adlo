@@ -11,7 +11,7 @@
  */
 import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
-import type { DigitalLifeBridge } from '@shared/ipc';
+import type { DigitalLifeBridge } from '@shared/ipc/digital-life';
 import { CI_ERROR_CODES } from '@shared/ciErrors';
 import { makePersistedWriter } from '../shared';
 import { executeCiStatusRefresh } from './githubCiRefresh';

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
-import type { PageMeta } from '@shared/ipc';
+import type { PageMeta } from '@shared/ipc/browser';
 import { fetchPageMeta, prefetchPageMeta } from '@utils/fetchPageMeta';
 import type { MetaSource } from './useBrowserPageMeta';
 import { useAppStore } from '@stores';

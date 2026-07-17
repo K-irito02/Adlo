@@ -1,4 +1,4 @@
-import type { ReferenceBridge, ReferenceConfig } from "../shared/ipc";
+import type { ReferenceBridge, ReferenceConfig } from "../shared/ipc/reference";
 
 export const mockReference: ReferenceBridge = {
   listReferences: async (_dataDir) => ({

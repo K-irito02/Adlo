@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CiJobSummary } from '@ai-digital-life/kernel';
 import type { CopyDict } from '@app/i18n';
-import type { DigitalLifeBridge } from '@root/shared/ipc';
+import type { DigitalLifeBridge } from '@root/shared/ipc/digital-life';
 
 interface CiLogCacheEntry {
   selectedJobId: number | null;

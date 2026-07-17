@@ -4,7 +4,7 @@
  */
 import { useEffect } from 'react';
 import { useAppStore } from '@stores/slicedStore';
-import type { PtyOutputEvent } from '@shared/ipc';
+import type { PtyOutputEvent } from '@shared/ipc/pty';
 
 /** Git push 成功的多种输出模式 */
 const PUSH_SUCCESS_PATTERNS = [

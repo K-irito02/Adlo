@@ -1,4 +1,4 @@
-import type { WebToolsBridge } from "../shared/ipc";
+import type { WebToolsBridge } from "../shared/ipc/web_tools";
 
 export const mockWebTools: WebToolsBridge = {
   webFetch: async (url, format) => ({

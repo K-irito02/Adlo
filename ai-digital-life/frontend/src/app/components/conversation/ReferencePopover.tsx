@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ReferenceItem, ReferenceKind } from '@shared/ipc';
+import type { ReferenceItem, ReferenceKind } from '@shared/ipc/reference';
 import type { CopyDict } from '../../i18n';
 import { IconFileText, IconHash, IconTerminal, IconSearch } from '../../icons';
 

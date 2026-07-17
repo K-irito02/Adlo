@@ -1,4 +1,4 @@
-import type { PermissionBridge, PermissionDecision, PermissionRulesetConfig } from '../shared/ipc';
+import type { PermissionBridge, PermissionDecision, PermissionRulesetConfig } from '../shared/ipc/permission';
 import { invokeIpc } from './tauri-shared';
 
 export function createTauriPermissionBridge(): PermissionBridge {

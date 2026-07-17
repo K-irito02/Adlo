@@ -1,5 +1,5 @@
-import { IpcErrorCode } from "../shared/ipc";
-import type { ReservedBridge } from "../shared/ipc";
+import { IpcErrorCode } from "../shared/ipc/shared";
+import type { ReservedBridge } from "../shared/ipc/reserved";
 
 export const mockReserved: ReservedBridge = {
   acpGetStatus: async () => ({

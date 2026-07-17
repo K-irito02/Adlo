@@ -1,4 +1,4 @@
-import type { SnapshotBridge } from "../shared/ipc";
+import type { SnapshotBridge } from "../shared/ipc/snapshot";
 
 export const mockSnapshot: SnapshotBridge = {
   createSnapshot: async (_params) => ({

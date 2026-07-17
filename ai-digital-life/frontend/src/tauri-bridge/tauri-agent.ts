@@ -1,11 +1,5 @@
-import type {
-  AgentBridge,
-  SubagentBridge,
-  AgentConfig,
-  SubagentTask,
-  TaskToolInput,
-  TaskToolOutput,
-} from '../shared/ipc';
+import type { AgentBridge, AgentConfig } from '../shared/ipc';
+import type { SubagentBridge, SubagentTask, TaskToolInput, TaskToolOutput } from '../shared/ipc/subagent';
 import type { AgentRunDetail, ConversationSendResult } from '@ai-digital-life/kernel';
 import { invokeIpc } from './tauri-shared';
 

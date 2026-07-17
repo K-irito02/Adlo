@@ -1,4 +1,4 @@
-import type { DurableBridge } from "../shared/ipc";
+import type { DurableBridge } from "../shared/ipc/durable";
 
 export const mockDurable: DurableBridge = {
   registerDurableSession: async () => ({ ok: true, data: undefined }),

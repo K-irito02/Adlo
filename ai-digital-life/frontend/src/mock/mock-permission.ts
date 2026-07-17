@@ -2,7 +2,7 @@ import type {
   PermissionBridge,
   PermissionDecision,
   PermissionRulesetConfig,
-} from "../shared/ipc";
+} from "../shared/ipc/permission";
 
 export const mockPermission: PermissionBridge = {
   listPermissionRules: async () => ({

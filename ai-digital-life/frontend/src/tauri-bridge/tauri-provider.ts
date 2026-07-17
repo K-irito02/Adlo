@@ -3,7 +3,7 @@ import type {
   ConnectionTestResult,
   ProviderInfo,
   ProviderStatus,
-} from '../shared/ipc';
+} from '../shared/ipc/provider';
 import type { ModelDefinition } from '@ai-digital-life/kernel';
 import { invokeIpc } from './tauri-shared';
 

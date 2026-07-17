@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import { IpcErrorCode } from '../shared/ipc';
+import { IpcErrorCode } from '../shared/ipc/shared';
 import type { IpcResult } from '@ai-digital-life/kernel';
 
 export async function invokeIpc<T>(

@@ -1,4 +1,4 @@
-import type { ProviderBridge } from "../shared/ipc";
+import type { ProviderBridge } from "../shared/ipc/provider";
 
 export const mockProvider: ProviderBridge = {
   setProviderApiKey: async (_provider: string, _apiKey: string) => ({ ok: true, data: true }),

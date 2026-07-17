@@ -1,4 +1,4 @@
-import type { CommandBridge } from '../shared/ipc';
+import type { CommandBridge } from '../shared/ipc/command';
 import type { CommandRequest, CommandRunResult } from '@ai-digital-life/kernel';
 import { invokeIpc } from './tauri-shared';
 

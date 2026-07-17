@@ -1,6 +1,6 @@
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { ToastType } from '@components/Toast';
-import type { PageMeta } from '@shared/ipc';
+import type { PageMeta } from '@shared/ipc/browser';
 import { useBrowserPageMeta } from './useBrowserPageMeta';
 import type { MetaSource } from './useBrowserPageMeta';
 import { useBrowserMetaSubscription } from './useBrowserMetaSubscription';

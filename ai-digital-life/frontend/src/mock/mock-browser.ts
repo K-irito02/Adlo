@@ -1,4 +1,4 @@
-import type { BrowserBridge, PageMeta, AudioStatePayload } from "../shared/ipc";
+import type { BrowserBridge, PageMeta, AudioStatePayload } from "../shared/ipc/browser";
 
 export const mockBrowser: BrowserBridge = {
   createForTab: (_tabId: string, _url: string, _colorScheme?: 'light' | 'dark') =>

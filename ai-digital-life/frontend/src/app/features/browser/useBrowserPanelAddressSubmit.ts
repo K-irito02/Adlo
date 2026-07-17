@@ -3,7 +3,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { findInBrowserLookupIndex } from './useBrowserSearch';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
 import type { MetaSource } from './useBrowserPageMeta';
-import type { PageMeta } from '@shared/ipc';
+import type { PageMeta } from '@shared/ipc/browser';
 
 interface UseBrowserPanelAddressSubmitParams {
   address: string;

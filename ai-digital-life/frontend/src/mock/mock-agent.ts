@@ -1,4 +1,5 @@
-import type { AgentBridge, SubagentBridge } from "../shared/ipc";
+import type { AgentBridge } from "../shared/ipc";
+import type { SubagentBridge } from "../shared/ipc/subagent";
 import { activeRun } from "./mock-shared";
 import { mockConversation } from "./mock-conversation";
 

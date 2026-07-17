@@ -1,4 +1,4 @@
-import type { GitHubBridge, CiRepoConfig, CiStatusSnapshot } from "../shared/ipc";
+import type { GitHubBridge, CiRepoConfig, CiStatusSnapshot } from "../shared/ipc/github";
 import type { IpcResult } from "@ai-digital-life/kernel";
 
 /**

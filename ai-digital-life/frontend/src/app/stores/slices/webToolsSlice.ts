@@ -1,4 +1,4 @@
-import type { WebFetchResult, WebSearchResult } from '@shared/ipc';
+import type { WebFetchResult, WebSearchResult } from '@shared/ipc/web_tools';
 import type { StoreState } from '../StoreState';
 
 export interface WebToolsSlice {

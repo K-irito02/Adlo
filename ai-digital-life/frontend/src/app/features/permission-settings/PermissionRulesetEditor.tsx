@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
-import type { PermissionRule, PermissionDecision } from '@shared/ipc';
+import type { PermissionRule, PermissionDecision } from '@shared/ipc/permission';
 
 interface PermissionRulesetEditorProps {
   onClose: () => void;

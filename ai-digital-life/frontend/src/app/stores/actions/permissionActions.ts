@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
-import type { PermissionRule } from '@shared/ipc';
+import type { PermissionRule } from '@shared/ipc/permission';
 import { clearError, captureError } from '../shared';
 
 export function createPermissionActions(

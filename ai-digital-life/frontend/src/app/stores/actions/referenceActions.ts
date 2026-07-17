@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
-import type { ReferenceConfig } from '@shared/ipc';
+import type { ReferenceConfig } from '@shared/ipc/reference';
 import { clearError, captureError } from '../shared';
 
 export function createReferenceActions(

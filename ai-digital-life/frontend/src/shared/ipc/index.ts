@@ -12,32 +12,11 @@
  *   collisions.
  */
 
-export * from './shared';
-export * from './window';
 export * from './app';
 export * from './workspace';
-export * from './retrieval';
 export * from './conversation';
 export * from './agent';
-export * from './subagent';
 export * from './patch';
-export * from './command';
-export * from './pty';
-export * from './task';
-export * from './run-activity';
-export * from './browser';
-export * from './github';
 export * from './mcp';
-export * from './provider';
-export * from './snapshot';
-export * from './web_tools';
 export * from './commands_config';
-export * from './permission';
 export * from './compaction';
-export * from './session_fork';
-export * from './lsp';
-export * from './reference';
-export * from './custom_agent';
-export * from './durable';
-export * from './reserved';
-export * from './digital-life';

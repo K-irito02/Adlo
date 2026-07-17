@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import type { DigitalLifeBridge } from './shared/ipc';
+import type { DigitalLifeBridge } from './shared/ipc/digital-life';
 import { setupPreviewBridge } from './preview-bridge';
 import { createTauriBridge, isTauriShell } from './tauri-bridge';
 import { App } from './app/App';

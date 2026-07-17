@@ -72,15 +72,17 @@ import type { ReferenceSlice } from './slices/referenceSlice';
 import type { DurableSlice } from './slices/durableSlice';
 import type { ToastSlice } from './slices/toastSlice';
 import type { NotificationSlice } from './slices/notificationSlice';
-import type { ReferenceConfig } from '@shared/ipc';
+import type { ReferenceConfig } from '@shared/ipc/reference';
+import type { PermissionRule } from '@shared/ipc/permission';
+import type { SnapshotRecord, RevertResult } from '@shared/ipc/snapshot';
+import type { DiagnosticInfo, SymbolInfo } from '@shared/ipc/lsp';
 import type {
   McpServerConfig,
   CommandConfig,
-  PermissionRule,
   CompactSessionInput,
   CompactSessionResult,
 } from '@shared/ipc';
-import type { AgentConfig, SnapshotRecord, RevertResult } from '@shared/ipc';
+import type { AgentConfig } from '@shared/ipc';
 import type {
   AppPreferencePatch,
   ConversationSessionRecord,
@@ -91,7 +93,6 @@ import type {
 } from '@ai-digital-life/kernel';
 import type { MessageSendOptions } from '../utils/composerSend';
 import type { WorkspaceID, SessionID, AgentRunID } from '../../shared/branded';
-import type { DiagnosticInfo, SymbolInfo } from '@shared/ipc';
 
 interface StoreStateBase
   extends

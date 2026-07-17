@@ -1,4 +1,4 @@
-import type { RetrievalBridge } from '../shared/ipc';
+import type { RetrievalBridge } from '../shared/ipc/retrieval';
 import type { IpcResult, RepoMapNode, RetrievalSnapshot } from '@ai-digital-life/kernel';
 import { invokeIpc } from './tauri-shared';
 import { repoMapEntriesToTree } from '../shared/repoMapFromEntries';

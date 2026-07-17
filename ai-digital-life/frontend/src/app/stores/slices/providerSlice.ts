@@ -1,4 +1,4 @@
-import type { ProviderStatus, ConnectionTestResult } from '@shared/ipc';
+import type { ProviderStatus, ConnectionTestResult } from '@shared/ipc/provider';
 import type { StoreState } from '../StoreState';
 
 export interface ProviderSlice {

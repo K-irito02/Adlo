@@ -1,4 +1,4 @@
-import type { GitHubBridge } from '../shared/ipc';
+import type { GitHubBridge } from '../shared/ipc/github';
 import type { CiStatusSnapshot } from '@ai-digital-life/kernel';
 import { invokeIpc } from './tauri-shared';
 

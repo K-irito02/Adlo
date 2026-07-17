@@ -2,7 +2,8 @@
  * Agent 切片
  * 管理多 Agent 系统状态：已选 Agent、可用列表、Plan 模式、子代理任务
  */
-import type { AgentConfig, SubagentTask } from '@shared/ipc';
+import type { AgentConfig } from '@shared/ipc';
+import type { SubagentTask } from '@shared/ipc/subagent';
 import type { StoreState } from '../StoreState';
 
 export interface AgentSlice {

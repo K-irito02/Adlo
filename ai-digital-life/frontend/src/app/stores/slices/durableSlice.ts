@@ -1,4 +1,4 @@
-import type { DurableStatus } from '@shared/ipc';
+import type { DurableStatus } from '@shared/ipc/durable';
 import type { StoreState } from '../StoreState';
 
 export interface DurableSlice {

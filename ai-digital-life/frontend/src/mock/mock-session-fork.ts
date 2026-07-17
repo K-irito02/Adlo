@@ -1,4 +1,4 @@
-import type { SessionForkBridge } from "../shared/ipc";
+import type { SessionForkBridge } from "../shared/ipc/session_fork";
 
 export const mockSessionFork: SessionForkBridge = {
   forkSession: async (parentSession, _forkMessageId) => ({

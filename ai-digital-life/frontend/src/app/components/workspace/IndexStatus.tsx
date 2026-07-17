@@ -1,4 +1,4 @@
-import type { IndexingStatus } from '@shared/ipc';
+import type { IndexingStatus } from '@shared/ipc/retrieval';
 import type { CopyDict } from '../../i18n';
 import { IconCheckCircle, IconAlertTriangle } from '../../icons';
 

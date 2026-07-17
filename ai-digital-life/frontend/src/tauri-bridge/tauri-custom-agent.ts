@@ -1,4 +1,5 @@
-import type { AgentConfig, CustomAgentBridge } from '../shared/ipc';
+import type { AgentConfig } from '../shared/ipc';
+import type { CustomAgentBridge } from '../shared/ipc/custom_agent';
 import { invokeIpc } from './tauri-shared';
 
 export function createTauriCustomAgentBridge() {

@@ -1,4 +1,4 @@
-import type { RunActivityBridge } from '../shared/ipc';
+import type { RunActivityBridge } from '../shared/ipc/run-activity';
 import type { DigitalLifeRunActivityEventV1 } from '@ai-digital-life/kernel';
 import { invokeIpc } from './tauri-shared';
 

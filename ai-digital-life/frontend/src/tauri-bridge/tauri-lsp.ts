@@ -1,4 +1,4 @@
-import type { LspBridge, SymbolInfo, DiagnosticInfo } from '../shared/ipc';
+import type { LspBridge, SymbolInfo, DiagnosticInfo } from '../shared/ipc/lsp';
 import { invokeIpc } from './tauri-shared';
 
 export function createTauriLspBridge(): LspBridge {

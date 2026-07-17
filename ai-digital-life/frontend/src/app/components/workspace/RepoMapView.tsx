@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { RepoMapNode } from '@shared/ipc';
+import type { RepoMapNode } from '@shared/ipc/retrieval';
 import type { CopyDict } from '../../i18n';
 import {
   IconChevronDown,

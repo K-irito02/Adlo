@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import type { AgentRunDetail, DigitalLifeRunActivityEventV1, ModelTokenUsage } from '@shared/ipc';
+import type { AgentRunDetail, ModelTokenUsage } from '@shared/ipc';
+import type { DigitalLifeRunActivityEventV1 } from '@shared/ipc/digital-life';
 import type { CopyDict } from '../../i18n';
 import { IconChevronDown, IconChevronRight, IconClock, IconCopy } from '../../icons';
 import { TokenUsage } from './TokenUsage';

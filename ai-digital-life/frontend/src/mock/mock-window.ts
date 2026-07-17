@@ -1,4 +1,4 @@
-import type { WindowBridge } from "../shared/ipc";
+import type { WindowBridge } from "../shared/ipc/window";
 
 export const mockWindow: WindowBridge = {
   minimize: async () => {},

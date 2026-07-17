@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
-import type { SymbolInfo } from '@shared/ipc';
+import type { SymbolInfo } from '@shared/ipc/lsp';
 
 export function LspSymbols({ workspaceId, filePath }: { workspaceId: string; filePath: string }) {
   const { t } = useTCopy();

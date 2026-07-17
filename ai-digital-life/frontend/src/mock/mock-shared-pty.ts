@@ -1,4 +1,4 @@
-import type { PtyOutputEvent } from "../shared/ipc";
+import type { PtyOutputEvent } from "../shared/ipc/pty";
 
 export const MAX_PTY_LISTENERS = 32;
 export const ptyOutputListeners = new Set<(event: PtyOutputEvent) => void>();

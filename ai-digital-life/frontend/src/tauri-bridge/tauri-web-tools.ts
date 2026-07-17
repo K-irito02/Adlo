@@ -1,4 +1,4 @@
-import type { WebToolsBridge, WebFetchResult, WebSearchResult } from '../shared/ipc';
+import type { WebToolsBridge, WebFetchResult, WebSearchResult } from '../shared/ipc/web_tools';
 import { invokeIpc } from './tauri-shared';
 
 export function createTauriWebToolsBridge(): WebToolsBridge {

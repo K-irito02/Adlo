@@ -1,4 +1,4 @@
-import type { DurableBridge, DurableSessionState } from '../shared/ipc';
+import type { DurableBridge, DurableSessionState } from '../shared/ipc/durable';
 import { invokeIpc } from './tauri-shared';
 
 export function createTauriDurableBridge(): DurableBridge {

@@ -3,7 +3,7 @@
  * 从 githubSlice.ts 提取的类型、Bridge 检测和 CI 配置持久化逻辑
  */
 import type { CiRepoConfig } from '@ai-digital-life/kernel';
-import type { DigitalLifeBridge } from '@shared/ipc';
+import type { DigitalLifeBridge } from '@shared/ipc/digital-life';
 
 const CI_CONFIG_KEY = 'adl-ui:ci-config';
 const CI_ACCESS_TOKEN_KEY = 'adl-ui:ci-access-token';

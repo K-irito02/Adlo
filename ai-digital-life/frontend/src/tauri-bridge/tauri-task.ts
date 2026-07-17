@@ -1,4 +1,4 @@
-import type { TaskBridge } from '../shared/ipc';
+import type { TaskBridge } from '../shared/ipc/task';
 import type {
   ApprovalRequestSummary,
   AuditEntry,

@@ -1,4 +1,4 @@
-import type { PermissionRulesetConfig } from '@shared/ipc';
+import type { PermissionRulesetConfig } from '@shared/ipc/permission';
 import type { StoreState } from '../StoreState';
 
 export interface PermissionSlice {

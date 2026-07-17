@@ -1,4 +1,4 @@
-import type { RetrievalBridge } from "../shared/ipc";
+import type { RetrievalBridge } from "../shared/ipc/retrieval";
 import type { RepoMapNode } from "@ai-digital-life/kernel";
 import {
   currentWorkspaceMeta,

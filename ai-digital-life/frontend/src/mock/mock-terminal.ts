@@ -1,4 +1,4 @@
-import type { PtyBridge } from "../shared/ipc";
+import type { PtyBridge } from "../shared/ipc/pty";
 import {
   activeMockPtySessions,
   emitPtyOutput,

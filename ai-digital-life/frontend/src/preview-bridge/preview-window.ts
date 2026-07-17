@@ -1,5 +1,5 @@
 import { mockDigitalLifeBridge } from '../mock-bridge';
-import type { WindowBridge } from '../shared/ipc';
+import type { WindowBridge } from '../shared/ipc/window';
 
 export function createPreviewWindowBridge() {
   return {

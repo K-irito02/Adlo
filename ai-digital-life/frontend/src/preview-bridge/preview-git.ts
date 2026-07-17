@@ -7,7 +7,7 @@ import type {
   WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
 } from '@ai-digital-life/kernel';
-import { IpcErrorCode } from '../shared/ipc';
+import { IpcErrorCode } from '../shared/ipc/shared';
 import { requestPreviewApi } from './preview-api';
 import type { PreviewContext } from './preview-context';
 

@@ -1,5 +1,5 @@
-import type { DigitalLifeBridge } from './shared/ipc';
-import type { PtyOutputEvent } from './shared/ipc';
+import type { DigitalLifeBridge } from './shared/ipc/digital-life';
+import type { PtyOutputEvent } from './shared/ipc/pty';
 import {
   appInfo,
   currentWorkspaceMeta,
