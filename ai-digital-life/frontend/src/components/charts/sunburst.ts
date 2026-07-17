@@ -329,64 +329,6 @@ export function buildSunburstEnterTiming(arcs: ArcDatum[], staggerScale = 1): Su
   return { segmentDelays, maxDelay };
 }
 
-/** @deprecated Use buildSunburstEnterTiming */
-export interface SunburstRevealSchedule {
-  ringStarts: Map<number, number>;
-  ringDuration: number;
-  segmentsCompleteAt: number;
-  labelsStart: number;
-  labelDuration: number;
-}
-
-/** @deprecated Use buildSunburstEnterTiming */
-export function buildRevealSchedule(arcs: ArcDatum[], staggerScale = 1): SunburstRevealSchedule {
-  const timing = buildSunburstEnterTiming(arcs, staggerScale);
-  const ringStarts = new Map<number, number>();
-  for (const arc of arcs) {
-    const delays = timing.segmentDelays.get(arc.id);
-    if (delays) {
-      ringStarts.set(arc.depth, delays.delay);
-    }
-  }
-  return {
-    ringStarts,
-    ringDuration: 0.6,
-    segmentsCompleteAt: timing.maxDelay,
-    labelsStart: timing.maxDelay + 0.12,
-    labelDuration: 0.2,
-  };
-}
-
-/** @deprecated Ring sweep reveal — use expand + sweep enter instead. */
-export function segmentRevealFromRingSweep(
-  ringProgress: number,
-  a0: number,
-  a1: number
-): { angular: number; radial: number } {
-  const radial = Math.min(1, Math.max(0, ringProgress));
-  const startF = clockwiseFraction(a0);
-  const endF = clockwiseFraction(a1);
-
-  if (ringProgress <= startF) {
-    return { angular: 0, radial };
-  }
-  if (ringProgress >= endF) {
-    return { angular: 1, radial };
-  }
-  const angular = (ringProgress - startF) / Math.max(endF - startF, 1e-9);
-  return { angular, radial };
-}
-
-/** @deprecated Use buildSunburstEnterTiming */
-export function buildRevealDelays(arcs: ArcDatum[]): Map<string, number> {
-  const timing = buildSunburstEnterTiming(arcs);
-  const map = new Map<string, number>();
-  for (const arc of arcs) {
-    map.set(arc.id, timing.segmentDelays.get(arc.id)?.delay ?? 0);
-  }
-  return map;
-}
-
 export function arcPath(
   geometry: ArcGeometry,
   progress: number,

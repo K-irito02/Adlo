@@ -45,7 +45,6 @@ export {
   HeatmapInteractionRoot,
   HeatmapProvider,
   type HeatmapRevealMode,
-  heatmapCssVars,
   useHeatmap,
   useHeatmapInteraction,
   useHeatmapInteractionOptional,
