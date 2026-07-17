@@ -2,6 +2,13 @@ import { useCallback, useEffect } from 'react';
 import { isTauriShell } from '@tauri-bridge';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
+/**
+ * Offscreen coordinate used to hide a WebView by moving it far outside the
+ * viewport. `32767` is `Int16.MAX_VALUE` — WebView2 treats this as "way
+ * offscreen" without unloading the page (preserves SPA state).
+ */
+const HIDDEN_WEBVIEW_OFFSCREEN_COORD = 32767;
+
 interface UseWebViewVisibilityOptions {
   isVisible: boolean;
   overlayActive: boolean;
@@ -162,8 +169,8 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
       if (tab && isTabInPool(tab.id)) {
         window.digitalLife?.browser
           ?.setTabBounds(tab.id, {
-            x: 32767,
-            y: 32767,
+            x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
+            y: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
             width: 1,
             height: 1,
           })

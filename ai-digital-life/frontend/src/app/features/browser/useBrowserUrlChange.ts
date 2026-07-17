@@ -7,6 +7,14 @@ import { useAppStore } from '@stores';
 import { normalizeUrlForCompare, isProbablySameSite } from './browserUrlUtils';
 import { historyDedupKey } from '@utils/browserDisplayUtils';
 
+/**
+ * Fallback delay (ms) before treating a navigation as completed when no
+ * `pageLoaded` event arrives. Shorter when no tab exists (no SPA routing
+ * expected); longer when a tab exists (allow time for SPA transitions).
+ */
+const URL_CHANGE_FALLBACK_MS_NO_TAB = 8000;
+const URL_CHANGE_FALLBACK_MS_WITH_TAB = 15000;
+
 interface UseBrowserUrlChangeOptions {
   activeTab?: BrowserTabState;
   activeTabRef: React.MutableRefObject<BrowserTabState | undefined>;
@@ -301,7 +309,9 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
         tryPrefetch();
 
-        const fallbackDelay = noTabExists ? 8000 : 15000;
+        const fallbackDelay = noTabExists
+          ? URL_CHANGE_FALLBACK_MS_NO_TAB
+          : URL_CHANGE_FALLBACK_MS_WITH_TAB;
         const timerId = setTimeout(() => {
           if (captureGeneration !== navigationGenerationRef.current) {
             fallbackTimeoutsRef.current.delete(normalizedUrl);
