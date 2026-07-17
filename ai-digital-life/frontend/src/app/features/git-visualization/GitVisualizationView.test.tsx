@@ -31,14 +31,14 @@ vi.mock('motion/react', () => ({
       get: (_t: never, tag: string) =>
         function MotionTag({
           children,
-          initial,
-          animate,
-          exit,
-          transition,
-          variants,
-          whileHover,
-          whileTap,
-          style,
+          initial: _initial,
+          animate: _animate,
+          exit: _exit,
+          transition: _transition,
+          variants: _variants,
+          whileHover: _whileHover,
+          whileTap: _whileTap,
+          style: _style,
           ...rest
         }: Record<string, unknown>) {
           const React = require('react');

@@ -8,7 +8,7 @@
 import type { BrowserTabState } from './browserSliceShared';
 import type { TabFolderState } from './browserFoldersTypes';
 import type { BrowserHistoryState } from './browserHistorySlice';
-import type { WorkspaceBookmarkEntry } from './browserBookmarkSlice';
+import type { WorkspaceBookmarkEntry } from './browserTypes';
 import {
   findFolderById,
   collectAllDescendantFolderIds,

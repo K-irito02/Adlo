@@ -17,7 +17,7 @@ import {
 import { BROWSER_NAVIGATOR_COLLAPSED_KEY, STORAGE_HYDRATION_DELAY_MS } from '../constants';
 
 import type { BrowserTabState } from './browserSliceShared';
-import type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserBookmarkSlice';
+import type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserTypes';
 import { BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY } from './browserBookmarkSlice';
 import {
   BROWSER_TABS_KEY,
@@ -37,7 +37,7 @@ import type { TabFolderState } from './browserFoldersSlice';
 import type { ShortcutSite, LocalPort, BackgroundConfig } from './browserLandingSlice';
 
 export type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
-export type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserBookmarkSlice';
+export type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserTypes';
 export type { BrowserHistoryState } from './browserHistorySlice';
 export type { TabFolderState, BookmarkTabItem } from './browserFoldersSlice';
 export type {
