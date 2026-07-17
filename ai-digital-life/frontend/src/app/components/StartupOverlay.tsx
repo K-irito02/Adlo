@@ -59,7 +59,7 @@ export default function StartupOverlay() {
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 9999,
+        zIndex: 'var(--z-max)',
         backgroundColor: colors.bgHex,
         cursor: 'default',
       }}

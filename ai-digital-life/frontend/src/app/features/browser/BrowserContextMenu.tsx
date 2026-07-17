@@ -40,7 +40,7 @@ export const BrowserContextMenu = React.memo(function BrowserContextMenu({
         position: 'fixed',
         left: contextMenu.x,
         top: contextMenu.y,
-        zIndex: 99999,
+        zIndex: 'var(--z-toast-top)',
       }}
       role="menu"
       onMouseDown={(e) => e.stopPropagation()}

@@ -149,6 +149,7 @@
   --z-toast: 80;
   --z-tooltip: 90;
   --z-max: 9999;
+  --z-toast-top: 99999;
 
   /* --- Icon size tokens --- */
   --icon-xs: 12px;

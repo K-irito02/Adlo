@@ -30,7 +30,7 @@ export const TerminalContextMenu = React.memo(function TerminalContextMenu({
         position: 'fixed',
         left: contextMenu.x,
         top: contextMenu.y,
-        zIndex: 99999,
+        zIndex: 'var(--z-toast-top)',
       }}
       role="menu"
       onMouseDown={(e) => e.stopPropagation()}

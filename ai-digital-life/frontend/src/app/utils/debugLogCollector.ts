@@ -341,7 +341,7 @@ async function createDraggableCopyButton() {
     position: fixed;
     top: ${initialTop};
     right: 10px;
-    z-index: 99999;
+    z-index: var(--z-toast-top);
     padding: 8px 16px;
     background: #007acc;
     color: white;

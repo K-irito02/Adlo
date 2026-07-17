@@ -248,7 +248,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
               position: 'fixed',
               top: menuPosition.top,
               left: menuPosition.left,
-              zIndex: 9999,
+              zIndex: 'var(--z-max)',
             }}
           >
             {menuItems.map((item) => {

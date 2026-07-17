@@ -233,7 +233,7 @@ export function GitHubCITreeToolbar({
                     position: 'fixed',
                     top: deleteButtonRef.current.getBoundingClientRect().bottom + 4,
                     left: deleteButtonRef.current.getBoundingClientRect().left,
-                    zIndex: 99999,
+                    zIndex: 'var(--z-toast-top)',
                   }}
                 >
                   <MenuHintItem

@@ -192,7 +192,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
             position: 'fixed',
             top: childMenuState.y,
             left: childMenuState.x,
-            zIndex: 9999,
+            zIndex: 'var(--z-max)',
           }}
         >
           {buildMenuItems(childMenuState.childNode, '').map((item) => {
