@@ -3,13 +3,7 @@ import { render, cleanup } from '@testing-library/react';
 import React from 'react';
 import { GitVisualizationView } from './GitVisualizationView';
 
-beforeEach(() => {
-  vi.useFakeTimers();
-});
-
 afterEach(() => {
-  vi.runOnlyPendingTimers();
-  vi.useRealTimers();
   cleanup();
 });
 
@@ -66,7 +60,7 @@ vi.mock('motion/react', () => ({
   useMotionValue: <T,>(val: T) => createMotionValue(val as number),
   useTransform: () => createMotionValue(0),
   useSpring: (val: unknown) => createMotionValue(typeof val === 'number' ? val : 0),
-  useReducedMotion: () => false,
+  useReducedMotion: () => true,
 }));
 
 vi.mock('@visx/responsive', () => ({
@@ -119,19 +113,19 @@ vi.mock('@i18n/useTCopy', () => ({
 }));
 
 describe('GitVisualizationView', () => {
-  it('renders 7 chart cards', { timeout: 15000 }, () => {
+  it('renders 7 chart cards', { timeout: 10000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const cards = container.querySelectorAll('.adl-git-vis__card');
     expect(cards.length).toBe(7);
   });
 
-  it('renders scroll container', { timeout: 15000 }, () => {
+  it('renders scroll container', { timeout: 10000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const scrollContainer = container.querySelector('.adl-git-vis__container');
     expect(scrollContainer).toBeTruthy();
   });
 
-  it('renders mock data note', { timeout: 15000 }, () => {
+  it('renders mock data note', { timeout: 10000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const note = container.querySelector('.adl-git-vis__note');
     expect(note).toBeTruthy();
