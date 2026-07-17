@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
-import { isTauriShell } from '@tauri-bridge';
+import { isTauriShell } from '@shared/env';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 interface UseBrowserIframeStateOptions {

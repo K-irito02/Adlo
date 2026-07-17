@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { isTauriShell } from '@tauri-bridge';
+import { isTauriShell } from '@shared/env';
 
 const POOL_CAPACITY = 6;
 

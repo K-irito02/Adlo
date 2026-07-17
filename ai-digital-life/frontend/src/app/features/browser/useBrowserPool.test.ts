@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBrowserPool } from './useBrowserPool';
 
-vi.mock('../../../tauri-bridge', () => ({
+vi.mock('../../../shared/env', () => ({
   isTauriShell: () => true,
 }));
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { isTauriShell } from '@tauri-bridge';
+import { isTauriShell } from '@shared/env';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { getResolvedTheme } from './useBrowserThemeSync';
 import { normalizeUrlForCompare } from './browserUrlUtils';

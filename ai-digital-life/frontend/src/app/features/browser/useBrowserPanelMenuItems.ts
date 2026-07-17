@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
+import { isTauriShell } from '@shared/env';
 import type { BrowserMenuItem } from './useBrowserMenus';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { useTCopy } from '@i18n/useTCopy';
@@ -83,8 +84,10 @@ export function useBrowserPanelMenuItems({
         disabled: !isTauri,
         action: async () => {
           try {
-            const { invoke } = await import('@tauri-apps/api/core');
-            await invoke('plugin:webview|internal_toggle_devtools');
+            if (isTauriShell()) {
+              const { invoke } = await import('@tauri-apps/api/core');
+              await invoke('plugin:webview|internal_toggle_devtools');
+            }
           } catch {
             // DevTools toggle may not be available
           }

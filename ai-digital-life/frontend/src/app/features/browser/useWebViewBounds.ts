@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { isTauriShell } from '@tauri-bridge';
+import { isTauriShell } from '@shared/env';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 interface UseWebViewBoundsOptions {

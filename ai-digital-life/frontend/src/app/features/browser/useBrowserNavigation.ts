@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { isTauriShell } from '@tauri-bridge';
+import { isTauriShell } from '@shared/env';
 
 interface UseBrowserNavigationOptions {
   iframeRef: React.RefObject<HTMLIFrameElement | null>;

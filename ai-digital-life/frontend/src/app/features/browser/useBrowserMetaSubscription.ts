@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { isTauriShell } from '@tauri-bridge';
+import { isTauriShell } from '@shared/env';
 import { useAppStore } from '@stores';
 import { normalizeUrlForCompare } from './browserUrlUtils';
 
