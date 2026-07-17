@@ -21,7 +21,7 @@ import { mockWindow } from './mock/mock-window';
 import { mockApp } from './mock/mock-app';
 import { mockAgent, mockSubagent } from './mock/mock-agent';
 import { mockBrowser } from './mock/mock-browser';
-import { mockCi, mockGithub } from './mock/mock-ci';
+import { mockGithub } from './mock/mock-ci';
 import { mockMcp } from './mock/mock-mcp';
 import { mockProvider } from './mock/mock-provider';
 import { mockSnapshot } from './mock/mock-snapshot';
@@ -128,7 +128,6 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   runActivity: mockRunActivity,
   browser: mockBrowser,
   github: mockGithub,
-  ci: mockCi,
   mcp: mockMcp,
   provider: mockProvider,
   snapshot: mockSnapshot,

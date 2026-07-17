@@ -130,10 +130,8 @@ export interface DigitalLifeBridge {
   runActivity: RunActivityBridge;
   /** 浏览器预览子模块 */
   browser: BrowserBridge;
-  /** GitHub 集成子模块 (与 ci 共用同一接口) */
+  /** GitHub 集成子模块 (GitHub + CI 状态共用同一接口) */
   github: GitHubBridge;
-  /** CI 状态子模块 (与 github 共用同一接口) */
-  ci: GitHubBridge;
   /** 快照管理子模块 */
   snapshot: SnapshotBridge;
   /** Web 工具子模块 (网页抓取/搜索) */

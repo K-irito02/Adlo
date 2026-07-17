@@ -100,11 +100,6 @@ const mockStatusHandlers: Pick<
   }),
 };
 
-export const mockCi: GitHubBridge = {
-  ...createTokenManagement('adl-ui:ci-access-token', 'CI'),
-  ...mockStatusHandlers,
-};
-
 export const mockGithub: GitHubBridge = {
   ...createTokenManagement('adl-ui:ci-access-token', 'GitHub'),
   ...mockStatusHandlers,

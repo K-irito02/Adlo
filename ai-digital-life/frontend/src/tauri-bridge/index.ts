@@ -32,7 +32,7 @@ import { createTauriWebToolsBridge } from './tauri-web-tools';
 import { createTauriWindowBridge } from './tauri-window';
 import { createTauriWorkspaceBridge } from './tauri-workspace';
 import { createTauriAgentBridge, createTauriSubagentBridge } from './tauri-agent';
-import { createTauriCiBridge, createTauriGithubBridge } from './tauri-ci-github';
+import { createTauriGithubBridge } from './tauri-ci-github';
 
 export function createTauriBridge(): DigitalLifeBridge {
   return {
@@ -81,7 +81,6 @@ export function createTauriBridge(): DigitalLifeBridge {
     task: createTauriTaskBridge(),
     runActivity: createTauriRunActivityBridge(),
     browser: createTauriBrowserBridge(),
-    ci: createTauriCiBridge(),
     github: createTauriGithubBridge(),
     mcp: createTauriMcpBridge(),
     provider: createTauriProviderBridge(),

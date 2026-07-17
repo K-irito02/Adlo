@@ -73,10 +73,7 @@ export function createPreviewTaskBridge() {
     getJobLogs: ciGetJobLogs,
   });
 
-  const ciBridge = makeCiBridge();
-
   return {
-    ci: ciBridge,
     github: makeCiBridge(),
   };
 }

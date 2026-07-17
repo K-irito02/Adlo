@@ -116,7 +116,6 @@ export function setupPreviewBridge(): void {
       clearCookies: (_tabId: string) => Promise.resolve(),
       clearCache: (_tabId: string) => Promise.resolve(),
     },
-    ci: taskBridge.ci,
     github: taskBridge.github,
     subscribeModelStream: modelBridge.subscribeModelStream,
     subscribeRunActivity: modelBridge.subscribeRunActivity,

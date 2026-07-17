@@ -86,19 +86,24 @@ async function hydrateCiDefaults(): Promise<{
   // Token 读取：Tauri 模式走 credential crate，浏览器模式走 server API
   let token = '';
   const bridge = getBridge();
-  if (isTauriMode() && bridge && bridge.ci && typeof bridge.ci.hasAccessToken === 'function') {
+  if (
+    isTauriMode() &&
+    bridge &&
+    bridge.github &&
+    typeof bridge.github.hasAccessToken === 'function'
+  ) {
     try {
-      const hasResult = await bridge.ci.hasAccessToken();
+      const hasResult = await bridge.github.hasAccessToken();
       if (hasResult && hasResult.ok && hasResult.data) {
         token = '::stored::'; // 标记后端已有 token（不在前端回显）
       }
     } catch (err) {
       console.warn('ciSlice: localStorage/bridge operation failed:', err);
     }
-  } else if (bridge && bridge.ci && typeof bridge.ci.hasAccessToken === 'function') {
+  } else if (bridge && bridge.github && typeof bridge.github.hasAccessToken === 'function') {
     // 浏览器预览模式：尝试从 server 读取
     try {
-      const hasResult = await bridge.ci.hasAccessToken();
+      const hasResult = await bridge.github.hasAccessToken();
       if (hasResult && hasResult.ok && hasResult.data) {
         // Server 有 token，尝试从 localStorage 获取实际值用于后续请求
         const storedToken = window.localStorage.getItem(CI_ACCESS_TOKEN_KEY);
@@ -168,9 +173,9 @@ export const createCiSlice = (
       const bridge = getBridge();
 
       // 调用 bridge API（Tauri 模式或浏览器预览模式）
-      if (bridge && bridge.ci && typeof bridge.ci.setAccessToken === 'function') {
+      if (bridge && bridge.github && typeof bridge.github.setAccessToken === 'function') {
         try {
-          await bridge.ci.setAccessToken(sanitized);
+          await bridge.github.setAccessToken(sanitized);
         } catch (err) {
           console.warn('ciSlice: localStorage/bridge operation failed:', err);
         }
@@ -195,9 +200,9 @@ export const createCiSlice = (
       const bridge = getBridge();
 
       // 调用 bridge API（Tauri 模式或浏览器预览模式）
-      if (bridge && bridge.ci && typeof bridge.ci.clearAccessToken === 'function') {
+      if (bridge && bridge.github && typeof bridge.github.clearAccessToken === 'function') {
         try {
-          await bridge.ci.clearAccessToken();
+          await bridge.github.clearAccessToken();
         } catch (err) {
           console.warn('ciSlice: localStorage/bridge operation failed:', err);
         }
@@ -240,7 +245,7 @@ export const createCiSlice = (
       set({ ciLoading: true, ciError: null });
 
       const bridge = getBridge();
-      if (!bridge || !bridge.ci) {
+      if (!bridge || !bridge.github) {
         set({ ciError: 'bridge not ready', ciLoading: false });
         return;
       }
@@ -253,7 +258,7 @@ export const createCiSlice = (
           workflowId: config.workflowId,
           accessToken,
         },
-        (params) => bridge.ci.getStatus(params)
+        (params) => bridge.github.getStatus(params)
       );
 
       if (result.ok) {
