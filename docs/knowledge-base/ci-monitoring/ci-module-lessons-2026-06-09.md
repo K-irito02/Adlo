@@ -21,7 +21,7 @@ CredentialStore::new("ai-digital-life", "ci-access-token")
 ```typescript
 // ciSlice.ts
 if (isTauriMode()) {
-  await bridge.ci.setAccessToken(token);  // 后端存钥匙串
+  await bridge.github.setAccessToken(token);  // 后端存钥匙串
 } else {
   window.localStorage.setItem('adl-ui:ci-access-token', token);  // 前端存 localStorage
 }
