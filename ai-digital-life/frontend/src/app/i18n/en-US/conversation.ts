@@ -135,8 +135,8 @@ export const conversationEn = {
   snapshotListTitle: 'Snapshots',
   snapshotListEmpty: 'No snapshots yet',
 
+  composer: 'Message composer',
   patch: 'Patch',
   tool: 'Tool',
   validation: 'Validation',
-  composer: 'Message composer',
 } as const;
