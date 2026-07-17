@@ -162,6 +162,24 @@ pub struct AuditEntry {
     pub detail: Option<String>,
 }
 
+/// Input shape for batch-saving audit entries.
+///
+/// Unlike `AuditEntry`, this carries `workspace_id` and `session_id` so the
+/// storage layer can index rows correctly without a separate `AuditEntry`
+/// round-trip. The `id` and `timestamp` are assigned by the storage layer at
+/// save time (via `create_id("audit")` + `now_ms()`).
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AuditBatchEntry {
+    pub workspace_id: String,
+    pub session_id: Option<String>,
+    pub operation_type: String,
+    pub risk_level: RiskLevel,
+    pub summary: String,
+    pub decision: Option<String>,
+    pub detail: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckpointRecord {

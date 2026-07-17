@@ -1,8 +1,7 @@
 use adl_errors::AppError;
-use adl_types::{AgentRunDetail, ContextEntry, WorkspaceMeta};
+use adl_types::{AgentRunDetail, AuditBatchEntry, ContextEntry, WorkspaceMeta};
 
 use crate::commands::agent::StartRunInput;
-use crate::commands::audit::AuditBatchEntry;
 
 pub fn collect_context(
     workspace: &WorkspaceMeta,

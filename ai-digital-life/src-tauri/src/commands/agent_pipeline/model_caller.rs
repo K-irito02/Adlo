@@ -1,10 +1,11 @@
 use adl_errors::AppError;
 use adl_storage::EntityTable;
-use adl_types::{ConversationScenario, ModelCallAuditRecord, ModelChatMessage, ModelResponse};
+use adl_types::{
+    AuditBatchEntry, ConversationScenario, ModelCallAuditRecord, ModelChatMessage, ModelResponse,
+};
 
 use crate::commands::agent_pipeline_stream::consume_stream_to_response;
 use crate::commands::agent_pipeline_types::CallModelContext;
-use crate::commands::audit::AuditBatchEntry;
 
 pub async fn call_model<F: Fn(serde_json::Value)>(
     ctx: CallModelContext<'_, F>,

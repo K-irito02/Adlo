@@ -1,17 +1,7 @@
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_storage::EntityTable;
-use adl_types::{create_id, now_ms, AuditEntry, RiskLevel};
-
-pub struct AuditBatchEntry {
-    pub workspace_id: String,
-    pub session_id: Option<String>,
-    pub operation_type: String,
-    pub risk_level: RiskLevel,
-    pub summary: String,
-    pub decision: Option<String>,
-    pub detail: Option<String>,
-}
+use adl_types::{create_id, now_ms, AuditBatchEntry, AuditEntry, RiskLevel};
 
 pub fn save_audit_entry(
     state: &AppState,
@@ -74,33 +64,29 @@ pub fn save_audit_entry_with_db(
     Ok(entry)
 }
 
+/// Atomically saves a batch of audit entries in a single transaction.
+///
+/// All entries MUST share the same `workspace_id` (and ideally the same
+/// `session_id`). The first entry's `workspace_id` / `session_id` are used
+/// for the storage layer's indexing columns. This matches the current
+/// usage pattern in `agent_pipeline::audit_helper::finalize_run`, which
+/// pushes one entry per agent run into a per-call batch.
+///
+/// Returns the fully-formed `AuditEntry` records (with assigned `id` +
+/// `timestamp`). If `entries` is empty, returns an empty vec without
+/// touching the database.
 pub fn batch_save_audit_entries(
     state: &AppState,
     entries: Vec<AuditBatchEntry>,
 ) -> Result<Vec<AuditEntry>, AppError> {
-    let mut saved = Vec::with_capacity(entries.len());
-    for e in entries {
-        let id = create_id("audit");
-        let entry = AuditEntry {
-            id,
-            timestamp: now_ms(),
-            operation_type: e.operation_type.clone(),
-            summary: e.summary,
-            risk_level: e.risk_level,
-            decision: e.decision.clone(),
-            detail: e.detail,
-        };
-        state.db.save_entity(
-            EntityTable::AuditRecords,
-            &entry.id,
-            Some(&e.workspace_id),
-            e.session_id.as_deref(),
-            Some(&e.operation_type),
-            &entry,
-        )?;
-        saved.push(entry);
+    if entries.is_empty() {
+        return Ok(Vec::new());
     }
-    Ok(saved)
+    let workspace_id = entries.first().map(|e| e.workspace_id.as_str()).unwrap_or("");
+    let session_id = entries.first().and_then(|e| e.session_id.as_deref());
+    state.db.transaction(|conn| {
+        state.db.save_audit_entries_batch_on_conn(conn, &entries, workspace_id, session_id)
+    })
 }
 
 /// 从数据库查询审计条目（可在线程池中调用）

@@ -1,5 +1,4 @@
 use crate::commands::agent_pipeline;
-use crate::commands::audit::AuditBatchEntry;
 use crate::commands::ipc;
 use crate::commands::{CallModelContext, FinalizeRunContext};
 use crate::error::CommandError;
@@ -11,7 +10,7 @@ use adl_errors::AppError;
 use adl_storage::EntityTable;
 use adl_types::agent::AgentConfig;
 use adl_types::{
-    create_id, now_ms, AgentRunDetail, AgentRunStatus, ConversationScenario,
+    create_id, now_ms, AgentRunDetail, AgentRunStatus, AuditBatchEntry, ConversationScenario,
     ConversationSendResult, DigitalLifeRunActivityEventV1, IpcResult,
 };
 use std::path::PathBuf;

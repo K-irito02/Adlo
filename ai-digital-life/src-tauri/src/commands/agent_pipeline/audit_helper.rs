@@ -1,9 +1,8 @@
 use adl_errors::AppError;
-use adl_types::ConversationSendResult;
+use adl_types::{AuditBatchEntry, ConversationSendResult};
 
 use crate::commands::agent;
 use crate::commands::agent_pipeline_types::FinalizeRunContext;
-pub use crate::commands::audit::AuditBatchEntry;
 use crate::commands::conversation;
 
 pub(crate) async fn finalize_run<F: Fn(serde_json::Value)>(
