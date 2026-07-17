@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-refresh/only-export-components */
 
 import type { SankeyGraph, SankeyLink, SankeyNode } from 'd3-sankey';
 import type { Transition } from 'motion/react';

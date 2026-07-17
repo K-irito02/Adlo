@@ -68,7 +68,7 @@ rustup target add x86_64-pc-windows-msvc
    - `preview-bridge.ts`（浏览器模式，Vite Preview API）
    - `mock-bridge.ts`（纯内存回退）
 
-2. 新增 UI/UX 变更后，必须使用 `npm run dev:both` 同时验证两种模式的一致性
+2. 新增 UI/UX 变更后，必须使用 `pnpm run dev:both` 同时验证两种模式的一致性
 
 3. 条件渲染仅允许以下平台差异：
    - 窗口控制按钮（仅 Tauri 显示）

@@ -2,7 +2,7 @@
 
 import { localPoint } from '@visx/event';
 import { ParentSize } from '@visx/responsive';
-import { scaleBand, scaleLinear } from '@visx/scale';
+import { scaleBand, scaleLinear, type scaleTime } from '@visx/scale';
 import type { Transition } from 'motion/react';
 import {
   memo,
@@ -370,7 +370,7 @@ const ChartCore = memo(function ChartCore({
       setIsLoaded(true);
     }, animationDuration + staggerMs);
     return () => clearTimeout(timer);
-  }, [animationDuration, revealSignature, status]);
+  }, [animationDuration, revealSignature, status, data.length]);
 
   useEffect(() => {
     onPhaseChange?.(isLoaded ? 'ready' : 'revealing');
@@ -556,7 +556,7 @@ const ChartCore = memo(function ChartCore({
     chartStatus: status,
     data,
     renderData: data,
-    xScale: fakeTimeScale as unknown as ReturnType<typeof import('@visx/scale').scaleTime<number>>,
+    xScale: fakeTimeScale as unknown as ReturnType<typeof scaleTime<number>>,
     yScale: isHorizontal ? valueScale : primaryYScale,
     yScales,
     width,

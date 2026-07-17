@@ -15,7 +15,7 @@
 | 前端质量 | ESLint v9（flat config）+ Prettier + TypeScript-ESLint + React Hooks plugin |
 | Rust Lint | `cargo clippy --workspace --all-targets` |
 | 前端 Lint | `cd frontend && npx eslint . && npx tsc --noEmit` |
-| CI/CD | GitHub Actions（`.github/workflows/quality-gates.yml`） |
+| CI/CD | GitHub Actions（`../.github/workflows/quality-gates.yml`，Windows-only） |
 | 凭据存储 | `crates/credential/`（keyring + 加密文件降级） |
 
 ## 当前阶段

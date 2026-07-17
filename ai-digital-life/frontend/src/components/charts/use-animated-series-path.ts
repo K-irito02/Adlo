@@ -11,7 +11,7 @@ import {
   seriesPathTransitionSignature,
 } from './series-path-utils';
 
-// biome-ignore lint/suspicious/noExplicitAny: d3 curve factory type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CurveFactory = any;
 
 export interface UseAnimatedSeriesPathOptions {

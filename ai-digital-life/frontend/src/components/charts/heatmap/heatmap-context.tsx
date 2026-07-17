@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-refresh/only-export-components */
 
 import type { scaleLinear, scaleTime } from '@visx/scale';
 import type { Transition } from 'motion/react';

@@ -1,10 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  readJson,
-  writeJson,
-  writeNumber,
-  writeFlag,
-} from './storageHelpers';
+import { readJson, writeJson, writeNumber, writeFlag } from './storageHelpers';
 
 describe('storageHelpers error logging', () => {
   let warnSpy: ReturnType<typeof vi.spyOn>;

@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-refresh/only-export-components */
 
 import { memo, type ReactNode, useMemo } from 'react';
 import type { Focus } from './sunburst';

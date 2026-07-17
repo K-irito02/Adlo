@@ -1,6 +1,6 @@
 import { line as d3Line } from 'd3-shape';
 
-// biome-ignore lint/suspicious/noExplicitAny: d3 curve factory type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CurveFactory = any;
 
 export interface SeriesPathPoint {

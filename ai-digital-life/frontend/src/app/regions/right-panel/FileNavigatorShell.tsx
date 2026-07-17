@@ -252,14 +252,14 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       clearMenuHighlightRef.current?.();
       await useAppStore.getState().renameWorkspaceFile(path, newName);
     },
-    [renamingPath]
+    [clearMenuHighlightRef, renamingPath]
   );
 
   const handleRenameCancel = useCallback(() => {
     setRenamingPath(null);
     setRenameDialogOpen(false);
     clearMenuHighlightRef.current?.();
-  }, []);
+  }, [clearMenuHighlightRef]);
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteConfirmPath) {
@@ -269,12 +269,12 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     setDeleteConfirmPath(null);
     clearMenuHighlightRef.current?.();
     await useAppStore.getState().deleteWorkspaceFile(path);
-  }, [deleteConfirmPath]);
+  }, [clearMenuHighlightRef, deleteConfirmPath]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteConfirmPath(null);
     clearMenuHighlightRef.current?.();
-  }, []);
+  }, [clearMenuHighlightRef]);
 
   if (navigatorCollapsed) {
     return <aside className="adl-tool-navigator" aria-hidden="true" />;

@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-refresh/only-export-components */
 
 import type { Variants } from 'motion/react';
 import { motion } from 'motion/react';

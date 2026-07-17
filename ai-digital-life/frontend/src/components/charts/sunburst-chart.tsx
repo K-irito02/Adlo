@@ -128,7 +128,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
   const [internalHoveredArc, setInternalHoveredArc] = useState<ArcDatum | null>(null);
   const [internalHoveredIndex, setInternalHoveredIndex] = useState<number | null>(null);
   const growRef = useRef<Map<string, number>>(new Map());
-  const [growTick, setGrowTick] = useState(0);
+  const [growTick, setGrowTick] = useState(0); // eslint-disable-line @typescript-eslint/no-unused-vars
 
   const [internalFocusId, setInternalFocusId] = useState(rootId);
   const [prevFocusId, setPrevFocusId] = useState(rootId);
@@ -331,11 +331,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
     []
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: growTick forces re-read from growRef
-  const growAmountForArc = useCallback(
-    (arcId: string) => growRef.current.get(arcId) ?? 0,
-    [growTick]
-  );
+  const growAmountForArc = useCallback((arcId: string) => growRef.current.get(arcId) ?? 0, []);
 
   const maxExpandedThickness = useMemo(
     () => maxHoverSegmentThickness(maxDepth, radius, hoverPop),

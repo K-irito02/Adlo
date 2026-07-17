@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import { createDebouncedSearch } from '../shared';
-import { clearError, captureError } from '../cacheHelpers';
+import { captureError } from '../cacheHelpers';
 import type { StoreApi } from 'zustand';
 
 const debouncedSearch = createDebouncedSearch(300);

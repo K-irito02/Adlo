@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-refresh/only-export-components */
 
 import { scaleLinear } from '@visx/scale';
 import { AreaClosed, LinePath } from '@visx/shape';
@@ -18,7 +19,7 @@ import { LINE_LOADING_PULSE_EASE, LOADING_LABEL_EXIT_S } from './line-loading-ti
  */
 
 // CurveFactory type - simplified version compatible with visx
-// biome-ignore lint/suspicious/noExplicitAny: d3 curve factory type
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type CurveFactory = any;
 
 /** One shimmer sweep, in seconds. */

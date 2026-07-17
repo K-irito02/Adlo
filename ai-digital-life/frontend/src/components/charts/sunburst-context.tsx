@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-refresh/only-export-components */
 
 import type { Transition } from 'motion/react';
 import { createContext, type ReactNode, type RefObject, useContext, useMemo } from 'react';
