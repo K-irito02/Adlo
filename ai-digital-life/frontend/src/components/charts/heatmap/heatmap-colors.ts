@@ -1,6 +1,6 @@
 import { CHART_SCALE_VARS } from '../chart-scale';
 import type { PatternPresetId } from '../pattern-preset';
-import { getHeatmapContributionLevel } from './heatmap-utils';
+import { getHeatmapContributionLevel } from './heatmap-data';
 
 /** Default Less → More scale using {@link CHART_SCALE_VARS}. */
 export const HEATMAP_DEFAULT_LEVEL_COLORS = CHART_SCALE_VARS;
@@ -166,3 +166,13 @@ export function buildHeatmapFillScale(
 export const defaultHeatmapColorScale = buildHeatmapColorScale(HEATMAP_DEFAULT_LEVEL_COLORS);
 
 export const defaultHeatmapFillScale = buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES);
+
+export function buildHeatmapLegendGradient(levelStyles: HeatmapLevelStyles): string {
+  const lastIndex = levelStyles.length - 1;
+  const stops = levelStyles.map((style, index) => {
+    const offset = lastIndex === 0 ? 0 : (index / lastIndex) * 100;
+    return `${style.color} ${offset}%`;
+  });
+
+  return `linear-gradient(to right, ${stops.join(', ')})`;
+}

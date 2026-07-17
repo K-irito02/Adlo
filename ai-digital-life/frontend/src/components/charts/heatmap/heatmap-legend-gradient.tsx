@@ -3,7 +3,8 @@
 import { motion } from 'motion/react';
 import { memo } from 'react';
 import type { HeatmapLevelStyles } from './heatmap-colors';
-import { buildHeatmapLegendGradient, resolveHeatmapHoverStyle } from './heatmap-utils';
+import { buildHeatmapLegendGradient } from './heatmap-colors';
+import { resolveHeatmapHoverStyle } from './heatmap-data';
 
 const HEATMAP_INACTIVE_TRANSITION = {
   duration: 0.22,
