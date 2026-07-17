@@ -9,9 +9,7 @@ mod run;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_storage::EntityTable;
-use adl_types::{
-    create_id, now_ms, AgentRunDetail, DigitalLifeRunActivityEventV1,
-};
+use adl_types::{create_id, now_ms, AgentRunDetail, DigitalLifeRunActivityEventV1};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::Emitter;
@@ -160,6 +158,7 @@ static PLAN_MODE_STATES: std::sync::OnceLock<
     Mutex<HashMap<String, adl_agent_runtime::plan_mode::PlanModeState>>,
 > = std::sync::OnceLock::new();
 
-fn plan_mode_states() -> &'static Mutex<HashMap<String, adl_agent_runtime::plan_mode::PlanModeState>> {
+fn plan_mode_states() -> &'static Mutex<HashMap<String, adl_agent_runtime::plan_mode::PlanModeState>>
+{
     PLAN_MODE_STATES.get_or_init(|| Mutex::new(HashMap::new()))
 }

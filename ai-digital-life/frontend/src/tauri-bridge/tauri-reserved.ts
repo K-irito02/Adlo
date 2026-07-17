@@ -1,4 +1,9 @@
-import type { AcpConfig, CodeModeConfig, HttpApiConfig, ReservedBridge } from '../shared/ipc/reserved';
+import type {
+  AcpConfig,
+  CodeModeConfig,
+  HttpApiConfig,
+  ReservedBridge,
+} from '../shared/ipc/reserved';
 import { invokeIpc } from './tauri-shared';
 
 export function createTauriReservedBridge() {

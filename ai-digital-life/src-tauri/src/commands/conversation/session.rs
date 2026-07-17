@@ -2,9 +2,7 @@ use crate::commands::ipc;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_storage::EntityTable;
-use adl_types::{
-    ConversationDetail, ConversationSessionRecord, IpcResult,
-};
+use adl_types::{ConversationDetail, ConversationSessionRecord, IpcResult};
 use tauri::Manager;
 
 #[tauri::command]
@@ -58,9 +56,10 @@ pub async fn conversation_get_session(
 ) -> Result<IpcResult<Option<ConversationDetail>>, AppError> {
     let state = app.state::<AppState>();
     let db = state.db.clone();
-    let detail = tokio::task::spawn_blocking(move || super::get_session_detail_with_db(&db, &session_id))
-        .await
-        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let detail =
+        tokio::task::spawn_blocking(move || super::get_session_detail_with_db(&db, &session_id))
+            .await
+            .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(detail)))
 }
 
@@ -92,9 +91,10 @@ pub async fn conversation_pin_session(
 ) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
     let state = app.state::<AppState>();
     let db = state.db.clone();
-    let session = tokio::task::spawn_blocking(move || super::set_pinned_with_db(&db, &session_id, true))
-        .await
-        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let session =
+        tokio::task::spawn_blocking(move || super::set_pinned_with_db(&db, &session_id, true))
+            .await
+            .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(session)))
 }
 
@@ -105,9 +105,10 @@ pub async fn conversation_unpin_session(
 ) -> Result<IpcResult<ConversationSessionRecord>, AppError> {
     let state = app.state::<AppState>();
     let db = state.db.clone();
-    let session = tokio::task::spawn_blocking(move || super::set_pinned_with_db(&db, &session_id, false))
-        .await
-        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    let session =
+        tokio::task::spawn_blocking(move || super::set_pinned_with_db(&db, &session_id, false))
+            .await
+            .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(session)))
 }
 

@@ -1,11 +1,7 @@
 import React, { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { List, useListRef, useDynamicRowHeight } from 'react-window';
 import type { ListProps } from 'react-window';
-import type {
-  ConversationMessageRecord,
-  AgentRunDetail,
-  ModelTokenUsage,
-} from '@shared/ipc';
+import type { ConversationMessageRecord, AgentRunDetail, ModelTokenUsage } from '@shared/ipc';
 import type { DigitalLifeRunActivityEventV1 } from '@shared/ipc/digital-life';
 import { IconBrain } from '../icons';
 import { MessageBlocks } from '../features/conversation/MessageBlocks';

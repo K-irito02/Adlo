@@ -139,8 +139,13 @@ async fn start_run_inner(
     // Register durable session for crash recovery
     state.durable_manager.register_session(&session.id, &detail.run.id).await?;
 
-    let emit_activity =
-        crate::commands::agent::make_activity_emitter(app, state, &workspace_scope_id, &session_id, &detail.run.id);
+    let emit_activity = crate::commands::agent::make_activity_emitter(
+        app,
+        state,
+        &workspace_scope_id,
+        &session_id,
+        &detail.run.id,
+    );
     let mut audit_batch: Vec<AuditBatchEntry> = Vec::with_capacity(5);
     let user_message = agent_pipeline::prepare_run(
         state,

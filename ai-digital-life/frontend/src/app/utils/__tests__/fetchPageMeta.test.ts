@@ -26,38 +26,46 @@ afterEach(() => {
 });
 
 describe('favicon cache persistence', () => {
-  it('should persist and restore favicon cache across module reloads', { timeout: 10000 }, async () => {
-    const mod1 = await import('../fetchPageMeta');
-    vi.useFakeTimers();
+  it(
+    'should persist and restore favicon cache across module reloads',
+    { timeout: 10000 },
+    async () => {
+      const mod1 = await import('../fetchPageMeta');
+      vi.useFakeTimers();
 
-    mod1.setCachedFavicon('https://example.com', 'https://example.com/favicon.ico');
+      mod1.setCachedFavicon('https://example.com', 'https://example.com/favicon.ico');
 
-    vi.advanceTimersByTime(500);
+      vi.advanceTimersByTime(500);
 
-    const stored = localStorage.getItem('adl-ui:browser-favicon-cache');
-    expect(stored).toBeTruthy();
-    const parsed = JSON.parse(stored!);
-    expect(parsed['https://example.com/']).toBe('https://example.com/favicon.ico');
+      const stored = localStorage.getItem('adl-ui:browser-favicon-cache');
+      expect(stored).toBeTruthy();
+      const parsed = JSON.parse(stored!);
+      expect(parsed['https://example.com/']).toBe('https://example.com/favicon.ico');
 
-    vi.useRealTimers();
-  });
-
-  it('should not persist pinned entries that would exceed 200 limit', { timeout: 10000 }, async () => {
-    const mod = await import('../fetchPageMeta');
-    vi.useFakeTimers();
-
-    for (let i = 0; i < 250; i++) {
-      mod.setCachedFavicon(`https://site${i}.com`, `https://site${i}.com/favicon.ico`);
+      vi.useRealTimers();
     }
+  );
 
-    vi.advanceTimersByTime(500);
+  it(
+    'should not persist pinned entries that would exceed 200 limit',
+    { timeout: 10000 },
+    async () => {
+      const mod = await import('../fetchPageMeta');
+      vi.useFakeTimers();
 
-    const stored = localStorage.getItem('adl-ui:browser-favicon-cache');
-    const parsed = JSON.parse(stored!);
-    expect(Object.keys(parsed).length).toBeLessThanOrEqual(200);
+      for (let i = 0; i < 250; i++) {
+        mod.setCachedFavicon(`https://site${i}.com`, `https://site${i}.com/favicon.ico`);
+      }
 
-    vi.useRealTimers();
-  });
+      vi.advanceTimersByTime(500);
+
+      const stored = localStorage.getItem('adl-ui:browser-favicon-cache');
+      const parsed = JSON.parse(stored!);
+      expect(Object.keys(parsed).length).toBeLessThanOrEqual(200);
+
+      vi.useRealTimers();
+    }
+  );
 });
 
 describe('prefetchPageMeta purity', () => {

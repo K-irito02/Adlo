@@ -6,10 +6,15 @@ import { CalendarHeatmap } from './CalendarHeatmap';
 vi.mock('motion/react', () => {
   const createMV = (v = 0) => ({ get: () => v, set: () => {}, stop: () => {}, on: () => () => {} });
   return {
-    motion: new Proxy({}, { get: () => (p: Record<string, unknown>) => {
-      const { children, ...rest } = p;
-      return React.createElement('div', { className: rest.className, key: rest.key }, children);
-    }}),
+    motion: new Proxy(
+      {},
+      {
+        get: () => (p: Record<string, unknown>) => {
+          const { children, ...rest } = p;
+          return React.createElement('div', { className: rest.className, key: rest.key }, children);
+        },
+      }
+    ),
     animate: () => ({ stop: () => {}, then: () => Promise.resolve(), cancel: () => {} }),
     useMotionValue: <T,>(v: T) => createMV(v as number),
     useTransform: () => createMV(0),

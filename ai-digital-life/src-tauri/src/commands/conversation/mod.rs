@@ -9,9 +9,7 @@ mod state;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_storage::EntityTable;
-use adl_types::{
-    ConversationMessageRecord, ConversationRole, ConversationSessionRecord,
-};
+use adl_types::{ConversationMessageRecord, ConversationRole, ConversationSessionRecord};
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
