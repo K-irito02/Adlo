@@ -45,10 +45,10 @@ fn extract_attr_value(html: &str, attr: &str) -> Option<String> {
 fn extract_meta_content<'a>(lower: &'a str, html: &'a str, property: &str) -> Option<String> {
     let prop_lower = property.to_lowercase();
     let markers = [
-        format!("property=\"{}\"", &prop_lower),
-        format!("property='{}'", &prop_lower),
-        format!("property = \"{}\"", &prop_lower),
-        format!("property = '{}'", &prop_lower),
+        format!("property=\"{}\"", prop_lower),
+        format!("property='{}'", prop_lower),
+        format!("property = \"{}\"", prop_lower),
+        format!("property = '{}'", prop_lower),
     ];
     for marker in &markers {
         if let Some(start) = lower.find(marker) {

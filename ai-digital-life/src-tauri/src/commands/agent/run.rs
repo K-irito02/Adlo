@@ -3,15 +3,13 @@ use crate::commands::ipc;
 use crate::commands::{CallModelContext, FinalizeRunContext};
 use crate::error::CommandError;
 use crate::state::AppState;
-use adl_agent_runtime::router;
 use adl_errors::AppError;
 use adl_storage::EntityTable;
-use adl_types::agent::AgentConfig;
 use adl_types::{
     now_ms, AgentRunDetail, AgentRunStatus, AuditBatchEntry, ConversationScenario,
     ConversationSendResult, IpcResult,
 };
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]

@@ -53,7 +53,7 @@ pub fn is_write_allowed_for_plan_file(write_target: &str, plan_file: &Path) -> b
     let target_normalized = write_target.replace('\\', "/");
     let plan_normalized = plan_file.to_string_lossy().replace('\\', "/");
     target_normalized == plan_normalized
-        || target_normalized.ends_with(&format!("/{}", &plan_normalized))
+        || target_normalized.ends_with(&format!("/{}", plan_normalized))
 }
 
 /// Plan Mode system prompt template (参考 OpenCode packages/opencode/src/session/prompt/plan-mode.txt)
