@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from 'react';
+import { useCallback, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { BackgroundLayer } from './BackgroundLayer';
@@ -69,11 +69,11 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
     [browserOpenTab]
   );
 
-  const handleAddClick = useCallback(() => {
+  const handleAddClick = () => {
     setDialogMode('add');
     setRenameSite(null);
     setDialogOpen(true);
-  }, []);
+  };
 
   const handleAddConfirm = useCallback(
     (name: string, url: string) => {
@@ -88,20 +88,20 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
     [dialogMode, renameSite, browserAddShortcut, browserRenameShortcut]
   );
 
-  const handleAddCancel = useCallback(() => {
+  const handleAddCancel = () => {
     setDialogOpen(false);
     setRenameSite(null);
-  }, []);
+  };
 
-  const handleShortcutContextMenu = useCallback((e: React.MouseEvent, site: ShortcutSite) => {
+  const handleShortcutContextMenu = (e: React.MouseEvent, site: ShortcutSite) => {
     e.preventDefault();
     setShortcutMenu({ open: true, x: e.clientX, y: e.clientY, site });
-  }, []);
+  };
 
-  const handlePortContextMenu = useCallback((e: React.MouseEvent, port: LocalPort) => {
+  const handlePortContextMenu = (e: React.MouseEvent, port: LocalPort) => {
     e.preventDefault();
     setPortMenu({ open: true, x: e.clientX, y: e.clientY, port });
-  }, []);
+  };
 
   const handleContextMenuClose = useCallback(() => {
     setShortcutMenu({ open: false, x: 0, y: 0, site: null });
@@ -159,39 +159,33 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
     [handleRenamePortSubmit]
   );
 
-  const shortcutContextMenuItems = useMemo(
-    () => [
-      {
-        id: 'rename',
-        label: t.browserRename,
-        action: handleRenameShortcutFromMenu,
-      },
-      {
-        id: 'delete',
-        label: t.browserDelete,
-        danger: true as const,
-        action: handleDeleteShortcutFromMenu,
-      },
-    ],
-    [t, handleRenameShortcutFromMenu, handleDeleteShortcutFromMenu]
-  );
+  const shortcutContextMenuItems = [
+    {
+      id: 'rename',
+      label: t.browserRename,
+      action: handleRenameShortcutFromMenu,
+    },
+    {
+      id: 'delete',
+      label: t.browserDelete,
+      danger: true as const,
+      action: handleDeleteShortcutFromMenu,
+    },
+  ];
 
-  const portContextMenuItems = useMemo(
-    () => [
-      {
-        id: 'rename',
-        label: t.browserRename,
-        action: handleRenamePortFromMenu,
-      },
-      {
-        id: 'delete',
-        label: t.browserDelete,
-        danger: true as const,
-        action: handleDeletePortFromMenu,
-      },
-    ],
-    [t, handleRenamePortFromMenu, handleDeletePortFromMenu]
-  );
+  const portContextMenuItems = [
+    {
+      id: 'rename',
+      label: t.browserRename,
+      action: handleRenamePortFromMenu,
+    },
+    {
+      id: 'delete',
+      label: t.browserDelete,
+      danger: true as const,
+      action: handleDeletePortFromMenu,
+    },
+  ];
 
   return (
     <div className="adl-browser-landing">

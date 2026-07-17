@@ -209,11 +209,9 @@ export function FileTree<T extends FileTreeRenderableNode>({
   );
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const clearContextMenu = useCallback(() => setContextMenuTargetPath(undefined), []);
-  const clearHighlightRef = useRef(clearContextMenu);
+  const clearContextMenu = () => setContextMenuTargetPath(undefined);
 
   useEffect(() => {
-    clearHighlightRef.current = clearContextMenu;
     if (clearMenuHighlightRef) {
       clearMenuHighlightRef.current = clearContextMenu;
     }
@@ -222,7 +220,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
         clearMenuHighlightRef.current = undefined;
       }
     };
-  }, [clearContextMenu, clearMenuHighlightRef]);
+  }, [clearMenuHighlightRef]);
 
   const { flatNodes, totalHeight, trunkHeightMap, startIndex, visibleNodes } =
     useFileTreeVirtualization<T>(nodes, expandedPaths, scrollAreaRef, flipAnimation);
@@ -244,22 +242,6 @@ export function FileTree<T extends FileTreeRenderableNode>({
     [onOpenFile]
   );
 
-  const getMultiSelectedNodes = useCallback((): T[] => {
-    const collected: T[] = [];
-    const visit = (items: T[]) => {
-      items.forEach((item) => {
-        if (selectedPaths.has(item.path)) {
-          collected.push(item);
-        }
-        if (item.children.length > 0) {
-          visit(item.children as T[]);
-        }
-      });
-    };
-    visit(nodes);
-    return collected;
-  }, [nodes, selectedPaths]);
-
   const handleShowContextMenu = useCallback(
     (event: React.MouseEvent<HTMLDivElement>, node: T) => {
       event.preventDefault();
@@ -271,7 +253,19 @@ export function FileTree<T extends FileTreeRenderableNode>({
 
       let multiSelectedNodes: T[];
       if (selectedPaths.has(node.path)) {
-        multiSelectedNodes = getMultiSelectedNodes();
+        const collected: T[] = [];
+        const visit = (items: T[]) => {
+          items.forEach((item) => {
+            if (selectedPaths.has(item.path)) {
+              collected.push(item);
+            }
+            if (item.children.length > 0) {
+              visit(item.children as T[]);
+            }
+          });
+        };
+        visit(nodes);
+        multiSelectedNodes = collected;
       } else {
         multiSelectedNodes = [node];
       }
@@ -290,7 +284,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
         multiSelectedNodes,
       });
     },
-    [getContextMenuItems, contextMenuPersistRef, getMultiSelectedNodes, selectedPaths]
+    [getContextMenuItems, contextMenuPersistRef, selectedPaths, nodes]
   );
 
   return (
