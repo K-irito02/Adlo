@@ -1,49 +1,7 @@
-/**
- * Browser Slice Shared Module
- *
- * Single source of truth for cross-slice types and constants.
- *
- * This module breaks the circular import between browserFoldersSlice,
- * browserBookmarkSlice, and browserTabsSlice by providing a leaf module
- * with no imports on other browser slices. All three slices import from
- * here; none of them re-import from each other.
- *
- * - Folder types are re-exported from `browserFoldersTypes` (already a clean leaf).
- * - Tab state types are defined here (moved from `browserTabsSlice.ts`).
- * - Storage key constants are defined here (moved from `browserBookmarkSlice.ts`).
- */
+import type { BrowserTabState, BrowserTabStateUpdate } from './browserTypes';
 
-// Re-export folder types from the leaf types module (no imports there).
+export type { BrowserTabState, BrowserTabStateUpdate };
 export type { BookmarkTabItem, TabFolderState, TabFolderStateUpdate } from './browserFoldersTypes';
-
-/**
- * Browser tab state — single source of truth for the tab shape used across
- * the browser store slices. Moved here from `browserTabsSlice.ts` to break
- * the cross-slice type import cycle.
- */
-export interface BrowserTabState {
-  id: string;
-  workspaceId: string;
-  title: string;
-  url: string;
-  isPinned: boolean;
-  pinnedAt?: number;
-  sortOrder: number;
-  isPlayingAudio: boolean;
-  isAudioMuted: boolean;
-}
-
-/** Patch shape for partial tab updates. Field set mirrors `BrowserTabState`. */
-export interface BrowserTabStateUpdate {
-  workspaceId?: string;
-  title?: string;
-  url?: string;
-  isPinned?: boolean;
-  pinnedAt?: number;
-  sortOrder?: number;
-  isPlayingAudio?: boolean;
-  isAudioMuted?: boolean;
-}
 
 /**
  * Browser storage key constants — single source of truth.

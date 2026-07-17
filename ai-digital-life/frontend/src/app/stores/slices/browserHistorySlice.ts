@@ -2,13 +2,9 @@ import type { StoreState } from '../StoreState';
 import { createUiId, makePersistedWriter } from '../shared';
 import { historyDedupKey } from '@utils/browserDisplayUtils';
 import { BROWSER_HISTORY_KEY } from './browserSliceShared';
+import type { BrowserHistoryState } from './browserTypes';
 
-export interface BrowserHistoryState {
-  id: string;
-  title: string;
-  url: string;
-  visitedAt: number;
-}
+export type { BrowserHistoryState };
 
 const writeHistory = makePersistedWriter(BROWSER_HISTORY_KEY);
 

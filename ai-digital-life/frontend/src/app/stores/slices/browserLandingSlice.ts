@@ -5,35 +5,15 @@ import {
   BROWSER_LOCAL_PORTS_KEY,
   BROWSER_BG_CONFIG_KEY,
 } from './browserSliceShared';
+import type {
+  ShortcutSite,
+  LocalPort,
+  BackgroundMode,
+  BackgroundFit,
+  BackgroundConfig,
+} from './browserTypes';
 
-export interface ShortcutSite {
-  id: string;
-  name: string;
-  url: string;
-  icon?: string;
-  sortOrder: number;
-  createdAt: number;
-}
-
-export interface LocalPort {
-  id: string;
-  host: string;
-  port: number;
-  label?: string;
-  isAutoDiscovered: boolean;
-  lastAliveAt: number;
-  sortOrder: number;
-}
-
-export type BackgroundMode = 'default' | 'image' | 'video';
-export type BackgroundFit = 'cover' | 'contain' | 'repeat';
-
-export interface BackgroundConfig {
-  mode: BackgroundMode;
-  filePath?: string;
-  fit: BackgroundFit;
-  fileName?: string;
-}
+export type { ShortcutSite, LocalPort, BackgroundMode, BackgroundFit, BackgroundConfig };
 
 const writeShortcuts = makePersistedWriter(BROWSER_SHORTCUTS_KEY);
 const writeLocalPorts = makePersistedWriter(BROWSER_LOCAL_PORTS_KEY);
