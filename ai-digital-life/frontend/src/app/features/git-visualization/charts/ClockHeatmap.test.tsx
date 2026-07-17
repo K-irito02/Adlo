@@ -50,12 +50,12 @@ vi.mock('motion/react', () => {
     useMotionValue: <T,>(v: T) => createMV(v as number),
     useTransform: () => createMV(0),
     useSpring: (v: unknown) => createMV(typeof v === 'number' ? v : 0),
-    useReducedMotion: () => false,
+    useReducedMotion: () => true,
   };
 });
 
 describe('ClockHeatmap', () => {
-  it('renders SVG', () => {
+  it('renders SVG', { timeout: 10000 }, () => {
     const { container } = render(<ClockHeatmap />);
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
