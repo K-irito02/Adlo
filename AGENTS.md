@@ -41,7 +41,9 @@
 
 技术栈详情与已实现功能清单见 [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)。
 
-> Phase 2 已于 2026-07-06 完成。Phase 2 增强（Provider 动态注册、模型选择路由、SSE 流式传输）于 2026-07-07 完成。包含 508 Rust 测试、431 前端测试，clippy 与 lint 零警告。
+> Phase 2 已于 2026-07-06 完成。Phase 2 增强（Provider 动态注册、模型选择路由、SSE 流式传输）于 2026-07-07 完成。截至 2026-07-17：534 Rust 测试、580 前端测试。最新计数请运行 `cargo test --workspace` 与 `pnpm --dir frontend run test`。
+>
+> 质量检查：`cargo clippy --workspace --all-targets -- -D warnings`（0 警告）、`pnpm --dir frontend run lint`（49 warnings，主要为 react-refresh/only-export-components 与 react-hooks/exhaustive-deps）。
 
 ## 重构历史
 

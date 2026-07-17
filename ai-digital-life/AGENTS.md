@@ -44,7 +44,9 @@
 | **2-D** | 自定义命令配置（模板变量 $1/$ARGUMENTS/$WORKSPACE）、权限系统升级为 Ruleset（Allow/Ask/Deny + 通配匹配 + doom_loop 检测） |
 | **2-E** | Session Fork、LSP 集成（rust-analyzer/ts-server/pylsp/gopls）、Plugin 系统（trait + hooks 链式传播 + Vec 有序注册 + registry）、Reference 系统、自定义 Agent 配置、Hot Reloadable Config、Durable Session Execution、ACP/HTTP API/CodeMode 预留接口 |
 
-> 508 Rust 测试、431 前端测试，clippy 与 lint 零警告。
+> 截至 2026-07-17：534 Rust 测试、580 前端测试。最新计数请运行 `cargo test --workspace` 与 `pnpm --dir frontend run test`。
+>
+> 质量检查：`cargo clippy --workspace --all-targets -- -D warnings`（0 警告）、`pnpm --dir frontend run lint`（49 warnings，主要为 react-refresh/only-export-components 与 react-hooks/exhaustive-deps）。
 
 ### 重构历史
 
