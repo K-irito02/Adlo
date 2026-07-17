@@ -24,7 +24,7 @@ import { useBrowserDialogs } from './useBrowserDialogs';
 import { useBrowserToast } from './useBrowserToast';
 import { useBrowserPanelHandlers } from './useBrowserPanelHandlers';
 import { useBrowserPanelMetaWiring } from './useBrowserPanelMetaWiring';
-import { BrowserPanelFrame } from './BrowserPanelFrame';
+import { BrowserShell } from './BrowserShell';
 
 export function BrowserPanel(props: BrowserPanelProps) {
   const { t } = useTCopy();
@@ -532,7 +532,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
   );
 
   return (
-    <BrowserPanelFrame
+    <BrowserShell
       stateValue={stateMemo}
       actionsValue={actionsValue}
       contextMenu={contextMenu}
