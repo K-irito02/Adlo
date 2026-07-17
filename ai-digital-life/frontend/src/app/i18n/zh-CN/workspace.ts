@@ -83,4 +83,11 @@ export const workspaceZh = {
   fileTreeView: '文件树',
   repoMapView: '仓库地图',
   addToFileTree: '在文件树中显示',
+  addWorkspace: '添加工作区',
+  createSession: '创建会话',
+  sessionEmptyList: '暂无会话',
+  sessionManagement: '会话管理',
+  toggleSessions: '切换会话',
+  toggleWorkspaces: '切换工作区',
+  workspaceEmptyList: '暂无工作区',
 } as const;

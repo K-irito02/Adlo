@@ -278,4 +278,5 @@ export const ciEn = {
   ciCollapse: 'Collapse',
   ciExpand: 'Expand',
   ciJumpToTop: 'Jump to top (Ctrl+Home)',
+  ciNavigatorTitle: 'GitHub CI',
 } as const;

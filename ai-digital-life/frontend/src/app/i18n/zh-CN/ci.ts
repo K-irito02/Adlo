@@ -258,4 +258,5 @@ export const ciZh = {
   ciCollapse: '收起',
   ciExpand: '展开',
   ciJumpToTop: '跳至顶部 (Ctrl+Home)',
+  ciNavigatorTitle: 'GitHub CI',
 } as const;

@@ -62,4 +62,5 @@ export const fileZh = {
   filePin: '置顶',
   fileUnpin: '取消置顶',
   fileCopyBranchName: '复制分支名',
+  searchOptions: '搜索选项',
 } as const;

@@ -137,4 +137,5 @@ export const conversationZh = {
   patch: '补丁',
   tool: '工具',
   validation: '验证',
+  composer: '消息编辑器',
 } as const;

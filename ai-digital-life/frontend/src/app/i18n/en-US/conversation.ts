@@ -138,4 +138,5 @@ export const conversationEn = {
   patch: 'Patch',
   tool: 'Tool',
   validation: 'Validation',
+  composer: 'Message composer',
 } as const;

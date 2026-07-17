@@ -86,4 +86,11 @@ export const workspaceEn = {
   fileTreeView: 'File Tree',
   repoMapView: 'Repo Map',
   addToFileTree: 'Show in file tree',
+  addWorkspace: 'Add workspace',
+  createSession: 'Create session',
+  sessionEmptyList: 'No sessions yet',
+  sessionManagement: 'Session management',
+  toggleSessions: 'Toggle sessions',
+  toggleWorkspaces: 'Toggle workspaces',
+  workspaceEmptyList: 'No workspaces yet',
 } as const;
