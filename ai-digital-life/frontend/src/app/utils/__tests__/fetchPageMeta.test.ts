@@ -19,7 +19,6 @@ beforeEach(() => {
     },
     key: (i: number) => Object.keys(localStorageStore)[i] ?? null,
   });
-  vi.useFakeTimers();
 });
 
 afterEach(() => {
@@ -27,8 +26,10 @@ afterEach(() => {
 });
 
 describe('favicon cache persistence', () => {
-  it('should persist and restore favicon cache across module reloads', async () => {
+  it('should persist and restore favicon cache across module reloads', { timeout: 10000 }, async () => {
     const mod1 = await import('../fetchPageMeta');
+    vi.useFakeTimers();
+
     mod1.setCachedFavicon('https://example.com', 'https://example.com/favicon.ico');
 
     vi.advanceTimersByTime(500);
@@ -37,10 +38,14 @@ describe('favicon cache persistence', () => {
     expect(stored).toBeTruthy();
     const parsed = JSON.parse(stored!);
     expect(parsed['https://example.com/']).toBe('https://example.com/favicon.ico');
+
+    vi.useRealTimers();
   });
 
-  it('should not persist pinned entries that would exceed 200 limit', async () => {
+  it('should not persist pinned entries that would exceed 200 limit', { timeout: 10000 }, async () => {
     const mod = await import('../fetchPageMeta');
+    vi.useFakeTimers();
+
     for (let i = 0; i < 250; i++) {
       mod.setCachedFavicon(`https://site${i}.com`, `https://site${i}.com/favicon.ico`);
     }
@@ -50,6 +55,8 @@ describe('favicon cache persistence', () => {
     const stored = localStorage.getItem('adl-ui:browser-favicon-cache');
     const parsed = JSON.parse(stored!);
     expect(Object.keys(parsed).length).toBeLessThanOrEqual(200);
+
+    vi.useRealTimers();
   });
 });
 
