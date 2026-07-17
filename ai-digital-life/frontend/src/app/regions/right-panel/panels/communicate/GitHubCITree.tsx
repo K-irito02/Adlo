@@ -245,7 +245,7 @@ export function GitHubCITree({
   );
 
   return (
-    <aside className="adl-tool-navigator" aria-label="GitHub CI">
+    <aside className="adl-tool-navigator" aria-label={t.ciNavigatorTitle}>
       <GitHubCITreeToolbar
         gitHubAllTreeExpanded={gitHubAllTreeExpanded}
         onExpandAll={expandAllGitHubTree}

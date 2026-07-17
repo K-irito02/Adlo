@@ -119,7 +119,7 @@ const LeftSidebar = React.memo(function LeftSidebar({
   return (
     <aside
       className={`adl-leftbar${collapsed ? ' adl-leftbar--collapsed' : ''}`}
-      aria-label="Workspace and session navigator"
+      aria-label={t.sidebarNavigator}
       aria-hidden={collapsed}
     >
       <div className="adl-leftbar__content" ref={leftbarContentRef}>

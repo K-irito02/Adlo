@@ -62,7 +62,7 @@ interface FileNavigatorShellProps {
 }
 
 const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNavigatorShellProps) {
-  const { t } = useTCopy();
+  const { t, formatT } = useTCopy();
   const {
     selectedFilePath,
     selectedFileWorkspaceId,
@@ -337,7 +337,11 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                 placeholder={t.searchPanelSearch as string}
                 aria-label={t.searchPanelSearch as string}
               />
-              <div className="adl-search-panel__toggles" role="toolbar" aria-label="Search options">
+              <div
+                className="adl-search-panel__toggles"
+                role="toolbar"
+                aria-label={formatT(t, 'searchOptions')}
+              >
                 <TooltipSimple content={t.searchPanelMatchCase} placement="top">
                   <button
                     type="button"
@@ -446,7 +450,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       ) : null}
 
       <NavigatorResizeHandle
-        label="Resize file navigator"
+        label={t.resizeFileNavigator}
         minWidth={180}
         maxWidth={420}
         currentWidth={filesNavigatorWidth}

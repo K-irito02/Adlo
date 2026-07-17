@@ -140,7 +140,7 @@ const TitleBar = React.memo(function TitleBar({
             </TooltipSimple>
           </h1>
         </div>
-        <nav className="adl-titlebar__menus adl-iconstrip" aria-label="Application menu">
+        <nav className="adl-titlebar__menus adl-iconstrip" aria-label={t.appMenu}>
           <MenuDropdown
             id="file"
             label={t.menuFile}
@@ -205,7 +205,7 @@ const TitleBar = React.memo(function TitleBar({
         <div
           className="adl-titlebar__panel-group adl-iconstrip"
           role="group"
-          aria-label="Panel controls"
+          aria-label={t.panelControls}
         >
           <TooltipSimple content={t.panelToggleBoth} placement="bottom">
             <button

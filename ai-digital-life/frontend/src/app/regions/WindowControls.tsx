@@ -58,7 +58,7 @@ export function WindowControls({ t, onClose }: WindowControlsProps) {
     <div
       className="adl-titlebar__window-group adl-iconstrip"
       role="group"
-      aria-label="Window controls"
+      aria-label={t.windowControls}
     >
       <TooltipSimple content={t.windowMinimize} placement="bottom">
         <button

@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useId, useCallback } from 'react';
+import { useTCopy } from '../i18n/useTCopy';
 import { ToolSwitcher } from './right-panel/ToolSwitcher';
 
 const FilesPanel = lazy(() =>
@@ -173,6 +174,7 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
 }, areActiveToolPanelPropsEqual);
 
 const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
+  const { t } = useTCopy();
   const { collapsed } = panelProps;
 
   const { activeRightTool, setActiveRightTool, badges, diffSideBySide, onSetDiffLayout } =
@@ -230,7 +232,7 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
     <aside
       ref={panelRef}
       className={`adl-rightpanel${collapsed ? ' adl-rightpanel--collapsed' : ''}`}
-      aria-label="Workspace tool panel"
+      aria-label={t.toolPanel}
       aria-hidden={collapsed}
     >
       <div

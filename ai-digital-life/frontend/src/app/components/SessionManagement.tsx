@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { renderIcon } from '../../design-system/icons';
 import { TooltipSimple } from './Tooltip';
+import { useTCopy } from '../i18n/useTCopy';
+import type { CopyDict, CopyKey } from '../i18n';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -59,7 +61,11 @@ function resolveWorkspaceStatusColor(workspace: WorkspaceTab): string {
 }
 
 /** Format an ISO timestamp into a short relative/localized string. */
-function formatTimestamp(iso: string): string {
+function formatTimestamp(
+  iso: string,
+  t: CopyDict,
+  formatFn: (t: CopyDict, key: CopyKey, vars?: Record<string, string | number>) => string
+): string {
   try {
     const date = new Date(iso);
     const now = new Date();
@@ -67,15 +73,15 @@ function formatTimestamp(iso: string): string {
     const diffMin = Math.floor(diffMs / 60000);
 
     if (diffMin < 1) {
-      return 'just now';
+      return formatFn(t, 'relativeTimeJustNow');
     }
     if (diffMin < 60) {
-      return `${diffMin}m ago`;
+      return formatFn(t, 'relativeTimeMinutesAgo', { n: diffMin });
     }
 
     const diffHr = Math.floor(diffMin / 60);
     if (diffHr < 24) {
-      return `${diffHr}h ago`;
+      return formatFn(t, 'relativeTimeHoursAgo', { n: diffHr });
     }
 
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -91,9 +97,10 @@ function formatTimestamp(iso: string): string {
 interface WorkspaceItemProps {
   workspace: WorkspaceTab;
   onSelect: (id: string) => void;
+  t: CopyDict;
 }
 
-function WorkspaceItem({ workspace, onSelect }: WorkspaceItemProps) {
+function WorkspaceItem({ workspace, onSelect, t }: WorkspaceItemProps) {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -125,7 +132,7 @@ function WorkspaceItem({ workspace, onSelect }: WorkspaceItemProps) {
       {/* Hover actions */}
       <span className={`sidebar-workspace-tab__actions${hovered ? ' is-visible' : ''}`}>
         {workspace.isPinned ? (
-          <TooltipSimple content="Pinned" placement="top">
+          <TooltipSimple content={t.sessionMenuPin} placement="top">
             <span
               className="sidebar-workspace-tab__action"
               dangerouslySetInnerHTML={{
@@ -134,7 +141,7 @@ function WorkspaceItem({ workspace, onSelect }: WorkspaceItemProps) {
             />
           </TooltipSimple>
         ) : (
-          <TooltipSimple content="Pin" placement="top">
+          <TooltipSimple content={t.pin} placement="top">
             <span
               className="sidebar-workspace-tab__action"
               dangerouslySetInnerHTML={{
@@ -143,7 +150,7 @@ function WorkspaceItem({ workspace, onSelect }: WorkspaceItemProps) {
             />
           </TooltipSimple>
         )}
-        <TooltipSimple content="More options" placement="top">
+        <TooltipSimple content={t.moreActions} placement="top">
           <span
             className="sidebar-workspace-tab__action"
             dangerouslySetInnerHTML={{
@@ -160,9 +167,11 @@ interface SessionItemProps {
   session: SessionItem;
   isActive: boolean;
   onSelect: (id: string) => void;
+  t: CopyDict;
+  formatT: (t: CopyDict, key: CopyKey, vars?: Record<string, string | number>) => string;
 }
 
-function SessionItemEl({ session, isActive, onSelect }: SessionItemProps) {
+function SessionItemEl({ session, isActive, onSelect, t, formatT }: SessionItemProps) {
   const statusColor = session.status ? STATUS_DOT_COLOR[session.status] : 'var(--text-disabled)';
 
   return (
@@ -183,7 +192,9 @@ function SessionItemEl({ session, isActive, onSelect }: SessionItemProps) {
             <span>{session.title}</span>
           </TooltipSimple>
         </span>
-        <span className="sidebar-session-item__time">{formatTimestamp(session.updatedAt)}</span>
+        <span className="sidebar-session-item__time">
+          {formatTimestamp(session.updatedAt, t, formatT)}
+        </span>
       </span>
     </button>
   );
@@ -211,6 +222,7 @@ export function SessionManagement({
   onSelectSession,
   onSelectWorkspace,
 }: SessionManagementProps): React.ReactElement {
+  const { t, formatT } = useTCopy();
   const [workspacesCollapsed, setWorkspacesCollapsed] = useState(false);
   const [sessionsCollapsed, setSessionsCollapsed] = useState(false);
 
@@ -226,7 +238,7 @@ export function SessionManagement({
   const activeWorkspaceId = useMemo(() => workspaces.find((w) => w.isActive)?.id, [workspaces]);
 
   return (
-    <div className="sidebar-session-mgmt" role="region" aria-label="Session management">
+    <div className="sidebar-session-mgmt" role="region" aria-label={t.sessionManagement}>
       {/* ---- Workspaces section ---- */}
       <div className="sidebar-section">
         <header className="sidebar-section__header">
@@ -235,7 +247,7 @@ export function SessionManagement({
             className="sidebar-section__toggle"
             onClick={handleToggleWorkspaces}
             aria-expanded={!workspacesCollapsed}
-            aria-label="Toggle workspaces"
+            aria-label={t.toggleWorkspaces}
           >
             <span
               className={`sidebar-section__chevron${workspacesCollapsed ? ' is-collapsed' : ''}`}
@@ -243,14 +255,14 @@ export function SessionManagement({
                 __html: renderIcon('chevron-right', { size: 'xs', decorative: true }).value,
               }}
             />
-            <span className="sidebar-section__title">Workspaces</span>
+            <span className="sidebar-section__title">{t.workspaces}</span>
           </button>
-          <TooltipSimple content="New workspace" placement="right">
+          <TooltipSimple content={t.quickNewWorkspace} placement="right">
             <button
               type="button"
               className="sidebar-section__add-btn"
               onClick={onNewWorkspace}
-              aria-label="Add workspace"
+              aria-label={t.addWorkspace}
             >
               <span
                 dangerouslySetInnerHTML={{
@@ -262,14 +274,14 @@ export function SessionManagement({
         </header>
 
         {!workspacesCollapsed && (
-          <ul className="sidebar-section__list" role="listbox" aria-label="Workspaces">
+          <ul className="sidebar-section__list" role="listbox" aria-label={t.workspaces}>
             {workspaces.map((ws) => (
               <li key={ws.id}>
-                <WorkspaceItem workspace={ws} onSelect={onSelectWorkspace} />
+                <WorkspaceItem workspace={ws} onSelect={onSelectWorkspace} t={t} />
               </li>
             ))}
             {workspaces.length === 0 && (
-              <li className="sidebar-section__empty">No workspaces yet</li>
+              <li className="sidebar-section__empty">{t.workspaceEmptyList}</li>
             )}
           </ul>
         )}
@@ -283,7 +295,7 @@ export function SessionManagement({
             className="sidebar-section__toggle"
             onClick={handleToggleSessions}
             aria-expanded={!sessionsCollapsed}
-            aria-label="Toggle sessions"
+            aria-label={t.toggleSessions}
           >
             <span
               className={`sidebar-section__chevron${sessionsCollapsed ? ' is-collapsed' : ''}`}
@@ -291,14 +303,14 @@ export function SessionManagement({
                 __html: renderIcon('chevron-right', { size: 'xs', decorative: true }).value,
               }}
             />
-            <span className="sidebar-section__title">Sessions</span>
+            <span className="sidebar-section__title">{t.sessions}</span>
           </button>
-          <TooltipSimple content="New session" placement="right">
+          <TooltipSimple content={t.newSession} placement="right">
             <button
               type="button"
               className="sidebar-section__add-btn"
               onClick={onCreateSession}
-              aria-label="Create session"
+              aria-label={t.createSession}
             >
               <span
                 dangerouslySetInnerHTML={{
@@ -313,7 +325,7 @@ export function SessionManagement({
           <ul
             className="sidebar-section__list sidebar-session-list"
             role="listbox"
-            aria-label="Sessions"
+            aria-label={t.sessions}
             style={activeWorkspaceId ? { paddingLeft: '16px' } : undefined}
           >
             {sessions.map((session) => (
@@ -322,10 +334,14 @@ export function SessionManagement({
                   session={session}
                   isActive={session.id === activeSessionId}
                   onSelect={onSelectSession}
+                  t={t}
+                  formatT={formatT}
                 />
               </li>
             ))}
-            {sessions.length === 0 && <li className="sidebar-section__empty">No sessions yet</li>}
+            {sessions.length === 0 && (
+              <li className="sidebar-section__empty">{t.sessionEmptyList}</li>
+            )}
           </ul>
         )}
       </div>

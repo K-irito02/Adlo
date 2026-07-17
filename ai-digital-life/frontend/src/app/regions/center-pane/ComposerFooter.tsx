@@ -85,13 +85,17 @@ export function ComposerFooter(props: ComposerFooterProps) {
   } = props;
 
   return (
-    <footer className="adl-composer" aria-label="Message composer">
+    <footer className="adl-composer" aria-label={t.composer}>
       {contextChips.length ? (
         <div className="adl-composer__chips">
           {contextChips.map((chip) => (
             <span key={chip.id} className={`adl-chip adl-chip--${chip.kind}`}>
               <span>{chip.label}</span>
-              <button type="button" onClick={() => removeContextChip(chip.id)} aria-label="Remove">
+              <button
+                type="button"
+                onClick={() => removeContextChip(chip.id)}
+                aria-label={t.remove}
+              >
                 ×
               </button>
             </span>
@@ -142,8 +146,8 @@ export function ComposerFooter(props: ComposerFooterProps) {
           <span ref={composerCaretRef} className="adl-composer__caret" aria-hidden="true" hidden />
         </div>
         <div className="adl-composer__right">
-          <TooltipSimple content="Voice" placement="top">
-            <button type="button" className="adl-icon-btn" aria-label="Voice" disabled>
+          <TooltipSimple content={t.voice} placement="top">
+            <button type="button" className="adl-icon-btn" aria-label={t.voice} disabled>
               <IconMic size={14} decorative />
             </button>
           </TooltipSimple>

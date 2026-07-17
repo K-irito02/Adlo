@@ -139,7 +139,7 @@ const StatusBar = React.memo(function StatusBar({
       ref={rootRef}
       className={`adl-statusbar${inline ? ' adl-statusbar--inline' : ''}`}
       role={inline ? 'group' : 'contentinfo'}
-      aria-label={inline ? 'Conversation status' : undefined}
+      aria-label={inline ? t.conversationStatus : undefined}
     >
       <StatusBarGitInfo
         gitStatus={gitStatus}

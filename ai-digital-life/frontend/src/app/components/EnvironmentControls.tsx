@@ -1,7 +1,8 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { renderIcon, type IconName } from '../../design-system/icons';
 import { TooltipSimple } from './Tooltip';
 import { useTCopy } from '../i18n/useTCopy';
+import type { CopyDict } from '../i18n';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -20,17 +21,6 @@ export interface EnvironmentControlsProps {
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
-const THEME_OPTIONS: readonly { value: ThemeMode; icon: IconName; label: string }[] = [
-  { value: 'light', icon: 'sun', label: 'Light' },
-  { value: 'dark', icon: 'moon', label: 'Dark' },
-  { value: 'system', icon: 'monitor', label: 'System' },
-] as const;
-
-/** Resolve the icon for the current theme mode. */
-function resolveThemeIcon(mode: ThemeMode): IconName {
-  return THEME_OPTIONS.find((opt) => opt.value === mode)?.icon ?? 'monitor';
-}
-
 /** Cycle to the next theme in the order: light -> dark -> system -> light. */
 function cycleTheme(current: ThemeMode): ThemeMode {
   const order: ThemeMode[] = ['light', 'dark', 'system'];
@@ -46,6 +36,7 @@ interface DropdownProps {
   open: boolean;
   onClose: () => void;
   align?: 'left' | 'right';
+  t: CopyDict;
   children: React.ReactNode;
 }
 
@@ -57,6 +48,7 @@ function Dropdown({
   open,
   onClose,
   align = 'left',
+  t,
   children,
 }: DropdownProps): React.ReactElement | null {
   const ref = useRef<HTMLDivElement>(null);
@@ -98,7 +90,7 @@ function Dropdown({
       ref={ref}
       className={`sidebar-env-dropdown${align === 'right' ? ' sidebar-env-dropdown--right' : ''}`}
       role="menu"
-      aria-label="Options"
+      aria-label={t.options}
     >
       {children}
     </div>
@@ -124,6 +116,20 @@ export function EnvironmentControls({
   onChangeTheme,
 }: EnvironmentControlsProps): React.ReactElement {
   const { t, formatT } = useTCopy();
+
+  const themeOptions = useMemo(
+    () =>
+      [
+        { value: 'light', icon: 'sun', label: t.themeLight },
+        { value: 'dark', icon: 'moon', label: t.themeDark },
+        { value: 'system', icon: 'monitor', label: t.themeSystem },
+      ] as const,
+    [t]
+  );
+
+  function resolveThemeIcon(mode: ThemeMode): IconName {
+    return themeOptions.find((opt) => opt.value === mode)?.icon ?? 'monitor';
+  }
 
   const LANGUAGE_OPTIONS: readonly { code: string; label: string }[] = [
     { code: 'zh-CN', label: t.languageChinese },
@@ -157,7 +163,7 @@ export function EnvironmentControls({
   }, [currentTheme, onChangeTheme]);
 
   return (
-    <div className="sidebar-env-controls" role="region" aria-label="Environment controls">
+    <div className="sidebar-env-controls" role="region" aria-label={t.envControlsAria}>
       {/* ---- Language selector ---- */}
       <div className="sidebar-env-controls__item">
         <button
@@ -166,7 +172,7 @@ export function EnvironmentControls({
           onClick={handleToggleLang}
           aria-haspopup="listbox"
           aria-expanded={langDropdownOpen}
-          aria-label="Change language"
+          aria-label={t.changeLanguageAria}
         >
           <span
             className="sidebar-env-btn__icon"
@@ -177,7 +183,7 @@ export function EnvironmentControls({
           <span className="sidebar-env-btn__label">{resolveLanguageLabel(currentLanguage)}</span>
         </button>
 
-        <Dropdown open={langDropdownOpen} onClose={handleCloseLang} align="left">
+        <Dropdown open={langDropdownOpen} onClose={handleCloseLang} align="left" t={t}>
           {LANGUAGE_OPTIONS.map((opt) => (
             <button
               key={opt.code}
