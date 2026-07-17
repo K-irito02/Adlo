@@ -430,8 +430,7 @@ fn get_session_detail_with_db(
     else {
         return Ok(None);
     };
-    let mut messages: Vec<ConversationMessageRecord> =
-        db.list_entities_by_session(EntityTable::ConversationMessages, session_id)?;
-    messages.sort_by_key(|message| message.created_at);
+    let messages: Vec<ConversationMessageRecord> =
+        db.list_entities_by_session_ordered(EntityTable::ConversationMessages, session_id)?;
     Ok(Some(ConversationDetail { session, messages }))
 }

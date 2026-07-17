@@ -21,8 +21,7 @@ import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
 import { ToastContainer } from './components/Toast';
 import { ConflictModal } from './components/ConflictModal';
 import { asSessionID } from '../shared/branded';
-import { AnimatePresence, motion } from 'motion/react';
-import StartupOverlay from './components/StartupOverlay';
+import { StartupOverlayWrapper } from './components/StartupOverlayWrapper';
 
 export function App() {
   const error = useAppStore((state) => state.error);
@@ -161,18 +160,7 @@ export function App() {
     return (
       <>
         <div className="adl-shell adl-ide" />
-        <AnimatePresence>
-          {!overlayHidden && (
-            <motion.div
-              key="startup-overlay"
-              initial={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.5, ease: 'easeInOut' }}
-            >
-              <StartupOverlay />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <StartupOverlayWrapper visible={!overlayHidden} />
       </>
     );
   }
@@ -263,18 +251,7 @@ export function App() {
           <ConflictModal notification={activeNotification} onDismiss={dismissPopup} />
         )}
       </TCopyProvider>
-      <AnimatePresence>
-        {!overlayHidden && (
-          <motion.div
-            key="startup-overlay"
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5, ease: 'easeInOut' }}
-          >
-            <StartupOverlay />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <StartupOverlayWrapper visible={!overlayHidden} />
     </>
   );
 }

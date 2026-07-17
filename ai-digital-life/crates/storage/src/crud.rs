@@ -162,6 +162,35 @@ impl Database {
         self.list_entities_filtered(table, Some(("session_id", session_id)), None)
     }
 
+    /// List entities by session_id, ordered by `json_extract(json, '$.createdAt') ASC`.
+    ///
+    /// Use this for message lists that need chronological ordering. This pushes
+    /// the sort to the SQL layer, eliminating the need for an in-memory
+    /// `sort_by_key` in the caller.
+    ///
+    /// Note: this relies on the entity's JSON payload having a `createdAt` field
+    /// (camelCase, matching the `#[serde(rename_all = "camelCase")]` convention
+    /// used by `ConversationMessageRecord` and similar types).
+    pub fn list_entities_by_session_ordered<T: DeserializeOwned>(
+        &self,
+        table: EntityTable,
+        session_id: &str,
+    ) -> Result<Vec<T>, AppError> {
+        let base_sql = get_select_all_sql(table);
+        let sql = format!(
+            "{base_sql} WHERE session_id = ?1 ORDER BY json_extract(json, '$.createdAt') ASC"
+        );
+
+        let conn = self.conn()?;
+        let mut stmt = conn.prepare(&sql).map_err(|e| AppError::Storage(e.to_string()))?;
+        let rows = stmt
+            .query_map([session_id], |row| row.get::<_, String>(0))
+            .map_err(|e| AppError::Storage(e.to_string()))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+        rows.into_iter().map(|json| serde_json::from_str(&json).map_err(AppError::from)).collect()
+    }
+
     pub fn list_entities_by_status<T: DeserializeOwned>(
         &self,
         table: EntityTable,
@@ -783,5 +812,123 @@ mod audit_batch_tests {
 
         let all: Vec<AuditEntry> = db.list_entities(EntityTable::AuditRecords).unwrap();
         assert!(all.is_empty(), "no rows should be written for empty batch");
+    }
+}
+
+#[cfg(test)]
+mod session_ordered_tests {
+    use super::*;
+    use crate::connection::Database;
+    use adl_types::{
+        ConversationBlock, ConversationMessageRecord, ConversationRole, ConversationSessionRecord,
+    };
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static SESSION_ORDERED_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    /// Opens a temp-file database with schema initialized.
+    /// Mirrors the pattern in `doom_loop_count_tests::open_test_db`.
+    fn open_test_db() -> Database {
+        let id = SESSION_ORDERED_SEQ.fetch_add(1, Ordering::SeqCst);
+        let path = std::env::temp_dir().join(format!("adl-session-ordered-{id}.db"));
+        let _ = std::fs::remove_file(&path);
+        let db = Database::open(&path).expect("test db should open");
+        db.init_schema().expect("schema should init");
+        db
+    }
+
+    fn make_session(id: &str, workspace_id: &str) -> ConversationSessionRecord {
+        ConversationSessionRecord {
+            id: id.into(),
+            workspace_id: workspace_id.into(),
+            title: format!("Session {id}"),
+            status: "active".into(),
+            is_pinned: false,
+            pinned_order: 0,
+            unpinned_order: 0,
+            manual_unread: false,
+            last_read_at: None,
+            archived_at: None,
+            title_updated_at: None,
+            created_at: 100,
+            updated_at: 100,
+            last_message_at: 100,
+            parent_id: None,
+        }
+    }
+
+    fn make_message(id: &str, session_id: &str, created_at: i64) -> ConversationMessageRecord {
+        ConversationMessageRecord {
+            id: id.into(),
+            session_id: session_id.into(),
+            role: ConversationRole::User,
+            content: format!("Message {id}"),
+            blocks: Vec::<ConversationBlock>::new(),
+            run_id: None,
+            created_at,
+        }
+    }
+
+    #[test]
+    fn list_entities_by_session_ordered_returns_chronological() {
+        let db = open_test_db();
+        let session = make_session("sess-1", "ws-1");
+        db.save_entity(
+            EntityTable::Sessions,
+            &session.id,
+            Some(&session.workspace_id),
+            Some(&session.id),
+            Some(&session.status),
+            &session,
+        )
+        .expect("save session should succeed");
+
+        // Insert 3 messages with NON-sequential created_at values.
+        // SQL ORDER BY updated_at DESC (the default) would return them in
+        // insert-order (since updated_at is set to now_ms() on each save),
+        // which is NOT chronological by created_at.
+        for (i, created_at) in [300i64, 100, 200].iter().enumerate() {
+            let msg = make_message(&format!("msg-{i}"), "sess-1", *created_at);
+            db.save_entity(
+                EntityTable::ConversationMessages,
+                &msg.id,
+                Some("ws-1"),
+                Some("sess-1"),
+                None,
+                &msg,
+            )
+            .expect("save message should succeed");
+        }
+
+        // List ordered by createdAt ASC (the new method)
+        let messages: Vec<ConversationMessageRecord> = db
+            .list_entities_by_session_ordered(EntityTable::ConversationMessages, "sess-1")
+            .expect("ordered list should succeed");
+
+        assert_eq!(messages.len(), 3);
+        assert_eq!(messages[0].created_at, 100, "first message should have created_at=100");
+        assert_eq!(messages[1].created_at, 200, "second message should have created_at=200");
+        assert_eq!(messages[2].created_at, 300, "third message should have created_at=300");
+    }
+
+    #[test]
+    fn list_entities_by_session_ordered_empty_session() {
+        let db = open_test_db();
+        let session = make_session("sess-empty", "ws-1");
+        db.save_entity(
+            EntityTable::Sessions,
+            &session.id,
+            Some(&session.workspace_id),
+            Some(&session.id),
+            Some(&session.status),
+            &session,
+        )
+        .expect("save session should succeed");
+
+        let messages: Vec<ConversationMessageRecord> = db
+            .list_entities_by_session_ordered(EntityTable::ConversationMessages, "sess-empty")
+            .expect("ordered list should succeed");
+
+        assert!(messages.is_empty(), "session with no messages should return empty vec");
     }
 }
