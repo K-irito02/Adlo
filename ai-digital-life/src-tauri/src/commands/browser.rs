@@ -221,6 +221,11 @@ pub fn browser_clear_cache(
     Ok(ipc(state.browser_manager.clear_cache_for_tab(&tab_id)))
 }
 
+/// Canonical User-Agent for outbound browser HTTP requests.
+///
+/// Mirrors `frontend/src/shared/userAgent.ts` (`USER_AGENT`). Update both
+/// locations together — they must stay in sync so Tauri-mode and preview-mode
+/// requests appear identical to servers.
 const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 use std::collections::HashMap;

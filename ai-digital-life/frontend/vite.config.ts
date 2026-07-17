@@ -4,6 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import { handlePreviewWorkspaceApi, isPreviewWorkspaceApiRequest } from "./dev/previewWorkspaceService";
 import { handlePreviewTerminalApi, isPreviewTerminalApiRequest } from "./dev/previewTerminalService";
+import { USER_AGENT } from "./src/shared/userAgent";
 
 let visualizerPlugin = null;
 if (process.env.BUILD_ANALYZE === "true") {
@@ -95,7 +96,7 @@ export default defineConfig({
                 signal: controller.signal,
                 redirect: 'follow',
                 headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                  'User-Agent': USER_AGENT,
                   'Accept': 'text/html,application/xhtml+xml',
                 },
               });
