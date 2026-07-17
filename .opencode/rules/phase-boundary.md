@@ -11,7 +11,8 @@ alwaysApply: true
 |-------|------|------|
 | Phase 0 | ✅ 已完成 | 架构底座、桌面壳层、安全边界、基础设施 |
 | Phase 1 | ✅ 已完成 | 交互式 MVP、模型接入、上下文、变更预览 |
-| Phase 2 | ✅ 已完成 | 完整 18 项缺失能力：多 Agent / MCP / 多 Provider / Compaction / Snapshot-Revert / WebFetch-WebSearch / 自定义命令 / 权限 Ruleset / Session Fork / LSP / Plugin / Reference / Custom Agent / Hot Reload / Durable Session / ACP/HTTP API/CodeMode 预留 |
+| Phase 2 | ✅ 已完成 | 完整 18 项缺失能力：多 Agent / MCP / 多 Provider / Compaction / Snapshot-Revert / WebFetch-WebSearch / 自定义命令 / 权限 Ruleset / Session Fork / LSP / Plugin / Reference / Custom Agent / Hot Reload / Durable Session |
+| Phase 2 增强 | ✅ 已完成 | Provider 动态注册系统（ProviderRegistry）、(provider, model) 对路由、SSE 真实流式传输、ModelPicker UI、ProviderManager 管理面板、动态模型获取 |
 
 ## 排除项（当前阶段不实现）
 

@@ -120,10 +120,10 @@ Rust 端 `crates/kernel/src/command_risk.rs`，基于 OpenCode 的 deny/ask/allo
 ## AI 代理概念
 
 ### 规则文件 (Rules)
-位于 `.trae/rules/` 目录的 Markdown 文件，以 YAML frontmatter 标记元数据。通过 `alwaysApply` 或 `globs` 控制应用范围。
+位于 `.agents/rules/`（真源）、`.opencode/rules/` 和 `.trae/rules/`（同步副本）目录的 Markdown 文件，以 YAML frontmatter 标记元数据。通过 `alwaysApply` 或 `globs` 控制应用范围。
 
 ### 技能系统 (Skills)
-基于 Superpowers 框架的 AI 代理能力包，位于 `.opencode/skills/` 目录。共 23 个技能，分为 Superpowers 核心技能和项目定制技能。
+基于 Superpowers 框架的 AI 代理能力包，位于 `.opencode/skills/` 目录。共 26 个技能（14 Superpowers 核心 + 12 项目定制），分布在三个 IDE 目录中（`.opencode/skills/` 真源、`.agents/skills/` 同步备份、`.trae/skills/` 同步备份）。
 
 ### 强制验收流程
 代码变更完成后自动触发的质量检测流程，包括 Lint、类型检查、测试执行。按变更层级（L1/L2/L3）确定检测范围。

@@ -27,7 +27,7 @@ ai-digital-life/
 |------|------|
 | `src-tauri/` | 窗口、Rust 启动、invoke 处理、capabilities |
 | `frontend/src/` | React UI、Zustand、桥接 |
-| `frontend/src/shared/ipc/` | `DigitalLifeBridge` 类型契约域拆分（16 个域文件 + index.ts barrel，含文件操作：rename/delete/duplicate/getAbsolutePath） |
+| `frontend/src/shared/ipc/` | `DigitalLifeBridge` 类型契约域拆分（26 个子接口文件 + index.ts barrel，含文件操作：rename/delete/duplicate/getAbsolutePath） |
 | `frontend/src/shared/outline/` | 大纲解析模块化（14 个语言模块 + types.ts + utils.ts + index.ts barrel） |
 | `frontend/dev/previewWorkspaceService.ts` | 浏览器开发态服务端 API（含文件操作、Git、工作区管理等） |
 | `frontend/dev/previewTerminalService.ts` | 浏览器开发态终端服务（Node.js `child_process.spawn` + SSE PTY 输出） |
@@ -84,7 +84,7 @@ app/stores/
 ├── conversationUtils.ts         # 会话工具函数
 ├── index.ts                     # 模块索引
 │
-├── slices/                      # 23 个 Zustand 切片（含 5 浏览器子切片 + 3 GitHub 子切片）
+├── slices/                      # 36 个切片及其辅助文件（含 5 浏览器子切片 + 3 GitHub 子切片）
 │   ├── uiSlice.ts               # UI 状态（侧边栏、工具栏）
 │   ├── workspaceSlice.ts        # 工作区状态
 │   ├── gitSlice.ts              # Git 状态
@@ -109,7 +109,7 @@ app/stores/
 │   ├── browserFoldersSlice.ts   # 浏览器标签文件夹（TabFolderState.tabs: BookmarkTabItem[] = { tabId, url, title }）
 │   └── browserLandingSlice.ts   # 浏览器着陆页（快捷站点、端口、背景）
 │
-├── actions/                     # 12 个跨切片 action 模块
+├── actions/                     # 36 个跨切片 action 模块
 │   ├── workspaceActions.ts      # 工作区操作
 │   ├── sessionActions.ts        # 会话操作
 │   ├── editorActions.ts         # 编辑器操作
@@ -128,7 +128,7 @@ app/stores/
 
 ```
 frontend/src/
-├── shared/ipc/             # DigitalLifeBridge + 13 个子接口（域拆分，index.ts barrel）
+├── shared/ipc/             # DigitalLifeBridge + 26 个子接口（域拆分，index.ts barrel）
 ├── tauri-bridge.ts         # Tauri 模式桥接 barrel（1 行 re-export）
 ├── tauri-bridge/           # Tauri 桥接子模块（9 个子文件）
 │   ├── index.ts            # 组合入口

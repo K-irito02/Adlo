@@ -13,9 +13,10 @@ AI 数字生命桌面应用的规划与治理仓库。当前阶段聚焦**单 Ag
 | [docs/analysis/opencode/](./docs/analysis/opencode/) | OpenCode 源码地图（渐进式索引） |
 | [docs/analysis/ai-digital-life/](./docs/analysis/ai-digital-life/) | AI Digital Life 源码地图（渐进式索引） |
 | [references/](./references/) | 外部参考源码（OpenCode 等） |
-| [.agents/rules/](./.agents/rules/) | AI 代理规则源目录（同步到 `.trae/rules/`） |
-| [.trae/rules/](./.trae/rules/) | AI 代理规则（IDE 加载，由 `.agents/rules/` 同步） |
-| [.opencode/skills/](./.opencode/skills/) | AI 代理技能包（23 个，含 Superpowers 核心） |
+| [.agents/rules/](./.agents/rules/) | AI 代理规则源目录（同步到 `.opencode/rules/` 和 `.trae/rules/`） |
+| [.opencode/rules/](./.opencode/rules/) | AI 代理规则副本（由 `.agents/rules/` 同步） |
+| [.trae/rules/](./.trae/rules/) | AI 代理规则副本（由 `.agents/rules/` 同步） |
+| [.opencode/skills/](./.opencode/skills/) | AI 代理技能包（26 个，含 Superpowers 核心） |
 
 ## 技术栈
 

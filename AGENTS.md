@@ -11,7 +11,7 @@
 | 仓库根目录 | 规划与治理：`AGENTS.md`、`docs/`、`CONTRIBUTING.md`、`CONTEXT.md`、`SECURITY.md` |
 | `.agents/` | AI 代理配置真源（`rules/` 规则源目录、`skills/` 技能备份、`.skill-lock.json` 锁定文件） |
 | `.trae/` | TRAE IDE 集成（`rules/` 规则同步副本、`skills/` 技能同步副本） |
-| `.opencode/` | OpenCode IDE 集成（`skills/` 技能真源目录） |
+| `.opencode/` | OpenCode IDE 集成（`rules/` 规则同步副本、`skills/` 技能真源目录） |
 | `.superpowers/` | Superpowers 框架本地配置 |
 | `ai-digital-life/` | 实现工作区：Rust + Tauri 桌面应用 + WebView 前端 |
 | `references/` | 外部参考源码（本地拉取的开源项目，供开发参考与复用） |
@@ -51,9 +51,9 @@
 
 ## 代理开发规则
 
-规则文件真源位于 `.agents/rules/`（AI 代理直接读取），自动同步到 `.trae/rules/` 供 TRAE IDE 使用。全部规则索引见 [README.md](./.agents/rules/README.md)。必须遵守的规则：
+规则文件真源位于 `.agents/rules/`（AI 代理直接读取），自动同步到 `.opencode/rules/` 和 `.trae/rules/`。全部规则索引见 [README.md](./.agents/rules/README.md)。必须遵守的规则：
 
-> ⚠ **注意**：`.agents/rules/` 是规则文件的真源（Git 跟踪），`.trae/rules/` 是 TRAE IDE 的同步副本。修改规则请在 `.agents/rules/` 操作。
+> ⚠ **注意**：`.agents/rules/` 是规则文件的真源（Git 跟踪），`.opencode/rules/` 和 `.trae/rules/` 是同步副本。修改规则请在 `.agents/rules/` 操作。
 
 - [dev-rules.md](.agents/rules/dev-rules.md) — 交互与执行规则（询问卡片、终端命令、代码修改、问题排查）
 - [mandatory-testing.md](.agents/rules/mandatory-testing.md) — 强制红绿测试
@@ -75,7 +75,7 @@ Rust 增量编译缓存 `target/debug/incremental/` 每次编译创建新会话�
 - WebView 直接触达系统能力（必须通过 Tauri Command）
 - 低层 crate 依赖高层 crate
 - 凭据写入普通配置或日志（必须通过 `crates/credential/` 存储）
-- 混合使用多种 Tooltip 方案
+- 混合使用多种 Tooltip 方案（例外：纯文本路径展示可使用原生 `title`，见 [ui-patterns.md](./.agents/rules/ui-patterns.md#9-tooltip)）
 - UI/UX 或功能变更后跳过红绿测试
 - 在 capability 文件中使用 `"all"` / `"**"` 通配权限
 - 功能或显示效果仅在 Tauri 或浏览器单一模式下可用（必须双端一致）
@@ -108,13 +108,23 @@ Superpowers v6.0.3 通过全局 opencode.json 安装为插件：
 npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$HOME\.config\opencode"
 ```
 
+### 规则目录结构
+
+| 目录 | 职责 | 同步关系 |
+|------|------|----------|
+| `.agents/rules/` | 规则真源（Git 跟踪） | → `.trae/rules/` |
+| `.opencode/rules/` | OpenCode 规则副本（从 `.agents/rules/` 手动同步） | ← `.agents/rules/` |
+| `.trae/rules/` | TRAE 规则副本（从 `.agents/rules/` 手动同步） | ← `.agents/rules/` |
+
+> **同步维护**：修改规则请在 `.agents/rules/` 操作，然后手动同步到 `.opencode/rules/` 和 `.trae/rules/`。
+
 ### 技能目录结构
 
 | 目录 | 职责 | 技能数量 |
 |------|------|----------|
-| `.opencode/skills/` | 源目录（真源） | 24 |
-| `.agents/skills/` | 同步备份 | 24 |
-| `.trae/skills/` | 同步备份 | 24 |
+| `.opencode/skills/` | 源目录（真源） | 26 |
+| `.agents/skills/` | 同步备份 | 26 |
+| `.trae/skills/` | 同步备份 | 26 |
 
 **同步规则**：`.opencode/skills/` 是真源，修改后需同步到 `.agents/skills/` 和 `.trae/skills/`。
 
@@ -139,15 +149,17 @@ npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$H
 | `using-git-worktrees` | Git 工作树使用 | 并行开发、隔离工作区 |
 | `writing-skills` | 技能创作 | 新增/修改技能 |
 
-**项目定制技能**（10 个）：
+**项目定制技能**（12 个）：
 
 | 技能 | 用途 |
 |------|------|
 | `browser-automation` | 浏览器自动化测试 |
 | `closing-workflow` | 工作结束后收尾流程（日志审查、代码审查循环、质量检测、文档同步、项目清理） |
+| `documentation-organizer` | 文档目录整理 |
 | `dogfood` | 内部试用与问题发现 |
 | `find-skills` | 技能发现与安装 |
 | `frontend-design` | 前端界面设计 |
+| `learn` | 代码库模式学习与规则自动生成 |
 | `refactoring-insight` | 重构洞察 |
 | `root-cause-resolution` | 根因解决方案（根因→方案设计→日志验证→外部调研→清理，衔接 systematic-debugging） |
 | `run-project-surfaces` | 启动项目预览 |
@@ -182,29 +194,9 @@ npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$H
 
 Scope 可选项：`core`、`frontend`、`rust`、`stores`、`browser`、`terminal`、`ipc`、`docs`、`deps` 等。
 
-### TypeScript 风格指南
-- **禁止 `any`**：使用精确类型，善用 `unknown` 和 type guard
-- **类型推断优先**：避免不必要的显式类型注解
-- **禁止 `else`**：使用提前返回模式
-- **`const` 优先**：禁止 `let` 重赋值，用三元/提前返回替代
-- **禁止 import 别名**：不使用 `import { foo as bar }`
-- **禁止 star import**：不使用 `import * as Foo`
-- **避免不必要的解构**：使用点号保持上下文
-- **函数式方法**：`flatMap`、`filter`、`map` 优先于 `for` 循环
-- **减少中间变量**：内联仅使用一次的值
-- **Happy Path 模式**：主函数保持 happy path，验证逻辑提取为下方 helper
+TypeScript/Rust 风格指南、Commit 规范详见 [dev-rules.md](.agents/rules/dev-rules.md)。
 
-### Rust 风格指南
-- 遵循 Rust 官方风格（`rustfmt` 默认配置）
-- 禁止 `unwrap()`：使用 `?` 运算符或模式匹配
-- 错误类型使用 `thiserror` + `AppError` 统一处理
-- 优先使用 `Result<T, AppError>` 而非裸 `String` 错误
-
-### 测试规范
-- 前端测试使用 Vitest，后端测试使用 `cargo test`
-- 避免 mock，优先测试真实实现
-- 禁止从仓库根目录运行测试（必须从包/工作区目录运行）
-- 修改后执行强制验收流程（见 [mandatory-testing.md](./.agents/rules/mandatory-testing.md)）
+测试规范详见 [mandatory-testing.md](.agents/rules/mandatory-testing.md)。
 
 ## 相关文档
 

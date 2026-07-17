@@ -1,6 +1,7 @@
 ---
-description: Browser automation rules, tool selection, and lessons learned from testing
-alwaysApply: true
+description: Browser automation rules, tool selection, and lessons learned
+globs: ai-digital-life/frontend/**,docs/**,tests/**
+alwaysApply: false
 ---
 
 # 浏览器自动化规则

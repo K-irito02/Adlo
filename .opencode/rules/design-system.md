@@ -13,7 +13,7 @@ alwaysApply: false
 | 颜色 | CSS 自定义属性 `var(--…)`，禁止硬编码 |
 | 图标 | SVG 格式，继承 `currentColor`，禁止 emoji |
 | 窗口 | 最小宽度 640px |
-| Tooltip | 必须统一使用一种 Tooltip 方案，禁止混合使用多种方案 |
+| Tooltip | 必须统一使用一种 Tooltip 方案。例外：纯文本路径展示可使用原生 `title`（详见 [ui-patterns.md](./ui-patterns.md#9-tooltip)） |
 
 ## Tooltip 组件
 
@@ -89,34 +89,6 @@ const shouldShowSeparator =
 |------|------|------|
 | `CodeEditor` | `frontend/src/app/features/editor/CodeEditor.tsx` | CodeMirror 6 编辑器封装，支持语言扩展、主题同步、行号/换行/折叠 |
 | `DiffViewer` | `frontend/src/app/features/diff-viewer/DiffViewer.tsx` | 差异查看器（合并视图/并排视图），支持未改块折叠 |
-| `cmFoldGutter` | `frontend/src/app/features/editor/cmFoldGutter.ts` | 自定义折叠 gutter 扩展（GutterMarker），替代内置 foldGutter() 以移除内建事件处理 |
-| `FoldTooltipOverlay` | `frontend/src/app/features/editor/FoldTooltipOverlay.tsx` | 折叠工具提示 Portal 渲染壳。核心逻辑在 `useFoldTooltipState`（折叠状态管理）+ `useFoldTooltipPosition`（定位计算）。使用捕获阶段 `document.addEventListener` 绕过 MergeView 的 `stopPropagation` |
-| `useFoldMarkerAutoHide` | `frontend/src/app/features/editor/useFoldMarkerAutoHide.ts` | 折叠标记自动隐藏 Hook。三层检测：DOM 检查、MutationObserver、轮询 + Promise.resolve(forceParsing).then(reconfigure) |
-| `cmTheme` | `frontend/src/app/features/editor/cmTheme.ts` | 主题同步：从 CSS 自定义属性读取颜色，支持亮暗主题动态切换 |
-| `cmScrollSync` | `frontend/src/app/features/editor/cmScrollSync.ts` | 左右编辑器滚动同步（ScrollLeftSyncPlugin）。自定义水平滚动条在 `cmHorizontalScroll.ts`，lint 高亮在 `cmLintHighlights.ts` |
-| `gutterHoverSync` | `frontend/src/app/features/editor/gutterHoverSync.ts` | 内容行悬停 → gutter 高亮同步，使用绝对定位 overlay |
-
-### MergeView 事件约束
-
-在 `@codemirror/merge` (MergeView) 上下文中，gutter DOM 元素上的 `mousedown`/`click` 事件会被 MergeView 内部处理器调用 `stopPropagation()` 拦截，无法通过 `EditorView.domEventHandlers` 或常规冒泡监听捕获。必须使用捕获阶段：`document.addEventListener('mousedown', handler, true)`。
-
-### `codeFolding()` 依赖
-
-自定义 gutter（`gutter()` + `GutterMarker`）需要显式添加 `codeFolding()` 扩展（来自 `@codemirror/language`）。内置 `foldGutter()` 隐式包含它，自定义实现不包含。
-
-### Fold gutter 异步渲染
-
-`lineMarker()` 依赖异步解析的语法树。初次渲染时 `foldable()` 可能返回 null。语法树解析完成后 gutter 不自动重渲染。需使用 `foldGutterCompartment.reconfigure(createFoldGutterExtension())` 强制重建。
-
-注意 `forceParsing()` 返回 Promise（异步解析），必须 `Promise.resolve(forceParsing(...)).then(reconfigure)` 确保语法树解析完成后再重建 gutter。参看 `useFoldMarkerAutoHide.ts` 中的三层检测机制。
-
-### Fold gutter 变更行遮盖
-
-在 Diff Viewer 中，`.cm-changeGutter` 以 `position: absolute; z-index: 20; width: 100%` 覆盖整个 gutter 区域，其内部变更行 gutter 元素的背景色会遮盖下方 `.cm-foldGutter` 的折叠标记。需设置 `.cm-foldGutter { position: relative; z-index: 21 !important; }` 使折叠标记浮现在变更栏之上。
-
-### Gutter hover 高亮方案
-
-使用 `position: fixed` overlay 元素（直接挂载到 `document.body`）覆盖整个 `.cm-gutters` 区域，通过 `mousemove` + `requestAnimationFrame` 驱动位置更新。避免为每个 gutter 列独立设置背景色导致的对齐缺口。
 
 ### 依赖管理约束
 
@@ -130,19 +102,6 @@ const shouldShowSeparator =
 |------|------|------|
 | `XtermTerminal` | `frontend/src/app/components/terminal/XtermTerminal.tsx` | xterm.js 封装组件，支持 FitAddon、WebLinksAddon、主题同步（MutationObserver 监听 data-theme 变化） |
 | `TerminalPanel` | `frontend/src/app/features/terminal/TerminalPanel.tsx` | 终端面板，管理多标签/多会话、Shell 类型选择、PTY 生命周期 |
-
-### 主题同步机制
-
-xterm.js 主题色从 CSS 自定义属性读取，非硬编码：
-
-| xterm 属性 | CSS 变量 |
-|-----------|---------|
-| `background` | `--bg` |
-| `foreground` | `--text-primary` |
-| `selectionBackground` | `--selection` |
-| `selectionInactiveBackground` | `--selection` (with opacity) |
-
-`MutationObserver` 监听 `<html>` 的 `data-theme` 属性变化，自动更新 xterm 颜色。
 
 ### 双端 PTY 实现
 

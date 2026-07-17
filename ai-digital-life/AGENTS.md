@@ -93,7 +93,7 @@ app/stores/
 ├── storageHelpers.ts            # localStorage 读写工具
 ├── cacheHelpers.ts              # 缓存系统（TTL/LRU）、请求序列
 ├── selectors.ts                 # 性能选择器（useShallow）
-├── slices/                      # 24 个独立切片（含 5 浏览器 + 3 GitHub 子切片）
+├── slices/                      # 34 个独立切片（含 5 浏览器 + 3 GitHub + 7 Phase 2 增强切片）
 │   ├── uiSlice.ts / workspaceSlice.ts / gitSlice.ts
 │   ├── sessionSlice.ts / editorSlice.ts / patchSlice.ts
 │   ├── searchSlice.ts / diagnosticSlice.ts / taskSlice.ts
@@ -110,7 +110,7 @@ app/stores/
 │   ├── browserHistorySlice.ts       # 浏览器历史记录
 │   ├── browserFoldersSlice.ts       # 浏览器标签文件夹
 │   └── browserLandingSlice.ts       # 浏览器着陆页（快捷站点、端口、背景）
-└── actions/                     # 12 个跨切片 action 模块
+└── actions/                     # 36 个跨切片 action 模块
     ├── workspaceActions.ts（448 行） / sessionActions.ts / editorActions.ts
     ├── patchActions.ts / gitActions.ts / fetchActions.ts
     ├── streamActions.ts / generalActions.ts / searchActions.ts
@@ -158,7 +158,7 @@ app/stores/
 ## 相关文件
 
 - [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则（含 Superpowers 技能系统、参考项目 OpenCode）
-- [技能系统入口](../.opencode/skills/using-superpowers/SKILL.md) — using-superpowers 入口技能
+- [技能系统入口](../.opencode/skills/using-superpowers/SKILL.md) — using-superpowers 入口技能（共 26 个技能：14 Superpowers 核心 + 12 项目定制）
 - [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 远期规划
 - [references/opencode/](../references/opencode/) — 参考项目 OpenCode 本地源码（MIT 许可）
 - [docs/analysis/opencode/](../docs/analysis/opencode/) — OpenCode 源码地图

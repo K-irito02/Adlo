@@ -206,102 +206,30 @@ alwaysApply: true
 ## 7. "!" 解释子卡片（Hint Card）
 
 ### 触发方式
+- 菜单项设置 `hint` 属性 → 出现 "!" 图标 → 悬停弹出子卡片
 
-- 菜单项设置 `hint` 属性 → 出现 "!" 图标
-- 鼠标悬停 "!" 图标 → 弹出子卡片
-
-### 子卡片样式
-
-- 类名：`.adl-sub-hint-card`
-- 直接 append 到 `document.body`（动态 DOM）
+### 视觉规范
+- 类名：`.adl-sub-hint-card`，直接 append 到 `document.body`
 - 三个独立 `position: fixed` 元素：卡片 + 箭头填充 + 箭头边框
-- 箭头使用 CSS 边框三角形（非 clip-path）
-  - 默认（右侧卡片）：`border-right: 5px` → 指向左侧（←）
-  - 左侧卡片（`--left` 变体）：`border-left: 5px` → 指向右侧（→），需显式 `border-right: 0`
-    覆盖基础类
-  - 向下卡片（`--down` 变体）：`border-top: 5px` → 指向上方（↑）
+- 箭头使用 CSS 边框三角形，按 data-side 旋转
 - 阴影：`var(--shadow-md)`，圆角：`var(--radius-md)`
-- `line-height: 1.5` 避免奇偶高度导致子像素边框渲染不对称
-
-### 定位
-
-- **右侧卡片（默认）**：`left: menuRight ± offset`，箭头尖端对齐卡片左缘
-- **左侧卡片（`--left`）**：`left: anchorRect.left`，箭头尖端对齐菜单左边缘（`anchorRect.left`）
-- 垂直居中：`top: centerY; transform: translateY(-50%)`
 
 ### 关键约束
-
 - 动态 DOM 必须绑定到组件生命周期（useEffect cleanup 移除）
 - 使用 `useRef<HTMLElement[]>` 存储引用，避免内存泄漏
-- 父级 hover 背景隔离：子卡片需显式背景 + z-index
-- `line-height` 必须为整数因子（如 `1.5`），避免 `line-height * font-size` 产生半像素值，否则
-  `translateY(-50%)` 导致子像素定位，1px 边框抗锯齿不对称
+- `line-height` 必须为整数因子（如 1.5），避免子像素定位导致 1px 边框抗锯齿不对称
 
 ### 文档
-
-- 实现（右侧）：[ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ContextMenu.tsx)
-  → `showHint()`
-- 实现（左侧）：[BrowserMenuHintItem.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser/BrowserMenuHintItem.tsx)
-- 经验：[hint-card-arrow-positioning-fix-2026-06-11.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/hint-card-arrow-positioning-fix-2026-06-11.md)
-- 子像素边框：[sub-card-border-subpixel-fix-2026-07-01.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/sub-card-border-subpixel-fix-2026-07-01.md)
-- DOM 生命周期：[component-architecture.md](./component-architecture.md)
-  → DOM 生命周期管理
+- [ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ContextMenu.tsx) → `showHint()`
+- 左侧实现：[BrowserMenuHintItem.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser/BrowserMenuHintItem.tsx)
+- 经验：[hint-card-arrow-positioning-fix](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/hint-card-arrow-positioning-fix-2026-06-11.md)
+- 子像素边框：[sub-card-border-subpixel-fix](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/sub-card-border-subpixel-fix-2026-07-01.md)
 
 ### Hover Bridge（间隙桥接模式）
-
-当子卡片/下拉菜单通过 `position: absolute` 定位在触发元素右侧且有间隙时（如 `left: calc(100% + 6px)`），鼠标穿过间隙会导致 CSS `:hover` 短暂失效，触发背景闪烁。
-
-**解决方案**：在触发元素上添加 `::after` 伪元素，填满间隙：
-
-```css
-.trigger::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 100%;      /* 从触发元素右边缘向外延伸 */
-  width: 6px;      /* 等于间隙宽度 */
-  height: 100%;
-  background: transparent;
-}
-```
-
-**关键约束**：
-- 伪元素必须是触发元素的 DOM 子节点，确保鼠标在 bridge 上时 CSS `:hover` 保持激活
-- bridge 宽度必须等于触发元素与子卡片之间的间隙（通常由 `calc(100% + Npx)` 中的 N 决定）
-- 子卡片必须渲染在触发元素的 DOM 子树内（非 Portal），否则 bridge 无法覆盖间隙
-- 使用 `left: 100%`（向外延伸），**不要用** `right: 0`（会向内延伸，无法覆盖间隙）
-
-**实现文件**：[BranchSubCard.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx)、[file-tree-browser.css](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/styles/regions/rightpanel/file-tree-browser.css)
+子卡片与触发元素有间隙时，在触发元素上添加 `::after` 伪元素填满间隙。详见 CSS 实现文件。
 
 ### Dual-Text Label（双文本标签模式）
-
-当标签文本在两种状态间切换（如"切换分支" ↔ 当前分支名），且两种文本长度不同时，直接替换文本会导致容器宽度变化，产生视觉跳动。
-
-**解决方案**：使用 CSS Grid 将两个文本叠放在同一网格单元中，容器宽度取两者最大值，通过 `opacity` 过渡切换：
-
-```css
-.label--dual {
-  display: grid;
-}
-.label--dual .label-text {
-  grid-area: 1 / 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  transition: opacity 0.12s ease;
-}
-.label--dual .label-text[data-active="false"] {
-  opacity: 0;
-}
-```
-
-**关键约束**：
-- 两个文本始终渲染，仅通过 `data-active` 属性控制可见性
-- 网格容器宽度由两个文本中较宽者决定，切换时宽度不变
-- 过渡时长应短（~120ms），确保响应灵敏
-- 需要 `overflow: hidden; text-overflow: ellipsis` 处理超长文本
-
-**实现文件**：[BranchSubCard.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx)、[file-tree-browser.css](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/styles/regions/rightpanel/file-tree-browser.css)
+标签文本在两种状态间切换时，使用 CSS Grid 叠放两个文本，通过 `opacity` 过渡切换。详见 [BranchSubCard.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx)。
 
 ---
 
@@ -345,6 +273,7 @@ alwaysApply: true
 - **文件系统路径展示**：可使用原生 `title` 属性（如 `WorkspaceList.tsx` 中的工作区路径）
   - 理由：路径內容为纯文本，原生 tooltip 无定位闪烁问题
   - 适用场景：工作区路径、文件路径等纯文本路径展示
+  - **此例外已在根 AGENTS.md `禁止项`中明列**，与"禁止混合使用多种 Tooltip 方案"不冲突
 - 文件：[Tooltip.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/Tooltip.tsx)
 - 非路径场景**禁止**原生 `title` 属性
 
@@ -718,239 +647,83 @@ z-index:3）在视觉上重叠，导致 Scrollbar 无法 hover/交互。
 ## 22. 子卡片菜单（Sub-Card Menu）
 
 ### 场景
-
-菜单项悬停时弹出子卡片（如变更面板的"切换分支"功能），子卡片与菜单卡片之间存在间距，且子卡片需跟随菜单项垂直位置。
+菜单项悬停时弹出子卡片（如变更面板的"切换分支"功能），子卡片与菜单卡片之间存在间距。
 
 ### 标准
 
-| 属性       | 值                                                                               |
-| ---------- | -------------------------------------------------------------------------------- |
-| 子卡片定位 | `position: absolute`，相对于菜单项容器                                           |
-| 水平偏移   | `left: anchor(right)` + `margin-left: var(--space-px)`（CSS Anchor Positioning） |
-| 垂直对齐   | `top: var(--adl-changes-branch-sub-top, 0)`（父菜单传入 CSS 变量动态控制）       |
-| 背景       | `var(--bg-card)`                                                                 |
-| 边框       | `1px solid var(--border)`                                                        |
-| 圆角       | `var(--radius-lg)`                                                               |
-| 阴影       | `var(--shadow-lg)`                                                               |
+| 属性 | 值 |
+|------|-----|
+| 子卡片定位 | `position: absolute`，相对于菜单项容器 |
+| 水平偏移 | `left: calc(100% + Npx)`（N 值按布局计算，见下节） |
+| 垂直对齐 | `top: var(--adl-changes-branch-sub-top, 0)` |
+| 背景/边框 | `var(--bg-card)` / `1px solid var(--border)` |
+| 圆角/阴影 | `var(--radius-lg)` / `var(--shadow-lg)` |
 
 ### 悬停延迟规范
+主菜单到子卡片过渡使用 **200ms 延迟关闭**，防止鼠标意外移出时子卡片立即隐藏：
+- 主菜单项 `onMouseLeave`：启动 200ms `setTimeout`，到期才隐藏
+- 子卡片 `onMouseEnter`：清除延迟计时器，保持显示
+- 子卡片 `onMouseLeave`：立即隐藏
 
-主菜单到子卡片的过渡使用 **200ms 延迟关闭**，防止鼠标意外移出时子卡片立即隐藏：
-
-- 主菜单项 `onMouseLeave`：启动 200ms `setTimeout`，到期才隐藏子卡片
-- 子卡片 `onMouseEnter`：清除延迟计时器，保持子卡片显示
-- 子卡片 `onMouseLeave`：立即隐藏（用户已明确离开子卡片区域）
-- 参考实现：`TerminalShellSelector.tsx`（`handleMouseLeaveSubMenu` /
-  `handleMouseEnterSubMenuContent`）
-- 关键文件：`BranchSubCard.tsx` `BranchMenuItem` 中的 `leaveTimerRef`
-
-### > 图标固定在最右侧
-
-- ">" 图标作为 flex 项的直属子项（而非内嵌在按钮内），通过 wrapper 容器的 `display: flex` +
-  `flex: 1` 确保图标永远在最右侧
-- 按钮内仅包含 icon + label（flex: 1），arrow 作为按钮的兄弟元素
-- 结构示例：
-  ```html
-  <div class="adl-multitree-entry__menu-item--with-sub">
-    <button><!-- icon + label --></button>
-    <span class="...arrow"><IconChevronRight /></span>
-  </div>
-  ```
-- `adl-multitree-entry__menu-item-arrow` 使用 `flex-shrink: 0` + 默认 `order` 使其位于最右
+### ">" 图标固定在最右侧
+按 `flex: 1` 布局确保按钮内容扩展、箭头始终在最右。详见 [css-architecture.md](./css-architecture.md)。
 
 ### 标签显示规则（动态标签）
-
-对于功能选项的名称：
-
-- **默认态**（未悬停）：显示当前值（如当前分支名称）
-- **悬停态**：显示功能说明文字（如"切换分支"）
-- 分支名过长时使用 `text-overflow: ellipsis` 省略截断
-- 右侧 ">" 图标固定在容器最右侧（见上节）
-- 实现参考：`BranchSubCard.tsx` 的 `BranchMenuItem` 组件
-
-### 悬停背景规范
-
-- 唯一悬停背景由 wrapper 容器（`.adl-multitree-entry__menu-item--with-sub:hover`）提供
-- 内部按钮 (`button.adl-multitree-entry__menu-item--with-sub-btn`) 无独立背景
-- 按钮内仅保留 `background: transparent; cursor: pointer`
-
-### 子卡片内分支项：原生 Tooltip
-
-- 每个分支 `<button>` 设置 `title={branch.name}`，悬停时系统原生 tooltip 完整显示分支名称
-- 解决省略截断后分支名显示不完整的问题
+- **默认态**：显示当前值（如分支名）；**悬停态**：显示功能说明文字（如"切换分支"）
+- 长文本使用 `text-overflow: ellipsis` 截断
 
 ### 关键文件
-
-- 组件：`BranchSubCard.tsx`
-- CSS：`changes-panel.css`（`.adl-changes-branch-submenu`、`.adl-changes-branch-item`）、`file-operations.css`（`.adl-multitree-entry__menu-item--with-sub`）
-- 参考实现：`TerminalShellSelector.tsx`（`.adl-menu__dropdown--right` 水平偏移模式 + 延迟关闭模式）
+- 组件：`BranchSubCard.tsx`；CSS：`changes-panel.css`、`file-operations.css`
+- 参考实现：`TerminalShellSelector.tsx`（水平偏移 + 延迟关闭模式）
 
 ### 文档
-
-- 经验沉淀：[knowledge-base/interaction/](./docs/knowledge-base/interaction/)
+- 经验沉淀：[knowledge-base/interaction/](../../docs/knowledge-base/interaction/)
+- 子卡片间距全局标准见 [§25](#25-子卡片间距全局标准)
 
 ---
 
 ## 23. Hover 渐变蒙版
 
 ### 场景
+文字超出操作按钮覆盖范围时，使用 `::after` 伪元素渐变蒙版遮挡溢出文字。
 
-Hover 时，`.adl-filetree__label` 文字超出
-`.adl-filetree__meta`（或关闭按钮）的覆盖范围，露出遮不住的文字。常见于 `<button>` flex 子项忽略
-`min-width: 0` 导致溢出。
-
-### 方案：`::after` 伪元素渐变蒙版
-
-在行容器上添加 `::after`，hover 时显示渐变遮罩，挡住溢出的文字：
-
+### 标准模式
 ```css
-.row {
-  position: relative; /* 确保伪元素定位正确 */
-}
-
 .row::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 40px;
-  background: linear-gradient(
-    to right,
-    transparent 0%,
-    var(--bg-occlusion) 40%,
-    var(--bg-occlusion) 100%
-  );
-  opacity: 0; /* 默认隐藏 */
-  pointer-events: none; /* 不阻塞交互 */
-  transition: opacity var(--duration-150) var(--ease-default);
-  z-index: 1; /* 在 meta (z-index:2) 之下 */
+  content: ''; position: absolute; top: 0; right: 0; bottom: 0;
+  width: 40px; pointer-events: none; z-index: 1;
+  background: linear-gradient(to right, transparent, var(--bg-occlusion) 40%);
+  opacity: 0; transition: opacity var(--duration-150);
 }
-
-.row:hover::after {
-  opacity: 1; /* hover 时显示 */
-}
+.row:hover::after { opacity: 1; }
 ```
 
 ### 关键约束
-
-| 约束                   | 理由                                                                 |
-| ---------------------- | -------------------------------------------------------------------- |
-| `z-index: 1`           | 必须小于 meta 的 z-index (2)，确保关闭按钮可点击                     |
-| `pointer-events: none` | 不阻塞 bottom/right 区域的点击                                       |
-| `width: 40px`          | 匹配关闭按钮区域宽度（右 padding 12px + 按钮 22px + gap 8px ≈ 42px） |
-| 仅 hover 显示          | 避免常驻视觉干扰                                                     |
-| `--bg-occlusion`       | 与 meta 遮罩色一致，视觉无缝                                         |
-| `text-overflow: clip`  | 配合蒙版，无省略号                                                   |
+- `z-index: 1`（必须小于 meta 的 z-index: 2，确保关闭按钮可点击）
+- `pointer-events: none`（不阻塞点击）；仅 hover 显示
+- 详见 [knowledge-base/browser/](../../docs/knowledge-base/browser/browser-navigator-4-mode-2026-06-24.md)
 
 ---
 
 ## 25. 子卡片间距全局标准
 
 ### 标准
+所有子卡片与主菜单之间的水平间距必须统一为 **1px**，使用 `left: calc(100% + Npx)` 实现，N 值按布局手动调校。
 
-所有子卡片/子菜单（sub-card / sub-menu / sub-dropdown）与主菜单卡片之间的水平间距必须统一为
-**1px**，使用 **CSS `calc(100% + Npx)`** 实现，其中 `N` 需根据每个位置的父容器偏移量手动调校。
+**要点**：
+- 因 CSS Anchor Positioning 在 WebView2 中解析失败，所有子卡片使用 `absolute + calc(100% + Npx)` 回退方案
+- `100%` 相对于 offsetParent 的 content-box 宽度；border/padding 会影响 N 值
+- 添加新子卡片时用公式计算 N，通过 `[ADL-DEBUG] actual gap from ...` 日志验证
 
-### 实现方案
+### 位置清单
 
-```
-                           ┌──────────────────────┐
-                           │  主菜单卡片            │
-                           │  ┌───────────┐         │
-                           │  │ 菜单项     │ → → →  │  ← 菜单项宽度 = N px
-                           │  │ (触发元素) │         │
-                           │  └───────────┘         │
-                           └──────────────────────┘
-                                   │ calc(100% + Npx)
-                                   ▼
-                           ┌──────────────┐
-                           │  子卡片        │
-                           └──────────────┘
-```
-
-**关键发现：** CSS Anchor Positioning 在当前 WebView 版本中 `CSS.supports` 返回 true，
-但 `position-anchor` 在运行时解析失败（`computed positionAnchor: "none"`），且 `@supports`
-块整体被浏览器忽略。因此**所有子卡片使用 `absolute + calc(100% + Npx)` 回退方案**，
-`@supports (position-anchor)` 块保留作为未来兼容，但不可依赖。
-
-### `Npx` 值的精确计算
-
-`100%` 相对于 **offsetParent 的 content-box 宽度**（非 border-box）。
-当 offsetParent 有 `border: 1px` 时，content-box 比 border-box 少 2px。
-
-此外，当 offsetParent 比主菜单卡片窄时（例如在 `display: grid` 或 `flex` 列中），
-子菜单的 `left` 需对齐到**主菜单卡片的右边缘**，而非 offsetParent 的右边缘。
-
-计算方式：
-```
-N = (主菜单卡片右边缘 + 1px) - offsetParent content-box 左边缘 - offsetParent content-box 宽度
-```
-
-**实际数值（当前布局下验证）：**
-
-| # | 位置 | offsetParent | border | content-box width | `N` 值 |
-|---|------|------------|--------|-------------------|--------|
-| 1 | split-btn menu/settings | `.adl-split-btn` (relative) | 1px | 300px | 11 |
-| 2 | statusbar branch submenu | `.adl-statusbar__submenu-wrap` (relative) | 0px | ~116px | 10 |
-| 3 | changes-panel branch sub-card | `.adl-multitree-entry__menu-item--with-sub` (relative) | 0px | ~166px | 6 |
-
-### 代码模板
-
-```css
-/* Trigger anchor-name (retained for future anchor support): */
-[data-anchor-name='my-trigger'] {
-  anchor-name: --my-trigger;
-}
-
-/* Sub-card: */
-.sub-card {
-  position: absolute;
-  top: 0;
-  left: calc(100% + Npx);
-  /* ...rest of styles */
-}
-
-/* Anchor positioning fallback (kept as future-compat, not relied upon): */
-@supports (position-anchor) {
-  .sub-card {
-    position-anchor: --my-trigger;
-    left: anchor(right);
-    top: anchor(top);
-    margin-left: var(--space-px);
-  }
-}
-```
-
-### 全部位置清单
-
-| # | 组件 | CSS 选择器 | offsetParent | `N` | 调试日志 key |
-|---|------|-----------|-------------|-----|------------|
-| 1 | 变更面板分支子卡片 | `.adl-changes-branch-submenu` | `.adl-multree-entry__menu-item--with-sub` | 6 | `gap from menu right edge` |
-| 2 | 终端面板右键子菜单 | `.adl-menu__dropdown--right` | `.adl-menu__item--has-sub` | 6 | - |
-| 3 | 选择文件夹拆分按钮菜单 | `.adl-split-btn__menu` | `.adl-split-btn` | 11 | `gap from workspace menu right` |
-| 4 | 选择文件夹拆分按钮设置面板 | `.adl-split-btn__settings` | `.adl-split-btn` | 11 | - |
-| 5 | 状态栏分支子菜单 | `.adl-statusbar__submenu` | `.adl-statusbar__submenu-wrap` | 10 | `gap from trigger right` |
-| 6 | 标题栏品牌 Tooltip | `.adl-titlebar__brand-tooltip` | —（dead code） | - | - |
-
-### 验证方法
-
-打开子卡片后查看 debug-logs.txt，搜索对应 key，确认值 = 1：
-
-```
-[ADL-DEBUG] actual gap from workspace menu right: 1
-[ADL-DEBUG] actual gap from menu right edge: 1
-```
-
-### 已知问题
-
-- Anchor Positioning 在 Tauri WebView2 中 `CSS.supports` 返回 true 但实际不工作，
-  `@supports` 块被浏览器忽略（不应用内部规则）。
-- `left: calc(100% + Npx)` 中的 `N` 是布局敏感的：改变 offsetParent 的 border、padding、
-  width，或主菜单卡片的 width 都会改变所需 N 值。
-- 添加新的子卡片位置时，使用上述公式精确计算 N，并用 log 验证。不要用猜的方式。
+| # | 组件 | 选择器 | `N` |
+|---|------|--------|-----|
+| 1 | 变更面板分支子卡片 | `.adl-changes-branch-submenu` | 6 |
+| 2 | 终端面板右键子菜单 | `.adl-menu__dropdown--right` | 6 |
+| 3 | 拆分按钮菜单 | `.adl-split-btn__menu` | 11 |
+| 4 | 状态栏分支子菜单 | `.adl-statusbar__submenu` | 10 |
 
 ### 文档
-
-- CSS 变量 `--space-px: 1px`（`tokens.css:15`）是间隙的唯一来源（仅用于 anchor block）
-- 浏览器兼容性：Chromium 125+（2024年5月），Tauri WebView2 始终是最新版本
+- CSS 变量 `--space-px: 1px`（`tokens.css:15`）
+- 详细分析：[knowledge-base/interaction/](../../docs/knowledge-base/interaction/)

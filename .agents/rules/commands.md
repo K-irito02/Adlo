@@ -79,21 +79,18 @@ $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
 | `cargo build --workspace` | 完整编译（首次/新增依赖时较慢） |
 | `cargo clippy --workspace -- -D warnings` | Lint 检查 |
 
-> 系统配置了 Clash 代理 (`127.0.0.1:7890`)，执行前确保代理已开启。
-
 > 浏览器自动化工具选择、经验教训和快速参考见 [browser-automation.md](./browser-automation.md)。
 
 ## ⚠️ Node.js 环境变量
 
-Trae 的 PowerShell 终端**不自动继承**系统/用户 PATH 环境变量。
+部分终端**不自动继承**系统/用户 PATH 环境变量。
 
-**执行任何 `npm`/`node`/`pnpm`/`npx` 命令前，必须先运行：**
+**执行任何 `npm`/`node`/`pnpm`/`npx` 命令前，建议先运行：**
 
 ```powershell
-$env:Path = "D:\Program Files\nodejs;$env:Path"
+# 按实际安装路径调整
+$env:Path = "C:\Program Files\nodejs;$env:Path"
 ```
-
-Node.js 安装路径：`D:\Program Files\nodejs`（v24.15.0）
 
 ## 相关文件
 

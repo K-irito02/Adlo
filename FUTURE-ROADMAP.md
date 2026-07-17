@@ -6,7 +6,9 @@
 
 ## Phase 2 已完成功能
 
-以下为 Phase 2（5 个子阶段 2-A 至 2-E）已完成的 18 项缺失能力：
+以下为 Phase 2（5 个子阶段 2-A 至 2-E）已完成的 18 项缺失能力 + Phase 2 增强（6 项）：
+
+### Phase 2 核心（2-A ~ 2-E）
 
 | 功能 | 说明 | 子阶段 |
 |------|------|--------|
@@ -28,6 +30,17 @@
 | 自定义 Agent 配置 | 用户自定义 Agent 注册 | 2-E |
 | Hot Reload Config | notify 文件监听 + watch channel 热加载 | 2-E |
 | Durable Session | 心跳检测 + 崩溃恢复 + 重试 | 2-E |
+
+### Phase 2 增强
+
+| 功能 | 说明 |
+|------|------|
+| Provider 动态注册系统 | `ProviderRegistry` + `runtime_register`/`list_providers` 运行时注册/查询 |
+| (provider, model) 对路由 | 模型请求路由到 `(provider, model)` 精确匹配，支持权重负载均衡 |
+| SSE 真实流式传输 | 基于 `tracing_subscriber::fmt::MakeWriter` + `tokio::sync::broadcast` 的 SSE 管道 |
+| ModelPicker UI | 前端 Provider+Model 选择器，支持搜索与编辑 |
+| ProviderManager 管理面板 | 功能面板中的 Provider 配置管理 |
+| 动态模型获取 | 通过 Provider API 动态拉取可用模型列表 |
 
 ## Phase 3+ 待实现功能
 
@@ -94,7 +107,7 @@
 以下功能将在 Phase 2+ 分阶段启用：
 
 ```typescript
-// Feature flags — Phase 2 all features completed
+// Feature flags — Phase 2 all features completed + Phase 2 增强
 const FEATURE_FLAGS = {
   multiAgent: true,         // Phase 2-A — completed
   subagent: true,           // Phase 2-A — completed
@@ -113,6 +126,11 @@ const FEATURE_FLAGS = {
   customAgent: true,        // Phase 2-E — completed
   hotReload: true,          // Phase 2-E — completed
   durableSession: true,     // Phase 2-E — completed
+  providerRegistry: true,   // Phase 2 增强 — completed
+  modelPicker: true,        // Phase 2 增强 — completed
+  providerManager: true,    // Phase 2 增强 — completed
+  sseStreaming: true,       // Phase 2 增强 — completed
+  dynamicModels: true,      // Phase 2 增强 — completed
   acp: false,               // Phase 3+ — interface only
   httpApi: false,           // Phase 3+ — interface only
   codeMode: false,          // Phase 3+ — interface only

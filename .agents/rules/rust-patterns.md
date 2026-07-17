@@ -1,5 +1,6 @@
 ---
 description: Rust backend performance, architecture patterns, and crate governance
+globs: ai-digital-life/crates/**,ai-digital-life/src-tauri/**
 alwaysApply: false
 ---
 

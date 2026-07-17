@@ -79,6 +79,5 @@
 
 ## 维护要求
 
-- 新增 hook 必须更新 `.agents/manifests/hooks.yaml`
 - 新增或调整治理规则必须更新本文件
 - 规则职责变更必须同步 `AGENTS.md`

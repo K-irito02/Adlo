@@ -26,25 +26,21 @@
 | 工具 | 最低版本 | 说明 |
 |------|----------|------|
 | Rust | 1.85+ | 通过 `rustup` 安装 |
-| Node.js | 24.15+ | 安装路径 `D:\Program Files\nodejs` |
+| Node.js | 24.15+ | 通过 fnm/nvm 或官方安装包安装 |
 | pnpm | 10.x+ | `npm i -g pnpm` |
-| Tauri CLI | 2.x | `cargo install tauri-cli` |
-| Clash 代理 | - | 依赖代理 (127.0.0.1:7890) |
+| Tauri CLI | 2.x | `npm i -g @tauri-apps/cli` 或 `cargo install tauri-cli --version "^2"` |
 
 ### 本地开发
 
 ```powershell
-# 1. 设置 Node.js 环境（每次新终端执行）
-$env:Path = "D:\Program Files\nodejs;$env:Path"
-
-# 2. 安装前端依赖
+# 1. 安装前端依赖
 cd ai-digital-life/frontend
 pnpm install
 
-# 3. 启动开发服务器（浏览器模式，推荐）
+# 2. 启动开发服务器（浏览器模式，推荐）
 pnpm run dev:browser
 
-# 4. 或同时启动双端（Tauri + 浏览器）
+# 3. 或同时启动双端（Tauri + 浏览器）
 pnpm run dev:both
 ```
 
