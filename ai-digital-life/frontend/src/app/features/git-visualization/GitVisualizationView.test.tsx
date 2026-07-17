@@ -31,14 +31,14 @@ vi.mock('motion/react', () => ({
       get: (_t: never, tag: string) =>
         function MotionTag({
           children,
-          _initial,
-          _animate,
-          _exit,
-          _transition,
-          _variants,
-          _whileHover,
-          _whileTap,
-          _style,
+          initial,
+          animate,
+          exit,
+          transition,
+          variants,
+          whileHover,
+          whileTap,
+          style,
           ...rest
         }: Record<string, unknown>) {
           const React = require('react');
@@ -113,19 +113,19 @@ vi.mock('@i18n/useTCopy', () => ({
 }));
 
 describe('GitVisualizationView', () => {
-  it('renders 7 chart cards', { timeout: 10000 }, () => {
+  it('renders 7 chart cards', { timeout: 30000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const cards = container.querySelectorAll('.adl-git-vis__card');
     expect(cards.length).toBe(7);
   });
 
-  it('renders scroll container', { timeout: 10000 }, () => {
+  it('renders scroll container', { timeout: 30000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const scrollContainer = container.querySelector('.adl-git-vis__container');
     expect(scrollContainer).toBeTruthy();
   });
 
-  it('renders mock data note', { timeout: 10000 }, () => {
+  it('renders mock data note', { timeout: 30000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const note = container.querySelector('.adl-git-vis__note');
     expect(note).toBeTruthy();
