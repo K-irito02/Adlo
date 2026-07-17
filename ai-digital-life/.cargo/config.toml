@@ -13,9 +13,8 @@
 rebuild = "clean && build"
 
 [profile.dev]
-# 禁用增量编译绕过 rustc 1.96.0 ICE bug：
+# 工具链 1.96.0 时 adl-subagent 增量编译触发 ICE：
 #   thread 'rustc' panicked at .../rustc_metadata/src/rmeta/encoder.rs:2448:51:
 #   no entry found for key
-# adl-subagent crate 在增量编译时触发此内部编译器错误，与代码逻辑无关。
-# 详见 https://github.com/rust-lang/rust/issues?q=is%3Aissue+rmeta+encoder+no+entry+found
+# 2026-07-18 升级至 1.97.1 后保留此项待验证。若 ICE 已修复可移除以加速开发编译。
 incremental = false

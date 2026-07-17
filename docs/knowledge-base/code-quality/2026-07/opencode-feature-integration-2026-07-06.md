@@ -23,6 +23,8 @@ Task 4 后端 Compaction 签名变更后，前端 5 个文件未同步更新（`
 
 `adl-subagent` crate 编译时触发 `no entry found for key` ICE。**解决方案**：`CARGO_INCREMENTAL=0` 禁用增量编译。这是 rustc 1.96.0 的已知 bug，与代码无关。
 
+> **2026-07-18 更新**：工具链已升级至 **rustc 1.97.1**。`incremental = false` 的 workaround 保留在 `.cargo/config.toml` 中待验证。若 1.97.1 已修复该 ICE，可移除该配置以启用增量编译加速开发。
+
 ### 3. 计划类型与实际代码的差距
 
 6 个任务中，每个任务的实现者都需要适配计划中的类型假设与实际代码的差异（如 `evaluate_permission` 实际 5 参非 3 参、`AppState` 非 Clone、`ConversationRole` 无 `as_str()` 等）。**教训**：计划应基于实际代码签名编写，而非基于理想化接口。
