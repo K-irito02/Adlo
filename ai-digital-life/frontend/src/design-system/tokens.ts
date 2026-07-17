@@ -122,6 +122,7 @@ export const Z_INDEX_TOKENS = [
   'z-toast',
   'z-tooltip',
   'z-max',
+  'z-toast-top',
 ] as const;
 
 export type SpacingToken = (typeof SPACING_TOKENS)[number];
