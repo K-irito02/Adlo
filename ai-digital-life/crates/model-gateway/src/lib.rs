@@ -226,26 +226,19 @@ impl ModelGateway {
     ) -> Result<StreamReader, AppError> {
         let route = route::route_chain(&self.preferences);
         let mut last_error: Option<AppError> = None;
-        let resolved: Vec<(String, String)> = {
-            let registry = self
-                .registry
-                .read()
-                .map_err(|_| AppError::Internal("provider registry lock poisoned".to_string()))?;
-            route
-                .iter()
-                .map(|provider| {
-                    let model_id = self
-                        .preferences
-                        .providers
-                        .get(provider)
-                        .map(|pref| pref.model_id.clone())
-                        .unwrap_or_else(|| fallback::default_model(provider, &registry));
-                    (provider.clone(), model_id)
-                })
-                .collect()
-        };
-        for (provider, model_id) in &resolved {
-            match crate::provider::call_provider_stream(self, provider, model_id, &messages).await {
+        for provider in &route {
+            let model_id = {
+                let registry = self
+                    .registry
+                    .read()
+                    .map_err(|_| AppError::Internal("provider registry lock poisoned".to_string()))?;
+                self.preferences
+                    .providers
+                    .get(provider)
+                    .map(|pref| pref.model_id.clone())
+                    .unwrap_or_else(|| fallback::default_model(provider, &registry))
+            };
+            match crate::provider::call_provider_stream(self, provider, &model_id, &messages).await {
                 Ok(stream) => return Ok(stream),
                 Err(e) => last_error = Some(e),
             }

@@ -34,8 +34,15 @@ pub(crate) fn deterministic_fallback(messages: &[ModelChatMessage], error: Optio
 }
 
 pub(crate) fn estimate_usage(messages: &[ModelChatMessage]) -> ModelTokenUsage {
-    let prompt_tokens =
-        messages.iter().map(|message| estimate_tokens(&message.content)).sum::<usize>() as u32;
+    let prompt_tokens: u32 = messages
+        .iter()
+        .map(|message| estimate_tokens(&message.content))
+        .sum::<usize>()
+        .try_into()
+        .unwrap_or_else(|_| {
+            tracing::warn!("token count exceeds u32::MAX, capping");
+            u32::MAX
+        });
     ModelTokenUsage {
         prompt_tokens: Some(prompt_tokens),
         completion_tokens: Some(64),

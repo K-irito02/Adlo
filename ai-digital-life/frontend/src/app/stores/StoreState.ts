@@ -94,56 +94,61 @@ import type {
 import type { MessageSendOptions } from '../utils/composerSend';
 import type { WorkspaceID, SessionID, AgentRunID } from '../../shared/branded';
 
-interface StoreStateBase
-  extends
-    UISlice,
-    WorkspaceSlice,
-    GitSlice,
-    SessionSlice,
-    EditorSlice,
-    PatchSlice,
-    SearchSlice,
-    DiagnosticSlice,
-    TaskSlice,
-    CommandSlice,
-    ClipboardSlice,
-    TerminalSlice,
-    BrowserTabsSlice,
-    BrowserBookmarkSlice,
-    BrowserHistorySlice,
-    BrowserFoldersSlice,
-    BrowserLandingSlice,
-    BrowserSlice,
-    CiSlice,
-    CommunicateSlice,
-    GitHubRepoSlice,
-    GitHubTreeSlice,
-    GitHubSliceType,
-    AgentSlice,
-    CustomCommandSlice,
-    PermissionSlice,
-    CompactionSlice,
-    WebToolsSlice,
-    McpSlice,
-    ProviderSlice,
-    ReferenceSlice,
-    DurableSlice,
-    ToastSlice,
-    NotificationSlice {
+type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (
+  k: infer I
+) => void
+  ? I
+  : never;
+
+interface StoreStateRootFields {
   loading: boolean;
   appReady: boolean;
   error?: string;
   isFetching: Record<string, boolean>;
   isTauri: boolean;
-  /** 自定义 Agent 列表 */
   customAgents: AgentConfig[];
-  /** 是否正在拉取自定义 Agent 列表 */
   isFetchingCustomAgents: boolean;
-  /** LSP 活跃服务器列表 */
   lspActiveServers: string[];
-  /** LSP 诊断列表 */
   lspDiagnostics: DiagnosticInfo[];
+  bootstrap: () => Promise<void>;
 }
+
+type AllSlices = [
+  UISlice,
+  WorkspaceSlice,
+  GitSlice,
+  SessionSlice,
+  EditorSlice,
+  PatchSlice,
+  SearchSlice,
+  DiagnosticSlice,
+  TaskSlice,
+  CommandSlice,
+  ClipboardSlice,
+  TerminalSlice,
+  BrowserTabsSlice,
+  BrowserBookmarkSlice,
+  BrowserHistorySlice,
+  BrowserFoldersSlice,
+  BrowserLandingSlice,
+  BrowserSlice,
+  CiSlice,
+  CommunicateSlice,
+  GitHubRepoSlice,
+  GitHubTreeSlice,
+  GitHubSliceType,
+  AgentSlice,
+  CustomCommandSlice,
+  PermissionSlice,
+  CompactionSlice,
+  WebToolsSlice,
+  McpSlice,
+  ProviderSlice,
+  ReferenceSlice,
+  DurableSlice,
+  ToastSlice,
+  NotificationSlice,
+];
 
 interface WorkspaceActions {
   openWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
@@ -363,30 +368,31 @@ interface SnapshotActions {
   ) => Promise<RevertResult | null>;
 }
 
-export interface StoreState
-  extends
-    StoreStateBase,
-    WorkspaceActions,
-    SessionActions,
-    EditorActions,
-    GitActions,
-    PatchActions,
-    SearchActions,
-    TaskActions,
-    CommandActions,
-    CustomCommandActions,
-    PermissionActions,
-    CompactionActions,
-    DataFetchActions,
-    AgentActions,
-    McpActions,
-    ProviderActions,
-    WebToolsActions,
-    LspActions,
-    CustomAgentActions,
-    ReferenceActions,
-    SnapshotActions,
-    SessionForkActions,
-    DurableActions {
-  bootstrap: () => Promise<void>;
-}
+type AllActions = [
+  WorkspaceActions,
+  SessionActions,
+  EditorActions,
+  GitActions,
+  PatchActions,
+  SearchActions,
+  TaskActions,
+  CommandActions,
+  CustomCommandActions,
+  PermissionActions,
+  CompactionActions,
+  DataFetchActions,
+  AgentActions,
+  McpActions,
+  ProviderActions,
+  WebToolsActions,
+  LspActions,
+  CustomAgentActions,
+  ReferenceActions,
+  SnapshotActions,
+  SessionForkActions,
+  DurableActions,
+];
+
+export type StoreState = StoreStateRootFields &
+  UnionToIntersection<AllSlices[number]> &
+  UnionToIntersection<AllActions[number]>;

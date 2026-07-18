@@ -9,7 +9,6 @@ import { useBrowserNavigation } from './useBrowserNavigation';
 import { useBrowserUrlState } from './useBrowserUrlState';
 import { useBrowserMenus } from './useBrowserMenus';
 import { useBrowserThemeSync } from './useBrowserThemeSync';
-import type { BrowserPanelActions } from './BrowserPanelActionsContext';
 import type { BrowserPanelProps } from '@regions/right-panel/types';
 import { useTCopy } from '@i18n/useTCopy';
 import { buildBookmarkDirectoryTree } from './browserPanelHelpers';
@@ -24,6 +23,10 @@ import { useBrowserDialogs } from './useBrowserDialogs';
 import { useBrowserToast } from './useBrowserToast';
 import { useBrowserPanelHandlers } from './useBrowserPanelHandlers';
 import { useBrowserPanelMetaWiring } from './useBrowserPanelMetaWiring';
+import { BrowserPanelActionsCtx } from './BrowserPanelActionsContext';
+import { BrowserPanelStateCtx } from './BrowserPanelStateContext';
+import { useBrowserPanelActions } from './useBrowserPanelActions';
+import { useBrowserPanelState } from './useBrowserPanelState';
 import { BrowserShell } from './BrowserShell';
 
 export function BrowserPanel(props: BrowserPanelProps) {
@@ -36,29 +39,23 @@ export function BrowserPanel(props: BrowserPanelProps) {
     browserOpenTab,
     browserNavigateActiveTab,
     browserUpdateTab,
-    recentWorkspaces,
     browserBookmarks,
     browserHistory,
-    browserNavigatorWidth,
-    navigatorCollapsedByTool,
-    toggleNavigator,
     setBrowserNavigateInPlace,
     browserNavigateInPlace,
     browserSelectTab,
+    startupOverlayHidden,
   } = useAppStore(
     useShallow((state) => ({
       browserOpenTab: state.browserOpenTab,
       browserNavigateActiveTab: state.browserNavigateActiveTab,
       browserUpdateTab: state.browserUpdateTab,
-      recentWorkspaces: state.recentWorkspaces,
       browserBookmarks: state.browserBookmarks,
       browserHistory: state.browserHistory,
-      browserNavigatorWidth: state.browserNavigatorWidth,
-      navigatorCollapsedByTool: state.navigatorCollapsedByTool,
-      toggleNavigator: state.toggleNavigator,
       setBrowserNavigateInPlace: state.setBrowserNavigateInPlace,
       browserNavigateInPlace: state.browserNavigateInPlace,
       browserSelectTab: state.browserSelectTab,
+      startupOverlayHidden: state.startupOverlayHidden,
     }))
   );
 
@@ -214,8 +211,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleDoubleClick,
   });
 
-  const startupOverlayHidden = useAppStore((s) => s.startupOverlayHidden);
-
   const hasOverlayActive =
     !startupOverlayHidden ||
     createTabDialog.open ||
@@ -289,19 +284,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     validatedUrlsRef,
   });
 
-  const visibleWorkspaces = useMemo(
-    () =>
-      recentWorkspaces.filter(
-        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
-      ),
-    [recentWorkspaces]
-  );
-
-  const bookmarkTreeData = useMemo(
-    () => buildBookmarkDirectoryTree(visibleWorkspaces, browserTabFolders),
-    [visibleWorkspaces, browserTabFolders]
-  );
-
   const { handleGoBack, handleGoForward, handleReload } = useBrowserNavigation({
     iframeRef,
     iframeHistory,
@@ -351,22 +333,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     return result;
   }, [browserTabs, activeTab?.id, isTabInPool]);
 
-  const isTauri = useAppStore((s) => s.isTauri);
-  const isEmbedPending =
-    !isTauri &&
-    !!activeTab?.url &&
-    activeTab?.url !== 'about:blank' &&
-    !validatedUrlsRef.current.has(activeTab.url ?? '') &&
-    !iframeBlockedDetected &&
-    !iframeLoadError;
-
-  const navigatorCollapsed = navigatorCollapsedByTool.browser ?? false;
-
-  const openTabCount = browserTabs.length;
-  const navigatorTitle = t.toolBrowser;
-
-  const actionsValue = useMemo<BrowserPanelActions>(
-    () => ({
+  const actionsValue = useBrowserPanelActions(
+    {
       handleCloseTab: wrappedHandleCloseTab,
       handleCloseAllTabs,
       handleClearTabDirectories,
@@ -404,10 +372,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
       setNavigatorMode,
       handleSelectTreePath,
       showToast,
-      browserOpenTab,
       handleToggleNavigateMode,
-      toggleNavigator: toggleNavigator as (tool: string) => void,
-    }),
+    },
     [
       wrappedHandleCloseTab,
       handleCloseAllTabs,
@@ -446,14 +412,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
       setNavigatorMode,
       handleSelectTreePath,
       showToast,
-      browserOpenTab,
       handleToggleNavigateMode,
-      toggleNavigator,
     ]
   );
 
-  const stateMemo = useMemo(
-    () => ({
+  const stateValue = useBrowserPanelState(
+    {
       t,
       isBrowserVisible,
       activeTab,
@@ -475,7 +439,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
       primaryRef,
       iframeBlockedDetected,
       iframeLoadError,
-      isEmbedPending,
       validatedUrlsRef,
       navigatorMode,
       navigatorSearchRef,
@@ -484,13 +447,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
       selectedTreePathRef,
       activatedTabIdsRef,
       urlState,
-      navigatorCollapsed,
-      browserNavigatorWidth,
-      visibleWorkspaces,
       handlePointerDown,
-      openTabCount,
-      navigatorTitle,
-    }),
+    },
     [
       t,
       isBrowserVisible,
@@ -513,7 +471,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
       primaryRef,
       iframeBlockedDetected,
       iframeLoadError,
-      isEmbedPending,
       validatedUrlsRef,
       navigatorMode,
       navigatorSearchRef,
@@ -522,46 +479,48 @@ export function BrowserPanel(props: BrowserPanelProps) {
       selectedTreePathRef,
       activatedTabIdsRef,
       urlState,
-      navigatorCollapsed,
-      browserNavigatorWidth,
-      visibleWorkspaces,
       handlePointerDown,
-      openTabCount,
-      navigatorTitle,
     ]
   );
 
+  const bookmarkTreeData = useMemo(
+    () => buildBookmarkDirectoryTree(stateValue.visibleWorkspaces, browserTabFolders),
+    [stateValue.visibleWorkspaces, browserTabFolders]
+  );
+
   return (
-    <BrowserShell
-      stateValue={stateMemo}
-      actionsValue={actionsValue}
-      contextMenu={contextMenu}
-      handleTogglePin={handleTogglePin}
-      handleCopyUrlFromMenu={handleCopyUrlFromMenu}
-      handleOpenInNewTab={handleOpenInNewTab}
-      handleOpenInCurrentTab={handleOpenInCurrentTab}
-      wrappedHandleCloseTab={wrappedHandleCloseTab}
-      handleDoubleClick={handleDoubleClick}
-      createTabDialog={createTabDialog}
-      editTabDialog={editTabDialog}
-      isCreatingTab={isCreatingTab}
-      handleCreateTabConfirm={handleCreateTabConfirm}
-      handleCreateTabCancel={handleCreateTabCancel}
-      handleEditTabConfirm={handleEditTabConfirm}
-      handleEditTabCancel={handleEditTabCancel}
-      bookmarkDialogOpen={bookmarkDialogOpen}
-      bookmarkTreeData={bookmarkTreeData}
-      handleBookmarkAddToFolder={handleBookmarkAddToFolder}
-      handleBookmarkCreateDir={handleBookmarkCreateDir}
-      setBookmarkDialogOpen={setBookmarkDialogOpen}
-      setBookmarkName={setBookmarkName}
-      bookmarkName={bookmarkName}
-      renameFolderState={renameFolderState}
-      setRenameFolderState={setRenameFolderState}
-      createDirDialog={createDirDialog}
-      setCreateDirDialog={setCreateDirDialog}
-      toastMessages={toastMessages}
-      removeToast={removeToast}
-    />
+    <BrowserPanelStateCtx.Provider value={stateValue}>
+      <BrowserPanelActionsCtx.Provider value={actionsValue}>
+        <BrowserShell
+          contextMenu={contextMenu}
+          handleTogglePin={handleTogglePin}
+          handleCopyUrlFromMenu={handleCopyUrlFromMenu}
+          handleOpenInNewTab={handleOpenInNewTab}
+          handleOpenInCurrentTab={handleOpenInCurrentTab}
+          wrappedHandleCloseTab={wrappedHandleCloseTab}
+          handleDoubleClick={handleDoubleClick}
+          createTabDialog={createTabDialog}
+          editTabDialog={editTabDialog}
+          isCreatingTab={isCreatingTab}
+          handleCreateTabConfirm={handleCreateTabConfirm}
+          handleCreateTabCancel={handleCreateTabCancel}
+          handleEditTabConfirm={handleEditTabConfirm}
+          handleEditTabCancel={handleEditTabCancel}
+          bookmarkDialogOpen={bookmarkDialogOpen}
+          bookmarkTreeData={bookmarkTreeData}
+          handleBookmarkAddToFolder={handleBookmarkAddToFolder}
+          handleBookmarkCreateDir={handleBookmarkCreateDir}
+          setBookmarkDialogOpen={setBookmarkDialogOpen}
+          setBookmarkName={setBookmarkName}
+          bookmarkName={bookmarkName}
+          renameFolderState={renameFolderState}
+          setRenameFolderState={setRenameFolderState}
+          createDirDialog={createDirDialog}
+          setCreateDirDialog={setCreateDirDialog}
+          toastMessages={toastMessages}
+          removeToast={removeToast}
+        />
+      </BrowserPanelActionsCtx.Provider>
+    </BrowserPanelStateCtx.Provider>
   );
 }

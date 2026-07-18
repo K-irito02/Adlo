@@ -12,6 +12,8 @@ import type {
 import type { StoreState } from '../StoreState';
 import { trimOldRuns, trimActivityList } from '../activityUtils';
 
+const STREAMING_BUFFER_MAX_BYTES = 10_240;
+
 export interface SessionSlice {
   sessions: ConversationSessionRecord[];
   activeSessionId?: string;
@@ -74,7 +76,7 @@ export const createSessionSlice = (
     setStreamingText: (streamingAssistantText) => set({ streamingAssistantText }),
     appendStreamingText: (text) => {
       _streamingBuffer += text;
-      if (_streamingBuffer.length > 10240) {
+      if (_streamingBuffer.length > STREAMING_BUFFER_MAX_BYTES) {
         const batch = _streamingBuffer;
         _streamingBuffer = '';
         _streamingRafPending = false;

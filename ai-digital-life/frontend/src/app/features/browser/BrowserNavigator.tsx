@@ -419,7 +419,7 @@ export function BrowserNavigator() {
         </div>
       ) : null}
       <NavigatorResizeHandle
-        label="Resize browser navigator"
+        label={t.resizeLabel}
         minWidth={180}
         maxWidth={300}
         currentWidth={browserNavigatorWidth}

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
+import DOMPurify from 'dompurify';
 import { renderIcon } from '../../design-system/icons';
 import { TooltipSimple } from './Tooltip';
 import { useTCopy } from '../i18n/useTCopy';
@@ -115,7 +116,9 @@ function WorkspaceItem({ workspace, onSelect, t }: WorkspaceItemProps) {
       <span
         className="sidebar-workspace-tab__icon"
         dangerouslySetInnerHTML={{
-          __html: renderIcon('folder', { size: 'sm', decorative: true }).value,
+          __html: DOMPurify.sanitize(
+            renderIcon('folder', { size: 'sm', decorative: true }).value || ''
+          ),
         }}
       />
       <span className="sidebar-workspace-tab__name">
@@ -136,7 +139,9 @@ function WorkspaceItem({ workspace, onSelect, t }: WorkspaceItemProps) {
             <span
               className="sidebar-workspace-tab__action"
               dangerouslySetInnerHTML={{
-                __html: renderIcon('pin', { size: 'xs', decorative: true }).value,
+                __html: DOMPurify.sanitize(
+                  renderIcon('pin', { size: 'xs', decorative: true }).value || ''
+                ),
               }}
             />
           </TooltipSimple>
@@ -145,7 +150,9 @@ function WorkspaceItem({ workspace, onSelect, t }: WorkspaceItemProps) {
             <span
               className="sidebar-workspace-tab__action"
               dangerouslySetInnerHTML={{
-                __html: renderIcon('pin', { size: 'xs', decorative: true }).value,
+                __html: DOMPurify.sanitize(
+                  renderIcon('pin', { size: 'xs', decorative: true }).value || ''
+                ),
               }}
             />
           </TooltipSimple>
@@ -154,7 +161,9 @@ function WorkspaceItem({ workspace, onSelect, t }: WorkspaceItemProps) {
           <span
             className="sidebar-workspace-tab__action"
             dangerouslySetInnerHTML={{
-              __html: renderIcon('more-vertical', { size: 'xs', decorative: true }).value,
+              __html: DOMPurify.sanitize(
+                renderIcon('more-vertical', { size: 'xs', decorative: true }).value || ''
+              ),
             }}
           />
         </TooltipSimple>
@@ -252,7 +261,9 @@ export function SessionManagement({
             <span
               className={`sidebar-section__chevron${workspacesCollapsed ? ' is-collapsed' : ''}`}
               dangerouslySetInnerHTML={{
-                __html: renderIcon('chevron-right', { size: 'xs', decorative: true }).value,
+                __html: DOMPurify.sanitize(
+                  renderIcon('chevron-right', { size: 'xs', decorative: true }).value || ''
+                ),
               }}
             />
             <span className="sidebar-section__title">{t.workspaces}</span>
@@ -266,7 +277,9 @@ export function SessionManagement({
             >
               <span
                 dangerouslySetInnerHTML={{
-                  __html: renderIcon('plus', { size: 'xs', decorative: true }).value,
+                  __html: DOMPurify.sanitize(
+                    renderIcon('plus', { size: 'xs', decorative: true }).value || ''
+                  ),
                 }}
               />
             </button>
@@ -300,7 +313,9 @@ export function SessionManagement({
             <span
               className={`sidebar-section__chevron${sessionsCollapsed ? ' is-collapsed' : ''}`}
               dangerouslySetInnerHTML={{
-                __html: renderIcon('chevron-right', { size: 'xs', decorative: true }).value,
+                __html: DOMPurify.sanitize(
+                  renderIcon('chevron-right', { size: 'xs', decorative: true }).value || ''
+                ),
               }}
             />
             <span className="sidebar-section__title">{t.sessions}</span>
@@ -314,7 +329,9 @@ export function SessionManagement({
             >
               <span
                 dangerouslySetInnerHTML={{
-                  __html: renderIcon('plus', { size: 'xs', decorative: true }).value,
+                  __html: DOMPurify.sanitize(
+                    renderIcon('plus', { size: 'xs', decorative: true }).value || ''
+                  ),
                 }}
               />
             </button>

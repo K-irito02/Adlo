@@ -173,7 +173,7 @@ impl ProviderAdapter for OllamaProvider {
 
         let stream = response.bytes_stream().map(|chunk| {
             let chunk = chunk.map_err(|e| AppError::Model(e.to_string()))?;
-            let text = String::from_utf8_lossy(&chunk).to_string();
+            let text = String::from_utf8_lossy(&chunk);
             for line in text.lines() {
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
                     if json["done"].as_bool().unwrap_or(false) {

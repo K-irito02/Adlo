@@ -165,4 +165,5 @@ export const browserZh = {
   browserDateMonth: '月',
   browserDateDay: '日',
   browserNewTabFolder: '新建标签文件夹',
+  resizeLabel: '调整浏览器导航栏大小',
 } as const;

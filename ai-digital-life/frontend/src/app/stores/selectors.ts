@@ -123,6 +123,7 @@ export const searchSelectors = {
 // ============================================
 // 组合选择器
 // ============================================
+
 export const combinedSelectors = {
   canOpenNewTab: (state: StoreState) => state.openTabs.length < 20,
   useCanOpenNewTab: () => useAppStore((s) => s.openTabs.length < 20),
@@ -138,7 +139,8 @@ export const combinedSelectors = {
     if (!state.selectedFilePath) {
       return undefined;
     }
-    return state.openTabs.find((tab) => tab.path === state.selectedFilePath);
+    const tabsByPath = new Map(state.openTabs.map((tab) => [tab.path, tab]));
+    return tabsByPath.get(state.selectedFilePath);
   },
   useCurrentFileTab: () =>
     useAppStore(
@@ -146,7 +148,8 @@ export const combinedSelectors = {
         if (!s.selectedFilePath) {
           return undefined;
         }
-        return s.openTabs.find((tab) => tab.path === s.selectedFilePath);
+        const tabsByPath = new Map(s.openTabs.map((tab) => [tab.path, tab]));
+        return tabsByPath.get(s.selectedFilePath);
       })
     ),
 };
