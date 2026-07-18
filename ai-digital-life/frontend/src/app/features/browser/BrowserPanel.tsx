@@ -9,7 +9,6 @@ import { useBrowserNavigation } from './useBrowserNavigation';
 import { useBrowserUrlState } from './useBrowserUrlState';
 import { useBrowserMenus } from './useBrowserMenus';
 import { useBrowserThemeSync } from './useBrowserThemeSync';
-import type { BrowserPanelActions } from './BrowserPanelActionsContext';
 import type { BrowserPanelProps } from '@regions/right-panel/types';
 import { useTCopy } from '@i18n/useTCopy';
 import { buildBookmarkDirectoryTree } from './browserPanelHelpers';
@@ -24,6 +23,10 @@ import { useBrowserDialogs } from './useBrowserDialogs';
 import { useBrowserToast } from './useBrowserToast';
 import { useBrowserPanelHandlers } from './useBrowserPanelHandlers';
 import { useBrowserPanelMetaWiring } from './useBrowserPanelMetaWiring';
+import { BrowserPanelActionsCtx } from './BrowserPanelActionsContext';
+import { BrowserPanelStateCtx } from './BrowserPanelStateContext';
+import { useBrowserPanelActions } from './useBrowserPanelActions';
+import { useBrowserPanelState } from './useBrowserPanelState';
 import { BrowserShell } from './BrowserShell';
 
 export function BrowserPanel(props: BrowserPanelProps) {
@@ -365,8 +368,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const openTabCount = browserTabs.length;
   const navigatorTitle = t.toolBrowser;
 
-  const actionsValue = useMemo<BrowserPanelActions>(
-    () => ({
+  const actionsValue = useBrowserPanelActions(
+    {
       handleCloseTab: wrappedHandleCloseTab,
       handleCloseAllTabs,
       handleClearTabDirectories,
@@ -407,7 +410,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       browserOpenTab,
       handleToggleNavigateMode,
       toggleNavigator: toggleNavigator as (tool: string) => void,
-    }),
+    },
     [
       wrappedHandleCloseTab,
       handleCloseAllTabs,
@@ -452,8 +455,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     ]
   );
 
-  const stateMemo = useMemo(
-    () => ({
+  const stateValue = useBrowserPanelState(
+    {
       t,
       isBrowserVisible,
       activeTab,
@@ -490,7 +493,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       handlePointerDown,
       openTabCount,
       navigatorTitle,
-    }),
+    },
     [
       t,
       isBrowserVisible,
@@ -532,36 +535,38 @@ export function BrowserPanel(props: BrowserPanelProps) {
   );
 
   return (
-    <BrowserShell
-      stateValue={stateMemo}
-      actionsValue={actionsValue}
-      contextMenu={contextMenu}
-      handleTogglePin={handleTogglePin}
-      handleCopyUrlFromMenu={handleCopyUrlFromMenu}
-      handleOpenInNewTab={handleOpenInNewTab}
-      handleOpenInCurrentTab={handleOpenInCurrentTab}
-      wrappedHandleCloseTab={wrappedHandleCloseTab}
-      handleDoubleClick={handleDoubleClick}
-      createTabDialog={createTabDialog}
-      editTabDialog={editTabDialog}
-      isCreatingTab={isCreatingTab}
-      handleCreateTabConfirm={handleCreateTabConfirm}
-      handleCreateTabCancel={handleCreateTabCancel}
-      handleEditTabConfirm={handleEditTabConfirm}
-      handleEditTabCancel={handleEditTabCancel}
-      bookmarkDialogOpen={bookmarkDialogOpen}
-      bookmarkTreeData={bookmarkTreeData}
-      handleBookmarkAddToFolder={handleBookmarkAddToFolder}
-      handleBookmarkCreateDir={handleBookmarkCreateDir}
-      setBookmarkDialogOpen={setBookmarkDialogOpen}
-      setBookmarkName={setBookmarkName}
-      bookmarkName={bookmarkName}
-      renameFolderState={renameFolderState}
-      setRenameFolderState={setRenameFolderState}
-      createDirDialog={createDirDialog}
-      setCreateDirDialog={setCreateDirDialog}
-      toastMessages={toastMessages}
-      removeToast={removeToast}
-    />
+    <BrowserPanelStateCtx.Provider value={stateValue}>
+      <BrowserPanelActionsCtx.Provider value={actionsValue}>
+        <BrowserShell
+          contextMenu={contextMenu}
+          handleTogglePin={handleTogglePin}
+          handleCopyUrlFromMenu={handleCopyUrlFromMenu}
+          handleOpenInNewTab={handleOpenInNewTab}
+          handleOpenInCurrentTab={handleOpenInCurrentTab}
+          wrappedHandleCloseTab={wrappedHandleCloseTab}
+          handleDoubleClick={handleDoubleClick}
+          createTabDialog={createTabDialog}
+          editTabDialog={editTabDialog}
+          isCreatingTab={isCreatingTab}
+          handleCreateTabConfirm={handleCreateTabConfirm}
+          handleCreateTabCancel={handleCreateTabCancel}
+          handleEditTabConfirm={handleEditTabConfirm}
+          handleEditTabCancel={handleEditTabCancel}
+          bookmarkDialogOpen={bookmarkDialogOpen}
+          bookmarkTreeData={bookmarkTreeData}
+          handleBookmarkAddToFolder={handleBookmarkAddToFolder}
+          handleBookmarkCreateDir={handleBookmarkCreateDir}
+          setBookmarkDialogOpen={setBookmarkDialogOpen}
+          setBookmarkName={setBookmarkName}
+          bookmarkName={bookmarkName}
+          renameFolderState={renameFolderState}
+          setRenameFolderState={setRenameFolderState}
+          createDirDialog={createDirDialog}
+          setCreateDirDialog={setCreateDirDialog}
+          toastMessages={toastMessages}
+          removeToast={removeToast}
+        />
+      </BrowserPanelActionsCtx.Provider>
+    </BrowserPanelStateCtx.Provider>
   );
 }

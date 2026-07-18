@@ -1,7 +1,3 @@
-import { BrowserPanelStateCtx } from './BrowserPanelStateContext';
-import { BrowserPanelActionsCtx } from './BrowserPanelActionsContext';
-import type { BrowserPanelState } from './BrowserPanelStateContext';
-import type { BrowserPanelActions } from './BrowserPanelActionsContext';
 import { BrowserNavigator } from './BrowserNavigator';
 import { BrowserIframeStack } from './BrowserIframeStack';
 import { BrowserContextMenu } from './BrowserContextMenu';
@@ -13,7 +9,7 @@ import { useBrowserPanelState } from './BrowserPanelStateContext';
 
 type DialogProps = Omit<BrowserPanelDialogsProps, 't'>;
 
-interface BrowserContentAreaInnerProps extends DialogProps {
+interface BrowserContentAreaProps extends DialogProps {
   contextMenu: ContextMenuState;
   handleTogglePin: () => void;
   handleCopyUrlFromMenu: () => void;
@@ -23,12 +19,7 @@ interface BrowserContentAreaInnerProps extends DialogProps {
   handleDoubleClick: (tabId: string, title: string) => void;
 }
 
-export interface BrowserContentAreaProps extends BrowserContentAreaInnerProps {
-  stateValue: BrowserPanelState;
-  actionsValue: BrowserPanelActions;
-}
-
-function BrowserContentAreaInner(props: BrowserContentAreaInnerProps) {
+export function BrowserContentArea(props: BrowserContentAreaProps) {
   const stateValue = useBrowserPanelState();
   const { t, browserTabs } = stateValue;
 
@@ -90,16 +81,5 @@ function BrowserContentAreaInner(props: BrowserContentAreaInnerProps) {
         removeToast={props.removeToast}
       />
     </>
-  );
-}
-
-export function BrowserContentArea(props: BrowserContentAreaProps) {
-  const { stateValue, actionsValue, ...rest } = props;
-  return (
-    <BrowserPanelStateCtx.Provider value={stateValue}>
-      <BrowserPanelActionsCtx.Provider value={actionsValue}>
-        <BrowserContentAreaInner {...rest} />
-      </BrowserPanelActionsCtx.Provider>
-    </BrowserPanelStateCtx.Provider>
   );
 }
