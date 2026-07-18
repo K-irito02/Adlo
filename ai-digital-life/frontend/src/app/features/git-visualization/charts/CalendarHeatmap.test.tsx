@@ -11,7 +11,7 @@ vi.mock('motion/react', () => {
       {
         get: () => (p: Record<string, unknown>) => {
           const { children, ...rest } = p;
-          return React.createElement('div', { className: rest.className, key: rest.key }, children);
+          return React.createElement('div', { className: rest.className, key: rest.key as React.Key }, children as React.ReactNode);
         },
       }
     ),

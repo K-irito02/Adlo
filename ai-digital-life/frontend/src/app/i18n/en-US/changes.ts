@@ -134,6 +134,10 @@ export const changesEn = {
   gitVisBranchGraphDesc:
     'Commit DAG with branch topology. Each vertical lane is a branch; ● dots are single-parent commits, ■ squares are merge commits (2+ parents), tag badges (e.g. v1.0) mark tagged releases. Click branch labels to filter by branch.',
   gitVisBranch: 'Branch',
+  gitVisHash: 'HASH',
+  gitVisMessage: 'MESSAGE',
+  gitVisAuthor: 'AUTHOR',
+  gitVisDate: 'DATE',
   gitVisBranchGraphFilterHint: 'Click a branch label to filter',
   gitVisMockDataNote:
     'All data is mock-generated for visualization demonstration. When connecting to a real Git repository, extract real data and adapt.',

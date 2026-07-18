@@ -128,6 +128,10 @@ export const changesZh = {
   gitVisBranchGraphDesc:
     '带有分支拓扑的提交有向无环图。每条垂直泳道为一个分支；● 圆点为单父提交，■ 方块为合并提交（2个以上父提交），标签徽章（如 v1.0）标记了 tagged 版本。点击分支标签可按分支筛选。',
   gitVisBranch: '分支',
+  gitVisHash: '哈希',
+  gitVisMessage: '提交信息',
+  gitVisAuthor: '作者',
+  gitVisDate: '日期',
   gitVisBranchGraphFilterHint: '点击分支标签可筛选',
   gitVisMockDataNote:
     '所有数据均为模拟生成，用于展示可视化效果。实际接入 Git 仓库时，需提取真实数据并适配。',

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useBklitTheme } from '../hooks/useBklitTheme';
 import { commitNodes, commitEdges, allBranches } from '../data/gitVisMockData';
@@ -30,6 +30,82 @@ const BRANCH_COLORS_DARK: Record<string, string> = {
   'release/v1.0': '#22d3ee',
   hotfix: '#f87171',
 };
+
+// ── Author Avatar ──
+// 当前为模拟数据阶段：使用首字母圆形头像，颜色由作者名哈希决定。
+// TODO-FUTURE: 接入真实用户头像（GitHub / Gravatar）
+//   集成点：AuthorAvatarProps.src —— 传入头像 URL 后自动渲染图片并裁剪为圆形。
+//           数据源 CommitNode 可扩展 avatarUrl 字段，从 git log 或用户配置获取。
+
+const AUTHOR_COLORS = [
+  '#e74c3c',
+  '#3498db',
+  '#2ecc71',
+  '#f39c12',
+  '#9b59b6',
+  '#1abc9c',
+  '#e67e22',
+  '#34495e',
+];
+
+function getAuthorColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AUTHOR_COLORS[Math.abs(hash) % AUTHOR_COLORS.length];
+}
+
+interface AuthorAvatarProps {
+  name: string;
+  /** Future: 真实头像 URL（GitHub / Gravatar），传入后替代首字母显示 */
+  src?: string;
+  size?: number;
+}
+
+const AuthorAvatar = React.memo(function AuthorAvatar({ name, src, size = 20 }: AuthorAvatarProps) {
+  const bgColor = getAuthorColor(name);
+  const initial = name ? name.charAt(0).toUpperCase() : '?';
+
+  if (src) {
+    return (
+      <img
+        className="adl-author-avatar"
+        src={src}
+        alt={name}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          objectFit: 'cover',
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
+
+  return (
+    <span
+      className="adl-author-avatar"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: bgColor,
+        color: '#fff',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: Math.round(size * 0.55),
+        fontWeight: 600,
+        flexShrink: 0,
+        lineHeight: 1,
+      }}
+    >
+      {initial}
+    </span>
+  );
+});
 
 // ── Data preparation ──
 interface LaneMap {
@@ -112,6 +188,8 @@ interface SvgLanesProps {
   totalHeight: number;
   hoveredId: string | null;
   nodeStroke: string;
+  filterBranches: Set<string>;
+  hoveredBranch: string | null;
 }
 
 const SvgLanes = React.memo(function SvgLanes({
@@ -121,6 +199,8 @@ const SvgLanes = React.memo(function SvgLanes({
   totalHeight,
   hoveredId,
   nodeStroke,
+  filterBranches,
+  hoveredBranch,
 }: SvgLanesProps) {
   const nodeY = (rowIndex: number) => rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
 
@@ -136,6 +216,8 @@ const SvgLanes = React.memo(function SvgLanes({
     if (yPositions.length === 0) {
       return null;
     }
+    const laneDimmed =
+      filterBranches.size > 0 && !filterBranches.has(l.branch) && l.branch !== hoveredBranch;
     return (
       <line
         key={`lane-${l.branch}`}
@@ -146,7 +228,7 @@ const SvgLanes = React.memo(function SvgLanes({
         stroke={l.color}
         strokeWidth={3}
         strokeLinecap="round"
-        opacity={0.5}
+        opacity={laneDimmed ? 0.1 : 0.5}
       />
     );
   });
@@ -165,6 +247,13 @@ const SvgLanes = React.memo(function SvgLanes({
     const tx = getLaneX(targetRow.lane.index);
     const ty = nodeY(targetIdx);
 
+    const edgeDimmed =
+      filterBranches.size > 0 &&
+      !filterBranches.has(sourceRow.node.branch) &&
+      !filterBranches.has(targetRow.node.branch) &&
+      sourceRow.node.branch !== hoveredBranch &&
+      targetRow.node.branch !== hoveredBranch;
+
     if (sourceRow.lane.index === targetRow.lane.index) {
       connections.push(
         <line
@@ -176,6 +265,7 @@ const SvgLanes = React.memo(function SvgLanes({
           stroke={sourceRow.lane.color}
           strokeWidth={2.5}
           strokeLinecap="round"
+          opacity={edgeDimmed ? 0.1 : 1}
         />
       );
     } else {
@@ -188,7 +278,7 @@ const SvgLanes = React.memo(function SvgLanes({
           stroke={sourceRow.lane.color}
           strokeWidth={2}
           strokeDasharray={sourceIdx > targetIdx ? '4,3' : 'none'}
-          opacity={0.6}
+          opacity={edgeDimmed ? 0.1 : 0.6}
         />
       );
     }
@@ -199,10 +289,14 @@ const SvgLanes = React.memo(function SvgLanes({
     const y = nodeY(i);
     const isHovered = hoveredId === row.node.id;
     const r = isHovered ? NODE_RADIUS * 1.2 : NODE_RADIUS;
+    const nodeDimmed =
+      filterBranches.size > 0 &&
+      !filterBranches.has(row.node.branch) &&
+      row.node.branch !== hoveredBranch;
 
     if (row.node.tag) {
       return (
-        <g key={`node-${row.node.id}`}>
+        <g key={`node-${row.node.id}`} opacity={nodeDimmed ? 0.1 : 1}>
           <circle cx={x} cy={y} r={r + 1} fill="none" stroke={row.lane.color} strokeWidth={2.5} />
           <circle cx={x + 14} cy={y - 8} r={8} fill={row.lane.color} opacity={0.15} />
           <text
@@ -220,7 +314,7 @@ const SvgLanes = React.memo(function SvgLanes({
     }
 
     if (row.isMerge) {
-      const s = MERGE_NODE_SIZE;
+      const s = isHovered ? MERGE_NODE_SIZE * 1.2 : MERGE_NODE_SIZE;
       return (
         <rect
           key={`node-${row.node.id}`}
@@ -232,6 +326,7 @@ const SvgLanes = React.memo(function SvgLanes({
           fill={row.lane.color}
           stroke={nodeStroke}
           strokeWidth={2}
+          opacity={nodeDimmed ? 0.1 : 1}
         />
       );
     }
@@ -245,6 +340,7 @@ const SvgLanes = React.memo(function SvgLanes({
         fill={row.lane.color}
         stroke={nodeStroke}
         strokeWidth={2}
+        opacity={nodeDimmed ? 0.1 : 1}
       />
     );
   });
@@ -270,7 +366,22 @@ export const BranchGraph = React.memo(function BranchGraph() {
   const { t } = useTCopy();
   const theme = useBklitTheme();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [filterBranch, setFilterBranch] = useState<string | null>(null);
+  const [filterBranches, setFilterBranches] = useState(() => new Set<string>());
+  const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
+  const tagRowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = tagRowRef.current;
+    if (!el) {
+      return;
+    }
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, []);
 
   const isDark = theme.background !== '#ffffff';
   const lanes = useMemo(() => assignLanes(isDark), [isDark]);
@@ -282,7 +393,15 @@ export const BranchGraph = React.memo(function BranchGraph() {
 
   const handleRowHover = useCallback((id: string | null) => setHoveredId(id), []);
   const handleLabelClick = useCallback((branch: string) => {
-    setFilterBranch((prev) => (prev === branch ? null : branch));
+    setFilterBranches((prev) => {
+      const next = new Set(prev);
+      if (next.has(branch)) {
+        next.delete(branch);
+      } else {
+        next.add(branch);
+      }
+      return next;
+    });
   }, []);
 
   const nodeStroke = isDark ? '#1a1a1a' : '#ffffff';
@@ -297,34 +416,38 @@ export const BranchGraph = React.memo(function BranchGraph() {
         }}
       >
         <div />
-        <div style={{ display: 'flex', gap: 6, padding: '4px 8px 8px', flexWrap: 'wrap' }}>
-          {lanes.map((l) => (
-            <button
-              key={l.branch}
-              className={
-                filterBranch === null
-                  ? 'adl-branch-graph__label'
-                  : filterBranch === l.branch
-                    ? 'adl-branch-graph__label adl-branch-graph__label--active'
-                    : 'adl-branch-graph__label adl-branch-graph__label--inactive'
-              }
-              onClick={() => handleLabelClick(l.branch)}
-              style={{
-                padding: '2px 8px',
-                borderRadius: 4,
-                background: l.color,
-                color: '#fff',
-                fontSize: 11,
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-                opacity: filterBranch === null || filterBranch === l.branch ? 1 : 0.4,
-              }}
-              title={t.gitVisBranchGraphFilterHint}
-            >
-              {l.branch}
-            </button>
-          ))}
+        <div ref={tagRowRef} className="adl-branch-graph__tag-row">
+          {lanes.map((l) => {
+            const isSelected = filterBranches.has(l.branch);
+            const isHovered = hoveredLabel === l.branch;
+            const showIndicator = isSelected || isHovered;
+            const showScale = (isHovered && !isSelected) || (!isHovered && isSelected);
+            return (
+              <button
+                key={l.branch}
+                className="adl-branch-graph__label"
+                data-indicator={showIndicator ? 'true' : undefined}
+                data-scale={showScale ? 'true' : undefined}
+                onClick={() => handleLabelClick(l.branch)}
+                onMouseEnter={() => setHoveredLabel(l.branch)}
+                onMouseLeave={() => setHoveredLabel(null)}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: 0,
+                  background: l.color,
+                  color: '#fff',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  opacity: filterBranches.size === 0 || filterBranches.has(l.branch) ? 1 : 0.4,
+                }}
+                title={l.branch}
+              >
+                <span className="adl-branch-graph__label-text">{l.branch}</span>
+              </button>
+            );
+          })}
         </div>
 
         <div />
@@ -332,8 +455,8 @@ export const BranchGraph = React.memo(function BranchGraph() {
           className="adl-branch-graph__header"
           style={{
             display: 'grid',
-            gridTemplateColumns: '80px 1fr auto auto',
-            gap: 4,
+            gridTemplateColumns: '80px 1fr 120px 100px',
+            gap: 8,
             padding: '4px 8px',
             fontSize: 11,
             fontWeight: 600,
@@ -341,10 +464,10 @@ export const BranchGraph = React.memo(function BranchGraph() {
             borderBottom: `1px solid ${theme.grid}`,
           }}
         >
-          <span>HASH</span>
-          <span>MESSAGE</span>
-          <span>AUTHOR</span>
-          <span>DATE</span>
+          <span>{t.gitVisHash}</span>
+          <span>{t.gitVisMessage}</span>
+          <span>{t.gitVisAuthor}</span>
+          <span>{t.gitVisDate}</span>
         </div>
 
         <SvgLanes
@@ -354,10 +477,15 @@ export const BranchGraph = React.memo(function BranchGraph() {
           totalHeight={totalHeight}
           hoveredId={hoveredId}
           nodeStroke={nodeStroke}
+          filterBranches={filterBranches}
+          hoveredBranch={hoveredLabel}
         />
         <div>
           {rows.map((row) => {
-            const isFiltered = filterBranch !== null && filterBranch !== row.node.branch;
+            const isFiltered =
+              filterBranches.size > 0 &&
+              !filterBranches.has(row.node.branch) &&
+              row.node.branch !== hoveredLabel;
             return (
               <div
                 key={row.node.id}
@@ -365,8 +493,8 @@ export const BranchGraph = React.memo(function BranchGraph() {
                 data-branch={row.node.branch}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '80px 1fr auto auto',
-                  gap: 4,
+                  gridTemplateColumns: '80px 1fr 120px 100px',
+                  gap: 8,
                   padding: '4px 8px',
                   fontSize: 12,
                   lineHeight: ROW_HEIGHT - 8 + 'px',
@@ -403,19 +531,30 @@ export const BranchGraph = React.memo(function BranchGraph() {
                       className="adl-branch-graph__tag"
                       style={{
                         marginLeft: 8,
-                        padding: '1px 6px',
-                        borderRadius: 3,
+                        padding: '1px 4px',
+                        borderRadius: 2,
                         background: row.lane.color,
                         color: '#fff',
-                        fontSize: 10,
+                        fontSize: 9,
                         fontWeight: 600,
+                        lineHeight: 1,
                       }}
                     >
                       {row.node.tag}
                     </span>
                   )}
                 </span>
-                <span style={{ color: theme.muted }}>{row.node.author}</span>
+                <span
+                  style={{
+                    color: theme.muted,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <AuthorAvatar name={row.node.author} />
+                  {row.node.author}
+                </span>
                 <span style={{ color: theme.muted, textAlign: 'right' }}>
                   {formatRelativeDate(row.node.date)}
                 </span>
@@ -431,19 +570,19 @@ export const BranchGraph = React.memo(function BranchGraph() {
 function formatRelativeDate(dateStr: string): string {
   const now = new Date();
   const d = new Date(dateStr);
-  const diffMs = now.getTime() - d.getTime();
+  if (isNaN(d.getTime())) {
+    return '0d';
+  }
+  const diffMs = Math.max(0, now.getTime() - d.getTime());
   const diffDays = Math.floor(diffMs / 86400000);
   if (diffDays < 1) {
-    return 'today';
-  }
-  if (diffDays === 1) {
-    return '1d ago';
+    return '0d';
   }
   if (diffDays < 30) {
-    return `${diffDays}d ago`;
+    return `${diffDays}d`;
   }
   if (diffDays < 365) {
-    return `${Math.floor(diffDays / 30)}mo ago`;
+    return `${Math.floor(diffDays / 30)}mo`;
   }
-  return `${Math.floor(diffDays / 365)}y ago`;
+  return `${Math.floor(diffDays / 365)}y`;
 }

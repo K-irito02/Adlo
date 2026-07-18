@@ -63,7 +63,9 @@
 
 /* ── Branch Graph ── */
 .adl-branch-graph__row {
-  transition: background 0.15s, opacity 0.15s;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
   border-radius: 4px;
 }
 
@@ -75,21 +77,66 @@
   opacity: 0.25 !important;
 }
 
+/* Tag row — single-line scrollable container */
+.adl-branch-graph__tag-row {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  gap: 6px;
+  padding: 6px 8px 8px;
+}
+.adl-branch-graph__tag-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* Label button */
 .adl-branch-graph__label {
-  transition: opacity 0.15s, transform 0.15s;
+  position: relative;
+  flex-shrink: 0;
+  transition:
+    opacity 0.15s,
+    transform 0.15s;
+  transform: scale(1);
 }
 
-.adl-branch-graph__label:hover {
-  transform: translateY(-1px);
+/* Indicator bar — absolutely positioned above button */
+.adl-branch-graph__label::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--text-primary);
+  transition: opacity 0.15s;
+  opacity: 0;
+  pointer-events: none;
+}
+.adl-branch-graph__label[data-indicator='true']::before {
+  opacity: 1;
 }
 
-.adl-branch-graph__label--active {
-  outline: 2px solid var(--accent, #3b82f6);
-  outline-offset: 1px;
+/* Scale on hover-only or selected-only (XOR) */
+.adl-branch-graph__label[data-scale='true'] {
+  transform: scale(1.06);
 }
 
-.adl-branch-graph__label--inactive {
-  cursor: pointer;
+/* Text truncation span */
+.adl-branch-graph__label-text {
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 130px;
+  vertical-align: top;
+}
+
+.adl-author-avatar {
+  user-select: none;
+  /* Future: 当 src 属性传入真实头像 URL 时，class 不变，仅渲染方式从 span 变为 img */
 }
 
 .adl-branch-graph__tag {

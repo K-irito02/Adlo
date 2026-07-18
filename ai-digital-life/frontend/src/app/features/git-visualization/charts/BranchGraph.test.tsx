@@ -94,16 +94,34 @@ describe('BranchGraph', () => {
       expect((el as HTMLElement).style.opacity).toBe('1');
       expect(el.classList.contains('adl-branch-graph__row--dimmed')).toBe(false);
     });
-    // Labels should remain visible with active/inactive states
+    // Labels should reflect selection via data-indicator attribute
     const labelsAfter = container.querySelectorAll('.adl-branch-graph__label');
     expect(labelsAfter.length).toBeGreaterThan(0);
-    const activeLabel = container.querySelector('.adl-branch-graph__label--active');
-    expect(activeLabel).toBeTruthy();
-    expect(activeLabel?.textContent).toBe(filteredBranch);
-    const inactiveLabels = container.querySelectorAll('.adl-branch-graph__label--inactive');
-    expect(inactiveLabels.length).toBe(labelsAfter.length - 1);
+    const activeLabel = labelsAfter[0];
+    expect(activeLabel.textContent).toBe(filteredBranch);
+    expect(activeLabel.getAttribute('data-indicator')).toBe('true');
+    // Non-selected labels should not have data-indicator
+    for (let i = 1; i < labelsAfter.length; i++) {
+      expect(labelsAfter[i].getAttribute('data-indicator')).toBeNull();
+    }
+    // Non-selected labels should have reduced opacity
+    for (let i = 0; i < labelsAfter.length; i++) {
+      if (labelsAfter[i].textContent !== filteredBranch) {
+        expect((labelsAfter[i] as HTMLElement).style.opacity).toBe('0.4');
+      }
+    }
     // Click active label again to clear filter
-    fireEvent.click(activeLabel!);
-    expect(container.querySelector('.adl-branch-graph__label--active')).toBeNull();
+    fireEvent.click(activeLabel);
+    const rowsAfterClear = container.querySelectorAll('.adl-branch-graph__row');
+    const dimmedAfterClear = [...rowsAfterClear].filter((r) =>
+      r.classList.contains('adl-branch-graph__row--dimmed')
+    );
+    expect(dimmedAfterClear.length).toBe(0);
+    // All labels should clear data-indicator after un-selection
+    const labelsAfterClear = container.querySelectorAll('.adl-branch-graph__label');
+    for (let i = 0; i < labelsAfterClear.length; i++) {
+      expect(labelsAfterClear[i].getAttribute('data-indicator')).toBeNull();
+      expect((labelsAfterClear[i] as HTMLElement).style.opacity).toBe('1');
+    }
   });
 });
