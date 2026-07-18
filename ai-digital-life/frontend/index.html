@@ -34,6 +34,7 @@
       }
       html.dataset.theme = resolved;
       html.style.colorScheme = resolved;
+      html.classList.toggle('dark', resolved === 'dark');
     </script>
     <style>
       #preload-overlay {
