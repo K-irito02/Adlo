@@ -53,6 +53,9 @@ export interface AppPreferencePatch {
   modelPreferences?: Record<string, ModelProviderPreferencePatch>;
   keybinds?: Record<string, string>;
   fonts?: FontPreferences;
+  maxConcurrentWorkspaces?: number;
+  workspacePriorityIds?: string[];
+  workspaceDeferredIds?: string[];
 }
 
 export interface ConfigSnapshot {
@@ -66,4 +69,7 @@ export interface ConfigSnapshot {
   modelPreferences: ModelPreferences;
   keybinds: Record<string, string>;
   fonts: FontPreferences;
+  maxConcurrentWorkspaces: number;
+  workspacePriorityIds: string[];
+  workspaceDeferredIds: string[];
 }

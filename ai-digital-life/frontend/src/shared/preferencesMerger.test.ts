@@ -15,6 +15,9 @@ const baseConfig: ConfigSnapshot = {
   },
   keybinds: {},
   fonts: {},
+  maxConcurrentWorkspaces: 6,
+  workspacePriorityIds: [],
+  workspaceDeferredIds: [],
 };
 
 describe('applyPreferencePatch', () => {

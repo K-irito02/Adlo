@@ -187,7 +187,7 @@ export function SettingsControls({ items, onChange, searchQuery }: SettingsContr
                 className="adl-settings-row__reset"
                 aria-label={t.settingsResetToDefault}
                 title={t.settingsResetToDefault}
-                onClick={() => onChange(item.id, defaultValue)}
+                onClick={() => onChange(item.id, defaultValue as string | boolean | number)}
               >
                 <IconRefreshCw size={14} decorative />
               </button>

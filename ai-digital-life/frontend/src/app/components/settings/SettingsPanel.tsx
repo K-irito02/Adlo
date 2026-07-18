@@ -14,6 +14,7 @@ import { PermissionSettings } from '../../features/permission-settings/Permissio
 import { ReferenceSettings } from '../../features/reference-manager/ReferenceSettings';
 import { ProviderSettings } from '../../features/provider-manager/ProviderSettings';
 import { LspSettings } from '../../features/lsp-panel/LspSettings';
+import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSettings';
 import { getDefaultPreferences } from '../../../shared/defaultPreferences';
 
 interface SettingsPanelProps {
@@ -30,6 +31,7 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   providers: ProviderSettings,
   lsp: LspSettings,
   agent: CustomAgentSettings,
+  workspace: WorkspaceSettings,
 };
 
 export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps) {

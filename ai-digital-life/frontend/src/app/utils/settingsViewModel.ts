@@ -134,5 +134,8 @@ export function preferencePatchFromSettingChange(
   if (id === 'font:terminal') {
     return { fonts: { terminalFont: value as string } };
   }
+  if (id === 'maxConcurrentWorkspaces') return { maxConcurrentWorkspaces: value as number };
+  if (id === 'workspacePriorityIds') return { workspacePriorityIds: value as unknown as string[] };
+  if (id === 'workspaceDeferredIds') return { workspaceDeferredIds: value as unknown as string[] };
   return undefined;
 }
