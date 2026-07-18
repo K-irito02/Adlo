@@ -297,26 +297,6 @@ export const BranchGraph = React.memo(function BranchGraph() {
         }}
       >
         <div />
-        <div
-          className="adl-branch-graph__header"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '80px 1fr auto auto',
-            gap: 4,
-            padding: '4px 8px',
-            fontSize: 11,
-            fontWeight: 600,
-            color: theme.muted,
-            borderBottom: `1px solid ${theme.grid}`,
-          }}
-        >
-          <span>HASH</span>
-          <span>MESSAGE</span>
-          <span>AUTHOR</span>
-          <span>DATE</span>
-        </div>
-
-        <div />
         <div style={{ display: 'flex', gap: 6, padding: '4px 8px 8px', flexWrap: 'wrap' }}>
           {lanes.map((l) => (
             <button
@@ -345,6 +325,26 @@ export const BranchGraph = React.memo(function BranchGraph() {
               {l.branch}
             </button>
           ))}
+        </div>
+
+        <div />
+        <div
+          className="adl-branch-graph__header"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '80px 1fr auto auto',
+            gap: 4,
+            padding: '4px 8px',
+            fontSize: 11,
+            fontWeight: 600,
+            color: theme.muted,
+            borderBottom: `1px solid ${theme.grid}`,
+          }}
+        >
+          <span>HASH</span>
+          <span>MESSAGE</span>
+          <span>AUTHOR</span>
+          <span>DATE</span>
         </div>
 
         <SvgLanes
