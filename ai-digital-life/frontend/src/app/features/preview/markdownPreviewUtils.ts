@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { escapeHtml } from '../../../design-system/html';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js/lib/core';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -28,14 +29,6 @@ hljs.registerLanguage('css', css);
 export interface MarkdownPreviewProps {
   content: string;
   theme?: 'light' | 'dark';
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
 }
 
 function createMdInstance(_theme: 'light' | 'dark'): MarkdownIt {

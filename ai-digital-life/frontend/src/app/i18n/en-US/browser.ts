@@ -174,4 +174,5 @@ export const browserEn = {
   browserDateMonth: 'mo',
   browserDateDay: 'd',
   browserNewTabFolder: 'New Tab Folder',
+  resizeLabel: 'Resize browser navigator',
 } as const;

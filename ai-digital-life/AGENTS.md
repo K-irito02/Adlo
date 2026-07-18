@@ -46,7 +46,7 @@
 
 > 截至 2026-07-18：工具链 rustc 1.97.1，534 Rust 测试通过、594 前端测试通过。最新计数请运行 `cargo test --workspace` 与 `pnpm --dir frontend run test`。
 >
-> 质量检查：`cargo clippy --workspace --all-targets -- -D warnings`（0 警告）、`pnpm --dir frontend run lint`（49 warnings，主要为 react-refresh/only-export-components 与 react-hooks/exhaustive-deps）。
+> 质量检查：`cargo clippy --workspace --all-targets -- -D warnings`（0 警告）、`pnpm --dir frontend run lint`（3 warnings，为 react-hooks/exhaustive-deps）。
 
 ### 重构历史
 

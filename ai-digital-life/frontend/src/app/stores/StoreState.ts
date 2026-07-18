@@ -94,7 +94,11 @@ import type {
 import type { MessageSendOptions } from '../utils/composerSend';
 import type { WorkspaceID, SessionID, AgentRunID } from '../../shared/branded';
 
-type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (k: infer I) => void ? I : never;
+type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (
+  k: infer I
+) => void
+  ? I
+  : never;
 
 interface StoreStateRootFields {
   loading: boolean;
@@ -110,14 +114,39 @@ interface StoreStateRootFields {
 }
 
 type AllSlices = [
-  UISlice, WorkspaceSlice, GitSlice, SessionSlice, EditorSlice,
-  PatchSlice, SearchSlice, DiagnosticSlice, TaskSlice, CommandSlice,
-  ClipboardSlice, TerminalSlice, BrowserTabsSlice, BrowserBookmarkSlice,
-  BrowserHistorySlice, BrowserFoldersSlice, BrowserLandingSlice,
-  BrowserSlice, CiSlice, CommunicateSlice, GitHubRepoSlice,
-  GitHubTreeSlice, GitHubSliceType, AgentSlice, CustomCommandSlice,
-  PermissionSlice, CompactionSlice, WebToolsSlice, McpSlice,
-  ProviderSlice, ReferenceSlice, DurableSlice, ToastSlice,
+  UISlice,
+  WorkspaceSlice,
+  GitSlice,
+  SessionSlice,
+  EditorSlice,
+  PatchSlice,
+  SearchSlice,
+  DiagnosticSlice,
+  TaskSlice,
+  CommandSlice,
+  ClipboardSlice,
+  TerminalSlice,
+  BrowserTabsSlice,
+  BrowserBookmarkSlice,
+  BrowserHistorySlice,
+  BrowserFoldersSlice,
+  BrowserLandingSlice,
+  BrowserSlice,
+  CiSlice,
+  CommunicateSlice,
+  GitHubRepoSlice,
+  GitHubTreeSlice,
+  GitHubSliceType,
+  AgentSlice,
+  CustomCommandSlice,
+  PermissionSlice,
+  CompactionSlice,
+  WebToolsSlice,
+  McpSlice,
+  ProviderSlice,
+  ReferenceSlice,
+  DurableSlice,
+  ToastSlice,
   NotificationSlice,
 ];
 
@@ -340,14 +369,30 @@ interface SnapshotActions {
 }
 
 type AllActions = [
-  WorkspaceActions, SessionActions, EditorActions, GitActions,
-  PatchActions, SearchActions, TaskActions, CommandActions,
-  CustomCommandActions, PermissionActions, CompactionActions,
-  DataFetchActions, AgentActions, McpActions, ProviderActions,
-  WebToolsActions, LspActions, CustomAgentActions, ReferenceActions,
-  SnapshotActions, SessionForkActions, DurableActions,
+  WorkspaceActions,
+  SessionActions,
+  EditorActions,
+  GitActions,
+  PatchActions,
+  SearchActions,
+  TaskActions,
+  CommandActions,
+  CustomCommandActions,
+  PermissionActions,
+  CompactionActions,
+  DataFetchActions,
+  AgentActions,
+  McpActions,
+  ProviderActions,
+  WebToolsActions,
+  LspActions,
+  CustomAgentActions,
+  ReferenceActions,
+  SnapshotActions,
+  SessionForkActions,
+  DurableActions,
 ];
 
-export type StoreState = StoreStateRootFields
-  & UnionToIntersection<AllSlices[number]>
-  & UnionToIntersection<AllActions[number]>;
+export type StoreState = StoreStateRootFields &
+  UnionToIntersection<AllSlices[number]> &
+  UnionToIntersection<AllActions[number]>;

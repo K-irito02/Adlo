@@ -48,6 +48,10 @@ export const browserSelectors = {
       })
     ),
 
+  getBrowserTabById: (state: StoreState, id: string) => {
+    return state.browserTabsById?.[id] ?? state.browserTabs.find((t) => t.id === id);
+  },
+
   hasBrowserActiveTab: (state: StoreState) =>
     Boolean(state.browserActiveTabId && state.browserTabsById[state.browserActiveTabId]),
   useHasBrowserActiveTab: () =>
