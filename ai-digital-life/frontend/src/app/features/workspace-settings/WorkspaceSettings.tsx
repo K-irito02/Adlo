@@ -17,11 +17,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
 
@@ -32,6 +28,7 @@ function SortableItem({
   onMoveDown,
   isFirst,
   isLast,
+  t,
 }: {
   workspace: DraggableWorkspace;
   onRemove: (id: string) => void;
@@ -39,6 +36,7 @@ function SortableItem({
   onMoveDown: (id: string) => void;
   isFirst: boolean;
   isLast: boolean;
+  t: Record<string, string>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: workspace.id,
@@ -60,7 +58,10 @@ function SortableItem({
         <button
           type="button"
           className="adl-sortable-move"
-          onClick={(e) => { e.stopPropagation(); onMoveUp(workspace.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoveUp(workspace.id);
+          }}
           disabled={isFirst}
           aria-label={t.moveUp}
         >
@@ -69,7 +70,10 @@ function SortableItem({
         <button
           type="button"
           className="adl-sortable-move"
-          onClick={(e) => { e.stopPropagation(); onMoveDown(workspace.id); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMoveDown(workspace.id);
+          }}
           disabled={isLast}
           aria-label={t.moveDown}
         >
@@ -99,7 +103,13 @@ function DraggableItem({ workspace }: { workspace: DraggableWorkspace }) {
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="adl-draggable-item" {...listeners} {...attributes}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="adl-draggable-item"
+      {...listeners}
+      {...attributes}
+    >
       <IconMenu size={14} className="adl-drag-icon" />
       <span>{workspace.name}</span>
     </div>
@@ -133,7 +143,9 @@ export function WorkspaceSettings() {
 
   const persistChanges = useCallback(
     (p: number, pri: string[], def: string[]) => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
       debounceRef.current = setTimeout(() => {
         updatePreferences({
           maxConcurrentWorkspaces: p,
@@ -154,20 +166,24 @@ export function WorkspaceSettings() {
   );
 
   const priorityWorkspaces = useMemo(
-    () => priorityIds.map((id) => visibleWorkspaces.find((w) => w.id === id)).filter(Boolean) as DraggableWorkspace[],
+    () =>
+      priorityIds
+        .map((id) => visibleWorkspaces.find((w) => w.id === id))
+        .filter(Boolean) as DraggableWorkspace[],
     [priorityIds, visibleWorkspaces]
   );
 
   const deferredWorkspaces = useMemo(
-    () => deferredIds.map((id) => visibleWorkspaces.find((w) => w.id === id)).filter(Boolean) as DraggableWorkspace[],
+    () =>
+      deferredIds
+        .map((id) => visibleWorkspaces.find((w) => w.id === id))
+        .filter(Boolean) as DraggableWorkspace[],
     [deferredIds, visibleWorkspaces]
   );
 
   const naturalWorkspaces = useMemo(
     () =>
-      visibleWorkspaces.filter(
-        (w) => !priorityIds.includes(w.id) && !deferredIds.includes(w.id)
-      ),
+      visibleWorkspaces.filter((w) => !priorityIds.includes(w.id) && !deferredIds.includes(w.id)),
     [visibleWorkspaces, priorityIds, deferredIds]
   );
 
@@ -175,14 +191,16 @@ export function WorkspaceSettings() {
   const isDeferredTarget = (id: string): boolean => deferredIds.includes(id);
 
   const findContainer = (id: string): ContainerId => {
-    if (priorityIds.includes(id)) return 'priority';
-    if (deferredIds.includes(id)) return 'deferred';
+    if (priorityIds.includes(id)) {
+      return 'priority';
+    }
+    if (deferredIds.includes(id)) {
+      return 'deferred';
+    }
     return 'natural';
   };
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -192,7 +210,9 @@ export function WorkspaceSettings() {
     (event: DragEndEvent) => {
       const { active, over } = event;
       setActiveId(null);
-      if (!over || active.id === over.id) return;
+      if (!over || active.id === over.id) {
+        return;
+      }
 
       const itemId = active.id as string;
       const fromContainer = findContainer(itemId);
@@ -200,11 +220,12 @@ export function WorkspaceSettings() {
       const toContainer = findContainer(overId);
 
       if (fromContainer === toContainer) {
-        const ids = fromContainer === 'priority'
-          ? [...priorityIds]
-          : fromContainer === 'deferred'
-          ? [...deferredIds]
-          : [];
+        const ids =
+          fromContainer === 'priority'
+            ? [...priorityIds]
+            : fromContainer === 'deferred'
+              ? [...deferredIds]
+              : [];
         const oldIndex = ids.indexOf(itemId);
         const newIndex = ids.indexOf(overId);
         if (oldIndex !== -1 && newIndex !== -1) {
@@ -221,12 +242,24 @@ export function WorkspaceSettings() {
       } else {
         let newPriority = [...priorityIds];
         let newDeferred = [...deferredIds];
-        const sourceList = fromContainer === 'priority' ? newPriority : fromContainer === 'deferred' ? newDeferred : null;
-        const targetList = toContainer === 'priority' ? newPriority : toContainer === 'deferred' ? newDeferred : null;
+        const sourceList =
+          fromContainer === 'priority'
+            ? newPriority
+            : fromContainer === 'deferred'
+              ? newDeferred
+              : null;
+        const targetList =
+          toContainer === 'priority'
+            ? newPriority
+            : toContainer === 'deferred'
+              ? newDeferred
+              : null;
 
         if (fromContainer !== 'natural' && sourceList) {
           const idx = sourceList.indexOf(itemId);
-          if (idx !== -1) sourceList.splice(idx, 1);
+          if (idx !== -1) {
+            sourceList.splice(idx, 1);
+          }
         }
 
         if (toContainer !== 'natural' && targetList) {
@@ -274,8 +307,13 @@ export function WorkspaceSettings() {
       const idx = ids.indexOf(id);
       if (idx > 0) {
         [ids[idx - 1], ids[idx]] = [ids[idx], ids[idx - 1]];
-        if (list === 'priority') { setPriorityIds(ids); persistChanges(maxConcurrent, ids, deferredIds); }
-        else { setDeferredIds(ids); persistChanges(maxConcurrent, priorityIds, ids); }
+        if (list === 'priority') {
+          setPriorityIds(ids);
+          persistChanges(maxConcurrent, ids, deferredIds);
+        } else {
+          setDeferredIds(ids);
+          persistChanges(maxConcurrent, priorityIds, ids);
+        }
       }
     },
     [priorityIds, deferredIds, maxConcurrent, persistChanges]
@@ -287,8 +325,13 @@ export function WorkspaceSettings() {
       const idx = ids.indexOf(id);
       if (idx < ids.length - 1) {
         [ids[idx], ids[idx + 1]] = [ids[idx + 1], ids[idx]];
-        if (list === 'priority') { setPriorityIds(ids); persistChanges(maxConcurrent, ids, deferredIds); }
-        else { setDeferredIds(ids); persistChanges(maxConcurrent, priorityIds, ids); }
+        if (list === 'priority') {
+          setPriorityIds(ids);
+          persistChanges(maxConcurrent, ids, deferredIds);
+        } else {
+          setDeferredIds(ids);
+          persistChanges(maxConcurrent, priorityIds, ids);
+        }
       }
     },
     [priorityIds, deferredIds, maxConcurrent, persistChanges]
@@ -296,14 +339,22 @@ export function WorkspaceSettings() {
 
   useEffect(() => {
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
     };
   }, []);
 
   const activeItem = activeId ? visibleWorkspaces.find((w) => w.id === activeId) : null;
 
-  const prioritySortableIds = useMemo(() => priorityWorkspaces.map((w) => w.id), [priorityWorkspaces]);
-  const deferredSortableIds = useMemo(() => deferredWorkspaces.map((w) => w.id), [deferredWorkspaces]);
+  const prioritySortableIds = useMemo(
+    () => priorityWorkspaces.map((w) => w.id),
+    [priorityWorkspaces]
+  );
+  const deferredSortableIds = useMemo(
+    () => deferredWorkspaces.map((w) => w.id),
+    [deferredWorkspaces]
+  );
 
   return (
     <div className="adl-settings-section">
@@ -313,7 +364,12 @@ export function WorkspaceSettings() {
         <div className="adl-settings-row__label">
           <div className="adl-settings-row__label-text">
             <span>{t.maxConcurrentWorkspaces}</span>
-            <TooltipSimple content={t.maxConcurrentWorkspacesDesc} sideOffset={4} dismissible maxWidth={280}>
+            <TooltipSimple
+              content={t.maxConcurrentWorkspacesDesc}
+              sideOffset={4}
+              dismissible
+              maxWidth={280}
+            >
               <button type="button" className="adl-icon-button adl-icon-button--info" tabIndex={-1}>
                 <IconAlertTriangle size={16} />
               </button>
@@ -351,15 +407,16 @@ export function WorkspaceSettings() {
                 <div className="adl-sortable-empty">{t.priorityListEmpty}</div>
               ) : (
                 priorityWorkspaces.map((w, i) => (
-                  <SortableItem
-                    key={w.id}
-                    workspace={w}
-                    onRemove={(id) => handleRemove(id, 'priority')}
-                    onMoveUp={(id) => handleMoveUp(id, 'priority')}
-                    onMoveDown={(id) => handleMoveDown(id, 'priority')}
-                    isFirst={i === 0}
-                    isLast={i === priorityWorkspaces.length - 1}
-                  />
+                    <SortableItem
+                      key={w.id}
+                      workspace={w}
+                      onRemove={(id) => handleRemove(id, 'priority')}
+                      onMoveUp={(id) => handleMoveUp(id, 'priority')}
+                      onMoveDown={(id) => handleMoveDown(id, 'priority')}
+                      isFirst={i === 0}
+                      isLast={i === priorityWorkspaces.length - 1}
+                      t={t}
+                    />
                 ))
               )}
             </div>
@@ -377,15 +434,16 @@ export function WorkspaceSettings() {
                 <div className="adl-sortable-empty">{t.deferredListEmpty}</div>
               ) : (
                 deferredWorkspaces.map((w, i) => (
-                  <SortableItem
-                    key={w.id}
-                    workspace={w}
-                    onRemove={(id) => handleRemove(id, 'deferred')}
-                    onMoveUp={(id) => handleMoveUp(id, 'deferred')}
-                    onMoveDown={(id) => handleMoveDown(id, 'deferred')}
-                    isFirst={i === 0}
-                    isLast={i === deferredWorkspaces.length - 1}
-                  />
+                    <SortableItem
+                      key={w.id}
+                      workspace={w}
+                      onRemove={(id) => handleRemove(id, 'deferred')}
+                      onMoveUp={(id) => handleMoveUp(id, 'deferred')}
+                      onMoveDown={(id) => handleMoveDown(id, 'deferred')}
+                      isFirst={i === 0}
+                      isLast={i === deferredWorkspaces.length - 1}
+                      t={t}
+                    />
                 ))
               )}
             </div>
@@ -393,16 +451,12 @@ export function WorkspaceSettings() {
         </div>
 
         <div className="adl-sortable-section adl-sortable-section--natural">
-          <h4 className="adl-sortable-section-title">
-            {t.defaultOrderHint}
-          </h4>
+          <h4 className="adl-sortable-section-title">{t.defaultOrderHint}</h4>
           <div className="adl-sortable-list">
             {naturalWorkspaces.length === 0 ? (
               <div className="adl-sortable-empty">{t.defaultOrderAllConfigured}</div>
             ) : (
-              naturalWorkspaces.map((w) => (
-                <DraggableItem key={w.id} workspace={w} />
-              ))
+              naturalWorkspaces.map((w) => <DraggableItem key={w.id} workspace={w} />)
             )}
           </div>
         </div>

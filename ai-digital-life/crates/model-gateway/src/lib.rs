@@ -228,17 +228,17 @@ impl ModelGateway {
         let mut last_error: Option<AppError> = None;
         for provider in &route {
             let model_id = {
-                let registry = self
-                    .registry
-                    .read()
-                    .map_err(|_| AppError::Internal("provider registry lock poisoned".to_string()))?;
+                let registry = self.registry.read().map_err(|_| {
+                    AppError::Internal("provider registry lock poisoned".to_string())
+                })?;
                 self.preferences
                     .providers
                     .get(provider)
                     .map(|pref| pref.model_id.clone())
                     .unwrap_or_else(|| fallback::default_model(provider, &registry))
             };
-            match crate::provider::call_provider_stream(self, provider, &model_id, &messages).await {
+            match crate::provider::call_provider_stream(self, provider, &model_id, &messages).await
+            {
                 Ok(stream) => return Ok(stream),
                 Err(e) => last_error = Some(e),
             }

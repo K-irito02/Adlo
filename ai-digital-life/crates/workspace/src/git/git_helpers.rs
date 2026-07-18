@@ -134,10 +134,7 @@ pub(crate) async fn capture_git_paths_with_fallback_async(
     }
 }
 
-pub(crate) fn git_show_file(
-    root: &Path,
-    relative_path: &str,
-) -> Result<Option<String>, AppError> {
+pub(crate) fn git_show_file(root: &Path, relative_path: &str) -> Result<Option<String>, AppError> {
     let object_path = format!("HEAD:{relative_path}");
     let output = Command::new("git")
         .args(["show", &object_path])
@@ -170,11 +167,8 @@ pub(crate) fn git_file_exists(root: &Path, relative_path: &str) -> Result<bool, 
 
 #[cfg(test)]
 pub(crate) fn run_git_test(dir: &Path, args: &[&str]) {
-    let status = Command::new("git")
-        .args(args)
-        .current_dir(dir)
-        .status()
-        .expect("git should be available");
+    let status =
+        Command::new("git").args(args).current_dir(dir).status().expect("git should be available");
     assert!(status.success(), "git command failed: git {}", args.join(" "));
 }
 

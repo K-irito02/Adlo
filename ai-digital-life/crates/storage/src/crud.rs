@@ -335,8 +335,8 @@ impl Database {
 
 #[cfg(test)]
 mod doom_loop_count_tests {
-    use super::*;
     use super::test_helpers::{open_test_db, unique_id};
+    use super::*;
     use adl_types::{AgentId, AgentRunRecord, AgentRunStatus, ConversationScenario};
 
     fn save_run(db: &Database, session_id: &str, status: AgentRunStatus, ts: i64) {
@@ -399,8 +399,8 @@ mod doom_loop_count_tests {
 
 #[cfg(test)]
 mod list_by_run_tests {
-    use super::*;
     use super::test_helpers::{open_test_db, unique_id};
+    use super::*;
     use adl_types::AgentPlanStep;
 
     fn save_step(db: &Database, run_id: &str, session_id: &str, ts: i64, status: &str) {
@@ -464,8 +464,8 @@ mod list_by_run_tests {
 
 #[cfg(test)]
 mod sessions_batch_tests {
-    use super::*;
     use super::test_helpers::{open_test_db, unique_id};
+    use super::*;
     use adl_types::{now_ms, ConversationSessionRecord};
 
     fn make_session(workspace_id: &str, status: &str) -> ConversationSessionRecord {
@@ -545,8 +545,8 @@ mod sessions_batch_tests {
 
 #[cfg(test)]
 mod list_entities_with_limit_tests {
-    use super::*;
     use super::test_helpers::open_test_db;
+    use super::*;
     use adl_types::{AuditEntry, RiskLevel};
 
     /// Inserts an audit entry with a controlled `updated_at` column value.
@@ -612,8 +612,8 @@ mod list_entities_with_limit_tests {
 
 #[cfg(test)]
 mod audit_batch_tests {
-    use super::*;
     use super::test_helpers::open_test_db;
+    use super::*;
     use adl_types::{AuditBatchEntry, AuditEntry, RiskLevel};
 
     fn make_entry(
@@ -724,8 +724,8 @@ mod audit_batch_tests {
 
 #[cfg(test)]
 mod session_ordered_tests {
-    use super::*;
     use super::test_helpers::open_test_db;
+    use super::*;
     use adl_types::{
         ConversationBlock, ConversationMessageRecord, ConversationRole, ConversationSessionRecord,
     };

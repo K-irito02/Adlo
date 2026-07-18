@@ -3,7 +3,7 @@ use std::path::Path;
 
 use super::git_helpers::{
     capture_git_paths_with_fallback, capture_git_paths_with_fallback_async, first_non_empty_line,
-    run_git, run_git_with_timeout, run_git_required,
+    run_git, run_git_required, run_git_with_timeout,
 };
 
 pub fn capture_git_snapshot(root: &Path) -> GitSnapshot {
@@ -104,8 +104,8 @@ pub fn pop_auto_stash(root: &Path, target_branch: &str) -> Result<bool, adl_erro
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::git_helpers::{init_git_repo, stash_workspace_changes};
+    use super::*;
     use std::process::Command;
 
     #[test]
@@ -115,17 +115,11 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         init_git_repo(&dir);
         std::fs::write(dir.join("readme.md"), "# Test").unwrap();
-        let status = Command::new("git")
-            .args(["add", "readme.md"])
-            .current_dir(&dir)
-            .status()
-            .unwrap();
+        let status =
+            Command::new("git").args(["add", "readme.md"]).current_dir(&dir).status().unwrap();
         assert!(status.success());
-        let status = Command::new("git")
-            .args(["commit", "-m", "init"])
-            .current_dir(&dir)
-            .status()
-            .unwrap();
+        let status =
+            Command::new("git").args(["commit", "-m", "init"]).current_dir(&dir).status().unwrap();
         assert!(status.success());
 
         std::fs::write(dir.join("readme.md"), "# Modified").unwrap();
@@ -142,17 +136,11 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         init_git_repo(&dir);
         std::fs::write(dir.join("readme.md"), "# Test").unwrap();
-        let status = Command::new("git")
-            .args(["add", "readme.md"])
-            .current_dir(&dir)
-            .status()
-            .unwrap();
+        let status =
+            Command::new("git").args(["add", "readme.md"]).current_dir(&dir).status().unwrap();
         assert!(status.success());
-        let status = Command::new("git")
-            .args(["commit", "-m", "init"])
-            .current_dir(&dir)
-            .status()
-            .unwrap();
+        let status =
+            Command::new("git").args(["commit", "-m", "init"]).current_dir(&dir).status().unwrap();
         assert!(status.success());
 
         std::fs::write(dir.join("readme.md"), "# Modified").unwrap();
@@ -169,17 +157,11 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         init_git_repo(&dir);
         std::fs::write(dir.join("readme.md"), "# Test").unwrap();
-        let status = Command::new("git")
-            .args(["add", "readme.md"])
-            .current_dir(&dir)
-            .status()
-            .unwrap();
+        let status =
+            Command::new("git").args(["add", "readme.md"]).current_dir(&dir).status().unwrap();
         assert!(status.success());
-        let status = Command::new("git")
-            .args(["commit", "-m", "init"])
-            .current_dir(&dir)
-            .status()
-            .unwrap();
+        let status =
+            Command::new("git").args(["commit", "-m", "init"]).current_dir(&dir).status().unwrap();
         assert!(status.success());
 
         assert!(!has_auto_stash(&dir, "main"));
@@ -193,17 +175,11 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         init_git_repo(&dir);
         std::fs::write(dir.join("readme.md"), "# Test").unwrap();
-        let status = Command::new("git")
-            .args(["add", "readme.md"])
-            .current_dir(&dir)
-            .status()
-            .unwrap();
+        let status =
+            Command::new("git").args(["add", "readme.md"]).current_dir(&dir).status().unwrap();
         assert!(status.success());
-        let status = Command::new("git")
-            .args(["commit", "-m", "init"])
-            .current_dir(&dir)
-            .status()
-            .unwrap();
+        let status =
+            Command::new("git").args(["commit", "-m", "init"]).current_dir(&dir).status().unwrap();
         assert!(status.success());
 
         std::fs::write(dir.join("readme.md"), "# Modified").unwrap();
@@ -225,17 +201,11 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         init_git_repo(&dir);
         std::fs::write(dir.join("readme.md"), "# Test").unwrap();
-        let status = Command::new("git")
-            .args(["add", "readme.md"])
-            .current_dir(&dir)
-            .status()
-            .unwrap();
+        let status =
+            Command::new("git").args(["add", "readme.md"]).current_dir(&dir).status().unwrap();
         assert!(status.success());
-        let status = Command::new("git")
-            .args(["commit", "-m", "init"])
-            .current_dir(&dir)
-            .status()
-            .unwrap();
+        let status =
+            Command::new("git").args(["commit", "-m", "init"]).current_dir(&dir).status().unwrap();
         assert!(status.success());
 
         let restored = pop_auto_stash(&dir, "main").unwrap();

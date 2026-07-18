@@ -153,8 +153,8 @@ pub fn create_git_branch(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::git_helpers::{init_git_repo, stash_workspace_changes};
+    use super::*;
     use std::path::Path;
     use std::process::Command;
 

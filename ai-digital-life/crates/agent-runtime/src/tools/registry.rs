@@ -1,9 +1,9 @@
 use adl_errors::AppError;
+use adl_tools::glob;
+use adl_tools::grep;
+use adl_tools::read;
 use adl_tools::webfetch;
 use adl_tools::websearch;
-use adl_tools::read;
-use adl_tools::grep;
-use adl_tools::glob;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -159,8 +159,7 @@ impl ToolRegistry {
                     Some("html") => webfetch::WebFetchFormat::Html,
                     _ => webfetch::WebFetchFormat::default(),
                 };
-                let result =
-                    webfetch::webfetch_with_format(&parsed.url, format).await;
+                let result = webfetch::webfetch_with_format(&parsed.url, format).await;
                 serde_json::to_string(&result).map_err(|e| {
                     AppError::Internal(format!("Failed to serialize webfetch result: {}", e))
                 })?
