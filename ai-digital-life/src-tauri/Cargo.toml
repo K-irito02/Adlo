@@ -17,6 +17,7 @@ adl-fs-ops = { path = "../crates/fs-ops" }
 adl-task = { path = "../crates/task" }
 adl-conversation = { path = "../crates/conversation" }
 adl-agent-runtime = { path = "../crates/agent-runtime" }
+adl-tools = { path = "../crates/tools" }
 adl-model-gateway = { path = "../crates/model-gateway" }
 adl-change-engine = { path = "../crates/change-engine" }
 adl-context = { path = "../crates/context" }

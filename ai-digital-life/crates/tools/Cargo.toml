@@ -1,0 +1,16 @@
+[package]
+name = "adl-tools"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+adl-errors = { path = "../errors" }
+adl-credential = { path = "../credential" }
+tokio.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+html2text = "0.17"
+
+[dev-dependencies]
+uuid.workspace = true

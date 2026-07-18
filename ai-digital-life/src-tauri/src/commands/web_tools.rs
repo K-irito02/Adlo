@@ -1,6 +1,6 @@
 use crate::commands::ipc;
-use adl_agent_runtime::tools::webfetch::{webfetch_with_format, WebFetchFormat, WebFetchResult};
-use adl_agent_runtime::tools::websearch::{websearch, WebSearchResult};
+use adl_tools::webfetch::{webfetch_with_format, WebFetchFormat, WebFetchResult};
+use adl_tools::websearch::{websearch, WebSearchResult};
 use adl_errors::AppError;
 use adl_types::IpcResult;
 

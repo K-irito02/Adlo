@@ -20,6 +20,7 @@ members = [
     "crates/browser",
     "crates/ci-status",
     "crates/credential",
+    "crates/tools",
     "crates/adl-logging",
     "crates/subagent",
     "crates/mcp-client",

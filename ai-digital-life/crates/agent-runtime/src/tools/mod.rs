@@ -1,6 +1,3 @@
-pub mod glob;
-pub mod grep;
-pub mod read;
+pub use adl_tools::*;
 pub mod registry;
-pub mod webfetch;
-pub mod websearch;
+pub use registry::*;
