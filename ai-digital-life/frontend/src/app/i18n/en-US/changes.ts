@@ -130,6 +130,11 @@ export const changesEn = {
     'Cumulative commit growth over time. Line chart showing project velocity over a 2-week period.',
   gitVisFileSunburstDesc:
     'Sunburst partition by file type. Arc angle = modification count/code volume. Locate "hotspot files" by category.',
+  gitVisBranchGraph: 'Branch Graph',
+  gitVisBranchGraphDesc:
+    'Commit DAG with branch topology. Each vertical lane is a branch; dots are commits. Click branch labels to filter.',
+  gitVisBranch: 'Branch',
+  gitVisBranchGraphFilterHint: 'Click a branch label to filter',
   gitVisMockDataNote:
     'All data is mock-generated for visualization demonstration. When connecting to a real Git repository, extract real data and adapt.',
 } as const;

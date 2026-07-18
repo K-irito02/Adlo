@@ -124,6 +124,11 @@ export const changesZh = {
   gitVisCommitTimelineDesc: '累计提交增长折线图，展示两周内的项目开发速度。',
   gitVisFileSunburstDesc:
     '按文件类型分类的旭日分区图，扇形角度 = 修改次数/代码量，按类别定位"热点文件"。',
+  gitVisBranchGraph: '分支图谱',
+  gitVisBranchGraphDesc:
+    '带有分支拓扑的提交有向无环图。每条垂直泳道为一个分支，圆点为提交。点击分支标签可筛选。',
+  gitVisBranch: '分支',
+  gitVisBranchGraphFilterHint: '点击分支标签可筛选',
   gitVisMockDataNote:
     '所有数据均为模拟生成，用于展示可视化效果。实际接入 Git 仓库时，需提取真实数据并适配。',
 } as const;
