@@ -20,70 +20,70 @@ function createMockStore() {
 describe('browserSlice', () => {
   it('initializes with default navigator width', () => {
     const { get } = createMockStore();
-    expect((get() as BrowserSlice).browserNavigatorWidth).toBe(240);
+    expect((get() as unknown as BrowserSlice).browserNavigatorWidth).toBe(240);
   });
 
   it('initializes with browserPersisted false', () => {
     const { get } = createMockStore();
-    expect((get() as BrowserSlice).browserPersisted).toBe(false);
+    expect((get() as unknown as BrowserSlice).browserPersisted).toBe(false);
   });
 
   it('initializes with empty workspace id', () => {
     const { get } = createMockStore();
-    expect((get() as BrowserSlice).browserWorkspaceId).toBe('');
+    expect((get() as unknown as BrowserSlice).browserWorkspaceId).toBe('');
   });
 
   it('initializes with navigateInPlace false', () => {
     const { get } = createMockStore();
-    expect((get() as BrowserSlice).browserNavigateInPlace).toBe(false);
+    expect((get() as unknown as BrowserSlice).browserNavigateInPlace).toBe(false);
   });
 
   it('setBrowserPersisted sets the flag', () => {
     const { get } = createMockStore();
-    (get() as BrowserSlice).setBrowserPersisted(true);
-    expect((get() as BrowserSlice).browserPersisted).toBe(true);
+    (get() as unknown as BrowserSlice).setBrowserPersisted(true);
+    expect((get() as unknown as BrowserSlice).browserPersisted).toBe(true);
   });
 
   it('setBrowserWorkspaceId sets the workspace id', () => {
     const { get } = createMockStore();
-    (get() as BrowserSlice).setBrowserWorkspaceId('ws-1');
-    expect((get() as BrowserSlice).browserWorkspaceId).toBe('ws-1');
+    (get() as unknown as BrowserSlice).setBrowserWorkspaceId('ws-1');
+    expect((get() as unknown as BrowserSlice).browserWorkspaceId).toBe('ws-1');
   });
 
   it('setBrowserNavigateInPlace sets the flag', () => {
     const { get } = createMockStore();
-    (get() as BrowserSlice).setBrowserNavigateInPlace(true);
-    expect((get() as BrowserSlice).browserNavigateInPlace).toBe(true);
+    (get() as unknown as BrowserSlice).setBrowserNavigateInPlace(true);
+    expect((get() as unknown as BrowserSlice).browserNavigateInPlace).toBe(true);
   });
 
   it('setBrowserNavigateInPlace toggles back', () => {
     const { get } = createMockStore();
-    (get() as BrowserSlice).setBrowserNavigateInPlace(true);
-    (get() as BrowserSlice).setBrowserNavigateInPlace(false);
-    expect((get() as BrowserSlice).browserNavigateInPlace).toBe(false);
+    (get() as unknown as BrowserSlice).setBrowserNavigateInPlace(true);
+    (get() as unknown as BrowserSlice).setBrowserNavigateInPlace(false);
+    expect((get() as unknown as BrowserSlice).browserNavigateInPlace).toBe(false);
   });
 
   it('setBrowserNavigatorWidth clamps to min 180', () => {
     const { get } = createMockStore();
-    (get() as BrowserSlice).setBrowserNavigatorWidth(0);
-    expect((get() as BrowserSlice).browserNavigatorWidth).toBe(180);
+    (get() as unknown as BrowserSlice).setBrowserNavigatorWidth(0);
+    expect((get() as unknown as BrowserSlice).browserNavigatorWidth).toBe(180);
   });
 
   it('setBrowserNavigatorWidth clamps to max 300', () => {
     const { get } = createMockStore();
-    (get() as BrowserSlice).setBrowserNavigatorWidth(500);
-    expect((get() as BrowserSlice).browserNavigatorWidth).toBe(300);
+    (get() as unknown as BrowserSlice).setBrowserNavigatorWidth(500);
+    expect((get() as unknown as BrowserSlice).browserNavigatorWidth).toBe(300);
   });
 
   it('setBrowserNavigatorWidth sets within range', () => {
     const { get } = createMockStore();
-    (get() as BrowserSlice).setBrowserNavigatorWidth(200);
-    expect((get() as BrowserSlice).browserNavigatorWidth).toBe(200);
+    (get() as unknown as BrowserSlice).setBrowserNavigatorWidth(200);
+    expect((get() as unknown as BrowserSlice).browserNavigatorWidth).toBe(200);
   });
 
   it('toggleBrowserNavigator toggles from false to true', () => {
     const { get } = createMockStore();
-    (get() as BrowserSlice).toggleBrowserNavigator();
+    (get() as unknown as BrowserSlice).toggleBrowserNavigator();
     const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
       string,
       boolean
@@ -93,8 +93,8 @@ describe('browserSlice', () => {
 
   it('toggleBrowserNavigator toggles from true to false', () => {
     const { get } = createMockStore();
-    (get() as BrowserSlice).toggleBrowserNavigator();
-    (get() as BrowserSlice).toggleBrowserNavigator();
+    (get() as unknown as BrowserSlice).toggleBrowserNavigator();
+    (get() as unknown as BrowserSlice).toggleBrowserNavigator();
     const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
       string,
       boolean
@@ -104,7 +104,7 @@ describe('browserSlice', () => {
 
   it('setBrowserNavigatorCollapsed sets browser collapsed', () => {
     const { get } = createMockStore();
-    (get() as BrowserSlice).setBrowserNavigatorCollapsed(true);
+    (get() as unknown as BrowserSlice).setBrowserNavigatorCollapsed(true);
     const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
       string,
       boolean
@@ -114,7 +114,7 @@ describe('browserSlice', () => {
 
   it('setBrowserNavigatorCollapsed sets browser uncollapsed', () => {
     const { get } = createMockStore();
-    (get() as BrowserSlice).setBrowserNavigatorCollapsed(false);
+    (get() as unknown as BrowserSlice).setBrowserNavigatorCollapsed(false);
     const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
       string,
       boolean
@@ -127,7 +127,7 @@ describe('browserSlice', () => {
     const s = get() as Record<string, unknown>;
     s.browserTabs = [];
     s.browserActiveTabId = '';
-    (get() as BrowserSlice).browserNavigateActiveTab('https://example.com', 'Example');
+    (get() as unknown as BrowserSlice).browserNavigateActiveTab('https://example.com', 'Example');
     const state = get();
     const tabs = state.browserTabs as Array<{ id: string; url: string; title: string }>;
     expect(tabs).toHaveLength(1);
@@ -151,9 +151,9 @@ describe('browserSlice', () => {
         sortOrder: 0,
       },
     ];
-    s.browserTabsById = { [tabId]: s.browserTabs[0] };
+    (s.browserTabsById as Record<string, unknown>) = { [tabId]: (s.browserTabs as unknown[])[0] };
     s.browserActiveTabId = tabId;
-    (get() as BrowserSlice).browserNavigateActiveTab('https://new.example', 'New');
+    (get() as unknown as BrowserSlice).browserNavigateActiveTab('https://new.example', 'New');
     const state = get();
     const tabs = state.browserTabs as Array<{ id: string; url: string; title: string }>;
     expect(tabs).toHaveLength(1);

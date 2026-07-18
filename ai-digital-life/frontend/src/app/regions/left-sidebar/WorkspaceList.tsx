@@ -175,7 +175,6 @@ export function WorkspaceList({
                 onClick={() => {
                   if (!item.isCurrent) {
                     onSwitchToWorkspace(item.workspace.id, item.workspace.path);
-                    return;
                   }
                   toggleSessionWorkspace(item.workspace.path);
                 }}

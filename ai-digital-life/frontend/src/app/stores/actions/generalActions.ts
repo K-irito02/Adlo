@@ -166,8 +166,8 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           ]);
 
           if (visibleWorkspaces.length > 0) {
-            const appInfo = get().appInfo;
-            const config = appInfo?.config as Record<string, unknown> | undefined;
+            const appInfo_ = get().appInfo;
+            const config = appInfo_?.config as Record<string, unknown> | undefined;
             const priorityIds: string[] = (config?.workspacePriorityIds as string[]) ?? [];
             const deferredIds: string[] = (config?.workspaceDeferredIds as string[]) ?? [];
             const maxConcurrent = (config?.maxConcurrentWorkspaces as number) ?? 6;
@@ -175,48 +175,55 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             const naturalOrder = visibleWorkspaces.filter(
               (w) => !priorityIds.includes(w.id) && !deferredIds.includes(w.id)
             );
-            const ordered = [
+            const immediateWorkspaces = [
               ...priorityIds
                 .map((id: string) => visibleWorkspaces.find((w) => w.id === id))
                 .filter((w): w is RecentWorkspaceEntry => w !== undefined),
               ...naturalOrder,
-              ...deferredIds
-                .map((id: string) => visibleWorkspaces.find((w) => w.id === id))
-                .filter((w): w is RecentWorkspaceEntry => w !== undefined),
             ];
+            const deferredWorkspaceList = deferredIds
+              .map((id: string) => visibleWorkspaces.find((w) => w.id === id))
+              .filter((w): w is RecentWorkspaceEntry => w !== undefined);
 
-            const tasks = ordered.map((w) => ({
-              id: w.id,
-              treeLoader: () =>
-                window.digitalLife.workspace
-                  .listTreeForWorkspace(w.path)
-                  .then((r) => (r.ok ? r.data : undefined)),
-              snapshotLoader: () =>
-                window.digitalLife.workspace
-                  .listGitStatusForWorkspace(w.path)
-                  .then((r) => (r.ok ? r.data : undefined)),
-            }));
-
-            const wsResults = await runWithConcurrency(tasks, maxConcurrent, async (task) => {
-              const [tree, snapshot] = await Promise.all([task.treeLoader(), task.snapshotLoader()]);
-              return { id: task.id, tree, snapshot };
-            });
-
-            const batch: Partial<StoreState> = {};
-            for (const r of wsResults) {
-              if (r.status !== 'fulfilled') continue;
-              const { id, tree, snapshot } = r.value;
-              if (tree !== undefined) {
-                accumulateBatch(batch, get, 'workspaceTrees', id, tree);
-                accumulateBatch(batch, get, 'workspaceTreeLoading', id, false);
+            async function loadBatch(items: RecentWorkspaceEntry[], concurrency: number): Promise<void> {
+              const tasks = items.map((w) => ({
+                id: w.id,
+                treeLoader: () =>
+                  window.digitalLife.workspace
+                    .listTreeForWorkspace(w.path)
+                    .then((r) => (r.ok ? r.data : undefined)),
+                snapshotLoader: () =>
+                  window.digitalLife.workspace
+                    .listGitStatusForWorkspace(w.path)
+                    .then((r) => (r.ok ? r.data : undefined)),
+              }));
+              const results = await runWithConcurrency(tasks, concurrency, async (task) => {
+                const [tree, snapshot] = await Promise.all([task.treeLoader(), task.snapshotLoader()]);
+                return { id: task.id, tree, snapshot };
+              });
+              const batch_: Partial<StoreState> = {};
+              for (const r of results) {
+                if (r.status !== 'fulfilled') continue;
+                const { id, tree, snapshot } = r.value;
+                if (tree !== undefined) {
+                  accumulateBatch(batch_, get, 'workspaceTrees', id, tree);
+                  accumulateBatch(batch_, get, 'workspaceTreeLoading', id, false);
+                }
+                if (snapshot !== undefined) {
+                  accumulateBatch(batch_, get, 'gitSnapshots', id, snapshot);
+                  accumulateBatch(batch_, get, 'workspaceChangesTreeLoading', id, false);
+                }
               }
-              if (snapshot !== undefined) {
-                accumulateBatch(batch, get, 'gitSnapshots', id, snapshot);
-                accumulateBatch(batch, get, 'workspaceChangesTreeLoading', id, false);
+              if (Object.keys(batch_).length > 0) {
+                set(batch_);
               }
             }
-            if (Object.keys(batch).length > 0) {
-              set(batch);
+
+            await loadBatch(immediateWorkspaces, maxConcurrent);
+
+            if (deferredWorkspaceList.length > 0) {
+              const deferredConcurrency = Math.min(2, maxConcurrent);
+              loadBatch(deferredWorkspaceList, deferredConcurrency);
             }
           }
 
