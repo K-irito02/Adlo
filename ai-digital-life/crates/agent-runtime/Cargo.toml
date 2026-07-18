@@ -15,12 +15,9 @@ serde.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 tokenizers.workspace = true
-reqwest.workspace = true
 serde_json.workspace = true
-adl-credential = { path = "../credential" }
 adl-tools = { path = "../tools" }
 async-trait.workspace = true
-html2text = "0.17"
 
 [dev-dependencies]
 adl-storage = { path = "../storage" }

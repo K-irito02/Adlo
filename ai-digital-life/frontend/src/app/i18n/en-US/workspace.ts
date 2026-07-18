@@ -106,4 +106,8 @@ export const workspaceEn = {
   defaultOrderHint: 'Workspaces not in either list follow the sidebar order.',
   priorityListEmpty: 'Drag a workspace here to prioritize it',
   deferredListEmpty: 'Drag a workspace here to defer it',
+  defaultOrderAllConfigured: 'All workspaces configured',
+  moveUp: 'Move up',
+  moveDown: 'Move down',
+  removeWorkspace: 'Remove {name}',
 } as const;

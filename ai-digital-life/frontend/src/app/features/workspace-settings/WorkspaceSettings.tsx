@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
@@ -62,7 +62,7 @@ function SortableItem({
           className="adl-sortable-move"
           onClick={(e) => { e.stopPropagation(); onMoveUp(workspace.id); }}
           disabled={isFirst}
-          aria-label="Move up"
+          aria-label={t.moveUp}
         >
           ↑
         </button>
@@ -71,7 +71,7 @@ function SortableItem({
           className="adl-sortable-move"
           onClick={(e) => { e.stopPropagation(); onMoveDown(workspace.id); }}
           disabled={isLast}
-          aria-label="Move down"
+          aria-label={t.moveDown}
         >
           ↓
         </button>
@@ -79,7 +79,7 @@ function SortableItem({
           type="button"
           className="adl-sortable-remove"
           onClick={() => onRemove(workspace.id)}
-          aria-label={`Remove ${workspace.name}`}
+          aria-label={t.removeWorkspace.replace('{name}', workspace.name)}
         >
           <IconClose size={14} />
         </button>
@@ -294,6 +294,12 @@ export function WorkspaceSettings() {
     [priorityIds, deferredIds, maxConcurrent, persistChanges]
   );
 
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   const activeItem = activeId ? visibleWorkspaces.find((w) => w.id === activeId) : null;
 
   const prioritySortableIds = useMemo(() => priorityWorkspaces.map((w) => w.id), [priorityWorkspaces]);
@@ -392,7 +398,7 @@ export function WorkspaceSettings() {
           </h4>
           <div className="adl-sortable-list">
             {naturalWorkspaces.length === 0 ? (
-              <div className="adl-sortable-empty">All workspaces configured</div>
+              <div className="adl-sortable-empty">{t.defaultOrderAllConfigured}</div>
             ) : (
               naturalWorkspaces.map((w) => (
                 <DraggableItem key={w.id} workspace={w} />

@@ -103,4 +103,8 @@ export const workspaceZh = {
   defaultOrderHint: '未出现在以上列表中的工作区按侧边栏顺序加载。',
   priorityListEmpty: '将工作区拖入此处设置优先加载',
   deferredListEmpty: '将工作区拖入此处设置延迟加载',
+  defaultOrderAllConfigured: '所有工作区已配置',
+  moveUp: '上移',
+  moveDown: '下移',
+  removeWorkspace: '移除 {name}',
 } as const;
