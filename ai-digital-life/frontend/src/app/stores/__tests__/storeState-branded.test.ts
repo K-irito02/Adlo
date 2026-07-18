@@ -1,5 +1,6 @@
 import { describe, it, expectTypeOf } from 'vitest';
 import type { WorkspaceID, SessionID } from '../../../shared/branded';
+import type { StoreState } from '../StoreState';
 
 describe('StoreState with branded IDs', () => {
   it('WorkspaceActions.openWorkspace accepts WorkspaceID, not plain string', () => {
@@ -17,5 +18,27 @@ describe('StoreState with branded IDs', () => {
     expectTypeOf<(id: SessionID) => Promise<void>>().toBeCallableWith('sess_789' as SessionID);
     // @ts-expect-error: WorkspaceID is not SessionID
     expectTypeOf<(id: SessionID) => Promise<void>>().toBeCallableWith('ws_000' as WorkspaceID);
+  });
+});
+
+describe('StoreState composition', () => {
+  it('should include workspace actions', () => {
+    expectTypeOf<Pick<StoreState, 'openWorkspace' | 'clearWorkspaceContext'>>().toBeObject();
+  });
+
+  it('should include session actions', () => {
+    expectTypeOf<Pick<StoreState, 'sendMessage' | 'createSession'>>().toBeObject();
+  });
+
+  it('should include root-level fields', () => {
+    expectTypeOf<Pick<StoreState, 'loading' | 'appReady' | 'isTauri' | 'bootstrap'>>().toBeObject();
+  });
+
+  it('should include git actions', () => {
+    expectTypeOf<Pick<StoreState, 'loadGitSnapshot' | 'switchGitBranch'>>().toBeObject();
+  });
+
+  it('should include mcp actions', () => {
+    expectTypeOf<Pick<StoreState, 'fetchMcpServers' | 'addMcpServer'>>().toBeObject();
   });
 });
