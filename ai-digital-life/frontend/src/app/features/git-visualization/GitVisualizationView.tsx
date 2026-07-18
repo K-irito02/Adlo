@@ -7,6 +7,7 @@ import { CommitTimeline } from './charts/CommitTimeline';
 import { ContributorActivityHeatmap } from './charts/ContributorActivityHeatmap';
 import { ContributorModuleHeatmap } from './charts/ContributorModuleHeatmap';
 import { FileSunburst } from './charts/FileSunburst';
+import { BranchGraph } from './charts/BranchGraph';
 
 interface ChartCardProps {
   title: string;
@@ -50,6 +51,9 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
       </ChartCard>
       <ChartCard title={t.gitVisFileSunburst} desc={t.gitVisFileSunburstDesc}>
         <FileSunburst />
+      </ChartCard>
+      <ChartCard title={t.gitVisBranchGraph} desc={t.gitVisBranchGraphDesc}>
+        <BranchGraph />
       </ChartCard>
       <p className="adl-git-vis__note">{t.gitVisMockDataNote}</p>
     </div>

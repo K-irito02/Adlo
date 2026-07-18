@@ -60,3 +60,35 @@
   text-align: center;
   padding-bottom: var(--space-4);
 }
+
+/* ── Branch Graph ── */
+.adl-branch-graph__row {
+  transition: background 0.15s, opacity 0.15s;
+  border-radius: 4px;
+}
+
+.adl-branch-graph__row--hover {
+  background: var(--bg-hover, #f1f5f9);
+}
+
+.adl-branch-graph__row--dimmed {
+  opacity: 0.25 !important;
+}
+
+.adl-branch-graph__label {
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.adl-branch-graph__label:hover {
+  transform: translateY(-1px);
+}
+
+.adl-branch-graph__tag {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.adl-branch-graph__header {
+  font-family: var(--font-mono, 'Cascadia Code', monospace);
+  user-select: none;
+}

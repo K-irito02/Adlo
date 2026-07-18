@@ -99,6 +99,10 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisCommitTimeline: 'Commit Timeline',
       gitVisContributorModule: 'Contributor × Module',
       gitVisFileSunburst: 'File Sunburst',
+      gitVisBranchGraph: 'Branch Graph',
+      gitVisBranchGraphDesc: 'desc',
+      gitVisBranch: 'Branch',
+      gitVisBranchGraphFilterHint: 'Click a branch label to filter',
       gitVisCalendarHeatmapDesc: 'desc',
       gitVisClockHeatmapDesc: 'desc',
       gitVisCodeLineEvoDesc: 'desc',
@@ -113,10 +117,10 @@ vi.mock('@i18n/useTCopy', () => ({
 }));
 
 describe('GitVisualizationView', () => {
-  it('renders 7 chart cards', { timeout: 30000 }, () => {
+  it('renders 8 chart cards', { timeout: 30000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const cards = container.querySelectorAll('.adl-git-vis__card');
-    expect(cards.length).toBe(7);
+    expect(cards.length).toBe(8);
   });
 
   it('renders scroll container', { timeout: 30000 }, () => {
