@@ -75,13 +75,25 @@ describe('BranchGraph', () => {
   it('filters by branch label click', () => {
     const { container } = render(<BranchGraph />);
     const labels = container.querySelectorAll('.adl-branch-graph__label');
+    // Click a label to filter
     fireEvent.click(labels[0]);
+    const filteredBranch = labels[0].textContent;
     const rows = container.querySelectorAll('.adl-branch-graph__row');
-    const mainRows = [...rows].filter(r => r.getAttribute('data-branch') === 'main');
-    expect(mainRows.length).toBeGreaterThan(0);
-    // Click again to deselect
-    fireEvent.click(labels[0]);
-    const rowsAfter = container.querySelectorAll('.adl-branch-graph__row--dimmed');
-    expect(rowsAfter.length).toBe(0);
+    // Non-matching rows should be dimmed
+    const nonMatchingRows = [...rows].filter(r => r.getAttribute('data-branch') !== filteredBranch);
+    expect(nonMatchingRows.length).toBeGreaterThan(0);
+    nonMatchingRows.forEach(el => {
+      expect((el as HTMLElement).style.opacity).toBe('0.25');
+      expect(el.classList.contains('adl-branch-graph__row--dimmed')).toBe(true);
+    });
+    // Matching rows should have full opacity
+    const matchingRows = [...rows].filter(r => r.getAttribute('data-branch') === filteredBranch);
+    matchingRows.forEach(el => {
+      expect((el as HTMLElement).style.opacity).toBe('1');
+      expect(el.classList.contains('adl-branch-graph__row--dimmed')).toBe(false);
+    });
+    // Labels should be hidden while filter is active
+    const labelsAfter = container.querySelectorAll('.adl-branch-graph__label');
+    expect(labelsAfter.length).toBe(0);
   });
 });

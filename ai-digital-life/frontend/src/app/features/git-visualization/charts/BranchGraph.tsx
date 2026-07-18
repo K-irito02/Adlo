@@ -43,7 +43,6 @@ interface RowData {
   lane: LaneMap;
   parents: string[];
   isMerge: boolean;
-  isHovered: boolean;
 }
 
 function assignLanes(isDark: boolean): LaneMap[] {
@@ -98,7 +97,6 @@ function buildRows(lanes: LaneMap[], parentMap: Map<string, string[]>): RowData[
       lane: lanes[laneIdx],
       parents,
       isMerge: parents.length >= 2,
-      isHovered: false,
     };
   });
 }
@@ -316,7 +314,7 @@ export const BranchGraph = React.memo(function BranchGraph() {
             return (
               <div
                 key={row.node.id}
-                className={`adl-branch-graph__row${hoveredId === row.node.id ? ' adl-branch-graph__row--hover' : ''}`}
+                className={`adl-branch-graph__row${hoveredId === row.node.id ? ' adl-branch-graph__row--hover' : ''}${isFiltered ? ' adl-branch-graph__row--dimmed' : ''}`}
                 data-branch={row.node.branch}
                 style={{
                   display: 'grid',
