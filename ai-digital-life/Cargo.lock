@@ -13,6 +13,7 @@ dependencies = [
  "adl-fs-ops",
  "adl-kernel",
  "adl-storage",
+ "adl-tools",
  "adl-types",
  "adl-workspace",
  "async-trait",
@@ -296,6 +297,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "adl-tools"
+version = "0.1.0"
+dependencies = [
+ "adl-credential",
+ "adl-errors",
+ "html2text",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "adl-types"
 version = "0.1.0"
 dependencies = [
@@ -386,6 +401,7 @@ dependencies = [
  "adl-storage",
  "adl-subagent",
  "adl-task",
+ "adl-tools",
  "adl-types",
  "adl-workspace",
  "anyhow",

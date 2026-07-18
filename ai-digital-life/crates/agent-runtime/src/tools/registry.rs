@@ -1,4 +1,9 @@
 use adl_errors::AppError;
+use adl_tools::webfetch;
+use adl_tools::websearch;
+use adl_tools::read;
+use adl_tools::grep;
+use adl_tools::glob;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
@@ -150,12 +155,12 @@ impl ToolRegistry {
                 let parsed: WebFetchInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid webfetch input: {}", e)))?;
                 let format = match parsed.format.as_deref() {
-                    Some("text") => crate::tools::webfetch::WebFetchFormat::Text,
-                    Some("html") => crate::tools::webfetch::WebFetchFormat::Html,
-                    _ => crate::tools::webfetch::WebFetchFormat::default(),
+                    Some("text") => webfetch::WebFetchFormat::Text,
+                    Some("html") => webfetch::WebFetchFormat::Html,
+                    _ => webfetch::WebFetchFormat::default(),
                 };
                 let result =
-                    crate::tools::webfetch::webfetch_with_format(&parsed.url, format).await;
+                    webfetch::webfetch_with_format(&parsed.url, format).await;
                 serde_json::to_string(&result).map_err(|e| {
                     AppError::Internal(format!("Failed to serialize webfetch result: {}", e))
                 })?
@@ -163,7 +168,7 @@ impl ToolRegistry {
             "websearch" => {
                 let parsed: WebSearchInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid websearch input: {}", e)))?;
-                let result = crate::tools::websearch::websearch(&parsed.query).await;
+                let result = websearch::websearch(&parsed.query).await;
                 serde_json::to_string(&result).map_err(|e| {
                     AppError::Internal(format!("Failed to serialize websearch result: {}", e))
                 })?
@@ -171,7 +176,7 @@ impl ToolRegistry {
             "read" => {
                 let parsed: ReadInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid read input: {}", e)))?;
-                let result = crate::tools::read::read_file(&parsed.path).await;
+                let result = read::read_file(&parsed.path).await;
                 serde_json::to_string(&result).map_err(|e| {
                     AppError::Internal(format!("Failed to serialize read result: {}", e))
                 })?
@@ -179,7 +184,7 @@ impl ToolRegistry {
             "glob" => {
                 let parsed: GlobInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid glob input: {}", e)))?;
-                let result = crate::tools::glob::glob_files(&parsed.pattern).await;
+                let result = glob::glob_files(&parsed.pattern).await;
                 serde_json::to_string(&result).map_err(|e| {
                     AppError::Internal(format!("Failed to serialize glob result: {}", e))
                 })?
@@ -187,7 +192,7 @@ impl ToolRegistry {
             "grep" => {
                 let parsed: GrepInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid grep input: {}", e)))?;
-                let result = crate::tools::grep::grep_files(&parsed.pattern).await;
+                let result = grep::grep_files(&parsed.pattern).await;
                 serde_json::to_string(&result).map_err(|e| {
                     AppError::Internal(format!("Failed to serialize grep result: {}", e))
                 })?
