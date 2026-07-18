@@ -61,6 +61,15 @@ export function applyPreferencePatch(
       ...(patch.fonts.terminalFont !== undefined ? { terminalFont: patch.fonts.terminalFont } : {}),
     };
   }
+  if (patch.maxConcurrentWorkspaces !== undefined) {
+    nextConfig.maxConcurrentWorkspaces = patch.maxConcurrentWorkspaces;
+  }
+  if (patch.workspacePriorityIds !== undefined) {
+    nextConfig.workspacePriorityIds = patch.workspacePriorityIds;
+  }
+  if (patch.workspaceDeferredIds !== undefined) {
+    nextConfig.workspaceDeferredIds = patch.workspaceDeferredIds;
+  }
 
   return nextConfig;
 }

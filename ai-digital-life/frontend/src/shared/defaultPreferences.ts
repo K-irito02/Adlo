@@ -18,6 +18,10 @@ export const DEFAULT_FONTS = {
   terminalFont: '',
 };
 
+export const DEFAULT_MAX_CONCURRENT_WORKSPACES = 6;
+export const DEFAULT_WORKSPACE_PRIORITY_IDS: string[] = [];
+export const DEFAULT_WORKSPACE_DEFERRED_IDS: string[] = [];
+
 export function getDefaultPreferences(): AppPreferencePatch {
   return {
     language: DEFAULT_LANGUAGE,
@@ -27,10 +31,13 @@ export function getDefaultPreferences(): AppPreferencePatch {
     debugLogMode: DEFAULT_DEBUG_LOG_MODE,
     keybinds: { ...DEFAULT_KEYBINDS },
     fonts: { ...DEFAULT_FONTS },
+    maxConcurrentWorkspaces: DEFAULT_MAX_CONCURRENT_WORKSPACES,
+    workspacePriorityIds: [...DEFAULT_WORKSPACE_PRIORITY_IDS],
+    workspaceDeferredIds: [...DEFAULT_WORKSPACE_DEFERRED_IDS],
   };
 }
 
-export function getDefaultForSetting(id: string): string | boolean | number | undefined {
+export function getDefaultForSetting(id: string): string | boolean | number | string[] | undefined {
   switch (id) {
     case 'language':
       return DEFAULT_LANGUAGE;
@@ -42,6 +49,12 @@ export function getDefaultForSetting(id: string): string | boolean | number | un
       return DEFAULT_TERMINAL_LOG_MODE;
     case 'debugLogMode':
       return DEFAULT_DEBUG_LOG_MODE;
+    case 'maxConcurrentWorkspaces':
+      return DEFAULT_MAX_CONCURRENT_WORKSPACES;
+    case 'workspacePriorityIds':
+      return DEFAULT_WORKSPACE_PRIORITY_IDS;
+    case 'workspaceDeferredIds':
+      return DEFAULT_WORKSPACE_DEFERRED_IDS;
     case 'font:ui':
     case 'font:code':
     case 'font:terminal':

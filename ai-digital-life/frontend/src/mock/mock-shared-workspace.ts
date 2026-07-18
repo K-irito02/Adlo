@@ -114,7 +114,10 @@ export const appInfo: AppInfo = {
       }
     },
     keybinds: {},
-    fonts: {}
+    fonts: {},
+    maxConcurrentWorkspaces: 6,
+    workspacePriorityIds: [],
+    workspaceDeferredIds: [],
   },
   currentWorkspace: {
     id: "workspace-mock-1",
