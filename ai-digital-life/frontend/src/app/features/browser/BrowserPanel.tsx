@@ -39,29 +39,23 @@ export function BrowserPanel(props: BrowserPanelProps) {
     browserOpenTab,
     browserNavigateActiveTab,
     browserUpdateTab,
-    recentWorkspaces,
     browserBookmarks,
     browserHistory,
-    browserNavigatorWidth,
-    navigatorCollapsedByTool,
-    toggleNavigator,
     setBrowserNavigateInPlace,
     browserNavigateInPlace,
     browserSelectTab,
+    startupOverlayHidden,
   } = useAppStore(
     useShallow((state) => ({
       browserOpenTab: state.browserOpenTab,
       browserNavigateActiveTab: state.browserNavigateActiveTab,
       browserUpdateTab: state.browserUpdateTab,
-      recentWorkspaces: state.recentWorkspaces,
       browserBookmarks: state.browserBookmarks,
       browserHistory: state.browserHistory,
-      browserNavigatorWidth: state.browserNavigatorWidth,
-      navigatorCollapsedByTool: state.navigatorCollapsedByTool,
-      toggleNavigator: state.toggleNavigator,
       setBrowserNavigateInPlace: state.setBrowserNavigateInPlace,
       browserNavigateInPlace: state.browserNavigateInPlace,
       browserSelectTab: state.browserSelectTab,
+      startupOverlayHidden: state.startupOverlayHidden,
     }))
   );
 
@@ -217,8 +211,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleDoubleClick,
   });
 
-  const startupOverlayHidden = useAppStore((s) => s.startupOverlayHidden);
-
   const hasOverlayActive =
     !startupOverlayHidden ||
     createTabDialog.open ||
@@ -292,19 +284,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     validatedUrlsRef,
   });
 
-  const visibleWorkspaces = useMemo(
-    () =>
-      recentWorkspaces.filter(
-        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
-      ),
-    [recentWorkspaces]
-  );
-
-  const bookmarkTreeData = useMemo(
-    () => buildBookmarkDirectoryTree(visibleWorkspaces, browserTabFolders),
-    [visibleWorkspaces, browserTabFolders]
-  );
-
   const { handleGoBack, handleGoForward, handleReload } = useBrowserNavigation({
     iframeRef,
     iframeHistory,
@@ -354,20 +333,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     return result;
   }, [browserTabs, activeTab?.id, isTabInPool]);
 
-  const isTauri = useAppStore((s) => s.isTauri);
-  const isEmbedPending =
-    !isTauri &&
-    !!activeTab?.url &&
-    activeTab?.url !== 'about:blank' &&
-    !validatedUrlsRef.current.has(activeTab.url ?? '') &&
-    !iframeBlockedDetected &&
-    !iframeLoadError;
-
-  const navigatorCollapsed = navigatorCollapsedByTool.browser ?? false;
-
-  const openTabCount = browserTabs.length;
-  const navigatorTitle = t.toolBrowser;
-
   const actionsValue = useBrowserPanelActions(
     {
       handleCloseTab: wrappedHandleCloseTab,
@@ -407,9 +372,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       setNavigatorMode,
       handleSelectTreePath,
       showToast,
-      browserOpenTab,
       handleToggleNavigateMode,
-      toggleNavigator: toggleNavigator as (tool: string) => void,
     },
     [
       wrappedHandleCloseTab,
@@ -449,9 +412,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       setNavigatorMode,
       handleSelectTreePath,
       showToast,
-      browserOpenTab,
       handleToggleNavigateMode,
-      toggleNavigator,
     ]
   );
 
@@ -478,7 +439,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
       primaryRef,
       iframeBlockedDetected,
       iframeLoadError,
-      isEmbedPending,
       validatedUrlsRef,
       navigatorMode,
       navigatorSearchRef,
@@ -487,12 +447,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       selectedTreePathRef,
       activatedTabIdsRef,
       urlState,
-      navigatorCollapsed,
-      browserNavigatorWidth,
-      visibleWorkspaces,
       handlePointerDown,
-      openTabCount,
-      navigatorTitle,
     },
     [
       t,
@@ -516,7 +471,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
       primaryRef,
       iframeBlockedDetected,
       iframeLoadError,
-      isEmbedPending,
       validatedUrlsRef,
       navigatorMode,
       navigatorSearchRef,
@@ -525,13 +479,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
       selectedTreePathRef,
       activatedTabIdsRef,
       urlState,
-      navigatorCollapsed,
-      browserNavigatorWidth,
-      visibleWorkspaces,
       handlePointerDown,
-      openTabCount,
-      navigatorTitle,
     ]
+  );
+
+  const bookmarkTreeData = useMemo(
+    () => buildBookmarkDirectoryTree(stateValue.visibleWorkspaces, browserTabFolders),
+    [stateValue.visibleWorkspaces, browserTabFolders]
   );
 
   return (
