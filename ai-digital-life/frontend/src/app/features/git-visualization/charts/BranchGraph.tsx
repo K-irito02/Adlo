@@ -294,9 +294,59 @@ export const BranchGraph = React.memo(function BranchGraph() {
           display: 'grid',
           gridTemplateColumns: `${totalLaneWidth + 4}px 1fr`,
           gap: 4,
-          alignItems: 'start',
         }}
       >
+        <div />
+        <div
+          className="adl-branch-graph__header"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '80px 1fr auto auto',
+            gap: 4,
+            padding: '4px 8px',
+            fontSize: 11,
+            fontWeight: 600,
+            color: theme.muted,
+            borderBottom: `1px solid ${theme.grid}`,
+          }}
+        >
+          <span>HASH</span>
+          <span>MESSAGE</span>
+          <span>AUTHOR</span>
+          <span>DATE</span>
+        </div>
+
+        <div />
+        <div style={{ display: 'flex', gap: 6, padding: '4px 8px 8px', flexWrap: 'wrap' }}>
+          {lanes.map((l) => (
+            <button
+              key={l.branch}
+              className={
+                filterBranch === null
+                  ? 'adl-branch-graph__label'
+                  : filterBranch === l.branch
+                    ? 'adl-branch-graph__label adl-branch-graph__label--active'
+                    : 'adl-branch-graph__label adl-branch-graph__label--inactive'
+              }
+              onClick={() => handleLabelClick(l.branch)}
+              style={{
+                padding: '2px 8px',
+                borderRadius: 4,
+                background: l.color,
+                color: '#fff',
+                fontSize: 11,
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                opacity: filterBranch === null || filterBranch === l.branch ? 1 : 0.4,
+              }}
+              title={t.gitVisBranchGraphFilterHint}
+            >
+              {l.branch}
+            </button>
+          ))}
+        </div>
+
         <SvgLanes
           rows={rows}
           lanes={lanes}
@@ -306,55 +356,6 @@ export const BranchGraph = React.memo(function BranchGraph() {
           nodeStroke={nodeStroke}
         />
         <div>
-          <div
-            className="adl-branch-graph__header"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '80px 1fr auto auto',
-              gap: 4,
-              padding: '4px 8px',
-              fontSize: 11,
-              fontWeight: 600,
-              color: theme.muted,
-              borderBottom: `1px solid ${theme.grid}`,
-            }}
-          >
-            <span>HASH</span>
-            <span>MESSAGE</span>
-            <span>AUTHOR</span>
-            <span>DATE</span>
-          </div>
-
-          <div style={{ display: 'flex', gap: 6, padding: '4px 8px 8px', flexWrap: 'wrap' }}>
-            {lanes.map((l) => (
-              <button
-                key={l.branch}
-                className={
-                  filterBranch === null
-                    ? 'adl-branch-graph__label'
-                    : filterBranch === l.branch
-                      ? 'adl-branch-graph__label adl-branch-graph__label--active'
-                      : 'adl-branch-graph__label adl-branch-graph__label--inactive'
-                }
-                onClick={() => handleLabelClick(l.branch)}
-                style={{
-                  padding: '2px 8px',
-                  borderRadius: 4,
-                  background: l.color,
-                  color: '#fff',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  border: 'none',
-                  cursor: 'pointer',
-                  opacity: filterBranch === null || filterBranch === l.branch ? 1 : 0.4,
-                }}
-                title={t.gitVisBranchGraphFilterHint}
-              >
-                {l.branch}
-              </button>
-            ))}
-          </div>
-
           {rows.map((row) => {
             const isFiltered = filterBranch !== null && filterBranch !== row.node.branch;
             return (
