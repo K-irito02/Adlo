@@ -252,6 +252,7 @@ const SvgLanes = React.memo(function SvgLanes({
       className="adl-branch-graph__svg"
       width={totalWidth}
       height={totalHeight}
+      viewBox={`0 0 ${totalWidth} ${totalHeight}`}
       style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
     >
       {laneLines}
@@ -312,30 +313,35 @@ export const BranchGraph = React.memo(function BranchGraph() {
             <span>DATE</span>
           </div>
 
-          {filterBranch === null && (
-            <div style={{ display: 'flex', gap: 6, padding: '4px 8px 8px', flexWrap: 'wrap' }}>
-              {lanes.map((l) => (
-                <button
-                  key={l.branch}
-                  className="adl-branch-graph__label"
-                  onClick={() => handleLabelClick(l.branch)}
-                  style={{
-                    padding: '2px 8px',
-                    borderRadius: 4,
-                    background: l.color,
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                  title={t.gitVisBranchGraphFilterHint}
-                >
-                  {l.branch}
-                </button>
-              ))}
-            </div>
-          )}
+          <div style={{ display: 'flex', gap: 6, padding: '4px 8px 8px', flexWrap: 'wrap' }}>
+            {lanes.map((l) => (
+              <button
+                key={l.branch}
+                className={
+                  filterBranch === null
+                    ? 'adl-branch-graph__label'
+                    : filterBranch === l.branch
+                      ? 'adl-branch-graph__label adl-branch-graph__label--active'
+                      : 'adl-branch-graph__label adl-branch-graph__label--inactive'
+                }
+                onClick={() => handleLabelClick(l.branch)}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  background: l.color,
+                  color: '#fff',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  opacity: filterBranch === null || filterBranch === l.branch ? 1 : 0.4,
+                }}
+                title={t.gitVisBranchGraphFilterHint}
+              >
+                {l.branch}
+              </button>
+            ))}
+          </div>
 
           {rows.map((row) => {
             const isFiltered = filterBranch !== null && filterBranch !== row.node.branch;
@@ -352,10 +358,8 @@ export const BranchGraph = React.memo(function BranchGraph() {
                   fontSize: 12,
                   lineHeight: ROW_HEIGHT - 8 + 'px',
                   cursor: 'default',
-                  background: hoveredId === row.node.id ? theme.grid : 'transparent',
                   borderRadius: 4,
                   opacity: isFiltered ? 0.25 : 1,
-                  transition: 'background 0.15s, opacity 0.15s',
                   minHeight: ROW_HEIGHT,
                 }}
                 onMouseEnter={() => handleRowHover(row.node.id)}
@@ -412,7 +416,7 @@ export const BranchGraph = React.memo(function BranchGraph() {
 });
 
 function formatRelativeDate(dateStr: string): string {
-  const now = new Date('2026-07-18');
+  const now = new Date();
   const d = new Date(dateStr);
   const diffMs = now.getTime() - d.getTime();
   const diffDays = Math.floor(diffMs / 86400000);

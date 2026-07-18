@@ -94,8 +94,16 @@ describe('BranchGraph', () => {
       expect((el as HTMLElement).style.opacity).toBe('1');
       expect(el.classList.contains('adl-branch-graph__row--dimmed')).toBe(false);
     });
-    // Labels should be hidden while filter is active
+    // Labels should remain visible with active/inactive states
     const labelsAfter = container.querySelectorAll('.adl-branch-graph__label');
-    expect(labelsAfter.length).toBe(0);
+    expect(labelsAfter.length).toBeGreaterThan(0);
+    const activeLabel = container.querySelector('.adl-branch-graph__label--active');
+    expect(activeLabel).toBeTruthy();
+    expect(activeLabel?.textContent).toBe(filteredBranch);
+    const inactiveLabels = container.querySelectorAll('.adl-branch-graph__label--inactive');
+    expect(inactiveLabels.length).toBe(labelsAfter.length - 1);
+    // Click active label again to clear filter
+    fireEvent.click(activeLabel!);
+    expect(container.querySelector('.adl-branch-graph__label--active')).toBeNull();
   });
 });
