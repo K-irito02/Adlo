@@ -93,4 +93,17 @@ export const workspaceEn = {
   toggleSessions: 'Toggle sessions',
   toggleWorkspaces: 'Toggle workspaces',
   workspaceEmptyList: 'No workspaces yet',
+
+  // Workspace loading settings (Task 4)
+  settingsWorkspaceLoad: 'Workspace Loading',
+  maxConcurrentWorkspaces: 'Max concurrent loading',
+  maxConcurrentWorkspacesDesc:
+    'Higher values speed up loading but increase CPU/memory pressure. Each workspace loads 2 concurrent requests (file tree + git status). Recommended: 4-8.',
+  priorityList: 'Priority (optional)',
+  priorityListDesc: 'Workspaces here will be initialized first on startup.',
+  deferredList: 'Deferred (optional)',
+  deferredListDesc: 'Workspaces here load after others have finished.',
+  defaultOrderHint: 'Workspaces not in either list follow the sidebar order.',
+  priorityListEmpty: 'Drag a workspace here to prioritize it',
+  deferredListEmpty: 'Drag a workspace here to defer it',
 } as const;

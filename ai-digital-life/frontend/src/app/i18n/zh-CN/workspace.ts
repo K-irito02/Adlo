@@ -90,4 +90,17 @@ export const workspaceZh = {
   toggleSessions: '切换会话',
   toggleWorkspaces: '切换工作区',
   workspaceEmptyList: '暂无工作区',
+
+  // Workspace loading settings (Task 4)
+  settingsWorkspaceLoad: '工作区加载',
+  maxConcurrentWorkspaces: '最大并行加载数',
+  maxConcurrentWorkspacesDesc:
+    '较高的数值会加快加载速度，但会增加 CPU/内存压力。每个工作区同时发起 2 个请求（文件树 + Git 状态）。建议值：4-8。',
+  priorityList: '优先加载（可选）',
+  priorityListDesc: '排在此处的工作区会在启动时优先完成初始化。',
+  deferredList: '延迟加载（可选）',
+  deferredListDesc: '排在此处的工作区会在其他工作区之后加载。',
+  defaultOrderHint: '未出现在以上列表中的工作区按侧边栏顺序加载。',
+  priorityListEmpty: '将工作区拖入此处设置优先加载',
+  deferredListEmpty: '将工作区拖入此处设置延迟加载',
 } as const;
