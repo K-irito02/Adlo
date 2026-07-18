@@ -1,5 +1,5 @@
 import type { StoreState } from '../StoreState';
-import type { ConversationMessageRecord, ConversationBlock } from '@ai-digital-life/kernel';
+import type { ConversationMessageRecord, ConversationBlock, RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
 import { createEditorTab } from '@utils/editorTabs';
 import { loadConversationState, loadTaskCenterState } from '../loaders';
@@ -7,6 +7,7 @@ import { workspaceContextModeFromInfo } from '../conversationUtils';
 import { workspaceRequestSeq, queueLowPriorityRefresh, clearError, captureError } from '../shared';
 import { resolveCurrentTheme } from '@shared/resolveTheme';
 import { isTauriShell } from '../../../tauri-bridge';
+import { runWithConcurrency } from '../../shared/asyncUtils';
 import type { StoreApi } from 'zustand';
 
 /**
@@ -165,24 +166,45 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           ]);
 
           if (visibleWorkspaces.length > 0) {
-            const wsResults = await Promise.allSettled(
-              visibleWorkspaces.map(async (w) => {
-                const [tree, snapshot] = await Promise.all([
-                  window.digitalLife.workspace.listTreeForWorkspace(w.path),
-                  window.digitalLife.workspace.listGitStatusForWorkspace(w.path),
-                ]);
-                return {
-                  id: w.id,
-                  tree: tree.ok ? tree.data : undefined,
-                  snapshot: snapshot.ok ? snapshot.data : undefined,
-                };
-              })
+            const appInfo = get().appInfo;
+            const config = appInfo?.config as Record<string, unknown> | undefined;
+            const priorityIds: string[] = (config?.workspacePriorityIds as string[]) ?? [];
+            const deferredIds: string[] = (config?.workspaceDeferredIds as string[]) ?? [];
+            const maxConcurrent = (config?.maxConcurrentWorkspaces as number) ?? 6;
+
+            const naturalOrder = visibleWorkspaces.filter(
+              (w) => !priorityIds.includes(w.id) && !deferredIds.includes(w.id)
             );
+            const ordered = [
+              ...priorityIds
+                .map((id: string) => visibleWorkspaces.find((w) => w.id === id))
+                .filter((w): w is RecentWorkspaceEntry => w !== undefined),
+              ...naturalOrder,
+              ...deferredIds
+                .map((id: string) => visibleWorkspaces.find((w) => w.id === id))
+                .filter((w): w is RecentWorkspaceEntry => w !== undefined),
+            ];
+
+            const tasks = ordered.map((w) => ({
+              id: w.id,
+              treeLoader: () =>
+                window.digitalLife.workspace
+                  .listTreeForWorkspace(w.path)
+                  .then((r) => (r.ok ? r.data : undefined)),
+              snapshotLoader: () =>
+                window.digitalLife.workspace
+                  .listGitStatusForWorkspace(w.path)
+                  .then((r) => (r.ok ? r.data : undefined)),
+            }));
+
+            const wsResults = await runWithConcurrency(tasks, maxConcurrent, async (task) => {
+              const [tree, snapshot] = await Promise.all([task.treeLoader(), task.snapshotLoader()]);
+              return { id: task.id, tree, snapshot };
+            });
+
             const batch: Partial<StoreState> = {};
             for (const r of wsResults) {
-              if (r.status !== 'fulfilled') {
-                continue;
-              }
+              if (r.status !== 'fulfilled') continue;
               const { id, tree, snapshot } = r.value;
               if (tree !== undefined) {
                 accumulateBatch(batch, get, 'workspaceTrees', id, tree);
