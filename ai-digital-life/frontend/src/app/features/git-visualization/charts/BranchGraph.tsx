@@ -111,6 +111,7 @@ interface SvgLanesProps {
   totalWidth: number;
   totalHeight: number;
   hoveredId: string | null;
+  nodeStroke: string;
 }
 
 const SvgLanes = React.memo(function SvgLanes({
@@ -119,6 +120,7 @@ const SvgLanes = React.memo(function SvgLanes({
   totalWidth,
   totalHeight,
   hoveredId,
+  nodeStroke,
 }: SvgLanesProps) {
   const nodeY = (rowIndex: number) => rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
 
@@ -228,8 +230,8 @@ const SvgLanes = React.memo(function SvgLanes({
           height={s}
           rx={2}
           fill={row.lane.color}
-          stroke="#fff"
-          strokeWidth={2.5}
+          stroke={nodeStroke}
+          strokeWidth={2}
         />
       );
     }
@@ -241,8 +243,8 @@ const SvgLanes = React.memo(function SvgLanes({
         cy={y}
         r={r}
         fill={row.lane.color}
-        stroke="#fff"
-        strokeWidth={2.5}
+        stroke={nodeStroke}
+        strokeWidth={2}
       />
     );
   });
@@ -283,17 +285,20 @@ export const BranchGraph = React.memo(function BranchGraph() {
     setFilterBranch((prev) => (prev === branch ? null : branch));
   }, []);
 
+  const nodeStroke = isDark ? 'none' : '#fff';
+
   return (
-    <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
-      <div style={{ position: 'relative', minHeight: totalHeight }}>
+    <div className="adl-git-vis__chart">
+      <div style={{ display: 'grid', gridTemplateColumns: `${totalLaneWidth + 4}px 1fr`, gap: 4 }}>
         <SvgLanes
           rows={rows}
           lanes={lanes}
           totalWidth={totalLaneWidth}
           totalHeight={totalHeight}
           hoveredId={hoveredId}
+          nodeStroke={nodeStroke}
         />
-        <div style={{ marginLeft: totalLaneWidth + 8 }}>
+        <div>
           <div
             className="adl-branch-graph__header"
             style={{

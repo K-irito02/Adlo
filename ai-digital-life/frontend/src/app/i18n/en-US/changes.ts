@@ -132,7 +132,7 @@ export const changesEn = {
     'Sunburst partition by file type. Arc angle = modification count/code volume. Locate "hotspot files" by category.',
   gitVisBranchGraph: 'Branch Graph',
   gitVisBranchGraphDesc:
-    'Commit DAG with branch topology. Each vertical lane is a branch; dots are commits. Click branch labels to filter.',
+    'Commit DAG with branch topology. Each vertical lane is a branch; ● dots are single-parent commits, ■ squares are merge commits (2+ parents), tag badges (e.g. v1.0) mark tagged releases. Click branch labels to filter by branch.',
   gitVisBranch: 'Branch',
   gitVisBranchGraphFilterHint: 'Click a branch label to filter',
   gitVisMockDataNote:
