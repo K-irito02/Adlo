@@ -255,7 +255,7 @@ const SvgLanes = React.memo(function SvgLanes({
       width={totalWidth}
       height={totalHeight}
       viewBox={`0 0 ${totalWidth} ${totalHeight}`}
-      style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+      style={{ display: 'block', pointerEvents: 'none' }}
     >
       {laneLines}
       {connections}
@@ -285,11 +285,18 @@ export const BranchGraph = React.memo(function BranchGraph() {
     setFilterBranch((prev) => (prev === branch ? null : branch));
   }, []);
 
-  const nodeStroke = isDark ? 'none' : '#fff';
+  const nodeStroke = isDark ? '#1a1a1a' : '#ffffff';
 
   return (
     <div className="adl-git-vis__chart">
-      <div style={{ display: 'grid', gridTemplateColumns: `${totalLaneWidth + 4}px 1fr`, gap: 4 }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `${totalLaneWidth + 4}px 1fr`,
+          gap: 4,
+          alignItems: 'start',
+        }}
+      >
         <SvgLanes
           rows={rows}
           lanes={lanes}
