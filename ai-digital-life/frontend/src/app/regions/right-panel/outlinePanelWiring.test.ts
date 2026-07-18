@@ -32,7 +32,7 @@ describe('outline panel wiring', () => {
     'utf8'
   );
   const previewWorkspaceServiceSource = readFileSync(
-    new URL('../../../../dev/previewWorkspaceService.ts', import.meta.url),
+    new URL('../../../../dev/previewWorkspaceService/files.ts', import.meta.url),
     'utf8'
   );
   const outlineTreeSource = readFileSync(
@@ -65,7 +65,7 @@ describe('outline panel wiring', () => {
   });
 
   it('uses the shared outline parser in preview workspace mode', () => {
-    expect(previewWorkspaceServiceSource).toContain("from '../src/shared/outline'");
+    expect(previewWorkspaceServiceSource).toContain("from '../../src/shared/outline'");
     expect(previewWorkspaceServiceSource).toContain('return buildOutlineFromContent(');
   });
 
