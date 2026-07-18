@@ -336,30 +336,8 @@ impl Database {
 #[cfg(test)]
 mod doom_loop_count_tests {
     use super::*;
-    use crate::connection::Database;
+    use super::test_helpers::{open_test_db, unique_id};
     use adl_types::{AgentId, AgentRunRecord, AgentRunStatus, ConversationScenario};
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    static SEQ: AtomicU64 = AtomicU64::new(0);
-
-    fn unique_id(prefix: &str) -> String {
-        format!("{prefix}-{}", SEQ.fetch_add(1, Ordering::SeqCst))
-    }
-
-    /// Opens a temp-file database with schema initialized.
-    ///
-    /// Uses `Database::open` + `init_schema` (the existing test pattern) rather
-    /// than `Database::from_connection`, which is not part of the public API.
-    /// Each call uses a unique file name via `SEQ` so parallel test runs don't
-    /// collide.
-    fn open_test_db() -> Database {
-        let id = SEQ.fetch_add(1, Ordering::SeqCst);
-        let path = std::env::temp_dir().join(format!("adl-doom-loop-{id}.db"));
-        let _ = std::fs::remove_file(&path);
-        let db = Database::open(&path).expect("test db should open");
-        db.init_schema().expect("schema should init");
-        db
-    }
 
     fn save_run(db: &Database, session_id: &str, status: AgentRunStatus, ts: i64) {
         let run = AgentRunRecord {
@@ -390,14 +368,14 @@ mod doom_loop_count_tests {
 
     #[test]
     fn returns_zero_when_no_runs() {
-        let db = open_test_db();
+        let db = open_test_db("adl-doom-loop");
         let count = db.count_consecutive_failed_runs_by_session("sess-empty").unwrap();
         assert_eq!(count, 0);
     }
 
     #[test]
     fn counts_consecutive_failed_at_head() {
-        let db = open_test_db();
+        let db = open_test_db("adl-doom-loop");
         let sid = "sess-fail-3";
         save_run(&db, sid, AgentRunStatus::Succeeded, 100);
         save_run(&db, sid, AgentRunStatus::Failed, 200);
@@ -409,7 +387,7 @@ mod doom_loop_count_tests {
 
     #[test]
     fn stops_at_first_non_failed() {
-        let db = open_test_db();
+        let db = open_test_db("adl-doom-loop");
         let sid = "sess-mixed";
         save_run(&db, sid, AgentRunStatus::Failed, 100);
         save_run(&db, sid, AgentRunStatus::Succeeded, 200);
@@ -422,30 +400,8 @@ mod doom_loop_count_tests {
 #[cfg(test)]
 mod list_by_run_tests {
     use super::*;
-    use crate::connection::Database;
+    use super::test_helpers::{open_test_db, unique_id};
     use adl_types::AgentPlanStep;
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    static RUN_SEQ: AtomicU64 = AtomicU64::new(0);
-
-    fn unique_id(prefix: &str) -> String {
-        format!("{prefix}-{}", RUN_SEQ.fetch_add(1, Ordering::SeqCst))
-    }
-
-    /// Opens a temp-file database with schema initialized.
-    ///
-    /// Uses `Database::open` + `init_schema` (the existing test pattern) rather
-    /// than `Database::from_connection`, which is not part of the public API.
-    /// Each call uses a unique file name via `RUN_SEQ` so parallel test runs
-    /// don't collide.
-    fn open_test_db() -> Database {
-        let id = RUN_SEQ.fetch_add(1, Ordering::SeqCst);
-        let path = std::env::temp_dir().join(format!("adl-list-by-run-{id}.db"));
-        let _ = std::fs::remove_file(&path);
-        let db = Database::open(&path).expect("test db should open");
-        db.init_schema().expect("schema should init");
-        db
-    }
 
     fn save_step(db: &Database, run_id: &str, session_id: &str, ts: i64, status: &str) {
         let step = AgentPlanStep {
@@ -474,7 +430,7 @@ mod list_by_run_tests {
 
     #[test]
     fn returns_only_steps_matching_run_id() {
-        let db = open_test_db();
+        let db = open_test_db("adl-list-by-run");
         save_step(&db, "run-A", "sess-1", 100, "pending");
         save_step(&db, "run-A", "sess-1", 200, "pending");
         save_step(&db, "run-B", "sess-1", 150, "pending");
@@ -486,7 +442,7 @@ mod list_by_run_tests {
 
     #[test]
     fn returns_empty_for_unknown_run_id() {
-        let db = open_test_db();
+        let db = open_test_db("adl-list-by-run");
         save_step(&db, "run-A", "sess-1", 100, "pending");
         let steps: Vec<AgentPlanStep> =
             db.list_entities_by_run(EntityTable::AgentSteps, "run-missing").unwrap();
@@ -495,7 +451,7 @@ mod list_by_run_tests {
 
     #[test]
     fn orders_by_updated_at_ascending() {
-        let db = open_test_db();
+        let db = open_test_db("adl-list-by-run");
         save_step(&db, "run-X", "sess-1", 300, "pending");
         save_step(&db, "run-X", "sess-1", 100, "pending");
         save_step(&db, "run-X", "sess-1", 200, "pending");
@@ -509,30 +465,8 @@ mod list_by_run_tests {
 #[cfg(test)]
 mod sessions_batch_tests {
     use super::*;
-    use crate::connection::Database;
+    use super::test_helpers::{open_test_db, unique_id};
     use adl_types::{now_ms, ConversationSessionRecord};
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    static SB_SEQ: AtomicU64 = AtomicU64::new(0);
-
-    fn unique_id(prefix: &str) -> String {
-        format!("{prefix}-{}", SB_SEQ.fetch_add(1, Ordering::SeqCst))
-    }
-
-    /// Opens a temp-file database with schema initialized.
-    ///
-    /// Uses `Database::open` + `init_schema` (the existing test pattern) rather
-    /// than `Database::from_connection`, which is not part of the public API.
-    /// Each call uses a unique file name via `SB_SEQ` so parallel test runs
-    /// don't collide.
-    fn open_test_db() -> Database {
-        let id = SB_SEQ.fetch_add(1, Ordering::SeqCst);
-        let path = std::env::temp_dir().join(format!("adl-sessions-batch-{id}.db"));
-        let _ = std::fs::remove_file(&path);
-        let db = Database::open(&path).expect("test db should open");
-        db.init_schema().expect("schema should init");
-        db
-    }
 
     fn make_session(workspace_id: &str, status: &str) -> ConversationSessionRecord {
         let ts = now_ms();
@@ -557,7 +491,7 @@ mod sessions_batch_tests {
 
     #[test]
     fn batch_writes_all_sessions_atomically() {
-        let db = open_test_db();
+        let db = open_test_db("adl-sessions-batch");
         let sessions = vec![
             make_session("ws-1", "active"),
             make_session("ws-1", "active"),
@@ -576,7 +510,7 @@ mod sessions_batch_tests {
 
     #[test]
     fn batch_rolls_back_on_failure() {
-        let db = open_test_db();
+        let db = open_test_db("adl-sessions-batch");
         let sessions = vec![make_session("ws-2", "active"), make_session("ws-2", "active")];
         db.transaction(|conn| db.save_sessions_batch_on_conn(conn, &sessions)).unwrap();
         let all: Vec<ConversationSessionRecord> =
@@ -586,7 +520,7 @@ mod sessions_batch_tests {
 
     #[test]
     fn batch_replaces_existing_session() {
-        let db = open_test_db();
+        let db = open_test_db("adl-sessions-batch");
         let mut session = make_session("ws-3", "active");
         db.save_entity(
             EntityTable::Sessions,
@@ -612,20 +546,8 @@ mod sessions_batch_tests {
 #[cfg(test)]
 mod list_entities_with_limit_tests {
     use super::*;
-    use crate::connection::Database;
+    use super::test_helpers::open_test_db;
     use adl_types::{AuditEntry, RiskLevel};
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    static LE_SEQ: AtomicU64 = AtomicU64::new(0);
-
-    fn open_test_db() -> Database {
-        let id = LE_SEQ.fetch_add(1, Ordering::SeqCst);
-        let path = std::env::temp_dir().join(format!("adl-list-limit-{id}.db"));
-        let _ = std::fs::remove_file(&path);
-        let db = Database::open(&path).expect("test db should open");
-        db.init_schema().expect("schema should init");
-        db
-    }
 
     /// Inserts an audit entry with a controlled `updated_at` column value.
     ///
@@ -656,7 +578,7 @@ mod list_entities_with_limit_tests {
 
     #[test]
     fn list_entities_with_limit_returns_fewer_rows() {
-        let db = open_test_db();
+        let db = open_test_db("adl-list-limit");
         // Insert 10 audit entries with strictly increasing updated_at.
         // ts = 1000 + i ensures each row has a unique, increasing updated_at
         // so ORDER BY updated_at DESC deterministically returns the latest 5.
@@ -681,7 +603,7 @@ mod list_entities_with_limit_tests {
 
     #[test]
     fn list_entities_with_limit_rejects_over_cap() {
-        let db = open_test_db();
+        let db = open_test_db("adl-list-limit");
         let result: Result<Vec<AuditEntry>, _> =
             db.list_entities_with_limit(EntityTable::AuditRecords, 1001);
         assert!(result.is_err(), "limit > 1000 should be rejected");
@@ -691,23 +613,8 @@ mod list_entities_with_limit_tests {
 #[cfg(test)]
 mod audit_batch_tests {
     use super::*;
-    use crate::connection::Database;
+    use super::test_helpers::open_test_db;
     use adl_types::{AuditBatchEntry, AuditEntry, RiskLevel};
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    static AUDIT_SEQ: AtomicU64 = AtomicU64::new(0);
-
-    /// Opens a temp-file database with schema initialized.
-    /// Uses unique file name via `AUDIT_SEQ` so parallel test runs don't collide.
-    /// Mirrors the pattern in `doom_loop_count_tests::open_test_db`.
-    fn open_test_db() -> Database {
-        let id = AUDIT_SEQ.fetch_add(1, Ordering::SeqCst);
-        let path = std::env::temp_dir().join(format!("adl-audit-batch-{id}.db"));
-        let _ = std::fs::remove_file(&path);
-        let db = Database::open(&path).expect("test db should open");
-        db.init_schema().expect("schema should init");
-        db
-    }
 
     fn make_entry(
         workspace: &str,
@@ -728,7 +635,7 @@ mod audit_batch_tests {
 
     #[test]
     fn save_audit_entries_batch_is_atomic_on_success() {
-        let db = open_test_db();
+        let db = open_test_db("adl-audit-batch");
         let entries = vec![
             make_entry("ws-1", Some("sess-1"), "command", RiskLevel::Low),
             make_entry("ws-1", Some("sess-1"), "patch-apply", RiskLevel::Medium),
@@ -761,7 +668,7 @@ mod audit_batch_tests {
 
     #[test]
     fn save_audit_entries_batch_rolls_back_on_failure() {
-        let db = open_test_db();
+        let db = open_test_db("adl-audit-batch");
 
         // Insert a pre-existing row that will cause a conflict.
         // We use save_entity_on_conn directly to plant a row, then attempt a
@@ -803,7 +710,7 @@ mod audit_batch_tests {
 
     #[test]
     fn save_audit_entries_batch_empty_is_noop() {
-        let db = open_test_db();
+        let db = open_test_db("adl-audit-batch");
         let entries: Vec<AuditBatchEntry> = vec![];
         let saved = db
             .transaction(|conn| db.save_audit_entries_batch_on_conn(conn, &entries, "ws-x", None))
@@ -818,24 +725,10 @@ mod audit_batch_tests {
 #[cfg(test)]
 mod session_ordered_tests {
     use super::*;
-    use crate::connection::Database;
+    use super::test_helpers::open_test_db;
     use adl_types::{
         ConversationBlock, ConversationMessageRecord, ConversationRole, ConversationSessionRecord,
     };
-    use std::sync::atomic::{AtomicU64, Ordering};
-
-    static SESSION_ORDERED_SEQ: AtomicU64 = AtomicU64::new(0);
-
-    /// Opens a temp-file database with schema initialized.
-    /// Mirrors the pattern in `doom_loop_count_tests::open_test_db`.
-    fn open_test_db() -> Database {
-        let id = SESSION_ORDERED_SEQ.fetch_add(1, Ordering::SeqCst);
-        let path = std::env::temp_dir().join(format!("adl-session-ordered-{id}.db"));
-        let _ = std::fs::remove_file(&path);
-        let db = Database::open(&path).expect("test db should open");
-        db.init_schema().expect("schema should init");
-        db
-    }
 
     fn make_session(id: &str, workspace_id: &str) -> ConversationSessionRecord {
         ConversationSessionRecord {
@@ -871,7 +764,7 @@ mod session_ordered_tests {
 
     #[test]
     fn list_entities_by_session_ordered_returns_chronological() {
-        let db = open_test_db();
+        let db = open_test_db("adl-session-ordered");
         let session = make_session("sess-1", "ws-1");
         db.save_entity(
             EntityTable::Sessions,
@@ -913,7 +806,7 @@ mod session_ordered_tests {
 
     #[test]
     fn list_entities_by_session_ordered_empty_session() {
-        let db = open_test_db();
+        let db = open_test_db("adl-session-ordered");
         let session = make_session("sess-empty", "ws-1");
         db.save_entity(
             EntityTable::Sessions,
@@ -930,5 +823,26 @@ mod session_ordered_tests {
             .expect("ordered list should succeed");
 
         assert!(messages.is_empty(), "session with no messages should return empty vec");
+    }
+}
+
+#[cfg(test)]
+mod test_helpers {
+    use crate::connection::Database;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEST_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    pub(crate) fn open_test_db(prefix: &str) -> Database {
+        let id = TEST_SEQ.fetch_add(1, Ordering::SeqCst);
+        let path = std::env::temp_dir().join(format!("{prefix}-{id}.db"));
+        let _ = std::fs::remove_file(&path);
+        let db = Database::open(&path).expect("test db should open");
+        db.init_schema().expect("schema should init");
+        db
+    }
+
+    pub(crate) fn unique_id(prefix: &str) -> String {
+        format!("{prefix}-{}", TEST_SEQ.fetch_add(1, Ordering::SeqCst))
     }
 }
