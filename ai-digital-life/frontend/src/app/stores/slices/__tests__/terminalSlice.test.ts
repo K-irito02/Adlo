@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { createTerminalSlice } from '../terminalSlice';
 import type { TerminalSlice } from '../terminalSlice';
 
@@ -196,8 +196,10 @@ describe('terminalSlice', () => {
   it('toggleTerminalNavigator toggles navigator collapsed', () => {
     const { get } = createMockStore();
     (get() as TerminalSlice).toggleTerminalNavigator();
-    const collapsed = (get() as Record<string, unknown>)
-      .navigatorCollapsedByTool as Record<string, boolean>;
+    const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
+      string,
+      boolean
+    >;
     expect(collapsed.terminal).toBe(true);
   });
 
@@ -205,8 +207,10 @@ describe('terminalSlice', () => {
     const { get } = createMockStore();
     (get() as TerminalSlice).toggleTerminalNavigator();
     (get() as TerminalSlice).toggleTerminalNavigator();
-    const collapsed = (get() as Record<string, unknown>)
-      .navigatorCollapsedByTool as Record<string, boolean>;
+    const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
+      string,
+      boolean
+    >;
     expect(collapsed.terminal).toBe(false);
   });
 

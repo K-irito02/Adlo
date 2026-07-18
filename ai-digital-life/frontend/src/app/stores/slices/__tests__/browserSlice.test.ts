@@ -84,8 +84,10 @@ describe('browserSlice', () => {
   it('toggleBrowserNavigator toggles from false to true', () => {
     const { get } = createMockStore();
     (get() as BrowserSlice).toggleBrowserNavigator();
-    const collapsed = (get() as Record<string, unknown>)
-      .navigatorCollapsedByTool as Record<string, boolean>;
+    const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
+      string,
+      boolean
+    >;
     expect(collapsed.browser).toBe(true);
   });
 
@@ -93,24 +95,30 @@ describe('browserSlice', () => {
     const { get } = createMockStore();
     (get() as BrowserSlice).toggleBrowserNavigator();
     (get() as BrowserSlice).toggleBrowserNavigator();
-    const collapsed = (get() as Record<string, unknown>)
-      .navigatorCollapsedByTool as Record<string, boolean>;
+    const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
+      string,
+      boolean
+    >;
     expect(collapsed.browser).toBe(false);
   });
 
   it('setBrowserNavigatorCollapsed sets browser collapsed', () => {
     const { get } = createMockStore();
     (get() as BrowserSlice).setBrowserNavigatorCollapsed(true);
-    const collapsed = (get() as Record<string, unknown>)
-      .navigatorCollapsedByTool as Record<string, boolean>;
+    const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
+      string,
+      boolean
+    >;
     expect(collapsed.browser).toBe(true);
   });
 
   it('setBrowserNavigatorCollapsed sets browser uncollapsed', () => {
     const { get } = createMockStore();
     (get() as BrowserSlice).setBrowserNavigatorCollapsed(false);
-    const collapsed = (get() as Record<string, unknown>)
-      .navigatorCollapsedByTool as Record<string, boolean>;
+    const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
+      string,
+      boolean
+    >;
     expect(collapsed.browser).toBe(false);
   });
 

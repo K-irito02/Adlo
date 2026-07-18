@@ -54,7 +54,7 @@ describe('sessionSlice', () => {
   it('setSessionDetails merges multiple details', () => {
     const { get } = createMockStore();
     (get() as SessionSlice).setSessionDetail('s1', { messages: ['a'] } as never);
-    (get() as SessionSlice).setSessionDetails({ 's2': { messages: ['b'] } } as never);
+    (get() as SessionSlice).setSessionDetails({ s2: { messages: ['b'] } } as never);
     expect((get() as SessionSlice).sessionDetails['s1'].messages).toEqual(['a']);
     expect((get() as SessionSlice).sessionDetails['s2'].messages).toEqual(['b']);
   });
