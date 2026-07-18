@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserPanelState } from './BrowserPanelStateContext';
@@ -15,8 +15,11 @@ type BrowserPanelStateInput = Omit<
 
 export function useBrowserPanelState(
   value: BrowserPanelStateInput,
-  deps: React.DependencyList
+  _deps: React.DependencyList
 ): BrowserPanelState {
+  const valueRef = useRef(value);
+  valueRef.current = value;
+
   const storeValues = useAppStore(
     useShallow((s) => ({
       browserNavigatorWidth: s.browserNavigatorWidth,
@@ -27,21 +30,22 @@ export function useBrowserPanelState(
   );
 
   return useMemo(() => {
+    const v = valueRef.current;
     const navigatorCollapsed = storeValues.navigatorCollapsedByTool.browser ?? false;
     const visibleWorkspaces = storeValues.recentWorkspaces.filter(
       (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
     );
     const isEmbedPending =
       !storeValues.isTauri &&
-      !!value.activeTab?.url &&
-      value.activeTab?.url !== 'about:blank' &&
-      !value.validatedUrlsRef.current.has(value.activeTab.url ?? '') &&
-      !value.iframeBlockedDetected &&
-      !value.iframeLoadError;
-    const openTabCount = value.browserTabs.length;
-    const navigatorTitle = value.t.toolBrowser;
+      !!v.activeTab?.url &&
+      v.activeTab?.url !== 'about:blank' &&
+      !v.validatedUrlsRef.current.has(v.activeTab.url ?? '') &&
+      !v.iframeBlockedDetected &&
+      !v.iframeLoadError;
+    const openTabCount = v.browserTabs.length;
+    const navigatorTitle = v.t.toolBrowser;
     return {
-      ...value,
+      ...v,
       browserNavigatorWidth: storeValues.browserNavigatorWidth,
       navigatorCollapsed,
       visibleWorkspaces,
@@ -50,8 +54,6 @@ export function useBrowserPanelState(
       navigatorTitle,
     };
   }, [
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    ...deps,
     storeValues.browserNavigatorWidth,
     storeValues.navigatorCollapsedByTool,
     storeValues.recentWorkspaces,

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserPanelActions } from './BrowserPanelActionsContext';
@@ -7,17 +7,18 @@ type BrowserPanelActionsInput = Omit<BrowserPanelActions, 'browserOpenTab' | 'to
 
 export function useBrowserPanelActions(
   handlers: BrowserPanelActionsInput,
-  deps: React.DependencyList
+  _deps: React.DependencyList
 ): BrowserPanelActions {
-  const storeActions = useAppStore(
-    useShallow((s) => ({
-      browserOpenTab: s.browserOpenTab,
-      toggleNavigator: s.toggleNavigator as (tool: string) => void,
-    }))
+  const handlersRef = useRef(handlers);
+  handlersRef.current = handlers;
+
+  const browserOpenTab = useAppStore(useShallow((s) => s.browserOpenTab));
+  const toggleNavigator = useAppStore(
+    useShallow((s) => s.toggleNavigator as (tool: string) => void)
   );
 
   return useMemo(
-    () => ({ ...handlers, ...storeActions }),
-    [...deps, storeActions.browserOpenTab, storeActions.toggleNavigator]
+    () => ({ ...handlersRef.current, browserOpenTab, toggleNavigator }),
+    [browserOpenTab, toggleNavigator]
   );
 }

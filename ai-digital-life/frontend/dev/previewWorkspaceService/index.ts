@@ -13,7 +13,7 @@ export { git, files, search, ciModule as ci, logging };
 export * from './git';
 export * from './files';
 export * from './search';
-export * from './ci';
+
 export * from './logging';
 export * from './mcp';
 

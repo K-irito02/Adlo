@@ -123,7 +123,6 @@ export const searchSelectors = {
 // ============================================
 // 组合选择器
 // ============================================
-let _tabsByPath: Map<string, StoreState['openTabs'][number]> | undefined;
 
 export const combinedSelectors = {
   canOpenNewTab: (state: StoreState) => state.openTabs.length < 20,
@@ -140,10 +139,8 @@ export const combinedSelectors = {
     if (!state.selectedFilePath) {
       return undefined;
     }
-    if (!_tabsByPath || state.openTabs.length !== _tabsByPath.size) {
-      _tabsByPath = new Map(state.openTabs.map((tab) => [tab.path, tab]));
-    }
-    return _tabsByPath.get(state.selectedFilePath);
+    const tabsByPath = new Map(state.openTabs.map((tab) => [tab.path, tab]));
+    return tabsByPath.get(state.selectedFilePath);
   },
   useCurrentFileTab: () =>
     useAppStore(
@@ -151,10 +148,8 @@ export const combinedSelectors = {
         if (!s.selectedFilePath) {
           return undefined;
         }
-        if (!_tabsByPath || s.openTabs.length !== _tabsByPath.size) {
-          _tabsByPath = new Map(s.openTabs.map((tab) => [tab.path, tab]));
-        }
-        return _tabsByPath.get(s.selectedFilePath);
+        const tabsByPath = new Map(s.openTabs.map((tab) => [tab.path, tab]));
+        return tabsByPath.get(s.selectedFilePath);
       })
     ),
 };
