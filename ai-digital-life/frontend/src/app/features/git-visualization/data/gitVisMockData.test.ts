@@ -66,9 +66,7 @@ describe('branch graph mock data', () => {
 
   it('has edges forming a valid DAG', () => {
     expect(commitEdges.length).toBeGreaterThan(0);
-    const childIds = new Set(commitEdges.map(e => e.source));
-    const parentIds = new Set(commitEdges.map(e => e.target));
-    const allIds = new Set(commitNodes.map(n => n.id));
+    const allIds = new Set(commitNodes.map((n) => n.id));
     for (const edge of commitEdges) {
       expect(allIds.has(edge.source)).toBe(true);
       expect(allIds.has(edge.target)).toBe(true);
@@ -99,15 +97,13 @@ describe('branch graph mock data', () => {
   });
 
   it('includes an unmerged branch tip', () => {
-    const allParents = new Set(commitEdges.map(e => e.target));
-    const unmerged = commitNodes.filter(n =>
-      !allParents.has(n.id) && n.branch !== 'main'
-    );
+    const allParents = new Set(commitEdges.map((e) => e.target));
+    const unmerged = commitNodes.filter((n) => !allParents.has(n.id) && n.branch !== 'main');
     expect(unmerged.length).toBeGreaterThanOrEqual(1);
   });
 
   it('covers all 7 branch names', () => {
-    const branchSet = new Set(commitNodes.map(n => n.branch));
+    const branchSet = new Set(commitNodes.map((n) => n.branch));
     for (const b of allBranches) {
       expect(branchSet.has(b)).toBe(true);
     }

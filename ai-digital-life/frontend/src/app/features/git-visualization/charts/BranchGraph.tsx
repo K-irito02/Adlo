@@ -39,7 +39,7 @@ interface LaneMap {
 }
 
 interface RowData {
-  node: typeof commitNodes[0];
+  node: (typeof commitNodes)[0];
   lane: LaneMap;
   parents: string[];
   isMerge: boolean;
@@ -68,14 +68,16 @@ function getLaneX(laneIndex: number): number {
 }
 
 function buildRows(lanes: LaneMap[], parentMap: Map<string, string[]>): RowData[] {
-  const laneIndexByBranch = new Map(lanes.map(l => [l.branch, l.index]));
-  const commitById = new Map(commitNodes.map(n => [n.id, n]));
+  const laneIndexByBranch = new Map(lanes.map((l) => [l.branch, l.index]));
+  const commitById = new Map(commitNodes.map((n) => [n.id, n]));
 
   const visited = new Set<string>();
   const sorted: string[] = [];
 
   function visit(id: string) {
-    if (visited.has(id)) return;
+    if (visited.has(id)) {
+      return;
+    }
     visited.add(id);
     const parents = parentMap.get(id) || [];
     for (const p of parents) {
@@ -88,7 +90,7 @@ function buildRows(lanes: LaneMap[], parentMap: Map<string, string[]>): RowData[
     visit(node.id);
   }
 
-  return sorted.map(id => {
+  return sorted.map((id) => {
     const node = commitById.get(id)!;
     const parents = parentMap.get(id) || [];
     const laneIdx = laneIndexByBranch.get(node.branch) ?? 0;
@@ -111,24 +113,34 @@ interface SvgLanesProps {
   hoveredId: string | null;
 }
 
-const SvgLanes = React.memo(function SvgLanes({ rows, lanes, totalWidth, totalHeight, hoveredId }: SvgLanesProps) {
+const SvgLanes = React.memo(function SvgLanes({
+  rows,
+  lanes,
+  totalWidth,
+  totalHeight,
+  hoveredId,
+}: SvgLanesProps) {
   const nodeY = (rowIndex: number) => rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
 
   const rowIndexById = new Map<string, number>();
   rows.forEach((r, i) => rowIndexById.set(r.node.id, i));
 
-  const laneLines = lanes.map(l => {
+  const laneLines = lanes.map((l) => {
     const x = getLaneX(l.index);
     const yPositions = rows
-      .map((r, i) => r.node.branch === l.branch ? i : -1)
-      .filter(i => i !== -1)
-      .map(i => nodeY(i));
-    if (yPositions.length === 0) return null;
+      .map((r, i) => (r.node.branch === l.branch ? i : -1))
+      .filter((i) => i !== -1)
+      .map((i) => nodeY(i));
+    if (yPositions.length === 0) {
+      return null;
+    }
     return (
       <line
         key={`lane-${l.branch}`}
-        x1={x} y1={yPositions[0]}
-        x2={x} y2={yPositions[yPositions.length - 1]}
+        x1={x}
+        y1={yPositions[0]}
+        x2={x}
+        y2={yPositions[yPositions.length - 1]}
         stroke={l.color}
         strokeWidth={3}
         strokeLinecap="round"
@@ -141,7 +153,9 @@ const SvgLanes = React.memo(function SvgLanes({ rows, lanes, totalWidth, totalHe
   for (const edge of commitEdges) {
     const sourceIdx = rowIndexById.get(edge.source);
     const targetIdx = rowIndexById.get(edge.target);
-    if (sourceIdx === undefined || targetIdx === undefined) continue;
+    if (sourceIdx === undefined || targetIdx === undefined) {
+      continue;
+    }
     const sourceRow = rows[sourceIdx];
     const targetRow = rows[targetIdx];
     const sx = getLaneX(sourceRow.lane.index);
@@ -153,8 +167,10 @@ const SvgLanes = React.memo(function SvgLanes({ rows, lanes, totalWidth, totalHe
       connections.push(
         <line
           key={`edge-${edge.source}-${edge.target}`}
-          x1={sx} y1={sy}
-          x2={tx} y2={ty}
+          x1={sx}
+          y1={sy}
+          x2={tx}
+          y2={ty}
           stroke={sourceRow.lane.color}
           strokeWidth={2.5}
           strokeLinecap="round"
@@ -187,7 +203,14 @@ const SvgLanes = React.memo(function SvgLanes({ rows, lanes, totalWidth, totalHe
         <g key={`node-${row.node.id}`}>
           <circle cx={x} cy={y} r={r + 1} fill="none" stroke={row.lane.color} strokeWidth={2.5} />
           <circle cx={x + 14} cy={y - 8} r={8} fill={row.lane.color} opacity={0.15} />
-          <text x={x + 14} y={y - 5} textAnchor="middle" fontSize={8} fill={row.lane.color} fontWeight={600}>
+          <text
+            x={x + 14}
+            y={y - 5}
+            textAnchor="middle"
+            fontSize={8}
+            fill={row.lane.color}
+            fontWeight={600}
+          >
             {row.node.tag}
           </text>
         </g>
@@ -199,8 +222,11 @@ const SvgLanes = React.memo(function SvgLanes({ rows, lanes, totalWidth, totalHe
       return (
         <rect
           key={`node-${row.node.id}`}
-          x={x - s / 2} y={y - s / 2}
-          width={s} height={s} rx={2}
+          x={x - s / 2}
+          y={y - s / 2}
+          width={s}
+          height={s}
+          rx={2}
           fill={row.lane.color}
           stroke="#fff"
           strokeWidth={2.5}
@@ -211,7 +237,9 @@ const SvgLanes = React.memo(function SvgLanes({ rows, lanes, totalWidth, totalHe
     return (
       <circle
         key={`node-${row.node.id}`}
-        cx={x} cy={y} r={r}
+        cx={x}
+        cy={y}
+        r={r}
         fill={row.lane.color}
         stroke="#fff"
         strokeWidth={2.5}
@@ -251,7 +279,7 @@ export const BranchGraph = React.memo(function BranchGraph() {
 
   const handleRowHover = useCallback((id: string | null) => setHoveredId(id), []);
   const handleLabelClick = useCallback((branch: string) => {
-    setFilterBranch(prev => prev === branch ? null : branch);
+    setFilterBranch((prev) => (prev === branch ? null : branch));
   }, []);
 
   return (
@@ -286,7 +314,7 @@ export const BranchGraph = React.memo(function BranchGraph() {
 
           {filterBranch === null && (
             <div style={{ display: 'flex', gap: 6, padding: '4px 8px 8px', flexWrap: 'wrap' }}>
-              {lanes.map(l => (
+              {lanes.map((l) => (
                 <button
                   key={l.branch}
                   className="adl-branch-graph__label"
@@ -309,7 +337,7 @@ export const BranchGraph = React.memo(function BranchGraph() {
             </div>
           )}
 
-          {rows.map((row, i) => {
+          {rows.map((row) => {
             const isFiltered = filterBranch !== null && filterBranch !== row.node.branch;
             return (
               <div
@@ -334,27 +362,38 @@ export const BranchGraph = React.memo(function BranchGraph() {
                 onMouseLeave={() => handleRowHover(null)}
                 title={`${row.node.hash}\n${row.node.message}\n${row.node.author} <${row.node.authorEmail}>\n${row.node.date}`}
               >
-                <span style={{ fontFamily: "'Cascadia Code', 'Fira Code', monospace", color: theme.text, fontSize: 11 }}>
+                <span
+                  style={{
+                    fontFamily: "'Cascadia Code', 'Fira Code', monospace",
+                    color: theme.text,
+                    fontSize: 11,
+                  }}
+                >
                   {row.node.hash}
                 </span>
-                <span style={{
-                  color: theme.text,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  minWidth: 0,
-                }}>
+                <span
+                  style={{
+                    color: theme.text,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    minWidth: 0,
+                  }}
+                >
                   {row.node.message}
                   {row.node.tag && (
-                    <span className="adl-branch-graph__tag" style={{
-                      marginLeft: 8,
-                      padding: '1px 6px',
-                      borderRadius: 3,
-                      background: row.lane.color,
-                      color: '#fff',
-                      fontSize: 10,
-                      fontWeight: 600,
-                    }}>
+                    <span
+                      className="adl-branch-graph__tag"
+                      style={{
+                        marginLeft: 8,
+                        padding: '1px 6px',
+                        borderRadius: 3,
+                        background: row.lane.color,
+                        color: '#fff',
+                        fontSize: 10,
+                        fontWeight: 600,
+                      }}
+                    >
                       {row.node.tag}
                     </span>
                   )}
@@ -377,9 +416,17 @@ function formatRelativeDate(dateStr: string): string {
   const d = new Date(dateStr);
   const diffMs = now.getTime() - d.getTime();
   const diffDays = Math.floor(diffMs / 86400000);
-  if (diffDays < 1) return 'today';
-  if (diffDays === 1) return '1d ago';
-  if (diffDays < 30) return `${diffDays}d ago`;
-  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
+  if (diffDays < 1) {
+    return 'today';
+  }
+  if (diffDays === 1) {
+    return '1d ago';
+  }
+  if (diffDays < 30) {
+    return `${diffDays}d ago`;
+  }
+  if (diffDays < 365) {
+    return `${Math.floor(diffDays / 30)}mo ago`;
+  }
   return `${Math.floor(diffDays / 365)}y ago`;
 }

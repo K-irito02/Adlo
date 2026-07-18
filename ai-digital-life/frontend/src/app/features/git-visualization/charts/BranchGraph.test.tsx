@@ -80,15 +80,17 @@ describe('BranchGraph', () => {
     const filteredBranch = labels[0].textContent;
     const rows = container.querySelectorAll('.adl-branch-graph__row');
     // Non-matching rows should be dimmed
-    const nonMatchingRows = [...rows].filter(r => r.getAttribute('data-branch') !== filteredBranch);
+    const nonMatchingRows = [...rows].filter(
+      (r) => r.getAttribute('data-branch') !== filteredBranch
+    );
     expect(nonMatchingRows.length).toBeGreaterThan(0);
-    nonMatchingRows.forEach(el => {
+    nonMatchingRows.forEach((el) => {
       expect((el as HTMLElement).style.opacity).toBe('0.25');
       expect(el.classList.contains('adl-branch-graph__row--dimmed')).toBe(true);
     });
     // Matching rows should have full opacity
-    const matchingRows = [...rows].filter(r => r.getAttribute('data-branch') === filteredBranch);
-    matchingRows.forEach(el => {
+    const matchingRows = [...rows].filter((r) => r.getAttribute('data-branch') === filteredBranch);
+    matchingRows.forEach((el) => {
       expect((el as HTMLElement).style.opacity).toBe('1');
       expect(el.classList.contains('adl-branch-graph__row--dimmed')).toBe(false);
     });
