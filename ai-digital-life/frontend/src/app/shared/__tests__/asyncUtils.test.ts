@@ -5,7 +5,9 @@ describe('runWithConcurrency', () => {
   it('should process all items', async () => {
     const items = [1, 2, 3, 4, 5];
     const results = await runWithConcurrency(items, 2, async (n) => n * 2);
-    const values = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<number>).value);
+    const values = results
+      .filter((r) => r.status === 'fulfilled')
+      .map((r) => (r as PromiseFulfilledResult<number>).value);
     expect(values).toEqual([2, 4, 6, 8, 10]);
   });
 
@@ -33,7 +35,9 @@ describe('runWithConcurrency', () => {
   it('should handle rejected promises', async () => {
     const items = [1, 2, 3];
     const results = await runWithConcurrency(items, 2, async (n) => {
-      if (n === 2) throw new Error('fail');
+      if (n === 2) {
+        throw new Error('fail');
+      }
       return n;
     });
     expect(results[0].status).toBe('fulfilled');

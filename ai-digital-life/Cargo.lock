@@ -8,7 +8,6 @@ version = "0.1.0"
 dependencies = [
  "adl-change-engine",
  "adl-context",
- "adl-credential",
  "adl-errors",
  "adl-fs-ops",
  "adl-kernel",
@@ -18,8 +17,6 @@ dependencies = [
  "adl-workspace",
  "async-trait",
  "chrono",
- "html2text",
- "reqwest",
  "serde",
  "serde_json",
  "tokenizers",

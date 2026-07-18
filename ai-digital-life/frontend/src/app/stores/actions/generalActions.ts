@@ -1,5 +1,9 @@
 import type { StoreState } from '../StoreState';
-import type { ConversationMessageRecord, ConversationBlock, RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type {
+  ConversationMessageRecord,
+  ConversationBlock,
+  RecentWorkspaceEntry,
+} from '@ai-digital-life/kernel';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
 import { createEditorTab } from '@utils/editorTabs';
 import { loadConversationState, loadTaskCenterState } from '../loaders';
@@ -185,7 +189,10 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
               .map((id: string) => visibleWorkspaces.find((w) => w.id === id))
               .filter((w): w is RecentWorkspaceEntry => w !== undefined);
 
-            async function loadBatch(items: RecentWorkspaceEntry[], concurrency: number): Promise<void> {
+            async function loadBatch(
+              items: RecentWorkspaceEntry[],
+              concurrency: number
+            ): Promise<void> {
               const tasks = items.map((w) => ({
                 id: w.id,
                 treeLoader: () =>
@@ -198,12 +205,17 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
                     .then((r) => (r.ok ? r.data : undefined)),
               }));
               const results = await runWithConcurrency(tasks, concurrency, async (task) => {
-                const [tree, snapshot] = await Promise.all([task.treeLoader(), task.snapshotLoader()]);
+                const [tree, snapshot] = await Promise.all([
+                  task.treeLoader(),
+                  task.snapshotLoader(),
+                ]);
                 return { id: task.id, tree, snapshot };
               });
               const batch_: Partial<StoreState> = {};
               for (const r of results) {
-                if (r.status !== 'fulfilled') continue;
+                if (r.status !== 'fulfilled') {
+                  continue;
+                }
                 const { id, tree, snapshot } = r.value;
                 if (tree !== undefined) {
                   accumulateBatch(batch_, get, 'workspaceTrees', id, tree);

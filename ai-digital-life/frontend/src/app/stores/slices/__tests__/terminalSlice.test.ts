@@ -140,7 +140,10 @@ describe('terminalSlice', () => {
     const { get } = createMockStore();
     (get() as unknown as TerminalSlice).terminalCreateTab('powershell');
     const tabId = (get() as unknown as TerminalSlice).terminalTabs[0].id;
-    (get() as unknown as TerminalSlice).terminalUpdateActiveTab({ title: 'Updated', status: 'running' });
+    (get() as unknown as TerminalSlice).terminalUpdateActiveTab({
+      title: 'Updated',
+      status: 'running',
+    });
     const state = get() as unknown as TerminalSlice;
     expect(state.terminalTabs[0].title).toBe('Updated');
     expect(state.terminalTabs[0].status).toBe('running');
