@@ -43,11 +43,7 @@
   transition: var(--transition-colors);
   position: relative;
   user-select: none;
-  cursor: grab;
-}
-
-.adl-workspace-item.is-dragging .adl-workspace-row {
-  cursor: grabbing;
+  cursor: pointer;
 }
 
 .adl-workspace-row::after {
