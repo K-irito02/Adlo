@@ -13,6 +13,7 @@ import { resolveCurrentTheme } from '@shared/resolveTheme';
 import { isTauriShell } from '../../../tauri-bridge';
 import { runWithConcurrency } from '../../shared/asyncUtils';
 import { computeLoadPhases } from './workspaceLoadOrder';
+import { syncNewWorkspacesToNaturalOrder } from './workspaceNaturalOrderSync';
 import type { StoreApi } from 'zustand';
 
 /**
@@ -111,6 +112,9 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
 
       // 尽早渲染 UI，不等 getGitStatus
       set(nextState);
+
+      // Sync any newly-discovered workspaces into the natural-order list
+      syncNewWorkspacesToNaturalOrder();
 
       if (appInfoResult.data.currentWorkspace) {
         const patchBlock = conversationState.detail?.messages.length
