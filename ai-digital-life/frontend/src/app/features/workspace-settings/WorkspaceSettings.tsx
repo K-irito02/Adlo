@@ -451,10 +451,10 @@ export function WorkspaceSettings() {
         </div>
 
         <div className="adl-sortable-section adl-sortable-section--natural">
-          <h4 className="adl-sortable-section-title">{t.defaultOrderHint}</h4>
+          <h4 className="adl-sortable-section-title">{t.workspaceTagList}</h4>
           <div className="adl-sortable-list">
             {naturalWorkspaces.length === 0 ? (
-              <div className="adl-sortable-empty">{t.defaultOrderAllConfigured}</div>
+              <div className="adl-sortable-empty">{t.workspaceTagListEmpty}</div>
             ) : (
               naturalWorkspaces.map((w) => <DraggableItem key={w.id} workspace={w} />)
             )}
