@@ -37,6 +37,7 @@ export function createBaseAppInfo(): AppInfo {
       maxConcurrentWorkspaces: 6,
       workspacePriorityIds: [],
       workspaceDeferredIds: [],
+      workspaceNaturalOrder: [],
     },
     recentLogs: [
       {

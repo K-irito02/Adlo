@@ -21,6 +21,7 @@ export const DEFAULT_FONTS = {
 export const DEFAULT_MAX_CONCURRENT_WORKSPACES = 6;
 export const DEFAULT_WORKSPACE_PRIORITY_IDS: string[] = [];
 export const DEFAULT_WORKSPACE_DEFERRED_IDS: string[] = [];
+export const DEFAULT_WORKSPACE_NATURAL_ORDER: string[] = [];
 
 export function getDefaultPreferences(): AppPreferencePatch {
   return {
@@ -34,6 +35,7 @@ export function getDefaultPreferences(): AppPreferencePatch {
     maxConcurrentWorkspaces: DEFAULT_MAX_CONCURRENT_WORKSPACES,
     workspacePriorityIds: [...DEFAULT_WORKSPACE_PRIORITY_IDS],
     workspaceDeferredIds: [...DEFAULT_WORKSPACE_DEFERRED_IDS],
+    workspaceNaturalOrder: [...DEFAULT_WORKSPACE_NATURAL_ORDER],
   };
 }
 
@@ -55,6 +57,8 @@ export function getDefaultForSetting(id: string): string | boolean | number | st
       return DEFAULT_WORKSPACE_PRIORITY_IDS;
     case 'workspaceDeferredIds':
       return DEFAULT_WORKSPACE_DEFERRED_IDS;
+    case 'workspaceNaturalOrder':
+      return DEFAULT_WORKSPACE_NATURAL_ORDER;
     case 'font:ui':
     case 'font:code':
     case 'font:terminal':

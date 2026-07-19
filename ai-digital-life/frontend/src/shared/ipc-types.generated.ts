@@ -56,6 +56,7 @@ export interface AppPreferencePatch {
   maxConcurrentWorkspaces?: number;
   workspacePriorityIds?: string[];
   workspaceDeferredIds?: string[];
+  workspaceNaturalOrder?: string[];
 }
 
 export interface ConfigSnapshot {
@@ -72,4 +73,5 @@ export interface ConfigSnapshot {
   maxConcurrentWorkspaces: number;
   workspacePriorityIds: string[];
   workspaceDeferredIds: string[];
+  workspaceNaturalOrder: string[];
 }
