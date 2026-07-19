@@ -61,6 +61,10 @@ describe('mergeOrderPreserving', () => {
   it('does not duplicate ids', () => {
     expect(mergeOrderPreserving(['a', 'b'], ['a', 'b', 'a'])).toEqual(['a', 'b']);
   });
+
+  it('does not duplicate new ids if externalIds contains duplicates', () => {
+    expect(mergeOrderPreserving([], ['c', 'c'])).toEqual(['c']);
+  });
 });
 
 describe('computeReorderedList', () => {

@@ -39,12 +39,7 @@ export interface WorkspaceListProps {
   workspaceToolbarRef: React.RefObject<HTMLDivElement | null>;
 }
 
-import {
-  computeReorderedList,
-  mergeOrderPreserving,
-  moveIdAfterTarget,
-  moveIdBeforeTarget,
-} from '../../utils/dragUtils';
+import { computeReorderedList, mergeOrderPreserving } from '../../utils/dragUtils';
 
 interface DragSession {
   draggedId: string;
@@ -74,8 +69,6 @@ export function WorkspaceList({
   // Mouse-based drag state
   const dragSessionRef = useRef<DragSession | null>(null);
   const [dragActiveId, setDragActiveId] = useState<string | null>(null);
-  const [dragTargetId, setDragTargetId] = useState<string | null>(null);
-  const [dragTargetPosition, setDragTargetPosition] = useState<'before' | 'after'>('after');
   const targetIdRef = useRef<string | null>(null);
   const targetPosRef = useRef<'before' | 'after'>('after');
 
@@ -97,18 +90,50 @@ export function WorkspaceList({
   const onReorderRef = useRef(onReorderWorkspaces);
   onReorderRef.current = onReorderWorkspaces;
 
+  // Track the pinned-id set from the previous sync. When the set changes
+  // (pin/unpin happened), at least one item moved between buckets and its
+  // localOrder position is stale — fall back to the external order, which the
+  // backend has already re-sorted authoritatively (pinned-first, moved item at
+  // its new bucket's end). Otherwise preserve localOrder (which may reflect
+  // drag-induced reordering) and only re-sort to maintain the pinned-before-
+  // unpinned invariant. mergeOrderPreserving alone only handles add/remove,
+  // not bucket moves, so the pinned-set check is required.
+  const prevPinnedSetRef = useRef<Set<string>>(new Set());
+
   // Sync localOrder when workspaceItems changes externally (pin/unpin, add/remove
-  // workspace, or store refresh). Preserves current order for items still
-  // present, appends new items at the end.
+  // workspace, or store refresh).
   useEffect(() => {
     const externalIds = workspaceItems.map((w) => w.workspace.id);
-    const merged = mergeOrderPreserving(localOrderRef.current, externalIds);
+    const isPinnedById = (id: string) =>
+      workspaceItems.find((w) => w.workspace.id === id)?.workspace.isPinned ?? false;
+
+    const newPinnedSet = new Set(externalIds.filter((id) => isPinnedById(id)));
+    const prevPinnedSet = prevPinnedSetRef.current;
+    const pinnedSetChanged =
+      newPinnedSet.size !== prevPinnedSet.size ||
+      [...newPinnedSet].some((id) => !prevPinnedSet.has(id));
+
+    let sorted: string[];
+    if (pinnedSetChanged) {
+      // Pin/unpin happened: external order is authoritative.
+      sorted = externalIds;
+    } else {
+      // No bucket changes: preserve localOrder, append new items, re-sort to
+      // maintain the pinned-before-unpinned invariant.
+      const merged = mergeOrderPreserving(localOrderRef.current, externalIds);
+      const pinnedIds = merged.filter((id) => isPinnedById(id));
+      const unpinnedIds = merged.filter((id) => !isPinnedById(id));
+      sorted = [...pinnedIds, ...unpinnedIds];
+    }
+
+    prevPinnedSetRef.current = newPinnedSet;
+
     if (
-      merged.length !== localOrderRef.current.length ||
-      merged.some((id, i) => id !== localOrderRef.current[i])
+      sorted.length !== localOrderRef.current.length ||
+      sorted.some((id, i) => id !== localOrderRef.current[i])
     ) {
-      localOrderRef.current = merged;
-      setLocalOrder(merged);
+      localOrderRef.current = sorted;
+      setLocalOrder(sorted);
     }
   }, [workspaceItems]);
 
@@ -249,48 +274,39 @@ export function WorkspaceList({
     };
 
     const cleanupDrag = () => {
+      // Clear inline transform/transition left over from FLIP.
+      const ul = document.querySelector('.adl-workspace-list');
+      if (ul) {
+        ul.querySelectorAll<HTMLLIElement>('li[data-ws-id]').forEach((el) => {
+          el.style.transform = '';
+          el.style.transition = '';
+        });
+      }
       dragSessionRef.current = null;
       targetIdRef.current = null;
       targetPosRef.current = 'after';
+      sessionStartOrderRef.current = [];
       setDragActiveId(null);
-      setDragTargetId(null);
     };
 
     const handleMouseUp = () => {
       const session = dragSessionRef.current;
-      if (!session) {
-        return;
-      }
+      if (!session) return;
 
       if (session.isDragging) {
-        const targetId = targetIdRef.current;
-        if (targetId && targetId !== session.draggedId) {
-          try {
-            const items = workspaceItemsRef.current;
-            const onReorder = onReorderRef.current;
-            const isPinnedBucket = session.isPinned;
-            const bucketItems = items
-              .filter((w) => w.workspace.isPinned === isPinnedBucket)
-              .map((w) => w.workspace.id);
+        const startOrder = sessionStartOrderRef.current;
+        const currentOrder = localOrderRef.current;
+        const orderChanged =
+          startOrder.length !== currentOrder.length ||
+          startOrder.some((id, i) => id !== currentOrder[i]);
 
-            if (bucketItems.includes(session.draggedId) && bucketItems.includes(targetId)) {
-              const useAfter = targetPosRef.current === 'after';
-              const nextIds = useAfter
-                ? moveIdAfterTarget(bucketItems, session.draggedId, targetId)
-                : moveIdBeforeTarget(bucketItems, session.draggedId, targetId);
-
-              const pinnedIds = isPinnedBucket
-                ? nextIds
-                : items.filter((w) => w.workspace.isPinned).map((w) => w.workspace.id);
-              const unpinnedIds = isPinnedBucket
-                ? items.filter((w) => !w.workspace.isPinned).map((w) => w.workspace.id)
-                : nextIds;
-
-              onReorder({ pinnedIds, unpinnedIds });
-            }
-          } catch {
-            // ignore reorder error
-          }
+        if (orderChanged) {
+          const items = workspaceItemsRef.current;
+          const isPinnedById = (id: string) =>
+            items.find((w) => w.workspace.id === id)?.workspace.isPinned ?? false;
+          const pinnedIds = currentOrder.filter((id) => isPinnedById(id));
+          const unpinnedIds = currentOrder.filter((id) => !isPinnedById(id));
+          onReorderRef.current({ pinnedIds, unpinnedIds });
         }
       }
 

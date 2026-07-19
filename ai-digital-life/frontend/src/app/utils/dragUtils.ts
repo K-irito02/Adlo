@@ -36,7 +36,9 @@ export function mergeOrderPreserving(currentOrder: string[], externalIds: string
   const externalSet = new Set(externalIds);
   const kept = currentOrder.filter((id) => externalSet.has(id));
   const existing = new Set(currentOrder);
-  const appended = externalIds.filter((id) => !existing.has(id));
+  const appended = externalIds.filter(
+    (id, i) => !existing.has(id) && externalIds.indexOf(id) === i
+  );
   return [...kept, ...appended];
 }
 
