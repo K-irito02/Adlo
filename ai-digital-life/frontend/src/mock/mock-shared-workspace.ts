@@ -118,6 +118,7 @@ export const appInfo: AppInfo = {
     maxConcurrentWorkspaces: 6,
     workspacePriorityIds: [],
     workspaceDeferredIds: [],
+    workspaceNaturalOrder: [],
   },
   currentWorkspace: {
     id: "workspace-mock-1",

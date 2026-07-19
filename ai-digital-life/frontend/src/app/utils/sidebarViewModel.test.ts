@@ -92,6 +92,7 @@ describe('buildSidebarViewModel', () => {
         maxConcurrentWorkspaces: 6,
         workspacePriorityIds: [],
         workspaceDeferredIds: [],
+        workspaceNaturalOrder: [],
       },
       currentWorkspace: {
         id: 'workspace_live',

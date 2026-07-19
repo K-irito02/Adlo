@@ -4,117 +4,11 @@ import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { TooltipSimple } from '../../components/Tooltip';
-import { IconMenu, IconClose } from '../../icons';
 import { IconAlertTriangle } from '../../icons/status';
-import {
-  DndContext,
-  DragOverlay,
-  closestCorners,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  useDraggable,
-  type DragEndEvent,
-  type DragStartEvent,
-} from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { DndContext, DragOverlay, closestCorners } from '@dnd-kit/core';
+import { useWorkspaceDnd } from './useWorkspaceDnd';
+import { SortableWorkspaceList } from './SortableWorkspaceList';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
-
-function SortableItem({
-  workspace,
-  onRemove,
-  onMoveUp,
-  onMoveDown,
-  isFirst,
-  isLast,
-  t,
-}: {
-  workspace: DraggableWorkspace;
-  onRemove: (id: string) => void;
-  onMoveUp: (id: string) => void;
-  onMoveDown: (id: string) => void;
-  isFirst: boolean;
-  isLast: boolean;
-  t: Record<string, string>;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: workspace.id,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} className="adl-sortable-item">
-      <button type="button" className="adl-sortable-handle" {...attributes} {...listeners}>
-        <IconMenu size={14} />
-      </button>
-      <span className="adl-sortable-label">{workspace.name}</span>
-      <div className="adl-sortable-actions">
-        <button
-          type="button"
-          className="adl-sortable-move"
-          onClick={(e) => {
-            e.stopPropagation();
-            onMoveUp(workspace.id);
-          }}
-          disabled={isFirst}
-          aria-label={t.moveUp}
-        >
-          ↑
-        </button>
-        <button
-          type="button"
-          className="adl-sortable-move"
-          onClick={(e) => {
-            e.stopPropagation();
-            onMoveDown(workspace.id);
-          }}
-          disabled={isLast}
-          aria-label={t.moveDown}
-        >
-          ↓
-        </button>
-        <button
-          type="button"
-          className="adl-sortable-remove"
-          onClick={() => onRemove(workspace.id)}
-          aria-label={t.removeWorkspace.replace('{name}', workspace.name)}
-        >
-          <IconClose size={14} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function DraggableItem({ workspace }: { workspace: DraggableWorkspace }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: workspace.id,
-  });
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.4 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="adl-draggable-item"
-      {...listeners}
-      {...attributes}
-    >
-      <IconMenu size={14} className="adl-drag-icon" />
-      <span>{workspace.name}</span>
-    </div>
-  );
-}
 
 export function WorkspaceSettings() {
   const { t } = useTCopy();
@@ -126,23 +20,17 @@ export function WorkspaceSettings() {
     }))
   );
 
-  const config = appInfo?.config as Record<string, unknown> | undefined;
+  const config = appInfo?.config;
 
-  const [maxConcurrent, setMaxConcurrent] = useState<number>(
-    (config?.maxConcurrentWorkspaces as number) ?? 6
-  );
-  const [priorityIds, setPriorityIds] = useState<string[]>(
-    (config?.workspacePriorityIds as string[]) ?? []
-  );
-  const [deferredIds, setDeferredIds] = useState<string[]>(
-    (config?.workspaceDeferredIds as string[]) ?? []
-  );
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [maxConcurrent, setMaxConcurrent] = useState<number>(config?.maxConcurrentWorkspaces ?? 6);
+  const [priorityIds, setPriorityIds] = useState<string[]>(config?.workspacePriorityIds ?? []);
+  const [deferredIds, setDeferredIds] = useState<string[]>(config?.workspaceDeferredIds ?? []);
+  const [naturalOrder, setNaturalOrder] = useState<string[]>(config?.workspaceNaturalOrder ?? []);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const persistChanges = useCallback(
-    (p: number, pri: string[], def: string[]) => {
+    (p: number, pri: string[], def: string[], nat: string[]) => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
@@ -151,154 +39,94 @@ export function WorkspaceSettings() {
           maxConcurrentWorkspaces: p,
           workspacePriorityIds: pri,
           workspaceDeferredIds: def,
+          workspaceNaturalOrder: nat,
         });
       }, 200);
     },
     [updatePreferences]
   );
 
-  const visibleWorkspaces = useMemo(
+  const visibleWorkspaces = useMemo<DraggableWorkspace[]>(
     () =>
       recentWorkspaces
-        .filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels)
+        .filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available)
         .map((w) => ({ id: w.id, name: w.name })),
     [recentWorkspaces]
   );
 
-  const priorityWorkspaces = useMemo(
+  const priorityWorkspaces = useMemo<DraggableWorkspace[]>(
     () =>
       priorityIds
         .map((id) => visibleWorkspaces.find((w) => w.id === id))
-        .filter(Boolean) as DraggableWorkspace[],
+        .filter((w): w is DraggableWorkspace => w !== undefined),
     [priorityIds, visibleWorkspaces]
   );
 
-  const deferredWorkspaces = useMemo(
+  const deferredWorkspaces = useMemo<DraggableWorkspace[]>(
     () =>
       deferredIds
         .map((id) => visibleWorkspaces.find((w) => w.id === id))
-        .filter(Boolean) as DraggableWorkspace[],
+        .filter((w): w is DraggableWorkspace => w !== undefined),
     [deferredIds, visibleWorkspaces]
   );
 
-  const naturalWorkspaces = useMemo(
-    () =>
-      visibleWorkspaces.filter((w) => !priorityIds.includes(w.id) && !deferredIds.includes(w.id)),
-    [visibleWorkspaces, priorityIds, deferredIds]
-  );
+  const naturalWorkspaces = useMemo<DraggableWorkspace[]>(() => {
+    // Match computeLoadPhases semantics: configured IDs in naturalOrder first,
+    // then strays (visible but not in any list) appended at the end. This keeps
+    // the settings UI consistent with the actual load order on the current boot.
+    const configured = new Set<string>([...priorityIds, ...deferredIds, ...naturalOrder]);
+    const ordered = naturalOrder
+      .map((id) => visibleWorkspaces.find((w) => w.id === id))
+      .filter((w): w is DraggableWorkspace => w !== undefined);
+    const strays = visibleWorkspaces.filter((w) => !configured.has(w.id));
+    return [...ordered, ...strays];
+  }, [naturalOrder, visibleWorkspaces, priorityIds, deferredIds]);
 
-  const isPriorityTarget = (id: string): boolean => priorityIds.includes(id);
-  const isDeferredTarget = (id: string): boolean => deferredIds.includes(id);
-
-  const findContainer = (id: string): ContainerId => {
-    if (priorityIds.includes(id)) {
-      return 'priority';
-    }
-    if (deferredIds.includes(id)) {
-      return 'deferred';
-    }
-    return 'natural';
-  };
-
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
-
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  }, []);
-
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      const { active, over } = event;
-      setActiveId(null);
-      if (!over || active.id === over.id) {
-        return;
-      }
-
-      const itemId = active.id as string;
-      const fromContainer = findContainer(itemId);
-      const overId = over.id as string;
-      const toContainer = findContainer(overId);
-
-      if (fromContainer === toContainer) {
-        const ids =
-          fromContainer === 'priority'
-            ? [...priorityIds]
-            : fromContainer === 'deferred'
-              ? [...deferredIds]
-              : [];
-        const oldIndex = ids.indexOf(itemId);
-        const newIndex = ids.indexOf(overId);
-        if (oldIndex !== -1 && newIndex !== -1) {
-          ids.splice(oldIndex, 1);
-          ids.splice(newIndex, 0, itemId);
-          if (fromContainer === 'priority') {
-            setPriorityIds(ids);
-            persistChanges(maxConcurrent, ids, deferredIds);
-          } else {
-            setDeferredIds(ids);
-            persistChanges(maxConcurrent, priorityIds, ids);
-          }
-        }
-      } else {
-        let newPriority = [...priorityIds];
-        let newDeferred = [...deferredIds];
-        const sourceList =
-          fromContainer === 'priority'
-            ? newPriority
-            : fromContainer === 'deferred'
-              ? newDeferred
-              : null;
-        const targetList =
-          toContainer === 'priority'
-            ? newPriority
-            : toContainer === 'deferred'
-              ? newDeferred
-              : null;
-
-        if (fromContainer !== 'natural' && sourceList) {
-          const idx = sourceList.indexOf(itemId);
-          if (idx !== -1) {
-            sourceList.splice(idx, 1);
-          }
-        }
-
-        if (toContainer !== 'natural' && targetList) {
-          targetList.push(itemId);
-        }
-
-        newPriority = [...new Set(newPriority)];
-        newDeferred = [...new Set(newDeferred)];
-
-        setPriorityIds(newPriority);
-        setDeferredIds(newDeferred);
-        persistChanges(maxConcurrent, newPriority, newDeferred);
-      }
+  const handleDndChange = useCallback(
+    (next: { priority: string[]; deferred: string[]; natural: string[] }) => {
+      setPriorityIds(next.priority);
+      setDeferredIds(next.deferred);
+      setNaturalOrder(next.natural);
+      persistChanges(maxConcurrent, next.priority, next.deferred, next.natural);
     },
-    [priorityIds, deferredIds, maxConcurrent, persistChanges, findContainer]
+    [maxConcurrent, persistChanges]
   );
+
+  const dnd = useWorkspaceDnd({
+    priorityIds,
+    deferredIds,
+    naturalOrder,
+    visibleWorkspaces,
+    onChange: handleDndChange,
+  });
 
   const handleConcurrentChange = useCallback(
     (value: number) => {
       const clamped = Math.min(20, Math.max(1, value));
       setMaxConcurrent(clamped);
-      persistChanges(clamped, priorityIds, deferredIds);
+      persistChanges(clamped, priorityIds, deferredIds, naturalOrder);
     },
-    [priorityIds, deferredIds, persistChanges]
+    [priorityIds, deferredIds, naturalOrder, persistChanges]
   );
 
   const handleRemove = useCallback(
     (id: string, fromList: ContainerId) => {
+      // Removing from priority/deferred moves back to natural (head)
       if (fromList === 'priority') {
-        const next = priorityIds.filter((i) => i !== id);
-        setPriorityIds(next);
-        persistChanges(maxConcurrent, next, deferredIds);
+        const nextPri = priorityIds.filter((i) => i !== id);
+        const nextNat = [id, ...naturalOrder];
+        setPriorityIds(nextPri);
+        setNaturalOrder(nextNat);
+        persistChanges(maxConcurrent, nextPri, deferredIds, nextNat);
       } else if (fromList === 'deferred') {
-        const next = deferredIds.filter((i) => i !== id);
-        setDeferredIds(next);
-        persistChanges(maxConcurrent, priorityIds, next);
+        const nextDef = deferredIds.filter((i) => i !== id);
+        const nextNat = [id, ...naturalOrder];
+        setDeferredIds(nextDef);
+        setNaturalOrder(nextNat);
+        persistChanges(maxConcurrent, priorityIds, nextDef, nextNat);
       }
     },
-    [priorityIds, deferredIds, maxConcurrent, persistChanges]
+    [priorityIds, deferredIds, naturalOrder, maxConcurrent, persistChanges]
   );
 
   const handleMoveUp = useCallback(
@@ -309,14 +137,14 @@ export function WorkspaceSettings() {
         [ids[idx - 1], ids[idx]] = [ids[idx], ids[idx - 1]];
         if (list === 'priority') {
           setPriorityIds(ids);
-          persistChanges(maxConcurrent, ids, deferredIds);
+          persistChanges(maxConcurrent, ids, deferredIds, naturalOrder);
         } else {
           setDeferredIds(ids);
-          persistChanges(maxConcurrent, priorityIds, ids);
+          persistChanges(maxConcurrent, priorityIds, ids, naturalOrder);
         }
       }
     },
-    [priorityIds, deferredIds, maxConcurrent, persistChanges]
+    [priorityIds, deferredIds, naturalOrder, maxConcurrent, persistChanges]
   );
 
   const handleMoveDown = useCallback(
@@ -327,14 +155,14 @@ export function WorkspaceSettings() {
         [ids[idx], ids[idx + 1]] = [ids[idx + 1], ids[idx]];
         if (list === 'priority') {
           setPriorityIds(ids);
-          persistChanges(maxConcurrent, ids, deferredIds);
+          persistChanges(maxConcurrent, ids, deferredIds, naturalOrder);
         } else {
           setDeferredIds(ids);
-          persistChanges(maxConcurrent, priorityIds, ids);
+          persistChanges(maxConcurrent, priorityIds, ids, naturalOrder);
         }
       }
     },
-    [priorityIds, deferredIds, maxConcurrent, persistChanges]
+    [priorityIds, deferredIds, naturalOrder, maxConcurrent, persistChanges]
   );
 
   useEffect(() => {
@@ -344,17 +172,6 @@ export function WorkspaceSettings() {
       }
     };
   }, []);
-
-  const activeItem = activeId ? visibleWorkspaces.find((w) => w.id === activeId) : null;
-
-  const prioritySortableIds = useMemo(
-    () => priorityWorkspaces.map((w) => w.id),
-    [priorityWorkspaces]
-  );
-  const deferredSortableIds = useMemo(
-    () => deferredWorkspaces.map((w) => w.id),
-    [deferredWorkspaces]
-  );
 
   return (
     <div className="adl-settings-section">
@@ -370,7 +187,12 @@ export function WorkspaceSettings() {
               dismissible
               maxWidth={280}
             >
-              <button type="button" className="adl-icon-button adl-icon-button--info" tabIndex={-1}>
+              <button
+                type="button"
+                className="adl-icon-button adl-icon-button--info"
+                tabIndex={-1}
+                aria-label=""
+              >
                 <IconAlertTriangle size={16} />
               </button>
             </TooltipSimple>
@@ -391,78 +213,55 @@ export function WorkspaceSettings() {
       <hr className="adl-settings-divider" />
 
       <DndContext
-        sensors={sensors}
+        sensors={dnd.sensors}
         collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
+        onDragStart={dnd.handleDragStart}
+        onDragEnd={dnd.handleDragEnd}
       >
-        <div className="adl-sortable-section">
-          <h4 className="adl-sortable-section-title">
-            {t.priorityList}
-            <span className="adl-sortable-section-desc">{t.priorityListDesc}</span>
-          </h4>
-          <SortableContext items={prioritySortableIds} strategy={verticalListSortingStrategy}>
-            <div className="adl-sortable-list">
-              {priorityWorkspaces.length === 0 ? (
-                <div className="adl-sortable-empty">{t.priorityListEmpty}</div>
-              ) : (
-                priorityWorkspaces.map((w, i) => (
-                  <SortableItem
-                    key={w.id}
-                    workspace={w}
-                    onRemove={(id) => handleRemove(id, 'priority')}
-                    onMoveUp={(id) => handleMoveUp(id, 'priority')}
-                    onMoveDown={(id) => handleMoveDown(id, 'priority')}
-                    isFirst={i === 0}
-                    isLast={i === priorityWorkspaces.length - 1}
-                    t={t}
-                  />
-                ))
-              )}
-            </div>
-          </SortableContext>
-        </div>
+        <SortableWorkspaceList
+          kind="priority"
+          title={t.priorityList}
+          desc={t.priorityListDesc}
+          tooltipContent={t.priorityListTooltip}
+          items={priorityWorkspaces}
+          emptyText={t.priorityListEmpty}
+          onRemove={(id) => handleRemove(id, 'priority')}
+          onMoveUp={(id) => handleMoveUp(id, 'priority')}
+          onMoveDown={(id) => handleMoveDown(id, 'priority')}
+          moveUpLabel={t.moveUp}
+          moveDownLabel={t.moveDown}
+          removeLabel={t.removeWorkspace}
+        />
 
-        <div className="adl-sortable-section">
-          <h4 className="adl-sortable-section-title">
-            {t.deferredList}
-            <span className="adl-sortable-section-desc">{t.deferredListDesc}</span>
-          </h4>
-          <SortableContext items={deferredSortableIds} strategy={verticalListSortingStrategy}>
-            <div className="adl-sortable-list">
-              {deferredWorkspaces.length === 0 ? (
-                <div className="adl-sortable-empty">{t.deferredListEmpty}</div>
-              ) : (
-                deferredWorkspaces.map((w, i) => (
-                  <SortableItem
-                    key={w.id}
-                    workspace={w}
-                    onRemove={(id) => handleRemove(id, 'deferred')}
-                    onMoveUp={(id) => handleMoveUp(id, 'deferred')}
-                    onMoveDown={(id) => handleMoveDown(id, 'deferred')}
-                    isFirst={i === 0}
-                    isLast={i === deferredWorkspaces.length - 1}
-                    t={t}
-                  />
-                ))
-              )}
-            </div>
-          </SortableContext>
-        </div>
+        <SortableWorkspaceList
+          kind="deferred"
+          title={t.deferredList}
+          desc={t.deferredListDesc}
+          tooltipContent={t.deferredListTooltip}
+          items={deferredWorkspaces}
+          emptyText={t.deferredListEmpty}
+          onRemove={(id) => handleRemove(id, 'deferred')}
+          onMoveUp={(id) => handleMoveUp(id, 'deferred')}
+          onMoveDown={(id) => handleMoveDown(id, 'deferred')}
+          moveUpLabel={t.moveUp}
+          moveDownLabel={t.moveDown}
+          removeLabel={t.removeWorkspace}
+        />
 
-        <div className="adl-sortable-section adl-sortable-section--natural">
-          <h4 className="adl-sortable-section-title">{t.defaultOrderHint}</h4>
-          <div className="adl-sortable-list">
-            {naturalWorkspaces.length === 0 ? (
-              <div className="adl-sortable-empty">{t.defaultOrderAllConfigured}</div>
-            ) : (
-              naturalWorkspaces.map((w) => <DraggableItem key={w.id} workspace={w} />)
-            )}
-          </div>
-        </div>
+        <SortableWorkspaceList
+          kind="natural"
+          title={t.workspaceTagList}
+          desc={t.workspaceTagListDesc}
+          tooltipContent={t.workspaceTagListTooltip}
+          items={naturalWorkspaces}
+          emptyText={t.workspaceTagListEmpty}
+          moveUpLabel={t.moveUp}
+          moveDownLabel={t.moveDown}
+          removeLabel={t.removeWorkspace}
+        />
 
         <DragOverlay>
-          {activeItem ? <div className="adl-drag-overlay">{activeItem.name}</div> : null}
+          {dnd.activeItem ? <div className="adl-drag-overlay">{dnd.activeItem.name}</div> : null}
         </DragOverlay>
       </DndContext>
     </div>

@@ -18,6 +18,7 @@ const baseConfig: ConfigSnapshot = {
   maxConcurrentWorkspaces: 6,
   workspacePriorityIds: [],
   workspaceDeferredIds: [],
+  workspaceNaturalOrder: [],
 };
 
 describe('applyPreferencePatch', () => {

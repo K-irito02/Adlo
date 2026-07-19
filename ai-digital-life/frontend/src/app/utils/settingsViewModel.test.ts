@@ -25,6 +25,7 @@ const mockAppInfo: AppInfo = {
     maxConcurrentWorkspaces: 6,
     workspacePriorityIds: [],
     workspaceDeferredIds: [],
+    workspaceNaturalOrder: [],
   },
   currentWorkspace: undefined,
   recentLogs: [],

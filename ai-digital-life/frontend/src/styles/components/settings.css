@@ -414,14 +414,21 @@
   font-weight: var(--font-semibold);
   color: var(--text-primary);
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.adl-sortable-section-title-text {
+  flex-shrink: 0;
 }
 
 .adl-sortable-section-desc {
+  flex: 1 1 100%;
   font-size: var(--text-xs);
   font-weight: normal;
   color: var(--text-muted);
+  margin-top: 2px;
 }
 
 .adl-sortable-list {

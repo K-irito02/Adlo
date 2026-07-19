@@ -70,6 +70,9 @@ export function applyPreferencePatch(
   if (patch.workspaceDeferredIds !== undefined) {
     nextConfig.workspaceDeferredIds = patch.workspaceDeferredIds;
   }
+  if (patch.workspaceNaturalOrder !== undefined) {
+    nextConfig.workspaceNaturalOrder = patch.workspaceNaturalOrder;
+  }
 
   return nextConfig;
 }
