@@ -58,7 +58,6 @@ const LeftSidebar = React.memo(function LeftSidebar({
   );
   const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
   const [menuState, setMenuState] = useState<SidebarMenuState>();
-  const [dragWorkspaceId, setDragWorkspaceId] = useState<string>();
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [sessionToRename, setSessionToRename] = useState<{ id: string; name: string } | null>(null);
 
@@ -146,10 +145,7 @@ const LeftSidebar = React.memo(function LeftSidebar({
           workspaceItems={workspaceItems}
           expandedSessionWorkspaces={expandedSessionWorkspaces}
           toggleSessionWorkspace={toggleSessionWorkspace}
-          dragWorkspaceId={dragWorkspaceId}
-          setDragWorkspaceId={setDragWorkspaceId}
           onReorderWorkspaces={actions.reorderWorkspaces}
-          onOpenWorkspace={actions.openWorkspace}
           onSwitchToWorkspace={(id: string, path: string) =>
             actions.switchToWorkspace(asWorkspaceID(id), path)
           }

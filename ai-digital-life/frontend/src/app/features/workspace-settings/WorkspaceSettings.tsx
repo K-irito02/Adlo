@@ -407,16 +407,16 @@ export function WorkspaceSettings() {
                 <div className="adl-sortable-empty">{t.priorityListEmpty}</div>
               ) : (
                 priorityWorkspaces.map((w, i) => (
-                    <SortableItem
-                      key={w.id}
-                      workspace={w}
-                      onRemove={(id) => handleRemove(id, 'priority')}
-                      onMoveUp={(id) => handleMoveUp(id, 'priority')}
-                      onMoveDown={(id) => handleMoveDown(id, 'priority')}
-                      isFirst={i === 0}
-                      isLast={i === priorityWorkspaces.length - 1}
-                      t={t}
-                    />
+                  <SortableItem
+                    key={w.id}
+                    workspace={w}
+                    onRemove={(id) => handleRemove(id, 'priority')}
+                    onMoveUp={(id) => handleMoveUp(id, 'priority')}
+                    onMoveDown={(id) => handleMoveDown(id, 'priority')}
+                    isFirst={i === 0}
+                    isLast={i === priorityWorkspaces.length - 1}
+                    t={t}
+                  />
                 ))
               )}
             </div>
@@ -434,16 +434,16 @@ export function WorkspaceSettings() {
                 <div className="adl-sortable-empty">{t.deferredListEmpty}</div>
               ) : (
                 deferredWorkspaces.map((w, i) => (
-                    <SortableItem
-                      key={w.id}
-                      workspace={w}
-                      onRemove={(id) => handleRemove(id, 'deferred')}
-                      onMoveUp={(id) => handleMoveUp(id, 'deferred')}
-                      onMoveDown={(id) => handleMoveDown(id, 'deferred')}
-                      isFirst={i === 0}
-                      isLast={i === deferredWorkspaces.length - 1}
-                      t={t}
-                    />
+                  <SortableItem
+                    key={w.id}
+                    workspace={w}
+                    onRemove={(id) => handleRemove(id, 'deferred')}
+                    onMoveUp={(id) => handleMoveUp(id, 'deferred')}
+                    onMoveDown={(id) => handleMoveDown(id, 'deferred')}
+                    isFirst={i === 0}
+                    isLast={i === deferredWorkspaces.length - 1}
+                    t={t}
+                  />
                 ))
               )}
             </div>

@@ -46,8 +46,6 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     setPreviewEnabled,
     workspaceChangesTreeLoading,
     workspaceChangesTreeErrors,
-    onPinWorkspace,
-    onUnpinWorkspace,
     snapshot,
     lineNumbersEnabled,
     wordWrapEnabled,
@@ -97,7 +95,6 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     handleCollapseAll,
     handleRefreshOneWorkspace,
     handleToggleFileTreePath,
-    handleReorderWorkspaces,
     handleRefreshAllChanges,
   } = useChangesPanelState(props);
 
@@ -135,12 +132,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
           externalChangePath={props.externalChangePath}
           onToggleExpand={handleToggleExpand}
           onRefreshOne={handleRefreshOneWorkspace}
-          onPinWorkspace={onPinWorkspace}
-          onUnpinWorkspace={onUnpinWorkspace}
           onHideFromRightPanels={onHideFromRightPanels}
           onToggleFileTreePath={handleToggleFileTreePath}
           onOpenChangePreview={handleSelectNavigatorNode}
-          onReorderWorkspaces={handleReorderWorkspaces}
           getContextMenuItems={getContextMenuItems}
           contextMenuPersistRef={changesContextMenuPersistRef}
           clearMenuHighlightRef={changesClearMenuHighlightRef}

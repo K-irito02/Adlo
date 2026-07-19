@@ -66,7 +66,15 @@ export const mockWorkspace: WorkspaceBridge = {
     }
     return { ok: true, data: recentWorkspaces };
   },
-  reorder: async (_input: ReorderWorkspacesInput) => ({ ok: true, data: recentWorkspaces }),
+  reorder: async (input: ReorderWorkspacesInput) => {
+    const { pinnedIds, unpinnedIds } = input;
+    const allIds = [...pinnedIds, ...unpinnedIds];
+    const map = new Map(recentWorkspaces.map((w) => [w.id, w]));
+    recentWorkspaces.splice(0, recentWorkspaces.length,
+      ...allIds.map((id) => map.get(id)).filter((w): w is NonNullable<typeof w> => !!w)
+    );
+    return { ok: true as const, data: recentWorkspaces };
+  },
   removeFromSidebar: async (workspaceId: string) => {
     const entry = recentWorkspaces.find((item) => item.id === workspaceId);
     if (entry) {

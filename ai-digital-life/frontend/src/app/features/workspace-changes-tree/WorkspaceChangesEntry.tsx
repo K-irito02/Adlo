@@ -4,8 +4,6 @@ import type { CopyDict } from '@i18n';
 import { useAppStore } from '@stores/slicedStore';
 import {
   IconRefreshCw,
-  IconPin,
-  IconPinOff,
   IconMoreVertical,
   IconFolder,
   IconFolderOpen,
@@ -31,8 +29,6 @@ export interface WorkspaceChangesEntryProps {
   externalChangePath: string | undefined;
   onToggleExpand: () => void;
   onHideFromRightPanels: (workspaceId: string) => void;
-  onPinWorkspace: (workspaceId: string) => void;
-  onUnpinWorkspace: (workspaceId: string) => void;
   changeCount: number;
   onRefreshTree: () => void;
   onToggleFileTreePath: (path: string) => void;
@@ -61,8 +57,6 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   externalChangePath,
   onToggleExpand,
   onHideFromRightPanels,
-  onPinWorkspace,
-  onUnpinWorkspace,
   changeCount,
   onRefreshTree,
   onToggleFileTreePath,
@@ -82,7 +76,6 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
     branchSubOpen,
     setBranchSubOpen,
     menuId,
-    isPinned,
     handleNameClick,
     handleNameContextMenu,
     handleNameKeyDown,
@@ -93,14 +86,11 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
     handleRevealInFileManager,
     handleHideFromRightPanels,
     handleRefreshClick,
-    handlePinClick,
     wrappedGetContextMenuItems,
   } = useWorkspaceChangesActions({
     workspace,
     onToggleExpand,
     onHideFromRightPanels,
-    onPinWorkspace,
-    onUnpinWorkspace,
     onRefreshTree,
     getContextMenuItems,
   });
@@ -163,17 +153,6 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
                 aria-label={t.fileRefresh}
               >
                 <IconRefreshCw size={12} decorative />
-              </button>
-            </TooltipSimple>
-
-            <TooltipSimple content={isPinned ? t.fileUnpin : t.filePin} placement="top">
-              <button
-                type="button"
-                className="adl-icon-btn adl-icon-btn--xs"
-                onClick={handlePinClick}
-                aria-label={isPinned ? t.fileUnpin : t.filePin}
-              >
-                {isPinned ? <IconPinOff size={12} decorative /> : <IconPin size={12} decorative />}
               </button>
             </TooltipSimple>
 

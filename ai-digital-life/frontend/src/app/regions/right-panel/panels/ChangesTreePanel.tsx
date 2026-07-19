@@ -8,7 +8,6 @@ import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { ChangesToolbar } from './ChangesToolbar';
 import type {
   WorkspaceTreeNode,
-  ReorderWorkspacesInput,
   GitSnapshot,
   RecentWorkspaceEntry,
   FileOutlineItem,
@@ -37,12 +36,9 @@ interface TreeDataProps {
 interface TreeCallbacks {
   onToggleExpand: (workspaceId: string) => void;
   onRefreshOne: (workspaceId: string) => void;
-  onPinWorkspace: (workspaceId: string) => void;
-  onUnpinWorkspace: (workspaceId: string) => void;
   onHideFromRightPanels: (workspaceId: string) => void;
   onToggleFileTreePath: (workspaceId: string, path: string) => void;
   onOpenChangePreview: (workspacePath: string, relativePath: string) => void;
-  onReorderWorkspaces: (input: ReorderWorkspacesInput) => void;
   getContextMenuItems: (node: ChangeTreeNode) => FileTreeContextMenuItem<ChangeTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
@@ -98,12 +94,9 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     externalChangePath,
     onToggleExpand,
     onRefreshOne,
-    onPinWorkspace,
-    onUnpinWorkspace,
     onHideFromRightPanels,
     onToggleFileTreePath,
     onOpenChangePreview,
-    onReorderWorkspaces,
     getContextMenuItems,
     contextMenuPersistRef,
     clearMenuHighlightRef,
@@ -201,13 +194,10 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
             externalChangePath={externalChangePath}
             onToggleExpand={onToggleExpand}
             onRefreshOne={onRefreshOne}
-            onPinWorkspace={onPinWorkspace}
-            onUnpinWorkspace={onUnpinWorkspace}
             changeCounts={changeCounts}
             onHideFromRightPanels={onHideFromRightPanels}
             onToggleFileTreePath={onToggleFileTreePath}
             onOpenChangePreview={onOpenChangePreview}
-            onReorderWorkspaces={onReorderWorkspaces}
             getContextMenuItems={
               getContextMenuItems as unknown as (
                 node: WorkspaceTreeNode

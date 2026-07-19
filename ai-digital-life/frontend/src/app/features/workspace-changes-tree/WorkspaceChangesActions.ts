@@ -8,8 +8,6 @@ export interface UseWorkspaceChangesActionsParams {
   workspace: RecentWorkspaceEntry;
   onToggleExpand: () => void;
   onHideFromRightPanels: (workspaceId: string) => void;
-  onPinWorkspace: (workspaceId: string) => void;
-  onUnpinWorkspace: (workspaceId: string) => void;
   onRefreshTree: () => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
 }
@@ -20,7 +18,6 @@ export interface WorkspaceChangesActions {
   branchSubOpen: boolean;
   setBranchSubOpen: (open: boolean) => void;
   menuId: string;
-  isPinned: boolean;
   handleNameClick: () => void;
   handleNameContextMenu: (e: React.MouseEvent) => void;
   handleNameKeyDown: (e: React.KeyboardEvent) => void;
@@ -31,7 +28,6 @@ export interface WorkspaceChangesActions {
   handleRevealInFileManager: () => Promise<void>;
   handleHideFromRightPanels: () => void;
   handleRefreshClick: (e: React.MouseEvent) => void;
-  handlePinClick: (e: React.MouseEvent) => void;
   wrappedGetContextMenuItems: (
     node: WorkspaceTreeNode
   ) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
@@ -41,8 +37,6 @@ export function useWorkspaceChangesActions({
   workspace,
   onToggleExpand,
   onHideFromRightPanels,
-  onPinWorkspace,
-  onUnpinWorkspace,
   onRefreshTree,
   getContextMenuItems,
 }: UseWorkspaceChangesActionsParams): WorkspaceChangesActions {
@@ -50,8 +44,6 @@ export function useWorkspaceChangesActions({
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [branchSubOpen, setBranchSubOpen] = useState(false);
   const menuId = `ws-changes-menu-${workspace.id}`;
-
-  const isPinned = workspace.isPinned;
 
   const wrappedGetContextMenuItems = useCallback(
     (node: WorkspaceTreeNode) => {
@@ -149,25 +141,12 @@ export function useWorkspaceChangesActions({
     [onRefreshTree]
   );
 
-  const handlePinClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      if (isPinned) {
-        onUnpinWorkspace(workspace.id);
-      } else {
-        onPinWorkspace(workspace.id);
-      }
-    },
-    [isPinned, onPinWorkspace, onUnpinWorkspace, workspace.id]
-  );
-
   return {
     menuOpen,
     menuPosition,
     branchSubOpen,
     setBranchSubOpen,
     menuId,
-    isPinned,
     handleNameClick,
     handleNameContextMenu,
     handleNameKeyDown,
@@ -178,7 +157,6 @@ export function useWorkspaceChangesActions({
     handleRevealInFileManager,
     handleHideFromRightPanels,
     handleRefreshClick,
-    handlePinClick,
     wrappedGetContextMenuItems,
   };
 }

@@ -1,4 +1,4 @@
-export function moveIdWithinBucket(ids: string[], draggedId: string, targetId: string): string[] {
+export function moveIdBeforeTarget(ids: string[], draggedId: string, targetId: string): string[] {
   const next = ids.filter((id) => id !== draggedId);
   const targetIndex = next.indexOf(targetId);
   if (targetIndex < 0) {

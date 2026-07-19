@@ -59,8 +59,6 @@ export const fileZh = {
   fileRemoveFromView: '从此区域移除不显示',
   fileCollapse: '收起',
   fileExpand: '展开',
-  filePin: '置顶',
-  fileUnpin: '取消置顶',
   fileCopyBranchName: '复制分支名',
   searchOptions: '搜索选项',
 } as const;

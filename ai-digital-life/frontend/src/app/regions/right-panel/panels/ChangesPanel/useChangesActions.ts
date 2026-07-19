@@ -1,10 +1,6 @@
 import { useCallback, type MutableRefObject } from 'react';
 import { useAppStore } from '@stores/slicedStore';
-import type {
-  ReorderWorkspacesInput,
-  RecentWorkspaceEntry,
-  WorkspaceChangePreview,
-} from '@ai-digital-life/kernel';
+import type { RecentWorkspaceEntry, WorkspaceChangePreview } from '@ai-digital-life/kernel';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
 import {
   revealOutlineLine,
@@ -169,10 +165,6 @@ export function useChangesActions(params: UseChangesActionsParams) {
     [toggleChangesTreePath]
   );
 
-  const handleReorderWorkspaces = useCallback((input: ReorderWorkspacesInput) => {
-    useAppStore.getState().reorderWorkspaces(input);
-  }, []);
-
   const onRefreshAll = useCallback(() => {
     refreshAllChanges(visibleWorkspaces, (id, p) =>
       useAppStore.getState().refreshGitSnapshot(id, p)
@@ -190,7 +182,6 @@ export function useChangesActions(params: UseChangesActionsParams) {
     onToggleExpand,
     onRefreshOne,
     handleToggleFileTreePath,
-    handleReorderWorkspaces,
     onRefreshAll,
   };
 }

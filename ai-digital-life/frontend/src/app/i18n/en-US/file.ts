@@ -59,8 +59,6 @@ export const fileEn = {
   fileRemoveFromView: 'Remove from this view',
   fileCollapse: 'Collapse',
   fileExpand: 'Expand',
-  filePin: 'Pin',
-  fileUnpin: 'Unpin',
   fileCopyBranchName: 'Copy branch name',
   searchOptions: 'Search options',
 } as const;

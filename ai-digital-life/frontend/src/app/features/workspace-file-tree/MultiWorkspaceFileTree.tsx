@@ -1,9 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
-import type { RecentWorkspaceEntry, WorkspaceTreeNode, ReorderWorkspacesInput } from '@shared/ipc';
+import { useCallback } from 'react';
+import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
 import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';
 import { WorkspaceFileTreeEntry } from './WorkspaceFileTreeEntry';
-import { moveIdWithinBucket } from '@utils/dragUtils';
 import { useTCopy } from '@i18n/useTCopy';
 
 export interface MultiWorkspaceFileTreeProps {
@@ -21,8 +20,6 @@ export interface MultiWorkspaceFileTreeProps {
   onToggleExpand: (workspaceId: string) => void;
   onRefreshOne: (workspaceId: string) => void;
   onOpenWorkspace: (path: string) => void;
-  onPinWorkspace: (workspaceId: string) => void;
-  onUnpinWorkspace: (workspaceId: string) => void;
   onHideFromRightPanels: (workspaceId: string) => void;
   onToggleFileTreePath: (workspaceId: string, path: string) => void;
   onOpenFile: (relativePath: string) => void;
@@ -31,7 +28,6 @@ export interface MultiWorkspaceFileTreeProps {
     workspacePath: string,
     relativePath: string
   ) => void;
-  onReorderWorkspaces: (input: ReorderWorkspacesInput) => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
@@ -52,67 +48,23 @@ export function MultiWorkspaceFileTree({
   onToggleExpand,
   onRefreshOne,
   onOpenWorkspace,
-  onPinWorkspace,
-  onUnpinWorkspace,
   onHideFromRightPanels,
   onToggleFileTreePath,
   onOpenFileForWorkspace,
-  onReorderWorkspaces,
   getContextMenuItems,
   contextMenuPersistRef,
   clearMenuHighlightRef,
 }: MultiWorkspaceFileTreeProps) {
   const { t } = useTCopy();
-  const [dragWorkspaceId, setDragWorkspaceId] = useState<string | undefined>(undefined);
-
-  const pinnedIds = useMemo(
-    () => workspaces.filter((w) => w.isPinned).map((w) => w.id),
-    [workspaces]
-  );
-
-  const unpinnedIds = useMemo(
-    () => workspaces.filter((w) => !w.isPinned).map((w) => w.id),
-    [workspaces]
-  );
-
-  const handleDrop = useCallback(
-    (targetWorkspaceId: string, isPinnedBucket: boolean) => {
-      if (!dragWorkspaceId || dragWorkspaceId === targetWorkspaceId) {
-        return;
-      }
-
-      const bucketIds = isPinnedBucket ? pinnedIds : unpinnedIds;
-      if (!bucketIds.includes(dragWorkspaceId)) {
-        return;
-      }
-
-      const nextIds = moveIdWithinBucket(bucketIds, dragWorkspaceId, targetWorkspaceId);
-      const finalPinnedIds = isPinnedBucket ? nextIds : pinnedIds;
-      const finalUnpinnedIds = isPinnedBucket ? unpinnedIds : nextIds;
-
-      onReorderWorkspaces({ pinnedIds: finalPinnedIds, unpinnedIds: finalUnpinnedIds });
-      setDragWorkspaceId(undefined);
-    },
-    [dragWorkspaceId, pinnedIds, unpinnedIds, onReorderWorkspaces]
-  );
 
   const renderContent = useCallback(
     (workspace: RecentWorkspaceEntry, isExpanded: boolean) => {
-      const isPinned = workspace.isPinned;
-
       const handleOpenFile = (relativePath: string) => {
         onOpenFileForWorkspace(workspace.id, workspace.path, relativePath);
       };
 
       return (
-        <div
-          key={workspace.id}
-          className={`adl-multitree-entry${dragWorkspaceId === workspace.id ? ' is-dragging' : ''}`}
-          draggable
-          onDragStart={() => setDragWorkspaceId(workspace.id)}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={() => handleDrop(workspace.id, isPinned)}
-        >
+        <div key={workspace.id} className="adl-multitree-entry">
           <WorkspaceFileTreeEntry
             workspace={workspace}
             isCurrent={workspace.id === activeWorkspaceId}
@@ -127,8 +79,6 @@ export function MultiWorkspaceFileTree({
             externalChangePath={externalChangePath}
             onToggleExpand={() => onToggleExpand(workspace.id)}
             onOpenWorkspace={onOpenWorkspace}
-            onPinWorkspace={onPinWorkspace}
-            onUnpinWorkspace={onUnpinWorkspace}
             onHideFromRightPanels={onHideFromRightPanels}
             onRefreshTree={() => onRefreshOne(workspace.id)}
             onToggleFileTreePath={(path) => onToggleFileTreePath(workspace.id, path)}
@@ -153,12 +103,9 @@ export function MultiWorkspaceFileTree({
       expandedPaths,
       dirtyPaths,
       externalChangePath,
-      dragWorkspaceId,
       onToggleExpand,
       onRefreshOne,
       onOpenWorkspace,
-      onPinWorkspace,
-      onUnpinWorkspace,
       onHideFromRightPanels,
       onToggleFileTreePath,
       onOpenFileForWorkspace,
@@ -166,7 +113,6 @@ export function MultiWorkspaceFileTree({
       contextMenuPersistRef,
       clearMenuHighlightRef,
       t,
-      handleDrop,
     ]
   );
 

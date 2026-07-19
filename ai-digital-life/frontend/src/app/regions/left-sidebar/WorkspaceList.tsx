@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReorderWorkspacesInput } from '@ai-digital-life/kernel';
 import {
   IconArchive,
@@ -19,10 +19,7 @@ export interface WorkspaceListProps {
   workspaceItems: SidebarWorkspaceItem[];
   expandedSessionWorkspaces: Record<string, boolean>;
   toggleSessionWorkspace: (workspaceId: string) => void;
-  dragWorkspaceId: string | undefined;
-  setDragWorkspaceId: (workspaceId: string | undefined) => void;
   onReorderWorkspaces: (input: ReorderWorkspacesInput) => void;
-  onOpenWorkspace: (path: string) => void;
   onSwitchToWorkspace: (workspaceId: string, workspacePath: string) => void;
   onPinWorkspace: (workspaceId: string) => void;
   onUnpinWorkspace: (workspaceId: string) => void;
@@ -42,16 +39,20 @@ export interface WorkspaceListProps {
   workspaceToolbarRef: React.RefObject<HTMLDivElement | null>;
 }
 
-import { moveIdWithinBucket } from '../../utils/dragUtils';
+import { moveIdAfterTarget, moveIdBeforeTarget } from '../../utils/dragUtils';
+
+interface DragSession {
+  draggedId: string;
+  startY: number;
+  isDragging: boolean;
+  isPinned: boolean;
+}
 
 export function WorkspaceList({
   workspaceItems,
   expandedSessionWorkspaces,
   toggleSessionWorkspace,
-  dragWorkspaceId,
-  setDragWorkspaceId,
   onReorderWorkspaces,
-  onOpenWorkspace: _onOpenWorkspace,
   onSwitchToWorkspace,
   onPinWorkspace,
   onUnpinWorkspace,
@@ -65,28 +66,177 @@ export function WorkspaceList({
   const { t } = useTCopy();
   const [archiveOpen, setArchiveOpen] = useState(false);
 
-  const handleWorkspaceDrop = useCallback(
-    (targetWorkspaceId: string, isPinnedBucket: boolean) => {
-      if (!dragWorkspaceId || dragWorkspaceId === targetWorkspaceId) {
+  // Mouse-based drag state
+  const dragSessionRef = useRef<DragSession | null>(null);
+  const [dragActiveId, setDragActiveId] = useState<string | null>(null);
+  const [dragTargetId, setDragTargetId] = useState<string | null>(null);
+  const [dragTargetPosition, setDragTargetPosition] = useState<'before' | 'after'>('after');
+  const targetIdRef = useRef<string | null>(null);
+  const targetPosRef = useRef<'before' | 'after'>('after');
+
+  // Keep refs current to avoid stale closures in document listeners
+  const workspaceItemsRef = useRef(workspaceItems);
+  workspaceItemsRef.current = workspaceItems;
+  const onReorderRef = useRef(onReorderWorkspaces);
+  onReorderRef.current = onReorderWorkspaces;
+
+  // Persistent document-level listeners for drag tracking
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const session = dragSessionRef.current;
+      if (!session) return;
+
+      if (!session.isDragging) {
+        if (Math.abs(e.clientY - session.startY) <= 4) return;
+        session.isDragging = true;
+        setDragActiveId(session.draggedId);
+      }
+
+      const ul = document.querySelector('.adl-workspace-list');
+      if (!ul) return;
+
+      const items = ul.querySelectorAll<HTMLLIElement>('li[data-ws-id]');
+      if (items.length === 0) return;
+
+      let foundId: string | null = null;
+      let foundPos: 'before' | 'after' = 'after';
+
+      // Edge: cursor above first item's top edge → target first item (before)
+      const firstRect = items[0].getBoundingClientRect();
+      if (e.clientY < firstRect.top) {
+        const firstId = items[0].getAttribute('data-ws-id');
+        if (firstId && firstId !== session.draggedId) {
+          foundId = firstId;
+          foundPos = 'before';
+        }
+      }
+      // Edge: cursor below last item's bottom edge → target last item (after)
+      else {
+        const lastRect = items[items.length - 1].getBoundingClientRect();
+        if (e.clientY > lastRect.bottom) {
+          const lastId = items[items.length - 1].getAttribute('data-ws-id');
+          if (lastId && lastId !== session.draggedId) {
+            foundId = lastId;
+            foundPos = 'after';
+          }
+        }
+      }
+
+      // Normal: find closest item
+      if (!foundId) {
+        let minDist = Infinity;
+        let closestId: string | null = null;
+        let closestPos: 'before' | 'after' = 'after';
+        for (const item of items) {
+          const id = item.getAttribute('data-ws-id');
+          if (!id || id === session.draggedId) continue;
+
+          const rect = item.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          const dist = Math.abs(e.clientY - midY);
+
+          if (dist < minDist) {
+            minDist = dist;
+            closestId = id;
+            closestPos = e.clientY < midY ? 'before' : 'after';
+          }
+        }
+        if (closestId) {
+          foundId = closestId;
+          foundPos = closestPos;
+        }
+      }
+
+      if (foundId) {
+        if (foundId !== targetIdRef.current || foundPos !== targetPosRef.current) {
+          targetIdRef.current = foundId;
+          targetPosRef.current = foundPos;
+          setDragTargetId(foundId);
+          setDragTargetPosition(foundPos);
+        }
+      }
+    };
+
+    const cleanupDrag = () => {
+      dragSessionRef.current = null;
+      targetIdRef.current = null;
+      targetPosRef.current = 'after';
+      setDragActiveId(null);
+      setDragTargetId(null);
+    };
+
+    const handleMouseUp = () => {
+      const session = dragSessionRef.current;
+      if (!session) {
         return;
       }
-      const bucketItems = workspaceItems
-        .filter((item) => item.workspace.isPinned === isPinnedBucket)
-        .map((item) => item.workspace.id);
-      if (!bucketItems.includes(dragWorkspaceId)) {
-        return;
+
+      if (session.isDragging) {
+        const targetId = targetIdRef.current;
+        if (targetId && targetId !== session.draggedId) {
+          try {
+            const items = workspaceItemsRef.current;
+            const onReorder = onReorderRef.current;
+            const isPinnedBucket = session.isPinned;
+            const bucketItems = items
+              .filter((w) => w.workspace.isPinned === isPinnedBucket)
+              .map((w) => w.workspace.id);
+
+            if (bucketItems.includes(session.draggedId) && bucketItems.includes(targetId)) {
+              const useAfter = targetPosRef.current === 'after';
+              const nextIds = useAfter
+                ? moveIdAfterTarget(bucketItems, session.draggedId, targetId)
+                : moveIdBeforeTarget(bucketItems, session.draggedId, targetId);
+
+              const pinnedIds = isPinnedBucket
+                ? nextIds
+                : items.filter((w) => w.workspace.isPinned).map((w) => w.workspace.id);
+              const unpinnedIds = isPinnedBucket
+                ? items.filter((w) => !w.workspace.isPinned).map((w) => w.workspace.id)
+                : nextIds;
+
+              onReorder({ pinnedIds, unpinnedIds });
+            }
+          } catch {
+            // ignore reorder error
+          }
+        }
       }
-      const nextIds = moveIdWithinBucket(bucketItems, dragWorkspaceId, targetWorkspaceId);
-      const pinnedIds = isPinnedBucket
-        ? nextIds
-        : workspaceItems.filter((item) => item.workspace.isPinned).map((item) => item.workspace.id);
-      const unpinnedIds = isPinnedBucket
-        ? workspaceItems.filter((item) => !item.workspace.isPinned).map((item) => item.workspace.id)
-        : nextIds;
-      onReorderWorkspaces({ pinnedIds, unpinnedIds });
-      setDragWorkspaceId(undefined);
+
+      cleanupDrag();
+    };
+
+    const handleBlur = () => {
+      cleanupDrag();
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('pointerup', handleMouseUp);
+    window.addEventListener('pointercancel', handleBlur);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointerup', handleMouseUp);
+      window.removeEventListener('pointercancel', handleBlur);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
+  const handleRowMouseDown = useCallback(
+    (event: React.MouseEvent, wsId: string, isPinned: boolean) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      (event.currentTarget as HTMLElement).blur();
+      dragSessionRef.current = {
+        draggedId: wsId,
+        startY: event.clientY,
+        isDragging: false,
+        isPinned,
+      };
     },
-    [dragWorkspaceId, onReorderWorkspaces, setDragWorkspaceId, workspaceItems]
+    []
   );
 
   return (
@@ -158,15 +308,19 @@ export function WorkspaceList({
         {workspaceItems.map((item) => {
           const expanded = expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent;
           const workspaceStatusLabel = t[STATUS_LABEL[item.rollupStatus]] as string;
+          const isDragging = dragActiveId === item.workspace.id;
+          const isTarget = dragTargetId === item.workspace.id;
+          const targetCls = isTarget
+            ? dragTargetPosition === 'before'
+              ? ' is-drag-target-before'
+              : ' is-drag-target-after'
+            : '';
 
           return (
             <li
               key={item.workspace.id}
-              className={`adl-workspace-item${item.isCurrent ? ' is-current' : ''}`}
-              draggable
-              onDragStart={() => setDragWorkspaceId(item.workspace.id)}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={() => handleWorkspaceDrop(item.workspace.id, item.workspace.isPinned)}
+              className={`adl-workspace-item${item.isCurrent ? ' is-current' : ''}${isDragging ? ' is-dragging' : ''}${targetCls}`}
+              data-ws-id={item.workspace.id}
             >
               <div
                 className="adl-workspace-row"
@@ -219,6 +373,9 @@ export function WorkspaceList({
                       toggleSessionWorkspace(item.workspace.path);
                     }
                   }}
+                  onMouseDown={(event) =>
+                    handleRowMouseDown(event, item.workspace.id, item.workspace.isPinned)
+                  }
                 >
                   <span>{item.workspace.name}</span>
                 </button>

@@ -1,8 +1,6 @@
-import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { StoreState } from '@stores/StoreState';
-import { asWorkspaceID } from '@shared/branded';
 
 export function useChangesPanelStore() {
   const {
@@ -40,21 +38,6 @@ export function useChangesPanelStore() {
   const workspaceChangesTreeErrors = useAppStore(
     useShallow((state: StoreState) => state.workspaceChangesTreeErrors)
   );
-  const { pinWorkspace, unpinWorkspace } = useAppStore(
-    useShallow((s) => ({
-      pinWorkspace: s.pinWorkspace,
-      unpinWorkspace: s.unpinWorkspace,
-    }))
-  );
-  const onPinWorkspace = useCallback(
-    (workspaceId: string) => void pinWorkspace(asWorkspaceID(workspaceId)),
-    [pinWorkspace]
-  );
-  const onUnpinWorkspace = useCallback(
-    (workspaceId: string) => void unpinWorkspace(asWorkspaceID(workspaceId)),
-    [unpinWorkspace]
-  );
-
   return {
     navigatorCollapsed,
     changesNavigatorMode,
@@ -70,7 +53,5 @@ export function useChangesPanelStore() {
     collapseAllChangesTreePaths,
     workspaceChangesTreeLoading,
     workspaceChangesTreeErrors,
-    onPinWorkspace,
-    onUnpinWorkspace,
   };
 }

@@ -1,31 +1,82 @@
 ---
 name: root-cause-resolution
-description: Root-cause-first bug fixing: solution design, log-driven verification, post-fix cleanup. Invoke AFTER systematic-debugging or when deciding how to fix a confirmed bug.
+description: Systematic root cause investigation before any fix. Invoke when encountering bugs, test failures, or unexpected behavior — MUST complete Phase 0 investigation before proposing fixes.
 ---
 
 # Root Cause Resolution
 
 ## Overview
 
-This skill governs the **solution phase** of debugging — from the moment `systematic-debugging` concludes, through solution design, verification, and post-fix cleanup.
+Random fixes waste time and create new bugs. Quick patches mask underlying issues.
 
-**Core principle:** Root cause fix first. Preventive measures only when root cause is genuinely unfixable. Every solution must be proven real and effective.
+**Core principle:** ALWAYS find root cause before attempting fixes. Symptom fixes are failure.
 
-**Phases:** 0 (Prerequisites) → 1 (Path) → 2 (Fix) → 3 (Verification) → 4 (Cleanup)
+**Phases:** 0 (Investigation) → 1 (Path) → 2 (Fix) → 3 (Verification) → 4 (Cleanup)
+
+**Violating the letter of this process is violating the spirit of debugging.**
+
+## The Iron Law
+
+```
+NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
+```
 
 ---
 
-## Phase 0: Confirm Prerequisites
+## Phase 0: Root Cause Investigation
 
-Before proceeding, verify ALL of the following:
+BEFORE attempting ANY fix, complete ALL of the following steps.
 
-1. **`systematic-debugging` has completed** — You have a documented root cause hypothesis OR a documented conclusion that root cause is unfindable
-2. **Problem is understood** — You can describe the symptom, trigger conditions, and affected components
-3. **Scope is clear** — Single problem or multiple independent problems (list them as `[A, B, C...]`)
+### Step 1: Read Error Messages Carefully
+- Read stack traces completely — note line numbers, file paths, error codes
+- Don't skip past errors or warnings
+- Error messages often contain the exact solution
 
-If any prerequisite is missing, return to `systematic-debugging`. Do NOT proceed.
+### Step 2: Reproduce Consistently
+- Can you trigger it reliably? What are the exact steps?
+- If not reproducible:
+  - Add instrumentation at suspected trigger points (see [Root Cause Tracing](#root-cause-tracing))
+  - Check if the issue is environment-specific (OS, Node version, config differences)
+  - Review logs from the project's debug log files (`debug-logs.txt` in Tauri mode, `debug-logs-browser.txt` in browser mode)
+  - Do NOT guess — gather more data until you can reproduce or isolate the trigger
 
-**Multiple problems?** Track them as a list: `[Problem A: description, Problem B: description, ...]`. Each problem gets its own fix path, its own verification, and its own Phase 4 sub-agent(s).
+### Step 3: Check Recent Changes
+- Git diff, recent commits — what changed that could cause this?
+- New dependencies, config changes, environmental differences
+
+### Step 4: Gather Evidence in Multi-Component Systems
+
+When the system has multiple components (API → service → database, CI → build → signing), add diagnostic instrumentation BEFORE proposing fixes:
+
+For EACH component boundary:
+- Log what data enters and exits the component
+- Verify environment/config propagation
+- Check state at each layer
+
+Run once to gather evidence showing WHERE it breaks, THEN analyze to identify the failing component, THEN investigate that component.
+
+### Step 5: Trace Data Flow
+
+When the error is deep in the call stack, trace backward to find the original trigger:
+- Where does the bad value originate?
+- What called this with the bad value?
+- Keep tracing up until you find the source
+- Fix at source, not at symptom
+
+See [Root Cause Tracing](#root-cause-tracing) for the complete technique.
+
+### Step 6: Pattern Analysis
+- Find working examples — what works that's similar to what's broken?
+- Compare against references — read reference implementations completely
+- Identify differences — list every difference between working and broken, however small
+- Understand dependencies — what other components, config, environment does this need?
+
+### Step 7: Hypothesis and Testing (Scientific Method)
+1. Form a single hypothesis: "I think X is the root cause because Y" — be specific
+2. Test minimally — make the SMALLEST possible change, one variable at a time
+3. Verify before continuing — if it worked, proceed. If not, form a NEW hypothesis. DON'T add more fixes on top.
+
+**When you don't know:** Say "I don't understand X." Research more. Don't pretend to know.
 
 ---
 
@@ -47,7 +98,7 @@ If any prerequisite is missing, return to `systematic-debugging`. Do NOT proceed
 - The issue is confirmed environmental (OS-level, hardware, external service with no workaround) OR a known limitation of a third-party dependency with no upgrade path
 - You have documented exactly what you investigated and why each path dead-ended
 
-**If you haven't met the above:** Return to `systematic-debugging`. Do NOT proceed to Path B prematurely.
+**If you haven't met the above:** Return to Phase 0. Do NOT proceed to Path B prematurely.
 
 → Proceed to Phase 2B (Preventive Measures).
 
@@ -55,11 +106,15 @@ If any prerequisite is missing, return to `systematic-debugging`. Do NOT proceed
 
 ## Phase 2A: Direct Fix (Root Cause Known)
 
-1. **Design the fix** — Address the root cause at its source, not downstream
-2. **Check for siblings** — Are there other places in the codebase with the same root cause pattern? Fix them together
-3. **Add verification logging** — Add logs at the fix point to confirm the fix works. See [Logging Guidelines](#logging-guidelines) for format and location.
-4. **Run regression check** — If the project has existing tests covering the affected area, run them now to catch regressions before user testing
+1. **Create a failing test case** — Simplest possible reproduction. Automated test if possible; one-off test script if no framework.
+2. **Design the fix** — Address the root cause at its source, not downstream. ONE change at a time. No "while I'm here" improvements.
+3. **Check for siblings** — Are there other places in the codebase with the same root cause pattern? Fix them together.
+4. **Add verification logging** — See [Logging Guidelines](#logging-guidelines) for format and location.
 5. **Proceed to Phase 3**
+
+**If fix doesn't work:**
+- 1st-2nd failure → Return to Phase 0, re-analyze with new information
+- **3rd+ failure → STOP.** Question the architecture (see [When 3+ Fixes Failed](#when-3-fixes-failed-question-architecture))
 
 ---
 
@@ -81,7 +136,6 @@ For each candidate, evaluate against this framework:
 ### Step 2: Present Options to User
 
 When multiple viable solutions exist, use `AskUserQuestion`:
-
 - List each option with a short label
 - In the description, summarize: what it does, pros, cons, and your recommendation
 - Mark the recommended option with "(Recommended)"
@@ -90,12 +144,11 @@ When multiple viable solutions exist, use `AskUserQuestion`:
 ### Step 3: External Research (When All Options Are Weak)
 
 If no candidate solution is clearly viable:
-
-1. **Search the web** (`WebSearch`) for how similar products handle the same problem
-2. **Check official documentation** of relevant libraries/frameworks
-3. **Search community discussions** (GitHub issues, Stack Overflow, forums)
-4. **Evaluate external solutions** against the same framework above
-5. **Combine with your own knowledge** — adapt to the project context, don't blindly copy
+1. Search the web (`WebSearch`) for how similar products handle the same problem
+2. Check official documentation of relevant libraries/frameworks
+3. Search community discussions (GitHub issues, Stack Overflow, forums)
+4. Evaluate external solutions against the same framework above
+5. Combine with your own knowledge — adapt to the project context, don't blindly copy
 
 **Research query templates:**
 ```
@@ -126,11 +179,11 @@ If not already added in Phase 2A, add diagnostic logs at key points. See [Loggin
 
 1. Tell the user what to test and what to look for
 2. Wait for the user to confirm testing is complete
-3. **Do NOT** preemptively declare success
+3. Do NOT preemptively declare success
 
 ### Step 3: Log Analysis
 
-After user confirms testing is complete, read the log files from the project's log directory (see [Logging Guidelines](#logging-guidelines) for path).
+After user confirms testing is complete, read the log files from the project's log directory (`.adl-logs/` — see [Logging Guidelines](#logging-guidelines)).
 
 **Use the right tools** — `.adl-logs/` is in `.gitignore`, so `Glob`/`Grep`/`SearchCodebase` will silently skip it:
 
@@ -141,8 +194,13 @@ After user confirms testing is complete, read the log files from the project's l
 | `RunCommand` | Yes | Shell commands don't respect `.gitignore` |
 | `Glob` / `Grep` / `SearchCodebase` | **No** | These respect `.gitignore` and will miss log files |
 
+**Also check the project's runtime debug logs:**
+- Tauri mode: `debug-logs.txt` (project root)
+- Browser mode: `debug-logs-browser.txt` (project root)
+- These can be exported via the UI's "Copy Debug Logs" button or `__exportDebugLogs()` in console
+
 **Procedure:**
-1. Use `LS` to list all files in the log directory
+1. Use `LS` to list all files in the log directory (`.adl-logs/`)
 2. Use `Read` with absolute paths to read the most recent log files
 3. Check for:
    - **Expected log entries** — confirming the fix is active
@@ -165,7 +223,6 @@ After user confirms testing is complete, read the log files from the project's l
 ### Iteration on Failure
 
 When the user reports the problem persists after testing:
-
 1. **Re-examine the solution** — Was the hypothesis wrong? Did the fix address a symptom, not the cause?
 2. **Re-examine the code** — Is the implementation correct? Are there edge cases?
 3. **Re-examine the approach** — Is the technical strategy sound? Are there fundamental conflicts?
@@ -178,6 +235,20 @@ When the user reports the problem persists after testing:
 - What architectural questions remain
 
 Do NOT attempt a 4th cycle without explicit user direction.
+
+### When 3+ Fixes Failed: Question Architecture
+
+**Pattern indicating architectural problem:**
+- Each fix reveals new shared state/coupling/problem in a different place
+- Fixes require "massive refactoring" to implement
+- Each fix creates new symptoms elsewhere
+
+**STOP and question fundamentals:**
+- Is this pattern fundamentally sound?
+- Are we "sticking with it through sheer inertia"?
+- Should we refactor architecture vs. continue fixing symptoms?
+
+**Discuss with your human partner before attempting more fixes.** This is NOT a failed hypothesis — this is a wrong architecture.
 
 ### Trigger Detection
 
@@ -323,7 +394,6 @@ CRITICAL: Do NOT modify any files. Produce a structured report only.
 ### Step 3: Final Validation
 
 After all cleanup is complete:
-
 1. **Run the project's end-of-work acceptance flow** — Follow the procedure defined in `mandatory-testing.md`:
    - Run ESLint/Prettier/Clippy/rustfmt checks
    - Run type checking
@@ -337,7 +407,13 @@ After all cleanup is complete:
 
 ### Log Directory
 
-The project's debug log directory is listed in `.gitignore`. Use `LS` + `Read` with absolute paths to access it, never `Glob`/`Grep`/`SearchCodebase`.
+The project's debug log directory is `.adl-logs/` (listed in `.gitignore`). Use `LS` + `Read` with absolute paths to access it, never `Glob`/`Grep`/`SearchCodebase`.
+
+Additionally, the project writes runtime debug logs to the project root:
+- `debug-logs.txt` — Tauri desktop mode
+- `debug-logs-browser.txt` — browser preview mode
+
+These can be exported via the UI's "Copy Debug Logs" button or `__exportDebugLogs()` in the browser console.
 
 ### Log Format
 
@@ -371,36 +447,85 @@ Example:
 
 ---
 
+## Root Cause Tracing
+
+Bugs often manifest deep in the call stack. Fixing where the error appears treats a symptom.
+
+**Core principle:** Trace backward through the call chain until you find the original trigger, then fix at the source.
+
+### The Tracing Process
+
+#### 1. Observe the Symptom
+```
+Error: git init failed in ~/project/packages/core
+```
+
+#### 2. Find Immediate Cause
+What code directly causes this? The final function in the call stack.
+
+#### 3. Ask: What Called This?
+Trace one level up — who passed the arguments? What called the failing function?
+
+#### 4. Keep Tracing Up
+Continue tracing backward. Look for where the bad value entered the chain.
+
+#### 5. Find Original Trigger
+The source is where the wrong value was first introduced. Fix AT this point, not at the symptom.
+
+### Adding Stack Traces
+
+When you can't trace manually, add instrumentation:
+```typescript
+const stack = new Error().stack;
+console.error('DEBUG operation:', { directory, cwd, stack });
+```
+
+**Critical:** Use `console.error()` in tests (logger may be suppressed). Run and capture:
+```powershell
+pnpm test 2>&1 | Select-String 'DEBUG operation'
+```
+
+### Stack Trace Tips
+- **In tests:** Use `console.error()` not logger — logger may be suppressed
+- **Before operation:** Log before the dangerous operation, not after it fails
+- **Include context:** Directory, cwd, environment variables, timestamps
+- **Capture stack:** `new Error().stack` shows complete call chain
+
+**NEVER fix just where the error appears.** Trace back to find the original trigger.
+
+---
+
 ## Decision Tree (Quick Reference)
 
 ```
-Problem identified
+Bug / unexpected behavior
     │
-    ├─ Phase 0: Confirm prerequisites (systematic-debugging done? problem understood?)
-    │
-    ├─ Single problem ──────→ Proceed through Phases 1-4
-    │
-    ├─ Multiple problems ───→ Track as [A, B, C...]; each gets own path
-    │
-    ├─ Root cause found? ──── Yes ──→ Phase 2A: Direct Fix
+    ├─ Phase 0: Root Cause Investigation (7 steps)
+    │     ├─ Errors read? Reproduced? Changes checked?
+    │     ├─ Evidence gathered? Data traced?
+    │     ├─ Pattern analyzed? Hypothesis tested?
+    │     │
+    │     └─ Root cause confirmed? ──── Yes ──→ Phase 1 → Phase 2A → Phase 3
+    │                                    No
     │                                    │
-    │                                    └─→ Phase 3: Logs, user tests, log analysis
-    │                                            │
-    │                                            ├─ Fixed? (trigger detected)
-    │                                            │   └─→ Phase 4: Cleanup (per-problem sub-agents)
-    │                                            │         ├─ Step 1: Root cause verification
-    │                                            │         ├─ Step 2: Dead code removal
-    │                                            │         └─ Step 3: Final validation
-    │                                            │
-    │                                            └─ Not fixed? ───→ Iterate (max 3 cycles)
-    │                                                   │
-    │                                                   └─ Regression? ──→ Revert/adjust fix
+    │                                    └─ Exhausted all techniques?
+    │                                          │
+    │                                          ├─ No ──→ Return to Phase 0
+    │                                          │
+    │                                          └─ Yes ──→ Phase 1 → Phase 2B → Phase 3
     │
-    └─ Root cause found? ──── No ────→ Phase 2B: Design preventive measures
-                                            │
-                                            ├─ Single clear solution? ──→ Implement → Phase 3
-                                            ├─ Multiple solutions? ──────→ Present options → Implement → Phase 3
-                                            └─ No good solutions? ───────→ External research → Implement → Phase 3
+    ├─ Phase 3 → Fixed? (trigger detected)
+    │     │
+    │     ├─ Yes ──→ Phase 4 (per-problem sub-agents)
+    │     │             ├─ Step 1: Root cause verification
+    │     │             ├─ Step 2: Dead code removal
+    │     │             └─ Step 3: Final validation
+    │     │
+    │     └─ No ──→ Iterate (max 3 cycles)
+    │                  │
+    │                  └─ 3+ failures ──→ Question architecture
+    │
+    └─ Phase 2A/B → Regression? ──→ Revert/adjust fix
 ```
 
 ---
@@ -409,26 +534,58 @@ Problem identified
 
 Stop and re-evaluate if you find yourself:
 
-- **Adding a preventive measure without exhausting root cause investigation** — Return to `systematic-debugging`
-- **Proposing a fix without understanding why it works** — You're guessing, not engineering
-- **Adding multiple defensive checks "just in case"** — Each has a cost; only add what's proven necessary
-- **Skipping log analysis after user testing** — You're blind without evidence
-- **Removing code without understanding why it was added** — That "redundant" check might cover a subtle edge case
-- **Iterating past 3 cycles on the same issue without escalation** — The problem is likely systemic; escalate to user
-- **Using `Glob`/`Grep`/`SearchCodebase` to read `.gitignore`-protected log directories** — Use `LS` + `Read` instead
-- **Concluding "no logs exist" after using the wrong tool** — Verify with `LS` before drawing conclusions
-- **User confirms "问题已解决" but you do NOT proceed to Phase 4** — Trigger detection is mandatory
-- **Dispatching a single sub-agent for multiple independent problems** — Each problem gets its own sub-agent
-- **Sub-agent modifying code** — Sub-agents are read-only, always use `subagent_type: "search"`
-- **Skipping the re-check cycle after main agent implementation** — The loop is mandatory
-- **Declaring success without sub-agent confirmation** — Wait for "no issues found" report
-- **Skipping Phase 0 prerequisite check** — Confirm `systematic-debugging` has completed before proceeding
-- **Ignoring a regression introduced by the fix** — Revert or adjust immediately
+- **"Quick fix for now, investigate later"** — First fix sets the pattern. Do it right from the start.
+- **"Just try changing X and see if it works"** — Guessing, not engineering. Return to Phase 0.
+- **"I don't fully understand but this might work"** — STOP. Understand before fixing.
+- **Adding multiple changes at once** — Can't isolate what worked. One variable at a time.
+- **Skipping verification logging** — You're blind without evidence.
+- **Skipping the failing test first** — Untested fixes don't stick. Write the test first.
+- **Proposing solutions before tracing data flow** — You don't know the root cause.
+- **"One more fix attempt" (after 2+ failures)** — 3+ failures = architectural problem.
+- **Each fix reveals a new problem in a different place** — Pattern indicating systemic issue.
+- **Adding preventive measures without exhausting root cause investigation** — Return to Phase 0.
+- **Iterating past 3 cycles on the same issue without escalation** — Escalate to user.
+- **Using `Glob`/`Grep`/`SearchCodebase` to read `.gitignore`-protected log directories** — Use `LS` + `Read`.
+- **Concluding "no logs exist" after using the wrong tool** — Verify with `LS` first.
+- **User confirms "问题已解决" but you do NOT proceed to Phase 4** — Trigger detection is mandatory.
+- **Skipping the re-check cycle after main agent implementation** — The loop is mandatory.
+- **Sub-agent modifying code** — Always use `subagent_type: "search"`, read-only. Correct the behavior immediately; do NOT return to Phase 0 for this.
+
+**Any of the above (except the last) means: STOP. Return to Phase 0.**
+
+---
+
+## Common Rationalizations
+
+| Excuse | Reality |
+|--------|---------|
+| "Issue is simple, don't need process" | Simple issues have root causes too. Process is fast for simple bugs. |
+| "Emergency, no time for process" | Systematic debugging is FASTER than guess-and-check thrashing. |
+| "Just try this first, then investigate" | First fix sets the pattern. Do it right from the start. |
+| "I'll write test after confirming fix works" | Untested fixes don't stick. Test first proves it. |
+| "Multiple fixes at once saves time" | Can't isolate what worked. Causes new bugs. |
+| "I see the problem, let me fix it" | Seeing symptoms ≠ understanding root cause. |
+| "One more fix attempt" (after 2+ failures) | 3+ failures = architectural problem. Question pattern, don't fix again. |
+| "No logs exist" (without checking with `LS` + `Read`) | Verify with `LS` first, then `Read` with absolute path before drawing conclusions. |
+| "Sub-agent modifying code is faster" | Sub-agents produce reports. Main agent implements. No exceptions. |
+
+---
+
+## Quick Reference
+
+| Phase | Key Activities | Success Criteria |
+|-------|---------------|------------------|
+| **0. Investigation** | Read errors, reproduce, check changes, gather evidence, trace data, pattern analysis, hypothesis testing | Understand WHAT and WHY |
+| **1. Path** | Determine if root cause is known or not | Clear path chosen (A or B) |
+| **2A. Direct Fix** | Failing test, design fix, check siblings, add logging | Fix addresses root cause |
+| **2B. Preventive** | Design solutions, present options, external research | Solution chosen and implemented |
+| **3. Verification** | Logging, user testing, log analysis | Problem confirmed resolved |
+| **4. Cleanup** | Root cause verification, dead code removal, final validation | Clean, verified, complete |
 
 ---
 
 ## Related Skills
 
-- **`systematic-debugging`** — Phase 1: Root cause investigation. Use BEFORE this skill.
 - **`verification-before-completion`** — Verify fixes before claiming success.
 - **`test-driven-development`** — Create failing tests before fixing.
+- **`using-superpowers`** — Entry point for skill system.

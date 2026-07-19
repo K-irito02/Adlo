@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type { ReorderSessionsInput } from '@ai-digital-life/kernel';
 import type { SidebarSessionItem } from '../../utils/sidebarViewModel';
-import { moveIdAfterTarget, moveIdToBucketEnd, moveIdWithinBucket } from '../../utils/dragUtils';
+import { moveIdAfterTarget, moveIdToBucketEnd, moveIdBeforeTarget } from '../../utils/dragUtils';
 
 const DROP_FLASH_DURATION_MS = 900;
 
@@ -86,7 +86,7 @@ export function useSessionDragDrop({
       if (!bucketItems.includes(dragSessionId)) {
         return;
       }
-      const nextIds = moveIdWithinBucket(bucketItems, dragSessionId, targetSessionId);
+      const nextIds = moveIdBeforeTarget(bucketItems, dragSessionId, targetSessionId);
       const { pinnedIds, unpinnedIds } = computeReorder(sessionItems, isPinnedBucket, nextIds);
       onReorderSessions({ workspaceId, pinnedIds, unpinnedIds });
       flashDroppedSession(dragSessionId);

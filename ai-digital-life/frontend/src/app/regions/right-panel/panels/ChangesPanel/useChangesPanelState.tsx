@@ -57,8 +57,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     collapseAllChangesTreePaths,
     workspaceChangesTreeLoading,
     workspaceChangesTreeErrors,
-    onPinWorkspace,
-    onUnpinWorkspace,
   } = useChangesPanelStore();
   const showGitVisualization = useAppStore((s) => s.showGitVisualization);
   const setShowGitVisualization = useAppStore((s) => s.setShowGitVisualization);
@@ -120,7 +118,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     onToggleExpand,
     onRefreshOne,
     handleToggleFileTreePath,
-    handleReorderWorkspaces,
     onRefreshAll,
   } = useChangesActions({
     editorRef,
@@ -251,8 +248,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     collapseAllChangesTreePaths,
     workspaceChangesTreeLoading,
     workspaceChangesTreeErrors,
-    onPinWorkspace,
-    onUnpinWorkspace,
     snapshot,
     lineNumbersEnabled,
     wordWrapEnabled,
@@ -311,7 +306,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     handleCollapseAll,
     handleRefreshOneWorkspace: onRefreshOne,
     handleToggleFileTreePath,
-    handleReorderWorkspaces,
     handleRefreshAllChanges: onRefreshAll,
   };
 }

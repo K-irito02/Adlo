@@ -1,9 +1,8 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import type { RecentWorkspaceEntry, WorkspaceTreeNode, ReorderWorkspacesInput } from '@shared/ipc';
+import React, { useCallback } from 'react';
+import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
 import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';
 import { WorkspaceChangesEntry } from './WorkspaceChangesEntry';
-import { moveIdWithinBucket } from '@utils/dragUtils';
 import { useTCopy } from '@i18n/useTCopy';
 
 export interface MultiWorkspaceChangesTreeProps {
@@ -20,13 +19,10 @@ export interface MultiWorkspaceChangesTreeProps {
   externalChangePath: string | undefined;
   onToggleExpand: (workspaceId: string) => void;
   onRefreshOne: (workspaceId: string) => void;
-  onPinWorkspace: (workspaceId: string) => void;
-  onUnpinWorkspace: (workspaceId: string) => void;
   changeCounts: Record<string, number>;
   onHideFromRightPanels: (workspaceId: string) => void;
   onToggleFileTreePath: (workspaceId: string, path: string) => void;
   onOpenChangePreview: (workspacePath: string, relativePath: string) => void;
-  onReorderWorkspaces: (input: ReorderWorkspacesInput) => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
@@ -48,13 +44,10 @@ export function MultiWorkspaceChangesTree({
   externalChangePath,
   onToggleExpand,
   onRefreshOne,
-  onPinWorkspace,
-  onUnpinWorkspace,
   changeCounts,
   onHideFromRightPanels,
   onToggleFileTreePath,
   onOpenChangePreview,
-  onReorderWorkspaces,
   getContextMenuItems,
   contextMenuPersistRef,
   clearMenuHighlightRef,
@@ -62,51 +55,11 @@ export function MultiWorkspaceChangesTree({
   renderCount,
 }: MultiWorkspaceChangesTreeProps) {
   const { t } = useTCopy();
-  const [dragWorkspaceId, setDragWorkspaceId] = useState<string | undefined>(undefined);
-
-  const pinnedIds = useMemo(
-    () => workspaces.filter((w) => w.isPinned).map((w) => w.id),
-    [workspaces]
-  );
-
-  const unpinnedIds = useMemo(
-    () => workspaces.filter((w) => !w.isPinned).map((w) => w.id),
-    [workspaces]
-  );
-
-  const handleDrop = useCallback(
-    (targetWorkspaceId: string, isPinnedBucket: boolean) => {
-      if (!dragWorkspaceId || dragWorkspaceId === targetWorkspaceId) {
-        return;
-      }
-
-      const bucketIds = isPinnedBucket ? pinnedIds : unpinnedIds;
-      if (!bucketIds.includes(dragWorkspaceId)) {
-        return;
-      }
-
-      const nextIds = moveIdWithinBucket(bucketIds, dragWorkspaceId, targetWorkspaceId);
-      const finalPinnedIds = isPinnedBucket ? nextIds : pinnedIds;
-      const finalUnpinnedIds = isPinnedBucket ? unpinnedIds : nextIds;
-
-      onReorderWorkspaces({ pinnedIds: finalPinnedIds, unpinnedIds: finalUnpinnedIds });
-      setDragWorkspaceId(undefined);
-    },
-    [dragWorkspaceId, pinnedIds, unpinnedIds, onReorderWorkspaces]
-  );
 
   const renderContent = useCallback(
     (workspace: RecentWorkspaceEntry, isExpanded: boolean) => {
-      const isPinned = workspace.isPinned;
       return (
-        <div
-          key={workspace.id}
-          className={`adl-multitree-entry${dragWorkspaceId === workspace.id ? ' is-dragging' : ''}`}
-          draggable
-          onDragStart={() => setDragWorkspaceId(workspace.id)}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={() => handleDrop(workspace.id, isPinned)}
-        >
+        <div key={workspace.id} className="adl-multitree-entry">
           <WorkspaceChangesEntry
             workspace={workspace}
             isCurrent={workspace.id === activeWorkspaceId}
@@ -121,8 +74,6 @@ export function MultiWorkspaceChangesTree({
             externalChangePath={externalChangePath}
             onToggleExpand={() => onToggleExpand(workspace.id)}
             onHideFromRightPanels={onHideFromRightPanels}
-            onPinWorkspace={() => onPinWorkspace(workspace.id)}
-            onUnpinWorkspace={() => onUnpinWorkspace(workspace.id)}
             changeCount={changeCounts[workspace.id] ?? 0}
             onRefreshTree={() => onRefreshOne(workspace.id)}
             onToggleFileTreePath={(path) => onToggleFileTreePath(workspace.id, path)}
@@ -149,12 +100,9 @@ export function MultiWorkspaceChangesTree({
       expandedPaths,
       dirtyPaths,
       externalChangePath,
-      dragWorkspaceId,
       onToggleExpand,
       onRefreshOne,
       onHideFromRightPanels,
-      onPinWorkspace,
-      onUnpinWorkspace,
       changeCounts,
       onToggleFileTreePath,
       onOpenChangePreview,
@@ -162,7 +110,6 @@ export function MultiWorkspaceChangesTree({
       contextMenuPersistRef,
       clearMenuHighlightRef,
       t,
-      handleDrop,
       renderMeta,
       renderCount,
     ]

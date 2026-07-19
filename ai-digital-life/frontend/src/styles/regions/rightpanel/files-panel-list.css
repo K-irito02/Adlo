@@ -88,21 +88,10 @@
 .adl-multitree-entry {
 }
 
-.adl-multitree-entry.is-dragging {
-  opacity: 0.4;
-}
-.adl-multitree-entry.is-drag-target-before {
-  border-top: 2px solid var(--accent);
-}
-.adl-multitree-entry.is-drag-target-after {
-  border-bottom: 2px solid var(--accent);
-}
-
 .adl-multitree-entry__header {
   display: flex;
   align-items: stretch;
   min-height: 34px;
-  cursor: pointer;
 }
 .adl-multitree-entry__header:hover {
   background: var(--bg-hover);
