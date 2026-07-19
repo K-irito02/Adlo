@@ -105,8 +105,7 @@ export const workspaceZh = {
   deferredListTooltip:
     '【延迟加载列表】\n\n加载时机：首屏就绪 (appReady) 后异步加载，不阻塞界面响应。用户可以在 deferred 加载期间正常操作应用\n\n并发上限：min(2, maxConcurrent)，限制后台负载\n\n执行顺序：在 priority 阶段完成后开始；本阶段完成后才进入工作区标签列表阶段\n\n特殊情况：若此列表为空，则跳过此阶段，直接进入工作区标签列表阶段',
   workspaceTagList: '工作区标签列表',
-  workspaceTagListDesc:
-    '前两个列表都完成后异步加载。默认按添加时间倒序排列（新添加的在上方）',
+  workspaceTagListDesc: '前两个列表都完成后异步加载。默认按添加时间倒序排列（新添加的在上方）',
   workspaceTagListTooltip:
     '【工作区标签列表】\n\n加载时机：priority 和 deferred 两个列表都完成后异步加载，是最低优先级批次\n\n并发上限：min(2, maxConcurrent)，限制后台负载\n\n默认顺序：按工作区添加时间倒序排列（新添加的在上方，早添加的在下方）。用户可通过拖拽自定义顺序\n\n独立性：此列表的顺序独立于应用程序左侧面板的工作区标签顺序，互不影响。仅此三个列表的顺序决定工作区加载次序\n\n特殊情况：\n• 若 priority 为空且 deferred 非空，则 deferred 升级为高优先级，本列表仍为低优先级\n• 若 priority 和 deferred 都为空，则本列表升级为高优先级（首屏阻塞）\n• 若 priority 非空且 deferred 为空，则本列表升级为中优先级（首屏后立即执行）\n• 游离工作区（未在任一列表中）会自动追加到本列表末尾',
   priorityListEmpty: '将工作区拖入此处设置优先加载',

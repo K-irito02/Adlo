@@ -31,16 +31,11 @@ export function computeLoadPhases(
   const configured = new Set<string>([...priorityIds, ...deferredIds, ...naturalOrder]);
 
   const resolve = (ids: string[]): RecentWorkspaceEntry[] =>
-    ids
-      .map((id) => lookup.get(id))
-      .filter((w): w is RecentWorkspaceEntry => w !== undefined);
+    ids.map((id) => lookup.get(id)).filter((w): w is RecentWorkspaceEntry => w !== undefined);
 
   return {
     priority: resolve(priorityIds),
     deferred: resolve(deferredIds),
-    natural: [
-      ...resolve(naturalOrder),
-      ...visibleWorkspaces.filter((w) => !configured.has(w.id)),
-    ],
+    natural: [...resolve(naturalOrder), ...visibleWorkspaces.filter((w) => !configured.has(w.id))],
   };
 }

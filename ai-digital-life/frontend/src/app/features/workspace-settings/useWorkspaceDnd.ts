@@ -48,16 +48,20 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
   const { priorityIds, deferredIds, naturalOrder, visibleWorkspaces, onChange } = args;
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   // Memoized container lookup — Map<id, ContainerId>
   const containerMap = useMemo(() => {
     const map = new Map<string, ContainerId>();
-    for (const id of priorityIds) map.set(id, 'priority');
-    for (const id of deferredIds) map.set(id, 'deferred');
-    for (const id of naturalOrder) map.set(id, 'natural');
+    for (const id of priorityIds) {
+      map.set(id, 'priority');
+    }
+    for (const id of deferredIds) {
+      map.set(id, 'deferred');
+    }
+    for (const id of naturalOrder) {
+      map.set(id, 'natural');
+    }
     return map;
   }, [priorityIds, deferredIds, naturalOrder]);
 
@@ -74,16 +78,18 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
     (e: DragEndEvent) => {
       const { active, over } = e;
       setActiveId(null);
-      if (!over) return;
+      if (!over) {
+        return;
+      }
 
       const itemId = String(active.id);
       const overId = String(over.id);
-      if (itemId === overId) return;
+      if (itemId === overId) {
+        return;
+      }
 
       const fromContainer = findContainer(itemId);
-      const toContainer = isListPlaceholder(overId)
-        ? parseListKind(overId)
-        : findContainer(overId);
+      const toContainer = isListPlaceholder(overId) ? parseListKind(overId) : findContainer(overId);
 
       // Build working copies
       let newPriority = [...priorityIds];
@@ -94,9 +100,13 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
         c === 'priority' ? newPriority : c === 'deferred' ? newDeferred : newNatural;
 
       const setList = (c: ContainerId, value: string[]) => {
-        if (c === 'priority') newPriority = value;
-        else if (c === 'deferred') newDeferred = value;
-        else newNatural = value;
+        if (c === 'priority') {
+          newPriority = value;
+        } else if (c === 'deferred') {
+          newDeferred = value;
+        } else {
+          newNatural = value;
+        }
       };
 
       // Remove from source (if source is a real list — natural is "everyone else")
@@ -126,11 +136,7 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
         if (overIdx === -1) {
           setList(toContainer, [...target, itemId]);
         } else {
-          setList(toContainer, [
-            ...target.slice(0, overIdx),
-            itemId,
-            ...target.slice(overIdx),
-          ]);
+          setList(toContainer, [...target.slice(0, overIdx), itemId, ...target.slice(overIdx)]);
         }
       }
 
@@ -144,7 +150,9 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
           // Keep id in this list only if it doesn't appear in other lists.
           // For itemId, keep only in the target container (toContainer) so that
           // defensive dedup of invalid input still converges to a single list.
-          if (id === itemId) return exclude === toContainer;
+          if (id === itemId) {
+            return exclude === toContainer;
+          }
           return !otherSets.some((s) => s.has(id));
         });
       };
@@ -157,9 +165,7 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
     [priorityIds, deferredIds, naturalOrder, findContainer, onChange]
   );
 
-  const activeItem = activeId
-    ? visibleWorkspaces.find((w) => w.id === activeId) ?? null
-    : null;
+  const activeItem = activeId ? (visibleWorkspaces.find((w) => w.id === activeId) ?? null) : null;
 
   return {
     sensors,

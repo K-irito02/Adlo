@@ -141,19 +141,27 @@ export function WorkspaceList({
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       const session = dragSessionRef.current;
-      if (!session) return;
+      if (!session) {
+        return;
+      }
 
       if (!session.isDragging) {
-        if (Math.abs(e.clientY - session.startY) <= 4) return;
+        if (Math.abs(e.clientY - session.startY) <= 4) {
+          return;
+        }
         session.isDragging = true;
         setDragActiveId(session.draggedId);
       }
 
       const ul = document.querySelector('.adl-workspace-list');
-      if (!ul) return;
+      if (!ul) {
+        return;
+      }
 
       const items = ul.querySelectorAll<HTMLLIElement>('li[data-ws-id]');
-      if (items.length === 0) return;
+      if (items.length === 0) {
+        return;
+      }
 
       let foundId: string | null = null;
       let foundPos: 'before' | 'after' = 'after';
@@ -186,7 +194,9 @@ export function WorkspaceList({
         let closestPos: 'before' | 'after' = 'after';
         for (const item of items) {
           const id = item.getAttribute('data-ws-id');
-          if (!id || id === session.draggedId) continue;
+          if (!id || id === session.draggedId) {
+            continue;
+          }
 
           const rect = item.getBoundingClientRect();
           const midY = rect.top + rect.height / 2;
@@ -204,16 +214,24 @@ export function WorkspaceList({
         }
       }
 
-      if (!foundId) return;
+      if (!foundId) {
+        return;
+      }
 
       // Bucket isolation: do not respond if target is in a different bucket.
       const wsItems = workspaceItemsRef.current;
       const targetItem = wsItems.find((w) => w.workspace.id === foundId);
-      if (!targetItem) return;
-      if (targetItem.workspace.isPinned !== session.isPinned) return;
+      if (!targetItem) {
+        return;
+      }
+      if (targetItem.workspace.isPinned !== session.isPinned) {
+        return;
+      }
 
       // Skip if target unchanged (avoid redundant FLIP).
-      if (foundId === targetIdRef.current && foundPos === targetPosRef.current) return;
+      if (foundId === targetIdRef.current && foundPos === targetPosRef.current) {
+        return;
+      }
       targetIdRef.current = foundId;
       targetPosRef.current = foundPos;
 
@@ -233,13 +251,17 @@ export function WorkspaceList({
       const currentOrder = localOrderRef.current;
       const changed =
         newOrder.length !== currentOrder.length || newOrder.some((id, i) => id !== currentOrder[i]);
-      if (!changed) return;
+      if (!changed) {
+        return;
+      }
 
       // FLIP — First: record old tops.
       const oldRects = new Map<string, number>();
       items.forEach((el) => {
         const id = el.getAttribute('data-ws-id');
-        if (id) oldRects.set(id, el.getBoundingClientRect().top);
+        if (id) {
+          oldRects.set(id, el.getBoundingClientRect().top);
+        }
       });
 
       // Commit new order to React state (triggers re-render → DOM reorder).
@@ -249,13 +271,19 @@ export function WorkspaceList({
       // FLIP — Last + Invert + Play, on next frame after React commits.
       requestAnimationFrame(() => {
         const ulAfter = document.querySelector<HTMLElement>('.adl-workspace-list');
-        if (!ulAfter) return;
+        if (!ulAfter) {
+          return;
+        }
         const itemsAfter = ulAfter.querySelectorAll<HTMLLIElement>('li[data-ws-id]');
         itemsAfter.forEach((el) => {
           const id = el.getAttribute('data-ws-id');
-          if (!id) return;
+          if (!id) {
+            return;
+          }
           const oldTop = oldRects.get(id);
-          if (oldTop === undefined) return;
+          if (oldTop === undefined) {
+            return;
+          }
           const newTop = el.getBoundingClientRect().top;
           const dy = oldTop - newTop;
           if (Math.abs(dy) > 0.5) {
@@ -291,7 +319,9 @@ export function WorkspaceList({
 
     const handleMouseUp = () => {
       const session = dragSessionRef.current;
-      if (!session) return;
+      if (!session) {
+        return;
+      }
 
       if (session.isDragging) {
         const startOrder = sessionStartOrderRef.current;
@@ -333,7 +363,9 @@ export function WorkspaceList({
 
   const handleRowMouseDown = useCallback(
     (event: React.MouseEvent, wsId: string, isPinned: boolean) => {
-      if (event.button !== 0) return;
+      if (event.button !== 0) {
+        return;
+      }
       event.preventDefault();
       (event.currentTarget as HTMLElement).blur();
       // Snapshot the order at drag start so mouseup can detect "did this drag
