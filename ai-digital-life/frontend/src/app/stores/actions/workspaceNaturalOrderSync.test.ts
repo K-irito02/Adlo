@@ -13,7 +13,11 @@ const mockUpdatePreferences = vi.fn();
 
 function makeWorkspace(
   id: string,
-  overrides: Partial<{ removedFromSidebar: boolean; hiddenFromRightPanels: boolean }> = {}
+  overrides: Partial<{
+    removedFromSidebar: boolean;
+    hiddenFromRightPanels: boolean;
+    available: boolean;
+  }> = {}
 ) {
   return {
     id,
@@ -25,7 +29,7 @@ function makeWorkspace(
     pinnedOrder: 0,
     unpinnedOrder: 0,
     removedFromSidebar: overrides.removedFromSidebar ?? false,
-    available: true,
+    available: overrides.available ?? true,
     hiddenFromRightPanels: overrides.hiddenFromRightPanels ?? false,
   };
 }
@@ -133,6 +137,51 @@ describe('syncNewWorkspacesToNaturalOrder', () => {
     syncNewWorkspacesToNaturalOrder();
     expect(mockUpdatePreferences).toHaveBeenCalledTimes(1);
     const patch = mockUpdatePreferences.mock.calls[0][0] as AppPreferencePatch;
+    expect(patch.workspaceNaturalOrder).toEqual(['ws-2']);
+  });
+
+  it('filters out unavailable workspaces from strays', async () => {
+    const { syncNewWorkspacesToNaturalOrder } = await import('./workspaceNaturalOrderSync');
+
+    useAppStore.setState({
+      recentWorkspaces: [
+        // ws-1 is unavailable — should NOT be synced into naturalOrder
+        makeWorkspace('ws-1', { available: false }),
+        // ws-2 is available and not in any list — should be synced
+        makeWorkspace('ws-2'),
+      ],
+    });
+
+    syncNewWorkspacesToNaturalOrder();
+    expect(mockUpdatePreferences).toHaveBeenCalledTimes(1);
+    const patch = mockUpdatePreferences.mock.calls[0][0] as AppPreferencePatch;
+    expect(patch.workspaceNaturalOrder).toEqual(['ws-2']);
+  });
+
+  it('prunes orphan IDs from priority/deferred/natural lists', async () => {
+    const { syncNewWorkspacesToNaturalOrder } = await import('./workspaceNaturalOrderSync');
+
+    const baseAppInfo = useAppStore.getState().appInfo!;
+    const baseConfig = baseAppInfo.config;
+    useAppStore.setState({
+      appInfo: {
+        ...baseAppInfo,
+        config: {
+          ...baseConfig,
+          workspacePriorityIds: ['ghost'],
+          workspaceDeferredIds: ['ws-1', 'phantom'],
+          workspaceNaturalOrder: ['ws-2', 'spectre'],
+        },
+      },
+      recentWorkspaces: [makeWorkspace('ws-1'), makeWorkspace('ws-2')],
+    });
+
+    syncNewWorkspacesToNaturalOrder();
+
+    expect(mockUpdatePreferences).toHaveBeenCalledTimes(1);
+    const patch = mockUpdatePreferences.mock.calls[0][0] as AppPreferencePatch;
+    expect(patch.workspacePriorityIds).toEqual([]);
+    expect(patch.workspaceDeferredIds).toEqual(['ws-1']);
     expect(patch.workspaceNaturalOrder).toEqual(['ws-2']);
   });
 });

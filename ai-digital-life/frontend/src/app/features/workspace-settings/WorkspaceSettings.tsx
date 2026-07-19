@@ -49,7 +49,7 @@ export function WorkspaceSettings() {
   const visibleWorkspaces = useMemo<DraggableWorkspace[]>(
     () =>
       recentWorkspaces
-        .filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels)
+        .filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available)
         .map((w) => ({ id: w.id, name: w.name })),
     [recentWorkspaces]
   );
@@ -70,13 +70,17 @@ export function WorkspaceSettings() {
     [deferredIds, visibleWorkspaces]
   );
 
-  const naturalWorkspaces = useMemo<DraggableWorkspace[]>(
-    () =>
-      naturalOrder
-        .map((id) => visibleWorkspaces.find((w) => w.id === id))
-        .filter((w): w is DraggableWorkspace => w !== undefined),
-    [naturalOrder, visibleWorkspaces]
-  );
+  const naturalWorkspaces = useMemo<DraggableWorkspace[]>(() => {
+    // Match computeLoadPhases semantics: configured IDs in naturalOrder first,
+    // then strays (visible but not in any list) appended at the end. This keeps
+    // the settings UI consistent with the actual load order on the current boot.
+    const configured = new Set<string>([...priorityIds, ...deferredIds, ...naturalOrder]);
+    const ordered = naturalOrder
+      .map((id) => visibleWorkspaces.find((w) => w.id === id))
+      .filter((w): w is DraggableWorkspace => w !== undefined);
+    const strays = visibleWorkspaces.filter((w) => !configured.has(w.id));
+    return [...ordered, ...strays];
+  }, [naturalOrder, visibleWorkspaces, priorityIds, deferredIds]);
 
   const handleDndChange = useCallback(
     (next: { priority: string[]; deferred: string[]; natural: string[] }) => {
