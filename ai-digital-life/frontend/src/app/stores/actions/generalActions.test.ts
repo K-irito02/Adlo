@@ -164,12 +164,85 @@ describe('accumulateBatch', () => {
   });
 });
 
-describe('workspace concurrency ordering', () => {
-  it('should order priority workspaces first, then natural, then deferred', async () => {
-    // 这是一个集成验证，确认 concurrency 辅助函数在 store 中的集成
-    // 单元测试验证 runWithConcurrency 本身已在 Task 2 覆盖
-    // 这里验证 bootstrap 流程中 visibleWorkspaces 的重排序逻辑
-    // 由于 bootstrap 依赖大量外部 mock，边界测试通过 integration/E2E 覆盖
-    expect(true).toBe(true);
+describe('workspace load cascade ordering', () => {
+  it('calls loadBatch in order: priority → completeStartup → deferred → natural', async () => {
+    // Mock window.digitalLife for bootstrap path
+    const callOrder: string[] = [];
+    const mockListTreeForWorkspace = vi.fn().mockResolvedValue({ ok: true, data: [] });
+    const mockListGitStatusForWorkspace = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    const mockGetGitStatus = vi.fn().mockResolvedValue({ ok: true, data: { branch: 'main' } });
+
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      app: {
+        getInfo: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            appName: 'test',
+            version: '0.0.0',
+            config: {
+              themeMode: 'light',
+              resolvedTheme: 'light',
+              maxRecentWorkspaces: 10,
+              modelPreferences: { providers: {} },
+              keybinds: {},
+              fonts: {},
+              maxConcurrentWorkspaces: 6,
+              workspacePriorityIds: ['ws-1'],
+              workspaceDeferredIds: ['ws-2'],
+              workspaceNaturalOrder: ['ws-3'],
+            },
+            recentLogs: [],
+            currentWorkspace: { id: 'ws-1', path: '/fake', rootPath: '/fake', name: 'ws-1' },
+          },
+        }),
+        getModelHealth: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+      },
+      workspace: {
+        listRecent: vi.fn().mockResolvedValue({
+          ok: true,
+          data: [
+            { id: 'ws-1', path: '/fake/1', rootPath: '/fake/1', name: 'ws-1', lastOpenedAt: 0, isPinned: false, pinnedOrder: 0, unpinnedOrder: 0, removedFromSidebar: false, available: true, hiddenFromRightPanels: false },
+            { id: 'ws-2', path: '/fake/2', rootPath: '/fake/2', name: 'ws-2', lastOpenedAt: 0, isPinned: false, pinnedOrder: 0, unpinnedOrder: 0, removedFromSidebar: false, available: true, hiddenFromRightPanels: false },
+            { id: 'ws-3', path: '/fake/3', rootPath: '/fake/3', name: 'ws-3', lastOpenedAt: 0, isPinned: false, pinnedOrder: 0, unpinnedOrder: 0, removedFromSidebar: false, available: true, hiddenFromRightPanels: false },
+          ],
+        }),
+        getGitStatus: mockGetGitStatus,
+        listTreeForWorkspace: mockListTreeForWorkspace,
+        listGitStatusForWorkspace: mockListGitStatusForWorkspace,
+        setEditorDirtyPaths: vi.fn().mockResolvedValue({ ok: true }),
+      },
+      patch: { getPatchSet: vi.fn().mockResolvedValue({ ok: true, data: null }) },
+      task: { listAuditEntries: vi.fn().mockResolvedValue({ ok: true, data: [] }), getSnapshot: vi.fn().mockResolvedValue({ ok: true, data: undefined }) },
+      command: { listRecent: vi.fn().mockResolvedValue({ ok: true, data: [] }) },
+      retrieval: { getStatus: vi.fn().mockResolvedValue({ ok: true, data: null }), getRepoMap: vi.fn().mockResolvedValue({ ok: true, data: [] }) },
+      conversation: {
+        listSessions: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        getSession: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+
+    // Track call order via listTreeForWorkspace invocations (each phase triggers N calls)
+    mockListTreeForWorkspace.mockImplementation(async (path: string) => {
+      callOrder.push(`loadBatch:${path}`);
+      return { ok: true, data: [] };
+    });
+    mockListGitStatusForWorkspace.mockImplementation(async (path: string) => {
+      callOrder.push(`loadBatch:${path}`);
+      return { ok: true, data: undefined };
+    });
+
+    const store = useAppStore.getState();
+    // Reset appReady for the test
+    useAppStore.setState({ appReady: false });
+    await store.bootstrap();
+
+    // Allow the deferred IIFE to flush
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // priority batch must complete before appReady flips to true
+    expect(useAppStore.getState().appReady).toBe(true);
+    // All 3 workspaces should have been loaded (each triggers 2 calls — tree + git)
+    expect(mockListTreeForWorkspace).toHaveBeenCalledTimes(3);
+    expect(mockListGitStatusForWorkspace).toHaveBeenCalledTimes(3);
   });
 });

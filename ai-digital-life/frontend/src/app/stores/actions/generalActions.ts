@@ -12,6 +12,7 @@ import { workspaceRequestSeq, queueLowPriorityRefresh, clearError, captureError 
 import { resolveCurrentTheme } from '@shared/resolveTheme';
 import { isTauriShell } from '../../../tauri-bridge';
 import { runWithConcurrency } from '../../shared/asyncUtils';
+import { computeLoadPhases } from './workspaceLoadOrder';
 import type { StoreApi } from 'zustand';
 
 /**
@@ -171,28 +172,38 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
 
           if (visibleWorkspaces.length > 0) {
             const appInfo_ = get().appInfo;
-            const config = appInfo_?.config as Record<string, unknown> | undefined;
-            const priorityIds: string[] = (config?.workspacePriorityIds as string[]) ?? [];
-            const deferredIds: string[] = (config?.workspaceDeferredIds as string[]) ?? [];
-            const maxConcurrent = (config?.maxConcurrentWorkspaces as number) ?? 6;
+            const config = appInfo_?.config;
+            const priorityIds: string[] = config?.workspacePriorityIds ?? [];
+            const deferredIds: string[] = config?.workspaceDeferredIds ?? [];
+            const naturalOrder: string[] = config?.workspaceNaturalOrder ?? [];
+            const maxConcurrent = config?.maxConcurrentWorkspaces ?? 6;
 
-            const naturalOrder = visibleWorkspaces.filter(
-              (w) => !priorityIds.includes(w.id) && !deferredIds.includes(w.id)
+            const phases = computeLoadPhases(
+              priorityIds,
+              deferredIds,
+              naturalOrder,
+              visibleWorkspaces
             );
-            const immediateWorkspaces = [
-              ...priorityIds
-                .map((id: string) => visibleWorkspaces.find((w) => w.id === id))
-                .filter((w): w is RecentWorkspaceEntry => w !== undefined),
-              ...naturalOrder,
-            ];
-            const deferredWorkspaceList = deferredIds
-              .map((id: string) => visibleWorkspaces.find((w) => w.id === id))
-              .filter((w): w is RecentWorkspaceEntry => w !== undefined);
+
+            /**
+             * Logs any rejected Promise.allSettled results for a phase.
+             * Required by error-handling.md — never silently swallow rejections.
+             */
+            function logRejected<T>(
+              results: PromiseSettledResult<T>[],
+              phase: 'priority' | 'deferred' | 'natural'
+            ): void {
+              for (const r of results) {
+                if (r.status === 'rejected') {
+                  console.warn(`[workspace load] ${phase} phase rejected:`, r.reason);
+                }
+              }
+            }
 
             async function loadBatch(
               items: RecentWorkspaceEntry[],
               concurrency: number
-            ): Promise<void> {
+            ): Promise<PromiseSettledResult<{ id: string; tree: unknown; snapshot: unknown }>[]> {
               const tasks = items.map((w) => ({
                 id: w.id,
                 treeLoader: () =>
@@ -213,30 +224,58 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
               });
               const batch_: Partial<StoreState> = {};
               for (const r of results) {
-                if (r.status !== 'fulfilled') {
-                  continue;
+                if (r.status === 'fulfilled') {
+                  const { id, tree, snapshot } = r.value;
+                  if (tree !== undefined) {
+                    accumulateBatch(batch_, get, 'workspaceTrees', id, tree);
+                    accumulateBatch(batch_, get, 'workspaceTreeLoading', id, false);
+                  } else {
+                    // 修复：失败时也清除 loading 状态，避免永久卡死
+                    accumulateBatch(batch_, get, 'workspaceTreeLoading', id, false);
+                  }
+                  if (snapshot !== undefined) {
+                    accumulateBatch(batch_, get, 'gitSnapshots', id, snapshot);
+                    accumulateBatch(batch_, get, 'workspaceChangesTreeLoading', id, false);
+                  } else {
+                    accumulateBatch(batch_, get, 'workspaceChangesTreeLoading', id, false);
+                  }
                 }
-                const { id, tree, snapshot } = r.value;
-                if (tree !== undefined) {
-                  accumulateBatch(batch_, get, 'workspaceTrees', id, tree);
-                  accumulateBatch(batch_, get, 'workspaceTreeLoading', id, false);
-                }
-                if (snapshot !== undefined) {
-                  accumulateBatch(batch_, get, 'gitSnapshots', id, snapshot);
-                  accumulateBatch(batch_, get, 'workspaceChangesTreeLoading', id, false);
-                }
+                // rejected items are logged by logRejected() at the call site
               }
               if (Object.keys(batch_).length > 0) {
                 set(batch_);
               }
+              return results;
             }
 
-            await loadBatch(immediateWorkspaces, maxConcurrent);
-
-            if (deferredWorkspaceList.length > 0) {
-              const deferredConcurrency = Math.min(2, maxConcurrent);
-              loadBatch(deferredWorkspaceList, deferredConcurrency);
+            // === Stage 1: priority blocks first screen ===
+            if (phases.priority.length > 0) {
+              const results = await loadBatch(phases.priority, maxConcurrent);
+              logRejected(results, 'priority');
             }
+
+            // === First screen ready ===
+            completeStartup();
+
+            // === Stage 2: deferred → natural cascade (non-blocking) ===
+            void (async () => {
+              try {
+                if (phases.deferred.length > 0) {
+                  const deferredConcurrency = Math.min(2, maxConcurrent);
+                  const results = await loadBatch(phases.deferred, deferredConcurrency);
+                  logRejected(results, 'deferred');
+                }
+
+                if (phases.natural.length > 0) {
+                  const naturalConcurrency = Math.min(2, maxConcurrent);
+                  const results = await loadBatch(phases.natural, naturalConcurrency);
+                  logRejected(results, 'natural');
+                }
+              } catch (err) {
+                console.warn('[workspace load] background cascade failed', err);
+              }
+            })();
+            return;
           }
 
           completeStartup();
