@@ -265,8 +265,8 @@ const TooltipContentInner = memo(function TooltipContentInner({
             <path
               d="M1 1L9 9M9 1L1 9"
               stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
+              strokeWidth="1.5"
+              strokeLinecap="round"
             />
           </svg>
         </button>
