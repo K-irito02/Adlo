@@ -1620,9 +1620,10 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
         ) as ContainerId[];
         const otherSets = others.map((c) => new Set(getList(c)));
         return list.filter((id) => {
-          // Keep id in this list only if it doesn't appear in other lists
-          // (When id === itemId, prefer the target container.)
-          if (id === itemId) return true;
+          // Keep id in this list only if it doesn't appear in other lists.
+          // For itemId, keep only in the target container (toContainer) so that
+          // defensive dedup of invalid input still converges to a single list.
+          if (id === itemId) return exclude === toContainer;
           return !otherSets.some((s) => s.has(id));
         });
       };
