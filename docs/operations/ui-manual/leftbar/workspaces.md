@@ -85,9 +85,10 @@ await toggleBtn.click();
 
 | 选择器 | 说明 |
 |--------|------|
-| `.adl-workspace-row` | 工作区行容器 |
-| `.adl-workspace-row__kind` | 图标区域 |
-| `.adl-workspace-row__label` | 名称按钮 |
+| `.adl-workspace-row` | 工作区行容器（grid: 图标列 / 名称列 / 操作列） |
+| `.adl-workspace-row__leading` | 左侧文件夹图标区 |
+| `.adl-workspace-row__label` | 中间名称按钮（**拖拽手柄**，仅此元素绑定 mousedown 启动拖拽） |
+| `.adl-workspace-row__tail` | 右侧操作按钮区（pin + 新建会话 + 菜单） |
 | `.adl-workspace-row__pin` | 置顶按钮 |
 | `.adl-workspace-row__actions` | 操作按钮组 |
 | `.adl-session-wrapper` | 会话列表容器 |
@@ -309,18 +310,27 @@ await page.click('.adl-archive .adl-session-item--archived');
 
 ### 拖拽工作区
 
+> **拖拽手柄**：仅 `.adl-workspace-row__label`（中间名称按钮）绑定 mousedown 启动拖拽。文件夹图标区、按钮周围间隙、右侧操作按钮区均不可拖拽。
+>
+> **光标样式**：整个工作区行始终显示 `cursor: pointer`（手指光标），拖拽中不变。被拖拽的条目通过 `opacity: 0.4` 作为视觉反馈，无 grab/grabbing 光标。
+>
+> **桶隔离**：pinned（置顶）与 unpinned（未置顶）工作区互不跨界拖拽，跨桶移动鼠标不会触发让位动画。
+>
+> **FLIP 动画**：拖拽期间其他条目通过 FLIP（First-Last-Invert-Play）平滑让位，200ms cubic-bezier(0.2, 0.8, 0.2, 1)。mouseup 时若顺序未改变则不触发 IPC 持久化。
+
 ```javascript
-// 开始拖拽
-const workspace = await page.waitForSelector('.adl-workspace-item');
-await workspace.hover();
+// 开始拖拽 — 必须在 .adl-workspace-row__label 上按下鼠标
+const dragHandle = await page.waitForSelector('.adl-workspace-item .adl-workspace-row__label');
+const handleBox = await dragHandle.boundingBox();
+await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
 await page.mouse.down();
 
-// 拖动到目标位置
-const target = await page.waitForSelector('.adl-workspace-item:nth-child(2)');
+// 拖动到目标位置（移动 >4px 才进入拖拽态）
+const target = await page.waitForSelector('.adl-workspace-item:nth-child(2) .adl-workspace-row__label');
 const targetBox = await target.boundingBox();
 await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2);
 
-// 释放
+// 释放 — 顺序改变时触发 onReorderWorkspaces IPC
 await page.mouse.up();
 ```
 
@@ -345,5 +355,6 @@ await page.mouse.up();
 
 | 状态 | CSS 类名 | 说明 |
 |------|----------|------|
-| 拖拽中 | `.is-dragging` | 正在被拖拽的元素 |
-| 放置目标 | `.is-drop-target` | 可放置的目标位置 |
+| 拖拽中 | `.adl-workspace-item.is-dragging` | 正在被拖拽的工作区条目（opacity 0.4） |
+
+> 注：当前实现已移除 box-shadow 插入指示器，让位动画本身即为拖拽反馈。无 `.is-drop-target` / `.is-drag-target-before` / `.is-drag-target-after` 类。
