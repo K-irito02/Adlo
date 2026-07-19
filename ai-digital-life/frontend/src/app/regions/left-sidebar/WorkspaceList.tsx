@@ -261,6 +261,9 @@ export function WorkspaceList({
       if (event.button !== 0) return;
       event.preventDefault();
       (event.currentTarget as HTMLElement).blur();
+      // Snapshot the order at drag start so mouseup can detect "did this drag
+      // actually change anything?" and skip the IPC call if not.
+      sessionStartOrderRef.current = [...localOrderRef.current];
       dragSessionRef.current = {
         draggedId: wsId,
         startY: event.clientY,
