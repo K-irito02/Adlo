@@ -337,194 +337,196 @@ export function WorkspaceList({
         {workspaceItems.length === 0 ? (
           <li className="adl-empty-hint">{t.workspaceEmpty}</li>
         ) : null}
-        {workspaceItems.map((item) => {
-          const expanded = expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent;
-          const workspaceStatusLabel = t[STATUS_LABEL[item.rollupStatus]] as string;
-          const isDragging = dragActiveId === item.workspace.id;
-          const isTarget = dragTargetId === item.workspace.id;
-          const targetCls = isTarget
-            ? dragTargetPosition === 'before'
-              ? ' is-drag-target-before'
-              : ' is-drag-target-after'
-            : '';
+        {(() => {
+          const itemById = new Map(workspaceItems.map((w) => [w.workspace.id, w] as const));
+          const orderedItems = localOrder
+            .map((id) => itemById.get(id))
+            .filter((x): x is SidebarWorkspaceItem => x != null);
+          return orderedItems.map((item) => {
+            const expanded = expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent;
+            const workspaceStatusLabel = t[STATUS_LABEL[item.rollupStatus]] as string;
+            const isDragging = dragActiveId === item.workspace.id;
 
-          return (
-            <li
-              key={item.workspace.id}
-              className={`adl-workspace-item${item.isCurrent ? ' is-current' : ''}${isDragging ? ' is-dragging' : ''}${targetCls}`}
-              data-ws-id={item.workspace.id}
-            >
-              <div
-                className="adl-workspace-row"
-                role="treeitem"
-                aria-expanded={expanded}
-                onClick={() => {
-                  if (!item.isCurrent) {
-                    onSwitchToWorkspace(item.workspace.id, item.workspace.path);
-                    return;
-                  }
-                  toggleSessionWorkspace(item.workspace.path);
-                }}
-                onContextMenu={(event) => {
-                  event.preventDefault();
-                  onContextMenu(item.workspace.id, event.clientX, event.clientY);
-                }}
+            return (
+              <li
+                key={item.workspace.id}
+                className={`adl-workspace-item${item.isCurrent ? ' is-current' : ''}${isDragging ? ' is-dragging' : ''}`}
+                data-ws-id={item.workspace.id}
               >
-                <span className="adl-workspace-row__leading">
-                  {expanded ? (
-                    <TooltipSimple content={t.workspaces} placement="right">
-                      <WorkspaceDirectoryIcon
-                        expanded
-                        status={item.rollupStatus}
-                        title={workspaceStatusLabel}
-                      />
-                    </TooltipSimple>
-                  ) : (
-                    <TooltipSimple
-                      content={buildWorkspaceTooltip(t, item.statusCounts)}
-                      placement="right"
-                    >
-                      <WorkspaceDirectoryIcon
-                        expanded={false}
-                        status={item.rollupStatus}
-                        title={workspaceStatusLabel}
-                      />
-                    </TooltipSimple>
-                  )}
-                </span>
-
-                <button
-                  type="button"
-                  className="adl-workspace-row__label"
-                  title={item.workspace.path}
-                  onClick={(event) => {
-                    event.stopPropagation();
+                <div
+                  className="adl-workspace-row"
+                  role="treeitem"
+                  aria-expanded={expanded}
+                  onClick={() => {
                     if (!item.isCurrent) {
                       onSwitchToWorkspace(item.workspace.id, item.workspace.path);
-                    } else {
-                      toggleSessionWorkspace(item.workspace.path);
+                      return;
                     }
+                    toggleSessionWorkspace(item.workspace.path);
                   }}
-                  onMouseDown={(event) =>
-                    handleRowMouseDown(event, item.workspace.id, item.workspace.isPinned)
-                  }
+                  onContextMenu={(event) => {
+                    event.preventDefault();
+                    onContextMenu(item.workspace.id, event.clientX, event.clientY);
+                  }}
                 >
-                  <span>{item.workspace.name}</span>
-                </button>
-
-                <div className="adl-workspace-row__tail">
-                  <span className="adl-workspace-row__secondary">
-                    <TooltipSimple
-                      content={item.workspace.isPinned ? t.sessionMenuUnpin : t.sessionMenuPin}
-                      placement="right"
-                    >
-                      <button
-                        type="button"
-                        className="adl-workspace-row__pin"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (item.workspace.isPinned) {
-                            onUnpinWorkspace(item.workspace.id);
-                          } else {
-                            onPinWorkspace(item.workspace.id);
-                          }
-                        }}
-                        aria-label={item.workspace.isPinned ? t.sessionMenuUnpin : t.sessionMenuPin}
+                  <span className="adl-workspace-row__leading">
+                    {expanded ? (
+                      <TooltipSimple content={t.workspaces} placement="right">
+                        <WorkspaceDirectoryIcon
+                          expanded
+                          status={item.rollupStatus}
+                          title={workspaceStatusLabel}
+                        />
+                      </TooltipSimple>
+                    ) : (
+                      <TooltipSimple
+                        content={buildWorkspaceTooltip(t, item.statusCounts)}
+                        placement="right"
                       >
-                        {item.workspace.isPinned ? (
-                          <IconPinOff size={12} decorative />
-                        ) : (
-                          <IconPin size={12} decorative />
-                        )}
-                      </button>
-                    </TooltipSimple>
+                        <WorkspaceDirectoryIcon
+                          expanded={false}
+                          status={item.rollupStatus}
+                          title={workspaceStatusLabel}
+                        />
+                      </TooltipSimple>
+                    )}
                   </span>
 
-                  <div className="adl-workspace-row__actions">
-                    <TooltipSimple content={t.newSession} placement="right">
-                      <button
-                        type="button"
-                        className="adl-icon-btn adl-icon-btn--xs"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (item.isCurrent) {
-                            onCreateSession();
+                  <button
+                    type="button"
+                    className="adl-workspace-row__label"
+                    title={item.workspace.path}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (!item.isCurrent) {
+                        onSwitchToWorkspace(item.workspace.id, item.workspace.path);
+                      } else {
+                        toggleSessionWorkspace(item.workspace.path);
+                      }
+                    }}
+                    onMouseDown={(event) =>
+                      handleRowMouseDown(event, item.workspace.id, item.workspace.isPinned)
+                    }
+                  >
+                    <span>{item.workspace.name}</span>
+                  </button>
+
+                  <div className="adl-workspace-row__tail">
+                    <span className="adl-workspace-row__secondary">
+                      <TooltipSimple
+                        content={item.workspace.isPinned ? t.sessionMenuUnpin : t.sessionMenuPin}
+                        placement="right"
+                      >
+                        <button
+                          type="button"
+                          className="adl-workspace-row__pin"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (item.workspace.isPinned) {
+                              onUnpinWorkspace(item.workspace.id);
+                            } else {
+                              onPinWorkspace(item.workspace.id);
+                            }
+                          }}
+                          aria-label={
+                            item.workspace.isPinned ? t.sessionMenuUnpin : t.sessionMenuPin
                           }
-                        }}
-                        disabled={!item.isCurrent}
-                        aria-label={t.newSession}
-                      >
-                        <IconPlus size={12} decorative />
-                      </button>
-                    </TooltipSimple>
-                    <TooltipSimple content={t.menuSettings} placement="right">
-                      <button
-                        type="button"
-                        className="adl-icon-btn adl-icon-btn--xs"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          const rect = event.currentTarget.getBoundingClientRect();
-                          onContextMenu(item.workspace.id, rect.right, rect.bottom + 4);
-                        }}
-                        aria-label={t.menuSettings}
-                      >
-                        <IconMoreVertical size={12} decorative />
-                      </button>
-                    </TooltipSimple>
+                        >
+                          {item.workspace.isPinned ? (
+                            <IconPinOff size={12} decorative />
+                          ) : (
+                            <IconPin size={12} decorative />
+                          )}
+                        </button>
+                      </TooltipSimple>
+                    </span>
+
+                    <div className="adl-workspace-row__actions">
+                      <TooltipSimple content={t.newSession} placement="right">
+                        <button
+                          type="button"
+                          className="adl-icon-btn adl-icon-btn--xs"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (item.isCurrent) {
+                              onCreateSession();
+                            }
+                          }}
+                          disabled={!item.isCurrent}
+                          aria-label={t.newSession}
+                        >
+                          <IconPlus size={12} decorative />
+                        </button>
+                      </TooltipSimple>
+                      <TooltipSimple content={t.menuSettings} placement="right">
+                        <button
+                          type="button"
+                          className="adl-icon-btn adl-icon-btn--xs"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            const rect = event.currentTarget.getBoundingClientRect();
+                            onContextMenu(item.workspace.id, rect.right, rect.bottom + 4);
+                          }}
+                          aria-label={t.menuSettings}
+                        >
+                          <IconMoreVertical size={12} decorative />
+                        </button>
+                      </TooltipSimple>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {expanded ? (
-                <div className="adl-session-wrapper">
-                  <ul className="adl-session-list" role="group">
-                    {item.sessions.length === 0 ? (
-                      <li className="adl-empty-hint adl-empty-hint--nested">{t.sessionEmpty}</li>
-                    ) : null}
-                    {renderSessionRows(item.sessions, {
-                      listKey: `workspace:${item.workspace.id}`,
-                      workspaceId: item.workspace.id,
-                    })}
-                  </ul>
+                {expanded ? (
+                  <div className="adl-session-wrapper">
+                    <ul className="adl-session-list" role="group">
+                      {item.sessions.length === 0 ? (
+                        <li className="adl-empty-hint adl-empty-hint--nested">{t.sessionEmpty}</li>
+                      ) : null}
+                      {renderSessionRows(item.sessions, {
+                        listKey: `workspace:${item.workspace.id}`,
+                        workspaceId: item.workspace.id,
+                      })}
+                    </ul>
 
-                  {item.archivedSessions.length > 0 ? (
-                    <details
-                      className="adl-archive"
-                      open={archiveOpen}
-                      onToggle={(event) => setArchiveOpen(event.currentTarget.open)}
-                    >
-                      <summary>
-                        <IconArchive size={12} decorative />
-                        <span>{t.sessionMenuArchive}</span>
-                        <span className="adl-badge">{item.archivedSessions.length}</span>
-                      </summary>
-                      <ul>
-                        {item.archivedSessions.map((sessionItem) => (
-                          <li key={sessionItem.session.id}>
-                            <button
-                              type="button"
-                              className="adl-session-item adl-session-item--archived"
-                              onClick={() => onSelectSession(sessionItem.session.id)}
-                            >
-                              <span className="adl-session-item__indicator" aria-hidden="true">
-                                <StatusLamp status="read" title={t.statusRead} />
-                              </span>
-                              <span className="adl-session-item__title">
-                                <span className="adl-session-item__title-text">
-                                  {sessionItem.session.title}
+                    {item.archivedSessions.length > 0 ? (
+                      <details
+                        className="adl-archive"
+                        open={archiveOpen}
+                        onToggle={(event) => setArchiveOpen(event.currentTarget.open)}
+                      >
+                        <summary>
+                          <IconArchive size={12} decorative />
+                          <span>{t.sessionMenuArchive}</span>
+                          <span className="adl-badge">{item.archivedSessions.length}</span>
+                        </summary>
+                        <ul>
+                          {item.archivedSessions.map((sessionItem) => (
+                            <li key={sessionItem.session.id}>
+                              <button
+                                type="button"
+                                className="adl-session-item adl-session-item--archived"
+                                onClick={() => onSelectSession(sessionItem.session.id)}
+                              >
+                                <span className="adl-session-item__indicator" aria-hidden="true">
+                                  <StatusLamp status="read" title={t.statusRead} />
                                 </span>
-                              </span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
-                  ) : null}
-                </div>
-              ) : null}
-            </li>
-          );
-        })}
+                                <span className="adl-session-item__title">
+                                  <span className="adl-session-item__title-text">
+                                    {sessionItem.session.title}
+                                  </span>
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    ) : null}
+                  </div>
+                ) : null}
+              </li>
+            );
+          });
+        })()}
       </ul>
     </section>
   );
