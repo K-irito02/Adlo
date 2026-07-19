@@ -179,14 +179,73 @@ export function WorkspaceList({
         }
       }
 
-      if (foundId) {
-        if (foundId !== targetIdRef.current || foundPos !== targetPosRef.current) {
-          targetIdRef.current = foundId;
-          targetPosRef.current = foundPos;
-          setDragTargetId(foundId);
-          setDragTargetPosition(foundPos);
-        }
-      }
+      if (!foundId) return;
+
+      // Bucket isolation: do not respond if target is in a different bucket.
+      const wsItems = workspaceItemsRef.current;
+      const targetItem = wsItems.find((w) => w.workspace.id === foundId);
+      if (!targetItem) return;
+      if (targetItem.workspace.isPinned !== session.isPinned) return;
+
+      // Skip if target unchanged (avoid redundant FLIP).
+      if (foundId === targetIdRef.current && foundPos === targetPosRef.current) return;
+      targetIdRef.current = foundId;
+      targetPosRef.current = foundPos;
+
+      // Compute new full-list order.
+      const isPinnedById = (id: string) =>
+        wsItems.find((w) => w.workspace.id === id)?.workspace.isPinned ?? false;
+      const newOrder = computeReorderedList(
+        localOrderRef.current,
+        session.draggedId,
+        foundId,
+        foundPos,
+        session.isPinned,
+        isPinnedById
+      );
+
+      // Skip if order didn't actually change (e.g. dragged id already at target position).
+      const currentOrder = localOrderRef.current;
+      const changed =
+        newOrder.length !== currentOrder.length || newOrder.some((id, i) => id !== currentOrder[i]);
+      if (!changed) return;
+
+      // FLIP — First: record old tops.
+      const oldRects = new Map<string, number>();
+      items.forEach((el) => {
+        const id = el.getAttribute('data-ws-id');
+        if (id) oldRects.set(id, el.getBoundingClientRect().top);
+      });
+
+      // Commit new order to React state (triggers re-render → DOM reorder).
+      localOrderRef.current = newOrder;
+      setLocalOrder(newOrder);
+
+      // FLIP — Last + Invert + Play, on next frame after React commits.
+      requestAnimationFrame(() => {
+        const ulAfter = document.querySelector<HTMLElement>('.adl-workspace-list');
+        if (!ulAfter) return;
+        const itemsAfter = ulAfter.querySelectorAll<HTMLLIElement>('li[data-ws-id]');
+        itemsAfter.forEach((el) => {
+          const id = el.getAttribute('data-ws-id');
+          if (!id) return;
+          const oldTop = oldRects.get(id);
+          if (oldTop === undefined) return;
+          const newTop = el.getBoundingClientRect().top;
+          const dy = oldTop - newTop;
+          if (Math.abs(dy) > 0.5) {
+            el.style.transition = 'none';
+            el.style.transform = `translateY(${dy}px)`;
+          }
+        });
+        // Force reflow so the inverted positions are committed before we re-enable transition.
+        ulAfter.offsetHeight;
+        // Play: clear transform with transition enabled.
+        itemsAfter.forEach((el) => {
+          el.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+          el.style.transform = '';
+        });
+      });
     };
 
     const cleanupDrag = () => {
