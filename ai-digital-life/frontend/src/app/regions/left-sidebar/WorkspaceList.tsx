@@ -39,7 +39,12 @@ export interface WorkspaceListProps {
   workspaceToolbarRef: React.RefObject<HTMLDivElement | null>;
 }
 
-import { moveIdAfterTarget, moveIdBeforeTarget } from '../../utils/dragUtils';
+import {
+  computeReorderedList,
+  mergeOrderPreserving,
+  moveIdAfterTarget,
+  moveIdBeforeTarget,
+} from '../../utils/dragUtils';
 
 interface DragSession {
   draggedId: string;
@@ -74,11 +79,38 @@ export function WorkspaceList({
   const targetIdRef = useRef<string | null>(null);
   const targetPosRef = useRef<'before' | 'after'>('after');
 
+  // Local render order — drives the <ul> ordering. Differs from workspaceItems
+  // ordering during drag (FLIP reorders locally, persists on mouseup).
+  const [localOrder, setLocalOrder] = useState<string[]>(() =>
+    workspaceItems.map((w) => w.workspace.id)
+  );
+  const localOrderRef = useRef<string[]>(localOrder);
+  localOrderRef.current = localOrder;
+
+  // Snapshot of localOrder at mousedown — used to detect "did this drag actually
+  // change the order?" on mouseup, so we only fire onReorderWorkspaces when needed.
+  const sessionStartOrderRef = useRef<string[]>([]);
+
   // Keep refs current to avoid stale closures in document listeners
   const workspaceItemsRef = useRef(workspaceItems);
   workspaceItemsRef.current = workspaceItems;
   const onReorderRef = useRef(onReorderWorkspaces);
   onReorderRef.current = onReorderWorkspaces;
+
+  // Sync localOrder when workspaceItems changes externally (pin/unpin, add/remove
+  // workspace, or store refresh). Preserves current order for items still
+  // present, appends new items at the end.
+  useEffect(() => {
+    const externalIds = workspaceItems.map((w) => w.workspace.id);
+    const merged = mergeOrderPreserving(localOrderRef.current, externalIds);
+    if (
+      merged.length !== localOrderRef.current.length ||
+      merged.some((id, i) => id !== localOrderRef.current[i])
+    ) {
+      localOrderRef.current = merged;
+      setLocalOrder(merged);
+    }
+  }, [workspaceItems]);
 
   // Persistent document-level listeners for drag tracking
   useEffect(() => {
