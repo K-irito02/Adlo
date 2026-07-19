@@ -87,6 +87,10 @@ mod tests {
             custom_agents: vec![],
             keybinds: std::collections::BTreeMap::new(),
             fonts: adl_types::types::config::FontPreferences::default(),
+            max_concurrent_workspaces: 6,
+            workspace_priority_ids: vec![],
+            workspace_deferred_ids: vec![],
+            workspace_natural_order: vec![],
         }
     }
 

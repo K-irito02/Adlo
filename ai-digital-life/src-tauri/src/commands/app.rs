@@ -143,6 +143,18 @@ pub async fn app_update_preferences(
                 config.fonts.terminal_font = Some(term);
             }
         }
+        if let Some(v) = patch.max_concurrent_workspaces {
+            config.max_concurrent_workspaces = v.clamp(1, 20);
+        }
+        if let Some(v) = patch.workspace_priority_ids {
+            config.workspace_priority_ids = v;
+        }
+        if let Some(v) = patch.workspace_deferred_ids {
+            config.workspace_deferred_ids = v;
+        }
+        if let Some(v) = patch.workspace_natural_order {
+            config.workspace_natural_order = v;
+        }
     }
     let config_clone =
         state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?.clone();
@@ -188,6 +200,10 @@ pub fn build_app_info(state: &AppState) -> Result<AppInfo, AppError> {
             model_preferences: config.model_preferences.clone(),
             keybinds: config.keybinds.clone(),
             fonts: config.fonts.clone(),
+            max_concurrent_workspaces: config.max_concurrent_workspaces,
+            workspace_priority_ids: config.workspace_priority_ids.clone(),
+            workspace_deferred_ids: config.workspace_deferred_ids.clone(),
+            workspace_natural_order: config.workspace_natural_order.clone(),
         },
         current_workspace,
         recent_logs: vec![LogEntrySummary {
@@ -252,4 +268,83 @@ pub async fn app_set_log_mode(
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod workspace_loading_tests {
+    use super::*;
+    use adl_types::types::config::AppPreferencePatch;
+
+    #[test]
+    fn app_preference_patch_deserializes_workspace_loading_fields() {
+        let json = r#"{
+            "maxConcurrentWorkspaces": 8,
+            "workspacePriorityIds": ["ws-1", "ws-2"],
+            "workspaceDeferredIds": ["ws-3"],
+            "workspaceNaturalOrder": ["ws-4", "ws-5"]
+        }"#;
+        let patch: AppPreferencePatch = serde_json::from_str(json).unwrap();
+        assert_eq!(patch.max_concurrent_workspaces, Some(8));
+        assert_eq!(patch.workspace_priority_ids, Some(vec!["ws-1".into(), "ws-2".into()]));
+        assert_eq!(patch.workspace_deferred_ids, Some(vec!["ws-3".into()]));
+        assert_eq!(patch.workspace_natural_order, Some(vec!["ws-4".into(), "ws-5".into()]));
+    }
+
+    #[test]
+    fn app_preference_patch_deserializes_without_workspace_loading_fields() {
+        // 旧客户端发送的 patch 不含新字段，应全部为 None
+        let json = r#"{"language": "en-US"}"#;
+        let patch: AppPreferencePatch = serde_json::from_str(json).unwrap();
+        assert_eq!(patch.language, Some("en-US".into()));
+        assert_eq!(patch.max_concurrent_workspaces, None);
+        assert_eq!(patch.workspace_priority_ids, None);
+        assert_eq!(patch.workspace_deferred_ids, None);
+        assert_eq!(patch.workspace_natural_order, None);
+    }
+
+    #[test]
+    fn config_snapshot_deserializes_old_format_with_defaults() {
+        let json = r#"{
+            "language": "zh-CN",
+            "themeMode": "system",
+            "resolvedTheme": "light",
+            "logLevel": "info",
+            "terminalLogMode": "overwrite",
+            "debugLogMode": "overwrite",
+            "maxRecentWorkspaces": 10,
+            "modelPreferences": { "providers": {} },
+            "keybinds": {},
+            "fonts": {}
+        }"#;
+        let snap: ConfigSnapshot = serde_json::from_str(json).unwrap();
+        assert_eq!(snap.max_concurrent_workspaces, 6);
+        assert!(snap.workspace_priority_ids.is_empty());
+        assert!(snap.workspace_deferred_ids.is_empty());
+        assert!(snap.workspace_natural_order.is_empty());
+    }
+
+    #[test]
+    fn config_snapshot_serializes_workspace_loading_fields() {
+        let snap = ConfigSnapshot {
+            language: "zh-CN".into(),
+            theme_mode: adl_types::ThemeMode::System,
+            resolved_theme: adl_types::Theme::Light,
+            log_level: "info".into(),
+            terminal_log_mode: adl_types::LogMode::Overwrite,
+            debug_log_mode: adl_types::LogMode::Overwrite,
+            max_recent_workspaces: 10,
+            model_preferences: adl_types::ModelPreferences::default(),
+            keybinds: std::collections::BTreeMap::new(),
+            fonts: adl_types::types::config::FontPreferences::default(),
+            max_concurrent_workspaces: 4,
+            workspace_priority_ids: vec!["a".into()],
+            workspace_deferred_ids: vec!["b".into()],
+            workspace_natural_order: vec!["c".into()],
+        };
+        let json = serde_json::to_string(&snap).unwrap();
+        assert!(json.contains("\"maxConcurrentWorkspaces\":4"));
+        assert!(json.contains("\"workspacePriorityIds\":[\"a\"]"));
+        assert!(json.contains("\"workspaceDeferredIds\":[\"b\"]"));
+        assert!(json.contains("\"workspaceNaturalOrder\":[\"c\"]"));
+    }
 }

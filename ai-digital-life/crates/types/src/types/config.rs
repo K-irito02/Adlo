@@ -180,6 +180,14 @@ pub struct AppPreferencePatch {
     pub keybinds: Option<std::collections::BTreeMap<String, String>>,
     #[ts(optional)]
     pub fonts: Option<FontPreferences>,
+    #[ts(optional)]
+    pub max_concurrent_workspaces: Option<usize>,
+    #[ts(optional)]
+    pub workspace_priority_ids: Option<Vec<String>>,
+    #[ts(optional)]
+    pub workspace_deferred_ids: Option<Vec<String>>,
+    #[ts(optional)]
+    pub workspace_natural_order: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
@@ -218,6 +226,18 @@ pub struct ConfigSnapshot {
     pub model_preferences: ModelPreferences,
     pub keybinds: std::collections::BTreeMap<String, String>,
     pub fonts: FontPreferences,
+    #[serde(default = "default_max_concurrent_workspaces_snapshot")]
+    pub max_concurrent_workspaces: usize,
+    #[serde(default)]
+    pub workspace_priority_ids: Vec<String>,
+    #[serde(default)]
+    pub workspace_deferred_ids: Vec<String>,
+    #[serde(default)]
+    pub workspace_natural_order: Vec<String>,
+}
+
+fn default_max_concurrent_workspaces_snapshot() -> usize {
+    6
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

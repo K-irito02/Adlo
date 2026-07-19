@@ -13,6 +13,10 @@ const DEFAULT_LANGUAGE: &str = "zh-CN";
 const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_MAX_RECENT_WORKSPACES: usize = 10;
 
+fn default_max_concurrent_workspaces() -> usize {
+    6
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 
 pub struct AppConfig {
@@ -48,6 +52,19 @@ pub struct AppConfig {
     /// User-defined font preferences.
     #[serde(default)]
     pub fonts: adl_types::types::config::FontPreferences,
+    /// Maximum concurrent workspace loads during the priority (startup) phase.
+    #[serde(default = "default_max_concurrent_workspaces")]
+    pub max_concurrent_workspaces: usize,
+    /// Workspace IDs loaded synchronously at startup (blocks first screen).
+    #[serde(default)]
+    pub workspace_priority_ids: Vec<String>,
+    /// Workspace IDs loaded asynchronously after first screen is ready.
+    #[serde(default)]
+    pub workspace_deferred_ids: Vec<String>,
+    /// Workspace IDs loaded after priority and deferred phases complete.
+    /// Default order: newest-added first (user can customize via drag-and-drop).
+    #[serde(default)]
+    pub workspace_natural_order: Vec<String>,
 }
 
 impl AppConfig {
@@ -79,6 +96,10 @@ impl Default for AppConfig {
             custom_agents: Vec::new(),
             keybinds: std::collections::BTreeMap::new(),
             fonts: adl_types::types::config::FontPreferences::default(),
+            max_concurrent_workspaces: default_max_concurrent_workspaces(),
+            workspace_priority_ids: Vec::new(),
+            workspace_deferred_ids: Vec::new(),
+            workspace_natural_order: Vec::new(),
         }
     }
 }
@@ -148,6 +169,7 @@ mod config_extension_tests {
     use super::*;
     use adl_types::types::agent::AgentId;
     use adl_types::types::commands::CommandConfig;
+    use std::env::temp_dir;
 
     #[test]
     fn app_config_has_commands_field() {
@@ -180,8 +202,71 @@ mod config_extension_tests {
             custom_agents: vec![],
             keybinds: std::collections::BTreeMap::new(),
             fonts: adl_types::types::config::FontPreferences::default(),
+            max_concurrent_workspaces: 6,
+            workspace_priority_ids: vec![],
+            workspace_deferred_ids: vec![],
+            workspace_natural_order: vec![],
         };
         assert_eq!(config.commands.len(), 1);
         assert_eq!(config.commands[0].name, "deploy");
+    }
+
+    #[test]
+    fn app_config_has_workspace_loading_fields_with_defaults() {
+        let config = AppConfig::default();
+        assert_eq!(config.max_concurrent_workspaces, 6);
+        assert!(config.workspace_priority_ids.is_empty());
+        assert!(config.workspace_deferred_ids.is_empty());
+        assert!(config.workspace_natural_order.is_empty());
+    }
+
+    #[test]
+    fn app_config_round_trips_workspace_loading_fields() {
+        let dir = temp_dir().join("adl-config-workspace-loading-test");
+        let _ = std::fs::remove_dir_all(&dir);
+        let config = AppConfig {
+            max_concurrent_workspaces: 4,
+            workspace_priority_ids: vec!["ws-1".into(), "ws-2".into()],
+            workspace_deferred_ids: vec!["ws-3".into()],
+            workspace_natural_order: vec!["ws-4".into()],
+            ..Default::default()
+        };
+        save(&dir, &config).unwrap();
+        let loaded = load(&dir).unwrap();
+        assert_eq!(loaded.max_concurrent_workspaces, 4);
+        assert_eq!(loaded.workspace_priority_ids, vec!["ws-1".to_string(), "ws-2".to_string()]);
+        assert_eq!(loaded.workspace_deferred_ids, vec!["ws-3".to_string()]);
+        assert_eq!(loaded.workspace_natural_order, vec!["ws-4".to_string()]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn app_config_loads_old_config_without_workspace_fields() {
+        // 模拟旧版本 config.json：不含 workspace loading 字段
+        let dir = temp_dir().join("adl-config-old-format-test");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(config_dir(&dir)).unwrap();
+        let old_json = r#"{
+            "language": "zh-CN",
+            "theme_mode": "system",
+            "log_level": "info",
+            "terminal_log_mode": "overwrite",
+            "debug_log_mode": "overwrite",
+            "max_recent_workspaces": 10,
+            "model_preferences": { "providers": {} },
+            "commands": [],
+            "permissions": { "include_defaults": true, "rules": [] },
+            "references": [],
+            "custom_agents": [],
+            "keybinds": {},
+            "fonts": {}
+        }"#;
+        std::fs::write(config_path(&dir), old_json).unwrap();
+        let loaded = load(&dir).unwrap();
+        assert_eq!(loaded.max_concurrent_workspaces, 6);
+        assert!(loaded.workspace_priority_ids.is_empty());
+        assert!(loaded.workspace_deferred_ids.is_empty());
+        assert!(loaded.workspace_natural_order.is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
