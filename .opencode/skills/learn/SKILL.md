@@ -1,227 +1,313 @@
 ---
 name: learn
-description: Provides autonomous project pattern learning by analyzing the codebase to discover development conventions, architectural patterns, and coding standards, then generates project rule files in .opencode/rules/. Use when user asks to "learn from project", "extract project rules", "analyze codebase conventions", "discover project patterns", or wants to auto-generate OpenCode rules for the current project.
-allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Task, AskUserQuestion
+description: Use when the user asks to "learn from this project", "extract project rules", "analyze codebase conventions", "discover patterns", "auto-generate rules", or wants to document undocumented project conventions from existing code.
+allowed-tools: Read, Write, Edit, RunCommand, Glob, Grep, LS, Task, AskUserQuestion
 ---
 
-# Learn
+# 学习
 
-Autonomously analyzes a project's codebase to discover development patterns, conventions, and architectural decisions, then generates project rule files in `.opencode/rules/` for OpenCode to follow.
+自动分析项目的代码库以发现开发模式、约定和架构决策，然后在项目规则目录中生成供 Agent 遵循的规则文件。
 
-## Overview
+## 概述
 
-This skill acts as the **Orchestrator** in a two-agent architecture. It coordinates the overall workflow: gathering project context, delegating deep analysis to the `learn-analyst` sub-agent, filtering and ranking results, presenting findings to the user, and persisting approved rules to `.opencode/rules/`.
+本技能在双代理架构中担任**编排者**角色。它协调整个工作流：收集项目上下文、将深度分析委托给子代理（通过 Task 工具）、过滤和排序结果、向用户展示发现结果，并将批准的规则持久化到项目规则目录。
 
-The separation of concerns ensures the analyst operates with a focused forensic prompt while the orchestrator manages user interaction and file persistence.
+关注点分离确保分析师以聚焦的取证提示运行，而编排者管理用户交互和文件持久化。
 
-## When to Use
+## 何时使用
 
-Use this skill when:
+在以下情况下使用此技能：
 
-- User asks to "learn from this project" or "understand project conventions"
-- User wants to auto-generate `.opencode/rules/` files from the existing codebase
-- User asks to "extract project rules" or "discover patterns"
-- User wants OpenCode to learn the project's coding standards
-- After joining a new project and wanting to codify existing conventions
-- Before starting a large feature to ensure agent follows project patterns
+- 用户要求"从这个项目学习"或"了解项目约定"
+- 用户想要从现有代码库自动生成项目规则文件
+- 用户要求"提取项目规则"或"发现模式"
+- 用户希望 Agent 学习项目的编码标准
+- 加入新项目后需要将现有约定文档化
+- 在开始大型功能开发前，确保代理遵循项目模式
 
-**Trigger phrases:** "learn from project", "extract rules", "analyze conventions", "discover patterns", "generate project rules", "learn codebase", "auto-generate rules"
+**触发短语：**"从项目学习"、"提取规则"、"分析约定"、"发现模式"、"生成项目规则"、"学习代码库"、"自动生成规则"
 
-## Instructions
+## 指令
 
-### Phase 1: Project Context Assessment
+### 阶段 1：项目上下文评估
 
-Before delegating to the analyst, gather high-level project context:
+在委托给分析师之前，收集高层项目上下文：
 
-1. **Verify project root**: Confirm the current working directory is a project root (has `package.json`, `pom.xml`, `pyproject.toml`, `go.mod`, `.git/`, or similar markers)
+1. **验证项目根目录**：确认当前工作目录是项目根目录（包含 `package.json`、`pom.xml`、`pyproject.toml`、`go.mod`、`.git/` 或类似标记）
 
-2. **Check existing rules**: Scan for pre-existing rule files to understand what is already documented:
+2. **检查现有规则**：使用 Glob 和 Read 工具扫描预先存在的规则文件，了解已记录的内容。需要检查以下目录（如存在）：
+   - `.opencode/rules/`
+   - `.trae/rules/`
+   - `.agents/rules/`
+   - `.opencode/AGENTS.md`（如存在）
 
-```bash
-# Check for existing rules
-ls -la .opencode/rules/ 2>/dev/null || echo "No .opencode/rules/ directory found"
-cat .opencode/AGENTS.md 2>/dev/null || echo "No .opencode/AGENTS.md found"
-```
+3. **评估项目规模**：快速了解项目范围，使用 Glob 统计源文件数量，识别主要编程语言和框架。
 
-3. **Assess project size**: Get a quick overview of the project scope:
+4. **告知用户**：简要告诉用户你发现了什么，以及即将开始分析：
+   - "发现一个 [语言/框架] 项目，包含 [N] 个源文件和 [M] 条现有规则。开始深度分析..."
 
-```bash
-# Quick project overview
-find . -maxdepth 1 -type f -name "*.json" -o -name "*.toml" -o -name "*.xml" -o -name "*.gradle*" -o -name "Makefile" -o -name "*.yaml" -o -name "*.yml" | head -20
-find . -type f -name "*.ts" -o -name "*.js" -o -name "*.java" -o -name "*.py" -o -name "*.go" -o -name "*.php" | wc -l
-```
+### 阶段 2：委托给分析师子代理
 
-4. **Inform the user**: Briefly tell the user what you found and that you are about to start analysis:
-   - "I found a [TypeScript/NestJS] project with [N] source files and [M] existing rules. Starting deep analysis..."
+使用 **Task 工具** 将分析委托给子代理，`subagent_type` 设为 `"general_purpose_task"`。
 
-### Phase 2: Delegate to Analyst Sub-Agent
-
-Invoke the `learn-analyst` sub-agent to perform the deep codebase analysis.
-
-Use the **Task tool** to delegate analysis to the `learn-analyst` agent:
-
-- **Agent**: `learn-analyst`
-- **Prompt**: "Analyze the codebase in the current working directory. Follow your full process: discovery, pattern extraction, classification, and prioritization. Return your findings as a JSON report."
-- **Mode**: Run synchronously to receive the JSON report directly
-
-The analyst will return a structured JSON report with classified findings.
-
-### Phase 3: Review and Filter Results
-
-Process the analyst's report:
-
-1. **Parse the JSON report** returned by the analyst
-2. **Validate findings**: Ensure each finding has:
-   - A clear title
-   - Evidence from at least 2 files
-   - Impact score ≥ 4 (discard low-impact findings)
-   - Well-formed markdown content
-3. **Deduplicate against existing rules**: Compare each finding title and content against existing `.opencode/rules/` files. Skip findings that duplicate existing rules.
-4. **Select top 3**: From the remaining findings, select the top 3 by impact score. If fewer than 3 remain after filtering, present whatever is left.
-5. **If zero findings remain**: Inform the user that the project is already well-documented or no significant undocumented patterns were found.
-
-### Phase 4: Present to User
-
-Present the filtered findings to the user in a clear, structured format:
+**子代理提示模板：**
 
 ```
-I analyzed your codebase and found N patterns worth documenting as project rules:
+你是一个代码库分析师。你的任务是分析当前工作目录中的代码库，发现开发模式、约定和架构决策。
 
-1. **[RULE]** <Title> (Impact: X/10)
-   <One-line explanation>
+请按以下流程执行：
 
-2. **[RULE]** <Title> (Impact: X/10)
-   <One-line explanation>
+1. **发现阶段**：扫描代码库的关键区域：
+   - 目录结构（模块组织方式）
+   - 命名约定（文件、函数、变量、类型）
+   - 错误处理模式
+   - 状态管理模式
+   - API/接口设计模式
+   - 测试组织模式
+   - 导入/依赖组织模式
+   - 配置管理模式
+   - 类型定义模式
+   - 代码风格约定
 
-3. **[RULE]** <Title> (Impact: X/10)
-   <One-line explanation>
+2. **模式提取**：对于每个发现的模式：
+   - 确认它出现在至少 2 个文件中
+   - 收集具体的文件路径和代码片段作为证据
+   - 判断该模式是否已在项目规则文件中被记录
+
+3. **分类和优先级排序**：按以下维度评分：
+   - 影响范围（1-10）：该模式覆盖了多少文件/模块
+   - 一致性（1-10）：该模式在代码库中的一致性程度
+   - 可操作（1-10）：该模式是否容易转化为明确的规则
+
+4. **返回 JSON 报告**：将发现以严格的 JSON 格式返回，结构如下：
+
+```json
+{
+  "projectSummary": {
+    "language": "主要语言",
+    "framework": "主要框架（如适用）",
+    "totalSourceFiles": 数字,
+    "analyzedFiles": 数字
+  },
+  "findings": [
+    {
+      "title": "规则标题（中文，简洁）",
+      "category": "分类（organization/naming/error-handling/state/api/testing/imports/config/types/style）",
+      "impactScore": 数字（1-10，综合影响范围、一致性、可操作性）,
+      "evidence": [
+        {
+          "file": "相对路径",
+          "description": "该文件中体现该模式的说明",
+          "snippet": "关键代码片段（不超过 5 行）"
+        }
+      ],
+      "content": "完整的规则 markdown 内容，包含：规则描述、正确示例、错误示例、适用场景。这是将直接写入规则文件的内容。"
+    }
+  ]
+}
 ```
 
-Then ask the user for confirmation using **AskUserQuestion**:
-
-- Present choices: "Save all N rules", "Let me choose which ones to save", "Cancel — don't save anything"
-- If the user wants to select individually, present each rule one by one with "Save / Skip" options
-- **Never save automatically** — always require explicit user approval
-
-### Phase 5: Persist Approved Rules
-
-For each approved rule:
-
-1. **Ensure directory exists**:
-
-```bash
-mkdir -p .opencode/rules
+**重要约束：**
+- 只返回 JSON，不要包含任何其他文本
+- 每条 finding 必须有至少 2 个文件的证据
+- 影响评分 ≥ 4 的才纳入（舍弃低影响发现）
+- 不要编造代码库中不存在的模式
+- 如果项目已有规则文件，跳过与现有规则重复的发现
+- 最多返回 5 条发现
 ```
 
-2. **Generate the file name**: Use the finding's `title` field converted to kebab-case:
-   - Example: `"API Response Envelope Convention"` → `api-response-envelope-convention.md`
-   - Avoid generic names like `rule-1.md` or `learned-pattern.md`
+**超时与重试：**
+- 如果子代理超时或无响应，向用户报告并询问是否重试
+- 如果子代理返回非 JSON 内容，尝试从输出中提取 JSON 部分
+- 如果 JSON 解析失败，告知用户并展示原始输出，询问是否手动处理
 
-3. **Check for conflicts**: Before writing, check if a file with the same name already exists:
-   - If it exists, present a diff to the user and ask whether to replace, merge, or skip
+### 阶段 3：审查和过滤结果
 
-4. **Write the rule file**: Create the file in `.opencode/rules/` with the analyst's pre-formatted content
+处理分析师的报告：
 
-5. **Confirm to user**: After saving, list all created files:
+1. **解析 JSON 报告**：
+   - 尝试 `JSON.parse()` 解析子代理的返回内容
+   - 如果失败，尝试提取 ```json 代码块中的内容
+   - 如果仍然失败，将原始输出展示给用户并询问处理方式
+
+2. **验证发现**：确保每个发现都有：
+   - 清晰的标题
+   - 至少来自 2 个文件的 evidence
+   - 影响评分 ≥ 4（舍弃低影响发现）
+   - 格式良好的 markdown 内容（content 字段）
+
+3. **与现有规则去重**：
+   - 读取所有现有规则文件的内容
+   - 对每个发现，计算其 title 与现有规则文件标题的相似度
+   - 如果 title 与现有规则高度相似（共享关键词 > 50%），标记为重复
+   - 对 content 进行语义级对比：如果发现描述的核心约定已被现有规则覆盖，也标记为重复
+   - 跳过重复发现
+
+4. **选择前 3 条**：从剩余发现中，按影响评分降序选择前 3 条。如果过滤后少于 3 条，展示剩余的内容。
+
+5. **如果零条发现**：告知用户项目已充分文档化，或未发现显著未记录的模式。
+
+### 阶段 4：向用户展示
+
+以清晰的结构化格式向用户展示过滤后的发现：
 
 ```
-✅ Rules saved successfully:
+我分析了你的代码库，发现 N 个值得记录为项目规则的模式：
+
+1. **[规则]** <标题>（影响：X/10，分类：<category>）
+   <一行说明>
+
+2. **[规则]** <标题>（影响：X/10，分类：<category>）
+   <一行说明>
+
+3. **[规则]** <标题>（影响：X/10，分类：<category>）
+   <一行说明>
+```
+
+然后使用 AskUserQuestion 工具请求用户确认：
+
+- 提供选项："保存全部 N 条规则"、"让我选择要保存的规则"、"取消 — 不保存任何内容"
+- 如果用户想单独选择，逐条展示每条规则，并提供"保存 / 跳过"选项
+- **切勿自动保存** — 始终要求用户明确批准
+
+### 阶段 5：持久化已批准的规则
+
+对于每条已批准的规则：
+
+1. **确定规则目录**：按以下优先级确定写入目标：
+   - 如果 `.opencode/rules/` 存在 → 写入 `.opencode/rules/`
+   - 如果 `.trae/rules/` 存在 → 写入 `.trae/rules/`
+   - 如果 `.agents/rules/` 存在 → 写入 `.agents/rules/`
+   - 如果都不存在 → 创建 `.opencode/rules/`
+
+2. **确保目录存在**：使用 RunCommand 创建目录：
+   ```
+   mkdir -p <目标规则目录>
+   ```
+
+3. **生成文件名**：使用发现的 `title` 字段转换为 kebab-case：
+   - 示例：`"API 响应信封约定"` → `api-response-envelope-convention.md`
+   - 避免使用通用名称如 `rule-1.md` 或 `learned-pattern.md`
+   - 仅使用小写字母、数字和连字符
+
+4. **检查冲突**：在写入前，使用 Read 工具检查同名文件是否已存在：
+   - 如果存在，使用 AskUserQuestion 向用户展示差异，询问是替换、合并还是跳过
+
+5. **写入规则文件**：使用 Write 工具在目标目录中创建文件，内容使用发现中的 `content` 字段
+
+6. **同步到其他规则目录**：如果项目存在多个规则目录（如 `.opencode/rules/` + `.trae/rules/` + `.agents/rules/`），将新规则文件同步写入所有已存在的规则目录中。
+
+7. **向用户确认**：保存后，列出所有已创建的文件及其路径：
+
+```
+✅ 规则保存成功：
 
   .opencode/rules/api-response-envelope-convention.md
-  .opencode/rules/feature-based-module-organization.md
-  .opencode/rules/test-factory-pattern.md
+  .trae/rules/api-response-envelope-convention.md
+  .agents/rules/api-response-envelope-convention.md
 
-These rules will be automatically applied by OpenCode in future sessions.
+这些规则将在未来的会话中被 Agent 自动应用。
 ```
 
-## Best Practices
+## 最佳实践
 
-1. **Run early in a project**: Use this skill when joining a new project to quickly codify conventions
-2. **Review before saving**: Always verify the generated rules make sense for your project
-3. **Iterate**: Run the skill periodically as the project evolves — new patterns may emerge
-4. **Edit after saving**: Generated rules are starting points; refine them to match your exact preferences
-5. **Commit rules to git**: `.opencode/rules/` files are project-specific and should be version-controlled so the whole team benefits
+1. **项目早期运行**：加入新项目时使用此技能，快速将约定文档化
+2. **保存前审查**：始终验证生成的规则是否适合你的项目
+3. **迭代**：随着项目演进定期运行此技能 — 新模式可能出现
+4. **保存后编辑**：生成的规则是起点，根据你的精确偏好进行微调
+5. **将规则提交到 Git**：规则文件是项目特定的，应进行版本控制，以便整个团队受益
 
-## Constraints and Warnings
+## 约束与警告
 
-### Critical Constraints
+### 关键约束
 
-1. **Never save without confirmation**: Always ask the user before writing any files
-2. **Project-local only**: Only write to `.opencode/rules/` in the current project directory, never to global paths
-3. **Read-only analysis**: The analyst sub-agent must not modify any project files
-4. **Evidence-based**: Every rule must be backed by concrete evidence from the codebase
-5. **No hallucination**: Do not invent patterns that are not actually present in the codebase
-6. **Respect existing rules**: Do not overwrite existing rules without explicit user approval
-7. **Keep rules focused**: Each rule file should address one specific convention or pattern
+1. **未确认不保存**：在写入任何文件前始终询问用户
+2. **仅限项目本地**：仅写入当前项目目录中的规则目录，绝不写入全局路径
+3. **只读分析**：子代理不得修改任何项目文件
+4. **基于证据**：每条规则必须有代码库中的具体证据支持（至少 2 个文件）
+5. **禁止幻觉**：不要编造代码库中实际不存在的模式
+6. **尊重现有规则**：未经用户明确批准，不得覆盖现有规则
+7. **保持规则聚焦**：每个规则文件应解决一个特定的约定或模式
 
-### Limitations
+### 局限性
 
-- **Large monorepos**: Analysis may take longer on very large codebases. The analyst scans representative samples, not every file.
-- **Polyglot projects**: In multi-language projects, rules are generated per-language. Ensure the rule title indicates the language scope.
-- **Existing rules conflict**: If the project already has comprehensive `.opencode/rules/`, the skill may find few or no new patterns. This is expected.
-- **Dynamic patterns**: Some patterns only emerge at runtime (e.g., middleware ordering). This skill focuses on static codebase analysis.
+- **大型单体仓库**：在非常大的代码库上分析可能需要更长时间。分析师扫描代表性样本，而非每个文件。
+- **多语言项目**：在多语言项目中，按语言生成规则。确保规则标题指明语言范围。
+- **现有规则冲突**：如果项目已有全面的规则文件，此技能可能发现很少或没有新模式。这是预期行为。
+- **动态模式**：某些模式仅在运行时出现（如中间件顺序）。本技能专注于静态代码库分析。
+- **子代理依赖**：本技能依赖 Task 工具的 general_purpose_task 子代理类型。如果该子代理类型不可用，技能将无法完成分析阶段。
 
-## Examples
+## 子代理故障处理
 
-### Example 1: Learning from a NestJS project
+| 故障类型 | 处理方式 |
+|----------|----------|
+| 子代理超时 | 告知用户，询问是否用更小的扫描范围重试 |
+| 返回非 JSON 内容 | 尝试从输出中提取 JSON 块；失败则展示原始输出，询问用户 |
+| JSON 解析失败 | 展示错误详情和原始输出，询问用户是否手动处理 |
+| 返回空 findings | 告知用户未发现值得记录的模式 |
+| 子代理无响应 | 等待 60 秒后重试一次；再次失败则告知用户并建议手动分析 |
 
-**User request:** "Learn from this project"
+## 示例
 
-**Phase 1 — Context assessment:**
+### 示例 1：从 NestJS 项目学习
+
+**用户请求：**"从这个项目学习"
+
+**阶段 1 — 上下文评估：**
 ```
-Found: TypeScript/NestJS project with 142 source files
-Existing rules: 0 files in .opencode/rules/
-Starting deep analysis...
-```
-
-**Phase 4 — Presentation:**
-```
-I analyzed your codebase and found 3 patterns worth documenting as project rules:
-
-1. **[RULE]** Feature-Based Module Organization (Impact: 9/10)
-   All modules follow src/modules/<feature>/ with controller, service, dto, entity subdirectories.
-
-2. **[RULE]** DTO Validation Convention (Impact: 8/10)
-   All DTOs use class-validator decorators and follow Create/Update naming pattern.
-
-3. **[RULE]** Error Response Envelope (Impact: 7/10)
-   All API errors return { statusCode, message, error } consistent envelope format.
-
-Save all 3 rules? [Save all / Let me choose / Cancel]
+发现：TypeScript/NestJS 项目，包含 142 个源文件
+现有规则：.opencode/rules/ 中有 0 个文件
+开始深度分析...
 ```
 
-**Phase 5 — Persistence:**
+**阶段 4 — 展示：**
 ```
-✅ Rules saved successfully:
+我分析了你的代码库，发现 3 个值得记录为项目规则的模式：
+
+1. **[规则]** 基于功能的模块组织（影响：9/10，分类：organization）
+   所有模块遵循 src/modules/<功能>/ 结构，包含 controller、service、dto、entity 子目录。
+
+2. **[规则]** DTO 验证约定（影响：8/10，分类：naming）
+   所有 DTO 使用 class-validator 装饰器，并遵循 Create/Update 命名模式。
+
+3. **[规则]** 错误响应信封（影响：7/10，分类：error-handling）
+   所有 API 错误返回 { statusCode, message, error } 一致的信封格式。
+
+保存全部 3 条规则？[保存全部 / 让我选择 / 取消]
+```
+
+**阶段 5 — 持久化：**
+```
+✅ 规则保存成功：
 
   .opencode/rules/feature-based-module-organization.md
   .opencode/rules/dto-validation-convention.md
   .opencode/rules/error-response-envelope.md
 
-These rules will be automatically applied by OpenCode in future sessions.
+这些规则将在未来的会话中被 Agent 自动应用。
 ```
 
-### Example 2: Project with existing rules
+### 示例 2：已有规则的项目
 
-**User request:** "Discover project patterns"
+**用户请求：**"发现项目模式"
 
-**Phase 1 — Context assessment:**
+**阶段 1 — 上下文评估：**
 ```
-Found: Java/Spring Boot project with 87 source files
-Existing rules: 4 files in .opencode/rules/
-Starting deep analysis...
+发现：Java/Spring Boot 项目，包含 87 个源文件
+现有规则：.opencode/rules/ 中有 4 个文件
+开始深度分析...
 ```
 
-**Phase 3 — After filtering:**
+**阶段 3 — 过滤后：**
 ```
-The analyst found 6 patterns, but 4 overlap with your existing rules.
-After deduplication, 2 new patterns remain:
+分析师发现了 6 个模式，但其中 4 个与你的现有规则重叠。
+去重后，剩余 2 个新模式：
 
-1. **[RULE]** Repository Method Naming (Impact: 7/10)
-   All custom repository methods use findBy/existsBy/countBy prefix convention.
+1. **[规则]** 仓库方法命名（影响：7/10，分类：naming）
+   所有自定义仓库方法使用 findBy/existsBy/countBy 前缀约定。
 
-2. **[RULE]** Integration Test Database Strategy (Impact: 6/10)
-   Integration tests use @Testcontainers with PostgreSQL and @Sql for fixtures.
+2. **[规则]** 集成测试数据库策略（影响：6/10，分类：testing）
+   集成测试使用 @Testcontainers 配合 PostgreSQL，以及 @Sql 进行数据准备。
 
-Save these 2 rules? [Save all / Let me choose / Cancel]
+保存这 2 条规则？[保存全部 / 让我选择 / 取消]
 ```

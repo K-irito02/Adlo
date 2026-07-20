@@ -1,62 +1,62 @@
 ---
 name: refactoring-insight
-description: Analyze codebase for architecture, performance, and maintainability issues. Produces prioritized report with risk assessment. Invoke for refactoring analysis, code quality review, or architecture health check.
+description: 分析代码库的架构、性能和可维护性问题，生成带有风险评估的优先级报告。适用于重构分析、代码质量审查或架构健康检查。
 ---
 
-# Refactoring Insight
+# 重构洞察
 
-Systematically analyze any codebase to produce a **prioritized insight report** covering architecture, performance, code structure, security, and hygiene. This skill focuses on **analysis and insight generation** — execution of fixes is delegated to downstream skills.
+系统化分析任意代码库，生成一份**带优先级的洞察报告**，涵盖架构、性能、代码结构、安全与代码卫生。本技能专注于**分析与洞察生成**——修复的执行交由下游技能处理。
 
-**Core principle:** Insight before action. Understand the full picture before proposing changes.
-
----
-
-## When to Use
-
-- User asks for code quality analysis, refactoring insight, or architecture review
-- Project needs a systematic health check before major feature work
-- Signs of technical debt: slow builds, frequent bugs in same areas, hard-to-extend modules
-- After significant code accumulation without review
-- Onboarding to a new or unfamiliar codebase
+**核心原则：** 先洞察，后行动。在提出更改前理解全局。
 
 ---
 
-## Flow
+## 何时使用
+
+- 用户询问代码质量分析、重构洞察或架构审查
+- 项目在重大功能开发前需要系统性健康检查
+- 出现技术债务迹象：构建缓慢、同一区域频繁出现 Bug、模块难以扩展
+- 大量代码积累后未经过审查
+- 接入新代码库或不熟悉的代码库
+
+---
+
+## 流程
 
 ```
-Scope Definition → Discovery → Baseline → Survey → Scan (5 dimensions) → Risk Assessment → Collaborative Report (via Brainstorming) → Next Steps
+范围定义 → 发现 → 基线 → 概览 → 扫描（5 个维度） → 风险评估 → 协作报告（通过 Brainstorming） → 后续步骤
 ```
 
-This skill stops at the **insight report**. For execution, see [Next Steps](#next-steps).
+本技能止步于**洞察报告**。执行阶段请参见[后续步骤](#后续步骤)。
 
 ---
 
-## 0. Scope Definition
+## 0. 范围定义
 
-**Before any analysis, ask the user to define the scope.** Do not assume "the whole project."
+**在任何分析之前，先询问用户定义范围。** 不要假定"整个项目"。
 
-Ask the user (via `AskUserQuestion`):
+通过问题工具询问用户：
 
-| Question | Options |
+| 问题 | 选项 |
 |----------|---------|
-| What scope to analyze? | Entire project / Specific directories / Specific modules / Files changed in last N days |
-| Depth preference? | Quick scan (top 10 issues) / Standard (all dimensions) / Deep dive (full detail) |
-| Compare with previous report? | Yes (provide path) / No |
-| Output format preference? | Interactive (step-by-step approval) / Direct (write full report at once) |
+| 分析范围？ | 整个项目 / 特定目录 / 特定模块 / 最近 N 天变更的文件 |
+| 深度偏好？ | 快速扫描（前 10 个问题）/ 标准（所有维度）/ 深度分析（完整细节） |
+| 对比之前的报告？ | 是（提供路径）/ 否 |
+| 输出格式偏好？ | 交互式（逐步确认）/ 直接（一次性写入完整报告） |
 
-- If the user specifies a directory, verify it exists with `LS` before proceeding
-- If the project is very large (>500 files), suggest narrowing scope or using the [multi-agent dispatch strategy](#multi-agent-parallel-scan)
-- Record the agreed scope at the top of the final report
+- 如果用户指定了目录，先用 `LS` 验证目录是否存在
+- 如果项目非常大（>500 个文件），建议缩小范围或使用[多代理并行扫描策略](#多代理并行扫描)
+- 在最终报告的顶部记录已同意的范围
 
 ---
 
-## 1. Discovery — Project Context
+## 1. 发现 — 项目上下文
 
-### 1.1 Language & Framework Detection
+### 1.1 语言与框架检测
 
-Scan the project root for config files:
+扫描项目根目录的配置文件：
 
-| Indicator | Likely Stack |
+| 指示符 | 可能的技术栈 |
 |-----------|-------------|
 | `package.json` | Node.js / TypeScript / JavaScript |
 | `Cargo.toml` | Rust |
@@ -68,40 +68,40 @@ Scan the project root for config files:
 | `mix.exs` | Elixir |
 | `*.csproj` / `*.sln` | C# / .NET |
 
-### 1.2 Tooling Detection
+### 1.2 工具链检测
 
-Identify existing quality tooling (use what's configured, don't impose external tools):
+识别现有的质量工具（使用已配置的工具，不要强加外部工具）：
 
-| Category | Common tools |
+| 类别 | 常见工具 |
 |----------|-------------|
-| **Build system** | npm/pnpm/yarn, cargo, gradle, make, cmake |
-| **Linter/formatter** | ESLint, Prettier, rustfmt, clippy, ruff, black, gofmt |
-| **Test framework** | Vitest, Jest, pytest, cargo test, go test, JUnit |
-| **Type checker** | TypeScript, mypy, pyright |
-| **Monorepo tools** | nx, turborepo, lerna, cargo workspace |
-| **Dependency graph** | madge, dpdm (JS/TS), cargo-modules (Rust), pydeps (Python) |
+| **构建系统** | npm/pnpm/yarn, cargo, gradle, make, cmake |
+| **Linter/格式化** | ESLint, Prettier, rustfmt, clippy, ruff, black, gofmt |
+| **测试框架** | Vitest, Jest, pytest, cargo test, go test, JUnit |
+| **类型检查器** | TypeScript, mypy, pyright |
+| **单体仓库工具** | nx, turborepo, lerna, cargo workspace |
+| **依赖图工具** | madge, dpdm (JS/TS), cargo-modules (Rust), pydeps (Python) |
 
-### 1.3 Structure Discovery
+### 1.3 结构发现
 
-- Monorepo or single-package?
-- How are modules/packages organized?
-- Where is the entry point?
-- Any existing architecture docs, style guides, or prior refactoring reports?
+- 是单体仓库还是单包项目？
+- 模块/包如何组织？
+- 入口点在哪里？
+- 是否有现有的架构文档、风格指南或之前的重构报告？
 
-### 1.4 Existing Known Issues
+### 1.4 已知问题
 
-Review previous reports and issue trackers for context, but **independently verify** — past reports may be outdated, inaccurate, or describe issues since resolved:
+审查之前的报告和问题跟踪以获取上下文，但**独立验证**——过去的报告可能已过时、不准确或描述的问题已被修复：
 
-- Check the issue tracker for technical debt tickets → verify each claimed issue still exists in current code
-- Review past refactoring reports → spot-check 2-3 claimed findings against current code
-- Review recent hot-fix commits: `git log --oneline -30 | grep -iE "fix|hotfix|quick"` → check if the patched code has regressed
-- If a previous report exists, compare its metrics with current baselines to detect drift
+- 检查问题跟踪器中的技术债务条目 → 验证每个声称的问题在当前代码中仍然存在
+- 审查以前的重构报告 → 抽查 2-3 个声称的发现是否与当前代码一致
+- 审查最近的 hot-fix 提交：`git log --oneline -30 | grep -iE "fix|hotfix|quick"` → 检查修补过的代码是否已退化
+- 如果之前有报告，将其指标与当前基线对比，检测漂移
 
-### 1.5 Threshold Calibration
+### 1.5 阈值校准
 
-Adapt scanning thresholds to the project's language and conventions. **No fixed numbers** — derive from context.
+根据项目的语言和约定调整扫描阈值。**没有固定值**——从上下文中推导。
 
-Compute file size distribution to calibrate:
+计算文件大小分布以校准：
 
 ```bash
 Get-ChildItem -Recurse -Include *.ts,*.tsx,*.rs,*.py | ForEach-Object {
@@ -109,396 +109,396 @@ Get-ChildItem -Recurse -Include *.ts,*.tsx,*.rs,*.py | ForEach-Object {
 } | Sort-Object Lines -Descending | Select-Object -First 200
 ```
 
-| Factor | How to calibrate |
+| 因素 | 如何校准 |
 |--------|-----------------|
-| File size threshold | Flag outliers: >2x median OR >3x 75th percentile |
-| Function length threshold | Flag the top 5-10% longest functions; language-dependent |
-| Nesting depth | >4 levels is a warning; >6 is a problem in any language |
-| Cyclomatic complexity | Use project's linter complexity rules if available; otherwise manual review of largest functions |
+| 文件大小阈值 | 标记异常值：>2倍中位数 或 >3倍第75百分位 |
+| 函数长度阈值 | 标记最长的前 5-10% 函数；与语言相关 |
+| 嵌套深度 | >4 层为警告；>6 层在任何语言中都是问题 |
+| 圈复杂度 | 优先使用项目的 linter 复杂度规则；否则手动审查最大函数 |
 
-> **Rule of thumb**: A 200-line React component may be fine; a 200-line Rust function is likely a problem.
+> **经验法则**：一个 200 行的 React 组件可能没问题；一个 200 行的 Rust 函数则很可能有问题。
 
 ---
 
-## 2. Baseline — Pre-Refactoring Metrics
+## 2. 基线 — 重构前指标
 
-### 2.1 Quantitative Baselines
+### 2.1 定量基线
 
-Run these in **parallel** where possible:
+尽可能**并行**执行：
 
-| Metric | How to measure | Parallel? |
+| 指标 | 测量方法 | 可并行？ |
 |--------|---------------|-----------|
-| Build time | Run build command 2-3 times, take median | Yes (with test) |
-| Test suite runtime | Run full test suite once | Yes (with build) |
-| Test count | Parse test runner output | From test run |
-| Bundle/artifact size | `ls -lh` or `du -sh` on build output | After build |
-| Lint warning count | `<lint-cmd> 2>&1 \| Measure-Object -Line` | Yes (independent) |
-| Dependency count | Count entries in dependency manifest | Yes (independent) |
-| File count | `Get-ChildItem -Recurse -File \| Measure-Object \| Select-Object Count` | Yes (independent) |
+| 构建时间 | 运行构建命令 2-3 次，取中位数 | 是（与测试并行） |
+| 测试套件运行时间 | 运行一次完整测试套件 | 是（与构建并行） |
+| 测试数量 | 解析测试运行器输出 | 来自测试运行 |
+| 构建产物大小 | 对构建输出执行 `ls -lh` 或 `du -sh` | 构建完成后 |
+| Lint 警告数量 | `<lint-cmd> 2>&1 \| Measure-Object -Line` | 是（独立） |
+| 依赖数量 | 统计依赖清单中的条目数 | 是（独立） |
+| 文件数量 | `Get-ChildItem -Recurse -File \| Measure-Object \| Select-Object Count` | 是（独立） |
 
-### 2.2 Qualitative Baselines
+### 2.2 定性基线
 
-- Which areas have few contributors? → `git log --format='%an' --follow <file> | Sort-Object -Unique`
-- Test flakiness: any `.skip` or `.only` modifiers?
+- 哪些区域贡献者很少？→ `git log --format='%an' --follow <file> | Sort-Object -Unique`
+- 测试脆弱性：是否存在 `.skip` 或 `.only` 修饰符？
 
-### 2.3 Baseline Snapshot
+### 2.3 基线快照
 
-Record in the report:
+在报告中记录：
 
 ```markdown
-## Baseline Metrics
-| Metric | Value |
+## 基线指标
+| 指标 | 值 |
 |--------|-------|
-| Build time | Xs |
-| Test suite runtime | Xs |
-| Test count | N |
-| Lint warnings | N |
-| File count | N |
+| 构建时间 | Xs |
+| 测试套件运行时间 | Xs |
+| 测试数量 | N |
+| Lint 警告 | N |
+| 文件数量 | N |
 ```
 
 ---
 
-## 3. Survey — Project Overview
+## 3. 概览 — 项目总览
 
-### 3.1 Architecture Understanding
+### 3.1 架构理解
 
-- Read top-level docs (README, ARCHITECTURE.md, CONTRIBUTING.md)
-- Trace the dependency graph:
-  - JS/TS: `npx madge --circular --image graph.png src/` or `npx dpdm --circular src/index.ts`
-  - Rust: `cargo modules structure --lib`
-  - Python: `pydeps --show-deps src/`
-- Identify the primary architectural pattern (MVC, layered, hexagonal, feature-based, etc.)
+- 阅读顶级文档（README、ARCHITECTURE.md、CONTRIBUTING.md）
+- 追踪依赖图：
+  - JS/TS：`npx madge --circular --image graph.png src/` 或 `npx dpdm --circular src/index.ts`
+  - Rust：`cargo modules structure --lib`
+  - Python：`pydeps --show-deps src/`
+- 识别主要的架构模式（MVC、分层、六边形、基于功能等）
 
-### 3.2 Macro Statistics
+### 3.2 宏观统计
 
 ```bash
-# Directory-level size distribution
+# 目录级大小分布
 Get-ChildItem -Recurse -File -Include *.ts,*.tsx,*.rs |
   ForEach-Object { [PSCustomObject]@{ Dir=$_.DirectoryName; Lines=(Get-Content $_.FullName | Measure-Object -Line).Lines } } |
   Group-Object Dir | ForEach-Object { [PSCustomObject]@{ Directory=$_.Name; Files=$_.Count; TotalLines=($_.Group | Measure-Object Lines -Sum).Sum } } |
   Sort-Object TotalLines -Descending
 
-# Test file distribution (identify directories with no tests)
+# 测试文件分布（识别没有测试的目录）
 Get-ChildItem -Recurse -File -Include *.test.*,*.spec.* | Group-Object DirectoryName | Sort-Object Count -Descending
 
-# Recent change hotspots (last 30 days)
+# 近期变更热点（最近 30 天）
 git log --since="30 days ago" --name-only --format="" | Sort-Object | Group-Object | Sort-Object Count -Descending | Select-Object -First 20
 
-# Recently added modules (last 3 months, may be less mature)
+# 最近新增的模块（最近 3 个月，可能成熟度较低）
 git log --diff-filter=A --name-only --format="" --since="3 months ago" | Sort-Object -Unique
 ```
 
 ---
 
-## 4. Systematic Scanning
+## 4. 系统扫描
 
-Scan across **five** independent dimensions. For large projects, use the [multi-agent dispatch strategy](#multi-agent-parallel-scan).
+扫描**五个**独立维度。对于大型项目，使用[多代理并行扫描策略](#多代理并行扫描)。
 
-### 4.1 Code Structure
+### 4.1 代码结构
 
-| Scan Item | What to look for | How to detect |
+| 扫描项 | 查找目标 | 检测方法 |
 |-----------|-----------------|---------------|
-| Outlier files | Files significantly larger than project median | Use file size distribution from 1.5 |
-| Outlier functions | Functions significantly longer than project norm | Grep for `function` / `fn` / `def`, count lines between definitions |
-| Deep nesting | >4 levels of indentation, callback hell, nested conditionals | Manual review of largest files; ESLint `max-depth` rule if available |
-| High complexity | Functions with many branches/paths | Use project's linter complexity rules; `radon cc` for Python |
-| Duplicate code | Blocks of >10 similar lines across files | `npx jscpd src/` (JS/TS); manual diff for Rust |
-| Dead code | Unused exports, imports, functions, variables | ESLint `no-unused-vars`; `cargo check --warnings`; `vulture` for Python |
+| 异常文件 | 文件显著大于项目中位数 | 使用 1.5 节的文件大小分布 |
+| 异常函数 | 函数显著长于项目常规长度 | 搜索 `function` / `fn` / `def`，统计定义间的行数 |
+| 深层嵌套 | >4 层缩进、回调地狱、嵌套条件 | 手动审查最大文件；如有 ESLint `max-depth` 规则则使用 |
+| 高复杂度 | 包含许多分支/路径的函数 | 使用项目的 linter 复杂度规则；Python 使用 `radon cc` |
+| 重复代码 | 跨文件的 >10 行相似代码块 | JS/TS 使用 `npx jscpd src/`；Rust 手动 diff |
+| 死代码 | 未使用的导出、导入、函数、变量 | ESLint `no-unused-vars`；`cargo check --warnings`；Python 使用 `vulture` |
 
-### 4.2 Architecture & Design
+### 4.2 架构与设计
 
-| Scan Item | What to look for | How to detect |
+| 扫描项 | 查找目标 | 检测方法 |
 |-----------|-----------------|---------------|
-| Circular dependencies | A imports B, B imports A (or longer cycles) | `npx madge --circular src/` (JS/TS); `cargo modules structure --lib` (Rust) |
-| Tight coupling | Modules imported by many others | `npx madge --image graph.png src/`; `cargo modules structure --lib` |
-| God modules | File handling too many unrelated concerns | Manual review of largest files; count distinct concerns per file |
-| Layer violations | Low-level code depending on high-level; UI touching data access | Manual review of import graphs |
-| Inconsistent patterns | Same concern handled differently across codebase | Grep for error handling, state management, logging patterns |
-| Premature abstraction | Abstractions with only one consumer | Grep for `interface` / `trait` and count implementations |
+| 循环依赖 | A 引用 B，B 引用 A（或更长的循环） | JS/TS 使用 `npx madge --circular src/`；Rust 使用 `cargo modules structure --lib` |
+| 紧耦合 | 被许多其他模块引用的模块 | `npx madge --image graph.png src/`；`cargo modules structure --lib` |
+| God 模块 | 处理过多不相关职责的文件 | 手动审查最大文件；统计每个文件中的不同关注点数量 |
+| 层级违规 | 底层代码依赖高层代码；UI 直接访问数据层 | 手动审查导入图 |
+| 模式不一致 | 同一关注点在代码库中处理方式不同 | 搜索错误处理、状态管理、日志记录模式 |
+| 过早抽象 | 仅有一个使用者的抽象 | 搜索 `interface` / `trait` 并统计实现数量 |
 
-### 4.3 Performance & Resource
+### 4.3 性能与资源
 
-| Scan Item | What to look for | How to detect |
+| 扫描项 | 查找目标 | 检测方法 |
 |-----------|-----------------|---------------|
-| N+1 patterns | Queries/API calls inside loops | Grep for `await` inside `for`/`while`; manual review |
-| Unnecessary allocations | Objects created in hot paths | Rust: `cargo clippy`; JS: `{...spread}` in loops |
-| Blocking in async | Synchronous I/O in async functions | Rust: `cargo clippy`; JS: grep for `readFileSync` in async |
-| Repeated computation | Values computed multiple times without caching | Manual review of hot paths |
-| Heavy imports | Importing entire libraries when subset needed | JS: `import * from`; Python: `from module import *` |
-| Resource management | Unclosed handles, connections, listeners | Manual review; Rust: `cargo clippy`; JS: missing `removeEventListener` |
+| N+1 模式 | 循环中的查询/API 调用 | 在 `for`/`while` 中搜索 `await`；手动审查 |
+| 不必要的内存分配 | 热路径中创建的对象 | Rust：`cargo clippy`；JS：循环中的 `{...spread}` |
+| 异步中的阻塞 | 异步函数中的同步 I/O | Rust：`cargo clippy`；JS：在异步函数中搜索 `readFileSync` |
+| 重复计算 | 未缓存而多次计算的值 | 手动审查热路径 |
+| 重型导入 | 仅需子集时导入整个库 | JS：`import * from`；Python：`from module import *` |
+| 资源管理 | 未关闭的句柄、连接、监听器 | 手动审查；Rust：`cargo clippy`；JS：缺少 `removeEventListener` |
 
-### 4.4 Security
+### 4.4 安全
 
-| Scan Item | What to look for | How to detect |
+| 扫描项 | 查找目标 | 检测方法 |
 |-----------|-----------------|---------------|
-| Secret exposure | Hardcoded API keys, tokens, passwords | Grep for `api_key`, `secret`, `password`, `token`, `-----BEGIN` |
-| Dependency vulnerabilities | Known CVEs | `npm audit` / `pnpm audit`; `cargo audit`; `pip-audit` |
-| Injection risks | Unsanitized input in shell/SQL/HTML | Grep for `exec(`, `spawn(`, `eval(`, `innerHTML` |
-| Insecure defaults | Debug mode, open CORS, HTTP | Check config files; grep for `DEBUG=true`, `CORS_ORIGIN=*` |
-| Missing input validation | Unvalidated user/external input | Manual review of API handlers and command endpoints |
+| 密钥泄露 | 硬编码的 API 密钥、令牌、密码 | 搜索 `api_key`、`secret`、`password`、`token`、`-----BEGIN` |
+| 依赖漏洞 | 已知 CVE | `npm audit` / `pnpm audit`；`cargo audit`；`pip-audit` |
+| 注入风险 | 未经过滤的输入进入 shell/SQL/HTML | 搜索 `exec(`、`spawn(`、`eval(`、`innerHTML` |
+| 不安全默认值 | 调试模式、开放的 CORS、HTTP | 检查配置文件；搜索 `DEBUG=true`、`CORS_ORIGIN=*` |
+| 缺失输入验证 | 未经验证的用户/外部输入 | 手动审查 API 处理程序和命令端点 |
 
-### 4.5 Hygiene & Quality
+### 4.5 代码卫生与质量
 
-| Scan Item | What to look for | How to detect |
+| 扫描项 | 查找目标 | 检测方法 |
 |-----------|-----------------|---------------|
-| Debug artifacts | `console.log`, `print()`, `dbg!()` in non-test code | Grep, exclude test files |
-| Hardcoded values | URLs, magic numbers, locale strings | Grep for URL patterns, bare numbers in logic |
-| Error handling | Mixed patterns: throw vs null vs Result vs panic | Manual review across modules |
-| Deferred debt | `TODO`, `FIXME`, `HACK`, `XXX` comments | `grep -r "TODO\|FIXME\|HACK\|XXX" --include="*.ts" --include="*.rs"` |
-| Configuration sprawl | Settings scattered across files, env vars, defaults | Count distinct config sources |
-| Test gaps | Directories with no corresponding test files | Compare file lists from 3.2; identify modules with 0 tests |
+| 调试遗留物 | 非测试代码中的 `console.log`、`print()`、`dbg!()` | 搜索，排除测试文件 |
+| 硬编码值 | URL、魔法数字、本地化字符串 | 搜索 URL 模式、逻辑中的裸数字 |
+| 错误处理 | 混合模式：throw vs null vs Result vs panic | 跨模块手动审查 |
+| 遗留债务 | `TODO`、`FIXME`、`HACK`、`XXX` 注释 | `grep -r "TODO\|FIXME\|HACK\|XXX" --include="*.ts" --include="*.rs"` |
+| 配置散乱 | 设置分布在多个文件、环境变量、默认值中 | 统计不同的配置来源数量 |
+| 测试缺失 | 没有对应测试文件的目录 | 对比 3.2 节的文件列表；识别测试数量为 0 的模块 |
 
-### Multi-Agent Parallel Scan
+### 多代理并行扫描
 
-For large projects (>500 files) or when the user wants fast results, dispatch parallel sub-agents using the `Task` tool:
+对于大型项目（>500 个文件）或当用户希望快速得到结果时，使用 `Task` 工具分发并行子代理：
 
 ```
-1. Split the scan into independent sub-agent tasks:
-   - Agent A: Code Structure scan (4.1) on directories X, Y
-   - Agent B: Architecture & Design scan (4.2) on all directories
-   - Agent C: Performance & Security scans (4.3 + 4.4) on all directories
-   - Agent D: Hygiene & Quality scan (4.5) on all directories
+1. 将扫描拆分为独立的子代理任务：
+   - 代理 A：对目录 X、Y 进行代码结构扫描（4.1）
+   - 代理 B：对所有目录进行架构与设计扫描（4.2）
+   - 代理 C：对所有目录进行性能与安全扫描（4.3 + 4.4）
+   - 代理 D：对所有目录进行代码卫生与质量扫描（4.5）
 
-2. Dispatch all 4 agents in parallel using multiple Task tool calls in a single message
+2. 在单条消息中通过多次 Task 工具调用并行分发全部 4 个代理
 
-3. Each agent returns its findings. Merge, de-duplicate, and resolve conflicts in the main session.
+3. 每个代理返回其发现。在主会话中合并、去重并解决冲突。
 
-4. If project is extremely large (>2000 files), split each dimension by subdirectory:
-   - Agent A1: Code Structure on frontend/
-   - Agent A2: Code Structure on backend/
-   - etc.
+4. 如果项目极大（>2000 个文件），按子目录拆分的每个维度：
+   - 代理 A1：frontend/ 的代码结构
+   - 代理 A2：backend/ 的代码结构
+   - 以此类推。
 ```
 
-If `Task` tool is unavailable, scan sequentially and note the limitation.
+如果 `Task` 工具不可用，则顺序扫描并注明此限制。
 
 ---
 
-## 5. Risk Assessment
+## 5. 风险评估
 
-### 5.1 Risk Dimensions
+### 5.1 风险维度
 
-For each finding, evaluate:
+对每个发现进行评估：
 
-| Dimension | Question |
+| 维度 | 问题 |
 |-----------|---------|
-| **Impact** | If unfixed, what breaks? How many users/features affected? |
-| **Likelihood** | How likely to cause a real problem? (check git history for hot-fix frequency) |
-| **Fix complexity** | How many files/modules need to change? |
-| **Ripple risk** | Could fixing this cascade into other issues? |
+| **影响** | 如果不修复，什么会出问题？影响多少用户/功能？ |
+| **可能性** | 实际造成问题的概率有多大？（检查 git 历史中的热修复频率） |
+| **修复复杂度** | 需要改动多少文件/模块？ |
+| **连锁风险** | 修复这个问题是否会引发其他问题？ |
 
-### 5.2 Confidence Levels
+### 5.2 置信度
 
-Every finding must include a confidence level:
+每个发现必须包含置信度等级：
 
-| Confidence | Meaning | When to use |
+| 置信度 | 含义 | 何时使用 |
 |------------|---------|-------------|
-| **High** | Confirmed by tool output or multiple indicators | Linter errors, CVE alerts, measurable metrics |
-| **Medium** | Strong pattern but not tool-verified | Duplicate code, inconsistent patterns |
-| **Low** | Based on heuristics or single indicator | Suspected N+1, possible dead code |
+| **高** | 被工具输出或多个指标确认 | Linter 错误、CVE 告警、可量化指标 |
+| **中** | 模式明显但未被工具验证 | 重复代码、模式不一致 |
+| **低** | 基于启发式或单一指标 | 疑似 N+1、可能的死代码 |
 
-### 5.3 Risk Matrix
+### 5.3 风险矩阵
 
 ```
-Impact
+影响
   ^
-  │  High Impact        High Impact
-  │  Low Likelihood     High Likelihood
-  │  (Plan carefully)   (Fix first)
+  │  高影响          高影响
+  │  低可能性        高可能性
+  │  （谨慎规划）    （优先修复）
   │
-  │  Low Impact         Low Impact
-  │  Low Likelihood     High Likelihood
-  │  (Defer)            (Fix if easy)
+  │  低影响          低影响
+  │  低可能性        高可能性
+  │  （推迟）        （易修复则做）
   │
-  └──────────────────────────→ Likelihood
+  └──────────────────────────→ 可能性
 ```
 
-### 5.4 Execution Ordering
+### 5.4 执行顺序
 
-1. **High Impact + High Likelihood** — Fix first
-2. **High Impact + Low Likelihood** — Plan, add tests as safety net
-3. **Low Impact + High Likelihood** — Quick wins if low fix complexity
-4. **Low Impact + Low Likelihood** — Defer
+1. **高影响 + 高可能性** — 优先修复
+2. **高影响 + 低可能性** — 规划，添加测试作为安全网
+3. **低影响 + 高可能性** — 修复复杂度低时作为速赢项
+4. **低影响 + 低可能性** — 推迟
 
-### 5.5 Priority Criteria
+### 5.5 优先级标准
 
-| Level | Criteria |
+| 级别 | 标准 |
 |-------|---------|
-| **Critical** | Correctness bug, security vulnerability, data loss risk, severe architecture violation |
-| **High** | Significant maintainability burden, large duplication, module exceeding norms by >3x |
-| **Medium** | Files/functions somewhat exceeding norms, inconsistent patterns, non-critical optimization |
-| **Low** | Minor style inconsistency, small cleanup, nice-to-have |
+| **严重** | 正确性 Bug、安全漏洞、数据丢失风险、严重架构违规 |
+| **高** | 显著的可维护性负担、大量重复、超过标准 >3x 的模块 |
+| **中** | 文件/函数略微超出标准、模式不一致、非关键优化 |
+| **低** | 细微风格不一致、小型清理、锦上添花 |
 
 ---
 
-## 6. Collaborative Report Writing
+## 6. 协作报告撰写
 
-Load the `brainstorming` skill and follow its **Spec Writing** workflow to produce the insight report. The brainstorming skill handles: asking clarifying questions, proposing approaches, presenting sections incrementally, writing the design doc, spec self-review, and the user review gate.
+加载 `brainstorming` 技能并遵循其**规范撰写**工作流来生成洞察报告。brainstorming 技能负责：提出澄清性问题、提议方案、增量展示各节、编写设计文档、规范自我审查以及用户审查关卡。
 
-> If `brainstorming` is not available, write the report directly using the template below and present for review.
+> 如果 `brainstorming` 不可用，直接使用下方模板撰写报告并提交审查。
 
-### 6.1 Refactoring-Specific Adaptations
+### 6.1 重构专属适配
 
-When using brainstorming's workflow, adapt it as follows:
+使用 brainstorming 的工作流时，按如下方式适配：
 
-- **"Explore project context"** → Already done (sections 0-5). Present findings as the context.
-- **"Ask clarifying questions"** → Focus on: which areas to emphasize, whether findings seem accurate, preferred detail level.
-- **"Propose 2-3 approaches"** → Use these report styles:
+- **"探索项目上下文"** → 已完成（第 0-5 节）。将发现作为上下文呈现。
+- **"提出澄清性问题"** → 聚焦于：哪些区域需要强调、发现是否准确、首选的细节程度。
+- **"提议 2-3 种方案"** → 使用这些报告风格：
 
-| Approach | Style | When to use |
+| 方案 | 风格 | 何时使用 |
 |----------|-------|-------------|
-| **Executive first** | Risk summary + detailed appendix | Quick decision-making |
-| **Deep dive** | Full findings with code references, impact | User plans to fix |
-| **Focused scope** | Drill into specific modules/dimensions | Specific concern, limited time |
+| **摘要优先** | 风险摘要 + 详细附录 | 快速决策 |
+| **深度分析** | 完整发现，包含代码引用和影响 | 用户计划修复 |
+| **聚焦范围** | 深入特定模块/维度 | 特定关注点、时间有限 |
 
-- **"Present design sections"** → Present: (1) Baseline & Risk Summary, (2) Findings by dimension, (3) Statistics & Execution Order.
-- **Offer dry-run**: Before writing the full report, offer a summary of top findings for early feedback.
+- **"呈现设计章节"** → 呈现：(1) 基线 & 风险摘要、(2) 按维度列出的发现、(3) 统计 & 执行顺序。
+- **提供预演**：在撰写完整报告前，提供最主要发现的摘要以获取早期反馈。
 
-### 6.2 Output Location
+### 6.2 输出位置
 
-Write to `docs/superpowers/specs/YYYY-MM-DD-refactoring-insight-<topic>-design.md`. Auto-create the directory if needed.
+写入 `docs/superpowers/specs/YYYY-MM-DD-refactoring-insight-<主题>-design.md`。如目录不存在则自动创建。
 
-### 6.3 Report Template
+### 6.3 报告模板
 
 ```markdown
-# Refactoring Insight Report
+# 重构洞察报告
 
-**Generated**: YYYY-MM-DD
-**Project**: <name>
-**Tech Stack**: <languages, frameworks, build tools>
-**Scope**: <directories/modules analyzed>
-**Previous Report**: <path or "None">
+**生成日期**：YYYY-MM-DD
+**项目**：<name>
+**技术栈**：<languages, frameworks, build tools>
+**分析范围**：<directories/modules analyzed>
+**前次报告**：<path or "None">
 
 ---
 
-## Baseline Metrics
+## 基线指标
 
-| Metric | Value |
+| 指标 | 值 |
 |--------|-------|
-| Build time | Xs |
-| Test suite runtime | Xs |
-| Test count | N |
-| Lint warnings | N |
-| File count | N |
-| Dependencies | N |
+| 构建时间 | Xs |
+| 测试套件运行时间 | Xs |
+| 测试数量 | N |
+| Lint 警告 | N |
+| 文件数量 | N |
+| 依赖数量 | N |
 
 ---
 
-## Risk Summary
+## 风险摘要
 
-| Risk Level | Count | Description |
+| 风险等级 | 数量 | 描述 |
 |------------|-------|-------------|
-| Critical (fix first) | N | High impact + high likelihood |
-| High (plan) | N | High impact + low likelihood |
-| Medium (quick wins) | N | Low impact + high likelihood |
-| Low (defer) | N | Low impact + low likelihood |
+| 严重（优先修复） | N | 高影响 + 高可能性 |
+| 高（规划） | N | 高影响 + 低可能性 |
+| 中（速赢） | N | 低影响 + 高可能性 |
+| 低（推迟） | N | 低影响 + 低可能性 |
 
 ---
 
-## Findings
+## 发现
 
-### 1. Architecture & Design
+### 1. 架构与设计
 
-| Location | Issue | Impact | Suggestion | Risk | Confidence |
+| 位置 | 问题 | 影响 | 建议 | 风险 | 置信度 |
 |----------|-------|--------|------------|------|------------|
-| `path/file:line` | Problem and why it matters | What breaks if unfixed | Concrete, actionable fix | Critical/High/Medium/Low | High/Medium/Low |
+| `path/file:line` | 问题及其重要性 | 不修复会破坏什么 | 具体、可操作的修复方案 | 严重/高/中/低 | 高/中/低 |
 
-### 2. Performance
+### 2. 性能
 
-| Location | Issue | Impact | Suggestion | Risk | Confidence |
-|----------|-------|--------|------------|------|------------|
-
-### 3. Code Structure
-
-| Location | Issue | Impact | Suggestion | Risk | Confidence |
+| 位置 | 问题 | 影响 | 建议 | 风险 | 置信度 |
 |----------|-------|--------|------------|------|------------|
 
-### 4. Security
+### 3. 代码结构
 
-| Location | Issue | Impact | Suggestion | Risk | Confidence |
+| 位置 | 问题 | 影响 | 建议 | 风险 | 置信度 |
 |----------|-------|--------|------------|------|------------|
 
-### 5. Hygiene & Quality
+### 4. 安全
 
-| Location | Issue | Impact | Suggestion | Risk | Confidence |
+| 位置 | 问题 | 影响 | 建议 | 风险 | 置信度 |
+|----------|-------|--------|------------|------|------------|
+
+### 5. 代码卫生与质量
+
+| 位置 | 问题 | 影响 | 建议 | 风险 | 置信度 |
 |----------|-------|--------|------------|------|------------|
 
 ---
 
-## Statistics
+## 统计
 
-| Metric | Count |
+| 指标 | 数量 |
 |--------|-------|
-| Total findings | N |
-| Critical | N |
-| High | N |
-| Medium | N |
-| Low | N |
-| Files affected | N |
-| Estimated effort | Small / Medium / Large |
+| 发现总数 | N |
+| 严重 | N |
+| 高 | N |
+| 中 | N |
+| 低 | N |
+| 受影响文件 | N |
+| 预估工作量 | 小 / 中 / 大 |
 
 ---
 
-## Trend Comparison (if previous report exists)
+## 趋势对比（如果前次报告存在）
 
-| Metric | Previous | Current | Delta |
+| 指标 | 前次 | 当前 | 变化 |
 |--------|----------|---------|-------|
-| Total findings | N | N | +/-N |
-| Critical | N | N | +/-N |
-| Lint warnings | N | N | +/-N |
+| 发现总数 | N | N | +/-N |
+| 严重 | N | N | +/-N |
+| Lint 警告 | N | N | +/-N |
 
 ---
 
-## Recommended Execution Order
+## 推荐执行顺序
 
-1. [Critical] <finding summary> — <reason> (confidence: <level>)
-2. [Critical] <finding summary> — <reason> (confidence: <level>)
-3. [High] <finding summary> — <reason> (confidence: <level>)
+1. [严重] <发现摘要> — <原因>（置信度：<level>）
+2. [严重] <发现摘要> — <原因>（置信度：<level>）
+3. [高] <发现摘要> — <原因>（置信度：<level>）
 ...
 
 ---
 
-## Limitations
+## 局限性
 
-- <Dimensions that could not be fully scanned and why>
-- <Unavailable tools and the impact on findings>
+- <无法完全扫描的维度及其原因>
+- <不可用的工具及其对发现的影响>
 ```
 
-### 6.4 Report Quality Checklist
+### 6.4 报告质量检查清单
 
-After writing the report (via brainstorming's spec self-review), verify these refactoring-specific checks:
+撰写报告后（通过 brainstorming 的规范自我审查），验证这些重构专属检查项：
 
-- [ ] All five dimensions covered; "No issues found" where applicable
-- [ ] Every finding has: location, risk level, confidence level, actionable suggestion
-- [ ] No "TBD" or "TODO" placeholders; all metrics populated with actual values
-- [ ] Previous report findings are verified, not blindly copied
-- [ ] Limitations section documents any gaps
-- [ ] Low-confidence findings are clearly marked
+- [ ] 覆盖全部五个维度；适用的地方标注"未发现问题"
+- [ ] 每个发现都包含：位置、风险等级、置信度、可操作建议
+- [ ] 没有"待定"或"TODO"占位符；所有指标都填充了实际值
+- [ ] 前次报告的发现已验证，而非盲目复制
+- [ ] 局限性部分记录了任何缺口
+- [ ] 低置信度发现已清晰标注
 
 ---
 
-## Next Steps
+## 后续步骤
 
-After the user approves the report (following brainstorming's user review gate):
+用户批准报告后（通过 brainstorming 的用户审查关卡）：
 
-| Step | Skill | Purpose |
+| 步骤 | 技能 | 目的 |
 |------|-------|---------|
-| Plan | `writing-plans` | Convert prioritized findings into a structured implementation plan |
-| Execute | `executing-plans` or `subagent-driven-development` | Implement changes in order |
-| Verify | `verification-before-completion` | Run tests, linters, type checks to confirm nothing broke |
+| 规划 | `writing-plans` | 将优先级发现转化为结构化实施计划 |
+| 执行 | `executing-plans` 或 `subagent-driven-development` | 按顺序实施变更 |
+| 验证 | `verification-before-completion` | 运行测试、linter、类型检查以确认未破坏任何功能 |
 
-**Important**: Do not start execution without user approval.
+**重要**：未经用户批准，不得开始执行。
 
 ---
 
-## Constraints
+## 约束
 
-| Constraint | Description |
+| 约束 | 描述 |
 |------------|-------------|
-| Insight only | Analyzes and reports. Does not modify code. |
-| No fixed thresholds | Thresholds calibrated per-project in Discovery |
-| Language agnostic | Dimensions work for any language; tooling adapts to existing project tools |
-| Objective | Findings based on observable code properties, not style preferences |
-| Honest | Report limitations honestly; don't fabricate findings |
-| Confidence required | Every finding includes a confidence level (High/Medium/Low) |
-| Scope first | Always confirm analysis scope with the user before starting |
-| Verify, don't trust | Past reports/issues are independently verified, not blindly accepted |
+| 仅洞察 | 分析和报告。不修改代码。 |
+| 无固定阈值 | 阈值在发现阶段按项目校准 |
+| 语言无关 | 维度适用于任何语言；工具适配现有项目工具 |
+| 客观 | 发现基于可观察的代码属性，而非风格偏好 |
+| 诚实 | 如实报告局限性；不编造发现 |
+| 要求置信度 | 每个发现都包含置信度等级（高/中/低） |
+| 范围先行 | 在开始前始终与用户确认分析范围 |
+| 验证而非信任 | 独立验证以前的报告/问题，而非盲目接受 |

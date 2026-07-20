@@ -39,12 +39,7 @@ trae-agentReviewBeforePushToRemote/
 # Deprecated Electron-era planning documents (Rust + Tauri is the current target)
 digitalLife/
 
-# Trae IDE regeneratable config (can be recreated from .agents/rules/ and .opencode/skills/)
-.trae/rules/
-.trae/skills/
-.trae/commands/
-.trae/documents/
-.trae/specs/
+
 
 # Git worktrees (isolated workspaces)
 .worktrees/
