@@ -1,5 +1,6 @@
-use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
+use crate::adapter::{ChatOptions, ProviderAdapter, StreamReader};
 use crate::http_helper::{HttpRequestBuilder, send_chat_request, send_stream_request};
+use crate::providers::base::{build_request_body, parse_sse_stream, SseEvent};
 use adl_errors::AppError;
 use adl_types::ConversationRole;
 use adl_types::config::{ModelCapability, ModelDefinition, ModelTier};
@@ -225,23 +226,7 @@ impl ProviderAdapter for OpenAIProvider {
         _options: &ChatOptions,
         api_key: &str,
     ) -> Result<StreamReader, AppError> {
-        use tokio_stream::StreamExt;
-
-        let body = serde_json::json!({
-            "model": model,
-            "messages": messages.iter().map(|m| {
-                serde_json::json!({
-                    "role": match m.role {
-                        ConversationRole::System => "system",
-                        ConversationRole::User => "user",
-                        ConversationRole::Assistant => "assistant",
-                        ConversationRole::Tool => "tool",
-                    },
-                    "content": m.content,
-                })
-            }).collect::<Vec<_>>(),
-            "stream": true,
-        });
+        let body = build_request_body(model, messages, true, None);
 
         let url = format!("{}/chat/completions", self.base_url);
         let builder = HttpRequestBuilder::new(self.client.clone(), url)
@@ -249,30 +234,12 @@ impl ProviderAdapter for OpenAIProvider {
             .json(body);
         let response = send_stream_request(&builder, "OpenAI").await?;
 
-        let stream = response.bytes_stream().map(move |chunk| {
-            let chunk = chunk.map_err(|e| AppError::Model(e.to_string()))?;
-            let text = String::from_utf8_lossy(&chunk);
-            for line in text.lines() {
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if data == "[DONE]" {
-                        return Ok(StreamChunk::Done(ModelTokenUsage {
-                            prompt_tokens: None,
-                            completion_tokens: None,
-                            total_tokens: None,
-                            estimated: None,
-                        }));
-                    }
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
-                        if let Some(delta) = json["choices"][0]["delta"]["content"].as_str() {
-                            return Ok(StreamChunk::Delta(delta.to_string()));
-                        }
-                    }
-                }
-            }
-            Ok(StreamChunk::Delta(String::new()))
-        });
-
-        Ok(Box::pin(stream))
+        parse_sse_stream(response, |json| {
+            json["choices"][0]["delta"]["content"]
+                .as_str()
+                .map(|s| SseEvent::Delta(s.to_string()))
+                .unwrap_or(SseEvent::Skip)
+        })
     }
 }
 

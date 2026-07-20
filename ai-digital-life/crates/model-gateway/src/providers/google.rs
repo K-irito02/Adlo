@@ -1,5 +1,6 @@
-use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
+use crate::adapter::{ChatOptions, ProviderAdapter, StreamReader};
 use crate::http_helper::{HttpRequestBuilder, send_chat_request, send_stream_request};
+use crate::providers::base::{parse_sse_stream, SseEvent};
 use adl_errors::AppError;
 use adl_types::ConversationRole;
 use adl_types::config::{ModelCapability, ModelDefinition, ModelTier};
@@ -167,8 +168,6 @@ impl ProviderAdapter for GoogleProvider {
         _options: &ChatOptions,
         api_key: &str,
     ) -> Result<StreamReader, AppError> {
-        use tokio_stream::StreamExt;
-
         let contents: Vec<serde_json::Value> = messages
             .iter()
             .filter_map(|m| {
@@ -198,26 +197,14 @@ impl ProviderAdapter for GoogleProvider {
         let builder = HttpRequestBuilder::new(self.client.clone(), url).json(body);
         let response = send_stream_request(&builder, "Google").await?;
 
-        let stream = response.bytes_stream().map(|chunk| {
-            let chunk = chunk.map_err(|e| AppError::Model(e.to_string()))?;
-            let text = String::from_utf8_lossy(&chunk);
-            for line in text.lines() {
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
-                        if let Some(candidates) = json["candidates"].as_array() {
-                            if let Some(text) =
-                                candidates[0]["content"]["parts"][0]["text"].as_str()
-                            {
-                                return Ok(StreamChunk::Delta(text.to_string()));
-                            }
-                        }
-                    }
-                }
-            }
-            Ok(StreamChunk::Delta(String::new()))
-        });
-
-        Ok(Box::pin(stream))
+        parse_sse_stream(response, |json| {
+            json["candidates"]
+                .as_array()
+                .and_then(|c| c.first())
+                .and_then(|c| c["content"]["parts"][0]["text"].as_str())
+                .map(|s| SseEvent::Delta(s.to_string()))
+                .unwrap_or(SseEvent::Skip)
+        })
     }
 }
 

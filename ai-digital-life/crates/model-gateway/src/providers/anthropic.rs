@@ -1,5 +1,6 @@
-use crate::adapter::{ChatOptions, ProviderAdapter, StreamChunk, StreamReader};
+use crate::adapter::{ChatOptions, ProviderAdapter, StreamReader};
 use crate::http_helper::{HttpRequestBuilder, send_chat_request, send_stream_request};
+use crate::providers::base::{build_request_body, parse_sse_stream, SseEvent};
 use adl_errors::AppError;
 use adl_types::ConversationRole;
 use adl_types::config::{ModelCapability, ModelDefinition, ModelTier};
@@ -171,34 +172,31 @@ impl ProviderAdapter for AnthropicProvider {
         _options: &ChatOptions,
         api_key: &str,
     ) -> Result<StreamReader, AppError> {
-        use tokio_stream::StreamExt;
-
         let mut system_text = None;
-        let messages_arr: Vec<serde_json::Value> = messages
+        let chat_messages: Vec<ModelChatMessage> = messages
             .iter()
             .filter_map(|m| {
                 if m.role == ConversationRole::System {
                     system_text = Some(m.content.clone());
                     None
                 } else {
-                    Some(serde_json::json!({
-                        "role": match m.role {
-                            ConversationRole::User => "user",
-                            ConversationRole::Assistant => "assistant",
-                            _ => "user",
+                    Some(ModelChatMessage {
+                        role: match m.role {
+                            ConversationRole::Tool => ConversationRole::User,
+                            _ => m.role,
                         },
-                        "content": m.content,
-                    }))
+                        content: m.content.clone(),
+                    })
                 }
             })
             .collect();
 
-        let mut body = serde_json::json!({
-            "model": model,
-            "messages": messages_arr,
-            "max_tokens": 4096,
-            "stream": true,
-        });
+        let mut body = build_request_body(
+            model,
+            &chat_messages,
+            true,
+            Some(serde_json::json!({"max_tokens": 4096})),
+        );
         if let Some(sys) = system_text {
             body["system"] = serde_json::Value::String(sys);
         }
@@ -210,35 +208,16 @@ impl ProviderAdapter for AnthropicProvider {
             .json(body);
         let response = send_stream_request(&builder, "Anthropic").await?;
 
-        let stream = response.bytes_stream().map(|chunk| {
-            let chunk = chunk.map_err(|e| AppError::Model(e.to_string()))?;
-            let text = String::from_utf8_lossy(&chunk);
-            for line in text.lines() {
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
-                        match json["type"].as_str() {
-                            Some("content_block_delta") => {
-                                if let Some(delta) = json["delta"]["text"].as_str() {
-                                    return Ok(StreamChunk::Delta(delta.to_string()));
-                                }
-                            },
-                            Some("message_stop") => {
-                                return Ok(StreamChunk::Done(ModelTokenUsage {
-                                    prompt_tokens: None,
-                                    completion_tokens: None,
-                                    total_tokens: None,
-                                    estimated: None,
-                                }));
-                            },
-                            _ => {},
-                        }
-                    }
-                }
+        parse_sse_stream(response, |json| {
+            match json["type"].as_str() {
+                Some("content_block_delta") => json["delta"]["text"]
+                    .as_str()
+                    .map(|s| SseEvent::Delta(s.to_string()))
+                    .unwrap_or(SseEvent::Skip),
+                Some("message_stop") => SseEvent::Done,
+                _ => SseEvent::Skip,
             }
-            Ok(StreamChunk::Delta(String::new()))
-        });
-
-        Ok(Box::pin(stream))
+        })
     }
 }
 
