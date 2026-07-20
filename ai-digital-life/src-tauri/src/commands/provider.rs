@@ -139,8 +139,14 @@ fn validate_provider_url(url: &str) -> Result<(), AppError> {
     let parsed = url::Url::parse(url)
         .map_err(|e| AppError::InvalidInput(format!("invalid provider URL: {e}")))?;
     if parsed.scheme() != "https" {
+        // Allow HTTP for localhost/loopback for local development
+        if let Some(host) = parsed.host_str() {
+            if host == "localhost" || host == "127.0.0.1" || host == "[::1]" {
+                return Ok(());
+            }
+        }
         return Err(AppError::InvalidInput(
-            "provider URL must use HTTPS scheme".into()
+            "provider URL must use HTTPS scheme (except localhost)".into()
         ));
     }
     if parsed.host_str().is_none() {
@@ -331,6 +337,12 @@ mod tests {
     #[test]
     fn rejects_http_url() {
         assert!(validate_provider_url("http://evil.com/v1").is_err());
+    }
+
+    #[test]
+    fn allows_localhost_http() {
+        assert!(validate_provider_url("http://localhost:11434").is_ok());
+        assert!(validate_provider_url("http://127.0.0.1:8080").is_ok());
     }
 
     #[test]
