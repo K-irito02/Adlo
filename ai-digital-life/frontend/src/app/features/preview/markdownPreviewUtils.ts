@@ -31,7 +31,7 @@ export interface MarkdownPreviewProps {
   theme?: 'light' | 'dark';
 }
 
-function createMdInstance(_theme: 'light' | 'dark'): MarkdownIt {
+function createMdInstance(): MarkdownIt {
   const md = new MarkdownIt({
     html: false,
     linkify: true,
@@ -77,10 +77,10 @@ export function renderMarkdownPreviewHtml(
   content: string,
   theme: 'light' | 'dark' = 'dark',
 ): string {
-  return createMdInstance(theme).render(content);
+  return createMdInstance().render(content);
 }
 
 export function useMarkdownPreviewHtml(content: string, theme: 'light' | 'dark'): string {
-  const md = useMemo(() => createMdInstance(theme), [theme]);
+  const md = useMemo(() => createMdInstance(), []);
   return useMemo(() => md.render(content), [content, md]);
 }
