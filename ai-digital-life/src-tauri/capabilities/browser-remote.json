@@ -7,7 +7,6 @@
     "urls": ["https://*"]
   },
   "permissions": [
-    "core:default",
-    "digital-life-commands"
+    "core:default"
   ]
 }
