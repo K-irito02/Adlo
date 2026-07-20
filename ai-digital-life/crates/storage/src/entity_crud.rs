@@ -66,12 +66,11 @@ impl Database {
         limit: usize,
     ) -> Result<Vec<T>, AppError> {
         if limit > 1000 {
-            return Err(AppError::InvalidInput(format!(
-                "query limit {limit} exceeds safety cap"
-            )));
+            return Err(AppError::InvalidInput(format!("query limit {limit} exceeds safety cap")));
         }
         let base_sql = get_select_all_sql(table);
-        let sql = format!("{base_sql} ORDER BY json_extract(json, '$.createdAt') DESC LIMIT {limit}");
+        let sql =
+            format!("{base_sql} ORDER BY json_extract(json, '$.createdAt') DESC LIMIT {limit}");
         let conn = self.conn()?;
         let mut stmt = conn.prepare(&sql).map_err(|e| AppError::Storage(e.to_string()))?;
         let rows = stmt

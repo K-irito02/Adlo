@@ -1,7 +1,7 @@
 use crate::adapter::{StreamChunk, StreamReader};
 use adl_errors::AppError;
-use adl_types::model::{ModelChatMessage, ModelTokenUsage};
 use adl_types::ConversationRole;
+use adl_types::model::{ModelChatMessage, ModelTokenUsage};
 
 /// Event returned by provider-specific SSE delta extractors.
 pub enum SseEvent {
@@ -107,8 +107,7 @@ mod tests {
 
     #[test]
     fn build_request_body_works() {
-        let msgs =
-            vec![ModelChatMessage { role: ConversationRole::User, content: "hi".into() }];
+        let msgs = vec![ModelChatMessage { role: ConversationRole::User, content: "hi".into() }];
         let body = build_request_body("gpt-4", &msgs, true, None);
         assert_eq!(body["model"], "gpt-4");
         assert_eq!(body["stream"], true);

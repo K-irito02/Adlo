@@ -367,10 +367,7 @@ fn resolve_lsp_command(program: &str, _args: &[&str]) -> Result<String, AppError
                 .to_string();
             Ok(path)
         } else {
-            Err(AppError::Io(format!(
-                "LSP command '{}' not found on system PATH",
-                program
-            )))
+            Err(AppError::Io(format!("LSP command '{}' not found on system PATH", program)))
         }
     }
     #[cfg(not(windows))]
@@ -383,10 +380,7 @@ fn resolve_lsp_command(program: &str, _args: &[&str]) -> Result<String, AppError
             let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
             Ok(path)
         } else {
-            Err(AppError::Io(format!(
-                "LSP command '{}' not found on system PATH",
-                program
-            )))
+            Err(AppError::Io(format!("LSP command '{}' not found on system PATH", program)))
         }
     }
 }

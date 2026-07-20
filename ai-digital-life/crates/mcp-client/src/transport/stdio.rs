@@ -48,7 +48,8 @@ impl StdioTransport {
 
         let env_blocker = McpEnvBlocker::default();
         if env_blocker.has_blocked_keys(&self.config.env) {
-            let blocked: Vec<_> = self.config
+            let blocked: Vec<_> = self
+                .config
                 .env
                 .keys()
                 .filter(|k| env_blocker.blocked_keys.contains(*k))
@@ -104,11 +105,7 @@ mod tests {
         for key in &dangerous_keys {
             let mut env = HashMap::new();
             env.insert(key.to_string(), "/malicious/path".to_string());
-            assert!(
-                blocker.has_blocked_keys(&env),
-                "expected env key '{}' to be blocked",
-                key
-            );
+            assert!(blocker.has_blocked_keys(&env), "expected env key '{}' to be blocked", key);
         }
     }
 

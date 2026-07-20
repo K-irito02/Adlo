@@ -146,13 +146,11 @@ fn validate_provider_url(url: &str) -> Result<(), AppError> {
             }
         }
         return Err(AppError::InvalidInput(
-            "provider URL must use HTTPS scheme (except localhost)".into()
+            "provider URL must use HTTPS scheme (except localhost)".into(),
         ));
     }
     if parsed.host_str().is_none() {
-        return Err(AppError::InvalidInput(
-            "provider URL must include a hostname".into()
-        ));
+        return Err(AppError::InvalidInput("provider URL must include a hostname".into()));
     }
     Ok(())
 }
@@ -323,10 +321,7 @@ mod tests {
             "baseUrl": "https://api.example.com"
         });
         assert!(config.get("apiKey").is_some());
-        let has_key = config
-            .get("apiKey")
-            .and_then(|v| v.as_str())
-            .is_some_and(|s| !s.is_empty());
+        let has_key = config.get("apiKey").and_then(|v| v.as_str()).is_some_and(|s| !s.is_empty());
         assert!(has_key);
         // Verify the logged info does NOT contain the key text itself
         let config_str = config.to_string();

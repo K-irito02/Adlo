@@ -94,7 +94,10 @@ fn main() {
                         }
                         return;
                     } else {
-                        tracing::warn!("browser on_page_load: webview not found (attempt {}/3)", attempt);
+                        tracing::warn!(
+                            "browser on_page_load: webview not found (attempt {}/3)",
+                            attempt
+                        );
                     }
                 }
             });

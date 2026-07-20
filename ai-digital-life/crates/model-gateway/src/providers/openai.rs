@@ -1,6 +1,6 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamReader};
 use crate::http_helper::{HttpRequestBuilder, send_chat_request, send_stream_request};
-use crate::providers::base::{build_request_body, parse_sse_stream, SseEvent};
+use crate::providers::base::{SseEvent, build_request_body, parse_sse_stream};
 use adl_errors::AppError;
 use adl_types::ConversationRole;
 use adl_types::config::{ModelCapability, ModelDefinition, ModelTier};

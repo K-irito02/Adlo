@@ -1,6 +1,6 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamReader};
 use crate::http_helper::{HttpRequestBuilder, send_chat_request, send_stream_request};
-use crate::providers::base::{build_request_body, parse_sse_stream, SseEvent};
+use crate::providers::base::{SseEvent, build_request_body, parse_sse_stream};
 use adl_errors::AppError;
 use adl_types::ConversationRole;
 use adl_types::config::{ModelCapability, ModelDefinition, ModelTier};
@@ -208,15 +208,13 @@ impl ProviderAdapter for AnthropicProvider {
             .json(body);
         let response = send_stream_request(&builder, "Anthropic").await?;
 
-        parse_sse_stream(response, |json| {
-            match json["type"].as_str() {
-                Some("content_block_delta") => json["delta"]["text"]
-                    .as_str()
-                    .map(|s| SseEvent::Delta(s.to_string()))
-                    .unwrap_or(SseEvent::Skip),
-                Some("message_stop") => SseEvent::Done,
-                _ => SseEvent::Skip,
-            }
+        parse_sse_stream(response, |json| match json["type"].as_str() {
+            Some("content_block_delta") => json["delta"]["text"]
+                .as_str()
+                .map(|s| SseEvent::Delta(s.to_string()))
+                .unwrap_or(SseEvent::Skip),
+            Some("message_stop") => SseEvent::Done,
+            _ => SseEvent::Skip,
         })
     }
 }

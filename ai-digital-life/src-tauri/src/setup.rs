@@ -4,15 +4,15 @@ use adl_kernel::config_watcher::ConfigWatcher;
 use adl_kernel::{config as adl_config, events::EventBus};
 use adl_model_gateway::adapter::ProviderAdapter;
 use adl_model_gateway::providers::anthropic::AnthropicProvider;
-use adl_model_gateway::providers::google::GoogleProvider;
-use adl_model_gateway::providers::ollama::OllamaProvider;
-use adl_model_gateway::providers::openai::OpenAIProvider;
-use adl_model_gateway::providers::openrouter::OpenRouterProvider;
 use adl_model_gateway::providers::anthropic::DEFAULT_BASE_URL as ANTHROPIC_BASE_URL;
 use adl_model_gateway::providers::google::DEFAULT_BASE_URL as GOOGLE_BASE_URL;
+use adl_model_gateway::providers::google::GoogleProvider;
 use adl_model_gateway::providers::ollama::DEFAULT_BASE_URL as OLLAMA_BASE_URL;
+use adl_model_gateway::providers::ollama::OllamaProvider;
 use adl_model_gateway::providers::openai::DEFAULT_BASE_URL as OPENAI_BASE_URL;
+use adl_model_gateway::providers::openai::OpenAIProvider;
 use adl_model_gateway::providers::openrouter::DEFAULT_BASE_URL as OPENROUTER_BASE_URL;
+use adl_model_gateway::providers::openrouter::OpenRouterProvider;
 use adl_model_gateway::registry::{
     ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry,
 };

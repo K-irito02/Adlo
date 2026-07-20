@@ -222,10 +222,7 @@ pub fn write_debug_logs_to_project(
     state: tauri::State<AppState>,
     content: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    state
-        .log_manager
-        .write_debug_logs(&content)
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    state.log_manager.write_debug_logs(&content).map_err(|e| AppError::Internal(e.to_string()))?;
     Ok(ipc(Ok(())))
 }
 
