@@ -134,6 +134,7 @@ export const commonEn = {
   panelControls: 'Panel controls',
   remove: 'Remove',
   resizeFileNavigator: 'Resize file navigator',
+  resizeSettingsNavigator: 'Resize settings navigator',
   sidebarNavigator: 'Workspace and session navigator',
   toolPanel: 'Workspace tool panel',
   voice: 'Voice',

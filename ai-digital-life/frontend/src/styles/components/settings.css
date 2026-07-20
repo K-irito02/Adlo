@@ -6,14 +6,11 @@
 .adl-settings-panel__header {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3);
+  gap: var(--space-1);
+  min-height: 40px;
+  padding: var(--space-1-5) var(--space-2);
   border-bottom: 1px solid var(--border-subtle);
-}
-.adl-settings-panel__header h3 {
-  flex: 1;
-  margin: 0;
-  font-size: var(--text-base);
+  background: var(--bg);
 }
 .adl-settings-panel__search {
   display: flex;
@@ -23,31 +20,81 @@
   background: var(--surface-raised);
   border-radius: var(--radius-sm);
 }
+.adl-settings-panel__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
 .adl-settings-panel__search-input {
   background: none;
   border: none;
   color: var(--text-primary);
   font-size: var(--text-xs);
   outline: none;
-  width: 140px;
+  width: 120px;
 }
 .adl-settings-panel__body {
   display: flex;
   flex: 1;
   overflow: hidden;
+  min-height: 0;
+}
+.adl-settings-panel__body.is-navigator-collapsed .adl-settings-nav {
+  width: 0 !important;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border-right: none;
 }
 .adl-settings-panel__content {
   flex: 1;
   overflow-y: auto;
   padding: var(--space-3);
-  max-width: 640px;
 }
 
 .adl-settings-nav {
-  width: 160px;
+  position: relative;
+  width: var(--adl-settings-nav-width, 160px);
   flex-shrink: 0;
   border-right: 1px solid var(--border-subtle);
-  padding: var(--space-2);
+  padding: 2px 0 0;
+  overflow: hidden;
+}
+.adl-settings-nav__resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 12px;
+  z-index: 10;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: auto;
+}
+
+.adl-settings-nav__resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: auto;
+  right: 0;
+  width: 3px;
+  background: transparent;
+  opacity: 0;
+  pointer-events: auto;
+  cursor: col-resize;
+  transition:
+    opacity var(--duration-150) var(--ease-default),
+    background-color var(--duration-150) var(--ease-default);
+}
+
+.adl-settings-nav__resize-handle:hover::before,
+.adl-settings-nav__resize-handle:active::before {
+  opacity: 1;
+  background: var(--text-secondary);
 }
 .adl-settings-nav ul {
   list-style: none;
@@ -60,7 +107,7 @@
   padding: var(--space-2) var(--space-3);
   background: none;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   color: var(--text-secondary);
   font-size: var(--text-sm);
   cursor: pointer;

@@ -144,6 +144,7 @@ export const commonZh = {
   panelControls: '面板控制',
   remove: '移除',
   resizeFileNavigator: '调整文件导航器宽度',
+  resizeSettingsNavigator: '调整设置导航器宽度',
   sidebarNavigator: '工作区和会话导航',
   toolPanel: '工作区工具面板',
   voice: '语音',

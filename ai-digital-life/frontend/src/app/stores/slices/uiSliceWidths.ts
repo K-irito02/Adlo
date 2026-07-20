@@ -14,6 +14,7 @@ import {
   CHANGES_NAVIGATOR_WIDTH_KEY,
   BROWSER_NAVIGATOR_WIDTH_KEY,
   GITHUB_NAVIGATOR_WIDTH_KEY,
+  SETTINGS_NAVIGATOR_WIDTH_KEY,
   ACTIVE_RIGHT_TOOL_KEY,
   RIGHT_PANEL_WIDTH_MIN,
   RIGHT_PANEL_WIDTH_MAX,
@@ -30,6 +31,9 @@ import {
   GITHUB_NAVIGATOR_WIDTH_MIN,
   GITHUB_NAVIGATOR_WIDTH_MAX,
   DEFAULT_GITHUB_NAVIGATOR_WIDTH,
+  SETTINGS_NAVIGATOR_WIDTH_MIN,
+  SETTINGS_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
 } from './uiSliceTypes';
 
 export function readRightTool(): ToolId {
@@ -70,6 +74,7 @@ export type UIWidthSlice = Pick<
   | 'changesNavigatorWidth'
   | 'browserNavigatorWidth'
   | 'gitHubNavigatorWidth'
+  | 'settingsNavigatorWidth'
   | 'setActiveRightTool'
   | 'setLeftCollapsed'
   | 'setRightCollapsed'
@@ -81,6 +86,7 @@ export type UIWidthSlice = Pick<
   | 'setChangesNavigatorWidth'
   | 'setBrowserNavigatorWidth'
   | 'setGitHubNavigatorWidth'
+  | 'setSettingsNavigatorWidth'
 >;
 
 export function createUIWidthSlice(
@@ -120,6 +126,12 @@ export function createUIWidthSlice(
       DEFAULT_GITHUB_NAVIGATOR_WIDTH,
       GITHUB_NAVIGATOR_WIDTH_MIN,
       GITHUB_NAVIGATOR_WIDTH_MAX
+    ),
+    settingsNavigatorWidth: readNumber(
+      SETTINGS_NAVIGATOR_WIDTH_KEY,
+      DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
+      SETTINGS_NAVIGATOR_WIDTH_MIN,
+      SETTINGS_NAVIGATOR_WIDTH_MAX
     ),
 
     setActiveRightTool: (tool) => {
@@ -177,6 +189,11 @@ export function createUIWidthSlice(
       const next = clamp(width, GITHUB_NAVIGATOR_WIDTH_MIN, GITHUB_NAVIGATOR_WIDTH_MAX);
       writeNumber(GITHUB_NAVIGATOR_WIDTH_KEY, next);
       set({ gitHubNavigatorWidth: next });
+    },
+    setSettingsNavigatorWidth: (width) => {
+      const next = clamp(width, SETTINGS_NAVIGATOR_WIDTH_MIN, SETTINGS_NAVIGATOR_WIDTH_MAX);
+      writeNumber(SETTINGS_NAVIGATOR_WIDTH_KEY, next);
+      set({ settingsNavigatorWidth: next });
     },
   };
 }

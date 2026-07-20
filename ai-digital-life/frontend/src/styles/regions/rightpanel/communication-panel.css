@@ -13,7 +13,7 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  height: 30px;
+  min-height: 40px;
   padding-left: var(--space-2);
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg);
@@ -33,7 +33,7 @@
   padding: 0;
   flex: 1;
   min-width: 0;
-  height: 30px;
+  min-height: 40px;
   gap: 0;
 }
 
@@ -42,7 +42,7 @@
   align-items: center;
   gap: 0;
   min-width: 30px;
-  height: 30px;
+  min-height: 40px;
   padding: 0 var(--space-2-5);
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
