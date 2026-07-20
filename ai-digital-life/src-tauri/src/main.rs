@@ -81,17 +81,29 @@ fn main() {
             tracing::info!(url = %payload.url(), "browser page finished loading");
             let app = webview.app_handle().clone();
             let wv_label = webview.label().to_string();
-            std::thread::spawn(move || {
+            tokio::spawn(async move {
                 for attempt in 1..=3 {
-                    std::thread::sleep(std::time::Duration::from_millis(200));
-                    if let Some(wv) = app.get_webview(&wv_label) {
-                        match wv.eval(BROWSER_TITLE_SCRIPT) {
-                            Ok(()) => tracing::info!("browser on_page_load: eval ok"),
-                            Err(e) => tracing::error!("browser on_page_load: eval failed: {e}"),
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    let app = app.clone();
+                    let wv_label = wv_label.clone();
+                    let result = tokio::task::spawn_blocking(move || {
+                        if let Some(wv) = app.get_webview(&wv_label) {
+                            wv.eval(BROWSER_TITLE_SCRIPT).ok()
+                        } else {
+                            None
                         }
-                        return;
-                    } else {
-                        tracing::warn!("browser on_page_load: webview not found (attempt {}/3)", attempt);
+                    })
+                    .await
+                    .ok()
+                    .flatten();
+                    match result {
+                        Some(()) => {
+                            tracing::info!("browser on_page_load: eval ok");
+                            return;
+                        }
+                        None => {
+                            tracing::warn!("browser on_page_load: webview not found (attempt {}/3)", attempt);
+                        }
                     }
                 }
             });

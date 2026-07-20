@@ -311,7 +311,9 @@ mod list_entities_with_limit_tests {
             decision: Some("allow".to_string()),
             detail: None,
         };
-        let json = serde_json::to_string(&entry).expect("serialize audit entry");
+        let mut json_val = serde_json::to_value(&entry).expect("serialize audit entry");
+        json_val["createdAt"] = serde_json::Value::Number(serde_json::Number::from(ts));
+        let json = serde_json::to_string(&json_val).expect("serialize json with createdAt");
         let conn = db.conn().expect("get conn");
         conn.execute(
             "INSERT OR REPLACE INTO audit_records \

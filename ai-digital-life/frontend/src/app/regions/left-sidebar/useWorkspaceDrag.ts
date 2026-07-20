@@ -16,8 +16,6 @@ export interface WorkspaceDragResult {
   draggedItemId: string | null;
   localOrder: string[];
   handleDragStart: (event: React.MouseEvent, wsId: string, isPinned: boolean) => void;
-  handleDragOver: (_targetId: string) => void;
-  handleDragEnd: () => void;
 }
 
 export function useWorkspaceDrag(
@@ -296,16 +294,10 @@ export function useWorkspaceDrag(
     },
     [],
   );
-
-  const handleDragOver = useCallback((_targetId: string) => {}, []);
-  const handleDragEnd = useCallback(() => {}, []);
-
   return {
     isDragging: dragActiveId !== null,
     draggedItemId: dragActiveId,
     localOrder,
     handleDragStart,
-    handleDragOver,
-    handleDragEnd,
   };
 }

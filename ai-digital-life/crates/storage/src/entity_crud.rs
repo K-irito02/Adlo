@@ -65,7 +65,21 @@ impl Database {
         table: EntityTable,
         limit: usize,
     ) -> Result<Vec<T>, AppError> {
-        self.list_entities_filtered(table, None, Some(limit))
+        let base_sql = get_select_all_sql(table);
+        let sql = format!("{base_sql} ORDER BY json_extract(json, '$.createdAt') DESC LIMIT {limit}");
+        if limit > 1000 {
+            return Err(AppError::InvalidInput(format!(
+                "query limit {limit} exceeds safety cap"
+            )));
+        }
+        let conn = self.conn()?;
+        let mut stmt = conn.prepare(&sql).map_err(|e| AppError::Storage(e.to_string()))?;
+        let rows = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|e| AppError::Storage(e.to_string()))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+        rows.into_iter().map(|json| serde_json::from_str(&json).map_err(AppError::from)).collect()
     }
 
     pub fn list_entities_by_workspace<T: DeserializeOwned>(
