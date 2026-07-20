@@ -1,591 +1,766 @@
 ---
 name: root-cause-resolution
-description: Systematic root cause investigation before any fix. Invoke when encountering bugs, test failures, or unexpected behavior — MUST complete Phase 0 investigation before proposing fixes.
+description: 在修复前必须完成根本原因调查的系统化调试技能。遇到 Bug、测试失败或意外行为时调用 — 必须在提出修复方案前完成 Phase 0 调查。
 ---
 
-# Root Cause Resolution
+# 根因排查与解决
 
-## Overview
+## 概述
 
-Random fixes waste time and create new bugs. Quick patches mask underlying issues.
+随机修复浪费时间并制造新 Bug。快速补丁掩盖根本问题。
 
-**Core principle:** ALWAYS find root cause before attempting fixes. Symptom fixes are failure.
+**核心原则：** 在尝试修复之前，必须先找到根因。只治标不治本 = 失败。
 
-**Phases:** 0 (Investigation) → 1 (Path) → 2 (Fix) → 3 (Verification) → 4 (Cleanup)
+**阶段：** 0（调查）→ 1（路径）→ 2（修复）→ 3（验证）→ 4（清理）
 
-**Violating the letter of this process is violating the spirit of debugging.**
+**违反流程的字面规定就是违反调试的精神。**
 
-## The Iron Law
+## 铁律
 
 ```
-NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST
+未完成根因调查之前，禁止任何修复
 ```
 
 ---
 
-## Phase 0: Root Cause Investigation
+## 进度追踪
 
-BEFORE attempting ANY fix, complete ALL of the following steps.
+在整个排查过程中，维护一份**进度文件**，用于追踪用户提出的所有问题、任务及其解决状态。
 
-### Step 1: Read Error Messages Carefully
-- Read stack traces completely — note line numbers, file paths, error codes
-- Don't skip past errors or warnings
-- Error messages often contain the exact solution
+进度文件存放在 `docs/root-cause-resolution/` 目录下，文件名格式为 `progress-YYYY-MM-DD-HHmmss.md`（例如 `progress-2026-07-20-143527.md`），确保每次创建的进度文件名称不重复。如果 `docs/root-cause-resolution/` 目录不存在，则先行创建。
 
-### Step 2: Reproduce Consistently
-- Can you trigger it reliably? What are the exact steps?
-- If not reproducible:
-  - Add instrumentation at suspected trigger points (see [Root Cause Tracing](#root-cause-tracing))
-  - Check if the issue is environment-specific (OS, Node version, config differences)
-  - Review logs from the project's debug log files (`debug-logs.txt` in Tauri mode, `debug-logs-browser.txt` in browser mode)
-  - Do NOT guess — gather more data until you can reproduce or isolate the trigger
+### 进度文件格式
 
-### Step 3: Check Recent Changes
-- Git diff, recent commits — what changed that could cause this?
-- New dependencies, config changes, environmental differences
+```markdown
+# 进度 — 2026-07-20 14:35:27
 
-### Step 4: Gather Evidence in Multi-Component Systems
+文件：docs/root-cause-resolution/progress-2026-07-20-143527.md
 
-When the system has multiple components (API → service → database, CI → build → signing), add diagnostic instrumentation BEFORE proposing fixes:
+## [ ] 事项 1：[问题/任务的简要描述]
+- 状态：待处理
+- 根因：
+- 修复：
+- 验证：
 
-For EACH component boundary:
-- Log what data enters and exits the component
-- Verify environment/config propagation
-- Check state at each layer
-
-Run once to gather evidence showing WHERE it breaks, THEN analyze to identify the failing component, THEN investigate that component.
-
-### Step 5: Trace Data Flow
-
-When the error is deep in the call stack, trace backward to find the original trigger:
-- Where does the bad value originate?
-- What called this with the bad value?
-- Keep tracing up until you find the source
-- Fix at source, not at symptom
-
-See [Root Cause Tracing](#root-cause-tracing) for the complete technique.
-
-### Step 6: Pattern Analysis
-- Find working examples — what works that's similar to what's broken?
-- Compare against references — read reference implementations completely
-- Identify differences — list every difference between working and broken, however small
-- Understand dependencies — what other components, config, environment does this need?
-
-### Step 7: Hypothesis and Testing (Scientific Method)
-1. Form a single hypothesis: "I think X is the root cause because Y" — be specific
-2. Test minimally — make the SMALLEST possible change, one variable at a time
-3. Verify before continuing — if it worked, proceed. If not, form a NEW hypothesis. DON'T add more fixes on top.
-
-**When you don't know:** Say "I don't understand X." Research more. Don't pretend to know.
-
----
-
-## Phase 1: Determine the Path
-
-### Path A: Root Cause Identified
-
-**Criteria (ALL must be met):**
-- You can explain the exact mechanism causing the problem
-- You can trace the data/control flow from trigger to symptom
-- Changing the identified cause would fix the issue without side effects
-
-→ Proceed to Phase 2A (Direct Fix).
-
-### Path B: Root Cause NOT Identified
-
-**Only conclude "no root cause" when ALL of these are true:**
-- You have exhausted all investigation techniques (full call stack, component boundaries, git history, consistent reproduction)
-- The issue is confirmed environmental (OS-level, hardware, external service with no workaround) OR a known limitation of a third-party dependency with no upgrade path
-- You have documented exactly what you investigated and why each path dead-ended
-
-**If you haven't met the above:** Return to Phase 0. Do NOT proceed to Path B prematurely.
-
-→ Proceed to Phase 2B (Preventive Measures).
-
----
-
-## Phase 2A: Direct Fix (Root Cause Known)
-
-1. **Create a failing test case** — Simplest possible reproduction. Automated test if possible; one-off test script if no framework.
-2. **Design the fix** — Address the root cause at its source, not downstream. ONE change at a time. No "while I'm here" improvements.
-3. **Check for siblings** — Are there other places in the codebase with the same root cause pattern? Fix them together.
-4. **Add verification logging** — See [Logging Guidelines](#logging-guidelines) for format and location.
-5. **Proceed to Phase 3**
-
-**If fix doesn't work:**
-- 1st-2nd failure → Return to Phase 0, re-analyze with new information
-- **3rd+ failure → STOP.** Question the architecture (see [When 3+ Fixes Failed](#when-3-fixes-failed-question-architecture))
-
----
-
-## Phase 2B: Preventive Measures (No Root Cause)
-
-### Step 1: Design Candidate Solutions
-
-For each candidate, evaluate against this framework:
-
-| Dimension | Questions to Answer |
-|-----------|-------------------|
-| **Coverage** | What scenarios does it handle? What does it miss? |
-| **Complexity** | How much code? New dependencies? New concepts? |
-| **Side-effect risk** | What else could break? Performance impact? |
-| **Maintainability** | Will future developers understand it? Easy to debug? |
-| **False positive risk** | Could it block legitimate behavior? |
-| **Reversibility** | How easy to undo if it causes problems? |
-
-### Step 2: Present Options to User
-
-When multiple viable solutions exist, use `AskUserQuestion`:
-- List each option with a short label
-- In the description, summarize: what it does, pros, cons, and your recommendation
-- Mark the recommended option with "(Recommended)"
-- Wait for user decision before implementing
-
-### Step 3: External Research (When All Options Are Weak)
-
-If no candidate solution is clearly viable:
-1. Search the web (`WebSearch`) for how similar products handle the same problem
-2. Check official documentation of relevant libraries/frameworks
-3. Search community discussions (GitHub issues, Stack Overflow, forums)
-4. Evaluate external solutions against the same framework above
-5. Combine with your own knowledge — adapt to the project context, don't blindly copy
-
-**Research query templates:**
-```
-"[technology/library] [problem description] best practice"
-"How does [similar product] handle [problem scenario]"
-"[error message or symptom] solution site:github.com"
+## [ ] 事项 2：[简要描述]
+- 状态：进行中
+- 备注：正在排查…
 ```
 
-### Step 4: Implement and Proceed
+**状态值：** `待处理` → `进行中` → `已完成`（仅在用户确认后）
 
-Once a solution is chosen (by user or via research), implement it and proceed to Phase 3.
+### 何时更新
 
----
+| 时机 | 操作 |
+|------|------|
+| **工作开始前** | 创建文件。列出用户提出的所有问题/任务。每个事项初始状态为 `待处理` |
+| **开始处理某个事项** | 将其状态设为 `进行中` |
+| **调查/修复过程中** | 在对应事项下追加过程记录（根因发现、修复尝试、验证步骤） |
+| **用户确认解决** | 将事项标记为 `已完成`，记录确认时间戳 |
+| **用户提出新问题/任务**（任何时候） | 立即追加新事项。不要因为正在排查现有事项而遗漏新工作 |
+| **进入 Phase 4（清理）前** | 检查所有事项。任何未标记 `已完成` 的事项必须先与用户确认 |
 
-## Phase 3: Verification
+### 排查过程中新任务的处理
 
-### Step 1: Add Verification Logging
+当用户在排查/修复现有事项的过程中提出**新的问题或任务**时：
 
-If not already added in Phase 2A, add diagnostic logs at key points. See [Logging Guidelines](#logging-guidelines) for format and location.
+1. **立即追加**新事项到当前的进度文件，状态设为 `待处理`，记录时间戳
+2. **告知用户**新事项已记录："已记录新任务：[描述]"
+3. **不要丢失**当前进行中事项的追踪 — 除非用户明确重新排定优先级，否则继续当前工作
+4. **如果用户重新排定优先级**，更新前一个事项的备注（"已暂停 — 用户重新排定优先级至 [新事项]"），并将新事项的状态设为 `进行中`
 
-**What to log:**
-- Entry/exit of the fix point with relevant state
-- Before/after values if the fix transforms data
-- Error paths (what happens when the fix encounters unexpected input)
-- Any assumptions the fix makes (log when they're violated)
+此规则适用于任何阶段（0-3）。进度文件始终是所有活跃工作的唯一真实来源。
 
-### Step 2: User Testing
+### 进度文件规则
 
-1. Tell the user what to test and what to look for
-2. Wait for the user to confirm testing is complete
-3. Do NOT preemptively declare success
-
-### Step 3: Log Analysis
-
-After user confirms testing is complete, read the log files from the project's log directory (`.adl-logs/` — see [Logging Guidelines](#logging-guidelines)).
-
-**Use the right tools** — `.adl-logs/` is in `.gitignore`, so `Glob`/`Grep`/`SearchCodebase` will silently skip it:
-
-| Tool | Safe? | Notes |
-|------|-------|-------|
-| `LS` with absolute path | Yes | Lists directory directly, bypasses `.gitignore` |
-| `Read` with absolute path | Yes | Reads file directly, bypasses `.gitignore` |
-| `RunCommand` | Yes | Shell commands don't respect `.gitignore` |
-| `Glob` / `Grep` / `SearchCodebase` | **No** | These respect `.gitignore` and will miss log files |
-
-**Also check the project's runtime debug logs:**
-- Tauri mode: `debug-logs.txt` (project root)
-- Browser mode: `debug-logs-browser.txt` (project root)
-- These can be exported via the UI's "Copy Debug Logs" button or `__exportDebugLogs()` in console
-
-**Procedure:**
-1. Use `LS` to list all files in the log directory (`.adl-logs/`)
-2. Use `Read` with absolute paths to read the most recent log files
-3. Check for:
-   - **Expected log entries** — confirming the fix is active
-   - **Error entries** — indicating the fix failed or encountered edge cases
-   - **Missing entries** — suggesting the fix code path wasn't reached
-   - **Unexpected patterns** — anything that doesn't match the hypothesis
-
-**If log directory is empty or doesn't exist:** The logging code path was never reached — this is itself a diagnostic signal. Re-examine the fix to ensure logging is placed correctly.
-
-### Step 4: Handle Results
-
-| Result | Action |
-|--------|--------|
-| Logs confirm fix works, user confirms problem resolved | → Phase 4 (see [Trigger Detection](#trigger-detection)) |
-| Logs show fix partially works but has gaps | Identify gaps, return to Phase 2A/2B to refine |
-| Logs show fix didn't work at all | Re-examine: is it the solution, the code, the approach, or the architecture? |
-| Fix introduces a regression (new bug or test failure) | Revert or adjust the fix; re-evaluate side effects |
-| User says "问题还是没有解决" | Go to [Iteration on Failure](#iteration-on-failure) |
-
-### Iteration on Failure
-
-When the user reports the problem persists after testing:
-1. **Re-examine the solution** — Was the hypothesis wrong? Did the fix address a symptom, not the cause?
-2. **Re-examine the code** — Is the implementation correct? Are there edge cases?
-3. **Re-examine the approach** — Is the technical strategy sound? Are there fundamental conflicts?
-4. **Re-examine the architecture** — Is this a systemic issue that can't be fixed at the component level?
-5. **If still stuck** — Go to external research (Phase 2B, Step 3)
-
-**After 3 failed iteration cycles, STOP.** Escalate to the user with:
-- What was tried in each cycle
-- What was learned
-- What architectural questions remain
-
-Do NOT attempt a 4th cycle without explicit user direction.
-
-### When 3+ Fixes Failed: Question Architecture
-
-**Pattern indicating architectural problem:**
-- Each fix reveals new shared state/coupling/problem in a different place
-- Fixes require "massive refactoring" to implement
-- Each fix creates new symptoms elsewhere
-
-**STOP and question fundamentals:**
-- Is this pattern fundamentally sound?
-- Are we "sticking with it through sheer inertia"?
-- Should we refactor architecture vs. continue fixing symptoms?
-
-**Discuss with your human partner before attempting more fixes.** This is NOT a failed hypothesis — this is a wrong architecture.
-
-### Trigger Detection
-
-The trigger for Phase 4 is any user message indicating the problem is resolved. You MUST actively detect these patterns:
-
-| Language | Examples |
-|----------|----------|
-| Chinese | "问题已解决", "已解决", "搞定了", "没问题了", "可以了", "好了", "解决了" |
-| English | "it's fixed", "problem resolved", "solved", "done", "works now", "resolved", "fixed" |
-
-**Rule:** When you see any trigger phrase after Phase 3, immediately proceed to Phase 4. Do NOT ask "should I clean up?" or similar confirmations.
-
-**Ambiguous triggers:** If the message could mean something else (e.g., "好了" might mean "stop"), ask once: "确认问题已解决，可以开始清理了吗？" Then proceed on confirmation.
+- **在 Phase 0 开始前创建。** 即使是"简单"问题也不可跳过此步骤。
+- **每次重要事件后更新** — 发现根因、尝试修复、用户反馈、验证结果。
+- **保持文件开放** — 将其视为一份活文档，而非一次性快照。
+- **在 Phase 4 前同步** — 读取当前文件，询问用户未确认的事项，更新后进入清理。
 
 ---
 
-## Phase 4: Post-Resolution Cleanup
+## Phase 0：根因调查
 
-### Step 0: Identify Problem List
+在尝试任何修复之前，必须完成以下所有步骤。
 
-- **Single problem:** Proceed with 1 sub-agent per step below
-- **Multiple independent problems:** Dispatch N parallel sub-agents per step, one per problem
+### 第 0 步：创建进度文件
 
-Maintain a list like `[A: description, B: description, C: description]` throughout Phase 4.
+在开始调查之前，在 `docs/root-cause-resolution/` 目录下创建进度文件：
 
-### Sub-Agent Workflow: Report-Only Loop
+1. **确保目录存在**：如果 `docs/root-cause-resolution/` 不存在，先创建它
+2. **文件名**：使用格式 `progress-YYYY-MM-DD-HHmmss.md`（例如 `progress-2026-07-20-143527.md`），确保时间戳精确到秒，避免多份文件名称重复
+3. 列出用户目前为止提出的所有问题/任务，每个事项以 `[ ]` 开头，状态为 `待处理`
+4. 告知用户："已创建进度文件：docs/root-cause-resolution/[文件名]，记录以下待办事项：……"
+5. 如果用户后续添加更多事项，立即追加
 
-**CRITICAL — Sub-agents NEVER modify code.** Their sole job is to produce structured reports. All code changes are made by the main agent.
+然后继续下面的调查。
 
-Every sub-agent dispatch follows this cycle:
+### 第 1 步：仔细阅读错误信息
+
+- 完整阅读堆栈跟踪 — 注意行号、文件路径、错误码
+- 不要跳过错误或警告
+- 错误信息通常包含精确的解决方案
+
+### 第 2 步：稳定复现
+
+- 能否稳定触发？确切步骤是什么？
+- 如果无法复现：
+  - 在疑似触发点添加日志埋点（见[根因追踪](#根因追踪)）
+  - 检查是否是环境问题（操作系统、Node 版本、配置差异）
+  - 查看项目调试日志文件（Tauri 模式：`debug-logs.txt`，浏览器模式：`debug-logs-browser.txt`）
+  - **不要猜测** — 收集更多数据直到能复现或隔离触发条件
+
+### 第 3 步：检查近期变更
+
+- Git diff、近期的提交 — 什么改动可能导致此问题？
+- 新依赖、配置变更、环境差异
+
+### 第 4 步：在多组件系统中收集证据
+
+当系统包含多个组件（API → 服务 → 数据库、CI → 构建 → 签名）时，在提出修复方案前先添加诊断埋点：
+
+对每个组件边界：
+- 记录数据进出组件时的状态
+- 验证环境/配置的传播
+- 检查每一层的状态
+
+运行一次以收集证据，确定**在哪里**出问题，然后分析确定故障组件，再深入调查该组件。
+
+### 第 5 步：数据流追踪
+
+当错误位于调用栈深处时，向后追踪以找到原始触发点：
+
+- 错误值从何处产生？
+- 是谁用错误值调用了当前函数？
+- 持续向上追踪直到找到源头
+- 在源头修复，而非在表象处
+
+详见[根因追踪](#根因追踪)的完整技术说明。
+
+### 第 6 步：模式分析
+
+- 查找可工作的示例 — 什么相似的功能是正常的？
+- 对比参考实现 — 完整阅读参考代码
+- 识别差异 — 列出正常与异常之间的每一个差异，无论多小
+- 理解依赖关系 — 此功能需要哪些组件、配置、环境？
+
+### 第 7 步：假设与验证（科学方法）
+
+1. 形成单一假设："我认为 X 是根因，因为 Y" — 要具体
+2. 最小化验证 — 做**最小**可能的改动，一次只改一个变量
+3. 验证后再继续 — 如果有效则继续。如果无效则形成**新**假设。不要在已有改动上叠加更多修复
+
+**不知道时：** 说"我不理解 X"。深入研究，必要时触发[外部调研](#第-3-步外部调研无法推进时的突破口)查阅相关资料。不要假装知道。
+
+---
+
+## Phase 1：确定路径
+
+### 路径 A：已确认根因
+
+**条件（必须全部满足）：**
+
+- 能够解释导致问题的确切机制
+- 能够从触发点到表象追踪数据/控制流
+- 修改已确认的根因能修复问题且无副作用
+
+→ 进入 Phase 2A（直接修复）。
+
+### 路径 B：未确认根因
+
+**只有在以下所有条件都满足时**才能得出"未找到根因"的结论：
+
+- 已穷尽所有调查手段（完整调用栈、组件边界、Git 历史、稳定复现）
+- 已确认问题属于环境层面（操作系统级、硬件、无替代方案的外部服务）或属于已知的第三方依赖限制且无升级路径
+- 已记录所调查的内容以及每条路径为何行不通
+
+**如果未满足上述条件：** 返回 Phase 0。不要过早进入路径 B。
+
+→ 进入 Phase 2B（预防性措施）。
+
+---
+
+## Phase 2A：直接修复（已知根因）
+
+1. **创建失败测试用例** — 最简单的可复现脚本。优先使用自动化测试；没有测试框架则用一次性脚本
+2. **设计修复方案** — 在根因源头修复，而不是在下游。一次只改**一处**。不要"顺手"做额外改进
+3. **检查同类问题** — 代码库中是否还有其他地方存在相同根因模式？一并修复
+4. **添加验证日志** — 格式与位置见[日志规范](#日志规范)
+5. **[进度] 更新进度文件** — 记录根因、修复方案和发现的同类问题
+6. **进入 Phase 3**
+
+**如果修复无效：**
+
+- 第 1 次失败 → 返回 Phase 0，用新信息重新分析；如果遇到知识盲区或不确定如何推进，触发[外部调研](#第-3-步外部调研无法推进时的突破口)
+- 第 2 次失败 → 返回 Phase 0 或直接触发[外部调研](#第-3-步外部调研无法推进时的突破口)；在进度文件中记录失败的尝试
+- **第 3 次以上失败 → 停止。** 触发[外部调研](#第-3-步外部调研无法推进时的突破口)收集外部信息，同时质疑架构（见[3 次以上修复失败时](#3-次以上修复失败质疑架构)）
+
+---
+
+## Phase 2B：预防性措施（无根因）
+
+### 第 1 步：设计候选方案
+
+对每个候选方案，按以下框架评估：
+
+| 维度 | 需要回答的问题 |
+|------|---------------|
+| **覆盖范围** | 能处理哪些场景？遗漏了哪些？ |
+| **复杂度** | 需要多少代码？新依赖？新概念？ |
+| **副作用风险** | 可能破坏什么？对性能的影响？ |
+| **可维护性** | 后续开发者能理解吗？易于调试吗？ |
+| **误判风险** | 会不会阻止正常行为？ |
+| **可逆性** | 如果引发问题，撤销的难度如何？ |
+
+### 第 2 步：向用户展示选项
+
+当存在多个可行方案时，使用 `AskUserQuestion`：
+
+- 为每个选项提供简短标签
+- 在描述中总结：做什么、优缺点、你的推荐
+- 将推荐选项标记为"(推荐)"
+- 等待用户决策后再实施
+
+### 第 3 步：外部调研（无法推进时的突破口）
+
+当遇到以下任一情况时，必须触发外部调研，不得闷头硬试：
+
+| 触发场景 | 说明 |
+|---------|------|
+| **没有候选方案** | 所有设计方案评估后均不可行，完全没有明显可用方案 |
+| **完全不知道如何解决** | 面对问题毫无头绪，不知道从何下手，缺乏相关的知识或经验 |
+| **遇到特别顽固的问题** | 经过多次尝试，问题依然顽强存在，每次修复都暴露出新的复杂情况 |
+| **多次修复失败** | 第 1-2 次修复无效返回 Phase 0 重新分析后仍然无解；或失败迭代中卡在第 5 步"仍然卡住" |
+| **技术方案有根本性分歧** | 现有知识无法判断哪一种方案正确，需要外部信息辅助决策 |
+| **怀疑有更好的做法但不知道** | 直觉感到当前方案不够好，但不知道行业标准做法是什么 |
+
+在上述任一情况下：
+
+1. 搜索网络（`WebSearch`），了解类似产品如何处理相同问题
+2. 查阅相关库/框架的官方文档
+3. 搜索社区讨论（GitHub Issues、Stack Overflow、论坛）
+4. 使用相同的框架评估外部方案
+5. 结合已有知识 — 根据项目上下文调整，不要盲目复制
+
+**调研查询模板：**
 
 ```
-Sub-agent (read-only report)
+"[技术/库] [问题描述] 最佳实践"
+"类似产品如何处理 [问题场景]"
+"[错误信息或症状] 解决方案 site:github.com"
+```
+
+### 第 4 步：实施并继续
+
+一旦方案确定（由用户或通过调研），实施该方案。**[进度] 更新进度文件** — 记录预防性方案及其理由。然后进入 Phase 3。
+
+---
+
+## Phase 3：验证
+
+### 第 1 步：添加验证日志
+
+如果 Phase 2A 中尚未添加，在关键位置添加诊断日志。格式与位置见[日志规范](#日志规范)。
+
+**需要记录的内容：**
+
+- 修复点的进入/退出及相关状态
+- 如果修复涉及数据转换，记录转换前后的值
+- 错误路径（当修复遇到意外输入时会发生什么）
+- 修复所依赖的任何假设（当假设被违反时记录日志）
+
+### 第 2 步：用户测试
+
+1. 告知用户需要测试什么以及注意观察什么
+2. 等待用户确认测试完成
+3. **不要事先宣布成功**
+4. **[进度] 更新进度文件** — 标注用户测试已完成
+
+### 第 3 步：日志分析
+
+用户确认测试完成后，从项目日志目录（`.adl-logs/` — 见[日志规范](#日志规范)）读取日志文件。
+
+**使用正确的工具** — `.adl-logs/` 位于 `.gitignore` 中，`Glob`/`Grep`/`SearchCodebase` 会静默跳过：
+
+| 工具 | 安全？ | 说明 |
+|------|--------|------|
+| `LS` 使用绝对路径 | 是 | 直接列出目录，绕过 `.gitignore` |
+| `Read` 使用绝对路径 | 是 | 直接读取文件，绕过 `.gitignore` |
+| `RunCommand` | 是 | Shell 命令不遵守 `.gitignore` |
+| `Glob` / `Grep` / `SearchCodebase` | **否** | 这些工具遵守 `.gitignore`，会遗漏日志文件 |
+
+**也检查项目的运行时调试日志：**
+
+- Tauri 模式：`debug-logs.txt`（项目根目录）
+- 浏览器模式：`debug-logs-browser.txt`（项目根目录）
+- 可通过 UI 的"复制调试日志"按钮或 `__exportDebugLogs()` 导出
+
+**操作步骤：**
+
+1. 使用 `LS` 列出日志目录中的所有文件（`.adl-logs/`）
+2. 使用 `Read` 配合绝对路径读取最近的日志文件
+3. 检查：
+   - **预期的日志条目** — 确认修复已生效
+   - **错误条目** — 表明修复失败或遇到了边界情况
+   - **缺失的条目** — 表明修复代码路径未被触发
+   - **意外的模式** — 任何与假设不符的内容
+
+**如果日志目录为空或不存在：** 日志代码路径从未被触发 — 这本身就是诊断信号。重新检查修复以确保日志位置正确。
+
+### 第 4 步：处理结果
+
+| 结果 | 操作 |
+|------|------|
+| 日志确认修复有效，用户确认问题已解决 | **[进度] 标记事项为已完成**，在进度文件中记录验证摘要 → Phase 4（见[触发检测](#触发检测)） |
+| 日志显示修复部分有效但存在缺口 | 识别缺口，在进度文件中记录缺口分析，返回 Phase 2A/2B 完善 |
+| 日志显示修复完全无效 | 在进度文件中记录失败尝试，重新检查：是方案、代码、方法还是架构的问题？ |
+| 修复引入了回归（新 Bug 或测试失败） | 回滚或调整修复；在进度文件中记录回归情况；重新评估副作用 |
+| 用户说"问题还是没有解决" | 在进度文件中记录"用户报告修复无效"，进入[失败迭代](#失败迭代) |
+
+### 失败迭代
+
+当用户报告问题在测试后仍然存在：
+
+1. **重新检查方案** — 假设错了？修复的是表象而非根因？
+2. **重新检查代码** — 实现是否正确？是否有边界情况？
+3. **重新检查方法** — 技术策略是否合理？是否存在根本性冲突？
+4. **重新检查架构** — 是否是不可能在组件级别修复的系统性问题？
+5. **如果仍然卡住** — 立即触发[外部调研](#第-3-步外部调研无法推进时的突破口)。此时通常意味着遇到了知识盲区、技术难题或行业特有做法，外部信息是突破的关键
+
+**经过 3 次失败的迭代后，停止。** 向用户升级报告：
+
+- 每轮尝试了什么
+- 学到了什么
+- 还有哪些架构性问题未解决
+
+在没有用户明确指示的情况下，不要尝试第 4 轮。
+
+### 3 次以上修复失败：质疑架构
+
+**表明架构问题的模式：**
+
+- 每次修复都在不同位置暴露出新的共享状态/耦合/问题
+- 修复需要"大规模重构"才能实施
+- 每次修复都会在其他地方产生新症状
+
+**停止并质疑根本问题：**
+
+- 这个模式从根本上来说是否合理？
+- 我们是否只是"由于惯性而坚持"？
+- 是否应该重构架构而不是继续修修补补？
+
+**在尝试更多修复前与用户讨论。** 这不是假设失败 — 这是架构错误。同时应配合[外部调研](#第-3-步外部调研无法推进时的突破口)，了解业界对类似架构问题的处理方式。
+
+### 触发检测
+
+进入 Phase 4 的触发条件是用户表示问题已解决的任何消息。必须主动检测以下模式：
+
+| 语言 | 示例 |
+|------|------|
+| 中文 | "问题已解决", "已解决", "搞定了", "没问题了", "可以了", "好了", "解决了" |
+| 英文 | "it's fixed", "problem resolved", "solved", "done", "works now", "resolved", "fixed" |
+
+**第 1 步 — 更新进度文件：** 检测到触发条件时，将对应事项标记为 `已完成`，并在进度文件中记录确认时间戳。
+
+**第 2 步 — 进度关卡（未确认事项检查）：** 在进入 Phase 4 前，读取当前进度文件，检查是否有未标记为 `已完成` 的事项：
+
+| 结果 | 操作 |
+|------|------|
+| **所有事项已完成** | 直接进入 Phase 4 |
+| **存在未完成的事项** | 询问用户每个未确认的事项："问题「[描述]」目前状态为未确认，请问是否已解决？" 根据用户回答更新进度文件，然后进入 Phase 4 |
+
+**规则：** 不得跳过进度关卡。在未处理完所有未确认事项之前，不得进入 Phase 4。进度文件必须在清理开始前反映真实情况。
+
+**模糊触发：** 如果消息可能另有含义（例如"好了"可能只是示意停止），请询问一次："确认问题已解决，可以开始清理了吗？" 然后将事项标记为 `已完成` 并进入上述进度关卡。
+
+---
+
+## Phase 4：解决后清理
+
+### Phase 4 入口关卡：验证进度文件
+
+在进行任何清理工作前，读取 `docs/root-cause-resolution/` 目录下最新的进度文件并确认：
+
+1. **读取进度文件** — 验证所有列出的事项
+2. **所有事项是否已完成？** — 如果是，对所有已完成事项进行清理
+3. **是否存在未完成的事项？** — 停止。不要继续。返回[触发检测 — 第 2 步](#触发检测)先解决未确认事项。必须通过进度关卡才能进行清理。
+
+此关卡确保清理只对已确认完成的事项执行。
+
+### 第 0 步：从进度文件识别问题列表
+
+读取 `docs/root-cause-resolution/` 目录下最新的进度文件以获取权威事项列表：
+
+- **标记为已完成的事项** — 这些是在以下 Phase 4 步骤中需要处理的问题
+- **未标记为已完成的事项** — 入口关卡已处理这些；如果还有剩余，停止
+
+在 Phase 4 中维护列表，格式为 `[A: 描述, B: 描述, C: 描述]`，数据来源于进度文件。
+
+### 子代理工作流：只读报告循环
+
+**关键 — 子代理绝不可修改代码。** 它们的唯一任务是生成结构化报告。所有代码变更由主代理执行。
+
+每个子代理调度遵循以下循环：
+
+```
+子代理（只读报告）
        │
        ▼
-Main agent verifies report
- (reasonable? truthful? feasible?)
+主代理验证报告
+（合理？真实？可行？）
        │
-       ├─ Report rejected ──→ re-dispatch or clarify
+       ├─ 报告被拒绝 ──→ 重新调度或澄清
        │
-       └─ Report accepted
+       └─ 报告被接受
               │
               ▼
-       Main agent implements fixes
+       主代理实施修复
               │
               ▼
-       Sub-agent re-checks (same scope)
+       子代理重新检查（相同范围）
               │
-              ├─ Issues remain ──→ back to Main agent implements
+              ├─ 仍有问题 ──→ 返回主代理实施
               │
-              └─ No issues ──→ proceed
+              └─ 无问题 ──→ 继续
 ```
 
-**Rules:**
+**规则：**
 
-| Rule | Description |
-|------|-------------|
-| Subagent type | Always use `subagent_type: "search"` for report-only sub-agents |
-| No code modification | Sub-agents MUST NOT write, edit, or delete any file, nor run any command that modifies the codebase |
-| Mandatory re-check | After each main-agent implementation cycle, sub-agents MUST re-run their full analysis |
-| Report verification | Main agent MUST review sub-agent reports for reasonableness, truthfulness, and feasibility before implementing any fix |
-| No skipping | Main agent MUST NOT skip the re-check cycle or declare success without sub-agent confirmation |
-| Per-problem loop | Each problem runs its own independent loop with its own sub-agent |
-| Termination | Loop ends only when the sub-agent reports "no issues found" |
-| Deadlock prevention | If the same issue persists after 3 full loops (report → implement → re-check → same issue), escalate to user |
+| 规则 | 说明 |
+|------|------|
+| 子代理类型 | 只读子代理始终使用 `subagent_type: "search"` |
+| 禁止修改代码 | 子代理不得写入、编辑或删除任何文件，也不得运行任何修改代码库的命令 |
+| 强制重新检查 | 每次主代理实施循环后，子代理必须重新运行其完整分析 |
+| 报告验证 | 主代理必须在实施任何修复前审查子代理报告的合理性、真实性和可行性 |
+| 禁止跳过 | 主代理不得跳过重新检查循环，也不得在没有子代理确认的情况下宣布成功 |
+| 逐问题循环 | 每个问题使用自己的子代理独立运行循环 |
+| 终止条件 | 只有当子代理报告"未发现问题"时循环才结束 |
+| 死锁预防 | 如果同一问题在 3 次完整循环后仍然存在（报告 → 实施 → 重检 → 相同问题），向用户升级 |
 
-### Step 1: Root Cause Verification (Per-Problem Report Loop)
+### 第 1 步：根因验证（逐问题报告循环）
 
-**Only proceed for problems that passed Phase 3 verification.**
+**仅处理通过 Phase 3 验证的问题。**
 
-For EACH problem, dispatch a read-only sub-agent (`subagent_type: "search"`) with these instructions:
-
-```
-Analyze the changes made to fix [PROBLEM_DESCRIPTION]. Perform a comprehensive review:
-
-**1. Root Cause & Correctness:**
-- Was the true root cause identified and fixed? Or was a symptom addressed?
-- Are there any remaining gaps or edge cases?
-- Is the fix complete (handles all trigger conditions, not just the observed case)?
-
-**2. Technical Approach & Design Quality:**
-- Is the chosen solution appropriate? Are there simpler or more robust alternatives?
-- Code-level design: naming, function responsibility, readability, SOLID principles
-- Module-level design: coupling, cohesion, interface design, dependency direction
-- Architecture-level design: is the fix at the correct layer? Does it maintain architectural consistency?
-
-**3. Side Effects & Safety:**
-- Could this fix introduce regressions or new bugs?
-- Are there performance implications?
-- Does it affect other components or shared state?
-
-Review the git diff of all changed files relevant to this problem.
-
-CRITICAL: Do NOT modify any files. Produce a structured report only. For each issue found, include severity (critical/high/medium/low) and suggested fix.
-```
-
-**Loop execution:**
-1. Dispatch sub-agent(s) → wait for all reports
-2. Verify each report (reasonableness, truthfulness, feasibility); reject unreliable findings
-3. If verified reports identify issues → implement deeper fixes
-4. Re-dispatch same sub-agent(s) for re-check
-5. If all sub-agents report "no issues" → proceed to Step 2
-6. If the same issue persists after 3 cycles → escalate (see below)
-
-**Escalation:** "Problem [N] was fixed at the symptom level, not the root cause. The root cause appears to be [explanation]. Do you want to continue investigating?" Only proceed to Step 2 for problems where root cause is confirmed.
-
-### Step 2: Dead Code and Redundancy Removal (Per-Problem Report Loop)
-
-**Only proceed for problems where Step 1 confirmed root cause was fixed.**
-
-For EACH such problem, dispatch a read-only sub-agent (`subagent_type: "search"`) with these instructions:
+对每个问题，调度一个只读子代理（`subagent_type: "search"`），指令如下：
 
 ```
-Review all changes made for [PROBLEM_DESCRIPTION]. Identify and report:
+分析为修复 [问题描述] 所做的变更。进行全面审查：
 
-1. DEAD CODE — code that is now unreachable (unused imports, functions, variables,
-   conditional branches that can never execute)
-2. REDUNDANT CHECKS — multiple guards for the same condition, duplicate validation
-3. UNNECESSARY PREVENTIVE MEASURES — defensive code added during debugging that is
-   no longer needed now that the root cause is fixed
-4. DIAGNOSTIC LOGS — debug/trace logs added during investigation that should be
-   removed or demoted to trace level
+**1. 根因与正确性：**
+- 是否识别并修复了真正的根因？还是只处理了表象？
+- 是否存在任何遗留缺口或边界情况？
+- 修复是否完整（处理了所有触发条件，而不仅仅是观察到的案例）？
 
-For each item, specify: file path, line numbers, what to remove, and why it's safe to remove.
+**2. 技术方案与设计质量：**
+- 所选的方案是否合适？是否有更简单或更健壮的替代方案？
+- 代码级设计：命名、函数职责、可读性、SOLID 原则
+- 模块级设计：耦合度、内聚性、接口设计、依赖方向
+- 架构级设计：修复是否在正确的层级？是否保持了架构一致性？
 
-DO NOT flag:
-- Error handling that serves a legitimate purpose
-- Validation at system boundaries (user input, external APIs)
-- Logging at warn/error level that aids production debugging
-- Defensive code that protects against external failures (not the fixed bug)
+**3. 副作用与安全性：**
+- 此修复是否可能引入回归或新 Bug？
+- 是否存在性能影响？
+- 是否影响其他组件或共享状态？
 
-CRITICAL: Do NOT modify any files. Produce a structured report only.
+审查与此问题相关的所有变更文件的 git diff。
+
+关键：不要修改任何文件。仅生成结构化报告。对发现的每个问题，包含严重性（严重/高/中/低）和建议修复方案。
 ```
 
-**Loop execution:**
-1. Dispatch sub-agent(s) → wait for all reports
-2. Verify each report; discard unreliable recommendations
-3. Apply verified removals
-4. Re-dispatch same sub-agent(s) for re-check
-5. If all sub-agents report "no issues found" → proceed to Step 3
-6. If the same issue persists after 3 cycles → escalate to user
+**循环执行：**
 
-### Step 3: Final Validation
+1. 调度子代理 → 等待所有报告
+2. 验证每个报告（合理性、真实性、可行性）；拒绝不可靠的发现
+3. 如果验证报告发现问题 → 实施更深层的修复
+4. 重新调度同一子代理进行重新检查
+5. 如果所有子代理报告"无问题" → 进入第 2 步
+6. 如果同一问题在 3 次循环后仍然存在 → 升级（见下文）
 
-After all cleanup is complete:
-1. **Run the project's end-of-work acceptance flow** — Follow the procedure defined in `mandatory-testing.md`:
-   - Run ESLint/Prettier/Clippy/rustfmt checks
-   - Run type checking
-   - Run the relevant test suite
-2. **Verify all fixes still work** — For each problem, confirm the fix is intact after cleanup
-3. **Mark the task complete**
+**升级：** "问题 [N] 是在表象层面修复的，而非根因。根因似乎是 [说明]。是否要继续调查？" 仅对已确认根因的问题进入第 2 步。
+
+### 第 2 步：死代码与冗余清理（逐问题报告循环）
+
+**仅处理第 1 步已确认根因被修复的问题。**
+
+对每个此类问题，调度一个只读子代理（`subagent_type: "search"`），指令如下：
+
+```
+审查为 [问题描述] 所做的所有变更。识别并报告：
+
+1. 死代码 — 现在不可达的代码（未使用的导入、函数、变量、永远不会执行的条件分支）
+2. 冗余检查 — 同一条件的多重守卫、重复验证
+3. 不必要的预防措施 — 在调试期间添加的、根因修复后不再需要的防御性代码
+4. 诊断日志 — 调查期间添加的、应删除或降级为 trace 级别的调试/追踪日志
+
+对每个项目，指定：文件路径、行号、要删除的内容以及为何可以安全删除。
+
+不要标记：
+- 有正当用途的错误处理
+- 系统边界的验证（用户输入、外部 API）
+- 有助于生产调试的 warn/error 级别日志
+- 针对外部故障（而非已修复的 Bug）的防御性代码
+
+关键：不要修改任何文件。仅生成结构化报告。
+```
+
+**循环执行：**
+
+1. 调度子代理 → 等待所有报告
+2. 验证每个报告；丢弃不可靠的建议
+3. 应用已验证的删除
+4. 重新调度同一子代理进行重新检查
+5. 如果所有子代理报告"未发现问题" → 进入第 3 步
+6. 如果同一问题在 3 次循环后仍然存在 → 向用户升级
+
+### 第 3 步：最终验证
+
+所有清理完成后：
+
+1. **运行项目的收尾验收流程** — 按照 `mandatory-testing.md` 定义的流程：
+   - 运行 ESLint/Prettier/Clippy/rustfmt 检查
+   - 运行类型检查
+   - 运行相关测试套件
+2. **验证所有修复仍然有效** — 对每个问题，确认修复在清理后仍然完整
+3. **标记任务完成**
 
 ---
 
-## Logging Guidelines
+## 日志规范
 
-### Log Directory
+### 日志目录
 
-The project's debug log directory is `.adl-logs/` (listed in `.gitignore`). Use `LS` + `Read` with absolute paths to access it, never `Glob`/`Grep`/`SearchCodebase`.
+项目的调试日志目录是 `.adl-logs/`（列在 `.gitignore` 中）。使用 `LS` 和 `Read` 配合绝对路径访问，绝不要使用 `Glob`/`Grep`/`SearchCodebase`。
 
-Additionally, the project writes runtime debug logs to the project root:
-- `debug-logs.txt` — Tauri desktop mode
-- `debug-logs-browser.txt` — browser preview mode
+此外，项目将运行时调试日志写入项目根目录：
 
-These can be exported via the UI's "Copy Debug Logs" button or `__exportDebugLogs()` in the browser console.
+- `debug-logs.txt` — Tauri 桌面模式
+- `debug-logs-browser.txt` — 浏览器预览模式
 
-### Log Format
+可通过 UI 的"复制调试日志"按钮或 `__exportDebugLogs()` 导出。
+
+### 日志格式
 
 ```
-[Timestamp] [Level] [Component::Function] Message — key=value, key=value
+[时间戳] [级别] [组件::函数] 消息 — 键=值, 键=值
 ```
 
-Example:
+示例：
+
 ```
-[2026-07-14T15:30:00.123Z] [DEBUG] [WorkspaceStore::openWorkspace] Entering — path="E:/test", workspaceId="abc-123"
-[2026-07-14T15:30:00.456Z] [DEBUG] [WorkspaceStore::openWorkspace] Git status fetched — isRepo=true, branch="main"
-[2026-07-14T15:30:00.789Z] [ERROR] [WorkspaceStore::openWorkspace] Failed to load — error="ENOENT: no such file", path="E:/test/.git"
+[2026-07-14T15:30:00.123Z] [DEBUG] [WorkspaceStore::openWorkspace] 进入 — path="E:/test", workspaceId="abc-123"
+[2026-07-14T15:30:00.456Z] [DEBUG] [WorkspaceStore::openWorkspace] Git 状态已获取 — isRepo=true, branch="main"
+[2026-07-14T15:30:00.789Z] [ERROR] [WorkspaceStore::openWorkspace] 加载失败 — error="ENOENT: no such file", path="E:/test/.git"
 ```
 
-### Log Level Usage
+### 日志级别用法
 
-| Level | When to Use |
-|-------|------------|
-| `DEBUG` | Tracing fix execution, verifying code path reached |
-| `INFO` | State transitions, successful operations |
-| `WARN` | Expected but unusual conditions (edge cases hit) |
-| `ERROR` | Unexpected failures, exceptions |
+| 级别 | 使用场景 |
+|------|---------|
+| `DEBUG` | 追踪修复执行、验证代码路径是否到达 |
+| `INFO` | 状态转换、成功操作 |
+| `WARN` | 预期但异常的情况（触发了边界情况） |
+| `ERROR` | 意外的失败、异常 |
 
-### Logging Rules
+### 日志规则
 
-- **Always include context** — component, function, and relevant IDs/values
-- **Log before and after** critical operations, not just after
-- **Log error paths** — don't only log the happy path
-- **Log assumptions** — if the fix assumes something (e.g., "file exists"), log when that assumption is violated
-- **Remove or demote** diagnostic logs after the fix is confirmed (Phase 4, Step 2)
+- **始终包含上下文** — 组件、函数及相关 ID/值
+- **在关键操作前后都记录**，而不仅仅在操作之后
+- **记录错误路径** — 不要只记录正常路径
+- **记录假设** — 如果修复依赖某个假设（如"文件存在"），在该假设被违反时记录日志
+- **修复确认后删除或降级**诊断日志（Phase 4，第 2 步）
 
 ---
 
-## Root Cause Tracing
+## 根因追踪
 
-Bugs often manifest deep in the call stack. Fixing where the error appears treats a symptom.
+Bug 通常出现在调用栈深处。在错误出现的表象处修复只是在治标。
 
-**Core principle:** Trace backward through the call chain until you find the original trigger, then fix at the source.
+**核心原则：** 沿调用链向后追踪直到找到原始触发点，然后在源头修复。
 
-### The Tracing Process
+### 追踪过程
 
-#### 1. Observe the Symptom
+#### 1. 观察表象
+
 ```
-Error: git init failed in ~/project/packages/core
+错误：在 ~/project/packages/core 中 git init 失败
 ```
 
-#### 2. Find Immediate Cause
-What code directly causes this? The final function in the call stack.
+#### 2. 查找直接原因
 
-#### 3. Ask: What Called This?
-Trace one level up — who passed the arguments? What called the failing function?
+哪段代码直接导致此错误？调用栈中的最后一个函数。
 
-#### 4. Keep Tracing Up
-Continue tracing backward. Look for where the bad value entered the chain.
+#### 3. 问：是谁调用了这个？
 
-#### 5. Find Original Trigger
-The source is where the wrong value was first introduced. Fix AT this point, not at the symptom.
+向上追踪一层 — 谁传递了参数？谁调用了出错的函数？
 
-### Adding Stack Traces
+#### 4. 持续向上追踪
 
-When you can't trace manually, add instrumentation:
+继续向后追踪。查找错误值是在哪里进入调用链的。
+
+#### 5. 找到原始触发点
+
+源头就是错误值首次被引入的地方。在**此处**修复，而非在表象处。
+
+### 添加堆栈追踪
+
+当无法手动追踪时，添加埋点：
+
 ```typescript
 const stack = new Error().stack;
-console.error('DEBUG operation:', { directory, cwd, stack });
+console.error('DEBUG 操作:', { directory, cwd, stack });
 ```
 
-**Critical:** Use `console.error()` in tests (logger may be suppressed). Run and capture:
+**关键：** 在测试中使用 `console.error()`（日志器可能被抑制）。运行并捕获：
+
 ```powershell
-pnpm test 2>&1 | Select-String 'DEBUG operation'
+pnpm test 2>&1 | Select-String 'DEBUG 操作'
 ```
 
-### Stack Trace Tips
-- **In tests:** Use `console.error()` not logger — logger may be suppressed
-- **Before operation:** Log before the dangerous operation, not after it fails
-- **Include context:** Directory, cwd, environment variables, timestamps
-- **Capture stack:** `new Error().stack` shows complete call chain
+### 堆栈追踪提示
 
-**NEVER fix just where the error appears.** Trace back to find the original trigger.
+- **在测试中：** 使用 `console.error()` 而非日志器 — 日志器可能被抑制
+- **在操作之前：** 在危险操作之前记录日志，而不是在它失败之后
+- **包含上下文：** 目录、当前工作目录、环境变量、时间戳
+- **捕获堆栈：** `new Error().stack` 显示完整调用链
+
+**绝不要在错误出现的地方修复。** 向后追踪以找到原始触发点。
 
 ---
 
-## Decision Tree (Quick Reference)
+## 决策树（快速参考）
 
 ```
-Bug / unexpected behavior
+Bug / 意外行为或任务
     │
-    ├─ Phase 0: Root Cause Investigation (7 steps)
-    │     ├─ Errors read? Reproduced? Changes checked?
-    │     ├─ Evidence gathered? Data traced?
-    │     ├─ Pattern analyzed? Hypothesis tested?
-    │     │
-    │     └─ Root cause confirmed? ──── Yes ──→ Phase 1 → Phase 2A → Phase 3
-    │                                    No
-    │                                    │
-    │                                    └─ Exhausted all techniques?
-    │                                          │
-    │                                          ├─ No ──→ Return to Phase 0
-    │                                          │
-    │                                          └─ Yes ──→ Phase 1 → Phase 2B → Phase 3
+    ├─ [进度] 创建 docs/root-cause-resolution/progress-YYYY-MM-DD-HHmmss.md — 列出所有事项
     │
-    ├─ Phase 3 → Fixed? (trigger detected)
+    ├─ Phase 0：根因调查（第 0 步 + 7 步）
+    │     ├─ 进度文件已创建？事项已列出？
+    │     ├─ 错误已阅读？可复现？变更已检查？
+    │     ├─ 证据已收集？数据已追踪？
+    │     ├─ 模式已分析？假设已测试？
     │     │
-    │     ├─ Yes ──→ Phase 4 (per-problem sub-agents)
-    │     │             ├─ Step 1: Root cause verification
-    │     │             ├─ Step 2: Dead code removal
-    │     │             └─ Step 3: Final validation
+    │     ├─ [进度] 用调查发现更新文件
+    │     ├─ 🤷 不知道？没头绪？──→ [外部调研] 搜索网络/查阅文档
     │     │
-    │     └─ No ──→ Iterate (max 3 cycles)
+    │     └─ 根因已确认？ ──── 是 ──→ Phase 1 → Phase 2A → Phase 3
+    │                             否
+    │                             │
+    │                             └─ 已穷尽所有技术？
+    │                                   │
+    │                                   ├─ 否 ──→ 返回 Phase 0
+    │                                   │
+    │                                   └─ 是 ──→ Phase 1 → Phase 2B → Phase 3
+    │
+    ├─ [任何阶段] 用户提出新任务？ ──→ 立即追加到进度文件
+    │
+    ├─ Phase 2A → 修复无效？
+    │     ├─ 第 1 次失败 ──→ 返回 Phase 0 或 [外部调研]
+    │     ├─ 第 2 次失败 ──→ 返回 Phase 0 或 [外部调研]
+    │     └─ 第 3 次以上失败 ──→ [外部调研] + 质疑架构
+    │
+    ├─ Phase 2B → 无候选方案？🤷 完全没头绪？
+    │     └─ [外部调研] 搜索网络/查阅文档
+    │
+    ├─ Phase 3 → 已修复？（检测到触发）
+    │     │
+    │     ├─ [进度] 在进度文件中标记事项为已完成
+    │     ├─ [进度关卡] 检查未确认事项
+    │     │     ├─ 全部已完成 ──→ 进入 Phase 4
+    │     │     └─ 有未确认事项 ──→ 询问用户 → 更新文件 → 继续
+    │     │
+    │     ├─ Phase 4（逐问题子代理）
+    │     │     ├─ [关卡] 重新读取进度文件，验证全部已完成
+    │     │     ├─ 第 1 步：根因验证
+    │     │     ├─ 第 2 步：死代码清理
+    │     │     └─ 第 3 步：最终验证
+    │     │
+    │     └─ 否 ──→ 迭代（最多 3 轮）
     │                  │
-    │                  └─ 3+ failures ──→ Question architecture
+    │                  ├─ 仍然卡住？ ──→ [外部调研]
+    │                  └─ 3 次以上失败 ──→ [外部调研] + 质疑架构
     │
-    └─ Phase 2A/B → Regression? ──→ Revert/adjust fix
+    └─ Phase 2A/B → 出现回归？ ──→ 回滚/调整修复
 ```
 
 ---
 
-## Red Flags
+## 红旗警示
 
-Stop and re-evaluate if you find yourself:
+如果发现自己出现以下情况，请停下来重新评估：
 
-- **"Quick fix for now, investigate later"** — First fix sets the pattern. Do it right from the start.
-- **"Just try changing X and see if it works"** — Guessing, not engineering. Return to Phase 0.
-- **"I don't fully understand but this might work"** — STOP. Understand before fixing.
-- **Adding multiple changes at once** — Can't isolate what worked. One variable at a time.
-- **Skipping verification logging** — You're blind without evidence.
-- **Skipping the failing test first** — Untested fixes don't stick. Write the test first.
-- **Proposing solutions before tracing data flow** — You don't know the root cause.
-- **"One more fix attempt" (after 2+ failures)** — 3+ failures = architectural problem.
-- **Each fix reveals a new problem in a different place** — Pattern indicating systemic issue.
-- **Adding preventive measures without exhausting root cause investigation** — Return to Phase 0.
-- **Iterating past 3 cycles on the same issue without escalation** — Escalate to user.
-- **Using `Glob`/`Grep`/`SearchCodebase` to read `.gitignore`-protected log directories** — Use `LS` + `Read`.
-- **Concluding "no logs exist" after using the wrong tool** — Verify with `LS` first.
-- **User confirms "问题已解决" but you do NOT proceed to Phase 4** — Trigger detection is mandatory.
-- **Skipping the re-check cycle after main agent implementation** — The loop is mandatory.
-- **Sub-agent modifying code** — Always use `subagent_type: "search"`, read-only. Correct the behavior immediately; do NOT return to Phase 0 for this.
+- **"先快速修复，以后再调查"** — 第一次修复就设定了模式。从一开始就做对。
+- **"试试改 X 看看能不能行"** — 猜测，不是工程。返回 Phase 0。
+- **"我没完全理解，但可能有效"** — 停止。理解清楚再修复。
+- **一次性做多处改动** — 无法隔离哪个改动有效。一次只改一个变量。
+- **跳过验证日志** — 没有证据就是盲人摸象。
+- **跳过先写失败测试** — 未经测试的修复无法持久。先写测试。
+- **在追踪数据流之前就提出方案** — 你不知道根因。
+- **"再试一次修复"（2 次以上失败后）** — 3 次以上失败 = 架构问题。
+- **每次修复都在不同地方暴露出新问题** — 表明系统性问题的模式。
+- **未穷尽根因调查就添加预防性措施** — 返回 Phase 0。
+- **同一问题迭代超过 3 轮而未升级** — 向用户升级。
+- **使用 `Glob`/`Grep`/`SearchCodebase` 读取 `.gitignore` 保护的日志目录** — 使用 `LS` + `Read`。
+- **用错工具后得出"没有日志"的结论** — 先用 `LS` 验证。
+- **用户确认"问题已解决"但你未进入 Phase 4** — 触发检测是强制性的。
+- **跳过创建进度文件** — 始终在 Phase 0 前于 `docs/root-cause-resolution/` 目录下创建进度文件，即使是"简单"问题。
+- **重要事件后忘记更新进度文件** — 找到了根因？用户提出了新任务？尝试了修复？更新文件。
+- **未通过进度关卡就进入 Phase 4** — 必须先检查未确认的事项。
+- **解决过程中用户提出新任务但未记录** — 立即追加，没有例外。
+- **跳过主代理实施后的重新检查循环** — 循环是强制性的。
+- **子代理修改代码** — 始终使用 `subagent_type: "search"`，只读。立即纠正行为；不要为此返回 Phase 0。
+- **声称进度文件"已是最新"而不读取确认** — 读取实际文件来验证，不要依赖记忆。
+- **没有头绪时硬试而非触发外部调研** — 不知道就是不知道，搜索和学习是调试的一部分。
+- **多次修复失败后仍不寻求外部信息** — 第 3 次失败时必须触发外部调研，不要闭门造车。
 
-**Any of the above (except the last) means: STOP. Return to Phase 0.**
-
----
-
-## Common Rationalizations
-
-| Excuse | Reality |
-|--------|---------|
-| "Issue is simple, don't need process" | Simple issues have root causes too. Process is fast for simple bugs. |
-| "Emergency, no time for process" | Systematic debugging is FASTER than guess-and-check thrashing. |
-| "Just try this first, then investigate" | First fix sets the pattern. Do it right from the start. |
-| "I'll write test after confirming fix works" | Untested fixes don't stick. Test first proves it. |
-| "Multiple fixes at once saves time" | Can't isolate what worked. Causes new bugs. |
-| "I see the problem, let me fix it" | Seeing symptoms ≠ understanding root cause. |
-| "One more fix attempt" (after 2+ failures) | 3+ failures = architectural problem. Question pattern, don't fix again. |
-| "No logs exist" (without checking with `LS` + `Read`) | Verify with `LS` first, then `Read` with absolute path before drawing conclusions. |
-| "Sub-agent modifying code is faster" | Sub-agents produce reports. Main agent implements. No exceptions. |
+**以上任何情况（最后一条除外）意味着：停止。返回 Phase 0。**
 
 ---
 
-## Quick Reference
+## 常见合理化辩解
 
-| Phase | Key Activities | Success Criteria |
-|-------|---------------|------------------|
-| **0. Investigation** | Read errors, reproduce, check changes, gather evidence, trace data, pattern analysis, hypothesis testing | Understand WHAT and WHY |
-| **1. Path** | Determine if root cause is known or not | Clear path chosen (A or B) |
-| **2A. Direct Fix** | Failing test, design fix, check siblings, add logging | Fix addresses root cause |
-| **2B. Preventive** | Design solutions, present options, external research | Solution chosen and implemented |
-| **3. Verification** | Logging, user testing, log analysis | Problem confirmed resolved |
-| **4. Cleanup** | Root cause verification, dead code removal, final validation | Clean, verified, complete |
+| 辩解 | 现实 |
+|------|------|
+| "问题很简单，不需要流程" | 简单问题也有根因。流程对简单 Bug 来说很快。 |
+| "紧急情况，没时间走流程" | 系统化调试比胡乱猜测更快。 |
+| "先试试这个，之后再调查" | 第一次修复就设定了模式。从一开始就做对。 |
+| "确认修复有效后再写测试" | 未经测试的修复无法持久。先写测试才能证明。 |
+| "一次改多处更省时间" | 无法隔离哪个有效。还会引入新 Bug。 |
+| "我看到问题了，让我修" | 看到症状 ≠ 理解根因。 |
+| "再试一次修复"（2 次以上失败后） | 3 次以上失败 = 架构问题。质疑模式，不要继续修。 |
+| "没有日志"（未用 `LS` + `Read` 检查） | 先用 `LS` 验证，再用 `Read` 绝对路径读取，然后再下结论。 |
+| "子代理改代码更快" | 子代理生成报告。主代理实施。没有例外。 |
+| "问题很简单，不需要进度文件" | 简单问题也可能产生子任务。文件只需几秒钟，但能防止遗忘。 |
+| "我稍后再更新进度文件" | "稍后"意味着永远。每次重要事件后立即更新。 |
+| "我记得用户问的，不需要写下来" | 记忆不可靠。立即将每个任务写入进度文件。 |
+| "所有事项都做完了，不需要检查进度文件" | 读取文件来确认。视觉验证能发现被遗忘的事项。 |
+| "新任务很小，我直接处理不记录了" | 每个任务都必须写入进度文件。大小不重要。 |
+| "进度关卡只是形式，我知道什么做完了" | 关卡存在正是因为记忆不可靠。读取文件。询问用户。 |
+| "我再试一次，不需要查资料" | 多次失败后仍不查资料 = 做无用功。外部调研能打破僵局。 |
+| "这个问题太特殊，网上肯定没有答案" | 不要替互联网做判断。先搜索再说。大概率有人遇到过类似问题。 |
+| "我知道怎么做，只是需要多试几次" | 如果已经试了 2 次还没成，说明你的知识可能有盲区。去调研。 |
+| "外部调研太花时间，不如直接试" | 有目标地调研 10 分钟，可能节省几小时的盲目尝试。 |
 
 ---
 
-## Related Skills
+## 速查表
 
-- **`verification-before-completion`** — Verify fixes before claiming success.
-- **`test-driven-development`** — Create failing tests before fixing.
-- **`using-superpowers`** — Entry point for skill system.
+| 阶段 | 关键活动 | 成功标准 |
+|------|---------|---------|
+| **进度** | 于 `docs/root-cause-resolution/` 创建进度文件（含时间戳），列出所有事项，每次事件后更新，追加新任务 | 所有事项已追踪且状态准确 |
+| **0. 调查** | 创建进度文件，阅读错误，稳定复现，检查变更，收集证据，追踪数据，模式分析，假设验证 | 理解是什么和为什么 |
+| **1. 路径** | 确定根因是否已知 | 明确选择了路径 A 或 B |
+| **2A. 直接修复** | 失败测试，设计方案，检查同类，添加日志 | 修复针对根因 |
+| **2B. 预防性** | 设计方案，展示选项，遇到知识盲区/多次失败时触发外部调研 | 方案已确定并实施 |
+| **3. 验证** | 日志，用户测试，日志分析 | 问题已确认解决 |
+| **关卡 → 4** | 标记事项已完成，检查未确认事项，询问用户，同步进度文件 | 所有事项清理前已确认 |
+| **4. 清理** | 验证进度文件（全部已完成），根因验证，死代码清理，最终验证 | 干净、已验证、已完成 |
+
+---
+
+## 相关技能
+
+- **`verification-before-completion`** — 在宣布成功前验证修复。
+- **`test-driven-development`** — 在修复前创建失败测试。
+- **`using-superpowers`** — 技能系统入口。
