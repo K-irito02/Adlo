@@ -595,6 +595,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(windows)]
     fn lsp_command_must_be_resolvable() {
         let result = resolve_lsp_command("cmd.exe", &[]);
         assert!(result.is_ok(), "system command should be resolvable");

@@ -428,7 +428,7 @@ mod tests {
 
     #[test]
     fn rejects_shell_injection_characters() {
-        let dangerous_chars = [';', '|', '&', '$', '`', '<', '>', '\n'];
+        let dangerous_chars = [';', '|', '&', '$', '`', '<', '>', '\n', '\r', '#'];
         for ch in dangerous_chars {
             let args = [format!("arg1{ch}evil"), "arg2".to_string()];
             let arg_str = args.join(" ");

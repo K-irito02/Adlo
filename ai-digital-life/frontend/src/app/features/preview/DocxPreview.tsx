@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import DOMPurify from 'dompurify';
 
@@ -39,6 +39,8 @@ export function DocxPreview({ data, theme = 'dark' }: DocxPreviewProps) {
     };
   }, [data]);
 
+  const sanitizedHtml = useMemo(() => DOMPurify.sanitize(html), [html]);
+
   if (error) {
     return (
       <div className={`adl-docx-preview adl-docx-preview--${theme} adl-docx-preview--error`}>
@@ -50,7 +52,7 @@ export function DocxPreview({ data, theme = 'dark' }: DocxPreviewProps) {
   return (
     <div
       className={`adl-docx-preview adl-docx-preview--${theme}`}
-      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
+      dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
     />
   );
 }

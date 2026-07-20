@@ -329,7 +329,7 @@ mod list_entities_with_limit_tests {
         let db = open_test_db("adl-list-limit");
         // Insert 10 audit entries with strictly increasing updated_at.
         // ts = 1000 + i ensures each row has a unique, increasing updated_at
-        // so ORDER BY updated_at DESC deterministically returns the latest 5.
+        // so ORDER BY json_extract(json, '$.createdAt') DESC deterministically returns the latest 5.
         for i in 0..10 {
             save_audit_at(&db, &format!("audit-limit-{i}"), 1000 + i);
         }
@@ -337,7 +337,7 @@ mod list_entities_with_limit_tests {
         let result: Vec<AuditEntry> =
             db.list_entities_with_limit(EntityTable::AuditRecords, 5).unwrap();
         assert_eq!(result.len(), 5, "should return only 5 entries");
-        // ORDER BY updated_at DESC returns the most recent 5 first.
+        // ORDER BY json_extract(json, '$.createdAt') DESC returns the most recent 5 first.
         // Since updated_at = 1000 + i, the most recent 5 are i=9, 8, 7, 6, 5.
         let ids: std::collections::HashSet<String> = result.iter().map(|e| e.id.clone()).collect();
         for i in 5..10 {
