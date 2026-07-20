@@ -33,10 +33,7 @@ pub async fn command_list_recent(
     let db = state.db.clone();
     let limit_val = limit.unwrap_or(20);
     let requests = tokio::task::spawn_blocking(move || -> Result<Vec<CommandRequest>, AppError> {
-        let mut requests: Vec<CommandRequest> = db.list_entities(EntityTable::CommandRequests)?;
-        requests.sort_by_key(|request| std::cmp::Reverse(request.created_at));
-        requests.truncate(limit_val);
-        Ok(requests)
+        db.list_entities_with_limit(EntityTable::CommandRequests, limit_val)
     })
     .await
     .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
@@ -73,7 +70,7 @@ async fn command_run_inner(
                 )?;
                 let (task, approval) =
                     approval_for_command_with_db(&db, &workspace_id, &request_clone)?;
-                let _ = crate::commands::audit::save_audit_entry_with_db(
+                if let Err(e) = crate::commands::audit::save_audit_entry_with_db(
                     &db,
                     &workspace_id,
                     Some("command"),
@@ -82,7 +79,9 @@ async fn command_run_inner(
                     audit_summary,
                     None,
                     Some(&format!("taskId={}", task.id)),
-                );
+                ) {
+                    tracing::warn!(error = %e, "failed to save audit entry for command approval");
+                }
                 Ok((task, approval))
             },
         )
@@ -138,7 +137,7 @@ async fn command_run_inner(
                 Some(if result_clone.success { "completed" } else { "failed" }),
                 &result_clone,
             )?;
-            let _ = crate::commands::audit::save_audit_entry_with_db(
+            if let Err(e) = crate::commands::audit::save_audit_entry_with_db(
                 &db,
                 &workspace_id,
                 Some("command"),
@@ -151,7 +150,9 @@ async fn command_run_inner(
                     request_clone.command,
                     request_clone.args.join(" ")
                 )),
-            );
+            ) {
+                tracing::warn!(error = %e, "failed to save audit entry for command execution");
+            }
             Ok(())
         })
         .await
