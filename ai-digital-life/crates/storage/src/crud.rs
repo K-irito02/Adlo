@@ -1,74 +1,10 @@
 use adl_errors::AppError;
-use adl_types::{ConversationSessionRecord, now_ms};
-use rusqlite::{OptionalExtension, params};
-use serde::{Serialize, de::DeserializeOwned};
+use rusqlite::params;
 
 use crate::connection::Database;
-use crate::entity_table::{
-    EntityTable, get_delete_by_id_sql, get_insert_sql, get_select_all_sql, get_select_by_id_sql,
-};
+use crate::entity_table::EntityTable;
 
 impl Database {
-    pub fn save_entity<T: Serialize>(
-        &self,
-        table: EntityTable,
-        id: &str,
-        workspace_id: Option<&str>,
-        session_id: Option<&str>,
-        status: Option<&str>,
-        value: &T,
-    ) -> Result<(), AppError> {
-        let conn = self.conn()?;
-        self.save_entity_on_conn(&conn, table, id, workspace_id, session_id, status, value)
-    }
-
-    pub fn save_entity_on_conn<T: Serialize>(
-        &self,
-        conn: &rusqlite::Connection,
-        table: EntityTable,
-        id: &str,
-        workspace_id: Option<&str>,
-        session_id: Option<&str>,
-        status: Option<&str>,
-        value: &T,
-    ) -> Result<(), AppError> {
-        let json = serde_json::to_string(value)?;
-        let sql = get_insert_sql(table);
-        conn.execute(sql, params![id, workspace_id, session_id, status, now_ms(), json])
-            .map_err(|e| AppError::Storage(e.to_string()))?;
-        Ok(())
-    }
-
-    /// Bulk-saves a slice of `ConversationSessionRecord` using a single
-    /// borrowed connection (typically inside a `transaction` closure).
-    ///
-    /// Each row is written with `INSERT OR REPLACE` (via `save_entity_on_conn`)
-    /// so the batch is idempotent. The caller is responsible for wrapping the
-    /// call in `state.db.transaction(|conn| ...)` to guarantee atomicity.
-    ///
-    /// Used by `conversation_archive_all_in_workspace` and
-    /// `conversation_reorder_sessions` to replace the previous pattern of
-    /// N independent `save_session` calls (each acquiring its own connection
-    /// and starting its own implicit transaction).
-    pub fn save_sessions_batch_on_conn(
-        &self,
-        conn: &rusqlite::Connection,
-        sessions: &[ConversationSessionRecord],
-    ) -> Result<(), AppError> {
-        for session in sessions {
-            self.save_entity_on_conn(
-                conn,
-                EntityTable::Sessions,
-                &session.id,
-                Some(&session.workspace_id),
-                Some(&session.id),
-                Some(&session.status),
-                session,
-            )?;
-        }
-        Ok(())
-    }
-
     /// Save multiple audit entries using a borrowed connection (for use inside a
     /// `Database::transaction` closure).
     ///
@@ -93,7 +29,7 @@ impl Database {
             let id = adl_types::create_id("audit");
             let entry = adl_types::AuditEntry {
                 id,
-                timestamp: now_ms(),
+                timestamp: adl_types::now_ms(),
                 operation_type: e.operation_type.clone(),
                 summary: e.summary.clone(),
                 risk_level: e.risk_level,
@@ -112,124 +48,6 @@ impl Database {
             saved.push(entry);
         }
         Ok(saved)
-    }
-
-    pub fn load_entity<T: DeserializeOwned>(
-        &self,
-        table: EntityTable,
-        id: &str,
-    ) -> Result<Option<T>, AppError> {
-        let sql = get_select_by_id_sql(table);
-        let json: Option<String> = self
-            .conn()?
-            .query_row(sql, params![id], |row| row.get(0))
-            .optional()
-            .map_err(|e| AppError::Storage(e.to_string()))?;
-        json.map(|value| serde_json::from_str(&value).map_err(AppError::from)).transpose()
-    }
-
-    pub fn list_entities<T: DeserializeOwned>(
-        &self,
-        table: EntityTable,
-    ) -> Result<Vec<T>, AppError> {
-        self.list_entities_filtered(table, None, None)
-    }
-
-    /// List entities with a SQL-level LIMIT, ordered by updated_at DESC.
-    /// Useful for tables that grow unboundedly (e.g., audit records).
-    /// Subject to the 1000-row safety cap inherited from `list_entities_filtered`.
-    pub fn list_entities_with_limit<T: DeserializeOwned>(
-        &self,
-        table: EntityTable,
-        limit: usize,
-    ) -> Result<Vec<T>, AppError> {
-        self.list_entities_filtered(table, None, Some(limit))
-    }
-
-    pub fn list_entities_by_workspace<T: DeserializeOwned>(
-        &self,
-        table: EntityTable,
-        workspace_id: &str,
-    ) -> Result<Vec<T>, AppError> {
-        self.list_entities_filtered(table, Some(("workspace_id", workspace_id)), None)
-    }
-
-    pub fn list_entities_by_session<T: DeserializeOwned>(
-        &self,
-        table: EntityTable,
-        session_id: &str,
-    ) -> Result<Vec<T>, AppError> {
-        self.list_entities_filtered(table, Some(("session_id", session_id)), None)
-    }
-
-    /// List entities by session_id, ordered by `json_extract(json, '$.createdAt') ASC`.
-    ///
-    /// Use this for message lists that need chronological ordering. This pushes
-    /// the sort to the SQL layer, eliminating the need for an in-memory
-    /// `sort_by_key` in the caller.
-    ///
-    /// Note: this relies on the entity's JSON payload having a `createdAt` field
-    /// (camelCase, matching the `#[serde(rename_all = "camelCase")]` convention
-    /// used by `ConversationMessageRecord` and similar types).
-    pub fn list_entities_by_session_ordered<T: DeserializeOwned>(
-        &self,
-        table: EntityTable,
-        session_id: &str,
-    ) -> Result<Vec<T>, AppError> {
-        let base_sql = get_select_all_sql(table);
-        let sql = format!(
-            "{base_sql} WHERE session_id = ?1 ORDER BY json_extract(json, '$.createdAt') ASC"
-        );
-
-        let conn = self.conn()?;
-        let mut stmt = conn.prepare(&sql).map_err(|e| AppError::Storage(e.to_string()))?;
-        let rows = stmt
-            .query_map([session_id], |row| row.get::<_, String>(0))
-            .map_err(|e| AppError::Storage(e.to_string()))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| AppError::Storage(e.to_string()))?;
-        rows.into_iter().map(|json| serde_json::from_str(&json).map_err(AppError::from)).collect()
-    }
-
-    pub fn list_entities_by_status<T: DeserializeOwned>(
-        &self,
-        table: EntityTable,
-        status: &str,
-    ) -> Result<Vec<T>, AppError> {
-        self.list_entities_filtered(table, Some(("status", status)), None)
-    }
-
-    /// Lists entities whose JSON payload contains `"runId": <run_id>`.
-    ///
-    /// Used by `load_run_detail` to fetch `AgentPlanStep` rows for a single
-    /// run without scanning the whole `agent_steps` table. The `runId` field
-    /// is the camelCase serialization of `AgentPlanStep.run_id` (serde
-    /// `rename_all = "camelCase"`).
-    ///
-    /// Order is `updated_at ASC` so callers see steps in chronological order
-    /// (matches the previous `steps.sort_by_key(|s| s.created_at)` behavior;
-    /// `updated_at` ASC is a close proxy and avoids an extra in-memory sort).
-    ///
-    /// Other entities that happen to carry a `runId` field (e.g.
-    /// `RunActivityEvents` serialized form) can also be queried this way.
-    pub fn list_entities_by_run<T: DeserializeOwned>(
-        &self,
-        table: EntityTable,
-        run_id: &str,
-    ) -> Result<Vec<T>, AppError> {
-        let sql = format!(
-            "SELECT json FROM {} WHERE json_extract(json, '$.runId') = ?1 \
-             ORDER BY updated_at ASC",
-            table.table_name()
-        );
-        let conn = self.conn()?;
-        let mut stmt = conn.prepare(&sql).map_err(|e| AppError::Storage(e.to_string()))?;
-        let rows: Vec<String> = stmt
-            .query_map(params![run_id], |row| row.get::<_, String>(0))
-            .map_err(|e| AppError::Storage(e.to_string()))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| AppError::Storage(e.to_string()))?;
-        rows.into_iter().map(|json| serde_json::from_str(&json).map_err(AppError::from)).collect()
     }
 
     /// Counts consecutive failed runs for a session, scanning the most recent
@@ -258,78 +76,6 @@ impl Database {
         let failed = "failed";
         let count = statuses.iter().take_while(|s| s.as_str() == failed).count() as u32;
         Ok(count)
-    }
-
-    fn list_entities_filtered<T: DeserializeOwned>(
-        &self,
-        table: EntityTable,
-        filter: Option<(&'static str, &str)>,
-        limit: Option<usize>,
-    ) -> Result<Vec<T>, AppError> {
-        let base_sql = get_select_all_sql(table);
-        let mut sql = base_sql.to_string();
-        if let Some((field, _)) = filter {
-            sql.push_str(" WHERE ");
-            sql.push_str(field);
-            sql.push_str(" = ?1");
-        }
-        sql.push_str(" ORDER BY updated_at DESC");
-        if let Some(limit) = limit {
-            if limit > 1000 {
-                return Err(AppError::InvalidInput(format!(
-                    "query limit {limit} exceeds safety cap"
-                )));
-            }
-            sql.push_str(&format!(" LIMIT {limit}"));
-        }
-
-        let conn = self.conn()?;
-        let mut stmt = conn.prepare(&sql).map_err(|e| AppError::Storage(e.to_string()))?;
-        let rows = if let Some((_, value)) = filter {
-            stmt.query_map(params![value], |row| row.get::<_, String>(0))
-                .map_err(|e| AppError::Storage(e.to_string()))?
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| AppError::Storage(e.to_string()))?
-        } else {
-            stmt.query_map([], |row| row.get::<_, String>(0))
-                .map_err(|e| AppError::Storage(e.to_string()))?
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| AppError::Storage(e.to_string()))?
-        };
-        rows.into_iter().map(|json| serde_json::from_str(&json).map_err(AppError::from)).collect()
-    }
-
-    pub fn delete_entity(&self, table: EntityTable, id: &str) -> Result<bool, AppError> {
-        let sql = get_delete_by_id_sql(table);
-        let changed =
-            self.conn()?.execute(sql, params![id]).map_err(|e| AppError::Storage(e.to_string()))?;
-        Ok(changed > 0)
-    }
-
-    pub fn delete_entities_by_session(
-        &self,
-        table: EntityTable,
-        session_id: &str,
-    ) -> Result<usize, AppError> {
-        let sql = format!("DELETE FROM {} WHERE session_id = ?1", table.table_name());
-        let changed = self
-            .conn()?
-            .execute(&sql, params![session_id])
-            .map_err(|e| AppError::Storage(e.to_string()))?;
-        Ok(changed)
-    }
-
-    pub fn delete_entities_by_workspace(
-        &self,
-        table: EntityTable,
-        workspace_id: &str,
-    ) -> Result<usize, AppError> {
-        let sql = format!("DELETE FROM {} WHERE workspace_id = ?1", table.table_name());
-        let changed = self
-            .conn()?
-            .execute(&sql, params![workspace_id])
-            .map_err(|e| AppError::Storage(e.to_string()))?;
-        Ok(changed)
     }
 }
 

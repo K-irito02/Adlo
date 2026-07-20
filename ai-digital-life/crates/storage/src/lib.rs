@@ -1,10 +1,13 @@
 mod connection;
 mod crud;
 pub mod durable;
+mod entity_crud;
 mod entity_table;
 mod purge;
 pub mod repository;
 mod session;
+mod session_crud;
+mod task_crud;
 
 pub use connection::Database;
 pub use entity_table::EntityTable;
