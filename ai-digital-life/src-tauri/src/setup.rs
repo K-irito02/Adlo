@@ -8,6 +8,11 @@ use adl_model_gateway::providers::google::GoogleProvider;
 use adl_model_gateway::providers::ollama::OllamaProvider;
 use adl_model_gateway::providers::openai::OpenAIProvider;
 use adl_model_gateway::providers::openrouter::OpenRouterProvider;
+use adl_model_gateway::providers::anthropic::DEFAULT_BASE_URL as ANTHROPIC_BASE_URL;
+use adl_model_gateway::providers::google::DEFAULT_BASE_URL as GOOGLE_BASE_URL;
+use adl_model_gateway::providers::ollama::DEFAULT_BASE_URL as OLLAMA_BASE_URL;
+use adl_model_gateway::providers::openai::DEFAULT_BASE_URL as OPENAI_BASE_URL;
+use adl_model_gateway::providers::openrouter::DEFAULT_BASE_URL as OPENROUTER_BASE_URL;
 use adl_model_gateway::registry::{
     ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry,
 };
@@ -47,7 +52,7 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             name: "OpenAI".into(),
             description: "OpenAI GPT series models".into(),
             api_type: ApiType::OpenAICompatible,
-            default_base_url: Some("https://api.openai.com/v1".into()),
+            default_base_url: Some(OPENAI_BASE_URL.into()),
             auth_type: AuthType::ApiKey,
             models: ModelSource::Static(
                 OpenAIProvider::with_client(shared_client.clone()).supported_models(),
@@ -64,7 +69,7 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             name: "Anthropic".into(),
             description: "Anthropic Claude series models".into(),
             api_type: ApiType::AnthropicNative,
-            default_base_url: Some("https://api.anthropic.com".into()),
+            default_base_url: Some(ANTHROPIC_BASE_URL.into()),
             auth_type: AuthType::ApiKey,
             models: ModelSource::Static(
                 AnthropicProvider::with_client(shared_client.clone()).supported_models(),
@@ -81,7 +86,7 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             name: "Google Gemini".into(),
             description: "Google Gemini models".into(),
             api_type: ApiType::GoogleNative,
-            default_base_url: Some("https://generativelanguage.googleapis.com".into()),
+            default_base_url: Some(GOOGLE_BASE_URL.into()),
             auth_type: AuthType::ApiKey,
             models: ModelSource::Static(
                 GoogleProvider::with_client(shared_client.clone()).supported_models(),
@@ -98,7 +103,7 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             name: "Ollama".into(),
             description: "Local Ollama models".into(),
             api_type: ApiType::Ollama,
-            default_base_url: Some("http://localhost:11434".into()),
+            default_base_url: Some(OLLAMA_BASE_URL.into()),
             auth_type: AuthType::None,
             models: ModelSource::Static(
                 OllamaProvider::with_client(shared_client.clone()).supported_models(),
@@ -115,7 +120,7 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             name: "OpenRouter".into(),
             description: "OpenRouter unified API".into(),
             api_type: ApiType::OpenAICompatible,
-            default_base_url: Some("https://openrouter.ai/api/v1".into()),
+            default_base_url: Some(OPENROUTER_BASE_URL.into()),
             auth_type: AuthType::ApiKey,
             models: ModelSource::Static(
                 OpenRouterProvider::with_client(shared_client.clone()).supported_models(),

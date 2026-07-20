@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
 
-const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
+pub const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 
 #[derive(Deserialize)]
 struct OpenAIModelItem {

@@ -8,7 +8,7 @@ use adl_types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use async_trait::async_trait;
 use reqwest::Client;
 
-const DEFAULT_BASE_URL: &str = "https://openrouter.ai/api/v1";
+pub const DEFAULT_BASE_URL: &str = "https://openrouter.ai/api/v1";
 
 pub struct OpenRouterProvider {
     pub client: Client,

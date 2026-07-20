@@ -7,7 +7,7 @@ use adl_types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use async_trait::async_trait;
 use reqwest::Client;
 
-const DEFAULT_BASE_URL: &str = "http://localhost:11434";
+pub const DEFAULT_BASE_URL: &str = "http://localhost:11434";
 
 pub struct OllamaProvider {
     pub client: Client,

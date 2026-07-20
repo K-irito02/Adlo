@@ -8,7 +8,7 @@ use adl_types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use async_trait::async_trait;
 use reqwest::Client;
 
-const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
+pub const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 
 pub struct GoogleProvider {
     pub client: Client,
