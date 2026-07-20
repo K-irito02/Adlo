@@ -881,7 +881,7 @@ Changed to use store selectors for better testability and abstraction."
 
 ## Spec 覆盖率检查
 
-本计划覆盖了我之前的系统性扫描报告(`docs/reports/refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-14-systematic.md`)中的以下发现：
+本计划覆盖了我之前的系统性扫描报告(`docs/refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-14-systematic.md`)中的以下发现：
 
 | 报告中的 Risk | 报告中的 Finding | 计划中的 Task |
 |---------------|-----------------|---------------|

@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 19 + TypeScript + Zustand + CSS; Rust + tokio
 
-**Source Report:** `docs/reports/refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-03.md` (34 项发现)
+**Source Report:** `docs/refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-03.md` (34 项发现)
 
 ## Global Constraints
 
@@ -640,12 +640,12 @@ Expected: all clean.
 
 - [ ] **Step 3: 更新进度报告**
 
-在 `docs/reports/refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md` 中追加本轮记录。
+在 `docs/refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md` 中追加本轮记录。
 
 - [ ] **Step 4: Final commit**
 
 ```bash
-git add docs/reports/refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md
+git add docs/refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md
 git commit -m "docs: update refactoring progress for Round 93"
 ```
 

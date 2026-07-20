@@ -102,7 +102,7 @@
 
 ## 说明
 
-各轮重构的详细信息请参考对应的重构洞察报告文件，位于 `docs/reports/refactoring-insight/report/` 目录下。
+各轮重构的详细信息请参考对应的重构洞察报告文件，位于 `docs/refactoring-insight/report/` 目录下。
 
 ## 2026-06-11 重构洞察修复计划第 43-55 轮
 
