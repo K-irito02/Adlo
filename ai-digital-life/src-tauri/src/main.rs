@@ -81,29 +81,20 @@ fn main() {
             tracing::info!(url = %payload.url(), "browser page finished loading");
             let app = webview.app_handle().clone();
             let wv_label = webview.label().to_string();
-            tokio::spawn(async move {
+            // Use std::thread instead of tokio::spawn because on_page_load runs
+            // outside the tokio runtime context. The thread exits within ~600ms
+            // (3 retries × 200ms sleep), so OS thread churn is negligible.
+            std::thread::spawn(move || {
                 for attempt in 1..=3 {
-                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-                    let app = app.clone();
-                    let wv_label = wv_label.clone();
-                    let result = tokio::task::spawn_blocking(move || {
-                        if let Some(wv) = app.get_webview(&wv_label) {
-                            wv.eval(BROWSER_TITLE_SCRIPT).ok()
-                        } else {
-                            None
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                    if let Some(wv) = app.get_webview(&wv_label) {
+                        match wv.eval(BROWSER_TITLE_SCRIPT) {
+                            Ok(()) => tracing::info!("browser on_page_load: eval ok"),
+                            Err(e) => tracing::error!("browser on_page_load: eval failed: {e}"),
                         }
-                    })
-                    .await
-                    .ok()
-                    .flatten();
-                    match result {
-                        Some(()) => {
-                            tracing::info!("browser on_page_load: eval ok");
-                            return;
-                        }
-                        None => {
-                            tracing::warn!("browser on_page_load: webview not found (attempt {}/3)", attempt);
-                        }
+                        return;
+                    } else {
+                        tracing::warn!("browser on_page_load: webview not found (attempt {}/3)", attempt);
                     }
                 }
             });
