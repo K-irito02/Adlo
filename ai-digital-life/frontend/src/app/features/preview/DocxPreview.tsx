@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
+import DOMPurify from 'dompurify';
 
 export interface DocxPreviewProps {
   data: ArrayBuffer;
@@ -49,7 +50,7 @@ export function DocxPreview({ data, theme = 'dark' }: DocxPreviewProps) {
   return (
     <div
       className={`adl-docx-preview adl-docx-preview--${theme}`}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }}
     />
   );
 }

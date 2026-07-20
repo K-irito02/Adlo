@@ -3,6 +3,7 @@ import { List, useListRef } from 'react-window';
 import { useAppStore } from '@stores/slicedStore';
 import type { CiJobSummary } from '@ai-digital-life/kernel';
 import { AnsiUp } from 'ansi_up';
+import DOMPurify from 'dompurify';
 import { useTCopy } from '@app/i18n/useTCopy';
 import { TooltipSimple } from '@components/Tooltip';
 import { IconChevronUp, IconChevronDown, IconArrowUp, IconSearch, IconCheck } from '@app/icons';
@@ -110,7 +111,9 @@ export function GitHubLogViewer({ snapshot, config, dirKey, initialJobId }: GitH
     } else if (hasWarning) {
       className += ' adl-logviewer__line--warning';
     }
-    return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+    return (
+      <span className={className} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />
+    );
   }, []);
 
   const Row = useCallback(
