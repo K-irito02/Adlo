@@ -21,17 +21,17 @@ export interface PermissionBridge {
   listPermissionRules(dataDir: string): Promise<IpcResult<PermissionRulesetConfig>>;
   addPermissionRule(
     dataDir: string,
-    rule: PermissionRule
+    rule: PermissionRule,
   ): Promise<IpcResult<PermissionRulesetConfig>>;
   deletePermissionRule(dataDir: string, index: number): Promise<IpcResult<PermissionRulesetConfig>>;
   setPermissionIncludeDefaults(
     dataDir: string,
-    include: boolean
+    include: boolean,
   ): Promise<IpcResult<PermissionRulesetConfig>>;
   evaluatePermission(
     dataDir: string,
     toolName: string,
     command: string,
-    args: string[]
+    args: string[],
   ): Promise<IpcResult<PermissionDecision>>;
 }

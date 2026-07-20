@@ -19,7 +19,7 @@ export function useRightPanelViewProps() {
       activeRightTool: state.activeRightTool,
       setActiveRightTool: state.setActiveRightTool,
       ciSnapshot: state.ciSnapshot,
-    }))
+    })),
   );
   const browserTabs = useAppStore(useShallow((state) => state.browserTabs));
   const terminalTabs = useAppStore(useShallow((state) => state.terminalTabs));
@@ -67,7 +67,7 @@ export function useRightPanelViewProps() {
       terminalTabs.length,
       auditEntries.length,
       communicateBadge,
-    ]
+    ],
   );
 
   return {

@@ -146,10 +146,10 @@ function normalizeMetaUrl(url: string): string {
 export function useBrowserPageMeta(
   pendingNavigationsRef: React.MutableRefObject<Set<string>>,
   _setToastMessage?: React.Dispatch<
-    React.SetStateAction<Array<{ id: string; message: string; type?: ToastType; source?: string }>>
+    React.SetStateAction<{ id: string; message: string; type?: ToastType; source?: string }[]>
   >,
   _showToast?: (message: string, type?: ToastType, source?: string) => void,
-  markUrlSeen?: (url: string) => void
+  markUrlSeen?: (url: string) => void,
 ) {
   /**
    * Tracks URLs that have been recently processed by handlePageMeta.
@@ -198,10 +198,10 @@ export function useBrowserPageMeta(
 
       const normalizedMetaUrl = normalizeUrlForDedup(cleanUrl);
       const exactMatch = state.browserTabs.find(
-        (t: BrowserTabState) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizedMetaUrl
+        (t: BrowserTabState) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizedMetaUrl,
       );
       const activeTab = state.browserTabs.find(
-        (t: BrowserTabState) => t.id === state.browserActiveTabId
+        (t: BrowserTabState) => t.id === state.browserActiveTabId,
       );
 
       if (!meta.title && !meta.favicon) {
@@ -274,7 +274,7 @@ export function useBrowserPageMeta(
       state.browserAddToHistory(cleanUrl, pageTitle);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: handler reads latest state via refs and useAppStore.getState(); adding deps would recreate the callback and break the subscription
-    []
+    [],
   );
 
   return { handlePageMeta };

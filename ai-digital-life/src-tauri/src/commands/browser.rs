@@ -12,7 +12,7 @@ use adl_browser::html_meta::{
     extract_favicon, extract_title, google_favicon_url, origin_favicon_fallback,
 };
 use adl_browser::webview_handle::{Bounds, EventBridgeRef};
-use adl_browser::{webview_label, PageMeta};
+use adl_browser::{PageMeta, webview_label};
 use adl_errors::AppError;
 use adl_types::IpcResult;
 use tauri::{Manager, State};

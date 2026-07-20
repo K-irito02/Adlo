@@ -98,7 +98,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
 
   const renderChildCount = useCallback(
     (childNode: BrowserTreeNode) => resolveChildCount(counts, childNode),
-    [counts]
+    [counts],
   );
 
   const renderChildMeta = useCallback(
@@ -185,7 +185,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
         </span>
       );
     },
-    [categoryType, callbacks, t]
+    [categoryType, callbacks, t],
   );
 
   const handleChildClick = useCallback(
@@ -193,7 +193,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
       onSelectTreePath(path);
       onTogglePath(path);
     },
-    [onSelectTreePath, onTogglePath]
+    [onSelectTreePath, onTogglePath],
   );
 
   const handleChildOpenFile = useCallback(
@@ -201,7 +201,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
       onSelectTreePath(path);
       onOpenFile(path);
     },
-    [onSelectTreePath, onOpenFile]
+    [onSelectTreePath, onOpenFile],
   );
 
   const renderBrowserIcon = useCallback((childNode: BrowserTreeNode) => {
@@ -249,7 +249,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
         categoryType,
         childNode.path,
         callbacks,
-        t
+        t,
       );
       return items.map((item) => ({
         id: item.id,
@@ -259,7 +259,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
         action: () => item.action(),
       }));
     },
-    [categoryType, callbacks, bookmarkedUrls, t]
+    [categoryType, callbacks, bookmarkedUrls, t],
   );
 
   const handleChildMenuClick = useCallback(
@@ -268,17 +268,17 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
       setChildMenuState(null);
       hideChildHint();
     },
-    [hideChildHint]
+    [hideChildHint],
   );
 
   const filteredNodes = useMemo(
     () =>
       filterTabIds
         ? node.children.filter(
-            (child) => child.kind === 'directory' || (child.tabId && filterTabIds.has(child.tabId))
+            (child) => child.kind === 'directory' || (child.tabId && filterTabIds.has(child.tabId)),
           )
         : node.children,
-    [node.children, filterTabIds]
+    [node.children, filterTabIds],
   );
 
   const fileTreeChildren =
@@ -321,7 +321,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
                 categoryType,
                 childMenuState.nodePath,
                 callbacks,
-                t
+                t,
               )
           ).map((item) => (
             <button
@@ -344,7 +344,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
             </button>
           ))}
         </div>,
-        document.body
+        document.body,
       )
     : null;
 

@@ -18,7 +18,7 @@ export function useRightPanelLayout(collapsed: boolean) {
       leftCollapsed: state.leftCollapsed,
       rightPanelWidth: state.rightPanelWidth,
       setRightPanelWidth: state.setRightPanelWidth,
-    }))
+    })),
   );
 
   const panelRef = useRef<HTMLElement | null>(null);
@@ -44,7 +44,7 @@ export function useRightPanelLayout(collapsed: boolean) {
       panel.classList.toggle('adl-rightpanel--overlay-active', overlayState.overlayActive);
       panel.classList.toggle('adl-rightpanel--overlay-expanded', overlayState.overlayExpanded);
     },
-    [collapsed]
+    [collapsed],
   );
 
   const readLayoutMetrics = useCallback((): RightPanelLayoutMetrics => {
@@ -78,7 +78,7 @@ export function useRightPanelLayout(collapsed: boolean) {
       }
       return 'docked';
     },
-    []
+    [],
   );
 
   const clampPanelWidthToShell = useCallback(
@@ -86,23 +86,23 @@ export function useRightPanelLayout(collapsed: boolean) {
       const { rightMaxWidth } = readLayoutMetrics();
       const maxWidth = Math.max(
         RIGHT_PANEL_WIDTH_MIN,
-        Math.min(RIGHT_PANEL_WIDTH_MAX, rightMaxWidth)
+        Math.min(RIGHT_PANEL_WIDTH_MAX, rightMaxWidth),
       );
       return Math.max(RIGHT_PANEL_WIDTH_MIN, Math.min(maxWidth, width));
     },
-    [readLayoutMetrics]
+    [readLayoutMetrics],
   );
 
   const applyPanelGeometry = useCallback(
     (
       width: number,
-      options?: { commitRestorable?: boolean; preserveFull?: boolean; updateState?: boolean }
+      options?: { commitRestorable?: boolean; preserveFull?: boolean; updateState?: boolean },
     ) => {
       const metrics = readLayoutMetrics();
       const targetWidth = options?.preserveFull ? metrics.rightMaxWidth : width;
       const nextWidth = Math.max(
         RIGHT_PANEL_WIDTH_MIN,
-        Math.min(Math.min(RIGHT_PANEL_WIDTH_MAX, metrics.rightMaxWidth), targetWidth)
+        Math.min(Math.min(RIGHT_PANEL_WIDTH_MAX, metrics.rightMaxWidth), targetWidth),
       );
       const previousMode = rightPanelModeRef.current;
       const nextMode = deriveRightPanelMode(nextWidth, metrics);
@@ -154,7 +154,7 @@ export function useRightPanelLayout(collapsed: boolean) {
 
       return { nextWidth, nextMode, effectiveAnchorWidth };
     },
-    [deriveRightPanelMode, readLayoutMetrics, syncOverlayClasses]
+    [deriveRightPanelMode, readLayoutMetrics, syncOverlayClasses],
   );
 
   const handleResizeStart = useCallback(
@@ -214,7 +214,7 @@ export function useRightPanelLayout(collapsed: boolean) {
       readLayoutMetrics,
       rightPanelWidth,
       setRightPanelWidth,
-    ]
+    ],
   );
 
   useEffect(() => {

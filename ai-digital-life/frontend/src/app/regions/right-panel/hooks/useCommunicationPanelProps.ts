@@ -25,17 +25,17 @@ export function useCommunicationPanelProps(): CommunicationPanelProps {
 
   const onSetActivePlatform = useCallback(
     (platform: PlatformId) => setActivePlatform(platform),
-    [setActivePlatform]
+    [setActivePlatform],
   );
 
   const onSetActiveGitHubSection = useCallback(
     (section: GitHubSection) => setActiveGitHubSection(section),
-    [setActiveGitHubSection]
+    [setActiveGitHubSection],
   );
 
   const onToggleNavigator = useCallback(
     () => toggleCommunicateNavigator(),
-    [toggleCommunicateNavigator]
+    [toggleCommunicateNavigator],
   );
 
   return {

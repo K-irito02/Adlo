@@ -234,7 +234,7 @@ export function LineChart({
       setChartPhase(phase);
       onPhaseChange?.(phase);
     },
-    [onPhaseChange]
+    [onPhaseChange],
   );
 
   const showLoadingLabel = Boolean(
@@ -242,7 +242,7 @@ export function LineChart({
     (chartPhase === 'loading' ||
       chartPhase === 'exiting' ||
       chartPhase === 'gridTweenReady' ||
-      chartPhase === 'revealingLoading')
+      chartPhase === 'revealingLoading'),
   );
 
   return (

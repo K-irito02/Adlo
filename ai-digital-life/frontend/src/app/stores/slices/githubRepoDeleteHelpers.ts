@@ -44,7 +44,7 @@ export interface FolderDeleteOutcome {
 export function computeFolderDeleteOutcome(
   folders: GitHubCiFolderState[],
   folderId: string,
-  activeCiWorkspaceId: string | null
+  activeCiWorkspaceId: string | null,
 ): FolderDeleteOutcome {
   const idsToDelete = collectDescendantFolderIds(folders, folderId);
   const affectedWorkspaceIds = collectAffectedWorkspaceIds(folders, idsToDelete);

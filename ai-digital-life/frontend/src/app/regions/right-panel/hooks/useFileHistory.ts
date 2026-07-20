@@ -9,7 +9,7 @@ export interface FileHistoryState {
 
 function useFileHistory(
   currentFilePath: string | undefined,
-  onOpenFile: (path: string) => void
+  onOpenFile: (path: string) => void,
 ): FileHistoryState {
   const [fileHistory, setFileHistory] = useState<string[]>([]);
   const [fileHistoryIndex, setFileHistoryIndex] = useState(-1);
@@ -48,7 +48,7 @@ function useFileHistory(
       setFileHistoryIndex(nextIndex);
       onOpenFile(nextPath);
     },
-    [fileHistory, fileHistoryIndex, onOpenFile]
+    [fileHistory, fileHistoryIndex, onOpenFile],
   );
 
   return {

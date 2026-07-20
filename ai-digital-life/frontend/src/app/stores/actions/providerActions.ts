@@ -4,7 +4,7 @@ import { clearError, captureError } from '../shared';
 
 export function createProviderActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     fetchProviders: async () => {
@@ -62,7 +62,7 @@ export function createProviderActions(
         name,
         baseUrl,
         apiKey,
-        models
+        models,
       );
       if (!result.ok) {
         captureError(get, result.error);
@@ -96,7 +96,7 @@ export function createProviderActions(
       }
       set({
         providers: get().providers.map((p) =>
-          p.id === providerId ? { ...p, models: result.data } : p
+          p.id === providerId ? { ...p, models: result.data } : p,
         ),
       });
     },

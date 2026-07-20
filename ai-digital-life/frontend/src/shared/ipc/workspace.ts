@@ -221,7 +221,7 @@ export interface WorkspaceBridge {
    */
   readFileForWorkspace: (
     workspacePath: string,
-    relativePath: string
+    relativePath: string,
   ) => Promise<IpcResult<WorkspaceFileDocument>>;
   /**
    * 获取当前工作区内文件的变更预览 (diff)
@@ -245,7 +245,7 @@ export interface WorkspaceBridge {
    */
   getChangePreviewForWorkspace: (
     workspacePath: string,
-    relativePath: string
+    relativePath: string,
   ) => Promise<IpcResult<WorkspaceChangePreview>>;
   /**
    * 获取当前工作区的文件目录树
@@ -378,7 +378,7 @@ export interface WorkspaceBridge {
    * @see preview-bridge/index.ts → workspace.switchGitBranch
    */
   switchGitBranch: (
-    input: WorkspaceGitBranchSwitchInput
+    input: WorkspaceGitBranchSwitchInput,
   ) => Promise<IpcResult<WorkspaceGitBranchChangeResult>>;
   /**
    * 创建新的 Git 分支
@@ -390,7 +390,7 @@ export interface WorkspaceBridge {
    * @see preview-bridge/index.ts → workspace.createGitBranch
    */
   createGitBranch: (
-    input: WorkspaceGitBranchCreateInput
+    input: WorkspaceGitBranchCreateInput,
   ) => Promise<IpcResult<WorkspaceGitBranchChangeResult>>;
   /**
    * 暂存文件的更改

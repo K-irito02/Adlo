@@ -32,7 +32,7 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
       terminalCloseAllTabs: state.terminalCloseAllTabs,
       recentWorkspaces: state.recentWorkspaces,
       activeRightTool: state.activeRightTool,
-    }))
+    })),
   );
 
   const handleXtermData = useCallback(
@@ -41,7 +41,7 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
         window.digitalLife.pty.input(activeTab.sessionId, data);
       }
     },
-    [activeTab?.sessionId]
+    [activeTab?.sessionId],
   );
 
   const handleXtermResize = useCallback(
@@ -50,7 +50,7 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
         window.digitalLife.pty.resize(activeTab.sessionId, cols, rows);
       }
     },
-    [activeTab?.sessionId]
+    [activeTab?.sessionId],
   );
 
   const handleCreateTab = useCallback(
@@ -110,12 +110,12 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
           terminalUpdateActiveTab({ status: 'terminated' });
           setTimeout(() => {
             xtermRef.current?.write(
-              `\r\n\x1b[31mError: Failed to start ${profile} terminal.\x1b[0m\r\n`
+              `\r\n\x1b[31mError: Failed to start ${profile} terminal.\x1b[0m\r\n`,
             );
             xtermRef.current?.write(`\x1b[31m${errorMsg}\x1b[0m\r\n\r\n`);
             if (profile === 'bash') {
               xtermRef.current?.write(
-                '\x1b[33mHint: Make sure Git for Windows or WSL is installed.\x1b[0m\r\n'
+                '\x1b[33mHint: Make sure Git for Windows or WSL is installed.\x1b[0m\r\n',
               );
             }
           }, 50);
@@ -125,15 +125,15 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
         terminalUpdateActiveTab({ status: 'terminated' });
         setTimeout(() => {
           xtermRef.current?.write(
-            `\r\n\x1b[31mError: Failed to start ${finalProfile} terminal.\x1b[0m\r\n`
+            `\r\n\x1b[31mError: Failed to start ${finalProfile} terminal.\x1b[0m\r\n`,
           );
           xtermRef.current?.write(
-            `\x1b[31m${err instanceof Error ? err.message : String(err)}\x1b[0m\r\n\r\n`
+            `\x1b[31m${err instanceof Error ? err.message : String(err)}\x1b[0m\r\n\r\n`,
           );
         }, 50);
       }
     },
-    [terminalCreateTab, terminalUpdateActiveTab, rootPath, recentWorkspaces]
+    [terminalCreateTab, terminalUpdateActiveTab, rootPath, recentWorkspaces],
   );
 
   const handleSelectTab = useCallback(
@@ -155,7 +155,7 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
         }, 50);
       }
     },
-    [terminalSelectTab]
+    [terminalSelectTab],
   );
 
   const handleCloseTab = useCallback(
@@ -168,7 +168,7 @@ export function useTerminalPtyLifecycle({ activeTab, rootPath }: PtyLifecyclePar
       }
       terminalCloseTab(tabId);
     },
-    [terminalCloseTab]
+    [terminalCloseTab],
   );
 
   const handleCloseAllTabs = useCallback(() => {

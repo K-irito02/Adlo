@@ -322,7 +322,7 @@ export function SankeyNode({
       'var(--chart-4)',
       'var(--chart-5)',
     ],
-    []
+    [],
   );
 
   // Get color for a node
@@ -337,7 +337,7 @@ export function SankeyNode({
 
       return defaultColors[index % defaultColors.length] ?? 'var(--chart-1)';
     },
-    [fill, getNodeColorProp, defaultColors]
+    [fill, getNodeColorProp, defaultColors],
   );
 
   // Check if a node is connected to the hovered element
@@ -367,7 +367,7 @@ export function SankeyNode({
       }
       return false;
     },
-    [hoveredNodeIndex, hoveredLinkIndex, links]
+    [hoveredNodeIndex, hoveredLinkIndex, links],
   );
 
   const isAnyHovered = hoveredNodeIndex !== null || hoveredLinkIndex !== null;

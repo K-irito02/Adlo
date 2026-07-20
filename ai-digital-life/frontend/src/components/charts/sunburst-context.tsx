@@ -148,7 +148,7 @@ export function SunburstProvider({
       value.hoverPop,
       value.maxExpandedThickness,
       value.containerRef,
-    ]
+    ],
   );
 
   const hover = useMemo<SunburstHoverContextValue>(
@@ -158,7 +158,7 @@ export function SunburstProvider({
       hoveredArc: value.hoveredArc,
       setHoveredArc: value.setHoveredArc,
     }),
-    [value.hoveredArcIndex, value.setHoveredArcIndex, value.hoveredArc, value.setHoveredArc]
+    [value.hoveredArcIndex, value.setHoveredArcIndex, value.hoveredArc, value.setHoveredArc],
   );
 
   return (

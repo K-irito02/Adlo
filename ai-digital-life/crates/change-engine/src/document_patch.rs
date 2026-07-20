@@ -2,7 +2,7 @@
 
 use adl_types::{PatchSet, WorkspaceFileDocument};
 
-use crate::{create_single_file_patch_set, PatchProposal};
+use crate::{PatchProposal, create_single_file_patch_set};
 
 pub fn create_patch_from_document(
     workspace_id: &str,

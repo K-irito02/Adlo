@@ -55,7 +55,7 @@ export function createPreviewTaskBridge() {
       workflowId?: string | null;
       accessToken?: string | null;
     },
-    runId: number
+    runId: number,
   ) => {
     return requestPreviewApi<Record<number, string>>('/ci/status/job-logs', {
       method: 'POST',

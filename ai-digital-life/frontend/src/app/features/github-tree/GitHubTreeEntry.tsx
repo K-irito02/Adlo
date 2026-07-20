@@ -74,7 +74,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       recentWorkspaces: s.recentWorkspaces,
       clearCiState: s.clearCiState,
       hideWorkspaceFromRightPanels: s.hideWorkspaceFromRightPanels,
-    }))
+    })),
   );
 
   const [renameFolderState, setRenameFolderState] = useState<{
@@ -93,7 +93,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
         setRenameFolderState(null);
       }
     },
-    [renameFolderState, gitHubRenameFolder]
+    [renameFolderState, gitHubRenameFolder],
   );
 
   const handleCancelRename = useCallback(() => {
@@ -129,7 +129,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     categoryType === 'user-folder' && node.nodeType === 'folder' && !node.workspaceId;
   const isNestedFolder = !!(node.nodeType === 'folder' && node.workspaceId);
 
-  const menuItems: Array<MainMenuItem> = getMainEntryMenuItems({
+  const menuItems: MainMenuItem[] = getMainEntryMenuItems({
     node,
     categoryType,
     isPinned,
@@ -163,7 +163,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       e.stopPropagation();
       onTogglePath(node.path);
     },
-    [onTogglePath, node.path]
+    [onTogglePath, node.path],
   );
 
   const handleNameKeyDown = useCallback(
@@ -172,7 +172,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
         onSelectTreePath(node.path);
       }
     },
-    [onSelectTreePath, node.path]
+    [onSelectTreePath, node.path],
   );
 
   const handleMenuClick = useCallback((action: () => void) => {
@@ -279,7 +279,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
               );
             })}
           </div>,
-          document.body
+          document.body,
         )
       : null;
 

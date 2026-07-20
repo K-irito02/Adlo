@@ -37,7 +37,7 @@ export function CustomProviderDialog({ onClose }: CustomProviderDialogProps) {
         onClose();
       }
     },
-    [onClose]
+    [onClose],
   );
 
   return (

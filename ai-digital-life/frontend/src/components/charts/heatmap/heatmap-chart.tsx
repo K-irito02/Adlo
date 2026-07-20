@@ -171,7 +171,7 @@ function computeHeatmapDimensions({
   } else {
     const cellSize = Math.min(
       Math.max((innerWidth - totalSpacing) / columnCount, 0),
-      availableHeight / rowCount
+      availableHeight / rowCount,
     );
     binWidth = cellSize;
     binHeight = cellSize;
@@ -271,7 +271,7 @@ function HeatmapChartInner({
 
   const visibleData = useMemo(
     () => rotateHeatmapColumnBins(filteredData, weekStartDay),
-    [filteredData, weekStartDay]
+    [filteredData, weekStartDay],
   );
 
   const visibleColumnCount = Math.max(visibleData.length, 1);
@@ -283,7 +283,7 @@ function HeatmapChartInner({
 
   const separatorLayout = useMemo(
     () => resolveHeatmapSeparatorConfigWithData(children, visibleData, columnSeparators),
-    [children, columnSeparators, visibleData]
+    [children, columnSeparators, visibleData],
   );
 
   const {
@@ -305,13 +305,13 @@ function HeatmapChartInner({
         layout,
         separator: separatorLayout,
       }),
-    [binSize, columnCount, layout, margin, parentHeight, rowCount, separatorLayout, width]
+    [binSize, columnCount, layout, margin, parentHeight, rowCount, separatorLayout, width],
   );
 
   const xScale = useMemo(
     () => (columnIndex: number) =>
       columnIndex * binWidth + getHeatmapColumnXOffset(columnIndex, separatorLayout),
-    [binWidth, separatorLayout]
+    [binWidth, separatorLayout],
   );
   const yScale = useMemo(() => (rowIndex: number) => rowIndex * binHeight, [binHeight]);
 
@@ -341,7 +341,7 @@ function HeatmapChartInner({
         domain: [0, 1],
         range: [innerHeight, 0],
       }),
-    [innerHeight]
+    [innerHeight],
   );
 
   const contextValue = useMemo<HeatmapContextValue>(
@@ -422,7 +422,7 @@ function HeatmapChartInner({
       weekStartDay,
       xScale,
       yScale,
-    ]
+    ],
   );
 
   if (chartWidth < 10 || height < 10) {
@@ -495,10 +495,10 @@ function useHeatmapChartLifecycle({
 }) {
   const reducedMotion = useReducedMotion();
   const [chartPhase, setChartPhase] = useState<ChartPhase>(() =>
-    resolveRestingChartPhase(chartStatus)
+    resolveRestingChartPhase(chartStatus),
   );
   const [isLoaded, setIsLoaded] = useState(
-    () => chartStatus === 'ready' && (!animate || animationDuration <= 0)
+    () => chartStatus === 'ready' && (!animate || animationDuration <= 0),
   );
   const [revealEpoch, setRevealEpoch] = useState(0);
   const [revealMode, setRevealMode] = useState<HeatmapRevealMode>(null);
@@ -627,11 +627,11 @@ export function HeatmapChart({
   const margin = { ...DEFAULT_MARGIN, ...marginProp };
   const levelStyles = useMemo(
     () => resolveHeatmapLevelStyles(levelColors, levelStylesProp),
-    [levelColors, levelStylesProp]
+    [levelColors, levelStylesProp],
   );
   const colorScale = useMemo(
     () => colorScaleProp ?? buildHeatmapColorScaleFromStyles(levelStyles),
-    [colorScaleProp, levelStyles]
+    [colorScaleProp, levelStyles],
   );
   const fillScale = useMemo(() => buildHeatmapFillScale(levelStyles), [levelStyles]);
 
@@ -645,7 +645,7 @@ export function HeatmapChart({
   const showLoadingLabel = Boolean(
     loadingLabel?.trim() &&
     status === 'loading' &&
-    (chartPhase === 'loading' || chartPhase === 'exitingReady')
+    (chartPhase === 'loading' || chartPhase === 'exitingReady'),
   );
 
   return (

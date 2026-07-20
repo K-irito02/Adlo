@@ -26,7 +26,7 @@ export interface MultiWorkspaceFileTreeProps {
   onOpenFileForWorkspace: (
     workspaceId: string,
     workspacePath: string,
-    relativePath: string
+    relativePath: string,
   ) => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
@@ -113,7 +113,7 @@ export function MultiWorkspaceFileTree({
       contextMenuPersistRef,
       clearMenuHighlightRef,
       t,
-    ]
+    ],
   );
 
   if (workspaces.length === 0) {

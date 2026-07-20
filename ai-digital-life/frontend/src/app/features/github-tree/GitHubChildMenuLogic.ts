@@ -16,7 +16,7 @@ export interface ChildMenuContext {
 export function getChildMenuContext(
   child: GitHubTreeNode,
   pinnedFolderIds: Set<string>,
-  workspaceId: string | undefined
+  workspaceId: string | undefined,
 ): ChildMenuContext {
   const childFolderId = child.path.startsWith('github-folder:')
     ? child.path.slice('github-folder:'.length)
@@ -56,8 +56,8 @@ export interface BuildChildFolderMenuItemsParams {
 }
 
 export function buildChildFolderMenuItems(
-  params: BuildChildFolderMenuItemsParams
-): Array<ChildMenuItem> {
+  params: BuildChildFolderMenuItemsParams,
+): ChildMenuItem[] {
   const ctx = getChildMenuContext(params.child, params.pinnedFolderIds, params.workspaceId);
   const childFolderId = ctx.childFolderId;
   return getChildNodeMoreMenuItems(
@@ -102,6 +102,6 @@ export function buildChildFolderMenuItems(
     params.t,
     () => params.gitHubDeleteFolderConfigRecursive(childFolderId),
     () => params.gitHubDeleteFolderDataRecursive(childFolderId),
-    () => params.gitHubDeleteFolderConfigAndDataRecursive(childFolderId)
+    () => params.gitHubDeleteFolderConfigAndDataRecursive(childFolderId),
   );
 }

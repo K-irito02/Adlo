@@ -42,7 +42,7 @@ describe('NotificationCard', () => {
     render(
       <TestProvider>
         <NotificationCard notification={mockNotif} onClose={vi.fn()} />
-      </TestProvider>
+      </TestProvider>,
     );
     expect(screen.getByText('Merge conflict')).toBeTruthy();
     expect(screen.getByText('2 files with conflicts')).toBeTruthy();
@@ -53,7 +53,7 @@ describe('NotificationCard', () => {
     render(
       <TestProvider>
         <NotificationCard notification={mockNotif} onClose={onClose} />
-      </TestProvider>
+      </TestProvider>,
     );
     screen.getByRole('button', { name: /close/i }).click();
     expect(onClose).toHaveBeenCalledWith('n1');
@@ -63,7 +63,7 @@ describe('NotificationCard', () => {
     render(
       <TestProvider>
         <NotificationCard notification={mockNotif} onClose={vi.fn()} />
-      </TestProvider>
+      </TestProvider>,
     );
     expect(screen.getByText(/2 分钟前/)).toBeTruthy();
   });

@@ -67,7 +67,7 @@ export function getHeatmapWeekStartAlignedToRange(rangeStart: Date, minDaysInFir
 
 export function getHeatmapMonthLabelColumnIndex(
   columnIndex: number,
-  separatorLayout: Pick<HeatmapSeparatorLayout, 'atColumns'> | null
+  separatorLayout: Pick<HeatmapSeparatorLayout, 'atColumns'> | null,
 ): number {
   if (!separatorLayout?.atColumns.length) {
     return columnIndex;
@@ -84,7 +84,7 @@ export interface HeatmapWeekRange {
 
 export function resolveHeatmapWeekRange(
   today: Date,
-  weeks: number = HEATMAP_WEEKS_ONE_YEAR
+  weeks: number = HEATMAP_WEEKS_ONE_YEAR,
 ): HeatmapWeekRange {
   const endDate = new Date(today);
   endDate.setHours(0, 0, 0, 0);
@@ -159,7 +159,7 @@ export function getHeatmapTimeExtent(columns: HeatmapColumn[]): [Date, Date] | n
 
 export function filterHeatmapColumns(
   columns: HeatmapColumn[],
-  xDomain?: [Date, Date]
+  xDomain?: [Date, Date],
 ): HeatmapColumn[] {
   if (!xDomain) {
     return columns;
@@ -196,7 +196,7 @@ export function getHeatmapDayLabels(weekStartDay: HeatmapWeekStartDay = 0): read
 
 export function rotateHeatmapColumnBins(
   columns: HeatmapColumn[],
-  weekStartDay?: HeatmapWeekStartDay
+  weekStartDay?: HeatmapWeekStartDay,
 ): HeatmapColumn[] {
   if (weekStartDay == null || weekStartDay === 0) {
     return columns;
@@ -249,7 +249,7 @@ export interface HeatmapSeparatorGradientStop {
 
 export function buildHeatmapSeparatorGradientStops(
   gradient: HeatmapSeparatorGradient,
-  strokeOpacity = 1
+  strokeOpacity = 1,
 ): HeatmapSeparatorGradientStop[] {
   const scaleOpacity = (value: number | undefined, fallback = 1) =>
     (value ?? fallback) * strokeOpacity;
@@ -290,7 +290,7 @@ export function buildHeatmapSeparatorGradientStops(
 
 export function resolveHeatmapSeparatorStrokeDasharray(
   strokeStyle: HeatmapSeparatorStrokeStyle = 'solid',
-  strokeDasharray?: string
+  strokeDasharray?: string,
 ): string | undefined {
   if (strokeStyle !== 'dashed') {
     return undefined;
@@ -384,7 +384,7 @@ export function getHeatmapColumnQuarterAnchor(column: HeatmapColumn): {
 
 export function getHeatmapSeparatorGroupStartColumn(
   columnIndex: number,
-  atColumns: number[]
+  atColumns: number[],
 ): number {
   let groupStart = 0;
 
@@ -437,7 +437,7 @@ export function inferHeatmapCalendarRangeStart(columns: HeatmapColumn[]): Date |
 }
 
 export function buildHeatmapQuarterSeparatorGroups(
-  columns: HeatmapColumn[]
+  columns: HeatmapColumn[],
 ): HeatmapSeparatorGroup[] {
   if (columns.length === 0) {
     return [];
@@ -490,7 +490,7 @@ export function buildHeatmapQuarterSeparatorGroups(
 
 export function resolveHeatmapSeparatorLayout(
   config: HeatmapSeparatorParsedConfig | null,
-  columns: HeatmapColumn[]
+  columns: HeatmapColumn[],
 ): HeatmapSeparatorLayout | null {
   if (!config) {
     return null;
@@ -525,14 +525,14 @@ export function resolveHeatmapSeparatorLayout(
 }
 
 export function getHeatmapSeparatorCount(
-  separator: Pick<HeatmapSeparatorLayout, 'atColumns'> | null
+  separator: Pick<HeatmapSeparatorLayout, 'atColumns'> | null,
 ): number {
   return separator?.atColumns.length ?? 0;
 }
 
 export function getHeatmapColumnXOffset(
   columnIndex: number,
-  separator: Pick<HeatmapSeparatorLayout, 'spacing' | 'atColumns'> | null
+  separator: Pick<HeatmapSeparatorLayout, 'spacing' | 'atColumns'> | null,
 ): number {
   if (!separator || separator.spacing <= 0) {
     return 0;
@@ -548,7 +548,7 @@ export function getHeatmapColumnXOffset(
 export function getHeatmapPlotInnerWidth(
   columnCount: number,
   binWidth: number,
-  separator: Pick<HeatmapSeparatorLayout, 'spacing' | 'atColumns'> | null
+  separator: Pick<HeatmapSeparatorLayout, 'spacing' | 'atColumns'> | null,
 ): number {
   const separatorCount = separator ? getHeatmapSeparatorCount(separator) : 0;
   return columnCount * binWidth + separatorCount * (separator?.spacing ?? 0);
@@ -575,7 +575,7 @@ export function getHeatmapSeparatorX(
   columnIndex: number,
   gap: number,
   separator: Pick<HeatmapSeparatorLayout, 'spacing'>,
-  xScale: (columnIndex: number) => number
+  xScale: (columnIndex: number) => number,
 ): number {
   if (separator.spacing > 0) {
     return xScale(columnIndex) - separator.spacing / 2;

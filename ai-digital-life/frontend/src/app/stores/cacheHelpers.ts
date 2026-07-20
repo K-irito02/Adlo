@@ -44,7 +44,7 @@ export const CHANGE_PREVIEW_CACHE_LIMIT = 32;
 /** LRU + TTL 缓存操作 — 每次 get 时将条目移到 Map 末尾，并检查过期 */
 export function getCachedLruTTL<V>(
   cache: Map<string, TTLCacheEntry<V>>,
-  key: string
+  key: string,
 ): V | undefined {
   const cachedEntry = cache.get(key);
   if (cachedEntry === undefined) {
@@ -69,7 +69,7 @@ export function setCachedLruTTL<V>(
   key: string,
   value: V,
   limit: number,
-  ttlMs: number
+  ttlMs: number,
 ): void {
   if (cache.has(key)) {
     cache.delete(key);
@@ -113,7 +113,7 @@ export function getWorkspaceCachePrefix(appInfo?: AppInfo): string {
 
 export function getWorkspaceScopedCacheKey(
   appInfo: AppInfo | undefined,
-  relativePath: string
+  relativePath: string,
 ): string {
   return `${getWorkspaceCachePrefix(appInfo)}:${normalizeWorkspaceRelativePath(relativePath)}`;
 }
@@ -244,10 +244,10 @@ export async function batchExpandAll(
   setExpanded: (state: Record<string, boolean>) => void,
   loader: (entry: RecentWorkspaceEntry) => Promise<void>,
   loadedCheck: (workspaceId: string) => boolean,
-  concurrency = 3
+  concurrency = 3,
 ): Promise<void> {
   const visibleEntries = recentWorkspaces.filter(
-    (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+    (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
   );
   const expandedAll: Record<string, boolean> = {};
   for (const entry of visibleEntries) {
@@ -272,7 +272,7 @@ export async function expandSingle(
   workspaceId: string,
   setExpanded: (next: Record<string, boolean>) => void,
   hasData: boolean,
-  loadData: () => Promise<void>
+  loadData: () => Promise<void>,
 ): Promise<void> {
   if (currentExpanded[workspaceId]) {
     setExpanded({
@@ -295,11 +295,11 @@ export function createLazyLoader<T>(
   getGuardState: (state: StoreState, id: string) => { hasData: boolean; isLoading: boolean },
   getInitialState: (get_: () => StoreState, id: string) => Partial<StoreState>,
   getSuccessState: (get_: () => StoreState, id: string, data: T) => Partial<StoreState>,
-  getErrorState: (get_: () => StoreState, id: string, message: string) => Partial<StoreState>
+  getErrorState: (get_: () => StoreState, id: string, message: string) => Partial<StoreState>,
 ) {
   return function (
     set: StoreApi<StoreState>['setState'],
-    get_: () => StoreState
+    get_: () => StoreState,
   ): (workspaceId: string, workspacePath: string) => Promise<void> {
     return async (workspaceId: string, workspacePath: string) => {
       const state = get_();

@@ -54,7 +54,7 @@ const LeftSidebar = React.memo(function LeftSidebar({
       taskCenter: s.taskCenter,
       expandedSessionWorkspaces: s.expandedSessionWorkspaces,
       toggleSessionWorkspace: s.toggleSessionWorkspace,
-    }))
+    })),
   );
   const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
   const [menuState, setMenuState] = useState<SidebarMenuState>();
@@ -73,7 +73,7 @@ const LeftSidebar = React.memo(function LeftSidebar({
         streamingActiveRunId,
         taskCenter,
       }),
-    [appInfo, recentWorkspaces, sessions, streamingActiveRunId, taskCenter]
+    [appInfo, recentWorkspaces, sessions, streamingActiveRunId, taskCenter],
   );
   const workspaceItems = sidebarViewModel.workspaces;
   const displayStandaloneSessions = sidebarViewModel.standaloneSessions;
@@ -112,7 +112,7 @@ const LeftSidebar = React.memo(function LeftSidebar({
       activeSessionId,
       locale,
     }),
-    [actions, activeSessionId, locale]
+    [actions, activeSessionId, locale],
   );
 
   return (
@@ -219,7 +219,7 @@ const LeftSidebar = React.memo(function LeftSidebar({
         ? menuState.type === 'workspace'
           ? (() => {
               const workspace = workspaceItems.find(
-                (item) => item.workspace.id === menuState.workspaceId
+                (item) => item.workspace.id === menuState.workspaceId,
               );
               const sessionIds =
                 workspaceItems

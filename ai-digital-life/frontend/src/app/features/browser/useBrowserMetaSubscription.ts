@@ -4,7 +4,7 @@ import { useAppStore } from '@stores';
 import { normalizeUrlForCompare } from './browserUrlUtils';
 
 export function useBrowserMetaSubscription(
-  handlePageMeta: (meta: { title: string; favicon: string; url: string }) => void
+  handlePageMeta: (meta: { title: string; favicon: string; url: string }) => void,
 ) {
   useEffect(() => {
     if (!isTauriShell()) {

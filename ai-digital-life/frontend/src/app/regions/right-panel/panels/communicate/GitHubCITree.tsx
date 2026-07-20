@@ -36,7 +36,7 @@ export function GitHubCITree({
       selectedGitHubTreePath: s.selectedGitHubTreePath,
       gitHubCiFolders: s.gitHubCiFolders,
       gitHubWorkspaceConfigs: s.gitHubWorkspaceConfigs,
-    }))
+    })),
   );
   const workspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
 
@@ -75,7 +75,7 @@ export function GitHubCITree({
       restoreCiSnapshot: s.restoreCiSnapshot,
       refreshCiStatusForWorkspace: s.refreshCiStatusForWorkspace,
       removeGitHubWorkspaceConfig: s.removeGitHubWorkspaceConfig,
-    }))
+    })),
   );
 
   const gitHubNavigatorWidth = useAppStore((state) => state.gitHubNavigatorWidth);
@@ -131,7 +131,7 @@ export function GitHubCITree({
       setActiveWorkspaceSection,
       restoreCiSnapshot,
       onSetShowHelp,
-    ]
+    ],
   );
 
   useEffect(() => {
@@ -165,7 +165,7 @@ export function GitHubCITree({
     (path: string) => {
       toggleGitHubTreePath(path);
     },
-    [toggleGitHubTreePath]
+    [toggleGitHubTreePath],
   );
 
   const handleCreateFolder = useCallback(() => {
@@ -241,7 +241,7 @@ export function GitHubCITree({
       restoreCiSnapshot,
       onSetShowHelp,
       removeGitHubWorkspaceConfig,
-    ]
+    ],
   );
 
   return (

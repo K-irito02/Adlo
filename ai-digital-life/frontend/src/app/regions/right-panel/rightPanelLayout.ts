@@ -7,7 +7,7 @@ export interface RightPanelOverlayState {
 
 export function deriveRightPanelOverlayState(
   mode: RightPanelMode,
-  collapsed: boolean
+  collapsed: boolean,
 ): RightPanelOverlayState {
   if (collapsed || mode === 'docked') {
     return {

@@ -1,10 +1,10 @@
 use adl_errors::AppError;
 use adl_logging::LogMode;
+use adl_types::CommandConfig;
 use adl_types::permission_types::PermissionRulesetConfig;
 use adl_types::types::agent::AgentConfig;
 use adl_types::types::reference::ReferenceConfig;
 use adl_types::types::{ModelPreferences, ThemeMode};
-use adl_types::CommandConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use ts_rs::TS;

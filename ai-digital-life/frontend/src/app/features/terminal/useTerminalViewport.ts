@@ -32,7 +32,7 @@ export function useTerminalViewport({ terminalTabs, commandHistory }: UseTermina
     useShallow((state) => ({
       setTerminalNavigatorWidth: state.setTerminalNavigatorWidth,
       toggleTerminalNavigator: state.toggleTerminalNavigator,
-    }))
+    })),
   );
 
   const recentCommands = useMemo(() => {
@@ -62,7 +62,7 @@ export function useTerminalViewport({ terminalTabs, commandHistory }: UseTermina
         toggleTerminalNavigator();
       }
     },
-    [toggleTerminalNavigator]
+    [toggleTerminalNavigator],
   );
 
   const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({

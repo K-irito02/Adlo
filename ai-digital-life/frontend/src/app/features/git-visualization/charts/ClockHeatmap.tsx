@@ -14,9 +14,9 @@ export const ClockHeatmap = React.memo(function ClockHeatmap() {
   const dayLabels = useMemo(
     () =>
       Array.from({ length: 7 }, (_, i) =>
-        new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2026, 0, 4 + i))
+        new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2026, 0, 4 + i)),
       ),
-    [locale]
+    [locale],
   );
   const data = useMemo(() => generateClockHeatmapData(), []);
 
@@ -25,7 +25,7 @@ export const ClockHeatmap = React.memo(function ClockHeatmap() {
       const word = count === 1 ? t.gitVisContribution : t.gitVisContributions;
       return `${count} ${word}`;
     },
-    [t]
+    [t],
   );
 
   return (

@@ -11,7 +11,7 @@ async function sessionMutate<T>(
   get: () => StoreState,
   set: StoreApi<StoreState>['setState'],
   sessionId: string,
-  ipcCall: (sessionId: string) => Promise<IpcResult<T>>
+  ipcCall: (sessionId: string) => Promise<IpcResult<T>>,
 ) {
   clearError(get);
   const result = await ipcCall(sessionId);
@@ -42,7 +42,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
       clearError(get);
       const result = await window.digitalLife.conversation.createSession(
         await sessionFallbackTitle(get().appInfo),
-        workspaceId as string | undefined
+        workspaceId as string | undefined,
       );
       if (!result.ok) {
         captureError(get, result.error);
@@ -72,12 +72,12 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
     switchToWorkspace: async (workspaceId: WorkspaceID, _workspacePath: string) => {
       const state = get();
       const workspaceSessions = state.sessions.filter(
-        (s) => s.workspaceId === workspaceId && !s.archivedAt
+        (s) => s.workspaceId === workspaceId && !s.archivedAt,
       );
 
       if (workspaceSessions.length > 0) {
         const recentSession = [...workspaceSessions].sort(
-          (a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0)
+          (a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0),
         )[0];
         await get().selectSession(asSessionID(recentSession.id));
       } else {
@@ -164,7 +164,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      */
     pinSession: async (sessionId: SessionID) => {
       await sessionMutate(get, set, sessionId, (id) =>
-        window.digitalLife.conversation.pinSession(id)
+        window.digitalLife.conversation.pinSession(id),
       );
     },
 
@@ -177,7 +177,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      */
     unpinSession: async (sessionId: SessionID) => {
       await sessionMutate(get, set, sessionId, (id) =>
-        window.digitalLife.conversation.unpinSession(id)
+        window.digitalLife.conversation.unpinSession(id),
       );
     },
 
@@ -190,7 +190,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      */
     markSessionRead: async (sessionId: SessionID) => {
       await sessionMutate(get, set, sessionId, (id) =>
-        window.digitalLife.conversation.markSessionRead({ sessionId: id })
+        window.digitalLife.conversation.markSessionRead({ sessionId: id }),
       );
     },
 
@@ -203,7 +203,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      */
     markSessionUnread: async (sessionId: SessionID) => {
       await sessionMutate(get, set, sessionId, (id) =>
-        window.digitalLife.conversation.markSessionUnread(id)
+        window.digitalLife.conversation.markSessionUnread(id),
       );
     },
 
@@ -216,7 +216,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      */
     archiveSession: async (sessionId: SessionID) => {
       await sessionMutate(get, set, sessionId, (id) =>
-        window.digitalLife.conversation.archiveSession(id)
+        window.digitalLife.conversation.archiveSession(id),
       );
     },
 
@@ -248,7 +248,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
      */
     deleteSession: async (sessionId: SessionID) => {
       await sessionMutate(get, set, sessionId, (id) =>
-        window.digitalLife.conversation.deleteSession(id)
+        window.digitalLife.conversation.deleteSession(id),
       );
     },
 
@@ -281,8 +281,8 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
       clearError(get);
       const results = await Promise.all(
         sessionIds.map((sessionId) =>
-          window.digitalLife.conversation.markSessionRead({ sessionId: sessionId as string })
-        )
+          window.digitalLife.conversation.markSessionRead({ sessionId: sessionId as string }),
+        ),
       );
       const failure = results.find((result) => !result.ok);
       if (failure && !failure.ok) {

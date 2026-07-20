@@ -77,12 +77,12 @@ describe('WorkspaceList localOrder sync', () => {
     render(
       <TestProvider>
         <WorkspaceList {...buildProps({ workspaceItems: items })} />
-      </TestProvider>
+      </TestProvider>,
     );
     const list = document.querySelector('.adl-workspace-list');
     expect(list).not.toBeNull();
     const ids = Array.from(list!.querySelectorAll('li[data-ws-id]')).map((el) =>
-      el.getAttribute('data-ws-id')
+      el.getAttribute('data-ws-id'),
     );
     expect(ids).toEqual(['a', 'b', 'c']);
   });
@@ -92,7 +92,7 @@ describe('WorkspaceList localOrder sync', () => {
     const { rerender } = render(
       <TestProvider>
         <WorkspaceList {...buildProps({ workspaceItems: items })} />
-      </TestProvider>
+      </TestProvider>,
     );
 
     // Remove 'b' externally.
@@ -100,12 +100,12 @@ describe('WorkspaceList localOrder sync', () => {
     rerender(
       <TestProvider>
         <WorkspaceList {...buildProps({ workspaceItems: nextItems })} />
-      </TestProvider>
+      </TestProvider>,
     );
 
     const list = document.querySelector('.adl-workspace-list');
     const ids = Array.from(list!.querySelectorAll('li[data-ws-id]')).map((el) =>
-      el.getAttribute('data-ws-id')
+      el.getAttribute('data-ws-id'),
     );
     expect(ids).toEqual(['a', 'c']);
   });
@@ -115,19 +115,19 @@ describe('WorkspaceList localOrder sync', () => {
     const { rerender } = render(
       <TestProvider>
         <WorkspaceList {...buildProps({ workspaceItems: items })} />
-      </TestProvider>
+      </TestProvider>,
     );
 
     const nextItems = [buildItem('a'), buildItem('b'), buildItem('c'), buildItem('d')];
     rerender(
       <TestProvider>
         <WorkspaceList {...buildProps({ workspaceItems: nextItems })} />
-      </TestProvider>
+      </TestProvider>,
     );
 
     const list = document.querySelector('.adl-workspace-list');
     const ids = Array.from(list!.querySelectorAll('li[data-ws-id]')).map((el) =>
-      el.getAttribute('data-ws-id')
+      el.getAttribute('data-ws-id'),
     );
     expect(ids).toEqual(['a', 'b', 'c', 'd']);
   });
@@ -137,7 +137,7 @@ describe('WorkspaceList localOrder sync', () => {
     const { rerender } = render(
       <TestProvider>
         <WorkspaceList {...buildProps({ workspaceItems: items })} />
-      </TestProvider>
+      </TestProvider>,
     );
 
     // Backend re-sorts on unpin: p1 becomes unpinned, moves after u1.
@@ -145,12 +145,12 @@ describe('WorkspaceList localOrder sync', () => {
     rerender(
       <TestProvider>
         <WorkspaceList {...buildProps({ workspaceItems: nextItems })} />
-      </TestProvider>
+      </TestProvider>,
     );
 
     const list = document.querySelector('.adl-workspace-list');
     const ids = Array.from(list!.querySelectorAll('li[data-ws-id]')).map((el) =>
-      el.getAttribute('data-ws-id')
+      el.getAttribute('data-ws-id'),
     );
     expect(ids).toEqual(['u1', 'p1']);
   });
@@ -162,7 +162,7 @@ describe('WorkspaceList mouseup persistence', () => {
     render(
       <TestProvider>
         <WorkspaceList {...buildProps({ onReorderWorkspaces: onReorder })} />
-      </TestProvider>
+      </TestProvider>,
     );
     // Simulate a stray mouseup with no preceding mousedown.
     fireEvent.mouseUp(document);

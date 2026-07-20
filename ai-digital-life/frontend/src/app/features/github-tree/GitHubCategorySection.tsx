@@ -5,7 +5,7 @@ export interface SectionCallbacks {
   onSelectWorkspace: (workspaceId: string) => void;
   onSelectSection: (
     workspaceId: string,
-    section: 'overview' | 'workflows' | 'jobs' | 'logs'
+    section: 'overview' | 'workflows' | 'jobs' | 'logs',
   ) => void;
   onDeleteWorkspaceConfig: (workspaceId: string) => void;
   onOpenSettings: (workspaceId: string) => void;

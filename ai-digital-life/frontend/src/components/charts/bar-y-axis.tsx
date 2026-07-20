@@ -117,7 +117,7 @@ const BarYAxisInner = memo(function BarYAxisInner({
         />
       ))}
     </div>,
-    container
+    container,
   );
 });
 

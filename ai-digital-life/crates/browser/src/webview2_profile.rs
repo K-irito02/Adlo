@@ -1,7 +1,7 @@
 #[cfg(windows)]
 mod imp {
     use webview2_com::Microsoft::Web::WebView2::Win32::{
-        ICoreWebView2, ICoreWebView2_13, COREWEBVIEW2_PREFERRED_COLOR_SCHEME,
+        COREWEBVIEW2_PREFERRED_COLOR_SCHEME, ICoreWebView2, ICoreWebView2_13,
     };
     use windows::core::Interface;
 

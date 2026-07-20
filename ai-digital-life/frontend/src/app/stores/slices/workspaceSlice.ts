@@ -49,7 +49,7 @@ let _defaultsHydrated = false;
 
 function hydrateWorkspaceDefaults(
   get: () => StoreState,
-  set: (partial: Partial<StoreState>) => void
+  set: (partial: Partial<StoreState>) => void,
 ): void {
   if (_defaultsHydrated) {
     return;
@@ -103,7 +103,7 @@ export interface WorkspaceSlice {
  */
 export const createWorkspaceSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  get: () => StoreState
+  get: () => StoreState,
 ): WorkspaceSlice => {
   hydrateWorkspaceDefaults(get, set);
   return {

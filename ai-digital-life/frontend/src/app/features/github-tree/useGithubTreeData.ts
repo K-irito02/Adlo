@@ -22,7 +22,7 @@ export interface SubEntryLabels {
 function buildSubEntryNodes(
   prefix: string,
   wsId: string | undefined,
-  subEntryLabels: SubEntryLabels
+  subEntryLabels: SubEntryLabels,
 ): GitHubTreeNode[] {
   const labelMap: Record<string, string> = {
     overview: subEntryLabels.ciOverview,
@@ -76,15 +76,15 @@ function buildCiFolderNode(
   folder: GitHubCiFolderState,
   allFolders: GitHubCiFolderState[],
   subEntryLabels: SubEntryLabels,
-  t: Record<string, string>
+  t: Record<string, string>,
 ): GitHubTreeNode {
   const childFolders = sortFoldersByPinOrder(
     allFolders.filter(
-      (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder')
-    )
+      (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder'),
+    ),
   );
   const folderChildren = childFolders.map((child) =>
-    buildCiFolderNode(child, allFolders, subEntryLabels, t)
+    buildCiFolderNode(child, allFolders, subEntryLabels, t),
   );
 
   return {
@@ -102,10 +102,10 @@ function buildCiFolderNode(
 function buildRootUserFolderNodes(
   folders: GitHubCiFolderState[],
   subEntryLabels: SubEntryLabels,
-  t: Record<string, string>
+  t: Record<string, string>,
 ): GitHubTreeNode[] {
   const rootFolders = sortFoldersByPinOrder(
-    folders.filter((f) => !f.parentId && f.parentType !== 'workspace')
+    folders.filter((f) => !f.parentId && f.parentType !== 'workspace'),
   );
   return rootFolders.map((folder) => buildCiFolderNode(folder, folders, subEntryLabels, t));
 }
@@ -114,10 +114,10 @@ function buildWorkspaceChildFolders(
   wsId: string,
   allFolders: GitHubCiFolderState[],
   subEntryLabels: SubEntryLabels,
-  t: Record<string, string>
+  t: Record<string, string>,
 ): GitHubTreeNode[] {
   const wsFolders = sortFoldersByPinOrder(
-    allFolders.filter((f) => f.parentType === 'workspace' && f.parentId === wsId)
+    allFolders.filter((f) => f.parentType === 'workspace' && f.parentId === wsId),
   );
   return wsFolders.map((folder) => buildCiFolderNode(folder, allFolders, subEntryLabels, t));
 }
@@ -134,7 +134,7 @@ export function useGithubTreeData(
   labels: {
     ciWorkspaceCategory: string;
     userFolderCategory: string;
-  } & SubEntryLabels
+  } & SubEntryLabels,
 ): UseGithubTreeDataResult {
   const { t } = useTCopy();
 
@@ -145,7 +145,7 @@ export function useGithubTreeData(
       ciJobs: labels.ciJobs,
       ciLogs: labels.ciLogs,
     }),
-    [labels.ciOverview, labels.ciWorkflows, labels.ciJobs, labels.ciLogs]
+    [labels.ciOverview, labels.ciWorkflows, labels.ciJobs, labels.ciLogs],
   );
 
   const ciWorkspaceNodes = useMemo(
@@ -156,7 +156,7 @@ export function useGithubTreeData(
           ws.id,
           gitHubCiFolders,
           subEntryLabels,
-          t
+          t,
         );
         return {
           path: `github-workspace:${ws.id}`,
@@ -171,7 +171,7 @@ export function useGithubTreeData(
           config,
         };
       }),
-    [workspaces, gitHubWorkspaceConfigs, gitHubCiFolders, subEntryLabels, t]
+    [workspaces, gitHubWorkspaceConfigs, gitHubCiFolders, subEntryLabels, t],
   );
 
   const ciWorkspaceCategory: GitHubCategoryState = useMemo(
@@ -182,12 +182,12 @@ export function useGithubTreeData(
       isPermanent: false,
       nodes: ciWorkspaceNodes,
     }),
-    [ciWorkspaceNodes, labels.ciWorkspaceCategory]
+    [ciWorkspaceNodes, labels.ciWorkspaceCategory],
   );
 
   const userFolderNodes = useMemo(
     () => buildRootUserFolderNodes(gitHubCiFolders, subEntryLabels, t),
-    [gitHubCiFolders, subEntryLabels, t]
+    [gitHubCiFolders, subEntryLabels, t],
   );
 
   const userFolderCategory: GitHubCategoryState = useMemo(
@@ -198,7 +198,7 @@ export function useGithubTreeData(
       isPermanent: false,
       nodes: userFolderNodes,
     }),
-    [userFolderNodes, labels.userFolderCategory]
+    [userFolderNodes, labels.userFolderCategory],
   );
 
   return { ciWorkspaceCategory, userFolderCategory };

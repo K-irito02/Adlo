@@ -62,7 +62,7 @@ function isSessionUnread(session: ConversationSessionRecord): boolean {
 export function computeSessionVisualStatus(
   session: ConversationSessionRecord,
   streamingActiveRunId: string | undefined,
-  hasPendingApproval: boolean
+  hasPendingApproval: boolean,
 ): SessionVisualStatus {
   if (session.status === 'archived') {
     return 'read';
@@ -191,7 +191,7 @@ export function buildSidebarViewModel(input: {
 export function getVisibleSidebarSessions(
   sessions: SidebarSessionItem[],
   expanded: boolean,
-  limit = SIDEBAR_SESSION_PREVIEW_LIMIT
+  limit = SIDEBAR_SESSION_PREVIEW_LIMIT,
 ): VisibleSidebarSessions {
   if (expanded || sessions.length <= limit) {
     return { items: sessions, hiddenCount: 0, limit };

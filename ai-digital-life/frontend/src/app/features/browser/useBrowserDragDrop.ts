@@ -3,7 +3,7 @@ import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 export function useBrowserDragDrop(
   browserTabs: BrowserTabState[],
-  browserReorderTabs: (tabs: BrowserTabState[]) => void
+  browserReorderTabs: (tabs: BrowserTabState[]) => void,
 ) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
@@ -52,7 +52,7 @@ export function useBrowserDragDrop(
       browserReorderTabs(currentTabs);
       setDragOverTabId(null);
     },
-    [browserTabs, browserReorderTabs]
+    [browserTabs, browserReorderTabs],
   );
 
   return {

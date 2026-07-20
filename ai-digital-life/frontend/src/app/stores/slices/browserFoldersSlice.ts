@@ -44,7 +44,7 @@ export interface BrowserFoldersSlice {
   browserCreateTabFolder: (
     name?: string,
     parentId?: string,
-    parentType?: 'workspace' | 'folder'
+    parentType?: 'workspace' | 'folder',
   ) => void;
   browserUpdateTabFolder: (folderId: string, patch: Partial<TabFolderStateUpdate>) => void;
   browserDeleteTabFolder: (folderId: string) => void;
@@ -60,7 +60,7 @@ export interface BrowserFoldersSlice {
 
 export const createBrowserFoldersSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): BrowserFoldersSlice => ({
   browserTabFolders: [],
   browserTabTreeExpanded: {},
@@ -69,7 +69,7 @@ export const createBrowserFoldersSlice = (
   browserCreateTabFolder: async (
     name?: string,
     parentId?: string,
-    parentType?: 'workspace' | 'folder'
+    parentType?: 'workspace' | 'folder',
   ) => {
     const folderCount = _get().browserTabFolders.length;
     const locale = (_get().appInfo?.config.language ?? 'zh-CN') as 'zh-CN' | 'en-US';
@@ -108,7 +108,7 @@ export const createBrowserFoldersSlice = (
         ...collectAllDescendantFolderIds(state.browserTabFolders, folderId),
       ];
       const nextFolders = state.browserTabFolders.filter(
-        (folder) => !idsToDelete.includes(folder.id)
+        (folder) => !idsToDelete.includes(folder.id),
       );
       writeTabFolders(nextFolders);
       return { browserTabFolders: nextFolders };

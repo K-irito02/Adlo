@@ -19,7 +19,7 @@ function ShellPrefix({ profile }: { profile?: TerminalProfile }) {
 }
 
 interface TerminalEmptyStateProps {
-  shellTypeItems: Array<{ id: string; label: string; profile: TerminalProfile }>;
+  shellTypeItems: { id: string; label: string; profile: TerminalProfile }[];
   workspaces: RecentWorkspaceEntry[];
   defaultProfile: TerminalProfile;
   onSelectProfile: (profile: TerminalProfile, workspaceId?: string) => void;

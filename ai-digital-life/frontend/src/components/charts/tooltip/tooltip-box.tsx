@@ -172,7 +172,7 @@ function TooltipBoxInner({
     panelStyle?.backgroundColor === undefined &&
       backgroundColor === chartCssVars.tooltipBackground &&
       'bg-chart-tooltip-background',
-    panelStyle?.backdropFilter === undefined && 'backdrop-blur-md'
+    panelStyle?.backdropFilter === undefined && 'backdrop-blur-md',
   );
   const panelStyleResolved = {
     transformOrigin,
@@ -193,7 +193,7 @@ function TooltipBoxInner({
           {children}
         </div>
       </div>,
-      container
+      container,
     );
   }
 
@@ -218,7 +218,7 @@ function TooltipBoxInner({
         {children}
       </motion.div>
     </motion.div>,
-    container
+    container,
   );
 }
 

@@ -1,7 +1,7 @@
 import type { RightPanelViewProps } from '../types';
 import type { CopyDict } from '@i18n';
 import type { ChangeTreeNode } from '../changesTree';
-import { type EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import { CodeMirrorEditorRef } from '@features/editor';
 import type { EditorRef } from '@stores/types';
 
@@ -33,7 +33,7 @@ export function getChangeKindLabel(changeKind: 'added' | 'modified' | 'deleted',
 
 export function getChangeStatusLabel(
   status: NonNullable<RightPanelViewProps['changePreview']>['status'],
-  t: CopyDict
+  t: CopyDict,
 ) {
   if (status === 'staged') {
     return t.changesStaged;

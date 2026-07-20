@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef } from 'react';
-import { type EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
 import { categorizeFile } from '../fileTypeRouter';
 import { IconEye, IconPanelLeft, IconPanelLeftClose, IconReturn, IconSearch } from '@icons';
@@ -87,7 +87,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       navigatorMode: s.filesNavigatorMode,
       setNavigatorMode: s.setFilesNavigatorMode,
       filesNavigatorWidth: s.filesNavigatorWidth,
-    }))
+    })),
   );
 
   const editorOptions = useEditorOptions();
@@ -116,8 +116,8 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         selectedFilePath
           ? (s.filePreviewModeByPath[selectedFilePath] ?? fileCategory === 'markdown')
           : false,
-      [selectedFilePath, fileCategory]
-    )
+      [selectedFilePath, fileCategory],
+    ),
   );
 
   const setPreviewEnabled = useCallback(
@@ -127,7 +127,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       }
       setFilePreviewModeForPath(selectedFilePath, enabled);
     },
-    [selectedFilePath, setFilePreviewModeForPath]
+    [selectedFilePath, setFilePreviewModeForPath],
   );
 
   const selectedAbsolutePath = useMemo(() => {
@@ -156,7 +156,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       if (fileCategory === 'markdown' && previewEnabled) {
         if (editorSurfaceRef.current) {
           const heading = editorSurfaceRef.current.querySelector(
-            `[data-source-line="${line}"]`
+            `[data-source-line="${line}"]`,
           ) as HTMLElement | null;
           if (heading) {
             heading.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -172,7 +172,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         return;
       }
     },
-    [getStickySourceEditor, fileCategory, previewEnabled, editorSurfaceRef]
+    [getStickySourceEditor, fileCategory, previewEnabled, editorSurfaceRef],
   );
 
   const fileMenuItems: (FileMenuItem | FileMenuDivider)[] = useMemo(
@@ -204,7 +204,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         action: () => editorOptions.setWordWrapEnabled((v) => !v),
       },
     ],
-    [t, selectedFilePath, selectedAbsolutePath, editorOptions, handleCopyPath]
+    [t, selectedFilePath, selectedAbsolutePath, editorOptions, handleCopyPath],
   );
 
   const resolvedTheme = useResolvedTheme();

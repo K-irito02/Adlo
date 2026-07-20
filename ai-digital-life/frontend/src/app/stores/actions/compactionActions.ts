@@ -5,7 +5,7 @@ import { clearError, captureError } from '../shared';
 
 export function createCompactionActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     compactSession: async (input: CompactSessionInput) => {

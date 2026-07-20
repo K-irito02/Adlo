@@ -69,7 +69,7 @@ export const initialBuiltinCommands: CommandConfig[] = [
 
 export const createCustomCommandSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): CustomCommandSlice => ({
   builtinCommands: initialBuiltinCommands,
   customCommands: [],

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { type EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 import {
   applyAgentDecorations,
   clearAgentDecorations,

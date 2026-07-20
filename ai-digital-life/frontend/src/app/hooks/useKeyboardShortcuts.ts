@@ -21,7 +21,7 @@ const COMMAND_HANDLERS: Record<string, (callbacks: ActionCallbacks) => void> = {
 function findMatchingCommand(
   event: KeyboardEvent,
   commands: CommandMeta[],
-  keybinds: Record<string, string | undefined>
+  keybinds: Record<string, string | undefined>,
 ): CommandMeta | undefined {
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
   const parts: string[] = [];

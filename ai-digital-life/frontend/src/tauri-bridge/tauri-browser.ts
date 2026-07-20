@@ -7,7 +7,7 @@ export function createTauriBrowserBridge(): BrowserBridge {
   return {
     createForTab: (tabId: string, url: string, colorScheme?: 'light' | 'dark') =>
       invokeIpc<string | null>('browser_create_for_tab', { tabId, url, colorScheme }).then((r) =>
-        r.ok ? r.data : null
+        r.ok ? r.data : null,
       ),
     activateTab: (tabId: string) =>
       invokeIpc<void>('browser_activate_tab', { tabId }).then(() => undefined),
@@ -17,7 +17,7 @@ export function createTauriBrowserBridge(): BrowserBridge {
       invokeIpc<void>('browser_navigate_tab', { tabId, url }).then(() => undefined),
     setTabBounds: (
       tabId: string,
-      bounds: { x: number; y: number; width: number; height: number }
+      bounds: { x: number; y: number; width: number; height: number },
     ) => invokeIpc<void>('browser_set_tab_bounds', { tabId, bounds }).then(() => undefined),
     goBackTab: (tabId: string) =>
       invokeIpc<boolean>('browser_go_back_tab', { tabId }).then((r) => r.ok && !!r.data),
@@ -46,7 +46,7 @@ export function createTauriBrowserBridge(): BrowserBridge {
       };
     },
     onMetaChanged: (
-      listener: (tabId: string, meta: { title: string; favicon: string; url: string }) => void
+      listener: (tabId: string, meta: { title: string; favicon: string; url: string }) => void,
     ) => {
       let active = true;
       let ul: UnlistenFn | undefined;
@@ -57,7 +57,7 @@ export function createTauriBrowserBridge(): BrowserBridge {
             const { tabId, ...meta } = event.payload;
             listener(tabId, meta);
           }
-        }
+        },
       ).then((unlisten) => {
         if (active) {
           ul = unlisten;
@@ -74,7 +74,7 @@ export function createTauriBrowserBridge(): BrowserBridge {
     muteTab: (tabId: string, muted: boolean) =>
       invoke('browser_mute_tab', { tabId, muted }).then(() => undefined),
     onAudioStateChanged: (
-      listener: (payload: { tabId: string; isPlaying: boolean; isMuted: boolean }) => void
+      listener: (payload: { tabId: string; isPlaying: boolean; isMuted: boolean }) => void,
     ) => {
       let active = true;
       let ul: UnlistenFn | undefined;
@@ -84,7 +84,7 @@ export function createTauriBrowserBridge(): BrowserBridge {
           if (active) {
             listener(event.payload);
           }
-        }
+        },
       ).then((unlisten) => {
         if (active) {
           ul = unlisten;
@@ -100,7 +100,7 @@ export function createTauriBrowserBridge(): BrowserBridge {
     },
     setBrowserColorScheme: (resolvedTheme: 'light' | 'dark') =>
       invokeIpc<void>('browser_set_color_scheme', { colorScheme: resolvedTheme }).then(
-        () => undefined
+        () => undefined,
       ),
     setZoom: (tabId: string, zoomFactor: number) =>
       invokeIpc<void>('browser_set_zoom', { tabId, zoomFactor }).then(() => undefined),

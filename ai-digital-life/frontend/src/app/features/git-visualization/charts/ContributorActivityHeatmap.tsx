@@ -18,7 +18,7 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
       const word = count === 1 ? t.gitVisContribution : t.gitVisContributions;
       return `${count} ${word}`;
     },
-    [t]
+    [t],
   );
 
   return (

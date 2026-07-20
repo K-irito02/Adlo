@@ -77,7 +77,7 @@ function computeArrowPosition(
   result: PositionResult,
   triggerRect: DOMRect,
   placement: Placement,
-  alignment: Alignment
+  alignment: Alignment,
 ): void {
   const arrowSize = 8;
 
@@ -121,7 +121,7 @@ function fitsInViewport(
   coord: number,
   size: number,
   axis: 'x' | 'y',
-  viewportPadding: number
+  viewportPadding: number,
 ): boolean {
   if (axis === 'x') {
     return coord >= viewportPadding && coord + size <= window.innerWidth - viewportPadding;
@@ -237,7 +237,7 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
         flippedMainCoord,
         flippedMainAxisSize,
         flippedMainAxis as 'x' | 'y',
-        viewportPadding
+        viewportPadding,
       )
     ) {
       return flippedResult;

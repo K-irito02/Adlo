@@ -77,7 +77,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           let iframeFavicon = '';
           if (doc) {
             const iconLink = doc.querySelector(
-              'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'
+              'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]',
             ) as HTMLLinkElement | null;
             iframeFavicon = iconLink?.href || '';
           }
@@ -111,7 +111,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
                 favicon: meta.favicon || '',
                 url: href,
               },
-              'http'
+              'http',
             );
           });
         }
@@ -124,7 +124,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         let iframeFavicon = '';
         if (doc) {
           const iconLink = doc.querySelector(
-            'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]'
+            'link[rel="icon"], link[rel="shortcut icon"], link[rel="apple-touch-icon"]',
           ) as HTMLLinkElement | null;
           iframeFavicon = iconLink?.href || '';
         }
@@ -154,7 +154,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
               favicon: meta.favicon || '',
               url: href,
             },
-            'http'
+            'http',
           );
         });
       }
@@ -218,7 +218,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         // 用 real-title 条目替换掉 placeholder。检查 same dedupKey 下是否已有真实标题。
         const dedupKey = historyDedupKey(normalizedUrl);
         const existingEntry = s.browserHistory.find(
-          (h) => historyDedupKey(h.url) === dedupKey && h.title !== h.url
+          (h) => historyDedupKey(h.url) === dedupKey && h.title !== h.url,
         );
 
         // Mark that this URL change came from the WebView itself (via
@@ -302,7 +302,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             }
             onPageMeta?.(
               { title: meta.title, favicon: meta.favicon || '', url: normalizedUrl },
-              'http'
+              'http',
             );
           });
         };

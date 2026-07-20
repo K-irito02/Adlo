@@ -42,7 +42,7 @@ describe('ConflictModal', () => {
     render(
       <TestProvider>
         <ConflictModal notification={mockNotif} onDismiss={vi.fn()} />
-      </TestProvider>
+      </TestProvider>,
     );
     expect(screen.getByText('Conflict')).toBeTruthy();
   });
@@ -52,7 +52,7 @@ describe('ConflictModal', () => {
     render(
       <TestProvider>
         <ConflictModal notification={mockNotif} onDismiss={onDismiss} />
-      </TestProvider>
+      </TestProvider>,
     );
     screen.getByRole('button', { name: /close/i }).click();
     expect(onDismiss).toHaveBeenCalledWith('n1');

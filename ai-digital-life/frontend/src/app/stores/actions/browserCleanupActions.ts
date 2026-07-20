@@ -7,7 +7,7 @@ import { stripWorkspaceFromBrowserState } from './browserCleanupHelpers';
 
 export function createBrowserCleanupActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     /**
@@ -30,19 +30,19 @@ export function createBrowserCleanupActions(
         state.browserTabFolders,
         state.browserWorkspaceExpanded,
         state.browserWorkspaceBookmarks,
-        state.browserActiveTabId
+        state.browserActiveTabId,
       );
 
       scheduleCrossSliceWrite('adl-ui:browser-tabs', cleaned.browserTabs);
       scheduleCrossSliceWrite('adl-ui:browser-tab-folders', cleaned.browserTabFolders);
       scheduleCrossSliceWrite(
         'adl-ui:browser-workspace-expanded',
-        cleaned.browserWorkspaceExpanded
+        cleaned.browserWorkspaceExpanded,
       );
       scheduleCrossSliceWrite('adl-ui:browser-active-tab', cleaned.browserActiveTabId);
       scheduleCrossSliceWrite(
         'adl-ui:browser-workspace-bookmarks',
-        cleaned.browserWorkspaceBookmarks
+        cleaned.browserWorkspaceBookmarks,
       );
 
       set({

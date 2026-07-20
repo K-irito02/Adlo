@@ -8,20 +8,20 @@
 
 #[cfg(windows)]
 mod imp {
-    use std::sync::atomic::Ordering;
     use std::sync::Arc;
+    use std::sync::atomic::Ordering;
 
     use tracing::{info, warn};
-    use webview2_com::take_pwstr;
     use webview2_com::HistoryChangedEventHandler;
     use webview2_com::Microsoft::Web::WebView2::Win32::{
         ICoreWebView2, ICoreWebView2HistoryChangedEventHandler,
     };
+    use webview2_com::take_pwstr;
     use windows::core::IUnknown;
 
+    use crate::WebView2EventBridge;
     use crate::browser_events::POLL_FAST_NOW;
     use crate::webview2_message::shared::{HISTORY_CHANGED_COUNT, LAST_HISTORY_URL};
-    use crate::WebView2EventBridge;
 
     fn dedup_history_url(clean_url: &str) -> bool {
         if let Ok(mut last) = LAST_HISTORY_URL.lock() {

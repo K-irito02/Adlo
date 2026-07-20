@@ -27,7 +27,7 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
     (event: React.ChangeEvent<HTMLInputElement>) => {
       setAddress(event.target.value);
     },
-    [setAddress]
+    [setAddress],
   );
 
   const handleAddressKeyDown = useCallback(
@@ -42,7 +42,7 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
         addressInputRef.current?.blur();
       }
     },
-    [submitAddress, activeTabUrl, setAddress, setAddressExpanded, addressInputRef]
+    [submitAddress, activeTabUrl, setAddress, setAddressExpanded, addressInputRef],
   );
 
   const handleAddressBlur = useCallback(() => {
@@ -95,6 +95,6 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
       handleAddressBlur,
       handleSearchClick,
       handlePlusClick,
-    ]
+    ],
   );
 }

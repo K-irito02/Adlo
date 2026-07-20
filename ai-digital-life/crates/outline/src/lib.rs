@@ -1,3 +1,5 @@
+#![allow(clippy::unwrap_used)]
+
 use adl_errors::AppError;
 use adl_types::FileOutlineItem;
 use std::collections::HashMap;

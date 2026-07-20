@@ -22,7 +22,7 @@ import type { StoreApi } from 'zustand';
 import { postMutationRefresh, captureError } from '../shared';
 
 function createModelStreamSubscriber(
-  set: StoreApi<StoreState>['setState']
+  set: StoreApi<StoreState>['setState'],
 ): (event: DigitalLifeModelStreamEventV1) => void {
   return (event) => {
     if (event.v !== 1) {
@@ -55,7 +55,7 @@ function createModelStreamSubscriber(
 
 function createRunActivitySubscriber(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ): (event: DigitalLifeRunActivityEventV1) => void {
   return (event) => {
     if (event.v !== 1) {
@@ -70,7 +70,7 @@ function createRunActivitySubscriber(
 
 type SlashCommandHandler = (
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) => Promise<boolean> | boolean;
 
 const slashCommandRegistry = new Map<string, SlashCommandHandler>();
@@ -130,7 +130,7 @@ registerSlashCommand('/plan', async (_set, get) => {
 async function dispatchSlashCommand(
   trimmed: string,
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ): Promise<boolean> {
   const handler = slashCommandRegistry.get(trimmed);
   if (handler) {
@@ -145,7 +145,7 @@ async function refreshAfterSend(
   result: { data: ConversationSendResult },
   nextAppInfo: AppInfo | undefined,
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   const conversationState = await refreshConversationSlice(sessionId);
 
@@ -211,7 +211,7 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
       const { scenario, prompt } = await applySlashScenarioOverride(
         withChips,
         baseScenario,
-        locale
+        locale,
       );
 
       set({
@@ -224,7 +224,7 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
 
       if (!sessionId) {
         const created = await window.digitalLife.conversation.createSession(
-          await sessionFallbackTitle(get().appInfo)
+          await sessionFallbackTitle(get().appInfo),
         );
         if (!created.ok) {
           captureError(get, created.error);
@@ -236,7 +236,7 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
       const unsubscribe = window.digitalLife.subscribeModelStream(createModelStreamSubscriber(set));
 
       const unsubscribeRunActivity = window.digitalLife.subscribeRunActivity(
-        createRunActivitySubscriber(set, get)
+        createRunActivitySubscriber(set, get),
       );
 
       try {

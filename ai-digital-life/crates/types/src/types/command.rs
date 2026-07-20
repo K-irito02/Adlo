@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use super::conversation::{ApprovalRequestSummary, RiskLevel};
 use super::TimestampMs;
+use super::conversation::{ApprovalRequestSummary, RiskLevel};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]

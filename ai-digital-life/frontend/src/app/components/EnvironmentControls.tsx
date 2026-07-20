@@ -124,7 +124,7 @@ export function EnvironmentControls({
         { value: 'dark', icon: 'moon', label: t.themeDark },
         { value: 'system', icon: 'monitor', label: t.themeSystem },
       ] as const,
-    [t]
+    [t],
   );
 
   function resolveThemeIcon(mode: ThemeMode): IconName {
@@ -155,7 +155,7 @@ export function EnvironmentControls({
       onChangeLanguage(code);
       setLangDropdownOpen(false);
     },
-    [onChangeLanguage]
+    [onChangeLanguage],
   );
 
   const handleCycleTheme = useCallback(() => {

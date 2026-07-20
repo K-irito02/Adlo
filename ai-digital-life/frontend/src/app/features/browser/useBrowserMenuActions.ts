@@ -8,7 +8,7 @@ export function useBrowserMenuActions() {
   const { browserDeleteHistoryByLevel } = useAppStore(
     useShallow((state) => ({
       browserDeleteHistoryByLevel: state.browserDeleteHistoryByLevel,
-    }))
+    })),
   );
 
   const handleRemoveFromArea = useCallback((workspaceId: string) => {
@@ -45,7 +45,7 @@ export function useBrowserMenuActions() {
       });
       browserDeleteHistoryByLevel(level, nodePath);
     },
-    [browserDeleteHistoryByLevel]
+    [browserDeleteHistoryByLevel],
   );
 
   return {

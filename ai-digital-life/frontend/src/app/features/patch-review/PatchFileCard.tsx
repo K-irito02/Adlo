@@ -13,14 +13,14 @@ export interface PatchFileCardProps {
   selectedPatchHunkId: string | undefined;
   onSelectPatchFile: (
     relativePath: string,
-    options?: { activateTool: boolean; line?: number; hunkId?: string }
+    options?: { activateTool: boolean; line?: number; hunkId?: string },
   ) => void;
   onTogglePatchHunkCollapse: (hunkId: string) => void;
   onSelectPatchHunk: (
     relativePath: string,
     hunkId: string,
     targetLine: number,
-    options?: { activateTool: boolean }
+    options?: { activateTool: boolean },
   ) => void;
   onSetHunkDecision: (hunkId: string, decision: PatchHunkDecision) => void;
 }

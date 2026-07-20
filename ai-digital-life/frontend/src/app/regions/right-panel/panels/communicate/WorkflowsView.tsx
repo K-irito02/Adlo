@@ -26,7 +26,7 @@ export function WorkflowsView({ snapshot }: { snapshot: CiStatusSnapshot | null 
         return snapshot.jobs.filter((j) => j.conclusion === 'success');
       case 'failure':
         return snapshot.jobs.filter(
-          (j) => j.conclusion === 'failure' || j.conclusion === 'cancelled'
+          (j) => j.conclusion === 'failure' || j.conclusion === 'cancelled',
         );
       case 'running':
         return snapshot.jobs.filter((j) => j.status === 'in_progress' || j.status === 'queued');

@@ -9,7 +9,7 @@ import type { RightPanelProps } from '@regions/RightPanel';
 export function useChangesPanelProps(
   panelProps: RightPanelProps,
   diffSideBySide: boolean,
-  onSetDiffLayout: (sideBySide: boolean) => void
+  onSetDiffLayout: (sideBySide: boolean) => void,
 ): ChangesPanelProps {
   const {
     selectedPatchFilePath,
@@ -62,7 +62,7 @@ export function useChangesPanelProps(
         void actions.setHunkDecision(currentPatchSet.id, hunkId, decision);
       }
     },
-    [actions]
+    [actions],
   );
 
   const handleAcceptAllHunks = useCallback(() => {
@@ -77,14 +77,14 @@ export function useChangesPanelProps(
     (path: string) => {
       void actions.openChangePreview(path);
     },
-    [actions]
+    [actions],
   );
 
   const handleOpenFile = useCallback(
     (path: string) => {
       void actions.openFile(path);
     },
-    [actions]
+    [actions],
   );
 
   const handleRefreshWorkspaceTree = useCallback(() => {
@@ -95,7 +95,7 @@ export function useChangesPanelProps(
     (workspaceId: string) => {
       void actions.hideWorkspaceFromRightPanels(asWorkspaceID(workspaceId));
     },
-    [actions]
+    [actions],
   );
 
   return useMemo(
@@ -174,6 +174,6 @@ export function useChangesPanelProps(
       dirtyEditorPaths,
       externalFileChange?.path,
       onJumpPatchHunk,
-    ]
+    ],
   );
 }

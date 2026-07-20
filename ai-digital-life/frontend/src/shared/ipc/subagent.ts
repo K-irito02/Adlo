@@ -62,7 +62,7 @@ export interface SubagentBridge {
    */
   spawnSubagent: (
     parentSessionId: string,
-    input: TaskToolInput
+    input: TaskToolInput,
   ) => Promise<IpcResult<TaskToolOutput>>;
   /**
    * 查询子代理任务详情

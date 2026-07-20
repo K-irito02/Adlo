@@ -34,7 +34,7 @@ const SpinnerPrimitive = React.forwardRef<React.ElementRef<'svg'>, React.SVGProp
         </g>
       </svg>
     );
-  }
+  },
 );
 
 SpinnerPrimitive.displayName = 'SpinnerPrimitive';
@@ -56,13 +56,13 @@ export const Spinner = React.forwardRef<React.ComponentRef<typeof SpinnerPrimiti
           'adl-spinner',
           `adl-spinner--${size}`,
           `adl-spinner--${speed}`,
-          className
+          className,
         )}
       >
         <SpinnerPrimitive ref={ref} aria-hidden className="adl-spinner__svg" {...props} />
       </span>
     );
-  }
+  },
 );
 
 Spinner.displayName = 'Spinner';

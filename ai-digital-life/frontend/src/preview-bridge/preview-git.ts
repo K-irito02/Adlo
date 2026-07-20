@@ -13,7 +13,7 @@ import type { PreviewContext } from './preview-context';
 
 export function createPreviewGitBridge(
   ctx: PreviewContext,
-  setMockActiveWorkspace: (ws: WorkspaceMeta | undefined) => void
+  setMockActiveWorkspace: (ws: WorkspaceMeta | undefined) => void,
 ) {
   const requireWorkspace = () => {
     if (!ctx.currentWorkspace) {
@@ -52,7 +52,7 @@ export function createPreviewGitBridge(
       return requestPreviewApi<GitBranchSummary[]>(`/workspace/git-branches?${params.toString()}`);
     },
     switchGitBranch: async (
-      input: WorkspaceGitBranchSwitchInput
+      input: WorkspaceGitBranchSwitchInput,
     ): Promise<IpcResult<WorkspaceGitBranchChangeResult>> => {
       const err = requireWorkspace();
       if (err) {
@@ -63,7 +63,7 @@ export function createPreviewGitBridge(
         {
           method: 'POST',
           body: JSON.stringify({ rootPath: ctx.currentWorkspace!.rootPath, input }),
-        }
+        },
       );
       if (result.ok) {
         ctx.currentWorkspace = result.data.workspace;
@@ -72,7 +72,7 @@ export function createPreviewGitBridge(
       return result;
     },
     createGitBranch: async (
-      input: WorkspaceGitBranchCreateInput
+      input: WorkspaceGitBranchCreateInput,
     ): Promise<IpcResult<WorkspaceGitBranchChangeResult>> => {
       const err = requireWorkspace();
       if (err) {
@@ -83,7 +83,7 @@ export function createPreviewGitBridge(
         {
           method: 'POST',
           body: JSON.stringify({ rootPath: ctx.currentWorkspace!.rootPath, input }),
-        }
+        },
       );
       if (result.ok) {
         ctx.currentWorkspace = result.data.workspace;

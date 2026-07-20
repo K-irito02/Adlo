@@ -100,6 +100,6 @@ export const BrowserContextMenu = React.memo(function BrowserContextMenu({
         <span>{t.browserContextDelete}</span>
       </button>
     </div>,
-    document.body
+    document.body,
   );
 });

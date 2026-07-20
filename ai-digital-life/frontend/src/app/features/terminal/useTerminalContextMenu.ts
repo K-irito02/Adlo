@@ -22,7 +22,7 @@ export function useTerminalContextMenu(
   terminalTabs: TerminalTabState[],
   handleDoubleClick: (tabId: string, title: string) => void,
   terminalTogglePin: (tabId: string) => void,
-  handleCloseTab: (tabId: string) => void
+  handleCloseTab: (tabId: string) => void,
 ): UseTerminalContextMenuReturn {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     open: false,

@@ -65,7 +65,7 @@ function resolveWorkspaceStatusColor(workspace: WorkspaceTab): string {
 function formatTimestamp(
   iso: string,
   t: CopyDict,
-  formatFn: (t: CopyDict, key: CopyKey, vars?: Record<string, string | number>) => string
+  formatFn: (t: CopyDict, key: CopyKey, vars?: Record<string, string | number>) => string,
 ): string {
   try {
     const date = new Date(iso);
@@ -117,7 +117,7 @@ function WorkspaceItem({ workspace, onSelect, t }: WorkspaceItemProps) {
         className="sidebar-workspace-tab__icon"
         dangerouslySetInnerHTML={{
           __html: DOMPurify.sanitize(
-            renderIcon('folder', { size: 'sm', decorative: true }).value || ''
+            renderIcon('folder', { size: 'sm', decorative: true }).value || '',
           ),
         }}
       />
@@ -140,7 +140,7 @@ function WorkspaceItem({ workspace, onSelect, t }: WorkspaceItemProps) {
               className="sidebar-workspace-tab__action"
               dangerouslySetInnerHTML={{
                 __html: DOMPurify.sanitize(
-                  renderIcon('pin', { size: 'xs', decorative: true }).value || ''
+                  renderIcon('pin', { size: 'xs', decorative: true }).value || '',
                 ),
               }}
             />
@@ -151,7 +151,7 @@ function WorkspaceItem({ workspace, onSelect, t }: WorkspaceItemProps) {
               className="sidebar-workspace-tab__action"
               dangerouslySetInnerHTML={{
                 __html: DOMPurify.sanitize(
-                  renderIcon('pin', { size: 'xs', decorative: true }).value || ''
+                  renderIcon('pin', { size: 'xs', decorative: true }).value || '',
                 ),
               }}
             />
@@ -162,7 +162,7 @@ function WorkspaceItem({ workspace, onSelect, t }: WorkspaceItemProps) {
             className="sidebar-workspace-tab__action"
             dangerouslySetInnerHTML={{
               __html: DOMPurify.sanitize(
-                renderIcon('more-vertical', { size: 'xs', decorative: true }).value || ''
+                renderIcon('more-vertical', { size: 'xs', decorative: true }).value || '',
               ),
             }}
           />
@@ -262,7 +262,7 @@ export function SessionManagement({
               className={`sidebar-section__chevron${workspacesCollapsed ? ' is-collapsed' : ''}`}
               dangerouslySetInnerHTML={{
                 __html: DOMPurify.sanitize(
-                  renderIcon('chevron-right', { size: 'xs', decorative: true }).value || ''
+                  renderIcon('chevron-right', { size: 'xs', decorative: true }).value || '',
                 ),
               }}
             />
@@ -278,7 +278,7 @@ export function SessionManagement({
               <span
                 dangerouslySetInnerHTML={{
                   __html: DOMPurify.sanitize(
-                    renderIcon('plus', { size: 'xs', decorative: true }).value || ''
+                    renderIcon('plus', { size: 'xs', decorative: true }).value || '',
                   ),
                 }}
               />
@@ -314,7 +314,7 @@ export function SessionManagement({
               className={`sidebar-section__chevron${sessionsCollapsed ? ' is-collapsed' : ''}`}
               dangerouslySetInnerHTML={{
                 __html: DOMPurify.sanitize(
-                  renderIcon('chevron-right', { size: 'xs', decorative: true }).value || ''
+                  renderIcon('chevron-right', { size: 'xs', decorative: true }).value || '',
                 ),
               }}
             />
@@ -330,7 +330,7 @@ export function SessionManagement({
               <span
                 dangerouslySetInnerHTML={{
                   __html: DOMPurify.sanitize(
-                    renderIcon('plus', { size: 'xs', decorative: true }).value || ''
+                    renderIcon('plus', { size: 'xs', decorative: true }).value || '',
                   ),
                 }}
               />

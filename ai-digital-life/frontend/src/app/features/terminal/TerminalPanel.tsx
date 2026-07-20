@@ -47,7 +47,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
       terminalCloseTab: s.terminalCloseTab,
       terminalTogglePin: s.terminalTogglePin,
       hideWorkspaceFromRightPanels: s.hideWorkspaceFromRightPanels,
-    }))
+    })),
   );
 
   const { terminalState, terminalActions } = useTerminalPanel(props);
@@ -76,9 +76,9 @@ export function TerminalPanel(props: TerminalPanelProps) {
   const visibleWorkspaces = useMemo(
     () =>
       recentWorkspaces.filter(
-        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
       ),
-    [recentWorkspaces]
+    [recentWorkspaces],
   );
 
   const allTerminalExpanded = useMemo(() => {
@@ -111,7 +111,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
   const visibleTabCount = useMemo(() => {
     let count = 0;
     count += terminalTabs.filter(
-      (t) => !t.workspaceId || t.workspaceId === INDEPENDENT_WORKSPACE_ID
+      (t) => !t.workspaceId || t.workspaceId === INDEPENDENT_WORKSPACE_ID,
     ).length;
     for (const ws of visibleWorkspaces) {
       count += terminalTabs.filter((t) => t.workspaceId === ws.id).length;
@@ -134,7 +134,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
         [workspaceId]: !terminalWorkspaceExpanded[workspaceId],
       });
     },
-    [terminalWorkspaceExpanded, setTerminalWorkspaceExpanded]
+    [terminalWorkspaceExpanded, setTerminalWorkspaceExpanded],
   );
 
   const handleHideTerminalWorkspace = useCallback(
@@ -144,7 +144,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
         hideWorkspaceFromRightPanels(asWorkspaceID(workspaceId));
       }
     },
-    [recentWorkspaces, hideWorkspaceFromRightPanels]
+    [recentWorkspaces, hideWorkspaceFromRightPanels],
   );
 
   return (
@@ -341,7 +341,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
         onRename={handleRenameFromContextMenu(
           terminalTabs,
           contextMenu,
-          terminalActions.handleDoubleClick
+          terminalActions.handleDoubleClick,
         )}
         onDelete={handleDeleteFromContextMenu(contextMenu, terminalActions.handleCloseTab)}
         onClose={noop}
@@ -351,9 +351,9 @@ export function TerminalPanel(props: TerminalPanelProps) {
 }
 
 function handleRenameFromContextMenu(
-  terminalTabs: Array<{ id: string; title: string }>,
+  terminalTabs: { id: string; title: string }[],
   contextMenu: { tabId: string | null },
-  handleDoubleClick: (tabId: string, title: string) => void
+  handleDoubleClick: (tabId: string, title: string) => void,
 ): () => void {
   return () => {
     if (contextMenu.tabId) {
@@ -367,7 +367,7 @@ function handleRenameFromContextMenu(
 
 function handleDeleteFromContextMenu(
   contextMenu: { tabId: string | null },
-  handleCloseTab: (tabId: string) => void
+  handleCloseTab: (tabId: string) => void,
 ): () => void {
   return () => {
     if (contextMenu.tabId) {

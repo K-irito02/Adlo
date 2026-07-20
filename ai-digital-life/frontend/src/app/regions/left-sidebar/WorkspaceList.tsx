@@ -34,7 +34,7 @@ export interface WorkspaceListProps {
       workspaceId?: string;
       interactive?: boolean;
       allowStandaloneReorder?: boolean;
-    }
+    },
   ) => React.ReactNode;
   workspaceToolbarRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -75,7 +75,7 @@ export function WorkspaceList({
   // Local render order — drives the <ul> ordering. Differs from workspaceItems
   // ordering during drag (FLIP reorders locally, persists on mouseup).
   const [localOrder, setLocalOrder] = useState<string[]>(() =>
-    workspaceItems.map((w) => w.workspace.id)
+    workspaceItems.map((w) => w.workspace.id),
   );
   const localOrderRef = useRef<string[]>(localOrder);
   localOrderRef.current = localOrder;
@@ -244,7 +244,7 @@ export function WorkspaceList({
         foundId,
         foundPos,
         session.isPinned,
-        isPinnedById
+        isPinnedById,
       );
 
       // Skip if order didn't actually change (e.g. dragged id already at target position).
@@ -292,7 +292,7 @@ export function WorkspaceList({
           }
         });
         // Force reflow so the inverted positions are committed before we re-enable transition.
-        ulAfter.offsetHeight;
+        void ulAfter.offsetHeight;
         // Play: clear transform with transition enabled.
         itemsAfter.forEach((el) => {
           el.style.transition = 'transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1)';
@@ -378,7 +378,7 @@ export function WorkspaceList({
         isPinned,
       };
     },
-    []
+    [],
   );
 
   return (
@@ -389,7 +389,7 @@ export function WorkspaceList({
           <TooltipSimple
             content={
               workspaceItems.every(
-                (item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent
+                (item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent,
               )
                 ? t.collapseSessions
                 : t.expand
@@ -401,7 +401,7 @@ export function WorkspaceList({
               className="adl-icon-btn adl-icon-btn--xs"
               onClick={() => {
                 const allExpanded = workspaceItems.every(
-                  (item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent
+                  (item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent,
                 );
                 for (const item of workspaceItems) {
                   const shouldBeExpanded = !allExpanded;
@@ -415,14 +415,14 @@ export function WorkspaceList({
               }}
               aria-label={
                 workspaceItems.every(
-                  (item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent
+                  (item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent,
                 )
                   ? t.collapseSessions
                   : t.expand
               }
             >
               {workspaceItems.every(
-                (item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent
+                (item) => expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent,
               ) ? (
                 <IconCollapseRows size={14} decorative />
               ) : (

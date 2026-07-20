@@ -164,7 +164,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
       e.stopPropagation();
       onRefreshTree();
     },
-    [onRefreshTree]
+    [onRefreshTree],
   );
 
   const handleNameKeyDown = useCallback(
@@ -173,7 +173,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
         handleNameClick();
       }
     },
-    [handleNameClick]
+    [handleNameClick],
   );
 
   const effectiveSelectedPath = useMemo(() => {
@@ -301,7 +301,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
                 {t.fileCopyRelativePath}
               </button>
             </div>,
-            document.body
+            document.body,
           )
         : null}
 

@@ -27,7 +27,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
         ...col,
         columnLabel: t[MODULE_KEYS[i] as keyof typeof t],
       })),
-    [rawData, t]
+    [rawData, t],
   );
 
   const formatLabel = useCallback(
@@ -35,7 +35,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       const word = count === 1 ? t.gitVisContribution : t.gitVisContributions;
       return `${count} ${word}`;
     },
-    [t]
+    [t],
   );
 
   return (

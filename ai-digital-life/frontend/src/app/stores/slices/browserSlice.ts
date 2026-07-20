@@ -73,7 +73,7 @@ let _defaultsHydrated = false;
 
 function hydrateBrowserDefaults(
   get: () => StoreState,
-  set: (partial: Partial<StoreState>) => void
+  set: (partial: Partial<StoreState>) => void,
 ): void {
   if (_defaultsHydrated) {
     return;
@@ -86,7 +86,7 @@ function hydrateBrowserDefaults(
       BROWSER_NAVIGATOR_WIDTH_KEY,
       DEFAULT_BROWSER_NAVIGATOR_WIDTH,
       BROWSER_NAVIGATOR_WIDTH_MIN,
-      BROWSER_NAVIGATOR_WIDTH_MAX
+      BROWSER_NAVIGATOR_WIDTH_MAX,
     );
     const workspaceExpanded = readJson<Record<string, boolean>>(BROWSER_WORKSPACE_EXPANDED_KEY, {});
     const persistedTabFolders = readJson<TabFolderState[]>(BROWSER_TAB_FOLDERS_KEY, []);
@@ -118,7 +118,7 @@ function hydrateBrowserDefaults(
       ? state.browserWorkspaceBookmarks
       : readJson<Record<string, WorkspaceBookmarkEntry[]>>(
           BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY,
-          {}
+          {},
         );
 
     // 从已有的工作区书签和文件夹条目构建 tabId→URL 映射
@@ -145,7 +145,7 @@ function hydrateBrowserDefaults(
     }
     const persistedTabIdUrlMap = readJson<Record<string, string>>(
       BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
-      {}
+      {},
     );
     for (const [tabId, url] of Object.entries(persistedTabIdUrlMap)) {
       if (!tabIdUrlMap[tabId]) {
@@ -154,7 +154,7 @@ function hydrateBrowserDefaults(
     }
     const persistedTabTreeExpanded = readJson<Record<string, boolean>>(
       BROWSER_TREE_EXPANDED_KEY,
-      {}
+      {},
     );
     const navigateInPlace = readJson<boolean>(BROWSER_NAVIGATE_IN_PLACE_KEY, false);
 
@@ -208,7 +208,7 @@ export interface BrowserSlice {
 
 export const createBrowserSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  get: () => StoreState
+  get: () => StoreState,
 ): BrowserSlice => {
   hydrateBrowserDefaults(get, set);
   return {

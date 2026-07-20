@@ -30,7 +30,7 @@ describe('storageHelpers error logging', () => {
     readJson('test-key', { fallback: true });
     expect(warnSpy).toHaveBeenCalledWith(
       'storageHelpers.readJson failed:',
-      expect.any(SyntaxError)
+      expect.any(SyntaxError),
     );
   });
 

@@ -129,7 +129,7 @@ describe('browserSlice', () => {
     s.browserActiveTabId = '';
     (get() as unknown as BrowserSlice).browserNavigateActiveTab('https://example.com', 'Example');
     const state = get();
-    const tabs = state.browserTabs as Array<{ id: string; url: string; title: string }>;
+    const tabs = state.browserTabs as { id: string; url: string; title: string }[];
     expect(tabs).toHaveLength(1);
     expect(tabs[0].url).toBe('https://example.com');
     expect(tabs[0].title).toBe('Example');
@@ -155,7 +155,7 @@ describe('browserSlice', () => {
     s.browserActiveTabId = tabId;
     (get() as unknown as BrowserSlice).browserNavigateActiveTab('https://new.example', 'New');
     const state = get();
-    const tabs = state.browserTabs as Array<{ id: string; url: string; title: string }>;
+    const tabs = state.browserTabs as { id: string; url: string; title: string }[];
     expect(tabs).toHaveLength(1);
     expect(tabs[0].url).toBe('https://new.example');
     expect(tabs[0].title).toBe('New');

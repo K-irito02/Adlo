@@ -71,7 +71,7 @@ describe('WorkflowsView', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
         <WorkflowsView snapshot={{ ...snapshot, jobs: [] }} />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github-empty');
   });
@@ -80,7 +80,7 @@ describe('WorkflowsView', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
         <WorkflowsView snapshot={snapshot} />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github-filter');
   });
@@ -89,7 +89,7 @@ describe('WorkflowsView', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
         <WorkflowsView snapshot={snapshot} />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github-progress');
     expect(html).toContain('Build');
@@ -100,7 +100,7 @@ describe('WorkflowsView', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
         <WorkflowsView snapshot={snapshot} />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('5/5');
     expect(html).toContain('2/3');

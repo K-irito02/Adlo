@@ -16,7 +16,7 @@ describe('DiffViewer scroll synchronization', () => {
         sourceClientHeight: 500,
         targetScrollHeight: 2500,
         targetClientHeight: 500,
-      })
+      }),
     ).toBe(500);
   });
 
@@ -28,7 +28,7 @@ describe('DiffViewer scroll synchronization', () => {
         sourceClientHeight: 500,
         targetScrollHeight: 2500,
         targetClientHeight: 500,
-      })
+      }),
     ).toBe(0);
   });
 

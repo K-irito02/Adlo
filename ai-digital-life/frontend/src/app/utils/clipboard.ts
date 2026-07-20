@@ -1,5 +1,5 @@
 export async function copyToClipboard(
-  text: string
+  text: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     await navigator.clipboard.writeText(text);
@@ -13,7 +13,7 @@ export async function copyToClipboard(
 }
 
 export async function copyMultiple(
-  items: string[]
+  items: string[],
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   for (const item of items) {
     const result = await copyToClipboard(item);

@@ -31,7 +31,7 @@ describe('FileTree', () => {
         onOpenFile={() => undefined}
         expandLabel="Expand"
         collapseLabel="Collapse"
-      />
+      />,
     );
 
     expect(markup).toContain('adl-filetree-scroll');
@@ -87,7 +87,7 @@ describe('FileTree', () => {
         onOpenFile={() => undefined}
         expandLabel="Expand"
         collapseLabel="Collapse"
-      />
+      />,
     );
 
     expect(markup).toContain('utils.ts');
@@ -115,7 +115,7 @@ describe('FileTree', () => {
         onOpenFile={() => undefined}
         expandLabel="Expand"
         collapseLabel="Collapse"
-      />
+      />,
     );
 
     expect(markup).toContain('is-selected');

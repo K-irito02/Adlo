@@ -1,8 +1,8 @@
 //! Audit record generation for model API calls.
 
 use adl_types::{
-    create_id, now_ms, ConversationScenario, ModelCallAuditRecord, ModelRouteDecision,
-    ModelTokenUsage,
+    ConversationScenario, ModelCallAuditRecord, ModelRouteDecision, ModelTokenUsage, create_id,
+    now_ms,
 };
 use std::time::Instant;
 

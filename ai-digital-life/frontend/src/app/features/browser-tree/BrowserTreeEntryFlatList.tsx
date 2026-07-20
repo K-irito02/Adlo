@@ -29,7 +29,7 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
 
   const handleRowClick = useCallback(
     (node: BrowserTreeNode) => () => onFlatTabClick(node),
-    [onFlatTabClick]
+    [onFlatTabClick],
   );
 
   const handleRowContextMenu = useCallback(
@@ -38,7 +38,7 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
       e.stopPropagation();
       onTabContextMenu(e.clientX, e.clientY, node);
     },
-    [onTabContextMenu]
+    [onTabContextMenu],
   );
 
   const handleMoreClick = useCallback(
@@ -47,7 +47,7 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       onTabContextMenu(rect.right + 4, rect.top, node);
     },
-    [onTabContextMenu]
+    [onTabContextMenu],
   );
 
   const handleRefreshClick = useCallback(
@@ -57,7 +57,7 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
         onRefreshTab(node.tabId, node.url);
       }
     },
-    [onRefreshTab]
+    [onRefreshTab],
   );
 
   const handleCloseClick = useCallback(
@@ -67,7 +67,7 @@ export const BrowserTreeEntryFlatList = React.memo(function BrowserTreeEntryFlat
         onCloseTab(node.tabId);
       }
     },
-    [onCloseTab]
+    [onCloseTab],
   );
 
   return (

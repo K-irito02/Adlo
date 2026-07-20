@@ -107,10 +107,10 @@ function compactBadgeLabel(label: string): string {
   return `${normalized[0]}${normalized[normalized.length - 1]}`;
 }
 
-const SPECIAL_FILE_RULES: Array<{
+const SPECIAL_FILE_RULES: {
   test: (file: FileKey) => boolean;
   spec: FileTreeVisualSpec;
-}> = [
+}[] = [
   {
     test: ({ lowerName }) => lowerName === 'package.json',
     spec: makeBadgeSpec('PKG', 'node'),
@@ -304,7 +304,7 @@ export function getFileCategory(file: FileKey): FileTreeVisualTone {
 }
 
 export function getFileTreeVisualSpec(
-  node: Pick<WorkspaceTreeNode, 'name' | 'path' | 'kind'>
+  node: Pick<WorkspaceTreeNode, 'name' | 'path' | 'kind'>,
 ): FileTreeVisualSpec {
   const file = getFileKey(node.name, node.path);
   const specialRule = SPECIAL_FILE_RULES.find((rule) => rule.test(file));

@@ -6,18 +6,18 @@
 
 #[cfg(windows)]
 mod imp {
-    use std::sync::atomic::Ordering;
     use std::sync::Arc;
+    use std::sync::atomic::Ordering;
 
     use tracing::{debug, error, info, warn};
-    use webview2_com::take_pwstr;
     use webview2_com::Microsoft::Web::WebView2::Win32::{
-        ICoreWebView2, ICoreWebView2WebMessageReceivedEventArgs, ICoreWebView2_2,
+        ICoreWebView2, ICoreWebView2_2, ICoreWebView2WebMessageReceivedEventArgs,
     };
+    use webview2_com::take_pwstr;
     use windows::core::Interface;
 
-    use crate::webview2_message::shared::{should_emit_and_update, POSTMESSAGE_RECEIVED_COUNT};
     use crate::WebView2EventBridge;
+    use crate::webview2_message::shared::{POSTMESSAGE_RECEIVED_COUNT, should_emit_and_update};
 
     pub fn setup_webview2_messaging(
         core: &ICoreWebView2,
@@ -81,21 +81,21 @@ mod imp {
                             // Skip stale/duplicate emissions
                             if !should_emit_and_update(&url, &title, &favicon) {
                                 debug!(
-                                        "[ADL-META-RECV] Method 1 (postMessage): SKIPPED (stale/duplicate) | title: {} | url: {}",
-                                        title.chars().take(50).collect::<String>(),
-                                        url.chars().take(80).collect::<String>()
-                                    );
+                                    "[ADL-META-RECV] Method 1 (postMessage): SKIPPED (stale/duplicate) | title: {} | url: {}",
+                                    title.chars().take(50).collect::<String>(),
+                                    url.chars().take(80).collect::<String>()
+                                );
                                 return Ok(());
                             }
 
                             let count =
                                 POSTMESSAGE_RECEIVED_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
                             info!(
-                                    "[ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#{}) | title: {} | url: {}",
-                                    count,
-                                    title.chars().take(50).collect::<String>(),
-                                    url.chars().take(80).collect::<String>()
-                                );
+                                "[ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#{}) | title: {} | url: {}",
+                                count,
+                                title.chars().take(50).collect::<String>(),
+                                url.chars().take(80).collect::<String>()
+                            );
 
                             bridge_for_handler.emit_meta_changed(
                                 &tab_id_for_handler,
@@ -119,7 +119,10 @@ mod imp {
                     );
                 },
                 Err(e) => {
-                    warn!("[ADL-META-RECV] Method 1 (postMessage): FAILED to register handler: {}, falling back", e);
+                    warn!(
+                        "[ADL-META-RECV] Method 1 (postMessage): FAILED to register handler: {}, falling back",
+                        e
+                    );
                 },
             }
         }

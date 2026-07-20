@@ -35,7 +35,7 @@ export function KeybindSettings() {
       keybinds: s.appInfo?.config?.keybinds ?? EMPTY_KEYBINDS,
       updatePreferences: s.updatePreferences,
       showToast: s.showToast,
-    }))
+    })),
   );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,7 +46,8 @@ export function KeybindSettings() {
     }
     const lower = searchQuery.toLowerCase();
     return commands.filter(
-      (cmd) => cmd.id.toLowerCase().includes(lower) || t[cmd.titleKey].toLowerCase().includes(lower)
+      (cmd) =>
+        cmd.id.toLowerCase().includes(lower) || t[cmd.titleKey].toLowerCase().includes(lower),
     );
   }, [commands, searchQuery, t]);
 
@@ -74,7 +75,7 @@ export function KeybindSettings() {
     const titles = conflicts.map((c) => t[c.titleKey]).join(', ');
     showToast(
       formatT(t, 'settingsShortcutsConflictDesc', { keybind: keybindDisplay, titles }),
-      'warning'
+      'warning',
     );
     setActiveId(null);
   };

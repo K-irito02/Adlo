@@ -67,7 +67,7 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
 
   const findContainer = useCallback(
     (id: string): ContainerId => containerMap.get(id) ?? 'natural',
-    [containerMap]
+    [containerMap],
   );
 
   const handleDragStart = useCallback((e: DragStartEvent) => {
@@ -143,7 +143,7 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
       // Deduplicate defensively — ensure itemId appears in exactly one list
       const prune = (list: string[], exclude: ContainerId): string[] => {
         const others: ContainerId[] = ['priority', 'deferred', 'natural'].filter(
-          (c) => c !== exclude
+          (c) => c !== exclude,
         ) as ContainerId[];
         const otherSets = others.map((c) => new Set(getList(c)));
         return list.filter((id) => {
@@ -162,7 +162,7 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
 
       onChange({ priority: newPriority, deferred: newDeferred, natural: newNatural });
     },
-    [priorityIds, deferredIds, naturalOrder, findContainer, onChange]
+    [priorityIds, deferredIds, naturalOrder, findContainer, onChange],
   );
 
   const activeItem = activeId ? (visibleWorkspaces.find((w) => w.id === activeId) ?? null) : null;

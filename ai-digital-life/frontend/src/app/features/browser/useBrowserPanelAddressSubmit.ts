@@ -8,7 +8,7 @@ import type { PageMeta } from '@shared/ipc/browser';
 interface UseBrowserPanelAddressSubmitParams {
   address: string;
   setAddress: (address: string) => void;
-  browserLookupIndex: Array<{ title: string; url: string }>;
+  browserLookupIndex: { title: string; url: string }[];
   handleNavigationStart: (url: string) => void;
   navigateBrowser: (url: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
@@ -113,7 +113,7 @@ export function useBrowserPanelAddressSubmit({
               favicon: meta.favicon || '',
               url: finalUrl,
             },
-            'http'
+            'http',
           );
         });
       });

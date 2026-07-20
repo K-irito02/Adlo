@@ -15,7 +15,7 @@ type BrowserPanelStateInput = Omit<
 
 export function useBrowserPanelState(
   value: BrowserPanelStateInput,
-  _deps: React.DependencyList
+  _deps: React.DependencyList,
 ): BrowserPanelState {
   const valueRef = useRef(value);
   valueRef.current = value;
@@ -26,14 +26,14 @@ export function useBrowserPanelState(
       navigatorCollapsedByTool: s.navigatorCollapsedByTool,
       recentWorkspaces: s.recentWorkspaces,
       isTauri: s.isTauri,
-    }))
+    })),
   );
 
   return useMemo(() => {
     const v = valueRef.current;
     const navigatorCollapsed = storeValues.navigatorCollapsedByTool.browser ?? false;
     const visibleWorkspaces = storeValues.recentWorkspaces.filter(
-      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
     );
     const isEmbedPending =
       !storeValues.isTauri &&

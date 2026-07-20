@@ -42,7 +42,7 @@ export function GitHubCISettings({
     : settingsFolderId
       ? resolveCiFolderName(
           gitHubCiFolders.find((f) => f.id === settingsFolderId)?.name ?? settingsFolderId,
-          t
+          t,
         )
       : '';
 
@@ -76,7 +76,7 @@ export function GitHubCISettings({
       refreshCiStatusForWorkspace,
       gitHubSaveFolderConfig,
       onClose,
-    ]
+    ],
   );
 
   const handleCancel = useCallback(() => {

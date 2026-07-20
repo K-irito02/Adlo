@@ -96,7 +96,7 @@ const SessionListRow = React.memo(function SessionListRow({
         onMouseEnter={() => setHoveredSessionId(sessionItem.session.id)}
         onMouseLeave={() =>
           setHoveredSessionId((current) =>
-            current === sessionItem.session.id ? undefined : current
+            current === sessionItem.session.id ? undefined : current,
           )
         }
         onContextMenu={(event) => {

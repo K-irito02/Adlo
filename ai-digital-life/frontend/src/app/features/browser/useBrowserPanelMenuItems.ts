@@ -145,7 +145,7 @@ export function useBrowserPanelMenuItems({
         },
       },
     ],
-    [activeTab, browserNavigateActiveTab, t, isTauri, zoomLevel, setZoomLevel]
+    [activeTab, browserNavigateActiveTab, t, isTauri, zoomLevel, setZoomLevel],
   );
 
   return { browserMenuItems };

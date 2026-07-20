@@ -39,7 +39,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
     openFileForWorkspace: async (
       workspaceId: string,
       workspacePath: string,
-      relativePath: string
+      relativePath: string,
     ) => {
       await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
         cacheKey: `${workspacePath}:${relativePath}`,
@@ -101,7 +101,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       const norm = normalizeWorkspaceRelativePath(relativePath);
       set((state: StoreState) => {
         const nextDirty = state.dirtyEditorPaths.filter(
-          (p) => normalizeWorkspaceRelativePath(p) !== norm
+          (p) => normalizeWorkspaceRelativePath(p) !== norm,
         );
         void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
         return {

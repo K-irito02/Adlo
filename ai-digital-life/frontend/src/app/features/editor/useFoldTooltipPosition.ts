@@ -58,7 +58,7 @@ export function isLineFoldable(view: EditorView, lineNum: number): boolean {
 
 export function getGutterRowAtY(
   gutters: HTMLElement,
-  clientY: number
+  clientY: number,
 ): { rowRect: DOMRect | null; hasFoldMarker: boolean } {
   const lineNumbers = gutters.querySelector('.cm-lineNumbers') as HTMLElement | null;
   const foldGutter = gutters.querySelector('.cm-foldGutter') as HTMLElement | null;
@@ -95,7 +95,7 @@ export function computeTooltipText(
   view: EditorView,
   lineNum: number,
   isClosed: boolean,
-  t: CopyDict
+  t: CopyDict,
 ): string | null {
   const doc = view.state.doc;
   if (lineNum > doc.lines) {
@@ -131,7 +131,7 @@ export function computeTooltipText(
 export function computeTooltipFromPlaceholder(
   view: EditorView,
   placeholder: HTMLElement,
-  t: CopyDict
+  t: CopyDict,
 ): { text: string; rect: DOMRect } | null {
   const placeholderRect = placeholder.getBoundingClientRect();
   const pos = view.posAtCoords({
@@ -164,14 +164,14 @@ export function computeTooltipFromPlaceholder(
     placeholderRect.left,
     placeholderRect.top,
     placeholderRect.width,
-    placeholderRect.height
+    placeholderRect.height,
   );
   return { text, rect };
 }
 
 export function getFoldStartRange(
   view: EditorView,
-  lineNum: number
+  lineNum: number,
 ): { from: number; to: number } | null {
   let result: { from: number; to: number } | null = null;
   foldedRanges(view.state).between(0, view.state.doc.length, (_from, _to) => {
@@ -188,7 +188,7 @@ export function getFoldStartRange(
 export function computeTooltipFromEvent(
   view: EditorView,
   event: MouseEvent,
-  t: CopyDict
+  t: CopyDict,
 ): { text: string; rect: DOMRect } | null {
   const target = event.target as HTMLElement;
   if (target.closest('.cm-deletedLineGutter')) {
@@ -317,7 +317,7 @@ export function repositionOverlayOnScroll(view: EditorView): void {
 
 export function useFoldTooltipPosition(
   rect: DOMRect | null,
-  tooltipRef: React.RefObject<HTMLDivElement | null>
+  tooltipRef: React.RefObject<HTMLDivElement | null>,
 ): { left: number; top: number; side: 'right' | 'left' } | null {
   if (!rect) {
     return null;

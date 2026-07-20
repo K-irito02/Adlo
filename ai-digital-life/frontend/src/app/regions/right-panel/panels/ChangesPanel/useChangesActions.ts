@@ -26,7 +26,7 @@ export interface UseChangesActionsParams {
   collapsedPatchHunkIds: string[];
   onSelectPatchFile: (
     relativePath: string,
-    options?: { activateTool?: boolean; line?: number; hunkId?: string }
+    options?: { activateTool?: boolean; line?: number; hunkId?: string },
   ) => void;
   recentWorkspaces: RecentWorkspaceEntry[];
   visibleWorkspaces: RecentWorkspaceEntry[];
@@ -68,7 +68,7 @@ export function useChangesActions(params: UseChangesActionsParams) {
     (editor: DiffEditorRef | EditorRef) => {
       editorRef.current = editor;
     },
-    [editorRef]
+    [editorRef],
   );
 
   const getModifiedEditor = useCallback((): EditorRef | null => {
@@ -90,10 +90,10 @@ export function useChangesActions(params: UseChangesActionsParams) {
         previewEnabled,
         editorRef,
         changesPreviewContainerRef,
-        getModifiedEditor
+        getModifiedEditor,
       );
     },
-    [getModifiedEditor, changePreview, previewEnabled, editorRef, changesPreviewContainerRef]
+    [getModifiedEditor, changePreview, previewEnabled, editorRef, changesPreviewContainerRef],
   );
 
   const handleToggleAllDirectories = useCallback(() => {
@@ -101,7 +101,7 @@ export function useChangesActions(params: UseChangesActionsParams) {
       directoryPaths,
       hasExpandedDirectories,
       collapseAllChangesTreePaths,
-      setChangesTreePathExpanded
+      setChangesTreePathExpanded,
     );
   }, [
     directoryPaths,
@@ -115,7 +115,7 @@ export function useChangesActions(params: UseChangesActionsParams) {
       hasExpandableOutlineItems,
       hasExpandedOutlineItems,
       defaultExpandedOutlineIds,
-      setExpandedOutlineIds
+      setExpandedOutlineIds,
     );
   }, [
     hasExpandableOutlineItems,
@@ -134,40 +134,40 @@ export function useChangesActions(params: UseChangesActionsParams) {
         onSelectPatchFile,
         s.activePatchSets,
         s.activePatchSet,
-        s.openChangePreviewForWorkspace
+        s.openChangePreviewForWorkspace,
       );
     },
-    [collapsedPatchHunkIds, onSelectPatchFile]
+    [collapsedPatchHunkIds, onSelectPatchFile],
   );
 
   const onToggleExpand = useCallback(
     (workspaceId: string) => {
       toggleWorkspaceExpand(workspaceId, recentWorkspaces, (id, p) =>
-        useAppStore.getState().expandWorkspaceChangesInFileNav(id, p)
+        useAppStore.getState().expandWorkspaceChangesInFileNav(id, p),
       );
     },
-    [recentWorkspaces]
+    [recentWorkspaces],
   );
 
   const onRefreshOne = useCallback(
     (workspaceId: string) => {
       refreshOneWorkspace(workspaceId, recentWorkspaces, (id, p) =>
-        useAppStore.getState().refreshGitSnapshot(id, p)
+        useAppStore.getState().refreshGitSnapshot(id, p),
       );
     },
-    [recentWorkspaces]
+    [recentWorkspaces],
   );
 
   const handleToggleFileTreePath = useCallback(
     (_wsId: string, path: string) => {
       toggleChangesTreePath(path);
     },
-    [toggleChangesTreePath]
+    [toggleChangesTreePath],
   );
 
   const onRefreshAll = useCallback(() => {
     refreshAllChanges(visibleWorkspaces, (id, p) =>
-      useAppStore.getState().refreshGitSnapshot(id, p)
+      useAppStore.getState().refreshGitSnapshot(id, p),
     );
   }, [visibleWorkspaces]);
 

@@ -8,7 +8,7 @@ interface SettingsNavProps {
   onSelectGroup: (group: SettingsGroupId) => void;
 }
 
-const GROUPS: Array<{ id: SettingsGroupId; labelKey: keyof CopyDict }> = [
+const GROUPS: { id: SettingsGroupId; labelKey: keyof CopyDict }[] = [
   { id: 'general', labelKey: 'settingsGeneral' },
   { id: 'agent', labelKey: 'settingsAgent' },
   { id: 'workspace', labelKey: 'settingsWorkspace' },

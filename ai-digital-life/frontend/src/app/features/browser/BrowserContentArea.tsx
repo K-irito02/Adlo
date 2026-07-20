@@ -44,7 +44,7 @@ export function BrowserContentArea(props: BrowserContentAreaProps) {
         onRename={handleRenameFromContextMenu(
           browserTabs,
           props.contextMenu,
-          props.handleDoubleClick
+          props.handleDoubleClick,
         )}
         onDelete={handleDeleteFromContextMenu(props.contextMenu, props.wrappedHandleCloseTab)}
         onCopyUrl={props.handleCopyUrlFromMenu}
@@ -53,7 +53,7 @@ export function BrowserContentArea(props: BrowserContentAreaProps) {
         onEdit={handleRenameFromContextMenu(
           browserTabs,
           props.contextMenu,
-          props.handleDoubleClick
+          props.handleDoubleClick,
         )}
         onCut={() => {}}
       />

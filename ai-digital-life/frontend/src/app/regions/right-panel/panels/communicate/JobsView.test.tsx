@@ -52,7 +52,7 @@ describe('JobsView', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
         <JobsView snapshot={{ ...snapshot, jobs: [] }} onViewLogs={() => {}} />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github-empty');
   });
@@ -61,7 +61,7 @@ describe('JobsView', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
         <JobsView snapshot={snapshot} onViewLogs={() => {}} />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github-filter');
   });
@@ -70,7 +70,7 @@ describe('JobsView', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
         <JobsView snapshot={snapshot} onViewLogs={() => {}} />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github__job-list');
     expect(html).toContain('Build');

@@ -59,7 +59,7 @@ describe('browserTabsSlice - audio control', () => {
 
     store.getState().browserToggleTabMute('tab-1');
     expect(store.getState().browserTabs.find((t: any) => t.id === 'tab-1').isAudioMuted).toBe(
-      false
+      false,
     );
   });
 });

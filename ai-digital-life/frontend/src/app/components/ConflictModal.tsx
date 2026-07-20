@@ -14,6 +14,6 @@ export function ConflictModal({ notification, onDismiss }: ConflictModalProps) {
         <NotificationCard notification={notification} onClose={onDismiss} />
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

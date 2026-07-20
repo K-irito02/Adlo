@@ -11,7 +11,7 @@ interface UseWebViewLifecycleOptions {
   createWebViewForTab: (
     tabId: string,
     url: string,
-    colorScheme?: 'light' | 'dark'
+    colorScheme?: 'light' | 'dark',
   ) => Promise<string | null>;
   activateTabInPool: (tabId: string) => Promise<void>;
   navigateTabInPool: (tabId: string, url: string) => Promise<void>;

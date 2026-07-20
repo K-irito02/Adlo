@@ -38,12 +38,12 @@ export interface MarkdownConversationBlock extends ConversationBlockBase {
 export interface PlanConversationBlock extends ConversationBlockBase {
   type: 'plan';
   title: string;
-  items: Array<{
+  items: {
     id: string;
     title: string;
     detail?: string;
     status: 'pending' | 'running' | 'completed' | 'failed';
-  }>;
+  }[];
 }
 
 export interface ToolCallConversationBlock extends ConversationBlockBase {

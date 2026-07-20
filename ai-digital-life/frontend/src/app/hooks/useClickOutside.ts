@@ -10,7 +10,7 @@ type ClickOutsideRef = RefObject<Element | null>;
 export function useClickOutside(
   ref: ClickOutsideRef | readonly ClickOutsideRef[],
   enabled: boolean,
-  { onOutsideClick, onEscape }: UseClickOutsideOptions
+  { onOutsideClick, onEscape }: UseClickOutsideOptions,
 ): void {
   useEffect(() => {
     if (!enabled) {

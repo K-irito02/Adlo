@@ -60,7 +60,7 @@ interface BookmarkTabParams {
 
 function computeToggleBookmarkOutcome(
   state: BrowserBookmarkHelpersState,
-  input?: { url?: string; title?: string }
+  input?: { url?: string; title?: string },
 ): BookmarkOutcome {
   const active =
     state.browserTabs.find((tab) => tab.id === state.browserActiveTabId) ?? state.browserTabs[0];
@@ -78,7 +78,7 @@ function computeToggleBookmarkOutcome(
   let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
   if (exists) {
     const tabIdsForUrl = new Set(
-      state.browserTabs.filter((tab) => tab.url === url).map((tab) => tab.id)
+      state.browserTabs.filter((tab) => tab.url === url).map((tab) => tab.id),
     );
     if (tabIdsForUrl.size > 0) {
       nextTabIdUrlMap = { ...nextTabIdUrlMap };
@@ -98,7 +98,7 @@ function computeToggleBookmarkOutcome(
 
   if (exists) {
     const tabIdsForUrl = new Set(
-      state.browserTabs.filter((tab) => tab.url === url).map((tab) => tab.id)
+      state.browserTabs.filter((tab) => tab.url === url).map((tab) => tab.id),
     );
 
     if (tabIdsForUrl.size > 0) {
@@ -120,11 +120,11 @@ function computeToggleBookmarkOutcome(
       for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
         if (
           nextWorkspaceBookmarks[wsId].some(
-            (entry) => tabIdsForUrl.has(entry.tabId) && entry.url === url
+            (entry) => tabIdsForUrl.has(entry.tabId) && entry.url === url,
           )
         ) {
           nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter(
-            (entry) => !(tabIdsForUrl.has(entry.tabId) && entry.url === url)
+            (entry) => !(tabIdsForUrl.has(entry.tabId) && entry.url === url),
           );
           if (nextWorkspaceBookmarks[wsId].length === 0) {
             delete nextWorkspaceBookmarks[wsId];
@@ -151,7 +151,7 @@ function computeToggleBookmarkOutcome(
 
 function computeBookmarkTabOutcome(
   state: BrowserBookmarkHelpersState,
-  params: BookmarkTabParams
+  params: BookmarkTabParams,
 ): BookmarkOutcome {
   const { tabId, folderId, newFolderName, workspaceId, newFolderId, now } = params;
   const tab = state.browserTabs.find((t) => t.id === tabId);
@@ -201,7 +201,7 @@ function computeBookmarkTabOutcome(
             return {
               ...folder,
               tabs: existingTabs.map((item) =>
-                item.tabId === tabId && item.url === url ? { tabId, url, title } : item
+                item.tabId === tabId && item.url === url ? { tabId, url, title } : item,
               ),
             };
           }
@@ -224,7 +224,7 @@ function computeBookmarkTabOutcome(
   if (workspaceId) {
     const existingWsTabs = state.browserWorkspaceBookmarks[workspaceId] || [];
     const existingIdx = existingWsTabs.findIndex(
-      (entry) => entry.tabId === tabId && entry.url === url
+      (entry) => entry.tabId === tabId && entry.url === url,
     );
     if (existingIdx >= 0) {
       const updated = [...existingWsTabs];
@@ -267,7 +267,7 @@ export interface BrowserBookmarkSlice {
     tabId: string,
     folderId?: string,
     newFolderName?: string,
-    workspaceId?: string
+    workspaceId?: string,
   ) => void;
   browserUpdateBookmarkTitle: (url: string, title: string) => void;
   browserRemoveTabBookmarks: (tabId: string, url: string, scopeFolderId?: string) => void;
@@ -278,7 +278,7 @@ export interface BrowserBookmarkSlice {
 
 export const createBrowserBookmarkSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): BrowserBookmarkSlice => ({
   browserBookmarks: [],
   browserWorkspaceBookmarks: {},
@@ -350,7 +350,7 @@ export const createBrowserBookmarkSlice = (
         return state;
       }
       const nextBookmarks = state.browserBookmarks.map((b) =>
-        b.url === url ? { ...b, title } : b
+        b.url === url ? { ...b, title } : b,
       );
       writeBookmarks(nextBookmarks);
       return { browserBookmarks: nextBookmarks };
@@ -369,7 +369,7 @@ export const createBrowserBookmarkSlice = (
           nextWorkspaceBookmarks[wsId].some((entry) => entry.tabId === tabId && entry.url === url)
         ) {
           nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter(
-            (entry) => !(entry.tabId === tabId && entry.url === url)
+            (entry) => !(entry.tabId === tabId && entry.url === url),
           );
           if (nextWorkspaceBookmarks[wsId].length === 0) {
             delete nextWorkspaceBookmarks[wsId];
@@ -412,7 +412,7 @@ export const createBrowserBookmarkSlice = (
 
       const urlStillExists =
         Object.values(nextWorkspaceBookmarks).some((entries) =>
-          entries.some((e) => e.url === url)
+          entries.some((e) => e.url === url),
         ) || nextFolders.some((f) => f.tabs?.some((t) => t.url === url));
       const nextBookmarks = urlStillExists
         ? state.browserBookmarks

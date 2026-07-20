@@ -13,7 +13,7 @@ export interface UseBrowserTreeVirtualizationResult {
 }
 
 export function useBrowserTreeVirtualization(
-  input: UseBrowserTreeVirtualizationInput
+  input: UseBrowserTreeVirtualizationInput,
 ): UseBrowserTreeVirtualizationResult {
   const { workspaceNodes, userFolderNodes, historyNodes } = input;
 

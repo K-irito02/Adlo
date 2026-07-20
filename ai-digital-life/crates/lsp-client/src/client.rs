@@ -417,7 +417,7 @@ fn perform_lsp_handshake(
             }
         },
         Some(other) => {
-            return Err(AppError::Internal(format!("Expected init response, got: {other:?}")))
+            return Err(AppError::Internal(format!("Expected init response, got: {other:?}")));
         },
         None => return Err(AppError::Internal("LSP closed during initialize".into())),
     }

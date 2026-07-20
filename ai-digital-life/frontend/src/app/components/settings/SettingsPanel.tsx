@@ -64,7 +64,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       toggleNavigator: s.toggleNavigator,
       settingsNavigatorWidth: s.settingsNavigatorWidth,
       setSettingsNavigatorWidth: s.setSettingsNavigatorWidth,
-    }))
+    })),
   );
 
   const rafRef = useRef(0);
@@ -92,7 +92,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
           const delta = moveEvent.clientX - startX;
           const newWidth = Math.max(
             SETTINGS_NAVIGATOR_WIDTH_MIN,
-            Math.min(SETTINGS_NAVIGATOR_WIDTH_MAX, startWidth + delta)
+            Math.min(SETTINGS_NAVIGATOR_WIDTH_MAX, startWidth + delta),
           );
           navigator.style.setProperty('--adl-settings-nav-width', `${newWidth}px`);
         });
@@ -116,7 +116,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       target.addEventListener('pointercancel', handleUp);
       target.addEventListener('lostpointercapture', handleUp);
     },
-    [setSettingsNavigatorWidth]
+    [setSettingsNavigatorWidth],
   );
 
   const handleResetAll = async () => {
@@ -129,7 +129,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     if (searchQuery.trim()) {
       const lower = searchQuery.toLowerCase();
       items = items.filter(
-        (s) => s.label.toLowerCase().includes(lower) || s.description?.toLowerCase().includes(lower)
+        (s) =>
+          s.label.toLowerCase().includes(lower) || s.description?.toLowerCase().includes(lower),
       );
     } else {
       items = items.filter((s) => s.groupId === activeGroup);

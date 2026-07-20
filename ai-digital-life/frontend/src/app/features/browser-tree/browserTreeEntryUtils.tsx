@@ -11,7 +11,7 @@ export type FlatItem =
 export function buildFlatTabItems(
   node: BrowserTreeNode,
   showSeparators: boolean,
-  filterTabIds?: Set<string>
+  filterTabIds?: Set<string>,
 ): FlatItem[] {
   const items: FlatItem[] = [];
 
@@ -30,7 +30,7 @@ export function buildFlatTabItems(
     const subItems = collectSubDirItems(dir, dir.name, showSeparators, filterTabIds);
     if (subItems.length > 0) {
       const hasDirectTabs = dir.children.some(
-        (c) => c.kind === 'file' && (!filterTabIds || (c.tabId && filterTabIds.has(c.tabId)))
+        (c) => c.kind === 'file' && (!filterTabIds || (c.tabId && filterTabIds.has(c.tabId))),
       );
       if (showSeparators && hasDirectTabs) {
         items.push({ type: 'separator', label: dir.name });
@@ -46,7 +46,7 @@ export function collectSubDirItems(
   dir: BrowserTreeNode,
   pathSoFar: string,
   showSeparators: boolean,
-  filterTabIds?: Set<string>
+  filterTabIds?: Set<string>,
 ): FlatItem[] {
   const items: FlatItem[] = [];
 
@@ -66,7 +66,7 @@ export function collectSubDirItems(
     const deeper = collectSubDirItems(subDir, childPath, showSeparators, filterTabIds);
     if (deeper.length > 0) {
       const hasDirectTabs = subDir.children.some(
-        (c) => c.kind === 'file' && (!filterTabIds || (c.tabId && filterTabIds.has(c.tabId)))
+        (c) => c.kind === 'file' && (!filterTabIds || (c.tabId && filterTabIds.has(c.tabId))),
       );
       if (showSeparators && hasDirectTabs) {
         items.push({ type: 'separator', label: childPath });
@@ -81,16 +81,28 @@ export function collectSubDirItems(
 export function getEntryHoverButtons(
   nodeType: string,
   categoryType: BrowserCategoryType,
-  t: CopyDict
-): Array<{ id: string; label: string; icon: React.ReactNode }> {
+  t: CopyDict,
+): { id: string; label: string; icon: React.ReactNode }[] {
   if (categoryType === 'history') {
     return [
-      { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
+      {
+        id: 'more',
+        label: t.browserContextMore,
+        icon: <IconMoreVertical size={12} decorative />,
+      },
     ];
   }
   return [
-    { id: 'create-tab', label: t.browserContextCreateTab, icon: <IconPlus size={12} decorative /> },
-    { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
+    {
+      id: 'create-tab',
+      label: t.browserContextCreateTab,
+      icon: <IconPlus size={12} decorative />,
+    },
+    {
+      id: 'more',
+      label: t.browserContextMore,
+      icon: <IconMoreVertical size={12} decorative />,
+    },
   ];
 }
 
@@ -99,8 +111,8 @@ export function getEntryMoreMenuItems(
   categoryType: BrowserCategoryType,
   nodePath: string,
   callbacks: SectionCallbacks,
-  t: CopyDict
-): Array<{ id: string; label: string; danger?: boolean; hint?: string; action: () => void }> {
+  t: CopyDict,
+): { id: string; label: string; danger?: boolean; hint?: string; action: () => void }[] {
   if (categoryType === 'history') {
     return [
       {
@@ -134,13 +146,13 @@ export function getEntryMoreMenuItems(
     ];
   }
 
-  const items: Array<{
+  const items: {
     id: string;
     label: string;
     danger?: boolean;
     hint?: string;
     action: () => void;
-  }> = [];
+  }[] = [];
   items.push({
     id: 'open-all-tabs',
     label: t.browserContextOpenAllNewTabs,

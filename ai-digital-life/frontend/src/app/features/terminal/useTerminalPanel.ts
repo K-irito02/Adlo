@@ -67,9 +67,9 @@ export interface UseTerminalPanelReturn {
     currentProfileLabel: string;
     navigatorTitle: string;
     navigatorCount: number;
-    recentCommands: Array<{ id: string; label: string; title: string }>;
+    recentCommands: { id: string; label: string; title: string }[];
     shellMenuItems: TerminalShellMenuItem[];
-    shellTypeItems: Array<TerminalShellMenuItem & { label: string; profile: TerminalProfile }>;
+    shellTypeItems: (TerminalShellMenuItem & { label: string; profile: TerminalProfile })[];
     terminalMenuItems: TerminalMenuItem[];
   };
   terminalActions: {
@@ -113,12 +113,12 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
   const { terminalReorderTabs } = useAppStore(
     useShallow((state) => ({
       terminalReorderTabs: state.terminalReorderTabs,
-    }))
+    })),
   );
 
   const activeTab = useMemo(
     () => terminalTabs.find((tab) => tab.id === terminalActiveTabId) ?? terminalTabs[0],
-    [terminalActiveTabId, terminalTabs]
+    [terminalActiveTabId, terminalTabs],
   );
 
   const hasActiveTab = activeTab !== null;

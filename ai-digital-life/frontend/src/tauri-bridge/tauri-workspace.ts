@@ -81,7 +81,7 @@ export function createTauriWorkspaceBridge(): WorkspaceBridge {
     onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) =>
       subscribeChannel<WorkspaceFileChangedEvent>(
         'digital-life://workspace-file-changed',
-        listener
+        listener,
       ),
     getGitStatus: () => invokeIpc<GitSnapshot>('workspace_get_git_status'),
     listGitBranches: (rootPath?: string) =>

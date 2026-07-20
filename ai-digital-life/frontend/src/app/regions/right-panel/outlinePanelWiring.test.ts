@@ -5,47 +5,47 @@ import { describe, expect, it } from 'vitest';
 describe('outline panel wiring', () => {
   const fileNavigatorShellSource = readFileSync(
     new URL('./FileNavigatorShell.tsx', import.meta.url),
-    'utf8'
+    'utf8',
   );
   const fileNavigatorToolbarSource = readFileSync(
     new URL('./FileNavigatorToolbar.tsx', import.meta.url),
-    'utf8'
+    'utf8',
   );
   const _fileNavigatorTreeSource = readFileSync(
     new URL('./FileNavigatorTree.tsx', import.meta.url),
-    'utf8'
+    'utf8',
   );
   const editorSurfaceShellSource = readFileSync(
     new URL('./EditorSurfaceShell.tsx', import.meta.url),
-    'utf8'
+    'utf8',
   );
   const changesPanelStateSource = readFileSync(
     new URL('./panels/ChangesPanel/useChangesPanelState.tsx', import.meta.url),
-    'utf8'
+    'utf8',
   );
   const changesFiltersSource = readFileSync(
     new URL('./panels/ChangesPanel/useChangesFilters.ts', import.meta.url),
-    'utf8'
+    'utf8',
   );
   const changesTreePanelSource = readFileSync(
     new URL('./panels/ChangesTreePanel.tsx', import.meta.url),
-    'utf8'
+    'utf8',
   );
   const previewWorkspaceServiceSource = readFileSync(
     new URL('../../../../dev/previewWorkspaceService/files.ts', import.meta.url),
-    'utf8'
+    'utf8',
   );
   const outlineTreeSource = readFileSync(
     new URL('../../features/outline/OutlineTree.tsx', import.meta.url),
-    'utf8'
+    'utf8',
   );
   const fileTreeSource = readFileSync(
     new URL('../../features/file-tree/fileTree.tsx', import.meta.url),
-    'utf8'
+    'utf8',
   );
   const treeNodeRowSource = readFileSync(
     new URL('../../features/file-tree/TreeNodeRow.tsx', import.meta.url),
-    'utf8'
+    'utf8',
   );
 
   it('uses the shared outline tree in the files panel', () => {

@@ -33,7 +33,7 @@ export interface GitHubBridge {
   getStatusWithoutToken: (
     owner: string,
     repo: string,
-    branch: string
+    branch: string,
   ) => Promise<IpcResult<CiStatusSnapshot>>;
   /**
    * 保存 GitHub/CI 访问令牌

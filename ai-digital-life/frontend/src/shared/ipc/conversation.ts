@@ -57,7 +57,7 @@ export interface ConversationBridge {
    */
   createSession: (
     title?: string,
-    workspaceId?: string
+    workspaceId?: string,
   ) => Promise<IpcResult<ConversationSessionRecord>>;
   /**
    * 列出所有对话会话

@@ -6,7 +6,7 @@ export type BrowserSearchScope = 'bookmarks' | 'history' | 'all';
 
 function filterBrowserItems<T extends { title: string; url: string }>(
   items: T[],
-  query: string
+  query: string,
 ): T[] {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) {
@@ -20,13 +20,13 @@ function filterBrowserItems<T extends { title: string; url: string }>(
 }
 
 export function findInBrowserLookupIndex(
-  browserLookupIndex: Array<{ title: string; url: string }>,
-  input: string
+  browserLookupIndex: { title: string; url: string }[],
+  input: string,
 ): { title: string; url: string } | undefined {
   const normalizedInput = input.toLowerCase();
   const exactMatch = browserLookupIndex.find(
     (item) =>
-      item.title.toLowerCase() === normalizedInput || item.url.toLowerCase() === normalizedInput
+      item.title.toLowerCase() === normalizedInput || item.url.toLowerCase() === normalizedInput,
   );
   if (exactMatch) {
     return exactMatch;
@@ -37,15 +37,15 @@ export function findInBrowserLookupIndex(
     return browserLookupIndex.find(
       (item) =>
         item.title.toLowerCase().includes(normalizedInput) ||
-        item.url.toLowerCase().includes(normalizedInput)
+        item.url.toLowerCase().includes(normalizedInput),
     );
   }
   return undefined;
 }
 
 interface UseBrowserSearchOptions {
-  browserBookmarks: Array<{ title: string; url: string }>;
-  browserHistory: Array<{ title: string; url: string; visitedAt: number }>;
+  browserBookmarks: { title: string; url: string }[];
+  browserHistory: { title: string; url: string; visitedAt: number }[];
   browserTabs: BrowserTabState[];
 }
 
@@ -71,7 +71,7 @@ export function useBrowserSearch(options: UseBrowserSearchOptions) {
         : []),
       { title: t.browserBlankTab, url: 'about:blank' },
     ],
-    [t.browserBlankTab, t.browserLocalPreview]
+    [t.browserBlankTab, t.browserLocalPreview],
   );
 
   const browserLookupIndex = useMemo(() => {
@@ -84,18 +84,18 @@ export function useBrowserSearch(options: UseBrowserSearchOptions) {
         }
         seen.add(key);
         return true;
-      }
+      },
     );
   }, [browserBookmarks, browserHistory, browserTabs, quickLinks]);
 
   const filteredBookmarks = useMemo(
     () => filterBrowserItems(browserBookmarks, navigatorQuery),
-    [browserBookmarks, navigatorQuery]
+    [browserBookmarks, navigatorQuery],
   );
 
   const filteredHistory = useMemo(
     () => filterBrowserItems(browserHistory, navigatorQuery),
-    [browserHistory, navigatorQuery]
+    [browserHistory, navigatorQuery],
   );
 
   const searchResults = useMemo(() => {

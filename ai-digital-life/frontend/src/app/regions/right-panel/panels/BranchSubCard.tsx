@@ -66,7 +66,7 @@ export function BranchSubCard({
 
   const gitBranches = useMemo(
     () => (workspacePath ? (localBranches ?? []) : (localBranches ?? storeBranches)),
-    [workspacePath, localBranches, storeBranches]
+    [workspacePath, localBranches, storeBranches],
   );
 
   useEffect(() => {
@@ -128,7 +128,7 @@ export function BranchSubCard({
       onSelect?.(branchName);
       initiateSwitch({ branchName, allowStash: false });
     },
-    [onSelect, initiateSwitch]
+    [onSelect, initiateSwitch],
   );
 
   if (!isOpen) {

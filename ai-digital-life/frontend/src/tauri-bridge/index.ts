@@ -48,7 +48,7 @@ export function createTauriBridge(): DigitalLifeBridge {
               listener(event);
             }
           });
-        }
+        },
       );
       return channelSub;
     },
@@ -59,7 +59,7 @@ export function createTauriBridge(): DigitalLifeBridge {
     subscribeTerminalStream: (listener: (event: DigitalLifeTerminalStreamEventV1) => void) =>
       subscribeChannel<DigitalLifeTerminalStreamEventV1>(
         'digital-life://terminal-stream',
-        listener
+        listener,
       ),
 
     subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) =>

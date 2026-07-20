@@ -3,30 +3,30 @@ import { useTCopy } from '../i18n/useTCopy';
 import { ToolSwitcher } from './right-panel/ToolSwitcher';
 
 const FilesPanel = lazy(() =>
-  import('./right-panel/panels/FilesPanel').then((m) => ({ default: m.FilesPanel }))
+  import('./right-panel/panels/FilesPanel').then((m) => ({ default: m.FilesPanel })),
 );
 const ChangesPanel = lazy(() =>
-  import('./right-panel/panels/ChangesPanel').then((m) => ({ default: m.ChangesPanel }))
+  import('./right-panel/panels/ChangesPanel').then((m) => ({ default: m.ChangesPanel })),
 );
 const BrowserPanel = lazy(() =>
-  import('./right-panel/panels/BrowserPanel').then((m) => ({ default: m.BrowserPanel }))
+  import('./right-panel/panels/BrowserPanel').then((m) => ({ default: m.BrowserPanel })),
 );
 const TerminalPanel = lazy(() =>
-  import('../features/terminal').then((m) => ({ default: m.TerminalPanel }))
+  import('../features/terminal').then((m) => ({ default: m.TerminalPanel })),
 );
 const AuditPanel = lazy(() =>
-  import('../components/approval/AuditPanel').then((m) => ({ default: m.AuditPanel }))
+  import('../components/approval/AuditPanel').then((m) => ({ default: m.AuditPanel })),
 );
 const ProviderManager = lazy(() =>
-  import('../components/models/ProviderManager').then((m) => ({ default: m.ProviderManager }))
+  import('../components/models/ProviderManager').then((m) => ({ default: m.ProviderManager })),
 );
 const SettingsPanel = lazy(() =>
-  import('../components/settings/SettingsPanel').then((m) => ({ default: m.SettingsPanel }))
+  import('../components/settings/SettingsPanel').then((m) => ({ default: m.SettingsPanel })),
 );
 const CommunicationPanel = lazy(() =>
   import('./right-panel/panels/CommunicationPanel').then((m) => ({
     default: m.CommunicationPanel,
-  }))
+  })),
 );
 import type {
   FilesPanelProps,
@@ -61,13 +61,13 @@ export interface RightPanelProps {
   onSendSelection: () => void;
   onSelectPatchFile: (
     relativePath: string,
-    options?: { activateTool?: boolean; line?: number; hunkId?: string }
+    options?: { activateTool?: boolean; line?: number; hunkId?: string },
   ) => void;
   onSelectPatchHunk: (
     relativePath: string,
     hunkId: string,
     line: number,
-    options?: { activateTool?: boolean }
+    options?: { activateTool?: boolean },
   ) => void;
   onTogglePatchHunkCollapse: (hunkId: string) => void;
   onSetAllPatchHunksCollapsed: (collapsed: boolean, relativePath?: string) => void;
@@ -88,7 +88,7 @@ interface ActiveToolPanelProps {
 
 function areActiveToolPanelPropsEqual(
   prevProps: ActiveToolPanelProps,
-  nextProps: ActiveToolPanelProps
+  nextProps: ActiveToolPanelProps,
 ) {
   return (
     prevProps.activeTool === nextProps.activeTool &&
@@ -195,7 +195,7 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
   const changesProps = useChangesPanelProps(panelProps, diffSideBySide, onSetDiffLayout);
   const browserProps = useBrowserPanelProps(
     panelProps,
-    activeRightTool === 'browser' && !collapsed
+    activeRightTool === 'browser' && !collapsed,
   );
   const terminalProps = useTerminalPanelProps(panelProps);
   const auditProps = useAuditPanelProps(panelProps);

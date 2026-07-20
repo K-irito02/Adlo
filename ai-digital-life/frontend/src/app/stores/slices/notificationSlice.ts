@@ -29,9 +29,11 @@ function notifId() {
 
 export const createNotificationSlice = (
   set: (
-    partial: Partial<NotificationSlice> | ((state: NotificationSlice) => Partial<NotificationSlice>)
+    partial:
+      | Partial<NotificationSlice>
+      | ((state: NotificationSlice) => Partial<NotificationSlice>),
   ) => void,
-  get: () => NotificationSlice
+  get: () => NotificationSlice,
 ): NotificationSlice => ({
   notifications: [],
   activePopupId: null,
@@ -80,7 +82,7 @@ export const createNotificationSlice = (
     const idSet = new Set(visibleIds);
     set((state) => ({
       notifications: state.notifications.map((n) =>
-        n.read || !idSet.has(n.id) ? n : { ...n, read: true }
+        n.read || !idSet.has(n.id) ? n : { ...n, read: true },
       ),
     }));
   },
@@ -93,7 +95,7 @@ export const createNotificationSlice = (
         set((s) => ({
           activePopupId: null,
           notifications: s.notifications.map((n) =>
-            n.id === state.activePopupId ? { ...n, read: true } : n
+            n.id === state.activePopupId ? { ...n, read: true } : n,
           ),
         }));
       } else {

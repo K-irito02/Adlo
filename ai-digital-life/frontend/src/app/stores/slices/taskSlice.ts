@@ -14,7 +14,7 @@ export interface TaskSlice {
 
 export const createTaskSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): TaskSlice => ({
   setTaskCenter: (snapshot) => set({ taskCenter: snapshot }),
   clearTaskState: () => set({ taskCenter: undefined }),

@@ -78,21 +78,21 @@ export function ProviderManager() {
         [providerId]: { ...prev[providerId], apiKeyInput: '' },
       }));
     },
-    [expanded, setApiKey]
+    [expanded, setApiKey],
   );
 
   const handleClearApiKey = useCallback(
     async (providerId: string) => {
       await clearApiKey(providerId);
     },
-    [clearApiKey]
+    [clearApiKey],
   );
 
   const handleTestConnection = useCallback(
     async (providerId: string) => {
       await testConnection(providerId);
     },
-    [testConnection]
+    [testConnection],
   );
 
   const handleFetchModels = useCallback(
@@ -101,14 +101,14 @@ export function ProviderManager() {
       await fetchModels(providerId);
       setFetchingModelsId(null);
     },
-    [fetchModels]
+    [fetchModels],
   );
 
   const handleRemoveCustomProvider = useCallback(
     async (providerId: string) => {
       await removeCustomProvider(providerId);
     },
-    [removeCustomProvider]
+    [removeCustomProvider],
   );
 
   const testResult = (providerId: string) => connectionTestResults[providerId];

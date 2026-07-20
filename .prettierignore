@@ -15,3 +15,15 @@ ai-digital-life/frontend/coverage
 
 # Auto-generated files
 ai-digital-life/frontend/src/shared/ipc-types.generated.ts
+ai-digital-life/frontend/src/shared/ipc/generated/
+ai-digital-life/frontend/src/vite-env.d.ts
+
+# Test fixtures & mocks
+ai-digital-life/frontend/src/test-fixtures/
+ai-digital-life/frontend/src/mock/
+ai-digital-life/frontend/src/types/
+
+# Config files (handled separately)
+ai-digital-life/frontend/*.config.ts
+ai-digital-life/frontend/*.config.js
+ai-digital-life/frontend/*.d.ts

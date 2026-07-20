@@ -205,7 +205,7 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     hasExpandableOutlineItems,
     hasExpandedOutlineItems,
     t,
-    handleToggleAllOutlineItems
+    handleToggleAllOutlineItems,
   );
 
   return {

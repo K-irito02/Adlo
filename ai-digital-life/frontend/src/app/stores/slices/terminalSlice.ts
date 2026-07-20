@@ -93,7 +93,7 @@ let _defaultsHydrated = false;
 
 function hydrateTerminalDefaults(
   get: () => StoreState,
-  set: (partial: Partial<StoreState>) => void
+  set: (partial: Partial<StoreState>) => void,
 ): void {
   if (_defaultsHydrated) {
     return;
@@ -103,24 +103,24 @@ function hydrateTerminalDefaults(
     const profile = readJson<TerminalProfile>(TERMINAL_DEFAULT_PROFILE_KEY, 'powershell');
     const workspaceProfiles = readJson<Record<string, TerminalProfile>>(
       TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
-      {}
+      {},
     );
     const width = readNumber(
       TERMINAL_NAVIGATOR_WIDTH_KEY,
       DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
       TERMINAL_NAVIGATOR_WIDTH_MIN,
-      TERMINAL_NAVIGATOR_WIDTH_MAX
+      TERMINAL_NAVIGATOR_WIDTH_MAX,
     );
     const collapsed = {
       ...defaultNavigatorCollapsed(),
       ...readJson<Record<ToolId, boolean>>(
         TERMINAL_NAVIGATOR_COLLAPSED_KEY,
-        defaultNavigatorCollapsed()
+        defaultNavigatorCollapsed(),
       ),
     };
     const workspaceExpanded = readJson<Record<string, boolean>>(
       TERMINAL_WORKSPACE_EXPANDED_KEY,
-      {}
+      {},
     );
     set({
       defaultTerminalProfile: profile,
@@ -172,7 +172,7 @@ export interface TerminalSlice {
 
 export const createTerminalSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  get: () => StoreState
+  get: () => StoreState,
 ): TerminalSlice => {
   hydrateTerminalDefaults(get, set);
   return {
@@ -249,8 +249,8 @@ export const createTerminalSlice = (
       set((state) => {
         const nextTabs = sortTabs(
           state.terminalTabs.map((tab) =>
-            tab.id === state.terminalActiveTabId ? { ...tab, ...patch } : tab
-          )
+            tab.id === state.terminalActiveTabId ? { ...tab, ...patch } : tab,
+          ),
         );
         writeTerminalTabs(nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
@@ -259,7 +259,7 @@ export const createTerminalSlice = (
     terminalUpdateTab: (tabId, patch) =>
       set((state) => {
         const nextTabs = sortTabs(
-          state.terminalTabs.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab))
+          state.terminalTabs.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab)),
         );
         writeTerminalTabs(nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
@@ -277,7 +277,7 @@ export const createTerminalSlice = (
               };
             }
             return tab;
-          })
+          }),
         );
         writeTerminalTabs(nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
@@ -326,7 +326,7 @@ export const createTerminalSlice = (
         try {
           window.localStorage.setItem(
             TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
-            JSON.stringify(nextWorkspaceProfiles)
+            JSON.stringify(nextWorkspaceProfiles),
           );
         } catch (err) {
           console.warn('terminalSlice: localStorage operation failed:', err);

@@ -74,7 +74,7 @@ export function Tooltip({
       dismissible,
       showArrow,
     }),
-    [tooltip, dismissible, showArrow]
+    [tooltip, dismissible, showArrow],
   );
 
   return <TooltipContext.Provider value={contextValue}>{children}</TooltipContext.Provider>;
@@ -159,7 +159,7 @@ export function TooltipTrigger({ children, asChild = false }: TooltipTriggerProp
       }
       triggerRef(node);
     },
-    [triggerRef]
+    [triggerRef],
   );
 
   if (asChildActive) {
@@ -322,7 +322,6 @@ export function TooltipContent({
 
   return (
     <TooltipContentInner
-      children={children}
       side={side}
       placement={placement}
       position={position}
@@ -335,7 +334,9 @@ export function TooltipContent({
       showArrow={showArrow}
       className={className}
       id={id}
-    />
+    >
+      {children}
+    </TooltipContentInner>
   );
 }
 

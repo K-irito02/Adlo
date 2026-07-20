@@ -68,7 +68,7 @@ export function useBrowserPool() {
 
       return rustEvicted;
     },
-    [rerender, bumpPoolVersion, evictLocalLRU]
+    [rerender, bumpPoolVersion, evictLocalLRU],
   );
 
   const activateTabInPool = useCallback(async (tabId: string) => {
@@ -96,7 +96,7 @@ export function useBrowserPool() {
       rerender();
       bumpPoolVersion();
     },
-    [rerender, bumpPoolVersion]
+    [rerender, bumpPoolVersion],
   );
 
   const destroyTabWebView = useCallback(
@@ -109,7 +109,7 @@ export function useBrowserPool() {
       }
       removeFromPool(tabId);
     },
-    [removeFromPool]
+    [removeFromPool],
   );
 
   return {

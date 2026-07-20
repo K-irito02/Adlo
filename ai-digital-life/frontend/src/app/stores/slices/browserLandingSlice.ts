@@ -33,7 +33,7 @@ export interface BrowserLandingSlice {
   browserAddManualPort: (port: number, label?: string) => string;
   browserUpdateLocalPort: (
     id: string,
-    patch: Partial<Pick<LocalPort, 'label' | 'sortOrder'>>
+    patch: Partial<Pick<LocalPort, 'label' | 'sortOrder'>>,
   ) => void;
   browserDeleteLocalPort: (id: string) => void;
   browserReorderLocalPorts: (ids: string[]) => void;
@@ -44,7 +44,7 @@ export interface BrowserLandingSlice {
 
 export const createBrowserLandingSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): BrowserLandingSlice => ({
   browserShortcuts: [],
   browserLocalPorts: [],

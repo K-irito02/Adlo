@@ -40,7 +40,7 @@ describe('stickyContext helpers', () => {
     });
 
     expect(
-      entries.map((entry) => ({ kind: entry.kind, label: entry.label, line: entry.line }))
+      entries.map((entry) => ({ kind: entry.kind, label: entry.label, line: entry.line })),
     ).toEqual([
       { kind: 'heading', label: 'Overview', line: 1 },
       { kind: 'heading', label: 'Details', line: 3 },
@@ -91,15 +91,15 @@ describe('stickyContext helpers', () => {
 describe('sticky context panel wiring', () => {
   const editorSurfaceShellSource = readFileSync(
     new URL('./EditorSurfaceShell.tsx', import.meta.url),
-    'utf8'
+    'utf8',
   );
   const useStickyContextSource = readFileSync(
     new URL('./hooks/useStickyContext.ts', import.meta.url),
-    'utf8'
+    'utf8',
   );
   const _changesPanelSource = readFileSync(
     new URL('./panels/ChangesPanel.tsx', import.meta.url),
-    'utf8'
+    'utf8',
   );
 
   it('renders sticky context above the files editor surface in both editor modes', () => {
@@ -112,7 +112,7 @@ describe('sticky context panel wiring', () => {
   it('renders sticky context above the changes preview surface', () => {
     const diffEditorSectionSource = readFileSync(
       new URL('./panels/DiffEditorSection.tsx', import.meta.url),
-      'utf8'
+      'utf8',
     );
     expect(diffEditorSectionSource).toContain('StickyContext');
     expect(diffEditorSectionSource).toContain('data-testid="changes-sticky-context"');

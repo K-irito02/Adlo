@@ -25,7 +25,7 @@ export function computeLoadPhases(
   priorityIds: string[],
   deferredIds: string[],
   naturalOrder: string[],
-  visibleWorkspaces: RecentWorkspaceEntry[]
+  visibleWorkspaces: RecentWorkspaceEntry[],
 ): LoadPhases {
   const lookup = new Map(visibleWorkspaces.map((w) => [w.id, w] as const));
   const configured = new Set<string>([...priorityIds, ...deferredIds, ...naturalOrder]);

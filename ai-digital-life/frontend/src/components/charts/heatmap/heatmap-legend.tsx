@@ -114,7 +114,7 @@ export const HeatmapLegend = memo(function HeatmapLegend({
       setHoveredCell(null);
       setTooltipData(null);
     },
-    [isInteractive, setHoveredCell, setHoveredLegendLevel, setTooltipData]
+    [isInteractive, setHoveredCell, setHoveredLegendLevel, setTooltipData],
   );
 
   const handleLegendLeave = useCallback(() => {
@@ -134,7 +134,7 @@ export const HeatmapLegend = memo(function HeatmapLegend({
         align === 'start' && 'justify-start',
         align === 'center' && 'justify-center',
         align === 'end' && 'justify-end',
-        className
+        className,
       )}
       style={labelStyle}
     >

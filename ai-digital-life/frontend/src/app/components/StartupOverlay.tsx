@@ -28,7 +28,7 @@ export default function StartupOverlay() {
   const storeLanguage = useAppStore((s) => s.appInfo?.config.language);
   const displayLang = useMemo(
     () => storeLanguage ?? (typeof navigator !== 'undefined' ? navigator.language : 'en'),
-    [storeLanguage]
+    [storeLanguage],
   );
 
   // 移除 index.html 中的静态预加载覆盖层，让 React 覆盖层接管

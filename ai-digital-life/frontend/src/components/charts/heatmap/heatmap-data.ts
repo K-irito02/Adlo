@@ -39,14 +39,14 @@ export type HeatmapYAxisLabelFormat = 'full' | 'initial';
 
 export function formatHeatmapYAxisLabel(
   label: string,
-  labelFormat: HeatmapYAxisLabelFormat
+  labelFormat: HeatmapYAxisLabelFormat,
 ): string {
   return labelFormat === 'initial' ? label.charAt(0) : label;
 }
 
 export function shouldShowHeatmapYAxisTick(
   row: number,
-  tickFilter: HeatmapYAxisTickFilter
+  tickFilter: HeatmapYAxisTickFilter,
 ): boolean {
   switch (tickFilter) {
     case 'all':
@@ -72,7 +72,7 @@ export function isHeatmapHoverEffectEnabled(params: HeatmapHoverStyleParams): bo
 
 export function isHeatmapInactiveEffectEnabled(
   inactiveOpacity: number,
-  inactiveScale: number
+  inactiveScale: number,
 ): boolean {
   return isHeatmapHoverEffectEnabled({
     inactiveOpacity,
@@ -84,7 +84,7 @@ export function isHeatmapInactiveEffectEnabled(
 export function resolveHeatmapHoverStyle(
   isHighlighted: boolean,
   isDimmed: boolean,
-  params: HeatmapHoverStyleParams
+  params: HeatmapHoverStyleParams,
 ): { opacity: number; scale: number } {
   if (isHighlighted && params.activeScale !== 1) {
     return { opacity: 1, scale: params.activeScale };
@@ -103,7 +103,7 @@ export function resolveHeatmapHoverStyle(
 export function resolveHeatmapInactiveStyle(
   isInactive: boolean,
   inactiveOpacity: number,
-  inactiveScale: number
+  inactiveScale: number,
 ): { opacity: number; scale: number } {
   return resolveHeatmapHoverStyle(false, isInactive, {
     inactiveOpacity,
@@ -114,7 +114,7 @@ export function resolveHeatmapInactiveStyle(
 
 export function resolveHeatmapRowOpacity(
   row: number,
-  rowOpacity?: number | readonly number[]
+  rowOpacity?: number | readonly number[],
 ): number {
   if (rowOpacity == null) {
     return 1;
@@ -131,11 +131,11 @@ export function buildHeatmapRowOpacity(
   match: readonly number[] | ((row: number) => boolean),
   fadedOpacity = 0.35,
   activeOpacity = 1,
-  rowCount = 7
+  rowCount = 7,
 ): number[] {
   if (typeof match === 'function') {
     return Array.from({ length: rowCount }, (_, row) =>
-      match(row) ? fadedOpacity : activeOpacity
+      match(row) ? fadedOpacity : activeOpacity,
     );
   }
 

@@ -53,7 +53,7 @@ function makeFolder(
   name: string,
   parentId: string | undefined,
   parentType: TabFolderState['parentType'],
-  tabIds: string[] = []
+  tabIds: string[] = [],
 ): TabFolderState {
   return {
     id,
@@ -70,7 +70,7 @@ function makeHistoryEntry(
   id: string,
   title: string,
   url: string,
-  visitedAt: number
+  visitedAt: number,
 ): BrowserHistoryState {
   return { id, title, url, visitedAt };
 }
@@ -214,7 +214,7 @@ describe('count rules per category type', () => {
     const tree = buildWorkspaceCategoryTree(
       [workspace],
       [tabA, tabB, tabC, tabD],
-      [rootFolder, subFolder]
+      [rootFolder, subFolder],
     );
 
     expect(tree).toHaveLength(1);
@@ -253,20 +253,20 @@ describe('count rules per category type', () => {
       'e1',
       'E1',
       'https://a.example',
-      new Date(2026, 5, 2, 10).getTime()
+      new Date(2026, 5, 2, 10).getTime(),
     );
     const e2 = makeHistoryEntry(
       'e2',
       'E2',
       'https://b.example',
-      new Date(2026, 5, 2, 11).getTime()
+      new Date(2026, 5, 2, 11).getTime(),
     );
     const e3 = makeHistoryEntry('e3', 'E3', 'https://c.example', new Date(2026, 4, 1, 9).getTime());
     const e4 = makeHistoryEntry(
       'e4',
       'E4',
       'https://d.example',
-      new Date(2025, 11, 25, 9).getTime()
+      new Date(2025, 11, 25, 9).getTime(),
     );
 
     const tree = buildHistoryCategoryTree([e1, e2, e3, e4], [], mockDateLabels);

@@ -47,7 +47,7 @@ pub async fn webfetch_with_format(url: &str, format: WebFetchFormat) -> WebFetch
     {
         Ok(c) => c,
         Err(e) => {
-            return error_result(url, &format, format!("Failed to create HTTP client: {}", e))
+            return error_result(url, &format, format!("Failed to create HTTP client: {}", e));
         },
     };
 
@@ -64,7 +64,7 @@ pub async fn webfetch_with_format(url: &str, format: WebFetchFormat) -> WebFetch
             let bytes = match resp.bytes().await {
                 Ok(b) => b,
                 Err(e) => {
-                    return error_result(url, &format, format!("Failed to read response: {}", e))
+                    return error_result(url, &format, format!("Failed to read response: {}", e));
                 },
             };
 

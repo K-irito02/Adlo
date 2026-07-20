@@ -65,7 +65,7 @@ export function sanitizeSensitiveData<T>(value: T): T {
           }
 
           return [key, walk(childValue)];
-        })
+        }),
       );
     }
 

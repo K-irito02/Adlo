@@ -91,7 +91,7 @@ export type UIWidthSlice = Pick<
 
 export function createUIWidthSlice(
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): UIWidthSlice {
   return {
     activeRightTool: 'files',
@@ -101,37 +101,37 @@ export function createUIWidthSlice(
       RIGHT_PANEL_WIDTH_KEY,
       DEFAULT_RIGHT_PANEL_WIDTH,
       RIGHT_PANEL_WIDTH_MIN,
-      RIGHT_PANEL_WIDTH_MAX
+      RIGHT_PANEL_WIDTH_MAX,
     ),
     filesNavigatorWidth: readNumber(
       FILES_NAVIGATOR_WIDTH_KEY,
       DEFAULT_FILES_NAVIGATOR_WIDTH,
       FILES_NAVIGATOR_WIDTH_MIN,
-      FILES_NAVIGATOR_WIDTH_MAX
+      FILES_NAVIGATOR_WIDTH_MAX,
     ),
     changesNavigatorWidth: readNumber(
       CHANGES_NAVIGATOR_WIDTH_KEY,
       DEFAULT_CHANGES_NAVIGATOR_WIDTH,
       CHANGES_NAVIGATOR_WIDTH_MIN,
-      CHANGES_NAVIGATOR_WIDTH_MAX
+      CHANGES_NAVIGATOR_WIDTH_MAX,
     ),
     browserNavigatorWidth: readNumber(
       BROWSER_NAVIGATOR_WIDTH_KEY,
       DEFAULT_BROWSER_NAVIGATOR_WIDTH,
       BROWSER_NAVIGATOR_WIDTH_MIN,
-      BROWSER_NAVIGATOR_WIDTH_MAX
+      BROWSER_NAVIGATOR_WIDTH_MAX,
     ),
     gitHubNavigatorWidth: readNumber(
       GITHUB_NAVIGATOR_WIDTH_KEY,
       DEFAULT_GITHUB_NAVIGATOR_WIDTH,
       GITHUB_NAVIGATOR_WIDTH_MIN,
-      GITHUB_NAVIGATOR_WIDTH_MAX
+      GITHUB_NAVIGATOR_WIDTH_MAX,
     ),
     settingsNavigatorWidth: readNumber(
       SETTINGS_NAVIGATOR_WIDTH_KEY,
       DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
       SETTINGS_NAVIGATOR_WIDTH_MIN,
-      SETTINGS_NAVIGATOR_WIDTH_MAX
+      SETTINGS_NAVIGATOR_WIDTH_MAX,
     ),
 
     setActiveRightTool: (tool) => {

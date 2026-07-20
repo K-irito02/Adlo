@@ -35,7 +35,7 @@ export function findFolderById(folders: TabFolderState[], folderId: string): Tab
 
 export function collectAllDescendantFolderIds(
   folders: TabFolderState[],
-  parentId: string
+  parentId: string,
 ): string[] {
   const result: string[] = [];
   const directChildren = folders.filter((f) => f.parentId === parentId);

@@ -67,15 +67,15 @@ export function getChildNodeMoreMenuItems(
   t: CopyDict,
   onDeleteConfigRecursive?: () => void,
   onDeleteDataRecursive?: () => void,
-  onDeleteConfigAndDataRecursive?: () => void
-): Array<ChildMenuItem> {
+  onDeleteConfigAndDataRecursive?: () => void,
+): ChildMenuItem[] {
   if (nodeType !== 'folder') {
     return [];
   }
   const folderId = nodePath.startsWith('github-folder:')
     ? nodePath.slice('github-folder:'.length)
     : '';
-  const items: Array<ChildMenuItem> = [
+  const items: ChildMenuItem[] = [
     {
       id: 'refresh',
       label: t.refresh,
@@ -126,7 +126,7 @@ export function getChildNodeMoreMenuItems(
       label: t.ciDeleteConfigAndData,
       danger: true as const,
       action: onDeleteConfigAndData,
-    }
+    },
   );
   if (
     showDeleteFolder &&
@@ -163,7 +163,7 @@ export function getChildNodeMoreMenuItems(
   return items;
 }
 
-export function getMainEntryMenuItems(params: MenuBuilderParams): Array<MainMenuItem> {
+export function getMainEntryMenuItems(params: MenuBuilderParams): MainMenuItem[] {
   return [
     ...buildRefreshMenuItems(params),
     ...buildPinMenuItems(params),

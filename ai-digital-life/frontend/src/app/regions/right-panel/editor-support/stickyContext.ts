@@ -72,7 +72,7 @@ function resolveHeadingDepth(lineText: string | undefined): number | undefined {
 
 function resolveStickyTone(
   line: number,
-  diffRanges: PreviewDiffVisualRange[] | undefined
+  diffRanges: PreviewDiffVisualRange[] | undefined,
 ): StickyContextEntryTone {
   if (!diffRanges?.length) {
     return 'context';
@@ -106,7 +106,7 @@ function resolveStickyTone(
 function buildOutlineEntries(
   input: BuildStickyContextEntriesInput,
   lines: string[],
-  maxContextRows: number
+  maxContextRows: number,
 ): StickyContextEntry[] {
   if (input.visibleStartLine <= 1 || input.outline.length === 0 || maxContextRows === 0) {
     return [];
@@ -130,7 +130,7 @@ function buildOutlineEntries(
 function buildFallbackLineEntries(
   input: BuildStickyContextEntriesInput,
   lines: string[],
-  maxContextRows: number
+  maxContextRows: number,
 ): StickyContextEntry[] {
   if (input.visibleStartLine <= 1 || maxContextRows === 0) {
     return [];
@@ -159,7 +159,7 @@ function buildFallbackLineEntries(
 }
 
 export function buildStickyContextEntries(
-  input: BuildStickyContextEntriesInput
+  input: BuildStickyContextEntriesInput,
 ): StickyContextEntry[] {
   const lines = splitLines(input.content);
   const maxContextRows = clampContextRows(input.maxContextRows);

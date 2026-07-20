@@ -40,7 +40,7 @@ export interface GitHubRepoSlice {
     owner: string,
     repo: string,
     branch: string,
-    accessToken?: string
+    accessToken?: string,
   ) => void;
   gitHubDeleteFolderConfig: (folderId: string) => void;
   gitHubDeleteFolderConfigRecursive: (folderId: string) => void;
@@ -60,7 +60,7 @@ export interface GitHubRepoSlice {
 
 export const createGitHubRepoSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): GitHubRepoSlice => {
   return {
     gitHubWorkspaceConfigs: {},
@@ -144,7 +144,7 @@ export const createGitHubRepoSlice = (
     gitHubRenameFolder: (folderId, name) => {
       set((state) => {
         const nextFolders = state.gitHubCiFolders.map((f) =>
-          f.id === folderId ? { ...f, name } : f
+          f.id === folderId ? { ...f, name } : f,
         );
         scheduleFoldersWrite(nextFolders);
         return { gitHubCiFolders: nextFolders };
@@ -166,7 +166,7 @@ export const createGitHubRepoSlice = (
                   configured: true,
                 },
               }
-            : f
+            : f,
         );
         scheduleFoldersWrite(nextFolders);
         return { gitHubCiFolders: nextFolders };
@@ -176,7 +176,7 @@ export const createGitHubRepoSlice = (
     gitHubDeleteFolderConfig: (folderId) => {
       set((state) => {
         const nextFolders = state.gitHubCiFolders.map((f) =>
-          f.id === folderId ? { ...f, ciConfig: undefined } : f
+          f.id === folderId ? { ...f, ciConfig: undefined } : f,
         );
         scheduleFoldersWrite(nextFolders);
         return { gitHubCiFolders: nextFolders };
@@ -188,10 +188,10 @@ export const createGitHubRepoSlice = (
         const { idsToDelete } = computeFolderDeleteOutcome(
           state.gitHubCiFolders,
           folderId,
-          state.activeCiWorkspaceId
+          state.activeCiWorkspaceId,
         );
         const nextFolders = state.gitHubCiFolders.map((f) =>
-          idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f
+          idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f,
         );
         scheduleFoldersWrite(nextFolders);
         return { gitHubCiFolders: nextFolders };
@@ -203,7 +203,7 @@ export const createGitHubRepoSlice = (
         const { shouldClearCiData } = computeFolderDeleteOutcome(
           state.gitHubCiFolders,
           folderId,
-          state.activeCiWorkspaceId
+          state.activeCiWorkspaceId,
         );
         if (shouldClearCiData) {
           return { ciSnapshot: null, ciJobs: [], ciError: null };
@@ -217,10 +217,10 @@ export const createGitHubRepoSlice = (
         const { idsToDelete, shouldClearCiData } = computeFolderDeleteOutcome(
           state.gitHubCiFolders,
           folderId,
-          state.activeCiWorkspaceId
+          state.activeCiWorkspaceId,
         );
         const nextFolders = state.gitHubCiFolders.map((f) =>
-          idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f
+          idsToDelete.has(f.id) ? { ...f, ciConfig: undefined } : f,
         );
         scheduleFoldersWrite(nextFolders);
         return {
@@ -236,7 +236,7 @@ export const createGitHubRepoSlice = (
         const maxPinnedOrder = Math.max(...pinnedWorkspaces.map((w) => w.pinnedOrder ?? 0), 0);
         return {
           recentWorkspaces: state.recentWorkspaces.map((w) =>
-            w.id === workspaceId ? { ...w, isPinned: true, pinnedOrder: maxPinnedOrder + 1 } : w
+            w.id === workspaceId ? { ...w, isPinned: true, pinnedOrder: maxPinnedOrder + 1 } : w,
           ),
         };
       });
@@ -245,7 +245,7 @@ export const createGitHubRepoSlice = (
     gitHubUnpinWorkspace: (workspaceId) => {
       set((state) => ({
         recentWorkspaces: state.recentWorkspaces.map((w) =>
-          w.id === workspaceId ? { ...w, isPinned: false, pinnedOrder: 0 } : w
+          w.id === workspaceId ? { ...w, isPinned: false, pinnedOrder: 0 } : w,
         ),
       }));
     },
@@ -257,14 +257,14 @@ export const createGitHubRepoSlice = (
           return state;
         }
         const siblings = state.gitHubCiFolders.filter(
-          (f) => f.parentId === folder.parentId && f.parentType === folder.parentType
+          (f) => f.parentId === folder.parentId && f.parentType === folder.parentType,
         );
         const maxPinnedOrder = Math.max(
           ...siblings.filter((s) => s.pinnedOrder !== undefined).map((s) => s.pinnedOrder!),
-          0
+          0,
         );
         const nextFolders = state.gitHubCiFolders.map((f) =>
-          f.id === folderId ? { ...f, pinnedOrder: maxPinnedOrder + 1 } : f
+          f.id === folderId ? { ...f, pinnedOrder: maxPinnedOrder + 1 } : f,
         );
         scheduleFoldersWrite(nextFolders);
         return { gitHubCiFolders: nextFolders };
@@ -274,7 +274,7 @@ export const createGitHubRepoSlice = (
     gitHubUnpinFolder: (folderId) => {
       set((state) => {
         const nextFolders = state.gitHubCiFolders.map((f) =>
-          f.id === folderId ? { ...f, pinnedOrder: undefined } : f
+          f.id === folderId ? { ...f, pinnedOrder: undefined } : f,
         );
         scheduleFoldersWrite(nextFolders);
         return { gitHubCiFolders: nextFolders };

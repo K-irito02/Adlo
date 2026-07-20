@@ -1,6 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { EditorSelection } from '@codemirror/state';
-import { type MergeView } from '@codemirror/merge';
+import type { MergeView } from '@codemirror/merge';
 import type {
   EditorRef,
   DiffEditorRef,
@@ -13,7 +13,7 @@ import type {
 function posToOffset(
   doc: { line(n: number): { from: number } },
   line: number,
-  col: number
+  col: number,
 ): number {
   const ln = doc.line(line);
   return ln.from + col - 1;
@@ -21,7 +21,7 @@ function posToOffset(
 
 function offsetToLineCol(
   doc: { lineAt(pos: number): { number: number; from: number } },
-  offset: number
+  offset: number,
 ): { lineNumber: number; column: number } {
   const ln = doc.lineAt(offset);
   return { lineNumber: ln.number, column: offset - ln.from + 1 };
@@ -169,7 +169,7 @@ export class CodeMirrorEditorRef implements EditorRef {
     const anchor = posToOffset(
       this.view.state.doc,
       selection.startLineNumber,
-      selection.startColumn
+      selection.startColumn,
     );
     const head = posToOffset(this.view.state.doc, selection.endLineNumber, selection.endColumn);
     this.view.dispatch({

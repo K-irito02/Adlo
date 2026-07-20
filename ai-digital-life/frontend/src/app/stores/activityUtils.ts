@@ -16,7 +16,7 @@ export const MAX_STORED_RUNS = 50;
  * @returns 修剪后的活动列表
  */
 export function trimActivityList(
-  activities: DigitalLifeRunActivityEventV1[]
+  activities: DigitalLifeRunActivityEventV1[],
 ): DigitalLifeRunActivityEventV1[] {
   if (activities.length <= MAX_ACTIVITY_PER_RUN) {
     return activities;
@@ -36,7 +36,7 @@ export function trimOldRuns(
   activityMap: Record<string, DigitalLifeRunActivityEventV1[]>,
   usageMap: Record<string, ModelTokenUsage | undefined>,
   accessMap: Record<string, number>,
-  excludeRunIds: Set<string>
+  excludeRunIds: Set<string>,
 ): {
   runActivityByRunId: Record<string, DigitalLifeRunActivityEventV1[]>;
   runUsageByRunId: Record<string, ModelTokenUsage | undefined>;
@@ -57,7 +57,7 @@ export function trimOldRuns(
 
   const toRemove = sortedRunIds.slice(
     0,
-    sortedRunIds.length - MAX_STORED_RUNS + excludeRunIds.size
+    sortedRunIds.length - MAX_STORED_RUNS + excludeRunIds.size,
   );
   const toRemoveSet = new Set(toRemove);
 

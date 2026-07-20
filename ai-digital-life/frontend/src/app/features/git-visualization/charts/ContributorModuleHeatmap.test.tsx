@@ -52,7 +52,7 @@ vi.mock('motion/react', () => {
           const { children, ...rest } = p;
           return R.createElement('div', { className: rest.className, key: rest.key }, children);
         },
-      }
+      },
     ),
     animate: () => ({ stop: () => {}, then: () => Promise.resolve(), cancel: () => {} }),
     useMotionValue: <T,>(v: T) => createMV(v as number),

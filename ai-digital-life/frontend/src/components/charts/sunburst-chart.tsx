@@ -64,7 +64,7 @@ function isSunburstSegment(child: ReactNode): child is ReactElement<{ index: num
 /** Inner rings last so parent segments win hit testing at ring boundaries. */
 function sortSunburstSegments(
   segments: ReactElement<{ index: number }>[],
-  arcs: ArcDatum[]
+  arcs: ArcDatum[],
 ): ReactElement<{ index: number }>[] {
   return [...segments].sort((a, b) => {
     const arcA = arcs[a.props.index];
@@ -120,7 +120,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
 
   const growPadding = useMemo(
     () => paddingProp ?? defaultSunburstGrowPadding(maxDepth, size, hoverPop),
-    [paddingProp, maxDepth, size, hoverPop]
+    [paddingProp, maxDepth, size, hoverPop],
   );
   const radius = Math.max(8, fullRadius - growPadding);
 
@@ -155,14 +155,14 @@ const SunburstChartCore = memo(function SunburstChartCore({
         setInternalHoveredArc(index == null ? null : (arcs[index] ?? null));
       }
     },
-    [arcs, isHoverControlled, onHoverChange]
+    [arcs, isHoverControlled, onHoverChange],
   );
 
   const setHoveredArc = useCallback(
     (arc: ArcDatum | null) => {
       setHoveredArcIndex(arc ? arc.arcIndex : null);
     },
-    [setHoveredArcIndex]
+    [setHoveredArcIndex],
   );
 
   const setFocusId = useCallback(
@@ -173,7 +173,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
         setInternalFocusId(nextId);
       }
     },
-    [isFocusControlled, onFocusChange]
+    [isFocusControlled, onFocusChange],
   );
 
   const rootFocus = focusById.get(rootId);
@@ -190,14 +190,14 @@ const SunburstChartCore = memo(function SunburstChartCore({
 
   const enterTiming = useMemo(
     () => buildSunburstEnterTiming(arcs, enterStaggerScale),
-    [arcs, enterStaggerScale]
+    [arcs, enterStaggerScale],
   );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: replay when data or playKey changes
   useEffect(() => {
     setSkipEnterAnimation(
       typeof window !== 'undefined' &&
-        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true,
     );
   }, [playKey, arcs]);
 
@@ -244,17 +244,17 @@ const SunburstChartCore = memo(function SunburstChartCore({
         },
       });
     },
-    [focusId, setFocusId, setHoveredArc]
+    [focusId, setFocusId, setHoveredArc],
   );
 
   const isDescendant = useCallback(
     (d: ArcDatum, ancestorId: string) => d.id === ancestorId || d.id.startsWith(`${ancestorId} / `),
-    []
+    [],
   );
 
   const isOnHoverPath = useCallback(
     (d: ArcDatum, hoveredId: string) => d.id === hoveredId || hoveredId.startsWith(`${d.id} / `),
-    []
+    [],
   );
 
   const isRelated = useCallback(
@@ -264,7 +264,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
       }
       return isDescendant(d, hoveredArc.id) || hoveredArc.id.startsWith(`${d.id} / `);
     },
-    [hoveredArc, isDescendant]
+    [hoveredArc, isDescendant],
   );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: grow targets from visible hover path
@@ -322,20 +322,20 @@ const SunburstChartCore = memo(function SunburstChartCore({
       }
       return colorOverride ?? arc.fill ?? arc.color ?? getColor(arc.categoryIndex);
     },
-    [arcs, getColor]
+    [arcs, getColor],
   );
 
   const getFillOpacity = useCallback(
     (relativeDepth: number, override?: number) =>
       override ?? opacityForRelativeDepth(relativeDepth),
-    []
+    [],
   );
 
   const growAmountForArc = useCallback((arcId: string) => growRef.current.get(arcId) ?? 0, []);
 
   const maxExpandedThickness = useMemo(
     () => maxHoverSegmentThickness(maxDepth, radius, hoverPop),
-    [maxDepth, radius, hoverPop]
+    [maxDepth, radius, hoverPop],
   );
 
   if (!(focus && prevFocus)) {
@@ -344,7 +344,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
 
   const childArray = Children.toArray(children);
   const defsChildren = childArray.filter(
-    (child): child is ReactElement => isValidElement(child) && isDefsComponent(child)
+    (child): child is ReactElement => isValidElement(child) && isDefsComponent(child),
   );
 
   const outsideChildren: ReactNode[] = [];
@@ -408,7 +408,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
     <SunburstProvider value={providerValue}>
       <div className={className} ref={containerRef} style={{ maxWidth: '100%', width: size }}>
         {outsideChildren.filter(
-          (child) => isValidElement(child) && componentDisplayName(child) === 'SunburstBreadcrumb'
+          (child) => isValidElement(child) && componentDisplayName(child) === 'SunburstBreadcrumb',
         )}
         <div className="mx-auto w-full" style={{ aspectRatio: '1 / 1', maxWidth: size }}>
           <motion.svg
@@ -427,7 +427,7 @@ const SunburstChartCore = memo(function SunburstChartCore({
           </motion.svg>
         </div>
         {outsideChildren.filter(
-          (child) => isValidElement(child) && componentDisplayName(child) === 'SunburstHint'
+          (child) => isValidElement(child) && componentDisplayName(child) === 'SunburstHint',
         )}
       </div>
     </SunburstProvider>

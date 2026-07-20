@@ -21,7 +21,7 @@ describe('BrowserAudioIndicator', () => {
     const html = renderToStaticMarkup(
       <TestProvider>
         <BrowserAudioIndicator isPlaying={false} isMuted={false} onToggleMute={() => {}} />
-      </TestProvider>
+      </TestProvider>,
     );
     expect(html).toBe('');
   });
@@ -30,7 +30,7 @@ describe('BrowserAudioIndicator', () => {
     const html = renderToStaticMarkup(
       <TestProvider>
         <BrowserAudioIndicator isPlaying={true} isMuted={false} onToggleMute={() => {}} />
-      </TestProvider>
+      </TestProvider>,
     );
     expect(html).toContain('is-animating');
     expect(html).toContain('adl-browser-audio-indicator');
@@ -41,7 +41,7 @@ describe('BrowserAudioIndicator', () => {
     const html = renderToStaticMarkup(
       <TestProvider>
         <BrowserAudioIndicator isPlaying={true} isMuted={true} onToggleMute={() => {}} />
-      </TestProvider>
+      </TestProvider>,
     );
     expect(html).toContain('is-muted');
     expect(html).not.toContain('is-animating');
@@ -51,7 +51,7 @@ describe('BrowserAudioIndicator', () => {
     const html = renderToStaticMarkup(
       <TestProvider>
         <BrowserAudioIndicator isPlaying={true} isMuted={false} onToggleMute={() => {}} />
-      </TestProvider>
+      </TestProvider>,
     );
     expect(html).toContain('type="button"');
     expect(html).toContain('aria-label');

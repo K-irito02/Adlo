@@ -11,11 +11,11 @@ export function computeNavigatorCount(
   navigatorMode: BrowserNavigatorMode,
   _query: string,
   browserTabs: BrowserTabState[],
-  _browserBookmarks: Array<{ title: string; url: string }>,
-  _browserHistory: Array<{ title: string; url: string; visitedAt: number }>,
-  searchResults: Array<{ title: string; url: string; source: string }>,
-  _filteredBookmarks: Array<{ title: string; url: string }>,
-  _filteredHistory: Array<{ title: string; url: string }>
+  _browserBookmarks: { title: string; url: string }[],
+  _browserHistory: { title: string; url: string; visitedAt: number }[],
+  searchResults: { title: string; url: string; source: string }[],
+  _filteredBookmarks: { title: string; url: string }[],
+  _filteredHistory: { title: string; url: string }[],
 ): number {
   if (navigatorMode === 'tabs' || navigatorMode === 'open' || navigatorMode === 'list') {
     return browserTabs.length;
@@ -71,12 +71,12 @@ export function useBrowserTabs() {
       browserToggleBookmark: state.browserToggleBookmark,
       browserClearHistory: state.browserClearHistory,
       browserClearAllFolderTabs: state.browserClearAllFolderTabs,
-    }))
+    })),
   );
 
   const activeTab = useMemo(
     () => browserTabs.find((tab) => tab.id === browserActiveTabId) ?? browserTabs[0],
-    [browserActiveTabId, browserTabs]
+    [browserActiveTabId, browserTabs],
   );
 
   const hasActiveTab = activeTab !== null;
@@ -93,14 +93,14 @@ export function useBrowserTabs() {
     (url?: string, title?: string, workspaceId?: string) => {
       browserOpenTab(url, title, workspaceId);
     },
-    [browserOpenTab]
+    [browserOpenTab],
   );
 
   const handleSelectTab = useCallback(
     (tabId: string) => {
       browserSelectTab(tabId);
     },
-    [browserSelectTab]
+    [browserSelectTab],
   );
 
   const handleCloseTab = useCallback(
@@ -115,7 +115,7 @@ export function useBrowserTabs() {
       }
       browserCloseTab(tabId);
     },
-    [browserCloseTab]
+    [browserCloseTab],
   );
 
   const handleCloseAllTabs = useCallback(
@@ -130,7 +130,7 @@ export function useBrowserTabs() {
       }
       browserCloseAllTabs(workspaceId);
     },
-    [browserCloseAllTabs]
+    [browserCloseAllTabs],
   );
 
   const handleClearTabDirectories = useCallback(() => {
@@ -154,7 +154,7 @@ export function useBrowserTabs() {
         setEditValue('');
       }
     },
-    [handleEditSubmit]
+    [handleEditSubmit],
   );
 
   const handleToggleBookmark = useCallback(() => {
@@ -165,7 +165,7 @@ export function useBrowserTabs() {
     (tabId: string, url: string, title: string) => {
       browserToggleBookmark({ url, title });
     },
-    [browserToggleBookmark]
+    [browserToggleBookmark],
   );
 
   const handleClearHistory = useCallback(() => {

@@ -36,14 +36,14 @@ export interface RightPanelViewProps {
   editorLanguage: string;
   diffSideBySide: boolean;
   filePatch?: FilePatch;
-  diagnostics: Array<{
+  diagnostics: {
     id: string;
     source: string;
     message: string;
     path?: string;
     line?: number;
     severity: 'error' | 'warning' | 'info';
-  }>;
+  }[];
   editorHint?: string;
   outline: FileOutlineItem[];
   workspaceTrees: Record<string, WorkspaceTreeNode[]>;
@@ -68,7 +68,7 @@ export interface RightPanelViewProps {
   onOpenFileForWorkspace: (
     workspaceId: string,
     workspacePath: string,
-    relativePath: string
+    relativePath: string,
   ) => void;
   onOpenChangePreview: (relativePath: string) => void;
   onOpenChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => void;
@@ -98,13 +98,13 @@ export interface RightPanelViewProps {
   onRejectAllHunks: () => void;
   onSelectPatchFile: (
     relativePath: string,
-    options?: { activateTool?: boolean; line?: number; hunkId?: string }
+    options?: { activateTool?: boolean; line?: number; hunkId?: string },
   ) => void;
   onSelectPatchHunk: (
     relativePath: string,
     hunkId: string,
     line: number,
-    options?: { activateTool?: boolean }
+    options?: { activateTool?: boolean },
   ) => void;
   onTogglePatchHunkCollapse: (hunkId: string) => void;
   onSetAllPatchHunksCollapsed: (collapsed: boolean, relativePath?: string) => void;

@@ -244,7 +244,7 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
                 </div>
               ) : null}
             </div>,
-            document.body
+            document.body,
           )
         : null}
 

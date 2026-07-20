@@ -16,7 +16,7 @@ export interface UseCIPanelPropsResult {
     owner: string,
     repo: string,
     branch: string,
-    token: string
+    token: string,
   ) => void;
   onRemoveWorkspaceConfig: (workspaceId: string) => void;
   onRefreshWorkspace: (workspaceId: string) => void;
@@ -46,7 +46,7 @@ export function useCIPanelProps(): UseCIPanelPropsResult {
       removeGitHubWorkspaceConfig: s.removeGitHubWorkspaceConfig,
       refreshCiStatusForWorkspace: s.refreshCiStatusForWorkspace,
       setCiAccessToken: s.setCiAccessToken,
-    }))
+    })),
   );
 
   const onSaveWorkspaceConfig = useCallback(
@@ -63,21 +63,21 @@ export function useCIPanelProps(): UseCIPanelPropsResult {
       void setCiAccessToken(token);
       void refreshCiStatusForWorkspace(workspaceId);
     },
-    [setGitHubWorkspaceConfig, setCiAccessToken, refreshCiStatusForWorkspace]
+    [setGitHubWorkspaceConfig, setCiAccessToken, refreshCiStatusForWorkspace],
   );
 
   const onRemoveWorkspaceConfig = useCallback(
     (workspaceId: string) => {
       removeGitHubWorkspaceConfig(workspaceId);
     },
-    [removeGitHubWorkspaceConfig]
+    [removeGitHubWorkspaceConfig],
   );
 
   const onRefreshWorkspace = useCallback(
     (workspaceId: string) => {
       void refreshCiStatusForWorkspace(workspaceId);
     },
-    [refreshCiStatusForWorkspace]
+    [refreshCiStatusForWorkspace],
   );
 
   return {

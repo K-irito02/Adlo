@@ -77,7 +77,7 @@ export function getPatchHunkLineSpan(hunk: PatchHunk): { oldEnd: number; newEnd:
 
 export function summarizePatchHunk(
   hunk: PatchHunk,
-  collapsedHunkIds: string[] = []
+  collapsedHunkIds: string[] = [],
 ): PatchHunkSummary {
   const span = getPatchHunkLineSpan(hunk);
   return {
@@ -99,7 +99,7 @@ export function summarizePatchHunk(
 
 export function summarizePatchFile(
   filePatch: FilePatch,
-  collapsedHunkIds: string[] = []
+  collapsedHunkIds: string[] = [],
 ): PatchFileSummary {
   const hunks = filePatch.hunks.map((hunk) => summarizePatchHunk(hunk, collapsedHunkIds));
   const acceptedHunks = hunks.filter((hunk) => hunk.decision === 'accepted').length;
@@ -127,7 +127,7 @@ export function summarizePatchFile(
 
 export function summarizePatchSet(
   patchSet?: PatchSet,
-  collapsedHunkIds: string[] = []
+  collapsedHunkIds: string[] = [],
 ): PatchFileSummary[] {
   return (
     patchSet?.filePatches.map((filePatch) => summarizePatchFile(filePatch, collapsedHunkIds)) ?? []
@@ -136,7 +136,7 @@ export function summarizePatchSet(
 
 export function filterPatchFileSummaries(
   summaries: PatchFileSummary[],
-  filter: PatchReviewFilter
+  filter: PatchReviewFilter,
 ): PatchFileSummary[] {
   if (filter === 'all') {
     return summaries;
@@ -151,7 +151,7 @@ export function filterPatchFileSummaries(
 
 export function findPatchFileByPath(
   patchSet: PatchSet | undefined,
-  relativePath?: string
+  relativePath?: string,
 ): FilePatch | undefined {
   if (!patchSet) {
     return undefined;
@@ -172,7 +172,7 @@ export function flattenPatchHunks(patchSet?: PatchSet): PatchHunk[] {
 export function getAdjacentPatchHunk(
   patchSet: PatchSet | undefined,
   selectedHunkId: string | undefined,
-  direction: PatchDirection
+  direction: PatchDirection,
 ): PatchHunk | undefined {
   const flattened = flattenPatchHunks(patchSet);
   if (flattened.length === 0) {
@@ -201,7 +201,7 @@ export function toggleCollapsedHunkId(collapsedHunkIds: string[], hunkId: string
 export function setCollapsedHunksForFile(
   collapsedHunkIds: string[],
   filePatch: FilePatch | undefined,
-  collapsed: boolean
+  collapsed: boolean,
 ): string[] {
   if (!filePatch) {
     return collapsed ? collapsedHunkIds : [];

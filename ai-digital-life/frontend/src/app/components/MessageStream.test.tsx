@@ -21,7 +21,7 @@ function TestProvider({ children }: { children: React.ReactNode }) {
 }
 
 function makeMessage(
-  overrides: Partial<ConversationMessageRecord> = {}
+  overrides: Partial<ConversationMessageRecord> = {},
 ): ConversationMessageRecord {
   return {
     id: 'msg-1',
@@ -50,13 +50,13 @@ describe('MessageStream', () => {
     const { rerender } = render(
       <TestProvider>
         <MessageStream messages={messages} streamingText="partial" isStreaming={true} />
-      </TestProvider>
+      </TestProvider>,
     );
     // Re-render with new streamingText — should not crash
     rerender(
       <TestProvider>
         <MessageStream messages={messages} streamingText="partial response" isStreaming={true} />
-      </TestProvider>
+      </TestProvider>,
     );
     expect(screen.getByText('hello')).toBeTruthy();
   });
@@ -68,7 +68,7 @@ describe('MessageStream', () => {
     render(
       <TestProvider>
         <MessageStream messages={messages} streamingText="" isStreaming={false} />
-      </TestProvider>
+      </TestProvider>,
     );
     expect(screen.getByText('historical message')).toBeTruthy();
   });
@@ -80,7 +80,7 @@ describe('MessageStream', () => {
     render(
       <TestProvider>
         <MessageStream messages={messages} streamingText="streaming answer" isStreaming={true} />
-      </TestProvider>
+      </TestProvider>,
     );
     expect(screen.getByText('streaming answer')).toBeTruthy();
   });
@@ -89,7 +89,7 @@ describe('MessageStream', () => {
     const { container } = render(
       <TestProvider>
         <MessageStream messages={[]} streamingText="" isStreaming={false} />
-      </TestProvider>
+      </TestProvider>,
     );
     expect(container.firstChild).toBeNull();
   });

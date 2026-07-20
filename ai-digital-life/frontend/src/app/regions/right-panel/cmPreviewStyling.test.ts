@@ -4,31 +4,31 @@ import { describe, expect, it } from 'vitest';
 
 const cmThemeSource = readFileSync(
   new URL('../../features/editor/cmTheme.ts', import.meta.url),
-  'utf8'
+  'utf8',
 );
 const codeEditorSource = readFileSync(
   new URL('../../features/editor/CodeEditor.tsx', import.meta.url),
-  'utf8'
+  'utf8',
 );
 const diffViewerSource = readFileSync(
   new URL('../../features/diff-viewer/DiffViewer.tsx', import.meta.url),
-  'utf8'
+  'utf8',
 );
 const sharedExtensionsSource = readFileSync(
   new URL('../../features/diff-viewer/sharedExtensions.ts', import.meta.url),
-  'utf8'
+  'utf8',
 );
 const diffViewerUtilsSource = readFileSync(
   new URL('../../features/diff-viewer/diffViewerUtils.ts', import.meta.url),
-  'utf8'
+  'utf8',
 );
 const sideBySideSource = readFileSync(
   new URL('../../features/diff-viewer/SideBySideDiffViewer.tsx', import.meta.url),
-  'utf8'
+  'utf8',
 );
 const chunkButtonSource = readFileSync(
   new URL('../../features/editor/cmLintHighlights.ts', import.meta.url),
-  'utf8'
+  'utf8',
 );
 const regionsCssSource = [
   'files-panel-core.css',
@@ -48,7 +48,10 @@ const regionsCssSource = [
   'terminal-panel.css',
 ]
   .map((f) =>
-    readFileSync(new URL(`../../../../src/styles/regions/rightpanel/${f}`, import.meta.url), 'utf8')
+    readFileSync(
+      new URL(`../../../../src/styles/regions/rightpanel/${f}`, import.meta.url),
+      'utf8',
+    ),
   )
   .join('\n');
 
@@ -97,15 +100,15 @@ describe('CodeMirror preview styling', () => {
   it('keeps diff gutter rows vertically aligned with content rows', () => {
     const contentBlock = extractCssBlock(
       regionsCssSource,
-      '.adl-cm-editor .cm-content,\n.adl-cm-diff-viewer .cm-content {\n'
+      '.adl-cm-editor .cm-content,\n.adl-cm-diff-viewer .cm-content {\n',
     );
     const guttersBlock = extractCssBlock(
       regionsCssSource,
-      '.adl-cm-editor .cm-gutters,\n.adl-cm-diff-viewer .cm-gutters {\n'
+      '.adl-cm-editor .cm-gutters,\n.adl-cm-diff-viewer .cm-gutters {\n',
     );
     const gutterElementBlock = extractCssBlock(
       regionsCssSource,
-      '.adl-cm-editor .cm-gutterElement,\n.adl-cm-diff-viewer .cm-gutterElement {\n'
+      '.adl-cm-editor .cm-gutterElement,\n.adl-cm-diff-viewer .cm-gutterElement {\n',
     );
 
     expect(contentBlock).toContain('padding-top: 0;');
@@ -117,7 +120,7 @@ describe('CodeMirror preview styling', () => {
   it('centers fold gutter icons vertically with line numbers', () => {
     const foldIconBlock = extractCssBlock(
       regionsCssSource,
-      '.adl-cm-editor .cm-foldGutter .cm-gutterElement span,\n.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement span {\n'
+      '.adl-cm-editor .cm-foldGutter .cm-gutterElement span,\n.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement span {\n',
     );
     const foldMarkerBlock = extractCssBlock(regionsCssSource, '.adl-cm-fold-marker {\n');
     const openMarkerBlock = extractCssBlock(regionsCssSource, '.adl-cm-fold-marker--open {\n');
@@ -140,15 +143,15 @@ describe('CodeMirror preview styling', () => {
     expect(
       extractCssBlock(
         regionsCssSource,
-        '.adl-cm-editor .cm-foldGutter .cm-gutterElement,\n.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement {\n'
-      )
+        '.adl-cm-editor .cm-foldGutter .cm-gutterElement,\n.adl-cm-diff-viewer .cm-foldGutter .cm-gutterElement {\n',
+      ),
     ).toContain('justify-content: center;');
   });
 
   it('provides a draggable resizer between side-by-side diff panes', () => {
     const resizerBlock = extractCssBlock(
       regionsCssSource,
-      '.adl-cm-diff-viewer .adl-cm-diff-resizer {\n'
+      '.adl-cm-diff-viewer .adl-cm-diff-resizer {\n',
     );
     expect(resizerBlock).toContain('cursor: col-resize;');
     expect(resizerBlock).toContain('flex: none;');
@@ -158,7 +161,7 @@ describe('CodeMirror preview styling', () => {
 
   it('does not reserve minimap space in side-by-side diff panes', () => {
     expect(regionsCssSource).toContain(
-      '.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor .cm-scroller'
+      '.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-editor .cm-scroller',
     );
     expect(regionsCssSource).toContain('padding-right: 0;');
   });
@@ -167,40 +170,40 @@ describe('CodeMirror preview styling', () => {
     expect(
       extractCssBlock(
         regionsCssSource,
-        '.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller {\n'
-      )
+        '.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller {\n',
+      ),
     ).toContain('overflow: auto !important;');
     expect(regionsCssSource).toContain('::-webkit-scrollbar:horizontal');
     expect(
       extractCssBlock(
         regionsCssSource,
-        '.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller.adl-cm-scroller--no-hscroll {\n'
-      )
+        '.adl-cm-diff-viewer--side-by-side .cm-mergeView .cm-scroller.adl-cm-scroller--no-hscroll {\n',
+      ),
     ).toContain('overflow: auto !important;');
     expect(regionsCssSource).toContain('scrollbar-width: none');
     expect(
       extractCssBlock(
         regionsCssSource,
-        '.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor {\n'
-      )
+        '.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor {\n',
+      ),
     ).toContain('overflow: hidden;');
     expect(regionsCssSource).not.toContain('.cm-mergeView .adl-cm-hscroll');
     expect(
       extractCssBlock(
         regionsCssSource,
-        '.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:last-child {\n'
-      )
+        '.adl-cm-diff-viewer--side-by-side .cm-mergeViewEditors > .cm-mergeViewEditor:last-child {\n',
+      ),
     ).toContain('margin-left: 0;');
   });
 
   it('pins no-wrap inline merge controls to the visible editor edge while horizontal scrolling', () => {
     const noWrapButtonsBlock = extractCssBlock(
       regionsCssSource,
-      '.adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons {\n'
+      '.adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk .cm-chunkButtons {\n',
     );
     const deletedChunkBlock = extractCssBlock(
       regionsCssSource,
-      '.adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk {\n'
+      '.adl-cm-no-word-wrap .adl-cm-diff-viewer--inline .cm-deletedChunk {\n',
     );
 
     expect(chunkButtonSource).toContain('positionChunkButtons');
@@ -216,11 +219,11 @@ describe('CodeMirror preview styling', () => {
   it('lets no-wrap editors create horizontal overflow only from actual line width', () => {
     const noWrapScrollerBlock = extractCssBlock(
       regionsCssSource,
-      '.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-scroller,\n.adl-cm-no-word-wrap .adl-cm-editor .cm-scroller {\n'
+      '.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-scroller,\n.adl-cm-no-word-wrap .adl-cm-editor .cm-scroller {\n',
     );
     const noWrapContentBlock = extractCssBlock(
       regionsCssSource,
-      '.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-content,\n.adl-cm-no-word-wrap .adl-cm-editor .cm-content {\n'
+      '.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-content,\n.adl-cm-no-word-wrap .adl-cm-editor .cm-content {\n',
     );
 
     expect(codeEditorSource).toContain('scrollLeftSyncExtension');
@@ -239,8 +242,8 @@ describe('CodeMirror preview styling', () => {
     expect(
       extractCssBlock(
         regionsCssSource,
-        '.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-line,\n.adl-cm-no-word-wrap .adl-cm-editor .cm-line,\n.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-deletedChunk {\n'
-      )
+        '.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-line,\n.adl-cm-no-word-wrap .adl-cm-editor .cm-line,\n.adl-cm-no-word-wrap .adl-cm-diff-viewer .cm-deletedChunk {\n',
+      ),
     ).toContain('padding-right: 24px;');
     expect(regionsCssSource).toContain('.adl-cm-scroller--no-hscroll');
     expect(regionsCssSource).toContain('adl-cm-scroller--no-hscroll');

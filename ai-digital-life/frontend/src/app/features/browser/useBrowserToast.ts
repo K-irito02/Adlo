@@ -3,7 +3,7 @@ import type { ToastType } from '@components/Toast';
 
 export function useBrowserToast() {
   const [toastMessages, setToastMessages] = useState<
-    Array<{ id: string; message: string; type?: ToastType; source?: string }>
+    { id: string; message: string; type?: ToastType; source?: string }[]
   >([]);
 
   const showToast = useCallback((message: string, type?: ToastType, source?: string) => {

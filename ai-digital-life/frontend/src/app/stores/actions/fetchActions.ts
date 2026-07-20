@@ -144,7 +144,7 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
               const already = existing.some((e) => e.seq === event.seq);
               if (!already) {
                 nextRunActivity[runId] = trimActivityList(
-                  [...existing, event].sort((a, b) => a.seq - b.seq)
+                  [...existing, event].sort((a, b) => a.seq - b.seq),
                 );
                 nextAccess[runId] = now;
                 updatedRunIds.add(runId);
@@ -160,7 +160,7 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
               nextRunActivity,
               state.runUsageByRunId,
               nextAccess,
-              excludeSet
+              excludeSet,
             );
 
             return {
@@ -224,7 +224,7 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
         if (result.ok) {
           set({
             commandHistory: result.data.map((item: { command: string; args: string[] }) =>
-              `${item.command} ${item.args.join(' ')}`.trim()
+              `${item.command} ${item.args.join(' ')}`.trim(),
             ),
           });
         } else {

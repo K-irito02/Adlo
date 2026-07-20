@@ -33,7 +33,7 @@ export function persistRecentWorkspaces(entries: RecentWorkspaceEntry[]) {
 
 export function updateRecentWorkspaces(
   currentEntries: RecentWorkspaceEntry[],
-  entry: RecentWorkspaceEntry
+  entry: RecentWorkspaceEntry,
 ): RecentWorkspaceEntry[] {
   const next = [entry, ...currentEntries.filter((candidate) => candidate.path !== entry.path)];
   const normalized = next.map((candidate, index) => ({
@@ -71,7 +71,7 @@ export function persistPreviewPreferences(config: PreviewPreferenceState) {
         themeMode: config.themeMode,
         resolvedTheme: config.resolvedTheme,
         modelPreferences: config.modelPreferences,
-      } satisfies PreviewPreferenceState)
+      } satisfies PreviewPreferenceState),
     );
   } catch (err) {
     console.warn('preview-storage: persistPreviewPreferences failed:', err);

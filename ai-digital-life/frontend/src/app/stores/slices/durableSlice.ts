@@ -15,7 +15,7 @@ export interface DurableSessionInfo {
 
 export const createDurableSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): DurableSlice => ({
   durableSessions: {},
   setDurableSession: (sessionId, info) =>

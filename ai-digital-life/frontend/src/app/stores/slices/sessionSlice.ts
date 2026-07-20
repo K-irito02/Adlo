@@ -43,7 +43,7 @@ export interface SessionSlice {
 
 export const createSessionSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): SessionSlice => {
   let _streamingRafPending = false;
   let _streamingBuffer = '';
@@ -123,7 +123,7 @@ export const createSessionSlice = (
           { ...state.runActivityByRunId, [runId]: trimmed },
           state.runUsageByRunId,
           { ...state._runLastAccessTime, [runId]: now },
-          excludeSet
+          excludeSet,
         );
 
         return trimmedMaps;
@@ -142,7 +142,7 @@ export const createSessionSlice = (
           { ...state.runActivityByRunId, [runId]: next },
           state.runUsageByRunId,
           { ...state._runLastAccessTime, [runId]: now },
-          excludeSet
+          excludeSet,
         );
 
         return trimmedMaps;
@@ -159,7 +159,7 @@ export const createSessionSlice = (
           state.runActivityByRunId,
           { ...state.runUsageByRunId, [runId]: usage },
           { ...state._runLastAccessTime, [runId]: now },
-          excludeSet
+          excludeSet,
         );
 
         return trimmedMaps;

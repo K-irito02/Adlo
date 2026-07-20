@@ -26,7 +26,7 @@ export function parseJson(content: string): OutlineDraft[] {
     }
     braceDepth = Math.max(
       0,
-      braceDepth + countChars(sanitized, '{[') - countChars(sanitized, '}]')
+      braceDepth + countChars(sanitized, '{[') - countChars(sanitized, '}]'),
     );
     return items;
   });

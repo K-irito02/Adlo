@@ -1,4 +1,4 @@
-use crate::{calc_indent, OutlineDraft};
+use crate::{OutlineDraft, calc_indent};
 use regex::Regex;
 use std::sync::OnceLock;
 

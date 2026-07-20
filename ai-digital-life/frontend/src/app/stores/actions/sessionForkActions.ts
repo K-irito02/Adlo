@@ -5,7 +5,7 @@ import { clearError, captureError } from '../shared';
 
 export function createSessionForkActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     forkSession: async (parentSession: ConversationSessionRecord, forkMessageId: string) => {
@@ -22,7 +22,7 @@ export function createSessionForkActions(
       clearError(get);
       const result = await window.digitalLife.sessionFork.listSessionForks(
         workspaceId,
-        parentSessionId
+        parentSessionId,
       );
       if (!result.ok) {
         captureError(get, result.error);

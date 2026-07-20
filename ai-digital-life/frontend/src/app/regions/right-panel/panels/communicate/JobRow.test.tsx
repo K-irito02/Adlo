@@ -49,7 +49,7 @@ describe('JobRow', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
         <JobRow job={job} onViewLogs={() => {}} />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('Test Job');
     expect(html).toContain('success');
@@ -59,7 +59,7 @@ describe('JobRow', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
         <JobRow job={job} onViewLogs={() => {}} />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github-card--status');
     expect(html).toContain('is-success');
@@ -69,7 +69,7 @@ describe('JobRow', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
         <JobRow job={job} onViewLogs={() => {}} />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).not.toContain('adl-github-timeline');
   });
@@ -78,7 +78,7 @@ describe('JobRow', () => {
     const html = renderToStaticMarkup(
       <WithTCopy>
         <JobRow job={job} onViewLogs={() => {}} />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github__log-btn');
   });

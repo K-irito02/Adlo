@@ -1,5 +1,5 @@
 use crate::commands::ipc;
-use adl_change_engine::revert::{revert_to_snapshot, RevertResult};
+use adl_change_engine::revert::{RevertResult, revert_to_snapshot};
 use adl_change_engine::snapshot::{SnapshotManager, SnapshotRecord};
 use adl_errors::AppError;
 use adl_types::IpcResult;

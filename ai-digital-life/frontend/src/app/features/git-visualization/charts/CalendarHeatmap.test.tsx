@@ -14,10 +14,10 @@ vi.mock('motion/react', () => {
           return React.createElement(
             'div',
             { className: rest.className, key: rest.key as React.Key },
-            children as React.ReactNode
+            children as React.ReactNode,
           );
         },
-      }
+      },
     ),
     animate: () => ({ stop: () => {}, then: () => Promise.resolve(), cancel: () => {} }),
     useMotionValue: <T,>(v: T) => createMV(v as number),

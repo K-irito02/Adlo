@@ -2,9 +2,9 @@ use crate::commands::ipc;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_types::{
-    now_ms, AppInfo, AppPreferencePatch, ConfigSnapshot, EventDiagnostics, HealthComponent,
+    APP_NAME, AppInfo, AppPreferencePatch, ConfigSnapshot, EventDiagnostics, HealthComponent,
     HealthSnapshot, HealthStatus, IpcResult, LogEntrySummary, MigrationDiagnostics,
-    ModelGatewayHealthSnapshot, RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot, APP_NAME,
+    ModelGatewayHealthSnapshot, RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot, now_ms,
 };
 use adl_workspace::strip_verbatim_prefix;
 use tauri::Manager;

@@ -28,7 +28,7 @@ export function useTerminalMenu({
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [subHover, setSubHover] = useState(false);
   const [subMenuPosition, setSubMenuPosition] = useState<{ top: number; left: number } | null>(
-    null
+    null,
   );
   const [renderKey, setRenderKey] = useState(0);
   const menuId = `ws-term-menu-${workspace.id}`;
@@ -45,7 +45,7 @@ export function useTerminalMenu({
       workspaceDefaultProfiles: state.workspaceDefaultProfiles,
       setDefaultTerminalProfile: state.setDefaultTerminalProfile,
       setWorkspaceDefaultTerminalProfile: state.setWorkspaceDefaultTerminalProfile,
-    }))
+    })),
   );
   const subHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
@@ -161,7 +161,7 @@ export function useTerminalMenu({
         setRenderKey((prev) => prev + 1);
       });
     },
-    [isIndependent, workspace.id, setDefaultTerminalProfile, setWorkspaceDefaultTerminalProfile]
+    [isIndependent, workspace.id, setDefaultTerminalProfile, setWorkspaceDefaultTerminalProfile],
   );
 
   const handleNameKeyDown = useCallback(
@@ -170,7 +170,7 @@ export function useTerminalMenu({
         handleNameClick();
       }
     },
-    [handleNameClick]
+    [handleNameClick],
   );
 
   const handleRefreshClick = useCallback(
@@ -178,7 +178,7 @@ export function useTerminalMenu({
       e.stopPropagation();
       onRefreshTree();
     },
-    [onRefreshTree]
+    [onRefreshTree],
   );
 
   const handleCloseAllTabsClick = useCallback(
@@ -186,7 +186,7 @@ export function useTerminalMenu({
       e.stopPropagation();
       onCloseAllTabs();
     },
-    [onCloseAllTabs]
+    [onCloseAllTabs],
   );
 
   const handleCreateTabClick = useCallback(
@@ -194,7 +194,7 @@ export function useTerminalMenu({
       e.stopPropagation();
       onCreateTab();
     },
-    [onCreateTab]
+    [onCreateTab],
   );
 
   return {

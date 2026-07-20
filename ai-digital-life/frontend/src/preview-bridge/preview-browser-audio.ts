@@ -31,7 +31,7 @@ export class BrowserAudioMonitor {
         }
         const media = doc.querySelectorAll('audio, video');
         const nowPlaying = Array.from(media).some(
-          (el) => !(el as HTMLMediaElement).paused && !(el as HTMLMediaElement).muted
+          (el) => !(el as HTMLMediaElement).paused && !(el as HTMLMediaElement).muted,
         );
         const prevPlaying = this.playing.get(tabId) ?? false;
         if (nowPlaying !== prevPlaying) {

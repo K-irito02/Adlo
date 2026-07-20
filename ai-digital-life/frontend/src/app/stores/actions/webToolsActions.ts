@@ -4,7 +4,7 @@ import { clearError, captureError } from '../shared';
 
 export function createWebToolsActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     webFetch: async (url: string) => {

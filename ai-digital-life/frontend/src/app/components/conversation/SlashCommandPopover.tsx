@@ -92,7 +92,7 @@ export function SlashCommandPopover({
         onClose();
       }
     },
-    [activeIndex, commands, onClose, onSelect]
+    [activeIndex, commands, onClose, onSelect],
   );
 
   if (!open) {

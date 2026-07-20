@@ -17,7 +17,7 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
       browserBgConfig: state.browserBgConfig,
       browserSetBgConfig: state.browserSetBgConfig,
       browserResetBgConfig: state.browserResetBgConfig,
-    }))
+    })),
   );
 
   const [mode, setMode] = useState<BackgroundMode>(browserBgConfig.mode);
@@ -76,7 +76,7 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
         onClose();
       }
     },
-    [onClose]
+    [onClose],
   );
 
   const handleKeyDown = useCallback(
@@ -85,7 +85,7 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
         onClose();
       }
     },
-    [onClose]
+    [onClose],
   );
 
   if (!open) {
@@ -242,6 +242,6 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

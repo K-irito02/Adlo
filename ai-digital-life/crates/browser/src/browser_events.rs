@@ -1,5 +1,5 @@
-use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
+use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 
 fn normalize_url(raw: &str) -> String {

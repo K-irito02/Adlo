@@ -41,7 +41,7 @@ interface FileNavigatorShellProps {
   onOpenFileForWorkspace: (
     workspaceId: string,
     workspacePath: string,
-    relativePath: string
+    relativePath: string,
   ) => void;
   onOpenFileAtLine: (relativePath: string, line: number) => void;
   onSearch: (query: string) => void;
@@ -112,7 +112,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       setFileTreePathExpanded: s.setFileTreePathExpanded,
       toggleFileTreePath: s.toggleFileTreePath,
       expandFileTreePathChain: s.expandFileTreePathChain,
-    }))
+    })),
   );
   const expandedPaths = useAppStore(useShallow((s) => s.expandedFileTreePaths));
 
@@ -124,9 +124,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   const visibleWorkspaces = useMemo(
     () =>
       recentWorkspaces.filter(
-        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
       ),
-    [recentWorkspaces]
+    [recentWorkspaces],
   );
 
   const fileCreation = useFileCreation({
@@ -160,12 +160,12 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
 
   const dirtyPaths = useMemo(
     () => new Set(dirtyEditorPaths.map((p) => normalizeWorkspaceRelativePath(p))),
-    [dirtyEditorPaths]
+    [dirtyEditorPaths],
   );
 
   const defaultExpandedOutlineIds = useMemo(() => getDefaultExpandedOutlineIds(outline), [outline]);
   const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(
-    () => defaultExpandedOutlineIds
+    () => defaultExpandedOutlineIds,
   );
   useEffect(() => {
     setExpandedOutlineIds(defaultExpandedOutlineIds);
@@ -252,7 +252,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       clearMenuHighlightRef.current?.();
       await useAppStore.getState().renameWorkspaceFile(path, newName);
     },
-    [clearMenuHighlightRef, renamingPath]
+    [clearMenuHighlightRef, renamingPath],
   );
 
   const handleRenameCancel = useCallback(() => {

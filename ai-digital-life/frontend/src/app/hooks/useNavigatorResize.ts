@@ -63,7 +63,7 @@ export function useNavigatorResize({
       target.addEventListener('pointercancel', handleUp);
       target.addEventListener('lostpointercapture', handleUp);
     },
-    [minWidth, maxWidth]
+    [minWidth, maxWidth],
   );
 
   return { handlePointerDown };

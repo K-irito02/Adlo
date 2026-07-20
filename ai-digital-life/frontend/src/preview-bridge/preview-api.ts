@@ -5,7 +5,7 @@ import { IpcErrorCode } from '../shared/ipc/shared';
 
 export async function requestPreviewApi<T>(
   pathname: string,
-  init?: RequestInit
+  init?: RequestInit,
 ): Promise<IpcResult<T>> {
   try {
     const response = await fetch(`${PREVIEW_API_PREFIX}${pathname}`, {

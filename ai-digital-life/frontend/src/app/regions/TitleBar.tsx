@@ -94,7 +94,7 @@ const TitleBar = React.memo(function TitleBar({
       setHelpMenuOpen: state.setHelpMenuOpen,
       closeAllMenus: state.closeAllMenus,
       setActiveRightTool: state.setActiveRightTool,
-    }))
+    })),
   );
   const language = appInfo?.config.language ?? 'zh-CN';
   const nextLanguage = language === 'zh-CN' ? 'en-US' : 'zh-CN';
@@ -120,7 +120,7 @@ const TitleBar = React.memo(function TitleBar({
     onTriggerCreateWorkspace,
     onOpenFolder,
     handleClose,
-    setActiveRightTool
+    setActiveRightTool,
   );
   const viewItems = useViewMenuItems(t, zoomBy, resetZoom, onOpenSettings, setActiveRightTool);
   const helpItems = useHelpMenuItems(t, onOpenCommandPalette);

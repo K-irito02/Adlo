@@ -15,7 +15,7 @@ pub use patch_create::create_single_file_patch_set;
 pub use validation::{application_result, validation_result_from_command};
 
 use adl_errors::AppError;
-use adl_types::{now_ms, PatchHunkDecision, PatchSet};
+use adl_types::{PatchHunkDecision, PatchSet, now_ms};
 
 pub struct PatchProposal<'a> {
     pub workspace_id: &'a str,

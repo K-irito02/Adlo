@@ -9,7 +9,7 @@ mod run;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_storage::EntityTable;
-use adl_types::{create_id, now_ms, AgentRunDetail, DigitalLifeRunActivityEventV1};
+use adl_types::{AgentRunDetail, DigitalLifeRunActivityEventV1, create_id, now_ms};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::Emitter;

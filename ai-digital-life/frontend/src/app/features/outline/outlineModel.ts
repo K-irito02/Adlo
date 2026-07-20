@@ -60,7 +60,7 @@ export function getDefaultExpandedOutlineIds(items: FileOutlineItem[]): Set<stri
 export function flattenVisibleOutlineNodes(
   nodes: OutlineNode[],
   expandedIds: ReadonlySet<string>,
-  depth = 1
+  depth = 1,
 ): VisibleOutlineNode[] {
   const visible: VisibleOutlineNode[] = [];
 

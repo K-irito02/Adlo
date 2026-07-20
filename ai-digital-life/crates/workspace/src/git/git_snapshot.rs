@@ -1,4 +1,4 @@
-use adl_types::{now_ms, GitSnapshot};
+use adl_types::{GitSnapshot, now_ms};
 use std::path::Path;
 
 use super::git_helpers::{

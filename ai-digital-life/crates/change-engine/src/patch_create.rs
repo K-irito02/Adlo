@@ -1,6 +1,6 @@
 use crate::PatchProposal;
 use adl_types::{
-    create_id, now_ms, FilePatch, PatchHunk, PatchHunkDecision, PatchSet, PatchSetStatus,
+    FilePatch, PatchHunk, PatchHunkDecision, PatchSet, PatchSetStatus, create_id, now_ms,
 };
 
 pub fn create_single_file_patch_set(proposal: PatchProposal<'_>) -> PatchSet {

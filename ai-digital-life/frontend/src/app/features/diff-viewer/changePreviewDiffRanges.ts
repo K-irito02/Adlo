@@ -113,7 +113,7 @@ function computeFallbackRanges(baseLines: string[], currentLines: string[]): Int
         sourceStartLine: prefix + 1,
         sourceEndLine: baseLines.length - suffix,
         hasOppositeInBlock,
-      })
+      }),
     );
   }
   if (insertedLines > 0) {
@@ -128,7 +128,7 @@ function computeFallbackRanges(baseLines: string[], currentLines: string[]): Int
         sourceStartLine: prefix + 1,
         sourceEndLine: currentLines.length - suffix,
         hasOppositeInBlock,
-      })
+      }),
     );
   }
 
@@ -150,7 +150,7 @@ function getCommonPrefixLength(baseLines: string[], currentLines: string[]): num
 function getCommonSuffixLength(
   baseLines: string[],
   currentLines: string[],
-  prefix: number
+  prefix: number,
 ): number {
   let suffix = 0;
   while (
@@ -165,7 +165,7 @@ function getCommonSuffixLength(
 
 function computeInternalDiffRanges(
   baseContent: string,
-  currentContent: string
+  currentContent: string,
 ): InternalDiffRange[] {
   const baseLines = splitLines(baseContent);
   const currentLines = splitLines(currentContent);
@@ -274,7 +274,7 @@ function computeInternalDiffRanges(
           sourceStartLine: insertStartLine,
           sourceEndLine: insertEndLine,
           hasOppositeInBlock,
-        })
+        }),
       );
     }
     if (hasDelete) {
@@ -289,7 +289,7 @@ function computeInternalDiffRanges(
           sourceStartLine: deleteStartLine,
           sourceEndLine: deleteEndLine,
           hasOppositeInBlock,
-        })
+        }),
       );
     }
   }
@@ -318,18 +318,18 @@ function getVisualTone(range: InternalDiffRange): PreviewDiffVisualTone {
 
 export function computePreviewDiffRanges(
   baseContent: string,
-  currentContent: string
+  currentContent: string,
 ): PreviewDiffRange[] {
   const ranges: PreviewDiffRange[] = [];
   computeInternalDiffRanges(baseContent, currentContent).forEach((range) =>
-    appendRange(ranges, toPreviewDiffRange(range))
+    appendRange(ranges, toPreviewDiffRange(range)),
   );
   return ranges;
 }
 
 export function computePreviewDiffVisualRanges(
   baseContent: string,
-  currentContent: string
+  currentContent: string,
 ): PreviewDiffVisualRange[] {
   return computeInternalDiffRanges(baseContent, currentContent).map((range) => ({
     startLine: range.startLine,

@@ -5,13 +5,13 @@ import { describe, expect, it } from 'vitest';
 const changesPanelStateSource = readFileSync(
   new URL(
     '../../../../src/app/regions/right-panel/panels/ChangesPanel/useChangesPanelState.tsx',
-    import.meta.url
+    import.meta.url,
   ),
-  'utf8'
+  'utf8',
 );
 const diffEditorSectionSource = readFileSync(
   new URL('../../../../src/app/regions/right-panel/panels/DiffEditorSection.tsx', import.meta.url),
-  'utf8'
+  'utf8',
 );
 
 describe('changes preview editor options', () => {
@@ -24,7 +24,7 @@ describe('changes preview editor options', () => {
   it('uses the shared custom CodeMirror fold gutter marker and tooltip overlay', () => {
     const sideBySideSource = readFileSync(
       new URL('../../features/diff-viewer/SideBySideDiffViewer.tsx', import.meta.url),
-      'utf8'
+      'utf8',
     );
 
     expect(sideBySideSource).toContain('createFoldGutterExtension');
@@ -47,7 +47,7 @@ describe('changes preview editor options', () => {
   it('uses sticky context helpers from CodeMirror stickyContext module', () => {
     const useStickyContextSource = readFileSync(
       new URL('./hooks/useStickyContext.ts', import.meta.url),
-      'utf8'
+      'utf8',
     );
 
     expect(useStickyContextSource).toContain('getVisibleStartLine');
@@ -67,9 +67,9 @@ describe('changes preview editor options', () => {
     const changesPanelStateUtilsSource = readFileSync(
       new URL(
         '../../../../src/app/regions/right-panel/panels/ChangesPanel/useChangesPanelStateUtils.ts',
-        import.meta.url
+        import.meta.url,
       ),
-      'utf8'
+      'utf8',
     );
     expect(changesPanelStateUtilsSource).toContain('editor.revealLineInCenter');
   });

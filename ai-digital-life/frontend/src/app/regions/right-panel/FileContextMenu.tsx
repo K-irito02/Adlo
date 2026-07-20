@@ -91,7 +91,7 @@ function FileContextMenu({ menuItems, checkState }: FileContextMenuProps) {
                 <span>{item.label}</span>
                 {item.shortcut ? <span className="adl-menu__shortcut">{item.shortcut}</span> : null}
               </button>
-            )
+            ),
           )}
         </div>
       ) : null}

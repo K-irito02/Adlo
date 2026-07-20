@@ -49,7 +49,7 @@ function resolveVisibleEndX(
   endX: number,
   innerWidth: number,
   endpointRadius: number,
-  strokeWidth: number
+  strokeWidth: number,
 ): number {
   const edgePadding = endpointRadius + strokeWidth * 0.5 + 1;
   return Math.min(endX, Math.max(0, innerWidth - edgePadding));
@@ -129,7 +129,7 @@ export function ProjectionLine({
       endX,
       innerWidth,
       showMarker ? endpointRadius : 0,
-      strokeWidth
+      strokeWidth,
     );
     return { startX, startY, visibleEndX, endY };
   }, [endPoint, endpointRadius, getX, getY, innerWidth, showMarker, startPoint, strokeWidth]);
@@ -142,7 +142,7 @@ export function ProjectionLine({
       geometry.startX,
       geometry.startY,
       geometry.visibleEndX,
-      geometry.endY
+      geometry.endY,
     );
   }, [curveKind, geometry]);
 

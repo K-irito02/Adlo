@@ -4,10 +4,10 @@ import type { FileTreeRenderableNode } from '@features/file-tree/fileTree.utils'
 
 function buildFolderDirNode(
   folder: TabFolderState,
-  allFolders: TabFolderState[]
+  allFolders: TabFolderState[],
 ): FileTreeRenderableNode {
   const childFolders = allFolders.filter(
-    (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder')
+    (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder'),
   );
   return {
     path: `folder:${folder.id}`,
@@ -19,14 +19,14 @@ function buildFolderDirNode(
 
 export function buildBookmarkDirectoryTree(
   workspaces: RecentWorkspaceEntry[],
-  tabFolders: TabFolderState[]
+  tabFolders: TabFolderState[],
 ): {
   workspaceNodes: FileTreeRenderableNode[];
   userFolderNodes: FileTreeRenderableNode[];
 } {
   const workspaceNodes: FileTreeRenderableNode[] = workspaces.map((ws) => {
     const wsRootFolders = tabFolders.filter(
-      (f) => f.parentType === 'workspace' && f.parentId === ws.id
+      (f) => f.parentType === 'workspace' && f.parentId === ws.id,
     );
     return {
       path: `workspace:${ws.id}`,
@@ -45,7 +45,7 @@ export function buildBookmarkDirectoryTree(
 
 export function resolveFolderWorkspaceId(
   folderId: string,
-  folders: Array<{ id: string; parentId?: string; parentType?: 'workspace' | 'folder' }>
+  folders: { id: string; parentId?: string; parentType?: 'workspace' | 'folder' }[],
 ): string | undefined {
   const folder = folders.find((f) => f.id === folderId);
   if (!folder) {
@@ -61,9 +61,9 @@ export function resolveFolderWorkspaceId(
 }
 
 export function handleRenameFromContextMenu(
-  browserTabs: Array<{ id: string; title: string }>,
+  browserTabs: { id: string; title: string }[],
   contextMenu: { tabId: string | null },
-  handleDoubleClick: (tabId: string, title: string) => void
+  handleDoubleClick: (tabId: string, title: string) => void,
 ): () => void {
   return () => {
     if (contextMenu.tabId) {
@@ -77,7 +77,7 @@ export function handleRenameFromContextMenu(
 
 export function handleDeleteFromContextMenu(
   contextMenu: { tabId: string | null },
-  handleCloseTab: (tabId: string) => void
+  handleCloseTab: (tabId: string) => void,
 ): () => void {
   return () => {
     if (contextMenu.tabId) {

@@ -12,7 +12,7 @@ import type { EditorRef } from '@stores/types';
 export function useFilesPanelProps(
   panelProps: RightPanelProps,
   diffSideBySide: boolean,
-  onSetDiffLayout: (sideBySide: boolean) => void
+  onSetDiffLayout: (sideBySide: boolean) => void,
 ): FilesPanelProps {
   const {
     standardEditorRef,
@@ -37,7 +37,7 @@ export function useFilesPanelProps(
   const workspaceTrees = useAppStore(useShallow((s) => s.workspaceTrees));
   const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
   const workspaceTreeExpandedInFileNav = useAppStore(
-    useShallow((s) => s.workspaceTreeExpandedInFileNav)
+    useShallow((s) => s.workspaceTreeExpandedInFileNav),
   );
   const workspaceTreeLoading = useAppStore(useShallow((s) => s.workspaceTreeLoading));
   const workspaceTreeErrors = useAppStore(useShallow((s) => s.workspaceTreeErrors));
@@ -52,7 +52,7 @@ export function useFilesPanelProps(
 
   const allExpanded = useMemo(() => {
     const visible = recentWorkspaces.filter(
-      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
     );
     return visible.length > 0 && visible.every((w) => workspaceTreeExpandedInFileNav[w.id]);
   }, [recentWorkspaces, workspaceTreeExpandedInFileNav]);
@@ -68,14 +68,14 @@ export function useFilesPanelProps(
     () =>
       filterDiagnosticsForPath(
         latestPatchApplication?.validation?.diagnostics ?? [],
-        selectedFilePath
+        selectedFilePath,
       ),
-    [selectedFilePath, latestPatchApplication?.validation?.diagnostics]
+    [selectedFilePath, latestPatchApplication?.validation?.diagnostics],
   );
 
   const editorLanguage = useMemo(
     () => detectEditorLanguage(selectedFilePath, filePatch?.language),
-    [filePatch?.language, selectedFilePath]
+    [filePatch?.language, selectedFilePath],
   );
 
   const editorHint = undefined;
@@ -84,7 +84,7 @@ export function useFilesPanelProps(
     (editor: EditorRef) => {
       standardEditorRef.current = editor;
     },
-    [standardEditorRef]
+    [standardEditorRef],
   );
 
   const handleEditorChange = useCallback(
@@ -103,28 +103,28 @@ export function useFilesPanelProps(
         actions.notifyEditorBufferDirty(pathAtEdit, dirty);
       }, 300);
     },
-    [actions, selectedFilePath]
+    [actions, selectedFilePath],
   );
 
   const handleOpenFile = useCallback(
     (path: string) => {
       void actions.openFile(path);
     },
-    [actions]
+    [actions],
   );
 
   const handleOpenFileForWorkspace = useCallback(
     (workspaceId: string, workspacePath: string, path: string) => {
       void actions.openFileForWorkspace(workspaceId, workspacePath, path);
     },
-    [actions]
+    [actions],
   );
 
   const handleSearch = useCallback(
     (query: string) => {
       void actions.searchFiles(query);
     },
-    [actions]
+    [actions],
   );
 
   const handleRefreshWorkspaceTree = useCallback(() => {
@@ -150,7 +150,7 @@ export function useFilesPanelProps(
         void actions.refreshOneWorkspaceTree(asWorkspaceID(workspaceId), ws.path);
       }
     },
-    [recentWorkspaces, actions]
+    [recentWorkspaces, actions],
   );
 
   const handleToggleExpandInFileNav = useCallback(
@@ -160,28 +160,28 @@ export function useFilesPanelProps(
         void actions.expandWorkspaceTreeInFileNav(asWorkspaceID(workspaceId), ws.path);
       }
     },
-    [recentWorkspaces, actions]
+    [recentWorkspaces, actions],
   );
 
   const handleHideFromRightPanels = useCallback(
     (workspaceId: string) => {
       void actions.hideWorkspaceFromRightPanels(asWorkspaceID(workspaceId));
     },
-    [actions]
+    [actions],
   );
 
   const handleCreateWorkspaceFile = useCallback(
     (relativePath: string, content?: string): Promise<string | undefined> => {
       return actions.createWorkspaceFile(relativePath, content);
     },
-    [actions]
+    [actions],
   );
 
   const handleCreateWorkspaceFolder = useCallback(
     (relativePath: string): Promise<string | undefined> => {
       return actions.createWorkspaceFolder(relativePath);
     },
-    [actions]
+    [actions],
   );
 
   useEffect(() => () => window.clearTimeout(editorDirtyTimerRef.current), [selectedFilePath]);
@@ -282,7 +282,7 @@ export function useFilesPanelProps(
       selectedPatchFilePath,
       selectedPatchHunkId,
       collapsedPatchHunkIds,
-    ]
+    ],
   );
 
   return {

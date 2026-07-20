@@ -80,7 +80,7 @@ export function computeHeatmapLevelRange(data: HeatmapColumn[]): HeatmapLevelRan
 /** Per-cell fade duration derived from the motion enter transition. */
 export function resolveHeatmapEnterFadeDurationSec(
   enterTransition: Transition | undefined,
-  animationDurationMs: number
+  animationDurationMs: number,
 ): number {
   if (
     enterTransition &&
@@ -121,7 +121,7 @@ export function computeHeatmapEnterFadeDelayMs({
 export function heatmapLoadingCellParticipates(
   column: number,
   row: number,
-  randomness: number
+  randomness: number,
 ): boolean {
   if (randomness >= 1) {
     return true;

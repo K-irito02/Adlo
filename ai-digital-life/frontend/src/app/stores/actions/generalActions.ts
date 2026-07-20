@@ -33,7 +33,7 @@ export function accumulateBatch<K extends keyof StoreState>(
   get: () => StoreState,
   key: K,
   id: string,
-  value: StoreState[K] extends Record<string, infer V> ? V : never
+  value: StoreState[K] extends Record<string, infer V> ? V : never,
 ): void {
   if (!batch[key]) {
     batch[key] = { ...(get()[key] as Record<string, unknown>) } as StoreState[K];
@@ -75,7 +75,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
 
       // Fix stale resolvedTheme from Rust backend (hardcodes Theme::Light for system mode)
       appInfoResult.data.config.resolvedTheme = resolveCurrentTheme(
-        appInfoResult.data.config.themeMode
+        appInfoResult.data.config.themeMode,
       );
 
       const [conversationState, taskCenter] = await Promise.all([
@@ -89,7 +89,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       const recentWorkspaces = recentResult.ok ? recentResult.data : [];
       // 为右侧面板设置默认展开所有可见工作区
       const visibleWorkspaces = recentWorkspaces.filter(
-        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
       );
 
       const nextState: Partial<StoreState> = {
@@ -186,7 +186,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
               priorityIds,
               deferredIds,
               naturalOrder,
-              visibleWorkspaces
+              visibleWorkspaces,
             );
 
             /**
@@ -195,7 +195,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
              */
             function logRejected<T>(
               results: PromiseSettledResult<T>[],
-              phase: 'priority' | 'deferred' | 'natural'
+              phase: 'priority' | 'deferred' | 'natural',
             ): void {
               for (const r of results) {
                 if (r.status === 'rejected') {
@@ -206,7 +206,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
 
             async function loadBatch(
               items: RecentWorkspaceEntry[],
-              concurrency: number
+              concurrency: number,
             ): Promise<PromiseSettledResult<{ id: string; tree: unknown; snapshot: unknown }>[]> {
               const tasks = items.map((w) => ({
                 id: w.id,

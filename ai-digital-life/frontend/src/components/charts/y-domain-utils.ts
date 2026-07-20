@@ -46,7 +46,7 @@ export function isReferenceAreaVisiblePhase(phase: ChartPhase): boolean {
 export function resolveAnimatedYDestinationDomains(
   chartPhase: ChartPhase,
   skeletonByAxis: Record<string, YDomain>,
-  targetByAxis: Record<string, YDomain>
+  targetByAxis: Record<string, YDomain>,
 ): Record<string, YDomain> {
   switch (chartPhase) {
     case 'loading':
@@ -100,7 +100,7 @@ export function mergeYDomainRecords(
 
 export function domainsEqual(
   left: Record<string, YDomain>,
-  right: Record<string, YDomain>
+  right: Record<string, YDomain>,
 ): boolean {
   const leftKeys = Object.keys(left);
   const rightKeys = Object.keys(right);

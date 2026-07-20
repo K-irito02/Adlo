@@ -1,7 +1,7 @@
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_storage::EntityTable;
-use adl_types::{create_id, now_ms, AuditBatchEntry, AuditEntry, RiskLevel};
+use adl_types::{AuditBatchEntry, AuditEntry, RiskLevel, create_id, now_ms};
 
 pub fn save_audit_entry(
     state: &AppState,

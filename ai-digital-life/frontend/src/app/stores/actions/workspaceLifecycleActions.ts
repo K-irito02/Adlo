@@ -18,7 +18,7 @@ import {
 
 export function createWorkspaceLifecycleActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     /**

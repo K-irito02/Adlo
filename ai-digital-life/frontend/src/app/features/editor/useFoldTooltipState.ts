@@ -225,7 +225,7 @@ export function useFoldTooltipState(view: EditorView | null): {
       }
 
       const placeholder = (e.target as HTMLElement).closest(
-        '.cm-foldPlaceholder'
+        '.cm-foldPlaceholder',
       ) as HTMLElement | null;
       if (placeholder) {
         const rect = placeholder.getBoundingClientRect();

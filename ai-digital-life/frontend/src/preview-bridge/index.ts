@@ -28,7 +28,7 @@ function warnMockBridge<T extends object>(bridgeName: string, bridge: T): T {
         warnedBridges.add(key);
         console.warn(
           `[preview-bridge] "${key}" is using a mock implementation in preview mode. ` +
-            `Behavior may differ from Tauri mode. Implement a real preview bridge for production fidelity.`
+            `Behavior may differ from Tauri mode. Implement a real preview bridge for production fidelity.`,
         );
       }
       return Reflect.get(target, prop, receiver);
@@ -55,7 +55,7 @@ export function setupPreviewBridge(): void {
   window.__adlAudioMonitor = audioMonitor;
   const { workspace, retrieval, ensureCurrentWorkspaceRestored } = createPreviewWorkspaceBridge(
     ctx,
-    setMockActiveWorkspace
+    setMockActiveWorkspace,
   );
   const gitBridge = createPreviewGitBridge(ctx, setMockActiveWorkspace);
   const searchBridge = createPreviewSearchBridge(ctx);
@@ -99,7 +99,7 @@ export function setupPreviewBridge(): void {
       navigateTab: (_tabId: string, _url: string) => Promise.resolve(),
       setTabBounds: (
         _tabId: string,
-        _bounds: { x: number; y: number; width: number; height: number }
+        _bounds: { x: number; y: number; width: number; height: number },
       ) => Promise.resolve(),
       goBackTab: (_tabId: string) => Promise.resolve(false),
       goForwardTab: (_tabId: string) => Promise.resolve(false),

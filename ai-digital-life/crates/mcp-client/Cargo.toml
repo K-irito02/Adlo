@@ -3,6 +3,9 @@ name = "adl-mcp-client"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 adl-errors = { path = "../errors" }
 adl-credential = { path = "../credential" }

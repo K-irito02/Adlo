@@ -6,19 +6,19 @@
 
 #[cfg(windows)]
 mod imp {
-    use std::sync::atomic::Ordering;
     use std::sync::Arc;
+    use std::sync::atomic::Ordering;
 
     use tracing::{debug, info, warn};
-    use webview2_com::take_pwstr;
     use webview2_com::DocumentTitleChangedEventHandler;
     use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2;
+    use webview2_com::take_pwstr;
     use windows::core::IUnknown;
 
-    use crate::webview2_message::shared::{
-        should_emit_and_update, DOCUMENT_TITLE_CHANGED_COUNT, FAVICON_CACHE,
-    };
     use crate::WebView2EventBridge;
+    use crate::webview2_message::shared::{
+        DOCUMENT_TITLE_CHANGED_COUNT, FAVICON_CACHE, should_emit_and_update,
+    };
 
     pub fn setup_document_title_handler(
         core: &ICoreWebView2,

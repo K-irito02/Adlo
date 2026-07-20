@@ -132,7 +132,7 @@ export const combinedSelectors = {
     Boolean(state.appInfo?.currentWorkspace) && state.indexingStatus?.state !== 'indexing',
   useIsWorkspaceReady: () =>
     useAppStore(
-      (s) => Boolean(s.appInfo?.currentWorkspace) && s.indexingStatus?.state !== 'indexing'
+      (s) => Boolean(s.appInfo?.currentWorkspace) && s.indexingStatus?.state !== 'indexing',
     ),
 
   getCurrentFileTab: (state: StoreState) => {
@@ -150,6 +150,6 @@ export const combinedSelectors = {
         }
         const tabsByPath = new Map(s.openTabs.map((tab) => [tab.path, tab]));
         return tabsByPath.get(s.selectedFilePath);
-      })
+      }),
     ),
 };

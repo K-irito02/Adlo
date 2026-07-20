@@ -81,7 +81,7 @@ describe('BranchGraph', () => {
     const rows = container.querySelectorAll('.adl-branch-graph__row');
     // Non-matching rows should be dimmed
     const nonMatchingRows = [...rows].filter(
-      (r) => r.getAttribute('data-branch') !== filteredBranch
+      (r) => r.getAttribute('data-branch') !== filteredBranch,
     );
     expect(nonMatchingRows.length).toBeGreaterThan(0);
     nonMatchingRows.forEach((el) => {
@@ -105,23 +105,23 @@ describe('BranchGraph', () => {
       expect(labelsAfter[i].getAttribute('data-indicator')).toBeNull();
     }
     // Non-selected labels should have reduced opacity
-    for (let i = 0; i < labelsAfter.length; i++) {
-      if (labelsAfter[i].textContent !== filteredBranch) {
-        expect((labelsAfter[i] as HTMLElement).style.opacity).toBe('0.4');
+    for (const label of labelsAfter) {
+      if (label.textContent !== filteredBranch) {
+        expect((label as HTMLElement).style.opacity).toBe('0.4');
       }
     }
     // Click active label again to clear filter
     fireEvent.click(activeLabel);
     const rowsAfterClear = container.querySelectorAll('.adl-branch-graph__row');
     const dimmedAfterClear = [...rowsAfterClear].filter((r) =>
-      r.classList.contains('adl-branch-graph__row--dimmed')
+      r.classList.contains('adl-branch-graph__row--dimmed'),
     );
     expect(dimmedAfterClear.length).toBe(0);
     // All labels should clear data-indicator after un-selection
     const labelsAfterClear = container.querySelectorAll('.adl-branch-graph__label');
-    for (let i = 0; i < labelsAfterClear.length; i++) {
-      expect(labelsAfterClear[i].getAttribute('data-indicator')).toBeNull();
-      expect((labelsAfterClear[i] as HTMLElement).style.opacity).toBe('1');
+    for (const label of labelsAfterClear) {
+      expect(label.getAttribute('data-indicator')).toBeNull();
+      expect((label as HTMLElement).style.opacity).toBe('1');
     }
   });
 });

@@ -93,7 +93,7 @@ let _defaultsHydrated = false;
 
 function hydrateUIDefaults(
   get: () => StoreState,
-  set: (partial: Partial<StoreState>) => void
+  set: (partial: Partial<StoreState>) => void,
 ): void {
   if (_defaultsHydrated) {
     return;
@@ -111,13 +111,13 @@ function hydrateUIDefaults(
     const showGitVisualization = readFlag(SHOW_GIT_VISUALIZATION_KEY, false);
     const expandedSessionWorkspaces = readJson<Record<string, boolean>>(
       SESSION_TABS_EXPANDED_KEY,
-      {}
+      {},
     );
     const navigatorCollapsedByTool = {
       ...defaultNavigatorCollapsed(),
       ...readJson<Record<ToolId, boolean>>(
         BROWSER_NAVIGATOR_COLLAPSED_KEY,
-        defaultNavigatorCollapsed()
+        defaultNavigatorCollapsed(),
       ),
     };
 
@@ -186,7 +186,7 @@ function writeChangesNavigatorMode(mode: ChangesNavigatorMode): void {
  */
 export const createUISlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): UISlice => {
   hydrateUIDefaults(_get, set);
 

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 function buildDefaultCreationPath(
   selectedFilePath: string | undefined,
-  fallbackName: string
+  fallbackName: string,
 ): string {
   const normalized = selectedFilePath ?? '';
   if (!normalized) {
@@ -71,11 +71,11 @@ function useFileCreation(input: UseFileCreationInput): UseFileCreationResult {
       setCreatePathValue(
         buildDefaultCreationPath(
           input.selectedFilePath,
-          target === 'file' ? 'untitled.md' : 'new-folder'
-        )
+          target === 'file' ? 'untitled.md' : 'new-folder',
+        ),
       );
     },
-    [input.selectedFilePath]
+    [input.selectedFilePath],
   );
 
   const cancelCreate = useCallback(() => {

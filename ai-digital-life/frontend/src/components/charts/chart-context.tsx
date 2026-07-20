@@ -325,7 +325,7 @@ export function ChartProvider({
       value.composedStacked,
       value.composedStackOffsets,
       value.composedStackGap,
-    ]
+    ],
   );
 
   const hover = useMemo<ChartHoverContextValue>(
@@ -348,7 +348,7 @@ export function ChartProvider({
       value.setHoveredBarIndex,
       value.hoveredCandleIndex,
       value.setHoveredCandleIndex,
-    ]
+    ],
   );
 
   return (
@@ -368,7 +368,7 @@ export function useChartStable(): ChartStableContextValue {
   if (!context) {
     throw new Error(
       'useChartStable must be used within a ChartProvider. ' +
-        'Make sure your component is wrapped in <LineChart>, <AreaChart>, <BarChart>, or <ComposedChart>.'
+        'Make sure your component is wrapped in <LineChart>, <AreaChart>, <BarChart>, or <ComposedChart>.',
     );
   }
   return context;
@@ -391,7 +391,7 @@ export function useChartHover(): ChartHoverContextValue {
   if (!context) {
     throw new Error(
       'useChartHover must be used within a ChartProvider. ' +
-        'Make sure your component is wrapped in <LineChart>, <AreaChart>, <BarChart>, or <ComposedChart>.'
+        'Make sure your component is wrapped in <LineChart>, <AreaChart>, <BarChart>, or <ComposedChart>.',
     );
   }
   return context;

@@ -21,7 +21,7 @@ export interface BrowserBridge {
   createForTab: (
     tabId: string,
     url: string,
-    colorScheme?: 'light' | 'dark'
+    colorScheme?: 'light' | 'dark',
   ) => Promise<string | null>;
   /** Activate tab: show its WebView, hide others, update LRU. */
   activateTab: (tabId: string) => Promise<void>;
@@ -32,7 +32,7 @@ export interface BrowserBridge {
   /** Set bounds for a specific tab's WebView. */
   setTabBounds: (
     tabId: string,
-    bounds: { x: number; y: number; width: number; height: number }
+    bounds: { x: number; y: number; width: number; height: number },
   ) => Promise<void>;
   /** Go back in a specific tab */
   goBackTab: (tabId: string) => Promise<boolean>;

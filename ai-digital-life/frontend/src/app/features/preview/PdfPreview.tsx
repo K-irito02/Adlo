@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
+// eslint-disable-next-line no-restricted-syntax
 import type * as PdfJsType from 'pdfjs-dist';
 
 export interface PdfPreviewProps {
@@ -23,7 +24,7 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
         pdfjs = await import('pdfjs-dist');
         pdfjs.GlobalWorkerOptions.workerSrc = new URL(
           'pdfjs-dist/build/pdf.worker.min.mjs',
-          import.meta.url
+          import.meta.url,
         ).toString();
       }
     }

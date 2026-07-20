@@ -27,14 +27,14 @@ export function countDirectChildren(node: BrowserTreeNode): number {
 }
 
 export function getCountStrategy(
-  categoryType: BrowserCategoryType
+  categoryType: BrowserCategoryType,
 ): (node: BrowserTreeNode) => number {
   return categoryType === 'history' ? countDirectChildren : countDirectFileChildren;
 }
 
 export function resolveChildCount(
   counts: Map<string, number>,
-  childNode: BrowserTreeNode
+  childNode: BrowserTreeNode,
 ): number | null {
   if (childNode.kind === 'file') {
     return null;
@@ -45,7 +45,7 @@ export function resolveChildCount(
 function buildTabNode(
   tab: BrowserTabState,
   workspaceId: string,
-  uniqueKey: string
+  uniqueKey: string,
 ): BrowserTreeNode {
   return {
     path: `tab:${uniqueKey}:${tab.id}`,
@@ -64,7 +64,7 @@ function buildTabNode(
 function buildHistoryLeafNode(
   entry: BrowserHistoryState,
   _uniqueKey: string,
-  browserTabs: BrowserTabState[]
+  browserTabs: BrowserTabState[],
 ): BrowserTreeNode {
   let isPlayingAudio = false;
   let isAudioMuted = false;
@@ -103,7 +103,7 @@ function getBookmarkForTabOverride(
   tabId: string,
   tabUrl: string | undefined,
   browserBookmarks: BrowserBookmark[],
-  tabIdToUrlMap: Record<string, string>
+  tabIdToUrlMap: Record<string, string>,
 ): { url: string; title: string } | undefined {
   const originalUrl = tabIdToUrlMap[tabId];
   if (originalUrl) {
@@ -128,10 +128,10 @@ function buildFolderNode(
   depth: number = 0,
   parentWorkspaceId?: string,
   browserBookmarks: BrowserBookmark[] = [],
-  tabIdToUrlMap: Record<string, string> = {}
+  tabIdToUrlMap: Record<string, string> = {},
 ): BrowserTreeNode {
   const childFolders = allFolders.filter(
-    (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder')
+    (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder'),
   );
   const tabChildren: BrowserTreeNode[] = (folder.tabs ?? [])
     .map((item) => {
@@ -159,7 +159,7 @@ function buildFolderNode(
       const node = buildTabNode(
         tab,
         tab.workspaceId,
-        `folder-${folder.id}-${tabId}-${encodeURIComponent(displayUrl)}`
+        `folder-${folder.id}-${tabId}-${encodeURIComponent(displayUrl)}`,
       );
       node.isSavedBookmark = true;
       // 使用文件夹级快照，保留收藏时的原始 URL/标题
@@ -183,8 +183,8 @@ function buildFolderNode(
       depth + 1,
       parentWorkspaceId,
       browserBookmarks,
-      tabIdToUrlMap
-    )
+      tabIdToUrlMap,
+    ),
   );
 
   return {
@@ -204,12 +204,12 @@ export function buildWorkspaceCategoryTree(
   tabFolders: TabFolderState[],
   workspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]> = {},
   browserBookmarks: BrowserBookmark[] = [],
-  tabIdToUrlMap: Record<string, string> = {}
+  tabIdToUrlMap: Record<string, string> = {},
 ): BrowserTreeNode[] {
   return workspaces.map((ws) => {
     const wsTabs = browserTabs.filter((t) => t.workspaceId === ws.id);
     const tabNodes: BrowserTreeNode[] = wsTabs.map((tab) =>
-      buildTabNode(tab, ws.id, `ws-${ws.id}-${tab.id}`)
+      buildTabNode(tab, ws.id, `ws-${ws.id}-${tab.id}`),
     );
 
     // 添加工作区级别的书签标签（使用快照数据）
@@ -237,7 +237,7 @@ export function buildWorkspaceCategoryTree(
             entry.tabId,
             tab?.url,
             browserBookmarks,
-            tabIdToUrlMap
+            tabIdToUrlMap,
           );
           if (fallbackSnap) {
             snapshotTitle = fallbackSnap.title;
@@ -255,7 +255,7 @@ export function buildWorkspaceCategoryTree(
           node = buildTabNode(
             tab,
             ws.id,
-            `ws-bookmark-${ws.id}-${entry.tabId}-${encodeURIComponent(snapshotUrl)}`
+            `ws-bookmark-${ws.id}-${entry.tabId}-${encodeURIComponent(snapshotUrl)}`,
           );
           node.name = normalizeTabTitle(snapshotTitle, snapshotUrl);
           node.url = snapshotUrl;
@@ -282,10 +282,10 @@ export function buildWorkspaceCategoryTree(
       .filter(Boolean) as BrowserTreeNode[];
 
     const wsRootFolders = tabFolders.filter(
-      (f) => f.parentType === 'workspace' && f.parentId === ws.id
+      (f) => f.parentType === 'workspace' && f.parentId === ws.id,
     );
     const folderNodes: BrowserTreeNode[] = wsRootFolders.map((folder) =>
-      buildFolderNode(folder, tabFolders, browserTabs, 0, ws.id, browserBookmarks, tabIdToUrlMap)
+      buildFolderNode(folder, tabFolders, browserTabs, 0, ws.id, browserBookmarks, tabIdToUrlMap),
     );
 
     return {
@@ -303,18 +303,18 @@ export function buildUserFolderCategoryTree(
   tabFolders: TabFolderState[],
   browserTabs: BrowserTabState[],
   browserBookmarks: BrowserBookmark[] = [],
-  tabIdToUrlMap: Record<string, string> = {}
+  tabIdToUrlMap: Record<string, string> = {},
 ): BrowserTreeNode[] {
   const rootFolders = tabFolders.filter((f) => !f.parentId);
   return rootFolders.map((folder) =>
-    buildFolderNode(folder, tabFolders, browserTabs, 0, undefined, browserBookmarks, tabIdToUrlMap)
+    buildFolderNode(folder, tabFolders, browserTabs, 0, undefined, browserBookmarks, tabIdToUrlMap),
   );
 }
 
 export function buildHistoryCategoryTree(
   history: BrowserHistoryState[],
   browserTabs: BrowserTabState[],
-  dateLabels: { year: string; month: string; day: string; history: string }
+  dateLabels: { year: string; month: string; day: string; history: string },
 ): BrowserTreeNode[] {
   const groupMap = new Map<string, Map<string, Map<string, BrowserHistoryState[]>>>();
 
@@ -411,7 +411,7 @@ export function useBrowserTreeData(
     workspaceCategory: string;
     userFolderCategory: string;
     historyCategory: string;
-  }
+  },
 ): UseBrowserTreeDataResult {
   const { t } = useTCopy();
   const dateLabels = {

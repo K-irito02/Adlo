@@ -163,7 +163,7 @@ describe('setupDiffResizer', () => {
 
     const preventDefault = vi.fn();
     resizerEl.dispatchEvent(
-      new MouseEvent('mousedown', { clientX: 500, bubbles: true, cancelable: true })
+      new MouseEvent('mousedown', { clientX: 500, bubbles: true, cancelable: true }),
     );
     // Simulate the preventDefault call that the handler makes
     void preventDefault;
@@ -189,7 +189,7 @@ describe('setupDiffResizer', () => {
     const resizerEl = findResizerEl(parts);
 
     resizerEl.dispatchEvent(
-      new MouseEvent('mousedown', { clientX: 500, bubbles: true, cancelable: true })
+      new MouseEvent('mousedown', { clientX: 500, bubbles: true, cancelable: true }),
     );
     document.dispatchEvent(new MouseEvent('mousemove', { clientX: 600 }));
 
@@ -217,7 +217,7 @@ describe('setupDiffResizer', () => {
     const resizerEl = findResizerEl(parts);
 
     resizerEl.dispatchEvent(
-      new MouseEvent('mousedown', { clientX: 500, bubbles: true, cancelable: true })
+      new MouseEvent('mousedown', { clientX: 500, bubbles: true, cancelable: true }),
     );
     document.dispatchEvent(new MouseEvent('mouseup'));
 
@@ -246,7 +246,7 @@ describe('setupDiffResizer', () => {
         touches: [{ clientX: 500 } as Touch],
         cancelable: true,
         bubbles: true,
-      })
+      }),
     );
     expect(resizerEl.classList.contains('adl-cm-diff-resizer--dragging')).toBe(true);
 
@@ -254,7 +254,7 @@ describe('setupDiffResizer', () => {
       new TouchEvent('touchmove', {
         touches: [{ clientX: 700 } as Touch],
         cancelable: true,
-      })
+      }),
     );
     // deltaX = 200, newWidthA = max(200, min(794, 497+200=697)) = 697
     expect(parts.wrapperA.style.width).toBe('697px');
@@ -282,7 +282,7 @@ describe('setupDiffResizer', () => {
 
     // After cleanup, mousedown should not start a drag
     resizerEl.dispatchEvent(
-      new MouseEvent('mousedown', { clientX: 500, bubbles: true, cancelable: true })
+      new MouseEvent('mousedown', { clientX: 500, bubbles: true, cancelable: true }),
     );
     expect(resizerEl.classList.contains('adl-cm-diff-resizer--dragging')).toBe(false);
     expect(document.body.style.cursor).toBe('');

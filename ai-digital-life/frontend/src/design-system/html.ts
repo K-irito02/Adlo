@@ -85,7 +85,7 @@ export function renderHtml(value: Renderable): string {
  * classNames("btn", primary && "btn--primary", { "btn--disabled": disabled })
  */
 export function classNames(
-  ...inputs: Array<string | false | null | undefined | Record<string, boolean | undefined>>
+  ...inputs: (string | false | null | undefined | Record<string, boolean | undefined>)[]
 ): string {
   const out: string[] = [];
 

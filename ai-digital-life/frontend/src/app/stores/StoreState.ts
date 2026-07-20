@@ -95,7 +95,7 @@ import type { MessageSendOptions } from '../utils/composerSend';
 import type { WorkspaceID, SessionID, AgentRunID } from '../../shared/branded';
 
 type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (
-  k: infer I
+  k: infer I,
 ) => void
   ? I
   : never;
@@ -201,7 +201,7 @@ interface EditorActions {
   openFileForWorkspace: (
     workspaceId: string,
     workspacePath: string,
-    relativePath: string
+    relativePath: string,
   ) => Promise<void>;
   openChangePreview: (relativePath: string) => Promise<void>;
   openChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => Promise<void>;
@@ -228,7 +228,7 @@ interface PatchActions {
   setHunkDecision: (
     patchSetId: string,
     hunkId: string,
-    decision: 'pending' | 'accepted' | 'rejected'
+    decision: 'pending' | 'accepted' | 'rejected',
   ) => Promise<void>;
   applyPatchSet: (patchSetId: string) => Promise<void>;
   rollbackPatchSet: (patchSetId: string) => Promise<void>;
@@ -273,11 +273,11 @@ interface CompactionActions {
 interface SessionForkActions {
   forkSession: (
     parentSession: ConversationSessionRecord,
-    forkMessageId: string
+    forkMessageId: string,
   ) => Promise<ConversationSessionRecord | null>;
   listSessionForks: (
     workspaceId: string,
-    parentSessionId: string
+    parentSessionId: string,
   ) => Promise<ConversationSessionRecord[]>;
 }
 
@@ -316,7 +316,7 @@ interface ProviderActions {
     name: string,
     baseUrl: string,
     apiKey: string,
-    models: string[]
+    models: string[],
   ) => Promise<void>;
   removeCustomProvider: (providerId: string) => Promise<void>;
   selectModel: (providerId: string, modelId: string) => void;
@@ -364,7 +364,7 @@ interface SnapshotActions {
   revertToSnapshot: (
     workspaceId: string,
     workspaceRoot: string,
-    snapshotId: string
+    snapshotId: string,
   ) => Promise<RevertResult | null>;
 }
 

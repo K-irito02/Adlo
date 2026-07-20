@@ -13,7 +13,7 @@ import { IconClock, IconClipboardList } from '@app/icons';
 
 function resolveRelativeTime(
   result: RelativeTimeResult | string,
-  copy: Record<string, string>
+  copy: Record<string, string>,
 ): string {
   if (typeof result === 'string') {
     return result;

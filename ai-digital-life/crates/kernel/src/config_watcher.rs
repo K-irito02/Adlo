@@ -1,4 +1,4 @@
-use crate::config::{load, AppConfig};
+use crate::config::{AppConfig, load};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::watch;

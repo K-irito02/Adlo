@@ -1,4 +1,4 @@
-import { type EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 
 const HSCROLL_CLASS = 'adl-cm-hscroll';
 const HSCROLL_VISIBLE_CLASS = 'is-visible';
@@ -171,7 +171,7 @@ export class HorizontalScrollManager {
 
     const thumbLeft = Math.max(
       0,
-      Math.min(this.dragMaxThumbLeft, e.clientX - this.dragTrackLeft - this.dragStartX)
+      Math.min(this.dragMaxThumbLeft, e.clientX - this.dragTrackLeft - this.dragStartX),
     );
 
     const scrollLeft = (thumbLeft / this.dragMaxThumbLeft) * this.dragMaxScrollLeft;

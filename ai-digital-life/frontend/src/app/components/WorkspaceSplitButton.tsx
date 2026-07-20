@@ -360,7 +360,7 @@ export function WorkspaceSplitButton({
                     .replace('{name}', 'my-project')
                     .replace(
                       '{path}',
-                      defaultCreateDir ? `${defaultCreateDir}/my-project` : t.defaultNewDir
+                      defaultCreateDir ? `${defaultCreateDir}/my-project` : t.defaultNewDir,
                     )}
                 </p>
                 <p>

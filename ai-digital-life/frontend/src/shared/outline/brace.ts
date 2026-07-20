@@ -90,10 +90,10 @@ const BRACE_MATCHERS = buildBraceMatchers();
 
 function parseObjectPropertyLabel(
   trimmed: string,
-  options?: { includeScalarValues?: boolean }
+  options?: { includeScalarValues?: boolean },
 ): string | undefined {
   const keyMatch = trimmed.match(
-    /^(?:readonly\s+)?(?:['"]([^'"]+)['"]|([A-Za-z_$][\w$-]*))\s*:\s*(.*)$/
+    /^(?:readonly\s+)?(?:['"]([^'"]+)['"]|([A-Za-z_$][\w$-]*))\s*:\s*(.*)$/,
   );
   if (!keyMatch) {
     return undefined;
@@ -119,7 +119,7 @@ function parseObjectPropertyLabel(
 
 export function parseBraceLanguage(
   content: string,
-  options?: { includeObjectProperties?: boolean; includeScalarObjectProperties?: boolean }
+  options?: { includeObjectProperties?: boolean; includeScalarObjectProperties?: boolean },
 ): OutlineDraft[] {
   let braceDepth = 0;
   return content.split(/\r?\n/).flatMap((lineText, index) => {
@@ -179,7 +179,7 @@ export function parseBraceLanguage(
 
     braceDepth = Math.max(
       0,
-      braceDepth + countChars(sanitized, '{[') - countChars(sanitized, '}]')
+      braceDepth + countChars(sanitized, '{[') - countChars(sanitized, '}]'),
     );
     return items;
   });

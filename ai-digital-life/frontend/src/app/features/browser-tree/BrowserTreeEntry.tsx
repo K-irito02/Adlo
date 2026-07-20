@@ -12,7 +12,7 @@ import { getEntryHoverButtons, getEntryMoreMenuItems } from './browserTreeEntryU
 function countAllFileChildren(node: BrowserTreeNode): number {
   return node.children.reduce(
     (n, child) => n + (child.kind === 'file' ? 1 : countAllFileChildren(child)),
-    0
+    0,
   );
 }
 
@@ -81,7 +81,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
         setMenuOpen(true);
       }
     },
-    [node, onSelectTreePath]
+    [node, onSelectTreePath],
   );
 
   const count = useMemo(() => {
@@ -97,7 +97,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     categoryType,
     node.path,
     callbacks,
-    t
+    t,
   );
 
   const handleEntryBtnClick = useCallback(
@@ -118,7 +118,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
         }
       }
     },
-    [callbacks, categoryType, node]
+    [callbacks, categoryType, node],
   );
 
   const handleExpandBtnClick = useCallback(
@@ -126,7 +126,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
       e.stopPropagation();
       onTogglePath(node.path);
     },
-    [onTogglePath, node.path]
+    [onTogglePath, node.path],
   );
 
   const handleNameKeyDown = useCallback(
@@ -135,7 +135,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
         onSelectTreePath(node.path);
       }
     },
-    [onSelectTreePath, node.path]
+    [onSelectTreePath, node.path],
   );
 
   const menuSlots: BrowserTreeEntryMenuSlots = useBrowserTreeEntryMenu({

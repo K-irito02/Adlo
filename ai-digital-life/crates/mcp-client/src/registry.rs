@@ -144,7 +144,7 @@ mod tests {
             command: Some("npx".to_string()),
             args: vec![],
             url: None,
-            env: std::collections::HashMap::new(),
+            env: HashMap::new(),
             oauth: false,
             enabled: true,
         });
@@ -154,7 +154,7 @@ mod tests {
             command: Some("npx".to_string()),
             args: vec![],
             url: None,
-            env: std::collections::HashMap::new(),
+            env: HashMap::new(),
             oauth: false,
             enabled: false,
         });

@@ -18,7 +18,7 @@ describe('SettingsHeader', () => {
       <SettingsHeader
         title="Model Providers"
         description="Configure model API providers and credentials"
-      />
+      />,
     );
     const desc = screen.getByText('Configure model API providers and credentials');
     expect(desc.tagName).toBe('P');
@@ -41,7 +41,7 @@ describe('SettingsHeader', () => {
       <SettingsHeader
         title="Model Providers"
         action={<button type="button">Add Provider</button>}
-      />
+      />,
     );
     const actionContainer = document.querySelector('.adl-settings-header__action');
     expect(actionContainer).not.toBeNull();

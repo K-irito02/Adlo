@@ -307,7 +307,7 @@ export function renderIcon(name: IconName, options: RenderIconOptions = {}): Raw
   const cssClasses = ['icon', SIZE_CLASS[size], className].filter(Boolean).join(' ');
 
   return raw(
-    `<svg class="${cssClasses}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${a11yAttrs}>${path}</svg>`
+    `<svg class="${cssClasses}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${a11yAttrs}>${path}</svg>`,
   );
 }
 

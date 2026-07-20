@@ -10,13 +10,13 @@ describe('resolveCiErrorMessage', () => {
 
   it('translates CONFIG_MISSING_REPO error code to i18n text', () => {
     expect(resolveCiErrorMessage(CI_ERROR_CODES.CONFIG_MISSING_REPO, t)).toBe(
-      t.ciConfigMissingRepo
+      t.ciConfigMissingRepo,
     );
   });
 
   it('translates FETCH_STATUS_FAILED error code to i18n text', () => {
     expect(resolveCiErrorMessage(CI_ERROR_CODES.FETCH_STATUS_FAILED, t)).toBe(
-      t.ciFetchStatusFailed
+      t.ciFetchStatusFailed,
     );
   });
 
@@ -64,7 +64,7 @@ describe('resolveCiFolderName', () => {
   it('returns name with non-numeric index unchanged when not matching placeholder prefix', () => {
     // String that contains the prefix substring but does not start with it
     expect(resolveCiFolderName(`prefix-${CI_ERROR_CODES.DEFAULT_FOLDER_NAME}:5`, t)).toBe(
-      `prefix-${CI_ERROR_CODES.DEFAULT_FOLDER_NAME}:5`
+      `prefix-${CI_ERROR_CODES.DEFAULT_FOLDER_NAME}:5`,
     );
   });
 
@@ -76,7 +76,7 @@ describe('resolveCiFolderName', () => {
       ciFetchStatusFailed: 'y',
     } as Record<string, string>;
     expect(resolveCiFolderName(`${CI_ERROR_CODES.DEFAULT_FOLDER_NAME}:5`, incompleteT)).toBe(
-      `${CI_ERROR_CODES.DEFAULT_FOLDER_NAME}:5`
+      `${CI_ERROR_CODES.DEFAULT_FOLDER_NAME}:5`,
     );
   });
 });

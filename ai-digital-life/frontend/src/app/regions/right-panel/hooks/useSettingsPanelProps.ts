@@ -21,7 +21,7 @@ export function useSettingsPanelProps(_panelProps: RightPanelProps): SettingsPan
         void actions.updatePreferences(patch);
       }
     },
-    [actions]
+    [actions],
   );
 
   return {

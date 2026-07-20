@@ -16,14 +16,14 @@ export function useChangesPanelSort(
   hasExpandableOutlineItems: boolean,
   hasExpandedOutlineItems: boolean,
   t: CopyDict,
-  handleToggleAllOutlineItems: () => void
+  handleToggleAllOutlineItems: () => void,
 ) {
   const changesNavigatorMode = useAppStore((s) => s.changesNavigatorMode);
   const setChangesNavigatorMode = useAppStore((s) => s.setChangesNavigatorMode);
 
   const allChangesExpanded = useMemo(
     () => computeAllChangesExpanded(visibleWorkspaces, workspaceChangesExpanded),
-    [visibleWorkspaces, workspaceChangesExpanded]
+    [visibleWorkspaces, workspaceChangesExpanded],
   );
 
   const canToggleNavigatorStructure = useMemo(
@@ -31,9 +31,9 @@ export function useChangesPanelSort(
       computeCanToggleNavigatorStructure(
         changesNavigatorMode,
         visibleWorkspaces,
-        hasExpandableOutlineItems
+        hasExpandableOutlineItems,
       ),
-    [changesNavigatorMode, visibleWorkspaces, hasExpandableOutlineItems]
+    [changesNavigatorMode, visibleWorkspaces, hasExpandableOutlineItems],
   );
 
   const structureToggleExpanded = useMemo(
@@ -41,14 +41,14 @@ export function useChangesPanelSort(
       computeStructureToggleExpanded(
         changesNavigatorMode,
         allChangesExpanded,
-        hasExpandedOutlineItems
+        hasExpandedOutlineItems,
       ),
-    [changesNavigatorMode, allChangesExpanded, hasExpandedOutlineItems]
+    [changesNavigatorMode, allChangesExpanded, hasExpandedOutlineItems],
   );
 
   const changesNavigatorTitle = useMemo(
     () => computeChangesNavigatorTitle(changesNavigatorMode, t),
-    [changesNavigatorMode, t]
+    [changesNavigatorMode, t],
   );
 
   const handleExpandAll = useCallback(() => {
@@ -65,7 +65,7 @@ export function useChangesPanelSort(
       allChangesExpanded,
       handleCollapseAll,
       handleExpandAll,
-      handleToggleAllOutlineItems
+      handleToggleAllOutlineItems,
     );
   }, [
     changesNavigatorMode,

@@ -79,7 +79,7 @@ export function extractProjectionLineConfigs(children: ReactNode): ProjectionLin
 export function mergeProjectionYDomain(
   domain: [number, number],
   configs: ProjectionLineConfig[],
-  yAxisId: string
+  yAxisId: string,
 ): [number, number] {
   const paths = configs.filter((config) => config.yAxisId === yAxisId).map((config) => config.data);
   const extents = projectionValueExtents(paths);
@@ -101,7 +101,7 @@ export function mergeProjectionYDomain(
 
 export function mergeProjectionXDomainMax(
   maxTime: number,
-  configs: ProjectionLineConfig[]
+  configs: ProjectionLineConfig[],
 ): number {
   const paths = configs.map((config) => config.data);
   const extents = projectionDateExtents(paths);

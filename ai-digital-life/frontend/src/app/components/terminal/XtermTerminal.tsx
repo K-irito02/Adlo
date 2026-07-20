@@ -86,7 +86,7 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
           }
         },
       }),
-      []
+      [],
     );
 
     useEffect(() => {
@@ -239,5 +239,5 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
         }}
       />
     );
-  }
+  },
 );

@@ -50,7 +50,7 @@ export function ResizeHandle() {
         const allowedMax = Math.max(minWidth, shellWidth - rightWidth - centerMinWidth);
         const newWidth = Math.min(
           Math.min(maxWidth, allowedMax),
-          Math.max(minWidth, startWidth + delta)
+          Math.max(minWidth, startWidth + delta),
         );
         root.style.setProperty('--leftbar-width', `${newWidth}px`);
       });
@@ -173,7 +173,7 @@ export function ConversationResizeHandle({
       document.body.style.cursor = 'row-resize';
       document.body.style.userSelect = 'none';
     },
-    [conversationPanelHeight, getMaxHeight, onHeightChange]
+    [conversationPanelHeight, getMaxHeight, onHeightChange],
   );
 
   return (

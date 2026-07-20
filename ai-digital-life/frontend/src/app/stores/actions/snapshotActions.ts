@@ -4,7 +4,7 @@ import { clearError, captureError } from '../shared';
 
 export function createSnapshotActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     createSnapshot: async (params: {
@@ -37,7 +37,7 @@ export function createSnapshotActions(
       const result = await window.digitalLife.snapshot.revertToSnapshot(
         workspaceId,
         workspaceRoot,
-        snapshotId
+        snapshotId,
       );
       if (!result.ok) {
         captureError(get, result.error);

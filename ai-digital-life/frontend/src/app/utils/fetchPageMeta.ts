@@ -155,7 +155,7 @@ export function clearPageMetaCacheForUrl(url: string): void {
 }
 
 export async function fetchPageMeta(
-  url: string
+  url: string,
 ): Promise<{ title: string; favicon: string } | null> {
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     return null;
@@ -168,7 +168,7 @@ export async function fetchPageMeta(
 
   try {
     const res = await fetch(
-      `/__adl_preview_api__/browser/page-meta?url=${encodeURIComponent(url)}`
+      `/__adl_preview_api__/browser/page-meta?url=${encodeURIComponent(url)}`,
     );
     if (!res.ok) {
       return null;
@@ -192,7 +192,7 @@ export async function fetchPageMeta(
 
 export async function prefetchPageMeta(
   url: string,
-  options?: { force?: boolean }
+  options?: { force?: boolean },
 ): Promise<{ title: string; favicon: string } | null> {
   const PREFETCH_TIMEOUT = 5000;
 
@@ -207,7 +207,7 @@ export async function prefetchPageMeta(
   if (isTauriShell()) {
     try {
       const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT)
+        setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT),
       );
       const result = (await Promise.race([
         invoke('browser_fetch_page_meta', { url, force: options?.force ?? false }),
@@ -225,7 +225,7 @@ export async function prefetchPageMeta(
 
   try {
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT)
+      setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT),
     );
     const meta = (await Promise.race([fetchPageMeta(url), timeoutPromise])) as Awaited<
       ReturnType<typeof fetchPageMeta>

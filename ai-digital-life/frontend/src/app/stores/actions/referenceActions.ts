@@ -5,7 +5,7 @@ import { clearError, captureError } from '../shared';
 
 export function createReferenceActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     fetchReferences: async (dataDir: string) => {

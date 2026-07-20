@@ -10,7 +10,7 @@ export interface ReferenceSlice {
 
 export const createReferenceSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): ReferenceSlice => ({
   references: [],
   isFetchingReferences: false,

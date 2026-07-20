@@ -30,8 +30,8 @@ export const terminalSelectors = {
   useActiveTerminalTab: () =>
     useAppStore(
       useShallow((s) =>
-        s.terminalActiveTabId ? s.terminalTabsById[s.terminalActiveTabId] : undefined
-      )
+        s.terminalActiveTabId ? s.terminalTabsById[s.terminalActiveTabId] : undefined,
+      ),
     ),
 
   hasTerminalTabs: (state: StoreState) => state.terminalTabs.length > 0,

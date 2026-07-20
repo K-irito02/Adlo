@@ -75,7 +75,7 @@ function createMdInstance(_theme: 'light' | 'dark'): MarkdownIt {
 
 export function renderMarkdownPreviewHtml(
   content: string,
-  theme: 'light' | 'dark' = 'dark'
+  theme: 'light' | 'dark' = 'dark',
 ): string {
   return createMdInstance(theme).render(content);
 }

@@ -53,7 +53,7 @@ export const TerminalMenuDropdown = React.memo(function TerminalMenuDropdown({
               >
                 <span>{item.label}</span>
               </button>
-            )
+            ),
           )}
         </div>
       ) : null}

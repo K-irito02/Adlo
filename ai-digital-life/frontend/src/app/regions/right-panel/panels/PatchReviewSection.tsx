@@ -73,11 +73,11 @@ const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchRe
   const reviewCounts = useMemo(() => countReviewedHunks(activePatchSet), [activePatchSet]);
   const patchSummaries = useMemo(
     () => summarizePatchSet(activePatchSet, collapsedPatchHunkIds),
-    [activePatchSet, collapsedPatchHunkIds]
+    [activePatchSet, collapsedPatchHunkIds],
   );
   const filteredPatchSummaries = useMemo(
     () => filterPatchFileSummaries(patchSummaries, patchReviewFilter),
-    [patchSummaries, patchReviewFilter]
+    [patchSummaries, patchReviewFilter],
   );
   const activeSummary =
     filteredPatchSummaries.find((summary) => summary.relativePath === selectedPatchFilePath) ??
@@ -95,7 +95,7 @@ const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchRe
       activeFilePatchFromSet
         ? summarizePatchFile(activeFilePatchFromSet, collapsedPatchHunkIds)
         : undefined,
-    [activeFilePatchFromSet, collapsedPatchHunkIds]
+    [activeFilePatchFromSet, collapsedPatchHunkIds],
   );
 
   const changePreviewLanguage = useMemo(() => {
@@ -205,7 +205,7 @@ const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchRe
                             activeFilePatchFromSet.relativePath,
                             hunk.id,
                             hunk.targetLine,
-                            { activateTool: false }
+                            { activateTool: false },
                           )
                         }
                       >

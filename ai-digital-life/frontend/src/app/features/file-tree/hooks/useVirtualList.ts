@@ -10,7 +10,7 @@ export function useVirtualList<T>(
   containerRef: RefObject<HTMLElement>,
   items: T[],
   itemHeight: number = 28,
-  overscan: number = 5
+  overscan: number = 5,
 ): VirtualListResult {
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);

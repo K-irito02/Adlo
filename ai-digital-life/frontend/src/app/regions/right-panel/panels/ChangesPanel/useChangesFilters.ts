@@ -59,11 +59,11 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
 
   const patchSummaries = useMemo(
     () => summarizePatchSet(activePatchSet, collapsedPatchHunkIds),
-    [activePatchSet, collapsedPatchHunkIds]
+    [activePatchSet, collapsedPatchHunkIds],
   );
   const changeEntries = useMemo(
     () => buildChangeEntries(snapshot, patchSummaries),
-    [patchSummaries, snapshot]
+    [patchSummaries, snapshot],
   );
   const { changesStatusFilter, filteredChangeEntries, onStatusFilterClick } =
     useChangesPanelFilters(changeEntries);
@@ -71,7 +71,7 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
   const directoryPaths = useMemo(() => collectDirectoryPaths(treeNodes), [treeNodes]);
   const hasExpandedDirectories = useMemo(
     () => computeHasExpandedDirectories(directoryPaths, expandedPaths),
-    [directoryPaths, expandedPaths]
+    [directoryPaths, expandedPaths],
   );
   const navigatorSelectedPath = selectedPatchFilePath ?? selectedChangePreviewPath;
   const changeOutline = useMemo(
@@ -79,14 +79,14 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
       changePreview
         ? buildOutlineFromContent(changePreview.currentContent, changePreview.path)
         : [],
-    [changePreview]
+    [changePreview],
   );
   const defaultExpandedOutlineIds = useMemo(
     () => getDefaultExpandedOutlineIds(changeOutline),
-    [changeOutline]
+    [changeOutline],
   );
   const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(
-    () => defaultExpandedOutlineIds
+    () => defaultExpandedOutlineIds,
   );
   useEffect(() => {
     setExpandedOutlineIds(defaultExpandedOutlineIds);
@@ -113,7 +113,7 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
 
   const visibleWorkspaces = useMemo(
     () => computeVisibleWorkspaces(recentWorkspaces),
-    [recentWorkspaces]
+    [recentWorkspaces],
   );
 
   const changesTreeData = useMemo(
@@ -124,7 +124,7 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
         activePatchSets,
         collapsedPatchHunkIds,
         changesNavigatorMode,
-        changesStatusFilter
+        changesStatusFilter,
       ),
     [
       workspaceChangesExpanded,
@@ -133,23 +133,23 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
       collapsedPatchHunkIds,
       changesNavigatorMode,
       changesStatusFilter,
-    ]
+    ],
   );
   const changeCounts = useMemo(
     () => computeChangeCounts(visibleWorkspaces, gitSnapshots),
-    [visibleWorkspaces, gitSnapshots]
+    [visibleWorkspaces, gitSnapshots],
   );
   const totalChangeCount = useMemo(
     () => Object.values(changeCounts).reduce((s, c) => s + c, 0),
-    [changeCounts]
+    [changeCounts],
   );
   const totalChangesStats = useMemo(
     () => computeTotalChangesStats(visibleWorkspaces, gitSnapshots),
-    [visibleWorkspaces, gitSnapshots]
+    [visibleWorkspaces, gitSnapshots],
   );
   const expandedPathsByWs = useMemo(
     () => computeExpandedPathsByWs(workspaceChangesExpanded, expandedPaths),
-    [workspaceChangesExpanded, expandedPaths]
+    [workspaceChangesExpanded, expandedPaths],
   );
   const dirtyPathsSet = useMemo(() => computeDirtyPathsSet(dirtyEditorPaths), [dirtyEditorPaths]);
 

@@ -54,7 +54,7 @@ export function MainContent({
     (text: string) => {
       onSuggestion?.(text);
     },
-    [onSuggestion]
+    [onSuggestion],
   );
 
   const handleSend = useCallback(() => {

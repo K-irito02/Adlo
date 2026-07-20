@@ -14,7 +14,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { LeftSidebar } from './regions/LeftSidebar';
 import { CenterPane } from './regions/CenterPane';
 const RightPanel = lazy(() =>
-  import('./regions/RightPanel').then((m) => ({ default: m.RightPanel }))
+  import('./regions/RightPanel').then((m) => ({ default: m.RightPanel })),
 );
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
@@ -31,7 +31,7 @@ export function App() {
       leftCollapsed: state.leftCollapsed,
       rightCollapsed: state.rightCollapsed,
       rightPanelWidth: state.rightPanelWidth,
-    }))
+    })),
   );
   const actions = useAppActions();
   const setActiveRightTool = useAppStore((s) => s.setActiveRightTool);
@@ -44,7 +44,7 @@ export function App() {
 
   const activeNotification = useMemo(
     () => notifications.find((n) => n.id === activePopupId),
-    [notifications, activePopupId]
+    [notifications, activePopupId],
   );
 
   useDragDropWorkspace(actions);
@@ -55,7 +55,7 @@ export function App() {
   // Deconstruct after guard so downstream types are non-null.
   const patchReview = usePatchReviewWithEditor(
     (locale ?? 'zh-CN') as Locale,
-    (t ?? {}) as CopyDict
+    (t ?? {}) as CopyDict,
   );
   const {
     standardEditorRef,
@@ -85,7 +85,7 @@ export function App() {
     (language: AppInfo['config']['language']) => {
       void actions.updatePreferences({ language });
     },
-    [actions]
+    [actions],
   );
 
   const [createWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);

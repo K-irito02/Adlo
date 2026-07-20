@@ -85,7 +85,7 @@ export const HeatmapYAxis = memo(function HeatmapYAxis({
         </span>
       </div>
     )),
-    container
+    container,
   );
 });
 

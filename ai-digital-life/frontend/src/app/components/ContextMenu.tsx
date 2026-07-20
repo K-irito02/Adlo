@@ -128,6 +128,6 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
         );
       })}
     </div>,
-    document.body
+    document.body,
   );
 }

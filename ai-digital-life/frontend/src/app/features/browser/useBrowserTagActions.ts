@@ -25,14 +25,14 @@ export function useBrowserTagActions() {
       browserUpdateHistoryTitle: state.browserUpdateHistoryTitle,
       browserDeleteHistoryEntry: state.browserDeleteHistoryEntry,
       browserRemoveTabBookmarks: state.browserRemoveTabBookmarks,
-    }))
+    })),
   );
 
   const handleCreateTabInTree = useCallback(
     (workspaceId?: string, _folderId?: string) => {
       browserOpenTab(undefined, undefined, workspaceId);
     },
-    [browserOpenTab]
+    [browserOpenTab],
   );
 
   const handleRefreshTab = useCallback(
@@ -61,7 +61,7 @@ export function useBrowserTagActions() {
         setCachedFavicon(url, meta.favicon, true);
       }
     },
-    [browserUpdateTab, browserUpdateHistoryTitle]
+    [browserUpdateTab, browserUpdateHistoryTitle],
   );
 
   const handleDeleteTab = useCallback(
@@ -84,7 +84,7 @@ export function useBrowserTagActions() {
         browserCloseTab(tabId);
       }
     },
-    [browserCloseTab, browserRemoveTabBookmarks, browserDeleteHistoryEntry]
+    [browserCloseTab, browserRemoveTabBookmarks, browserDeleteHistoryEntry],
   );
 
   const handleCopyTabLink = useCallback(async (url: string) => {
@@ -106,7 +106,7 @@ export function useBrowserTagActions() {
     (url: string, title: string) => {
       browserOpenTab(url, title);
     },
-    [browserOpenTab]
+    [browserOpenTab],
   );
 
   const handleOpenTabInCurrentTab = useCallback(
@@ -118,7 +118,7 @@ export function useBrowserTagActions() {
         browserUpdateTab(activeTabId, { url: tab.url, title: tab.title });
       }
     },
-    [browserUpdateTab]
+    [browserUpdateTab],
   );
 
   return {

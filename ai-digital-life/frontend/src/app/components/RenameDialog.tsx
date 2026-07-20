@@ -63,7 +63,7 @@ export function RenameDialog({
         onCancel();
       }
     },
-    [handleOk, loading, onCancel]
+    [handleOk, loading, onCancel],
   );
 
   const handleBackdrop = useCallback(
@@ -72,7 +72,7 @@ export function RenameDialog({
         onCancel();
       }
     },
-    [onCancel]
+    [onCancel],
   );
 
   if (!open) {
@@ -128,6 +128,6 @@ export function RenameDialog({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

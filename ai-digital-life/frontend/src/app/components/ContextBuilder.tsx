@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type IconName } from '../../design-system/icons';
+import type { IconName } from '../../design-system/icons';
 import { TooltipSimple } from './Tooltip';
 import { Icon } from './Icon';
 import { useTCopy } from '../i18n/useTCopy';
@@ -7,7 +7,7 @@ import { useClickOutside } from '../hooks/useClickOutside';
 
 interface ContextBuilderProps {
   onAddContext: (type: string, value?: string) => void;
-  activeContexts?: Array<{ type: string; label: string; removable: boolean }>;
+  activeContexts?: { type: string; label: string; removable: boolean }[];
 }
 
 interface ContextItem {
@@ -53,7 +53,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
         section: 'reference',
       },
     ],
-    [t]
+    [t],
   );
 
   const SECTION_LABELS: Record<string, string> = {
@@ -97,7 +97,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
     }
     const q = searchQuery.toLowerCase();
     return CONTEXT_ITEMS.filter(
-      (item) => item.label.toLowerCase().includes(q) || item.type.toLowerCase().includes(q)
+      (item) => item.label.toLowerCase().includes(q) || item.type.toLowerCase().includes(q),
     );
   }, [searchQuery, CONTEXT_ITEMS]);
 
@@ -128,7 +128,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
       setFocusedIndex(-1);
       buttonRef.current?.focus();
     },
-    [onAddContext]
+    [onAddContext],
   );
 
   const handleKeyDown = useCallback(
@@ -160,7 +160,7 @@ export function ContextBuilder({ onAddContext, activeContexts = [] }: ContextBui
           break;
       }
     },
-    [filteredItems, focusedIndex, handleSelectItem]
+    [filteredItems, focusedIndex, handleSelectItem],
   );
 
   useEffect(() => {

@@ -99,7 +99,7 @@ export function BrowserNavigator() {
       setBrowserNavigatorWidth: state.setBrowserNavigatorWidth,
       browserSelectTab: state.browserSelectTab,
       browserNavigateInPlace: state.browserNavigateInPlace,
-    }))
+    })),
   );
 
   const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({

@@ -6,6 +6,6 @@ export function useCommandRegistry(): CommandMeta[] {
   return useSyncExternalStore(
     (listener) => commandRegistry.subscribe(listener),
     () => commandRegistry.getAll(),
-    () => commandRegistry.getAll()
+    () => commandRegistry.getAll(),
   );
 }

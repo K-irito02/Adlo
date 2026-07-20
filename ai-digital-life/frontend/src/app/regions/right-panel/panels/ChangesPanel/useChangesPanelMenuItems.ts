@@ -35,9 +35,9 @@ export function useChangesPanelMenuItems({
         lineNumbersEnabled,
         wordWrapEnabled,
         () => setLineNumbersEnabled((v) => !v),
-        () => setWordWrapEnabled((v) => !v)
+        () => setWordWrapEnabled((v) => !v),
       ),
-    [t, lineNumbersEnabled, wordWrapEnabled, setLineNumbersEnabled, setWordWrapEnabled]
+    [t, lineNumbersEnabled, wordWrapEnabled, setLineNumbersEnabled, setWordWrapEnabled],
   );
 
   const changesMenuItems = useMemo(() => {

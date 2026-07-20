@@ -43,7 +43,7 @@ describe('favicon cache persistence', () => {
       expect(parsed['https://example.com/']).toBe('https://example.com/favicon.ico');
 
       vi.useRealTimers();
-    }
+    },
   );
 
   it(
@@ -64,7 +64,7 @@ describe('favicon cache persistence', () => {
       expect(Object.keys(parsed).length).toBeLessThanOrEqual(200);
 
       vi.useRealTimers();
-    }
+    },
   );
 });
 

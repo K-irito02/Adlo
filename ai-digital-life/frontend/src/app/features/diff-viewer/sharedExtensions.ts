@@ -15,7 +15,7 @@ import { getThemeExtension, getPhrasesExtension, type CmPhrases } from '../edito
 import { createFoldGutterExtension } from '../editor/cmFoldGutter';
 import { gutterHoverSync } from '../editor/gutterHoverSync';
 import { scrollLeftSyncExtension } from '../editor/cmScrollSync';
-import { type getChunks } from '@codemirror/merge';
+import type { getChunks } from '@codemirror/merge';
 
 export const lineNumbersCompartment = new Compartment();
 export const wordWrapCompartment = new Compartment();
@@ -41,7 +41,7 @@ export function buildSharedExtensions(
   lineNumbersEnabled: boolean,
   wordWrap: boolean,
   phrases: CmPhrases,
-  langExtensions: Extension[] = []
+  langExtensions: Extension[] = [],
 ): Extension[] {
   const gutterEnabled = lineNumbersEnabled;
   const exts: Extension[] = [

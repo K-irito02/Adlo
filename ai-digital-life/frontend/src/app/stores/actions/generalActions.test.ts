@@ -52,7 +52,7 @@ describe('updatePreferences action', () => {
     mockUpdatePreferences.mockReturnValue(
       new Promise((resolve) => {
         resolvePromise = resolve;
-      })
+      }),
     );
 
     const store = useAppStore.getState();

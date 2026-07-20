@@ -25,7 +25,7 @@ export function useTerminalTabActions({ activeTab, rootPath }: UseTerminalTabAct
   const { terminalUpdateTab } = useAppStore(
     useShallow((state) => ({
       terminalUpdateTab: state.terminalUpdateTab,
-    }))
+    })),
   );
 
   const {
@@ -62,7 +62,7 @@ export function useTerminalTabActions({ activeTab, rootPath }: UseTerminalTabAct
         setEditValue('');
       }
     },
-    [handleEditSubmit]
+    [handleEditSubmit],
   );
 
   useEffect(() => {

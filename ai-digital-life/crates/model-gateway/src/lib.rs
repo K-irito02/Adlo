@@ -20,11 +20,10 @@ pub use secret::{clear_provider_secret, get_provider_secret, set_provider_secret
 use crate::adapter::StreamReader;
 use adl_errors::AppError;
 use adl_types::{
-    create_id, now_ms, ConversationScenario, ModelCallAuditRecord, ModelChatMessage,
-    ModelGatewayHealthSnapshot, ModelPreferences, ModelResponse, ModelRouteDecision,
-    ProviderHealthStatus,
+    ConversationScenario, ModelCallAuditRecord, ModelChatMessage, ModelGatewayHealthSnapshot,
+    ModelPreferences, ModelResponse, ModelRouteDecision, ProviderHealthStatus, create_id, now_ms,
 };
-use audit::{audit_record, AuditInput};
+use audit::{AuditInput, audit_record};
 use fallback::{deterministic_fallback, estimate_usage};
 use std::sync::{Arc, RwLock};
 use std::time::Instant;

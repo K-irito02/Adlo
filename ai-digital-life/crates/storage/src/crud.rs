@@ -1,11 +1,11 @@
 use adl_errors::AppError;
-use adl_types::{now_ms, ConversationSessionRecord};
-use rusqlite::{params, OptionalExtension};
-use serde::{de::DeserializeOwned, Serialize};
+use adl_types::{ConversationSessionRecord, now_ms};
+use rusqlite::{OptionalExtension, params};
+use serde::{Serialize, de::DeserializeOwned};
 
 use crate::connection::Database;
 use crate::entity_table::{
-    get_delete_by_id_sql, get_insert_sql, get_select_all_sql, get_select_by_id_sql, EntityTable,
+    EntityTable, get_delete_by_id_sql, get_insert_sql, get_select_all_sql, get_select_by_id_sql,
 };
 
 impl Database {
@@ -466,7 +466,7 @@ mod list_by_run_tests {
 mod sessions_batch_tests {
     use super::test_helpers::{open_test_db, unique_id};
     use super::*;
-    use adl_types::{now_ms, ConversationSessionRecord};
+    use adl_types::{ConversationSessionRecord, now_ms};
 
     fn make_session(workspace_id: &str, status: &str) -> ConversationSessionRecord {
         let ts = now_ms();

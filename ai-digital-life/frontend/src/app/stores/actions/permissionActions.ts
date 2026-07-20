@@ -5,7 +5,7 @@ import { clearError, captureError } from '../shared';
 
 export function createPermissionActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     fetchPermissionRules: async (dataDir: string) => {

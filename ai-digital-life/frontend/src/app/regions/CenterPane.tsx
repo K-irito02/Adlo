@@ -25,7 +25,7 @@ const CenterPane = React.memo(function CenterPane() {
         streamingAssistantText: s.streamingAssistantText,
         streamingActiveRunId: s.streamingActiveRunId,
         workspaceContextMode: s.workspaceContextMode,
-      }))
+      })),
     );
   const { appInfo, sessionDetails, activeRun, runActivityByRunId, runUsageByRunId, modelHealth } =
     useAppStore(
@@ -36,7 +36,7 @@ const CenterPane = React.memo(function CenterPane() {
         runActivityByRunId: s.runActivityByRunId,
         runUsageByRunId: s.runUsageByRunId,
         modelHealth: s.modelHealth,
-      }))
+      })),
     );
   const { taskCenter, gitSnapshot, gitBranches, recentWorkspaces, fetchRunActivityByRunId } =
     useAppStore(
@@ -46,7 +46,7 @@ const CenterPane = React.memo(function CenterPane() {
         gitBranches: s.gitBranches,
         recentWorkspaces: s.recentWorkspaces,
         fetchRunActivityByRunId: s.fetchRunActivityByRunId,
-      }))
+      })),
     );
   const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
   const hasWorkspace = !!appInfo?.currentWorkspace;
@@ -77,7 +77,7 @@ const CenterPane = React.memo(function CenterPane() {
       setContextMenuOpen: state.setContextMenuOpen,
       addContextChip: state.addContextChip,
       removeContextChip: state.removeContextChip,
-    }))
+    })),
   );
 
   const messages = useMemo(() => activeDetail?.messages ?? [], [activeDetail]);
@@ -221,7 +221,7 @@ const CenterPane = React.memo(function CenterPane() {
         actions.cancelActiveStream();
       }
     },
-    [actions, buttonState, handleSend, streamingActiveRunId]
+    [actions, buttonState, handleSend, streamingActiveRunId],
   );
 
   const onInput = useCallback(
@@ -233,7 +233,7 @@ const CenterPane = React.memo(function CenterPane() {
       setDraft(normalized);
       window.requestAnimationFrame(updateCustomCaret);
     },
-    [updateCustomCaret]
+    [updateCustomCaret],
   );
 
   const hasMessages =

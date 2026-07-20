@@ -21,8 +21,8 @@ pub async fn http_api_get_status() -> Result<IpcResult<serde_json::Value>, AppEr
 }
 
 #[tauri::command]
-pub async fn http_api_get_config(
-) -> Result<IpcResult<adl_types::types::reserved::HttpApiConfig>, AppError> {
+pub async fn http_api_get_config()
+-> Result<IpcResult<adl_types::types::reserved::HttpApiConfig>, AppError> {
     Ok(ipc(Ok(adl_types::types::reserved::HttpApiConfig::default())))
 }
 
@@ -34,7 +34,7 @@ pub async fn codemode_execute(_code: String) -> Result<IpcResult<serde_json::Val
 }
 
 #[tauri::command]
-pub async fn codemode_get_config(
-) -> Result<IpcResult<adl_types::types::reserved::CodeModeConfig>, AppError> {
+pub async fn codemode_get_config()
+-> Result<IpcResult<adl_types::types::reserved::CodeModeConfig>, AppError> {
     Ok(ipc(Ok(adl_types::types::reserved::CodeModeConfig::default())))
 }

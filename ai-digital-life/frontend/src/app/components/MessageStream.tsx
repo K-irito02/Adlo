@@ -194,7 +194,7 @@ const RowComponent = React.memo(
         // Unknown type — re-render to be safe
         return false;
     }
-  }
+  },
 );
 
 RowComponent.displayName = 'RowComponent';
@@ -218,7 +218,7 @@ export function MessageStream({
 
   const visibleMessages = useMemo(
     () => messages.filter((message) => message.id !== 'message-welcome'),
-    [messages]
+    [messages],
   );
 
   const streamItems = useMemo((): StreamItem[] => {
@@ -255,7 +255,7 @@ export function MessageStream({
       locale,
       streamingText,
     }),
-    [streamItems, activeRun, runActivityByRunId, runUsageByRunId, locale, streamingText]
+    [streamItems, activeRun, runActivityByRunId, runUsageByRunId, locale, streamingText],
   );
 
   useEffect(() => {
@@ -276,13 +276,13 @@ export function MessageStream({
   const handleRowsRendered = useCallback(
     (
       visibleRows: { startIndex: number; stopIndex: number },
-      _allRows: { startIndex: number; stopIndex: number }
+      _allRows: { startIndex: number; stopIndex: number },
     ) => {
       if (streamItems.length > 0) {
         wasAtBottomRef.current = visibleRows.stopIndex >= streamItems.length - 1;
       }
     },
-    [streamItems.length]
+    [streamItems.length],
   );
 
   useEffect(() => {

@@ -18,11 +18,11 @@ describe('outline model', () => {
         '## 当前阶段',
         '### 已实现功能',
       ].join('\n'),
-      'AGENTS.md'
+      'AGENTS.md',
     );
 
     expect(
-      items.map((item) => ({ label: item.label, depth: item.depth, line: item.line }))
+      items.map((item) => ({ label: item.label, depth: item.depth, line: item.line })),
     ).toEqual([
       { label: 'AI 数字生命 - 项目治理规则', depth: 1, line: 1 },
       { label: '当前阶段', depth: 2, line: 6 },
@@ -33,7 +33,7 @@ describe('outline model', () => {
   it('builds nested heading trees and defaults expandable parents open', () => {
     const items = buildOutlineFromContent(
       ['# Root', '## Child', '### Grandchild', '## Sibling'].join('\n'),
-      'README.md'
+      'README.md',
     );
     const tree = buildOutlineTree(items);
     const expanded = getDefaultExpandedOutlineIds(items);
@@ -54,7 +54,7 @@ describe('outline model', () => {
   it('hides descendants when a parent is collapsed', () => {
     const items = buildOutlineFromContent(
       ['# Root', '## Child', '### Grandchild'].join('\n'),
-      'README.md'
+      'README.md',
     );
     const tree = buildOutlineTree(items);
     const visible = flattenVisibleOutlineNodes(tree, new Set());
@@ -65,9 +65,9 @@ describe('outline model', () => {
   it('extracts code symbols as flat outline entries', () => {
     const items = buildOutlineFromContent(
       ['export function buildModel() {}', 'interface Config {}', 'pub struct Runtime {}'].join(
-        '\n'
+        '\n',
       ),
-      'src/lib.ts'
+      'src/lib.ts',
     );
 
     expect(items.map((item) => ({ kind: item.kind, label: item.label, line: item.line }))).toEqual([
@@ -88,7 +88,7 @@ describe('outline model', () => {
         '  }',
         '}',
       ].join('\n'),
-      'src/runtime.ts'
+      'src/runtime.ts',
     );
     const tree = buildOutlineTree(items);
 
@@ -98,7 +98,7 @@ describe('outline model', () => {
         kind: item.kind,
         depth: item.depth,
         endLine: item.endLine,
-      }))
+      })),
     ).toEqual([
       { label: 'Runtime', kind: 'class', depth: 1, endLine: 7 },
       { label: 'boot', kind: 'method', depth: 2, endLine: 7 },
@@ -111,7 +111,7 @@ describe('outline model', () => {
   it('extracts structured outlines for yaml and vue files', () => {
     const yamlItems = buildOutlineFromContent(
       ['server:', '  http:', '    routes:', '      - path:', '          secure: true'].join('\n'),
-      'config/app.yaml'
+      'config/app.yaml',
     );
     const vueItems = buildOutlineFromContent(
       [
@@ -132,7 +132,7 @@ describe('outline model', () => {
         '}',
         '</style>',
       ].join('\n'),
-      'HeroCard.vue'
+      'HeroCard.vue',
     );
 
     expect(yamlItems.map((item) => `${item.depth}:${item.label}`)).toEqual([
@@ -164,7 +164,7 @@ describe('outline model', () => {
         '  esac',
         'done',
       ].join('\n'),
-      'scripts/dev.sh'
+      'scripts/dev.sh',
     );
     const configItems = buildOutlineFromContent(
       [
@@ -177,7 +177,7 @@ describe('outline model', () => {
         '  }',
         '});',
       ].join('\n'),
-      'vite.config.ts'
+      'vite.config.ts',
     );
 
     expect(shellItems.map((item) => `${item.depth}:${item.label}`)).toEqual([

@@ -76,7 +76,7 @@ export interface FlattenedTreeNode<T extends FileTreeRenderableNode> {
 
 export function flattenVisibleNodes<T extends FileTreeRenderableNode>(
   nodes: T[],
-  expandedPaths: Record<string, boolean>
+  expandedPaths: Record<string, boolean>,
 ): FlattenedTreeNode<T>[] {
   const result: FlattenedTreeNode<T>[] = [];
   const visit = (items: T[], depth: number) => {

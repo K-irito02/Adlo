@@ -71,10 +71,10 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
   const foldMarkerState = useFoldMarkerAutoHide(
     wrapperRef,
     fileKey ?? original + modified,
-    editorViewA || editorViewB
+    editorViewA || editorViewB,
   );
   const [langExtensions, setLangExtensions] = useState<Extension[]>(() =>
-    getLanguageExtensionSync(language)
+    getLanguageExtensionSync(language),
   );
   const [editorReady, setEditorReady] = useState(false);
 
@@ -109,7 +109,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
       accept: t.cmFoldAccept,
       reject: t.cmFoldReject,
     }),
-    [t]
+    [t],
   );
 
   // 扩展配置 - 语言扩展直接包含在内
@@ -122,9 +122,9 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
         lineNumbersEnabled,
         wordWrap,
         cmPhrases,
-        langExtensions
+        langExtensions,
       ),
-    [language, theme, readOnly, lineNumbersEnabled, wordWrap, cmPhrases, langExtensions]
+    [language, theme, readOnly, lineNumbersEnabled, wordWrap, cmPhrases, langExtensions],
   );
 
   const emitCollapsedUnchangedRanges = useCallback(
@@ -141,10 +141,10 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
           chunks: getMergeChunks(view.state),
           doc: view.state.doc,
           expandedLines: expandedCollapsedLinesRef.current,
-        })
+        }),
       );
     },
-    [collapseUnchanged, onCollapsedUnchangedRangesChange]
+    [collapseUnchanged, onCollapsedUnchangedRangesChange],
   );
 
   // 只有在语言加载完成后才创建编辑器
@@ -232,11 +232,11 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
       if (mergeViewRef.current && scrollHandlersRef.current) {
         mergeViewRef.current.a.scrollDOM.removeEventListener(
           'scroll',
-          scrollHandlersRef.current.handleScrollA
+          scrollHandlersRef.current.handleScrollA,
         );
         mergeViewRef.current.b.scrollDOM.removeEventListener(
           'scroll',
-          scrollHandlersRef.current.handleScrollB
+          scrollHandlersRef.current.handleScrollB,
         );
         scrollHandlersRef.current = null;
       }

@@ -85,7 +85,7 @@ export function CodeEditor({
       accept: t.cmFoldAccept,
       reject: t.cmFoldReject,
     }),
-    [t]
+    [t],
   );
 
   const baseExtensions = useMemo<Extension[]>(() => {
@@ -127,7 +127,7 @@ export function CodeEditor({
       }
       mountedRef.current = true;
     },
-    [onMount]
+    [onMount],
   );
 
   const handleChange = useCallback(
@@ -136,7 +136,7 @@ export function CodeEditor({
         onChange(val);
       }
     },
-    [onChange]
+    [onChange],
   );
 
   useEffect(() => {

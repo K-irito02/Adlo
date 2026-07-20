@@ -66,15 +66,15 @@ export const SunburstSegment = memo(function SunburstSegment({
   const enterProgress = useMountProgress(
     enterTransition,
     segmentDelay,
-    `${playKey}-enter-${replayId}`
+    `${playKey}-enter-${replayId}`,
   );
   const enterComplete = useEnterComplete(enterProgress);
   const enterScale = useTransform(enterProgress, [0, 1], [0, 1]);
   const animatedHitPath = useTransform(enterProgress, (value) =>
-    base ? (arcPath(base, value, 1) ?? '') : ''
+    base ? (arcPath(base, value, 1) ?? '') : '',
   );
   const animatedVisualPath = useTransform(enterProgress, (value) =>
-    visualGeometry ? (arcPath(visualGeometry, value, 1) ?? '') : ''
+    visualGeometry ? (arcPath(visualGeometry, value, 1) ?? '') : '',
   );
 
   if (!arc) {

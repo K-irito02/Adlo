@@ -35,7 +35,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
       browserAddManualPort: state.browserAddManualPort,
       browserDeleteLocalPort: state.browserDeleteLocalPort,
       browserUpdateLocalPort: state.browserUpdateLocalPort,
-    }))
+    })),
   );
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -66,7 +66,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
     (url: string) => {
       browserOpenTab(url, undefined, undefined);
     },
-    [browserOpenTab]
+    [browserOpenTab],
   );
 
   const handleAddClick = () => {
@@ -85,7 +85,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
       setDialogOpen(false);
       setRenameSite(null);
     },
-    [dialogMode, renameSite, browserAddShortcut, browserRenameShortcut]
+    [dialogMode, renameSite, browserAddShortcut, browserRenameShortcut],
   );
 
   const handleAddCancel = () => {
@@ -156,7 +156,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
         setRenamePortValue('');
       }
     },
-    [handleRenamePortSubmit]
+    [handleRenamePortSubmit],
   );
 
   const shortcutContextMenuItems = [

@@ -1,4 +1,4 @@
-import { type APPROVAL_POLICY_MODE, type APP_STATE_SCHEMA_VERSION } from './constants';
+import type { APPROVAL_POLICY_MODE, APP_STATE_SCHEMA_VERSION } from './constants';
 import type { RiskLevel } from './types-task';
 
 // ════════════════════════════════════════════════════════
@@ -191,11 +191,11 @@ export interface MigrationDiagnostics {
   fromVersion?: string;
   toVersion: string;
   backupPath?: string;
-  executedScripts: Array<{
+  executedScripts: {
     scriptId: string;
     status: 'pending' | 'running' | 'completed' | 'failed' | 'rolled-back';
     error?: string;
-  }>;
+  }[];
 }
 
 export interface EventDiagnostics {
@@ -207,12 +207,12 @@ export interface RuntimeDiagnosticsSnapshot {
   lifecycle: RuntimeLifecycleSnapshot;
   migration: MigrationDiagnostics;
   events: EventDiagnostics;
-  recentErrors: Array<{
+  recentErrors: {
     id: string;
     timestamp: number;
     name: string;
     message: string;
-  }>;
+  }[];
 }
 
 // ════════════════════════════════════════════════════════
@@ -332,7 +332,7 @@ export interface SettingItem {
   description?: string;
   type: 'toggle' | 'select' | 'input' | 'password' | 'readonly' | 'font';
   value: string | boolean | number;
-  options?: Array<{ value: string; label: string }>;
+  options?: { value: string; label: string }[];
   cssVar?: '--font-sans-custom' | '--font-mono-custom';
 }
 

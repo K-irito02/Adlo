@@ -18,7 +18,7 @@ export interface GitSlice {
 
 export const createGitSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): GitSlice => ({
   gitBranches: [],
 

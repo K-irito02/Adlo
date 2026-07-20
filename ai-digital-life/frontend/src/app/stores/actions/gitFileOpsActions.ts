@@ -5,7 +5,7 @@ import { applyGitOperation } from './gitSnapshotActions';
 
 export function createGitFileOpsActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     /**
@@ -23,7 +23,7 @@ export function createGitFileOpsActions(
         workspaceId,
         (next) => set({ workspaceChangesExpanded: next }),
         !!state.gitSnapshots[workspaceId],
-        () => get().loadGitSnapshot(workspaceId, workspacePath)
+        () => get().loadGitSnapshot(workspaceId, workspacePath),
       );
     },
 
@@ -52,7 +52,7 @@ export function createGitFileOpsActions(
         state.workspaceChangesExpanded,
         (next) => set({ workspaceChangesExpanded: next }),
         (entry) => get().loadGitSnapshot(entry.id, entry.path),
-        (id) => !!state.gitSnapshots[id]
+        (id) => !!state.gitSnapshots[id],
       );
     },
 

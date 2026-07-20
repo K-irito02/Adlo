@@ -16,14 +16,14 @@ const MAX_VISIBLE_DURATION_MS = 5000;
 
 function hasFoldGutterMarkers(container: HTMLElement): boolean {
   const marker = container.querySelector<HTMLElement>(
-    '.cm-foldGutter > .cm-gutterElement:nth-child(n+2) .adl-cm-fold-marker'
+    '.cm-foldGutter > .cm-gutterElement:nth-child(n+2) .adl-cm-fold-marker',
   );
   return marker !== null;
 }
 
 function bindGutterListeners(
   gutters: HTMLElement[],
-  handlers: { onEnter: () => void; onLeave: () => void }
+  handlers: { onEnter: () => void; onLeave: () => void },
 ): () => void {
   for (const gutter of gutters) {
     gutter.addEventListener('mouseenter', handlers.onEnter);
@@ -40,7 +40,7 @@ function bindGutterListeners(
 export function useFoldMarkerAutoHide(
   containerRef: React.RefObject<HTMLElement | null>,
   fileKey: string,
-  editorView?: EditorView | null
+  editorView?: EditorView | null,
 ): FoldMarkerState {
   const [state, setState] = useState<FoldMarkerState>('hidden');
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -154,7 +154,7 @@ export function useFoldMarkerAutoHide(
           });
         };
         Promise.resolve(forceParsing(view, view.state.doc.length, FORCE_PARSE_TIMEOUT_MS)).then(
-          doReconfigure
+          doReconfigure,
         );
       }
 

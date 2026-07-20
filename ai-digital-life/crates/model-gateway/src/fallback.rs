@@ -1,6 +1,6 @@
 //! Fallback response generation when all providers fail.
 
-use adl_types::{estimate_tokens, ConversationRole, ModelChatMessage, ModelTokenUsage};
+use adl_types::{ConversationRole, ModelChatMessage, ModelTokenUsage, estimate_tokens};
 
 use crate::registry::{ModelSource, ProviderRegistry};
 

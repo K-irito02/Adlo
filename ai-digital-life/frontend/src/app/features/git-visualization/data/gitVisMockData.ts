@@ -495,7 +495,7 @@ export interface BklitAreaRow {
 // ── Bklit/visx data adapters ──
 
 export function toBklitAreaData(
-  raw: ReturnType<typeof generateCodeLineEvolutionData>
+  raw: ReturnType<typeof generateCodeLineEvolutionData>,
 ): BklitAreaRow[] {
   return raw.dates.map((date, i) => ({
     date,
@@ -512,7 +512,7 @@ export function toHeatmapColumns(): HeatmapColumn[] {
     const weekStart = new Date(d.getFullYear(), 0, 1);
     const weekStartDay = weekStart.getDay();
     const weekNum = Math.ceil(
-      ((d.getTime() - weekStart.getTime()) / 86400000 + weekStartDay + 1) / 7
+      ((d.getTime() - weekStart.getTime()) / 86400000 + weekStartDay + 1) / 7,
     );
     if (!weekMap.has(weekNum)) {
       weekMap.set(weekNum, []);

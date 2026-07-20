@@ -20,7 +20,7 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
     thumbClassName,
     children,
   }: CustomScrollAreaProps,
-  ref: ForwardedRef<HTMLDivElement>
+  ref: ForwardedRef<HTMLDivElement>,
 ) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -46,7 +46,7 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
     const trackHeight = scroll.clientHeight;
     const thumbHeight = Math.max(
       24,
-      Math.round((scroll.clientHeight / scroll.scrollHeight) * trackHeight)
+      Math.round((scroll.clientHeight / scroll.scrollHeight) * trackHeight),
     );
     const maxThumbTop = Math.max(1, trackHeight - thumbHeight);
     const thumbTop = Math.round((scroll.scrollTop / maxScrollTop) * maxThumbTop);
@@ -129,7 +129,7 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
       track.addEventListener('pointercancel', cleanup);
       track.addEventListener('lostpointercapture', cleanup);
     },
-    [updateScrollbar]
+    [updateScrollbar],
   );
 
   useEffect(() => {

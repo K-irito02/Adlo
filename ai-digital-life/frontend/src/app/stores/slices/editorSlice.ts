@@ -4,7 +4,7 @@
  */
 import type { FileOutlineItem, WorkspaceChangePreview } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
-import { type EditorTabState } from '@utils/editorTabs';
+import type { EditorTabState } from '@utils/editorTabs';
 
 export interface EditorSlice {
   openTabs: EditorTabState[];
@@ -41,7 +41,7 @@ export interface EditorSlice {
 
 export const createEditorSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): EditorSlice => ({
   openTabs: [],
   outline: [],
@@ -84,7 +84,7 @@ export const createEditorSlice = (
       const norm = path.toLowerCase().replace(/\\/g, '/');
       return {
         dirtyEditorPaths: state.dirtyEditorPaths.filter(
-          (p) => p.toLowerCase().replace(/\\/g, '/') !== norm
+          (p) => p.toLowerCase().replace(/\\/g, '/') !== norm,
         ),
       };
     }),

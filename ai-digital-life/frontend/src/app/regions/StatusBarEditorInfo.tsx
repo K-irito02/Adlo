@@ -35,7 +35,7 @@ const StatusBarEditorInfo = React.memo(function StatusBarEditorInfo({
     useShallow((s) => ({
       providers: s.providers,
       selectModel: s.selectModel,
-    }))
+    })),
   );
 
   return (
@@ -103,11 +103,13 @@ const StatusBarEditorInfo = React.memo(function StatusBarEditorInfo({
                             ) : (
                               <span
                                 className={`adl-model-picker__option-dot adl-model-picker__option-dot--${modelHealthTone(
-                                  modelHealth?.providers.find((h) => h.providerId === p.id)?.healthy
+                                  modelHealth?.providers.find((h) => h.providerId === p.id)
+                                    ?.healthy,
                                 )}`}
                                 aria-label={modelHealthLabel(
                                   t,
-                                  modelHealth?.providers.find((h) => h.providerId === p.id)?.healthy
+                                  modelHealth?.providers.find((h) => h.providerId === p.id)
+                                    ?.healthy,
                                 )}
                                 role="img"
                               />

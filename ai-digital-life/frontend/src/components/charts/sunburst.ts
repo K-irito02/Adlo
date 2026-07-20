@@ -76,7 +76,7 @@ function layoutNode(
   parentId: string | null,
   categoryIndex: number,
   trail: string[],
-  ctx: BuildContext
+  ctx: BuildContext,
 ) {
   const value = sumValues(node);
   const hasChildren = Boolean(node.children?.length);
@@ -131,7 +131,7 @@ function layoutNode(
       id,
       childCategory,
       depth === 0 ? [node.name] : trail,
-      ctx
+      ctx,
     );
     cursor += childSpan;
   }
@@ -181,7 +181,7 @@ export function ringOptions(focusDepth: number, maxDepth: number, radius: number
   const depthPastFirstDrill = Math.max(0, focusDepth - 1);
   const centerScale = Math.max(
     0.45,
-    DRILL_CENTER_SCALE - depthPastFirstDrill * DRILL_CENTER_DEPTH_SHRINK
+    DRILL_CENTER_SCALE - depthPastFirstDrill * DRILL_CENTER_DEPTH_SHRINK,
   );
   const centerR = oneLevelCenterR * centerScale;
   const visibleRings = Math.max(1, maxDepth - focusDepth);
@@ -193,7 +193,7 @@ export function geometryFor(
   arc: ArcDatum,
   focus: Focus,
   maxDepth: number,
-  radius: number
+  radius: number,
 ): ArcGeometry | null {
   if (arc.depth <= focus.depth) {
     return null;
@@ -262,7 +262,7 @@ export function transitionGeometry(
   toFocus: Focus,
   maxDepth: number,
   radius: number,
-  progress: number
+  progress: number,
 ): ArcGeometry | null {
   const from = geometryFor(arc, fromFocus, maxDepth, radius);
   const to = geometryFor(arc, toFocus, maxDepth, radius);
@@ -332,7 +332,7 @@ export function buildSunburstEnterTiming(arcs: ArcDatum[], staggerScale = 1): Su
 export function arcPath(
   geometry: ArcGeometry,
   progress: number,
-  radialProgress = progress
+  radialProgress = progress,
 ): string | null {
   if (progress <= 0 && radialProgress <= 0) {
     return null;
@@ -366,7 +366,7 @@ function arcPathFromRadii(
   currentA0: number,
   currentA1: number,
   currentInner: number,
-  currentOuter: number
+  currentOuter: number,
 ): string | null {
   if (currentOuter - currentInner < 0.5 || currentA1 - currentA0 < 0.001) {
     return null;
@@ -411,7 +411,7 @@ export function visibleHoverPathLength(hoveredDepth: number, focusDepth: number)
 export function hoverGrowForPathSegment(
   hoverPop: number,
   ringWidth: number,
-  pathLength: number
+  pathLength: number,
 ): number {
   const maxTotalGrow = ringWidth * HOVER_GROW_RING_BUDGET;
   const budgetPerSegment = maxTotalGrow / pathLength;
@@ -427,7 +427,7 @@ export function maxHoverSegmentThickness(
   maxDepth: number,
   radius: number,
   hoverPop: number,
-  referenceFocusDepth = 1
+  referenceFocusDepth = 1,
 ): number {
   const { ringWidth } = ringOptions(referenceFocusDepth, maxDepth, radius);
   const grow = hoverGrowForPathSegment(hoverPop, ringWidth, 1);
@@ -441,7 +441,7 @@ export function buildHoverGrowTargets(
   maxDepth: number,
   radius: number,
   hoverPop: number,
-  isOnHoverPath: (arc: ArcDatum, hoveredId: string) => boolean
+  isOnHoverPath: (arc: ArcDatum, hoveredId: string) => boolean,
 ): Map<string, number> {
   const targets = new Map<string, number>();
   const { ringWidth } = ringOptions(focus.depth, maxDepth, radius);
@@ -469,7 +469,7 @@ export function buildHoverGrowTargets(
 export function defaultSunburstGrowPadding(
   maxDepth: number,
   size: number,
-  hoverPop: number
+  hoverPop: number,
 ): number {
   const fullRadius = size / 2;
   const rootRingWidth = fullRadius / Math.max(1, maxDepth);
@@ -481,7 +481,7 @@ export function defaultSunburstGrowPadding(
 /** Sum of hover grow from ancestors on the path to this arc (excludes self). */
 export function ancestorGrowOffset(
   arcId: string,
-  growAmountForArc: (id: string) => number
+  growAmountForArc: (id: string) => number,
 ): number {
   const parts = arcId.split(ID_SEP);
   let push = 0;
@@ -496,7 +496,7 @@ export function applyHoverGrow(
   base: ArcGeometry,
   arcId: string,
   growAmountForArc: (id: string) => number,
-  maxExpandedThickness: number
+  maxExpandedThickness: number,
 ): ArcGeometry {
   const push = ancestorGrowOffset(arcId, growAmountForArc);
   const ownGrow = growAmountForArc(arcId);

@@ -40,7 +40,7 @@ function hydrateCiLogCaches(): Record<
 > {
   return readJson<Record<string, { selectedJobId: number | null; logs: Record<number, string> }>>(
     CI_LOG_CACHES_KEY,
-    {}
+    {},
   );
 }
 
@@ -74,13 +74,13 @@ export interface GitHubSlice {
   /** Update log cache for a given directory */
   updateCiLogCache: (
     dirId: string,
-    data: Partial<{ selectedJobId: number | null; logs: Record<number, string> }>
+    data: Partial<{ selectedJobId: number | null; logs: Record<number, string> }>,
   ) => void;
 }
 
 export const createGitHubSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): GitHubSlice => {
   if (typeof window !== 'undefined') {
     void hydrateCiConfigDefaults().then(({ config, token, autoRefresh }) => {
@@ -227,7 +227,7 @@ export const createGitHubSlice = (
           workflowId: config.workflowId,
           accessToken,
         },
-        (params) => bridge.github.getStatus(params)
+        (params) => bridge.github.getStatus(params),
       );
 
       if (result.ok) {
@@ -316,7 +316,7 @@ export const createGitHubSlice = (
           workflowId: config.workflowId,
           accessToken: token,
         },
-        (params) => bridge.github.getStatus(params)
+        (params) => bridge.github.getStatus(params),
       );
       if (result.ok) {
         set((state) => {

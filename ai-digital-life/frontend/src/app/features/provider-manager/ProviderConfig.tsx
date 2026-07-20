@@ -13,7 +13,7 @@ export function ProviderConfig({ providerId, onCancel }: ProviderConfigProps) {
   const providers = useAppStore((s) => s.providers);
   const configuredProviders = useMemo(
     () => providers.filter((p) => p.configured || p.hasKey).map((p) => p.id),
-    [providers]
+    [providers],
   );
   const [apiKey, setApiKeyLocal] = useState('');
   const [showKey, setShowKey] = useState(false);

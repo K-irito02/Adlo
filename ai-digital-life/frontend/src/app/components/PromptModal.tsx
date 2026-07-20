@@ -66,7 +66,7 @@ export function PromptModal({
         setError('');
       }
     },
-    [error]
+    [error],
   );
 
   const handleKeyDown = useCallback(
@@ -77,7 +77,7 @@ export function PromptModal({
         onCancel();
       }
     },
-    [handleOk, loading, onCancel]
+    [handleOk, loading, onCancel],
   );
 
   if (!open) {

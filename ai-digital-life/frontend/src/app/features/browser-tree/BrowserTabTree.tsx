@@ -61,7 +61,7 @@ interface BrowserTabTreeProps {
 function findWorkspaceBookmarkUrl(
   bookmarks: Record<string, WorkspaceBookmarkEntry[]>,
   tabId: string,
-  uniqueKey: string
+  uniqueKey: string,
 ): string | undefined {
   for (const [wsId, entries] of Object.entries(bookmarks)) {
     for (const entry of entries) {
@@ -79,7 +79,7 @@ function findWorkspaceBookmarkUrl(
 function findFolderBookmarkUrl(
   folders: TabFolderState[],
   tabId: string,
-  uniqueKey: string
+  uniqueKey: string,
 ): string | undefined {
   for (const folder of folders) {
     if (!folder.tabs) {
@@ -122,12 +122,12 @@ export function BrowserTabTree({
     browserWorkspaceBookmarks,
     browserBookmarks ?? [],
     browserBookmarkTabIdUrlMap ?? {},
-    labels
+    labels,
   );
 
   const openTabIds = useMemo(
     () => (onlyOpenTabs ? new Set(browserTabs.map((t) => t.id)) : undefined),
-    [onlyOpenTabs, browserTabs]
+    [onlyOpenTabs, browserTabs],
   );
 
   const handleOpenFile = useCallback(
@@ -193,7 +193,7 @@ export function BrowserTabTree({
         }
       }
     },
-    [browserTabs, browserHistory, browserWorkspaceBookmarks, browserTabFolders, callbacks]
+    [browserTabs, browserHistory, browserWorkspaceBookmarks, browserTabFolders, callbacks],
   );
 
   return (

@@ -2,8 +2,8 @@ use crate::commands::ipc;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::config::{load, save};
-use adl_types::agent::AgentConfig;
 use adl_types::IpcResult;
+use adl_types::agent::AgentConfig;
 
 fn list_custom_agents_inner(data_dir: &str) -> Result<Vec<AgentConfig>, AppError> {
     let config = load(std::path::Path::new(data_dir))?;

@@ -118,7 +118,7 @@ mod tests {
                 max_recent_workspaces: 10,
                 model_preferences: ModelPreferences::default(),
                 keybinds: std::collections::BTreeMap::new(),
-                fonts: crate::types::config::FontPreferences::default(),
+                fonts: FontPreferences::default(),
                 max_concurrent_workspaces: 6,
                 workspace_priority_ids: vec![],
                 workspace_deferred_ids: vec![],

@@ -25,7 +25,7 @@ interface FileNavigatorTreeProps {
   onOpenFileForWorkspace: (
     workspaceId: string,
     workspacePath: string,
-    relativePath: string
+    relativePath: string,
   ) => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;

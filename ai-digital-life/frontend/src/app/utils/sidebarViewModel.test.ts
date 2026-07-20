@@ -120,12 +120,12 @@ describe('buildSidebarViewModel', () => {
 
   it('groups large workspace and session lists without changing visible ordering', () => {
     const recentWorkspaces = Array.from({ length: 12 }, (_, index) =>
-      buildWorkspace(`workspace_${index}`, `E:/workspace-${index}`)
+      buildWorkspace(`workspace_${index}`, `E:/workspace-${index}`),
     );
     const sessions = recentWorkspaces.flatMap((workspace, workspaceIndex) =>
       Array.from({ length: 8 }, (_, sessionIndex) =>
-        buildSession(`session_${workspaceIndex}_${sessionIndex}`, workspace.id)
-      )
+        buildSession(`session_${workspaceIndex}_${sessionIndex}`, workspace.id),
+      ),
     );
     sessions.push(buildSession('session-global', GLOBAL_WORKSPACE_ID));
     sessions[3] = { ...sessions[3], archivedAt: now, status: 'archived' };
@@ -133,7 +133,7 @@ describe('buildSidebarViewModel', () => {
     const viewModel = buildSidebarViewModel({ recentWorkspaces, sessions });
 
     expect(viewModel.workspaces.map((item) => item.workspace.id)).toEqual(
-      recentWorkspaces.map((workspace) => workspace.id)
+      recentWorkspaces.map((workspace) => workspace.id),
     );
     expect(viewModel.workspaces[0]?.sessions.map((item) => item.session.id)).toEqual([
       'session_0_0',

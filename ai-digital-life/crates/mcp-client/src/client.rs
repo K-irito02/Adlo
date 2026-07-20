@@ -2,7 +2,7 @@ use crate::catalog::{McpCatalog, McpToolEntry};
 use crate::{McpServerConfig, McpTransportType};
 use rmcp::service::{NotificationContext, RoleClient, RunningService};
 use rmcp::transport::{StreamableHttpClientTransport, TokioChildProcess};
-use rmcp::{serve_client, ClientHandler, Peer};
+use rmcp::{ClientHandler, Peer, serve_client};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
@@ -338,7 +338,7 @@ mod tests {
             command: Some("npx".to_string()),
             args: vec![],
             url: None,
-            env: std::collections::HashMap::new(),
+            env: HashMap::new(),
             oauth: false,
             enabled: true,
         }

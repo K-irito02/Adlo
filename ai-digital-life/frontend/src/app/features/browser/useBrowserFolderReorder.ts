@@ -20,12 +20,12 @@ export function useBrowserFolderReorder() {
       browserToggleTabTreePath: state.browserToggleTabTreePath,
       browserExpandAllTreePaths: state.browserExpandAllTreePaths,
       browserCollapseAllTreePaths: state.browserCollapseAllTreePaths,
-    }))
+    })),
   );
 
   const allTreeExpanded = useMemo(() => {
     const visible = recentWorkspaces.filter(
-      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
     );
     const wsPaths = visible.map((w) => `workspace:${w.id}`);
     const folderPaths = browserTabFolders.filter((f) => !f.parentId).map((f) => `folder:${f.id}`);
@@ -43,14 +43,14 @@ export function useBrowserFolderReorder() {
     (path: string) => {
       browserToggleTabTreePath(path);
     },
-    [browserToggleTabTreePath]
+    [browserToggleTabTreePath],
   );
 
   const handleExpandAllTree = useCallback(() => {
     const state = useAppStore.getState();
     const paths: string[] = [];
     const workspaces = state.recentWorkspaces.filter(
-      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
     );
     for (const ws of workspaces) {
       paths.push(`workspace:${ws.id}`);

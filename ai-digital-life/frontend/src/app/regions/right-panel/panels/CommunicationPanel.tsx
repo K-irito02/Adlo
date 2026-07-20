@@ -18,7 +18,7 @@ export function CommunicationPanel() {
   const communicateNavigatorCollapsed = useAppStore((s) => s.communicateNavigatorCollapsed);
   const toggleCommunicateNavigator = useAppStore((s) => s.toggleCommunicateNavigator);
 
-  const PLATFORM_TABS = useMemo<Array<{ id: PlatformId; label: string; icon: React.ReactNode }>>(
+  const PLATFORM_TABS = useMemo<{ id: PlatformId; label: string; icon: React.ReactNode }[]>(
     () => [
       {
         id: 'github',
@@ -68,7 +68,7 @@ export function CommunicationPanel() {
         ),
       },
     ],
-    [t]
+    [t],
   );
 
   const PANEL_COMPONENTS: Record<PlatformId, React.ComponentType> = {

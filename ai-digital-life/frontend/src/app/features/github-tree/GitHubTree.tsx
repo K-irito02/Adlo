@@ -39,7 +39,7 @@ export function GitHubTree({
     workspaces,
     gitHubWorkspaceConfigs,
     gitHubCiFolders,
-    labels
+    labels,
   );
 
   if (gitHubViewMode === 'list') {

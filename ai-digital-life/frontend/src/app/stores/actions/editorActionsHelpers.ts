@@ -43,7 +43,7 @@ export async function openFileGeneric(
   get: () => StoreState,
   relativePath: string,
   requestSeq: number,
-  config: OpenFileConfig
+  config: OpenFileConfig,
 ) {
   clearError(get);
   const cachedDocument = getCachedFileDocument(config.cacheKey);
@@ -53,7 +53,7 @@ export async function openFileGeneric(
     const norm = normalizeWorkspaceRelativePath(relativePath);
     set((state: StoreState) => {
       const nextDirty = state.dirtyEditorPaths.filter(
-        (p) => normalizeWorkspaceRelativePath(p) !== norm
+        (p) => normalizeWorkspaceRelativePath(p) !== norm,
       );
       void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
       return {
@@ -76,16 +76,15 @@ export async function openFileGeneric(
   if (cachedDocument) {
     applyDocument(cachedDocument);
     return;
-  } else {
-    set((state: StoreState) => ({
-      error: undefined,
-      openTabs: state.openTabs.some((tab) => tab.path === relativePath)
-        ? state.openTabs
-        : [...state.openTabs, createEditorTab(relativePath)],
-      selectedFilePath: relativePath,
-      selectedFileWorkspaceId: config.workspaceId,
-    }));
   }
+  set((state: StoreState) => ({
+    error: undefined,
+    openTabs: state.openTabs.some((tab) => tab.path === relativePath)
+      ? state.openTabs
+      : [...state.openTabs, createEditorTab(relativePath)],
+    selectedFilePath: relativePath,
+    selectedFileWorkspaceId: config.workspaceId,
+  }));
 
   const fileResult = await config.readFile();
   if (requestSeq !== fileRequestSeq) {
@@ -115,7 +114,7 @@ export async function openChangePreviewGeneric(
   get: () => StoreState,
   relativePath: string,
   requestSeq: number,
-  config: OpenChangePreviewConfig
+  config: OpenChangePreviewConfig,
 ) {
   set({ changePreviewLoading: true });
 

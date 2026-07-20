@@ -22,7 +22,7 @@ export function CreateWorkspaceModal({
         onClose();
       }
     },
-    [onClose]
+    [onClose],
   );
 
   if (!open) {

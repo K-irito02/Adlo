@@ -32,7 +32,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         open: boolean;
         workspaceId?: string;
         folderId?: string;
-      }>
+      }>,
     ) => {
       if (typeof value === 'function') {
         setCreateTabDialog((prev) => {
@@ -45,7 +45,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         setCreateTabDialog(value);
       }
     },
-    []
+    [],
   );
 
   const bookmarkNewTab = useCallback((workspaceId?: string, folderId?: string) => {
@@ -57,7 +57,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           tabId,
           folderId || undefined,
           undefined,
-          folderId ? undefined : workspaceId
+          folderId ? undefined : workspaceId,
         );
     }
   }, []);
@@ -100,7 +100,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       browserOpenTab(url, title, folderId ? undefined : workspaceId, folderId || undefined);
       bookmarkNewTab(workspaceId, folderId);
     },
-    [browserOpenTab, createTabDialog, bookmarkNewTab]
+    [browserOpenTab, createTabDialog, bookmarkNewTab],
   );
 
   const handleCreateTabCancel = useCallback(() => {
@@ -128,7 +128,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       }
       setEditTabDialog({ open: false, tabId: '', name: '', url: '' });
     },
-    [editTabDialog, browserUpdateTab]
+    [editTabDialog, browserUpdateTab],
   );
 
   const handleEditTabCancel = useCallback(() => {
@@ -259,7 +259,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         useAppStore.getState().browserUpdateBookmarkTitle(url, trimmedName);
       }
     },
-    [activeTab, showToast, t, bookmarkName, pendingBookmark]
+    [activeTab, showToast, t, bookmarkName, pendingBookmark],
   );
 
   const handleBookmarkCreateDir = useCallback((parentPath: string | null) => {

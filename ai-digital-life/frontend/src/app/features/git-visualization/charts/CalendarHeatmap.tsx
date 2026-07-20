@@ -11,7 +11,7 @@ import { toHeatmapColumns } from '../data/gitVisMockData';
 
 const dayFmt = (locale: string) =>
   Array.from({ length: 7 }, (_, i) =>
-    new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2026, 0, 4 + i))
+    new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2026, 0, 4 + i)),
   );
 
 export const CalendarHeatmap = React.memo(function CalendarHeatmap() {
@@ -24,7 +24,7 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap() {
       const word = count === 1 ? t.gitVisContribution : t.gitVisContributions;
       return `${count} ${word}`;
     },
-    [t]
+    [t],
   );
 
   return (

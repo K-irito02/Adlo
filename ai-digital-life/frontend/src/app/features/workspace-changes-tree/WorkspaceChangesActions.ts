@@ -29,7 +29,7 @@ export interface WorkspaceChangesActions {
   handleHideFromRightPanels: () => void;
   handleRefreshClick: (e: React.MouseEvent) => void;
   wrappedGetContextMenuItems: (
-    node: WorkspaceTreeNode
+    node: WorkspaceTreeNode,
   ) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
 }
 
@@ -70,7 +70,7 @@ export function useWorkspaceChangesActions({
         return item;
       });
     },
-    [getContextMenuItems, workspace.path]
+    [getContextMenuItems, workspace.path],
   );
 
   const handleNameClick = useCallback(() => {
@@ -130,7 +130,7 @@ export function useWorkspaceChangesActions({
         handleNameClick();
       }
     },
-    [handleNameClick]
+    [handleNameClick],
   );
 
   const handleRefreshClick = useCallback(
@@ -138,7 +138,7 @@ export function useWorkspaceChangesActions({
       e.stopPropagation();
       onRefreshTree();
     },
-    [onRefreshTree]
+    [onRefreshTree],
   );
 
   return {

@@ -22,7 +22,7 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
       rightCollapsed: state.rightCollapsed,
       activeRightTool: state.activeRightTool,
       setActiveRightTool: state.setActiveRightTool,
-    }))
+    })),
   );
   const actions = useAppActions();
 
@@ -35,11 +35,11 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
   const validation = latestPatchApplication?.validation;
   const selectedDiagnostics = useMemo(
     () => filterDiagnosticsForPath(validation?.diagnostics ?? [], selectedFilePath),
-    [selectedFilePath, validation?.diagnostics]
+    [selectedFilePath, validation?.diagnostics],
   );
   const activeDiagnostic = useMemo(
     () => findFirstDiagnostic(selectedDiagnostics),
-    [selectedDiagnostics]
+    [selectedDiagnostics],
   );
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
 
     const fallbackFile = findPatchFileByPath(
       activePatchSet,
-      selectedPatchFilePath ?? selectedFilePath
+      selectedPatchFilePath ?? selectedFilePath,
     );
     const nextFilePath = fallbackFile?.relativePath;
     setSelectedPatchFilePath((current) => {
@@ -82,7 +82,7 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
       if (
         current &&
         activePatchSet.filePatches.some((filePatchItem) =>
-          filePatchItem.hunks.some((hunk) => hunk.id === current)
+          filePatchItem.hunks.some((hunk) => hunk.id === current),
         )
       ) {
         return current;
@@ -92,9 +92,9 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
     setCollapsedPatchHunkIds((current) =>
       current.filter((hunkId) =>
         activePatchSet.filePatches.some((filePatchItem) =>
-          filePatchItem.hunks.some((hunk) => hunk.id === hunkId)
-        )
-      )
+          filePatchItem.hunks.some((hunk) => hunk.id === hunkId),
+        ),
+      ),
     );
   }, [activePatchSet, selectedFilePath, selectedPatchFilePath]);
 
@@ -104,7 +104,7 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
     }
     if (
       activePatchSet.filePatches.some(
-        (filePatchItem) => filePatchItem.relativePath === selectedFilePath
+        (filePatchItem) => filePatchItem.relativePath === selectedFilePath,
       )
     ) {
       setSelectedPatchFilePath(selectedFilePath);
@@ -114,7 +114,7 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
   const handleSelectPatchFile = useCallback(
     (
       relativePath: string,
-      options?: { activateTool?: boolean; line?: number; hunkId?: string }
+      options?: { activateTool?: boolean; line?: number; hunkId?: string },
     ) => {
       const matchingFile = findPatchFileByPath(activePatchSet, relativePath);
       const nextHunkId = options?.hunkId ?? matchingFile?.hunks[0]?.id;
@@ -130,7 +130,7 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
         void actions.openFile(relativePath);
       }
     },
-    [activePatchSet, actions, setActiveRightTool, setPendingReveal]
+    [activePatchSet, actions, setActiveRightTool, setPendingReveal],
   );
 
   const handleSelectPatchHunk = useCallback(
@@ -143,7 +143,7 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
         void actions.openFile(relativePath);
       }
     },
-    [actions, setActiveRightTool, setPendingReveal]
+    [actions, setActiveRightTool, setPendingReveal],
   );
 
   const handleTogglePatchHunkCollapse = useCallback((hunkId: string) => {
@@ -154,13 +154,13 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
     (collapsed: boolean, relativePath?: string) => {
       const targetFile = findPatchFileByPath(
         activePatchSet,
-        relativePath ?? selectedPatchFilePath ?? selectedFilePath
+        relativePath ?? selectedPatchFilePath ?? selectedFilePath,
       );
       setCollapsedPatchHunkIds((current) =>
-        setCollapsedHunksForFile(current, targetFile, collapsed)
+        setCollapsedHunksForFile(current, targetFile, collapsed),
       );
     },
-    [activePatchSet, selectedFilePath, selectedPatchFilePath]
+    [activePatchSet, selectedFilePath, selectedPatchFilePath],
   );
 
   const handleJumpPatchHunk = useCallback(
@@ -173,7 +173,7 @@ export function usePatchReview(setPendingReveal: (path: string, line: number) =>
         activateTool: true,
       });
     },
-    [activePatchSet, handleSelectPatchHunk, selectedPatchHunkId]
+    [activePatchSet, handleSelectPatchHunk, selectedPatchHunkId],
   );
 
   return {

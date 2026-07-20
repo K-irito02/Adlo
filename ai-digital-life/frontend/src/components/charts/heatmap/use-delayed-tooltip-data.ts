@@ -6,7 +6,7 @@ import type { HeatmapTooltipData } from './heatmap-context';
 export function useDelayedTooltipData(
   tooltipData: HeatmapTooltipData | null,
   showDelay: number,
-  hideDelay: number
+  hideDelay: number,
 ): HeatmapTooltipData | null {
   const [displayData, setDisplayData] = useState<HeatmapTooltipData | null>(null);
   const isShowingRef = useRef(false);
@@ -63,7 +63,7 @@ export function useDelayedTooltipData(
         clearTimeout(hideTimerRef.current);
       }
     },
-    []
+    [],
   );
 
   return displayData;

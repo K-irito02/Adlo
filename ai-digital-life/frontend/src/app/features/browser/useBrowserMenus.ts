@@ -70,7 +70,7 @@ export function useBrowserMenus({
     handleCloseTab,
     browserOpenTab,
     browserSelectTab,
-    browserNavigateActiveTab
+    browserNavigateActiveTab,
   );
 
   useEffect(() => {

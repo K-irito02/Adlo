@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use super::TimestampMs;
 use super::command::CommandExecutionResult;
 use super::conversation::{ConversationScenario, DiagnosticSummary};
-use super::TimestampMs;
 
 /// Identifies a built-in or custom agent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]

@@ -17,7 +17,7 @@ export function WorkspaceSettings() {
       appInfo: state.appInfo,
       recentWorkspaces: state.recentWorkspaces,
       updatePreferences: state.updatePreferences,
-    }))
+    })),
   );
 
   const config = appInfo?.config;
@@ -43,7 +43,7 @@ export function WorkspaceSettings() {
         });
       }, 200);
     },
-    [updatePreferences]
+    [updatePreferences],
   );
 
   const visibleWorkspaces = useMemo<DraggableWorkspace[]>(
@@ -51,7 +51,7 @@ export function WorkspaceSettings() {
       recentWorkspaces
         .filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available)
         .map((w) => ({ id: w.id, name: w.name })),
-    [recentWorkspaces]
+    [recentWorkspaces],
   );
 
   const priorityWorkspaces = useMemo<DraggableWorkspace[]>(
@@ -59,7 +59,7 @@ export function WorkspaceSettings() {
       priorityIds
         .map((id) => visibleWorkspaces.find((w) => w.id === id))
         .filter((w): w is DraggableWorkspace => w !== undefined),
-    [priorityIds, visibleWorkspaces]
+    [priorityIds, visibleWorkspaces],
   );
 
   const deferredWorkspaces = useMemo<DraggableWorkspace[]>(
@@ -67,7 +67,7 @@ export function WorkspaceSettings() {
       deferredIds
         .map((id) => visibleWorkspaces.find((w) => w.id === id))
         .filter((w): w is DraggableWorkspace => w !== undefined),
-    [deferredIds, visibleWorkspaces]
+    [deferredIds, visibleWorkspaces],
   );
 
   const naturalWorkspaces = useMemo<DraggableWorkspace[]>(() => {
@@ -89,7 +89,7 @@ export function WorkspaceSettings() {
       setNaturalOrder(next.natural);
       persistChanges(maxConcurrent, next.priority, next.deferred, next.natural);
     },
-    [maxConcurrent, persistChanges]
+    [maxConcurrent, persistChanges],
   );
 
   const dnd = useWorkspaceDnd({
@@ -106,7 +106,7 @@ export function WorkspaceSettings() {
       setMaxConcurrent(clamped);
       persistChanges(clamped, priorityIds, deferredIds, naturalOrder);
     },
-    [priorityIds, deferredIds, naturalOrder, persistChanges]
+    [priorityIds, deferredIds, naturalOrder, persistChanges],
   );
 
   const handleRemove = useCallback(
@@ -126,7 +126,7 @@ export function WorkspaceSettings() {
         persistChanges(maxConcurrent, priorityIds, nextDef, nextNat);
       }
     },
-    [priorityIds, deferredIds, naturalOrder, maxConcurrent, persistChanges]
+    [priorityIds, deferredIds, naturalOrder, maxConcurrent, persistChanges],
   );
 
   const handleMoveUp = useCallback(
@@ -144,7 +144,7 @@ export function WorkspaceSettings() {
         }
       }
     },
-    [priorityIds, deferredIds, naturalOrder, maxConcurrent, persistChanges]
+    [priorityIds, deferredIds, naturalOrder, maxConcurrent, persistChanges],
   );
 
   const handleMoveDown = useCallback(
@@ -162,7 +162,7 @@ export function WorkspaceSettings() {
         }
       }
     },
-    [priorityIds, deferredIds, naturalOrder, maxConcurrent, persistChanges]
+    [priorityIds, deferredIds, naturalOrder, maxConcurrent, persistChanges],
   );
 
   useEffect(() => {

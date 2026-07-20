@@ -93,7 +93,7 @@ export function useGridShimmer({
 
   const shimmerX = useTransform(
     progress,
-    (value) => -shimmerLength + value * (innerWidth + shimmerLength * 2)
+    (value) => -shimmerLength + value * (innerWidth + shimmerLength * 2),
   );
   const shimmerTransform = useTransform(shimmerX, (x) => `translate(${x}, 0)`);
 

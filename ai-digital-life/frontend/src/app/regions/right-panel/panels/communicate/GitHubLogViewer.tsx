@@ -66,12 +66,12 @@ export function GitHubLogViewer({ snapshot, config, dirKey, initialJobId }: GitH
   }, [currentLogText]);
 
   const processedLines = useMemo(() => {
-    const result: Array<{
+    const result: {
       type: 'line' | 'blank-collapse';
       text: string;
       lineNum: number;
       blankCount?: number;
-    }> = [];
+    }[] = [];
     let blankRun = 0;
     const maxBlank = MAX_BLANK_LINES;
     for (let i = 0; i < lines.length; i++) {
@@ -153,7 +153,7 @@ export function GitHubLogViewer({ snapshot, config, dirKey, initialJobId }: GitH
         </div>
       );
     },
-    [processedLines, searchMatches, searchMatchIndex, searchQuery, renderLine, formatT, t]
+    [processedLines, searchMatches, searchMatchIndex, searchQuery, renderLine, formatT, t],
   );
 
   const selectedJob = selectedJobId !== null ? jobs.find((j) => j.jobId === selectedJobId) : null;

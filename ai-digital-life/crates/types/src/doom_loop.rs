@@ -7,11 +7,7 @@ pub fn doom_loop_check(recent_failures: &[String], command: &str) -> PermissionD
     let consecutive_failures =
         recent_failures.iter().rev().take_while(|c| c.as_str() == command).count();
 
-    if consecutive_failures >= 3 {
-        PermissionDecision::Ask
-    } else {
-        PermissionDecision::Allow
-    }
+    if consecutive_failures >= 3 { PermissionDecision::Ask } else { PermissionDecision::Allow }
 }
 
 /// Check if a path is external to the workspace.

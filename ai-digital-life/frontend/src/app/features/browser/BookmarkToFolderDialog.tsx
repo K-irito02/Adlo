@@ -229,7 +229,7 @@ export function BookmarkToFolderDialog({
       }
       onCreateDir(selectedPath);
     },
-    [selectedPath, onCreateDir]
+    [selectedPath, onCreateDir],
   );
 
   const handleAddToFolder = useCallback(() => {
@@ -242,7 +242,7 @@ export function BookmarkToFolderDialog({
         onCancel();
       }
     },
-    [onCancel]
+    [onCancel],
   );
 
   const handleBackdrop = useCallback(
@@ -251,14 +251,14 @@ export function BookmarkToFolderDialog({
         onCancel();
       }
     },
-    [onCancel]
+    [onCancel],
   );
 
   const handleNameChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       onBookmarkNameChange?.(e.currentTarget.value);
     },
-    [onBookmarkNameChange]
+    [onBookmarkNameChange],
   );
 
   const hasContent = workspaceNodes.length > 0 || userFolderNodes.length > 0;
@@ -391,6 +391,6 @@ export function BookmarkToFolderDialog({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

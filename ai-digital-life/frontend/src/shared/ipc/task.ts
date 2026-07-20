@@ -49,7 +49,7 @@ export interface TaskBridge {
    * @see preview-bridge/index.ts → task.getCheckpointPreview
    */
   getCheckpointPreview: (
-    checkpointId: string
+    checkpointId: string,
   ) => Promise<IpcResult<CheckpointPayloadPreview | undefined>>;
   /**
    * 将工作区恢复到指定检查点状态

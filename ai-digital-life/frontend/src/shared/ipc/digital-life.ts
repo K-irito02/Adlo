@@ -75,7 +75,7 @@ export interface DigitalLifeBridge {
    * @see preview-bridge/index.ts → subscribeTerminalStream
    */
   subscribeTerminalStream: (
-    listener: (event: DigitalLifeTerminalStreamEventV1) => void
+    listener: (event: DigitalLifeTerminalStreamEventV1) => void,
   ) => () => void;
   /**
    * 订阅 PTY 终端输出事件
@@ -98,7 +98,7 @@ export interface DigitalLifeBridge {
    */
   setLogMode: (
     target: 'terminal' | 'debug',
-    mode: 'overwrite' | 'append' | 'multi'
+    mode: 'overwrite' | 'append' | 'multi',
   ) => Promise<void>;
   /** 窗口控制子模块 */
   window: WindowBridge;

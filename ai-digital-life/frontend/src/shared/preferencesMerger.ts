@@ -7,7 +7,7 @@ import { resolveCurrentTheme } from './resolveTheme';
 
 export function applyPreferencePatch(
   config: ConfigSnapshot,
-  patch: AppPreferencePatch
+  patch: AppPreferencePatch,
 ): ConfigSnapshot {
   const nextConfig = { ...config };
 

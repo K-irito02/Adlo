@@ -6,9 +6,9 @@
 use adl_errors::AppError;
 use adl_types::{ModelChatMessage, ModelResponse};
 
+use crate::ModelGateway;
 use crate::adapter::{ChatOptions, StreamReader};
 use crate::secret::get_provider_secret;
-use crate::ModelGateway;
 
 pub(crate) async fn call_provider(
     gateway: &ModelGateway,

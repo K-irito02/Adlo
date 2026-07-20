@@ -1,4 +1,4 @@
-import { type EditorView } from '@codemirror/view';
+import type { EditorView } from '@codemirror/view';
 
 export class ChunkButtonManager {
   private lastChunkPositions = new Map<Element, string>();

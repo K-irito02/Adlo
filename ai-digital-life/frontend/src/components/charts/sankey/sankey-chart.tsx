@@ -102,7 +102,7 @@ const SankeyChartCore = memo(function SankeyChartCore({
         setInternalHoveredNodeIndex(index);
       }
     },
-    [isNodeHoverControlled, onNodeHoverChange]
+    [isNodeHoverControlled, onNodeHoverChange],
   );
   const [hoveredLinkIndex, setHoveredLinkIndex] = useState<number | null>(null);
   const [tooltipData, setTooltipData] = useState<SankeyTooltipData | null>(null);

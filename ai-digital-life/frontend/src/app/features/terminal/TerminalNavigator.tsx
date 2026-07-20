@@ -15,7 +15,7 @@ interface TerminalNavigatorProps {
   terminalNavigatorWidth: number;
   terminalTabs: TerminalTabState[];
   terminalActiveTabId: string;
-  recentCommands: Array<{ id: string; label: string; title: string }>;
+  recentCommands: { id: string; label: string; title: string }[];
   editingTabId: string | null;
   editValue: string;
   editInputRef: React.RefObject<HTMLInputElement | null>;

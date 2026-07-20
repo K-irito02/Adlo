@@ -3,6 +3,9 @@ name = "adl-migration"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 adl-storage = { path = "../storage" }
 adl-errors = { path = "../errors" }

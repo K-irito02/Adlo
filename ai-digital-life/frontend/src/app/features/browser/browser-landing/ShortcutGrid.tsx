@@ -17,14 +17,14 @@ export function ShortcutGrid({ t, onOpenUrl, onAddClick, onContextMenu }: Shortc
     useShallow((state) => ({
       browserShortcuts: state.browserShortcuts,
       browserReorderShortcuts: state.browserReorderShortcuts,
-    }))
+    })),
   );
 
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const sortedShortcuts = useMemo(
     () => [...browserShortcuts].sort((a, b) => a.sortOrder - b.sortOrder),
-    [browserShortcuts]
+    [browserShortcuts],
   );
 
   const handleDragStart = useCallback((e: React.DragEvent, id: string) => {
@@ -59,14 +59,14 @@ export function ShortcutGrid({ t, onOpenUrl, onAddClick, onContextMenu }: Shortc
       ids.splice(toIdx, 0, draggedId);
       browserReorderShortcuts(ids);
     },
-    [sortedShortcuts, browserReorderShortcuts]
+    [sortedShortcuts, browserReorderShortcuts],
   );
 
   const handleCardClick = useCallback(
     (site: ShortcutSite) => {
       onOpenUrl(site.url);
     },
-    [onOpenUrl]
+    [onOpenUrl],
   );
 
   return (

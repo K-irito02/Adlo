@@ -10,7 +10,7 @@ export const DEFAULT_KEYBINDS: Record<string, string> = Object.fromEntries(
   DEFAULT_COMMANDS.filter((cmd) => cmd.defaultKeybind !== undefined).map((cmd) => [
     cmd.id,
     cmd.defaultKeybind as string,
-  ])
+  ]),
 );
 export const DEFAULT_FONTS = {
   uiFont: '',

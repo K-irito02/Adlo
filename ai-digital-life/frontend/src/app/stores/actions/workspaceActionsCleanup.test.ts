@@ -22,7 +22,7 @@ function makeTab(id: string, workspaceId: string): BrowserTabState {
 function makeFolder(
   id: string,
   parentId: string | undefined,
-  parentType: TabFolderState['parentType']
+  parentType: TabFolderState['parentType'],
 ): TabFolderState {
   return { id, name: id, createdAt: 0, parentId, parentType };
 }
@@ -98,7 +98,7 @@ describe('stripWorkspaceFromBrowserState (cleanup on workspace delete)', () => {
       folders,
       expanded,
       wsBookmarks,
-      't1'
+      't1',
     );
     expect(result.browserTabs).toEqual(tabs);
     expect(result.browserTabFolders).toEqual(folders);

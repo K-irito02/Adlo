@@ -31,7 +31,7 @@ export function findCollapsedSectionStart(view: EditorView, targetLine: number):
     const collapseTo = chunk
       ? Math.max(
           view.state.doc.lineAt(Math.min(view.state.doc.length, chunk.fromB)).number - 1 - margin,
-          collapseFrom
+          collapseFrom,
         )
       : view.state.doc.lines;
     const lineCount = collapseTo - collapseFrom + 1;
@@ -55,7 +55,7 @@ export function computeChangesMenuItems(
   lineNumbersEnabled: boolean,
   wordWrapEnabled: boolean,
   toggleLineNumbers: () => void,
-  toggleWordWrap: () => void
+  toggleWordWrap: () => void,
 ) {
   return [
     {
@@ -75,13 +75,13 @@ export function computeChangesMenuItems(
 
 export function computeVisibleWorkspaces(recentWorkspaces: RecentWorkspaceEntry[]) {
   return recentWorkspaces.filter(
-    (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+    (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
   );
 }
 
 export function computeAllChangesExpanded(
   visibleWorkspaces: RecentWorkspaceEntry[],
-  workspaceChangesExpanded: Record<string, boolean>
+  workspaceChangesExpanded: Record<string, boolean>,
 ): boolean {
   return (
     visibleWorkspaces.length > 0 && visibleWorkspaces.every((w) => workspaceChangesExpanded[w.id])
@@ -91,7 +91,7 @@ export function computeAllChangesExpanded(
 export function computeCanToggleNavigatorStructure(
   changesNavigatorMode: 'tree' | 'list' | 'outline',
   visibleWorkspaces: RecentWorkspaceEntry[],
-  hasExpandableOutlineItems: boolean
+  hasExpandableOutlineItems: boolean,
 ): boolean {
   if (changesNavigatorMode === 'tree' || changesNavigatorMode === 'list') {
     return visibleWorkspaces.length > 0;
@@ -105,7 +105,7 @@ export function computeCanToggleNavigatorStructure(
 export function computeStructureToggleExpanded(
   changesNavigatorMode: 'tree' | 'list' | 'outline',
   allChangesExpanded: boolean,
-  hasExpandedOutlineItems: boolean
+  hasExpandedOutlineItems: boolean,
 ): boolean {
   if (changesNavigatorMode === 'tree' || changesNavigatorMode === 'list') {
     return allChangesExpanded;
@@ -118,7 +118,7 @@ export function computeStructureToggleExpanded(
 
 export function computeChangesNavigatorTitle(
   changesNavigatorMode: 'tree' | 'list' | 'outline',
-  t: CopyDict
+  t: CopyDict,
 ): string {
   if (changesNavigatorMode === 'outline') {
     return t.outline;
@@ -135,7 +135,7 @@ export function computeChangesTreeData(
   activePatchSets: Record<string, PatchSet | undefined>,
   collapsedPatchHunkIds: string[],
   changesNavigatorMode: 'tree' | 'list' | 'outline',
-  changesStatusFilter: Set<ChangeFileState>
+  changesStatusFilter: Set<ChangeFileState>,
 ): Record<string, ChangeTreeNode[]> {
   const result: Record<string, ChangeTreeNode[]> = {};
   for (const wsId of Object.keys(workspaceChangesExpanded)) {
@@ -160,7 +160,7 @@ export function computeChangesTreeData(
 
 export function computeChangeCounts(
   visibleWorkspaces: RecentWorkspaceEntry[],
-  gitSnapshots: Record<string, GitSnapshot>
+  gitSnapshots: Record<string, GitSnapshot>,
 ): Record<string, number> {
   const result: Record<string, number> = {};
   for (const ws of visibleWorkspaces) {
@@ -180,7 +180,7 @@ export function computeChangeCounts(
 
 export function computeTotalChangesStats(
   visibleWorkspaces: RecentWorkspaceEntry[],
-  gitSnapshots: Record<string, GitSnapshot>
+  gitSnapshots: Record<string, GitSnapshot>,
 ): { staged: number; unstaged: number; untracked: number } {
   let staged = 0;
   let unstaged = 0;
@@ -198,7 +198,7 @@ export function computeTotalChangesStats(
 
 export function computeExpandedPathsByWs(
   workspaceChangesExpanded: Record<string, boolean>,
-  expandedPaths: Record<string, boolean>
+  expandedPaths: Record<string, boolean>,
 ): Record<string, Record<string, boolean>> {
   const result: Record<string, Record<string, boolean>> = {};
   for (const wsId of Object.keys(workspaceChangesExpanded)) {
@@ -213,19 +213,19 @@ export function computeDirtyPathsSet(dirtyEditorPaths: string[]): Set<string> {
 
 export function computeFilteredChangeEntries(
   changeEntries: ReturnType<typeof buildChangeEntries>,
-  changesStatusFilter: Set<ChangeFileState>
+  changesStatusFilter: Set<ChangeFileState>,
 ) {
   if (changesStatusFilter.size === 0 || changesStatusFilter.size === 3) {
     return changeEntries;
   }
   return changeEntries.filter((entry) =>
-    entry.states.some((state) => changesStatusFilter.has(state))
+    entry.states.some((state) => changesStatusFilter.has(state)),
   );
 }
 
 export function computeHasExpandedDirectories(
   directoryPaths: string[],
-  expandedPaths: Record<string, boolean>
+  expandedPaths: Record<string, boolean>,
 ): boolean {
   return directoryPaths.some((pathValue) => expandedPaths[pathValue]);
 }
@@ -236,7 +236,7 @@ export function revealOutlineLine(
   previewEnabled: boolean,
   editorRef: { current: DiffEditorRef | EditorRef | null },
   changesPreviewContainerRef: { current: HTMLDivElement | null },
-  getModifiedEditor: () => EditorRef | null
+  getModifiedEditor: () => EditorRef | null,
 ): void {
   if (changePreview && categorizeFile(changePreview.path) === 'markdown' && previewEnabled) {
     const container = changesPreviewContainerRef.current;
@@ -281,7 +281,7 @@ export function selectNavigatorNode(
   onSelectPatchFile: (path: string, opts: { line?: number; hunkId?: string }) => void,
   activePatchSets: Record<string, PatchSet | undefined>,
   activePatchSet: PatchSet | undefined,
-  openChangePreviewForWorkspace: (wsPath: string, relPath: string) => void
+  openChangePreviewForWorkspace: (wsPath: string, relPath: string) => void,
 ): void {
   const patchSet = activePatchSets[workspacePath] ?? activePatchSet;
   const summaries = patchSet ? summarizePatchSet(patchSet, collapsedPatchHunkIds) : [];
@@ -300,7 +300,7 @@ export function toggleAllDirectories(
   directoryPaths: string[],
   hasExpandedDirectories: boolean,
   collapseAllChangesTreePaths: () => void,
-  setChangesTreePathExpanded: (path: string, expanded: boolean) => void
+  setChangesTreePathExpanded: (path: string, expanded: boolean) => void,
 ): void {
   if (!directoryPaths.length) {
     return;
@@ -316,7 +316,7 @@ export function toggleAllOutlineItems(
   hasExpandableOutlineItems: boolean,
   hasExpandedOutlineItems: boolean,
   defaultExpandedOutlineIds: Set<string>,
-  setExpandedOutlineIds: (ids: Set<string>) => void
+  setExpandedOutlineIds: (ids: Set<string>) => void,
 ): void {
   if (!hasExpandableOutlineItems) {
     return;
@@ -329,7 +329,7 @@ export function toggleNavigatorStructure(
   allChangesExpanded: boolean,
   handleCollapseAll: () => void,
   handleExpandAll: () => void,
-  handleToggleAllOutlineItems: () => void
+  handleToggleAllOutlineItems: () => void,
 ): void {
   if (changesNavigatorMode === 'tree' || changesNavigatorMode === 'list') {
     if (allChangesExpanded) {
@@ -346,7 +346,7 @@ export function toggleNavigatorStructure(
 
 export function handleStatusFilterClick(
   filter: ChangeFileState,
-  setChangesStatusFilter: React.Dispatch<React.SetStateAction<Set<ChangeFileState>>>
+  setChangesStatusFilter: React.Dispatch<React.SetStateAction<Set<ChangeFileState>>>,
 ): void {
   setChangesStatusFilter((current) => {
     const next = new Set(current);
@@ -362,7 +362,7 @@ export function handleStatusFilterClick(
 export function toggleWorkspaceExpand(
   workspaceId: string,
   recentWorkspaces: RecentWorkspaceEntry[],
-  expandWorkspaceChangesInFileNav: (id: string, path: string) => void
+  expandWorkspaceChangesInFileNav: (id: string, path: string) => void,
 ): void {
   const ws = recentWorkspaces.find((w) => w.id === workspaceId);
   if (ws) {
@@ -373,7 +373,7 @@ export function toggleWorkspaceExpand(
 export function refreshOneWorkspace(
   workspaceId: string,
   recentWorkspaces: RecentWorkspaceEntry[],
-  refreshGitSnapshot: (id: string, path: string) => void
+  refreshGitSnapshot: (id: string, path: string) => void,
 ): void {
   const ws = recentWorkspaces.find((w) => w.id === workspaceId);
   if (ws) {
@@ -383,7 +383,7 @@ export function refreshOneWorkspace(
 
 export function refreshAllChanges(
   visibleWorkspaces: RecentWorkspaceEntry[],
-  refreshGitSnapshot: (id: string, path: string) => void
+  refreshGitSnapshot: (id: string, path: string) => void,
 ): void {
   visibleWorkspaces.forEach((ws) => {
     refreshGitSnapshot(ws.id, ws.path);
@@ -396,7 +396,7 @@ export function handleChangesRenameConfirm(
   setChangesRenameDialogOpen: (v: boolean) => void,
   clearMenuHighlight: () => void,
   renameWorkspaceFile: (path: string, newName: string) => Promise<void>,
-  newName: string
+  newName: string,
 ): Promise<void> {
   if (!changesRenamingPath) {
     return Promise.resolve();
@@ -412,7 +412,7 @@ export function handleChangesDeleteConfirm(
   changesDeleteConfirmPath: string | null,
   setChangesDeleteConfirmPath: (v: string | null) => void,
   clearMenuHighlight: () => void,
-  deleteWorkspaceFile: (path: string) => Promise<void>
+  deleteWorkspaceFile: (path: string) => Promise<void>,
 ): Promise<void> {
   if (!changesDeleteConfirmPath) {
     return Promise.resolve();
@@ -426,7 +426,7 @@ export function handleChangesDeleteConfirm(
 export function handleChangesCancel(
   setPath: (v: string | null) => void,
   setDialogOpen: (v: boolean) => void,
-  clearMenuHighlight: () => void
+  clearMenuHighlight: () => void,
 ): void {
   setPath(null);
   setDialogOpen(false);

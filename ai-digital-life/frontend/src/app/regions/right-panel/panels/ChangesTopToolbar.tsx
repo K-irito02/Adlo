@@ -152,7 +152,7 @@ export function ChangesTopToolbar({
                     <span>{item.label}</span>
                     {item.checked ? <span className="adl-menu__check">√</span> : null}
                   </button>
-                )
+                ),
               )}
             </div>
           ) : null}

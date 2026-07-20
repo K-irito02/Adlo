@@ -27,7 +27,7 @@ describe('EventBuffer', () => {
     buffer.push({ id: '2', value: 'beta' });
     const merged = buffer.drainWithReconciliation(
       (e) => e.id,
-      (_prev, next) => next
+      (_prev, next) => next,
     );
     expect(merged).toHaveLength(2);
     expect(merged.find((e) => e.id === '1')!.value).toBe('second');
@@ -41,7 +41,7 @@ describe('EventBuffer', () => {
     buffer.push({ id: 'a', value: 3 });
     const merged = buffer.drainWithReconciliation(
       (e) => e.id,
-      (prev, next) => ({ id: prev.id, value: prev.value + next.value })
+      (prev, next) => ({ id: prev.id, value: prev.value + next.value }),
     );
     expect(merged).toHaveLength(2);
     expect(merged.find((e) => e.id === 'a')!.value).toBe(4);

@@ -13,7 +13,7 @@ const persistWriter = createDebouncedWrite(300);
 
 /** Strip accessToken for secure localStorage persistence */
 export function stripTokenFromConfig(
-  config: GitWorkspaceCiConfig
+  config: GitWorkspaceCiConfig,
 ): Omit<GitWorkspaceCiConfig, 'accessToken'> & { accessToken: null } {
   return { ...config, accessToken: null };
 }
@@ -78,7 +78,7 @@ export async function hydrateGitHubFolders(): Promise<GitHubCiFolderState[]> {
  */
 export function collectDescendantFolderIds(
   folders: GitHubCiFolderState[],
-  folderId: string
+  folderId: string,
 ): Set<string> {
   const idsToDelete = new Set<string>([folderId]);
   const findDescendants = (parentId: string) => {
@@ -99,7 +99,7 @@ export function collectDescendantFolderIds(
  */
 export function collectAffectedWorkspaceIds(
   folders: GitHubCiFolderState[],
-  idsToDelete: Set<string>
+  idsToDelete: Set<string>,
 ): Set<string> {
   const affectedWorkspaceIds = new Set<string>();
   for (const id of idsToDelete) {
@@ -127,7 +127,7 @@ export function collectAffectedWorkspaceIds(
  * @param set Zustand set 函数（来自 store 实例）
  */
 export async function hydrateGitHubRepoSlice(
-  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
 ): Promise<void> {
   if (typeof window === 'undefined') {
     return;

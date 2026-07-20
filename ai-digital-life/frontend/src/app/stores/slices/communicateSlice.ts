@@ -24,7 +24,7 @@ export interface CommunicateSlice {
 
 export const createCommunicateSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): CommunicateSlice => {
   if (typeof window !== 'undefined') {
     const storedPlatform = (() => {

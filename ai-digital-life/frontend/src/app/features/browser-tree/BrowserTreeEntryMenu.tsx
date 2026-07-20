@@ -16,13 +16,13 @@ interface UseBrowserTreeEntryMenuInput {
   setContextMenuForTab: (ctx: { x: number; y: number; node: BrowserTreeNode } | null) => void;
   entryBtnRef: React.MutableRefObject<{ [key: string]: HTMLButtonElement | null }>;
   menuId: string;
-  entryMenuItems: Array<{
+  entryMenuItems: {
     id: string;
     label: string;
     danger?: boolean;
     hint?: string;
     action: () => void;
-  }>;
+  }[];
   t: CopyDict;
 }
 
@@ -85,7 +85,7 @@ export function useBrowserTreeEntryMenu({
         hintElementsRef.current = [card, arrow, arrowBorder];
       }
     },
-    [menuId]
+    [menuId],
   );
 
   const showTabHint = useCallback((e: React.MouseEvent, hintText: string) => {
@@ -128,7 +128,7 @@ export function useBrowserTreeEntryMenu({
       setMenuOpen(false);
       hideHint();
     },
-    [setMenuOpen, hideHint]
+    [setMenuOpen, hideHint],
   );
 
   useEffect(() => {
@@ -219,7 +219,7 @@ export function useBrowserTreeEntryMenu({
               </button>
             ))}
           </div>,
-          document.body
+          document.body,
         )
       : null;
 
@@ -249,7 +249,7 @@ export function useBrowserTreeEntryMenu({
                 if (contextMenuForTab.node.url) {
                   callbacks.onOpenTabInNewTab(
                     contextMenuForTab.node.url,
-                    contextMenuForTab.node.name
+                    contextMenuForTab.node.name,
                   );
                 }
                 setContextMenuForTab(null);
@@ -274,7 +274,7 @@ export function useBrowserTreeEntryMenu({
                   callbacks.onEditTab(
                     contextMenuForTab.node.tabId,
                     contextMenuForTab.node.name,
-                    contextMenuForTab.node.url
+                    contextMenuForTab.node.url,
                   );
                 }
                 setContextMenuForTab(null);
@@ -303,7 +303,7 @@ export function useBrowserTreeEntryMenu({
                 handleBookmarkToggle(
                   contextMenuForTab.node.url ?? '',
                   contextMenuForTab.node.name,
-                  contextMenuForTab.node.tabId
+                  contextMenuForTab.node.tabId,
                 );
                 setContextMenuForTab(null);
               },
@@ -317,7 +317,7 @@ export function useBrowserTreeEntryMenu({
                   if (contextMenuForTab.node.isSavedBookmark) {
                     callbacks.onRemoveBookmarkTab?.(
                       contextMenuForTab.node.tabId,
-                      contextMenuForTab.node.url
+                      contextMenuForTab.node.url,
                     );
                   } else {
                     callbacks.onDeleteTab(contextMenuForTab.node.tabId, contextMenuForTab.node.url);
@@ -347,7 +347,7 @@ export function useBrowserTreeEntryMenu({
             </button>
           ))}
         </div>,
-        document.body
+        document.body,
       )
     : null;
 

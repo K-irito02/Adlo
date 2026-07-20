@@ -28,7 +28,7 @@ function barDepthPerspectiveRise(
   innerWidth: number,
   datum: Record<string, unknown>,
   topY: number,
-  baselineY: number
+  baselineY: number,
 ): number {
   const centerX = innerWidth / 2;
   if (centerX <= 0) {
@@ -348,7 +348,7 @@ const BarInner = memo(function BarInner({
               innerWidth,
               d,
               y,
-              baselineY
+              baselineY,
             );
             const trim = Math.min(rise, Math.max(0, barHeight - 1));
             y += trim;

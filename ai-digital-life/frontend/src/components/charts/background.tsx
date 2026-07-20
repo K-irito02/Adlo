@@ -36,10 +36,10 @@ function clampFadeLength(length: number): number {
   return Math.min(45, Math.max(0, length));
 }
 
-function fadeMaskStops(lengthPercent: number): Array<{
+function fadeMaskStops(lengthPercent: number): {
   offset: string;
   opacity: number;
-}> {
+}[] {
   const edge = clampFadeLength(lengthPercent);
   return [
     { offset: '0%', opacity: 0 },

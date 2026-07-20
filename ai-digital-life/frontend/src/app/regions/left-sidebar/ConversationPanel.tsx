@@ -28,7 +28,7 @@ export function ConversationPanel({
   const { t } = useTCopy();
   const [conversationsCollapsed, setConversationsCollapsed] = useState(false);
   const [conversationPanelHeight, setConversationPanelHeight] = useState<number>(() =>
-    readConversationPanelHeight()
+    readConversationPanelHeight(),
   );
 
   const getConversationPanelMaxHeight = useCallback(() => {
@@ -39,7 +39,7 @@ export function ConversationPanel({
     }
     return Math.max(
       MIN_CONVERSATION_PANEL_HEIGHT,
-      Math.floor(contentRect.bottom - workspaceToolbarRect.bottom)
+      Math.floor(contentRect.bottom - workspaceToolbarRect.bottom),
     );
   }, [leftbarContentRef, workspaceToolbarRef]);
 

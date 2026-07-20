@@ -3,6 +3,9 @@ name = "adl-storage"
 version.workspace = true
 edition.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 adl-types = { path = "../types" }
 adl-errors = { path = "../errors" }

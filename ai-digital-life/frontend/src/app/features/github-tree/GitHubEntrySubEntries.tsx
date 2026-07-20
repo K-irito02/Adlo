@@ -56,7 +56,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
       gitHubUnpinFolder: s.gitHubUnpinFolder,
       gitHubCiFolders: s.gitHubCiFolders,
       clearCiState: s.clearCiState,
-    }))
+    })),
   );
 
   const [childMenuState, setChildMenuState] = useState<{
@@ -69,7 +69,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
 
   const pinnedFolderIds = useMemo(
     () => new Set(gitHubCiFolders.filter((f) => f.pinnedOrder !== undefined).map((f) => f.id)),
-    [gitHubCiFolders]
+    [gitHubCiFolders],
   );
 
   const handleOpenChildMenu = useCallback((childNode: GitHubTreeNode, x: number, y: number) => {
@@ -78,7 +78,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
 
   const childMetaRenderer = useCallback(
     (childNode: GitHubTreeNode) => renderChildMeta(childNode, t, callbacks, handleOpenChildMenu),
-    [t, callbacks, handleOpenChildMenu]
+    [t, callbacks, handleOpenChildMenu],
   );
 
   const handleChildClick = useCallback(
@@ -86,7 +86,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
       onSelectTreePath(path);
       onTogglePath(path);
     },
-    [onSelectTreePath, onTogglePath]
+    [onSelectTreePath, onTogglePath],
   );
 
   const handleChildOpenFile = useCallback(
@@ -99,7 +99,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
         callbacks.onSelectSection(wsId, section);
       }
     },
-    [onSelectTreePath, callbacks]
+    [onSelectTreePath, callbacks],
   );
 
   const buildMenuItems = useCallback(
@@ -137,7 +137,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
       gitHubDeleteFolder,
       gitHubPinFolder,
       gitHubUnpinFolder,
-    ]
+    ],
   );
 
   const handleChildContextMenu = useCallback(
@@ -155,7 +155,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
           hint: item.hint,
         };
       }),
-    [buildMenuItems]
+    [buildMenuItems],
   );
 
   const handleChildMenuClick = useCallback((action: () => void) => {
@@ -223,7 +223,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
             );
           })}
         </div>,
-        document.body
+        document.body,
       )
     : null;
 

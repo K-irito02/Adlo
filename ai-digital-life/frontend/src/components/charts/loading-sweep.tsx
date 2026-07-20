@@ -59,19 +59,19 @@ export function getSkeletonHeights(
   count: number,
   seed = 0,
   min = HEIGHT_MIN_PCT,
-  max = HEIGHT_MAX_PCT
+  max = HEIGHT_MAX_PCT,
 ): number[] {
   const range = max - min;
   return Array.from(
     { length: count },
-    (_, i) => min + Math.floor(hashFract((i + 1) * 12.9898 + seed) * range)
+    (_, i) => min + Math.floor(hashFract((i + 1) * 12.9898 + seed) * range),
   );
 }
 
 /** Deterministic up/down (±1) per bar for the "center" baseline. */
 function getSkeletonSigns(count: number, seed = 0): number[] {
   return Array.from({ length: count }, (_, i) =>
-    hashFract((i + 1) * 78.233 + seed) < 0.5 ? -1 : 1
+    hashFract((i + 1) * 78.233 + seed) < 0.5 ? -1 : 1,
   );
 }
 
@@ -116,7 +116,7 @@ function LoadingSweepMask({
       }
       lastXRef.current = xValue;
     },
-    [onSweepComplete]
+    [onSweepComplete],
   );
 
   return (

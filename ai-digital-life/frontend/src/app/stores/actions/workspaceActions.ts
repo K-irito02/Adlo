@@ -12,7 +12,7 @@ export { type BrowserCleanupResult, stripWorkspaceFromBrowserState } from './bro
 
 export function createWorkspaceActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     ...createBrowserCleanupActions(set, get),
@@ -102,7 +102,7 @@ export function createWorkspaceActions(
       clearError(get);
       const result = await window.digitalLife.workspace.duplicateFile(
         srcRelativePath,
-        dstRelativePath
+        dstRelativePath,
       );
       if (!result.ok) {
         captureError(get, result.error);

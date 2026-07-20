@@ -23,7 +23,7 @@ import type { PreviewContext, PreviewWorkspaceOpenPayload } from './preview-cont
 
 export function createPreviewWorkspaceBridge(
   ctx: PreviewContext,
-  setMockActiveWorkspace: (ws: WorkspaceMeta | undefined) => void
+  setMockActiveWorkspace: (ws: WorkspaceMeta | undefined) => void,
 ) {
   const applyOpenedWorkspace = (payload: PreviewWorkspaceOpenPayload) => {
     ctx.currentWorkspace = payload.meta;
@@ -40,7 +40,7 @@ export function createPreviewWorkspaceBridge(
   };
 
   const openWorkspaceFromPreviewApi = async (
-    workspacePath: string
+    workspacePath: string,
   ): Promise<IpcResult<WorkspaceMeta>> => {
     const result = await requestPreviewApi<PreviewWorkspaceOpenPayload>('/workspace/open', {
       method: 'POST',
@@ -78,7 +78,7 @@ export function createPreviewWorkspaceBridge(
   };
 
   function withWorkspace<T, A extends unknown[]>(
-    fn: (rootPath: string, ...args: A) => Promise<IpcResult<T>>
+    fn: (rootPath: string, ...args: A) => Promise<IpcResult<T>>,
   ): (...args: A) => Promise<IpcResult<T>> {
     return async (...args: A) => {
       if (!ctx.currentWorkspace) {
@@ -123,7 +123,7 @@ export function createPreviewWorkspaceBridge(
       }
       const pinnedCount = ctx.recentWorkspaces.filter((w) => w.isPinned).length;
       ctx.recentWorkspaces = ctx.recentWorkspaces.map((w) =>
-        w.id === workspaceId ? { ...w, isPinned: true, pinnedOrder: pinnedCount } : w
+        w.id === workspaceId ? { ...w, isPinned: true, pinnedOrder: pinnedCount } : w,
       );
       persistRecentWorkspaces(ctx.recentWorkspaces);
       return { ok: true as const, data: ctx.recentWorkspaces };
@@ -137,7 +137,7 @@ export function createPreviewWorkspaceBridge(
         };
       }
       ctx.recentWorkspaces = ctx.recentWorkspaces.map((w) =>
-        w.id === workspaceId ? { ...w, isPinned: false, pinnedOrder: 0 } : w
+        w.id === workspaceId ? { ...w, isPinned: false, pinnedOrder: 0 } : w,
       );
       const pinnedWorkspaces = ctx.recentWorkspaces
         .filter((w) => w.isPinned)
@@ -208,13 +208,13 @@ export function createPreviewWorkspaceBridge(
         requestPreviewApi<WorkspaceFileDocument>('/workspace/create-file', {
           method: 'POST',
           body: JSON.stringify({ rootPath, relativePath: rp, content: c }),
-        })
+        }),
       )(relativePath, content),
     createFolder: withWorkspace<boolean, [string]>(async (rootPath, relativePath) =>
       requestPreviewApi<boolean>('/workspace/create-folder', {
         method: 'POST',
         body: JSON.stringify({ rootPath, relativePath }),
-      })
+      }),
     ),
     readFile: withWorkspace<WorkspaceFileDocument, [string]>(async (rootPath, relativePath) => {
       const params = new URLSearchParams({ rootPath, relativePath });
@@ -228,14 +228,14 @@ export function createPreviewWorkspaceBridge(
       async (rootPath, relativePath) => {
         const params = new URLSearchParams({ rootPath, relativePath });
         return requestPreviewApi<WorkspaceChangePreview>(
-          `/workspace/change-preview?${params.toString()}`
+          `/workspace/change-preview?${params.toString()}`,
         );
-      }
+      },
     ),
     getChangePreviewForWorkspace: async (workspacePath: string, relativePath: string) => {
       const params = new URLSearchParams({ rootPath: workspacePath, relativePath });
       return requestPreviewApi<WorkspaceChangePreview>(
-        `/workspace/change-preview?${params.toString()}`
+        `/workspace/change-preview?${params.toString()}`,
       );
     },
     listTree: async () => {
@@ -249,20 +249,20 @@ export function createPreviewWorkspaceBridge(
       requestPreviewApi<boolean>('/workspace/rename-file', {
         method: 'POST',
         body: JSON.stringify({ rootPath, relativePath, newName }),
-      })
+      }),
     ),
     deleteFile: withWorkspace<boolean, [string]>(async (rootPath, relativePath) =>
       requestPreviewApi<boolean>('/workspace/delete-file', {
         method: 'POST',
         body: JSON.stringify({ rootPath, relativePath }),
-      })
+      }),
     ),
     duplicateFile: withWorkspace<boolean, [string, string]>(
       async (rootPath, srcRelativePath, dstRelativePath) =>
         requestPreviewApi<boolean>('/workspace/duplicate-file', {
           method: 'POST',
           body: JSON.stringify({ rootPath, srcRelativePath, dstRelativePath }),
-        })
+        }),
     ),
     getAbsolutePath: withWorkspace<string, [string]>(async (rootPath, relativePath) => {
       const params = new URLSearchParams({ rootPath, relativePath });
@@ -272,7 +272,7 @@ export function createPreviewWorkspaceBridge(
       requestPreviewApi<boolean>('/workspace/move-file', {
         method: 'POST',
         body: JSON.stringify({ rootPath, relativePath, newPath }),
-      })
+      }),
     ),
     setEditorDirtyPaths: async () => ({ ok: true as const, data: true }),
   };
@@ -293,7 +293,7 @@ export function createPreviewWorkspaceBridge(
         workspaceId: ctx.currentWorkspace.id,
       });
       const result = await requestPreviewApi<RetrievalSnapshot>(
-        `/retrieval/status?${params.toString()}`
+        `/retrieval/status?${params.toString()}`,
       );
       if (result.ok) {
         ctx.retrievalStatus = result.data;

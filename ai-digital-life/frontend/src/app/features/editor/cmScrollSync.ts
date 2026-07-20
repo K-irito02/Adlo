@@ -44,7 +44,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
         const paddingRight = parseFloat(scrollerStyle.paddingRight) || 0;
         this.chunkBtnMgr.prepareAndShowChunkButtons(
           scrollDOM.clientWidth - paddingRight,
-          scrollDOM.scrollLeft
+          scrollDOM.scrollLeft,
         );
       }
     };
@@ -96,7 +96,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
       const paddingRight = parseFloat(scrollerStyle.paddingRight) || 0;
       this.chunkBtnMgr.prepareAndShowChunkButtons(
         scrollDOM.clientWidth - paddingRight,
-        scrollDOM.scrollLeft
+        scrollDOM.scrollLeft,
       );
     }
   }
@@ -183,7 +183,7 @@ class ScrollLeftSyncPlugin implements PluginValue {
       const paddingRight = parseFloat(scrollerStyle.paddingRight) || 0;
       this.chunkBtnMgr.prepareAndShowChunkButtons(
         scrollDOM.clientWidth - paddingRight,
-        scrollDOM.scrollLeft
+        scrollDOM.scrollLeft,
       );
     }, 100);
   }

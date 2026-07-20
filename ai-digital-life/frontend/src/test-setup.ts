@@ -43,7 +43,7 @@ if (typeof window !== 'undefined') {
   class IntersectionObserverMock {
     readonly root: Element | null = null;
     readonly rootMargin: string = '';
-    readonly thresholds: ReadonlyArray<number> = [];
+    readonly thresholds: readonly number[] = [];
     observe() {}
     unobserve() {}
     disconnect() {}

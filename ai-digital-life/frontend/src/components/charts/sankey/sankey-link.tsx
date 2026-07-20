@@ -17,7 +17,7 @@ function getNodeIndex(nodeOrIndex: NodeOrIndex): number | undefined {
 }
 
 function getNodeObject(
-  nodeOrIndex: NodeOrIndex
+  nodeOrIndex: NodeOrIndex,
 ): SankeyNodeType<SankeyNodeDatum, SankeyLinkDatum> | null {
   if (typeof nodeOrIndex === 'number') {
     return null;
@@ -57,7 +57,7 @@ export interface SankeyLinkProps {
   /** Return pattern ID for a link, or null/undefined to use gradient/solid color */
   getLinkPattern?: (
     link: SankeyLinkType<SankeyNodeDatum, SankeyLinkDatum>,
-    index: number
+    index: number,
   ) => string | null | undefined;
 }
 
@@ -110,7 +110,7 @@ function AnimatedLink({
   const progress = useMountProgress(
     enterTransition,
     staggerDelaySeconds,
-    `${revealEpoch}-${index}`
+    `${revealEpoch}-${index}`,
   );
   const strokeDashoffset = useTransform(progress, [0, 1], [pathLength, 0]);
 
@@ -182,7 +182,7 @@ export function SankeyLink({
       }
       return getDefaultNodeColor(node);
     },
-    [getNodeColor]
+    [getNodeColor],
   );
 
   // Get color for a link (solid color, when not using gradient)
@@ -193,7 +193,7 @@ export function SankeyLink({
       }
       return stroke || 'var(--chart-line-primary)';
     },
-    [getLinkColor, stroke]
+    [getLinkColor, stroke],
   );
 
   // Check if any element is hovered

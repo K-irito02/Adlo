@@ -139,7 +139,7 @@ export const HeatmapSeparator = memo(function HeatmapSeparator({
   const resolvedStroke = gradient ? `url(#${gradientId})` : stroke;
   const resolvedStrokeDasharray = resolveHeatmapSeparatorStrokeDasharray(
     strokeStyle,
-    strokeDasharray
+    strokeDasharray,
   );
   const gradientStops = gradient
     ? buildHeatmapSeparatorGradientStops(gradient, strokeOpacity)
@@ -166,7 +166,7 @@ export const HeatmapSeparator = memo(function HeatmapSeparator({
               </span>
             </div>
           )),
-          container
+          container,
         )
       : null;
 

@@ -55,6 +55,6 @@ export function modelHealthTone(healthy?: boolean): 'healthy' | 'degraded' {
 export function isDirtyWorktree(snapshot?: GitSnapshot): boolean {
   return Boolean(
     snapshot &&
-    (snapshot.staged.length > 0 || snapshot.unstaged.length > 0 || snapshot.untracked.length > 0)
+    (snapshot.staged.length > 0 || snapshot.unstaged.length > 0 || snapshot.untracked.length > 0),
   );
 }

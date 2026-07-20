@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { type IconName } from '../../design-system/icons';
+import type { IconName } from '../../design-system/icons';
 import { TooltipSimple } from './Tooltip';
 import { Icon } from './Icon';
 import { useTCopy } from '../i18n/useTCopy';
@@ -22,7 +22,7 @@ interface ButtonAppearance {
 
 function getAppearanceKey(
   state: ActionButtonProps['state'],
-  hasContent: boolean
+  hasContent: boolean,
 ): 'idle-empty' | 'idle-ready' | 'generating' | 'error' | 'waiting' {
   if (state === 'idle') {
     return hasContent ? 'idle-ready' : 'idle-empty';

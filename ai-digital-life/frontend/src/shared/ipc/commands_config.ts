@@ -24,12 +24,12 @@ export interface CommandsConfigBridge {
   updateCustomCommand(
     dataDir: string,
     name: string,
-    command: CommandConfig
+    command: CommandConfig,
   ): Promise<IpcResult<CommandConfig[]>>;
   deleteCustomCommand(dataDir: string, name: string): Promise<IpcResult<CommandConfig[]>>;
   renderCommandTemplate(
     template: string,
     args: string[],
-    workspace: string
+    workspace: string,
   ): Promise<IpcResult<string>>;
 }

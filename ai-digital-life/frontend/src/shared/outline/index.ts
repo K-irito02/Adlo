@@ -88,7 +88,7 @@ function detectOutlineFamily(relativePath: string): OutlineFamily {
 function finalizeItems(
   drafts: OutlineDraft[],
   relativePath: string,
-  totalLines: number
+  totalLines: number,
 ): FileOutlineItem[] {
   const sorted = [...drafts].sort((left, right) => {
     if (left.line !== right.line) {

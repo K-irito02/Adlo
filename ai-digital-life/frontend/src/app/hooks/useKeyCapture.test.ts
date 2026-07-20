@@ -143,8 +143,8 @@ describe('useKeyCapture', () => {
           keybinds: { 'session.new': 'mod+shift+n' },
           onRecord,
           onConflict,
-        })
-      )
+        }),
+      ),
     );
 
     dispatchKey('n', { ctrlKey: true, shiftKey: true });
@@ -165,8 +165,8 @@ describe('useKeyCapture', () => {
           activeId: 'workspace.open',
           keybinds: {},
           onConflict,
-        })
-      )
+        }),
+      ),
     );
 
     dispatchKey('n', { ctrlKey: true, shiftKey: true });
@@ -182,8 +182,8 @@ describe('useKeyCapture', () => {
         makeArgs({
           activeId: 'settings.open',
           onRecord,
-        })
-      )
+        }),
+      ),
     );
 
     dispatchKey(',', { ctrlKey: true, shiftKey: true });
@@ -200,8 +200,8 @@ describe('useKeyCapture', () => {
           keybinds: { 'session.new': 'mod+shift+n' },
           onRecord,
           onConflict,
-        })
-      )
+        }),
+      ),
     );
 
     dispatchKey('n', { ctrlKey: true, shiftKey: true });
@@ -247,7 +247,7 @@ describe('useKeyCapture', () => {
         keybinds: { 'session.new': 'mod+o' },
         onRecord,
         onConflict,
-      })
+      }),
     );
 
     dispatchKey('o', { ctrlKey: true });
@@ -267,8 +267,8 @@ describe('useKeyCapture', () => {
           keybinds: { 'session.new': 'none' },
           onRecord,
           onConflict,
-        })
-      )
+        }),
+      ),
     );
 
     dispatchKey('n', { ctrlKey: true, shiftKey: true });

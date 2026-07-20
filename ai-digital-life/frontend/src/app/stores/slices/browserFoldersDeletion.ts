@@ -71,7 +71,7 @@ function computeHistoryDayTabIds(history: BrowserHistoryState[], dayDate: string
  */
 export function computeDeleteAllTabsOutcome(
   state: BrowserFoldersDeletionState,
-  nodePath: string
+  nodePath: string,
 ): DeleteTabsOutcome {
   let tabIdsToDelete: string[] = [];
   const folderIdsToClear: string[] = [];
@@ -80,12 +80,12 @@ export function computeDeleteAllTabsOutcome(
     const wsId = nodePath.slice('workspace:'.length);
     tabIdsToDelete = state.browserTabs.filter((t) => t.workspaceId === wsId).map((t) => t.id);
     const wsRootFolders = state.browserTabFolders.filter(
-      (f) => f.parentType === 'workspace' && f.parentId === wsId
+      (f) => f.parentType === 'workspace' && f.parentId === wsId,
     );
     for (const rootFolder of wsRootFolders) {
       folderIdsToClear.push(
         rootFolder.id,
-        ...collectAllDescendantFolderIds(state.browserTabFolders, rootFolder.id)
+        ...collectAllDescendantFolderIds(state.browserTabFolders, rootFolder.id),
       );
     }
   } else if (nodePath.startsWith('folder:')) {
@@ -96,7 +96,7 @@ export function computeDeleteAllTabsOutcome(
       tabIdsToDelete = [...(folder.tabs ?? []).map((item) => item.tabId), ...descendantTabIds];
       folderIdsToClear.push(
         folderId,
-        ...collectAllDescendantFolderIds(state.browserTabFolders, folderId)
+        ...collectAllDescendantFolderIds(state.browserTabFolders, folderId),
       );
     }
   } else if (nodePath.startsWith('history:day:')) {
@@ -161,7 +161,7 @@ export function computeDeleteAllTabsOutcome(
   let foldersChanged = false;
   if (folderIdsToClear.length > 0) {
     nextFolders = nextFolders.map((f) =>
-      folderIdsToClear.includes(f.id) && f.tabs ? { ...f, tabs: [] } : f
+      folderIdsToClear.includes(f.id) && f.tabs ? { ...f, tabs: [] } : f,
     );
     foldersChanged = true;
   }
@@ -189,7 +189,7 @@ export function computeDeleteAllTabsOutcome(
  */
 export function computeDeleteOwnTabsOutcome(
   state: BrowserFoldersDeletionState,
-  nodePath: string
+  nodePath: string,
 ): DeleteTabsOutcome {
   let tabIdsToDelete: string[] = [];
   let wsBookmarkTabIds: string[] | null = null;

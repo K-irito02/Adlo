@@ -37,7 +37,7 @@ export function mergeOrderPreserving(currentOrder: string[], externalIds: string
   const kept = currentOrder.filter((id) => externalSet.has(id));
   const existing = new Set(currentOrder);
   const appended = externalIds.filter(
-    (id, i) => !existing.has(id) && externalIds.indexOf(id) === i
+    (id, i) => !existing.has(id) && externalIds.indexOf(id) === i,
   );
   return [...kept, ...appended];
 }
@@ -59,7 +59,7 @@ export function computeReorderedList(
   targetId: string,
   position: 'before' | 'after',
   isPinnedBucket: boolean,
-  isPinnedById: (id: string) => boolean
+  isPinnedById: (id: string) => boolean,
 ): string[] {
   // No-op when dragged and target are the same. Without this guard, the
   // underlying moveId*Target helpers would treat the dragged id as "not

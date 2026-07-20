@@ -24,7 +24,7 @@ export function useBrowserPanelCloseHandlers({
       // removeFromPool = destroyTabWebView, 在 Tauri 模式下销毁 WebView 并停止音频
       removeFromPool(tabId);
     },
-    [handleCloseTab, removeFromPool]
+    [handleCloseTab, removeFromPool],
   );
 
   const handleCloseAllTabs = useCallback(
@@ -48,7 +48,7 @@ export function useBrowserPanelCloseHandlers({
         }
       }
     },
-    [originalCloseAllTabs, removeFromPool]
+    [originalCloseAllTabs, removeFromPool],
   );
 
   const handleClearTabDirectories = useCallback(() => {

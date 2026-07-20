@@ -41,7 +41,7 @@ function useGrowExitClip(
   innerWidth: number,
   mode: LineLoadingPulseMode,
   loopEpoch: number,
-  onComplete?: () => void
+  onComplete?: () => void,
 ) {
   const progress = useMotionValue(0);
   const paddedFullWidth = innerWidth + CLIP_PADDING * 2;

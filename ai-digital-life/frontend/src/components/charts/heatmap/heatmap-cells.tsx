@@ -47,7 +47,7 @@ function computeHeatmapCellFaded(
   hoveredCell: { column: number; row: number } | null,
   hoveredLegendLevel: number | null,
   cell: { column: number; row: number },
-  count: number
+  count: number,
 ): { isHighlighted: boolean; isDimmed: boolean } {
   if (isCellHovering && hoveredCell) {
     const isHighlighted = hoveredCell.column === cell.column && hoveredCell.row === cell.row;
@@ -106,7 +106,7 @@ function syncHeatmapCellLayerOpacities(params: SyncCellLayerParams) {
       dataOpacity.set(0);
       pulseOpacity.set(0);
       shimmerOpacity.set(
-        participates && showLoadingCellsLayer ? 0 : HEATMAP_LOADING_BASE_CELL_OPACITY
+        participates && showLoadingCellsLayer ? 0 : HEATMAP_LOADING_BASE_CELL_OPACITY,
       );
     }
     return;
@@ -238,7 +238,7 @@ const HeatmapMotionCell = memo(function HeatmapMotionCell({
 
   const participates = useMemo(
     () => heatmapLoadingCellParticipates(cell.column, cell.row, loadingCellRandomness),
-    [cell.column, cell.row, loadingCellRandomness]
+    [cell.column, cell.row, loadingCellRandomness],
   );
 
   const showShimmerPulse =
@@ -444,7 +444,7 @@ export const HeatmapCells = memo(function HeatmapCells({
       setHoveredCell,
       setHoveredLegendLevel,
       setTooltipData,
-    ]
+    ],
   );
 
   const handleCellLeave = useCallback(() => {
@@ -466,7 +466,7 @@ export const HeatmapCells = memo(function HeatmapCells({
 
   const displayRange = useMemo(
     () => (hideGhostCells ? resolveHeatmapDisplayRange(data) : null),
-    [data, hideGhostCells]
+    [data, hideGhostCells],
   );
 
   return (
@@ -500,7 +500,7 @@ export const HeatmapCells = memo(function HeatmapCells({
                 hoveredCell,
                 hoveredLegendLevel,
                 cell,
-                bin.count
+                bin.count,
               );
 
               return (
@@ -520,7 +520,7 @@ export const HeatmapCells = memo(function HeatmapCells({
                   rowOpacity={rowOpacity}
                 />
               );
-            })
+            }),
           )}
         </Group>
       )}

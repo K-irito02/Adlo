@@ -10,7 +10,7 @@ export interface ModelDescriptor {
   modelId: string;
   displayName: string;
   priority: number;
-  capabilities: Array<'chat' | 'stream' | 'code'>;
+  capabilities: ('chat' | 'stream' | 'code')[];
 }
 
 export interface ModelChatMessage {

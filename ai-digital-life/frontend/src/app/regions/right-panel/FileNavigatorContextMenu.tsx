@@ -16,7 +16,7 @@ export interface UseFileNavigatorContextMenuResult {
 }
 
 export function useFileNavigatorContextMenu(
-  params: UseFileNavigatorContextMenuParams
+  params: UseFileNavigatorContextMenuParams,
 ): UseFileNavigatorContextMenuResult {
   const { t, setRenamingPath, setRenameDialogOpen, setDeleteConfirmPath } = params;
   const contextMenuPersistRef = useRef(false);

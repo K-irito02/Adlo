@@ -28,7 +28,7 @@ export interface AgentSlice {
 
 export const createAgentSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): AgentSlice => ({
   selectedAgent: null,
   availableAgents: [],

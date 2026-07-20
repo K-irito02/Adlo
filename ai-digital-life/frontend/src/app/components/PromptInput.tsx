@@ -8,7 +8,7 @@ interface PromptInputProps {
   onSubmit: () => void;
   placeholder?: string;
   disabled?: boolean;
-  attachments?: Array<{ name: string; size: number; type: string }>;
+  attachments?: { name: string; size: number; type: string }[];
   onRemoveAttachment?: (index: number) => void;
 }
 
@@ -57,7 +57,7 @@ export function PromptInput({
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       onChange(e.target.value);
     },
-    [onChange]
+    [onChange],
   );
 
   const handleKeyDown = useCallback(
@@ -69,7 +69,7 @@ export function PromptInput({
         }
       }
     },
-    [value, disabled, onSubmit]
+    [value, disabled, onSubmit],
   );
 
   const handleDragEnter = useCallback((e: React.DragEvent) => {

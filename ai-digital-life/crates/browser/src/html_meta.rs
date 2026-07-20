@@ -166,11 +166,7 @@ pub fn extract_favicon(html: &str, base_url: &str) -> Option<String> {
         search_start = abs_link + tag_end;
     }
 
-    if best_href.is_empty() {
-        None
-    } else {
-        Some(best_href)
-    }
+    if best_href.is_empty() { None } else { Some(best_href) }
 }
 
 /// Extract an attribute's value from a lowercased HTML tag snippet.

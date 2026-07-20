@@ -17,7 +17,7 @@ const writeChangesTreeExpanded = makePersistedWriter(CHANGES_TREE_EXPANDED_KEY);
 function setTreePathExpandedInState(
   current: TreeExpansionState,
   path: string,
-  expanded: boolean
+  expanded: boolean,
 ): TreeExpansionState {
   if ((current[path] ?? false) === expanded) {
     return current;
@@ -27,7 +27,7 @@ function setTreePathExpandedInState(
 
 function toggleTreePathExpandedInState(
   current: TreeExpansionState,
-  path: string
+  path: string,
 ): TreeExpansionState {
   return { ...current, [path]: !(current[path] ?? false) };
 }
@@ -69,7 +69,7 @@ export type UIExpansionSlice = Pick<
 
 export function createUIExpansionSlice(
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): UIExpansionSlice {
   return {
     expandedFileTreePaths: {},

@@ -37,7 +37,7 @@ function useEditorOptions(): UseEditorOptionsResult {
         lineNumbersEnabled,
         wordWrapEnabled,
       }),
-    [lineNumbersEnabled, wordWrapEnabled]
+    [lineNumbersEnabled, wordWrapEnabled],
   );
 
   const diffOptions = useMemo(
@@ -47,7 +47,7 @@ function useEditorOptions(): UseEditorOptionsResult {
         lineNumbersEnabled,
         wordWrapEnabled,
       }),
-    [lineNumbersEnabled, wordWrapEnabled]
+    [lineNumbersEnabled, wordWrapEnabled],
   );
 
   return useMemo(
@@ -61,7 +61,7 @@ function useEditorOptions(): UseEditorOptionsResult {
       standardOptions,
       diffOptions,
     }),
-    [wordWrapEnabled, lineNumbersEnabled, agentAnnotationsEnabled, standardOptions, diffOptions]
+    [wordWrapEnabled, lineNumbersEnabled, agentAnnotationsEnabled, standardOptions, diffOptions],
   );
 }
 

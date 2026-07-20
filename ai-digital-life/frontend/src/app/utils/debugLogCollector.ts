@@ -147,7 +147,7 @@ function clearLogs(): void {
 /**
  * 获取结构化日志
  */
-function getDebugLogs(): Array<{ timestamp: string; level: string; message: string }> {
+function getDebugLogs(): { timestamp: string; level: string; message: string }[] {
   return debugLogs.map((log) => ({
     timestamp: log.timestamp,
     level: log.level,
@@ -215,7 +215,7 @@ async function writeLogsToProjectFile() {
       : writeLogsToProjectFileBrowser(logContent);
 
     const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Write timeout')), WRITE_TIMEOUT_MS)
+      setTimeout(() => reject(new Error('Write timeout')), WRITE_TIMEOUT_MS),
     );
 
     await Promise.race([writePromise, timeoutPromise]);
@@ -292,7 +292,7 @@ function interceptGlobalErrors() {
   window.addEventListener('error', (event) => {
     collectLog(
       'error',
-      `[UncaughtError] ${event.message} (${event.filename}:${event.lineno}:${event.colno})`
+      `[UncaughtError] ${event.message} (${event.filename}:${event.lineno}:${event.colno})`,
     );
   });
   window.addEventListener('unhandledrejection', (event) => {

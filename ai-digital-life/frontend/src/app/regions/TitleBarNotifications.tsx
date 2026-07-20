@@ -56,7 +56,7 @@ const TitleBarNotifications = React.memo(function TitleBarNotifications({
           }
         }
       },
-      { root: container, threshold: 0.5 }
+      { root: container, threshold: 0.5 },
     );
     cards.forEach((el) => observer.observe(el));
     return () => observer.disconnect();

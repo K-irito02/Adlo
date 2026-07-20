@@ -29,7 +29,7 @@ export interface UseBrowserPanelMetaWiringResult {
 }
 
 export function useBrowserPanelMetaWiring(
-  params: UseBrowserPanelMetaWiringParams
+  params: UseBrowserPanelMetaWiringParams,
 ): UseBrowserPanelMetaWiringResult {
   const { showToast, markUrlSeen, pendingNavigationsRef } = params;
 
@@ -37,7 +37,7 @@ export function useBrowserPanelMetaWiring(
     pendingNavigationsRef,
     undefined,
     showToast,
-    markUrlSeen
+    markUrlSeen,
   );
 
   useBrowserMetaSubscription((meta) => {

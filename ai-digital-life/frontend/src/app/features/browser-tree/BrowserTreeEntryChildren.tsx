@@ -42,7 +42,7 @@ export const BrowserTreeEntryChildren = React.memo(function BrowserTreeEntryChil
 }: BrowserTreeEntryChildrenProps) {
   const flatItems = useMemo(
     () => (isFlatMode && isExpanded ? buildFlatTabItems(node, showSeparators, filterTabIds) : []),
-    [node, isFlatMode, isExpanded, showSeparators, filterTabIds]
+    [node, isFlatMode, isExpanded, showSeparators, filterTabIds],
   );
 
   const handleFlatTabClick = useCallback(
@@ -54,7 +54,7 @@ export const BrowserTreeEntryChildren = React.memo(function BrowserTreeEntryChil
         onTogglePath(tabNode.path);
       }
     },
-    [onSelectTreePath, onOpenFile, onTogglePath]
+    [onSelectTreePath, onOpenFile, onTogglePath],
   );
 
   if (isFlatMode) {

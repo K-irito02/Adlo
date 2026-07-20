@@ -16,10 +16,10 @@ import { useTCopy } from '@i18n/useTCopy';
 import { useDiffStickyRanges } from './useDiffStickyRanges';
 
 const CodeEditor = lazy(() =>
-  import('../../features/editor').then((m) => ({ default: m.CodeEditor }))
+  import('../../features/editor').then((m) => ({ default: m.CodeEditor })),
 );
 const DiffViewer = lazy(() =>
-  import('../../features/diff-viewer').then((m) => ({ default: m.DiffViewer }))
+  import('../../features/diff-viewer').then((m) => ({ default: m.DiffViewer })),
 );
 
 interface EditorSurfaceShellProps extends Pick<
@@ -133,7 +133,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
       standardEditorRef.current = editor;
       onEditorMount(editor);
     },
-    [onEditorMount, cmViewRef, standardEditorRef]
+    [onEditorMount, cmViewRef, standardEditorRef],
   );
 
   const handleDiffEditorMount = useCallback(
@@ -148,7 +148,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
       }
       onDiffMount(editorRef);
     },
-    [onDiffMount, localDiffEditorRef]
+    [onDiffMount, localDiffEditorRef],
   );
 
   const hasCollapsedHunks = !!activeFilePatchSummary?.hunks.some((h) => h.isCollapsed);
@@ -205,7 +205,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
                           activeFilePatch!.relativePath,
                           hunk.id,
                           hunk.targetLine,
-                          { activateTool: false }
+                          { activateTool: false },
                         )
                       }
                     >
@@ -243,7 +243,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
                       )}
                     </button>
                   </div>
-                )
+                ),
               )}
             </div>
           </div>

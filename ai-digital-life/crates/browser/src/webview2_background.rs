@@ -1,9 +1,9 @@
 #[cfg(windows)]
 mod imp {
     use webview2_com::Microsoft::Web::WebView2::Win32::{
-        ICoreWebView2, ICoreWebView2Controller, ICoreWebView2Controller2, COREWEBVIEW2_COLOR,
+        COREWEBVIEW2_COLOR, ICoreWebView2, ICoreWebView2Controller, ICoreWebView2Controller2,
     };
-    use windows::core::{Interface, HSTRING};
+    use windows::core::{HSTRING, Interface};
 
     /// Set the WebView2 default background color via `ICoreWebView2Controller2`.
     ///

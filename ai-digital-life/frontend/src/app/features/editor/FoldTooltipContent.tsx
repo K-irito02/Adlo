@@ -30,6 +30,6 @@ export const FoldTooltipContent = React.memo(function FoldTooltipContent({
       <span className="tooltip__arrow" />
       <span className="tooltip__content">{text}</span>
     </div>,
-    document.body
+    document.body,
   );
 });

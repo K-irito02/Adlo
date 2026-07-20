@@ -40,7 +40,7 @@ export function NewSessionDialog({ open, onCreate, onCancel }: NewSessionDialogP
         onCancel();
       }
     },
-    [handleOk, loading, onCancel]
+    [handleOk, loading, onCancel],
   );
 
   if (!open) {

@@ -33,7 +33,7 @@ export function LocalPortSection({
       browserSetLocalPorts: state.browserSetLocalPorts,
       browserReorderLocalPorts: state.browserReorderLocalPorts,
       browserSetPortScanning: state.browserSetPortScanning,
-    }))
+    })),
   );
 
   const [dragOverPortId, setDragOverPortId] = useState<string | null>(null);
@@ -41,7 +41,7 @@ export function LocalPortSection({
 
   const sortedPorts = useMemo(
     () => [...browserLocalPorts].sort((a, b) => a.sortOrder - b.sortOrder),
-    [browserLocalPorts]
+    [browserLocalPorts],
   );
 
   const scanPorts = useCallback(async () => {
@@ -52,7 +52,7 @@ export function LocalPortSection({
     browserSetPortScanning(true);
 
     try {
-      let discovered: Array<{ host: string; port: number }> = [];
+      let discovered: { host: string; port: number }[] = [];
 
       if (useAppStore.getState().isTauri) {
         // Tauri 模式：暂不支持服务端扫描，保持端口列表不变
@@ -135,14 +135,14 @@ export function LocalPortSection({
       ids.splice(toIdx, 0, draggedId);
       browserReorderLocalPorts(ids);
     },
-    [sortedPorts, browserReorderLocalPorts]
+    [sortedPorts, browserReorderLocalPorts],
   );
 
   const handlePortClick = useCallback(
     (port: { id: string; host: string; port: number; label?: string }) => {
       onOpenUrl(`http://${port.host}:${port.port}`);
     },
-    [onOpenUrl]
+    [onOpenUrl],
   );
 
   const handleContextMenu = useCallback(
@@ -150,7 +150,7 @@ export function LocalPortSection({
       e.preventDefault();
       onContextMenu(e, port);
     },
-    [onContextMenu]
+    [onContextMenu],
   );
 
   return (

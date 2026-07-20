@@ -256,7 +256,7 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
       showMenuForDirectories,
       showClipboard,
       showGitActions,
-    ]
+    ],
   );
 
   return { getContextMenuItems };

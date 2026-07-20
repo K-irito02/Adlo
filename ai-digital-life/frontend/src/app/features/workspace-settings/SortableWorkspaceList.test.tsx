@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, within, cleanup } from '@testing-library/react';
+import { describe, it, expect, afterEach } from 'vitest';
+import { render, screen, cleanup } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 import { SortableWorkspaceList } from './SortableWorkspaceList';
 import type { DraggableWorkspace } from './WorkspaceSettingsTypes';
@@ -27,7 +27,7 @@ describe('SortableWorkspaceList', () => {
         moveUpLabel="Move up"
         moveDownLabel="Move down"
         removeLabel="Remove {name}"
-      />
+      />,
     );
     expect(screen.getByText('Priority')).toBeInTheDocument();
     expect(screen.getByText('Loaded first')).toBeInTheDocument();
@@ -45,7 +45,7 @@ describe('SortableWorkspaceList', () => {
         moveUpLabel="Move up"
         moveDownLabel="Move down"
         removeLabel="Remove {name}"
-      />
+      />,
     );
     expect(screen.getByText('A')).toBeInTheDocument();
     expect(screen.getByText('B')).toBeInTheDocument();
@@ -64,7 +64,7 @@ describe('SortableWorkspaceList', () => {
         moveUpLabel="Move up"
         moveDownLabel="Move down"
         removeLabel="Remove {name}"
-      />
+      />,
     );
     expect(screen.getByText('Drag here')).toBeInTheDocument();
   });
@@ -81,7 +81,7 @@ describe('SortableWorkspaceList', () => {
         moveUpLabel="Move up"
         moveDownLabel="Move down"
         removeLabel="Remove {name}"
-      />
+      />,
     );
     const infoButton = screen.getByRole('button', { name: '' });
     expect(infoButton).toBeInTheDocument();
@@ -103,7 +103,7 @@ describe('SortableWorkspaceList', () => {
         moveUpLabel="Move up"
         moveDownLabel="Move down"
         removeLabel="Remove {name}"
-      />
+      />,
     );
     expect(screen.getByLabelText('Move up')).toBeInTheDocument();
     expect(screen.getByLabelText('Move down')).toBeInTheDocument();
@@ -125,7 +125,7 @@ describe('SortableWorkspaceList', () => {
         moveUpLabel="Move up"
         moveDownLabel="Move down"
         removeLabel="Remove {name}"
-      />
+      />,
     );
     expect(screen.queryByLabelText('Move up')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Move down')).not.toBeInTheDocument();
@@ -144,7 +144,7 @@ describe('SortableWorkspaceList', () => {
         moveUpLabel="Move up"
         moveDownLabel="Move down"
         removeLabel="Remove {name}"
-      />
+      />,
     );
     // The droppable list container should be marked
     const droppable = container.querySelector('[data-droppable="priority"]');
@@ -166,7 +166,7 @@ describe('SortableWorkspaceList', () => {
         moveUpLabel="Move up"
         moveDownLabel="Move down"
         removeLabel="Remove {name}"
-      />
+      />,
     );
     const buttons = screen.getAllByLabelText('Move up');
     expect(buttons[0]).toBeDisabled();
@@ -188,7 +188,7 @@ describe('SortableWorkspaceList', () => {
         moveUpLabel="Move up"
         moveDownLabel="Move down"
         removeLabel="Remove {name}"
-      />
+      />,
     );
     const buttons = screen.getAllByLabelText('Move down');
     expect(buttons[0]).not.toBeDisabled();

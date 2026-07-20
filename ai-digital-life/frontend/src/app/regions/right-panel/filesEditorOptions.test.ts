@@ -4,11 +4,11 @@ import { describe, expect, it } from 'vitest';
 
 const editorSurfaceShellSource = readFileSync(
   new URL('./EditorSurfaceShell.tsx', import.meta.url),
-  'utf8'
+  'utf8',
 );
 const useWrapColumnSource = readFileSync(
   new URL('./hooks/useWrapColumn.ts', import.meta.url),
-  'utf8'
+  'utf8',
 );
 
 describe('files panel editor options', () => {
@@ -20,7 +20,7 @@ describe('files panel editor options', () => {
   it('uses the shared custom CodeMirror fold gutter marker and tooltip overlay', () => {
     const codeEditorSource = readFileSync(
       new URL('../../features/editor/CodeEditor.tsx', import.meta.url),
-      'utf8'
+      'utf8',
     );
 
     expect(codeEditorSource).toContain('createFoldGutterExtension');

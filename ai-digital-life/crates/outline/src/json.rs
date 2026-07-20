@@ -1,4 +1,4 @@
-use crate::{count_leading_closers, update_brace_depth, OutlineDraft};
+use crate::{OutlineDraft, count_leading_closers, update_brace_depth};
 use regex::Regex;
 use std::sync::OnceLock;
 

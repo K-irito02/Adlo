@@ -86,7 +86,7 @@ export function renderButton(options: ButtonOptions): RawHtml {
     SIZE_CLASS[size],
     iconOnly && 'btn--icon',
     block && 'btn--block',
-    className
+    className,
   );
 
   const ariaPressedAttr =
@@ -101,7 +101,7 @@ export function renderButton(options: ButtonOptions): RawHtml {
   const labelMarkup = iconOnly ? raw('') : html`<span class="btn__label">${label}</span>`;
 
   return raw(
-    `<button class="${classes}" type="${type}"${disabledAttr}${ariaBusy}${ariaPressedAttr}${ariaLabelAttr}${dataAttrs(data)}${extraAttributes}>${(iconMarkup as RawHtml).value}${(labelMarkup as RawHtml).value}</button>`
+    `<button class="${classes}" type="${type}"${disabledAttr}${ariaBusy}${ariaPressedAttr}${ariaLabelAttr}${dataAttrs(data)}${extraAttributes}>${(iconMarkup as RawHtml).value}${(labelMarkup as RawHtml).value}</button>`,
   );
 }
 
@@ -160,7 +160,7 @@ export interface SegmentedControlOptions<T extends string> {
 }
 
 export function renderSegmentedControl<T extends string>(
-  input: SegmentedControlOptions<T>
+  input: SegmentedControlOptions<T>,
 ): RawHtml {
   const { name, ariaLabel, value, options, buttonData } = input;
 
@@ -248,11 +248,11 @@ export function renderBanner(options: BannerOptions): RawHtml {
     'banner',
     BANNER_TONE_CLASS[tone],
     empty && 'banner--empty',
-    className
+    className,
   );
   const idAttr = id ? ` id="${escapeAttr(id)}"` : '';
   return raw(
-    `<p class="${classes}" role="status" aria-live="${live}"${idAttr}>${empty ? '' : typeof text === 'string' ? escapeAttr(text) : ((text as RawHtml).value ?? '')}</p>`
+    `<p class="${classes}" role="status" aria-live="${live}"${idAttr}>${empty ? '' : typeof text === 'string' ? escapeAttr(text) : ((text as RawHtml).value ?? '')}</p>`,
   );
 }
 
@@ -287,7 +287,7 @@ export function renderNavItem(options: NavItemOptions): RawHtml {
   const ariaCurrent = current ? ' aria-current="page"' : '';
   const ariaLabelAttr = ariaLabel ? ` aria-label="${escapeAttr(ariaLabel)}"` : '';
   return raw(
-    `<a class="nav__item" href="${escapeAttr(href)}"${ariaCurrent}${ariaLabelAttr}${dataAttrs(data)}>${(renderIcon(icon, { size: 'sm', decorative: true }) as RawHtml).value}<span class="nav__item-label">${typeof label === 'string' ? escapeAttr(label) : ((label as RawHtml).value ?? '')}</span></a>`
+    `<a class="nav__item" href="${escapeAttr(href)}"${ariaCurrent}${ariaLabelAttr}${dataAttrs(data)}>${(renderIcon(icon, { size: 'sm', decorative: true }) as RawHtml).value}<span class="nav__item-label">${typeof label === 'string' ? escapeAttr(label) : ((label as RawHtml).value ?? '')}</span></a>`,
   );
 }
 

@@ -14,7 +14,7 @@ export interface PatchHunkCardProps {
     relativePath: string,
     hunkId: string,
     targetLine: number,
-    options?: { activateTool: boolean }
+    options?: { activateTool: boolean },
   ) => void;
   onSetHunkDecision: (hunkId: string, decision: PatchHunkDecision) => void;
 }

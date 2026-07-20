@@ -1,7 +1,7 @@
 use adl_errors::AppError;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::{params, OptionalExtension};
+use rusqlite::{OptionalExtension, params};
 use std::path::Path;
 use tracing::info;
 

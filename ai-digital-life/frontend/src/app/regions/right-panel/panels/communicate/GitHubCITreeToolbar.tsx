@@ -277,7 +277,7 @@ export function GitHubCITreeToolbar({
                     }}
                   />
                 </div>,
-                document.body
+                document.body,
               )
             : null}
           <TooltipSimple content={t.communicateHelp} placement="top">

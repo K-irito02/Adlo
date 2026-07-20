@@ -200,7 +200,7 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
             onOpenChangePreview={onOpenChangePreview}
             getContextMenuItems={
               getContextMenuItems as unknown as (
-                node: WorkspaceTreeNode
+                node: WorkspaceTreeNode,
               ) => FileTreeContextMenuItem<WorkspaceTreeNode>[]
             }
             contextMenuPersistRef={contextMenuPersistRef}

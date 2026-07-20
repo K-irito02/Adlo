@@ -72,7 +72,7 @@ export const BrowserMenuDropdown = React.memo(function BrowserMenuDropdown({
                 onClose={onClose}
                 menuRef={menuRef}
               />
-            )
+            ),
           )}
         </div>
       ) : null}

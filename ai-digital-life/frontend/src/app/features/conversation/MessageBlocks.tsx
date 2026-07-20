@@ -32,7 +32,7 @@ function renderPlanBlock(block: PlanConversationBlock, t: CopyDict): React.React
 function renderExecutionStepBlock(
   block: ExecutionStepConversationBlock,
   t: CopyDict,
-  onRetryStep?: (stepId: string) => void
+  onRetryStep?: (stepId: string) => void,
 ): React.ReactElement {
   return <StepBlock key={block.id} t={t} block={block} onRetry={onRetryStep} />;
 }
@@ -40,21 +40,21 @@ function renderExecutionStepBlock(
 function renderExecutionSummaryBlock(
   block: ExecutionSummaryConversationBlock,
   t: CopyDict,
-  onViewChanges?: () => void
+  onViewChanges?: () => void,
 ): React.ReactElement {
   return <ExecutionSummaryCard key={block.id} t={t} block={block} onViewChanges={onViewChanges} />;
 }
 
 function renderCommandOutputBlock(
   block: CommandOutputConversationBlock,
-  t: CopyDict
+  t: CopyDict,
 ): React.ReactElement {
   return <CommandOutputBlock key={block.id} t={t} block={block} />;
 }
 
 function renderPatchSummaryBlock(
   block: PatchSummaryConversationBlock,
-  t: CopyDict
+  t: CopyDict,
 ): React.ReactElement {
   return (
     <section key={block.id} className="adl-block adl-block--patch">
@@ -80,7 +80,7 @@ function renderToolCallBlock(block: ToolCallConversationBlock, t: CopyDict): Rea
 
 function renderValidationResultBlock(
   block: ValidationResultConversationBlock,
-  t: CopyDict
+  t: CopyDict,
 ): React.ReactElement {
   return (
     <section key={block.id} className="adl-block adl-block--validation">
@@ -123,7 +123,7 @@ function renderMessageBlock(
   block: ConversationBlock,
   t: CopyDict,
   onRetryStep?: (stepId: string) => void,
-  onViewChanges?: () => void
+  onViewChanges?: () => void,
 ): React.ReactElement | null {
   switch (block.type) {
     case 'plan':

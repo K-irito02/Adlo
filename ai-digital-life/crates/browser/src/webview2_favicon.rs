@@ -12,9 +12,9 @@ mod imp {
     use std::sync::atomic::Ordering;
 
     use tracing::{debug, info, warn};
-    use webview2_com::take_pwstr;
     use webview2_com::FaviconChangedEventHandler;
     use webview2_com::Microsoft::Web::WebView2::Win32::{ICoreWebView2, ICoreWebView2_15};
+    use webview2_com::take_pwstr;
     use windows::core::{IUnknown, Interface};
 
     use crate::webview2_message::shared::{FAVICON_CACHE, FAVICON_CHANGED_COUNT};

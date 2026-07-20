@@ -6,7 +6,7 @@ function escapeRegExp(value: string): string {
 
 function buildSearchPattern(
   query: string,
-  options: { matchCase: boolean; wholeWord: boolean; useRegex: boolean }
+  options: { matchCase: boolean; wholeWord: boolean; useRegex: boolean },
 ) {
   if (!query) {
     return undefined;
@@ -62,7 +62,7 @@ function useSearchPanel(input: UseSearchPanelInput): UseSearchPanelResult {
         wholeWord: matchWholeWord,
         useRegex,
       }),
-    [matchCase, matchWholeWord, input.searchQuery, useRegex]
+    [matchCase, matchWholeWord, input.searchQuery, useRegex],
   );
 
   const filteredResults = useMemo(() => {

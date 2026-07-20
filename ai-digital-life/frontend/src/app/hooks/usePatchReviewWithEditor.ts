@@ -11,7 +11,7 @@ export function usePatchReviewWithEditor(locale: Locale, t: CopyDict) {
     useShallow((s) => ({
       selectedFilePath: s.selectedFilePath,
       fileLastModifiedAt: s.fileLastModifiedAt,
-    }))
+    })),
   );
   const actions = useAppActions();
 
@@ -45,7 +45,7 @@ export function usePatchReviewWithEditor(locale: Locale, t: CopyDict) {
       setEditorHint,
       pendingRevealRef,
       setPendingReveal,
-      t
+      t,
     );
 
   return {

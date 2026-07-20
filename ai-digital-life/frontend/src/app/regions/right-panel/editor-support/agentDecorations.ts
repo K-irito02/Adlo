@@ -44,7 +44,7 @@ function getContentDecoClass(hunk: AgentHunkDecoration): string {
 
 function buildLineDecorations(
   state: { doc: { line(n: number): { from: number; to: number }; lines: number } },
-  hunks: AgentHunkDecoration[]
+  hunks: AgentHunkDecoration[],
 ): DecorationSet {
   const decorations: Range<Decoration>[] = [];
   if (state.doc.lines === 0) {
@@ -62,7 +62,7 @@ function buildLineDecorations(
       decorations.push(Decoration.line({ class: getLineDecoClass(hunk) }).range(lineInfo.from));
       if (lineInfo.from < lineInfo.to) {
         decorations.push(
-          Decoration.mark({ class: getContentDecoClass(hunk) }).range(lineInfo.from, lineInfo.to)
+          Decoration.mark({ class: getContentDecoClass(hunk) }).range(lineInfo.from, lineInfo.to),
         );
       }
     }

@@ -191,13 +191,13 @@ export interface ExecutionStepConversationBlock extends ConversationBlockBase {
   summary?: string;
   error?: string;
   riskLevel?: RiskLevel;
-  toolCalls?: Array<{
+  toolCalls?: {
     id: string;
     toolName: string;
     inputSummary: string;
     outputSummary?: string;
     status: 'pending' | 'running' | 'completed' | 'failed';
-  }>;
+  }[];
 }
 
 export interface ExecutionSummaryConversationBlock extends ConversationBlockBase {

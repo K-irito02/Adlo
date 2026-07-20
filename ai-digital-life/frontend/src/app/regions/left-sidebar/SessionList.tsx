@@ -10,14 +10,14 @@ import { useSessionDragDrop } from './useSessionDragDrop';
 function mergeEphemeralVisibleSessions(
   allItems: SidebarSessionItem[],
   visibleItems: SidebarSessionItem[],
-  ephemeralIds: string[]
+  ephemeralIds: string[],
 ): SidebarSessionItem[] {
   if (ephemeralIds.length === 0) {
     return visibleItems;
   }
   const visibleIds = new Set(visibleItems.map((item) => item.session.id));
   const extras = allItems.filter(
-    (item) => ephemeralIds.includes(item.session.id) && !visibleIds.has(item.session.id)
+    (item) => ephemeralIds.includes(item.session.id) && !visibleIds.has(item.session.id),
   );
   return [...visibleItems, ...extras];
 }
@@ -90,7 +90,7 @@ export function SessionList({
       setRenameDialogOpen(false);
       setSessionToRename(null);
     },
-    [sessionToRename, onRenameSession]
+    [sessionToRename, onRenameSession],
   );
 
   const handleCancelRename = useCallback(() => {
@@ -181,7 +181,7 @@ export function SessionList({
       setHoveredSessionId,
       setDragSessionId,
       setDragOverSessionTarget,
-    ]
+    ],
   );
 
   return (
@@ -224,7 +224,7 @@ export function SessionList({
                   if (shouldDropAfterVisibleTail) {
                     handleSessionDropAfterVisibleTarget(
                       lastVisibleInBucket.session.id,
-                      draggedSessionItem.session.isPinned
+                      draggedSessionItem.session.isPinned,
                     );
                   } else {
                     handleSessionDropToBucketEnd(draggedSessionItem.session.isPinned);
@@ -233,7 +233,7 @@ export function SessionList({
               },
               onTailDragLeave: undefined,
             }
-          : undefined
+          : undefined,
       )}
       {sessionToRename && (
         <RenameDialog
@@ -262,7 +262,7 @@ function renderSessionLimitControl(
     onTailDragOver?: (event: React.DragEvent<HTMLLIElement>) => void;
     onTailDragLeave?: (event: React.DragEvent<HTMLLIElement>) => void;
     onTailDrop?: () => void;
-  }
+  },
 ) {
   if (hiddenCount === 0 && !expanded) {
     return null;

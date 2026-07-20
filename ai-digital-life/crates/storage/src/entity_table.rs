@@ -32,8 +32,7 @@ macro_rules! define_entity_table {
     };
 }
 
-const INSERT_SQL_TEMPLATE: &str =
-    "INSERT OR REPLACE INTO {table} (id, workspace_id, session_id, status, updated_at, json)\n\
+const INSERT_SQL_TEMPLATE: &str = "INSERT OR REPLACE INTO {table} (id, workspace_id, session_id, status, updated_at, json)\n\
      VALUES (?1, ?2, ?3, ?4, ?5, ?6)";
 
 define_entity_table! {

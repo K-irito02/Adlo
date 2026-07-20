@@ -31,7 +31,7 @@ export function resolveChartChildElement(child: ReactElement): ReactElement {
 /** Walk chart children, flattening React fragments (studio often groups layers in `<>...</>`). */
 export function forEachChartChild(
   children: ReactNode,
-  callback: (child: ReactElement, index: number) => void
+  callback: (child: ReactElement, index: number) => void,
 ) {
   let index = 0;
   const visit = (nodes: ReactNode) => {
@@ -105,6 +105,6 @@ export function isClipExcludedComponent(child: ReactElement): boolean {
 /** SVG layer lists from chart shells need stable keys when rendered as arrays. */
 export function renderKeyedChartLayers(children: ReactElement[]) {
   return children.map((child, index) =>
-    cloneElement(child, { key: child.key ?? `chart-layer-${index}` })
+    cloneElement(child, { key: child.key ?? `chart-layer-${index}` }),
   );
 }

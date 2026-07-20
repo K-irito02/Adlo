@@ -2,8 +2,8 @@ use adl_errors::AppError;
 use adl_types::WorkspaceSearchHit;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 const MAX_SEARCH_RESULTS: usize = 200;
 const CANCEL_CHECK_INTERVAL: usize = 100;

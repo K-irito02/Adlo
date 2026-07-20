@@ -28,7 +28,7 @@ export function useBrowserContextMenu(
   handleCloseTab: (tabId: string) => void,
   browserOpenTab: (url?: string, title?: string, workspaceId?: string) => void,
   browserSelectTab: (tabId: string) => void,
-  _browserNavigateActiveTab: (url: string, title?: string) => void
+  _browserNavigateActiveTab: (url: string, title?: string) => void,
 ): UseBrowserContextMenuReturn {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     open: false,

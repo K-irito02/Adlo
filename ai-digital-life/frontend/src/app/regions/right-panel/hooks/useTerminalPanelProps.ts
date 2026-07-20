@@ -15,6 +15,6 @@ export function useTerminalPanelProps(_panelProps: RightPanelProps): TerminalPan
       commandHistory,
       appInfo,
     }),
-    [latestCommandRun, commandHistory, appInfo]
+    [latestCommandRun, commandHistory, appInfo],
   );
 }

@@ -9,7 +9,7 @@ const DROP_FLASH_DURATION_MS = 900;
 function computeReorder(
   sessionItems: SidebarSessionItem[],
   isPinnedBucket: boolean,
-  nextIds: string[]
+  nextIds: string[],
 ): { pinnedIds: string[]; unpinnedIds: string[] } {
   if (isPinnedBucket) {
     return {
@@ -72,7 +72,7 @@ export function useSessionDragDrop({
       }, DROP_FLASH_DURATION_MS);
       setDropFlashTimer(id);
     },
-    [dropFlashTimer]
+    [dropFlashTimer],
   );
 
   const handleSessionDrop = useCallback(
@@ -100,7 +100,7 @@ export function useSessionDragDrop({
       sessionItems,
       setDragOverSessionTarget,
       workspaceId,
-    ]
+    ],
   );
 
   const handleSessionDropAfterVisibleTarget = useCallback(
@@ -128,7 +128,7 @@ export function useSessionDragDrop({
       sessionItems,
       setDragOverSessionTarget,
       workspaceId,
-    ]
+    ],
   );
 
   const handleSessionDropToBucketEnd = useCallback(
@@ -156,7 +156,7 @@ export function useSessionDragDrop({
       sessionItems,
       setDragOverSessionTarget,
       workspaceId,
-    ]
+    ],
   );
 
   return {

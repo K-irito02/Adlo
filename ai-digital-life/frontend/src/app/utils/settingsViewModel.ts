@@ -108,7 +108,7 @@ export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[
 
 export function preferencePatchFromSettingChange(
   id: string,
-  value: string | boolean | number
+  value: string | boolean | number,
 ): AppPreferencePatch | undefined {
   if (id === 'language') {
     return { language: value as string };

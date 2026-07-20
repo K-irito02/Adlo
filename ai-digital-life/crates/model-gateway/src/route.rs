@@ -11,8 +11,8 @@
 
 use adl_types::{ModelChatMessage, ModelPreferences, ModelResponse};
 
-use crate::fallback::default_model;
 use crate::ModelGateway;
+use crate::fallback::default_model;
 
 pub(crate) fn route_chain(preferences: &ModelPreferences) -> Vec<String> {
     let mut providers = preferences

@@ -27,7 +27,7 @@ export function renderChildMeta(
   childNode: GitHubTreeNode,
   t: CopyDict,
   callbacks: SectionCallbacks,
-  onOpenChildMenu: (childNode: GitHubTreeNode, x: number, y: number) => void
+  onOpenChildMenu: (childNode: GitHubTreeNode, x: number, y: number) => void,
 ): ReactNode {
   if (childNode.nodeType !== 'folder') {
     return null;

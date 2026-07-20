@@ -57,7 +57,7 @@ describe('GitHubLogViewer', () => {
           config={{ owner: 'test', repo: 'test', branch: 'main' }}
           dirKey="test"
         />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-logviewer__toolbar');
     expect(html).toContain('adl-logviewer__job-select-wrap');
@@ -71,7 +71,7 @@ describe('GitHubLogViewer', () => {
           config={{ owner: 'test', repo: 'test', branch: 'main' }}
           dirKey="test"
         />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-logviewer__search-wrap');
     expect(html).toContain('adl-logviewer__search-input');
@@ -86,7 +86,7 @@ describe('GitHubLogViewer', () => {
           config={{ owner: 'test', repo: 'test', branch: 'main' }}
           dirKey="test"
         />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-logviewer__checkbox');
     expect(html).toContain('adl-logviewer__checkbox-box');
@@ -117,7 +117,7 @@ describe('GitHubLogViewer', () => {
           config={{ owner: 'test', repo: 'test', branch: 'main' }}
           dirKey="test"
         />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github__link');
   });

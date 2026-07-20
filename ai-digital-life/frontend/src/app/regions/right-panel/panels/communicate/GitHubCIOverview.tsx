@@ -31,7 +31,7 @@ export function GitHubCIOverview({ showHelp, onViewLogs }: GitHubCIOverviewProps
       activeWorkspaceSection: s.activeWorkspaceSection,
       selectedGitHubTreePath: s.selectedGitHubTreePath,
       gitHubCiFolders: s.gitHubCiFolders,
-    }))
+    })),
   );
 
   const workspaces = useAppStore(useShallow((s) => s.recentWorkspaces));

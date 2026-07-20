@@ -37,10 +37,10 @@ const WORKSPACE_STATUS_ORDER: SessionVisualStatus[] = [
 
 export function buildWorkspaceTooltip(
   t: CopyDict,
-  counts: Record<SessionVisualStatus, number>
+  counts: Record<SessionVisualStatus, number>,
 ): string {
   const parts = WORKSPACE_STATUS_ORDER.filter((status) => counts[status] > 0).map(
-    (status) => `${t[STATUS_LABEL[status]]}: ${counts[status]}`
+    (status) => `${t[STATUS_LABEL[status]]}: ${counts[status]}`,
   );
   return parts.join(' · ') || (t[STATUS_LABEL.read] as string);
 }
@@ -89,7 +89,7 @@ export function buildWorkspaceMenuItems(
   workspace: RecentWorkspaceEntry,
   sessionIds: string[],
   t: CopyDict,
-  callbacks: WorkspaceMenuCallbacks
+  callbacks: WorkspaceMenuCallbacks,
 ): SidebarMenuItem[] {
   const items: SidebarMenuItem[] = [
     {
@@ -158,7 +158,7 @@ export interface SessionMenuCallbacks {
 export function buildSessionMenuItems(
   sessionItem: SidebarSessionItem,
   t: CopyDict,
-  callbacks: SessionMenuCallbacks
+  callbacks: SessionMenuCallbacks,
 ): SidebarMenuItem[] {
   const session = sessionItem.session;
   return [

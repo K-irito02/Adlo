@@ -4,7 +4,7 @@ import React from 'react';
 import { CodeLineEvo } from './CodeLineEvo';
 
 function createMotionValue(initial = 0) {
-  const listeners: Record<string, Array<(v: unknown) => void>> = {};
+  const listeners: Record<string, ((v: unknown) => void)[]> = {};
   return {
     get: () => initial,
     set: (v: unknown) => {
@@ -47,10 +47,10 @@ vi.mock('motion/react', () => ({
           return React.createElement(
             tag === 'default' ? 'div' : tag,
             { className: rest.className, key: rest.key, ...elProps },
-            children
+            children,
           );
         },
-    }
+    },
   ),
   animate: () => ({ stop: () => {}, then: () => Promise.resolve(), cancel: () => {} }),
   useMotionValue: <T,>(val: T) => createMotionValue(val as number),

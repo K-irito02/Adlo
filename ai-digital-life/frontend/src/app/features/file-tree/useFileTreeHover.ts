@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import type React from 'react';
-import { type FileTreeRenderableNode, type FlattenedTreeNode } from './fileTree.utils';
+import type { FileTreeRenderableNode, FlattenedTreeNode } from './fileTree.utils';
 
 export interface UseFileTreeHoverResult {
   hoveredPath: string | undefined;
@@ -10,7 +10,7 @@ export interface UseFileTreeHoverResult {
 }
 
 export function useFileTreeHover<T extends FileTreeRenderableNode>(
-  flatNodes: FlattenedTreeNode<T>[]
+  flatNodes: FlattenedTreeNode<T>[],
 ): UseFileTreeHoverResult {
   const [hoveredPath, setHoveredPath] = useState<string | undefined>(undefined);
 
@@ -44,7 +44,7 @@ export function useFileTreeHover<T extends FileTreeRenderableNode>(
   const onMouseOut = useCallback((e: React.MouseEvent<HTMLUListElement>) => {
     const target = (e.target as HTMLElement).closest('[data-path]') as HTMLElement | null;
     const relatedTarget = (e.relatedTarget as HTMLElement)?.closest?.(
-      '[data-path]'
+      '[data-path]',
     ) as HTMLElement | null;
     if (target?.dataset.path && relatedTarget?.dataset.path !== target.dataset.path) {
       setHoveredPath(relatedTarget?.dataset.path ?? undefined);

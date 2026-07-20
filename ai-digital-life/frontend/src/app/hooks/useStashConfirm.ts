@@ -48,7 +48,7 @@ export function useStashConfirm({ snapshot, onConfirm }: UseStashConfirmOptions)
         void onConfirm({ kind: 'switch', input });
       }
     },
-    [snapshot, onConfirm]
+    [snapshot, onConfirm],
   );
 
   const initiateCreate = useCallback(
@@ -59,7 +59,7 @@ export function useStashConfirm({ snapshot, onConfirm }: UseStashConfirmOptions)
         void onConfirm({ kind: 'create', input });
       }
     },
-    [snapshot, onConfirm]
+    [snapshot, onConfirm],
   );
 
   return {

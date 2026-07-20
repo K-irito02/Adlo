@@ -112,7 +112,7 @@ export function MultiWorkspaceChangesTree({
       t,
       renderMeta,
       renderCount,
-    ]
+    ],
   );
 
   if (workspaces.length === 0) {

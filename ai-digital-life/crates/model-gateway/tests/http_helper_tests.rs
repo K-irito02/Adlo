@@ -1,4 +1,4 @@
-use adl_model_gateway::http_helper::{send_chat_request, send_stream_request, HttpRequestBuilder};
+use adl_model_gateway::http_helper::{HttpRequestBuilder, send_chat_request, send_stream_request};
 use reqwest::Client;
 
 /// Tests that the builder can be constructed with all fields without panicking.

@@ -23,7 +23,7 @@ export function chatModeToScenario(mode: ChatMode): 'chat' | 'plan' | 'code-edit
 export async function augmentPromptWithChips(
   content: string,
   chips: ContextChip[] | undefined,
-  locale: Locale = 'zh-CN'
+  locale: Locale = 'zh-CN',
 ): Promise<string> {
   if (!chips?.length) {
     return content;
@@ -45,7 +45,7 @@ const SLASH_PREFIX = /^\/(plan|edit|chat|ask)\b\s*/i;
 export async function applySlashScenarioOverride(
   content: string,
   base: 'chat' | 'plan' | 'code-edit',
-  locale: Locale = 'zh-CN'
+  locale: Locale = 'zh-CN',
 ): Promise<{ scenario: 'chat' | 'plan' | 'code-edit'; prompt: string }> {
   const trimmed = content.trimStart();
   const match = trimmed.match(SLASH_PREFIX);

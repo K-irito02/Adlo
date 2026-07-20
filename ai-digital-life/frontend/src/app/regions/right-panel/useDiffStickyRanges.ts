@@ -42,7 +42,7 @@ export interface UseDiffStickyRangesOutput {
 }
 
 export function buildStickyDiffRangesFromHunks(
-  hunks: PatchFileSummary['hunks']
+  hunks: PatchFileSummary['hunks'],
 ): PreviewDiffVisualRange[] {
   return hunks.flatMap((hunk) => {
     const anchorLine = Math.max(1, hunk.newStart || hunk.oldStart || 1);
@@ -123,7 +123,7 @@ export function useDiffStickyRanges(input: UseDiffStickyRangesInput): UseDiffSti
   const activeFilePatchSummary = useMemo(
     () =>
       activeFilePatch ? summarizePatchFile(activeFilePatch, collapsedPatchHunkIds) : undefined,
-    [activeFilePatch, collapsedPatchHunkIds]
+    [activeFilePatch, collapsedPatchHunkIds],
   );
 
   const stickyDiffRanges = useMemo(
@@ -131,7 +131,7 @@ export function useDiffStickyRanges(input: UseDiffStickyRangesInput): UseDiffSti
       activeFilePatchSummary
         ? buildStickyDiffRangesFromHunks(activeFilePatchSummary.hunks)
         : undefined,
-    [activeFilePatchSummary]
+    [activeFilePatchSummary],
   );
 
   const agentHunkDecorations = useMemo<AgentHunkDecoration[]>(() => {
@@ -183,7 +183,7 @@ export function useDiffStickyRanges(input: UseDiffStickyRangesInput): UseDiffSti
       diffSideBySide,
       editorSurfaceRef,
       stickyDiffRanges,
-    ]
+    ],
   );
 
   return {

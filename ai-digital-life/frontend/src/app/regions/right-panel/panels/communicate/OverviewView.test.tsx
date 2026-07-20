@@ -84,7 +84,7 @@ describe('OverviewView', () => {
           onViewLogs={() => {}}
           locale="zh-CN"
         />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github-skeleton');
   });
@@ -100,7 +100,7 @@ describe('OverviewView', () => {
           onViewLogs={() => {}}
           locale="zh-CN"
         />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github-empty');
   });
@@ -116,7 +116,7 @@ describe('OverviewView', () => {
           onViewLogs={() => {}}
           locale="zh-CN"
         />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github-hero');
     expect(html).toContain('CI Build');
@@ -134,7 +134,7 @@ describe('OverviewView', () => {
           onViewLogs={() => {}}
           locale="zh-CN"
         />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github-section__title');
     expect(html).toContain('1');
@@ -152,7 +152,7 @@ describe('OverviewView', () => {
           onViewLogs={() => {}}
           locale="zh-CN"
         />
-      </WithTCopy>
+      </WithTCopy>,
     );
     expect(html).toContain('adl-github-empty');
   });

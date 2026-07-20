@@ -69,7 +69,7 @@ describe('KeybindSettings', () => {
     render(
       <TestProvider>
         <KeybindSettings />
-      </TestProvider>
+      </TestProvider>,
     );
 
     // Command titles
@@ -88,7 +88,7 @@ describe('KeybindSettings', () => {
     render(
       <TestProvider>
         <KeybindSettings />
-      </TestProvider>
+      </TestProvider>,
     );
 
     const search = screen.getByPlaceholderText('settingsShortcutsSearch');
@@ -99,7 +99,7 @@ describe('KeybindSettings', () => {
     render(
       <TestProvider>
         <KeybindSettings />
-      </TestProvider>
+      </TestProvider>,
     );
 
     const search = screen.getByPlaceholderText('settingsShortcutsSearch') as HTMLInputElement;
@@ -142,7 +142,7 @@ describe('KeybindSettings', () => {
     render(
       <TestProvider>
         <KeybindSettings />
-      </TestProvider>
+      </TestProvider>,
     );
 
     expect(screen.getByLabelText('settingsShortcutsUnassigned')).toBeDefined();
@@ -152,7 +152,7 @@ describe('KeybindSettings', () => {
     render(
       <TestProvider>
         <KeybindSettings />
-      </TestProvider>
+      </TestProvider>,
     );
 
     const buttons = screen.getAllByRole('button');
@@ -175,7 +175,7 @@ describe('KeybindSettings', () => {
     render(
       <TestProvider>
         <KeybindSettings />
-      </TestProvider>
+      </TestProvider>,
     );
 
     // Click first keybind button to start recording (settings.open in general group)
@@ -213,7 +213,7 @@ describe('KeybindSettings', () => {
     render(
       <TestProvider>
         <KeybindSettings />
-      </TestProvider>
+      </TestProvider>,
     );
 
     // Find workspace.open's button (it shows "Ctrl+Shift+N" via formatKeybind, but we use mock t so it's the formatted string)
@@ -262,7 +262,7 @@ describe('KeybindSettings', () => {
     render(
       <TestProvider>
         <KeybindSettings />
-      </TestProvider>
+      </TestProvider>,
     );
 
     const keybindButton = screen.getAllByRole('button')[0];
@@ -294,7 +294,7 @@ describe('KeybindSettings', () => {
     render(
       <TestProvider>
         <KeybindSettings />
-      </TestProvider>
+      </TestProvider>,
     );
 
     const keybindButton = screen.getAllByRole('button')[0];

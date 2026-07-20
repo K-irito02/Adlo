@@ -15,10 +15,10 @@ import { useTCopy } from '@i18n/useTCopy';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
 
 const CodeEditor = lazy(() =>
-  import('../../../features/editor').then((m) => ({ default: m.CodeEditor }))
+  import('../../../features/editor').then((m) => ({ default: m.CodeEditor })),
 );
 const DiffViewer = lazy(() =>
-  import('../../../features/diff-viewer').then((m) => ({ default: m.DiffViewer }))
+  import('../../../features/diff-viewer').then((m) => ({ default: m.DiffViewer })),
 );
 
 interface DiffEditorSectionProps extends Pick<
@@ -62,7 +62,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
         (previewContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
       }
     },
-    [previewContainerRef]
+    [previewContainerRef],
   );
   const [_collapsedUnchangedDiffRanges, setCollapsedUnchangedDiffRanges] = useState<
     PreviewDiffCollapsedRange[]
@@ -83,7 +83,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       changePreview
         ? computePreviewDiffVisualRanges(changePreview.baseContent, changePreview.currentContent)
         : [],
-    [changePreview]
+    [changePreview],
   );
 
   const outline = useMemo(
@@ -91,7 +91,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       changePreview
         ? buildOutlineFromContent(changePreview.currentContent, changePreview.path)
         : [],
-    [changePreview]
+    [changePreview],
   );
 
   const getStickySourceEditor = useCallback(() => {
@@ -110,7 +110,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       localEditorRef.current = editor;
       onDiffMount(editor);
     },
-    [onDiffMount]
+    [onDiffMount],
   );
 
   const stickyContextInput = useMemo(
@@ -133,7 +133,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       localPreviewShellRef,
       changePreviewDiffRanges,
       getStickySourceEditor,
-    ]
+    ],
   );
 
   const stickyContextModel = useStickyContext(stickyContextInput);

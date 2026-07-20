@@ -47,7 +47,7 @@ export function ReferencePopover({ t, open, items, onSelect, onClose }: Referenc
     const lower = query.toLowerCase();
     return items.filter(
       (item) =>
-        item.label.toLowerCase().includes(lower) || item.detail?.toLowerCase().includes(lower)
+        item.label.toLowerCase().includes(lower) || item.detail?.toLowerCase().includes(lower),
     );
   }, [items, query]);
 
@@ -91,7 +91,7 @@ export function ReferencePopover({ t, open, items, onSelect, onClose }: Referenc
         onClose();
       }
     },
-    [activeIndex, filtered, onClose, onSelect]
+    [activeIndex, filtered, onClose, onSelect],
   );
 
   if (!open) {

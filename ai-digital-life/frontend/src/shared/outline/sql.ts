@@ -23,7 +23,7 @@ export function parseSql(content: string): OutlineDraft[] {
     }
 
     const createOtherMatch = trimmed.match(
-      /^create\s+(view|index|function|procedure)\s+([A-Za-z0-9_."]+)/i
+      /^create\s+(view|index|function|procedure)\s+([A-Za-z0-9_."]+)/i,
     );
     if (createOtherMatch?.[2]) {
       drafts.push({

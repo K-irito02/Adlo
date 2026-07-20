@@ -58,7 +58,7 @@ export function gutterHoverSync(): Extension {
       let targetEl: HTMLElement | null = null;
       if (lineNumbersGutter) {
         const gutterEls = lineNumbersGutter.querySelectorAll<HTMLElement>(
-          ':scope > .cm-gutterElement'
+          ':scope > .cm-gutterElement',
         );
         for (const gutterEl of gutterEls) {
           const gutterRect = gutterEl.getBoundingClientRect();

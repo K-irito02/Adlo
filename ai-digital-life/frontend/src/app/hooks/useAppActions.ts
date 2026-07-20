@@ -61,6 +61,6 @@ export function useAppActions() {
       fetchGitBranches: state.fetchGitBranches,
       switchGitBranch: state.switchGitBranch,
       createGitBranch: state.createGitBranch,
-    }))
+    })),
   );
 }

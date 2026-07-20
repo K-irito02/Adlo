@@ -149,6 +149,6 @@ export const WorkspaceChangesMenu = React.memo(function WorkspaceChangesMenu({
         {t.fileCopyRelativePath}
       </button>
     </div>,
-    document.body
+    document.body,
   );
 });

@@ -11,6 +11,6 @@ export function useAuditPanelProps(_panelProps: RightPanelProps): AuditPanelProp
     () => ({
       auditEntries,
     }),
-    [auditEntries]
+    [auditEntries],
   );
 }

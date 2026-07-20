@@ -4,7 +4,7 @@ import { Icon } from './Icon';
 
 interface WelcomeStateProps {
   variant: 'no-workspace' | 'no-session';
-  recentWorkspaces?: Array<{ path: string; name: string }>;
+  recentWorkspaces?: { path: string; name: string }[];
   onOpenWorkspace: () => void;
   onSelectRecentWorkspace: (path: string) => void;
   onSuggestion?: (text: string) => void;
@@ -39,7 +39,7 @@ export function WelcomeState({
     ? recentWorkspaces.filter(
         (ws) =>
           ws.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          ws.path.toLowerCase().includes(searchQuery.toLowerCase())
+          ws.path.toLowerCase().includes(searchQuery.toLowerCase()),
       )
     : recentWorkspaces;
 
@@ -47,7 +47,7 @@ export function WelcomeState({
     (text: string) => {
       onSuggestion?.(text);
     },
-    [onSuggestion]
+    [onSuggestion],
   );
 
   const handleKeyDown = useCallback(
@@ -56,7 +56,7 @@ export function WelcomeState({
         onSelectRecentWorkspace(path);
       }
     },
-    [onSelectRecentWorkspace]
+    [onSelectRecentWorkspace],
   );
 
   if (variant === 'no-session') {

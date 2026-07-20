@@ -30,9 +30,16 @@ members = [
 
 [workspace.package]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 rust-version = "1.85"
+
+[workspace.lints.rust]
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+dbg_macro = "warn"
+todo = "warn"
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }

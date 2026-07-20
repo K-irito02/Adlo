@@ -1,5 +1,5 @@
-use adl_types::permission_types::{PermissionDecision, PermissionRule, PermissionRuleset};
 use adl_types::RiskLevel;
+use adl_types::permission_types::{PermissionDecision, PermissionRule, PermissionRuleset};
 use regex::Regex;
 
 pub fn assess_command_risk(command: &str, args: &[String], shell: bool) -> RiskLevel {

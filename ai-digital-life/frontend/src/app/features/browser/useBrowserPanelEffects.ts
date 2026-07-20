@@ -81,7 +81,7 @@ export function useBrowserPanelEffects({
       }
       if (navigatorMode === 'search' && !navigatorSearchRef.current?.contains(target)) {
         const isModeBtn = (target as HTMLElement).closest(
-          '.adl-tool-navigator__context--secondary .adl-tool-context__iconbtn'
+          '.adl-tool-navigator__context--secondary .adl-tool-context__iconbtn',
         );
         if (!isModeBtn) {
           setNavigatorMode('tabs');

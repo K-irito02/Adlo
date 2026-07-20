@@ -1,15 +1,15 @@
 export function findFolderByIdLocal(
-  folders: Array<{ id: string; tabs?: Array<{ tabId: string }>; children?: unknown[] }>,
-  folderId: string
-): { id: string; tabs?: Array<{ tabId: string }> } | null {
+  folders: { id: string; tabs?: { tabId: string }[]; children?: unknown[] }[],
+  folderId: string,
+): { id: string; tabs?: { tabId: string }[] } | null {
   for (const folder of folders) {
     if (folder.id === folderId) {
-      return folder as { id: string; tabs?: Array<{ tabId: string }> };
+      return folder as { id: string; tabs?: { tabId: string }[] };
     }
     if (Array.isArray(folder.children)) {
       const found = findFolderByIdLocal(
-        folder.children as Array<{ id: string; children?: unknown[] }>,
-        folderId
+        folder.children as { id: string; children?: unknown[] }[],
+        folderId,
       );
       if (found) {
         return found;
@@ -20,8 +20,8 @@ export function findFolderByIdLocal(
 }
 
 export function collectAllDescendantTabIdsLocal(
-  folders: Array<{ id: string; parentId?: string; tabs?: Array<{ tabId: string }> }>,
-  parentId: string
+  folders: { id: string; parentId?: string; tabs?: { tabId: string }[] }[],
+  parentId: string,
 ): string[] {
   const childrenMap = new Map<string, typeof folders>();
   for (const f of folders) {
@@ -52,9 +52,9 @@ export function collectAllDescendantTabIdsLocal(
 
 /** Collect ALL (tabId, url) pairs from the folder tree rooted at parentId — no dedup. */
 export function collectAllDescendantTabUrlsLocal(
-  folders: Array<{ id: string; parentId?: string; tabs?: Array<{ tabId: string; url: string }> }>,
-  parentId: string
-): Array<{ tabId: string; url: string }> {
+  folders: { id: string; parentId?: string; tabs?: { tabId: string; url: string }[] }[],
+  parentId: string,
+): { tabId: string; url: string }[] {
   const childrenMap = new Map<string, typeof folders>();
   for (const f of folders) {
     if (f.parentId) {
@@ -64,7 +64,7 @@ export function collectAllDescendantTabUrlsLocal(
       childrenMap.get(f.parentId)!.push(f);
     }
   }
-  const result: Array<{ tabId: string; url: string }> = [];
+  const result: { tabId: string; url: string }[] = [];
   const collect = (pid: string) => {
     const folder = folders.find((f) => f.id === pid);
     if (folder?.tabs) {

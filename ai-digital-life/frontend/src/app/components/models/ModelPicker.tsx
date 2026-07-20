@@ -16,7 +16,7 @@ export function ModelPicker() {
       selectedProviderId: s.selectedProviderId,
       selectedModelId: s.selectedModelId,
       selectModel: s.selectModel,
-    }))
+    })),
   );
 
   useEffect(() => {

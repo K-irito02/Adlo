@@ -11,7 +11,7 @@ export interface CompactionSlice {
 
 export const createCompactionSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): CompactionSlice => ({
   compactionStatus: null,
   isCompacting: false,

@@ -26,7 +26,7 @@ export function syncNewWorkspacesToNaturalOrder(): void {
   const naturalOrder = config.workspaceNaturalOrder ?? [];
 
   const visibleWorkspaces = recentWorkspaces.filter(
-    (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available
+    (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
   );
   const visibleIds = new Set(visibleWorkspaces.map((w) => w.id));
   const configured = new Set<string>([...priorityIds, ...deferredIds, ...naturalOrder]);

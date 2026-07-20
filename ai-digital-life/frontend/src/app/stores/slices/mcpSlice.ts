@@ -13,7 +13,7 @@ export interface McpSlice {
 
 export const createMcpSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): McpSlice => ({
   mcpServers: [],
   mcpCatalog: null,

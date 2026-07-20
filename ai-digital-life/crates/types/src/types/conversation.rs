@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use super::agent::{AgentRunDetail, PatchSet};
 use super::TimestampMs;
+use super::agent::{AgentRunDetail, PatchSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "kebab-case")]

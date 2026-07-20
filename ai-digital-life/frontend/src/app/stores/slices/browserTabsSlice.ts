@@ -57,7 +57,7 @@ export interface BrowserTabsSlice {
 
 export const createBrowserTabsSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): BrowserTabsSlice => ({
   browserTabs: [],
   browserTabsById: {},
@@ -140,7 +140,7 @@ export const createBrowserTabsSlice = (
   browserUpdateTab: (tabId, patch) =>
     set((state) => {
       const nextTabs = sortTabs(
-        state.browserTabs.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab))
+        state.browserTabs.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab)),
       );
       writeTabs(nextTabs);
       return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
@@ -171,7 +171,7 @@ export const createBrowserTabsSlice = (
   browserToggleTabMute: (tabId) =>
     set((state) => {
       const nextTabs = state.browserTabs.map((tab) =>
-        tab.id === tabId ? { ...tab, isAudioMuted: !tab.isAudioMuted } : tab
+        tab.id === tabId ? { ...tab, isAudioMuted: !tab.isAudioMuted } : tab,
       );
       writeTabs(nextTabs);
       return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
@@ -189,7 +189,7 @@ export const createBrowserTabsSlice = (
             };
           }
           return tab;
-        })
+        }),
       );
       writeTabs(nextTabs);
       return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };

@@ -3,7 +3,7 @@ import type { StoreApi } from 'zustand';
 
 export function createDurableActions(
   set: StoreApi<StoreState>['setState'],
-  _get: () => StoreState
+  _get: () => StoreState,
 ) {
   return {
     registerDurableSession: async (sessionId: string, runId: string) => {

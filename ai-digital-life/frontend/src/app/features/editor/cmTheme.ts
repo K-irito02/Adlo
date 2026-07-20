@@ -36,7 +36,7 @@ function normalizeRgbColor(value: string): string | undefined {
   const match = value
     .trim()
     .match(
-      /^rgba?\(\s*(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:(?:\s*,\s*|\s*\/\s*)([\d.]+%?))?\s*\)$/i
+      /^rgba?\(\s*(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:\s*,\s*|\s+)(\d{1,3})(?:(?:\s*,\s*|\s*\/\s*)([\d.]+%?))?\s*\)$/i,
     );
   if (!match) {
     return undefined;
@@ -341,7 +341,7 @@ function buildEditorTheme(c: ThemeColors, theme: 'light' | 'dark'): Extension {
         backgroundColor: 'transparent',
       },
     },
-    { dark: theme === 'dark' }
+    { dark: theme === 'dark' },
   );
 }
 
@@ -403,7 +403,7 @@ function buildHighlightStyle(c: ThemeColors): Extension {
       { tag: tags.inserted, color: c.syntaxString },
       { tag: tags.deleted, color: c.syntaxRegexp },
       { tag: tags.changed, color: c.syntaxNumber },
-    ])
+    ]),
   );
 }
 

@@ -17,7 +17,7 @@ function makeWorkspace(
     removedFromSidebar: boolean;
     hiddenFromRightPanels: boolean;
     available: boolean;
-  }> = {}
+  }> = {},
 ) {
   return {
     id,

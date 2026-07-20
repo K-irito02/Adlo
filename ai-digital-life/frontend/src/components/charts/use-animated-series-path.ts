@@ -59,12 +59,12 @@ export function useAnimatedSeriesPath({
         xDomainMin: xScaleDomain[0]?.getTime?.() ?? 0,
         xDomainMax: xScaleDomain[1]?.getTime?.() ?? 0,
       }),
-    [renderData, xAccessor, dataKey, innerWidth, xScaleDomain]
+    [renderData, xAccessor, dataKey, innerWidth, xScaleDomain],
   );
 
   const targetPoints = useMemo(
     () => computeSeriesPathPoints(renderData, xAccessor, xScale, yScale, dataKey),
-    [renderData, xAccessor, xScale, yScale, dataKey]
+    [renderData, xAccessor, xScale, yScale, dataKey],
   );
 
   const prevTransitionSignatureRef = useRef(transitionSignature);
@@ -114,7 +114,7 @@ export function useAnimatedSeriesPath({
           xAccessor,
           xScale,
           yScale,
-          dataKey
+          dataKey,
         );
         const next = interpolateSeriesPathPoints(fromSnapshot, currentTarget, progress);
         displayedPointsRef.current = next;

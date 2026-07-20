@@ -73,7 +73,7 @@ export default function FlowFieldBackground({
         speed,
         freqScale,
       },
-      [offscreen]
+      [offscreen],
     );
 
     // 缓存 canvas 边界避免每次 pointermove 触发 reflow

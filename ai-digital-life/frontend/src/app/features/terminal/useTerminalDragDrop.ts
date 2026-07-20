@@ -3,7 +3,7 @@ import type { TerminalTabState } from '@stores/slices/terminalSlice';
 
 export function useTerminalDragDrop(
   terminalTabs: TerminalTabState[],
-  terminalReorderTabs: (tabs: TerminalTabState[]) => void
+  terminalReorderTabs: (tabs: TerminalTabState[]) => void,
 ) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOverTabId, setDragOverTabId] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export function useTerminalDragDrop(
       terminalReorderTabs(currentTabs);
       setDragOverTabId(null);
     },
-    [terminalTabs, terminalReorderTabs]
+    [terminalTabs, terminalReorderTabs],
   );
 
   return {

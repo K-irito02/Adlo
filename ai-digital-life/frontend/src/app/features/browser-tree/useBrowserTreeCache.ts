@@ -67,7 +67,7 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
         browserTabFolders,
         browserWorkspaceBookmarks,
         browserBookmarks,
-        tabIdToUrl
+        tabIdToUrl,
       ),
     [
       workspaces,
@@ -76,7 +76,7 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
       browserWorkspaceBookmarks,
       browserBookmarks,
       tabIdToUrl,
-    ]
+    ],
   );
 
   const workspaceCategory: BrowserCategoryState = useMemo(
@@ -87,12 +87,12 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
       isPermanent: false,
       nodes: workspaceNodes,
     }),
-    [workspaceNodes, labels.workspaceCategory]
+    [workspaceNodes, labels.workspaceCategory],
   );
 
   const userFolderNodes = useMemo(
     () => buildUserFolderCategoryTree(browserTabFolders, browserTabs, browserBookmarks, tabIdToUrl),
-    [browserTabFolders, browserTabs, browserBookmarks, tabIdToUrl]
+    [browserTabFolders, browserTabs, browserBookmarks, tabIdToUrl],
   );
 
   const userFolderCategory: BrowserCategoryState = useMemo(
@@ -103,12 +103,12 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
       isPermanent: false,
       nodes: userFolderNodes,
     }),
-    [userFolderNodes, labels.userFolderCategory]
+    [userFolderNodes, labels.userFolderCategory],
   );
 
   const historyNodes = useMemo(
     () => buildHistoryCategoryTree(browserHistory, browserTabs, dateLabels),
-    [browserHistory, browserTabs, dateLabels]
+    [browserHistory, browserTabs, dateLabels],
   );
 
   const historyCategory: BrowserCategoryState = useMemo(
@@ -119,7 +119,7 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
       isPermanent: true,
       nodes: historyNodes,
     }),
-    [historyNodes, labels.historyCategory]
+    [historyNodes, labels.historyCategory],
   );
 
   return {

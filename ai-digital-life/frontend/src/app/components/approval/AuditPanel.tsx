@@ -11,7 +11,7 @@ interface AuditPanelProps {
 
 type AuditFilter = 'all' | AuditEntry['operationType'];
 
-const UNIQUE_FILTERS: Array<{ value: AuditFilter; labelKey: keyof CopyDict }> = [
+const UNIQUE_FILTERS: { value: AuditFilter; labelKey: keyof CopyDict }[] = [
   { value: 'all', labelKey: 'auditFilterAll' },
   { value: 'command', labelKey: 'auditFilterCommand' },
   { value: 'file-write', labelKey: 'auditFilterFile' },

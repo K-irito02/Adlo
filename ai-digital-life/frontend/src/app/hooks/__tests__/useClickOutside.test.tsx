@@ -35,7 +35,7 @@ function setup(enabled = true) {
         onOutsideClick,
         onEscape,
       },
-    }
+    },
   );
 
   return { ref: result.current, target, outside, onOutsideClick, onEscape, rerender, unmount };
@@ -128,7 +128,7 @@ describe('useClickOutside', () => {
             onOutsideClick,
             onEscape,
           },
-        }
+        },
       );
 
       return { target1, target2, outside, onOutsideClick, onEscape, rerender, unmount };

@@ -30,7 +30,7 @@ export interface GitHubTreeSlice {
 
 export const createGitHubTreeSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): GitHubTreeSlice => {
   return {
     gitHubTreeExpanded: {},
@@ -56,12 +56,12 @@ export const createGitHubTreeSlice = (
         }
         const collectFolderPaths = (
           parentId: string | undefined,
-          parentType: string | undefined
+          parentType: string | undefined,
         ) => {
           const children = state.gitHubCiFolders.filter(
             (f) =>
               f.parentId === parentId &&
-              (!f.parentType || f.parentType === parentType || parentType === undefined)
+              (!f.parentType || f.parentType === parentType || parentType === undefined),
           );
           for (const child of children) {
             paths[`github-folder:${child.id}`] = true;

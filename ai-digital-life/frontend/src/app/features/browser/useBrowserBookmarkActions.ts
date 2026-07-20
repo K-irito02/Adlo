@@ -7,14 +7,14 @@ export function useBrowserBookmarkActions() {
   const { browserRemoveTabBookmarks } = useAppStore(
     useShallow((state) => ({
       browserRemoveTabBookmarks: state.browserRemoveTabBookmarks,
-    }))
+    })),
   );
 
   const handleRemoveBookmarkTab = useCallback(
     (tabId: string, url: string) => {
       const state = useAppStore.getState();
       const owningFolder = state.browserTabFolders.find((f) =>
-        f.tabs?.some((t) => t.tabId === tabId && t.url === url)
+        f.tabs?.some((t) => t.tabId === tabId && t.url === url),
       );
       const scopeFolderId = owningFolder?.id;
       browserRemoveTabBookmarks(tabId, url, scopeFolderId);
@@ -23,7 +23,7 @@ export function useBrowserBookmarkActions() {
         clearPageMetaCacheForUrl(url);
       }
     },
-    [browserRemoveTabBookmarks]
+    [browserRemoveTabBookmarks],
   );
 
   return {

@@ -19,7 +19,7 @@ export interface UseBrowserPanelHandlersResult {
 }
 
 export function useBrowserPanelHandlers(
-  params: UseBrowserPanelHandlersParams
+  params: UseBrowserPanelHandlersParams,
 ): UseBrowserPanelHandlersResult {
   const {
     browserOpenTab,
@@ -55,14 +55,14 @@ export function useBrowserPanelHandlers(
         browserOpenTab(url, url);
       }
     },
-    [browserOpenTab, browserNavigateActiveTab, browserSelectTab, browserNavigateInPlace]
+    [browserOpenTab, browserNavigateActiveTab, browserSelectTab, browserNavigateInPlace],
   );
 
   const handleToggleNavigateMode = useCallback(
     (checked: boolean) => {
       setBrowserNavigateInPlace(checked);
     },
-    [setBrowserNavigateInPlace]
+    [setBrowserNavigateInPlace],
   );
 
   const handlePointerDown = useCallback((_e: React.PointerEvent) => {}, []);

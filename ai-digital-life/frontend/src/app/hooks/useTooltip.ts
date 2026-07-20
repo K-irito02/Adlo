@@ -136,7 +136,7 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
         setPosition(null);
       }
     },
-    [isControlled, onOpenChange]
+    [isControlled, onOpenChange],
   );
 
   const clearTimers = useCallback(() => {
@@ -222,7 +222,7 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
       }
       setOpen(!isOpen);
     },
-    [trigger, isOpen, setOpen]
+    [trigger, isOpen, setOpen],
   );
 
   const close = useCallback(() => {

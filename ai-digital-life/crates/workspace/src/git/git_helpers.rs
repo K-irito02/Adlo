@@ -39,11 +39,7 @@ pub(crate) async fn run_git_with_timeout(root: &Path, args: &[&str]) -> Option<S
 
 pub(crate) fn run_git_bytes(root: &Path, args: &[&str]) -> Option<Vec<u8>> {
     let output = Command::new("git").args(args).current_dir(root).output().ok()?;
-    if output.status.success() {
-        Some(output.stdout)
-    } else {
-        None
-    }
+    if output.status.success() { Some(output.stdout) } else { None }
 }
 
 pub(crate) fn run_git_paths(root: &Path, args: &[&str]) -> Option<Vec<String>> {

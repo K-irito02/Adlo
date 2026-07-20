@@ -15,7 +15,7 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
     setHunkDecision: async (
       patchSetId: string,
       hunkId: string,
-      decision: 'pending' | 'accepted' | 'rejected'
+      decision: 'pending' | 'accepted' | 'rejected',
     ) => {
       clearError(get);
       const result = await window.digitalLife.patch.setHunkDecision({
@@ -57,7 +57,7 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
             }
           : undefined,
         openTabs: (result.data.repairPatchSet ?? result.data.patchSet).filePatches.map(
-          mapPatchToEditorTab
+          mapPatchToEditorTab,
         ),
       });
       const detail = get().activeSessionId

@@ -39,7 +39,7 @@ export interface ProviderBridge {
     name: string,
     baseUrl: string,
     apiKey: string,
-    models: string[]
+    models: string[],
   ): Promise<IpcResult<boolean>>;
   removeCustomProvider(providerId: string): Promise<IpcResult<boolean>>;
 }

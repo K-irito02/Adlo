@@ -23,7 +23,7 @@ export function OutlineTree({
 }: OutlineTreeProps) {
   const tree = useMemo(() => buildOutlineTree(items), [items]);
   const [uncontrolledExpandedIds, setUncontrolledExpandedIds] = useState<Set<string>>(() =>
-    getDefaultExpandedOutlineIds(items)
+    getDefaultExpandedOutlineIds(items),
   );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);

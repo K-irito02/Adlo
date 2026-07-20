@@ -72,8 +72,8 @@ export function useDragDropWorkspace(actions: {
       if (!items || items.length === 0) {
         return;
       }
-      for (let i = 0; i < items.length; i++) {
-        const entry = items[i].webkitGetAsEntry?.();
+      for (const item of items) {
+        const entry = item.webkitGetAsEntry?.();
         if (entry && entry.isDirectory) {
           const file = items[i].getAsFile();
           if (file) {

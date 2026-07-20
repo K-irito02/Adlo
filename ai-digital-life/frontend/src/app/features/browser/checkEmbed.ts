@@ -15,7 +15,7 @@ export async function checkEmbed(url: string): Promise<boolean> {
   try {
     const embedOrigin = window.location.origin;
     const res = await fetch(
-      `/__adl_preview_api__/browser/check-embed?url=${encodeURIComponent(url)}&embedOrigin=${encodeURIComponent(embedOrigin)}`
+      `/__adl_preview_api__/browser/check-embed?url=${encodeURIComponent(url)}&embedOrigin=${encodeURIComponent(embedOrigin)}`,
     );
     const data = await res.json();
     const blocked = data.blocked === true;

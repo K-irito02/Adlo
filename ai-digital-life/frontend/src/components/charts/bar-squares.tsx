@@ -89,7 +89,7 @@ function isPatternFill(fill: string): boolean {
 function squareCascadeStepSeconds(
   enterTransition: Transition | undefined,
   animationDurationMs: number,
-  squareCount: number
+  squareCount: number,
 ): number {
   if (squareCount <= 1) {
     return 0;
@@ -107,7 +107,7 @@ function cascadeColumnTransition(
   animationDurationMs: number,
   columnIndex: number,
   columnStaggerDelay: number,
-  squareCount: number
+  squareCount: number,
 ): Transition {
   const cascadeStep = squareCascadeStepSeconds(enterTransition, animationDurationMs, squareCount);
   const base = transitionWithDelay(enterTransition, columnIndex * columnStaggerDelay);
@@ -151,7 +151,7 @@ function SquareColumn({
         gap: squareGap,
         fit: squareFit,
       }),
-    [barLengthPx, squareSize, squareGap, squareFit]
+    [barLengthPx, squareSize, squareGap, squareFit],
   );
 
   const rx = squareSize * squareRadius;
@@ -546,7 +546,7 @@ function TrackColumn({
     chartAnimationDuration || 1100,
     index,
     staggerDelay,
-    layout.count
+    layout.count,
   );
   const animatedHeight = trackHeight > 0 ? trackHeight : 0;
 

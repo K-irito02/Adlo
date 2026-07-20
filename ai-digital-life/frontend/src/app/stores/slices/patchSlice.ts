@@ -18,7 +18,7 @@ export interface PatchSlice {
 
 export const createPatchSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): PatchSlice => ({
   activePatchSets: {},
   setActivePatchSet: (patchSet) => set({ activePatchSet: patchSet }),

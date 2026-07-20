@@ -4,11 +4,11 @@ import { getFileTreeVisualSpec } from './fileTreeVisuals';
 import { CustomScrollArea } from './CustomScrollArea';
 import { TreeNodeRow } from './TreeNodeRow';
 import { ContextMenu } from '@components/ContextMenu';
-import {
-  type FileTreeRenderableNode,
-  type FileTreeProps,
-  type FileTreeContextMenuItem,
-  type FlattenedTreeNode,
+import type {
+  FileTreeRenderableNode,
+  FileTreeProps,
+  FileTreeContextMenuItem,
+  FlattenedTreeNode,
 } from './fileTree.utils';
 import { useFileTreeVirtualization, VIRTUAL_ITEM_HEIGHT } from './useFileTreeVirtualization';
 import { useFileTreeHover } from './useFileTreeHover';
@@ -114,7 +114,7 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
       onShowContextMenu
         ? (event: React.MouseEvent<HTMLDivElement>) => onShowContextMenu(event, node)
         : undefined,
-    [onShowContextMenu, node]
+    [onShowContextMenu, node],
   );
 
   return (
@@ -205,7 +205,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
   const activePath = selectedFilePath;
   const selectedPaths = useMemo(
     (): Set<string> => (activePath ? new Set([activePath]) : new Set()),
-    [activePath]
+    [activePath],
   );
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -232,14 +232,14 @@ export function FileTree<T extends FileTreeRenderableNode>({
     (path: string) => {
       onToggle(path);
     },
-    [onToggle]
+    [onToggle],
   );
 
   const handleOpenFile = useCallback(
     (relativePath: string) => {
       onOpenFile(relativePath);
     },
-    [onOpenFile]
+    [onOpenFile],
   );
 
   const handleShowContextMenu = useCallback(
@@ -284,7 +284,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
         multiSelectedNodes,
       });
     },
-    [getContextMenuItems, contextMenuPersistRef, selectedPaths, nodes]
+    [getContextMenuItems, contextMenuPersistRef, selectedPaths, nodes],
   );
 
   return (

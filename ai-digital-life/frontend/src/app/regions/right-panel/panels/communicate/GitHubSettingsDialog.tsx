@@ -69,7 +69,7 @@ export function GitHubSettingsDialog({
         onCancel();
       }
     },
-    [handleConfirm, onCancel]
+    [handleConfirm, onCancel],
   );
 
   const handleBackdrop = useCallback(
@@ -78,7 +78,7 @@ export function GitHubSettingsDialog({
         onCancel();
       }
     },
-    [onCancel]
+    [onCancel],
   );
 
   if (!open) {
@@ -193,6 +193,6 @@ export function GitHubSettingsDialog({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

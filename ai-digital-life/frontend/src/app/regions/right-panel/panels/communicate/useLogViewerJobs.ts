@@ -16,7 +16,7 @@ export interface UseLogViewerJobsParams {
   cachedEntry?: CiLogCacheEntry | null;
   updateCiLogCache: (
     dirId: string,
-    data: Partial<{ selectedJobId: number | null; logs: Record<number, string> }>
+    data: Partial<{ selectedJobId: number | null; logs: Record<number, string> }>,
   ) => void;
   ciAccessToken: string;
   t: CopyDict;
@@ -45,7 +45,7 @@ export function useLogViewerJobs({
   t,
 }: UseLogViewerJobsParams): UseLogViewerJobsReturn {
   const [selectedJobId, setSelectedJobId] = useState<number | null>(
-    initialJobId ?? cachedEntry?.selectedJobId ?? null
+    initialJobId ?? cachedEntry?.selectedJobId ?? null,
   );
   const [cachedLogs, setCachedLogs] = useState<Record<number, string>>(cachedEntry?.logs ?? {});
   const [isLoading, setIsLoading] = useState(false);
@@ -86,7 +86,7 @@ export function useLogViewerJobs({
               accessToken: ciAccessToken || null,
               workflowId: null,
             },
-            runId
+            runId,
           );
           if (cancelled) {
             return;

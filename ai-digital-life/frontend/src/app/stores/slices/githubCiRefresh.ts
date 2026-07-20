@@ -30,7 +30,7 @@ export interface CiGetStatusResult {
  */
 export async function executeCiStatusRefresh(
   params: CiGetStatusParams,
-  getStatusFn: (p: CiGetStatusParams) => Promise<CiGetStatusResult>
+  getStatusFn: (p: CiGetStatusParams) => Promise<CiGetStatusResult>,
 ): Promise<{ ok: true; snapshot: CiStatusSnapshot } | { ok: false; error: string }> {
   if (!params.owner || !params.repo) {
     return { ok: false, error: CI_ERROR_CODES.CONFIG_MISSING_REPO };

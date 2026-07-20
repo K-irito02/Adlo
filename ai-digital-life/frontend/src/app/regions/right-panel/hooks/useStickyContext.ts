@@ -79,7 +79,7 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
         canScrollToTop,
         onNavigateLine: (line) => navigateToLine(editorRefCache.current?.() ?? null, line),
         topLabel: t.stickyContextTop as string,
-      })
+      }),
     );
   }, [selectedFilePath, content, outline, stickyDiffRanges, t]);
 
@@ -99,7 +99,7 @@ function useStickyContext(input: UseStickyContextInput): StickyContextModel | nu
       editor.onDidScrollChange?.(refresh),
       editor.onDidChangeHiddenAreas?.(refresh),
       editor.onDidLayoutChange?.(refresh),
-    ].filter(Boolean) as Array<{ dispose(): void }>;
+    ].filter(Boolean) as { dispose(): void }[];
 
     const shell = editorSurfaceRef.current;
     const observer =

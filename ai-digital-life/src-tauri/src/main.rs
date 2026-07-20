@@ -1,8 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use adl_logging::LogMode;
-use tauri::webview::PageLoadEvent;
 use tauri::Manager;
+use tauri::webview::PageLoadEvent;
 use tracing::info;
 
 mod commands;
@@ -30,13 +30,18 @@ fn main() {
 
     // 移除了 --disable-gpu-compositing 以启用 GPU 合成加速，
     // 解决软件渲染导致的启动绘制缓慢和主线程阻塞问题。
-    std::env::set_var(
-        "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
-        "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection",
-    );
+    // SAFETY: Called once at startup before any other threads. Safe despite
+    // Rust 2024 marking set_var as unsafe (no concurrent reads of these vars).
+    unsafe {
+        std::env::set_var(
+            "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+            "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection",
+        );
+    }
 
     if let Some(mode) = parse_cli_log_mode() {
-        std::env::set_var("ADL_CLI_LOG_MODE", mode.to_string());
+        // SAFETY: Called once at startup before any other threads.
+        unsafe { std::env::set_var("ADL_CLI_LOG_MODE", mode.to_string()) };
     }
 
     tauri::Builder::default()

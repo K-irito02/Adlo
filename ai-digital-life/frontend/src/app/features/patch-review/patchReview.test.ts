@@ -131,7 +131,7 @@ describe('patchReview helpers', () => {
       'hunk-2',
     ]);
     expect(setCollapsedHunksForFile(['hunk-1', 'hunk-2'], patchSet.filePatches[0], false)).toEqual(
-      []
+      [],
     );
   });
 });

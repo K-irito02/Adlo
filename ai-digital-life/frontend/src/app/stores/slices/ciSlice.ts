@@ -139,7 +139,7 @@ export interface CiSlice {
 
 export const createCiSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): CiSlice => {
   // 启动时异步读取 token，立即同步读取配置
   if (typeof window !== 'undefined') {
@@ -258,7 +258,7 @@ export const createCiSlice = (
           workflowId: config.workflowId,
           accessToken,
         },
-        (params) => bridge.github.getStatus(params)
+        (params) => bridge.github.getStatus(params),
       );
 
       if (result.ok) {

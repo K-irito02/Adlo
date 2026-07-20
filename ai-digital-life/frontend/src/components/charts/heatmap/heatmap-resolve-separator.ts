@@ -54,7 +54,7 @@ function readHeatmapSeparatorConfig(child: ReactElement): HeatmapSeparatorParsed
 /** Reads the first {@link HeatmapSeparator} child for separator config. */
 export function resolveHeatmapSeparatorConfig(
   children: ReactNode,
-  chartSeparators?: HeatmapSeparatorParsedConfig | null
+  chartSeparators?: HeatmapSeparatorParsedConfig | null,
 ): HeatmapSeparatorParsedConfig | null {
   let config: HeatmapSeparatorParsedConfig | null = null;
 
@@ -85,7 +85,7 @@ export function resolveHeatmapSeparatorConfig(
 }
 
 function normalizeHeatmapSeparatorConfig(
-  config?: HeatmapSeparatorParsedConfig | null
+  config?: HeatmapSeparatorParsedConfig | null,
 ): HeatmapSeparatorParsedConfig | null {
   if (!config) {
     return null;
@@ -113,7 +113,7 @@ function normalizeHeatmapSeparatorConfig(
 export function resolveHeatmapSeparatorConfigWithData(
   children: ReactNode,
   columns: HeatmapColumn[],
-  chartSeparators?: HeatmapSeparatorParsedConfig | null
+  chartSeparators?: HeatmapSeparatorParsedConfig | null,
 ): HeatmapSeparatorLayout | null {
   const config = resolveHeatmapSeparatorConfig(children, chartSeparators);
   return resolveHeatmapSeparatorLayout(config, columns);

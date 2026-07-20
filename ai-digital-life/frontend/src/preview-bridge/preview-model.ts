@@ -52,7 +52,7 @@ export function createBaseAppInfo(): AppInfo {
 
 export function createPreviewModelBridge(
   ctx: PreviewContext,
-  ensureCurrentWorkspaceRestored: () => Promise<void>
+  ensureCurrentWorkspaceRestored: () => Promise<void>,
 ) {
   return {
     app: {

@@ -56,7 +56,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       browserNavigateInPlace: state.browserNavigateInPlace,
       browserSelectTab: state.browserSelectTab,
       startupOverlayHidden: state.startupOverlayHidden,
-    }))
+    })),
   );
 
   const { toastMessages, showToast, removeToast } = useBrowserToast();
@@ -413,7 +413,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       handleSelectTreePath,
       showToast,
       handleToggleNavigateMode,
-    ]
+    ],
   );
 
   const stateValue = useBrowserPanelState(
@@ -480,12 +480,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
       activatedTabIdsRef,
       urlState,
       handlePointerDown,
-    ]
+    ],
   );
 
   const bookmarkTreeData = useMemo(
     () => buildBookmarkDirectoryTree(stateValue.visibleWorkspaces, browserTabFolders),
-    [stateValue.visibleWorkspaces, browserTabFolders]
+    [stateValue.visibleWorkspaces, browserTabFolders],
   );
 
   return (

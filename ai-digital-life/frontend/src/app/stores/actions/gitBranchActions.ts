@@ -15,7 +15,7 @@ async function refreshAfterBranchChange(get: () => StoreState) {
 
 export function createGitBranchActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     /**

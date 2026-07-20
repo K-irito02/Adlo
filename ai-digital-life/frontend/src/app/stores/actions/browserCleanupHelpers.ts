@@ -28,11 +28,11 @@ export function stripWorkspaceFromBrowserState(
   currentFolders: TabFolderState[],
   currentExpanded: Record<string, boolean>,
   currentWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>,
-  currentActiveTabId: string
+  currentActiveTabId: string,
 ): BrowserCleanupResult {
   const browserTabs = currentTabs.filter((t) => t.workspaceId !== workspaceId);
   const browserTabFolders = currentFolders.filter(
-    (f) => !(f.parentType === 'workspace' && f.parentId === workspaceId)
+    (f) => !(f.parentType === 'workspace' && f.parentId === workspaceId),
   );
   const browserWorkspaceExpanded: Record<string, boolean> = { ...currentExpanded };
   delete browserWorkspaceExpanded[workspaceId];

@@ -37,7 +37,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
       terminalWorkspaceId: s.terminalWorkspaceId,
       setTerminalWorkspaceId: s.setTerminalWorkspaceId,
       recentWorkspaces: s.recentWorkspaces,
-    }))
+    })),
   );
 
   const boundWorkspace = useMemo(() => {
@@ -115,7 +115,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
       setTerminalWorkspaceId(workspaceId);
       setActiveSubMenuId(null);
     },
-    [setTerminalWorkspaceId]
+    [setTerminalWorkspaceId],
   );
 
   return (
@@ -213,7 +213,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
               >
                 <span>{item.label}</span>
               </button>
-            )
+            ),
           )}
         </div>
       ) : null}

@@ -24,12 +24,12 @@ interface ToolSwitcherProps {
   onToggleRightPanelExpanded: () => void;
 }
 
-const TAB_META: Array<{
+const TAB_META: {
   id: ToolId;
   shortcut: string;
   icon: React.ReactNode;
   labelKey: keyof CopyDict;
-}> = [
+}[] = [
   {
     id: 'files',
     shortcut: 'Ctrl+Shift+E',
@@ -130,7 +130,7 @@ export const ToolSwitcher = React.memo(function ToolSwitcher({
         nextTab?.focus();
       });
     },
-    [onSelect, idBase]
+    [onSelect, idBase],
   );
 
   return (

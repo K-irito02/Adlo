@@ -27,7 +27,7 @@ export const sessionSelectors = {
           return undefined;
         }
         return s.sessionDetails[s.activeSessionId];
-      })
+      }),
     ),
 
   getSessionDetails: (state: StoreState) => state.sessionDetails,

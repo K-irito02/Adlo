@@ -33,7 +33,7 @@ describe('hydrateGitHubRepoSlice', () => {
     expect(setMock).toHaveBeenCalledWith(
       expect.objectContaining({
         gitHubWorkspaceConfigs: expect.objectContaining({ 'ws-1': expect.anything() }),
-      })
+      }),
     );
   });
 

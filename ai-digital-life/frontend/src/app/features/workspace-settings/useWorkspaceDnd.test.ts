@@ -6,7 +6,7 @@ import type { DraggableWorkspace } from './WorkspaceSettingsTypes';
 // Helper: build a fake DragEndEvent
 function makeDragEndEvent(
   activeId: string,
-  overId: string | null
+  overId: string | null,
 ): { active: { id: string }; over: { id: string } | null } {
   return {
     active: { id: activeId },
@@ -32,7 +32,7 @@ describe('useWorkspaceDnd', () => {
         naturalOrder: ['x', 'y'],
         visibleWorkspaces: items,
         onChange,
-      })
+      }),
     );
     act(() => {
       result.current.handleDragEnd(makeDragEndEvent('a', null) as never);
@@ -49,7 +49,7 @@ describe('useWorkspaceDnd', () => {
         naturalOrder: ['x'],
         visibleWorkspaces: items,
         onChange,
-      })
+      }),
     );
     act(() => {
       result.current.handleDragEnd(makeDragEndEvent('a', 'a') as never);
@@ -66,7 +66,7 @@ describe('useWorkspaceDnd', () => {
         naturalOrder: [],
         visibleWorkspaces: items,
         onChange,
-      })
+      }),
     );
     // Drag 'a' onto 'b' → should insert before 'b' → ['a','b','c'] stays ['a','b','c']?
     // Actually: removing 'a' from index 0, inserting before 'b' at index 0 → ['a','b','c'] (no change).
@@ -90,7 +90,7 @@ describe('useWorkspaceDnd', () => {
         naturalOrder: ['x', 'y'],
         visibleWorkspaces: items,
         onChange,
-      })
+      }),
     );
     // Drag 'y' onto 'x' → insert 'y' before 'x' → ['y', 'x']
     act(() => {
@@ -112,7 +112,7 @@ describe('useWorkspaceDnd', () => {
         naturalOrder: [],
         visibleWorkspaces: items,
         onChange,
-      })
+      }),
     );
     // Drop on the empty deferred list placeholder (id `list-deferred`)
     act(() => {
@@ -134,7 +134,7 @@ describe('useWorkspaceDnd', () => {
         naturalOrder: [],
         visibleWorkspaces: items,
         onChange,
-      })
+      }),
     );
     // Drag 'b' onto 'a' → insert before 'a' → priority: ['b','a'], deferred: []
     act(() => {
@@ -156,7 +156,7 @@ describe('useWorkspaceDnd', () => {
         naturalOrder: ['x'],
         visibleWorkspaces: items,
         onChange,
-      })
+      }),
     );
     // Drag 'x' onto 'a' → insert before 'a' → priority: ['x','a'], natural: []
     act(() => {
@@ -178,7 +178,7 @@ describe('useWorkspaceDnd', () => {
         naturalOrder: ['x'],
         visibleWorkspaces: items,
         onChange,
-      })
+      }),
     );
     // Drag 'a' onto 'x' → insert before 'x' → priority: [], natural: ['a','x']
     act(() => {
@@ -200,7 +200,7 @@ describe('useWorkspaceDnd', () => {
         naturalOrder: ['x', 'y'],
         visibleWorkspaces: items,
         onChange,
-      })
+      }),
     );
     // Drag 'y' onto empty priority placeholder (id `list-priority`)
     act(() => {
@@ -223,7 +223,7 @@ describe('useWorkspaceDnd', () => {
         naturalOrder: [],
         visibleWorkspaces: items,
         onChange,
-      })
+      }),
     );
     // Drag 'a' (treats source as priority per findContainer first-match) onto deferred placeholder
     act(() => {

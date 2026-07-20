@@ -26,7 +26,7 @@ export interface DiagnosticSlice {
 
 export const createDiagnosticSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): DiagnosticSlice => ({
   auditEntries: [],
   repoMap: [],

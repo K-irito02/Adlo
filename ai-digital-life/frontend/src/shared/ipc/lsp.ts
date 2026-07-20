@@ -65,6 +65,6 @@ export interface LspBridge {
     workspaceId: string,
     filePath: string,
     line: number,
-    column: number
+    column: number,
   ): Promise<IpcResult<SymbolInfo | null>>;
 }

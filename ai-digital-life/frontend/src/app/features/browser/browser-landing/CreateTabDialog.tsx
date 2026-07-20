@@ -78,7 +78,7 @@ export function CreateTabDialog({
         onCancel();
       }
     },
-    [handleConfirm, onCancel]
+    [handleConfirm, onCancel],
   );
 
   const handleBackdrop = useCallback(
@@ -87,7 +87,7 @@ export function CreateTabDialog({
         onCancel();
       }
     },
-    [onCancel]
+    [onCancel],
   );
 
   const isEditMode = !!initialName || !!initialUrl;
@@ -192,6 +192,6 @@ export function CreateTabDialog({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

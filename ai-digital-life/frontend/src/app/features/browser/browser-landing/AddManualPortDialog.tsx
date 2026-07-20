@@ -46,7 +46,7 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
         onCancel();
       }
     },
-    [handleConfirm, onCancel]
+    [handleConfirm, onCancel],
   );
 
   const handleBackdrop = useCallback(
@@ -55,7 +55,7 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
         onCancel();
       }
     },
-    [onCancel]
+    [onCancel],
   );
 
   if (!open) {
@@ -145,6 +145,6 @@ export function AddManualPortDialog({ open, t, onConfirm, onCancel }: AddManualP
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

@@ -5,7 +5,7 @@ import type { IpcResult } from '@ai-digital-life/kernel';
 
 export async function invokeIpc<T>(
   cmd: string,
-  args?: Record<string, unknown>
+  args?: Record<string, unknown>,
 ): Promise<IpcResult<T>> {
   try {
     return await invoke<IpcResult<T>>(cmd, args);

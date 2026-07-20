@@ -20,22 +20,20 @@ export function useFileTreeVirtualization<T extends FileTreeRenderableNode>(
   nodes: T[],
   expandedPaths: Record<string, boolean>,
   scrollAreaRef: RefObject<HTMLDivElement | null>,
-  flipAnimation: boolean
+  flipAnimation: boolean,
 ): UseFileTreeVirtualizationResult<T> {
   const flatNodes = useMemo(
     () => flattenVisibleNodes(nodes, expandedPaths),
-    [nodes, expandedPaths]
+    [nodes, expandedPaths],
   );
 
   const totalHeight = flatNodes.length * VIRTUAL_ITEM_HEIGHT;
 
   const trunkHeightMap: Record<string, number> = useMemo(() => {
     const map: Record<string, number> = {};
-    const stack: Array<{ path: string; depth: number; count: number }> = [];
+    const stack: { path: string; depth: number; count: number }[] = [];
 
-    for (let i = 0; i < flatNodes.length; i++) {
-      const { node, depth } = flatNodes[i];
-
+    for (const { node, depth } of flatNodes) {
       while (stack.length > 0 && stack[stack.length - 1].depth >= depth) {
         const entry = stack.pop()!;
         if (entry.count > 0) {
@@ -70,12 +68,12 @@ export function useFileTreeVirtualization<T extends FileTreeRenderableNode>(
     scrollAreaRef as RefObject<HTMLElement>,
     flatNodes,
     VIRTUAL_ITEM_HEIGHT,
-    5
+    5,
   );
 
   const visibleNodes = useMemo(
     () => flatNodes.slice(startIndex, endIndex),
-    [flatNodes, startIndex, endIndex]
+    [flatNodes, startIndex, endIndex],
   );
 
   // FLIP animation: smooth position transitions via Web Animation API
@@ -144,7 +142,7 @@ export function useFileTreeVirtualization<T extends FileTreeRenderableNode>(
       if (el) {
         const anim = el.animate(
           [{ transform: `translateY(${deltaY}px)` }, { transform: 'translateY(0)' }],
-          { duration: 300, easing: 'ease' }
+          { duration: 300, easing: 'ease' },
         );
         flipAnimationsRef.current.set(path, anim);
         anim.finished

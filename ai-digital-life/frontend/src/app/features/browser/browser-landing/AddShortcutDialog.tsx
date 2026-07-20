@@ -57,7 +57,7 @@ export function AddShortcutDialog({
         onCancel();
       }
     },
-    [handleConfirm, onCancel]
+    [handleConfirm, onCancel],
   );
 
   const handleBackdrop = useCallback(
@@ -66,7 +66,7 @@ export function AddShortcutDialog({
         onCancel();
       }
     },
-    [onCancel]
+    [onCancel],
   );
 
   if (!open) {
@@ -157,6 +157,6 @@ export function AddShortcutDialog({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

@@ -54,7 +54,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
   const viewRef = useRef<EditorView | null>(null);
   const [editorView, setEditorView] = useState<EditorView | null>(null);
   const [langExtensions, setLangExtensions] = useState<Extension[]>(() =>
-    getLanguageExtensionSync(language)
+    getLanguageExtensionSync(language),
   );
   const [editorReady, setEditorReady] = useState(false);
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
@@ -62,7 +62,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
   const foldMarkerState = useFoldMarkerAutoHide(
     wrapperRef,
     fileKey ?? original + modified,
-    editorView
+    editorView,
   );
 
   const onMountRef = useRef(onMount);
@@ -96,7 +96,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
       accept: t.cmFoldAccept,
       reject: t.cmFoldReject,
     }),
-    [t]
+    [t],
   );
 
   // 扩展配置 - 语言扩展直接包含在内
@@ -108,7 +108,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
       lineNumbersEnabled,
       wordWrap,
       cmPhrases,
-      langExtensions
+      langExtensions,
     );
     return [
       ...base,
@@ -134,7 +134,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
               chunks: getMergeChunks(update.state),
               doc: update.state.doc,
               expandedLines: expandedCollapsedLinesRef.current,
-            })
+            }),
           );
         }
       }),
@@ -194,7 +194,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
               chunks: getMergeChunks(view.state),
               doc: view.state.doc,
             })
-          : []
+          : [],
       );
     }
 

@@ -55,7 +55,7 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
   const browserBookmarks = useAppStore((state) => state.browserBookmarks);
   const bookmarkedUrls = useMemo(
     () => new Set(browserBookmarks.map((b) => b.url)),
-    [browserBookmarks]
+    [browserBookmarks],
   );
 
   if (tabs.length === 0) {

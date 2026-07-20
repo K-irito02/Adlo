@@ -15,7 +15,7 @@ export function useFileMenuItems(
   onTriggerCreateWorkspace: () => void,
   onOpenFolder: () => void,
   handleClose: () => void,
-  setActiveRightTool: (tool: ToolId) => void
+  setActiveRightTool: (tool: ToolId) => void,
 ): MenuItem[] {
   return [
     {
@@ -51,7 +51,7 @@ export function useViewMenuItems(
   zoomBy: (delta: number) => void,
   resetZoom: () => void,
   onOpenSettings: () => void,
-  setActiveRightTool: (tool: ToolId) => void
+  setActiveRightTool: (tool: ToolId) => void,
 ): MenuItem[] {
   return [
     {

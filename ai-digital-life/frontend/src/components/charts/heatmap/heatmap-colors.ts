@@ -122,7 +122,7 @@ export function levelStylesFromColors(levelColors: HeatmapLevelColors): HeatmapL
 
 export function resolveHeatmapLevelStyles(
   levelColors?: HeatmapLevelColors,
-  levelStyles?: HeatmapLevelStyles
+  levelStyles?: HeatmapLevelStyles,
 ): HeatmapLevelStyles {
   if (levelStyles) {
     return levelStyles;
@@ -134,13 +134,13 @@ export function resolveHeatmapLevelStyles(
 }
 
 export function buildHeatmapColorScale(
-  levelColors: HeatmapLevelColors
+  levelColors: HeatmapLevelColors,
 ): (count: number | null | undefined) => string {
   return buildHeatmapColorScaleFromStyles(levelStylesFromColors(levelColors));
 }
 
 export function buildHeatmapColorScaleFromStyles(
-  levelStyles: HeatmapLevelStyles
+  levelStyles: HeatmapLevelStyles,
 ): (count: number | null | undefined) => string {
   return (count: number | null | undefined) => {
     const level = getHeatmapContributionLevel(count ?? 0);
@@ -149,7 +149,7 @@ export function buildHeatmapColorScaleFromStyles(
 }
 
 export function buildHeatmapFillScale(
-  levelStyles: HeatmapLevelStyles
+  levelStyles: HeatmapLevelStyles,
 ): (count: number | null | undefined) => string {
   return (count: number | null | undefined) => {
     const level = getHeatmapContributionLevel(count ?? 0);

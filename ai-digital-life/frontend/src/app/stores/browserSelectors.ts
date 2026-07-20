@@ -45,7 +45,7 @@ export const browserSelectors = {
           return undefined;
         }
         return s.browserTabsById[id] ?? s.browserTabs.find((t) => t.id === id);
-      })
+      }),
     ),
 
   getBrowserTabById: (state: StoreState, id: string) => {

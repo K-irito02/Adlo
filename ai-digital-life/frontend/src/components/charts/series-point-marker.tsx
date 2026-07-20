@@ -192,7 +192,7 @@ export function getSeriesMarkerVisualExtent(
   style: Pick<
     SeriesPointMarkerStyle,
     'radius' | 'strokeWidth' | 'ringGap' | 'outlineWidth' | 'showActiveHighlight'
-  >
+  >,
 ): number {
   const radius = style.radius ?? 5;
   const strokeWidth = style.strokeWidth ?? 2;

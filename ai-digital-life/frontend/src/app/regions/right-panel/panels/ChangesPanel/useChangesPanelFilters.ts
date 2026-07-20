@@ -4,12 +4,12 @@ import { computeFilteredChangeEntries } from './useChangesPanelStateUtils';
 
 export function useChangesPanelFilters(changeEntries: ChangeEntry[]) {
   const [changesStatusFilter, setChangesStatusFilter] = useState<Set<ChangeFileState>>(
-    () => new Set()
+    () => new Set(),
   );
 
   const filteredChangeEntries = useMemo(
     () => computeFilteredChangeEntries(changeEntries, changesStatusFilter),
-    [changeEntries, changesStatusFilter]
+    [changeEntries, changesStatusFilter],
   );
 
   const onStatusFilterClick = useCallback((filter: ChangeFileState) => {

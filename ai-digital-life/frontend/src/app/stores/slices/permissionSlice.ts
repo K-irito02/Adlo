@@ -8,7 +8,7 @@ export interface PermissionSlice {
 
 export const createPermissionSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): PermissionSlice => ({
   permissionConfig: { custom_rules: [], include_defaults: true },
   setPermissionConfig: (config) => set({ permissionConfig: config }),

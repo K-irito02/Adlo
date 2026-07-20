@@ -62,7 +62,7 @@ describe('SettingsControls reset button', () => {
     render(
       <TestProvider>
         <SettingsControls items={items} onChange={() => {}} />
-      </TestProvider>
+      </TestProvider>,
     );
     const resetBtn = screen.queryByRole('button', { name: 'settingsResetToDefault' });
     expect(resetBtn).not.toBeNull();
@@ -81,7 +81,7 @@ describe('SettingsControls reset button', () => {
     render(
       <TestProvider>
         <SettingsControls items={items} onChange={() => {}} />
-      </TestProvider>
+      </TestProvider>,
     );
     const resetBtn = screen.queryByRole('button', { name: 'settingsResetToDefault' });
     expect(resetBtn).toBeNull();
@@ -100,7 +100,7 @@ describe('SettingsControls reset button', () => {
     render(
       <TestProvider>
         <SettingsControls items={items} onChange={() => {}} />
-      </TestProvider>
+      </TestProvider>,
     );
     const resetBtn = screen.queryByRole('button', { name: 'settingsResetToDefault' });
     expect(resetBtn).toBeNull();
@@ -120,7 +120,7 @@ describe('SettingsControls reset button', () => {
     render(
       <TestProvider>
         <SettingsControls items={items} onChange={onChange} />
-      </TestProvider>
+      </TestProvider>,
     );
     const resetBtn = screen.getByRole('button', { name: 'settingsResetToDefault' });
     fireEvent.click(resetBtn);
@@ -143,7 +143,7 @@ describe('SettingsControls reset button', () => {
     render(
       <TestProvider>
         <SettingsControls items={items} onChange={onChange} />
-      </TestProvider>
+      </TestProvider>,
     );
     const resetBtn = screen.getByRole('button', { name: 'settingsResetToDefault' });
     fireEvent.click(resetBtn);

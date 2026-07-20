@@ -16,7 +16,7 @@ export function useEditorReveal(
   setEditorHint: (hint: string | undefined) => void,
   pendingRevealRef: React.MutableRefObject<{ path: string; line: number } | null>,
   setPendingReveal: (path: string, line: number) => void,
-  t: CopyDict
+  t: CopyDict,
 ) {
   const standardEditorRef = useRef<EditorRef | null>(null);
   const diffEditorRef = useRef<EditorRef | DiffEditorRef | null>(null);
@@ -81,7 +81,7 @@ export function useEditorReveal(
       setPendingReveal(relativePath, line);
       void actions.openFile(relativePath);
     },
-    [actions, setPendingReveal]
+    [actions, setPendingReveal],
   );
 
   const handleDiffMount = useCallback((editor: EditorRef | DiffEditorRef) => {

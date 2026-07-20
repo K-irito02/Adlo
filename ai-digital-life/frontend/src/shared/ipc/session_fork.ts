@@ -6,10 +6,10 @@ export type { ConversationSessionRecord, IpcResult };
 export interface SessionForkBridge {
   forkSession(
     parentSession: ConversationSessionRecord,
-    forkMessageId: string
+    forkMessageId: string,
   ): Promise<IpcResult<ConversationSessionRecord>>;
   listSessionForks(
     workspaceId: string,
-    parentSessionId: string
+    parentSessionId: string,
   ): Promise<IpcResult<ConversationSessionRecord[]>>;
 }

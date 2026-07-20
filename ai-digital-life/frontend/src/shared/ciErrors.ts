@@ -22,7 +22,7 @@ const DEFAULT_FOLDER_PREFIX = `${CI_ERROR_CODES.DEFAULT_FOLDER_NAME}:`;
  */
 export function resolveCiErrorMessage(
   message: string | null,
-  t: Record<string, string>
+  t: Record<string, string>,
 ): string | null {
   if (!message) {
     return null;

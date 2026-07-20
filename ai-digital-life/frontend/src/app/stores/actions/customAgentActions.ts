@@ -5,7 +5,7 @@ import { clearError, captureError } from '../shared';
 
 export function createCustomAgentActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     fetchCustomAgents: async (dataDir: string) => {

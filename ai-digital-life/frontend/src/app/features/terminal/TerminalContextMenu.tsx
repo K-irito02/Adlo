@@ -59,6 +59,6 @@ export const TerminalContextMenu = React.memo(function TerminalContextMenu({
         <span>{t.delete}</span>
       </button>
     </div>,
-    document.body
+    document.body,
   );
 });

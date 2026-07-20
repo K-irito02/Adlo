@@ -30,7 +30,7 @@ export const ShortcutCard = memo(function ShortcutCard({
       e.dataTransfer.setData('text/plain', site.id);
       onDragStart(e, site.id);
     },
-    [site.id, onDragStart]
+    [site.id, onDragStart],
   );
 
   const handleDragOver = useCallback(
@@ -39,7 +39,7 @@ export const ShortcutCard = memo(function ShortcutCard({
       e.dataTransfer.dropEffect = 'move';
       onDragOver(e, site.id);
     },
-    [site.id, onDragOver]
+    [site.id, onDragOver],
   );
 
   const handleDrop = useCallback(
@@ -47,7 +47,7 @@ export const ShortcutCard = memo(function ShortcutCard({
       e.preventDefault();
       onDrop(e, site.id);
     },
-    [site.id, onDrop]
+    [site.id, onDrop],
   );
 
   const handleClick = useCallback(() => onClick(site), [site, onClick]);
@@ -57,7 +57,7 @@ export const ShortcutCard = memo(function ShortcutCard({
       e.preventDefault();
       onContextMenu(e, site);
     },
-    [site, onContextMenu]
+    [site, onContextMenu],
   );
 
   return (

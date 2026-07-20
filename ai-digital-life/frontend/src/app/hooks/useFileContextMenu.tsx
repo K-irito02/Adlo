@@ -54,7 +54,7 @@ function useFileContextMenu<T extends FileTreeRenderableNode>({
       clearMenuHighlightRef.current?.();
       await useAppStore.getState().renameWorkspaceFile(path, newName);
     },
-    [renamingPath]
+    [renamingPath],
   );
 
   const handleRenameCancel = useCallback(() => {
@@ -102,7 +102,7 @@ function useFileContextMenu<T extends FileTreeRenderableNode>({
             disabled,
             action: (targetNode) => onOpenFile(targetNode.path),
           },
-          { id: 'sep0', separator: true }
+          { id: 'sep0', separator: true },
         );
       }
 
@@ -214,12 +214,12 @@ function useFileContextMenu<T extends FileTreeRenderableNode>({
             contextMenuPersistRef.current = true;
             setDeleteConfirmPath(targetNode.path);
           },
-        }
+        },
       );
 
       return items;
     },
-    [t, onOpenFile, fileOnly, isDisabled]
+    [t, onOpenFile, fileOnly, isDisabled],
   );
 
   return {

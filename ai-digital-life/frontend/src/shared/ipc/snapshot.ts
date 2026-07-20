@@ -32,7 +32,7 @@ export interface SnapshotBridge {
   revertToSnapshot(
     workspaceId: string,
     workspaceRoot: string,
-    snapshotId: string
+    snapshotId: string,
   ): Promise<IpcResult<RevertResult>>;
   pruneSnapshots(workspaceId: string, workspaceRoot: string): Promise<IpcResult<number>>;
 }

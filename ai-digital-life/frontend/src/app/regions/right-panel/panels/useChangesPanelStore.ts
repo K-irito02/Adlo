@@ -30,13 +30,13 @@ export function useChangesPanelStore() {
       setChangesTreePathExpanded: state.setChangesTreePathExpanded,
       expandChangesTreePathChain: state.expandChangesTreePathChain,
       collapseAllChangesTreePaths: state.collapseAllChangesTreePaths,
-    }))
+    })),
   );
   const workspaceChangesTreeLoading = useAppStore(
-    useShallow((state: StoreState) => state.workspaceChangesTreeLoading)
+    useShallow((state: StoreState) => state.workspaceChangesTreeLoading),
   );
   const workspaceChangesTreeErrors = useAppStore(
-    useShallow((state: StoreState) => state.workspaceChangesTreeErrors)
+    useShallow((state: StoreState) => state.workspaceChangesTreeErrors),
   );
   return {
     navigatorCollapsed,

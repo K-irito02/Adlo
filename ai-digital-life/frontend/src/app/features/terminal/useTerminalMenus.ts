@@ -40,7 +40,7 @@ export function useTerminalMenus({
       terminalTogglePin: state.terminalTogglePin,
       setDefaultTerminalProfile: state.setDefaultTerminalProfile,
       recentWorkspaces: state.recentWorkspaces,
-    }))
+    })),
   );
 
   const {
@@ -77,7 +77,7 @@ export function useTerminalMenus({
     (profile: TerminalProfile) => {
       setDefaultTerminalProfile(profile);
     },
-    [setDefaultTerminalProfile]
+    [setDefaultTerminalProfile],
   );
 
   useEffect(() => {
@@ -138,15 +138,16 @@ export function useTerminalMenus({
       { id: 'bash', label: 'Bash', profile: 'bash', action: () => updateProfile('bash') },
       { id: 'cmd', label: 'CMD', profile: 'cmd', action: () => updateProfile('cmd') },
     ],
-    [t, workspaceMenuItems, updateProfile]
+    [t, workspaceMenuItems, updateProfile],
   );
 
   const shellTypeItems = useMemo(
     () =>
-      shellMenuItems.filter((item) => 'profile' in item) as Array<
-        TerminalShellMenuItem & { label: string; profile: TerminalProfile }
-      >,
-    [shellMenuItems]
+      shellMenuItems.filter((item) => 'profile' in item) as (TerminalShellMenuItem & {
+        label: string;
+        profile: TerminalProfile;
+      })[],
+    [shellMenuItems],
   );
 
   return {

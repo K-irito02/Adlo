@@ -1,8 +1,8 @@
 //! Builds conversation blocks for an agent run.
 
 use adl_types::{
-    create_id, AgentRunDetail, ConversationBlock, ConversationScenario, PatchSet,
-    PlanConversationItem,
+    AgentRunDetail, ConversationBlock, ConversationScenario, PatchSet, PlanConversationItem,
+    create_id,
 };
 
 pub fn assistant_blocks(

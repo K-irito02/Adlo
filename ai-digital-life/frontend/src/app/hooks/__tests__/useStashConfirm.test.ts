@@ -69,7 +69,7 @@ describe('useStashConfirm', () => {
         branchName: 'new-branch',
         baseBranch: 'main',
         allowStash: false,
-      })
+      }),
     );
     expect(onConfirm).toHaveBeenCalledWith({
       kind: 'create',
@@ -86,7 +86,7 @@ describe('useStashConfirm', () => {
         branchName: 'new-branch',
         baseBranch: 'main',
         allowStash: false,
-      })
+      }),
     );
     expect(onConfirm).not.toHaveBeenCalled();
     expect(result.current.needsConfirm).toBe(true);
@@ -100,7 +100,7 @@ describe('useStashConfirm', () => {
         branchName: 'new-branch',
         baseBranch: 'main',
         allowStash: false,
-      })
+      }),
     );
     await act(async () => result.current.confirm());
     expect(onConfirm).toHaveBeenCalledWith({

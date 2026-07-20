@@ -17,7 +17,7 @@ export interface CommandSlice {
 
 export const createCommandSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): CommandSlice => ({
   commandHistory: [],
 

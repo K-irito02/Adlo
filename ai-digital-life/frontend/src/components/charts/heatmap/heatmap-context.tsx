@@ -17,7 +17,7 @@ import {
 import { cn } from '@/lib/utils';
 import type { Margin } from '../chart-context';
 import type { ChartPhase, ChartStatus } from '../chart-phase';
-import { type HeatmapLevelStyles } from './heatmap-colors';
+import type { HeatmapLevelStyles } from './heatmap-colors';
 import type { HeatmapSeparatorLayout, HeatmapWeekStartDay } from './heatmap-utils';
 
 type HeatmapTimeScale = ReturnType<typeof scaleTime<number>>;
@@ -126,7 +126,7 @@ export function HeatmapInteractionProvider({ children }: { children: ReactNode }
       setTooltipData,
       clearInteraction,
     }),
-    [clearInteraction, hoveredCell, hoveredLegendLevel, tooltipData]
+    [clearInteraction, hoveredCell, hoveredLegendLevel, tooltipData],
   );
 
   return (

@@ -4,11 +4,11 @@ import { describe, expect, it } from 'vitest';
 
 const changesPanelSource = readFileSync(
   new URL('../../../../src/app/regions/right-panel/panels/ChangesPanel.tsx', import.meta.url),
-  'utf8'
+  'utf8',
 );
 const themeCss = readFileSync(
   new URL('../../../../src/styles/themes.css', import.meta.url),
-  'utf8'
+  'utf8',
 );
 
 function extractThemeSection(css: string, marker: string, nextMarker: string | null) {
@@ -24,7 +24,7 @@ describe('changes preview highlight theming', () => {
     const lightTheme = extractThemeSection(
       themeCss,
       "[data-theme='light'] {",
-      "[data-theme='dark'] {"
+      "[data-theme='dark'] {",
     );
     const darkTheme = extractThemeSection(themeCss, "[data-theme='dark'] {", null);
 

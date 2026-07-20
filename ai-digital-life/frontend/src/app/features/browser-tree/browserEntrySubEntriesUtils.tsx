@@ -21,8 +21,8 @@ export interface BrowserEntrySubEntriesProps {
 export function getChildNodeHoverButtons(
   nodeType: string,
   categoryType: BrowserCategoryType,
-  t: CopyDict
-): Array<{ id: string; label: string; icon: React.ReactNode }> {
+  t: CopyDict,
+): { id: string; label: string; icon: React.ReactNode }[] {
   if (categoryType === 'history') {
     if (nodeType === 'day') {
       return [
@@ -48,7 +48,11 @@ export function getChildNodeHoverButtons(
         label: t.browserContextCreateTab,
         icon: <IconPlus size={12} decorative />,
       },
-      { id: 'more', label: t.browserContextMore, icon: <IconMoreVertical size={12} decorative /> },
+      {
+        id: 'more',
+        label: t.browserContextMore,
+        icon: <IconMoreVertical size={12} decorative />,
+      },
     ];
   }
 
@@ -60,14 +64,14 @@ export function getChildNodeMoreMenuItems(
   categoryType: BrowserCategoryType,
   nodePath: string,
   callbacks: SectionCallbacks,
-  t: CopyDict
-): Array<{
+  t: CopyDict,
+): {
   id: string;
   label: string;
   danger?: boolean;
   hint?: string;
   action: () => void;
-}> {
+}[] {
   if (categoryType === 'history' && nodeType === 'day') {
     return [
       {
@@ -148,14 +152,14 @@ export function getTabContextMenuItems(
   node: BrowserTreeNode,
   callbacks: SectionCallbacks,
   t: CopyDict,
-  isBookmarked: boolean
-): Array<{
+  isBookmarked: boolean,
+): {
   id: string;
   label: string;
   danger?: boolean;
   hint?: string;
   action: () => void;
-}> {
+}[] {
   return [
     {
       id: 'open-current',
@@ -229,9 +233,9 @@ export function getTabContextMenuItems(
 
 export function getTabHoverButtons(
   t: CopyDict,
-  showClose: boolean
-): Array<{ id: string; label: string; icon: React.ReactNode; isClose?: boolean }> {
-  const btns: Array<{ id: string; label: string; icon: React.ReactNode; isClose?: boolean }> = [];
+  showClose: boolean,
+): { id: string; label: string; icon: React.ReactNode; isClose?: boolean }[] {
+  const btns: { id: string; label: string; icon: React.ReactNode; isClose?: boolean }[] = [];
   if (showClose) {
     btns.push({
       id: 'close',
@@ -250,7 +254,7 @@ export function getTabHoverButtons(
       id: 'more',
       label: t.browserContextMore,
       icon: <IconMoreVertical size={12} decorative />,
-    }
+    },
   );
   return btns;
 }

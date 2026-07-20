@@ -1,4 +1,4 @@
-use crate::config::{log_file_path, session_log_path, LogConfig};
+use crate::config::{LogConfig, log_file_path, session_log_path};
 use crate::error::{LogError, LogResult};
 use crate::mode::{LogMode, LogTarget};
 use crate::session::SessionTracker;
@@ -12,7 +12,7 @@ use tokio::task::spawn_blocking;
 
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{fmt, EnvFilter, Layer, Registry};
+use tracing_subscriber::{EnvFilter, Layer, Registry, fmt};
 
 // ── CST (UTC+8) time formatter ──
 

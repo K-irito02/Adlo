@@ -69,16 +69,16 @@ export function Toast({
       <span className="adl-toast__icon" dangerouslySetInnerHTML={{ __html: iconHtml }} />
       <span className="adl-toast__message">{message}</span>
     </div>,
-    document.body
+    document.body,
   );
 }
 
 interface ToastContainerProps {
-  toasts: Array<ToastData>;
+  toasts: ToastData[];
   onRemove: (id: string) => void;
 }
 
-function computeToastPositions(toasts: Array<ToastData>): Map<string, number> {
+function computeToastPositions(toasts: ToastData[]): Map<string, number> {
   const positionMap = new Map<string, number>();
   const sourceToPosition = new Map<string, number>();
   let position = 0;

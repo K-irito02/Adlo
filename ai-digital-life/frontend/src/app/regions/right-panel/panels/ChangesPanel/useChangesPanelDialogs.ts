@@ -21,15 +21,15 @@ export function useChangesPanelDialogs() {
         setChangesRenameDialogOpen,
         () => changesClearMenuHighlightRef.current?.(),
         (path, name) => useAppStore.getState().renameWorkspaceFile(path, name),
-        newName
+        newName,
       );
     },
-    [changesRenamingPath]
+    [changesRenamingPath],
   );
 
   const onChangesRenameCancel = useCallback(() => {
     handleChangesCancel(setChangesRenamingPath, setChangesRenameDialogOpen, () =>
-      changesClearMenuHighlightRef.current?.()
+      changesClearMenuHighlightRef.current?.(),
     );
   }, []);
 
@@ -38,7 +38,7 @@ export function useChangesPanelDialogs() {
       changesDeleteConfirmPath,
       setChangesDeleteConfirmPath,
       () => changesClearMenuHighlightRef.current?.(),
-      (path) => useAppStore.getState().deleteWorkspaceFile(path)
+      (path) => useAppStore.getState().deleteWorkspaceFile(path),
     );
   }, [changesDeleteConfirmPath]);
 
@@ -46,7 +46,7 @@ export function useChangesPanelDialogs() {
     handleChangesCancel(
       setChangesDeleteConfirmPath,
       () => {},
-      () => changesClearMenuHighlightRef.current?.()
+      () => changesClearMenuHighlightRef.current?.(),
     );
   }, []);
 

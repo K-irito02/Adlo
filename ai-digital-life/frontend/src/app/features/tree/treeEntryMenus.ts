@@ -28,7 +28,7 @@ export type ChildMenuItem =
 export function useMenuCloseOnOutsideClick(
   menuOpen: boolean,
   menuId: string,
-  closeMenu: () => void
+  closeMenu: () => void,
 ): void {
   const closeMenuRef = useRef(closeMenu);
   closeMenuRef.current = closeMenu;

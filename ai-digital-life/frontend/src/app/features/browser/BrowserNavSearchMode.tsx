@@ -2,7 +2,7 @@ import { SearchResultItem } from './BrowserSearchOverlay';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 
 export interface BrowserNavSearchModeProps {
-  searchResults: Array<{ title: string; url: string; source: string }>;
+  searchResults: { title: string; url: string; source: string }[];
   onSelectResult: (url: string) => void;
 }
 

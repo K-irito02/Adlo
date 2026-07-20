@@ -31,7 +31,7 @@ const STATE_PRIORITY: ChangeFileState[] = ['conflicted', 'modified', 'staged', '
 
 function sortPaths(paths: Iterable<string>): string[] {
   return [...paths].sort((left, right) =>
-    left.localeCompare(right, undefined, { sensitivity: 'base' })
+    left.localeCompare(right, undefined, { sensitivity: 'base' }),
   );
 }
 
@@ -53,7 +53,7 @@ function fallbackStateFromPatchSummary(summary?: PatchFileSummary): ChangeFileSt
 
 export function buildChangeEntries(
   snapshot: GitSnapshot | undefined,
-  patchSummaries: PatchFileSummary[]
+  patchSummaries: PatchFileSummary[],
 ): ChangeEntry[] {
   const entries = new Map<string, ChangeEntry>();
   const upsert = (path: string, states: ChangeFileState[], patchSummary?: PatchFileSummary) => {

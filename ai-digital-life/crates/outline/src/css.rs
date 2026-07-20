@@ -1,4 +1,4 @@
-use crate::{update_brace_depth, OutlineDraft};
+use crate::{OutlineDraft, update_brace_depth};
 
 pub(crate) fn parse_css_outline(content: &str) -> Vec<OutlineDraft> {
     let mut drafts = Vec::new();

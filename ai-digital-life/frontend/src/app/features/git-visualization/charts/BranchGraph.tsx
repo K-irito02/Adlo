@@ -266,7 +266,7 @@ const SvgLanes = React.memo(function SvgLanes({
           strokeWidth={2.5}
           strokeLinecap="round"
           opacity={edgeDimmed ? 0.1 : 1}
-        />
+        />,
       );
     } else {
       const midY = (sy + ty) / 2;
@@ -279,7 +279,7 @@ const SvgLanes = React.memo(function SvgLanes({
           strokeWidth={2}
           strokeDasharray={sourceIdx > targetIdx ? '4,3' : 'none'}
           opacity={edgeDimmed ? 0.1 : 0.6}
-        />
+        />,
       );
     }
   }

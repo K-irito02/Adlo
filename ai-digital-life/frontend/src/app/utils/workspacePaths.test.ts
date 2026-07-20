@@ -11,13 +11,13 @@ describe('workspacePaths', () => {
   describe('normalizeWorkspaceRelativePath', () => {
     it('normalizes Windows backslashes to forward slashes', () => {
       expect(normalizeWorkspaceRelativePath('src\\components\\Button.tsx')).toBe(
-        'src/components/Button.tsx'
+        'src/components/Button.tsx',
       );
     });
 
     it('keeps Unix paths unchanged', () => {
       expect(normalizeWorkspaceRelativePath('src/components/Button.tsx')).toBe(
-        'src/components/Button.tsx'
+        'src/components/Button.tsx',
       );
     });
 

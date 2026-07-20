@@ -21,6 +21,6 @@ export interface RunActivityBridge {
    */
   listByRunId: (
     runId: string,
-    limit?: number
+    limit?: number,
   ) => Promise<IpcResult<DigitalLifeRunActivityEventV1[]>>;
 }

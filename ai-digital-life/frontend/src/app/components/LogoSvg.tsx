@@ -55,7 +55,7 @@ function computeAnimState(
   length: number,
   draw: number,
   hold: number,
-  total: number
+  total: number,
 ): AnimState {
   const cycleTime = elapsed % total;
   if (cycleTime < draw) {

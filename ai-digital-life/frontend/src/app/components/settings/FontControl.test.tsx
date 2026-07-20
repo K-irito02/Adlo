@@ -31,7 +31,7 @@ describe('FontControl', () => {
 
   it('renders input with placeholder based on cssVar', () => {
     render(
-      <FontControl item={mockItem} cssVar="--font-sans-custom" onChange={() => {}} t={mockT} />
+      <FontControl item={mockItem} cssVar="--font-sans-custom" onChange={() => {}} t={mockT} />,
     );
     const input = screen.getByRole('textbox') as HTMLInputElement;
     expect(input.placeholder).toBe('Inter');
@@ -39,7 +39,7 @@ describe('FontControl', () => {
 
   it('renders preview text from t.settingsFontPreview', () => {
     render(
-      <FontControl item={mockItem} cssVar="--font-sans-custom" onChange={() => {}} t={mockT} />
+      <FontControl item={mockItem} cssVar="--font-sans-custom" onChange={() => {}} t={mockT} />,
     );
     expect(screen.getByText('Preview text')).toBeDefined();
   });
@@ -47,21 +47,26 @@ describe('FontControl', () => {
   it('sets CSS variable on mount when value is non-empty', () => {
     const itemWithValue: SettingItem = { ...mockItem, value: 'Inter' };
     render(
-      <FontControl item={itemWithValue} cssVar="--font-sans-custom" onChange={() => {}} t={mockT} />
+      <FontControl
+        item={itemWithValue}
+        cssVar="--font-sans-custom"
+        onChange={() => {}}
+        t={mockT}
+      />,
     );
     expect(document.documentElement.style.getPropertyValue('--font-sans-custom')).toBe('Inter');
   });
 
   it('removes CSS variable on mount when value is empty', () => {
     render(
-      <FontControl item={mockItem} cssVar="--font-sans-custom" onChange={() => {}} t={mockT} />
+      <FontControl item={mockItem} cssVar="--font-sans-custom" onChange={() => {}} t={mockT} />,
     );
     expect(document.documentElement.style.getPropertyValue('--font-sans-custom')).toBe('');
   });
 
   it('updates CSS variable immediately on input change', () => {
     render(
-      <FontControl item={mockItem} cssVar="--font-sans-custom" onChange={() => {}} t={mockT} />
+      <FontControl item={mockItem} cssVar="--font-sans-custom" onChange={() => {}} t={mockT} />,
     );
     const input = screen.getByRole('textbox') as HTMLInputElement;
     act(() => {
@@ -73,7 +78,12 @@ describe('FontControl', () => {
   it('removes CSS variable when input becomes empty', () => {
     const itemWithValue: SettingItem = { ...mockItem, value: 'Inter' };
     render(
-      <FontControl item={itemWithValue} cssVar="--font-sans-custom" onChange={() => {}} t={mockT} />
+      <FontControl
+        item={itemWithValue}
+        cssVar="--font-sans-custom"
+        onChange={() => {}}
+        t={mockT}
+      />,
     );
     const input = screen.getByRole('textbox') as HTMLInputElement;
     act(() => {
@@ -85,7 +95,7 @@ describe('FontControl', () => {
   it('calls onChange after 500ms debounce', () => {
     const onChange = vi.fn();
     render(
-      <FontControl item={mockItem} cssVar="--font-sans-custom" onChange={onChange} t={mockT} />
+      <FontControl item={mockItem} cssVar="--font-sans-custom" onChange={onChange} t={mockT} />,
     );
     const input = screen.getByRole('textbox') as HTMLInputElement;
     act(() => {
@@ -102,7 +112,7 @@ describe('FontControl', () => {
   it('debounces multiple rapid changes to single onChange call', () => {
     const onChange = vi.fn();
     render(
-      <FontControl item={mockItem} cssVar="--font-sans-custom" onChange={onChange} t={mockT} />
+      <FontControl item={mockItem} cssVar="--font-sans-custom" onChange={onChange} t={mockT} />,
     );
     const input = screen.getByRole('textbox') as HTMLInputElement;
     act(() => {

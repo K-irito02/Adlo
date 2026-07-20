@@ -36,7 +36,7 @@ export function isCirclePattern(preset: PatternPresetId): boolean {
 
 export function patternPresetTileSize(
   preset: PatternPresetId,
-  scale = 1
+  scale = 1,
 ): { width: number; height: number; strokeWidth: number } {
   let base = { width: 6, height: 6, strokeWidth: 1 };
   if (preset === 'dots') {
@@ -66,7 +66,7 @@ function renderPatternCircles(
     background?: string;
   },
   options: PatternPresetOptions,
-  scale: number
+  scale: number,
 ) {
   const isDotGrid = preset === 'dots';
   const radius = options.radius ?? (isDotGrid ? Math.max(0.5, 1.5 * scale) : 2 * scale);
@@ -104,7 +104,7 @@ function renderPatternCircles(
 export function renderPatternPreset(
   preset: PatternPresetId,
   id: string,
-  options: PatternPresetOptions = {}
+  options: PatternPresetOptions = {},
 ): ReactNode {
   if (preset === 'none') {
     return null;

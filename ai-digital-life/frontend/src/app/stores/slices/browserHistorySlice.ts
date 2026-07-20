@@ -18,7 +18,7 @@ export interface BrowserHistorySlice {
   browserUpdateHistoryTitle: (url: string, title: string) => void;
   browserDeleteHistoryByLevel: (
     level: 'label' | 'year' | 'month' | 'day',
-    nodePath: string
+    nodePath: string,
   ) => void;
   browserDeleteHistoryEntry: (entryId: string) => void;
 }
@@ -33,7 +33,7 @@ function getDateKey(ts: number): string {
 
 export const createBrowserHistorySlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState
+  _get: () => StoreState,
 ): BrowserHistorySlice => ({
   browserHistory: [],
 
@@ -43,7 +43,7 @@ export const createBrowserHistorySlice = (
       const today = getDateKey(now);
       const dedupKey = historyDedupKey(url);
       const filteredHistory = state.browserHistory.filter(
-        (item) => !(historyDedupKey(item.url) === dedupKey && getDateKey(item.visitedAt) === today)
+        (item) => !(historyDedupKey(item.url) === dedupKey && getDateKey(item.visitedAt) === today),
       );
       const newHistoryItem: BrowserHistoryState = {
         id: createUiId('history'),
@@ -66,13 +66,13 @@ export const createBrowserHistorySlice = (
     set((state) => {
       const dedupKey = historyDedupKey(url);
       const changed = state.browserHistory.some(
-        (h) => historyDedupKey(h.url) === dedupKey && h.title !== title
+        (h) => historyDedupKey(h.url) === dedupKey && h.title !== title,
       );
       if (!changed) {
         return state;
       }
       const nextHistory = state.browserHistory.map((h) =>
-        historyDedupKey(h.url) === dedupKey ? { ...h, title } : h
+        historyDedupKey(h.url) === dedupKey ? { ...h, title } : h,
       );
       writeHistory(nextHistory);
       return { browserHistory: nextHistory };

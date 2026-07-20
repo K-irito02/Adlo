@@ -11,7 +11,7 @@ import { createLazyLoader, batchExpandAll, expandSingle } from '../shared';
  */
 export function createWorkspaceTreeActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     /**
@@ -36,7 +36,7 @@ export function createWorkspaceTreeActions(
       (g, id, message) => ({
         workspaceTreeLoading: { ...g().workspaceTreeLoading, [id]: false },
         workspaceTreeErrors: { ...g().workspaceTreeErrors, [id]: message },
-      })
+      }),
     )(set, get),
 
     /**
@@ -70,7 +70,7 @@ export function createWorkspaceTreeActions(
         workspaceId,
         (next) => set({ workspaceTreeExpandedInFileNav: next }),
         !!state.workspaceTrees[workspaceId],
-        () => get().loadWorkspaceTree(workspaceId, workspacePath)
+        () => get().loadWorkspaceTree(workspaceId, workspacePath),
       );
     },
 
@@ -125,7 +125,7 @@ export function createWorkspaceTreeActions(
             return Promise.resolve();
           }
           return get().refreshOneWorkspaceTree(asWorkspaceID(id), ws.path);
-        })
+        }),
       );
     },
 
@@ -144,7 +144,7 @@ export function createWorkspaceTreeActions(
         state.workspaceTreeExpandedInFileNav,
         (next) => set({ workspaceTreeExpandedInFileNav: next }),
         (entry) => get().loadWorkspaceTree(asWorkspaceID(entry.id), entry.path),
-        (id) => !!state.workspaceTrees[id]
+        (id) => !!state.workspaceTrees[id],
       );
     },
 

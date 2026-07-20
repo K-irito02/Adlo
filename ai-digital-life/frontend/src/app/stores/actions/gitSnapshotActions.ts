@@ -6,7 +6,7 @@ import { createLazyLoader } from '../shared';
 function moveInSnapshot(
   snapshot: GitSnapshot,
   relativePath: string,
-  operation: 'stage' | 'unstage' | 'discard'
+  operation: 'stage' | 'unstage' | 'discard',
 ): GitSnapshot {
   const capturedAt = Date.now();
   if (operation === 'stage') {
@@ -40,7 +40,7 @@ export function applyGitOperation(
   set: StoreApi<StoreState>['setState'],
   workspacePath: string | undefined,
   relativePath: string,
-  operation: 'stage' | 'unstage' | 'discard'
+  operation: 'stage' | 'unstage' | 'discard',
 ) {
   const state = get();
   const patches: Partial<StoreState> = {};
@@ -49,7 +49,7 @@ export function applyGitOperation(
   }
   if (workspacePath) {
     const ws = state.recentWorkspaces.find(
-      (w) => w.path === workspacePath || w.rootPath === workspacePath
+      (w) => w.path === workspacePath || w.rootPath === workspacePath,
     );
     if (ws && state.gitSnapshots[ws.id]) {
       patches.gitSnapshots = {
@@ -63,7 +63,7 @@ export function applyGitOperation(
 
 export function createGitSnapshotActions(
   set: StoreApi<StoreState>['setState'],
-  get: () => StoreState
+  get: () => StoreState,
 ) {
   return {
     /**
@@ -146,7 +146,7 @@ export function createGitSnapshotActions(
       (g, id, message) => ({
         workspaceChangesTreeLoading: { ...g().workspaceChangesTreeLoading, [id]: false },
         workspaceChangesTreeErrors: { ...g().workspaceChangesTreeErrors, [id]: message },
-      })
+      }),
     )(set, get),
 
     /**
