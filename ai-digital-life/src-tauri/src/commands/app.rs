@@ -1,4 +1,5 @@
 use crate::commands::ipc;
+use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_types::{
@@ -220,19 +221,27 @@ pub fn build_app_info(state: &AppState) -> Result<AppInfo, AppError> {
 pub fn write_debug_logs_to_project(
     state: tauri::State<AppState>,
     content: String,
-) -> Result<(), String> {
-    state.log_manager.write_debug_logs(&content).map_err(|e| e.to_string())
+) -> Result<IpcResult<()>, CommandError> {
+    state
+        .log_manager
+        .write_debug_logs(&content)
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok(ipc(Ok(())))
 }
 
 /// 写入调试日志到文件（委托 LogManager）
 #[tauri::command]
-pub async fn write_debug_logs(app: tauri::AppHandle, content: String) -> Result<(), String> {
+pub async fn write_debug_logs(
+    app: tauri::AppHandle,
+    content: String,
+) -> Result<IpcResult<()>, CommandError> {
     let state = app.state::<AppState>();
     let log_manager = state.log_manager.clone();
     tokio::task::spawn_blocking(move || log_manager.write_debug_logs(&content))
         .await
-        .map_err(|e| format!("spawn_blocking failed: {e}"))?
-        .map_err(|e| e.to_string())
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok(ipc(Ok(())))
 }
 
 /// 运行时切换日志模式
