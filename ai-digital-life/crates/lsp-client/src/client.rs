@@ -345,11 +345,58 @@ impl LspClient {
     }
 }
 
+fn resolve_lsp_command(program: &str, _args: &[&str]) -> Result<String, AppError> {
+    if program.contains("..") || program.contains('\n') || program.contains('\r') {
+        return Err(AppError::Security(format!(
+            "LSP command '{}' contains suspicious characters",
+            program
+        )));
+    }
+    #[cfg(windows)]
+    {
+        let output = std::process::Command::new("where")
+            .arg(program)
+            .output()
+            .map_err(|e| AppError::Io(format!("failed to resolve LSP command: {}", e)))?;
+        if output.status.success() {
+            let path = String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .next()
+                .unwrap_or(program)
+                .trim()
+                .to_string();
+            Ok(path)
+        } else {
+            Err(AppError::Io(format!(
+                "LSP command '{}' not found on system PATH",
+                program
+            )))
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let output = std::process::Command::new("which")
+            .arg(program)
+            .output()
+            .map_err(|e| AppError::Io(format!("failed to resolve LSP command: {}", e)))?;
+        if output.status.success() {
+            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            Ok(path)
+        } else {
+            Err(AppError::Io(format!(
+                "LSP command '{}' not found on system PATH",
+                program
+            )))
+        }
+    }
+}
+
 fn spawn_lsp_process(
     program: &str,
     args: &[&str],
 ) -> Result<(Child, ChildStdin, BufReader<ChildStdout>), AppError> {
-    let mut child = StdCommand::new(program)
+    let resolved = resolve_lsp_command(program, args)?;
+    let mut child = StdCommand::new(&resolved)
         .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -545,6 +592,18 @@ mod tests {
             .get_state(&LanguageServer::Custom("nonexistent-lsp-server-xyzzy".to_string()))
             .await;
         assert_eq!(state, LspClientState::Error);
+    }
+
+    #[test]
+    fn lsp_command_must_be_resolvable() {
+        let result = resolve_lsp_command("cmd.exe", &[]);
+        assert!(result.is_ok(), "system command should be resolvable");
+    }
+
+    #[test]
+    fn lsp_command_nonexistent_returns_error() {
+        let result = resolve_lsp_command("nonexistent-tool-xyz-12345", &[]);
+        assert!(result.is_err(), "nonexistent command should fail resolution");
     }
 
     #[tokio::test]
