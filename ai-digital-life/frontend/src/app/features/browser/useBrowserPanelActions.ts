@@ -19,6 +19,7 @@ export function useBrowserPanelActions(
 
   return useMemo(
     () => ({ ...handlersRef.current, browserOpenTab, toggleNavigator }),
-    [browserOpenTab, toggleNavigator],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [..._deps, browserOpenTab, toggleNavigator],
   );
 }

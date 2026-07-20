@@ -54,6 +54,8 @@ export function useBrowserPanelState(
       navigatorTitle,
     };
   }, [
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    ..._deps,
     storeValues.browserNavigatorWidth,
     storeValues.navigatorCollapsedByTool,
     storeValues.recentWorkspaces,
