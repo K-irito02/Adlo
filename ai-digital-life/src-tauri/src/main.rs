@@ -13,6 +13,8 @@ mod tauri_webview_handle;
 mod terminal;
 mod webview_event_bridge;
 
+const BROWSER_TITLE_SCRIPT: &str = include_str!("../scripts/browser-title-eval.js");
+
 fn parse_cli_log_mode() -> Option<LogMode> {
     let args: Vec<String> = std::env::args().collect();
     let mut i = 0;
@@ -83,31 +85,7 @@ fn main() {
                 for attempt in 1..=3 {
                     std::thread::sleep(std::time::Duration::from_millis(200));
                     if let Some(wv) = app.get_webview(&wv_label) {
-                        tracing::info!("browser on_page_load: calling eval");
-                        match wv.eval(
-                            r#"(function(){
-                                var attempts = 0;
-                                function tryReport() {
-                                    var t = document.title;
-                                    if (t && t.trim()) {
-                                        try {
-                                            chrome.webview.postMessage(JSON.stringify({
-                                                type: 'meta',
-                                                title: t,
-                                                favicon: '',
-                                                url: location.href
-                                            }));
-                                        } catch(e) {
-                                            try { window.open('adl-title:' + encodeURIComponent(t.trim()) + '?url=' + encodeURIComponent(location.href), '_blank'); } catch(e2) {}
-                                        }
-                                        return;
-                                    }
-                                    attempts++;
-                                    if (attempts < 10) { setTimeout(tryReport, 1000); }
-                                }
-                                setTimeout(tryReport, 200);
-                            })()"#
-                        ) {
+                        match wv.eval(BROWSER_TITLE_SCRIPT) {
                             Ok(()) => tracing::info!("browser on_page_load: eval ok"),
                             Err(e) => tracing::error!("browser on_page_load: eval failed: {e}"),
                         }

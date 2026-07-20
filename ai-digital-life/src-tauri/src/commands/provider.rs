@@ -135,6 +135,22 @@ pub async fn fetch_provider_models(
     Ok(ipc(result))
 }
 
+fn validate_provider_url(url: &str) -> Result<(), AppError> {
+    let parsed = url::Url::parse(url)
+        .map_err(|e| AppError::InvalidInput(format!("invalid provider URL: {e}")))?;
+    if parsed.scheme() != "https" {
+        return Err(AppError::InvalidInput(
+            "provider URL must use HTTPS scheme".into()
+        ));
+    }
+    if parsed.host_str().is_none() {
+        return Err(AppError::InvalidInput(
+            "provider URL must include a hostname".into()
+        ));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn add_custom_provider(
     name: String,
@@ -143,6 +159,7 @@ pub async fn add_custom_provider(
     models: Vec<String>,
     state: tauri::State<'_, crate::state::AppState>,
 ) -> CmdResult<bool> {
+    validate_provider_url(&base_url)?;
     let id = format!("custom-{}", name.to_lowercase().replace(' ', "-"));
 
     let model_defs: Vec<ModelDefinition> = models
@@ -309,5 +326,21 @@ mod tests {
         let config_str = config.to_string();
         assert!(config_str.contains("sk-super-secret-key-12345"));
         // After fix: the tracing call should only log has_api_key, not the key
+    }
+
+    #[test]
+    fn rejects_http_url() {
+        assert!(validate_provider_url("http://evil.com/v1").is_err());
+    }
+
+    #[test]
+    fn rejects_invalid_url() {
+        assert!(validate_provider_url("not-a-url").is_err());
+        assert!(validate_provider_url("").is_err());
+    }
+
+    #[test]
+    fn accepts_valid_https_url() {
+        assert!(validate_provider_url("https://api.example.com/v1").is_ok());
     }
 }
