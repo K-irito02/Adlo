@@ -121,6 +121,16 @@ async fn run_command_internal(
     }
     let started_at = now_ms();
     let mut command = if request.shell {
+        let joined = std::iter::once(request.command.as_str())
+            .chain(request.args.iter().map(String::as_str))
+            .collect::<Vec<_>>()
+            .join(" ");
+        if has_shell_metacharacters(&joined) {
+            return Err(AppError::ApprovalRequired(format!(
+                "shell command contains dangerous characters and requires explicit approval: {}",
+                request.command
+            )));
+        }
         shell_command(&request.command, &request.args)
     } else {
         let mut command = Command::new(&request.command);
@@ -159,6 +169,14 @@ async fn run_command_internal(
     })
 }
 
+/// Shell metacharacters that are dangerous when arguments are space-joined
+/// and passed to cmd /C or sh -c.
+const SHELL_METACHARS: &[char] = &[';', '|', '&', '$', '`', '<', '>', '\n', '\r', '#'];
+
+fn has_shell_metacharacters(s: &str) -> bool {
+    s.contains(SHELL_METACHARS)
+}
+
 #[cfg(windows)]
 fn shell_command_impl(command: &str, args: &[String]) -> Command {
     let mut shell = Command::new("cmd");
@@ -184,6 +202,17 @@ fn shell_command_impl(command: &str, args: &[String]) -> Command {
 }
 
 fn shell_command(command: &str, args: &[String]) -> Command {
+    let joined = std::iter::once(command)
+        .chain(args.iter().map(String::as_str))
+        .collect::<Vec<_>>()
+        .join(" ");
+    if has_shell_metacharacters(&joined) {
+        tracing::warn!(
+            command = %command,
+            args = ?args,
+            "shell command contains dangerous metacharacters — risk elevated"
+        );
+    }
     shell_command_impl(command, args)
 }
 
@@ -395,6 +424,36 @@ mod tests {
         assert!(request.is_none());
 
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn rejects_shell_injection_characters() {
+        let dangerous_chars = [';', '|', '&', '$', '`', '<', '>', '\n'];
+        for ch in dangerous_chars {
+            let args = [format!("arg1{ch}evil"), "arg2".to_string()];
+            let arg_str = args.join(" ");
+            assert!(
+                has_shell_metacharacters(&arg_str),
+                "expected dangerous char '{}' to be detected in '{}'",
+                ch,
+                arg_str
+            );
+        }
+    }
+
+    #[test]
+    fn allows_safe_shell_arguments() {
+        let safe_args = [
+            "hello".to_string(),
+            "world-123".to_string(),
+            "/path/to/file".to_string(),
+            "C:\\Users\\test".to_string(),
+        ];
+        let arg_str = safe_args.join(" ");
+        assert!(
+            !has_shell_metacharacters(&arg_str),
+            "safe arguments should not trigger shell metacharacter detection"
+        );
     }
 
     #[test]
