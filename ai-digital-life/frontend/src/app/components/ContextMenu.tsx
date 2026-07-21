@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { HINT_CLOSE_DELAY_MS } from './HintCardTrigger';
+import { renderHintCard } from '../utils/renderHintCard';
 
 export interface ContextMenuItem {
   id: string;
@@ -21,6 +23,7 @@ interface ContextMenuProps {
 export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const hintElementsRef = useRef<HTMLElement[]>([]);
+  const closeTimerRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     const handlePointer = (event: MouseEvent) => {
@@ -38,6 +41,9 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
     return () => {
       window.removeEventListener('mousedown', handlePointer);
       window.removeEventListener('keydown', handleEscape);
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+      }
       hintElementsRef.current.forEach((el) => el.remove());
       hintElementsRef.current = [];
     };
@@ -46,7 +52,27 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
   const nonSeparatorItems = items.filter((item) => !item.separator);
   const firstItemIndex = nonSeparatorItems.findIndex((item) => !item.disabled);
 
+  const hideHint = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = undefined;
+    }
+    hintElementsRef.current.forEach((el) => el.remove());
+    hintElementsRef.current = [];
+  };
+
+  const scheduleHideHint = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+    }
+    closeTimerRef.current = window.setTimeout(hideHint, HINT_CLOSE_DELAY_MS);
+  };
+
   const showHint = (e: React.MouseEvent, hintText: string) => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = undefined;
+    }
     const buttonEl = (e.target as HTMLElement).closest('button');
     const originalTitle = buttonEl?.getAttribute('title');
     if (originalTitle) {
@@ -56,33 +82,22 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
     const btnRect = buttonEl?.getBoundingClientRect();
     const menuEl = ref.current;
     const menuRect = menuEl?.getBoundingClientRect();
-    if (btnRect && menuRect) {
-      const centerY = btnRect.top + btnRect.height / 2;
-      const card = document.createElement('div');
-      card.className = 'adl-sub-hint-card';
-      card.textContent = hintText;
-      card.style.left = `${menuRect.right + 1}px`;
-      card.style.top = `${centerY}px`;
-      card.style.transform = 'translateY(-50%)';
-      const arrow = document.createElement('div');
-      arrow.className = 'adl-sub-hint-card__arrow';
-      arrow.style.left = `${menuRect.right - 4}px`;
-      arrow.style.top = `${centerY - 4}px`;
-      const arrowBorder = document.createElement('div');
-      arrowBorder.className = 'adl-sub-hint-card__arrow-border';
-      arrowBorder.style.left = `${menuRect.right - 5}px`;
-      arrowBorder.style.top = `${centerY - 5}px`;
-      document.body.appendChild(card);
-      document.body.appendChild(arrow);
-      document.body.appendChild(arrowBorder);
+    if (btnRect && menuRect && ref.current) {
       hintElementsRef.current.forEach((el) => el.remove());
-      hintElementsRef.current = [card, arrow, arrowBorder];
+      hintElementsRef.current = renderHintCard({
+        content: hintText,
+        buttonRect: btnRect,
+        menuRect,
+        containerEl: ref.current,
+        onCardMouseEnter: () => {
+          if (closeTimerRef.current) {
+            window.clearTimeout(closeTimerRef.current);
+            closeTimerRef.current = undefined;
+          }
+        },
+        onCardMouseLeave: scheduleHideHint,
+      });
     }
-  };
-
-  const hideHint = () => {
-    hintElementsRef.current.forEach((el) => el.remove());
-    hintElementsRef.current = [];
   };
 
   return createPortal(
@@ -119,7 +134,7 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
               <span
                 className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
                 onMouseEnter={(e) => showHint(e, item.hint!)}
-                onMouseLeave={hideHint}
+                onMouseLeave={scheduleHideHint}
               >
                 !
               </span>

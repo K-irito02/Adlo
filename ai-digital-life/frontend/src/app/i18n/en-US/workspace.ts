@@ -99,11 +99,11 @@ export const workspaceEn = {
   maxConcurrentWorkspaces: 'Max concurrent loading',
   maxConcurrentWorkspacesDesc:
     'Higher values speed up the priority phase but increase CPU/memory pressure. Each workspace loads 2 concurrent requests (file tree + git status). Recommended: 4-8. Note: deferred and workspace tag list phases use min(2, this value) as their concurrency cap to reduce background load',
-  priorityList: 'Priority (optional)',
+  priorityList: 'Priority',
   priorityListDesc: 'Loaded synchronously at app startup; blocks first screen until all complete',
   priorityListTooltip:
     '[Priority Loading List]\n\nTiming: Loaded synchronously at app startup; blocks first screen rendering. The app is not marked ready (appReady) until all priority workspaces finish loading\n\nConcurrency cap: maxConcurrent (user-configured, default 6)\n\nNote: The more workspaces in this list, the longer the first screen waits. Recommend only your most-used workspaces here\n\nSpecial case: If this list is empty, this phase is skipped and execution proceeds to the next phase',
-  deferredList: 'Deferred (optional)',
+  deferredList: 'Deferred',
   deferredListDesc: 'Loaded asynchronously after first screen is ready; does not block UI',
   deferredListTooltip:
     '[Deferred Loading List]\n\nTiming: Loaded asynchronously after first screen is ready (appReady); does not block UI. Users can operate the app normally during deferred loading\n\nConcurrency cap: min(2, maxConcurrent) to limit background load\n\nOrder: Begins after the priority phase completes; the workspace tag list phase begins only after this phase completes\n\nSpecial case: If this list is empty, this phase is skipped and execution proceeds to the workspace tag list phase',
@@ -118,4 +118,5 @@ export const workspaceEn = {
   moveUp: 'Move up',
   moveDown: 'Move down',
   removeWorkspace: 'Remove {name}',
+  optional: 'optional',
 } as const;

@@ -96,11 +96,11 @@ export const workspaceZh = {
   maxConcurrentWorkspaces: '最大并行加载数',
   maxConcurrentWorkspacesDesc:
     '较高的数值会加快 priority 阶段加载速度，但会增加 CPU/内存压力。每个工作区同时发起 2 个请求（文件树 + Git 状态）。建议值：4-8。注意：deferred 与工作区标签列表阶段固定使用 min(2, 此值) 作为并发上限，以降低后台负载',
-  priorityList: '优先加载（可选）',
+  priorityList: '优先加载',
   priorityListDesc: '应用程序启动时同步加载，会阻塞首屏直到全部完成',
   priorityListTooltip:
     '【优先加载列表】\n\n加载时机：应用程序启动时同步加载，会阻塞首屏渲染。所有 priority 工作区加载完成后，应用程序才会标记为就绪 (appReady)\n\n并发上限：maxConcurrent（用户配置，默认 6）\n\n注意：放入此列表的工作区越多，首屏等待时间越长。建议只放当前最常用的工作区\n\n特殊情况：若此列表为空，则跳过此阶段，直接进入下一阶段',
-  deferredList: '延迟加载（可选）',
+  deferredList: '延迟加载',
   deferredListDesc: '首屏就绪后异步加载，不阻塞界面响应',
   deferredListTooltip:
     '【延迟加载列表】\n\n加载时机：首屏就绪 (appReady) 后异步加载，不阻塞界面响应。用户可以在 deferred 加载期间正常操作应用\n\n并发上限：min(2, maxConcurrent)，限制后台负载\n\n执行顺序：在 priority 阶段完成后开始；本阶段完成后才进入工作区标签列表阶段\n\n特殊情况：若此列表为空，则跳过此阶段，直接进入工作区标签列表阶段',
@@ -114,4 +114,5 @@ export const workspaceZh = {
   moveUp: '上移',
   moveDown: '下移',
   removeWorkspace: '移除 {name}',
+  optional: '可选',
 } as const;

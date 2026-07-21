@@ -11,7 +11,7 @@ import {
 } from '@icons';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import type { FileTreeRenderableNode } from '@features/file-tree/fileTree.utils';
-import { TooltipSimple } from '../../components/Tooltip';
+import { HintCardTrigger } from '../../components/HintCardTrigger';
 
 interface BookmarkToFolderDialogProps {
   open: boolean;
@@ -303,19 +303,9 @@ export function BookmarkToFolderDialog({
               <IconFolderPlus size={14} decorative />
               <span>{t.browserCreateDir as string}</span>
             </span>
-            <TooltipSimple
-              content={
-                <>
-                  {((t.browserCreateDirHint ?? '') as string).split('\n').map((line, i) => (
-                    <div key={i}>{line}</div>
-                  ))}
-                </>
-              }
-              placement="left"
-              showArrow
-            >
+            <HintCardTrigger content={(t.browserCreateDirHint ?? '') as string}>
               <span className="adl-bookmark-dir-toolbar__btn-hint">!</span>
-            </TooltipSimple>
+            </HintCardTrigger>
           </button>
         </div>
 

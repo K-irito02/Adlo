@@ -4,6 +4,8 @@ import { FileTree } from '@features/file-tree';
 import { TooltipSimple } from '@components/Tooltip';
 import { useTCopy } from '@i18n/useTCopy';
 import { useMenuCloseOnOutsideClick } from '@features/tree/treeEntryMenus';
+import { HINT_CLOSE_DELAY_MS } from '../../components/HintCardTrigger';
+import { renderHintCard } from '../../utils/renderHintCard';
 import { BrowserFavicon } from '@components/BrowserFavicon';
 import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
 import { useAppStore } from '@stores/slicedStore';
@@ -40,57 +42,75 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     node?: BrowserTreeNode;
   } | null>(null);
 
+  const childHintElementsRef = useRef<HTMLElement[]>([]);
+  const childCloseTimerRef = useRef<number | undefined>(undefined);
+
+  const hideChildHint = useCallback(() => {
+    if (childCloseTimerRef.current) {
+      window.clearTimeout(childCloseTimerRef.current);
+      childCloseTimerRef.current = undefined;
+    }
+    childHintElementsRef.current.forEach((el) => el.remove());
+    childHintElementsRef.current = [];
+  }, []);
+
+  const scheduleHideChildHint = useCallback(() => {
+    if (childCloseTimerRef.current) {
+      window.clearTimeout(childCloseTimerRef.current);
+    }
+    childCloseTimerRef.current = window.setTimeout(hideChildHint, HINT_CLOSE_DELAY_MS);
+  }, [hideChildHint]);
+
   useMenuCloseOnOutsideClick(!!childMenuState, 'browser-child-menu', () => {
     setChildMenuState(null);
     hideChildHint();
   });
 
-  const childHintElementsRef = useRef<HTMLElement[]>([]);
-
-  const hideChildHint = useCallback(() => {
-    childHintElementsRef.current.forEach((el) => el.remove());
-    childHintElementsRef.current = [];
-  }, []);
-
-  const showChildHint = useCallback((e: React.MouseEvent, hintText: string) => {
-    const buttonEl = (e.target as HTMLElement).closest('button');
-    const menuEl = document.querySelector('[data-menu-id="browser-child-menu"]');
-    const originalTitle = buttonEl?.getAttribute('title');
-    if (originalTitle) {
-      buttonEl?.setAttribute('data-original-title', originalTitle);
-      buttonEl?.removeAttribute('title');
-    }
-    const btnRect = buttonEl?.getBoundingClientRect();
-    const menuRect = menuEl?.getBoundingClientRect();
-    if (btnRect && menuRect) {
-      const centerY = btnRect.top + btnRect.height / 2;
-      const card = document.createElement('div');
-      card.className = 'adl-sub-hint-card';
-      card.textContent = hintText;
-      card.style.left = `${menuRect.right + 1}px`;
-      card.style.top = `${centerY}px`;
-      card.style.transform = 'translateY(-50%)';
-      const arrow = document.createElement('div');
-      arrow.className = 'adl-sub-hint-card__arrow';
-      arrow.style.left = `${menuRect.right - 4}px`;
-      arrow.style.top = `${centerY - 4}px`;
-      const arrowBorder = document.createElement('div');
-      arrowBorder.className = 'adl-sub-hint-card__arrow-border';
-      arrowBorder.style.left = `${menuRect.right - 5}px`;
-      arrowBorder.style.top = `${centerY - 5}px`;
-      document.body.appendChild(card);
-      document.body.appendChild(arrow);
-      document.body.appendChild(arrowBorder);
-      childHintElementsRef.current.forEach((el) => el.remove());
-      childHintElementsRef.current = [card, arrow, arrowBorder];
-    }
-  }, []);
+  const showChildHint = useCallback(
+    (e: React.MouseEvent, hintText: string) => {
+      if (childCloseTimerRef.current) {
+        window.clearTimeout(childCloseTimerRef.current);
+        childCloseTimerRef.current = undefined;
+      }
+      const buttonEl = (e.target as HTMLElement).closest('button');
+      const menuEl = document.querySelector(
+        '[data-menu-id="browser-child-menu"]',
+      ) as HTMLElement | null;
+      const originalTitle = buttonEl?.getAttribute('title');
+      if (originalTitle) {
+        buttonEl?.setAttribute('data-original-title', originalTitle);
+        buttonEl?.removeAttribute('title');
+      }
+      const btnRect = buttonEl?.getBoundingClientRect();
+      const menuRect = menuEl?.getBoundingClientRect();
+      if (btnRect && menuRect && menuEl) {
+        childHintElementsRef.current.forEach((el) => el.remove());
+        childHintElementsRef.current = renderHintCard({
+          content: hintText,
+          buttonRect: btnRect,
+          menuRect,
+          containerEl: menuEl,
+          onCardMouseEnter: () => {
+            if (childCloseTimerRef.current) {
+              window.clearTimeout(childCloseTimerRef.current);
+              childCloseTimerRef.current = undefined;
+            }
+          },
+          onCardMouseLeave: scheduleHideChildHint,
+        });
+      }
+    },
+    [scheduleHideChildHint],
+  );
 
   useEffect(() => {
     if (!childMenuState) {
       return;
     }
     return () => {
+      if (childCloseTimerRef.current) {
+        window.clearTimeout(childCloseTimerRef.current);
+      }
       childHintElementsRef.current.forEach((el) => el.remove());
       childHintElementsRef.current = [];
     };
@@ -336,7 +356,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
                 <span
                   className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
                   onMouseEnter={(e) => showChildHint(e, item.hint!)}
-                  onMouseLeave={hideChildHint}
+                  onMouseLeave={scheduleHideChildHint}
                 >
                   !
                 </span>

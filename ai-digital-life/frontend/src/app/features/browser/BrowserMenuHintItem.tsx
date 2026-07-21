@@ -1,4 +1,6 @@
 import React, { useRef, useEffect } from 'react';
+import { HINT_CLOSE_DELAY_MS } from '../../components/HintCardTrigger';
+import { renderHintCard } from '../../utils/renderHintCard';
 
 interface BrowserMenuHintItemProps {
   id: string;
@@ -22,14 +24,29 @@ export function BrowserMenuHintItem({
   menuRef,
 }: BrowserMenuHintItemProps) {
   const hintElementsRef = useRef<HTMLElement[]>([]);
+  const closeTimerRef = useRef<number | undefined>(undefined);
 
   const hideHint = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = undefined;
+    }
     hintElementsRef.current.forEach((el) => el.remove());
     hintElementsRef.current = [];
   };
 
+  const scheduleHideHint = () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+    }
+    closeTimerRef.current = window.setTimeout(hideHint, HINT_CLOSE_DELAY_MS);
+  };
+
   useEffect(() => {
     return () => {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+      }
       hintElementsRef.current.forEach((el) => el.remove());
       hintElementsRef.current = [];
     };
@@ -37,6 +54,10 @@ export function BrowserMenuHintItem({
 
   const showHint = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = undefined;
+    }
     const button = (e.target as HTMLElement).closest('button');
     const originalTitle = button?.getAttribute('title');
     if (originalTitle) {
@@ -56,31 +77,22 @@ export function BrowserMenuHintItem({
 
     const dropdownEl = menuEl.querySelector('.adl-menu__dropdown') as HTMLElement | null;
     const anchorRect = dropdownEl?.getBoundingClientRect() ?? menuEl.getBoundingClientRect();
-    const centerY = btnRect.top + btnRect.height / 2;
-
-    const card = document.createElement('div');
-    card.className = 'adl-sub-hint-card adl-sub-hint-card--left';
-    card.textContent = hint ?? '';
-    card.style.right = `${window.innerWidth - anchorRect.left + 1}px`;
-    card.style.top = `${centerY}px`;
-    card.style.transform = 'translateY(-50%)';
-
-    const arrow = document.createElement('div');
-    arrow.className = 'adl-sub-hint-card__arrow adl-sub-hint-card__arrow--left';
-    arrow.style.left = `${anchorRect.left}px`;
-    arrow.style.top = `${centerY - 4}px`;
-
-    const arrowBorder = document.createElement('div');
-    arrowBorder.className = 'adl-sub-hint-card__arrow-border adl-sub-hint-card__arrow-border--left';
-    arrowBorder.style.left = `${anchorRect.left}px`;
-    arrowBorder.style.top = `${centerY - 5}px`;
-
-    document.body.appendChild(card);
-    document.body.appendChild(arrowBorder);
-    document.body.appendChild(arrow);
 
     hideHint();
-    hintElementsRef.current = [card, arrowBorder, arrow];
+    hintElementsRef.current = renderHintCard({
+      content: hint ?? '',
+      buttonRect: btnRect,
+      menuRect: anchorRect,
+      containerEl: menuEl,
+      direction: 'left',
+      onCardMouseEnter: () => {
+        if (closeTimerRef.current) {
+          window.clearTimeout(closeTimerRef.current);
+          closeTimerRef.current = undefined;
+        }
+      },
+      onCardMouseLeave: scheduleHideHint,
+    });
   };
 
   return (
@@ -98,7 +110,11 @@ export function BrowserMenuHintItem({
       {icon ? <span className="adl-menu__item-icon">{icon}</span> : null}
       <span>{label}</span>
       {hint ? (
-        <span className="adl-menu-item__hint" onMouseEnter={showHint} onMouseLeave={hideHint}>
+        <span
+          className="adl-menu-item__hint"
+          onMouseEnter={showHint}
+          onMouseLeave={scheduleHideHint}
+        >
           !
         </span>
       ) : null}

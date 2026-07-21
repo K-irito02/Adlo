@@ -3,13 +3,13 @@ import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
-import { TooltipSimple } from '../../components/Tooltip';
-import { IconAlertTriangle } from '../../icons/status';
+import { IconAlertCircle } from '../../icons/status';
 import { IconMenu, IconClose } from '../../icons';
 import { DndContext, pointerWithin, type CollisionDetection } from '@dnd-kit/core';
 import { useWorkspaceDnd } from './useWorkspaceDnd';
 import { SortableWorkspaceList } from './SortableWorkspaceList';
 import { DragOverlayPortal } from '../../components/drag/DragOverlayPortal';
+import { HintCardTrigger } from '../../components/HintCardTrigger';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
 
 export function WorkspaceSettings() {
@@ -163,21 +163,16 @@ export function WorkspaceSettings() {
             <div className="adl-settings-row__label">
               <div className="adl-settings-row__label-text">
                 <span>{t.maxConcurrentWorkspaces}</span>
-                <TooltipSimple
-                  content={t.maxConcurrentWorkspacesDesc}
-                  sideOffset={4}
-                  dismissible
-                  maxWidth={280}
-                >
+                <HintCardTrigger content={t.maxConcurrentWorkspacesDesc}>
                   <button
                     type="button"
                     className="adl-icon-button adl-icon-button--info"
                     tabIndex={-1}
                     aria-label=""
                   >
-                    <IconAlertTriangle size={16} />
+                    <IconAlertCircle size={16} />
                   </button>
-                </TooltipSimple>
+                </HintCardTrigger>
               </div>
             </div>
             <div className="adl-settings-row__control">
@@ -198,8 +193,8 @@ export function WorkspaceSettings() {
             <SortableWorkspaceList
               kind="priority"
               title={t.priorityList}
-              desc={t.priorityListDesc}
-              tooltipContent={t.priorityListTooltip}
+              tooltipContent={`${t.priorityListDesc}\n\n${t.priorityListTooltip}`}
+              badgeLabel={t.optional}
               items={priorityWorkspaces}
               emptyText={t.priorityListEmpty}
               onRemove={(id) => handleRemove(id, 'priority')}
@@ -209,8 +204,8 @@ export function WorkspaceSettings() {
             <SortableWorkspaceList
               kind="deferred"
               title={t.deferredList}
-              desc={t.deferredListDesc}
-              tooltipContent={t.deferredListTooltip}
+              tooltipContent={`${t.deferredListDesc}\n\n${t.deferredListTooltip}`}
+              badgeLabel={t.optional}
               items={deferredWorkspaces}
               emptyText={t.deferredListEmpty}
               onRemove={(id) => handleRemove(id, 'deferred')}
@@ -220,8 +215,7 @@ export function WorkspaceSettings() {
             <SortableWorkspaceList
               kind="natural"
               title={t.workspaceTagList}
-              desc={t.workspaceTagListDesc}
-              tooltipContent={t.workspaceTagListTooltip}
+              tooltipContent={`${t.workspaceTagListDesc}\n\n${t.workspaceTagListTooltip}`}
               items={naturalWorkspaces}
               emptyText={t.workspaceTagListEmpty}
               removeLabel={t.removeWorkspace}

@@ -2,8 +2,8 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { IconMenu, IconClose } from '../../icons';
-import { IconAlertTriangle } from '../../icons/status';
-import { TooltipSimple } from '../../components/Tooltip';
+import { IconAlertCircle } from '../../icons/status';
+import { HintCardTrigger } from '../../components/HintCardTrigger';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
 
 interface SortableItemProps {
@@ -62,8 +62,8 @@ function SortableItem({ workspace, showActions, onRemove, removeLabel }: Sortabl
 export interface SortableWorkspaceListProps {
   kind: ContainerId;
   title: string;
-  desc: string;
   tooltipContent: string;
+  badgeLabel?: string;
   items: DraggableWorkspace[];
   emptyText: string;
   onRemove?: (id: string) => void;
@@ -74,8 +74,8 @@ export interface SortableWorkspaceListProps {
 export function SortableWorkspaceList({
   kind,
   title,
-  desc,
   tooltipContent,
+  badgeLabel,
   items,
   emptyText,
   onRemove,
@@ -90,17 +90,17 @@ export function SortableWorkspaceList({
     <div className="adl-sortable-section">
       <h4 className="adl-sortable-section-title">
         <span className="adl-sortable-section-title-text">{title}</span>
-        <TooltipSimple content={tooltipContent} sideOffset={4} dismissible maxWidth={320}>
+        {badgeLabel && <span className="adl-sortable-section-badge">{badgeLabel}</span>}
+        <HintCardTrigger content={tooltipContent}>
           <button
             type="button"
             className="adl-icon-button adl-icon-button--info"
             tabIndex={-1}
             aria-label=""
           >
-            <IconAlertTriangle size={16} />
+            <IconAlertCircle size={16} />
           </button>
-        </TooltipSimple>
-        <span className="adl-sortable-section-desc">{desc}</span>
+        </HintCardTrigger>
       </h4>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className="adl-sortable-list" data-droppable={kind}>

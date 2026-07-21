@@ -49,6 +49,60 @@ function querySortableElement(id: string): Element | null {
   return document.querySelector(`[data-sortable-id="${CSS.escape(id)}"]`);
 }
 
+function findListContainerAtCursor(
+  cursor: { x: number; y: number },
+  grabOffset: { x: number; y: number },
+  sourceRect: { width: number; height: number } | null,
+): ContainerId | null {
+  const gridEl = document.querySelector('.workspace-grid');
+  if (!gridEl) {
+    return null;
+  }
+  const gridRect = gridEl.getBoundingClientRect();
+
+  // Item's bounding rect at drop time (positioned relative to cursor)
+  const itemTop = cursor.y - grabOffset.y;
+  const itemLeft = cursor.x - grabOffset.x;
+  const itemBottom = itemTop + (sourceRect?.height ?? 40);
+  const itemRight = itemLeft + (sourceRect?.width ?? 180);
+
+  // Extend the vertical sensing area from the grid's top down to the
+  // application bottom edge, so every empty area below the lists is
+  // associated with a column.
+  const areaTop = gridRect.top;
+  const areaBottom = window.innerHeight;
+
+  // Quick vertical rejection: item must intersect the sensing area
+  if (itemBottom < areaTop || itemTop > areaBottom) {
+    return null;
+  }
+
+  // Compute 3 equal column boundaries (gap matches CSS grid-gap: 12px)
+  const gap = 12;
+  const colWidth = (gridRect.width - gap * 2) / 3;
+
+  let maxOverlap = 0;
+  let bestKind: ContainerId | null = null;
+
+  for (let i = 0; i < 3; i++) {
+    const kind = ['priority', 'deferred', 'natural'][i] as ContainerId;
+    const colLeft = gridRect.left + i * (colWidth + gap);
+    const colRight = colLeft + colWidth;
+
+    // Horizontal overlap between item and this column
+    const overlapStart = Math.max(itemLeft, colLeft);
+    const overlapEnd = Math.min(itemRight, colRight);
+    const overlap = Math.max(0, overlapEnd - overlapStart);
+
+    if (overlap > maxOverlap) {
+      maxOverlap = overlap;
+      bestKind = kind;
+    }
+  }
+
+  return maxOverlap > 0 ? bestKind : null;
+}
+
 function computeMove(
   priorityIds: string[],
   deferredIds: string[],
@@ -231,13 +285,31 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
       setSourceRect(null);
       setGrabOffset({ x: 0, y: 0 });
       setCursorPosition({ x: 0, y: 0 });
-      if (!over) {
-        return;
-      }
 
       const itemId = String(active.id);
-      const overId = String(over.id);
-      if (itemId === overId) {
+
+      // Determine target container by calculating which grid column the
+      // dropped item's bounding box overlaps most with. This handles all
+      // drop-in-empty-space scenarios reliably.
+      const cursorContainer = findListContainerAtCursor(cursorRef.current, grabOffset, sourceRect);
+      let overId: string | null;
+
+      if (cursorContainer) {
+        // Use over for precise item-to-item positioning when available,
+        // otherwise append to the end of the determined container.
+        const overStr = over ? String(over.id) : '';
+        if (overStr && !isListPlaceholder(overStr) && findContainer(overStr) === cursorContainer) {
+          overId = overStr;
+        } else {
+          overId = `list-${cursorContainer}`;
+        }
+      } else if (over) {
+        overId = String(over.id);
+      } else {
+        overId = null;
+      }
+
+      if (!overId || itemId === overId) {
         return;
       }
 
@@ -252,7 +324,16 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
       );
       onChange(next);
     },
-    [priorityIds, deferredIds, naturalOrder, findContainer, onChange, computeInsertAfter],
+    [
+      priorityIds,
+      deferredIds,
+      naturalOrder,
+      findContainer,
+      onChange,
+      computeInsertAfter,
+      grabOffset,
+      sourceRect,
+    ],
   );
 
   const activeItem = activeId ? (visibleWorkspaces.find((w) => w.id === activeId) ?? null) : null;

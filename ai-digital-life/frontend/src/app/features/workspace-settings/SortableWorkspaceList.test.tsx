@@ -15,12 +15,11 @@ function renderInDnd(ui: React.ReactNode) {
 }
 
 describe('SortableWorkspaceList', () => {
-  it('renders title and description text', () => {
+  it('renders title text', () => {
     renderInDnd(
       <SortableWorkspaceList
         kind="priority"
         title="Priority"
-        desc="Loaded first"
         tooltipContent="Tooltip text"
         items={makeItems(['a'])}
         emptyText="Empty"
@@ -28,7 +27,6 @@ describe('SortableWorkspaceList', () => {
       />,
     );
     expect(screen.getByText('Priority')).toBeInTheDocument();
-    expect(screen.getByText('Loaded first')).toBeInTheDocument();
   });
 
   it('renders all item names when items are non-empty', () => {
@@ -36,7 +34,6 @@ describe('SortableWorkspaceList', () => {
       <SortableWorkspaceList
         kind="priority"
         title="P"
-        desc="d"
         tooltipContent="t"
         items={makeItems(['a', 'b', 'c'])}
         emptyText="Empty"
@@ -53,7 +50,6 @@ describe('SortableWorkspaceList', () => {
       <SortableWorkspaceList
         kind="deferred"
         title="D"
-        desc="d"
         tooltipContent="t"
         items={[]}
         emptyText="Drag here"
@@ -64,20 +60,18 @@ describe('SortableWorkspaceList', () => {
   });
 
   it('renders the "!" info button next to the title', () => {
-    renderInDnd(
+    const { container } = renderInDnd(
       <SortableWorkspaceList
         kind="priority"
         title="P"
-        desc="d"
         tooltipContent="t"
         items={[]}
         emptyText="Empty"
         removeLabel="Remove {name}"
       />,
     );
-    const infoButton = screen.getByRole('button', { name: '' });
-    expect(infoButton).toBeInTheDocument();
-    expect(infoButton.className).toContain('adl-icon-button--info');
+    const infoButton = container.querySelector('.adl-icon-button--info');
+    expect(infoButton).not.toBeNull();
   });
 
   it('renders remove button for priority list', () => {
@@ -85,7 +79,6 @@ describe('SortableWorkspaceList', () => {
       <SortableWorkspaceList
         kind="priority"
         title="P"
-        desc="d"
         tooltipContent="t"
         items={makeItems(['a'])}
         emptyText="Empty"
@@ -101,7 +94,6 @@ describe('SortableWorkspaceList', () => {
       <SortableWorkspaceList
         kind="natural"
         title="N"
-        desc="d"
         tooltipContent="t"
         items={makeItems(['a'])}
         emptyText="Empty"
@@ -117,7 +109,6 @@ describe('SortableWorkspaceList', () => {
       <SortableWorkspaceList
         kind="priority"
         title="P"
-        desc="d"
         tooltipContent="t"
         items={makeItems(['my-long-workspace-name'])}
         emptyText="Empty"
@@ -133,7 +124,6 @@ describe('SortableWorkspaceList', () => {
       <SortableWorkspaceList
         kind="priority"
         title="P"
-        desc="d"
         tooltipContent="t"
         items={[]}
         emptyText="Empty"

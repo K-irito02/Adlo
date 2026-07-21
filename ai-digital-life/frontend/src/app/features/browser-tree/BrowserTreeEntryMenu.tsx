@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from '@stores/slicedStore';
 import { handleBookmarkToggle } from './browserEntrySubEntriesUtils';
+import { HINT_CLOSE_DELAY_MS } from '../../components/HintCardTrigger';
+import { renderHintCard } from '../../utils/renderHintCard';
 import type { BrowserTreeNode } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
 import type { CopyDict } from '@i18n';
@@ -45,16 +47,32 @@ export function useBrowserTreeEntryMenu({
   t,
 }: UseBrowserTreeEntryMenuInput): BrowserTreeEntryMenuSlots {
   const hintElementsRef = useRef<HTMLElement[]>([]);
+  const closeTimerRef = useRef<number | undefined>(undefined);
 
   const hideHint = useCallback(() => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = undefined;
+    }
     hintElementsRef.current.forEach((el) => el.remove());
     hintElementsRef.current = [];
   }, []);
 
+  const scheduleHideHint = useCallback(() => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+    }
+    closeTimerRef.current = window.setTimeout(hideHint, HINT_CLOSE_DELAY_MS);
+  }, [hideHint]);
+
   const showHint = useCallback(
     (e: React.MouseEvent, hintText: string) => {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = undefined;
+      }
       const buttonEl = (e.target as HTMLElement).closest('button');
-      const menuEl = document.querySelector(`[data-menu-id="${menuId}"]`);
+      const menuEl = document.querySelector(`[data-menu-id="${menuId}"]`) as HTMLElement | null;
       const originalTitle = buttonEl?.getAttribute('title');
       if (originalTitle) {
         buttonEl?.setAttribute('data-original-title', originalTitle);
@@ -62,65 +80,62 @@ export function useBrowserTreeEntryMenu({
       }
       const btnRect = buttonEl?.getBoundingClientRect();
       const menuRect = menuEl?.getBoundingClientRect();
-      if (btnRect && menuRect) {
-        const centerY = btnRect.top + btnRect.height / 2;
-        const card = document.createElement('div');
-        card.className = 'adl-sub-hint-card';
-        card.textContent = hintText;
-        card.style.left = `${menuRect.right + 1}px`;
-        card.style.top = `${centerY}px`;
-        card.style.transform = 'translateY(-50%)';
-        const arrow = document.createElement('div');
-        arrow.className = 'adl-sub-hint-card__arrow';
-        arrow.style.left = `${menuRect.right - 4}px`;
-        arrow.style.top = `${centerY - 4}px`;
-        const arrowBorder = document.createElement('div');
-        arrowBorder.className = 'adl-sub-hint-card__arrow-border';
-        arrowBorder.style.left = `${menuRect.right - 5}px`;
-        arrowBorder.style.top = `${centerY - 5}px`;
-        document.body.appendChild(card);
-        document.body.appendChild(arrow);
-        document.body.appendChild(arrowBorder);
+      if (btnRect && menuRect && menuEl) {
         hintElementsRef.current.forEach((el) => el.remove());
-        hintElementsRef.current = [card, arrow, arrowBorder];
+        hintElementsRef.current = renderHintCard({
+          content: hintText,
+          buttonRect: btnRect,
+          menuRect,
+          containerEl: menuEl,
+          onCardMouseEnter: () => {
+            if (closeTimerRef.current) {
+              window.clearTimeout(closeTimerRef.current);
+              closeTimerRef.current = undefined;
+            }
+          },
+          onCardMouseLeave: scheduleHideHint,
+        });
       }
     },
-    [menuId],
+    [menuId, scheduleHideHint],
   );
 
-  const showTabHint = useCallback((e: React.MouseEvent, hintText: string) => {
-    const buttonEl = (e.target as HTMLElement).closest('button');
-    const menuEl = document.querySelector('[data-menu-id="browser-tab-context-menu"]');
-    const originalTitle = buttonEl?.getAttribute('title');
-    if (originalTitle) {
-      buttonEl?.setAttribute('data-original-title', originalTitle);
-      buttonEl?.removeAttribute('title');
-    }
-    const btnRect = buttonEl?.getBoundingClientRect();
-    const menuRect = menuEl?.getBoundingClientRect();
-    if (btnRect && menuRect) {
-      const centerY = btnRect.top + btnRect.height / 2;
-      const card = document.createElement('div');
-      card.className = 'adl-sub-hint-card';
-      card.textContent = hintText;
-      card.style.left = `${menuRect.right + 1}px`;
-      card.style.top = `${centerY}px`;
-      card.style.transform = 'translateY(-50%)';
-      const arrow = document.createElement('div');
-      arrow.className = 'adl-sub-hint-card__arrow';
-      arrow.style.left = `${menuRect.right - 4}px`;
-      arrow.style.top = `${centerY - 4}px`;
-      const arrowBorder = document.createElement('div');
-      arrowBorder.className = 'adl-sub-hint-card__arrow-border';
-      arrowBorder.style.left = `${menuRect.right - 5}px`;
-      arrowBorder.style.top = `${centerY - 5}px`;
-      document.body.appendChild(card);
-      document.body.appendChild(arrow);
-      document.body.appendChild(arrowBorder);
-      hintElementsRef.current.forEach((el) => el.remove());
-      hintElementsRef.current = [card, arrow, arrowBorder];
-    }
-  }, []);
+  const showTabHint = useCallback(
+    (e: React.MouseEvent, hintText: string) => {
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = undefined;
+      }
+      const buttonEl = (e.target as HTMLElement).closest('button');
+      const menuEl = document.querySelector(
+        '[data-menu-id="browser-tab-context-menu"]',
+      ) as HTMLElement | null;
+      const originalTitle = buttonEl?.getAttribute('title');
+      if (originalTitle) {
+        buttonEl?.setAttribute('data-original-title', originalTitle);
+        buttonEl?.removeAttribute('title');
+      }
+      const btnRect = buttonEl?.getBoundingClientRect();
+      const menuRect = menuEl?.getBoundingClientRect();
+      if (btnRect && menuRect && menuEl) {
+        hintElementsRef.current.forEach((el) => el.remove());
+        hintElementsRef.current = renderHintCard({
+          content: hintText,
+          buttonRect: btnRect,
+          menuRect,
+          containerEl: menuEl,
+          onCardMouseEnter: () => {
+            if (closeTimerRef.current) {
+              window.clearTimeout(closeTimerRef.current);
+              closeTimerRef.current = undefined;
+            }
+          },
+          onCardMouseLeave: scheduleHideHint,
+        });
+      }
+    },
+    [scheduleHideHint],
+  );
 
   const handleMenuItemClick = useCallback(
     (action: () => void) => () => {
@@ -159,6 +174,9 @@ export function useBrowserTreeEntryMenu({
     return () => {
       window.removeEventListener('mousedown', handler);
       window.removeEventListener('keydown', escHandler);
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+      }
       hintElementsRef.current.forEach((el) => el.remove());
       hintElementsRef.current = [];
     };
@@ -211,7 +229,7 @@ export function useBrowserTreeEntryMenu({
                   <span
                     className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
                     onMouseEnter={(e) => showHint(e, item.hint!)}
-                    onMouseLeave={hideHint}
+                    onMouseLeave={scheduleHideHint}
                   >
                     !
                   </span>
@@ -339,7 +357,7 @@ export function useBrowserTreeEntryMenu({
                 <span
                   className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
                   onMouseEnter={(e) => showTabHint(e, item.hint!)}
-                  onMouseLeave={hideHint}
+                  onMouseLeave={scheduleHideHint}
                 >
                   !
                 </span>
