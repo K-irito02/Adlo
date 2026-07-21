@@ -1,7 +1,7 @@
 # 第 38-39 轮重构执行报告
 
 **日期**：2026-06-08
-**关联报告**：[重构进度报告](../../重构洞察/REFACTORING_PROGRESS_REPORT.md)
+**关联报告**：[重构进度报告](../../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)
 **状态**：✅ 全部完成
 
 ---
@@ -162,6 +162,6 @@ frontend/src/app/features/browser/browserpanel.tsx             # +2 处 useShall
 
 ## 相关文件
 
-- [重构进度报告](../../重构洞察/REFACTORING_PROGRESS_REPORT.md)
+- [重构进度报告](../../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)
 - [实施计划](../../plans/refactoring/2026-06-08-top3-refactoring-plan.md)
 - [AGENTS.md](../../../AGENTS.md) — 项目治理规则

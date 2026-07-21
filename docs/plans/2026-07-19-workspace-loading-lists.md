@@ -17,7 +17,7 @@
 - **i18n 全覆盖**: all new UI text must use i18n keys via `useTCopy()`. No hardcoded strings.
 - **Empty state text must not end with period** (rule from `dev-rules.md`).
 - **Three-bridge consistency**: any IPC change must be reflected in `tauri-bridge` / `preview-bridge/` / `mock-bridge/`.
-- Reference spec: `docs/superpowers/specs/2026-07-19-workspace-loading-lists-design.md`
+- Reference spec: `docs/specs/2026-07-19-workspace-loading-lists-design.md`
 - **Shell environment**: Before running `cargo` commands, prepend `$env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"` in PowerShell. Before running `pnpm`/`node` commands, prepend `$env:Path = "C:\Program Files\nodejs;$env:Path"`.
 
 ---

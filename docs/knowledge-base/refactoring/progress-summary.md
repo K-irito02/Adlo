@@ -1,6 +1,6 @@
 # 重构执行总结（截至第十七轮）
 
-> 第十八轮以后详情见 [REFACTORING_PROGRESS_REPORT.md](../../重构洞察/REFACTORING_PROGRESS_REPORT.md)。
+> 第十八轮以后详情见 [REFACTORING_PROGRESS_REPORT.md](../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)。
 
 ## 范围
 

@@ -1,7 +1,7 @@
 # 第十轮重构执行报告 — 重构洞察修复
 
 **日期**：2026-05-24
-**关联报告**：[重构进度报告](../../重构洞察/REFACTORING_PROGRESS_REPORT.md)
+**关联报告**：[重构进度报告](../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)
 **状态**：✅ 全部完成
 
 ---

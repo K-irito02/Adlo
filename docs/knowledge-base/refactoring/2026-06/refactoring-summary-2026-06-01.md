@@ -124,7 +124,7 @@
 
 ## 相关文档
 
-- [重构进度报告](../../重构洞察/REFACTORING_PROGRESS_REPORT.md)
+- [重构进度报告](../../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)
 
 ---
 

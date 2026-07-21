@@ -1,7 +1,7 @@
 # 2026-06-14 重构洞察执行经验
 
 ## 来源
-文档：[REFACTORING_PROGRESS_REPORT.md](../../重构洞察/REFACTORING_PROGRESS_REPORT.md)
+文档：[REFACTORING_PROGRESS_REPORT.md](../../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)
 
 ## 本轮回合概览
 | 轮次 | 范围 | 任务数 |

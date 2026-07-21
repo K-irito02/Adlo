@@ -19,7 +19,7 @@
 - No new third-party dependencies (the spec explicitly chose native implementation)
 - Pinned / unpinned buckets stay isolated — no cross-bucket drag response
 - Animation parameters fixed: `200ms` / `cubic-bezier(0.2, 0.8, 0.2, 1)` / `opacity: 0.4` for dragged item
-- Spec reference: `docs/superpowers/specs/2026-07-19-workspace-drag-flip-animation-design.md`
+- Spec reference: `docs/specs/2026-07-19-workspace-drag-flip-animation-design.md`
 
 ---
 
@@ -1324,7 +1324,7 @@ All type signatures match across tasks.
 
 ## Execution Handoff
 
-Plan complete and saved to `docs/superpowers/plans/2026-07-19-workspace-drag-flip-animation.md`. Two execution options:
+Plan complete and saved to `docs/plans/2026-07-19-workspace-drag-flip-animation.md`. Two execution options:
 
 **1. Subagent-Driven (recommended)** — I dispatch a fresh subagent per task, review between tasks, fast iteration
 

@@ -1,6 +1,6 @@
 # 重构过程经验教训汇总
 
-> 从 [REFACTORING_PROGRESS_REPORT.md](../../重构洞察/REFACTORING_PROGRESS_REPORT.md) 中提取的经验教训，按重构轮次组织。
+> 从 [REFACTORING_PROGRESS_REPORT.md](../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md) 中提取的经验教训，按重构轮次组织。
 
 ---
 
@@ -62,4 +62,4 @@
 
 4. **`formatRelativeTime` 返回结构化类型** — 当函数返回值需要翻译时，不要返回纯字符串（给调用方一个 `string` 不知道是否需要翻译），应返回 `{ key: string; params: Record<string, number> }` 类型，调用方用 `useTCopy().t(key, params)` 显式翻译。这种模式消除了"这字符串是否已翻译"的歧义。
 
-> 完整重构进度见 [REFACTORING_PROGRESS_REPORT.md](../../重构洞察/REFACTORING_PROGRESS_REPORT.md)
+> 完整重构进度见 [REFACTORING_PROGRESS_REPORT.md](../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)

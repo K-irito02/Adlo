@@ -1,6 +1,6 @@
 # Plans — 功能实施计划
 
-本目录归档按日期组织的功能实施计划（原位于 `docs/superpowers/plans/`）。
+本目录归档按日期组织的功能实施计划，已全部从 `docs/superpowers/plans/` 迁移至此。
 
 ## 目录结构
 
@@ -23,4 +23,3 @@
 ## 相关文档
 
 - [specs/](../specs/) — 功能规格设计
-- [docs/superpowers/](../superpowers/) — 原目录（含 Superpowers 背景信息）

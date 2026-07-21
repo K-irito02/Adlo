@@ -3,7 +3,7 @@
 - **日期**: 2026-07-19
 - **状态**: Draft
 - **作者**: Brainstorming Session
-- **关联文档**: `docs/superpowers/specs/2026-07-18-workspace-concurrency-design.md`（前作设计，存在持久化缺陷，本设计修正并扩展）
+- **关联文档**: `docs/specs/2026-07-18-workspace-concurrency-design.md`（前作设计，存在持久化缺陷，本设计修正并扩展）
 
 ## 1. 背景与问题
 

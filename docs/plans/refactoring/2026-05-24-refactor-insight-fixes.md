@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust (crates/workspace/), TypeScript/React/Zustand (frontend/src/), CSS (styles/)
 
-**关联报告:** `docs/重构洞察/refactor-insight-2026-05-24.md`
+**关联报告:** `docs/refactoring-insight/report/daily-insights/2026-05/refactor-insight-2026-05-24.md`
 
 ---
 

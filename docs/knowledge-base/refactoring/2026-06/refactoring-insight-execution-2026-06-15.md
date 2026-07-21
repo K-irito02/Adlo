@@ -2,7 +2,7 @@
 
 ## 来源
 
-重构洞察报告 `docs/重构洞察/refactor-insight-2026-06-15.md`
+重构洞察报告 `docs/refactoring-insight/report/daily-insights/2026-06/refactor-insight-2026-06-15.md`
 
 ## 执行的 6 项任务
 

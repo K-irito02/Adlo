@@ -52,6 +52,6 @@ let _ = app.emit("digital-life://task-updated", ());
 4. **阈值**：1000 行（硬限制），建议保持在 500 行以下
 
 ## 参考
-- 重构洞察报告（本轮）：`docs/重构洞察/refactor-insight-2026-06-19.md`
+- 重构洞察报告（本轮）：`docs/refactoring-insight/report/daily-insights/2026-06/refactor-insight-2026-06-19.md`
 - 实施计划：`.trae/specs/refactor-insight-2026-06-19/spec.md`
 - 任务清单：`.trae/specs/refactor-insight-2026-06-19/tasks.md`

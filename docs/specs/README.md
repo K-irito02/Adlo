@@ -1,6 +1,6 @@
 # Specs — 功能规格设计
 
-本目录归档按日期组织的功能规格设计文档，原位于 `docs/superpowers/specs/`。
+本目录归档按日期组织的功能规格设计文档，已全部从 `docs/superpowers/specs/` 迁移至此。
 
 ## 目录结构
 
@@ -23,4 +23,3 @@
 ## 相关文档
 
 - [plans/](../plans/) — 功能实施计划
-- [docs/superpowers/](../superpowers/) — 原目录（含 Superpowers 背景信息）
