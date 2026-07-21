@@ -112,6 +112,22 @@ describe('SortableWorkspaceList', () => {
     expect(screen.queryByLabelText('Remove A')).not.toBeInTheDocument();
   });
 
+  it('sets title attribute on label for native tooltip', () => {
+    renderInDnd(
+      <SortableWorkspaceList
+        kind="priority"
+        title="P"
+        desc="d"
+        tooltipContent="t"
+        items={makeItems(['my-long-workspace-name'])}
+        emptyText="Empty"
+        removeLabel="Remove {name}"
+      />,
+    );
+    const label = screen.getByText('MY-LONG-WORKSPACE-NAME');
+    expect(label.getAttribute('title')).toBe('MY-LONG-WORKSPACE-NAME');
+  });
+
   it('registers the list container as droppable with data-droppable attribute', () => {
     const { container } = renderInDnd(
       <SortableWorkspaceList
