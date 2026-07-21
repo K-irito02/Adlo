@@ -151,41 +151,6 @@ export function WorkspaceSettings() {
     <div className="adl-settings-section">
       <SettingsHeader title={t.settingsWorkspaceLoad} />
 
-      <div className="adl-settings-row">
-        <div className="adl-settings-row__label">
-          <div className="adl-settings-row__label-text">
-            <span>{t.maxConcurrentWorkspaces}</span>
-            <TooltipSimple
-              content={t.maxConcurrentWorkspacesDesc}
-              sideOffset={4}
-              dismissible
-              maxWidth={280}
-            >
-              <button
-                type="button"
-                className="adl-icon-button adl-icon-button--info"
-                tabIndex={-1}
-                aria-label=""
-              >
-                <IconAlertTriangle size={16} />
-              </button>
-            </TooltipSimple>
-          </div>
-        </div>
-        <div className="adl-settings-row__control">
-          <input
-            type="number"
-            value={maxConcurrent}
-            min={1}
-            max={20}
-            onChange={(e) => handleConcurrentChange(parseInt(e.target.value, 10) || 1)}
-            className="adl-settings-input adl-settings-input--number"
-          />
-        </div>
-      </div>
-
-      <hr className="adl-settings-divider" />
-
       <DndContext
         sensors={dnd.sensors}
         collisionDetection={collisionDetection}
@@ -194,6 +159,41 @@ export function WorkspaceSettings() {
         onDragEnd={dnd.handleDragEnd}
       >
         <div className="workspace-curtain">
+          <div className="adl-settings-row">
+            <div className="adl-settings-row__label">
+              <div className="adl-settings-row__label-text">
+                <span>{t.maxConcurrentWorkspaces}</span>
+                <TooltipSimple
+                  content={t.maxConcurrentWorkspacesDesc}
+                  sideOffset={4}
+                  dismissible
+                  maxWidth={280}
+                >
+                  <button
+                    type="button"
+                    className="adl-icon-button adl-icon-button--info"
+                    tabIndex={-1}
+                    aria-label=""
+                  >
+                    <IconAlertTriangle size={16} />
+                  </button>
+                </TooltipSimple>
+              </div>
+            </div>
+            <div className="adl-settings-row__control">
+              <input
+                type="number"
+                value={maxConcurrent}
+                min={1}
+                max={20}
+                onChange={(e) => handleConcurrentChange(parseInt(e.target.value, 10) || 1)}
+                className="adl-settings-input adl-settings-input--number"
+              />
+            </div>
+          </div>
+
+          <hr className="adl-settings-divider" />
+
           <div className="workspace-grid">
             <SortableWorkspaceList
               kind="priority"

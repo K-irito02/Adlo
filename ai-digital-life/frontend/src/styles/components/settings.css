@@ -556,14 +556,14 @@
 .workspace-curtain {
   overflow: hidden;
   position: relative;
+  container-type: inline-size;
+  container-name: workspace-lists;
 }
 
 .workspace-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(80px, 1fr));
   gap: 12px;
-  container-type: inline-size;
-  container-name: workspace-lists;
 }
 
 /* Remove margin from sections when inside grid */
@@ -571,15 +571,36 @@
   margin-bottom: 0;
 }
 
+/* Section header title — single-line always */
+.adl-settings-header__title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* 🟡 Transform phase: progressive compression as panel narrows */
 
-/* 420px — hide descriptions, reduce gap */
+/* 420px — hide descriptions, reduce gap, compact row */
 @container workspace-lists (max-width: 420px) {
   .workspace-grid {
     gap: 8px;
   }
   .adl-sortable-section-desc {
     display: none;
+  }
+  .adl-sortable-section-title-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .adl-settings-row {
+    padding: var(--space-2) 0;
+  }
+  .adl-settings-row__label-text span {
+    font-size: 12px;
+  }
+  .adl-settings-input--number {
+    width: 64px;
   }
 }
 
@@ -605,10 +626,19 @@
   }
 }
 
-/* 260px — hide info tooltip buttons */
+/* 260px — hide info buttons, hide row and divider, minimal font */
 @container workspace-lists (max-width: 260px) {
   .adl-icon-button--info {
     display: none;
+  }
+  .adl-settings-row {
+    display: none;
+  }
+  .adl-settings-divider {
+    display: none;
+  }
+  .adl-sortable-section-title {
+    font-size: 11px;
   }
 }
 

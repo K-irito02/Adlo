@@ -37,7 +37,9 @@ function SortableItem({ workspace, showActions, onRemove, removeLabel }: Sortabl
       <span className="adl-sortable-handle" aria-hidden="true">
         <IconMenu size={14} />
       </span>
-      <span className="adl-sortable-label" title={workspace.name}>{workspace.name}</span>
+      <span className="adl-sortable-label" title={workspace.name}>
+        {workspace.name}
+      </span>
       {showActions && (
         <div className="adl-sortable-actions">
           <button
