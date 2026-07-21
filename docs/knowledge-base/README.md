@@ -15,6 +15,7 @@
 | [ci-monitoring](./ci-monitoring/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离、数据缓存、Rate Limit 保护） | 6 |
 | [logging](./logging/) | 日志系统统一改造经验（OpenOptions 权限、ANSI 控制、FormatTime、MakeWriter 兼容、双端一致性） | 1 |
 | [tauri-backend](./tauri-backend/) | Tauri 命令性能、Rust 异步模式、主线程阻塞等后端经验 | 1 |
+| [toolchain](./toolchain/) | 开发工具链与环境配置经验（Git、Node、Rust 等） | 1 |
 
 说明：
 - 文件数超过 15 的目录按年月分子目录归档（如 `2026-06/`、`2026-07/`）
@@ -244,3 +245,9 @@
 | 文件 | 来源 | 说明 |
 |------|------|------|
 | [log-system-lessons.md](./logging/log-system-lessons.md) | 日志系统改造 | 日志系统统一改造经验（OpenOptions 权限、ANSI 控制、FormatTime、MakeWriter 兼容、双端一致性） |
+
+### Toolchain
+
+| 文件 | 来源 | 说明 |
+|------|------|------|
+| [git-schannel-revocation-check-fix-2026-07-21.md](./toolchain/git-schannel-revocation-check-fix-2026-07-21.md) | 2026-07-21 git push 修复 | Git for Windows Schannel 证书吊销检查导致推送超时的根因与修复 |
