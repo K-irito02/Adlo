@@ -193,37 +193,41 @@ export function WorkspaceSettings() {
         onDragOver={dnd.handleDragOver}
         onDragEnd={dnd.handleDragEnd}
       >
-        <SortableWorkspaceList
-          kind="priority"
-          title={t.priorityList}
-          desc={t.priorityListDesc}
-          tooltipContent={t.priorityListTooltip}
-          items={priorityWorkspaces}
-          emptyText={t.priorityListEmpty}
-          onRemove={(id) => handleRemove(id, 'priority')}
-          removeLabel={t.removeWorkspace}
-        />
+        <div className="workspace-curtain">
+          <div className="workspace-grid">
+            <SortableWorkspaceList
+              kind="priority"
+              title={t.priorityList}
+              desc={t.priorityListDesc}
+              tooltipContent={t.priorityListTooltip}
+              items={priorityWorkspaces}
+              emptyText={t.priorityListEmpty}
+              onRemove={(id) => handleRemove(id, 'priority')}
+              removeLabel={t.removeWorkspace}
+            />
 
-        <SortableWorkspaceList
-          kind="deferred"
-          title={t.deferredList}
-          desc={t.deferredListDesc}
-          tooltipContent={t.deferredListTooltip}
-          items={deferredWorkspaces}
-          emptyText={t.deferredListEmpty}
-          onRemove={(id) => handleRemove(id, 'deferred')}
-          removeLabel={t.removeWorkspace}
-        />
+            <SortableWorkspaceList
+              kind="deferred"
+              title={t.deferredList}
+              desc={t.deferredListDesc}
+              tooltipContent={t.deferredListTooltip}
+              items={deferredWorkspaces}
+              emptyText={t.deferredListEmpty}
+              onRemove={(id) => handleRemove(id, 'deferred')}
+              removeLabel={t.removeWorkspace}
+            />
 
-        <SortableWorkspaceList
-          kind="natural"
-          title={t.workspaceTagList}
-          desc={t.workspaceTagListDesc}
-          tooltipContent={t.workspaceTagListTooltip}
-          items={naturalWorkspaces}
-          emptyText={t.workspaceTagListEmpty}
-          removeLabel={t.removeWorkspace}
-        />
+            <SortableWorkspaceList
+              kind="natural"
+              title={t.workspaceTagList}
+              desc={t.workspaceTagListDesc}
+              tooltipContent={t.workspaceTagListTooltip}
+              items={naturalWorkspaces}
+              emptyText={t.workspaceTagListEmpty}
+              removeLabel={t.removeWorkspace}
+            />
+          </div>
+        </div>
 
         <DragOverlayPortal
           visible={!!dnd.activeItem}
