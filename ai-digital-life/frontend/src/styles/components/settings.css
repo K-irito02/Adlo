@@ -550,3 +550,68 @@
   color: var(--danger);
   background: var(--surface-hover);
 }
+
+/* ========= Workspace Settings Three-Column Grid ========= */
+
+.workspace-curtain {
+  overflow: hidden;
+  position: relative;
+}
+
+.workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(80px, 1fr));
+  gap: 12px;
+  container-type: inline-size;
+  container-name: workspace-lists;
+}
+
+/* Remove margin from sections when inside grid */
+.workspace-grid > .adl-sortable-section {
+  margin-bottom: 0;
+}
+
+/* 🟡 Transform phase: progressive compression as panel narrows */
+
+/* 420px — hide descriptions, reduce gap */
+@container workspace-lists (max-width: 420px) {
+  .workspace-grid {
+    gap: 8px;
+  }
+  .adl-sortable-section-desc {
+    display: none;
+  }
+}
+
+/* 360px — reduce font sizes and item padding */
+@container workspace-lists (max-width: 360px) {
+  .adl-sortable-section-title {
+    font-size: 12px;
+  }
+  .adl-sortable-item {
+    padding: 4px 6px;
+  }
+}
+
+/* 300px — hide handles and remove buttons (show on hover), truncate names with ellipsis */
+@container workspace-lists (max-width: 300px) {
+  .adl-sortable-handle,
+  .adl-sortable-remove {
+    display: none;
+  }
+  .adl-sortable-item:hover .adl-sortable-handle,
+  .adl-sortable-item:hover .adl-sortable-remove {
+    display: inline-flex;
+  }
+}
+
+/* 260px — hide info tooltip buttons */
+@container workspace-lists (max-width: 260px) {
+  .adl-icon-button--info {
+    display: none;
+  }
+}
+
+/* 🔴 Clip phase: handled by .workspace-curtain overflow:hidden +
+   grid-template-columns: repeat(3, minmax(80px, 1fr)).
+   Below 256px (3*80 + 2*8) grid overflows → parent clips right side. */
