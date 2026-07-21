@@ -1,0 +1,14 @@
+.adl-dragging {
+  position: relative;
+  z-index: 1;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--adl-drag-border);
+}
+
+/* Pre-placement ghost: make the workspace row semi-transparent during drag,
+   while the floating DragOverlayPortal (adl-sortable-item.adl-dragging)
+   remains fully opaque. */
+.adl-dragging > .adl-workspace-row {
+  opacity: 0.4;
+  transition: opacity var(--duration-150) var(--ease-default);
+}

@@ -23,14 +23,8 @@
 
 .adl-workspace-item {
   margin-bottom: var(--space-0-5);
-  transition:
-    opacity var(--duration-150) var(--ease-default),
-    transform var(--duration-200) cubic-bezier(0.2, 0.8, 0.2, 1);
-  will-change: transform, opacity;
-}
-
-.adl-workspace-item.is-dragging {
-  opacity: 0.4;
+  transition: transform var(--duration-200) cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
 }
 
 .adl-workspace-row {

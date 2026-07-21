@@ -1,9 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
@@ -20,37 +21,129 @@ export interface UseWorkspaceDndResult {
   sensors: ReturnType<typeof useSensors>;
   activeId: string | null;
   activeItem: DraggableWorkspace | null;
+  activeContainer: ContainerId | null;
+  grabOffset: { x: number; y: number };
+  cursorPosition: { x: number; y: number };
+  sourceRect: { width: number; height: number } | null;
   handleDragStart: (e: DragStartEvent) => void;
+  handleDragOver: (e: DragOverEvent) => void;
   handleDragEnd: (e: DragEndEvent) => void;
 }
 
 const LIST_PREFIX = 'list-';
+const DRAG_ACTIVATION_DISTANCE = 4;
 
 function isListPlaceholder(id: string): boolean {
   return id.startsWith(LIST_PREFIX);
 }
 
 function parseListKind(id: string): ContainerId {
-  return id.slice(LIST_PREFIX.length) as ContainerId;
+  const kind = id.slice(LIST_PREFIX.length);
+  if (kind !== 'priority' && kind !== 'deferred' && kind !== 'natural') {
+    throw new Error(`Unknown list kind: ${kind}`);
+  }
+  return kind;
 }
 
-/**
- * Encapsulates all drag-and-drop logic for the three-list workspace settings UI.
- *
- * The `findContainer` lookup is memoized so `handleDragEnd`'s `useCallback` doesn't
- * invalidate every render (the original inline-function bug).
- *
- * Drop target detection:
- * - If `over.id` starts with `list-`, it's an empty-list placeholder → append to that list.
- * - Otherwise `over.id` is a workspace ID → find its container, insert before it.
- */
+function querySortableElement(id: string): Element | null {
+  return document.querySelector(`[data-sortable-id="${CSS.escape(id)}"]`);
+}
+
+function computeMove(
+  priorityIds: string[],
+  deferredIds: string[],
+  naturalOrder: string[],
+  itemId: string,
+  overId: string,
+  findContainer: (id: string) => ContainerId,
+  insertAfter?: boolean,
+): { priority: string[]; deferred: string[]; natural: string[] } {
+  let newPriority = [...priorityIds];
+  let newDeferred = [...deferredIds];
+  let newNatural = [...naturalOrder];
+
+  const getList = (c: ContainerId): string[] =>
+    c === 'priority' ? newPriority : c === 'deferred' ? newDeferred : newNatural;
+
+  const setList = (c: ContainerId, value: string[]) => {
+    if (c === 'priority') {
+      newPriority = value;
+    } else if (c === 'deferred') {
+      newDeferred = value;
+    } else {
+      newNatural = value;
+    }
+  };
+
+  for (const c of ['priority', 'deferred', 'natural'] as ContainerId[]) {
+    const list = getList(c);
+    const idx = list.indexOf(itemId);
+    if (idx !== -1) {
+      setList(c, [...list.slice(0, idx), ...list.slice(idx + 1)]);
+    }
+  }
+
+  const toContainer = isListPlaceholder(overId) ? parseListKind(overId) : findContainer(overId);
+  const target = getList(toContainer);
+  if (isListPlaceholder(overId)) {
+    setList(toContainer, [...target, itemId]);
+  } else {
+    const overIdx = target.indexOf(overId);
+    if (overIdx === -1) {
+      setList(toContainer, [...target, itemId]);
+    } else if (insertAfter) {
+      setList(toContainer, [...target.slice(0, overIdx + 1), itemId, ...target.slice(overIdx + 1)]);
+    } else {
+      setList(toContainer, [...target.slice(0, overIdx), itemId, ...target.slice(overIdx)]);
+    }
+  }
+
+  const prune = (list: string[], exclude: ContainerId): string[] => {
+    const others: ContainerId[] = ['priority', 'deferred', 'natural'].filter(
+      (c) => c !== exclude,
+    ) as ContainerId[];
+    const otherSets = others.map((c) => new Set(getList(c)));
+    return list.filter((id) => {
+      if (id === itemId) {
+        return exclude === toContainer;
+      }
+      return !otherSets.some((s) => s.has(id));
+    });
+  };
+
+  newPriority = prune(newPriority, 'priority');
+  newDeferred = prune(newDeferred, 'deferred');
+  newNatural = prune(newNatural, 'natural');
+
+  return { priority: newPriority, deferred: newDeferred, natural: newNatural };
+}
+
 export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResult {
   const { priorityIds, deferredIds, naturalOrder, visibleWorkspaces, onChange } = args;
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [grabOffset, setGrabOffset] = useState({ x: 0, y: 0 });
+  const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
+  const [sourceRect, setSourceRect] = useState<{ width: number; height: number } | null>(null);
+  const cursorRef = useRef({ x: 0, y: 0 });
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  // Track cursor position during drag — use ref for synchronous reads (computeInsertAfter),
+  // state for reactive overlay re-render
+  useEffect(() => {
+    if (!activeId) {
+      return;
+    }
+    const onMove = (e: PointerEvent) => {
+      cursorRef.current = { x: e.clientX, y: e.clientY };
+      setCursorPosition(cursorRef.current);
+    };
+    window.addEventListener('pointermove', onMove);
+    return () => window.removeEventListener('pointermove', onMove);
+  }, [activeId]);
 
-  // Memoized container lookup — Map<id, ContainerId>
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: DRAG_ACTIVATION_DISTANCE } }),
+  );
+
   const containerMap = useMemo(() => {
     const map = new Map<string, ContainerId>();
     for (const id of priorityIds) {
@@ -70,14 +163,37 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
     [containerMap],
   );
 
-  const handleDragStart = useCallback((e: DragStartEvent) => {
-    setActiveId(String(e.active.id));
+  const computeInsertAfter = useCallback((overId: string): boolean => {
+    if (isListPlaceholder(overId)) {
+      return false;
+    }
+    const el = querySortableElement(overId);
+    if (!el) {
+      return false;
+    }
+    const rect = el.getBoundingClientRect();
+    return cursorRef.current.y >= rect.top + rect.height / 2;
   }, []);
 
-  const handleDragEnd = useCallback(
-    (e: DragEndEvent) => {
+  const handleDragStart = useCallback((e: DragStartEvent) => {
+    const itemId = String(e.active.id);
+    setActiveId(itemId);
+    const el = querySortableElement(itemId);
+    if (el && e.activatorEvent instanceof PointerEvent) {
+      const rect = el.getBoundingClientRect();
+      setGrabOffset({
+        x: e.activatorEvent.clientX - rect.left,
+        y: e.activatorEvent.clientY - rect.top,
+      });
+      cursorRef.current = { x: e.activatorEvent.clientX, y: e.activatorEvent.clientY };
+      setCursorPosition(cursorRef.current);
+      setSourceRect({ width: rect.width, height: rect.height });
+    }
+  }, []);
+
+  const handleDragOver = useCallback(
+    (e: DragOverEvent) => {
       const { active, over } = e;
-      setActiveId(null);
       if (!over) {
         return;
       }
@@ -90,88 +206,68 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
 
       const fromContainer = findContainer(itemId);
       const toContainer = isListPlaceholder(overId) ? parseListKind(overId) : findContainer(overId);
-
-      // Build working copies
-      let newPriority = [...priorityIds];
-      let newDeferred = [...deferredIds];
-      let newNatural = [...naturalOrder];
-
-      const getList = (c: ContainerId): string[] =>
-        c === 'priority' ? newPriority : c === 'deferred' ? newDeferred : newNatural;
-
-      const setList = (c: ContainerId, value: string[]) => {
-        if (c === 'priority') {
-          newPriority = value;
-        } else if (c === 'deferred') {
-          newDeferred = value;
-        } else {
-          newNatural = value;
-        }
-      };
-
-      // Remove from source (if source is a real list — natural is "everyone else")
-      if (fromContainer !== 'natural') {
-        const src = getList(fromContainer);
-        const idx = src.indexOf(itemId);
-        if (idx !== -1) {
-          setList(fromContainer, [...src.slice(0, idx), ...src.slice(idx + 1)]);
-        }
-      } else {
-        // Remove from natural
-        const idx = newNatural.indexOf(itemId);
-        if (idx !== -1) {
-          newNatural = [...newNatural.slice(0, idx), ...newNatural.slice(idx + 1)];
-        }
+      if (fromContainer === toContainer) {
+        return;
       }
 
-      // Insert into target
-      if (isListPlaceholder(overId)) {
-        // Append to target list end
-        const target = getList(toContainer);
-        setList(toContainer, [...target, itemId]);
-      } else {
-        // Insert before over.id
-        const target = getList(toContainer);
-        const overIdx = target.indexOf(overId);
-        if (overIdx === -1) {
-          setList(toContainer, [...target, itemId]);
-        } else {
-          setList(toContainer, [...target.slice(0, overIdx), itemId, ...target.slice(overIdx)]);
-        }
-      }
-
-      // Deduplicate defensively — ensure itemId appears in exactly one list
-      const prune = (list: string[], exclude: ContainerId): string[] => {
-        const others: ContainerId[] = ['priority', 'deferred', 'natural'].filter(
-          (c) => c !== exclude,
-        ) as ContainerId[];
-        const otherSets = others.map((c) => new Set(getList(c)));
-        return list.filter((id) => {
-          // Keep id in this list only if it doesn't appear in other lists.
-          // For itemId, keep only in the target container (toContainer) so that
-          // defensive dedup of invalid input still converges to a single list.
-          if (id === itemId) {
-            return exclude === toContainer;
-          }
-          return !otherSets.some((s) => s.has(id));
-        });
-      };
-      newPriority = prune(newPriority, 'priority');
-      newDeferred = prune(newDeferred, 'deferred');
-      newNatural = prune(newNatural, 'natural');
-
-      onChange({ priority: newPriority, deferred: newDeferred, natural: newNatural });
+      const next = computeMove(
+        priorityIds,
+        deferredIds,
+        naturalOrder,
+        itemId,
+        overId,
+        findContainer,
+        computeInsertAfter(overId),
+      );
+      onChange(next);
     },
-    [priorityIds, deferredIds, naturalOrder, findContainer, onChange],
+    [priorityIds, deferredIds, naturalOrder, findContainer, onChange, computeInsertAfter],
+  );
+
+  const handleDragEnd = useCallback(
+    (e: DragEndEvent) => {
+      const { active, over } = e;
+      setActiveId(null);
+      setSourceRect(null);
+      setGrabOffset({ x: 0, y: 0 });
+      setCursorPosition({ x: 0, y: 0 });
+      if (!over) {
+        return;
+      }
+
+      const itemId = String(active.id);
+      const overId = String(over.id);
+      if (itemId === overId) {
+        return;
+      }
+
+      const next = computeMove(
+        priorityIds,
+        deferredIds,
+        naturalOrder,
+        itemId,
+        overId,
+        findContainer,
+        computeInsertAfter(overId),
+      );
+      onChange(next);
+    },
+    [priorityIds, deferredIds, naturalOrder, findContainer, onChange, computeInsertAfter],
   );
 
   const activeItem = activeId ? (visibleWorkspaces.find((w) => w.id === activeId) ?? null) : null;
+  const activeContainer = activeId ? findContainer(activeId) : null;
 
   return {
     sensors,
     activeId,
     activeItem,
+    activeContainer,
+    grabOffset,
+    cursorPosition,
+    sourceRect,
     handleDragStart,
+    handleDragOver,
     handleDragEnd,
   };
 }

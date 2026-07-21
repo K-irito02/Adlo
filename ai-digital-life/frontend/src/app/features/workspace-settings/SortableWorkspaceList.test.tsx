@@ -24,8 +24,6 @@ describe('SortableWorkspaceList', () => {
         tooltipContent="Tooltip text"
         items={makeItems(['a'])}
         emptyText="Empty"
-        moveUpLabel="Move up"
-        moveDownLabel="Move down"
         removeLabel="Remove {name}"
       />,
     );
@@ -42,8 +40,6 @@ describe('SortableWorkspaceList', () => {
         tooltipContent="t"
         items={makeItems(['a', 'b', 'c'])}
         emptyText="Empty"
-        moveUpLabel="Move up"
-        moveDownLabel="Move down"
         removeLabel="Remove {name}"
       />,
     );
@@ -61,8 +57,6 @@ describe('SortableWorkspaceList', () => {
         tooltipContent="t"
         items={[]}
         emptyText="Drag here"
-        moveUpLabel="Move up"
-        moveDownLabel="Move down"
         removeLabel="Remove {name}"
       />,
     );
@@ -78,8 +72,6 @@ describe('SortableWorkspaceList', () => {
         tooltipContent="t"
         items={[]}
         emptyText="Empty"
-        moveUpLabel="Move up"
-        moveDownLabel="Move down"
         removeLabel="Remove {name}"
       />,
     );
@@ -88,7 +80,7 @@ describe('SortableWorkspaceList', () => {
     expect(infoButton.className).toContain('adl-icon-button--info');
   });
 
-  it('renders action buttons (up/down/remove) for priority list', () => {
+  it('renders remove button for priority list', () => {
     renderInDnd(
       <SortableWorkspaceList
         kind="priority"
@@ -97,20 +89,14 @@ describe('SortableWorkspaceList', () => {
         tooltipContent="t"
         items={makeItems(['a'])}
         emptyText="Empty"
-        onMoveUp={() => {}}
-        onMoveDown={() => {}}
         onRemove={() => {}}
-        moveUpLabel="Move up"
-        moveDownLabel="Move down"
         removeLabel="Remove {name}"
       />,
     );
-    expect(screen.getByLabelText('Move up')).toBeInTheDocument();
-    expect(screen.getByLabelText('Move down')).toBeInTheDocument();
     expect(screen.getByLabelText('Remove A')).toBeInTheDocument();
   });
 
-  it('does not render action buttons for natural list', () => {
+  it('does not render remove button for natural list', () => {
     renderInDnd(
       <SortableWorkspaceList
         kind="natural"
@@ -119,16 +105,10 @@ describe('SortableWorkspaceList', () => {
         tooltipContent="t"
         items={makeItems(['a'])}
         emptyText="Empty"
-        onMoveUp={() => {}}
-        onMoveDown={() => {}}
         onRemove={() => {}}
-        moveUpLabel="Move up"
-        moveDownLabel="Move down"
         removeLabel="Remove {name}"
       />,
     );
-    expect(screen.queryByLabelText('Move up')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Move down')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Remove A')).not.toBeInTheDocument();
   });
 
@@ -141,57 +121,10 @@ describe('SortableWorkspaceList', () => {
         tooltipContent="t"
         items={[]}
         emptyText="Empty"
-        moveUpLabel="Move up"
-        moveDownLabel="Move down"
         removeLabel="Remove {name}"
       />,
     );
-    // The droppable list container should be marked
     const droppable = container.querySelector('[data-droppable="priority"]');
     expect(droppable).not.toBeNull();
-  });
-
-  it('disables move up button for first item', () => {
-    renderInDnd(
-      <SortableWorkspaceList
-        kind="priority"
-        title="P"
-        desc="d"
-        tooltipContent="t"
-        items={makeItems(['a', 'b'])}
-        emptyText="Empty"
-        onMoveUp={() => {}}
-        onMoveDown={() => {}}
-        onRemove={() => {}}
-        moveUpLabel="Move up"
-        moveDownLabel="Move down"
-        removeLabel="Remove {name}"
-      />,
-    );
-    const buttons = screen.getAllByLabelText('Move up');
-    expect(buttons[0]).toBeDisabled();
-    expect(buttons[1]).not.toBeDisabled();
-  });
-
-  it('disables move down button for last item', () => {
-    renderInDnd(
-      <SortableWorkspaceList
-        kind="priority"
-        title="P"
-        desc="d"
-        tooltipContent="t"
-        items={makeItems(['a', 'b'])}
-        emptyText="Empty"
-        onMoveUp={() => {}}
-        onMoveDown={() => {}}
-        onRemove={() => {}}
-        moveUpLabel="Move up"
-        moveDownLabel="Move down"
-        removeLabel="Remove {name}"
-      />,
-    );
-    const buttons = screen.getAllByLabelText('Move down');
-    expect(buttons[0]).not.toBeDisabled();
-    expect(buttons[1]).toBeDisabled();
   });
 });

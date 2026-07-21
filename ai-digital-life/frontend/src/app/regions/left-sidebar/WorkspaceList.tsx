@@ -16,6 +16,7 @@ import { WorkspaceDirectoryIcon, StatusLamp } from './SidebarContextMenu';
 import { useTCopy } from '../../i18n/useTCopy';
 import { useWorkspaceDrag } from './useWorkspaceDrag';
 import { useWorkspacePin } from './useWorkspacePin';
+import { DragOverlayPortal } from '../../components/drag/DragOverlayPortal';
 
 export interface WorkspaceListProps {
   workspaceItems: SidebarWorkspaceItem[];
@@ -59,10 +60,8 @@ export function WorkspaceList({
   const { t } = useTCopy();
   const [archiveOpen, setArchiveOpen] = useState(false);
 
-  const { draggedItemId, localOrder, handleDragStart } = useWorkspaceDrag(
-    workspaceItems,
-    onReorderWorkspaces,
-  );
+  const { isDragging, draggedItemId, localOrder, handleDragStart, cursorPosition } =
+    useWorkspaceDrag(workspaceItems, onReorderWorkspaces);
   const { handleTogglePin } = useWorkspacePin(workspaceItems, onPinWorkspace, onUnpinWorkspace);
 
   return (
@@ -139,12 +138,12 @@ export function WorkspaceList({
           return orderedItems.map((item) => {
             const expanded = expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent;
             const workspaceStatusLabel = t[STATUS_LABEL[item.rollupStatus]] as string;
-            const isDragging = draggedItemId === item.workspace.id;
+            const isItemDragging = draggedItemId === item.workspace.id;
 
             return (
               <li
                 key={item.workspace.id}
-                className={`adl-workspace-item${item.isCurrent ? ' is-current' : ''}${isDragging ? ' is-dragging' : ''}`}
+                className={`adl-workspace-item${item.isCurrent ? ' is-current' : ''}${isItemDragging ? ' adl-dragging' : ''}`}
                 data-ws-id={item.workspace.id}
               >
                 <div
@@ -318,6 +317,14 @@ export function WorkspaceList({
           });
         })()}
       </ul>
+
+      <DragOverlayPortal visible={isDragging} position={cursorPosition}>
+        {draggedItemId ? (
+          <span className="adl-sortable-label">
+            {workspaceItems.find((w) => w.workspace.id === draggedItemId)?.workspace.name ?? ''}
+          </span>
+        ) : null}
+      </DragOverlayPortal>
     </section>
   );
 }

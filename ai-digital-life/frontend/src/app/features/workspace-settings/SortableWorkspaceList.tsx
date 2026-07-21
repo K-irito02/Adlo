@@ -10,73 +10,43 @@ interface SortableItemProps {
   workspace: DraggableWorkspace;
   showActions: boolean;
   onRemove?: (id: string) => void;
-  onMoveUp?: (id: string) => void;
-  onMoveDown?: (id: string) => void;
-  isFirst: boolean;
-  isLast: boolean;
-  moveUpLabel: string;
-  moveDownLabel: string;
   removeLabel: string;
 }
 
-function SortableItem({
-  workspace,
-  showActions,
-  onRemove,
-  onMoveUp,
-  onMoveDown,
-  isFirst,
-  isLast,
-  moveUpLabel,
-  moveDownLabel,
-  removeLabel,
-}: SortableItemProps) {
+function SortableItem({ workspace, showActions, onRemove, removeLabel }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: workspace.id,
   });
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
+    opacity: isDragging ? 0 : 1,
+    transition: isDragging ? undefined : transition,
+    pointerEvents: isDragging ? ('none' as const) : undefined,
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="adl-sortable-item">
-      <button type="button" className="adl-sortable-handle" {...attributes} {...listeners}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="adl-sortable-item"
+      data-sortable-id={workspace.id}
+      {...attributes}
+      {...listeners}
+    >
+      <span className="adl-sortable-handle" aria-hidden="true">
         <IconMenu size={14} />
-      </button>
+      </span>
       <span className="adl-sortable-label">{workspace.name}</span>
       {showActions && (
         <div className="adl-sortable-actions">
           <button
             type="button"
-            className="adl-sortable-move"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMoveUp?.(workspace.id);
-            }}
-            disabled={isFirst}
-            aria-label={moveUpLabel}
-          >
-            ↑
-          </button>
-          <button
-            type="button"
-            className="adl-sortable-move"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMoveDown?.(workspace.id);
-            }}
-            disabled={isLast}
-            aria-label={moveDownLabel}
-          >
-            ↓
-          </button>
-          <button
-            type="button"
             className="adl-sortable-remove"
-            onClick={() => onRemove?.(workspace.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove?.(workspace.id);
+            }}
             aria-label={removeLabel.replace('{name}', workspace.name)}
           >
             <IconClose size={14} />
@@ -95,11 +65,7 @@ export interface SortableWorkspaceListProps {
   items: DraggableWorkspace[];
   emptyText: string;
   onRemove?: (id: string) => void;
-  onMoveUp?: (id: string) => void;
-  onMoveDown?: (id: string) => void;
   /** i18n labels passed from parent to avoid duplicate useTCopy calls */
-  moveUpLabel: string;
-  moveDownLabel: string;
   removeLabel: string;
 }
 
@@ -111,10 +77,6 @@ export function SortableWorkspaceList({
   items,
   emptyText,
   onRemove,
-  onMoveUp,
-  onMoveDown,
-  moveUpLabel,
-  moveDownLabel,
   removeLabel,
 }: SortableWorkspaceListProps) {
   const { setNodeRef } = useDroppable({ id: `list-${kind}` });
@@ -143,18 +105,12 @@ export function SortableWorkspaceList({
           {items.length === 0 ? (
             <div className="adl-sortable-empty">{emptyText}</div>
           ) : (
-            items.map((w, i) => (
+            items.map((w) => (
               <SortableItem
                 key={w.id}
                 workspace={w}
                 showActions={showActions}
                 onRemove={onRemove}
-                onMoveUp={onMoveUp}
-                onMoveDown={onMoveDown}
-                isFirst={i === 0}
-                isLast={i === items.length - 1}
-                moveUpLabel={moveUpLabel}
-                moveDownLabel={moveDownLabel}
                 removeLabel={removeLabel}
               />
             ))

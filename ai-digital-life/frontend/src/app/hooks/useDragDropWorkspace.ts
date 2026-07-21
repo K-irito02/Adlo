@@ -75,7 +75,7 @@ export function useDragDropWorkspace(actions: {
       for (const item of items) {
         const entry = item.webkitGetAsEntry?.();
         if (entry && entry.isDirectory) {
-          const file = items[i].getAsFile();
+          const file = item.getAsFile();
           if (file) {
             const path = (file as File & { path?: string }).path;
             if (path) {

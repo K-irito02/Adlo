@@ -15,6 +15,7 @@ export interface WorkspaceDragResult {
   isDragging: boolean;
   draggedItemId: string | null;
   localOrder: string[];
+  cursorPosition: { x: number; y: number };
   handleDragStart: (event: React.MouseEvent, wsId: string, isPinned: boolean) => void;
 }
 
@@ -23,6 +24,7 @@ export function useWorkspaceDrag(
   onReorderWorkspaces: (input: ReorderWorkspacesInput) => void,
 ): WorkspaceDragResult {
   const [dragActiveId, setDragActiveId] = useState<string | null>(null);
+  const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
   const dragSessionRef = useRef<DragSession | null>(null);
   const targetIdRef = useRef<string | null>(null);
   const targetPosRef = useRef<'before' | 'after'>('after');
@@ -88,6 +90,8 @@ export function useWorkspaceDrag(
         session.isDragging = true;
         setDragActiveId(session.draggedId);
       }
+
+      setCursorPosition({ x: e.clientX, y: e.clientY });
 
       const ul = document.querySelector('.adl-workspace-list');
       if (!ul) {
@@ -264,13 +268,11 @@ export function useWorkspaceDrag(
     };
 
     document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('pointerup', handleMouseUp);
     window.addEventListener('pointercancel', handleBlur);
     window.addEventListener('blur', handleBlur);
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('pointerup', handleMouseUp);
       window.removeEventListener('pointercancel', handleBlur);
       window.removeEventListener('blur', handleBlur);
@@ -298,6 +300,7 @@ export function useWorkspaceDrag(
     isDragging: dragActiveId !== null,
     draggedItemId: dragActiveId,
     localOrder,
+    cursorPosition,
     handleDragStart,
   };
 }

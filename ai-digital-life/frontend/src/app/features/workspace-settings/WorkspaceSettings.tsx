@@ -5,9 +5,11 @@ import { useTCopy } from '../../i18n/useTCopy';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { TooltipSimple } from '../../components/Tooltip';
 import { IconAlertTriangle } from '../../icons/status';
-import { DndContext, DragOverlay, closestCorners } from '@dnd-kit/core';
+import { IconMenu, IconClose } from '../../icons';
+import { DndContext, pointerWithin, type CollisionDetection } from '@dnd-kit/core';
 import { useWorkspaceDnd } from './useWorkspaceDnd';
 import { SortableWorkspaceList } from './SortableWorkspaceList';
+import { DragOverlayPortal } from '../../components/drag/DragOverlayPortal';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
 
 export function WorkspaceSettings() {
@@ -129,42 +131,6 @@ export function WorkspaceSettings() {
     [priorityIds, deferredIds, naturalOrder, maxConcurrent, persistChanges],
   );
 
-  const handleMoveUp = useCallback(
-    (id: string, list: 'priority' | 'deferred') => {
-      const ids = list === 'priority' ? [...priorityIds] : [...deferredIds];
-      const idx = ids.indexOf(id);
-      if (idx > 0) {
-        [ids[idx - 1], ids[idx]] = [ids[idx], ids[idx - 1]];
-        if (list === 'priority') {
-          setPriorityIds(ids);
-          persistChanges(maxConcurrent, ids, deferredIds, naturalOrder);
-        } else {
-          setDeferredIds(ids);
-          persistChanges(maxConcurrent, priorityIds, ids, naturalOrder);
-        }
-      }
-    },
-    [priorityIds, deferredIds, naturalOrder, maxConcurrent, persistChanges],
-  );
-
-  const handleMoveDown = useCallback(
-    (id: string, list: 'priority' | 'deferred') => {
-      const ids = list === 'priority' ? [...priorityIds] : [...deferredIds];
-      const idx = ids.indexOf(id);
-      if (idx < ids.length - 1) {
-        [ids[idx], ids[idx + 1]] = [ids[idx + 1], ids[idx]];
-        if (list === 'priority') {
-          setPriorityIds(ids);
-          persistChanges(maxConcurrent, ids, deferredIds, naturalOrder);
-        } else {
-          setDeferredIds(ids);
-          persistChanges(maxConcurrent, priorityIds, ids, naturalOrder);
-        }
-      }
-    },
-    [priorityIds, deferredIds, naturalOrder, maxConcurrent, persistChanges],
-  );
-
   useEffect(() => {
     return () => {
       if (debounceRef.current) {
@@ -172,6 +138,14 @@ export function WorkspaceSettings() {
       }
     };
   }, []);
+
+  // Prefer sortable items over container droppables for accurate in-list
+  // insertion; falls back to container (e.g. empty list → append).
+  const collisionDetection: CollisionDetection = (args) => {
+    const pointerCollisions = pointerWithin(args);
+    const itemCollisions = pointerCollisions.filter((c) => !String(c.id).startsWith('list-'));
+    return itemCollisions.length > 0 ? itemCollisions : pointerCollisions;
+  };
 
   return (
     <div className="adl-settings-section">
@@ -214,8 +188,9 @@ export function WorkspaceSettings() {
 
       <DndContext
         sensors={dnd.sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={collisionDetection}
         onDragStart={dnd.handleDragStart}
+        onDragOver={dnd.handleDragOver}
         onDragEnd={dnd.handleDragEnd}
       >
         <SortableWorkspaceList
@@ -226,10 +201,6 @@ export function WorkspaceSettings() {
           items={priorityWorkspaces}
           emptyText={t.priorityListEmpty}
           onRemove={(id) => handleRemove(id, 'priority')}
-          onMoveUp={(id) => handleMoveUp(id, 'priority')}
-          onMoveDown={(id) => handleMoveDown(id, 'priority')}
-          moveUpLabel={t.moveUp}
-          moveDownLabel={t.moveDown}
           removeLabel={t.removeWorkspace}
         />
 
@@ -241,10 +212,6 @@ export function WorkspaceSettings() {
           items={deferredWorkspaces}
           emptyText={t.deferredListEmpty}
           onRemove={(id) => handleRemove(id, 'deferred')}
-          onMoveUp={(id) => handleMoveUp(id, 'deferred')}
-          onMoveDown={(id) => handleMoveDown(id, 'deferred')}
-          moveUpLabel={t.moveUp}
-          moveDownLabel={t.moveDown}
           removeLabel={t.removeWorkspace}
         />
 
@@ -255,14 +222,35 @@ export function WorkspaceSettings() {
           tooltipContent={t.workspaceTagListTooltip}
           items={naturalWorkspaces}
           emptyText={t.workspaceTagListEmpty}
-          moveUpLabel={t.moveUp}
-          moveDownLabel={t.moveDown}
           removeLabel={t.removeWorkspace}
         />
 
-        <DragOverlay>
-          {dnd.activeItem ? <div className="adl-drag-overlay">{dnd.activeItem.name}</div> : null}
-        </DragOverlay>
+        <DragOverlayPortal
+          visible={!!dnd.activeItem}
+          position={{
+            x: dnd.cursorPosition.x - dnd.grabOffset.x,
+            y: dnd.cursorPosition.y - dnd.grabOffset.y,
+          }}
+          centered={false}
+          width={dnd.sourceRect?.width}
+          height={dnd.sourceRect?.height}
+        >
+          {dnd.activeItem ? (
+            <>
+              <span className="adl-sortable-handle">
+                <IconMenu size={14} />
+              </span>
+              <span className="adl-sortable-label">{dnd.activeItem.name}</span>
+              {dnd.activeContainer !== 'natural' && (
+                <div className="adl-sortable-actions" aria-hidden="true">
+                  <span className="adl-sortable-remove" style={{ visibility: 'hidden' }}>
+                    <IconClose size={14} />
+                  </span>
+                </div>
+              )}
+            </>
+          ) : null}
+        </DragOverlayPortal>
       </DndContext>
     </div>
   );

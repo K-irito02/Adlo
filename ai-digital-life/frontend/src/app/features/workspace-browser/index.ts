@@ -1,2 +1,2 @@
-export { MultiWorkspaceBrowser } from './MultiWorkspaceBrowser';
-export type { MultiWorkspaceBrowserProps } from './MultiWorkspaceBrowser';
+export { MultiWorkspaceBrowser } from './multiworkspacebrowser';
+export type { MultiWorkspaceBrowserProps } from './multiworkspacebrowser';
