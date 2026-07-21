@@ -75,12 +75,12 @@ function createMdInstance(): MarkdownIt {
 
 export function renderMarkdownPreviewHtml(
   content: string,
-  theme: 'light' | 'dark' = 'dark',
+  _theme: 'light' | 'dark' = 'dark',
 ): string {
   return createMdInstance().render(content);
 }
 
-export function useMarkdownPreviewHtml(content: string, theme: 'light' | 'dark'): string {
+export function useMarkdownPreviewHtml(content: string, _theme: 'light' | 'dark'): string {
   const md = useMemo(() => createMdInstance(), []);
   return useMemo(() => md.render(content), [content, md]);
 }
