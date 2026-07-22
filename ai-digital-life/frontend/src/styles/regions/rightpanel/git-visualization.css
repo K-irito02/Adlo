@@ -218,90 +218,90 @@
 
 /* ── Preset: bklit-default ── */
 .adl-git-vis__container[data-chart-preset="bklit-default"] {
-  --chart-scale-01: oklch(0.98 0.003 106);
-  --chart-scale-02: oklch(0.92 0.008 106);
-  --chart-scale-03: oklch(0.82 0.015 106);
-  --chart-scale-04: oklch(0.68 0.02 106);
-  --chart-scale-05: oklch(0.55 0.025 106);
-  --chart-1: oklch(0.32 0 none);
-  --chart-2: oklch(0.41 0 none);
-  --chart-3: oklch(0.54 0 none);
-  --chart-4: oklch(0.71 0 none);
-  --chart-5: oklch(0.89 0 none);
+  --chart-scale-01: oklch(0.97 0.008 145);
+  --chart-scale-02: oklch(0.88 0.03 145);
+  --chart-scale-03: oklch(0.72 0.06 145);
+  --chart-scale-04: oklch(0.52 0.08 145);
+  --chart-scale-05: oklch(0.32 0.1 145);
+  --chart-1: oklch(0.45 0.14 265);
+  --chart-2: oklch(0.5 0.13 35);
+  --chart-3: oklch(0.42 0.11 170);
+  --chart-4: oklch(0.48 0.1 330);
+  --chart-5: oklch(0.52 0.09 80);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
 [data-theme='dark'] .adl-git-vis__container[data-chart-preset="bklit-default"] {
-  --chart-scale-01: oklch(0.28 0.03 270);
-  --chart-scale-02: oklch(0.38 0.04 270);
-  --chart-scale-03: oklch(0.48 0.05 270);
-  --chart-scale-04: oklch(0.58 0.06 270);
-  --chart-scale-05: oklch(0.68 0.07 270);
-  --chart-1: oklch(1 0 none);
-  --chart-2: oklch(0.73 0 none);
-  --chart-3: oklch(0.51 0 none);
-  --chart-4: oklch(0.39 0 none);
-  --chart-5: oklch(0.32 0 none);
+  --chart-scale-01: oklch(0.22 0.02 265);
+  --chart-scale-02: oklch(0.3 0.04 265);
+  --chart-scale-03: oklch(0.4 0.06 265);
+  --chart-scale-04: oklch(0.52 0.08 265);
+  --chart-scale-05: oklch(0.65 0.1 265);
+  --chart-1: oklch(0.65 0.12 265);
+  --chart-2: oklch(0.7 0.11 35);
+  --chart-3: oklch(0.62 0.09 170);
+  --chart-4: oklch(0.68 0.08 330);
+  --chart-5: oklch(0.72 0.07 80);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
 
 /* ── Preset: cool-ocean ── */
 .adl-git-vis__container[data-chart-preset="cool-ocean"] {
-  --chart-scale-01: oklch(0.97 0.015 250);
-  --chart-scale-02: oklch(0.88 0.03 250);
-  --chart-scale-03: oklch(0.72 0.06 250);
-  --chart-scale-04: oklch(0.54 0.09 250);
-  --chart-scale-05: oklch(0.38 0.11 250);
-  --chart-1: oklch(0.35 0.12 265);
-  --chart-2: oklch(0.45 0.1 250);
-  --chart-3: oklch(0.55 0.08 235);
-  --chart-4: oklch(0.65 0.06 195);
-  --chart-5: oklch(0.75 0.04 180);
+  --chart-scale-01: oklch(0.97 0.008 240);
+  --chart-scale-02: oklch(0.88 0.025 240);
+  --chart-scale-03: oklch(0.73 0.05 240);
+  --chart-scale-04: oklch(0.54 0.08 240);
+  --chart-scale-05: oklch(0.35 0.1 240);
+  --chart-1: oklch(0.4 0.13 270);
+  --chart-2: oklch(0.48 0.11 220);
+  --chart-3: oklch(0.44 0.1 180);
+  --chart-4: oklch(0.5 0.09 300);
+  --chart-5: oklch(0.54 0.07 200);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
 [data-theme='dark'] .adl-git-vis__container[data-chart-preset="cool-ocean"] {
-  --chart-scale-01: oklch(0.22 0.03 245);
-  --chart-scale-02: oklch(0.3 0.05 240);
-  --chart-scale-03: oklch(0.4 0.08 235);
-  --chart-scale-04: oklch(0.5 0.1 225);
-  --chart-scale-05: oklch(0.6 0.12 215);
-  --chart-1: oklch(0.75 0.06 250);
-  --chart-2: oklch(0.65 0.08 235);
-  --chart-3: oklch(0.55 0.1 220);
-  --chart-4: oklch(0.45 0.08 200);
-  --chart-5: oklch(0.35 0.06 190);
+  --chart-scale-01: oklch(0.22 0.02 245);
+  --chart-scale-02: oklch(0.3 0.04 245);
+  --chart-scale-03: oklch(0.4 0.06 245);
+  --chart-scale-04: oklch(0.52 0.08 245);
+  --chart-scale-05: oklch(0.64 0.1 245);
+  --chart-1: oklch(0.65 0.11 270);
+  --chart-2: oklch(0.7 0.09 220);
+  --chart-3: oklch(0.63 0.08 180);
+  --chart-4: oklch(0.68 0.07 300);
+  --chart-5: oklch(0.72 0.06 200);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
 
 /* ── Preset: warm-sunset ── */
 .adl-git-vis__container[data-chart-preset="warm-sunset"] {
-  --chart-scale-01: oklch(0.98 0.005 80);
-  --chart-scale-02: oklch(0.92 0.015 75);
-  --chart-scale-03: oklch(0.82 0.03 70);
-  --chart-scale-04: oklch(0.68 0.05 65);
-  --chart-scale-05: oklch(0.55 0.07 55);
-  --chart-1: oklch(0.4 0.13 40);
-  --chart-2: oklch(0.5 0.12 55);
-  --chart-3: oklch(0.6 0.1 70);
-  --chart-4: oklch(0.7 0.08 85);
-  --chart-5: oklch(0.8 0.05 90);
+  --chart-scale-01: oklch(0.97 0.008 80);
+  --chart-scale-02: oklch(0.88 0.03 75);
+  --chart-scale-03: oklch(0.73 0.06 70);
+  --chart-scale-04: oklch(0.54 0.09 65);
+  --chart-scale-05: oklch(0.35 0.12 55);
+  --chart-1: oklch(0.42 0.14 30);
+  --chart-2: oklch(0.48 0.12 55);
+  --chart-3: oklch(0.46 0.1 90);
+  --chart-4: oklch(0.52 0.1 10);
+  --chart-5: oklch(0.55 0.08 70);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
 [data-theme='dark'] .adl-git-vis__container[data-chart-preset="warm-sunset"] {
-  --chart-scale-01: oklch(0.25 0.02 60);
-  --chart-scale-02: oklch(0.33 0.035 55);
-  --chart-scale-03: oklch(0.43 0.05 50);
-  --chart-scale-04: oklch(0.53 0.07 45);
-  --chart-scale-05: oklch(0.63 0.09 40);
-  --chart-1: oklch(0.75 0.08 55);
-  --chart-2: oklch(0.65 0.1 45);
-  --chart-3: oklch(0.55 0.12 35);
-  --chart-4: oklch(0.45 0.1 25);
-  --chart-5: oklch(0.35 0.08 15);
+  --chart-scale-01: oklch(0.24 0.02 60);
+  --chart-scale-02: oklch(0.32 0.04 55);
+  --chart-scale-03: oklch(0.42 0.06 50);
+  --chart-scale-04: oklch(0.54 0.08 45);
+  --chart-scale-05: oklch(0.66 0.1 40);
+  --chart-1: oklch(0.65 0.12 30);
+  --chart-2: oklch(0.7 0.1 55);
+  --chart-3: oklch(0.64 0.08 90);
+  --chart-4: oklch(0.68 0.08 10);
+  --chart-5: oklch(0.72 0.07 70);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
@@ -309,29 +309,29 @@
 /* ── Preset: high-contrast ── */
 .adl-git-vis__container[data-chart-preset="high-contrast"] {
   --chart-scale-01: oklch(0.95 0.005 0);
-  --chart-scale-02: oklch(0.7 0.03 200);
-  --chart-scale-03: oklch(0.5 0.06 210);
-  --chart-scale-04: oklch(0.35 0.08 220);
-  --chart-scale-05: oklch(0.25 0.08 230);
-  --chart-1: oklch(0.3 0.15 30);
-  --chart-2: oklch(0.4 0.14 150);
-  --chart-3: oklch(0.5 0.13 270);
-  --chart-4: oklch(0.6 0.12 330);
-  --chart-5: oklch(0.7 0.11 60);
+  --chart-scale-02: oklch(0.72 0.05 210);
+  --chart-scale-03: oklch(0.48 0.08 220);
+  --chart-scale-04: oklch(0.3 0.1 230);
+  --chart-scale-05: oklch(0.18 0.1 240);
+  --chart-1: oklch(0.38 0.17 30);
+  --chart-2: oklch(0.42 0.16 150);
+  --chart-3: oklch(0.4 0.17 270);
+  --chart-4: oklch(0.48 0.15 330);
+  --chart-5: oklch(0.52 0.14 60);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
 [data-theme='dark'] .adl-git-vis__container[data-chart-preset="high-contrast"] {
-  --chart-scale-01: oklch(0.2 0.01 0);
-  --chart-scale-02: oklch(0.35 0.05 210);
-  --chart-scale-03: oklch(0.5 0.07 220);
-  --chart-scale-04: oklch(0.65 0.09 230);
-  --chart-scale-05: oklch(0.8 0.11 240);
-  --chart-1: oklch(0.8 0.14 30);
-  --chart-2: oklch(0.7 0.13 150);
-  --chart-3: oklch(0.6 0.12 270);
-  --chart-4: oklch(0.5 0.11 330);
-  --chart-5: oklch(0.4 0.1 60);
+  --chart-scale-01: oklch(0.18 0.01 0);
+  --chart-scale-02: oklch(0.32 0.04 210);
+  --chart-scale-03: oklch(0.48 0.06 220);
+  --chart-scale-04: oklch(0.64 0.08 230);
+  --chart-scale-05: oklch(0.8 0.1 240);
+  --chart-1: oklch(0.72 0.16 30);
+  --chart-2: oklch(0.68 0.14 150);
+  --chart-3: oklch(0.64 0.15 270);
+  --chart-4: oklch(0.6 0.13 330);
+  --chart-5: oklch(0.56 0.12 60);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
