@@ -81,7 +81,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
     return null;
   }
 
-  const useAutoWidth = labelFormat === 'numeric' || !!columnLabels;
+  const autoWidth = labelFormat === 'numeric' || !!columnLabels;
 
   return createPortal(
     labels.map((tick) => (
@@ -91,19 +91,19 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
         style={{
           top: 0,
           left: tick.x,
-          width: useAutoWidth ? 'auto' : binWidth,
+          width: autoWidth ? 'auto' : binWidth,
           display: 'flex',
           justifyContent: 'flex-start',
-          overflow: useAutoWidth ? 'visible' : 'hidden',
+          overflow: autoWidth ? 'visible' : 'hidden',
         }}
       >
         <span
           className={cn(
             'text-chart-label text-xs',
-            !useAutoWidth && 'truncate',
+            !autoWidth && 'truncate',
             className,
           )}
-          title={useAutoWidth ? undefined : tick.label}
+          title={autoWidth ? undefined : tick.label}
         >
           {tick.label}
         </span>

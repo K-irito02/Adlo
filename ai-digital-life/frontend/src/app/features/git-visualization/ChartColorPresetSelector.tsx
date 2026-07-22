@@ -81,7 +81,7 @@ export const ChartColorPresetSelector = React.memo(function ChartColorPresetSele
       setChartColorPreset(id);
       setOpen(false);
     },
-    [setChartColorPreset],
+    [setChartColorPreset, setOpen],
   );
 
   return (

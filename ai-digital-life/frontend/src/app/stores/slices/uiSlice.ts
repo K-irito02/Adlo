@@ -214,7 +214,7 @@ export const createUISlice = (
     changesPreviewEnabled: true,
     showGitVisualization: false,
     activeHeatmapTab: 'calendar',
-    chartColorPreset: 'bklit-default' as ChartColorPreset,
+    chartColorPreset: 'bklit-default',
     startupOverlayHidden: false,
     contextChips: [],
     contextMenuOpen: false,

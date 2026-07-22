@@ -312,7 +312,7 @@
 
 /* ── Preset: high-contrast (高饱和蓝/橙互补) ── */
 .adl-git-vis__container[data-chart-preset="high-contrast"] {
-  --chart-scale-01: oklch(0.95 0.005 0);
+  --chart-scale-01: oklch(0.9 0.02 240);
   --chart-scale-02: oklch(0.72 0.05 210);
   --chart-scale-03: oklch(0.48 0.08 220);
   --chart-scale-04: oklch(0.3 0.1 230);
