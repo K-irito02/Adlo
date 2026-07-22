@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readJson, writeJson } from '../storageHelpers';
-import { ACTIVE_HEATMAP_TAB_KEY, CHART_COLOR_PRESET_KEY, type ChartColorPreset, type HeatmapTab } from '../slices/uiSliceTypes';
+import {
+  ACTIVE_HEATMAP_TAB_KEY,
+  CHART_COLOR_PRESET_KEY,
+  type ChartColorPreset,
+  type HeatmapTab,
+} from '../slices/uiSliceTypes';
 
 describe('ACTIVE_HEATMAP_TAB_KEY', () => {
   it('should have the correct key value', () => {
@@ -54,7 +59,12 @@ describe('CHART_COLOR_PRESET_KEY', () => {
 
 describe('ChartColorPreset', () => {
   it('should accept valid preset values', () => {
-    const presets: ChartColorPreset[] = ['bklit-default', 'cool-ocean', 'warm-sunset', 'high-contrast'];
+    const presets: ChartColorPreset[] = [
+      'bklit-default',
+      'cool-ocean',
+      'warm-sunset',
+      'high-contrast',
+    ];
     expect(presets).toHaveLength(4);
   });
 });
@@ -82,7 +92,12 @@ describe('chartColorPreset persistence', () => {
   });
 
   it('should persist each valid preset value', () => {
-    const values: ChartColorPreset[] = ['bklit-default', 'cool-ocean', 'warm-sunset', 'high-contrast'];
+    const values: ChartColorPreset[] = [
+      'bklit-default',
+      'cool-ocean',
+      'warm-sunset',
+      'high-contrast',
+    ];
     for (const v of values) {
       writeJson(key, v);
       expect(readJson<ChartColorPreset>(key, 'bklit-default')).toBe(v);

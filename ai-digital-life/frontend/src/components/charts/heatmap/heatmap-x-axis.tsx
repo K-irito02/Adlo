@@ -64,9 +64,10 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
       }
 
       ticks.push({
-        label: labelFormat === 'numeric'
-          ? String(monthAnchor.getMonth() + 1)
-          : monthFmt.format(monthAnchor),
+        label:
+          labelFormat === 'numeric'
+            ? String(monthAnchor.getMonth() + 1)
+            : monthFmt.format(monthAnchor),
         x: margin.left + xScale(columnIndex),
         key: `x-${columnIndex}-${monthKey}`,
       });
@@ -98,11 +99,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
         }}
       >
         <span
-          className={cn(
-            'text-chart-label text-xs',
-            !autoWidth && 'truncate',
-            className,
-          )}
+          className={cn('text-chart-label text-xs', !autoWidth && 'truncate', className)}
           title={autoWidth ? undefined : tick.label}
         >
           {tick.label}

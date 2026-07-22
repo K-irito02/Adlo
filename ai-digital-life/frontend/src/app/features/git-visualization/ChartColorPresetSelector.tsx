@@ -6,7 +6,10 @@ import { useResolvedTheme } from '@hooks/useResolvedTheme';
 import { IconCheck } from '@app/icons';
 import type { ChartColorPreset } from '@stores/slices/uiSliceTypes';
 
-const PRESET_COLORS: Record<ChartColorPreset, { light: { darkest: string; lightest: string }; dark: { darkest: string; lightest: string } }> = {
+const PRESET_COLORS: Record<
+  ChartColorPreset,
+  { light: { darkest: string; lightest: string }; dark: { darkest: string; lightest: string } }
+> = {
   'bklit-default': {
     light: { darkest: 'oklch(0.3 0.12 260)', lightest: 'oklch(0.82 0.05 260)' },
     dark: { darkest: 'oklch(0.7 0.1 260)', lightest: 'oklch(0.3 0.06 260)' },
@@ -36,7 +39,13 @@ const ICON_SIZE = 18;
 const LEFT_ARC = 'M 12 5.68 A 7 7 0 0 0 12 18.32 Z';
 const SEPARATOR_LINE = 'M 12 5.68 L 12 18.32';
 
-function PresetColorIcon({ presetId, theme }: { presetId: ChartColorPreset; theme: 'light' | 'dark' }) {
+function PresetColorIcon({
+  presetId,
+  theme,
+}: {
+  presetId: ChartColorPreset;
+  theme: 'light' | 'dark';
+}) {
   const colors = PRESET_COLORS[presetId][theme];
   return (
     <svg
@@ -46,7 +55,14 @@ function PresetColorIcon({ presetId, theme }: { presetId: ChartColorPreset; them
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
-      <circle cx="15" cy="12" r="7" fill={colors.darkest} stroke={colors.darkest} strokeWidth="1.2" />
+      <circle
+        cx="15"
+        cy="12"
+        r="7"
+        fill={colors.darkest}
+        stroke={colors.darkest}
+        strokeWidth="1.2"
+      />
       <path d={LEFT_ARC} fill={colors.lightest} stroke={colors.darkest} strokeWidth="1.2" />
       <path d={SEPARATOR_LINE} fill="none" stroke="var(--bg)" strokeWidth="2.5" />
     </svg>
@@ -66,7 +82,9 @@ export const ChartColorPresetSelector = React.memo(function ChartColorPresetSele
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) { return; }
+    if (!open) {
+      return;
+    }
     const handleOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
@@ -96,12 +114,18 @@ export const ChartColorPresetSelector = React.memo(function ChartColorPresetSele
       </button>
       {open && (
         <div className="adl-git-vis__preset-menu" role="menu">
-          {([
-            { id: 'bklit-default' as ChartColorPreset, labelKey: 'gitVisPresetBklitDefault' as const },
+          {[
+            {
+              id: 'bklit-default' as ChartColorPreset,
+              labelKey: 'gitVisPresetBklitDefault' as const,
+            },
             { id: 'cool-ocean' as ChartColorPreset, labelKey: 'gitVisPresetCoolOcean' as const },
             { id: 'warm-sunset' as ChartColorPreset, labelKey: 'gitVisPresetWarmSunset' as const },
-            { id: 'high-contrast' as ChartColorPreset, labelKey: 'gitVisPresetHighContrast' as const },
-          ]).map((preset) => (
+            {
+              id: 'high-contrast' as ChartColorPreset,
+              labelKey: 'gitVisPresetHighContrast' as const,
+            },
+          ].map((preset) => (
             <button
               key={preset.id}
               className="adl-git-vis__preset-item"
@@ -110,9 +134,7 @@ export const ChartColorPresetSelector = React.memo(function ChartColorPresetSele
             >
               <PresetColorIcon presetId={preset.id} theme={resolvedTheme} />
               <span className="adl-git-vis__preset-item-label">{t[preset.labelKey]}</span>
-              {chartColorPreset === preset.id && (
-                <IconCheck size={16} decorative />
-              )}
+              {chartColorPreset === preset.id && <IconCheck size={16} decorative />}
             </button>
           ))}
         </div>
