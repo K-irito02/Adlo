@@ -1,10 +1,13 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
+import { useAppStore } from '@stores/slicedStore';
 import { HeatmapCardGroup } from './HeatmapCardGroup';
 import { CodeLineEvo } from './charts/CodeLineEvo';
 import { CommitTimeline } from './charts/CommitTimeline';
 import { FileSunburst } from './charts/FileSunburst';
 import { BranchGraph } from './charts/BranchGraph';
+import { ChartColorPresetSelector } from './ChartColorPresetSelector';
 
 interface ChartCardProps {
   title: string;
@@ -25,9 +28,13 @@ function ChartCard({ title, desc, children }: React.PropsWithChildren<ChartCardP
 
 export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const { t } = useTCopy();
+  const chartColorPreset = useAppStore(useShallow((s) => s.chartColorPreset));
 
   return (
-    <div className="adl-git-vis__container">
+    <div className="adl-git-vis__container" data-chart-preset={chartColorPreset}>
+      <div className="adl-git-vis__preset-bar">
+        <ChartColorPresetSelector />
+      </div>
       <HeatmapCardGroup />
       <ChartCard title={t.gitVisCodeLineEvo} desc={t.gitVisCodeLineEvoDesc}>
         <CodeLineEvo />
