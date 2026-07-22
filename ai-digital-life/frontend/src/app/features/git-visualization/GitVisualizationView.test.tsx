@@ -82,6 +82,9 @@ vi.mock('@stores/slicedStore', () => ({
     selector({
       activeHeatmapTab: 'calendar',
       setActiveHeatmapTab: vi.fn(),
+      activeWorkspaceTab: 'workspace-1',
+      setActiveWorkspaceTab: vi.fn(),
+      chartColorPreset: 'bklit-default',
     }),
 }));
 
@@ -150,5 +153,11 @@ describe('GitVisualizationView', () => {
     const { container } = render(<GitVisualizationView />);
     const note = container.querySelector('.adl-git-vis__note');
     expect(note).toBeTruthy();
+  });
+
+  it('renders WorkspaceTabBar', () => {
+    const { container } = render(<GitVisualizationView />);
+    const tabBar = container.querySelector('.adl-workspace-tab__container');
+    expect(tabBar).toBeTruthy();
   });
 });

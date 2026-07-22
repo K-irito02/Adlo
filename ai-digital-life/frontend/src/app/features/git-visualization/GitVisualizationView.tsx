@@ -8,6 +8,7 @@ import { CommitTimeline } from './charts/CommitTimeline';
 import { FileSunburst } from './charts/FileSunburst';
 import { BranchGraph } from './charts/BranchGraph';
 import { ChartColorPresetSelector } from './ChartColorPresetSelector';
+import { WorkspaceTabBar } from './WorkspaceTabBar';
 
 interface ChartCardProps {
   title: string;
@@ -32,6 +33,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
 
   return (
     <div className="adl-git-vis__container" data-chart-preset={chartColorPreset}>
+      <WorkspaceTabBar />
       <div className="adl-git-vis__preset-bar">
         <ChartColorPresetSelector />
       </div>
