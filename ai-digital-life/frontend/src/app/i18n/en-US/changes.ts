@@ -152,4 +152,5 @@ export const changesEn = {
   gitVisPresetCoolOcean: 'Cool Ocean',
   gitVisPresetWarmSunset: 'Warm Sunset',
   gitVisPresetHighContrast: 'High Contrast',
+  gitVisWorkspaceTab: 'Workspace {name}',
 } as const;

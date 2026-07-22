@@ -152,4 +152,5 @@ export const changesZh = {
   gitVisPresetCoolOcean: '冷色海洋',
   gitVisPresetWarmSunset: '暖色日落',
   gitVisPresetHighContrast: '高对比度',
+  gitVisWorkspaceTab: '工作区 {name}',
 } as const;
