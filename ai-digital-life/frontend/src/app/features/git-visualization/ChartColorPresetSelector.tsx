@@ -25,6 +25,13 @@ const PRESET_COLORS: Record<ChartColorPreset, { light: { darkest: string; lighte
   },
 };
 
+/* Two equal circles (r=7, centers 6px apart) form a Venn overlap.
+   The right circle (cx=15) is the full dark circle.
+   The left circle (cx=9) is truncated to a D-shape at the intersection
+   boundary (x=12), shown as the light circle.
+   A separator line at the cut edge creates a clean visual gap between
+   the two halves, using the page background color (var(--bg)) to blend
+   into the container. */
 const ICON_SIZE = 18;
 const LEFT_ARC = 'M 12 5.68 A 7 7 0 0 0 12 18.32 Z';
 const SEPARATOR_LINE = 'M 12 5.68 L 12 18.32';
