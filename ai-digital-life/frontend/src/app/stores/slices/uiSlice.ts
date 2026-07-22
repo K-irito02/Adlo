@@ -16,6 +16,7 @@ import type {
 } from './uiSliceTypes';
 import {
   ACTIVE_HEATMAP_TAB_KEY,
+  ACTIVE_WORKSPACE_TAB_KEY,
   CHART_COLOR_PRESET_KEY,
   CHANGES_PREVIEW_ENABLED_KEY,
   SHOW_GIT_VISUALIZATION_KEY,
@@ -53,6 +54,7 @@ export {
   CHANGES_NAVIGATOR_MODE_KEY,
   FILE_PREVIEW_MODE_KEY,
   ACTIVE_HEATMAP_TAB_KEY,
+  ACTIVE_WORKSPACE_TAB_KEY,
   CHART_COLOR_PRESET_KEY,
   CHANGES_PREVIEW_ENABLED_KEY,
   SHOW_GIT_VISUALIZATION_KEY,
@@ -118,6 +120,7 @@ function hydrateUIDefaults(
     const changesPreviewEnabled = readFlag(CHANGES_PREVIEW_ENABLED_KEY, true);
     const showGitVisualization = readFlag(SHOW_GIT_VISUALIZATION_KEY, false);
     const activeHeatmapTab = readJson<HeatmapTab>(ACTIVE_HEATMAP_TAB_KEY, 'calendar');
+    const activeWorkspaceTab = readJson<string>(ACTIVE_WORKSPACE_TAB_KEY, 'workspace-1');
     const chartColorPreset = readJson<ChartColorPreset>(CHART_COLOR_PRESET_KEY, 'bklit-default');
     const expandedSessionWorkspaces = readJson<Record<string, boolean>>(
       SESSION_TABS_EXPANDED_KEY,
@@ -141,6 +144,7 @@ function hydrateUIDefaults(
       changesPreviewEnabled,
       showGitVisualization,
       activeHeatmapTab,
+      activeWorkspaceTab,
       chartColorPreset,
       expandedSessionWorkspaces,
       navigatorCollapsedByTool,
@@ -214,6 +218,7 @@ export const createUISlice = (
     changesPreviewEnabled: true,
     showGitVisualization: false,
     activeHeatmapTab: 'calendar',
+    activeWorkspaceTab: 'workspace-1',
     chartColorPreset: 'bklit-default',
     startupOverlayHidden: false,
     contextChips: [],
@@ -254,6 +259,10 @@ export const createUISlice = (
     setActiveHeatmapTab: (tab) => {
       writeJson(ACTIVE_HEATMAP_TAB_KEY, tab);
       set({ activeHeatmapTab: tab });
+    },
+    setActiveWorkspaceTab: (tab) => {
+      writeJson(ACTIVE_WORKSPACE_TAB_KEY, tab);
+      set({ activeWorkspaceTab: tab });
     },
     setChartColorPreset: (preset) => {
       writeJson(CHART_COLOR_PRESET_KEY, preset);

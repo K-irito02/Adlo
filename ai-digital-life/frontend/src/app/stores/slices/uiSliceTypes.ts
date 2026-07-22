@@ -32,6 +32,7 @@ export const SESSION_TABS_EXPANDED_KEY = 'adl-ui:session-tabs-expanded';
 export const ACTIVE_RIGHT_TOOL_KEY = 'adl-ui:active-right-tool';
 export const SHOW_GIT_VISUALIZATION_KEY = 'adl-ui:show-git-visualization';
 export const ACTIVE_HEATMAP_TAB_KEY = 'adl-ui:active-heatmap-tab';
+export const ACTIVE_WORKSPACE_TAB_KEY = 'adl-ui:active-workspace-tab';
 
 // ════════════════════════════════════════════════════════
 // 面板宽度常量
@@ -88,6 +89,7 @@ export interface UISlice {
   changesPreviewEnabled: boolean;
   showGitVisualization: boolean;
   activeHeatmapTab: HeatmapTab;
+  activeWorkspaceTab: string;
   chartColorPreset: ChartColorPreset;
   startupOverlayHidden: boolean;
   expandedSessionWorkspaces: Record<string, boolean>;
@@ -124,6 +126,7 @@ export interface UISlice {
   setChangesPreviewEnabled: (previewEnabled: boolean) => void;
   setShowGitVisualization: (show: boolean) => void;
   setActiveHeatmapTab: (tab: HeatmapTab) => void;
+  setActiveWorkspaceTab: (tab: string) => void;
   setChartColorPreset: (preset: ChartColorPreset) => void;
   setStartupOverlayHidden: (hidden: boolean) => void;
   setChangesNavigatorMode: (mode: ChangesNavigatorMode) => void;
