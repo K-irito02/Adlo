@@ -64,6 +64,10 @@ export type FilePreviewModeState = Record<string, boolean>;
 
 export type HeatmapTab = 'calendar' | 'clock' | 'activity' | 'module';
 
+export type ChartColorPreset = 'bklit-default' | 'cool-ocean' | 'warm-sunset' | 'high-contrast';
+
+export const CHART_COLOR_PRESET_KEY = 'adl-ui:chart-color-preset';
+
 export interface UISlice {
   activeRightTool: ToolId;
   chatMode: ChatMode;
@@ -84,6 +88,7 @@ export interface UISlice {
   changesPreviewEnabled: boolean;
   showGitVisualization: boolean;
   activeHeatmapTab: HeatmapTab;
+  chartColorPreset: ChartColorPreset;
   startupOverlayHidden: boolean;
   expandedSessionWorkspaces: Record<string, boolean>;
   contextChips: ContextChip[];
@@ -119,6 +124,7 @@ export interface UISlice {
   setChangesPreviewEnabled: (previewEnabled: boolean) => void;
   setShowGitVisualization: (show: boolean) => void;
   setActiveHeatmapTab: (tab: HeatmapTab) => void;
+  setChartColorPreset: (preset: ChartColorPreset) => void;
   setStartupOverlayHidden: (hidden: boolean) => void;
   setChangesNavigatorMode: (mode: ChangesNavigatorMode) => void;
   setChangesTreePathExpanded: (path: string, expanded: boolean) => void;

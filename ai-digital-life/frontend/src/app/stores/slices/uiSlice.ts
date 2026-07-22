@@ -11,10 +11,12 @@ import type {
   FileTreeExpansionState,
   FilePreviewModeState,
   HeatmapTab,
+  ChartColorPreset,
   UISlice,
 } from './uiSliceTypes';
 import {
   ACTIVE_HEATMAP_TAB_KEY,
+  CHART_COLOR_PRESET_KEY,
   CHANGES_PREVIEW_ENABLED_KEY,
   SHOW_GIT_VISUALIZATION_KEY,
   FILE_PREVIEW_MODE_KEY,
@@ -33,6 +35,7 @@ export type {
   FileTreeExpansionState,
   FilePreviewModeState,
   HeatmapTab,
+  ChartColorPreset,
   UISlice,
 } from './uiSliceTypes';
 export {
@@ -50,6 +53,7 @@ export {
   CHANGES_NAVIGATOR_MODE_KEY,
   FILE_PREVIEW_MODE_KEY,
   ACTIVE_HEATMAP_TAB_KEY,
+  CHART_COLOR_PRESET_KEY,
   CHANGES_PREVIEW_ENABLED_KEY,
   SHOW_GIT_VISUALIZATION_KEY,
   SESSION_TABS_EXPANDED_KEY,
@@ -114,6 +118,7 @@ function hydrateUIDefaults(
     const changesPreviewEnabled = readFlag(CHANGES_PREVIEW_ENABLED_KEY, true);
     const showGitVisualization = readFlag(SHOW_GIT_VISUALIZATION_KEY, false);
     const activeHeatmapTab = readJson<HeatmapTab>(ACTIVE_HEATMAP_TAB_KEY, 'calendar');
+    const chartColorPreset = readJson<ChartColorPreset>(CHART_COLOR_PRESET_KEY, 'bklit-default');
     const expandedSessionWorkspaces = readJson<Record<string, boolean>>(
       SESSION_TABS_EXPANDED_KEY,
       {},
@@ -136,6 +141,7 @@ function hydrateUIDefaults(
       changesPreviewEnabled,
       showGitVisualization,
       activeHeatmapTab,
+      chartColorPreset,
       expandedSessionWorkspaces,
       navigatorCollapsedByTool,
     });
@@ -208,6 +214,7 @@ export const createUISlice = (
     changesPreviewEnabled: true,
     showGitVisualization: false,
     activeHeatmapTab: 'calendar',
+    chartColorPreset: 'bklit-default' as ChartColorPreset,
     startupOverlayHidden: false,
     contextChips: [],
     contextMenuOpen: false,
@@ -247,6 +254,10 @@ export const createUISlice = (
     setActiveHeatmapTab: (tab) => {
       writeJson(ACTIVE_HEATMAP_TAB_KEY, tab);
       set({ activeHeatmapTab: tab });
+    },
+    setChartColorPreset: (preset) => {
+      writeJson(CHART_COLOR_PRESET_KEY, preset);
+      set({ chartColorPreset: preset });
     },
     setStartupOverlayHidden: (hidden) => set({ startupOverlayHidden: hidden }),
     setChangesNavigatorMode: (mode) => {
