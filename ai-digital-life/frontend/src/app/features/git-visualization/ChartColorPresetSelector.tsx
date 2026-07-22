@@ -29,26 +29,17 @@ const ICON_SIZE = 18;
 function PresetColorIcon({ presetId, theme }: { presetId: ChartColorPreset; theme: 'light' | 'dark' }) {
   const colors = PRESET_COLORS[presetId][theme];
   return (
-    <span className="inline-block shrink-0" style={{ width: ICON_SIZE, height: ICON_SIZE, position: 'relative' }}>
-      <span
-        className="absolute rounded-full"
-        style={{
-          width: '100%', height: '100%',
-          background: colors.lightest,
-          inset: 0,
-          zIndex: 1,
-        }}
-      />
-      <span
-        className="absolute rounded-full"
-        style={{
-          width: '65%', height: '65%',
-          background: colors.darkest,
-          bottom: 0, right: 0,
-          zIndex: 2,
-        }}
-      />
-    </span>
+    <svg
+      className="shrink-0"
+      width={ICON_SIZE}
+      height={ICON_SIZE}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <circle cx="9" cy="12" r="7" fill={colors.lightest} />
+      <circle cx="15" cy="12" r="7" fill={colors.lightest} />
+      <path d="M 12 5.68 A 7 7 0 0 1 12 18.32 A 7 7 0 0 1 12 5.68" fill={colors.darkest} />
+    </svg>
   );
 }
 
@@ -110,7 +101,7 @@ export const ChartColorPresetSelector = React.memo(function ChartColorPresetSele
               <PresetColorIcon presetId={preset.id} theme={resolvedTheme} />
               <span className="adl-git-vis__preset-item-label">{t[preset.labelKey]}</span>
               {chartColorPreset === preset.id && (
-                <svg className="adl-git-vis__preset-check" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                <svg className="adl-git-vis__preset-check" viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               )}

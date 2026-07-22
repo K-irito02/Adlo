@@ -356,15 +356,14 @@
   width: 28px;
   height: 28px;
   padding: 0;
-  border: 1px solid var(--border-subtle);
+  border: none;
   border-radius: var(--radius-sm);
-  background: var(--bg-input);
+  background: transparent;
   cursor: pointer;
-  transition: border-color 0.15s;
 }
 
 .adl-git-vis__preset-trigger:hover {
-  border-color: var(--border-default);
+  background: var(--bg-hover);
 }
 
 .adl-git-vis__preset-menu {
@@ -410,7 +409,7 @@
 
 .adl-git-vis__preset-check {
   flex-shrink: 0;
-  color: var(--accent);
+  stroke: var(--text-inverse);
 }
 
 .adl-git-vis__heatmap-legend {
