@@ -148,3 +148,58 @@
   font-family: var(--font-mono, 'Cascadia Code', monospace);
   user-select: none;
 }
+
+/* ── Heatmap Tab Navigation ── */
+.adl-git-vis__heatmap-nav {
+  display: flex;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.adl-git-vis__heatmap-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  padding: 0 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+
+.adl-git-vis__heatmap-tab:hover {
+  color: var(--text-primary);
+}
+
+.adl-git-vis__heatmap-tab--active {
+  color: var(--accent);
+}
+
+.adl-git-vis__heatmap-tab::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform 0.2s ease;
+}
+
+.adl-git-vis__heatmap-tab:hover::after {
+  transform: scaleX(1);
+}
+
+.adl-git-vis__heatmap-tab--active::after {
+  transform: scaleX(1);
+}
