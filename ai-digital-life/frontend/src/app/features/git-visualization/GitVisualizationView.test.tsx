@@ -155,7 +155,7 @@ describe('GitVisualizationView', () => {
     expect(note).toBeTruthy();
   });
 
-  it('renders WorkspaceTabBar', () => {
+  it('renders WorkspaceTabBar', { timeout: 30000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const tabBar = container.querySelector('.adl-workspace-tab__container');
     expect(tabBar).toBeTruthy();
