@@ -20,8 +20,8 @@ const PRESET_COLORS: Record<ChartColorPreset, { light: { darkest: string; lighte
     dark: { darkest: 'oklch(0.7 0.1 50)', lightest: 'oklch(0.32 0.06 60)' },
   },
   'high-contrast': {
-    light: { darkest: 'oklch(0.4 0.15 30)', lightest: 'oklch(0.85 0.06 30)' },
-    dark: { darkest: 'oklch(0.68 0.14 30)', lightest: 'oklch(0.28 0.05 30)' },
+    light: { darkest: 'rgb(128, 199, 248)', lightest: 'rgb(23, 56, 62)' },
+    dark: { darkest: 'rgb(128, 199, 248)', lightest: 'rgb(23, 56, 62)' },
   },
 };
 
@@ -40,7 +40,7 @@ function PresetColorIcon({ presetId, theme }: { presetId: ChartColorPreset; them
     >
       <circle cx="9" cy="12" r="7" fill={colors.lightest} stroke={colors.darkest} strokeWidth="1.2" />
       <circle cx="15" cy="12" r="7" fill={colors.darkest} stroke={colors.darkest} strokeWidth="1.2" />
-      <path d={SEPARATOR_PATH} fill="none" stroke="var(--text-primary)" strokeWidth="2" />
+      <path d={SEPARATOR_PATH} fill="none" stroke="var(--bg)" strokeWidth="2.5" />
     </svg>
   );
 }
