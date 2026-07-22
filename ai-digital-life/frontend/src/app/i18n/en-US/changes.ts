@@ -106,16 +106,16 @@ export const changesEn = {
   gitVisModuleDatabase: 'Database',
   gitVisModuleTesting: 'Testing',
   gitVisModuleDocs: 'Documentation',
-  gitVisCalendarHeatmap: 'Commit Calendar Heatmap',
+  gitVisCalendarHeatmap: 'Commit Calendar',
   gitVisContribution: 'contribution',
   gitVisContributions: 'contributions',
   gitVisCommits: 'commits',
-  gitVisClockHeatmap: 'Commit Time Distribution',
-  gitVisContributorModule: 'Contributor × Module',
+  gitVisClockHeatmap: 'Commit Hours',
+  gitVisContributorModule: 'Contributor Module',
   gitVisCodeLineEvo: 'Code Line Evolution',
   gitVisContributorActivity: 'Contributor Activity',
   gitVisCommitTimeline: 'Commit Timeline',
-  gitVisFileSunburst: 'File Modification Sunburst',
+  gitVisFileSunburst: 'File Sunburst',
   gitVisCalendarHeatmapDesc:
     'Daily commit count over the past year. Darker color = more commits. Quickly identify active periods.',
   gitVisClockHeatmapDesc:
@@ -130,6 +130,10 @@ export const changesEn = {
     'Cumulative commit growth over time. Line chart showing project velocity over a 2-week period.',
   gitVisFileSunburstDesc:
     'Sunburst partition by file type. Arc angle = modification count/code volume. Locate "hotspot files" by category.',
+  gitVisHeatmapTabCalendar: 'Calendar',
+  gitVisHeatmapTabClock: 'Hours',
+  gitVisHeatmapTabActivity: 'Activity',
+  gitVisHeatmapTabModule: 'Module',
   gitVisBranchGraph: 'Branch Graph',
   gitVisBranchGraphDesc:
     'Commit DAG with branch topology. Each vertical lane is a branch; ● dots are single-parent commits, ■ squares are merge commits (2+ parents), tag badges (e.g. v1.0) mark tagged releases. Click branch labels to filter by branch.',
