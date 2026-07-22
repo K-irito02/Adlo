@@ -419,3 +419,136 @@
 .adl-git-vis__heatmap-legend {
   padding: var(--space-1) var(--space-1) 0;
 }
+
+/* ── Workspace Tab Bar ── */
+.adl-workspace-tab__container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.adl-workspace-tab__row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  position: relative;
+}
+
+.adl-workspace-tab__scroll-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  min-width: 0;
+}
+
+.adl-workspace-tab__scroll-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  background: linear-gradient(to left, var(--bg-card, var(--bg-surface, #fff)), transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.adl-workspace-tab__scroll-container[data-overflowed='true']::after {
+  opacity: 1;
+}
+
+.adl-workspace-tab__track {
+  display: flex;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.adl-workspace-tab__tab {
+  flex: 0 0 120px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md, 6px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  overflow: hidden;
+}
+
+.adl-workspace-tab__tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-workspace-tab__tab--active {
+  background: var(--accent);
+  color: var(--accent-foreground, #fff);
+  border-color: var(--accent);
+}
+
+.adl-workspace-tab__tab-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.adl-workspace-tab__arrow {
+  flex: 0 0 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all 0.15s;
+}
+
+.adl-workspace-tab__arrow:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-workspace-tab__arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.adl-workspace-tab__dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.adl-workspace-tab__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-subtle);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.adl-workspace-tab__dot:hover {
+  background: var(--text-muted);
+}
+
+.adl-workspace-tab__dot--active {
+  background: var(--accent);
+  width: 20px;
+  border-radius: 3px;
+}
