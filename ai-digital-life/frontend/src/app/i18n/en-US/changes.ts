@@ -146,4 +146,8 @@ export const changesEn = {
   gitVisBranchGraphFilterHint: 'Click a branch label to filter',
   gitVisMockDataNote:
     'All data is mock-generated for visualization demonstration. When connecting to a real Git repository, extract real data and adapt.',
+  gitVisPresetBklitDefault: 'Bklit Default',
+  gitVisPresetCoolOcean: 'Cool Ocean',
+  gitVisPresetWarmSunset: 'Warm Sunset',
+  gitVisPresetHighContrast: 'High Contrast',
 } as const;
