@@ -20,12 +20,13 @@ const PRESET_COLORS: Record<ChartColorPreset, { light: { darkest: string; lighte
     dark: { darkest: 'oklch(0.7 0.1 50)', lightest: 'oklch(0.32 0.06 60)' },
   },
   'high-contrast': {
-    light: { darkest: 'oklch(0.25 0.14 260)', lightest: 'oklch(0.78 0.06 240)' },
-    dark: { darkest: 'oklch(0.72 0.14 260)', lightest: 'oklch(0.28 0.05 240)' },
+    light: { darkest: 'oklch(0.4 0.15 30)', lightest: 'oklch(0.85 0.06 30)' },
+    dark: { darkest: 'oklch(0.68 0.14 30)', lightest: 'oklch(0.28 0.05 30)' },
   },
 };
 
 const ICON_SIZE = 18;
+const SEPARATOR_PATH = 'M 12 5.68 A 7 7 0 0 0 12 18.32';
 
 function PresetColorIcon({ presetId, theme }: { presetId: ChartColorPreset; theme: 'light' | 'dark' }) {
   const colors = PRESET_COLORS[presetId][theme];
@@ -37,8 +38,9 @@ function PresetColorIcon({ presetId, theme }: { presetId: ChartColorPreset; them
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
-      <circle cx="15" cy="12" r="7" fill={colors.lightest} stroke={colors.darkest} strokeWidth="1.2" />
-      <circle cx="9" cy="12" r="7" fill={colors.darkest} stroke={colors.darkest} strokeWidth="1.2" />
+      <circle cx="9" cy="12" r="7" fill={colors.lightest} stroke={colors.darkest} strokeWidth="1.2" />
+      <circle cx="15" cy="12" r="7" fill={colors.darkest} stroke={colors.darkest} strokeWidth="1.2" />
+      <path d={SEPARATOR_PATH} fill="none" stroke="var(--text-primary)" strokeWidth="2" />
     </svg>
   );
 }
