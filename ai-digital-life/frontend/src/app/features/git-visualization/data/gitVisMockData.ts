@@ -379,6 +379,14 @@ export const allBranches = [
   'hotfix',
 ];
 
+export const mockWorkspaceTabs: { id: string; label: string }[] = Array.from(
+  { length: 27 },
+  (_, i) => ({
+    id: `workspace-${i + 1}`,
+    label: `Workspace ${i + 1}`,
+  }),
+);
+
 /** 日历热力图数据：[date, count] */
 export function generateCalendarData(): [string, number][] {
   const data: [string, number][] = [];
