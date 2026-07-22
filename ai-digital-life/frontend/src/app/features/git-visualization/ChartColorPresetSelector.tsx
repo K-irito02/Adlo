@@ -26,7 +26,8 @@ const PRESET_COLORS: Record<ChartColorPreset, { light: { darkest: string; lighte
 };
 
 const ICON_SIZE = 18;
-const SEPARATOR_PATH = 'M 12 5.68 A 7 7 0 0 0 12 18.32';
+const LEFT_ARC = 'M 12 5.68 A 7 7 0 0 0 12 18.32 Z';
+const SEPARATOR_LINE = 'M 12 5.68 L 12 18.32';
 
 function PresetColorIcon({ presetId, theme }: { presetId: ChartColorPreset; theme: 'light' | 'dark' }) {
   const colors = PRESET_COLORS[presetId][theme];
@@ -38,9 +39,9 @@ function PresetColorIcon({ presetId, theme }: { presetId: ChartColorPreset; them
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
-      <circle cx="9" cy="12" r="7" fill={colors.lightest} stroke={colors.darkest} strokeWidth="1.2" />
       <circle cx="15" cy="12" r="7" fill={colors.darkest} stroke={colors.darkest} strokeWidth="1.2" />
-      <path d={SEPARATOR_PATH} fill="none" stroke="var(--bg)" strokeWidth="2.5" />
+      <path d={LEFT_ARC} fill={colors.lightest} stroke={colors.darkest} strokeWidth="1.2" />
+      <path d={SEPARATOR_LINE} fill="none" stroke="var(--bg)" strokeWidth="2.5" />
     </svg>
   );
 }
