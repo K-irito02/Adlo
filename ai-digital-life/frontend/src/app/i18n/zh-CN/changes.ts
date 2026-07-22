@@ -146,6 +146,8 @@ export const changesZh = {
   gitVisBranchGraphFilterHint: '点击分支标签可筛选',
   gitVisMockDataNote:
     '所有数据均为模拟生成，用于展示可视化效果。实际接入 Git 仓库时，需提取真实数据并适配。',
+  gitVisLess: '少',
+  gitVisMore: '多',
   gitVisPresetBklitDefault: 'Bklit 默认',
   gitVisPresetCoolOcean: '冷色海洋',
   gitVisPresetWarmSunset: '暖色日落',

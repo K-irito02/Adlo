@@ -200,6 +200,18 @@
   transform: scaleX(1);
 }
 
+/* ── Base chart tooltip colors (shared across all presets) ── */
+.adl-git-vis__container {
+  --chart-tooltip-background: oklch(1 0 0);
+  --chart-tooltip-foreground: oklch(0.145 0.004 285);
+  --chart-tooltip-muted: oklch(0.55 0.014 260);
+}
+[data-theme='dark'] .adl-git-vis__container {
+  --chart-tooltip-background: oklch(0.21 0.006 285);
+  --chart-tooltip-foreground: oklch(0.985 0 0);
+  --chart-tooltip-muted: oklch(0.65 0.01 260);
+}
+
 /* ════════════════════════════════════════════
    Chart Color Presets (bklit-ui aligned)
    ════════════════════════════════════════════ */
@@ -345,4 +357,8 @@
 
 .adl-git-vis__preset-select:hover {
   border-color: var(--border-default);
+}
+
+.adl-git-vis__heatmap-legend {
+  padding: var(--space-1) var(--space-1) 0;
 }

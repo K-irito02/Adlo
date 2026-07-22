@@ -4,6 +4,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { CopyKey } from '@i18n/types';
 import type { HeatmapTab } from '@stores/slices/uiSliceTypes';
+import { HeatmapLegend } from '@/components/charts/heatmap';
 import { CalendarHeatmap } from './charts/CalendarHeatmap';
 import { ClockHeatmap } from './charts/ClockHeatmap';
 import { ContributorActivityHeatmap } from './charts/ContributorActivityHeatmap';
@@ -99,6 +100,9 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup() {
         aria-labelledby={`heatmap-tab-${activeHeatmapTab}`}
       >
         <ActiveChart />
+      </div>
+      <div className="adl-git-vis__heatmap-legend">
+        <HeatmapLegend lessLabel={t.gitVisLess} moreLabel={t.gitVisMore} variant="gradient" cellSize={10} />
       </div>
       <p className="adl-git-vis__card-desc">{t[DESC_KEYS[activeHeatmapTab]]}</p>
     </div>
