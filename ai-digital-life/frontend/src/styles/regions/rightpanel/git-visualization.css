@@ -216,6 +216,8 @@
   --chart-3: oklch(0.54 0 none);
   --chart-4: oklch(0.71 0 none);
   --chart-5: oklch(0.89 0 none);
+  --chart-line-primary: var(--chart-1);
+  --chart-line-secondary: var(--chart-2);
 }
 [data-theme='dark'] .adl-git-vis__container[data-chart-preset="bklit-default"] {
   --chart-scale-01: oklch(0.28 0.03 270);
@@ -228,6 +230,8 @@
   --chart-3: oklch(0.51 0 none);
   --chart-4: oklch(0.39 0 none);
   --chart-5: oklch(0.32 0 none);
+  --chart-line-primary: var(--chart-1);
+  --chart-line-secondary: var(--chart-2);
 }
 
 /* ── Preset: cool-ocean ── */
@@ -242,6 +246,8 @@
   --chart-3: oklch(0.55 0.08 235);
   --chart-4: oklch(0.65 0.06 195);
   --chart-5: oklch(0.75 0.04 180);
+  --chart-line-primary: var(--chart-1);
+  --chart-line-secondary: var(--chart-2);
 }
 [data-theme='dark'] .adl-git-vis__container[data-chart-preset="cool-ocean"] {
   --chart-scale-01: oklch(0.22 0.03 245);
@@ -254,6 +260,8 @@
   --chart-3: oklch(0.55 0.1 220);
   --chart-4: oklch(0.45 0.08 200);
   --chart-5: oklch(0.35 0.06 190);
+  --chart-line-primary: var(--chart-1);
+  --chart-line-secondary: var(--chart-2);
 }
 
 /* ── Preset: warm-sunset ── */
@@ -268,6 +276,8 @@
   --chart-3: oklch(0.6 0.1 70);
   --chart-4: oklch(0.7 0.08 85);
   --chart-5: oklch(0.8 0.05 90);
+  --chart-line-primary: var(--chart-1);
+  --chart-line-secondary: var(--chart-2);
 }
 [data-theme='dark'] .adl-git-vis__container[data-chart-preset="warm-sunset"] {
   --chart-scale-01: oklch(0.25 0.02 60);
@@ -280,6 +290,8 @@
   --chart-3: oklch(0.55 0.12 35);
   --chart-4: oklch(0.45 0.1 25);
   --chart-5: oklch(0.35 0.08 15);
+  --chart-line-primary: var(--chart-1);
+  --chart-line-secondary: var(--chart-2);
 }
 
 /* ── Preset: high-contrast ── */
@@ -294,6 +306,8 @@
   --chart-3: oklch(0.5 0.13 270);
   --chart-4: oklch(0.6 0.12 330);
   --chart-5: oklch(0.7 0.11 60);
+  --chart-line-primary: var(--chart-1);
+  --chart-line-secondary: var(--chart-2);
 }
 [data-theme='dark'] .adl-git-vis__container[data-chart-preset="high-contrast"] {
   --chart-scale-01: oklch(0.2 0.01 0);
@@ -306,6 +320,8 @@
   --chart-3: oklch(0.6 0.12 270);
   --chart-4: oklch(0.5 0.11 330);
   --chart-5: oklch(0.4 0.1 60);
+  --chart-line-primary: var(--chart-1);
+  --chart-line-secondary: var(--chart-2);
 }
 
 /* ── Preset Selector ── */

@@ -2,11 +2,9 @@ import React, { useMemo } from 'react';
 import { LineChart, Line } from '@/components/charts/line-chart';
 import { Grid } from '@/components/charts/grid';
 import { ChartTooltip } from '@/components/charts/tooltip/chart-tooltip';
-import { useBklitTheme } from '../hooks/useBklitTheme';
 import { generateCodeLineEvolutionData, toBklitAreaData } from '../data/gitVisMockData';
 
 export const CodeLineEvo = React.memo(function CodeLineEvo() {
-  const theme = useBklitTheme();
   const data = useMemo(() => toBklitAreaData(generateCodeLineEvolutionData()), []);
 
   return (
@@ -17,8 +15,8 @@ export const CodeLineEvo = React.memo(function CodeLineEvo() {
         margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
         style={{ maxHeight: 280 }}
       >
-        <Line dataKey="added" stroke={theme.accent} />
-        <Line dataKey="deleted" stroke={theme.seriesColors[1]} />
+        <Line dataKey="added" />
+        <Line dataKey="deleted" stroke="var(--chart-line-secondary)" />
         <Grid />
         <ChartTooltip />
       </LineChart>
