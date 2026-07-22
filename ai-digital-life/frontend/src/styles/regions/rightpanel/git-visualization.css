@@ -111,12 +111,12 @@
   height: 2px;
   border-radius: 1px;
   background: var(--text-primary);
-  transition: opacity 0.15s;
-  opacity: 0;
+  transform: scaleX(0);
+  transition: transform 0.2s ease;
   pointer-events: none;
 }
 .adl-branch-graph__label[data-indicator='true']::before {
-  opacity: 1;
+  transform: scaleX(1);
 }
 
 /* Scale on hover-only or selected-only (XOR) */
