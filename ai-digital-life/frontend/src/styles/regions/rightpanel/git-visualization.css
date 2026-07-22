@@ -216,108 +216,108 @@
    Chart Color Presets (bklit-ui aligned)
    ════════════════════════════════════════════ */
 
-/* ── Preset: bklit-default ── */
+/* ── Preset: bklit-default (主调: 蓝) ── */
 .adl-git-vis__container[data-chart-preset="bklit-default"] {
-  --chart-scale-01: oklch(0.97 0.008 145);
-  --chart-scale-02: oklch(0.88 0.035 145);
-  --chart-scale-03: oklch(0.72 0.065 145);
-  --chart-scale-04: oklch(0.52 0.09 145);
-  --chart-scale-05: oklch(0.32 0.115 145);
+  --chart-scale-01: oklch(0.97 0.01 260);
+  --chart-scale-02: oklch(0.88 0.035 260);
+  --chart-scale-03: oklch(0.72 0.06 260);
+  --chart-scale-04: oklch(0.52 0.085 260);
+  --chart-scale-05: oklch(0.32 0.11 260);
   --chart-1: oklch(0.5 0.1 260);
-  --chart-2: oklch(0.58 0.095 35);
-  --chart-3: oklch(0.5 0.08 170);
-  --chart-4: oklch(0.55 0.075 335);
-  --chart-5: oklch(0.6 0.075 85);
+  --chart-2: oklch(0.55 0.09 230);
+  --chart-3: oklch(0.45 0.085 290);
+  --chart-4: oklch(0.6 0.075 200);
+  --chart-5: oklch(0.4 0.075 320);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
 [data-theme='dark'] .adl-git-vis__container[data-chart-preset="bklit-default"] {
-  --chart-scale-01: oklch(0.22 0.02 265);
-  --chart-scale-02: oklch(0.3 0.04 265);
-  --chart-scale-03: oklch(0.4 0.06 265);
-  --chart-scale-04: oklch(0.52 0.08 265);
-  --chart-scale-05: oklch(0.65 0.1 265);
+  --chart-scale-01: oklch(0.22 0.02 260);
+  --chart-scale-02: oklch(0.3 0.04 260);
+  --chart-scale-03: oklch(0.4 0.06 260);
+  --chart-scale-04: oklch(0.52 0.08 260);
+  --chart-scale-05: oklch(0.65 0.1 260);
   --chart-1: oklch(0.68 0.09 260);
-  --chart-2: oklch(0.73 0.08 35);
-  --chart-3: oklch(0.65 0.07 170);
-  --chart-4: oklch(0.7 0.065 335);
-  --chart-5: oklch(0.75 0.06 85);
+  --chart-2: oklch(0.73 0.08 230);
+  --chart-3: oklch(0.63 0.075 290);
+  --chart-4: oklch(0.76 0.065 200);
+  --chart-5: oklch(0.58 0.065 320);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
 
-/* ── Preset: cool-ocean ── */
+/* ── Preset: cool-ocean (主调: 青/蓝绿) ── */
 .adl-git-vis__container[data-chart-preset="cool-ocean"] {
-  --chart-scale-01: oklch(0.97 0.008 240);
-  --chart-scale-02: oklch(0.88 0.03 240);
-  --chart-scale-03: oklch(0.73 0.055 240);
-  --chart-scale-04: oklch(0.54 0.08 240);
-  --chart-scale-05: oklch(0.35 0.105 240);
-  --chart-1: oklch(0.48 0.09 270);
-  --chart-2: oklch(0.56 0.075 215);
-  --chart-3: oklch(0.5 0.07 185);
-  --chart-4: oklch(0.55 0.065 300);
-  --chart-5: oklch(0.6 0.06 230);
+  --chart-scale-01: oklch(0.97 0.01 220);
+  --chart-scale-02: oklch(0.88 0.03 220);
+  --chart-scale-03: oklch(0.73 0.055 220);
+  --chart-scale-04: oklch(0.54 0.08 220);
+  --chart-scale-05: oklch(0.35 0.105 220);
+  --chart-1: oklch(0.48 0.09 220);
+  --chart-2: oklch(0.52 0.08 190);
+  --chart-3: oklch(0.44 0.08 250);
+  --chart-4: oklch(0.56 0.07 170);
+  --chart-5: oklch(0.58 0.06 270);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
 [data-theme='dark'] .adl-git-vis__container[data-chart-preset="cool-ocean"] {
-  --chart-scale-01: oklch(0.22 0.02 245);
-  --chart-scale-02: oklch(0.3 0.04 245);
-  --chart-scale-03: oklch(0.4 0.06 245);
-  --chart-scale-04: oklch(0.52 0.08 245);
-  --chart-scale-05: oklch(0.64 0.1 245);
-  --chart-1: oklch(0.68 0.08 270);
-  --chart-2: oklch(0.74 0.065 215);
-  --chart-3: oklch(0.67 0.06 185);
-  --chart-4: oklch(0.72 0.055 300);
-  --chart-5: oklch(0.76 0.05 230);
+  --chart-scale-01: oklch(0.22 0.02 220);
+  --chart-scale-02: oklch(0.3 0.04 220);
+  --chart-scale-03: oklch(0.4 0.06 220);
+  --chart-scale-04: oklch(0.52 0.08 220);
+  --chart-scale-05: oklch(0.64 0.1 220);
+  --chart-1: oklch(0.68 0.08 220);
+  --chart-2: oklch(0.72 0.07 190);
+  --chart-3: oklch(0.64 0.07 250);
+  --chart-4: oklch(0.74 0.06 170);
+  --chart-5: oklch(0.76 0.05 270);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
 
-/* ── Preset: warm-sunset ── */
+/* ── Preset: warm-sunset (主调: 琥珀/橙) ── */
 .adl-git-vis__container[data-chart-preset="warm-sunset"] {
-  --chart-scale-01: oklch(0.97 0.008 80);
-  --chart-scale-02: oklch(0.88 0.03 75);
-  --chart-scale-03: oklch(0.73 0.06 70);
-  --chart-scale-04: oklch(0.54 0.09 65);
-  --chart-scale-05: oklch(0.35 0.12 55);
-  --chart-1: oklch(0.5 0.09 30);
-  --chart-2: oklch(0.56 0.085 55);
-  --chart-3: oklch(0.5 0.07 90);
-  --chart-4: oklch(0.54 0.07 10);
-  --chart-5: oklch(0.6 0.065 70);
+  --chart-scale-01: oklch(0.97 0.01 60);
+  --chart-scale-02: oklch(0.88 0.03 60);
+  --chart-scale-03: oklch(0.73 0.06 60);
+  --chart-scale-04: oklch(0.54 0.09 60);
+  --chart-scale-05: oklch(0.35 0.12 60);
+  --chart-1: oklch(0.5 0.1 50);
+  --chart-2: oklch(0.54 0.09 30);
+  --chart-3: oklch(0.46 0.085 80);
+  --chart-4: oklch(0.58 0.08 15);
+  --chart-5: oklch(0.42 0.075 100);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
 [data-theme='dark'] .adl-git-vis__container[data-chart-preset="warm-sunset"] {
   --chart-scale-01: oklch(0.24 0.02 60);
-  --chart-scale-02: oklch(0.32 0.04 55);
-  --chart-scale-03: oklch(0.42 0.06 50);
-  --chart-scale-04: oklch(0.54 0.08 45);
-  --chart-scale-05: oklch(0.66 0.1 40);
-  --chart-1: oklch(0.68 0.08 30);
-  --chart-2: oklch(0.74 0.075 55);
-  --chart-3: oklch(0.67 0.06 90);
-  --chart-4: oklch(0.72 0.06 10);
-  --chart-5: oklch(0.76 0.055 70);
+  --chart-scale-02: oklch(0.32 0.04 60);
+  --chart-scale-03: oklch(0.42 0.06 60);
+  --chart-scale-04: oklch(0.54 0.08 60);
+  --chart-scale-05: oklch(0.66 0.1 60);
+  --chart-1: oklch(0.68 0.09 50);
+  --chart-2: oklch(0.72 0.08 30);
+  --chart-3: oklch(0.64 0.075 80);
+  --chart-4: oklch(0.74 0.07 15);
+  --chart-5: oklch(0.6 0.065 100);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
 
-/* ── Preset: high-contrast ── */
+/* ── Preset: high-contrast (高饱和蓝/橙互补) ── */
 .adl-git-vis__container[data-chart-preset="high-contrast"] {
   --chart-scale-01: oklch(0.95 0.005 0);
   --chart-scale-02: oklch(0.72 0.05 210);
   --chart-scale-03: oklch(0.48 0.08 220);
   --chart-scale-04: oklch(0.3 0.1 230);
   --chart-scale-05: oklch(0.18 0.1 240);
-  --chart-1: oklch(0.45 0.13 30);
-  --chart-2: oklch(0.5 0.12 150);
-  --chart-3: oklch(0.46 0.13 270);
-  --chart-4: oklch(0.52 0.11 330);
-  --chart-5: oklch(0.56 0.1 60);
+  --chart-1: oklch(0.42 0.14 260);
+  --chart-2: oklch(0.52 0.13 35);
+  --chart-3: oklch(0.48 0.12 290);
+  --chart-4: oklch(0.55 0.11 160);
+  --chart-5: oklch(0.46 0.11 10);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
@@ -327,11 +327,11 @@
   --chart-scale-03: oklch(0.48 0.06 220);
   --chart-scale-04: oklch(0.64 0.08 230);
   --chart-scale-05: oklch(0.8 0.1 240);
-  --chart-1: oklch(0.72 0.12 30);
-  --chart-2: oklch(0.68 0.11 150);
-  --chart-3: oklch(0.65 0.12 270);
-  --chart-4: oklch(0.62 0.1 330);
-  --chart-5: oklch(0.58 0.09 60);
+  --chart-1: oklch(0.7 0.13 260);
+  --chart-2: oklch(0.74 0.12 35);
+  --chart-3: oklch(0.68 0.11 290);
+  --chart-4: oklch(0.76 0.1 160);
+  --chart-5: oklch(0.66 0.1 10);
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
