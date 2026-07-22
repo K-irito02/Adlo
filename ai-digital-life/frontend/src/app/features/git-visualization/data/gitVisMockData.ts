@@ -605,7 +605,7 @@ export function generateContributorActivityData(): HeatmapColumn[] {
       const count = Math.floor(pseudoRandom() * maxWeekly);
       bins.push({ count, bin: c });
     }
-    columns.push({ bin: w, bins, columnLabel: `W${w + 1}` });
+    columns.push({ bin: w, bins, columnLabel: String(w + 1) });
   }
   return columns;
 }
