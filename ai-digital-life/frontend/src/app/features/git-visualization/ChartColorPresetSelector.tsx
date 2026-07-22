@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
+import { IconCheck } from '@app/icons';
 import type { ChartColorPreset } from '@stores/slices/uiSliceTypes';
 
 const PRESET_COLORS: Record<ChartColorPreset, { light: { darkest: string; lightest: string }; dark: { darkest: string; lightest: string } }> = {
@@ -36,9 +37,8 @@ function PresetColorIcon({ presetId, theme }: { presetId: ChartColorPreset; them
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
-      <circle cx="9" cy="12" r="7" fill={colors.lightest} stroke={colors.darkest} strokeWidth="1.2" />
       <circle cx="15" cy="12" r="7" fill={colors.lightest} stroke={colors.darkest} strokeWidth="1.2" />
-      <path d="M 12 5.68 A 7 7 0 0 1 12 18.32 A 7 7 0 0 1 12 5.68" fill={colors.darkest} />
+      <circle cx="9" cy="12" r="7" fill={colors.darkest} stroke={colors.darkest} strokeWidth="1.2" />
     </svg>
   );
 }
@@ -101,9 +101,7 @@ export const ChartColorPresetSelector = React.memo(function ChartColorPresetSele
               <PresetColorIcon presetId={preset.id} theme={resolvedTheme} />
               <span className="adl-git-vis__preset-item-label">{t[preset.labelKey]}</span>
               {chartColorPreset === preset.id && (
-                <svg className="adl-git-vis__preset-check" viewBox="0 0 24 24" width="16" height="16" fill="none" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+                <IconCheck size={16} decorative />
               )}
             </button>
           ))}

@@ -407,9 +407,9 @@
   flex: 1;
 }
 
-.adl-git-vis__preset-check {
+.adl-git-vis__preset-item .adl-icon {
   flex-shrink: 0;
-  stroke: var(--text-primary);
+  color: var(--text-primary);
 }
 
 .adl-git-vis__heatmap-legend {
