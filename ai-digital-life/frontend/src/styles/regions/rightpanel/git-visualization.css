@@ -345,18 +345,72 @@
   gap: var(--space-2);
 }
 
-.adl-git-vis__preset-select {
-  font-size: 0.8rem;
-  padding: 2px 8px;
+.adl-git-vis__preset-dropdown {
+  position: relative;
+}
+
+.adl-git-vis__preset-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   background: var(--bg-input);
-  color: var(--text-secondary);
   cursor: pointer;
+  transition: border-color 0.15s;
 }
 
-.adl-git-vis__preset-select:hover {
+.adl-git-vis__preset-trigger:hover {
   border-color: var(--border-default);
+}
+
+.adl-git-vis__preset-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 180px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.adl-git-vis__preset-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.adl-git-vis__preset-item:hover {
+  background: var(--bg-hover);
+}
+
+.adl-git-vis__preset-item-label {
+  flex: 1;
+}
+
+.adl-git-vis__preset-check {
+  flex-shrink: 0;
+  color: var(--accent);
 }
 
 .adl-git-vis__heatmap-legend {
