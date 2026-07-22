@@ -8,22 +8,31 @@ function createMotionValue(initial = 0) {
   const listeners: Record<string, ((v: unknown) => void)[]> = {};
   return {
     get: () => value,
-    set: (v: unknown) => { value = v as number; listeners.change?.forEach((fn) => fn(v)); },
+    set: (v: unknown) => {
+      value = v as number;
+      listeners.change?.forEach((fn) => fn(v));
+    },
     stop: () => {},
     on: (event: string, fn: (v: unknown) => void) => {
       (listeners[event] ??= []).push(fn);
-      return () => { listeners[event] = listeners[event]?.filter((f) => f !== fn); };
+      return () => {
+        listeners[event] = listeners[event]?.filter((f) => f !== fn);
+      };
     },
   };
 }
 
 vi.mock('motion/react', () => ({
-  motion: new Proxy({}, {
-    get: () => function MotionTag({ children, ...rest }: Record<string, unknown>) {
-      const React = require('react');
-      return React.createElement('div', { className: rest.className }, children);
+  motion: new Proxy(
+    {},
+    {
+      get: () =>
+        function MotionTag({ children, ...rest }: Record<string, unknown>) {
+          const React = require('react');
+          return React.createElement('div', { className: rest.className }, children);
+        },
     },
-  }),
+  ),
   animate: () => ({ stop: () => {}, then: () => Promise.resolve(), cancel: () => {} }),
   useMotionValue: <T,>(val: T) => createMotionValue(val as number),
   useTransform: () => createMotionValue(0),
@@ -32,18 +41,26 @@ vi.mock('motion/react', () => ({
 }));
 
 vi.mock('@visx/responsive', () => ({
-  ParentSize: ({ children }: { children: (args: { width: number; height: number }) => React.ReactNode }) =>
-    children({ width: 600, height: 200 }),
+  ParentSize: ({
+    children,
+  }: {
+    children: (args: { width: number; height: number }) => React.ReactNode;
+  }) => children({ width: 600, height: 200 }),
 }));
 
 vi.mock('@hooks/useResolvedTheme', () => ({ useResolvedTheme: vi.fn(() => 'light') }));
 
 vi.mock('../hooks/useBklitTheme', () => ({
   useBklitTheme: () => ({
-    accent: '#3b82f6', muted: '#94a3b8', background: '#ffffff', text: '#1e293b',
+    accent: '#3b82f6',
+    muted: '#94a3b8',
+    background: '#ffffff',
+    text: '#1e293b',
     seriesColors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'],
     heatmapColors: ['#f1f5f9', '#bfdbfe', '#60a5fa', '#3b82f6', '#1d4ed8'],
-    grid: '#e2e8f0', tooltipBg: '#1e293b', tooltipText: '#f8fafc',
+    grid: '#e2e8f0',
+    tooltipBg: '#1e293b',
+    tooltipText: '#f8fafc',
   }),
 }));
 

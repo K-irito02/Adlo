@@ -51,11 +51,17 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const idx = TABS.findIndex((tab) => tab.id === activeHeatmapTab);
     let next = idx;
-    if (e.key === 'ArrowRight') next = (idx + 1) % TABS.length;
-    else if (e.key === 'ArrowLeft') next = (idx - 1 + TABS.length) % TABS.length;
-    else if (e.key === 'Home') next = 0;
-    else if (e.key === 'End') next = TABS.length - 1;
-    else return;
+    if (e.key === 'ArrowRight') {
+      next = (idx + 1) % TABS.length;
+    } else if (e.key === 'ArrowLeft') {
+      next = (idx - 1 + TABS.length) % TABS.length;
+    } else if (e.key === 'Home') {
+      next = 0;
+    } else if (e.key === 'End') {
+      next = TABS.length - 1;
+    } else {
+      return;
+    }
     e.preventDefault();
     setActiveHeatmapTab(TABS[next].id);
     document.getElementById(`heatmap-tab-${TABS[next].id}`)?.focus();
@@ -66,7 +72,12 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup() {
       <div className="adl-git-vis__card-header">
         <h3 className="adl-git-vis__card-title">{t[TITLE_KEYS[activeHeatmapTab]]}</h3>
       </div>
-      <nav className="adl-git-vis__heatmap-nav" role="tablist" aria-label={t.gitVisHeatmapNav} onKeyDown={handleKeyDown}>
+      <nav
+        className="adl-git-vis__heatmap-nav"
+        role="tablist"
+        aria-label={t.gitVisHeatmapNav}
+        onKeyDown={handleKeyDown}
+      >
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -81,7 +92,12 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup() {
           </button>
         ))}
       </nav>
-      <div className="adl-git-vis__chart" role="tabpanel" id="heatmap-tabpanel" aria-labelledby={`heatmap-tab-${activeHeatmapTab}`}>
+      <div
+        className="adl-git-vis__chart"
+        role="tabpanel"
+        id="heatmap-tabpanel"
+        aria-labelledby={`heatmap-tab-${activeHeatmapTab}`}
+      >
         <ActiveChart />
       </div>
       <p className="adl-git-vis__card-desc">{t[DESC_KEYS[activeHeatmapTab]]}</p>

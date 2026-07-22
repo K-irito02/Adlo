@@ -12,7 +12,10 @@ function createMotionValue(initial = 0) {
   const listeners: Record<string, ((v: unknown) => void)[]> = {};
   return {
     get: () => value,
-    set: (v: unknown) => { value = v as number; listeners.change?.forEach((fn) => fn(v)); },
+    set: (v: unknown) => {
+      value = v as number;
+      listeners.change?.forEach((fn) => fn(v));
+    },
     stop: () => {},
     on: (event: string, fn: (v: unknown) => void) => {
       (listeners[event] ??= []).push(fn);

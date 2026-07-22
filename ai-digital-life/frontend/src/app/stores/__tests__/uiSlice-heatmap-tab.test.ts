@@ -1,9 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readJson, writeJson } from '../storageHelpers';
-import {
-  ACTIVE_HEATMAP_TAB_KEY,
-  type HeatmapTab,
-} from '../slices/uiSliceTypes';
+import { ACTIVE_HEATMAP_TAB_KEY, type HeatmapTab } from '../slices/uiSliceTypes';
 
 describe('ACTIVE_HEATMAP_TAB_KEY', () => {
   it('should have the correct key value', () => {
