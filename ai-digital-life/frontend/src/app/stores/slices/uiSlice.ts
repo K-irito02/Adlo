@@ -5,14 +5,16 @@
 import type { ToolId, FilesNavigatorMode, ChangesNavigatorMode } from '../types';
 import type { StoreState } from '../StoreState';
 import { BROWSER_NAVIGATOR_COLLAPSED_KEY, STORAGE_HYDRATION_DELAY_MS } from '../constants';
-import { readFlag, writeFlag, readJson, makePersistedWriter } from '../shared';
+import { readFlag, writeFlag, readJson, writeJson, makePersistedWriter } from '../shared';
 import type {
   TreeExpansionState,
   FileTreeExpansionState,
   FilePreviewModeState,
+  HeatmapTab,
   UISlice,
 } from './uiSliceTypes';
 import {
+  ACTIVE_HEATMAP_TAB_KEY,
   CHANGES_PREVIEW_ENABLED_KEY,
   SHOW_GIT_VISUALIZATION_KEY,
   FILE_PREVIEW_MODE_KEY,
@@ -30,6 +32,7 @@ export type {
   TreeExpansionState,
   FileTreeExpansionState,
   FilePreviewModeState,
+  HeatmapTab,
   UISlice,
 } from './uiSliceTypes';
 export {
@@ -46,6 +49,7 @@ export {
   FILES_NAVIGATOR_MODE_KEY,
   CHANGES_NAVIGATOR_MODE_KEY,
   FILE_PREVIEW_MODE_KEY,
+  ACTIVE_HEATMAP_TAB_KEY,
   CHANGES_PREVIEW_ENABLED_KEY,
   SHOW_GIT_VISUALIZATION_KEY,
   SESSION_TABS_EXPANDED_KEY,
@@ -109,6 +113,7 @@ function hydrateUIDefaults(
     const filePreviewModeByPath = readJson<FilePreviewModeState>(FILE_PREVIEW_MODE_KEY, {});
     const changesPreviewEnabled = readFlag(CHANGES_PREVIEW_ENABLED_KEY, true);
     const showGitVisualization = readFlag(SHOW_GIT_VISUALIZATION_KEY, false);
+    const activeHeatmapTab = readJson<HeatmapTab>(ACTIVE_HEATMAP_TAB_KEY, 'calendar');
     const expandedSessionWorkspaces = readJson<Record<string, boolean>>(
       SESSION_TABS_EXPANDED_KEY,
       {},
@@ -130,6 +135,7 @@ function hydrateUIDefaults(
       filePreviewModeByPath,
       changesPreviewEnabled,
       showGitVisualization,
+      activeHeatmapTab,
       expandedSessionWorkspaces,
       navigatorCollapsedByTool,
     });
@@ -201,6 +207,7 @@ export const createUISlice = (
     filePreviewModeByPath: {},
     changesPreviewEnabled: true,
     showGitVisualization: false,
+    activeHeatmapTab: 'calendar',
     startupOverlayHidden: false,
     contextChips: [],
     contextMenuOpen: false,
@@ -236,6 +243,10 @@ export const createUISlice = (
     setShowGitVisualization: (show) => {
       writeFlag(SHOW_GIT_VISUALIZATION_KEY, show);
       set({ showGitVisualization: show });
+    },
+    setActiveHeatmapTab: (tab) => {
+      writeJson(ACTIVE_HEATMAP_TAB_KEY, tab);
+      set({ activeHeatmapTab: tab });
     },
     setStartupOverlayHidden: (hidden) => set({ startupOverlayHidden: hidden }),
     setChangesNavigatorMode: (mode) => {

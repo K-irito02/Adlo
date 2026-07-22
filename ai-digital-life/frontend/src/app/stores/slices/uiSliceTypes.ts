@@ -31,6 +31,7 @@ export const CHANGES_PREVIEW_ENABLED_KEY = 'adl-ui:changes-preview-enabled';
 export const SESSION_TABS_EXPANDED_KEY = 'adl-ui:session-tabs-expanded';
 export const ACTIVE_RIGHT_TOOL_KEY = 'adl-ui:active-right-tool';
 export const SHOW_GIT_VISUALIZATION_KEY = 'adl-ui:show-git-visualization';
+export const ACTIVE_HEATMAP_TAB_KEY = 'adl-ui:active-heatmap-tab';
 
 // ════════════════════════════════════════════════════════
 // 面板宽度常量
@@ -61,6 +62,8 @@ export type TreeExpansionState = Record<string, boolean>;
 export type FileTreeExpansionState = Record<string, TreeExpansionState>;
 export type FilePreviewModeState = Record<string, boolean>;
 
+export type HeatmapTab = 'calendar' | 'clock' | 'activity' | 'module';
+
 export interface UISlice {
   activeRightTool: ToolId;
   chatMode: ChatMode;
@@ -80,6 +83,7 @@ export interface UISlice {
   filePreviewModeByPath: FilePreviewModeState;
   changesPreviewEnabled: boolean;
   showGitVisualization: boolean;
+  activeHeatmapTab: HeatmapTab;
   startupOverlayHidden: boolean;
   expandedSessionWorkspaces: Record<string, boolean>;
   contextChips: ContextChip[];
@@ -114,6 +118,7 @@ export interface UISlice {
   setFilePreviewModeForPath: (path: string, previewEnabled: boolean) => void;
   setChangesPreviewEnabled: (previewEnabled: boolean) => void;
   setShowGitVisualization: (show: boolean) => void;
+  setActiveHeatmapTab: (tab: HeatmapTab) => void;
   setStartupOverlayHidden: (hidden: boolean) => void;
   setChangesNavigatorMode: (mode: ChangesNavigatorMode) => void;
   setChangesTreePathExpanded: (path: string, expanded: boolean) => void;
