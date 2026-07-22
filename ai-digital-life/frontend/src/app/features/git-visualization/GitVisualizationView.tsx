@@ -1,11 +1,8 @@
 import React from 'react';
 import { useTCopy } from '@i18n/useTCopy';
-import { CalendarHeatmap } from './charts/CalendarHeatmap';
-import { ClockHeatmap } from './charts/ClockHeatmap';
+import { HeatmapCardGroup } from './HeatmapCardGroup';
 import { CodeLineEvo } from './charts/CodeLineEvo';
 import { CommitTimeline } from './charts/CommitTimeline';
-import { ContributorActivityHeatmap } from './charts/ContributorActivityHeatmap';
-import { ContributorModuleHeatmap } from './charts/ContributorModuleHeatmap';
 import { FileSunburst } from './charts/FileSunburst';
 import { BranchGraph } from './charts/BranchGraph';
 
@@ -31,23 +28,12 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
 
   return (
     <div className="adl-git-vis__container">
-      <ChartCard title={t.gitVisCalendarHeatmap} desc={t.gitVisCalendarHeatmapDesc}>
-        <CalendarHeatmap />
-      </ChartCard>
-      <ChartCard title={t.gitVisClockHeatmap} desc={t.gitVisClockHeatmapDesc}>
-        <ClockHeatmap />
-      </ChartCard>
+      <HeatmapCardGroup />
       <ChartCard title={t.gitVisCodeLineEvo} desc={t.gitVisCodeLineEvoDesc}>
         <CodeLineEvo />
       </ChartCard>
-      <ChartCard title={t.gitVisContributorActivity} desc={t.gitVisContributorActivityDesc}>
-        <ContributorActivityHeatmap />
-      </ChartCard>
       <ChartCard title={t.gitVisCommitTimeline} desc={t.gitVisCommitTimelineDesc}>
         <CommitTimeline />
-      </ChartCard>
-      <ChartCard title={t.gitVisContributorModule} desc={t.gitVisContributorModuleDesc}>
-        <ContributorModuleHeatmap />
       </ChartCard>
       <ChartCard title={t.gitVisFileSunburst} desc={t.gitVisFileSunburstDesc}>
         <FileSunburst />

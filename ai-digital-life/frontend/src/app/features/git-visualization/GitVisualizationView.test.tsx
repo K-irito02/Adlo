@@ -75,6 +75,14 @@ vi.mock('@hooks/useResolvedTheme', () => ({
   useResolvedTheme: vi.fn(() => 'light'),
 }));
 
+vi.mock('@stores/slicedStore', () => ({
+  useAppStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector({
+      activeHeatmapTab: 'calendar',
+      setActiveHeatmapTab: vi.fn(),
+    }),
+}));
+
 vi.mock('../hooks/useBklitTheme', () => ({
   useBklitTheme: () => ({
     accent: '#3b82f6',
@@ -111,16 +119,20 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisContributorModuleDesc: 'desc',
       gitVisFileSunburstDesc: 'desc',
       gitVisMockDataNote: 'note',
+      gitVisHeatmapTabCalendar: 'Calendar',
+      gitVisHeatmapTabClock: 'Clock',
+      gitVisHeatmapTabActivity: 'Activity',
+      gitVisHeatmapTabModule: 'Module',
     },
     formatT: vi.fn(),
   })),
 }));
 
 describe('GitVisualizationView', () => {
-  it('renders 8 chart cards', { timeout: 30000 }, () => {
+  it('renders 5 chart cards', { timeout: 30000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const cards = container.querySelectorAll('.adl-git-vis__card');
-    expect(cards.length).toBe(8);
+    expect(cards.length).toBe(5);
   });
 
   it('renders scroll container', { timeout: 30000 }, () => {
