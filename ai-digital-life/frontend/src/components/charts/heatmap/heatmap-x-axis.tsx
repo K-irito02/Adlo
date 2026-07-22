@@ -11,11 +11,18 @@ export interface HeatmapXAxisProps {
   className?: string;
   /** Show every N-th label (1 = all). Helps prevent overlap on dense grids. Default: 1 */
   tickEvery?: number;
+  /**
+   * Label format mode:
+   * - `'short'` (default) — localized short month name via Intl.DateTimeFormat
+   * - `'numeric'` — plain month number 1-12, no truncation, allows overflow
+   */
+  labelFormat?: 'short' | 'numeric';
 }
 
 export const HeatmapXAxis = memo(function HeatmapXAxis({
   className,
   tickEvery = 1,
+  labelFormat = 'short',
 }: HeatmapXAxisProps) {
   const { containerRef, data, margin, xScale, binWidth, columnLabels, locale } = useHeatmap();
   const [mounted, setMounted] = useState(false);
@@ -57,7 +64,9 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
       }
 
       ticks.push({
-        label: monthFmt.format(monthAnchor),
+        label: labelFormat === 'numeric'
+          ? String(monthAnchor.getMonth() + 1)
+          : monthFmt.format(monthAnchor),
         x: margin.left + xScale(columnIndex),
         key: `x-${columnIndex}-${monthKey}`,
       });
@@ -65,12 +74,14 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
     }
 
     return ticks;
-  }, [columnLabels, data, locale, margin.left, tickEvery, xScale]);
+  }, [columnLabels, data, labelFormat, locale, margin.left, tickEvery, xScale]);
 
   const container = containerRef.current;
   if (!(mounted && container)) {
     return null;
   }
+
+  const useAutoWidth = labelFormat === 'numeric' || !!columnLabels;
 
   return createPortal(
     labels.map((tick) => (
@@ -80,13 +91,20 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
         style={{
           top: 0,
           left: tick.x,
-          width: binWidth,
+          width: useAutoWidth ? 'auto' : binWidth,
           display: 'flex',
           justifyContent: 'flex-start',
-          overflow: 'hidden',
+          overflow: useAutoWidth ? 'visible' : 'hidden',
         }}
       >
-        <span className={cn('truncate text-chart-label text-xs', className)} title={tick.label}>
+        <span
+          className={cn(
+            'text-chart-label text-xs',
+            !useAutoWidth && 'truncate',
+            className,
+          )}
+          title={useAutoWidth ? undefined : tick.label}
+        >
           {tick.label}
         </span>
       </div>
