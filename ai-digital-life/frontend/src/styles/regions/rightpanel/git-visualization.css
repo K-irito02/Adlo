@@ -409,7 +409,7 @@
 
 .adl-git-vis__preset-check {
   flex-shrink: 0;
-  stroke: var(--text-inverse);
+  stroke: var(--text-primary);
 }
 
 .adl-git-vis__heatmap-legend {

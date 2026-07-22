@@ -7,20 +7,20 @@ import type { ChartColorPreset } from '@stores/slices/uiSliceTypes';
 
 const PRESET_COLORS: Record<ChartColorPreset, { light: { darkest: string; lightest: string }; dark: { darkest: string; lightest: string } }> = {
   'bklit-default': {
-    light: { darkest: 'oklch(0.5 0.1 260)', lightest: 'oklch(0.97 0.01 260)' },
-    dark: { darkest: 'oklch(0.68 0.09 260)', lightest: 'oklch(0.22 0.02 260)' },
+    light: { darkest: 'oklch(0.3 0.12 260)', lightest: 'oklch(0.82 0.05 260)' },
+    dark: { darkest: 'oklch(0.7 0.1 260)', lightest: 'oklch(0.3 0.06 260)' },
   },
   'cool-ocean': {
-    light: { darkest: 'oklch(0.48 0.09 220)', lightest: 'oklch(0.97 0.01 220)' },
-    dark: { darkest: 'oklch(0.68 0.08 220)', lightest: 'oklch(0.22 0.02 220)' },
+    light: { darkest: 'oklch(0.28 0.11 220)', lightest: 'oklch(0.82 0.05 220)' },
+    dark: { darkest: 'oklch(0.7 0.09 220)', lightest: 'oklch(0.3 0.06 220)' },
   },
   'warm-sunset': {
-    light: { darkest: 'oklch(0.5 0.1 50)', lightest: 'oklch(0.97 0.01 60)' },
-    dark: { darkest: 'oklch(0.68 0.09 50)', lightest: 'oklch(0.24 0.02 60)' },
+    light: { darkest: 'oklch(0.3 0.12 50)', lightest: 'oklch(0.82 0.05 60)' },
+    dark: { darkest: 'oklch(0.7 0.1 50)', lightest: 'oklch(0.32 0.06 60)' },
   },
   'high-contrast': {
-    light: { darkest: 'oklch(0.42 0.14 260)', lightest: 'oklch(0.95 0.005 0)' },
-    dark: { darkest: 'oklch(0.7 0.13 260)', lightest: 'oklch(0.18 0.01 0)' },
+    light: { darkest: 'oklch(0.25 0.14 260)', lightest: 'oklch(0.78 0.06 240)' },
+    dark: { darkest: 'oklch(0.72 0.14 260)', lightest: 'oklch(0.28 0.05 240)' },
   },
 };
 
@@ -36,8 +36,8 @@ function PresetColorIcon({ presetId, theme }: { presetId: ChartColorPreset; them
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
-      <circle cx="9" cy="12" r="7" fill={colors.lightest} />
-      <circle cx="15" cy="12" r="7" fill={colors.lightest} />
+      <circle cx="9" cy="12" r="7" fill={colors.lightest} stroke={colors.darkest} strokeWidth="1.2" />
+      <circle cx="15" cy="12" r="7" fill={colors.lightest} stroke={colors.darkest} strokeWidth="1.2" />
       <path d="M 12 5.68 A 7 7 0 0 1 12 18.32 A 7 7 0 0 1 12 5.68" fill={colors.darkest} />
     </svg>
   );
