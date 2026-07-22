@@ -14,11 +14,11 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar() {
     })),
   );
 
-  const scrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [visibleTabs, setVisibleTabs] = useState(27);
+  const [visibleTabs, setVisibleTabs] = useState(mockWorkspaceTabs.length);
 
   const recalc = useCallback(() => {
     const container = containerRef.current;
@@ -40,6 +40,10 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar() {
     if (containerRef.current) ro.observe(containerRef.current);
     return () => ro.disconnect();
   }, [recalc]);
+
+  useEffect(() => {
+    setPage((p) => Math.min(p, totalPages - 1));
+  }, [totalPages]);
 
   const isOverflowed = totalPages > 1;
 
@@ -94,14 +98,13 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar() {
                   className={`adl-workspace-tab__tab${isActive ? ' adl-workspace-tab__tab--active' : ''}`}
                   onClick={() => setActiveWorkspaceTab(item.id)}
                   title={item.label}
-                  aria-pressed={isActive}
+                  aria-pressed={isActive ? 'true' : 'false'}
                 >
                   <span className="adl-workspace-tab__tab-text">{item.label}</span>
                 </button>
               );
             })}
           </div>
-          {isOverflowed && <div className="adl-workspace-tab__fade" />}
         </div>
 
         {isOverflowed && (
@@ -124,6 +127,7 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar() {
               key={idx}
               className={`adl-workspace-tab__dot${idx === page ? ' adl-workspace-tab__dot--active' : ''}`}
               onClick={() => setPage(idx)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPage(idx); } }}
               role="button"
               tabIndex={0}
               aria-label={`Page ${idx + 1}`}
