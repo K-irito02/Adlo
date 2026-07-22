@@ -128,6 +128,7 @@ export const changesZh = {
   gitVisHeatmapTabClock: '时段',
   gitVisHeatmapTabActivity: '活跃度',
   gitVisHeatmapTabModule: '模块',
+  gitVisHeatmapNav: '热力图类型',
   gitVisBranchGraph: '分支图谱',
   gitVisBranchGraphDesc:
     '带有分支拓扑的提交有向无环图。每条垂直泳道为一个分支；● 圆点为单父提交，■ 方块为合并提交（2个以上父提交），标签徽章（如 v1.0）标记了 tagged 版本。点击分支标签可按分支筛选。',

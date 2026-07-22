@@ -134,6 +134,7 @@ export const changesEn = {
   gitVisHeatmapTabClock: 'Hours',
   gitVisHeatmapTabActivity: 'Activity',
   gitVisHeatmapTabModule: 'Module',
+  gitVisHeatmapNav: 'Heatmap type',
   gitVisBranchGraph: 'Branch Graph',
   gitVisBranchGraphDesc:
     'Commit DAG with branch topology. Each vertical lane is a branch; ● dots are single-parent commits, ■ squares are merge commits (2+ parents), tag badges (e.g. v1.0) mark tagged releases. Click branch labels to filter by branch.',

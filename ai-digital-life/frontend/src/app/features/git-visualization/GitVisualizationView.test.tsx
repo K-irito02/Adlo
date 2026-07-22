@@ -8,12 +8,11 @@ afterEach(() => {
 });
 
 function createMotionValue(initial = 0) {
+  let value = initial;
   const listeners: Record<string, ((v: unknown) => void)[]> = {};
   return {
-    get: () => initial,
-    set: (v: unknown) => {
-      listeners.change?.forEach((fn) => fn(v));
-    },
+    get: () => value,
+    set: (v: unknown) => { value = v as number; listeners.change?.forEach((fn) => fn(v)); },
     stop: () => {},
     on: (event: string, fn: (v: unknown) => void) => {
       (listeners[event] ??= []).push(fn);
@@ -123,10 +122,13 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisHeatmapTabClock: 'Clock',
       gitVisHeatmapTabActivity: 'Activity',
       gitVisHeatmapTabModule: 'Module',
+      gitVisHeatmapNav: 'Heatmap type',
     },
     formatT: vi.fn(),
   })),
 }));
+
+// Store mock required for HeatmapCardGroup which is rendered inside GitVisualizationView
 
 describe('GitVisualizationView', () => {
   it('renders 5 chart cards', { timeout: 30000 }, () => {
