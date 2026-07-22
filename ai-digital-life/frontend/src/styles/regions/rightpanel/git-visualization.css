@@ -196,6 +196,10 @@
   transition: transform 0.2s ease;
 }
 
+.adl-git-vis__heatmap-tab:hover::after {
+  transform: scaleX(1);
+}
+
 .adl-git-vis__heatmap-tab--active::after {
   transform: scaleX(1);
 }
