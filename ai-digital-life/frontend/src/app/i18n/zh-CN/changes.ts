@@ -116,14 +116,20 @@ export const changesZh = {
   gitVisContributorActivity: '贡献活跃度',
   gitVisCommitTimeline: '提交时间线',
   gitVisFileSunburst: '文件旭日图',
-  gitVisCalendarHeatmapDesc: '近一年每日提交次数，颜色越深提交越密集，可快速识别活跃周期。',
-  gitVisClockHeatmapDesc: '纵轴 = 星期，横轴 = 小时，色块表示该时段提交频次，发现团队工作节奏。',
-  gitVisContributorModuleDesc: '行 = 贡献者，列 = 模块，颜色深浅反映跨领域活跃度。',
-  gitVisCodeLineEvoDesc: '40 周内累计新增（+）与删除（-）行数，反映项目增长与重构节奏。',
-  gitVisContributorActivityDesc: '行 = 6 位贡献者，列 = 48 周时间段，颜色深浅 = 每人每周提交量。',
-  gitVisCommitTimelineDesc: '累计提交增长折线图，展示两周内的项目开发速度。',
+  gitVisCalendarHeatmapDesc:
+    '行：星期（日~六），列：月份（1~12）。色块颜色从浅到深代表当日提交数量由少到多。可快速识别一年中的活跃周期与低谷期。',
+  gitVisClockHeatmapDesc:
+    '行：星期（日~六），列：时段（0~23时）。色块颜色从浅到深代表该时段提交频次由少到多。可发现团队编码工作节奏。',
+  gitVisContributorModuleDesc:
+    '行：6位贡献者，列：5个模块。色块颜色从浅到深代表跨领域活跃度由低到高。可定位每位贡献者的主要贡献领域与协作范围。',
+  gitVisCodeLineEvoDesc:
+    '行：累计行数，列：40周时间。绿线为新增行数，红线为删除行数。可反映项目增长速度与重构节奏。',
+  gitVisContributorActivityDesc:
+    '行：6位贡献者，列：48周时间段。色块颜色从浅到深代表每人每周提交量由少到多。可追踪每位贡献者在时间维度上的活跃分布。',
+  gitVisCommitTimelineDesc:
+    '行：累计提交数，列：2周时间。折线为累计提交增长趋势。可展示项目开发速度。',
   gitVisFileSunburstDesc:
-    '按文件类型分类的旭日分区图，扇形角度 = 修改次数/代码量，按类别定位"热点文件"。',
+    '从内向外按文件类型分层，扇形角度=修改次数/代码量，颜色区分不同类别。可快速定位"热点文件"与高活跃模块。',
   gitVisHeatmapTabCalendar: '日历',
   gitVisHeatmapTabClock: '时段',
   gitVisHeatmapTabActivity: '活跃度',
@@ -131,7 +137,7 @@ export const changesZh = {
   gitVisHeatmapNav: '热力图类型',
   gitVisBranchGraph: '分支图谱',
   gitVisBranchGraphDesc:
-    '带有分支拓扑的提交有向无环图。每条垂直泳道为一个分支；● 圆点为单父提交，■ 方块为合并提交（2个以上父提交），标签徽章（如 v1.0）标记了 tagged 版本。点击分支标签可按分支筛选。',
+    '每条垂直泳道为一个分支。●圆点为单父提交，■方块为合并提交（2个以上父提交），标签徽章标记tagged版本。可查看项目的分支拓扑与合并历史。',
   gitVisBranch: '分支',
   gitVisHash: '哈希',
   gitVisMessage: '提交信息',

@@ -117,19 +117,19 @@ export const changesEn = {
   gitVisCommitTimeline: 'Commit Timeline',
   gitVisFileSunburst: 'File Sunburst',
   gitVisCalendarHeatmapDesc:
-    'Daily commit count over the past year. Darker color = more commits. Quickly identify active periods.',
+    'Row: weekday (Sun~Sat), Column: month (1~12). Cell color intensity from light to dark represents daily commit count from few to many. Quickly identify active periods and low activity phases across the year.',
   gitVisClockHeatmapDesc:
-    'Y-axis = day of week, X-axis = hour. Color block = commit frequency. Discover team work rhythm.',
+    'Row: weekday (Sun~Sat), Column: hour (0~23). Cell color intensity from light to dark represents commit frequency from low to high. Discover team work rhythm patterns.',
   gitVisContributorModuleDesc:
-    'Rows = contributors, columns = modules. Color intensity shows cross-domain activity.',
+    'Row: 6 contributors, Column: 5 modules. Cell color intensity from light to dark represents cross-domain activity from low to high. Identify each contributor\'s primary contribution areas and collaboration scope.',
   gitVisCodeLineEvoDesc:
-    'Cumulative added (+) and deleted (-) lines over 40 weeks. Tracks project growth and refactoring pace.',
+    'Row: cumulative line count, Column: 40 weeks. Green line = added lines, red line = deleted lines. Reflects project growth pace and refactoring rhythm.',
   gitVisContributorActivityDesc:
-    'Rows = contributors (6), columns = weeks (48). Color intensity = weekly commit volume per person.',
+    'Row: 6 contributors, Column: 48 weeks. Cell color intensity represents weekly commit volume per person from low to high. Track each contributor\'s activity distribution over time.',
   gitVisCommitTimelineDesc:
-    'Cumulative commit growth over time. Line chart showing project velocity over a 2-week period.',
+    'Row: cumulative commits, Column: 2 weeks. Line shows cumulative commit growth trend. Demonstrates project development velocity.',
   gitVisFileSunburstDesc:
-    'Sunburst partition by file type. Arc angle = modification count/code volume. Locate "hotspot files" by category.',
+    'Inner to outer layers by file type, arc angle = modification count / code volume, colors distinguish categories. Quickly locate "hotspot files" and high-activity modules.',
   gitVisHeatmapTabCalendar: 'Calendar',
   gitVisHeatmapTabClock: 'Hours',
   gitVisHeatmapTabActivity: 'Activity',
@@ -137,7 +137,7 @@ export const changesEn = {
   gitVisHeatmapNav: 'Heatmap type',
   gitVisBranchGraph: 'Branch Graph',
   gitVisBranchGraphDesc:
-    'Commit DAG with branch topology. Each vertical lane is a branch; ● dots are single-parent commits, ■ squares are merge commits (2+ parents), tag badges (e.g. v1.0) mark tagged releases. Click branch labels to filter by branch.',
+    'Each vertical lane is a branch. \u25CF dots are single-parent commits, \u25A0 squares are merge commits (2+ parents), tag badges mark tagged releases. Visualize branch topology and merge history.',
   gitVisBranch: 'Branch',
   gitVisHash: 'HASH',
   gitVisMessage: 'MESSAGE',
