@@ -11,7 +11,7 @@ import { toHeatmapColumns } from '../data/gitVisMockData';
 
 const dayFmt = (locale: string) =>
   Array.from({ length: 7 }, (_, i) =>
-    new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2026, 0, 4 + i)),
+    new Intl.DateTimeFormat(locale, { weekday: 'narrow' }).format(new Date(2026, 0, 4 + i)),
   );
 
 export const CalendarHeatmap = React.memo(function CalendarHeatmap() {
@@ -38,8 +38,8 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap() {
         animate={true}
       >
         <HeatmapCells cornerRadius={2} />
-        <HeatmapXAxis />
-        <HeatmapYAxis tickFilter="odd" labelFormat="initial" />
+        <HeatmapXAxis labelFormat="numeric" />
+        <HeatmapYAxis tickFilter="odd" labelFormat="full" />
         <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
       </HeatmapChart>
     </div>
