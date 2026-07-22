@@ -22,7 +22,9 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar() {
 
   const recalc = useCallback(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
     const containerWidth = container.getBoundingClientRect().width;
     if (containerWidth === 0) {
       setVisibleTabs(mockWorkspaceTabs.length);
@@ -37,7 +39,9 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar() {
   useEffect(() => {
     recalc();
     const ro = new ResizeObserver(recalc);
-    if (containerRef.current) ro.observe(containerRef.current);
+    if (containerRef.current) {
+      ro.observe(containerRef.current);
+    }
     return () => ro.disconnect();
   }, [recalc]);
 
@@ -60,12 +64,17 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar() {
     return mockWorkspaceTabs.slice(start, start + visibleTabs);
   }, [page, visibleTabs]);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (!isOverflowed) return;
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 1 : -1;
-    setPage((p) => Math.min(totalPages - 1, Math.max(0, p + delta)));
-  }, [isOverflowed, totalPages]);
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      if (!isOverflowed) {
+        return;
+      }
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 1 : -1;
+      setPage((p) => Math.min(totalPages - 1, Math.max(0, p + delta)));
+    },
+    [isOverflowed, totalPages],
+  );
 
   return (
     <div className="adl-workspace-tab__container" ref={containerRef}>
@@ -127,7 +136,12 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar() {
               key={idx}
               className={`adl-workspace-tab__dot${idx === page ? ' adl-workspace-tab__dot--active' : ''}`}
               onClick={() => setPage(idx)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPage(idx); } }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  setPage(idx);
+                }
+              }}
               role="button"
               tabIndex={0}
               aria-label={`Page ${idx + 1}`}

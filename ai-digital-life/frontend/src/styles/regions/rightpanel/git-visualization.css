@@ -221,7 +221,7 @@
    ════════════════════════════════════════════ */
 
 /* ── Preset: bklit-default (主调: 蓝) ── */
-.adl-git-vis__container[data-chart-preset="bklit-default"] {
+.adl-git-vis__container[data-chart-preset='bklit-default'] {
   --chart-scale-01: oklch(0.97 0.01 260);
   --chart-scale-02: oklch(0.88 0.035 260);
   --chart-scale-03: oklch(0.72 0.06 260);
@@ -235,7 +235,7 @@
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
-[data-theme='dark'] .adl-git-vis__container[data-chart-preset="bklit-default"] {
+[data-theme='dark'] .adl-git-vis__container[data-chart-preset='bklit-default'] {
   --chart-scale-01: oklch(0.22 0.02 260);
   --chart-scale-02: oklch(0.3 0.04 260);
   --chart-scale-03: oklch(0.4 0.06 260);
@@ -251,7 +251,7 @@
 }
 
 /* ── Preset: cool-ocean (主调: 青/蓝绿) ── */
-.adl-git-vis__container[data-chart-preset="cool-ocean"] {
+.adl-git-vis__container[data-chart-preset='cool-ocean'] {
   --chart-scale-01: oklch(0.97 0.01 220);
   --chart-scale-02: oklch(0.88 0.03 220);
   --chart-scale-03: oklch(0.73 0.055 220);
@@ -265,7 +265,7 @@
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
-[data-theme='dark'] .adl-git-vis__container[data-chart-preset="cool-ocean"] {
+[data-theme='dark'] .adl-git-vis__container[data-chart-preset='cool-ocean'] {
   --chart-scale-01: oklch(0.22 0.02 220);
   --chart-scale-02: oklch(0.3 0.04 220);
   --chart-scale-03: oklch(0.4 0.06 220);
@@ -281,7 +281,7 @@
 }
 
 /* ── Preset: warm-sunset (主调: 琥珀/橙) ── */
-.adl-git-vis__container[data-chart-preset="warm-sunset"] {
+.adl-git-vis__container[data-chart-preset='warm-sunset'] {
   --chart-scale-01: oklch(0.97 0.01 60);
   --chart-scale-02: oklch(0.88 0.03 60);
   --chart-scale-03: oklch(0.73 0.06 60);
@@ -295,7 +295,7 @@
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
-[data-theme='dark'] .adl-git-vis__container[data-chart-preset="warm-sunset"] {
+[data-theme='dark'] .adl-git-vis__container[data-chart-preset='warm-sunset'] {
   --chart-scale-01: oklch(0.24 0.02 60);
   --chart-scale-02: oklch(0.32 0.04 60);
   --chart-scale-03: oklch(0.42 0.06 60);
@@ -311,7 +311,7 @@
 }
 
 /* ── Preset: high-contrast (高饱和蓝/橙互补) ── */
-.adl-git-vis__container[data-chart-preset="high-contrast"] {
+.adl-git-vis__container[data-chart-preset='high-contrast'] {
   --chart-scale-01: oklch(0.9 0.02 240);
   --chart-scale-02: oklch(0.72 0.05 210);
   --chart-scale-03: oklch(0.48 0.08 220);
@@ -325,7 +325,7 @@
   --chart-line-primary: var(--chart-1);
   --chart-line-secondary: var(--chart-2);
 }
-[data-theme='dark'] .adl-git-vis__container[data-chart-preset="high-contrast"] {
+[data-theme='dark'] .adl-git-vis__container[data-chart-preset='high-contrast'] {
   --chart-scale-01: oklch(0.18 0.01 0);
   --chart-scale-02: oklch(0.32 0.04 210);
   --chart-scale-03: oklch(0.48 0.06 220);
