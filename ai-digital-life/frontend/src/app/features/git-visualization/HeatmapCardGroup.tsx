@@ -4,7 +4,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { CopyKey } from '@i18n/types';
 import type { HeatmapTab } from '@stores/slices/uiSliceTypes';
-import { HeatmapLegend } from '@/components/charts/heatmap';
+import { HeatmapInteractionProvider, HeatmapLegend } from '@/components/charts/heatmap';
 import { CalendarHeatmap } from './charts/CalendarHeatmap';
 import { ClockHeatmap } from './charts/ClockHeatmap';
 import { ContributorActivityHeatmap } from './charts/ContributorActivityHeatmap';
@@ -93,17 +93,19 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup() {
           </button>
         ))}
       </nav>
-      <div
-        className="adl-git-vis__chart"
-        role="tabpanel"
-        id="heatmap-tabpanel"
-        aria-labelledby={`heatmap-tab-${activeHeatmapTab}`}
-      >
-        <ActiveChart />
-      </div>
-      <div className="adl-git-vis__heatmap-legend">
-        <HeatmapLegend lessLabel={t.gitVisLess} moreLabel={t.gitVisMore} variant="gradient" cellSize={10} />
-      </div>
+      <HeatmapInteractionProvider>
+        <div
+          className="adl-git-vis__chart"
+          role="tabpanel"
+          id="heatmap-tabpanel"
+          aria-labelledby={`heatmap-tab-${activeHeatmapTab}`}
+        >
+          <ActiveChart />
+        </div>
+        <div className="adl-git-vis__heatmap-legend">
+          <HeatmapLegend lessLabel={t.gitVisLess} moreLabel={t.gitVisMore} cellSize={10} gap={2} />
+        </div>
+      </HeatmapInteractionProvider>
       <p className="adl-git-vis__card-desc">{t[DESC_KEYS[activeHeatmapTab]]}</p>
     </div>
   );
