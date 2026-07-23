@@ -59,8 +59,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
   const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
   const appInfo = useAppStore((s) => s.appInfo);
-  const setGitVisData = useAppStore((s) => s.setGitVisData);
-  const setGitVisError = useAppStore((s) => s.setGitVisError);
+  const setGitVisDataBatch = useAppStore((s) => s.setGitVisDataBatch);
   const setGitVisLoadedPhases = useAppStore((s) => s.setGitVisLoadedPhases);
 
   const activeWs = useMemo(
@@ -112,34 +111,27 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
     const allChartIds = Object.values(CHART_IDS);
     const tr = defaultTimeRange();
 
-    const loadPhase = async (workspaces: { id: string; rootPath: string }[]) => {
-      for (const ws of workspaces) {
-        for (const chartId of allChartIds) {
-          fetchChartData(bridge, ws.id, ws.rootPath, chartId, tr.since, tr.until)
-            .then((data) => setGitVisData(ws.id, chartId, data))
-            .catch((e) => setGitVisError(ws.id, chartId, String(e)));
+    const loadWorkspace = async (ws: { id: string; rootPath: string }) => {
+      const results = await Promise.allSettled(
+        allChartIds.map((chartId) =>
+          fetchChartData(bridge, ws.id, ws.rootPath, chartId, tr.since, tr.until).then(
+            (data) => ({ workspaceId: ws.id, chartId, data }),
+          ),
+        ),
+      );
+      const batch: Array<{ workspaceId: string; chartId: string; data: unknown }> = [];
+      for (const r of results) {
+        if (r.status === 'fulfilled') {
+          batch.push(r.value);
         }
       }
-    };
-
-    loadPhase(phases.high);
-
-    const hasRIC = typeof requestIdleCallback !== 'undefined';
-    const id: number = hasRIC
-      ? (requestIdleCallback(() => {
-          loadPhase(phases.medium).then(() => loadPhase(phases.low));
-        }) as unknown as number)
-      : window.setTimeout(() => {
-          loadPhase(phases.medium).then(() => loadPhase(phases.low));
-        }, 1000);
-
-    return () => {
-      if (hasRIC) {
-        cancelIdleCallback(id);
-      } else {
-        window.clearTimeout(id);
+      if (batch.length > 0) {
+        setGitVisDataBatch(batch);
       }
     };
+
+    const allPhases = [...phases.high, ...phases.medium, ...phases.low];
+    Promise.allSettled(allPhases.map(loadWorkspace));
   }, [recentWorkspaces, appInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRefreshBranchGraph = useCallback(

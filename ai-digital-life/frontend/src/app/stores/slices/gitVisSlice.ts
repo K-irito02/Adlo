@@ -25,6 +25,7 @@ export interface GitVisSlice {
   gitVisLoadedPhases: Record<string, 'high' | 'medium' | 'low' | undefined>;
 
   setGitVisData: (workspaceId: string, chartId: string, data: unknown) => void;
+  setGitVisDataBatch: (updates: Array<{ workspaceId: string; chartId: string; data: unknown }>) => void;
   setGitVisLoading: (workspaceId: string, chartId: string, loading: boolean) => void;
   setGitVisError: (workspaceId: string, chartId: string, error: string | undefined) => void;
   setGitVisTimeRange: (workspaceId: string, chartId: string, range: TimeRangeState) => void;
@@ -49,6 +50,14 @@ export const createGitVisSlice = (
         [workspaceId]: { ...(s.gitVisData[workspaceId] || {}), [chartId]: data },
       },
     })),
+  setGitVisDataBatch: (updates) =>
+    set((s) => {
+      const newData = { ...s.gitVisData };
+      for (const { workspaceId, chartId, data } of updates) {
+        newData[workspaceId] = { ...(newData[workspaceId] || {}), [chartId]: data };
+      }
+      return { gitVisData: newData };
+    }),
   setGitVisLoading: (workspaceId, chartId, loading) =>
     set((s) => ({
       gitVisLoading: {
