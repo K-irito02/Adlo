@@ -25,7 +25,7 @@ interface TimeRangeAwareCardProps {
   refreshLabel: string;
 }
 
-function TimeRangeAwareCard({
+const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
   title,
   desc,
   children,
@@ -33,6 +33,11 @@ function TimeRangeAwareCard({
   onRefresh,
   refreshLabel,
 }: TimeRangeAwareCardProps) {
+  const renderCount = useRef(0);
+  renderCount.current++;
+  if (renderCount.current > 30) {
+    console.error('[ADL-RENDER-LOOP] TimeRangeAwareCard rendered >30 times', new Error().stack);
+  }
   return (
     <div className="adl-git-vis__card">
       <div className="adl-git-vis__card-header">
@@ -47,11 +52,17 @@ function TimeRangeAwareCard({
       <p className="adl-git-vis__card-desc">{desc}</p>
     </div>
   );
-}
+});
 
 const SCROLLBAR_DEBOUNCE_MS = 400;
 
 export const GitVisualizationView = React.memo(function GitVisualizationView() {
+  const renderCount = useRef(0);
+  renderCount.current++;
+  if (renderCount.current > 30) {
+    console.error('[ADL-RENDER-LOOP] GitVisualizationView rendered >30 times', new Error().stack);
+  }
+
   const { t } = useTCopy();
   const chartColorPreset = useAppStore(useShallow((s) => s.chartColorPreset));
   const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
