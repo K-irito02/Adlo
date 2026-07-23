@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { mockWorkspaceTabs } from './data/gitVisMockData';
+import { useMouseDragReorder } from './hooks/useMouseDragReorder';
 
 const TAB_WIDTH = 120;
 const TAB_GAP = 4;
@@ -25,6 +26,7 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar({
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [visibleTabs, setVisibleTabs] = useState(mockWorkspaceTabs.length);
+  const [tabOrder, setTabOrder] = useState(() => mockWorkspaceTabs.map((t) => t.id));
 
   const recalc = useCallback(() => {
     const container = containerRef.current;
@@ -74,6 +76,18 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar({
 
   const isOverflowed = totalPages > 1;
 
+  const { draggedId, overId, handleMouseDown } = useMouseDragReorder(
+    tabOrder,
+    setTabOrder,
+    isOverflowed
+      ? {
+          containerRef: scrollRef,
+          onEdgeLeft: () => setPage((p) => Math.max(p - 1, 0)),
+          onEdgeRight: () => setPage((p) => Math.min(p + 1, totalPages - 1)),
+        }
+      : undefined,
+  );
+
   const handlePrev = useCallback(() => {
     setPage((p) => Math.max(p - 1, 0));
   }, []);
@@ -82,10 +96,19 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar({
     setPage((p) => Math.min(p + 1, totalPages - 1));
   }, [totalPages]);
 
+  const tabMap = React.useMemo(() => new Map(mockWorkspaceTabs.map((t) => [t.id, t])), []);
+  const orderedTabs = React.useMemo(
+    () =>
+      tabOrder
+        .map((id) => tabMap.get(id))
+        .filter((t): t is (typeof mockWorkspaceTabs)[number] => t != null),
+    [tabOrder, tabMap],
+  );
+
   const currentTabs = React.useMemo(() => {
     const start = page * visibleTabs;
-    return mockWorkspaceTabs.slice(start, start + visibleTabs);
-  }, [page, visibleTabs]);
+    return orderedTabs.slice(start, start + visibleTabs);
+  }, [page, visibleTabs, orderedTabs]);
 
   return (
     <div className="adl-workspace-tab__container" ref={containerRef}>
@@ -110,17 +133,31 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar({
           <div className="adl-workspace-tab__track">
             {currentTabs.map((item) => {
               const isActive = item.id === activeWorkspaceTab;
+              const isDragTarget = draggedId === item.id;
+              const isOverTarget = !isDragTarget && overId === item.id;
               return (
-                <button
+                <div
                   key={item.id}
-                  type="button"
-                  className={`adl-workspace-tab__tab${isActive ? ' adl-workspace-tab__tab--active' : ''}`}
-                  onClick={() => setActiveWorkspaceTab(item.id)}
-                  title={item.label}
-                  aria-pressed={isActive ? 'true' : 'false'}
+                  className="adl-workspace-tab__tab-drag"
+                  data-drag-id={item.id}
+                  style={{
+                    opacity: isDragTarget ? 0.4 : 1,
+                    borderLeft: isOverTarget ? '2px solid var(--text-primary)' : undefined,
+                    borderRight: isOverTarget ? '2px solid var(--text-primary)' : undefined,
+                    transition: 'opacity 0.1s',
+                  }}
+                  onMouseDown={handleMouseDown(item.id)}
                 >
-                  <span className="adl-workspace-tab__tab-text">{item.label}</span>
-                </button>
+                  <button
+                    type="button"
+                    className={`adl-workspace-tab__tab${isActive ? ' adl-workspace-tab__tab--active' : ''}`}
+                    onClick={() => setActiveWorkspaceTab(item.id)}
+                    title={item.label}
+                    aria-pressed={isActive ? 'true' : 'false'}
+                  >
+                    <span className="adl-workspace-tab__tab-text">{item.label}</span>
+                  </button>
+                </div>
               );
             })}
           </div>

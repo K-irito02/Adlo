@@ -2,6 +2,8 @@ import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react'
 import { useTCopy } from '@i18n/useTCopy';
 import { useBklitTheme } from '../hooks/useBklitTheme';
 import { commitNodes, commitEdges, allBranches } from '../data/gitVisMockData';
+import { createPortal } from 'react-dom';
+import { useBranchLabelDragReorder } from '../hooks/useBranchLabelDragReorder';
 
 // ── Constants ──
 const LANE_WIDTH = 24;
@@ -121,8 +123,8 @@ interface RowData {
   isMerge: boolean;
 }
 
-function assignLanes(isDark: boolean): LaneMap[] {
-  return allBranches.map((branch, i) => ({
+function assignLanes(branches: string[], isDark: boolean): LaneMap[] {
+  return branches.map((branch, i) => ({
     branch,
     index: i,
     color: (isDark ? BRANCH_COLORS_DARK : BRANCH_COLORS_LIGHT)[branch] || '#94a3b8',
@@ -368,6 +370,14 @@ export const BranchGraph = React.memo(function BranchGraph() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [filterBranches, setFilterBranches] = useState(() => new Set<string>());
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
+  const {
+    isDragging,
+    draggedBranchId,
+    previewOrder,
+    cursorPosition,
+    ghostLabel,
+    handleMouseDown: handleBranchMouseDown,
+  } = useBranchLabelDragReorder(allBranches, () => {});
   const tagRowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -384,7 +394,7 @@ export const BranchGraph = React.memo(function BranchGraph() {
   }, []);
 
   const isDark = theme.background !== '#ffffff';
-  const lanes = useMemo(() => assignLanes(isDark), [isDark]);
+  const lanes = useMemo(() => assignLanes(previewOrder, isDark), [previewOrder, isDark]);
   const parentMap = useMemo(() => computeParentMap(), []);
   const rows = useMemo(() => buildRows(lanes, parentMap), [lanes, parentMap]);
 
@@ -422,30 +432,39 @@ export const BranchGraph = React.memo(function BranchGraph() {
             const isHovered = hoveredLabel === l.branch;
             const showIndicator = isSelected || isHovered;
             const showScale = (isHovered && !isSelected) || (!isHovered && isSelected);
+            const isDragBranch = draggedBranchId === l.branch;
             return (
-              <button
+              <div
                 key={l.branch}
-                className="adl-branch-graph__label"
-                data-indicator={showIndicator ? 'true' : undefined}
-                data-scale={showScale ? 'true' : undefined}
-                onClick={() => handleLabelClick(l.branch)}
-                onMouseEnter={() => setHoveredLabel(l.branch)}
-                onMouseLeave={() => setHoveredLabel(null)}
+                className="adl-branch-graph__label-drag"
+                data-branch-drag-id={l.branch}
                 style={{
-                  padding: '2px 8px',
-                  borderRadius: 0,
-                  background: l.color,
-                  color: '#fff',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  border: 'none',
-                  cursor: 'pointer',
-                  opacity: filterBranches.size === 0 || filterBranches.has(l.branch) ? 1 : 0.4,
+                  opacity: isDragBranch ? 0.4 : 1,
                 }}
-                title={l.branch}
+                onMouseDown={handleBranchMouseDown(l.branch)}
               >
-                <span className="adl-branch-graph__label-text">{l.branch}</span>
-              </button>
+                <button
+                  className="adl-branch-graph__label"
+                  data-indicator={showIndicator ? 'true' : undefined}
+                  data-scale={showScale ? 'true' : undefined}
+                  onClick={() => handleLabelClick(l.branch)}
+                  onMouseEnter={() => setHoveredLabel(l.branch)}
+                  onMouseLeave={() => setHoveredLabel(null)}
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: 0,
+                    background: l.color,
+                    color: '#fff',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    border: 'none',
+                    cursor: 'pointer',
+                    opacity: filterBranches.size === 0 || filterBranches.has(l.branch) ? 1 : 0.4,
+                  }}
+                >
+                  <span className="adl-branch-graph__label-text">{l.branch}</span>
+                </button>
+              </div>
             );
           })}
         </div>
@@ -561,6 +580,32 @@ export const BranchGraph = React.memo(function BranchGraph() {
           })}
         </div>
       </div>
+
+      {isDragging &&
+        ghostLabel &&
+        createPortal(
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'fixed',
+              top: cursorPosition.y,
+              left: cursorPosition.x,
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'none',
+              zIndex: 9999,
+              padding: '2px 8px',
+              background:
+                (isDark ? BRANCH_COLORS_DARK : BRANCH_COLORS_LIGHT)[ghostLabel] || '#94a3b8',
+              color: '#fff',
+              fontSize: 11,
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {ghostLabel}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 });
