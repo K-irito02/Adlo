@@ -77,12 +77,17 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const commitTimelineData = useChartData(CHART_IDS.COMMIT_TIMELINE);
   const fileSunburstData = useChartData(CHART_IDS.FILE_SUNBURST);
 
-  // Cascade load across all workspaces based on priority phases
+  // Cascade load across all workspaces based on priority phases — runs once
+  const cascadeStarted = useRef(false);
   useEffect(() => {
+    if (cascadeStarted.current) {
+      return;
+    }
     const config = appInfo?.config;
     if (!config || recentWorkspaces.length === 0) {
       return;
     }
+    cascadeStarted.current = true;
 
     const phases = determinePhases(
       config.workspacePriorityIds ?? [],
