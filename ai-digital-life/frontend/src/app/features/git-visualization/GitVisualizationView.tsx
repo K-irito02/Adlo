@@ -2,9 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
-import { determinePhases, fetchChartData } from '@stores/actions/gitVisActions';
-import { defaultTimeRange } from '@stores/slices/gitVisSlice';
-import { getBridge } from '@stores/slices/githubSliceHelpers';
+import { determinePhases } from '@stores/actions/gitVisActions';
 import { HeatmapCardGroup } from './HeatmapCardGroup';
 import { CodeLineEvo } from './charts/CodeLineEvo';
 import { CommitTimeline } from './charts/CommitTimeline';
@@ -59,7 +57,6 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
   const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
   const appInfo = useAppStore((s) => s.appInfo);
-  const setGitVisDataBatch = useAppStore((s) => s.setGitVisDataBatch);
   const setGitVisLoadedPhases = useAppStore((s) => s.setGitVisLoadedPhases);
 
   const activeWs = useMemo(
@@ -76,25 +73,17 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const commitTimelineData = useChartData(CHART_IDS.COMMIT_TIMELINE);
   const fileSunburstData = useChartData(CHART_IDS.FILE_SUNBURST);
 
-  // Cascade load across all workspaces based on priority phases — runs once
-  const cascadeStarted = useRef(false);
+  // Cascade load priority phases — data loads on first view via loadActiveWorkspace
   useEffect(() => {
-    if (cascadeStarted.current) {
+    if (!appInfo?.config || recentWorkspaces.length === 0) {
       return;
     }
-    const config = appInfo?.config;
-    if (!config || recentWorkspaces.length === 0) {
-      return;
-    }
-    cascadeStarted.current = true;
-
     const phases = determinePhases(
-      config.workspacePriorityIds ?? [],
-      config.workspaceDeferredIds ?? [],
-      config.workspaceNaturalOrder ?? [],
+      appInfo.config.workspacePriorityIds ?? [],
+      appInfo.config.workspaceDeferredIds ?? [],
+      appInfo.config.workspaceNaturalOrder ?? [],
       recentWorkspaces.map((w) => ({ id: w.id, rootPath: w.rootPath })),
     );
-
     setGitVisLoadedPhases(
       Object.fromEntries([
         ...phases.high.map((w) => [w.id, 'high' as const]),
@@ -102,37 +91,17 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
         ...phases.low.map((w) => [w.id, 'low' as const]),
       ]),
     );
+  }, [recentWorkspaces, appInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const bridge = getBridge();
-    if (!bridge) {
+  // Auto-load active workspace data on first view
+  const loadedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!rootPath || loadedRef.current.has(activeWorkspaceTab)) {
       return;
     }
-
-    const allChartIds = Object.values(CHART_IDS);
-    const tr = defaultTimeRange();
-
-    const loadWorkspace = async (ws: { id: string; rootPath: string }) => {
-      const results = await Promise.allSettled(
-        allChartIds.map((chartId) =>
-          fetchChartData(bridge, ws.id, ws.rootPath, chartId, tr.since, tr.until).then(
-            (data) => ({ workspaceId: ws.id, chartId, data }),
-          ),
-        ),
-      );
-      const batch: Array<{ workspaceId: string; chartId: string; data: unknown }> = [];
-      for (const r of results) {
-        if (r.status === 'fulfilled') {
-          batch.push(r.value);
-        }
-      }
-      if (batch.length > 0) {
-        setGitVisDataBatch(batch);
-      }
-    };
-
-    const allPhases = [...phases.high, ...phases.medium, ...phases.low];
-    Promise.allSettled(allPhases.map(loadWorkspace));
-  }, [recentWorkspaces, appInfo]); // eslint-disable-line react-hooks/exhaustive-deps
+    loadedRef.current.add(activeWorkspaceTab);
+    void refreshWorkspace();
+  }, [activeWorkspaceTab, rootPath, refreshWorkspace]);
 
   const handleRefreshBranchGraph = useCallback(
     () => refreshChart(CHART_IDS.BRANCH_GRAPH),
