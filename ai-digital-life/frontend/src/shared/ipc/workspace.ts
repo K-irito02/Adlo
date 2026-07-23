@@ -2,6 +2,11 @@ import type {
   FileOutlineItem,
   GitBranchSummary,
   GitSnapshot,
+  GitVisBranchGraph,
+  GitVisCodeEvolution,
+  GitVisCommitStats,
+  GitVisContributorModules,
+  GitVisFileSunburst,
   IpcResult,
   RecentWorkspaceEntry,
   ReorderWorkspacesInput,
@@ -20,6 +25,11 @@ export type {
   FileOutlineItem,
   GitBranchSummary,
   GitSnapshot,
+  GitVisBranchGraph,
+  GitVisCodeEvolution,
+  GitVisCommitStats,
+  GitVisContributorModules,
+  GitVisFileSunburst,
   IpcResult,
   RecentWorkspaceEntry,
   ReorderWorkspacesInput,
@@ -424,4 +434,26 @@ export interface WorkspaceBridge {
    * @see preview-bridge/index.ts → workspace.discardFile
    */
   discardFile: (relativePath: string, workspacePath?: string) => Promise<IpcResult<void>>;
+  /** Get commit statistics (serves calendar heatmap, clock heatmap, contributor activity, commit timeline) */
+  gitVisCommitStats: (
+    rootPath: string,
+    since?: string,
+    until?: string,
+  ) => Promise<IpcResult<GitVisCommitStats>>;
+  /** Get code line evolution data */
+  gitVisCodeEvolution: (
+    rootPath: string,
+    since?: string,
+    until?: string,
+  ) => Promise<IpcResult<GitVisCodeEvolution>>;
+  /** Get contributor-module change matrix */
+  gitVisContributorModules: (
+    rootPath: string,
+    since?: string,
+    until?: string,
+  ) => Promise<IpcResult<GitVisContributorModules>>;
+  /** Get branch graph DAG data */
+  gitVisBranchGraph: (rootPath: string) => Promise<IpcResult<GitVisBranchGraph>>;
+  /** Get file sunburst tree data */
+  gitVisFileSunburst: (rootPath: string) => Promise<IpcResult<GitVisFileSunburst>>;
 }

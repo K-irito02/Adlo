@@ -1,6 +1,11 @@
 import type {
   GitBranchSummary,
   GitSnapshot,
+  GitVisCommitStats,
+  GitVisCodeEvolution,
+  GitVisContributorModules,
+  GitVisBranchGraph,
+  GitVisFileSunburst,
   IpcResult,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
@@ -120,6 +125,54 @@ export function createPreviewGitBridge(
         method: 'POST',
         body: JSON.stringify({ rootPath: root, relativePath }),
       });
+    },
+    gitVisCommitStats: async (rootPath: string, since?: string, until?: string) => {
+      const params = new URLSearchParams({ rootPath });
+      if (since) {
+        params.set('since', since);
+      }
+      if (until) {
+        params.set('until', until);
+      }
+      return requestPreviewApi<GitVisCommitStats>(
+        `/workspace/git-vis-commit-stats?${params.toString()}`,
+      );
+    },
+    gitVisCodeEvolution: async (rootPath: string, since?: string, until?: string) => {
+      const params = new URLSearchParams({ rootPath });
+      if (since) {
+        params.set('since', since);
+      }
+      if (until) {
+        params.set('until', until);
+      }
+      return requestPreviewApi<GitVisCodeEvolution>(
+        `/workspace/git-vis-code-evolution?${params.toString()}`,
+      );
+    },
+    gitVisContributorModules: async (rootPath: string, since?: string, until?: string) => {
+      const params = new URLSearchParams({ rootPath });
+      if (since) {
+        params.set('since', since);
+      }
+      if (until) {
+        params.set('until', until);
+      }
+      return requestPreviewApi<GitVisContributorModules>(
+        `/workspace/git-vis-contributor-modules?${params.toString()}`,
+      );
+    },
+    gitVisBranchGraph: async (rootPath: string) => {
+      const params = new URLSearchParams({ rootPath });
+      return requestPreviewApi<GitVisBranchGraph>(
+        `/workspace/git-vis-branch-graph?${params.toString()}`,
+      );
+    },
+    gitVisFileSunburst: async (rootPath: string) => {
+      const params = new URLSearchParams({ rootPath });
+      return requestPreviewApi<GitVisFileSunburst>(
+        `/workspace/git-vis-file-sunburst?${params.toString()}`,
+      );
     },
   };
 }

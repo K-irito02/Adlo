@@ -381,5 +381,10 @@ export const mockWorkspace: WorkspaceBridge = {
     };
     return { ok: true, data: result };
   },
+  gitVisCommitStats: async () => ({ ok: true as const, data: { dailyCommits: [], hourlyDistribution: [], contributorActivity: [], commitTimeline: [], commits: [] } }),
+  gitVisCodeEvolution: async () => ({ ok: true as const, data: { weeks: [] } }),
+  gitVisContributorModules: async () => ({ ok: true as const, data: { matrix: [] } }),
+  gitVisBranchGraph: async () => ({ ok: true as const, data: { nodes: [], edges: [], branches: [] } }),
+  gitVisFileSunburst: async () => ({ ok: true as const, data: { tree: { name: 'root', type: 'directory', children: [] } } }),
   onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) => () => {}
 };

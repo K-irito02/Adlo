@@ -116,6 +116,94 @@ export interface WorkspaceGitBranchChangeResult {
   hasRestored: boolean;
 }
 
+export interface GitVisDailyCommit {
+  date: string;
+  count: number;
+}
+export interface GitVisHourlyBin {
+  day: number;
+  hour: number;
+  count: number;
+}
+export interface GitVisContributorPeriod {
+  period: string;
+  count: number;
+}
+export interface GitVisContributorActivity {
+  author: string;
+  authorEmail: string;
+  totalCommits: number;
+  periods: GitVisContributorPeriod[];
+}
+export interface GitVisTimelinePoint {
+  date: string;
+  cumulative: number;
+}
+export interface GitVisCommitRow {
+  hash: string;
+  shortHash: string;
+  date: string;
+  author: string;
+  authorEmail: string;
+  message: string;
+}
+export interface GitVisCommitStats {
+  dailyCommits: GitVisDailyCommit[];
+  hourlyDistribution: GitVisHourlyBin[];
+  contributorActivity: GitVisContributorActivity[];
+  commitTimeline: GitVisTimelinePoint[];
+  commits: GitVisCommitRow[];
+}
+export interface GitVisCodeEvolutionWeek {
+  weekStart: string;
+  additions: number;
+  deletions: number;
+}
+export interface GitVisCodeEvolution {
+  weeks: GitVisCodeEvolutionWeek[];
+}
+export interface GitVisModuleEntry {
+  module: string;
+  count: number;
+}
+export interface GitVisContributorModule {
+  author: string;
+  authorEmail: string;
+  modules: GitVisModuleEntry[];
+}
+export interface GitVisContributorModules {
+  matrix: GitVisContributorModule[];
+}
+export interface GitVisBranchNode {
+  hash: string;
+  shortHash: string;
+  parentHashes: string[];
+  branch: string;
+  date: string;
+  message: string;
+  author: string;
+  authorEmail: string;
+  tag?: string;
+}
+export interface GitVisBranchEdge {
+  from: string;
+  to: string;
+}
+export interface GitVisBranchGraph {
+  nodes: GitVisBranchNode[];
+  edges: GitVisBranchEdge[];
+  branches: string[];
+}
+export interface GitVisSunburstNode {
+  name: string;
+  type: string;
+  size?: number;
+  children?: GitVisSunburstNode[];
+}
+export interface GitVisFileSunburst {
+  tree: GitVisSunburstNode;
+}
+
 // ════════════════════════════════════════════════════════
 // Session / App State
 // ════════════════════════════════════════════════════════
