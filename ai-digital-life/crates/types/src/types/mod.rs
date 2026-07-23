@@ -4,6 +4,7 @@ pub mod command;
 pub mod commands;
 pub mod config;
 pub mod conversation;
+pub mod git_visualization;
 pub mod model;
 pub mod reference;
 pub mod reserved;
