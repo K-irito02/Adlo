@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
-import { mockWorkspaceTabs } from './data/gitVisMockData';
 import { useMouseDragReorder } from './hooks/useMouseDragReorder';
 
 const TAB_WIDTH = 120;
@@ -14,19 +13,25 @@ interface WorkspaceTabBarProps {
 export const WorkspaceTabBar = React.memo(function WorkspaceTabBar({
   rightExtra,
 }: WorkspaceTabBarProps) {
-  const { activeWorkspaceTab, setActiveWorkspaceTab } = useAppStore(
+  const { activeWorkspaceTab, setActiveWorkspaceTab, recentWorkspaces } = useAppStore(
     useShallow((s) => ({
       activeWorkspaceTab: s.activeWorkspaceTab,
       setActiveWorkspaceTab: s.setActiveWorkspaceTab,
+      recentWorkspaces: s.recentWorkspaces,
     })),
+  );
+
+  const workspaceTabs = React.useMemo(
+    () => recentWorkspaces.map((w) => ({ id: w.id, label: w.name || w.id })),
+    [recentWorkspaces],
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [visibleTabs, setVisibleTabs] = useState(mockWorkspaceTabs.length);
-  const [tabOrder, setTabOrder] = useState(() => mockWorkspaceTabs.map((t) => t.id));
+  const [visibleTabs, setVisibleTabs] = useState(workspaceTabs.length);
+  const [tabOrder, setTabOrder] = useState(() => workspaceTabs.map((t) => t.id));
 
   const recalc = useCallback(() => {
     const container = containerRef.current;
@@ -35,14 +40,14 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar({
     }
     const containerWidth = container.getBoundingClientRect().width;
     if (containerWidth === 0) {
-      setVisibleTabs(mockWorkspaceTabs.length);
+      setVisibleTabs(workspaceTabs.length);
       setTotalPages(1);
       return;
     }
     const perPage = Math.max(1, Math.floor((containerWidth + TAB_GAP) / (TAB_WIDTH + TAB_GAP)));
     setVisibleTabs(perPage);
-    setTotalPages(Math.max(1, Math.ceil(mockWorkspaceTabs.length / perPage)));
-  }, []);
+    setTotalPages(Math.max(1, Math.ceil(workspaceTabs.length / perPage)));
+  }, [workspaceTabs]);
 
   useEffect(() => {
     recalc();
@@ -96,12 +101,12 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar({
     setPage((p) => Math.min(p + 1, totalPages - 1));
   }, [totalPages]);
 
-  const tabMap = React.useMemo(() => new Map(mockWorkspaceTabs.map((t) => [t.id, t])), []);
+  const tabMap = React.useMemo(() => new Map(workspaceTabs.map((t) => [t.id, t])), [workspaceTabs]);
   const orderedTabs = React.useMemo(
     () =>
       tabOrder
         .map((id) => tabMap.get(id))
-        .filter((t): t is (typeof mockWorkspaceTabs)[number] => t != null),
+        .filter((t): t is (typeof workspaceTabs)[number] => t != null),
     [tabOrder, tabMap],
   );
 

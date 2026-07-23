@@ -7,11 +7,25 @@ import {
   HeatmapYAxis,
   HeatmapTooltip,
 } from '@/components/charts/heatmap';
-import { generateContributorActivityData, contributorNames } from '../data/gitVisMockData';
+import { contributorActivityToHeatmapColumns } from '../adapters/chartDataAdapters';
 
-export const ContributorActivityHeatmap = React.memo(function ContributorActivityHeatmap() {
+interface ContributorActivityHeatmapProps {
+  data?: {
+    author: string;
+    authorEmail: string;
+    totalCommits: number;
+    periods: { period: string; count: number }[];
+  }[];
+}
+
+export const ContributorActivityHeatmap = React.memo(function ContributorActivityHeatmap({
+  data,
+}: ContributorActivityHeatmapProps) {
   const { t, locale } = useTCopy();
-  const data = useMemo(() => generateContributorActivityData(), []);
+  const { columns, rowLabels } = useMemo(
+    () => (data ? contributorActivityToHeatmapColumns(data) : { columns: [], rowLabels: [] }),
+    [data],
+  );
 
   const formatLabel = useCallback(
     (count: number) => {
@@ -24,9 +38,9 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
       <HeatmapChart
-        data={data}
+        data={columns}
         locale={locale}
-        rowLabels={contributorNames}
+        rowLabels={rowLabels}
         margin={{ top: 28, right: 16, bottom: 0, left: 80 }}
         gap={2}
         binSize={22}

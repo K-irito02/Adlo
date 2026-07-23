@@ -1,6 +1,6 @@
 import type { DigitalLifeBridge } from '@shared/ipc/digital-life';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import { CHART_IDS } from '../../features/git-visualization/GitVisualizationView';
+import { CHART_IDS } from '../../features/git-visualization/chartIds';
 import { computeLoadPhases } from './workspaceLoadOrder';
 
 const HEATMAP_TABS = [
@@ -57,10 +57,9 @@ export async function fetchChartData(
   if (result.ok) {
     debugLog('fetchChartData OK', { workspaceId, chartId, elapsed: `${elapsed.toFixed(0)}ms` });
     return result.data;
-  } else {
-    debugLog('fetchChartData ERROR', { workspaceId, chartId, error: result.error.message });
-    throw new Error(result.error.message);
   }
+  debugLog('fetchChartData ERROR', { workspaceId, chartId, error: result.error.message });
+  throw new Error(result.error.message);
 }
 
 export async function refreshWorkspace(
@@ -92,11 +91,11 @@ export function determinePhases(
   priorityIds: string[],
   deferredIds: string[],
   naturalOrder: string[],
-  workspacePaths: Array<{ id: string; rootPath: string }>,
+  workspacePaths: { id: string; rootPath: string }[],
 ): {
-  high: Array<{ id: string; rootPath: string }>;
-  medium: Array<{ id: string; rootPath: string }>;
-  low: Array<{ id: string; rootPath: string }>;
+  high: { id: string; rootPath: string }[];
+  medium: { id: string; rootPath: string }[];
+  low: { id: string; rootPath: string }[];
 } {
   const toEntry = (w: { id: string; rootPath: string }): RecentWorkspaceEntry => ({
     id: w.id,
@@ -120,14 +119,14 @@ export function determinePhases(
   );
 
   debugLog('determinePhases', {
-    high: phases.priority.map(w => w.id),
-    medium: phases.deferred.map(w => w.id),
-    low: phases.natural.map(w => w.id),
+    high: phases.priority.map((w) => w.id),
+    medium: phases.deferred.map((w) => w.id),
+    low: phases.natural.map((w) => w.id),
   });
 
-  const lookup = new Map(workspacePaths.map(w => [w.id, w]));
+  const lookup = new Map(workspacePaths.map((w) => [w.id, w]));
   const resolve = (entries: RecentWorkspaceEntry[]) =>
-    entries.map(e => lookup.get(e.id)!).filter(Boolean);
+    entries.map((e) => lookup.get(e.id)!).filter(Boolean);
 
   return {
     high: resolve(phases.priority),

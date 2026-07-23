@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import { CHART_IDS } from '../GitVisualizationView';
+import { CHART_IDS } from '../chartIds';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
 
 const TIME_RANGE_CHARTS = new Set<string>([
@@ -46,5 +46,13 @@ export function useChartData(chartId: string): {
         setGitVisTimeRange(activeWorkspaceTab, chartId, range),
       hasTimeRange: TIME_RANGE_CHARTS.has(chartId),
     };
-  }, [activeWorkspaceTab, chartId, gitVisData, gitVisLoading, gitVisErrors, gitVisTimeRange, setGitVisTimeRange]);
+  }, [
+    activeWorkspaceTab,
+    chartId,
+    gitVisData,
+    gitVisLoading,
+    gitVisErrors,
+    gitVisTimeRange,
+    setGitVisTimeRange,
+  ]);
 }

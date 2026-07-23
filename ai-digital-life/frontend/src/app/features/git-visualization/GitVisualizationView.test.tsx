@@ -82,6 +82,22 @@ vi.mock('@hooks/useResolvedTheme', () => ({
   useResolvedTheme: vi.fn(() => 'light'),
 }));
 
+const mockRecentWorkspaces = [
+  {
+    id: 'workspace-1',
+    name: 'Workspace 1',
+    rootPath: '/test/path',
+    path: '/test/path',
+    lastOpenedAt: Date.now(),
+    isPinned: false,
+    pinnedOrder: 0,
+    unpinnedOrder: 0,
+    removedFromSidebar: false,
+    available: true,
+    hiddenFromRightPanels: false,
+  },
+];
+
 vi.mock('@stores/slicedStore', () => ({
   useAppStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({
@@ -90,6 +106,15 @@ vi.mock('@stores/slicedStore', () => ({
       activeWorkspaceTab: 'workspace-1',
       setActiveWorkspaceTab: vi.fn(),
       chartColorPreset: 'bklit-default',
+      recentWorkspaces: mockRecentWorkspaces,
+      gitVisData: {},
+      gitVisLoading: {},
+      gitVisErrors: {},
+      gitVisTimeRange: {},
+      setGitVisData: vi.fn(),
+      setGitVisLoading: vi.fn(),
+      setGitVisError: vi.fn(),
+      setGitVisTimeRange: vi.fn(),
     }),
 }));
 
@@ -115,7 +140,7 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisCodeLineEvo: 'Code Line Evolution',
       gitVisContributorActivity: 'Contributor Activity',
       gitVisCommitTimeline: 'Commit Timeline',
-      gitVisContributorModule: 'Contributor × Module',
+      gitVisContributorModule: 'Contributor \u00d7 Module',
       gitVisFileSunburst: 'File Sunburst',
       gitVisBranchGraph: 'Branch Graph',
       gitVisBranchGraphDesc: 'desc',
@@ -128,7 +153,6 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisCommitTimelineDesc: 'desc',
       gitVisContributorModuleDesc: 'desc',
       gitVisFileSunburstDesc: 'desc',
-      gitVisMockDataNote: 'note',
       gitVisHeatmapTabCalendar: 'Calendar',
       gitVisHeatmapTabClock: 'Clock',
       gitVisHeatmapTabActivity: 'Activity',
@@ -142,7 +166,12 @@ vi.mock('@i18n/useTCopy', () => ({
   })),
 }));
 
-// Store mock required for HeatmapCardGroup which is rendered inside GitVisualizationView
+vi.mock('../hooks/useGitVisRefresh', () => ({
+  useGitVisRefresh: () => ({
+    refreshWorkspace: vi.fn(() => Promise.resolve()),
+    refreshChart: vi.fn(() => Promise.resolve()),
+  }),
+}));
 
 describe('GitVisualizationView', () => {
   it('renders 5 chart cards', { timeout: 30000 }, () => {
@@ -155,12 +184,6 @@ describe('GitVisualizationView', () => {
     const { container } = render(<GitVisualizationView />);
     const scrollContainer = container.querySelector('.adl-git-vis__container');
     expect(scrollContainer).toBeTruthy();
-  });
-
-  it('renders mock data note', { timeout: 30000 }, () => {
-    const { container } = render(<GitVisualizationView />);
-    const note = container.querySelector('.adl-git-vis__note');
-    expect(note).toBeTruthy();
   });
 
   it('renders WorkspaceTabBar', { timeout: 30000 }, () => {

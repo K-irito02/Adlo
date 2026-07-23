@@ -2,15 +2,19 @@ import React, { useMemo } from 'react';
 import { LineChart, Line } from '@/components/charts/line-chart';
 import { Grid } from '@/components/charts/grid';
 import { ChartTooltip } from '@/components/charts/tooltip/chart-tooltip';
-import { generateCodeLineEvolutionData, toBklitAreaData } from '../data/gitVisMockData';
+import { codeEvolutionToAreaData } from '../adapters/chartDataAdapters';
 
-export const CodeLineEvo = React.memo(function CodeLineEvo() {
-  const data = useMemo(() => toBklitAreaData(generateCodeLineEvolutionData()), []);
+interface CodeLineEvoProps {
+  data?: { weekStart: string; additions: number; deletions: number }[];
+}
+
+export const CodeLineEvo = React.memo(function CodeLineEvo({ data }: CodeLineEvoProps) {
+  const chartData = useMemo(() => (data ? codeEvolutionToAreaData(data) : []), [data]);
 
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
       <LineChart
-        data={data}
+        data={chartData}
         xDataKey="date"
         margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
         style={{ maxHeight: 280 }}

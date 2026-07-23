@@ -10,34 +10,39 @@ import { BranchGraph } from './charts/BranchGraph';
 import { ChartColorPresetSelector } from './ChartColorPresetSelector';
 import { WorkspaceTabBar } from './WorkspaceTabBar';
 import { useGitVisRefresh } from './hooks/useGitVisRefresh';
+import { useChartData } from './hooks/useChartData';
 import { RefreshButton } from './RefreshButton';
+import { TimeRangeSelector } from './TimeRangeSelector';
+import { CHART_IDS } from './chartIds';
 
-/** 图表标识符常量 — 用于 refreshChart(chartId) 的 chartId 参数 */
-export const CHART_IDS = {
-  BRANCH_GRAPH: 'branch-graph',
-  CODE_LINE_EVO: 'code-line-evolution',
-  COMMIT_TIMELINE: 'commit-timeline',
-  FILE_SUNBURST: 'file-sunburst',
-  HEATMAP: 'heatmap',
-} as const;
-
-type ChartCardProps = {
+interface TimeRangeAwareCardProps {
   title: string;
   desc: string;
   children: React.ReactNode;
-} & (
-  | { onRefresh: () => Promise<void>; refreshLabel: string }
-  | { onRefresh?: undefined; refreshLabel?: undefined }
-);
+  timeRange: ReturnType<typeof useChartData>;
+  onRefresh: () => Promise<void>;
+  refreshLabel: string;
+}
 
-function ChartCard({ title, desc, onRefresh, refreshLabel, children }: ChartCardProps) {
+function TimeRangeAwareCard({
+  title,
+  desc,
+  children,
+  timeRange,
+  onRefresh,
+  refreshLabel,
+}: TimeRangeAwareCardProps) {
   return (
     <div className="adl-git-vis__card">
       <div className="adl-git-vis__card-header">
-        {onRefresh && <RefreshButton onRefresh={onRefresh} label={refreshLabel!} />}
+        <RefreshButton onRefresh={onRefresh} label={refreshLabel} />
         <h3 className="adl-git-vis__card-title">{title}</h3>
+        {timeRange.hasTimeRange && timeRange.timeRange ? (
+          <TimeRangeSelector value={timeRange.timeRange} onChange={timeRange.setTimeRange} />
+        ) : null}
       </div>
-      {children}
+      {timeRange.error && <div className="adl-git-vis__error">{timeRange.error}</div>}
+      {timeRange.loading ? <div className="adl-git-vis__skeleton" /> : children}
       <p className="adl-git-vis__card-desc">{desc}</p>
     </div>
   );
@@ -49,7 +54,28 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const { t } = useTCopy();
   const chartColorPreset = useAppStore(useShallow((s) => s.chartColorPreset));
   const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
-  const { refreshWorkspace, refreshChart } = useGitVisRefresh(activeWorkspaceTab);
+  const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
+
+  const activeWs = useMemo(
+    () => recentWorkspaces.find((w) => w.id === activeWorkspaceTab),
+    [recentWorkspaces, activeWorkspaceTab],
+  );
+  const rootPath = activeWs?.rootPath || '';
+
+  const { refreshWorkspace, refreshChart } = useGitVisRefresh(activeWorkspaceTab, rootPath);
+
+  const heatmapData = useChartData(CHART_IDS.HEATMAP);
+  const branchGraphData = useChartData(CHART_IDS.BRANCH_GRAPH);
+  const codeLineEvoData = useChartData(CHART_IDS.CODE_LINE_EVO);
+  const commitTimelineData = useChartData(CHART_IDS.COMMIT_TIMELINE);
+  const fileSunburstData = useChartData(CHART_IDS.FILE_SUNBURST);
+
+  // Cascade load on mount
+  useEffect(() => {
+    if (activeWorkspaceTab && rootPath) {
+      refreshWorkspace();
+    }
+  }, [activeWorkspaceTab, rootPath]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRefreshBranchGraph = useCallback(
     () => refreshChart(CHART_IDS.BRANCH_GRAPH),
@@ -199,40 +225,107 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   return (
     <div ref={containerRef} className="adl-git-vis__container" data-chart-preset={chartColorPreset}>
       <WorkspaceTabBar rightExtra={rightExtra} />
-      <HeatmapCardGroup onRefresh={handleRefreshHeatmap} />
-      <ChartCard
+      <HeatmapCardGroup
+        onRefresh={handleRefreshHeatmap}
+        commitStats={
+          heatmapData.data as
+            | {
+                dailyCommits: { date: string; count: number }[];
+                hourlyDistribution: { day: number; hour: number; count: number }[];
+                contributorActivity: {
+                  author: string;
+                  authorEmail: string;
+                  totalCommits: number;
+                  periods: { period: string; count: number }[];
+                }[];
+                commitTimeline: { date: string; cumulative: number }[];
+              }
+            | undefined
+        }
+        contributorModules={
+          heatmapData.data as
+            | {
+                matrix: {
+                  author: string;
+                  authorEmail: string;
+                  modules: { module: string; count: number }[];
+                }[];
+              }
+            | undefined
+        }
+        timeRange={heatmapData.timeRange}
+        onTimeRangeChange={heatmapData.setTimeRange}
+      />
+      <TimeRangeAwareCard
         title={t.gitVisBranchGraph}
         desc={t.gitVisBranchGraphDesc}
         onRefresh={handleRefreshBranchGraph}
         refreshLabel={t.gitVisRefreshChart}
+        timeRange={branchGraphData}
       >
-        <BranchGraph />
-      </ChartCard>
-      <ChartCard
+        {branchGraphData.loading ? null : (
+          <BranchGraph
+            data={
+              branchGraphData.data as
+                | {
+                    nodes: {
+                      hash: string;
+                      shortHash: string;
+                      parentHashes: string[];
+                      branch: string;
+                      date: string;
+                      message: string;
+                      author: string;
+                      authorEmail: string;
+                      tag?: string;
+                    }[];
+                    edges: { from: string; to: string }[];
+                    branches: string[];
+                  }
+                | undefined
+            }
+          />
+        )}
+      </TimeRangeAwareCard>
+      <TimeRangeAwareCard
         title={t.gitVisCodeLineEvo}
         desc={t.gitVisCodeLineEvoDesc}
         onRefresh={handleRefreshCodeLineEvo}
         refreshLabel={t.gitVisRefreshChart}
+        timeRange={codeLineEvoData}
       >
-        <CodeLineEvo />
-      </ChartCard>
-      <ChartCard
+        {codeLineEvoData.loading ? null : (
+          <CodeLineEvo
+            data={
+              codeLineEvoData.data as
+                | { weekStart: string; additions: number; deletions: number }[]
+                | undefined
+            }
+          />
+        )}
+      </TimeRangeAwareCard>
+      <TimeRangeAwareCard
         title={t.gitVisCommitTimeline}
         desc={t.gitVisCommitTimelineDesc}
         onRefresh={handleRefreshCommitTimeline}
         refreshLabel={t.gitVisRefreshChart}
+        timeRange={commitTimelineData}
       >
-        <CommitTimeline />
-      </ChartCard>
-      <ChartCard
+        {commitTimelineData.loading ? null : (
+          <CommitTimeline
+            data={commitTimelineData.data as { date: string; cumulative: number }[] | undefined}
+          />
+        )}
+      </TimeRangeAwareCard>
+      <TimeRangeAwareCard
         title={t.gitVisFileSunburst}
         desc={t.gitVisFileSunburstDesc}
         onRefresh={handleRefreshFileSunburst}
         refreshLabel={t.gitVisRefreshChart}
+        timeRange={fileSunburstData}
       >
-        <FileSunburst />
-      </ChartCard>
-      <p className="adl-git-vis__note">{t.gitVisMockDataNote}</p>
+        {fileSunburstData.loading ? null : <FileSunburst data={fileSunburstData.data} />}
+      </TimeRangeAwareCard>
     </div>
   );
 });

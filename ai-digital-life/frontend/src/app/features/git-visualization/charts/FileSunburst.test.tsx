@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { FileSunburst } from './FileSunburst';
+import { fileTreemapData } from '../data/gitVisMockData';
 
 function createMotionValue(initial = 0) {
   const listeners: Record<string, ((v: unknown) => void)[]> = {};
@@ -59,7 +60,7 @@ vi.mock('motion/react', () => ({
 
 describe('FileSunburst', () => {
   it('renders SVG with arcs', () => {
-    const { container } = render(<FileSunburst />);
+    const { container } = render(<FileSunburst data={fileTreemapData} />);
     expect(container.querySelector('svg')).toBeInTheDocument();
     expect(container.querySelectorAll('path').length).toBeGreaterThan(0);
   });

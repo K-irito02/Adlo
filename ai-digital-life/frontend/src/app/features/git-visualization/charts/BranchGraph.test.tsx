@@ -2,6 +2,28 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { BranchGraph } from './BranchGraph';
+import { commitNodes, commitEdges, allBranches } from '../data/gitVisMockData';
+import type { RawBranchGraph } from '../adapters/chartDataAdapters';
+
+const nodeIdToIndex = new Map(commitNodes.map((n, i) => [n.id, i]));
+const mockData: RawBranchGraph = {
+  nodes: commitNodes.map((n) => ({
+    hash: n.hash,
+    shortHash: n.hash.substring(0, 7),
+    parentHashes: [],
+    branch: n.branch,
+    date: n.date,
+    message: n.message,
+    author: n.author,
+    authorEmail: n.authorEmail,
+    tag: n.tag,
+  })),
+  edges: commitEdges.map((e) => ({
+    from: `node-${nodeIdToIndex.get(e.source)}`,
+    to: `node-${nodeIdToIndex.get(e.target)}`,
+  })),
+  branches: allBranches,
+};
 
 afterEach(() => {
   cleanup();
@@ -32,6 +54,10 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisBranchGraphDesc: 'desc',
       gitVisBranch: 'Branch',
       gitVisBranchGraphFilterHint: 'Click to filter by branch',
+      gitVisHash: 'HASH',
+      gitVisMessage: 'MESSAGE',
+      gitVisAuthor: 'AUTHOR',
+      gitVisDate: 'DATE',
     },
     formatT: vi.fn(),
   })),
@@ -39,32 +65,32 @@ vi.mock('@i18n/useTCopy', () => ({
 
 describe('BranchGraph', () => {
   it('renders commit rows', () => {
-    const { container } = render(<BranchGraph />);
+    const { container } = render(<BranchGraph data={mockData} />);
     const rows = container.querySelectorAll('.adl-branch-graph__row');
     expect(rows.length).toBe(31);
   });
 
   it('renders SVG lanes container', () => {
-    const { container } = render(<BranchGraph />);
+    const { container } = render(<BranchGraph data={mockData} />);
     const svg = container.querySelector('.adl-branch-graph__svg');
     expect(svg).toBeTruthy();
   });
 
   it('renders branch labels', () => {
-    const { container } = render(<BranchGraph />);
+    const { container } = render(<BranchGraph data={mockData} />);
     const labels = container.querySelectorAll('.adl-branch-graph__label');
     expect(labels.length).toBe(7);
   });
 
   it('shows tag badge for tagged commit', () => {
-    const { container } = render(<BranchGraph />);
+    const { container } = render(<BranchGraph data={mockData} />);
     const tags = container.querySelectorAll('.adl-branch-graph__tag');
     expect(tags.length).toBe(1);
     expect(tags[0].textContent).toBe('v1.0');
   });
 
   it('highlights row on hover', () => {
-    const { container } = render(<BranchGraph />);
+    const { container } = render(<BranchGraph data={mockData} />);
     const rows = container.querySelectorAll('.adl-branch-graph__row');
     fireEvent.mouseEnter(rows[0]);
     expect(rows[0].classList.contains('adl-branch-graph__row--hover')).toBe(true);
@@ -73,7 +99,7 @@ describe('BranchGraph', () => {
   });
 
   it('filters by branch label click', () => {
-    const { container } = render(<BranchGraph />);
+    const { container } = render(<BranchGraph data={mockData} />);
     const labels = container.querySelectorAll('.adl-branch-graph__label');
     // Click a label to filter
     fireEvent.click(labels[0]);

@@ -2,15 +2,19 @@ import React, { useMemo } from 'react';
 import { LineChart, Line } from '@/components/charts/line-chart';
 import { Grid } from '@/components/charts/grid';
 import { ChartTooltip } from '@/components/charts/tooltip/chart-tooltip';
-import { mockCommitTimelineData } from '../data/gitVisMockData';
+import { commitTimelineToRows } from '../adapters/chartDataAdapters';
 
-export const CommitTimeline = React.memo(function CommitTimeline() {
-  const data = useMemo(() => mockCommitTimelineData, []);
+interface CommitTimelineProps {
+  data?: { date: string; cumulative: number }[];
+}
+
+export const CommitTimeline = React.memo(function CommitTimeline({ data }: CommitTimelineProps) {
+  const chartData = useMemo(() => (data ? commitTimelineToRows(data) : []), [data]);
 
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
       <LineChart
-        data={data}
+        data={chartData}
         xDataKey="date"
         margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
         style={{ maxHeight: 280 }}

@@ -7,7 +7,7 @@ import {
   HeatmapYAxis,
   HeatmapTooltip,
 } from '@/components/charts/heatmap';
-import { generateContributorModuleData, contributorNames } from '../data/gitVisMockData';
+import { contributorModulesToHeatmapColumns } from '../adapters/chartDataAdapters';
 
 const MODULE_KEYS = [
   'gitVisModuleFrontend',
@@ -17,18 +17,31 @@ const MODULE_KEYS = [
   'gitVisModuleDocs',
 ] as const;
 
-export const ContributorModuleHeatmap = React.memo(function ContributorModuleHeatmap() {
-  const { t, locale } = useTCopy();
-  const rawData = useMemo(() => generateContributorModuleData(), []);
+interface ContributorModuleHeatmapProps {
+  data?: {
+    author: string;
+    authorEmail: string;
+    modules: { module: string; count: number }[];
+  }[];
+}
 
-  const data = useMemo(
-    () =>
-      rawData.map((col, i) => ({
+export const ContributorModuleHeatmap = React.memo(function ContributorModuleHeatmap({
+  data,
+}: ContributorModuleHeatmapProps) {
+  const { t, locale } = useTCopy();
+  const { columns, rowLabels } = useMemo(() => {
+    if (!data) {
+      return { columns: [], rowLabels: [] };
+    }
+    const result = contributorModulesToHeatmapColumns(data);
+    return {
+      columns: result.columns.map((col, i) => ({
         ...col,
-        columnLabel: t[MODULE_KEYS[i] as keyof typeof t],
+        columnLabel: t[MODULE_KEYS[i] as keyof typeof t] || col.columnLabel,
       })),
-    [rawData, t],
-  );
+      rowLabels: result.rowLabels,
+    };
+  }, [data, t]);
 
   const formatLabel = useCallback(
     (count: number) => {
@@ -41,9 +54,9 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
       <HeatmapChart
-        data={data}
+        data={columns}
         locale={locale}
-        rowLabels={contributorNames}
+        rowLabels={rowLabels}
         margin={{ top: 28, right: 16, bottom: 0, left: 80 }}
         gap={2}
         binSize={36}

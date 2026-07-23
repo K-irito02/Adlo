@@ -4,12 +4,15 @@ import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { CopyKey } from '@i18n/types';
 import type { HeatmapTab } from '@stores/slices/uiSliceTypes';
+import type { TimeRangeState } from '@stores/slices/gitVisSlice';
+import type { RawCommitStats, RawContributorModules } from './adapters/chartDataAdapters';
 import { HeatmapInteractionProvider, HeatmapLegend } from '@/components/charts/heatmap';
 import { CalendarHeatmap } from './charts/CalendarHeatmap';
 import { ClockHeatmap } from './charts/ClockHeatmap';
 import { ContributorActivityHeatmap } from './charts/ContributorActivityHeatmap';
 import { ContributorModuleHeatmap } from './charts/ContributorModuleHeatmap';
 import { RefreshButton } from './RefreshButton';
+import { TimeRangeSelector } from './TimeRangeSelector';
 
 const TABS: { id: HeatmapTab; titleKey: CopyKey }[] = [
   { id: 'calendar', titleKey: 'gitVisHeatmapTabCalendar' },
@@ -17,13 +20,6 @@ const TABS: { id: HeatmapTab; titleKey: CopyKey }[] = [
   { id: 'activity', titleKey: 'gitVisHeatmapTabActivity' },
   { id: 'module', titleKey: 'gitVisHeatmapTabModule' },
 ];
-
-const HEATMAP_COMPONENTS: Record<HeatmapTab, React.ComponentType> = {
-  calendar: CalendarHeatmap,
-  clock: ClockHeatmap,
-  activity: ContributorActivityHeatmap,
-  module: ContributorModuleHeatmap,
-};
 
 const TITLE_KEYS: Record<HeatmapTab, CopyKey> = {
   calendar: 'gitVisCalendarHeatmap',
@@ -39,11 +35,21 @@ const DESC_KEYS: Record<HeatmapTab, CopyKey> = {
   module: 'gitVisContributorModuleDesc',
 };
 
+interface HeatmapCardGroupProps {
+  onRefresh?: () => Promise<void>;
+  commitStats?: RawCommitStats;
+  contributorModules?: RawContributorModules;
+  timeRange?: TimeRangeState;
+  onTimeRangeChange?: (range: TimeRangeState) => void;
+}
+
 export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
   onRefresh,
-}: {
-  onRefresh?: () => Promise<void>;
-}) {
+  commitStats,
+  contributorModules,
+  timeRange,
+  onTimeRangeChange,
+}: HeatmapCardGroupProps) {
   const { t } = useTCopy();
   const { activeHeatmapTab, setActiveHeatmapTab } = useAppStore(
     useShallow((s) => ({
@@ -51,8 +57,6 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
       setActiveHeatmapTab: s.setActiveHeatmapTab,
     })),
   );
-
-  const ActiveChart = HEATMAP_COMPONENTS[activeHeatmapTab];
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const idx = TABS.findIndex((tab) => tab.id === activeHeatmapTab);
@@ -78,6 +82,9 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
       <div className="adl-git-vis__card-header">
         {onRefresh && <RefreshButton onRefresh={onRefresh} label={t.gitVisRefreshChart} />}
         <h3 className="adl-git-vis__card-title">{t[TITLE_KEYS[activeHeatmapTab]]}</h3>
+        {timeRange && onTimeRangeChange && (
+          <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} />
+        )}
       </div>
       <nav
         className="adl-git-vis__heatmap-nav"
@@ -106,7 +113,14 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
           id="heatmap-tabpanel"
           aria-labelledby={`heatmap-tab-${activeHeatmapTab}`}
         >
-          <ActiveChart />
+          {activeHeatmapTab === 'calendar' && <CalendarHeatmap data={commitStats?.dailyCommits} />}
+          {activeHeatmapTab === 'clock' && <ClockHeatmap data={commitStats?.hourlyDistribution} />}
+          {activeHeatmapTab === 'activity' && (
+            <ContributorActivityHeatmap data={commitStats?.contributorActivity} />
+          )}
+          {activeHeatmapTab === 'module' && (
+            <ContributorModuleHeatmap data={contributorModules?.matrix} />
+          )}
         </div>
         <div className="adl-git-vis__heatmap-legend">
           <HeatmapLegend lessLabel={t.gitVisLess} moreLabel={t.gitVisMore} cellSize={10} gap={2} />

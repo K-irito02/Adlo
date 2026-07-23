@@ -4,12 +4,38 @@ import React from 'react';
 import { WorkspaceTabBar } from './WorkspaceTabBar';
 
 const mockSetActiveWorkspaceTab = vi.fn();
+const mockRecentWorkspaces: {
+  id: string;
+  name: string;
+  rootPath: string;
+  path: string;
+  lastOpenedAt: number;
+  isPinned: boolean;
+  pinnedOrder: number;
+  unpinnedOrder: number;
+  removedFromSidebar: boolean;
+  available: boolean;
+  hiddenFromRightPanels: boolean;
+}[] = Array.from({ length: 27 }, (_, i) => ({
+  id: `workspace-${i + 1}`,
+  name: `Workspace ${i + 1}`,
+  rootPath: `/path/workspace-${i + 1}`,
+  path: `/path/workspace-${i + 1}`,
+  lastOpenedAt: Date.now(),
+  isPinned: false,
+  pinnedOrder: 0,
+  unpinnedOrder: i,
+  removedFromSidebar: false,
+  available: true,
+  hiddenFromRightPanels: false,
+}));
 
 vi.mock('@stores/slicedStore', () => ({
   useAppStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({
       activeWorkspaceTab: 'workspace-1',
       setActiveWorkspaceTab: mockSetActiveWorkspaceTab,
+      recentWorkspaces: mockRecentWorkspaces,
     }),
 }));
 

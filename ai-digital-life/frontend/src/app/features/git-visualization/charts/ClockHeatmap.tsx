@@ -7,9 +7,13 @@ import {
   HeatmapYAxis,
   HeatmapTooltip,
 } from '@/components/charts/heatmap';
-import { generateClockHeatmapData } from '../data/gitVisMockData';
+import { hourlyDistributionToHeatmapColumns } from '../adapters/chartDataAdapters';
 
-export const ClockHeatmap = React.memo(function ClockHeatmap() {
+interface ClockHeatmapProps {
+  data?: { day: number; hour: number; count: number }[];
+}
+
+export const ClockHeatmap = React.memo(function ClockHeatmap({ data }: ClockHeatmapProps) {
   const { t, locale } = useTCopy();
   const dayLabels = useMemo(
     () =>
@@ -18,7 +22,7 @@ export const ClockHeatmap = React.memo(function ClockHeatmap() {
       ),
     [locale],
   );
-  const data = useMemo(() => generateClockHeatmapData(), []);
+  const heatmapData = useMemo(() => (data ? hourlyDistributionToHeatmapColumns(data) : []), [data]);
 
   const formatLabel = useCallback(
     (count: number) => {
@@ -31,7 +35,7 @@ export const ClockHeatmap = React.memo(function ClockHeatmap() {
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
       <HeatmapChart
-        data={data}
+        data={heatmapData}
         rowLabels={dayLabels}
         locale={locale}
         margin={{ top: 28, right: 16, bottom: 0, left: 40 }}

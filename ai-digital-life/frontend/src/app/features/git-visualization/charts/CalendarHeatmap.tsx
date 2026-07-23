@@ -7,16 +7,20 @@ import {
   HeatmapYAxis,
   HeatmapTooltip,
 } from '@/components/charts/heatmap';
-import { toHeatmapColumns } from '../data/gitVisMockData';
+import { commitStatsToHeatmapColumns } from '../adapters/chartDataAdapters';
 
 const dayFmt = (locale: string) =>
   Array.from({ length: 7 }, (_, i) =>
     new Intl.DateTimeFormat(locale, { weekday: 'narrow' }).format(new Date(2026, 0, 4 + i)),
   );
 
-export const CalendarHeatmap = React.memo(function CalendarHeatmap() {
+interface CalendarHeatmapProps {
+  data?: { date: string; count: number }[];
+}
+
+export const CalendarHeatmap = React.memo(function CalendarHeatmap({ data }: CalendarHeatmapProps) {
   const { t, locale } = useTCopy();
-  const data = useMemo(() => toHeatmapColumns(), []);
+  const heatmapData = useMemo(() => (data ? commitStatsToHeatmapColumns(data) : []), [data]);
   const dayLabels = useMemo(() => dayFmt(locale), [locale]);
 
   const formatLabel = useCallback(
@@ -30,7 +34,7 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap() {
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
       <HeatmapChart
-        data={data}
+        data={heatmapData}
         locale={locale}
         rowLabels={dayLabels}
         margin={{ top: 28, right: 16, bottom: 0, left: 40 }}

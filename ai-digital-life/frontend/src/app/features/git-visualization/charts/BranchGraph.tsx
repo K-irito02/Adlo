@@ -1,9 +1,11 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useBklitTheme } from '../hooks/useBklitTheme';
-import { commitNodes, commitEdges, allBranches } from '../data/gitVisMockData';
 import { createPortal } from 'react-dom';
 import { useBranchLabelDragReorder } from '../hooks/useBranchLabelDragReorder';
+import { adaptBranchGraphData } from '../adapters/chartDataAdapters';
+import type { RawBranchGraph } from '../adapters/chartDataAdapters';
+import type { CommitNode, CommitEdge } from '../data/gitVisMockData';
 
 // ── Constants ──
 const LANE_WIDTH = 24;
@@ -33,12 +35,6 @@ const BRANCH_COLORS_DARK: Record<string, string> = {
   hotfix: '#f87171',
 };
 
-// ── Author Avatar ──
-// 当前为模拟数据阶段：使用首字母圆形头像，颜色由作者名哈希决定。
-// TODO-FUTURE: 接入真实用户头像（GitHub / Gravatar）
-//   集成点：AuthorAvatarProps.src —— 传入头像 URL 后自动渲染图片并裁剪为圆形。
-//           数据源 CommitNode 可扩展 avatarUrl 字段，从 git log 或用户配置获取。
-
 const AUTHOR_COLORS = [
   '#e74c3c',
   '#3498db',
@@ -60,7 +56,6 @@ function getAuthorColor(name: string): string {
 
 interface AuthorAvatarProps {
   name: string;
-  /** Future: 真实头像 URL（GitHub / Gravatar），传入后替代首字母显示 */
   src?: string;
   size?: number;
 }
@@ -117,7 +112,7 @@ interface LaneMap {
 }
 
 interface RowData {
-  node: (typeof commitNodes)[0];
+  node: CommitNode;
   lane: LaneMap;
   parents: string[];
   isMerge: boolean;
@@ -131,9 +126,9 @@ function assignLanes(branches: string[], isDark: boolean): LaneMap[] {
   }));
 }
 
-function computeParentMap(): Map<string, string[]> {
+function computeParentMap(edges: CommitEdge[]): Map<string, string[]> {
   const map = new Map<string, string[]>();
-  for (const edge of commitEdges) {
+  for (const edge of edges) {
     const existing = map.get(edge.source) || [];
     existing.push(edge.target);
     map.set(edge.source, existing);
@@ -145,9 +140,10 @@ function getLaneX(laneIndex: number): number {
   return laneIndex * (LANE_WIDTH + LANE_GAP) + LANE_WIDTH / 2;
 }
 
-function buildRows(lanes: LaneMap[], parentMap: Map<string, string[]>): RowData[] {
+function buildRows(nodes: CommitNode[], edges: CommitEdge[], lanes: LaneMap[]): RowData[] {
   const laneIndexByBranch = new Map(lanes.map((l) => [l.branch, l.index]));
-  const commitById = new Map(commitNodes.map((n) => [n.id, n]));
+  const commitById = new Map(nodes.map((n) => [n.id, n]));
+  const parentMap = computeParentMap(edges);
 
   const visited = new Set<string>();
   const sorted: string[] = [];
@@ -164,7 +160,7 @@ function buildRows(lanes: LaneMap[], parentMap: Map<string, string[]>): RowData[
     sorted.push(id);
   }
 
-  for (const node of commitNodes) {
+  for (const node of nodes) {
     visit(node.id);
   }
 
@@ -186,6 +182,7 @@ function buildRows(lanes: LaneMap[], parentMap: Map<string, string[]>): RowData[
 interface SvgLanesProps {
   rows: RowData[];
   lanes: LaneMap[];
+  edges: CommitEdge[];
   totalWidth: number;
   totalHeight: number;
   hoveredId: string | null;
@@ -197,6 +194,7 @@ interface SvgLanesProps {
 const SvgLanes = React.memo(function SvgLanes({
   rows,
   lanes,
+  edges,
   totalWidth,
   totalHeight,
   hoveredId,
@@ -236,7 +234,7 @@ const SvgLanes = React.memo(function SvgLanes({
   });
 
   const connections: React.ReactElement[] = [];
-  for (const edge of commitEdges) {
+  for (const edge of edges) {
     const sourceIdx = rowIndexById.get(edge.source);
     const targetIdx = rowIndexById.get(edge.target);
     if (sourceIdx === undefined || targetIdx === undefined) {
@@ -364,12 +362,22 @@ const SvgLanes = React.memo(function SvgLanes({
 
 // ── Main component ──
 
-export const BranchGraph = React.memo(function BranchGraph() {
+interface BranchGraphProps {
+  data?: RawBranchGraph;
+}
+
+export const BranchGraph = React.memo(function BranchGraph({ data }: BranchGraphProps) {
   const { t } = useTCopy();
   const theme = useBklitTheme();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [filterBranches, setFilterBranches] = useState(() => new Set<string>());
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
+
+  const adapted = useMemo(() => (data ? adaptBranchGraphData(data) : null), [data]);
+  const hasData = data != null;
+
+  const branches = useMemo(() => adapted?.allBranches ?? [], [adapted]);
+
   const {
     isDragging,
     draggedBranchId,
@@ -377,7 +385,7 @@ export const BranchGraph = React.memo(function BranchGraph() {
     cursorPosition,
     ghostLabel,
     handleMouseDown: handleBranchMouseDown,
-  } = useBranchLabelDragReorder(allBranches, () => {});
+  } = useBranchLabelDragReorder(branches, () => {});
   const tagRowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -395,8 +403,12 @@ export const BranchGraph = React.memo(function BranchGraph() {
 
   const isDark = theme.background !== '#ffffff';
   const lanes = useMemo(() => assignLanes(previewOrder, isDark), [previewOrder, isDark]);
-  const parentMap = useMemo(() => computeParentMap(), []);
-  const rows = useMemo(() => buildRows(lanes, parentMap), [lanes, parentMap]);
+  const rows = useMemo(() => {
+    if (!adapted) {
+      return [];
+    }
+    return buildRows(adapted.nodes, adapted.edges, lanes);
+  }, [adapted, lanes]);
 
   const totalLaneWidth = lanes.length * (LANE_WIDTH + LANE_GAP);
   const totalHeight = rows.length * ROW_HEIGHT + 8;
@@ -415,6 +427,16 @@ export const BranchGraph = React.memo(function BranchGraph() {
   }, []);
 
   const nodeStroke = isDark ? '#1a1a1a' : '#ffffff';
+
+  if (!hasData) {
+    return (
+      <div className="adl-git-vis__chart">
+        <p style={{ padding: 16, color: theme.muted, textAlign: 'center' }}>
+          {t.gitVisBranchGraph}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="adl-git-vis__chart">
@@ -492,6 +514,7 @@ export const BranchGraph = React.memo(function BranchGraph() {
         <SvgLanes
           rows={rows}
           lanes={lanes}
+          edges={adapted?.edges ?? []}
           totalWidth={totalLaneWidth}
           totalHeight={totalHeight}
           hoveredId={hoveredId}
