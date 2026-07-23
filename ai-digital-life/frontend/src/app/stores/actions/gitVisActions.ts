@@ -11,10 +11,6 @@ const HEATMAP_TABS = [
   CHART_IDS.COMMIT_TIMELINE,
 ] as const;
 
-function getChartEndpoints(chartId: string): string[] {
-  return chartId === CHART_IDS.HEATMAP ? [CHART_IDS.HEATMAP] : [chartId];
-}
-
 function debugLog(msg: string, ...args: unknown[]): void {
   if (typeof console !== 'undefined' && (console as { debug?: typeof console.log }).debug) {
     console.debug(`[ADL-GIT-VIS] ${msg}`, ...args);
