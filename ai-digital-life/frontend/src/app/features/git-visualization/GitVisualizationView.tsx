@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
@@ -30,13 +30,11 @@ function ChartCard({ title, desc, children }: React.PropsWithChildren<ChartCardP
 export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const { t } = useTCopy();
   const chartColorPreset = useAppStore(useShallow((s) => s.chartColorPreset));
+  const rightExtra = useMemo(() => <ChartColorPresetSelector />, []);
 
   return (
     <div className="adl-git-vis__container" data-chart-preset={chartColorPreset}>
-      <WorkspaceTabBar />
-      <div className="adl-git-vis__preset-bar">
-        <ChartColorPresetSelector />
-      </div>
+      <WorkspaceTabBar rightExtra={rightExtra} />
       <HeatmapCardGroup />
       <ChartCard title={t.gitVisCodeLineEvo} desc={t.gitVisCodeLineEvoDesc}>
         <CodeLineEvo />

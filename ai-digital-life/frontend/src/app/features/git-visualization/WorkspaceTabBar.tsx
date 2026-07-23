@@ -6,7 +6,13 @@ import { mockWorkspaceTabs } from './data/gitVisMockData';
 const TAB_WIDTH = 120;
 const TAB_GAP = 4;
 
-export const WorkspaceTabBar = React.memo(function WorkspaceTabBar() {
+interface WorkspaceTabBarProps {
+  rightExtra?: React.ReactNode;
+}
+
+export const WorkspaceTabBar = React.memo(function WorkspaceTabBar({
+  rightExtra,
+}: WorkspaceTabBarProps) {
   const { activeWorkspaceTab, setActiveWorkspaceTab } = useAppStore(
     useShallow((s) => ({
       activeWorkspaceTab: s.activeWorkspaceTab,
@@ -49,6 +55,21 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar() {
     setPage((p) => Math.min(p, totalPages - 1));
   }, [totalPages]);
 
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (totalPages > 1) {
+        const delta = e.deltaY > 0 ? 1 : -1;
+        setPage((p) => Math.min(totalPages - 1, Math.max(0, p + delta)));
+      }
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [totalPages]);
+
   const isOverflowed = totalPages > 1;
 
   const handlePrev = useCallback(() => {
@@ -63,18 +84,6 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar() {
     const start = page * visibleTabs;
     return mockWorkspaceTabs.slice(start, start + visibleTabs);
   }, [page, visibleTabs]);
-
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      if (!isOverflowed) {
-        return;
-      }
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? 1 : -1;
-      setPage((p) => Math.min(totalPages - 1, Math.max(0, p + delta)));
-    },
-    [isOverflowed, totalPages],
-  );
 
   return (
     <div className="adl-workspace-tab__container" ref={containerRef}>
@@ -95,7 +104,6 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar() {
           ref={scrollRef}
           className="adl-workspace-tab__scroll-container"
           data-overflowed={isOverflowed ? 'true' : 'false'}
-          onWheel={handleWheel}
         >
           <div className="adl-workspace-tab__track">
             {currentTabs.map((item) => {
@@ -127,6 +135,7 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar() {
             ▶
           </button>
         )}
+        {rightExtra}
       </div>
 
       {isOverflowed && (

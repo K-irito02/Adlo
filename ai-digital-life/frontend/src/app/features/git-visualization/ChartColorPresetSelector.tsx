@@ -55,16 +55,18 @@ function PresetColorIcon({
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
-      <circle
-        cx="15"
-        cy="12"
-        r="7"
-        fill={colors.darkest}
-        stroke={colors.darkest}
-        strokeWidth="1.2"
-      />
-      <path d={LEFT_ARC} fill={colors.lightest} stroke={colors.darkest} strokeWidth="1.2" />
-      <path d={SEPARATOR_LINE} fill="none" stroke="var(--bg)" strokeWidth="2.5" />
+      <g transform="translate(-1.5, 0)">
+        <circle
+          cx="15"
+          cy="12"
+          r="7"
+          fill={colors.darkest}
+          stroke={colors.darkest}
+          strokeWidth="1.2"
+        />
+        <path d={LEFT_ARC} fill={colors.lightest} stroke={colors.darkest} strokeWidth="1.2" />
+        <path d={SEPARATOR_LINE} fill="none" stroke="var(--bg)" strokeWidth="2.5" />
+      </g>
     </svg>
   );
 }
@@ -79,7 +81,22 @@ export const ChartColorPresetSelector = React.memo(function ChartColorPresetSele
     })),
   );
   const [open, setOpen] = useState(false);
+  const [confirmedPreset, setConfirmedPreset] = useState(chartColorPreset);
   const containerRef = useRef<HTMLDivElement>(null);
+  const confirmedPresetRef = useRef(chartColorPreset);
+  const hoverGuardRef = useRef(false);
+
+  useEffect(() => {
+    if (open) {
+      setConfirmedPreset(chartColorPreset);
+      confirmedPresetRef.current = chartColorPreset;
+      hoverGuardRef.current = true;
+      const id = requestAnimationFrame(() => {
+        hoverGuardRef.current = false;
+      });
+      return () => cancelAnimationFrame(id);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -87,19 +104,53 @@ export const ChartColorPresetSelector = React.memo(function ChartColorPresetSele
     }
     const handleOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setChartColorPreset(confirmedPresetRef.current);
         setOpen(false);
+        containerRef.current
+          .querySelector<HTMLButtonElement>('.adl-git-vis__preset-trigger')
+          ?.focus();
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setChartColorPreset(confirmedPresetRef.current);
+        setOpen(false);
+        containerRef.current
+          ?.querySelector<HTMLButtonElement>('.adl-git-vis__preset-trigger')
+          ?.focus();
       }
     };
     document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [open]);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open, setChartColorPreset]);
+
+  const handleItemEnter = useCallback(
+    (id: ChartColorPreset) => {
+      if (hoverGuardRef.current) {
+        return;
+      }
+      setChartColorPreset(id);
+    },
+    [setChartColorPreset],
+  );
+
+  const handleMenuLeave = useCallback(() => {
+    setChartColorPreset(confirmedPresetRef.current);
+  }, [setChartColorPreset]);
 
   const handleSelect = useCallback(
     (id: ChartColorPreset) => {
       setChartColorPreset(id);
+      setConfirmedPreset(id);
+      confirmedPresetRef.current = id;
       setOpen(false);
     },
-    [setChartColorPreset, setOpen],
+    [setChartColorPreset, setConfirmedPreset, setOpen],
   );
 
   return (
@@ -113,7 +164,7 @@ export const ChartColorPresetSelector = React.memo(function ChartColorPresetSele
         <PresetColorIcon presetId={chartColorPreset} theme={resolvedTheme} />
       </button>
       {open && (
-        <div className="adl-git-vis__preset-menu" role="menu">
+        <div className="adl-git-vis__preset-menu" role="menu" onMouseLeave={handleMenuLeave}>
           {[
             {
               id: 'bklit-default' as ChartColorPreset,
@@ -131,10 +182,12 @@ export const ChartColorPresetSelector = React.memo(function ChartColorPresetSele
               className="adl-git-vis__preset-item"
               role="menuitem"
               onClick={() => handleSelect(preset.id)}
+              onMouseEnter={() => handleItemEnter(preset.id)}
+              onFocus={() => handleItemEnter(preset.id)}
             >
               <PresetColorIcon presetId={preset.id} theme={resolvedTheme} />
               <span className="adl-git-vis__preset-item-label">{t[preset.labelKey]}</span>
-              {chartColorPreset === preset.id && <IconCheck size={16} decorative />}
+              {confirmedPreset === preset.id && <IconCheck size={16} decorative />}
             </button>
           ))}
         </div>

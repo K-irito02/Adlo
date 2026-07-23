@@ -705,7 +705,62 @@ z-index:3）在视觉上重叠，导致 Scrollbar 无法 hover/交互。
 
 ---
 
-## 25. 子卡片间距全局标准
+## 24. 悬停预览与确认回退（Hover Preview + Confirm Reset）
+
+### 场景
+下拉菜单/选择器中，用户悬停选项时实时预览效果（无需点击），离开菜单时恢复为已确认状态。
+
+### 标准模式
+```tsx
+// 1. 两个状态：confirmed（已确认） + 实时 store
+const [confirmedVal, setConfirmedVal] = useState(storeVal);
+const confirmedRef = useRef(storeVal);
+
+// 2. 菜单打开时捕获当前确认值（依赖仅 [open]，不可加 storeVal）
+//    否则悬停预览时 storeVal 变化会误覆盖 confirmed 状态
+useEffect(() => {
+  if (open) {
+    setConfirmedVal(storeVal);
+    confirmedRef.current = storeVal;
+  }
+}, [open]);
+
+// 3. 悬停 → 更新 store 预览
+const handleItemEnter = useCallback((val) => {
+  setStoreVal(val);       // 实时预览
+}, [setStoreVal]);
+
+// 4. 离开菜单 → 回退到确认值
+const handleMenuLeave = useCallback(() => {
+  setStoreVal(confirmedRef.current);  // 恢复
+}, [setStoreVal]);
+
+// 5. 点击选中 → 更新确认值 + 关闭
+const handleSelect = useCallback((val) => {
+  setStoreVal(val);
+  setConfirmedVal(val);
+  confirmedRef.current = val;
+  setOpen(false);
+}, [setStoreVal]);
+
+// 6. 外部点击/Escape → 恢复确认值 + 关闭
+const handleOutside = (e) => {
+  setStoreVal(confirmedRef.current);
+  setOpen(false);
+};
+
+// 7. 打勾图标用 confirmedVal（不跟随悬停预览）
+{confirmedVal === item.id && <IconCheck />}
+```
+
+### 关键约束
+- store 更新即时生效（无防抖），确保预览体验流畅
+- `confirmedRef`（ref）用于恢复逻辑（不触发重渲染），`confirmedVal`（state）用于打勾图标渲染
+- 必须同步处理 Escape 键、外部点击、菜单离开三种离开路径
+- 聚焦（`onFocus`）应与悬停（`onMouseEnter`）同步触发预览，保证键盘可访问
+- **Hover Guard**：菜单首次打开时，设置 `hoverGuardRef` 在一帧内阻止 `onMouseEnter`/`onFocus` 触发预览，防止光标已在菜单位置时产生误触发（spurious mouseenter）。打开时设 `hoverGuardRef.current = true`，`requestAnimationFrame` 后重置为 `false`。`handleItemEnter` 入口判断 `if (hoverGuardRef.current) return;`
+
+---
 
 ### 标准
 所有子卡片与主菜单之间的水平间距必须统一为 **1px**，使用 `left: calc(100% + Npx)` 实现，N 值按布局手动调校。
