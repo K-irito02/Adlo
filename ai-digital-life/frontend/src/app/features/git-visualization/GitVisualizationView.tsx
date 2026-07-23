@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
+import { determinePhases, fetchChartData } from '@stores/actions/gitVisActions';
+import { defaultTimeRange } from '@stores/slices/gitVisSlice';
+import { getBridge } from '@stores/slices/githubSliceHelpers';
 import { HeatmapCardGroup } from './HeatmapCardGroup';
 import { CodeLineEvo } from './charts/CodeLineEvo';
 import { CommitTimeline } from './charts/CommitTimeline';
@@ -55,6 +58,10 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const chartColorPreset = useAppStore(useShallow((s) => s.chartColorPreset));
   const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
   const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
+  const appInfo = useAppStore((s) => s.appInfo);
+  const setGitVisData = useAppStore((s) => s.setGitVisData);
+  const setGitVisError = useAppStore((s) => s.setGitVisError);
+  const setGitVisLoadedPhases = useAppStore((s) => s.setGitVisLoadedPhases);
 
   const activeWs = useMemo(
     () => recentWorkspaces.find((w) => w.id === activeWorkspaceTab),
@@ -70,12 +77,65 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const commitTimelineData = useChartData(CHART_IDS.COMMIT_TIMELINE);
   const fileSunburstData = useChartData(CHART_IDS.FILE_SUNBURST);
 
-  // Cascade load on mount
+  // Cascade load across all workspaces based on priority phases
   useEffect(() => {
-    if (activeWorkspaceTab && rootPath) {
-      refreshWorkspace();
+    const config = appInfo?.config;
+    if (!config || recentWorkspaces.length === 0) {
+      return;
     }
-  }, [activeWorkspaceTab, rootPath]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const phases = determinePhases(
+      config.workspacePriorityIds ?? [],
+      config.workspaceDeferredIds ?? [],
+      config.workspaceNaturalOrder ?? [],
+      recentWorkspaces.map((w) => ({ id: w.id, rootPath: w.rootPath })),
+    );
+
+    setGitVisLoadedPhases(
+      Object.fromEntries([
+        ...phases.high.map((w) => [w.id, 'high' as const]),
+        ...phases.medium.map((w) => [w.id, 'medium' as const]),
+        ...phases.low.map((w) => [w.id, 'low' as const]),
+      ]),
+    );
+
+    const bridge = getBridge();
+    if (!bridge) {
+      return;
+    }
+
+    const allChartIds = Object.values(CHART_IDS);
+    const tr = defaultTimeRange();
+
+    const loadPhase = async (workspaces: { id: string; rootPath: string }[]) => {
+      for (const ws of workspaces) {
+        for (const chartId of allChartIds) {
+          fetchChartData(bridge, ws.id, ws.rootPath, chartId, tr.since, tr.until)
+            .then((data) => setGitVisData(ws.id, chartId, data))
+            .catch((e) => setGitVisError(ws.id, chartId, String(e)));
+        }
+      }
+    };
+
+    loadPhase(phases.high);
+
+    const hasRIC = typeof requestIdleCallback !== 'undefined';
+    const id: number = hasRIC
+      ? (requestIdleCallback(() => {
+          loadPhase(phases.medium).then(() => loadPhase(phases.low));
+        }) as unknown as number)
+      : window.setTimeout(() => {
+          loadPhase(phases.medium).then(() => loadPhase(phases.low));
+        }, 1000);
+
+    return () => {
+      if (hasRIC) {
+        cancelIdleCallback(id);
+      } else {
+        window.clearTimeout(id);
+      }
+    };
+  }, [recentWorkspaces, appInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRefreshBranchGraph = useCallback(
     () => refreshChart(CHART_IDS.BRANCH_GRAPH),

@@ -3,7 +3,7 @@ import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import { CHART_IDS } from '../../features/git-visualization/chartIds';
 import { computeLoadPhases } from './workspaceLoadOrder';
 
-const HEATMAP_TABS = [
+export const HEATMAP_TABS = [
   CHART_IDS.HEATMAP,
   CHART_IDS.BRANCH_GRAPH,
   CHART_IDS.FILE_SUNBURST,

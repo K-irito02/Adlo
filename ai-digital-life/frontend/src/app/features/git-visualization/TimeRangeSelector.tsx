@@ -1,13 +1,6 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
+import { useTCopy } from '@i18n/useTCopy';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
-
-const PRESETS: { key: TimeRangeState['preset']; label: string }[] = [
-  { key: 'week', label: '近一周' },
-  { key: 'month', label: '近一月' },
-  { key: 'year', label: '近一年' },
-  { key: 'all', label: '全部' },
-  { key: 'custom', label: '自定义' },
-];
 
 interface TimeRangeSelectorProps {
   value: TimeRangeState;
@@ -18,6 +11,16 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
   value,
   onChange,
 }: TimeRangeSelectorProps) {
+  const { t } = useTCopy();
+
+  const PRESETS: { key: TimeRangeState['preset']; label: string }[] = [
+    { key: 'week', label: t.gitVisTimeWeek },
+    { key: 'month', label: t.gitVisTimeMonth },
+    { key: 'year', label: t.gitVisTimeYear },
+    { key: 'all', label: t.gitVisTimeAll },
+    { key: 'custom', label: t.gitVisTimeCustom },
+  ];
+
   const [open, setOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [customSince, setCustomSince] = useState(value.since || '');
@@ -40,19 +43,19 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
   const getDisplayText = useCallback(() => {
     switch (value.preset) {
       case 'week':
-        return '近一周';
+        return t.gitVisTimeWeek;
       case 'month':
-        return '近一月';
+        return t.gitVisTimeMonth;
       case 'year':
-        return '近一年';
+        return t.gitVisTimeYear;
       case 'all':
-        return '全部';
+        return t.gitVisTimeAll;
       case 'custom':
         return `${value.since || ''} ~ ${value.until || ''}`;
       default:
-        return '近一年';
+        return t.gitVisTimeYear;
     }
-  }, [value]);
+  }, [value, t]);
 
   const handlePreset = useCallback(
     (preset: TimeRangeState['preset']) => {
@@ -137,8 +140,8 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
         type="button"
         className="adl-git-vis__timerange-btn"
         onClick={() => handleStep(-1)}
-        title="上一步"
-        aria-label="上一步"
+        title={t.gitVisTimePrev}
+        aria-label={t.gitVisTimePrev}
       >
         {'<'}
       </button>
@@ -167,7 +170,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
         <div className="adl-git-vis__timerange-menu">
           <div style={{ padding: '4px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
             <label style={{ fontSize: 11 }}>
-              起始日期
+              {t.gitVisTimeStartDate}
               <input
                 type="date"
                 value={customSince}
@@ -176,7 +179,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
               />
             </label>
             <label style={{ fontSize: 11 }}>
-              结束日期
+              {t.gitVisTimeEndDate}
               <input
                 type="date"
                 value={customUntil}
@@ -189,7 +192,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
               onClick={handleCustomConfirm}
               style={{ marginTop: 4, fontSize: 11 }}
             >
-              确认
+              {t.gitVisTimeConfirm}
             </button>
           </div>
         </div>
@@ -198,8 +201,8 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
         type="button"
         className="adl-git-vis__timerange-btn"
         onClick={() => handleStep(1)}
-        title="下一步"
-        aria-label="下一步"
+        title={t.gitVisTimeNext}
+        aria-label={t.gitVisTimeNext}
       >
         {'>'}
       </button>

@@ -25,7 +25,6 @@ fn build_time_filter(since: Option<&str>, until: Option<&str>) -> Vec<String> {
     args
 }
 
-#[allow(dead_code)]
 fn parse_commit_log(raw: &str) -> Vec<GitVisCommitRow> {
     raw.lines()
         .filter_map(|line| {
@@ -204,7 +203,6 @@ pub async fn capture_code_evolution(
                     entry.1 += del;
                 }
             }
-        } else if parts.len() == 2 && parts[0].starts_with("20") {
         }
     }
 
