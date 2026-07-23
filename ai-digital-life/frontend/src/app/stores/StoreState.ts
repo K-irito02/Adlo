@@ -41,6 +41,7 @@
 import type { UISlice } from './slices/uiSlice';
 import type { WorkspaceSlice } from './slices/workspaceSlice';
 import type { GitSlice } from './slices/gitSlice';
+import type { GitVisSlice } from './slices/gitVisSlice';
 import type { SessionSlice } from './slices/sessionSlice';
 import type { EditorSlice } from './slices/editorSlice';
 import type { PatchSlice } from './slices/patchSlice';
@@ -117,6 +118,7 @@ type AllSlices = [
   UISlice,
   WorkspaceSlice,
   GitSlice,
+  GitVisSlice,
   SessionSlice,
   EditorSlice,
   PatchSlice,
