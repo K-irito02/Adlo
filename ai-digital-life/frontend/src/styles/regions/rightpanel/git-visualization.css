@@ -620,3 +620,50 @@
 }
 
 /* motion/react 处理旋转动画，此处不设 transform transition 以免冲突 */
+
+/* ── TimeRangeSelector ── */
+.adl-git-vis__timerange-btn {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.adl-git-vis__timerange-btn:hover {
+  background: var(--bg-hover);
+}
+.adl-git-vis__timerange-label {
+  color: var(--accent);
+  font-weight: 500;
+}
+.adl-git-vis__timerange-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 140px;
+}
+.adl-git-vis__timerange-menu-item {
+  display: block;
+  width: 100%;
+  padding: 4px 10px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.adl-git-vis__timerange-menu-item:hover {
+  background: var(--bg-hover);
+}
+.adl-git-vis__timerange-menu-item--active {
+  color: var(--accent);
+  font-weight: 600;
+}
