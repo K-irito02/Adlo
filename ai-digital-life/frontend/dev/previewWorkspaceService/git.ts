@@ -48,7 +48,7 @@ export async function resolveGitBinary(): Promise<string> {
   return moduleState.gitBinary;
 }
 
-async function runGit(rootPath: string, args: string[]): Promise<string | undefined> {
+export async function runGit(rootPath: string, args: string[]): Promise<string | undefined> {
   const gitBin = await resolveGitBinary();
   return new Promise((resolve) => {
     const child = spawn(gitBin, args, { cwd: rootPath, windowsHide: true });

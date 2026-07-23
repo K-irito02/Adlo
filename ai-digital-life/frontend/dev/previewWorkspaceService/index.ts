@@ -8,6 +8,7 @@ import * as files from './files';
 import * as search from './search';
 import * as ciModule from './ci';
 import * as logging from './logging';
+import * as gitVis from './gitVisualization';
 
 export { git, files, search, ciModule as ci, logging };
 export * from './git';
@@ -423,6 +424,57 @@ const routes: Route[] = [
     handler: async () => {
       ciAccessToken = '';
       return ok(true);
+    },
+  },
+  {
+    method: 'GET', pathname: makePath('/workspace/git-vis-commit-stats'),
+    handler: async (_req, _body, searchParams) => {
+      const rootPath = searchParams.get('rootPath');
+      const since = searchParams.get('since') ?? undefined;
+      const until = searchParams.get('until') ?? undefined;
+      if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      const data = await gitVis.handleCommitStats(rootPath, since, until);
+      return ok(data);
+    },
+  },
+  {
+    method: 'GET', pathname: makePath('/workspace/git-vis-code-evolution'),
+    handler: async (_req, _body, searchParams) => {
+      const rootPath = searchParams.get('rootPath');
+      const since = searchParams.get('since') ?? undefined;
+      const until = searchParams.get('until') ?? undefined;
+      if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      const data = await gitVis.handleCodeEvolution(rootPath, since, until);
+      return ok(data);
+    },
+  },
+  {
+    method: 'GET', pathname: makePath('/workspace/git-vis-contributor-modules'),
+    handler: async (_req, _body, searchParams) => {
+      const rootPath = searchParams.get('rootPath');
+      const since = searchParams.get('since') ?? undefined;
+      const until = searchParams.get('until') ?? undefined;
+      if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      const data = await gitVis.handleContributorModules(rootPath, since, until);
+      return ok(data);
+    },
+  },
+  {
+    method: 'GET', pathname: makePath('/workspace/git-vis-branch-graph'),
+    handler: async (_req, _body, searchParams) => {
+      const rootPath = searchParams.get('rootPath');
+      if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      const data = await gitVis.handleBranchGraph(rootPath);
+      return ok(data);
+    },
+  },
+  {
+    method: 'GET', pathname: makePath('/workspace/git-vis-file-sunburst'),
+    handler: async (_req, _body, searchParams) => {
+      const rootPath = searchParams.get('rootPath');
+      if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      const data = await gitVis.handleFileSunburst(rootPath);
+      return ok(data);
     },
   },
 ];
