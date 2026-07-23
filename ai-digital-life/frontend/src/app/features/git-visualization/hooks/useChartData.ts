@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { CHART_IDS } from '../chartIds';
@@ -18,41 +18,33 @@ export function useChartData(chartId: string): {
   setTimeRange: (range: TimeRangeState) => void;
   hasTimeRange: boolean;
 } {
-  const { activeWorkspaceTab, gitVisData, gitVisLoading, gitVisErrors, gitVisTimeRange } =
-    useAppStore(
-      useShallow((s) => ({
-        activeWorkspaceTab: s.activeWorkspaceTab,
-        gitVisData: s.gitVisData,
-        gitVisLoading: s.gitVisLoading,
-        gitVisErrors: s.gitVisErrors,
-        gitVisTimeRange: s.gitVisTimeRange,
-      })),
-    );
-
+  const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
+  const wsData = useAppStore((s) => s.gitVisData[activeWorkspaceTab]);
+  const wsLoading = useAppStore((s) => s.gitVisLoading[activeWorkspaceTab]);
+  const wsErrors = useAppStore((s) => s.gitVisErrors[activeWorkspaceTab]);
+  const wsTimeRange = useAppStore((s) => s.gitVisTimeRange[activeWorkspaceTab]);
   const setGitVisTimeRange = useAppStore((s) => s.setGitVisTimeRange);
 
-  return useMemo(() => {
-    const wsData = gitVisData[activeWorkspaceTab] || {};
-    const wsLoading = gitVisLoading[activeWorkspaceTab] || {};
-    const wsErrors = gitVisErrors[activeWorkspaceTab] || {};
-    const wsTimeRange = gitVisTimeRange[activeWorkspaceTab] || {};
+  const chartData = wsData?.[chartId];
+  const chartLoading = wsLoading?.[chartId] ?? false;
+  const chartError = wsErrors?.[chartId];
+  const chartTimeRange = wsTimeRange?.[chartId];
 
-    return {
-      data: wsData[chartId],
-      loading: wsLoading[chartId] ?? false,
-      error: wsErrors[chartId],
-      timeRange: wsTimeRange[chartId],
-      setTimeRange: (range: TimeRangeState) =>
-        setGitVisTimeRange(activeWorkspaceTab, chartId, range),
+  const timeRange = chartTimeRange;
+  const setTimeRange = useCallback(
+    (range: TimeRangeState) => setGitVisTimeRange(activeWorkspaceTab, chartId, range),
+    [activeWorkspaceTab, chartId, setGitVisTimeRange],
+  );
+
+  return useMemo(
+    () => ({
+      data: chartData,
+      loading: chartLoading,
+      error: chartError,
+      timeRange,
+      setTimeRange,
       hasTimeRange: TIME_RANGE_CHARTS.has(chartId),
-    };
-  }, [
-    activeWorkspaceTab,
-    chartId,
-    gitVisData,
-    gitVisLoading,
-    gitVisErrors,
-    gitVisTimeRange,
-    setGitVisTimeRange,
-  ]);
+    }),
+    [chartData, chartLoading, chartError, timeRange, setTimeRange, chartId],
+  );
 }
