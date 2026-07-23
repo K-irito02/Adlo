@@ -57,7 +57,9 @@ export const WorkspaceTabBar = React.memo(function WorkspaceTabBar({
 
   useEffect(() => {
     const el = containerRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       e.stopPropagation();

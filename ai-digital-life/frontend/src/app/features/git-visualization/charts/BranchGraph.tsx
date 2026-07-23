@@ -555,9 +555,7 @@ export const BranchGraph = React.memo(function BranchGraph() {
                   <AuthorAvatar name={row.node.author} />
                   {row.node.author}
                 </span>
-                <span style={{ color: theme.muted, textAlign: 'right' }}>
-                  {formatRelativeDate(row.node.date)}
-                </span>
+                <span style={{ color: theme.muted }}>{formatRelativeDate(row.node.date)}</span>
               </div>
             );
           })}

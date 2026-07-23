@@ -23,7 +23,10 @@ export const FileSunburst = React.memo(function FileSunburst() {
     return Array.from({ length: n }, (_, i) => <SunburstSegment key={i} index={i} />);
   }, []);
   return (
-    <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
+    <div
+      className="adl-git-vis__chart"
+      style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}
+    >
       <SunburstChart data={fileTreemapData} size={320}>
         <SunburstCenter />
         {segments}

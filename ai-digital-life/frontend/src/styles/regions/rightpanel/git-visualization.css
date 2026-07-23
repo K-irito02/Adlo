@@ -9,18 +9,10 @@
 }
 
 .adl-git-vis__card {
-  background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
   padding: var(--space-3) var(--space-3) var(--space-1);
   display: flex;
   flex-direction: column;
-  transition: box-shadow 0.2s;
   flex-shrink: 0;
-}
-
-.adl-git-vis__card:hover {
-  box-shadow: var(--shadow-md);
 }
 
 .adl-git-vis__card-header {
@@ -43,13 +35,40 @@
   max-height: 360px;
   overflow-y: auto;
   flex-shrink: 0;
+  scrollbar-width: thin;
+}
+
+/* ── Scrollbar auto-hide (instant toggle, all browsers) ── */
+/* Firefox: scrollbar-color */
+.adl-git-vis__chart {
+  scrollbar-color: transparent transparent;
+}
+.adl-git-vis__chart[data-scrolling],
+.adl-git-vis__chart[data-scrollbar-near] {
+  scrollbar-color: var(--border-default) transparent;
+}
+
+/* WebKit (Chrome, Safari): ::-webkit-scrollbar-thumb */
+.adl-git-vis__chart::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.adl-git-vis__chart::-webkit-scrollbar-track {
+  background: transparent;
+}
+.adl-git-vis__chart::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+.adl-git-vis__chart[data-scrolling]::-webkit-scrollbar-thumb,
+.adl-git-vis__chart[data-scrollbar-near]::-webkit-scrollbar-thumb {
+  background: var(--border-default);
 }
 
 .adl-git-vis__card-desc {
   font-size: 0.8rem;
   color: var(--text-secondary);
   padding: var(--space-2) var(--space-1) 0;
-  border-top: 1px solid var(--border-subtle);
   margin-top: var(--space-1);
 }
 

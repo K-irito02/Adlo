@@ -85,11 +85,16 @@ export const ChartColorPresetSelector = React.memo(function ChartColorPresetSele
   const containerRef = useRef<HTMLDivElement>(null);
   const confirmedPresetRef = useRef(chartColorPreset);
   const hoverGuardRef = useRef(false);
+  // Keep a ref to the latest chartColorPreset so the open-effect can read it
+  // without triggering on every hover preview (which would overwrite the
+  // confirmed anchor and break the checkmark / cancel behavior).
+  const chartColorPresetRef = useRef(chartColorPreset);
+  chartColorPresetRef.current = chartColorPreset;
 
   useEffect(() => {
     if (open) {
-      setConfirmedPreset(chartColorPreset);
-      confirmedPresetRef.current = chartColorPreset;
+      setConfirmedPreset(chartColorPresetRef.current);
+      confirmedPresetRef.current = chartColorPresetRef.current;
       hoverGuardRef.current = true;
       const id = requestAnimationFrame(() => {
         hoverGuardRef.current = false;
