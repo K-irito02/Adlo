@@ -93,15 +93,8 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
     );
   }, [recentWorkspaces, appInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-load active workspace data on first view
-  const loadedRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (!rootPath || loadedRef.current.has(activeWorkspaceTab)) {
-      return;
-    }
-    loadedRef.current.add(activeWorkspaceTab);
-    void refreshWorkspace();
-  }, [activeWorkspaceTab, rootPath, refreshWorkspace]);
+  // Auto-load is handled by individual chart refresh buttons.
+  // Data loads on first user interaction or explicit refresh.
 
   const handleRefreshBranchGraph = useCallback(
     () => refreshChart(CHART_IDS.BRANCH_GRAPH),
