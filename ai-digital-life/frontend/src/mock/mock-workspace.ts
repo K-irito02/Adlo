@@ -28,6 +28,16 @@ import {
 } from "./mock-shared";
 import { buildOutlineFromContent } from "../shared/outline";
 import type { FileOutlineItem } from "@ai-digital-life/kernel";
+import {
+  commitNodes,
+  commitEdges,
+  allBranches,
+  contributorNames,
+  contributorModuleMatrix,
+  moduleNames,
+  fileTreemapData,
+  mockCommitTimelineData,
+} from "../app/features/git-visualization/data/gitVisMockData";
 
 export function setMockActiveWorkspace(workspace?: WorkspaceMeta): void {
   setMockCurrentWorkspace(workspace);
@@ -381,10 +391,44 @@ export const mockWorkspace: WorkspaceBridge = {
     };
     return { ok: true, data: result };
   },
-  gitVisCommitStats: async () => ({ ok: true as const, data: { dailyCommits: [], hourlyDistribution: [], contributorActivity: [], commitTimeline: [], commits: [] } }),
-  gitVisCodeEvolution: async () => ({ ok: true as const, data: { weeks: [] } }),
-  gitVisContributorModules: async () => ({ ok: true as const, data: { matrix: [] } }),
-  gitVisBranchGraph: async () => ({ ok: true as const, data: { nodes: [], edges: [], branches: [] } }),
-  gitVisFileSunburst: async () => ({ ok: true as const, data: { tree: { name: 'root', type: 'directory', children: [] } } }),
+  gitVisCommitStats: async (_rootPath) => ({
+    ok: true as const,
+    data: {
+      dailyCommits: mockCommitTimelineData.map(d => ({ date: d.date, count: d.count })),
+      hourlyDistribution: [{ day: 0, hour: 10, count: 5 }],
+      contributorActivity: contributorNames.map((author, i) => ({
+        author, authorEmail: `${author.toLowerCase()}@example.com`,
+        totalCommits: 10 - i,
+        periods: [{ period: '2026-W01', count: 3 }],
+      })),
+      commitTimeline: mockCommitTimelineData.map(d => ({ date: d.date, cumulative: d.cumulative })),
+      commits: commitNodes.map(n => ({ hash: n.hash, shortHash: n.hash.substring(0, 6), date: n.date, author: n.author, authorEmail: n.authorEmail, message: n.message })),
+    },
+  }),
+  gitVisCodeEvolution: async () => ({
+    ok: true as const,
+    data: { weeks: [{ weekStart: '2026-01-06', additions: 100, deletions: 30 }] },
+  }),
+  gitVisContributorModules: async () => ({
+    ok: true as const,
+    data: {
+      matrix: contributorNames.map((author, ci) => ({
+        author, authorEmail: `${author.toLowerCase()}@example.com`,
+        modules: moduleNames.map((module, mi) => ({ module, count: contributorModuleMatrix[ci][mi] })),
+      })),
+    },
+  }),
+  gitVisBranchGraph: async () => ({
+    ok: true as const,
+    data: {
+      nodes: commitNodes.map(n => ({ hash: n.hash, shortHash: n.hash.substring(0, 6), parentHashes: [], branch: n.branch, date: n.date, message: n.message, author: n.author, authorEmail: n.authorEmail, tag: n.tag })),
+      edges: commitEdges.map(e => ({ from: e.source, to: e.target })),
+      branches: allBranches,
+    },
+  }),
+  gitVisFileSunburst: async () => ({
+    ok: true as const,
+    data: { tree: fileTreemapData as any },
+  }),
   onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) => () => {}
 };
