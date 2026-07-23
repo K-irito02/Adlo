@@ -44,9 +44,8 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
         pendingRef.current.delete(chartId);
         return;
       }
-      // Defer all store mutations past the current render cycle
+      // Defer store mutations past the current render cycle
       await Promise.resolve();
-      setLoading(workspaceId, chartId, true);
       setError(workspaceId, chartId, undefined);
       try {
         const tr = timeRanges[chartId];
@@ -62,7 +61,6 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
       } catch (e) {
         setError(workspaceId, chartId, e instanceof Error ? e.message : String(e));
       } finally {
-        setLoading(workspaceId, chartId, false);
         pendingRef.current.delete(chartId);
       }
     },

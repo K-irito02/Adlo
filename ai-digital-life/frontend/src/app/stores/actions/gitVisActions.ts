@@ -69,13 +69,12 @@ export async function refreshWorkspace(
 ): Promise<void> {
   debugLog('refreshWorkspace', { workspaceId });
 
-  // Batch all loading=true before any async work to minimize re-renders
+  // Clear errors before fetching
   for (const chartId of HEATMAP_TABS) {
-    setLoading(chartId, true);
     setError(chartId, undefined);
   }
 
-  // Fetch all charts in parallel to avoid sequential await flushing
+  // Fetch all charts in parallel
   const results = await Promise.allSettled(
     HEATMAP_TABS.map(async (chartId) => {
       const tr = timeRanges[chartId] || {};
@@ -92,11 +91,6 @@ export async function refreshWorkspace(
       const chartId = HEATMAP_TABS[results.indexOf(result)];
       setError(chartId, result.reason instanceof Error ? result.reason.message : String(result.reason));
     }
-  }
-
-  // Batch all loading=false
-  for (const chartId of HEATMAP_TABS) {
-    setLoading(chartId, false);
   }
 }
 
