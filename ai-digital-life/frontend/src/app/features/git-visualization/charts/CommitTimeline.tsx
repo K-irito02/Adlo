@@ -5,11 +5,11 @@ import { ChartTooltip } from '@/components/charts/tooltip/chart-tooltip';
 import { commitTimelineToRows } from '../adapters/chartDataAdapters';
 
 interface CommitTimelineProps {
-  data?: { date: string; cumulative: number }[];
+  data?: { commitTimeline: { date: string; cumulative: number }[] };
 }
 
 export const CommitTimeline = React.memo(function CommitTimeline({ data }: CommitTimelineProps) {
-  const chartData = useMemo(() => (data ? commitTimelineToRows(data) : []), [data]);
+  const chartData = useMemo(() => (data?.commitTimeline ? commitTimelineToRows(data.commitTimeline) : []), [data]);
 
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>

@@ -124,7 +124,7 @@ pub struct GitVisBranchGraph {
     pub branches: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitVisSunburstNode {
     pub name: String,
@@ -136,7 +136,7 @@ pub struct GitVisSunburstNode {
     pub children: Option<Vec<GitVisSunburstNode>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GitVisFileSunburst {
     pub tree: GitVisSunburstNode,

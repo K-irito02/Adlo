@@ -358,7 +358,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           <CodeLineEvo
             data={
               codeLineEvoData.data as
-                | { weekStart: string; additions: number; deletions: number }[]
+                | { weeks: { weekStart: string; additions: number; deletions: number }[] }
                 | undefined
             }
           />
@@ -373,7 +373,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
       >
         {commitTimelineData.loading ? null : (
           <CommitTimeline
-            data={commitTimelineData.data as { date: string; cumulative: number }[] | undefined}
+            data={commitTimelineData.data as { commitTimeline: { date: string; cumulative: number }[] } | undefined}
           />
         )}
       </TimeRangeAwareCard>
