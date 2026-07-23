@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { fetchChartData, refreshWorkspace } from '@stores/actions/gitVisActions';
@@ -32,12 +32,20 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
     );
   }, [workspaceId, rootPath, timeRanges, setLoading, setError, setData]);
 
+  const pendingRef = useRef<Set<string>>(new Set());
   const handleRefreshChart = useCallback(
     async (chartId: string) => {
-      const bridge = getBridge();
-      if (!bridge) {
+      if (pendingRef.current.has(chartId)) {
         return;
       }
+      pendingRef.current.add(chartId);
+      const bridge = getBridge();
+      if (!bridge) {
+        pendingRef.current.delete(chartId);
+        return;
+      }
+      // Defer all store mutations past the current render cycle
+      await Promise.resolve();
       setLoading(workspaceId, chartId, true);
       setError(workspaceId, chartId, undefined);
       try {
@@ -55,6 +63,7 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
         setError(workspaceId, chartId, e instanceof Error ? e.message : String(e));
       } finally {
         setLoading(workspaceId, chartId, false);
+        pendingRef.current.delete(chartId);
       }
     },
     [workspaceId, rootPath, timeRanges, setLoading, setError, setData],
