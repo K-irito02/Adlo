@@ -93,14 +93,18 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
     );
   }, [recentWorkspaces, appInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // One-shot initial load — fires once on mount to load active workspace
-  const initialLoadDone = useRef(false);
+  // One-shot initial load — fires once on mount to load active workspace data
+  const initialLoadStarted = useRef(false);
   useEffect(() => {
-    if (initialLoadDone.current || !rootPath) {
+    if (initialLoadStarted.current) {
       return;
     }
-    initialLoadDone.current = true;
-    void refreshWorkspace();
+    if (!rootPath) {
+      return;
+    }
+    initialLoadStarted.current = true;
+    const timer = setTimeout(() => void refreshWorkspace(), 100);
+    return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleRefreshBranchGraph = useCallback(
