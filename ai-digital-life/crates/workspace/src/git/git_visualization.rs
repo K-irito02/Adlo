@@ -76,10 +76,9 @@ pub async fn capture_commit_stats(
     let mut daily_map: BTreeMap<String, i32> = BTreeMap::new();
     let mut hourly_map: HashMap<(i32, i32), i32> = HashMap::new();
     let mut author_map: HashMap<String, (String, i32, BTreeMap<String, i32>)> = HashMap::new();
-    let mut timeline_cumulative: i32 = 0;
     let mut timeline_points: Vec<GitVisTimelinePoint> = Vec::new();
 
-    for c in &commits {
+    for (timeline_cumulative, c) in (0_i32..).zip(commits.iter()) {
         let date10: String = c.date.chars().take(10).collect();
         *daily_map.entry(date10.clone()).or_insert(0) += 1;
 
@@ -98,7 +97,6 @@ pub async fn capture_commit_stats(
         };
         *entry.2.entry(week_key.clone()).or_insert(0) += 1;
 
-        timeline_cumulative += 1;
         timeline_points.push(GitVisTimelinePoint {
             date: date10,
             cumulative: timeline_cumulative,
@@ -169,7 +167,7 @@ fn parse_date_parts(iso: &str) -> Option<DateParts> {
     let day_of_week = ((julian + 1) % 7) as i32; // 0=Mon, 6=Sun
 
     let jan4_day = (6 + year * 365 + year / 4 - year / 100 + year / 400) % 7;
-    let jan4_julian = 4 + if jan4_day <= 3 { 3 - jan4_day as i32 } else { 10 - jan4_day as i32 };
+    let jan4_julian = 4 + if jan4_day <= 3 { 3 - jan4_day } else { 10 - jan4_day };
     let week = 1 + (julian as i32 - jan4_julian) / 7;
     let week = if week < 1 { 52 + if week == 0 { 0 } else { -1 } } else { week };
 
@@ -349,10 +347,10 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
             let refs: Vec<&str> = refs_raw.split(", ").collect();
             for r in &refs {
                 let r2 = r.trim();
-                if r2.starts_with("tag: ") {
-                    tag = Some(r2[5..].to_string());
-                } else if r2.starts_with("HEAD -> ") {
-                    branch = r2[8..].to_string();
+                if let Some(stripped) = r2.strip_prefix("tag: ") {
+                    tag = Some(stripped.to_string());
+                } else if let Some(stripped) = r2.strip_prefix("HEAD -> ") {
+                    branch = stripped.to_string();
                     branch_set.insert(branch.clone());
                 } else if !r2.starts_with("tag:") {
                     branch = r2.to_string();

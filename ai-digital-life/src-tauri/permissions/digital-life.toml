@@ -168,5 +168,10 @@ commands.allow = [
   "http_api_get_status",
   "http_api_get_config",
   "codemode_execute",
-  "codemode_get_config"
+  "codemode_get_config",
+  "workspace_git_vis_commit_stats",
+  "workspace_git_vis_code_evolution",
+  "workspace_git_vis_contributor_modules",
+  "workspace_git_vis_branch_graph",
+  "workspace_git_vis_file_sunburst"
 ]
