@@ -38,6 +38,11 @@ vi.mock('motion/react', () => ({
   useTransform: () => createMotionValue(0),
   useSpring: (val: unknown) => createMotionValue(typeof val === 'number' ? val : 0),
   useReducedMotion: () => true,
+  useAnimation: () => ({
+    start: vi.fn(() => Promise.resolve()),
+    stop: vi.fn(),
+    set: vi.fn(),
+  }),
 }));
 
 vi.mock('@visx/responsive', () => ({

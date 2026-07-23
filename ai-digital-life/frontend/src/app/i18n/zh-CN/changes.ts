@@ -152,5 +152,8 @@ export const changesZh = {
   gitVisPresetCoolOcean: '冷色海洋',
   gitVisPresetWarmSunset: '暖色日落',
   gitVisPresetHighContrast: '高对比度',
+  gitVisPresetColorTooltip: '选择图表主题色',
   gitVisWorkspaceTab: '工作区 {name}',
+  gitVisRefreshWorkspace: '刷新所有图表',
+  gitVisRefreshChart: '刷新当前图表',
 } as const;

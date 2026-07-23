@@ -9,6 +9,7 @@ import { CalendarHeatmap } from './charts/CalendarHeatmap';
 import { ClockHeatmap } from './charts/ClockHeatmap';
 import { ContributorActivityHeatmap } from './charts/ContributorActivityHeatmap';
 import { ContributorModuleHeatmap } from './charts/ContributorModuleHeatmap';
+import { RefreshButton } from './RefreshButton';
 
 const TABS: { id: HeatmapTab; titleKey: CopyKey }[] = [
   { id: 'calendar', titleKey: 'gitVisHeatmapTabCalendar' },
@@ -38,7 +39,11 @@ const DESC_KEYS: Record<HeatmapTab, CopyKey> = {
   module: 'gitVisContributorModuleDesc',
 };
 
-export const HeatmapCardGroup = React.memo(function HeatmapCardGroup() {
+export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
+  onRefresh,
+}: {
+  onRefresh?: () => Promise<void>;
+}) {
   const { t } = useTCopy();
   const { activeHeatmapTab, setActiveHeatmapTab } = useAppStore(
     useShallow((s) => ({
@@ -71,6 +76,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup() {
   return (
     <div className="adl-git-vis__card">
       <div className="adl-git-vis__card-header">
+        {onRefresh && <RefreshButton onRefresh={onRefresh} label={t.gitVisRefreshChart} />}
         <h3 className="adl-git-vis__card-title">{t[TITLE_KEYS[activeHeatmapTab]]}</h3>
       </div>
       <nav

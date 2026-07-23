@@ -163,7 +163,8 @@ export const ChartColorPresetSelector = React.memo(function ChartColorPresetSele
       <button
         className="adl-git-vis__preset-trigger"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Chart color preset"
+        aria-label={t.gitVisPresetColorTooltip}
+        title={t.gitVisPresetColorTooltip}
         aria-expanded={open}
       >
         <PresetColorIcon presetId={chartColorPreset} theme={resolvedTheme} />

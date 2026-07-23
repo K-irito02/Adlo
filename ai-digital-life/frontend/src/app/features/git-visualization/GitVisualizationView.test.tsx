@@ -63,6 +63,11 @@ vi.mock('motion/react', () => ({
   useTransform: () => createMotionValue(0),
   useSpring: (val: unknown) => createMotionValue(typeof val === 'number' ? val : 0),
   useReducedMotion: () => true,
+  useAnimation: () => ({
+    start: vi.fn(() => Promise.resolve()),
+    stop: vi.fn(),
+    set: vi.fn(),
+  }),
 }));
 
 vi.mock('@visx/responsive', () => ({
@@ -129,6 +134,9 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisHeatmapTabActivity: 'Activity',
       gitVisHeatmapTabModule: 'Module',
       gitVisHeatmapNav: 'Heatmap type',
+      gitVisRefreshWorkspace: 'Refresh all charts',
+      gitVisRefreshChart: 'Refresh this chart',
+      gitVisPresetColorTooltip: 'Select chart color theme',
     },
     formatT: vi.fn(),
   })),

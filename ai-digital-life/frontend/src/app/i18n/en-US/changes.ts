@@ -152,5 +152,8 @@ export const changesEn = {
   gitVisPresetCoolOcean: 'Cool Ocean',
   gitVisPresetWarmSunset: 'Warm Sunset',
   gitVisPresetHighContrast: 'High Contrast',
+  gitVisPresetColorTooltip: 'Select chart color theme',
   gitVisWorkspaceTab: 'Workspace {name}',
+  gitVisRefreshWorkspace: 'Refresh all charts',
+  gitVisRefreshChart: 'Refresh this chart',
 } as const;

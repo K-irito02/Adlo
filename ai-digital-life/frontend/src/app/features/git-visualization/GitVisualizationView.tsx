@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
@@ -9,16 +9,32 @@ import { FileSunburst } from './charts/FileSunburst';
 import { BranchGraph } from './charts/BranchGraph';
 import { ChartColorPresetSelector } from './ChartColorPresetSelector';
 import { WorkspaceTabBar } from './WorkspaceTabBar';
+import { useGitVisRefresh } from './hooks/useGitVisRefresh';
+import { RefreshButton } from './RefreshButton';
 
-interface ChartCardProps {
+/** 图表标识符常量 — 用于 refreshChart(chartId) 的 chartId 参数 */
+export const CHART_IDS = {
+  BRANCH_GRAPH: 'branch-graph',
+  CODE_LINE_EVO: 'code-line-evolution',
+  COMMIT_TIMELINE: 'commit-timeline',
+  FILE_SUNBURST: 'file-sunburst',
+  HEATMAP: 'heatmap',
+} as const;
+
+type ChartCardProps = {
   title: string;
   desc: string;
-}
+  children: React.ReactNode;
+} & (
+  | { onRefresh: () => Promise<void>; refreshLabel: string }
+  | { onRefresh?: undefined; refreshLabel?: undefined }
+);
 
-function ChartCard({ title, desc, children }: React.PropsWithChildren<ChartCardProps>) {
+function ChartCard({ title, desc, onRefresh, refreshLabel, children }: ChartCardProps) {
   return (
     <div className="adl-git-vis__card">
       <div className="adl-git-vis__card-header">
+        {onRefresh && <RefreshButton onRefresh={onRefresh} label={refreshLabel!} />}
         <h3 className="adl-git-vis__card-title">{title}</h3>
       </div>
       {children}
@@ -32,7 +48,41 @@ const SCROLLBAR_DEBOUNCE_MS = 400;
 export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const { t } = useTCopy();
   const chartColorPreset = useAppStore(useShallow((s) => s.chartColorPreset));
-  const rightExtra = useMemo(() => <ChartColorPresetSelector />, []);
+  const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
+  const { refreshWorkspace, refreshChart } = useGitVisRefresh(activeWorkspaceTab);
+
+  const handleRefreshBranchGraph = useCallback(
+    () => refreshChart(CHART_IDS.BRANCH_GRAPH),
+    [refreshChart],
+  );
+  const handleRefreshCodeLineEvo = useCallback(
+    () => refreshChart(CHART_IDS.CODE_LINE_EVO),
+    [refreshChart],
+  );
+  const handleRefreshCommitTimeline = useCallback(
+    () => refreshChart(CHART_IDS.COMMIT_TIMELINE),
+    [refreshChart],
+  );
+  const handleRefreshFileSunburst = useCallback(
+    () => refreshChart(CHART_IDS.FILE_SUNBURST),
+    [refreshChart],
+  );
+  const handleRefreshHeatmap = useCallback(() => refreshChart(CHART_IDS.HEATMAP), [refreshChart]);
+
+  const rightExtra = useMemo(
+    () => (
+      <>
+        <RefreshButton
+          onRefresh={refreshWorkspace}
+          label={t.gitVisRefreshWorkspace}
+          className="adl-git-vis__refresh-btn--lg"
+        />
+        <ChartColorPresetSelector />
+      </>
+    ),
+    [refreshWorkspace, t.gitVisRefreshWorkspace],
+  );
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -149,17 +199,37 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   return (
     <div ref={containerRef} className="adl-git-vis__container" data-chart-preset={chartColorPreset}>
       <WorkspaceTabBar rightExtra={rightExtra} />
-      <HeatmapCardGroup />
-      <ChartCard title={t.gitVisBranchGraph} desc={t.gitVisBranchGraphDesc}>
+      <HeatmapCardGroup onRefresh={handleRefreshHeatmap} />
+      <ChartCard
+        title={t.gitVisBranchGraph}
+        desc={t.gitVisBranchGraphDesc}
+        onRefresh={handleRefreshBranchGraph}
+        refreshLabel={t.gitVisRefreshChart}
+      >
         <BranchGraph />
       </ChartCard>
-      <ChartCard title={t.gitVisCodeLineEvo} desc={t.gitVisCodeLineEvoDesc}>
+      <ChartCard
+        title={t.gitVisCodeLineEvo}
+        desc={t.gitVisCodeLineEvoDesc}
+        onRefresh={handleRefreshCodeLineEvo}
+        refreshLabel={t.gitVisRefreshChart}
+      >
         <CodeLineEvo />
       </ChartCard>
-      <ChartCard title={t.gitVisCommitTimeline} desc={t.gitVisCommitTimelineDesc}>
+      <ChartCard
+        title={t.gitVisCommitTimeline}
+        desc={t.gitVisCommitTimelineDesc}
+        onRefresh={handleRefreshCommitTimeline}
+        refreshLabel={t.gitVisRefreshChart}
+      >
         <CommitTimeline />
       </ChartCard>
-      <ChartCard title={t.gitVisFileSunburst} desc={t.gitVisFileSunburstDesc}>
+      <ChartCard
+        title={t.gitVisFileSunburst}
+        desc={t.gitVisFileSunburstDesc}
+        onRefresh={handleRefreshFileSunburst}
+        refreshLabel={t.gitVisRefreshChart}
+      >
         <FileSunburst />
       </ChartCard>
       <p className="adl-git-vis__note">{t.gitVisMockDataNote}</p>

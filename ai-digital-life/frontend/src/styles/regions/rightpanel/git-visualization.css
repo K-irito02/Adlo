@@ -17,8 +17,8 @@
 
 .adl-git-vis__card-header {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
+  gap: 6px;
   margin-bottom: var(--space-2);
   padding: 0 var(--space-1);
 }
@@ -537,7 +537,7 @@
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm);
   background: var(--bg-card);
   color: var(--text-secondary);
   cursor: pointer;
@@ -578,3 +578,45 @@
 .adl-workspace-tab__dot--active {
   background: var(--border-strong);
 }
+
+/* ── Refresh Button ── */
+.adl-git-vis__refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    color 0.15s,
+    background 0.15s;
+}
+
+/* 大尺寸变体 — 用于顶部工作区导航栏，与箭头按钮/预设按钮的 28×28 悬停背景保持一致 */
+.adl-git-vis__refresh-btn--lg {
+  width: 28px;
+  height: 28px;
+}
+
+/* 图表标题区域的刷新按钮微调：向下移动 1px 与标题文字视觉居中对齐 */
+.adl-git-vis__card-header > .adl-git-vis__refresh-btn {
+  margin-top: 1px;
+}
+
+.adl-git-vis__refresh-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-git-vis__refresh-btn:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* motion/react 处理旋转动画，此处不设 transform transition 以免冲突 */
