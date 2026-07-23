@@ -16,6 +16,10 @@ pub use git::{
     git_has_local_changes, has_auto_stash, list_git_branches, pop_auto_stash, stage_file,
     switch_git_branch, unstage_file,
 };
+pub use git::git_visualization::{
+    capture_branch_graph, capture_code_evolution, capture_commit_stats,
+    capture_contributor_modules, capture_file_sunburst,
+};
 pub use preview::read_change_preview;
 pub use search::{search_text, search_text_async};
 pub use tree::{build_retrieval_snapshot, build_retrieval_snapshot_async, list_tree};

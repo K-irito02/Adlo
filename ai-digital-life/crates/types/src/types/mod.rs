@@ -12,6 +12,7 @@ pub mod session;
 pub mod workspace;
 
 pub use agent::*;
+pub use git_visualization::*;
 pub use ci::*;
 pub use command::*;
 pub use commands::{CommandConfig, CommandHint};

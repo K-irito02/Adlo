@@ -2,6 +2,7 @@ mod git_branch;
 mod git_helpers;
 mod git_snapshot;
 mod git_staging;
+pub mod git_visualization;
 
 pub use git_branch::{create_git_branch, list_git_branches, switch_git_branch};
 pub(crate) use git_helpers::{git_file_exists, git_show_file};
