@@ -634,8 +634,17 @@
 .adl-git-vis__timerange-btn:hover {
   background: var(--bg-hover);
 }
+.adl-git-vis__timerange-nav {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: 3px;
+}
 .adl-git-vis__timerange-label {
-  color: var(--accent);
+  color: var(--text-primary);
   font-weight: 500;
 }
 .adl-git-vis__timerange-menu {
@@ -644,13 +653,15 @@
   left: 0;
   z-index: 100;
   background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: var(--shadow-lg);
   min-width: 140px;
 }
 .adl-git-vis__timerange-menu-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
   padding: 4px 10px;
   text-align: left;
@@ -659,11 +670,243 @@
   color: inherit;
   font-size: 12px;
   cursor: pointer;
+  gap: 8px;
 }
 .adl-git-vis__timerange-menu-item:hover {
   background: var(--bg-hover);
 }
 .adl-git-vis__timerange-menu-item--active {
-  color: var(--accent);
   font-weight: 600;
+}
+.adl-git-vis__timerange-menu-item--has-sub {
+  position: relative;
+}
+.adl-git-vis__timerange-menu-check {
+  display: flex;
+  align-items: center;
+  color: var(--text-primary);
+  line-height: 1;
+}
+/* ── Custom date sub-card (hover) ── */
+.adl-git-vis__timerange-subcard {
+  position: absolute;
+  left: calc(100% + 1px);
+  top: 0;
+  z-index: 101;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: var(--shadow-lg);
+  min-width: 200px;
+  padding: var(--space-3) var(--space-2) var(--space-2);
+}
+.adl-git-vis__timerange-subcard-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+}
+.adl-git-vis__timerange-subcard-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.adl-git-vis__timerange-subcard-field-label {
+  flex-shrink: 0;
+  min-width: 56px;
+  text-align: right;
+  color: var(--text-secondary);
+}
+.adl-git-vis__timerange-date-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: text;
+  text-align: left;
+  line-height: 1.5;
+  outline: none;
+}
+.adl-git-vis__timerange-date-input:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+}
+.adl-git-vis__timerange-date-input:focus {
+  border-color: var(--border-strong);
+}
+.adl-git-vis__timerange-subcard-actions {
+  display: flex;
+  align-items: center;
+  margin-top: var(--space-1-5);
+  gap: 1px;
+}
+.adl-git-vis__timerange-subcard-btn {
+  flex: 1;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 0;
+  border: none;
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  cursor: pointer;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-align: center;
+}
+.adl-git-vis__timerange-subcard-btn:hover {
+  background: var(--bg-hover);
+}
+.adl-git-vis__timerange-subcard-btn--confirm {
+  background: var(--surface-subtle);
+}
+.adl-git-vis__timerange-subcard-btn--confirm:hover {
+  background: var(--bg-hover);
+}
+.adl-git-vis__timerange-subcard-btn--revert {
+  color: var(--text-secondary);
+  background: transparent;
+}
+.adl-git-vis__timerange-subcard-btn--revert:hover {
+  color: var(--text-primary);
+  background: var(--surface-subtle);
+}
+.adl-git-vis__timerange-subcard-btn--revert:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: transparent;
+  color: var(--text-tertiary);
+}
+.adl-git-vis__date-picker-wrap {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+.adl-git-vis__date-picker-wrap.is-open {
+  max-height: none;
+  overflow: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+/* ── MiniDatePicker ── */
+.adl-git-vis__date-picker {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: var(--space-1-5);
+  padding-top: var(--space-1);
+}
+.adl-git-vis__date-picker-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-1);
+}
+.adl-git-vis__date-picker-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 0;
+  padding: 0;
+}
+.adl-git-vis__date-picker-nav:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.adl-git-vis__date-picker-nav-dbl {
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 600;
+}
+.adl-git-vis__date-picker-title {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.adl-git-vis__date-picker-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  border-radius: 0;
+  padding: 0;
+}
+.adl-git-vis__date-picker-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.adl-git-vis__date-picker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0;
+  margin-bottom: 2px;
+}
+.adl-git-vis__date-picker-weekday {
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  padding: 2px 0;
+  line-height: 1;
+}
+.adl-git-vis__date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0;
+}
+.adl-git-vis__date-picker-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 0;
+  padding: 0;
+  line-height: 1;
+}
+.adl-git-vis__date-picker-cell:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.adl-git-vis__date-picker-cell--empty {
+  cursor: default;
+}
+.adl-git-vis__date-picker-cell.is-today {
+  font-weight: 600;
+}
+.adl-git-vis__date-picker-cell.is-selected {
+  background: var(--surface-subtle);
+  font-weight: 600;
+}
+
+@supports (position-anchor) {
+  .adl-git-vis__timerange-menu-item--has-sub {
+    anchor-name: --timerange-sub-trigger;
+  }
+  .adl-git-vis__timerange-subcard {
+    position-anchor: --timerange-sub-trigger;
+    left: anchor(right);
+    top: anchor(top);
+    margin-left: var(--space-px);
+  }
 }

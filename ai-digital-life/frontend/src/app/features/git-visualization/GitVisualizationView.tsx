@@ -67,7 +67,13 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
         <RefreshButton onRefresh={onRefresh} label={refreshLabel} />
         <h3 className="adl-git-vis__card-title">{title}</h3>
         {timeRange.hasTimeRange && timeRange.timeRange ? (
-          <TimeRangeSelector value={timeRange.timeRange} onChange={timeRange.setTimeRange} />
+          <TimeRangeSelector
+            value={timeRange.timeRange}
+            onChange={(range) => {
+              timeRange.setTimeRange(range);
+              onRefresh();
+            }}
+          />
         ) : null}
       </div>
       {timeRange.error && <div className="adl-git-vis__error">{timeRange.error}</div>}
@@ -318,7 +324,10 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
               | undefined
           }
           timeRange={heatmapData.timeRange}
-          onTimeRangeChange={heatmapData.setTimeRange}
+          onTimeRangeChange={(range) => {
+            heatmapData.setTimeRange(range);
+            handleRefreshHeatmap();
+          }}
         />
         <TimeRangeAwareCard
           title={t.gitVisBranchGraph}
