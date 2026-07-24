@@ -16,9 +16,10 @@ pub async fn read_file(path: &str) -> Result<String, AppError> {
     .map_err(|e| AppError::Internal(format!("Cannot canonicalize cwd: {}", e)))?;
 
     if !resolved.starts_with(&cwd) {
-        return Err(AppError::Security(
-            format!("Path traversal denied: '{}' resolves outside workspace", path),
-        ));
+        return Err(AppError::Security(format!(
+            "Path traversal denied: '{}' resolves outside workspace",
+            path
+        )));
     }
 
     let content = fs::read_to_string(&resolved)

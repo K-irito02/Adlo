@@ -1,7 +1,5 @@
 use adl_errors::AppError;
-use adl_types::{
-    GitVisContributorModule, GitVisContributorModules, GitVisModuleEntry,
-};
+use adl_types::{GitVisContributorModule, GitVisContributorModules, GitVisModuleEntry};
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::debug;

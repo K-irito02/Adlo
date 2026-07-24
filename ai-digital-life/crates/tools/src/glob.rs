@@ -22,11 +22,7 @@ pub async fn glob_files(pattern: &str) -> Result<String, AppError> {
             .filter_map(|entry| {
                 entry.ok().and_then(|p| {
                     let path = p.strip_prefix("./").unwrap_or(&p);
-                    if path == Path::new("") {
-                        None
-                    } else {
-                        Some(path.display().to_string())
-                    }
+                    if path == Path::new("") { None } else { Some(path.display().to_string()) }
                 })
             })
             .take(100)

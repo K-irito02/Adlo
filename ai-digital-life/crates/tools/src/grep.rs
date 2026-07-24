@@ -32,10 +32,7 @@ pub async fn grep_files(pattern: &str) -> Result<String, AppError> {
                             } else {
                                 trimmed.to_string()
                             };
-                            let short_path = path
-                                .strip_prefix("./")
-                                .unwrap_or(path)
-                                .display();
+                            let short_path = path.strip_prefix("./").unwrap_or(path).display();
                             results.push(format!("{}:{} {}", short_path, line_no + 1, display));
                             if results.len() >= 100 {
                                 return Ok(results.join("\n"));

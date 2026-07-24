@@ -5,12 +5,12 @@ export function useBrowserThemeSync(): void {
   useEffect(() => {
     const state = themeController.getState();
     window.digitalLife?.browser?.setBrowserColorScheme(state.resolvedTheme).catch((err) => {
-        console.warn('browser theme sync on change failed', err);
+      console.warn('browser theme sync on change failed', err);
     });
 
     const unsubscribe = themeController.subscribe((newState) => {
       window.digitalLife?.browser?.setBrowserColorScheme(newState.resolvedTheme).catch((err) => {
-      console.warn('browser theme sync at mount failed', err);
+        console.warn('browser theme sync at mount failed', err);
       });
     });
 
