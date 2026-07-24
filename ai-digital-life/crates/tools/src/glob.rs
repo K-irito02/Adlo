@@ -7,12 +7,12 @@ pub struct GlobInput {
 
 pub async fn glob_files(pattern: &str) -> Result<String, AppError> {
     if pattern.contains("..")
-        || pattern.contains('/')
-        || pattern.contains('\\')
-        || pattern.contains(':')
+        || pattern.starts_with('/')
+        || pattern.starts_with('\\')
+        || pattern.len() > 2 && pattern.as_bytes()[1] == b':'
     {
         return Err(AppError::Security(
-            "Path traversal denied: glob pattern must be relative and not contain '..'".into(),
+            "Path traversal denied: glob pattern must not contain '..' or be absolute".into(),
         ));
     }
     let pattern = pattern.to_string();
@@ -60,5 +60,17 @@ mod tests {
         let result = glob_files("_nonexistent_glob_pattern_xyz_*").await;
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn glob_rejects_path_traversal() {
+        let result = glob_files("../etc/passwd").await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn glob_allows_subdirectory_pattern() {
+        let result = glob_files("src/**/*.rs").await;
+        assert!(result.is_ok());
     }
 }
