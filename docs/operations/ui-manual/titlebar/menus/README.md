@@ -24,9 +24,9 @@
 
 | 菜单 | 文档 | 说明 |
 |------|------|------|
-| 文件 | [menus/file-menu.md](./menus/file-menu.md) | 工作区、终端、浏览器相关操作 |
-| 视图 | [menus/view-menu.md](./menus/view-menu.md) | 视图切换、缩放、设置 |
-| 帮助 | [menus/help-menu.md](./menus/help-menu.md) | 命令面板、快捷键、许可证 |
+| 文件 | [file-menu.md](./file-menu.md) | 工作区、终端、浏览器相关操作 |
+| 视图 | [view-menu.md](./view-menu.md) | 视图切换、缩放、设置 |
+| 帮助 | [help-menu.md](./help-menu.md) | 命令面板、快捷键、许可证 |
 
 ## 容器选择器
 

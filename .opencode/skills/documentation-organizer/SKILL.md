@@ -100,7 +100,8 @@ docs/
 │   ├── logging/                       #   日志系统经验
 │   ├── multi-workspace/               #   多工作区经验
 │   ├── refactoring/                   #   重构经验
-│   └── tauri-backend/                #   Tauri 后端经验
+│   ├── tauri-backend/                #   Tauri 后端经验
+│   └── toolchain/                    #   工具链经验
 ├── operations/                        # 运维/操作手册
 │   └── ui-manual/                     #   UI 操作手册
 │       ├── _shared/                   #     共享定义
@@ -114,7 +115,8 @@ docs/
 │   ├── phase2/                        #   Phase 2 规划
 │   ├── refactoring/                   #   重构规划
 │   ├── startup/                       #   启动性能规划
-│   └── ui/                            #   UI 规划
+│   ├── ui/                            #   UI 规划
+│   └── workspace/                     #   工作区规划
 ├── reports/                           # 报告/日志
 │   └── refactoring-insight/           #   重构洞察报告
 │       ├── audit/                     #     审计报告
@@ -127,8 +129,10 @@ docs/
 │   ├── git/                           #   Git 可视化规格
 │   ├── multi-workspace/               #   多工作区规格
 │   ├── refactoring/                   #   重构规格
-│   └── ui/                            #   UI 规格
-└── superpowers/                       # 旧目录（仅 README.md 重定向）
+│   ├── ui/                            #   UI 规格
+│   └── workspace/                     #   工作区规格
+├── root-cause-resolution/             # 根因排查进度记录（技能产出物）
+└── superpowers/                       # 旧目录（仅 README.md 重定向；空 plans/ specs/ 子目录供技能输出）
 ```
 
 **2.1.1 整理完成后同步更新技能文件**

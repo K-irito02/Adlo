@@ -15,8 +15,8 @@
 | 编号 | 名称 | 文档 | 说明 |
 |------|------|------|------|
 | [1] | Brand | [brand.md](./brand.md) | 品牌 Logo |
-| [2] | App Menus | [menus.md](./menus.md) | 应用菜单（文件/视图/帮助） |
-| [3] | Command Palette | [menus.md](./menus.md#命令面板) | 命令面板触发按钮 |
+| [2] | App Menus | [menus.md](./menus/) | 应用菜单（文件/视图/帮助） |
+| [3] | Command Palette | [menus.md](./menus/#命令面板) | 命令面板触发按钮 |
 | [4] | Theme Toggle | [actions.md](./actions.md#主题切换) | 主题切换按钮 |
 | [5] | Language Toggle | [actions.md](./actions.md#语言切换) | 语言切换按钮 |
 | [6] | Settings | [actions.md](./actions.md#设置按钮) | 设置按钮 |

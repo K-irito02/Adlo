@@ -7,12 +7,13 @@
 | 目录 | 内容 | 数量 |
 |------|------|------|
 | [browser/](./browser/) | 浏览器功能规格设计 | 3 |
-| [git/](./git/) | Git 可视化规格设计 | 3 |
+| [git/](./git/) | Git 可视化规格设计 | 10 |
 | [multi-workspace/](./multi-workspace/) | 多工作区规格设计 | 6 |
 | [refactoring/](./refactoring/) | 重构/功能规格（含 spec.md + checklist.md + tasks.md 完整式） | 12 |
 | [ui/](./ui/) | UI/UX 通用规格设计（含 CI、启动、Provider 等） | 10 |
+| [workspace/](./workspace/) | 工作区功能规格设计 | 4 |
 
-**总文件数：34**
+**总文件数：45**
 
 ## 归档约定
 
