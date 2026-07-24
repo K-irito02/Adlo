@@ -10,13 +10,6 @@ export const HEATMAP_TABS = [
   CHART_IDS.CODE_LINE_EVO,
   CHART_IDS.COMMIT_TIMELINE,
 ] as const;
-
-function debugLog(msg: string, ...args: unknown[]): void {
-  if (typeof console !== 'undefined' && (console as { debug?: typeof console.log }).debug) {
-    console.debug(`[ADL-GIT-VIS] ${msg}`, ...args);
-  }
-}
-
 export async function fetchChartData(
   bridge: DigitalLifeBridge,
   workspaceId: string,
@@ -25,9 +18,6 @@ export async function fetchChartData(
   since?: string,
   until?: string,
 ): Promise<unknown> {
-  debugLog('fetchChartData', { workspaceId, chartId, since, until });
-  const t0 = performance.now();
-
   let result;
   switch (chartId) {
     case CHART_IDS.HEATMAP:
@@ -49,12 +39,9 @@ export async function fetchChartData(
       throw new Error(`Unknown chart ID: ${chartId}`);
   }
 
-  const elapsed = performance.now() - t0;
   if (result.ok) {
-    debugLog('fetchChartData OK', { workspaceId, chartId, elapsed: `${elapsed.toFixed(0)}ms` });
     return result.data;
   }
-  debugLog('fetchChartData ERROR', { workspaceId, chartId, error: result.error.message });
   throw new Error(result.error.message);
 }
 
@@ -67,8 +54,6 @@ export async function refreshWorkspace(
   setError: (chartId: string, error: string | undefined) => void,
   setData: (chartId: string, data: unknown) => void,
 ): Promise<void> {
-  debugLog('refreshWorkspace', { workspaceId });
-
   // Clear errors before fetching
   for (const chartId of HEATMAP_TABS) {
     setError(chartId, undefined);
@@ -134,12 +119,6 @@ export function determinePhases(
     naturalOrder,
     workspacePaths.map(toEntry),
   );
-
-  debugLog('determinePhases', {
-    high: phases.priority.map((w) => w.id),
-    medium: phases.deferred.map((w) => w.id),
-    low: phases.natural.map((w) => w.id),
-  });
 
   const lookup = new Map(workspacePaths.map((w) => [w.id, w]));
   const resolve = (entries: RecentWorkspaceEntry[]) =>
