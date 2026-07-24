@@ -17,10 +17,10 @@ import { TimeRangeSelector } from './TimeRangeSelector';
 import { CHART_IDS } from './chartIds';
 
 class VisErrorBoundary extends Component<
-  { children: React.ReactNode; onRetry: () => void },
+  { children: React.ReactNode; onRetry: () => void; errorMsg: string; retryLabel: string },
   { hasError: boolean }
 > {
-  constructor(props: { children: React.ReactNode; onRetry: () => void }) {
+  constructor(props: VisErrorBoundary['props']) {
     super(props);
     this.state = { hasError: false };
   }
@@ -35,8 +35,8 @@ class VisErrorBoundary extends Component<
     if (this.state.hasError) {
       return (
         <div className="adl-git-vis__error-boundary">
-          <p>图表遇到临时错误</p>
-          <button onClick={this.handleRetry}>重试</button>
+          <p>{this.props.errorMsg}</p>
+          <button onClick={this.handleRetry}>{this.props.retryLabel}</button>
         </div>
       );
     }
@@ -281,7 +281,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   }, []);
 
   return (
-    <VisErrorBoundary onRetry={refreshWorkspace}>
+    <VisErrorBoundary onRetry={refreshWorkspace} errorMsg={t.gitVisError} retryLabel={t.gitVisRetry}>
     <div ref={containerRef} className="adl-git-vis__container" data-chart-preset={chartColorPreset}>
       <WorkspaceTabBar rightExtra={rightExtra} />
       <HeatmapCardGroup

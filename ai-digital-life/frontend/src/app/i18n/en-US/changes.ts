@@ -166,4 +166,6 @@ export const changesEn = {
   gitVisTimeStartDate: 'Start Date',
   gitVisTimeEndDate: 'End Date',
   gitVisTimeConfirm: 'Confirm',
+  gitVisError: 'Chart encountered a temporary error',
+  gitVisRetry: 'Retry',
 } as const;

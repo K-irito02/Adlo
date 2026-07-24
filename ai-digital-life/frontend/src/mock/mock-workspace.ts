@@ -428,7 +428,7 @@ export const mockWorkspace: WorkspaceBridge = {
   }),
   gitVisFileSunburst: async () => ({
     ok: true as const,
-    data: { tree: fileTreemapData as any },
+    data: { tree: fileTreemapData as unknown as import('@ai-digital-life/kernel').GitVisFileSunburst['tree'] },
   }),
   onFileChanged: (listener: (event: WorkspaceFileChangedEvent) => void) => () => {}
 };

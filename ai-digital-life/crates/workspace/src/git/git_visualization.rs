@@ -77,7 +77,7 @@ pub async fn capture_commit_stats(
     let mut author_map: HashMap<String, (String, i32, BTreeMap<String, i32>)> = HashMap::new();
     let mut timeline_points: Vec<GitVisTimelinePoint> = Vec::new();
 
-    for (timeline_cumulative, c) in (0_i32..).zip(commits.iter()) {
+    for (timeline_cumulative, c) in (1_i32..).zip(commits.iter()) {
         let date10: String = c.date.chars().take(10).collect();
         *daily_map.entry(date10.clone()).or_insert(0) += 1;
 
@@ -190,18 +190,21 @@ pub async fn capture_code_evolution(
         .ok_or_else(|| AppError::Workspace("git log --numstat failed".into()))?;
 
     let mut week_map: BTreeMap<String, (i32, i32)> = BTreeMap::new();
+    let mut current_date: Option<String> = None;
     for line in raw.lines() {
         let parts: Vec<&str> = line.split('\t').collect();
         if parts.len() == 3 {
             let add: i32 = parts[0].parse().unwrap_or(0);
             let del: i32 = parts[1].parse().unwrap_or(0);
-            if let Some(iso_date) = parts.last() {
-                if iso_date.len() >= 10 {
-                    let date_str = &iso_date[0..10];
-                    let entry = week_map.entry(start_of_week(date_str)).or_insert((0, 0));
-                    entry.0 += add;
-                    entry.1 += del;
-                }
+            if let Some(ref date_str) = current_date {
+                let entry = week_map.entry(start_of_week(date_str)).or_insert((0, 0));
+                entry.0 += add;
+                entry.1 += del;
+            }
+        } else if let Some(pipe_pos) = line.find('|') {
+            if pipe_pos < 20 {
+                let date_part = &line[pipe_pos + 1..];
+                current_date = Some(date_part[..date_part.len().min(10)].to_string());
             }
         }
     }
@@ -357,15 +360,6 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
             }
         }
 
-        if branch.is_empty() {
-            for n in &nodes {
-                if n.hash == hash {
-                    branch = n.branch.clone();
-                    break;
-                }
-            }
-        }
-
         for p in &parent_hashes {
             edges.push(GitVisBranchEdge {
                 from: hash.clone(),
@@ -384,6 +378,23 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
             author_email,
             tag,
         });
+    }
+
+    // Backward pass: propagate branch names from children through parents
+    let branch_map: HashMap<String, String> = nodes
+        .iter()
+        .filter(|n| !n.branch.is_empty())
+        .map(|n| (n.hash.clone(), n.branch.clone()))
+        .collect();
+    for node in &mut nodes {
+        if node.branch.is_empty() {
+            for p in &node.parent_hashes {
+                if let Some(b) = branch_map.get(p) {
+                    node.branch = b.clone();
+                    break;
+                }
+            }
+        }
     }
 
     let branches: Vec<String> = branch_set.into_iter().collect();

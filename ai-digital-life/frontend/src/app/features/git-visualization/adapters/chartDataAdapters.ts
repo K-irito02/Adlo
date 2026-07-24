@@ -157,20 +157,22 @@ export function adaptBranchGraphData(raw: RawBranchGraph): {
   edges: CommitEdge[];
   allBranches: string[];
 } {
+  const nodes = raw.nodes.map((n, i) => ({
+    id: `node-${i}`,
+    hash: n.hash,
+    branch: n.branch,
+    date: n.date,
+    message: n.message,
+    author: n.author,
+    authorEmail: n.authorEmail,
+    tag: n.tag,
+  }));
+  const hashToId = new Map(nodes.map((n) => [n.hash, n.id]));
   return {
-    nodes: raw.nodes.map((n, i) => ({
-      id: `node-${i}`,
-      hash: n.hash,
-      branch: n.branch,
-      date: n.date,
-      message: n.message,
-      author: n.author,
-      authorEmail: n.authorEmail,
-      tag: n.tag,
-    })),
+    nodes,
     edges: raw.edges.map((e) => ({
-      source: e.from,
-      target: e.to,
+      source: hashToId.get(e.from) || e.from,
+      target: hashToId.get(e.to) || e.to,
     })),
     allBranches: raw.branches,
   };

@@ -78,18 +78,21 @@ export async function refreshWorkspace(
   const results = await Promise.allSettled(
     HEATMAP_TABS.map(async (chartId) => {
       const tr = timeRanges[chartId] || {};
-      const data = await fetchChartData(bridge, workspaceId, rootPath, chartId, tr.since, tr.until);
-      return { chartId, data };
+      try {
+        const data = await fetchChartData(bridge, workspaceId, rootPath, chartId, tr.since, tr.until);
+        return { chartId, data };
+      } catch (e) {
+        throw { chartId, error: e instanceof Error ? e.message : String(e) };
+      }
     }),
   );
 
-  // Batch all results
   for (const result of results) {
     if (result.status === 'fulfilled') {
       setData(result.value.chartId, result.value.data);
     } else {
-      const chartId = HEATMAP_TABS[results.indexOf(result)];
-      setError(chartId, result.reason instanceof Error ? result.reason.message : String(result.reason));
+      const rejected = result.reason as { chartId: string; error: string };
+      setError(rejected.chartId, rejected.error);
     }
   }
 }

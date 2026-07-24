@@ -2,6 +2,11 @@ import type { WorkspaceBridge } from '../shared/ipc';
 import type {
   GitBranchSummary,
   GitSnapshot,
+  GitVisBranchGraph,
+  GitVisCodeEvolution,
+  GitVisCommitStats,
+  GitVisContributorModules,
+  GitVisFileSunburst,
   RecentWorkspaceEntry,
   ReorderWorkspacesInput,
   WorkspaceChangePreview,
@@ -99,12 +104,12 @@ export function createTauriWorkspaceBridge(): WorkspaceBridge {
     discardFile: (relativePath: string, workspacePath?: string) =>
       invokeIpc<void>('workspace_git_discard_file', { relativePath, workspacePath }),
     gitVisCommitStats: (rootPath, since, until) =>
-      invokeIpc('workspace_git_vis_commit_stats', { rootPath, since, until }),
+      invokeIpc<GitVisCommitStats>('workspace_git_vis_commit_stats', { rootPath, since, until }),
     gitVisCodeEvolution: (rootPath, since, until) =>
-      invokeIpc('workspace_git_vis_code_evolution', { rootPath, since, until }),
+      invokeIpc<GitVisCodeEvolution>('workspace_git_vis_code_evolution', { rootPath, since, until }),
     gitVisContributorModules: (rootPath, since, until) =>
-      invokeIpc('workspace_git_vis_contributor_modules', { rootPath, since, until }),
-    gitVisBranchGraph: (rootPath) => invokeIpc('workspace_git_vis_branch_graph', { rootPath }),
-    gitVisFileSunburst: (rootPath) => invokeIpc('workspace_git_vis_file_sunburst', { rootPath }),
+      invokeIpc<GitVisContributorModules>('workspace_git_vis_contributor_modules', { rootPath, since, until }),
+    gitVisBranchGraph: (rootPath) => invokeIpc<GitVisBranchGraph>('workspace_git_vis_branch_graph', { rootPath }),
+    gitVisFileSunburst: (rootPath) => invokeIpc<GitVisFileSunburst>('workspace_git_vis_file_sunburst', { rootPath }),
   };
 }

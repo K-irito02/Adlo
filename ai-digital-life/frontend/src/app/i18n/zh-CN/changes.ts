@@ -166,4 +166,6 @@ export const changesZh = {
   gitVisTimeStartDate: '起始日期',
   gitVisTimeEndDate: '结束日期',
   gitVisTimeConfirm: '确认',
+  gitVisError: '图表遇到临时错误',
+  gitVisRetry: '重试',
 } as const;
