@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { BranchGraph } from './BranchGraph';
-import { commitNodes, commitEdges, allBranches } from '../data/gitVisMockData';
+import { commitNodes, commitEdges, allBranches } from '../../../../test-fixtures/gitVisMockData';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
 
 const nodeIdToIndex = new Map(commitNodes.map((n, i) => [n.id, i]));

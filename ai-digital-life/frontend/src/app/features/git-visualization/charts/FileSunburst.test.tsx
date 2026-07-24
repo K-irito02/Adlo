@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import { FileSunburst } from './FileSunburst';
-import { fileTreemapData } from '../data/gitVisMockData';
+import { fileTreemapData } from '../../../../test-fixtures/gitVisMockData';
 import { TCopyProvider } from '@app/i18n/TCopyContext';
 
 function createMotionValue(initial = 0) {

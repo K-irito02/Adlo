@@ -37,7 +37,7 @@ import {
   moduleNames,
   fileTreemapData,
   mockCommitTimelineData,
-} from "../app/features/git-visualization/data/gitVisMockData";
+} from "../test-fixtures/gitVisMockData";
 
 export function setMockActiveWorkspace(workspace?: WorkspaceMeta): void {
   setMockCurrentWorkspace(workspace);

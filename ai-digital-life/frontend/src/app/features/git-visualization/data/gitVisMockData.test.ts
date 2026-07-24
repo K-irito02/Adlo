@@ -9,7 +9,7 @@ import {
   generateClockHeatmapData,
   generateContributorActivityData,
   generateContributorModuleData,
-} from './gitVisMockData';
+} from '../../../../test-fixtures/gitVisMockData';
 
 describe('bklit data adapters', () => {
   it('toBklitAreaData converts evolution data', () => {

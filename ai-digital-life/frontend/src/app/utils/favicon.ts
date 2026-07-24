@@ -1,6 +1,7 @@
 import { getCachedFavicon } from './fetchPageMeta';
 
-const GOOGLE_FAVICON = 'https://www.google.com/s2/favicons?domain={domain}&sz=64';
+const GOOGLE_FAVICON_API = 'https://www.google.com/s2/favicons';
+const GOOGLE_FAVICON = `${GOOGLE_FAVICON_API}?domain={domain}&sz=64`;
 
 export function getFaviconUrl(url: string): string {
   try {

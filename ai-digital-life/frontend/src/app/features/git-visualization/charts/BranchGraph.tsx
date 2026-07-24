@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useBranchLabelDragReorder } from '../hooks/useBranchLabelDragReorder';
 import { adaptBranchGraphData } from '../adapters/chartDataAdapters';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
-import type { CommitNode, CommitEdge } from '../data/gitVisMockData';
+import type { CommitNode, CommitEdge } from '../../../../test-fixtures/gitVisMockData';
 
 // ── Constants ──
 const LANE_WIDTH = 24;
