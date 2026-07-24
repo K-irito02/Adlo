@@ -103,7 +103,9 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
       const terminal = new Terminal({
         cursorBlink: true,
         fontSize: 13,
-        fontFamily: 'Cascadia Code, Fira Code, Consolas, monospace',
+        fontFamily:
+          getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() ||
+          'Cascadia Code, Fira Code, Consolas, monospace',
         theme: {
           background:
             getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#1e1e1e',

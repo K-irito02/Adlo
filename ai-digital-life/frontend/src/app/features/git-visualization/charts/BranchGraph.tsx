@@ -560,7 +560,7 @@ export const BranchGraph = React.memo(function BranchGraph({ data }: BranchGraph
               >
                 <span
                   style={{
-                    fontFamily: "'Cascadia Code', 'Fira Code', monospace",
+                    fontFamily: 'var(--font-mono, monospace)',
                     color: theme.text,
                     fontSize: 11,
                   }}
