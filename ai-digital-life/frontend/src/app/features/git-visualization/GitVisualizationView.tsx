@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { Component, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
@@ -15,6 +15,34 @@ import { useChartData } from './hooks/useChartData';
 import { RefreshButton } from './RefreshButton';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import { CHART_IDS } from './chartIds';
+
+class VisErrorBoundary extends Component<
+  { children: React.ReactNode; onRetry: () => void },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; onRetry: () => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  handleRetry = () => {
+    this.setState({ hasError: false });
+    this.props.onRetry();
+  };
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="adl-git-vis__error-boundary">
+          <p>图表遇到临时错误</p>
+          <button onClick={this.handleRetry}>重试</button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 interface TimeRangeAwareCardProps {
   title: string;
@@ -253,6 +281,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   }, []);
 
   return (
+    <VisErrorBoundary onRetry={refreshWorkspace}>
     <div ref={containerRef} className="adl-git-vis__container" data-chart-preset={chartColorPreset}>
       <WorkspaceTabBar rightExtra={rightExtra} />
       <HeatmapCardGroup
@@ -357,5 +386,6 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
         {fileSunburstData.loading ? null : <FileSunburst data={fileSunburstData.data} />}
       </TimeRangeAwareCard>
     </div>
+    </VisErrorBoundary>
   );
 });
