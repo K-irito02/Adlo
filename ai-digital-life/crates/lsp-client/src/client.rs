@@ -46,6 +46,14 @@ pub struct LspClient {
     next_id: Arc<AtomicI32>,
 }
 
+fn file_path_to_lsp_uri(file_path: &str) -> Result<lsp_types::Uri, AppError> {
+    url::Url::from_file_path(file_path)
+        .map_err(|_| AppError::InvalidInput("Invalid file path".into()))?
+        .to_string()
+        .parse::<lsp_types::Uri>()
+        .map_err(|e| AppError::Internal(format!("Invalid URI: {}", e)))
+}
+
 impl LspClient {
     pub fn new(workspace_root: PathBuf) -> Self {
         Self {
@@ -185,11 +193,7 @@ impl LspClient {
         server: &LanguageServer,
         file_path: &str,
     ) -> Result<Vec<DiagnosticInfo>, AppError> {
-        let uri = url::Url::from_file_path(file_path)
-            .map_err(|_| AppError::InvalidInput("Invalid file path".into()))?
-            .to_string()
-            .parse::<lsp_types::Uri>()
-            .map_err(|e| AppError::Internal(format!("Invalid URI: {}", e)))?;
+        let uri = file_path_to_lsp_uri(file_path)?;
 
         let params = serde_json::to_value(DocumentDiagnosticParams {
             text_document: TextDocumentIdentifier { uri },
@@ -238,11 +242,7 @@ impl LspClient {
         server: &LanguageServer,
         file_path: &str,
     ) -> Result<Vec<SymbolInfo>, AppError> {
-        let uri = url::Url::from_file_path(file_path)
-            .map_err(|_| AppError::InvalidInput("Invalid file path".into()))?
-            .to_string()
-            .parse::<lsp_types::Uri>()
-            .map_err(|e| AppError::Internal(format!("Invalid URI: {}", e)))?;
+        let uri = file_path_to_lsp_uri(file_path)?;
 
         let params = serde_json::to_value(DocumentSymbolParams {
             text_document: TextDocumentIdentifier { uri },
@@ -266,11 +266,7 @@ impl LspClient {
         line: u32,
         column: u32,
     ) -> Result<Option<DefinitionLocation>, AppError> {
-        let uri = url::Url::from_file_path(file_path)
-            .map_err(|_| AppError::InvalidInput("Invalid file path".into()))?
-            .to_string()
-            .parse::<lsp_types::Uri>()
-            .map_err(|e| AppError::Internal(format!("Invalid URI: {}", e)))?;
+        let uri = file_path_to_lsp_uri(file_path)?;
 
         let params = serde_json::to_value(GotoDefinitionParams {
             text_document_position_params: TextDocumentPositionParams {
