@@ -299,12 +299,15 @@ version = "0.1.0"
 dependencies = [
  "adl-credential",
  "adl-errors",
+ "glob",
  "html2text",
+ "regex",
  "reqwest",
  "serde",
  "serde_json",
  "tokio",
  "uuid",
+ "walkdir",
 ]
 
 [[package]]
