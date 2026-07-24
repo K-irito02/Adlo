@@ -1,8 +1,8 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
-import { useShallow } from 'zustand/react/shallow';
 import { CHART_IDS } from '../chartIds';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
+import { defaultTimeRange } from '@stores/slices/gitVisSlice';
 
 const TIME_RANGE_CHARTS = new Set<string>([
   CHART_IDS.HEATMAP,
@@ -31,6 +31,12 @@ export function useChartData(chartId: string): {
   const chartTimeRange = wsTimeRange?.[chartId];
 
   const timeRange = chartTimeRange;
+
+  useEffect(() => {
+    if (TIME_RANGE_CHARTS.has(chartId) && !chartTimeRange && activeWorkspaceTab) {
+      setGitVisTimeRange(activeWorkspaceTab, chartId, defaultTimeRange());
+    }
+  }, [chartId, chartTimeRange, activeWorkspaceTab, setGitVisTimeRange]);
   const setTimeRange = useCallback(
     (range: TimeRangeState) => setGitVisTimeRange(activeWorkspaceTab, chartId, range),
     [activeWorkspaceTab, chartId, setGitVisTimeRange],

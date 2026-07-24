@@ -2,9 +2,9 @@ use adl_errors::AppError;
 use adl_types::{
     GitVisBranchEdge, GitVisBranchGraph, GitVisBranchNode, GitVisCodeEvolution,
     GitVisCodeEvolutionWeek, GitVisCommitRow, GitVisCommitStats, GitVisContributorActivity,
-    GitVisContributorModule, GitVisContributorModules, GitVisContributorPeriod,
-    GitVisDailyCommit, GitVisFileSunburst, GitVisHourlyBin, GitVisModuleEntry,
-    GitVisSunburstNode, GitVisTimelinePoint,
+    GitVisContributorModule, GitVisContributorModules, GitVisContributorPeriod, GitVisDailyCommit,
+    GitVisFileSunburst, GitVisHourlyBin, GitVisModuleEntry, GitVisSunburstNode,
+    GitVisTimelinePoint,
 };
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::Path;
@@ -66,11 +66,7 @@ pub async fn capture_commit_stats(
 
     let commits = parse_commit_log(&raw);
     let commit_count = commits.len();
-    debug!(
-        "[ADL-GIT-VIS] [commit_stats] [{}] parsed {} commits",
-        root.display(),
-        commit_count
-    );
+    debug!("[ADL-GIT-VIS] [commit_stats] [{}] parsed {} commits", root.display(), commit_count);
 
     let mut daily_map: BTreeMap<String, i32> = BTreeMap::new();
     let mut hourly_map: HashMap<(i32, i32), i32> = HashMap::new();
@@ -96,16 +92,11 @@ pub async fn capture_commit_stats(
         };
         *entry.2.entry(week_key.clone()).or_insert(0) += 1;
 
-        timeline_points.push(GitVisTimelinePoint {
-            date: date10,
-            cumulative: timeline_cumulative,
-        });
+        timeline_points.push(GitVisTimelinePoint { date: date10, cumulative: timeline_cumulative });
     }
 
-    let daily_commits: Vec<GitVisDailyCommit> = daily_map
-        .into_iter()
-        .map(|(date, count)| GitVisDailyCommit { date, count })
-        .collect();
+    let daily_commits: Vec<GitVisDailyCommit> =
+        daily_map.into_iter().map(|(date, count)| GitVisDailyCommit { date, count }).collect();
 
     let hourly_distribution: Vec<GitVisHourlyBin> = hourly_map
         .into_iter()
@@ -153,7 +144,9 @@ struct DateParts {
 
 fn parse_date_parts(iso: &str) -> Option<DateParts> {
     let s = iso.trim();
-    if s.len() < 13 { return None; }
+    if s.len() < 13 {
+        return None;
+    }
     let year: i32 = s[0..4].parse().ok()?;
     let month: u32 = s[5..7].parse().ok()?;
     let day: u32 = s[8..10].parse().ok()?;
@@ -229,7 +222,9 @@ pub async fn capture_code_evolution(
 }
 
 fn start_of_week(date_str: &str) -> String {
-    if date_str.len() < 10 { return date_str.to_string(); }
+    if date_str.len() < 10 {
+        return date_str.to_string();
+    }
     let year: i32 = date_str[0..4].parse().unwrap_or(0);
     let month: u32 = date_str[5..7].parse().unwrap_or(1);
     let day: u32 = date_str[8..10].parse().unwrap_or(1);
@@ -275,7 +270,9 @@ pub async fn capture_contributor_modules(
 
     for line in raw.lines() {
         let trimmed = line.trim();
-        if trimmed.is_empty() { continue; }
+        if trimmed.is_empty() {
+            continue;
+        }
         if let Some(_pipe_idx) = trimmed.find('|') {
             let parts: Vec<&str> = trimmed.splitn(2, '|').collect();
             current_author = Some(parts[0].to_string());
@@ -328,14 +325,13 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
 
     for line in raw.lines() {
         let parts: Vec<&str> = line.splitn(8, '|').collect();
-        if parts.len() < 8 { continue; }
+        if parts.len() < 8 {
+            continue;
+        }
         let hash = parts[0].to_string();
         let short_hash = parts[1].to_string();
-        let parent_hashes: Vec<String> = parts[2]
-            .split_whitespace()
-            .filter(|s| !s.is_empty())
-            .map(|s| s.to_string())
-            .collect();
+        let parent_hashes: Vec<String> =
+            parts[2].split_whitespace().filter(|s| !s.is_empty()).map(|s| s.to_string()).collect();
         let refs_raw = parts[3].trim();
         let date = parts[4].to_string();
         let message = parts[7].to_string();
@@ -361,10 +357,7 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
         }
 
         for p in &parent_hashes {
-            edges.push(GitVisBranchEdge {
-                from: hash.clone(),
-                to: p.clone(),
-            });
+            edges.push(GitVisBranchEdge { from: hash.clone(), to: p.clone() });
         }
 
         nodes.push(GitVisBranchNode {
@@ -431,7 +424,8 @@ pub async fn capture_file_sunburst(root: &Path) -> Result<GitVisFileSunburst, Ap
         .await
         .ok_or_else(|| AppError::Workspace("git ls-files failed".into()))?;
 
-    let files: Vec<String> = raw.lines().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+    let files: Vec<String> =
+        raw.lines().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
 
     let mut tree = GitVisSunburstNode {
         name: "root".to_string(),
@@ -446,7 +440,9 @@ pub async fn capture_file_sunburst(root: &Path) -> Result<GitVisFileSunburst, Ap
     }
 
     fn add_to_sunburst(node: &mut GitVisSunburstNode, parts: &[&str], idx: usize) {
-        if idx >= parts.len() { return; }
+        if idx >= parts.len() {
+            return;
+        }
         let name = parts[idx].to_string();
         let is_file = idx == parts.len() - 1;
         let node_type = if is_file { "file" } else { "directory" };

@@ -14,7 +14,8 @@ pub async fn workspace_git_vis_commit_stats(
     until: Option<String>,
 ) -> Result<IpcResult<GitVisCommitStats>, AppError> {
     let root = Path::new(&root_path);
-    let data = adl_workspace::capture_commit_stats(root, since.as_deref(), until.as_deref()).await?;
+    let data =
+        adl_workspace::capture_commit_stats(root, since.as_deref(), until.as_deref()).await?;
     Ok(ipc(Ok(data)))
 }
 
@@ -39,8 +40,8 @@ pub async fn workspace_git_vis_contributor_modules(
     until: Option<String>,
 ) -> Result<IpcResult<GitVisContributorModules>, AppError> {
     let root = Path::new(&root_path);
-    let data =
-        adl_workspace::capture_contributor_modules(root, since.as_deref(), until.as_deref()).await?;
+    let data = adl_workspace::capture_contributor_modules(root, since.as_deref(), until.as_deref())
+        .await?;
     Ok(ipc(Ok(data)))
 }
 

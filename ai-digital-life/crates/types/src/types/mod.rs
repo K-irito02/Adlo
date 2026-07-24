@@ -12,12 +12,12 @@ pub mod session;
 pub mod workspace;
 
 pub use agent::*;
-pub use git_visualization::*;
 pub use ci::*;
 pub use command::*;
 pub use commands::{CommandConfig, CommandHint};
 pub use config::*;
 pub use conversation::*;
+pub use git_visualization::*;
 pub use model::*;
 pub use reference::{ReferenceConfig, ReferenceSource};
 pub use reserved::{AcpConfig, CodeModeConfig, HttpApiConfig};

@@ -106,10 +106,20 @@ export function createTauriWorkspaceBridge(): WorkspaceBridge {
     gitVisCommitStats: (rootPath, since, until) =>
       invokeIpc<GitVisCommitStats>('workspace_git_vis_commit_stats', { rootPath, since, until }),
     gitVisCodeEvolution: (rootPath, since, until) =>
-      invokeIpc<GitVisCodeEvolution>('workspace_git_vis_code_evolution', { rootPath, since, until }),
+      invokeIpc<GitVisCodeEvolution>('workspace_git_vis_code_evolution', {
+        rootPath,
+        since,
+        until,
+      }),
     gitVisContributorModules: (rootPath, since, until) =>
-      invokeIpc<GitVisContributorModules>('workspace_git_vis_contributor_modules', { rootPath, since, until }),
-    gitVisBranchGraph: (rootPath) => invokeIpc<GitVisBranchGraph>('workspace_git_vis_branch_graph', { rootPath }),
-    gitVisFileSunburst: (rootPath) => invokeIpc<GitVisFileSunburst>('workspace_git_vis_file_sunburst', { rootPath }),
+      invokeIpc<GitVisContributorModules>('workspace_git_vis_contributor_modules', {
+        rootPath,
+        since,
+        until,
+      }),
+    gitVisBranchGraph: (rootPath) =>
+      invokeIpc<GitVisBranchGraph>('workspace_git_vis_branch_graph', { rootPath }),
+    gitVisFileSunburst: (rootPath) =>
+      invokeIpc<GitVisFileSunburst>('workspace_git_vis_file_sunburst', { rootPath }),
   };
 }

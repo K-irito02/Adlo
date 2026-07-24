@@ -167,21 +167,23 @@ function buildRows(nodes: CommitNode[], edges: CommitEdge[], lanes: LaneMap[]): 
   if (lanes.length === 0) {
     return [];
   }
-  return sorted.map((id) => {
-    const node = commitById.get(id)!;
-    const parents = parentMap.get(id) || [];
-    const laneIdx = laneIndexByBranch.get(node.branch) ?? 0;
-    const lane = laneIdx < lanes.length ? lanes[laneIdx] : lanes[0];
-    if (!lane) {
-      return null;
-    }
-    return {
-      node,
-      lane,
-      parents,
-      isMerge: parents.length >= 2,
-    };
-  }).filter((r): r is RowData => r !== null);
+  return sorted
+    .map((id) => {
+      const node = commitById.get(id)!;
+      const parents = parentMap.get(id) || [];
+      const laneIdx = laneIndexByBranch.get(node.branch) ?? 0;
+      const lane = laneIdx < lanes.length ? lanes[laneIdx] : lanes[0];
+      if (!lane) {
+        return null;
+      }
+      return {
+        node,
+        lane,
+        parents,
+        isMerge: parents.length >= 2,
+      };
+    })
+    .filter((r): r is RowData => r !== null);
 }
 
 // ── Sub-components ──

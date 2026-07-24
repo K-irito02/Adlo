@@ -79,7 +79,14 @@ export async function refreshWorkspace(
     HEATMAP_TABS.map(async (chartId) => {
       const tr = timeRanges[chartId] || {};
       try {
-        const data = await fetchChartData(bridge, workspaceId, rootPath, chartId, tr.since, tr.until);
+        const data = await fetchChartData(
+          bridge,
+          workspaceId,
+          rootPath,
+          chartId,
+          tr.since,
+          tr.until,
+        );
         return { chartId, data };
       } catch (e) {
         throw { chartId, error: e instanceof Error ? e.message : String(e) };

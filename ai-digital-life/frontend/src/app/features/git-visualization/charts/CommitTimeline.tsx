@@ -9,7 +9,10 @@ interface CommitTimelineProps {
 }
 
 export const CommitTimeline = React.memo(function CommitTimeline({ data }: CommitTimelineProps) {
-  const chartData = useMemo(() => (data?.commitTimeline ? commitTimelineToRows(data.commitTimeline) : []), [data]);
+  const chartData = useMemo(
+    () => (data?.commitTimeline ? commitTimelineToRows(data.commitTimeline) : []),
+    [data],
+  );
 
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>

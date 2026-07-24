@@ -121,19 +121,16 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
     );
   }, [recentWorkspaces, appInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // One-shot initial load — fires once on mount to load active workspace data
-  const initialLoadStarted = useRef(false);
+  // Load active workspace data — uses ref to avoid stale time range closure
+  const refreshWorkspaceRef = useRef(refreshWorkspace);
+  refreshWorkspaceRef.current = refreshWorkspace;
   useEffect(() => {
-    if (initialLoadStarted.current) {
-      return;
-    }
     if (!rootPath) {
       return;
     }
-    initialLoadStarted.current = true;
-    const timer = setTimeout(() => void refreshWorkspace(), 100);
+    const timer = setTimeout(() => void refreshWorkspaceRef.current(), 100);
     return () => clearTimeout(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [rootPath]);
 
   const handleRefreshBranchGraph = useCallback(
     () => refreshChart(CHART_IDS.BRANCH_GRAPH),
@@ -281,111 +278,123 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   }, []);
 
   return (
-    <VisErrorBoundary onRetry={refreshWorkspace} errorMsg={t.gitVisError} retryLabel={t.gitVisRetry}>
-    <div ref={containerRef} className="adl-git-vis__container" data-chart-preset={chartColorPreset}>
-      <WorkspaceTabBar rightExtra={rightExtra} />
-      <HeatmapCardGroup
-        onRefresh={handleRefreshHeatmap}
-        commitStats={
-          heatmapData.data as
-            | {
-                dailyCommits: { date: string; count: number }[];
-                hourlyDistribution: { day: number; hour: number; count: number }[];
-                contributorActivity: {
-                  author: string;
-                  authorEmail: string;
-                  totalCommits: number;
-                  periods: { period: string; count: number }[];
-                }[];
-                commitTimeline: { date: string; cumulative: number }[];
+    <VisErrorBoundary
+      onRetry={refreshWorkspace}
+      errorMsg={t.gitVisError}
+      retryLabel={t.gitVisRetry}
+    >
+      <div
+        ref={containerRef}
+        className="adl-git-vis__container"
+        data-chart-preset={chartColorPreset}
+      >
+        <WorkspaceTabBar rightExtra={rightExtra} />
+        <HeatmapCardGroup
+          onRefresh={handleRefreshHeatmap}
+          commitStats={
+            heatmapData.data as
+              | {
+                  dailyCommits: { date: string; count: number }[];
+                  hourlyDistribution: { day: number; hour: number; count: number }[];
+                  contributorActivity: {
+                    author: string;
+                    authorEmail: string;
+                    totalCommits: number;
+                    periods: { period: string; count: number }[];
+                  }[];
+                  commitTimeline: { date: string; cumulative: number }[];
+                }
+              | undefined
+          }
+          contributorModules={
+            heatmapData.data as
+              | {
+                  matrix: {
+                    author: string;
+                    authorEmail: string;
+                    modules: { module: string; count: number }[];
+                  }[];
+                }
+              | undefined
+          }
+          timeRange={heatmapData.timeRange}
+          onTimeRangeChange={heatmapData.setTimeRange}
+        />
+        <TimeRangeAwareCard
+          title={t.gitVisBranchGraph}
+          desc={t.gitVisBranchGraphDesc}
+          onRefresh={handleRefreshBranchGraph}
+          refreshLabel={t.gitVisRefreshChart}
+          timeRange={branchGraphData}
+        >
+          {branchGraphData.loading ? null : (
+            <BranchGraph
+              data={
+                branchGraphData.data as
+                  | {
+                      nodes: {
+                        hash: string;
+                        shortHash: string;
+                        parentHashes: string[];
+                        branch: string;
+                        date: string;
+                        message: string;
+                        author: string;
+                        authorEmail: string;
+                        tag?: string;
+                      }[];
+                      edges: { from: string; to: string }[];
+                      branches: string[];
+                    }
+                  | undefined
               }
-            | undefined
-        }
-        contributorModules={
-          heatmapData.data as
-            | {
-                matrix: {
-                  author: string;
-                  authorEmail: string;
-                  modules: { module: string; count: number }[];
-                }[];
+            />
+          )}
+        </TimeRangeAwareCard>
+        <TimeRangeAwareCard
+          title={t.gitVisCodeLineEvo}
+          desc={t.gitVisCodeLineEvoDesc}
+          onRefresh={handleRefreshCodeLineEvo}
+          refreshLabel={t.gitVisRefreshChart}
+          timeRange={codeLineEvoData}
+        >
+          {codeLineEvoData.loading ? null : (
+            <CodeLineEvo
+              data={
+                codeLineEvoData.data as
+                  | { weeks: { weekStart: string; additions: number; deletions: number }[] }
+                  | undefined
               }
-            | undefined
-        }
-        timeRange={heatmapData.timeRange}
-        onTimeRangeChange={heatmapData.setTimeRange}
-      />
-      <TimeRangeAwareCard
-        title={t.gitVisBranchGraph}
-        desc={t.gitVisBranchGraphDesc}
-        onRefresh={handleRefreshBranchGraph}
-        refreshLabel={t.gitVisRefreshChart}
-        timeRange={branchGraphData}
-      >
-        {branchGraphData.loading ? null : (
-          <BranchGraph
-            data={
-              branchGraphData.data as
-                | {
-                    nodes: {
-                      hash: string;
-                      shortHash: string;
-                      parentHashes: string[];
-                      branch: string;
-                      date: string;
-                      message: string;
-                      author: string;
-                      authorEmail: string;
-                      tag?: string;
-                    }[];
-                    edges: { from: string; to: string }[];
-                    branches: string[];
-                  }
-                | undefined
-            }
-          />
-        )}
-      </TimeRangeAwareCard>
-      <TimeRangeAwareCard
-        title={t.gitVisCodeLineEvo}
-        desc={t.gitVisCodeLineEvoDesc}
-        onRefresh={handleRefreshCodeLineEvo}
-        refreshLabel={t.gitVisRefreshChart}
-        timeRange={codeLineEvoData}
-      >
-        {codeLineEvoData.loading ? null : (
-          <CodeLineEvo
-            data={
-              codeLineEvoData.data as
-                | { weeks: { weekStart: string; additions: number; deletions: number }[] }
-                | undefined
-            }
-          />
-        )}
-      </TimeRangeAwareCard>
-      <TimeRangeAwareCard
-        title={t.gitVisCommitTimeline}
-        desc={t.gitVisCommitTimelineDesc}
-        onRefresh={handleRefreshCommitTimeline}
-        refreshLabel={t.gitVisRefreshChart}
-        timeRange={commitTimelineData}
-      >
-        {commitTimelineData.loading ? null : (
-          <CommitTimeline
-            data={commitTimelineData.data as { commitTimeline: { date: string; cumulative: number }[] } | undefined}
-          />
-        )}
-      </TimeRangeAwareCard>
-      <TimeRangeAwareCard
-        title={t.gitVisFileSunburst}
-        desc={t.gitVisFileSunburstDesc}
-        onRefresh={handleRefreshFileSunburst}
-        refreshLabel={t.gitVisRefreshChart}
-        timeRange={fileSunburstData}
-      >
-        {fileSunburstData.loading ? null : <FileSunburst data={fileSunburstData.data} />}
-      </TimeRangeAwareCard>
-    </div>
+            />
+          )}
+        </TimeRangeAwareCard>
+        <TimeRangeAwareCard
+          title={t.gitVisCommitTimeline}
+          desc={t.gitVisCommitTimelineDesc}
+          onRefresh={handleRefreshCommitTimeline}
+          refreshLabel={t.gitVisRefreshChart}
+          timeRange={commitTimelineData}
+        >
+          {commitTimelineData.loading ? null : (
+            <CommitTimeline
+              data={
+                commitTimelineData.data as
+                  | { commitTimeline: { date: string; cumulative: number }[] }
+                  | undefined
+              }
+            />
+          )}
+        </TimeRangeAwareCard>
+        <TimeRangeAwareCard
+          title={t.gitVisFileSunburst}
+          desc={t.gitVisFileSunburstDesc}
+          onRefresh={handleRefreshFileSunburst}
+          refreshLabel={t.gitVisRefreshChart}
+          timeRange={fileSunburstData}
+        >
+          {fileSunburstData.loading ? null : <FileSunburst data={fileSunburstData.data} />}
+        </TimeRangeAwareCard>
+      </div>
     </VisErrorBoundary>
   );
 });
