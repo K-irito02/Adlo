@@ -407,6 +407,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "dirs 5.0.1",
+ "futures",
  "reqwest",
  "serde",
  "serde_json",

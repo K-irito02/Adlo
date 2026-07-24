@@ -2,6 +2,7 @@ use crate::commands::ipc;
 use adl_errors::AppError;
 use adl_mcp_client::{McpCatalog, McpClient, McpServerConfig};
 use adl_types::IpcResult;
+use futures::future::join_all;
 use std::sync::{Arc, OnceLock};
 
 static MCP_CLIENT: OnceLock<Arc<McpClient>> = OnceLock::new();
@@ -63,10 +64,16 @@ pub async fn get_mcp_catalog() -> Result<IpcResult<McpCatalog>, AppError> {
 
 async fn load_mcp_config_inner(path: String) -> Result<usize, AppError> {
     let registry = adl_mcp_client::McpServerRegistry::from_json_file(std::path::Path::new(&path))?;
-    let count = registry.list_enabled().len();
-    for config in registry.list_enabled() {
-        mcp_client().add_server(config.clone()).await;
-    }
+    let configs: Vec<_> = registry.list_enabled().into_iter().cloned().collect();
+    let count = configs.len();
+    let tasks: Vec<_> = configs
+        .into_iter()
+        .map(|config| {
+            let client = mcp_client();
+            async move { client.add_server(config).await }
+        })
+        .collect();
+    join_all(tasks).await;
     Ok(count)
 }
 
