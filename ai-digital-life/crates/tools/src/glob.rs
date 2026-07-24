@@ -6,10 +6,19 @@ pub struct GlobInput {
 }
 
 pub async fn glob_files(pattern: &str) -> Result<String, AppError> {
+    if pattern.contains("..")
+        || pattern.contains('/')
+        || pattern.contains('\\')
+        || pattern.contains(':')
+    {
+        return Err(AppError::Security(
+            "Path traversal denied: glob pattern must be relative and not contain '..'".into(),
+        ));
+    }
     let pattern = pattern.to_string();
     tokio::task::spawn_blocking(move || {
         let entries: Vec<String> = glob::glob(&pattern)
-            .map_err(|e| AppError::Internal(format!("Invalid glob pattern: {}", e)))?
+            .map_err(|e| AppError::InvalidInput(format!("Invalid glob pattern: {}", e)))?
             .filter_map(|entry| {
                 entry.ok().and_then(|p| {
                     let path = p.strip_prefix("./").unwrap_or(&p);

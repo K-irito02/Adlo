@@ -64,8 +64,9 @@ impl ProviderRegistry {
         def: ProviderDefinition,
         adapter: Box<dyn ProviderAdapter + Send + Sync>,
     ) {
-        self.adapters.insert(def.id.clone(), Arc::from(adapter));
-        self.providers.insert(def.id.clone(), def);
+        let id = def.id.clone();
+        self.providers.insert(id.clone(), def);
+        self.adapters.insert(id, Arc::from(adapter));
     }
 
     pub fn get(&self, id: &str) -> Option<&ProviderDefinition> {

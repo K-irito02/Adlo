@@ -70,6 +70,7 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
         });
     }
 
+    // Propagate branch names from children to parents via edges
     let mut branch_of: HashMap<String, String> = HashMap::new();
     for n in &nodes {
         if !n.branch.is_empty() {

@@ -8,20 +8,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use tracing::debug;
 
-fn build_time_filter(since: Option<&str>, until: Option<&str>) -> Vec<String> {
-    let mut args: Vec<String> = Vec::new();
-    if let Some(s) = since {
-        if !s.is_empty() {
-            args.push(format!("--since={}", s));
-        }
-    }
-    if let Some(u) = until {
-        if !u.is_empty() {
-            args.push(format!("--until={}", u));
-        }
-    }
-    args
-}
+use super::helpers::build_time_filter;
 
 fn parse_commit_log(raw: &str) -> Vec<GitVisCommitRow> {
     raw.lines()

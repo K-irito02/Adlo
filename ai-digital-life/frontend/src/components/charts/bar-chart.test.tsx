@@ -35,7 +35,7 @@ vi.mock('motion/react', () => ({
 }));
 
 vi.mock('@i18n/useTCopy', () => ({
-  useTCopy: () => ({ t: {} as Record<string, string>, locale: 'en-US' }),
+  useTCopy: () => ({ t: {} as Record<string, string>, locale: 'en-US', formatT: vi.fn() }),
 }));
 
 vi.mock('@visx/responsive', () => ({

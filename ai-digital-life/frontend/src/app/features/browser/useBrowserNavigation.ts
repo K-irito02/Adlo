@@ -17,7 +17,7 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
         return;
       }
       window.digitalLife?.browser?.goBackTab(activeTabId).catch((err) => {
-        console.warn('browser navigate failed', err);
+        console.warn('browser navigate back failed', err);
       });
     } else if (
       iframeRef.current &&
@@ -34,7 +34,7 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
         return;
       }
       window.digitalLife?.browser?.goForwardTab(activeTabId).catch((err) => {
-        console.warn('browser navigate failed', err);
+        console.warn('browser navigate forward failed', err);
       });
     } else if (
       iframeRef.current &&
@@ -51,7 +51,7 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
         return;
       }
       window.digitalLife?.browser?.reloadTab(activeTabId).catch((err) => {
-        console.warn('browser navigate failed', err);
+        console.warn('browser reload failed', err);
       });
     } else if (iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.location.reload();

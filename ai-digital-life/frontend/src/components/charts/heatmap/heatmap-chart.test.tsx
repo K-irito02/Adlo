@@ -36,7 +36,7 @@ vi.mock('motion/react', () => ({
 }));
 
 vi.mock('@i18n/useTCopy', () => ({
-  useTCopy: () => ({ t: {} as Record<string, string>, locale: 'en-US' }),
+  useTCopy: () => ({ t: {} as Record<string, string>, locale: 'en-US', formatT: vi.fn() }),
 }));
 
 vi.mock('@visx/responsive', () => ({
@@ -52,7 +52,7 @@ function createMockData(columns: number, rows: number): HeatmapColumn[] {
   for (let c = 0; c < columns; c++) {
     const bins = [];
     for (let r = 0; r < rows; r++) {
-      bins.push({ count: Math.floor(Math.random() * 10), bin: r });
+      bins.push({ count: (c + r) % 10, bin: r });
     }
     data.push({ bin: c, bins, columnLabel: `W${c}` });
   }

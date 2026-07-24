@@ -1,6 +1,7 @@
 pub mod branch_graph;
 pub mod commit_stats;
 pub mod contributor;
+pub(crate) mod helpers;
 pub mod sunburst;
 
 pub use branch_graph::capture_branch_graph;

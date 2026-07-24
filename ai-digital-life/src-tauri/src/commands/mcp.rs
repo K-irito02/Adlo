@@ -64,15 +64,16 @@ pub async fn get_mcp_catalog() -> Result<IpcResult<McpCatalog>, AppError> {
 
 async fn load_mcp_config_inner(path: String) -> Result<usize, AppError> {
     let registry = adl_mcp_client::McpServerRegistry::from_json_file(std::path::Path::new(&path))?;
-    let configs: Vec<_> = registry.list_enabled().into_iter().cloned().collect();
-    let count = configs.len();
-    let tasks: Vec<_> = configs
+    let tasks: Vec<_> = registry
+        .list_enabled()
         .into_iter()
+        .cloned()
         .map(|config| {
             let client = mcp_client();
             async move { client.add_server(config).await }
         })
         .collect();
+    let count = tasks.len();
     join_all(tasks).await;
     Ok(count)
 }
