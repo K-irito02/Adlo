@@ -62,7 +62,9 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
       height: Math.round(rect.height),
     };
 
-    window.digitalLife?.browser?.setTabBounds(tab.id, bounds).catch(() => {});
+    window.digitalLife?.browser?.setTabBounds(tab.id, bounds).catch((err) => {
+      console.warn('webview set bounds failed', err);
+    });
   }, [isTabInPool, webViewDisabled, activeTabRef, overlayActiveRef]);
 
   const updateWebViewBoundsRef = useRef(updateWebViewBounds);

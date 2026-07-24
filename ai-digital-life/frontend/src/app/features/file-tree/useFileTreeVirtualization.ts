@@ -147,8 +147,8 @@ export function useFileTreeVirtualization<T extends FileTreeRenderableNode>(
         flipAnimationsRef.current.set(path, anim);
         anim.finished
           .then(() => flipAnimationsRef.current.delete(path))
-          .catch(() => {
-            /* cancelled, ignore */
+          .catch((err) => {
+            console.warn('file tree scroll failed', err);
           });
       }
     });

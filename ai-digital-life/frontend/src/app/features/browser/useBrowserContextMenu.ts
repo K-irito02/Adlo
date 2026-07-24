@@ -78,7 +78,9 @@ export function useBrowserContextMenu(
     if (contextMenu.tabId) {
       const tab = browserTabs.find((t) => t.id === contextMenu.tabId);
       if (tab) {
-        navigator.clipboard?.writeText(tab.url).catch(() => {});
+        navigator.clipboard?.writeText(tab.url).catch((err) => {
+          console.warn('browser context menu action failed', err);
+        });
       }
     }
     setContextMenu((prev) => ({ ...prev, open: false }));

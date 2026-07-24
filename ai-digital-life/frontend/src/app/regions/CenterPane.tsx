@@ -111,7 +111,10 @@ const CenterPane = React.memo(function CenterPane() {
         const latest = snapshots.reduce((a, b) => (a.created_at > b.created_at ? a : b));
         setLatestSnapshotId(latest.id);
       })
-      .catch(() => setLatestSnapshotId(null));
+      .catch((err) => {
+        console.warn('center pane snapshot failed', err);
+        setLatestSnapshotId(null);
+      });
   }, [workspaceId, workspaceRoot, listSnapshots]);
 
   const buttonState: ButtonState = useMemo(() => {

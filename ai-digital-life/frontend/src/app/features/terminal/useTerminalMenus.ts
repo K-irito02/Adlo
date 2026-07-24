@@ -54,7 +54,9 @@ export function useTerminalMenus({
   const handleCopy = useCallback(() => {
     const selection = xtermRef.current?.getSelection();
     if (selection) {
-      navigator.clipboard.writeText(selection).catch(() => {});
+      navigator.clipboard.writeText(selection).catch((err) => {
+        console.warn('terminal copy failed', err);
+      });
     }
   }, [xtermRef]);
 
@@ -66,7 +68,9 @@ export function useTerminalMenus({
           window.digitalLife.pty.input(activeTab.sessionId, text);
         }
       })
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('terminal paste failed', err);
+      });
   }, [activeTab]);
 
   const handleClear = useCallback(() => {

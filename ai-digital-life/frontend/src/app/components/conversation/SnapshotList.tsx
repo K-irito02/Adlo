@@ -17,7 +17,9 @@ export function SnapshotList() {
     }
     listSnapshots(workspaceId, workspaceRoot)
       .then(setSnapshots)
-      .catch(() => {});
+      .catch((err) => {
+        console.warn('SnapshotList flush failed', err);
+      });
   }, [workspaceId, workspaceRoot, listSnapshots]);
 
   return (

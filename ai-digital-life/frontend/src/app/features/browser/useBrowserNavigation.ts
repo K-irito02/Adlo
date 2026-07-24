@@ -16,7 +16,9 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
       if (!activeTabId) {
         return;
       }
-      window.digitalLife?.browser?.goBackTab(activeTabId).catch(() => {});
+      window.digitalLife?.browser?.goBackTab(activeTabId).catch((err) => {
+        console.warn('browser navigate failed', err);
+      });
     } else if (
       iframeRef.current &&
       iframeHistory.index > 0 &&
@@ -31,7 +33,9 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
       if (!activeTabId) {
         return;
       }
-      window.digitalLife?.browser?.goForwardTab(activeTabId).catch(() => {});
+      window.digitalLife?.browser?.goForwardTab(activeTabId).catch((err) => {
+        console.warn('browser navigate failed', err);
+      });
     } else if (
       iframeRef.current &&
       iframeHistory.index < iframeHistory.entries.length - 1 &&
@@ -46,7 +50,9 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
       if (!activeTabId) {
         return;
       }
-      window.digitalLife?.browser?.reloadTab(activeTabId).catch(() => {});
+      window.digitalLife?.browser?.reloadTab(activeTabId).catch((err) => {
+        console.warn('browser navigate failed', err);
+      });
     } else if (iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.location.reload();
     }

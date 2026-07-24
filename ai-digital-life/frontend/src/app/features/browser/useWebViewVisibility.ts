@@ -58,7 +58,9 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
           width: 1,
           height: 1,
         })
-        .catch(() => {});
+        .catch((err) => {
+          console.warn('webview set bounds failed', err);
+        });
     }
   }, [isTabInPool, activeTabRef]);
 
@@ -174,7 +176,9 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
             width: 1,
             height: 1,
           })
-          .catch(() => {});
+          .catch((err) => {
+            console.warn('webview set bounds failed', err);
+          });
       }
     }
   }, [
