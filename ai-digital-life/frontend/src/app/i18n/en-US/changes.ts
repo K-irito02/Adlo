@@ -181,4 +181,5 @@ export const changesEn = {
   gitVisTimeSelectDate: 'Select Date',
   gitVisError: 'Chart encountered a temporary error',
   gitVisRetry: 'Retry',
+  gitVisNoData: 'No data',
 } as const;

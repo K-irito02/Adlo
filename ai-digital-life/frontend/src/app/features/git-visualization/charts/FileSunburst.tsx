@@ -4,6 +4,7 @@ import type { SunburstNode } from '@/components/charts/sunburst-chart';
 import { SunburstSegment } from '@/components/charts/sunburst-segment';
 import { SunburstCenter } from '@/components/charts/sunburst-center';
 import { adaptSunburstData } from '../adapters/chartDataAdapters';
+import { useTCopy } from '@i18n/useTCopy';
 
 function countDescendants(node: SunburstNode): number {
   if (!node.children) {
@@ -23,6 +24,7 @@ interface FileSunburstProps {
 }
 
 export const FileSunburst = React.memo(function FileSunburst({ data }: FileSunburstProps) {
+  const { t } = useTCopy();
   const treeData = useMemo(() => (data ? (adaptSunburstData(data) as SunburstNode) : null), [data]);
   const segments = useMemo(() => {
     if (!treeData) {
@@ -38,7 +40,7 @@ export const FileSunburst = React.memo(function FileSunburst({ data }: FileSunbu
         className="adl-git-vis__chart"
         style={{ position: 'relative', display: 'flex', justifyContent: 'center', padding: 16 }}
       >
-        <p style={{ color: 'var(--text-muted)' }}>No data</p>
+        <p style={{ color: 'var(--text-muted)' }}>{t.gitVisNoData}</p>
       </div>
     );
   }

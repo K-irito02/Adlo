@@ -181,4 +181,5 @@ export const changesZh = {
   gitVisTimeSelectDate: '选择日期',
   gitVisError: '图表遇到临时错误',
   gitVisRetry: '重试',
+  gitVisNoData: '暂无数据',
 } as const;
