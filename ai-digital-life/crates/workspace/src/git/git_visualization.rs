@@ -202,7 +202,7 @@ pub async fn capture_code_evolution(
                 entry.1 += del;
             }
         } else if let Some(pipe_pos) = line.find('|') {
-            if pipe_pos < 20 {
+            if pipe_pos > 30 && pipe_pos < 60 {
                 let date_part = &line[pipe_pos + 1..];
                 current_date = Some(date_part[..date_part.len().min(10)].to_string());
             }
@@ -380,19 +380,31 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
         });
     }
 
-    // Backward pass: propagate branch names from children through parents
-    let branch_map: HashMap<String, String> = nodes
-        .iter()
-        .filter(|n| !n.branch.is_empty())
-        .map(|n| (n.hash.clone(), n.branch.clone()))
-        .collect();
+    // Propagate branch names from children to parents via edges
+    let mut branch_of: HashMap<String, String> = HashMap::new();
+    for n in &nodes {
+        if !n.branch.is_empty() {
+            branch_of.insert(n.hash.clone(), n.branch.clone());
+        }
+    }
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for edge in &edges {
+            let child_hash = &edge.from;
+            let parent_hash = &edge.to;
+            if !branch_of.contains_key(parent_hash) {
+                if let Some(b) = branch_of.get(child_hash) {
+                    branch_of.insert(parent_hash.clone(), b.clone());
+                    changed = true;
+                }
+            }
+        }
+    }
     for node in &mut nodes {
         if node.branch.is_empty() {
-            for p in &node.parent_hashes {
-                if let Some(b) = branch_map.get(p) {
-                    node.branch = b.clone();
-                    break;
-                }
+            if let Some(b) = branch_of.get(&node.hash) {
+                node.branch = b.clone();
             }
         }
     }
