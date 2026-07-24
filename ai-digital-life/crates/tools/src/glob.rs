@@ -1,24 +1,31 @@
 use adl_errors::AppError;
-use tokio::process::Command;
+use std::path::Path;
 
 pub struct GlobInput {
     pub pattern: String,
 }
 
 pub async fn glob_files(pattern: &str) -> Result<String, AppError> {
-    let output = Command::new("powershell")
-        .args([
-            "-Command",
-            &format!(
-                "Get-ChildItem -Path '{}' -Recurse -Name | Select-Object -First 100",
-                pattern.replace('\'', "''")
-            ),
-        ])
-        .output()
-        .await
-        .map_err(|e| AppError::Internal(format!("glob failed: {}", e)))?;
-    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-    Ok(stdout.lines().filter(|l| !l.is_empty()).collect::<Vec<_>>().join("\n"))
+    let pattern = pattern.to_string();
+    tokio::task::spawn_blocking(move || {
+        let entries: Vec<String> = glob::glob(&pattern)
+            .map_err(|e| AppError::Internal(format!("Invalid glob pattern: {}", e)))?
+            .filter_map(|entry| {
+                entry.ok().and_then(|p| {
+                    let path = p.strip_prefix("./").unwrap_or(&p);
+                    if path == Path::new("") {
+                        None
+                    } else {
+                        Some(path.display().to_string())
+                    }
+                })
+            })
+            .take(100)
+            .collect();
+        Ok(entries.join("\n"))
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("glob spawn failed: {}", e)))?
 }
 
 #[cfg(test)]
