@@ -129,6 +129,8 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
     [onChange],
   );
 
+  const showToast = useAppStore((s) => s.showToast);
+
   const handleStep = useCallback(
     (direction: -1 | 1) => {
       if (!value.since || !value.until) {
@@ -139,16 +141,28 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
       const rangeMs = until.getTime() - since.getTime();
       const newUntil = new Date(until.getTime() + direction * rangeMs);
       const newSince = new Date(since.getTime() + direction * rangeMs);
+      const newSinceStr = newSince.toISOString().substring(0, 10);
+      const newUntilStr = newUntil.toISOString().substring(0, 10);
+      if (yearBounds) {
+        const newSinceYear = parseInt(newSinceStr.substring(0, 4), 10);
+        const newUntilYear = parseInt(newUntilStr.substring(0, 4), 10);
+        if (newSinceYear < yearBounds.min) {
+          showToast(t.gitVisCalendarYearEarliest, 'warning', 'git-vis-year-nav');
+          return;
+        }
+        if (newUntilYear > yearBounds.max) {
+          showToast(t.gitVisCalendarYearLatest, 'warning', 'git-vis-year-nav');
+          return;
+        }
+      }
       onChange({
         preset: 'custom',
-        since: newSince.toISOString().substring(0, 10),
-        until: newUntil.toISOString().substring(0, 10),
+        since: newSinceStr,
+        until: newUntilStr,
       });
     },
-    [value, onChange],
+    [value, onChange, yearBounds, showToast, t],
   );
-
-  const showToast = useAppStore((s) => s.showToast);
 
   const isYearMode = mode === 'year';
   const currentYear = new Date().getFullYear();
@@ -171,6 +185,17 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
       setOpen(false);
     },
     [onChange],
+  );
+
+  const handleMiniDatePickerBoundary = useCallback(
+    (type: 'earliest' | 'latest') => {
+      showToast(
+        type === 'earliest' ? t.gitVisCalendarYearEarliest : t.gitVisCalendarYearLatest,
+        'warning',
+        'git-vis-year-nav',
+      );
+    },
+    [showToast, t],
   );
 
   const handleMouseEnterCustom = useCallback(() => {
@@ -366,6 +391,8 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
                           onClose={() => {
                             setActiveDateField(null);
                           }}
+                          yearBounds={yearBounds ?? undefined}
+                          onBoundary={handleMiniDatePickerBoundary}
                         />
                       </div>
                     </div>

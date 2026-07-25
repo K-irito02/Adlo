@@ -14,12 +14,16 @@ interface MiniDatePickerProps {
   value: string;
   onChange: (date: string) => void;
   onClose: () => void;
+  yearBounds?: { min: number; max: number };
+  onBoundary?: (type: 'earliest' | 'latest') => void;
 }
 
 export const MiniDatePicker = React.memo(function MiniDatePicker({
   value,
   onChange,
   onClose,
+  yearBounds,
+  onBoundary,
 }: MiniDatePickerProps) {
   const { t } = useTCopy();
 
@@ -43,29 +47,45 @@ export const MiniDatePicker = React.memo(function MiniDatePicker({
 
   const handlePrevMonth = useCallback(() => {
     if (viewMonth === 0) {
+      if (yearBounds && viewYear - 1 < yearBounds.min) {
+        onBoundary?.('earliest');
+        return;
+      }
       setViewYear((y) => y - 1);
       setViewMonth(11);
     } else {
       setViewMonth((m) => m - 1);
     }
-  }, [viewMonth]);
+  }, [viewMonth, viewYear, yearBounds, onBoundary]);
 
   const handleNextMonth = useCallback(() => {
     if (viewMonth === 11) {
+      if (yearBounds && viewYear + 1 > yearBounds.max) {
+        onBoundary?.('latest');
+        return;
+      }
       setViewYear((y) => y + 1);
       setViewMonth(0);
     } else {
       setViewMonth((m) => m + 1);
     }
-  }, [viewMonth]);
+  }, [viewMonth, viewYear, yearBounds, onBoundary]);
 
   const handlePrevYear = useCallback(() => {
+    if (yearBounds && viewYear - 1 < yearBounds.min) {
+      onBoundary?.('earliest');
+      return;
+    }
     setViewYear((y) => y - 1);
-  }, []);
+  }, [viewYear, yearBounds, onBoundary]);
 
   const handleNextYear = useCallback(() => {
+    if (yearBounds && viewYear + 1 > yearBounds.max) {
+      onBoundary?.('latest');
+      return;
+    }
     setViewYear((y) => y + 1);
-  }, []);
+  }, [viewYear, yearBounds, onBoundary]);
 
   const handleSelect = useCallback(
     (day: number) => {

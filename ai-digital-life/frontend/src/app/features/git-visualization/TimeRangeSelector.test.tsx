@@ -192,3 +192,75 @@ describe('TimeRangeSelector year mode', () => {
     });
   });
 });
+
+describe('TimeRangeSelector preset mode with yearBounds', () => {
+  it('blocks step to earlier period before min year and shows toast', () => {
+    const onChange = vi.fn();
+    const value: TimeRangeState = {
+      preset: 'custom',
+      since: '2025-01-01',
+      until: '2025-02-01',
+    };
+    render(
+      <TimeRangeSelector
+        value={value}
+        onChange={onChange}
+        mode="preset"
+        yearBounds={{ min: 2025, max: 2026 }}
+      />,
+    );
+    const leftBtn = screen.getByRole('button', { name: 'Earlier Period' });
+    fireEvent.click(leftBtn);
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'Already the earliest year',
+      'warning',
+      'git-vis-year-nav',
+    );
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('blocks step to later period after max year and shows toast', () => {
+    const onChange = vi.fn();
+    const value: TimeRangeState = {
+      preset: 'custom',
+      since: '2026-12-01',
+      until: '2026-12-31',
+    };
+    render(
+      <TimeRangeSelector
+        value={value}
+        onChange={onChange}
+        mode="preset"
+        yearBounds={{ min: 2025, max: 2026 }}
+      />,
+    );
+    const rightBtn = screen.getByRole('button', { name: 'Later Period' });
+    fireEvent.click(rightBtn);
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'Already the latest year',
+      'warning',
+      'git-vis-year-nav',
+    );
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('allows step within bounds', () => {
+    const onChange = vi.fn();
+    const value: TimeRangeState = {
+      preset: 'custom',
+      since: '2025-06-01',
+      until: '2025-07-01',
+    };
+    render(
+      <TimeRangeSelector
+        value={value}
+        onChange={onChange}
+        mode="preset"
+        yearBounds={{ min: 2025, max: 2026 }}
+      />,
+    );
+    const rightBtn = screen.getByRole('button', { name: 'Later Period' });
+    fireEvent.click(rightBtn);
+    expect(onChange).toHaveBeenCalled();
+  });
+});
