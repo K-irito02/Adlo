@@ -38,12 +38,17 @@ export interface RawContributorModules {
   }[];
 }
 
+/** Maps JS Date.getDay() (0=Sun..6=Sat) to row index where top row = Sunday */
+export function dayBinToRow(bin: number): number {
+  return bin;
+}
+
 export function commitStatsToHeatmapColumns(
   dailyCommits: RawCommitStats['dailyCommits'],
 ): HeatmapColumn[] {
   const weekMap = new Map<number, { count: number; bin: number; date: Date }[]>();
   for (const { date, count } of dailyCommits) {
-    const d = new Date(date);
+    const d = new Date(date + 'T00:00:00'); // 'YYYY-MM-DD' alone is parsed as UTC per spec; +'T00:00:00' forces local-timezone parsing so getDay()/getFullYear() match the calendar date
     const jan1 = new Date(d.getFullYear(), 0, 1);
     const weekNum = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
     if (!weekMap.has(weekNum)) {
@@ -51,24 +56,29 @@ export function commitStatsToHeatmapColumns(
     }
     weekMap.get(weekNum)!.push({ count, bin: d.getDay(), date: d });
   }
-  return [...weekMap.entries()]
+  const result = [...weekMap.entries()]
     .sort(([a], [b]) => a - b)
     .map(([weekNum, bins]) => {
       const existingDays = new Set(bins.map((b) => b.bin));
       const allBins: HeatmapBin[] = [];
       const weekDate = new Date(bins[0].date);
       weekDate.setDate(weekDate.getDate() - bins[0].bin);
-      for (let day = 0; day < 7; day++) {
-        if (existingDays.has(day)) {
-          allBins.push(bins.find((b) => b.bin === day)!);
+      for (let row = 0; row < 7; row++) {
+        const getDayVal = dayBinToRow(row);
+        if (existingDays.has(getDayVal)) {
+          const existing = bins.find((b) => b.bin === getDayVal);
+          if (existing) {
+            allBins.push({ ...existing, bin: row });
+          }
         } else {
           const d = new Date(weekDate);
-          d.setDate(d.getDate() + day);
-          allBins.push({ count: 0, bin: day, date: d });
+          d.setDate(d.getDate() + getDayVal);
+          allBins.push({ count: 0, bin: row, date: d });
         }
       }
       return { bin: weekNum, bins: allBins };
     });
+  return result;
 }
 
 export function hourlyDistributionToHeatmapColumns(
@@ -79,7 +89,7 @@ export function hourlyDistributionToHeatmapColumns(
     if (!hourMap.has(hour)) {
       hourMap.set(hour, []);
     }
-    hourMap.get(hour)!.push({ count, bin: day });
+    hourMap.get(hour)!.push({ count, bin: dayBinToRow(day) });
   }
   return [...hourMap.entries()]
     .sort(([a], [b]) => a - b)

@@ -34,8 +34,10 @@
   width: 100%;
   max-height: 360px;
   overflow-y: auto;
+  overflow-x: clip;
   flex-shrink: 0;
   scrollbar-width: thin;
+  scrollbar-gutter: stable;
 }
 
 /* ── Scrollbar auto-hide (instant toggle, all browsers) ── */

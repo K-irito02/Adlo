@@ -66,13 +66,7 @@ describe('TimeRangeSelector year mode', () => {
   it('renders preset label in preset mode', () => {
     const onChange = vi.fn();
     const weekValue: TimeRangeState = { preset: 'week', since: '2026-07-18', until: '2026-07-25' };
-    render(
-      <TimeRangeSelector
-        value={weekValue}
-        onChange={onChange}
-        mode="preset"
-      />,
-    );
+    render(<TimeRangeSelector value={weekValue} onChange={onChange} mode="preset" />);
     expect(screen.getByText('Past Week')).toBeTruthy();
   });
 
@@ -146,7 +140,11 @@ describe('TimeRangeSelector year mode', () => {
     );
     const leftBtn = screen.getByRole('button', { name: 'Previous Year' });
     fireEvent.click(leftBtn);
-    expect(mockShowToast).toHaveBeenCalledWith('Already the earliest year', 'warning', 'calendar-year-nav');
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'Already the earliest year',
+      'warning',
+      'calendar-year-nav',
+    );
     expect(onChange).not.toHaveBeenCalled();
   });
 
@@ -167,7 +165,11 @@ describe('TimeRangeSelector year mode', () => {
     );
     const rightBtn = screen.getByRole('button', { name: 'Next Year' });
     fireEvent.click(rightBtn);
-    expect(mockShowToast).toHaveBeenCalledWith('Already the latest year', 'warning', 'calendar-year-nav');
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'Already the latest year',
+      'warning',
+      'calendar-year-nav',
+    );
     expect(onChange).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,9 @@
 import type { StoreState } from '../StoreState';
+import { readJson, makePersistedWriter } from '../storageHelpers';
+
+export const GIT_VIS_TIME_RANGE_KEY = 'adl-git-vis:time-range';
+
+const persistTimeRange = makePersistedWriter(GIT_VIS_TIME_RANGE_KEY);
 
 export interface TimeRangeState {
   preset: 'week' | 'month' | 'year' | 'all' | 'custom';
@@ -8,12 +13,11 @@ export interface TimeRangeState {
 
 export function defaultTimeRange(): TimeRangeState {
   const now = new Date();
-  const oneYearAgo = new Date(now);
-  oneYearAgo.setFullYear(now.getFullYear() - 1);
+  const currentYear = now.getFullYear();
   return {
     preset: 'year',
-    since: oneYearAgo.toISOString().substring(0, 10),
-    until: now.toISOString().substring(0, 10),
+    since: `${currentYear}-01-01`,
+    until: `${currentYear}-12-31`,
   };
 }
 
@@ -36,61 +40,73 @@ export interface GitVisSlice {
 export const createGitVisSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   _get: () => StoreState,
-): GitVisSlice => ({
-  gitVisData: {},
-  gitVisLoading: {},
-  gitVisErrors: {},
-  gitVisTimeRange: {},
-  gitVisLoadedPhases: {},
+): GitVisSlice => {
+  const persistedRaw = readJson<unknown>(GIT_VIS_TIME_RANGE_KEY, {});
+  const persisted: Record<string, Record<string, TimeRangeState>> = typeof persistedRaw ===
+    'object' &&
+  persistedRaw !== null &&
+  !Array.isArray(persistedRaw)
+    ? (persistedRaw as Record<string, Record<string, TimeRangeState>>)
+    : {};
+  return {
+    gitVisData: {},
+    gitVisLoading: {},
+    gitVisErrors: {},
+    gitVisTimeRange: persisted,
+    gitVisLoadedPhases: {},
 
-  setGitVisData: (workspaceId, chartId, data) =>
-    set((s) => ({
-      gitVisData: {
-        ...s.gitVisData,
-        [workspaceId]: { ...(s.gitVisData[workspaceId] || {}), [chartId]: data },
-      },
-    })),
-  setGitVisDataBatch: (updates) =>
-    set((s) => {
-      const newData = { ...s.gitVisData };
-      for (const { workspaceId, chartId, data } of updates) {
-        newData[workspaceId] = { ...(newData[workspaceId] || {}), [chartId]: data };
-      }
-      return { gitVisData: newData };
-    }),
-  setGitVisLoading: (workspaceId, chartId, loading) =>
-    set((s) => ({
-      gitVisLoading: {
-        ...s.gitVisLoading,
-        [workspaceId]: { ...(s.gitVisLoading[workspaceId] || {}), [chartId]: loading },
-      },
-    })),
-  setGitVisError: (workspaceId, chartId, error) =>
-    set((s) => ({
-      gitVisErrors: {
-        ...s.gitVisErrors,
-        [workspaceId]: { ...(s.gitVisErrors[workspaceId] || {}), [chartId]: error },
-      },
-    })),
-  setGitVisTimeRange: (workspaceId, chartId, range) =>
-    set((s) => ({
-      gitVisTimeRange: {
-        ...s.gitVisTimeRange,
-        [workspaceId]: { ...(s.gitVisTimeRange[workspaceId] || {}), [chartId]: range },
-      },
-    })),
-  clearWorkspaceGitVisData: (workspaceId) =>
-    set((s) => {
-      const { [workspaceId]: _, ...restData } = s.gitVisData;
-      const { [workspaceId]: __, ...restLoading } = s.gitVisLoading;
-      const { [workspaceId]: ___, ...restErrors } = s.gitVisErrors;
-      const { [workspaceId]: ____, ...restTimeRange } = s.gitVisTimeRange;
-      return {
-        gitVisData: restData,
-        gitVisLoading: restLoading,
-        gitVisErrors: restErrors,
-        gitVisTimeRange: restTimeRange,
-      };
-    }),
-  setGitVisLoadedPhases: (phases) => set({ gitVisLoadedPhases: phases }),
-});
+    setGitVisData: (workspaceId, chartId, data) =>
+      set((s) => ({
+        gitVisData: {
+          ...s.gitVisData,
+          [workspaceId]: { ...(s.gitVisData[workspaceId] || {}), [chartId]: data },
+        },
+      })),
+    setGitVisDataBatch: (updates) =>
+      set((s) => {
+        const newData = { ...s.gitVisData };
+        for (const { workspaceId, chartId, data } of updates) {
+          newData[workspaceId] = { ...(newData[workspaceId] || {}), [chartId]: data };
+        }
+        return { gitVisData: newData };
+      }),
+    setGitVisLoading: (workspaceId, chartId, loading) =>
+      set((s) => ({
+        gitVisLoading: {
+          ...s.gitVisLoading,
+          [workspaceId]: { ...(s.gitVisLoading[workspaceId] || {}), [chartId]: loading },
+        },
+      })),
+    setGitVisError: (workspaceId, chartId, error) =>
+      set((s) => ({
+        gitVisErrors: {
+          ...s.gitVisErrors,
+          [workspaceId]: { ...(s.gitVisErrors[workspaceId] || {}), [chartId]: error },
+        },
+      })),
+    setGitVisTimeRange: (workspaceId, chartId, range) =>
+      set((s) => {
+        const next = {
+          ...s.gitVisTimeRange,
+          [workspaceId]: { ...(s.gitVisTimeRange[workspaceId] || {}), [chartId]: range },
+        };
+        persistTimeRange(next);
+        return { gitVisTimeRange: next };
+      }),
+    clearWorkspaceGitVisData: (workspaceId) =>
+      set((s) => {
+        const { [workspaceId]: _, ...restData } = s.gitVisData;
+        const { [workspaceId]: __, ...restLoading } = s.gitVisLoading;
+        const { [workspaceId]: ___, ...restErrors } = s.gitVisErrors;
+        const { [workspaceId]: ____, ...restTimeRange } = s.gitVisTimeRange;
+        persistTimeRange(restTimeRange);
+        return {
+          gitVisData: restData,
+          gitVisLoading: restLoading,
+          gitVisErrors: restErrors,
+          gitVisTimeRange: restTimeRange,
+        };
+      }),
+    setGitVisLoadedPhases: (phases) => set({ gitVisLoadedPhases: phases }),
+  };
+};

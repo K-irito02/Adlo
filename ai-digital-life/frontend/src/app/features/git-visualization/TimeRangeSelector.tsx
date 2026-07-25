@@ -153,7 +153,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
   const isYearMode = mode === 'year';
   const currentYear = new Date().getFullYear();
   const selectedYear = value.since ? parseInt(value.since.substring(0, 4)) : currentYear;
-  const minYear = yearBounds?.min ?? (currentYear - 10);
+  const minYear = yearBounds?.min ?? currentYear - 10;
   const maxYear = yearBounds?.max ?? currentYear;
 
   const yearOptions: number[] = [];
@@ -254,8 +254,8 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
       >
         {isYearMode ? selectedYear : getDisplayText()}
       </button>
-      {open && (
-        isYearMode ? (
+      {open &&
+        (isYearMode ? (
           <div className="adl-git-vis__timerange-menu adl-git-vis__year-menu">
             {yearOptions.map((y) => (
               <button
@@ -388,8 +388,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
               ),
             )}
           </div>
-        )
-      )}
+        ))}
       <button
         type="button"
         className="adl-git-vis__timerange-btn adl-git-vis__timerange-nav"

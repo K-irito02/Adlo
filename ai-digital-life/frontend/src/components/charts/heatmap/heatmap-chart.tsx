@@ -84,6 +84,8 @@ export interface HeatmapChartProps {
   gap?: number;
   /** Override the default color scale. */
   colorScale?: (count: number | null | undefined) => string;
+  /** Override the default fill scale (cell fill color). */
+  fillScale?: (count: number | null | undefined) => string;
   /** Per-level colors for the Less → More scale (5 entries). */
   levelColors?: HeatmapLevelColors;
   /** Per-level fill styles (color and optional pattern). Takes precedence over `levelColors`. */
@@ -603,6 +605,7 @@ export function HeatmapChart({
   binSize = 0,
   gap = 2,
   colorScale: colorScaleProp,
+  fillScale: fillScaleProp,
   levelColors,
   levelStyles: levelStylesProp,
   aspectRatio,
@@ -633,7 +636,10 @@ export function HeatmapChart({
     () => colorScaleProp ?? buildHeatmapColorScaleFromStyles(levelStyles),
     [colorScaleProp, levelStyles],
   );
-  const fillScale = useMemo(() => buildHeatmapFillScale(levelStyles), [levelStyles]);
+  const fillScale = useMemo(
+    () => fillScaleProp ?? buildHeatmapFillScale(levelStyles),
+    [fillScaleProp, levelStyles],
+  );
 
   const { chartPhase, isLoaded, revealEpoch, revealMode, animateCells } = useHeatmapChartLifecycle({
     chartStatus: status,

@@ -426,6 +426,11 @@ export const HeatmapCells = memo(function HeatmapCells({
 
       setHoveredLegendLevel(null);
       setHoveredCell({ column, row });
+
+      if (!bin.date) {
+        return;
+      }
+
       setTooltipData({
         column,
         row,

@@ -17,8 +17,8 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({ data }: ClockHeat
   const { t, locale } = useTCopy();
   const dayLabels = useMemo(
     () =>
-      Array.from({ length: 7 }, (_, i) =>
-        new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2026, 0, 4 + i)),
+      [0, 1, 2, 3, 4, 5, 6].map((offset) =>
+        new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2026, 0, 4 + offset)),
       ),
     [locale],
   );

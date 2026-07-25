@@ -143,7 +143,16 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
           id="heatmap-tabpanel"
           aria-labelledby={`heatmap-tab-${activeHeatmapTab}`}
         >
-          {activeHeatmapTab === 'calendar' && <CalendarHeatmap data={commitStats?.dailyCommits} />}
+          {activeHeatmapTab === 'calendar' && (
+            <CalendarHeatmap
+              data={commitStats?.dailyCommits}
+              year={
+                timeRange?.since && timeRange.since.length >= 4
+                  ? parseInt(timeRange.since.substring(0, 4), 10) || undefined
+                  : undefined
+              }
+            />
+          )}
           {activeHeatmapTab === 'clock' && <ClockHeatmap data={commitStats?.hourlyDistribution} />}
           {activeHeatmapTab === 'activity' && (
             <ContributorActivityHeatmap data={commitStats?.contributorActivity} />

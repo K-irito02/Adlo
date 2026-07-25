@@ -222,6 +222,7 @@
 |------|------|------|
 | [sub-card-border-subpixel-fix-2026-07-01.md](./interaction/2026-07/sub-card-border-subpixel-fix-2026-07-01.md) | 2026-07-01 Bug 修复 | Sub-Card 边框子像素渲染修复：`line-height: 1.625` 导致 `19.5px` 内容高度 → `37.5px` 半像素卡高 → `translateY(-50%)` 产生不对称抗锯齿 |
 | [svg-stroke-animation-logo-overlay-2026-07-14.md](./interaction/2026-07/svg-stroke-animation-logo-overlay-2026-07-14.md) | 2026-07-14 UI 增强 | SVG 描边动画与 Logo Overlay 实现经验 |
+| [heatmap-scrollbar-oscillation-and-patterns-2026-07-25.md](./interaction/2026-07/heatmap-scrollbar-oscillation-and-patterns-2026-07-25.md) | 2026-07-25 Bug 修复 | 日历热力图 5 项 Bug 修复（scrollbar-gutter 振荡修复、本地时区日期解析、!bin.date tooltip 模式、makePersistedWriter 模式） |
 
 ### CI monitoring
 
