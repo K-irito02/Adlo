@@ -182,4 +182,9 @@ export const changesZh = {
   gitVisError: '图表遇到临时错误',
   gitVisRetry: '重试',
   gitVisNoData: '暂无数据',
+  gitVisCalendarYearPrev: '上一年',
+  gitVisCalendarYearNext: '下一年',
+  gitVisCalendarYearLatest: '已是最新年份',
+  gitVisCalendarYearEarliest: '已是最早提交年份',
+  gitVisCalendarSelectYear: '选择年份',
 } as const;
