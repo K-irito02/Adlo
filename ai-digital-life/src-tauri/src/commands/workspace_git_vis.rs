@@ -16,23 +16,42 @@ pub async fn workspace_git_vis_commit_stats(
     until: Option<String>,
 ) -> Result<IpcResult<GitVisCommitStats>, AppError> {
     let root = Path::new(&root_path);
-    let is_full = since.is_none() && until.is_none();
 
-    if is_full {
-        let state = app.state::<crate::state::AppState>();
-        if let Some(cached) =
-            git_vis_cache::read_cached_chart::<GitVisCommitStats>(&state.db, &root_path, 0, "commit_stats")?
-        {
-            return Ok(ipc(Ok(cached)));
+    // Cache: only for year-range queries (since=YYYY-01-01, until=YYYY-12-31)
+    // Historical years (year < currentYear) return cached data; current year always re-fetches
+    if let (Some(s), Some(_u)) = (&since, &until) {
+        if let Some(year) = git_vis_cache::extract_year(s) {
+            if git_vis_cache::is_historical_year(year) {
+                let state = app.state::<crate::state::AppState>();
+                if let Some(cached) = git_vis_cache::read_cached_chart::<GitVisCommitStats>(
+                    &state.db,
+                    &root_path,
+                    year,
+                    git_vis_cache::CHART_TYPE_DAILY_COMMITS,
+                )? {
+                    return Ok(ipc(Ok(cached)));
+                }
+            }
         }
     }
 
-    let data =
-        adl_workspace::capture_commit_stats(root, since.as_deref(), until.as_deref()).await?;
+    // Cache miss or current year: execute git log
+    let data = adl_workspace::capture_commit_stats(root, since.as_deref(), until.as_deref()).await?;
 
-    if is_full {
-        let state = app.state::<crate::state::AppState>();
-        let _ = git_vis_cache::cache_chart_data(&state.db, &root_path, 0, "commit_stats", &data);
+    // Cache historical year results for future use
+    if let (Some(s), Some(_u)) = (&since, &until) {
+        if let Some(year) = git_vis_cache::extract_year(s) {
+            if git_vis_cache::is_historical_year(year) {
+                let state = app.state::<crate::state::AppState>();
+                let _ = git_vis_cache::cache_chart_data(
+                    &state.db,
+                    &root_path,
+                    year,
+                    git_vis_cache::CHART_TYPE_DAILY_COMMITS,
+                    &data,
+                );
+            }
+        }
     }
 
     Ok(ipc(Ok(data)))
