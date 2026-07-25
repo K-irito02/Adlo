@@ -2,11 +2,50 @@ use adl_errors::AppError;
 use adl_storage::Database;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::future::Future;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::process::Command;
 
 pub const CHART_TYPE_DAILY_COMMITS: &str = "daily_commits";
+pub const CHART_TYPE_CODE_EVOLUTION: &str = "code_evolution";
+pub const CHART_TYPE_CONTRIBUTOR_MODULES: &str = "contributor_modules";
+
+pub(crate) async fn with_cached<T, F, Fut>(
+    db: &Database,
+    root_path: &str,
+    since: Option<&str>,
+    _until: Option<&str>,
+    chart_type: &str,
+    fetcher: F,
+) -> Result<T, AppError>
+where
+    T: DeserializeOwned + Serialize,
+    F: FnOnce() -> Fut,
+    Fut: Future<Output = Result<T, AppError>>,
+{
+    if let Some(s) = since {
+        if let Some(year) = extract_year(s) {
+            if is_historical_year(year) {
+                if let Some(cached) = read_cached_chart::<T>(db, root_path, year, chart_type)? {
+                    return Ok(cached);
+                }
+            }
+        }
+    }
+
+    let data = fetcher().await?;
+
+    if let Some(s) = since {
+        if let Some(year) = extract_year(s) {
+            if is_historical_year(year) {
+                let _ = cache_chart_data(db, root_path, year, chart_type, &data);
+            }
+        }
+    }
+
+    Ok(data)
+}
 
 pub(crate) fn read_cached_chart<T: DeserializeOwned>(
     db: &Database,
@@ -89,5 +128,22 @@ pub(crate) async fn get_first_commit_year(root_path: &Path) -> Result<Option<i32
         }
     } else {
         Ok(None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_year() {
+        assert_eq!(extract_year("2024-01-01"), Some(2024));
+        assert_eq!(extract_year("202"), None);
+    }
+
+    #[test]
+    fn test_is_historical_year() {
+        assert!(is_historical_year(2020));
+        assert!(!is_historical_year(2099));
     }
 }

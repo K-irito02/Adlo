@@ -16,44 +16,20 @@ pub async fn workspace_git_vis_commit_stats(
     until: Option<String>,
 ) -> Result<IpcResult<GitVisCommitStats>, AppError> {
     let root = Path::new(&root_path);
-
-    // Cache: only for year-range queries (since=YYYY-01-01, until=YYYY-12-31)
-    // Historical years (year < currentYear) return cached data; current year always re-fetches
-    if let (Some(s), Some(_u)) = (&since, &until) {
-        if let Some(year) = git_vis_cache::extract_year(s) {
-            if git_vis_cache::is_historical_year(year) {
-                let state = app.state::<crate::state::AppState>();
-                if let Some(cached) = git_vis_cache::read_cached_chart::<GitVisCommitStats>(
-                    &state.db,
-                    &root_path,
-                    year,
-                    git_vis_cache::CHART_TYPE_DAILY_COMMITS,
-                )? {
-                    return Ok(ipc(Ok(cached)));
-                }
-            }
-        }
-    }
-
-    // Cache miss or current year: execute git log
-    let data = adl_workspace::capture_commit_stats(root, since.as_deref(), until.as_deref()).await?;
-
-    // Cache historical year results for future use
-    if let (Some(s), Some(_u)) = (&since, &until) {
-        if let Some(year) = git_vis_cache::extract_year(s) {
-            if git_vis_cache::is_historical_year(year) {
-                let state = app.state::<crate::state::AppState>();
-                let _ = git_vis_cache::cache_chart_data(
-                    &state.db,
-                    &root_path,
-                    year,
-                    git_vis_cache::CHART_TYPE_DAILY_COMMITS,
-                    &data,
-                );
-            }
-        }
-    }
-
+    let state = app.state::<crate::state::AppState>();
+    let s = since.clone();
+    let u = until.clone();
+    let data = git_vis_cache::with_cached(
+        &state.db,
+        &root_path,
+        since.as_deref(),
+        until.as_deref(),
+        git_vis_cache::CHART_TYPE_DAILY_COMMITS,
+        || async {
+            adl_workspace::capture_commit_stats(&root, s.as_deref(), u.as_deref()).await
+        },
+    )
+    .await?;
     Ok(ipc(Ok(data)))
 }
 
@@ -69,27 +45,51 @@ pub async fn workspace_git_vis_first_commit_year(
 
 #[tauri::command]
 pub async fn workspace_git_vis_code_evolution(
-    _app: tauri::AppHandle,
+    app: tauri::AppHandle,
     root_path: String,
     since: Option<String>,
     until: Option<String>,
 ) -> Result<IpcResult<GitVisCodeEvolution>, AppError> {
     let root = Path::new(&root_path);
-    let data =
-        adl_workspace::capture_code_evolution(root, since.as_deref(), until.as_deref()).await?;
+    let state = app.state::<crate::state::AppState>();
+    let s = since.clone();
+    let u = until.clone();
+    let data = git_vis_cache::with_cached(
+        &state.db,
+        &root_path,
+        since.as_deref(),
+        until.as_deref(),
+        git_vis_cache::CHART_TYPE_CODE_EVOLUTION,
+        || async {
+            adl_workspace::capture_code_evolution(&root, s.as_deref(), u.as_deref()).await
+        },
+    )
+    .await?;
     Ok(ipc(Ok(data)))
 }
 
 #[tauri::command]
 pub async fn workspace_git_vis_contributor_modules(
-    _app: tauri::AppHandle,
+    app: tauri::AppHandle,
     root_path: String,
     since: Option<String>,
     until: Option<String>,
 ) -> Result<IpcResult<GitVisContributorModules>, AppError> {
     let root = Path::new(&root_path);
-    let data = adl_workspace::capture_contributor_modules(root, since.as_deref(), until.as_deref())
-        .await?;
+    let state = app.state::<crate::state::AppState>();
+    let s = since.clone();
+    let u = until.clone();
+    let data = git_vis_cache::with_cached(
+        &state.db,
+        &root_path,
+        since.as_deref(),
+        until.as_deref(),
+        git_vis_cache::CHART_TYPE_CONTRIBUTOR_MODULES,
+        || async {
+            adl_workspace::capture_contributor_modules(&root, s.as_deref(), u.as_deref()).await
+        },
+    )
+    .await?;
     Ok(ipc(Ok(data)))
 }
 
