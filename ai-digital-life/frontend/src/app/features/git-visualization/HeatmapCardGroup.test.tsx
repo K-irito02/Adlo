@@ -115,6 +115,7 @@ vi.mock('@stores/slicedStore', () => ({
       activeWorkspaceTab: 'workspace-1',
       recentWorkspaces: mockRecentWorkspaces,
       showToast: vi.fn(),
+      setGitVisTimeRange: vi.fn(),
     }),
 }));
 

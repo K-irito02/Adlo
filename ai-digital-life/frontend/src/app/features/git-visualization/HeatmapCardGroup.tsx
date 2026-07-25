@@ -72,9 +72,12 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
 
   const handleTabChange = useCallback(
     (tab: HeatmapTab) => {
+      const tabRange = tabRangesRef.current[tab];
+      setGitVisTimeRange(activeWorkspaceTab, CHART_IDS.HEATMAP, tabRange);
       setActiveHeatmapTab(tab);
+      setTimeout(() => onRefresh?.(), 0);
     },
-    [setActiveHeatmapTab],
+    [activeWorkspaceTab, setGitVisTimeRange, setActiveHeatmapTab, onRefresh],
   );
 
   const handleTimeRangeChange = useCallback(
