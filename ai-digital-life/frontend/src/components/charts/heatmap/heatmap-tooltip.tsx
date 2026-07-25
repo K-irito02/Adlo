@@ -55,7 +55,7 @@ export const HeatmapTooltip = memo(function HeatmapTooltip({
     return null;
   }
 
-  const { count, date } = displayData;
+  const { count, date, tooltipLabel } = displayData;
 
   return (
     <TooltipBox
@@ -73,7 +73,11 @@ export const HeatmapTooltip = memo(function HeatmapTooltip({
     >
       <div className="overflow-hidden">
         <div className="px-3 py-2.5 text-left">
-          {date && (
+          {tooltipLabel ? (
+            <div className="font-medium text-chart-tooltip-foreground text-xs">
+              {tooltipLabel}
+            </div>
+          ) : date ? (
             <>
               <div className="font-medium text-chart-tooltip-foreground text-xs">
                 {formatHeatmapTooltipDate(date, locale)}
@@ -82,7 +86,7 @@ export const HeatmapTooltip = memo(function HeatmapTooltip({
                 {formatHeatmapTooltipWeekday(date, locale)}
               </div>
             </>
-          )}
+          ) : null}
           <div className="my-2 border-chart-tooltip-muted/30 border-t" />
           <div className="text-chart-tooltip-foreground text-sm">{formatLabel(count, date)}</div>
         </div>

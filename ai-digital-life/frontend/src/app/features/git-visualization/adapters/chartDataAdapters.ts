@@ -83,13 +83,16 @@ export function commitStatsToHeatmapColumns(
 
 export function hourlyDistributionToHeatmapColumns(
   hourlyDistribution: RawCommitStats['hourlyDistribution'],
+  dayNames?: string[],
 ): HeatmapColumn[] {
   const hourMap = new Map<number, HeatmapBin[]>();
   for (const { day, hour, count } of hourlyDistribution) {
     if (!hourMap.has(hour)) {
       hourMap.set(hour, []);
     }
-    hourMap.get(hour)!.push({ count, bin: dayBinToRow(day) });
+    const row = dayBinToRow(day);
+    const label = dayNames ? `${String(hour).padStart(2, '0')}:00 \u00B7 ${dayNames[row]}` : undefined;
+    hourMap.get(hour)!.push({ count, bin: row, tooltipLabel: label });
   }
   return [...hourMap.entries()]
     .sort(([a], [b]) => a - b)
@@ -113,6 +116,7 @@ export function contributorActivityToHeatmapColumns(
     bins: contributorActivity.map((c, rowIdx) => ({
       count: c.periods.find((p) => p.period === period)?.count || 0,
       bin: rowIdx,
+      tooltipLabel: `${c.author} \u00B7 ${period}`,
     })),
   }));
   return { columns, rowLabels };
@@ -136,6 +140,7 @@ export function contributorModulesToHeatmapColumns(matrix: RawContributorModules
     bins: matrix.map((m, rowIdx) => ({
       count: m.modules.find((mod) => mod.module === module)?.count || 0,
       bin: rowIdx,
+      tooltipLabel: `${m.author} \u00B7 ${module}`,
     })),
   }));
   return { columns, rowLabels };

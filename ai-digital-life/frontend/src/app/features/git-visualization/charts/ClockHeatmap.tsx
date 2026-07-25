@@ -45,8 +45,8 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({ data }: ClockHeat
   );
   const expandedData = useMemo(() => (data ? expandToFullGrid(data) : undefined), [data]);
   const heatmapData = useMemo(
-    () => (expandedData ? hourlyDistributionToHeatmapColumns(expandedData) : []),
-    [expandedData],
+    () => (expandedData ? hourlyDistributionToHeatmapColumns(expandedData, dayLabels) : []),
+    [expandedData, dayLabels],
   );
 
   const defaultFillScale = useMemo(

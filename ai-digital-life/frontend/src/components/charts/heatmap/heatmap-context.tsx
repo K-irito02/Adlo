@@ -27,6 +27,7 @@ export interface HeatmapBin {
   count: number;
   bin: number;
   date?: Date;
+  tooltipLabel?: string;
 }
 
 export interface HeatmapColumn {
@@ -42,6 +43,7 @@ export interface HeatmapTooltipData {
   date?: Date;
   x: number;
   y: number;
+  tooltipLabel?: string;
 }
 
 export interface HeatmapInteractionContextValue {

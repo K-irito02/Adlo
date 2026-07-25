@@ -438,6 +438,7 @@ export const HeatmapCells = memo(function HeatmapCells({
         date: bin.date,
         x: margin.left + x + binWidth / 2,
         y: margin.top + y + binHeight / 2,
+        tooltipLabel: bin.tooltipLabel,
       });
     },
     [
