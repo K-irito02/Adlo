@@ -166,6 +166,73 @@ mod tests {
     }
 
     #[test]
+    fn purge_workspace_cleans_git_vis_cache_by_root_path() {
+        let db = temp_db("purge-git-vis");
+        seed_workspace(&db, "ws-gvc", "/tmp/ws-gvc");
+
+        // Insert cache row for target workspace
+        db.execute(
+            "INSERT INTO git_vis_cache (root_path, year, chart_type, data) VALUES (?1, ?2, ?3, ?4)",
+            &[&"/tmp/ws-gvc" as &dyn rusqlite::types::ToSql, &2025i64, &"commits", &"{}"],
+        )
+        .unwrap();
+        // Insert second cache row for target (different year)
+        db.execute(
+            "INSERT INTO git_vis_cache (root_path, year, chart_type, data) VALUES (?1, ?2, ?3, ?4)",
+            &[&"/tmp/ws-gvc" as &dyn rusqlite::types::ToSql, &2026i64, &"commits", &"{}"],
+        )
+        .unwrap();
+        // Insert control row for a different root_path (must NOT be deleted)
+        db.execute(
+            "INSERT INTO git_vis_cache (root_path, year, chart_type, data) VALUES (?1, ?2, ?3, ?4)",
+            &[&"/tmp/other" as &dyn rusqlite::types::ToSql, &2025i64, &"commits", &"{}"],
+        )
+        .unwrap();
+
+        // Sanity: 2 rows for target, 1 for other
+        let count_target: i64 = db
+            .conn()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM git_vis_cache WHERE root_path = ?1",
+                rusqlite::params!["/tmp/ws-gvc"],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count_target, 2);
+
+        let report = db.purge_workspace("ws-gvc", Some("/tmp/ws-gvc")).unwrap();
+        assert!(report.per_table.contains_key("git_vis_cache"));
+        assert_eq!(report.per_table["git_vis_cache"], 2);
+
+        // Target rows gone
+        let count_after: i64 = db
+            .conn()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM git_vis_cache WHERE root_path = ?1",
+                rusqlite::params!["/tmp/ws-gvc"],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count_after, 0);
+
+        // Control row untouched
+        let count_other: i64 = db
+            .conn()
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM git_vis_cache WHERE root_path = ?1",
+                rusqlite::params!["/tmp/other"],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count_other, 1);
+
+        let _ = std::fs::remove_file(temp_dir().join("adl-storage-purge-git-vis.db"));
+    }
+
+    #[test]
     fn purge_workspace_with_no_data_is_a_no_op() {
         let db = temp_db("purge-empty");
         seed_workspace(&db, "ws-z", "/tmp/ws-z");

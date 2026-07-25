@@ -183,3 +183,11 @@ CREATE TABLE IF NOT EXISTS durable_session_state (
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS git_vis_cache (
+    root_path TEXT NOT NULL,
+    year INTEGER NOT NULL CHECK(year >= 1900 AND year <= 3000),
+    chart_type TEXT NOT NULL,
+    data TEXT NOT NULL,
+    cached_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (root_path, year, chart_type)
+);

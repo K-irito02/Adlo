@@ -59,6 +59,20 @@ pub const MIGRATIONS: &[Migration] = &[
             );
         "#,
     },
+    Migration {
+        version: 4,
+        description: "Add git_vis_cache table for visualization data caching",
+        sql: r#"
+            CREATE TABLE IF NOT EXISTS git_vis_cache (
+                root_path TEXT NOT NULL,
+                year INTEGER NOT NULL CHECK(year >= 1900 AND year <= 3000),
+                chart_type TEXT NOT NULL,
+                data TEXT NOT NULL,
+                cached_at TEXT NOT NULL DEFAULT (datetime('now')),
+                PRIMARY KEY (root_path, year, chart_type)
+            );
+        "#,
+    },
 ];
 
 pub fn current_version(db: &Database) -> Result<i64, AppError> {
@@ -134,7 +148,7 @@ mod tests {
         let result = run_pending(&db);
         assert!(result.is_ok());
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 3);
+        assert_eq!(version, 4);
         let _ = std::fs::remove_file(&path);
     }
 
@@ -148,13 +162,13 @@ mod tests {
         run_pending(&db).unwrap();
         run_pending(&db).unwrap();
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 3);
+        assert_eq!(version, 4);
         let _ = std::fs::remove_file(&path);
     }
 
     #[test]
     fn migration_records_have_correct_structure() {
-        assert_eq!(MIGRATIONS.len(), 3);
+        assert_eq!(MIGRATIONS.len(), 4);
         let m1 = &MIGRATIONS[0];
         assert_eq!(m1.version, 1);
         assert_eq!(m1.description, "Initial schema");
@@ -168,5 +182,9 @@ mod tests {
         assert_eq!(m3.version, 3);
         assert_eq!(m3.description, "Add durable_session_state table");
         assert!(m3.sql.contains("durable_session_state"));
+        let m4 = &MIGRATIONS[3];
+        assert_eq!(m4.version, 4);
+        assert_eq!(m4.description, "Add git_vis_cache table for visualization data caching");
+        assert!(m4.sql.contains("git_vis_cache"));
     }
 }

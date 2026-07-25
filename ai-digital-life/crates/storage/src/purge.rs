@@ -205,6 +205,16 @@ impl Database {
                 }
             }
 
+            if let Some(root) = root_path {
+                let n = conn
+                    .execute("DELETE FROM git_vis_cache WHERE root_path = ?1", params![root])
+                    .map_err(|e| AppError::Storage(e.to_string()))?;
+                if n > 0 {
+                    report.per_table.insert("git_vis_cache".to_string(), n);
+                    report.total_rows_deleted += n;
+                }
+            }
+
             Ok(report)
         })
     }
