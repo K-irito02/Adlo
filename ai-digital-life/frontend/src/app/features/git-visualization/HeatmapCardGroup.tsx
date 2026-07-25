@@ -6,6 +6,7 @@ import type { CopyKey } from '@i18n/types';
 import type { HeatmapTab } from '@stores/slices/uiSliceTypes';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
 import { defaultTimeRange } from '@stores/slices/gitVisSlice';
+import { readJson, writeJson } from '@stores/storageHelpers';
 import type { RawCommitStats } from './adapters/chartDataAdapters';
 import { HeatmapInteractionProvider, HeatmapLegend } from '@/components/charts/heatmap';
 import { CalendarHeatmap } from './charts/CalendarHeatmap';
@@ -15,6 +16,8 @@ import { ContributorModuleHeatmap } from './charts/ContributorModuleHeatmap';
 import { RefreshButton } from './RefreshButton';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import { CHART_IDS } from './chartIds';
+
+const TAB_TIME_RANGE_KEY = 'adl-git-vis:tab-time-range';
 
 const TABS: { id: HeatmapTab; titleKey: CopyKey }[] = [
   { id: 'calendar', titleKey: 'gitVisHeatmapTabCalendar' },
@@ -61,12 +64,16 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     })),
   );
 
-  const tabRangesRef = useRef<Record<HeatmapTab, TimeRangeState>>({
-    calendar: defaultTimeRange(),
-    clock: defaultTimeRange(),
-    activity: defaultTimeRange(),
-    module: defaultTimeRange(),
-  });
+  function loadTabRanges(): Record<HeatmapTab, TimeRangeState> {
+    const saved = readJson<Partial<Record<HeatmapTab, TimeRangeState>> | null>(TAB_TIME_RANGE_KEY, null);
+    return {
+      calendar: saved?.calendar ?? defaultTimeRange(),
+      clock: saved?.clock ?? defaultTimeRange(),
+      activity: saved?.activity ?? defaultTimeRange(),
+      module: saved?.module ?? defaultTimeRange(),
+    };
+  }
+  const tabRangesRef = useRef<Record<HeatmapTab, TimeRangeState>>(loadTabRanges());
 
   const onRefreshRef = useRef(onRefresh);
   onRefreshRef.current = onRefresh;
@@ -83,13 +90,18 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     [activeWorkspaceTab, setGitVisTimeRange, setActiveHeatmapTab],
   );
 
+  const persistTabRanges = useCallback(() => {
+    writeJson(TAB_TIME_RANGE_KEY, tabRangesRef.current);
+  }, []);
+
   const handleTimeRangeChange = useCallback(
     (range: TimeRangeState) => {
       tabRangesRef.current[activeHeatmapTab] = range;
+      persistTabRanges();
       setGitVisTimeRange(activeWorkspaceTab, CHART_IDS.HEATMAP, range);
       return onRefresh?.();
     },
-    [activeHeatmapTab, activeWorkspaceTab, setGitVisTimeRange, onRefresh],
+    [activeHeatmapTab, activeWorkspaceTab, setGitVisTimeRange, onRefresh, persistTabRanges],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

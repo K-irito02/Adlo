@@ -166,7 +166,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
     }
     if (buttonAnimRef.current === 'loading') {
       setButtonAnim('success');
-      buttonAnimTimerRef.current = setTimeout(() => setButtonAnim('idle'), 1500);
+      buttonAnimTimerRef.current = setTimeout(() => setButtonAnim('idle'), 800);
     }
   }, []);
 

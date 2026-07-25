@@ -777,6 +777,11 @@
   line-height: 1.4;
   white-space: nowrap;
   text-align: center;
+  min-width: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 .adl-git-vis__timerange-subcard-btn:hover {
   background: var(--bg-hover);
