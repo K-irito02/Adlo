@@ -717,7 +717,7 @@
   border: 1px solid var(--border);
   border-radius: 0;
   box-shadow: var(--shadow-lg);
-  min-width: 200px;
+  width: 220px;
   padding: var(--space-3) var(--space-2) var(--space-2);
 }
 .adl-git-vis__timerange-subcard-row {
@@ -766,10 +766,10 @@
   gap: 1px;
 }
 .adl-git-vis__timerange-subcard-btn {
-  flex: 0 0 auto;
-  width: 60px;
+  flex: 1;
+  min-width: 56px;
   font-size: 11px;
-  padding: 4px 6px;
+  padding: 4px 4px;
   border-radius: 0;
   border: none;
   background: var(--surface-subtle);
@@ -777,7 +777,6 @@
   cursor: pointer;
   line-height: 1.4;
   white-space: nowrap;
-  text-align: center;
   display: inline-flex;
   align-items: center;
   justify-content: center;
