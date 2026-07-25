@@ -31,9 +31,28 @@ vi.mock('@i18n/useTCopy', () => ({
   }),
 }));
 
+vi.mock('motion/react', () => ({
+  motion: new Proxy(
+    {},
+    {
+      get: () => (p: Record<string, unknown>) => {
+        const R = require('react');
+        const { children, ...rest } = p;
+        return R.createElement('div', { className: rest.className, key: rest.key }, children);
+      },
+    },
+  ),
+  animate: () => ({ stop: () => {}, then: () => Promise.resolve(), cancel: () => {} }),
+  useMotionValue: <T,>(v: T) => ({ get: () => v as number, set: () => {}, stop: () => {} }),
+  useTransform: () => ({ get: () => 0, set: () => {}, stop: () => {} }),
+  useSpring: () => ({ get: () => 0, set: () => {}, stop: () => {} }),
+  useReducedMotion: () => true,
+  useAnimation: () => ({ start: () => Promise.resolve(), stop: () => {}, set: () => {} }),
+}));
+
 vi.mock('@stores/slicedStore', () => ({
   useAppStore: (selector: any) => {
-    const state = { showToast: mockShowToast };
+    const state = { showToast: mockShowToast, activeWorkspaceTab: 'workspace-1', gitVisLoading: {} };
     return selector ? selector(state) : state;
   },
 }));

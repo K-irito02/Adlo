@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
+import { motion, useAnimation } from 'motion/react';
 import { useTCopy } from '@i18n/useTCopy';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
 import { IconCheck, IconChevronRight, IconArrowLeft, IconArrowRight } from '@app/icons';
@@ -143,6 +144,24 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
 
   const showToast = useAppStore((s) => s.showToast);
 
+  const [buttonAnim, setButtonAnim] = useState<'idle' | 'loading' | 'success'>('idle');
+  const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
+  const heatmapLoading = useAppStore((s) => s.gitVisLoading?.[activeWorkspaceTab]?.['heatmap']);
+  const prevLoadingRef = useRef(heatmapLoading);
+
+  useEffect(() => {
+    if (buttonAnim !== 'loading') {
+      prevLoadingRef.current = heatmapLoading;
+      return;
+    }
+    if (prevLoadingRef.current === true && heatmapLoading === false) {
+      setButtonAnim('success');
+      const timer = setTimeout(() => setButtonAnim('idle'), 1500);
+      return () => clearTimeout(timer);
+    }
+    prevLoadingRef.current = heatmapLoading;
+  }, [heatmapLoading, buttonAnim]);
+
   const handleStep = useCallback(
     (direction: -1 | 1) => {
       if (!value.since || !value.until) {
@@ -237,24 +256,30 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
     setActiveDateField('until');
   }, []);
 
+  const startButtonLoading = useCallback(() => {
+    setButtonAnim('loading');
+  }, []);
+
   const handleCustomConfirm = useCallback(() => {
     const since = customSinceRef.current;
     const until = customUntilRef.current;
     if (since && until && since <= until) {
       lastConfirmedRef.current = { since, until };
       setHasLastConfirmed(true);
+      startButtonLoading();
       onChange({ preset: 'custom', since, until });
     }
-  }, [onChange]);
+  }, [onChange, startButtonLoading]);
 
   const handleRevert = useCallback(() => {
     const last = lastConfirmedRef.current;
     if (last) {
       updateCustomSince(last.since);
       updateCustomUntil(last.until);
+      startButtonLoading();
       onChange({ preset: 'custom', since: last.since, until: last.until });
     }
-  }, [onChange, updateCustomSince, updateCustomUntil]);
+  }, [onChange, updateCustomSince, updateCustomUntil, startButtonLoading]);
 
   return (
     <div
@@ -376,7 +401,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
                             type="button"
                             className="adl-git-vis__timerange-subcard-btn adl-git-vis__timerange-subcard-btn--revert"
                             onClick={handleRevert}
-                            disabled={!hasLastConfirmed}
+                            disabled={!hasLastConfirmed || buttonAnim === 'loading'}
                           >
                             {t.gitVisTimeRevert}
                           </button>
@@ -384,8 +409,23 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
                             type="button"
                             className="adl-git-vis__timerange-subcard-btn adl-git-vis__timerange-subcard-btn--confirm"
                             onClick={handleCustomConfirm}
+                            disabled={buttonAnim === 'loading'}
                           >
-                            {t.gitVisTimeConfirm}
+                            {buttonAnim === 'loading' ? (
+                              <motion.span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <motion.svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                                  animate={{ rotate: 360 }}
+                                  transition={{ repeat: Number.POSITIVE_INFINITY, duration: 0.8, ease: 'linear' }}
+                                  style={{ transformOrigin: '12px 12px' }}
+                                >
+                                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                                </motion.svg>
+                              </motion.span>
+                            ) : buttonAnim === 'success' ? (
+                              <IconCheck size={16} decorative />
+                            ) : (
+                              t.gitVisTimeConfirm
+                            )}
                           </button>
                         </div>
                       </div>
