@@ -456,4 +456,6 @@ export interface WorkspaceBridge {
   gitVisBranchGraph: (rootPath: string) => Promise<IpcResult<GitVisBranchGraph>>;
   /** Get file sunburst tree data */
   gitVisFileSunburst: (rootPath: string) => Promise<IpcResult<GitVisFileSunburst>>;
+  /** Get the year of the first commit in the repository */
+  gitVisFirstCommitYear: (rootPath: string) => Promise<IpcResult<number | null>>;
 }

@@ -409,6 +409,7 @@ dependencies = [
  "dirs 5.0.1",
  "futures",
  "reqwest",
+ "rusqlite",
  "serde",
  "serde_json",
  "tauri",

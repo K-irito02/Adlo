@@ -174,5 +174,11 @@ export function createPreviewGitBridge(
         `/workspace/git-vis-file-sunburst?${params.toString()}`,
       );
     },
+    gitVisFirstCommitYear: async (rootPath: string) => {
+      const params = new URLSearchParams({ rootPath });
+      return requestPreviewApi<number | null>(
+        `/workspace/git-vis-first-commit-year?${params.toString()}`,
+      );
+    },
   };
 }

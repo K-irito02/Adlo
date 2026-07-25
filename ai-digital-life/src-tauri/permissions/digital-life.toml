@@ -173,5 +173,6 @@ commands.allow = [
   "workspace_git_vis_code_evolution",
   "workspace_git_vis_contributor_modules",
   "workspace_git_vis_branch_graph",
-  "workspace_git_vis_file_sunburst"
+  "workspace_git_vis_file_sunburst",
+  "workspace_git_vis_first_commit_year"
 ]
