@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
@@ -51,6 +51,27 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
   onTimeRangeChange,
 }: HeatmapCardGroupProps) {
   const { t } = useTCopy();
+  const [firstCommitYear, setFirstCommitYear] = useState<number | null>(null);
+  const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
+  const workspace = useAppStore((s) => s.recentWorkspaces.find((w) => w.id === activeWorkspaceTab));
+
+  useEffect(() => {
+    const rootPath = workspace?.rootPath;
+    if (!rootPath) {
+      setFirstCommitYear(null);
+      return;
+    }
+    let cancelled = false;
+    window.digitalLife.workspace.gitVisFirstCommitYear(rootPath).then((result: any) => {
+      if (!cancelled && result.ok) {
+        setFirstCommitYear(result.data ?? null);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace?.rootPath]);
+
   const { activeHeatmapTab, setActiveHeatmapTab } = useAppStore(
     useShallow((s) => ({
       activeHeatmapTab: s.activeHeatmapTab,
@@ -83,7 +104,16 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
         {onRefresh && <RefreshButton onRefresh={onRefresh} label={t.gitVisRefreshChart} />}
         <h3 className="adl-git-vis__card-title">{t[TITLE_KEYS[activeHeatmapTab]]}</h3>
         {timeRange && onTimeRangeChange && (
-          <TimeRangeSelector value={timeRange} onChange={onTimeRangeChange} />
+          <TimeRangeSelector
+            value={timeRange}
+            onChange={onTimeRangeChange}
+            mode={activeHeatmapTab === 'calendar' ? 'year' : 'preset'}
+            yearBounds={
+              activeHeatmapTab === 'calendar' && firstCommitYear
+                ? { min: firstCommitYear, max: new Date().getFullYear() }
+                : undefined
+            }
+          />
         )}
       </div>
       <nav
