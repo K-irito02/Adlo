@@ -38,6 +38,10 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
   const ref = useRef<HTMLDivElement>(null);
   const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastConfirmedRef = useRef<{ since: string; until: string } | null>(null);
+  const customSinceRef = useRef(customSince);
+  customSinceRef.current = customSince;
+  const customUntilRef = useRef(customUntil);
+  customUntilRef.current = customUntil;
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -226,12 +230,14 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
   }, []);
 
   const handleCustomConfirm = useCallback(() => {
-    if (customSince && customUntil && customSince <= customUntil) {
-      lastConfirmedRef.current = { since: customSince, until: customUntil };
+    const since = customSinceRef.current;
+    const until = customUntilRef.current;
+    if (since && until && since <= until) {
+      lastConfirmedRef.current = { since, until };
       setHasLastConfirmed(true);
-      onChange({ preset: 'custom', since: customSince, until: customUntil });
+      onChange({ preset: 'custom', since, until });
     }
-  }, [customSince, customUntil, onChange]);
+  }, [onChange]);
 
   const handleRevert = useCallback(() => {
     const last = lastConfirmedRef.current;
