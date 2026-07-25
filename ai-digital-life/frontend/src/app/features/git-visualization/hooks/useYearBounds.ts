@@ -6,6 +6,7 @@ interface YearBounds {
 }
 
 const cache = new Map<string, Promise<number | null>>();
+const MAX_CACHE_SIZE = 20;
 
 export function useYearBounds(rootPath: string): {
   yearBounds: YearBounds | null;
@@ -38,6 +39,12 @@ export function useYearBounds(rootPath: string): {
       const promise = window.digitalLife.workspace.gitVisFirstCommitYear(rootPath)
         .then((result: any) => (result.ok ? (result.data ?? null) : null));
 
+      if (cache.size >= MAX_CACHE_SIZE) {
+        const firstKey = cache.keys().next().value;
+        if (firstKey !== undefined) {
+          cache.delete(firstKey);
+        }
+      }
       cache.set(rootPath, promise);
 
       const year = await promise;

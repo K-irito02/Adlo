@@ -35,3 +35,20 @@ it('returns null yearBounds when rootPath is empty', () => {
   expect(result.current.yearBounds).toBeNull();
   expect(result.current.loading).toBe(false);
 });
+
+
+
+it('does not update state after unmount', async () => {
+  let resolvePromise!: (v: any) => void;
+  mockGitVisFirstCommitYear.mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
+  const { result, unmount } = renderHook(() => useYearBounds('/path/repo'));
+  expect(result.current.loading).toBe(true);
+
+  unmount();
+  resolvePromise({ ok: true, data: 2020 });
+
+  // Small delay to let microtasks settle
+  await new Promise((r) => setTimeout(r, 10));
+  expect(result.current.loading).toBe(true);
+  expect(result.current.yearBounds).toBeNull();
+});
