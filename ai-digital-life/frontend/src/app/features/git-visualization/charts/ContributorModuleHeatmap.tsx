@@ -6,6 +6,8 @@ import {
   HeatmapXAxis,
   HeatmapYAxis,
   HeatmapTooltip,
+  buildHeatmapFillScale,
+  HEATMAP_DEFAULT_LEVEL_STYLES,
 } from '@/components/charts/heatmap';
 import { contributorModulesToHeatmapColumns } from '../adapters/chartDataAdapters';
 
@@ -29,6 +31,19 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
   data,
 }: ContributorModuleHeatmapProps) {
   const { t, locale } = useTCopy();
+
+  const defaultFillScale = useMemo(
+    () => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES),
+    [],
+  );
+  const customFillScale = useCallback(
+    (count: number | null | undefined) => {
+      if (count === -1) return 'transparent';
+      return defaultFillScale(count);
+    },
+    [defaultFillScale],
+  );
+
   const { columns, rowLabels } = useMemo(() => {
     if (!data) {
       return { columns: [], rowLabels: [] };
@@ -61,6 +76,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
         gap={2}
         binSize={36}
         animate={true}
+        fillScale={customFillScale}
       >
         <HeatmapCells cornerRadius={2} />
         <HeatmapXAxis />

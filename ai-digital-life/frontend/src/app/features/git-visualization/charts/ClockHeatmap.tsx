@@ -6,11 +6,31 @@ import {
   HeatmapXAxis,
   HeatmapYAxis,
   HeatmapTooltip,
+  buildHeatmapFillScale,
+  HEATMAP_DEFAULT_LEVEL_STYLES,
 } from '@/components/charts/heatmap';
 import { hourlyDistributionToHeatmapColumns } from '../adapters/chartDataAdapters';
 
 interface ClockHeatmapProps {
   data?: { day: number; hour: number; count: number }[];
+}
+
+function expandToFullGrid(
+  hourlyData: { day: number; hour: number; count: number }[],
+): { day: number; hour: number; count: number }[] {
+  const countMap = new Map(hourlyData.map((d) => `${d.hour}-${d.day}`));
+  const result: { day: number; hour: number; count: number }[] = [];
+  for (let hour = 0; hour < 24; hour++) {
+    for (let day = 0; day < 7; day++) {
+      const key = `${hour}-${day}`;
+      if (countMap.has(key)) {
+        result.push({ hour, day, count: countMap.get(key)! });
+      } else {
+        result.push({ hour, day, count: -1 });
+      }
+    }
+  }
+  return result;
 }
 
 export const ClockHeatmap = React.memo(function ClockHeatmap({ data }: ClockHeatmapProps) {
@@ -22,7 +42,23 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({ data }: ClockHeat
       ),
     [locale],
   );
-  const heatmapData = useMemo(() => (data ? hourlyDistributionToHeatmapColumns(data) : []), [data]);
+  const expandedData = useMemo(() => (data ? expandToFullGrid(data) : undefined), [data]);
+  const heatmapData = useMemo(
+    () => (expandedData ? hourlyDistributionToHeatmapColumns(expandedData) : []),
+    [expandedData],
+  );
+
+  const defaultFillScale = useMemo(
+    () => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES),
+    [],
+  );
+  const customFillScale = useCallback(
+    (count: number | null | undefined) => {
+      if (count === -1) return 'transparent';
+      return defaultFillScale(count);
+    },
+    [defaultFillScale],
+  );
 
   const formatLabel = useCallback(
     (count: number) => {
@@ -42,6 +78,7 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({ data }: ClockHeat
         gap={2}
         binSize={30}
         animate={true}
+        fillScale={customFillScale}
       >
         <HeatmapCells cornerRadius={2} />
         <HeatmapXAxis tickEvery={2} />

@@ -6,6 +6,8 @@ import {
   HeatmapXAxis,
   HeatmapYAxis,
   HeatmapTooltip,
+  buildHeatmapFillScale,
+  HEATMAP_DEFAULT_LEVEL_STYLES,
 } from '@/components/charts/heatmap';
 import { contributorActivityToHeatmapColumns } from '../adapters/chartDataAdapters';
 
@@ -27,6 +29,18 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
     [data],
   );
 
+  const defaultFillScale = useMemo(
+    () => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES),
+    [],
+  );
+  const customFillScale = useCallback(
+    (count: number | null | undefined) => {
+      if (count === -1) return 'transparent';
+      return defaultFillScale(count);
+    },
+    [defaultFillScale],
+  );
+
   const formatLabel = useCallback(
     (count: number) => {
       const word = count === 1 ? t.gitVisContribution : t.gitVisContributions;
@@ -45,6 +59,7 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
         gap={2}
         binSize={22}
         animate={true}
+        fillScale={customFillScale}
       >
         <HeatmapCells cornerRadius={2} />
         <HeatmapXAxis tickEvery={4} />
