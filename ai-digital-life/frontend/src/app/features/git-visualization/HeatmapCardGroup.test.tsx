@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { HeatmapCardGroup } from './HeatmapCardGroup';
@@ -91,14 +91,40 @@ vi.mock('@i18n/useTCopy', () => ({
 }));
 
 const mockSetActiveHeatmapTab = vi.fn();
+const mockRecentWorkspaces = [
+  {
+    id: 'workspace-1',
+    name: 'Workspace 1',
+    rootPath: '/test/path',
+    path: '/test/path',
+    lastOpenedAt: Date.now(),
+    isPinned: false,
+    pinnedOrder: 0,
+    unpinnedOrder: 0,
+    removedFromSidebar: false,
+    available: true,
+    hiddenFromRightPanels: false,
+  },
+];
 
 vi.mock('@stores/slicedStore', () => ({
   useAppStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({
       activeHeatmapTab: 'calendar',
       setActiveHeatmapTab: mockSetActiveHeatmapTab,
+      activeWorkspaceTab: 'workspace-1',
+      recentWorkspaces: mockRecentWorkspaces,
+      showToast: vi.fn(),
     }),
 }));
+
+beforeAll(() => {
+  (window as any).digitalLife = {
+    workspace: {
+      gitVisFirstCommitYear: vi.fn(() => Promise.resolve({ ok: true, data: 2020 })),
+    },
+  };
+});
 
 afterEach(() => {
   cleanup();

@@ -1,7 +1,15 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import { render, cleanup } from '@testing-library/react';
 import React from 'react';
 import { GitVisualizationView } from './GitVisualizationView';
+
+beforeAll(() => {
+  (window as any).digitalLife = {
+    workspace: {
+      gitVisFirstCommitYear: vi.fn(() => Promise.resolve({ ok: true, data: 2020 })),
+    },
+  };
+});
 
 afterEach(() => {
   cleanup();
