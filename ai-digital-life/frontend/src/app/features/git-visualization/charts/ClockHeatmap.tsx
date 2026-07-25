@@ -18,7 +18,8 @@ interface ClockHeatmapProps {
 function expandToFullGrid(
   hourlyData: { day: number; hour: number; count: number }[],
 ): { day: number; hour: number; count: number }[] {
-  const countMap = new Map(hourlyData.map((d) => `${d.hour}-${d.day}`));
+  const entries: [string, number][] = hourlyData.map((d) => [`${d.hour}-${d.day}`, d.count]);
+  const countMap = new Map(entries);
   const result: { day: number; hour: number; count: number }[] = [];
   for (let hour = 0; hour < 24; hour++) {
     for (let day = 0; day < 7; day++) {

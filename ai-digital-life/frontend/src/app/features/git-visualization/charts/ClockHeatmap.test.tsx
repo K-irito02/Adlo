@@ -59,4 +59,13 @@ describe('ClockHeatmap', () => {
     const { container } = render(<ClockHeatmap />);
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
+
+  it('renders with data without crashing', { timeout: 10000 }, () => {
+    const sampleData = [
+      { day: 1, hour: 9, count: 5 },
+      { day: 2, hour: 14, count: 3 },
+    ];
+    const { container } = render(<ClockHeatmap data={sampleData} />);
+    expect(container.querySelector('svg')).toBeInTheDocument();
+  });
 });

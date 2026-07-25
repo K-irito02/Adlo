@@ -19,17 +19,21 @@ import { CHART_IDS } from './chartIds';
 
 class VisErrorBoundary extends Component<
   { children: React.ReactNode; onRetry: () => void; errorMsg: string; retryLabel: string },
-  { hasError: boolean }
+  { hasError: boolean; errorInfo: string }
 > {
   constructor(props: VisErrorBoundary['props']) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, errorInfo: '' };
   }
   static getDerivedStateFromError() {
     return { hasError: true };
   }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[ADL-VIS-ERROR]', error.message, error.stack, info.componentStack);
+    this.setState({ errorInfo: error.message });
+  }
   handleRetry = () => {
-    this.setState({ hasError: false });
+    this.setState({ hasError: false, errorInfo: '' });
     this.props.onRetry();
   };
   render() {
@@ -37,6 +41,7 @@ class VisErrorBoundary extends Component<
       return (
         <div className="adl-git-vis__error-boundary">
           <p>{this.props.errorMsg}</p>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{this.state.errorInfo}</p>
           <button onClick={this.handleRetry}>{this.props.retryLabel}</button>
         </div>
       );
@@ -324,9 +329,9 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
               | undefined
           }
           contributorModules={
-            contributorModulesData.data as
-              | { author: string; authorEmail: string; modules: { module: string; count: number }[] }[]
-              | undefined
+            (contributorModulesData.data as
+              | { matrix: { author: string; authorEmail: string; modules: { module: string; count: number }[] }[] }
+              | undefined)?.matrix
           }
           timeRange={heatmapData.timeRange}
           onTimeRangeChange={(range) => {
