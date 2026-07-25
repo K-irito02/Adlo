@@ -9,6 +9,7 @@ export const HEATMAP_TABS = [
   CHART_IDS.FILE_SUNBURST,
   CHART_IDS.CODE_LINE_EVO,
   CHART_IDS.COMMIT_TIMELINE,
+  CHART_IDS.CONTRIBUTOR_MODULES,
 ] as const;
 export async function fetchChartData(
   bridge: DigitalLifeBridge,
@@ -34,6 +35,9 @@ export async function fetchChartData(
       break;
     case CHART_IDS.COMMIT_TIMELINE:
       result = await bridge.workspace.gitVisCommitStats(rootPath, since, until);
+      break;
+    case CHART_IDS.CONTRIBUTOR_MODULES:
+      result = await bridge.workspace.gitVisContributorModules(rootPath, since, until);
       break;
     default:
       throw new Error(`Unknown chart ID: ${chartId}`);

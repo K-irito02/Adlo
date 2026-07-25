@@ -12,6 +12,7 @@ import { ChartColorPresetSelector } from './ChartColorPresetSelector';
 import { WorkspaceTabBar } from './WorkspaceTabBar';
 import { useGitVisRefresh } from './hooks/useGitVisRefresh';
 import { useChartData } from './hooks/useChartData';
+import { useYearBounds } from './hooks/useYearBounds';
 import { RefreshButton } from './RefreshButton';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import { CHART_IDS } from './chartIds';
@@ -51,6 +52,7 @@ interface TimeRangeAwareCardProps {
   timeRange: ReturnType<typeof useChartData>;
   onRefresh: () => Promise<void>;
   refreshLabel: string;
+  yearBounds?: { min: number; max: number } | null;
 }
 
 const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
@@ -60,6 +62,7 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
   timeRange,
   onRefresh,
   refreshLabel,
+  yearBounds,
 }: TimeRangeAwareCardProps) {
   return (
     <div className="adl-git-vis__card">
@@ -73,6 +76,7 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
               timeRange.setTimeRange(range);
               onRefresh();
             }}
+            yearBounds={yearBounds}
           />
         ) : null}
       </div>
@@ -101,7 +105,10 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
 
   const { refreshWorkspace, refreshChart } = useGitVisRefresh(activeWorkspaceTab, rootPath);
 
+  const { yearBounds } = useYearBounds(rootPath);
+
   const heatmapData = useChartData(CHART_IDS.HEATMAP);
+  const contributorModulesData = useChartData(CHART_IDS.CONTRIBUTOR_MODULES);
   const branchGraphData = useChartData(CHART_IDS.BRANCH_GRAPH);
   const codeLineEvoData = useChartData(CHART_IDS.CODE_LINE_EVO);
   const commitTimelineData = useChartData(CHART_IDS.COMMIT_TIMELINE);
@@ -312,22 +319,16 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                 }
               | undefined
           }
-          contributorModules={
-            heatmapData.data as
-              | {
-                  matrix: {
-                    author: string;
-                    authorEmail: string;
-                    modules: { module: string; count: number }[];
-                  }[];
-                }
-              | undefined
-          }
+          contributorModules={(contributorModulesData.data as any)?.matrix}
           timeRange={heatmapData.timeRange}
           onTimeRangeChange={(range) => {
             heatmapData.setTimeRange(range);
+            if (contributorModulesData.timeRange) {
+              contributorModulesData.setTimeRange(range);
+            }
             handleRefreshHeatmap();
           }}
+          yearBounds={yearBounds}
         />
         <TimeRangeAwareCard
           title={t.gitVisBranchGraph}
@@ -335,6 +336,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           onRefresh={handleRefreshBranchGraph}
           refreshLabel={t.gitVisRefreshChart}
           timeRange={branchGraphData}
+          yearBounds={yearBounds}
         >
           {branchGraphData.loading ? null : (
             <BranchGraph
@@ -366,6 +368,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           onRefresh={handleRefreshCodeLineEvo}
           refreshLabel={t.gitVisRefreshChart}
           timeRange={codeLineEvoData}
+          yearBounds={yearBounds}
         >
           {codeLineEvoData.loading ? null : (
             <CodeLineEvo
@@ -383,6 +386,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           onRefresh={handleRefreshCommitTimeline}
           refreshLabel={t.gitVisRefreshChart}
           timeRange={commitTimelineData}
+          yearBounds={yearBounds}
         >
           {commitTimelineData.loading ? null : (
             <CommitTimeline
@@ -400,6 +404,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           onRefresh={handleRefreshFileSunburst}
           refreshLabel={t.gitVisRefreshChart}
           timeRange={fileSunburstData}
+          yearBounds={yearBounds}
         >
           {fileSunburstData.loading ? null : <FileSunburst data={fileSunburstData.data} />}
         </TimeRangeAwareCard>

@@ -4,4 +4,5 @@ export const CHART_IDS = {
   COMMIT_TIMELINE: 'commit-timeline',
   FILE_SUNBURST: 'file-sunburst',
   HEATMAP: 'heatmap',
+  CONTRIBUTOR_MODULES: 'contributor-modules',
 } as const;

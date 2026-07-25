@@ -106,6 +106,10 @@ const mockRecentWorkspaces = [
   },
 ];
 
+vi.mock('./hooks/useYearBounds', () => ({
+  useYearBounds: () => ({ yearBounds: { min: 2020, max: 2026 }, loading: false }),
+}));
+
 vi.mock('@stores/slicedStore', () => ({
   useAppStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({
@@ -118,7 +122,14 @@ vi.mock('@stores/slicedStore', () => ({
       gitVisData: {},
       gitVisLoading: {},
       gitVisErrors: {},
-      gitVisTimeRange: {},
+      gitVisTimeRange: {
+        'workspace-1': {
+          'heatmap': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
+          'contributor-modules': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
+          'code-line-evolution': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
+          'commit-timeline': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
+        },
+      },
       setGitVisData: vi.fn(),
       setGitVisLoading: vi.fn(),
       setGitVisError: vi.fn(),
@@ -169,6 +180,11 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisRefreshWorkspace: 'Refresh all charts',
       gitVisRefreshChart: 'Refresh this chart',
       gitVisPresetColorTooltip: 'Select chart color theme',
+      gitVisTimePrev: 'Earlier Period',
+      gitVisTimeNext: 'Later Period',
+      gitVisCalendarYearLatest: 'Already the latest year',
+      gitVisCalendarYearEarliest: 'Already the earliest year',
+      gitVisCalendarSelectYear: 'Select Year',
     },
     formatT: vi.fn(),
   })),
@@ -198,5 +214,10 @@ describe('GitVisualizationView', () => {
     const { container } = render(<GitVisualizationView />);
     const tabBar = container.querySelector('.adl-workspace-tab__container');
     expect(tabBar).toBeTruthy();
+  });
+
+  it('does not call gitVisFirstCommitYear directly (uses useYearBounds hook)', () => {
+    render(<GitVisualizationView />);
+    expect(window.digitalLife.workspace.gitVisFirstCommitYear).not.toHaveBeenCalled();
   });
 });

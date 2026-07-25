@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { CopyKey } from '@i18n/types';
 import type { HeatmapTab } from '@stores/slices/uiSliceTypes';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
-import type { RawCommitStats, RawContributorModules } from './adapters/chartDataAdapters';
+import type { RawCommitStats } from './adapters/chartDataAdapters';
 import { HeatmapInteractionProvider, HeatmapLegend } from '@/components/charts/heatmap';
 import { CalendarHeatmap } from './charts/CalendarHeatmap';
 import { ClockHeatmap } from './charts/ClockHeatmap';
@@ -38,9 +38,10 @@ const DESC_KEYS: Record<HeatmapTab, CopyKey> = {
 interface HeatmapCardGroupProps {
   onRefresh?: () => Promise<void>;
   commitStats?: RawCommitStats;
-  contributorModules?: RawContributorModules;
+  contributorModules?: { author: string; authorEmail: string; modules: { module: string; count: number }[] }[];
   timeRange?: TimeRangeState;
   onTimeRangeChange?: (range: TimeRangeState) => void;
+  yearBounds?: { min: number; max: number } | null;
 }
 
 export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
@@ -49,28 +50,9 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
   contributorModules,
   timeRange,
   onTimeRangeChange,
+  yearBounds,
 }: HeatmapCardGroupProps) {
   const { t } = useTCopy();
-  const [firstCommitYear, setFirstCommitYear] = useState<number | null>(null);
-  const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
-  const workspace = useAppStore((s) => s.recentWorkspaces.find((w) => w.id === activeWorkspaceTab));
-
-  useEffect(() => {
-    const rootPath = workspace?.rootPath;
-    if (!rootPath) {
-      setFirstCommitYear(null);
-      return;
-    }
-    let cancelled = false;
-    window.digitalLife.workspace.gitVisFirstCommitYear(rootPath).then((result: any) => {
-      if (!cancelled && result.ok) {
-        setFirstCommitYear(result.data ?? null);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [workspace?.rootPath]);
 
   const { activeHeatmapTab, setActiveHeatmapTab } = useAppStore(
     useShallow((s) => ({
@@ -108,11 +90,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
             value={timeRange}
             onChange={onTimeRangeChange}
             mode={activeHeatmapTab === 'calendar' ? 'year' : 'preset'}
-            yearBounds={
-              activeHeatmapTab === 'calendar' && firstCommitYear
-                ? { min: firstCommitYear, max: new Date().getFullYear() }
-                : undefined
-            }
+            yearBounds={yearBounds ?? undefined}
           />
         )}
       </div>
@@ -158,7 +136,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
             <ContributorActivityHeatmap data={commitStats?.contributorActivity} />
           )}
           {activeHeatmapTab === 'module' && (
-            <ContributorModuleHeatmap data={contributorModules?.matrix} />
+            <ContributorModuleHeatmap data={contributorModules} />
           )}
         </div>
         <div className="adl-git-vis__heatmap-legend">
