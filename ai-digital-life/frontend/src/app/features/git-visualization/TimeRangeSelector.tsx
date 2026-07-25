@@ -146,7 +146,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
 
   const [buttonAnim, setButtonAnim] = useState<'idle' | 'loading' | 'success'>('idle');
   const buttonAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const buttonAnimRef = useRef(buttonAnim);
+  const buttonAnimRef: React.MutableRefObject<'idle' | 'loading' | 'success'> = useRef('idle');
   buttonAnimRef.current = buttonAnim;
 
   useEffect(() => {
@@ -168,6 +168,8 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
     } catch {
       // refresh failed — reset button state
     }
+    // TS narrows to 'idle' after the guard above, but ref is synced in render body
+    // @ts-expect-error ref.current is actually 'loading' | 'success' at this point
     if (buttonAnimRef.current === 'loading') {
       setButtonAnim('success');
       buttonAnimTimerRef.current = setTimeout(() => setButtonAnim('idle'), 800);
