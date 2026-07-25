@@ -1,6 +1,5 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
-import { useShallow } from 'zustand/react/shallow';
 import { fetchChartData, refreshWorkspace } from '@stores/actions/gitVisActions';
 import { getBridge } from '@stores/slices/githubSliceHelpers';
 
@@ -8,29 +7,23 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
   const setLoading = useAppStore((s) => s.setGitVisLoading);
   const setError = useAppStore((s) => s.setGitVisError);
   const setData = useAppStore((s) => s.setGitVisData);
-  const timeRanges = useAppStore(
-    useShallow(
-      (s) =>
-        s.gitVisTimeRange[workspaceId] ||
-        ({} as Record<string, { since?: string; until?: string }>),
-    ),
-  );
 
   const handleRefreshWorkspace = useCallback(async () => {
     const bridge = getBridge();
     if (!bridge) {
       return;
     }
+    const latestTimeRanges = useAppStore.getState().gitVisTimeRange[workspaceId] || {};
     await refreshWorkspace(
       bridge,
       workspaceId,
       rootPath,
-      timeRanges,
+      latestTimeRanges,
       (chartId, loading) => setLoading(workspaceId, chartId, loading),
       (chartId, error) => setError(workspaceId, chartId, error),
       (chartId, data) => setData(workspaceId, chartId, data),
     );
-  }, [workspaceId, rootPath, timeRanges, setLoading, setError, setData]);
+  }, [workspaceId, rootPath, setLoading, setError, setData]);
 
   const pendingRef = useRef<Set<string>>(new Set());
   const handleRefreshChart = useCallback(
@@ -48,7 +41,8 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
       await Promise.resolve();
       setError(workspaceId, chartId, undefined);
       try {
-        const tr = timeRanges[chartId];
+        const latestTimeRanges = useAppStore.getState().gitVisTimeRange[workspaceId] || {};
+        const tr = latestTimeRanges[chartId];
         const data = await fetchChartData(
           bridge,
           workspaceId,
@@ -64,7 +58,7 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
         pendingRef.current.delete(chartId);
       }
     },
-    [workspaceId, rootPath, timeRanges, setLoading, setError, setData],
+    [workspaceId, rootPath, setLoading, setError, setData],
   );
 
   return { refreshWorkspace: handleRefreshWorkspace, refreshChart: handleRefreshChart } as const;
