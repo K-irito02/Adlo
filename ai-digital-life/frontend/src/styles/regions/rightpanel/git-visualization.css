@@ -910,3 +910,41 @@
     margin-left: var(--space-px);
   }
 }
+
+/* ── Year Selector Menu ── */
+.adl-git-vis__year-menu {
+  max-height: calc(5 * 28px + 8px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.adl-git-vis__year-menu::-webkit-scrollbar {
+  width: 6px;
+}
+.adl-git-vis__year-menu::-webkit-scrollbar-track {
+  background: transparent;
+}
+.adl-git-vis__year-menu::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 999px;
+}
+.adl-git-vis__year-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 4px 10px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  gap: 8px;
+  border-radius: 0;
+}
+.adl-git-vis__year-menu-item:hover {
+  background: var(--bg-hover);
+}
+.adl-git-vis__year-menu-item--active {
+  font-weight: 600;
+}

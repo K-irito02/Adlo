@@ -3,15 +3,21 @@ import { useTCopy } from '@i18n/useTCopy';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
 import { IconCheck, IconChevronRight, IconArrowLeft, IconArrowRight } from '@app/icons';
 import { MiniDatePicker } from './MiniDatePicker';
+import { useAppStore } from '@stores/slicedStore';
 
 interface TimeRangeSelectorProps {
   value: TimeRangeState;
   onChange: (range: TimeRangeState) => void;
+  mode?: 'preset' | 'year';
+  /** Only used when mode='year': bounds for year navigation */
+  yearBounds?: { min: number; max: number } | null;
 }
 
 export const TimeRangeSelector = React.memo(function TimeRangeSelector({
   value,
   onChange,
+  mode = 'preset',
+  yearBounds = null,
 }: TimeRangeSelectorProps) {
   const { t } = useTCopy();
 
@@ -142,6 +148,31 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
     [value, onChange],
   );
 
+  const showToast = useAppStore((s) => s.showToast);
+
+  const isYearMode = mode === 'year';
+  const currentYear = new Date().getFullYear();
+  const selectedYear = value.since ? parseInt(value.since.substring(0, 4)) : currentYear;
+  const minYear = yearBounds?.min ?? (currentYear - 10);
+  const maxYear = yearBounds?.max ?? currentYear;
+
+  const yearOptions: number[] = [];
+  for (let y = maxYear; y >= minYear; y--) {
+    yearOptions.push(y);
+  }
+
+  const handleYearChange = useCallback(
+    (year: number) => {
+      onChange({
+        preset: 'custom',
+        since: `${year}-01-01`,
+        until: `${year}-12-31`,
+      });
+      setOpen(false);
+    },
+    [onChange],
+  );
+
   const handleMouseEnterCustom = useCallback(() => {
     clearLeaveTimer();
     if (activeSubMenuId !== 'custom') {
@@ -200,9 +231,19 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
       <button
         type="button"
         className="adl-git-vis__timerange-btn adl-git-vis__timerange-nav"
-        onClick={() => handleStep(-1)}
-        title={t.gitVisTimePrev}
-        aria-label={t.gitVisTimePrev}
+        onClick={() => {
+          if (isYearMode) {
+            if (selectedYear <= minYear) {
+              showToast(t.gitVisCalendarYearEarliest, 'warning', 'calendar-year-nav');
+              return;
+            }
+            handleYearChange(selectedYear - 1);
+          } else {
+            handleStep(-1);
+          }
+        }}
+        title={isYearMode ? t.gitVisCalendarYearPrev : t.gitVisTimePrev}
+        aria-label={isYearMode ? t.gitVisCalendarYearPrev : t.gitVisTimePrev}
       >
         <IconArrowLeft size={12} decorative />
       </button>
@@ -211,130 +252,160 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
         className="adl-git-vis__timerange-btn adl-git-vis__timerange-label"
         onClick={() => setOpen(!open)}
       >
-        {getDisplayText()}
+        {isYearMode ? selectedYear : getDisplayText()}
       </button>
       {open && (
-        <div className="adl-git-vis__timerange-menu">
-          {PRESETS.map((p) =>
-            p.key === 'custom' ? (
-              <div
-                key={p.key}
-                role="menuitem"
-                tabIndex={0}
-                className={`adl-git-vis__timerange-menu-item adl-git-vis__timerange-menu-item--has-sub${value.preset === 'custom' ? ' adl-git-vis__timerange-menu-item--active' : ''}`}
-                onMouseEnter={handleMouseEnterCustom}
-                onMouseLeave={handleMouseLeaveCustom}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setActiveSubMenuId(activeSubMenuId === 'custom' ? null : 'custom');
-                  }
-                }}
-              >
-                <span>{p.label}</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  {value.preset === 'custom' && (
-                    <span className="adl-git-vis__timerange-menu-check">
-                      <IconCheck size={14} decorative />
-                    </span>
-                  )}
-                  <IconChevronRight size={12} decorative />
-                </span>
-                {activeSubMenuId === 'custom' && (
-                  <div
-                    className="adl-git-vis__timerange-subcard"
-                    onMouseEnter={handleMouseEnterSubCard}
-                  >
-                    <div className="adl-git-vis__timerange-subcard-row">
-                      <div className="adl-git-vis__timerange-subcard-field">
-                        <span className="adl-git-vis__timerange-subcard-field-label">
-                          {t.gitVisTimeStartDate}
-                        </span>
-                        <input
-                          type="text"
-                          className="adl-git-vis__timerange-date-input"
-                          value={customSince || ''}
-                          onChange={(e) => setCustomSince(e.target.value)}
-                          onFocus={handleOpenSincePicker}
-                          placeholder={t.gitVisTimeSelectDate}
-                        />
-                      </div>
-                      <div className="adl-git-vis__timerange-subcard-field">
-                        <span className="adl-git-vis__timerange-subcard-field-label">
-                          {t.gitVisTimeEndDate}
-                        </span>
-                        <input
-                          type="text"
-                          className="adl-git-vis__timerange-date-input"
-                          value={customUntil || ''}
-                          onChange={(e) => setCustomUntil(e.target.value)}
-                          onFocus={handleOpenUntilPicker}
-                          placeholder={t.gitVisTimeSelectDate}
-                        />
-                      </div>
-                      <div className="adl-git-vis__timerange-subcard-actions">
-                        <button
-                          type="button"
-                          className="adl-git-vis__timerange-subcard-btn adl-git-vis__timerange-subcard-btn--revert"
-                          onClick={handleRevert}
-                          disabled={!hasLastConfirmed}
-                        >
-                          {t.gitVisTimeRevert}
-                        </button>
-                        <button
-                          type="button"
-                          className="adl-git-vis__timerange-subcard-btn adl-git-vis__timerange-subcard-btn--confirm"
-                          onClick={handleCustomConfirm}
-                        >
-                          {t.gitVisTimeConfirm}
-                        </button>
-                      </div>
-                    </div>
-                    <div
-                      className={`adl-git-vis__date-picker-wrap${activeDateField ? ' is-open' : ''}`}
-                    >
-                      <MiniDatePicker
-                        key={activeDateField || 'hidden'}
-                        value={activeDateField === 'since' ? customSince : customUntil}
-                        onChange={(date) => {
-                          if (activeDateField === 'since') {
-                            setCustomSince(date);
-                          } else {
-                            setCustomUntil(date);
-                          }
-                        }}
-                        onClose={() => {
-                          setActiveDateField(null);
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
+        isYearMode ? (
+          <div className="adl-git-vis__timerange-menu adl-git-vis__year-menu">
+            {yearOptions.map((y) => (
               <button
-                key={p.key}
+                key={y}
                 type="button"
-                className={`adl-git-vis__timerange-menu-item${value.preset === p.key ? ' adl-git-vis__timerange-menu-item--active' : ''}`}
-                onClick={() => handlePreset(p.key as Exclude<TimeRangeState['preset'], 'custom'>)}
+                className={`adl-git-vis__year-menu-item${y === selectedYear ? ' adl-git-vis__year-menu-item--active' : ''}`}
+                onClick={() => handleYearChange(y)}
               >
-                <span>{p.label}</span>
-                {value.preset === p.key && (
+                <span>{y}</span>
+                {y === selectedYear && (
                   <span className="adl-git-vis__timerange-menu-check">
                     <IconCheck size={14} decorative />
                   </span>
                 )}
               </button>
-            ),
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="adl-git-vis__timerange-menu">
+            {PRESETS.map((p) =>
+              p.key === 'custom' ? (
+                <div
+                  key={p.key}
+                  role="menuitem"
+                  tabIndex={0}
+                  className={`adl-git-vis__timerange-menu-item adl-git-vis__timerange-menu-item--has-sub${value.preset === 'custom' ? ' adl-git-vis__timerange-menu-item--active' : ''}`}
+                  onMouseEnter={handleMouseEnterCustom}
+                  onMouseLeave={handleMouseLeaveCustom}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setActiveSubMenuId(activeSubMenuId === 'custom' ? null : 'custom');
+                    }
+                  }}
+                >
+                  <span>{p.label}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {value.preset === 'custom' && (
+                      <span className="adl-git-vis__timerange-menu-check">
+                        <IconCheck size={14} decorative />
+                      </span>
+                    )}
+                    <IconChevronRight size={12} decorative />
+                  </span>
+                  {activeSubMenuId === 'custom' && (
+                    <div
+                      className="adl-git-vis__timerange-subcard"
+                      onMouseEnter={handleMouseEnterSubCard}
+                    >
+                      <div className="adl-git-vis__timerange-subcard-row">
+                        <div className="adl-git-vis__timerange-subcard-field">
+                          <span className="adl-git-vis__timerange-subcard-field-label">
+                            {t.gitVisTimeStartDate}
+                          </span>
+                          <input
+                            type="text"
+                            className="adl-git-vis__timerange-date-input"
+                            value={customSince || ''}
+                            onChange={(e) => setCustomSince(e.target.value)}
+                            onFocus={handleOpenSincePicker}
+                            placeholder={t.gitVisTimeSelectDate}
+                          />
+                        </div>
+                        <div className="adl-git-vis__timerange-subcard-field">
+                          <span className="adl-git-vis__timerange-subcard-field-label">
+                            {t.gitVisTimeEndDate}
+                          </span>
+                          <input
+                            type="text"
+                            className="adl-git-vis__timerange-date-input"
+                            value={customUntil || ''}
+                            onChange={(e) => setCustomUntil(e.target.value)}
+                            onFocus={handleOpenUntilPicker}
+                            placeholder={t.gitVisTimeSelectDate}
+                          />
+                        </div>
+                        <div className="adl-git-vis__timerange-subcard-actions">
+                          <button
+                            type="button"
+                            className="adl-git-vis__timerange-subcard-btn adl-git-vis__timerange-subcard-btn--revert"
+                            onClick={handleRevert}
+                            disabled={!hasLastConfirmed}
+                          >
+                            {t.gitVisTimeRevert}
+                          </button>
+                          <button
+                            type="button"
+                            className="adl-git-vis__timerange-subcard-btn adl-git-vis__timerange-subcard-btn--confirm"
+                            onClick={handleCustomConfirm}
+                          >
+                            {t.gitVisTimeConfirm}
+                          </button>
+                        </div>
+                      </div>
+                      <div
+                        className={`adl-git-vis__date-picker-wrap${activeDateField ? ' is-open' : ''}`}
+                      >
+                        <MiniDatePicker
+                          key={activeDateField || 'hidden'}
+                          value={activeDateField === 'since' ? customSince : customUntil}
+                          onChange={(date) => {
+                            if (activeDateField === 'since') {
+                              setCustomSince(date);
+                            } else {
+                              setCustomUntil(date);
+                            }
+                          }}
+                          onClose={() => {
+                            setActiveDateField(null);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  key={p.key}
+                  type="button"
+                  className={`adl-git-vis__timerange-menu-item${value.preset === p.key ? ' adl-git-vis__timerange-menu-item--active' : ''}`}
+                  onClick={() => handlePreset(p.key as Exclude<TimeRangeState['preset'], 'custom'>)}
+                >
+                  <span>{p.label}</span>
+                  {value.preset === p.key && (
+                    <span className="adl-git-vis__timerange-menu-check">
+                      <IconCheck size={14} decorative />
+                    </span>
+                  )}
+                </button>
+              ),
+            )}
+          </div>
+        )
       )}
       <button
         type="button"
         className="adl-git-vis__timerange-btn adl-git-vis__timerange-nav"
-        onClick={() => handleStep(1)}
-        title={t.gitVisTimeNext}
-        aria-label={t.gitVisTimeNext}
+        onClick={() => {
+          if (isYearMode) {
+            if (selectedYear >= maxYear) {
+              showToast(t.gitVisCalendarYearLatest, 'warning', 'calendar-year-nav');
+              return;
+            }
+            handleYearChange(selectedYear + 1);
+          } else {
+            handleStep(1);
+          }
+        }}
+        title={isYearMode ? t.gitVisCalendarYearNext : t.gitVisTimeNext}
+        aria-label={isYearMode ? t.gitVisCalendarYearNext : t.gitVisTimeNext}
       >
         <IconArrowRight size={12} decorative />
       </button>
