@@ -73,6 +73,22 @@ pub const MIGRATIONS: &[Migration] = &[
             );
         "#,
     },
+    Migration {
+        version: 5,
+        description: "Add until_year to git_vis_cache for range-aware caching",
+        sql: r#"
+            DROP TABLE IF EXISTS git_vis_cache;
+            CREATE TABLE git_vis_cache (
+                root_path TEXT NOT NULL,
+                since_year INTEGER NOT NULL CHECK(since_year >= 1900 AND since_year <= 3000),
+                until_year INTEGER NOT NULL CHECK(until_year >= 1900 AND until_year <= 3000),
+                chart_type TEXT NOT NULL,
+                data TEXT NOT NULL,
+                cached_at TEXT NOT NULL DEFAULT (datetime('now')),
+                PRIMARY KEY (root_path, since_year, until_year, chart_type)
+            );
+        "#,
+    },
 ];
 
 pub fn current_version(db: &Database) -> Result<i64, AppError> {
@@ -148,7 +164,7 @@ mod tests {
         let result = run_pending(&db);
         assert!(result.is_ok());
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 4);
+        assert_eq!(version, 5);
         let _ = std::fs::remove_file(&path);
     }
 
@@ -162,13 +178,13 @@ mod tests {
         run_pending(&db).unwrap();
         run_pending(&db).unwrap();
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 4);
+        assert_eq!(version, 5);
         let _ = std::fs::remove_file(&path);
     }
 
     #[test]
     fn migration_records_have_correct_structure() {
-        assert_eq!(MIGRATIONS.len(), 4);
+        assert_eq!(MIGRATIONS.len(), 5);
         let m1 = &MIGRATIONS[0];
         assert_eq!(m1.version, 1);
         assert_eq!(m1.description, "Initial schema");
@@ -186,5 +202,10 @@ mod tests {
         assert_eq!(m4.version, 4);
         assert_eq!(m4.description, "Add git_vis_cache table for visualization data caching");
         assert!(m4.sql.contains("git_vis_cache"));
+        let m5 = &MIGRATIONS[4];
+        assert_eq!(m5.version, 5);
+        assert_eq!(m5.description, "Add until_year to git_vis_cache for range-aware caching");
+        assert!(m5.sql.contains("since_year"));
+        assert!(m5.sql.contains("until_year"));
     }
 }

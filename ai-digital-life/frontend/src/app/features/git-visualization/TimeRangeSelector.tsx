@@ -160,9 +160,13 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
   const triggerLoadThenSuccess = useCallback(async (action: () => unknown) => {
     if (buttonAnimRef.current !== 'idle') return;
     setButtonAnim('loading');
-    const result = action();
-    if (result instanceof Promise) {
-      await result;
+    try {
+      const result = action();
+      if (result instanceof Promise) {
+        await result;
+      }
+    } catch {
+      // refresh failed — reset button state
     }
     if (buttonAnimRef.current === 'loading') {
       setButtonAnim('success');

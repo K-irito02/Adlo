@@ -172,20 +172,20 @@ mod tests {
 
         // Insert cache row for target workspace
         db.execute(
-            "INSERT INTO git_vis_cache (root_path, year, chart_type, data) VALUES (?1, ?2, ?3, ?4)",
-            &[&"/tmp/ws-gvc" as &dyn rusqlite::types::ToSql, &2025i64, &"commits", &"{}"],
+            "INSERT INTO git_vis_cache (root_path, since_year, until_year, chart_type, data) VALUES (?1, ?2, ?3, ?4, ?5)",
+            &[&"/tmp/ws-gvc" as &dyn rusqlite::types::ToSql, &2025i64, &2025i64, &"commits", &"{}"],
         )
         .unwrap();
         // Insert second cache row for target (different year)
         db.execute(
-            "INSERT INTO git_vis_cache (root_path, year, chart_type, data) VALUES (?1, ?2, ?3, ?4)",
-            &[&"/tmp/ws-gvc" as &dyn rusqlite::types::ToSql, &2026i64, &"commits", &"{}"],
+            "INSERT INTO git_vis_cache (root_path, since_year, until_year, chart_type, data) VALUES (?1, ?2, ?3, ?4, ?5)",
+            &[&"/tmp/ws-gvc" as &dyn rusqlite::types::ToSql, &2026i64, &2026i64, &"commits", &"{}"],
         )
         .unwrap();
         // Insert control row for a different root_path (must NOT be deleted)
         db.execute(
-            "INSERT INTO git_vis_cache (root_path, year, chart_type, data) VALUES (?1, ?2, ?3, ?4)",
-            &[&"/tmp/other" as &dyn rusqlite::types::ToSql, &2025i64, &"commits", &"{}"],
+            "INSERT INTO git_vis_cache (root_path, since_year, until_year, chart_type, data) VALUES (?1, ?2, ?3, ?4, ?5)",
+            &[&"/tmp/other" as &dyn rusqlite::types::ToSql, &2025i64, &2025i64, &"commits", &"{}"],
         )
         .unwrap();
 

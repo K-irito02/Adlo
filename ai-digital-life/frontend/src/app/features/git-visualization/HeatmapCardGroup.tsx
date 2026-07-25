@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
@@ -80,18 +80,32 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
 
   const currentRange = tabRangesRef.current[activeHeatmapTab];
 
+  // Sync store with ref on mount so initial data fetch uses saved ranges
+  useEffect(() => {
+    setGitVisTimeRange(activeWorkspaceTab, CHART_IDS.HEATMAP, tabRangesRef.current[activeHeatmapTab]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const tabChangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleTabChange = useCallback(
     (tab: HeatmapTab) => {
+      if (tabChangeTimerRef.current) {
+        clearTimeout(tabChangeTimerRef.current);
+      }
       const tabRange = tabRangesRef.current[tab];
       setGitVisTimeRange(activeWorkspaceTab, CHART_IDS.HEATMAP, tabRange);
       setActiveHeatmapTab(tab);
-      setTimeout(() => onRefreshRef.current?.(), 0);
+      tabChangeTimerRef.current = setTimeout(() => onRefreshRef.current?.(), 0);
     },
     [activeWorkspaceTab, setGitVisTimeRange, setActiveHeatmapTab],
   );
 
   const persistTabRanges = useCallback(() => {
-    writeJson(TAB_TIME_RANGE_KEY, tabRangesRef.current);
+    try {
+      writeJson(TAB_TIME_RANGE_KEY, tabRangesRef.current);
+    } catch {
+      // localStorage write failure is non-critical
+    }
   }, []);
 
   const handleTimeRangeChange = useCallback(

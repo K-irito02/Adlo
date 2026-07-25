@@ -15,7 +15,7 @@ pub(crate) async fn with_cached<T, F, Fut>(
     db: &Database,
     root_path: &str,
     since: Option<&str>,
-    _until: Option<&str>,
+    until: Option<&str>,
     chart_type: &str,
     fetcher: F,
 ) -> Result<T, AppError>
@@ -24,22 +24,23 @@ where
     F: FnOnce() -> Fut,
     Fut: Future<Output = Result<T, AppError>>,
 {
-    if let Some(s) = since {
-        if let Some(year) = extract_year(s) {
-            if is_historical_year(year) {
-                if let Some(cached) = read_cached_chart::<T>(db, root_path, year, chart_type)? {
-                    return Ok(cached);
-                }
+    let since_year = since.and_then(extract_year);
+    let until_year = until.and_then(extract_year);
+
+    if let (Some(sy), Some(uy)) = (since_year, until_year) {
+        if is_historical_year(sy) {
+            if let Some(cached) = read_cached_chart::<T>(db, root_path, sy, uy, chart_type)? {
+                return Ok(cached);
             }
         }
     }
 
     let data = fetcher().await?;
 
-    if let Some(s) = since {
-        if let Some(year) = extract_year(s) {
-            if is_historical_year(year) {
-                let _ = cache_chart_data(db, root_path, year, chart_type, &data);
+    if let (Some(sy), Some(uy)) = (since_year, until_year) {
+        if is_historical_year(sy) {
+            if let Err(e) = cache_chart_data(db, root_path, sy, uy, chart_type, &data) {
+                tracing::warn!("[ADL-CACHE] failed to write cache: {e}");
             }
         }
     }
@@ -50,18 +51,19 @@ where
 pub(crate) fn read_cached_chart<T: DeserializeOwned>(
     db: &Database,
     root_path: &str,
-    year: i32,
+    since_year: i32,
+    until_year: i32,
     chart_type: &str,
 ) -> Result<Option<T>, AppError> {
     let conn = db.conn()?;
     let mut stmt = conn
         .prepare_cached(
-            "SELECT data FROM git_vis_cache WHERE root_path = ?1 AND year = ?2 AND chart_type = ?3",
+            "SELECT data FROM git_vis_cache WHERE root_path = ?1 AND since_year = ?2 AND until_year = ?3 AND chart_type = ?4",
         )
         .map_err(|e| AppError::Storage(e.to_string()))?;
 
     let result: Option<String> = stmt
-        .query_row(rusqlite::params![root_path, year, chart_type], |row| row.get(0))
+        .query_row(rusqlite::params![root_path, since_year, until_year, chart_type], |row| row.get(0))
         .map_err(|e| AppError::Storage(e.to_string()))
         .ok();
 
@@ -76,15 +78,16 @@ pub(crate) fn read_cached_chart<T: DeserializeOwned>(
 pub(crate) fn cache_chart_data<T: Serialize>(
     db: &Database,
     root_path: &str,
-    year: i32,
+    since_year: i32,
+    until_year: i32,
     chart_type: &str,
     data: &T,
 ) -> Result<(), AppError> {
     let json = serde_json::to_string(data)
         .map_err(|e| AppError::Internal(format!("cache serialize: {e}")))?;
     db.execute(
-        "INSERT OR REPLACE INTO git_vis_cache (root_path, year, chart_type, data) VALUES (?1, ?2, ?3, ?4)",
-        &[&root_path.to_string(), &year.to_string(), &chart_type.to_string(), &json],
+        "INSERT OR REPLACE INTO git_vis_cache (root_path, since_year, until_year, chart_type, data) VALUES (?1, ?2, ?3, ?4, ?5)",
+        &[&root_path.to_string(), &since_year.to_string(), &until_year.to_string(), &chart_type.to_string(), &json],
     )?;
     Ok(())
 }
