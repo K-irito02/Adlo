@@ -87,7 +87,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     (range: TimeRangeState) => {
       tabRangesRef.current[activeHeatmapTab] = range;
       setGitVisTimeRange(activeWorkspaceTab, CHART_IDS.HEATMAP, range);
-      onRefresh?.();
+      return onRefresh?.();
     },
     [activeHeatmapTab, activeWorkspaceTab, setGitVisTimeRange, onRefresh],
   );

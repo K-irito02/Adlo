@@ -8,7 +8,7 @@ import { useAppStore } from '@stores/slicedStore';
 
 interface TimeRangeSelectorProps {
   value: TimeRangeState;
-  onChange: (range: TimeRangeState) => void;
+  onChange: (range: TimeRangeState) => void | Promise<unknown>;
   mode?: 'preset' | 'year';
   /** Only used when mode='year': bounds for year navigation */
   yearBounds?: { min: number; max: number } | null;
@@ -145,22 +145,30 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
   const showToast = useAppStore((s) => s.showToast);
 
   const [buttonAnim, setButtonAnim] = useState<'idle' | 'loading' | 'success'>('idle');
-  const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
-  const heatmapLoading = useAppStore((s) => s.gitVisLoading?.[activeWorkspaceTab]?.['heatmap']);
-  const prevLoadingRef = useRef(heatmapLoading);
+  const buttonAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const buttonAnimRef = useRef(buttonAnim);
+  buttonAnimRef.current = buttonAnim;
 
   useEffect(() => {
-    if (buttonAnim !== 'loading') {
-      prevLoadingRef.current = heatmapLoading;
-      return;
+    return () => {
+      if (buttonAnimTimerRef.current) {
+        clearTimeout(buttonAnimTimerRef.current);
+      }
+    };
+  }, []);
+
+  const triggerLoadThenSuccess = useCallback(async (action: () => unknown) => {
+    if (buttonAnimRef.current !== 'idle') return;
+    setButtonAnim('loading');
+    const result = action();
+    if (result instanceof Promise) {
+      await result;
     }
-    if (prevLoadingRef.current === true && heatmapLoading === false) {
+    if (buttonAnimRef.current === 'loading') {
       setButtonAnim('success');
-      const timer = setTimeout(() => setButtonAnim('idle'), 1500);
-      return () => clearTimeout(timer);
+      buttonAnimTimerRef.current = setTimeout(() => setButtonAnim('idle'), 1500);
     }
-    prevLoadingRef.current = heatmapLoading;
-  }, [heatmapLoading, buttonAnim]);
+  }, []);
 
   const handleStep = useCallback(
     (direction: -1 | 1) => {
@@ -256,30 +264,24 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
     setActiveDateField('until');
   }, []);
 
-  const startButtonLoading = useCallback(() => {
-    setButtonAnim('loading');
-  }, []);
-
   const handleCustomConfirm = useCallback(() => {
     const since = customSinceRef.current;
     const until = customUntilRef.current;
     if (since && until && since <= until) {
       lastConfirmedRef.current = { since, until };
       setHasLastConfirmed(true);
-      startButtonLoading();
-      onChange({ preset: 'custom', since, until });
+      triggerLoadThenSuccess(() => onChange({ preset: 'custom', since, until }));
     }
-  }, [onChange, startButtonLoading]);
+  }, [onChange, triggerLoadThenSuccess]);
 
   const handleRevert = useCallback(() => {
     const last = lastConfirmedRef.current;
     if (last) {
       updateCustomSince(last.since);
       updateCustomUntil(last.until);
-      startButtonLoading();
-      onChange({ preset: 'custom', since: last.since, until: last.until });
+      triggerLoadThenSuccess(() => onChange({ preset: 'custom', since: last.since, until: last.until }));
     }
-  }, [onChange, updateCustomSince, updateCustomUntil, startButtonLoading]);
+  }, [onChange, updateCustomSince, updateCustomUntil, triggerLoadThenSuccess]);
 
   return (
     <div
@@ -412,14 +414,14 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
                             disabled={buttonAnim === 'loading'}
                           >
                             {buttonAnim === 'loading' ? (
-                              <motion.span style={{ display: 'inline-flex', alignItems: 'center' }}>
-                                <motion.svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                                  animate={{ rotate: 360 }}
-                                  transition={{ repeat: Number.POSITIVE_INFINITY, duration: 0.8, ease: 'linear' }}
-                                  style={{ transformOrigin: '12px 12px' }}
-                                >
+                              <motion.span
+                                style={{ display: 'inline-flex', alignItems: 'center' }}
+                                animate={{ rotate: 360 }}
+                                transition={{ repeat: Number.POSITIVE_INFINITY, duration: 0.8, ease: 'linear' }}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                                </motion.svg>
+                                </svg>
                               </motion.span>
                             ) : buttonAnim === 'success' ? (
                               <IconCheck size={16} decorative />
