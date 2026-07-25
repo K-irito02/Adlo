@@ -39,9 +39,17 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
   const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastConfirmedRef = useRef<{ since: string; until: string } | null>(null);
   const customSinceRef = useRef(customSince);
-  customSinceRef.current = customSince;
   const customUntilRef = useRef(customUntil);
-  customUntilRef.current = customUntil;
+
+  const updateCustomSince = useCallback((val: string) => {
+    setCustomSince(val);
+    customSinceRef.current = val;
+  }, []);
+
+  const updateCustomUntil = useCallback((val: string) => {
+    setCustomUntil(val);
+    customUntilRef.current = val;
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -205,11 +213,11 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
   const handleMouseEnterCustom = useCallback(() => {
     clearLeaveTimer();
     if (activeSubMenuId !== 'custom') {
-      setCustomSince(value.since || '');
-      setCustomUntil(value.until || '');
+      updateCustomSince(value.since || '');
+      updateCustomUntil(value.until || '');
     }
     setActiveSubMenuId('custom');
-  }, [clearLeaveTimer, value, activeSubMenuId]);
+  }, [clearLeaveTimer, value, activeSubMenuId, updateCustomSince, updateCustomUntil]);
 
   const handleMouseLeaveCustom = useCallback(() => {
     leaveTimerRef.current = setTimeout(() => {
@@ -242,11 +250,11 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
   const handleRevert = useCallback(() => {
     const last = lastConfirmedRef.current;
     if (last) {
-      setCustomSince(last.since);
-      setCustomUntil(last.until);
+      updateCustomSince(last.since);
+      updateCustomUntil(last.until);
       onChange({ preset: 'custom', since: last.since, until: last.until });
     }
-  }, [onChange]);
+  }, [onChange, updateCustomSince, updateCustomUntil]);
 
   return (
     <div
@@ -345,7 +353,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
                             type="text"
                             className="adl-git-vis__timerange-date-input"
                             value={customSince || ''}
-                            onChange={(e) => setCustomSince(e.target.value)}
+                            onChange={(e) => updateCustomSince(e.target.value)}
                             onFocus={handleOpenSincePicker}
                             placeholder={t.gitVisTimeSelectDate}
                           />
@@ -358,7 +366,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
                             type="text"
                             className="adl-git-vis__timerange-date-input"
                             value={customUntil || ''}
-                            onChange={(e) => setCustomUntil(e.target.value)}
+                            onChange={(e) => updateCustomUntil(e.target.value)}
                             onFocus={handleOpenUntilPicker}
                             placeholder={t.gitVisTimeSelectDate}
                           />
@@ -389,9 +397,9 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
                           value={activeDateField === 'since' ? customSince : customUntil}
                           onChange={(date) => {
                             if (activeDateField === 'since') {
-                              setCustomSince(date);
+                              updateCustomSince(date);
                             } else {
-                              setCustomUntil(date);
+                              updateCustomUntil(date);
                             }
                           }}
                           onClose={() => {
