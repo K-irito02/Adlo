@@ -333,15 +333,6 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
               | { matrix: { author: string; authorEmail: string; modules: { module: string; count: number }[] }[] }
               | undefined)?.matrix
           }
-          timeRange={heatmapData.timeRange}
-          onTimeRangeChange={(range) => {
-            heatmapData.setTimeRange(range);
-            if (contributorModulesData.timeRange) {
-              contributorModulesData.setTimeRange(range);
-            }
-            handleRefreshHeatmap();
-            handleRefreshContributorModules();
-          }}
           yearBounds={yearBounds}
         />
         <TimeRangeAwareCard

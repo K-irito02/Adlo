@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useCallback, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { CopyKey } from '@i18n/types';
 import type { HeatmapTab } from '@stores/slices/uiSliceTypes';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
+import { defaultTimeRange } from '@stores/slices/gitVisSlice';
 import type { RawCommitStats } from './adapters/chartDataAdapters';
 import { HeatmapInteractionProvider, HeatmapLegend } from '@/components/charts/heatmap';
 import { CalendarHeatmap } from './charts/CalendarHeatmap';
@@ -13,6 +14,7 @@ import { ContributorActivityHeatmap } from './charts/ContributorActivityHeatmap'
 import { ContributorModuleHeatmap } from './charts/ContributorModuleHeatmap';
 import { RefreshButton } from './RefreshButton';
 import { TimeRangeSelector } from './TimeRangeSelector';
+import { CHART_IDS } from './chartIds';
 
 const TABS: { id: HeatmapTab; titleKey: CopyKey }[] = [
   { id: 'calendar', titleKey: 'gitVisHeatmapTabCalendar' },
@@ -39,8 +41,6 @@ interface HeatmapCardGroupProps {
   onRefresh?: () => Promise<void>;
   commitStats?: RawCommitStats;
   contributorModules?: { author: string; authorEmail: string; modules: { module: string; count: number }[] }[];
-  timeRange?: TimeRangeState;
-  onTimeRangeChange?: (range: TimeRangeState) => void;
   yearBounds?: { min: number; max: number } | null;
 }
 
@@ -48,17 +48,42 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
   onRefresh,
   commitStats,
   contributorModules,
-  timeRange,
-  onTimeRangeChange,
   yearBounds,
 }: HeatmapCardGroupProps) {
   const { t } = useTCopy();
+  const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
+  const setGitVisTimeRange = useAppStore((s) => s.setGitVisTimeRange);
 
   const { activeHeatmapTab, setActiveHeatmapTab } = useAppStore(
     useShallow((s) => ({
       activeHeatmapTab: s.activeHeatmapTab,
       setActiveHeatmapTab: s.setActiveHeatmapTab,
     })),
+  );
+
+  const tabRangesRef = useRef<Record<HeatmapTab, TimeRangeState>>({
+    calendar: defaultTimeRange(),
+    clock: defaultTimeRange(),
+    activity: defaultTimeRange(),
+    module: defaultTimeRange(),
+  });
+
+  const currentRange = tabRangesRef.current[activeHeatmapTab];
+
+  const handleTabChange = useCallback(
+    (tab: HeatmapTab) => {
+      setActiveHeatmapTab(tab);
+    },
+    [setActiveHeatmapTab],
+  );
+
+  const handleTimeRangeChange = useCallback(
+    (range: TimeRangeState) => {
+      tabRangesRef.current[activeHeatmapTab] = range;
+      setGitVisTimeRange(activeWorkspaceTab, CHART_IDS.HEATMAP, range);
+      onRefresh?.();
+    },
+    [activeHeatmapTab, activeWorkspaceTab, setGitVisTimeRange, onRefresh],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -76,7 +101,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
       return;
     }
     e.preventDefault();
-    setActiveHeatmapTab(TABS[next].id);
+    handleTabChange(TABS[next].id);
     document.getElementById(`heatmap-tab-${TABS[next].id}`)?.focus();
   };
 
@@ -85,14 +110,12 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
       <div className="adl-git-vis__card-header">
         {onRefresh && <RefreshButton onRefresh={onRefresh} label={t.gitVisRefreshChart} />}
         <h3 className="adl-git-vis__card-title">{t[TITLE_KEYS[activeHeatmapTab]]}</h3>
-        {timeRange && onTimeRangeChange && (
-          <TimeRangeSelector
-            value={timeRange}
-            onChange={onTimeRangeChange}
-            mode={activeHeatmapTab === 'calendar' ? 'year' : 'preset'}
-            yearBounds={yearBounds ?? undefined}
-          />
-        )}
+        <TimeRangeSelector
+          value={currentRange}
+          onChange={handleTimeRangeChange}
+          mode={activeHeatmapTab === 'calendar' ? 'year' : 'preset'}
+          yearBounds={yearBounds ?? undefined}
+        />
       </div>
       <nav
         className="adl-git-vis__heatmap-nav"
@@ -108,7 +131,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
             className={`adl-git-vis__heatmap-tab${activeHeatmapTab === tab.id ? ' adl-git-vis__heatmap-tab--active' : ''}`}
             aria-selected={activeHeatmapTab === tab.id}
             aria-controls="heatmap-tabpanel"
-            onClick={() => setActiveHeatmapTab(tab.id)}
+            onClick={() => handleTabChange(tab.id)}
           >
             {t[tab.titleKey]}
           </button>
@@ -125,8 +148,8 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
             <CalendarHeatmap
               data={commitStats?.dailyCommits}
               year={
-                timeRange?.since && timeRange.since.length >= 4
-                  ? parseInt(timeRange.since.substring(0, 4), 10) || undefined
+                currentRange.since && currentRange.since.length >= 4
+                  ? parseInt(currentRange.since.substring(0, 4), 10) || undefined
                   : undefined
               }
             />

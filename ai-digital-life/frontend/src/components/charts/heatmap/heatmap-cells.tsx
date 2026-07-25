@@ -427,7 +427,7 @@ export const HeatmapCells = memo(function HeatmapCells({
       setHoveredLegendLevel(null);
       setHoveredCell({ column, row });
 
-      if (!bin.date) {
+      if (bin.count === -1) {
         return;
       }
 
