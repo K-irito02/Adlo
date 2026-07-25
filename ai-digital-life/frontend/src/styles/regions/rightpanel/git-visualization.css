@@ -766,9 +766,10 @@
   gap: 1px;
 }
 .adl-git-vis__timerange-subcard-btn {
-  flex: 1;
+  flex: 0 0 auto;
+  width: 60px;
   font-size: 11px;
-  padding: 4px 8px;
+  padding: 4px 6px;
   border-radius: 0;
   border: none;
   background: var(--surface-subtle);
@@ -777,7 +778,6 @@
   line-height: 1.4;
   white-space: nowrap;
   text-align: center;
-  min-width: 52px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
