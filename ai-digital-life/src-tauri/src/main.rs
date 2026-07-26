@@ -117,6 +117,7 @@ fn main() {
             commands::workspace::workspace_create_file,
             commands::workspace::workspace_create_folder,
             commands::workspace::workspace_read_file,
+            commands::workspace::workspace_write_file,
             commands::workspace::workspace_get_change_preview,
             commands::workspace::workspace_list_tree,
             commands::workspace::workspace_search,

@@ -203,6 +203,14 @@ export function createPreviewWorkspaceBridge(
         method: 'POST',
         body: JSON.stringify({ path: workspacePath }),
       }),
+    writeFile: async (relativePath: string, content: string) => {
+      try {
+        localStorage.setItem(`workspace-file:${relativePath}`, content);
+        return { ok: true as const, data: { path: relativePath, content, lastModifiedAt: new Date().toISOString() } };
+      } catch {
+        return { ok: false as const, error: 'Failed to write file in preview mode' };
+      }
+    },
     createFile: (relativePath: string, content = '') =>
       withWorkspace<WorkspaceFileDocument, [string, string]>(async (rootPath, rp, c) =>
         requestPreviewApi<WorkspaceFileDocument>('/workspace/create-file', {
