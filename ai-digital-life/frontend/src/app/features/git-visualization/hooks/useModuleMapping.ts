@@ -59,13 +59,18 @@ export function useModuleMapping(activeWorkspaceTab: string): UseModuleMappingRe
   }, [activeWorkspaceTab]);
 
   const saveRules = useCallback(async (newRules: MappingRule[]) => {
-    const config: ModuleMappingConfig = {
-      version: 1,
-      rules: newRules,
-      options: DEFAULT_MAPPING_OPTIONS,
-    };
-    await writeMappingConfig(activeWorkspaceTab, config);
-    setRules(newRules);
+    try {
+      const config: ModuleMappingConfig = {
+        version: 1,
+        rules: newRules,
+        options: DEFAULT_MAPPING_OPTIONS,
+      };
+      await writeMappingConfig(activeWorkspaceTab, config);
+      setRules(newRules);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e : new Error('Failed to save mapping config'));
+    }
   }, [activeWorkspaceTab]);
 
   const resetToDefault = useCallback(async () => {

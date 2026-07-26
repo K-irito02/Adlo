@@ -186,7 +186,7 @@ export function applyModuleMapping(
     const aLen = a.path.length;
     const bLen = b.path.length;
     if (aLen !== bLen) return bLen - aLen;
-    return 0;
+    return rules.indexOf(a) - rules.indexOf(b);
   });
 
   const matchRule = (moduleName: string): string | null => {

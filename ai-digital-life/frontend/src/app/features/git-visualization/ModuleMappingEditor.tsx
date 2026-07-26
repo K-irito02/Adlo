@@ -145,6 +145,7 @@ export const ModuleMappingEditor = React.memo(function ModuleMappingEditor({
   const handleAddModule = useCallback(() => {
     const name = newModuleName.trim();
     if (!name || definedModules.has(name)) return;
+    setRules((prev) => [...prev, { path: '', module: name, type: 'glob' }]);
     setNewModuleName('');
   }, [newModuleName, definedModules]);
 
