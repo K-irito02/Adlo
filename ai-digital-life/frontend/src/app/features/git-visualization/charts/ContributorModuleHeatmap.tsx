@@ -138,19 +138,19 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
 
   const { labelTop, marginTop } = useMemo(() => {
     if (colCount === 0) {
-      return { labelTop: 0, marginTop: 28 };
+      return { labelTop: 0, marginTop: 24 };
     }
     const maxLabelLen = columns.reduce((max, col) => {
       const len = (col.columnLabel ?? '').length;
       return len > max ? len : max;
     }, 0);
     if (maxLabelLen === 0) {
-      return { labelTop: 0, marginTop: 28 };
+      return { labelTop: 0, marginTop: 24 };
     }
     const maxTextWidth = maxLabelLen * 7.5;
     const upwardExtent = Math.ceil(maxTextWidth * Math.abs(Math.sin((Math.PI * 45) / 180)));
     const top = upwardExtent + 4;
-    const margin = top + 20;
+    const margin = top + 24;
     return { labelTop: top, marginTop: margin };
   }, [columns, colCount]);
 
