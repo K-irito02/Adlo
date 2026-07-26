@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTCopy } from '@i18n/useTCopy';
+import { IconFoldVertical, IconXCircle } from '@icons';
 import { TreeRow } from '../file-tree/TreeRow';
 import type { ModuleTreeNode } from './moduleTreeUtils';
 import '@/styles/components/module-tree-card.css';
@@ -82,23 +83,31 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
     });
   }, []);
 
+  const toggleExpandAll = useCallback(() => {
+    const allPaths = new Set(collectAllPaths(subtree));
+    setExpanded((prev) => (prev.size === allPaths.size ? new Set() : allPaths));
+  }, [subtree]);
+
+  const allExpanded = useMemo(() => {
+    const allPaths = new Set(collectAllPaths(subtree));
+    return allPaths.size > 0 && allPaths.size === expanded.size;
+  }, [subtree, expanded]);
+
   const handleRowActivate = useCallback(
     (path: string, isDir: boolean) => {
-      setSelectedPath(path);
+      setSelectedPath(path === selectedPath ? null : path);
       if (isDir) {
         toggleExpand(path);
       }
     },
-    [toggleExpand],
+    [toggleExpand, selectedPath],
   );
 
-  const expandAll = useCallback(() => {
-    const allPaths = new Set(collectAllPaths(subtree));
-    setExpanded(allPaths);
-  }, [subtree]);
-
-  const collapseAll = useCallback(() => {
-    setExpanded(new Set());
+  const handleAreaClick = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('[data-path]')) {
+      setSelectedPath(null);
+    }
   }, []);
 
   const handleMouseOver = useCallback((e: React.MouseEvent<HTMLUListElement>) => {
@@ -119,6 +128,30 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
   }, []);
 
   const flatNodes = flattenVisible(subtree, expanded);
+
+  const trunkHeightMap: Record<string, number> = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (let i = 0; i < flatNodes.length; i++) {
+      const { node, depth } = flatNodes[i];
+      if (!node.isDir || !expanded.has(node.path)) {
+        map[node.path] = 0;
+        continue;
+      }
+      let lastDescendantIdx = i;
+      for (let j = i + 1; j < flatNodes.length; j++) {
+        if (flatNodes[j].depth <= depth) {
+          break;
+        }
+        lastDescendantIdx = j;
+      }
+      if (i === lastDescendantIdx) {
+        map[node.path] = 0;
+      } else {
+        map[node.path] = (lastDescendantIdx - i) * 28 + 28;
+      }
+    }
+    return map;
+  }, [flatNodes, expanded]);
 
   const hoveredDescendantPaths: Set<string> | undefined = useMemo(() => {
     if (!hoveredPath) {
@@ -149,22 +182,26 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
   return createPortal(
     <div className="adl-module-tree-card" ref={cardRef} style={cardStyle}>
       <div className="adl-module-tree-card__header">
-        <button
-          className="adl-module-tree-card__header-btn"
-          onClick={expandAll}
-          title={t.gitVisModuleExpandAll}
-        >
-          {t.gitVisModuleExpandAll}
-        </button>
-        <button
-          className="adl-module-tree-card__header-btn"
-          onClick={collapseAll}
-          title={t.gitVisModuleCollapseAll}
-        >
-          {t.gitVisModuleCollapseAll}
-        </button>
+        <div className="adl-module-tree-card__header-left">
+          <button
+            className="adl-module-tree-card__icon-btn"
+            onClick={toggleExpandAll}
+            title={allExpanded ? t.gitVisModuleCollapseAll : t.gitVisModuleExpandAll}
+          >
+            <IconFoldVertical size={14} decorative />
+          </button>
+        </div>
+        <div className="adl-module-tree-card__header-right">
+          <button
+            className="adl-module-tree-card__icon-btn"
+            onClick={onClose}
+            title={t.gitVisModuleClose}
+          >
+            <IconXCircle size={14} decorative />
+          </button>
+        </div>
       </div>
-      <div className="adl-module-tree-card__tree">
+      <div className="adl-module-tree-card__tree" onClick={handleAreaClick}>
         <ul
           className="adl-filetree adl-tree-root"
           role="tree"
@@ -184,15 +221,17 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
               isHoveredByAncestor={hoveredDescendantPaths?.has(node.path) ?? false}
               onToggle={() => toggleExpand(node.path)}
               onActivate={() => handleRowActivate(node.path, node.isDir)}
+              style={
+                {
+                  '--adl-trunk-height': `${trunkHeightMap[node.path] ?? 28}px`,
+                } as React.CSSProperties
+              }
             />
           ))}
         </ul>
       </div>
       <div className="adl-module-tree-card__actions">
-        <button
-          className="adl-module-tree-card__btn adl-module-tree-card__btn--cancel"
-          onClick={onClose}
-        >
+        <button className="adl-module-tree-card__btn" onClick={onClose}>
           {t.gitVisModuleCancel}
         </button>
         <button

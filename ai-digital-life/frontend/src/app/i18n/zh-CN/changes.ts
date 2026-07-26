@@ -192,10 +192,12 @@ export const changesZh = {
   gitVisModuleRoot: '根目录',
   gitVisModuleExpandAll: '展开全部',
   gitVisModuleCollapseAll: '折叠全部',
+  gitVisModuleClose: '关闭',
   gitVisModuleConfirm: '确认跳转',
   gitVisModuleCancel: '取消',
   gitVisBreadcrumbNav: '模块路径导航',
   gitVisFileNotClickable: '文件不支持下钻',
 } as const;
+
 
 

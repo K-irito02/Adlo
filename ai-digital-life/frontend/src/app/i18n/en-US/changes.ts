@@ -192,6 +192,7 @@ export const changesEn = {
   gitVisModuleRoot: 'Root',
   gitVisModuleExpandAll: 'Expand All',
   gitVisModuleCollapseAll: 'Collapse All',
+  gitVisModuleClose: 'Close',
   gitVisModuleConfirm: 'Confirm',
   gitVisModuleCancel: 'Cancel',
   gitVisBreadcrumbNav: 'Module breadcrumb',

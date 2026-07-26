@@ -16,6 +16,7 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisModuleConfirm: 'Confirm',
       gitVisModuleExpandAll: 'Expand All',
       gitVisModuleCollapseAll: 'Collapse All',
+      gitVisModuleClose: 'Close',
     },
     locale: 'en',
   }),
@@ -72,7 +73,7 @@ describe('ModuleTreeCard', () => {
     expect(screen.getByText('utils')).toBeInTheDocument();
   });
 
-  it('should select a row on click', () => {
+  it('should select a row on click and deselect on second click', () => {
     render(
       <ModuleTreeCard
         subtree={mockSubtree}
@@ -84,6 +85,9 @@ describe('ModuleTreeCard', () => {
     fireEvent.click(screen.getByText('src'));
     const treeItem = screen.getByRole('treeitem', { name: /src/ });
     expect(treeItem.className).toContain('is-selected');
+
+    fireEvent.click(screen.getByText('src'));
+    expect(treeItem.className).not.toContain('is-selected');
   });
 
   it('should call onSelect with selected path on confirm', () => {
@@ -115,7 +119,7 @@ describe('ModuleTreeCard', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('should render expand all / collapse all buttons', () => {
+  it('should expand all directories on expand toggle click', () => {
     render(
       <ModuleTreeCard
         subtree={mockSubtree}
@@ -124,27 +128,14 @@ describe('ModuleTreeCard', () => {
         onClose={vi.fn()}
       />,
     );
-    expect(screen.getByText('Expand All')).toBeInTheDocument();
-    expect(screen.getByText('Collapse All')).toBeInTheDocument();
-  });
-
-  it('should expand all directories on Expand All click', () => {
-    render(
-      <ModuleTreeCard
-        subtree={mockSubtree}
-        position={{ x: 100, y: 100 }}
-        onSelect={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
-    fireEvent.click(screen.getByText('Expand All'));
-    expect(screen.getByText('components')).toBeInTheDocument();
-    expect(screen.getByText('utils')).toBeInTheDocument();
+    const toggleBtns = screen.getAllByRole('button');
+    const expandToggle = toggleBtns[0];
+    fireEvent.click(expandToggle);
     expect(screen.getByText('bar.tsx')).toBeInTheDocument();
     expect(screen.getByText('readme.md')).toBeInTheDocument();
   });
 
-  it('should collapse all directories on Collapse All click after expand', () => {
+  it('should collapse all on second expand toggle click', () => {
     render(
       <ModuleTreeCard
         subtree={mockSubtree}
@@ -153,10 +144,29 @@ describe('ModuleTreeCard', () => {
         onClose={vi.fn()}
       />,
     );
-    fireEvent.click(screen.getByText('Expand All'));
+    const toggleBtns = screen.getAllByRole('button');
+    const expandToggle = toggleBtns[0];
+    fireEvent.click(expandToggle);
     expect(screen.getByText('bar.tsx')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Collapse All'));
+    fireEvent.click(expandToggle);
     expect(screen.queryByText('components')).not.toBeInTheDocument();
-    expect(screen.queryByText('bar.tsx')).not.toBeInTheDocument();
+  });
+
+  it('should deselect when clicking outside tree area', () => {
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByText('src'));
+    const treeItem = screen.getByRole('treeitem', { name: /src/ });
+    expect(treeItem.className).toContain('is-selected');
+
+    const treeContainer = document.querySelector('.adl-module-tree-card__tree')!;
+    fireEvent.click(treeContainer);
+    expect(treeItem.className).not.toContain('is-selected');
   });
 });

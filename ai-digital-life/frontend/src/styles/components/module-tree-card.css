@@ -1,7 +1,7 @@
 .adl-module-tree-card {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: 0;
   box-shadow: var(--shadow-lg);
   z-index: calc(var(--z-popover) + 10);
   min-width: 280px;
@@ -14,23 +14,37 @@
 
 .adl-module-tree-card__header {
   display: flex;
-  gap: 4px;
-  padding: 6px 8px;
+  align-items: center;
+  padding: 4px 6px;
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.adl-module-tree-card__header-btn {
+.adl-module-tree-card__header-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.adl-module-tree-card__header-right {
+  display: flex;
+  align-items: center;
+}
+
+.adl-module-tree-card__icon-btn {
   background: none;
-  border: 1px solid var(--border-subtle);
+  border: none;
+  padding: 4px;
   border-radius: 4px;
-  padding: 2px 8px;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
   cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: background-color 0.15s, color 0.15s;
 }
 
-.adl-module-tree-card__header-btn:hover {
+.adl-module-tree-card__icon-btn:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
@@ -38,44 +52,39 @@
 .adl-module-tree-card__tree {
   flex: 1;
   overflow-y: auto;
-  overflow-x: auto;
+  overflow-x: hidden;
   padding: 4px 0;
 }
 
 .adl-module-tree-card__actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 8px 8px;
   border-top: 1px solid var(--border-subtle);
 }
 
 .adl-module-tree-card__btn {
-  padding: 4px 12px;
-  border-radius: 6px;
+  flex: 1;
+  padding: 5px 12px;
+  border: none;
+  border-radius: 4px;
   font-size: var(--text-xs);
   cursor: pointer;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-card);
+  background: var(--bg-hover);
   color: var(--text-primary);
   transition: background-color 0.15s;
 }
 
 .adl-module-tree-card__btn:hover {
-  background: var(--bg-hover);
+  background: color-mix(in srgb, var(--bg-hover) 85%, var(--border) 15%);
 }
 
 .adl-module-tree-card__btn--confirm {
-  background: var(--accent);
-  color: var(--accent-foreground);
-  border-color: var(--accent);
-}
-
-.adl-module-tree-card__btn--confirm:hover {
-  filter: brightness(1.1);
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .adl-module-tree-card__btn--confirm:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: default;
 }
