@@ -78,6 +78,33 @@ describe('applyModuleMapping', () => {
     expect(result[0].modules).toContainEqual({ module: 'Frontend', count: 10 });
   });
 
+  it('override flag promotes shorter-path rule over longer-path glob', () => {
+    const matrix = [{
+      author: 'Eve',
+      authorEmail: 'e@x.com',
+      modules: [{ module: 'special/dir/file', count: 3 }],
+    }];
+    const rules: MappingRule[] = [
+      { path: 'special/**', module: 'General', type: 'glob' },
+      { path: 'special/**', module: 'Special Override', type: 'glob', override: true },
+    ];
+    const result = applyModuleMapping(matrix, rules);
+    expect(result[0].modules).toContainEqual({ module: 'Special Override', count: 3 });
+  });
+
+  it('handles module names with regex special chars', () => {
+    const matrix = [{
+      author: 'Frank',
+      authorEmail: 'f@x.com',
+      modules: [{ module: 'src/c++/lib', count: 5 }],
+    }];
+    const rules: MappingRule[] = [
+      { path: 'src/c++/**', module: 'CppLib', type: 'glob' },
+    ];
+    const result = applyModuleMapping(matrix, rules);
+    expect(result[0].modules).toContainEqual({ module: 'CppLib', count: 5 });
+  });
+
   it('enableOtherBucket merges unmapped into Other', () => {
     const rules: MappingRule[] = [
       { path: 'frontend/**', module: 'Frontend', type: 'glob' },

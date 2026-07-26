@@ -181,6 +181,8 @@ export function applyModuleMapping(
   }
 
   const sortedRules = [...rules].sort((a, b) => {
+    if (a.override && !b.override) return -1;
+    if (!a.override && b.override) return 1;
     const aLen = a.path.length;
     const bLen = b.path.length;
     if (aLen !== bLen) return bLen - aLen;
@@ -188,13 +190,12 @@ export function applyModuleMapping(
   });
 
   const matchRule = (moduleName: string): string | null => {
+    const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     for (const rule of sortedRules) {
       if (rule.type === 'glob') {
-        const pattern = rule.path
-          .replace(/\./g, '\\.')
-          .replace(/\*\*/g, '##GLOBSTAR##')
-          .replace(/\*/g, '[^/]*')
-          .replace(/##GLOBSTAR##/g, '.*');
+        const pattern = escapeRegex(rule.path)
+          .replace(/\\\*\\\*/g, '.*')
+          .replace(/\\\*/g, '[^/]*');
         const regex = new RegExp(`^${pattern}$`);
         if (regex.test(moduleName)) {
           return rule.module;
