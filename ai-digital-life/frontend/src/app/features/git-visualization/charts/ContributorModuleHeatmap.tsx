@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
-import { useAppStore } from '@stores/slicedStore';
 import {
   HeatmapChart,
   HeatmapCells,
@@ -36,7 +35,6 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
   loadingLabel,
 }: ContributorModuleHeatmapProps) {
   const { t, locale } = useTCopy();
-  const showToast = useAppStore((s) => s.showToast);
   const [drillPath, setDrillPath] = useState<string[]>([]);
   const [treeCard, setTreeCard] = useState<{
     subtree: ModuleTreeNode[];
@@ -88,21 +86,9 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
     return result;
   }, [data, allPaths, drillPath]);
 
-  const handleColumnClick = useCallback(
-    (label: string) => {
-      if (!treeRef.current) {
-        return;
-      }
-      const children = getChildrenAtPath(treeRef.current, drillPath);
-      const node = children.find((c) => c.name === label);
-      if (node?.isDir) {
-        setDrillPath((prev) => [...prev, label]);
-      } else if (node && !node.isDir) {
-        showToast(t.gitVisFileNotClickable, 'warning', 'contributor-module-heatmap');
-      }
-    },
-    [drillPath, showToast, t],
-  );
+  const handleColumnClick = useCallback((label: string) => {
+    setDrillPath((prev) => [...prev, label]);
+  }, []);
 
   const handleColumnContextMenu = useCallback(
     (label: string, x: number, y: number) => {

@@ -111,13 +111,13 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
 
       const labelStyle: React.CSSProperties = {
         top,
-        left: tick.x + (isRotated ? 6 : 0),
-        width: 'max-content',
+        left: tick.x,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'flex-start',
         overflow: 'visible',
-        gap: 4,
+        gap: isRotated ? 0 : 4,
+        width: 'max-content',
       };
 
       const handleContextMenu =
@@ -127,6 +127,41 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
               onColumnContextMenu(tick.label, e.clientX, e.clientY);
             }
           : undefined;
+
+      const folderIcon = isDir && (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="shrink-0"
+          style={{ color: 'var(--text-muted)' }}
+        >
+          <path d="M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2.5" />
+          <path d="M21.121 20.121a3 3 0 1 0 -4.242 0c.418 .419 1.125 1.045 2.121 1.879c1.051 -.89 1.759 -1.516 2.121 -1.879z" />
+          <path d="M19 18v.01" />
+        </svg>
+      );
+
+      const labelContent = (
+        <>
+          {folderIcon}
+          <span
+            className={cn(
+              'text-chart-label text-xs whitespace-nowrap',
+              className,
+              isInteractive && 'hover:text-chart-label-hover',
+            )}
+          >
+            {tick.label}
+          </span>
+        </>
+      );
 
       return (
         <div
@@ -140,42 +175,22 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
           onContextMenu={handleContextMenu}
           title={isInteractive ? tick.label : undefined}
         >
-          {isDir && (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="shrink-0"
-              style={{ color: 'var(--text-muted)' }}
+          {isRotated ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                transform: `rotate(-${rotateAngle}deg)`,
+                transformOrigin: 'left center',
+                whiteSpace: 'nowrap',
+              }}
             >
-              <path d="M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2.5" />
-              <path d="M21.121 20.121a3 3 0 1 0 -4.242 0c.418 .419 1.125 1.045 2.121 1.879c1.051 -.89 1.759 -1.516 2.121 -1.879z" />
-              <path d="M19 18v.01" />
-            </svg>
+              {labelContent}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>{labelContent}</div>
           )}
-          <span
-            className={cn(
-              'text-chart-label text-xs whitespace-nowrap',
-              className,
-              isInteractive && 'hover:text-chart-label-hover',
-            )}
-            style={{
-              ...(isRotated
-                ? {
-                    transform: `rotate(-${rotateAngle}deg)`,
-                    transformOrigin: 'left center',
-                  }
-                : {}),
-            }}
-          >
-            {tick.label}
-          </span>
         </div>
       );
     }),
