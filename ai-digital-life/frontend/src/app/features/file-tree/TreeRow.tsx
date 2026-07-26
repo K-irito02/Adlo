@@ -58,7 +58,6 @@ export const TreeRow = React.memo(function TreeRow({
             className="adl-tree-node__toggle adl-filetree__toggle"
             onClick={onToggle}
             aria-label={isExpanded ? 'Collapse' : 'Expand'}
-            aria-expanded={isExpanded ? 'true' : 'false'}
           >
             {isExpanded ? (
               <IconChevronDown size={12} decorative />

@@ -83,15 +83,16 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
     });
   }, []);
 
-  const toggleExpandAll = useCallback(() => {
-    const allPaths = new Set(collectAllPaths(subtree));
-    setExpanded((prev) => (prev.size === allPaths.size ? new Set() : allPaths));
-  }, [subtree]);
+  const allDirPaths = useMemo(() => new Set(collectAllPaths(subtree)), [subtree]);
 
-  const allExpanded = useMemo(() => {
-    const allPaths = new Set(collectAllPaths(subtree));
-    return allPaths.size > 0 && allPaths.size === expanded.size;
-  }, [subtree, expanded]);
+  const toggleExpandAll = useCallback(() => {
+    setExpanded((prev) => (prev.size === allDirPaths.size ? new Set() : allDirPaths));
+  }, [allDirPaths]);
+
+  const allExpanded = useMemo(
+    () => allDirPaths.size > 0 && allDirPaths.size === expanded.size,
+    [allDirPaths, expanded],
+  );
 
   const handleRowActivate = useCallback(
     (path: string, isDir: boolean) => {

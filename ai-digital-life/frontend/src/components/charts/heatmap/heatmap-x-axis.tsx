@@ -3,6 +3,7 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
+import { IconFolder } from '@icons';
 import { useHeatmap } from './heatmap-context';
 import { getHeatmapColumnMonthAnchor } from './heatmap-utils';
 
@@ -58,12 +59,13 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
           label,
           x: margin.left + xScale(columnIndex),
           key: `col-${columnIndex}`,
+          dataIndex: columnIndex,
         }))
         .filter((tick, i) => tick.label && i % every === 0);
     }
 
     const monthFmt = new Intl.DateTimeFormat(locale ?? undefined, { month: 'short' });
-    const ticks: { label: string; x: number; key: string }[] = [];
+    const ticks: { label: string; x: number; key: string; dataIndex?: number }[] = [];
     let lastMonthKey = '';
 
     for (let columnIndex = 0; columnIndex < data.length; columnIndex++) {
@@ -89,6 +91,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
             : monthFmt.format(monthAnchor),
         x: margin.left + xScale(columnIndex),
         key: `x-${columnIndex}-${monthKey}`,
+        dataIndex: columnIndex,
       });
       lastMonthKey = monthKey;
     }
@@ -105,7 +108,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
   return createPortal(
     labels.map((tick, index) => {
       const isRotated = rotateAngle !== undefined && rotateAngle !== 0;
-      const meta = columnMeta?.[index];
+      const meta = columnMeta?.[tick.dataIndex ?? index];
       const isDir = meta?.isDir ?? false;
       const isInteractive = isDir && Boolean(onColumnClick || onColumnContextMenu);
 
@@ -129,23 +132,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
           : undefined;
 
       const folderIcon = isDir && (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="shrink-0"
-          style={{ color: 'var(--text-muted)' }}
-        >
-          <path d="M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2.5" />
-          <path d="M21.121 20.121a3 3 0 1 0 -4.242 0c.418 .419 1.125 1.045 2.121 1.879c1.051 -.89 1.759 -1.516 2.121 -1.879z" />
-          <path d="M19 18v.01" />
-        </svg>
+        <IconFolder size={14} decorative style={{ color: 'var(--text-muted)' }} />
       );
 
       const labelContent = (

@@ -77,10 +77,13 @@ export function childrenToHeatmapColumns(
     bin: colIdx,
     columnLabel: child.name,
     bins: sorted.map((contributor, rowIdx) => {
-      const prefix = child.path + (child.isDir ? '/' : '');
       let total = 0;
       for (const mod of contributor.modules) {
-        if (mod.module === child.path || mod.module.startsWith(prefix)) {
+        if (child.isDir) {
+          if (mod.module === child.path || mod.module.startsWith(child.path + '/')) {
+            total += mod.count;
+          }
+        } else if (mod.module === child.path) {
           total += mod.count;
         }
       }
