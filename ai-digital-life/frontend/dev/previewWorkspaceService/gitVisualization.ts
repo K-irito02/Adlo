@@ -125,10 +125,27 @@ export async function handleContributorModules(rootPath: string, since?: string,
     }
   }
 
+  // Collect directory tree statistics
+  const dirStats = new Map<string, number>();
+  for (const line of raw.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.includes('|')) continue;
+    const parts = trimmed.split('/');
+    for (let i = 0; i < parts.length; i++) {
+      const ancestor = parts.slice(0, i + 1).join('/');
+      dirStats.set(ancestor, (dirStats.get(ancestor) || 0) + 1);
+    }
+  }
+
   return {
     matrix: Array.from(authorModules, ([author, v]) => ({
       author, authorEmail: v.email,
       modules: Array.from(v.modules, ([module, count]) => ({ module, count })),
+    })),
+    allDirectories: Array.from(dirStats, ([path, count]) => ({
+      path,
+      depth: path.split('/').length,
+      commitCount: count,
     })),
   };
 }
