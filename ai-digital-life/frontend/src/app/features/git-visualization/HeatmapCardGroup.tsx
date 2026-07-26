@@ -69,8 +69,6 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     })),
   );
 
-
-
   function loadTabRanges(): Record<HeatmapTab, TimeRangeState> {
     const saved = readJson<Partial<Record<HeatmapTab, TimeRangeState>> | null>(
       TAB_TIME_RANGE_KEY,
