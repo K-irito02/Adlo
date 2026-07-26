@@ -184,6 +184,7 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
       <div className="adl-module-tree-card__header">
         <div className="adl-module-tree-card__header-left">
           <button
+            type="button"
             className="adl-module-tree-card__icon-btn"
             onClick={toggleExpandAll}
             title={allExpanded ? t.gitVisModuleCollapseAll : t.gitVisModuleExpandAll}
@@ -194,7 +195,7 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
         <div className="adl-module-tree-card__header-right">
           <button
             type="button"
-            className="adl-btn adl-btn--ghost adl-btn--xs"
+            className="adl-module-tree-card__icon-btn"
             onClick={onClose}
             aria-label={t.gitVisModuleClose}
           >
