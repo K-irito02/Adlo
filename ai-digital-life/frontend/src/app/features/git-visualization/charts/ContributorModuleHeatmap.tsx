@@ -9,8 +9,7 @@ import {
   buildHeatmapFillScale,
   HEATMAP_DEFAULT_LEVEL_STYLES,
 } from '@/components/charts/heatmap';
-import { contributorModulesToHeatmapColumns, applyModuleMapping } from '../adapters/chartDataAdapters';
-import type { MappingRule } from '../types/module-mapping';
+import { contributorModulesToHeatmapColumns } from '../adapters/chartDataAdapters';
 
 interface ContributorModuleHeatmapProps {
   data?: {
@@ -18,12 +17,10 @@ interface ContributorModuleHeatmapProps {
     authorEmail: string;
     modules: { module: string; count: number }[];
   }[];
-  rules?: MappingRule[];
 }
 
 export const ContributorModuleHeatmap = React.memo(function ContributorModuleHeatmap({
   data,
-  rules = [],
 }: ContributorModuleHeatmapProps) {
   const { t, locale } = useTCopy();
 
@@ -33,10 +30,9 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
     if (!data) {
       return { columns: [], rowLabels: [] };
     }
-    const mappedData = applyModuleMapping(data, rules);
-    const result = contributorModulesToHeatmapColumns(mappedData);
+    const result = contributorModulesToHeatmapColumns(data);
     return result;
-  }, [data, rules]);
+  }, [data]);
 
   const formatLabel = useCallback(
     (count: number) => {

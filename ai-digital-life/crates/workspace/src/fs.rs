@@ -3,25 +3,6 @@ use adl_types::WorkspaceFileDocument;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub fn write_file(
-    root: &Path,
-    relative_path: &str,
-    content: &str,
-) -> Result<WorkspaceFileDocument, AppError> {
-    let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
-    if let Some(parent) = path.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent)?;
-        }
-    }
-    adl_fs_ops::atomic_write(root, relative_path, content)?;
-    Ok(WorkspaceFileDocument {
-        path: relative_path.replace('\\', "/"),
-        content: content.to_string(),
-        last_modified_at: file_modified_at(&path),
-    })
-}
-
 pub fn create_file(
     root: &Path,
     relative_path: &str,

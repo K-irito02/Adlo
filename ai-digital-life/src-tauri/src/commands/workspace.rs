@@ -95,23 +95,6 @@ pub async fn workspace_create_file(
 }
 
 #[tauri::command]
-pub async fn workspace_write_file(
-    app: tauri::AppHandle,
-    relative_path: String,
-    content: String,
-) -> Result<IpcResult<WorkspaceFileDocument>, AppError> {
-    let state = app.state::<AppState>();
-    let ws = current_workspace(&state)?;
-    let root_path = ws.root_path;
-    let result = tokio::task::spawn_blocking(move || {
-        adl_workspace::write_file(PathBuf::from(root_path).as_path(), &relative_path, &content)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
-    Ok(ipc(Ok(result)))
-}
-
-#[tauri::command]
 pub async fn workspace_create_folder(
     app: tauri::AppHandle,
     relative_path: String,

@@ -92,17 +92,8 @@ pub struct GitVisContributorModule {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-pub struct DirectoryEntry {
-    pub path: String,
-    pub depth: u32,
-    pub commit_count: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
 pub struct GitVisContributorModules {
     pub matrix: Vec<GitVisContributorModule>,
-    pub all_directories: Vec<DirectoryEntry>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

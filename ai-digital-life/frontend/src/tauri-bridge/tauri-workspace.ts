@@ -50,8 +50,6 @@ export function createTauriWorkspaceBridge(): WorkspaceBridge {
       invokeIpc<RecentWorkspaceEntry[]>('workspace_show_in_right_panels', { workspaceId }),
     revealInFileManager: (workspacePath: string) =>
       invokeIpc<boolean>('workspace_reveal_in_file_manager', { path: workspacePath }),
-    writeFile: (relativePath: string, content: string) =>
-      invokeIpc<WorkspaceFileDocument>('workspace_write_file', { relativePath, content }),
     createFile: (relativePath: string, content = '') =>
       invokeIpc<WorkspaceFileDocument>('workspace_create_file', { relativePath, content }),
     createFolder: (relativePath: string) =>

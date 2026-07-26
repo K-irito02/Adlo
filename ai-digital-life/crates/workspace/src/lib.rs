@@ -10,7 +10,7 @@ mod tree;
 pub use detect::{
     detect_root, open_workspace, stable_workspace_id, strip_verbatim_prefix, workspace_type,
 };
-pub use fs::{create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry, write_file};
+pub use fs::{create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry};
 pub use git::git_vis::{
     capture_branch_graph, capture_code_evolution, capture_commit_stats,
     capture_contributor_modules, capture_file_sunburst,

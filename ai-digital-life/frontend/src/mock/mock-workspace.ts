@@ -124,10 +124,6 @@ export const mockWorkspace: WorkspaceBridge = {
     return { ok: true, data: recentWorkspaces };
   },
   revealInFileManager: async () => ({ ok: true, data: true }),
-  writeFile: async (_relativePath: string, _content: string) => ({
-    ok: true as const,
-    data: { path: _relativePath, content: _content, lastModifiedAt: new Date().toISOString() },
-  }),
   createFile: async (relativePath: string, content = "") => {
     documents.set(relativePath, content);
     fileVersions.set(relativePath, Date.now());
@@ -421,7 +417,6 @@ export const mockWorkspace: WorkspaceBridge = {
         author, authorEmail: `${author.toLowerCase()}@example.com`,
         modules: moduleNames.map((module, mi) => ({ module, count: contributorModuleMatrix[ci][mi] })),
       })),
-      allDirectories: mockDirectoryTree,
     },
   }),
   gitVisBranchGraph: async () => ({

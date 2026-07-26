@@ -135,17 +135,6 @@ export const changesEn = {
   gitVisHeatmapTabClock: 'Hours',
   gitVisHeatmapTabActivity: 'Activity',
   gitVisHeatmapTabModule: 'Module',
-  gitVisModuleMappingManage: 'Module Mapping',
-  gitVisModuleMappingDirTree: 'Directory Tree',
-  gitVisModuleMappingDefinedModules: 'Defined Modules',
-  gitVisModuleMappingNewModule: 'New Module',
-  gitVisModuleMappingSave: 'Save & Apply',
-  gitVisModuleMappingReset: 'Reset to Default',
-  gitVisModuleMappingUnmapped: 'Unmapped',
-  gitVisModuleMappingEnableOther: 'Merge unmapped into "Other"',
-  gitVisModuleMappingKeepOriginal: 'Keep unmapped directory names',
-  gitVisModuleMappingConfigCorrupted: 'Module mapping config is corrupted. Falling back to dynamic directories.',
-
   gitVisHeatmapNav: 'Heatmap type',
   gitVisBranchGraph: 'Branch Graph',
   gitVisBranchGraphDesc:

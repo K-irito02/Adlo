@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { formatT } from '@i18n/formatT';
@@ -10,8 +10,6 @@ import { defaultTimeRange } from '@stores/slices/gitVisSlice';
 import { readJson, writeJson } from '@stores/storageHelpers';
 import type { RawCommitStats } from './adapters/chartDataAdapters';
 import { HeatmapInteractionProvider, HeatmapLegend } from '@/components/charts/heatmap';
-import { useModuleMapping } from './hooks/useModuleMapping';
-import { ModuleMappingEditor } from './ModuleMappingEditor';
 import { CalendarHeatmap } from './charts/CalendarHeatmap';
 import { ClockHeatmap } from './charts/ClockHeatmap';
 import { ContributorActivityHeatmap } from './charts/ContributorActivityHeatmap';
@@ -43,19 +41,14 @@ const DESC_KEYS: Record<HeatmapTab, CopyKey> = {
   module: 'gitVisContributorModuleDesc',
 };
 
-interface ContributorModulesData {
-  matrix: {
+interface HeatmapCardGroupProps {
+  onRefresh?: () => Promise<void>;
+  commitStats?: RawCommitStats;
+  contributorModules?: {
     author: string;
     authorEmail: string;
     modules: { module: string; count: number }[];
   }[];
-  allDirectories?: { path: string; depth: number; commitCount: number }[];
-}
-
-interface HeatmapCardGroupProps {
-  onRefresh?: () => Promise<void>;
-  commitStats?: RawCommitStats;
-  contributorModules?: ContributorModulesData;
   yearBounds?: { min: number; max: number } | null;
 }
 
@@ -76,10 +69,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     })),
   );
 
-  const { rules: mappingRules, saveRules: saveMappingRules, resetToDefault: resetMapping } = useModuleMapping(activeWorkspaceTab);
-  const [mappingEditorOpen, setMappingEditorOpen] = useState(false);
 
-  const allDirectories = contributorModules?.allDirectories ?? [];
 
   function loadTabRanges(): Record<HeatmapTab, TimeRangeState> {
     const saved = readJson<Partial<Record<HeatmapTab, TimeRangeState>> | null>(
@@ -157,10 +147,9 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
       return { rowCount: String(rowCount), colCount: String(colCount) };
     }
     if (activeHeatmapTab === 'module') {
-      const matrix = contributorModules?.matrix ?? [];
-      const rowCount = matrix.length;
+      const rowCount = contributorModules?.length ?? 0;
       const allModules = new Set<string>();
-      matrix.forEach((m) => m.modules.forEach((mod) => allModules.add(mod.module)));
+      contributorModules?.forEach((m) => m.modules.forEach((mod) => allModules.add(mod.module)));
       return { rowCount: String(rowCount), colCount: String(allModules.size) };
     }
     return undefined;
@@ -216,21 +205,6 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
             {t[tab.titleKey]}
           </button>
         ))}
-        {activeHeatmapTab === 'module' && (
-          <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', padding: '0 8px' }}>
-            <button
-              onClick={() => setMappingEditorOpen(true)}
-              aria-label={t.gitVisModuleMappingManage}
-              title={t.gitVisModuleMappingManage}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-              </svg>
-            </button>
-          </div>
-        )}
       </nav>
       <HeatmapInteractionProvider portalTarget={document.body}>
         <div
@@ -258,27 +232,12 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
               until={currentRange.until}
             />
           )}
-          {activeHeatmapTab === 'module' && (
-            <ContributorModuleHeatmap
-              data={contributorModules?.matrix}
-              rules={mappingRules}
-            />
-          )}
+          {activeHeatmapTab === 'module' && <ContributorModuleHeatmap data={contributorModules} />}
         </div>
         <div className="adl-git-vis__heatmap-legend">
           <HeatmapLegend lessLabel={t.gitVisLess} moreLabel={t.gitVisMore} cellSize={10} gap={2} />
         </div>
       </HeatmapInteractionProvider>
-      {activeHeatmapTab === 'module' && (
-        <ModuleMappingEditor
-          isOpen={mappingEditorOpen}
-          onClose={() => setMappingEditorOpen(false)}
-          directoryTree={allDirectories}
-          rules={mappingRules}
-          onSave={saveMappingRules}
-          onReset={resetMapping}
-        />
-      )}
       <p className="adl-git-vis__card-desc">
         {descVars
           ? formatT(t, DESC_KEYS[activeHeatmapTab], descVars)

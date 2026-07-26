@@ -198,10 +198,6 @@ export interface WorkspaceBridge {
    * @see mock-bridge.ts → workspace.createFile
    * @see preview-bridge/index.ts → workspace.createFile
    */
-  /**
-   * @command workspace_write_file
-   */
-  writeFile: (relativePath: string, content: string) => Promise<IpcResult<WorkspaceFileDocument>>;
   createFile: (relativePath: string, content?: string) => Promise<IpcResult<WorkspaceFileDocument>>;
   /**
    * 在当前工作区创建文件夹

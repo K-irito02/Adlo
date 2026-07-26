@@ -1,6 +1,6 @@
 use adl_errors::AppError;
-use adl_types::{DirectoryEntry, GitVisContributorModule, GitVisContributorModules, GitVisModuleEntry};
-use std::collections::{BTreeMap, HashMap};
+use adl_types::{GitVisContributorModule, GitVisContributorModules, GitVisModuleEntry};
+use std::collections::HashMap;
 use std::path::Path;
 use tracing::debug;
 
@@ -56,41 +56,12 @@ pub async fn capture_contributor_modules(
         })
         .collect();
 
-    // Collect directory tree statistics
-    let mut dir_stats: BTreeMap<String, (u32, u32)> = BTreeMap::new();
-    let mut current_author2: Option<String> = None;
-    for line in raw.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.contains('|') {
-            if trimmed.contains('|') {
-                let parts: Vec<&str> = trimmed.splitn(2, '|').collect();
-                current_author2 = Some(parts[0].to_string());
-            }
-            continue;
-        }
-        if current_author2.is_some() {
-            let segs: Vec<&str> = trimmed.split('/').collect();
-            for i in 0..segs.len() {
-                let ancestor = segs[..=i].join("/");
-                let depth = (i + 1) as u32;
-                let entry = dir_stats.entry(ancestor).or_insert((depth, 0));
-                entry.1 += 1;
-            }
-        }
-    }
-
-    let all_directories: Vec<DirectoryEntry> = dir_stats
-        .into_iter()
-        .map(|(path, (depth, commit_count))| DirectoryEntry { path, depth, commit_count })
-        .collect();
-
     debug!(
-        "[ADL-GIT-VIS] [contributor_modules] [{}] done in {:?} — {} contributors, {} directories",
+        "[ADL-GIT-VIS] [contributor_modules] [{}] done in {:?} — {} contributors",
         root.display(),
         t0.elapsed(),
-        matrix.len(),
-        all_directories.len()
+        matrix.len()
     );
 
-    Ok(GitVisContributorModules { matrix, all_directories })
+    Ok(GitVisContributorModules { matrix })
 }
