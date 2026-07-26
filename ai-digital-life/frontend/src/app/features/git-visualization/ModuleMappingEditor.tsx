@@ -169,11 +169,12 @@ export const ModuleMappingEditor = React.memo(function ModuleMappingEditor({
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1000,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.4)',
+      background: 'rgba(0,0,0,0.5)',
     }} onClick={onClose}>
       <div style={{
-        background: 'var(--surface-color)', borderRadius: 8,
+        background: '#1e1e2e', borderRadius: 8, color: '#cdd6f4',
         width: 800, maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
       }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottom: '1px solid var(--border-color)' }}>
           <h2>{t.gitVisModuleMappingManage}</h2>

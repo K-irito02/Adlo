@@ -327,17 +327,16 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
               | undefined
           }
           contributorModules={
-            (
-              contributorModulesData.data as
-                | {
-                    matrix: {
-                      author: string;
-                      authorEmail: string;
-                      modules: { module: string; count: number }[];
-                    }[];
-                  }
-                | undefined
-            )?.matrix
+            contributorModulesData.data as
+              | {
+                  matrix: {
+                    author: string;
+                    authorEmail: string;
+                    modules: { module: string; count: number }[];
+                  }[];
+                  allDirectories?: { path: string; depth: number; commitCount: number }[];
+                }
+              | undefined
           }
           yearBounds={yearBounds}
         />

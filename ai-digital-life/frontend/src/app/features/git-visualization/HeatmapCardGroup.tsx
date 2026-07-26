@@ -43,17 +43,19 @@ const DESC_KEYS: Record<HeatmapTab, CopyKey> = {
   module: 'gitVisContributorModuleDesc',
 };
 
-interface ContributorModuleEntry {
-  author: string;
-  authorEmail: string;
-  modules: { module: string; count: number }[];
+interface ContributorModulesData {
+  matrix: {
+    author: string;
+    authorEmail: string;
+    modules: { module: string; count: number }[];
+  }[];
   allDirectories?: { path: string; depth: number; commitCount: number }[];
 }
 
 interface HeatmapCardGroupProps {
   onRefresh?: () => Promise<void>;
   commitStats?: RawCommitStats;
-  contributorModules?: ContributorModuleEntry[];
+  contributorModules?: ContributorModulesData;
   yearBounds?: { min: number; max: number } | null;
 }
 
@@ -77,10 +79,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
   const { rules: mappingRules, saveRules: saveMappingRules, resetToDefault: resetMapping } = useModuleMapping(activeWorkspaceTab);
   const [mappingEditorOpen, setMappingEditorOpen] = useState(false);
 
-  const allDirectories = useMemo(() => {
-    const first = Array.isArray(contributorModules) ? contributorModules[0] : undefined;
-    return (first as { allDirectories?: { path: string; depth: number; commitCount: number }[] })?.allDirectories ?? [];
-  }, [contributorModules]);
+  const allDirectories = contributorModules?.allDirectories ?? [];
 
   function loadTabRanges(): Record<HeatmapTab, TimeRangeState> {
     const saved = readJson<Partial<Record<HeatmapTab, TimeRangeState>> | null>(
@@ -158,9 +157,10 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
       return { rowCount: String(rowCount), colCount: String(colCount) };
     }
     if (activeHeatmapTab === 'module') {
-      const rowCount = contributorModules?.length ?? 0;
+      const matrix = contributorModules?.matrix ?? [];
+      const rowCount = matrix.length;
       const allModules = new Set<string>();
-      contributorModules?.forEach((m) => m.modules.forEach((mod) => allModules.add(mod.module)));
+      matrix.forEach((m) => m.modules.forEach((mod) => allModules.add(mod.module)));
       return { rowCount: String(rowCount), colCount: String(allModules.size) };
     }
     return undefined;
@@ -260,7 +260,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
           )}
           {activeHeatmapTab === 'module' && (
             <ContributorModuleHeatmap
-              data={contributorModules}
+              data={contributorModules?.matrix}
               rules={mappingRules}
             />
           )}

@@ -58,6 +58,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       margin={{ top: 28, right: 16, bottom: 0, left: 80 }}
       gap={2}
       binSize={36}
+      layout="fluid"
       animate={true}
       fillScale={customFillScale}
     >
@@ -66,7 +67,6 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
         rotateAngle={rotateAngle}
         maxLabelWidth={maxLabelWidth}
         labelMode="compact"
-        tickEvery={colCount > 20 ? 2 : 1}
       />
       <HeatmapYAxis tickFilter="all" />
       <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />

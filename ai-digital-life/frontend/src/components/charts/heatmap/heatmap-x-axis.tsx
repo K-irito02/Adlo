@@ -119,19 +119,19 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
           style={labelStyle}
         >
           <span
-            className={cn(
-              'text-chart-label text-xs whitespace-nowrap',
-              shouldTruncate && 'truncate inline-block',
-              isReadable && 'whitespace-normal text-center leading-tight',
-              className,
-            )}
-            title={shouldTruncate ? tick.label : undefined}
-            style={{
-              ...(isRotated ? {
-                transform: `rotate(${rotateAngle}deg)`,
-                transformOrigin: 'left center',
-              } : {}),
-              ...(isReadable ? {
+          className={cn(
+            'text-chart-label text-xs whitespace-nowrap',
+            shouldTruncate && 'truncate inline-block',
+            isReadable && 'whitespace-normal text-center leading-tight',
+            className,
+          )}
+          title={shouldTruncate ? tick.label : undefined}
+          style={{
+            ...(isRotated ? {
+              transform: `rotate(-${rotateAngle}deg)`,
+              transformOrigin: 'right center',
+            } : {}),
+            ...(isReadable ? {
                 maxWidth: maxLabelWidth ?? 80,
                 display: '-webkit-box' as unknown as React.CSSProperties['display'],
                 WebkitLineClamp: 2,
