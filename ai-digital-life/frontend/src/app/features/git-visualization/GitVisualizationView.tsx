@@ -16,6 +16,7 @@ import { useYearBounds } from './hooks/useYearBounds';
 import { RefreshButton } from './RefreshButton';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import { CHART_IDS } from './chartIds';
+import type { RawContributorModules } from './adapters/chartDataAdapters';
 
 class VisErrorBoundary extends Component<
   { children: React.ReactNode; onRetry: () => void; errorMsg: string; retryLabel: string },
@@ -327,18 +328,12 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
               | undefined
           }
           contributorModules={
-            (
-              contributorModulesData.data as
-                | {
-                    matrix: {
-                      author: string;
-                      authorEmail: string;
-                      modules: { module: string; count: number }[];
-                    }[];
-                  }
-                | undefined
-            )?.matrix
+            (contributorModulesData.data as RawContributorModules | undefined)?.matrix
           }
+          contributorModuleAllPaths={
+            (contributorModulesData.data as RawContributorModules | undefined)?.allPaths
+          }
+          contributorModuleStatus={contributorModulesData.loading ? 'loading' : 'ready'}
           yearBounds={yearBounds}
         />
         <TimeRangeAwareCard

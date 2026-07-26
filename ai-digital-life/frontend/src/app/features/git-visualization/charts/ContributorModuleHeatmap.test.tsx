@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import React from 'react';
 import { ContributorModuleHeatmap } from './ContributorModuleHeatmap';
+import { TCopyProvider } from '@app/i18n/TCopyContext';
 
 vi.mock('@i18n/useTCopy', () => ({
   useTCopy: () => ({
@@ -17,6 +18,19 @@ vi.mock('@i18n/useTCopy', () => ({
     locale: 'en-US',
     formatT: vi.fn(),
   }),
+}));
+
+vi.mock('../ModuleBreadcrumb', () => ({
+  ModuleBreadcrumb: ({ pathSegments }: { pathSegments: string[] }) =>
+    React.createElement(
+      'div',
+      { 'data-testid': 'breadcrumb' },
+      pathSegments.length === 0 ? 'Root' : pathSegments.join('/'),
+    ),
+}));
+
+vi.mock('../ModuleTreeCard', () => ({
+  ModuleTreeCard: () => null,
 }));
 
 vi.mock('../hooks/useBklitTheme', () => ({
@@ -62,9 +76,71 @@ vi.mock('motion/react', () => {
   };
 });
 
+const mockData = [
+  {
+    author: 'Alice',
+    authorEmail: 'alice@test.com',
+    modules: [
+      { module: 'src/components/bar.tsx', count: 3 },
+      { module: 'src/components/foo.tsx', count: 2 },
+      { module: 'src/utils/helpers.ts', count: 1 },
+    ],
+  },
+  {
+    author: 'Bob',
+    authorEmail: 'bob@test.com',
+    modules: [
+      { module: 'src/components/bar.tsx', count: 1 },
+      { module: 'docs/readme.md', count: 4 },
+    ],
+  },
+];
+
+const mockAllPaths = [
+  'src/components/bar.tsx',
+  'src/components/foo.tsx',
+  'src/utils/helpers.ts',
+  'docs/readme.md',
+];
+
+function Wrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <TCopyProvider t={{} as any} locale="en-US">
+      {children}
+    </TCopyProvider>
+  );
+}
+
 describe('ContributorModuleHeatmap', () => {
-  it('renders SVG', () => {
-    const { container } = render(<ContributorModuleHeatmap />);
+  it('should render breadcrumb at root', () => {
+    render(
+      <Wrapper>
+        <ContributorModuleHeatmap data={mockData} allPaths={mockAllPaths} />
+      </Wrapper>,
+    );
+    expect(screen.getByText('Root')).toBeInTheDocument();
+  });
+
+  it('should render heatmap SVG', () => {
+    const { container } = render(
+      <Wrapper>
+        <ContributorModuleHeatmap data={mockData} allPaths={mockAllPaths} />
+      </Wrapper>,
+    );
     expect(container.querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('should show loading label when status is loading', () => {
+    render(
+      <Wrapper>
+        <ContributorModuleHeatmap
+          data={mockData}
+          allPaths={mockAllPaths}
+          status="loading"
+          loadingLabel="Loading..."
+        />
+      </Wrapper>,
+    );
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 });

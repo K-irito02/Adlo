@@ -36,6 +36,7 @@ export interface RawContributorModules {
     authorEmail: string;
     modules: { module: string; count: number }[];
   }[];
+  allPaths?: string[];
 }
 
 /** Maps JS Date.getDay() (0=Sun..6=Sat) to row index where top row = Sunday */

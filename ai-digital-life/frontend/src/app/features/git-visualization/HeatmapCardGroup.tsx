@@ -8,6 +8,7 @@ import type { HeatmapTab } from '@stores/slices/uiSliceTypes';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
 import { defaultTimeRange } from '@stores/slices/gitVisSlice';
 import { readJson, writeJson } from '@stores/storageHelpers';
+import type { ChartStatus } from '@/components/charts/chart-phase';
 import type { RawCommitStats } from './adapters/chartDataAdapters';
 import { HeatmapInteractionProvider, HeatmapLegend } from '@/components/charts/heatmap';
 import { CalendarHeatmap } from './charts/CalendarHeatmap';
@@ -49,6 +50,8 @@ interface HeatmapCardGroupProps {
     authorEmail: string;
     modules: { module: string; count: number }[];
   }[];
+  contributorModuleAllPaths?: string[];
+  contributorModuleStatus?: ChartStatus;
   yearBounds?: { min: number; max: number } | null;
 }
 
@@ -56,6 +59,8 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
   onRefresh,
   commitStats,
   contributorModules,
+  contributorModuleAllPaths,
+  contributorModuleStatus,
   yearBounds,
 }: HeatmapCardGroupProps) {
   const { t } = useTCopy();
@@ -230,7 +235,14 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
               until={currentRange.until}
             />
           )}
-          {activeHeatmapTab === 'module' && <ContributorModuleHeatmap data={contributorModules} />}
+          {activeHeatmapTab === 'module' && (
+            <ContributorModuleHeatmap
+              data={contributorModules}
+              allPaths={contributorModuleAllPaths}
+              status={contributorModuleStatus || 'ready'}
+              loadingLabel="Loading modules..."
+            />
+          )}
         </div>
         <div className="adl-git-vis__heatmap-legend">
           <HeatmapLegend lessLabel={t.gitVisLess} moreLabel={t.gitVisMore} cellSize={10} gap={2} />
