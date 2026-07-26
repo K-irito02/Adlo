@@ -19,6 +19,12 @@ export interface HeatmapXAxisProps {
   labelFormat?: 'short' | 'numeric';
   /** Vertical offset from container top in px. Default: 0 */
   top?: number;
+  /** Label rotation angle in degrees. Default: 0 */
+  rotateAngle?: number;
+  /** Max label width in px before truncation. Default: undefined (no truncation) */
+  maxLabelWidth?: number;
+  /** Label display mode. Default: 'normal' */
+  labelMode?: 'normal' | 'compact' | 'readable';
 }
 
 export const HeatmapXAxis = memo(function HeatmapXAxis({
@@ -26,6 +32,9 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
   tickEvery = 1,
   labelFormat = 'short',
   top = 0,
+  rotateAngle,
+  maxLabelWidth,
+  labelMode = 'normal',
 }: HeatmapXAxisProps) {
   const { containerRef, data, margin, xScale, binWidth, columnLabels, locale } = useHeatmap();
   const [mounted, setMounted] = useState(false);
@@ -86,31 +95,59 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
     return null;
   }
 
-  const hasGap = tickEvery > 1;
-  const autoWidth = labelFormat === 'numeric' || !!columnLabels || hasGap;
+  const isCompact = labelMode === 'compact';
+  const isReadable = labelMode === 'readable';
 
   return createPortal(
-    labels.map((tick) => (
-      <div
-        className="pointer-events-none absolute"
-        key={tick.key}
-        style={{
-          top,
-          left: tick.x,
-          width: autoWidth ? 'auto' : binWidth,
-          display: 'flex',
-          justifyContent: 'flex-start',
-          overflow: autoWidth ? 'visible' : 'hidden',
-        }}
-      >
-        <span
-          className={cn('text-chart-label text-xs', !autoWidth && 'truncate', className)}
-          title={autoWidth ? undefined : tick.label}
+    labels.map((tick) => {
+      const isRotated = rotateAngle !== undefined && rotateAngle !== 0;
+      const shouldTruncate = maxLabelWidth !== undefined && !isReadable;
+
+      const labelStyle: React.CSSProperties = {
+        top,
+        left: tick.x,
+        width: isRotated ? 'auto' : (shouldTruncate ? maxLabelWidth : 'auto'),
+        display: 'flex',
+        justifyContent: isReadable ? 'center' : 'flex-start',
+        overflow: 'visible',
+        position: 'absolute',
+      };
+
+      return (
+        <div
+          className="pointer-events-none absolute"
+          key={tick.key}
+          style={labelStyle}
         >
-          {tick.label}
-        </span>
-      </div>
-    )),
+          <span
+            className={cn(
+              'text-chart-label text-xs whitespace-nowrap',
+              shouldTruncate && 'truncate inline-block',
+              isReadable && 'whitespace-normal text-center leading-tight',
+              className,
+            )}
+            title={shouldTruncate ? tick.label : undefined}
+            style={{
+              ...(isRotated ? {
+                transform: `rotate(${rotateAngle}deg)`,
+                transformOrigin: 'left center',
+              } : {}),
+              ...(isReadable ? {
+                maxWidth: maxLabelWidth ?? 80,
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical' as const,
+                overflow: 'hidden',
+                fontSize: '10px',
+              } : {}),
+              ...(shouldTruncate ? { maxWidth: maxLabelWidth, display: 'inline-block' } : {}),
+            }}
+          >
+            {tick.label}
+          </span>
+        </div>
+      );
+    }),
     container,
   );
 });
