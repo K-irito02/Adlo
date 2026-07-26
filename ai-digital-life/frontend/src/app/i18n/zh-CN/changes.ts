@@ -193,4 +193,6 @@ export const changesZh = {
   gitVisModuleConfirm: '确认跳转',
   gitVisModuleCancel: '取消',
   gitVisBreadcrumbNav: '模块路径导航',
+  gitVisFileNotClickable: '文件不支持下钻',
 } as const;
+

@@ -62,10 +62,14 @@ export function getChildrenAtPath(tree: ModuleTreeNode, pathSegments: string[]):
   return current.children;
 }
 
+export interface ColumnMeta {
+  isDir: boolean;
+}
+
 export function childrenToHeatmapColumns(
   children: ModuleTreeNode[],
   matrix: RawContributorModules['matrix'],
-): { columns: HeatmapColumn[]; rowLabels: string[] } {
+): { columns: HeatmapColumn[]; rowLabels: string[]; columnMeta: ColumnMeta[] } {
   const sorted = [...matrix].sort((a, b) => a.author.localeCompare(b.author));
   const rowLabels = sorted.map((m) => m.author);
 
@@ -89,7 +93,9 @@ export function childrenToHeatmapColumns(
     }),
   }));
 
-  return { columns, rowLabels };
+  const columnMeta: ColumnMeta[] = children.map((child) => ({ isDir: child.isDir }));
+
+  return { columns, rowLabels, columnMeta };
 }
 
 export function flattenTreePaths(tree: ModuleTreeNode): string[] {

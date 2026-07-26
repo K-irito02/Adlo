@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
+import { useAppStore } from '@stores/slicedStore';
 import {
   HeatmapChart,
   HeatmapCells,
@@ -13,6 +14,7 @@ import type { HeatmapColumn } from '@/components/charts/heatmap';
 import type { ChartStatus } from '@/components/charts/chart-phase';
 import { ModuleBreadcrumb } from '../ModuleBreadcrumb';
 import { ModuleTreeCard } from '../ModuleTreeCard';
+import type { ColumnMeta } from '../moduleTreeUtils';
 import { buildModuleTree, getChildrenAtPath, childrenToHeatmapColumns } from '../moduleTreeUtils';
 import type { ModuleTreeNode } from '../moduleTreeUtils';
 
@@ -34,6 +36,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
   loadingLabel,
 }: ContributorModuleHeatmapProps) {
   const { t, locale } = useTCopy();
+  const showToast = useAppStore((s) => s.showToast);
   const [drillPath, setDrillPath] = useState<string[]>([]);
   const [treeCard, setTreeCard] = useState<{
     subtree: ModuleTreeNode[];
@@ -42,9 +45,9 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
 
   const treeRef = useRef<ModuleTreeNode | null>(null);
   const prevAllPathsRef = useRef<string[] | undefined>(undefined);
-  const drillCacheRef = useRef<Map<string, { columns: HeatmapColumn[]; rowLabels: string[] }>>(
-    new Map(),
-  );
+  const drillCacheRef = useRef<
+    Map<string, { columns: HeatmapColumn[]; rowLabels: string[]; columnMeta: ColumnMeta[] }>
+  >(new Map());
 
   const customFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
 
@@ -52,9 +55,13 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
     drillCacheRef.current = new Map();
   }, [allPaths, data]);
 
-  const { columns, rowLabels } = useMemo(() => {
+  const { columns, rowLabels, columnMeta } = useMemo(() => {
     if (!data || !allPaths) {
-      return { columns: [] as HeatmapColumn[], rowLabels: [] as string[] };
+      return {
+        columns: [] as HeatmapColumn[],
+        rowLabels: [] as string[],
+        columnMeta: [] as ColumnMeta[],
+      };
     }
 
     if (!treeRef.current || prevAllPathsRef.current !== allPaths) {
@@ -70,19 +77,32 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
 
     const children = getChildrenAtPath(treeRef.current, drillPath);
     if (children.length === 0) {
-      return { columns: [] as HeatmapColumn[], rowLabels: [] as string[] };
+      return {
+        columns: [] as HeatmapColumn[],
+        rowLabels: [] as string[],
+        columnMeta: [] as ColumnMeta[],
+      };
     }
     const result = childrenToHeatmapColumns(children, data);
-    drillCacheRef.current.set(
-      cacheKey,
-      result as { columns: HeatmapColumn[]; rowLabels: string[] },
-    );
+    drillCacheRef.current.set(cacheKey, result);
     return result;
   }, [data, allPaths, drillPath]);
 
-  const handleColumnClick = useCallback((label: string) => {
-    setDrillPath((prev) => [...prev, label]);
-  }, []);
+  const handleColumnClick = useCallback(
+    (label: string) => {
+      if (!treeRef.current) {
+        return;
+      }
+      const children = getChildrenAtPath(treeRef.current, drillPath);
+      const node = children.find((c) => c.name === label);
+      if (node?.isDir) {
+        setDrillPath((prev) => [...prev, label]);
+      } else if (node && !node.isDir) {
+        showToast(t.gitVisFileNotClickable, 'warning', 'contributor-module-heatmap');
+      }
+    },
+    [drillPath, showToast, t],
+  );
 
   const handleColumnContextMenu = useCallback(
     (label: string, x: number, y: number) => {
@@ -91,7 +111,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       }
       const children = getChildrenAtPath(treeRef.current, drillPath);
       const node = children.find((c) => c.name === label);
-      if (node && node.children.length > 0) {
+      if (node?.isDir && node.children.length > 0) {
         setTreeCard({ subtree: node.children, position: { x, y } });
       }
     },
@@ -167,6 +187,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
           top={labelTop}
           onColumnClick={handleColumnClick}
           onColumnContextMenu={handleColumnContextMenu}
+          columnMeta={columnMeta}
         />
         <HeatmapYAxis tickFilter="all" />
         <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />

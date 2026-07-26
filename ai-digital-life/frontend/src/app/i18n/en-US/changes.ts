@@ -193,4 +193,6 @@ export const changesEn = {
   gitVisModuleConfirm: 'Confirm',
   gitVisModuleCancel: 'Cancel',
   gitVisBreadcrumbNav: 'Module breadcrumb',
+  gitVisFileNotClickable: 'Files cannot be drilled down',
 } as const;
+

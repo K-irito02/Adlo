@@ -125,7 +125,7 @@ describe('childrenToHeatmapColumns', () => {
 
   it('should aggregate counts at root level', () => {
     const children = getChildrenAtPath(tree, []);
-    const { columns, rowLabels } = childrenToHeatmapColumns(children, matrix);
+    const { columns, rowLabels, columnMeta } = childrenToHeatmapColumns(children, matrix);
 
     expect(rowLabels).toEqual(['Alice', 'Bob']);
     expect(columns.length).toBe(2); // src, docs
@@ -133,32 +133,38 @@ describe('childrenToHeatmapColumns', () => {
     const srcCol = columns.find((c) => c.columnLabel === 'src')!;
     expect(srcCol.bins[0].count).toBe(6); // Alice: 3+2+1
     expect(srcCol.bins[1].count).toBe(1); // Bob: 1
+
+    expect(columnMeta).toEqual([{ isDir: true }, { isDir: true }]);
   });
 
   it('should aggregate at deeper level', () => {
     const children = getChildrenAtPath(tree, ['src', 'components']);
-    const { columns } = childrenToHeatmapColumns(children, matrix);
+    const { columns, columnMeta } = childrenToHeatmapColumns(children, matrix);
 
     expect(columns.length).toBe(2); // bar.tsx, foo.tsx
     const barCol = columns.find((c) => c.columnLabel === 'bar.tsx')!;
     expect(barCol.bins[0].count).toBe(3); // Alice
     expect(barCol.bins[1].count).toBe(1); // Bob
+
+    expect(columnMeta).toEqual([{ isDir: false }, { isDir: false }]);
   });
 
   it('should handle empty children', () => {
-    const { columns, rowLabels } = childrenToHeatmapColumns([], matrix);
+    const { columns, rowLabels, columnMeta } = childrenToHeatmapColumns([], matrix);
     expect(columns.length).toBe(0);
     expect(rowLabels.length).toBe(2);
+    expect(columnMeta).toEqual([]);
   });
 
   it('should handle empty matrix', () => {
     const children = getChildrenAtPath(tree, []);
-    const { columns, rowLabels } = childrenToHeatmapColumns(children, []);
+    const { columns, rowLabels, columnMeta } = childrenToHeatmapColumns(children, []);
     expect(columns.length).toBe(2);
     expect(rowLabels.length).toBe(0);
     for (const col of columns) {
       expect(col.bins.length).toBe(0);
     }
+    expect(columnMeta).toEqual([{ isDir: true }, { isDir: true }]);
   });
 });
 

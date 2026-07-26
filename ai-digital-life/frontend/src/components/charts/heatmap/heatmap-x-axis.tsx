@@ -6,6 +6,10 @@ import { cn } from '@/lib/utils';
 import { useHeatmap } from './heatmap-context';
 import { getHeatmapColumnMonthAnchor } from './heatmap-utils';
 
+export interface ColumnMeta {
+  isDir: boolean;
+}
+
 export interface HeatmapXAxisProps {
   /** Additional class name for labels */
   className?: string;
@@ -25,6 +29,8 @@ export interface HeatmapXAxisProps {
   onColumnClick?: (label: string) => void;
   /** Called when a column label is right-clicked */
   onColumnContextMenu?: (label: string, x: number, y: number) => void;
+  /** Per-column metadata (isDir, etc.) for display and interaction decisions */
+  columnMeta?: ColumnMeta[];
 }
 
 export const HeatmapXAxis = memo(function HeatmapXAxis({
@@ -35,6 +41,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
   rotateAngle,
   onColumnClick,
   onColumnContextMenu,
+  columnMeta,
 }: HeatmapXAxisProps) {
   const { containerRef, data, margin, xScale, columnLabels, locale } = useHeatmap();
   const [mounted, setMounted] = useState(false);
@@ -96,43 +103,67 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
   }
 
   return createPortal(
-    labels.map((tick) => {
+    labels.map((tick, index) => {
       const isRotated = rotateAngle !== undefined && rotateAngle !== 0;
-      const hasInteraction = Boolean(onColumnClick || onColumnContextMenu);
+      const meta = columnMeta?.[index];
+      const isDir = meta?.isDir ?? true;
+      const isInteractive = isDir && Boolean(onColumnClick || onColumnContextMenu);
 
       const labelStyle: React.CSSProperties = {
         top,
         left: tick.x + (isRotated ? 6 : 0),
         width: 'max-content',
         display: 'flex',
+        alignItems: 'center',
         justifyContent: 'flex-start',
         overflow: 'visible',
+        gap: 4,
       };
 
-      const handleContextMenu = onColumnContextMenu
-        ? (e: React.MouseEvent) => {
-            e.preventDefault();
-            onColumnContextMenu(tick.label, e.clientX, e.clientY);
-          }
-        : undefined;
+      const handleContextMenu =
+        isDir && onColumnContextMenu
+          ? (e: React.MouseEvent) => {
+              e.preventDefault();
+              onColumnContextMenu(tick.label, e.clientX, e.clientY);
+            }
+          : undefined;
 
       return (
         <div
           className={cn(
             'absolute',
-            hasInteraction ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none',
+            isInteractive ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none',
           )}
           key={tick.key}
           style={labelStyle}
-          onClick={hasInteraction ? () => onColumnClick?.(tick.label) : undefined}
+          onClick={isInteractive ? () => onColumnClick?.(tick.label) : undefined}
           onContextMenu={handleContextMenu}
-          title={hasInteraction ? tick.label : undefined}
+          title={isInteractive ? tick.label : undefined}
         >
+          {isDir && (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="shrink-0"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <path d="M12 19h-7a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2h4l3 3h7a2 2 0 0 1 2 2v2.5" />
+              <path d="M21.121 20.121a3 3 0 1 0 -4.242 0c.418 .419 1.125 1.045 2.121 1.879c1.051 -.89 1.759 -1.516 2.121 -1.879z" />
+              <path d="M19 18v.01" />
+            </svg>
+          )}
           <span
             className={cn(
               'text-chart-label text-xs whitespace-nowrap',
               className,
-              hasInteraction && 'hover:text-chart-label-hover',
+              isInteractive && 'hover:text-chart-label-hover',
             )}
             style={{
               ...(isRotated
