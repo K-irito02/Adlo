@@ -126,8 +126,8 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
             className,
           )}
           title={tick.label}
-          style={{ pointerEvents: 'auto' }}
           style={{
+            pointerEvents: 'auto',
             ...(isRotated ? {
               transform: `rotate(-${rotateAngle}deg)`,
               transformOrigin: 'left center',
