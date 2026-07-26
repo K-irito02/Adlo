@@ -50,7 +50,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       data={columns}
       locale={locale}
       rowLabels={rowLabels}
-      margin={{ top: 46, right: 16, bottom: 0, left: 80 }}
+      margin={{ top: 110, right: 16, bottom: 0, left: 80 }}
       gap={2}
       binSize={36}
       layout="fluid"
@@ -60,7 +60,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       <HeatmapCells cornerRadius={2} />
       <HeatmapXAxis
         rotateAngle={rotateAngle}
-        top={18}
+        top={90}
       />
       <HeatmapYAxis tickFilter="all" />
       <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />

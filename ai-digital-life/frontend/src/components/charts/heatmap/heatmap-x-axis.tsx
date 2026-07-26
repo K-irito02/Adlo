@@ -113,8 +113,8 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
             className={cn('text-chart-label text-xs whitespace-nowrap', className)}
             style={{
               ...(isRotated ? {
-                transform: `rotate(-${rotateAngle}deg)`,
-                transformOrigin: 'left center',
+              transform: `rotate(-${rotateAngle}deg)`,
+              transformOrigin: 'left center',
               } : {}),
             }}
           >
