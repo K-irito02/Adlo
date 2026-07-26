@@ -79,7 +79,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       >
         <HeatmapCells cornerRadius={2} />
         <HeatmapXAxis />
-        <HeatmapYAxis />
+        <HeatmapYAxis tickFilter="all" />
         <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
       </HeatmapChart>
     </div>

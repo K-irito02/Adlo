@@ -62,7 +62,7 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
       >
         <HeatmapCells cornerRadius={2} />
         <HeatmapXAxis tickEvery={4} />
-        <HeatmapYAxis />
+        <HeatmapYAxis tickFilter="all" />
         <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
       </HeatmapChart>
     </div>
