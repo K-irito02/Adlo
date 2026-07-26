@@ -44,7 +44,6 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
 
   const colCount = columns.length;
   const rotateAngle = colCount > 8 ? 45 : 0;
-  const maxLabelWidth = colCount > 15 ? 60 : colCount > 8 ? 80 : undefined;
 
   return (
     <HeatmapChart
@@ -61,8 +60,6 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       <HeatmapCells cornerRadius={2} />
       <HeatmapXAxis
         rotateAngle={rotateAngle}
-        maxLabelWidth={maxLabelWidth}
-        labelMode="compact"
         top={18}
       />
       <HeatmapYAxis tickFilter="all" />

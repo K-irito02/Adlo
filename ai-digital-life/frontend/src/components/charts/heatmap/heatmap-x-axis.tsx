@@ -21,10 +21,6 @@ export interface HeatmapXAxisProps {
   top?: number;
   /** Label rotation angle in degrees. Default: 0 */
   rotateAngle?: number;
-  /** Max label width in px before truncation. Default: undefined (no truncation) */
-  maxLabelWidth?: number;
-  /** Label display mode. Default: 'normal' */
-  labelMode?: 'normal' | 'compact' | 'readable';
 }
 
 export const HeatmapXAxis = memo(function HeatmapXAxis({
@@ -33,8 +29,6 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
   labelFormat = 'short',
   top = 0,
   rotateAngle,
-  maxLabelWidth,
-  labelMode = 'normal',
 }: HeatmapXAxisProps) {
   const { containerRef, data, margin, xScale, binWidth, columnLabels, locale } = useHeatmap();
   const [mounted, setMounted] = useState(false);
@@ -95,19 +89,16 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
     return null;
   }
 
-  const isReadable = labelMode === 'readable';
-
   return createPortal(
     labels.map((tick) => {
       const isRotated = rotateAngle !== undefined && rotateAngle !== 0;
-      const shouldTruncate = maxLabelWidth !== undefined && !isReadable;
 
       const labelStyle: React.CSSProperties = {
         top,
         left: tick.x + 6,
-        width: isRotated ? 'auto' : (shouldTruncate ? maxLabelWidth : 'auto'),
+        width: 'auto',
         display: 'flex',
-        justifyContent: isReadable ? 'center' : 'flex-start',
+        justifyContent: 'flex-start',
         overflow: 'visible',
         position: 'absolute',
       };
@@ -119,28 +110,12 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
           style={labelStyle}
         >
           <span
-          className={cn(
-            'text-chart-label text-xs whitespace-nowrap',
-            shouldTruncate && 'truncate inline-block',
-            isReadable && 'whitespace-normal text-center leading-tight',
-            className,
-          )}
-          title={tick.label}
-          style={{
-            pointerEvents: 'auto',
-            ...(isRotated ? {
-              transform: `rotate(-${rotateAngle}deg)`,
-              transformOrigin: 'left center',
-            } : {}),
-            ...(isReadable ? {
-                maxWidth: maxLabelWidth ?? 80,
-                display: '-webkit-box' as unknown as React.CSSProperties['display'],
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical' as const,
-                overflow: 'hidden',
-                fontSize: '10px',
+            className={cn('text-chart-label text-xs whitespace-nowrap', className)}
+            style={{
+              ...(isRotated ? {
+                transform: `rotate(-${rotateAngle}deg)`,
+                transformOrigin: 'left center',
               } : {}),
-              ...(shouldTruncate ? { maxWidth: maxLabelWidth, display: 'inline-block' } : {}),
             }}
           >
             {tick.label}
