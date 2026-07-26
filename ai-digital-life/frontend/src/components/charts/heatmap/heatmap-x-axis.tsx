@@ -95,7 +95,6 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
     return null;
   }
 
-  const isCompact = labelMode === 'compact';
   const isReadable = labelMode === 'readable';
 
   return createPortal(
@@ -134,7 +133,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
               } : {}),
               ...(isReadable ? {
                 maxWidth: maxLabelWidth ?? 80,
-                display: '-webkit-box',
+                display: '-webkit-box' as unknown as React.CSSProperties['display'],
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical' as const,
                 overflow: 'hidden',
