@@ -171,8 +171,15 @@ export interface GitVisContributorModule {
   authorEmail: string;
   modules: GitVisModuleEntry[];
 }
+export interface GitVisDirectoryEntry {
+  path: string;
+  depth: number;
+  commitCount: number;
+}
+
 export interface GitVisContributorModules {
   matrix: GitVisContributorModule[];
+  allDirectories: GitVisDirectoryEntry[];
 }
 export interface GitVisBranchNode {
   hash: string;

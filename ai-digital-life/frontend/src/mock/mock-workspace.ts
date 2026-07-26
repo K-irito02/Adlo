@@ -35,6 +35,7 @@ import {
   contributorNames,
   contributorModuleMatrix,
   moduleNames,
+  mockDirectoryTree,
   fileTreemapData,
   mockCommitTimelineData,
 } from "../test-fixtures/gitVisMockData";
@@ -420,6 +421,7 @@ export const mockWorkspace: WorkspaceBridge = {
         author, authorEmail: `${author.toLowerCase()}@example.com`,
         modules: moduleNames.map((module, mi) => ({ module, count: contributorModuleMatrix[ci][mi] })),
       })),
+      allDirectories: mockDirectoryTree,
     },
   }),
   gitVisBranchGraph: async () => ({

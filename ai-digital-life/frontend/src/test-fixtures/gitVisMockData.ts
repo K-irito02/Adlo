@@ -618,7 +618,18 @@ export function generateContributorActivityData(): HeatmapColumn[] {
   return columns;
 }
 
-export const moduleNames = ['前端', '后端', '数据库', '测试', '文档'];
+export const moduleNames = ['frontend', 'backend', 'database', 'testing', 'docs'];
+
+export const mockDirectoryTree: { path: string; depth: number; commitCount: number }[] = [
+  { path: 'frontend', depth: 1, commitCount: 110 },
+  { path: 'frontend/src', depth: 2, commitCount: 80 },
+  { path: 'frontend/pages', depth: 2, commitCount: 30 },
+  { path: 'backend', depth: 1, commitCount: 70 },
+  { path: 'backend/api', depth: 2, commitCount: 40 },
+  { path: 'database', depth: 1, commitCount: 40 },
+  { path: 'testing', depth: 1, commitCount: 30 },
+  { path: 'docs', depth: 1, commitCount: 20 },
+];
 
 export const contributorModuleMatrix: number[][] = [
   [80, 30, 0, 0, 0],
