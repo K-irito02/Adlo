@@ -96,7 +96,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
       const labelStyle: React.CSSProperties = {
         top,
         left: tick.x + 6,
-        width: 'auto',
+        width: 'max-content',
         display: 'flex',
         justifyContent: 'flex-start',
         overflow: 'visible',
@@ -104,11 +104,11 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
       };
 
       return (
-        <div
-          className="pointer-events-none absolute"
-          key={tick.key}
-          style={labelStyle}
-        >
+          <div
+            className="pointer-events-none absolute whitespace-nowrap"
+            key={tick.key}
+            style={labelStyle}
+          >
           <span
             className={cn('text-chart-label text-xs whitespace-nowrap', className)}
             style={{
