@@ -461,7 +461,7 @@ function HeatmapChartSurface({ layout, children }: { layout: HeatmapLayout; chil
       className={cn('relative', layout !== 'fluid' && 'w-full', layout === 'fill' && 'h-full')}
       onPointerLeave={clearInteraction}
       ref={containerRef}
-      style={{ opacity: reducedOpacity, ...(layout === 'fluid' ? { width: 'fit-content', minWidth: '100%' } : {}) }}
+      style={{ opacity: reducedOpacity, ...(layout === 'fluid' ? { width, minWidth: '100%' } : {}) }}
     >
       <svg aria-hidden="true" height={height} width={width}>
         <HeatmapPatternDefs levelStyles={levelStyles} />
