@@ -12,6 +12,29 @@
   overflow: hidden;
 }
 
+.adl-module-tree-card__header {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.adl-module-tree-card__header-btn {
+  background: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.adl-module-tree-card__header-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .adl-module-tree-card__tree {
   flex: 1;
   overflow-y: auto;

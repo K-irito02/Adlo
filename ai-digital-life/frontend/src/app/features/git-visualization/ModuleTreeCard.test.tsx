@@ -11,7 +11,12 @@ afterEach(() => {
 
 vi.mock('@i18n/useTCopy', () => ({
   useTCopy: () => ({
-    t: { gitVisModuleCancel: 'Cancel', gitVisModuleConfirm: 'Confirm' },
+    t: {
+      gitVisModuleCancel: 'Cancel',
+      gitVisModuleConfirm: 'Confirm',
+      gitVisModuleExpandAll: 'Expand All',
+      gitVisModuleCollapseAll: 'Collapse All',
+    },
     locale: 'en',
   }),
 }));
@@ -53,7 +58,7 @@ describe('ModuleTreeCard', () => {
     expect(screen.getByText('docs')).toBeInTheDocument();
   });
 
-  it('should expand directory on chevron click', () => {
+  it('should expand directory on row label click', () => {
     render(
       <ModuleTreeCard
         subtree={mockSubtree}
@@ -62,9 +67,7 @@ describe('ModuleTreeCard', () => {
         onClose={vi.fn()}
       />,
     );
-    const toggleButtons = screen.getAllByRole('button', { expanded: false });
-    const chevron = toggleButtons[0];
-    fireEvent.click(chevron);
+    fireEvent.click(screen.getByText('src'));
     expect(screen.getByText('components')).toBeInTheDocument();
     expect(screen.getByText('utils')).toBeInTheDocument();
   });
@@ -110,5 +113,50 @@ describe('ModuleTreeCard', () => {
     );
     fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('should render expand all / collapse all buttons', () => {
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Expand All')).toBeInTheDocument();
+    expect(screen.getByText('Collapse All')).toBeInTheDocument();
+  });
+
+  it('should expand all directories on Expand All click', () => {
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByText('Expand All'));
+    expect(screen.getByText('components')).toBeInTheDocument();
+    expect(screen.getByText('utils')).toBeInTheDocument();
+    expect(screen.getByText('bar.tsx')).toBeInTheDocument();
+    expect(screen.getByText('readme.md')).toBeInTheDocument();
+  });
+
+  it('should collapse all directories on Collapse All click after expand', () => {
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByText('Expand All'));
+    expect(screen.getByText('bar.tsx')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Collapse All'));
+    expect(screen.queryByText('components')).not.toBeInTheDocument();
+    expect(screen.queryByText('bar.tsx')).not.toBeInTheDocument();
   });
 });

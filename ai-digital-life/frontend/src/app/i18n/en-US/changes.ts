@@ -190,6 +190,8 @@ export const changesEn = {
   gitVisCalendarSelectYear: 'Select Year',
   gitVisLoadingModules: 'Loading modules...',
   gitVisModuleRoot: 'Root',
+  gitVisModuleExpandAll: 'Expand All',
+  gitVisModuleCollapseAll: 'Collapse All',
   gitVisModuleConfirm: 'Confirm',
   gitVisModuleCancel: 'Cancel',
   gitVisBreadcrumbNav: 'Module breadcrumb',

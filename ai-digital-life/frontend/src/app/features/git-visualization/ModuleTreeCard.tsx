@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTCopy } from '@i18n/useTCopy';
 import { TreeRow } from '../file-tree/TreeRow';
@@ -28,6 +28,17 @@ function flattenVisible(root: ModuleTreeNode[], expanded: Set<string>, depth = 0
   return result;
 }
 
+function collectAllPaths(nodes: ModuleTreeNode[]): string[] {
+  const result: string[] = [];
+  for (const node of nodes) {
+    result.push(node.path);
+    if (node.children.length > 0) {
+      result.push(...collectAllPaths(node.children));
+    }
+  }
+  return result;
+}
+
 export const ModuleTreeCard = React.memo(function ModuleTreeCard({
   subtree,
   position,
@@ -37,6 +48,7 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
   const { t } = useTCopy();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [hoveredPath, setHoveredPath] = useState<string | undefined>(undefined);
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,11 +82,63 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
     });
   }, []);
 
-  const handleRowActivate = useCallback((path: string) => {
-    setSelectedPath(path);
+  const handleRowActivate = useCallback(
+    (path: string, isDir: boolean) => {
+      setSelectedPath(path);
+      if (isDir) {
+        toggleExpand(path);
+      }
+    },
+    [toggleExpand],
+  );
+
+  const expandAll = useCallback(() => {
+    const allPaths = new Set(collectAllPaths(subtree));
+    setExpanded(allPaths);
+  }, [subtree]);
+
+  const collapseAll = useCallback(() => {
+    setExpanded(new Set());
+  }, []);
+
+  const handleMouseOver = useCallback((e: React.MouseEvent<HTMLUListElement>) => {
+    const target = (e.target as HTMLElement).closest('[data-path]') as HTMLElement | null;
+    if (target?.dataset.path) {
+      setHoveredPath(target.dataset.path);
+    }
+  }, []);
+
+  const handleMouseOut = useCallback((e: React.MouseEvent<HTMLUListElement>) => {
+    const target = (e.target as HTMLElement).closest('[data-path]') as HTMLElement | null;
+    const relatedTarget = (e.relatedTarget as HTMLElement)?.closest?.(
+      '[data-path]',
+    ) as HTMLElement | null;
+    if (target?.dataset.path && relatedTarget?.dataset.path !== target.dataset.path) {
+      setHoveredPath(relatedTarget?.dataset.path ?? undefined);
+    }
   }, []);
 
   const flatNodes = flattenVisible(subtree, expanded);
+
+  const hoveredDescendantPaths: Set<string> | undefined = useMemo(() => {
+    if (!hoveredPath) {
+      return undefined;
+    }
+    const set = new Set<string>();
+    const idx = flatNodes.findIndex((fn) => fn.node.path === hoveredPath);
+    if (idx === -1) {
+      return undefined;
+    }
+    const hoveredDepth = flatNodes[idx].depth;
+    for (let i = idx + 1; i < flatNodes.length; i++) {
+      const fn = flatNodes[i];
+      if (fn.depth <= hoveredDepth) {
+        break;
+      }
+      set.add(fn.node.path);
+    }
+    return set;
+  }, [flatNodes, hoveredPath]);
 
   const cardStyle: React.CSSProperties = {
     position: 'fixed',
@@ -84,11 +148,29 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
 
   return createPortal(
     <div className="adl-module-tree-card" ref={cardRef} style={cardStyle}>
+      <div className="adl-module-tree-card__header">
+        <button
+          className="adl-module-tree-card__header-btn"
+          onClick={expandAll}
+          title={t.gitVisModuleExpandAll}
+        >
+          {t.gitVisModuleExpandAll}
+        </button>
+        <button
+          className="adl-module-tree-card__header-btn"
+          onClick={collapseAll}
+          title={t.gitVisModuleCollapseAll}
+        >
+          {t.gitVisModuleCollapseAll}
+        </button>
+      </div>
       <div className="adl-module-tree-card__tree">
         <ul
           className="adl-filetree adl-tree-root"
           role="tree"
           style={{ height: 'auto', position: 'relative' }}
+          onMouseOver={handleMouseOver}
+          onMouseOut={handleMouseOut}
         >
           {flatNodes.map(({ node, depth }) => (
             <TreeRow
@@ -99,8 +181,9 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
               depth={depth + 1}
               isExpanded={expanded.has(node.path)}
               isSelected={selectedPath === node.path}
+              isHoveredByAncestor={hoveredDescendantPaths?.has(node.path) ?? false}
               onToggle={() => toggleExpand(node.path)}
-              onActivate={() => handleRowActivate(node.path)}
+              onActivate={() => handleRowActivate(node.path, node.isDir)}
             />
           ))}
         </ul>

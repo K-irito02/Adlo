@@ -9,6 +9,7 @@ interface TreeRowProps {
   depth: number;
   isExpanded?: boolean;
   isSelected?: boolean;
+  isHoveredByAncestor?: boolean;
   onToggle?: () => void;
   onActivate?: () => void;
   onContextMenu?: (e: React.MouseEvent<HTMLDivElement>) => void;
@@ -23,6 +24,7 @@ export const TreeRow = React.memo(function TreeRow({
   depth,
   isExpanded = false,
   isSelected = false,
+  isHoveredByAncestor = false,
   onToggle,
   onActivate,
   onContextMenu,
@@ -35,7 +37,7 @@ export const TreeRow = React.memo(function TreeRow({
 
   return (
     <li
-      className={`adl-tree-node${isSelected ? ' is-selected' : ''} adl-filetree__item${isDir ? ' adl-filetree__node--directory' : ' adl-filetree__node--file'}${className ? ` ${className}` : ''}`}
+      className={`adl-tree-node${isSelected ? ' is-selected' : ''}${isHoveredByAncestor ? ' is-hovered-by-ancestor' : ''} adl-filetree__item${isDir ? ' adl-filetree__node--directory' : ' adl-filetree__node--file'}${className ? ` ${className}` : ''}`}
       data-depth={depth}
       data-path={path}
       style={
