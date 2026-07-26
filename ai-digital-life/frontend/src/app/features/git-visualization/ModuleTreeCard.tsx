@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { cn } from '@/lib/utils';
 import { useTCopy } from '@i18n/useTCopy';
+import { TreeRow } from '../file-tree/TreeRow';
 import type { ModuleTreeNode } from './moduleTreeUtils';
 import '@/styles/components/module-tree-card.css';
 
@@ -70,6 +70,10 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
     });
   }, []);
 
+  const handleRowActivate = useCallback((path: string) => {
+    setSelectedPath(path);
+  }, []);
+
   const flatNodes = flattenVisible(subtree, expanded);
 
   const cardStyle: React.CSSProperties = {
@@ -81,41 +85,25 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
   return createPortal(
     <div className="adl-module-tree-card" ref={cardRef} style={cardStyle}>
       <div className="adl-module-tree-card__tree">
-        {flatNodes.map(({ node, depth }) => (
-          <div
-            key={node.path}
-            className={cn(
-              'adl-module-tree-card__row',
-              selectedPath === node.path && 'adl-module-tree-card__row--selected',
-            )}
-            style={{ paddingLeft: 12 + depth * 16 }}
-            onClick={() => setSelectedPath(node.path)}
-          >
-            {node.isDir ? (
-              <button
-                className="adl-module-tree-card__toggle"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggleExpand(node.path);
-                }}
-              >
-                <span
-                  className={cn(
-                    'adl-module-tree-card__chevron',
-                    expanded.has(node.path) && 'adl-module-tree-card__chevron--open',
-                  )}
-                >
-                  ▶
-                </span>
-              </button>
-            ) : (
-              <span className="adl-module-tree-card__spacer" />
-            )}
-            <span className="adl-module-tree-card__icon">{node.isDir ? '📁' : '📄'}</span>
-            <span className="adl-module-tree-card__name">{node.name}</span>
-            {selectedPath === node.path && <span className="adl-module-tree-card__check">✓</span>}
-          </div>
-        ))}
+        <ul
+          className="adl-filetree adl-tree-root"
+          role="tree"
+          style={{ height: 'auto', position: 'relative' }}
+        >
+          {flatNodes.map(({ node, depth }) => (
+            <TreeRow
+              key={node.path}
+              name={node.name}
+              path={node.path}
+              isDir={node.isDir}
+              depth={depth + 1}
+              isExpanded={expanded.has(node.path)}
+              isSelected={selectedPath === node.path}
+              onToggle={() => toggleExpand(node.path)}
+              onActivate={() => handleRowActivate(node.path)}
+            />
+          ))}
+        </ul>
       </div>
       <div className="adl-module-tree-card__actions">
         <button

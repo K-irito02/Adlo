@@ -62,8 +62,8 @@ describe('ModuleTreeCard', () => {
         onClose={vi.fn()}
       />,
     );
-    const toggles = screen.getAllByRole('button');
-    const chevron = toggles[0];
+    const toggleButtons = screen.getAllByRole('button', { expanded: false });
+    const chevron = toggleButtons[0];
     fireEvent.click(chevron);
     expect(screen.getByText('components')).toBeInTheDocument();
     expect(screen.getByText('utils')).toBeInTheDocument();
@@ -79,7 +79,8 @@ describe('ModuleTreeCard', () => {
       />,
     );
     fireEvent.click(screen.getByText('src'));
-    expect(screen.getByText('✓')).toBeInTheDocument();
+    const treeItem = screen.getByRole('treeitem', { name: /src/ });
+    expect(treeItem.className).toContain('is-selected');
   });
 
   it('should call onSelect with selected path on confirm', () => {
