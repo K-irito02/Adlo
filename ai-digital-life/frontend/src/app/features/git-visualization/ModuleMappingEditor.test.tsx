@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ModuleMappingEditor } from './ModuleMappingEditor';
 import type { MappingRule, DirectoryEntry } from './types/module-mapping';
 
@@ -13,6 +13,8 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisModuleMappingSave: 'Save & Apply',
       gitVisModuleMappingReset: 'Reset to Default',
       gitVisModuleMappingUnmapped: 'Unmapped',
+      close: 'Close',
+      delete: 'Delete',
     },
     locale: 'en-US',
   }),
@@ -31,6 +33,8 @@ describe('ModuleMappingEditor', () => {
     { path: 'backend/**', module: 'Backend', type: 'glob' },
   ];
 
+  afterEach(cleanup);
+
   it('renders when open, null when closed', () => {
     const { container: openContainer } = render(
       <ModuleMappingEditor
@@ -45,6 +49,8 @@ describe('ModuleMappingEditor', () => {
     expect(openContainer.textContent).toContain('Module Mapping');
     expect(openContainer.textContent).toContain('Frontend');
     expect(openContainer.textContent).toContain('Backend');
+
+    cleanup();
 
     const { container: closedContainer } = render(
       <ModuleMappingEditor

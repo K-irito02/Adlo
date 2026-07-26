@@ -1,6 +1,7 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import type { MappingRule, DirectoryEntry } from '../types/module-mapping';
+import './ModuleMappingEditor.css';
 
 interface ModuleMappingEditorProps {
   isOpen: boolean;
@@ -65,29 +66,80 @@ function buildTree(entries: DirectoryEntry[], existingRules: MappingRule[]): Tre
   return sorted.filter((n) => n.depth === 1);
 }
 
+function ChevronRight() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
+function ChevronDown() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function FolderIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+    </svg>
+  );
+}
+
+function GearIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  );
+}
+
+function PlusIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 12h14M12 5v14" />
+    </svg>
+  );
+}
+
 function TreeNodeRow({ node, onDragStart, expanded, onToggle }: {
   node: TreeNode; onDragStart: (path: string) => void;
   expanded: boolean; onToggle: () => void;
 }) {
   const hasChildren = node.children.length > 0;
   return (
-    <div style={{ marginLeft: (node.depth - 1) * 16 }}>
+    <div style={{ marginLeft: (node.depth - 1) * 14 }}>
       <div
         draggable
         onDragStart={() => onDragStart(node.path)}
-        style={{ cursor: 'grab', display: 'flex', alignItems: 'center', gap: 4, padding: '2px 0' }}
+        className="adl-module-mapping__tree-node"
       >
-        {hasChildren ? (
-          <span onClick={onToggle} style={{ cursor: 'pointer', width: 16, textAlign: 'center' }}>
-            {expanded ? '▼' : '▶'}
-          </span>
-        ) : <span style={{ width: 16 }} />}
-        <span>📁 {node.path}</span>
-        <span style={{ fontSize: 10, opacity: 0.5, marginLeft: 4 }}>({node.commitCount})</span>
+        <button
+          className="adl-module-mapping__tree-toggle"
+          onClick={onToggle}
+          aria-label={expanded ? 'Collapse' : 'Expand'}
+          tabIndex={-1}
+        >
+          {hasChildren ? (expanded ? <ChevronDown /> : <ChevronRight />) : null}
+        </button>
+        <span className="adl-module-mapping__tree-icon"><FolderIcon /></span>
+        <span className="adl-module-mapping__tree-path" title={node.path}>{node.path}</span>
+        <span className="adl-module-mapping__tree-count">({node.commitCount})</span>
         {node.mappedModule && (
-          <span style={{ fontSize: 10, color: 'var(--accent-color)', marginLeft: 4 }}>
-            → {node.mappedModule}
-          </span>
+          <span className="adl-module-mapping__tree-module-badge">→ {node.mappedModule}</span>
         )}
       </div>
       {expanded && hasChildren && node.children.map((child) => (
@@ -116,6 +168,16 @@ export const ModuleMappingEditor = React.memo(function ModuleMappingEditor({
   const [newModuleName, setNewModuleName] = useState('');
   const [draggedPath, setDraggedPath] = useState<string | null>(null);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    panelRef.current?.focus();
+  }, [isOpen]);
+
+  useEffect(() => {
+    setRules(initialRules);
+  }, [initialRules]);
 
   const tree = React.useMemo(() => buildTree(directoryTree, rules), [directoryTree, rules]);
 
@@ -163,26 +225,51 @@ export const ModuleMappingEditor = React.memo(function ModuleMappingEditor({
     }),
   );
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onClose();
+    }
+  }, [onClose]);
+
+  const handleBackdrop = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  }, [onClose]);
+
+  const [dropModule, setDropModule] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(0,0,0,0.5)',
-    }} onClick={onClose}>
-      <div style={{
-        background: '#1e1e2e', borderRadius: 8, color: '#cdd6f4',
-        width: 800, maxHeight: '80vh', display: 'flex', flexDirection: 'column',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-      }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottom: '1px solid var(--border-color)' }}>
-          <h2>{t.gitVisModuleMappingManage}</h2>
-          <button onClick={onClose}>✕</button>
+    <div
+      className="adl-prompt-modal"
+      onKeyDown={handleKeyDown}
+      onClick={handleBackdrop}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t.gitVisModuleMappingManage}
+    >
+      <div
+        ref={panelRef}
+        className="adl-prompt-modal__panel"
+        tabIndex={-1}
+        style={{ width: 'min(90vw, 800px)', maxHeight: '80vh' }}
+      >
+        <div className="adl-prompt-modal__header">
+          {t.gitVisModuleMappingManage}
+          <button
+            type="button"
+            className="adl-prompt-modal__header-close"
+            onClick={onClose}
+            aria-label={t.close}
+          >
+            <CloseIcon />
+          </button>
         </div>
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-          <div style={{ flex: 1, overflow: 'auto', padding: 12, borderRight: '1px solid var(--border-color)' }}>
-            <h3 style={{ fontSize: 12, marginBottom: 8 }}>{t.gitVisModuleMappingDirTree}</h3>
+        <div className="adl-module-mapping">
+          <div className="adl-module-mapping__tree">
+            <div className="adl-module-mapping__tree-title">{t.gitVisModuleMappingDirTree}</div>
             {tree.map((node) => (
               <TreeNodeRow
                 key={node.path}
@@ -200,51 +287,77 @@ export const ModuleMappingEditor = React.memo(function ModuleMappingEditor({
               />
             ))}
           </div>
-          <div style={{ width: 300, overflow: 'auto', padding: 12 }}>
-            <h3 style={{ fontSize: 12, marginBottom: 8 }}>{t.gitVisModuleMappingDefinedModules}</h3>
+          <div className="adl-module-mapping__modules">
+            <div className="adl-module-mapping__modules-title">{t.gitVisModuleMappingDefinedModules}</div>
             {[...definedModules.entries()].map(([moduleName, moduleRules]) => (
               <div
                 key={moduleName}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => handleDrop(moduleName)}
-                style={{
-                  padding: 8, marginBottom: 4, borderRadius: 4,
-                  border: '1px solid var(--border-color)',
-                  background: draggedPath ? 'var(--hover-color)' : undefined,
-                }}
+                onDragOver={(e) => { e.preventDefault(); setDropModule(moduleName); }}
+                onDragLeave={() => setDropModule(null)}
+                onDrop={() => { handleDrop(moduleName); setDropModule(null); }}
+                className={`adl-module-mapping__module-card${dropModule === moduleName ? ' adl-module-mapping__module-card--drop-target' : ''}`}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="adl-module-mapping__module-card-header">
+                  <span className="adl-module-mapping__tree-icon"><GearIcon /></span>
                   <input
                     defaultValue={moduleName}
                     onBlur={(e) => handleRenameModule(moduleName, e.target.value)}
-                    style={{ border: 'none', background: 'transparent', fontWeight: 600, fontSize: 13 }}
+                    className="adl-module-mapping__module-name"
                   />
-                  <button onClick={() => handleDeleteModule(moduleName)}>✕</button>
+                  <button
+                    type="button"
+                    className="adl-prompt-modal__header-close"
+                    onClick={() => handleDeleteModule(moduleName)}
+                    aria-label={t.delete}
+                  >
+                    <CloseIcon />
+                  </button>
                 </div>
-                <div style={{ fontSize: 10, opacity: 0.6, marginTop: 4 }}>
+                <div className="adl-module-mapping__module-paths" title={moduleRules.map((r) => r.path).join(', ')}>
                   {moduleRules.map((r) => r.path).join(', ')}
                 </div>
               </div>
             ))}
-            <div style={{ display: 'flex', gap: 4, marginTop: 8 }}>
+            <div className="adl-module-mapping__add-module">
               <input
                 value={newModuleName}
                 onChange={(e) => setNewModuleName(e.target.value)}
                 placeholder={t.gitVisModuleMappingNewModule}
-                style={{ flex: 1, fontSize: 12, padding: '2px 4px' }}
+                className="adl-module-mapping__add-input"
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAddModule(); }}
               />
-              <button onClick={handleAddModule} disabled={!newModuleName.trim()}>+</button>
+              <button
+                type="button"
+                className="adl-btn adl-btn--ghost adl-btn--square"
+                onClick={handleAddModule}
+                disabled={!newModuleName.trim()}
+                aria-label={t.gitVisModuleMappingNewModule}
+              >
+                <PlusIcon />
+              </button>
             </div>
           </div>
         </div>
         {unmappedDirs.length > 0 && (
-          <div style={{ padding: '4px 12', fontSize: 11, opacity: 0.5 }}>
+          <div className="adl-module-mapping__unmapped">
             {t.gitVisModuleMappingUnmapped}: {unmappedDirs.map((d) => d.path).join(', ')}
           </div>
         )}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, padding: 12, borderTop: '1px solid var(--border-color)' }}>
-          <button onClick={onReset}>{t.gitVisModuleMappingReset}</button>
-          <button onClick={() => onSave(rules)} style={{ fontWeight: 600 }}>{t.gitVisModuleMappingSave}</button>
+        <div className="adl-prompt-modal__actions adl-prompt-modal__actions--fill">
+          <button
+            type="button"
+            className="adl-btn adl-btn--ghost adl-btn--square"
+            onClick={onReset}
+          >
+            {t.gitVisModuleMappingReset}
+          </button>
+          <button
+            type="button"
+            className="adl-btn adl-btn--primary adl-btn--square"
+            onClick={() => onSave(rules)}
+          >
+            {t.gitVisModuleMappingSave}
+          </button>
         </div>
       </div>
     </div>
