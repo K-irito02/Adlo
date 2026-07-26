@@ -47,7 +47,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
   );
 
   const colCount = columns.length;
-  const rotateAngle = colCount > 8 ? 30 : 0;
+  const rotateAngle = colCount > 8 ? 45 : 0;
   const maxLabelWidth = colCount > 15 ? 60 : colCount > 8 ? 80 : undefined;
 
   return (
@@ -55,7 +55,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       data={columns}
       locale={locale}
       rowLabels={rowLabels}
-      margin={{ top: 28, right: 16, bottom: 0, left: 80 }}
+      margin={{ top: 46, right: 16, bottom: 0, left: 80 }}
       gap={2}
       binSize={36}
       layout="fluid"
@@ -67,6 +67,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
         rotateAngle={rotateAngle}
         maxLabelWidth={maxLabelWidth}
         labelMode="compact"
+        top={18}
       />
       <HeatmapYAxis tickFilter="all" />
       <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
