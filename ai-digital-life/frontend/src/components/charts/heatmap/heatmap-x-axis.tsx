@@ -21,6 +21,10 @@ export interface HeatmapXAxisProps {
   top?: number;
   /** Label rotation angle in degrees. Default: 0 */
   rotateAngle?: number;
+  /** Called when a column label is left-clicked */
+  onColumnClick?: (label: string) => void;
+  /** Called when a column label is right-clicked */
+  onColumnContextMenu?: (label: string, x: number, y: number) => void;
 }
 
 export const HeatmapXAxis = memo(function HeatmapXAxis({
@@ -29,6 +33,8 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
   labelFormat = 'short',
   top = 0,
   rotateAngle,
+  onColumnClick,
+  onColumnContextMenu,
 }: HeatmapXAxisProps) {
   const { containerRef, data, margin, xScale, columnLabels, locale } = useHeatmap();
   const [mounted, setMounted] = useState(false);
@@ -92,6 +98,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
   return createPortal(
     labels.map((tick) => {
       const isRotated = rotateAngle !== undefined && rotateAngle !== 0;
+      const hasInteraction = Boolean(onColumnClick || onColumnContextMenu);
 
       const labelStyle: React.CSSProperties = {
         top,
@@ -102,10 +109,31 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
         overflow: 'visible',
       };
 
+      const handleContextMenu = onColumnContextMenu
+        ? (e: React.MouseEvent) => {
+            e.preventDefault();
+            onColumnContextMenu(tick.label, e.clientX, e.clientY);
+          }
+        : undefined;
+
       return (
-        <div className="pointer-events-none absolute" key={tick.key} style={labelStyle}>
+        <div
+          className={cn(
+            'absolute',
+            hasInteraction ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none',
+          )}
+          key={tick.key}
+          style={labelStyle}
+          onClick={hasInteraction ? () => onColumnClick?.(tick.label) : undefined}
+          onContextMenu={handleContextMenu}
+          title={hasInteraction ? tick.label : undefined}
+        >
           <span
-            className={cn('text-chart-label text-xs whitespace-nowrap', className)}
+            className={cn(
+              'text-chart-label text-xs whitespace-nowrap',
+              className,
+              hasInteraction && 'hover:text-chart-label-hover',
+            )}
             style={{
               ...(isRotated
                 ? {

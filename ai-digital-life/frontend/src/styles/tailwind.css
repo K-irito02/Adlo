@@ -78,6 +78,7 @@
   --color-chart-marker-border: var(--chart-marker-border);
   --color-chart-marker-foreground: var(--chart-marker-foreground);
   --color-chart-label: var(--chart-label);
+  --color-chart-label-hover: var(--text-primary);
   --color-chart-scale-01: var(--chart-scale-01);
   --color-chart-scale-02: var(--chart-scale-02);
   --color-chart-scale-03: var(--chart-scale-03);
