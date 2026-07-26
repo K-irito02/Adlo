@@ -114,15 +114,30 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
 
   const handleTreeSelect = useCallback((path: string) => {
     const segments = path.split('/');
+    if (treeRef.current) {
+      let current = treeRef.current;
+      let isFile = false;
+      for (const seg of segments) {
+        const found = current.children.find((c) => c.name === seg);
+        if (!found) {
+          break;
+        }
+        isFile = !found.isDir;
+        current = found;
+      }
+      if (isFile && segments.length > 0) {
+        segments.pop();
+      }
+    }
     setDrillPath(segments);
     setTreeCard(null);
   }, []);
 
   const colCount = columns.length;
-  const rotateAngle = colCount > 8 ? 45 : 0;
+  const rotateAngle = colCount > 0 ? 45 : 0;
 
   const { labelTop, marginTop } = useMemo(() => {
-    if (colCount <= 8) {
+    if (colCount === 0) {
       return { labelTop: 0, marginTop: 28 };
     }
     const maxLabelLen = columns.reduce((max, col) => {
@@ -133,13 +148,11 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       return { labelTop: 0, marginTop: 28 };
     }
     const maxTextWidth = maxLabelLen * 7.5;
-    const upwardExtent = Math.ceil(
-      maxTextWidth * Math.abs(Math.sin((rotateAngle * Math.PI) / 180)),
-    );
+    const upwardExtent = Math.ceil(maxTextWidth * Math.abs(Math.sin((Math.PI * 45) / 180)));
     const top = upwardExtent + 4;
     const margin = top + 20;
     return { labelTop: top, marginTop: margin };
-  }, [columns, colCount, rotateAngle]);
+  }, [columns, colCount]);
 
   const formatLabel = useCallback(
     (count: number) => {
