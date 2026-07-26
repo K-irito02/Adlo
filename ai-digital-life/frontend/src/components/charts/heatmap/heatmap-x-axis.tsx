@@ -30,7 +30,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
   top = 0,
   rotateAngle,
 }: HeatmapXAxisProps) {
-  const { containerRef, data, margin, xScale, binWidth, columnLabels, locale } = useHeatmap();
+  const { containerRef, data, margin, xScale, columnLabels, locale } = useHeatmap();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -95,27 +95,24 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
 
       const labelStyle: React.CSSProperties = {
         top,
-        left: tick.x + 6,
+        left: tick.x + (isRotated ? 6 : 0),
         width: 'max-content',
         display: 'flex',
         justifyContent: 'flex-start',
         overflow: 'visible',
-        position: 'absolute',
       };
 
       return (
-          <div
-            className="pointer-events-none absolute"
-            key={tick.key}
-            style={labelStyle}
-          >
+        <div className="pointer-events-none absolute" key={tick.key} style={labelStyle}>
           <span
             className={cn('text-chart-label text-xs whitespace-nowrap', className)}
             style={{
-              ...(isRotated ? {
-              transform: `rotate(-${rotateAngle}deg)`,
-              transformOrigin: 'left center',
-              } : {}),
+              ...(isRotated
+                ? {
+                    transform: `rotate(-${rotateAngle}deg)`,
+                    transformOrigin: 'left center',
+                  }
+                : {}),
             }}
           >
             {tick.label}

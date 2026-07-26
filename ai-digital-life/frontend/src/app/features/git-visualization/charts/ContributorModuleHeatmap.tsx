@@ -54,11 +54,13 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       return len > max ? len : max;
     }, 0);
     const maxTextWidth = maxLabelLen * 7.5;
-    const upwardExtent = Math.ceil(maxTextWidth * Math.abs(Math.sin(rotateAngle * Math.PI / 180)));
+    const upwardExtent = Math.ceil(
+      maxTextWidth * Math.abs(Math.sin((rotateAngle * Math.PI) / 180)),
+    );
     const top = upwardExtent + 4;
     const margin = top + 20;
     return { labelTop: top, marginTop: margin };
-  }, [columns, colCount]);
+  }, [columns, colCount, rotateAngle]);
 
   return (
     <HeatmapChart
@@ -73,10 +75,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       fillScale={customFillScale}
     >
       <HeatmapCells cornerRadius={2} />
-      <HeatmapXAxis
-        rotateAngle={rotateAngle}
-        top={labelTop}
-      />
+      <HeatmapXAxis rotateAngle={rotateAngle} top={labelTop} />
       <HeatmapYAxis tickFilter="all" />
       <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
     </HeatmapChart>
