@@ -238,7 +238,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
           role="tabpanel"
           id="heatmap-tabpanel"
           aria-labelledby={`heatmap-tab-${activeHeatmapTab}`}
-          style={{ overflow: 'auto' }}
+          style={{ overflowX: 'auto', overflowY: 'auto' }}
         >
           {activeHeatmapTab === 'calendar' && (
             <CalendarHeatmap

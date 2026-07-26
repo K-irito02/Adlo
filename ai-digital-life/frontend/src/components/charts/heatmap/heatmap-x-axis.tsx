@@ -128,8 +128,8 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
           title={shouldTruncate ? tick.label : undefined}
           style={{
             ...(isRotated ? {
-              transform: `rotate(${rotateAngle}deg)`,
-              transformOrigin: 'right center',
+              transform: `rotate(-${rotateAngle}deg)`,
+              transformOrigin: 'left center',
             } : {}),
             ...(isReadable ? {
                 maxWidth: maxLabelWidth ?? 80,
