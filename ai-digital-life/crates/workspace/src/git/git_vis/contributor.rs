@@ -77,8 +77,59 @@ pub async fn capture_contributor_modules(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashSet;
     use std::path::Path;
     use std::process::Command;
+
+    #[test]
+    fn test_path_parsing_full_paths() {
+        let mut author_modules: HashMap<String, (String, HashMap<String, i32>)> = HashMap::new();
+        let lines = vec![
+            "alice|alice@test.com",
+            "src/components/bar.tsx",
+            "src/components/foo.tsx",
+            "src/utils/helpers.ts",
+        ];
+
+        let mut current_author: Option<String> = None;
+        let mut current_email = String::new();
+
+        for line in &lines {
+            let trimmed = line.trim();
+            if let Some(_pipe_idx) = trimmed.find('|') {
+                let parts: Vec<&str> = trimmed.splitn(2, '|').collect();
+                current_author = Some(parts[0].to_string());
+                current_email = parts.get(1).unwrap_or(&"").to_string();
+            } else if let Some(ref author) = current_author {
+                let entry = author_modules
+                    .entry(author.clone())
+                    .or_insert_with(|| (current_email.clone(), HashMap::new()));
+                *entry.1.entry(trimmed.to_string()).or_insert(0) += 1;
+            }
+        }
+
+        let alice = author_modules.get("alice").unwrap();
+        assert_eq!(alice.1.len(), 3);
+        assert!(alice.1.contains_key("src/components/bar.tsx"));
+        assert!(alice.1.contains_key("src/components/foo.tsx"));
+        assert!(alice.1.contains_key("src/utils/helpers.ts"));
+        assert_eq!(alice.1.get("src/components/bar.tsx").unwrap(), &1);
+    }
+
+    #[test]
+    fn test_all_paths_collection() {
+        let mut all_paths_set: HashSet<String> = HashSet::new();
+        let paths = ["src/a.ts", "src/b.ts", "docs/readme.md", "src/a.ts"];
+
+        for p in &paths {
+            all_paths_set.insert(p.to_string());
+        }
+
+        assert_eq!(all_paths_set.len(), 3);
+        assert!(all_paths_set.contains("src/a.ts"));
+        assert!(all_paths_set.contains("src/b.ts"));
+        assert!(all_paths_set.contains("docs/readme.md"));
+    }
 
     fn run_git(dir: &Path, args: &[&str]) {
         let status = Command::new("git")
