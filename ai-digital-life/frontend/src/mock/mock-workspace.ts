@@ -35,7 +35,6 @@ import {
   contributorNames,
   contributorModuleMatrix,
   moduleNames,
-  mockDirectoryTree,
   fileTreemapData,
   mockCommitTimelineData,
 } from "../test-fixtures/gitVisMockData";
