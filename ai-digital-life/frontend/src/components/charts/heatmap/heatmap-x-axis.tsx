@@ -17,12 +17,15 @@ export interface HeatmapXAxisProps {
    * - `'numeric'` — plain month number 1-12, no truncation, allows overflow
    */
   labelFormat?: 'short' | 'numeric';
+  /** Vertical offset from container top in px. Default: 0 */
+  top?: number;
 }
 
 export const HeatmapXAxis = memo(function HeatmapXAxis({
   className,
   tickEvery = 1,
   labelFormat = 'short',
+  top = 0,
 }: HeatmapXAxisProps) {
   const { containerRef, data, margin, xScale, binWidth, columnLabels, locale } = useHeatmap();
   const [mounted, setMounted] = useState(false);
@@ -74,7 +77,8 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
       lastMonthKey = monthKey;
     }
 
-    return ticks;
+    const every = Math.max(1, tickEvery);
+    return ticks.filter((_, i) => i % every === 0);
   }, [columnLabels, data, labelFormat, locale, margin.left, tickEvery, xScale]);
 
   const container = containerRef.current;
@@ -82,7 +86,8 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
     return null;
   }
 
-  const autoWidth = labelFormat === 'numeric' || !!columnLabels;
+  const hasGap = tickEvery > 1;
+  const autoWidth = labelFormat === 'numeric' || !!columnLabels || hasGap;
 
   return createPortal(
     labels.map((tick) => (
@@ -90,7 +95,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
         className="pointer-events-none absolute"
         key={tick.key}
         style={{
-          top: 0,
+          top,
           left: tick.x,
           width: autoWidth ? 'auto' : binWidth,
           display: 'flex',

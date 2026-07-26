@@ -2,11 +2,17 @@
 
 import { motion, useSpring } from 'motion/react';
 import type { RefObject } from 'react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cn } from '@/lib/utils';
 import { type SpringConfig, useChartConfig } from '../chart-config-context';
 import { chartCssVars } from '../chart-context';
+
+const chartTooltipVarNames = [
+  '--chart-tooltip-background',
+  '--chart-tooltip-foreground',
+  '--chart-tooltip-muted',
+];
 
 export interface TooltipBoxProps {
   /** X position in pixels (relative to container) */
@@ -46,6 +52,11 @@ export interface TooltipBoxProps {
    * Default: `var(--chart-tooltip-background)`.
    */
   backgroundColor?: string;
+  /**
+   * Alternate portal target element. When set, tooltip renders via `position: fixed`
+   * using viewport-relative coordinates to avoid ancestor overflow clipping.
+   */
+  portalTarget?: HTMLElement | null;
 }
 
 // Inner-only-on-visible so `useSpring` initializes at the cursor's actual x/y
@@ -83,6 +94,7 @@ function TooltipBoxInner({
   entrance = true,
   panelStyle,
   backgroundColor = chartCssVars.tooltipBackground,
+  portalTarget,
   container,
 }: Omit<TooltipBoxProps, 'visible' | 'containerRef'> & {
   container: HTMLElement;
@@ -91,6 +103,24 @@ function TooltipBoxInner({
   const effectiveSpring = springConfig ?? tooltipBoxSpring;
 
   const tooltipRef = useRef<HTMLDivElement>(null);
+
+  // When portaling, resolve chart-tooltip CSS variables from the source
+  // container so the tooltip inherits the correct scope (e.g. light theme
+  // white bg from .adl-git-vis__container) instead of :root defaults.
+  const portalCssVars = useMemo(() => {
+    if (!portalTarget) {
+      return undefined as React.CSSProperties | undefined;
+    }
+    const style = getComputedStyle(container);
+    const vars: Record<string, string> = {};
+    for (const name of chartTooltipVarNames) {
+      const val = style.getPropertyValue(name).trim();
+      if (val) {
+        vars[name] = val;
+      }
+    }
+    return Object.keys(vars).length > 0 ? (vars as React.CSSProperties) : undefined;
+  }, [portalTarget, container]);
   const tooltipWidthRef = useRef(180);
   const tooltipHeightRef = useRef(80);
   const [staticPosition, setStaticPosition] = useState({ left: x, top: y });
@@ -111,6 +141,34 @@ function TooltipBoxInner({
     animatedTop.set(targetY);
   }
 
+  // When portaling to a different target (e.g. document.body), track the
+  // container's viewport offset so tooltip follows the chart while scrolling.
+  const [containerRect, setContainerRect] = useState<DOMRect | null>(null);
+  useEffect(() => {
+    if (!portalTarget) {
+      setContainerRect(null);
+      return;
+    }
+    const update = () => setContainerRect(container.getBoundingClientRect());
+    update();
+    const ancestors: HTMLElement[] = [];
+    let el: HTMLElement | null = container.parentElement;
+    while (el) {
+      ancestors.push(el);
+      el = el.parentElement;
+    }
+    for (const a of ancestors) {
+      a.addEventListener('scroll', update, { passive: true });
+    }
+    window.addEventListener('resize', update, { passive: true });
+    return () => {
+      for (const a of ancestors) {
+        a.removeEventListener('scroll', update);
+      }
+      window.removeEventListener('resize', update);
+    };
+  }, [container, portalTarget]);
+
   useLayoutEffect(() => {
     if (!tooltipRef.current) {
       return;
@@ -129,6 +187,12 @@ function TooltipBoxInner({
     const flip = x + w2 + offset > containerWidth;
     const tx = flip ? x - offset - w2 : x + offset;
     const ty = Math.max(offset, Math.min(y - h2 / 2, containerHeight - h2 - offset));
+
+    if (portalTarget) {
+      const rect = containerRect ?? container.getBoundingClientRect();
+      setStaticPosition({ left: rect.left + tx, top: rect.top + ty });
+      return;
+    }
     if (!animate) {
       setStaticPosition({ left: tx, top: ty });
       return;
@@ -150,6 +214,9 @@ function TooltipBoxInner({
     animate,
     animatedLeft,
     animatedTop,
+    portalTarget,
+    containerRect,
+    container,
   ]);
 
   const prevFlipRef = useRef(shouldFlipX);
@@ -166,6 +233,11 @@ function TooltipBoxInner({
   const finalTop = animate ? (topOverride ?? animatedTop) : staticPosition.top;
   const isFlipped = flippedOverride ?? shouldFlipX;
   const transformOrigin = isFlipped ? 'right top' : 'left top';
+
+  const portalEl = portalTarget ?? container;
+  const positionType = portalTarget ? 'fixed' : 'absolute';
+  const finalLeftPos = portalTarget ? staticPosition.left : finalLeft;
+  const finalTopPos = portalTarget ? staticPosition.top : finalTop;
 
   const panelClassName = cn(
     'min-w-[140px] overflow-hidden rounded-lg text-chart-tooltip-foreground shadow-lg',
@@ -185,26 +257,31 @@ function TooltipBoxInner({
   if (!entrance) {
     return createPortal(
       <div
-        className={cn('pointer-events-none absolute z-50', className)}
+        className={cn('pointer-events-none z-50', className)}
         ref={tooltipRef}
-        style={{ left: staticPosition.left, top: staticPosition.top }}
+        style={{
+          left: staticPosition.left,
+          top: staticPosition.top,
+          position: positionType,
+          ...portalCssVars,
+        }}
       >
         <div className={panelClassName} style={panelStyleResolved}>
           {children}
         </div>
       </div>,
-      container,
+      portalEl,
     );
   }
 
   return createPortal(
     <motion.div
       animate={{ opacity: 1 }}
-      className={cn('pointer-events-none absolute z-50', className)}
+      className={cn('pointer-events-none z-50', className)}
       exit={{ opacity: 0 }}
       initial={{ opacity: 0 }}
       ref={tooltipRef}
-      style={{ left: finalLeft, top: finalTop }}
+      style={{ left: finalLeftPos, top: finalTopPos, position: positionType, ...portalCssVars }}
       transition={{ duration: 0.1 }}
     >
       <motion.div
@@ -218,7 +295,7 @@ function TooltipBoxInner({
         {children}
       </motion.div>
     </motion.div>,
-    container,
+    portalEl,
   );
 }
 

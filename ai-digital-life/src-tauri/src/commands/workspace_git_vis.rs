@@ -26,7 +26,7 @@ pub async fn workspace_git_vis_commit_stats(
         until.as_deref(),
         git_vis_cache::CHART_TYPE_DAILY_COMMITS,
         || async {
-            adl_workspace::capture_commit_stats(&root, s.as_deref(), u.as_deref()).await
+            adl_workspace::capture_commit_stats(root, s.as_deref(), u.as_deref()).await
         },
     )
     .await?;
@@ -61,7 +61,7 @@ pub async fn workspace_git_vis_code_evolution(
         until.as_deref(),
         git_vis_cache::CHART_TYPE_CODE_EVOLUTION,
         || async {
-            adl_workspace::capture_code_evolution(&root, s.as_deref(), u.as_deref()).await
+            adl_workspace::capture_code_evolution(root, s.as_deref(), u.as_deref()).await
         },
     )
     .await?;
@@ -86,7 +86,7 @@ pub async fn workspace_git_vis_contributor_modules(
         until.as_deref(),
         git_vis_cache::CHART_TYPE_CONTRIBUTOR_MODULES,
         || async {
-            adl_workspace::capture_contributor_modules(&root, s.as_deref(), u.as_deref()).await
+            adl_workspace::capture_contributor_modules(root, s.as_deref(), u.as_deref()).await
         },
     )
     .await?;

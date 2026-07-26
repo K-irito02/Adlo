@@ -38,7 +38,9 @@ export function useYearBounds(rootPath: string): {
 
       const promise = window.digitalLife.workspace
         .gitVisFirstCommitYear(rootPath)
-        .then((result: any) => (result.ok ? (result.data ?? null) : null));
+        .then((result: { ok: boolean; data?: number | null }) =>
+          result.ok ? (result.data ?? null) : null,
+        );
 
       if (cache.size >= MAX_CACHE_SIZE) {
         const firstKey = cache.keys().next().value;

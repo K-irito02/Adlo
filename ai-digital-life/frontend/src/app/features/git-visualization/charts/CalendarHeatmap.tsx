@@ -93,21 +93,19 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
   );
 
   return (
-    <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
-      <HeatmapChart
-        data={heatmapData}
-        locale={locale}
-        rowLabels={dayLabels}
-        margin={{ top: 28, right: 16, bottom: 0, left: 40 }}
-        gap={2}
-        animate={true}
-        fillScale={customFillScale}
-      >
-        <HeatmapCells cornerRadius={2} />
-        <HeatmapXAxis labelFormat="numeric" />
-        <HeatmapYAxis tickFilter="even" labelFormat="full" />
-        <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
-      </HeatmapChart>
-    </div>
+    <HeatmapChart
+      data={heatmapData}
+      locale={locale}
+      rowLabels={dayLabels}
+      margin={{ top: 28, right: 16, bottom: 0, left: 40 }}
+      gap={2}
+      animate={true}
+      fillScale={customFillScale}
+    >
+      <HeatmapCells cornerRadius={2} />
+      <HeatmapXAxis labelFormat="numeric" />
+      <HeatmapYAxis tickFilter="even" labelFormat="full" />
+      <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
+    </HeatmapChart>
   );
 });

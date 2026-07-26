@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useRef, useEffect } from 'react';
-import { motion, useAnimation } from 'motion/react';
+import { motion } from 'motion/react';
 import { useTCopy } from '@i18n/useTCopy';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
 import { IconCheck, IconChevronRight, IconArrowLeft, IconArrowRight } from '@app/icons';

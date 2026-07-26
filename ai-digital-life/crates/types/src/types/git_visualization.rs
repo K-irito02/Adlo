@@ -31,6 +31,7 @@ pub struct GitVisHourlyBin {
 #[serde(rename_all = "camelCase")]
 pub struct GitVisContributorPeriod {
     pub period: String,
+    pub month: i32,
     pub count: i32,
 }
 

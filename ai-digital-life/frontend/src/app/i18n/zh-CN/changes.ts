@@ -122,11 +122,11 @@ export const changesZh = {
   gitVisClockHeatmapDesc:
     '行：星期（日~六），列：时段（0~23时）。色块颜色从浅到深代表该时段提交频次由少到多。可发现团队编码工作节奏。',
   gitVisContributorModuleDesc:
-    '行：6位贡献者，列：5个模块。色块颜色从浅到深代表跨领域活跃度由低到高。可定位每位贡献者的主要贡献领域与协作范围。',
+    '行：{rowCount}位贡献者，列：{colCount}个模块。色块颜色从浅到深代表跨领域活跃度由低到高。可定位每位贡献者的主要贡献领域与协作范围。',
   gitVisCodeLineEvoDesc:
     '行：累计行数，列：40周时间。绿线为新增行数，红线为删除行数。可反映项目增长速度与重构节奏。',
   gitVisContributorActivityDesc:
-    '行：6位贡献者，列：48周时间段。色块颜色从浅到深代表每人每周提交量由少到多。可追踪每位贡献者在时间维度上的活跃分布。',
+    '行：{rowCount}位贡献者，列：{colCount}月时间段。色块颜色从浅到深代表每人每月提交量由少到多。可追踪每位贡献者在时间维度上的活跃分布。',
   gitVisCommitTimelineDesc:
     '行：累计提交数，列：2周时间。折线为累计提交增长趋势。可展示项目开发速度。',
   gitVisFileSunburstDesc:

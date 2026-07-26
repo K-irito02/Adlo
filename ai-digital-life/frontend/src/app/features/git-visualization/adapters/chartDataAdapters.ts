@@ -9,7 +9,7 @@ export interface RawCommitStats {
     author: string;
     authorEmail: string;
     totalCommits: number;
-    periods: { period: string; count: number }[];
+    periods: { period: string; month: number; count: number }[];
   }[];
   commitTimeline: { date: string; cumulative: number }[];
 }
@@ -101,35 +101,81 @@ export function hourlyDistributionToHeatmapColumns(
 
 export function contributorActivityToHeatmapColumns(
   contributorActivity: RawCommitStats['contributorActivity'],
+  since?: string,
+  until?: string,
 ): { columns: HeatmapColumn[]; rowLabels: string[] } {
-  const rowLabels = contributorActivity.map((c) => c.author);
-  const allPeriods = new Set<string>();
-  for (const c of contributorActivity) {
+  const sorted = [...contributorActivity].sort((a, b) => a.author.localeCompare(b.author));
+  const rowLabels = sorted.map((c) => c.author);
+
+  // Build a map: period -> array of counts per author
+  const periodSet = new Set<string>();
+  const dataByAuthor = sorted.map((c) => {
+    const periodMap = new Map<string, number>();
     for (const p of c.periods) {
-      allPeriods.add(p.period);
+      periodMap.set(p.period, p.count);
+      periodSet.add(p.period);
+    }
+    return periodMap;
+  });
+
+  // Derive full month range
+  const sortedPeriods = [...periodSet].sort();
+  const minPeriod = since ? since.substring(0, 7) : sortedPeriods[0];
+  const maxPeriod = until ? until.substring(0, 7) : sortedPeriods[sortedPeriods.length - 1];
+  if (!minPeriod || !maxPeriod) {
+    return { columns: [], rowLabels };
+  }
+
+  const periods = generateMonthRange(minPeriod, maxPeriod);
+
+  const columns: HeatmapColumn[] = periods.map((period, colIdx) => {
+    const [yearStr, monthStr] = period.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10);
+    const date = new Date(year, month - 1, 1);
+
+    return {
+      bin: colIdx,
+      bins: sorted.map((c, rowIdx) => ({
+        count: dataByAuthor[rowIdx].get(period) ?? 0,
+        bin: rowIdx,
+        date,
+        tooltipTitle: new Intl.DateTimeFormat('default', { year: 'numeric', month: 'long' }).format(
+          date,
+        ),
+        tooltipSubtitle: c.author,
+      })),
+    };
+  });
+
+  return { columns, rowLabels };
+}
+
+function generateMonthRange(from: string, to: string): string[] {
+  const [y1, m1] = from.split('-').map(Number);
+  const [y2, m2] = to.split('-').map(Number);
+  const result: string[] = [];
+  let y = y1,
+    m = m1;
+  while (y < y2 || (y === y2 && m <= m2)) {
+    result.push(`${y}-${String(m).padStart(2, '0')}`);
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
     }
   }
-  const sortedPeriods = [...allPeriods].sort();
-  const columns: HeatmapColumn[] = sortedPeriods.map((period, colIdx) => ({
-    bin: colIdx,
-    columnLabel: period,
-    bins: contributorActivity.map((c, rowIdx) => ({
-      count: c.periods.find((p) => p.period === period)?.count || 0,
-      bin: rowIdx,
-      tooltipTitle: period,
-      tooltipSubtitle: c.author,
-    })),
-  }));
-  return { columns, rowLabels };
+  return result;
 }
 
 export function contributorModulesToHeatmapColumns(matrix: RawContributorModules['matrix']): {
   columns: HeatmapColumn[];
   rowLabels: string[];
 } {
-  const rowLabels = matrix.map((m) => m.author);
+  const sorted = [...matrix].sort((a, b) => a.author.localeCompare(b.author));
+  const rowLabels = sorted.map((m) => m.author);
   const allModules = new Set<string>();
-  for (const m of matrix) {
+  for (const m of sorted) {
     for (const mod of m.modules) {
       allModules.add(mod.module);
     }
@@ -138,7 +184,7 @@ export function contributorModulesToHeatmapColumns(matrix: RawContributorModules
   const columns: HeatmapColumn[] = sortedModules.map((module, colIdx) => ({
     bin: colIdx,
     columnLabel: module,
-    bins: matrix.map((m, rowIdx) => ({
+    bins: sorted.map((m, rowIdx) => ({
       count: m.modules.find((mod) => mod.module === module)?.count || 0,
       bin: rowIdx,
       tooltipTitle: module,

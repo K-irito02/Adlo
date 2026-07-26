@@ -63,7 +63,7 @@ describe('FileSunburst', () => {
   it('renders SVG with arcs', () => {
     const mockT = { gitVisNoData: 'No data' };
     const { container } = render(
-      <TCopyProvider t={mockT} locale="en-US">
+      <TCopyProvider t={mockT as any} locale="en-US">
         <FileSunburst data={fileTreemapData} />
       </TCopyProvider>,
     );

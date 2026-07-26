@@ -58,6 +58,8 @@ export interface HeatmapInteractionContextValue {
   setHoveredLegendLevel: (level: number | null) => void;
   setTooltipData: Dispatch<SetStateAction<HeatmapTooltipData | null>>;
   clearInteraction: () => void;
+  /** Optional element to portal tooltip into (avoids ancestor overflow clipping). */
+  portalTarget?: HTMLElement | null;
 }
 
 export interface HeatmapContextValue {
@@ -108,7 +110,13 @@ export type HeatmapRevealMode = 'enter' | 'fromLoading' | null;
 const HeatmapContext = createContext<HeatmapContextValue | null>(null);
 const HeatmapInteractionContext = createContext<HeatmapInteractionContextValue | null>(null);
 
-export function HeatmapInteractionProvider({ children }: { children: ReactNode }) {
+export function HeatmapInteractionProvider({
+  children,
+  portalTarget,
+}: {
+  children: ReactNode;
+  portalTarget?: HTMLElement | null;
+}) {
   const [hoveredCell, setHoveredCell] = useState<{
     column: number;
     row: number;
@@ -131,8 +139,9 @@ export function HeatmapInteractionProvider({ children }: { children: ReactNode }
       setHoveredLegendLevel,
       setTooltipData,
       clearInteraction,
+      portalTarget,
     }),
-    [clearInteraction, hoveredCell, hoveredLegendLevel, tooltipData],
+    [clearInteraction, hoveredCell, hoveredLegendLevel, tooltipData, portalTarget],
   );
 
   return (

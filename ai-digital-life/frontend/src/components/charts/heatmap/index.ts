@@ -17,6 +17,7 @@ export {
 } from './heatmap-animation';
 export { HeatmapCells, type HeatmapCellsProps } from './heatmap-cells';
 export { HeatmapChart, type HeatmapChartProps, type HeatmapLayout } from './heatmap-chart';
+export { HeatmapYearHint } from './heatmap-year-hint';
 export { HeatmapChartLoading, type HeatmapChartLoadingProps } from './heatmap-chart-loading';
 export {
   buildHeatmapColorScale,

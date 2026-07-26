@@ -58,7 +58,7 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
         pendingRef.current.delete(chartId);
       }
     },
-    [workspaceId, rootPath, setLoading, setError, setData],
+    [workspaceId, rootPath, setError, setData],
   );
 
   return { refreshWorkspace: handleRefreshWorkspace, refreshChart: handleRefreshChart } as const;

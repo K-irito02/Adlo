@@ -32,16 +32,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
 }: ContributorModuleHeatmapProps) {
   const { t, locale } = useTCopy();
 
-  const defaultFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
-  const customFillScale = useCallback(
-    (count: number | null | undefined) => {
-      if (count === -1) {
-        return 'transparent';
-      }
-      return defaultFillScale(count);
-    },
-    [defaultFillScale],
-  );
+  const customFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
 
   const { columns, rowLabels } = useMemo(() => {
     if (!data) {
@@ -66,22 +57,20 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
   );
 
   return (
-    <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
-      <HeatmapChart
-        data={columns}
-        locale={locale}
-        rowLabels={rowLabels}
-        margin={{ top: 28, right: 16, bottom: 0, left: 80 }}
-        gap={2}
-        binSize={36}
-        animate={true}
-        fillScale={customFillScale}
-      >
-        <HeatmapCells cornerRadius={2} />
-        <HeatmapXAxis />
-        <HeatmapYAxis tickFilter="all" />
-        <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
-      </HeatmapChart>
-    </div>
+    <HeatmapChart
+      data={columns}
+      locale={locale}
+      rowLabels={rowLabels}
+      margin={{ top: 28, right: 16, bottom: 0, left: 80 }}
+      gap={2}
+      binSize={36}
+      animate={true}
+      fillScale={customFillScale}
+    >
+      <HeatmapCells cornerRadius={2} />
+      <HeatmapXAxis />
+      <HeatmapYAxis tickFilter="all" />
+      <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
+    </HeatmapChart>
   );
 });

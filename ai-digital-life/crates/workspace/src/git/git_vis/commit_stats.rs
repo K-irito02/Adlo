@@ -70,12 +70,12 @@ pub async fn capture_commit_stats(
             .entry(c.author.clone())
             .or_insert_with(|| (c.author_email.clone(), 0, BTreeMap::new()));
         entry.1 += 1;
-        let week_key = if let Some(dt) = parse_date_parts(&c.date) {
-            format!("{}-W{:02}", dt.year, dt.week)
+        let month_key = if let Some(dt) = parse_date_parts(&c.date) {
+            format!("{}-{:02}", dt.year, dt.month)
         } else {
-            date10.clone()
+            date10[..7].to_string()
         };
-        *entry.2.entry(week_key.clone()).or_insert(0) += 1;
+        *entry.2.entry(month_key.clone()).or_insert(0) += 1;
 
         timeline_points.push(GitVisTimelinePoint { date: date10, cumulative: timeline_cumulative });
     }
@@ -96,7 +96,12 @@ pub async fn capture_commit_stats(
             total_commits,
             periods: periods
                 .into_iter()
-                .map(|(period, count)| GitVisContributorPeriod { period, count })
+                .map(|(period, count)| {
+                    let month = period.rsplit_once('-')
+                        .and_then(|(_, m)| m.parse().ok())
+                        .unwrap_or(1);
+                    GitVisContributorPeriod { period, month, count }
+                })
                 .collect(),
         })
         .collect();
@@ -122,7 +127,7 @@ pub async fn capture_commit_stats(
 
 struct DateParts {
     year: i32,
-    week: i32,
+    month: i32,
     day_of_week: i32,
     hour: i32,
 }
@@ -143,12 +148,7 @@ fn parse_date_parts(iso: &str) -> Option<DateParts> {
     let julian = (day as i32 + (31 * m) / 12 + y + y / 4 - y / 100 + y / 400) as u32;
     let day_of_week = ((julian + 1) % 7) as i32;
 
-    let jan4_day = (6 + year * 365 + year / 4 - year / 100 + year / 400) % 7;
-    let jan4_julian = 4 + if jan4_day <= 3 { 3 - jan4_day } else { 10 - jan4_day };
-    let week = 1 + (julian as i32 - jan4_julian) / 7;
-    let week = if week < 1 { 52 + if week == 0 { 0 } else { -1 } } else { week };
-
-    Some(DateParts { year, week, day_of_week, hour })
+    Some(DateParts { year, month: month as i32, day_of_week, hour })
 }
 
 pub async fn capture_code_evolution(

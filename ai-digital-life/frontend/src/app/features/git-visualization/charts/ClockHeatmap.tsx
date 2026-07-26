@@ -27,7 +27,7 @@ function expandToFullGrid(
       if (countMap.has(key)) {
         result.push({ hour, day, count: countMap.get(key)! });
       } else {
-        result.push({ hour, day, count: -1 });
+        result.push({ hour, day, count: 0 });
       }
     }
   }
@@ -73,16 +73,7 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({ data }: ClockHeat
     [rawColumns, weekdayNames, t, formatT],
   );
 
-  const defaultFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
-  const customFillScale = useCallback(
-    (count: number | null | undefined) => {
-      if (count === -1) {
-        return 'transparent';
-      }
-      return defaultFillScale(count);
-    },
-    [defaultFillScale],
-  );
+  const customFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
 
   const formatLabel = useCallback(
     (count: number) => {
@@ -93,22 +84,20 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({ data }: ClockHeat
   );
 
   return (
-    <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
-      <HeatmapChart
-        data={heatmapData}
-        rowLabels={dayLabels}
-        locale={locale}
-        margin={{ top: 28, right: 16, bottom: 0, left: 40 }}
-        gap={2}
-        binSize={30}
-        animate={true}
-        fillScale={customFillScale}
-      >
-        <HeatmapCells cornerRadius={2} />
-        <HeatmapXAxis tickEvery={2} />
-        <HeatmapYAxis tickFilter="even" />
-        <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
-      </HeatmapChart>
-    </div>
+    <HeatmapChart
+      data={heatmapData}
+      rowLabels={dayLabels}
+      locale={locale}
+      margin={{ top: 28, right: 16, bottom: 0, left: 40 }}
+      gap={2}
+      binSize={30}
+      animate={true}
+      fillScale={customFillScale}
+    >
+      <HeatmapCells cornerRadius={2} />
+      <HeatmapXAxis tickEvery={2} />
+      <HeatmapYAxis tickFilter="even" />
+      <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
+    </HeatmapChart>
   );
 });

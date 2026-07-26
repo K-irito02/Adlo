@@ -46,46 +46,56 @@ export const MiniDatePicker = React.memo(function MiniDatePicker({
   const firstWeekday = getFirstWeekday(viewYear, viewMonth);
 
   const handlePrevMonth = useCallback(() => {
-    if (viewMonth === 0) {
-      if (yearBounds && viewYear - 1 < yearBounds.min) {
+    let newYear = viewYear;
+    let newMonth = viewMonth - 1;
+    if (newMonth < 0) {
+      if (yearBounds && newYear - 1 < yearBounds.min) {
         onBoundary?.('earliest');
         return;
       }
-      setViewYear((y) => y - 1);
-      setViewMonth(11);
-    } else {
-      setViewMonth((m) => m - 1);
+      newYear -= 1;
+      newMonth = 11;
     }
-  }, [viewMonth, viewYear, yearBounds, onBoundary]);
+    setViewYear(newYear);
+    setViewMonth(newMonth);
+    onChange(`${newYear}-${String(newMonth + 1).padStart(2, '0')}-01`);
+  }, [viewYear, viewMonth, yearBounds, onBoundary, onChange]);
 
   const handleNextMonth = useCallback(() => {
-    if (viewMonth === 11) {
-      if (yearBounds && viewYear + 1 > yearBounds.max) {
+    let newYear = viewYear;
+    let newMonth = viewMonth + 1;
+    if (newMonth > 11) {
+      if (yearBounds && newYear + 1 > yearBounds.max) {
         onBoundary?.('latest');
         return;
       }
-      setViewYear((y) => y + 1);
-      setViewMonth(0);
-    } else {
-      setViewMonth((m) => m + 1);
+      newYear += 1;
+      newMonth = 0;
     }
-  }, [viewMonth, viewYear, yearBounds, onBoundary]);
+    setViewYear(newYear);
+    setViewMonth(newMonth);
+    onChange(`${newYear}-${String(newMonth + 1).padStart(2, '0')}-01`);
+  }, [viewYear, viewMonth, yearBounds, onBoundary, onChange]);
 
   const handlePrevYear = useCallback(() => {
     if (yearBounds && viewYear - 1 < yearBounds.min) {
       onBoundary?.('earliest');
       return;
     }
-    setViewYear((y) => y - 1);
-  }, [viewYear, yearBounds, onBoundary]);
+    const newYear = viewYear - 1;
+    setViewYear(newYear);
+    onChange(`${newYear}-${String(viewMonth + 1).padStart(2, '0')}-01`);
+  }, [viewYear, viewMonth, yearBounds, onBoundary, onChange]);
 
   const handleNextYear = useCallback(() => {
     if (yearBounds && viewYear + 1 > yearBounds.max) {
       onBoundary?.('latest');
       return;
     }
-    setViewYear((y) => y + 1);
-  }, [viewYear, yearBounds, onBoundary]);
+    const newYear = viewYear + 1;
+    setViewYear(newYear);
+    onChange(`${newYear}-${String(viewMonth + 1).padStart(2, '0')}-01`);
+  }, [viewYear, viewMonth, yearBounds, onBoundary, onChange]);
 
   const handleSelect = useCallback(
     (day: number) => {

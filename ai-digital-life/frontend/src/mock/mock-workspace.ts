@@ -399,7 +399,7 @@ export const mockWorkspace: WorkspaceBridge = {
       contributorActivity: contributorNames.map((author, i) => ({
         author, authorEmail: `${author.toLowerCase()}@example.com`,
         totalCommits: 10 - i,
-        periods: [{ period: '2026-W01', count: 3 }],
+        periods: [{ period: '2026-01', month: 1, count: 3 }, { period: '2026-02', month: 2, count: 2 }],
       })),
       commitTimeline: mockCommitTimelineData.map(d => ({ date: d.date, cumulative: d.cumulative })),
       commits: commitNodes.map(n => ({ hash: n.hash, shortHash: n.hash.substring(0, 6), date: n.date, author: n.author, authorEmail: n.authorEmail, message: n.message })),

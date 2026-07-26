@@ -169,10 +169,6 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
     [refreshChart],
   );
   const handleRefreshHeatmap = useCallback(() => refreshChart(CHART_IDS.HEATMAP), [refreshChart]);
-  const handleRefreshContributorModules = useCallback(
-    () => refreshChart(CHART_IDS.CONTRIBUTOR_MODULES),
-    [refreshChart],
-  );
 
   const rightExtra = useMemo(
     () => (
@@ -324,7 +320,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                     author: string;
                     authorEmail: string;
                     totalCommits: number;
-                    periods: { period: string; count: number }[];
+                    periods: { period: string; month: number; count: number }[];
                   }[];
                   commitTimeline: { date: string; cumulative: number }[];
                 }

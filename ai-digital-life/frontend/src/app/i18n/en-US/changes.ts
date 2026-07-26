@@ -122,11 +122,11 @@ export const changesEn = {
   gitVisClockHeatmapDesc:
     'Row: weekday (Sun~Sat), Column: hour (0~23). Cell color intensity from light to dark represents commit frequency from low to high. Discover team work rhythm patterns.',
   gitVisContributorModuleDesc:
-    "Row: 6 contributors, Column: 5 modules. Cell color intensity from light to dark represents cross-domain activity from low to high. Identify each contributor's primary contribution areas and collaboration scope.",
+    "Row: {rowCount} contributors, Column: {colCount} modules. Cell color intensity from light to dark represents cross-domain activity from low to high. Identify each contributor's primary contribution areas and collaboration scope.",
   gitVisCodeLineEvoDesc:
     'Row: cumulative line count, Column: 40 weeks. Green line = added lines, red line = deleted lines. Reflects project growth pace and refactoring rhythm.',
   gitVisContributorActivityDesc:
-    "Row: 6 contributors, Column: 48 weeks. Cell color intensity represents weekly commit volume per person from low to high. Track each contributor's activity distribution over time.",
+    "Row: {rowCount} contributors, Column: {colCount} months. Cell color intensity represents monthly commit volume per person from low to high. Track each contributor's activity distribution over time.",
   gitVisCommitTimelineDesc:
     'Row: cumulative commits, Column: 2 weeks. Line shows cumulative commit growth trend. Demonstrates project development velocity.',
   gitVisFileSunburstDesc:

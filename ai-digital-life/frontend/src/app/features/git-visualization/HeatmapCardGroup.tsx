@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
+import { formatT } from '@i18n/formatT';
 import { useTCopy } from '@i18n/useTCopy';
 import type { CopyKey } from '@i18n/types';
 import type { HeatmapTab } from '@stores/slices/uiSliceTypes';
@@ -129,6 +130,29 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     [activeHeatmapTab, activeWorkspaceTab, setGitVisTimeRange, onRefresh, persistTabRanges],
   );
 
+  const descVars = useMemo(() => {
+    if (activeHeatmapTab === 'activity') {
+      const rowCount = commitStats?.contributorActivity?.length ?? 0;
+      const { since, until } = currentRange;
+      let colCount = 0;
+      if (since && until) {
+        const [y1, m1] = since.substring(0, 7).split('-').map(Number);
+        const [y2, m2] = until.substring(0, 7).split('-').map(Number);
+        if (!isNaN(y1) && !isNaN(m1) && !isNaN(y2) && !isNaN(m2)) {
+          colCount = Math.max(0, (y2 - y1) * 12 + (m2 - m1) + 1);
+        }
+      }
+      return { rowCount: String(rowCount), colCount: String(colCount) };
+    }
+    if (activeHeatmapTab === 'module') {
+      const rowCount = contributorModules?.length ?? 0;
+      const allModules = new Set<string>();
+      contributorModules?.forEach((m) => m.modules.forEach((mod) => allModules.add(mod.module)));
+      return { rowCount: String(rowCount), colCount: String(allModules.size) };
+    }
+    return undefined;
+  }, [activeHeatmapTab, commitStats, contributorModules, currentRange]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const idx = TABS.findIndex((tab) => tab.id === activeHeatmapTab);
     let next = idx;
@@ -180,12 +204,13 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
           </button>
         ))}
       </nav>
-      <HeatmapInteractionProvider>
+      <HeatmapInteractionProvider portalTarget={document.body}>
         <div
           className="adl-git-vis__chart"
           role="tabpanel"
           id="heatmap-tabpanel"
           aria-labelledby={`heatmap-tab-${activeHeatmapTab}`}
+          style={{ overflow: 'auto' }}
         >
           {activeHeatmapTab === 'calendar' && (
             <CalendarHeatmap
@@ -199,7 +224,11 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
           )}
           {activeHeatmapTab === 'clock' && <ClockHeatmap data={commitStats?.hourlyDistribution} />}
           {activeHeatmapTab === 'activity' && (
-            <ContributorActivityHeatmap data={commitStats?.contributorActivity} />
+            <ContributorActivityHeatmap
+              data={commitStats?.contributorActivity}
+              since={currentRange.since}
+              until={currentRange.until}
+            />
           )}
           {activeHeatmapTab === 'module' && <ContributorModuleHeatmap data={contributorModules} />}
         </div>
@@ -207,7 +236,11 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
           <HeatmapLegend lessLabel={t.gitVisLess} moreLabel={t.gitVisMore} cellSize={10} gap={2} />
         </div>
       </HeatmapInteractionProvider>
-      <p className="adl-git-vis__card-desc">{t[DESC_KEYS[activeHeatmapTab]]}</p>
+      <p className="adl-git-vis__card-desc">
+        {descVars
+          ? formatT(t, DESC_KEYS[activeHeatmapTab], descVars)
+          : t[DESC_KEYS[activeHeatmapTab]]}
+      </p>
     </div>
   );
 });

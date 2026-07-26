@@ -48,7 +48,7 @@ export const HeatmapTooltip = memo(function HeatmapTooltip({
   instant = false,
 }: HeatmapTooltipProps) {
   const { containerRef, width, height, locale } = useHeatmap();
-  const { tooltipData } = useHeatmapInteraction();
+  const { tooltipData, portalTarget } = useHeatmapInteraction();
   const displayData = useDelayedTooltipData(tooltipData, showDelay, hideDelay);
 
   if (!displayData) {
@@ -67,6 +67,7 @@ export const HeatmapTooltip = memo(function HeatmapTooltip({
       containerWidth={width}
       entrance={!instant}
       panelStyle={panelStyle}
+      portalTarget={portalTarget}
       visible
       x={displayData.x}
       y={displayData.y}
