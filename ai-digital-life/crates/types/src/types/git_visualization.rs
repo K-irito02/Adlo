@@ -94,6 +94,8 @@ pub struct GitVisContributorModule {
 #[serde(rename_all = "camelCase")]
 pub struct GitVisContributorModules {
     pub matrix: Vec<GitVisContributorModule>,
+    #[serde(default)]
+    pub all_paths: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

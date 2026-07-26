@@ -1,6 +1,6 @@
 use adl_errors::AppError;
 use adl_types::{GitVisContributorModule, GitVisContributorModules, GitVisModuleEntry};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use tracing::debug;
 
@@ -25,6 +25,7 @@ pub async fn capture_contributor_modules(
     let mut author_modules: HashMap<String, (String, HashMap<String, i32>)> = HashMap::new();
     let mut current_author: Option<String> = None;
     let mut current_email: String = String::new();
+    let mut all_paths_set: HashSet<String> = HashSet::new();
 
     for line in raw.lines() {
         let trimmed = line.trim();
@@ -36,13 +37,19 @@ pub async fn capture_contributor_modules(
             current_author = Some(parts[0].to_string());
             current_email = parts.get(1).unwrap_or(&"").to_string();
         } else if let Some(ref author) = current_author {
-            let top_dir = trimmed.split('/').next().unwrap_or(trimmed);
             let entry = author_modules
                 .entry(author.clone())
                 .or_insert_with(|| (current_email.clone(), HashMap::new()));
-            *entry.1.entry(top_dir.to_string()).or_insert(0) += 1;
+            *entry.1.entry(trimmed.to_string()).or_insert(0) += 1;
+            all_paths_set.insert(trimmed.to_string());
         }
     }
+
+    let all_paths: Vec<String> = {
+        let mut v: Vec<String> = all_paths_set.into_iter().collect();
+        v.sort();
+        v
+    };
 
     let matrix: Vec<GitVisContributorModule> = author_modules
         .into_iter()
@@ -57,11 +64,71 @@ pub async fn capture_contributor_modules(
         .collect();
 
     debug!(
-        "[ADL-GIT-VIS] [contributor_modules] [{}] done in {:?} — {} contributors",
+        "[ADL-GIT-VIS] [contributor_modules] [{}] done in {:?} — {} contributors, {} unique paths",
         root.display(),
         t0.elapsed(),
-        matrix.len()
+        matrix.len(),
+        all_paths.len()
     );
 
-    Ok(GitVisContributorModules { matrix })
+    Ok(GitVisContributorModules { matrix, all_paths })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
+    use std::process::Command;
+
+    fn run_git(dir: &Path, args: &[&str]) {
+        let status = Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .status()
+            .expect("git should be available");
+        assert!(status.success(), "git command failed: git {}", args.join(" "));
+    }
+
+    #[tokio::test]
+    #[ignore = "requires git in PATH"]
+    async fn capture_contributor_modules_returns_all_paths() {
+        let dir = std::env::temp_dir().join(format!("adl-contrib-modules-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        run_git(&dir, &["init"]);
+        run_git(&dir, &["config", "user.email", "test@test.com"]);
+        run_git(&dir, &["config", "user.name", "Test User"]);
+
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::create_dir_all(dir.join("docs")).unwrap();
+        std::fs::write(dir.join("src/lib.rs"), "pub fn foo() {}").unwrap();
+        std::fs::write(dir.join("src/main.rs"), "fn main() {}").unwrap();
+        std::fs::write(dir.join("docs/readme.md"), "# Docs").unwrap();
+        run_git(&dir, &["add", "-A"]);
+        run_git(&dir, &["commit", "-m", "initial"]);
+
+        let result = capture_contributor_modules(&dir, None, None).await.unwrap();
+
+        assert!(!result.all_paths.is_empty(), "all_paths should not be empty");
+        assert!(
+            result.all_paths.contains(&"src/lib.rs".to_string()),
+            "expected src/lib.rs in all_paths, got: {:?}",
+            result.all_paths
+        );
+        assert!(
+            result.all_paths.contains(&"src/main.rs".to_string()),
+            "expected src/main.rs in all_paths"
+        );
+        assert!(
+            result.all_paths.contains(&"docs/readme.md".to_string()),
+            "expected docs/readme.md in all_paths"
+        );
+        assert_eq!(result.all_paths.len(), 3, "expected 3 unique paths");
+        assert!(result.all_paths.windows(2).all(|w| w[0] <= w[1]), "all_paths should be sorted");
+
+        let test_user_mod = result.matrix.iter().find(|m| m.author == "Test User").unwrap();
+        let paths: Vec<&str> = test_user_mod.modules.iter().map(|e| e.module.as_str()).collect();
+        assert!(paths.contains(&"src/lib.rs"), "module entry should use full path, got: {:?}", paths);
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }
