@@ -106,7 +106,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
     labels.map((tick, index) => {
       const isRotated = rotateAngle !== undefined && rotateAngle !== 0;
       const meta = columnMeta?.[index];
-      const isDir = meta?.isDir ?? true;
+      const isDir = meta?.isDir ?? false;
       const isInteractive = isDir && Boolean(onColumnClick || onColumnContextMenu);
 
       const labelStyle: React.CSSProperties = {
