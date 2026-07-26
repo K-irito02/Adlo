@@ -34,7 +34,7 @@
   width: 100%;
   max-height: 360px;
   overflow-y: auto;
-  overflow-x: clip;
+  overflow-x: auto;
   flex-shrink: 0;
   scrollbar-width: thin;
   scrollbar-gutter: stable;
