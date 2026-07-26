@@ -76,8 +76,6 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
 
   const { rules: mappingRules, saveRules: saveMappingRules, resetToDefault: resetMapping } = useModuleMapping(activeWorkspaceTab);
   const [mappingEditorOpen, setMappingEditorOpen] = useState(false);
-  const [labelMode, setLabelMode] = useState<'compact' | 'readable'>('compact');
-  const [columnWidth, setColumnWidth] = useState(36);
 
   const allDirectories = useMemo(() => {
     const first = Array.isArray(contributorModules) ? contributorModules[0] : undefined;
@@ -219,32 +217,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
           </button>
         ))}
         {activeHeatmapTab === 'module' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', padding: '0 8px' }}>
-            <button
-              className={`adl-git-vis__label-mode-btn${labelMode === 'compact' ? ' active' : ''}`}
-              onClick={() => setLabelMode('compact')}
-              title={t.gitVisLabelModeCompact}
-              style={{ fontSize: 11, padding: '2px 6px' }}
-            >
-              {t.gitVisLabelModeCompact}
-            </button>
-            <button
-              className={`adl-git-vis__label-mode-btn${labelMode === 'readable' ? ' active' : ''}`}
-              onClick={() => setLabelMode('readable')}
-              title={t.gitVisLabelModeReadable}
-              style={{ fontSize: 11, padding: '2px 6px' }}
-            >
-              {t.gitVisLabelModeReadable}
-            </button>
-            <input
-              type="range"
-              min="24"
-              max="60"
-              value={columnWidth}
-              onChange={(e) => setColumnWidth(Number(e.target.value))}
-              aria-label={t.gitVisColumnWidth}
-              style={{ width: 60 }}
-            />
+          <div style={{ display: 'flex', alignItems: 'center', marginLeft: 'auto', padding: '0 8px' }}>
             <button
               onClick={() => setMappingEditorOpen(true)}
               aria-label={t.gitVisModuleMappingManage}
@@ -289,8 +262,6 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
             <ContributorModuleHeatmap
               data={contributorModules}
               rules={mappingRules}
-              labelMode={labelMode}
-              columnWidth={columnWidth}
             />
           )}
         </div>

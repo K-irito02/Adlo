@@ -145,9 +145,6 @@ export const changesZh = {
   gitVisModuleMappingEnableOther: '将未映射目录归入"其他"',
   gitVisModuleMappingKeepOriginal: '保留未映射目录名称',
   gitVisModuleMappingConfigCorrupted: '模块映射配置已损坏，将回退到动态目录模式。',
-  gitVisLabelModeCompact: '紧凑',
-  gitVisLabelModeReadable: '可读',
-  gitVisColumnWidth: '列宽',
   gitVisHeatmapNav: '热力图类型',
   gitVisBranchGraph: '分支图谱',
   gitVisBranchGraphDesc:

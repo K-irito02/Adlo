@@ -19,15 +19,11 @@ interface ContributorModuleHeatmapProps {
     modules: { module: string; count: number }[];
   }[];
   rules?: MappingRule[];
-  labelMode?: 'normal' | 'compact' | 'readable';
-  columnWidth?: number;
 }
 
 export const ContributorModuleHeatmap = React.memo(function ContributorModuleHeatmap({
   data,
   rules = [],
-  labelMode = 'compact',
-  columnWidth = 36,
 }: ContributorModuleHeatmapProps) {
   const { t, locale } = useTCopy();
 
@@ -51,11 +47,8 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
   );
 
   const colCount = columns.length;
-
-  const rotateAngle = labelMode === 'compact' && colCount > 8 ? 30 : 0;
-  const maxLabelWidth = labelMode === 'compact'
-    ? (colCount > 15 ? 60 : colCount > 8 ? 80 : undefined)
-    : (colCount > 8 ? 80 : undefined);
+  const rotateAngle = colCount > 8 ? 30 : 0;
+  const maxLabelWidth = colCount > 15 ? 60 : colCount > 8 ? 80 : undefined;
 
   return (
     <HeatmapChart
@@ -64,7 +57,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       rowLabels={rowLabels}
       margin={{ top: 28, right: 16, bottom: 0, left: 80 }}
       gap={2}
-      binSize={columnWidth}
+      binSize={36}
       animate={true}
       fillScale={customFillScale}
     >
@@ -72,7 +65,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       <HeatmapXAxis
         rotateAngle={rotateAngle}
         maxLabelWidth={maxLabelWidth}
-        labelMode={colCount > 8 ? labelMode : 'normal'}
+        labelMode="compact"
         tickEvery={colCount > 20 ? 2 : 1}
       />
       <HeatmapYAxis tickFilter="all" />

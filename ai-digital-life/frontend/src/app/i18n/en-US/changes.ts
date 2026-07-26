@@ -145,9 +145,7 @@ export const changesEn = {
   gitVisModuleMappingEnableOther: 'Merge unmapped into "Other"',
   gitVisModuleMappingKeepOriginal: 'Keep unmapped directory names',
   gitVisModuleMappingConfigCorrupted: 'Module mapping config is corrupted. Falling back to dynamic directories.',
-  gitVisLabelModeCompact: 'Compact',
-  gitVisLabelModeReadable: 'Readable',
-  gitVisColumnWidth: 'Column Width',
+
   gitVisHeatmapNav: 'Heatmap type',
   gitVisBranchGraph: 'Branch Graph',
   gitVisBranchGraphDesc:
