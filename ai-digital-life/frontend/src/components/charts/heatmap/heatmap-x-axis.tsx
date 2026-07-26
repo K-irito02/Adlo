@@ -105,7 +105,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
 
       return (
           <div
-            className="pointer-events-none absolute whitespace-nowrap"
+            className="pointer-events-none absolute"
             key={tick.key}
             style={labelStyle}
           >

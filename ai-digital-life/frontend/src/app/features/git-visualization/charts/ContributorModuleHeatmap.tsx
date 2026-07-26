@@ -54,7 +54,7 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       return len > max ? len : max;
     }, 0);
     const maxTextWidth = maxLabelLen * 7.5;
-    const upwardExtent = Math.ceil(maxTextWidth * 0.707);
+    const upwardExtent = Math.ceil(maxTextWidth * Math.abs(Math.sin(rotateAngle * Math.PI / 180)));
     const top = upwardExtent + 4;
     const margin = top + 20;
     return { labelTop: top, marginTop: margin };
