@@ -1,0 +1,44 @@
+.adl-module-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.adl-module-breadcrumb__item {
+  background: none;
+  border: none;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.adl-module-breadcrumb__item:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-module-breadcrumb__item--active {
+  color: var(--text-primary);
+  font-weight: 500;
+  cursor: default;
+}
+
+.adl-module-breadcrumb__item:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.adl-module-breadcrumb__sep {
+  color: var(--text-muted);
+  opacity: 0.5;
+  user-select: none;
+}
