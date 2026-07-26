@@ -972,3 +972,9 @@
 .adl-git-vis__year-menu-item--active {
   font-weight: 600;
 }
+
+.adl-contributor-module-heatmap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}

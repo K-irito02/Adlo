@@ -188,4 +188,9 @@ export const changesZh = {
   gitVisCalendarYearLatest: '已是最新年份',
   gitVisCalendarYearEarliest: '已是最早提交年份',
   gitVisCalendarSelectYear: '选择年份',
+  gitVisLoadingModules: '正在加载模块...',
+  gitVisModuleRoot: '根目录',
+  gitVisModuleConfirm: '确认跳转',
+  gitVisModuleCancel: '取消',
+  gitVisBreadcrumbNav: '模块路径导航',
 } as const;

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildModuleTree, getChildrenAtPath, childrenToHeatmapColumns, flattenTreePaths } from './moduleTreeUtils';
+import {
+  buildModuleTree,
+  getChildrenAtPath,
+  childrenToHeatmapColumns,
+  flattenTreePaths,
+} from './moduleTreeUtils';
 
 describe('buildModuleTree', () => {
   it('should build tree from flat paths', () => {
@@ -60,7 +65,12 @@ describe('buildModuleTree', () => {
 });
 
 describe('getChildrenAtPath', () => {
-  const paths = ['src/components/bar.tsx', 'src/components/foo.tsx', 'src/utils/helpers.ts', 'docs/readme.md'];
+  const paths = [
+    'src/components/bar.tsx',
+    'src/components/foo.tsx',
+    'src/utils/helpers.ts',
+    'docs/readme.md',
+  ];
   const tree = buildModuleTree(paths);
 
   it('should return root children for empty path', () => {
@@ -120,7 +130,7 @@ describe('childrenToHeatmapColumns', () => {
     expect(rowLabels).toEqual(['Alice', 'Bob']);
     expect(columns.length).toBe(2); // src, docs
 
-    const srcCol = columns.find(c => c.columnLabel === 'src')!;
+    const srcCol = columns.find((c) => c.columnLabel === 'src')!;
     expect(srcCol.bins[0].count).toBe(6); // Alice: 3+2+1
     expect(srcCol.bins[1].count).toBe(1); // Bob: 1
   });
@@ -130,7 +140,7 @@ describe('childrenToHeatmapColumns', () => {
     const { columns } = childrenToHeatmapColumns(children, matrix);
 
     expect(columns.length).toBe(2); // bar.tsx, foo.tsx
-    const barCol = columns.find(c => c.columnLabel === 'bar.tsx')!;
+    const barCol = columns.find((c) => c.columnLabel === 'bar.tsx')!;
     expect(barCol.bins[0].count).toBe(3); // Alice
     expect(barCol.bins[1].count).toBe(1); // Bob
   });

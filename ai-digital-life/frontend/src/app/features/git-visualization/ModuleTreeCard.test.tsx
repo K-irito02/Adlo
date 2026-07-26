@@ -5,7 +5,7 @@ import type { ModuleTreeNode } from './moduleTreeUtils';
 
 afterEach(() => {
   cleanup();
-  document.body.querySelectorAll('.adl-module-tree-card').forEach(el => el.remove());
+  document.body.querySelectorAll('.adl-module-tree-card').forEach((el) => el.remove());
   vi.clearAllMocks();
 });
 
@@ -22,9 +22,12 @@ const mockSubtree: ModuleTreeNode[] = [
     path: 'src',
     isDir: true,
     children: [
-      { name: 'components', path: 'src/components', isDir: true, children: [
-        { name: 'bar.tsx', path: 'src/components/bar.tsx', isDir: false, children: [] },
-      ]},
+      {
+        name: 'components',
+        path: 'src/components',
+        isDir: true,
+        children: [{ name: 'bar.tsx', path: 'src/components/bar.tsx', isDir: false, children: [] }],
+      },
       { name: 'utils', path: 'src/utils', isDir: true, children: [] },
     ],
   },
@@ -32,9 +35,7 @@ const mockSubtree: ModuleTreeNode[] = [
     name: 'docs',
     path: 'docs',
     isDir: true,
-    children: [
-      { name: 'readme.md', path: 'docs/readme.md', isDir: false, children: [] },
-    ],
+    children: [{ name: 'readme.md', path: 'docs/readme.md', isDir: false, children: [] }],
   },
 ];
 
@@ -46,7 +47,7 @@ describe('ModuleTreeCard', () => {
         position={{ x: 100, y: 100 }}
         onSelect={vi.fn()}
         onClose={vi.fn()}
-      />
+      />,
     );
     expect(screen.getByText('src')).toBeInTheDocument();
     expect(screen.getByText('docs')).toBeInTheDocument();
@@ -59,7 +60,7 @@ describe('ModuleTreeCard', () => {
         position={{ x: 100, y: 100 }}
         onSelect={vi.fn()}
         onClose={vi.fn()}
-      />
+      />,
     );
     const toggles = screen.getAllByRole('button');
     const chevron = toggles[0];
@@ -75,7 +76,7 @@ describe('ModuleTreeCard', () => {
         position={{ x: 100, y: 100 }}
         onSelect={vi.fn()}
         onClose={vi.fn()}
-      />
+      />,
     );
     fireEvent.click(screen.getByText('src'));
     expect(screen.getByText('✓')).toBeInTheDocument();
@@ -89,7 +90,7 @@ describe('ModuleTreeCard', () => {
         position={{ x: 100, y: 100 }}
         onSelect={onSelect}
         onClose={vi.fn()}
-      />
+      />,
     );
     fireEvent.click(screen.getByText('src'));
     fireEvent.click(screen.getByText('Confirm'));
@@ -104,7 +105,7 @@ describe('ModuleTreeCard', () => {
         position={{ x: 100, y: 100 }}
         onSelect={vi.fn()}
         onClose={onClose}
-      />
+      />,
     );
     fireEvent.click(screen.getByText('Cancel'));
     expect(onClose).toHaveBeenCalled();

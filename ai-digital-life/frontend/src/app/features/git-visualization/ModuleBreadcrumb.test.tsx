@@ -3,7 +3,10 @@ import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ModuleBreadcrumb } from './ModuleBreadcrumb';
 
 vi.mock('@i18n/useTCopy', () => ({
-  useTCopy: () => ({ t: { gitVisBreadcrumbNav: 'breadcrumb', gitVisModuleRoot: 'Root' }, locale: 'en' }),
+  useTCopy: () => ({
+    t: { gitVisBreadcrumbNav: 'breadcrumb', gitVisModuleRoot: 'Root' },
+    locale: 'en',
+  }),
 }));
 
 afterEach(() => {

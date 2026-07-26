@@ -50,10 +50,7 @@ function sortTreeChildren(node: ModuleTreeNode): void {
   }
 }
 
-export function getChildrenAtPath(
-  tree: ModuleTreeNode,
-  pathSegments: string[],
-): ModuleTreeNode[] {
+export function getChildrenAtPath(tree: ModuleTreeNode, pathSegments: string[]): ModuleTreeNode[] {
   let current = tree;
   for (const seg of pathSegments) {
     const found = current.children.find((c) => c.name === seg);
