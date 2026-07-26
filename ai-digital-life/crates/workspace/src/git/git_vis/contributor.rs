@@ -13,7 +13,7 @@ pub async fn capture_contributor_modules(
 ) -> Result<GitVisContributorModules, AppError> {
     let t0 = std::time::Instant::now();
     let time_filter = build_time_filter(since, until);
-    let mut args: Vec<&str> = vec!["log", "--pretty=format:%an|%ae", "--name-only"];
+    let mut args: Vec<&str> = vec!["-c", "core.quotepath=false", "log", "--pretty=format:%an|%ae", "--name-only"];
     args.extend(time_filter.iter().map(|s| s.as_str()));
 
     debug!("[ADL-GIT-VIS] [contributor_modules] running: git {}", args.join(" "));

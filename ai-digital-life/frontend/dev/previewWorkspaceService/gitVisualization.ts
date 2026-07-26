@@ -104,7 +104,7 @@ export async function handleContributorModules(rootPath: string, since?: string,
   const filterArgs: string[] = [];
   if (since) filterArgs.push('--since', since);
   if (until) filterArgs.push('--until', until);
-  const raw = (await runGit(rootPath, ['log', '--pretty=format:%an|%ae', '--name-only', ...filterArgs])) ?? '';
+  const raw = (await runGit(rootPath, ['-c', 'core.quotepath=false', 'log', '--pretty=format:%an|%ae', '--name-only', ...filterArgs])) ?? '';
 
   const authorModules = new Map<string, { email: string; modules: Map<string, number> }>();
   let currentAuthor = '';

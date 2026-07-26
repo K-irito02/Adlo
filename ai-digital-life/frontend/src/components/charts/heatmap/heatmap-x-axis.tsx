@@ -104,7 +104,7 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
 
       const labelStyle: React.CSSProperties = {
         top,
-        left: tick.x,
+        left: tick.x + 6,
         width: isRotated ? 'auto' : (shouldTruncate ? maxLabelWidth : 'auto'),
         display: 'flex',
         justifyContent: isReadable ? 'center' : 'flex-start',
@@ -125,7 +125,8 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
             isReadable && 'whitespace-normal text-center leading-tight',
             className,
           )}
-          title={shouldTruncate ? tick.label : undefined}
+          title={tick.label}
+          style={{ pointerEvents: 'auto' }}
           style={{
             ...(isRotated ? {
               transform: `rotate(-${rotateAngle}deg)`,
