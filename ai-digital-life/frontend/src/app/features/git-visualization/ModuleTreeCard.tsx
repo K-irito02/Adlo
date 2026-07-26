@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTCopy } from '@i18n/useTCopy';
-import { IconFoldVertical, IconXCircle } from '@icons';
+import { IconClose, IconFoldVertical } from '@icons';
 import { TreeRow } from '../file-tree/TreeRow';
 import type { ModuleTreeNode } from './moduleTreeUtils';
 import '@/styles/components/module-tree-card.css';
@@ -193,11 +193,12 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
         </div>
         <div className="adl-module-tree-card__header-right">
           <button
-            className="adl-module-tree-card__icon-btn"
+            type="button"
+            className="adl-btn adl-btn--ghost adl-btn--xs"
             onClick={onClose}
-            title={t.gitVisModuleClose}
+            aria-label={t.gitVisModuleClose}
           >
-            <IconXCircle size={14} decorative />
+            <IconClose size={14} decorative />
           </button>
         </div>
       </div>

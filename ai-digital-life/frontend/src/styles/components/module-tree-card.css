@@ -31,24 +31,6 @@
   align-items: center;
 }
 
-.adl-module-tree-card__icon-btn {
-  background: none;
-  border: none;
-  padding: 4px;
-  border-radius: 4px;
-  cursor: pointer;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.15s, color 0.15s;
-}
-
-.adl-module-tree-card__icon-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
 .adl-module-tree-card__tree {
   flex: 1;
   overflow-y: auto;
@@ -70,21 +52,21 @@
   border-radius: 4px;
   font-size: var(--text-xs);
   cursor: pointer;
-  background: var(--bg-hover);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   transition: background-color 0.15s;
 }
 
 .adl-module-tree-card__btn:hover {
-  background: color-mix(in srgb, var(--bg-hover) 85%, var(--border) 15%);
+  background: var(--bg-hover);
 }
 
 .adl-module-tree-card__btn--confirm {
-  background: var(--bg-hover);
+  background: var(--bg-elevated);
   color: var(--text-primary);
 }
 
 .adl-module-tree-card__btn--confirm:disabled {
   opacity: 0.4;
-  cursor: default;
+  cursor: not-allowed;
 }
