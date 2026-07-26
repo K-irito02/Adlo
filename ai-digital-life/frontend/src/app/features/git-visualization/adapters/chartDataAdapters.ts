@@ -1,6 +1,7 @@
 import type { HeatmapColumn, HeatmapBin } from '@/components/charts/heatmap/heatmap-context';
 import type { BklitAreaRow } from '../../../../test-fixtures/gitVisMockData';
 import type { CommitNode, CommitEdge } from '../../../../test-fixtures/gitVisMockData';
+import type { MappingRule } from '../types/module-mapping';
 
 export interface RawCommitStats {
   dailyCommits: { date: string; count: number }[];
@@ -166,6 +167,71 @@ function generateMonthRange(from: string, to: string): string[] {
     }
   }
   return result;
+}
+
+/** Maps contributor module entries into a new set of modules based on MappingRule rules.
+ *  Rules are sorted by path length (descending) so more specific rules match first. */
+export function applyModuleMapping(
+  matrix: RawContributorModules['matrix'],
+  rules: MappingRule[],
+  options?: { enableOtherBucket?: boolean },
+): RawContributorModules['matrix'] {
+  if (rules.length === 0) {
+    return matrix;
+  }
+
+  const sortedRules = [...rules].sort((a, b) => {
+    const aLen = a.path.length;
+    const bLen = b.path.length;
+    if (aLen !== bLen) return bLen - aLen;
+    return 0;
+  });
+
+  const matchRule = (moduleName: string): string | null => {
+    for (const rule of sortedRules) {
+      if (rule.type === 'glob') {
+        const pattern = rule.path
+          .replace(/\./g, '\\.')
+          .replace(/\*\*/g, '##GLOBSTAR##')
+          .replace(/\*/g, '[^/]*')
+          .replace(/##GLOBSTAR##/g, '.*');
+        const regex = new RegExp(`^${pattern}$`);
+        if (regex.test(moduleName)) {
+          return rule.module;
+        }
+      }
+    }
+    return null;
+  };
+
+  const enableOther = options?.enableOtherBucket ?? false;
+
+  return matrix.map((contributor) => {
+    const moduleMap = new Map<string, number>();
+    let otherTotal = 0;
+    for (const entry of contributor.modules) {
+      const mapped = matchRule(entry.module);
+      if (mapped) {
+        moduleMap.set(mapped, (moduleMap.get(mapped) ?? 0) + entry.count);
+      } else if (enableOther) {
+        otherTotal += entry.count;
+      } else {
+        moduleMap.set(entry.module, (moduleMap.get(entry.module) ?? 0) + entry.count);
+      }
+    }
+    if (otherTotal > 0) {
+      moduleMap.set('Other', otherTotal);
+    }
+
+    const modules = [...moduleMap.entries()]
+      .map(([module, count]) => ({ module, count }))
+      .sort((a, b) => a.module.localeCompare(b.module));
+
+    return {
+      ...contributor,
+      modules,
+    };
+  });
 }
 
 export function contributorModulesToHeatmapColumns(matrix: RawContributorModules['matrix']): {
