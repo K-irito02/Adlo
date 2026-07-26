@@ -43,7 +43,11 @@ const DESC_KEYS: Record<HeatmapTab, CopyKey> = {
 interface HeatmapCardGroupProps {
   onRefresh?: () => Promise<void>;
   commitStats?: RawCommitStats;
-  contributorModules?: { author: string; authorEmail: string; modules: { module: string; count: number }[] }[];
+  contributorModules?: {
+    author: string;
+    authorEmail: string;
+    modules: { module: string; count: number }[];
+  }[];
   yearBounds?: { min: number; max: number } | null;
 }
 
@@ -65,7 +69,10 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
   );
 
   function loadTabRanges(): Record<HeatmapTab, TimeRangeState> {
-    const saved = readJson<Partial<Record<HeatmapTab, TimeRangeState>> | null>(TAB_TIME_RANGE_KEY, null);
+    const saved = readJson<Partial<Record<HeatmapTab, TimeRangeState>> | null>(
+      TAB_TIME_RANGE_KEY,
+      null,
+    );
     return {
       calendar: saved?.calendar ?? defaultTimeRange(),
       clock: saved?.clock ?? defaultTimeRange(),
@@ -82,7 +89,11 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
 
   // Sync store with ref on mount so initial data fetch uses saved ranges
   useEffect(() => {
-    setGitVisTimeRange(activeWorkspaceTab, CHART_IDS.HEATMAP, tabRangesRef.current[activeHeatmapTab]);
+    setGitVisTimeRange(
+      activeWorkspaceTab,
+      CHART_IDS.HEATMAP,
+      tabRangesRef.current[activeHeatmapTab],
+    );
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tabChangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -190,9 +201,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
           {activeHeatmapTab === 'activity' && (
             <ContributorActivityHeatmap data={commitStats?.contributorActivity} />
           )}
-          {activeHeatmapTab === 'module' && (
-            <ContributorModuleHeatmap data={contributorModules} />
-          )}
+          {activeHeatmapTab === 'module' && <ContributorModuleHeatmap data={contributorModules} />}
         </div>
         <div className="adl-git-vis__heatmap-legend">
           <HeatmapLegend lessLabel={t.gitVisLess} moreLabel={t.gitVisMore} cellSize={10} gap={2} />

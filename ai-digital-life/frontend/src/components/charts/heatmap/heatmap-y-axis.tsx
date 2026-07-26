@@ -39,11 +39,13 @@ export const HeatmapYAxis = memo(function HeatmapYAxis({
 
   const labels = useMemo(() => {
     if (rowLabels) {
-      return rowLabels.map((label, row) => ({
-        row,
-        label,
-        y: margin.top + yScale(row) + (binHeight - gap) / 2,
-      }));
+      return rowLabels
+        .map((label, row) => ({
+          row,
+          label,
+          y: margin.top + yScale(row) + (binHeight - gap) / 2,
+        }))
+        .filter((tick) => shouldShowHeatmapYAxisTick(tick.row, tickFilter));
     }
 
     return getHeatmapDayLabels(weekStartDay)

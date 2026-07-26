@@ -20,7 +20,9 @@ afterEach(() => {
 it('returns yearBounds when firstCommitYear is fetched', async () => {
   mockGitVisFirstCommitYear.mockResolvedValueOnce({ ok: true, data: 2020 });
   const { result } = renderHook(() => useYearBounds('/path/to/repo'));
-  await waitFor(() => expect(result.current.yearBounds).toEqual({ min: 2020, max: new Date().getFullYear() }));
+  await waitFor(() =>
+    expect(result.current.yearBounds).toEqual({ min: 2020, max: new Date().getFullYear() }),
+  );
 });
 
 it('returns loading true while fetching', () => {
@@ -36,11 +38,13 @@ it('returns null yearBounds when rootPath is empty', () => {
   expect(result.current.loading).toBe(false);
 });
 
-
-
 it('does not update state after unmount', async () => {
   let resolvePromise!: (v: any) => void;
-  mockGitVisFirstCommitYear.mockReturnValue(new Promise((resolve) => { resolvePromise = resolve; }));
+  mockGitVisFirstCommitYear.mockReturnValue(
+    new Promise((resolve) => {
+      resolvePromise = resolve;
+    }),
+  );
   const { result, unmount } = renderHook(() => useYearBounds('/path/repo'));
   expect(result.current.loading).toBe(true);
 

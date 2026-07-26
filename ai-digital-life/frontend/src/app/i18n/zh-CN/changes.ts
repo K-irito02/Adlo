@@ -107,6 +107,7 @@ export const changesZh = {
   gitVisModuleTesting: '测试',
   gitVisModuleDocs: '文档',
   gitVisCalendarHeatmap: '提交日历',
+  gitVisHourRange: '{start}:00 ~ {end}:00',
   gitVisContribution: '次提交',
   gitVisContributions: '次提交',
   gitVisCommits: '次提交',

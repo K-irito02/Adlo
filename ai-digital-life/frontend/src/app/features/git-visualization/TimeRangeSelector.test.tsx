@@ -52,7 +52,11 @@ vi.mock('motion/react', () => ({
 
 vi.mock('@stores/slicedStore', () => ({
   useAppStore: (selector: any) => {
-    const state = { showToast: mockShowToast, activeWorkspaceTab: 'workspace-1', gitVisLoading: {} };
+    const state = {
+      showToast: mockShowToast,
+      activeWorkspaceTab: 'workspace-1',
+      gitVisLoading: {},
+    };
     return selector ? selector(state) : state;
   },
 }));

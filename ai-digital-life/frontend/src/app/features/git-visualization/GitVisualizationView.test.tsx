@@ -124,7 +124,7 @@ vi.mock('@stores/slicedStore', () => ({
       gitVisErrors: {},
       gitVisTimeRange: {
         'workspace-1': {
-          'heatmap': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
+          heatmap: { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
           'contributor-modules': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
           'code-line-evolution': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
           'commit-timeline': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },

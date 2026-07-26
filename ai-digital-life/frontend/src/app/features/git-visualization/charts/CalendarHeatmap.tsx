@@ -65,7 +65,7 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
       return columns.map((col) => ({
         ...col,
         bins: col.bins.map((b) =>
-          b.date && b.date.getFullYear() !== year             ? { ...b, date: undefined, count: -1 } : b,
+          b.date && b.date.getFullYear() !== year ? { ...b, date: undefined, count: -1 } : b,
         ),
       }));
     }
@@ -73,13 +73,12 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
   }, [expandedData, year]);
   const dayLabels = useMemo(() => dayFmt(locale), [locale]);
 
-  const defaultFillScale = useMemo(
-    () => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES),
-    [],
-  );
+  const defaultFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
   const customFillScale = useCallback(
     (count: number | null | undefined) => {
-      if (count === -1) return 'transparent';
+      if (count === -1) {
+        return 'transparent';
+      }
       return defaultFillScale(count);
     },
     [defaultFillScale],
@@ -106,7 +105,7 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
       >
         <HeatmapCells cornerRadius={2} />
         <HeatmapXAxis labelFormat="numeric" />
-        <HeatmapYAxis tickFilter="odd" labelFormat="full" />
+        <HeatmapYAxis tickFilter="even" labelFormat="full" />
         <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
       </HeatmapChart>
     </div>

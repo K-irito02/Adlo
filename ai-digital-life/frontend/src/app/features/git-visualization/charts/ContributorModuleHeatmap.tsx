@@ -32,13 +32,12 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
 }: ContributorModuleHeatmapProps) {
   const { t, locale } = useTCopy();
 
-  const defaultFillScale = useMemo(
-    () => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES),
-    [],
-  );
+  const defaultFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
   const customFillScale = useCallback(
     (count: number | null | undefined) => {
-      if (count === -1) return 'transparent';
+      if (count === -1) {
+        return 'transparent';
+      }
       return defaultFillScale(count);
     },
     [defaultFillScale],

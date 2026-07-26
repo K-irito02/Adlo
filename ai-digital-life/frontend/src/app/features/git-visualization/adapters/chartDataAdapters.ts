@@ -91,8 +91,8 @@ export function hourlyDistributionToHeatmapColumns(
       hourMap.set(hour, []);
     }
     const row = dayBinToRow(day);
-    const label = dayNames ? `${String(hour).padStart(2, '0')}:00 \u00B7 ${dayNames[row]}` : undefined;
-    hourMap.get(hour)!.push({ count, bin: row, tooltipLabel: label });
+    const subtitle = dayNames ? dayNames[row] : undefined;
+    hourMap.get(hour)!.push({ count, bin: row, tooltipSubtitle: subtitle });
   }
   return [...hourMap.entries()]
     .sort(([a], [b]) => a - b)
@@ -116,7 +116,8 @@ export function contributorActivityToHeatmapColumns(
     bins: contributorActivity.map((c, rowIdx) => ({
       count: c.periods.find((p) => p.period === period)?.count || 0,
       bin: rowIdx,
-      tooltipLabel: `${c.author} \u00B7 ${period}`,
+      tooltipTitle: period,
+      tooltipSubtitle: c.author,
     })),
   }));
   return { columns, rowLabels };
@@ -140,7 +141,8 @@ export function contributorModulesToHeatmapColumns(matrix: RawContributorModules
     bins: matrix.map((m, rowIdx) => ({
       count: m.modules.find((mod) => mod.module === module)?.count || 0,
       bin: rowIdx,
-      tooltipLabel: `${m.author} \u00B7 ${module}`,
+      tooltipTitle: module,
+      tooltipSubtitle: m.author,
     })),
   }));
   return { columns, rowLabels };

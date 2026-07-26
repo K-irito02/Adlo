@@ -35,27 +35,50 @@ function expandToFullGrid(
 }
 
 export const ClockHeatmap = React.memo(function ClockHeatmap({ data }: ClockHeatmapProps) {
-  const { t, locale } = useTCopy();
+  const { t, locale, formatT } = useTCopy();
   const dayLabels = useMemo(
     () =>
       [0, 1, 2, 3, 4, 5, 6].map((offset) =>
-        new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2026, 0, 4 + offset)),
+        new Intl.DateTimeFormat(locale, { weekday: 'narrow' }).format(
+          new Date(2026, 0, 4 + offset),
+        ),
       ),
     [locale],
   );
   const expandedData = useMemo(() => (data ? expandToFullGrid(data) : undefined), [data]);
-  const heatmapData = useMemo(
+  const rawColumns = useMemo(
     () => (expandedData ? hourlyDistributionToHeatmapColumns(expandedData, dayLabels) : []),
     [expandedData, dayLabels],
   );
-
-  const defaultFillScale = useMemo(
-    () => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES),
-    [],
+  const weekdayNames = useMemo(
+    () =>
+      [0, 1, 2, 3, 4, 5, 6].map((offset) =>
+        new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(new Date(2026, 0, 4 + offset)),
+      ),
+    [locale],
   );
+  const heatmapData = useMemo(
+    () =>
+      rawColumns.map((col) => ({
+        ...col,
+        bins: col.bins.map((bin) => ({
+          ...bin,
+          tooltipTitle: formatT(t, 'gitVisHourRange', {
+            start: String(col.bin).padStart(2, '0'),
+            end: String((Number(col.bin) + 1) % 24).padStart(2, '0'),
+          }),
+          tooltipSubtitle: weekdayNames[bin.bin] ?? bin.tooltipSubtitle,
+        })),
+      })),
+    [rawColumns, weekdayNames, t, formatT],
+  );
+
+  const defaultFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
   const customFillScale = useCallback(
     (count: number | null | undefined) => {
-      if (count === -1) return 'transparent';
+      if (count === -1) {
+        return 'transparent';
+      }
       return defaultFillScale(count);
     },
     [defaultFillScale],
@@ -83,7 +106,7 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({ data }: ClockHeat
       >
         <HeatmapCells cornerRadius={2} />
         <HeatmapXAxis tickEvery={2} />
-        <HeatmapYAxis />
+        <HeatmapYAxis tickFilter="even" />
         <HeatmapTooltip showDelay={150} hideDelay={100} formatLabel={formatLabel} />
       </HeatmapChart>
     </div>

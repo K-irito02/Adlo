@@ -439,6 +439,8 @@ export const HeatmapCells = memo(function HeatmapCells({
         x: margin.left + x + binWidth / 2,
         y: margin.top + y + binHeight / 2,
         tooltipLabel: bin.tooltipLabel,
+        tooltipTitle: bin.tooltipTitle,
+        tooltipSubtitle: bin.tooltipSubtitle,
       });
     },
     [

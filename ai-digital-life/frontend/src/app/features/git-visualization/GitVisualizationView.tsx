@@ -41,7 +41,9 @@ class VisErrorBoundary extends Component<
       return (
         <div className="adl-git-vis__error-boundary">
           <p>{this.props.errorMsg}</p>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{this.state.errorInfo}</p>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+            {this.state.errorInfo}
+          </p>
           <button onClick={this.handleRetry}>{this.props.retryLabel}</button>
         </div>
       );
@@ -329,9 +331,17 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
               | undefined
           }
           contributorModules={
-            (contributorModulesData.data as
-              | { matrix: { author: string; authorEmail: string; modules: { module: string; count: number }[] }[] }
-              | undefined)?.matrix
+            (
+              contributorModulesData.data as
+                | {
+                    matrix: {
+                      author: string;
+                      authorEmail: string;
+                      modules: { module: string; count: number }[];
+                    }[];
+                  }
+                | undefined
+            )?.matrix
           }
           yearBounds={yearBounds}
         />

@@ -107,6 +107,7 @@ export const changesEn = {
   gitVisModuleTesting: 'Testing',
   gitVisModuleDocs: 'Documentation',
   gitVisCalendarHeatmap: 'Commit Calendar',
+  gitVisHourRange: '{start}:00 \u2013 {end}:00',
   gitVisContribution: 'contribution',
   gitVisContributions: 'contributions',
   gitVisCommits: 'commits',
