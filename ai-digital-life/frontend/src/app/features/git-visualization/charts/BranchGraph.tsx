@@ -406,55 +406,63 @@ export function BranchGraph({ data }: BranchGraphProps) {
   }, [rows.length]);
 
   const columnsWithLabels = useMemo(() => {
-    if (rows.length === 0) return columns;
-    // Collect all unique branch names per column (prefer local over origin/)
-    const colBranches = new Map<number, Set<string>>();
+    if (rows.length === 0 || !adapted) return columns;
+    const allBr = adapted.allBranches;
+    // For each column, pick the best label:
+    // 1. Prefer non-origin/ branch within the column
+    // 2. If only origin/ exists, try stripping prefix and matching allBranches
+    const colLabel = new Map<number, string>();
     for (const row of rows) {
-      if (row.node.branch) {
-        let set = colBranches.get(row.column);
-        if (!set) { set = new Set(); colBranches.set(row.column, set); }
-        set.add(row.node.branch);
+      if (!row.node.branch) continue;
+      const prev = colLabel.get(row.column);
+      if (!prev) {
+        colLabel.set(row.column, row.node.branch);
+      } else if (prev.startsWith('origin/') && !row.node.branch.startsWith('origin/')) {
+        colLabel.set(row.column, row.node.branch);
       }
     }
-    // Build column labels: prefer non-origin/, fallback to origin/
-    const colLabel = new Map<number, string>();
-    for (const [colIdx, branches] of colBranches) {
-      const local = Array.from(branches).find(b => !b.startsWith('origin/'));
-      colLabel.set(colIdx, local ?? Array.from(branches)[0]);
+    for (const [colIdx, label] of colLabel) {
+      if (label.startsWith('origin/')) {
+        const localName = label.slice(7);
+        if (allBr.includes(localName)) {
+          colLabel.set(colIdx, localName);
+        }
+      }
+    }
+    // Dedup: group columns by same label → show as one labeled entry
+    const labelToCols = new Map<string, number[]>();
+    for (const c of columns) {
+      const lbl = colLabel.get(c.index) ?? `#${c.index}`;
+      let arr = labelToCols.get(lbl);
+      if (!arr) { arr = []; labelToCols.set(lbl, arr); }
+      arr.push(c.index);
     }
     const freq = new Map<string, number>();
-    const colLabels = columns.map(c => {
-      let label = colLabel.get(c.index) ?? `#${c.index}`;
-      const count = freq.get(label) || 0;
-      freq.set(label, count + 1);
-      if (count > 0) label = `${label} (${count + 1})`;
-      return { ...c, label };
-    });
-    // Merge column labels with allBranches from backend (for branches without columns)
-    const allBranches = adapted?.allBranches ?? [];
-    const seenLabels = new Set(colLabels.map(c => c.label));
-    const extraBranches = allBranches.filter(b => !seenLabels.has(b));
-    const maxColIdx = columns.length > 0 ? Math.max(...columns.map(c => c.index)) : -1;
-    const extraLabels = extraBranches.map((b, i) => ({
-      index: maxColIdx + 1 + i,
-      color: getBranchColor(b, isDark),
-      label: b,
-    }));
-    return [...colLabels, ...extraLabels];
-  }, [columns, rows, adapted?.allBranches, isDark]);
+    const labeled: (ColumnInfo & { filterCols: number[] })[] = [];
+    for (const c of columns) {
+      const lbl = colLabel.get(c.index) ?? `#${c.index}`;
+      const group = labelToCols.get(lbl)!;
+      // Only add label for the first column in each group
+      if (c.index !== group[0]) continue;
+      const count = freq.get(lbl) || 0;
+      freq.set(lbl, count + 1);
+      const displayLabel = count > 0 ? `${lbl} (${count + 1})` : lbl;
+      labeled.push({ ...c, label: displayLabel, filterCols: group });
+    }
+    return labeled;
+  }, [columns, rows, adapted]);
 
   const totalLaneWidth = columns.length * (LANE_WIDTH + LANE_GAP);
   const visibleRows = rows.slice(0, visibleCount);
   const totalHeight = visibleRows.length * ROW_HEIGHT + 8;
 
   const handleRowHover = useCallback((id: string | null) => setHoveredId(id), []);
-  const handleLabelClick = useCallback((colIndex: number) => {
+  const handleLabelClick = useCallback((colIndices: number[]) => {
     setFilterColumns((prev) => {
       const next = new Set(prev);
-      if (next.has(colIndex)) {
-        next.delete(colIndex);
-      } else {
-        next.add(colIndex);
+      for (const idx of colIndices) {
+        if (next.has(idx)) next.delete(idx);
+        else next.add(idx);
       }
       return next;
     });
@@ -484,7 +492,8 @@ export function BranchGraph({ data }: BranchGraphProps) {
         <div />
         <div ref={tagRowRef} className="adl-branch-graph__tag-row" onWheel={handleTagRowWheel}>
           {columnsWithLabels.map((col) => {
-            const isSelected = filterColumns.has(col.index);
+            const fcs: number[] = (col as any).filterCols ?? [col.index];
+            const isSelected = fcs.some(i => filterColumns.has(i));
             const isHovered = hoveredLabel === col.label;
             const showIndicator = isSelected || isHovered;
             const showScale = (isHovered && !isSelected) || (!isHovered && isSelected);
@@ -498,7 +507,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                   className="adl-branch-graph__label"
                   data-indicator={showIndicator ? 'true' : undefined}
                   data-scale={showScale ? 'true' : undefined}
-                  onClick={() => handleLabelClick(col.index)}
+                  onClick={() => handleLabelClick(fcs)}
                   onMouseEnter={() => setHoveredLabel(col.label)}
                   onMouseLeave={() => setHoveredLabel(null)}
                   style={{
@@ -510,7 +519,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                     fontWeight: 600,
                     border: 'none',
                     cursor: 'pointer',
-                    opacity: filterColumns.size === 0 || filterColumns.has(col.index) ? 1 : 0.4,
+                    opacity: filterColumns.size === 0 || fcs.some(i => filterColumns.has(i)) ? 1 : 0.4,
                   }}
                 >
                   <span className="adl-branch-graph__label-text" title={col.label}>
