@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
 use tokio::task::JoinSet;
-use tracing::debug;
+use tracing::{debug, warn};
 
 pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppError> {
     let t0 = std::time::Instant::now();
@@ -183,8 +183,9 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
     }
 
     while let Some(res) = js.join_next().await {
-        if let Ok((name, progress)) = res {
-            branch_progress.insert(name, progress);
+        match res {
+            Ok((name, progress)) => { branch_progress.insert(name, progress); },
+            Err(e) => warn!("[ADL-GIT-VIS] branch progress task failed: {:?}", e),
         }
     }
 
