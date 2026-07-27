@@ -391,14 +391,19 @@ export function BranchGraph({ data }: BranchGraphProps) {
     const topCommitPerCol = new Map<number, string>();
     for (const row of rows) {
       if (!topCommitPerCol.has(row.column)) {
-        const label = (row.node.branch || '').replace(/^origin\//, '') || row.node.shortHash || '';
+        const label = row.node.branch || row.node.shortHash || '';
         topCommitPerCol.set(row.column, label);
       }
     }
-    const labeled = columns.map(c => ({
-      ...c,
-      label: topCommitPerCol.get(c.index) ?? `#${c.index}`,
-    }));
+    // Deduplicate labels: append (N) suffix for duplicates
+    const freq = new Map<string, number>();
+    const labeled = columns.map(c => {
+      let label = topCommitPerCol.get(c.index) ?? `#${c.index}`;
+      const count = freq.get(label) || 0;
+      freq.set(label, count + 1);
+      if (count > 0) label = `${label} (${count + 1})`;
+      return { ...c, label };
+    });
     return labeled;
   }, [columns, rows]);
 
