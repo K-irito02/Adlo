@@ -561,21 +561,17 @@ export function BranchGraph({ data }: BranchGraphProps) {
                   }>
                     {col.label}
                   </span>
-                  {/* Progress text */}
-                  {(col as any).branchProgress && (col as any).branchProgress.mergeBase ? (
+                  {/* Progress text — only for branches with remote tracking */}
+                  {(col as any).branchProgress?.mergeBase ? (
                     <span className="adl-branch-graph__label-progress" style={{ marginLeft: 2 }}>
                       {(col as any).branchProgress.ahead > 0 && (
-                        <span style={{ fontSize: 14, fontWeight: 700 }}> ↑{(col as any).branchProgress.ahead}</span>
+                        <span><span style={{ fontSize: 16, fontWeight: 700 }}>↑</span><span style={{ fontSize: 11 }}>{(col as any).branchProgress.ahead}</span></span>
                       )}
                       {(col as any).branchProgress.behind > 0 && (
-                        <span style={{ fontSize: 14, fontWeight: 700 }}> ↓{(col as any).branchProgress.behind}</span>
+                        <span><span style={{ fontSize: 16, fontWeight: 700 }}>↓</span><span style={{ fontSize: 11 }}>{(col as any).branchProgress.behind}</span></span>
                       )}
                     </span>
-                  ) : (col as any).branchProgress && (
-                    <span className="adl-branch-graph__label-progress" style={{ fontSize: 10, opacity: 0.5, marginLeft: 4 }}>
-                      {t.gitVisLocalOnly}
-                    </span>
-                  )}
+                  ) : null}
                 </button>
               </div>
             );
