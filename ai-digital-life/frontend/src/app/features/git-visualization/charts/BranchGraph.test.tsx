@@ -79,7 +79,7 @@ describe('BranchGraph', () => {
   it('renders branch labels', () => {
     const { container } = render(<BranchGraph data={mockData} />);
     const labels = container.querySelectorAll('.adl-branch-graph__label');
-    expect(labels.length).toBe(6);
+    expect(labels.length).toBe(7);
   });
 
   it('shows tag badge for tagged commit', () => {

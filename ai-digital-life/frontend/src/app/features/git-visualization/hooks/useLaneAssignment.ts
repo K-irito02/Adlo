@@ -130,7 +130,6 @@ export function computeColumns(
     .sort(([a], [b]) => a - b)
     .map(([index, color]) => ({ index, color, label: '' }));
 
-  // Log first 10 column assignments (topmost rows)
   return { columnOf, columns, sortedIds: sorted };
 }
 

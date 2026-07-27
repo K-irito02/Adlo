@@ -16,6 +16,25 @@ const NODE_RADIUS = 6;
 const MERGE_NODE_SIZE = 12;
 const INITIAL_LOAD = 50;
 const LOAD_MORE = 30;
+const GOLDEN_ANGLE = 137.508;
+
+function getBranchColor(branch: string, isDark: boolean): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < branch.length; i++) {
+    hash ^= branch.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  const hue = (Math.abs(hash) * GOLDEN_ANGLE) % 360;
+  const satHash = Math.imul(hash, 0x6d2b79f5) | 0;
+  const satOffset = (Math.abs(satHash) % 11) - 5;
+  const baseSat = isDark ? 55 : 65;
+  const saturation = Math.max(45, Math.min(75, baseSat + satOffset));
+  const lightHash = Math.imul(hash, 0x1b56c4e9) | 0;
+  const lightOffset = (Math.abs(lightHash) % 7) - 3;
+  const baseLight = isDark ? 42 : 58;
+  const lightness = Math.max(35, Math.min(65, baseLight + lightOffset));
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
 
 const AUTHOR_COLORS = [
   '#e74c3c',
@@ -388,24 +407,41 @@ export function BranchGraph({ data }: BranchGraphProps) {
 
   const columnsWithLabels = useMemo(() => {
     if (rows.length === 0) return columns;
-    const topCommitPerCol = new Map<number, string>();
+    // Collect all unique branch names per column (prefer local over origin/)
+    const colBranches = new Map<number, Set<string>>();
     for (const row of rows) {
-      if (!topCommitPerCol.has(row.column)) {
-        const label = row.node.branch || row.node.shortHash || '';
-        topCommitPerCol.set(row.column, label);
+      if (row.node.branch) {
+        let set = colBranches.get(row.column);
+        if (!set) { set = new Set(); colBranches.set(row.column, set); }
+        set.add(row.node.branch);
       }
     }
-    // Deduplicate labels: append (N) suffix for duplicates
+    // Build column labels: prefer non-origin/, fallback to origin/
+    const colLabel = new Map<number, string>();
+    for (const [colIdx, branches] of colBranches) {
+      const local = Array.from(branches).find(b => !b.startsWith('origin/'));
+      colLabel.set(colIdx, local ?? Array.from(branches)[0]);
+    }
     const freq = new Map<string, number>();
-    const labeled = columns.map(c => {
-      let label = topCommitPerCol.get(c.index) ?? `#${c.index}`;
+    const colLabels = columns.map(c => {
+      let label = colLabel.get(c.index) ?? `#${c.index}`;
       const count = freq.get(label) || 0;
       freq.set(label, count + 1);
       if (count > 0) label = `${label} (${count + 1})`;
       return { ...c, label };
     });
-    return labeled;
-  }, [columns, rows]);
+    // Merge column labels with allBranches from backend (for branches without columns)
+    const allBranches = adapted?.allBranches ?? [];
+    const seenLabels = new Set(colLabels.map(c => c.label));
+    const extraBranches = allBranches.filter(b => !seenLabels.has(b));
+    const maxColIdx = columns.length > 0 ? Math.max(...columns.map(c => c.index)) : -1;
+    const extraLabels = extraBranches.map((b, i) => ({
+      index: maxColIdx + 1 + i,
+      color: getBranchColor(b, isDark),
+      label: b,
+    }));
+    return [...colLabels, ...extraLabels];
+  }, [columns, rows, adapted?.allBranches, isDark]);
 
   const totalLaneWidth = columns.length * (LANE_WIDTH + LANE_GAP);
   const visibleRows = rows.slice(0, visibleCount);
