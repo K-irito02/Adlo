@@ -227,9 +227,6 @@ const SvgLanes = React.memo(function SvgLanes({
       sourceRow.node.branch !== hoveredBranch &&
       targetRow.node.branch !== hoveredBranch;
 
-    const isSourceAhead = aheadRows.has(sourceIdx);
-    const isTargetAhead = aheadRows.has(targetIdx);
-    const isEdgeAhead = isSourceAhead && isTargetAhead;
 
     if (sourceRow.column === targetRow.column) {
       connections.push(
@@ -237,7 +234,7 @@ const SvgLanes = React.memo(function SvgLanes({
           x1={sx} y1={sy} x2={tx} y2={ty}
           stroke={sourceRow.color}
           strokeWidth={2.5} strokeLinecap="round"
-          opacity={edgeDimmed ? 0.1 : (isEdgeAhead ? 1 : 0.6)}
+          opacity={edgeDimmed ? 0.1 : 0.6}
         />,
       );
     } else {
@@ -248,7 +245,7 @@ const SvgLanes = React.memo(function SvgLanes({
           fill="none" stroke={sourceRow.color}
           strokeWidth={2}
           strokeDasharray={sourceIdx > targetIdx ? '4,3' : 'none'}
-          opacity={edgeDimmed ? 0.1 : (isEdgeAhead ? 1 : 0.6)}
+          opacity={edgeDimmed ? 0.1 : 0.6}
         />,
       );
     }
@@ -265,7 +262,7 @@ const SvgLanes = React.memo(function SvgLanes({
       row.node.branch !== hoveredBranch;
     if (row.node.tag) {
       return (
-        <g key={`node-${row.node.id}`} opacity={nodeDimmed ? 0.1 : (aheadRows.has(i) ? 1 : 0.75)}>
+        <g key={`node-${row.node.id}`} opacity={nodeDimmed ? 0.1 : (aheadRows.has(i) ? 0.65 : 1)}>
           <circle cx={x} cy={y} r={r + 1} fill="none" stroke={row.color} strokeWidth={2.5} />
           <circle cx={x + 14} cy={y - 8} r={8} fill={row.color} opacity={0.15} />
           <text x={x + 14} y={y - 5} textAnchor="middle" fontSize={8} fill={row.color} fontWeight={600}>
@@ -284,7 +281,7 @@ const SvgLanes = React.memo(function SvgLanes({
           fill={row.color}
           stroke={nodeStroke}
           strokeWidth={2}
-          opacity={nodeDimmed ? 0.1 : (aheadRows.has(i) ? 1 : 0.75)}
+          opacity={nodeDimmed ? 0.1 : (aheadRows.has(i) ? 0.65 : 1)}
         />
       );
     }
@@ -296,7 +293,7 @@ const SvgLanes = React.memo(function SvgLanes({
         fill={row.color}
         stroke={nodeStroke}
         strokeWidth={2}
-        opacity={nodeDimmed ? 0.1 : (aheadRows.has(i) ? 1 : 0.75)}
+        opacity={nodeDimmed ? 0.1 : (aheadRows.has(i) ? 0.65 : 1)}
       />
     );
   });
@@ -558,17 +555,21 @@ export function BranchGraph({ data }: BranchGraphProps) {
                           .replace('{ahead}', String((col as any).branchProgress.ahead))
                           .replace('{behind}', String((col as any).branchProgress.behind))
                           + ((col as any).branchProgress.mergeBase
-                            ? ' | ' + (col as any).branchProgress.mergeBase.substring(0, 7)
+                            ? ' | ' + t.gitVisProgressBase + ': ' + (col as any).branchProgress.mergeBase.substring(0, 7)
                             : '')
                       : col.label
                   }>
                     {col.label}
                   </span>
                   {(col as any).branchProgress && ((col as any).branchProgress.ahead > 0 || (col as any).branchProgress.behind > 0) && (
-                    <span className="adl-branch-graph__label-progress" style={{ fontSize: 10, marginLeft: 2 }}>
-                      {(col as any).branchProgress.ahead > 0 && `${t.gitVisProgressAhead} ${(col as any).branchProgress.ahead}`}
+                    <span className="adl-branch-graph__label-progress" style={{ marginLeft: 2 }}>
+                      {(col as any).branchProgress.ahead > 0 && (
+                        <span style={{ fontSize: 12, fontWeight: 700 }}> ↑{(col as any).branchProgress.ahead}</span>
+                      )}
                       {(col as any).branchProgress.ahead > 0 && (col as any).branchProgress.behind > 0 && ' | '}
-                      {(col as any).branchProgress.behind > 0 && `${t.gitVisProgressBehind} ${(col as any).branchProgress.behind}`}
+                      {(col as any).branchProgress.behind > 0 && (
+                        <span style={{ fontSize: 12, fontWeight: 700 }}> ↓{(col as any).branchProgress.behind}</span>
+                      )}
                     </span>
                   )}
                 </button>

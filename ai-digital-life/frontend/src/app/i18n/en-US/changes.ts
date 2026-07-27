@@ -203,4 +203,5 @@ export const changesEn = {
   gitVisProgressAhead: 'ahead',
   gitVisProgressBehind: 'behind',
   gitVisProgressTooltip: '{label} vs remote: ahead {ahead}, behind {behind}',
+  gitVisProgressBase: 'base',
 } as const;
