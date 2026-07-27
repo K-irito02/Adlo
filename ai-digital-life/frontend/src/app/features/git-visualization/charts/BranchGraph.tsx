@@ -394,7 +394,8 @@ export function BranchGraph({ data }: BranchGraphProps) {
     const topCommitPerCol = new Map<number, string>();
     for (const row of rows) {
       if (!topCommitPerCol.has(row.column)) {
-        topCommitPerCol.set(row.column, row.node.branch || row.node.shortHash || '');
+        const label = (row.node.branch || '').replace(/^origin\//, '') || row.node.shortHash || '';
+        topCommitPerCol.set(row.column, label);
       }
     }
     return columns.map(c => ({

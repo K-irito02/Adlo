@@ -5,6 +5,7 @@ import type { HeatmapColumn, HeatmapBin } from '@/components/charts/heatmap/heat
 export interface CommitNode {
   id: string;
   hash: string;
+  shortHash?: string;
   branch: string;
   date: string;
   message: string;

@@ -11,6 +11,7 @@ interface CopyButtonProps {
   tooltip?: string;
   tooltipCopied?: string;
   onCopy?: () => void;
+  nativeTooltip?: boolean;
 }
 
 export function CopyButton({
@@ -20,6 +21,7 @@ export function CopyButton({
   tooltip,
   tooltipCopied,
   onCopy,
+  nativeTooltip,
 }: CopyButtonProps) {
   const { t } = useTCopy();
   const [copied, setCopied] = useState(false);
@@ -58,18 +60,25 @@ export function CopyButton({
     }
   };
 
-  return (
+  const btn = (
+    <span
+      role="button"
+      tabIndex={0}
+      className={`adl-copy-btn${copied ? ' is-copied' : ''}${className ? ` ${className}` : ''}`}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      aria-label={content}
+      {...(nativeTooltip ? { title: content } : {})}
+    >
+      <CopyIcon ref={copyIconRef} size={size} />
+    </span>
+  );
+
+  return nativeTooltip ? (
+    btn
+  ) : (
     <TooltipSimple content={content} placement="top">
-      <span
-        role="button"
-        tabIndex={0}
-        className={`adl-copy-btn${copied ? ' is-copied' : ''}${className ? ` ${className}` : ''}`}
-        onClick={handleClick}
-        onKeyDown={handleKeyDown}
-        aria-label={content}
-      >
-        <CopyIcon ref={copyIconRef} size={size} />
-      </span>
+      {btn}
     </TooltipSimple>
   );
 }

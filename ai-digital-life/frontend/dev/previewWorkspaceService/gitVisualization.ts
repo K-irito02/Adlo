@@ -139,7 +139,11 @@ export async function handleBranchGraph(rootPath: string) {
   const edges: unknown[] = [];
   const branchSet = new Set<string>();
 
-  for (const line of raw.split('\n')) {
+  const lines = raw === '' ? [] : raw.split('\n');
+
+  let headBranch = '';
+
+  for (const line of lines) {
     const parts = line.split('|');
     if (parts.length < 8) continue;
     const [hash, shortHash, parentRaw, refsRaw, date, author, authorEmail, message] = parts;
@@ -148,15 +152,63 @@ export async function handleBranchGraph(rootPath: string) {
     let tag: string | undefined;
     const refs = (refsRaw || '').split(', ');
     for (const r of refs) {
-      if (r.startsWith('tag: ')) tag = r.substring(5);
-      else if (r.startsWith('HEAD -> ')) { branch = r.substring(8); branchSet.add(branch); }
-      else if (r) { branch = r; branchSet.add(branch); }
+      if (r.startsWith('tag: ')) {
+        tag = r.substring(5);
+      } else if (r.startsWith('HEAD -> ')) {
+        const headRef = r.substring(8);
+        if (!headBranch) headBranch = headRef;
+        if (!branch) { branch = headRef; branchSet.add(branch); }
+      } else if (r) {
+        if (!branch) branch = r;
+        branchSet.add(r);
+      }
     }
     for (const p of parentHashes) { edges.push({ from: hash, to: p }); }
     nodes.push({ hash, shortHash, parentHashes, branch, date, author, authorEmail, message, tag });
   }
 
-  return { nodes, edges, branches: Array.from(branchSet) };
+  // Propagate branch names from children to parents
+  const branchOf = new Map<string, string>();
+  for (const n of nodes) {
+    const node = n as { hash: string; branch: string };
+    if (node.branch) branchOf.set(node.hash, node.branch);
+  }
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const edge of edges) {
+      const e = edge as { from: string; to: string };
+      if (!branchOf.has(e.to)) {
+        const childBranch = branchOf.get(e.from);
+        if (childBranch) {
+          branchOf.set(e.to, childBranch);
+          changed = true;
+        }
+      }
+    }
+  }
+  for (const n of nodes) {
+    const node = n as { hash: string; branch: string };
+    if (!node.branch) {
+      const propagated = branchOf.get(node.hash);
+      if (propagated) node.branch = propagated;
+    }
+  }
+
+  // Sort branches: HEAD branch first, local branches, remote refs, origin/HEAD last
+  const sortedBranches = Array.from(branchSet).sort((a, b) => {
+    if (a === headBranch) return -1;
+    if (b === headBranch) return 1;
+    if (a === 'origin/HEAD') return 1;
+    if (b === 'origin/HEAD') return -1;
+    const aIsRemote = a.startsWith('origin/') || a.startsWith('upstream/');
+    const bIsRemote = b.startsWith('origin/') || b.startsWith('upstream/');
+    if (aIsRemote && !bIsRemote) return 1;
+    if (!aIsRemote && bIsRemote) return -1;
+    return a.localeCompare(b);
+  });
+
+  return { nodes, edges, branches: sortedBranches };
 }
 
 export async function handleFileSunburst(rootPath: string) {

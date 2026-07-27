@@ -196,8 +196,8 @@ export const changesZh = {
   gitVisModuleConfirm: '确认跳转',
   gitVisModuleCancel: '取消',
   gitVisBreadcrumbNav: '模块路径导航',
+
+  gitVisLoadingMore: '正在加载更多提交...',
+  gitVisAllLoaded: '已加载全部 {count} 条提交',
+  gitVisCopyHash: '复制提交哈希值',
 } as const;
-
-
-
-

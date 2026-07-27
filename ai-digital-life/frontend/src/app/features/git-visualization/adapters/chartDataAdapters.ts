@@ -17,7 +17,7 @@ export interface RawCommitStats {
 export interface RawBranchGraph {
   nodes: {
     hash: string;
-    shortHash: string;
+    shortHash?: string;
     parentHashes: string[];
     branch: string;
     date: string;
@@ -224,6 +224,7 @@ export function adaptBranchGraphData(raw: RawBranchGraph): {
   const nodes = raw.nodes.map((n, i) => ({
     id: `node-${i}`,
     hash: n.hash,
+    shortHash: n.shortHash ?? n.hash.substring(0, 7),
     branch: n.branch,
     date: n.date,
     message: n.message,

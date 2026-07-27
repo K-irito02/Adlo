@@ -196,6 +196,8 @@ export const changesEn = {
   gitVisModuleConfirm: 'Confirm',
   gitVisModuleCancel: 'Cancel',
   gitVisBreadcrumbNav: 'Module breadcrumb',
+
+  gitVisLoadingMore: 'Loading more commits...',
+  gitVisAllLoaded: 'All {count} commits loaded',
+  gitVisCopyHash: 'Copy commit hash',
 } as const;
-
-

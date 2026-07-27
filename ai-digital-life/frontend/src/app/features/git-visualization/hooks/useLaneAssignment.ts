@@ -45,6 +45,14 @@ export function computeColumns(
   for (const node of nodes) {
     if (inDegree.get(node.id) === 0) queue.push(node.id);
   }
+  // Sort tips by date (newest first) to ensure most recent commit gets col 0
+  const nodeById = new Map(nodes.map(n => [n.id, n]));
+  queue.sort((a, b) => {
+    const da = nodeById.get(a)?.date;
+    const db = nodeById.get(b)?.date;
+    if (!da || !db) return 0;
+    return db.localeCompare(da);
+  });
   const sorted: string[] = [];
   let head = 0;
   while (head < queue.length) {
