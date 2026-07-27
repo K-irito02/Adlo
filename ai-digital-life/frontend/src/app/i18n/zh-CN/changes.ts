@@ -200,4 +200,7 @@ export const changesZh = {
   gitVisLoadingMore: '正在加载更多提交...',
   gitVisAllLoaded: '已加载全部 {count} 条提交',
   gitVisCopyHash: '复制提交哈希值',
+  gitVisProgressAhead: '领先',
+  gitVisProgressBehind: '落后',
+  gitVisProgressTooltip: '{label} 相对远程: 领先 {ahead}, 落后 {behind}',
 } as const;

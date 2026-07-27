@@ -58,6 +58,9 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisMessage: 'MESSAGE',
       gitVisAuthor: 'AUTHOR',
       gitVisDate: 'DATE',
+      gitVisProgressAhead: 'ahead',
+      gitVisProgressBehind: 'behind',
+      gitVisProgressTooltip: '{label} vs remote: ahead {ahead}, behind {behind}',
     },
     formatT: vi.fn(),
   })),
@@ -104,8 +107,8 @@ describe('BranchGraph', () => {
       branchProgress: { main: { ahead: 3, behind: 1, mergeBase: 'abc1234' } },
     };
     const { container } = render(<BranchGraph data={dataWithProgress} />);
-    expect(container.querySelector('.adl-branch-graph__label-progress')?.textContent).toContain('↑3');
-    expect(container.querySelector('.adl-branch-graph__label-progress')?.textContent).toContain('↓1');
+    expect(container.querySelector('.adl-branch-graph__label-progress')?.textContent).toContain('ahead 3');
+    expect(container.querySelector('.adl-branch-graph__label-progress')?.textContent).toContain('behind 1');
   });
 
   it('filters by branch label click', () => {

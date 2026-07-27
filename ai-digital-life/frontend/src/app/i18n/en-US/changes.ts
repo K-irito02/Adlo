@@ -200,4 +200,7 @@ export const changesEn = {
   gitVisLoadingMore: 'Loading more commits...',
   gitVisAllLoaded: 'All {count} commits loaded',
   gitVisCopyHash: 'Copy commit hash',
+  gitVisProgressAhead: 'ahead',
+  gitVisProgressBehind: 'behind',
+  gitVisProgressTooltip: '{label} vs remote: ahead {ahead}, behind {behind}',
 } as const;
