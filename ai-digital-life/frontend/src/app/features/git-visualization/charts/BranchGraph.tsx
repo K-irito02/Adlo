@@ -545,6 +545,9 @@ export function BranchGraph({ data }: BranchGraphProps) {
                     fontWeight: 600,
                     border: 'none',
                     cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
                     opacity: filterColumns.size === 0 || fcs.some(i => filterColumns.has(i)) ? 1 : 0.4,
                   }}
                 >
