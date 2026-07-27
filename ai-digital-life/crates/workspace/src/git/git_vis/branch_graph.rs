@@ -1,8 +1,9 @@
 use adl_errors::AppError;
-use adl_types::{GitVisBranchEdge, GitVisBranchGraph, GitVisBranchNode};
+use adl_types::{BranchProgress, GitVisBranchEdge, GitVisBranchGraph, GitVisBranchNode};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
+use tokio::task::JoinSet;
 use tracing::debug;
 
 pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppError> {
@@ -136,6 +137,57 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
         }
     });
 
+    let mut branch_progress: HashMap<String, BranchProgress> = HashMap::new();
+
+    let mut js = JoinSet::new();
+    for branch in &branch_set {
+        if branch.starts_with("origin/") || branch == "HEAD" {
+            continue;
+        }
+        let remote = format!("origin/{}", branch);
+        let root = root.to_path_buf();
+        let branch_name = branch.clone();
+
+        js.spawn(async move {
+            let remote_ok = super::super::git_helpers::run_git_with_timeout(
+                &root, &["rev-parse", "--verify", &remote],
+            ).await;
+
+            if remote_ok.is_none() {
+                let count = super::super::git_helpers::run_git_with_timeout(
+                    &root, &["rev-list", "--count", &branch_name, "--not", "--all"],
+                ).await.unwrap_or_default();
+                let ahead = count.trim().parse::<u32>().unwrap_or(0);
+                return (branch_name, BranchProgress {
+                    ahead, behind: 0, merge_base: None,
+                });
+            }
+
+            let ahead_range = format!("{}..{}", remote, branch_name);
+            let behind_range = format!("{}..{}", branch_name, remote);
+            let ahead_args = vec!["rev-list", "--count", &ahead_range];
+            let behind_args = vec!["rev-list", "--count", &behind_range];
+            let merge_args = vec!["merge-base", &branch_name, &remote];
+            let (a, b, mb) = tokio::join!(
+                super::super::git_helpers::run_git_with_timeout(&root, &ahead_args),
+                super::super::git_helpers::run_git_with_timeout(&root, &behind_args),
+                super::super::git_helpers::run_git_with_timeout(&root, &merge_args),
+            );
+
+            (branch_name, BranchProgress {
+                ahead: a.unwrap_or_default().trim().parse().unwrap_or(0),
+                behind: b.unwrap_or_default().trim().parse().unwrap_or(0),
+                merge_base: mb.map(|s| s.trim().to_string()).filter(|s| !s.is_empty()),
+            })
+        });
+    }
+
+    while let Some(res) = js.join_next().await {
+        if let Ok((name, progress)) = res {
+            branch_progress.insert(name, progress);
+        }
+    }
+
     debug!(
         "[ADL-GIT-VIS] [branch_graph] [{}] done in {:?} — {} nodes, {} edges, {} branches head={}",
         root.display(),
@@ -146,5 +198,5 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
         head_branch,
     );
 
-    Ok(GitVisBranchGraph { nodes, edges, branches: branch_set })
+    Ok(GitVisBranchGraph { nodes, edges, branches: branch_set, branch_progress })
 }

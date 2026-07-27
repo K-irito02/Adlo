@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use ts_rs::TS;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -121,10 +122,19 @@ pub struct GitVisBranchEdge {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct BranchProgress {
+    pub ahead: u32,
+    pub behind: u32,
+    pub merge_base: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct GitVisBranchGraph {
     pub nodes: Vec<GitVisBranchNode>,
     pub edges: Vec<GitVisBranchEdge>,
     pub branches: Vec<String>,
+    pub branch_progress: HashMap<String, BranchProgress>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
