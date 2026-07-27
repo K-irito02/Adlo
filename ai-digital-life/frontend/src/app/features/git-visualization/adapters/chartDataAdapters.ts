@@ -28,6 +28,7 @@ export interface RawBranchGraph {
   }[];
   edges: { from: string; to: string }[];
   branches: string[];
+  branchProgress?: Record<string, { ahead: number; behind: number; mergeBase?: string }>;
 }
 
 export interface RawContributorModules {
@@ -220,6 +221,7 @@ export function adaptBranchGraphData(raw: RawBranchGraph): {
   nodes: CommitNode[];
   edges: CommitEdge[];
   allBranches: string[];
+  branchProgress?: Record<string, { ahead: number; behind: number; mergeBase?: string }>;
 } {
   const nodes = raw.nodes.map((n, i) => ({
     id: `node-${i}`,
@@ -240,6 +242,7 @@ export function adaptBranchGraphData(raw: RawBranchGraph): {
       target: hashToId.get(e.to) || e.to,
     })),
     allBranches: raw.branches,
+    branchProgress: raw.branchProgress,
   };
 }
 
