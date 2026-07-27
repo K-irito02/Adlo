@@ -156,7 +156,7 @@ interface SvgLanesProps {
   totalHeight: number;
   hoveredId: string | null;
   nodeStroke: string;
-  filterBranches: Set<string>;
+  filterColumns: Set<number>;
   hoveredBranch: string | null;
 }
 
@@ -168,7 +168,7 @@ const SvgLanes = React.memo(function SvgLanes({
   totalHeight,
   hoveredId,
   nodeStroke,
-  filterBranches,
+  filterColumns,
   hoveredBranch,
 }: SvgLanesProps) {
   const nodeY = (rowIndex: number) => rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
@@ -184,7 +184,7 @@ const SvgLanes = React.memo(function SvgLanes({
       .map((i) => nodeY(i));
     if (yPositions.length === 0) return null;
     const laneDimmed =
-      filterBranches.size > 0 && !filterBranches.has(col.label) && col.label !== hoveredBranch;
+      filterColumns.size > 0 && !filterColumns.has(col.index) && col.label !== hoveredBranch;
     return (
       <line
         key={`col-${col.index}`}
@@ -211,9 +211,9 @@ const SvgLanes = React.memo(function SvgLanes({
     const ty = nodeY(targetIdx);
 
     const edgeDimmed =
-      filterBranches.size > 0 &&
-      !filterBranches.has(sourceRow.node.branch) &&
-      !filterBranches.has(targetRow.node.branch) &&
+      filterColumns.size > 0 &&
+      !filterColumns.has(sourceRow.column) &&
+      !filterColumns.has(targetRow.column) &&
       sourceRow.node.branch !== hoveredBranch &&
       targetRow.node.branch !== hoveredBranch;
 
@@ -246,8 +246,8 @@ const SvgLanes = React.memo(function SvgLanes({
     const isHovered = hoveredId === row.node.id;
     const r = isHovered ? NODE_RADIUS * 1.2 : NODE_RADIUS;
     const nodeDimmed =
-      filterBranches.size > 0 &&
-      !filterBranches.has(row.node.branch) &&
+      filterColumns.size > 0 &&
+      !filterColumns.has(row.column) &&
       row.node.branch !== hoveredBranch;
 
     if (row.node.tag) {
@@ -313,7 +313,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
   const { t } = useTCopy();
   const theme = useBklitTheme();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [filterBranches, setFilterBranches] = useState(() => new Set<string>());
+  const [filterColumns, setFilterColumns] = useState(() => new Set<number>());
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
 
   const adapted = useMemo(() => (data ? adaptBranchGraphData(data) : null), [data]);
@@ -408,13 +408,13 @@ export function BranchGraph({ data }: BranchGraphProps) {
   const totalHeight = visibleRows.length * ROW_HEIGHT + 8;
 
   const handleRowHover = useCallback((id: string | null) => setHoveredId(id), []);
-  const handleLabelClick = useCallback((branch: string) => {
-    setFilterBranches((prev) => {
+  const handleLabelClick = useCallback((colIndex: number) => {
+    setFilterColumns((prev) => {
       const next = new Set(prev);
-      if (next.has(branch)) {
-        next.delete(branch);
+      if (next.has(colIndex)) {
+        next.delete(colIndex);
       } else {
-        next.add(branch);
+        next.add(colIndex);
       }
       return next;
     });
@@ -444,7 +444,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
         <div />
         <div ref={tagRowRef} className="adl-branch-graph__tag-row" onWheel={handleTagRowWheel}>
           {columnsWithLabels.map((col) => {
-            const isSelected = filterBranches.has(col.label);
+            const isSelected = filterColumns.has(col.index);
             const isHovered = hoveredLabel === col.label;
             const showIndicator = isSelected || isHovered;
             const showScale = (isHovered && !isSelected) || (!isHovered && isSelected);
@@ -458,7 +458,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                   className="adl-branch-graph__label"
                   data-indicator={showIndicator ? 'true' : undefined}
                   data-scale={showScale ? 'true' : undefined}
-                  onClick={() => handleLabelClick(col.label)}
+                  onClick={() => handleLabelClick(col.index)}
                   onMouseEnter={() => setHoveredLabel(col.label)}
                   onMouseLeave={() => setHoveredLabel(null)}
                   style={{
@@ -470,7 +470,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                     fontWeight: 600,
                     border: 'none',
                     cursor: 'pointer',
-                    opacity: filterBranches.size === 0 || filterBranches.has(col.label) ? 1 : 0.4,
+                    opacity: filterColumns.size === 0 || filterColumns.has(col.index) ? 1 : 0.4,
                   }}
                 >
                   <span className="adl-branch-graph__label-text" title={col.label}>
@@ -510,14 +510,14 @@ export function BranchGraph({ data }: BranchGraphProps) {
           totalHeight={totalHeight}
           hoveredId={hoveredId}
           nodeStroke={nodeStroke}
-          filterBranches={filterBranches}
+          filterColumns={filterColumns}
           hoveredBranch={hoveredLabel}
         />
         <div>
           {visibleRows.map((row) => {
             const isFiltered =
-              filterBranches.size > 0 &&
-              !filterBranches.has(row.node.branch) &&
+              filterColumns.size > 0 &&
+              !filterColumns.has(row.column) &&
               row.node.branch !== hoveredLabel;
             return (
               <div
