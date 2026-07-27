@@ -462,7 +462,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
     const progress = adapted?.branchProgress ?? {};
     const labeledWithProgress = labeled.map((c) => ({
       ...c,
-      branchProgress: progress[c.label],
+      branchProgress: progress[c.label ?? ''],
     }));
     return labeledWithProgress;
   }, [columns, rows, adapted]);
@@ -547,7 +547,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                   data-indicator={showIndicator ? 'true' : undefined}
                   data-scale={showScale ? 'true' : undefined}
                   onClick={() => handleLabelClick(fcs)}
-                  onMouseEnter={() => setHoveredLabel(col.label)}
+                  onMouseEnter={() => setHoveredLabel(col.label ?? null)}
                   onMouseLeave={() => setHoveredLabel(null)}
                   style={{
                     padding: '2px 8px',
@@ -571,18 +571,18 @@ export function BranchGraph({ data }: BranchGraphProps) {
                       col.branchProgress
                         ? col.branchProgress.mergeBase
                           ? t.gitVisProgressTooltip
-                              .replace('{label}', col.label)
+                              .replace('{label}', col.label ?? '')
                               .replace('{ahead}', String(col.branchProgress.ahead))
                               .replace('{behind}', String(col.branchProgress.behind)) +
                             ' | ' +
                             t.gitVisProgressBase +
                             ': ' +
                             col.branchProgress.mergeBase.substring(0, 7)
-                          : col.label + ' — ' + t.gitVisLocalOnly
-                        : col.label
+                          : (col.label ?? '') + ' — ' + t.gitVisLocalOnly
+                        : (col.label ?? '')
                     }
                   >
-                    {col.label}
+                    {col.label ?? ''}
                   </span>
                   {/* Progress text — only for branches with remote tracking */}
                   {col.branchProgress?.mergeBase ? (

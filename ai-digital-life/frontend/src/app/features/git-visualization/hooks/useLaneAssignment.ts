@@ -11,7 +11,7 @@ interface LaneEntry {
 export interface ColumnInfo {
   index: number;
   color: string;
-  label: string;
+  label?: string;
 }
 
 export interface LaneAssignment {
@@ -56,10 +56,9 @@ export function computeColumns(
   queue.sort((a, b) => {
     const da = nodeById.get(a)?.date;
     const db = nodeById.get(b)?.date;
-    if (!da || !db) {
-      return 0;
-    }
-    return db.localeCompare(da);
+    if (da && db) return db.localeCompare(da);
+    if (!da && !db) return a.localeCompare(b);
+    return da ? -1 : 1;
   });
 
   const sorted: string[] = [];
@@ -142,7 +141,7 @@ export function computeColumns(
 
   const columns: ColumnInfo[] = Array.from(columnSet.entries())
     .sort(([a], [b]) => a - b)
-    .map(([index, color]) => ({ index, color, label: '' }));
+    .map(([index, color]) => ({ index, color }));
 
   return { columnOf, columns, sortedIds: sorted };
 }
