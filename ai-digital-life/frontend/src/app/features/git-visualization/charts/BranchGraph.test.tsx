@@ -58,8 +58,6 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisMessage: 'MESSAGE',
       gitVisAuthor: 'AUTHOR',
       gitVisDate: 'DATE',
-      gitVisProgressAhead: 'ahead',
-      gitVisProgressBehind: 'behind',
       gitVisProgressTooltip: '{label} vs remote: ahead {ahead}, behind {behind}',
     },
     formatT: vi.fn(),
