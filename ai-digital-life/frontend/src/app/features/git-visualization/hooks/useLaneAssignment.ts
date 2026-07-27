@@ -17,6 +17,8 @@ export interface ColumnInfo {
 export interface LaneAssignment {
   columnOf: Map<string, { col: number; color: string }>;
   columns: ColumnInfo[];
+  /** Topologically sorted node IDs (newest first) — matches algorithm's internal order */
+  sortedIds: string[];
 }
 
 export function computeColumns(
@@ -25,7 +27,7 @@ export function computeColumns(
   isDark: boolean,
 ): LaneAssignment {
   if (nodes.length === 0) {
-    return { columnOf: new Map(), columns: [] };
+    return { columnOf: new Map(), columns: [], sortedIds: [] };
   }
 
   const parentMap = new Map<string, string[]>();
@@ -53,6 +55,7 @@ export function computeColumns(
     if (!da || !db) return 0;
     return db.localeCompare(da);
   });
+
   const sorted: string[] = [];
   let head = 0;
   while (head < queue.length) {
@@ -127,7 +130,8 @@ export function computeColumns(
     .sort(([a], [b]) => a - b)
     .map(([index, color]) => ({ index, color, label: '' }));
 
-  return { columnOf, columns };
+  // Log first 10 column assignments (topmost rows)
+  return { columnOf, columns, sortedIds: sorted };
 }
 
 export function useLaneAssignment(
@@ -136,7 +140,7 @@ export function useLaneAssignment(
   isDark: boolean,
 ): LaneAssignment {
   return useMemo(() => {
-    if (nodes.length === 0) return { columnOf: new Map(), columns: [] };
+    if (nodes.length === 0) return { columnOf: new Map(), columns: [], sortedIds: [] };
     return computeColumns(nodes, edges, isDark);
   }, [nodes, edges, isDark]);
 }

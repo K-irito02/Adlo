@@ -114,25 +114,14 @@ function buildRows(
   nodes: CommitNode[],
   edges: CommitEdge[],
   columnOf: Map<string, { col: number; color: string }>,
+  sortedIds: string[],
 ): RowData[] {
   const commitById = new Map(nodes.map((n) => [n.id, n]));
   const parentMap = computeParentMap(edges);
 
-  const visited = new Set<string>();
-  const sorted: string[] = [];
-  function visit(id: string) {
-    if (visited.has(id)) return;
-    visited.add(id);
-    const parents = parentMap.get(id) || [];
-    for (const p of parents) visit(p);
-    sorted.push(id);
-  }
-  for (const node of nodes) visit(node.id);
-  sorted.reverse();
-
   if (columnOf.size === 0) return [];
 
-  return sorted.map((id) => {
+  return sortedIds.map((id) => {
     const node = commitById.get(id)!;
     const parents = parentMap.get(id) || [];
     const cinfo = columnOf.get(id) ?? { col: 0, color: '#888' };
@@ -356,7 +345,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
   }, []);
 
   const isDark = theme.background !== '#ffffff';
-  const { columnOf, columns } = useLaneAssignment(
+  const { columnOf, columns, sortedIds } = useLaneAssignment(
     adapted?.nodes ?? [],
     adapted?.edges ?? [],
     isDark,
@@ -364,8 +353,8 @@ export function BranchGraph({ data }: BranchGraphProps) {
 
   const rows = useMemo(() => {
     if (!adapted) return [];
-    return buildRows(adapted.nodes, adapted.edges, columnOf);
-  }, [adapted, columnOf]);
+    return buildRows(adapted.nodes, adapted.edges, columnOf, sortedIds);
+  }, [adapted, columnOf, sortedIds]);
 
   useEffect(() => {
     setVisibleCount(INITIAL_LOAD);
@@ -398,10 +387,11 @@ export function BranchGraph({ data }: BranchGraphProps) {
         topCommitPerCol.set(row.column, label);
       }
     }
-    return columns.map(c => ({
+    const labeled = columns.map(c => ({
       ...c,
       label: topCommitPerCol.get(c.index) ?? `#${c.index}`,
     }));
+    return labeled;
   }, [columns, rows]);
 
   const totalLaneWidth = columns.length * (LANE_WIDTH + LANE_GAP);
