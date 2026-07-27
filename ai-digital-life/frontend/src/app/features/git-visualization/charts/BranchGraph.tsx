@@ -237,8 +237,7 @@ const SvgLanes = React.memo(function SvgLanes({
           x1={sx} y1={sy} x2={tx} y2={ty}
           stroke={sourceRow.color}
           strokeWidth={2.5} strokeLinecap="round"
-          strokeDasharray={isEdgeAhead ? '2,3' : undefined}
-          opacity={edgeDimmed ? 0.1 : 1}
+          opacity={edgeDimmed ? 0.1 : (isEdgeAhead ? 1 : 0.6)}
         />,
       );
     } else {
@@ -248,8 +247,8 @@ const SvgLanes = React.memo(function SvgLanes({
           d={`M ${sx} ${sy} C ${sx} ${midY}, ${tx} ${midY}, ${tx} ${ty}`}
           fill="none" stroke={sourceRow.color}
           strokeWidth={2}
-          strokeDasharray={isEdgeAhead ? '2,3' : sourceIdx > targetIdx ? '4,3' : 'none'}
-          opacity={edgeDimmed ? 0.1 : 0.6}
+          strokeDasharray={sourceIdx > targetIdx ? '4,3' : 'none'}
+          opacity={edgeDimmed ? 0.1 : (isEdgeAhead ? 1 : 0.6)}
         />,
       );
     }
@@ -264,12 +263,9 @@ const SvgLanes = React.memo(function SvgLanes({
       filterColumns.size > 0 &&
       !filterColumns.has(row.column) &&
       row.node.branch !== hoveredBranch;
-    const isNodeAhead = aheadRows.has(i);
-    const patIdx = columns.findIndex((c: any) => (c.filterCols ?? [c.index]).includes(row.column));
-
     if (row.node.tag) {
       return (
-        <g key={`node-${row.node.id}`} opacity={nodeDimmed ? 0.1 : 1}>
+        <g key={`node-${row.node.id}`} opacity={nodeDimmed ? 0.1 : (aheadRows.has(i) ? 1 : 0.75)}>
           <circle cx={x} cy={y} r={r + 1} fill="none" stroke={row.color} strokeWidth={2.5} />
           <circle cx={x + 14} cy={y - 8} r={8} fill={row.color} opacity={0.15} />
           <text x={x + 14} y={y - 5} textAnchor="middle" fontSize={8} fill={row.color} fontWeight={600}>
@@ -285,10 +281,10 @@ const SvgLanes = React.memo(function SvgLanes({
         <rect
           key={`node-${row.node.id}`}
           x={x - s / 2} y={y - s / 2} width={s} height={s} rx={2}
-          fill={isNodeAhead ? `url(#hatch-${patIdx})` : row.color}
+          fill={row.color}
           stroke={nodeStroke}
           strokeWidth={2}
-          opacity={nodeDimmed ? 0.1 : 1}
+          opacity={nodeDimmed ? 0.1 : (aheadRows.has(i) ? 1 : 0.75)}
         />
       );
     }
@@ -297,10 +293,10 @@ const SvgLanes = React.memo(function SvgLanes({
       <circle
         key={`node-${row.node.id}`}
         cx={x} cy={y} r={r}
-        fill={isNodeAhead ? `url(#hatch-${patIdx})` : row.color}
+        fill={row.color}
         stroke={nodeStroke}
         strokeWidth={2}
-        opacity={nodeDimmed ? 0.1 : 1}
+        opacity={nodeDimmed ? 0.1 : (aheadRows.has(i) ? 1 : 0.75)}
       />
     );
   });
@@ -313,15 +309,7 @@ const SvgLanes = React.memo(function SvgLanes({
       viewBox={`0 0 ${totalWidth} ${totalHeight}`}
       style={{ display: 'block', pointerEvents: 'none' }}
     >
-      <defs>
-        {columns.map((col, idx) => (
-          <pattern key={`hatch-${idx}`} id={`hatch-${idx}`}
-            patternUnits="userSpaceOnUse" width="5" height="5"
-            patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="5" stroke={col.color} strokeWidth={1} />
-          </pattern>
-        ))}
-      </defs>
+
       {columnLines}
       {connections}
       {nodes}
