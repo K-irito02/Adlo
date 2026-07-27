@@ -550,26 +550,30 @@ export function BranchGraph({ data }: BranchGraphProps) {
                 >
                   <span className="adl-branch-graph__label-text" title={
                     (col as any).branchProgress
-                      ? t.gitVisProgressTooltip
-                          .replace('{label}', col.label)
-                          .replace('{ahead}', String((col as any).branchProgress.ahead))
-                          .replace('{behind}', String((col as any).branchProgress.behind))
-                          + ((col as any).branchProgress.mergeBase
-                            ? ' | ' + t.gitVisProgressBase + ': ' + (col as any).branchProgress.mergeBase.substring(0, 7)
-                            : '')
+                      ? (col as any).branchProgress.mergeBase
+                        ? t.gitVisProgressTooltip
+                            .replace('{label}', col.label)
+                            .replace('{ahead}', String((col as any).branchProgress.ahead))
+                            .replace('{behind}', String((col as any).branchProgress.behind))
+                          + ' | ' + t.gitVisProgressBase + ': ' + (col as any).branchProgress.mergeBase.substring(0, 7)
+                        : col.label + ' — ' + t.gitVisLocalOnly
                       : col.label
                   }>
                     {col.label}
                   </span>
-                  {(col as any).branchProgress && ((col as any).branchProgress.ahead > 0 || (col as any).branchProgress.behind > 0) && (
+                  {/* Progress text */}
+                  {(col as any).branchProgress && (col as any).branchProgress.mergeBase ? (
                     <span className="adl-branch-graph__label-progress" style={{ marginLeft: 2 }}>
                       {(col as any).branchProgress.ahead > 0 && (
-                        <span style={{ fontSize: 12, fontWeight: 700 }}> ↑{(col as any).branchProgress.ahead}</span>
+                        <span style={{ fontSize: 14, fontWeight: 700 }}> ↑{(col as any).branchProgress.ahead}</span>
                       )}
-                      {(col as any).branchProgress.ahead > 0 && (col as any).branchProgress.behind > 0 && ' | '}
                       {(col as any).branchProgress.behind > 0 && (
-                        <span style={{ fontSize: 12, fontWeight: 700 }}> ↓{(col as any).branchProgress.behind}</span>
+                        <span style={{ fontSize: 14, fontWeight: 700 }}> ↓{(col as any).branchProgress.behind}</span>
                       )}
+                    </span>
+                  ) : (col as any).branchProgress && (
+                    <span className="adl-branch-graph__label-progress" style={{ fontSize: 10, opacity: 0.5, marginLeft: 4 }}>
+                      {t.gitVisLocalOnly}
                     </span>
                   )}
                 </button>

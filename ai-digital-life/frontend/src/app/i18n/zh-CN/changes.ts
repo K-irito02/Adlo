@@ -204,4 +204,5 @@ export const changesZh = {
   gitVisProgressBehind: '落后',
   gitVisProgressTooltip: '{label} 相对远程: 领先 {ahead}, 落后 {behind}',
   gitVisProgressBase: '同步基准',
+  gitVisLocalOnly: '仅本地',
 } as const;
