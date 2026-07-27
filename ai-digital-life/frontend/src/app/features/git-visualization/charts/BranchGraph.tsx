@@ -166,6 +166,7 @@ interface SvgLanesProps {
   nodeStroke: string;
   filterColumns: Set<number>;
   hoveredBranch: string | null;
+  aheadRows: Set<number>;
 }
 
 const SvgLanes = React.memo(function SvgLanes({
@@ -178,6 +179,7 @@ const SvgLanes = React.memo(function SvgLanes({
   nodeStroke,
   filterColumns,
   hoveredBranch,
+  aheadRows,
 }: SvgLanesProps) {
   const nodeY = (rowIndex: number) => rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
 
@@ -225,12 +227,17 @@ const SvgLanes = React.memo(function SvgLanes({
       sourceRow.node.branch !== hoveredBranch &&
       targetRow.node.branch !== hoveredBranch;
 
+    const isSourceAhead = aheadRows.has(sourceIdx);
+    const isTargetAhead = aheadRows.has(targetIdx);
+    const isEdgeAhead = isSourceAhead && isTargetAhead;
+
     if (sourceRow.column === targetRow.column) {
       connections.push(
         <line key={`edge-${edge.source}-${edge.target}`}
           x1={sx} y1={sy} x2={tx} y2={ty}
           stroke={sourceRow.color}
           strokeWidth={2.5} strokeLinecap="round"
+          strokeDasharray={isEdgeAhead ? '2,3' : undefined}
           opacity={edgeDimmed ? 0.1 : 1}
         />,
       );
@@ -241,7 +248,7 @@ const SvgLanes = React.memo(function SvgLanes({
           d={`M ${sx} ${sy} C ${sx} ${midY}, ${tx} ${midY}, ${tx} ${ty}`}
           fill="none" stroke={sourceRow.color}
           strokeWidth={2}
-          strokeDasharray={sourceIdx > targetIdx ? '4,3' : 'none'}
+          strokeDasharray={isEdgeAhead ? '2,3' : sourceIdx > targetIdx ? '4,3' : 'none'}
           opacity={edgeDimmed ? 0.1 : 0.6}
         />,
       );
@@ -257,6 +264,8 @@ const SvgLanes = React.memo(function SvgLanes({
       filterColumns.size > 0 &&
       !filterColumns.has(row.column) &&
       row.node.branch !== hoveredBranch;
+    const isNodeAhead = aheadRows.has(i);
+    const patIdx = columns.findIndex((c: any) => (c.filterCols ?? [c.index]).includes(row.column));
 
     if (row.node.tag) {
       return (
@@ -276,7 +285,7 @@ const SvgLanes = React.memo(function SvgLanes({
         <rect
           key={`node-${row.node.id}`}
           x={x - s / 2} y={y - s / 2} width={s} height={s} rx={2}
-          fill={row.color}
+          fill={isNodeAhead ? `url(#hatch-${patIdx})` : row.color}
           stroke={nodeStroke}
           strokeWidth={2}
           opacity={nodeDimmed ? 0.1 : 1}
@@ -288,7 +297,7 @@ const SvgLanes = React.memo(function SvgLanes({
       <circle
         key={`node-${row.node.id}`}
         cx={x} cy={y} r={r}
-        fill={row.color}
+        fill={isNodeAhead ? `url(#hatch-${patIdx})` : row.color}
         stroke={nodeStroke}
         strokeWidth={2}
         opacity={nodeDimmed ? 0.1 : 1}
@@ -304,6 +313,15 @@ const SvgLanes = React.memo(function SvgLanes({
       viewBox={`0 0 ${totalWidth} ${totalHeight}`}
       style={{ display: 'block', pointerEvents: 'none' }}
     >
+      <defs>
+        {columns.map((col, idx) => (
+          <pattern key={`hatch-${idx}`} id={`hatch-${idx}`}
+            patternUnits="userSpaceOnUse" width="5" height="5"
+            patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="5" stroke={col.color} strokeWidth={1} />
+          </pattern>
+        ))}
+      </defs>
       {columnLines}
       {connections}
       {nodes}
@@ -457,6 +475,24 @@ export function BranchGraph({ data }: BranchGraphProps) {
     return labeledWithProgress;
   }, [columns, rows, adapted]);
 
+  const aheadRows = useMemo(() => {
+    const ahead = new Set<number>();
+    const progress = adapted?.branchProgress ?? {};
+    for (const col of columnsWithLabels) {
+      const bp = (col as any).branchProgress as ({ ahead: number; behind: number; mergeBase?: string }) | undefined;
+      if (!bp?.mergeBase) continue;
+      const mbRow = rows.findIndex(r => r.node.hash.startsWith(bp.mergeBase!));
+      if (mbRow === -1) continue;
+      const filterCols: number[] = (col as any).filterCols ?? [col.index];
+      for (let i = 0; i < mbRow; i++) {
+        if (filterCols.includes(rows[i].column)) {
+          ahead.add(i);
+        }
+      }
+    }
+    return ahead;
+  }, [columnsWithLabels, rows, adapted?.branchProgress]);
+
   const totalLaneWidth = columns.length * (LANE_WIDTH + LANE_GAP);
   const visibleRows = rows.slice(0, visibleCount);
   const totalHeight = visibleRows.length * ROW_HEIGHT + 8;
@@ -586,6 +622,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
           nodeStroke={nodeStroke}
           filterColumns={filterColumns}
           hoveredBranch={hoveredLabel}
+          aheadRows={aheadRows}
         />
         <div>
           {visibleRows.map((row) => {
