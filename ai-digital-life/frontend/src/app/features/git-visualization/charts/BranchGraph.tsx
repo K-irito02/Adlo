@@ -353,7 +353,15 @@ export function BranchGraph({ data }: BranchGraphProps) {
 
   const rows = useMemo(() => {
     if (!adapted) return [];
-    return buildRows(adapted.nodes, adapted.edges, columnOf, sortedIds);
+    // Chronological order for table: sort by commit date (newest first)
+    const idDate = new Map(adapted.nodes.map(n => [n.id, n.date]));
+    const chronological = [...sortedIds].sort((a, b) => {
+      const da = idDate.get(a);
+      const db = idDate.get(b);
+      if (!da || !db) return 0;
+      return db.localeCompare(da);
+    });
+    return buildRows(adapted.nodes, adapted.edges, columnOf, chronological);
   }, [adapted, columnOf, sortedIds]);
 
   useEffect(() => {
