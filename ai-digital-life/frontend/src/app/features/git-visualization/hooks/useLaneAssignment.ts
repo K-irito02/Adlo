@@ -39,20 +39,26 @@ export function computeColumns(
 
   // Kahn's algorithm for topological sort (newest first, input-order stable)
   const inDegree = new Map<string, number>();
-  for (const node of nodes) inDegree.set(node.id, 0);
+  for (const node of nodes) {
+    inDegree.set(node.id, 0);
+  }
   for (const edge of edges) {
     inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1);
   }
   const queue: string[] = [];
   for (const node of nodes) {
-    if (inDegree.get(node.id) === 0) queue.push(node.id);
+    if (inDegree.get(node.id) === 0) {
+      queue.push(node.id);
+    }
   }
   // Sort tips by date (newest first) to ensure most recent commit gets col 0
-  const nodeById = new Map(nodes.map(n => [n.id, n]));
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
   queue.sort((a, b) => {
     const da = nodeById.get(a)?.date;
     const db = nodeById.get(b)?.date;
-    if (!da || !db) return 0;
+    if (!da || !db) {
+      return 0;
+    }
     return db.localeCompare(da);
   });
 
@@ -65,7 +71,9 @@ export function computeColumns(
     for (const p of parents) {
       const remaining = inDegree.get(p)! - 1;
       inDegree.set(p, remaining);
-      if (remaining === 0) queue.push(p);
+      if (remaining === 0) {
+        queue.push(p);
+      }
     }
   }
 
@@ -96,14 +104,18 @@ export function computeColumns(
 
     if (incoming.length === 0) {
       col = lanes.indexOf(null);
-      if (col === -1) col = lanes.length;
+      if (col === -1) {
+        col = lanes.length;
+      }
       color = nextColor();
     } else {
       col = incoming[0];
       color = lanes[col]!.color;
     }
 
-    for (const idx of incoming) lanes[idx] = null;
+    for (const idx of incoming) {
+      lanes[idx] = null;
+    }
 
     const parents = parentMap.get(id) || [];
     if (parents.length > 0) {
@@ -123,7 +135,9 @@ export function computeColumns(
       columnSet.set(col, color);
     }
 
-    while (lanes.length > 0 && lanes[lanes.length - 1] === null) lanes.pop();
+    while (lanes.length > 0 && lanes[lanes.length - 1] === null) {
+      lanes.pop();
+    }
   }
 
   const columns: ColumnInfo[] = Array.from(columnSet.entries())
@@ -139,7 +153,9 @@ export function useLaneAssignment(
   isDark: boolean,
 ): LaneAssignment {
   return useMemo(() => {
-    if (nodes.length === 0) return { columnOf: new Map(), columns: [], sortedIds: [] };
+    if (nodes.length === 0) {
+      return { columnOf: new Map(), columns: [], sortedIds: [] };
+    }
     return computeColumns(nodes, edges, isDark);
   }, [nodes, edges, isDark]);
 }

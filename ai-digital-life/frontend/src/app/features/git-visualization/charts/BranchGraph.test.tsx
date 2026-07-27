@@ -105,8 +105,12 @@ describe('BranchGraph', () => {
       branchProgress: { main: { ahead: 3, behind: 1, mergeBase: 'abc1234' } },
     };
     const { container } = render(<BranchGraph data={dataWithProgress} />);
-    expect(container.querySelector('.adl-branch-graph__label-progress')?.textContent).toContain('↑3');
-    expect(container.querySelector('.adl-branch-graph__label-progress')?.textContent).toContain('↓1');
+    expect(container.querySelector('.adl-branch-graph__label-progress')?.textContent).toContain(
+      '↑3',
+    );
+    expect(container.querySelector('.adl-branch-graph__label-progress')?.textContent).toContain(
+      '↓1',
+    );
   });
 
   it('filters by branch label click', () => {

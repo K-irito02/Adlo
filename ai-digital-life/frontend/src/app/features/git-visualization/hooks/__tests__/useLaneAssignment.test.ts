@@ -5,7 +5,17 @@ import type { CommitNode, CommitEdge } from '../../../../../test-fixtures/gitVis
 const isDark = true;
 
 function node(id: string, overrides: Partial<CommitNode> = {}): CommitNode {
-  return { id, hash: id, shortHash: id, branch: '', date: '', message: '', author: '', authorEmail: '', ...overrides };
+  return {
+    id,
+    hash: id,
+    shortHash: id,
+    branch: '',
+    date: '',
+    message: '',
+    author: '',
+    authorEmail: '',
+    ...overrides,
+  };
 }
 
 function edge(source: string, target: string): CommitEdge {
@@ -70,9 +80,11 @@ describe('computeColumns', () => {
   it('handles complex graph: merge then converge', () => {
     const nodes = [node('m'), node('f3'), node('f2'), node('a'), node('z')];
     const edges = [
-      edge('m', 'a'), edge('m', 'f3'),
+      edge('m', 'a'),
+      edge('m', 'f3'),
       edge('a', 'z'),
-      edge('f3', 'f2'), edge('f2', 'z'),
+      edge('f3', 'f2'),
+      edge('f2', 'z'),
     ];
     const result = computeColumns(nodes, edges, isDark);
     expect(result.columnOf.get('m')!.col).toBe(0);

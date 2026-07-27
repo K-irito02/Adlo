@@ -123,7 +123,9 @@ function buildRows(
   const commitById = new Map(nodes.map((n) => [n.id, n]));
   const parentMap = computeParentMap(edges);
 
-  if (columnOf.size === 0) return [];
+  if (columnOf.size === 0) {
+    return [];
+  }
 
   return sortedIds.map((id) => {
     const node = commitById.get(id)!;
@@ -177,15 +179,21 @@ const SvgLanes = React.memo(function SvgLanes({
       .map((r, i) => (r.column === col.index ? i : -1))
       .filter((i) => i !== -1)
       .map((i) => nodeY(i));
-    if (yPositions.length === 0) return null;
+    if (yPositions.length === 0) {
+      return null;
+    }
     const laneDimmed =
       filterColumns.size > 0 && !filterColumns.has(col.index) && col.label !== hoveredBranch;
     return (
       <line
         key={`col-${col.index}`}
-        x1={x} y1={yPositions[0]} x2={x} y2={yPositions[yPositions.length - 1]}
+        x1={x}
+        y1={yPositions[0]}
+        x2={x}
+        y2={yPositions[yPositions.length - 1]}
         stroke={col.color}
-        strokeWidth={3} strokeLinecap="round"
+        strokeWidth={3}
+        strokeLinecap="round"
         opacity={laneDimmed ? 0.1 : 0.5}
       />
     );
@@ -212,22 +220,28 @@ const SvgLanes = React.memo(function SvgLanes({
       sourceRow.node.branch !== hoveredBranch &&
       targetRow.node.branch !== hoveredBranch;
 
-
     if (sourceRow.column === targetRow.column) {
       connections.push(
-        <line key={`edge-${edge.source}-${edge.target}`}
-          x1={sx} y1={sy} x2={tx} y2={ty}
+        <line
+          key={`edge-${edge.source}-${edge.target}`}
+          x1={sx}
+          y1={sy}
+          x2={tx}
+          y2={ty}
           stroke={sourceRow.color}
-          strokeWidth={2.5} strokeLinecap="round"
+          strokeWidth={2.5}
+          strokeLinecap="round"
           opacity={edgeDimmed ? 0.1 : 0.6}
         />,
       );
     } else {
       const midY = (sy + ty) / 2;
       connections.push(
-        <path key={`edge-${edge.source}-${edge.target}`}
+        <path
+          key={`edge-${edge.source}-${edge.target}`}
           d={`M ${sx} ${sy} C ${sx} ${midY}, ${tx} ${midY}, ${tx} ${ty}`}
-          fill="none" stroke={sourceRow.color}
+          fill="none"
+          stroke={sourceRow.color}
           strokeWidth={2}
           strokeDasharray={sourceIdx > targetIdx ? '4,3' : 'none'}
           opacity={edgeDimmed ? 0.1 : 0.6}
@@ -242,15 +256,20 @@ const SvgLanes = React.memo(function SvgLanes({
     const isHovered = hoveredId === row.node.id;
     const r = isHovered ? NODE_RADIUS * 1.2 : NODE_RADIUS;
     const nodeDimmed =
-      filterColumns.size > 0 &&
-      !filterColumns.has(row.column) &&
-      row.node.branch !== hoveredBranch;
+      filterColumns.size > 0 && !filterColumns.has(row.column) && row.node.branch !== hoveredBranch;
     if (row.node.tag) {
       return (
-        <g key={`node-${row.node.id}`} opacity={nodeDimmed ? 0.1 : (aheadRows.has(i) ? 0.65 : 1)}>
+        <g key={`node-${row.node.id}`} opacity={nodeDimmed ? 0.1 : aheadRows.has(i) ? 0.65 : 1}>
           <circle cx={x} cy={y} r={r + 1} fill="none" stroke={row.color} strokeWidth={2.5} />
           <circle cx={x + 14} cy={y - 8} r={8} fill={row.color} opacity={0.15} />
-          <text x={x + 14} y={y - 5} textAnchor="middle" fontSize={8} fill={row.color} fontWeight={600}>
+          <text
+            x={x + 14}
+            y={y - 5}
+            textAnchor="middle"
+            fontSize={8}
+            fill={row.color}
+            fontWeight={600}
+          >
             {row.node.tag}
           </text>
         </g>
@@ -262,11 +281,15 @@ const SvgLanes = React.memo(function SvgLanes({
       return (
         <rect
           key={`node-${row.node.id}`}
-          x={x - s / 2} y={y - s / 2} width={s} height={s} rx={2}
+          x={x - s / 2}
+          y={y - s / 2}
+          width={s}
+          height={s}
+          rx={2}
           fill={row.color}
           stroke={nodeStroke}
           strokeWidth={2}
-          opacity={nodeDimmed ? 0.1 : (aheadRows.has(i) ? 0.65 : 1)}
+          opacity={nodeDimmed ? 0.1 : aheadRows.has(i) ? 0.65 : 1}
         />
       );
     }
@@ -274,11 +297,13 @@ const SvgLanes = React.memo(function SvgLanes({
     return (
       <circle
         key={`node-${row.node.id}`}
-        cx={x} cy={y} r={r}
+        cx={x}
+        cy={y}
+        r={r}
         fill={row.color}
         stroke={nodeStroke}
         strokeWidth={2}
-        opacity={nodeDimmed ? 0.1 : (aheadRows.has(i) ? 0.65 : 1)}
+        opacity={nodeDimmed ? 0.1 : aheadRows.has(i) ? 0.65 : 1}
       />
     );
   });
@@ -291,7 +316,6 @@ const SvgLanes = React.memo(function SvgLanes({
       viewBox={`0 0 ${totalWidth} ${totalHeight}`}
       style={{ display: 'block', pointerEvents: 'none' }}
     >
-
       {columnLines}
       {connections}
       {nodes}
@@ -323,9 +347,13 @@ export function BranchGraph({ data }: BranchGraphProps) {
 
   const handleTagRowWheel = useCallback((e: React.WheelEvent) => {
     const el = tagRowRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
     const maxScroll = el.scrollWidth - el.clientWidth;
-    if (maxScroll <= 0) return;
+    if (maxScroll <= 0) {
+      return;
+    }
     e.preventDefault();
     const absDx = Math.abs(e.deltaX);
     const absDy = Math.abs(e.deltaY);
@@ -340,13 +368,17 @@ export function BranchGraph({ data }: BranchGraphProps) {
   );
 
   const rows = useMemo(() => {
-    if (!adapted) return [];
+    if (!adapted) {
+      return [];
+    }
     // Chronological order for table: sort by commit date (newest first)
-    const idDate = new Map(adapted.nodes.map(n => [n.id, n.date]));
+    const idDate = new Map(adapted.nodes.map((n) => [n.id, n.date]));
     const chronological = [...sortedIds].sort((a, b) => {
       const da = idDate.get(a);
       const db = idDate.get(b);
-      if (!da || !db) return 0;
+      if (!da || !db) {
+        return 0;
+      }
       return db.localeCompare(da);
     });
     return buildRows(adapted.nodes, adapted.edges, columnOf, chronological);
@@ -375,14 +407,18 @@ export function BranchGraph({ data }: BranchGraphProps) {
   }, [rows.length]);
 
   const columnsWithLabels = useMemo((): LabelColumnInfo[] => {
-    if (rows.length === 0 || !adapted) return columns as LabelColumnInfo[];
+    if (rows.length === 0 || !adapted) {
+      return columns as LabelColumnInfo[];
+    }
     const allBr = adapted.allBranches;
     // For each column, pick the best label:
     // 1. Prefer non-origin/ branch within the column
     // 2. If only origin/ exists, try stripping prefix and matching allBranches
     const colLabel = new Map<number, string>();
     for (const row of rows) {
-      if (!row.node.branch) continue;
+      if (!row.node.branch) {
+        continue;
+      }
       const prev = colLabel.get(row.column);
       if (!prev) {
         colLabel.set(row.column, row.node.branch);
@@ -403,7 +439,10 @@ export function BranchGraph({ data }: BranchGraphProps) {
     for (const c of columns) {
       const lbl = colLabel.get(c.index) ?? `#${c.index}`;
       let arr = labelToCols.get(lbl);
-      if (!arr) { arr = []; labelToCols.set(lbl, arr); }
+      if (!arr) {
+        arr = [];
+        labelToCols.set(lbl, arr);
+      }
       arr.push(c.index);
     }
     const freq = new Map<string, number>();
@@ -412,14 +451,16 @@ export function BranchGraph({ data }: BranchGraphProps) {
       const lbl = colLabel.get(c.index) ?? `#${c.index}`;
       const group = labelToCols.get(lbl)!;
       // Only add label for the first column in each group
-      if (c.index !== group[0]) continue;
+      if (c.index !== group[0]) {
+        continue;
+      }
       const count = freq.get(lbl) || 0;
       freq.set(lbl, count + 1);
       const displayLabel = count > 0 ? `${lbl} (${count + 1})` : lbl;
       labeled.push({ ...c, label: displayLabel, filterCols: group });
     }
     const progress = adapted?.branchProgress ?? {};
-    const labeledWithProgress = labeled.map(c => ({
+    const labeledWithProgress = labeled.map((c) => ({
       ...c,
       branchProgress: progress[c.label],
     }));
@@ -430,9 +471,13 @@ export function BranchGraph({ data }: BranchGraphProps) {
     const ahead = new Set<number>();
     for (const col of columnsWithLabels) {
       const bp = col.branchProgress;
-      if (!bp?.mergeBase) continue;
-      const mbRow = rows.findIndex(r => r.node.hash === bp.mergeBase);
-      if (mbRow === -1) continue;
+      if (!bp?.mergeBase) {
+        continue;
+      }
+      const mbRow = rows.findIndex((r) => r.node.hash === bp.mergeBase);
+      if (mbRow === -1) {
+        continue;
+      }
       for (let i = 0; i < mbRow; i++) {
         if (col.filterCols.includes(rows[i].column)) {
           ahead.add(i);
@@ -449,11 +494,14 @@ export function BranchGraph({ data }: BranchGraphProps) {
   const handleRowHover = useCallback((id: string | null) => setHoveredId(id), []);
   const handleLabelClick = useCallback((colIndices: number[]) => {
     setFilterColumns((prev) => {
-      const anySelected = colIndices.some(i => prev.has(i));
+      const anySelected = colIndices.some((i) => prev.has(i));
       const next = new Set(prev);
       for (const idx of colIndices) {
-        if (anySelected) next.delete(idx);
-        else next.add(idx);
+        if (anySelected) {
+          next.delete(idx);
+        } else {
+          next.add(idx);
+        }
       }
       return next;
     });
@@ -484,7 +532,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
         <div ref={tagRowRef} className="adl-branch-graph__tag-row" onWheel={handleTagRowWheel}>
           {columnsWithLabels.map((col) => {
             const fcs: number[] = col.filterCols ?? [col.index];
-            const isSelected = fcs.some(i => filterColumns.has(i));
+            const isSelected = fcs.some((i) => filterColumns.has(i));
             const isHovered = hoveredLabel === col.label;
             const showIndicator = isSelected || isHovered;
             const showScale = (isHovered && !isSelected) || (!isHovered && isSelected);
@@ -513,30 +561,43 @@ export function BranchGraph({ data }: BranchGraphProps) {
                     display: 'inline-flex',
                     alignItems: 'center',
                     lineHeight: 1,
-                    opacity: filterColumns.size === 0 || fcs.some(i => filterColumns.has(i)) ? 1 : 0.4,
+                    opacity:
+                      filterColumns.size === 0 || fcs.some((i) => filterColumns.has(i)) ? 1 : 0.4,
                   }}
                 >
-                  <span className="adl-branch-graph__label-text" title={
-                    col.branchProgress
-                      ? col.branchProgress.mergeBase
-                        ? t.gitVisProgressTooltip
-                            .replace('{label}', col.label)
-                            .replace('{ahead}', String(col.branchProgress.ahead))
-                            .replace('{behind}', String(col.branchProgress.behind))
-                          + ' | ' + t.gitVisProgressBase + ': ' + col.branchProgress.mergeBase.substring(0, 7)
-                        : col.label + ' — ' + t.gitVisLocalOnly
-                      : col.label
-                  }>
+                  <span
+                    className="adl-branch-graph__label-text"
+                    title={
+                      col.branchProgress
+                        ? col.branchProgress.mergeBase
+                          ? t.gitVisProgressTooltip
+                              .replace('{label}', col.label)
+                              .replace('{ahead}', String(col.branchProgress.ahead))
+                              .replace('{behind}', String(col.branchProgress.behind)) +
+                            ' | ' +
+                            t.gitVisProgressBase +
+                            ': ' +
+                            col.branchProgress.mergeBase.substring(0, 7)
+                          : col.label + ' — ' + t.gitVisLocalOnly
+                        : col.label
+                    }
+                  >
                     {col.label}
                   </span>
                   {/* Progress text — only for branches with remote tracking */}
                   {col.branchProgress?.mergeBase ? (
                     <span className="adl-branch-graph__label-progress" style={{ marginLeft: 2 }}>
                       {col.branchProgress.ahead > 0 && (
-                        <span><span style={{ fontSize: 16, fontWeight: 700 }}>↑</span><span style={{ fontSize: 11 }}>{col.branchProgress.ahead}</span></span>
+                        <span>
+                          <span style={{ fontSize: 16, fontWeight: 700 }}>↑</span>
+                          <span style={{ fontSize: 11 }}>{col.branchProgress.ahead}</span>
+                        </span>
                       )}
                       {col.branchProgress.behind > 0 && (
-                        <span><span style={{ fontSize: 16, fontWeight: 700 }}>↓</span><span style={{ fontSize: 11 }}>{col.branchProgress.behind}</span></span>
+                        <span>
+                          <span style={{ fontSize: 16, fontWeight: 700 }}>↓</span>
+                          <span style={{ fontSize: 11 }}>{col.branchProgress.behind}</span>
+                        </span>
                       )}
                     </span>
                   ) : null}
@@ -704,7 +765,6 @@ export function BranchGraph({ data }: BranchGraphProps) {
           )}
         </div>
       </div>
-
     </div>
   );
 }
