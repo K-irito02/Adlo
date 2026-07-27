@@ -449,7 +449,12 @@ export function BranchGraph({ data }: BranchGraphProps) {
       const displayLabel = count > 0 ? `${lbl} (${count + 1})` : lbl;
       labeled.push({ ...c, label: displayLabel, filterCols: group });
     }
-    return labeled;
+    const progress = adapted?.branchProgress ?? {};
+    const labeledWithProgress = labeled.map(c => ({
+      ...c,
+      branchProgress: progress[c.label],
+    }));
+    return labeledWithProgress;
   }, [columns, rows, adapted]);
 
   const totalLaneWidth = columns.length * (LANE_WIDTH + LANE_GAP);
@@ -522,9 +527,29 @@ export function BranchGraph({ data }: BranchGraphProps) {
                     opacity: filterColumns.size === 0 || fcs.some(i => filterColumns.has(i)) ? 1 : 0.4,
                   }}
                 >
-                  <span className="adl-branch-graph__label-text" title={col.label}>
+                  {(col as any).branchProgress && ((col as any).branchProgress.ahead > 0 || (col as any).branchProgress.behind > 0) && (
+                    <svg width="6" height="6" style={{ marginRight: 3, flexShrink: 0, display: 'inline' }}>
+                      <circle cx="3" cy="3" r="3" fill={
+                        (col as any).branchProgress.ahead > 0 && (col as any).branchProgress.behind === 0 ? '#22c55e' :
+                        (col as any).branchProgress.behind > 0 && (col as any).branchProgress.ahead === 0 ? '#ef4444' :
+                        '#f59e0b'
+                      } />
+                    </svg>
+                  )}
+                  <span className="adl-branch-graph__label-text" title={
+                    (col as any).branchProgress
+                      ? `${col.label} — ↑${(col as any).branchProgress.ahead} ahead, ↓${(col as any).branchProgress.behind} behind${(col as any).branchProgress.mergeBase ? ` (base: ${(col as any).branchProgress.mergeBase})` : ''}`
+                      : col.label
+                  }>
                     {col.label}
                   </span>
+                  {(col as any).branchProgress && ((col as any).branchProgress.ahead > 0 || (col as any).branchProgress.behind > 0) && (
+                    <span className="adl-branch-graph__label-progress" style={{ fontSize: 10, marginLeft: 2 }}>
+                      {(col as any).branchProgress.ahead > 0 && `↑${(col as any).branchProgress.ahead}`}
+                      {(col as any).branchProgress.ahead > 0 && (col as any).branchProgress.behind > 0 && ' '}
+                      {(col as any).branchProgress.behind > 0 && `↓${(col as any).branchProgress.behind}`}
+                    </span>
+                  )}
                 </button>
               </div>
             );

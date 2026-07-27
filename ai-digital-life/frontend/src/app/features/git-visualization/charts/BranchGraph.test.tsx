@@ -98,6 +98,16 @@ describe('BranchGraph', () => {
     expect(rows[0].classList.contains('adl-branch-graph__row--hover')).toBe(false);
   });
 
+  it('shows ahead/behind indicators when branchProgress provided', () => {
+    const dataWithProgress = {
+      ...mockData,
+      branchProgress: { main: { ahead: 3, behind: 1, mergeBase: 'abc1234' } },
+    };
+    const { container } = render(<BranchGraph data={dataWithProgress} />);
+    expect(container.querySelector('.adl-branch-graph__label-progress')?.textContent).toContain('↑3');
+    expect(container.querySelector('.adl-branch-graph__label-progress')?.textContent).toContain('↓1');
+  });
+
   it('filters by branch label click', () => {
     const { container } = render(<BranchGraph data={mockData} />);
     const labels = container.querySelectorAll('.adl-branch-graph__label');
