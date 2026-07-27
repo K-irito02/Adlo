@@ -208,7 +208,44 @@ export async function handleBranchGraph(rootPath: string) {
     return a.localeCompare(b);
   });
 
-  return { nodes, edges, branches: sortedBranches };
+  const branchProgress = await computeBranchProgress(rootPath, sortedBranches);
+  return { nodes, edges, branches: sortedBranches, branchProgress };
+}
+
+interface BranchProgress {
+  ahead: number;
+  behind: number;
+  mergeBase?: string;
+}
+
+async function computeBranchProgress(
+  rootPath: string,
+  branches: string[],
+): Promise<Record<string, BranchProgress>> {
+  const result: Record<string, BranchProgress> = {};
+  const tasks = branches
+    .filter(b => !b.startsWith('origin/') && b !== 'HEAD')
+    .map(async (branch) => {
+      const remote = `origin/${branch}`;
+      const remoteCheck = await runGit(rootPath, ['rev-parse', '--verify', remote]);
+      if (!remoteCheck) {
+        const count = (await runGit(rootPath, ['rev-list', '--count', branch, '--not', '--all'])) || '0';
+        result[branch] = { ahead: parseInt(count.trim()) || 0, behind: 0 };
+        return;
+      }
+      const [aheadRaw, behindRaw] = await Promise.all([
+        runGit(rootPath, ['rev-list', '--count', `${remote}..${branch}`]),
+        runGit(rootPath, ['rev-list', '--count', `${branch}..${remote}`]),
+      ]);
+      const mergeBase = (await runGit(rootPath, ['merge-base', branch, remote]))?.trim();
+      result[branch] = {
+        ahead: parseInt(aheadRaw?.trim() || '0') || 0,
+        behind: parseInt(behindRaw?.trim() || '0') || 0,
+        mergeBase: mergeBase || undefined,
+      };
+    });
+  await Promise.all(tasks);
+  return result;
 }
 
 export async function handleFileSunburst(rootPath: string) {
