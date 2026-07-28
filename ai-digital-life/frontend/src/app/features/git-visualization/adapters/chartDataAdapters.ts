@@ -234,6 +234,7 @@ export function adaptBranchGraphData(raw: RawBranchGraph): {
     author: n.author,
     authorEmail: n.authorEmail,
     tag: n.tag,
+    refs: n.refs,
   }));
   const hashToId = new Map(nodes.map((n) => [n.hash, n.id]));
   return {
