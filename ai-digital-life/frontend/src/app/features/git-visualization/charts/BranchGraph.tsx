@@ -95,7 +95,7 @@ function renderRefLabels(
           onMouseEnter={() => setHoveredLabel(rl.name)}
           onMouseLeave={() => setHoveredLabel(null)}
           style={{
-            padding: '2px 8px', borderRadius: 0, background: '#888', color: '#fff',
+            padding: '2px 8px', borderRadius: 0, background: rl.color, color: '#fff',
             fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
             display: 'inline-flex', alignItems: 'center', lineHeight: 1,
             opacity: filterColumns.size === 0 || isSelected ? 1 : 0.4,
@@ -229,6 +229,7 @@ interface RowData {
 interface RefLabelInfo {
   name: string;
   cols: number[];
+  color: string;
 }
 
 interface LabelColumnInfo extends ColumnInfo {
@@ -619,6 +620,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
     }
 
     const progress = adapted?.branchProgress ?? {};
+    const colColor = new Map(columns.map((c) => [c.index, c.color]));
     const labeledWithProgress = labeled.map((c) => {
       // Collect refsLabels that belong to columns in this group
       const seen = new Set<string>();
@@ -627,7 +629,8 @@ export function BranchGraph({ data }: BranchGraphProps) {
         for (const [ref, cols] of refLabelCols) {
           if (cols.includes(colIdx) && !seen.has(ref)) {
             seen.add(ref);
-            refsLabels.push({ name: ref, cols: [...cols] });
+            const firstCol = cols[0];
+            refsLabels.push({ name: ref, cols: [...cols], color: colColor.get(firstCol) ?? c.color });
           }
         }
       }
@@ -750,7 +753,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                 ) : null}
               </button>
             </div>
-            {col.refsLabels && renderRefLabels(col, filterColumns, hoveredLabel, handleLabelClick, setHoveredLabel, t)}
+            {col.refsLabels && renderRefLabels(col.refsLabels, filterColumns, hoveredLabel, handleLabelClick, setHoveredLabel, t)}
             </React.Fragment>
           );
         })}
