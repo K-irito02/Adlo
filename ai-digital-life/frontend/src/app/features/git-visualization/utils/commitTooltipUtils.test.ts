@@ -39,7 +39,7 @@ describe('getGravatarUrl', () => {
 describe('formatDate', () => {
   it('formats in table mode as "HH:mm DD-MM-YYYY"', () => {
     const result = formatDate('2026-07-28T14:30:00', 'en-US', 'table');
-    expect(result).toMatch(/^\d{2}:\d{2} \d{2}-\d{2}-\d{4}$/);
+    expect(result).toBe('14:30 28-07-2026');
   });
 
   it('formats in tooltip mode with natural date', () => {

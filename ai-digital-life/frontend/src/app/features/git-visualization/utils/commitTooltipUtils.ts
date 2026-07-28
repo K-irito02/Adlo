@@ -117,6 +117,7 @@ export function formatDate(dateStr: string, locale: string, mode: 'table' | 'too
     const parts = new Intl.DateTimeFormat(locale, {
       hour: '2-digit',
       minute: '2-digit',
+      hour12: false,
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
