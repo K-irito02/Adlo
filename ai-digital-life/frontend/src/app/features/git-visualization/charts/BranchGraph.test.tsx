@@ -61,6 +61,7 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisDate: 'DATE',
       gitVisProgressTooltip: '{label} vs remote: ahead {ahead}, behind {behind}',
       gitVisCopyHash: 'Copy hash',
+      gitVisLocalOnly: 'local only',
     },
     formatT: vi.fn(),
   })),
@@ -185,6 +186,37 @@ describe('BranchGraph', () => {
         expect(tooltip!.textContent).not.toContain('branch head');
         expect(tooltip!.textContent).not.toContain('merged');
         expect(tooltip!.textContent).not.toContain('local only');
+      },
+      { timeout: 2000 },
+    );
+  });
+
+  it('shows local-only annotation for local-only branch head', async () => {
+    const dataWithLocalOnly = {
+      ...mockData,
+      branchProgress: { 'feature-2': { ahead: 0, behind: 0 } }, // no mergeBase = local-only
+    };
+    const { container } = render(<BranchGraph data={dataWithLocalOnly} />);
+    const rows = container.querySelectorAll('.adl-branch-graph__row');
+
+    // Find the first row for feature-2 (the HEAD, newest commit on that branch)
+    const headRow = [...rows].find(
+      (r) => r.getAttribute('data-branch') === 'feature-2',
+    );
+    expect(headRow).toBeTruthy();
+
+    fireEvent.mouseEnter(headRow!);
+    const infoBtn = await vi.waitFor(() => {
+      const btn = headRow!.querySelector('.adl-branch-graph__info-btn');
+      expect(btn).toBeTruthy();
+      return btn;
+    });
+    fireEvent.mouseEnter(infoBtn!);
+    await vi.waitFor(
+      () => {
+        const tooltip = document.body.querySelector('[data-testid="tooltip-content"]');
+        expect(tooltip).toBeTruthy();
+        expect(tooltip!.textContent).toContain('local only');
       },
       { timeout: 2000 },
     );
