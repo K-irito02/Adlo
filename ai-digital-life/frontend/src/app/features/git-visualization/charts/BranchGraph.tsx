@@ -501,15 +501,6 @@ export function BranchGraph({ data }: BranchGraphProps) {
   useEffect(() => {
     if (adapted) {
       console.log('[ADL-DEBUG] allBranches from backend:', adapted.allBranches);
-      // Log commits related to heatmap-chart-generalization
-      const heatmapCommits = adapted.nodes.filter(
-        (n) => n.refs?.includes('heatmap-chart-generalization'),
-      );
-      if (heatmapCommits.length > 0) {
-        console.log('[ADL-DEBUG] heatmap-chart-generalization commits:', heatmapCommits.map(
-          (n) => ({ hash: n.hash.substring(0, 12), date: n.date, message: n.message.substring(0, 60) }),
-        ));
-      }
     }
   }, [adapted]);
   const hasData = data != null;
@@ -519,7 +510,6 @@ export function BranchGraph({ data }: BranchGraphProps) {
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [visibleCount, setVisibleCount] = useState(() => INITIAL_LOAD);
-  const loadingMoreRef = useRef(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const handleTagRowWheel = useCallback((e: React.WheelEvent) => {
@@ -571,19 +561,15 @@ export function BranchGraph({ data }: BranchGraphProps) {
     if (!sentinel || !container) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && !loadingMoreRef.current) {
-          loadingMoreRef.current = true;
+        if (entries[0]?.isIntersecting) {
           setVisibleCount((prev) => Math.min(prev + LOAD_MORE, rows.length));
         }
       },
       { root: container, rootMargin: '200px' },
     );
     observer.observe(sentinel);
-    return () => {
-      loadingMoreRef.current = false;
-      observer.disconnect();
-    };
-  }, [rows.length, visibleCount]);
+    return () => observer.disconnect();
+  }, [rows.length]);
 
   const columnsWithLabels = useMemo((): LabelColumnInfo[] => {
     if (rows.length === 0 || !adapted) {
