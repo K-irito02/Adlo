@@ -1,11 +1,38 @@
 use adl_errors::AppError;
-use adl_types::{BranchProgress, GitVisBranchEdge, GitVisBranchGraph, GitVisBranchNode};
+use adl_types::{BranchProgress, GitVisBranchEdge, GitVisBranchGraph, GitVisBranchNode, MergedSubBranch};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
 use tokio::task::JoinSet;
 use tracing::{debug, warn};
 
+fn try_parse_merged_branch_name(message: &str) -> Option<String> {
+    if let Some(start) = message.find("Merge branch '") {
+        let rest = &message[start + 14..];
+        if let Some(end) = rest.find('\'') {
+            return Some(rest[..end].to_string());
+        }
+    }
+    if let Some(start) = message.find("Merge remote-tracking branch '") {
+        let rest = &message[start + 28..];
+        if let Some(end) = rest.find('\'') {
+            return Some(rest[..end].to_string());
+        }
+    }
+    if let Some(start) = message.find("Merge pull request #") {
+        let rest = &message[start + 19..];
+        if let Some(from_pos) = rest.find(" from ") {
+            let branch_part = &rest[from_pos + 6..];
+            let branch_name = branch_part.split('/').skip(1).collect::<Vec<_>>().join("/");
+            if !branch_name.is_empty() {
+                return Some(branch_name);
+            }
+        }
+    }
+    None
+}
+
+#[allow(clippy::if_same_then_else)]
 pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppError> {
     let t0 = std::time::Instant::now();
     debug!("[ADL-GIT-VIS] [branch_graph] running: git log --all --topo-order");
@@ -80,6 +107,28 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
             edges.push(GitVisBranchEdge { from: hash.clone(), to: p.clone() });
         }
 
+        let mut merged_sub_branches: Vec<MergedSubBranch> = Vec::new();
+        if parent_hashes.len() >= 2 {
+            for ph in &parent_hashes[1..] {
+                let id = format!("#b-{}", &ph[..6.min(ph.len())]);
+                let parsed_name = try_parse_merged_branch_name(&message);
+                let is_deleted = parsed_name.as_ref().is_some_and(|name| {
+                    let normalized = name.trim();
+                    !normalized.starts_with("origin/")
+                        && !normalized.starts_with("upstream/")
+                        && !branch_set.contains(&normalized.to_string())
+                        && !branch_seen.contains(normalized)
+                });
+                let name = parsed_name.filter(|n| !n.is_empty());
+                merged_sub_branches.push(MergedSubBranch {
+                    id,
+                    is_deleted,
+                    name,
+                    parent_hash: ph.clone(),
+                });
+            }
+        }
+
         nodes.push(GitVisBranchNode {
             hash,
             short_hash,
@@ -91,37 +140,14 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
             author,
             author_email,
             tag,
+            merged_sub_branches,
         });
     }
 
-    // Propagate branch names from children to parents via edges
-    let mut branch_of: HashMap<String, String> = HashMap::new();
-    for n in &nodes {
-        if !n.branch.is_empty() {
-            branch_of.insert(n.hash.clone(), n.branch.clone());
-        }
-    }
-    let mut changed = true;
-    while changed {
-        changed = false;
-        for edge in &edges {
-            let child_hash = &edge.from;
-            let parent_hash = &edge.to;
-            if !branch_of.contains_key(parent_hash) {
-                if let Some(b) = branch_of.get(child_hash) {
-                    branch_of.insert(parent_hash.clone(), b.clone());
-                    changed = true;
-                }
-            }
-        }
-    }
-    for node in &mut nodes {
-        if node.branch.is_empty() {
-            if let Some(b) = branch_of.get(&node.hash) {
-                node.branch = b.clone();
-            }
-        }
-    }
+    // Branch names are only set for HEAD commits (those directly pointed to by a ref).
+    // Non-HEAD commits get branch display from the frontend's column/lane assignment,
+    // which correctly resolves the owning branch via topological order.
+    // No propagation is performed — shared ancestors would get an ambiguous result.
 
     // Sort branches: HEAD branch first, local branches, remote refs, origin/HEAD last
     branch_set.sort_by(|a, b| {
