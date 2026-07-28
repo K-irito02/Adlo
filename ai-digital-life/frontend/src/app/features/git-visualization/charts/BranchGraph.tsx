@@ -85,6 +85,8 @@ interface CommitTooltipCardProps {
   date: string;
   branch: string;
   refs: string[];
+  branchProgress?: { ahead: number; behind: number; mergeBase?: string };
+  tag?: string;
 }
 
 const CommitTooltipCard = React.memo(function CommitTooltipCard({
@@ -95,11 +97,16 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
   date,
   branch,
   refs,
+  branchProgress,
+  tag,
 }: CommitTooltipCardProps) {
   const { t } = useTCopy();
   const locale = navigator.language || 'en-US';
-  const uniqueRefs = refs.filter(
+  const localRefs = refs.filter(
     (r) => r !== branch && !r.startsWith('origin/') && !r.startsWith('upstream/'),
+  );
+  const remoteRefs = refs.filter(
+    (r) => r !== branch && (r.startsWith('origin/') || r.startsWith('upstream/')),
   );
 
   return (
@@ -133,17 +140,40 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
         {formatDate(date, locale, 'tooltip')}
       </div>
 
-      {(branch || uniqueRefs.length > 0) && (
+      {(branch || localRefs.length > 0 || remoteRefs.length > 0 || tag) && (
         <>
           <hr className="adl-branch-graph__tooltip-divider" />
           <div className="adl-branch-graph__tooltip-branches">
             <div className="adl-branch-graph__tooltip-branches-label">分支</div>
             <div className="adl-branch-graph__tooltip-branches-list">
-              {branch && <span className="adl-branch-graph__tooltip-branch-badge adl-branch-graph__tooltip-branch-badge--primary">{branch}</span>}
-              {uniqueRefs.map((ref) => (
+              {/* Primary branch with ahead/behind */}
+              {branch && (
+                <span className="adl-branch-graph__tooltip-branch-badge adl-branch-graph__tooltip-branch-badge--primary">
+                  {branch}
+                  {branchProgress && (branchProgress.ahead > 0 || branchProgress.behind > 0) && (
+                    <span className="adl-branch-graph__tooltip-branch-progress">
+                      {branchProgress.ahead > 0 && <span>↑{branchProgress.ahead}</span>}
+                      {branchProgress.behind > 0 && <span>↓{branchProgress.behind}</span>}
+                    </span>
+                  )}
+                </span>
+              )}
+              {/* Additional local branches */}
+              {localRefs.map((ref) => (
                 <span key={ref} className="adl-branch-graph__tooltip-branch-badge">{ref}</span>
               ))}
+              {/* Remote tracking branches */}
+              {remoteRefs.length > 0 && localRefs.length > 0 && <br />}
+              {remoteRefs.map((ref) => (
+                <span key={ref} className="adl-branch-graph__tooltip-remote-badge">{ref}</span>
+              ))}
             </div>
+            {/* Tag */}
+            {tag && (
+              <div className="adl-branch-graph__tooltip-tag-row">
+                <span className="adl-branch-graph__tooltip-tag-badge">{tag}</span>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -809,6 +839,8 @@ export function BranchGraph({ data }: BranchGraphProps) {
                               date={row.node.date}
                               branch={row.node.branch}
                               refs={row.node.refs ?? []}
+                              branchProgress={adapted?.branchProgress?.[row.node.branch]}
+                              tag={row.node.tag}
                             />
                           }
                           placement="right"
