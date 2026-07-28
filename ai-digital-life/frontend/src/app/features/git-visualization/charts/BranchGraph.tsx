@@ -6,6 +6,7 @@ import { useBklitTheme } from '../hooks/useBklitTheme';
 import { adaptBranchGraphData } from '../adapters/chartDataAdapters';
 import { useLaneAssignment } from '../hooks/useLaneAssignment';
 import { formatDate, getGravatarUrl } from '../utils/commitTooltipUtils';
+import { IconAlertCircle } from '@icons/status';
 import type { ColumnInfo } from '../hooks/useLaneAssignment';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
 import type { CommitNode, CommitEdge } from '../../../../test-fixtures/gitVisMockData';
@@ -676,6 +677,8 @@ export function BranchGraph({ data }: BranchGraphProps) {
         {/* Panels: lanes + table, same vertical scroll parent */}
         <div className="adl-branch-graph__panels">
           <div className="adl-branch-graph__lanes-panel">
+            {/* Spacer matching table header height so SVG nodes align with rows */}
+            <div className="adl-branch-graph__lanes-spacer" />
             <SvgLanes
               rows={visibleRows}
               columns={columns}
@@ -718,41 +721,25 @@ export function BranchGraph({ data }: BranchGraphProps) {
                 (ref) => ref !== row.node.branch && !ref.startsWith('origin/') && !ref.startsWith('upstream/'),
               ) ?? [];
               return (
-                <TooltipSimple
+                <div
                   key={row.node.id}
-                  content={
-                    <CommitTooltipCard
-                      hash={row.node.hash}
-                      message={row.node.message}
-                      author={row.node.author}
-                      authorEmail={row.node.authorEmail}
-                      date={row.node.date}
-                    />
-                  }
-                  placement="right"
-                  dismissible
-                  showArrow
-                  maxWidth={400}
-                  className="adl-hint-card"
+                  className={`adl-branch-graph__row${hoveredId === row.node.id ? ' adl-branch-graph__row--hover' : ''}${isFiltered ? ' adl-branch-graph__row--dimmed' : ''}`}
+                  data-branch={row.node.branch}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '80px 1fr 120px 100px',
+                    gap: 8,
+                    padding: '4px 8px',
+                    fontSize: 12,
+                    lineHeight: ROW_HEIGHT - 8 + 'px',
+                    cursor: 'default',
+                    borderRadius: 4,
+                    opacity: isFiltered ? 0.25 : 1,
+                    minHeight: ROW_HEIGHT,
+                  }}
+                  onMouseEnter={() => handleRowHover(row.node.id)}
+                  onMouseLeave={() => handleRowHover(null)}
                 >
-                  <div
-                    className={`adl-branch-graph__row${hoveredId === row.node.id ? ' adl-branch-graph__row--hover' : ''}${isFiltered ? ' adl-branch-graph__row--dimmed' : ''}`}
-                    data-branch={row.node.branch}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '80px 1fr 120px 100px',
-                      gap: 8,
-                      padding: '4px 8px',
-                      fontSize: 12,
-                      lineHeight: ROW_HEIGHT - 8 + 'px',
-                      cursor: 'default',
-                      borderRadius: 4,
-                      opacity: isFiltered ? 0.25 : 1,
-                      minHeight: ROW_HEIGHT,
-                    }}
-                    onMouseEnter={() => handleRowHover(row.node.id)}
-                    onMouseLeave={() => handleRowHover(null)}
-                  >
                     <span
                       style={{
                         display: 'inline-flex',
@@ -830,10 +817,35 @@ export function BranchGraph({ data }: BranchGraphProps) {
                     >
                       <AuthorAvatar name={row.node.author} src={getGravatarUrl(row.node.authorEmail, 20)} />
                       {row.node.author}
+                      {hoveredId === row.node.id && (
+                        <TooltipSimple
+                          content={
+                            <CommitTooltipCard
+                              hash={row.node.hash}
+                              message={row.node.message}
+                              author={row.node.author}
+                              authorEmail={row.node.authorEmail}
+                              date={row.node.date}
+                            />
+                          }
+                          placement="right"
+                          showArrow
+                          maxWidth={400}
+                          className="adl-hint-card"
+                        >
+                          <button
+                            type="button"
+                            className="adl-branch-graph__info-btn"
+                            tabIndex={-1}
+                            aria-label=""
+                          >
+                            <IconAlertCircle size={14} />
+                          </button>
+                        </TooltipSimple>
+                      )}
                     </span>
                     <span style={{ color: theme.muted }}>{formatDate(row.node.date, locale, 'table')}</span>
                   </div>
-                </TooltipSimple>
               );
             })}
             {visibleCount < rows.length && (

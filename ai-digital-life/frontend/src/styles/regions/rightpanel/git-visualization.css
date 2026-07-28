@@ -197,6 +197,27 @@
   /* Future: 当 src 属性传入真实头像 URL 时，class 不变，仅渲染方式从 span 变为 img */
 }
 
+.adl-branch-graph__info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 100ms ease, color 100ms ease;
+}
+.adl-branch-graph__info-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .adl-branch-graph__tag {
   display: inline-block;
   vertical-align: middle;
@@ -287,6 +308,11 @@
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
 }
+
+.adl-branch-graph__lanes-spacer {
+  height: 25px;
+  flex-shrink: 0;
+}
 .adl-branch-graph__lanes-panel[data-scrolling],
 .adl-branch-graph__lanes-panel[data-scrollbar-near] {
   scrollbar-color: var(--border-default) transparent;
@@ -359,7 +385,7 @@
 }
 
 .adl-branch-graph__tooltip-message {
-  max-height: 216px;
+  max-height: 360px;
   overflow-y: auto;
   font-size: 12px;
   color: var(--text-primary);

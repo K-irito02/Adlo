@@ -117,8 +117,21 @@ describe('BranchGraph', () => {
   it('renders tooltip card content on row hover', async () => {
     const { container } = render(<BranchGraph data={mockData} />);
     const rows = container.querySelectorAll('.adl-branch-graph__row');
+
+    // Step 1: Hover over row to make info button appear
     fireEvent.mouseEnter(rows[0]);
 
+    // Step 2: Wait for info button to render (state update)
+    const infoBtn = await vi.waitFor(() => {
+      const btn = rows[0].querySelector('.adl-branch-graph__info-btn');
+      expect(btn).toBeTruthy();
+      return btn;
+    });
+
+    // Step 3: Hover over info button to trigger tooltip
+    fireEvent.mouseEnter(infoBtn!);
+
+    // Step 4: Wait for tooltip card to appear (Tooltip has showDelay)
     await vi.waitFor(
       () => {
         const tooltip = document.body.querySelector('[data-testid="tooltip-content"]');
