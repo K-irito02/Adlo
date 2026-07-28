@@ -146,6 +146,7 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
   const { t } = useTCopy();
   const locale = navigator.language || 'en-US';
   const displayBranch = branch.replace(/^origin\//, '').replace(/^upstream\//, '');
+
   const localRefs = refs.filter(
     (r) => r !== branch && !r.startsWith('origin/') && !r.startsWith('upstream/'),
   );
@@ -194,7 +195,8 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
         {branch && (
           <span className="adl-branch-graph__tooltip-branch-badge adl-branch-graph__tooltip-branch-badge--primary">
             {displayBranch}
-                  {branchProgress && (branchProgress.ahead > 0 || branchProgress.behind > 0) && (
+            {localRefs.length > 0 ? ' (merged)' : ' (tip)'}
+            {branchProgress && (branchProgress.ahead > 0 || branchProgress.behind > 0) && (
                     <span className="adl-branch-graph__tooltip-branch-progress">
                       {branchProgress.ahead > 0 && <span>↑{branchProgress.ahead}</span>}
                       {branchProgress.behind > 0 && <span>↓{branchProgress.behind}</span>}
@@ -706,7 +708,6 @@ export function BranchGraph({ data }: BranchGraphProps) {
 
   const handleRowHover = useCallback((id: string | null) => setHoveredId(id), []);
   const handleLabelClick = useCallback((colIndices: number[]) => {
-    setActiveRefLabel(null);
     setFilterColumns((prev) => {
       const anySelected = colIndices.some((i) => prev.has(i));
       const next = new Set(prev);
