@@ -451,9 +451,6 @@
   font-weight: 600;
   line-height: 1.4;
   white-space: nowrap;
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .adl-branch-graph__tooltip-branch-badge--primary {

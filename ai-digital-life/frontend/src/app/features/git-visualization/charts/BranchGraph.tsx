@@ -344,7 +344,7 @@ const SvgLanes = React.memo(function SvgLanes({
         y1={yPositions[0]}
         x2={x}
         y2={yPositions[yPositions.length - 1]}
-        stroke={!laneDimmed && rows.some((r) => r.column === col.index && rowHasRef(r)) && refLabelColor ? refLabelColor : col.color}
+        stroke={col.color}
         strokeWidth={3}
         strokeLinecap="round"
         opacity={laneDimmed ? 0.1 : 0.5}
