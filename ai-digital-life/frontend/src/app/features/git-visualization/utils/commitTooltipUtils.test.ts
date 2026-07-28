@@ -17,10 +17,10 @@ describe('md5', () => {
 });
 
 describe('getGravatarUrl', () => {
-  it('generates correct Gravatar URL', () => {
+  it('generates correct Gravatar URL with retro fallback', () => {
     const md5Hash = md5('alex@example.com');
     expect(getGravatarUrl('alex@example.com', 32)).toBe(
-      `https://www.gravatar.com/avatar/${md5Hash}?s=32&d=identicon`,
+      `https://www.gravatar.com/avatar/${md5Hash}?s=32&d=retro`,
     );
   });
 
@@ -33,6 +33,23 @@ describe('getGravatarUrl', () => {
   it('uses default size 80 when not specified', () => {
     const url = getGravatarUrl('test@test.com');
     expect(url).toContain('?s=80');
+  });
+
+  it('detects GitHub noreply email and uses github.com URL', () => {
+    const url = getGravatarUrl('alex@users.noreply.github.com', 32);
+    expect(url).toBe('https://github.com/alex.png');
+  });
+
+  it('extracts username from noreply email with userid+username format', () => {
+    const url = getGravatarUrl('12345+alex@users.noreply.github.com', 32);
+    expect(url).toBe('https://github.com/alex.png');
+  });
+
+  it('uses Gravatar for non-noreply emails with retro fallback', () => {
+    const url = getGravatarUrl('alex@example.com', 32);
+    expect(url).toContain('gravatar.com/avatar');
+    expect(url).toContain('d=retro');
+    expect(url).toContain('s=32');
   });
 });
 

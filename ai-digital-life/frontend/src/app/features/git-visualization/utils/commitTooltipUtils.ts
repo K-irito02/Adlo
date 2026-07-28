@@ -100,10 +100,21 @@ export function md5(str: string): string {
   return hex(h0) + hex(h1) + hex(h2) + hex(h3);
 }
 
-/** Generate a Gravatar URL from an email address */
+/** Generate an avatar URL from an email address */
 export function getGravatarUrl(email: string, size = 80): string {
-  const hash = md5(email.trim().toLowerCase());
-  return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=identicon`;
+  const trimmed = email.trim().toLowerCase();
+
+  // A2: GitHub noreply → extract username → GitHub avatar
+  const noreplyMatch = trimmed.match(/^(.+?)@users\.noreply\.github\.com$/);
+  if (noreplyMatch) {
+    const localPart = noreplyMatch[1];
+    const username = localPart.includes('+') ? localPart.split('+').pop()! : localPart;
+    return `https://github.com/${username}.png`;
+  }
+
+  // A1: Gravatar with retro fallback
+  const hash = md5(trimmed);
+  return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=retro`;
 }
 
 /** Format a date string for display */
