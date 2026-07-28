@@ -714,6 +714,9 @@ export function BranchGraph({ data }: BranchGraphProps) {
                 filterColumns.size > 0 &&
                 !filterColumns.has(row.column) &&
                 row.node.branch !== hoveredLabel;
+              const additionalRefs = row.node.refs?.filter(
+                (ref) => ref !== row.node.branch && !ref.startsWith('origin/') && !ref.startsWith('upstream/'),
+              ) ?? [];
               return (
                 <TooltipSimple
                   key={row.node.id}
@@ -804,6 +807,16 @@ export function BranchGraph({ data }: BranchGraphProps) {
                           }}
                         >
                           {row.node.tag}
+                        </span>
+                      )}
+                      {additionalRefs.length > 0 && (
+                        <span style={{ display: 'inline-flex', gap: 2, marginLeft: 4, verticalAlign: 'middle', flexShrink: 0 }}>
+                          {additionalRefs.slice(0, 3).map((ref) => (
+                            <span key={ref} className="adl-branch-graph__commit-badge">{ref}</span>
+                          ))}
+                          {additionalRefs.length > 3 && (
+                            <span className="adl-branch-graph__commit-badge">+{additionalRefs.length - 3}</span>
+                          )}
                         </span>
                       )}
                     </span>

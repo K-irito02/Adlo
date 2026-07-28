@@ -40,16 +40,19 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
 
         let mut branch = String::new();
         let mut tag: Option<String> = None;
+        let mut all_refs: Vec<String> = Vec::new();
         if !refs_raw.is_empty() {
             let refs: Vec<&str> = refs_raw.split(", ").collect();
             for r in &refs {
                 let r2 = r.trim();
                 if let Some(stripped) = r2.strip_prefix("tag: ") {
                     tag = Some(stripped.to_string());
+                    all_refs.push(stripped.to_string());
                 } else if let Some(stripped) = r2.strip_prefix("HEAD -> ") {
                     if head_branch.is_empty() {
                         head_branch = stripped.to_string();
                     }
+                    all_refs.push(stripped.to_string());
                     if branch.is_empty() {
                         branch = stripped.to_string();
                         if branch_seen.insert(branch.clone()) {
@@ -57,6 +60,7 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
                         }
                     }
                 } else if !r2.starts_with("tag:") {
+                    all_refs.push(r2.to_string());
                     if branch.is_empty() {
                         branch = r2.to_string();
                     }
@@ -77,6 +81,7 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
             short_hash,
             parent_hashes,
             branch,
+            refs: all_refs,
             date,
             message,
             author,

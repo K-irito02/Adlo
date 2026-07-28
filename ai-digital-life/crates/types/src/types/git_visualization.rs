@@ -106,6 +106,7 @@ pub struct GitVisBranchNode {
     pub short_hash: String,
     pub parent_hashes: Vec<String>,
     pub branch: String,
+    pub refs: Vec<String>,
     pub date: String,
     pub message: String,
     pub author: String,

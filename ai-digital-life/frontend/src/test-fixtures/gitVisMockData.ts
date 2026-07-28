@@ -7,6 +7,7 @@ export interface CommitNode {
   hash: string;
   shortHash?: string;
   branch: string;
+  refs?: string[];
   date: string;
   message: string;
   author: string;

@@ -20,6 +20,7 @@ export interface RawBranchGraph {
     shortHash?: string;
     parentHashes: string[];
     branch: string;
+    refs?: string[];
     date: string;
     message: string;
     author: string;
