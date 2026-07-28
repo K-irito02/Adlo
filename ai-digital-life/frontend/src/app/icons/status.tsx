@@ -31,6 +31,15 @@ export const IconAlertCircle = make(
   </>,
 );
 
+export const IconFileText = make(
+  <>
+    <path d="M3 4V18C3 19.1046 3.89543 20 5 20H17H19C20.1046 20 21 19.1046 21 18V8H17" />
+    <path d="M3 4H17V18C17 19.1046 17.8954 20 19 20V20" />
+    <path d="M13 8L7 8" />
+    <path d="M13 12L9 12" />
+  </>,
+);
+
 export const IconStopCircle = make(
   <>
     <circle cx="12" cy="12" r="9" />

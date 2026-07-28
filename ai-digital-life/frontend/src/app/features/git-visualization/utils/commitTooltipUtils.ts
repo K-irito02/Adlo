@@ -100,22 +100,66 @@ export function md5(str: string): string {
   return hex(h0) + hex(h1) + hex(h2) + hex(h3);
 }
 
-/** Generate an avatar URL from an email address */
-export function getGravatarUrl(email: string, size = 80): string {
-  const trimmed = email.trim().toLowerCase();
+/**
+ * Avatar resolver interface.
+ * Implement this and register via `registerAvatarResolver` to add a platform-specific resolver.
+ * Resolvers are tried in priority order (lower runs first). Return null to skip to next.
+ */
+export interface AvatarResolver {
+  name: string;
+  priority: number;
+  resolve: (email: string, size: number) => string | null;
+}
 
-  // A2: GitHub noreply → extract username → GitHub avatar
-  const noreplyMatch = trimmed.match(/^(.+?)@users\.noreply\.github\.com$/);
-  if (noreplyMatch) {
-    const localPart = noreplyMatch[1];
+const resolvers: AvatarResolver[] = [];
+
+/** Register a platform-specific avatar resolver */
+export function registerAvatarResolver(resolver: AvatarResolver): void {
+  resolvers.push(resolver);
+  resolvers.sort((a, b) => a.priority - b.priority);
+}
+
+// ── Built-in resolvers ──
+
+/** A2: GitHub noreply → https://github.com/{username}.png */
+registerAvatarResolver({
+  name: 'github-noreply',
+  priority: 10,
+  resolve(email: string, _size: number): string | null {
+    const match = email.match(/^(.+?)@users\.noreply\.github\.com$/);
+    if (!match) return null;
+    const localPart = match[1];
     const username = localPart.includes('+') ? localPart.split('+').pop()! : localPart;
     return `https://github.com/${username}.png`;
-  }
+  },
+});
 
-  // A1: Gravatar with retro fallback
-  const hash = md5(trimmed);
-  return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=retro`;
+/** A1: Gravatar with retro fallback (always returns a URL) */
+registerAvatarResolver({
+  name: 'gravatar',
+  priority: 100,
+  resolve(email: string, size: number): string | null {
+    const hash = md5(email.trim().toLowerCase());
+    return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=retro`;
+  },
+});
+
+/**
+ * Resolve an avatar URL by trying registered resolvers in priority order.
+ * The last resolver (gravatar) always returns a value, so this never returns null.
+ * When the image fails to load, use onError on the <img> to fall back to initials.
+ */
+export function resolveAvatarUrl(email: string, size = 80): string {
+  const trimmed = email.trim().toLowerCase();
+  for (const r of resolvers) {
+    const url = r.resolve(trimmed, size);
+    if (url) return url;
+  }
+  return '';
 }
+
+/** @deprecated Use resolveAvatarUrl instead */
+export const getGravatarUrl = resolveAvatarUrl;
 
 /** Format a date string for display */
 export function formatDate(dateStr: string, locale: string, mode: 'table' | 'tooltip'): string {

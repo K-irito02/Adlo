@@ -246,31 +246,10 @@
 
 /* ── Branch Graph Panels Layout ── */
 .adl-branch-graph__body {
-  overflow-y: auto;
   flex: 1;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  scrollbar-width: thin;
-  scrollbar-color: transparent transparent;
-}
-.adl-branch-graph__body[data-scrolling],
-.adl-branch-graph__body[data-scrollbar-near] {
-  scrollbar-color: var(--border-default) transparent;
-}
-.adl-branch-graph__body::-webkit-scrollbar {
-  width: 6px;
-}
-.adl-branch-graph__body::-webkit-scrollbar-track {
-  background: transparent;
-}
-.adl-branch-graph__body::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 999px;
-}
-.adl-branch-graph__body[data-scrolling]::-webkit-scrollbar-thumb,
-.adl-branch-graph__body[data-scrollbar-near]::-webkit-scrollbar-thumb {
-  background: var(--border-default);
 }
 
 .adl-branch-graph__tag-row--sticky {
@@ -440,6 +419,48 @@
 .adl-branch-graph__tooltip-date {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.adl-branch-graph__tooltip-branches {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.adl-branch-graph__tooltip-branches-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.adl-branch-graph__tooltip-branches-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.adl-branch-graph__tooltip-branch-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  border: 1px solid var(--border-subtle);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adl-branch-graph__tooltip-branch-badge--primary {
+  background: var(--bg-active);
+  color: var(--text-primary);
+  border-color: var(--border-default);
 }
 
 /* ── Heatmap Tab Navigation ── */
