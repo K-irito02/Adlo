@@ -262,25 +262,26 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
       }
     };
 
-    const initialCharts = container.querySelectorAll('.adl-git-vis__chart');
+    const chartSelector = '.adl-git-vis__chart, .adl-branch-graph__body';
+    const initialCharts = container.querySelectorAll(chartSelector);
     initialCharts.forEach(connectChart);
 
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         for (const node of mutation.addedNodes) {
           if (node instanceof Element) {
-            if (node.matches('.adl-git-vis__chart')) {
+            if (node.matches(chartSelector)) {
               connectChart(node);
             }
-            node.querySelectorAll('.adl-git-vis__chart').forEach(connectChart);
+            node.querySelectorAll(chartSelector).forEach(connectChart);
           }
         }
         for (const node of mutation.removedNodes) {
           if (node instanceof Element) {
-            if (node.matches('.adl-git-vis__chart')) {
+            if (node.matches(chartSelector)) {
               disconnectChart(node);
             }
-            node.querySelectorAll('.adl-git-vis__chart').forEach(disconnectChart);
+            node.querySelectorAll(chartSelector).forEach(disconnectChart);
           }
         }
       }
@@ -289,7 +290,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
 
     return () => {
       observer.disconnect();
-      const allCharts = container.querySelectorAll('.adl-git-vis__chart');
+      const allCharts = container.querySelectorAll(chartSelector);
       allCharts.forEach(disconnectChart);
       scrollTimers.forEach((t) => clearTimeout(t));
       edgeRaf.forEach((id) => cancelAnimationFrame(id));

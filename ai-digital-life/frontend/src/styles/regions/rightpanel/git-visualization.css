@@ -207,6 +207,109 @@
   user-select: none;
 }
 
+/* ── Branch Graph Panels Layout ── */
+.adl-branch-graph__body {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.adl-branch-graph__body[data-scrolling],
+.adl-branch-graph__body[data-scrollbar-near] {
+  scrollbar-color: var(--border-default) transparent;
+}
+.adl-branch-graph__body::-webkit-scrollbar {
+  width: 6px;
+}
+.adl-branch-graph__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.adl-branch-graph__body::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+.adl-branch-graph__body[data-scrolling]::-webkit-scrollbar-thumb,
+.adl-branch-graph__body[data-scrollbar-near]::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+}
+
+.adl-branch-graph__tag-row--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  gap: 6px;
+  padding: 6px 8px 8px 8px;
+  padding-right: 24px;
+  min-height: 34px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.adl-branch-graph__tag-row--sticky::-webkit-scrollbar {
+  display: none;
+}
+
+.adl-branch-graph__panels {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.adl-branch-graph__lanes-panel {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 400px;
+  flex-shrink: 0;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.adl-branch-graph__lanes-panel[data-scrolling],
+.adl-branch-graph__lanes-panel[data-scrollbar-near] {
+  scrollbar-color: var(--border-default) transparent;
+}
+.adl-branch-graph__lanes-panel::-webkit-scrollbar {
+  height: 6px;
+}
+.adl-branch-graph__lanes-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.adl-branch-graph__lanes-panel::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+.adl-branch-graph__lanes-panel[data-scrolling]::-webkit-scrollbar-thumb,
+.adl-branch-graph__lanes-panel[data-scrollbar-near]::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+}
+
+.adl-branch-graph__table-panel {
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
+}
+
+.adl-branch-graph__bottom-bar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border-top: 1px solid var(--border-subtle);
+  z-index: 5;
+}
+
 /* ── Heatmap Tab Navigation ── */
 .adl-git-vis__heatmap-nav {
   display: flex;

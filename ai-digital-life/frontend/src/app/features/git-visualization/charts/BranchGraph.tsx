@@ -340,6 +340,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
   const hasData = data != null;
 
   const tagRowRef = useRef<HTMLDivElement>(null);
+  const scrollBodyRef = useRef<HTMLDivElement>(null);
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [visibleCount, setVisibleCount] = useState(() => INITIAL_LOAD);
@@ -521,15 +522,9 @@ export function BranchGraph({ data }: BranchGraphProps) {
 
   return (
     <div className="adl-git-vis__chart" ref={chartContainerRef} style={{ overflowX: 'hidden' }}>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `${totalLaneWidth + 4}px 1fr`,
-          gap: 4,
-        }}
-      >
-        <div />
-        <div ref={tagRowRef} className="adl-branch-graph__tag-row" onWheel={handleTagRowWheel}>
+      <div className="adl-branch-graph__body" ref={scrollBodyRef}>
+        {/* Tag row — sticky top, spans full width */}
+        <div ref={tagRowRef} className="adl-branch-graph__tag-row--sticky" onWheel={handleTagRowWheel}>
           {columnsWithLabels.map((col) => {
             const fcs: number[] = col.filterCols ?? [col.index];
             const isSelected = fcs.some((i) => filterColumns.has(i));
@@ -607,162 +602,159 @@ export function BranchGraph({ data }: BranchGraphProps) {
           })}
         </div>
 
-        <div />
-        <div
-          className="adl-branch-graph__header"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '80px 1fr 120px 100px',
-            gap: 8,
-            padding: '4px 8px',
-            fontSize: 11,
-            fontWeight: 600,
-            color: theme.muted,
-            borderBottom: `1px solid ${theme.grid}`,
-          }}
-        >
-          <span>{t.gitVisHash}</span>
-          <span>{t.gitVisMessage}</span>
-          <span>{t.gitVisAuthor}</span>
-          <span>{t.gitVisDate}</span>
-        </div>
-
-        <SvgLanes
-          rows={visibleRows}
-          columns={columns}
-          edges={adapted?.edges ?? []}
-          totalWidth={totalLaneWidth}
-          totalHeight={totalHeight}
-          hoveredId={hoveredId}
-          nodeStroke={nodeStroke}
-          filterColumns={filterColumns}
-          hoveredBranch={hoveredLabel}
-          aheadRows={aheadRows}
-        />
-        <div>
-          {visibleRows.map((row) => {
-            const isFiltered =
-              filterColumns.size > 0 &&
-              !filterColumns.has(row.column) &&
-              row.node.branch !== hoveredLabel;
-            return (
-              <div
-                key={row.node.id}
-                className={`adl-branch-graph__row${hoveredId === row.node.id ? ' adl-branch-graph__row--hover' : ''}${isFiltered ? ' adl-branch-graph__row--dimmed' : ''}`}
-                data-branch={row.node.branch}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '80px 1fr 120px 100px',
-                  gap: 8,
-                  padding: '4px 8px',
-                  fontSize: 12,
-                  lineHeight: ROW_HEIGHT - 8 + 'px',
-                  cursor: 'default',
-                  borderRadius: 4,
-                  opacity: isFiltered ? 0.25 : 1,
-                  minHeight: ROW_HEIGHT,
-                }}
-                onMouseEnter={() => handleRowHover(row.node.id)}
-                onMouseLeave={() => handleRowHover(null)}
-                title={`${row.node.hash}\n${row.node.message}\n${row.node.author} <${row.node.authorEmail}>\n${row.node.date}`}
-              >
-                <span
+        {/* Panels: lanes + table, same vertical scroll parent */}
+        <div className="adl-branch-graph__panels">
+          <div className="adl-branch-graph__lanes-panel">
+            {/* Header row */}
+            <div
+              className="adl-branch-graph__header"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '80px 1fr 120px 100px',
+                gap: 8,
+                padding: '4px 8px',
+                fontSize: 11,
+                fontWeight: 600,
+                color: theme.muted,
+                borderBottom: `1px solid ${theme.grid}`,
+              }}
+            >
+              <span>{t.gitVisHash}</span>
+              <span>{t.gitVisMessage}</span>
+              <span>{t.gitVisAuthor}</span>
+              <span>{t.gitVisDate}</span>
+            </div>
+            <SvgLanes
+              rows={visibleRows}
+              columns={columns}
+              edges={adapted?.edges ?? []}
+              totalWidth={totalLaneWidth}
+              totalHeight={totalHeight}
+              hoveredId={hoveredId}
+              nodeStroke={nodeStroke}
+              filterColumns={filterColumns}
+              hoveredBranch={hoveredLabel}
+              aheadRows={aheadRows}
+            />
+          </div>
+          <div className="adl-branch-graph__table-panel">
+            {visibleRows.map((row) => {
+              const isFiltered =
+                filterColumns.size > 0 &&
+                !filterColumns.has(row.column) &&
+                row.node.branch !== hoveredLabel;
+              return (
+                <div
+                  key={row.node.id}
+                  className={`adl-branch-graph__row${hoveredId === row.node.id ? ' adl-branch-graph__row--hover' : ''}${isFiltered ? ' adl-branch-graph__row--dimmed' : ''}`}
+                  data-branch={row.node.branch}
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
+                    display: 'grid',
+                    gridTemplateColumns: '80px 1fr 120px 100px',
+                    gap: 8,
+                    padding: '4px 8px',
+                    fontSize: 12,
+                    lineHeight: ROW_HEIGHT - 8 + 'px',
+                    cursor: 'default',
+                    borderRadius: 4,
+                    opacity: isFiltered ? 0.25 : 1,
+                    minHeight: ROW_HEIGHT,
                   }}
+                  onMouseEnter={() => handleRowHover(row.node.id)}
+                  onMouseLeave={() => handleRowHover(null)}
+                  title={`${row.node.hash}\n${row.node.message}\n${row.node.author} <${row.node.authorEmail}>\n${row.node.date}`}
                 >
                   <span
                     style={{
-                      fontFamily: 'var(--font-mono, monospace)',
-                      color: theme.text,
-                      fontSize: 11,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
                       overflow: 'hidden',
-                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
                     }}
                   >
-                    {row.node.shortHash || row.node.hash}
-                  </span>
-                  <span className="adl-branch-graph__copy-hash">
-                    <CopyButton
-                      text={row.node.hash}
-                      size={11}
-                      tooltip={t.gitVisCopyHash}
-                      nativeTooltip
-                    />
-                  </span>
-                </span>
-                <span
-                  style={{
-                    color: theme.text,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    minWidth: 0,
-                  }}
-                >
-                  {row.node.message}
-                  {row.node.tag && (
                     <span
-                      className="adl-branch-graph__tag"
                       style={{
-                        marginLeft: 8,
-                        padding: '1px 4px',
-                        borderRadius: 2,
-                        background: row.color,
-                        color: '#fff',
-                        fontSize: 9,
-                        fontWeight: 600,
-                        lineHeight: 1,
+                        fontFamily: 'var(--font-mono, monospace)',
+                        color: theme.text,
+                        fontSize: 11,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                       }}
                     >
-                      {row.node.tag}
+                      {row.node.shortHash || row.node.hash}
                     </span>
-                  )}
-                </span>
-                <span
-                  style={{
-                    color: theme.muted,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                >
-                  <AuthorAvatar name={row.node.author} />
-                  {row.node.author}
-                </span>
-                <span style={{ color: theme.muted }}>{formatRelativeDate(row.node.date)}</span>
+                    <span className="adl-branch-graph__copy-hash">
+                      <CopyButton
+                        text={row.node.hash}
+                        size={11}
+                        tooltip={t.gitVisCopyHash}
+                        nativeTooltip
+                      />
+                    </span>
+                  </span>
+                  <span
+                    style={{
+                      color: theme.text,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      minWidth: 0,
+                    }}
+                  >
+                    {row.node.message}
+                    {row.node.tag && (
+                      <span
+                        className="adl-branch-graph__tag"
+                        style={{
+                          marginLeft: 8,
+                          padding: '1px 4px',
+                          borderRadius: 2,
+                          background: row.color,
+                          color: '#fff',
+                          fontSize: 9,
+                          fontWeight: 600,
+                          lineHeight: 1,
+                        }}
+                      >
+                        {row.node.tag}
+                      </span>
+                    )}
+                  </span>
+                  <span
+                    style={{
+                      color: theme.muted,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <AuthorAvatar name={row.node.author} />
+                    {row.node.author}
+                  </span>
+                  <span style={{ color: theme.muted }}>{formatRelativeDate(row.node.date)}</span>
+                </div>
+              );
+            })}
+            {visibleCount < rows.length && (
+              <div
+                ref={sentinelRef}
+                style={{
+                  textAlign: 'center',
+                  padding: '8px 0',
+                  fontSize: 11,
+                  color: theme.muted,
+                }}
+              >
+                {t.gitVisLoadingMore}
               </div>
-            );
-          })}
-          {visibleCount < rows.length && (
-            <div
-              ref={sentinelRef}
-              style={{
-                textAlign: 'center',
-                padding: '8px 0',
-                fontSize: 11,
-                color: theme.muted,
-              }}
-            >
-              {t.gitVisLoadingMore}
-            </div>
-          )}
-          {visibleCount >= rows.length && rows.length > INITIAL_LOAD && (
-            <div
-              style={{
-                textAlign: 'center',
-                padding: '8px 0',
-                fontSize: 11,
-                color: theme.muted,
-              }}
-            >
-              {t.gitVisAllLoaded?.replace('{count}', String(rows.length))}
-            </div>
-          )}
+            )}
+            {visibleCount >= rows.length && rows.length > INITIAL_LOAD && (
+              <div className="adl-branch-graph__bottom-bar">
+                {t.gitVisAllLoaded?.replace('{count}', String(rows.length))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
