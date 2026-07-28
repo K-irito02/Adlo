@@ -87,15 +87,12 @@ const AuthorAvatar = React.memo(function AuthorAvatar({ name, src, email, size =
 /** Render supplementary ref labels as separate tag row buttons */
 function renderRefLabels(
   rls: RefLabelInfo[],
-  filterColumns: Set<number>,
   activeRefLabel: string | null,
-  handleLabelClick: (cols: number[]) => void,
   setActiveRefLabel: (v: string | null) => void,
   setHoveredLabel: (label: string | null) => void,
   t: { gitVisLocalOnly?: string },
 ) {
   return rls.map((rl) => {
-    const isSelected = rl.cols.some((i) => filterColumns.has(i));
     const isActive = activeRefLabel === rl.name;
     const bgColor = getRefLabelColor(rl.name);
     return (
@@ -103,21 +100,14 @@ function renderRefLabels(
         <button
           className="adl-branch-graph__label"
           data-indicator={isActive ? 'true' : undefined}
-          onClick={() => {
-            if (activeRefLabel === rl.name) {
-              setActiveRefLabel(null);
-            } else {
-              setActiveRefLabel(rl.name);
-              if (!isSelected) handleLabelClick(rl.cols);
-            }
-          }}
+          onClick={() => setActiveRefLabel(isActive ? null : rl.name)}
           onMouseEnter={() => setHoveredLabel(rl.name)}
           onMouseLeave={() => setHoveredLabel(null)}
           style={{
             padding: '2px 8px', borderRadius: 0, background: bgColor, color: '#fff',
             fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
             display: 'inline-flex', alignItems: 'center', lineHeight: 1,
-            opacity: filterColumns.size === 0 || isSelected ? 1 : 0.4,
+            opacity: 1,
           }}
           title={t.gitVisLocalOnly ? rl.name + ' — ' + t.gitVisLocalOnly : rl.name}
         >
@@ -791,7 +781,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                 ) : null}
               </button>
             </div>
-            {col.refsLabels && renderRefLabels(col.refsLabels, filterColumns, activeRefLabel, handleLabelClick, setActiveRefLabel, setHoveredLabel, t)}
+            {col.refsLabels && renderRefLabels(col.refsLabels, activeRefLabel, setActiveRefLabel, setHoveredLabel, t)}
             </React.Fragment>
           );
         })}
@@ -838,10 +828,10 @@ export function BranchGraph({ data }: BranchGraphProps) {
               <span>{t.gitVisDate}</span>
             </div>
               {visibleRows.map((row) => {
+              const isFilteredByRef = !!activeRefLabel && !row.node.refs?.includes(activeRefLabel);
               const isFiltered =
-                filterColumns.size > 0 &&
-                !filterColumns.has(row.column) &&
-                row.node.branch !== hoveredLabel;
+                (filterColumns.size > 0 && !filterColumns.has(row.column) && row.node.branch !== hoveredLabel)
+                || isFilteredByRef;
               const additionalRefs = row.node.refs?.filter(
                 (ref) => ref !== row.node.branch && !ref.startsWith('origin/') && !ref.startsWith('upstream/'),
               ) ?? [];
