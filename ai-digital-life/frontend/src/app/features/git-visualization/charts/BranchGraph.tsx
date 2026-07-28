@@ -4,6 +4,7 @@ import { CopyButton } from '@components/CopyButton';
 import { useBklitTheme } from '../hooks/useBklitTheme';
 import { adaptBranchGraphData } from '../adapters/chartDataAdapters';
 import { useLaneAssignment } from '../hooks/useLaneAssignment';
+import { formatDate } from '../utils/commitTooltipUtils';
 import type { ColumnInfo } from '../hooks/useLaneAssignment';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
 import type { CommitNode, CommitEdge } from '../../../../test-fixtures/gitVisMockData';
@@ -331,6 +332,7 @@ interface BranchGraphProps {
 
 export function BranchGraph({ data }: BranchGraphProps) {
   const { t } = useTCopy();
+  const locale = navigator.language || 'en-US';
   const theme = useBklitTheme();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [filterColumns, setFilterColumns] = useState(() => new Set<number>());
@@ -732,7 +734,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                     <AuthorAvatar name={row.node.author} />
                     {row.node.author}
                   </span>
-                  <span style={{ color: theme.muted }}>{formatRelativeDate(row.node.date)}</span>
+                  <span style={{ color: theme.muted }}>{formatDate(row.node.date, locale, 'table')}</span>
                 </div>
               );
             })}
@@ -761,22 +763,3 @@ export function BranchGraph({ data }: BranchGraphProps) {
   );
 }
 
-function formatRelativeDate(dateStr: string): string {
-  const now = new Date();
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) {
-    return '0d';
-  }
-  const diffMs = Math.max(0, now.getTime() - d.getTime());
-  const diffDays = Math.floor(diffMs / 86400000);
-  if (diffDays < 1) {
-    return '0d';
-  }
-  if (diffDays < 30) {
-    return `${diffDays}d`;
-  }
-  if (diffDays < 365) {
-    return `${Math.floor(diffDays / 30)}mo`;
-  }
-  return `${Math.floor(diffDays / 365)}y`;
-}
