@@ -14,7 +14,7 @@ fn try_parse_merged_branch_name(message: &str) -> Option<String> {
         }
     }
     if let Some(start) = message.find("Merge remote-tracking branch '") {
-        let rest = &message[start + 28..];
+        let rest = &message[start + 30..];
         if let Some(end) = rest.find('\'') {
             return Some(rest[..end].to_string());
         }
@@ -235,4 +235,53 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
     );
 
     Ok(GitVisBranchGraph { nodes, edges, branches: branch_set, branch_progress })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_merge_branch_simple() {
+        assert_eq!(try_parse_merged_branch_name("Merge branch 'feature-x'"), Some("feature-x".into()));
+    }
+
+    #[test]
+    fn parse_merge_branch_into_main() {
+        assert_eq!(
+            try_parse_merged_branch_name("Merge branch 'feature-x' into main"),
+            Some("feature-x".into())
+        );
+    }
+
+    #[test]
+    fn parse_merge_remote_tracking() {
+        assert_eq!(
+            try_parse_merged_branch_name("Merge remote-tracking branch 'origin/feature-x'"),
+            Some("origin/feature-x".into())
+        );
+    }
+
+    #[test]
+    fn parse_merge_pull_request() {
+        assert_eq!(
+            try_parse_merged_branch_name("Merge pull request #123 from user/feature-x"),
+            Some("feature-x".into())
+        );
+    }
+
+    #[test]
+    fn parse_non_merge_message() {
+        assert_eq!(try_parse_merged_branch_name("Fix typo in docs"), None);
+    }
+
+    #[test]
+    fn parse_merge_branch_main() {
+        assert_eq!(try_parse_merged_branch_name("Merge branch 'main'"), Some("main".into()));
+    }
+
+    #[test]
+    fn parse_octopus_merge_returns_none() {
+        assert_eq!(try_parse_merged_branch_name("Merge: feature-1, hotfix, main"), None);
+    }
 }
