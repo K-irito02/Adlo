@@ -490,6 +490,15 @@ export function BranchGraph({ data }: BranchGraphProps) {
   useEffect(() => {
     if (adapted) {
       console.log('[ADL-DEBUG] allBranches from backend:', adapted.allBranches);
+      // Log commits related to heatmap-chart-generalization
+      const heatmapCommits = adapted.nodes.filter(
+        (n) => n.refs?.includes('heatmap-chart-generalization'),
+      );
+      if (heatmapCommits.length > 0) {
+        console.log('[ADL-DEBUG] heatmap-chart-generalization commits:', heatmapCommits.map(
+          (n) => ({ hash: n.hash.substring(0, 12), date: n.date, message: n.message.substring(0, 60) }),
+        ));
+      }
     }
   }, [adapted]);
   const hasData = data != null;
