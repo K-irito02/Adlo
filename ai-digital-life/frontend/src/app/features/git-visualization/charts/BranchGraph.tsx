@@ -38,6 +38,15 @@ function getAuthorColor(name: string): string {
   return AUTHOR_COLORS[Math.abs(hash) % AUTHOR_COLORS.length];
 }
 
+function getRefLabelColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 45%, 55%)`;
+}
+
 interface AuthorAvatarProps {
   name: string;
   src?: string;
@@ -78,27 +87,32 @@ const AuthorAvatar = React.memo(function AuthorAvatar({ name, src, email, size =
 /** Render supplementary ref labels as separate tag row buttons */
 function renderRefLabels(
   rls: RefLabelInfo[],
-  filterColumns: Set<number>,
+  filterRefLabels: Set<string>,
   _hoveredLabel: string | null,
-  handleLabelClick: (cols: number[]) => void,
+  setFilterRefLabels: React.Dispatch<React.SetStateAction<Set<string>>>,
   setHoveredLabel: (label: string | null) => void,
   t: { gitVisLocalOnly?: string },
 ) {
   return rls.map((rl) => {
-    const isSelected = rl.cols.some((i) => filterColumns.has(i));
+    const isSelected = filterRefLabels.has(rl.name);
+    const bgColor = getRefLabelColor(rl.name);
     return (
       <div key={`rl-${rl.name}`} className="adl-branch-graph__label-drag" style={{ opacity: 1 }}>
         <button
           className="adl-branch-graph__label"
           data-indicator={isSelected ? 'true' : undefined}
-          onClick={() => handleLabelClick(rl.cols)}
+          onClick={() => setFilterRefLabels((prev) => {
+            const next = new Set(prev);
+            if (next.has(rl.name)) next.delete(rl.name); else next.add(rl.name);
+            return next;
+          })}
           onMouseEnter={() => setHoveredLabel(rl.name)}
           onMouseLeave={() => setHoveredLabel(null)}
           style={{
-            padding: '2px 8px', borderRadius: 0, background: rl.color, color: '#fff',
+            padding: '2px 8px', borderRadius: 0, background: bgColor, color: '#fff',
             fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
             display: 'inline-flex', alignItems: 'center', lineHeight: 1,
-            opacity: filterColumns.size === 0 || isSelected ? 1 : 0.4,
+            opacity: filterRefLabels.size === 0 || isSelected ? 1 : 0.4,
           }}
           title={t.gitVisLocalOnly ? rl.name + ' — ' + t.gitVisLocalOnly : rl.name}
         >
@@ -473,6 +487,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
   const theme = useBklitTheme();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [filterColumns, setFilterColumns] = useState(() => new Set<number>());
+  const [filterRefLabels, setFilterRefLabels] = useState(() => new Set<string>());
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
 
   const adapted = useMemo(() => (data ? adaptBranchGraphData(data) : null), [data]);
@@ -753,7 +768,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                 ) : null}
               </button>
             </div>
-            {col.refsLabels && renderRefLabels(col.refsLabels, filterColumns, hoveredLabel, handleLabelClick, setHoveredLabel, t)}
+            {col.refsLabels && renderRefLabels(col.refsLabels, filterRefLabels, hoveredLabel, setFilterRefLabels, setHoveredLabel, t)}
             </React.Fragment>
           );
         })}
@@ -799,10 +814,10 @@ export function BranchGraph({ data }: BranchGraphProps) {
               <span>{t.gitVisDate}</span>
             </div>
               {visibleRows.map((row) => {
+              const isFilteredByRef = filterRefLabels.size > 0 && !row.node.refs?.some((r) => filterRefLabels.has(r));
               const isFiltered =
-                filterColumns.size > 0 &&
-                !filterColumns.has(row.column) &&
-                row.node.branch !== hoveredLabel;
+                (filterColumns.size > 0 && !filterColumns.has(row.column) && row.node.branch !== hoveredLabel)
+                || isFilteredByRef;
               const additionalRefs = row.node.refs?.filter(
                 (ref) => ref !== row.node.branch && !ref.startsWith('origin/') && !ref.startsWith('upstream/'),
               ) ?? [];
