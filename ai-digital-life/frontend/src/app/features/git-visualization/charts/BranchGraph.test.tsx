@@ -200,9 +200,7 @@ describe('BranchGraph', () => {
     const rows = container.querySelectorAll('.adl-branch-graph__row');
 
     // Find the first row for feature-2 (the HEAD, newest commit on that branch)
-    const headRow = [...rows].find(
-      (r) => r.getAttribute('data-branch') === 'feature-2',
-    );
+    const headRow = [...rows].find((r) => r.getAttribute('data-branch') === 'feature-2');
     expect(headRow).toBeTruthy();
 
     fireEvent.mouseEnter(headRow!);
