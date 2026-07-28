@@ -87,32 +87,28 @@ const AuthorAvatar = React.memo(function AuthorAvatar({ name, src, email, size =
 /** Render supplementary ref labels as separate tag row buttons */
 function renderRefLabels(
   rls: RefLabelInfo[],
-  filterRefLabels: Set<string>,
+  filterColumns: Set<number>,
   _hoveredLabel: string | null,
-  setFilterRefLabels: React.Dispatch<React.SetStateAction<Set<string>>>,
+  handleLabelClick: (cols: number[]) => void,
   setHoveredLabel: (label: string | null) => void,
   t: { gitVisLocalOnly?: string },
 ) {
   return rls.map((rl) => {
-    const isSelected = filterRefLabels.has(rl.name);
+    const isSelected = filterColumns.size === 0 || rl.cols.some((i) => filterColumns.has(i));
     const bgColor = getRefLabelColor(rl.name);
     return (
       <div key={`rl-${rl.name}`} className="adl-branch-graph__label-drag" style={{ opacity: 1 }}>
         <button
           className="adl-branch-graph__label"
           data-indicator={isSelected ? 'true' : undefined}
-          onClick={() => setFilterRefLabels((prev) => {
-            const next = new Set(prev);
-            if (next.has(rl.name)) next.delete(rl.name); else next.add(rl.name);
-            return next;
-          })}
+          onClick={() => handleLabelClick(rl.cols)}
           onMouseEnter={() => setHoveredLabel(rl.name)}
           onMouseLeave={() => setHoveredLabel(null)}
           style={{
             padding: '2px 8px', borderRadius: 0, background: bgColor, color: '#fff',
             fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
             display: 'inline-flex', alignItems: 'center', lineHeight: 1,
-            opacity: filterRefLabels.size === 0 || isSelected ? 1 : 0.4,
+            opacity: filterColumns.size === 0 || isSelected ? 1 : 0.4,
           }}
           title={t.gitVisLocalOnly ? rl.name + ' — ' + t.gitVisLocalOnly : rl.name}
         >
@@ -306,7 +302,6 @@ interface SvgLanesProps {
   filterColumns: Set<number>;
   hoveredBranch: string | null;
   aheadRows: Set<number>;
-  filterRefLabels: Set<string>;
 }
 
 const SvgLanes = React.memo(function SvgLanes({
@@ -320,7 +315,6 @@ const SvgLanes = React.memo(function SvgLanes({
   filterColumns,
   hoveredBranch,
   aheadRows,
-  filterRefLabels,
 }: SvgLanesProps) {
   const nodeY = (rowIndex: number) => rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
 
@@ -336,10 +330,8 @@ const SvgLanes = React.memo(function SvgLanes({
     if (yPositions.length === 0) {
       return null;
     }
-    const laneHasRef = filterRefLabels.size === 0 || rows.some((r) => r.column === col.index && r.node.refs?.some((rf) => filterRefLabels.has(rf)));
     const laneDimmed =
-      (filterColumns.size > 0 && !filterColumns.has(col.index) && col.label !== hoveredBranch)
-      || (filterRefLabels.size > 0 && !laneHasRef);
+      filterColumns.size > 0 && !filterColumns.has(col.index) && col.label !== hoveredBranch;
     return (
       <line
         key={`col-${col.index}`}
@@ -347,7 +339,7 @@ const SvgLanes = React.memo(function SvgLanes({
         y1={yPositions[0]}
         x2={x}
         y2={yPositions[yPositions.length - 1]}
-        stroke={filterRefLabels.size > 0 && laneHasRef ? getRefLabelColor([...filterRefLabels][0]) : col.color}
+        stroke={col.color}
         strokeWidth={3}
         strokeLinecap="round"
         opacity={laneDimmed ? 0.1 : 0.5}
@@ -406,36 +398,24 @@ const SvgLanes = React.memo(function SvgLanes({
     }
   }
 
-  const nodeRefFiltered = (row: RowData) =>
-    filterRefLabels.size > 0 && !row.node.refs?.some((r) => filterRefLabels.has(r));
-  const getNodeColor = (row: RowData) => {
-    if (filterRefLabels.size > 0) {
-      const matched = row.node.refs?.find((r) => filterRefLabels.has(r));
-      if (matched) return getRefLabelColor(matched);
-    }
-    return row.color;
-  };
-
   const nodes = rows.map((row, i) => {
     const x = getLaneX(row.column);
     const y = nodeY(i);
     const isHovered = hoveredId === row.node.id;
     const r = isHovered ? NODE_RADIUS * 1.2 : NODE_RADIUS;
     const nodeDimmed =
-      filterColumns.size > 0 && !filterColumns.has(row.column) && row.node.branch !== hoveredBranch
-      || nodeRefFiltered(row);
-    const nodeFill = getNodeColor(row);
+      filterColumns.size > 0 && !filterColumns.has(row.column) && row.node.branch !== hoveredBranch;
     if (row.node.tag) {
       return (
         <g key={`node-${row.node.id}`} opacity={nodeDimmed ? 0.1 : aheadRows.has(i) ? 0.65 : 1}>
-          <circle cx={x} cy={y} r={r + 1} fill="none" stroke={nodeFill} strokeWidth={2.5} />
-          <circle cx={x + 14} cy={y - 8} r={8} fill={nodeFill} opacity={0.15} />
+          <circle cx={x} cy={y} r={r + 1} fill="none" stroke={row.color} strokeWidth={2.5} />
+          <circle cx={x + 14} cy={y - 8} r={8} fill={row.color} opacity={0.15} />
           <text
             x={x + 14}
             y={y - 5}
             textAnchor="middle"
             fontSize={8}
-            fill={nodeFill}
+            fill={row.color}
             fontWeight={600}
           >
             {row.node.tag}
@@ -454,7 +434,7 @@ const SvgLanes = React.memo(function SvgLanes({
           width={s}
           height={s}
           rx={2}
-          fill={nodeFill}
+          fill={row.color}
           stroke={nodeStroke}
           strokeWidth={2}
           opacity={nodeDimmed ? 0.1 : aheadRows.has(i) ? 0.65 : 1}
@@ -468,7 +448,7 @@ const SvgLanes = React.memo(function SvgLanes({
         cx={x}
         cy={y}
         r={r}
-        fill={nodeFill}
+        fill={row.color}
         stroke={nodeStroke}
         strokeWidth={2}
         opacity={nodeDimmed ? 0.1 : aheadRows.has(i) ? 0.65 : 1}
@@ -503,7 +483,6 @@ export function BranchGraph({ data }: BranchGraphProps) {
   const theme = useBklitTheme();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [filterColumns, setFilterColumns] = useState(() => new Set<number>());
-  const [filterRefLabels, setFilterRefLabels] = useState(() => new Set<string>());
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
 
   const adapted = useMemo(() => (data ? adaptBranchGraphData(data) : null), [data]);
@@ -784,7 +763,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                 ) : null}
               </button>
             </div>
-            {col.refsLabels && renderRefLabels(col.refsLabels, filterRefLabels, hoveredLabel, setFilterRefLabels, setHoveredLabel, t)}
+            {col.refsLabels && renderRefLabels(col.refsLabels, filterColumns, hoveredLabel, handleLabelClick, setHoveredLabel, t)}
             </React.Fragment>
           );
         })}
@@ -807,7 +786,6 @@ export function BranchGraph({ data }: BranchGraphProps) {
               filterColumns={filterColumns}
               hoveredBranch={hoveredLabel}
               aheadRows={aheadRows}
-              filterRefLabels={filterRefLabels}
             />
           </div>
           <div className="adl-branch-graph__table-panel">
@@ -831,10 +809,10 @@ export function BranchGraph({ data }: BranchGraphProps) {
               <span>{t.gitVisDate}</span>
             </div>
               {visibleRows.map((row) => {
-              const isFilteredByRef = filterRefLabels.size > 0 && !row.node.refs?.some((r) => filterRefLabels.has(r));
               const isFiltered =
-                (filterColumns.size > 0 && !filterColumns.has(row.column) && row.node.branch !== hoveredLabel)
-                || isFilteredByRef;
+                filterColumns.size > 0 &&
+                !filterColumns.has(row.column) &&
+                row.node.branch !== hoveredLabel;
               const additionalRefs = row.node.refs?.filter(
                 (ref) => ref !== row.node.branch && !ref.startsWith('origin/') && !ref.startsWith('upstream/'),
               ) ?? [];
