@@ -397,9 +397,11 @@ export function BranchGraph({ data }: BranchGraphProps) {
 
   const adapted = useMemo(() => (data ? adaptBranchGraphData(data) : null), [data]);
   // Debug: log branches from backend
-  if (adapted) {
-    console.log('[ADL-DEBUG] allBranches from backend:', adapted.allBranches);
-  }
+  useEffect(() => {
+    if (adapted) {
+      console.log('[ADL-DEBUG] allBranches from backend:', adapted.allBranches);
+    }
+  }, [adapted]);
   const hasData = data != null;
 
   const tagRowRef = useRef<HTMLDivElement>(null);
@@ -531,9 +533,11 @@ export function BranchGraph({ data }: BranchGraphProps) {
     return labeledWithProgress;
   }, [columns, rows, adapted]);
   // Debug: log label columns
-  if (columnsWithLabels.length > 0) {
-    console.log('[ADL-DEBUG] label columns:', columnsWithLabels.map((c) => ({ label: c.label, index: c.index, filterCols: c.filterCols })));
-  }
+  useEffect(() => {
+    if (columnsWithLabels.length > 0) {
+      console.log('[ADL-DEBUG] label columns:', columnsWithLabels.map((c) => ({ label: c.label, index: c.index, filterCols: c.filterCols })));
+    }
+  }, [columnsWithLabels]);
 
   const aheadRows = useMemo(() => {
     const ahead = new Set<number>();
