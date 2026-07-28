@@ -730,6 +730,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                   dismissible
                   showArrow
                   maxWidth={400}
+                  className="adl-hint-card"
                 >
                   <div
                     className={`adl-branch-graph__row${hoveredId === row.node.id ? ' adl-branch-graph__row--hover' : ''}${isFiltered ? ' adl-branch-graph__row--dimmed' : ''}`}

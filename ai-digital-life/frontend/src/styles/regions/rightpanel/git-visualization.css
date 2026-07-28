@@ -1185,3 +1185,21 @@
   flex-direction: column;
   min-height: 0;
 }
+
+/* ── Hint Card style for Branch Graph Tooltip ── */
+/* Reusable: apply `.adl-hint-card` to override any .tooltip to look like adl-sub-hint-card */
+.tooltip.adl-hint-card {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  box-shadow: var(--shadow-md);
+  max-width: min(480px, 90vw);
+  width: max-content;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  pointer-events: auto;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
