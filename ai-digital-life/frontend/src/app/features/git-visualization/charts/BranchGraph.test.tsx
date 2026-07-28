@@ -145,17 +145,17 @@ describe('BranchGraph', () => {
     );
   });
 
-  it('shows Gravatar image for author instead of initial when email is valid', () => {
+  it('shows avatar image (GitHub or Gravatar) for author when email is valid', () => {
     const { container } = render(<BranchGraph data={mockData} />);
     const imgs = container.querySelectorAll<HTMLImageElement>('img.adl-author-avatar');
-    let gravatarFound = false;
+    let avatarFound = false;
     imgs.forEach((img) => {
       const src = img.getAttribute('src') || '';
-      if (src.includes('gravatar.com')) {
-        gravatarFound = true;
+      if (src.includes('github.com') || src.includes('gravatar.com')) {
+        avatarFound = true;
       }
     });
-    expect(gravatarFound).toBe(true);
+    expect(avatarFound).toBe(true);
   });
 
   it('shows author initial when image fails to load', () => {

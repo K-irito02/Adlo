@@ -18,20 +18,22 @@ describe('md5', () => {
 
 describe('getGravatarUrl', () => {
   it('generates correct Gravatar URL with retro fallback', () => {
-    const md5Hash = md5('alex@example.com');
-    expect(getGravatarUrl('alex@example.com', 32)).toBe(
+    // user+tag bypasses github-guess (+ not in [a-zA-Z0-9_-])
+    const md5Hash = md5('user+tag@example.com');
+    expect(getGravatarUrl('user+tag@example.com', 32)).toBe(
       `https://www.gravatar.com/avatar/${md5Hash}?s=32&d=retro`,
     );
   });
 
   it('lowercases and trims email before hashing', () => {
-    const url1 = getGravatarUrl('Alex@Example.com', 32);
-    const url2 = getGravatarUrl('alex@example.com', 32);
+    const url1 = getGravatarUrl('user+tag@Example.com', 32);
+    const url2 = getGravatarUrl('user+tag@example.com', 32);
     expect(url1).toBe(url2);
   });
 
   it('uses default size 80 when not specified', () => {
-    const url = getGravatarUrl('test@test.com');
+    // user+tag bypasses github-guess
+    const url = getGravatarUrl('user+tag@test.com');
     expect(url).toContain('?s=80');
   });
 
@@ -45,8 +47,25 @@ describe('getGravatarUrl', () => {
     expect(url).toBe('https://github.com/alex.png');
   });
 
-  it('uses Gravatar for non-noreply emails with retro fallback', () => {
+  it('guesses GitHub username from email local part', () => {
     const url = getGravatarUrl('alex@example.com', 32);
+    expect(url).toBe('https://github.com/alex.png');
+  });
+
+  it('skips github guess for non-alphanumeric local parts', () => {
+    const url = getGravatarUrl('alex.johnson@example.com', 32);
+    expect(url).toContain('gravatar.com/avatar');
+    expect(url).toContain('d=retro');
+  });
+
+  it('skips github guess for too-short local parts', () => {
+    const url = getGravatarUrl('a@example.com', 32);
+    expect(url).toContain('gravatar.com/avatar');
+    expect(url).toContain('d=retro');
+  });
+
+  it('uses Gravatar for non-noreply emails with retro fallback', () => {
+    const url = getGravatarUrl('user+tag@example.com', 32);
     expect(url).toContain('gravatar.com/avatar');
     expect(url).toContain('d=retro');
     expect(url).toContain('s=32');
