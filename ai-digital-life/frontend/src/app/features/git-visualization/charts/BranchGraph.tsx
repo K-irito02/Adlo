@@ -82,23 +82,25 @@ function renderRefLabels(
   _hoveredLabel: string | null,
   handleLabelClick: (cols: number[]) => void,
   setHoveredLabel: (label: string | null) => void,
+  t: { gitVisLocalOnly?: string },
 ) {
   const isSelected = filterColumns.size === 0 || col.filterCols.some((i) => filterColumns.has(i));
   return col.refsLabels?.map((rl) => (
     <div key={`rl-${rl}`} className="adl-branch-graph__label-drag" style={{ opacity: 1 }}>
       <button
-        className="adl-branch-graph__label adl-branch-graph__label--refsup"
+        className="adl-branch-graph__label"
         data-indicator={isSelected ? 'true' : undefined}
+        data-scale={isSelected && filterColumns.size > 0 ? 'true' : undefined}
         onClick={() => handleLabelClick(col.filterCols)}
         onMouseEnter={() => setHoveredLabel(rl)}
         onMouseLeave={() => setHoveredLabel(null)}
         style={{
-          padding: '2px 6px', borderRadius: 0, background: col.color, color: '#fff',
-          fontSize: 10, fontWeight: 500, border: 'none', cursor: 'pointer',
+          padding: '2px 8px', borderRadius: 0, background: col.color, color: '#fff',
+          fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
           display: 'inline-flex', alignItems: 'center', lineHeight: 1,
-          opacity: filterColumns.size === 0 || col.filterCols.some((i) => filterColumns.has(i)) ? 0.7 : 0.3,
+          opacity: filterColumns.size === 0 || col.filterCols.some((i) => filterColumns.has(i)) ? 1 : 0.4,
         }}
-        title={rl}
+        title={t.gitVisLocalOnly ? rl + ' — ' + t.gitVisLocalOnly : rl}
       >
         {rl}
       </button>
@@ -733,7 +735,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                 ) : null}
               </button>
             </div>
-            {col.refsLabels && renderRefLabels(col, filterColumns, hoveredLabel, handleLabelClick, setHoveredLabel)}
+            {col.refsLabels && renderRefLabels(col, filterColumns, hoveredLabel, handleLabelClick, setHoveredLabel, t)}
             </React.Fragment>
           );
         })}
