@@ -195,7 +195,7 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
         {branch && (
           <span className="adl-branch-graph__tooltip-branch-badge adl-branch-graph__tooltip-branch-badge--primary">
             {displayBranch}
-            {localRefs.length > 0 ? ' (merged)' : ' (tip)'}
+            {localRefs.length > 0 ? ' (merged)' : ` (${t.gitVisBranchHead ?? 'tip'})`}
             {branchProgress && (branchProgress.ahead > 0 || branchProgress.behind > 0) && (
                     <span className="adl-branch-graph__tooltip-branch-progress">
                       {branchProgress.ahead > 0 && <span>↑{branchProgress.ahead}</span>}
@@ -336,9 +336,9 @@ const SvgLanes = React.memo(function SvgLanes({
     if (yPositions.length === 0) {
       return null;
     }
-    const laneDimmed =
-      (filterColumns.size > 0 && !filterColumns.has(col.index) && col.label !== hoveredBranch)
-      || (!!activeRefLabel && !rows.some((r) => r.column === col.index && rowHasRef(r)));
+    const laneByCol = filterColumns.size > 0 && !filterColumns.has(col.index) && col.label !== hoveredBranch;
+    const laneByRef = !!activeRefLabel && !rows.some((r) => r.column === col.index && rowHasRef(r));
+    const laneDimmed = filterColumns.size > 0 && !!activeRefLabel ? (laneByCol && laneByRef) : (laneByCol || laneByRef);
     return (
       <line
         key={`col-${col.index}`}
@@ -368,13 +368,13 @@ const SvgLanes = React.memo(function SvgLanes({
     const tx = getLaneX(targetRow.column);
     const ty = nodeY(targetIdx);
 
-    const edgeDimmed =
-      (filterColumns.size > 0 &&
-        !filterColumns.has(sourceRow.column) &&
-        !filterColumns.has(targetRow.column) &&
-        sourceRow.node.branch !== hoveredBranch &&
-        targetRow.node.branch !== hoveredBranch)
-      || (rowDimmedByRef(sourceRow) && rowDimmedByRef(targetRow));
+    const edgeByCol = filterColumns.size > 0 &&
+      !filterColumns.has(sourceRow.column) &&
+      !filterColumns.has(targetRow.column) &&
+      sourceRow.node.branch !== hoveredBranch &&
+      targetRow.node.branch !== hoveredBranch;
+    const edgeByRef = rowDimmedByRef(sourceRow) && rowDimmedByRef(targetRow);
+    const edgeDimmed = filterColumns.size > 0 && !!activeRefLabel ? (edgeByCol && edgeByRef) : (edgeByCol || edgeByRef);
 
     if (sourceRow.column === targetRow.column) {
       connections.push(
@@ -411,9 +411,9 @@ const SvgLanes = React.memo(function SvgLanes({
     const y = nodeY(i);
     const isHovered = hoveredId === row.node.id;
     const r = isHovered ? NODE_RADIUS * 1.2 : NODE_RADIUS;
-    const nodeDimmed =
-      (filterColumns.size > 0 && !filterColumns.has(row.column) && row.node.branch !== hoveredBranch)
-      || rowDimmedByRef(row);
+    const byCol = filterColumns.size > 0 && !filterColumns.has(row.column) && row.node.branch !== hoveredBranch;
+    const byRef = rowDimmedByRef(row);
+    const nodeDimmed = filterColumns.size > 0 && !!activeRefLabel ? (byCol && byRef) : (byCol || byRef);
     const nodeFill = !nodeDimmed && rowHasRef(row) && refLabelColor ? refLabelColor : row.color;
     if (row.node.tag) {
       return (
@@ -833,10 +833,9 @@ export function BranchGraph({ data }: BranchGraphProps) {
               <span>{t.gitVisDate}</span>
             </div>
               {visibleRows.map((row) => {
-              const isFilteredByRef = !!activeRefLabel && !row.node.refs?.includes(activeRefLabel);
-              const isFiltered =
-                (filterColumns.size > 0 && !filterColumns.has(row.column) && row.node.branch !== hoveredLabel)
-                || isFilteredByRef;
+              const byCol = filterColumns.size > 0 && !filterColumns.has(row.column) && row.node.branch !== hoveredLabel;
+              const byRef = !!activeRefLabel && !row.node.refs?.includes(activeRefLabel);
+              const isFiltered = filterColumns.size > 0 && !!activeRefLabel ? (byCol && byRef) : (byCol || byRef);
               const additionalRefs = row.node.refs?.filter(
                 (ref) => ref !== row.node.branch && !ref.startsWith('origin/') && !ref.startsWith('upstream/'),
               ) ?? [];
