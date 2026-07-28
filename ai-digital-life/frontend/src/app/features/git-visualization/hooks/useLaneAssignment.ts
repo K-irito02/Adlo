@@ -56,8 +56,12 @@ export function computeColumns(
   queue.sort((a, b) => {
     const da = nodeById.get(a)?.date;
     const db = nodeById.get(b)?.date;
-    if (da && db) return db.localeCompare(da);
-    if (!da && !db) return a.localeCompare(b);
+    if (da && db) {
+      return db.localeCompare(da);
+    }
+    if (!da && !db) {
+      return a.localeCompare(b);
+    }
     return da ? -1 : 1;
   });
 

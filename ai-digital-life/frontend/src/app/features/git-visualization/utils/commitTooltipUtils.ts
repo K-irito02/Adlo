@@ -127,7 +127,9 @@ registerAvatarResolver({
   priority: 10,
   resolve(email: string, _size: number): string | null {
     const match = email.match(/^(.+?)@users\.noreply\.github\.com$/);
-    if (!match) return null;
+    if (!match) {
+      return null;
+    }
     const localPart = match[1];
     const username = localPart.includes('+') ? localPart.split('+').pop()! : localPart;
     return `https://github.com/${username}.png`;
@@ -153,7 +155,9 @@ export function resolveAvatarUrl(email: string, size = 80): string {
   const trimmed = email.trim().toLowerCase();
   for (const r of resolvers) {
     const url = r.resolve(trimmed, size);
-    if (url) return url;
+    if (url) {
+      return url;
+    }
   }
   return '';
 }
