@@ -574,6 +574,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
   const [filterColumns, setFilterColumns] = useState(() => new Set<number>());
   const [activeRefLabel, setActiveRefLabel] = useState<string | null>(null);
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
+  const [collapsedDeletedLabels, setCollapsedDeletedLabels] = useState(true);
 
   const adapted = useMemo(() => (data ? adaptBranchGraphData(data) : null), [data]);
   // Debug: log branches from backend
@@ -815,6 +816,24 @@ export function BranchGraph({ data }: BranchGraphProps) {
     [columnsWithLabels],
   );
 
+  const deletedSubBranches = useMemo(() => {
+    const result: (MergedSubBranch & { color: string })[] = [];
+    const seen = new Set<string>();
+    const hashToId = new Map((adapted?.nodes ?? []).map((n) => [n.hash, n.id]));
+    for (const row of rows) {
+      const msbs = row.node.mergedSubBranches;
+      if (!msbs) continue;
+      for (const msb of msbs) {
+        if (!msb.isDeleted || seen.has(msb.id)) continue;
+        seen.add(msb.id);
+        const parentNodeId = hashToId.get(msb.parentHash);
+        const colInfo = parentNodeId ? columnOf.get(parentNodeId) : undefined;
+        result.push({ ...msb, color: colInfo?.color ?? '#888' });
+      }
+    }
+    return result;
+  }, [rows, columnOf, adapted?.nodes]);
+
   const handleRowHover = useCallback((id: string | null) => setHoveredId(id), []);
   const handleLabelClick = useCallback((colIndices: number[]) => {
     setFilterColumns((prev) => {
@@ -932,6 +951,75 @@ export function BranchGraph({ data }: BranchGraphProps) {
             </React.Fragment>
           );
         })}
+        {/* Deleted sub-branch labels — collapsible */}
+        {deletedSubBranches.length > 0 && (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 2, marginLeft: 8 }}>
+            {collapsedDeletedLabels ? (
+              <button
+                className="adl-branch-graph__label"
+                onClick={() => setCollapsedDeletedLabels(false)}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: 0,
+                  background: '#888',
+                  color: '#fff',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  lineHeight: 1,
+                  opacity: 0.7,
+                }}
+              >
+                {deletedSubBranches.length} {t.gitVisMergeDeleted} ▸
+              </button>
+            ) : (
+              <>
+                {deletedSubBranches.map((dsb) => (
+                  <div key={dsb.id} className="adl-branch-graph__label-drag" style={{ opacity: 0.7 }}>
+                    <button
+                      className="adl-branch-graph__label"
+                      data-indicator={activeRefLabel === dsb.id ? 'true' : undefined}
+                      onClick={() => setActiveRefLabel(activeRefLabel === dsb.id ? null : dsb.id)}
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: 0,
+                        background: dsb.color,
+                        color: '#fff',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        lineHeight: 1,
+                      }}
+                    >
+                      {dsb.id}
+                    </button>
+                  </div>
+                ))}
+                <button
+                  className="adl-branch-graph__label"
+                  onClick={() => setCollapsedDeletedLabels(true)}
+                  style={{
+                    padding: '2px 4px',
+                    borderRadius: 0,
+                    background: 'transparent',
+                    color: '#888',
+                    fontSize: 11,
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  ▾
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
       <div className="adl-branch-graph__body" ref={scrollBodyRef}>
         {/* Panels: lanes + table, same vertical scroll parent */}
