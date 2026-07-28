@@ -676,7 +676,21 @@ export function BranchGraph({ data }: BranchGraphProps) {
         {/* Panels: lanes + table, same vertical scroll parent */}
         <div className="adl-branch-graph__panels">
           <div className="adl-branch-graph__lanes-panel">
-            {/* Header row */}
+            <SvgLanes
+              rows={visibleRows}
+              columns={columns}
+              edges={adapted?.edges ?? []}
+              totalWidth={totalLaneWidth}
+              totalHeight={totalHeight}
+              hoveredId={hoveredId}
+              nodeStroke={nodeStroke}
+              filterColumns={filterColumns}
+              hoveredBranch={hoveredLabel}
+              aheadRows={aheadRows}
+            />
+          </div>
+          <div className="adl-branch-graph__table-panel">
+            {/* Header row — in table-panel so grid aligns with rows */}
             <div
               className="adl-branch-graph__header"
               style={{
@@ -695,20 +709,6 @@ export function BranchGraph({ data }: BranchGraphProps) {
               <span>{t.gitVisAuthor}</span>
               <span>{t.gitVisDate}</span>
             </div>
-            <SvgLanes
-              rows={visibleRows}
-              columns={columns}
-              edges={adapted?.edges ?? []}
-              totalWidth={totalLaneWidth}
-              totalHeight={totalHeight}
-              hoveredId={hoveredId}
-              nodeStroke={nodeStroke}
-              filterColumns={filterColumns}
-              hoveredBranch={hoveredLabel}
-              aheadRows={aheadRows}
-            />
-          </div>
-          <div className="adl-branch-graph__table-panel">
               {visibleRows.map((row) => {
               const isFiltered =
                 filterColumns.size > 0 &&
