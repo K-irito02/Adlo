@@ -75,7 +75,19 @@ const AuthorAvatar = React.memo(function AuthorAvatar({
   return null;
 });
 
-/** Render supplementary ref labels as separate tag row buttons */
+/**
+ * Render supplementary ref labels as separate tag row buttons.
+ *
+ * Fix for Issue 1 (hover indicator/scale on ref labels):
+ * See design spec: docs/superpowers/specs/2026-07-29-branch-graph-tag-hover-and-head-annotation-design.md
+ *
+ * Each ref label button mirrors the main column label behavior:
+ * - data-indicator: shows/hides the ::before indicator bar above the label
+ * - data-scale: applies transform: scale(1.06) on hover (XOR with selected state)
+ *
+ * The hoveredLabel state is shared with column labels via setHoveredLabel.
+ * activeRefLabel tracks the currently selected (clicked) ref label for dimming.
+ */
 function renderRefLabels(
   rls: RefLabelInfo[],
   activeRefLabel: string | null,
@@ -118,6 +130,16 @@ function renderRefLabels(
 }
 
 // ── Commit Tooltip Card ──
+// Annotation priority system (Issue 2):
+// See design spec: docs/superpowers/specs/2026-07-29-branch-graph-tag-hover-and-head-annotation-design.md
+//
+// Priority 1 (highest): isBranchHead + local-only (branchProgress exists, no mergeBase) → "仅本地"
+// Priority 2:          localRefs.length > 0                                         → "已合并"
+// Priority 3:          isBranchHead + has remote tracking                           → "分支头"
+// Priority 4:          none of the above                                            → no annotation
+//
+// isBranchHead is computed externally by matching the first occurrence of each
+// branch name in topological order (sortedIds). See branchHeads useMemo below.
 
 interface CommitTooltipCardProps {
   hash: string;
@@ -192,6 +214,11 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
             <div className="adl-branch-graph__tooltip-branches-label">{t.gitVisBranches}</div>
             <div className="adl-branch-graph__tooltip-branches-list">
               {/* Primary branch with ahead/behind */}
+              {/* Annotation priority (see design spec):
+                  Priority 1: isBranchHead + local-only → "仅本地"
+                  Priority 2: localRefs.length > 0     → "已合并"
+                  Priority 3: isBranchHead + remote    → "分支头"
+                  Priority 4: neither                  → no annotation */}
               {branch && (
                 <span className="adl-branch-graph__tooltip-branch-badge adl-branch-graph__tooltip-branch-badge--primary">
                   {displayBranch}
@@ -502,6 +529,8 @@ interface BranchGraphProps {
 }
 
 export function BranchGraph({ data }: BranchGraphProps) {
+  // Design spec for tag hover effects (Issue 1) and head annotation (Issue 2):
+  // docs/superpowers/specs/2026-07-29-branch-graph-tag-hover-and-head-annotation-design.md
   const { t } = useTCopy();
   const locale = navigator.language || 'en-US';
   const theme = useBklitTheme();
