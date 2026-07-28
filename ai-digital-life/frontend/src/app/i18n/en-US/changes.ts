@@ -204,6 +204,8 @@ export const changesEn = {
   gitVisProgressBase: 'base',
   gitVisLocalOnly: 'local only',
   gitVisBranchHead: 'branch head',
+  gitVisMergeMerged: 'merged',
+  gitVisMergeDeleted: 'deleted',
   gitVisBranches: 'Branches',
   gitVisMerged: 'merged',
 } as const;

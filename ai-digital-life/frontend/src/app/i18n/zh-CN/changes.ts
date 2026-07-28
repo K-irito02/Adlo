@@ -204,6 +204,8 @@ export const changesZh = {
   gitVisProgressBase: '同步基准',
   gitVisLocalOnly: '仅本地',
   gitVisBranchHead: '分支头',
+  gitVisMergeMerged: '已合并',
+  gitVisMergeDeleted: '已删除',
   gitVisBranches: '分支',
   gitVisMerged: '已合并',
 } as const;
