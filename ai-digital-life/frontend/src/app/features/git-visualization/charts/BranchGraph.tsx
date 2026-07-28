@@ -228,9 +228,23 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
               {branch && (
                 <span className="adl-branch-graph__tooltip-branch-badge adl-branch-graph__tooltip-branch-badge--primary">
                   {displayBranch}
-                  {localRefs.length > 0
-                    ? ` (${t.gitVisMerged})`
-                    : ` (${t.gitVisBranchHead ?? 'branch head'})`}
+                  {(() => {
+                    // Annotation priority system (see design spec):
+                    // Priority 1: isBranchHead + local-only (branchProgress exists, no mergeBase) → "仅本地"
+                    // Priority 2: localRefs.length > 0                                          → "已合并"
+                    // Priority 3: isBranchHead + has remote tracking                            → "分支头"
+                    // Priority 4: neither                                                       → no annotation
+                    if (isBranchHead && branchProgress && !branchProgress.mergeBase) {
+                      return ` (${t.gitVisLocalOnly})`;
+                    }
+                    if (localRefs.length > 0) {
+                      return ` (${t.gitVisMerged})`;
+                    }
+                    if (isBranchHead) {
+                      return ` (${t.gitVisBranchHead ?? 'branch head'})`;
+                    }
+                    return '';
+                  })()}
                   {branchProgress && (branchProgress.ahead > 0 || branchProgress.behind > 0) && (
                     <span className="adl-branch-graph__tooltip-branch-progress">
                       {branchProgress.ahead > 0 && <span>↑{branchProgress.ahead}</span>}
