@@ -195,6 +195,7 @@ interface RowData {
 interface LabelColumnInfo extends ColumnInfo {
   filterCols: number[];
   branchProgress?: { ahead: number; behind: number; mergeBase?: string };
+  refsLabels?: string[];
 }
 
 function computeParentMap(edges: CommitEdge[]): Map<string, string[]> {
@@ -564,11 +565,31 @@ export function BranchGraph({ data }: BranchGraphProps) {
       const displayLabel = count > 0 ? `${lbl} (${count + 1})` : lbl;
       labeled.push({ ...c, label: displayLabel, filterCols: group });
     }
+    // Phase 3: supplement with local branch names from refs
+    const colRefLabels = new Map<number, Set<string>>();
+    for (const row of rows) {
+      if (!row.node.refs) continue;
+      const cur = colRefLabels.get(row.column);
+      if (!cur) colRefLabels.set(row.column, new Set());
+      for (const ref of row.node.refs) {
+        if (ref.startsWith('origin/') || ref.startsWith('upstream/')) continue;
+        if (ref === row.node.branch) continue;
+        if (ref === colLabel.get(row.column)) continue;
+        if (!allBr.includes(ref)) continue;
+        colRefLabels.get(row.column)!.add(ref);
+      }
+    }
+
     const progress = adapted?.branchProgress ?? {};
-    const labeledWithProgress = labeled.map((c) => ({
-      ...c,
-      branchProgress: progress[c.label ?? ''],
-    }));
+    const labeledWithProgress = labeled.map((c) => {
+      // Collect refsLabels for all columns in this group
+      const refsLabels = [...new Set(c.filterCols.flatMap((colIdx) => [...(colRefLabels.get(colIdx) ?? [])]))];
+      return {
+        ...c,
+        branchProgress: progress[c.label ?? ''],
+        refsLabels: refsLabels.length > 0 ? refsLabels : undefined,
+      };
+    });
     return labeledWithProgress;
   }, [columns, rows, adapted]);
   // Debug: log label columns
@@ -679,6 +700,13 @@ export function BranchGraph({ data }: BranchGraphProps) {
                     )}
                   </span>
                 ) : null}
+                {col.refsLabels && col.refsLabels.length > 0 && (
+                  <span style={{ display: 'inline-flex', gap: 2, marginLeft: 4, verticalAlign: 'middle' }}>
+                    {col.refsLabels.map((rl) => (
+                      <span key={rl} className="adl-branch-graph__tag-row-ref-label">{rl}</span>
+                    ))}
+                  </span>
+                )}
               </button>
             </div>
           );
