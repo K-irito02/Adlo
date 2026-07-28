@@ -321,6 +321,7 @@ const SvgLanes = React.memo(function SvgLanes({
 
   const refLabelColor = activeRefLabel ? getRefLabelColor(activeRefLabel) : null;
   const rowHasRef = (row: RowData) => activeRefLabel && row.node.refs?.includes(activeRefLabel);
+  const rowDimmedByRef = (row: RowData) => !!activeRefLabel && !rowHasRef(row);
   const rowIndexById = new Map<string, number>();
   rows.forEach((r, i) => rowIndexById.set(r.node.id, i));
 
@@ -334,7 +335,8 @@ const SvgLanes = React.memo(function SvgLanes({
       return null;
     }
     const laneDimmed =
-      filterColumns.size > 0 && !filterColumns.has(col.index) && col.label !== hoveredBranch;
+      (filterColumns.size > 0 && !filterColumns.has(col.index) && col.label !== hoveredBranch)
+      || (!!activeRefLabel && !rows.some((r) => r.column === col.index && rowHasRef(r)));
     return (
       <line
         key={`col-${col.index}`}
@@ -365,11 +367,12 @@ const SvgLanes = React.memo(function SvgLanes({
     const ty = nodeY(targetIdx);
 
     const edgeDimmed =
-      filterColumns.size > 0 &&
-      !filterColumns.has(sourceRow.column) &&
-      !filterColumns.has(targetRow.column) &&
-      sourceRow.node.branch !== hoveredBranch &&
-      targetRow.node.branch !== hoveredBranch;
+      (filterColumns.size > 0 &&
+        !filterColumns.has(sourceRow.column) &&
+        !filterColumns.has(targetRow.column) &&
+        sourceRow.node.branch !== hoveredBranch &&
+        targetRow.node.branch !== hoveredBranch)
+      || (rowDimmedByRef(sourceRow) && rowDimmedByRef(targetRow));
 
     if (sourceRow.column === targetRow.column) {
       connections.push(
@@ -407,7 +410,8 @@ const SvgLanes = React.memo(function SvgLanes({
     const isHovered = hoveredId === row.node.id;
     const r = isHovered ? NODE_RADIUS * 1.2 : NODE_RADIUS;
     const nodeDimmed =
-      filterColumns.size > 0 && !filterColumns.has(row.column) && row.node.branch !== hoveredBranch;
+      (filterColumns.size > 0 && !filterColumns.has(row.column) && row.node.branch !== hoveredBranch)
+      || rowDimmedByRef(row);
     const nodeFill = !nodeDimmed && rowHasRef(row) && refLabelColor ? refLabelColor : row.color;
     if (row.node.tag) {
       return (
