@@ -77,35 +77,36 @@ const AuthorAvatar = React.memo(function AuthorAvatar({ name, src, email, size =
 
 /** Render supplementary ref labels as separate tag row buttons */
 function renderRefLabels(
-  col: LabelColumnInfo,
+  rls: RefLabelInfo[],
   filterColumns: Set<number>,
   _hoveredLabel: string | null,
   handleLabelClick: (cols: number[]) => void,
   setHoveredLabel: (label: string | null) => void,
   t: { gitVisLocalOnly?: string },
 ) {
-  const isSelected = filterColumns.size === 0 || col.filterCols.some((i) => filterColumns.has(i));
-  return col.refsLabels?.map((rl) => (
-    <div key={`rl-${rl}`} className="adl-branch-graph__label-drag" style={{ opacity: 1 }}>
-      <button
-        className="adl-branch-graph__label"
-        data-indicator={isSelected ? 'true' : undefined}
-        data-scale={isSelected && filterColumns.size > 0 ? 'true' : undefined}
-        onClick={() => handleLabelClick(col.filterCols)}
-        onMouseEnter={() => setHoveredLabel(rl)}
-        onMouseLeave={() => setHoveredLabel(null)}
-        style={{
-          padding: '2px 8px', borderRadius: 0, background: col.color, color: '#fff',
-          fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
-          display: 'inline-flex', alignItems: 'center', lineHeight: 1,
-          opacity: filterColumns.size === 0 || col.filterCols.some((i) => filterColumns.has(i)) ? 1 : 0.4,
-        }}
-        title={t.gitVisLocalOnly ? rl + ' — ' + t.gitVisLocalOnly : rl}
-      >
-        {rl}
-      </button>
-    </div>
-  ));
+  return rls.map((rl) => {
+    const isSelected = rl.cols.some((i) => filterColumns.has(i));
+    return (
+      <div key={`rl-${rl.name}`} className="adl-branch-graph__label-drag" style={{ opacity: 1 }}>
+        <button
+          className="adl-branch-graph__label"
+          data-indicator={isSelected ? 'true' : undefined}
+          onClick={() => handleLabelClick(rl.cols)}
+          onMouseEnter={() => setHoveredLabel(rl.name)}
+          onMouseLeave={() => setHoveredLabel(null)}
+          style={{
+            padding: '2px 8px', borderRadius: 0, background: '#888', color: '#fff',
+            fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
+            display: 'inline-flex', alignItems: 'center', lineHeight: 1,
+            opacity: filterColumns.size === 0 || isSelected ? 1 : 0.4,
+          }}
+          title={t.gitVisLocalOnly ? rl.name + ' — ' + t.gitVisLocalOnly : rl.name}
+        >
+          {rl.name}
+        </button>
+      </div>
+    );
+  });
 }
 
 // ── Commit Tooltip Card ──
@@ -225,10 +226,15 @@ interface RowData {
   isMerge: boolean;
 }
 
+interface RefLabelInfo {
+  name: string;
+  cols: number[];
+}
+
 interface LabelColumnInfo extends ColumnInfo {
   filterCols: number[];
   branchProgress?: { ahead: number; behind: number; mergeBase?: string };
-  refsLabels?: string[];
+  refsLabels?: RefLabelInfo[];
 }
 
 function computeParentMap(edges: CommitEdge[]): Map<string, string[]> {
@@ -598,24 +604,33 @@ export function BranchGraph({ data }: BranchGraphProps) {
       const displayLabel = count > 0 ? `${lbl} (${count + 1})` : lbl;
       labeled.push({ ...c, label: displayLabel, filterCols: group });
     }
-    // Phase 3: supplement with local branch names from refs
-    const colRefLabels = new Map<number, Set<string>>();
+    // Phase 3: build per-label column mapping from refs
+    const refLabelCols = new Map<string, number[]>();
     for (const row of rows) {
       if (!row.node.refs) continue;
-      const cur = colRefLabels.get(row.column);
-      if (!cur) colRefLabels.set(row.column, new Set());
       for (const ref of row.node.refs) {
         if (ref.startsWith('origin/') || ref.startsWith('upstream/')) continue;
         if (ref === colLabel.get(row.column)) continue;
         if (!allBr.includes(ref)) continue;
-        colRefLabels.get(row.column)!.add(ref);
+        let cols = refLabelCols.get(ref);
+        if (!cols) { cols = []; refLabelCols.set(ref, cols); }
+        if (!cols.includes(row.column)) cols.push(row.column);
       }
     }
 
     const progress = adapted?.branchProgress ?? {};
     const labeledWithProgress = labeled.map((c) => {
-      // Collect refsLabels for all columns in this group
-      const refsLabels = [...new Set(c.filterCols.flatMap((colIdx) => [...(colRefLabels.get(colIdx) ?? [])]))];
+      // Collect refsLabels that belong to columns in this group
+      const seen = new Set<string>();
+      const refsLabels: RefLabelInfo[] = [];
+      for (const colIdx of c.filterCols) {
+        for (const [ref, cols] of refLabelCols) {
+          if (cols.includes(colIdx) && !seen.has(ref)) {
+            seen.add(ref);
+            refsLabels.push({ name: ref, cols: [...cols] });
+          }
+        }
+      }
       return {
         ...c,
         branchProgress: progress[c.label ?? ''],
