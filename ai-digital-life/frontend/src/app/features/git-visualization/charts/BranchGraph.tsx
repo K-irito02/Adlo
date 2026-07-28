@@ -155,6 +155,7 @@ interface CommitTooltipCardProps {
   refs: string[];
   branchProgress?: { ahead: number; behind: number; mergeBase?: string };
   tag?: string;
+  isBranchHead?: boolean;
 }
 
 const CommitTooltipCard = React.memo(function CommitTooltipCard({
@@ -167,6 +168,7 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
   refs,
   branchProgress,
   tag,
+  isBranchHead,
 }: CommitTooltipCardProps) {
   const { t } = useTCopy();
   const locale = navigator.language || 'en-US';
@@ -580,6 +582,22 @@ export function BranchGraph({ data }: BranchGraphProps) {
     adapted?.edges ?? [],
     isDark,
   );
+
+  // Branch head detection: first occurrence of each branch in topological order = HEAD
+  const branchHeads = useMemo(() => {
+    const heads = new Set<string>();
+    if (!adapted) return heads;
+    const seenBranch = new Set<string>();
+    for (const id of sortedIds) {
+      const node = adapted.nodes.find((n) => n.id === id);
+      if (!node || !node.branch) continue;
+      if (!seenBranch.has(node.branch)) {
+        seenBranch.add(node.branch);
+        heads.add(id);
+      }
+    }
+    return heads;
+  }, [adapted, sortedIds]);
 
   const rows = useMemo(() => {
     if (!adapted) {
@@ -1058,6 +1076,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                             refs={row.node.refs ?? []}
                             branchProgress={adapted?.branchProgress?.[row.node.branch]}
                             tag={row.node.tag}
+                            isBranchHead={branchHeads.has(row.node.id)}
                           />
                         }
                         placement="right"
