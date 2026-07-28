@@ -102,6 +102,7 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
 }: CommitTooltipCardProps) {
   const { t } = useTCopy();
   const locale = navigator.language || 'en-US';
+  const displayBranch = branch.replace(/^origin\//, '').replace(/^upstream\//, '');
   const localRefs = refs.filter(
     (r) => r !== branch && !r.startsWith('origin/') && !r.startsWith('upstream/'),
   );
@@ -146,10 +147,10 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
           <div className="adl-branch-graph__tooltip-branches">
             <div className="adl-branch-graph__tooltip-branches-label">分支</div>
             <div className="adl-branch-graph__tooltip-branches-list">
-              {/* Primary branch with ahead/behind */}
-              {branch && (
-                <span className="adl-branch-graph__tooltip-branch-badge adl-branch-graph__tooltip-branch-badge--primary">
-                  {branch}
+        {/* Primary branch with ahead/behind */}
+        {branch && (
+          <span className="adl-branch-graph__tooltip-branch-badge adl-branch-graph__tooltip-branch-badge--primary">
+            {displayBranch}
                   {branchProgress && (branchProgress.ahead > 0 || branchProgress.behind > 0) && (
                     <span className="adl-branch-graph__tooltip-branch-progress">
                       {branchProgress.ahead > 0 && <span>↑{branchProgress.ahead}</span>}
