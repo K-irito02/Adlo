@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   type Placement,
   type Alignment,
@@ -328,19 +328,36 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
     };
   }, [clearTimers]);
 
-  return {
-    triggerRef,
-    tooltipRef,
-    isOpen,
-    position,
-    placement,
-    close,
-    handleTriggerEnter,
-    handleTriggerLeave,
-    handleTooltipEnter,
-    handleTooltipLeave,
-    handleTriggerFocus,
-    handleTriggerBlur,
-    handleClick,
-  };
+  return useMemo(
+    () => ({
+      triggerRef,
+      tooltipRef,
+      isOpen,
+      position,
+      placement,
+      close,
+      handleTriggerEnter,
+      handleTriggerLeave,
+      handleTooltipEnter,
+      handleTooltipLeave,
+      handleTriggerFocus,
+      handleTriggerBlur,
+      handleClick,
+    }),
+    [
+      triggerRef,
+      tooltipRef,
+      isOpen,
+      position,
+      placement,
+      close,
+      handleTriggerEnter,
+      handleTriggerLeave,
+      handleTooltipEnter,
+      handleTooltipLeave,
+      handleTriggerFocus,
+      handleTriggerBlur,
+      handleClick,
+    ],
+  );
 }
