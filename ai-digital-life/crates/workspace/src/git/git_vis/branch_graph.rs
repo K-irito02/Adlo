@@ -63,6 +63,10 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
                     all_refs.push(r2.to_string());
                     if branch.is_empty() {
                         branch = r2.to_string();
+                    } else if !r2.starts_with("origin/") && !r2.starts_with("upstream/")
+                        && (branch.starts_with("origin/") || branch.starts_with("upstream/"))
+                    {
+                        branch = r2.to_string();
                     }
                     let r2_str = r2.to_string();
                     if branch_seen.insert(r2_str.clone()) {
