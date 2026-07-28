@@ -310,6 +310,96 @@
   z-index: 5;
 }
 
+/* ── Branch Graph Tooltip Card ── */
+.adl-branch-graph__tooltip-card {
+  padding: 12px;
+  min-width: 320px;
+  font-size: 12px;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adl-branch-graph__tooltip-divider {
+  border: none;
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 0;
+}
+
+.adl-branch-graph__tooltip-hash {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.adl-branch-graph__tooltip-hash .adl-branch-graph__copy-hash {
+  opacity: 1;
+  margin-left: auto;
+}
+
+.adl-branch-graph__tooltip-message {
+  max-height: 216px;
+  overflow-y: auto;
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.adl-branch-graph__tooltip-message:hover,
+.adl-branch-graph__tooltip-message[data-scrolling] {
+  scrollbar-color: var(--border-default) transparent;
+}
+.adl-branch-graph__tooltip-message::-webkit-scrollbar {
+  width: 6px;
+}
+.adl-branch-graph__tooltip-message::-webkit-scrollbar-track {
+  background: transparent;
+}
+.adl-branch-graph__tooltip-message::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+}
+.adl-branch-graph__tooltip-message:hover::-webkit-scrollbar-thumb,
+.adl-branch-graph__tooltip-message[data-scrolling]::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+}
+
+.adl-branch-graph__tooltip-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.adl-branch-graph__tooltip-author-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.adl-branch-graph__tooltip-author-name {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.adl-branch-graph__tooltip-author-email {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.adl-branch-graph__tooltip-date {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 /* ── Heatmap Tab Navigation ── */
 .adl-git-vis__heatmap-nav {
   display: flex;

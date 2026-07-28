@@ -59,6 +59,7 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisAuthor: 'AUTHOR',
       gitVisDate: 'DATE',
       gitVisProgressTooltip: '{label} vs remote: ahead {ahead}, behind {behind}',
+      gitVisCopyHash: 'Copy hash',
     },
     formatT: vi.fn(),
   })),
@@ -111,6 +112,47 @@ describe('BranchGraph', () => {
     expect(container.querySelector('.adl-branch-graph__label-progress')?.textContent).toContain(
       '↓1',
     );
+  });
+
+  it('renders tooltip card content on row hover', async () => {
+    const { container } = render(<BranchGraph data={mockData} />);
+    const rows = container.querySelectorAll('.adl-branch-graph__row');
+    fireEvent.mouseEnter(rows[0]);
+
+    await vi.waitFor(
+      () => {
+        const tooltip = document.body.querySelector('[data-testid="tooltip-content"]');
+        expect(tooltip).toBeTruthy();
+        expect(tooltip!.textContent).toContain('e7f8a9');
+        expect(tooltip!.textContent).toContain('Release v2.0');
+        expect(tooltip!.textContent).toContain('Alex');
+        expect(tooltip!.textContent).toContain('alex@example.com');
+      },
+      { timeout: 2000 },
+    );
+  });
+
+  it('shows Gravatar image for author instead of initial when email is valid', () => {
+    const { container } = render(<BranchGraph data={mockData} />);
+    const imgs = container.querySelectorAll<HTMLImageElement>('img.adl-author-avatar');
+    let gravatarFound = false;
+    imgs.forEach((img) => {
+      const src = img.getAttribute('src') || '';
+      if (src.includes('gravatar.com')) {
+        gravatarFound = true;
+      }
+    });
+    expect(gravatarFound).toBe(true);
+  });
+
+  it('shows author initial when image fails to load', () => {
+    const { container } = render(<BranchGraph data={mockData} />);
+    const imgs = container.querySelectorAll<HTMLImageElement>('img.adl-author-avatar');
+    expect(imgs.length).toBeGreaterThan(0);
+
+    fireEvent.error(imgs[0]);
+    const imgsAfter = container.querySelectorAll<HTMLImageElement>('img.adl-author-avatar');
+    expect(imgsAfter.length).toBeLessThan(imgs.length);
   });
 
   it('filters by branch label click', () => {

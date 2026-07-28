@@ -1,10 +1,11 @@
 import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { CopyButton } from '@components/CopyButton';
+import { TooltipSimple } from '@components/Tooltip';
 import { useBklitTheme } from '../hooks/useBklitTheme';
 import { adaptBranchGraphData } from '../adapters/chartDataAdapters';
 import { useLaneAssignment } from '../hooks/useLaneAssignment';
-import { formatDate } from '../utils/commitTooltipUtils';
+import { formatDate, getGravatarUrl } from '../utils/commitTooltipUtils';
 import type { ColumnInfo } from '../hooks/useLaneAssignment';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
 import type { CommitNode, CommitEdge } from '../../../../test-fixtures/gitVisMockData';
@@ -45,13 +46,15 @@ interface AuthorAvatarProps {
 const AuthorAvatar = React.memo(function AuthorAvatar({ name, src, size = 20 }: AuthorAvatarProps) {
   const bgColor = getAuthorColor(name);
   const initial = name ? name.charAt(0).toUpperCase() : '?';
+  const [imgError, setImgError] = useState(false);
 
-  if (src) {
+  if (src && !imgError) {
     return (
       <img
         className="adl-author-avatar"
         src={src}
         alt={name}
+        onError={() => setImgError(true)}
         style={{
           width: size,
           height: size,
@@ -83,6 +86,60 @@ const AuthorAvatar = React.memo(function AuthorAvatar({ name, src, size = 20 }: 
     >
       {initial}
     </span>
+  );
+});
+
+// ── Commit Tooltip Card ──
+
+interface CommitTooltipCardProps {
+  hash: string;
+  message: string;
+  author: string;
+  authorEmail: string;
+  date: string;
+}
+
+const CommitTooltipCard = React.memo(function CommitTooltipCard({
+  hash,
+  message,
+  author,
+  authorEmail,
+  date,
+}: CommitTooltipCardProps) {
+  const { t } = useTCopy();
+  const locale = navigator.language || 'en-US';
+
+  return (
+    <div className="adl-branch-graph__tooltip-card">
+      <div className="adl-branch-graph__tooltip-hash">
+        {hash}
+        <span className="adl-branch-graph__copy-hash">
+          <CopyButton text={hash} size={11} tooltip={t.gitVisCopyHash} nativeTooltip />
+        </span>
+      </div>
+
+      <hr className="adl-branch-graph__tooltip-divider" />
+
+      <div className="adl-branch-graph__tooltip-message">
+        {message}
+      </div>
+
+      <hr className="adl-branch-graph__tooltip-divider" />
+
+      <div className="adl-branch-graph__tooltip-author">
+        <AuthorAvatar name={author} src={getGravatarUrl(authorEmail, 32)} size={32} />
+        <div className="adl-branch-graph__tooltip-author-info">
+          <span className="adl-branch-graph__tooltip-author-name">{author}</span>
+          <span className="adl-branch-graph__tooltip-author-email">{authorEmail}</span>
+        </div>
+      </div>
+
+      <hr className="adl-branch-graph__tooltip-divider" />
+
+      <div className="adl-branch-graph__tooltip-date">
+        {formatDate(date, locale, 'tooltip')}
+      </div>
+    </div>
   );
 });
 
@@ -640,102 +697,117 @@ export function BranchGraph({ data }: BranchGraphProps) {
             />
           </div>
           <div className="adl-branch-graph__table-panel">
-            {visibleRows.map((row) => {
+              {visibleRows.map((row) => {
               const isFiltered =
                 filterColumns.size > 0 &&
                 !filterColumns.has(row.column) &&
                 row.node.branch !== hoveredLabel;
               return (
-                <div
+                <TooltipSimple
                   key={row.node.id}
-                  className={`adl-branch-graph__row${hoveredId === row.node.id ? ' adl-branch-graph__row--hover' : ''}${isFiltered ? ' adl-branch-graph__row--dimmed' : ''}`}
-                  data-branch={row.node.branch}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '80px 1fr 120px 100px',
-                    gap: 8,
-                    padding: '4px 8px',
-                    fontSize: 12,
-                    lineHeight: ROW_HEIGHT - 8 + 'px',
-                    cursor: 'default',
-                    borderRadius: 4,
-                    opacity: isFiltered ? 0.25 : 1,
-                    minHeight: ROW_HEIGHT,
-                  }}
-                  onMouseEnter={() => handleRowHover(row.node.id)}
-                  onMouseLeave={() => handleRowHover(null)}
-                  title={`${row.node.hash}\n${row.node.message}\n${row.node.author} <${row.node.authorEmail}>\n${row.node.date}`}
+                  content={
+                    <CommitTooltipCard
+                      hash={row.node.hash}
+                      message={row.node.message}
+                      author={row.node.author}
+                      authorEmail={row.node.authorEmail}
+                      date={row.node.date}
+                    />
+                  }
+                  placement="right"
+                  dismissible
+                  showArrow
+                  maxWidth={400}
                 >
-                  <span
+                  <div
+                    className={`adl-branch-graph__row${hoveredId === row.node.id ? ' adl-branch-graph__row--hover' : ''}${isFiltered ? ' adl-branch-graph__row--dimmed' : ''}`}
+                    data-branch={row.node.branch}
                     style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      overflow: 'hidden',
-                      whiteSpace: 'nowrap',
+                      display: 'grid',
+                      gridTemplateColumns: '80px 1fr 120px 100px',
+                      gap: 8,
+                      padding: '4px 8px',
+                      fontSize: 12,
+                      lineHeight: ROW_HEIGHT - 8 + 'px',
+                      cursor: 'default',
+                      borderRadius: 4,
+                      opacity: isFiltered ? 0.25 : 1,
+                      minHeight: ROW_HEIGHT,
                     }}
+                    onMouseEnter={() => handleRowHover(row.node.id)}
+                    onMouseLeave={() => handleRowHover(null)}
                   >
                     <span
                       style={{
-                        fontFamily: 'var(--font-mono, monospace)',
-                        color: theme.text,
-                        fontSize: 11,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
                         overflow: 'hidden',
-                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
                       }}
                     >
-                      {row.node.shortHash || row.node.hash}
-                    </span>
-                    <span className="adl-branch-graph__copy-hash">
-                      <CopyButton
-                        text={row.node.hash}
-                        size={11}
-                        tooltip={t.gitVisCopyHash}
-                        nativeTooltip
-                      />
-                    </span>
-                  </span>
-                  <span
-                    style={{
-                      color: theme.text,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      minWidth: 0,
-                    }}
-                  >
-                    {row.node.message}
-                    {row.node.tag && (
                       <span
-                        className="adl-branch-graph__tag"
                         style={{
-                          marginLeft: 8,
-                          padding: '1px 4px',
-                          borderRadius: 2,
-                          background: row.color,
-                          color: '#fff',
-                          fontSize: 9,
-                          fontWeight: 600,
-                          lineHeight: 1,
+                          fontFamily: 'var(--font-mono, monospace)',
+                          color: theme.text,
+                          fontSize: 11,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
                         }}
                       >
-                        {row.node.tag}
+                        {row.node.shortHash || row.node.hash}
                       </span>
-                    )}
-                  </span>
-                  <span
-                    style={{
-                      color: theme.muted,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                    }}
-                  >
-                    <AuthorAvatar name={row.node.author} />
-                    {row.node.author}
-                  </span>
-                  <span style={{ color: theme.muted }}>{formatDate(row.node.date, locale, 'table')}</span>
-                </div>
+                      <span className="adl-branch-graph__copy-hash">
+                        <CopyButton
+                          text={row.node.hash}
+                          size={11}
+                          tooltip={t.gitVisCopyHash}
+                          nativeTooltip
+                        />
+                      </span>
+                    </span>
+                    <span
+                      style={{
+                        color: theme.text,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        minWidth: 0,
+                      }}
+                    >
+                      {row.node.message}
+                      {row.node.tag && (
+                        <span
+                          className="adl-branch-graph__tag"
+                          style={{
+                            marginLeft: 8,
+                            padding: '1px 4px',
+                            borderRadius: 2,
+                            background: row.color,
+                            color: '#fff',
+                            fontSize: 9,
+                            fontWeight: 600,
+                            lineHeight: 1,
+                          }}
+                        >
+                          {row.node.tag}
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      style={{
+                        color: theme.muted,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <AuthorAvatar name={row.node.author} src={getGravatarUrl(row.node.authorEmail, 20)} />
+                      {row.node.author}
+                    </span>
+                    <span style={{ color: theme.muted }}>{formatDate(row.node.date, locale, 'table')}</span>
+                  </div>
+                </TooltipSimple>
               );
             })}
             {visibleCount < rows.length && (
