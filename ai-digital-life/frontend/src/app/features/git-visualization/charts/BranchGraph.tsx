@@ -573,7 +573,6 @@ export function BranchGraph({ data }: BranchGraphProps) {
       if (!cur) colRefLabels.set(row.column, new Set());
       for (const ref of row.node.refs) {
         if (ref.startsWith('origin/') || ref.startsWith('upstream/')) continue;
-        if (ref === row.node.branch) continue;
         if (ref === colLabel.get(row.column)) continue;
         if (!allBr.includes(ref)) continue;
         colRefLabels.get(row.column)!.add(ref);
