@@ -46,15 +46,13 @@ interface AuthorAvatarProps {
 }
 
 const AuthorAvatar = React.memo(function AuthorAvatar({ name, src, email, size = 20 }: AuthorAvatarProps) {
-  const bgColor = getAuthorColor(name);
-  const initial = name ? name.charAt(0).toUpperCase() : '?';
-  const [fallbackLevel, setFallbackLevel] = useState(0);
+  const [useGravatar, setUseGravatar] = useState(false);
 
   const gravatarSrc = email
     ? `https://www.gravatar.com/avatar/${md5(email.trim().toLowerCase())}?s=${size}&d=retro`
     : undefined;
 
-  const currentSrc = fallbackLevel === 0 ? src : (fallbackLevel === 1 ? gravatarSrc : undefined);
+  const currentSrc = useGravatar ? gravatarSrc : src;
 
   if (currentSrc) {
     return (
@@ -62,7 +60,7 @@ const AuthorAvatar = React.memo(function AuthorAvatar({ name, src, email, size =
         className="adl-author-avatar"
         src={currentSrc}
         alt={name}
-        onError={() => setFallbackLevel((prev) => Math.min(prev + 1, 2))}
+        onError={() => { if (!useGravatar && gravatarSrc) setUseGravatar(true); }}
         style={{
           width: size,
           height: size,
@@ -74,27 +72,7 @@ const AuthorAvatar = React.memo(function AuthorAvatar({ name, src, email, size =
     );
   }
 
-  return (
-    <span
-      className="adl-author-avatar"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        background: bgColor,
-        color: '#fff',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: Math.round(size * 0.55),
-        fontWeight: 600,
-        flexShrink: 0,
-        lineHeight: 1,
-      }}
-    >
-      {initial}
-    </span>
-  );
+  return null;
 });
 
 // ── Commit Tooltip Card ──

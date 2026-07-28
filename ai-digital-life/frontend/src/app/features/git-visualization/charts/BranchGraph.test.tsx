@@ -145,24 +145,10 @@ describe('BranchGraph', () => {
     );
   });
 
-  it('shows avatar image (GitHub or Gravatar) for author when email is valid', () => {
-    const { container } = render(<BranchGraph data={mockData} />);
-    const imgs = container.querySelectorAll<HTMLImageElement>('img.adl-author-avatar');
-    let avatarFound = false;
-    imgs.forEach((img) => {
-      const src = img.getAttribute('src') || '';
-      if (src.includes('github.com') || src.includes('gravatar.com')) {
-        avatarFound = true;
-      }
-    });
-    expect(avatarFound).toBe(true);
-  });
-
-  it('renders author avatars with fallback chain', () => {
+  it('renders author avatars with valid URLs', () => {
     const { container } = render(<BranchGraph data={mockData} />);
     const imgs = container.querySelectorAll<HTMLImageElement>('img.adl-author-avatar');
     expect(imgs.length).toBeGreaterThan(0);
-    // Verify the chain: src is either GitHub or Gravatar URL
     imgs.forEach((img) => {
       const src = img.getAttribute('src') || '';
       expect(src.includes('github.com') || src.includes('gravatar.com')).toBe(true);

@@ -134,26 +134,6 @@ registerAvatarResolver({
   },
 });
 
-/**
- * A3: Speculative GitHub username guess from email local part.
- * e.g. `alex@example.com` → `https://github.com/alex.png`
- * If wrong, `<img onError>` falls back to initials — harmless.
- * Priority 20 so it runs after noreply but before gravatar.
- */
-registerAvatarResolver({
-  name: 'github-guess',
-  priority: 20,
-  resolve(email: string, _size: number): string | null {
-    const atIndex = email.indexOf('@');
-    if (atIndex <= 0) return null;
-    const localPart = email.slice(0, atIndex);
-    if (!localPart || localPart.length < 2 || localPart.length > 39) return null;
-    // Only try alphanumeric + hyphen + underscore (valid GitHub usernames)
-    if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(localPart)) return null;
-    return `https://github.com/${localPart}.png`;
-  },
-});
-
 /** A1: Gravatar with retro fallback (always returns a URL) */
 registerAvatarResolver({
   name: 'gravatar',
