@@ -17,6 +17,7 @@ const mockData: RawBranchGraph = {
     author: n.author,
     authorEmail: n.authorEmail,
     tag: n.tag,
+    refs: [],
   })),
   edges: commitEdges.map((e) => ({
     from: `node-${nodeIdToIndex.get(e.source)}`,
@@ -140,6 +141,50 @@ describe('BranchGraph', () => {
         expect(tooltip!.textContent).toContain('Release v2.0');
         expect(tooltip!.textContent).toContain('Alex');
         expect(tooltip!.textContent).toContain('alex@example.com');
+        expect(tooltip!.textContent).toContain('branch head');
+      },
+      { timeout: 2000 },
+    );
+  });
+
+  it('shows correct annotation priority in tooltip card', async () => {
+    const { container } = render(<BranchGraph data={mockData} />);
+    const rows = container.querySelectorAll('.adl-branch-graph__row');
+
+    // Row 0 = newest commit (a15, HEAD of main) → should show "branch head"
+    fireEvent.mouseEnter(rows[0]);
+    const infoBtn0 = await vi.waitFor(() => {
+      const btn = rows[0].querySelector('.adl-branch-graph__info-btn');
+      expect(btn).toBeTruthy();
+      return btn;
+    });
+    fireEvent.mouseEnter(infoBtn0!);
+    await vi.waitFor(
+      () => {
+        const tooltip = document.body.querySelector('[data-testid="tooltip-content"]');
+        expect(tooltip).toBeTruthy();
+        expect(tooltip!.textContent).toContain('branch head');
+      },
+      { timeout: 2000 },
+    );
+
+    // Row 1 = second newest commit (a14, non-HEAD on main) → should NOT show any annotation
+    fireEvent.mouseEnter(rows[1]);
+    const infoBtn1 = await vi.waitFor(() => {
+      const btn = rows[1].querySelector('.adl-branch-graph__info-btn');
+      expect(btn).toBeTruthy();
+      return btn;
+    });
+    fireEvent.mouseEnter(infoBtn1!);
+    await vi.waitFor(
+      () => {
+        const tooltip = document.body.querySelector('[data-testid="tooltip-content"]');
+        expect(tooltip).toBeTruthy();
+        // Should contain branch name but no annotation
+        // Non-HEAD commit should NOT have any of these annotations
+        expect(tooltip!.textContent).not.toContain('branch head');
+        expect(tooltip!.textContent).not.toContain('merged');
+        expect(tooltip!.textContent).not.toContain('local only');
       },
       { timeout: 2000 },
     );
