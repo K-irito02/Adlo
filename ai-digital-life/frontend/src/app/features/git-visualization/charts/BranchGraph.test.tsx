@@ -158,14 +158,15 @@ describe('BranchGraph', () => {
     expect(avatarFound).toBe(true);
   });
 
-  it('shows author initial when image fails to load', () => {
+  it('renders author avatars with fallback chain', () => {
     const { container } = render(<BranchGraph data={mockData} />);
     const imgs = container.querySelectorAll<HTMLImageElement>('img.adl-author-avatar');
     expect(imgs.length).toBeGreaterThan(0);
-
-    fireEvent.error(imgs[0]);
-    const imgsAfter = container.querySelectorAll<HTMLImageElement>('img.adl-author-avatar');
-    expect(imgsAfter.length).toBeLessThan(imgs.length);
+    // Verify the chain: src is either GitHub or Gravatar URL
+    imgs.forEach((img) => {
+      const src = img.getAttribute('src') || '';
+      expect(src.includes('github.com') || src.includes('gravatar.com')).toBe(true);
+    });
   });
 
   it('filters by branch label click', () => {

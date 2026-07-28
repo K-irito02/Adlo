@@ -5,7 +5,7 @@ import { TooltipSimple } from '@components/Tooltip';
 import { useBklitTheme } from '../hooks/useBklitTheme';
 import { adaptBranchGraphData } from '../adapters/chartDataAdapters';
 import { useLaneAssignment } from '../hooks/useLaneAssignment';
-import { formatDate, resolveAvatarUrl } from '../utils/commitTooltipUtils';
+import { formatDate, resolveAvatarUrl, md5 } from '../utils/commitTooltipUtils';
 import { IconFileText } from '@icons/status';
 import type { ColumnInfo } from '../hooks/useLaneAssignment';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
@@ -41,21 +41,28 @@ function getAuthorColor(name: string): string {
 interface AuthorAvatarProps {
   name: string;
   src?: string;
+  email?: string;
   size?: number;
 }
 
-const AuthorAvatar = React.memo(function AuthorAvatar({ name, src, size = 20 }: AuthorAvatarProps) {
+const AuthorAvatar = React.memo(function AuthorAvatar({ name, src, email, size = 20 }: AuthorAvatarProps) {
   const bgColor = getAuthorColor(name);
   const initial = name ? name.charAt(0).toUpperCase() : '?';
-  const [imgError, setImgError] = useState(false);
+  const [fallbackLevel, setFallbackLevel] = useState(0);
 
-  if (src && !imgError) {
+  const gravatarSrc = email
+    ? `https://www.gravatar.com/avatar/${md5(email.trim().toLowerCase())}?s=${size}&d=retro`
+    : undefined;
+
+  const currentSrc = fallbackLevel === 0 ? src : (fallbackLevel === 1 ? gravatarSrc : undefined);
+
+  if (currentSrc) {
     return (
       <img
         className="adl-author-avatar"
-        src={src}
+        src={currentSrc}
         alt={name}
-        onError={() => setImgError(true)}
+        onError={() => setFallbackLevel((prev) => Math.min(prev + 1, 2))}
         style={{
           width: size,
           height: size,
@@ -135,7 +142,7 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
       <hr className="adl-branch-graph__tooltip-divider" />
 
       <div className="adl-branch-graph__tooltip-author">
-        <AuthorAvatar name={author} src={resolveAvatarUrl(authorEmail, 32)} size={32} />
+        <AuthorAvatar name={author} src={resolveAvatarUrl(authorEmail, 32)} email={authorEmail} size={32} />
         <div className="adl-branch-graph__tooltip-author-info">
           <span className="adl-branch-graph__tooltip-author-name">{author}</span>
           <span className="adl-branch-graph__tooltip-author-email">{authorEmail}</span>
@@ -811,7 +818,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                         gap: 4,
                       }}
                     >
-                      <AuthorAvatar name={row.node.author} src={resolveAvatarUrl(row.node.authorEmail, 20)} />
+                      <AuthorAvatar name={row.node.author} src={resolveAvatarUrl(row.node.authorEmail, 20)} email={row.node.authorEmail} />
                       {row.node.author}
                       {hoveredId === row.node.id && (
                         <TooltipSimple
