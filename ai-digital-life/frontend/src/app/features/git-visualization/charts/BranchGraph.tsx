@@ -75,6 +75,37 @@ const AuthorAvatar = React.memo(function AuthorAvatar({ name, src, email, size =
   return null;
 });
 
+/** Render supplementary ref labels as separate tag row buttons */
+function renderRefLabels(
+  col: LabelColumnInfo,
+  filterColumns: Set<number>,
+  _hoveredLabel: string | null,
+  handleLabelClick: (cols: number[]) => void,
+  setHoveredLabel: (label: string | null) => void,
+) {
+  const isSelected = filterColumns.size === 0 || col.filterCols.some((i) => filterColumns.has(i));
+  return col.refsLabels?.map((rl) => (
+    <div key={`rl-${rl}`} className="adl-branch-graph__label-drag" style={{ opacity: 1 }}>
+      <button
+        className="adl-branch-graph__label adl-branch-graph__label--refsup"
+        data-indicator={isSelected ? 'true' : undefined}
+        onClick={() => handleLabelClick(col.filterCols)}
+        onMouseEnter={() => setHoveredLabel(rl)}
+        onMouseLeave={() => setHoveredLabel(null)}
+        style={{
+          padding: '2px 6px', borderRadius: 0, background: col.color, color: '#fff',
+          fontSize: 10, fontWeight: 500, border: 'none', cursor: 'pointer',
+          display: 'inline-flex', alignItems: 'center', lineHeight: 1,
+          opacity: filterColumns.size === 0 || col.filterCols.some((i) => filterColumns.has(i)) ? 0.7 : 0.3,
+        }}
+        title={rl}
+      >
+        {rl}
+      </button>
+    </div>
+  ));
+}
+
 // ── Commit Tooltip Card ──
 
 interface CommitTooltipCardProps {
@@ -661,7 +692,8 @@ export function BranchGraph({ data }: BranchGraphProps) {
           const showIndicator = isSelected || isHovered;
           const showScale = (isHovered && !isSelected) || (!isHovered && isSelected);
           return (
-            <div key={`col-${col.index}`} className="adl-branch-graph__label-drag" style={{ opacity: 1 }}>
+            <React.Fragment key={`col-${col.index}`}>
+            <div className="adl-branch-graph__label-drag" style={{ opacity: 1 }}>
               <button
                 className="adl-branch-graph__label"
                 data-indicator={showIndicator ? 'true' : undefined}
@@ -699,15 +731,10 @@ export function BranchGraph({ data }: BranchGraphProps) {
                     )}
                   </span>
                 ) : null}
-                {col.refsLabels && col.refsLabels.length > 0 && (
-                  <span style={{ display: 'inline-flex', gap: 2, marginLeft: 4, verticalAlign: 'middle' }}>
-                    {col.refsLabels.map((rl) => (
-                      <span key={rl} className="adl-branch-graph__tag-row-ref-label">{rl}</span>
-                    ))}
-                  </span>
-                )}
               </button>
             </div>
+            {col.refsLabels && renderRefLabels(col, filterColumns, hoveredLabel, handleLabelClick, setHoveredLabel)}
+            </React.Fragment>
           );
         })}
       </div>
