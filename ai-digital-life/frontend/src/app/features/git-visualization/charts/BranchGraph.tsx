@@ -92,17 +92,21 @@ function renderRefLabels(
   rls: RefLabelInfo[],
   activeRefLabel: string | null,
   setActiveRefLabel: (v: string | null) => void,
+  hoveredLabel: string | null,
   setHoveredLabel: (label: string | null) => void,
   t: { gitVisLocalOnly?: string },
 ) {
   return rls.map((rl) => {
     const isActive = activeRefLabel === rl.name;
+    const showIndicator = hoveredLabel === rl.name || activeRefLabel === rl.name;
+    const showScale = (hoveredLabel === rl.name) !== (activeRefLabel === rl.name);
     const bgColor = getRefLabelColor(rl.name);
     return (
       <div key={`rl-${rl.name}`} className="adl-branch-graph__label-drag" style={{ opacity: 1 }}>
         <button
           className="adl-branch-graph__label"
-          data-indicator={isActive ? 'true' : undefined}
+          data-indicator={showIndicator ? 'true' : undefined}
+          data-scale={showScale ? 'true' : undefined}
           onClick={() => setActiveRefLabel(isActive ? null : rl.name)}
           onMouseEnter={() => setHoveredLabel(rl.name)}
           onMouseLeave={() => setHoveredLabel(null)}
@@ -865,6 +869,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
                   col.refsLabels,
                   activeRefLabel,
                   setActiveRefLabel,
+                  hoveredLabel,
                   setHoveredLabel,
                   t,
                 )}
