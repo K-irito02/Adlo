@@ -329,7 +329,8 @@ const SvgLanes = React.memo(function SvgLanes({
 }: SvgLanesProps) {
   const nodeY = (rowIndex: number) => rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
 
-  const refNodeColor = activeRefLabel ? getRefLabelColor(activeRefLabel) : null;
+  const refLabelColor = activeRefLabel ? getRefLabelColor(activeRefLabel) : null;
+  const rowHasRef = (row: RowData) => activeRefLabel && row.node.refs?.includes(activeRefLabel);
   const rowIndexById = new Map<string, number>();
   rows.forEach((r, i) => rowIndexById.set(r.node.id, i));
 
@@ -351,7 +352,7 @@ const SvgLanes = React.memo(function SvgLanes({
         y1={yPositions[0]}
         x2={x}
         y2={yPositions[yPositions.length - 1]}
-        stroke={!laneDimmed && refNodeColor ? refNodeColor : col.color}
+        stroke={!laneDimmed && rows.some((r) => r.column === col.index && rowHasRef(r)) && refLabelColor ? refLabelColor : col.color}
         strokeWidth={3}
         strokeLinecap="round"
         opacity={laneDimmed ? 0.1 : 0.5}
@@ -417,7 +418,7 @@ const SvgLanes = React.memo(function SvgLanes({
     const r = isHovered ? NODE_RADIUS * 1.2 : NODE_RADIUS;
     const nodeDimmed =
       filterColumns.size > 0 && !filterColumns.has(row.column) && row.node.branch !== hoveredBranch;
-    const nodeFill = !nodeDimmed && refNodeColor ? refNodeColor : row.color;
+    const nodeFill = !nodeDimmed && rowHasRef(row) && refLabelColor ? refLabelColor : row.color;
     if (row.node.tag) {
       return (
         <g key={`node-${row.node.id}`} opacity={nodeDimmed ? 0.1 : aheadRows.has(i) ? 0.65 : 1}>
