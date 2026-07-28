@@ -62,6 +62,9 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisProgressTooltip: '{label} vs remote: ahead {ahead}, behind {behind}',
       gitVisCopyHash: 'Copy hash',
       gitVisLocalOnly: 'local only',
+      gitVisMerged: 'merged',
+      gitVisMergeMerged: 'merged',
+      gitVisMergeDeleted: 'deleted',
     },
     formatT: vi.fn(),
   })),
@@ -218,6 +221,66 @@ describe('BranchGraph', () => {
       },
       { timeout: 2000 },
     );
+  });
+
+  it('shows merged sub-branch entries in tooltip card', async () => {
+    const dataWithMerged = {
+      ...mockData,
+      nodes: mockData.nodes.map((n, i) =>
+        i === 7
+          ? {
+              ...n,
+              mergedSubBranches: [
+                { id: '#b-a1b2c3', isDeleted: true, name: 'feature-deleted', parentHash: 'a1b2c3d4' },
+                { id: '#b-d4e5f6', isDeleted: false, name: 'feature-existing', parentHash: 'd4e5f6a7' },
+              ],
+            }
+          : n,
+      ),
+    };
+    const { container } = render(<BranchGraph data={dataWithMerged} />);
+    const rows = container.querySelectorAll('.adl-branch-graph__row');
+
+    fireEvent.mouseEnter(rows[0]);
+    const infoBtn = await vi.waitFor(() => {
+      const btn = rows[0].querySelector('.adl-branch-graph__info-btn');
+      expect(btn).toBeTruthy();
+      return btn;
+    });
+    fireEvent.mouseEnter(infoBtn!);
+    await vi.waitFor(
+      () => {
+        const tooltip = document.body.querySelector('[data-testid="tooltip-content"]');
+        expect(tooltip).toBeTruthy();
+        expect(tooltip!.textContent).toContain('#b-a1b2c3');
+        expect(tooltip!.textContent).toContain('#b-d4e5f6');
+        expect(tooltip!.textContent).toContain('merged');
+        expect(tooltip!.textContent).toContain('deleted');
+      },
+      { timeout: 2000 },
+    );
+  });
+
+  it('shows collapsible deleted branch section in tag row', async () => {
+    const dataWithDeleted = {
+      ...mockData,
+      nodes: mockData.nodes.map((n, i) =>
+        i === 14
+          ? {
+              ...n,
+              mergedSubBranches: [
+                { id: '#b-zzzzzz', isDeleted: true, name: 'deleted-branch', parentHash: 'zzzzzzzz' },
+              ],
+            }
+          : n,
+      ),
+    };
+    const { container } = render(<BranchGraph data={dataWithDeleted} />);
+
+    const tagRow = container.querySelector('.adl-branch-graph__tag-row--sticky');
+    expect(tagRow).toBeTruthy();
+    expect(tagRow!.textContent).toContain('deleted');
+    expect(tagRow!.textContent).toContain('▸');
   });
 
   it('renders author avatars with valid URLs', () => {
