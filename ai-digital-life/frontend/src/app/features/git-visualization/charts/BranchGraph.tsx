@@ -9,7 +9,7 @@ import { formatDate, resolveAvatarUrl, md5 } from '../utils/commitTooltipUtils';
 import { IconFileText } from '@icons/status';
 import type { ColumnInfo } from '../hooks/useLaneAssignment';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
-import type { CommitNode, CommitEdge } from '../../../../test-fixtures/gitVisMockData';
+import type { CommitNode, CommitEdge, MergedSubBranch } from '../../../../test-fixtures/gitVisMockData';
 
 // ── Constants ──
 const LANE_WIDTH = 24;
@@ -156,6 +156,8 @@ interface CommitTooltipCardProps {
   branchProgress?: { ahead: number; behind: number; mergeBase?: string };
   tag?: string;
   isBranchHead?: boolean;
+  columnLabel?: string;
+  mergedSubBranches?: MergedSubBranch[];
 }
 
 const CommitTooltipCard = React.memo(function CommitTooltipCard({
@@ -169,10 +171,13 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
   branchProgress,
   tag,
   isBranchHead,
+  columnLabel,
+  mergedSubBranches,
 }: CommitTooltipCardProps) {
   const { t } = useTCopy();
   const locale = navigator.language || 'en-US';
-  const displayBranch = branch.replace(/^origin\//, '').replace(/^upstream\//, '');
+  const effectiveBranch = branch || columnLabel || '';
+  const displayBranch = effectiveBranch.replace(/^origin\//, '').replace(/^upstream\//, '');
 
   const localRefs = refs.filter(
     (r) => r !== branch && !r.startsWith('origin/') && !r.startsWith('upstream/'),
@@ -225,23 +230,24 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
                   Priority 2: localRefs.length > 0     → "已合并"
                   Priority 3: isBranchHead + remote    → "分支头"
                   Priority 4: neither                  → no annotation */}
-              {branch && (
+              {effectiveBranch && (
                 <span className="adl-branch-graph__tooltip-branch-badge adl-branch-graph__tooltip-branch-badge--primary">
                   {displayBranch}
                   {(() => {
                     // Annotation priority system (see design spec):
+                    // Only shown for actual node.branch (HEAD commits), not for column-label fallback
                     // Priority 1: isBranchHead + local-only (branchProgress exists, no mergeBase) → "仅本地"
                     // Priority 2: localRefs.length > 0                                          → "已合并"
                     // Priority 3: isBranchHead + has remote tracking                            → "分支头"
                     // Priority 4: neither                                                       → no annotation
-                    if (isBranchHead && branchProgress && !branchProgress.mergeBase) {
-                      return ` (${t.gitVisLocalOnly})`;
+                    if (branch && isBranchHead && branchProgress && !branchProgress.mergeBase) {
+                      return ` | ${t.gitVisLocalOnly}`;
                     }
-                    if (localRefs.length > 0) {
-                      return ` (${t.gitVisMerged})`;
+                    if (branch && localRefs.length > 0) {
+                      return ` | ${t.gitVisMerged}`;
                     }
-                    if (isBranchHead) {
-                      return ` (${t.gitVisBranchHead ?? 'branch head'})`;
+                    if (branch && isBranchHead) {
+                      return ` | ${t.gitVisBranchHead ?? 'branch head'}`;
                     }
                     return '';
                   })()}
@@ -253,6 +259,16 @@ const CommitTooltipCard = React.memo(function CommitTooltipCard({
                   )}
                 </span>
               )}
+              {/* Merged sub-branches from merge commits */}
+              {mergedSubBranches && mergedSubBranches.length > 0 && mergedSubBranches.map((msb) => (
+                <span
+                  key={msb.id}
+                  className="adl-branch-graph__tooltip-branch-badge"
+                >
+                  {msb.id} · {t.gitVisMergeMerged}
+                  {msb.isDeleted && ` · ${t.gitVisMergeDeleted}`}
+                </span>
+              ))}
               {/* Additional local branches (merged into current branch) */}
               {localRefs.map((ref) => (
                 <span
@@ -794,6 +810,10 @@ export function BranchGraph({ data }: BranchGraphProps) {
   const totalLaneWidth = columns.length * (LANE_WIDTH + LANE_GAP);
   const visibleRows = rows.slice(0, visibleCount);
   const totalHeight = visibleRows.length * ROW_HEIGHT + 8;
+  const columnLabelMap = useMemo(
+    () => new Map(columnsWithLabels.map((c) => [c.index, c.label ?? ''])),
+    [columnsWithLabels],
+  );
 
   const handleRowHover = useCallback((id: string | null) => setHoveredId(id), []);
   const handleLabelClick = useCallback((colIndices: number[]) => {
@@ -1095,6 +1115,8 @@ export function BranchGraph({ data }: BranchGraphProps) {
                             branchProgress={adapted?.branchProgress?.[row.node.branch]}
                             tag={row.node.tag}
                             isBranchHead={branchHeads.has(row.node.id)}
+                            columnLabel={columnLabelMap.get(row.column)}
+                            mergedSubBranches={row.node.mergedSubBranches}
                           />
                         }
                         placement="right"
