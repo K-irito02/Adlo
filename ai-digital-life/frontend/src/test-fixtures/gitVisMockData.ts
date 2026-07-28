@@ -2,6 +2,13 @@ import type { HeatmapColumn, HeatmapBin } from '@/components/charts/heatmap/heat
 
 /** Git 可视化模拟数据 */
 
+export interface MergedSubBranch {
+  id: string;
+  isDeleted: boolean;
+  name?: string;
+  parentHash: string;
+}
+
 export interface CommitNode {
   id: string;
   hash: string;
@@ -13,6 +20,7 @@ export interface CommitNode {
   author: string;
   authorEmail: string;
   tag?: string;
+  mergedSubBranches?: MergedSubBranch[];
 }
 
 export interface CommitEdge {
