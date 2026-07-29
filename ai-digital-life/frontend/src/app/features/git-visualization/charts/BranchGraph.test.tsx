@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { BranchGraph } from './BranchGraph';
+import { getAvatar } from '../utils/avatarCache';
 import { commitNodes, commitEdges, allBranches } from '../../../../test-fixtures/gitVisMockData';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
 
@@ -28,7 +29,14 @@ const mockData: RawBranchGraph = {
 
 afterEach(() => {
   cleanup();
+  // Reset avatarCache mock to default (null) between tests so per-test
+  // overrides in integration tests do not leak into other tests.
+  vi.mocked(getAvatar).mockResolvedValue(null);
 });
+
+vi.mock('../utils/avatarCache', () => ({
+  getAvatar: vi.fn().mockResolvedValue(null),
+}));
 
 vi.mock('@hooks/useResolvedTheme', () => ({
   useResolvedTheme: vi.fn(() => 'light'),
@@ -96,11 +104,44 @@ describe('BranchGraph', () => {
   it('handles row mouse enter/leave', () => {
     const { container } = render(<BranchGraph data={mockData} />);
     const rows = container.querySelectorAll('.adl-branch-graph__row');
-    // Row hover is now CSS-only, verify events don't throw
+    // Row hover now drives SVG node enlargement via hoveredRowId state
     expect(() => {
       fireEvent.mouseEnter(rows[0]);
       fireEvent.mouseLeave(rows[0]);
     }).not.toThrow();
+  });
+
+  it('enlarges the corresponding SVG node on row hover', () => {
+    const { container } = render(<BranchGraph data={mockData} />);
+    const rows = container.querySelectorAll('.adl-branch-graph__row');
+    const svg = container.querySelector('.adl-branch-graph__svg');
+    expect(svg).toBeTruthy();
+
+    // Find all node circles/rects (exclude tag outer rings which use fill="none")
+    const nodeCircles = svg!.querySelectorAll('circle[fill]:not([fill="none"])');
+    const nodeRects = svg!.querySelectorAll('rect');
+    const hasNodes = nodeCircles.length > 0 || nodeRects.length > 0;
+    expect(hasNodes).toBe(true);
+
+    // Capture the first node's radius/size before hover
+    const firstCircle = nodeCircles[0] as SVGCircleElement | undefined;
+    const firstRect = nodeRects[0] as SVGRectElement | undefined;
+    const rBefore = firstCircle ? Number(firstCircle.getAttribute('r')) : 0;
+    const wBefore = firstRect ? Number(firstRect.getAttribute('width')) : 0;
+
+    // Hover over the first row to trigger node enlargement
+    fireEvent.mouseEnter(rows[0]);
+
+    const circlesAfter = svg!.querySelectorAll('circle[fill]:not([fill="none"])');
+    const rectsAfter = svg!.querySelectorAll('rect');
+    const firstCircleAfter = circlesAfter[0] as SVGCircleElement | undefined;
+    const firstRectAfter = rectsAfter[0] as SVGRectElement | undefined;
+
+    // At least one node type should show enlargement (r or width increased)
+    const rAfter = firstCircleAfter ? Number(firstCircleAfter.getAttribute('r')) : rBefore;
+    const wAfter = firstRectAfter ? Number(firstRectAfter.getAttribute('width')) : wBefore;
+    const enlarged = rAfter > rBefore || wAfter > wBefore;
+    expect(enlarged).toBe(true);
   });
 
   it('shows ahead/behind indicators when branchProgress provided', () => {
@@ -148,13 +189,16 @@ describe('BranchGraph', () => {
     );
   });
 
-  it('renders author avatars with valid URLs', () => {
+  it('renders author avatars with local pixel avatar as initial src', () => {
+    // After the pixel-avatar-first refactor, the <img> starts with a local
+    // data URI (SVG identicon) so it never shows a broken image while the
+    // real GitHub/Gravatar avatar loads asynchronously.
     const { container } = render(<BranchGraph data={mockData} />);
     const imgs = container.querySelectorAll<HTMLImageElement>('img.adl-author-avatar');
     expect(imgs.length).toBeGreaterThan(0);
     imgs.forEach((img) => {
       const src = img.getAttribute('src') || '';
-      expect(src.includes('github.com') || src.includes('gravatar.com')).toBe(true);
+      expect(src.startsWith('data:image/svg+xml')).toBe(true);
     });
   });
 
@@ -204,5 +248,40 @@ describe('BranchGraph', () => {
       expect(label.getAttribute('data-indicator')).toBeNull();
       expect((label as HTMLElement).style.opacity).toBe('1');
     }
+  });
+
+  it('replaces pixel avatar with cached avatar after async load', async () => {
+    // Mock getAvatar to return a fake blob URL so the avatar should swap
+    const fakeBlobUrl = 'blob:fake-avatar-url';
+    vi.mocked(getAvatar).mockResolvedValue(fakeBlobUrl);
+
+    const { container } = render(<BranchGraph data={mockData} />);
+    const imgs = container.querySelectorAll<HTMLImageElement>('img.adl-author-avatar');
+
+    // Initially all should be pixel avatars (synchronous render)
+    imgs.forEach((img) => {
+      expect(img.getAttribute('src')?.startsWith('data:image/svg+xml')).toBe(true);
+    });
+
+    // After async resolution, they should be replaced with cached URL
+    await vi.waitFor(() => {
+      const updatedImgs = container.querySelectorAll<HTMLImageElement>('img.adl-author-avatar');
+      updatedImgs.forEach((img) => {
+        expect(img.getAttribute('src')).toBe(fakeBlobUrl);
+      });
+    });
+  });
+
+  it('keeps pixel avatar when getAvatar returns null', async () => {
+    vi.mocked(getAvatar).mockResolvedValue(null);
+
+    const { container } = render(<BranchGraph data={mockData} />);
+    const imgs = container.querySelectorAll<HTMLImageElement>('img.adl-author-avatar');
+
+    await vi.waitFor(() => {
+      imgs.forEach((img) => {
+        expect(img.getAttribute('src')?.startsWith('data:image/svg+xml')).toBe(true);
+      });
+    });
   });
 });
