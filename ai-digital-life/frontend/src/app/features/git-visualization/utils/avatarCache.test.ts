@@ -52,13 +52,16 @@ class MockIDBTransaction {
 }
 
 class MockIDBDatabase {
-  objectStoreNames = { contains: () => false };
+  objectStoreNames = { contains: () => true };
   private store = new MockIDBStore();
   transaction(): MockIDBTransaction {
     return new MockIDBTransaction(this.store);
   }
   createObjectStore(): MockIDBStore {
     return this.store;
+  }
+  deleteObjectStore(): void {
+    // No-op in mock — store is recreated immediately after
   }
 }
 
@@ -85,13 +88,13 @@ vi.stubGlobal('indexedDB', {
     const req = {
       result: mockDB,
       error: null,
-      onupgradeneeded: null as (() => void) | null,
+      onupgradeneeded: null as ((event: { oldVersion: number }) => void) | null,
       onsuccess: null as (() => void) | null,
       onerror: null as (() => void) | null,
     };
     queueMicrotask(() => {
       if (req.onupgradeneeded) {
-        req.onupgradeneeded();
+        req.onupgradeneeded({ oldVersion: 0 });
       }
       if (req.onsuccess) {
         req.onsuccess();

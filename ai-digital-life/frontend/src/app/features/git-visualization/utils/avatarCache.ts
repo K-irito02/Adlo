@@ -5,34 +5,34 @@ import { resolveAvatarUrl } from './commitTooltipUtils';
 type AvatarSource = 'github' | 'gravatar';
 
 /** In-memory cache entry — stores Blob URL for direct <img> consumption */
-type AvatarEntry = {
+interface AvatarEntry {
   blobUrl: string;
   fetchedAt: number;
   expiresAt: number;
   source: AvatarSource;
-};
+}
 
 /** TTL cache wrapper (mirrors cacheHelpers.ts TTLCacheEntry, kept local to avoid coupling) */
-type TTLCacheEntry<V> = {
+interface TTLCacheEntry<V> {
   value: V;
   expiresAt: number;
-};
+}
 
 /** IndexedDB record — stores raw Blob for persistence */
-type AvatarRecord = {
+interface AvatarRecord {
   email: string;
   blob: Blob;
   fetchedAt: number;
   expiresAt: number;
   source: AvatarSource;
-};
+}
 
 // ── Constants ──
 
 const AVATAR_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const AVATAR_LRU_LIMIT = 200;
 const AVATAR_DB_NAME = 'adl-avatars';
-const AVATAR_DB_VERSION = 1;
+const AVATAR_DB_VERSION = 2;
 const AVATAR_STORE = 'avatars';
 
 // ── Email normalization ──
@@ -46,15 +46,22 @@ function normalizeEmail(email: string): string {
 let dbPromise: Promise<IDBDatabase> | null = null;
 
 function openAvatarDB(): Promise<IDBDatabase> {
-  if (dbPromise) return dbPromise;
+  if (dbPromise) {
+    return dbPromise;
+  }
   dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
       reject(new Error('IndexedDB unavailable'));
       return;
     }
     const req = indexedDB.open(AVATAR_DB_NAME, AVATAR_DB_VERSION);
-    req.onupgradeneeded = () => {
+    req.onupgradeneeded = (event) => {
       const db = req.result;
+      const oldVersion = event.oldVersion;
+      // Version 2: URL scheme changed (d=retro → d=404), invalidate all cached avatars
+      if (oldVersion < 2 && db.objectStoreNames.contains(AVATAR_STORE)) {
+        db.deleteObjectStore(AVATAR_STORE);
+      }
       if (!db.objectStoreNames.contains(AVATAR_STORE)) {
         db.createObjectStore(AVATAR_STORE, { keyPath: 'email' });
       }
@@ -165,7 +172,9 @@ function setMemoryEntry(key: string, entry: AvatarEntry): void {
   // LRU eviction: evict oldest entries when over capacity
   while (avatarMemoryCache.size > AVATAR_LRU_LIMIT) {
     const oldestKey = avatarMemoryCache.keys().next().value;
-    if (oldestKey === undefined) break;
+    if (oldestKey === undefined) {
+      break;
+    }
     const oldest = avatarMemoryCache.get(oldestKey);
     if (oldest) {
       URL.revokeObjectURL(oldest.value.blobUrl);
@@ -176,16 +185,25 @@ function setMemoryEntry(key: string, entry: AvatarEntry): void {
 
 // ── Network fetch ──
 
-type FetchResult = { blob: Blob; source: AvatarSource };
+interface FetchResult {
+  blob: Blob;
+  source: AvatarSource;
+}
 
 async function fetchAvatarFromNetwork(email: string, size: number): Promise<FetchResult | null> {
   const url = resolveAvatarUrl(email, size);
-  if (!url) return null;
+  if (!url) {
+    return null;
+  }
   try {
     const response = await fetch(url, { mode: 'cors' });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      return null;
+    }
     const blob = await response.blob();
-    if (blob.size === 0 || !blob.type.startsWith('image/')) return null;
+    if (blob.size === 0 || !blob.type.startsWith('image/')) {
+      return null;
+    }
     const source: AvatarSource = url.includes('github.com') ? 'github' : 'gravatar';
     return { blob, source };
   } catch {
@@ -195,13 +213,11 @@ async function fetchAvatarFromNetwork(email: string, size: number): Promise<Fetc
 
 // ── Write to both L1 and L2 ──
 
-export async function setAvatar(
-  email: string,
-  blob: Blob,
-  source: AvatarSource,
-): Promise<void> {
+export async function setAvatar(email: string, blob: Blob, source: AvatarSource): Promise<void> {
   const key = normalizeEmail(email);
-  if (!key) return;
+  if (!key) {
+    return;
+  }
 
   const now = Date.now();
   const blobUrl = URL.createObjectURL(blob);
@@ -234,7 +250,9 @@ const inflight = new Map<string, Promise<string | null>>();
 const pendingRevalidations = new Set<string>();
 
 function scheduleRevalidate(key: string, size: number): void {
-  if (pendingRevalidations.has(key)) return;
+  if (pendingRevalidations.has(key)) {
+    return;
+  }
   pendingRevalidations.add(key);
 
   // setTimeout(0) — async, does not block current render
@@ -264,7 +282,9 @@ function scheduleRevalidate(key: string, size: number): void {
  */
 export async function getAvatar(email: string, size: number): Promise<string | null> {
   const key = normalizeEmail(email);
-  if (!key) return null;
+  if (!key) {
+    return null;
+  }
 
   // 1. Check L1 memory synchronously
   const memEntry = avatarMemoryCache.get(key);
@@ -310,7 +330,9 @@ async function doGetAvatar(key: string, size: number): Promise<string | null> {
 
   // 3. Network fetch (L1 and L2 both missed)
   const result = await fetchAvatarFromNetwork(key, size);
-  if (!result) return null;
+  if (!result) {
+    return null;
+  }
   await setAvatar(key, result.blob, result.source);
 
   // Read back from L1 (setAvatar just wrote it)
@@ -335,7 +357,9 @@ export async function clearAvatarCache(): Promise<void> {
 /** Remove a single avatar entry by email. */
 export async function evictAvatar(email: string): Promise<void> {
   const key = normalizeEmail(email);
-  if (!key) return;
+  if (!key) {
+    return;
+  }
   revokeMemoryEntry(key);
   await idbDelete(key);
 }
