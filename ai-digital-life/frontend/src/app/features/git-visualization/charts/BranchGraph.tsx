@@ -50,16 +50,16 @@ const AuthorAvatar = React.memo(function AuthorAvatar({
   const [src, setSrc] = useState<string>(pixelAvatar);
 
   useEffect(() => {
-    if (!email) {
-      setSrc(pixelAvatar);
-      return;
-    }
+    // Always reset to pixel avatar first — ensures correct color when email changes
+    // (useState only initializes on mount, so prop changes need explicit sync)
+    setSrc(pixelAvatar);
+    if (!email) return;
     let cancelled = false;
     getAvatar(email, size).then((cachedUrl) => {
       if (!cancelled && cachedUrl) {
         setSrc(cachedUrl);
       }
-      // If cachedUrl is null, keep pixelAvatar (already set as initial state)
+      // If cachedUrl is null, pixelAvatar (set above) remains as fallback
     });
     return () => {
       cancelled = true;
