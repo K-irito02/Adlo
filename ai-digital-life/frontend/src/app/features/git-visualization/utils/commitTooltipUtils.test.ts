@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDate, getGravatarUrl, md5 } from './commitTooltipUtils';
+import { formatDate, generatePixelAvatar, getGravatarUrl, md5 } from './commitTooltipUtils';
 
 describe('md5', () => {
   it('produces correct MD5 hash for known input', () => {
@@ -17,10 +17,10 @@ describe('md5', () => {
 });
 
 describe('getGravatarUrl', () => {
-  it('generates correct Gravatar URL with retro fallback', () => {
+  it('generates correct Gravatar URL with 404 fallback', () => {
     const md5Hash = md5('alex@example.com');
     expect(getGravatarUrl('alex@example.com', 32)).toBe(
-      `https://www.gravatar.com/avatar/${md5Hash}?s=32&d=retro`,
+      `https://www.gravatar.com/avatar/${md5Hash}?s=32&d=404`,
     );
   });
 
@@ -45,11 +45,61 @@ describe('getGravatarUrl', () => {
     expect(url).toBe('https://github.com/alex.png');
   });
 
-  it('uses Gravatar for non-noreply emails with retro fallback', () => {
+  it('uses Gravatar for non-noreply emails with 404 fallback', () => {
     const url = getGravatarUrl('alex@example.com', 32);
     expect(url).toContain('gravatar.com/avatar');
-    expect(url).toContain('d=retro');
+    expect(url).toContain('d=404');
     expect(url).toContain('s=32');
+  });
+});
+
+describe('generatePixelAvatar', () => {
+  it('returns a data URI with SVG content', () => {
+    const result = generatePixelAvatar('alex@example.com', 20);
+    expect(result.startsWith('data:image/svg+xml,')).toBe(true);
+  });
+
+  it('produces deterministic output for the same email', () => {
+    const a = generatePixelAvatar('alex@example.com', 20);
+    const b = generatePixelAvatar('alex@example.com', 20);
+    expect(a).toBe(b);
+  });
+
+  it('produces different output for different emails', () => {
+    const a = generatePixelAvatar('alex@example.com', 20);
+    const b = generatePixelAvatar('bob@example.com', 20);
+    expect(a).not.toBe(b);
+  });
+
+  it('is case-insensitive and trims whitespace (matches gravatar semantics)', () => {
+    const a = generatePixelAvatar('Alex@Example.com ', 20);
+    const b = generatePixelAvatar('alex@example.com', 20);
+    expect(a).toBe(b);
+  });
+
+  it('handles empty email without throwing', () => {
+    expect(() => generatePixelAvatar('', 20)).not.toThrow();
+    expect(() => generatePixelAvatar('   ', 20)).not.toThrow();
+  });
+
+  it('handles undefined email without throwing', () => {
+    expect(() => generatePixelAvatar(undefined as unknown as string, 20)).not.toThrow();
+  });
+
+  it('embeds the requested size in the SVG', () => {
+    const result = decodeURIComponent(generatePixelAvatar('alex@example.com', 32));
+    expect(result).toContain('width="32"');
+    expect(result).toContain('height="32"');
+  });
+
+  it('uses default size 20 when not specified', () => {
+    const result = decodeURIComponent(generatePixelAvatar('alex@example.com'));
+    expect(result).toContain('width="20"');
+  });
+
+  it('always returns a non-empty string', () => {
+    expect(generatePixelAvatar('alex@example.com', 20).length).toBeGreaterThan(0);
+    expect(generatePixelAvatar('', 20).length).toBeGreaterThan(0);
   });
 });
 

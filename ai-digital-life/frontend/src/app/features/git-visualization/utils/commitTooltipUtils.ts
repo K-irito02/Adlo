@@ -142,7 +142,7 @@ registerAvatarResolver({
   priority: 100,
   resolve(email: string, size: number): string | null {
     const hash = md5(email.trim().toLowerCase());
-    return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=retro`;
+    return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=404`;
   },
 });
 
@@ -164,6 +164,55 @@ export function resolveAvatarUrl(email: string, size = 80): string {
 
 /** @deprecated Use resolveAvatarUrl instead */
 export const getGravatarUrl = resolveAvatarUrl;
+
+/**
+ * Generate a local pixel-art avatar as an SVG data URI.
+ *
+ * Uses a 5x5 symmetric grid identicon derived from the email MD5 hash:
+ * - 15 independent cells (left 3 columns, mirrored to the right 2)
+ * - Each cell is filled or empty based on a hash bit
+ * - Color (HSL) is derived from the hash for visual variety
+ *
+ * This is purely local — no network request — so it can be shown instantly
+ * while the real avatar (GitHub / Gravatar) loads asynchronously. When the
+ * real avatar loads successfully the caller swaps the <img src>; on failure
+ * the pixel avatar remains, so a broken image is never displayed.
+ *
+ * For empty/whitespace emails a deterministic fallback is still produced.
+ */
+export function generatePixelAvatar(email: string, size: number = 20): string {
+  const hash = md5((email ?? '').trim().toLowerCase());
+  const cells: boolean[] = [];
+  for (let i = 0; i < 15; i++) {
+    cells.push(parseInt(hash.charAt(i), 16) % 2 === 0);
+  }
+  const hue = parseInt(hash.substring(15, 18), 16) % 360;
+  const sat = 55 + (parseInt(hash.charAt(18), 16) % 25);
+  const light = 45 + (parseInt(hash.charAt(19), 16) % 15);
+  const color = `hsl(${hue}, ${sat}%, ${light}%)`;
+  const bg = '#f3f4f6';
+
+  const cellSize = size / 5;
+  let rects = '';
+  for (let row = 0; row < 5; row++) {
+    for (let col = 0; col < 5; col++) {
+      const mirrorCol = col < 3 ? col : 4 - col;
+      const idx = row * 3 + mirrorCol;
+      if (cells[idx]) {
+        const x = (col * cellSize).toFixed(3);
+        const y = (row * cellSize).toFixed(3);
+        const cs = cellSize.toFixed(3);
+        rects += `<rect x="${x}" y="${y}" width="${cs}" height="${cs}" fill="${color}"/>`;
+      }
+    }
+  }
+
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"` +
+    ` viewBox="0 0 ${size} ${size}">` +
+    `<rect width="${size}" height="${size}" fill="${bg}"/>${rects}</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
 
 /** Format a date string for display */
 export function formatDate(dateStr: string, locale: string, mode: 'table' | 'tooltip'): string {
