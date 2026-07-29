@@ -205,6 +205,10 @@ mod windows {
   ) -> LRESULT {
     match msg {
       WM_SIZE => {
+        thread_local! {
+          static SET_WINDOW_RGN_SKIP_COUNTER: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+        }
+
         let data = data as *mut UndecoratedResizingData;
         let data = &*data;
         let child = data.child;
@@ -238,7 +242,18 @@ mod windows {
               SWP_ASYNCWINDOWPOS | SWP_NOACTIVATE | SWP_NOOWNERZORDER | SWP_NOMOVE,
             );
 
-            set_drag_hwnd_rgn(child, width, height, has_undecorated_shadows);
+            // Throttle SetWindowRgn: only execute every 5th call to prevent
+            // progressive message pump degradation (tauri#15569).
+            // SetWindowRgn with CombineRgn triggers extra WM_NCCALCSIZE/WM_NCPAINT
+            // messages that compound through Tauri's heavier event loop pipeline.
+            // SetWindowPos alone is cheap and not the source of degradation.
+            SET_WINDOW_RGN_SKIP_COUNTER.with(|counter| {
+              let current = counter.get();
+              counter.set(current.wrapping_add(1));
+              if current % 5 == 0 {
+                set_drag_hwnd_rgn(child, width, height, has_undecorated_shadows);
+              }
+            });
           }
         }
       }
