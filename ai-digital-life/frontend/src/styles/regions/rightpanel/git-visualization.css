@@ -101,10 +101,10 @@
 
 /* ── Branch Graph ── */
 .adl-branch-graph__row {
-  transition:
-    background 0.15s,
-    opacity 0.15s;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 36px;
   border-radius: var(--radius-sm);
+  transition: background 0.1s ease, opacity 0.1s ease;
 }
 
 .adl-branch-graph__row:hover {
@@ -154,13 +154,9 @@
 .adl-branch-graph__label {
   position: relative;
   flex-shrink: 0;
-  transition:
-    opacity 0.15s,
-    box-shadow 0.15s,
-    filter 0.15s;
 }
 
-/* Indicator bar — absolutely positioned above button */
+/* Indicator bar — absolutely positioned above button (compositor-only via will-change) */
 .adl-branch-graph__label::before {
   content: '';
   position: absolute;
@@ -170,24 +166,28 @@
   height: 2px;
   border-radius: 1px;
   background: var(--text-primary);
-  transform: scaleX(0);
-  transition: transform 0.2s ease;
+  transform: scaleX(0) translateZ(0);
+  transition: transform 0.15s ease;
   pointer-events: none;
 }
 .adl-branch-graph__label[data-indicator='true']::before {
-  transform: scaleX(1);
+  transform: scaleX(1) translateZ(0);
 }
 
 .adl-branch-graph__label-drag {
   display: inline-flex;
   flex-shrink: 0;
   margin-right: 1px;
+  transition: transform 0.08s ease;
+}
+.adl-branch-graph__label-drag:hover {
+  will-change: transform;
 }
 
-/* Scale on hover-only or selected-only (XOR) — highlight effect for both themes */
+/* Scale on hover-only or selected-only (XOR) — instant via border, no paint-heavy filter */
 .adl-branch-graph__label[data-scale='true'] {
-  box-shadow: inset 0 0 0 2px var(--border-default);
-  filter: brightness(1.10);
+  outline: 2px solid var(--border-default);
+  outline-offset: -2px;
 }
 
 /* Text truncation span */
@@ -279,6 +279,7 @@
   padding-right: 24px;
   min-height: 34px;
   border-bottom: 1px solid var(--border-subtle);
+  contain: layout style paint;
 }
 .adl-branch-graph__tag-row--sticky::-webkit-scrollbar {
   display: none;

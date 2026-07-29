@@ -1,6 +1,6 @@
 import type { HeatmapColumn, HeatmapBin } from '@/components/charts/heatmap/heatmap-context';
 import type { BklitAreaRow } from '../../../../test-fixtures/gitVisMockData';
-import type { CommitNode, CommitEdge } from '../../../../test-fixtures/gitVisMockData';
+import type { CommitNode, CommitEdge } from '../types/gitGraph';
 
 export interface RawCommitStats {
   dailyCommits: { date: string; count: number }[];

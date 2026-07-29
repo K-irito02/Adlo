@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { computeColumns } from '../useLaneAssignment';
-import type { CommitNode, CommitEdge } from '../../../../../test-fixtures/gitVisMockData';
+import type { CommitNode, CommitEdge } from '../../types/gitGraph';
 
 const isDark = true;
 

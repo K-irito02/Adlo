@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, useMemo } from 'react';
 import { TCopyContext, type TCopyContextValue } from './TCopyContext';
 import { formatT } from './formatT';
 
@@ -7,7 +7,7 @@ export function useTCopy(): TCopyContextValue & { formatT: typeof formatT } {
   if (!ctx) {
     throw new Error('useTCopy must be used within a TCopyProvider');
   }
-  return { ...ctx, formatT };
+  return useMemo(() => ({ ...ctx, formatT }), [ctx]);
 }
 
 export type { TCopyContextValue };

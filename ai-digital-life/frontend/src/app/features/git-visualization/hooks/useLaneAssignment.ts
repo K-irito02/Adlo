@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { CommitNode, CommitEdge } from '../../../../test-fixtures/gitVisMockData';
+import type { CommitNode, CommitEdge } from '../types/gitGraph';
 
 const GOLDEN_ANGLE = 137.508;
 

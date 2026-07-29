@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { CHART_IDS } from '../chartIds';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
@@ -32,9 +32,14 @@ export function useChartData(chartId: string): {
   const chartTimeRange = wsTimeRange?.[chartId];
 
   const timeRange = chartTimeRange;
+  const initializedRef = useRef(false);
 
   useEffect(() => {
+    if (initializedRef.current) {
+      return;
+    }
     if (TIME_RANGE_CHARTS.has(chartId) && !chartTimeRange && activeWorkspaceTab) {
+      initializedRef.current = true;
       setGitVisTimeRange(activeWorkspaceTab, chartId, defaultTimeRange());
     }
   }, [chartId, chartTimeRange, activeWorkspaceTab, setGitVisTimeRange]);

@@ -1,18 +1,19 @@
-import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useMemo, useState, useCallback, useRef, useEffect, useDeferredValue } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { CopyButton } from '@components/CopyButton';
 import { TooltipSimple } from '@components/Tooltip';
 import { useBklitTheme } from '../hooks/useBklitTheme';
 import { adaptBranchGraphData } from '../adapters/chartDataAdapters';
 import { useLaneAssignment } from '../hooks/useLaneAssignment';
+import { useMouseDragReorder } from '../hooks/useMouseDragReorder';
 import { formatDate, resolveAvatarUrl, md5 } from '../utils/commitTooltipUtils';
 import { IconFileText } from '@icons/status';
 import type { ColumnInfo } from '../hooks/useLaneAssignment';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
-import type { CommitNode, CommitEdge } from '../../../../test-fixtures/gitVisMockData';
+import type { CommitNode, CommitEdge } from '../types/gitGraph';
 
 // ── Constants ──
+const emptyArr: never[] = [];
 const LANE_WIDTH = 24;
 const LANE_GAP = 8;
 const ROW_HEIGHT = 36;
@@ -207,7 +208,6 @@ interface SvgLanesProps {
   edges: CommitEdge[];
   totalWidth: number;
   totalHeight: number;
-  hoveredId: string | null;
   nodeStroke: string;
   filterColumns: Set<number>;
   hoveredBranch: string | null;
@@ -222,7 +222,6 @@ const SvgLanes = React.memo(function SvgLanes({
   edges,
   totalWidth,
   totalHeight,
-  hoveredId,
   nodeStroke,
   filterColumns,
   hoveredBranch,
@@ -355,8 +354,7 @@ const SvgLanes = React.memo(function SvgLanes({
       rows.map((row, i) => {
         const x = getLaneX(visualIndex(row.column));
         const y = nodeY(i);
-        const isHovered = hoveredId === row.node.id;
-        const r = isHovered ? NODE_RADIUS * 1.2 : NODE_RADIUS;
+        const r = NODE_RADIUS;
         const byCol =
           filterColumns.size > 0 &&
           !filterColumns.has(row.column) &&
@@ -385,7 +383,7 @@ const SvgLanes = React.memo(function SvgLanes({
         }
 
         if (row.isMerge) {
-          const s = isHovered ? MERGE_NODE_SIZE * 1.2 : MERGE_NODE_SIZE;
+          const s = MERGE_NODE_SIZE;
           return (
             <rect
               key={`node-${row.node.id}`}
@@ -417,7 +415,6 @@ const SvgLanes = React.memo(function SvgLanes({
       }),
     [
       rows,
-      hoveredId,
       filterColumns,
       hoveredBranch,
       activeRefLabel,
@@ -441,6 +438,419 @@ const SvgLanes = React.memo(function SvgLanes({
       {nodes}
     </svg>
   );
+}, (prev, next) => prev.rows === next.rows && prev.columns === next.columns && prev.columnOrder === next.columnOrder && prev.edges === next.edges && prev.totalWidth === next.totalWidth && prev.totalHeight === next.totalHeight && prev.nodeStroke === next.nodeStroke && prev.filterColumns === next.filterColumns && prev.hoveredBranch === next.hoveredBranch && prev.aheadRows === next.aheadRows && prev.activeRefLabel === next.activeRefLabel);
+
+// ── Extracted Commit Table Rows (memo'd to prevent re-render on hoveredId change) ──
+
+interface CommitTableRowsProps {
+  visibleRows: RowData[];
+  filterColumns: Set<number>;
+  activeRefLabel: string | null;
+  hoveredLabel: string | null;
+  theme: ReturnType<typeof useBklitTheme>;
+  t: ReturnType<typeof useTCopy>['t'];
+  locale: string;
+}
+
+const CommitTableRows = React.memo(function CommitTableRows({
+  visibleRows,
+  filterColumns,
+  activeRefLabel,
+  hoveredLabel,
+  theme,
+  t,
+  locale,
+}: CommitTableRowsProps) {
+  return (
+    <div className="adl-branch-graph__table-panel">
+      <div
+        className="adl-branch-graph__header"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '80px 1fr 120px 100px',
+          gap: 8,
+          padding: '4px 8px',
+          fontSize: 11,
+          fontWeight: 600,
+          color: theme.muted,
+          borderBottom: `1px solid ${theme.grid}`,
+        }}
+      >
+        <span>{t.gitVisHash}</span>
+        <span>{t.gitVisMessage}</span>
+        <span>{t.gitVisAuthor}</span>
+        <span>{t.gitVisDate}</span>
+      </div>
+      {visibleRows.map((row) => {
+        const byCol =
+          filterColumns.size > 0 &&
+          !filterColumns.has(row.column) &&
+          row.node.branch !== hoveredLabel;
+        const byRef = !!activeRefLabel && !row.node.refs?.includes(activeRefLabel);
+        const isFiltered =
+          filterColumns.size > 0 && !!activeRefLabel ? byCol && byRef : byCol || byRef;
+        const additionalRefs =
+          row.node.refs?.filter(
+            (ref) =>
+              ref !== row.node.branch && !ref.startsWith('origin/') && !ref.startsWith('upstream/'),
+          ) ?? [];
+        return (
+          <div
+            key={row.node.id}
+            className={`adl-branch-graph__row${isFiltered ? ' adl-branch-graph__row--dimmed' : ''}`}
+            data-branch={row.node.branch}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '80px 1fr 120px 100px',
+              gap: 8,
+              padding: '4px 8px',
+              fontSize: 12,
+              lineHeight: ROW_HEIGHT - 8 + 'px',
+              cursor: 'default',
+              borderRadius: 4,
+              opacity: isFiltered ? 0.25 : 1,
+              minHeight: ROW_HEIGHT,
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono, monospace)',
+                  color: theme.text,
+                  fontSize: 11,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {row.node.shortHash || row.node.hash}
+              </span>
+              <span className="adl-branch-graph__copy-hash">
+                <CopyButton
+                  text={row.node.hash}
+                  size={11}
+                  tooltip={t.gitVisCopyHash}
+                  nativeTooltip
+                />
+              </span>
+            </span>
+            <span
+              style={{
+                color: theme.text,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                minWidth: 0,
+              }}
+            >
+              {row.node.message}
+              {row.node.tag && (
+                <span
+                  className="adl-branch-graph__tag"
+                  style={{
+                    marginLeft: 8,
+                    padding: '1px 4px',
+                    borderRadius: 2,
+                    background: row.color,
+                    color: '#fff',
+                    fontSize: 9,
+                    fontWeight: 600,
+                    lineHeight: 1,
+                  }}
+                >
+                  {row.node.tag}
+                </span>
+              )}
+              {additionalRefs.length > 0 && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    gap: 2,
+                    marginLeft: 4,
+                    verticalAlign: 'middle',
+                    flexShrink: 0,
+                  }}
+                >
+                  {additionalRefs.slice(0, 3).map((ref) => (
+                    <span key={ref} className="adl-branch-graph__commit-badge">
+                      {ref}
+                    </span>
+                  ))}
+                  {additionalRefs.length > 3 && (
+                    <span className="adl-branch-graph__commit-badge">
+                      +{additionalRefs.length - 3}
+                    </span>
+                  )}
+                </span>
+              )}
+            </span>
+            <span
+              style={{
+                color: theme.muted,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              <AuthorAvatar
+                name={row.node.author}
+                src={resolveAvatarUrl(row.node.authorEmail, 20)}
+                email={row.node.authorEmail}
+              />
+              {row.node.author}
+              <TooltipSimple
+                content={
+                  <CommitTooltipCard
+                    hash={row.node.hash}
+                    message={row.node.message}
+                    author={row.node.author}
+                    authorEmail={row.node.authorEmail}
+                    date={row.node.date}
+                  />
+                }
+                placement="right"
+                showArrow
+                maxWidth={400}
+                className="adl-hint-card"
+              >
+                <button
+                  type="button"
+                  className="adl-branch-graph__info-btn"
+                  tabIndex={-1}
+                  aria-label=""
+                >
+                  <IconFileText size={14} />
+                </button>
+              </TooltipSimple>
+            </span>
+            <span style={{ color: theme.muted }}>{formatDate(row.node.date, locale, 'table')}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}, (prev, next) => prev.visibleRows === next.visibleRows && prev.filterColumns === next.filterColumns && prev.activeRefLabel === next.activeRefLabel && prev.hoveredLabel === next.hoveredLabel && prev.theme === next.theme && prev.t === next.t && prev.locale === next.locale);
+
+// ── Extracted Tag Row (memo'd to prevent re-render of table/SVG during drag) ──
+
+interface TagRowProps {
+  tagRowOrder: string[];
+  columnsWithLabels: LabelColumnInfo[];
+  filterColumns: Set<number>;
+  draggedId: string | null;
+  overId: string | null;
+  isDark: boolean;
+  handleMouseDown: (id: string) => (e: React.MouseEvent) => void;
+  handleLabelClick: (colIndices: number[]) => void;
+  selectedLabels: Set<string>;
+  setSelectedLabels: React.Dispatch<React.SetStateAction<Set<string>>>;
+  t: ReturnType<typeof useTCopy>['t'];
+}
+
+const TagRow = React.memo(function TagRow({
+  tagRowOrder,
+  columnsWithLabels,
+  filterColumns,
+  draggedId,
+  overId,
+  isDark,
+  handleMouseDown,
+  handleLabelClick,
+  selectedLabels,
+  setSelectedLabels,
+  t,
+}: TagRowProps) {
+  const tagRowRef = useRef<HTMLDivElement>(null);
+  const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
+  const handleTagRowWheelInner = useCallback((e: React.WheelEvent) => {
+    const el = tagRowRef.current;
+    if (!el) {
+      return;
+    }
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    if (maxScroll <= 0) {
+      return;
+    }
+    e.preventDefault();
+    const absDx = Math.abs(e.deltaX);
+    const absDy = Math.abs(e.deltaY);
+    el.scrollLeft += absDx > absDy ? e.deltaX : e.deltaY;
+  }, []);
+
+  return (
+    <div
+      ref={tagRowRef}
+      className="adl-branch-graph__tag-row--sticky"
+      onWheel={handleTagRowWheelInner}
+    >
+      {tagRowOrder.map((itemId) => {
+        if (itemId.startsWith('col-')) {
+          const colIndex = Number(itemId.slice(4));
+          const col = columnsWithLabels.find((c) => c.index === colIndex);
+          if (!col) {
+            return null;
+          }
+          const fcs: number[] = col.filterCols ?? [col.index];
+          const isSelected = fcs.some((i) => filterColumns.has(i));
+          const isHovered = hoveredLabel === col.label;
+          const showIndicator = isSelected || isHovered;
+          const showScale = (isHovered && !isSelected) || (!isHovered && isSelected);
+          return (
+            <React.Fragment key={itemId}>
+              <div
+                className="adl-branch-graph__label-drag"
+                data-drag-id={itemId}
+                onMouseDown={handleMouseDown(itemId)}
+                style={{
+                  opacity: draggedId === itemId ? 0.4 : 1,
+                  borderLeft: overId === itemId && draggedId !== itemId ? (isDark ? '2px solid #fff' : '2px solid #000') : undefined,
+                  borderRight: overId === itemId && draggedId !== itemId ? (isDark ? '2px solid #fff' : '2px solid #000') : undefined,
+                  boxShadow: overId === itemId && draggedId !== itemId ? (isDark ? '0 0 4px #fff' : '0 0 4px #000') : undefined,
+                  transition: 'opacity 0.1s',
+                }}
+              >
+                <button
+                  className="adl-branch-graph__label"
+                  data-indicator={showIndicator ? 'true' : undefined}
+                  data-scale={showScale ? 'true' : undefined}
+                  onClick={() => handleLabelClick(fcs)}
+                  onMouseEnter={() => !draggedId && setHoveredLabel(col.label ?? null)}
+                  onMouseLeave={() => !draggedId && setHoveredLabel(null)}
+                  style={{
+                    padding: '2px 8px',
+                    borderRadius: 0,
+                    background: col.color,
+                    color: '#fff',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
+                    opacity:
+                      selectedLabels.size === 0 || fcs.some((i) => selectedLabels.has(`col-${i}`))
+                        ? 1
+                        : 0.4,
+                  }}
+                >
+                  <span
+                    className="adl-branch-graph__label-text"
+                    title={
+                      col.branchProgress
+                        ? col.branchProgress.mergeBase
+                          ? t.gitVisProgressTooltip
+                              .replace('{label}', col.label ?? '')
+                              .replace('{ahead}', String(col.branchProgress.ahead))
+                              .replace('{behind}', String(col.branchProgress.behind)) +
+                            ' | ' +
+                            t.gitVisProgressBase +
+                            ': ' +
+                            col.branchProgress.mergeBase.substring(0, 7)
+                          : (col.label ?? '') + ' — ' + t.gitVisLocalOnly
+                        : (col.label ?? '')
+                    }
+                  >
+                    {col.label ?? ''}
+                  </span>
+                  {col.branchProgress?.mergeBase ? (
+                    <span className="adl-branch-graph__label-progress" style={{ marginLeft: 2 }}>
+                      {col.branchProgress.ahead > 0 && (
+                        <span>
+                          <span style={{ fontSize: 16, fontWeight: 700 }}>↑</span>
+                          <span style={{ fontSize: 11 }}>{col.branchProgress.ahead}</span>
+                        </span>
+                      )}
+                      {col.branchProgress.behind > 0 && (
+                        <span>
+                          <span style={{ fontSize: 16, fontWeight: 700 }}>↓</span>
+                          <span style={{ fontSize: 11 }}>{col.branchProgress.behind}</span>
+                        </span>
+                      )}
+                    </span>
+                  ) : null}
+                </button>
+              </div>
+            </React.Fragment>
+          );
+        } else if (itemId.startsWith('ref:')) {
+          const refName = itemId.slice(4);
+          const bgColor = getRefLabelColor(refName);
+          const isActive = selectedLabels.has(itemId);
+          const showIndicator = hoveredLabel === refName || isActive;
+          const showScale = (hoveredLabel === refName) !== isActive;
+          return (
+            <div
+              key={itemId}
+              className="adl-branch-graph__label-drag"
+              data-drag-id={itemId}
+              onMouseDown={handleMouseDown(itemId)}
+              style={{
+                opacity: draggedId === itemId
+                  ? 0.4
+                  : selectedLabels.size === 0 || selectedLabels.has(itemId)
+                    ? 1
+                    : 0.4,
+                borderLeft: overId === itemId && draggedId !== itemId ? (isDark ? '2px solid #fff' : '2px solid #000') : undefined,
+                borderRight: overId === itemId && draggedId !== itemId ? (isDark ? '2px solid #fff' : '2px solid #000') : undefined,
+                boxShadow: overId === itemId && draggedId !== itemId ? (isDark ? '0 0 4px #fff' : '0 0 4px #000') : undefined,
+                transition: 'opacity 0.1s',
+              }}
+            >
+              <button
+                className="adl-branch-graph__label"
+                data-indicator={showIndicator ? 'true' : undefined}
+                data-scale={showScale ? 'true' : undefined}
+                onClick={() => setSelectedLabels((prev) => {
+                    const id = `ref:${refName}`;
+                    if (prev.has(id)) {
+                      const next = new Set(prev);
+                      next.delete(id);
+                      return next;
+                    }
+                    const next = new Set(prev);
+                    for (const key of next) {
+                      if (key.startsWith('ref:')) {
+                        next.delete(key);
+                      }
+                    }
+                    next.add(id);
+                    return next;
+                  })}
+                onMouseEnter={() => !draggedId && setHoveredLabel(refName)}
+                onMouseLeave={() => !draggedId && setHoveredLabel(null)}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: 0,
+                  background: bgColor,
+                  color: '#fff',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  lineHeight: 1,
+                  opacity: 1,
+                }}
+                title={t.gitVisLocalOnly ? refName + ' — ' + t.gitVisLocalOnly : refName}
+              >
+                {refName}
+              </button>
+            </div>
+          );
+        }
+        return null;
+      })}
+    </div>
+  );
 });
 
 // ── Main component ──
@@ -455,9 +865,10 @@ export function BranchGraph({ data }: BranchGraphProps) {
   const { t } = useTCopy();
   const locale = navigator.language || 'en-US';
   const theme = useBklitTheme();
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
   const [selectedLabels, setSelectedLabels] = useState<Set<string>>(new Set());
-  // Derive internal filter states from unified selectedLabels
+  const deferredSelectedLabels = useDeferredValue(selectedLabels);
+  // Derive internal filter states from unified selectedLabels (immediate for TagRow)
   const filterColumns = useMemo(() => {
     const cols = new Set<number>();
     for (const id of selectedLabels) {
@@ -468,7 +879,17 @@ export function BranchGraph({ data }: BranchGraphProps) {
     return cols;
   }, [selectedLabels]);
   const activeRefLabel = [...selectedLabels].find((id) => id.startsWith('ref:'))?.slice(4) ?? null;
-  const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
+  // Deferred versions for CommitTableRows/SvgLanes (avoids blocking label feedback)
+  const deferredFilterColumns = useMemo(() => {
+    const cols = new Set<number>();
+    for (const id of deferredSelectedLabels) {
+      if (id.startsWith('col-')) {
+        cols.add(Number(id.slice(4)));
+      }
+    }
+    return cols;
+  }, [deferredSelectedLabels]);
+  const deferredActiveRefLabel = [...deferredSelectedLabels].find((id) => id.startsWith('ref:'))?.slice(4) ?? null;
 
   const adapted = useMemo(() => (data ? adaptBranchGraphData(data) : null), [data]);
   // Preload avatar images so tooltip card shows them instantly
@@ -488,32 +909,19 @@ export function BranchGraph({ data }: BranchGraphProps) {
   }, [adapted]);
   const hasData = data != null;
 
-  const tagRowRef = useRef<HTMLDivElement>(null);
-  const scrollBodyRef = useRef<HTMLDivElement>(null);
-
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const [visibleCount, setVisibleCount] = useState(() => INITIAL_LOAD);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  const handleTagRowWheel = useCallback((e: React.WheelEvent) => {
-    const el = tagRowRef.current;
-    if (!el) {
-      return;
-    }
-    const maxScroll = el.scrollWidth - el.clientWidth;
-    if (maxScroll <= 0) {
-      return;
-    }
-    e.preventDefault();
-    const absDx = Math.abs(e.deltaX);
-    const absDy = Math.abs(e.deltaY);
-    el.scrollLeft += absDx > absDy ? e.deltaX : e.deltaY;
-  }, []);
-
   const isDark = theme.background !== '#ffffff';
+  // Stabilize empty array inputs to prevent cascading re-renders via useLaneAssignment
+  const laneInputs = useMemo(
+    () => (adapted ? { nodes: adapted.nodes, edges: adapted.edges } : null),
+    [adapted],
+  );
   const { columnOf, columns, sortedIds } = useLaneAssignment(
-    adapted?.nodes ?? [],
-    adapted?.edges ?? [],
+    laneInputs?.nodes ?? emptyArr,
+    laneInputs?.edges ?? emptyArr,
     isDark,
   );
 
@@ -541,124 +949,16 @@ export function BranchGraph({ data }: BranchGraphProps) {
     [],
   );
   const [tagRowOrder, setTagRowOrder] = useState<string[]>([]);
-  const tagRowOrderRef = useRef<string[]>([]);
-  useEffect(() => {
-    tagRowOrderRef.current = tagRowOrder;
-  }, [tagRowOrder]);
   // Derive column visual order from drag-adjusted tag row order
   const columnOrder = useMemo(
     () => tagRowOrder.filter((id) => id.startsWith('col-')).map((id) => Number(id.slice(4))),
     [tagRowOrder],
   );
-  // ── Direct drag-and-drop for tag row labels ──
-  const [dragColId, setDragColId] = useState<string | null>(null);
-  const dragSession = useRef<{ draggedId: string; startX: number; didDrag: boolean } | null>(null);
-  const ghostPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const ghostElRef = useRef<HTMLDivElement | null>(null);
-  const setGhostEl = useCallback((el: HTMLDivElement | null) => {
-    ghostElRef.current = el;
-  }, []);
-  const pendingOrderRef = useRef<string[] | null>(null);
-  const rafRef = useRef<number>(0);
-
-  const handleColMouseDown = useCallback(
-    (id: string) => (e: React.MouseEvent) => {
-      if (e.button !== 0) {
-        return;
-      }
-      e.preventDefault();
-      dragSession.current = { draggedId: id, startX: e.clientX, didDrag: false };
-      ghostPosRef.current = { x: e.clientX, y: e.clientY };
-    },
-    [],
+  // ── Drag-and-drop for tag row labels (simple, matches workspace tab pattern) ──
+  const { draggedId, overId, handleMouseDown } = useMouseDragReorder(
+    tagRowOrder,
+    setTagRowOrder,
   );
-
-  useEffect(() => {
-    const handleMove = (e: MouseEvent) => {
-      const s = dragSession.current;
-      if (!s) {
-        return;
-      }
-      ghostPosRef.current = { x: e.clientX, y: e.clientY };
-      const ghost = ghostElRef.current;
-      if (ghost) {
-        ghost.style.top = e.clientY + 'px';
-        ghost.style.left = e.clientX + 'px';
-      }
-
-      if (Math.abs(e.clientX - s.startX) <= 4) {
-        return;
-      }
-      s.didDrag = true;
-      setDragColId(s.draggedId);
-
-      const row = document.querySelector<HTMLElement>('.adl-branch-graph__tag-row--sticky');
-      if (!row) {
-        return;
-      }
-
-      const items = [...row.querySelectorAll<HTMLElement>('[data-drag-id]')];
-      const rects = items
-        .filter((el) => el.getAttribute('data-drag-id') !== s.draggedId)
-        .map((el) => ({
-          id: el.getAttribute('data-drag-id') || '',
-          mid: el.getBoundingClientRect().left + el.getBoundingClientRect().width / 2,
-        }));
-
-      let insertIdx = rects.length;
-      for (let i = 0; i < rects.length; i++) {
-        if (e.clientX < rects[i].mid) {
-          insertIdx = i;
-          break;
-        }
-      }
-
-      const current = tagRowOrderRef.current;
-      const next = current.filter((id) => id !== s.draggedId);
-      next.splice(insertIdx, 0, s.draggedId);
-      if (!next.some((id, i) => id !== current[i])) {
-        return;
-      }
-
-      pendingOrderRef.current = next;
-      if (!rafRef.current) {
-        rafRef.current = requestAnimationFrame(() => {
-          rafRef.current = 0;
-          if (pendingOrderRef.current) {
-            const newOrder = pendingOrderRef.current;
-            pendingOrderRef.current = null;
-            setTagRowOrder(newOrder);
-          }
-        });
-      }
-    };
-
-    const handleUp = () => {
-      const s = dragSession.current;
-      const draggedId = s?.draggedId;
-      const didDrag = s?.didDrag ?? false;
-      dragSession.current = null;
-      setDragColId(null);
-      // Suppress stray click after an actual drag (not a simple click)
-      if (draggedId && didDrag) {
-        const handler = (e: MouseEvent) => {
-          const el = document.querySelector(`[data-drag-id="${CSS.escape(draggedId)}"]`);
-          if (el && el.contains(e.target as Node)) {
-            e.stopPropagation();
-          }
-          window.removeEventListener('click', handler, true);
-        };
-        window.addEventListener('click', handler, true);
-      }
-    };
-
-    document.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-    return () => {
-      document.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-    };
-  }, []);
 
   // Branch head detection: first occurrence of each branch in topological order = HEAD
   const rows = useMemo(() => {
@@ -683,11 +983,10 @@ export function BranchGraph({ data }: BranchGraphProps) {
   }, [data]);
 
   useEffect(() => {
+    if (visibleCount >= rows.length) return;
     const sentinel = sentinelRef.current;
     const container = chartContainerRef.current;
-    if (!sentinel || !container) {
-      return;
-    }
+    if (!sentinel || !container) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
@@ -698,7 +997,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [rows.length]);
+  }, [visibleCount, rows.length]);
 
   const columnsWithLabels = useMemo((): LabelColumnInfo[] => {
     if (rows.length === 0 || !adapted) {
@@ -818,7 +1117,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
   }, [columns, rows, adapted]);
 
   // Merge new items when data loads, preserving drag-adjusted positions
-  const prevMergeKeyRef = useRef<string>('');
+  const prevMergeKeyRef = useRef<string | null>(null);
   useEffect(() => {
     const fresh = buildTagOrder(allColIndices, columnsWithLabels);
     const freshKey = fresh.join(',');
@@ -829,6 +1128,9 @@ export function BranchGraph({ data }: BranchGraphProps) {
     setTagRowOrder((prev) => {
       if (prev.length === 0) {
         return fresh;
+      }
+      if (fresh.length === 0) {
+        return prev;
       }
       const merged = prev.filter((id) => fresh.includes(id));
       for (const id of fresh) {
@@ -860,11 +1162,10 @@ export function BranchGraph({ data }: BranchGraphProps) {
     return ahead;
   }, [columnsWithLabels, rows]);
 
-  const totalLaneWidth = columns.length * (LANE_WIDTH + LANE_GAP);
-  const visibleRows = rows.slice(0, visibleCount);
-  const totalHeight = visibleRows.length * ROW_HEIGHT + 8;
+  const totalLaneWidth = useMemo(() => columns.length * (LANE_WIDTH + LANE_GAP), [columns]);
+  const visibleRows = useMemo(() => rows.slice(0, visibleCount), [rows, visibleCount]);
+  const totalHeight = useMemo(() => visibleRows.length * ROW_HEIGHT + 8, [visibleRows]);
 
-  const handleRowHover = useCallback((id: string | null) => setHoveredId(id), []);
   const handleLabelClick = useCallback((colIndices: number[]) => {
     const id = `col-${colIndices[0]}`;
     setSelectedLabels((prev) => {
@@ -890,188 +1191,24 @@ export function BranchGraph({ data }: BranchGraphProps) {
     );
   }
 
-  const portalInfo = (() => {
-    if (!dragColId) {
-      return null;
-    }
-    if (dragColId.startsWith('col-')) {
-      const col = columnsWithLabels.find((c) => `col-${c.index}` === dragColId);
-      return col ? { label: col.label ?? `#${col.index}`, color: col.color } : null;
-    }
-    if (dragColId.startsWith('ref:')) {
-      const name = dragColId.slice(4);
-      return { label: name, color: getRefLabelColor(name) };
-    }
-    return null;
-  })();
-
   return (
     <div className="adl-git-vis__chart" ref={chartContainerRef} style={{ overflowX: 'hidden' }}>
-      {/* Tag row — sticky top at chart level so it stays visible on scroll */}
-      <div
-        ref={tagRowRef}
-        className="adl-branch-graph__tag-row--sticky"
-        onWheel={handleTagRowWheel}
-      >
-        {tagRowOrder.map((itemId) => {
-          if (itemId.startsWith('col-')) {
-            const colIndex = Number(itemId.slice(4));
-            const col = columnsWithLabels.find((c) => c.index === colIndex);
-            if (!col) {
-              return null;
-            }
-            const fcs: number[] = col.filterCols ?? [col.index];
-            const isSelected = fcs.some((i) => filterColumns.has(i));
-            const isHovered = hoveredLabel === col.label;
-            const showIndicator = isSelected || isHovered;
-            const showScale = (isHovered && !isSelected) || (!isHovered && isSelected);
-            const isDrag = dragColId === itemId;
-            return (
-              <React.Fragment key={itemId}>
-                <div
-                  className="adl-branch-graph__label-drag"
-                  data-drag-id={itemId}
-                  onMouseDown={handleColMouseDown(itemId)}
-                  style={{ opacity: isDrag ? 0.4 : 1 }}
-                >
-                  <button
-                    className="adl-branch-graph__label"
-                    data-indicator={showIndicator ? 'true' : undefined}
-                    data-scale={showScale ? 'true' : undefined}
-                    onClick={() => handleLabelClick(fcs)}
-                    onMouseEnter={() => setHoveredLabel(col.label ?? null)}
-                    onMouseLeave={() => setHoveredLabel(null)}
-                    style={{
-                      padding: '2px 8px',
-                      borderRadius: 0,
-                      background: col.color,
-                      color: '#fff',
-                      fontSize: 11,
-                      fontWeight: 600,
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      lineHeight: 1,
-                      opacity:
-                        selectedLabels.size === 0 || fcs.some((i) => selectedLabels.has(`col-${i}`))
-                          ? 1
-                          : 0.4,
-                    }}
-                  >
-                    <span
-                      className="adl-branch-graph__label-text"
-                      title={
-                        col.branchProgress
-                          ? col.branchProgress.mergeBase
-                            ? t.gitVisProgressTooltip
-                                .replace('{label}', col.label ?? '')
-                                .replace('{ahead}', String(col.branchProgress.ahead))
-                                .replace('{behind}', String(col.branchProgress.behind)) +
-                              ' | ' +
-                              t.gitVisProgressBase +
-                              ': ' +
-                              col.branchProgress.mergeBase.substring(0, 7)
-                            : (col.label ?? '') + ' — ' + t.gitVisLocalOnly
-                          : (col.label ?? '')
-                      }
-                    >
-                      {col.label ?? ''}
-                    </span>
-                    {col.branchProgress?.mergeBase ? (
-                      <span className="adl-branch-graph__label-progress" style={{ marginLeft: 2 }}>
-                        {col.branchProgress.ahead > 0 && (
-                          <span>
-                            <span style={{ fontSize: 16, fontWeight: 700 }}>↑</span>
-                            <span style={{ fontSize: 11 }}>{col.branchProgress.ahead}</span>
-                          </span>
-                        )}
-                        {col.branchProgress.behind > 0 && (
-                          <span>
-                            <span style={{ fontSize: 16, fontWeight: 700 }}>↓</span>
-                            <span style={{ fontSize: 11 }}>{col.branchProgress.behind}</span>
-                          </span>
-                        )}
-                      </span>
-                    ) : null}
-                  </button>
-                </div>
-              </React.Fragment>
-            );
-          } else if (itemId.startsWith('ref:')) {
-            const refName = itemId.slice(4);
-            const bgColor = getRefLabelColor(refName);
-            const isActive = selectedLabels.has(itemId);
-            const showIndicator = hoveredLabel === refName || isActive;
-            const showScale = (hoveredLabel === refName) !== isActive;
-            const isDrag = dragColId === itemId;
-            return (
-              <div
-                key={itemId}
-                className="adl-branch-graph__label-drag"
-                data-drag-id={itemId}
-                onMouseDown={handleColMouseDown(itemId)}
-                style={{
-                  opacity: isDrag
-                    ? 0.4
-                    : selectedLabels.size === 0 || selectedLabels.has(itemId)
-                      ? 1
-                      : 0.4,
-                }}
-              >
-                <button
-                  className="adl-branch-graph__label"
-                  data-indicator={showIndicator ? 'true' : undefined}
-                  data-scale={showScale ? 'true' : undefined}
-                  onClick={() =>
-                    setSelectedLabels((prev) => {
-                      const id = `ref:${refName}`;
-                      if (prev.has(id)) {
-                        const next = new Set(prev);
-                        next.delete(id);
-                        return next;
-                      }
-                      const next = new Set(prev);
-                      for (const key of next) {
-                        if (key.startsWith('ref:')) {
-                          next.delete(key);
-                        }
-                      }
-                      next.add(id);
-                      return next;
-                    })
-                  }
-                  onMouseEnter={() => setHoveredLabel(refName)}
-                  onMouseLeave={() => setHoveredLabel(null)}
-                  style={{
-                    padding: '2px 8px',
-                    borderRadius: 0,
-                    background: bgColor,
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    border: 'none',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    lineHeight: 1,
-                    opacity: 1,
-                  }}
-                  title={t.gitVisLocalOnly ? refName + ' — ' + t.gitVisLocalOnly : refName}
-                >
-                  {refName}
-                </button>
-              </div>
-            );
-          }
-          return null;
-        })}
-      </div>
-      <div className="adl-branch-graph__body" ref={scrollBodyRef}>
-        {/* Panels: lanes + table, same vertical scroll parent */}
+      <TagRow
+        tagRowOrder={tagRowOrder}
+        columnsWithLabels={columnsWithLabels}
+        filterColumns={filterColumns}
+        draggedId={draggedId}
+        overId={overId}
+        isDark={isDark}
+        handleMouseDown={handleMouseDown}
+        handleLabelClick={handleLabelClick}
+        selectedLabels={selectedLabels}
+        setSelectedLabels={setSelectedLabels}
+        t={t}
+      />
+      <div className="adl-branch-graph__body">
         <div className="adl-branch-graph__panels">
           <div className="adl-branch-graph__lanes-panel">
-            {/* Spacer matching table header height so SVG nodes align with rows */}
             <div className="adl-branch-graph__lanes-spacer" />
             <SvgLanes
               rows={visibleRows}
@@ -1080,194 +1217,22 @@ export function BranchGraph({ data }: BranchGraphProps) {
               edges={adapted?.edges ?? []}
               totalWidth={totalLaneWidth}
               totalHeight={totalHeight}
-              hoveredId={hoveredId}
               nodeStroke={nodeStroke}
-              filterColumns={filterColumns}
-              hoveredBranch={hoveredLabel}
+              filterColumns={deferredFilterColumns}
+              hoveredBranch={null}
               aheadRows={aheadRows}
-              activeRefLabel={activeRefLabel}
+              activeRefLabel={deferredActiveRefLabel}
             />
           </div>
-          <div className="adl-branch-graph__table-panel">
-            {/* Header row — in table-panel so grid aligns with rows */}
-            <div
-              className="adl-branch-graph__header"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '80px 1fr 120px 100px',
-                gap: 8,
-                padding: '4px 8px',
-                fontSize: 11,
-                fontWeight: 600,
-                color: theme.muted,
-                borderBottom: `1px solid ${theme.grid}`,
-              }}
-            >
-              <span>{t.gitVisHash}</span>
-              <span>{t.gitVisMessage}</span>
-              <span>{t.gitVisAuthor}</span>
-              <span>{t.gitVisDate}</span>
-            </div>
-            {visibleRows.map((row) => {
-              const byCol =
-                filterColumns.size > 0 &&
-                !filterColumns.has(row.column) &&
-                row.node.branch !== hoveredLabel;
-              const byRef = !!activeRefLabel && !row.node.refs?.includes(activeRefLabel);
-              const isFiltered =
-                filterColumns.size > 0 && !!activeRefLabel ? byCol && byRef : byCol || byRef;
-              const additionalRefs =
-                row.node.refs?.filter(
-                  (ref) =>
-                    ref !== row.node.branch &&
-                    !ref.startsWith('origin/') &&
-                    !ref.startsWith('upstream/'),
-                ) ?? [];
-              return (
-                <div
-                  key={row.node.id}
-                  className={`adl-branch-graph__row${isFiltered ? ' adl-branch-graph__row--dimmed' : ''}`}
-                  data-branch={row.node.branch}
-                  onMouseEnter={() => handleRowHover(row.node.id)}
-                  onMouseLeave={() => handleRowHover(null)}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '80px 1fr 120px 100px',
-                    gap: 8,
-                    padding: '4px 8px',
-                    fontSize: 12,
-                    lineHeight: ROW_HEIGHT - 8 + 'px',
-                    cursor: 'default',
-                    borderRadius: 4,
-                    opacity: isFiltered ? 0.25 : 1,
-                    minHeight: ROW_HEIGHT,
-                  }}
-                >
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      overflow: 'hidden',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-mono, monospace)',
-                        color: theme.text,
-                        fontSize: 11,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {row.node.shortHash || row.node.hash}
-                    </span>
-                    <span className="adl-branch-graph__copy-hash">
-                      <CopyButton
-                        text={row.node.hash}
-                        size={11}
-                        tooltip={t.gitVisCopyHash}
-                        nativeTooltip
-                      />
-                    </span>
-                  </span>
-                  <span
-                    style={{
-                      color: theme.text,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      minWidth: 0,
-                    }}
-                  >
-                    {row.node.message}
-                    {row.node.tag && (
-                      <span
-                        className="adl-branch-graph__tag"
-                        style={{
-                          marginLeft: 8,
-                          padding: '1px 4px',
-                          borderRadius: 2,
-                          background: row.color,
-                          color: '#fff',
-                          fontSize: 9,
-                          fontWeight: 600,
-                          lineHeight: 1,
-                        }}
-                      >
-                        {row.node.tag}
-                      </span>
-                    )}
-                    {additionalRefs.length > 0 && (
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          gap: 2,
-                          marginLeft: 4,
-                          verticalAlign: 'middle',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {additionalRefs.slice(0, 3).map((ref) => (
-                          <span key={ref} className="adl-branch-graph__commit-badge">
-                            {ref}
-                          </span>
-                        ))}
-                        {additionalRefs.length > 3 && (
-                          <span className="adl-branch-graph__commit-badge">
-                            +{additionalRefs.length - 3}
-                          </span>
-                        )}
-                      </span>
-                    )}
-                  </span>
-                  <span
-                    style={{
-                      color: theme.muted,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 4,
-                    }}
-                  >
-                    <AuthorAvatar
-                      name={row.node.author}
-                      src={resolveAvatarUrl(row.node.authorEmail, 20)}
-                      email={row.node.authorEmail}
-                    />
-                    {row.node.author}
-                    <TooltipSimple
-                      content={
-                        <CommitTooltipCard
-                          hash={row.node.hash}
-                          message={row.node.message}
-                          author={row.node.author}
-                          authorEmail={row.node.authorEmail}
-                          date={row.node.date}
-                        />
-                      }
-                      placement="right"
-                      showArrow
-                      maxWidth={400}
-                      className="adl-hint-card"
-                    >
-                      <button
-                        type="button"
-                        className="adl-branch-graph__info-btn"
-                        tabIndex={-1}
-                        aria-label=""
-                      >
-                        <IconFileText size={14} />
-                      </button>
-                    </TooltipSimple>
-                  </span>
-                  <span style={{ color: theme.muted }}>
-                    {formatDate(row.node.date, locale, 'table')}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          <CommitTableRows
+            visibleRows={visibleRows}
+            filterColumns={deferredFilterColumns}
+            activeRefLabel={deferredActiveRefLabel}
+            hoveredLabel={null}
+            theme={theme}
+            t={t}
+            locale={locale}
+          />
         </div>
         {visibleCount < rows.length && (
           <div
@@ -1289,30 +1254,6 @@ export function BranchGraph({ data }: BranchGraphProps) {
         )}
       </div>
 
-      {portalInfo &&
-        createPortal(
-          <div
-            ref={setGhostEl}
-            aria-hidden="true"
-            style={{
-              position: 'fixed',
-              top: ghostPosRef.current.y,
-              left: ghostPosRef.current.x,
-              transform: 'translate(-50%, -50%)',
-              pointerEvents: 'none',
-              zIndex: 9999,
-              padding: '2px 8px',
-              background: portalInfo.color,
-              color: '#fff',
-              fontSize: 11,
-              fontWeight: 600,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {portalInfo.label}
-          </div>,
-          document.body,
-        )}
     </div>
   );
 }

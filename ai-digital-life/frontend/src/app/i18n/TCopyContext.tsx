@@ -1,4 +1,4 @@
-import { createContext, type ReactNode } from 'react';
+import { createContext, useMemo, type ReactNode } from 'react';
 import type { CopyDict, Locale } from './types';
 
 export interface TCopyContextValue {
@@ -14,5 +14,6 @@ export function TCopyProvider({
   locale,
   children,
 }: TCopyContextValue & { children: ReactNode }) {
-  return <TCopyContext.Provider value={{ t, locale }}>{children}</TCopyContext.Provider>;
+  const value = useMemo(() => ({ t, locale }), [t, locale]);
+  return <TCopyContext.Provider value={value}>{children}</TCopyContext.Provider>;
 }

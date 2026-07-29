@@ -1,24 +1,5 @@
 import type { HeatmapColumn, HeatmapBin } from '@/components/charts/heatmap/heatmap-context';
-
-/** Git 可视化模拟数据 */
-
-export interface CommitNode {
-  id: string;
-  hash: string;
-  shortHash?: string;
-  branch: string;
-  refs?: string[];
-  date: string;
-  message: string;
-  author: string;
-  authorEmail: string;
-  tag?: string;
-}
-
-export interface CommitEdge {
-  source: string;
-  target: string;
-}
+import type { CommitNode, CommitEdge } from '@features/git-visualization/types/gitGraph';
 
 export const commitNodes: CommitNode[] = [
   // ---- main branch (linear spine) ----
