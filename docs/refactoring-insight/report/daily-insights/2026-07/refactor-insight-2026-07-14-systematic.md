@@ -5,7 +5,7 @@
 **Tech Stack**: Rust (edition 2021, MSRV 1.85) + Tauri 2.x | React 19 + Vite 8 + TypeScript 5.6 + Zustand 5
 **Scope**: 23 Rust crates (206 files, 27K LOC) + frontend (822 files, 82K LOC) + root governance
 **Method**: 4-dimension systematic scan (code structure, architecture, performance, hygiene) across both Rust and TypeScript layers
-**Related**: Complements [refactor-insight-2026-07-14.md](../refactor-insight-2026-07-14.md) (targets immediate blockers: TS errors, test failures, hardcoded i18n)
+**Related**: Complements [refactor-insight-2026-07-14.md](./refactor-insight-2026-07-14.md) (targets immediate blockers: TS errors, test failures, hardcoded i18n)
 
 ---
 
@@ -113,7 +113,7 @@
 
 ## Overlap with Prior Report
 
-The [2026-07-14 report](../refactor-insight-2026-07-14.md) covers immediate blockers. This systematic scan overlaps on:
+The [2026-07-14 report](./refactor-insight-2026-07-14.md) covers immediate blockers. This systematic scan overlaps on:
 
 | Finding | Prior Risk | Systematic Risk | 
 |---------|-----------|-----------------|

@@ -90,8 +90,8 @@ Remove-Item -Recurse -Force $empty
 
 ## 相关文件
 
-- [重构进度报告](../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)
-- [洞察报告 2026-07-01](../../refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-01.md)
+- [重构进度报告](../../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)
+- [洞察报告 2026-07-01](../../../refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-01.md)
 - [实施计划 2026-07-01](../../../plans/refactoring/refactor-plan-2026-07-01.md)
 - [SDD 执行教训](execution-lessons.md)
-- [refactoring-insight 技能](../../../.agents/skills/refactoring-insight/SKILL.md)
+- [refactoring-insight 技能](../../../../.agents/skills/refactoring-insight/SKILL.md)

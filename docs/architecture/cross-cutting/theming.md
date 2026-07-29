@@ -1,6 +1,6 @@
 # Theming
 
-The full visual contract lives in the `[docs/design-system/](../design-system/README.md)` folder. This page only documents the architectural rules — i.e. **who owns what** between the Rust backend and the WebView frontend.
+The full visual contract lives in the `[docs/design-system/](../../design-system/README.md)` folder. This page only documents the architectural rules — i.e. **who owns what** between the Rust backend and the WebView frontend.
 
 ## Ownership
 
@@ -23,7 +23,7 @@ The full visual contract lives in the `[docs/design-system/](../design-system/RE
 
 - `ThemeController` is the only allowed mutator of `document.documentElement.dataset`.
 - Components MUST consume CSS custom properties (`var(--accent)`); raw colors are forbidden by code review.
-- All component styles MUST live under `frontend/src/styles/` (see [Design System README](../design-system/README.md)).
+- All component styles MUST live under `frontend/src/styles/` (see [Design System README](../../design-system/README.md)).
 - Switching `themeMode` to `system` re-subscribes to `prefers-color-scheme: dark` and updates `data-theme` reactively without a Tauri Command round-trip.
 - Theme tokens default to a restrained, low-saturation look. Prefer neutral text and soft/subtle semantic variants (`--text-secondary`, `--text-muted`, `--surface-hover`, `--accent-soft`, `--success-soft`, `--warning-soft`, `--danger-soft`) unless stronger emphasis is required for accessibility, critical feedback, or a primary call to action.
 - Saturated semantic base colors (`--accent`, `--success`, `--warning`, `--danger`) are reserved for narrow emphasis zones such as focus rings, destructive confirmations, hard errors, or other states where a softer variant would weaken clarity.

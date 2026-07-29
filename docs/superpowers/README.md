@@ -1,10 +1,9 @@
 # Superpowers — 功能设计与实施计划
 
-> 本目录内容已迁移：
-> - `plans/` → [`docs/plans/`](../plans/)
-> - `specs/` → [`docs/specs/`](../specs/)
+Superpowers 技能系统的设计文档与实施计划，分为两个子目录：
 
-本目录仅保留此索引。请访问上述新路径查看文档。
+- [plans/](./plans/) — 实施计划（11 个文档，涵盖 browser-automation、closing-workflow、documentation-organizer 等技能）
+- [specs/](./specs/) — 功能规格设计（11 个文档）
 
 ## 相关文档
 

@@ -84,7 +84,7 @@ CM6 merge 扩展在不同模式下使用不同的 CSS 类标记变更行：
 ### 教训
 
 1. **功能已实现但未启用**：检查功能启用状态时，不仅要看组件本身的默认值，还要看所有消费者的传入值
-2. **折叠与导航的配合**：大纲导航通过 `uncollapseUnchanged` StateEffect 展开折叠区域。注意该 effect 接收文档**位置（offset）**而非行号，且必须传入折叠区域**首行的位置**而非目标行的位置。详见 [outline-navigation-and-refresh-fix-2026-06-09.md](../交互优化/outline-navigation-and-refresh-fix-2026-06-09.md)。
+2. **折叠与导航的配合**：大纲导航通过 `uncollapseUnchanged` StateEffect 展开折叠区域。注意该 effect 接收文档**位置（offset）**而非行号，且必须传入折叠区域**首行的位置**而非目标行的位置。详见 [outline-navigation-and-refresh-fix-2026-06-09.md](../../interaction/2026-06/outline-navigation-and-refresh-fix-2026-06-09.md)。
 3. **折叠配置的权衡**：`margin: 3` 保留 3 行上下文，`minSize: 4` 跳过短区域，确保折叠不至于丢失必要的上下文信息
 
 ## 涉及文件

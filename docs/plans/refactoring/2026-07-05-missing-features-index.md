@@ -16,11 +16,11 @@
 
 | 阶段 | 计划文档 | 覆盖能力 | 优先级 | 依赖前置 |
 |------|---------|---------|--------|---------|
-| **2-A** | [2026-07-05-phase-2a-agent-core-foundation.md](./2026-07-05-phase-2a-agent-core-foundation.md) | 多 Agent 系统、Sub-agent / Task 工具、Plan Mode | P0 + P1 | 无（基础） |
-| **2-B** | [2026-07-05-phase-2b-protocol-provider-ecosystem.md](./2026-07-05-phase-2b-protocol-provider-ecosystem.md) | MCP 完整集成、多 LLM Provider 支持、Provider-specific Prompts | P0 + P1 | 2-A（Agent 抽象） |
-| **2-C** | [2026-07-05-phase-2c-conversation-quality-tools.md](./2026-07-05-phase-2c-conversation-quality-tools.md) | Compaction 会话压缩、Snapshot / Revert、WebFetch / WebSearch 工具 | P1 | 2-A（Agent 运行时），2-B（Provider 抽象） |
-| **2-D** | [2026-07-05-phase-2d-user-customization-permission.md](./2026-07-05-phase-2d-user-customization-permission.md) | 自定义命令配置、权限系统升级为 Ruleset | P1 | 2-A（Agent 注册表） |
-| **2-E** | [2026-07-05-phase-2e-advanced-reserved.md](./2026-07-05-phase-2e-advanced-reserved.md) | Session Fork、LSP 集成、Plugin 系统、ACP、HTTP API、CodeMode、Reference 系统、自定义 Agent 配置、Hot Reloadable Config、Durable Session Execution | P2 | 2-A/B/C/D 完成后 |
+| **2-A** | [2026-07-05-phase-2a-agent-core-foundation.md](../phase2/2026-07-05-phase-2a-agent-core-foundation.md) | 多 Agent 系统、Sub-agent / Task 工具、Plan Mode | P0 + P1 | 无（基础） |
+| **2-B** | [2026-07-05-phase-2b-protocol-provider-ecosystem.md](../phase2/2026-07-05-phase-2b-protocol-provider-ecosystem.md) | MCP 完整集成、多 LLM Provider 支持、Provider-specific Prompts | P0 + P1 | 2-A（Agent 抽象） |
+| **2-C** | [2026-07-05-phase-2c-conversation-quality-tools.md](../phase2/2026-07-05-phase-2c-conversation-quality-tools.md) | Compaction 会话压缩、Snapshot / Revert、WebFetch / WebSearch 工具 | P1 | 2-A（Agent 运行时），2-B（Provider 抽象） |
+| **2-D** | [2026-07-05-phase-2d-user-customization-permission.md](../phase2/2026-07-05-phase-2d-user-customization-permission.md) | 自定义命令配置、权限系统升级为 Ruleset | P1 | 2-A（Agent 注册表） |
+| **2-E** | [2026-07-05-phase-2e-advanced-reserved.md](../phase2/2026-07-05-phase-2e-advanced-reserved.md) | Session Fork、LSP 集成、Plugin 系统、ACP、HTTP API、CodeMode、Reference 系统、自定义 Agent 配置、Hot Reloadable Config、Durable Session Execution | P2 | 2-A/B/C/D 完成后 |
 
 ## 三、实施约束（全局）
 

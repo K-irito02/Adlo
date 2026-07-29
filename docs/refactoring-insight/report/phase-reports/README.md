@@ -1,6 +1,6 @@
 # 重构计划主索引
 
-> **基于洞察报告**：[refactor-insight-2026-07-15.md](../refactor-insight-2026-07-15.md)
+> **基于洞察报告**：[refactor-insight-2026-07-15.md](../daily-insights/2026-07/refactor-insight-2026-07-15.md)
 > **生成日期**：2026-07-15
 > **覆盖发现数**：35 项（Critical 5 / High 10 / Medium 12 / Low 9，已去重）
 > **执行模式**：建议使用 `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans`

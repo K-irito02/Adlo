@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 >
-> **实施后修正**：占位符虚线边框在实施后从 `2px dashed` 调整为 `1px dashed`，以保持与真实卡片一致的尺寸（`box-sizing: border-box` 下边框厚度影响总尺寸）。见 [knowledge-base/browser/browser-landing-page-2026-06-08.md](../../knowledge-base/browser/browser-landing-page-2026-06-08.md#虚线占位符边框厚度一致性2026-06-08)。
+> **实施后修正**：占位符虚线边框在实施后从 `2px dashed` 调整为 `1px dashed`，以保持与真实卡片一致的尺寸（`box-sizing: border-box` 下边框厚度影响总尺寸）。见 [knowledge-base/browser/browser-landing-page-2026-06-08.md](../../knowledge-base/browser/browser-landing-page-2026-06-08.md)。
 
 **Goal:** 实现浏览器空标签引导页，包含快捷导航、本地端口、自定义背景三大功能模块
 

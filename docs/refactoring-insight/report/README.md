@@ -67,6 +67,14 @@ report/
 | [phase-reports/2026-07-15-phase-f-large-refactors.md](./phase-reports/2026-07-15-phase-f-large-refactors.md) | F: Large Refactors | Medium |
 | [phase-reports/2026-07-15-phase-g-polish.md](./phase-reports/2026-07-15-phase-g-polish.md) | G: Polish | Low |
 
+## Standalone Reports
+
+| File | Date |
+|------|------|
+| [refactor-insight-2026-07-16.md](./refactor-insight-2026-07-16.md) | 2026-07-16 |
+| [refactor-insight-2026-07-17.md](./refactor-insight-2026-07-17.md) | 2026-07-17 |
+| [refactor-insight-2026-07-18.md](./refactor-insight-2026-07-18.md) | 2026-07-18 |
+
 ## Audit Reports
 
 | File | Date |
