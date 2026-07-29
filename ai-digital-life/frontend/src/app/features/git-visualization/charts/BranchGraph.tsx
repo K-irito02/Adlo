@@ -7,7 +7,7 @@ import { adaptBranchGraphData } from '../adapters/chartDataAdapters';
 import { useLaneAssignment } from '../hooks/useLaneAssignment';
 import { useMouseDragReorder } from '../hooks/useMouseDragReorder';
 import { formatDate, generatePixelAvatar } from '../utils/commitTooltipUtils';
-import { getAvatar } from '../utils/avatarCache';
+import { getAvatar, getCachedAvatarUrl } from '../utils/avatarCache';
 import { IconFileText } from '@icons/status';
 import type { ColumnInfo } from '../hooks/useLaneAssignment';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
@@ -47,19 +47,28 @@ const AuthorAvatar = React.memo(function AuthorAvatar({
   // Real avatar is loaded asynchronously via avatarCache (L1 memory → L2 IDB → network).
   // On cache hit, replaces the pixel avatar. On miss/failure, keeps pixel avatar.
   const pixelAvatar = useMemo(() => generatePixelAvatar(email ?? '', size), [email, size]);
-  const [src, setSrc] = useState<string>(pixelAvatar);
+  // Sync L1 lookup: if a cached Blob URL already exists (e.g. previous row fetched it),
+  // use it as the initial src to avoid the pixel-avatar flicker during fast scroll.
+  const [src, setSrc] = useState<string>(() => getCachedAvatarUrl(email ?? '') ?? pixelAvatar);
 
   useEffect(() => {
-    // Always reset to pixel avatar first — ensures correct color when email changes
-    // (useState only initializes on mount, so prop changes need explicit sync)
+    if (!email) {
+      setSrc(pixelAvatar);
+      return;
+    }
+    // If L1 cache already has the avatar, skip the pixel-avatar reset to avoid flicker
+    const cached = getCachedAvatarUrl(email);
+    if (cached) {
+      setSrc(cached);
+      return;
+    }
+    // Cache miss — show pixel avatar while fetching
     setSrc(pixelAvatar);
-    if (!email) return;
     let cancelled = false;
     getAvatar(email, size).then((cachedUrl) => {
       if (!cancelled && cachedUrl) {
         setSrc(cachedUrl);
       }
-      // If cachedUrl is null, pixelAvatar (set above) remains as fallback
     });
     return () => {
       cancelled = true;

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   getAvatar,
+  getCachedAvatarUrl,
   setAvatar,
   clearAvatarCache,
   evictAvatar,
@@ -446,5 +447,35 @@ describe('avatarCache - getAvatarCacheStats', () => {
     const stats = getAvatarCacheStats();
     expect(stats.memorySize).toBe(0);
     expect(stats.pendingRevalidations).toBe(0);
+  });
+});
+
+describe('avatarCache - getCachedAvatarUrl (sync L1 lookup)', () => {
+  beforeEach(async () => {
+    await clearAvatarCache();
+    createdUrls.length = 0;
+    revokedUrls.length = 0;
+  });
+
+  it('returns null for empty email', () => {
+    expect(getCachedAvatarUrl('')).toBe(null);
+  });
+
+  it('returns null when cache is empty', () => {
+    expect(getCachedAvatarUrl('nobody@example.com')).toBe(null);
+  });
+
+  it('returns cached blobUrl after setAvatar', async () => {
+    const blob = new Blob(['data'], { type: 'image/png' });
+    await setAvatar('sync@example.com', blob, 'github');
+    const result = getCachedAvatarUrl('sync@example.com');
+    expect(result).toBeTruthy();
+    expect(result).toMatch(/^blob:test\//);
+  });
+
+  it('is case-insensitive (normalizes email)', async () => {
+    const blob = new Blob(['data'], { type: 'image/png' });
+    await setAvatar('Case@Example.COM', blob, 'github');
+    expect(getCachedAvatarUrl('case@example.com')).toBeTruthy();
   });
 });

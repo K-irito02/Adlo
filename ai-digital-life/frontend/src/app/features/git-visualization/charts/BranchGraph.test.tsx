@@ -36,6 +36,7 @@ afterEach(() => {
 
 vi.mock('../utils/avatarCache', () => ({
   getAvatar: vi.fn().mockResolvedValue(null),
+  getCachedAvatarUrl: vi.fn().mockReturnValue(null),
 }));
 
 vi.mock('@hooks/useResolvedTheme', () => ({

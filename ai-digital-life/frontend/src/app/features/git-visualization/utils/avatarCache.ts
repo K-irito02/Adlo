@@ -281,6 +281,27 @@ function scheduleRevalidate(key: string, size: number): void {
  * trigger a background revalidation. The stale entry is NOT deleted until a
  * fresh fetch succeeds.
  */
+/**
+ * Synchronous L1 memory cache lookup. Returns the cached Blob URL immediately
+ * if the email has a fresh entry in memory, or null on miss.
+ *
+ * Use this in useState initializers to avoid the pixel-avatar flicker when a
+ * cached avatar is already available (e.g. during fast scroll, when rows mount
+ * whose authors were already fetched by earlier rows).
+ *
+ * Does NOT trigger network fetch or L2 IDB lookup — pair with getAvatar() for
+ * the full async resolution path. SWR revalidation is NOT triggered here; the
+ * caller's useEffect will call getAvatar() which handles staleness.
+ */
+export function getCachedAvatarUrl(email: string): string | null {
+  const key = normalizeEmail(email);
+  if (!key) return null;
+  const memEntry = avatarMemoryCache.get(key);
+  if (!memEntry) return null;
+  // Return stale OR fresh — caller's getAvatar() will handle revalidation
+  return memEntry.value.blobUrl;
+}
+
 export async function getAvatar(email: string, size: number): Promise<string | null> {
   const key = normalizeEmail(email);
   if (!key) {
