@@ -17,10 +17,10 @@ describe('md5', () => {
 });
 
 describe('getGravatarUrl', () => {
-  it('generates correct Gravatar URL with 404 fallback', () => {
+  it('generates correct Gravatar URL with retro fallback', () => {
     const md5Hash = md5('alex@example.com');
     expect(getGravatarUrl('alex@example.com', 32)).toBe(
-      `https://www.gravatar.com/avatar/${md5Hash}?s=32&d=404`,
+      `https://www.gravatar.com/avatar/${md5Hash}?s=32&d=retro`,
     );
   });
 
@@ -45,10 +45,10 @@ describe('getGravatarUrl', () => {
     expect(url).toBe('https://github.com/alex.png');
   });
 
-  it('uses Gravatar for non-noreply emails with 404 fallback', () => {
+  it('uses Gravatar for non-noreply emails with retro fallback', () => {
     const url = getGravatarUrl('alex@example.com', 32);
     expect(url).toContain('gravatar.com/avatar');
-    expect(url).toContain('d=404');
+    expect(url).toContain('d=retro');
     expect(url).toContain('s=32');
   });
 });

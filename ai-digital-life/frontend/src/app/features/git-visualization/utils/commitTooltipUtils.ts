@@ -142,7 +142,7 @@ registerAvatarResolver({
   priority: 100,
   resolve(email: string, size: number): string | null {
     const hash = md5(email.trim().toLowerCase());
-    return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=404`;
+    return `https://www.gravatar.com/avatar/${hash}?s=${size}&d=retro`;
   },
 });
 
@@ -172,6 +172,10 @@ export const getGravatarUrl = resolveAvatarUrl;
  * - 15 independent cells (left 3 columns, mirrored to the right 2)
  * - Each cell is filled or empty based on a hash bit
  * - Color (HSL) is derived from the hash for visual variety
+ * - Rounded cell corners for a softer, modern appearance
+ * - Semi-transparent background tinted by the same hue for visual cohesion
+ * - Adapts to dark themes via currentColor-based overlay (background uses
+ *   low-opacity fill so the underlying page color shows through)
  *
  * This is purely local — no network request — so it can be shown instantly
  * while the real avatar (GitHub / Gravatar) loads asynchronously. When the
@@ -187,12 +191,14 @@ export function generatePixelAvatar(email: string, size: number = 20): string {
     cells.push(parseInt(hash.charAt(i), 16) % 2 === 0);
   }
   const hue = parseInt(hash.substring(15, 18), 16) % 360;
-  const sat = 55 + (parseInt(hash.charAt(18), 16) % 25);
-  const light = 45 + (parseInt(hash.charAt(19), 16) % 15);
+  const sat = 60 + (parseInt(hash.charAt(18), 16) % 30); // 60-90%
+  const light = 45 + (parseInt(hash.charAt(19), 16) % 15); // 45-60%
   const color = `hsl(${hue}, ${sat}%, ${light}%)`;
-  const bg = '#f3f4f6';
+  // Tinted background: same hue, low opacity — works on both light/dark themes
+  const bg = `hsla(${hue}, 45%, 50%, 0.12)`;
 
   const cellSize = size / 5;
+  const radius = (cellSize * 0.18).toFixed(3); // subtle rounded corners
   let rects = '';
   for (let row = 0; row < 5; row++) {
     for (let col = 0; col < 5; col++) {
@@ -202,7 +208,7 @@ export function generatePixelAvatar(email: string, size: number = 20): string {
         const x = (col * cellSize).toFixed(3);
         const y = (row * cellSize).toFixed(3);
         const cs = cellSize.toFixed(3);
-        rects += `<rect x="${x}" y="${y}" width="${cs}" height="${cs}" fill="${color}"/>`;
+        rects += `<rect x="${x}" y="${y}" width="${cs}" height="${cs}" rx="${radius}" ry="${radius}" fill="${color}"/>`;
       }
     }
   }

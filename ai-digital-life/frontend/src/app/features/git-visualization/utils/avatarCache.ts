@@ -32,7 +32,7 @@ interface AvatarRecord {
 const AVATAR_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const AVATAR_LRU_LIMIT = 200;
 const AVATAR_DB_NAME = 'adl-avatars';
-const AVATAR_DB_VERSION = 2;
+const AVATAR_DB_VERSION = 3;
 const AVATAR_STORE = 'avatars';
 
 // ── Email normalization ──
@@ -59,7 +59,8 @@ function openAvatarDB(): Promise<IDBDatabase> {
       const db = req.result;
       const oldVersion = event.oldVersion;
       // Version 2: URL scheme changed (d=retro → d=404), invalidate all cached avatars
-      if (oldVersion < 2 && db.objectStoreNames.contains(AVATAR_STORE)) {
+      // Version 3: Reverted to d=retro — cache retro pixel avatars for better visual quality
+      if (oldVersion < 3 && db.objectStoreNames.contains(AVATAR_STORE)) {
         db.deleteObjectStore(AVATAR_STORE);
       }
       if (!db.objectStoreNames.contains(AVATAR_STORE)) {
