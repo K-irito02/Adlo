@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatDate, generatePixelAvatar, getGravatarUrl, md5 } from './commitTooltipUtils';
+import { formatDate, generatePixelAvatar, resolveAvatarUrl, md5 } from './commitTooltipUtils';
 
 describe('md5', () => {
   it('produces correct MD5 hash for known input', () => {
@@ -16,37 +16,37 @@ describe('md5', () => {
   });
 });
 
-describe('getGravatarUrl', () => {
+describe('resolveAvatarUrl', () => {
   it('generates correct Gravatar URL with retro fallback', () => {
     const md5Hash = md5('alex@example.com');
-    expect(getGravatarUrl('alex@example.com', 32)).toBe(
+    expect(resolveAvatarUrl('alex@example.com', 32)).toBe(
       `https://www.gravatar.com/avatar/${md5Hash}?s=32&d=retro`,
     );
   });
 
   it('lowercases and trims email before hashing', () => {
-    const url1 = getGravatarUrl('Alex@Example.com', 32);
-    const url2 = getGravatarUrl('alex@example.com', 32);
+    const url1 = resolveAvatarUrl('Alex@Example.com', 32);
+    const url2 = resolveAvatarUrl('alex@example.com', 32);
     expect(url1).toBe(url2);
   });
 
   it('uses default size 80 when not specified', () => {
-    const url = getGravatarUrl('test@test.com');
+    const url = resolveAvatarUrl('test@test.com');
     expect(url).toContain('?s=80');
   });
 
   it('detects GitHub noreply email and uses github.com URL', () => {
-    const url = getGravatarUrl('alex@users.noreply.github.com', 32);
+    const url = resolveAvatarUrl('alex@users.noreply.github.com', 32);
     expect(url).toBe('https://github.com/alex.png');
   });
 
   it('extracts username from noreply email with userid+username format', () => {
-    const url = getGravatarUrl('12345+alex@users.noreply.github.com', 32);
+    const url = resolveAvatarUrl('12345+alex@users.noreply.github.com', 32);
     expect(url).toBe('https://github.com/alex.png');
   });
 
   it('uses Gravatar for non-noreply emails with retro fallback', () => {
-    const url = getGravatarUrl('alex@example.com', 32);
+    const url = resolveAvatarUrl('alex@example.com', 32);
     expect(url).toContain('gravatar.com/avatar');
     expect(url).toContain('d=retro');
     expect(url).toContain('s=32');

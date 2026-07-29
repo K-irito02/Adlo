@@ -18,7 +18,9 @@
   font-size: inherit;
   line-height: inherit;
   white-space: nowrap;
-  transition: background-color 0.15s, color 0.15s;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
 }
 
 .adl-module-breadcrumb__item:hover:not(:disabled) {

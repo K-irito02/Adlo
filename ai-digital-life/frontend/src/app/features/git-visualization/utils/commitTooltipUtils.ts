@@ -29,11 +29,8 @@ export function md5(str: string): string {
     6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21,
   ];
 
-  const bits: number[] = [];
-  const len = str.length;
-  for (let i = 0; i < len; i++) {
-    bits.push(str.charCodeAt(i));
-  }
+  const bits: number[] = Array.from(new TextEncoder().encode(str));
+  const len = bits.length;
   bits.push(0x80);
   while (bits.length % 64 !== 56) {
     bits.push(0);
@@ -45,9 +42,6 @@ export function md5(str: string): string {
   }
   for (let i = 0; i < 4; i++) {
     bits.push((bitLenHigh >>> (i * 8)) & 0xff);
-  }
-  if (bits.length % 64 !== 0) {
-    bits.push(0);
   }
 
   let h0 = 0x67452301,
@@ -113,8 +107,11 @@ export interface AvatarResolver {
 
 const resolvers: AvatarResolver[] = [];
 
-/** Register a platform-specific avatar resolver */
+/** Register a platform-specific avatar resolver (dedup by name for HMR safety) */
 export function registerAvatarResolver(resolver: AvatarResolver): void {
+  if (resolvers.some((r) => r.name === resolver.name)) {
+    return;
+  }
   resolvers.push(resolver);
   resolvers.sort((a, b) => a.priority - b.priority);
 }
@@ -148,8 +145,11 @@ registerAvatarResolver({
 
 /**
  * Resolve an avatar URL by trying registered resolvers in priority order.
- * The last resolver (gravatar) always returns a value, so this never returns null.
- * When the image fails to load, use onError on the <img> to fall back to initials.
+ * The last resolver (gravatar) always returns a value, so in practice this
+ * never returns an empty string. The trailing `return ''` is a defensive
+ * fallback that is unreachable as long as the gravatar resolver is registered.
+ * On load failure, the caller keeps the pixel avatar that was set as the
+ * initial <img src> before the async fetch.
  */
 export function resolveAvatarUrl(email: string, size = 80): string {
   const trimmed = email.trim().toLowerCase();
@@ -162,9 +162,6 @@ export function resolveAvatarUrl(email: string, size = 80): string {
   return '';
 }
 
-/** @deprecated Use resolveAvatarUrl instead */
-export const getGravatarUrl = resolveAvatarUrl;
-
 /**
  * Generate a local pixel-art avatar as an SVG data URI.
  *
@@ -174,8 +171,8 @@ export const getGravatarUrl = resolveAvatarUrl;
  * - Color (HSL) is derived from the hash for visual variety
  * - Rounded cell corners for a softer, modern appearance
  * - Semi-transparent background tinted by the same hue for visual cohesion
- * - Adapts to dark themes via currentColor-based overlay (background uses
- *   low-opacity fill so the underlying page color shows through)
+ * - Adapts to dark themes via low-opacity background fill (the underlying
+ *   page color shows through)
  *
  * This is purely local — no network request — so it can be shown instantly
  * while the real avatar (GitHub / Gravatar) loads asynchronously. When the
@@ -191,8 +188,8 @@ export function generatePixelAvatar(email: string, size: number = 20): string {
     cells.push(parseInt(hash.charAt(i), 16) % 2 === 0);
   }
   const hue = parseInt(hash.substring(15, 18), 16) % 360;
-  const sat = 60 + (parseInt(hash.charAt(18), 16) % 30); // 60-90%
-  const light = 45 + (parseInt(hash.charAt(19), 16) % 15); // 45-60%
+  const sat = 60 + (parseInt(hash.charAt(18), 16) % 30); // 60-75%
+  const light = 45 + (parseInt(hash.charAt(19), 16) % 15); // 45-59%
   const color = `hsl(${hue}, ${sat}%, ${light}%)`;
   // Tinted background: same hue, low opacity — works on both light/dark themes
   const bg = `hsla(${hue}, 45%, 50%, 0.12)`;

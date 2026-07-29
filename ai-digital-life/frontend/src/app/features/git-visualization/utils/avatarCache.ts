@@ -58,8 +58,7 @@ function openAvatarDB(): Promise<IDBDatabase> {
     req.onupgradeneeded = (event) => {
       const db = req.result;
       const oldVersion = event.oldVersion;
-      // Version 2: URL scheme changed (d=retro → d=404), invalidate all cached avatars
-      // Version 3: Reverted to d=retro — cache retro pixel avatars for better visual quality
+      // Version 3: URL scheme reverted to d=retro; invalidate caches from v1/v2 by recreating the store
       if (oldVersion < 3 && db.objectStoreNames.contains(AVATAR_STORE)) {
         db.deleteObjectStore(AVATAR_STORE);
       }
@@ -132,33 +131,77 @@ async function idbClear(): Promise<void> {
 // ── Exported for tests, not for external consumers ──
 export { normalizeEmail as _normalizeEmailForTest };
 export { AVATAR_TTL_MS as _AVATAR_TTL_MS_FOR_TEST };
-export { AVATAR_LRU_LIMIT as _AVATAR_LRU_LIMIT_FOR_TEST };
 
 // ── L1: In-memory cache (LRU with TTL + Blob URL revoke) ──
 
 const avatarMemoryCache = new Map<string, TTLCacheEntry<AvatarEntry>>();
 
-/** Revoke a single memory entry's Blob URL and delete it */
+// ── Deferred Blob URL revocation ──
+//
+// When a cache entry is overwritten (SWR revalidate) or LRU-evicted, the old
+// Blob URL may still be held by a mounted <img>. Revoking immediately would
+// break the image mid-display. Instead, we schedule a deferred revoke after
+// REVOKE_DELAY_MS — by then the component has either swapped to the new src
+// or unmounted. This unifies the overwrite and eviction strategies: both
+// defer revoke instead of one deferring and the other revoking immediately.
+const REVOKE_DELAY_MS = 30000;
+const pendingRevokes = new Map<string, ReturnType<typeof setTimeout>>();
+
+/**
+ * Schedule a Blob URL for deferred revocation. If the same URL is already
+ * pending, the existing timer is kept (no double-schedule).
+ */
+function scheduleRevoke(blobUrl: string): void {
+  if (pendingRevokes.has(blobUrl)) {
+    return;
+  }
+  const timer = setTimeout(() => {
+    URL.revokeObjectURL(blobUrl);
+    pendingRevokes.delete(blobUrl);
+  }, REVOKE_DELAY_MS);
+  pendingRevokes.set(blobUrl, timer);
+}
+
+/** Revoke all pending URLs immediately (used by clearAvatarCache). */
+function flushPendingRevokes(): void {
+  for (const timer of pendingRevokes.values()) {
+    clearTimeout(timer);
+  }
+  for (const url of pendingRevokes.keys()) {
+    URL.revokeObjectURL(url);
+  }
+  pendingRevokes.clear();
+}
+
+// Generation token: incremented on clearAvatarCache. Async operations
+// (revalidate, inflight) capture the generation before writing; if the
+// generation changes, they skip the write to avoid re-polluting a cleared cache.
+let cacheGeneration = 0;
+
+/** Revoke a single memory entry's Blob URL and delete it (deferred). */
 function revokeMemoryEntry(key: string): void {
   const entry = avatarMemoryCache.get(key);
   if (entry) {
-    URL.revokeObjectURL(entry.value.blobUrl);
+    scheduleRevoke(entry.value.blobUrl);
     avatarMemoryCache.delete(key);
   }
 }
 
 /**
  * Write/update a memory cache entry with LRU eviction.
- * Self-implemented (not reusing setCachedLruTTL) because we must revokeObjectURL
- * on eviction to prevent Blob URL memory leaks.
+ * Self-implemented (not reusing setCachedLruTTL) because we must manage
+ * Blob URL lifecycle (schedule deferred revoke on eviction/overwrite).
+ *
+ * When updating an existing entry with a new blobUrl, the old URL is NOT
+ * revoked immediately. The component may still be holding a reference to
+ * the old blobUrl (e.g. during SWR revalidation — the stale URL is returned
+ * to the component and a fresh fetch happens in the background). Revoking
+ * immediately would break the <img> mid-display. Instead, the old URL is
+ * scheduled for deferred revoke after REVOKE_DELAY_MS.
+ *
+ * LRU eviction uses the same deferred revoke strategy for consistency.
  */
 function setMemoryEntry(key: string, entry: AvatarEntry): void {
-  // If updating an existing entry with a different blobUrl, revoke the old URL
-  const existing = avatarMemoryCache.get(key);
-  if (existing && existing.value.blobUrl !== entry.blobUrl) {
-    URL.revokeObjectURL(existing.value.blobUrl);
-  }
-
   const ttlEntry: TTLCacheEntry<AvatarEntry> = {
     value: entry,
     expiresAt: Date.now() + AVATAR_TTL_MS,
@@ -166,11 +209,25 @@ function setMemoryEntry(key: string, entry: AvatarEntry): void {
   // Map.set on existing key updates in place (preserves insertion order);
   // for new keys, delete-first ensures LRU move-to-end semantics
   if (avatarMemoryCache.has(key)) {
+    // Schedule deferred revoke of the old blobUrl — component may still hold it
+    const oldEntry = avatarMemoryCache.get(key);
+    if (oldEntry) {
+      scheduleRevoke(oldEntry.value.blobUrl);
+    }
     avatarMemoryCache.delete(key);
   }
   avatarMemoryCache.set(key, ttlEntry);
 
-  // LRU eviction: evict oldest entries when over capacity
+  // LRU eviction: evict oldest entries when over capacity (deferred revoke).
+  //
+  // DESIGN INTENT: LRU eviction ONLY removes the entry from L1 memory and
+  // schedules deferred revocation of its Blob URL. It does NOT delete the
+  // corresponding L2 IndexedDB record — by design, stale/expired entries
+  // are never deleted until successfully replaced by fresh data (via setAvatar,
+  // which overwrites both L1 and L2). This ensures that on a future access,
+  // getAvatar can recover the avatar from L2 IDB without a network request,
+  // even after L1 memory eviction due to capacity pressure. L2 IDB records
+  // are only removed by explicit clearAvatarCache or by being overwritten.
   while (avatarMemoryCache.size > AVATAR_LRU_LIMIT) {
     const oldestKey = avatarMemoryCache.keys().next().value;
     if (oldestKey === undefined) {
@@ -178,7 +235,7 @@ function setMemoryEntry(key: string, entry: AvatarEntry): void {
     }
     const oldest = avatarMemoryCache.get(oldestKey);
     if (oldest) {
-      URL.revokeObjectURL(oldest.value.blobUrl);
+      scheduleRevoke(oldest.value.blobUrl);
     }
     avatarMemoryCache.delete(oldestKey);
   }
@@ -255,11 +312,16 @@ function scheduleRevalidate(key: string, size: number): void {
     return;
   }
   pendingRevalidations.add(key);
+  const gen = cacheGeneration;
 
   // setTimeout(0) — async, does not block current render
   setTimeout(async () => {
     try {
       const result = await fetchAvatarFromNetwork(key, size);
+      // Skip write if cache was cleared while we were fetching
+      if (gen !== cacheGeneration) {
+        return;
+      }
       if (result) {
         // Success — overwrite stale entry with fresh data
         await setAvatar(key, result.blob, result.source);
@@ -274,34 +336,41 @@ function scheduleRevalidate(key: string, size: number): void {
 // ── Public read API ──
 
 /**
- * Get avatar for an email. Returns a Blob URL string on cache hit, or null
- * when no cached data exists and network fetch fails.
- *
- * SWR semantics: expired entries return the stale Blob URL immediately and
- * trigger a background revalidation. The stale entry is NOT deleted until a
- * fresh fetch succeeds.
- */
-/**
  * Synchronous L1 memory cache lookup. Returns the cached Blob URL immediately
- * if the email has a fresh entry in memory, or null on miss.
+ * if the email has any entry in memory (fresh OR stale), or null on miss.
  *
  * Use this in useState initializers to avoid the pixel-avatar flicker when a
  * cached avatar is already available (e.g. during fast scroll, when rows mount
  * whose authors were already fetched by earlier rows).
  *
- * Does NOT trigger network fetch or L2 IDB lookup — pair with getAvatar() for
- * the full async resolution path. SWR revalidation is NOT triggered here; the
- * caller's useEffect will call getAvatar() which handles staleness.
+ * Does NOT trigger network fetch, L2 IDB lookup, or SWR revalidation. The
+ * caller is responsible for invoking getAvatar() to handle staleness and
+ * populate the cache on miss. Typically the component's useEffect calls
+ * getAvatar() after this returns null, or a parent preload effect has already
+ * populated L1 for visible rows.
  */
 export function getCachedAvatarUrl(email: string): string | null {
   const key = normalizeEmail(email);
-  if (!key) return null;
+  if (!key) {
+    return null;
+  }
   const memEntry = avatarMemoryCache.get(key);
-  if (!memEntry) return null;
+  if (!memEntry) {
+    return null;
+  }
   // Return stale OR fresh — caller's getAvatar() will handle revalidation
   return memEntry.value.blobUrl;
 }
 
+/**
+ * Get avatar for an email. Returns a Blob URL string on cache hit, or null
+ * when no cached data exists and network fetch fails.
+ *
+ * SWR semantics: expired entries return the stale Blob URL immediately and
+ * trigger a background revalidation. The stale entry is NOT deleted (and its
+ * Blob URL is NOT revoked) until a fresh fetch succeeds — this ensures the
+ * caller's <img> keeps rendering during revalidation.
+ */
 export async function getAvatar(email: string, size: number): Promise<string | null> {
   const key = normalizeEmail(email);
   if (!key) {
@@ -351,8 +420,13 @@ async function doGetAvatar(key: string, size: number): Promise<string | null> {
   }
 
   // 3. Network fetch (L1 and L2 both missed)
+  const gen = cacheGeneration;
   const result = await fetchAvatarFromNetwork(key, size);
   if (!result) {
+    return null;
+  }
+  // Skip write if cache was cleared while we were fetching
+  if (gen !== cacheGeneration) {
     return null;
   }
   await setAvatar(key, result.blob, result.source);
@@ -364,13 +438,18 @@ async function doGetAvatar(key: string, size: number): Promise<string | null> {
 
 // ── Cleanup APIs ──
 
-/** Clear all avatar cache (memory + IndexedDB). Revokes all Blob URLs. */
+/** Clear all avatar cache (memory + IndexedDB). Revokes all Blob URLs immediately. */
 export async function clearAvatarCache(): Promise<void> {
-  // Revoke all Blob URLs in memory
+  // Increment generation token so in-flight revalidations/network fetches
+  // skip writing back to the cleared cache.
+  cacheGeneration++;
+  // Revoke all Blob URLs in memory immediately
   avatarMemoryCache.forEach((entry) => {
     URL.revokeObjectURL(entry.value.blobUrl);
   });
   avatarMemoryCache.clear();
+  // Flush any pending deferred revokes as well
+  flushPendingRevokes();
   pendingRevalidations.clear();
   inflight.clear();
   await idbClear();

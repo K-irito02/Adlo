@@ -185,7 +185,8 @@ describe('avatarCache - setAvatar', () => {
     expect(stats.memorySize).toBe(0);
   });
 
-  it('updates existing entry and revokes old blobUrl', async () => {
+  it('defers revoking old blobUrl on overwrite (component may still hold it)', async () => {
+    vi.useFakeTimers();
     const blob1 = new Blob(['data1'], { type: 'image/png' });
     await setAvatar('carol@example.com', blob1, 'github');
     const url1 = await getAvatar('carol@example.com', 20);
@@ -195,7 +196,16 @@ describe('avatarCache - setAvatar', () => {
     const url2 = await getAvatar('carol@example.com', 20);
 
     expect(url1).not.toBe(url2);
+    // Old blobUrl is NOT revoked immediately — SWR revalidate returns the stale
+    // URL to the component while fetching a fresh one in the background; revoking
+    // immediately would break the <img> mid-display. It is scheduled for deferred
+    // revoke after REVOKE_DELAY_MS (30s).
+    expect(revokedUrls).not.toContain(url1);
+
+    // After the deferred revoke delay, the old URL is revoked
+    vi.advanceTimersByTime(31000);
     expect(revokedUrls).toContain(url1);
+    vi.useRealTimers();
   });
 });
 
@@ -358,6 +368,42 @@ describe('avatarCache - SWR (stale-while-revalidate)', () => {
     expect(stats.memorySize).toBe(1);
     vi.useRealTimers();
   });
+
+  it('does NOT revoke stale blobUrl returned to caller during SWR revalidate', async () => {
+    // Regression test: SWR revalidate must not revoke the stale URL that was
+    // handed back to the component, otherwise the <img> breaks mid-display.
+    // The stale URL is scheduled for deferred revoke (30s), not revoked immediately.
+    const oldBlob = new Blob(['old'], { type: 'image/png' });
+    await setAvatar('leo@example.com', oldBlob, 'github');
+
+    vi.useFakeTimers();
+    vi.advanceTimersByTime(_AVATAR_TTL_MS_FOR_TEST + 1000);
+
+    const newBlob = new Blob(['new'], { type: 'image/png' });
+    // Use a plain mock response object — jsdom's Response constructor re-serializes
+    // Blobs and loses the original Content-Type, breaking blob.type checks.
+    const mockResponse = {
+      ok: true,
+      status: 200,
+      blob: async () => newBlob,
+    };
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse as unknown as Response);
+
+    const staleUrl = await getAvatar('leo@example.com', 20);
+    expect(staleUrl).toBeTruthy();
+
+    // Run pending microtasks (revalidation) but NOT the 30s deferred revoke timer
+    await vi.advanceTimersByTimeAsync(1000);
+
+    // The stale URL returned to the caller must NOT have been revoked yet — the
+    // component may still be rendering <img src={staleUrl}>.
+    expect(revokedUrls).not.toContain(staleUrl);
+
+    // After the full deferred revoke delay (30s), the stale URL IS revoked
+    vi.advanceTimersByTime(30000);
+    expect(revokedUrls).toContain(staleUrl);
+    vi.useRealTimers();
+  });
 });
 
 describe('avatarCache - LRU eviction', () => {
@@ -367,7 +413,8 @@ describe('avatarCache - LRU eviction', () => {
     revokedUrls.length = 0;
   });
 
-  it('evicts oldest entries when over capacity', async () => {
+  it('evicts oldest entries when over capacity (deferred revoke)', async () => {
+    vi.useFakeTimers();
     // Insert 3 entries (limit is 200, so we test the mechanism by checking
     // that eviction fires — for a true capacity test we'd need 201 inserts,
     // which is slow. We verify eviction logic via direct eviction instead.)
@@ -379,13 +426,18 @@ describe('avatarCache - LRU eviction', () => {
     const stats = getAvatarCacheStats();
     expect(stats.memorySize).toBe(3);
 
-    // Evicting 'a' should revoke its URL
+    // Evicting 'a' should defer-revoke its URL
     const urlA = await getAvatar('a@x.com', 20);
     await evictAvatar('a@x.com');
 
     const statsAfter = getAvatarCacheStats();
     expect(statsAfter.memorySize).toBe(2);
+    // Not revoked immediately — deferred
+    expect(revokedUrls).not.toContain(urlA);
+    // Revoked after delay
+    vi.advanceTimersByTime(31000);
     expect(revokedUrls).toContain(urlA);
+    vi.useRealTimers();
   });
 });
 
@@ -477,5 +529,69 @@ describe('avatarCache - getCachedAvatarUrl (sync L1 lookup)', () => {
     const blob = new Blob(['data'], { type: 'image/png' });
     await setAvatar('Case@Example.COM', blob, 'github');
     expect(getCachedAvatarUrl('case@example.com')).toBeTruthy();
+  });
+});
+
+describe('avatarCache - LRU capacity boundary (deferred revoke)', () => {
+  beforeEach(async () => {
+    await clearAvatarCache();
+    createdUrls.length = 0;
+    revokedUrls.length = 0;
+  });
+
+  it('LRU eviction at capacity boundary defers revoke of oldest entry', async () => {
+    vi.useFakeTimers();
+    const blob = new Blob(['d'], { type: 'image/png' });
+    // Insert 201 entries — limit is 200, so the 1st should be evicted
+    const emails = Array.from({ length: 201 }, (_, i) => `user${i}@x.com`);
+    for (const email of emails) {
+      await setAvatar(email, blob, 'github');
+    }
+
+    // After 201 inserts, cache should be at capacity (200)
+    const stats = getAvatarCacheStats();
+    expect(stats.memorySize).toBe(200);
+
+    // The first email's URL should have been evicted (deferred revoke, not yet revoked)
+    const firstUrl = createdUrls[0];
+    expect(revokedUrls).not.toContain(firstUrl);
+
+    // The first email should no longer be in L1
+    expect(getCachedAvatarUrl(emails[0])).toBe(null);
+
+    // The second email should still be cached
+    expect(getCachedAvatarUrl(emails[1])).toBeTruthy();
+
+    // After the deferred revoke delay, the first URL is revoked
+    vi.advanceTimersByTime(31000);
+    expect(revokedUrls).toContain(firstUrl);
+    vi.useRealTimers();
+  });
+});
+
+describe('avatarCache - clearAvatarCache flushes pending revokes', () => {
+  beforeEach(async () => {
+    await clearAvatarCache();
+    createdUrls.length = 0;
+    revokedUrls.length = 0;
+  });
+
+  it('clearAvatarCache immediately revokes pending deferred revokes', async () => {
+    vi.useFakeTimers();
+    const blob1 = new Blob(['d1'], { type: 'image/png' });
+    await setAvatar('overwrite@x.com', blob1, 'github');
+    const url1 = createdUrls[0];
+
+    // Overwrite — old URL enters pendingRevokes (deferred 30s)
+    const blob2 = new Blob(['d2'], { type: 'image/png' });
+    await setAvatar('overwrite@x.com', blob2, 'github');
+
+    // Old URL not yet revoked (deferred)
+    expect(revokedUrls).not.toContain(url1);
+
+    // clearAvatarCache should flush pending revokes immediately
+    await clearAvatarCache();
+    expect(revokedUrls).toContain(url1);
+    vi.useRealTimers();
   });
 });

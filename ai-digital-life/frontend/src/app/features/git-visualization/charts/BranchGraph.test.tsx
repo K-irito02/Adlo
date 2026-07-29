@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { BranchGraph } from './BranchGraph';
-import { getAvatar } from '../utils/avatarCache';
+import { getAvatar, getCachedAvatarUrl } from '../utils/avatarCache';
 import { commitNodes, commitEdges, allBranches } from '../../../../test-fixtures/gitVisMockData';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
 
@@ -32,6 +32,7 @@ afterEach(() => {
   // Reset avatarCache mock to default (null) between tests so per-test
   // overrides in integration tests do not leak into other tests.
   vi.mocked(getAvatar).mockResolvedValue(null);
+  vi.mocked(getCachedAvatarUrl).mockReturnValue(null);
 });
 
 vi.mock('../utils/avatarCache', () => ({
@@ -283,6 +284,27 @@ describe('BranchGraph', () => {
       imgs.forEach((img) => {
         expect(img.getAttribute('src')?.startsWith('data:image/svg+xml')).toBe(true);
       });
+    });
+  });
+
+  it('uses cached avatar immediately and triggers SWR revalidate', async () => {
+    // Mock getCachedAvatarUrl to return a cached URL (simulates L1 hit)
+    const cachedUrl = 'blob:cached-avatar-url';
+    vi.mocked(getCachedAvatarUrl).mockReturnValue(cachedUrl);
+    // getAvatar returns the same URL (fresh cache — no revalidation needed)
+    vi.mocked(getAvatar).mockResolvedValue(cachedUrl);
+
+    const { container } = render(<BranchGraph data={mockData} />);
+    const imgs = container.querySelectorAll<HTMLImageElement>('img.adl-author-avatar');
+
+    // Immediately renders with cached URL (no pixel-avatar flicker)
+    imgs.forEach((img) => {
+      expect(img.getAttribute('src')).toBe(cachedUrl);
+    });
+
+    // SWR contract: getAvatar is still called to check freshness
+    await vi.waitFor(() => {
+      expect(getAvatar).toHaveBeenCalled();
     });
   });
 });

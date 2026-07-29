@@ -60,7 +60,20 @@ const AuthorAvatar = React.memo(function AuthorAvatar({
     const cached = getCachedAvatarUrl(email);
     if (cached) {
       setSrc(cached);
-      return;
+      // Still call getAvatar to fulfill the SWR contract: if the cached entry
+      // is stale, getAvatar triggers a background revalidation that updates
+      // the cache. The fresh URL will take effect on the next useEffect run
+      // (e.g. when the row re-enters the viewport). If the entry is fresh,
+      // getAvatar returns the same URL (no-op).
+      let cancelled = false;
+      getAvatar(email, size).then((freshUrl) => {
+        if (!cancelled && freshUrl && freshUrl !== cached) {
+          setSrc(freshUrl);
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
     }
     // Cache miss — show pixel avatar while fetching
     setSrc(pixelAvatar);
@@ -241,14 +254,23 @@ const SvgLanes = React.memo(
     activeRefLabel,
   }: SvgLanesProps) {
     const nodeY = (rowIndex: number) => rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
-    const visualIndex = (colIdx: number) => {
-      const idx = columnOrder.indexOf(colIdx);
-      return idx >= 0 ? idx : colIdx;
-    };
+    const visualIndex = useCallback(
+      (colIdx: number) => {
+        const idx = columnOrder.indexOf(colIdx);
+        return idx >= 0 ? idx : colIdx;
+      },
+      [columnOrder],
+    );
 
     const refLabelColor = activeRefLabel ? getRefLabelColor(activeRefLabel) : null;
-    const rowHasRef = (row: RowData) => activeRefLabel && row.node.refs?.includes(activeRefLabel);
-    const rowDimmedByRef = (row: RowData) => !!activeRefLabel && !rowHasRef(row);
+    const rowHasRef = useCallback(
+      (row: RowData) => activeRefLabel && row.node.refs?.includes(activeRefLabel),
+      [activeRefLabel],
+    );
+    const rowDimmedByRef = useCallback(
+      (row: RowData) => !!activeRefLabel && !rowHasRef(row),
+      [activeRefLabel, rowHasRef],
+    );
     const rowIndexById = useMemo(() => {
       const map = new Map<string, number>();
       rows.forEach((r, i) => map.set(r.node.id, i));
@@ -291,7 +313,7 @@ const SvgLanes = React.memo(
         );
       }
       return els;
-    }, [columns, filterColumns, hoveredBranch, activeRefLabel, rows, columnOrder]);
+    }, [columns, filterColumns, hoveredBranch, activeRefLabel, rows, visualIndex, rowHasRef]);
 
     const connections = useMemo(() => {
       const result: React.ReactElement[] = [];
@@ -357,8 +379,8 @@ const SvgLanes = React.memo(
       filterColumns,
       hoveredBranch,
       activeRefLabel,
-      refLabelColor,
-      columnOrder,
+      visualIndex,
+      rowDimmedByRef,
     ]);
 
     const nodes = useMemo(
@@ -446,7 +468,9 @@ const SvgLanes = React.memo(
         refLabelColor,
         nodeStroke,
         aheadRows,
-        columnOrder,
+        visualIndex,
+        rowDimmedByRef,
+        rowHasRef,
       ],
     );
 
@@ -666,7 +690,7 @@ const CommitTableRows = React.memo(
                     type="button"
                     className="adl-branch-graph__info-btn"
                     tabIndex={-1}
-                    aria-label=""
+                    aria-hidden="true"
                   >
                     <IconFileText size={14} />
                   </button>
@@ -965,7 +989,6 @@ export function BranchGraph({ data }: BranchGraphProps) {
     }
     return cols;
   }, [selectedLabels]);
-  const activeRefLabel = [...selectedLabels].find((id) => id.startsWith('ref:'))?.slice(4) ?? null;
   // Deferred versions for CommitTableRows/SvgLanes (avoids blocking label feedback)
   const deferredFilterColumns = useMemo(() => {
     const cols = new Set<number>();
@@ -991,9 +1014,9 @@ export function BranchGraph({ data }: BranchGraphProps) {
         continue;
       }
       seen.add(node.authorEmail);
-      getAvatar(node.authorEmail, 32).catch(() => {
-        // Network failures are expected; pixel avatar remains as fallback
-      });
+      // getAvatar internally catches all errors and returns null on failure,
+      // so no .catch() is needed here — pixel avatar remains as fallback.
+      void getAvatar(node.authorEmail, 32);
     }
   }, [adapted]);
   const hasData = data != null;
@@ -1230,7 +1253,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
       }
       return merged;
     });
-  }, [columnsWithLabels, allColIndices]);
+  }, [columnsWithLabels, allColIndices, buildTagOrder]);
 
   const aheadRows = useMemo(() => {
     const ahead = new Set<number>();
