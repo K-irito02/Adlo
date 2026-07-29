@@ -29,6 +29,8 @@ alwaysApply: true
 | `tauri-command-ipc-wrapper-pattern.md` | Tauri 命令统一使用 ipc()/ipc_try() 包装器 | Tauri Command 变更 |
 | `tagged-enum-camelcase-serde-pattern.md` | Rust↔TS 共享类型 serde 序列化规范 | 新增共享类型 |
 | `usetcopy-i18n-context-pattern.md` | 前端 i18n useTCopy() 上下文模式实现 | 前端 UI 开发 |
+| `localstorage-lazy-hydration-pattern.md` | Zustand slice localStorage 惰性水合模式（requestIdleCallback + _defaultsHydrated 守卫） | Store / 状态变更 |
+| `createlazyloader-factory-pattern.md` | createLazyLoader 惰性数据加载工厂模式（按工作区 ID 分片懒加载） | Store / 状态变更 |
 
 ## 新增规则
 
@@ -64,6 +66,8 @@ alwaysApply: true
 | IPC 包装模式变更 | `tauri-command-ipc-wrapper-pattern.md` |
 | Serde 序列化规范变更 | `tagged-enum-camelcase-serde-pattern.md` |
 | i18n 实现模式变更 | `usetcopy-i18n-context-pattern.md` |
+| localStorage 水合模式变更 | `localstorage-lazy-hydration-pattern.md` |
+| 惰性加载工厂模式变更 | `createlazyloader-factory-pattern.md` |
 
 ## MCP 服务器说明
 
