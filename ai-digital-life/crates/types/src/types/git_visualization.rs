@@ -112,17 +112,6 @@ pub struct GitVisBranchNode {
     pub author: String,
     pub author_email: String,
     pub tag: Option<String>,
-    #[serde(default)]
-    pub merged_sub_branches: Vec<MergedSubBranch>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-pub struct MergedSubBranch {
-    pub id: String,
-    pub is_deleted: bool,
-    pub name: Option<String>,
-    pub parent_hash: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

@@ -1,6 +1,6 @@
 import type { HeatmapColumn, HeatmapBin } from '@/components/charts/heatmap/heatmap-context';
 import type { BklitAreaRow } from '../../../../test-fixtures/gitVisMockData';
-import type { CommitNode, CommitEdge, MergedSubBranch } from '../../../../test-fixtures/gitVisMockData';
+import type { CommitNode, CommitEdge } from '../../../../test-fixtures/gitVisMockData';
 
 export interface RawCommitStats {
   dailyCommits: { date: string; count: number }[];
@@ -21,7 +21,6 @@ export interface RawBranchGraph {
     parentHashes: string[];
     branch: string;
     refs?: string[];
-    mergedSubBranches?: MergedSubBranch[];
     date: string;
     message: string;
     author: string;
@@ -236,7 +235,6 @@ export function adaptBranchGraphData(raw: RawBranchGraph): {
     authorEmail: n.authorEmail,
     tag: n.tag,
     refs: n.refs,
-    mergedSubBranches: n.mergedSubBranches,
   }));
   const hashToId = new Map(nodes.map((n) => [n.hash, n.id]));
   return {

@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-29
 **Author:** AI Agent (brainstorming → writing-plans)
-**Status:** Design approved, pending implementation
+**Status:** Implemented 2026-07-29
 
 ## Problem Summary
 
@@ -166,3 +166,56 @@ Existing keys already cover all three annotations:
 1. **Unit test:** Verify `branchHeads` computation produces correct set
 2. **Component test:** Tooltip card shows correct annotation for each scenario (local-only, merged, branch head, none)
 3. **Visual test:** Hover on ref label shows indicator bar and scale effect
+
+## Changes During Implementation
+
+### 1. Annotation Separator Format
+
+Changed from ` (annotation)` parentheses style to ` | annotation` pipe style for all three annotation types:
+- ` (branch head)` → ` | branch head`
+- ` (merged)` → ` | merged`
+- ` (local only)` → ` | local only`
+
+**Files:** `BranchGraph.tsx:238,241,244`
+
+### 2. Fix: Side-branch Label Propagating to Shared Ancestors
+
+**Problem:** The Rust backend (`branch_graph.rs`) propagated `node.branch` from children to parent commits via a `while changed` loop. For shared ancestors (commits reachable from both `main` and a feature branch like `heatmap-chart-generalization`), the propagation assigned the side-branch name, overwriting `main`.
+
+**Root Cause:** `git log --all --topo-order` does not guarantee that `main`'s HEAD is processed before side-branch HEADs. If a side branch has a newer commit timestamp, its branch name propagates first and claims shared ancestors.
+
+**Fix (two parts):**
+
+#### Part A: Remove Rust Backend Propagation
+- Delete the entire `while changed` propagation block from `branch_graph.rs`
+- Only HEAD commits (those directly pointed to by a ref) have `branch` set
+- Non-HEAD commits get branch display from the frontend's column/lane assignment
+
+#### Part B: Frontend Column Label Fallback
+- `CommitTooltipCard` now accepts a `columnLabel` prop
+- `effectiveBranch = branch || columnLabel || ''` — uses `node.branch` for HEAD commits, column label (from lane assignment) for shared ancestors
+- Column labels are derived deterministically from topological order, always showing the correct owning branch
+
+**Files:**
+- `crates/workspace/src/git/git_vis/branch_graph.rs` — removed propagation block
+- `BranchGraph.tsx` — added `columnLabel`, `columnLabelMap`, `effectiveBranch`
+
+### 3. Annotation Guard for Non-HEAD Commits
+
+Annotation conditions now include a `branch &&` guard:
+```typescript
+if (branch && isBranchHead && branchProgress && !branchProgress.mergeBase) { ... }
+if (branch && localRefs.length > 0) { ... }
+if (branch && isBranchHead) { ... }
+```
+
+This ensures annotations (local only / merged / branch head) only appear when `branch` is the actual `node.branch` (HEAD commit), not when it falls back to a column label. Non-HEAD commits show the branch name without annotation.
+
+### Final Verification
+
+| Check | Result |
+|---|---|
+| Rust clippy (`-D warnings`) | 0 warnings |
+| Rust `adl-workspace` tests | Passed |
+| Frontend `BranchGraph.test.tsx` (11 tests) | Passed |
+| Full frontend suite (119 files, 823 tests) | Passed |

@@ -13,7 +13,8 @@ pub async fn capture_contributor_modules(
 ) -> Result<GitVisContributorModules, AppError> {
     let t0 = std::time::Instant::now();
     let time_filter = build_time_filter(since, until);
-    let mut args: Vec<&str> = vec!["-c", "core.quotepath=false", "log", "--pretty=format:%an|%ae", "--name-only"];
+    let mut args: Vec<&str> =
+        vec!["-c", "core.quotepath=false", "log", "--pretty=format:%an|%ae", "--name-only"];
     args.extend(time_filter.iter().map(|s| s.as_str()));
 
     debug!("[ADL-GIT-VIS] [contributor_modules] running: git {}", args.join(" "));
@@ -107,7 +108,8 @@ mod tests {
     #[tokio::test]
     #[ignore = "requires git in PATH"]
     async fn capture_contributor_modules_returns_all_paths() {
-        let dir = std::env::temp_dir().join(format!("adl-contrib-modules-{}", uuid::Uuid::new_v4()));
+        let dir =
+            std::env::temp_dir().join(format!("adl-contrib-modules-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         run_git(&dir, &["init"]);
         run_git(&dir, &["config", "user.email", "test@test.com"]);
@@ -142,7 +144,11 @@ mod tests {
 
         let test_user_mod = result.matrix.iter().find(|m| m.author == "Test User").unwrap();
         let paths: Vec<&str> = test_user_mod.modules.iter().map(|e| e.module.as_str()).collect();
-        assert!(paths.contains(&"src/lib.rs"), "module entry should use full path, got: {:?}", paths);
+        assert!(
+            paths.contains(&"src/lib.rs"),
+            "module entry should use full path, got: {:?}",
+            paths
+        );
 
         let _ = std::fs::remove_dir_all(dir);
     }

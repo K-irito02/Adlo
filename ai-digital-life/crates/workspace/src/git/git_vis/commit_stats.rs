@@ -97,9 +97,8 @@ pub async fn capture_commit_stats(
             periods: periods
                 .into_iter()
                 .map(|(period, count)| {
-                    let month = period.rsplit_once('-')
-                        .and_then(|(_, m)| m.parse().ok())
-                        .unwrap_or(1);
+                    let month =
+                        period.rsplit_once('-').and_then(|(_, m)| m.parse().ok()).unwrap_or(1);
                     GitVisContributorPeriod { period, month, count }
                 })
                 .collect(),

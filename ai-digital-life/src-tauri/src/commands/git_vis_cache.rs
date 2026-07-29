@@ -1,7 +1,7 @@
 use adl_errors::AppError;
 use adl_storage::Database;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use std::future::Future;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -63,7 +63,9 @@ pub(crate) fn read_cached_chart<T: DeserializeOwned>(
         .map_err(|e| AppError::Storage(e.to_string()))?;
 
     let result: Option<String> = stmt
-        .query_row(rusqlite::params![root_path, since_year, until_year, chart_type], |row| row.get(0))
+        .query_row(rusqlite::params![root_path, since_year, until_year, chart_type], |row| {
+            row.get(0)
+        })
         .map_err(|e| AppError::Storage(e.to_string()))
         .ok();
 
@@ -93,18 +95,11 @@ pub(crate) fn cache_chart_data<T: Serialize>(
 }
 
 pub fn extract_year(date_str: &str) -> Option<i32> {
-    if date_str.len() >= 4 {
-        date_str[0..4].parse().ok()
-    } else {
-        None
-    }
+    if date_str.len() >= 4 { date_str[0..4].parse().ok() } else { None }
 }
 
 pub fn is_historical_year(year: i32) -> bool {
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs();
+    let secs = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
     let current_year = 1970 + (secs / 31_557_600) as i32;
     year < current_year
 }

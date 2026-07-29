@@ -134,19 +134,21 @@ export async function handleContributorModules(rootPath: string, since?: string,
 }
 
 export async function handleBranchGraph(rootPath: string) {
-  const raw = (await runGit(rootPath, ['log', '--all', '--topo-order', '--pretty=format:%H|%h|%P|%D|%aI|%an|%ae|%s'])) ?? '';
+  const raw = (await runGit(rootPath, ['log', '--all', '--topo-order', '--pretty=format:%B%x00%H|%h|%P|%D|%aI|%an|%ae%x00'])) ?? '';
   const nodes: unknown[] = [];
   const edges: unknown[] = [];
   const branchSet = new Set<string>();
 
-  const lines = raw === '' ? [] : raw.split('\n');
+  const nullParts = raw === '' ? [] : raw.split('\0');
 
   let headBranch = '';
 
-  for (const line of lines) {
-    const parts = line.split('|');
-    if (parts.length < 8) continue;
-    const [hash, shortHash, parentRaw, refsRaw, date, author, authorEmail, message] = parts;
+  for (let i = 0; i + 1 < nullParts.length; i += 2) {
+    const message = nullParts[i].trim();
+    const header = nullParts[i + 1];
+    const parts = header.split('|');
+    if (parts.length < 7) continue;
+    const [hash, shortHash, parentRaw, refsRaw, date, author, authorEmail] = parts;
     const parentHashes = (parentRaw || '').split(' ').filter(Boolean);
     let branch = '';
     let tag: string | undefined;
