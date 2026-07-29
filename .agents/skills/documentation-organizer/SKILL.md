@@ -77,9 +77,15 @@ description: "Organizes project documentation files into a clear, standardized h
 ```
 docs/
 ├── README.md                          # 文档总入口（链接到各子目录）
+├── summary.md                         # 功能实现总结
 ├── analysis/                          # 分析/源码地图
 │   ├── ai-digital-life/               #   ADL 源码地图
+│   │   ├── features/                  #     功能深度分析
+│   │   └── patterns/                  #     编码模式
 │   └── opencode/                      #   OpenCode 源码地图
+│       ├── comparison/                #     差距分析
+│       ├── features/                  #     功能深度分析
+│       └── patterns/                  #     编码模式
 ├── architecture/                      # 架构设计文档
 │   ├── core/                          #   核心架构
 │   ├── cross-cutting/                 #   横切关注点
@@ -93,13 +99,21 @@ docs/
 │   └── (files)                        #   工程约束、日志系统手册
 ├── knowledge-base/                    # 经验教训知识库
 │   ├── browser/                       #   浏览器经验
+│   │   ├── YYYY-MM/                   #     按月归档
+│   │   └── ...
 │   ├── browser-automation/            #   浏览器自动化经验
 │   ├── ci-monitoring/                 #   CI 监控经验
 │   ├── code-quality/                  #   代码质量经验
+│   │   ├── YYYY-MM/                   #     按月归档
+│   │   └── ...
 │   ├── interaction/                   #   交互优化经验
+│   │   ├── YYYY-MM/                   #     按月归档
+│   │   └── ...
 │   ├── logging/                       #   日志系统经验
 │   ├── multi-workspace/               #   多工作区经验
 │   ├── refactoring/                   #   重构经验
+│   │   ├── YYYY-MM/                   #     按月归档
+│   │   └── ...
 │   ├── tauri-backend/                #   Tauri 后端经验
 │   └── toolchain/                    #   工具链经验
 ├── operations/                        # 运维/操作手册
@@ -108,7 +122,9 @@ docs/
 │       ├── center/                    #     中心区域
 │       ├── leftbar/                   #     左侧栏
 │       ├── rightpanel/                #     右侧面板
+│       │   └── tools/                 #       工具子面板
 │       └── titlebar/                  #     标题栏
+│           └── menus/                 #       菜单
 ├── plans/                             # 实施方案规划
 │   ├── browser/                       #   浏览器规划
 │   ├── git/                           #   Git 可视化规划
@@ -117,22 +133,28 @@ docs/
 │   ├── startup/                       #   启动性能规划
 │   ├── ui/                            #   UI 规划
 │   └── workspace/                     #   工作区规划
-├── reports/                           # 报告/日志
-│   └── refactoring-insight/           #   重构洞察报告
+├── refactoring-insight/               # 重构洞察报告
+│   └── report/                        #   报告
 │       ├── audit/                     #     审计报告
 │       ├── daily-insights/            #     每日洞察
+│       │   ├── YYYY-MM/               #       按月归档
+│       │   └── ...
 │       ├── phase-reports/             #     阶段报告
 │       ├── progress/                  #     进度报告
 │       └── regression-guides/         #     回归测试指南
+├── root-cause-resolution/             # 根因排查进度记录（技能产出物）
 ├── specs/                             # 功能规格设计
 │   ├── browser/                       #   浏览器规格
 │   ├── git/                           #   Git 可视化规格
 │   ├── multi-workspace/               #   多工作区规格
 │   ├── refactoring/                   #   重构规格
+│   │   ├── YYYY-MM-DD-*/              #     具体规格各版本
+│   │   └── ...
 │   ├── ui/                            #   UI 规格
 │   └── workspace/                     #   工作区规格
-├── root-cause-resolution/             # 根因排查进度记录（技能产出物）
-└── superpowers/                       # 旧目录（仅 README.md 重定向；空 plans/ specs/ 子目录供技能输出）
+└── superpowers/                       # Superpowers 技能系统文档
+    ├── plans/                         #   实施计划
+    └── specs/                         #   功能规格
 ```
 
 **2.1.1 整理完成后同步更新技能文件**
