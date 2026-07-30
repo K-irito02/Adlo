@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useLayoutEffect } from 'react';
 import type { BrushSelection, BrushLayoutRenderProps } from './brush-types';
 import { cn } from '@/lib/utils';
 
@@ -23,15 +23,25 @@ export const ChartBrushLayout = React.memo(function ChartBrushLayout({
   children,
   className,
 }: ChartBrushLayoutProps) {
-  const [selection, setSelection] = useState<BrushSelection | null>(() => {
-    if (data.length === 0) return null;
+  const [selection, setSelection] = useState<BrushSelection | null>(null);
+
+  const dataRangeKey = useMemo(() => {
+    if (data.length === 0) return '';
+    return `${data[0][xDataKey]}|${data[data.length - 1][xDataKey]}`;
+  }, [data, xDataKey]);
+
+  useLayoutEffect(() => {
+    if (data.length === 0) {
+      setSelection(null);
+      return;
+    }
     const first = data[0][xDataKey];
     const last = data[data.length - 1][xDataKey];
-    return {
+    setSelection({
       start: first instanceof Date ? first : new Date(first as string | number),
       end: last instanceof Date ? last : new Date(last as string | number),
-    };
-  });
+    });
+  }, [dataRangeKey, xDataKey, data]);
 
   const xDomain = useMemo<[Date, Date] | undefined>(() => {
     if (!enabled || !selection) return undefined;

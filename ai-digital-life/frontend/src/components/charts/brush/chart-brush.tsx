@@ -10,11 +10,14 @@ export interface ChartBrushProps {
   onSelectionChange: (domain: { start: Date; end: Date }) => void;
   initialSelection?: BrushSelection;
   blurPx?: number;
+  fadeOuterEdges?: boolean;
 }
 
 export const ChartBrush = React.memo(function ChartBrush({
   onSelectionChange,
   initialSelection,
+  blurPx = 1.5,
+  fadeOuterEdges = true,
 }: ChartBrushProps) {
   const { xScale, innerWidth, innerHeight } = useChartStable();
   const dragState = useRef<{
@@ -56,6 +59,7 @@ export const ChartBrush = React.memo(function ChartBrush({
   }, [fullMinTime, fullSpan, onSelectionChange]);
 
   const handlePointerDown = useCallback((e: React.PointerEvent, mode: 'pan' | 'resize-left' | 'resize-right') => {
+    e.preventDefault();
     e.stopPropagation();
     (e.target as Element).setPointerCapture?.(e.pointerId);
     const rect = (e.target as Element).closest('svg')?.getBoundingClientRect();
@@ -123,11 +127,19 @@ export const ChartBrush = React.memo(function ChartBrush({
       <rect
         x={0} y={0} width={x0} height={innerHeight}
         fill="var(--chart-brush-dim, rgba(0,0,0,0.15))"
+        style={{
+          backdropFilter: `blur(${blurPx}px)`,
+          ...(fadeOuterEdges ? { maskImage: 'linear-gradient(to right, transparent, black 10%)', WebkitMaskImage: 'linear-gradient(to right, transparent, black 10%)' } : {}),
+        }}
         pointerEvents="none"
       />
       <rect
         x={x1} y={0} width={innerWidth - x1} height={innerHeight}
         fill="var(--chart-brush-dim, rgba(0,0,0,0.15))"
+        style={{
+          backdropFilter: `blur(${blurPx}px)`,
+          ...(fadeOuterEdges ? { maskImage: 'linear-gradient(to left, transparent, black 10%)', WebkitMaskImage: 'linear-gradient(to left, transparent, black 10%)' } : {}),
+        }}
         pointerEvents="none"
       />
       <rect

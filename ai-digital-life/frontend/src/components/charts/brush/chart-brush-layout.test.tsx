@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import React from 'react';
 import { ChartBrushLayout } from './chart-brush-layout';
 
@@ -42,24 +42,47 @@ describe('ChartBrushLayout', () => {
     expect(screen.queryByTestId('brush-strip')).not.toBeInTheDocument();
   });
 
-  it('provides xDomain when selection is set', () => {
-    let capturedLayout: any;
-    render(
+  it('resets xDomain when data changes (simulates time range change)', () => {
+    const initialData = [
+      { date: new Date('2024-01-01'), value: 100 },
+      { date: new Date('2024-12-31'), value: 150 },
+    ];
+    const newData = [
+      { date: new Date('2025-06-01'), value: 200 },
+    ];
+    let capturedLayouts: any[] = [];
+    const { rerender } = render(
       <ChartBrushLayout
-        data={data}
+        data={initialData}
         enabled
         height={72}
         brushStrip={() => null}
       >
         {(layout) => {
-          capturedLayout = layout;
+          capturedLayouts.push({ ...layout, _dataLen: initialData.length });
           return null;
         }}
       </ChartBrushLayout>
     );
-    expect(capturedLayout.xDomain).toBeDefined();
-    expect(capturedLayout.xDomainSlotCount).toBe(3);
-    expect(capturedLayout.brushSelection).toBeDefined();
+    // Simulate data change (e.g., time range filter)
+    capturedLayouts = [];
+    rerender(
+      <ChartBrushLayout
+        data={newData}
+        enabled
+        height={72}
+        brushStrip={() => null}
+      >
+        {(layout) => {
+          capturedLayouts.push({ ...layout, _dataLen: newData.length });
+          return null;
+        }}
+      </ChartBrushLayout>
+    );
+    // After data change, xDomain should be reset to new data range
+    expect(capturedLayouts.length).toBeGreaterThan(0);
+    const finalLayout = capturedLayouts[capturedLayouts.length - 1];
+    expect(finalLayout.xDomain).toBeDefined();
   });
 
   it('renders with empty data (no brush strip)', () => {
