@@ -201,7 +201,7 @@ export function codeEvolutionToAreaData(
   weeks: { weekStart: string; additions: number; deletions: number }[],
 ): BklitAreaRow[] {
   return weeks.map((w) => ({
-    date: w.weekStart.substring(5),
+    date: w.weekStart,
     added: w.additions,
     deleted: w.deletions,
   }));
