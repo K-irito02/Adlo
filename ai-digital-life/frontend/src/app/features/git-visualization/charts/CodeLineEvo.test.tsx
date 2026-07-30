@@ -3,6 +3,16 @@ import { render } from '@testing-library/react';
 import React from 'react';
 import { CodeLineEvo } from './CodeLineEvo';
 
+vi.mock('@/components/charts/brush', () => ({
+  ChartBrushLayout: ({ children, brushStrip }: any) => (
+    <div data-testid="brush-layout">
+      {children({ xDomain: undefined, xDomainSlotCount: undefined, brushSelection: null, onBrushSelectionChange: () => {} })}
+      {brushStrip?.({ brushSelection: null, onBrushSelectionChange: () => {} })}
+    </div>
+  ),
+  ChartBrush: () => <div data-testid="chart-brush" />,
+}));
+
 function createMotionValue(initial = 0) {
   const listeners: Record<string, ((v: unknown) => void)[]> = {};
   return {
