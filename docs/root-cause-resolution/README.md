@@ -19,3 +19,4 @@
 - [progress-2026-07-29-104840.md](./progress-2026-07-29-104840.md) — 标签行间距/ref标签独立拖拽/泳道节点悬停放大/死代码清理 + 预存问题修复（过时注释/i18n键/调试日志/CSS死类）
 - [progress-2026-07-30-000000.md](./progress-2026-07-30-000000.md) — BranchGraph 标签拖拽全量性能优化（TCopyContext/拖拽重写/悬停分离/useDeferredValue/类型迁移）
 - [progress-2026-07-30-064500.md](./progress-2026-07-30-064500.md) — 分支图谱头像显示问题修复：行hover节点放大/像素头像兜底/Tooltip延迟/两级缓存/SWR延迟revoke/闪烁修复（Phase 4收尾完成，862/862测试通过）
+- [progress-2026-07-30-204202.md](./progress-2026-07-30-204202.md) — Git可视化图表空白状态文本清理（分支图谱/文件旭日图）+ TagRow层叠上下文修复（isolation: isolate）+ 死代码清理（孤儿i18n键gitVisNoData/test mock）

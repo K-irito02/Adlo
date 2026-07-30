@@ -37,6 +37,7 @@
   overflow-x: auto;
   flex-shrink: 0;
   scrollbar-width: thin;
+  isolation: isolate;
 }
 
 /* ── Scrollbar auto-hide (instant toggle, all browsers) ── */

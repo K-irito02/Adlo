@@ -61,7 +61,7 @@ vi.mock('motion/react', () => ({
 
 describe('FileSunburst', () => {
   it('renders SVG with arcs', () => {
-    const mockT = { gitVisNoData: 'No data' };
+    const mockT = {};
     const { container } = render(
       <TCopyProvider t={mockT as any} locale="en-US">
         <FileSunburst data={fileTreemapData} />

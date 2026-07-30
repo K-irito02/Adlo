@@ -1302,13 +1302,7 @@ export function BranchGraph({ data }: BranchGraphProps) {
   }, []);
 
   if (!hasData) {
-    return (
-      <div className="adl-git-vis__chart" ref={chartContainerRef}>
-        <p style={{ padding: 16, color: theme.muted, textAlign: 'center' }}>
-          {t.gitVisBranchGraph}
-        </p>
-      </div>
-    );
+    return <div className="adl-git-vis__chart" ref={chartContainerRef} />;
   }
 
   return (

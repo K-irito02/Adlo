@@ -182,7 +182,6 @@ export const changesEn = {
   gitVisTimeSelectDate: 'Select Date',
   gitVisError: 'Chart encountered a temporary error',
   gitVisRetry: 'Retry',
-  gitVisNoData: 'No data',
   gitVisCalendarYearPrev: 'Previous Year',
   gitVisCalendarYearNext: 'Next Year',
   gitVisCalendarYearLatest: 'Already the latest year',
