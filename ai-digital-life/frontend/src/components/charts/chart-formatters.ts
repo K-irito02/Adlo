@@ -1,4 +1,5 @@
 export const shortDateFmt = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
   month: 'short',
   day: 'numeric',
 });

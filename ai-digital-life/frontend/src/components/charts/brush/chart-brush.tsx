@@ -123,6 +123,9 @@ export const ChartBrush = React.memo(function ChartBrush({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseMove={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
     >
       <rect
         x={0} y={0} width={x0} height={innerHeight}
