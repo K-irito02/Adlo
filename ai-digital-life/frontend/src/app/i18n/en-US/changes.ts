@@ -124,11 +124,11 @@ export const changesEn = {
   gitVisContributorModuleDesc:
     "Row: {rowCount} contributors, Column: {colCount} modules. Cell color intensity from light to dark represents cross-domain activity from low to high. Identify each contributor's primary contribution areas and collaboration scope.",
   gitVisCodeLineEvoDesc:
-    'Row: cumulative line count, Column: 40 weeks. Green line = added lines, red line = deleted lines. Reflects project growth pace and refactoring rhythm.',
+    'Columns: time (auto day/week/month by selected range). Upper area = lines added, lower area = lines deleted; the net line shows codebase growth. Drag the overview strip to select a range.',
   gitVisContributorActivityDesc:
     "Row: {rowCount} contributors, Column: {colCount} months. Cell color intensity represents monthly commit volume per person from low to high. Track each contributor's activity distribution over time.",
   gitVisCommitTimelineDesc:
-    'Row: cumulative commits, Column: 2 weeks. Line shows cumulative commit growth trend. Demonstrates project development velocity.',
+    'Columns: time (auto day/week/month by selected range). Bars = commits per period, line = cumulative trend. Drag the overview strip to select a range.',
   gitVisFileSunburstDesc:
     'Inner to outer layers by file type, arc angle = modification count / code volume, colors distinguish categories. Quickly locate "hotspot files" and high-activity modules.',
   gitVisHeatmapTabCalendar: 'Calendar',
