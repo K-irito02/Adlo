@@ -48,4 +48,55 @@ describe('adaptive granularity', () => {
       net: 90,
     });
   });
+
+  it('zero-fills missing days in code evolution daily aggregation', () => {
+    const days = [
+      { date: '2024-01-01', additions: 100, deletions: 10 },
+      { date: '2024-01-03', additions: 20, deletions: 5 },
+    ];
+    const result = aggregateCodeEvolutionDays(days, 'day' as Granularity);
+    expect(result).toEqual([
+      { date: '2024-01-01', added: 100, deletedNeg: -10, net: 90 },
+      { date: '2024-01-02', added: 0, deletedNeg: 0, net: 0 },
+      { date: '2024-01-03', added: 20, deletedNeg: -5, net: 15 },
+    ]);
+  });
+
+  it('zero-fills missing weeks in code evolution week aggregation', () => {
+    const days = [
+      { date: '2024-01-01', additions: 100, deletions: 10 }, // Mon
+      { date: '2024-01-15', additions: 30, deletions: 5 }, // Mon (skips 2024-01-08 week)
+    ];
+    const weeks = aggregateCodeEvolutionDays(days, 'week' as Granularity);
+    expect(weeks).toHaveLength(3);
+    expect(weeks[0]).toEqual({ date: '2024-01-01', added: 100, deletedNeg: -10, net: 90 });
+    expect(weeks[1]).toEqual({ date: '2024-01-08', added: 0, deletedNeg: 0, net: 0 });
+    expect(weeks[2]).toEqual({ date: '2024-01-15', added: 30, deletedNeg: -5, net: 25 });
+  });
+
+  it('zero-fills missing days in commit timeline with cumulative carry-forward', () => {
+    const timeline = [
+      { date: '2024-01-01', count: 2, cumulative: 2 },
+      { date: '2024-01-03', count: 3, cumulative: 5 },
+    ];
+    const result = aggregateCommitTimeline(timeline, 'day' as Granularity);
+    expect(result).toEqual([
+      { date: '2024-01-01', count: 2, cumulative: 2 },
+      { date: '2024-01-02', count: 0, cumulative: 2 },
+      { date: '2024-01-03', count: 3, cumulative: 5 },
+    ]);
+  });
+
+  it('zero-fills missing weeks in commit timeline with cumulative carry-forward', () => {
+    const timeline = [
+      { date: '2024-01-01', count: 2, cumulative: 2 },
+      { date: '2024-01-15', count: 1, cumulative: 5 },
+    ];
+    const weeks = aggregateCommitTimeline(timeline, 'week' as Granularity);
+    expect(weeks).toEqual([
+      { date: '2024-01-01', count: 2, cumulative: 2 },
+      { date: '2024-01-08', count: 0, cumulative: 2 },
+      { date: '2024-01-15', count: 1, cumulative: 5 },
+    ]);
+  });
 });

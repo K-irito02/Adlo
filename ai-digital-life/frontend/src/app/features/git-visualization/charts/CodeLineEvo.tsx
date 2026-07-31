@@ -94,7 +94,11 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({ data }: CodeLineEvo
           const selStart = layout.xDomain?.[0] ?? fullRange.start;
           const selEnd = layout.xDomain?.[1] ?? fullRange.end;
           const granularity = resolveGranularity(selStart, selEnd);
-          const chartData = aggregateCodeEvolutionDays(days, granularity);
+          const inRangeDays = days.filter((d) => {
+            const t = new Date(d.date + 'T00:00:00').getTime();
+            return t >= selStart.getTime() && t <= selEnd.getTime();
+          });
+          const chartData = aggregateCodeEvolutionDays(inRangeDays, granularity);
           return (
             <LineChart
               data={chartData}

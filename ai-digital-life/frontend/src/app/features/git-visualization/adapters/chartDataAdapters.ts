@@ -43,13 +43,34 @@ export function aggregateCodeEvolutionDays(
   granularity: Granularity,
 ): CodeEvolutionRow[] {
   if (granularity === 'day') {
-    return days.map((d) => ({
-      date: d.date,
-      added: d.additions,
-      deletedNeg: -d.deletions,
-      net: d.additions - d.deletions,
-    }));
+    if (days.length === 0) {
+      return [];
+    }
+    const sorted = [...days].sort((a, b) => (a.date < b.date ? -1 : 1));
+    const byDate = new Map(sorted.map((d) => [d.date, d]));
+    const result: CodeEvolutionRow[] = [];
+    const endExclusive = addDays(new Date(sorted[sorted.length - 1].date + 'T00:00:00'), 1);
+    for (
+      let cur = new Date(sorted[0].date + 'T00:00:00');
+      cur.getTime() < endExclusive.getTime();
+      cur = addDays(cur, 1)
+    ) {
+      const date10 = toDate10(cur);
+      const d = byDate.get(date10);
+      result.push(
+        d
+          ? {
+              date: date10,
+              added: d.additions,
+              deletedNeg: -d.deletions,
+              net: d.additions - d.deletions,
+            }
+          : { date: date10, added: 0, deletedNeg: 0, net: 0 },
+      );
+    }
+    return result;
   }
+
   const key = granularity === 'week' ? mondayOf : monthOf;
   const buckets = new Map<string, { add: number; del: number }>();
   for (const d of days) {
@@ -59,9 +80,43 @@ export function aggregateCodeEvolutionDays(
     b.del += d.deletions;
     buckets.set(k, b);
   }
-  return [...buckets.entries()]
-    .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([date, b]) => ({ date, added: b.add, deletedNeg: -b.del, net: b.add - b.del }));
+  const keys = [...buckets.keys()].sort();
+  if (keys.length === 0) {
+    return [];
+  }
+  const result: CodeEvolutionRow[] = [];
+  const pushBucket = (date10: string) => {
+    const b = buckets.get(date10);
+    result.push(
+      b
+        ? { date: date10, added: b.add, deletedNeg: -b.del, net: b.add - b.del }
+        : { date: date10, added: 0, deletedNeg: 0, net: 0 },
+    );
+  };
+  if (granularity === 'week') {
+    const endExclusive = addDays(new Date(keys[keys.length - 1] + 'T00:00:00'), 7);
+    for (
+      let cur = new Date(keys[0] + 'T00:00:00');
+      cur.getTime() < endExclusive.getTime();
+      cur = addDays(cur, 7)
+    ) {
+      pushBucket(toDate10(cur));
+    }
+    return result;
+  }
+  const [y1, m1] = keys[0].split('-').map(Number);
+  const [y2, m2] = keys[keys.length - 1].split('-').map(Number);
+  let y = y1;
+  let m = m1;
+  while (y < y2 || (y === y2 && m <= m2)) {
+    pushBucket(`${y}-${String(m).padStart(2, '0')}`);
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return result;
 }
 
 export function aggregateCommitTimeline(
@@ -69,8 +124,31 @@ export function aggregateCommitTimeline(
   granularity: Granularity,
 ): { date: string; count: number; cumulative: number }[] {
   if (granularity === 'day') {
-    return timeline;
+    if (timeline.length === 0) {
+      return [];
+    }
+    const sorted = [...timeline].sort((a, b) => (a.date < b.date ? -1 : 1));
+    const byDate = new Map(sorted.map((t) => [t.date, t]));
+    const result: { date: string; count: number; cumulative: number }[] = [];
+    let prevCumulative = 0;
+    const endExclusive = addDays(new Date(sorted[sorted.length - 1].date + 'T00:00:00'), 1);
+    for (
+      let cur = new Date(sorted[0].date + 'T00:00:00');
+      cur.getTime() < endExclusive.getTime();
+      cur = addDays(cur, 1)
+    ) {
+      const date10 = toDate10(cur);
+      const t = byDate.get(date10);
+      if (t) {
+        prevCumulative = t.cumulative;
+        result.push({ date: date10, count: t.count, cumulative: t.cumulative });
+      } else {
+        result.push({ date: date10, count: 0, cumulative: prevCumulative });
+      }
+    }
+    return result;
   }
+
   const key = granularity === 'week' ? mondayOf : monthOf;
   const buckets = new Map<string, { count: number; cumulative: number }>();
   for (const t of timeline) {
@@ -83,9 +161,45 @@ export function aggregateCommitTimeline(
       prev.cumulative = t.cumulative; // 取该桶末尾日累计
     }
   }
-  return [...buckets.entries()]
-    .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([date, v]) => ({ date, count: v.count, cumulative: v.cumulative }));
+  const keys = [...buckets.keys()].sort();
+  if (keys.length === 0) {
+    return [];
+  }
+  const result: { date: string; count: number; cumulative: number }[] = [];
+  let prevCumulative = 0;
+  const pushBucket = (date10: string) => {
+    const v = buckets.get(date10);
+    if (v) {
+      prevCumulative = v.cumulative;
+      result.push({ date: date10, count: v.count, cumulative: v.cumulative });
+    } else {
+      result.push({ date: date10, count: 0, cumulative: prevCumulative });
+    }
+  };
+  if (granularity === 'week') {
+    const endExclusive = addDays(new Date(keys[keys.length - 1] + 'T00:00:00'), 7);
+    for (
+      let cur = new Date(keys[0] + 'T00:00:00');
+      cur.getTime() < endExclusive.getTime();
+      cur = addDays(cur, 7)
+    ) {
+      pushBucket(toDate10(cur));
+    }
+    return result;
+  }
+  const [y1, m1] = keys[0].split('-').map(Number);
+  const [y2, m2] = keys[keys.length - 1].split('-').map(Number);
+  let y = y1;
+  let m = m1;
+  while (y < y2 || (y === y2 && m <= m2)) {
+    pushBucket(`${y}-${String(m).padStart(2, '0')}`);
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+  }
+  return result;
 }
 
 export interface RawCommitStats {

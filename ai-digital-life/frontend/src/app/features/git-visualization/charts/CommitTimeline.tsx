@@ -95,7 +95,11 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
           const selStart = layout.xDomain?.[0] ?? fullRange.start;
           const selEnd = layout.xDomain?.[1] ?? fullRange.end;
           const granularity = resolveGranularity(selStart, selEnd);
-          const chartData = aggregateCommitTimeline(days, granularity);
+          const inRangeDays = days.filter((d) => {
+            const t = new Date(d.date + 'T00:00:00').getTime();
+            return t >= selStart.getTime() && t <= selEnd.getTime();
+          });
+          const chartData = aggregateCommitTimeline(inRangeDays, granularity);
           return (
             <ComposedChart
               data={chartData}
