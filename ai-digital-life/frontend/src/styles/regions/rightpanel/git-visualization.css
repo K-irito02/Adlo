@@ -1316,6 +1316,71 @@
   display: block;
 }
 
+/* ── Series Toggle (CodeLineEvo) ── */
+.adl-git-vis__chart-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.adl-git-vis__chart-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.adl-git-vis__series-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+  padding-top: 6px;
+}
+
+.adl-git-vis__series-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+  white-space: nowrap;
+}
+
+.adl-git-vis__series-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-git-vis__series-toggle-btn[aria-pressed='false'] {
+  opacity: 0.55;
+}
+
+.adl-git-vis__series-toggle-btn[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.adl-git-vis__series-toggle-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.adl-git-vis__series-toggle-btn[aria-pressed='false'] .adl-git-vis__series-toggle-dot {
+  filter: grayscale(1);
+}
+
 .adl-contributor-module-heatmap {
   display: flex;
   flex-direction: column;

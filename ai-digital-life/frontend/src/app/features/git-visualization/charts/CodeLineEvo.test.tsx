@@ -1,7 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { CodeLineEvo } from './CodeLineEvo';
+
+beforeEach(() => {
+  localStorage.removeItem('gitVisCodeLineEvoVisible');
+});
 
 function createMotionValue(initial = 0) {
   const listeners: Record<string, ((v: unknown) => void)[]> = {};
@@ -73,6 +77,7 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisCodeLineEvoAdded: 'Lines added',
       gitVisCodeLineEvoDeleted: 'Lines deleted',
       gitVisCodeLineEvoNet: 'Net change',
+      gitVisCodeLineEvoToggleLabel: 'Toggle series visibility',
     },
     formatT: vi.fn(),
   })),
@@ -131,5 +136,60 @@ describe('CodeLineEvo', () => {
 
     const highlightRows = mainChartSvg!.querySelectorAll('.chart-grid-highlight-rows line');
     expect(highlightRows.length).toBeGreaterThan(0);
+  });
+
+  it('renders three series toggle buttons, all active by default', () => {
+    const { container } = render(<CodeLineEvo data={DAILY_DATA} />);
+    const buttons = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('.adl-git-vis__series-toggle-btn'),
+    );
+    expect(buttons.length).toBe(3);
+    for (const button of buttons) {
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+    }
+  });
+
+  it('hiding the net series removes it from the main chart but keeps the overview strip', () => {
+    const { container } = render(<CodeLineEvo data={DAILY_DATA} />);
+    const mainChartSvg = container.querySelector('.adl-chart-brush-layout svg');
+    const stripSvg = container.querySelector('.adl-chart-brush-layout__strip svg');
+    const mainNetGradient = () =>
+      mainChartSvg!.querySelectorAll('linearGradient[id^="line-gradient-net-"]');
+    const stripNetGradient = () =>
+      stripSvg!.querySelectorAll('linearGradient[id^="line-gradient-net-"]');
+    expect(mainNetGradient().length).toBe(1);
+    expect(stripNetGradient().length).toBe(1);
+
+    const netButton = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('.adl-git-vis__series-toggle-btn'),
+    ).find((b) => b.textContent?.includes('Net change'));
+    expect(netButton).toBeDefined();
+    fireEvent.click(netButton!);
+
+    expect(netButton!.getAttribute('aria-pressed')).toBe('false');
+    expect(mainNetGradient().length).toBe(0);
+    expect(stripNetGradient().length).toBe(1);
+  });
+
+  it('persists toggle state and reads it back on mount', () => {
+    localStorage.setItem(
+      'gitVisCodeLineEvoVisible',
+      JSON.stringify({ added: false, deleted: true, net: true }),
+    );
+    const { container } = render(<CodeLineEvo data={DAILY_DATA} />);
+    const buttons = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('.adl-git-vis__series-toggle-btn'),
+    );
+    expect(
+      buttons.find((b) => b.textContent?.includes('Lines added'))?.getAttribute('aria-pressed'),
+    ).toBe('false');
+    expect(
+      buttons.find((b) => b.textContent?.includes('Lines deleted'))?.getAttribute('aria-pressed'),
+    ).toBe('true');
+
+    const deletedButton = buttons.find((b) => b.textContent?.includes('Lines deleted'));
+    fireEvent.click(deletedButton!);
+    const saved = JSON.parse(localStorage.getItem('gitVisCodeLineEvoVisible') ?? '{}');
+    expect(saved.deleted).toBe(false);
   });
 });
