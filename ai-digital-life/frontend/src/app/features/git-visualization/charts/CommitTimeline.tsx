@@ -7,6 +7,7 @@ import { Grid } from '@/components/charts/grid';
 import { ChartTooltip } from '@/components/charts/tooltip/chart-tooltip';
 import { ChartBrushLayout, ChartBrush } from '@/components/charts/brush';
 import { XAxis } from '@/components/charts/x-axis';
+import { YAxis } from '@/components/charts/y-axis';
 import {
   aggregateCommitTimeline,
   resolveGranularity,
@@ -113,13 +114,20 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
               tweenYDomainOnXDomainChange
               yDomainTween
               dateLabelFormatter={dateLabelFormatterFor(granularity)}
-              margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
+              margin={{ top: 20, right: 60, bottom: 40, left: 60 }}
               style={{ maxHeight: 280 }}
             >
-              <SeriesBar dataKey="count" fill="var(--chart-line-primary)" radius={4} />
+              <SeriesBar
+                dataKey="count"
+                yAxisId="right"
+                fill="var(--chart-line-primary)"
+                radius={4}
+              />
               <Line dataKey="cumulative" stroke="var(--chart-line-secondary)" strokeWidth={2} />
               <Grid />
               <XAxis />
+              <YAxis numTicks={4} />
+              <YAxis yAxisId="right" orientation="right" numTicks={4} />
               <ChartTooltip
                 rows={(point) => [
                   {

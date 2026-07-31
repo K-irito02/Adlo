@@ -132,7 +132,7 @@ export const changesZh = {
   gitVisContributorActivityDesc:
     '行：{rowCount}位贡献者，列：{colCount}月时间段。色块颜色从浅到深代表每人每月提交量由少到多。可追踪每位贡献者在时间维度上的活跃分布。',
   gitVisCommitTimelineDesc:
-    '列：时间（随所选区间自适应 天/周/月）。柱状为单期提交数，折线为累计提交趋势。缩略条曲线为单期提交数，可拖选区间。',
+    '列：时间（随所选区间自适应 天/周/月）。柱状为单期提交数（右侧轴）、折线为累计提交趋势（左侧轴）。缩略条曲线为单期提交数，可拖选区间。',
   gitVisCommitTimelineCount: '本周提交数',
   gitVisCommitTimelineCumulative: '累计',
   gitVisFileSunburstDesc:

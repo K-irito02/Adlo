@@ -131,6 +131,7 @@ function tryAppendSeriesBar(
     dataKey: props.dataKey,
     stroke: props.stroke || props.fill || 'var(--chart-line-primary)',
     strokeWidth: 0,
+    yAxisId: props.yAxisId,
   });
   return true;
 }

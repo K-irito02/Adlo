@@ -131,4 +131,28 @@ describe('CommitTimeline', () => {
     });
     expect(linePaths.length).toBeGreaterThan(0);
   });
+
+  it('renders two independent y-axes: right scaled to counts, left scaled to cumulative', () => {
+    const { container } = render(<CommitTimeline data={DAILY_DATA} />);
+    const mainChartSvg = container.querySelector('.adl-chart-brush-layout svg');
+    expect(mainChartSvg!.querySelectorAll('.series-bar rect').length).toBeGreaterThan(0);
+
+    const axisWrappers = Array.from(container.querySelectorAll('div')).filter(
+      (d) => d.style.width !== '' && (d.style.left === '0px' || d.style.right === '0px'),
+    );
+    const leftAxis = axisWrappers.find((d) => d.style.left === '0px');
+    const rightAxis = axisWrappers.find((d) => d.style.right === '0px');
+    expect(leftAxis).toBeDefined();
+    expect(rightAxis).toBeDefined();
+
+    const rightText = Array.from(rightAxis!.querySelectorAll('.text-chart-label')).map((s) =>
+      Number(s.textContent),
+    );
+    const leftText = Array.from(leftAxis!.querySelectorAll('.text-chart-label')).map((s) =>
+      Number(s.textContent),
+    );
+    // Counts span 2..4 (right axis) while cumulative reaches 11 (left axis).
+    expect(Math.max(...rightText)).toBeLessThanOrEqual(5);
+    expect(Math.max(...leftText)).toBeGreaterThanOrEqual(10);
+  });
 });
