@@ -8,7 +8,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::process::Command;
 
 pub const CHART_TYPE_DAILY_COMMITS: &str = "daily_commits";
-pub const CHART_TYPE_CODE_EVOLUTION: &str = "code_evolution";
+pub const CHART_TYPE_CODE_EVOLUTION: &str = "code_evolution_daily";
 pub const CHART_TYPE_CONTRIBUTOR_MODULES: &str = "contributor_modules";
 
 pub(crate) async fn with_cached<T, F, Fut>(
