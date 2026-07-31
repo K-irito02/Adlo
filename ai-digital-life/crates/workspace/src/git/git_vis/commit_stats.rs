@@ -131,6 +131,34 @@ struct DateParts {
     hour: i32,
 }
 
+/// Convert a Gregorian date to a Julian Day Number (Fliegel-Van Flandern).
+fn gregorian_to_jdn(year: i64, month: i64, day: i64) -> i64 {
+    let a = (14 - month) / 12;
+    let y = year + 4800 - a;
+    let m = month + 12 * a - 3;
+    day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045
+}
+
+/// Convert a Julian Day Number to a Gregorian date `(year, month, day)`.
+fn jdn_to_gregorian(jdn: i64) -> (i64, i64, i64) {
+    let l = jdn + 68569;
+    let n = (4 * l) / 146097;
+    let l = l - (146097 * n + 3) / 4;
+    let i = (4000 * (l + 1)) / 1461001;
+    let l = l - (1461 * i) / 4 + 31;
+    let j = (80 * l) / 2447;
+    let d = l - (2447 * j) / 80;
+    let l = j / 11;
+    let m = j + 2 - 12 * l;
+    let y = 100 * (n - 49) + i + l;
+    (y, m, d)
+}
+
+/// Day of week where 0 = Sunday .. 6 = Saturday (matches JS `Date.getDay()`).
+fn day_of_week(year: i64, month: i64, day: i64) -> i64 {
+    (gregorian_to_jdn(year, month, day) + 1).rem_euclid(7)
+}
+
 fn parse_date_parts(iso: &str) -> Option<DateParts> {
     let s = iso.trim();
     if s.len() < 13 {
@@ -141,11 +169,7 @@ fn parse_date_parts(iso: &str) -> Option<DateParts> {
     let day: u32 = s[8..10].parse().ok()?;
     let hour: i32 = s[11..13].parse().ok()?;
 
-    let a = (14 - month as i32) / 12;
-    let y = year - a;
-    let m = month as i32 + 12 * a - 2;
-    let julian = (day as i32 + (31 * m) / 12 + y + y / 4 - y / 100 + y / 400) as u32;
-    let day_of_week = ((julian + 1) % 7) as i32;
+    let day_of_week = day_of_week(year as i64, month as i64, day as i64) as i32;
 
     Some(DateParts { year, month: month as i32, day_of_week, hour })
 }
@@ -178,11 +202,8 @@ pub async fn capture_code_evolution(
                 entry.0 += add;
                 entry.1 += del;
             }
-        } else if let Some(pipe_pos) = line.find('|') {
-            if pipe_pos > 30 && pipe_pos < 60 {
-                let date_part = &line[pipe_pos + 1..];
-                current_date = Some(date_part[..date_part.len().min(10)].to_string());
-            }
+        } else if let Some(date_str) = header_date(line) {
+            current_date = Some(date_str);
         }
     }
 
@@ -209,25 +230,86 @@ fn start_of_week(date_str: &str) -> String {
     if date_str.len() < 10 {
         return date_str.to_string();
     }
-    let year: i32 = date_str[0..4].parse().unwrap_or(0);
-    let month: u32 = date_str[5..7].parse().unwrap_or(1);
-    let day: u32 = date_str[8..10].parse().unwrap_or(1);
-    let a = (14 - month as i32) / 12;
-    let y = year - a;
-    let m = month as i32 + 12 * a - 2;
-    let julian = day as i32 + (31 * m) / 12 + y + y / 4 - y / 100 + y / 400;
-    let day_of_week = ((julian as u32 + 1) % 7) as i32;
-    let monday_offset = (day_of_week + 6) % 7;
-    let mon_julian = julian - monday_offset;
-    let l = mon_julian + 68569 + 1;
-    let n = (4 * l) / 146097;
-    let l = l - (146097 * n + 3) / 4;
-    let i = (4000 * (l + 1)) / 1461001;
-    let l = l - (1461 * i) / 4 + 31;
-    let j = (80 * l) / 2447;
-    let d = l - (2447 * j) / 80;
-    let l = j / 11;
-    let m = j + 2 - 12 * l;
-    let y = 100 * (n - 49) + i + l;
-    format!("{}-{:02}-{:02}", y, m, d)
+    let year: i64 = date_str[0..4].parse().unwrap_or(0);
+    let month: i64 = date_str[5..7].parse().unwrap_or(1);
+    let day: i64 = date_str[8..10].parse().unwrap_or(1);
+    let jdn = gregorian_to_jdn(year, month, day);
+    let dow = (jdn + 1).rem_euclid(7);
+    let monday_offset = (dow + 6) % 7;
+    let (y, m, d) = jdn_to_gregorian(jdn - monday_offset);
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+/// Matches a commit header line emitted by `--pretty=format:%H|%aI`, returning
+/// the leading `YYYY-MM-DD` date. Robust for both SHA-1 and SHA-256 hashes.
+fn header_date(line: &str) -> Option<String> {
+    let pipe_pos = line.find('|')?;
+    let date_part = &line[pipe_pos + 1..];
+    if date_part.len() < 10 {
+        return None;
+    }
+    let head = &date_part[..10];
+    let bytes = head.as_bytes();
+    if bytes.len() != 10 || !bytes[0..4].iter().all(|b| b.is_ascii_digit()) || bytes[4] != b'-' {
+        return None;
+    }
+    Some(head.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn start_of_week_returns_monday_of_the_same_week() {
+        assert_eq!(start_of_week("2024-01-01"), "2024-01-01"); // Monday
+        assert_eq!(start_of_week("2024-01-07"), "2024-01-01"); // Sunday → same week Monday
+        assert_eq!(start_of_week("2026-07-31"), "2026-07-27");
+        assert_eq!(start_of_week("2025-12-31"), "2025-12-29");
+        assert_eq!(start_of_week("2026-01-01"), "2025-12-29");
+        assert_eq!(start_of_week("2023-06-15"), "2023-06-12");
+        assert_eq!(start_of_week("2024-02-29"), "2024-02-26"); // leap day
+        assert_eq!(start_of_week("2024-12-30"), "2024-12-30");
+        // 2025 has 53 ISO weeks; Dec 31 falls in 2026-01-05's week start
+        assert_eq!(start_of_week("2026-01-05"), "2026-01-05");
+    }
+
+    #[test]
+    fn start_of_week_never_produces_impossible_dates() {
+        for d in ["2024-01-01", "2026-07-31", "2020-02-29", "1999-12-31", "2030-01-01"] {
+            let s = start_of_week(d);
+            let year: i32 = s[0..4].parse().unwrap();
+            assert!(
+                (1900..2100).contains(&year),
+                "week start {s} (from {d}) should be a plausible 1900-2100 date"
+            );
+            assert_eq!(s.len(), 10);
+        }
+    }
+
+    #[test]
+    fn parse_date_parts_day_of_week_matches_js_convention() {
+        // 0 = Sunday .. 6 = Saturday
+        assert_eq!(parse_date_parts("2024-01-01T10:00:00+08:00").unwrap().day_of_week, 1); // Mon
+        assert_eq!(parse_date_parts("2024-03-04T00:00:00Z").unwrap().day_of_week, 1); // Mon
+        assert_eq!(parse_date_parts("2024-12-31T23:00:00Z").unwrap().day_of_week, 2); // Tue
+        assert_eq!(parse_date_parts("2024-01-07T00:00:00Z").unwrap().day_of_week, 0); // Sun
+        assert_eq!(parse_date_parts("2024-01-06T00:00:00Z").unwrap().day_of_week, 6); // Sat
+    }
+
+    #[test]
+    fn header_date_parses_both_sha1_and_sha256_headers() {
+        assert_eq!(
+            header_date("e1278dba4e87ea8d41da7f9a8d726d54e14c91b4|2026-07-31T15:08:45+08:00"),
+            Some("2026-07-31".to_string())
+        );
+        let sha256 = "f".repeat(64);
+        assert_eq!(
+            header_date(&format!("{sha256}|2025-01-02T03:04:05Z")),
+            Some("2025-01-02".to_string())
+        );
+        assert_eq!(header_date("3\t2\tfile.ts"), None); // numstat line
+        assert_eq!(header_date("not a header"), None);
+        assert_eq!(header_date(""), None);
+    }
 }

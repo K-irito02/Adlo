@@ -50,6 +50,35 @@ impl Database {
         conn.execute_batch(include_str!("../sql/init_schema.sql"))
             .map_err(|e| AppError::Storage(e.to_string()))?;
         let _ = conn.execute("ALTER TABLE recent_workspaces ADD COLUMN json TEXT", []);
+
+        // Rebuild git_vis_cache with exact date-range keys if a legacy
+        // year-keyed table exists. The cache is disposable, so dropping it
+        // loses nothing besides cached git log results.
+        let legacy_key_cols: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('git_vis_cache') \
+                 WHERE name IN ('since_year', 'until_year')",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+        if legacy_key_cols > 0 {
+            conn.execute_batch(
+                "DROP TABLE IF EXISTS git_vis_cache;
+                 CREATE TABLE git_vis_cache (
+                     root_path TEXT NOT NULL,
+                     since TEXT NOT NULL DEFAULT '',
+                     until TEXT NOT NULL DEFAULT '',
+                     chart_type TEXT NOT NULL,
+                     data TEXT NOT NULL,
+                     cached_at TEXT NOT NULL DEFAULT (datetime('now')),
+                     PRIMARY KEY (root_path, since, until, chart_type)
+                 );",
+            )
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+            tracing::info!("rebuilt git_vis_cache with exact date-range cache keys");
+        }
+
         conn.execute_batch(include_str!("../sql/init_indexes.sql"))
             .map_err(|e| AppError::Storage(e.to_string()))?;
         info!("schema initialized");

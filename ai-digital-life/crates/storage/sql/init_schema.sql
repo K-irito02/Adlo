@@ -185,10 +185,10 @@ CREATE TABLE IF NOT EXISTS durable_session_state (
 );
 CREATE TABLE IF NOT EXISTS git_vis_cache (
     root_path TEXT NOT NULL,
-    since_year INTEGER NOT NULL CHECK(since_year >= 1900 AND since_year <= 3000),
-    until_year INTEGER NOT NULL CHECK(until_year >= 1900 AND until_year <= 3000),
+    since TEXT NOT NULL DEFAULT '',
+    until TEXT NOT NULL DEFAULT '',
     chart_type TEXT NOT NULL,
     data TEXT NOT NULL,
     cached_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (root_path, since_year, until_year, chart_type)
+    PRIMARY KEY (root_path, since, until, chart_type)
 );

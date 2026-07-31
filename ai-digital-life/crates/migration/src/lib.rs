@@ -75,17 +75,17 @@ pub const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 5,
-        description: "Add until_year to git_vis_cache for range-aware caching",
+        description: "Key git_vis_cache by exact date ranges",
         sql: r#"
             DROP TABLE IF EXISTS git_vis_cache;
             CREATE TABLE git_vis_cache (
                 root_path TEXT NOT NULL,
-                since_year INTEGER NOT NULL CHECK(since_year >= 1900 AND since_year <= 3000),
-                until_year INTEGER NOT NULL CHECK(until_year >= 1900 AND until_year <= 3000),
+                since TEXT NOT NULL DEFAULT '',
+                until TEXT NOT NULL DEFAULT '',
                 chart_type TEXT NOT NULL,
                 data TEXT NOT NULL,
                 cached_at TEXT NOT NULL DEFAULT (datetime('now')),
-                PRIMARY KEY (root_path, since_year, until_year, chart_type)
+                PRIMARY KEY (root_path, since, until, chart_type)
             );
         "#,
     },
@@ -204,8 +204,8 @@ mod tests {
         assert!(m4.sql.contains("git_vis_cache"));
         let m5 = &MIGRATIONS[4];
         assert_eq!(m5.version, 5);
-        assert_eq!(m5.description, "Add until_year to git_vis_cache for range-aware caching");
-        assert!(m5.sql.contains("since_year"));
-        assert!(m5.sql.contains("until_year"));
+        assert_eq!(m5.description, "Key git_vis_cache by exact date ranges");
+        assert!(m5.sql.contains("since"));
+        assert!(m5.sql.contains("until"));
     }
 }
