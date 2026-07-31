@@ -1,0 +1,559 @@
+# ============================================
+# 规则集 (rule_sets)
+# ============================================
+
+# --- 0) 局域网/私网：强制直连
+[[rule_sets]]
+group = "🛡️ 局域网直连"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/LocalAreaNetwork.yaml"
+type = "rule-set"
+
+# --- 1) AI/风控敏感：前置
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/refs/heads/master/Clash/Providers/Ruleset/AI.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+url = "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geosite/classical/google-gemini.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Copilot/Copilot.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Bing/Bing.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+url = "https://raw.githubusercontent.com/maoxiongnet/-sub-/main/rules/ACL4SSR/Clash/Ruleset/otherai.list"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+url = "https://raw.githubusercontent.com/maoxiongnet/-sub-/refs/heads/main/rules/ACL4SSR/Clash/AppleAI.list"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+type = "domain-suffix"
+value = "google.com"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+type = "domain-suffix"
+value = "gstatic.com"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+type = "domain-suffix"
+value = "googleusercontent.com"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+type = "domain-suffix"
+value = "googleapis.com"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+type = "domain-suffix"
+value = "ggpht.com"
+
+# Google Play 商店下载/更新 CDN：gvt0-3.com（+ Play 地区下载域 xn--ngstr-lra8j.com）。
+# 之前只显式列了 google.com 等、【漏了 gvt 域】，Play 下载会落到 GeoIP-CN 兜底被误判直连 →「Pending…」下不动。
+# 显式前置到 GeoIP-CN 之前走代理修复。
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+type = "domain-suffix"
+value = "gvt1.com"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+type = "domain-suffix"
+value = "gvt2.com"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+type = "domain-suffix"
+value = "gvt3.com"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+type = "domain-suffix"
+value = "gvt0.com"
+
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+type = "domain-suffix"
+value = "xn--ngstr-lra8j.com"
+
+# dler-io AI Suite：聚合 Grok / Perplexity / POE / Cursor / Mistral / Sora /
+# Meta AI / Copilot / Gemini / NotebookLM / Cerebras / Groq 等主流 AI 服务，
+# 由 dlercloud 团队维护，定期跟进新出的 AI 域名。74+ 条规则。
+# 仅 yaml 格式（无 .list 备份），Surge / Loon 流不做反推，依赖现代客户端原生 yaml 解析。
+[[rule_sets]]
+group = "🤖 ChatGPT、Claude、Gemini、微软AI"
+url = "https://raw.githubusercontent.com/dler-io/Rules/main/Clash/Provider/AI%20Suite.yaml"
+type = "rule-set"
+
+# --- 1.5) 开发工具/Git/搜索：Git 远程提交、OpenCode 内置网络搜索等国外网络场景。
+# 前置到「国内直连 / GeoIP-CN」之前，避免 github.com / exa.ai 等落到兜底被误判直连。
+[[rule_sets]]
+group = "🛠️ 开发工具"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GitHub/GitHub.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🛠️ 开发工具"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/GitLab/GitLab.yaml"
+type = "rule-set"
+
+# GitHub 静态资源 / 下载 CDN：githubusercontent / githubassets / objects.githubusercontent 等，
+# 部分不在 GitHub.yaml 规则集内，显式 domain-suffix 补全，保证 raw/avatar/release 资源都走代理。
+[[rule_sets]]
+group = "🛠️ 开发工具"
+type = "domain-suffix"
+value = "githubusercontent.com"
+
+[[rule_sets]]
+group = "🛠️ 开发工具"
+type = "domain-suffix"
+value = "githubassets.com"
+
+[[rule_sets]]
+group = "🛠️ 开发工具"
+type = "domain-suffix"
+value = "github.io"
+
+[[rule_sets]]
+group = "🛠️ 开发工具"
+type = "domain-suffix"
+value = "githubapp.com"
+
+[[rule_sets]]
+group = "🛠️ 开发工具"
+type = "domain-suffix"
+value = "objects.githubusercontent.com"
+
+[[rule_sets]]
+group = "🛠️ 开发工具"
+type = "domain-suffix"
+value = "codeload.github.com"
+
+# OpenCode 内置网络搜索（websearch 工具）：
+#   EXA_URL      = https://mcp.exa.ai/mcp
+#   PARALLEL_URL = https://search.parallel.ai/mcp
+# 两个 MCP 端点均需国外网络，显式走代理。
+[[rule_sets]]
+group = "🛠️ 开发工具"
+type = "domain-suffix"
+value = "exa.ai"
+
+[[rule_sets]]
+group = "🛠️ 开发工具"
+type = "domain-suffix"
+value = "parallel.ai"
+
+# --- 2) Steam 下载：单独拆出，默认直连
+[[rule_sets]]
+group = "⬇️ Steam下载(测试)"
+url = "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/refs/heads/meta/geo/geosite/classical/category-game-platforms-download.yaml"
+type = "rule-set"
+
+# --- 3) 苹果
+[[rule_sets]]
+group = "🍎 苹果服务"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/Ruleset/Apple.yaml"
+type = "rule-set"
+
+# --- 4) 流媒体/应用
+[[rule_sets]]
+group = "📹 YouTube"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/Ruleset/YouTube.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🎥 NETFLIX"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Netflix/Netflix.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🎥 NETFLIX"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/Ruleset/NetflixIP.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "💿 AbemaTV"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/AbemaTV/AbemaTV.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🔞 Pornhub"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/Ruleset/Pornhub.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🦄 DisneyPlus"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Disney/Disney.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🎞️ Prime Video"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/PrimeVideo/PrimeVideo.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🅼 HBO MAX"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/HBOUSA/HBOUSA.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🅼 HBO MAX"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/Ruleset/HBO.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "📹️ HBOGO Asia"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/HBOAsia/HBOAsia.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🎧 Spotify"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/Spotify/Spotify.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🎶 TikTok"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/TikTok/TikTok.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "📺 巴哈姆特动画疯"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/Ruleset/Bahamut.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🅱️️️️ 哔哩哔哩港澳台"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/Ruleset/BilibiliHMT.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🎬 猫熊Emby"
+url = "https://raw.githubusercontent.com/maoxiongnet/-sub-/main/rules/ACL4SSR/Clash/emby.list"
+type = "rule-set"
+
+# --- 5) 通讯/厂商
+[[rule_sets]]
+group = "📲 电报信息"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/Ruleset/Telegram.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "Ⓜ️ 微软服务"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/Ruleset/Microsoft.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "📢 谷歌FCM"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/Ruleset/GoogleFCM.yaml"
+type = "rule-set"
+
+# --- 6) 游戏平台
+[[rule_sets]]
+group = "🎮️ 游戏平台"
+url = "https://raw.githubusercontent.com/maoxiongnet/ios_rule_script/master/rule/Clash/Game/Game.list"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🎮️ 游戏平台"
+url = "https://raw.githubusercontent.com/maoxiongnet/-sub-/main/rules/ACL4SSR/Clash/Ruleset/Steamstorecommunity.list"
+type = "rule-set"
+
+# --- 7) 手动切换/杂项
+[[rule_sets]]
+group = "🚀 手动切换"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/ProxyLite.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🚀 手动切换"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/PikPak/PikPak.yaml"
+type = "rule-set"
+
+# --- 7.6) 领英（LinkedIn）：显式走代理，前置到「国内直连 / GeoIP-CN」之前，
+# 避免 linkedin.com 落到 GeoIP-CN 兜底被误判直连而打不开（licdn.com 是其静态资源 CDN，一并纳入）。
+[[rule_sets]]
+group = "🚀 手动切换"
+type = "domain-suffix"
+value = "linkedin.com"
+
+[[rule_sets]]
+group = "🚀 手动切换"
+type = "domain-suffix"
+value = "licdn.com"
+
+# --- 8) 国内直连
+[[rule_sets]]
+group = "🎯 全球直连"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/ChinaDomain.yaml"
+type = "rule-set"
+
+# 中国 IP 集合：MetaCubeX/meta-rules-dat（mihomo 团队官方维护）
+# 8618 条全中国 IPv4 IP-CIDR，覆盖比 ACL4SSR/ChinaCompanyIp（214 条云厂 IP）大 40 倍
+# yaml 是 classical 格式（带 IP-CIDR, 前缀），跟我们 behavior=classical 完美兼容
+# 同路径有 .list 版本，Surge 流自动反推可用
+# 与下方 GeoIP CN 兜底配合使用：规则在前匹配快，GeoIP 作为动态数据兜底
+[[rule_sets]]
+group = "🎯 全球直连"
+url = "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/meta/geo/geoip/classical/cn.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🎯 全球直连"
+url = "https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Providers/Download.yaml"
+type = "rule-set"
+
+[[rule_sets]]
+group = "🎯 全球直连"
+url = "https://raw.githubusercontent.com/blackmatrix7/ios_rule_script/master/rule/Clash/SteamCN/SteamCN.yaml"
+type = "rule-set"
+
+# --- 9) 兜底
+[[rule_sets]]
+group = "🎯 全球直连"
+type = "geoip"
+value = "CN"
+
+[[rule_sets]]
+group = "🐟 漏网之鱼"
+type = "final"
+
+# ============================================
+# 代理组 (proxy_groups)
+# ============================================
+
+[[proxy_groups]]
+name = "🚀 手动切换"
+type = "select"
+regex = ".*"
+proxies = ["🇭🇰 香港(自动/手动)", "🇺🇸 美国(自动/手动)", "🇯🇵 日本(自动/手动)", "🇸🇬 新加坡(自动/手动)", "🇹🇼 台湾(自动/手动)", "专线", "♻️ 自动选择", "DIRECT"]
+
+[[proxy_groups]]
+name = "♻️ 自动选择"
+type = "url-test"
+# 「直连(?!-V)」用 negative lookahead 精确区分：「直连」后面不跟「-V」才算伪节点
+#   - "🎯 全球直连" / "网站直连" / "客服直连" → 排除 ✓
+#   - "直连-V310-台湾" / "直连-VIP3-广港" → 保留 ✓ (我方 IPLC 跨境专线节点命名约定)
+regex = "^(?!.*(?:emby|Emby|剩余|到期|流量|官网|订阅|过期|更新|网站|直连(?!-V)|Traffic|Expire|expired|套餐|GB|MB|机场)).*$"
+url = "http://www.gstatic.com/generate_204"
+interval = 300
+tolerance = 50
+
+# ── 地区分组（方案 A）─────────────────────────────────
+# 每个地区组本身就是 url-test：自动测速选该地区延迟最低的节点。
+# 想手动指定节点：在客户端（Sparkle / Clash Party / mihomo Party 等 mihomo 系）
+#   直接点该组里的具体节点即可「固定」，覆盖自动测速。
+# regex 统一排除机场伪节点（流量/到期/官网等）+ 保留 IPLC 专线（直连-V 命名），
+#   只把真实节点纳入测速。url/interval/tolerance 与「♻️ 自动选择」一致。
+# ──────────────────────────────────────────────────────
+
+[[proxy_groups]]
+name = "🇭🇰 香港(自动/手动)"
+type = "url-test"
+regex = "^(?!.*(?:emby|Emby|剩余|到期|流量|官网|订阅|过期|更新|网站|直连(?!-V)|Traffic|Expire|expired|套餐|GB|MB|机场)).*🇭🇰.*$"
+url = "http://www.gstatic.com/generate_204"
+interval = 300
+tolerance = 50
+
+[[proxy_groups]]
+name = "🇺🇸 美国(自动/手动)"
+type = "url-test"
+regex = "^(?!.*(?:emby|Emby|剩余|到期|流量|官网|订阅|过期|更新|网站|直连(?!-V)|Traffic|Expire|expired|套餐|GB|MB|机场)).*🇺🇸.*$"
+url = "http://www.gstatic.com/generate_204"
+interval = 300
+tolerance = 50
+
+[[proxy_groups]]
+name = "🇯🇵 日本(自动/手动)"
+type = "url-test"
+regex = "^(?!.*(?:emby|Emby|剩余|到期|流量|官网|订阅|过期|更新|网站|直连(?!-V)|Traffic|Expire|expired|套餐|GB|MB|机场)).*🇯🇵.*$"
+url = "http://www.gstatic.com/generate_204"
+interval = 300
+tolerance = 50
+
+[[proxy_groups]]
+name = "🇸🇬 新加坡(自动/手动)"
+type = "url-test"
+regex = "^(?!.*(?:emby|Emby|剩余|到期|流量|官网|订阅|过期|更新|网站|直连(?!-V)|Traffic|Expire|expired|套餐|GB|MB|机场)).*🇸🇬.*$"
+url = "http://www.gstatic.com/generate_204"
+interval = 300
+tolerance = 50
+
+[[proxy_groups]]
+name = "🇹🇼 台湾(自动/手动)"
+type = "url-test"
+regex = "^(?!.*(?:emby|Emby|剩余|到期|流量|官网|订阅|过期|更新|网站|直连(?!-V)|Traffic|Expire|expired|套餐|GB|MB|机场)).*🇹🇼.*$"
+url = "http://www.gstatic.com/generate_204"
+interval = 300
+tolerance = 50
+
+[[proxy_groups]]
+name = "专线"
+type = "select"
+regex = "IPLC|专线|IEPL|iplc|iepl"
+
+[[proxy_groups]]
+name = "🛡️ 局域网直连"
+type = "select"
+proxies = ["DIRECT"]
+
+[[proxy_groups]]
+name = "🛠️ 开发工具"
+type = "select"
+regex = ".*"
+# Git 远程 / OpenCode 网络搜索等国外网络场景：默认走手动切换，可切自动/直连。
+proxies = ["🚀 手动切换", "♻️ 自动选择", "🎯 全球直连"]
+
+[[proxy_groups]]
+name = "⬇️ Steam下载(测试)"
+type = "select"
+regex = ".*"
+proxies = ["DIRECT", "♻️ 自动选择", "🚀 手动切换"]
+
+[[proxy_groups]]
+name = "🎮️ 游戏平台"
+type = "select"
+regex = ".*"
+proxies = ["🎯 全球直连", "🚀 手动切换", "♻️ 自动选择"]
+
+[[proxy_groups]]
+name = "🎬 猫熊Emby"
+type = "select"
+regex = ".*"
+# 「🎯 全球直连」用 proxies_tail 垫到所有 regex 匹配节点之后（显式 proxies 会排在节点前面）。
+proxies = ["🚀 手动切换", "🇭🇰 香港(自动/手动)", "🇺🇸 美国(自动/手动)", "🇯🇵 日本(自动/手动)", "🇸🇬 新加坡(自动/手动)", "🇹🇼 台湾(自动/手动)"]
+proxies_tail = ["🎯 全球直连"]
+
+[[proxy_groups]]
+name = "📺 巴哈姆特动画疯"
+type = "select"
+regex = ".*"
+# 巴哈姆特动画疯只能用台湾节点解锁，默认走「🇹🇼 台湾(自动/手动)」(url-test 自动测速台湾节点)
+# 比全局「♻️ 自动选择」更精准（全局自动会选到非台湾节点导致解锁失败）
+proxies = ["🇹🇼 台湾(自动/手动)", "🇭🇰 香港(自动/手动)", "🚀 手动切换"]
+
+[[proxy_groups]]
+name = "🅱️️️️ 哔哩哔哩港澳台"
+type = "select"
+regex = ".*"
+proxies = ["🎯 全球直连", "🇹🇼 台湾(自动/手动)", "🇭🇰 香港(自动/手动)", "🚀 手动切换"]
+
+[[proxy_groups]]
+name = "📹 YouTube"
+type = "select"
+regex = ".*"
+# 自动选择交给地区组(各自 url-test)/「🚀 手动切换」组完成，不单列「♻️ 自动选择」(冗余)
+proxies = ["🚀 手动切换", "🇭🇰 香港(自动/手动)", "🇺🇸 美国(自动/手动)", "🇯🇵 日本(自动/手动)", "🇸🇬 新加坡(自动/手动)", "🇹🇼 台湾(自动/手动)"]
+
+[[proxy_groups]]
+name = "🎥 NETFLIX"
+type = "select"
+regex = ".*"
+# 自动选择交给地区组(各自 url-test)/「🚀 手动切换」组完成，不单列「♻️ 自动选择」(冗余)
+proxies = ["🚀 手动切换", "🇭🇰 香港(自动/手动)", "🇺🇸 美国(自动/手动)", "🇯🇵 日本(自动/手动)", "🇸🇬 新加坡(自动/手动)", "🇹🇼 台湾(自动/手动)"]
+
+[[proxy_groups]]
+name = "🦄 DisneyPlus"
+type = "select"
+regex = ".*"
+proxies = ["🚀 手动切换", "🇭🇰 香港(自动/手动)", "🇺🇸 美国(自动/手动)", "🇯🇵 日本(自动/手动)", "🇸🇬 新加坡(自动/手动)", "🇹🇼 台湾(自动/手动)", "♻️ 自动选择"]
+
+[[proxy_groups]]
+name = "🎞️ Prime Video"
+type = "select"
+regex = ".*"
+proxies = ["🚀 手动切换", "🇭🇰 香港(自动/手动)", "🇺🇸 美国(自动/手动)", "🇯🇵 日本(自动/手动)", "🇸🇬 新加坡(自动/手动)", "🇹🇼 台湾(自动/手动)", "♻️ 自动选择"]
+
+[[proxy_groups]]
+name = "🅼 HBO MAX"
+type = "select"
+regex = ".*"
+proxies = ["🚀 手动切换", "🇭🇰 香港(自动/手动)", "🇺🇸 美国(自动/手动)", "🇯🇵 日本(自动/手动)", "🇸🇬 新加坡(自动/手动)", "🇹🇼 台湾(自动/手动)", "♻️ 自动选择"]
+
+[[proxy_groups]]
+name = "📹️ HBOGO Asia"
+type = "select"
+regex = ".*"
+proxies = ["🚀 手动切换", "♻️ 自动选择"]
+
+[[proxy_groups]]
+name = "💿 AbemaTV"
+type = "select"
+regex = ".*"
+proxies = ["🇯🇵 日本(自动/手动)", "🚀 手动切换", "♻️ 自动选择"]
+
+[[proxy_groups]]
+name = "🔞 Pornhub"
+type = "select"
+regex = ".*"
+proxies = ["🚀 手动切换", "🇭🇰 香港(自动/手动)", "🇺🇸 美国(自动/手动)", "🇯🇵 日本(自动/手动)", "🇸🇬 新加坡(自动/手动)", "🇹🇼 台湾(自动/手动)", "♻️ 自动选择"]
+
+[[proxy_groups]]
+name = "🎶 TikTok"
+type = "select"
+regex = ".*"
+proxies = ["🚀 手动切换", "♻️ 自动选择", "🎯 全球直连"]
+
+[[proxy_groups]]
+name = "🎧 Spotify"
+type = "select"
+regex = ".*"
+proxies = ["🚀 手动切换", "🎯 全球直连", "♻️ 自动选择"]
+
+[[proxy_groups]]
+name = "🤖 ChatGPT、Claude、Gemini、微软AI"
+type = "select"
+regex = "^(?!.*(🇭🇰)).*$"
+proxies = ["🚀 手动切换", "🇺🇸 美国(自动/手动)", "🇯🇵 日本(自动/手动)", "🇸🇬 新加坡(自动/手动)", "🇹🇼 台湾(自动/手动)", "专线"]
+
+[[proxy_groups]]
+name = "Ⓜ️ 微软服务"
+type = "select"
+regex = ".*"
+proxies = ["🚀 手动切换", "🇭🇰 香港(自动/手动)", "🇺🇸 美国(自动/手动)", "🇯🇵 日本(自动/手动)", "🇸🇬 新加坡(自动/手动)", "🇹🇼 台湾(自动/手动)", "🎯 全球直连", "♻️ 自动选择"]
+
+[[proxy_groups]]
+name = "📲 电报信息"
+type = "select"
+regex = ".*"
+proxies = ["🚀 手动切换", "♻️ 自动选择", "🎯 全球直连"]
+
+[[proxy_groups]]
+name = "🍎 苹果服务"
+type = "select"
+regex = ".*"
+proxies = ["🚀 手动切换", "🇭🇰 香港(自动/手动)", "🇺🇸 美国(自动/手动)", "🇯🇵 日本(自动/手动)", "🇸🇬 新加坡(自动/手动)", "🇹🇼 台湾(自动/手动)", "🎯 全球直连", "♻️ 自动选择"]
+
+[[proxy_groups]]
+name = "📢 谷歌FCM"
+type = "select"
+regex = ".*"
+# 地区组本身就是 url-test(组内自动测速)，且「🚀 手动切换」已含全局「♻️ 自动选择」入口，
+# 故此处不再单列「♻️ 自动选择」——自动选择交给地区组/手动切换组完成，避免冗余。
+proxies = ["🚀 手动切换", "🇭🇰 香港(自动/手动)", "🇺🇸 美国(自动/手动)", "🇯🇵 日本(自动/手动)", "🇸🇬 新加坡(自动/手动)", "🇹🇼 台湾(自动/手动)", "🎯 全球直连"]
+
+[[proxy_groups]]
+name = "🎯 全球直连"
+type = "select"
+proxies = ["DIRECT", "🚀 手动切换", "♻️ 自动选择"]
+
+[[proxy_groups]]
+name = "🐟 漏网之鱼"
+type = "select"
+regex = ".*"
+proxies = ["🚀 手动切换", "🎯 全球直连", "♻️ 自动选择"]
