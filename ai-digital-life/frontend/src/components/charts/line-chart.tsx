@@ -57,6 +57,8 @@ export interface LineChartProps {
   xDomainSlotCount?: number;
   /** Tween y-domain when brush changes the visible x-range. Default: false */
   tweenYDomainOnXDomainChange?: boolean;
+  /** Optional formatter for granularity-aware x-axis tick labels (e.g. YYYY-MM for month granularity). */
+  dateLabelFormatter?: (date: Date) => string;
   /** Inline container styles (e.g. fixed height for brush strip). */
   style?: CSSProperties;
   /** Fires when the internal chart phase changes (e.g. OG capture readiness). */
@@ -148,6 +150,7 @@ interface ChartInnerProps {
   xDomain?: [Date, Date];
   xDomainSlotCount?: number;
   tweenYDomainOnXDomainChange?: boolean;
+  dateLabelFormatter?: (date: Date) => string;
   children: ReactNode;
   containerRef: React.RefObject<HTMLDivElement | null>;
   onPhaseChange: (phase: ChartPhase) => void;
@@ -170,6 +173,7 @@ function ChartInner({
   xDomain,
   xDomainSlotCount,
   tweenYDomainOnXDomainChange,
+  dateLabelFormatter,
   children,
   containerRef,
   onPhaseChange,
@@ -184,6 +188,7 @@ function ChartInner({
       clipPathId="chart-grow-clip"
       containerRef={containerRef}
       data={data}
+      dateLabelFormatter={dateLabelFormatter}
       enterTransition={enterTransition}
       height={height}
       lines={lines}
@@ -221,6 +226,7 @@ export function LineChart({
   xDomain,
   xDomainSlotCount,
   tweenYDomainOnXDomainChange = false,
+  dateLabelFormatter,
   style,
   onPhaseChange,
   children,
@@ -262,6 +268,7 @@ export function LineChart({
             chartStatus={status}
             containerRef={containerRef}
             data={data}
+            dateLabelFormatter={dateLabelFormatter}
             enterTransition={enterTransition}
             height={height}
             loadingLabel={loadingLabel}

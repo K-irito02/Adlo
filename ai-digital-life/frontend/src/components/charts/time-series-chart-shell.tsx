@@ -150,6 +150,8 @@ export interface TimeSeriesChartInnerProps {
   xDomainSlotCount?: number;
   /** Tween y-domain when the visible x-range changes during the ready phase. */
   tweenYDomainOnXDomainChange?: boolean;
+  /** Optional formatter for granularity-aware x-axis tick labels (e.g. YYYY-MM for month granularity). */
+  dateLabelFormatter?: (date: Date) => string;
   onPhaseChange?: (phase: ChartPhase) => void;
 }
 
@@ -190,6 +192,7 @@ const TimeSeriesChartCore = memo(function TimeSeriesChartCore({
   xDomain,
   xDomainSlotCount,
   tweenYDomainOnXDomainChange = false,
+  dateLabelFormatter,
   onPhaseChange,
 }: TimeSeriesChartInnerProps) {
   const staticPreview = useStaticChartPreview();
@@ -358,8 +361,11 @@ const TimeSeriesChartCore = memo(function TimeSeriesChartCore({
   );
 
   const dateLabels = useMemo(
-    () => visiblePlotData.map((d) => shortDateFmt.format(xAccessor(d))),
-    [visiblePlotData, xAccessor],
+    () =>
+      visiblePlotData.map((d) =>
+        dateLabelFormatter ? dateLabelFormatter(xAccessor(d)) : shortDateFmt.format(xAccessor(d)),
+      ),
+    [visiblePlotData, xAccessor, dateLabelFormatter],
   );
 
   const canInteract = isLoaded && isChartInteractionPhase(chartPhase);
