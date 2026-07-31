@@ -3,16 +3,6 @@ import { render } from '@testing-library/react';
 import React from 'react';
 import { CodeLineEvo } from './CodeLineEvo';
 
-vi.mock('@/components/charts/brush', () => ({
-  ChartBrushLayout: ({ children, brushStrip }: any) => (
-    <div data-testid="brush-layout">
-      {children({ xDomain: undefined, xDomainSlotCount: undefined, brushSelection: null, onBrushSelectionChange: () => {} })}
-      {brushStrip?.({ brushSelection: null, onBrushSelectionChange: () => {} })}
-    </div>
-  ),
-  ChartBrush: () => <div data-testid="chart-brush" />,
-}));
-
 function createMotionValue(initial = 0) {
   const listeners: Record<string, ((v: unknown) => void)[]> = {};
   return {
@@ -74,7 +64,7 @@ vi.mock('@visx/responsive', () => ({
     children,
   }: {
     children: (args: { width: number; height: number }) => React.ReactNode;
-  }) => children({ width: 600, height: 200 }),
+  }) => children({ width: 600, height: 72 }),
 }));
 
 vi.mock('../hooks/useBklitTheme', () => ({
@@ -95,5 +85,23 @@ describe('CodeLineEvo', () => {
   it('renders SVG without crashing', () => {
     const { container } = render(<CodeLineEvo />);
     expect(container.querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('brush strip keeps a positive plot area at the 72px strip height (regression: default margins made innerHeight negative)', () => {
+    const data = {
+      weeks: [
+        { weekStart: '2024-01-01', additions: 10, deletions: 2 },
+        { weekStart: '2024-01-08', additions: 5, deletions: 1 },
+        { weekStart: '2024-01-15', additions: 20, deletions: 3 },
+        { weekStart: '2024-01-22', additions: 8, deletions: 4 },
+      ],
+    };
+    const { container } = render(<CodeLineEvo data={data} />);
+    const stripRects = container.querySelectorAll('.adl-chart-brush-layout__strip svg rect');
+    expect(stripRects.length).toBeGreaterThan(0);
+    for (const rect of stripRects) {
+      const h = Number(rect.getAttribute('height'));
+      expect(h).toBeGreaterThanOrEqual(0);
+    }
   });
 });

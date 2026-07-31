@@ -38,6 +38,7 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({ data }: CodeLineEvo
             xDataKey="date"
             animationDuration={0}
             status="ready"
+            margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
             style={{ aspectRatio: 'unset', height: '100%' }}
           >
             <Line dataKey="added" animate={false} showHighlight={false} />

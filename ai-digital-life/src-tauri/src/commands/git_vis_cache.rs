@@ -24,24 +24,24 @@ where
     F: FnOnce() -> Fut,
     Fut: Future<Output = Result<T, AppError>>,
 {
-    let since_year = since.and_then(extract_year);
-    let until_year = until.and_then(extract_year);
+    // Only cache fully-historical ranges: any range touching the current year
+    // changes as new commits land, so it must always be recomputed.
+    let cacheable = match (since.and_then(extract_year), until.and_then(extract_year)) {
+        (Some(_sy), Some(uy)) => is_historical_year(uy),
+        _ => false,
+    };
 
-    if let (Some(sy), Some(uy)) = (since_year, until_year) {
-        if is_historical_year(sy) {
-            if let Some(cached) = read_cached_chart::<T>(db, root_path, sy, uy, chart_type)? {
-                return Ok(cached);
-            }
+    if cacheable {
+        if let Some(cached) = read_cached_chart::<T>(db, root_path, since, until, chart_type)? {
+            return Ok(cached);
         }
     }
 
     let data = fetcher().await?;
 
-    if let (Some(sy), Some(uy)) = (since_year, until_year) {
-        if is_historical_year(sy) {
-            if let Err(e) = cache_chart_data(db, root_path, sy, uy, chart_type, &data) {
-                tracing::warn!("[ADL-CACHE] failed to write cache: {e}");
-            }
+    if cacheable {
+        if let Err(e) = cache_chart_data(db, root_path, since, until, chart_type, &data) {
+            tracing::warn!("[ADL-CACHE] failed to write cache: {e}");
         }
     }
 
@@ -51,21 +51,22 @@ where
 pub(crate) fn read_cached_chart<T: DeserializeOwned>(
     db: &Database,
     root_path: &str,
-    since_year: i32,
-    until_year: i32,
+    since: Option<&str>,
+    until: Option<&str>,
     chart_type: &str,
 ) -> Result<Option<T>, AppError> {
     let conn = db.conn()?;
     let mut stmt = conn
         .prepare_cached(
-            "SELECT data FROM git_vis_cache WHERE root_path = ?1 AND since_year = ?2 AND until_year = ?3 AND chart_type = ?4",
+            "SELECT data FROM git_vis_cache WHERE root_path = ?1 AND since = ?2 AND until = ?3 AND chart_type = ?4",
         )
         .map_err(|e| AppError::Storage(e.to_string()))?;
 
     let result: Option<String> = stmt
-        .query_row(rusqlite::params![root_path, since_year, until_year, chart_type], |row| {
-            row.get(0)
-        })
+        .query_row(
+            rusqlite::params![root_path, since.unwrap_or(""), until.unwrap_or(""), chart_type],
+            |row| row.get(0),
+        )
         .map_err(|e| AppError::Storage(e.to_string()))
         .ok();
 
@@ -80,16 +81,22 @@ pub(crate) fn read_cached_chart<T: DeserializeOwned>(
 pub(crate) fn cache_chart_data<T: Serialize>(
     db: &Database,
     root_path: &str,
-    since_year: i32,
-    until_year: i32,
+    since: Option<&str>,
+    until: Option<&str>,
     chart_type: &str,
     data: &T,
 ) -> Result<(), AppError> {
     let json = serde_json::to_string(data)
         .map_err(|e| AppError::Internal(format!("cache serialize: {e}")))?;
     db.execute(
-        "INSERT OR REPLACE INTO git_vis_cache (root_path, since_year, until_year, chart_type, data) VALUES (?1, ?2, ?3, ?4, ?5)",
-        &[&root_path.to_string(), &since_year.to_string(), &until_year.to_string(), &chart_type.to_string(), &json],
+        "INSERT OR REPLACE INTO git_vis_cache (root_path, since, until, chart_type, data) VALUES (?1, ?2, ?3, ?4, ?5)",
+        &[
+            &root_path.to_string(),
+            &since.unwrap_or("").to_string(),
+            &until.unwrap_or("").to_string(),
+            &chart_type.to_string(),
+            &json,
+        ],
     )?;
     Ok(())
 }
@@ -132,6 +139,19 @@ pub(crate) async fn get_first_commit_year(root_path: &Path) -> Result<Option<i32
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static CACHE_DB_SEQ: AtomicUsize = AtomicUsize::new(0);
+
+    fn temp_db_path() -> PathBuf {
+        let id = CACHE_DB_SEQ.fetch_add(1, Ordering::SeqCst);
+        let path = std::env::temp_dir().join(format!("adl-git-vis-cache-{id}.db"));
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(format!("{}-wal", path.display()));
+        let _ = std::fs::remove_file(format!("{}-shm", path.display()));
+        path
+    }
 
     #[test]
     fn test_extract_year() {
@@ -143,5 +163,133 @@ mod tests {
     fn test_is_historical_year() {
         assert!(is_historical_year(2020));
         assert!(!is_historical_year(2099));
+    }
+
+    fn current_year() -> i32 {
+        let secs = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+        1970 + (secs / 31_557_600) as i32
+    }
+
+    #[test]
+    fn with_cached_reuses_cache_for_identical_historical_range() {
+        let db = Database::open(&temp_db_path()).expect("db opens");
+        db.init_schema().expect("schema inits");
+        let calls = AtomicUsize::new(0);
+
+        let fetch = || {
+            calls.fetch_add(1, Ordering::SeqCst);
+            async { Ok::<_, AppError>("data-v1".to_string()) }
+        };
+
+        let r1 = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(with_cached(
+                &db,
+                "/ws",
+                Some("2020-01-01"),
+                Some("2020-03-31"),
+                "chart",
+                fetch,
+            ))
+            .unwrap();
+        assert_eq!(r1, "data-v1");
+        let r2 = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(with_cached(
+                &db,
+                "/ws",
+                Some("2020-01-01"),
+                Some("2020-03-31"),
+                "chart",
+                fetch,
+            ))
+            .unwrap();
+        assert_eq!(r2, "data-v1");
+        assert_eq!(calls.load(Ordering::SeqCst), 1, "identical range must hit cache");
+    }
+
+    #[test]
+    fn with_cached_different_range_same_year_misses() {
+        let db = Database::open(&temp_db_path()).expect("db opens");
+        db.init_schema().expect("schema inits");
+        let calls = AtomicUsize::new(0);
+        let calls_ref = &calls;
+        let make_fetch = |val: &'static str| {
+            let v = val.to_string();
+            move || {
+                calls_ref.fetch_add(1, Ordering::SeqCst);
+                let v = v.clone();
+                async move { Ok::<_, AppError>(v) }
+            }
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let a = rt
+            .block_on(with_cached(
+                &db,
+                "/ws",
+                Some("2020-01-01"),
+                Some("2020-03-31"),
+                "chart",
+                make_fetch("jan-mar"),
+            ))
+            .unwrap();
+        assert_eq!(a, "jan-mar");
+        // Same year, different months → must NOT be served from the first cache row.
+        let b = rt
+            .block_on(with_cached(
+                &db,
+                "/ws",
+                Some("2020-04-01"),
+                Some("2020-06-30"),
+                "chart",
+                make_fetch("apr-jun"),
+            ))
+            .unwrap();
+        assert_eq!(b, "apr-jun");
+        assert_eq!(calls.load(Ordering::SeqCst), 2, "different ranges must not collide");
+    }
+
+    #[test]
+    fn with_cached_does_not_cache_ranges_touching_current_year() {
+        let db = Database::open(&temp_db_path()).expect("db opens");
+        db.init_schema().expect("schema inits");
+        let calls = AtomicUsize::new(0);
+        let now_year = current_year();
+        let since = format!("{now_year}-01-01");
+        let until = format!("{now_year}-12-31");
+
+        let fetch = || {
+            calls.fetch_add(1, Ordering::SeqCst);
+            async { Ok::<_, AppError>("live".to_string()) }
+        };
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let a = rt
+            .block_on(with_cached(&db, "/ws", Some(&since), Some(&until), "chart", fetch))
+            .unwrap();
+        assert_eq!(a, "live");
+        let b = rt
+            .block_on(with_cached(&db, "/ws", Some(&since), Some(&until), "chart", fetch))
+            .unwrap();
+        assert_eq!(b, "live");
+        assert_eq!(calls.load(Ordering::SeqCst), 2, "current-year ranges must always recompute");
+    }
+
+    #[test]
+    fn with_cached_no_range_does_not_cache() {
+        let db = Database::open(&temp_db_path()).expect("db opens");
+        db.init_schema().expect("schema inits");
+        let calls = AtomicUsize::new(0);
+        let fetch = || {
+            calls.fetch_add(1, Ordering::SeqCst);
+            async { Ok::<_, AppError>("all".to_string()) }
+        };
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        let a = rt.block_on(with_cached(&db, "/ws", None, None, "chart", fetch)).unwrap();
+        assert_eq!(a, "all");
+        let b = rt.block_on(with_cached(&db, "/ws", None, None, "chart", fetch)).unwrap();
+        assert_eq!(b, "all");
+        assert_eq!(calls.load(Ordering::SeqCst), 2, "no-filter queries must always recompute");
     }
 }
