@@ -67,6 +67,17 @@ vi.mock('@visx/responsive', () => ({
   }) => children({ width: 600, height: 72 }),
 }));
 
+vi.mock('@i18n/useTCopy', () => ({
+  useTCopy: vi.fn(() => ({
+    t: {
+      gitVisCodeLineEvoAdded: 'Lines added',
+      gitVisCodeLineEvoDeleted: 'Lines deleted',
+      gitVisCodeLineEvoNet: 'Net change',
+    },
+    formatT: vi.fn(),
+  })),
+}));
+
 vi.mock('../hooks/useBklitTheme', () => ({
   useBklitTheme: () => ({
     accent: '#3b82f6',

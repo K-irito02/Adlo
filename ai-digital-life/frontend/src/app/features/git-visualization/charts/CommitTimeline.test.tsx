@@ -67,6 +67,16 @@ vi.mock('@visx/responsive', () => ({
   }) => children({ width: 600, height: 72 }),
 }));
 
+vi.mock('@i18n/useTCopy', () => ({
+  useTCopy: vi.fn(() => ({
+    t: {
+      gitVisCommitTimelineCount: 'Commits this period',
+      gitVisCommitTimelineCumulative: 'Cumulative',
+    },
+    formatT: vi.fn(),
+  })),
+}));
+
 vi.mock('../hooks/useBklitTheme', () => ({
   useBklitTheme: () => ({
     accent: '#3b82f6',

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTCopy } from '@i18n/useTCopy';
 import { ComposedChart } from '@/components/charts/composed-chart';
 import { SeriesBar } from '@/components/charts/series-bar';
 import { Line } from '@/components/charts/line';
@@ -17,6 +18,7 @@ interface CommitTimelineProps {
 }
 
 export const CommitTimeline = React.memo(function CommitTimeline({ data }: CommitTimelineProps) {
+  const { t } = useTCopy();
   const days = useMemo(() => data?.days ?? [], [data]);
 
   const dayRows = useMemo(() => aggregateCommitTimeline(days, 'day'), [days]);
@@ -118,7 +120,20 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
               <Line dataKey="cumulative" stroke="var(--chart-line-secondary)" strokeWidth={2} />
               <Grid />
               <XAxis />
-              <ChartTooltip />
+              <ChartTooltip
+                rows={(point) => [
+                  {
+                    color: 'var(--chart-line-primary)',
+                    label: t.gitVisCommitTimelineCount,
+                    value: (point.count as number) ?? 0,
+                  },
+                  {
+                    color: 'var(--chart-line-secondary)',
+                    label: t.gitVisCommitTimelineCumulative,
+                    value: (point.cumulative as number) ?? 0,
+                  },
+                ]}
+              />
             </ComposedChart>
           );
         }}

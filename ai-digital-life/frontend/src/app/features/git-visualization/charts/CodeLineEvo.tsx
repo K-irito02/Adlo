@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTCopy } from '@i18n/useTCopy';
 import { LineChart, Line } from '@/components/charts/line-chart';
 import { Area } from '@/components/charts/area';
 import { Grid } from '@/components/charts/grid';
@@ -16,6 +17,7 @@ interface CodeLineEvoProps {
 }
 
 export const CodeLineEvo = React.memo(function CodeLineEvo({ data }: CodeLineEvoProps) {
+  const { t } = useTCopy();
   const days = useMemo(() => data?.days ?? [], [data]);
 
   const dayRows = useMemo(() => aggregateCodeEvolutionDays(days, 'day'), [days]);
@@ -126,7 +128,25 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({ data }: CodeLineEvo
               <Line dataKey="net" stroke="var(--chart-3)" strokeWidth={2} />
               <Grid highlightRowValues={[0]} />
               <XAxis />
-              <ChartTooltip />
+              <ChartTooltip
+                rows={(point) => [
+                  {
+                    color: 'var(--chart-line-primary)',
+                    label: t.gitVisCodeLineEvoAdded,
+                    value: (point.added as number) ?? 0,
+                  },
+                  {
+                    color: 'var(--chart-line-secondary)',
+                    label: t.gitVisCodeLineEvoDeleted,
+                    value: (point.deletedNeg as number) ?? 0,
+                  },
+                  {
+                    color: 'var(--chart-3)',
+                    label: t.gitVisCodeLineEvoNet,
+                    value: (point.net as number) ?? 0,
+                  },
+                ]}
+              />
             </LineChart>
           );
         }}
