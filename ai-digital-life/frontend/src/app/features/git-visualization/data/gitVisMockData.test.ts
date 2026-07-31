@@ -3,21 +3,43 @@ import {
   commitNodes,
   commitEdges,
   allBranches,
-  toBklitAreaData,
   generateCodeLineEvolutionData,
+  generateCommitTimelineData,
   toHeatmapColumns,
   generateClockHeatmapData,
   generateContributorActivityData,
   generateContributorModuleData,
 } from '../../../../test-fixtures/gitVisMockData';
 
-describe('bklit data adapters', () => {
-  it('toBklitAreaData converts evolution data', () => {
-    const result = toBklitAreaData(generateCodeLineEvolutionData());
-    expect(result.length).toBe(40);
-    expect(result[0]).toHaveProperty('date');
-    expect(result[0]).toHaveProperty('added');
-    expect(result[0]).toHaveProperty('deleted');
+describe('daily mock data generators', () => {
+  it('generateCodeLineEvolutionData produces ~90 ascending daily rows', () => {
+    const { days } = generateCodeLineEvolutionData();
+    expect(days.length).toBeGreaterThanOrEqual(85);
+    expect(days.length).toBeLessThanOrEqual(95);
+    for (let i = 0; i < days.length; i++) {
+      expect(days[i].date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(days[i].additions).toBeGreaterThan(0);
+      expect(days[i].deletions).toBeGreaterThan(0);
+      if (i > 0) {
+        expect(days[i].date > days[i - 1].date).toBe(true);
+      }
+    }
+  });
+
+  it('generateCommitTimelineData produces daily rows with running cumulative', () => {
+    const rows = generateCommitTimelineData();
+    expect(rows.length).toBeGreaterThanOrEqual(85);
+    expect(rows.length).toBeLessThanOrEqual(95);
+    let cumulative = 0;
+    for (let i = 0; i < rows.length; i++) {
+      expect(rows[i].date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(rows[i].count).toBeGreaterThanOrEqual(0);
+      cumulative += rows[i].count;
+      expect(rows[i].cumulative).toBe(cumulative);
+      if (i > 0) {
+        expect(rows[i].date > rows[i - 1].date).toBe(true);
+      }
+    }
   });
 
   it('toHeatmapColumns converts calendar data to columns', () => {

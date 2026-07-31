@@ -16,6 +16,7 @@ import { useYearBounds } from './hooks/useYearBounds';
 import { RefreshButton } from './RefreshButton';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import { CHART_IDS } from './chartIds';
+import type { GitVisCommitStats } from '@shared/ipc';
 import type { RawContributorModules } from './adapters/chartDataAdapters';
 
 class VisErrorBoundary extends Component<
@@ -381,7 +382,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
             <CodeLineEvo
               data={
                 codeLineEvoData.data as
-                  | { weeks: { weekStart: string; additions: number; deletions: number }[] }
+                  | { days: { date: string; additions: number; deletions: number }[] }
                   | undefined
               }
             />
@@ -397,11 +398,10 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
         >
           {commitTimelineData.loading ? null : (
             <CommitTimeline
-              data={
-                commitTimelineData.data as
-                  | { commitTimeline: { date: string; cumulative: number }[] }
-                  | undefined
-              }
+              data={{
+                days:
+                  (commitTimelineData.data as GitVisCommitStats | undefined)?.commitTimeline ?? [],
+              }}
             />
           )}
         </TimeRangeAwareCard>

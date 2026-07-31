@@ -445,55 +445,39 @@ export const fileTreemapData = {
   ],
 };
 
-/** 代码行数演变数据 */
+/** 代码行数演变数据（按天，约 90 天） */
 export function generateCodeLineEvolutionData(): {
-  dates: string[];
-  added: number[];
-  deleted: number[];
+  days: { date: string; additions: number; deletions: number }[];
 } {
-  const dates: string[] = [];
-  const added: number[] = [];
-  const deleted: number[] = [];
+  const days: { date: string; additions: number; deletions: number }[] = [];
   let baseAdd = 5000;
   let baseDel = 2000;
-  const now = new Date('2026-01-01');
+  const start = new Date('2025-12-01');
   let seed = 777;
   const pseudoRandom = () => {
     seed = (seed * 9301 + 49297) % 233280;
     return seed / 233280;
   };
-  for (let i = 0; i < 40; i++) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - (39 - i) * 7);
-    dates.push(d.getMonth() + 1 + '/' + d.getDate());
-    baseAdd += Math.floor(pseudoRandom() * 600) + 100;
-    baseDel += Math.floor(pseudoRandom() * 300) + 50;
-    added.push(baseAdd);
-    deleted.push(baseDel);
+  for (let i = 0; i < 90; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    baseAdd += Math.floor(pseudoRandom() * 120) + 20;
+    baseDel += Math.floor(pseudoRandom() * 60) + 10;
+    days.push({
+      date:
+        d.getFullYear() +
+        '-' +
+        String(d.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(d.getDate()).padStart(2, '0'),
+      additions: baseAdd,
+      deletions: baseDel,
+    });
   }
-  return { dates, added, deleted };
-}
-
-// ── Bklit/visx data adapter interfaces ──
-
-export interface BklitAreaRow {
-  date: string;
-  added: number;
-  deleted: number;
-  [key: string]: unknown;
+  return { days };
 }
 
 // ── Bklit/visx data adapters ──
-
-export function toBklitAreaData(
-  raw: ReturnType<typeof generateCodeLineEvolutionData>,
-): BklitAreaRow[] {
-  return raw.dates.map((date, i) => ({
-    date,
-    added: raw.added[i],
-    deleted: raw.deleted[i],
-  }));
-}
 
 export function toHeatmapColumns(): HeatmapColumn[] {
   const raw = generateCalendarData();
@@ -539,20 +523,36 @@ export interface CommitTimelineRow {
   [key: string]: unknown;
 }
 
-export const mockCommitTimelineData: CommitTimelineRow[] = [
-  { date: '2026-01-01', count: 1, cumulative: 1 },
-  { date: '2026-01-03', count: 1, cumulative: 2 },
-  { date: '2026-01-05', count: 1, cumulative: 3 },
-  { date: '2026-01-06', count: 1, cumulative: 4 },
-  { date: '2026-01-07', count: 1, cumulative: 5 },
-  { date: '2026-01-08', count: 1, cumulative: 6 },
-  { date: '2026-01-09', count: 1, cumulative: 7 },
-  { date: '2026-01-10', count: 1, cumulative: 8 },
-  { date: '2026-01-11', count: 1, cumulative: 9 },
-  { date: '2026-01-12', count: 1, cumulative: 10 },
-  { date: '2026-01-13', count: 1, cumulative: 11 },
-  { date: '2026-01-14', count: 1, cumulative: 12 },
-];
+/** 提交时间线数据（按天，约 90 天，cumulative 为 count 的累计和） */
+export function generateCommitTimelineData(): CommitTimelineRow[] {
+  const rows: CommitTimelineRow[] = [];
+  let cumulative = 0;
+  const start = new Date('2025-12-01');
+  let seed = 4242;
+  const pseudoRandom = () => {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
+  for (let i = 0; i < 90; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    const count = Math.floor(pseudoRandom() * 3);
+    cumulative += count;
+    rows.push({
+      date:
+        d.getFullYear() +
+        '-' +
+        String(d.getMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(d.getDate()).padStart(2, '0'),
+      count,
+      cumulative,
+    });
+  }
+  return rows;
+}
+
+export const mockCommitTimelineData: CommitTimelineRow[] = generateCommitTimelineData();
 
 export function generateClockHeatmapData(): HeatmapColumn[] {
   const columns: HeatmapColumn[] = [];
