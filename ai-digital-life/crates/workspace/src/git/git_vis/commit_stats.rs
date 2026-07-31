@@ -1,6 +1,6 @@
 use adl_errors::AppError;
 use adl_types::{
-    GitVisCodeEvolution, GitVisCodeEvolutionWeek, GitVisCommitRow, GitVisCommitStats,
+    GitVisCodeEvolution, GitVisCodeEvolutionDay, GitVisCommitRow, GitVisCommitStats,
     GitVisContributorActivity, GitVisContributorPeriod, GitVisDailyCommit, GitVisHourlyBin,
     GitVisTimelinePoint,
 };
@@ -56,9 +56,8 @@ pub async fn capture_commit_stats(
     let mut daily_map: BTreeMap<String, i32> = BTreeMap::new();
     let mut hourly_map: HashMap<(i32, i32), i32> = HashMap::new();
     let mut author_map: HashMap<String, (String, i32, BTreeMap<String, i32>)> = HashMap::new();
-    let mut timeline_points: Vec<GitVisTimelinePoint> = Vec::new();
 
-    for (timeline_cumulative, c) in (1_i32..).zip(commits.iter()) {
+    for c in commits.iter() {
         let date10: String = c.date.chars().take(10).collect();
         *daily_map.entry(date10.clone()).or_insert(0) += 1;
 
@@ -76,8 +75,17 @@ pub async fn capture_commit_stats(
             date10[..7].to_string()
         };
         *entry.2.entry(month_key.clone()).or_insert(0) += 1;
+    }
 
-        timeline_points.push(GitVisTimelinePoint { date: date10, cumulative: timeline_cumulative });
+    let mut timeline_points: Vec<GitVisTimelinePoint> = Vec::new();
+    let mut timeline_cumulative: i32 = 0;
+    for (date, count) in daily_map.iter() {
+        timeline_cumulative += count;
+        timeline_points.push(GitVisTimelinePoint {
+            date: date.clone(),
+            count: *count,
+            cumulative: timeline_cumulative,
+        });
     }
 
     let daily_commits: Vec<GitVisDailyCommit> =
@@ -139,21 +147,6 @@ fn gregorian_to_jdn(year: i64, month: i64, day: i64) -> i64 {
     day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045
 }
 
-/// Convert a Julian Day Number to a Gregorian date `(year, month, day)`.
-fn jdn_to_gregorian(jdn: i64) -> (i64, i64, i64) {
-    let l = jdn + 68569;
-    let n = (4 * l) / 146097;
-    let l = l - (146097 * n + 3) / 4;
-    let i = (4000 * (l + 1)) / 1461001;
-    let l = l - (1461 * i) / 4 + 31;
-    let j = (80 * l) / 2447;
-    let d = l - (2447 * j) / 80;
-    let l = j / 11;
-    let m = j + 2 - 12 * l;
-    let y = 100 * (n - 49) + i + l;
-    (y, m, d)
-}
-
 /// Day of week where 0 = Sunday .. 6 = Saturday (matches JS `Date.getDay()`).
 fn day_of_week(year: i64, month: i64, day: i64) -> i64 {
     (gregorian_to_jdn(year, month, day) + 1).rem_euclid(7)
@@ -190,7 +183,7 @@ pub async fn capture_code_evolution(
         .await
         .ok_or_else(|| AppError::Workspace("git log --numstat failed".into()))?;
 
-    let mut week_map: BTreeMap<String, (i32, i32)> = BTreeMap::new();
+    let mut day_map: BTreeMap<String, (i32, i32)> = BTreeMap::new();
     let mut current_date: Option<String> = None;
     for line in raw.lines() {
         let parts: Vec<&str> = line.split('\t').collect();
@@ -198,7 +191,7 @@ pub async fn capture_code_evolution(
             let add: i32 = parts[0].parse().unwrap_or(0);
             let del: i32 = parts[1].parse().unwrap_or(0);
             if let Some(ref date_str) = current_date {
-                let entry = week_map.entry(start_of_week(date_str)).or_insert((0, 0));
+                let entry = day_map.entry(date_str.clone()).or_insert((0, 0));
                 entry.0 += add;
                 entry.1 += del;
             }
@@ -207,37 +200,19 @@ pub async fn capture_code_evolution(
         }
     }
 
-    let weeks: Vec<GitVisCodeEvolutionWeek> = week_map
+    let days: Vec<GitVisCodeEvolutionDay> = day_map
         .into_iter()
-        .map(|(week_start, (additions, deletions))| GitVisCodeEvolutionWeek {
-            week_start,
-            additions,
-            deletions,
-        })
+        .map(|(date, (additions, deletions))| GitVisCodeEvolutionDay { date, additions, deletions })
         .collect();
 
     debug!(
-        "[ADL-GIT-VIS] [code_evolution] [{}] done in {:?} — {} weeks",
+        "[ADL-GIT-VIS] [code_evolution] [{}] done in {:?} — {} days",
         root.display(),
         t0.elapsed(),
-        weeks.len()
+        days.len()
     );
 
-    Ok(GitVisCodeEvolution { weeks })
-}
-
-fn start_of_week(date_str: &str) -> String {
-    if date_str.len() < 10 {
-        return date_str.to_string();
-    }
-    let year: i64 = date_str[0..4].parse().unwrap_or(0);
-    let month: i64 = date_str[5..7].parse().unwrap_or(1);
-    let day: i64 = date_str[8..10].parse().unwrap_or(1);
-    let jdn = gregorian_to_jdn(year, month, day);
-    let dow = (jdn + 1).rem_euclid(7);
-    let monday_offset = (dow + 6) % 7;
-    let (y, m, d) = jdn_to_gregorian(jdn - monday_offset);
-    format!("{y:04}-{m:02}-{d:02}")
+    Ok(GitVisCodeEvolution { days })
 }
 
 /// Matches a commit header line emitted by `--pretty=format:%H|%aI`, returning
@@ -261,30 +236,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn start_of_week_returns_monday_of_the_same_week() {
-        assert_eq!(start_of_week("2024-01-01"), "2024-01-01"); // Monday
-        assert_eq!(start_of_week("2024-01-07"), "2024-01-01"); // Sunday → same week Monday
-        assert_eq!(start_of_week("2026-07-31"), "2026-07-27");
-        assert_eq!(start_of_week("2025-12-31"), "2025-12-29");
-        assert_eq!(start_of_week("2026-01-01"), "2025-12-29");
-        assert_eq!(start_of_week("2023-06-15"), "2023-06-12");
-        assert_eq!(start_of_week("2024-02-29"), "2024-02-26"); // leap day
-        assert_eq!(start_of_week("2024-12-30"), "2024-12-30");
-        // 2025 has 53 ISO weeks; Dec 31 falls in 2026-01-05's week start
-        assert_eq!(start_of_week("2026-01-05"), "2026-01-05");
-    }
-
-    #[test]
-    fn start_of_week_never_produces_impossible_dates() {
-        for d in ["2024-01-01", "2026-07-31", "2020-02-29", "1999-12-31", "2030-01-01"] {
-            let s = start_of_week(d);
-            let year: i32 = s[0..4].parse().unwrap();
-            assert!(
-                (1900..2100).contains(&year),
-                "week start {s} (from {d}) should be a plausible 1900-2100 date"
-            );
-            assert_eq!(s.len(), 10);
-        }
+    fn start_of_week_helpers_removed_gregorian_math_still_works() {
+        // day_of_week still drives hourly heatmap (0 = Sunday .. 6 = Saturday)
+        assert_eq!(parse_date_parts("2024-01-01T10:00:00+08:00").unwrap().day_of_week, 1); // Mon
+        assert_eq!(parse_date_parts("2024-01-07T00:00:00Z").unwrap().day_of_week, 0); // Sun
     }
 
     #[test]
