@@ -5,6 +5,7 @@ Monthly archive of code quality lessons and fixes from July 2026.
 ## Files
 
 - [2026-07-22-chart-color-preset-system.md](./2026-07-22-chart-color-preset-system.md) — Chart color preset system
+- [bklit-ui-component-port-and-cache-key-bump-2026-07-31.md](./bklit-ui-component-port-and-cache-key-bump-2026-07-31.md) — bklit-ui component port + cache-key version bump lessons
 - [echarts-visx-migration-2026-07-15.md](./echarts-visx-migration-2026-07-15.md) — ECharts to VisX migration
 - [git-vis-time-range-store-init-missing-2026-07-24.md](./git-vis-time-range-store-init-missing-2026-07-24.md) — Git visualization time range store init fix
 - [git-vis-time-range-tooltip-fixes-2026-07-26.md](./git-vis-time-range-tooltip-fixes-2026-07-26.md) — Git visualization time range tooltip fixes
