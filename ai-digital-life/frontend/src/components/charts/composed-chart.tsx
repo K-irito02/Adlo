@@ -99,6 +99,18 @@ function upsertLineConfig(lines: LineConfig[], config: LineConfig): void {
   lines[index] = config;
 }
 
+// In ComposedChart, bars ARE domain drivers: each SeriesBar is appended to the
+// shared `lines` config as a strokeWidth: 0 line, so bar values contribute to
+// the y-domain and get headroom in the viewport. This is intentional and
+// matches upstream bklit-ui.
+//
+// This differs from the plain LineChart path, where `SeriesBar` is listed in
+// `LINE_DOMAIN_EXCLUDED_NAMES` and does NOT drive the domain (a bar alone
+// inside LineChart renders as a non-domain decorative layer).
+//
+// Do NOT "fix" this into a non-domain-driver without also giving bars a
+// dedicated domain mechanism — bars would otherwise render without headroom
+// and overlap the top of the plot area.
 function tryAppendSeriesBar(
   child: ReactElement,
   lines: LineConfig[],
