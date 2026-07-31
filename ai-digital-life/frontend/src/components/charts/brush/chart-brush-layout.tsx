@@ -26,7 +26,9 @@ export const ChartBrushLayout = React.memo(function ChartBrushLayout({
   const [selection, setSelection] = useState<BrushSelection | null>(null);
 
   const dataRangeKey = useMemo(() => {
-    if (data.length === 0) return '';
+    if (data.length === 0) {
+      return '';
+    }
     return `${data[0][xDataKey]}|${data[data.length - 1][xDataKey]}`;
   }, [data, xDataKey]);
 
@@ -44,12 +46,16 @@ export const ChartBrushLayout = React.memo(function ChartBrushLayout({
   }, [dataRangeKey, xDataKey, data]);
 
   const xDomain = useMemo<[Date, Date] | undefined>(() => {
-    if (!enabled || !selection) return undefined;
+    if (!enabled || !selection) {
+      return undefined;
+    }
     return [selection.start, selection.end];
   }, [enabled, selection]);
 
   const xDomainSlotCount = useMemo<number | undefined>(() => {
-    if (!enabled || !selection) return undefined;
+    if (!enabled || !selection) {
+      return undefined;
+    }
     return data.length;
   }, [enabled, data.length]);
 
@@ -57,12 +63,15 @@ export const ChartBrushLayout = React.memo(function ChartBrushLayout({
     setSelection(sel);
   }, []);
 
-  const layout = useMemo<BrushLayoutRenderProps>(() => ({
-    xDomain,
-    xDomainSlotCount,
-    brushSelection: selection,
-    onBrushSelectionChange: handleSelectionChange,
-  }), [xDomain, xDomainSlotCount, selection, handleSelectionChange]);
+  const layout = useMemo<BrushLayoutRenderProps>(
+    () => ({
+      xDomain,
+      xDomainSlotCount,
+      brushSelection: selection,
+      onBrushSelectionChange: handleSelectionChange,
+    }),
+    [xDomain, xDomainSlotCount, selection, handleSelectionChange],
+  );
 
   if (!enabled || data.length === 0) {
     return (

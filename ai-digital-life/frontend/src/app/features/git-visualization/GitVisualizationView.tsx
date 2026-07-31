@@ -4,7 +4,11 @@ import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { determinePhases } from '@stores/actions/gitVisActions';
 import { HeatmapCardGroup } from './HeatmapCardGroup';
-import { CodeLineEvo } from './charts/CodeLineEvo';
+import {
+  CodeLineEvo,
+  CodeLineEvoSeriesToggle,
+  useCodeLineEvoVisibility,
+} from './charts/CodeLineEvo';
 import { CommitTimeline } from './charts/CommitTimeline';
 import { FileSunburst } from './charts/FileSunburst';
 import { BranchGraph } from './charts/BranchGraph';
@@ -62,6 +66,7 @@ interface TimeRangeAwareCardProps {
   onRefresh: () => Promise<void>;
   refreshLabel: string;
   yearBounds?: { min: number; max: number } | null;
+  headerExtra?: React.ReactNode;
 }
 
 const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
@@ -72,6 +77,7 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
   onRefresh,
   refreshLabel,
   yearBounds,
+  headerExtra,
 }: TimeRangeAwareCardProps) {
   return (
     <div className="adl-git-vis__card">
@@ -88,6 +94,7 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
             yearBounds={yearBounds}
           />
         ) : null}
+        {headerExtra}
       </div>
       {timeRange.error && <div className="adl-git-vis__error">{timeRange.error}</div>}
       {timeRange.loading ? <div className="adl-git-vis__skeleton" /> : children}
@@ -122,6 +129,8 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const codeLineEvoData = useChartData(CHART_IDS.CODE_LINE_EVO);
   const commitTimelineData = useChartData(CHART_IDS.COMMIT_TIMELINE);
   const fileSunburstData = useChartData(CHART_IDS.FILE_SUNBURST);
+
+  const codeLineEvoVis = useCodeLineEvoVisibility();
 
   // Cascade load priority phases — data loads on first view via loadActiveWorkspace
   useEffect(() => {
@@ -377,6 +386,12 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           refreshLabel={t.gitVisRefreshChart}
           timeRange={codeLineEvoData}
           yearBounds={yearBounds}
+          headerExtra={
+            <CodeLineEvoSeriesToggle
+              visible={codeLineEvoVis.visible}
+              onToggle={codeLineEvoVis.toggleSeries}
+            />
+          }
         >
           {codeLineEvoData.loading ? null : (
             <CodeLineEvo
@@ -385,6 +400,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                   | { days: { date: string; additions: number; deletions: number }[] }
                   | undefined
               }
+              visible={codeLineEvoVis.visible}
             />
           )}
         </TimeRangeAwareCard>

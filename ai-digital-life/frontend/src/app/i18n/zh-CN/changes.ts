@@ -127,6 +127,8 @@ export const changesZh = {
     '列：时间（随所选区间自适应 天/周/月）。上方区域为新增行数、下方为删除行数，净增长线反映代码库变化。右侧开关可切换显示系列；缩略条曲线为单期净增长，可拖选区间。',
   gitVisCodeLineEvoAdded: '新增行数',
   gitVisCodeLineEvoDeleted: '删除行数',
+  gitVisCodeLineEvoAddedShort: '新增',
+  gitVisCodeLineEvoDeletedShort: '删除',
   gitVisCodeLineEvoNet: '净变化',
   gitVisCodeLineEvoToggleLabel: '切换显示系列',
   gitVisContributorActivityDesc:

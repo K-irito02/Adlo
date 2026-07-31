@@ -201,6 +201,34 @@ alwaysApply: true
 - 文件：[BrowserTreeEntryFlatList.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser-tree/BrowserTreeEntryFlatList.tsx)
 - 经验：[browser-opened-tabs-enhancement](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/browser/browser-opened-tabs-enhancement-2026-06-23.md)
 
+### 主题切换与 transition（防闪烁）
+
+**问题模式**：当交互元素（按钮、徽标等）的 `background` 或 `color` 使用主题相关变量（如 `var(--bg-card)`、`var(--text-primary)`）时，若 `transition` 包含 `background-color` 或 `color`，主题切换会产生近黑↔近白的可见闪烁。
+
+**根因**：`var(--theme-transition)`（定义于 `tokens.css`）包含 `background-color 200ms`、`color 200ms` 等过渡。主题切换时这些变量值剧变（如 `--bg-card`: light `#fbfbfb` ↔ dark `#1a1a1a`），200ms 过渡使变化可见。
+
+**正确做法**：
+- 对**背景/文字色使用主题变量**的交互元素：精确列举 `transition-property`，仅保留所需过渡（如 `transition: opacity var(--duration-150) var(--ease-default);`），**不要**使用 `var(--theme-transition)`
+- 对**背景为 `transparent`** 的元素：可安全使用 `var(--theme-transition)`（透明度不变，不触发 background-color 过渡）
+- 主题切换时背景/文字色应**即时更新**，与其他小型按钮（如 `preset-trigger`）保持一致
+
+**示例**：
+```css
+/* ✅ 正确：仅过渡 opacity（aria-pressed 切换所需） */
+.adl-git-vis__series-toggle-btn {
+  background: var(--bg-card); /* 主题相关 */
+  transition: opacity var(--duration-150) var(--ease-default);
+}
+
+/* ✅ 正确：背景透明，可使用 var(--theme-transition) */
+.adl-git-vis__refresh-btn {
+  background: transparent;
+  transition: color 0.15s, background 0.15s;
+}
+```
+
+**对比验证**：若不确定某元素是否会闪烁，对比同区域背景为 `transparent` 的元素 — 若后者不闪烁而前者闪烁，则根因是背景色过渡。
+
 ---
 
 ## 7. "!" 解释子卡片（Hint Card）

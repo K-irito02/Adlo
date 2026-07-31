@@ -21,7 +21,7 @@ describe('ChartBrushLayout', () => {
         brushStrip={() => <div data-testid="brush-strip" />}
       >
         {() => <div data-testid="main-chart" />}
-      </ChartBrushLayout>
+      </ChartBrushLayout>,
     );
     expect(screen.getByTestId('main-chart')).toBeInTheDocument();
     expect(screen.getByTestId('brush-strip')).toBeInTheDocument();
@@ -36,7 +36,7 @@ describe('ChartBrushLayout', () => {
         brushStrip={() => <div data-testid="brush-strip" />}
       >
         {() => <div data-testid="main-chart" />}
-      </ChartBrushLayout>
+      </ChartBrushLayout>,
     );
     expect(screen.getByTestId('main-chart')).toBeInTheDocument();
     expect(screen.queryByTestId('brush-strip')).not.toBeInTheDocument();
@@ -47,37 +47,25 @@ describe('ChartBrushLayout', () => {
       { date: new Date('2024-01-01'), value: 100 },
       { date: new Date('2024-12-31'), value: 150 },
     ];
-    const newData = [
-      { date: new Date('2025-06-01'), value: 200 },
-    ];
+    const newData = [{ date: new Date('2025-06-01'), value: 200 }];
     let capturedLayouts: any[] = [];
     const { rerender } = render(
-      <ChartBrushLayout
-        data={initialData}
-        enabled
-        height={72}
-        brushStrip={() => null}
-      >
+      <ChartBrushLayout data={initialData} enabled height={72} brushStrip={() => null}>
         {(layout) => {
           capturedLayouts.push({ ...layout, _dataLen: initialData.length });
           return null;
         }}
-      </ChartBrushLayout>
+      </ChartBrushLayout>,
     );
     // Simulate data change (e.g., time range filter)
     capturedLayouts = [];
     rerender(
-      <ChartBrushLayout
-        data={newData}
-        enabled
-        height={72}
-        brushStrip={() => null}
-      >
+      <ChartBrushLayout data={newData} enabled height={72} brushStrip={() => null}>
         {(layout) => {
           capturedLayouts.push({ ...layout, _dataLen: newData.length });
           return null;
         }}
-      </ChartBrushLayout>
+      </ChartBrushLayout>,
     );
     // After data change, xDomain should be reset to new data range
     expect(capturedLayouts.length).toBeGreaterThan(0);
@@ -94,7 +82,7 @@ describe('ChartBrushLayout', () => {
         brushStrip={() => <div data-testid="brush-strip" />}
       >
         {() => <div data-testid="main-chart" />}
-      </ChartBrushLayout>
+      </ChartBrushLayout>,
     );
     expect(screen.getByTestId('main-chart')).toBeInTheDocument();
     expect(screen.queryByTestId('brush-strip')).not.toBeInTheDocument();

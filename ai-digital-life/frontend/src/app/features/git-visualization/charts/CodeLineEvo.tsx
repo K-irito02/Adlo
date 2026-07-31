@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { readJson, writeJson } from '@stores/shared';
@@ -15,16 +16,17 @@ import {
 
 interface CodeLineEvoProps {
   data?: { days: { date: string; additions: number; deletions: number }[] };
+  visible: SeriesVisibility;
 }
 
-interface SeriesVisibility {
+export interface SeriesVisibility {
   added: boolean;
   deleted: boolean;
   net: boolean;
 }
 
-const CODE_LINE_EVO_VISIBLE_KEY = 'gitVisCodeLineEvoVisible';
-const DEFAULT_VISIBILITY: SeriesVisibility = { added: true, deleted: true, net: true };
+export const CODE_LINE_EVO_VISIBLE_KEY = 'gitVisCodeLineEvoVisible';
+export const DEFAULT_VISIBILITY: SeriesVisibility = { added: true, deleted: true, net: true };
 
 const SERIES_COLORS: Record<keyof SeriesVisibility, string> = {
   added: 'var(--chart-line-primary)',
@@ -32,10 +34,7 @@ const SERIES_COLORS: Record<keyof SeriesVisibility, string> = {
   net: 'var(--chart-3)',
 };
 
-export const CodeLineEvo = React.memo(function CodeLineEvo({ data }: CodeLineEvoProps) {
-  const { t } = useTCopy();
-  const days = useMemo(() => data?.days ?? [], [data]);
-
+export function useCodeLineEvoVisibility() {
   const [visible, setVisible] = useState<SeriesVisibility>(() =>
     readJson<SeriesVisibility>(CODE_LINE_EVO_VISIBLE_KEY, DEFAULT_VISIBILITY),
   );
@@ -47,6 +46,54 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({ data }: CodeLineEvo
       return next;
     });
   }, []);
+
+  return { visible, toggleSeries };
+}
+
+interface CodeLineEvoSeriesToggleProps {
+  visible: SeriesVisibility;
+  onToggle: (key: keyof SeriesVisibility) => void;
+}
+
+export const CodeLineEvoSeriesToggle = React.memo(function CodeLineEvoSeriesToggle({
+  visible,
+  onToggle,
+}: CodeLineEvoSeriesToggleProps) {
+  const { t } = useTCopy();
+  return (
+    <div
+      className="adl-git-vis__series-toggle"
+      role="group"
+      aria-label={t.gitVisCodeLineEvoToggleLabel}
+    >
+      {(['added', 'deleted', 'net'] as const).map((key) => (
+        <button
+          key={key}
+          type="button"
+          className="adl-git-vis__series-toggle-btn"
+          aria-pressed={visible[key]}
+          onClick={() => onToggle(key)}
+        >
+          <span
+            className="adl-git-vis__series-toggle-dot"
+            style={{ background: SERIES_COLORS[key] }}
+          />
+          <span>
+            {key === 'added'
+              ? t.gitVisCodeLineEvoAddedShort
+              : key === 'deleted'
+                ? t.gitVisCodeLineEvoDeletedShort
+                : t.gitVisCodeLineEvoNet}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+});
+
+export const CodeLineEvo = React.memo(function CodeLineEvo({ data, visible }: CodeLineEvoProps) {
+  const { t } = useTCopy();
+  const days = useMemo(() => data?.days ?? [], [data]);
 
   const dayRows = useMemo(() => aggregateCodeEvolutionDays(days, 'day'), [days]);
 
@@ -96,138 +143,105 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({ data }: CodeLineEvo
 
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
-      <div className="adl-git-vis__chart-row">
-        <div className="adl-git-vis__chart-main">
-          <ChartBrushLayout
+      <ChartBrushLayout
+        data={stripData}
+        xDataKey="date"
+        enabled
+        height={72}
+        brushStrip={(layout) => (
+          <LineChart
             data={stripData}
             xDataKey="date"
-            enabled
-            height={72}
-            brushStrip={(layout) => (
-              <LineChart
-                data={stripData}
-                xDataKey="date"
-                animationDuration={0}
-                status="ready"
-                margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
-                style={{ aspectRatio: 'unset', height: '100%' }}
-              >
-                <Line dataKey="net" animate={false} showHighlight={false} />
-                <ChartBrush
-                  initialSelection={layout.brushSelection ?? undefined}
-                  onSelectionChange={
-                    layout.onBrushSelectionChange as (domain: { start: Date; end: Date }) => void
-                  }
-                />
-              </LineChart>
-            )}
+            animationDuration={0}
+            status="ready"
+            margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            style={{ aspectRatio: 'unset', height: '100%' }}
           >
-            {(layout) => {
-              const selStart = layout.xDomain?.[0] ?? fullRange.start;
-              const selEnd = layout.xDomain?.[1] ?? fullRange.end;
-              const granularity = resolveGranularity(selStart, selEnd);
-              const inRangeDays = days.filter((d) => {
-                const t = new Date(d.date + 'T00:00:00').getTime();
-                return t >= selStart.getTime() && t <= selEnd.getTime();
-              });
-              const chartData = aggregateCodeEvolutionDays(inRangeDays, granularity);
-              return (
-                <LineChart
-                  data={chartData}
-                  xDataKey="date"
-                  xDomain={layout.xDomain}
-                  xDomainSlotCount={layout.xDomainSlotCount}
-                  tweenYDomainOnXDomainChange
-                  yDomainTween
-                  dateLabelFormatter={dateLabelFormatterFor(granularity)}
-                  margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
-                  style={{ maxHeight: 280 }}
-                >
-                  {visible.added ? (
-                    <Area
-                      dataKey="added"
-                      baseline="zero"
-                      fill="var(--chart-line-primary)"
-                      fillOpacity={0.35}
-                    />
-                  ) : null}
-                  {visible.deleted ? (
-                    <Area
-                      dataKey="deletedNeg"
-                      baseline="zero"
-                      fill="var(--chart-line-secondary)"
-                      fillOpacity={0.35}
-                    />
-                  ) : null}
-                  {visible.net ? (
-                    <Line dataKey="net" stroke="var(--chart-3)" strokeWidth={2} />
-                  ) : null}
-                  <Grid highlightRowValues={[0]} />
-                  <XAxis />
-                  <ChartTooltip
-                    rows={(point) => [
-                      ...(visible.added
-                        ? [
-                            {
-                              color: SERIES_COLORS.added,
-                              label: t.gitVisCodeLineEvoAdded,
-                              value: (point.added as number) ?? 0,
-                            },
-                          ]
-                        : []),
-                      ...(visible.deleted
-                        ? [
-                            {
-                              color: SERIES_COLORS.deleted,
-                              label: t.gitVisCodeLineEvoDeleted,
-                              value: (point.deletedNeg as number) ?? 0,
-                            },
-                          ]
-                        : []),
-                      ...(visible.net
-                        ? [
-                            {
-                              color: SERIES_COLORS.net,
-                              label: t.gitVisCodeLineEvoNet,
-                              value: (point.net as number) ?? 0,
-                            },
-                          ]
-                        : []),
-                    ]}
-                  />
-                </LineChart>
-              );
-            }}
-          </ChartBrushLayout>
-        </div>
-        <div
-          className="adl-git-vis__series-toggle"
-          role="group"
-          aria-label={t.gitVisCodeLineEvoToggleLabel}
-        >
-          {(['added', 'deleted', 'net'] as const).map((key) => (
-            <button
-              key={key}
-              type="button"
-              className="adl-git-vis__series-toggle-btn"
-              aria-pressed={visible[key]}
-              onClick={() => toggleSeries(key)}
+            <Line dataKey="net" animate={false} showHighlight={false} />
+            <ChartBrush
+              initialSelection={layout.brushSelection ?? undefined}
+              onSelectionChange={
+                layout.onBrushSelectionChange as (domain: { start: Date; end: Date }) => void
+              }
+            />
+          </LineChart>
+        )}
+      >
+        {(layout) => {
+          const selStart = layout.xDomain?.[0] ?? fullRange.start;
+          const selEnd = layout.xDomain?.[1] ?? fullRange.end;
+          const granularity = resolveGranularity(selStart, selEnd);
+          const inRangeDays = days.filter((d) => {
+            const t = new Date(d.date + 'T00:00:00').getTime();
+            return t >= selStart.getTime() && t <= selEnd.getTime();
+          });
+          const chartData = aggregateCodeEvolutionDays(inRangeDays, granularity);
+          return (
+            <LineChart
+              data={chartData}
+              xDataKey="date"
+              xDomain={layout.xDomain}
+              xDomainSlotCount={layout.xDomainSlotCount}
+              tweenYDomainOnXDomainChange
+              yDomainTween
+              dateLabelFormatter={dateLabelFormatterFor(granularity)}
+              margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
+              style={{ maxHeight: 280 }}
             >
-              <span
-                className="adl-git-vis__series-toggle-dot"
-                style={{ background: SERIES_COLORS[key] }}
+              {visible.added ? (
+                <Area
+                  dataKey="added"
+                  baseline="zero"
+                  fill="var(--chart-line-primary)"
+                  fillOpacity={0.35}
+                />
+              ) : null}
+              {visible.deleted ? (
+                <Area
+                  dataKey="deletedNeg"
+                  baseline="zero"
+                  fill="var(--chart-line-secondary)"
+                  fillOpacity={0.35}
+                />
+              ) : null}
+              {visible.net ? <Line dataKey="net" stroke="var(--chart-3)" strokeWidth={2} /> : null}
+              <Grid highlightRowValues={[0]} />
+              <XAxis />
+              <ChartTooltip
+                rows={(point) => [
+                  ...(visible.added
+                    ? [
+                        {
+                          color: SERIES_COLORS.added,
+                          label: t.gitVisCodeLineEvoAdded,
+                          value: (point.added as number) ?? 0,
+                        },
+                      ]
+                    : []),
+                  ...(visible.deleted
+                    ? [
+                        {
+                          color: SERIES_COLORS.deleted,
+                          label: t.gitVisCodeLineEvoDeleted,
+                          value: (point.deletedNeg as number) ?? 0,
+                        },
+                      ]
+                    : []),
+                  ...(visible.net
+                    ? [
+                        {
+                          color: SERIES_COLORS.net,
+                          label: t.gitVisCodeLineEvoNet,
+                          value: (point.net as number) ?? 0,
+                        },
+                      ]
+                    : []),
+                ]}
               />
-              <span>
-                {key === 'added'
-                  ? t.gitVisCodeLineEvoAdded
-                  : key === 'deleted'
-                    ? t.gitVisCodeLineEvoDeleted
-                    : t.gitVisCodeLineEvoNet}
-              </span>
-            </button>
-          ))}
-        </div>
-      </div>
+            </LineChart>
+          );
+        }}
+      </ChartBrushLayout>
     </div>
   );
 });

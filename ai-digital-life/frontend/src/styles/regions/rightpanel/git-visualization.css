@@ -1317,41 +1317,30 @@
 }
 
 /* ── Series Toggle (CodeLineEvo) ── */
-.adl-git-vis__chart-row {
-  display: flex;
-  gap: 10px;
-  align-items: stretch;
-}
-
-.adl-git-vis__chart-main {
-  flex: 1;
-  min-width: 0;
-}
-
 .adl-git-vis__series-toggle {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 6px;
   flex-shrink: 0;
-  padding-top: 6px;
+  margin-left: auto;
 }
 
 .adl-git-vis__series-toggle-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 1px solid var(--border-default);
+  border: none;
   border-radius: var(--radius-sm, 6px);
   background: var(--bg-card);
   color: var(--text-secondary);
   font-size: 11px;
   padding: 4px 8px;
   cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease,
-    opacity 0.15s ease;
+  /* 仅过渡 opacity（aria-pressed 切换动画所需），排除 color/background-color
+     避免主题切换时按钮文字色与背景色产生过渡闪烁。
+     hover 时背景与文字色均即时变化（与 preset-trigger 等无 transition 的小型按钮一致）。 */
+  transition: opacity var(--duration-150) var(--ease-default);
   white-space: nowrap;
 }
 
@@ -1365,9 +1354,12 @@
 }
 
 .adl-git-vis__series-toggle-btn[aria-pressed='true'] {
-  border-color: var(--accent);
-  background: var(--bg-active);
+  background: var(--bg);
   color: var(--text-primary);
+}
+
+.adl-git-vis__series-toggle-btn[aria-pressed='true']:hover {
+  background: var(--bg-hover);
 }
 
 .adl-git-vis__series-toggle-dot {
@@ -1375,6 +1367,9 @@
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+  /* 显式声明无过渡：预防主题切换时圆点背景色（var(--chart-line-primary) 等）
+     产生过渡闪烁。grayscale 切换本就即时，无需过渡。 */
+  transition: none;
 }
 
 .adl-git-vis__series-toggle-btn[aria-pressed='false'] .adl-git-vis__series-toggle-dot {

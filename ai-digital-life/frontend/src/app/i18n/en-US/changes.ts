@@ -127,6 +127,8 @@ export const changesEn = {
     'Columns: time (auto day/week/month by selected range). Upper area = lines added, lower area = lines deleted; the net line shows codebase growth. Use the switches on the right to toggle series; the overview strip curve is the single-period net change — drag it to select a range.',
   gitVisCodeLineEvoAdded: 'Lines added',
   gitVisCodeLineEvoDeleted: 'Lines deleted',
+  gitVisCodeLineEvoAddedShort: 'Added',
+  gitVisCodeLineEvoDeletedShort: 'Deleted',
   gitVisCodeLineEvoNet: 'Net change',
   gitVisCodeLineEvoToggleLabel: 'Toggle series visibility',
   gitVisContributorActivityDesc:

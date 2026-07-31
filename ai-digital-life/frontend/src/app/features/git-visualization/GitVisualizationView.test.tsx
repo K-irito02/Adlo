@@ -157,6 +157,12 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisCalendarHeatmap: 'Calendar Heatmap',
       gitVisClockHeatmap: 'Clock Heatmap',
       gitVisCodeLineEvo: 'Code Line Evolution',
+      gitVisCodeLineEvoAdded: 'Lines added',
+      gitVisCodeLineEvoDeleted: 'Lines deleted',
+      gitVisCodeLineEvoAddedShort: 'Added',
+      gitVisCodeLineEvoDeletedShort: 'Deleted',
+      gitVisCodeLineEvoNet: 'Net change',
+      gitVisCodeLineEvoToggleLabel: 'Toggle series visibility',
       gitVisContributorActivity: 'Contributor Activity',
       gitVisCommitTimeline: 'Commit Timeline',
       gitVisContributorModule: 'Contributor \u00d7 Module',
@@ -220,4 +226,17 @@ describe('GitVisualizationView', () => {
     render(<GitVisualizationView />);
     expect(window.digitalLife.workspace.gitVisFirstCommitYear).not.toHaveBeenCalled();
   });
+
+  it(
+    'renders the code line evolution series toggle inside the card header row',
+    { timeout: 30000 },
+    () => {
+      const { container } = render(<GitVisualizationView />);
+      const toggleHeader = Array.from(container.querySelectorAll('.adl-git-vis__card-header')).find(
+        (header) => header.querySelector('.adl-git-vis__series-toggle'),
+      );
+      expect(toggleHeader).toBeTruthy();
+      expect(toggleHeader!.querySelectorAll('.adl-git-vis__series-toggle-btn').length).toBe(3);
+    },
+  );
 });
