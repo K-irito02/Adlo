@@ -1,72 +1,123 @@
 import React, { useMemo } from 'react';
-import { LineChart, Line } from '@/components/charts/line-chart';
+import { ComposedChart } from '@/components/charts/composed-chart';
+import { SeriesBar } from '@/components/charts/series-bar';
+import { Line } from '@/components/charts/line';
 import { Grid } from '@/components/charts/grid';
 import { ChartTooltip } from '@/components/charts/tooltip/chart-tooltip';
 import { ChartBrushLayout, ChartBrush } from '@/components/charts/brush';
-import { commitTimelineToRows } from '../adapters/chartDataAdapters';
+import { XAxis } from '@/components/charts/x-axis';
+import {
+  aggregateCommitTimeline,
+  resolveGranularity,
+  type Granularity,
+} from '../adapters/chartDataAdapters';
 
 interface CommitTimelineProps {
-  data?: { commitTimeline: { date: string; cumulative: number }[] };
+  data?: { days: { date: string; count: number; cumulative: number }[] };
 }
 
 export const CommitTimeline = React.memo(function CommitTimeline({ data }: CommitTimelineProps) {
-  const chartData = useMemo(
-    () => (data?.commitTimeline ? commitTimelineToRows(data.commitTimeline) : []),
-    [data],
+  const days = useMemo(() => data?.days ?? [], [data]);
+
+  const dayRows = useMemo(() => aggregateCommitTimeline(days, 'day'), [days]);
+
+  const fullRange = useMemo(() => {
+    if (dayRows.length === 0) {
+      return { start: new Date(), end: new Date() };
+    }
+    return {
+      start: new Date(dayRows[0].date + 'T00:00:00'),
+      end: new Date(dayRows[dayRows.length - 1].date + 'T00:00:00'),
+    };
+  }, [dayRows]);
+
+  const stripGranularity = useMemo<Granularity>(() => {
+    if (dayRows.length === 0) {
+      return 'month';
+    }
+    return resolveGranularity(fullRange.start, fullRange.end);
+  }, [fullRange, dayRows.length]);
+
+  const stripData = useMemo(
+    () => aggregateCommitTimeline(days, stripGranularity),
+    [days, stripGranularity],
   );
 
-  if (chartData.length === 0) {
+  if (dayRows.length === 0) {
     return (
       <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
-        <LineChart data={[]} xDataKey="date" margin={{ top: 20, right: 20, bottom: 40, left: 60 }} style={{ maxHeight: 280 }}>
+        <ComposedChart
+          data={[]}
+          xDataKey="date"
+          margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
+          style={{ maxHeight: 280 }}
+        >
           <Line dataKey="cumulative" />
           <Grid />
           <ChartTooltip />
-        </LineChart>
+        </ComposedChart>
       </div>
     );
   }
 
+  const dateLabelFormatterFor = (g: Granularity) => (d: Date) =>
+    g === 'month'
+      ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      : `${d.getMonth() + 1}/${d.getDate()}`;
+
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
       <ChartBrushLayout
-        data={chartData}
+        data={stripData}
         xDataKey="date"
         enabled
         height={72}
         brushStrip={(layout) => (
-          <LineChart
-            data={chartData}
+          <ComposedChart
+            data={stripData}
             xDataKey="date"
             animationDuration={0}
             status="ready"
             margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
             style={{ aspectRatio: 'unset', height: '100%' }}
           >
-            <Line dataKey="cumulative" animate={false} showHighlight={false} />
+            <Line dataKey="count" animate={false} showHighlight={false} />
             <ChartBrush
               initialSelection={layout.brushSelection ?? undefined}
-              onSelectionChange={layout.onBrushSelectionChange as (domain: { start: Date; end: Date }) => void}
+              onSelectionChange={
+                layout.onBrushSelectionChange as (domain: { start: Date; end: Date }) => void
+              }
             />
-          </LineChart>
+          </ComposedChart>
         )}
       >
-        {(layout) => (
-          <LineChart
-            data={chartData}
-            xDataKey="date"
-            xDomain={layout.xDomain}
-            xDomainSlotCount={layout.xDomainSlotCount}
-            tweenYDomainOnXDomainChange
-            yDomainTween
-            margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
-            style={{ maxHeight: 280 }}
-          >
-            <Line dataKey="cumulative" />
-            <Grid />
-            <ChartTooltip />
-          </LineChart>
-        )}
+        {(layout) => {
+          const selStart = layout.xDomain?.[0] ?? fullRange.start;
+          const selEnd = layout.xDomain?.[1] ?? fullRange.end;
+          const granularity = resolveGranularity(selStart, selEnd);
+          const chartData = aggregateCommitTimeline(days, granularity);
+          return (
+            <ComposedChart
+              data={chartData}
+              xDataKey="date"
+              barGap={0}
+              maxBarSize={granularity === 'day' ? 8 : 24}
+              xDomain={layout.xDomain}
+              xDomainSlotCount={layout.xDomainSlotCount}
+              tweenYDomainOnXDomainChange
+              yDomainTween
+              dateLabelFormatter={dateLabelFormatterFor(granularity)}
+              margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
+              style={{ maxHeight: 280 }}
+            >
+              <SeriesBar dataKey="count" fill="var(--chart-line-primary)" radius={4} />
+              <Line dataKey="cumulative" stroke="var(--chart-line-secondary)" strokeWidth={2} />
+              <Grid />
+              <XAxis />
+              <ChartTooltip />
+            </ComposedChart>
+          );
+        }}
       </ChartBrushLayout>
     </div>
   );

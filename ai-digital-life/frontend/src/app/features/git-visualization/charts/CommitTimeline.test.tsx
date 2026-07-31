@@ -70,16 +70,25 @@ vi.mock('@visx/responsive', () => ({
 vi.mock('../hooks/useBklitTheme', () => ({
   useBklitTheme: () => ({
     accent: '#3b82f6',
-    muted: '#94a3b8',
     text: '#1e293b',
-    background: '#fff',
+    muted: '#94a3b8',
     grid: '#e2e8f0',
-    seriesColors: ['#3b82f6'],
-    heatmapColors: [],
     tooltipBg: '#1e293b',
     tooltipText: '#f8fafc',
+    background: '#ffffff',
+    seriesColors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'],
+    heatmapColors: [],
   }),
 }));
+
+const DAILY_DATA = {
+  days: [
+    { date: '2024-01-01', count: 2, cumulative: 2 },
+    { date: '2024-01-02', count: 3, cumulative: 5 },
+    { date: '2024-01-03', count: 4, cumulative: 9 },
+    { date: '2024-01-04', count: 2, cumulative: 11 },
+  ],
+};
 
 describe('CommitTimeline', () => {
   it('renders SVG without crashing', () => {
@@ -88,20 +97,28 @@ describe('CommitTimeline', () => {
   });
 
   it('brush strip keeps a positive plot area at the 72px strip height (regression: default margins made innerHeight negative)', () => {
-    const data = {
-      commitTimeline: [
-        { date: '2024-01-01', cumulative: 2 },
-        { date: '2024-01-08', cumulative: 5 },
-        { date: '2024-01-15', cumulative: 9 },
-        { date: '2024-01-22', cumulative: 11 },
-      ],
-    };
-    const { container } = render(<CommitTimeline data={data} />);
+    const { container } = render(<CommitTimeline data={DAILY_DATA} />);
     const stripRects = container.querySelectorAll('.adl-chart-brush-layout__strip svg rect');
     expect(stripRects.length).toBeGreaterThan(0);
     for (const rect of stripRects) {
       const h = Number(rect.getAttribute('height'));
       expect(h).toBeGreaterThanOrEqual(0);
     }
+  });
+
+  it('renders both SeriesBar rects and the cumulative Line path in the main chart', () => {
+    const { container } = render(<CommitTimeline data={DAILY_DATA} />);
+    const mainChartSvg = container.querySelector('.adl-chart-brush-layout svg');
+    expect(mainChartSvg).toBeInTheDocument();
+
+    const barRects = mainChartSvg!.querySelectorAll('.series-bar rect');
+    expect(barRects.length).toBeGreaterThan(0);
+
+    const linePaths = Array.from(mainChartSvg!.querySelectorAll('path')).filter((p) => {
+      const d = p.getAttribute('d');
+      const stroke = p.getAttribute('stroke');
+      return Boolean(d && d.length > 0 && stroke && stroke !== 'none');
+    });
+    expect(linePaths.length).toBeGreaterThan(0);
   });
 });
