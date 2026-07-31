@@ -1,6 +1,92 @@
 import type { HeatmapColumn, HeatmapBin } from '@/components/charts/heatmap/heatmap-context';
-import type { BklitAreaRow } from '../../../../test-fixtures/gitVisMockData';
 import type { CommitNode, CommitEdge } from '../types/gitGraph';
+
+export type Granularity = 'day' | 'week' | 'month';
+
+export interface CodeEvolutionRow {
+  date: string;
+  added: number;
+  deletedNeg: number;
+  net: number;
+}
+
+export function resolveGranularity(start: Date, end: Date): Granularity {
+  const days = Math.max(0, Math.ceil((end.getTime() - start.getTime()) / 86_400_000));
+  if (days <= 30) return 'day';
+  if (days <= 180) return 'week';
+  return 'month';
+}
+
+function toDate10(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function addDays(d: Date, n: number): Date {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+function mondayOf(date10: string): string {
+  const d = new Date(date10 + 'T00:00:00');
+  const dow = d.getDay(); // 0=Sun..6=Sat
+  const mondayOffset = (dow + 6) % 7;
+  return toDate10(addDays(d, -mondayOffset));
+}
+
+function monthOf(date10: string): string {
+  return date10.slice(0, 7); // YYYY-MM
+}
+
+export function aggregateCodeEvolutionDays(
+  days: { date: string; additions: number; deletions: number }[],
+  granularity: Granularity,
+): CodeEvolutionRow[] {
+  if (granularity === 'day') {
+    return days.map((d) => ({
+      date: d.date,
+      added: d.additions,
+      deletedNeg: -d.deletions,
+      net: d.additions - d.deletions,
+    }));
+  }
+  const key = granularity === 'week' ? mondayOf : monthOf;
+  const buckets = new Map<string, { add: number; del: number }>();
+  for (const d of days) {
+    const k = key(d.date);
+    const b = buckets.get(k) ?? { add: 0, del: 0 };
+    b.add += d.additions;
+    b.del += d.deletions;
+    buckets.set(k, b);
+  }
+  return [...buckets.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([date, b]) => ({ date, added: b.add, deletedNeg: -b.del, net: b.add - b.del }));
+}
+
+export function aggregateCommitTimeline(
+  timeline: { date: string; count: number; cumulative: number }[],
+  granularity: Granularity,
+): { date: string; count: number; cumulative: number }[] {
+  if (granularity === 'day') {
+    return timeline;
+  }
+  const key = granularity === 'week' ? mondayOf : monthOf;
+  const buckets = new Map<string, { count: number; cumulative: number }>();
+  for (const t of timeline) {
+    const k = key(t.date);
+    const prev = buckets.get(k);
+    if (!prev) {
+      buckets.set(k, { count: t.count, cumulative: t.cumulative });
+    } else {
+      prev.count += t.count;
+      prev.cumulative = t.cumulative; // 取该桶末尾日累计
+    }
+  }
+  return [...buckets.entries()]
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+    .map(([date, v]) => ({ date, count: v.count, cumulative: v.cumulative }));
+}
 
 export interface RawCommitStats {
   dailyCommits: { date: string; count: number }[];
@@ -195,27 +281,6 @@ export function contributorModulesToHeatmapColumns(matrix: RawContributorModules
     })),
   }));
   return { columns, rowLabels };
-}
-
-export function codeEvolutionToAreaData(
-  weeks: { weekStart: string; additions: number; deletions: number }[],
-): BklitAreaRow[] {
-  return weeks.map((w) => ({
-    date: w.weekStart,
-    added: w.additions,
-    deleted: w.deletions,
-  }));
-}
-
-export function commitTimelineToRows(
-  timeline: { date: string; cumulative: number }[],
-): { date: string; count: number; cumulative: number }[] {
-  let prev = 0;
-  return timeline.map((t) => {
-    const count = t.cumulative - prev;
-    prev = t.cumulative;
-    return { date: t.date, count, cumulative: t.cumulative };
-  });
 }
 
 export function adaptBranchGraphData(raw: RawBranchGraph): {
