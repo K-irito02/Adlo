@@ -77,16 +77,7 @@ pub async fn capture_commit_stats(
         *entry.2.entry(month_key.clone()).or_insert(0) += 1;
     }
 
-    let mut timeline_points: Vec<GitVisTimelinePoint> = Vec::new();
-    let mut timeline_cumulative: i32 = 0;
-    for (date, count) in daily_map.iter() {
-        timeline_cumulative += count;
-        timeline_points.push(GitVisTimelinePoint {
-            date: date.clone(),
-            count: *count,
-            cumulative: timeline_cumulative,
-        });
-    }
+    let timeline_points = build_daily_timeline(&daily_map);
 
     let daily_commits: Vec<GitVisDailyCommit> =
         daily_map.into_iter().map(|(date, count)| GitVisDailyCommit { date, count }).collect();
@@ -130,6 +121,20 @@ pub async fn capture_commit_stats(
         commit_timeline: timeline_points,
         commits,
     })
+}
+
+fn build_daily_timeline(daily: &BTreeMap<String, i32>) -> Vec<GitVisTimelinePoint> {
+    let mut timeline_points = Vec::new();
+    let mut timeline_cumulative: i32 = 0;
+    for (date, count) in daily.iter() {
+        timeline_cumulative += count;
+        timeline_points.push(GitVisTimelinePoint {
+            date: date.clone(),
+            count: *count,
+            cumulative: timeline_cumulative,
+        });
+    }
+    timeline_points
 }
 
 struct DateParts {
@@ -183,6 +188,24 @@ pub async fn capture_code_evolution(
         .await
         .ok_or_else(|| AppError::Workspace("git log --numstat failed".into()))?;
 
+    let day_map = aggregate_evolution_days(&raw);
+
+    let days: Vec<GitVisCodeEvolutionDay> = day_map
+        .into_iter()
+        .map(|(date, (additions, deletions))| GitVisCodeEvolutionDay { date, additions, deletions })
+        .collect();
+
+    debug!(
+        "[ADL-GIT-VIS] [code_evolution] [{}] done in {:?} — {} days",
+        root.display(),
+        t0.elapsed(),
+        days.len()
+    );
+
+    Ok(GitVisCodeEvolution { days })
+}
+
+fn aggregate_evolution_days(raw: &str) -> BTreeMap<String, (i32, i32)> {
     let mut day_map: BTreeMap<String, (i32, i32)> = BTreeMap::new();
     let mut current_date: Option<String> = None;
     for line in raw.lines() {
@@ -199,20 +222,7 @@ pub async fn capture_code_evolution(
             current_date = Some(date_str);
         }
     }
-
-    let days: Vec<GitVisCodeEvolutionDay> = day_map
-        .into_iter()
-        .map(|(date, (additions, deletions))| GitVisCodeEvolutionDay { date, additions, deletions })
-        .collect();
-
-    debug!(
-        "[ADL-GIT-VIS] [code_evolution] [{}] done in {:?} — {} days",
-        root.display(),
-        t0.elapsed(),
-        days.len()
-    );
-
-    Ok(GitVisCodeEvolution { days })
+    day_map
 }
 
 /// Matches a commit header line emitted by `--pretty=format:%H|%aI`, returning
@@ -266,5 +276,36 @@ mod tests {
         assert_eq!(header_date("3\t2\tfile.ts"), None); // numstat line
         assert_eq!(header_date("not a header"), None);
         assert_eq!(header_date(""), None);
+    }
+
+    #[test]
+    fn aggregate_evolution_days_sums_numstat_by_date_header() {
+        let hash40 = "f".repeat(40);
+        let raw = format!(
+            "{hash40}|2026-07-30T09:00:00+08:00\n3\t1\tfile.rs\n5\t2\tfile2.rs\n{hash40}|2026-07-31T18:30:00Z\n1\t0\tfile3.rs"
+        );
+        let map = aggregate_evolution_days(&raw);
+        assert_eq!(map.len(), 2);
+        assert_eq!(map.get("2026-07-30"), Some(&(8, 3)));
+        assert_eq!(map.get("2026-07-31"), Some(&(1, 0)));
+    }
+
+    #[test]
+    fn build_daily_timeline_computes_running_cumulative() {
+        let mut daily = BTreeMap::new();
+        daily.insert("2026-07-29".to_string(), 3);
+        daily.insert("2026-07-30".to_string(), 2);
+        daily.insert("2026-07-31".to_string(), 4);
+        let points = build_daily_timeline(&daily);
+        assert_eq!(points.len(), 3);
+        assert_eq!(points[0].date, "2026-07-29");
+        assert_eq!(points[0].count, 3);
+        assert_eq!(points[0].cumulative, 3);
+        assert_eq!(points[1].date, "2026-07-30");
+        assert_eq!(points[1].count, 2);
+        assert_eq!(points[1].cumulative, 5);
+        assert_eq!(points[2].date, "2026-07-31");
+        assert_eq!(points[2].count, 4);
+        assert_eq!(points[2].cumulative, 9);
     }
 }
