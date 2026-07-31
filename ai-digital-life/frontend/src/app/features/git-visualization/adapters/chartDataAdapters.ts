@@ -12,8 +12,12 @@ export type CodeEvolutionRow = {
 
 export function resolveGranularity(start: Date, end: Date): Granularity {
   const days = Math.max(0, Math.ceil((end.getTime() - start.getTime()) / 86_400_000));
-  if (days <= 30) return 'day';
-  if (days <= 180) return 'week';
+  if (days <= 30) {
+    return 'day';
+  }
+  if (days <= 180) {
+    return 'week';
+  }
   return 'month';
 }
 
@@ -211,7 +215,7 @@ export interface RawCommitStats {
     totalCommits: number;
     periods: { period: string; month: number; count: number }[];
   }[];
-  commitTimeline: { date: string; cumulative: number }[];
+  commitTimeline: { date: string; count: number; cumulative: number }[];
 }
 
 export interface RawBranchGraph {

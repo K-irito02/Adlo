@@ -325,7 +325,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                     totalCommits: number;
                     periods: { period: string; month: number; count: number }[];
                   }[];
-                  commitTimeline: { date: string; cumulative: number }[];
+                  commitTimeline: { date: string; count: number; cumulative: number }[];
                 }
               | undefined
           }
