@@ -49,6 +49,7 @@ pub struct GitVisContributorActivity {
 #[serde(rename_all = "camelCase")]
 pub struct GitVisTimelinePoint {
     pub date: String,
+    pub count: i32,
     pub cumulative: i32,
 }
 
@@ -64,8 +65,8 @@ pub struct GitVisCommitStats {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-pub struct GitVisCodeEvolutionWeek {
-    pub week_start: String,
+pub struct GitVisCodeEvolutionDay {
+    pub date: String,
     pub additions: i32,
     pub deletions: i32,
 }
@@ -73,7 +74,7 @@ pub struct GitVisCodeEvolutionWeek {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct GitVisCodeEvolution {
-    pub weeks: Vec<GitVisCodeEvolutionWeek>,
+    pub days: Vec<GitVisCodeEvolutionDay>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
