@@ -1,72 +1,131 @@
 import React, { useMemo } from 'react';
 import { LineChart, Line } from '@/components/charts/line-chart';
+import { Area } from '@/components/charts/area';
 import { Grid } from '@/components/charts/grid';
 import { ChartTooltip } from '@/components/charts/tooltip/chart-tooltip';
 import { ChartBrushLayout, ChartBrush } from '@/components/charts/brush';
-import { codeEvolutionToAreaData } from '../adapters/chartDataAdapters';
+import { XAxis } from '@/components/charts/x-axis';
+import {
+  aggregateCodeEvolutionDays,
+  resolveGranularity,
+  type Granularity,
+} from '../adapters/chartDataAdapters';
 
 interface CodeLineEvoProps {
-  data?: { weeks: { weekStart: string; additions: number; deletions: number }[] };
+  data?: { days: { date: string; additions: number; deletions: number }[] };
 }
 
 export const CodeLineEvo = React.memo(function CodeLineEvo({ data }: CodeLineEvoProps) {
-  const chartData = useMemo(() => (data?.weeks ? codeEvolutionToAreaData(data.weeks) : []), [data]);
+  const days = useMemo(() => data?.days ?? [], [data]);
 
-  if (chartData.length === 0) {
+  const dayRows = useMemo(() => aggregateCodeEvolutionDays(days, 'day'), [days]);
+
+  const fullRange = useMemo(() => {
+    if (dayRows.length === 0) {
+      return { start: new Date(), end: new Date() };
+    }
+    return {
+      start: new Date(dayRows[0].date + 'T00:00:00'),
+      end: new Date(dayRows[dayRows.length - 1].date + 'T00:00:00'),
+    };
+  }, [dayRows]);
+
+  const stripGranularity = useMemo<Granularity>(() => {
+    if (dayRows.length === 0) {
+      return 'month';
+    }
+    return resolveGranularity(fullRange.start, fullRange.end);
+  }, [fullRange, dayRows.length]);
+
+  const stripData = useMemo(
+    () => aggregateCodeEvolutionDays(days, stripGranularity),
+    [days, stripGranularity],
+  );
+
+  if (dayRows.length === 0) {
     return (
       <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
-        <LineChart data={[]} xDataKey="date" margin={{ top: 20, right: 20, bottom: 40, left: 60 }} style={{ maxHeight: 280 }}>
-          <Line dataKey="added" />
-          <Line dataKey="deleted" stroke="var(--chart-line-secondary)" />
-          <Grid />
+        <LineChart
+          data={[]}
+          xDataKey="date"
+          margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
+          style={{ maxHeight: 280 }}
+        >
+          <Line dataKey="net" />
+          <Grid highlightRowValues={[0]} />
           <ChartTooltip />
         </LineChart>
       </div>
     );
   }
 
+  const dateLabelFormatterFor = (g: Granularity) => (d: Date) =>
+    g === 'month'
+      ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      : `${d.getMonth() + 1}/${d.getDate()}`;
+
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
       <ChartBrushLayout
-        data={chartData}
+        data={stripData}
         xDataKey="date"
         enabled
         height={72}
         brushStrip={(layout) => (
           <LineChart
-            data={chartData}
+            data={stripData}
             xDataKey="date"
             animationDuration={0}
             status="ready"
             margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
             style={{ aspectRatio: 'unset', height: '100%' }}
           >
-            <Line dataKey="added" animate={false} showHighlight={false} />
-            <Line dataKey="deleted" stroke="var(--chart-line-secondary)" animate={false} showHighlight={false} />
+            <Line dataKey="net" animate={false} showHighlight={false} />
             <ChartBrush
               initialSelection={layout.brushSelection ?? undefined}
-              onSelectionChange={layout.onBrushSelectionChange as (domain: { start: Date; end: Date }) => void}
+              onSelectionChange={
+                layout.onBrushSelectionChange as (domain: { start: Date; end: Date }) => void
+              }
             />
           </LineChart>
         )}
       >
-        {(layout) => (
-          <LineChart
-            data={chartData}
-            xDataKey="date"
-            xDomain={layout.xDomain}
-            xDomainSlotCount={layout.xDomainSlotCount}
-            tweenYDomainOnXDomainChange
-            yDomainTween
-            margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
-            style={{ maxHeight: 280 }}
-          >
-            <Line dataKey="added" />
-            <Line dataKey="deleted" stroke="var(--chart-line-secondary)" />
-            <Grid />
-            <ChartTooltip />
-          </LineChart>
-        )}
+        {(layout) => {
+          const selStart = layout.xDomain?.[0] ?? fullRange.start;
+          const selEnd = layout.xDomain?.[1] ?? fullRange.end;
+          const granularity = resolveGranularity(selStart, selEnd);
+          const chartData = aggregateCodeEvolutionDays(days, granularity);
+          return (
+            <LineChart
+              data={chartData}
+              xDataKey="date"
+              xDomain={layout.xDomain}
+              xDomainSlotCount={layout.xDomainSlotCount}
+              tweenYDomainOnXDomainChange
+              yDomainTween
+              dateLabelFormatter={dateLabelFormatterFor(granularity)}
+              margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
+              style={{ maxHeight: 280 }}
+            >
+              <Area
+                dataKey="added"
+                baseline="zero"
+                fill="var(--chart-line-primary)"
+                fillOpacity={0.35}
+              />
+              <Area
+                dataKey="deletedNeg"
+                baseline="zero"
+                fill="var(--chart-line-secondary)"
+                fillOpacity={0.35}
+              />
+              <Line dataKey="net" stroke="var(--chart-3)" strokeWidth={2} />
+              <Grid highlightRowValues={[0]} />
+              <XAxis />
+              <ChartTooltip />
+            </LineChart>
+          );
+        }}
       </ChartBrushLayout>
     </div>
   );

@@ -76,10 +76,19 @@ vi.mock('../hooks/useBklitTheme', () => ({
     tooltipBg: '#1e293b',
     tooltipText: '#f8fafc',
     background: '#ffffff',
-    seriesColors: ['#3b82f6', '#ef4444'],
+    seriesColors: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444'],
     heatmapColors: [],
   }),
 }));
+
+const DAILY_DATA = {
+  days: [
+    { date: '2024-01-01', additions: 10, deletions: 2 },
+    { date: '2024-01-02', additions: 5, deletions: 1 },
+    { date: '2024-01-03', additions: 20, deletions: 3 },
+    { date: '2024-01-04', additions: 8, deletions: 4 },
+  ],
+};
 
 describe('CodeLineEvo', () => {
   it('renders SVG without crashing', () => {
@@ -88,20 +97,28 @@ describe('CodeLineEvo', () => {
   });
 
   it('brush strip keeps a positive plot area at the 72px strip height (regression: default margins made innerHeight negative)', () => {
-    const data = {
-      weeks: [
-        { weekStart: '2024-01-01', additions: 10, deletions: 2 },
-        { weekStart: '2024-01-08', additions: 5, deletions: 1 },
-        { weekStart: '2024-01-15', additions: 20, deletions: 3 },
-        { weekStart: '2024-01-22', additions: 8, deletions: 4 },
-      ],
-    };
-    const { container } = render(<CodeLineEvo data={data} />);
+    const { container } = render(<CodeLineEvo data={DAILY_DATA} />);
     const stripRects = container.querySelectorAll('.adl-chart-brush-layout__strip svg rect');
     expect(stripRects.length).toBeGreaterThan(0);
     for (const rect of stripRects) {
       const h = Number(rect.getAttribute('height'));
       expect(h).toBeGreaterThanOrEqual(0);
     }
+  });
+
+  it('renders diverging Area fills (zero baseline) and a highlighted zero grid row in the main chart', () => {
+    const { container } = render(<CodeLineEvo data={DAILY_DATA} />);
+    const mainChartSvg = container.querySelector('.adl-chart-brush-layout svg');
+    expect(mainChartSvg).toBeInTheDocument();
+
+    const filledPaths = Array.from(mainChartSvg!.querySelectorAll('path')).filter((p) => {
+      const d = p.getAttribute('d');
+      const fill = p.getAttribute('fill');
+      return Boolean(d && d.length > 0 && fill && fill !== 'none');
+    });
+    expect(filledPaths.length).toBeGreaterThan(0);
+
+    const highlightRows = mainChartSvg!.querySelectorAll('.chart-grid-highlight-rows line');
+    expect(highlightRows.length).toBeGreaterThan(0);
   });
 });

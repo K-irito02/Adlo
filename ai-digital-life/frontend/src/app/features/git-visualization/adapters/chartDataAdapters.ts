@@ -3,12 +3,12 @@ import type { CommitNode, CommitEdge } from '../types/gitGraph';
 
 export type Granularity = 'day' | 'week' | 'month';
 
-export interface CodeEvolutionRow {
+export type CodeEvolutionRow = {
   date: string;
   added: number;
   deletedNeg: number;
   net: number;
-}
+};
 
 export function resolveGranularity(start: Date, end: Date): Granularity {
   const days = Math.max(0, Math.ceil((end.getTime() - start.getTime()) / 86_400_000));
