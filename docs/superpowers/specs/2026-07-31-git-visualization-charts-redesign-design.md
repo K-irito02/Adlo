@@ -78,7 +78,7 @@ ts-rs 自动重新生成前端 TS 绑定。
 
 - 官方 `Area` props：`dataKey`、`yAxisId`、`fill`、`fillOpacity`、`stroke`、`strokeWidth`、`curve`、`animate`、`showLine`、`showHighlight`、`gradientToOpacity`、`fadeEdges`、`showMarkers`、`dashFromIndex`、`dashArray`。
 - **改造点**：官方 `Area` 默认填充到绘图区底部；发散面积需要填充到 **y=0 零基线**。增加 `baseline: 'bottom' | 'zero'`（默认 `'bottom'` 保持官方行为，`'zero'` 供发散面积使用）。
-- `Area` 驱动 Y 域（与 `Line` 一致），并纳入 `LINE_DOMAIN_EXCLUDED_NAMES` 的排除语义需复核（发散场景要求 Area 参与 Y 域）。
+- `Area` **驱动 Y 域**（与 `Line` 一致，发散场景要求 added/deleted/net 全部落入域内）；因此 `Area` **不在** `LINE_DOMAIN_EXCLUDED_NAMES` 中（该排除集仅针对 `SeriesBar` 等次要层）。
 
 ### 移植 `ComposedChart` + `SeriesBar`
 
@@ -164,6 +164,7 @@ zh-CN 与 en-US 同步，相关测试断言同步。
 **前端 — 适配层与图表**
 - `adapters/chartDataAdapters.ts`：`resolveGranularity`、`aggregate*`、按天输入
 - `charts/CodeLineEvo.tsx`、`charts/CommitTimeline.tsx`：新形态 + 自适应粒度 + 单期缩略条
+- `GitVisualizationView.tsx`：向图表传入的 data 形状（`weeks`/`commitTimeline` → 按天结构）
 - `data/gitVisMockData.ts`：按天 mock 数据
 - i18n：`zh-CN/changes.ts`、`en-US/changes.ts`
 
