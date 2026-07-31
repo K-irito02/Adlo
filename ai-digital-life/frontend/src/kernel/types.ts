@@ -137,6 +137,7 @@ export interface GitVisContributorActivity {
 }
 export interface GitVisTimelinePoint {
   date: string;
+  count: number;
   cumulative: number;
 }
 export interface GitVisCommitRow {
@@ -154,13 +155,13 @@ export interface GitVisCommitStats {
   commitTimeline: GitVisTimelinePoint[];
   commits: GitVisCommitRow[];
 }
-export interface GitVisCodeEvolutionWeek {
-  weekStart: string;
+export interface GitVisCodeEvolutionDay {
+  date: string;
   additions: number;
   deletions: number;
 }
 export interface GitVisCodeEvolution {
-  weeks: GitVisCodeEvolutionWeek[];
+  days: GitVisCodeEvolutionDay[];
 }
 export interface GitVisModuleEntry {
   module: string;

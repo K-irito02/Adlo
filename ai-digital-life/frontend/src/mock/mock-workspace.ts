@@ -401,13 +401,13 @@ export const mockWorkspace: WorkspaceBridge = {
         totalCommits: 10 - i,
         periods: [{ period: '2026-01', month: 1, count: 3 }, { period: '2026-02', month: 2, count: 2 }],
       })),
-      commitTimeline: mockCommitTimelineData.map(d => ({ date: d.date, cumulative: d.cumulative })),
+      commitTimeline: mockCommitTimelineData.map(d => ({ date: d.date, count: d.count, cumulative: d.cumulative })),
       commits: commitNodes.map(n => ({ hash: n.hash, shortHash: n.hash.substring(0, 6), date: n.date, author: n.author, authorEmail: n.authorEmail, message: n.message })),
     },
   }),
   gitVisCodeEvolution: async () => ({
     ok: true as const,
-    data: { weeks: [{ weekStart: '2026-01-06', additions: 100, deletions: 30 }] },
+    data: { days: [{ date: '2026-01-06', additions: 100, deletions: 30 }] },
   }),
   gitVisContributorModules: async () => ({
     ok: true as const,
