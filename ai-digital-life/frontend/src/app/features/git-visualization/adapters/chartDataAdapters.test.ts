@@ -4,8 +4,37 @@ import {
   dateLabelFormatterFor,
   aggregateCodeEvolutionDays,
   aggregateCommitTimeline,
+  periodEndInclusive,
   type Granularity,
 } from './chartDataAdapters';
+
+describe('periodEndInclusive', () => {
+  it('returns the same date for day granularity', () => {
+    const d = new Date('2026-08-01T00:00:00Z');
+    expect(periodEndInclusive(d, 'day').getTime()).toBe(d.getTime());
+  });
+
+  it('extends a Monday to the following Sunday for week granularity', () => {
+    const monday = new Date('2026-07-27T00:00:00Z');
+    expect(periodEndInclusive(monday, 'week').getTime()).toBe(
+      new Date('2026-08-02T00:00:00Z').getTime(),
+    );
+  });
+
+  it("extends a mid-week end to that week's Sunday (not the next week)", () => {
+    const thursday = new Date('2026-07-30T00:00:00Z'); // week of Mon 7/27
+    expect(periodEndInclusive(thursday, 'week').getTime()).toBe(
+      new Date('2026-08-02T00:00:00Z').getTime(),
+    );
+  });
+
+  it('extends to the last day of the month for month granularity', () => {
+    const first = new Date('2026-08-01T00:00:00Z');
+    expect(periodEndInclusive(first, 'month').getTime()).toBe(
+      new Date('2026-08-31T00:00:00Z').getTime(),
+    );
+  });
+});
 
 describe('dateLabelFormatterFor', () => {
   it('formats day/week as M/D and month as YYYY-MM (padded)', () => {
@@ -24,10 +53,13 @@ describe('dateLabelFormatterFor', () => {
 });
 
 describe('adaptive granularity', () => {
-  it('resolves 30/180 day boundaries', () => {
+  it('resolves 45/180 day boundaries', () => {
     const d = (n: number) => new Date(Date.UTC(2026, 0, 1) + n * 86_400_000);
     expect(resolveGranularity(d(0), d(30))).toBe('day');
-    expect(resolveGranularity(d(0), d(31))).toBe('week');
+    // Month-long custom ranges (e.g. 7/1–8/1) stay on daily points so the exact
+    // latest date is visible instead of being swallowed by a partial last week.
+    expect(resolveGranularity(d(0), d(45))).toBe('day');
+    expect(resolveGranularity(d(0), d(46))).toBe('week');
     expect(resolveGranularity(d(0), d(180))).toBe('week');
     expect(resolveGranularity(d(0), d(181))).toBe('month');
   });
@@ -54,6 +86,20 @@ describe('adaptive granularity', () => {
     expect(weeks).toHaveLength(2);
     expect(weeks[0]).toEqual({ date: '2024-01-01', count: 5, cumulative: 5 });
     expect(weeks[1]).toEqual({ date: '2024-01-08', count: 4, cumulative: 9 });
+  });
+
+  it('uses parseable YYYY-MM-DD dates for month buckets', () => {
+    const days = [
+      { date: '2026-01-05', additions: 10, deletions: 1 },
+      { date: '2026-02-10', additions: 20, deletions: 2 },
+    ];
+    const months = aggregateCodeEvolutionDays(days, 'month' as Granularity);
+    expect(months.map((m) => m.date)).toEqual(['2026-01-01', '2026-02-01']);
+    // Guard against a regression to bare YYYY-MM keys: the bucket date must
+    // parse as a UTC day, not be silently interpreted as a partial timestamp.
+    const parsed = new Date(months[1].date + 'T00:00:00Z');
+    expect(Number.isNaN(parsed.getTime())).toBe(false);
+    expect(parsed.getUTCMonth()).toBe(1); // February
   });
 
   it('keeps day granularity unchanged', () => {

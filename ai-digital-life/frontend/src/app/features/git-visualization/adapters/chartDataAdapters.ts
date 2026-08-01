@@ -3,6 +3,7 @@ import type { CommitNode, CommitEdge } from '../types/gitGraph';
 
 export type Granularity = 'day' | 'week' | 'month';
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-definitions -- object shape must stay a `type` so it remains assignable to Record<string, unknown>[] for the chart pipeline
 export type CodeEvolutionRow = {
   date: string;
   added: number;
@@ -12,7 +13,7 @@ export type CodeEvolutionRow = {
 
 export function resolveGranularity(start: Date, end: Date): Granularity {
   const days = Math.max(0, Math.ceil((end.getTime() - start.getTime()) / 86_400_000));
-  if (days <= 30) {
+  if (days <= 45) {
     return 'day';
   }
   if (days <= 180) {
@@ -46,24 +47,43 @@ const DATE_LABEL_FORMATTERS: Record<Granularity, (d: Date) => string> = {
 };
 
 function toDate10(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
 function addDays(d: Date, n: number): Date {
   const x = new Date(d);
-  x.setDate(x.getDate() + n);
+  x.setUTCDate(x.getUTCDate() + n);
   return x;
 }
 
 function mondayOf(date10: string): string {
-  const d = new Date(date10 + 'T00:00:00');
-  const dow = d.getDay(); // 0=Sun..6=Sat
+  const d = new Date(date10 + 'T00:00:00Z');
+  const dow = d.getUTCDay(); // 0=Sun..6=Sat
   const mondayOffset = (dow + 6) % 7;
   return toDate10(addDays(d, -mondayOffset));
 }
 
 function monthOf(date10: string): string {
   return date10.slice(0, 7); // YYYY-MM
+}
+
+/**
+ * Inclusive end of the aggregation period containing `date` for the given
+ * granularity. Used to keep the last partial period (e.g. the final week whose
+ * Monday is before the last data day) inside the visible range so its data is
+ * not filtered out while the period still displays under its start date.
+ */
+export function periodEndInclusive(date: Date, granularity: Granularity): Date {
+  if (granularity === 'day') {
+    return date;
+  }
+  if (granularity === 'week') {
+    // End of the week containing `date` (Sunday), regardless of which weekday
+    // the selection ends on — `date + 6` alone would only be the week's Sunday
+    // when `date` is a Monday and would otherwise pull the next week in.
+    return addDays(new Date(mondayOf(toDate10(date)) + 'T00:00:00Z'), 6);
+  }
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)); // last day of the month
 }
 
 export function aggregateCodeEvolutionDays(
@@ -77,9 +97,9 @@ export function aggregateCodeEvolutionDays(
     const sorted = [...days].sort((a, b) => (a.date < b.date ? -1 : 1));
     const byDate = new Map(sorted.map((d) => [d.date, d]));
     const result: CodeEvolutionRow[] = [];
-    const endExclusive = addDays(new Date(sorted[sorted.length - 1].date + 'T00:00:00'), 1);
+    const endExclusive = addDays(new Date(sorted[sorted.length - 1].date + 'T00:00:00Z'), 1);
     for (
-      let cur = new Date(sorted[0].date + 'T00:00:00');
+      let cur = new Date(sorted[0].date + 'T00:00:00Z');
       cur.getTime() < endExclusive.getTime();
       cur = addDays(cur, 1)
     ) {
@@ -122,9 +142,9 @@ export function aggregateCodeEvolutionDays(
     );
   };
   if (granularity === 'week') {
-    const endExclusive = addDays(new Date(keys[keys.length - 1] + 'T00:00:00'), 7);
+    const endExclusive = addDays(new Date(keys[keys.length - 1] + 'T00:00:00Z'), 7);
     for (
-      let cur = new Date(keys[0] + 'T00:00:00');
+      let cur = new Date(keys[0] + 'T00:00:00Z');
       cur.getTime() < endExclusive.getTime();
       cur = addDays(cur, 7)
     ) {
@@ -137,7 +157,13 @@ export function aggregateCodeEvolutionDays(
   let y = y1;
   let m = m1;
   while (y < y2 || (y === y2 && m <= m2)) {
-    pushBucket(`${y}-${String(m).padStart(2, '0')}`);
+    const monthDate = `${y}-${String(m).padStart(2, '0')}-01`;
+    const b = buckets.get(monthDate.slice(0, 7));
+    result.push(
+      b
+        ? { date: monthDate, added: b.add, deletedNeg: -b.del, net: b.add - b.del }
+        : { date: monthDate, added: 0, deletedNeg: 0, net: 0 },
+    );
     m += 1;
     if (m > 12) {
       m = 1;
@@ -159,9 +185,9 @@ export function aggregateCommitTimeline(
     const byDate = new Map(sorted.map((t) => [t.date, t]));
     const result: { date: string; count: number; cumulative: number }[] = [];
     let prevCumulative = 0;
-    const endExclusive = addDays(new Date(sorted[sorted.length - 1].date + 'T00:00:00'), 1);
+    const endExclusive = addDays(new Date(sorted[sorted.length - 1].date + 'T00:00:00Z'), 1);
     for (
-      let cur = new Date(sorted[0].date + 'T00:00:00');
+      let cur = new Date(sorted[0].date + 'T00:00:00Z');
       cur.getTime() < endExclusive.getTime();
       cur = addDays(cur, 1)
     ) {
@@ -205,9 +231,9 @@ export function aggregateCommitTimeline(
     }
   };
   if (granularity === 'week') {
-    const endExclusive = addDays(new Date(keys[keys.length - 1] + 'T00:00:00'), 7);
+    const endExclusive = addDays(new Date(keys[keys.length - 1] + 'T00:00:00Z'), 7);
     for (
-      let cur = new Date(keys[0] + 'T00:00:00');
+      let cur = new Date(keys[0] + 'T00:00:00Z');
       cur.getTime() < endExclusive.getTime();
       cur = addDays(cur, 7)
     ) {
@@ -220,7 +246,14 @@ export function aggregateCommitTimeline(
   let y = y1;
   let m = m1;
   while (y < y2 || (y === y2 && m <= m2)) {
-    pushBucket(`${y}-${String(m).padStart(2, '0')}`);
+    const monthDate = `${y}-${String(m).padStart(2, '0')}-01`;
+    const v = buckets.get(monthDate.slice(0, 7));
+    if (v) {
+      prevCumulative = v.cumulative;
+      result.push({ date: monthDate, count: v.count, cumulative: v.cumulative });
+    } else {
+      result.push({ date: monthDate, count: 0, cumulative: prevCumulative });
+    }
     m += 1;
     if (m > 12) {
       m = 1;

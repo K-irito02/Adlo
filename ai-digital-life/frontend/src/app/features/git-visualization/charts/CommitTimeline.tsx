@@ -12,6 +12,7 @@ import {
   aggregateCommitTimeline,
   commitCountLabelFor,
   dateLabelFormatterFor,
+  periodEndInclusive,
   resolveGranularity,
   type Granularity,
 } from '../adapters/chartDataAdapters';
@@ -31,8 +32,8 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
       return { start: new Date(), end: new Date() };
     }
     return {
-      start: new Date(dayRows[0].date + 'T00:00:00'),
-      end: new Date(dayRows[dayRows.length - 1].date + 'T00:00:00'),
+      start: new Date(dayRows[0].date + 'T00:00:00Z'),
+      end: new Date(dayRows[dayRows.length - 1].date + 'T00:00:00Z'),
     };
   }, [dayRows]);
 
@@ -47,6 +48,16 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
     () => aggregateCommitTimeline(days, stripGranularity),
     [days, stripGranularity],
   );
+
+  // The brush track extends to the real last data day (not the last period
+  // bucket, e.g. the final Monday) so the user can drag the brush into the
+  // partial tail and zoom down to day granularity showing the true latest date.
+  const stripTrackDomain = useMemo<[Date, Date] | undefined>(() => {
+    if (stripData.length === 0) {
+      return undefined;
+    }
+    return [new Date(stripData[0].date + 'T00:00:00Z'), fullRange.end];
+  }, [stripData, fullRange.end]);
 
   if (dayRows.length === 0) {
     return (
@@ -72,10 +83,12 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
         xDataKey="date"
         enabled
         height={72}
+        selectionEnd={fullRange.end}
         brushStrip={(layout) => (
           <ComposedChart
             data={stripData}
             xDataKey="date"
+            xDomain={stripTrackDomain}
             animationDuration={0}
             status="ready"
             margin={{ top: 8, right: 8, bottom: 8, left: 8 }}
@@ -95,21 +108,45 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
           const selStart = layout.xDomain?.[0] ?? fullRange.start;
           const selEnd = layout.xDomain?.[1] ?? fullRange.end;
           const granularity = resolveGranularity(selStart, selEnd);
+          const periodEndMs = periodEndInclusive(selEnd, granularity).getTime();
           const inRangeDays = days.filter((d) => {
-            const t = new Date(d.date + 'T00:00:00').getTime();
-            return t >= selStart.getTime() && t <= selEnd.getTime();
+            const t = new Date(d.date + 'T00:00:00Z').getTime();
+            // Keep the final partial period (e.g. the last week whose Monday is
+            // the selection end) fully included so its data is not dropped.
+            return t >= selStart.getTime() && t <= periodEndMs;
           });
           const chartData = aggregateCommitTimeline(inRangeDays, granularity);
+          // Clamp the visible x-domain to the chart's own last data point so the
+          // aggregated view (e.g. weekly, whose last bucket is the final Monday)
+          // does not leave empty space on the right, while day granularity still
+          // reaches the true latest data day.
+          let mainXDomain = layout.xDomain;
+          const lastDataPoint = chartData.at(-1);
+          if (mainXDomain && lastDataPoint) {
+            const lastTime = new Date(lastDataPoint.date + 'T00:00:00Z').getTime();
+            if (mainXDomain[1].getTime() > lastTime) {
+              mainXDomain = [mainXDomain[0], new Date(lastTime)];
+            }
+          }
           return (
             <ComposedChart
               data={chartData}
               xDataKey="date"
+              animationDuration={400}
               barGap={0}
               maxBarSize={granularity === 'day' ? 8 : 24}
-              xDomain={layout.xDomain}
-              xDomainSlotCount={layout.xDomainSlotCount}
-              tweenYDomainOnXDomainChange
-              yDomainTween
+              xDomain={mainXDomain}
+              // The main chart re-aggregates the selected range at its own
+              // granularity (e.g. daily when the strip is weekly), so bar/slot
+              // padding must use this chart's row count — not the strip's.
+              xDomainSlotCount={chartData.length}
+              // Snap y-domains on data/x-domain changes instead of tweening:
+              // a tween renders new series values with the interpolated (still
+              // small) domain, sending lines far off the plot top before the
+              // tween settles, and re-triggers the animated series path every
+              // frame (y-scale churn) which can exceed React's update depth.
+              tweenYDomainOnXDomainChange={false}
+              yDomainTween={false}
               dateLabelFormatter={dateLabelFormatterFor(granularity)}
               margin={{ top: 20, right: 60, bottom: 40, left: 60 }}
               style={{ maxHeight: 280 }}

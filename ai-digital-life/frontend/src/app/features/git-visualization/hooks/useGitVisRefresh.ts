@@ -14,32 +14,60 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
       return;
     }
     const latestTimeRanges = useAppStore.getState().gitVisTimeRange[workspaceId] || {};
+    // Guard: a workspace refresh must not overwrite a newer per-chart refresh
+    // that changed the time range while the workspace fetch was in flight.
+    // Compare the snapshot range against the current one before committing.
+    const isRangeStillCurrent = (chartId: string) => {
+      const snap = latestTimeRanges[chartId];
+      const current = useAppStore.getState().gitVisTimeRange[workspaceId]?.[chartId];
+      return snap === current || JSON.stringify(snap) === JSON.stringify(current);
+    };
     await refreshWorkspace(
       bridge,
       workspaceId,
       rootPath,
       latestTimeRanges,
-      (chartId, loading) => setLoading(workspaceId, chartId, loading),
-      (chartId, error) => setError(workspaceId, chartId, error),
-      (chartId, data) => setData(workspaceId, chartId, data),
+      (chartId, loading) => {
+        // Setting loading=true is always safe (workspace owns it). Clearing
+        // must be gated: never clear a loading state that a newer per-chart
+        // refresh (with an updated time range) still owns.
+        if (loading || isRangeStillCurrent(chartId)) {
+          setLoading(workspaceId, chartId, loading);
+        }
+      },
+      (chartId, error) => {
+        if (isRangeStillCurrent(chartId)) {
+          setError(workspaceId, chartId, error);
+        }
+      },
+      (chartId, data) => {
+        if (isRangeStillCurrent(chartId)) {
+          setData(workspaceId, chartId, data);
+        }
+      },
     );
   }, [workspaceId, rootPath, setLoading, setError, setData]);
 
-  const pendingRef = useRef<Set<string>>(new Set());
+  // Per-chart request sequence: a refresh only commits its result if it is the
+  // latest request for that chart. Rapid time-range changes therefore always
+  // land on the newest selection instead of being swallowed by an in-flight
+  // refresh of a superseded range. Keys are workspace-scoped so switching
+  // workspaces never bumps another workspace's in-flight sequence.
+  const latestRequestSeqRef = useRef<Record<string, number>>({});
+  const seqKeyFor = useCallback((chartId: string) => `${workspaceId}:${chartId}`, [workspaceId]);
   const handleRefreshChart = useCallback(
     async (chartId: string) => {
-      if (pendingRef.current.has(chartId)) {
-        return;
-      }
-      pendingRef.current.add(chartId);
       const bridge = getBridge();
       if (!bridge) {
-        pendingRef.current.delete(chartId);
         return;
       }
+      const key = seqKeyFor(chartId);
+      const seq = (latestRequestSeqRef.current[key] ?? 0) + 1;
+      latestRequestSeqRef.current[key] = seq;
       // Defer store mutations past the current render cycle
       await Promise.resolve();
       setError(workspaceId, chartId, undefined);
+      setLoading(workspaceId, chartId, true);
       try {
         const latestTimeRanges = useAppStore.getState().gitVisTimeRange[workspaceId] || {};
         const tr = latestTimeRanges[chartId];
@@ -51,14 +79,22 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
           tr?.since,
           tr?.until,
         );
+        if (latestRequestSeqRef.current[key] !== seq) {
+          return; // superseded by a newer refresh
+        }
         setData(workspaceId, chartId, data);
       } catch (e) {
-        setError(workspaceId, chartId, e instanceof Error ? e.message : String(e));
+        if (latestRequestSeqRef.current[key] === seq) {
+          setError(workspaceId, chartId, e instanceof Error ? e.message : String(e));
+          throw e; // surface the failure so the caller can reset its UI state
+        }
       } finally {
-        pendingRef.current.delete(chartId);
+        if (latestRequestSeqRef.current[key] === seq) {
+          setLoading(workspaceId, chartId, false);
+        }
       }
     },
-    [workspaceId, rootPath, setError, setData],
+    [workspaceId, rootPath, seqKeyFor, setLoading, setError, setData],
   );
 
   return { refreshWorkspace: handleRefreshWorkspace, refreshChart: handleRefreshChart } as const;

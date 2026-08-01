@@ -5,7 +5,6 @@ export interface BrushSelection {
 
 export interface BrushLayoutRenderProps {
   xDomain: [Date, Date] | undefined;
-  xDomainSlotCount: number | undefined;
   brushSelection: BrushSelection | null;
   onBrushSelectionChange: (selection: BrushSelection | null) => void;
 }

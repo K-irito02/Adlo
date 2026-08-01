@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, screen, cleanup } from '@testing-library/react';
 import React from 'react';
 import { ChartBrushLayout } from './chart-brush-layout';
 
@@ -86,5 +86,54 @@ describe('ChartBrushLayout', () => {
     );
     expect(screen.getByTestId('main-chart')).toBeInTheDocument();
     expect(screen.queryByTestId('brush-strip')).not.toBeInTheDocument();
+  });
+
+  it('extends the default selection end to selectionEnd (partial last period)', () => {
+    const data = [
+      { date: new Date('2026-07-06'), value: 10 },
+      { date: new Date('2026-07-13'), value: 20 },
+      { date: new Date('2026-07-20'), value: 15 },
+      { date: new Date('2026-07-27'), value: 8 },
+    ];
+    let captured: any;
+    render(
+      <ChartBrushLayout
+        data={data}
+        enabled
+        height={72}
+        selectionEnd={new Date('2026-08-01')}
+        brushStrip={() => null}
+      >
+        {(layout) => {
+          captured = layout;
+          return null;
+        }}
+      </ChartBrushLayout>,
+    );
+    expect(captured.xDomain).toBeDefined();
+    expect(captured.xDomain![1].getTime()).toBe(new Date('2026-08-01').getTime());
+  });
+
+  it('keeps the strip-derived end when selectionEnd is earlier', () => {
+    const data = [
+      { date: new Date('2026-07-06'), value: 10 },
+      { date: new Date('2026-07-27'), value: 8 },
+    ];
+    let captured: any;
+    render(
+      <ChartBrushLayout
+        data={data}
+        enabled
+        height={72}
+        selectionEnd={new Date('2026-07-20')}
+        brushStrip={() => null}
+      >
+        {(layout) => {
+          captured = layout;
+          return null;
+        }}
+      </ChartBrushLayout>,
+    );
+    expect(captured.xDomain![1].getTime()).toBe(new Date('2026-07-27').getTime());
   });
 });

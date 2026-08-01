@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
@@ -285,5 +285,50 @@ describe('TimeRangeSelector preset mode with yearBounds', () => {
     const rightBtn = screen.getByRole('button', { name: 'Later Period' });
     fireEvent.click(rightBtn);
     expect(onChange).toHaveBeenCalled();
+  });
+});
+
+describe('TimeRangeSelector custom confirm button state', () => {
+  const customValue: TimeRangeState = {
+    preset: 'custom',
+    since: '2026-07-01',
+    until: '2026-08-01',
+  };
+
+  it('returns the confirm button to idle after a synchronous onChange (not stuck loading)', async () => {
+    const onChange = vi.fn();
+    render(<TimeRangeSelector value={customValue} onChange={onChange} mode="preset" />);
+    fireEvent.click(screen.getByText('2026-07-01 ~ 2026-08-01'));
+    fireEvent.mouseEnter(screen.getByText('Custom'));
+
+    const confirmBtn = screen.getByText('Confirm');
+    fireEvent.click(confirmBtn);
+    expect(onChange).toHaveBeenCalledWith(customValue);
+
+    // The button must not remain stuck in the loading spinner — the label
+    // (idle) must come back shortly after a synchronous onChange.
+    await waitFor(
+      () => {
+        expect(screen.getByText('Confirm')).toBeTruthy();
+      },
+      { timeout: 2000 },
+    );
+  });
+
+  it('does not disable the confirm button forever after confirm', async () => {
+    const onChange = vi.fn();
+    render(<TimeRangeSelector value={customValue} onChange={onChange} mode="preset" />);
+    fireEvent.click(screen.getByText('2026-07-01 ~ 2026-08-01'));
+    fireEvent.mouseEnter(screen.getByText('Custom'));
+
+    fireEvent.click(screen.getByText('Confirm'));
+
+    await waitFor(
+      () => {
+        const btn = screen.getByText('Confirm').closest('button') as HTMLButtonElement;
+        expect(btn.disabled).toBe(false);
+      },
+      { timeout: 2000 },
+    );
   });
 });

@@ -193,6 +193,18 @@ export function useAnimatedYDomains({
   const targetSignature = JSON.stringify(targetByAxis);
   const prevTargetSignatureRef = useRef(targetSignature);
 
+  // [ADL-GITVIS] temporary render-loop detector
+  const snapRunCountRef = useRef(0);
+  useEffect(() => {
+    snapRunCountRef.current += 1;
+    if (snapRunCountRef.current % 25 === 0) {
+      console.error('[ADL-GITVIS][loop] y-domains-effect', {
+        runs: snapRunCountRef.current,
+        sig: targetSignature.slice(0, 60),
+      });
+    }
+  });
+
   useEffect(() => {
     const inLivePhase = chartPhase === 'ready' || chartPhase === 'revealing';
 

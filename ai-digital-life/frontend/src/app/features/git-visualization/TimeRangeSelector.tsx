@@ -136,7 +136,9 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
         default:
           sinceStr = undefined;
       }
-      onChange({ preset, since: sinceStr, until: preset === 'all' ? undefined : nowStr });
+      void Promise.resolve(
+        onChange({ preset, since: sinceStr, until: preset === 'all' ? undefined : nowStr }),
+      ).catch(() => {});
       setOpen(false);
     },
     [onChange],
@@ -167,14 +169,11 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
       if (result instanceof Promise) {
         await result;
       }
-    } catch {
-      // refresh failed — reset button state
-    }
-    // TS narrows to 'idle' after the guard above, but ref is synced in render body
-    // @ts-expect-error ref.current is actually 'loading' | 'success' at this point
-    if (buttonAnimRef.current === 'loading') {
       setButtonAnim('success');
       buttonAnimTimerRef.current = setTimeout(() => setButtonAnim('idle'), 800);
+    } catch {
+      // Refresh failed — reset the button so the user can retry.
+      setButtonAnim('idle');
     }
   }, []);
 
@@ -202,11 +201,13 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
           return;
         }
       }
-      onChange({
-        preset: 'custom',
-        since: newSinceStr,
-        until: newUntilStr,
-      });
+      void Promise.resolve(
+        onChange({
+          preset: 'custom',
+          since: newSinceStr,
+          until: newUntilStr,
+        }),
+      ).catch(() => {});
     },
     [value, onChange, yearBounds, showToast, t],
   );
@@ -224,11 +225,13 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
 
   const handleYearChange = useCallback(
     (year: number) => {
-      onChange({
-        preset: 'custom',
-        since: `${year}-01-01`,
-        until: `${year}-12-31`,
-      });
+      void Promise.resolve(
+        onChange({
+          preset: 'custom',
+          since: `${year}-01-01`,
+          until: `${year}-12-31`,
+        }),
+      ).catch(() => {});
       setOpen(false);
     },
     [onChange],

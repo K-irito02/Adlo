@@ -303,6 +303,18 @@ export function useChartInteraction({
   }, []);
 
   // Re-anchor tooltip/crosshair when x-scale or visible data changes (e.g. brush zoom commit).
+  // [ADL-GITVIS] temporary render-loop detector
+  const reanchorRunCountRef = useRef(0);
+  useEffect(() => {
+    reanchorRunCountRef.current += 1;
+    if (reanchorRunCountRef.current % 25 === 0) {
+      console.error('[ADL-GITVIS][loop] reanchor-effect', {
+        runs: reanchorRunCountRef.current,
+        lastX: lastHoveredXRef.current,
+      });
+    }
+  });
+
   useEffect(() => {
     if (!canInteract || lastHoveredXRef.current === null) {
       return;

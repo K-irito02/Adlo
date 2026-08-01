@@ -1,24 +1,87 @@
 import { runGit } from './git';
 
-function parseDateParts(iso: string): { year: number; week: number; dayOfWeek: number; hour: number } | null {
+/** ISO `%aI` → { year, month, dayOfWeek, hour } matching the Rust `parse_date_parts`. */
+export function parseDateParts(iso: string): {
+  year: number;
+  month: number;
+  dayOfWeek: number;
+  hour: number;
+} | null {
   if (iso.length < 13) return null;
   const year = parseInt(iso.substring(0, 4), 10);
   const month = parseInt(iso.substring(5, 7), 10);
   const day = parseInt(iso.substring(8, 10), 10);
   const hour = parseInt(iso.substring(11, 13), 10);
   const d = new Date(year, month - 1, day);
-  const jan4 = new Date(year, 0, 4);
-  const dayOfWeek = d.getDay() === 0 ? 6 : d.getDay() - 1;
-  const week = Math.ceil(((d.getTime() - jan4.getTime()) / 86400000 + 1) / 7);
-  return { year, week: Math.max(1, week), dayOfWeek, hour };
+  // Match the Rust backend convention: 0 = Sunday .. 6 = Saturday (drives the
+  // hourly heatmap rows whose top row is Sunday).
+  const dayOfWeek = d.getDay();
+  return { year, month, dayOfWeek, hour };
 }
 
-function startOfWeek(dateStr: string): string {
-  const d = new Date(dateStr);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const mon = new Date(d.setDate(diff));
-  return mon.toISOString().substring(0, 10);
+/**
+ * Parses a commit header line emitted by `--pretty=format:%H|%aI` and returns
+ * the leading `YYYY-MM-DD` date, or null for any other line (numstat rows,
+ * blank lines, malformed input). Matches the Rust backend's `header_date`.
+ */
+export function parseCommitHeader(line: string): string | null {
+  const pipePos = line.indexOf('|');
+  if (pipePos === -1) return null;
+  const datePart = line.slice(pipePos + 1);
+  if (datePart.length < 10) return null;
+  const head = datePart.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}/.test(head)) return null;
+  return head;
+}
+
+/**
+ * Aggregates `git log --numstat` output into per-day totals, matching the Rust
+ * backend shape `{ days: [{ date, additions, deletions }] }`.
+ */
+export function aggregateCodeEvolutionDays(
+  raw: string,
+): { date: string; additions: number; deletions: number }[] {
+  const dayMap = new Map<string, { additions: number; deletions: number }>();
+  let currentDate: string | null = null;
+  for (const line of raw.split('\n')) {
+    const parts = line.split('\t');
+    if (parts.length === 3) {
+      const add = parseInt(parts[0], 10) || 0;
+      const del = parseInt(parts[1], 10) || 0;
+      if (currentDate) {
+        const entry = dayMap.get(currentDate) ?? { additions: 0, deletions: 0 };
+        entry.additions += add;
+        entry.deletions += del;
+        dayMap.set(currentDate, entry);
+      }
+    } else {
+      const date = parseCommitHeader(line);
+      if (date) {
+        currentDate = date;
+      }
+    }
+  }
+  return Array.from(dayMap, ([date, v]) => ({ date, ...v })).sort((a, b) =>
+    a.date < b.date ? -1 : a.date > b.date ? 1 : 0,
+  );
+}
+
+/**
+ * Builds a day-by-day ascending commit timeline `[{ date, count, cumulative }]`,
+ * matching the Rust backend's `build_daily_timeline`.
+ */
+export function buildCommitTimeline(dailyMap: Map<string, number>): {
+  date: string;
+  count: number;
+  cumulative: number;
+}[] {
+  const sortedDates = [...dailyMap.keys()].sort();
+  let cumulative = 0;
+  return sortedDates.map((date) => {
+    const count = dailyMap.get(date) ?? 0;
+    cumulative += count;
+    return { date, count, cumulative };
+  });
 }
 
 export async function handleCommitStats(rootPath: string, since?: string, until?: string) {
@@ -31,43 +94,52 @@ export async function handleCommitStats(rootPath: string, since?: string, until?
   const dailyMap = new Map<string, number>();
   const hourlyMap = new Map<string, number>();
   const authorMap = new Map<string, { email: string; total: number; periods: Map<string, number> }>();
-  let cumulative = 0;
-  const timeline: { date: string; cumulative: number }[] = [];
   const commits: unknown[] = [];
 
   for (const line of lines) {
     const parts = line.split('|');
     if (parts.length < 6) continue;
-    const [hash, shortHash, date, author, authorEmail, message] = parts;
+    // Rust uses splitn(6, '|') — the message is the remainder, which may itself
+    // contain '|'. Reassemble everything after the first 5 fields.
+    const [hash, shortHash, date, author, authorEmail] = parts;
+    const message = parts.slice(5).join('|');
     const date10 = date.substring(0, 10);
     dailyMap.set(date10, (dailyMap.get(date10) || 0) + 1);
 
     const dp = parseDateParts(date);
     if (dp) {
       hourlyMap.set(`${dp.dayOfWeek}|${dp.hour}`, (hourlyMap.get(`${dp.dayOfWeek}|${dp.hour}`) || 0) + 1);
-      const weekKey = `${dp.year}-W${String(dp.week).padStart(2, '0')}`;
+      // Match Rust: contributor activity periods are month keys (YYYY-MM)
+      // with a numeric `month` field, not ISO week keys.
+      const monthKey = `${dp.year}-${String(dp.month).padStart(2, '0')}`;
       const entry = authorMap.get(author) || { email: authorEmail, total: 0, periods: new Map() };
       entry.total++;
-      entry.periods.set(weekKey, (entry.periods.get(weekKey) || 0) + 1);
+      entry.periods.set(monthKey, (entry.periods.get(monthKey) || 0) + 1);
       authorMap.set(author, entry);
     }
 
-    cumulative++;
-    timeline.push({ date: date10, cumulative });
     commits.push({ hash, shortHash, date, author, authorEmail, message });
   }
 
+  const commitTimeline = buildCommitTimeline(dailyMap);
+  const dailyCommits = [...dailyMap.entries()]
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
   return {
-    dailyCommits: Array.from(dailyMap, ([date, count]) => ({ date, count })),
+    dailyCommits,
     hourlyDistribution: Array.from(hourlyMap, ([key, count]) => {
       const [d, h] = key.split('|');
       return { day: parseInt(d, 10), hour: parseInt(h, 10), count };
     }),
     contributorActivity: Array.from(authorMap, ([author, v]) => ({
       author, authorEmail: v.email, totalCommits: v.total,
-      periods: Array.from(v.periods, ([period, count]) => ({ period, count })),
+      periods: Array.from(v.periods, ([period, count]) => {
+        const month = parseInt(period.slice(5), 10) || 1;
+        return { period, month, count };
+      }),
     })),
-    commitTimeline: timeline,
+    commitTimeline,
     commits,
   };
 }
@@ -77,27 +149,7 @@ export async function handleCodeEvolution(rootPath: string, since?: string, unti
   if (since) filterArgs.push('--since', since);
   if (until) filterArgs.push('--until', until);
   const raw = (await runGit(rootPath, ['log', '--pretty=format:%H|%aI', '--numstat', ...filterArgs])) ?? '';
-  const weekMap = new Map<string, { additions: number; deletions: number }>();
-
-  let currentDate = '';
-  for (const line of raw.split('\n')) {
-    const parts = line.split('\t');
-    if (parts.length === 3) {
-      const add = parseInt(parts[0], 10) || 0;
-      const del = parseInt(parts[1], 10) || 0;
-      const ws = startOfWeek(currentDate || parts[2]?.substring(0, 10) || '');
-      const entry = weekMap.get(ws) || { additions: 0, deletions: 0 };
-      entry.additions += add;
-      entry.deletions += del;
-      weekMap.set(ws, entry);
-    } else if (line.includes('|') && line.startsWith('20')) {
-      currentDate = line.split('|')[1] || '';
-    }
-  }
-
-  return {
-    weeks: Array.from(weekMap, ([weekStart, v]) => ({ weekStart, ...v })),
-  };
+  return { days: aggregateCodeEvolutionDays(raw) };
 }
 
 export async function handleContributorModules(rootPath: string, since?: string, until?: string) {

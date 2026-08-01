@@ -89,7 +89,7 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
             value={timeRange.timeRange}
             onChange={(range) => {
               timeRange.setTimeRange(range);
-              onRefresh();
+              return onRefresh();
             }}
             yearBounds={yearBounds}
           />
@@ -118,6 +118,26 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
     [recentWorkspaces, activeWorkspaceTab],
   );
   const rootPath = activeWs?.rootPath || '';
+
+  // The persisted active tab id may not match any workspace (e.g. the default
+  // 'workspace-1' on first run). Auto-select the current app workspace, falling
+  // back to the first available one, so the charts can load without requiring a
+  // manual tab click.
+  const setActiveWorkspaceTab = useAppStore((s) => s.setActiveWorkspaceTab);
+  useEffect(() => {
+    if (recentWorkspaces.length === 0) {
+      return;
+    }
+    const matches = recentWorkspaces.some((w) => w.id === activeWorkspaceTab);
+    if (matches) {
+      return;
+    }
+    const current =
+      recentWorkspaces.find((w) => w.id === appInfo?.currentWorkspace?.id) ?? recentWorkspaces[0];
+    if (current && current.id !== activeWorkspaceTab) {
+      setActiveWorkspaceTab(current.id);
+    }
+  }, [recentWorkspaces, activeWorkspaceTab, appInfo?.currentWorkspace?.id, setActiveWorkspaceTab]);
 
   const { refreshWorkspace, refreshChart } = useGitVisRefresh(activeWorkspaceTab, rootPath);
 

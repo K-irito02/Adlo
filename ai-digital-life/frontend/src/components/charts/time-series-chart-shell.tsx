@@ -337,7 +337,16 @@ const TimeSeriesChartCore = memo(function TimeSeriesChartCore({
   const yDomainTargetByAxis = useMemo(() => {
     const base = computeYDomainsByAxis({
       lines,
-      resolveDomain: (dataKeys) => resolveYDomain(xDomain ? visiblePlotData : data, dataKeys),
+      resolveDomain: (dataKeys) =>
+        resolveYDomain(
+          // During a data transition the x-domain can briefly lag the new data,
+          // producing an empty (or stale) visible slice. Fall back to the full
+          // dataset so the y-domain never collapses to a tiny default while the
+          // full series is still being rendered (which would shoot lines far off
+          // the plot top).
+          xDomain && visiblePlotData.length > 0 ? visiblePlotData : data,
+          dataKeys,
+        ),
     });
     if (projectionConfigs.length === 0) {
       return base;

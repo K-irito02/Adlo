@@ -12,6 +12,13 @@ export interface ChartBrushLayoutProps {
   brushStrip: (layout: BrushLayoutRenderProps) => React.ReactNode;
   children: (layout: BrushLayoutRenderProps) => React.ReactNode;
   className?: string;
+  /**
+   * Actual end of the underlying (un-aggregated) data. Aggregated strip buckets
+   * (e.g. weekly Monday starts) can end before the true last data day. Extending
+   * the default selection to the real extent lets the brush cover (and zoom into)
+   * the partial last period without requiring the user to drag the range open.
+   */
+  selectionEnd?: Date;
 }
 
 export const ChartBrushLayout = React.memo(function ChartBrushLayout({
@@ -22,6 +29,7 @@ export const ChartBrushLayout = React.memo(function ChartBrushLayout({
   brushStrip,
   children,
   className,
+  selectionEnd,
 }: ChartBrushLayoutProps) {
   const [selection, setSelection] = useState<BrushSelection | null>(null);
 
@@ -39,11 +47,14 @@ export const ChartBrushLayout = React.memo(function ChartBrushLayout({
     }
     const first = data[0][xDataKey];
     const last = data[data.length - 1][xDataKey];
+    const lastDate = last instanceof Date ? last : new Date(last as string | number);
+    const endDate =
+      selectionEnd && selectionEnd.getTime() > lastDate.getTime() ? selectionEnd : lastDate;
     setSelection({
       start: first instanceof Date ? first : new Date(first as string | number),
-      end: last instanceof Date ? last : new Date(last as string | number),
+      end: endDate,
     });
-  }, [dataRangeKey, xDataKey, data]);
+  }, [dataRangeKey, xDataKey, data, selectionEnd]);
 
   const xDomain = useMemo<[Date, Date] | undefined>(() => {
     if (!enabled || !selection) {
@@ -52,13 +63,6 @@ export const ChartBrushLayout = React.memo(function ChartBrushLayout({
     return [selection.start, selection.end];
   }, [enabled, selection]);
 
-  const xDomainSlotCount = useMemo<number | undefined>(() => {
-    if (!enabled || !selection) {
-      return undefined;
-    }
-    return data.length;
-  }, [enabled, data.length]);
-
   const handleSelectionChange = useCallback((sel: BrushSelection | null) => {
     setSelection(sel);
   }, []);
@@ -66,11 +70,10 @@ export const ChartBrushLayout = React.memo(function ChartBrushLayout({
   const layout = useMemo<BrushLayoutRenderProps>(
     () => ({
       xDomain,
-      xDomainSlotCount,
       brushSelection: selection,
       onBrushSelectionChange: handleSelectionChange,
     }),
-    [xDomain, xDomainSlotCount, selection, handleSelectionChange],
+    [xDomain, selection, handleSelectionChange],
   );
 
   if (!enabled || data.length === 0) {
@@ -78,7 +81,6 @@ export const ChartBrushLayout = React.memo(function ChartBrushLayout({
       <div className={cn('adl-chart-brush-layout', className)}>
         {children({
           xDomain: undefined,
-          xDomainSlotCount: undefined,
           brushSelection: null,
           onBrushSelectionChange: () => {},
         })}

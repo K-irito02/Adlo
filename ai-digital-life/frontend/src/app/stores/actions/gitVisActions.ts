@@ -58,9 +58,10 @@ export async function refreshWorkspace(
   setError: (chartId: string, error: string | undefined) => void,
   setData: (chartId: string, data: unknown) => void,
 ): Promise<void> {
-  // Clear errors before fetching
+  // Clear errors and flag loading before fetching
   for (const chartId of HEATMAP_TABS) {
     setError(chartId, undefined);
+    setLoading(chartId, true);
   }
 
   // Fetch all charts in parallel
@@ -84,12 +85,17 @@ export async function refreshWorkspace(
   );
 
   for (const result of results) {
+    const chartId =
+      result.status === 'fulfilled'
+        ? result.value.chartId
+        : (result.reason as { chartId: string }).chartId;
     if (result.status === 'fulfilled') {
-      setData(result.value.chartId, result.value.data);
+      setData(chartId, result.value.data);
     } else {
       const rejected = result.reason as { chartId: string; error: string };
       setError(rejected.chartId, rejected.error);
     }
+    setLoading(chartId, false);
   }
 }
 

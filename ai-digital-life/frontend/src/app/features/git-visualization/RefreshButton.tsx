@@ -46,6 +46,9 @@ export function RefreshButton({
     void controls.start('animate');
     try {
       await onRefresh();
+    } catch {
+      // Refresh failure is surfaced via the chart error state (setError);
+      // swallow the rejection here so the spinner always stops cleanly.
     } finally {
       if (isMountedRef.current) {
         controls.start('normal');
