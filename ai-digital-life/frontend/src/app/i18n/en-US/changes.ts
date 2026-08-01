@@ -135,7 +135,9 @@ export const changesEn = {
     "Row: {rowCount} contributors, Column: {colCount} months. Cell color intensity represents monthly commit volume per person from low to high. Track each contributor's activity distribution over time.",
   gitVisCommitTimelineDesc:
     'Columns: time (auto day/week/month by selected range). Bars = commits per period (right axis), line = cumulative trend (left axis). The overview strip curve is the single-period commit count — drag it to select a range.',
-  gitVisCommitTimelineCount: 'Commits this period',
+  gitVisCommitTimelineCountDay: 'Commits this day',
+  gitVisCommitTimelineCountWeek: 'Commits this week',
+  gitVisCommitTimelineCountMonth: 'Commits this month',
   gitVisCommitTimelineCumulative: 'Cumulative',
   gitVisFileSunburstDesc:
     'Inner to outer layers by file type, arc angle = modification count / code volume, colors distinguish categories. Quickly locate "hotspot files" and high-activity modules.',

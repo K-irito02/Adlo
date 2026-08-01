@@ -27,10 +27,13 @@ interface AxisTick {
   date: Date;
   x: number;
   label: string;
+  /** Optional second line — the year, shown only at year-boundary ticks. */
+  subLabel?: string;
 }
 
 interface XAxisLabelProps {
   label: string;
+  subLabel?: string;
   x: number;
   crosshairX: number | null;
   hoveredLabel: string | null;
@@ -41,6 +44,7 @@ interface XAxisLabelProps {
 
 function XAxisLabel({
   label,
+  subLabel,
   x,
   crosshairX,
   hoveredLabel,
@@ -63,6 +67,8 @@ function XAxisLabel({
     }
   }
 
+  const fadeTransition = 'opacity 0.4s ease-in-out';
+
   return (
     <div
       className="absolute"
@@ -71,21 +77,33 @@ function XAxisLabel({
         bottom: 12,
         width: 0,
         display: 'flex',
-        justifyContent: 'center',
+        flexDirection: 'column',
+        alignItems: 'center',
         transition: animatePosition
           ? `left ${X_AXIS_POSITION_TWEEN_MS}ms cubic-bezier(${LINE_LOADING_PULSE_EASE.join(', ')})`
           : undefined,
       }}
     >
       <span
-        className={cn('whitespace-nowrap text-chart-label text-xs')}
+        className={cn('whitespace-nowrap text-chart-label text-xs leading-tight')}
         style={{
           opacity,
-          transition: 'opacity 0.4s ease-in-out',
+          transition: fadeTransition,
         }}
       >
         {label}
       </span>
+      {subLabel ? (
+        <span
+          className={cn('whitespace-nowrap text-chart-label text-[10px] leading-none')}
+          style={{
+            opacity,
+            transition: fadeTransition,
+          }}
+        >
+          {subLabel}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -416,6 +434,7 @@ function buildDomainTicks({
   marginLeft,
   numTicks,
   xScale,
+  formatLabel,
 }: {
   marginLeft: number;
   numTicks: number;
@@ -423,6 +442,7 @@ function buildDomainTicks({
     domain: () => Date[];
     (date: Date): number | undefined;
   };
+  formatLabel: (date: Date) => string;
 }): AxisTick[] {
   const domain = xScale.domain();
   const startDate = domain[0];
@@ -442,7 +462,7 @@ function buildDomainTicks({
   for (let i = 0; i < tickCount; i++) {
     const t = i / (tickCount - 1);
     const date = new Date(startTime + t * timeRange);
-    const label = shortDateFmt.format(date);
+    const label = formatLabel(date);
     if (seenLabels.has(label)) {
       continue;
     }
@@ -457,20 +477,55 @@ function buildDomainTicks({
   return ticks;
 }
 
+/**
+ * How many data-steps the x-domain extends past the last data point.
+ * Values < 1 mean the extension is only sub-step padding (e.g. bar boundary
+ * insets) or the domain does not reach past the data at all; >= 1 is a genuine
+ * projection horizon. Single-point or non-monotonic data also yields 0 — no
+ * measurable horizon.
+ *
+ * The step is measured as the *average* interval between consecutive data
+ * points — the same definition the bar-boundary padding inset uses (half a
+ * slot) — so pure padding always measures as 0.5 step and can never be mistaken
+ * for a projection, even when data spacing is irregular.
+ */
+function domainExtensionInSteps(
+  data: Record<string, unknown>[],
+  xAccessor: (d: Record<string, unknown>) => Date,
+  xScale: { domain: () => Date[] },
+): number {
+  if (data.length < 2) {
+    return 0;
+  }
+  const domainEnd = xScale.domain()[1];
+  const firstPoint = data[0];
+  const lastPoint = data.at(-1);
+  if (!(domainEnd && firstPoint && lastPoint)) {
+    return 0;
+  }
+  const firstTime = xAccessor(firstPoint).getTime();
+  const lastTime = xAccessor(lastPoint).getTime();
+  const span = lastTime - firstTime;
+  if (span <= 0) {
+    return 0;
+  }
+  // A non-monotonic tail (duplicate or reverted timestamp at the end) means the
+  // projection horizon is undefined — never emit tail ticks there.
+  const secondLastPoint = data.at(-2);
+  if (secondLastPoint && xAccessor(lastPoint).getTime() <= xAccessor(secondLastPoint).getTime()) {
+    return 0;
+  }
+  const avgStep = span / (data.length - 1);
+  return (domainEnd.getTime() - lastTime) / avgStep;
+}
+
+/** True when the domain genuinely extends past the data by at least one step (a projection horizon). */
 function domainExtendsPastData(
   data: Record<string, unknown>[],
   xAccessor: (d: Record<string, unknown>) => Date,
   xScale: { domain: () => Date[] },
 ): boolean {
-  if (data.length === 0) {
-    return false;
-  }
-  const domainEnd = xScale.domain()[1];
-  const lastPoint = data.at(-1);
-  if (!(domainEnd && lastPoint)) {
-    return false;
-  }
-  return domainEnd.getTime() > xAccessor(lastPoint).getTime();
+  return domainExtensionInSteps(data, xAccessor, xScale) >= 1;
 }
 
 /** Domain ticks for the projection tail when brush keeps data-aligned labels. */
@@ -484,6 +539,7 @@ function appendProjectionTailTicks(
   },
   marginLeft: number,
   maxExtraTicks: number,
+  formatLabel: (date: Date) => string,
 ): AxisTick[] {
   if (data.length === 0 || maxExtraTicks <= 0) {
     return ticks;
@@ -498,7 +554,14 @@ function appendProjectionTailTicks(
   const lastDate = xAccessor(lastPoint);
   const startTime = lastDate.getTime();
   const endTime = domainEnd.getTime();
-  if (endTime <= startTime) {
+
+  // The domain only extends past the data by the bar boundary padding
+  // (half a column). Emitting projection ticks into that sliver produces
+  // overlapping long labels. Only append tail ticks when the extension is at
+  // least one data step wide — a genuine projection horizon. The caller
+  // (`projectionExtendsScale`) already guarantees this; the guard keeps the
+  // function self-contained against future callers.
+  if (domainExtensionInSteps(data, xAccessor, xScale) < 1) {
     return ticks;
   }
 
@@ -508,7 +571,7 @@ function appendProjectionTailTicks(
 
   for (let i = 1; i <= extraCount; i++) {
     const date = new Date(startTime + (i / (extraCount + 1)) * (endTime - startTime));
-    const label = shortDateFmt.format(date);
+    const label = formatLabel(date);
     if (seenLabels.has(label)) {
       continue;
     }
@@ -520,7 +583,7 @@ function appendProjectionTailTicks(
     });
   }
 
-  const endLabel = shortDateFmt.format(domainEnd);
+  const endLabel = formatLabel(domainEnd);
   if (!seenLabels.has(endLabel)) {
     extras.push({
       date: domainEnd,
@@ -558,7 +621,13 @@ const XAxisInner = memo(function XAxisInner({
   tickMode = 'data',
   container,
 }: XAxisProps & { container: HTMLDivElement }) {
-  const { xScale, margin, tooltipData, data, xAccessor, dateLabels, xDomain } = useChart();
+  const { xScale, margin, tooltipData, data, xAccessor, dateLabels, dateLabelFormatter, xDomain } =
+    useChart();
+
+  const formatLabel = useMemo(
+    () => dateLabelFormatter ?? ((d: Date) => shortDateFmt.format(d)),
+    [dateLabelFormatter],
+  );
 
   const labelsToShow = useMemo(() => {
     const projectionExtendsScale =
@@ -569,6 +638,7 @@ const XAxisInner = memo(function XAxisInner({
         marginLeft: margin.left,
         numTicks,
         xScale,
+        formatLabel,
       });
     }
 
@@ -578,6 +648,7 @@ const XAxisInner = memo(function XAxisInner({
         marginLeft: margin.left,
         numTicks,
         xScale,
+        formatLabel,
       });
     }
 
@@ -599,11 +670,38 @@ const XAxisInner = memo(function XAxisInner({
         xScale,
         margin.left,
         Math.max(1, numTicks - dataTicks.length + 1),
+        formatLabel,
       );
     }
 
     return dataTicks;
-  }, [tickMode, xDomain, data, dateLabels, xAccessor, xScale, margin.left, numTicks]);
+  }, [tickMode, xDomain, data, dateLabels, formatLabel, xAccessor, xScale, margin.left, numTicks]);
+
+  // Year appears on the second line only at year-boundary ticks (the first tick
+  // of each new calendar year) and only when the visible data actually spans
+  // multiple years. Single-year ranges stay compact with just the month/day row.
+  const ticksWithYearBoundaries = useMemo(() => {
+    const firstPoint = data[0];
+    const lastPoint = data.at(-1);
+    const spansMultipleYears =
+      !!(firstPoint && lastPoint) &&
+      xAccessor(firstPoint).getUTCFullYear() !== xAccessor(lastPoint).getUTCFullYear();
+    if (!spansMultipleYears) {
+      return labelsToShow;
+    }
+
+    let prevYear: number | null = null;
+    return labelsToShow.map((tick) => {
+      const year = tick.date.getUTCFullYear();
+      const isYearBoundary = prevYear === null || year !== prevYear;
+      prevYear = year;
+      const labelHasYear = /\d{4}/.test(tick.label);
+      return {
+        ...tick,
+        subLabel: isYearBoundary && !labelHasYear ? String(year) : undefined,
+      };
+    });
+  }, [data, labelsToShow, xAccessor]);
 
   const isHovering = tooltipData !== null;
   const crosshairX = tooltipData ? tooltipData.x + margin.left : null;
@@ -614,7 +712,7 @@ const XAxisInner = memo(function XAxisInner({
 
   return createPortal(
     <div className="pointer-events-none absolute inset-0">
-      {labelsToShow.map((item) => (
+      {ticksWithYearBoundaries.map((item) => (
         <XAxisLabel
           animatePosition={xDomain == null}
           crosshairX={crosshairX}
@@ -622,6 +720,7 @@ const XAxisInner = memo(function XAxisInner({
           isHovering={isHovering}
           key={`${item.date.getTime()}-${item.x}`}
           label={item.label}
+          subLabel={item.subLabel}
           tickerHalfWidth={tickerHalfWidth}
           x={item.x}
         />

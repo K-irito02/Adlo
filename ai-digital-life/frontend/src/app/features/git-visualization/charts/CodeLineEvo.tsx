@@ -10,6 +10,7 @@ import { ChartBrushLayout, ChartBrush } from '@/components/charts/brush';
 import { XAxis } from '@/components/charts/x-axis';
 import {
   aggregateCodeEvolutionDays,
+  dateLabelFormatterFor,
   resolveGranularity,
   type Granularity,
 } from '../adapters/chartDataAdapters';
@@ -135,11 +136,6 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({ data, visible }: Co
       </div>
     );
   }
-
-  const dateLabelFormatterFor = (g: Granularity) => (d: Date) =>
-    g === 'month'
-      ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      : `${d.getMonth() + 1}/${d.getDate()}`;
 
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>

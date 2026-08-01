@@ -1,10 +1,27 @@
 import { describe, it, expect } from 'vitest';
 import {
   resolveGranularity,
+  dateLabelFormatterFor,
   aggregateCodeEvolutionDays,
   aggregateCommitTimeline,
   type Granularity,
 } from './chartDataAdapters';
+
+describe('dateLabelFormatterFor', () => {
+  it('formats day/week as M/D and month as YYYY-MM (padded)', () => {
+    const day = new Date(Date.UTC(2026, 0, 5));
+    expect(dateLabelFormatterFor('day')(day)).toBe('1/5');
+    expect(dateLabelFormatterFor('week')(day)).toBe('1/5');
+    const oct = new Date(Date.UTC(2026, 9, 5));
+    expect(dateLabelFormatterFor('month')(oct)).toBe('2026-10');
+  });
+
+  it('returns a stable formatter reference per granularity', () => {
+    expect(dateLabelFormatterFor('day')).toBe(dateLabelFormatterFor('day'));
+    expect(dateLabelFormatterFor('week')).toBe(dateLabelFormatterFor('week'));
+    expect(dateLabelFormatterFor('month')).toBe(dateLabelFormatterFor('month'));
+  });
+});
 
 describe('adaptive granularity', () => {
   it('resolves 30/180 day boundaries', () => {

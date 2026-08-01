@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { CommitTimeline } from './CommitTimeline';
+import { commitCountLabelFor } from '../adapters/chartDataAdapters';
 
 function createMotionValue(initial = 0) {
   const listeners: Record<string, ((v: unknown) => void)[]> = {};
@@ -70,7 +71,9 @@ vi.mock('@visx/responsive', () => ({
 vi.mock('@i18n/useTCopy', () => ({
   useTCopy: vi.fn(() => ({
     t: {
-      gitVisCommitTimelineCount: 'Commits this period',
+      gitVisCommitTimelineCountDay: 'Commits this day',
+      gitVisCommitTimelineCountWeek: 'Commits this week',
+      gitVisCommitTimelineCountMonth: 'Commits this month',
       gitVisCommitTimelineCumulative: 'Cumulative',
     },
     formatT: vi.fn(),
@@ -154,5 +157,33 @@ describe('CommitTimeline', () => {
     // Counts span 2..4 (right axis) while cumulative reaches 11 (left axis).
     expect(Math.max(...rightText)).toBeLessThanOrEqual(5);
     expect(Math.max(...leftText)).toBeGreaterThanOrEqual(10);
+  });
+
+  it('insets edge bars inside the plot area so they never overflow into the y-axis margins', () => {
+    const { container } = render(<CommitTimeline data={DAILY_DATA} />);
+    const mainChartSvg = container.querySelector('.adl-chart-brush-layout svg');
+    const rects = Array.from(mainChartSvg!.querySelectorAll('.series-bar rect'));
+    expect(rects.length).toBeGreaterThan(0);
+
+    const chartWidth = 600;
+    const marginLeft = 60;
+    const marginRight = 60;
+    const innerWidth = chartWidth - marginLeft - marginRight;
+    for (const rect of rects) {
+      const x = Number(rect.getAttribute('x'));
+      const width = Number(rect.getAttribute('width'));
+      expect(x).toBeGreaterThanOrEqual(0);
+      expect(x + width).toBeLessThanOrEqual(innerWidth);
+    }
+  });
+});
+
+describe('commitCountLabelFor', () => {
+  const labels = { day: '本日提交数', week: '本周提交数', month: '本月提交数' };
+
+  it('maps each granularity to its matching period label', () => {
+    expect(commitCountLabelFor('day', labels)).toBe('本日提交数');
+    expect(commitCountLabelFor('week', labels)).toBe('本周提交数');
+    expect(commitCountLabelFor('month', labels)).toBe('本月提交数');
   });
 });

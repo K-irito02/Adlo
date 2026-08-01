@@ -21,6 +21,30 @@ export function resolveGranularity(start: Date, end: Date): Granularity {
   return 'month';
 }
 
+export function commitCountLabelFor(
+  granularity: Granularity,
+  labels: { day: string; week: string; month: string },
+): string {
+  if (granularity === 'day') {
+    return labels.day;
+  }
+  if (granularity === 'month') {
+    return labels.month;
+  }
+  return labels.week;
+}
+
+/** Granularity-aware x-axis tick label formatter (YYYY-MM for month, M/D otherwise). */
+export function dateLabelFormatterFor(granularity: Granularity): (d: Date) => string {
+  return DATE_LABEL_FORMATTERS[granularity];
+}
+
+const DATE_LABEL_FORMATTERS: Record<Granularity, (d: Date) => string> = {
+  day: (d: Date) => `${d.getUTCMonth() + 1}/${d.getUTCDate()}`,
+  week: (d: Date) => `${d.getUTCMonth() + 1}/${d.getUTCDate()}`,
+  month: (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`,
+};
+
 function toDate10(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }

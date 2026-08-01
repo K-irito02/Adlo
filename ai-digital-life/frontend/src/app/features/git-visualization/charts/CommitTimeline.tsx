@@ -10,6 +10,8 @@ import { XAxis } from '@/components/charts/x-axis';
 import { YAxis } from '@/components/charts/y-axis';
 import {
   aggregateCommitTimeline,
+  commitCountLabelFor,
+  dateLabelFormatterFor,
   resolveGranularity,
   type Granularity,
 } from '../adapters/chartDataAdapters';
@@ -62,11 +64,6 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
       </div>
     );
   }
-
-  const dateLabelFormatterFor = (g: Granularity) => (d: Date) =>
-    g === 'month'
-      ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-      : `${d.getMonth() + 1}/${d.getDate()}`;
 
   return (
     <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
@@ -132,7 +129,11 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
                 rows={(point) => [
                   {
                     color: 'var(--chart-line-primary)',
-                    label: t.gitVisCommitTimelineCount,
+                    label: commitCountLabelFor(granularity, {
+                      day: t.gitVisCommitTimelineCountDay,
+                      week: t.gitVisCommitTimelineCountWeek,
+                      month: t.gitVisCommitTimelineCountMonth,
+                    }),
                     value: (point.count as number) ?? 0,
                   },
                   {

@@ -275,11 +275,36 @@ const TimeSeriesChartCore = memo(function TimeSeriesChartCore({
       maxTime = mergeProjectionXDomainMax(maxTime, projectionConfigs);
     }
 
+    let domainMin = minTime;
+    let domainMax = maxTime;
+    // Bars are centered on their data point. Without boundary padding the first
+    // and last bars overflow the plot area into the y-axis margins, overlapping
+    // the y-axis tick labels. Inset the domain by half a column on each side so
+    // edge bars stay fully inside the plot.
+    if (composedBarDataKeys && composedBarDataKeys.length > 0 && domainMax > domainMin) {
+      const slotCount =
+        xDomain && xDomainSlotCount != null ? xDomainSlotCount : visiblePlotData.length;
+      if (slotCount > 1) {
+        const halfStep = (domainMax - domainMin) / (2 * (slotCount - 1));
+        domainMin -= halfStep;
+        domainMax += halfStep;
+      }
+    }
+
     return scaleTime({
       range: [0, innerWidth],
-      domain: [minTime, maxTime],
+      domain: [domainMin, domainMax],
     });
-  }, [innerWidth, plotData, projectionConfigs, xAccessor, xDomain]);
+  }, [
+    innerWidth,
+    plotData,
+    projectionConfigs,
+    xAccessor,
+    xDomain,
+    composedBarDataKeys,
+    xDomainSlotCount,
+    visiblePlotData.length,
+  ]);
 
   // When brushing, keep the full series for path rendering so edge fades stay
   // anchored to the viewport while the line pans through them. Y-domain and
@@ -500,6 +525,7 @@ const TimeSeriesChartCore = memo(function TimeSeriesChartCore({
       notifyLoadingPulseComplete,
       xAccessor,
       dateLabels,
+      dateLabelFormatter,
       xDomain,
       xDomainSlotCount,
       selection,
@@ -543,6 +569,7 @@ const TimeSeriesChartCore = memo(function TimeSeriesChartCore({
       notifyLoadingPulseComplete,
       xAccessor,
       dateLabels,
+      dateLabelFormatter,
       xDomain,
       xDomainSlotCount,
       selection,

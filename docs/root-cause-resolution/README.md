@@ -21,3 +21,4 @@
 - [progress-2026-07-30-064500.md](./progress-2026-07-30-064500.md) — 分支图谱头像显示问题修复：行hover节点放大/像素头像兜底/Tooltip延迟/两级缓存/SWR延迟revoke/闪烁修复（Phase 4收尾完成，862/862测试通过）
 - [progress-2026-07-30-204202.md](./progress-2026-07-30-204202.md) — Git可视化图表空白状态文本清理（分支图谱/文件旭日图）+ TagRow层叠上下文修复（isolation: isolate）+ 死代码清理（孤儿i18n键gitVisNoData/test mock）
 - [progress-2026-07-31-223901.md](./progress-2026-07-31-223901.md) — 代码行演变图表按钮改进（去描边/短文本/横向布局/hover增强）, 主题切换按钮背景色与文字色闪烁修复（移除 background-color/color 过渡，仅保留 opacity 过渡）
+- [progress-2026-08-01-133130.md](./progress-2026-08-01-133130.md) — Git可视化图表 3 项修复（CommitTimeline 双 y 轴标签重叠/tooltip 粒度化/x 轴跨年标签重叠）+ Phase 4 子代理复验收尾（统一 domainExtensionInSteps 守卫、dateLabelFormatterFor 共享化、死代码清理，912/912 测试通过）
