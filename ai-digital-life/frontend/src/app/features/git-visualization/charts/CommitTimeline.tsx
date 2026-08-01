@@ -5,7 +5,11 @@ import { SeriesBar } from '@/components/charts/series-bar';
 import { Line } from '@/components/charts/line';
 import { Grid } from '@/components/charts/grid';
 import { ChartTooltip } from '@/components/charts/tooltip/chart-tooltip';
-import { ChartBrushLayout, ChartBrush } from '@/components/charts/brush';
+import {
+  ChartBrushLayout,
+  ChartBrush,
+  type BrushLayoutRenderProps,
+} from '@/components/charts/brush';
 import { XAxis } from '@/components/charts/x-axis';
 import { YAxis } from '@/components/charts/y-axis';
 import {
@@ -22,7 +26,6 @@ interface CommitTimelineProps {
 }
 
 export const CommitTimeline = React.memo(function CommitTimeline({ data }: CommitTimelineProps) {
-  const { t } = useTCopy();
   const days = useMemo(() => data?.days ?? [], [data]);
 
   const dayRows = useMemo(() => aggregateCommitTimeline(days, 'day'), [days]);
@@ -61,7 +64,7 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
 
   if (dayRows.length === 0) {
     return (
-      <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
+      <div className="adl-git-vis__chart" style={{ position: 'relative', overflow: 'hidden' }}>
         <ComposedChart
           data={[]}
           xDataKey="date"
@@ -77,7 +80,7 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
   }
 
   return (
-    <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
+    <div className="adl-git-vis__chart" style={{ position: 'relative', overflow: 'hidden' }}>
       <ChartBrushLayout
         data={stripData}
         xDataKey="date"
@@ -104,86 +107,124 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
           </ComposedChart>
         )}
       >
-        {(layout) => {
-          const selStart = layout.xDomain?.[0] ?? fullRange.start;
-          const selEnd = layout.xDomain?.[1] ?? fullRange.end;
-          const granularity = resolveGranularity(selStart, selEnd);
-          const periodEndMs = periodEndInclusive(selEnd, granularity).getTime();
-          const inRangeDays = days.filter((d) => {
-            const t = new Date(d.date + 'T00:00:00Z').getTime();
-            // Keep the final partial period (e.g. the last week whose Monday is
-            // the selection end) fully included so its data is not dropped.
-            return t >= selStart.getTime() && t <= periodEndMs;
-          });
-          const chartData = aggregateCommitTimeline(inRangeDays, granularity);
-          // Clamp the visible x-domain to the chart's own last data point so the
-          // aggregated view (e.g. weekly, whose last bucket is the final Monday)
-          // does not leave empty space on the right, while day granularity still
-          // reaches the true latest data day.
-          let mainXDomain = layout.xDomain;
-          const lastDataPoint = chartData.at(-1);
-          if (mainXDomain && lastDataPoint) {
-            const lastTime = new Date(lastDataPoint.date + 'T00:00:00Z').getTime();
-            if (mainXDomain[1].getTime() > lastTime) {
-              mainXDomain = [mainXDomain[0], new Date(lastTime)];
-            }
-          }
-          return (
-            <ComposedChart
-              data={chartData}
-              xDataKey="date"
-              animationDuration={400}
-              barGap={0}
-              maxBarSize={granularity === 'day' ? 8 : 24}
-              xDomain={mainXDomain}
-              // The main chart re-aggregates the selected range at its own
-              // granularity (e.g. daily when the strip is weekly), so bar/slot
-              // padding must use this chart's row count — not the strip's.
-              xDomainSlotCount={chartData.length}
-              // Snap y-domains on data/x-domain changes instead of tweening:
-              // a tween renders new series values with the interpolated (still
-              // small) domain, sending lines far off the plot top before the
-              // tween settles, and re-triggers the animated series path every
-              // frame (y-scale churn) which can exceed React's update depth.
-              tweenYDomainOnXDomainChange={false}
-              yDomainTween={false}
-              dateLabelFormatter={dateLabelFormatterFor(granularity)}
-              margin={{ top: 20, right: 60, bottom: 40, left: 60 }}
-              style={{ maxHeight: 280 }}
-            >
-              <SeriesBar
-                dataKey="count"
-                yAxisId="right"
-                fill="var(--chart-line-primary)"
-                radius={4}
-              />
-              <Line dataKey="cumulative" stroke="var(--chart-line-secondary)" strokeWidth={2} />
-              <Grid />
-              <XAxis />
-              <YAxis numTicks={4} />
-              <YAxis yAxisId="right" orientation="right" numTicks={4} />
-              <ChartTooltip
-                rows={(point) => [
-                  {
-                    color: 'var(--chart-line-primary)',
-                    label: commitCountLabelFor(granularity, {
-                      day: t.gitVisCommitTimelineCountDay,
-                      week: t.gitVisCommitTimelineCountWeek,
-                      month: t.gitVisCommitTimelineCountMonth,
-                    }),
-                    value: (point.count as number) ?? 0,
-                  },
-                  {
-                    color: 'var(--chart-line-secondary)',
-                    label: t.gitVisCommitTimelineCumulative,
-                    value: (point.cumulative as number) ?? 0,
-                  },
-                ]}
-              />
-            </ComposedChart>
-          );
-        }}
+        {(layout) => <CommitTimelineMain layout={layout} days={days} fullRange={fullRange} />}
       </ChartBrushLayout>
     </div>
+  );
+});
+
+interface CommitTimelineMainProps {
+  layout: BrushLayoutRenderProps;
+  days: { date: string; count: number; cumulative: number }[];
+  fullRange: { start: Date; end: Date };
+}
+
+/**
+ * Main chart (zoomed view) extracted into its own component so the expensive
+ * data filtering, aggregation, and x-domain clamping can be memoized via
+ * `useMemo`. See `CodeLineEvoMain` for the full rationale — the same jitter
+ * loop existed here because `chartData` and `mainXDomain` were rebuilt as new
+ * references on every render, churning `xScale` → `resolveTooltipFromX` → the
+ * reanchor `useEffect`.
+ */
+const CommitTimelineMain = React.memo(function CommitTimelineMain({
+  layout,
+  days,
+  fullRange,
+}: CommitTimelineMainProps) {
+  const { t } = useTCopy();
+  const selStart = useMemo(
+    () => layout.xDomain?.[0] ?? fullRange.start,
+    [layout.xDomain, fullRange.start],
+  );
+  const selEnd = useMemo(
+    () => layout.xDomain?.[1] ?? fullRange.end,
+    [layout.xDomain, fullRange.end],
+  );
+  const granularity = resolveGranularity(selStart, selEnd);
+  const dateLabelFormatter = useMemo(() => dateLabelFormatterFor(granularity), [granularity]);
+  const countLabel = useMemo(
+    () =>
+      commitCountLabelFor(granularity, {
+        day: t.gitVisCommitTimelineCountDay,
+        week: t.gitVisCommitTimelineCountWeek,
+        month: t.gitVisCommitTimelineCountMonth,
+      }),
+    [
+      granularity,
+      t.gitVisCommitTimelineCountDay,
+      t.gitVisCommitTimelineCountWeek,
+      t.gitVisCommitTimelineCountMonth,
+    ],
+  );
+
+  const { chartData, mainXDomain } = useMemo(() => {
+    const periodEndMs = periodEndInclusive(selEnd, granularity).getTime();
+    const inRangeDays = days.filter((d) => {
+      const t = new Date(d.date + 'T00:00:00Z').getTime();
+      // Keep the final partial period (e.g. the last week whose Monday is
+      // the selection end) fully included so its data is not dropped.
+      return t >= selStart.getTime() && t <= periodEndMs;
+    });
+    const aggregated = aggregateCommitTimeline(inRangeDays, granularity);
+    // Clamp the visible x-domain to the chart's own last data point so the
+    // aggregated view (e.g. weekly, whose last bucket is the final Monday)
+    // does not leave empty space on the right, while day granularity still
+    // reaches the true latest data day.
+    let domain = layout.xDomain;
+    const lastDataPoint = aggregated.at(-1);
+    if (domain && lastDataPoint) {
+      const lastTime = new Date(lastDataPoint.date + 'T00:00:00Z').getTime();
+      if (!Number.isNaN(lastTime) && domain[1].getTime() > lastTime) {
+        domain = [domain[0], new Date(lastTime)];
+      }
+    }
+    return { chartData: aggregated, mainXDomain: domain };
+  }, [days, selStart, selEnd, granularity, layout.xDomain]);
+
+  return (
+    <ComposedChart
+      data={chartData}
+      xDataKey="date"
+      animationDuration={400}
+      barGap={0}
+      maxBarSize={granularity === 'day' ? 8 : 24}
+      xDomain={mainXDomain}
+      // The main chart re-aggregates the selected range at its own
+      // granularity (e.g. daily when the strip is weekly), so bar/slot
+      // padding must use this chart's row count — not the strip's.
+      xDomainSlotCount={chartData.length}
+      // Snap y-domains on data/x-domain changes instead of tweening:
+      // a tween renders new series values with the interpolated (still
+      // small) domain, sending lines far off the plot top before the
+      // tween settles, and re-triggers the animated series path every
+      // frame (y-scale churn) which can exceed React's update depth.
+      tweenYDomainOnXDomainChange={false}
+      yDomainTween={false}
+      dateLabelFormatter={dateLabelFormatter}
+      margin={{ top: 20, right: 60, bottom: 40, left: 60 }}
+      style={{ maxHeight: 280 }}
+    >
+      <SeriesBar dataKey="count" yAxisId="right" fill="var(--chart-line-primary)" radius={4} />
+      <Line dataKey="cumulative" stroke="var(--chart-line-secondary)" strokeWidth={2} />
+      <Grid />
+      <XAxis />
+      <YAxis numTicks={4} />
+      <YAxis yAxisId="right" orientation="right" numTicks={4} />
+      <ChartTooltip
+        rows={(point) => [
+          {
+            color: 'var(--chart-line-primary)',
+            label: countLabel,
+            value: (point.count as number) ?? 0,
+          },
+          {
+            color: 'var(--chart-line-secondary)',
+            label: t.gitVisCommitTimelineCumulative,
+            value: (point.cumulative as number) ?? 0,
+          },
+        ]}
+      />
+    </ComposedChart>
   );
 });

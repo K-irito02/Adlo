@@ -77,18 +77,6 @@ export function useAnimatedSeriesPath({
 
   const prevTransitionSignatureRef = useRef(transitionSignature);
 
-  // [ADL-GITVIS] temporary render-loop detector
-  const runCountRef = useRef(0);
-  useEffect(() => {
-    runCountRef.current += 1;
-    if (runCountRef.current % 25 === 0) {
-      console.error('[ADL-GITVIS][loop] useAnimatedSeriesPath', {
-        runs: runCountRef.current,
-        sig: transitionSignature.slice(0, 60),
-      });
-    }
-  });
-
   useEffect(() => {
     if (!animatingRef.current) {
       displayedPointsRef.current = targetPointsRef.current;

@@ -156,10 +156,12 @@ export interface TimeSeriesChartInnerProps {
 }
 
 export function TimeSeriesChartInner(props: TimeSeriesChartInnerProps) {
-  const { width, height } = props;
-  if (width < 10 || height < 10) {
-    return null;
-  }
+  // Always render TimeSeriesChartCore so its internal hook state (tooltip
+  // dedupe keys, hovered x, brush selection) survives transient ResizeObserver
+  // measurements of 0 or sub-10 during initial mount and tooltip-triggered
+  // layout shifts. Returning null here would unmount the core and reset all
+  // refs/state, causing a visible jitter loop on remount. The core itself
+  // guards against invalid dimensions internally.
   return <TimeSeriesChartCore {...props} />;
 }
 
@@ -635,6 +637,21 @@ const TimeSeriesChartCore = memo(function TimeSeriesChartCore({
     innerWidth,
     plotData.length,
   ]);
+
+  // When the container has not yet been measured (or is transiently 0 during
+  // a tooltip-triggered layout shift), render a minimal placeholder SVG so the
+  // component tree — and all internal hook state (tooltip dedupe keys, hovered
+  // x, brush selection) — stays mounted. This guard is placed after all hooks
+  // so React's rules-of-hooks are satisfied (same hook count on every render).
+  if (width < 10 || height < 10) {
+    return (
+      <ReferenceAreaRegistrationContext.Provider value={referenceAreaRegistration}>
+        <ChartProvider value={contextValue}>
+          <svg aria-hidden="true" height={Math.max(height, 0)} width={Math.max(width, 0)} />
+        </ChartProvider>
+      </ReferenceAreaRegistrationContext.Provider>
+    );
+  }
 
   return (
     <ReferenceAreaRegistrationContext.Provider value={referenceAreaRegistration}>

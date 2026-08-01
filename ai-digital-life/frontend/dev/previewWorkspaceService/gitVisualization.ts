@@ -1,5 +1,29 @@
 import { runGit } from './git';
 
+/**
+ * If `until` is a bare `YYYY-MM-DD` date (no time component), append `T23:59:59`
+ * so the end day is fully included. Git interprets a bare `YYYY-MM-DD` for
+ * `--until` as `00:00:00` of that day, which excludes the entire end day from
+ * the range — matching the Rust backend's `normalize_until_date`.
+ */
+function normalizeUntilDate(until: string): string {
+  // Bare `YYYY-MM-DD` is exactly 10 chars, all date, no `T`/space/time.
+  if (until.length === 10 && until[4] === '-' && until[7] === '-') {
+    return `${until}T23:59:59`;
+  }
+  return until;
+}
+
+/** Builds the `--since`/`--until` filter args shared by all git-vis handlers.
+ *  Uses `--since=value` / `--until=value` single-arg format to match the
+ *  Rust backend's `build_time_filter` in `helpers.rs`. */
+function buildTimeFilterArgs(since?: string, until?: string): string[] {
+  const args: string[] = [];
+  if (since) args.push(`--since=${since}`);
+  if (until) args.push(`--until=${normalizeUntilDate(until)}`);
+  return args;
+}
+
 /** ISO `%aI` → { year, month, dayOfWeek, hour } matching the Rust `parse_date_parts`. */
 export function parseDateParts(iso: string): {
   year: number;
@@ -85,9 +109,7 @@ export function buildCommitTimeline(dailyMap: Map<string, number>): {
 }
 
 export async function handleCommitStats(rootPath: string, since?: string, until?: string) {
-  const filterArgs: string[] = [];
-  if (since) filterArgs.push('--since', since);
-  if (until) filterArgs.push('--until', until);
+  const filterArgs = buildTimeFilterArgs(since, until);
   const raw = (await runGit(rootPath, ['log', '--pretty=format:%H|%h|%aI|%an|%ae|%s', ...filterArgs])) ?? '';
   const lines = raw.split('\n').filter(Boolean);
 
@@ -145,17 +167,13 @@ export async function handleCommitStats(rootPath: string, since?: string, until?
 }
 
 export async function handleCodeEvolution(rootPath: string, since?: string, until?: string) {
-  const filterArgs: string[] = [];
-  if (since) filterArgs.push('--since', since);
-  if (until) filterArgs.push('--until', until);
+  const filterArgs = buildTimeFilterArgs(since, until);
   const raw = (await runGit(rootPath, ['log', '--pretty=format:%H|%aI', '--numstat', ...filterArgs])) ?? '';
   return { days: aggregateCodeEvolutionDays(raw) };
 }
 
 export async function handleContributorModules(rootPath: string, since?: string, until?: string) {
-  const filterArgs: string[] = [];
-  if (since) filterArgs.push('--since', since);
-  if (until) filterArgs.push('--until', until);
+  const filterArgs = buildTimeFilterArgs(since, until);
   const raw = (await runGit(rootPath, ['-c', 'core.quotepath=false', 'log', '--pretty=format:%an|%ae', '--name-only', ...filterArgs])) ?? '';
 
   const authorModules = new Map<string, { email: string; modules: Map<string, number> }>();

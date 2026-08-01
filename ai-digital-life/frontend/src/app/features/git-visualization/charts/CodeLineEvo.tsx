@@ -6,7 +6,11 @@ import { LineChart, Line } from '@/components/charts/line-chart';
 import { Area } from '@/components/charts/area';
 import { Grid } from '@/components/charts/grid';
 import { ChartTooltip } from '@/components/charts/tooltip/chart-tooltip';
-import { ChartBrushLayout, ChartBrush } from '@/components/charts/brush';
+import {
+  ChartBrushLayout,
+  ChartBrush,
+  type BrushLayoutRenderProps,
+} from '@/components/charts/brush';
 import { XAxis } from '@/components/charts/x-axis';
 import {
   aggregateCodeEvolutionDays,
@@ -94,7 +98,6 @@ export const CodeLineEvoSeriesToggle = React.memo(function CodeLineEvoSeriesTogg
 });
 
 export const CodeLineEvo = React.memo(function CodeLineEvo({ data, visible }: CodeLineEvoProps) {
-  const { t } = useTCopy();
   const days = useMemo(() => data?.days ?? [], [data]);
 
   const dayRows = useMemo(() => aggregateCodeEvolutionDays(days, 'day'), [days]);
@@ -133,7 +136,7 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({ data, visible }: Co
 
   if (dayRows.length === 0) {
     return (
-      <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
+      <div className="adl-git-vis__chart" style={{ position: 'relative', overflow: 'hidden' }}>
         <LineChart
           data={[]}
           xDataKey="date"
@@ -149,7 +152,7 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({ data, visible }: Co
   }
 
   return (
-    <div className="adl-git-vis__chart" style={{ position: 'relative' }}>
+    <div className="adl-git-vis__chart" style={{ position: 'relative', overflow: 'hidden' }}>
       <ChartBrushLayout
         data={stripData}
         xDataKey="date"
@@ -176,105 +179,141 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({ data, visible }: Co
           </LineChart>
         )}
       >
-        {(layout) => {
-          const selStart = layout.xDomain?.[0] ?? fullRange.start;
-          const selEnd = layout.xDomain?.[1] ?? fullRange.end;
-          const granularity = resolveGranularity(selStart, selEnd);
-          const periodEndMs = periodEndInclusive(selEnd, granularity).getTime();
-          const inRangeDays = days.filter((d) => {
-            const t = new Date(d.date + 'T00:00:00Z').getTime();
-            // Keep the final partial period (e.g. the last week whose Monday is
-            // the selection end) fully included so its data is not dropped.
-            return t >= selStart.getTime() && t <= periodEndMs;
-          });
-          const chartData = aggregateCodeEvolutionDays(inRangeDays, granularity);
-          // Clamp the visible x-domain to the chart's own last data point so the
-          // aggregated view (e.g. weekly, whose last bucket is the final Monday)
-          // does not leave empty space on the right, while day granularity still
-          // reaches the true latest data day.
-          let mainXDomain = layout.xDomain;
-          const lastDataPoint = chartData.at(-1);
-          if (mainXDomain && lastDataPoint) {
-            const lastTime = new Date(lastDataPoint.date + 'T00:00:00Z').getTime();
-            if (mainXDomain[1].getTime() > lastTime) {
-              mainXDomain = [mainXDomain[0], new Date(lastTime)];
-            }
-          }
-          return (
-            <LineChart
-              data={chartData}
-              xDataKey="date"
-              animationDuration={400}
-              xDomain={mainXDomain}
-              // The main chart re-aggregates the selected range at its own
-              // granularity (e.g. daily when the strip is weekly), so bar/slot
-              // padding must use this chart's row count — not the strip's.
-              xDomainSlotCount={chartData.length}
-              // Snap y-domains on data/x-domain changes instead of tweening:
-              // a tween renders new series values with the interpolated (still
-              // small) domain, sending lines far off the plot top before the
-              // tween settles, and re-triggers the animated series path every
-              // frame (y-scale churn) which can exceed React's update depth.
-              tweenYDomainOnXDomainChange={false}
-              yDomainTween={false}
-              dateLabelFormatter={dateLabelFormatterFor(granularity)}
-              margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
-              style={{ maxHeight: 280 }}
-            >
-              {visible.added ? (
-                <Area
-                  dataKey="added"
-                  baseline="zero"
-                  fill="var(--chart-line-primary)"
-                  fillOpacity={0.35}
-                />
-              ) : null}
-              {visible.deleted ? (
-                <Area
-                  dataKey="deletedNeg"
-                  baseline="zero"
-                  fill="var(--chart-line-secondary)"
-                  fillOpacity={0.35}
-                />
-              ) : null}
-              {visible.net ? <Line dataKey="net" stroke="var(--chart-3)" strokeWidth={2} /> : null}
-              <Grid highlightRowValues={[0]} />
-              <XAxis />
-              <ChartTooltip
-                rows={(point) => [
-                  ...(visible.added
-                    ? [
-                        {
-                          color: SERIES_COLORS.added,
-                          label: t.gitVisCodeLineEvoAdded,
-                          value: (point.added as number) ?? 0,
-                        },
-                      ]
-                    : []),
-                  ...(visible.deleted
-                    ? [
-                        {
-                          color: SERIES_COLORS.deleted,
-                          label: t.gitVisCodeLineEvoDeleted,
-                          value: (point.deletedNeg as number) ?? 0,
-                        },
-                      ]
-                    : []),
-                  ...(visible.net
-                    ? [
-                        {
-                          color: SERIES_COLORS.net,
-                          label: t.gitVisCodeLineEvoNet,
-                          value: (point.net as number) ?? 0,
-                        },
-                      ]
-                    : []),
-                ]}
-              />
-            </LineChart>
-          );
-        }}
+        {(layout) => (
+          <CodeLineEvoMain layout={layout} days={days} fullRange={fullRange} visible={visible} />
+        )}
       </ChartBrushLayout>
     </div>
+  );
+});
+
+interface CodeLineEvoMainProps {
+  layout: BrushLayoutRenderProps;
+  days: { date: string; additions: number; deletions: number }[];
+  fullRange: { start: Date; end: Date };
+  visible: SeriesVisibility;
+}
+
+/**
+ * Main chart (zoomed view) extracted into its own component so the expensive
+ * data filtering, aggregation, and x-domain clamping can be memoized via
+ * `useMemo`. When this logic lived inline in the `ChartBrushLayout` render
+ * prop, every render rebuilt `chartData` and `mainXDomain` as new array/object
+ * references, which churned `xScale` → `resolveTooltipFromX` → the reanchor
+ * `useEffect`, producing a visible jitter loop near the last data point
+ * (especially under week/month granularity where the clamp always fires).
+ */
+const CodeLineEvoMain = React.memo(function CodeLineEvoMain({
+  layout,
+  days,
+  fullRange,
+  visible,
+}: CodeLineEvoMainProps) {
+  const { t } = useTCopy();
+  const selStart = useMemo(
+    () => layout.xDomain?.[0] ?? fullRange.start,
+    [layout.xDomain, fullRange.start],
+  );
+  const selEnd = useMemo(
+    () => layout.xDomain?.[1] ?? fullRange.end,
+    [layout.xDomain, fullRange.end],
+  );
+  const granularity = resolveGranularity(selStart, selEnd);
+  const dateLabelFormatter = useMemo(() => dateLabelFormatterFor(granularity), [granularity]);
+
+  const { chartData, mainXDomain } = useMemo(() => {
+    const periodEndMs = periodEndInclusive(selEnd, granularity).getTime();
+    const inRangeDays = days.filter((d) => {
+      const t = new Date(d.date + 'T00:00:00Z').getTime();
+      // Keep the final partial period (e.g. the last week whose Monday is
+      // the selection end) fully included so its data is not dropped.
+      return t >= selStart.getTime() && t <= periodEndMs;
+    });
+    const aggregated = aggregateCodeEvolutionDays(inRangeDays, granularity);
+    // Clamp the visible x-domain to the chart's own last data point so the
+    // aggregated view (e.g. weekly, whose last bucket is the final Monday)
+    // does not leave empty space on the right, while day granularity still
+    // reaches the true latest data day.
+    let domain = layout.xDomain;
+    const lastDataPoint = aggregated.at(-1);
+    if (domain && lastDataPoint) {
+      const lastTime = new Date(lastDataPoint.date + 'T00:00:00Z').getTime();
+      if (!Number.isNaN(lastTime) && domain[1].getTime() > lastTime) {
+        domain = [domain[0], new Date(lastTime)];
+      }
+    }
+    return { chartData: aggregated, mainXDomain: domain };
+    // selStart/selEnd are derived from layout.xDomain; layout.xDomain is stable
+    // (memoized inside ChartBrushLayout), so depending on it keeps this memo
+    // aligned with brush selection changes without re-running on every render.
+  }, [days, selStart, selEnd, granularity, layout.xDomain]);
+
+  return (
+    <LineChart
+      data={chartData}
+      xDataKey="date"
+      animationDuration={400}
+      xDomain={mainXDomain}
+      // The main chart re-aggregates the selected range at its own
+      // granularity (e.g. daily when the strip is weekly), so bar/slot
+      // padding must use this chart's row count — not the strip's.
+      xDomainSlotCount={chartData.length}
+      // Snap y-domains on data/x-domain changes instead of tweening:
+      // a tween renders new series values with the interpolated (still
+      // small) domain, sending lines far off the plot top before the
+      // tween settles, and re-triggers the animated series path every
+      // frame (y-scale churn) which can exceed React's update depth.
+      tweenYDomainOnXDomainChange={false}
+      yDomainTween={false}
+      dateLabelFormatter={dateLabelFormatter}
+      margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
+      style={{ maxHeight: 280 }}
+    >
+      {visible.added ? (
+        <Area dataKey="added" baseline="zero" fill="var(--chart-line-primary)" fillOpacity={0.35} />
+      ) : null}
+      {visible.deleted ? (
+        <Area
+          dataKey="deletedNeg"
+          baseline="zero"
+          fill="var(--chart-line-secondary)"
+          fillOpacity={0.35}
+        />
+      ) : null}
+      {visible.net ? <Line dataKey="net" stroke="var(--chart-3)" strokeWidth={2} /> : null}
+      <Grid highlightRowValues={[0]} />
+      <XAxis />
+      <ChartTooltip
+        rows={(point) => [
+          ...(visible.added
+            ? [
+                {
+                  color: SERIES_COLORS.added,
+                  label: t.gitVisCodeLineEvoAdded,
+                  value: (point.added as number) ?? 0,
+                },
+              ]
+            : []),
+          ...(visible.deleted
+            ? [
+                {
+                  color: SERIES_COLORS.deleted,
+                  label: t.gitVisCodeLineEvoDeleted,
+                  value: (point.deletedNeg as number) ?? 0,
+                },
+              ]
+            : []),
+          ...(visible.net
+            ? [
+                {
+                  color: SERIES_COLORS.net,
+                  label: t.gitVisCodeLineEvoNet,
+                  value: (point.net as number) ?? 0,
+                },
+              ]
+            : []),
+        ]}
+      />
+    </LineChart>
   );
 });

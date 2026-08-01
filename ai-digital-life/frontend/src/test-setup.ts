@@ -1,4 +1,15 @@
 import '@testing-library/jest-dom/vitest';
+import { afterEach } from 'vitest';
+import { cleanup } from '@testing-library/react';
+
+// vitest.config.ts does not set `globals: true`, so @testing-library/react's
+// automatic afterEach(cleanup) registration does not run. Without this, React
+// scheduler tasks spawned by deeper component trees (e.g. memoized chart
+// sub-components) can outlive the jsdom environment and throw
+// "window is not defined" after teardown.
+afterEach(() => {
+  cleanup();
+});
 
 const origConsoleError = console.error;
 console.error = (...args: unknown[]) => {

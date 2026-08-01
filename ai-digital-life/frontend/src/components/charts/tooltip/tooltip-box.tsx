@@ -224,7 +224,6 @@ function TooltipBoxInner({
 
   useEffect(() => {
     if (prevFlipRef.current !== shouldFlipX) {
-      console.error('[ADL-GITVIS][loop] tooltip-flip', { shouldFlipX });
       setFlipKey((k) => k + 1);
       prevFlipRef.current = shouldFlipX;
     }
