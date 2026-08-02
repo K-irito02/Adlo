@@ -17,6 +17,8 @@ export interface SunburstSegmentProps {
   fill?: string;
   /** Optional fill opacity override */
   fillOpacity?: number;
+  /** Optional custom tooltip text (overrides arc name). Multi-line via \n. */
+  tooltipText?: string;
 }
 
 export const SunburstSegment = memo(function SunburstSegment({
@@ -24,6 +26,7 @@ export const SunburstSegment = memo(function SunburstSegment({
   color: colorProp,
   fill: fillProp,
   fillOpacity: fillOpacityProp,
+  tooltipText,
 }: SunburstSegmentProps) {
   const {
     arcs,
@@ -131,7 +134,7 @@ export const SunburstSegment = memo(function SunburstSegment({
         style={groupStyle}
         transition={{ opacity: HOVER_DIM_TRANSITION }}
       >
-        <title>{arc.name}</title>
+        <title>{tooltipText ?? arc.name}</title>
         <path d={fullHitPath} fill="transparent" />
         <path d={fullVisualPath} {...visualPathProps} />
       </motion.g>
@@ -150,7 +153,7 @@ export const SunburstSegment = memo(function SunburstSegment({
       }}
       transition={{ opacity: HOVER_DIM_TRANSITION }}
     >
-      <title>{arc.name}</title>
+      <title>{tooltipText ?? arc.name}</title>
       <motion.path d={animatedHitPath} fill="transparent" />
       <motion.path d={animatedVisualPath} {...visualPathProps} />
     </motion.g>

@@ -44,6 +44,14 @@ const testData: SunburstNode = {
   ],
 };
 
+const mockData: SunburstNode = {
+  name: 'root',
+  children: [
+    { name: 'child1', value: 10 },
+    { name: 'child2', value: 5 },
+  ],
+};
+
 describe('SunburstSegment', () => {
   it('renders a <title> element with the arc name for native tooltip', () => {
     const { container } = render(
@@ -54,5 +62,26 @@ describe('SunburstSegment', () => {
     );
     const titles = container.querySelectorAll('g title');
     expect(titles.length).toBeGreaterThan(0);
+  });
+
+  it('renders custom tooltipText when provided', () => {
+    const tooltipText = 'src/core/\n变更: 24 次\n+120 / -45 行\n最近: 2026-07-31';
+    const { container } = render(
+      <SunburstChart data={mockData} size={200}>
+        <SunburstSegment index={0} tooltipText={tooltipText} />
+      </SunburstChart>,
+    );
+    const title = container.querySelector('title');
+    expect(title?.textContent).toBe(tooltipText);
+  });
+
+  it('falls back to arc name when tooltipText is not provided', () => {
+    const { container } = render(
+      <SunburstChart data={mockData} size={200}>
+        <SunburstSegment index={0} />
+      </SunburstChart>,
+    );
+    const title = container.querySelector('title');
+    expect(title?.textContent).toBe('child1');
   });
 });
