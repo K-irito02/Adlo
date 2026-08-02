@@ -9,6 +9,7 @@ import { ChartTooltip } from '@/components/charts/tooltip/chart-tooltip';
 import {
   ChartBrushLayout,
   ChartBrush,
+  BRUSH_SELECTION_PATTERN,
   type BrushLayoutRenderProps,
 } from '@/components/charts/brush';
 import { XAxis } from '@/components/charts/x-axis';
@@ -175,6 +176,7 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({ data, visible }: Co
               onSelectionChange={
                 layout.onBrushSelectionChange as (domain: { start: Date; end: Date }) => void
               }
+              selectionPattern={BRUSH_SELECTION_PATTERN}
             />
           </LineChart>
         )}

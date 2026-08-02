@@ -1,16 +1,66 @@
 'use client';
+/* eslint-disable react-refresh/only-export-components */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useChartStable } from '../chart-context';
+import {
+  type PatternPresetId,
+  type PatternPresetOptions,
+  renderPatternPreset,
+} from '../pattern-preset';
 import type { BrushSelection } from './brush-types';
 
-const HANDLE_WIDTH = 8;
+/** Invisible full-height hit target for the resize drag (mirrors upstream visx `handleSize`). */
+const HANDLE_HIT_WIDTH = 8;
+/** Visible pill — matches upstream `h-6 w-1 rounded-lg` (`24px × 4px`). */
+const PILL_WIDTH = 4;
+const PILL_HEIGHT = 24;
+
+/** Outer fade extent for the dim panes — matches upstream series edge fade (15%). */
+const BRUSH_TRACK_OUTER_FADE = 0.15;
+
+function outsidePaneStyle(
+  edge: 'left' | 'right',
+  blurPx: number,
+  fadeOuterEdges: boolean,
+): React.CSSProperties {
+  const fadeStop = `${BRUSH_TRACK_OUTER_FADE * 100}%`;
+  let mask: string | undefined;
+  if (fadeOuterEdges) {
+    mask =
+      edge === 'left'
+        ? `linear-gradient(to right, transparent 0%, black ${fadeStop}, black 100%)`
+        : `linear-gradient(to left, transparent 0%, black ${fadeStop}, black 100%)`;
+  }
+  return {
+    pointerEvents: 'none',
+    backdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+    WebkitBackdropFilter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+    maskImage: mask,
+    WebkitMaskImage: mask,
+  };
+}
+
+export interface ChartBrushSelectionPattern extends PatternPresetOptions {
+  preset: PatternPresetId;
+  /** Pattern overlay opacity. Default: theme token `--chart-brush-pattern-opacity`. */
+  opacity?: number | string;
+}
+
+/** Shared brush selection pattern for Git visualization charts (stable identity for React.memo). */
+export const BRUSH_SELECTION_PATTERN: ChartBrushSelectionPattern = {
+  preset: 'diagonal',
+  color: 'var(--chart-brush-pattern)',
+};
 
 export interface ChartBrushProps {
   onSelectionChange: (domain: { start: Date; end: Date }) => void;
   initialSelection?: BrushSelection;
   blurPx?: number;
   fadeOuterEdges?: boolean;
+  /** Pattern fill inside the brush selection window (upstream `selectionPattern`). */
+  selectionPattern?: ChartBrushSelectionPattern;
 }
 
 export const ChartBrush = React.memo(function ChartBrush({
@@ -18,14 +68,25 @@ export const ChartBrush = React.memo(function ChartBrush({
   initialSelection,
   blurPx = 1.5,
   fadeOuterEdges = true,
+  selectionPattern,
 }: ChartBrushProps) {
-  const { xScale, innerWidth, innerHeight } = useChartStable();
+  const { xScale, innerWidth, innerHeight, margin, containerRef } = useChartStable();
+  const patternId = useId().replace(/:/g, '');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const dragState = useRef<{
     mode: 'pan' | 'resize-left' | 'resize-right' | null;
     startX: number;
     startFracStart: number;
     startFracEnd: number;
   }>({ mode: null, startX: 0, startFracStart: 0, startFracEnd: 1 });
+
+  const innerWidthRef = useRef(innerWidth);
+  innerWidthRef.current = innerWidth;
 
   const domain = xScale.domain();
   const fullMinTime = domain[0].getTime();
@@ -93,7 +154,7 @@ export const ChartBrush = React.memo(function ChartBrush({
       }
 
       const dx = e.clientX - rect.left - ds.startX;
-      const deltaFrac = dx / rect.width;
+      const deltaFrac = dx / (innerWidthRef.current || 1);
 
       let s = ds.startFracStart;
       let ef = ds.startFracEnd;
@@ -130,7 +191,57 @@ export const ChartBrush = React.memo(function ChartBrush({
   const x0 = fullMinPx + fracStart * (fullMaxPx - fullMinPx);
   const x1 = fullMinPx + fracEnd * (fullMaxPx - fullMinPx);
 
-  if (innerWidth === 0) {
+  const patternNode = selectionPattern
+    ? renderPatternPreset(selectionPattern.preset, patternId, selectionPattern)
+    : null;
+
+  const clampedBlur = Math.min(5, Math.max(0, blurPx));
+
+  const renderTrackOverlay = () => {
+    const container = containerRef.current;
+    if (!(mounted && container)) {
+      return null;
+    }
+    const leftWidth = Math.max(0, x0);
+    const rightWidth = Math.max(0, innerWidth - x1);
+    if (leftWidth <= 0 && rightWidth <= 0) {
+      return null;
+    }
+    return createPortal(
+      <div
+        aria-hidden="true"
+        style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: 'none' }}
+      >
+        {leftWidth > 0 ? (
+          <div
+            style={{
+              position: 'absolute',
+              ...outsidePaneStyle('left', clampedBlur, fadeOuterEdges),
+              top: margin.top,
+              left: margin.left,
+              width: leftWidth,
+              height: innerHeight,
+            }}
+          />
+        ) : null}
+        {rightWidth > 0 ? (
+          <div
+            style={{
+              position: 'absolute',
+              ...outsidePaneStyle('right', clampedBlur, fadeOuterEdges),
+              top: margin.top,
+              left: margin.left + x1,
+              width: rightWidth,
+              height: innerHeight,
+            }}
+          />
+        ) : null}
+      </div>,
+      container,
+    );
+  };
+
+  if (innerWidth <= 0) {
     return null;
   }
 
@@ -144,40 +255,19 @@ export const ChartBrush = React.memo(function ChartBrush({
       onMouseMove={(e) => e.stopPropagation()}
       onMouseUp={(e) => e.stopPropagation()}
     >
-      <rect
-        x={0}
-        y={0}
-        width={x0}
-        height={innerHeight}
-        fill="var(--chart-brush-dim, rgba(0,0,0,0.15))"
-        style={{
-          backdropFilter: `blur(${blurPx}px)`,
-          ...(fadeOuterEdges
-            ? {
-                maskImage: 'linear-gradient(to right, transparent, black 10%)',
-                WebkitMaskImage: 'linear-gradient(to right, transparent, black 10%)',
-              }
-            : {}),
-        }}
-        pointerEvents="none"
-      />
-      <rect
-        x={x1}
-        y={0}
-        width={innerWidth - x1}
-        height={innerHeight}
-        fill="var(--chart-brush-dim, rgba(0,0,0,0.15))"
-        style={{
-          backdropFilter: `blur(${blurPx}px)`,
-          ...(fadeOuterEdges
-            ? {
-                maskImage: 'linear-gradient(to left, transparent, black 10%)',
-                WebkitMaskImage: 'linear-gradient(to left, transparent, black 10%)',
-              }
-            : {}),
-        }}
-        pointerEvents="none"
-      />
+      {patternNode ? (
+        <g pointerEvents="none" aria-hidden="true">
+          <defs>{patternNode}</defs>
+          <rect
+            x={x0}
+            y={0}
+            width={Math.max(0, x1 - x0)}
+            height={innerHeight}
+            fill={`url(#${patternId})`}
+            fillOpacity={selectionPattern?.opacity ?? 'var(--chart-brush-pattern-opacity)'}
+          />
+        </g>
+      ) : null}
       <rect
         x={x0}
         y={0}
@@ -190,25 +280,44 @@ export const ChartBrush = React.memo(function ChartBrush({
         onPointerDown={(e) => handlePointerDown(e, 'pan')}
       />
       <rect
-        x={x0 - HANDLE_WIDTH / 2}
+        x={x0 - HANDLE_HIT_WIDTH / 2}
         y={0}
-        width={HANDLE_WIDTH}
+        width={HANDLE_HIT_WIDTH}
         height={innerHeight}
-        fill="var(--chart-brush-border, var(--chart-grid))"
-        rx={2}
+        fill="transparent"
         style={{ cursor: 'ew-resize' }}
         onPointerDown={(e) => handlePointerDown(e, 'resize-left')}
       />
       <rect
-        x={x1 - HANDLE_WIDTH / 2}
+        x={x1 - HANDLE_HIT_WIDTH / 2}
         y={0}
-        width={HANDLE_WIDTH}
+        width={HANDLE_HIT_WIDTH}
         height={innerHeight}
-        fill="var(--chart-brush-border, var(--chart-grid))"
-        rx={2}
+        fill="transparent"
         style={{ cursor: 'ew-resize' }}
         onPointerDown={(e) => handlePointerDown(e, 'resize-right')}
       />
+      <g aria-hidden="true">
+        <rect
+          x={x0 - PILL_WIDTH / 2}
+          y={(innerHeight - PILL_HEIGHT) / 2}
+          width={PILL_WIDTH}
+          height={PILL_HEIGHT}
+          rx={PILL_WIDTH / 2}
+          fill="var(--chart-brush-border)"
+          style={{ pointerEvents: 'none' }}
+        />
+        <rect
+          x={x1 - PILL_WIDTH / 2}
+          y={(innerHeight - PILL_HEIGHT) / 2}
+          width={PILL_WIDTH}
+          height={PILL_HEIGHT}
+          rx={PILL_WIDTH / 2}
+          fill="var(--chart-brush-border)"
+          style={{ pointerEvents: 'none' }}
+        />
+      </g>
+      {renderTrackOverlay()}
     </g>
   );
 });

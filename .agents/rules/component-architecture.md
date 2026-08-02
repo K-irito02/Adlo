@@ -66,6 +66,7 @@ Hook（状态逻辑） → Context（跨组件通信） → Portal（渲染到 b
 - 全局事件监听（`mousedown`/`keydown`）必须在 `useEffect` cleanup 中移除
 - 弹出层使用 `position: fixed`，定位计算在 Hook 中完成
 - 状态逻辑不依赖组件渲染，Hook 可独立测试
+- 禁止在 SVG 子元素上使用 `backdrop-filter`（Chromium 支持不一致，失败时无填充兜底）；模糊/滤镜覆盖层使用 HTML div 门户 overlay：渲染到容器（`position: relative` + `inset: 0` + `pointer-events: none`），按 scale 绘图区原点与尺寸定位，配 `mounted` 守卫与 `WebkitBackdropFilter` 前缀（先例：ChartBrush 暗淡区，见 `docs/knowledge-base/code-quality/2026-08/chart-brush-portal-overlay-2026-08-02.md`）
 
 ### 示例结构
 

@@ -8,6 +8,7 @@ import { ChartTooltip } from '@/components/charts/tooltip/chart-tooltip';
 import {
   ChartBrushLayout,
   ChartBrush,
+  BRUSH_SELECTION_PATTERN,
   type BrushLayoutRenderProps,
 } from '@/components/charts/brush';
 import { XAxis } from '@/components/charts/x-axis';
@@ -103,6 +104,7 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
               onSelectionChange={
                 layout.onBrushSelectionChange as (domain: { start: Date; end: Date }) => void
               }
+              selectionPattern={BRUSH_SELECTION_PATTERN}
             />
           </ComposedChart>
         )}

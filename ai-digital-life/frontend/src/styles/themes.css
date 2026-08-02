@@ -356,6 +356,11 @@ html:not(.no-transition) [data-theme] {
   --chart-scale-05: #1d4ed8;
   --chart-tooltip-background: #1e293b;
   --chart-grid: #e2e8f0;
+  /* === Brush selection pattern (light) ===
+     Solid gray; tint controlled by fill-opacity
+     (rendered via `var(--chart-brush-pattern-opacity)` on the overlay rect). */
+  --chart-brush-pattern: #94a3b8;
+  --chart-brush-pattern-opacity: 0.5;
 }
 
 /* ===== DARK THEME =====
@@ -603,6 +608,12 @@ html:not(.no-transition) [data-theme] {
   --adl-file-badge-ink-database: #2dd4bf;
   --adl-loader-bg: #000000;
   --adl-loader-line: #ffffff;
+
+  /* === Brush selection pattern (dark) ===
+     Faint shadow-like gray; alpha baked into the color, fill-opacity pinned to 1.
+     Must live in this block so it does not override the light theme's value. */
+  --chart-brush-pattern: rgba(203, 213, 225, 0.12);
+  --chart-brush-pattern-opacity: 1;
 }
 
 /* ===== Theme-Independent Tokens ===== */
@@ -641,26 +652,6 @@ html:not(.no-transition) [data-theme] {
      where a white overlay is intentional in both light and dark themes. */
   --overlay-bg-1: rgba(255, 255, 255, 0.12);
   --overlay-bg-2: rgba(255, 255, 255, 0.18);
-
-  /* === Bklit-UI Chart Tokens (dark) === */
-  --chart-background: var(--bg);
-  --chart-foreground: var(--text-primary);
-  --chart-foreground-muted: var(--text-muted);
-  --chart-label: var(--text-secondary);
-  --chart-line-primary: var(--accent);
-  --chart-1: #60a5fa;
-  --chart-2: #34d399;
-  --chart-3: #fbbf24;
-  --chart-4: #f87171;
-  --chart-5: #a78bfa;
-  --chart-scale-pattern-color: rgba(255, 255, 255, 0.15);
-  --chart-scale-01: #1e293b;
-  --chart-scale-02: #1e3a5f;
-  --chart-scale-03: #2563eb;
-  --chart-scale-04: #3b82f6;
-  --chart-scale-05: #60a5fa;
-  --chart-tooltip-background: #f8fafc;
-  --chart-grid: #334155;
 }
 
 /* -------- High-contrast preference --------
