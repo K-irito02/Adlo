@@ -13,7 +13,7 @@ pub use detect::{
 pub use fs::{create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry};
 pub use git::git_vis::{
     capture_branch_graph, capture_code_evolution, capture_commit_stats,
-    capture_contributor_modules, capture_file_sunburst,
+    capture_contributor_modules, capture_file_hotspots, capture_file_sunburst,
 };
 pub use git::{
     capture_git_snapshot, capture_git_snapshot_async, create_git_branch, discard_file_changes,

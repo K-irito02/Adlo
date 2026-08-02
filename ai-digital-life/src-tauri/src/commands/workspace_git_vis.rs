@@ -3,7 +3,7 @@ use crate::commands::ipc;
 use adl_errors::AppError;
 use adl_types::{
     GitVisBranchGraph, GitVisCodeEvolution, GitVisCommitStats, GitVisContributorModules,
-    GitVisFileSunburst, IpcResult,
+    GitVisFileHotspots, GitVisFileSunburst, IpcResult,
 };
 use std::path::Path;
 use tauri::Manager;
@@ -106,5 +106,28 @@ pub async fn workspace_git_vis_file_sunburst(
 ) -> Result<IpcResult<GitVisFileSunburst>, AppError> {
     let root = Path::new(&root_path);
     let data = adl_workspace::capture_file_sunburst(root).await?;
+    Ok(ipc(Ok(data)))
+}
+
+#[tauri::command]
+pub async fn workspace_git_vis_file_hotspots(
+    app: tauri::AppHandle,
+    root_path: String,
+    since: Option<String>,
+    until: Option<String>,
+) -> Result<IpcResult<GitVisFileHotspots>, AppError> {
+    let root = Path::new(&root_path);
+    let state = app.state::<crate::state::AppState>();
+    let s = since.clone();
+    let u = until.clone();
+    let data = git_vis_cache::with_cached(
+        &state.db,
+        &root_path,
+        since.as_deref(),
+        until.as_deref(),
+        git_vis_cache::CHART_TYPE_FILE_HOTSPOTS,
+        || async { adl_workspace::capture_file_hotspots(root, s.as_deref(), u.as_deref()).await },
+    )
+    .await?;
     Ok(ipc(Ok(data)))
 }

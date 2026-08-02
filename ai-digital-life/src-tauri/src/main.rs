@@ -148,6 +148,7 @@ fn main() {
             commands::workspace_git_vis::workspace_git_vis_contributor_modules,
             commands::workspace_git_vis::workspace_git_vis_branch_graph,
             commands::workspace_git_vis::workspace_git_vis_file_sunburst,
+            commands::workspace_git_vis::workspace_git_vis_file_hotspots,
             commands::workspace_git_vis::workspace_git_vis_first_commit_year,
             commands::platform::workspace_reveal_in_file_manager,
             commands::retrieval::retrieval_get_status,

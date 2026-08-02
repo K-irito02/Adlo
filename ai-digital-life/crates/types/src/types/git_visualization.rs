@@ -156,3 +156,37 @@ pub struct GitVisSunburstNode {
 pub struct GitVisFileSunburst {
     pub tree: GitVisSunburstNode,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitVisFileHotspotNode {
+    pub name: String,
+    pub node_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub change_count: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub additions: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deletions: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_modified: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub children: Option<Vec<GitVisFileHotspotNode>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitVisFileHotspotFile {
+    pub path: String,
+    pub change_count: i32,
+    pub additions: i32,
+    pub deletions: i32,
+    pub last_modified: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct GitVisFileHotspots {
+    pub tree: GitVisFileHotspotNode,
+    pub files: Vec<GitVisFileHotspotFile>,
+}
