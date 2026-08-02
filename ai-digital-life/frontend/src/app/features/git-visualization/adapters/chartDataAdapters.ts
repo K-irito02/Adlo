@@ -588,10 +588,10 @@ export function adaptHotspotsTree(
 }
 
 /** Filter flat file list by path prefix (drill-down). */
-export function filterFilesByPath(
-  files: { path: string }[],
+export function filterFilesByPath<T extends { path: string }>(
+  files: T[],
   filterPath: string[],
-): { path: string }[] {
+): T[] {
   if (filterPath.length === 0) {
     return files;
   }

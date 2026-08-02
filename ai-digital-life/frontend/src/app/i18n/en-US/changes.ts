@@ -211,6 +211,13 @@ export const changesEn = {
   gitVisSunburstHintZoomOut: 'Click the center to zoom out',
   // Placeholder — real translations added in Task 8 (hotspots i18n).
   gitVisHotspotsTooltipChanges: '',
+  gitVisHotspotsRankingFile: '',
+  gitVisHotspotsRankingChangeCount: '',
+  gitVisHotspotsRankingAdditions: '',
+  gitVisHotspotsRankingDeletions: '',
+  gitVisHotspotsRankingNet: '',
+  gitVisHotspotsRankingEmpty: '',
+  gitVisHotspotsFilterClear: '',
 
   gitVisLoadingMore: 'Loading more commits...',
   gitVisAllLoaded: 'All {count} commits loaded',
