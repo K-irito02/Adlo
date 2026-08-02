@@ -9,6 +9,7 @@ const TIME_RANGE_CHARTS = new Set<string>([
   CHART_IDS.CODE_LINE_EVO,
   CHART_IDS.COMMIT_TIMELINE,
   CHART_IDS.CONTRIBUTOR_MODULES,
+  CHART_IDS.FILE_HOTSPOTS,
 ]);
 
 export function useChartData(chartId: string): {

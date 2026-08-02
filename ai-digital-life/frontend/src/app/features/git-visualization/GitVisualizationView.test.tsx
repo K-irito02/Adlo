@@ -128,6 +128,7 @@ vi.mock('@stores/slicedStore', () => ({
           'contributor-modules': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
           'code-line-evolution': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
           'commit-timeline': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
+          'file-hotspots': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
         },
       },
       setGitVisData: vi.fn(),
@@ -178,6 +179,8 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisCommitTimelineDesc: 'desc',
       gitVisContributorModuleDesc: 'desc',
       gitVisFileSunburstDesc: 'desc',
+      gitVisFileHotspotsTitle: 'File Hotspots',
+      gitVisFileHotspotsDesc: 'desc',
       gitVisHeatmapTabCalendar: 'Calendar',
       gitVisHeatmapTabClock: 'Clock',
       gitVisHeatmapTabActivity: 'Activity',
@@ -204,10 +207,10 @@ vi.mock('../hooks/useGitVisRefresh', () => ({
 }));
 
 describe('GitVisualizationView', () => {
-  it('renders 5 chart cards', { timeout: 30000 }, () => {
+  it('renders 6 chart cards', { timeout: 30000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const cards = container.querySelectorAll('.adl-git-vis__card');
-    expect(cards.length).toBe(5);
+    expect(cards.length).toBe(6);
   });
 
   it('renders scroll container', { timeout: 30000 }, () => {

@@ -143,6 +143,9 @@ export const changesZh = {
   gitVisCommitTimelineCumulative: '累计',
   gitVisFileSunburstDesc:
     '从内向外按文件类型分层，扇形角度=修改次数/代码量，颜色区分不同类别。可快速定位"热点文件"与高活跃模块。',
+  gitVisFileHotspotsTitle: '文件热点',
+  gitVisFileHotspotsDesc:
+    '旭日图 + 排行榜组合视图：扇形角度=修改次数，颜色=热度/时间。点击扇形可下钻并在排行榜中筛选该目录文件。',
   gitVisHeatmapTabCalendar: '日历',
   gitVisHeatmapTabClock: '时段',
   gitVisHeatmapTabActivity: '活跃度',

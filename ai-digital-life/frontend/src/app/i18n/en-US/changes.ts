@@ -143,6 +143,9 @@ export const changesEn = {
   gitVisCommitTimelineCumulative: 'Cumulative',
   gitVisFileSunburstDesc:
     'Inner to outer layers by file type, arc angle = modification count / code volume, colors distinguish categories. Quickly locate "hotspot files" and high-activity modules.',
+  gitVisFileHotspotsTitle: 'File Hotspots',
+  gitVisFileHotspotsDesc:
+    'Combined sunburst + ranking view: arc angle = change count, color = heat/time. Click an arc to drill down and filter the ranking to that directory.',
   gitVisHeatmapTabCalendar: 'Calendar',
   gitVisHeatmapTabClock: 'Hours',
   gitVisHeatmapTabActivity: 'Activity',

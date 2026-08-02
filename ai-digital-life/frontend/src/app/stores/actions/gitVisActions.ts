@@ -7,6 +7,7 @@ export const HEATMAP_TABS = [
   CHART_IDS.HEATMAP,
   CHART_IDS.BRANCH_GRAPH,
   CHART_IDS.FILE_SUNBURST,
+  CHART_IDS.FILE_HOTSPOTS,
   CHART_IDS.CODE_LINE_EVO,
   CHART_IDS.COMMIT_TIMELINE,
   CHART_IDS.CONTRIBUTOR_MODULES,
@@ -29,6 +30,9 @@ export async function fetchChartData(
       break;
     case CHART_IDS.FILE_SUNBURST:
       result = await bridge.workspace.gitVisFileSunburst(rootPath);
+      break;
+    case CHART_IDS.FILE_HOTSPOTS:
+      result = await bridge.workspace.gitVisFileHotspots(rootPath, since, until);
       break;
     case CHART_IDS.CODE_LINE_EVO:
       result = await bridge.workspace.gitVisCodeEvolution(rootPath, since, until);

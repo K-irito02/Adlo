@@ -10,7 +10,8 @@ import {
   useCodeLineEvoVisibility,
 } from './charts/CodeLineEvo';
 import { CommitTimeline } from './charts/CommitTimeline';
-import { FileSunburst } from './charts/FileSunburst';
+import { FileSunburstChart } from './charts/FileSunburst';
+import { FileHotspotsView } from './charts/FileHotspotsView';
 import { BranchGraph } from './charts/BranchGraph';
 import { ChartColorPresetSelector } from './ChartColorPresetSelector';
 import { WorkspaceTabBar } from './WorkspaceTabBar';
@@ -21,6 +22,7 @@ import { RefreshButton } from './RefreshButton';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import { CHART_IDS } from './chartIds';
 import type { GitVisCommitStats } from '@shared/ipc';
+import type { GitVisFileHotspots } from '@shared/ipc/workspace';
 import type { RawContributorModules } from './adapters/chartDataAdapters';
 
 class VisErrorBoundary extends Component<
@@ -149,6 +151,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const codeLineEvoData = useChartData(CHART_IDS.CODE_LINE_EVO);
   const commitTimelineData = useChartData(CHART_IDS.COMMIT_TIMELINE);
   const fileSunburstData = useChartData(CHART_IDS.FILE_SUNBURST);
+  const fileHotspotsData = useChartData(CHART_IDS.FILE_HOTSPOTS);
 
   const codeLineEvoVis = useCodeLineEvoVisibility();
 
@@ -197,6 +200,10 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   );
   const handleRefreshFileSunburst = useCallback(
     () => refreshChart(CHART_IDS.FILE_SUNBURST),
+    [refreshChart],
+  );
+  const handleRefreshFileHotspots = useCallback(
+    () => refreshChart(CHART_IDS.FILE_HOTSPOTS),
     [refreshChart],
   );
   const handleRefreshHeatmap = useCallback(() => refreshChart(CHART_IDS.HEATMAP), [refreshChart]);
@@ -449,7 +456,24 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           timeRange={fileSunburstData}
           yearBounds={yearBounds}
         >
-          {fileSunburstData.loading ? null : <FileSunburst data={fileSunburstData.data} />}
+          {fileSunburstData.loading ? null : (
+            <FileSunburstChart
+              data={fileSunburstData.data as GitVisFileHotspots | undefined}
+              colorMode="heat"
+            />
+          )}
+        </TimeRangeAwareCard>
+        <TimeRangeAwareCard
+          title={t.gitVisFileHotspotsTitle}
+          desc={t.gitVisFileHotspotsDesc}
+          onRefresh={handleRefreshFileHotspots}
+          refreshLabel={t.gitVisRefreshChart}
+          timeRange={fileHotspotsData}
+          yearBounds={yearBounds}
+        >
+          {fileHotspotsData.loading ? null : (
+            <FileHotspotsView data={fileHotspotsData.data as GitVisFileHotspots | undefined} />
+          )}
         </TimeRangeAwareCard>
       </div>
     </VisErrorBoundary>
