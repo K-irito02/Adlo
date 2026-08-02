@@ -1392,3 +1392,16 @@
   word-break: break-word;
   overflow-wrap: break-word;
 }
+
+.adl-file-sunburst-hint {
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: var(--space-2);
+  line-height: 1.4;
+  user-select: none;
+}
+
+.adl-file-sunburst-breadcrumb {
+  padding: 4px 8px;
+}
