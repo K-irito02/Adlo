@@ -25,7 +25,7 @@ function measureText(text: string, fontSize: number): number {
   if (!ctx) {
     return text.length * fontSize * 0.6;
   }
-  ctx.font = `600 ${fontSize}px inherit`;
+  ctx.font = `600 ${fontSize}px sans-serif`;
   return ctx.measureText(text).width;
 }
 

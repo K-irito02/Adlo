@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { FileSunburst } from './FileSunburst';
 import { fileTreemapData } from '../../../../test-fixtures/gitVisMockData';
-import { TCopyProvider } from '@app/i18n/TCopyContext';
+import { TCopyProvider, type TCopyContextValue } from '@app/i18n/TCopyContext';
 
 function createMotionValue(initial = 0) {
   const listeners: Record<string, ((v: unknown) => void)[]> = {};
@@ -73,7 +73,7 @@ const mockT = {
   gitVisBreadcrumbNav: '模块路径导航',
   gitVisSunburstHintZoomIn: '点击扇形可下钻',
   gitVisSunburstHintZoomOut: '点击中心可缩放',
-} as any;
+} as unknown as TCopyContextValue['t'];
 
 function renderSunburst() {
   return render(
@@ -126,5 +126,35 @@ describe('FileSunburst', () => {
 
     const hint = container.querySelector('.adl-file-sunburst-hint');
     expect(hint?.textContent).toBe('点击中心可缩放');
+  });
+
+  it('shows hovered segment trail when pointer enters a directory segment', () => {
+    const { container } = renderSunburst();
+    // Find the first clickable segment (a directory with children), matching
+    // the existing click-test pattern: transparent hit path whose parent <g>
+    // has cursor:pointer.
+    const clickablePaths = Array.from(container.querySelectorAll('path')).filter((p) => {
+      if (p.getAttribute('fill') !== 'transparent') {
+        return false;
+      }
+      const parent = p.parentElement;
+      if (!parent) {
+        return false;
+      }
+      const styleAttr = parent.getAttribute('style') || '';
+      return /cursor:\s*pointer/.test(styleAttr);
+    });
+    expect(clickablePaths.length).toBeGreaterThan(0);
+
+    const group = clickablePaths[0].parentElement;
+    if (!group) {
+      throw new Error('segment group not found');
+    }
+    const segmentName = group.querySelector('title')?.textContent ?? '';
+    fireEvent.pointerEnter(group);
+
+    const hint = container.querySelector('.adl-file-sunburst-hint');
+    expect(hint?.textContent).toContain('  ›  ');
+    expect(hint?.textContent).toContain(segmentName);
   });
 });

@@ -8,7 +8,7 @@ import {
   useSunburstBreadcrumbItems,
 } from '@/components/charts/sunburst-breadcrumb';
 import { SunburstHint } from '@/components/charts/sunburst-hint';
-import { ModuleBreadcrumb } from '../ModuleBreadcrumb';
+import { ModuleBreadcrumb } from '@/app/features/git-visualization/ModuleBreadcrumb';
 import { adaptSunburstData } from '../adapters/chartDataAdapters';
 import { useTCopy } from '@i18n/useTCopy';
 
@@ -65,7 +65,7 @@ function FileSunburstHintText({
   })();
 
   return (
-    <div aria-live="polite" className="adl-file-sunburst-hint" style={{ minHeight: 20 }}>
+    <div className="adl-file-sunburst-hint" style={{ minHeight: 20 }}>
       {text}
     </div>
   );

@@ -42,7 +42,6 @@ const mockCtx = {
   font: '',
   measureText: (text: string) => ({ width: text.length * 6 }),
 };
-vi.stubGlobal('measureCanvas', undefined);
 vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
   mockCtx as unknown as CanvasRenderingContext2D,
 );
