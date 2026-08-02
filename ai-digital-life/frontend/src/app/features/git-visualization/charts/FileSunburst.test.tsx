@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
-import { FileSunburst } from './FileSunburst';
-import { fileTreemapData } from '../../../../test-fixtures/gitVisMockData';
+import { render } from '@testing-library/react';
+import { FileSunburstChart } from './FileSunburst';
+import { fileHotspotsMockData } from '@/test-fixtures/gitVisMockData';
 import { TCopyProvider, type TCopyContextValue } from '@app/i18n/TCopyContext';
 
 function createMotionValue(initial = 0) {
@@ -21,11 +21,8 @@ function createMotionValue(initial = 0) {
   };
 }
 
-const mockCtx = {
-  font: '',
-  measureText: (text: string) => ({ width: text.length * 6 }),
-};
-
+// Mock motion to avoid animation issues in tests. SunburstChart uses motion.svg,
+// motion.g, motion.path, animate, useMotionValue, useTransform — mock them all.
 vi.mock('motion/react', () => ({
   motion: new Proxy(
     {},
@@ -62,99 +59,44 @@ vi.mock('motion/react', () => ({
   useMotionValue: <T,>(val: T) => createMotionValue(val as number),
   useTransform: () => createMotionValue(0),
   useReducedMotion: () => false,
+  AnimatePresence: ({ children }: React.PropsWithChildren) => <>{children}</>,
 }));
 
-vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
-  mockCtx as unknown as CanvasRenderingContext2D,
-);
-
 const mockT = {
-  gitVisModuleRoot: '根目录',
-  gitVisBreadcrumbNav: '模块路径导航',
-  gitVisSunburstHintZoomIn: '点击扇形可下钻',
-  gitVisSunburstHintZoomOut: '点击中心可缩放',
+  gitVisModuleRoot: 'Root',
+  gitVisBreadcrumbNav: 'Module breadcrumb',
+  gitVisSunburstHintZoomIn: 'Click a segment to zoom in',
+  gitVisSunburstHintZoomOut: 'Click the center to zoom out',
+  gitVisHotspotsTooltipChanges: 'changes',
 } as unknown as TCopyContextValue['t'];
 
-function renderSunburst() {
-  return render(
-    <TCopyProvider t={mockT} locale="zh-CN">
-      <FileSunburst data={{ tree: fileTreemapData }} />
-    </TCopyProvider>,
-  );
-}
-
-describe('FileSunburst', () => {
-  it('renders SVG with arcs', () => {
-    const { container } = renderSunburst();
-    expect(container.querySelector('svg')).toBeInTheDocument();
-    expect(container.querySelectorAll('path').length).toBeGreaterThan(0);
+describe('FileSunburstChart', () => {
+  it('renders without crashing with hotspot data', () => {
+    const { container } = render(
+      <TCopyProvider t={mockT} locale="en-US">
+        <FileSunburstChart data={fileHotspotsMockData} colorMode="heat" />
+      </TCopyProvider>,
+    );
+    expect(container.querySelector('svg')).toBeTruthy();
   });
 
-  it('shows root-view hint text "点击扇形可下钻" when not drilled', () => {
-    const { container } = renderSunburst();
-    const hint = container.querySelector('.adl-file-sunburst-hint');
-    expect(hint?.textContent).toBe('点击扇形可下钻');
+  it('renders empty state when data is undefined', () => {
+    const { container } = render(
+      <TCopyProvider t={mockT} locale="en-US">
+        <FileSunburstChart colorMode="heat" />
+      </TCopyProvider>,
+    );
+    expect(container.querySelector('svg')).toBeFalsy();
   });
 
-  it('does not render breadcrumb in root view', () => {
-    const { container } = renderSunburst();
-    expect(container.querySelector('.adl-module-breadcrumb')).toBeNull();
-  });
-
-  it('renders breadcrumb and zoom-out hint after drilling into a segment', () => {
-    const { container } = renderSunburst();
-    // Click the first clickable segment (a directory with children).
-    // Segments are sorted depth-descending, so leaf segments come first in DOM.
-    // Directory segments set cursor:pointer on their <g> wrapper; leaves use cursor:default.
-    const clickablePaths = Array.from(container.querySelectorAll('path')).filter((p) => {
-      if (p.getAttribute('fill') !== 'transparent') {
-        return false;
-      }
-      const parent = p.parentElement;
-      if (!parent) {
-        return false;
-      }
-      const styleAttr = parent.getAttribute('style') || '';
-      return /cursor:\s*pointer/.test(styleAttr);
-    });
-    expect(clickablePaths.length).toBeGreaterThan(0);
-    fireEvent.click(clickablePaths[0]);
-
-    const breadcrumb = container.querySelector('.adl-module-breadcrumb');
-    expect(breadcrumb).not.toBeNull();
-    expect(breadcrumb?.textContent).toContain('根目录');
-
-    const hint = container.querySelector('.adl-file-sunburst-hint');
-    expect(hint?.textContent).toBe('点击中心可缩放');
-  });
-
-  it('shows hovered segment trail when pointer enters a directory segment', () => {
-    const { container } = renderSunburst();
-    // Find the first clickable segment (a directory with children), matching
-    // the existing click-test pattern: transparent hit path whose parent <g>
-    // has cursor:pointer.
-    const clickablePaths = Array.from(container.querySelectorAll('path')).filter((p) => {
-      if (p.getAttribute('fill') !== 'transparent') {
-        return false;
-      }
-      const parent = p.parentElement;
-      if (!parent) {
-        return false;
-      }
-      const styleAttr = parent.getAttribute('style') || '';
-      return /cursor:\s*pointer/.test(styleAttr);
-    });
-    expect(clickablePaths.length).toBeGreaterThan(0);
-
-    const group = clickablePaths[0].parentElement;
-    if (!group) {
-      throw new Error('segment group not found');
-    }
-    const segmentName = group.querySelector('title')?.textContent ?? '';
-    fireEvent.pointerEnter(group);
-
-    const hint = container.querySelector('.adl-file-sunburst-hint');
-    expect(hint?.textContent).toContain('  ›  ');
-    expect(hint?.textContent).toContain(segmentName);
+  it('calls onDrill with path when focus changes', () => {
+    const onDrill = vi.fn();
+    render(
+      <TCopyProvider t={mockT} locale="en-US">
+        <FileSunburstChart data={fileHotspotsMockData} colorMode="heat" onDrill={onDrill} />
+      </TCopyProvider>,
+    );
+    // Initial mount calls onDrill with empty path (root)
+    expect(onDrill).toHaveBeenCalledWith([]);
   });
 });

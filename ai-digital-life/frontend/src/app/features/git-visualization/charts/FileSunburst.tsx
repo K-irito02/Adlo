@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { SunburstChart } from '@/components/charts/sunburst-chart';
-import type { SunburstNode, ArcDatum, Focus } from '@/components/charts/sunburst-chart';
+import type { ArcDatum, Focus, SunburstNode } from '@/components/charts/sunburst-chart';
 import { SunburstSegment } from '@/components/charts/sunburst-segment';
 import { SunburstCenter } from '@/components/charts/sunburst-center';
 import {
@@ -9,8 +9,17 @@ import {
 } from '@/components/charts/sunburst-breadcrumb';
 import { SunburstHint } from '@/components/charts/sunburst-hint';
 import { ModuleBreadcrumb } from '@/app/features/git-visualization/ModuleBreadcrumb';
-import { adaptSunburstData } from '../adapters/chartDataAdapters';
+import { adaptHotspotsTree, computeArcFill } from '../adapters/chartDataAdapters';
+import type { GitVisFileHotspots } from '@/shared/ipc/workspace';
+import type { HotspotColorMode } from '../hooks/useFileHotspotsState';
 import { useTCopy } from '@i18n/useTCopy';
+
+interface HotspotArcMeta {
+  changeCount: number;
+  additions: number;
+  deletions: number;
+  lastModified: string | null;
+}
 
 function countDescendants(node: SunburstNode): number {
   if (!node.children) {
@@ -27,13 +36,10 @@ function countDescendants(node: SunburstNode): number {
 
 function FileSunburstBreadcrumbContent() {
   const { items, zoomTo } = useSunburstBreadcrumbItems();
-
   if (items.length <= 1) {
     return null;
   }
-
   const pathSegments = items.slice(1).map((it) => it.label);
-
   const handleNavigate = (level: number) => {
     const targetIndex = level === -1 ? 0 : level + 1;
     const target = items[targetIndex];
@@ -41,21 +47,24 @@ function FileSunburstBreadcrumbContent() {
       zoomTo(target.id);
     }
   };
-
   return <ModuleBreadcrumb pathSegments={pathSegments} onNavigate={handleNavigate} />;
 }
 
-function FileSunburstHintText({
-  hoveredArc,
-  focus,
-}: {
+interface FileSunburstHintTextProps {
   hoveredArc: ArcDatum | null;
   focus: Focus;
-}) {
-  const { t } = useTCopy();
+  arcMeta: Map<number, HotspotArcMeta>;
+}
 
+function FileSunburstHintText({ hoveredArc, focus, arcMeta }: FileSunburstHintTextProps) {
+  const { t } = useTCopy();
   const text = (() => {
     if (hoveredArc) {
+      const meta = arcMeta.get(hoveredArc.arcIndex);
+      if (meta) {
+        const trail = hoveredArc.trail.join('  ›  ');
+        return `${trail}  ·  ${meta.changeCount} ${t.gitVisHotspotsTooltipChanges?.replace('{count}', '') ?? ''}`;
+      }
       return hoveredArc.trail.join('  ›  ');
     }
     if (focus.depth > 0) {
@@ -63,7 +72,6 @@ function FileSunburstHintText({
     }
     return t.gitVisSunburstHintZoomIn;
   })();
-
   return (
     <div className="adl-file-sunburst-hint" style={{ minHeight: 20 }}>
       {text}
@@ -71,19 +79,76 @@ function FileSunburstHintText({
   );
 }
 
-interface FileSunburstProps {
-  data?: unknown;
+export interface FileSunburstChartProps {
+  data?: GitVisFileHotspots;
+  colorMode: HotspotColorMode;
+  onDrill?: (path: string[]) => void;
+  zoomToRootRef?: React.MutableRefObject<(() => void) | null>;
 }
 
-export const FileSunburst = React.memo(function FileSunburst({ data }: FileSunburstProps) {
-  const treeData = useMemo(() => (data ? adaptSunburstData(data) : null), [data]);
+// Renders inside <SunburstChart> so it can access the sunburst context.
+// Wires zoomToRootRef and onDrill to breadcrumb state.
+function FileSunburstDrillBridge({
+  onDrill,
+  zoomToRootRef,
+}: {
+  onDrill?: (path: string[]) => void;
+  zoomToRootRef?: React.MutableRefObject<(() => void) | null>;
+}) {
+  const { items, zoomTo } = useSunburstBreadcrumbItems();
+
+  // Wire zoomToRootRef for parent to call
+  React.useEffect(() => {
+    if (zoomToRootRef) {
+      zoomToRootRef.current = () => {
+        if (items.length > 0) {
+          zoomTo(items[0].id);
+        }
+      };
+    }
+  }, [zoomToRootRef, zoomTo, items]);
+
+  // Notify parent when drill path changes
+  React.useEffect(() => {
+    if (!onDrill) {
+      return;
+    }
+    const path = items.slice(1).map((it) => it.label);
+    onDrill(path);
+  }, [items, onDrill]);
+
+  return null;
+}
+
+export const FileSunburstChart = React.memo(function FileSunburstChart({
+  data,
+  colorMode,
+  onDrill,
+  zoomToRootRef,
+}: FileSunburstChartProps) {
+  const { tree: treeData, arcMeta } = useMemo(() => {
+    if (!data?.tree) {
+      return { tree: null, arcMeta: new Map<number, HotspotArcMeta>() };
+    }
+    return adaptHotspotsTree(data.tree, colorMode);
+  }, [data, colorMode]);
+
+  const allMetas = useMemo(() => Array.from(arcMeta.values()), [arcMeta]);
+
   const segments = useMemo(() => {
     if (!treeData) {
       return [];
     }
     const n = countDescendants(treeData);
-    return Array.from({ length: n }, (_, i) => <SunburstSegment key={i} index={i} />);
-  }, [treeData]);
+    return Array.from({ length: n }, (_, i) => {
+      const meta = arcMeta.get(i);
+      const fill = meta ? computeArcFill(meta, colorMode, allMetas) : undefined;
+      const tooltipText = meta
+        ? `${treeData.name}\n${meta.changeCount} changes\n+${meta.additions} / -${meta.deletions}\n${meta.lastModified ?? ''}`
+        : undefined;
+      return <SunburstSegment key={i} index={i} fill={fill} tooltipText={tooltipText} />;
+    });
+  }, [treeData, arcMeta, allMetas, colorMode]);
 
   if (!treeData) {
     return (
@@ -96,10 +161,11 @@ export const FileSunburst = React.memo(function FileSunburst({ data }: FileSunbu
 
   return (
     <div
-      className="adl-git-vis__chart"
+      className="adl-git-vis__chart adl-file-sunburst--hotspots"
       style={{ position: 'relative', display: 'flex', justifyContent: 'center' }}
     >
       <SunburstChart data={treeData} size={320}>
+        <FileSunburstDrillBridge onDrill={onDrill} zoomToRootRef={zoomToRootRef} />
         <SunburstBreadcrumb className="adl-file-sunburst-breadcrumb">
           <FileSunburstBreadcrumbContent />
         </SunburstBreadcrumb>
@@ -107,7 +173,7 @@ export const FileSunburst = React.memo(function FileSunburst({ data }: FileSunbu
         {segments}
         <SunburstHint>
           {({ hoveredArc, focus }) => (
-            <FileSunburstHintText hoveredArc={hoveredArc} focus={focus} />
+            <FileSunburstHintText hoveredArc={hoveredArc} focus={focus} arcMeta={arcMeta} />
           )}
         </SunburstHint>
       </SunburstChart>

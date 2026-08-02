@@ -209,6 +209,8 @@ export const changesEn = {
   gitVisBreadcrumbNav: 'Module breadcrumb',
   gitVisSunburstHintZoomIn: 'Click a segment to zoom in',
   gitVisSunburstHintZoomOut: 'Click the center to zoom out',
+  // Placeholder — real translations added in Task 8 (hotspots i18n).
+  gitVisHotspotsTooltipChanges: '',
 
   gitVisLoadingMore: 'Loading more commits...',
   gitVisAllLoaded: 'All {count} commits loaded',

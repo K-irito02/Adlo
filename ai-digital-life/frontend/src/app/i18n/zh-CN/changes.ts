@@ -209,6 +209,8 @@ export const changesZh = {
   gitVisBreadcrumbNav: '模块路径导航',
   gitVisSunburstHintZoomIn: '点击扇形可下钻',
   gitVisSunburstHintZoomOut: '点击中心可缩放',
+  // Placeholder — real translations added in Task 8 (hotspots i18n).
+  gitVisHotspotsTooltipChanges: '',
 
   gitVisLoadingMore: '正在加载更多提交...',
   gitVisAllLoaded: '已加载全部 {count} 条提交',
