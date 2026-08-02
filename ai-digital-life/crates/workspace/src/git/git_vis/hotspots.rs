@@ -24,11 +24,8 @@ pub async fn capture_file_hotspots(
         since, until
     );
 
-    let mut args: Vec<String> = vec![
-        "log".to_string(),
-        "--pretty=format:%H|%aI".to_string(),
-        "--numstat".to_string(),
-    ];
+    let mut args: Vec<String> =
+        vec!["log".to_string(), "--pretty=format:%H|%aI".to_string(), "--numstat".to_string()];
     if let Some(s) = since {
         args.push(format!("--since={}", s));
     }
@@ -273,15 +270,30 @@ mod tests {
         let mut map = BTreeMap::new();
         map.insert(
             "a.rs".to_string(),
-            FileAgg { change_count: 5, additions: 10, deletions: 2, last_modified: "2026-07-01".into() },
+            FileAgg {
+                change_count: 5,
+                additions: 10,
+                deletions: 2,
+                last_modified: "2026-07-01".into(),
+            },
         );
         map.insert(
             "b.rs".to_string(),
-            FileAgg { change_count: 20, additions: 40, deletions: 10, last_modified: "2026-08-01".into() },
+            FileAgg {
+                change_count: 20,
+                additions: 40,
+                deletions: 10,
+                last_modified: "2026-08-01".into(),
+            },
         );
         map.insert(
             "c.rs".to_string(),
-            FileAgg { change_count: 5, additions: 1, deletions: 1, last_modified: "2026-07-15".into() },
+            FileAgg {
+                change_count: 5,
+                additions: 1,
+                deletions: 1,
+                last_modified: "2026-07-15".into(),
+            },
         );
         let files = build_flat_files(&map);
         assert_eq!(files[0].path, "b.rs");
