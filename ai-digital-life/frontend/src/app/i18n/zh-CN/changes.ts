@@ -207,6 +207,8 @@ export const changesZh = {
   gitVisModuleConfirm: '确认跳转',
   gitVisModuleCancel: '取消',
   gitVisBreadcrumbNav: '模块路径导航',
+  gitVisSunburstHintZoomIn: '点击扇形可下钻',
+  gitVisSunburstHintZoomOut: '点击中心可缩放',
 
   gitVisLoadingMore: '正在加载更多提交...',
   gitVisAllLoaded: '已加载全部 {count} 条提交',
