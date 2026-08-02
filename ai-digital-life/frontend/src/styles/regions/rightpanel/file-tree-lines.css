@@ -89,9 +89,6 @@
   flex-shrink: 0;
   position: relative;
   z-index: 1;
-}
-
-.adl-tree-node__icon-before {
   display: inline-flex;
   align-items: center;
   justify-content: center;

@@ -243,11 +243,6 @@
   align-self: center;
 }
 
-.adl-filetree__indent--flat {
-  width: 0;
-  margin: 0;
-}
-
 .adl-tree-node__toggle,
 .adl-filetree__toggle {
   display: flex;
