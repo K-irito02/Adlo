@@ -83,9 +83,22 @@ export const IconCollapseRows = make(
   </>,
 );
 
-export const IconChevronRight = make(<path d="m9 18 6-6-6-6" />);
-export const IconChevronDown = make(<path d="m6 9 6 6 6-6" />);
-export const IconChevronUp = make(<path d="m18 15-6-6-6 6" />);
+export const IconChevronLeft = make(<path d="M14 7L9 12L14 17" />);
+export const IconChevronRight = make(<path d="M10 17L15 12L10 7" />);
+export const IconChevronsLeft = make(
+  <>
+    <path d="M11 6L5 12L11 18" />
+    <path d="M19 6L13 12L19 18" />
+  </>,
+);
+export const IconChevronsRight = make(
+  <>
+    <path d="M13 6L19 12L13 18" />
+    <path d="M5 6L11 12L5 18" />
+  </>,
+);
+export const IconChevronDown = make(<path d="M7 10L12 15L17 10" />);
+export const IconChevronUp = make(<path d="M17 14L12 9L7 14" />);
 
 export const IconArrowLeft = make(
   <>

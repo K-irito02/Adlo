@@ -1,6 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
-import { IconArrowLeft, IconArrowRight, IconClose } from '@app/icons';
+import {
+  IconChevronLeft,
+  IconChevronRight,
+  IconChevronsLeft,
+  IconChevronsRight,
+  IconClose,
+} from '@app/icons';
 
 function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
@@ -120,7 +126,7 @@ export const MiniDatePicker = React.memo(function MiniDatePicker({
           onClick={handlePrevYear}
           aria-label={t.gitVisDatePickerPrevYear}
         >
-          <span className="adl-git-vis__date-picker-nav-dbl">{'«'}</span>
+          <IconChevronsLeft size={12} strokeWidth={1.5} decorative />
         </button>
         <button
           type="button"
@@ -128,7 +134,7 @@ export const MiniDatePicker = React.memo(function MiniDatePicker({
           onClick={handlePrevMonth}
           aria-label={t.gitVisDatePickerPrevMonth}
         >
-          <IconArrowLeft size={12} decorative />
+          <IconChevronLeft size={12} strokeWidth={1.5} decorative />
         </button>
         <span className="adl-git-vis__date-picker-title">
           {viewYear}/{String(viewMonth + 1).padStart(2, '0')}
@@ -139,7 +145,7 @@ export const MiniDatePicker = React.memo(function MiniDatePicker({
           onClick={handleNextMonth}
           aria-label={t.gitVisDatePickerNextMonth}
         >
-          <IconArrowRight size={12} decorative />
+          <IconChevronRight size={12} strokeWidth={1.5} decorative />
         </button>
         <button
           type="button"
@@ -147,7 +153,7 @@ export const MiniDatePicker = React.memo(function MiniDatePicker({
           onClick={handleNextYear}
           aria-label={t.gitVisDatePickerNextYear}
         >
-          <span className="adl-git-vis__date-picker-nav-dbl">{'»'}</span>
+          <IconChevronsRight size={12} strokeWidth={1.5} decorative />
         </button>
         <button
           type="button"

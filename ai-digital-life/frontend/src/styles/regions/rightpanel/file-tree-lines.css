@@ -118,6 +118,16 @@
     color 0.12s;
 }
 
+/* File-tree toggle (shared by file tree and the module tree, both use the
+   18px+indent trunk line): clear the legacy 2px horizontal margin from
+   files-navigator.css so the 20px toggle centers exactly on the trunk line
+   (expanded chevron tip aligns with the vertical guide line).
+   The generic .adl-tree-node__toggle margin (used by the outline tree) is kept. */
+.adl-filetree__toggle {
+  margin-left: 0;
+  margin-right: 0;
+}
+
 .adl-tree-node__toggle:hover,
 .adl-filetree__toggle:hover {
   background: var(--adl-tree-toggle-hover-bg);

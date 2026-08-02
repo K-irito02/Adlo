@@ -108,7 +108,8 @@ document.body.innerHTML = renderHtml(html`
 
 1. Components **MUST** consume CSS custom properties (`var(--…)`); raw colors are a hard error in code review. Exception: third-party embedded surfaces such as Monaco that require programmatic theme objects may mirror documented semantic/background values in code, but those values must stay aligned with [`themes.md`](./foundations/themes.md).
 2. Icons **MUST** ship as SVG that inherits `currentColor`. **No emojis** anywhere in the UI. Exception: `lucide-animated` (MIT) is a permitted third-party animated icon library for specific click-feedback animation use cases (e.g. copy button). It satisfies the SVG + `currentColor` constraint and uses `motion` (Framer Motion) for its animations.
-3. Every interactive control exposes default / hover / focus-visible / active / disabled / loading states with adequate contrast.
-4. The renderer never mutates persisted theme state directly — it forwards via the IPC bridge (`window.digitalLife.app.updatePreferences`). Color scheme is a renderer-only preference (see [`themes.md`](./foundations/themes.md)).
-5. Reduced motion is honored automatically through `@media (prefers-reduced-motion: reduce)`.
-6. The desktop minimum supported window width is **640 px**.
+3. The project has **two** icon systems — React components in `frontend/src/app/icons/` and the string registry in `frontend/src/design-system/icons.ts`. Shared glyph geometry (e.g. the chevron family) MUST stay identical across both; changing one requires syncing the other. Icon-family geometry must remain internally consistent (e.g. left/right/down/up chevrons share one unit box) so expand/collapse toggles don't visually jump.
+4. Every interactive control exposes default / hover / focus-visible / active / disabled / loading states with adequate contrast.
+5. The renderer never mutates persisted theme state directly — it forwards via the IPC bridge (`window.digitalLife.app.updatePreferences`). Color scheme is a renderer-only preference (see [`themes.md`](./foundations/themes.md)).
+6. Reduced motion is honored automatically through `@media (prefers-reduced-motion: reduce)`.
+7. The desktop minimum supported window width is **640 px**.

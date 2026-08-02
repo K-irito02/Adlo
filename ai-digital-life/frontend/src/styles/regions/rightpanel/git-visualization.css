@@ -1170,11 +1170,6 @@
   background: var(--bg-hover);
   color: var(--text-primary);
 }
-.adl-git-vis__date-picker-nav-dbl {
-  font-size: 13px;
-  line-height: 1;
-  font-weight: 600;
-}
 .adl-git-vis__date-picker-title {
   flex: 1;
   text-align: center;

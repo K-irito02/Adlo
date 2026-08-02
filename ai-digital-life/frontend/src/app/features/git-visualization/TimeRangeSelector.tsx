@@ -2,7 +2,7 @@ import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useTCopy } from '@i18n/useTCopy';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
-import { IconCheck, IconChevronRight, IconArrowLeft, IconArrowRight } from '@app/icons';
+import { IconCheck, IconChevronLeft, IconChevronRight } from '@app/icons';
 import { MiniDatePicker } from './MiniDatePicker';
 import { useAppStore } from '@stores/slicedStore';
 
@@ -324,7 +324,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
         title={isYearMode ? t.gitVisCalendarYearPrev : t.gitVisTimePrev}
         aria-label={isYearMode ? t.gitVisCalendarYearPrev : t.gitVisTimePrev}
       >
-        <IconArrowLeft size={12} decorative />
+        <IconChevronLeft size={12} strokeWidth={1.5} decorative />
       </button>
       <button
         type="button"
@@ -515,7 +515,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
         title={isYearMode ? t.gitVisCalendarYearNext : t.gitVisTimeNext}
         aria-label={isYearMode ? t.gitVisCalendarYearNext : t.gitVisTimeNext}
       >
-        <IconArrowRight size={12} decorative />
+        <IconChevronRight size={12} strokeWidth={1.5} decorative />
       </button>
     </div>
   );

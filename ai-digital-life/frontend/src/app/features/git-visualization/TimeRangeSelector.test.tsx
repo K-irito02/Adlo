@@ -288,6 +288,38 @@ describe('TimeRangeSelector preset mode with yearBounds', () => {
   });
 });
 
+describe('TimeRangeSelector nav arrow icons', () => {
+  const value: TimeRangeState = {
+    preset: 'custom',
+    since: '2025-06-01',
+    until: '2025-07-01',
+  };
+
+  it('renders the left-pointing chevron in the previous-period button', () => {
+    const onChange = vi.fn();
+    render(<TimeRangeSelector value={value} onChange={onChange} mode="preset" />);
+    const leftBtn = screen.getByRole('button', { name: 'Earlier Period' });
+    const path = leftBtn.querySelector('path');
+    expect(path?.getAttribute('d')).toBe('M14 7L9 12L14 17');
+  });
+
+  it('renders the right-pointing chevron in the next-period button', () => {
+    const onChange = vi.fn();
+    render(<TimeRangeSelector value={value} onChange={onChange} mode="preset" />);
+    const rightBtn = screen.getByRole('button', { name: 'Later Period' });
+    const path = rightBtn.querySelector('path');
+    expect(path?.getAttribute('d')).toBe('M10 17L15 12L10 7');
+  });
+
+  it('renders the nav chevrons with a 1.5 stroke width', () => {
+    const onChange = vi.fn();
+    render(<TimeRangeSelector value={value} onChange={onChange} mode="preset" />);
+    const leftBtn = screen.getByRole('button', { name: 'Earlier Period' });
+    const svg = leftBtn.querySelector('svg');
+    expect(svg?.getAttribute('stroke-width')).toBe('1.5');
+  });
+});
+
 describe('TimeRangeSelector custom confirm button state', () => {
   const customValue: TimeRangeState = {
     preset: 'custom',
