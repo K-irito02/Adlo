@@ -87,14 +87,14 @@ export const IconChevronLeft = make(<path d="M14 7L9 12L14 17" />);
 export const IconChevronRight = make(<path d="M10 17L15 12L10 7" />);
 export const IconChevronsLeft = make(
   <>
-    <path d="M11 6L5 12L11 18" />
-    <path d="M19 6L13 12L19 18" />
+    <path d="M10 17L5 12L10 7" />
+    <path d="M18 17L13 12L18 7" />
   </>,
 );
 export const IconChevronsRight = make(
   <>
-    <path d="M13 6L19 12L13 18" />
-    <path d="M5 6L11 12L5 18" />
+    <path d="M14 17L19 12L14 7" />
+    <path d="M6 17L11 12L6 7" />
   </>,
 );
 export const IconChevronDown = make(<path d="M7 10L12 15L17 10" />);

@@ -83,6 +83,8 @@ export const changesZh = {
   changesPreviewNotSupported: '此文件类型暂不支持预览',
   changesPreviewDocx: 'DOCX 文档',
   changesPreviewPdf: 'PDF 文档',
+  changesPdfPrevPage: '上一页',
+  changesPdfNextPage: '下一页',
   changesPreviewBinary: '二进制文件',
   changesPreviewUnknown: '未知文件类型',
   changesCollapseAll: '全部折叠',

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
+import { IconChevronLeft, IconChevronRight } from '@icons';
 // eslint-disable-next-line no-restricted-syntax
 import type * as PdfJsType from 'pdfjs-dist';
 
@@ -80,19 +81,23 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
       {numPages > 1 && (
         <div className="adl-pdf-preview-nav">
           <button
+            type="button"
             disabled={currentPage <= 1}
             onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            aria-label={t.changesPdfPrevPage}
           >
-            ‹
+            <IconChevronLeft size={14} decorative />
           </button>
           <span>
             {currentPage} / {numPages}
           </span>
           <button
+            type="button"
             disabled={currentPage >= numPages}
             onClick={() => setCurrentPage((p) => Math.min(numPages, p + 1))}
+            aria-label={t.changesPdfNextPage}
           >
-            ›
+            <IconChevronRight size={14} decorative />
           </button>
         </div>
       )}

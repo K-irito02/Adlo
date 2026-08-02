@@ -45,15 +45,15 @@ describe('chevron icon family geometry', () => {
     const { container } = render(<IconChevronsLeft size={12} strokeWidth={1.5} decorative />);
     const paths = container.querySelectorAll('path');
     expect(paths.length).toBe(2);
-    expect(paths[0]?.getAttribute('d')).toBe('M11 6L5 12L11 18');
-    expect(paths[1]?.getAttribute('d')).toBe('M19 6L13 12L19 18');
+    expect(paths[0]?.getAttribute('d')).toBe('M10 17L5 12L10 7');
+    expect(paths[1]?.getAttribute('d')).toBe('M18 17L13 12L18 7');
   });
 
   it('IconChevronsRight renders the two right-pointing chevron paths', () => {
     const { container } = render(<IconChevronsRight size={12} strokeWidth={1.5} decorative />);
     const paths = container.querySelectorAll('path');
     expect(paths.length).toBe(2);
-    expect(paths[0]?.getAttribute('d')).toBe('M13 6L19 12L13 18');
-    expect(paths[1]?.getAttribute('d')).toBe('M5 6L11 12L5 18');
+    expect(paths[0]?.getAttribute('d')).toBe('M14 17L19 12L14 7');
+    expect(paths[1]?.getAttribute('d')).toBe('M6 17L11 12L6 7');
   });
 });

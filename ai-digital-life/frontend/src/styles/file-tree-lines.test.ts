@@ -15,6 +15,12 @@ const fileTreeCss = readFileSync(
 /**
  * Brace-matched rule blocks for a selector.
  * Handles selectors that share one rule group (comma-separated).
+ *
+ * Robustness guards:
+ * - skips matches inside CSS comment blocks
+ * - requires the char before the selector to be a boundary (start, whitespace,
+ *   `,`, `{`, `>`, `+`, `~`) so a suffix like `-adl-filetree__toggle` or a
+ *   `content:` value containing the class name is not captured.
  */
 function findRuleGroups(css: string, selector: string): string[] {
   const blocks: string[] = [];
@@ -24,7 +30,19 @@ function findRuleGroups(css: string, selector: string): string[] {
     if (open === -1) {
       break;
     }
-    // Scan back to the start of this selector list (previous `}` or `;` or EOF)
+    from = open + selector.length;
+    // Skip occurrences inside comments.
+    const lastCommentEnd = css.lastIndexOf('*/', open);
+    const lastCommentStart = css.lastIndexOf('/*', open);
+    if (lastCommentStart > lastCommentEnd) {
+      continue;
+    }
+    // Require a selector boundary before the match (class/comment-suffix guard).
+    const prev = open === 0 ? '' : css[open - 1];
+    if (prev && !/[\s,{>+~]/.test(prev)) {
+      continue;
+    }
+    // Scan back to the start of this selector list (previous `}` or `;` or EOF).
     const groupStart = Math.max(css.lastIndexOf('}', open), css.lastIndexOf(';', open)) + 1;
     const bodyStart = css.indexOf('{', open);
     if (bodyStart === -1) {
@@ -41,7 +59,6 @@ function findRuleGroups(css: string, selector: string): string[] {
       i += 1;
     }
     blocks.push(css.slice(groupStart, i));
-    from = i;
   }
   return blocks;
 }

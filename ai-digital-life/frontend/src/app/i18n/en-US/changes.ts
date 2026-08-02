@@ -83,6 +83,8 @@ export const changesEn = {
   changesPreviewNotSupported: 'Preview is not supported for this file type',
   changesPreviewDocx: 'DOCX document',
   changesPreviewPdf: 'PDF document',
+  changesPdfPrevPage: 'Previous page',
+  changesPdfNextPage: 'Next page',
   changesPreviewBinary: 'Binary file',
   changesPreviewUnknown: 'Unknown file type',
   changesCollapseAll: 'Collapse all',
