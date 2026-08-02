@@ -55,6 +55,11 @@ describe('file-tree toggle alignment (chevron tip vs trunk line)', () => {
     // file-tree-lines.css is imported after files-navigator.css, an explicit
     // margin:0 here wins the cascade for the file-tree toggle only (the generic
     // .adl-tree-node__toggle margin used by the outline tree is untouched).
+    //
+    // Note: this test couples to the override strategy (clearing the margin in
+    // file-tree-lines.css). If a future refactor removes the legacy margin at
+    // its source (files-navigator.css) instead, this assertion may need to be
+    // revisited — the visual outcome (aligned toggle) would still be correct.
     const linesGroups = findRuleGroups(fileTreeLinesCss, '.adl-filetree__toggle');
     expect(linesGroups.length).toBeGreaterThan(0);
     // Accept explicit margin:0 shorthand or margin-left/right/inline-start:0.
@@ -78,6 +83,20 @@ describe('file-tree toggle alignment (chevron tip vs trunk line)', () => {
     const linesIdx = fileTreeCss.indexOf("'./file-tree-lines.css'");
     expect(coreIdx).toBeGreaterThanOrEqual(0);
     expect(linesIdx).toBeGreaterThan(coreIdx);
+  });
+
+  it('keeps files-navigator.css from being imported after file-tree-lines.css anywhere', () => {
+    // Guard against a future direct import that would re-inject the legacy
+    // margin after the override and silently break the cascade.
+    const navPath = "'./rightpanel/files-navigator.css'";
+    const linesPath = "'./rightpanel/file-tree-lines.css'";
+    const lastNav = rightPanelCss.lastIndexOf(navPath);
+    const lastLines = rightPanelCss.lastIndexOf(linesPath);
+    // file-tree-lines.css is only reachable via file-tree.css; its own import
+    // must come after files-navigator.css's last occurrence in rightpanel.css.
+    if (lastLines !== -1) {
+      expect(lastLines).toBeGreaterThan(lastNav);
+    }
   });
 
   it('keeps the file-tree trunk line at 18px + indent', () => {

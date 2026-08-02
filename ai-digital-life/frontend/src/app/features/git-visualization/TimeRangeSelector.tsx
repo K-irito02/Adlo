@@ -377,7 +377,7 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
                         <IconCheck size={14} decorative />
                       </span>
                     )}
-                    <IconChevronRight size={12} decorative />
+                    <IconChevronRight size={12} strokeWidth={1.5} decorative />
                   </span>
                   {activeSubMenuId === 'custom' && (
                     <div
