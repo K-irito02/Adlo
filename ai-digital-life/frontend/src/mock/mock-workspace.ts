@@ -36,6 +36,7 @@ import {
   contributorModuleMatrix,
   moduleNames,
   fileTreemapData,
+  fileHotspotsMockData,
   mockCommitTimelineData,
 } from "../test-fixtures/gitVisMockData";
 
@@ -429,6 +430,10 @@ export const mockWorkspace: WorkspaceBridge = {
   gitVisFileSunburst: async () => ({
     ok: true as const,
     data: { tree: fileTreemapData },
+  }),
+  gitVisFileHotspots: async () => ({
+    ok: true as const,
+    data: fileHotspotsMockData,
   }),
   gitVisFirstCommitYear: async () => ({
     ok: true as const,

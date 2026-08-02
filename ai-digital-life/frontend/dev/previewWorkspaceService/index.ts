@@ -477,6 +477,17 @@ const routes: Route[] = [
       return ok(data);
     },
   },
+  {
+    method: 'GET', pathname: makePath('/workspace/git-vis-file-hotspots'),
+    handler: async (_req, _body, searchParams) => {
+      const rootPath = searchParams.get('rootPath');
+      const since = searchParams.get('since') ?? undefined;
+      const until = searchParams.get('until') ?? undefined;
+      if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      const data = await gitVis.handleFileHotspots(rootPath, since, until);
+      return ok(data);
+    },
+  },
 ];
 
 export async function handlePreviewWorkspaceApi(request: IncomingMessage, response: ServerResponse): Promise<boolean> {

@@ -347,3 +347,144 @@ export async function handleFileSunburst(rootPath: string) {
 
   return { tree };
 }
+
+export async function handleFileHotspots(
+  rootPath: string,
+  since?: string,
+  until?: string,
+): Promise<{ tree: unknown; files: unknown[] }> {
+  const args = ['log', '--pretty=format:%H|%aI', '--numstat'];
+  if (since) args.push(`--since=${since}`);
+  if (until) args.push(`--until=${until}`);
+  const raw = (await runGit(rootPath, args)) ?? '';
+
+  interface FileAgg {
+    changeCount: number;
+    additions: number;
+    deletions: number;
+    lastModified: string;
+  }
+  const map = new Map<string, FileAgg>();
+  let currentDate: string | null = null;
+
+  for (const line of raw.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const parts = trimmed.split('\t');
+    if (parts.length === 3) {
+      const [addsRaw, delsRaw, path] = parts;
+      if (!path) continue;
+      const entry = map.get(path) ?? {
+        changeCount: 0,
+        additions: 0,
+        deletions: 0,
+        lastModified: '',
+      };
+      entry.changeCount += 1;
+      entry.additions += addsRaw === '-' ? 0 : parseInt(addsRaw, 10) || 0;
+      entry.deletions += delsRaw === '-' ? 0 : parseInt(delsRaw, 10) || 0;
+      if (currentDate && (currentDate > entry.lastModified || !entry.lastModified)) {
+        entry.lastModified = currentDate;
+      }
+      map.set(path, entry);
+      continue;
+    }
+
+    const pipePos = trimmed.indexOf('|');
+    if (pipePos >= 0) {
+      const datePart = trimmed.slice(pipePos + 1);
+      if (datePart.length >= 10) {
+        const head = datePart.slice(0, 10);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(head)) {
+          currentDate = head;
+        }
+      }
+    }
+  }
+
+  const files = Array.from(map.entries())
+    .map(([path, agg]) => ({ path, ...agg }))
+    .sort((a, b) => b.changeCount - a.changeCount || a.path.localeCompare(b.path));
+
+  // Build tree (mirror Rust logic)
+  interface TreeNode {
+    name: string;
+    nodeType: string;
+    changeCount?: number;
+    additions?: number;
+    deletions?: number;
+    lastModified?: string;
+    children?: TreeNode[];
+  }
+  const root: TreeNode = {
+    name: 'root',
+    nodeType: 'directory',
+    children: [],
+  };
+
+  const addToTree = (
+    node: TreeNode,
+    parts: string[],
+    idx: number,
+    file: (typeof files)[number],
+  ) => {
+    if (idx >= parts.length) return;
+    const name = parts[idx];
+    const isFile = idx === parts.length - 1;
+    const nodeType = isFile ? 'file' : 'directory';
+    node.children = node.children ?? [];
+    const existing = node.children.find((c) => c.name === name && c.nodeType === nodeType);
+    if (existing) {
+      if (isFile) {
+        existing.changeCount = file.changeCount;
+        existing.additions = file.additions;
+        existing.deletions = file.deletions;
+        existing.lastModified = file.lastModified;
+      } else {
+        addToTree(existing, parts, idx + 1, file);
+      }
+    } else {
+      const newNode: TreeNode = {
+        name,
+        nodeType,
+        changeCount: isFile ? file.changeCount : undefined,
+        additions: isFile ? file.additions : undefined,
+        deletions: isFile ? file.deletions : undefined,
+        lastModified: isFile ? file.lastModified : undefined,
+        children: isFile ? undefined : [],
+      };
+      if (!isFile) addToTree(newNode, parts, idx + 1, file);
+      node.children.push(newNode);
+    }
+  };
+
+  for (const file of files) {
+    addToTree(root, file.path.split('/'), 0, file);
+  }
+
+  // Aggregate directory stats post-order
+  const aggregate = (node: TreeNode): void => {
+    if (node.nodeType === 'file' || !node.children) return;
+    let totalChange = 0;
+    let totalAdd = 0;
+    let totalDel = 0;
+    let maxDate = '';
+    for (const child of node.children) {
+      aggregate(child);
+      totalChange += child.changeCount ?? 0;
+      totalAdd += child.additions ?? 0;
+      totalDel += child.deletions ?? 0;
+      if (child.lastModified && child.lastModified > maxDate) {
+        maxDate = child.lastModified;
+      }
+    }
+    node.changeCount = totalChange;
+    node.additions = totalAdd;
+    node.deletions = totalDel;
+    if (maxDate) node.lastModified = maxDate;
+  };
+  aggregate(root);
+
+  return { tree: root, files };
+}

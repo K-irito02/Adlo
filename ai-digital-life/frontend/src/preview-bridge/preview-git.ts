@@ -5,6 +5,7 @@ import type {
   GitVisCodeEvolution,
   GitVisContributorModules,
   GitVisBranchGraph,
+  GitVisFileHotspots,
   GitVisFileSunburst,
   IpcResult,
   WorkspaceGitBranchChangeResult,
@@ -172,6 +173,18 @@ export function createPreviewGitBridge(
       const params = new URLSearchParams({ rootPath });
       return requestPreviewApi<GitVisFileSunburst>(
         `/workspace/git-vis-file-sunburst?${params.toString()}`,
+      );
+    },
+    gitVisFileHotspots: async (rootPath: string, since?: string, until?: string) => {
+      const params = new URLSearchParams({ rootPath });
+      if (since) {
+        params.set('since', since);
+      }
+      if (until) {
+        params.set('until', until);
+      }
+      return requestPreviewApi<GitVisFileHotspots>(
+        `/workspace/git-vis-file-hotspots?${params.toString()}`,
       );
     },
     gitVisFirstCommitYear: async (rootPath: string) => {

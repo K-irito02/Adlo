@@ -204,6 +204,26 @@ export interface GitVisSunburstNode {
 export interface GitVisFileSunburst {
   tree: GitVisSunburstNode;
 }
+export interface GitVisFileHotspotNode {
+  name: string;
+  nodeType: string;
+  changeCount?: number;
+  additions?: number;
+  deletions?: number;
+  lastModified?: string;
+  children?: GitVisFileHotspotNode[];
+}
+export interface GitVisFileHotspotFile {
+  path: string;
+  changeCount: number;
+  additions: number;
+  deletions: number;
+  lastModified: string;
+}
+export interface GitVisFileHotspots {
+  tree: GitVisFileHotspotNode;
+  files: GitVisFileHotspotFile[];
+}
 
 // ════════════════════════════════════════════════════════
 // Session / App State

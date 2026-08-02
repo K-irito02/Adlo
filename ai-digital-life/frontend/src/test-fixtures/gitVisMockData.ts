@@ -628,3 +628,114 @@ export function generateContributorModuleData(): HeatmapColumn[] {
     })),
   }));
 }
+
+/** 文件热点 mock 数据（tree + files 双结构） */
+export const fileHotspotsMockData = {
+  tree: {
+    name: 'root',
+    nodeType: 'directory',
+    changeCount: 47,
+    additions: 420,
+    deletions: 180,
+    lastModified: '2026-08-01',
+    children: [
+      {
+        name: 'src',
+        nodeType: 'directory',
+        changeCount: 35,
+        additions: 320,
+        deletions: 150,
+        lastModified: '2026-08-01',
+        children: [
+          {
+            name: 'core',
+            nodeType: 'directory',
+            changeCount: 24,
+            additions: 209,
+            deletions: 75,
+            lastModified: '2026-08-01',
+            children: [
+              {
+                name: 'engine.ts',
+                nodeType: 'file',
+                changeCount: 24,
+                additions: 120,
+                deletions: 45,
+                lastModified: '2026-07-31',
+              },
+            ],
+          },
+          {
+            name: 'api',
+            nodeType: 'directory',
+            changeCount: 11,
+            additions: 111,
+            deletions: 75,
+            lastModified: '2026-08-01',
+            children: [
+              {
+                name: 'handler.ts',
+                nodeType: 'file',
+                changeCount: 18,
+                additions: 89,
+                deletions: 30,
+                lastModified: '2026-07-30',
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'tests',
+        nodeType: 'directory',
+        changeCount: 12,
+        additions: 100,
+        deletions: 30,
+        lastModified: '2026-07-29',
+        children: [
+          {
+            name: 'unit',
+            nodeType: 'directory',
+            changeCount: 12,
+            additions: 100,
+            deletions: 30,
+            lastModified: '2026-07-29',
+            children: [
+              {
+                name: 'engine.test.ts',
+                nodeType: 'file',
+                changeCount: 12,
+                additions: 100,
+                deletions: 30,
+                lastModified: '2026-07-29',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  files: [
+    {
+      path: 'src/api/handler.ts',
+      changeCount: 18,
+      additions: 89,
+      deletions: 30,
+      lastModified: '2026-07-30',
+    },
+    {
+      path: 'src/core/engine.ts',
+      changeCount: 24,
+      additions: 120,
+      deletions: 45,
+      lastModified: '2026-07-31',
+    },
+    {
+      path: 'tests/unit/engine.test.ts',
+      changeCount: 12,
+      additions: 100,
+      deletions: 30,
+      lastModified: '2026-07-29',
+    },
+  ],
+};
