@@ -64,7 +64,7 @@ describe('FileSunburst', () => {
     const mockT = {};
     const { container } = render(
       <TCopyProvider t={mockT as any} locale="en-US">
-        <FileSunburst data={fileTreemapData} />
+        <FileSunburst data={{ tree: fileTreemapData }} />
       </TCopyProvider>,
     );
     expect(container.querySelector('svg')).toBeInTheDocument();

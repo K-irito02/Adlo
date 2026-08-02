@@ -1,4 +1,5 @@
 import type { HeatmapColumn, HeatmapBin } from '@/components/charts/heatmap/heatmap-context';
+import type { SunburstNode } from '@/components/charts/sunburst-chart';
 import type { CommitNode, CommitEdge } from '../types/gitGraph';
 
 export type Granularity = 'day' | 'week' | 'month';
@@ -488,6 +489,29 @@ export function adaptBranchGraphData(raw: RawBranchGraph): {
   };
 }
 
-export function adaptSunburstData(tree: unknown): unknown {
-  return tree;
+interface GitVisSunburstNodeInput {
+  name: string;
+  type?: string;
+  size?: number;
+  children?: GitVisSunburstNodeInput[];
+}
+
+export function adaptSunburstData(raw: unknown): SunburstNode {
+  const wrapped = raw as { tree?: GitVisSunburstNodeInput } | GitVisSunburstNodeInput;
+  const root = wrapped && typeof wrapped === 'object' && 'tree' in wrapped ? wrapped.tree : wrapped;
+  if (!root || typeof root !== 'object' || !('name' in root)) {
+    return { name: '', children: [] };
+  }
+
+  const mapNode = (n: GitVisSunburstNodeInput): SunburstNode => {
+    const out: SunburstNode = { name: n.name };
+    if (n.size !== undefined) {
+      out.value = n.size;
+    }
+    if (n.children?.length) {
+      out.children = n.children.map(mapNode);
+    }
+    return out;
+  };
+  return mapNode(root);
 }
