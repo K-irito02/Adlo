@@ -131,6 +131,7 @@ export const SunburstSegment = memo(function SunburstSegment({
         style={groupStyle}
         transition={{ opacity: HOVER_DIM_TRANSITION }}
       >
+        <title>{arc.name}</title>
         <path d={fullHitPath} fill="transparent" />
         <path d={fullVisualPath} {...visualPathProps} />
       </motion.g>
@@ -149,6 +150,7 @@ export const SunburstSegment = memo(function SunburstSegment({
       }}
       transition={{ opacity: HOVER_DIM_TRANSITION }}
     >
+      <title>{arc.name}</title>
       <motion.path d={animatedHitPath} fill="transparent" />
       <motion.path d={animatedVisualPath} {...visualPathProps} />
     </motion.g>
