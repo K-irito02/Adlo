@@ -15,17 +15,27 @@ import { useMountProgress } from './use-mount-progress';
 
 let measureCanvas: HTMLCanvasElement | null = null;
 function measureText(text: string, fontSize: number): number {
-  if (typeof document === 'undefined') return text.length * fontSize * 0.6;
-  if (!measureCanvas) measureCanvas = document.createElement('canvas');
+  if (typeof document === 'undefined') {
+    return text.length * fontSize * 0.6;
+  }
+  if (!measureCanvas) {
+    measureCanvas = document.createElement('canvas');
+  }
   const ctx = measureCanvas.getContext('2d');
-  if (!ctx) return text.length * fontSize * 0.6;
+  if (!ctx) {
+    return text.length * fontSize * 0.6;
+  }
   ctx.font = `600 ${fontSize}px inherit`;
   return ctx.measureText(text).width;
 }
 
 function fitLabel(name: string, maxWidth: number, fontSize: number): string {
-  if (maxWidth <= 0) return '…';
-  if (measureText(name, fontSize) <= maxWidth) return name;
+  if (maxWidth <= 0) {
+    return '…';
+  }
+  if (measureText(name, fontSize) <= maxWidth) {
+    return name;
+  }
   let lo = 1;
   let hi = name.length;
   let result = '';

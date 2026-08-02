@@ -27,7 +27,12 @@ vi.mock('motion/react', () => ({
     },
   ),
   animate: () => ({ stop: () => {}, then: () => Promise.resolve(), cancel: () => {} }),
-  useMotionValue: <T,>(val: T) => ({ get: () => val, set: () => {}, stop: () => {}, on: () => () => {} }),
+  useMotionValue: <T,>(val: T) => ({
+    get: () => val,
+    set: () => {},
+    stop: () => {},
+    on: () => () => {},
+  }),
   useTransform: () => ({ get: () => 0, set: () => {}, stop: () => {}, on: () => () => {} }),
   useReducedMotion: () => false,
 }));
@@ -38,7 +43,9 @@ const mockCtx = {
   measureText: (text: string) => ({ width: text.length * 6 }),
 };
 vi.stubGlobal('measureCanvas', undefined);
-vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(mockCtx as unknown as CanvasRenderingContext2D);
+vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+  mockCtx as unknown as CanvasRenderingContext2D,
+);
 
 const testData: SunburstNode = {
   name: 'root',
