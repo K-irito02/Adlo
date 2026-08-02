@@ -548,25 +548,32 @@ export function adaptHotspotsTree(
   const arcMeta = new Map<number, HotspotArcMeta>();
   hotspotArcCounter = 0;
 
-  const mapNode = (n: GitVisHotspotNodeInput): SunburstNode | null => {
+  const mapNode = (n: GitVisHotspotNodeInput, isRoot: boolean): SunburstNode | null => {
     // Skip file nodes
     if (n.nodeType === 'file') {
       return null;
     }
 
-    const children = (n.children ?? []).map(mapNode).filter((c): c is SunburstNode => c !== null);
+    // Assign arc ID pre-order (before children), but skip root to match
+    // buildArcs' `depth > 0` exclusion in sunburst-chart — otherwise
+    // arcMeta.get(i) would be off-by-one and misalign colors/tooltips.
+    if (!isRoot) {
+      const arcId = hotspotArcCounter++;
+      arcMeta.set(arcId, {
+        changeCount: n.changeCount ?? 0,
+        additions: n.additions ?? 0,
+        deletions: n.deletions ?? 0,
+        lastModified: n.lastModified ?? null,
+      });
+    }
 
     // Keep all directories (even those with no surviving children after
     // filtering file leaves) — they still represent real hotspots and are
     // counted as arcs by downstream consumers (see countDescendants in
     // FileSunburstChart). Only the root is force-kept by the caller's fallback.
-    const arcId = hotspotArcCounter++;
-    arcMeta.set(arcId, {
-      changeCount: n.changeCount ?? 0,
-      additions: n.additions ?? 0,
-      deletions: n.deletions ?? 0,
-      lastModified: n.lastModified ?? null,
-    });
+    const children = (n.children ?? [])
+      .map((c) => mapNode(c, false))
+      .filter((c): c is SunburstNode => c !== null);
 
     return {
       name: n.name,
@@ -575,7 +582,7 @@ export function adaptHotspotsTree(
     };
   };
 
-  const mapped = mapNode(root);
+  const mapped = mapNode(root, true);
   const tree: SunburstNode = mapped ?? { name: 'root', value: 0, children: [] };
   return { tree, arcMeta };
 }

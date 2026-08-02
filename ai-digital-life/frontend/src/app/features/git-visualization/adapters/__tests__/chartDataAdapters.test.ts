@@ -117,8 +117,8 @@ describe('adaptHotspotsTree', () => {
     expect(tree.children?.[0].children?.[0].name).toBe('core');
     expect(tree.children?.[0].children?.[0].children).toEqual([]);
 
-    // arcMeta should have entries for all directory nodes (root, src, core)
-    expect(arcMeta.size).toBeGreaterThanOrEqual(3);
+    // arcMeta excludes root (matches buildArcs' depth > 0): src + core only
+    expect(arcMeta.size).toBeGreaterThanOrEqual(2);
   });
 
   it('keeps directories that become empty after filtering as leaf nodes', () => {
@@ -183,7 +183,8 @@ describe('adaptHotspotsTree', () => {
 
     const { arcMeta } = adaptHotspotsTree(root, 'heat');
     const metas = Array.from(arcMeta.values());
-    expect(metas.length).toBeGreaterThanOrEqual(2);
+    // arcMeta excludes root (matches buildArcs' depth > 0): src only
+    expect(metas.length).toBeGreaterThanOrEqual(1);
     const srcMeta = metas.find((m) => m.additions === 100);
     expect(srcMeta).toBeDefined();
     expect(srcMeta?.changeCount).toBe(30);
