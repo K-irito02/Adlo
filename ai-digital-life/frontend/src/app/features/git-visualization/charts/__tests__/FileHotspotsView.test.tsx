@@ -75,6 +75,8 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisSunburstHintZoomIn: 'Click to drill',
       gitVisSunburstHintZoomOut: 'Click center to zoom out',
       gitVisHotspotsTooltipChanges: '{count} changes',
+      gitVisHotspotsTooltipLines: '+{add} / -{del} lines',
+      gitVisHotspotsTooltipLastModified: 'Last modified {date}',
     },
   }),
 }));

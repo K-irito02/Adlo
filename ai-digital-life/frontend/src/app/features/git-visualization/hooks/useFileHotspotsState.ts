@@ -24,10 +24,10 @@ export function useFileHotspotsState(): FileHotspotsState {
     (key: RankingSortKey) => {
       if (key === sortKey) {
         setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-      } else {
-        setSortKey(key);
-        setSortDir('desc');
+        return;
       }
+      setSortKey(key);
+      setSortDir('desc');
     },
     [sortKey],
   );

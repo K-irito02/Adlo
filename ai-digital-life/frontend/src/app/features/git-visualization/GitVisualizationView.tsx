@@ -10,7 +10,6 @@ import {
   useCodeLineEvoVisibility,
 } from './charts/CodeLineEvo';
 import { CommitTimeline } from './charts/CommitTimeline';
-import { FileSunburstChart } from './charts/FileSunburst';
 import { FileHotspotsView } from './charts/FileHotspotsView';
 import { BranchGraph } from './charts/BranchGraph';
 import { ChartColorPresetSelector } from './ChartColorPresetSelector';
@@ -150,7 +149,6 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const branchGraphData = useChartData(CHART_IDS.BRANCH_GRAPH);
   const codeLineEvoData = useChartData(CHART_IDS.CODE_LINE_EVO);
   const commitTimelineData = useChartData(CHART_IDS.COMMIT_TIMELINE);
-  const fileSunburstData = useChartData(CHART_IDS.FILE_SUNBURST);
   const fileHotspotsData = useChartData(CHART_IDS.FILE_HOTSPOTS);
 
   const codeLineEvoVis = useCodeLineEvoVisibility();
@@ -196,10 +194,6 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   );
   const handleRefreshCommitTimeline = useCallback(
     () => refreshChart(CHART_IDS.COMMIT_TIMELINE),
-    [refreshChart],
-  );
-  const handleRefreshFileSunburst = useCallback(
-    () => refreshChart(CHART_IDS.FILE_SUNBURST),
     [refreshChart],
   );
   const handleRefreshFileHotspots = useCallback(
@@ -445,21 +439,6 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                 days:
                   (commitTimelineData.data as GitVisCommitStats | undefined)?.commitTimeline ?? [],
               }}
-            />
-          )}
-        </TimeRangeAwareCard>
-        <TimeRangeAwareCard
-          title={t.gitVisFileSunburst}
-          desc={t.gitVisFileSunburstDesc}
-          onRefresh={handleRefreshFileSunburst}
-          refreshLabel={t.gitVisRefreshChart}
-          timeRange={fileSunburstData}
-          yearBounds={yearBounds}
-        >
-          {fileSunburstData.loading ? null : (
-            <FileSunburstChart
-              data={fileSunburstData.data as GitVisFileHotspots | undefined}
-              colorMode="heat"
             />
           )}
         </TimeRangeAwareCard>

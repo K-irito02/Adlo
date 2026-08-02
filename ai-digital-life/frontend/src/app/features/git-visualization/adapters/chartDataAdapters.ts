@@ -535,8 +535,6 @@ interface HotspotArcMeta {
   lastModified: string | null;
 }
 
-let hotspotArcCounter = 0;
-
 /**
  * Adapt hotspot tree for sunburst: filter out file leaves, keep only directories.
  * Returns the adapted tree + arcMeta Map (keyed by arc index) for tooltip/color.
@@ -546,7 +544,6 @@ export function adaptHotspotsTree(
   _colorMode: 'heat' | 'time',
 ): { tree: SunburstNode; arcMeta: Map<number, HotspotArcMeta> } {
   const arcMeta = new Map<number, HotspotArcMeta>();
-  hotspotArcCounter = 0;
 
   const mapNode = (n: GitVisHotspotNodeInput, isRoot: boolean): SunburstNode | null => {
     // Skip file nodes
@@ -557,8 +554,10 @@ export function adaptHotspotsTree(
     // Assign arc ID pre-order (before children), but skip root to match
     // buildArcs' `depth > 0` exclusion in sunburst-chart — otherwise
     // arcMeta.get(i) would be off-by-one and misalign colors/tooltips.
+    // `arcMeta.size` at insertion time equals the next pre-order index
+    // (excluding root), so it is a stable replacement for a counter.
     if (!isRoot) {
-      const arcId = hotspotArcCounter++;
+      const arcId = arcMeta.size;
       arcMeta.set(arcId, {
         changeCount: n.changeCount ?? 0,
         additions: n.additions ?? 0,

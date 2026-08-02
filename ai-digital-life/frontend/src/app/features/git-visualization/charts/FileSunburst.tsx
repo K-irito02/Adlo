@@ -63,7 +63,7 @@ function FileSunburstHintText({ hoveredArc, focus, arcMeta }: FileSunburstHintTe
       const meta = arcMeta.get(hoveredArc.arcIndex);
       if (meta) {
         const trail = hoveredArc.trail.join('  ›  ');
-        return `${trail}  ·  ${meta.changeCount} ${t.gitVisHotspotsTooltipChanges?.replace('{count}', '') ?? ''}`;
+        return `${trail}  ·  ${t.gitVisHotspotsTooltipChanges.replace('{count}', String(meta.changeCount))}`;
       }
       return hoveredArc.trail.join('  ›  ');
     }
@@ -126,6 +126,7 @@ export const FileSunburstChart = React.memo(function FileSunburstChart({
   onDrill,
   zoomToRootRef,
 }: FileSunburstChartProps) {
+  const { t } = useTCopy();
   const { tree: treeData, arcMeta } = useMemo(() => {
     if (!data?.tree) {
       return { tree: null, arcMeta: new Map<number, HotspotArcMeta>() };
@@ -144,11 +145,21 @@ export const FileSunburstChart = React.memo(function FileSunburstChart({
       const meta = arcMeta.get(i);
       const fill = meta ? computeArcFill(meta, colorMode, allMetas) : undefined;
       const tooltipText = meta
-        ? `${treeData.name}\n${meta.changeCount} changes\n+${meta.additions} / -${meta.deletions}\n${meta.lastModified ?? ''}`
+        ? [
+            t.gitVisHotspotsTooltipChanges.replace('{count}', String(meta.changeCount)),
+            t.gitVisHotspotsTooltipLines
+              .replace('{add}', String(meta.additions))
+              .replace('{del}', String(meta.deletions)),
+            meta.lastModified
+              ? t.gitVisHotspotsTooltipLastModified.replace('{date}', meta.lastModified)
+              : '',
+          ]
+            .filter(Boolean)
+            .join('\n')
         : undefined;
       return <SunburstSegment key={i} index={i} fill={fill} tooltipText={tooltipText} />;
     });
-  }, [treeData, arcMeta, allMetas, colorMode]);
+  }, [treeData, arcMeta, allMetas, colorMode, t]);
 
   if (!treeData) {
     return (

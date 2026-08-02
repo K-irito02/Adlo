@@ -67,7 +67,9 @@ const mockT = {
   gitVisBreadcrumbNav: 'Module breadcrumb',
   gitVisSunburstHintZoomIn: 'Click a segment to zoom in',
   gitVisSunburstHintZoomOut: 'Click the center to zoom out',
-  gitVisHotspotsTooltipChanges: 'changes',
+  gitVisHotspotsTooltipChanges: '{count} changes',
+  gitVisHotspotsTooltipLines: '+{add} / -{del} lines',
+  gitVisHotspotsTooltipLastModified: 'Last modified {date}',
 } as unknown as TCopyContextValue['t'];
 
 describe('FileSunburstChart', () => {

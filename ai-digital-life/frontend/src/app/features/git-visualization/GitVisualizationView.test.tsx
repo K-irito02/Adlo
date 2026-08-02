@@ -207,10 +207,10 @@ vi.mock('../hooks/useGitVisRefresh', () => ({
 }));
 
 describe('GitVisualizationView', () => {
-  it('renders 6 chart cards', { timeout: 30000 }, () => {
+  it('renders 5 chart cards', { timeout: 30000 }, () => {
     const { container } = render(<GitVisualizationView />);
     const cards = container.querySelectorAll('.adl-git-vis__card');
-    expect(cards.length).toBe(6);
+    expect(cards.length).toBe(5);
   });
 
   it('renders scroll container', { timeout: 30000 }, () => {
