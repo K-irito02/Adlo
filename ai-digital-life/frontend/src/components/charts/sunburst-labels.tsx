@@ -13,6 +13,36 @@ import { sunburstCssVars, useSunburstStable } from './sunburst-context';
 import { useEnterComplete } from './use-enter-complete';
 import { useMountProgress } from './use-mount-progress';
 
+let measureCanvas: HTMLCanvasElement | null = null;
+function measureText(text: string, fontSize: number): number {
+  if (typeof document === 'undefined') return text.length * fontSize * 0.6;
+  if (!measureCanvas) measureCanvas = document.createElement('canvas');
+  const ctx = measureCanvas.getContext('2d');
+  if (!ctx) return text.length * fontSize * 0.6;
+  ctx.font = `600 ${fontSize}px inherit`;
+  return ctx.measureText(text).width;
+}
+
+function fitLabel(name: string, maxWidth: number, fontSize: number): string {
+  if (maxWidth <= 0) return '…';
+  if (measureText(name, fontSize) <= maxWidth) return name;
+  let lo = 1;
+  let hi = name.length;
+  let result = '';
+  const ellipsis = '…';
+  while (lo <= hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    const candidate = name.slice(0, mid) + ellipsis;
+    if (measureText(candidate, fontSize) <= maxWidth) {
+      result = candidate;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return result || ellipsis;
+}
+
 export interface SunburstLabelsProps {
   fontSize?: number;
   fill?: string;
@@ -72,6 +102,9 @@ export const SunburstLabels = memo(function SunburstLabels({
           return null;
         }
 
+        const availableWidth = Math.max(0, angleSpan * r - 8);
+        const displayLabel = fitLabel(arc.name, availableWidth, fontSize);
+
         const mid = geomCentroidAngle(g);
         const x = Math.sin(mid) * r;
         const y = -Math.cos(mid) * r;
@@ -108,7 +141,7 @@ export const SunburstLabels = memo(function SunburstLabels({
               x={x}
               y={y}
             >
-              {arc.name}
+              {displayLabel}
             </text>
           );
         }
@@ -124,7 +157,7 @@ export const SunburstLabels = memo(function SunburstLabels({
             x={x}
             y={y}
           >
-            {arc.name}
+            {displayLabel}
           </motion.text>
         );
       })}
