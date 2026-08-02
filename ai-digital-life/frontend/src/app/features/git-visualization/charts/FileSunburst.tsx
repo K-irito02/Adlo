@@ -131,8 +131,8 @@ export const FileSunburstChart = React.memo(function FileSunburstChart({
     if (!data?.tree) {
       return { tree: null, arcMeta: new Map<number, HotspotArcMeta>() };
     }
-    return adaptHotspotsTree(data.tree, colorMode);
-  }, [data, colorMode]);
+    return adaptHotspotsTree(data.tree);
+  }, [data]);
 
   const allMetas = useMemo(() => Array.from(arcMeta.values()), [arcMeta]);
 

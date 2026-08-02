@@ -539,10 +539,10 @@ interface HotspotArcMeta {
  * Adapt hotspot tree for sunburst: filter out file leaves, keep only directories.
  * Returns the adapted tree + arcMeta Map (keyed by arc index) for tooltip/color.
  */
-export function adaptHotspotsTree(
-  root: GitVisHotspotNodeInput,
-  _colorMode: 'heat' | 'time',
-): { tree: SunburstNode; arcMeta: Map<number, HotspotArcMeta> } {
+export function adaptHotspotsTree(root: GitVisHotspotNodeInput): {
+  tree: SunburstNode;
+  arcMeta: Map<number, HotspotArcMeta>;
+} {
   const arcMeta = new Map<number, HotspotArcMeta>();
 
   const mapNode = (n: GitVisHotspotNodeInput, isRoot: boolean): SunburstNode | null => {

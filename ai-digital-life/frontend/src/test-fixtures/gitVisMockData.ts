@@ -668,7 +668,7 @@ export const fileHotspotsMockData = {
           {
             name: 'api',
             nodeType: 'directory',
-            changeCount: 11,
+            changeCount: 18,
             additions: 111,
             deletions: 75,
             lastModified: '2026-08-01',

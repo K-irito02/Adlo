@@ -1466,7 +1466,7 @@
 .adl-file-hotspots-ranking__header {
   position: sticky;
   top: 0;
-  background: var(--bg-default);
+  background: var(--bg-card);
   border-bottom: 1px solid var(--border-default);
   font-weight: 600;
   color: var(--text-muted);

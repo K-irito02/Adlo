@@ -106,7 +106,7 @@ describe('adaptHotspotsTree', () => {
       ],
     });
 
-    const { tree, arcMeta } = adaptHotspotsTree(root, 'heat');
+    const { tree, arcMeta } = adaptHotspotsTree(root);
 
     // root + src + core (3 directories), engine.ts and lib.ts filtered out
     expect(tree.name).toBe('root');
@@ -141,7 +141,7 @@ describe('adaptHotspotsTree', () => {
       ],
     });
 
-    const { tree } = adaptHotspotsTree(root, 'heat');
+    const { tree } = adaptHotspotsTree(root);
     // empty-dir's only child is a file, so after filtering empty-dir has empty children.
     // The directory is kept as a leaf node (children: []) so it still renders as an arc
     // on the sunburst — downstream consumers iterate arcMeta by index (see Task 5
@@ -159,7 +159,7 @@ describe('adaptHotspotsTree', () => {
       ],
     });
 
-    const { tree } = adaptHotspotsTree(root, 'heat');
+    const { tree } = adaptHotspotsTree(root);
     expect(tree.name).toBe('root');
     expect(tree.value).toBe(0);
     expect(tree.children).toEqual([]);
@@ -181,7 +181,7 @@ describe('adaptHotspotsTree', () => {
       ],
     });
 
-    const { arcMeta } = adaptHotspotsTree(root, 'heat');
+    const { arcMeta } = adaptHotspotsTree(root);
     const metas = Array.from(arcMeta.values());
     // arcMeta excludes root (matches buildArcs' depth > 0): src only
     expect(metas.length).toBeGreaterThanOrEqual(1);
