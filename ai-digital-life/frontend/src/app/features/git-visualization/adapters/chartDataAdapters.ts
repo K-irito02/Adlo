@@ -515,3 +515,121 @@ export function adaptSunburstData(raw: unknown): SunburstNode {
   };
   return mapNode(root);
 }
+
+// ============ File Hotspots Adapters ============
+
+interface GitVisHotspotNodeInput {
+  name: string;
+  nodeType: string;
+  changeCount?: number;
+  additions?: number;
+  deletions?: number;
+  lastModified?: string;
+  children?: GitVisHotspotNodeInput[];
+}
+
+interface HotspotArcMeta {
+  changeCount: number;
+  additions: number;
+  deletions: number;
+  lastModified: string | null;
+}
+
+let hotspotArcCounter = 0;
+
+/**
+ * Adapt hotspot tree for sunburst: filter out file leaves, keep only directories.
+ * Returns the adapted tree + arcMeta Map (keyed by arc index) for tooltip/color.
+ */
+export function adaptHotspotsTree(
+  root: GitVisHotspotNodeInput,
+  _colorMode: 'heat' | 'time',
+): { tree: SunburstNode; arcMeta: Map<number, HotspotArcMeta> } {
+  const arcMeta = new Map<number, HotspotArcMeta>();
+  hotspotArcCounter = 0;
+
+  const mapNode = (n: GitVisHotspotNodeInput): SunburstNode | null => {
+    // Skip file nodes
+    if (n.nodeType === 'file') {
+      return null;
+    }
+
+    const children = (n.children ?? []).map(mapNode).filter((c): c is SunburstNode => c !== null);
+
+    // Keep all directories (even those with no surviving children after
+    // filtering file leaves) — they still represent real hotspots and are
+    // counted as arcs by downstream consumers (see countDescendants in
+    // FileSunburstChart). Only the root is force-kept by the caller's fallback.
+    const arcId = hotspotArcCounter++;
+    arcMeta.set(arcId, {
+      changeCount: n.changeCount ?? 0,
+      additions: n.additions ?? 0,
+      deletions: n.deletions ?? 0,
+      lastModified: n.lastModified ?? null,
+    });
+
+    return {
+      name: n.name,
+      value: n.changeCount ?? 0,
+      children: children.length > 0 ? children : [],
+    };
+  };
+
+  const mapped = mapNode(root);
+  const tree: SunburstNode = mapped ?? { name: 'root', value: 0, children: [] };
+  return { tree, arcMeta };
+}
+
+/** Filter flat file list by path prefix (drill-down). */
+export function filterFilesByPath(
+  files: { path: string }[],
+  filterPath: string[],
+): { path: string }[] {
+  if (filterPath.length === 0) {
+    return files;
+  }
+  const prefix = `${filterPath.join('/')}/`;
+  return files.filter((f) => f.path.startsWith(prefix));
+}
+
+/**
+ * Compute fill color for an arc based on color mode.
+ * Heat: changeCount normalized to [0, max] → heatmap color scale.
+ * Time: lastModified timestamp normalized to [min, max] → heatmap color scale.
+ */
+export function computeArcFill(
+  meta: HotspotArcMeta,
+  colorMode: 'heat' | 'time',
+  allMetas: HotspotArcMeta[],
+): string {
+  if (colorMode === 'heat') {
+    const maxCount = allMetas.reduce((max, m) => Math.max(max, m.changeCount), 0);
+    if (maxCount === 0) {
+      return 'var(--heatmap-level-2, #6b7280)';
+    }
+    const level = Math.min(4, Math.floor((meta.changeCount / maxCount) * 5));
+    return `var(--heatmap-level-${level}, #6b7280)`;
+  }
+
+  // time mode
+  const timestamps = allMetas
+    .map((m) => (m.lastModified ? Date.parse(m.lastModified) : 0))
+    .filter((t) => !Number.isNaN(t));
+  if (timestamps.length === 0) {
+    return 'var(--heatmap-level-2, #6b7280)';
+  }
+
+  const minT = Math.min(...timestamps);
+  const maxT = Math.max(...timestamps);
+  if (maxT === minT) {
+    return 'var(--heatmap-level-2, #6b7280)';
+  }
+
+  const currentT = meta.lastModified ? Date.parse(meta.lastModified) : 0;
+  if (Number.isNaN(currentT)) {
+    return 'var(--heatmap-level-0, #1f2937)';
+  }
+
+  const level = Math.min(4, Math.floor(((currentT - minT) / (maxT - minT)) * 5));
+  return `var(--heatmap-level-${level}, #6b7280)`;
+}
