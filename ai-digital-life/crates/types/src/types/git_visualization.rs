@@ -162,15 +162,10 @@ pub struct GitVisFileSunburst {
 pub struct GitVisFileHotspotNode {
     pub name: String,
     pub node_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub change_count: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub additions: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub deletions: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_modified: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub children: Option<Vec<GitVisFileHotspotNode>>,
 }
 
