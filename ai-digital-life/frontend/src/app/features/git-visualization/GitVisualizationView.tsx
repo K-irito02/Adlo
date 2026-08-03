@@ -201,6 +201,10 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
     [refreshChart],
   );
   const handleRefreshHeatmap = useCallback(() => refreshChart(CHART_IDS.HEATMAP), [refreshChart]);
+  const handleRefreshContributorModules = useCallback(
+    () => refreshChart(CHART_IDS.CONTRIBUTOR_MODULES),
+    [refreshChart],
+  );
 
   const rightExtra = useMemo(
     () => (
@@ -344,6 +348,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
         <WorkspaceTabBar rightExtra={rightExtra} />
         <HeatmapCardGroup
           onRefresh={handleRefreshHeatmap}
+          onRefreshContributorModules={handleRefreshContributorModules}
           commitStats={
             heatmapData.data as
               | {

@@ -70,6 +70,7 @@ vi.mock('@stores/slicedStore', () => ({
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.clearAllMocks();
 });
 
@@ -292,6 +293,29 @@ describe('TimeRangeSelector preset mode with yearBounds', () => {
     const rightBtn = screen.getByRole('button', { name: 'Later Period' });
     fireEvent.click(rightBtn);
     expect(onChange).toHaveBeenCalled();
+  });
+
+  it('re-resolves the rolling anchor before stepping a relative preset', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 3, 12, 0, 0));
+    const onChange = vi.fn();
+    const value: TimeRangeState = {
+      preset: 'week',
+      since: '2026-07-10',
+      until: '2026-07-17',
+    };
+    render(<TimeRangeSelector value={value} onChange={onChange} mode="preset" />);
+    const rightBtn = screen.getByRole('button', { name: 'Later Period' });
+    fireEvent.click(rightBtn);
+    vi.useRealTimers();
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const call = onChange.mock.calls[0][0] as TimeRangeState;
+    expect(call.preset).toBe('custom');
+    expect(call.since).toMatch(/^2026-08/);
+    const rangeMs =
+      new Date(`${call.until}T00:00:00`).getTime() - new Date(`${call.since}T00:00:00`).getTime();
+    expect(rangeMs).toBe(7 * 24 * 60 * 60 * 1000);
   });
 });
 

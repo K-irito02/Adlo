@@ -17,6 +17,24 @@
   align-items: center;
   padding: 4px 6px;
   border-bottom: 1px solid var(--border-subtle);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.adl-module-tree-card__header.is-dragging {
+  cursor: grabbing;
+}
+
+.adl-module-tree-card__dir-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .adl-module-tree-card__header-left {

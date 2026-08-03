@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTCopy } from '@i18n/useTCopy';
 import { IconClose, IconFoldVertical } from '@icons';
@@ -9,6 +9,10 @@ import '@/styles/components/module-tree-card.css';
 interface ModuleTreeCardProps {
   subtree: ModuleTreeNode[];
   position: { x: number; y: number };
+  /** Basename of the right-clicked directory, shown in the card header. */
+  dirName?: string;
+  /** Full path of the right-clicked directory, shown as a native title tooltip. */
+  dirPath?: string;
   onSelect: (path: string) => void;
   onClose: () => void;
 }
@@ -43,6 +47,8 @@ function collectAllPaths(nodes: ModuleTreeNode[]): string[] {
 export const ModuleTreeCard = React.memo(function ModuleTreeCard({
   subtree,
   position,
+  dirName,
+  dirPath,
   onSelect,
   onClose,
 }: ModuleTreeCardProps) {
@@ -50,7 +56,34 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [hoveredPath, setHoveredPath] = useState<string | undefined>(undefined);
+  const [pos, setPos] = useState(position);
+  const [dragging, setDragging] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const sizeRef = useRef({ width: 0, height: 0 });
+  const dragStartRef = useRef<{ x: number; y: number; originX: number; originY: number } | null>(
+    null,
+  );
+
+  const clampToViewport = useCallback((x: number, y: number) => {
+    const pad = 8;
+    const maxLeft = Math.max(pad, window.innerWidth - sizeRef.current.width - pad);
+    const maxTop = Math.max(pad, window.innerHeight - sizeRef.current.height - pad);
+    return {
+      x: Math.min(Math.max(pad, x), maxLeft),
+      y: Math.min(Math.max(pad, y), maxTop),
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    if (cardRef.current) {
+      const rect = cardRef.current.getBoundingClientRect();
+      sizeRef.current = {
+        width: rect.width || 320,
+        height: rect.height || 200,
+      };
+    }
+    setPos(clampToViewport(position.x, position.y));
+  }, [clampToViewport, position.x, position.y]);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -70,6 +103,50 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
       document.removeEventListener('keydown', handleEscape);
     };
   }, [onClose]);
+
+  const handleHeaderPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) {
+        return;
+      }
+      const target = e.target as HTMLElement;
+      if (target.closest('button')) {
+        return;
+      }
+      dragStartRef.current = { x: e.clientX, y: e.clientY, originX: pos.x, originY: pos.y };
+      setDragging(true);
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    },
+    [pos.x, pos.y],
+  );
+
+  const handleHeaderPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const start = dragStartRef.current;
+      if (!start) {
+        return;
+      }
+      const next = clampToViewport(
+        start.originX + (e.clientX - start.x),
+        start.originY + (e.clientY - start.y),
+      );
+      setPos(next);
+    },
+    [clampToViewport],
+  );
+
+  const handleHeaderPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    dragStartRef.current = null;
+    setDragging(false);
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  }, []);
+
+  const handleHeaderPointerCancel = useCallback(() => {
+    dragStartRef.current = null;
+    setDragging(false);
+  }, []);
 
   const toggleExpand = useCallback((path: string) => {
     setExpanded((prev) => {
@@ -176,13 +253,19 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
 
   const cardStyle: React.CSSProperties = {
     position: 'fixed',
-    left: Math.min(position.x, window.innerWidth - 360),
-    top: Math.min(position.y, window.innerHeight - 400),
+    left: pos.x,
+    top: pos.y,
   };
 
   return createPortal(
     <div className="adl-module-tree-card" ref={cardRef} style={cardStyle}>
-      <div className="adl-module-tree-card__header">
+      <div
+        className={`adl-module-tree-card__header${dragging ? ' is-dragging' : ''}`}
+        onPointerDown={handleHeaderPointerDown}
+        onPointerMove={handleHeaderPointerMove}
+        onPointerUp={handleHeaderPointerUp}
+        onPointerCancel={handleHeaderPointerCancel}
+      >
         <div className="adl-module-tree-card__header-left">
           <button
             type="button"
@@ -192,6 +275,11 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
           >
             <IconFoldVertical size={14} decorative />
           </button>
+          {dirName && (
+            <span className="adl-module-tree-card__dir-name" title={dirPath}>
+              {dirName}
+            </span>
+          )}
         </div>
         <div className="adl-module-tree-card__header-right">
           <button

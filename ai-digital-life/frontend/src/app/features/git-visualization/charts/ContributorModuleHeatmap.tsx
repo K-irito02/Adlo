@@ -39,6 +39,8 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
   const [treeCard, setTreeCard] = useState<{
     subtree: ModuleTreeNode[];
     position: { x: number; y: number };
+    dirName: string;
+    dirPath: string;
   } | null>(null);
 
   const treeRef = useRef<ModuleTreeNode | null>(null);
@@ -98,7 +100,12 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
       const children = getChildrenAtPath(treeRef.current, drillPath);
       const node = children.find((c) => c.name === label);
       if (node?.isDir && node.children.length > 0) {
-        setTreeCard({ subtree: node.children, position: { x, y } });
+        setTreeCard({
+          subtree: node.children,
+          position: { x, y },
+          dirName: node.name,
+          dirPath: node.path,
+        });
       }
     },
     [drillPath],
@@ -195,6 +202,8 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
         <ModuleTreeCard
           subtree={treeCard.subtree}
           position={treeCard.position}
+          dirName={treeCard.dirName}
+          dirPath={treeCard.dirPath}
           onSelect={handleTreeSelect}
           onClose={() => setTreeCard(null)}
         />

@@ -4,6 +4,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import type { TimeRangeState } from '@stores/slices/gitVisSlice';
 import { IconCheck, IconChevronLeft, IconChevronRight } from '@app/icons';
 import { MiniDatePicker } from './MiniDatePicker';
+import { resolveRollingRange, resolveTimeRangeForFetch } from './timeRangeUtils';
 import { useAppStore } from '@stores/slicedStore';
 
 interface TimeRangeSelectorProps {
@@ -108,36 +109,9 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
 
   const handlePreset = useCallback(
     (preset: Exclude<TimeRangeState['preset'], 'custom'>) => {
-      const now = new Date();
-      now.setHours(23, 59, 59, 999);
-      const nowStr = now.toISOString().substring(0, 10);
-      let sinceStr: string | undefined;
-
-      switch (preset) {
-        case 'week': {
-          const d = new Date(now);
-          d.setDate(d.getDate() - 7);
-          sinceStr = d.toISOString().substring(0, 10);
-          break;
-        }
-        case 'month': {
-          const d = new Date(now);
-          d.setMonth(d.getMonth() - 1);
-          sinceStr = d.toISOString().substring(0, 10);
-          break;
-        }
-        case 'year': {
-          const d = new Date(now);
-          d.setFullYear(d.getFullYear() - 1);
-          sinceStr = d.toISOString().substring(0, 10);
-          break;
-        }
-        case 'all':
-        default:
-          sinceStr = undefined;
-      }
+      const resolved = preset === 'all' ? undefined : resolveRollingRange(preset);
       void Promise.resolve(
-        onChange({ preset, since: sinceStr, until: preset === 'all' ? undefined : nowStr }),
+        onChange({ preset, since: resolved?.since, until: resolved?.until }),
       ).catch(() => {});
       setOpen(false);
     },
@@ -182,8 +156,9 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
       if (!value.since || !value.until) {
         return;
       }
-      const until = new Date(value.until);
-      const since = new Date(value.since);
+      const resolvedAnchor = resolveTimeRangeForFetch(value);
+      const until = new Date(resolvedAnchor.until as string);
+      const since = new Date(resolvedAnchor.since as string);
       const rangeMs = until.getTime() - since.getTime();
       const newUntil = new Date(until.getTime() + direction * rangeMs);
       const newSince = new Date(since.getTime() + direction * rangeMs);

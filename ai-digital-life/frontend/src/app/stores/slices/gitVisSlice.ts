@@ -14,8 +14,12 @@ export interface TimeRangeState {
 export function defaultTimeRange(): TimeRangeState {
   const now = new Date();
   const currentYear = now.getFullYear();
+  // Use a 'custom' calendar-year range instead of the 'year' preset: the
+  // 'year' preset means a rolling "past 12 months" which is re-resolved against
+  // today on every refresh, whereas the default here is the fixed current
+  // calendar year (e.g. for the calendar heatmap).
   return {
-    preset: 'year',
+    preset: 'custom',
     since: `${currentYear}-01-01`,
     until: `${currentYear}-12-31`,
   };

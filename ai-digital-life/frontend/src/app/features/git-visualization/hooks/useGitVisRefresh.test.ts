@@ -2,16 +2,29 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, cleanup } from '@testing-library/react';
 import { useGitVisRefresh } from './useGitVisRefresh';
 import { useAppStore } from '@stores/slicedStore';
+import { resolveRollingRange } from '../timeRangeUtils';
 
 const CHART_ID = 'code-line-evolution';
 
 interface Bridge {
-  workspace: { gitVisCodeEvolution: ReturnType<typeof vi.fn> };
+  workspace: {
+    gitVisCodeEvolution: ReturnType<typeof vi.fn>;
+    gitVisCommitStats: ReturnType<typeof vi.fn>;
+    gitVisBranchGraph: ReturnType<typeof vi.fn>;
+    gitVisFileHotspots: ReturnType<typeof vi.fn>;
+    gitVisContributorModules: ReturnType<typeof vi.fn>;
+  };
 }
 
 function setupBridge() {
   const bridge: Bridge = {
-    workspace: { gitVisCodeEvolution: vi.fn() },
+    workspace: {
+      gitVisCodeEvolution: vi.fn(),
+      gitVisCommitStats: vi.fn(),
+      gitVisBranchGraph: vi.fn(),
+      gitVisFileHotspots: vi.fn(),
+      gitVisContributorModules: vi.fn(),
+    },
   };
   (window as unknown as { digitalLife: unknown }).digitalLife = bridge;
   return bridge;
@@ -147,5 +160,80 @@ describe('useGitVisRefresh latest-wins', () => {
     const { result } = renderHook(() => useGitVisRefresh('ws-1', '/repo'));
     await expect(result.current.refreshChart(CHART_ID)).resolves.toBeUndefined();
     expect(useAppStore.getState().gitVisLoading['ws-1']?.[CHART_ID]).toBeFalsy();
+  });
+});
+
+describe('useGitVisRefresh relative preset re-resolution', () => {
+  it('re-resolves a week preset against today instead of reusing the stale stored until', async () => {
+    const workspaceId = 'ws-1';
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+    setRange(workspaceId);
+    act(() => {
+      useAppStore.getState().setGitVisTimeRange(workspaceId, CHART_ID, {
+        preset: 'week',
+        since: '2026-07-01',
+        until: '2026-07-08',
+      });
+    });
+
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    bridge.workspace.gitVisCodeEvolution.mockResolvedValueOnce({
+      ok: true,
+      data: { days: [] },
+    });
+    await act(async () => {
+      await result.current.refreshChart(CHART_ID);
+    });
+
+    const expected = resolveRollingRange('week');
+    const [rootPath, since, until] = bridge.workspace.gitVisCodeEvolution.mock.calls[0];
+    expect(rootPath).toBe('/repo');
+    expect([since, until]).toEqual([expected.since, expected.until]);
+    expect(until).not.toBe('2026-07-08');
+  });
+
+  it('re-resolves relative presets for every chart during a workspace refresh', async () => {
+    const workspaceId = 'ws-1';
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+    act(() => {
+      useAppStore.getState().setGitVisTimeRange(workspaceId, CHART_ID, {
+        preset: 'month',
+        since: '2026-06-01',
+        until: '2026-06-30',
+      });
+    });
+
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    bridge.workspace.gitVisCommitStats.mockResolvedValue({
+      ok: true,
+      data: {
+        dailyCommits: [],
+        hourlyDistribution: [],
+        contributorActivity: [],
+        commitTimeline: [],
+      },
+    });
+    bridge.workspace.gitVisBranchGraph.mockResolvedValue({
+      ok: true,
+      data: { nodes: [], edges: [], branches: [] },
+    });
+    bridge.workspace.gitVisFileHotspots.mockResolvedValue({
+      ok: true,
+      data: { tree: { children: [] }, files: [] },
+    });
+    bridge.workspace.gitVisCodeEvolution.mockResolvedValue({ ok: true, data: { days: [] } });
+    bridge.workspace.gitVisContributorModules.mockResolvedValue({
+      ok: true,
+      data: { matrix: [], allPaths: [] },
+    });
+
+    await act(async () => {
+      await result.current.refreshWorkspace();
+    });
+
+    const expected = resolveRollingRange('month');
+    const codeCall = bridge.workspace.gitVisCodeEvolution.mock.calls[0];
+    expect(codeCall).toBeTruthy();
+    expect([codeCall[1], codeCall[2]]).toEqual([expected.since, expected.until]);
   });
 });

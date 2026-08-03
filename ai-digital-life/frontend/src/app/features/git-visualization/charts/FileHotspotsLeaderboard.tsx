@@ -98,6 +98,8 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
     subtree: ModuleTreeNode[];
     prefix: string;
     position: { x: number; y: number };
+    dirName: string;
+    dirPath: string;
   } | null>(null);
 
   // Reset a stale drillPath when the underlying data no longer contains it.
@@ -157,6 +159,8 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
         subtree: hotspotChildrenToModuleTree(row.children, row.path),
         prefix: row.path,
         position: { x: e.clientX, y: e.clientY },
+        dirName: row.name,
+        dirPath: row.path,
       });
     }
   }, []);
@@ -367,6 +371,8 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
         <ModuleTreeCard
           subtree={treeCard.subtree}
           position={treeCard.position}
+          dirName={treeCard.dirName}
+          dirPath={treeCard.dirPath}
           onSelect={handleTreeSelect}
           onClose={() => setTreeCard(null)}
         />

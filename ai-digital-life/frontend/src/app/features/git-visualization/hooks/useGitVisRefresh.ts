@@ -2,6 +2,7 @@ import { useCallback, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { fetchChartData, refreshWorkspace } from '@stores/actions/gitVisActions';
 import { getBridge } from '@stores/slices/githubSliceHelpers';
+import { resolveTimeRangeForFetch } from '../timeRangeUtils';
 
 export function useGitVisRefresh(workspaceId: string, rootPath: string) {
   const setLoading = useAppStore((s) => s.setGitVisLoading);
@@ -14,6 +15,12 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
       return;
     }
     const latestTimeRanges = useAppStore.getState().gitVisTimeRange[workspaceId] || {};
+    // Re-resolve relative presets (week/month/year) against today so a refresh
+    // never reuses a stale absolute `until` captured when the preset was chosen.
+    const resolvedTimeRanges: Record<string, { since?: string; until?: string }> = {};
+    for (const [chartId, range] of Object.entries(latestTimeRanges)) {
+      resolvedTimeRanges[chartId] = resolveTimeRangeForFetch(range);
+    }
     // Guard: a workspace refresh must not overwrite a newer per-chart refresh
     // that changed the time range while the workspace fetch was in flight.
     // Compare the snapshot range against the current one before committing.
@@ -26,7 +33,7 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
       bridge,
       workspaceId,
       rootPath,
-      latestTimeRanges,
+      resolvedTimeRanges,
       (chartId, loading) => {
         // Setting loading=true is always safe (workspace owns it). Clearing
         // must be gated: never clear a loading state that a newer per-chart
@@ -71,13 +78,14 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
       try {
         const latestTimeRanges = useAppStore.getState().gitVisTimeRange[workspaceId] || {};
         const tr = latestTimeRanges[chartId];
+        const bounds = tr ? resolveTimeRangeForFetch(tr) : { since: undefined, until: undefined };
         const data = await fetchChartData(
           bridge,
           workspaceId,
           rootPath,
           chartId,
-          tr?.since,
-          tr?.until,
+          bounds.since,
+          bounds.until,
         );
         if (latestRequestSeqRef.current[key] !== seq) {
           return; // superseded by a newer refresh

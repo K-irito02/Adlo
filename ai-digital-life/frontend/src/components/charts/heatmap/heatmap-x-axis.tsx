@@ -115,11 +115,6 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
       const labelStyle: React.CSSProperties = {
         top,
         left: tick.x,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'flex-start',
-        overflow: 'visible',
-        gap: isRotated ? 0 : 4,
         width: 'max-content',
       };
 
@@ -150,34 +145,38 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
         </>
       );
 
+      const interactiveProps = isInteractive
+        ? {
+            className: 'pointer-events-auto cursor-pointer',
+            onClick: () => onColumnClick?.(tick.label),
+            onContextMenu: handleContextMenu,
+            title: tick.label,
+          }
+        : {};
+
       return (
-        <div
-          className={cn(
-            'absolute',
-            isInteractive ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none',
-          )}
-          key={tick.key}
-          style={labelStyle}
-          onClick={isInteractive ? () => onColumnClick?.(tick.label) : undefined}
-          onContextMenu={handleContextMenu}
-          title={isInteractive ? tick.label : undefined}
-        >
-          {isRotated ? (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                transform: `rotate(-${rotateAngle}deg)`,
-                transformOrigin: 'left center',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {labelContent}
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>{labelContent}</div>
-          )}
+        <div className="absolute pointer-events-none" key={tick.key} style={labelStyle}>
+          <div className="flex items-center" style={{ gap: isRotated ? 0 : 4 }}>
+            {isRotated ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  transform: `rotate(-${rotateAngle}deg)`,
+                  transformOrigin: 'left center',
+                  whiteSpace: 'nowrap',
+                }}
+                {...interactiveProps}
+              >
+                {labelContent}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} {...interactiveProps}>
+                {labelContent}
+              </div>
+            )}
+          </div>
         </div>
       );
     }),

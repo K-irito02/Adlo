@@ -44,6 +44,8 @@ const DESC_KEYS: Record<HeatmapTab, CopyKey> = {
 
 interface HeatmapCardGroupProps {
   onRefresh?: () => Promise<void>;
+  /** Refreshes the CONTRIBUTOR_MODULES chart (used while the module tab is active). */
+  onRefreshContributorModules?: () => Promise<void>;
   commitStats?: RawCommitStats;
   contributorModules?: {
     author: string;
@@ -57,6 +59,7 @@ interface HeatmapCardGroupProps {
 
 export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
   onRefresh,
+  onRefreshContributorModules,
   commitStats,
   contributorModules,
   contributorModuleAllPaths,
@@ -90,16 +93,36 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
 
   const onRefreshRef = useRef(onRefresh);
   onRefreshRef.current = onRefresh;
+  const onRefreshContributorModulesRef = useRef(onRefreshContributorModules);
+  onRefreshContributorModulesRef.current = onRefreshContributorModules;
 
   const currentRange = tabRangesRef.current[activeHeatmapTab];
 
+  const refreshForTab = useCallback((tab: HeatmapTab) => {
+    if (tab === 'module') {
+      return onRefreshContributorModulesRef.current?.() ?? Promise.resolve();
+    }
+    return onRefreshRef.current?.() ?? Promise.resolve();
+  }, []);
+
+  const refreshCurrentTab = useCallback(
+    () => refreshForTab(activeHeatmapTab),
+    [activeHeatmapTab, refreshForTab],
+  );
+
+  const syncRangeForTab = useCallback(
+    (tab: HeatmapTab, range: TimeRangeState) => {
+      setGitVisTimeRange(activeWorkspaceTab, CHART_IDS.HEATMAP, range);
+      if (tab === 'module') {
+        setGitVisTimeRange(activeWorkspaceTab, CHART_IDS.CONTRIBUTOR_MODULES, range);
+      }
+    },
+    [activeWorkspaceTab, setGitVisTimeRange],
+  );
+
   // Sync store with ref on mount so initial data fetch uses saved ranges
   useEffect(() => {
-    setGitVisTimeRange(
-      activeWorkspaceTab,
-      CHART_IDS.HEATMAP,
-      tabRangesRef.current[activeHeatmapTab],
-    );
+    syncRangeForTab(activeHeatmapTab, tabRangesRef.current[activeHeatmapTab]);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const tabChangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -109,12 +132,13 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
       if (tabChangeTimerRef.current) {
         clearTimeout(tabChangeTimerRef.current);
       }
-      const tabRange = tabRangesRef.current[tab];
-      setGitVisTimeRange(activeWorkspaceTab, CHART_IDS.HEATMAP, tabRange);
+      syncRangeForTab(tab, tabRangesRef.current[tab]);
       setActiveHeatmapTab(tab);
-      tabChangeTimerRef.current = setTimeout(() => onRefreshRef.current?.(), 0);
+      tabChangeTimerRef.current = setTimeout(() => {
+        void refreshForTab(tab);
+      }, 0);
     },
-    [activeWorkspaceTab, setGitVisTimeRange, setActiveHeatmapTab],
+    [setActiveHeatmapTab, syncRangeForTab, refreshForTab],
   );
 
   const persistTabRanges = useCallback(() => {
@@ -129,10 +153,10 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     (range: TimeRangeState) => {
       tabRangesRef.current[activeHeatmapTab] = range;
       persistTabRanges();
-      setGitVisTimeRange(activeWorkspaceTab, CHART_IDS.HEATMAP, range);
-      return onRefresh?.();
+      syncRangeForTab(activeHeatmapTab, range);
+      return refreshCurrentTab();
     },
-    [activeHeatmapTab, activeWorkspaceTab, setGitVisTimeRange, onRefresh, persistTabRanges],
+    [activeHeatmapTab, syncRangeForTab, refreshCurrentTab, persistTabRanges],
   );
 
   const descVars = useMemo(() => {
@@ -180,7 +204,9 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
   return (
     <div className="adl-git-vis__card">
       <div className="adl-git-vis__card-header">
-        {onRefresh && <RefreshButton onRefresh={onRefresh} label={t.gitVisRefreshChart} />}
+        {(onRefresh || onRefreshContributorModules) && (
+          <RefreshButton onRefresh={refreshCurrentTab} label={t.gitVisRefreshChart} />
+        )}
         <h3 className="adl-git-vis__card-title">{t[TITLE_KEYS[activeHeatmapTab]]}</h3>
         <TimeRangeSelector
           value={currentRange}

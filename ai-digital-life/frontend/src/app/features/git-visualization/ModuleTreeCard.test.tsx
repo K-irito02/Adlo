@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ModuleTreeCard } from './ModuleTreeCard';
 import type { ModuleTreeNode } from './moduleTreeUtils';
@@ -6,6 +6,8 @@ import type { ModuleTreeNode } from './moduleTreeUtils';
 afterEach(() => {
   cleanup();
   document.body.querySelectorAll('.adl-module-tree-card').forEach((el) => el.remove());
+  delete (window as unknown as Record<string, unknown>).innerWidth;
+  delete (window as unknown as Record<string, unknown>).innerHeight;
   vi.clearAllMocks();
 });
 
@@ -46,6 +48,47 @@ const mockSubtree: ModuleTreeNode[] = [
 ];
 
 describe('ModuleTreeCard', () => {
+  beforeAll(() => {
+    class MockPointerEvent extends MouseEvent {
+      pointerId: number;
+      pointerType: string;
+      isPrimary: boolean;
+      constructor(type: string, init: PointerEventInit = {}) {
+        super(type, init);
+        this.pointerId = init.pointerId ?? 0;
+        this.pointerType = init.pointerType ?? 'mouse';
+        this.isPrimary = init.isPrimary ?? true;
+      }
+    }
+    Object.defineProperty(window, 'PointerEvent', {
+      value: MockPointerEvent,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(Element.prototype, 'setPointerCapture', {
+      value: vi.fn(),
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(Element.prototype, 'hasPointerCapture', {
+      value: vi.fn(() => false),
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(Element.prototype, 'releasePointerCapture', {
+      value: vi.fn(),
+      writable: true,
+      configurable: true,
+    });
+  });
+
+  afterAll(() => {
+    delete (Element.prototype as unknown as Record<string, unknown>).setPointerCapture;
+    delete (Element.prototype as unknown as Record<string, unknown>).hasPointerCapture;
+    delete (Element.prototype as unknown as Record<string, unknown>).releasePointerCapture;
+    delete (window as unknown as Record<string, unknown>).PointerEvent;
+  });
+
   it('should render tree nodes', () => {
     render(
       <ModuleTreeCard
@@ -168,5 +211,188 @@ describe('ModuleTreeCard', () => {
     const treeContainer = document.querySelector('.adl-module-tree-card__tree')!;
     fireEvent.click(treeContainer);
     expect(treeItem.className).not.toContain('is-selected');
+  });
+
+  it('should render the right-clicked directory name with full path tooltip', () => {
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        dirName="components"
+        dirPath="src/components"
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const dirLabel = screen.getByTitle('src/components');
+    expect(dirLabel).toBeInTheDocument();
+    expect(dirLabel.textContent).toContain('components');
+  });
+
+  it('should clamp the card into the viewport bounds with padding', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 360,
+      height: 400,
+      left: 0,
+      top: 0,
+      right: 360,
+      bottom: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 900, y: 700 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    rectSpy.mockRestore();
+
+    const card = document.querySelector('.adl-module-tree-card') as HTMLElement;
+    expect(card.style.left).toBe('432px');
+    expect(card.style.top).toBe('192px');
+  });
+
+  it('should clamp the card away from negative off-screen positions', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 360,
+      height: 400,
+      left: 0,
+      top: 0,
+      right: 360,
+      bottom: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: -50, y: -20 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    rectSpy.mockRestore();
+
+    const card = document.querySelector('.adl-module-tree-card') as HTMLElement;
+    expect(card.style.left).toBe('8px');
+    expect(card.style.top).toBe('8px');
+  });
+
+  it('should move the card when dragging the header', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 360,
+      height: 400,
+      left: 0,
+      top: 0,
+      right: 360,
+      bottom: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    rectSpy.mockRestore();
+
+    const card = document.querySelector('.adl-module-tree-card') as HTMLElement;
+    const header = card.querySelector('.adl-module-tree-card__header') as HTMLElement;
+    fireEvent.pointerDown(header, { clientX: 50, clientY: 60, pointerId: 1, button: 0 });
+    expect(header.className).toContain('is-dragging');
+    fireEvent.pointerMove(header, { clientX: 120, clientY: 130, pointerId: 1 });
+    fireEvent.pointerUp(header, { pointerId: 1 });
+
+    expect(card.style.left).toBe('170px');
+    expect(card.style.top).toBe('170px');
+  });
+
+  it('should not start dragging when pressing a header button', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 360,
+      height: 400,
+      left: 0,
+      top: 0,
+      right: 360,
+      bottom: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    rectSpy.mockRestore();
+
+    const card = document.querySelector('.adl-module-tree-card') as HTMLElement;
+    const expandBtn = card.querySelector('.adl-module-tree-card__icon-btn') as HTMLElement;
+    fireEvent.pointerDown(expandBtn, { clientX: 50, clientY: 60, pointerId: 1, button: 0 });
+    fireEvent.pointerMove(expandBtn, { clientX: 120, clientY: 130, pointerId: 1 });
+    fireEvent.pointerUp(expandBtn, { pointerId: 1 });
+
+    expect(card.style.left).toBe('100px');
+    expect(card.style.top).toBe('100px');
+  });
+
+  it('should reset drag state when a pointer cancel interrupts the drag', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 360,
+      height: 400,
+      left: 0,
+      top: 0,
+      right: 360,
+      bottom: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    rectSpy.mockRestore();
+
+    const card = document.querySelector('.adl-module-tree-card') as HTMLElement;
+    const header = card.querySelector('.adl-module-tree-card__header') as HTMLElement;
+    fireEvent.pointerDown(header, { clientX: 50, clientY: 60, pointerId: 1, button: 0 });
+    expect(header.className).toContain('is-dragging');
+    fireEvent.pointerCancel(header, { pointerId: 1 });
+    expect(header.className).not.toContain('is-dragging');
+    fireEvent.pointerMove(header, { clientX: 120, clientY: 130, pointerId: 1 });
+    expect(card.style.left).toBe('100px');
+    expect(card.style.top).toBe('100px');
   });
 });
