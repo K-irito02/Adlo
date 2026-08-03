@@ -139,24 +139,6 @@ pub struct GitVisBranchGraph {
     pub branch_progress: HashMap<String, BranchProgress>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GitVisSunburstNode {
-    pub name: String,
-    #[serde(rename = "type")]
-    pub node_type: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub size: Option<i32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub children: Option<Vec<GitVisSunburstNode>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GitVisFileSunburst {
-    pub tree: GitVisSunburstNode,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct GitVisFileHotspotNode {

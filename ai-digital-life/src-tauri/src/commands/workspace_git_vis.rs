@@ -3,7 +3,7 @@ use crate::commands::ipc;
 use adl_errors::AppError;
 use adl_types::{
     GitVisBranchGraph, GitVisCodeEvolution, GitVisCommitStats, GitVisContributorModules,
-    GitVisFileHotspots, GitVisFileSunburst, IpcResult,
+    GitVisFileHotspots, IpcResult,
 };
 use std::path::Path;
 use tauri::Manager;
@@ -96,16 +96,6 @@ pub async fn workspace_git_vis_branch_graph(
 ) -> Result<IpcResult<GitVisBranchGraph>, AppError> {
     let root = Path::new(&root_path);
     let data = adl_workspace::capture_branch_graph(root).await?;
-    Ok(ipc(Ok(data)))
-}
-
-#[tauri::command]
-pub async fn workspace_git_vis_file_sunburst(
-    _app: tauri::AppHandle,
-    root_path: String,
-) -> Result<IpcResult<GitVisFileSunburst>, AppError> {
-    let root = Path::new(&root_path);
-    let data = adl_workspace::capture_file_sunburst(root).await?;
     Ok(ipc(Ok(data)))
 }
 
