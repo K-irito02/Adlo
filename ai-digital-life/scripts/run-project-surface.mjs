@@ -161,6 +161,7 @@ async function findOpenPort(hostname) {
   });
 }
 
+// Check if a port is already in use (returns true if someone is listening).
 async function isPortOpen(hostname, port) {
   return await new Promise((resolve) => {
     const socket = net.createConnection({ host: hostname, port });
@@ -230,6 +231,9 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   });
 }
 
+// Keep the process alive indefinitely until a signal (SIGINT/SIGTERM) triggers shutdown.
+// The unresolved promise blocks the event loop from exiting, while signal handlers on
+// lines 228-231 call shutdown() to terminate children and exit.
 async function holdUntilStopped() {
   await new Promise(() => {});
 }
