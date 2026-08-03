@@ -1393,29 +1393,12 @@
   overflow-wrap: break-word;
 }
 
-.adl-file-sunburst-hint {
-  text-align: center;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin-top: var(--space-2);
-  line-height: 1.4;
-  user-select: none;
-}
-
-.adl-file-sunburst-breadcrumb {
-  padding: 4px 8px;
-}
-
 /* ============ File Hotspots Combined View ============ */
 
 .adl-file-hotspots-view {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-
-.adl-file-hotspots-view .adl-file-sunburst--hotspots {
-  padding: var(--space-2);
 }
 
 .adl-file-hotspots-ranking {
@@ -1435,21 +1418,6 @@
   border-radius: var(--radius-sm);
 }
 
-.adl-file-hotspots-ranking__clear-btn {
-  margin-left: auto;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: var(--text-lg);
-  line-height: 1;
-  padding: 0 var(--space-1);
-}
-
-.adl-file-hotspots-ranking__clear-btn:hover {
-  color: var(--text-primary);
-}
-
 .adl-file-hotspots-ranking__scroll {
   font-size: var(--text-xs);
   color: var(--text-primary);
@@ -1458,7 +1426,7 @@
 .adl-file-hotspots-ranking__header,
 .adl-file-hotspots-ranking__row {
   display: grid;
-  grid-template-columns: 40px 1fr 80px 70px 70px 80px;
+  grid-template-columns: 40px 1fr 1.6fr 80px 70px 70px 80px;
   align-items: center;
   padding: 0 var(--space-2);
 }
@@ -1494,16 +1462,6 @@
   color: var(--text-muted);
 }
 
-.adl-file-hotspots-ranking__cell--file {
-  text-align: left;
-  direction: rtl;
-}
-
-.adl-file-hotspots-ranking__cell--file > * {
-  direction: ltr;
-  unicode-bidi: plaintext;
-}
-
 .adl-file-hotspots-ranking__cell--num {
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -1533,4 +1491,67 @@
 
 .adl-file-hotspots-ranking__sort-btn:hover {
   color: var(--text-primary);
+}
+
+/* ── File Hotspots Leaderboard (dual mode) ── */
+.adl-file-hotspots__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adl-file-hotspots__mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.adl-file-hotspots__mode-btn {
+  background: transparent;
+  border: none;
+  padding: 2px 12px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.adl-file-hotspots__mode-btn:hover {
+  color: var(--text-primary);
+}
+
+.adl-file-hotspots__mode-btn--active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.adl-file-hotspots__drill-hint {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.adl-file-hotspots-ranking__row--dir {
+  cursor: pointer;
+}
+
+.adl-file-hotspots-ranking__row--dir .adl-file-hotspots-ranking__cell--name {
+  font-weight: 600;
+}
+
+.adl-file-hotspots-ranking__cell--name {
+  text-align: left;
+}
+
+.adl-file-hotspots-ranking__cell--path {
+  text-align: left;
+  color: var(--text-muted);
+  direction: rtl;
+}
+
+.adl-file-hotspots-ranking__cell--path > * {
+  direction: ltr;
+  unicode-bidi: plaintext;
 }
