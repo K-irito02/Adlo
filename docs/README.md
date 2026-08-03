@@ -25,7 +25,7 @@
 |------|------|
 | [.editorconfig](../.editorconfig) | 编辑器格式配置（缩进、换行符、编码） |
 | [.github/workflows/](../.github/workflows/) | CI/CD 工作流（Quality Gates、Binary Size） |
-| [.prettierrc](../.prettierrc) | Prettier 格式化配置 |
+| [.prettierrc](../ai-digital-life/frontend/.prettierrc) | Prettier 格式化配置（前端工作区） |
 | [.prettierignore](../.prettierignore) | Prettier 忽略规则 |
 
 ## 快速导航
