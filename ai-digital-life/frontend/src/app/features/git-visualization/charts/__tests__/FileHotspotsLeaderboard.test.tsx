@@ -255,7 +255,7 @@ describe('FileHotspotsLeaderboard', () => {
     expect(scrollEl.style.height).toBe('128px');
   });
 
-  it('scrolls the outer git-vis area to the bottom when the chart height changes', () => {
+  it('scrolls the outer git-vis area to the bottom only when the chart grows', () => {
     const { container } = render(
       <div className="adl-git-vis__container">
         <FileHotspotsLeaderboard data={fileHotspotsMockData} />
@@ -264,10 +264,20 @@ describe('FileHotspotsLeaderboard', () => {
     const outer = container.querySelector('.adl-git-vis__container') as HTMLElement;
     Object.defineProperty(outer, 'scrollHeight', { value: 600, configurable: true });
     Object.defineProperty(outer, 'clientHeight', { value: 300, configurable: true });
-    outer.scrollTop = 0;
 
-    fireEvent.click(screen.getByText('Level Drill'));
-    expect(outer.scrollTop).toBe(300); // scrollHeight - clientHeight
+    // first change records a baseline and does not jump
+    fireEvent.click(screen.getByText('Level Drill')); // 128px -> 96px (shrink)
+    expect(outer.scrollTop).toBe(0);
+
+    // user scrolled up; switching to full grows the chart -> scroll to bottom
+    outer.scrollTop = 50;
+    fireEvent.click(screen.getByText('Global Ranking')); // 96px -> 128px (grow)
+    expect(outer.scrollTop).toBe(300);
+
+    // user scrolled up; switching to drill shrinks the chart -> keep position
+    outer.scrollTop = 50;
+    fireEvent.click(screen.getByText('Level Drill')); // 128px -> 96px (shrink)
+    expect(outer.scrollTop).toBe(50);
   });
 
   it('opens the tree card via the jump button without drilling the row', () => {

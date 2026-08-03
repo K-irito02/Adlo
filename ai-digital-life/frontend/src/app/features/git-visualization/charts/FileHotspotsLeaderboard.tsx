@@ -103,6 +103,8 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
   });
   const prevModeRef = useRef<HotspotMode>(mode);
   const prevDrillPathRef = useRef<string[]>(drillPath);
+  const viewHeightRef = useRef(0);
+  const prevViewHeightRef = useRef<number | null>(null);
   const [treeCard, setTreeCard] = useState<{
     subtree: ModuleTreeNode[];
     prefix: string;
@@ -143,16 +145,16 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
         setScrollTop(containerRef.current.scrollTop);
         setContainerHeight(containerRef.current.clientHeight);
 
-        // The card's height changed with the row count; scroll the outer
-        // git-visualization scroll area to the bottom so the full (grown)
-        // chart stays visible instead of being cut off below the fold.
+        // The card's height changed with the row count. Scroll the outer
+        // git-visualization scroll area to the bottom so a GROWN chart stays
+        // fully visible, but never yank the viewport on shrink/equal heights.
+        // The first change only records a baseline (no jump).
         const outer = containerRef.current.closest<HTMLElement>('.adl-git-vis__container');
-        if (outer) {
+        const prev = prevViewHeightRef.current;
+        if (prev !== null && viewHeightRef.current > prev && outer) {
           outer.scrollTop = outer.scrollHeight - outer.clientHeight;
         }
-      } else {
-        setScrollTop(target);
-        setContainerHeight(MAX_HEIGHT);
+        prevViewHeightRef.current = viewHeightRef.current;
       }
     }
   }, [mode, drillPath]);
@@ -176,6 +178,17 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
     });
     return copy;
   }, [rows, sortKey, sortDir]);
+
+  // Re-sync scroll/height state when the row count changes (e.g. after a data
+  // refresh): the browser clamps the real scrollTop and the container height
+  // follows the row count, but the state would stay stale, making the
+  // virtualization window overshoot into blank rows.
+  useLayoutEffect(() => {
+    if (containerRef.current) {
+      setScrollTop(containerRef.current.scrollTop);
+      setContainerHeight(containerRef.current.clientHeight);
+    }
+  }, [sorted.length]);
 
   const handleModeChange = useCallback(
     (next: HotspotMode) => {
@@ -208,7 +221,7 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
   const handleJumpClick = useCallback((e: React.MouseEvent, row: LeaderboardRow) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!row.isDir || row.children.length === 0) {
+    if (row.children.length === 0) {
       return;
     }
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -265,9 +278,6 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
     } else {
       scrollPositionsRef.current.drill[drillPath.join('/')] = value;
     }
-    if (containerRef.current) {
-      setContainerHeight(containerRef.current.clientHeight);
-    }
   };
 
   const { startIndex, endIndex } = useMemo(() => {
@@ -280,6 +290,7 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
   const totalHeight = sorted.length * ROW_HEIGHT;
   const offsetY = startIndex * ROW_HEIGHT;
   const viewHeight = Math.min(MAX_HEIGHT, totalHeight + HEADER_HEIGHT);
+  viewHeightRef.current = viewHeight;
 
   return (
     <div className="adl-file-hotspots-ranking">

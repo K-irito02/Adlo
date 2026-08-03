@@ -1667,3 +1667,14 @@
 .adl-file-hotspots-ranking__row:hover .adl-file-hotspots-ranking__folder-icon {
   opacity: 0;
 }
+
+/* Keyboard users: keep the hover-only actions visible while focused. */
+.adl-file-hotspots-ranking__jump-btn:focus-visible,
+.adl-file-hotspots-ranking__copy:focus-within {
+  opacity: 1;
+}
+
+.adl-file-hotspots-ranking__row:has(.adl-file-hotspots-ranking__jump-btn:focus-visible)
+  .adl-file-hotspots-ranking__folder-icon {
+  opacity: 0;
+}
