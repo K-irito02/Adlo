@@ -1,13 +1,14 @@
 ---
 name: browser-automation
-description: Browser automation for AI Digital Life. Primary tool: agent-browser (dogfood) — full-featured terminal automation with JS eval, snapshot, console checks. Backup: Browser Harness (CDP) for AI-driven exploration and coordinate clicks. Auxiliary: Playwright CLI for static screenshots. Includes project-specific UI selectors, element state definitions, and wait condition templates. Triggers include "open a website", "test the UI", "take a screenshot", "fill a form", "click a button", "scrape data", "automate browser", "verify UI", "dogfood", "QA", or any task requiring programmatic web interaction with the AI Digital Life app.
+description: Use when 需要对 AI Digital Life 应用执行浏览器自动化（打开网页、点击按钮、填写表单、执行 JS、截图、验证 UI、检查控制台、QA 探索测试），或不确定该用 agent-browser、integrated_browser、Browser Harness 还是 Playwright 工具。
+allowed-tools: Bash(agent-browser:*), Bash(npx agent-browser:*), Bash(browser-harness:*), Bash(playwright:*)
 ---
 
 # Browser Automation
 
-浏览器自动化技能，采用渐进式披露设计。
+浏览器自动化技能，采用渐进式披露设计：**第一层**快速选择工具 → **第二层**快速开始 → **第三层**详细参考。
 
-> **⚠️ 前置提示**：调试日志收起器是最高优先级的调试手段。遇到 UI/交互问题时，**先通过调试日志定位问题**（页面"复制调试日志"按钮 / 项目根目录 `debug-logs.txt`），再根据结果决定是否需要进行浏览器自动化。详见 [AGENTS.md](../../../AGENTS.md#调试工具) 和 [dev-rules.md](../../rules/dev-rules.md#问题排查规范)。
+> **⚠️ 前置提示**：调试日志收起器是最高优先级的调试手段。遇到 UI/交互问题时，**先通过调试日志定位问题**（页面"复制调试日志"按钮 / 项目根目录 `debug-logs.txt`），再根据结果决定是否需要进行浏览器自动化。详见 [AGENTS.md](../../../AGENTS.md#调试工具) 和 [dev-rules.md](../../../.agents/rules/dev-rules.md#问题排查规范)。
 
 ---
 
@@ -22,13 +23,35 @@ description: Browser automation for AI Digital Life. Primary tool: agent-browser
 | 打开网页、点击按钮、填写表单 | agent-browser（注意：打开的是**独立 Chrome 实例**） |
 | 执行 JS、获取页面信息、检查控制台 | agent-browser |
 | 截图、录屏、自动化测试 | agent-browser |
+| 需要 eval 任意 JS、DOM 遍历 | agent-browser / MCP Playwright |
 | 连接用户已打开的 Chrome | Browser Harness |
 | 坐标点击、复杂 Python 脚本 | Browser Harness |
 | 仅截一张图 | Playwright CLI |
 
+**选型要点**：
+
+- **agent-browser** 是首选：功能最全（`eval` / `find role` / `snapshot` / `screenshot` / `console` / `record` 录屏）。
+- **integrated_browser** 是 Trae 内置 MCP 工具：在 Trae IDE 内可用，但**不可在终端运行**。
+- **Browser Harness** 连接用户真实 Chrome，坐标点击可穿透 iframe / Shadow DOM。
+- **Playwright CLI** 本地仅支持 `open` 和 `screenshot`，其余命令不可用。
+
 ---
 
 ## 第二层：快速开始
+
+### agent-browser（终端全功能自动化，独立 Chrome 实例）
+
+```powershell
+# 标准流程：打开 → 加载工作区 → 操作 → 清理
+agent-browser --session test open http://127.0.0.1:5173
+agent-browser --session test eval "window.digitalLife.workspace.open('E:\\AI-DIGITAL-LIFE\\SourceWorkspace').then(() => location.reload())"
+agent-browser --session test wait 3000
+agent-browser --session test snapshot -i
+# ... 执行操作 ...
+agent-browser --session test close --all
+```
+
+> 不使用 `--headed` 参数（可能导致 daemon 死锁），使用默认 headless 模式。
 
 ### integrated_browser（Trae 内置浏览器 - MCP 工具）
 
@@ -36,19 +59,7 @@ description: Browser automation for AI Digital Life. Primary tool: agent-browser
 
 对于 Trae 内置浏览器，更简单的做法是直接输出纯文本 URL 让用户点击跳转。
 
-### agent-browser（终端全功能自动化，独立 Chrome 实例）
-
-```powershell
-# 标准流程：打开 → 加载工作区 → 操作 → 清理
-agent-browser --session test open http://127.0.0.1:5173
-agent-browser --session test eval "window.digitalLife.workspace.open('E:\\path').then(() => location.reload())"
-agent-browser --session test wait 3000
-agent-browser --session test snapshot -i
-# ... 执行操作 ...
-agent-browser --session test close --all
-```
-
-### Browser Harness（备用）
+### Browser Harness（备用，连接用户 Chrome）
 
 ```powershell
 $env:PATH = "E:\dev-tools\uv-bin;$env:PATH"
@@ -69,20 +80,22 @@ playwright screenshot http://localhost:5173 screenshot.png
 
 | 文件 | 内容 |
 |------|------|
+| [references/agent-browser.md](./references/agent-browser.md) | agent-browser 完整命令参考、会话管理、工作流示例 |
 | [references/integrated-browser.md](./references/integrated-browser.md) | Trae 内置浏览器自动化工具完整参考 |
-| [references/agent-browser.md](./references/agent-browser.md) | 完整命令参考、会话管理、工作流示例 |
+| [references/mcp-playwright.md](./references/mcp-playwright.md) | MCP Playwright 工具（evaluate / click / upload 等） |
 | [references/browser-harness.md](./references/browser-harness.md) | CDP 命令、Python 脚本模式、辅助函数 |
-| [references/playwright-cli.md](./references/playwright-cli.md) | 静态截图命令参考 |
+| [references/playwright-cli.md](./references/playwright-cli.md) | Playwright CLI（本地仅 open/screenshot） |
 | [references/adl-project-selectors.md](./references/adl-project-selectors.md) | 项目专属 UI 选择器、元素状态定义 |
 | [scripts/changes-panel-test-checklist.md](./scripts/changes-panel-test-checklist.md) | 变更面板测试步骤清单（Agent 逐步执行） |
-| [scripts/lessons-learned.md](./scripts/lessons-learned.md) | 脚本方案经验教训总结 |
+| [scripts/browser-subfolder-test-checklist.md](./scripts/browser-subfolder-test-checklist.md) | 浏览器子目录测试步骤清单 |
 | [scripts/_template-checklist.md](./scripts/_template-checklist.md) | 步骤清单模板（新建清单时从此复制） |
+| [经验教训总结](../../../docs/knowledge-base/browser-automation/lessons.md) | 脚本方案经验教训（跨平台路径、daemon、localStorage 等） |
 
 ---
 
 ## 测试产物存储
 
-所有测试产物（截图、视频、文档）统一保存到根目录 `test-artifacts/`（已加入 `.gitignore`）。
+所有测试产物（截图、视频、文档）统一保存到仓库根目录 `test-artifacts/`（已加入 `.gitignore`）。
 
 ```
 test-artifacts/
@@ -102,16 +115,33 @@ test-artifacts/
 | integrated_browser 是 MCP 工具 | `browser_*` 通过 MCP 协议调用，**不可在 PowerShell 中运行** |
 | 纯文本 URL 即可打开内置浏览器 | Trae IDE 自动使纯文本 URL 可点击，不要用 `` 包裹 |
 | agent-browser 打开独立 Chrome | agent-browser 启动的是自己的 Chromium 进程，非 IDE 内置浏览器 |
-| ref 来自快照 | 每次页面变化后需重新 `snapshot -i` 获取新 ref |
+| 不使用 `--headed` | agent-browser 可能导致 daemon 死锁，使用默认 headless 模式 |
+| ref 来自快照 | 每次页面变化后需重新 `snapshot -i` 获取新 ref，**不能硬编码 ref** |
 | 工作区必须真正加载 | `workspace.open()` 后需刷新页面，确认状态栏显示 Git 信息 |
 | 原生对话框需绕过 | 使用 `window.digitalLife.workspace.open(path)` 替代点击菜单 |
-| 操作后等待验证 | 每次操作后 `snapshot` 确认生效 |
-| 路径转义 | agent-browser 用 `E:\\path`，Browser Harness 用 `E:/path` |
-| 不使用 `--headed` | agent-browser 可能导致 daemon 死锁，使用默认 headless 模式 |
+| 操作后等待验证 | 每次操作后 `wait 1000~3000` + `snapshot` 确认生效 |
+| 路径转义 | agent-browser `eval` 用 `E:\\path`，Browser Harness `js()` 用 `E:/path` |
+| 变更面板依赖工作区上下文 | 工作区未加载时显示"无变更"、状态栏显示"非 Git 仓库" |
+| daemon 操作间隔 | `close --all` 后等待 2-3 秒再执行 `open`，避免超时 |
+
+---
+
+## 常见错误（Common Mistakes）
+
+| 错误 | 正确做法 |
+|------|----------|
+| 在 PowerShell 中运行 `browser_navigate` | 通过 MCP tool call 调用 integrated_browser |
+| 使用 `--headed` 启动 agent-browser | 使用默认 headless 模式 |
+| 硬编码 ref（如 `click e0`） | 每次操作前重新 `snapshot -i` 获取最新 ref |
+| 尝试自动化原生 OS 对话框 | 用 `window.digitalLife.workspace.open(path)` 绕过 |
+| 认为 `workspace.open()` 即加载完成 | 刷新页面并确认状态栏显示 Git 信息 |
+| 用 Playwright CLI 做交互（click/fill/eval） | 本地 v1.59.1 仅支持 open/screenshot，交互用 agent-browser |
+| 把 `ref=eXX` 当 CSS 选择器 | `ref` 是虚拟引用，不是 HTML 属性；DOM 定位用 `eval` |
+| 连续命令间不加等待 | 操作间 `wait 1000~3000`，`close --all` 后等 2-3 秒再 `open` |
 
 ---
 
 ## 相关技能
 
-- **dogfood**: 系统性探索测试，发现 Bug 和 UX 问题
-- **run-project-surfaces**: 启动应用的不同模式
+- **dogfood**: 系统性探索测试，发现 Bug 和 UX 问题（使用 agent-browser 录屏 + 截图）
+- **run-project-surfaces**: 启动应用的不同模式（浏览器预览 / Tauri 桌面）

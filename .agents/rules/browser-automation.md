@@ -131,7 +131,7 @@ test-artifacts/
 
 ```powershell
 # 截图保存示例
-agent-browser --session test screenshot "e:\Programs\Obsidian\notes\test-artifacts\screenshots\my-test-$(Get-Date -Format 'yyyyMMdd-HHmmss').png"
+agent-browser --session test screenshot "E:\AI-DIGITAL-LIFE\SourceWorkspace\test-artifacts\screenshots\my-test-$(Get-Date -Format 'yyyyMMdd-HHmmss').png"
 ```
 
 ## 相关文件

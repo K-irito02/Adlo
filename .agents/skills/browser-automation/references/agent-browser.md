@@ -1,139 +1,146 @@
-# agent-browser Reference
+# agent-browser 参考
 
-Fast browser automation CLI for AI agents. This is the tool used by the **dogfood** skill for systematic exploratory testing.
+面向 AI 代理的快速浏览器自动化 CLI。这是 **dogfood** 技能进行系统性探索测试时使用的工具。
 
-## Installation
+## 安装
 
 ```powershell
-# Already installed at:
-# Binary: C:\Users\31432\AppData\Roaming\npm\agent-browser
+# 已全局安装：
+# 二进制：C:\Users\31432\AppData\Roaming\npm\agent-browser
 
-# No PATH setup needed — available globally via npm
+# 无需额外 PATH 配置 — 通过 npm 全局可用
 agent-browser --version
 ```
 
-## Core Capabilities (Verified via Testing)
+> **性能提示**：直接使用 `agent-browser`，**不要**使用 `npx agent-browser`。直接二进制使用 Rust 快速客户端，`npx` 走 Node.js 链路，显著更慢。
 
-The following capabilities were verified through actual testing on AI Digital Life:
+## 核心能力（已实测验证）
 
-| Capability | Command | Verified |
-|------------|---------|----------|
-| Open page | `agent-browser open <url>` | ✅ |
-| JS evaluation | `agent-browser eval "<js>"` | ✅ |
-| Click by role+name | `agent-browser find role <role> click --name <name>` | ✅ |
-| Click by ref | `agent-browser click <ref>` | ✅ |
-| Screenshot | `agent-browser screenshot <path>` | ✅ |
-| Accessibility snapshot | `agent-browser snapshot -i` | ✅ |
-| Console logs | `agent-browser console` | ✅ |
-| Page errors | `agent-browser errors` | ✅ |
-| Wait | `agent-browser wait <ms>` | ✅ |
-| Session management | `agent-browser --session <name>` | ✅ |
-| Close session | `agent-browser close --all` | ✅ |
+以下能力已通过对 AI Digital Life 的实际测试验证：
 
-## When to Use
+| 能力 | 命令 | 已验证 |
+|------|------|--------|
+| 打开页面 | `agent-browser open <url>` | ✅ |
+| JS 求值 | `agent-browser eval "<js>"` | ✅ |
+| 按 role+name 点击 | `agent-browser find role <role> click --name <name>` | ✅ |
+| 按 ref 点击 | `agent-browser click <ref>` | ✅ |
+| 截图 | `agent-browser screenshot <path>` | ✅ |
+| 无障碍快照 | `agent-browser snapshot -i` | ✅ |
+| 控制台日志 | `agent-browser console` | ✅ |
+| 页面错误 | `agent-browser errors` | ✅ |
+| 等待 | `agent-browser wait <ms>` | ✅ |
+| 会话管理 | `agent-browser --session <name>` | ✅ |
+| 关闭会话 | `agent-browser close --all` | ✅ |
+| 视频录制 | `agent-browser record start/stop` | ✅ |
 
-| Scenario | Why agent-browser |
-|----------|-------------------|
-| Full-featured browser automation from terminal | Supports `eval`, `click`, `fill`, `find role`, `snapshot`, `screenshot`, `console` — the most complete CLI tool |
-| Dogfood/exploratory testing | Used by the `dogfood` skill; has `record start/stop` for video capture |
-| Need accessibility tree | `snapshot -i` returns structured accessibility tree with ref numbers for targeting |
-| Need console error checking | `console` and `errors` commands check for JS errors without manual inspection |
-| Complex multi-step workflows | Session management with `--session` flag, command chaining |
+## 何时使用
 
-## Project-Specific: AI Digital Life
+| 场景 | 为什么选 agent-browser |
+|------|------------------------|
+| 终端全功能浏览器自动化 | 支持 `eval`、`click`、`fill`、`find role`、`snapshot`、`screenshot`、`console` —— 最完整的 CLI 工具 |
+| Dogfood/探索性测试 | dogfood 技能使用；支持 `record start/stop` 录制视频 |
+| 需要无障碍树 | `snapshot -i` 返回带 ref 编号的结构化无障碍树，便于定位 |
+| 需要控制台错误检查 | `console` 和 `errors` 命令无需手动检查即可发现 JS 错误 |
+| 复杂多步工作流 | `--session` 会话管理 + 命令链 |
 
-### Complete Testing Workflow
+## 项目应用：AI Digital Life
 
-This is the full file tree testing workflow verified in an actual test session:
+### 完整测试工作流
+
+在真实测试会话中验证过的文件树完整测试工作流：
 
 ```powershell
-# Step 1: Open app with named session (headed mode shows browser window)
-agent-browser --session dogfood-test --headed open http://127.0.0.1:5173/
+# 第 1 步：以命名会话打开应用（注意：不使用 --headed，避免 daemon 死锁）
+agent-browser --session dogfood-test open http://127.0.0.1:5173/
 
-# Step 2: Open workspace via in-app API (bypasses native OS dialog)
-agent-browser --session dogfood-test eval "window.digitalLife.workspace.open('E:\\Programs\\Obsidian\\notes').then(r => JSON.stringify(r))"
+# 第 2 步：通过应用内 API 打开工作区（绕过原生 OS 对话框）
+agent-browser --session dogfood-test eval "window.digitalLife.workspace.open('E:\\AI-DIGITAL-LIFE\\SourceWorkspace').then(r => JSON.stringify(r))"
 
-# Step 3: Click "文件" tab by role
+# 第 3 步：按 role 点击"文件"标签页
 agent-browser --session dogfood-test find role tab click --name "文件"
 
-# Step 4: Refresh file tree to trigger loading
+# 第 4 步：刷新文件树以触发加载
 agent-browser --session dogfood-test click <ref-from-snapshot>
-# OR using CSS selector directly:
+# 或直接用 CSS 选择器：
 agent-browser --session dogfood-test eval "document.querySelector('[aria-label=刷新]')?.click()"
 
-# Step 5: Wait for tree to load
+# 第 5 步：等待文件树加载
 agent-browser --session dogfood-test wait 2000
 
-# Step 6: Expand "docs" directory by name (DOM traversal via eval)
+# 第 6 步：按名称展开 "docs" 目录（DOM 遍历）
 agent-browser --session dogfood-test eval "(() => { const items = document.querySelectorAll('.adl-filetree__node--directory'); for (const item of items) { if (item.querySelector('.adl-tree-node__label-text')?.textContent === 'docs') { item.querySelector('.adl-tree-node__toggle')?.click(); break; } } })()"
 
-# Step 7: Click a file inside expanded directory
+# 第 7 步：点击展开目录内的文件
 agent-browser --session dogfood-test eval "(() => { const items = document.querySelectorAll('.adl-filetree__node--directory'); for (const item of items) { if (item.querySelector('.adl-tree-node__label-text')?.textContent === 'docs') { const files = item.querySelector('ul')?.querySelectorAll('li'); if (files) for (const f of files) { if (!f.classList.contains('adl-filetree__node--directory')) { f.querySelector('.adl-tree-node__label')?.click(); break; } } break; } } })()"
 
-# Step 8: Take screenshot to verify
+# 第 8 步：截图验证
 agent-browser --session dogfood-test screenshot E:\path\to\screenshots\result.png
 
-# Step 9: Switch to "变更" tab
+# 第 9 步：切换到"变更"标签页
 agent-browser --session dogfood-test find role tab click --name "变更"
 
-# Step 10: Switch back and click another file
+# 第 10 步：切回并点击另一个文件
 agent-browser --session dogfood-test find role tab click --name "文件"
 agent-browser --session dogfood-test eval "(() => { const items = document.querySelectorAll('.adl-filetree__node--directory'); for (const item of items) { if (item.querySelector('.adl-tree-node__label-text')?.textContent === 'UIOperationManual') { item.querySelector('.adl-tree-node__toggle')?.click(); break; } } })()"
 agent-browser --session dogfood-test eval "(() => { const items = document.querySelectorAll('.adl-filetree__node--directory'); for (const item of items) { if (item.querySelector('.adl-tree-node__label-text')?.textContent === 'UIOperationManual') { const files = item.querySelector('ul')?.querySelectorAll('li'); if (files) for (const f of files) { const t = f.querySelector('.adl-tree-node__label-text')?.textContent; if (t === 'README.md') { f.querySelector('.adl-tree-node__label')?.click(); break; } } break; } } })()"
 
-# Step 11: Verify no console errors
+# 第 11 步：验证无控制台错误
 agent-browser --session dogfood-test console
 agent-browser --session dogfood-test errors
 
-# Step 12: Clean up
+# 第 12 步：清理
 agent-browser --session dogfood-test close --all
 ```
 
-### Key Patterns
+### 关键模式
 
-#### Open Workspace (Bypass Native Dialog)
+#### 打开工作区（绕过原生对话框）
 
 ```powershell
-# The "打开文件夹" menu triggers a native OS dialog — use the API directly
-agent-browser eval "window.digitalLife.workspace.open('E:\\Programs\\Obsidian\\notes').then(r => JSON.stringify(r))"
+# "打开文件夹"菜单会触发原生 OS 对话框 — 直接调用应用内 API
+agent-browser eval "window.digitalLife.workspace.open('E:\\AI-DIGITAL-LIFE\\SourceWorkspace').then(r => JSON.stringify(r))"
 ```
 
-#### Find Elements by Role (Most Stable)
+> 注意：`workspace.open()` 只把工作区加入侧边栏列表，**不会**自动加载到上下文。需 `location.reload()` 刷新，并确认状态栏显示 Git 分支信息（而非"非 Git 仓库"）。
+
+#### 按 role 定位元素（最稳定）
 
 ```powershell
-# Click by role and name — not affected by DOM changes
+# 按 role 和 name 点击 — 不受 DOM 结构变化影响
 agent-browser find role tab click --name "文件"
 agent-browser find role button click --name "主题"
 
-# List all interactive elements for ref targeting
+# 列出所有可交互元素以获取 ref
 agent-browser snapshot -i
 ```
 
-#### DOM Traversal for Dynamic Content
+#### 动态内容 DOM 遍历
 
 ```powershell
-# Evaluate arbitrary JS for complex DOM navigation
+# 对复杂 DOM 导航求值任意 JS
 agent-browser eval "document.querySelector('.adl-filetree-scroll')?.querySelectorAll('li')?.length"
 ```
 
-#### State Verification
+#### 状态验证
 
 ```powershell
-# Check for JavaScript errors
+# 检查 JS 错误
 agent-browser errors
 
-# Check console output
+# 检查控制台输出
 agent-browser console
 
-# Get accessibility snapshot
+# 获取无障碍快照（限深度）
 agent-browser snapshot -i --depth 2
 ```
 
-## Common Gotchas
+## 常见坑
 
-| Issue | Workaround |
-|-------|------------|
-| `find role` may not match localized names | Use `eval` with DOM traversal instead |
-| `eval` with backslashes needs double escaping | Use `E:\\path` (double backslash) in `eval`, or `E:/path` (forward slash) — both work |
-| File tree not shown after workspace open | Click refresh button first (`[aria-label=刷新]`) |
-| Session daemon keeps running after close | Use `close --all` to terminate |
+| 问题 | 解决 |
+|------|------|
+| `find role` 可能匹配不上本地化名称 | 改用 `eval` 做 DOM 遍历 |
+| `eval` 中反斜杠需要双重转义 | 用 `E:\\path`（双反斜杠），或用 `E:/path`（正斜杠）—— 两者均可 |
+| 打开工作区后文件树不显示 | 先点击刷新按钮（`[aria-label=刷新]`） |
+| 会话 daemon 关闭后仍在运行 | 用 `close --all` 终止 |
+| 使用 `--headed` 后命令卡死 | daemon 死锁；改用默认 headless 模式 |
+| 关闭后立即重新打开报超时 | `close --all` 后等待 2-3 秒再执行 `open` |

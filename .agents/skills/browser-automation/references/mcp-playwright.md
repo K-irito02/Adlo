@@ -1,82 +1,82 @@
-# MCP Playwright Tools Reference
+# MCP Playwright 工具参考
 
-Built-in browser automation tools via the MCP (Model Context Protocol), provided by the Trae IDE. Unlike Playwright CLI (terminal commands) and Browser Harness (CDP), MCP Playwright tools are **tool-call based** — invoked directly as IDE function calls.
+通过 MCP（Model Context Protocol）提供的内置浏览器自动化工具，由 Trae IDE 提供。与 Playwright CLI（终端命令）和 Browser Harness（CDP）不同，MCP Playwright 工具是**基于 tool call 的**——直接作为 IDE 函数调用。
 
-## Available Tools
+## 可用工具
 
-| Tool | Purpose |
-|------|---------|
-| `mcp_Playwright_playwright_navigate` | Navigate to a URL |
-| `mcp_Playwright_playwright_click` | Click an element by CSS selector |
-| `mcp_Playwright_playwright_fill` | Fill an input field |
-| `mcp_Playwright_playwright_select` | Select a dropdown option |
-| `mcp_Playwright_playwright_hover` | Hover over an element |
-| `mcp_Playwright_playwright_screenshot` | Take a page/element screenshot |
-| `mcp_Playwright_playwright_evaluate` | Execute JavaScript in browser |
-| `mcp_Playwright_playwright_upload_file` | Upload a file |
-| `mcp_Playwright_playwright_iframe_click` | Click element inside an iframe |
-| `mcp_Playwright_playwright_iframe_fill` | Fill input inside an iframe |
+| 工具 | 用途 |
+|------|------|
+| `mcp_Playwright_playwright_navigate` | 导航到 URL |
+| `mcp_Playwright_playwright_click` | 按 CSS 选择器点击元素 |
+| `mcp_Playwright_playwright_fill` | 填充输入框 |
+| `mcp_Playwright_playwright_select` | 选择下拉选项 |
+| `mcp_Playwright_playwright_hover` | 悬停元素 |
+| `mcp_Playwright_playwright_screenshot` | 页面/元素截图 |
+| `mcp_Playwright_playwright_evaluate` | 在浏览器中执行 JS |
+| `mcp_Playwright_playwright_upload_file` | 上传文件 |
+| `mcp_Playwright_playwright_iframe_click` | 点击 iframe 内元素 |
+| `mcp_Playwright_playwright_iframe_fill` | 填充 iframe 内输入框 |
 
-## When to Use
+## 何时使用
 
-| Scenario | Why MCP Playwright |
-|----------|-------------------|
-| Need precise CSS/locator-based element targeting | Supports standard CSS selectors and Playwright locators |
-| Need to execute JavaScript in the browser | `evaluate` runs arbitrary JS and returns results |
-| Simple click/fill/screenshot workflows | Minimal setup, no terminal environment needed |
-| File tree or dynamic DOM interaction | Combine `click` with `evaluate` for complex navigation |
-| Need to inject data via JS API (e.g. open workspace) | `evaluate` can call `window.digitalLife.*` API directly |
+| 场景 | 为什么用 MCP Playwright |
+|------|--------------------------|
+| 需要精确的 CSS/locator 定位 | 支持标准 CSS 选择器和 Playwright locator |
+| 需要在浏览器中执行 JS | `evaluate` 运行任意 JS 并返回结果 |
+| 简单 click/fill/截图工作流 | 最小化设置，无需终端环境 |
+| 文件树或动态 DOM 交互 | `click` 与 `evaluate` 组合进行复杂导航 |
+| 通过 JS API 注入数据（如打开工作区） | `evaluate` 可直接调用 `window.digitalLife.*` API |
 
-## Environment
+## 环境
 
-No environment setup required — MCP Playwright tools use a **separate browser instance** managed by the IDE. You do NOT need `$env:PATH` or `$env:PLAYWRIGHT_BROWSERS_PATH` for these tools.
+无需环境配置 — MCP Playwright 工具使用 IDE 管理的**独立浏览器实例**。不需要 `$env:PATH` 或 `$env:PLAYWRIGHT_BROWSERS_PATH`。
 
-## Project-Specific: AI Digital Life
+## 项目应用：AI Digital Life
 
-### Core Workflow Patterns
+### 核心工作流模式
 
-#### 1. Open Workspace via Preview API (Browser Mode)
+#### 1. 通过 Preview API 打开工作区（浏览器模式）
 
-In browser mode, the "打开文件夹" menu item triggers a **native OS dialog** (e.g. PowerShell `FolderBrowserDialog` on Windows) that cannot be automated by Playwright. Use the in-app API directly instead:
+浏览器模式下，"打开文件夹"菜单项会触发**原生 OS 对话框**（Windows 上的 PowerShell `FolderBrowserDialog`），Playwright 无法自动化。请直接使用应用内 API：
 
 ```javascript
-// Via evaluate — opens workspace and returns metadata
+// 通过 evaluate — 打开工作区并返回元数据
 const result = await page.evaluate(() =>
-  window.digitalLife.workspace.open("E:\\Programs\\Obsidian\\notes")
+  window.digitalLife.workspace.open("E:\\AI-DIGITAL-LIFE\\SourceWorkspace")
     .then(r => JSON.stringify(r))
 );
 ```
 
-The Vite Preview API equivalent (used internally):
+内部使用的 Vite Preview API 等价形式：
 
 ```
 POST /__adl_preview_api__/workspace/open
-Body: { "workspacePath": "E:\\Programs\\Obsidian\\notes" }
+Body: { "workspacePath": "E:\\AI-DIGITAL-LIFE\\SourceWorkspace" }
 ```
 
-#### 2. File Tab Navigation
+#### 2. 文件标签页导航
 
 ```javascript
-// Click the "文件" tab by ID
+// 按 ID 点击"文件"标签页
 await page.click("#_r_0_-files-tab");
 
-// Verify file tree is rendered
+// 验证文件树已渲染
 const treeHTML = await page.evaluate(() =>
   document.querySelector('.adl-filetree-scroll')?.outerHTML?.substring(0, 500)
 );
 ```
 
-#### 3. Expand a Directory in File Tree
+#### 3. 展开文件树目录
 
-Use evaluate for complex DOM targeting (directories have dynamic indexing):
+动态索引的目录需用 evaluate 做复杂 DOM 定位：
 
 ```javascript
-// Click toggle button by directory name
+// 按目录名点击切换按钮
 await page.evaluate(() => {
   const items = document.querySelectorAll('.adl-filetree__node--directory');
   for (const item of items) {
     const text = item.querySelector('.adl-tree-node__label-text')?.textContent;
-    if (text === 'docs') {      // or any directory name
+    if (text === 'docs') {      // 或任意目录名
       const toggle = item.querySelector('.adl-tree-node__toggle');
       if (toggle) toggle.click();
       break;
@@ -84,21 +84,21 @@ await page.evaluate(() => {
   }
 });
 
-// Verify expansion
+// 验证展开状态
 await page.evaluate(() => {
   const items = document.querySelectorAll('.adl-filetree__node--directory');
   for (const item of items) {
     if (item.querySelector('.adl-tree-node__label-text')?.textContent === 'docs') {
-      return item.getAttribute('aria-expanded');  // "true" if expanded
+      return item.getAttribute('aria-expanded');  // 展开为 "true"
     }
   }
 });
 ```
 
-#### 4. Click a File in File Tree
+#### 4. 点击文件树中的文件
 
 ```javascript
-// Click a file inside an expanded directory
+// 点击已展开目录内的文件
 await page.evaluate(() => {
   const items = document.querySelectorAll('.adl-filetree__node--directory');
   for (const item of items) {
@@ -120,65 +120,61 @@ await page.evaluate(() => {
 });
 ```
 
-#### 5. Switch Between Tool Tabs
+#### 5. 切换工具标签页
 
 ```javascript
-// Click by element ID (stable across sessions)
-await page.click("#_r_0_-changes-tab");  // 变更 tab
-await page.click("#_r_0_-files-tab");    // 文件 tab
+// 按元素 ID 点击（跨会话稳定）
+await page.click("#_r_0_-changes-tab");  // 变更 标签页
+await page.click("#_r_0_-files-tab");    // 文件 标签页
 ```
 
-### Complete Workflow: File Tree Testing
+### 完整工作流：文件树测试
 
-This is the full workflow executed and verified in a real test:
+已在真实测试中执行并验证的完整工作流：
 
 ```
-Step 1: Navigate to app
+第 1 步：导航到应用
   → mcp_Playwright_playwright_navigate(url: "http://127.0.0.1:5173/")
 
-Step 2: Open workspace via API (bypass native dialog)
+第 2 步：通过 API 打开工作区（绕过原生对话框）
   → mcp_Playwright_playwright_evaluate(
-      script: 'window.digitalLife.workspace.open("E:\\Programs\\Obsidian\\notes")...'
+      script: 'window.digitalLife.workspace.open("E:\\AI-DIGITAL-LIFE\\SourceWorkspace")...'
     )
 
-Step 3: Click "文件" tab
+第 3 步：点击"文件"标签页
   → mcp_Playwright_playwright_click(selector: "#_r_0_-files-tab")
 
-Step 4: Expand a directory (e.g. "docs")
-  → mcp_Playwright_playwright_evaluate(
-      script: '(<expand-directory script>)'
-    )
+第 4 步：展开目录（如 "docs"）
+  → mcp_Playwright_playwright_evaluate(script: '(<展开目录脚本>)')
 
-Step 5: Click a file inside the directory
-  → mcp_Playwright_playwright_evaluate(
-      script: '(<click-file script>)'
-    )
+第 5 步：点击目录内文件
+  → mcp_Playwright_playwright_evaluate(script: '(<点击文件脚本>)')
 
-Step 6: Switch to "变更" tab
+第 6 步：切换到"变更"标签页
   → mcp_Playwright_playwright_click(selector: "#_r_0_-changes-tab")
 
-Step 7: Switch back to "文件" tab, expand another dir, click another file
+第 7 步：切回"文件"标签页，展开另一个目录，点击另一个文件
   → mcp_Playwright_playwright_click(selector: "#_r_0_-files-tab")
   → mcp_Playwright_playwright_evaluate(...)
 ```
 
-### Verifying State
+### 状态验证
 
-Always take a screenshot after each meaningful action:
+每次有意义操作后截图：
 
 ```javascript
 await page.screenshot();  // mcp_Playwright_playwright_screenshot
 ```
 
-### Inspecting DOM Structure
+### 检查 DOM 结构
 
-Use evaluate to inspect live DOM when selectors are uncertain:
+选择器不确定时用 evaluate 检查实时 DOM：
 
 ```javascript
-// Check if a specific element exists
+// 检查某元素是否存在
 await page.evaluate(() => !!document.querySelector('.adl-filetree-scroll'));
 
-// List all root-level tree items
+// 列出所有根级树节点
 await page.evaluate(() => {
   const items = document.querySelectorAll('.adl-filetree__node--directory');
   return Array.from(items).map(el => ({
@@ -187,17 +183,17 @@ await page.evaluate(() => {
   }));
 });
 
-// Get full file tree HTML slice
+// 获取完整文件树 HTML 片段
 await page.evaluate(() =>
   document.querySelector('.adl-filetree-scroll')?.outerHTML?.substring(0, 2000)
 );
 ```
 
-## Key Limitations
+## 关键限制
 
-| Limitation | Workaround |
-|------------|------------|
-| Cannot interact with native OS dialogs (file picker, folder browser) | Use `window.digitalLife.workspace.open("path")` via `evaluate` |
-| CSS selectors may fail on dynamically-generated IDs | Use `evaluate` with DOM traversal or text content matching |
-| File tree items use stable class names but variable indices | Target by directory/file name text, not by index |
-| Multiple sequential clicks may need waits between actions | Call `screenshot` between actions as implicit wait |
+| 限制 | 解决 |
+|------|------|
+| 无法交互原生 OS 对话框（文件选择器、文件夹浏览器） | 通过 `evaluate` 使用 `window.digitalLife.workspace.open("path")` |
+| CSS 选择器在动态生成的 ID 上可能失效 | 用 `evaluate` 做 DOM 遍历或文本内容匹配 |
+| 文件树节点类名稳定但索引可变 | 按目录/文件名文本定位，不要按索引 |
+| 多次连续点击间可能需要等待 | 在动作间用 `screenshot` 作为隐式等待 |

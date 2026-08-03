@@ -1,52 +1,52 @@
-# Browser Harness Reference
+# Browser Harness 参考
 
-Full command reference and project-specific usage for Browser Harness (v0.1.0).
+Browser Harness（v0.1.0）的完整命令参考与项目专属用法。通过 CDP 连接用户已运行的 Chrome。
 
-## Installation
+## 安装
 
 ```powershell
-# Already installed at:
-# Package: E:\dev-tools\browser-harness\ (editable mode)
-# Binary: E:\dev-tools\uv-bin\browser-harness
+# 已安装位置：
+# 包：E:\dev-tools\browser-harness\（editable 模式）
+# 二进制：E:\dev-tools\uv-bin\browser-harness
 
-# Environment setup (run before each session)
+# 会话前环境配置
 $env:PATH = "E:\dev-tools\uv-bin;$env:PATH"
 $env:BU_CDP_URL = "http://127.0.0.1:9222"
 ```
 
-## Chrome Debug Mode (Required)
+## Chrome 调试模式（必需）
 
-Browser Harness connects to your running Chrome via CDP. You MUST start Chrome in debug mode first:
+Browser Harness 通过 CDP 连接你正在运行的 Chrome。必须先以调试模式启动 Chrome：
 
 ```powershell
 Start-Process "C:\Program Files\Google\Chrome\Application\chrome.exe" -ArgumentList "--remote-debugging-port=9222", "--user-data-dir=E:\dev-tools\chrome-debug-profile"
 ```
 
-Key points:
-- Port 9222 must match `$env:BU_CDP_URL`
-- `--user-data-dir` preserves login state between sessions
-- Close all Chrome instances before starting debug mode
-- Chrome 144+ will show a per-attach popup — click "Allow"
+关键点：
+- 端口 9222 必须与 `$env:BU_CDP_URL` 一致
+- `--user-data-dir` 在会话间保留登录状态
+- 启动调试模式前关闭所有 Chrome 实例
+- Chrome 144+ 会显示 per-attach 弹窗 — 点击"允许"
 
-## Core Usage
+## 核心用法
 
-### Basic Invocation
+### 基本调用
 
 ```powershell
-browser-harness -c '<python code>'
+browser-harness -c '<python 代码>'
 ```
 
-The daemon auto-starts on first call. All helpers are pre-imported. No manual start/stop needed.
+daemon 首次调用自动启动。所有辅助函数已预导入，无需手动 start/stop。
 
-### Script Mode (For Complex Workflows)
+### 脚本模式（复杂工作流）
 
-For multi-step workflows, write a Python script file and execute it via `exec(open(...).read())`:
+多步工作流建议写成 Python 脚本文件，通过 `exec(open(...).read())` 执行：
 
 ```powershell
 browser-harness -c "exec(open('path/to/script.py').read())"
 ```
 
-**Example script** (`file-tree-test.py`):
+**示例脚本**（`file-tree-test.py`）：
 
 ```python
 import time
@@ -55,17 +55,17 @@ new_tab('http://127.0.0.1:5173/')
 wait_for_load()
 print("Step 1: Navigated")
 
-# Use js() helper (not cdp()) for reliability — js() handles session attachment
-js('window.digitalLife.workspace.open("E:/Programs/Obsidian/notes")')
+# 用 js() 辅助函数（而非 cdp()）保证可靠性 —— js() 自动处理会话附加
+js('window.digitalLife.workspace.open("E:/AI-DIGITAL-LIFE/SourceWorkspace")')
 time.sleep(2)
 print("Step 2: Workspace opened")
 
-# Use js() with DOM querySelector and optional chaining for clicks
+# 用 js() + DOM querySelector + 可选链做点击
 js('document.querySelector("#_r_0_-files-tab")?.click()')
 time.sleep(1)
 print("Step 3: Files tab clicked")
 
-# File tree operations via js() DOM traversal
+# 文件树操作通过 js() DOM 遍历
 js('(() => { const i = document.querySelectorAll(".adl-filetree__node--directory"); for (const x of i) { if (x.querySelector(".adl-tree-node__label-text")?.textContent === "docs") { x.querySelector(".adl-tree-node__toggle")?.click(); break; } } })()')
 time.sleep(1)
 print("Step 4: Directory expanded")
@@ -75,49 +75,49 @@ time.sleep(1)
 print("Step 5: File clicked")
 ```
 
-**Key insight**: Use `js()` rather than `cdp("Runtime.evaluate", ...)` for JS evaluation. The `js()` helper handles session ID attachment automatically, while raw `cdp()` calls require manual `session_id` parameter management which is error-prone.
+**关键经验**：JS 求值使用 `js()` 而非 `cdp("Runtime.evaluate", ...)`。`js()` 自动处理 session ID 附加，而裸 `cdp()` 调用需要手动管理 `session_id` 参数，容易出错。
 
-### First Navigation
+### 首次导航
 
-Always use `new_tab(url)` for the first navigation, not `goto_url(url)` — `goto` runs in the user's active tab and may overwrite their work.
+首次导航总是用 `new_tab(url)`，**不要**用 `goto_url(url)` —— `goto` 会在用户的活跃标签页中运行，可能覆盖用户正在做的工作。
 
 ```powershell
 browser-harness -c "new_tab('http://localhost:5173'); wait_for_load(); print(page_info())"
 ```
 
-## Core Helpers
+## 核心辅助函数
 
-### Navigation & Page Info
+### 导航与页面信息
 
 ```python
-new_tab("https://example.com")     # Open new tab with URL
-goto_url("https://example.com")    # Navigate current tab (use after new_tab)
-wait_for_load()                     # Wait for page to finish loading
-page_info()                         # Returns {url, title, ...}
-ensure_real_tab()                   # Re-attach if current tab is stale
+new_tab("https://example.com")     # 用 URL 打开新标签页
+goto_url("https://example.com")    # 导航当前标签页（new_tab 后使用）
+wait_for_load()                     # 等待页面加载完成
+page_info()                         # 返回 {url, title, ...}
+ensure_real_tab()                   # 当前标签页过期时重新附加
 ```
 
-### Screenshot Workflow (Primary Method)
+### 截图工作流（主要方法）
 
-Browser Harness uses a screenshot-first approach. The core workflow is:
+Browser Harness 采用"先截图"方法。核心工作流：
 
 ```python
-capture_screenshot()                # Take screenshot to understand page
-click_at_xy(x, y)                  # Click at coordinates
-capture_screenshot()                # Verify the click worked
+capture_screenshot()                # 截图了解页面
+click_at_xy(x, y)                  # 按坐标点击
+capture_screenshot()                # 验证点击生效
 ```
 
-**Why screenshots first?**
-- `click_at_xy()` operates at Chrome's compositor level
-- Automatically penetrates iframes, Shadow DOM, and cross-origin boundaries
-- No selector hunting needed for visible elements
-- Only drop to DOM when target has no visible geometry (hidden input, 0x0 node)
+**为什么先截图？**
+- `click_at_xy()` 在 Chrome 的 compositor 层运行
+- 自动穿透 iframe、Shadow DOM 和跨域边界
+- 可见元素无需寻找选择器
+- 仅当目标无可见几何形状（隐藏 input、0x0 节点）时才降到 DOM
 
-### Coordinate Clicks
+### 坐标点击
 
 ```python
-click_at_xy(x, y)                  # Left click at coordinates
-# For right-click, double-click, etc., use raw CDP:
+click_at_xy(x, y)                  # 左键点击坐标
+# 右键、双击等使用裸 CDP：
 cdp("Input.dispatchMouseEvent", {
     "type": "mousePressed",
     "x": x, "y": y,
@@ -126,95 +126,95 @@ cdp("Input.dispatchMouseEvent", {
 })
 ```
 
-### DOM Operations
+### DOM 操作
 
 ```python
-js("document.title")                                    # Evaluate JS
-js("document.querySelector('.adl-titlebar').textContent")  # Read element
-js("el => el.textContent", element_ref)                 # With element reference
+js("document.title")                                    # 求值 JS
+js("document.querySelector('.adl-titlebar').textContent")  # 读取元素
+js("el => el.textContent", element_ref)                 # 带元素引用
 ```
 
-### Raw CDP (Escape Hatch)
+### 裸 CDP（逃生通道）
 
-For anything helpers don't cover:
+辅助函数覆盖不了的场景：
 
 ```python
-cdp("Domain.method", params_dict)    # Direct CDP protocol call
+cdp("Domain.method", params_dict)    # 直接 CDP 协议调用
 ```
 
-## Interaction Skills
+## 交互技能
 
-Browser Harness provides guidance files for common UI mechanics. Check these when struggling:
+Browser Harness 提供常见 UI 机制的指导文件。遇到困难时参考：
 
-| Skill | File | Covers |
-|-------|------|--------|
-| Connection | `interaction-skills/connection.md` | CDP connection troubleshooting |
-| Cookies | `interaction-skills/cookies.md` | Cookie management |
-| Cross-origin iframes | `interaction-skills/cross-origin-iframes.md` | Iframe handling |
-| Dialogs | `interaction-skills/dialogs.md` | Alert/confirm/prompt |
-| Downloads | `interaction-skills/downloads.md` | File downloads |
-| Drag and drop | `interaction-skills/drag-and-drop.md` | Drag operations |
-| Dropdowns | `interaction-skills/dropdowns.md` | Select/combobox |
-| Iframes | `interaction-skills/iframes.md` | General iframe work |
-| Network requests | `interaction-skills/network-requests.md` | HTTP interception |
-| Print as PDF | `interaction-skills/print-as-pdf.md` | PDF generation |
-| Profile sync | `interaction-skills/profile-sync.md` | Cloud profile management |
-| Screenshots | `interaction-skills/screenshots.md` | Advanced screenshot usage |
-| Scrolling | `interaction-skills/scrolling.md` | Scroll operations |
-| Shadow DOM | `interaction-skills/shadow-dom.md` | Shadow DOM traversal |
-| Tabs | `interaction-skills/tabs.md` | Tab management |
-| Uploads | `interaction-skills/uploads.md` | File uploads |
-| Viewport | `interaction-skills/viewport.md` | Viewport control |
+| 技能 | 文件 | 覆盖 |
+|------|------|------|
+| 连接 | `interaction-skills/connection.md` | CDP 连接故障排查 |
+| Cookies | `interaction-skills/cookies.md` | Cookie 管理 |
+| 跨域 iframe | `interaction-skills/cross-origin-iframes.md` | Iframe 处理 |
+| 对话框 | `interaction-skills/dialogs.md` | Alert/confirm/prompt |
+| 下载 | `interaction-skills/downloads.md` | 文件下载 |
+| 拖放 | `interaction-skills/drag-and-drop.md` | 拖拽操作 |
+| 下拉框 | `interaction-skills/dropdowns.md` | Select/combobox |
+| iframe | `interaction-skills/iframes.md` | 常规 iframe 工作 |
+| 网络请求 | `interaction-skills/network-requests.md` | HTTP 拦截 |
+| 打印为 PDF | `interaction-skills/print-as-pdf.md` | PDF 生成 |
+| 配置同步 | `interaction-skills/profile-sync.md` | 云配置管理 |
+| 截图 | `interaction-skills/screenshots.md` | 高级截图用法 |
+| 滚动 | `interaction-skills/scrolling.md` | 滚动操作 |
+| Shadow DOM | `interaction-skills/shadow-dom.md` | Shadow DOM 遍历 |
+| 标签页 | `interaction-skills/tabs.md` | 标签页管理 |
+| 上传 | `interaction-skills/uploads.md` | 文件上传 |
+| 视口 | `interaction-skills/viewport.md` | 视口控制 |
 
-## Self-Healing Mechanism
+## 自愈机制
 
-Browser Harness's most powerful feature. When the agent discovers a missing helper:
+Browser Harness 最强大的特性。当 agent 发现缺少辅助函数时：
 
 ```
-● agent: wants to upload a file
+● agent: 想上传文件
 │
-● agent-workspace/agent_helpers.py → helper missing
+● agent-workspace/agent_helpers.py → 缺少辅助函数
 │
-● agent writes it                    agent_helpers.py
-│                                                    + custom helper
-✓ file uploaded
+● agent 写入它                    agent_helpers.py
+│                                                    + 自定义辅助函数
+✓ 文件已上传
 ```
 
-The agent edits `agent-workspace/agent_helpers.py` to add the missing function, then continues. Over time, the helpers grow organically.
+Agent 编辑 `agent-workspace/agent_helpers.py` 添加缺失函数后继续。随时间推移辅助函数有机增长。
 
-**Important**: Task-specific helpers go in `agent-workspace/agent_helpers.py`. Core helpers stay in `src/browser_harness/helpers.py` (protected).
+**重要**：任务专属辅助函数放 `agent-workspace/agent_helpers.py`。核心辅助函数保持在 `src/browser_harness/helpers.py`（受保护）。
 
-## Domain Skills (Opt-in)
+## 领域技能（可选）
 
-Community-contributed per-site playbooks. Disabled by default.
+社区贡献的按站点 playbook。默认禁用。
 
 ```powershell
-$env:BH_DOMAIN_SKILLS = "1"    # Enable domain skills
+$env:BH_DOMAIN_SKILLS = "1"    # 启用领域技能
 ```
 
-When enabled, `goto_url` returns up to 10 skill filenames for the navigated host. Available skills include GitHub, LinkedIn, Amazon, etc.
+启用后，`goto_url` 为导航的 host 返回最多 10 个技能文件名。可用技能包括 GitHub、LinkedIn、Amazon 等。
 
-## Remote Browsers (Browser Use Cloud)
+## 远程浏览器（Browser Use Cloud）
 
-For parallel sub-agents or headless deployment. Requires `BROWSER_USE_API_KEY`.
+用于并行子代理或 headless 部署。需要 `BROWSER_USE_API_KEY`。
 
 ```python
-start_remote_daemon("work")                                          # Clean browser
-start_remote_daemon("work", profileName="my-work")                   # Reuse cloud profile
-start_remote_daemon("work", proxyCountryCode="de", timeout=120)      # DE proxy, 2h timeout
-start_remote_daemon("work", proxyCountryCode=None)                   # Disable proxy
+start_remote_daemon("work")                                          # 干净浏览器
+start_remote_daemon("work", profileName="my-work")                   # 复用云配置
+start_remote_daemon("work", proxyCountryCode="de", timeout=120)      # DE 代理，2 小时超时
+start_remote_daemon("work", proxyCountryCode=None)                   # 禁用代理
 ```
 
-Use with named session:
+配合命名会话使用：
 
 ```powershell
 $env:BU_NAME = "work"
 browser-harness -c "new_tab('https://example.com'); print(page_info())"
 ```
 
-## Bulk HTTP (For Static Pages)
+## 批量 HTTP（静态页面）
 
-When you don't need browser rendering:
+不需要浏览器渲染时：
 
 ```python
 from concurrent.futures import ThreadPoolExecutor
@@ -222,93 +222,93 @@ with ThreadPoolExecutor() as pool:
     results = list(pool.map(http_get, urls))
 ```
 
-This can fetch 249 pages in ~2.8 seconds vs minutes with browser navigation.
+249 页约 2.8 秒完成，相比浏览器导航的分钟级。
 
-## Design Constraints
+## 设计约束
 
-- **Coordinate clicks default**: `Input.dispatchMouseEvent` goes through iframes/shadow/cross-origin at compositor level
-- **Connect to user's Chrome**: Don't launch your own browser
-- **No manager layer**: No retries framework, session manager, daemon supervisor, config system, or logging framework
-- **Keep run.py tiny**: No argparse, subcommands, or extra control layer
+- **坐标点击默认**：`Input.dispatchMouseEvent` 在 compositor 层穿透 iframe/shadow/cross-origin
+- **连接用户 Chrome**：不要启动自己的浏览器
+- **无管理器层**：无重试框架、会话管理器、daemon 监督器、配置系统或日志框架
+- **保持 run.py 精简**：无 argparse、子命令或额外控制层
 
-## Gotchas (Field-Tested)
+## 实战坑（Field-Tested）
 
-- Omnibox popups are fake page targets — filter `chrome://omnibox-popup...` when you need a real tab
-- CDP target order != Chrome's visible tab-strip order
-- Default daemon sessions can go stale — use `ensure_real_tab()` to re-attach
-- After every meaningful action, re-screenshot before assuming it worked
-- Prefer compositor-level actions over framework hacks
-- Auth wall: if redirected to login, stop and ask the user — don't type credentials from screenshots
+- Omnibox 弹窗是伪造的 page target — 需要真实标签页时过滤 `chrome://omnibox-popup...`
+- CDP target 顺序 ≠ Chrome 可见标签页顺序
+- 默认 daemon 会话会过期 — 用 `ensure_real_tab()` 重新附加
+- 每次有意义操作后，先重新截图再假设它生效
+- 优先 compositor 层操作而非框架 hack
+- 认证墙：重定向到登录页就停止并询问用户 — 不要从截图输入凭据
 
-## Project-Specific: AI Digital Life
+## 项目应用：AI Digital Life
 
-### Start App and Test
+### 启动应用并测试
 
 ```powershell
-# 1. Start Chrome debug mode
+# 1. 启动 Chrome 调试模式
 Start-Process "C:\Program Files\Google\Chrome\Application\chrome.exe" -ArgumentList "--remote-debugging-port=9222", "--user-data-dir=E:\dev-tools\chrome-debug-profile"
 
-# 2. Start the app
-cd E:\Programs\Obsidian\notes\ai-digital-life
+# 2. 启动应用
+cd E:\AI-DIGITAL-LIFE\SourceWorkspace
 npm run dev:browser
 
-# 3. Set environment
+# 3. 设置环境
 $env:PATH = "E:\dev-tools\uv-bin;$env:PATH"
 $env:BU_CDP_URL = "http://127.0.0.1:9222"
 
-# 4. Open and test
+# 4. 打开并测试
 browser-harness -c "new_tab('http://localhost:5173'); wait_for_load(); print(page_info())"
 browser-harness -c "capture_screenshot()"
 ```
 
-### Complete File Tree Testing Workflow (Script Mode)
+### 完整文件树测试工作流（脚本模式）
 
-Save this as `file-tree-test.py` and execute with `browser-harness -c "exec(open('file-tree-test.py').read())"`:
+保存为 `file-tree-test.py`，用 `browser-harness -c "exec(open('file-tree-test.py').read())"` 执行：
 
 ```python
 import time
 
-# Step 1: Navigate to app
+# 第 1 步：导航到应用
 new_tab('http://127.0.0.1:5173/')
 wait_for_load()
 print("Step 1: Navigated")
 
-# Step 2: Open workspace via in-app API (bypasses native dialog)
-js('window.digitalLife.workspace.open("E:/Programs/Obsidian/notes")')
+# 第 2 步：通过应用内 API 打开工作区（绕过原生对话框）
+js('window.digitalLife.workspace.open("E:/AI-DIGITAL-LIFE/SourceWorkspace")')
 time.sleep(2)
 print("Step 2: Workspace opened")
 
-# Step 3: Click "文件" tab
+# 第 3 步：点击"文件"标签页
 js('document.querySelector("#_r_0_-files-tab")?.click()')
 time.sleep(1)
 print("Step 3: Files tab clicked")
 
-# Step 4: Click refresh button to trigger file tree loading
+# 第 4 步：点击刷新按钮触发文件树加载
 js('document.querySelector("[aria-label=刷新]")?.click()')
 time.sleep(3)
 print("Step 4: File tree refreshed")
 
-# Step 5: Expand "docs" directory
+# 第 5 步：展开 "docs" 目录
 js('(() => { const i = document.querySelectorAll(".adl-filetree__node--directory"); for (const x of i) { if (x.querySelector(".adl-tree-node__label-text")?.textContent === "docs") { x.querySelector(".adl-tree-node__toggle")?.click(); break; } } })()')
 time.sleep(1)
 print("Step 5: docs expanded")
 
-# Step 6: Click first file in docs
+# 第 6 步：点击 docs 中第一个文件
 js('(() => { const i = document.querySelectorAll(".adl-filetree__node--directory"); for (const x of i) { if (x.querySelector(".adl-tree-node__label-text")?.textContent === "docs") { const f = x.querySelector("ul")?.querySelectorAll("li"); if (f) for (const y of f) { if (!y.classList.contains("adl-filetree__node--directory")) { y.querySelector(".adl-tree-node__label")?.click(); break; } } break; } } })()')
 time.sleep(1)
 print("Step 6: File clicked")
 
-# Step 7: Switch to "变更" tab
+# 第 7 步：切换到"变更"标签页
 js('document.querySelector("#_r_0_-changes-tab")?.click()')
 time.sleep(1)
 print("Step 7: Changes tab clicked")
 
-# Step 8: Switch back to "文件" tab
+# 第 8 步：切回"文件"标签页
 js('document.querySelector("#_r_0_-files-tab")?.click()')
 time.sleep(1)
 print("Step 8: Files tab back")
 
-# Step 9: Expand "UIOperationManual" and click README.md
+# 第 9 步：展开 "UIOperationManual" 并点击 README.md
 js('(() => { const i = document.querySelectorAll(".adl-filetree__node--directory"); for (const x of i) { if (x.querySelector(".adl-tree-node__label-text")?.textContent === "UIOperationManual") { x.querySelector(".adl-tree-node__toggle")?.click(); break; } } })()')
 time.sleep(1)
 
@@ -317,28 +317,28 @@ time.sleep(1)
 print("Step 9: README.md clicked - ALL DONE!")
 ```
 
-### Gotchas Specific to Browser Harness
+### Browser Harness 专属坑
 
-- **Use `js()` not `cdp()`** for clicks and DOM operations. `js()` automatically manages session IDs; `cdp()` may fail with `'code': -32600, 'message': "Message may have string 'sessionId' property"`.
-- **Backslash escaping**: `js()` receives a Python string. Use forward slashes in paths: `js('window.digitalLife.workspace.open("E:/Programs/Obsidian/notes")')`.
-- **Script mode** (`exec(open(...).read())`) is more reliable than inline `-c` for complex workflows — avoids quote escaping issues.
-- **File tree may need refresh**: After opening a workspace, the file tree may not appear. Click the "刷新" (refresh) button first (`[aria-label=刷新]`).
+- **用 `js()` 而非 `cdp()`** 做点击和 DOM 操作。`js()` 自动管理 session ID；`cdp()` 可能报 `'code': -32600, 'message': "Message may have string 'sessionId' property"`。
+- **反斜杠转义**：`js()` 接收 Python 字符串。路径用正斜杠：`js('window.digitalLife.workspace.open("E:/AI-DIGITAL-LIFE/SourceWorkspace")')`。
+- **脚本模式**（`exec(open(...).read())`）比内联 `-c` 更可靠 — 避免引号转义问题。
+- **文件树可能需要刷新**：打开工作区后文件树可能不显示。先点击"刷新"按钮（`[aria-label=刷新]`）。
 
-### Common Operations
+### 常用操作
 
 ```powershell
-# Navigate to app
+# 导航到应用
 browser-harness -c "new_tab('http://localhost:5173'); wait_for_load()"
 
-# Take screenshot
+# 截图
 browser-harness -c "capture_screenshot()"
 
-# Get page info
+# 获取页面信息
 browser-harness -c "print(page_info())"
 
-# Click at coordinates (after screenshot reveals position)
+# 按坐标点击（截图确定位置后）
 browser-harness -c "click_at_xy(100, 200)"
 
-# Read DOM
+# 读取 DOM
 browser-harness -c "js('document.querySelector(\".adl-titlebar\").textContent')"
 ```

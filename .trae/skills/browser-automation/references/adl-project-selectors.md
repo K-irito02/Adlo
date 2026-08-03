@@ -216,45 +216,38 @@ docs/operations/ui-manual/
 
 ## Playwright CLI 项目专属操作
 
-### 快速验证流程
+> ⚠️ **本地 v1.59.1 仅支持 `open` 和 `screenshot`**。以下选择器/命令为等价 **agent-browser** 参考（`playwright eval` 脚本与 agent-browser `eval` 完全一致，交互命令请用 agent-browser）。
+
+### 快速验证流程（agent-browser 等价）
 
 ```bash
 # 1. 打开应用
-playwright open http://localhost:5173
-playwright snapshot
+agent-browser --session adl open http://localhost:5173
 
 # 2. 验证布局
-playwright click "getByRole('button', { name: '主题' })"
-playwright screenshot --filename=theme-test.png
+agent-browser --session adl snapshot -i
 
 # 3. 测试发送消息
-playwright fill "[data-testid='composer-input']" "测试消息"
-playwright click "[data-testid='composer-send']"
-playwright snapshot
+agent-browser --session adl eval "document.querySelector('[data-testid=composer-input]').value = '测试消息'"
+agent-browser --session adl eval "document.querySelector('[data-testid=composer-send]')?.click()"
+agent-browser --session adl snapshot -i
 
 # 4. 关闭
-playwright close
+agent-browser --session adl close --all
 ```
 
-### 常用 Playwright CLI 选择器映射
+### 常用选择器映射（Playwright CLI / agent-browser 等价）
 
-| 操作 | Playwright CLI 命令 |
-|------|---------------------|
-| 点击主题按钮 | `playwright click "button[aria-label='主题']"` |
-| 点击设置按钮 | `playwright click "button[aria-label='设置']"` |
-| 切换左侧边栏 | `playwright click "button[aria-label='切换左侧边栏']"` |
-| 切换右侧面板 | `playwright click "button[aria-label='切换右侧面板']"` |
-| 输入消息 | `playwright fill "[data-testid='composer-input']" "内容"` |
-| 发送消息 | `playwright click "[data-testid='composer-send']"` |
-| 读取页面标题 | `playwright eval "document.title"` |
-| 检查主题状态 | `playwright eval "document.documentElement.getAttribute('data-theme')"` |
-
-### 保存和恢复认证状态
-
-```bash
-playwright state-save adl-auth.json
-playwright state-load adl-auth.json
-```
+| 操作 | Playwright CLI 命令（参考） | agent-browser 等价 |
+|------|---------------------|---------------------|
+| 点击主题按钮 | `playwright click "button[aria-label='主题']"` | `find role button click --name "主题"` |
+| 点击设置按钮 | `playwright click "button[aria-label='设置']"` | `find role button click --name "设置"` |
+| 切换左侧边栏 | `playwright click "button[aria-label='切换左侧边栏']"` | `find role button click --name "切换左侧边栏"` |
+| 切换右侧面板 | `playwright click "button[aria-label='切换右侧面板']"` | `find role button click --name "切换右侧面板"` |
+| 输入消息 | `playwright fill "[data-testid='composer-input']" "内容"` | `eval` + DOM 赋值 |
+| 发送消息 | `playwright click "[data-testid='composer-send']"` | `find role button click --name "发送"` |
+| 读取页面标题 | `playwright eval "document.title"` | `eval "document.title"` |
+| 检查主题状态 | `playwright eval "document.documentElement.getAttribute('data-theme')"` | `eval "document.documentElement.getAttribute('data-theme')"` |
 
 ## Browser Harness 项目专属操作
 

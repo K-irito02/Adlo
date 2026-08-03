@@ -18,7 +18,7 @@ agent-browser --session changes-test open http://127.0.0.1:5173
 ### Step 2：打开工作区
 
 ```powershell
-agent-browser --session changes-test eval "window.digitalLife.workspace.open('E:\\Programs\\Obsidian\\notes').then(() => location.reload())"
+agent-browser --session changes-test eval "window.digitalLife.workspace.open('E:\\AI-DIGITAL-LIFE\\SourceWorkspace').then(() => location.reload())"
 ```
 
 等待 3-5 秒，然后验证：
@@ -123,7 +123,7 @@ agent-browser --session changes-test keyboard type Escape
 
 ```powershell
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-agent-browser --session changes-test screenshot "e:\Programs\Obsidian\notes\test-artifacts\screenshots\changes-panel-$timestamp.png"
+agent-browser --session changes-test screenshot "E:\AI-DIGITAL-LIFE\SourceWorkspace\test-artifacts\screenshots\changes-panel-$timestamp.png"
 ```
 
 ### Step 12：清理
