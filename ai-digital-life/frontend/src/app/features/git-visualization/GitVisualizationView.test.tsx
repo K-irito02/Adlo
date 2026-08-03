@@ -178,7 +178,6 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisCommitTimelineDesc: 'desc',
       gitVisContributorModuleDesc: 'desc',
       gitVisFileHotspotsTitle: 'File Hotspots',
-      gitVisFileHotspotsDesc: 'desc',
       gitVisHeatmapTabCalendar: 'Calendar',
       gitVisHeatmapTabClock: 'Clock',
       gitVisHeatmapTabActivity: 'Activity',

@@ -61,7 +61,7 @@ class VisErrorBoundary extends Component<
 
 interface TimeRangeAwareCardProps {
   title: string;
-  desc: string;
+  desc?: string;
   children: React.ReactNode;
   timeRange: ReturnType<typeof useChartData>;
   onRefresh: () => Promise<void>;
@@ -99,7 +99,7 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
       </div>
       {timeRange.error && <div className="adl-git-vis__error">{timeRange.error}</div>}
       {timeRange.loading ? <div className="adl-git-vis__skeleton" /> : children}
-      <p className="adl-git-vis__card-desc">{desc}</p>
+      {desc ? <p className="adl-git-vis__card-desc">{desc}</p> : null}
     </div>
   );
 });
@@ -297,7 +297,8 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
       }
     };
 
-    const chartSelector = '.adl-git-vis__chart, .adl-branch-graph__body';
+    const chartSelector =
+      '.adl-git-vis__chart, .adl-branch-graph__body, .adl-file-hotspots-ranking__scroll';
     const initialCharts = container.querySelectorAll(chartSelector);
     initialCharts.forEach(connectChart);
 
@@ -449,7 +450,6 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
         </TimeRangeAwareCard>
         <TimeRangeAwareCard
           title={t.gitVisFileHotspotsTitle}
-          desc={t.gitVisFileHotspotsDesc}
           onRefresh={handleRefreshFileHotspots}
           refreshLabel={t.gitVisRefreshChart}
           timeRange={fileHotspotsData}

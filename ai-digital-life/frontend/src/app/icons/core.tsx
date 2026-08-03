@@ -166,3 +166,14 @@ export const IconList = make(
     <path d="M3 18h.01" />
   </>,
 );
+
+export const IconHierarchy = make(
+  <>
+    <path d="M9 6h11" />
+    <path d="M12 12h8" />
+    <path d="M15 18h5" />
+    <path d="M5 6v.01" />
+    <path d="M8 12v.01" />
+    <path d="M11 18v.01" />
+  </>,
+);

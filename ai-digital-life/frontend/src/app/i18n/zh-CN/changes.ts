@@ -141,14 +141,18 @@ export const changesZh = {
   gitVisCommitTimelineCountMonth: '本月提交数',
   gitVisCommitTimelineCumulative: '累计',
   gitVisFileHotspotsTitle: '文件热点',
-  gitVisFileHotspotsDesc:
-    '双模式排行榜：全排列模式按变更指标对全部文件排序；下钻模式沿目录树逐层下钻，支持点击目录行下钻、面包屑回退与右键路径跳转。',
-  gitVisHotspotsModeFull: '全排列',
-  gitVisHotspotsModeDrill: '下钻',
+  gitVisHotspotsModeFull: '全局排行',
+  gitVisHotspotsModeDrill: '逐级下钻',
   gitVisHotspotsRankingName: '名称',
   gitVisHotspotsRankingPath: '路径',
   gitVisHotspotsEmpty: '无变更文件',
-  gitVisHotspotsDrillHint: '点击目录行下钻，右键目录行可路径跳转',
+  gitVisHotspotsFullHint:
+    '按变更指标（变更次数/新增/删除/净变化）对全部变更文件排序，点击表头可切换排序。',
+  gitVisHotspotsDrillHint:
+    '点击目录行可逐级下钻；右键目录行，或点击目录名称前的跳转按钮，可打开模块树进行路径跳转；面包屑可回退上级目录。',
+  gitVisHotspotsJump: '打开模块树',
+  gitVisHotspotsCopyName: '复制名称',
+  gitVisHotspotsCopyPath: '复制完整路径',
   gitVisHeatmapTabCalendar: '日历',
   gitVisHeatmapTabClock: '时段',
   gitVisHeatmapTabActivity: '活跃度',

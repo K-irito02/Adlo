@@ -13,6 +13,28 @@ struct FileAgg {
     last_modified: String,
 }
 
+/// Build the `git log --numstat` command args.
+///
+/// `core.quotepath=false` disables git's C-style path quoting so paths with
+/// non-ASCII characters arrive as raw UTF-8 (e.g. `Logo图标设计`) instead of
+/// octal escapes (e.g. `"Logo\345\233\276..."`).
+fn numstat_args(since: Option<&str>, until: Option<&str>) -> Vec<String> {
+    let mut args: Vec<String> = vec![
+        "-c".to_string(),
+        "core.quotepath=false".to_string(),
+        "log".to_string(),
+        "--pretty=format:%H|%aI".to_string(),
+        "--numstat".to_string(),
+    ];
+    if let Some(s) = since {
+        args.push(format!("--since={}", s));
+    }
+    if let Some(u) = until {
+        args.push(format!("--until={}", u));
+    }
+    args
+}
+
 pub async fn capture_file_hotspots(
     root: &Path,
     since: Option<&str>,
@@ -24,15 +46,7 @@ pub async fn capture_file_hotspots(
         since, until
     );
 
-    let mut args: Vec<String> =
-        vec!["log".to_string(), "--pretty=format:%H|%aI".to_string(), "--numstat".to_string()];
-    if let Some(s) = since {
-        args.push(format!("--since={}", s));
-    }
-    if let Some(u) = until {
-        args.push(format!("--until={}", u));
-    }
-
+    let args = numstat_args(since, until);
     let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     let raw = super::super::git_helpers::run_git_with_timeout(root, &args_ref)
         .await
@@ -351,5 +365,20 @@ mod tests {
         );
         assert_eq!(header_date("not a header"), None);
         assert_eq!(header_date("abc|short"), None);
+    }
+
+    #[test]
+    fn numstat_args_disables_path_quoting_and_appends_range() {
+        let args = numstat_args(Some("2026-01-01"), Some("2026-12-31"));
+        assert_eq!(args[0], "-c");
+        assert_eq!(args[1], "core.quotepath=false");
+        assert_eq!(args[2], "log");
+        assert!(args.contains(&"--numstat".to_string()));
+        assert!(args.contains(&"--since=2026-01-01".to_string()));
+        assert!(args.contains(&"--until=2026-12-31".to_string()));
+
+        let minimal = numstat_args(None, None);
+        assert!(!minimal.iter().any(|a| a.starts_with("--since=")));
+        assert!(!minimal.iter().any(|a| a.starts_with("--until=")));
     }
 }

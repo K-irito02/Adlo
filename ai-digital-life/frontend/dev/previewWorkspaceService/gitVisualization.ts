@@ -325,7 +325,7 @@ export async function handleFileHotspots(
   since?: string,
   until?: string,
 ): Promise<{ tree: unknown; files: unknown[] }> {
-  const args = ['log', '--pretty=format:%H|%aI', '--numstat'];
+  const args = ['-c', 'core.quotepath=false', 'log', '--pretty=format:%H|%aI', '--numstat'];
   if (since) args.push(`--since=${since}`);
   if (until) args.push(`--until=${until}`);
   const raw = (await runGit(rootPath, args)) ?? '';

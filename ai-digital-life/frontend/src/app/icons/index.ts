@@ -28,6 +28,7 @@ export {
   IconFoldVertical,
   IconUnfoldVertical,
   IconList,
+  IconHierarchy,
 } from './core';
 export {
   IconFolder,

@@ -141,14 +141,18 @@ export const changesEn = {
   gitVisCommitTimelineCountMonth: 'Commits this month',
   gitVisCommitTimelineCumulative: 'Cumulative',
   gitVisFileHotspotsTitle: 'File Hotspots',
-  gitVisFileHotspotsDesc:
-    'Two-mode leaderboard: Full Ranking sorts every changed file by a metric; Drill Down navigates the directory tree with click-to-drill on directory rows, breadcrumb back-navigation, and right-click path jump.',
-  gitVisHotspotsModeFull: 'Full Ranking',
-  gitVisHotspotsModeDrill: 'Drill Down',
+  gitVisHotspotsModeFull: 'Global Ranking',
+  gitVisHotspotsModeDrill: 'Level Drill',
   gitVisHotspotsRankingName: 'Name',
   gitVisHotspotsRankingPath: 'Path',
   gitVisHotspotsEmpty: 'No changed files',
-  gitVisHotspotsDrillHint: 'Click a directory row to drill down; right-click for path jump',
+  gitVisHotspotsFullHint:
+    'All changed files sorted by change metrics (changes/added/deleted/net); click a column header to change the sort.',
+  gitVisHotspotsDrillHint:
+    'Click a directory row to drill down level by level; right-click a directory row, or click the jump button before its name, to open the module tree for path jump; use the breadcrumb to go back.',
+  gitVisHotspotsJump: 'Open module tree',
+  gitVisHotspotsCopyName: 'Copy name',
+  gitVisHotspotsCopyPath: 'Copy full path',
   gitVisHeatmapTabCalendar: 'Calendar',
   gitVisHeatmapTabClock: 'Hours',
   gitVisHeatmapTabActivity: 'Activity',

@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { GitVisFileHotspots } from '@/shared/ipc/workspace';
 import { useTCopy } from '@i18n/useTCopy';
 import { cn } from '@/lib/utils';
+import { CopyButton } from '@components/CopyButton';
+import { IconFolder, IconHierarchy } from '@icons';
 import { EmptyRow } from '@components/LoadingRow';
 import { getHotspotChildren, type HotspotTreeNode } from '../adapters/chartDataAdapters';
 import { useFileHotspotsState, type HotspotMode } from '../hooks/useFileHotspotsState';
@@ -12,6 +14,7 @@ import type { ModuleTreeNode } from '../moduleTreeUtils';
 const ROW_HEIGHT = 32;
 const OVERSCAN = 5;
 const MAX_HEIGHT = 320;
+const HEADER_HEIGHT = 32;
 
 export interface FileHotspotsLeaderboardProps {
   data?: GitVisFileHotspots;
@@ -94,6 +97,12 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(MAX_HEIGHT);
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollPositionsRef = useRef<{ full: number; drill: Record<string, number> }>({
+    full: 0,
+    drill: {},
+  });
+  const prevModeRef = useRef<HotspotMode>(mode);
+  const prevDrillPathRef = useRef<string[]>(drillPath);
   const [treeCard, setTreeCard] = useState<{
     subtree: ModuleTreeNode[];
     prefix: string;
@@ -110,6 +119,43 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
       }
     }
   }, [data, drillPath, setDrillPath]);
+
+  // Keep the container's real scroll position in sync with the virtualization
+  // state. When switching modes, restore the target mode's saved scroll position
+  // (per drill level); when the drill path changes within drill mode, restore
+  // that level's saved position (0 on first visit). Also re-measure the
+  // container height so the virtualized window matches the new row count —
+  // otherwise a stale height from the previous mode leaves rows unrendered.
+  useLayoutEffect(() => {
+    const modeChanged = prevModeRef.current !== mode;
+    const pathChanged = prevDrillPathRef.current.join('/') !== drillPath.join('/');
+    prevModeRef.current = mode;
+    prevDrillPathRef.current = drillPath;
+
+    const drillKey = drillPath.join('/');
+    if (modeChanged || pathChanged) {
+      const target =
+        mode === 'full'
+          ? scrollPositionsRef.current.full
+          : (scrollPositionsRef.current.drill[drillKey] ?? 0);
+      if (containerRef.current) {
+        containerRef.current.scrollTop = target;
+        setScrollTop(containerRef.current.scrollTop);
+        setContainerHeight(containerRef.current.clientHeight);
+
+        // The card's height changed with the row count; scroll the outer
+        // git-visualization scroll area to the bottom so the full (grown)
+        // chart stays visible instead of being cut off below the fold.
+        const outer = containerRef.current.closest<HTMLElement>('.adl-git-vis__container');
+        if (outer) {
+          outer.scrollTop = outer.scrollHeight - outer.clientHeight;
+        }
+      } else {
+        setScrollTop(target);
+        setContainerHeight(MAX_HEIGHT);
+      }
+    }
+  }, [mode, drillPath]);
 
   const rows = useMemo<LeaderboardRow[]>(() => {
     if (!data) {
@@ -134,12 +180,8 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
   const handleModeChange = useCallback(
     (next: HotspotMode) => {
       setMode(next);
-      setScrollTop(0);
-      if (next === 'full') {
-        setDrillPath([]);
-      }
     },
-    [setMode, setDrillPath, setScrollTop],
+    [setMode],
   );
 
   const handleRowClick = useCallback(
@@ -161,6 +203,21 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
         dir: { name: row.name, path: row.path },
       });
     }
+  }, []);
+
+  const handleJumpClick = useCallback((e: React.MouseEvent, row: LeaderboardRow) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!row.isDir || row.children.length === 0) {
+      return;
+    }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setTreeCard({
+      subtree: hotspotChildrenToModuleTree(row.children, row.path),
+      prefix: row.path,
+      position: { x: rect.left, y: rect.bottom + 4 },
+      dir: { name: row.name, path: row.path },
+    });
   }, []);
 
   const handleBreadcrumbNavigate = useCallback(
@@ -201,7 +258,13 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
   );
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    setScrollTop(e.currentTarget.scrollTop);
+    const value = e.currentTarget.scrollTop;
+    setScrollTop(value);
+    if (mode === 'full') {
+      scrollPositionsRef.current.full = value;
+    } else {
+      scrollPositionsRef.current.drill[drillPath.join('/')] = value;
+    }
     if (containerRef.current) {
       setContainerHeight(containerRef.current.clientHeight);
     }
@@ -216,6 +279,7 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
   const visibleRows = sorted.slice(startIndex, endIndex);
   const totalHeight = sorted.length * ROW_HEIGHT;
   const offsetY = startIndex * ROW_HEIGHT;
+  const viewHeight = Math.min(MAX_HEIGHT, totalHeight + HEADER_HEIGHT);
 
   return (
     <div className="adl-file-hotspots-ranking">
@@ -245,15 +309,11 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
           </button>
         </div>
         {mode === 'drill' && (
-          <span className="adl-file-hotspots__drill-hint">{t.gitVisHotspotsDrillHint}</span>
+          <div className="adl-file-hotspots-ranking__filter-bar">
+            <ModuleBreadcrumb pathSegments={drillPath} onNavigate={handleBreadcrumbNavigate} />
+          </div>
         )}
       </div>
-
-      {mode === 'drill' && (
-        <div className="adl-file-hotspots-ranking__filter-bar">
-          <ModuleBreadcrumb pathSegments={drillPath} onNavigate={handleBreadcrumbNavigate} />
-        </div>
-      )}
 
       {sorted.length === 0 ? (
         <EmptyRow message={t.gitVisHotspotsEmpty} />
@@ -261,11 +321,12 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
         <div
           ref={containerRef}
           className="adl-file-hotspots-ranking__scroll"
-          style={{ maxHeight: MAX_HEIGHT, overflowY: 'auto' }}
+          style={{ maxHeight: MAX_HEIGHT, height: viewHeight, overflowY: 'auto' }}
           onScroll={handleScroll}
           role="table"
         >
           <div className="adl-file-hotspots-ranking__header" role="row">
+            <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--jump" />
             <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--rank">
               #
             </span>
@@ -324,17 +385,50 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
                     onClick={() => handleRowClick(row)}
                     onContextMenu={(e) => handleRowContextMenu(e, row)}
                   >
+                    <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--jump">
+                      {row.isDir && (
+                        <>
+                          <IconFolder
+                            size={14}
+                            decorative
+                            className="adl-file-hotspots-ranking__folder-icon"
+                          />
+                          <button
+                            type="button"
+                            className="adl-file-hotspots-ranking__jump-btn"
+                            title={t.gitVisHotspotsJump}
+                            aria-label={t.gitVisHotspotsJump}
+                            onClick={(e) => handleJumpClick(e, row)}
+                          >
+                            <IconHierarchy size={12} decorative />
+                          </button>
+                        </>
+                      )}
+                    </span>
                     <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--rank">
                       {rank}
                     </span>
                     <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--name">
-                      {row.name}
+                      <span className="adl-file-hotspots-ranking__cell--name-text">{row.name}</span>
+                      <span className="adl-file-hotspots-ranking__copy">
+                        <CopyButton
+                          text={row.name}
+                          size={12}
+                          tooltip={t.gitVisHotspotsCopyName}
+                          nativeTooltip
+                        />
+                      </span>
                     </span>
-                    <span
-                      className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--path"
-                      title={row.path}
-                    >
-                      {row.path}
+                    <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--path">
+                      <span className="adl-file-hotspots-ranking__cell--path-text">{row.path}</span>
+                      <span className="adl-file-hotspots-ranking__copy">
+                        <CopyButton
+                          text={row.path}
+                          size={12}
+                          tooltip={t.gitVisHotspotsCopyPath}
+                          nativeTooltip
+                        />
+                      </span>
                     </span>
                     <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num">
                       {formatNumber(row.changeCount)}
@@ -364,6 +458,10 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
           </div>
         </div>
       )}
+
+      <p className="adl-file-hotspots__hint">
+        {mode === 'full' ? t.gitVisHotspotsFullHint : t.gitVisHotspotsDrillHint}
+      </p>
 
       {treeCard && (
         <ModuleTreeCard
