@@ -133,11 +133,12 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
   const handleModeChange = useCallback(
     (next: HotspotMode) => {
       setMode(next);
+      setScrollTop(0);
       if (next === 'full') {
         setDrillPath([]);
       }
     },
-    [setMode, setDrillPath],
+    [setMode, setDrillPath, setScrollTop],
   );
 
   const handleRowClick = useCallback(
