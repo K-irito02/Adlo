@@ -73,7 +73,7 @@ alwaysApply: true
 
 ### integrated_browser
 
-Trae IDE 内置浏览器自动化工具（18 个 MCP 工具），支持导航、点击、输入、截图等全功能。
+Trae IDE 内置浏览器自动化工具（16 个 MCP 工具，含 `browser_evaluate` 执行 JS），支持导航、点击、输入、截图、JS 求值等全功能。可用性取决于会话 MCP 配置。
 
 详细说明见 [browser-automation.md](./browser-automation.md) 和 [browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md)
 

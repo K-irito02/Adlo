@@ -216,7 +216,7 @@ docs/operations/ui-manual/
 
 ## Playwright CLI 项目专属操作
 
-> ⚠️ **本地 v1.59.1 仅支持 `open` 和 `screenshot`**。以下选择器/命令为等价 **agent-browser** 参考（`playwright eval` 脚本与 agent-browser `eval` 完全一致，交互命令请用 agent-browser）。
+> ⚠️ **本地 v1.49.0 仅支持 `open`、`screenshot` 和 `pdf`**。以下选择器/命令为等价 **agent-browser** 参考（`playwright eval` 脚本与 agent-browser `eval` 完全一致，交互命令请用 agent-browser）。
 
 ### 快速验证流程（agent-browser 等价）
 

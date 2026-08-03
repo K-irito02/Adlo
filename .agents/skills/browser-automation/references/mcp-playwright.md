@@ -1,6 +1,10 @@
 # MCP Playwright 工具参考
 
-通过 MCP（Model Context Protocol）提供的内置浏览器自动化工具，由 Trae IDE 提供。与 Playwright CLI（终端命令）和 Browser Harness（CDP）不同，MCP Playwright 工具是**基于 tool call 的**——直接作为 IDE 函数调用。
+> **⚠️ 当前环境不可用**：`mcp_Playwright_playwright_*` 系列工具在当前 Trae MCP 配置中**未启用**。当前环境可用的浏览器自动化方案为 [integrated_browser](./integrated-browser.md)（含 `browser_evaluate` 执行 JS）和 [agent-browser](./agent-browser.md)（终端 CLI）。
+>
+> 本文档保留作为参考：若你的 Trae 配置启用了 Playwright MCP 服务器，以下工具可用。
+
+通过 MCP（Model Context Protocol）提供的浏览器自动化工具，由 Trae IDE 提供。与 Playwright CLI（终端命令）和 Browser Harness（CDP）不同，MCP Playwright 工具是**基于 tool call 的**——直接作为 IDE 函数调用。
 
 ## 可用工具
 

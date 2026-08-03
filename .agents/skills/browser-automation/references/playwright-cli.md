@@ -1,12 +1,12 @@
 # Playwright CLI 参考
 
-> **⚠️ 重要限制**：本地安装的 Playwright CLI v1.59.1 **仅支持** `open` 和 `screenshot` 命令。交互式命令（`click`、`fill`、`eval` 等）**不可用**。
+> **⚠️ 重要限制**：本地安装的 Playwright CLI v1.49.0 **仅支持** `open`、`screenshot` 和 `pdf` 命令。交互式命令（`click`、`fill`、`eval` 等）**不可用**。
 >
 > **建议**：交互式自动化请使用 [agent-browser](./agent-browser.md)。
 
 ## 定位
 
-Playwright CLI 是**辅助工具**，仅用于静态截图场景。所有交互式操作请使用 agent-browser。
+Playwright CLI 是**辅助工具**，仅用于静态截图和 PDF 生成场景。所有交互式操作请使用 agent-browser。
 
 ## 安装与环境
 
@@ -20,12 +20,13 @@ $env:PATH = "D:\Program Files\nodejs;E:\dev-tools\npm-global;$env:PATH"
 $env:PLAYWRIGHT_BROWSERS_PATH = "E:\dev-tools\playwright-browsers"
 ```
 
-## 可用命令（本地 v1.59.1 实测）
+## 可用命令（本地 v1.49.0 实测）
 
 | 操作 | 状态 | 命令 |
 |------|------|------|
 | 打开浏览器 | ✅ 可用 | `playwright open http://localhost:5173` |
 | 静态截图 | ✅ 可用 | `playwright screenshot <url> <file>` |
+| 保存 PDF | ✅ 可用 | `playwright pdf <url> <file>` |
 | 点击元素 | ❌ 不可用 | 用 agent-browser `find role` / `click` |
 | JS 求值 | ❌ 不可用 | 用 agent-browser `eval` |
 | 文件树导航 | ❌ 不可用 | 用 agent-browser `eval` + DOM 遍历 |
@@ -35,7 +36,7 @@ $env:PLAYWRIGHT_BROWSERS_PATH = "E:\dev-tools\playwright-browsers"
 
 ## 项目应用：AI Digital Life
 
-### 启动应用并截图（本地唯一可用的能力）
+### 启动应用并截图 / 生成 PDF（本地可用的命令）
 
 ```powershell
 # 1. 启动应用
@@ -46,13 +47,16 @@ npm run dev:browser
 $env:PATH = "D:\Program Files\nodejs;E:\dev-tools\npm-global;$env:PATH"
 $env:PLAYWRIGHT_BROWSERS_PATH = "E:\dev-tools\playwright-browsers"
 
-# 3. 静态截图（这是唯一可用的交互式命令）
+# 3. 静态截图
 playwright screenshot http://localhost:5173 screenshot.png
+
+# 4. 保存为 PDF
+playwright pdf http://localhost:5173 page.pdf
 ```
 
 ## 参考（按 Playwright CLI 1.52+ 规范整理，本地不可用）
 
-> 以下命令来自 Playwright CLI 1.52+ 规范文档，**本地 v1.59.1 不可用**。列出仅作参考；如需等价能力请使用 **agent-browser**（JS 脚本完全一致）。
+> 以下命令来自 Playwright CLI 1.52+ 规范文档，**本地 v1.49.0 不可用**。列出仅作参考；如需等价能力请使用 **agent-browser**（JS 脚本完全一致）。
 
 ### 文件树操作（等价 agent-browser 脚本）
 

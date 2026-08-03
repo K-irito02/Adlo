@@ -1,11 +1,11 @@
 # agent-browser 参考
 
-面向 AI 代理的快速浏览器自动化 CLI。这是 **dogfood** 技能进行系统性探索测试时使用的工具。
+面向 AI 代理的快速浏览器自动化 CLI（v0.26.0）。这是 **dogfood** 技能进行系统性探索测试时使用的工具。
 
 ## 安装
 
 ```powershell
-# 已全局安装：
+# 已全局安装（v0.26.0）：
 # 二进制：C:\Users\31432\AppData\Roaming\npm\agent-browser
 
 # 无需额外 PATH 配置 — 通过 npm 全局可用
@@ -13,6 +13,8 @@ agent-browser --version
 ```
 
 > **性能提示**：直接使用 `agent-browser`，**不要**使用 `npx agent-browser`。直接二进制使用 Rust 快速客户端，`npx` 走 Node.js 链路，显著更慢。
+>
+> **自带技能系统**：运行 `agent-browser skills get core --full` 可查看 CLI 自带的完整用法指南、工作流模板与选择器参考。优先使用此命令获取最新用法，而非凭记忆猜测。
 
 ## 核心能力（已实测验证）
 
@@ -23,15 +25,62 @@ agent-browser --version
 | 打开页面 | `agent-browser open <url>` | ✅ |
 | JS 求值 | `agent-browser eval "<js>"` | ✅ |
 | 按 role+name 点击 | `agent-browser find role <role> click --name <name>` | ✅ |
-| 按 ref 点击 | `agent-browser click <ref>` | ✅ |
-| 截图 | `agent-browser screenshot <path>` | ✅ |
-| 无障碍快照 | `agent-browser snapshot -i` | ✅ |
+| 按 ref/选择器点击 | `agent-browser click <sel\|@ref>` | ✅ |
+| 双击 | `agent-browser dblclick <sel>` | ✅ |
+| 清空并填充 | `agent-browser fill <sel> <text>` | ✅ |
+| 输入文本 | `agent-browser type <sel> <text>` | ✅ |
+| 按键 | `agent-browser press <key>` | ✅ |
+| 键盘输入 | `agent-browser keyboard type <text>` | ✅ |
+| 悬停 | `agent-browser hover <sel>` | ✅ |
+| 勾选/取消 | `agent-browser check\|uncheck <sel>` | ✅ |
+| 下拉选择 | `agent-browser select <sel> <val...>` | ✅ |
+| 拖放 | `agent-browser drag <src> <dst>` | ✅ |
+| 上传文件 | `agent-browser upload <sel> <files...>` | ✅ |
+| 下载文件 | `agent-browser download <sel> <path>` | ✅ |
+| 滚动 | `agent-browser scroll <dir> [px]` | ✅ |
+| 截图 | `agent-browser screenshot [path]` | ✅ |
+| 保存 PDF | `agent-browser pdf <path>` | ✅ |
+| 无障碍快照 | `agent-browser snapshot` / `snapshot -i` | ✅ |
 | 控制台日志 | `agent-browser console` | ✅ |
 | 页面错误 | `agent-browser errors` | ✅ |
-| 等待 | `agent-browser wait <ms>` | ✅ |
+| 等待 | `agent-browser wait <sel\|ms>` | ✅ |
+| 导航 | `agent-browser back\|forward\|reload` | ✅ |
 | 会话管理 | `agent-browser --session <name>` | ✅ |
-| 关闭会话 | `agent-browser close --all` | ✅ |
+| 关闭会话 | `agent-browser close [--all]` | ✅ |
 | 视频录制 | `agent-browser record start/stop` | ✅ |
+| 连接 CDP | `agent-browser connect <port\|url>` | ✅ |
+
+### 获取信息（get 子命令）
+
+```powershell
+agent-browser get text <sel>       # 获取元素文本
+agent-browser get html <sel>       # 获取元素 HTML
+agent-browser get value <sel>      # 获取输入框值
+agent-browser get attr <name> <sel> # 获取属性
+agent-browser get title            # 获取页面标题
+agent-browser get url              # 获取当前 URL
+agent-browser get count <sel>      # 统计匹配元素数量
+agent-browser get box <sel>        # 获取元素边界框
+```
+
+### 检查状态（is 子命令）
+
+```powershell
+agent-browser is visible <sel>     # 元素是否可见
+agent-browser is enabled <sel>     # 元素是否启用
+agent-browser is checked <sel>     # 复选框是否勾选
+```
+
+### 查找元素（find 子命令）
+
+```powershell
+agent-browser find role <role> <action> [--name <name>]   # 按 role 定位
+agent-browser find text <text> <action>                   # 按文本定位
+agent-browser find label <label> <action>                 # 按 label 定位
+agent-browser find placeholder <text> <action>            # 按 placeholder 定位
+agent-browser find testid <id> <action>                   # 按 data-testid 定位
+agent-browser find first\|last\|nth <sel> <action>        # 按位置定位
+```
 
 ## 何时使用
 

@@ -16,24 +16,21 @@ allowed-tools: Bash(agent-browser:*), Bash(npx agent-browser:*), Bash(browser-ha
 
 | 你的任务 | 选择 |
 |---------|------|
-| Trae 内置浏览器交互（导航、点击、输入） | integrated_browser（MCP 工具，非 CLI 命令） |
-| 执行 JS、获取控制台、检查网络请求 | integrated_browser |
-| 截图、验证 UI 效果 | integrated_browser |
+| Trae 内置浏览器交互（导航、点击、输入、截图） | integrated_browser（MCP 工具，非 CLI 命令） |
+| 执行 JS、获取控制台、检查网络请求 | integrated_browser（`browser_evaluate` / `browser_console_messages`） |
 | 让用户在内置浏览器中打开 URL | 纯文本 URL（不包裹），用户点击即可跳转 |
-| 打开网页、点击按钮、填写表单 | agent-browser（注意：打开的是**独立 Chrome 实例**） |
-| 执行 JS、获取页面信息、检查控制台 | agent-browser |
-| 截图、录屏、自动化测试 | agent-browser |
-| 需要 eval 任意 JS、DOM 遍历 | agent-browser / MCP Playwright |
-| 连接用户已打开的 Chrome | Browser Harness |
-| 坐标点击、复杂 Python 脚本 | Browser Harness |
-| 仅截一张图 | Playwright CLI |
+| 打开网页、点击按钮、填写表单、录屏 | agent-browser（注意：打开的是**独立 Chrome 实例**） |
+| 执行 JS、无障碍快照、检查控制台错误 | agent-browser |
+| 需要 `fill`/`press`/`drag`/`upload`/`pdf` 等丰富命令 | agent-browser |
+| 连接用户已打开的 Chrome、坐标点击 | Browser Harness |
+| 仅截一张图 / 保存 PDF | Playwright CLI |
 
 **选型要点**：
 
-- **agent-browser** 是首选：功能最全（`eval` / `find role` / `snapshot` / `screenshot` / `console` / `record` 录屏）。
-- **integrated_browser** 是 Trae 内置 MCP 工具：在 Trae IDE 内可用，但**不可在终端运行**。
+- **agent-browser**（v0.26.0）是首选 CLI：功能最全（`eval` / `find role` / `snapshot` / `screenshot` / `console` / `errors` / `record` 录屏 / `fill` / `press` / `drag` / `upload` / `pdf` 等 30+ 命令）。
+- **integrated_browser** 是 Trae 内置 MCP 工具（16 个工具，含 `browser_evaluate` 执行 JS）：在 Trae IDE 内可用，但**不可在终端运行**，且可用性取决于会话 MCP 配置。
 - **Browser Harness** 连接用户真实 Chrome，坐标点击可穿透 iframe / Shadow DOM。
-- **Playwright CLI** 本地仅支持 `open` 和 `screenshot`，其余命令不可用。
+- **Playwright CLI**（v1.49.0）本地仅支持 `open`、`screenshot`、`pdf`，无交互命令。
 
 ---
 
@@ -52,12 +49,24 @@ agent-browser --session test close --all
 ```
 
 > 不使用 `--headed` 参数（可能导致 daemon 死锁），使用默认 headless 模式。
+>
+> **提示**：运行 `agent-browser skills get core --full` 可查看 CLI 自带的完整用法指南与工作流模板。
 
 ### integrated_browser（Trae 内置浏览器 - MCP 工具）
 
-`browser_*` 系列工具是通过 MCP 协议暴露的，通过 Agent 的 tool call 直接调用，**不可在终端 CLI 中运行**。
+`browser_*` 系列工具通过 MCP 协议暴露，通过 Agent 的 tool call 直接调用，**不可在终端 CLI 中运行**。
 
-对于 Trae 内置浏览器，更简单的做法是直接输出纯文本 URL 让用户点击跳转。
+```
+# 通过 MCP tool call 调用（非 PowerShell 命令）：
+browser_navigate(url="http://localhost:5173/", take_screenshot_afterwards=true)
+browser_snapshot(interactive=true)
+browser_click(ref="e0", element="提交按钮")
+browser_evaluate(script="document.title")
+```
+
+> **可用性**：integrated_browser 是否可用取决于当前会话的 MCP 配置。若当前会话未启用该 MCP 服务器，请改用 agent-browser。
+>
+> 对于 Trae 内置浏览器，更简单的做法是直接输出纯文本 URL 让用户点击跳转。
 
 ### Browser Harness（备用，连接用户 Chrome）
 
@@ -68,10 +77,11 @@ Start-Process "chrome.exe" -ArgumentList "--remote-debugging-port=9222"
 browser-harness -c "new_tab('http://localhost:5173'); wait_for_load()"
 ```
 
-### Playwright CLI（仅截图）
+### Playwright CLI（仅截图 / PDF）
 
 ```powershell
 playwright screenshot http://localhost:5173 screenshot.png
+playwright pdf http://localhost:5173 page.pdf
 ```
 
 ---
@@ -81,10 +91,10 @@ playwright screenshot http://localhost:5173 screenshot.png
 | 文件 | 内容 |
 |------|------|
 | [references/agent-browser.md](./references/agent-browser.md) | agent-browser 完整命令参考、会话管理、工作流示例 |
-| [references/integrated-browser.md](./references/integrated-browser.md) | Trae 内置浏览器自动化工具完整参考 |
-| [references/mcp-playwright.md](./references/mcp-playwright.md) | MCP Playwright 工具（evaluate / click / upload 等） |
+| [references/integrated-browser.md](./references/integrated-browser.md) | Trae 内置浏览器自动化工具完整参考（16 个 MCP 工具） |
 | [references/browser-harness.md](./references/browser-harness.md) | CDP 命令、Python 脚本模式、辅助函数 |
-| [references/playwright-cli.md](./references/playwright-cli.md) | Playwright CLI（本地仅 open/screenshot） |
+| [references/playwright-cli.md](./references/playwright-cli.md) | Playwright CLI（本地 v1.49.0 仅 open/screenshot/pdf） |
+| [references/mcp-playwright.md](./references/mcp-playwright.md) | MCP Playwright 工具（当前环境不可用，参考用） |
 | [references/adl-project-selectors.md](./references/adl-project-selectors.md) | 项目专属 UI 选择器、元素状态定义 |
 | [scripts/changes-panel-test-checklist.md](./scripts/changes-panel-test-checklist.md) | 变更面板测试步骤清单（Agent 逐步执行） |
 | [scripts/browser-subfolder-test-checklist.md](./scripts/browser-subfolder-test-checklist.md) | 浏览器子目录测试步骤清单 |
@@ -112,7 +122,8 @@ test-artifacts/
 
 | 经验 | 说明 |
 |------|------|
-| integrated_browser 是 MCP 工具 | `browser_*` 通过 MCP 协议调用，**不可在 PowerShell 中运行** |
+| integrated_browser 是 MCP 工具 | `browser_*` 通过 MCP 协议调用，**不可在 PowerShell 中运行**；可用性取决于会话 MCP 配置 |
+| integrated_browser 支持 JS 执行 | `browser_evaluate` 工具可在页面中执行任意 JS |
 | 纯文本 URL 即可打开内置浏览器 | Trae IDE 自动使纯文本 URL 可点击，不要用 `` 包裹 |
 | agent-browser 打开独立 Chrome | agent-browser 启动的是自己的 Chromium 进程，非 IDE 内置浏览器 |
 | 不使用 `--headed` | agent-browser 可能导致 daemon 死锁，使用默认 headless 模式 |
@@ -135,9 +146,10 @@ test-artifacts/
 | 硬编码 ref（如 `click e0`） | 每次操作前重新 `snapshot -i` 获取最新 ref |
 | 尝试自动化原生 OS 对话框 | 用 `window.digitalLife.workspace.open(path)` 绕过 |
 | 认为 `workspace.open()` 即加载完成 | 刷新页面并确认状态栏显示 Git 信息 |
-| 用 Playwright CLI 做交互（click/fill/eval） | 本地 v1.59.1 仅支持 open/screenshot，交互用 agent-browser |
+| 用 Playwright CLI 做交互（click/fill/eval） | 本地 v1.49.0 仅支持 open/screenshot/pdf，交互用 agent-browser |
 | 把 `ref=eXX` 当 CSS 选择器 | `ref` 是虚拟引用，不是 HTML 属性；DOM 定位用 `eval` |
 | 连续命令间不加等待 | 操作间 `wait 1000~3000`，`close --all` 后等 2-3 秒再 `open` |
+| 以为 integrated_browser 不支持 JS | 使用 `browser_evaluate` 工具执行任意 JS |
 
 ---
 
