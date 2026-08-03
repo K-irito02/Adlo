@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import { readJson, writeJson } from '@stores/shared';
 
-export type HotspotColorMode = 'heat' | 'time';
 export type HotspotMode = 'full' | 'drill';
 export type RankingSortKey = 'changeCount' | 'additions' | 'deletions' | 'net';
 export type SortDir = 'asc' | 'desc';
@@ -13,8 +12,6 @@ export interface FileHotspotsState {
   setMode: (mode: HotspotMode) => void;
   drillPath: string[];
   setDrillPath: (path: string[]) => void;
-  colorMode: HotspotColorMode;
-  setColorMode: (mode: HotspotColorMode) => void;
   sortKey: RankingSortKey;
   sortDir: SortDir;
   setSort: (key: RankingSortKey) => void;
@@ -26,7 +23,6 @@ export function useFileHotspotsState(): FileHotspotsState {
     return saved === 'drill' ? 'drill' : 'full';
   });
   const [drillPath, setDrillPath] = useState<string[]>([]);
-  const [colorMode, setColorMode] = useState<HotspotColorMode>('heat');
   const [sortKey, setSortKey] = useState<RankingSortKey>('changeCount');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -52,8 +48,6 @@ export function useFileHotspotsState(): FileHotspotsState {
     setMode,
     drillPath,
     setDrillPath,
-    colorMode,
-    setColorMode,
     sortKey,
     sortDir,
     setSort,

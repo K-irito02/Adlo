@@ -9,7 +9,6 @@ import type {
   GitVisFileHotspotFile,
   GitVisFileHotspotNode,
   GitVisFileHotspots,
-  GitVisFileSunburst,
   IpcResult,
   RecentWorkspaceEntry,
   ReorderWorkspacesInput,
@@ -35,7 +34,6 @@ export type {
   GitVisFileHotspotFile,
   GitVisFileHotspotNode,
   GitVisFileHotspots,
-  GitVisFileSunburst,
   IpcResult,
   RecentWorkspaceEntry,
   ReorderWorkspacesInput,
@@ -460,8 +458,6 @@ export interface WorkspaceBridge {
   ) => Promise<IpcResult<GitVisContributorModules>>;
   /** Get branch graph DAG data */
   gitVisBranchGraph: (rootPath: string) => Promise<IpcResult<GitVisBranchGraph>>;
-  /** Get file sunburst tree data */
-  gitVisFileSunburst: (rootPath: string) => Promise<IpcResult<GitVisFileSunburst>>;
   /** Get file hotspots (tree + flat files) based on git log --numstat */
   gitVisFileHotspots: (
     rootPath: string,

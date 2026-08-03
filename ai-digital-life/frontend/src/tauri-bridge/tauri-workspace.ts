@@ -7,7 +7,6 @@ import type {
   GitVisCommitStats,
   GitVisContributorModules,
   GitVisFileHotspots,
-  GitVisFileSunburst,
   RecentWorkspaceEntry,
   ReorderWorkspacesInput,
   WorkspaceChangePreview,
@@ -120,8 +119,6 @@ export function createTauriWorkspaceBridge(): WorkspaceBridge {
       }),
     gitVisBranchGraph: (rootPath) =>
       invokeIpc<GitVisBranchGraph>('workspace_git_vis_branch_graph', { rootPath }),
-    gitVisFileSunburst: (rootPath) =>
-      invokeIpc<GitVisFileSunburst>('workspace_git_vis_file_sunburst', { rootPath }),
     gitVisFileHotspots: (rootPath, since, until) =>
       invokeIpc<GitVisFileHotspots>('workspace_git_vis_file_hotspots', { rootPath, since, until }),
     gitVisFirstCommitYear: (rootPath) =>

@@ -118,7 +118,6 @@ export const changesZh = {
   gitVisCodeLineEvo: '代码行演变',
   gitVisContributorActivity: '贡献活跃度',
   gitVisCommitTimeline: '提交时间线',
-  gitVisFileSunburst: '文件旭日图',
   gitVisCalendarHeatmapDesc:
     '行：星期（日~六），列：月份（1~12）。色块颜色从浅到深代表当日提交数量由少到多。可快速识别一年中的活跃周期与低谷期。',
   gitVisClockHeatmapDesc:
@@ -141,8 +140,6 @@ export const changesZh = {
   gitVisCommitTimelineCountWeek: '本周提交数',
   gitVisCommitTimelineCountMonth: '本月提交数',
   gitVisCommitTimelineCumulative: '累计',
-  gitVisFileSunburstDesc:
-    '从内向外按文件类型分层，扇形角度=修改次数/代码量，颜色区分不同类别。可快速定位"热点文件"与高活跃模块。',
   gitVisFileHotspotsTitle: '文件热点',
   gitVisFileHotspotsDesc:
     '双模式排行榜：全排列模式按变更指标对全部文件排序；下钻模式沿目录树逐层下钻，支持点击目录行下钻、面包屑回退与右键路径跳转。',
@@ -216,22 +213,10 @@ export const changesZh = {
   gitVisModuleConfirm: '确认跳转',
   gitVisModuleCancel: '取消',
   gitVisBreadcrumbNav: '模块路径导航',
-  gitVisSunburstHintZoomIn: '点击扇形可下钻',
-  gitVisSunburstHintZoomOut: '点击中心可缩放',
-  gitVisHotspotsColorModeHeat: '热度色阶',
-  gitVisHotspotsColorModeTime: '时间色阶',
-  gitVisHotspotsRankingFile: '文件',
   gitVisHotspotsRankingChangeCount: '变更次数',
   gitVisHotspotsRankingAdditions: '新增',
   gitVisHotspotsRankingDeletions: '删除',
   gitVisHotspotsRankingNet: '净变化',
-  gitVisHotspotsRankingEmpty: '该目录下无变更文件',
-  gitVisHotspotsFilterClear: '清除筛选',
-  gitVisHotspotsNoDirectoryChanges: '无目录级变更',
-  gitVisHotspotsTooltipChanges: '变更 {count} 次',
-  gitVisHotspotsTooltipLines: '+{add} / -{del} 行',
-  gitVisHotspotsTooltipLastModified: '最近 {date}',
-
   gitVisLoadingMore: '正在加载更多提交...',
   gitVisAllLoaded: '已加载全部 {count} 条提交',
   gitVisCopyHash: '复制提交哈希值',

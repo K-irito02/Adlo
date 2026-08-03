@@ -6,7 +6,6 @@ import { computeLoadPhases } from './workspaceLoadOrder';
 export const HEATMAP_TABS = [
   CHART_IDS.HEATMAP,
   CHART_IDS.BRANCH_GRAPH,
-  CHART_IDS.FILE_SUNBURST,
   CHART_IDS.FILE_HOTSPOTS,
   CHART_IDS.CODE_LINE_EVO,
   CHART_IDS.COMMIT_TIMELINE,
@@ -27,9 +26,6 @@ export async function fetchChartData(
       break;
     case CHART_IDS.BRANCH_GRAPH:
       result = await bridge.workspace.gitVisBranchGraph(rootPath);
-      break;
-    case CHART_IDS.FILE_SUNBURST:
-      result = await bridge.workspace.gitVisFileSunburst(rootPath);
       break;
     case CHART_IDS.FILE_HOTSPOTS:
       result = await bridge.workspace.gitVisFileHotspots(rootPath, since, until);

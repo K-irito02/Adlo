@@ -320,34 +320,6 @@ async function computeBranchProgress(
   return result;
 }
 
-export async function handleFileSunburst(rootPath: string) {
-  const raw = (await runGit(rootPath, ['ls-files'])) ?? '';
-  const files = raw.split('\n').filter(Boolean);
-
-  interface SunburstNode { name: string; type: string; size?: number; children?: SunburstNode[] }
-  const tree: SunburstNode = { name: 'root', type: 'directory', children: [] };
-
-  for (const file of files) {
-    const parts = file.split('/');
-    let current = tree;
-    for (let i = 0; i < parts.length; i++) {
-      const name = parts[i];
-      const isFile = i === parts.length - 1;
-      current.children = current.children || [];
-      let child = current.children.find(c => c.name === name);
-      if (!child) {
-        child = { name, type: isFile ? 'file' : 'directory', size: isFile ? 1 : undefined, children: isFile ? undefined : [] };
-        current.children.push(child);
-      } else if (isFile) {
-        child.size = (child.size || 0) + 1;
-      }
-      current = child;
-    }
-  }
-
-  return { tree };
-}
-
 export async function handleFileHotspots(
   rootPath: string,
   since?: string,

@@ -118,7 +118,6 @@ export const changesEn = {
   gitVisCodeLineEvo: 'Code Line Evolution',
   gitVisContributorActivity: 'Contributor Activity',
   gitVisCommitTimeline: 'Commit Timeline',
-  gitVisFileSunburst: 'File Sunburst',
   gitVisCalendarHeatmapDesc:
     'Row: weekday (Sun~Sat), Column: month (1~12). Cell color intensity from light to dark represents daily commit count from few to many. Quickly identify active periods and low activity phases across the year.',
   gitVisClockHeatmapDesc:
@@ -141,8 +140,6 @@ export const changesEn = {
   gitVisCommitTimelineCountWeek: 'Commits this week',
   gitVisCommitTimelineCountMonth: 'Commits this month',
   gitVisCommitTimelineCumulative: 'Cumulative',
-  gitVisFileSunburstDesc:
-    'Inner to outer layers by file type, arc angle = modification count / code volume, colors distinguish categories. Quickly locate "hotspot files" and high-activity modules.',
   gitVisFileHotspotsTitle: 'File Hotspots',
   gitVisFileHotspotsDesc:
     'Two-mode leaderboard: Full Ranking sorts every changed file by a metric; Drill Down navigates the directory tree with click-to-drill on directory rows, breadcrumb back-navigation, and right-click path jump.',
@@ -216,22 +213,10 @@ export const changesEn = {
   gitVisModuleConfirm: 'Confirm',
   gitVisModuleCancel: 'Cancel',
   gitVisBreadcrumbNav: 'Module breadcrumb',
-  gitVisSunburstHintZoomIn: 'Click a segment to zoom in',
-  gitVisSunburstHintZoomOut: 'Click the center to zoom out',
-  gitVisHotspotsColorModeHeat: 'Heat color scale',
-  gitVisHotspotsColorModeTime: 'Time color scale',
-  gitVisHotspotsRankingFile: 'File',
   gitVisHotspotsRankingChangeCount: 'Changes',
   gitVisHotspotsRankingAdditions: 'Added',
   gitVisHotspotsRankingDeletions: 'Deleted',
   gitVisHotspotsRankingNet: 'Net',
-  gitVisHotspotsRankingEmpty: 'No changed files in this directory',
-  gitVisHotspotsFilterClear: 'Clear filter',
-  gitVisHotspotsNoDirectoryChanges: 'No directory-level changes',
-  gitVisHotspotsTooltipChanges: '{count} changes',
-  gitVisHotspotsTooltipLines: '+{add} / -{del} lines',
-  gitVisHotspotsTooltipLastModified: 'Last modified {date}',
-
   gitVisLoadingMore: 'Loading more commits...',
   gitVisAllLoaded: 'All {count} commits loaded',
   gitVisCopyHash: 'Copy commit hash',

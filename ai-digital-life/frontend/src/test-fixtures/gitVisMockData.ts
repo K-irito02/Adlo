@@ -401,56 +401,6 @@ export function generateCalendarData(): [string, number][] {
 export const contributorNames = ['Alex', 'Ben', 'Cara', 'Diana', 'Evan', 'Fiona'];
 export const contributorTotalCommits = [45, 38, 27, 53, 19, 32];
 
-/** Treemap 数据 */
-export const fileTreemapData = {
-  name: 'root',
-  type: 'directory',
-  children: [
-    {
-      name: 'src',
-      type: 'directory',
-      children: [
-        { name: 'main.js', type: 'file', size: 120 },
-        { name: 'utils.js', type: 'file', size: 85 },
-        { name: 'api.js', type: 'file', size: 65 },
-        {
-          name: 'components',
-          type: 'directory',
-          children: [
-            { name: 'Header.vue', type: 'file', size: 45 },
-            { name: 'Footer.vue', type: 'file', size: 30 },
-            { name: 'Sidebar.vue', type: 'file', size: 55 },
-          ],
-        },
-      ],
-    },
-    {
-      name: 'tests',
-      type: 'directory',
-      children: [
-        { name: 'test_main.js', type: 'file', size: 40 },
-        { name: 'test_utils.js', type: 'file', size: 35 },
-      ],
-    },
-    {
-      name: 'docs',
-      type: 'directory',
-      children: [
-        { name: 'README.md', type: 'file', size: 20 },
-        { name: 'CONTRIBUTING.md', type: 'file', size: 15 },
-      ],
-    },
-    {
-      name: 'config',
-      type: 'directory',
-      children: [
-        { name: 'webpack.config.js', type: 'file', size: 25 },
-        { name: 'eslint.json', type: 'file', size: 10 },
-      ],
-    },
-  ],
-};
-
 /** 代码行数演变数据（按天，约 90 天） */
 export function generateCodeLineEvolutionData(): {
   days: { date: string; additions: number; deletions: number }[];

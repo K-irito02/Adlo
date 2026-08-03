@@ -6,7 +6,6 @@ import type {
   GitVisContributorModules,
   GitVisBranchGraph,
   GitVisFileHotspots,
-  GitVisFileSunburst,
   IpcResult,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
@@ -167,12 +166,6 @@ export function createPreviewGitBridge(
       const params = new URLSearchParams({ rootPath });
       return requestPreviewApi<GitVisBranchGraph>(
         `/workspace/git-vis-branch-graph?${params.toString()}`,
-      );
-    },
-    gitVisFileSunburst: async (rootPath: string) => {
-      const params = new URLSearchParams({ rootPath });
-      return requestPreviewApi<GitVisFileSunburst>(
-        `/workspace/git-vis-file-sunburst?${params.toString()}`,
       );
     },
     gitVisFileHotspots: async (rootPath: string, since?: string, until?: string) => {

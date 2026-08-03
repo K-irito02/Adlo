@@ -195,15 +195,6 @@ export interface GitVisBranchGraph {
   edges: GitVisBranchEdge[];
   branches: string[];
 }
-export interface GitVisSunburstNode {
-  name: string;
-  type: string;
-  size?: number;
-  children?: GitVisSunburstNode[];
-}
-export interface GitVisFileSunburst {
-  tree: GitVisSunburstNode;
-}
 export interface GitVisFileHotspotNode {
   name: string;
   nodeType: string;
