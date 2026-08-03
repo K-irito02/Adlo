@@ -516,6 +516,34 @@ export function adaptSunburstData(raw: unknown): SunburstNode {
   return mapNode(root);
 }
 
+export interface HotspotTreeNode {
+  name: string;
+  nodeType: 'directory' | 'file';
+  changeCount?: number;
+  additions?: number;
+  deletions?: number;
+  lastModified?: string;
+  children?: HotspotTreeNode[];
+}
+
+/**
+ * Walk from root down by `drillPath` segments (matching `name` at each level)
+ * and return the child nodes of the node at that path. Empty `drillPath`
+ * returns the root's direct children. Returns [] when any segment is missing
+ * or the node has no children.
+ */
+export function getHotspotChildren(root: HotspotTreeNode, drillPath: string[]): HotspotTreeNode[] {
+  let current = root;
+  for (const seg of drillPath) {
+    const found = current.children?.find((c) => c.name === seg);
+    if (!found) {
+      return [];
+    }
+    current = found;
+  }
+  return current.children ?? [];
+}
+
 // ============ File Hotspots Adapters ============
 
 interface GitVisHotspotNodeInput {
