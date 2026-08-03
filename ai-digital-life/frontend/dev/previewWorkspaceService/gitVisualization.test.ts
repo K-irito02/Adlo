@@ -2,9 +2,36 @@ import { describe, it, expect } from 'vitest';
 import {
   aggregateCodeEvolutionDays,
   buildCommitTimeline,
+  buildFileHotspotsArgs,
   parseCommitHeader,
   parseDateParts,
 } from './gitVisualization';
+
+describe('buildFileHotspotsArgs', () => {
+  it('disables path quoting and normalizes the end-of-day until date', () => {
+    const args = buildFileHotspotsArgs('2026-01-01', '2026-12-31');
+    expect(args).toEqual([
+      '-c',
+      'core.quotepath=false',
+      'log',
+      '--pretty=format:%H|%aI',
+      '--numstat',
+      '--since=2026-01-01',
+      '--until=2026-12-31T23:59:59',
+    ]);
+  });
+
+  it('omits range args when none provided', () => {
+    const args = buildFileHotspotsArgs();
+    expect(args).toEqual([
+      '-c',
+      'core.quotepath=false',
+      'log',
+      '--pretty=format:%H|%aI',
+      '--numstat',
+    ]);
+  });
+});
 
 describe('parseCommitHeader', () => {
   it('parses a hash|date commit header', () => {

@@ -143,13 +143,14 @@ export const changesZh = {
   gitVisFileHotspotsTitle: '文件热点',
   gitVisHotspotsModeFull: '全局排行',
   gitVisHotspotsModeDrill: '逐级下钻',
+  gitVisHotspotsModeLabel: '排行榜模式',
   gitVisHotspotsRankingName: '名称',
   gitVisHotspotsRankingPath: '路径',
   gitVisHotspotsEmpty: '无变更文件',
   gitVisHotspotsFullHint:
     '按变更指标（变更次数/新增/删除/净变化）对全部变更文件排序，点击表头可切换排序。',
   gitVisHotspotsDrillHint:
-    '点击目录行可逐级下钻；右键目录行，或点击目录名称前的跳转按钮，可打开模块树进行路径跳转；面包屑可回退上级目录。',
+    '点击目录行可逐级下钻；右键目录行，或点击目录行左侧的跳转按钮，可打开模块树进行路径跳转；面包屑可回退上级目录。',
   gitVisHotspotsJump: '打开模块树',
   gitVisHotspotsCopyName: '复制名称',
   gitVisHotspotsCopyPath: '复制完整路径',

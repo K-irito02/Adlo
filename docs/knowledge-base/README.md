@@ -11,7 +11,7 @@
 | [browser](./browser/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询、导航模式切换、并发回调去重、标题锁定与 Favicon Pin、标签右键菜单与悬停按钮、WebView2 `text-overflow` 剪辑特性、已打开标签模式过滤与多 iframe 状态保持、4模式导航栏重构、双层同步机制、延迟创建、WebView2 原生 COM 事件、历史记录修复、历史标签删除修复、音频指示器、书签对话框 Store 模式、navigateTab 显式调用重构等经验 | 41 |
 | [code-quality](./code-quality/) | 全量代码质量检测与修复经验 | 20 |
 | [browser-automation](./browser-automation/) | 浏览器自动化调试记录与规则经验 | 2 |
-| [interaction](./interaction/) | 跨功能面板的交互/UX 问题修复经验 | 20 |
+| [interaction](./interaction/) | 跨功能面板的交互/UX 问题修复经验 | 21 |
 | [ci-monitoring](./ci-monitoring/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离、数据缓存、Rate Limit 保护） | 6 |
 | [logging](./logging/) | 日志系统统一改造经验（OpenOptions 权限、ANSI 控制、FormatTime、MakeWriter 兼容、双端一致性） | 1 |
 | [tauri-backend](./tauri-backend/) | Tauri 命令性能、Rust 异步模式、主线程阻塞等后端经验 | 1 |
@@ -230,6 +230,12 @@
 | [sub-card-border-subpixel-fix-2026-07-01.md](./interaction/2026-07/sub-card-border-subpixel-fix-2026-07-01.md) | 2026-07-01 Bug 修复 | Sub-Card 边框子像素渲染修复：`line-height: 1.625` 导致 `19.5px` 内容高度 → `37.5px` 半像素卡高 → `translateY(-50%)` 产生不对称抗锯齿 |
 | [svg-stroke-animation-logo-overlay-2026-07-14.md](./interaction/2026-07/svg-stroke-animation-logo-overlay-2026-07-14.md) | 2026-07-14 UI 增强 | SVG 描边动画与 Logo Overlay 实现经验 |
 | [heatmap-scrollbar-oscillation-and-patterns-2026-07-25.md](./interaction/2026-07/heatmap-scrollbar-oscillation-and-patterns-2026-07-25.md) | 2026-07-25 Bug 修复 | 日历热力图 5 项 Bug 修复（scrollbar-gutter 振荡修复、本地时区日期解析、!bin.date tooltip 模式、makePersistedWriter 模式） |
+
+#### 2026-08
+
+| 文件 | 来源 | 说明 |
+|------|------|------|
+| [git-vis-file-hotspots-leaderboard-2026-08-04.md](./interaction/2026-08/git-vis-file-hotspots-leaderboard-2026-08-04.md) | 2026-08-04 文件热点排行榜改进 + closing-workflow 复审 | 7 条经验：git numstat C 转义→core.quotepath=false、路径文本禁用 direction:rtl（bidi 重排）、--until 裸日期补 T23:59:59、虚拟滚动 DOM scrollTop 与状态同步、图表高度显式 height、外层"增长才滚动到底"、悬停按钮 pointer-events + :focus-visible |
 
 ### CI monitoring
 

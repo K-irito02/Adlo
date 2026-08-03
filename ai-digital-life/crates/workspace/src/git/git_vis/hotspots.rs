@@ -4,6 +4,8 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use tracing::debug;
 
+use super::helpers::build_time_filter;
+
 /// Per-file aggregation state during numstat parsing.
 #[derive(Default, Clone)]
 struct FileAgg {
@@ -17,7 +19,9 @@ struct FileAgg {
 ///
 /// `core.quotepath=false` disables git's C-style path quoting so paths with
 /// non-ASCII characters arrive as raw UTF-8 (e.g. `Logo图标设计`) instead of
-/// octal escapes (e.g. `"Logo\345\233\276..."`).
+/// octal escapes (e.g. `"Logo\345\233\276..."`). The time range is delegated to
+/// `build_time_filter` so a bare `YYYY-MM-DD` until date fully includes its end
+/// day (matching the other git-vis charts).
 fn numstat_args(since: Option<&str>, until: Option<&str>) -> Vec<String> {
     let mut args: Vec<String> = vec![
         "-c".to_string(),
@@ -26,12 +30,7 @@ fn numstat_args(since: Option<&str>, until: Option<&str>) -> Vec<String> {
         "--pretty=format:%H|%aI".to_string(),
         "--numstat".to_string(),
     ];
-    if let Some(s) = since {
-        args.push(format!("--since={}", s));
-    }
-    if let Some(u) = until {
-        args.push(format!("--until={}", u));
-    }
+    args.extend(build_time_filter(since, until));
     args
 }
 
@@ -41,12 +40,9 @@ pub async fn capture_file_hotspots(
     until: Option<&str>,
 ) -> Result<GitVisFileHotspots, AppError> {
     let t0 = std::time::Instant::now();
-    debug!(
-        "[ADL-GIT-VIS] [file_hotspots] running: git log --numstat (since={:?}, until={:?})",
-        since, until
-    );
 
     let args = numstat_args(since, until);
+    debug!("[ADL-GIT-VIS] [file_hotspots] running: git {}", args.join(" "));
     let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     let raw = super::super::git_helpers::run_git_with_timeout(root, &args_ref)
         .await
@@ -375,7 +371,8 @@ mod tests {
         assert_eq!(args[2], "log");
         assert!(args.contains(&"--numstat".to_string()));
         assert!(args.contains(&"--since=2026-01-01".to_string()));
-        assert!(args.contains(&"--until=2026-12-31".to_string()));
+        // bare YYYY-MM-DD until is normalized to end-of-day (matches other charts)
+        assert!(args.contains(&"--until=2026-12-31T23:59:59".to_string()));
 
         let minimal = numstat_args(None, None);
         assert!(!minimal.iter().any(|a| a.starts_with("--since=")));

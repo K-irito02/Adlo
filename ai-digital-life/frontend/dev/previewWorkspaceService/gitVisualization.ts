@@ -320,14 +320,25 @@ async function computeBranchProgress(
   return result;
 }
 
+/** Builds the `git log --numstat` args for file hotspots, mirroring the Rust
+ *  `numstat_args` (disables path quoting and normalizes the end-of-day date). */
+export function buildFileHotspotsArgs(since?: string, until?: string): string[] {
+  return [
+    '-c',
+    'core.quotepath=false',
+    'log',
+    '--pretty=format:%H|%aI',
+    '--numstat',
+    ...buildTimeFilterArgs(since, until),
+  ];
+}
+
 export async function handleFileHotspots(
   rootPath: string,
   since?: string,
   until?: string,
 ): Promise<{ tree: unknown; files: unknown[] }> {
-  const args = ['-c', 'core.quotepath=false', 'log', '--pretty=format:%H|%aI', '--numstat'];
-  if (since) args.push(`--since=${since}`);
-  if (until) args.push(`--until=${until}`);
+  const args = buildFileHotspotsArgs(since, until);
   const raw = (await runGit(rootPath, args)) ?? '';
 
   interface FileAgg {

@@ -1417,8 +1417,6 @@
   height: 28px;
   box-sizing: border-box;
   padding: var(--space-1) var(--space-2);
-  background: var(--bg-subtle);
-  border-radius: var(--radius-sm);
 }
 
 .adl-file-hotspots-ranking__filter-bar .adl-module-breadcrumb {
@@ -1464,7 +1462,7 @@
 .adl-file-hotspots-ranking__header,
 .adl-file-hotspots-ranking__row {
   display: grid;
-  grid-template-columns: 20px 40px 1fr 1.6fr 80px 70px 70px 80px;
+  grid-template-columns: 40px 1fr 1.6fr 80px 70px 70px 80px;
   align-items: center;
   padding: 0 var(--space-2);
 }
@@ -1496,12 +1494,14 @@
   white-space: nowrap;
 }
 
-.adl-file-hotspots-ranking__cell--jump {
+.adl-file-hotspots-ranking__dir-icon {
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
 }
 
 .adl-file-hotspots-ranking__folder-icon {
@@ -1574,7 +1574,7 @@
   font-size: var(--text-xs);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: color 0.15s;
+  transition: color var(--duration-150) var(--ease-default);
 }
 
 .adl-file-hotspots__mode-btn:hover {
@@ -1629,6 +1629,7 @@
   inset: 0;
   margin: auto;
   opacity: 0;
+  pointer-events: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1653,6 +1654,7 @@
 
 .adl-file-hotspots-ranking__copy {
   opacity: 0;
+  pointer-events: none;
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
@@ -1662,16 +1664,18 @@
 .adl-file-hotspots-ranking__row:hover .adl-file-hotspots-ranking__jump-btn,
 .adl-file-hotspots-ranking__row:hover .adl-file-hotspots-ranking__copy {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .adl-file-hotspots-ranking__row:hover .adl-file-hotspots-ranking__folder-icon {
   opacity: 0;
 }
 
-/* Keyboard users: keep the hover-only actions visible while focused. */
+/* Keyboard users: keep the hover-only actions visible and usable while focused. */
 .adl-file-hotspots-ranking__jump-btn:focus-visible,
 .adl-file-hotspots-ranking__copy:focus-within {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .adl-file-hotspots-ranking__row:has(.adl-file-hotspots-ranking__jump-btn:focus-visible)

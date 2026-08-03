@@ -143,13 +143,14 @@ export const changesEn = {
   gitVisFileHotspotsTitle: 'File Hotspots',
   gitVisHotspotsModeFull: 'Global Ranking',
   gitVisHotspotsModeDrill: 'Level Drill',
+  gitVisHotspotsModeLabel: 'Leaderboard mode',
   gitVisHotspotsRankingName: 'Name',
   gitVisHotspotsRankingPath: 'Path',
   gitVisHotspotsEmpty: 'No changed files',
   gitVisHotspotsFullHint:
     'All changed files sorted by change metrics (changes/added/deleted/net); click a column header to change the sort.',
   gitVisHotspotsDrillHint:
-    'Click a directory row to drill down level by level; right-click a directory row, or click the jump button before its name, to open the module tree for path jump; use the breadcrumb to go back.',
+    'Click a directory row to drill down level by level; right-click a directory row, or click the jump button at the left edge of the directory row, to open the module tree for path jump; use the breadcrumb to go back.',
   gitVisHotspotsJump: 'Open module tree',
   gitVisHotspotsCopyName: 'Copy name',
   gitVisHotspotsCopyPath: 'Copy full path',

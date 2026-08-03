@@ -101,6 +101,15 @@ alwaysApply: true
 - 子元素必须显式设置遮罩背景（如 `var(--bg-card)`）+ `z-index` 覆盖父级
 - 文档：[css-architecture.md](./css-architecture.md) → 绝对定位与悬停隔离
 
+### 悬停显示的操作用户按钮（Hover-revealed action buttons）
+
+- 场景：行/卡片悬停才出现的操作按钮（复制、跳转、更多操作）
+- 默认 `opacity: 0` 且**必须** `pointer-events: none`，否则不可见区域仍可点击，误触发操作
+- 悬停时 `opacity: 1; pointer-events: auto`
+- 键盘可访问：`:focus-visible` / `:focus-within` 同样置 `opacity: 1; pointer-events: auto`
+- 叠放占位图标：悬停按钮覆盖的默认图标（如文件夹图标）在 `:has(:focus-visible)` 时隐藏，避免与按钮重叠
+- 参考：[git-vis-file-hotspots-leaderboard-2026-08-04.md](../../docs/knowledge-base/interaction/2026-08/git-vis-file-hotspots-leaderboard-2026-08-04.md)
+
 ### 文件树悬停传播
 
 - 虚拟化树：目录悬停 → JS 计算后代节点 → 添加 `is-hovered-by-ancestor` 类

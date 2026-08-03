@@ -2,13 +2,48 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FileHotspotsLeaderboard } from '../FileHotspotsLeaderboard';
+import type { GitVisFileHotspots } from '@/shared/ipc/workspace';
 import { fileHotspotsMockData } from '@/test-fixtures/gitVisMockData';
+
+/** Fixture with enough rows for the list container to genuinely overflow, so
+ *  scroll positions are physically meaningful (full: 50 rows, drill root: 30). */
+function makeLargeFixture(): GitVisFileHotspots {
+  const files = Array.from({ length: 50 }, (_, i) => ({
+    path: `dir${i % 30}/file${i}.ts`,
+    changeCount: 50 - i,
+    additions: 10,
+    deletions: 5,
+    lastModified: '2026-08-01',
+  }));
+  const children = Array.from({ length: 30 }, (_, i) => ({
+    name: `dir${i}`,
+    nodeType: 'directory',
+    changeCount: 1,
+    additions: 1,
+    deletions: 1,
+    lastModified: '2026-08-01',
+    children: [],
+  }));
+  return {
+    tree: {
+      name: 'root',
+      nodeType: 'directory',
+      changeCount: 30,
+      additions: 30,
+      deletions: 30,
+      lastModified: '2026-08-01',
+      children,
+    },
+    files,
+  };
+}
 
 vi.mock('@i18n/useTCopy', () => ({
   useTCopy: () => ({
     t: {
       gitVisHotspotsModeFull: 'Global Ranking',
       gitVisHotspotsModeDrill: 'Level Drill',
+      gitVisHotspotsModeLabel: 'Leaderboard mode',
       gitVisHotspotsRankingName: 'Name',
       gitVisHotspotsRankingPath: 'Path',
       gitVisHotspotsRankingChangeCount: 'Changes',
@@ -65,7 +100,7 @@ vi.mock('../../ModuleTreeCard', () => ({
 function getRowNames(container: HTMLElement): string[] {
   return Array.from(
     container.querySelectorAll(
-      '.adl-file-hotspots-ranking__row .adl-file-hotspots-ranking__cell--name',
+      '.adl-file-hotspots-ranking__row .adl-file-hotspots-ranking__cell--name-text',
     ),
   ).map((el) => el.textContent ?? '');
 }
@@ -204,7 +239,7 @@ describe('FileHotspotsLeaderboard', () => {
   });
 
   it('restores the saved scroll position when switching back to a mode', () => {
-    const { container } = render(<FileHotspotsLeaderboard data={fileHotspotsMockData} />);
+    const { container } = render(<FileHotspotsLeaderboard data={makeLargeFixture()} />);
     const scrollEl = container.querySelector('.adl-file-hotspots-ranking__scroll') as HTMLElement;
     expect(scrollEl).toBeTruthy();
 
@@ -256,12 +291,14 @@ describe('FileHotspotsLeaderboard', () => {
   });
 
   it('scrolls the outer git-vis area to the bottom only when the chart grows', () => {
+    const outerRef = React.createRef<HTMLDivElement>();
     const { container } = render(
-      <div className="adl-git-vis__container">
-        <FileHotspotsLeaderboard data={fileHotspotsMockData} />
+      <div className="adl-git-vis__container" ref={outerRef}>
+        <FileHotspotsLeaderboard data={fileHotspotsMockData} scrollContainerRef={outerRef} />
       </div>,
     );
     const outer = container.querySelector('.adl-git-vis__container') as HTMLElement;
+    expect(outerRef.current).toBe(outer);
     Object.defineProperty(outer, 'scrollHeight', { value: 600, configurable: true });
     Object.defineProperty(outer, 'clientHeight', { value: 300, configurable: true });
 
@@ -286,13 +323,17 @@ describe('FileHotspotsLeaderboard', () => {
 
     const jumpBtns = container.querySelectorAll('.adl-file-hotspots-ranking__jump-btn');
     expect(jumpBtns.length).toBeGreaterThan(0);
-    const jumpCell = jumpBtns[0].closest('.adl-file-hotspots-ranking__cell--jump');
-    expect(jumpCell).not.toBeNull();
-    const row = getRows(container)[0];
-    const cells = Array.from(row.querySelectorAll('.adl-file-hotspots-ranking__cell'));
-    expect(cells.indexOf(jumpCell as HTMLElement)).toBeLessThan(
-      cells.indexOf(row.querySelector('.adl-file-hotspots-ranking__cell--rank') as HTMLElement),
-    );
+    // the jump button sits inside the name cell, before the name text
+    const dirIcon = jumpBtns[0].closest('.adl-file-hotspots-ranking__dir-icon');
+    expect(dirIcon).not.toBeNull();
+    const nameCell = (dirIcon as HTMLElement).closest('.adl-file-hotspots-ranking__cell--name');
+    expect(nameCell).not.toBeNull();
+    const nameText = nameCell!.querySelector('.adl-file-hotspots-ranking__cell--name-text');
+    expect(nameText).toBeTruthy();
+    expect(
+      (dirIcon as HTMLElement).compareDocumentPosition(nameText as HTMLElement) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     fireEvent.click(jumpBtns[0]); // src row
     expect(screen.getByTestId('tree-card')).toBeTruthy();

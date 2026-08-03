@@ -18,6 +18,8 @@ const HEADER_HEIGHT = 32;
 
 export interface FileHotspotsLeaderboardProps {
   data?: GitVisFileHotspots;
+  /** Outer scroll container (e.g. the git-vis page) whose bottom is revealed when the chart grows. */
+  scrollContainerRef?: React.RefObject<HTMLElement | null>;
 }
 
 interface LeaderboardRow {
@@ -89,6 +91,7 @@ function formatNumber(n: number): string {
 
 export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboard({
   data,
+  scrollContainerRef,
 }: FileHotspotsLeaderboardProps) {
   const { t } = useTCopy();
   const state = useFileHotspotsState();
@@ -122,6 +125,19 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
     }
   }, [data, drillPath, setDrillPath]);
 
+  // When the chart's height grows (mode/drill/data changes), scroll the outer
+  // git-visualization area to the bottom so the grown chart stays fully visible.
+  // Shrink/equal heights never yank the viewport. The first call only records a
+  // baseline (no jump), so a mounted chart's first growth still scrolls.
+  const scrollOuterToBottom = useCallback(() => {
+    const outer = scrollContainerRef?.current;
+    const prev = prevViewHeightRef.current;
+    if (outer && prev !== null && viewHeightRef.current > prev) {
+      outer.scrollTop = outer.scrollHeight - outer.clientHeight;
+    }
+    prevViewHeightRef.current = viewHeightRef.current;
+  }, [scrollContainerRef]);
+
   // Keep the container's real scroll position in sync with the virtualization
   // state. When switching modes, restore the target mode's saved scroll position
   // (per drill level); when the drill path changes within drill mode, restore
@@ -144,20 +160,10 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
         containerRef.current.scrollTop = target;
         setScrollTop(containerRef.current.scrollTop);
         setContainerHeight(containerRef.current.clientHeight);
-
-        // The card's height changed with the row count. Scroll the outer
-        // git-visualization scroll area to the bottom so a GROWN chart stays
-        // fully visible, but never yank the viewport on shrink/equal heights.
-        // The first change only records a baseline (no jump).
-        const outer = containerRef.current.closest<HTMLElement>('.adl-git-vis__container');
-        const prev = prevViewHeightRef.current;
-        if (prev !== null && viewHeightRef.current > prev && outer) {
-          outer.scrollTop = outer.scrollHeight - outer.clientHeight;
-        }
-        prevViewHeightRef.current = viewHeightRef.current;
       }
+      scrollOuterToBottom();
     }
-  }, [mode, drillPath]);
+  }, [mode, drillPath, scrollOuterToBottom]);
 
   const rows = useMemo<LeaderboardRow[]>(() => {
     if (!data) {
@@ -182,13 +188,15 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
   // Re-sync scroll/height state when the row count changes (e.g. after a data
   // refresh): the browser clamps the real scrollTop and the container height
   // follows the row count, but the state would stay stale, making the
-  // virtualization window overshoot into blank rows.
+  // virtualization window overshoot into blank rows. Also scrolls the outer
+  // area to the bottom on growth (consistent with mode/drill changes).
   useLayoutEffect(() => {
     if (containerRef.current) {
       setScrollTop(containerRef.current.scrollTop);
       setContainerHeight(containerRef.current.clientHeight);
     }
-  }, [sorted.length]);
+    scrollOuterToBottom();
+  }, [sorted.length, scrollOuterToBottom]);
 
   const handleModeChange = useCallback(
     (next: HotspotMode) => {
@@ -295,7 +303,11 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
   return (
     <div className="adl-file-hotspots-ranking">
       <div className="adl-file-hotspots__toolbar">
-        <div className="adl-file-hotspots__mode-toggle" role="group">
+        <div
+          className="adl-file-hotspots__mode-toggle"
+          role="group"
+          aria-label={t.gitVisHotspotsModeLabel}
+        >
           <button
             type="button"
             className={cn(
@@ -335,50 +347,80 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
           style={{ maxHeight: MAX_HEIGHT, height: viewHeight, overflowY: 'auto' }}
           onScroll={handleScroll}
           role="table"
+          aria-colcount={7}
+          aria-rowcount={sorted.length + 1}
         >
           <div className="adl-file-hotspots-ranking__header" role="row">
-            <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--jump" />
-            <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--rank">
+            <span
+              role="columnheader"
+              className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--rank"
+            >
               #
             </span>
-            <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--name">
+            <span
+              role="columnheader"
+              className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--name"
+            >
               {t.gitVisHotspotsRankingName}
             </span>
-            <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--path">
+            <span
+              role="columnheader"
+              className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--path"
+            >
               {t.gitVisHotspotsRankingPath}
             </span>
-            <button
-              type="button"
-              className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num adl-file-hotspots-ranking__sort-btn"
-              onClick={() => setSort('changeCount')}
+            <span
+              role="columnheader"
+              className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num"
             >
-              {t.gitVisHotspotsRankingChangeCount}
-              {sortKey === 'changeCount' && (sortDir === 'asc' ? ' ↑' : ' ↓')}
-            </button>
-            <button
-              type="button"
-              className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num adl-file-hotspots-ranking__sort-btn"
-              onClick={() => setSort('additions')}
+              <button
+                type="button"
+                className="adl-file-hotspots-ranking__sort-btn"
+                onClick={() => setSort('changeCount')}
+              >
+                {t.gitVisHotspotsRankingChangeCount}
+                {sortKey === 'changeCount' && (sortDir === 'asc' ? ' ↑' : ' ↓')}
+              </button>
+            </span>
+            <span
+              role="columnheader"
+              className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num"
             >
-              {t.gitVisHotspotsRankingAdditions}
-              {sortKey === 'additions' && (sortDir === 'asc' ? ' ↑' : ' ↓')}
-            </button>
-            <button
-              type="button"
-              className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num adl-file-hotspots-ranking__sort-btn"
-              onClick={() => setSort('deletions')}
+              <button
+                type="button"
+                className="adl-file-hotspots-ranking__sort-btn"
+                onClick={() => setSort('additions')}
+              >
+                {t.gitVisHotspotsRankingAdditions}
+                {sortKey === 'additions' && (sortDir === 'asc' ? ' ↑' : ' ↓')}
+              </button>
+            </span>
+            <span
+              role="columnheader"
+              className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num"
             >
-              {t.gitVisHotspotsRankingDeletions}
-              {sortKey === 'deletions' && (sortDir === 'asc' ? ' ↑' : ' ↓')}
-            </button>
-            <button
-              type="button"
-              className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num adl-file-hotspots-ranking__sort-btn"
-              onClick={() => setSort('net')}
+              <button
+                type="button"
+                className="adl-file-hotspots-ranking__sort-btn"
+                onClick={() => setSort('deletions')}
+              >
+                {t.gitVisHotspotsRankingDeletions}
+                {sortKey === 'deletions' && (sortDir === 'asc' ? ' ↑' : ' ↓')}
+              </button>
+            </span>
+            <span
+              role="columnheader"
+              className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num"
             >
-              {t.gitVisHotspotsRankingNet}
-              {sortKey === 'net' && (sortDir === 'asc' ? ' ↑' : ' ↓')}
-            </button>
+              <button
+                type="button"
+                className="adl-file-hotspots-ranking__sort-btn"
+                onClick={() => setSort('net')}
+              >
+                {t.gitVisHotspotsRankingNet}
+                {sortKey === 'net' && (sortDir === 'asc' ? ' ↑' : ' ↓')}
+              </button>
+            </span>
           </div>
           <div style={{ height: totalHeight, position: 'relative' }}>
             <div style={{ transform: `translateY(${offsetY}px)` }}>
@@ -388,6 +430,7 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
                   <div
                     key={row.key}
                     role="row"
+                    aria-rowindex={startIndex + i + 2}
                     className={cn(
                       'adl-file-hotspots-ranking__row',
                       row.isDir && 'adl-file-hotspots-ranking__row--dir',
@@ -396,9 +439,18 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
                     onClick={() => handleRowClick(row)}
                     onContextMenu={(e) => handleRowContextMenu(e, row)}
                   >
-                    <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--jump">
+                    <span
+                      role="cell"
+                      className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--rank"
+                    >
+                      {rank}
+                    </span>
+                    <span
+                      role="cell"
+                      className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--name"
+                    >
                       {row.isDir && (
-                        <>
+                        <span className="adl-file-hotspots-ranking__dir-icon">
                           <IconFolder
                             size={14}
                             decorative
@@ -413,13 +465,8 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
                           >
                             <IconHierarchy size={12} decorative />
                           </button>
-                        </>
+                        </span>
                       )}
-                    </span>
-                    <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--rank">
-                      {rank}
-                    </span>
-                    <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--name">
                       <span className="adl-file-hotspots-ranking__cell--name-text">{row.name}</span>
                       <span className="adl-file-hotspots-ranking__copy">
                         <CopyButton
@@ -430,7 +477,10 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
                         />
                       </span>
                     </span>
-                    <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--path">
+                    <span
+                      role="cell"
+                      className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--path"
+                    >
                       <span className="adl-file-hotspots-ranking__cell--path-text">{row.path}</span>
                       <span className="adl-file-hotspots-ranking__copy">
                         <CopyButton
@@ -441,16 +491,26 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
                         />
                       </span>
                     </span>
-                    <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num">
+                    <span
+                      role="cell"
+                      className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num"
+                    >
                       {formatNumber(row.changeCount)}
                     </span>
-                    <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num adl-file-hotspots-ranking__cell--add">
+                    <span
+                      role="cell"
+                      className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num adl-file-hotspots-ranking__cell--add"
+                    >
                       +{formatNumber(row.additions)}
                     </span>
-                    <span className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num adl-file-hotspots-ranking__cell--del">
+                    <span
+                      role="cell"
+                      className="adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num adl-file-hotspots-ranking__cell--del"
+                    >
                       -{formatNumber(row.deletions)}
                     </span>
                     <span
+                      role="cell"
                       className={`adl-file-hotspots-ranking__cell adl-file-hotspots-ranking__cell--num ${
                         row.net > 0
                           ? 'adl-file-hotspots-ranking__cell--add'

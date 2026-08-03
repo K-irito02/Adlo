@@ -456,7 +456,10 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           yearBounds={yearBounds}
         >
           {fileHotspotsData.loading ? null : (
-            <FileHotspotsView data={fileHotspotsData.data as GitVisFileHotspots | undefined} />
+            <FileHotspotsView
+              data={fileHotspotsData.data as GitVisFileHotspots | undefined}
+              scrollContainerRef={containerRef}
+            />
           )}
         </TimeRangeAwareCard>
       </div>
