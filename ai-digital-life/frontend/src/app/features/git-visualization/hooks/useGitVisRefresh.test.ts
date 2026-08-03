@@ -54,6 +54,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
   // Reset the git-vis slices to a clean state between tests (leave the rest of
   // the store untouched).
@@ -235,5 +236,133 @@ describe('useGitVisRefresh relative preset re-resolution', () => {
     const codeCall = bridge.workspace.gitVisCodeEvolution.mock.calls[0];
     expect(codeCall).toBeTruthy();
     expect([codeCall[1], codeCall[2]]).toEqual([expected.since, expected.until]);
+  });
+
+  it('drops a workspace refresh whose resolved bounds went stale during the fetch', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 3, 23, 59, 0));
+    const workspaceId = 'ws-2';
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+
+    // A relative preset whose resolved bounds depend on "now".
+    act(() => {
+      useAppStore.getState().setGitVisTimeRange(workspaceId, CHART_ID, {
+        preset: 'week',
+        since: '2026-07-01',
+        until: '2026-07-08',
+      });
+    });
+
+    const d = deferred();
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    bridge.workspace.gitVisCodeEvolution.mockReturnValueOnce(d.promise);
+    bridge.workspace.gitVisCommitStats.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        dailyCommits: [],
+        hourlyDistribution: [],
+        contributorActivity: [],
+        commitTimeline: [],
+      },
+    });
+    bridge.workspace.gitVisBranchGraph.mockResolvedValueOnce({
+      ok: true,
+      data: { nodes: [], edges: [], branches: [] },
+    });
+    bridge.workspace.gitVisFileHotspots.mockResolvedValueOnce({
+      ok: true,
+      data: { tree: { children: [] }, files: [] },
+    });
+    bridge.workspace.gitVisContributorModules.mockResolvedValueOnce({
+      ok: true,
+      data: { matrix: [], allPaths: [] },
+    });
+
+    let p: Promise<void> | undefined;
+    act(() => {
+      p = result.current.refreshWorkspace();
+    });
+    await act(async () => {});
+
+    // Roll the clock past midnight while the fetch is in flight. The stored
+    // range is unchanged, but the resolved bounds now differ — this is exactly
+    // the "midnight rollover" case the resolved-bounds guard must catch.
+    vi.setSystemTime(new Date(2026, 7, 4, 0, 1, 0));
+
+    d.resolve({
+      ok: true,
+      data: { days: [{ date: '2026-07-01', additions: 5, deletions: 0 }] },
+    });
+    await act(async () => {
+      await p;
+    });
+    vi.useRealTimers();
+
+    // The in-flight result was fetched for a superseded window and must not
+    // overwrite the (empty) data slot of the current selection.
+    const stored = useAppStore.getState().gitVisData[workspaceId]?.[CHART_ID];
+    expect(stored).toBeUndefined();
+  });
+
+  it('still clears loading when a midnight rollover only changed the resolved bounds', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 3, 23, 59, 0));
+    const workspaceId = 'ws-3';
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+
+    act(() => {
+      useAppStore.getState().setGitVisTimeRange(workspaceId, CHART_ID, {
+        preset: 'week',
+        since: '2026-07-01',
+        until: '2026-07-08',
+      });
+    });
+
+    const d = deferred();
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    bridge.workspace.gitVisCodeEvolution.mockReturnValueOnce(d.promise);
+    bridge.workspace.gitVisCommitStats.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        dailyCommits: [],
+        hourlyDistribution: [],
+        contributorActivity: [],
+        commitTimeline: [],
+      },
+    });
+    bridge.workspace.gitVisBranchGraph.mockResolvedValueOnce({
+      ok: true,
+      data: { nodes: [], edges: [], branches: [] },
+    });
+    bridge.workspace.gitVisFileHotspots.mockResolvedValueOnce({
+      ok: true,
+      data: { tree: { children: [] }, files: [] },
+    });
+    bridge.workspace.gitVisContributorModules.mockResolvedValueOnce({
+      ok: true,
+      data: { matrix: [], allPaths: [] },
+    });
+
+    let p: Promise<void> | undefined;
+    act(() => {
+      p = result.current.refreshWorkspace();
+    });
+    await act(async () => {});
+
+    vi.setSystemTime(new Date(2026, 7, 4, 0, 1, 0));
+
+    d.resolve({
+      ok: true,
+      data: { days: [{ date: '2026-07-01', additions: 5, deletions: 0 }] },
+    });
+    await act(async () => {
+      await p;
+    });
+    vi.useRealTimers();
+
+    // The stale data must be dropped, but loading must not stay stuck: no newer
+    // request is coming, so the workspace refresh still owns clearing it.
+    expect(useAppStore.getState().gitVisData[workspaceId]?.[CHART_ID]).toBeUndefined();
+    expect(useAppStore.getState().gitVisLoading[workspaceId]?.[CHART_ID]).toBe(false);
   });
 });

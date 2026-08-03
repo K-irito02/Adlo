@@ -22,17 +22,19 @@ export function resolveRollingRange(
     case 'week':
       sinceDate.setDate(sinceDate.getDate() - 7);
       break;
-    case 'month': {
+    case 'month':
+    case 'year': {
       const startDay = sinceDate.getDate();
-      sinceDate.setMonth(sinceDate.getMonth() - 1);
+      if (preset === 'month') {
+        sinceDate.setMonth(sinceDate.getMonth() - 1);
+      } else {
+        sinceDate.setFullYear(sinceDate.getFullYear() - 1);
+      }
       if (sinceDate.getDate() !== startDay) {
         sinceDate.setDate(0);
       }
       break;
     }
-    case 'year':
-      sinceDate.setFullYear(sinceDate.getFullYear() - 1);
-      break;
   }
   return { since: formatLocalDate(sinceDate), until };
 }

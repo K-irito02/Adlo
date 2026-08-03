@@ -18,6 +18,7 @@ import { ContributorModuleHeatmap } from './charts/ContributorModuleHeatmap';
 import { RefreshButton } from './RefreshButton';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import { CHART_IDS } from './chartIds';
+import { resolveTimeRangeForFetch } from './timeRangeUtils';
 
 const TAB_TIME_RANGE_KEY = 'adl-git-vis:tab-time-range';
 
@@ -98,6 +99,12 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
 
   const currentRange = tabRangesRef.current[activeHeatmapTab];
 
+  // Re-resolve relative presets (week/month/year) against today on every render
+  // rather than memoizing: a refresh fetches with bounds resolved at fetch time,
+  // so the display must mirror that same resolved window instead of a frozen
+  // snapshot that would drift from the data after a day boundary.
+  const displayRange = resolveTimeRangeForFetch(currentRange);
+
   const refreshForTab = useCallback((tab: HeatmapTab) => {
     if (tab === 'module') {
       return onRefreshContributorModulesRef.current?.() ?? Promise.resolve();
@@ -162,7 +169,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
   const descVars = useMemo(() => {
     if (activeHeatmapTab === 'activity') {
       const rowCount = commitStats?.contributorActivity?.length ?? 0;
-      const { since, until } = currentRange;
+      const { since, until } = displayRange;
       let colCount = 0;
       if (since && until) {
         const [y1, m1] = since.substring(0, 7).split('-').map(Number);
@@ -180,7 +187,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
       return { rowCount: String(rowCount), colCount: String(allModules.size) };
     }
     return undefined;
-  }, [activeHeatmapTab, commitStats, contributorModules, currentRange]);
+  }, [activeHeatmapTab, commitStats, contributorModules, displayRange]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const idx = TABS.findIndex((tab) => tab.id === activeHeatmapTab);
@@ -247,8 +254,8 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
             <CalendarHeatmap
               data={commitStats?.dailyCommits}
               year={
-                currentRange.since && currentRange.since.length >= 4
-                  ? parseInt(currentRange.since.substring(0, 4), 10) || undefined
+                displayRange.since && displayRange.since.length >= 4
+                  ? parseInt(displayRange.since.substring(0, 4), 10) || undefined
                   : undefined
               }
             />
@@ -257,8 +264,8 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
           {activeHeatmapTab === 'activity' && (
             <ContributorActivityHeatmap
               data={commitStats?.contributorActivity}
-              since={currentRange.since}
-              until={currentRange.until}
+              since={displayRange.since}
+              until={displayRange.until}
             />
           )}
           {activeHeatmapTab === 'module' && (
@@ -266,7 +273,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
               data={contributorModules}
               allPaths={contributorModuleAllPaths}
               status={contributorModuleStatus || 'ready'}
-              loadingLabel="Loading modules..."
+              loadingLabel={t.gitVisLoadingModules}
             />
           )}
         </div>

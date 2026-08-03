@@ -51,3 +51,20 @@
   - 2.5 删除 `labelStyle` 冗余 flex 死样式
   - 3.1 删除 `resolveTimeRangeForFetch` default 分支 + 测试
 - **两轮子代理复审**：均确认正确、无回归。最终全量 141 文件 / 1015 测试通过，lint/typecheck 全绿。
+
+## Closing Workflow 收尾（2026-08-03）
+- **多Agent 首轮审查（4 Agent 按任务并行）**：
+  - Agent1（ModuleTreeCard）：medium×3（拖拽每帧全量重渲染 / lostpointercapture 缺失 / sizeRef 过期）、low×5（preventDefault / cancel 释放 / dirName-dirPath 耦合 / 初始钳制覆盖拖拽 / 测试盲区）
+  - Agent2（heatmap-x-axis）：medium×1（非旋转分支零测试）、low×4（旋转残留幻影命中区可接受 / flex 冗余 / 选择器脆弱 / contextMenu+外层点击无测试）
+  - Agent3（时间范围）：medium×1（显示侧消费陈旧 since/until 与重解析数据错位）、low×5（跨午夜守卫 / default 分支已撤销 / year 闰日回退不一致 / handleStep UTC 注释 / Promise 吞错）
+  - Agent4（HeatmapCardGroup）：medium×2（localStorage 泄漏 / 切 tab 刷新未测）、low×4（mock 缺 locale / 硬编码映射 / 双写 / loadingLabel 硬编码）
+- **第 2 轮复审（2 Agent）**：确认首轮修复正确，新增发现——Agent5 medium（initialPositionRef 空依赖致"卡片打开时右键另一目录"位置不更新）、Agent6 medium×2（跨午夜测试未触达新分支 / displayRange memo 冻结致跨日显示错位）、low×3。
+- **终审（1 Agent）**：确认 5 项修复全部正确，发现 medium×1——跨午夜后 `isRangeStillCurrent` 同时 gate loading，导致滚动预设图表 loading 卡住。
+- **修复汇总**（closing 审查阶段）：
+  - ModuleTreeCard：rAF 节流 setPos（dragRafRef）+ `endDrag` 统一清理（up/cancel/lostpointercapture）+ `hasDraggedRef` 守卫（挂载/新 position 钳制 vs 拖拽位置不被覆盖）+ ResizeObserver 重钳制 + preventDefault + clampToViewport 非有限值守卫 + `dir` prop 合并
+  - heatmap-x-axis：移除冗余中间 flex 层 + `data-testid` 选择器 + 非旋转分支/contextMenu/外层点击不触发测试
+  - HeatmapCardGroup：`displayRange` 每渲染重解析（不 memo 冻结，显示与 fetch 同快照）+ `loadingLabel` 改用 `t.gitVisLoadingModules` + 切 tab/localStorage/locale 测试
+  - useGitVisRefresh：守卫拆分 `isRangeStillCurrent`（原始 range，gate loading）与 `isResolvedBoundsCurrent`（含 resolved bounds，gate data/error）+ 跨午夜测试改用 fake timers 推进 now
+  - timeRangeUtils：year 分支与 month 共用月末钳制（闰日回退）
+- **最终验证**：全量 141 文件 / 1025 测试通过，`eslint .` 0 errors / 0 warnings，`tsc --noEmit` 0 errors。
+- **文档同步**：knowledge-base 沉淀 2 条经验（CSS transform 命中区 + 相对时间预设重解析），interaction README 更新索引。

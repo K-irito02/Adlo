@@ -24,10 +24,28 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
     // Guard: a workspace refresh must not overwrite a newer per-chart refresh
     // that changed the time range while the workspace fetch was in flight.
     // Compare the snapshot range against the current one before committing.
+    // The resolved bounds are compared too so a midnight rollover (which changes
+    // the rolling preset's effective since/until without changing the stored
+    // range) also invalidates an in-flight request.
     const isRangeStillCurrent = (chartId: string) => {
+      const currentRanges = useAppStore.getState().gitVisTimeRange[workspaceId] || {};
       const snap = latestTimeRanges[chartId];
-      const current = useAppStore.getState().gitVisTimeRange[workspaceId]?.[chartId];
+      const current = currentRanges[chartId];
       return snap === current || JSON.stringify(snap) === JSON.stringify(current);
+    };
+    const isResolvedBoundsCurrent = (chartId: string) => {
+      if (!isRangeStillCurrent(chartId)) {
+        return false;
+      }
+      const currentRanges = useAppStore.getState().gitVisTimeRange[workspaceId] || {};
+      const snap = latestTimeRanges[chartId];
+      const current = currentRanges[chartId];
+      if (current && snap) {
+        const snapResolved = resolvedTimeRanges[chartId];
+        const currentResolved = resolveTimeRangeForFetch(current);
+        return JSON.stringify(snapResolved) === JSON.stringify(currentResolved);
+      }
+      return true;
     };
     await refreshWorkspace(
       bridge,
@@ -36,19 +54,20 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
       resolvedTimeRanges,
       (chartId, loading) => {
         // Setting loading=true is always safe (workspace owns it). Clearing
-        // must be gated: never clear a loading state that a newer per-chart
-        // refresh (with an updated time range) still owns.
+        // must be gated on the stored range only: a midnight rollover changes
+        // the resolved bounds but not the stored range, and no newer request is
+        // coming to clear the spinner, so loading must still be cleared there.
         if (loading || isRangeStillCurrent(chartId)) {
           setLoading(workspaceId, chartId, loading);
         }
       },
       (chartId, error) => {
-        if (isRangeStillCurrent(chartId)) {
+        if (isResolvedBoundsCurrent(chartId)) {
           setError(workspaceId, chartId, error);
         }
       },
       (chartId, data) => {
-        if (isRangeStillCurrent(chartId)) {
+        if (isResolvedBoundsCurrent(chartId)) {
           setData(workspaceId, chartId, data);
         }
       },

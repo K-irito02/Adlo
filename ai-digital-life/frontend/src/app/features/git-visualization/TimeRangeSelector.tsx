@@ -162,6 +162,10 @@ export const TimeRangeSelector = React.memo(function TimeRangeSelector({
       const rangeMs = until.getTime() - since.getTime();
       const newUntil = new Date(until.getTime() + direction * rangeMs);
       const newSince = new Date(since.getTime() + direction * rangeMs);
+      // Date-only strings parse as UTC midnight and the step offset is a whole
+      // number of days, so toISOString() round-trips the same UTC date. Must NOT
+      // use local field formatting here: in a negative-offset timezone it would
+      // shift UTC midnight back to the previous local day.
       const newSinceStr = newSince.toISOString().substring(0, 10);
       const newUntilStr = newUntil.toISOString().substring(0, 10);
       if (yearBounds) {

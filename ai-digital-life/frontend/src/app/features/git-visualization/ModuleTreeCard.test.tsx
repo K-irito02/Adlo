@@ -48,6 +48,9 @@ const mockSubtree: ModuleTreeNode[] = [
 ];
 
 describe('ModuleTreeCard', () => {
+  let hasCapture = false;
+  const releaseSpy = vi.fn();
+
   beforeAll(() => {
     class MockPointerEvent extends MouseEvent {
       pointerId: number;
@@ -71,15 +74,24 @@ describe('ModuleTreeCard', () => {
       configurable: true,
     });
     Object.defineProperty(Element.prototype, 'hasPointerCapture', {
-      value: vi.fn(() => false),
+      value: vi.fn(() => hasCapture),
       writable: true,
       configurable: true,
     });
     Object.defineProperty(Element.prototype, 'releasePointerCapture', {
-      value: vi.fn(),
+      value: releaseSpy,
       writable: true,
       configurable: true,
     });
+    globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => {
+      cb(0);
+      return 0;
+    };
+    globalThis.cancelAnimationFrame = () => {};
+  });
+
+  afterEach(() => {
+    hasCapture = false;
   });
 
   afterAll(() => {
@@ -218,8 +230,7 @@ describe('ModuleTreeCard', () => {
       <ModuleTreeCard
         subtree={mockSubtree}
         position={{ x: 100, y: 100 }}
-        dirName="components"
-        dirPath="src/components"
+        dir={{ name: 'components', path: 'src/components' }}
         onSelect={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -394,5 +405,153 @@ describe('ModuleTreeCard', () => {
     fireEvent.pointerMove(header, { clientX: 120, clientY: 130, pointerId: 1 });
     expect(card.style.left).toBe('100px');
     expect(card.style.top).toBe('100px');
+  });
+
+  it('should reset drag state when pointer capture is lost unexpectedly', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 360,
+      height: 400,
+      left: 0,
+      top: 0,
+      right: 360,
+      bottom: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    rectSpy.mockRestore();
+
+    const card = document.querySelector('.adl-module-tree-card') as HTMLElement;
+    const header = card.querySelector('.adl-module-tree-card__header') as HTMLElement;
+    fireEvent.pointerDown(header, { clientX: 50, clientY: 60, pointerId: 1, button: 0 });
+    expect(header.className).toContain('is-dragging');
+    fireEvent.lostPointerCapture(header, { pointerId: 1 });
+    expect(header.className).not.toContain('is-dragging');
+    fireEvent.pointerMove(header, { clientX: 120, clientY: 130, pointerId: 1 });
+    expect(card.style.left).toBe('100px');
+    expect(card.style.top).toBe('100px');
+  });
+
+  it('should release pointer capture on pointer up when the header owns it', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 360,
+      height: 400,
+      left: 0,
+      top: 0,
+      right: 360,
+      bottom: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    rectSpy.mockRestore();
+
+    const card = document.querySelector('.adl-module-tree-card') as HTMLElement;
+    const header = card.querySelector('.adl-module-tree-card__header') as HTMLElement;
+    fireEvent.pointerDown(header, { clientX: 50, clientY: 60, pointerId: 1, button: 0 });
+    hasCapture = true;
+    fireEvent.pointerUp(header, { pointerId: 1 });
+    expect(releaseSpy).toHaveBeenCalledWith(1);
+    expect(header.className).not.toContain('is-dragging');
+  });
+
+  it('should clamp the card to the viewport edge while dragging', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 360,
+      height: 400,
+      left: 0,
+      top: 0,
+      right: 360,
+      bottom: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    rectSpy.mockRestore();
+
+    const card = document.querySelector('.adl-module-tree-card') as HTMLElement;
+    const header = card.querySelector('.adl-module-tree-card__header') as HTMLElement;
+    fireEvent.pointerDown(header, { clientX: 50, clientY: 60, pointerId: 1, button: 0 });
+    fireEvent.pointerMove(header, { clientX: 2000, clientY: 2000, pointerId: 1 });
+    fireEvent.pointerUp(header, { pointerId: 1 });
+
+    expect(card.style.left).toBe('432px');
+    expect(card.style.top).toBe('192px');
+  });
+
+  it('re-clamps to a new position prop when the card is opened elsewhere', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 800, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 600, configurable: true });
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      width: 360,
+      height: 400,
+      left: 0,
+      top: 0,
+      right: 360,
+      bottom: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    const { rerender } = render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const card = document.querySelector('.adl-module-tree-card') as HTMLElement;
+    expect(card.style.left).toBe('100px');
+
+    // Right-click another directory while the card stays open: the parent
+    // supplies a new position and the card must move to it (clamped).
+    rerender(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 700, y: 500 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    rectSpy.mockRestore();
+
+    expect(card.style.left).toBe('432px');
+    expect(card.style.top).toBe('192px');
   });
 });

@@ -37,6 +37,12 @@ describe('resolveRollingRange', () => {
     const range = resolveRollingRange('month', now);
     expect(range).toEqual({ since: '2024-02-29', until: '2024-03-31' });
   });
+
+  it('clamps a leap-day year-start to the previous year end', () => {
+    const now = new Date(2024, 1, 29, 10, 0, 0);
+    const range = resolveRollingRange('year', now);
+    expect(range).toEqual({ since: '2023-02-28', until: '2024-02-29' });
+  });
 });
 
 describe('resolveTimeRangeForFetch', () => {

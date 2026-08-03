@@ -155,28 +155,31 @@ export const HeatmapXAxis = memo(function HeatmapXAxis({
         : {};
 
       return (
-        <div className="absolute pointer-events-none" key={tick.key} style={labelStyle}>
-          <div className="flex items-center" style={{ gap: isRotated ? 0 : 4 }}>
-            {isRotated ? (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  transform: `rotate(-${rotateAngle}deg)`,
-                  transformOrigin: 'left center',
-                  whiteSpace: 'nowrap',
-                }}
-                {...interactiveProps}
-              >
-                {labelContent}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} {...interactiveProps}>
-                {labelContent}
-              </div>
-            )}
-          </div>
+        <div
+          className="absolute pointer-events-none"
+          data-testid="heatmap-x-axis-label"
+          key={tick.key}
+          style={labelStyle}
+        >
+          {isRotated ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                transform: `rotate(-${rotateAngle}deg)`,
+                transformOrigin: 'left center',
+                whiteSpace: 'nowrap',
+              }}
+              {...interactiveProps}
+            >
+              {labelContent}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} {...interactiveProps}>
+              {labelContent}
+            </div>
+          )}
         </div>
       );
     }),

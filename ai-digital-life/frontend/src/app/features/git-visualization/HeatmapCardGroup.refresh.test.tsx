@@ -84,7 +84,9 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisModuleClose: 'Close',
       gitVisModuleConfirm: 'Confirm',
       gitVisModuleCancel: 'Cancel',
+      gitVisLoadingModules: 'Loading modules...',
     },
+    locale: 'en-US',
     formatT: vi.fn(),
   })),
 }));
@@ -108,6 +110,8 @@ vi.mock('@stores/slicedStore', () => ({
 afterEach(() => {
   cleanup();
   mockActiveHeatmapTab = 'module';
+  window.localStorage.clear();
+  vi.useRealTimers();
   vi.clearAllMocks();
 });
 
@@ -186,5 +190,31 @@ describe('HeatmapCardGroup module tab refresh', () => {
     fireEvent.click(refreshBtn);
     expect(onRefresh).toHaveBeenCalledTimes(1);
     expect(onRefreshContributorModules).not.toHaveBeenCalled();
+  });
+
+  it('refreshes CONTRIBUTOR_MODULES when switching to the module tab', () => {
+    vi.useFakeTimers();
+    mockActiveHeatmapTab = 'calendar';
+    const onRefresh = vi.fn(() => Promise.resolve());
+    const onRefreshContributorModules = vi.fn(() => Promise.resolve());
+    const { container } = render(
+      <HeatmapCardGroup
+        onRefresh={onRefresh}
+        onRefreshContributorModules={onRefreshContributorModules}
+      />,
+    );
+    const moduleTab = Array.from(container.querySelectorAll('.adl-git-vis__heatmap-tab')).find(
+      (el) => el.textContent === 'Module',
+    ) as HTMLButtonElement;
+    fireEvent.click(moduleTab);
+    vi.advanceTimersByTime(0);
+    vi.useRealTimers();
+
+    const contributorModulesCalls = mockSetGitVisTimeRange.mock.calls.filter(
+      (c: unknown[]) => c[1] === 'contributor-modules',
+    );
+    expect(contributorModulesCalls.length).toBeGreaterThan(0);
+    expect(onRefreshContributorModules).toHaveBeenCalledTimes(1);
+    expect(onRefresh).not.toHaveBeenCalled();
   });
 });
