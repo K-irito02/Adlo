@@ -27,10 +27,10 @@ ai-digital-life/
 |------|------|
 | `src-tauri/` | 窗口、Rust 启动、invoke 处理、capabilities |
 | `frontend/src/` | React UI、Zustand、桥接 |
-| `frontend/src/shared/ipc/` | `DigitalLifeBridge` 类型契约域拆分（26 个子接口文件 + index.ts barrel，含文件操作：rename/delete/duplicate/getAbsolutePath） |
-| `frontend/src/shared/outline/` | 大纲解析模块化（14 个语言模块 + types.ts + utils.ts + index.ts barrel） |
+| `frontend/src/shared/ipc/` | `DigitalLifeBridge` 类型契约域拆分（29 个子接口文件 + index.ts barrel，含文件操作：rename/delete/duplicate/getAbsolutePath） |
+| `frontend/src/shared/outline/` | 大纲解析模块化（10 个语言模块 + config + types + utils + index.ts barrel） |
 | `frontend/dev/previewWorkspaceService.ts` | 浏览器开发态服务端 API（含文件操作、Git、工作区管理等） |
-| `frontend/dev/previewTerminalService.ts` | 浏览器开发态终端服务（Node.js `child_process.spawn` + SSE PTY 输出） |
+| `frontend/dev/previewTerminalService.ts` | 浏览器开发态终端服务（Node.js `child_process.spawn` + `/pty/output-since` 增量输出接口） |
 
 ## Crates 层
 
@@ -84,7 +84,7 @@ app/stores/
 ├── conversationUtils.ts         # 会话工具函数
 ├── index.ts                     # 模块索引
 │
-├── slices/                      # 36 个切片及其辅助文件（含 5 浏览器子切片 + 3 GitHub 子切片）
+├── slices/                      # 35 个切片及其辅助文件（含 5 浏览器子切片 + 3 GitHub 子切片）
 │   ├── uiSlice.ts               # UI 状态（侧边栏、工具栏）
 │   ├── workspaceSlice.ts        # 工作区状态
 │   ├── gitSlice.ts              # Git 状态
@@ -109,7 +109,7 @@ app/stores/
 │   ├── browserFoldersSlice.ts   # 浏览器标签文件夹（TabFolderState.tabs: BookmarkTabItem[] = { tabId, url, title }）
 │   └── browserLandingSlice.ts   # 浏览器着陆页（快捷站点、端口、背景）
 │
-├── actions/                     # 36 个跨切片 action 模块
+├── actions/                     # 31 个跨切片 action 模块
 │   ├── workspaceActions.ts      # 工作区操作
 │   ├── sessionActions.ts        # 会话操作
 │   ├── editorActions.ts         # 编辑器操作
@@ -128,58 +128,28 @@ app/stores/
 
 ```
 frontend/src/
-├── shared/ipc/             # DigitalLifeBridge + 26 个子接口（域拆分，index.ts barrel）
+├── shared/ipc/             # DigitalLifeBridge + 29 个子接口（域拆分，index.ts barrel）
 ├── tauri-bridge.ts         # Tauri 模式桥接 barrel（1 行 re-export）
-├── tauri-bridge/           # Tauri 桥接子模块（9 个子文件）
-│   ├── index.ts            # 组合入口
-│   ├── shared.ts           # 共享工具函数
-│   ├── agent.ts            # Agent 操作
-│   ├── browser.ts          # 浏览器操作
-│   ├── ci-github.ts        # CI/GitHub 集成
-│   ├── conversation.ts     # 会话管理
-│   ├── misc.ts             # 杂项（终端、诊断、事件等）
-│   ├── provider.ts         # Provider 管理
-│   └── workspace.ts        # 工作区操作
-├── mock-bridge.ts          # 纯内存回退入口（144 行，委托到 mock/ 子模块）
-├── mock/                   # mock 桥接子模块（20 个子文件）
-│   ├── shared.ts           # 共享可变状态 re-export（仅 57 行）
-│   ├── mock-shared-pty.ts  # PTY 终端共享状态
-│   ├── mock-shared-workspace.ts# 工作区/文档/Git/App/模型共享状态
-│   ├── mock-shared-conversation.ts# 会话共享状态
-│   ├── mock-shared-patch.ts# 补丁/Agent Run 共享状态
-│   ├── mock-workspace.ts   # 工作区操作模拟
-│   ├── mock-conversation.ts# 会话管理模拟
-│   ├── mock-patch.ts       # 补丁操作模拟
-│   ├── mock-terminal.ts    # 终端操作模拟
-│   ├── mock-task.ts        # 任务/审批模拟
-│   ├── mock-retrieval.ts   # 检索模拟
-│   ├── mock-agent.ts       # Agent 操作模拟
-│   ├── mock-app.ts         # App 信息模拟
-│   ├── mock-browser.ts     # 浏览器操作模拟
-│   ├── mock-ci.ts          # CI/GitHub 模拟
-│   ├── mock-mcp.ts         # MCP 操作模拟
-│   ├── mock-misc.ts        # 杂项模拟（终端、诊断、事件）
-│   ├── mock-provider.ts    # Provider 管理模拟
-│   ├── mock-snapshot.ts    # 快照操作模拟
-│   └── mock-window.ts      # 窗口控制模拟
-├── preview-bridge/         # 浏览器模式桥接模块（13 个子模块）
-│   ├── index.ts            # 组合入口（setupPreviewBridge，仅 75 行组合导出）
-│   ├── api.ts              # 请求封装（requestPreviewApi）
-│   ├── storage.ts          # localStorage 持久化工具
-│   ├── ptyBridge.ts        # PTY 连接管理（轮询、listeners）
-│   ├── preview-context.ts  # 共享类型（PreviewContext）
-│   ├── preview-workspace.ts# 工作区核心 + 文件 CRUD + 检索
-│   ├── preview-git.ts      # Git 操作
-│   ├── preview-search.ts   # 搜索 + 大纲
-│   ├── preview-events.ts   # 事件订阅
-│   ├── preview-model.ts    # 模型流 + App 信息
-│   ├── preview-window.ts   # 窗口控制 + 浏览器导航
-│   ├── preview-diagnostic.ts# 健康检查/诊断
-│   ├── preview-task.ts     # CI/GitHub 集成
-│   ├── preview-conversation.ts# 会话（mock 代理）
-│   ├── preview-patch.ts    # 补丁（mock 代理）
-│   ├── preview-command.ts  # 命令（mock 代理）
-│   └── preview-storage.ts  # 存储层 re-export
+├── tauri-bridge/           # Tauri 桥接子模块（27 个子文件，tauri-*.ts 按 IPC 域拆分）
+├── mock-bridge.ts          # 纯内存回退入口（委托到 mock/ 子模块）
+├── mock/                   # mock 桥接子模块（31 个文件，mock-*.ts + mock-shared-*.ts 可变状态）
+└── preview-bridge/         # 浏览器模式桥接模块（16 个子模块 + index.ts 组合入口）
+    ├── preview-api.ts           # 请求封装（requestPreviewApi）
+    ├── preview-pty-bridge.ts    # PTY 轮询（1000ms：/pty/list + /pty/output-since）
+    ├── preview-workspace.ts     # 工作区核心 + 文件 CRUD + 检索
+    ├── preview-git.ts           # Git 操作
+    ├── preview-search.ts        # 搜索 + 大纲
+    ├── preview-events.ts        # 事件订阅
+    ├── preview-model.ts         # 模型流 + App 信息
+    ├── preview-window.ts        # 窗口控制 + 浏览器导航
+    ├── preview-diagnostic.ts    # 健康检查/诊断
+    ├── preview-task.ts          # CI/GitHub 集成
+    ├── preview-conversation.ts  # 会话（mock 代理）
+    ├── preview-patch.ts         # 补丁（mock 代理）
+    ├── preview-command.ts       # 命令（mock 代理）
+    ├── preview-storage.ts       # 存储层 re-export
+    ├── preview-browser-audio.ts # 浏览器标签音频指示
+    └── preview-context.ts       # 共享类型（PreviewContext）
 ```
 
 ### 切片职责说明

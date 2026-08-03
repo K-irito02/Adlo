@@ -27,14 +27,14 @@
 |------|----------|------|
 | Rust | 1.85+ | 通过 `rustup` 安装 |
 | Node.js | 24.15+ | 通过 fnm/nvm 或官方安装包安装 |
-| pnpm | 10.x+ | `npm i -g pnpm` |
+| pnpm | 11.x+ | `npm i -g pnpm` |
 | Tauri CLI | 2.x | `npm i -g @tauri-apps/cli` 或 `cargo install tauri-cli --version "^2"` |
 
 ### 本地开发
 
 ```powershell
-# 1. 安装前端依赖
-cd ai-digital-life/frontend
+# 1. 安装依赖（在 pnpm 工作区根目录）
+cd ai-digital-life
 pnpm install
 
 # 2. 启动开发服务器（浏览器模式，推荐）
@@ -51,8 +51,12 @@ pnpm run dev:both
 ├── CONTEXT.md           # 领域术语表
 ├── SECURITY.md          # 安全策略
 ├── FUTURE-ROADMAP.md    # 远期规划
-├── .agents/rules/       # AI 代理规则真源（同步到 .trae/rules/）
+├── .agents/rules/       # AI 代理规则真源（同步到 .opencode/rules/ 和 .trae/rules/）
+├── .opencode/rules/     # AI 代理规则副本
+├── .trae/rules/         # AI 代理规则副本
 ├── .opencode/skills/    # 技能真源（同步到 .agents/skills/ 和 .trae/skills/）
+├── .agents/skills/      # 技能同步备份
+├── .trae/skills/        # 技能同步备份
 ├── ai-digital-life/     # 实现工作区（Rust + Tauri + React）
 ├── references/          # 外部参考源码（OpenCode 等）
 └── docs/                # 架构、设计、知识库

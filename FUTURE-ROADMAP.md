@@ -1,6 +1,6 @@
 # 未来路线图
 
-本文档记录 AI 数字生命项目的远期规划与待实现功能。当前阶段聚焦单 Agent 系统与基础设施，远期功能按优先级分层。
+本文档记录 AI 数字生命项目的远期规划与待实现功能。当前 **Phase 2（Agent 生态）已完成**，Phase 3+ 功能按优先级分层。
 
 ---
 
@@ -146,17 +146,6 @@ const FEATURE_FLAGS = {
 ---
 
 ## 决策记录
-
-### 已纳入并完成 Phase 2 的功能
-
-| 功能 | 说明 |
-|------|------|
-| 多 Agent DAG | Phase 2-A 已完成 — Agent 注册表 + 路由 + Sub-agent 系统 |
-| MCP 协议 | Phase 2-B 已完成 — 三种传输 + OAuth + 工具适配 |
-| 插件系统 | Phase 2-E 已完成 — Plugin trait + 7 种 Hook + 注册表 |
-| Session Fork | Phase 2-E 已完成 — 会话分支与父子关系 |
-| LSP 集成 | Phase 2-E 已完成 — 4 种语言服务器 + 诊断 + 符号 |
-| Reference 系统 | Phase 2-E 已完成 — 外部目录引用 + 上下文注入 |
 
 ### 当前阶段排除项
 

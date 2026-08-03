@@ -16,8 +16,9 @@ alwaysApply: true
 | `setError(get, message)` | `cacheHelpers.ts` | 直接设置全局 error 消息 |
 
 ### Typed Error Classes（类型化错误类）
-前端 `shared/typedErrors.ts` 定义了 16 个 `AppError` 子类（匹配 Rust 后端 `AppError` 变体），支持 `instanceof` 判断：
-- `NotFoundError`、`InvalidInputError`、`StorageError`、`WorkspaceError`、`ConfigError`、`IOError`、`MigrationError`、`SecurityError`、`ApprovalRequiredError`、`PatchError`、`TerminalError`、`ModelError`、`InternalError`、`NetworkError`、`InvokeError`、`PreviewApiError`
+前端 `shared/typedErrors.ts` 定义了 16 个 `AppError` 子类（其中 14 个对应 Rust 后端 `AppError` 变体，另 2 个为前端专用：`InvokeError`、`PreviewApiError`），支持 `instanceof` 判断：
+- Rust 对应：`NotFoundError`、`InvalidInputError`、`StorageError`、`WorkspaceError`、`ConfigError`、`IOError`、`MigrationError`、`SecurityError`、`ApprovalRequiredError`、`PatchError`、`TerminalError`、`ModelError`、`NetworkError`、`InternalError`（Rust 端另有 `Timeout`、`RateLimit`、`AuthError` 共 17 变体）
+- 前端专用：`InvokeError`、`PreviewApiError`
 - 通过 `fromIpcErrorCode(code, message)` 工厂函数从 IPC 返回的错误码创建具体错误实例
 - 优先使用 `captureTypedError` 替代 `captureError`，以获得更精确的错误类型信息
 

@@ -12,7 +12,7 @@ alwaysApply: false
 
 - 页面右上角"复制调试日志"按钮
 - 项目根目录 `debug-logs.txt`
-- 详见 [AGENTS.md](../../AGENTS.md#调试工具) 和 [dev-rules.md](./dev-rules.md#问题排查规范)
+- 详见 [ai-digital-life/AGENTS.md](../../ai-digital-life/AGENTS.md#调试工具) 和 [dev-rules.md](./dev-rules.md#问题排查规范)
 
 ## 工具选择导航
 

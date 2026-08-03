@@ -1,6 +1,6 @@
 # AI 数字生命
 
-AI 数字生命桌面应用的规划与治理仓库。当前阶段聚焦**单 Agent 交互式 MVP**，远期规划支持**移动端远程控制**桌面端/服务器。
+AI 数字生命桌面应用的规划与治理仓库。当前 **Phase 2（Agent 生态）已完成**，为全功能交互式 MVP；远期规划支持**移动端远程控制**桌面端/服务器。
 
 项目参考了 [OpenCode](https://github.com/anomalyco/opencode)（MIT 许可）开源项目，在架构设计、编码模式与功能实现上借鉴与复用。本地副本位于 `references/opencode/`。
 
@@ -25,7 +25,7 @@ AI 数字生命桌面应用的规划与治理仓库。当前阶段聚焦**单 Ag
 | 桌面框架 | Tauri | 2.x |
 | 后端 | Rust + tokio + rusqlite | Rust 1.85+ |
 | 前端 | React + Vite + Zustand + TypeScript | React 19 |
-| 包管理 | pnpm（前端）/ Cargo（Rust） | pnpm 10.x+ |
+| 包管理 | pnpm（前端）/ Cargo（Rust） | pnpm 11.x+ |
 
 ## 双端架构
 

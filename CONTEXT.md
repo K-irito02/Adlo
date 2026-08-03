@@ -90,7 +90,7 @@ Tracing 日志系统的配置层，支持文件输出和结构化字段。通过
 - 桥接层保持使用 `string` 传输，前端边界处通过 `as string` 剥离品牌
 
 ### Typed Error Classes（类型化错误类）
-前端定义在 `frontend/src/shared/typedErrors.ts`，16 个具体错误类（`NotFoundError`、`NetworkError`、`ModelError` 等），对应 Rust `AppError` 的 16 个变体。支持 `instanceof` 判断，`fromIpcErrorCode(code, message)` 工厂函数从 IPC 错误码转换。
+前端定义在 `frontend/src/shared/typedErrors.ts`，16 个具体错误类（其中 14 个对应 Rust `AppError` 变体，另 `InvokeError`、`PreviewApiError` 为前端专用；Rust 端共 17 个变体）。支持 `instanceof` 判断，`fromIpcErrorCode(code, message)` 工厂函数从 IPC 错误码转换。
 
 ### EventBuffer（事件缓冲区）
 前端定义在 `frontend/src/shared/eventBuffer.ts`，泛型缓冲区类，用于收集高频事件
@@ -158,7 +158,7 @@ Rust 端 `crates/kernel/src/command_risk.rs`，基于 OpenCode 的 deny/ask/allo
 内嵌 WebView（Tauri 模式）和 iframe（浏览器模式）面板，支持多标签页、书签、历史记录。
 
 ### 终端 (Terminal)
-伪终端管理模块，后端通过 `crates/pty/` 管理进程，前端通过 xterm.js 渲染。浏览器模式采用轮询机制。
+伪终端管理模块。Tauri 模式后端通过 `crates/pty/` 管理进程，浏览器模式通过 `previewTerminalService.ts`（Node.js）管理；前端通过 xterm.js 渲染，浏览器模式采用轮询机制（1000ms，`preview-pty-bridge.ts`）。
 
 ### 变更引擎 (Change Engine)
 代码变更预览、应用、回滚、checkpoint 管理。位于 `crates/change-engine/`。
@@ -192,6 +192,6 @@ Rust 端 `crates/kernel/src/command_risk.rs`，基于 OpenCode 的 deny/ask/allo
 
 | 模式 | 命令 | 引擎 | 终端 |
 |------|------|------|------|
-| Tauri 桌面 | `pnpm run dev:tauri` | Tauri WebView2 | xterm.js + node-pty |
-| 浏览器预览 | `pnpm run dev:browser` | Vite | xterm.js + polling |
+| Tauri 桌面 | `pnpm run dev:tauri` | Tauri WebView2 | xterm.js + Rust PTY（`pty_commands.rs`） |
+| 浏览器预览 | `pnpm run dev:browser` | Vite | xterm.js + 轮询（`preview-pty-bridge.ts`，1000ms） |
 | 双端启动 | `pnpm run dev:both` | 两者 | 两者 |

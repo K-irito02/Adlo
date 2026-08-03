@@ -108,7 +108,7 @@ const shouldShowSeparator =
 | 模式 | 后端 | 通信 |
 |------|------|------|
 | Tauri | `pty_commands.rs` (Rust PTY) | Tauri Event `digital-life://pty-output` |
-| 浏览器 | `previewTerminalService.ts` (Node.js `child_process.spawn`) | SSE `/__adl_preview_api__/pty/output` |
+| 浏览器 | `previewTerminalService.ts` (Node.js `child_process.spawn`) | 轮询 `/__adl_preview_api__/pty/output-since`（`preview-pty-bridge.ts`，间隔 1000ms） |
 
 ## 主题系统
 
@@ -184,7 +184,7 @@ const shouldShowSeparator =
 - [docs/design-system/README.md](../../docs/design-system/README.md)
 - [design-system/tokens.ts](../../ai-digital-life/frontend/src/design-system/tokens.ts)
 - [styles/themes.css](../../ai-digital-life/frontend/src/styles/themes.css)
-- [styles/regions.css](../../ai-digital-life/frontend/src/styles/regions.css)
+- [styles/index.css](../../ai-digital-life/frontend/src/styles/index.css) — CSS 入口（导入 layout + regions/*）
 - [mandatory-testing.md](./mandatory-testing.md)
 
 ## CSS 架构

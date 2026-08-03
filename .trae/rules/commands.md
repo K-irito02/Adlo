@@ -30,10 +30,10 @@ alwaysApply: true
 
 | 命令 | 用途 |
 |------|------|
-| `pnpm test` | 单元测试（Vitest） |
-| `pnpm run test:e2e` | E2E 测试（Playwright） |
-| `pnpm run typecheck` | 类型检查 |
-| `pnpm exec vitest run` | 直接运行 Vitest |
+| `pnpm --dir frontend run test` | 前端单元测试（Vitest） |
+| `pnpm --dir frontend run test:e2e` | 前端 E2E 测试（Playwright） |
+| `pnpm --dir frontend run typecheck` | 前端类型检查 |
+| `cargo test --workspace` | Rust 测试 |
 
 ## 终端调试
 
@@ -45,9 +45,9 @@ alwaysApply: true
 
 由于 Vite 开发服务器会主动中断长时间运行的 SSE（Server-Sent Events）连接，浏览器模式下的终端功能使用**轮询（polling）机制**替代 SSE：
 
-- **轮询间隔**：100ms（确保良好的响应性）
+- **轮询间隔**：1000ms（`preview-pty-bridge.ts` 中 `PTY_POLL_INTERVAL_MS`）
 - **实现位置**：`frontend/src/preview-bridge/preview-pty-bridge.ts`
-- **服务器端**：`frontend/dev/previewTerminalService.ts`（缓存终端输出）
+- **服务器端**：`frontend/dev/previewTerminalService.ts`（缓存终端输出，提供 `/pty/output-since` 增量接口）
 - **注意事项**：修改中间件代码后必须**重启开发服务器**才能生效
 
 ### 相关问题与经验教训
@@ -77,7 +77,7 @@ $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
 | `cargo check --workspace` | 编译检查（无二进制输出） |
 | `cargo test --workspace` | 运行所有 Rust 测试 |
 | `cargo build --workspace` | 完整编译（首次/新增依赖时较慢） |
-| `cargo clippy --workspace -- -D warnings` | Lint 检查 |
+| `cargo clippy --workspace --all-targets -- -D warnings` | Lint 检查 |
 
 > 浏览器自动化工具选择、经验教训和快速参考见 [browser-automation.md](./browser-automation.md)。
 

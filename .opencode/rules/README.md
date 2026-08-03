@@ -31,17 +31,26 @@ alwaysApply: true
 | `usetcopy-i18n-context-pattern.md` | 前端 i18n useTCopy() 上下文模式实现 | 前端 UI 开发 |
 | `localstorage-lazy-hydration-pattern.md` | Zustand slice localStorage 惰性水合模式（requestIdleCallback + _defaultsHydrated 守卫） | Store / 状态变更 |
 | `createlazyloader-factory-pattern.md` | createLazyLoader 惰性数据加载工厂模式（按工作区 ID 分片懒加载） | Store / 状态变更 |
+| `bridge-three-implementation-pattern.md` | 前端 Bridge 接口三实现架构（Tauri/Preview/Mock 对齐） | IPC / Bridge 变更 |
+| `frontend-at-alias-convention.md` | 前端 `@` 路径别名导入约定，禁止相对路径深层嵌套 | 前端导入变更 |
+| `frontend-test-tests-co-location.md` | 前端测试文件放置于待测模块同级 `__tests__/` 目录 | 新增前端测试 |
+| `i18n-dictionary-domain-split-organization.md` | i18n 字典按语言包/领域文件拆分，barrel 合并 | i18n 字典变更 |
+| `region-layout-shell-architecture.md` | Region 布局壳架构（shell 布局与领域功能分离） | Region 布局变更 |
+| `rust-command-domain-action-naming.md` | Tauri Command 函数 `{domain}_{action}` 蛇形命名 | 新增 Tauri Command |
+| `rust-crate-adl-prefix-convention.md` | Rust 内部 crate 统一 `adl-` 前缀命名 | 新增 crate |
+| `serde-default-rename-all-convention.md` | 跨 IPC 边界 Rust 类型的 serde 双注解约定 | 新增共享类型 |
+| `ts-rs-type-generation-barrel-import.md` | Rust→TypeScript 自动类型生成及 kernel 桶导入规范 | 类型生成变更 |
 
 ## 新增规则
 
-> 真源目录为 `.agents/rules/`，同步到 `.trae/rules/`。新增/修改规则在 `.agents/rules/` 操作，再同步。
+> 真源目录为 `.agents/rules/`，同步到 `.opencode/rules/` 和 `.trae/rules/`。新增/修改规则在 `.agents/rules/` 操作，再同步。
 
 1. 在 `.agents/rules/` 新增 `*.md` 文件
 2. YAML 头部必填：`description`（英文）+ 触发方式（二选一）：
    - `alwaysApply: true` — 始终应用（全局规则）
    - `globs: <path-pattern>` — 仅匹配路径时应用（作用域规则，同时设 `alwaysApply: false`）
 3. 在上表「规则文件」增加一行
-4. 同步到 `.trae/rules/`
+4. 同步到 `.opencode/rules/` 和 `.trae/rules/`
 
 ## 更新触发
 
@@ -68,6 +77,15 @@ alwaysApply: true
 | i18n 实现模式变更 | `usetcopy-i18n-context-pattern.md` |
 | localStorage 水合模式变更 | `localstorage-lazy-hydration-pattern.md` |
 | 惰性加载工厂模式变更 | `createlazyloader-factory-pattern.md` |
+| Bridge 三实现架构变更 | `bridge-three-implementation-pattern.md` |
+| 前端 `@` 别名/导入约定变更 | `frontend-at-alias-convention.md` |
+| 前端测试组织方式变更 | `frontend-test-tests-co-location.md` |
+| i18n 字典组织结构变更 | `i18n-dictionary-domain-split-organization.md` |
+| Region 布局架构变更 | `region-layout-shell-architecture.md` |
+| Tauri Command 命名规范变更 | `rust-command-domain-action-naming.md` |
+| crate 命名/新增变更 | `rust-crate-adl-prefix-convention.md` |
+| serde 序列化约定变更 | `serde-default-rename-all-convention.md` |
+| 类型生成/桶导入规范变更 | `ts-rs-type-generation-barrel-import.md` |
 
 ## MCP 服务器说明
 
