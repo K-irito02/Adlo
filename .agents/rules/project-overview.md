@@ -15,7 +15,7 @@ alwaysApply: true
 | 前端框架 | React 19 + Vite + TypeScript |
 | 状态管理 | Zustand（切片合并模式） |
 | 包管理 | pnpm（前端）/ Cargo（Rust） |
-| 最低版本 | Node.js 24.15+, Rust 1.85+, pnpm 10.x+ |
+| 最低版本 | Node.js 24.15+, Rust 1.85+, pnpm 11.x+ |
 
 ## 双根结构
 
