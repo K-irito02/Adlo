@@ -163,5 +163,5 @@ frontend/src/app/features/browser/browserpanel.tsx             # +2 处 useShall
 ## 相关文件
 
 - [重构进度报告](../../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)
-- [实施计划](../../../plans/refactoring/2026-06-08-top3-refactoring-plan.md)
+- [实施计划](../../../plans/refactoring/2026-06/2026-06-08-top3-refactoring-plan.md)
 - [AGENTS.md](../../../../AGENTS.md) — 项目治理规则

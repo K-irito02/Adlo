@@ -53,6 +53,9 @@ report/
 | [daily-insights/2026-07/refactor-insight-2026-07-14.md](./daily-insights/2026-07/refactor-insight-2026-07-14.md) | 2026-07-14 |
 | [daily-insights/2026-07/refactor-insight-2026-07-14-systematic.md](./daily-insights/2026-07/refactor-insight-2026-07-14-systematic.md) | 2026-07-14 (Systematic) |
 | [daily-insights/2026-07/refactor-insight-2026-07-15.md](./daily-insights/2026-07/refactor-insight-2026-07-15.md) | 2026-07-15 |
+| [daily-insights/2026-07/refactor-insight-2026-07-16.md](./daily-insights/2026-07/refactor-insight-2026-07-16.md) | 2026-07-16 |
+| [daily-insights/2026-07/refactor-insight-2026-07-17.md](./daily-insights/2026-07/refactor-insight-2026-07-17.md) | 2026-07-17 |
+| [daily-insights/2026-07/refactor-insight-2026-07-18.md](./daily-insights/2026-07/refactor-insight-2026-07-18.md) | 2026-07-18 |
 
 ## Phase Execution Plans
 
@@ -66,14 +69,6 @@ report/
 | [phase-reports/2026-07-15-phase-e-quick-wins.md](./phase-reports/2026-07-15-phase-e-quick-wins.md) | E: Quick Wins | Medium |
 | [phase-reports/2026-07-15-phase-f-large-refactors.md](./phase-reports/2026-07-15-phase-f-large-refactors.md) | F: Large Refactors | Medium |
 | [phase-reports/2026-07-15-phase-g-polish.md](./phase-reports/2026-07-15-phase-g-polish.md) | G: Polish | Low |
-
-## Standalone Reports
-
-| File | Date |
-|------|------|
-| [refactor-insight-2026-07-16.md](./refactor-insight-2026-07-16.md) | 2026-07-16 |
-| [refactor-insight-2026-07-17.md](./refactor-insight-2026-07-17.md) | 2026-07-17 |
-| [refactor-insight-2026-07-18.md](./refactor-insight-2026-07-18.md) | 2026-07-18 |
 
 ## Audit Reports
 

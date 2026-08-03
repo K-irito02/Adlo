@@ -9,12 +9,12 @@
 | [browser/](./browser/) | 浏览器功能实施计划 | 14 |
 | [git/](./git/) | Git 可视化实施计划 | 10 |
 | [phase2/](./phase2/) | Phase 2 实施计划（Agent 核心、Provider 生态等） | 8 |
-| [refactoring/](./refactoring/) | 重构/代码质量/架构清理实施计划 | 41 |
+| [refactoring/](./refactoring/) | 重构/代码质量/架构清理实施计划（按月归档） | 42 |
 | [startup/](./startup/) | 启动性能优化实施计划 | 4 |
 | [ui/](./ui/) | UI/UX 实施计划（含 i18n、CI、通知、主题等） | 15 |
 | [workspace/](./workspace/) | 工作区功能实施计划 | 4 |
 
-**总文件数：96**
+**总文件数：97**
 
 ## 归档约定
 

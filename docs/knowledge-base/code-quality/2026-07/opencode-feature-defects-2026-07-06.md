@@ -63,4 +63,4 @@ pub async fn cmd(...) -> Result<IpcResult<T>, AppError> {
 
 ## 相关文件
 
-- [实施计划](../../../plans/refactoring/2026-07-06-opencode-feature-defects-fix.md)
+- [实施计划](../../../plans/refactoring/2026-07/2026-07-06-opencode-feature-defects-fix.md)

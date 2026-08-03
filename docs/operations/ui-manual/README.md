@@ -43,9 +43,9 @@
 
 | 文件 | 说明 |
 |------|------|
-| [_shared/selectors.md](./_shared/selectors.md) | 选择器定位策略 |
-| [_shared/states.md](./_shared/states.md) | 通用元素状态定义 |
-| [_shared/wait-conditions.md](./_shared/wait-conditions.md) | 通用等待条件模板 |
+| [shared/selectors.md](./shared/selectors.md) | 选择器定位策略 |
+| [shared/states.md](./shared/states.md) | 通用元素状态定义 |
+| [shared/wait-conditions.md](./shared/wait-conditions.md) | 通用等待条件模板 |
 
 ## 浏览器自动化工具
 
@@ -116,7 +116,7 @@
 
 ## 注意事项
 
-1. **等待策略**：大多数操作需要等待 UI 更新，请参考 [_shared/wait-conditions.md](./_shared/wait-conditions.md)
+1. **等待策略**：大多数操作需要等待 UI 更新，请参考 [shared/wait-conditions.md](./shared/wait-conditions.md)
 2. **状态检查**：操作前检查元素是否可交互（非 disabled、非 loading）
 3. **错误处理**：网络错误、权限错误等可能导致 UI 状态异常，需要检查错误提示
 4. **异步加载**：部分内容（如会话列表、文件树）需要等待异步加载完成

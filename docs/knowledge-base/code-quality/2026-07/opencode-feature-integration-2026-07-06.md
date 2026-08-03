@@ -35,4 +35,4 @@ Task 4 后端 Compaction 签名变更后，前端 5 个文件未同步更新（`
 
 ## 相关文件
 
-- [实施计划](../../../plans/refactoring/2026-07-05-opencode-feature-integration-fix.md)
+- [实施计划](../../../plans/refactoring/2026-07/2026-07-05-opencode-feature-integration-fix.md)

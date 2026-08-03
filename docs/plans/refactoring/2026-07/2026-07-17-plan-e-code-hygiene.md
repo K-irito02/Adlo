@@ -873,7 +873,7 @@ improved."
 - Consumes: None
 - Produces: Documentation only.
 
-**Context:** Both `AGENTS.md` files claim "508 Rust 测试、431 前端测试，clippy 与 lint 零警告". Actual state (per `docs/refactoring-insight/report/refactor-insight-2026-07-16.md`):
+**Context:** Both `AGENTS.md` files claim "508 Rust 测试、431 前端测试，clippy 与 lint 零警告". Actual state (per `docs/refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-16.md`):
 - Frontend tests: 549 passing (not 431)
 - Frontend lint: 43 warnings (not "零警告")
 - Rust tests: ~508 (per docs, not re-verified)
@@ -1127,7 +1127,7 @@ hygiene rule explicit."
 
 ### 1. Spec coverage
 
-Cross-checked against `docs/refactoring-insight/report/refactor-insight-2026-07-16.md` and the Plan E research summary. All 9 cleanup targets from the research are covered:
+Cross-checked against `docs/refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-16.md` and the Plan E research summary. All 9 cleanup targets from the research are covered:
 
 | Research target | Task | Risk |
 |----------------|------|------|

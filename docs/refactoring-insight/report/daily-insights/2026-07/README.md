@@ -13,3 +13,6 @@ Monthly archive of daily refactoring insight reports from July 2026.
 - [refactor-insight-2026-07-14-systematic.md](./refactor-insight-2026-07-14-systematic.md) — Systematic refactoring insight (Jul 14)
 - [refactor-insight-2026-07-14.md](./refactor-insight-2026-07-14.md) — Refactoring insight (Jul 14)
 - [refactor-insight-2026-07-15.md](./refactor-insight-2026-07-15.md) — Refactoring insight (Jul 15)
+- [refactor-insight-2026-07-16.md](./refactor-insight-2026-07-16.md) — Refactoring insight (Jul 16)
+- [refactor-insight-2026-07-17.md](./refactor-insight-2026-07-17.md) — Refactoring insight (Jul 17)
+- [refactor-insight-2026-07-18.md](./refactor-insight-2026-07-18.md) — Refactoring insight (Jul 18)

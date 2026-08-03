@@ -130,10 +130,10 @@ git commit -m "docs(agents): clarify .agents/rules/ as source of truth"
 
 | 位置 | 内容 |
 |------|------|
-| [.editorconfig](../../.editorconfig) | 编辑器格式配置（缩进、换行符、编码） |
-| [.github/workflows/](../../.github/workflows/) | CI/CD 工作流（Quality Gates、Binary Size） |
-| [.prettierrc](../../.prettierrc) | Prettier 格式化配置 |
-| [.prettierignore](../../.prettierignore) | Prettier 忽略规则 |
+| [.editorconfig](../../../../.editorconfig) | 编辑器格式配置（缩进、换行符、编码） |
+| [.github/workflows/](../../../../.github/workflows/) | CI/CD 工作流（Quality Gates、Binary Size） |
+| [.prettierrc](../../../../.prettierrc) | Prettier 格式化配置 |
+| [.prettierignore](../../../../.prettierignore) | Prettier 忽略规则 |
 ```
 
 - [ ] **验证修改**

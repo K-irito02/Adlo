@@ -86,12 +86,12 @@ Remove-Item -Recurse -Force $empty
 - 任务简报：`.superpowers/sdd/task-N-brief.md`（子代理需求）
 - 任务报告：`.superpowers/sdd/task-N-report.md`（子代理结果）
 - 洞察报告：`docs/refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-01.md`
-- 实施计划：`docs/plans/refactoring/refactor-plan-2026-07-01.md`
+- 实施计划：`docs/plans/refactoring/2026-07/2026-07-01-refactor-plan.md`
 
 ## 相关文件
 
 - [重构进度报告](../../../refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)
 - [洞察报告 2026-07-01](../../../refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-01.md)
-- [实施计划 2026-07-01](../../../plans/refactoring/refactor-plan-2026-07-01.md)
+- [实施计划 2026-07-01](../../../plans/refactoring/2026-07/2026-07-01-refactor-plan.md)
 - [SDD 执行教训](execution-lessons.md)
 - [refactoring-insight 技能](../../../../.agents/skills/refactoring-insight/SKILL.md)

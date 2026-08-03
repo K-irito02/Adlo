@@ -59,6 +59,7 @@ description: 系统化根因调试技能。在修复前强制完成代码探索�
 ### 文件管理
 
 - **目录**：`docs/root-cause-resolution/`（不存在则创建）
+- **文件组织**：进度文件按月归档到 `docs/root-cause-resolution/YYYY-MM/` 子目录（如 `2026-07/`），不存在则创建
 - **文件名**：`progress-YYYY-MM-DD-HHmmss.md`（精确到秒，避免重复）
 - **状态值**：`待处理` → `进行中` → `已完成`（仅在用户确认后）
 
@@ -353,7 +354,7 @@ console.error('DEBUG 操作:', { directory, cwd, stack });
 
 ### 入口关卡
 
-读取 `docs/root-cause-resolution/` 下最新进度文件：
+读取 `docs/root-cause-resolution/` 下最新月份子目录中最新的进度文件：
 - 所有事项已完成 → 进入第 1 步
 - 存在未完成事项 → 返回[过渡阶段 — 第 2 步](#phase-34-过渡触发检测)先解决
 
@@ -420,7 +421,7 @@ console.error('DEBUG 操作:', { directory, cwd, stack });
 
 ### 第 3 步：更新 README.md
 
-更新 `docs/root-cause-resolution/README.md`：
+更新所在月份的归档 README `docs/root-cause-resolution/YYYY-MM/README.md`（不存在则创建）：
 1. 读取当前内容
 2. 追加记录（如尚未存在）：
    ```

@@ -16,9 +16,9 @@
 - `ai-digital-life/frontend/.prettierrc` + `.prettierignore` — 前端格式规则
 
 **关联文档:**
-- [AGENTS.md](../../../AGENTS.md) — 项目治理规则
-- [quality-gates.md](../../../.agents/rules/quality-gates.md) — 质量门禁
-- [mandatory-testing.md](../../../.agents/rules/mandatory-testing.md) — 强制红绿测试
+- [AGENTS.md](../../../../AGENTS.md) — 项目治理规则
+- [quality-gates.md](../../../../.agents/rules/quality-gates.md) — 质量门禁
+- [mandatory-testing.md](../../../../.agents/rules/mandatory-testing.md) — 强制红绿测试
 
 ---
 

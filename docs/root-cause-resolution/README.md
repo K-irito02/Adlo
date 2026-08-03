@@ -2,29 +2,7 @@
 
 本目录归档通过 `root-cause-resolution` 技能执行的系统化调试过程的进度与中间产物。
 
-## 目录
+## 子目录
 
-- [progress-2026-07-20-160900.md](./progress-2026-07-20-160900.md)
-- [progress-2026-07-21-123000.md](./progress-2026-07-21-123000.md)
-- [progress-2026-07-21-143000.md](./progress-2026-07-21-143000.md)
-- [progress-2026-07-21-163000.md](./progress-2026-07-21-163000.md)
-- [progress-2026-07-21-225000.md](./progress-2026-07-21-225000.md)
-- [progress-2026-07-21-225905.md](./progress-2026-07-21-225905.md)
-- [progress-2026-07-24-101500.md](./progress-2026-07-24-101500.md)
-- [progress-2026-07-25-180116.md](./progress-2026-07-25-180116.md)
-- [progress-2026-07-25-180456.md](./progress-2026-07-25-180456.md)
-- [progress-2026-07-25-182000.md](./progress-2026-07-25-182000.md)
-- [progress-2026-07-25-212340.md](./progress-2026-07-25-212340.md) — 日历热力图 5 项 Bug 修复（时区/透明填充/Y轴/Tooltip/滚动条振荡）
-- [progress-2026-07-28-003300.md](./progress-2026-07-28-003300.md) — 分支图谱全量修复：无限渲染循环/列对齐/调试日志/头像/Tooltip卡片样式/每commit行内标签/泳道标签行补充标签/refsLabels独立过滤/Rust branch优先级/Tooltip完整分支信息/泳道节点颜色同步/共存逻辑/i18n等（115/115测试通过，Phase 4收尾完成）
-- [progress-2026-07-29-104840.md](./progress-2026-07-29-104840.md) — 标签行间距/ref标签独立拖拽/泳道节点悬停放大/死代码清理 + 预存问题修复（过时注释/i18n键/调试日志/CSS死类）
-- [progress-2026-07-30-000000.md](./progress-2026-07-30-000000.md) — BranchGraph 标签拖拽全量性能优化（TCopyContext/拖拽重写/悬停分离/useDeferredValue/类型迁移）
-- [progress-2026-07-30-064500.md](./progress-2026-07-30-064500.md) — 分支图谱头像显示问题修复：行hover节点放大/像素头像兜底/Tooltip延迟/两级缓存/SWR延迟revoke/闪烁修复（Phase 4收尾完成，862/862测试通过）
-- [progress-2026-07-30-204202.md](./progress-2026-07-30-204202.md) — Git可视化图表空白状态文本清理（分支图谱/文件旭日图）+ TagRow层叠上下文修复（isolation: isolate）+ 死代码清理（孤儿i18n键gitVisNoData/test mock）
-- [progress-2026-07-31-223901.md](./progress-2026-07-31-223901.md) — 代码行演变图表按钮改进（去描边/短文本/横向布局/hover增强）, 主题切换按钮背景色与文字色闪烁修复（移除 background-color/color 过渡，仅保留 opacity 过渡）
-- [progress-2026-08-01-133130.md](./progress-2026-08-01-133130.md) — Git可视化图表 3 项修复（CommitTimeline 双 y 轴标签重叠/tooltip 粒度化/x 轴跨年标签重叠）+ Phase 4 子代理复验收尾（统一 domainExtensionInSteps 守卫、dateLabelFormatterFor 共享化、死代码清理，912/912 测试通过）
-- [progress-2026-08-01-190219.md](./progress-2026-08-01-190219.md) — Git可视化代码行演变/提交时间线 修复：y-domain tween 关闭（线条异常巨大 + 悬停渲染循环）、确认按钮卡加载、refreshChart latest-wins 竞态、useAnimatedSeriesPath ref 化、接通加载状态（骨架屏 + 400ms 揭示）、缩略条 xDomain 扩展 + selectionEnd 默认选区自动覆盖真实数据末日 + 主图 x-domain 收敛（天粒度自动显示最新日期 8/1，周粒度仍停最后周一 7/27 无空白，消除 x 轴投影尾重叠）、periodEndInclusive 保证最后不完整周数据不丢、**时区统一为 UTC 修复最后数据点被 domain 过滤（8/1/7/27 丢失 + 空 7/25/7/30 投影刻度）**、主图 xDomainSlotCount 改用自身数据行数。Phase 4 收尾：移除临时验证日志、periodEndInclusive 周粒度改为"所在周周日"、filter 提取 periodEndMs 常量、移除 ChartBrushLayout 死输出 xDomainSlotCount。closing-workflow 收尾审查修复：refreshWorkspace 竞态守卫、seq workspace 隔离、失败 rethrow + Promise 消费、useAnimatedSeriesPath onUpdate live-ref、preview 服务对齐 Rust（升序/月 key/day 语义/消息 | 保留）、latest-wins 测试补齐（936/936 测试通过）。**渲染循环（Maximum update depth exceeded）标注待解决**，保留 4 个 [loop] 探测器供后续排查。附带修复浏览器 preview 数据形状、activeWorkspaceTab 自动选中、月粒度日期格式。
-- [progress-2026-08-02-git-vis-charts.md](./progress-2026-08-02-git-vis-charts.md) — 自定义日期范围缺少最后一天数据修复（--until 追加 T23:59:59）、代码行演变悬停抖动修复（子组件 React.memo + useMemo 稳定引用 + TimeSeriesChartCore 最小占位 SVG 保持挂载 + overflow:hidden），清理 4 个 [ADL-GITVIS] 临时渲染循环检测器，文件名大小写 TS1261 修复，测试环境 cleanup 修复。Phase 4 收尾完成（子代理验证通过，936/936 前端测试 + 50/50 Rust 测试通过，日志无异常）
-- [progress-2026-08-02-115245.md](./progress-2026-08-02-115245.md) — Git可视化缩略条（ChartBrush）对齐 bklit-ui 官方（直角/无外框/24×4px 药丸滑块/diagonal 斜纹选区）+ 斜纹固定灰色双主题区分。**关键根因（第 9 轮调试日志实锤）**：themes.css 文件末尾 `:root`「Theme-Independent Tokens」块残留旧暗色 chart tokens，与主题块同特异性且更靠后 → 级联胜出 → 亮色值从未生效。修复 + Phase 4 收尾（只读子代理审查、删除 :root 残留死 tokens、BRUSH_SELECTION_PATTERN 常量重构、新增 themes.css 结构回归测试防级联类回归，941/941 前端测试通过）
-- [progress-2026-08-02-161222.md](./progress-2026-08-02-161222.md) — 文件树/资源树展开态 chevron 箭尖与垂直竖线未对齐（偏右 2px）。**根因（两轮调试日志实锤）**：files-navigator.css 为 toggle 设置 `margin-left/right: 2px`（配合 16px 设计），file-tree-lines.css 覆盖为 20px 但未清除 margin → toggle 中心偏右 2px。修复：file-tree-lines.css 为 `.adl-filetree__toggle` 显式 `margin: 0`（文件树/模块树共用，不动 outline 的 `.adl-tree-node__toggle` margin），新增 CSS 回归测试（含 import-order 级联顺序守卫），Phase 4 收尾完成（只读子代理审查零问题，日志确认展开态 tipDelta=0.00）
-- [progress-2026-08-03-git-vis-chart-fixes.md](./progress-2026-08-03-git-vis-chart-fixes.md) — Git可视化 4 项改进/缺陷修复：模块树卡片显示右键目录名+可拖拽+视口钳制、热力图 X 轴 tooltip/光标/点击误触目录（交互下沉到旋转元素）、刷新后数据停留在昨天（相对预设按当前日期重解析）。Phase 4 收尾：日志审查干净、子代理 A 根因验证 + 子代理 B 死代码清理两轮复审（F1 mount 同步/F2 handleStep 锚点/F4 月末钳制/F7 pointerCancel/2.1-2.5 冗余清理），1015/1015 测试通过
-- [progress-2026-08-04-004336.md](./progress-2026-08-04-004336.md) — 文件热点排行榜系列改进（模式重命名全局排行/逐级下钻、随模式动态提示、面包屑移至模式按钮右侧、模式按钮分隔线与加厚边框、行悬停跳转/复制按钮+目录文件夹图标、新增/删除/净变化列改图表主题色、滚动条自动隐藏、容器高度随行数动态变化、模式切换保留下钻路径与各级滚动位置、外层 Git可视化区域随图表增长自动滚动到底部、路径显示与复制不一致修复（移除 direction:rtl + git core.quotepath=false 双端））。Phase 4 收尾：日志审查干净（.adl-logs 无异常）、子代理 A 根因验证（修复 growth-gated 外层滚动、数据收缩 scroll/height 同步、focus-visible 可访问性）、子代理 B 死代码清理两轮复审零问题，1034/1034 前端测试通过
+- [2026-07/](./2026-07/) — 2026 年 7 月进度记录（32 条）
+- [2026-08/](./2026-08/) — 2026 年 8 月进度记录（7 条）

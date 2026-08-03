@@ -1,4 +1,4 @@
-# _shared
+# Shared
 
 Shared UI automation definitions used across all tool panels — selectors, element states, and wait conditions.
 

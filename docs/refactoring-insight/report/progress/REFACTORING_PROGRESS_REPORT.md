@@ -476,7 +476,7 @@ Bug 6 是最难排查的 Race Condition：
 
 ### 关键经验
 
-详见 `docs/refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-03.md` 和 `docs/plans/refactoring/refactor-plan-2026-07-03.md`
+详见 `docs/refactoring-insight/report/daily-insights/2026-07/refactor-insight-2026-07-03.md` 和 `docs/plans/refactoring/2026-07/2026-07-03-refactor-plan.md`
 
 ### 待后续治理项
 

@@ -15,3 +15,4 @@ Superpowers 技能系统实施计划文档。
 - [2026-07-28-branch-graph-improvements.md](./2026-07-28-branch-graph-improvements.md) — 分支图改进
 - [2026-07-28-branch-tooltip-redesign.md](./2026-07-28-branch-tooltip-redesign.md) — 分支提示框重新设计
 - [2026-07-29-branch-graph-tag-hover-and-head-annotation-plan.md](./2026-07-29-branch-graph-tag-hover-and-head-annotation-plan.md) — 分支图标签悬停与 HEAD 标注计划
+- [2026-07-29-setwindowrgn-throttle-plus-shadow.md](./2026-07-29-setwindowrgn-throttle-plus-shadow.md) — SetWindowRgn 节流与阴影实施计划

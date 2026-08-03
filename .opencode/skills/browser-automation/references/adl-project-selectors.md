@@ -175,7 +175,7 @@ test('should send message', async ({ page }) => {
 ```
 docs/operations/ui-manual/
 ├── README.md                    # 入口：布局概览 + 区域索引
-├── _shared/                     # 共享定义
+├── shared/                      # 共享定义
 │   ├── selectors.md             # 选择器定位策略
 │   ├── states.md                # 通用元素状态定义
 │   └── wait-conditions.md       # 通用等待条件模板
@@ -287,7 +287,7 @@ browser-harness -c "js('document.querySelector("".adl-leftbar"").classList.conta
 
 ## 相关文档
 
-- [UI 操作手册](../../../docs/operations/ui-manual/README.md)
-- [选择器定位策略](../../../docs/operations/ui-manual/_shared/selectors.md)
-- [元素状态定义](../../../docs/operations/ui-manual/_shared/states.md)
-- [等待条件模板](../../../docs/operations/ui-manual/_shared/wait-conditions.md)
+- [UI 操作手册](../../../../docs/operations/ui-manual/README.md)
+- [选择器定位策略](../../../../docs/operations/ui-manual/shared/selectors.md)
+- [元素状态定义](../../../../docs/operations/ui-manual/shared/states.md)
+- [等待条件模板](../../../../docs/operations/ui-manual/shared/wait-conditions.md)
