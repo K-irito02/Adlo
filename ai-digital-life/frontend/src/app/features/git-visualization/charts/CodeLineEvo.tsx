@@ -110,18 +110,19 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
 }: CodeLineEvoProps) {
   const days = useMemo(() => data?.days ?? [], [data]);
 
-  // Loading skeleton rows carry positive AND negative values (added above,
-  // deleted below zero) so the y-domain spans zero and the zero line renders
-  // mid-plot, not pinned to the bottom. Added/deleted magnitudes are balanced
-  // so the zero line sits slightly above the vertical center.
+  // Loading skeleton rows: shell re-derives the y-domain from `generateChartSkeletonFromTarget`
+  // which overwrites the primary line (added) to ~95-133 positive. We size deletedNeg with the
+  // same magnitude so the y-domain is symmetric → y=0 (zero line) sits exactly at 50%, i.e. the
+  // top of the deleted band. net spans the center (added − deleted can be ±).
   const skeletonDays = useMemo(() => {
     const base = new Date('2025-01-01');
     return Array.from({ length: 7 }, (_, i) => {
       const date = new Date(base);
       date.setDate(base.getDate() + i);
-      const p = Math.round(44 + Math.sin(i * 1.15) * 18 + i * 2);
-      const n = Math.round(40 + Math.cos(i * 0.9) * 14 + i * 2);
-      return { date, added: p, deletedNeg: -n, net: p - n };
+      // Matches the shell's overwrite formula so the deleted magnitude mirrors added's.
+      const deleted = Math.round(95 + Math.sin(i * 1.05) * 28 + i * 7);
+      const added = Math.round(95 + Math.cos(i * 0.9) * 28 + i * 7);
+      return { date, added, deletedNeg: -deleted, net: added - deleted };
     });
   }, []);
 

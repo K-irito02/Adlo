@@ -246,13 +246,13 @@ describe('CodeLineEvo', () => {
     expect(divider).toBeInTheDocument();
     const y = Number(divider!.getAttribute('y1'));
     expect(Number.isFinite(y)).toBe(true);
-    // Positive + negative skeleton data spans zero, so y=0 sits in the middle
-    // of the plot height, not at its bottom edge.
+    // Symmetric positive/negative skeleton data makes y=0 sit at the vertical
+    // center of the plot (innerHeight/2 in the margin-translated group).
     const height = container.querySelector('svg')?.getAttribute('height');
     const h = height ? Number(height) : 0;
     expect(h).toBeGreaterThan(0);
-    expect(y).toBeGreaterThan(0);
-    expect(y).toBeLessThan(h * 0.6);
+    const innerHeight = h - 20 - 40; // top/bottom margins
+    expect(Math.abs(y - innerHeight / 2)).toBeLessThan(3);
   });
 });
 
