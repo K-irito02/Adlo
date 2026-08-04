@@ -42,15 +42,18 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
         : { columns: [], rowLabels: [] },
     [data, since, until],
   );
-  const skeletonData = useMemo(() => {
+  const skeletonTarget = useMemo(() => {
     const months = buildSkeletonActivityPeriods(since, until);
-    const cols = contributorActivityToHeatmapColumns(
+    return contributorActivityToHeatmapColumns(
       [{ author: '', authorEmail: '', totalCommits: 0, periods: months }],
       since,
       until,
-    );
-    return generateHeatmapSkeletonFromTarget(cols.columns);
+    ).columns;
   }, [since, until]);
+  const skeletonData = useMemo(
+    () => generateHeatmapSkeletonFromTarget(skeletonTarget),
+    [skeletonTarget],
+  );
 
   const customFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
 
@@ -62,9 +65,31 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
     [t],
   );
 
+  if (status === 'loading') {
+    return (
+      <HeatmapChart
+        data={skeletonData}
+        status="loading"
+        loadingLabel={loadingLabel}
+        locale={locale}
+        rowLabels={rowLabels}
+        margin={{ top: 42, right: 16, bottom: 0, left: 80 }}
+        gap={2}
+        binSize={22}
+        animate={false}
+        fillScale={customFillScale}
+      >
+        <HeatmapCells cornerRadius={2} />
+        <HeatmapXAxis top={18} tickEvery={2} />
+        <HeatmapYearHint />
+        <HeatmapYAxis tickFilter="all" />
+      </HeatmapChart>
+    );
+  }
+
   return (
     <HeatmapChart
-      data={status === 'loading' ? skeletonData : columns}
+      data={columns}
       status={status}
       loadingLabel={loadingLabel}
       locale={locale}

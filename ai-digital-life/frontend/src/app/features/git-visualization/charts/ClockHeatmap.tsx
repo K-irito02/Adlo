@@ -80,11 +80,13 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({
       })),
     [rawColumns, weekdayNames, t, formatT],
   );
-  const skeletonData = useMemo(() => {
-    const full = expandToFullGrid([]);
-    const cols = hourlyDistributionToHeatmapColumns(full, dayLabels);
-    return generateHeatmapSkeletonFromTarget(cols);
+  const skeletonTarget = useMemo(() => {
+    return hourlyDistributionToHeatmapColumns(expandToFullGrid([]), dayLabels);
   }, [dayLabels]);
+  const skeletonData = useMemo(
+    () => generateHeatmapSkeletonFromTarget(skeletonTarget),
+    [skeletonTarget],
+  );
 
   const customFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
 
@@ -96,13 +98,34 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({
     [t],
   );
 
+  if (status === 'loading') {
+    return (
+      <HeatmapChart
+        data={skeletonData}
+        status="loading"
+        loadingLabel={loadingLabel}
+        locale={locale}
+        rowLabels={dayLabels}
+        margin={{ top: 24, right: 16, bottom: 0, left: 40 }}
+        gap={2}
+        binSize={30}
+        animate={false}
+        fillScale={customFillScale}
+      >
+        <HeatmapCells cornerRadius={2} />
+        <HeatmapXAxis tickEvery={2} />
+        <HeatmapYAxis tickFilter="even" />
+      </HeatmapChart>
+    );
+  }
+
   return (
     <HeatmapChart
-      data={status === 'loading' ? skeletonData : heatmapData}
+      data={heatmapData}
       status={status}
       loadingLabel={loadingLabel}
-      rowLabels={dayLabels}
       locale={locale}
+      rowLabels={dayLabels}
       margin={{ top: 24, right: 16, bottom: 0, left: 40 }}
       gap={2}
       binSize={30}

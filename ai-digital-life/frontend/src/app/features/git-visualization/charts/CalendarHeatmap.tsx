@@ -77,12 +77,13 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
     }
     return columns;
   }, [expandedData, year]);
-  const skeletonData = useMemo(() => {
-    const cols = commitStatsToHeatmapColumns(
-      expandToFullYear([], year ?? new Date().getFullYear()),
-    );
-    return generateHeatmapSkeletonFromTarget(cols);
+  const skeletonTarget = useMemo(() => {
+    return commitStatsToHeatmapColumns(expandToFullYear([], year ?? new Date().getFullYear()));
   }, [year]);
+  const skeletonData = useMemo(
+    () => generateHeatmapSkeletonFromTarget(skeletonTarget),
+    [skeletonTarget],
+  );
   const dayLabels = useMemo(() => dayFmt(locale), [locale]);
 
   const defaultFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
@@ -104,9 +105,29 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
     [t],
   );
 
+  if (status === 'loading') {
+    return (
+      <HeatmapChart
+        data={skeletonData}
+        status="loading"
+        loadingLabel={loadingLabel}
+        locale={locale}
+        rowLabels={dayLabels}
+        margin={{ top: 24, right: 16, bottom: 0, left: 40 }}
+        gap={2}
+        animate={false}
+        fillScale={defaultFillScale}
+      >
+        <HeatmapCells cornerRadius={2} />
+        <HeatmapXAxis labelFormat="numeric" />
+        <HeatmapYAxis tickFilter="even" labelFormat="full" />
+      </HeatmapChart>
+    );
+  }
+
   return (
     <HeatmapChart
-      data={status === 'loading' ? skeletonData : heatmapData}
+      data={heatmapData}
       status={status}
       loadingLabel={loadingLabel}
       locale={locale}
