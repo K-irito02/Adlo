@@ -87,20 +87,25 @@ describe('BranchGraph', () => {
   });
 
   it('mirrors the ready structure while loading: tag row + lanes panel + table header', () => {
-    const { container } = render(
-      <BranchGraph status="loading" loadingLabel="Loading chart..." />,
-    );
+    const { container } = render(<BranchGraph status="loading" loadingLabel="Loading chart..." />);
     expect(container.querySelectorAll('.adl-branch-graph__skeleton-tag').length).toBeGreaterThan(0);
+    // Lanes panel is a linked-list SVG: lane lines + edges + node circles.
+    expect(container.querySelector('.adl-branch-graph__skeleton-lanes-svg')).toBeInTheDocument();
     expect(
-      container.querySelectorAll('.adl-branch-graph__skeleton-lane-row').length,
+      container.querySelectorAll('.adl-branch-graph__skeleton-lane-line').length,
     ).toBeGreaterThan(0);
     expect(
-      container.querySelector('.adl-branch-graph__skeleton-table-header'),
-    ).toBeInTheDocument();
+      container.querySelectorAll('.adl-branch-graph__skeleton-lane-edge').length,
+    ).toBeGreaterThan(0);
+    expect(
+      container.querySelectorAll('.adl-branch-graph__skeleton-lane-node').length,
+    ).toBeGreaterThan(0);
+    expect(container.querySelector('.adl-branch-graph__skeleton-table-header')).toBeInTheDocument();
     // Table header mirrors the ready four columns.
     expect(
-      container.querySelectorAll('.adl-branch-graph__skeleton-table-header .adl-branch-graph__skeleton-cell')
-        .length,
+      container.querySelectorAll(
+        '.adl-branch-graph__skeleton-table-header .adl-branch-graph__skeleton-cell',
+      ).length,
     ).toBe(4);
   });
 

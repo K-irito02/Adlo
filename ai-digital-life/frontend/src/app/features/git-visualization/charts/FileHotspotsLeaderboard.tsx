@@ -29,10 +29,13 @@ const FileHotspotsLoading = React.memo(function FileHotspotsLoading({ label }: {
           <span className="adl-file-hotspots-ranking__skeleton-mode-btn" />
         </div>
       </div>
-      <div className="adl-file-hotspots-ranking__header adl-file-hotspots-ranking__header--skeleton">
+      <div className="adl-file-hotspots-ranking__skeleton-header">
         <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--rank" />
         <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--name" />
         <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--path" />
+        <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--num" />
+        <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--num" />
+        <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--num" />
         <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--num" />
       </div>
       <div className="adl-file-hotspots-ranking__skeleton-body">
@@ -41,6 +44,9 @@ const FileHotspotsLoading = React.memo(function FileHotspotsLoading({ label }: {
             <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--rank" />
             <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--name" />
             <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--path" />
+            <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--num" />
+            <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--num" />
+            <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--num" />
             <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--num" />
           </div>
         ))}

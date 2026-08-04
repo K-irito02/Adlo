@@ -104,6 +104,16 @@ export interface AreaProps {
    * multi-series skeletons into non-overlapping bands.
    */
   loadingSweepVerticalRange?: [number, number];
+  /**
+   * Fill the area from the top of the band down to the silhouette (a hanging
+   * fill for negative-series bands below the zero line).
+   */
+  loadingSweepAreaFillFromTop?: boolean;
+  /**
+   * Deterministic silhouette seed. Give multiple skeleton series the same seed
+   * so they sweep in lockstep (identical shapes).
+   */
+  loadingSweepFixedSeed?: number;
   /** Fill baseline: `"bottom"` fills to the plot bottom (official default); `"zero"` fills to y=0 (diverging charts). */
   baseline?: 'bottom' | 'zero';
 }
@@ -166,6 +176,8 @@ export function Area({
   loadingStyle = 'pulse',
   loadingSweepPhaseOffset,
   loadingSweepVerticalRange,
+  loadingSweepAreaFillFromTop,
+  loadingSweepFixedSeed,
   baseline,
 }: AreaProps) {
   // Stable slice only: hover state lives inside `<SeriesHoverDim>` and
@@ -348,6 +360,8 @@ export function Area({
           strokeOpacity={loadingStrokeOpacity}
           strokeWidth={strokeWidth}
           verticalRange={loadingSweepVerticalRange}
+          areaFillFromTop={loadingSweepAreaFillFromTop}
+          fixedSeed={loadingSweepFixedSeed}
           withArea
         />
       ) : null}

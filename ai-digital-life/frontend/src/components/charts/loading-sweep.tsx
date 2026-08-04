@@ -192,6 +192,19 @@ export interface LineLoadingSweepProps {
    * skeletons into non-overlapping bands (e.g. areas above/below a center line).
    */
   verticalRange?: [number, number];
+  /**
+   * When `true`, the area fill extends from the TOP of the vertical band down to
+   * the silhouette (a "hanging" fill for negative-series bands). When `false`,
+   * the area fills from the silhouette down to the bottom of the band. Default
+   * `false`.
+   */
+  areaFillFromTop?: boolean;
+  /**
+   * When provided, the silhouette is held steady at this deterministic seed
+   * instead of re-randomizing between sweep passes. Give multiple skeleton
+   * series the same seed so they sweep in lockstep (identical shapes).
+   */
+  fixedSeed?: number;
 }
 
 /**
@@ -211,6 +224,8 @@ export function LineLoadingSweep({
   durationSeconds = DEFAULT_SWEEP_DURATION_S,
   phaseOffset = 0,
   verticalRange = [0, 1],
+  areaFillFromTop = false,
+  fixedSeed,
 }: LineLoadingSweepProps) {
   const { innerWidth, innerHeight } = useChartStable();
   const reduceMotion = useReducedMotion();
@@ -222,11 +237,14 @@ export function LineLoadingSweep({
   // Re-randomize only while looping; hold the silhouette steady through a
   // transition so it fades out (or in) as one piece.
   const onSweepComplete = useCallback(() => {
-    if (isLoop) {
+    if (isLoop && fixedSeed == null) {
       setTick((prev) => prev + 1);
     }
-  }, [isLoop]);
-  const heights = useMemo(() => getSkeletonHeights(pointCount, tick), [pointCount, tick]);
+  }, [isLoop, fixedSeed]);
+  const heights = useMemo(
+    () => getSkeletonHeights(pointCount, fixedSeed ?? tick),
+    [pointCount, fixedSeed, tick],
+  );
 
   // With reduced motion there is no fade to await, so signal the handoff
   // immediately or the phase machine would stall mid-transition.
@@ -251,6 +269,9 @@ export function LineLoadingSweep({
   const points = heights.map((value, index) => ({ index, value }));
   const getX = (d: { index: number }) => xScale(d.index);
   const getY = (d: { value: number }) => yScale(d.value);
+  // Area fill baseline: for a hanging (negative) band the area runs from the
+  // top of the band (the zero line) down to the silhouette.
+  const areaBaselineY = areaFillFromTop ? yMin : yMax;
 
   const silhouette = (
     <>
@@ -261,6 +282,7 @@ export function LineLoadingSweep({
           fill={`url(#${chartId}-area)`}
           x={getX}
           y={getY}
+          y0={areaBaselineY}
           yScale={yScale}
         />
       ) : null}

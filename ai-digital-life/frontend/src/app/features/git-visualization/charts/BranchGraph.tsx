@@ -969,11 +969,19 @@ const TagRow = React.memo(function TagRow({
 // ── Loading skeleton (bklit-ui aligned: CSS shimmer rows + centered Loading label) ──
 
 const SKELETON_ROW_COUNT = 10;
+const SKELETON_LANE_COUNT = 4;
+const SKELETON_ROW_HEIGHT = 36;
 
 const BranchGraphLoading = React.memo(function BranchGraphLoading({ label }: { label?: string }) {
+  // A deterministic "linked list" of lanes: vertical lane lines with commit
+  // nodes and connecting edges, mirroring the real SvgLanes topology.
+  const laneXs = Array.from({ length: SKELETON_LANE_COUNT }, (_, i) => 16 + i * 30);
+  const laneByRow = Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => i % SKELETON_LANE_COUNT);
+  const nodeY = (i: number) => i * SKELETON_ROW_HEIGHT + SKELETON_ROW_HEIGHT / 2;
+  const svgHeight = SKELETON_ROW_COUNT * SKELETON_ROW_HEIGHT;
   return (
     <div className="adl-git-vis__chart adl-git-vis__chart-loading" style={{ overflowX: 'hidden' }}>
-      {/* Mirrors the ready TagRow: a row of colored branch tag pills. */}
+      {/* Mirrors the ready TagRow: a row of rectangular branch tag pills. */}
       <div className="adl-branch-graph__skeleton-tags">
         {Array.from({ length: 4 }, (_, i) => (
           <span
@@ -983,19 +991,60 @@ const BranchGraphLoading = React.memo(function BranchGraphLoading({ label }: { l
           />
         ))}
       </div>
-      {/* Mirrors the ready body: lanes panel (泳道) + table header + rows. */}
+      {/* Mirrors the ready body: lanes panel (泳道链表) + table header + rows. */}
       <div className="adl-branch-graph__skeleton-body">
         <div className="adl-branch-graph__skeleton-lanes-panel">
-          {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => (
-            <div key={i} className="adl-branch-graph__skeleton-lane-row" style={{ height: 36 }}>
-              {Array.from({ length: 3 }, (_, j) => (
-                <span
-                  key={j}
-                  className={`adl-branch-graph__skeleton-lane${j === 1 ? ' adl-branch-graph__skeleton-lane--active' : ''}`}
+          <svg
+            aria-hidden
+            className="adl-branch-graph__skeleton-lanes-svg"
+            height={svgHeight}
+            width={laneXs.at(-1)! + 16}
+          >
+            {laneXs.map((x) => (
+              <line
+                key={`lane-${x}`}
+                className="adl-branch-graph__skeleton-lane-line"
+                x1={x}
+                x2={x}
+                y1={0}
+                y2={svgHeight}
+              />
+            ))}
+            {laneByRow.slice(1).map((lane, i) => {
+              const prev = laneByRow[i];
+              const y1 = nodeY(i);
+              const y2 = nodeY(i + 1);
+              if (prev === lane) {
+                return (
+                  <line
+                    key={`edge-${i}`}
+                    className="adl-branch-graph__skeleton-lane-edge"
+                    x1={laneXs[prev]}
+                    x2={laneXs[lane]}
+                    y1={y1}
+                    y2={y2}
+                  />
+                );
+              }
+              const midY = (y1 + y2) / 2;
+              return (
+                <path
+                  key={`edge-${i}`}
+                  className="adl-branch-graph__skeleton-lane-edge"
+                  d={`M ${laneXs[prev]} ${y1} C ${laneXs[prev]} ${midY}, ${laneXs[lane]} ${midY}, ${laneXs[lane]} ${y2}`}
                 />
-              ))}
-            </div>
-          ))}
+              );
+            })}
+            {laneByRow.map((lane, i) => (
+              <circle
+                key={`node-${i}`}
+                className="adl-branch-graph__skeleton-lane-node"
+                cx={laneXs[lane]}
+                cy={nodeY(i)}
+                r={5}
+              />
+            ))}
+          </svg>
         </div>
         <div className="adl-branch-graph__skeleton-table">
           <div className="adl-branch-graph__skeleton-table-header">

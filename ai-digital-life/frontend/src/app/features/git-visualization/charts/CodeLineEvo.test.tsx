@@ -237,6 +237,23 @@ describe('CodeLineEvo', () => {
     expect(masks.length).toBe(3);
     expect(areaGradients.length).toBe(2);
   });
+
+  it('renders the zero-line divider mid-plot (not pinned to the bottom) while loading', () => {
+    const { container } = render(
+      <CodeLineEvo status="loading" loadingLabel="Loading chart..." visible={DEFAULT_VISIBILITY} />,
+    );
+    const divider = container.querySelector('.chart-grid-highlight-rows line');
+    expect(divider).toBeInTheDocument();
+    const y = Number(divider!.getAttribute('y1'));
+    expect(Number.isFinite(y)).toBe(true);
+    // Positive + negative skeleton data spans zero, so y=0 sits in the middle
+    // of the plot height, not at its bottom edge.
+    const height = container.querySelector('svg')?.getAttribute('height');
+    const h = height ? Number(height) : 0;
+    expect(h).toBeGreaterThan(0);
+    expect(y).toBeGreaterThan(0);
+    expect(y).toBeLessThan(h * 0.6);
+  });
 });
 
 describe('useCodeLineEvoVisibility', () => {

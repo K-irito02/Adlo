@@ -110,6 +110,20 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
 }: CodeLineEvoProps) {
   const days = useMemo(() => data?.days ?? [], [data]);
 
+  // Loading skeleton rows carry positive AND negative values (added above,
+  // deleted below zero) so the y-domain spans zero and the zero line renders
+  // mid-plot, not pinned to the bottom.
+  const skeletonDays = useMemo(() => {
+    const base = new Date('2025-01-01');
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(base);
+      date.setDate(base.getDate() + i);
+      const p = Math.round(40 + Math.sin(i * 1.15) * 16 + i * 3);
+      const n = Math.round(28 + Math.cos(i * 0.9) * 12 + i * 2);
+      return { date, added: p, deletedNeg: -n, net: p - n };
+    });
+  }, []);
+
   const dayRows = useMemo(() => aggregateCodeEvolutionDays(days, 'day'), [days]);
 
   const fullRange = useMemo(() => {
@@ -146,15 +160,17 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
 
   if (status === 'loading') {
     // Mirror the ready chart's structure: added rises above the zero line
-    // (positive), deleted falls below it (negative), and net spans the center
-    // (it can be both positive and negative). All series sweep in sync
-    // (same phase) so the skeleton lines appear together.
+    // (positive), deleted hangs below it (negative, fill from the top down),
+    // and net spans the center (it can be both positive and negative). All
+    // series share one fixed silhouette seed + zero phase so they sweep in
+    // lockstep (appear together). Skeleton data is positive AND negative so
+    // the y-domain spans zero and the zero line renders mid-plot.
     const activeSeries = (['added', 'deleted', 'net'] as const).filter((key) => visible[key]);
     return (
       <div className="adl-git-vis__chart" style={{ position: 'relative', overflow: 'hidden' }}>
         <LineChart
           aspectRatio="unset"
-          data={[]}
+          data={skeletonDays}
           xDataKey="date"
           status="loading"
           loadingLabel={loadingLabel}
@@ -170,6 +186,7 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
                   dataKey="net"
                   fadeEdges={false}
                   loadingStyle="sweep"
+                  loadingSweepFixedSeed={0}
                   loadingSweepPhaseOffset={0}
                   loadingSweepVerticalRange={[0.02, 0.98]}
                   showHighlight={false}
@@ -178,7 +195,7 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
                 />
               );
             }
-            // added rises from the center line, deleted falls below it.
+            // added rises from the center line; deleted hangs below it.
             return (
               <Area
                 key={key}
@@ -190,6 +207,8 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
                 loadingStroke="var(--chart-foreground)"
                 loadingStrokeOpacity={0.5}
                 loadingStyle="sweep"
+                loadingSweepAreaFillFromTop={key === 'deleted'}
+                loadingSweepFixedSeed={0}
                 loadingSweepPhaseOffset={0}
                 loadingSweepVerticalRange={key === 'added' ? [0.02, 0.5] : [0.5, 0.98]}
                 showHighlight={false}

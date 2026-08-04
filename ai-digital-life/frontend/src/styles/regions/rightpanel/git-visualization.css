@@ -1722,7 +1722,7 @@
   );
   background-size: 200% 100%;
   animation: adl-git-vis-sweep 1.5s ease-in-out infinite;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   height: 18px;
   flex-shrink: 0;
 }
@@ -1735,33 +1735,30 @@
 .adl-branch-graph__skeleton-lanes-panel {
   flex-shrink: 0;
   border-right: 1px solid var(--border-subtle);
+  overflow: hidden;
 }
 
-.adl-branch-graph__skeleton-lane-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--border-subtle);
+.adl-branch-graph__skeleton-lane-line {
+  stroke: var(--surface-hover);
+  stroke-width: 3;
+  stroke-linecap: round;
 }
 
-.adl-branch-graph__skeleton-lane {
-  background: linear-gradient(
-    90deg,
-    var(--surface-hover) 25%,
-    var(--surface-active) 50%,
-    var(--surface-hover) 75%
-  );
-  background-size: 200% 100%;
+.adl-branch-graph__skeleton-lane-edge {
+  stroke: var(--surface-hover);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  fill: none;
+}
+
+.adl-branch-graph__skeleton-lane-node {
+  fill: var(--surface-hover);
+  stroke: none;
+}
+
+.adl-branch-graph__skeleton-lanes-svg {
+  display: block;
   animation: adl-git-vis-sweep 1.5s ease-in-out infinite;
-  border-radius: var(--radius-sm);
-  height: 8px;
-  width: 18px;
-  flex-shrink: 0;
-}
-
-.adl-branch-graph__skeleton-lane--active {
-  width: 30px;
 }
 
 .adl-branch-graph__skeleton-table {
@@ -1883,12 +1880,22 @@
   width: 40%;
 }
 
+.adl-file-hotspots-ranking__skeleton-header,
 .adl-file-hotspots-ranking__skeleton-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 40px 1fr 1.6fr 80px 70px 70px 80px;
   align-items: center;
-  gap: 12px;
-  padding: 0 12px;
+  padding: 0 var(--space-2);
+}
+
+.adl-file-hotspots-ranking__skeleton-header {
+  height: 32px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.adl-file-hotspots-ranking__skeleton-row {
   border-bottom: 1px solid var(--border-subtle);
+  height: 32px;
 }
 
 .adl-file-hotspots-ranking__skeleton-cell--rank {
@@ -1907,14 +1914,13 @@
 }
 
 .adl-file-hotspots-ranking__skeleton-cell--num {
-  width: 48px;
+  width: 100%;
   flex-shrink: 0;
-  margin-left: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .adl-branch-graph__skeleton-tag,
-  .adl-branch-graph__skeleton-lane,
+  .adl-branch-graph__skeleton-lanes-svg,
   .adl-branch-graph__skeleton-cell,
   .adl-file-hotspots-ranking__skeleton-header-cell,
   .adl-file-hotspots-ranking__skeleton-cell,
