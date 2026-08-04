@@ -224,6 +224,19 @@ describe('CodeLineEvo', () => {
     );
     expect(anyForeground).toBe(false);
   });
+
+  it('renders area silhouettes for added/deleted and a line silhouette for net when loading', () => {
+    const { container } = render(
+      <CodeLineEvo status="loading" loadingLabel="Loading chart..." visible={DEFAULT_VISIBILITY} />,
+    );
+    // added + deleted are areas (each draws its own area gradient); net is a plain line.
+    const areaGradients = container.querySelectorAll(
+      'linearGradient[id^="line-sweep-"][id$="-area"]',
+    );
+    const masks = container.querySelectorAll('mask[id^="line-sweep-"]');
+    expect(masks.length).toBe(3);
+    expect(areaGradients.length).toBe(2);
+  });
 });
 
 describe('useCodeLineEvoVisibility', () => {

@@ -186,6 +186,12 @@ export interface LineLoadingSweepProps {
   durationSeconds?: number;
   /** Fractional phase offset [0,1) of the sweep loop, to desync multiple silhouettes. */
   phaseOffset?: number;
+  /**
+   * Vertical band of the plot (0–1, relative to inner height) the silhouette is
+   * drawn in. Default: `[0, 1]` (full height). Used to layer multi-series
+   * skeletons into non-overlapping bands (e.g. areas above/below a center line).
+   */
+  verticalRange?: [number, number];
 }
 
 /**
@@ -204,6 +210,7 @@ export function LineLoadingSweep({
   pointCount = DEFAULT_POINT_COUNT,
   durationSeconds = DEFAULT_SWEEP_DURATION_S,
   phaseOffset = 0,
+  verticalRange = [0, 1],
 }: LineLoadingSweepProps) {
   const { innerWidth, innerHeight } = useChartStable();
   const reduceMotion = useReducedMotion();
@@ -233,11 +240,14 @@ export function LineLoadingSweep({
     return null;
   }
 
+  const [topRatio, bottomRatio] = verticalRange;
+  const yMin = innerHeight * topRatio;
+  const yMax = innerHeight * bottomRatio;
   const xScale = scaleLinear({
     domain: [0, heights.length - 1],
     range: [0, innerWidth],
   });
-  const yScale = scaleLinear({ domain: [0, 100], range: [innerHeight, 0] });
+  const yScale = scaleLinear({ domain: [0, 100], range: [yMax, yMin] });
   const points = heights.map((value, index) => ({ index, value }));
   const getX = (d: { index: number }) => xScale(d.index);
   const getY = (d: { value: number }) => yScale(d.value);

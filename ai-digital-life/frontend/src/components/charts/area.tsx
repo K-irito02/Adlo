@@ -94,6 +94,16 @@ export interface AreaProps {
    * area. Default: `"pulse"`.
    */
   loadingStyle?: LoadingStyle;
+  /**
+   * Fractional phase offset [0,1) of the sweep loop, to desync multiple
+   * skeleton areas so they do not sweep in lockstep.
+   */
+  loadingSweepPhaseOffset?: number;
+  /**
+   * Vertical band (0–1) the sweep silhouette is drawn in, to layer
+   * multi-series skeletons into non-overlapping bands.
+   */
+  loadingSweepVerticalRange?: [number, number];
   /** Fill baseline: `"bottom"` fills to the plot bottom (official default); `"zero"` fills to y=0 (diverging charts). */
   baseline?: 'bottom' | 'zero';
 }
@@ -154,6 +164,8 @@ export function Area({
   loadingStrokeOpacity = 0.5,
   loadingPulseMode,
   loadingStyle = 'pulse',
+  loadingSweepPhaseOffset,
+  loadingSweepVerticalRange,
   baseline,
 }: AreaProps) {
   // Stable slice only: hover state lives inside `<SeriesHoverDim>` and
@@ -331,9 +343,11 @@ export function Area({
           key="loading-sweep"
           mode={pulseMode ?? 'loop'}
           onTransitionComplete={handleLoadingPulseComplete}
+          phaseOffset={loadingSweepPhaseOffset}
           stroke={loadingStroke}
           strokeOpacity={loadingStrokeOpacity}
           strokeWidth={strokeWidth}
+          verticalRange={loadingSweepVerticalRange}
           withArea
         />
       ) : null}

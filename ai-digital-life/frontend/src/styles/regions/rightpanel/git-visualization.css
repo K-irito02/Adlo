@@ -1720,9 +1720,9 @@
 .adl-branch-graph__skeleton-cell {
   background: linear-gradient(
     90deg,
-    var(--surface-secondary) 25%,
-    var(--surface-hover) 50%,
-    var(--surface-secondary) 75%
+    var(--surface-hover) 25%,
+    var(--surface-active) 50%,
+    var(--surface-hover) 75%
   );
   background-size: 200% 100%;
   animation: adl-git-vis-sweep 1.5s ease-in-out infinite;
@@ -1759,9 +1759,9 @@
 .adl-file-hotspots-ranking__skeleton-cell {
   background: linear-gradient(
     90deg,
-    var(--surface-secondary) 25%,
-    var(--surface-hover) 50%,
-    var(--surface-secondary) 75%
+    var(--surface-hover) 25%,
+    var(--surface-active) 50%,
+    var(--surface-hover) 75%
   );
   background-size: 200% 100%;
   animation: adl-git-vis-sweep 1.5s ease-in-out infinite;

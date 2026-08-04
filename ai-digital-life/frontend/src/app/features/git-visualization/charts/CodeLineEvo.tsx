@@ -2,7 +2,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { readJson, writeJson } from '@stores/shared';
-import { LineChartLoading } from '@/components/charts/line-chart-loading';
+import { curveNatural } from '@visx/curve';
 import { LineChart, Line } from '@/components/charts/line-chart';
 import { Area } from '@/components/charts/area';
 import { Grid } from '@/components/charts/grid';
@@ -145,23 +145,61 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
   }, [stripData, fullRange.end]);
 
   if (status === 'loading') {
-    // Render one skeleton line per currently-visible series, each with its own
-    // sweep phase offset so multi-line skeletons sweep out of phase (bklit-ui
-    // aligned gray-white strokes, never pure black).
+    // Mirror the ready chart's structure: added/deleted render as area
+    // silhouettes (positive / negative bands) and net as a center line, one
+    // skeleton series per currently-visible toggle, each with its own sweep
+    // phase offset and vertical band so they never overlap.
     const activeSeries = (['added', 'deleted', 'net'] as const).filter((key) => visible[key]);
     return (
       <div className="adl-git-vis__chart" style={{ position: 'relative', overflow: 'hidden' }}>
-        <div style={{ maxHeight: 280, overflow: 'hidden' }}>
-          <LineChartLoading
-            label={loadingLabel}
-            loadingStyle="sweep"
-            margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
-            series={activeSeries.map((key, i) => ({
-              dataKey: key,
-              phaseOffset: activeSeries.length > 1 ? i / activeSeries.length : 0,
-            }))}
-          />
-        </div>
+        <LineChart
+          aspectRatio="unset"
+          data={[]}
+          xDataKey="date"
+          status="loading"
+          loadingLabel={loadingLabel}
+          margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
+          style={{ height: 280 }}
+        >
+          {activeSeries.map((key, i) => {
+            const phaseOffset = activeSeries.length > 1 ? i / activeSeries.length : 0;
+            if (key === 'net') {
+              return (
+                <Line
+                  key={key}
+                  curve={curveNatural}
+                  dataKey="net"
+                  fadeEdges={false}
+                  loadingStyle="sweep"
+                  loadingSweepPhaseOffset={phaseOffset}
+                  loadingSweepVerticalRange={[0.3, 0.7]}
+                  showHighlight={false}
+                  stroke="transparent"
+                  strokeWidth={2}
+                />
+              );
+            }
+            // added rises from the center line, deleted falls below it.
+            return (
+              <Area
+                key={key}
+                baseline="zero"
+                curve={curveNatural}
+                dataKey={key === 'added' ? 'added' : 'deletedNeg'}
+                fill="transparent"
+                fillOpacity={0}
+                loadingStroke="var(--chart-foreground)"
+                loadingStrokeOpacity={0.5}
+                loadingStyle="sweep"
+                loadingSweepPhaseOffset={phaseOffset}
+                loadingSweepVerticalRange={key === 'added' ? [0.08, 0.5] : [0.5, 0.92]}
+                showHighlight={false}
+                stroke="transparent"
+              />
+            );
+          })}
+          <Grid horizontal highlightRowValues={[0]} />
+        </LineChart>
       </div>
     );
   }
