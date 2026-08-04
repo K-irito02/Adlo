@@ -211,6 +211,7 @@ export const changesZh = {
   gitVisCalendarYearEarliest: '已是最早提交年份',
   gitVisCalendarSelectYear: '选择年份',
   gitVisLoadingModules: '正在加载模块...',
+  gitVisLoadingChart: '正在加载图表...',
   gitVisModuleRoot: '根目录',
   gitVisModuleExpandAll: '展开全部',
   gitVisModuleCollapseAll: '折叠全部',
