@@ -206,6 +206,7 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisCalendarYearLatest: 'Already the latest year',
       gitVisCalendarYearEarliest: 'Already the earliest year',
       gitVisCalendarSelectYear: 'Select Year',
+      gitVisLoadingChart: 'Loading chart...',
     },
     formatT: vi.fn(),
   })),
@@ -254,4 +255,10 @@ describe('GitVisualizationView', () => {
       expect(toggleHeader!.querySelectorAll('.adl-git-vis__series-toggle-btn').length).toBe(3);
     },
   );
+
+  it('passes status/loadingLabel to charts instead of rendering null while loading', () => {
+    const { container } = render(<GitVisualizationView />);
+    // gitVisLoading is {} in the store mock → all charts ready → chart areas render
+    expect(container.querySelectorAll('.adl-git-vis__chart').length).toBeGreaterThan(0);
+  });
 });

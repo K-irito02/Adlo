@@ -98,7 +98,7 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
         {headerExtra}
       </div>
       {timeRange.error && <div className="adl-git-vis__error">{timeRange.error}</div>}
-      {timeRange.loading ? <div className="adl-git-vis__skeleton" /> : children}
+      {children}
       {desc ? <p className="adl-git-vis__card-desc">{desc}</p> : null}
     </div>
   );
@@ -365,6 +365,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                 }
               | undefined
           }
+          commitStatsStatus={heatmapData.loading ? 'loading' : 'ready'}
           contributorModules={
             (contributorModulesData.data as RawContributorModules | undefined)?.matrix
           }
@@ -382,29 +383,29 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           timeRange={branchGraphData}
           yearBounds={yearBounds}
         >
-          {branchGraphData.loading ? null : (
-            <BranchGraph
-              data={
-                branchGraphData.data as
-                  | {
-                      nodes: {
-                        hash: string;
-                        shortHash: string;
-                        parentHashes: string[];
-                        branch: string;
-                        date: string;
-                        message: string;
-                        author: string;
-                        authorEmail: string;
-                        tag?: string;
-                      }[];
-                      edges: { from: string; to: string }[];
-                      branches: string[];
-                    }
-                  | undefined
-              }
-            />
-          )}
+          <BranchGraph
+            data={
+              branchGraphData.data as
+                | {
+                    nodes: {
+                      hash: string;
+                      shortHash: string;
+                      parentHashes: string[];
+                      branch: string;
+                      date: string;
+                      message: string;
+                      author: string;
+                      authorEmail: string;
+                      tag?: string;
+                    }[];
+                    edges: { from: string; to: string }[];
+                    branches: string[];
+                  }
+                | undefined
+            }
+            status={branchGraphData.loading ? 'loading' : 'ready'}
+            loadingLabel={t.gitVisLoadingChart}
+          />
         </TimeRangeAwareCard>
         <TimeRangeAwareCard
           title={t.gitVisCodeLineEvo}
@@ -420,16 +421,16 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
             />
           }
         >
-          {codeLineEvoData.loading ? null : (
-            <CodeLineEvo
-              data={
-                codeLineEvoData.data as
-                  | { days: { date: string; additions: number; deletions: number }[] }
-                  | undefined
-              }
-              visible={codeLineEvoVis.visible}
-            />
-          )}
+          <CodeLineEvo
+            data={
+              codeLineEvoData.data as
+                | { days: { date: string; additions: number; deletions: number }[] }
+                | undefined
+            }
+            visible={codeLineEvoVis.visible}
+            status={codeLineEvoData.loading ? 'loading' : 'ready'}
+            loadingLabel={t.gitVisLoadingChart}
+          />
         </TimeRangeAwareCard>
         <TimeRangeAwareCard
           title={t.gitVisCommitTimeline}
@@ -439,14 +440,14 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           timeRange={commitTimelineData}
           yearBounds={yearBounds}
         >
-          {commitTimelineData.loading ? null : (
-            <CommitTimeline
-              data={{
-                days:
-                  (commitTimelineData.data as GitVisCommitStats | undefined)?.commitTimeline ?? [],
-              }}
-            />
-          )}
+          <CommitTimeline
+            data={{
+              days:
+                (commitTimelineData.data as GitVisCommitStats | undefined)?.commitTimeline ?? [],
+            }}
+            status={commitTimelineData.loading ? 'loading' : 'ready'}
+            loadingLabel={t.gitVisLoadingChart}
+          />
         </TimeRangeAwareCard>
         <TimeRangeAwareCard
           title={t.gitVisFileHotspotsTitle}
@@ -455,12 +456,12 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           timeRange={fileHotspotsData}
           yearBounds={yearBounds}
         >
-          {fileHotspotsData.loading ? null : (
-            <FileHotspotsView
-              data={fileHotspotsData.data as GitVisFileHotspots | undefined}
-              scrollContainerRef={containerRef}
-            />
-          )}
+          <FileHotspotsView
+            data={fileHotspotsData.data as GitVisFileHotspots | undefined}
+            scrollContainerRef={containerRef}
+            status={fileHotspotsData.loading ? 'loading' : 'ready'}
+            loadingLabel={t.gitVisLoadingChart}
+          />
         </TimeRangeAwareCard>
       </div>
     </VisErrorBoundary>
