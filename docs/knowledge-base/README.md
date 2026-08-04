@@ -236,6 +236,7 @@
 | 文件 | 来源 | 说明 |
 |------|------|------|
 | [git-vis-file-hotspots-leaderboard-2026-08-04.md](./interaction/2026-08/git-vis-file-hotspots-leaderboard-2026-08-04.md) | 2026-08-04 文件热点排行榜改进 + closing-workflow 复审 | 7 条经验：git numstat C 转义→core.quotepath=false、路径文本禁用 direction:rtl（bidi 重排）、--until 裸日期补 T23:59:59、虚拟滚动 DOM scrollTop 与状态同步、图表高度显式 height、外层"增长才滚动到底"、悬停按钮 pointer-events + :focus-visible |
+| [git-vis-heatmap-loading-polish-2026-08-05.md](./interaction/2026-08/git-vis-heatmap-loading-polish-2026-08-05.md) | 2026-08-05 热力图 loading 修复 + root-cause/closing 复审 | 9 条经验：exitingReady 阶段 loading 标签 opacity 0 不可见、React 批处理吞掉 loading→最小可见时长、hold await 后复查 seq（TOCTOU）、workspace 与 per-chart loading 所有权分离（inflight 追踪）、superseded 失败不抛错、stale-path 重置放状态所有者、统计数字反映当前渲染、外层滚动仅用户触发增高才滚、i18n 符号空格与正向断言 |
 
 ### CI monitoring
 

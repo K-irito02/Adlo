@@ -38,6 +38,46 @@ function makeLargeFixture(): GitVisFileHotspots {
   };
 }
 
+/** Drill-mode fixture: three top-level dirs (dirA optional), each with one
+ *  file child, so a data refresh can remove the drilled directory. */
+function makeDrillFixture(withDirA: boolean): GitVisFileHotspots {
+  const file = (name: string) => ({
+    name,
+    nodeType: 'file',
+    changeCount: 1,
+    additions: 1,
+    deletions: 0,
+    lastModified: '2026-08-01',
+    children: [],
+  });
+  const dir = (name: string, childNames: string[]) => ({
+    name,
+    nodeType: 'directory',
+    changeCount: 1,
+    additions: 1,
+    deletions: 0,
+    lastModified: '2026-08-01',
+    children: childNames.map(file),
+  });
+  const children = [
+    ...(withDirA ? [dir('dirA', ['a1.txt'])] : []),
+    dir('dirB', ['b1.txt']),
+    dir('dirC', ['c1.txt']),
+  ];
+  return {
+    tree: {
+      name: 'root',
+      nodeType: 'directory',
+      changeCount: children.length,
+      additions: children.length,
+      deletions: 0,
+      lastModified: '2026-08-01',
+      children,
+    },
+    files: [],
+  };
+}
+
 vi.mock('@i18n/useTCopy', () => ({
   useTCopy: () => ({
     t: {
@@ -347,6 +387,37 @@ describe('FileHotspotsLeaderboard', () => {
     expect(outer.scrollTop).toBe(0);
     outer.scrollTop = 50;
     fireEvent.click(screen.getByText('Global Ranking')); // 96px -> 128px (grow)
+    expect(outer.scrollTop).toBe(300);
+  });
+
+  it('scrolls the outer area to reveal the root fallback when a data refresh removes the drilled directory', () => {
+    const outerRef = React.createRef<HTMLDivElement>();
+    const { container, rerender } = render(
+      <div className="adl-git-vis__container" ref={outerRef}>
+        <FileHotspotsLeaderboard data={makeDrillFixture(true)} scrollContainerRef={outerRef} />
+      </div>,
+    );
+    const outer = outerRef.current as HTMLElement;
+    expect(outer).toBeTruthy();
+    Object.defineProperty(outer, 'scrollHeight', { value: 600, configurable: true });
+    Object.defineProperty(outer, 'clientHeight', { value: 300, configurable: true });
+    outer.scrollTop = 0;
+
+    // Drill root: dirA, dirB, dirC → drill into dirA (1 child).
+    fireEvent.click(screen.getByText('Level Drill'));
+    const dirARow = Array.from(container.querySelectorAll('.adl-file-hotspots-ranking__row')).find(
+      (r) => r.textContent?.includes('dirA'),
+    );
+    fireEvent.click(dirARow as HTMLElement);
+
+    // A data refresh drops dirA: the stale drill path falls back to root, which
+    // renders from an empty intermediate state (baseline 32px) up to dirB+dirC
+    // (64px) — a growth, so the outer area scrolls to reveal the root listing.
+    rerender(
+      <div className="adl-git-vis__container" ref={outerRef}>
+        <FileHotspotsLeaderboard data={makeDrillFixture(false)} scrollContainerRef={outerRef} />
+      </div>,
+    );
     expect(outer.scrollTop).toBe(300);
   });
 

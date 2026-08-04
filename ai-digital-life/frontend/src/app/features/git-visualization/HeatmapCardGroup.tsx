@@ -187,6 +187,20 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     [contributorModuleAllPaths],
   );
 
+  // Reset a stale module drill path here (the state owner) so it is cleared
+  // even while the module tab is unmounted and the child heatmap cannot run its
+  // own reset — otherwise returning to the tab would briefly show "Col: 0" and
+  // a stale breadcrumb after the data dropped the drilled directory. A null
+  // tree (no/empty allPaths) means the path is invalid too, so reset as well.
+  useEffect(() => {
+    if (
+      moduleDrillPath.length > 0 &&
+      (!moduleTree || getChildrenAtPath(moduleTree, moduleDrillPath).length === 0)
+    ) {
+      setModuleDrillPath([]);
+    }
+  }, [moduleTree, moduleDrillPath]);
+
   const descVars = useMemo(() => {
     if (activeHeatmapTab === 'activity') {
       const rowCount = commitStats?.contributorActivity?.length ?? 0;

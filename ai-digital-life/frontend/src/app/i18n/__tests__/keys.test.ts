@@ -134,6 +134,7 @@ describe('git-visualization copy', () => {
     // Chinese character, and "tagged" must not leak through as English.
     expect(desc).toContain('● 圆点');
     expect(desc).toContain('■ 方块');
+    expect(desc).toContain('带标签的版本以徽章标记');
     expect(desc).not.toMatch(/tagged/i);
   });
 });

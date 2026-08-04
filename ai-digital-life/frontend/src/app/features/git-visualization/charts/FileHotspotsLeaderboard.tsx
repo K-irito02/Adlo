@@ -169,15 +169,21 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
     }
   }, [data, drillPath, setDrillPath]);
 
-  // When the chart's height grows from a user-triggered mode/drill/breadcrumb
+  // When the chart's height grows because of a mode/drill/breadcrumb path
   // change, scroll the outer git-visualization area to the bottom so the grown
   // chart stays fully visible. Shrink/equal heights never yank the viewport.
+  // Path changes are user-triggered, except one data-driven case: when a data
+  // refresh removes the current drill directory, the stale-path reset (above)
+  // falls back to root. That fallback renders from an empty intermediate state,
+  // so whenever root has any rows the outer area scrolls to reveal it — an
+  // acceptable outcome since the root listing is what the user lands on.
   // The height baseline (prevViewHeightRef) is recorded by the sorted.length
   // effect below on mount and on every row-count change, so the very first
-  // user-triggered growth compares against the mounted height and scrolls.
-  // Data-driven growth (initial load / refresh) never scrolls the outer area —
-  // see the sorted.length effect below. This effect runs BEFORE the sorted.length
-  // effect (declaration order), so it compares against the pre-change baseline.
+  // growth compares against the mounted height and scrolls. Pure data-driven
+  // row growth (initial load / refresh) never scrolls the outer area — the
+  // sorted.length effect below only re-syncs scroll state and records the
+  // baseline. This effect runs BEFORE the sorted.length effect (declaration
+  // order), so it compares against the pre-change baseline.
   const scrollOuterToBottom = useCallback(() => {
     const outer = scrollContainerRef?.current;
     const prev = prevViewHeightRef.current;

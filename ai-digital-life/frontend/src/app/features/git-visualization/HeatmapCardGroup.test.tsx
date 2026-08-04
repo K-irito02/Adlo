@@ -88,7 +88,14 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisHeatmapTabModule: 'Module',
       gitVisHeatmapNav: 'Heatmap type',
       gitVisLoadingChart: 'Loading chart...',
+      gitVisContribution: 'contribution',
+      gitVisContributions: 'contributions',
+      gitVisModuleRoot: 'Root',
+      gitVisBreadcrumbNav: 'Module breadcrumb',
+      gitVisLess: 'Less',
+      gitVisMore: 'More',
     },
+    locale: 'en-US',
     formatT: (t: Record<string, string>, key: string, vars?: Record<string, string>) => {
       const template = t[key] ?? '';
       return template.replace(/\{(\w+)\}/g, (_, name: string) =>
@@ -238,4 +245,104 @@ describe('HeatmapCardGroup', () => {
     // Drilled to src: its only child is components → 1 column, not the root 2.
     expect(desc()?.textContent).toBe('Row: 1, Col: 1');
   });
+
+  it(
+    'resets a stale module drill path when the data no longer contains it',
+    { timeout: 30000 },
+    () => {
+      mockActiveHeatmapTab = 'module';
+      const { container, rerender } = render(
+        <HeatmapCardGroup
+          commitStatsStatus="ready"
+          contributorModules={[
+            {
+              author: 'Alice',
+              authorEmail: 'alice@test.com',
+              modules: [
+                { module: 'src/components/bar.tsx', count: 3 },
+                { module: 'docs/readme.md', count: 4 },
+                { module: 'tests/foo.test.ts', count: 1 },
+              ],
+            },
+          ]}
+          contributorModuleAllPaths={[
+            'src/components/bar.tsx',
+            'docs/readme.md',
+            'tests/foo.test.ts',
+          ]}
+          contributorModuleStatus="ready"
+        />,
+      );
+      const desc = () => container.querySelector('.adl-git-vis__card-desc');
+      // Root level: src, docs, tests → 3 columns.
+      expect(desc()?.textContent).toBe('Row: 1, Col: 3');
+      fireEvent.click(screen.getByText('src'));
+      // Drilled to src: components → 1 column.
+      expect(desc()?.textContent).toBe('Row: 1, Col: 1');
+
+      // A data refresh drops the 'src' directory entirely. The stale drill path
+      // must fall back to root (docs, tests → 2 columns) instead of showing 0.
+      rerender(
+        <HeatmapCardGroup
+          commitStatsStatus="ready"
+          contributorModules={[
+            {
+              author: 'Alice',
+              authorEmail: 'alice@test.com',
+              modules: [
+                { module: 'docs/readme.md', count: 4 },
+                { module: 'tests/foo.test.ts', count: 1 },
+              ],
+            },
+          ]}
+          contributorModuleAllPaths={['docs/readme.md', 'tests/foo.test.ts']}
+          contributorModuleStatus="ready"
+        />,
+      );
+      expect(desc()?.textContent).toBe('Row: 1, Col: 2');
+    },
+  );
+
+  it(
+    'resets a stale module drill path via the parent even while the module tab is away',
+    { timeout: 30000 },
+    () => {
+      const paths3 = ['src/components/bar.tsx', 'docs/readme.md', 'tests/foo.test.ts'];
+      const paths2 = ['docs/readme.md', 'tests/foo.test.ts'];
+      const renderBase = (allPaths: string[]) => (
+        <HeatmapCardGroup
+          commitStatsStatus="ready"
+          contributorModules={[
+            {
+              author: 'Alice',
+              authorEmail: 'alice@test.com',
+              modules: [
+                { module: 'docs/readme.md', count: 4 },
+                { module: 'tests/foo.test.ts', count: 1 },
+              ],
+            },
+          ]}
+          contributorModuleAllPaths={allPaths}
+          contributorModuleStatus="ready"
+        />
+      );
+      mockActiveHeatmapTab = 'module';
+      const { container, rerender } = render(renderBase(paths3));
+      const desc = () => container.querySelector('.adl-git-vis__card-desc');
+      expect(desc()?.textContent).toBe('Row: 1, Col: 3');
+      fireEvent.click(screen.getByText('src'));
+      expect(desc()?.textContent).toBe('Row: 1, Col: 1');
+
+      // Switch to the calendar tab → the module heatmap (child) unmounts, so only
+      // the parent-owned reset effect can clear the stale drill path now.
+      mockActiveHeatmapTab = 'calendar';
+      rerender(renderBase(paths3));
+      // The data refresh drops 'src' while the module tab is away.
+      rerender(renderBase(paths2));
+      // Switch back to module → the stale path must already be reset to root.
+      mockActiveHeatmapTab = 'module';
+      rerender(renderBase(paths2));
+      expect(desc()?.textContent).toBe('Row: 1, Col: 2');
+    },
+  );
 });

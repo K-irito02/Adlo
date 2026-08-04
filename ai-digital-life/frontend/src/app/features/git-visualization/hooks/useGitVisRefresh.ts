@@ -14,6 +14,18 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
   const setError = useAppStore((s) => s.setGitVisError);
   const setData = useAppStore((s) => s.setGitVisData);
 
+  // Per-chart request sequence: a refresh only commits its result if it is the
+  // latest request for that chart. Rapid time-range changes therefore always
+  // land on the newest selection instead of being swallowed by an in-flight
+  // refresh of a superseded range. Keys are workspace-scoped so switching
+  // workspaces never bumps another workspace's in-flight sequence.
+  const latestRequestSeqRef = useRef<Record<string, number>>({});
+  // Charts with a per-chart refresh currently in flight. A workspace refresh
+  // must not clear the loading flag of such a chart, otherwise it would
+  // prematurely end the per-chart request's visible loading state.
+  const inflightChartKeysRef = useRef<Set<string>>(new Set());
+  const seqKeyFor = useCallback((chartId: string) => `${workspaceId}:${chartId}`, [workspaceId]);
+
   const handleRefreshWorkspace = useCallback(async () => {
     const bridge = getBridge();
     if (!bridge) {
@@ -62,7 +74,12 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
         // must be gated on the stored range only: a midnight rollover changes
         // the resolved bounds but not the stored range, and no newer request is
         // coming to clear the spinner, so loading must still be cleared there.
-        if (loading || isRangeStillCurrent(chartId)) {
+        // A per-chart refresh that started while this workspace fetch was
+        // settling still owns its chart's loading flag — skip clearing it.
+        const clearable =
+          loading ||
+          (isRangeStillCurrent(chartId) && !inflightChartKeysRef.current.has(seqKeyFor(chartId)));
+        if (clearable) {
           setLoading(workspaceId, chartId, loading);
         }
       },
@@ -77,15 +94,8 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
         }
       },
     );
-  }, [workspaceId, rootPath, setLoading, setError, setData]);
+  }, [workspaceId, rootPath, setLoading, setError, setData, seqKeyFor]);
 
-  // Per-chart request sequence: a refresh only commits its result if it is the
-  // latest request for that chart. Rapid time-range changes therefore always
-  // land on the newest selection instead of being swallowed by an in-flight
-  // refresh of a superseded range. Keys are workspace-scoped so switching
-  // workspaces never bumps another workspace's in-flight sequence.
-  const latestRequestSeqRef = useRef<Record<string, number>>({});
-  const seqKeyFor = useCallback((chartId: string) => `${workspaceId}:${chartId}`, [workspaceId]);
   const handleRefreshChart = useCallback(
     async (chartId: string) => {
       const bridge = getBridge();
@@ -99,7 +109,9 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
       await Promise.resolve();
       setError(workspaceId, chartId, undefined);
       setLoading(workspaceId, chartId, true);
+      inflightChartKeysRef.current.add(key);
       const startedAt = performance.now();
+      let pendingError: unknown;
       try {
         const latestTimeRanges = useAppStore.getState().gitVisTimeRange[workspaceId] || {};
         const tr = latestTimeRanges[chartId];
@@ -116,10 +128,13 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
           return; // superseded by a newer refresh
         }
         setData(workspaceId, chartId, data);
+        // Clear any error a concurrent workspace refresh may have written for
+        // this chart while this request was in flight — the fresh data now wins.
+        setError(workspaceId, chartId, undefined);
       } catch (e) {
         if (latestRequestSeqRef.current[key] === seq) {
           setError(workspaceId, chartId, e instanceof Error ? e.message : String(e));
-          throw e; // surface the failure so the caller can reset its UI state
+          pendingError = e;
         }
       } finally {
         if (latestRequestSeqRef.current[key] === seq) {
@@ -135,8 +150,15 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
           // would lose its loading indicator in a rapid tab-switch burst.
           if (latestRequestSeqRef.current[key] === seq) {
             setLoading(workspaceId, chartId, false);
+            inflightChartKeysRef.current.delete(key);
           }
         }
+      }
+      // Surface the failure only if this request is still the latest — a
+      // superseded request's error is irrelevant to the current selection and
+      // would otherwise reject a caller that already moved on to a newer fetch.
+      if (pendingError !== undefined && latestRequestSeqRef.current[key] === seq) {
+        throw pendingError;
       }
     },
     [workspaceId, rootPath, seqKeyFor, setLoading, setError, setData],

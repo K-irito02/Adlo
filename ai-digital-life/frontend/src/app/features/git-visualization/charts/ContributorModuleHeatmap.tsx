@@ -111,7 +111,8 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
   // (mirrors FileHotspotsLeaderboard). With the path lifted into the parent it
   // persists across tab switches, so a refresh that removed the drilled
   // directory must fall back to root instead of rendering an empty heatmap with
-  // a stale breadcrumb.
+  // a stale breadcrumb. HeatmapCardGroup (the state owner) mirrors this reset
+  // for the case where this heatmap is unmounted while the module tab is away.
   useEffect(() => {
     if (!data || !allPaths || drillPath.length === 0 || !treeRef.current) {
       return;

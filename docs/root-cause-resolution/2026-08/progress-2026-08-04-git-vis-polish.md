@@ -54,3 +54,20 @@
   - 【低】新增测试内冗余 `vi.useRealTimers()`（afterEach 已兜底）→ 已移除。
   - 保留：ContributorModuleHeatmap 受控/非受控双模式（有意设计，被测试覆盖）、`!treeRef.current` 守卫（TS 收窄所需）、父子双份建树（重构建议，非必须）。
 - Phase 4 复审子代理：7 项修复全部正确，无高/严重问题，无死代码/日志残留，可合入。
+- 已于 2026-08-04 提交本地 `5caacb31`。
+
+## Closing-Workflow 收尾（2026-08-05）
+
+- Step 1 日志审查：`.adl-logs/` 仅 Vite HMR + INFO 级记录，无 P0/P1。
+- Step 2 多 Agent 并行审查（4 Agent，3 轮循环）：
+  - 第 1 轮发现并修复：
+    - 【中】M1：workspace 刷新清除 loading 未受 per-chart seq 守卫，200ms hold 窗口内会误清并发的 per-chart 请求 loading → `inflightChartKeysRef` 追踪，workspace 清除时跳过在飞图表。
+    - 【中】M2：被 supersede 的失败请求仍向调用方抛错 → catch 记录 `pendingError`，hold 后复查 seq 仍最新才 `throw`。
+    - 【中】F1：stale-path 重置在子组件而非状态所有者 → HeatmapCardGroup 父级 reset effect（空树也重置）；子组件保留冗余保护 + 交叉注释。
+    - 【中】F7：HeatmapCardGroup 测试 mock 缺 `locale` 与图表消费的 i18n key → 补全。
+    - 【低】i18n 正向断言、FileHotspots 滚动注释措辞修订、per-chart 成功路径补 `setError(undefined)` 清并发错误残留。
+  - 第 2/3 轮复审：补充错误-supersede、父级卸载期重置、leaderboard stale-path 重置滚动回归测试；最终确认 **Ready to merge**（零 critical/high/medium）。
+- Step 3 质量检测：`npx tsc --noEmit` 通过、`npx eslint .` 0 errors 0 warnings、全量 143 文件 / **1072** 测试通过。
+- Step 4 文档同步：新增知识库 `docs/knowledge-base/interaction/2026-08/git-vis-heatmap-loading-polish-2026-08-05.md`（9 条经验）并更新索引；更新根 AGENTS.md 与 ai-digital-life/AGENTS.md 前端测试计数（882→1072）。
+- Step 5 项目清理：`.adl-logs/` 无超期文件、无 debug-logs.txt/test-artifacts 需清理。
+- 收尾修复尚未提交（待用户确认）。

@@ -241,6 +241,167 @@ describe('useGitVisRefresh latest-wins', () => {
   });
 });
 
+describe('useGitVisRefresh workspace vs per-chart loading ownership', () => {
+  it('does not clear a per-chart request loading when a workspace refresh settles during its flight', async () => {
+    vi.useFakeTimers();
+    const workspaceId = 'ws-race';
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+    act(() => {
+      useAppStore.getState().setGitVisTimeRange(workspaceId, CHART_ID, {
+        preset: 'custom',
+        since: '2026-07-01',
+        until: '2026-07-31',
+      });
+    });
+
+    const perChart = deferred();
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    // First gitVisCodeEvolution call (per-chart refresh) stays in flight; the
+    // workspace refresh's own call resolves.
+    bridge.workspace.gitVisCodeEvolution.mockReturnValueOnce(perChart.promise);
+    bridge.workspace.gitVisCodeEvolution.mockResolvedValue({ ok: true, data: { days: [] } });
+    bridge.workspace.gitVisCommitStats.mockResolvedValue({
+      ok: true,
+      data: {
+        dailyCommits: [],
+        hourlyDistribution: [],
+        contributorActivity: [],
+        commitTimeline: [],
+      },
+    });
+    bridge.workspace.gitVisBranchGraph.mockResolvedValue({
+      ok: true,
+      data: { nodes: [], edges: [], branches: [] },
+    });
+    bridge.workspace.gitVisFileHotspots.mockResolvedValue({
+      ok: true,
+      data: { tree: { children: [] }, files: [] },
+    });
+    bridge.workspace.gitVisContributorModules.mockResolvedValue({
+      ok: true,
+      data: { matrix: [], allPaths: [] },
+    });
+
+    // Per-chart refresh starts first and remains in flight.
+    let perChartP: Promise<void> | undefined;
+    act(() => {
+      perChartP = result.current.refreshChart(CHART_ID);
+    });
+    await act(async () => {});
+    expect(useAppStore.getState().gitVisLoading[workspaceId]?.[CHART_ID]).toBe(true);
+
+    // A workspace refresh starts while the per-chart request is in flight. Its
+    // fetches settle and it enters the 200ms hold — when the hold expires it
+    // must NOT clear the per-chart chart's loading flag (still owned by the
+    // in-flight per-chart request).
+    let workspaceP: Promise<void> | undefined;
+    act(() => {
+      workspaceP = result.current.refreshWorkspace();
+    });
+    await act(async () => {});
+    await vi.advanceTimersByTimeAsync(CHART_LOADING_MIN_VISIBLE_MS + 50);
+    expect(useAppStore.getState().gitVisLoading[workspaceId]?.[CHART_ID]).toBe(true);
+
+    // The per-chart request completes and clears its own loading.
+    perChart.resolve({
+      ok: true,
+      data: { days: [{ date: '2026-07-02', additions: 1, deletions: 0 }] },
+    });
+    await vi.advanceTimersByTimeAsync(CHART_LOADING_MIN_VISIBLE_MS + 50);
+    expect(useAppStore.getState().gitVisLoading[workspaceId]?.[CHART_ID]).toBe(false);
+    await act(async () => {
+      await perChartP;
+      await workspaceP;
+    });
+    vi.useRealTimers();
+  });
+
+  it('does not reject a superseded request error that was superseded during its hold', async () => {
+    vi.useFakeTimers();
+    const workspaceId = 'ws-m2';
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+    setRange(workspaceId);
+
+    const a = deferred();
+    const b = deferred();
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    bridge.workspace.gitVisCodeEvolution
+      .mockReturnValueOnce(a.promise)
+      .mockReturnValueOnce(b.promise);
+
+    let pa: Promise<void> | undefined;
+    act(() => {
+      pa = result.current.refreshChart(CHART_ID);
+    });
+    await act(async () => {});
+
+    // A fails while it is still the latest request → the error is recorded and
+    // A enters the min-duration hold with loading still visible.
+    a.resolve({ ok: false, error: { message: 'boom' } } as never);
+    await act(async () => {});
+    expect(useAppStore.getState().gitVisErrors[workspaceId]?.[CHART_ID]).toBe('boom');
+
+    // B supersedes A while A is holding loading visible.
+    let pb: Promise<void> | undefined;
+    act(() => {
+      pb = result.current.refreshChart(CHART_ID);
+    });
+    await act(async () => {});
+
+    // After A's hold, A is superseded — its error must NOT reject the caller
+    // (the success path already returns silently when superseded).
+    await vi.advanceTimersByTimeAsync(CHART_LOADING_MIN_VISIBLE_MS + 50);
+    await expect(pa).resolves.toBeUndefined();
+
+    b.resolve({ ok: true, data: { days: [] } });
+    await vi.advanceTimersByTimeAsync(CHART_LOADING_MIN_VISIBLE_MS + 50);
+    await act(async () => {
+      await pb;
+    });
+    vi.useRealTimers();
+  });
+
+  it('ignores an error from a request that was already superseded when it failed', async () => {
+    vi.useFakeTimers();
+    const workspaceId = 'ws-m2b';
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+    setRange(workspaceId);
+
+    const a = deferred();
+    const b = deferred();
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    bridge.workspace.gitVisCodeEvolution
+      .mockReturnValueOnce(a.promise)
+      .mockReturnValueOnce(b.promise);
+
+    let pa: Promise<void> | undefined;
+    let pb: Promise<void> | undefined;
+    act(() => {
+      pa = result.current.refreshChart(CHART_ID);
+    });
+    await act(async () => {});
+    // B supersedes A before A's fetch settles.
+    act(() => {
+      pb = result.current.refreshChart(CHART_ID);
+    });
+    await act(async () => {});
+
+    // A fails after being superseded: its error must NOT be recorded and its
+    // promise must resolve (an irrelevant stale failure never reaches callers).
+    a.resolve({ ok: false, error: { message: 'boom' } } as never);
+    await act(async () => {});
+    await expect(pa).resolves.toBeUndefined();
+    expect(useAppStore.getState().gitVisErrors[workspaceId]?.[CHART_ID]).toBeUndefined();
+
+    b.resolve({ ok: true, data: { days: [] } });
+    await vi.advanceTimersByTimeAsync(CHART_LOADING_MIN_VISIBLE_MS + 50);
+    await act(async () => {
+      await pb;
+    });
+    vi.useRealTimers();
+  });
+});
+
 describe('useGitVisRefresh relative preset re-resolution', () => {
   it('re-resolves a week preset against today instead of reusing the stale stored until', async () => {
     const workspaceId = 'ws-1';
