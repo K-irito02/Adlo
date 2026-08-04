@@ -145,12 +145,21 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
   }, [stripData, fullRange.end]);
 
   if (status === 'loading') {
+    // Render one skeleton line per currently-visible series, each with its own
+    // sweep phase offset so multi-line skeletons sweep out of phase (bklit-ui
+    // aligned gray-white strokes, never pure black).
+    const activeSeries = (['added', 'deleted', 'net'] as const).filter((key) => visible[key]);
     return (
       <div className="adl-git-vis__chart" style={{ position: 'relative', overflow: 'hidden' }}>
         <div style={{ maxHeight: 280, overflow: 'hidden' }}>
           <LineChartLoading
             label={loadingLabel}
+            loadingStyle="sweep"
             margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
+            series={activeSeries.map((key, i) => ({
+              dataKey: key,
+              phaseOffset: activeSeries.length > 1 ? i / activeSeries.length : 0,
+            }))}
           />
         </div>
       </div>

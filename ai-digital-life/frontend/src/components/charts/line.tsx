@@ -83,6 +83,11 @@ export interface LineProps {
    * line. Default: `"pulse"`.
    */
   loadingStyle?: LoadingStyle;
+  /**
+   * Fractional phase offset [0,1) of the sweep loop, to desync multiple
+   * skeleton lines so they do not sweep in lockstep.
+   */
+  loadingSweepPhaseOffset?: number;
 }
 
 function LineSeriesStroke({
@@ -142,6 +147,7 @@ function LineLoadingOverlays({
   loadingStroke,
   loadingStrokeOpacity,
   loadingStyle,
+  loadingSweepPhaseOffset,
   pathD,
   pulseEpoch,
   pulseMode,
@@ -154,6 +160,7 @@ function LineLoadingOverlays({
   loadingStroke: string;
   loadingStrokeOpacity: number;
   loadingStyle: LoadingStyle;
+  loadingSweepPhaseOffset?: number;
   pathD: string | null;
   pulseEpoch: number;
   pulseMode: LineLoadingPulseMode | null;
@@ -171,6 +178,7 @@ function LineLoadingOverlays({
           key="loading-sweep"
           mode={pulseMode ?? 'loop'}
           onTransitionComplete={handleLoadingPulseComplete}
+          phaseOffset={loadingSweepPhaseOffset}
           stroke={loadingStroke}
           strokeOpacity={loadingStrokeOpacity}
           strokeWidth={strokeWidth}
@@ -211,6 +219,7 @@ export function Line({
   loadingPulseMode,
   onLoadingPulseCycleComplete,
   loadingStyle = 'pulse',
+  loadingSweepPhaseOffset,
 }: LineProps) {
   // Stable slice only: hover state lives inside `<SeriesHoverDim>` and
   // `<SeriesHighlightLayer>` so this component (and its expensive
@@ -368,6 +377,7 @@ export function Line({
         innerWidth={innerWidth}
         loadingStroke={loadingStroke}
         loadingStrokeOpacity={loadingStrokeOpacity}
+        loadingSweepPhaseOffset={loadingSweepPhaseOffset}
         loadingStyle={loadingStyle}
         pathD={pathD}
         pulseEpoch={pulseEpoch}

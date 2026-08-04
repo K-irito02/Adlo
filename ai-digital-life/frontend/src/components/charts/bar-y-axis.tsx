@@ -32,7 +32,9 @@ function BarYAxisLabel({ label, y, bandHeight, isHovered }: BarYAxisLabelProps) 
       <motion.span
         animate={{
           opacity: isHovered ? 1 : 0.7,
-          color: isHovered ? 'var(--foreground)' : 'var(--chart-label, var(--color-zinc-500))',
+          color: isHovered
+            ? 'var(--chart-foreground)'
+            : 'var(--chart-label, var(--color-zinc-500))',
         }}
         className={cn('truncate whitespace-nowrap text-right text-xs')}
         initial={{

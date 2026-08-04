@@ -34,7 +34,7 @@ const HEIGHT_MAX_PCT = 80;
 const DEFAULT_POINT_COUNT = 14;
 const BAR_CORNER_RADIUS = 2;
 const DEFAULT_BAR_COUNT = 12;
-const DEFAULT_FILL = 'var(--foreground)';
+const DEFAULT_FILL = 'var(--chart-foreground)';
 const DEFAULT_BAR_FILL_OPACITY = 0.45;
 const LINE_STROKE_OPACITY = 0.55;
 const AREA_FILL_TOP_OPACITY = 0.18;
@@ -96,15 +96,21 @@ function LoadingSweepMask({
   height,
   durationSeconds,
   onSweepComplete,
+  phaseOffset = 0,
 }: {
   chartId: string;
   width: number;
   height: number;
   durationSeconds: number;
   onSweepComplete: () => void;
+  /** Fractional phase offset [0,1) of the sweep loop, to desync multiple silhouettes. */
+  phaseOffset?: number;
 }) {
   const gradientStops = useMemo(() => generateEasedGradientStops(), []);
   const lastXRef = useRef(SWEEP_START_X);
+  // Start each mask at a different x so the sweeping band is offset between
+  // silhouettes (multi-line skeletons do not sweep in lockstep).
+  const startX = SWEEP_START_X + phaseOffset * (SWEEP_END_X - SWEEP_START_X);
 
   const handleUpdate = useCallback(
     (latest: { x?: number }) => {
@@ -137,10 +143,10 @@ function LoadingSweepMask({
         y="0"
       >
         <motion.rect
-          animate={{ x: SWEEP_END_X }}
+          animate={{ x: startX + (SWEEP_END_X - SWEEP_START_X) }}
           fill={`url(#${chartId}-grad)`}
           height="1"
-          initial={{ x: SWEEP_START_X }}
+          initial={{ x: startX }}
           onUpdate={handleUpdate}
           transition={{
             duration: durationSeconds,
@@ -178,6 +184,8 @@ export interface LineLoadingSweepProps {
   strokeWidth?: number;
   pointCount?: number;
   durationSeconds?: number;
+  /** Fractional phase offset [0,1) of the sweep loop, to desync multiple silhouettes. */
+  phaseOffset?: number;
 }
 
 /**
@@ -195,6 +203,7 @@ export function LineLoadingSweep({
   strokeWidth = 2,
   pointCount = DEFAULT_POINT_COUNT,
   durationSeconds = DEFAULT_SWEEP_DURATION_S,
+  phaseOffset = 0,
 }: LineLoadingSweepProps) {
   const { innerWidth, innerHeight } = useChartStable();
   const reduceMotion = useReducedMotion();
@@ -284,6 +293,7 @@ export function LineLoadingSweep({
         durationSeconds={durationSeconds}
         height={innerHeight}
         onSweepComplete={onSweepComplete}
+        phaseOffset={phaseOffset}
         width={innerWidth}
       />
     </defs>

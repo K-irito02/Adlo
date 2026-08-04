@@ -14,11 +14,23 @@ import { Line } from './line';
 import { LineChart } from './line-chart';
 
 const LOADING_DATA_KEY = DEFAULT_SKELETON_DATA_KEY;
-const DEFAULT_LOADING_STROKE = 'var(--foreground)';
+const DEFAULT_LOADING_STROKE = 'var(--chart-foreground)';
 const DEFAULT_LOADING_GRID_STROKE = 'color-mix(in oklch, var(--chart-grid) 50%, transparent)';
 const DEFAULT_LOADING_GRID_SHIMMER_STROKE =
-  'color-mix(in oklch, var(--foreground) 68%, transparent)';
+  'color-mix(in oklch, var(--chart-foreground) 68%, transparent)';
 const DEFAULT_LOADING_STROKE_OPACITY = 0.5;
+
+/** One skeleton line in a multi-series loading skeleton. */
+export interface LineChartLoadingSeries {
+  /** Unique data key for this skeleton line. Default: `loading-N`. */
+  dataKey?: string;
+  /** Stroke color for this skeleton line. Default: `var(--chart-foreground)`. */
+  stroke?: string;
+  /** Stroke opacity for this skeleton line. Default: 0.5. */
+  strokeOpacity?: number;
+  /** Fractional phase offset [0,1) of the sweep loop, to desync multiple lines. */
+  phaseOffset?: number;
+}
 
 export interface LineChartLoadingProps {
   /** Chart margins */
@@ -40,14 +52,42 @@ export interface LineChartLoadingProps {
   /** Match shimmer loop to the loading line pulse (cycle + inter-loop pause). */
   gridShimmerSync?: boolean;
   /** Loading animation: `"pulse"` (default traveling pulse) or `"sweep"` (a
-   * diagonal shimmer across the skeleton line). Default: `"pulse"`. */
+   * diagonal shimmer across the skeleton line). Default: `"pulse"`. When
+   * `series` is provided this defaults to `"sweep"` (multiple lines sweep
+   * out of phase). */
   loadingStyle?: LoadingStyle;
+  /**
+   * Multiple skeleton lines to render (e.g. togglable chart series). Each
+   * line gets its own stroke and sweep phase offset so multi-line skeletons
+   * are not in lockstep. When omitted a single skeleton line is rendered.
+   */
+  series?: LineChartLoadingSeries[];
   /** Centered shimmer label text. Default: "Loading" */
   label?: string;
   /** Aspect ratio as "width / height". Default: "2 / 1" */
   aspectRatio?: string;
   /** Additional class name for the container */
   className?: string;
+}
+
+/** Skeleton rows carrying every requested series key, so each line has its own
+ * y-magnitude and reads as a distinct series. */
+function generateMultiSeriesSkeletonData(keys: string[]): Record<string, unknown>[] {
+  const primaryKey = keys[0] ?? DEFAULT_SKELETON_DATA_KEY;
+  const base = generateChartSkeletonData({
+    dataKey: primaryKey,
+    pointCount: DEFAULT_SKELETON_POINT_COUNT,
+  });
+  if (keys.length <= 1) {
+    return base;
+  }
+  return base.map((row, index) => {
+    const next = { ...row };
+    keys.slice(1).forEach((key, i) => {
+      next[key] = Math.round(60 + Math.sin(index * 1.05 + i * 0.7) * 30 + (i % 3) * 14);
+    });
+    return next;
+  });
 }
 
 export function LineChartLoading({
@@ -60,18 +100,22 @@ export function LineChartLoading({
   gridShimmerLength,
   gridShimmerSpeed,
   gridShimmerSync = false,
-  loadingStyle = 'pulse',
+  loadingStyle,
+  series,
   label = 'Loading',
   aspectRatio = '2 / 1',
   className = '',
 }: LineChartLoadingProps) {
+  const resolvedLoadingStyle = loadingStyle ?? (series && series.length > 1 ? 'sweep' : 'pulse');
+  const seriesDataKey =
+    series && series.length > 0 ? series.map((s, i) => s.dataKey ?? `loading-${i}`) : undefined;
+
   const data = useMemo(
-    () =>
-      generateChartSkeletonData({
-        dataKey: DEFAULT_SKELETON_DATA_KEY,
-        pointCount: DEFAULT_SKELETON_POINT_COUNT,
-      }),
-    [],
+    () => generateMultiSeriesSkeletonData(seriesDataKey ?? [LOADING_DATA_KEY]),
+    // seriesDataKey is derived from series (a stable array identity from the caller);
+    // regenerate only when the key list changes.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: key list is the true input
+    [seriesDataKey],
   );
 
   return (
@@ -86,24 +130,42 @@ export function LineChartLoading({
     >
       <Grid
         horizontal
-        shimmer={loadingStyle === 'sweep' ? false : gridShimmer}
+        shimmer={resolvedLoadingStyle === 'sweep' ? false : gridShimmer}
         shimmerLength={gridShimmerLength}
         shimmerSpeed={gridShimmerSpeed}
         shimmerStroke={gridShimmerStroke}
         shimmerSync={gridShimmerSync}
         stroke={gridStroke}
       />
-      <Line
-        curve={curveNatural}
-        dataKey={LOADING_DATA_KEY}
-        fadeEdges={false}
-        loadingStroke={stroke}
-        loadingStrokeOpacity={strokeOpacity}
-        loadingStyle={loadingStyle}
-        showHighlight={false}
-        stroke="transparent"
-        strokeWidth={2.5}
-      />
+      {series && series.length > 0 ? (
+        series.map((s, i) => (
+          <Line
+            key={s.dataKey ?? `loading-${i}`}
+            curve={curveNatural}
+            dataKey={s.dataKey ?? `loading-${i}`}
+            fadeEdges={false}
+            loadingStroke={s.stroke ?? stroke}
+            loadingStrokeOpacity={s.strokeOpacity ?? strokeOpacity}
+            loadingStyle={resolvedLoadingStyle}
+            loadingSweepPhaseOffset={s.phaseOffset ?? (series.length > 1 ? i / series.length : 0)}
+            showHighlight={false}
+            stroke="transparent"
+            strokeWidth={2.5}
+          />
+        ))
+      ) : (
+        <Line
+          curve={curveNatural}
+          dataKey={LOADING_DATA_KEY}
+          fadeEdges={false}
+          loadingStroke={stroke}
+          loadingStrokeOpacity={strokeOpacity}
+          loadingStyle={resolvedLoadingStyle}
+          showHighlight={false}
+          stroke="transparent"
+          strokeWidth={2.5}
+        />
+      )}
     </LineChart>
   );
 }

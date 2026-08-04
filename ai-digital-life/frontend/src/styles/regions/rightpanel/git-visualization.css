@@ -1683,13 +1683,24 @@
   opacity: 0;
 }
 
-/* ── Loading skeleton (static gray rows + centered Loading label) ── */
+/* ── Loading skeleton (CSS shimmer rows + centered Loading label) ── */
 
 .adl-git-vis__chart-loading {
   position: relative;
   min-height: 360px;
   overflow: hidden;
   flex-shrink: 0;
+}
+
+/* Sweep shimmer shared by the branch graph and file hotspots skeleton rows:
+   a diagonal band travels across each gray cell on a loop (bklit-ui aligned). */
+@keyframes adl-git-vis-sweep {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .adl-branch-graph__skeleton {
@@ -1713,6 +1724,8 @@
     var(--surface-hover) 50%,
     var(--surface-secondary) 75%
   );
+  background-size: 200% 100%;
+  animation: adl-git-vis-sweep 1.5s ease-in-out infinite;
   border-radius: var(--radius-sm);
   height: 12px;
 }
@@ -1750,6 +1763,8 @@
     var(--surface-hover) 50%,
     var(--surface-secondary) 75%
   );
+  background-size: 200% 100%;
+  animation: adl-git-vis-sweep 1.5s ease-in-out infinite;
   border-radius: var(--radius-sm);
   height: 12px;
 }
@@ -1794,4 +1809,13 @@
   width: 48px;
   flex-shrink: 0;
   margin-left: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adl-branch-graph__skeleton-lanes,
+  .adl-branch-graph__skeleton-cell,
+  .adl-file-hotspots-ranking__skeleton-header-cell,
+  .adl-file-hotspots-ranking__skeleton-cell {
+    animation: none;
+  }
 }

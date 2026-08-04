@@ -24,6 +24,10 @@ import type { GitVisCommitStats } from '@shared/ipc';
 import type { GitVisFileHotspots } from '@shared/ipc/workspace';
 import type { RawContributorModules } from './adapters/chartDataAdapters';
 
+// TEMP(observation): keep the commit timeline loading skeleton resident so its
+// sweep animation can be inspected. Set back to false when observation is done.
+const FORCE_COMMIT_TIMELINE_LOADING = true;
+
 class VisErrorBoundary extends Component<
   { children: React.ReactNode; onRetry: () => void; errorMsg: string; retryLabel: string },
   { hasError: boolean; errorInfo: string }
@@ -445,7 +449,9 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
               days:
                 (commitTimelineData.data as GitVisCommitStats | undefined)?.commitTimeline ?? [],
             }}
-            status={commitTimelineData.loading ? 'loading' : 'ready'}
+            status={
+              FORCE_COMMIT_TIMELINE_LOADING || commitTimelineData.loading ? 'loading' : 'ready'
+            }
             loadingLabel={t.gitVisLoadingChart}
           />
         </TimeRangeAwareCard>

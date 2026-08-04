@@ -9,7 +9,7 @@ import { isLoadingChromePhase, isLoadingGridChromePhase } from './y-domain-utils
 
 const DEFAULT_SHIMMER_LENGTH_PX = 140;
 const DEFAULT_SHIMMER_SPEED = 1;
-const DEFAULT_SHIMMER_STROKE = 'color-mix(in oklch, var(--foreground) 68%, transparent)';
+const DEFAULT_SHIMMER_STROKE = 'color-mix(in oklch, var(--chart-foreground) 68%, transparent)';
 
 export interface GridProps {
   /** Show horizontal grid lines. Default: true */

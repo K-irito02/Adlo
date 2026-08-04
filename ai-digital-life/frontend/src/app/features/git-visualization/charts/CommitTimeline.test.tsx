@@ -177,11 +177,14 @@ describe('CommitTimeline', () => {
     }
   });
 
-  it('shows loading skeleton when status is loading', () => {
-    const { getByText } = render(
+  it('shows sweep loading skeleton when status is loading', () => {
+    const { getByText, container } = render(
       <CommitTimeline status="loading" loadingLabel="Loading chart..." />,
     );
     expect(getByText('Loading chart...')).toBeInTheDocument();
+    // Bar skeleton sweeps (bar-sweep-) and the cumulative line sweeps (line-sweep-).
+    expect(container.querySelectorAll('mask[id^="bar-sweep-"]').length).toBe(1);
+    expect(container.querySelectorAll('mask[id^="line-sweep-"]').length).toBe(1);
   });
 });
 

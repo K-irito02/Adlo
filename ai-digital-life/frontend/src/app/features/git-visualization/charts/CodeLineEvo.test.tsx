@@ -189,11 +189,40 @@ describe('CodeLineEvo', () => {
     expect(stripSvg!.querySelectorAll('linearGradient[id^="line-gradient-net-"]').length).toBe(1);
   });
 
-  it('shows loading skeleton when status is loading', () => {
-    const { getByText } = render(
+  it('shows one sweep skeleton line per visible series when loading', () => {
+    const { getByText, container } = render(
       <CodeLineEvo status="loading" loadingLabel="Loading chart..." visible={DEFAULT_VISIBILITY} />,
     );
     expect(getByText('Loading chart...')).toBeInTheDocument();
+    // All three series visible → three skeleton sweep silhouettes.
+    expect(container.querySelectorAll('mask[id^="line-sweep-"]').length).toBe(3);
+  });
+
+  it('renders skeleton lines matching the visible series subset when loading', () => {
+    const { container } = render(
+      <CodeLineEvo
+        status="loading"
+        loadingLabel="Loading chart..."
+        visible={{ added: true, deleted: false, net: false }}
+      />,
+    );
+    // Only "added" is visible → a single skeleton line.
+    expect(container.querySelectorAll('mask[id^="line-sweep-"]').length).toBe(1);
+  });
+
+  it('uses the chart foreground token (not var(--foreground)) for skeleton strokes', () => {
+    const { container } = render(
+      <CodeLineEvo status="loading" loadingLabel="Loading chart..." visible={DEFAULT_VISIBILITY} />,
+    );
+    const stroked = Array.from(
+      container.querySelectorAll(
+        'path[stroke*="chart-foreground"], path[stroke*="var(--foreground)"]',
+      ),
+    );
+    const anyForeground = stroked.some((p) =>
+      p.getAttribute('stroke')?.includes('var(--foreground)'),
+    );
+    expect(anyForeground).toBe(false);
   });
 });
 

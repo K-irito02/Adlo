@@ -88,7 +88,7 @@ export const CommitTimeline = React.memo(function CommitTimeline({
             dataKey="cumulative"
             stroke="transparent"
             strokeWidth={2}
-            loadingStyle="pulse"
+            loadingStyle="sweep"
             showHighlight={false}
           />
           <Grid shimmer />
@@ -266,7 +266,7 @@ const CommitTimelineMain = React.memo(function CommitTimelineMain({
 });
 
 /**
- * 官方灰色骨架柱（bklit-ui BarLoadingSkeleton）：var(--foreground) + 0.45 透明度
+ * 官方灰色骨架柱（bklit-ui BarLoadingSkeleton）：var(--chart-foreground) + 0.45 透明度
  * + 12 柱 + 0.7 barFraction，带 sweep 扫视。通过 ChartContext 读取 inner 尺寸，
  * 渲染在 ComposedChart 的 loading 状态下。
  */
