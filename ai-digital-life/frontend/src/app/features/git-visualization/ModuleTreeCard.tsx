@@ -31,12 +31,13 @@ function flattenVisible(root: ModuleTreeNode[], expanded: Set<string>, depth = 0
   return result;
 }
 
-function collectAllPaths(nodes: ModuleTreeNode[]): string[] {
+/** Collect all directory paths from the subtree. Only directories (nodes with children) are included. */
+function collectAllDirPaths(nodes: ModuleTreeNode[]): string[] {
   const result: string[] = [];
   for (const node of nodes) {
-    result.push(node.path);
     if (node.children.length > 0) {
-      result.push(...collectAllPaths(node.children));
+      result.push(node.path);
+      result.push(...collectAllDirPaths(node.children));
     }
   }
   return result;
@@ -211,7 +212,7 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
     });
   }, []);
 
-  const allDirPaths = useMemo(() => new Set(collectAllPaths(subtree)), [subtree]);
+  const allDirPaths = useMemo(() => new Set(collectAllDirPaths(subtree)), [subtree]);
 
   const toggleExpandAll = useCallback(() => {
     setExpanded((prev) => (prev.size === allDirPaths.size ? new Set() : allDirPaths));
@@ -224,12 +225,12 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
 
   const handleRowActivate = useCallback(
     (path: string, isDir: boolean) => {
-      setSelectedPath(path === selectedPath ? null : path);
+      setSelectedPath((prev) => (path === prev ? null : path));
       if (isDir) {
         toggleExpand(path);
       }
     },
-    [toggleExpand, selectedPath],
+    [toggleExpand],
   );
 
   const handleAreaClick = useCallback((e: React.MouseEvent) => {
@@ -256,29 +257,44 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
     }
   }, []);
 
-  const flatNodes = flattenVisible(subtree, expanded);
+  const flatNodes = useMemo(() => flattenVisible(subtree, expanded), [subtree, expanded]);
 
   const trunkHeightMap: Record<string, number> = useMemo(() => {
     const map: Record<string, number> = {};
+    // Stack of expanded directories awaiting their last-descendant index.
+    // Each entry stores the directory's flat index and depth.
+    // When we encounter a node whose depth <= the top of the stack,
+    // the directory at the top has ended and we compute its trunk height.
+    // This is O(n) — each node is pushed and popped at most once.
+    const stack: { path: string; idx: number; depth: number }[] = [];
+
     for (let i = 0; i < flatNodes.length; i++) {
       const { node, depth } = flatNodes[i];
-      if (!node.isDir || !expanded.has(node.path)) {
-        map[node.path] = 0;
-        continue;
-      }
-      let lastDescendantIdx = i;
-      for (let j = i + 1; j < flatNodes.length; j++) {
-        if (flatNodes[j].depth <= depth) {
+
+      // Pop all directories that end before this node.
+      while (stack.length > 0) {
+        const top = stack[stack.length - 1];
+        if (top.depth < depth) {
           break;
         }
-        lastDescendantIdx = j;
+        stack.pop();
+        const lastIdx = i - 1;
+        map[top.path] = lastIdx > top.idx ? (lastIdx - top.idx) * 28 + 28 : 0;
       }
-      if (i === lastDescendantIdx) {
-        map[node.path] = 0;
+
+      if (node.isDir && expanded.has(node.path)) {
+        stack.push({ path: node.path, idx: i, depth });
       } else {
-        map[node.path] = (lastDescendantIdx - i) * 28 + 28;
+        map[node.path] = 0;
       }
     }
+
+    // Remaining directories on the stack extend to the end of the list.
+    for (const dir of stack) {
+      const lastIdx = flatNodes.length - 1;
+      map[dir.path] = lastIdx > dir.idx ? (lastIdx - dir.idx) * 28 + 28 : 0;
+    }
+
     return map;
   }, [flatNodes, expanded]);
 
@@ -344,35 +360,18 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
           </button>
         </div>
       </div>
-      <div className="adl-module-tree-card__tree" onClick={handleAreaClick}>
-        <ul
-          className="adl-filetree adl-tree-root"
-          role="tree"
-          style={{ height: 'auto', position: 'relative' }}
-          onMouseOver={handleMouseOver}
-          onMouseOut={handleMouseOut}
-        >
-          {flatNodes.map(({ node, depth }) => (
-            <TreeRow
-              key={node.path}
-              name={node.name}
-              path={node.path}
-              isDir={node.isDir}
-              depth={depth + 1}
-              isExpanded={expanded.has(node.path)}
-              isSelected={selectedPath === node.path}
-              isHoveredByAncestor={hoveredDescendantPaths?.has(node.path) ?? false}
-              onToggle={() => toggleExpand(node.path)}
-              onActivate={() => handleRowActivate(node.path, node.isDir)}
-              style={
-                {
-                  '--adl-trunk-height': `${trunkHeightMap[node.path] ?? 28}px`,
-                } as React.CSSProperties
-              }
-            />
-          ))}
-        </ul>
-      </div>
+      <ModuleTreeList
+        flatNodes={flatNodes}
+        expanded={expanded}
+        selectedPath={selectedPath}
+        hoveredDescendantPaths={hoveredDescendantPaths}
+        trunkHeightMap={trunkHeightMap}
+        handleAreaClick={handleAreaClick}
+        handleMouseOver={handleMouseOver}
+        handleMouseOut={handleMouseOut}
+        onToggle={toggleExpand}
+        onActivate={handleRowActivate}
+      />
       <div className="adl-module-tree-card__actions">
         <button className="adl-module-tree-card__btn" onClick={onClose}>
           {t.gitVisModuleCancel}
@@ -391,5 +390,66 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
       </div>
     </div>,
     document.body,
+  );
+});
+
+/** Extracted tree list as a memoized sub-component so that dragging the card
+ *  header (which only changes `pos`) does not trigger a re-render of all
+ *  tree nodes. */
+interface ModuleTreeListProps {
+  flatNodes: FlatNode[];
+  expanded: Set<string>;
+  selectedPath: string | null;
+  hoveredDescendantPaths: Set<string> | undefined;
+  trunkHeightMap: Record<string, number>;
+  handleAreaClick: (e: React.MouseEvent) => void;
+  handleMouseOver: (e: React.MouseEvent<HTMLUListElement>) => void;
+  handleMouseOut: (e: React.MouseEvent<HTMLUListElement>) => void;
+  onToggle: (path: string) => void;
+  onActivate: (path: string, isDir: boolean) => void;
+}
+
+const ModuleTreeList = React.memo(function ModuleTreeList({
+  flatNodes,
+  expanded,
+  selectedPath,
+  hoveredDescendantPaths,
+  trunkHeightMap,
+  handleAreaClick,
+  handleMouseOver,
+  handleMouseOut,
+  onToggle,
+  onActivate,
+}: ModuleTreeListProps) {
+  return (
+    <div className="adl-module-tree-card__tree" onClick={handleAreaClick}>
+      <ul
+        className="adl-filetree adl-tree-root"
+        role="tree"
+        style={{ height: 'auto', position: 'relative' }}
+        onMouseOver={handleMouseOver}
+        onMouseOut={handleMouseOut}
+      >
+        {flatNodes.map(({ node, depth }) => (
+          <TreeRow
+            key={node.path}
+            name={node.name}
+            path={node.path}
+            isDir={node.isDir}
+            depth={depth + 1}
+            isExpanded={expanded.has(node.path)}
+            isSelected={selectedPath === node.path}
+            isHoveredByAncestor={hoveredDescendantPaths?.has(node.path) ?? false}
+            onToggle={onToggle}
+            onActivate={onActivate}
+            style={
+              {
+                '--adl-trunk-height': `${trunkHeightMap[node.path] ?? 28}px`,
+              } as React.CSSProperties
+            }
+          />
+        ))}
+      </ul>
+    </div>
   );
 });

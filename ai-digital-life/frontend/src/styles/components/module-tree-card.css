@@ -74,9 +74,22 @@
 
 .adl-module-tree-card__tree {
   flex: 1;
+  overflow: hidden;
+  padding: 4px 0;
+  scrollbar-gutter: stable;
+}
+
+.adl-module-tree-card__tree:hover {
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 4px 0;
+}
+
+/* Scrollbar visible only when hovering over the tree area.
+   scrollbar-gutter: stable reserves the scrollbar space so the
+   content width does not shift when the scrollbar appears. */
+.adl-module-tree-card__tree .adl-tree-node {
+  content-visibility: auto;
+  contain-intrinsic-size: 28px;
 }
 
 .adl-module-tree-card__actions {

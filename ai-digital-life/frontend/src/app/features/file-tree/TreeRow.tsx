@@ -10,8 +10,8 @@ interface TreeRowProps {
   isExpanded?: boolean;
   isSelected?: boolean;
   isHoveredByAncestor?: boolean;
-  onToggle?: () => void;
-  onActivate?: () => void;
+  onToggle?: (path: string) => void;
+  onActivate?: (path: string, isDir: boolean) => void;
   onContextMenu?: (e: React.MouseEvent<HTMLDivElement>) => void;
   className?: string;
   style?: React.CSSProperties;
@@ -56,7 +56,7 @@ export const TreeRow = React.memo(function TreeRow({
           <button
             type="button"
             className="adl-tree-node__toggle adl-filetree__toggle"
-            onClick={onToggle}
+            onClick={() => onToggle?.(path)}
             aria-label={isExpanded ? 'Collapse' : 'Expand'}
           >
             {isExpanded ? (
@@ -79,7 +79,7 @@ export const TreeRow = React.memo(function TreeRow({
           type="button"
           className="adl-tree-node__label adl-filetree__label"
           title={path}
-          onClick={onActivate ?? onToggle}
+          onClick={() => (onActivate ? onActivate(path, isDir) : onToggle?.(path))}
         >
           <span className="adl-tree-node__label-content adl-filetree__node-main">
             <span className="adl-tree-node__label-text">{name}</span>
