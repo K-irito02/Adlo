@@ -286,7 +286,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
               data={contributorModules}
               allPaths={contributorModuleAllPaths}
               status={contributorModuleStatus || 'ready'}
-              loadingLabel={t.gitVisLoadingModules}
+              loadingLabel={loadingLabel}
             />
           )}
         </div>

@@ -210,7 +210,6 @@ export const changesEn = {
   gitVisCalendarYearLatest: 'Already the latest year',
   gitVisCalendarYearEarliest: 'Already the earliest year',
   gitVisCalendarSelectYear: 'Select Year',
-  gitVisLoadingModules: 'Loading modules...',
   gitVisLoadingChart: 'Loading chart...',
   gitVisModuleRoot: 'Root',
   gitVisModuleExpandAll: 'Expand All',
