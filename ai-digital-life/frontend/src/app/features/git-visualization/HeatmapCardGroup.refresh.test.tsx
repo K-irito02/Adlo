@@ -85,6 +85,7 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisModuleConfirm: 'Confirm',
       gitVisModuleCancel: 'Cancel',
       gitVisLoadingModules: 'Loading modules...',
+      gitVisLoadingChart: 'Loading chart...',
     },
     locale: 'en-US',
     formatT: vi.fn(),

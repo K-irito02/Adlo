@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
+import type { ChartStatus } from '@/components/charts/chart-phase';
 import {
   HeatmapChart,
   HeatmapCells,
@@ -7,12 +8,15 @@ import {
   HeatmapYAxis,
   HeatmapTooltip,
   buildHeatmapFillScale,
+  generateHeatmapSkeletonFromTarget,
   HEATMAP_DEFAULT_LEVEL_STYLES,
 } from '@/components/charts/heatmap';
 import { hourlyDistributionToHeatmapColumns } from '../adapters/chartDataAdapters';
 
 interface ClockHeatmapProps {
   data?: { day: number; hour: number; count: number }[];
+  status?: ChartStatus;
+  loadingLabel?: string;
 }
 
 function expandToFullGrid(
@@ -34,7 +38,11 @@ function expandToFullGrid(
   return result;
 }
 
-export const ClockHeatmap = React.memo(function ClockHeatmap({ data }: ClockHeatmapProps) {
+export const ClockHeatmap = React.memo(function ClockHeatmap({
+  data,
+  status = 'ready',
+  loadingLabel,
+}: ClockHeatmapProps) {
   const { t, locale, formatT } = useTCopy();
   const dayLabels = useMemo(
     () =>
@@ -72,6 +80,11 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({ data }: ClockHeat
       })),
     [rawColumns, weekdayNames, t, formatT],
   );
+  const skeletonData = useMemo(() => {
+    const full = expandToFullGrid([]);
+    const cols = hourlyDistributionToHeatmapColumns(full, dayLabels);
+    return generateHeatmapSkeletonFromTarget(cols);
+  }, [dayLabels]);
 
   const customFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
 
@@ -85,7 +98,9 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({ data }: ClockHeat
 
   return (
     <HeatmapChart
-      data={heatmapData}
+      data={status === 'loading' ? skeletonData : heatmapData}
+      status={status}
+      loadingLabel={loadingLabel}
       rowLabels={dayLabels}
       locale={locale}
       margin={{ top: 24, right: 16, bottom: 0, left: 40 }}

@@ -51,4 +51,11 @@ describe('CalendarHeatmap', () => {
     const { container } = render(<CalendarHeatmap />);
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
+
+  it('shows skeleton + loading label when status is loading', () => {
+    const { getByText } = render(
+      <CalendarHeatmap status="loading" loadingLabel="Loading chart..." year={2026} />,
+    );
+    expect(getByText('Loading chart...')).toBeInTheDocument();
+  });
 });

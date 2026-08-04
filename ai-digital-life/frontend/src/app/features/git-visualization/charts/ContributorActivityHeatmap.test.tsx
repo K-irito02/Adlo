@@ -69,4 +69,16 @@ describe('ContributorActivityHeatmap', () => {
     const { container } = render(<ContributorActivityHeatmap />);
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
+
+  it('shows skeleton + loading label when status is loading', () => {
+    const { getByText } = render(
+      <ContributorActivityHeatmap
+        status="loading"
+        loadingLabel="Loading chart..."
+        since="2024-01-01"
+        until="2024-12-31"
+      />,
+    );
+    expect(getByText('Loading chart...')).toBeInTheDocument();
+  });
 });

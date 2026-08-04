@@ -48,6 +48,7 @@ interface HeatmapCardGroupProps {
   /** Refreshes the CONTRIBUTOR_MODULES chart (used while the module tab is active). */
   onRefreshContributorModules?: () => Promise<void>;
   commitStats?: RawCommitStats;
+  commitStatsStatus?: ChartStatus;
   contributorModules?: {
     author: string;
     authorEmail: string;
@@ -62,12 +63,14 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
   onRefresh,
   onRefreshContributorModules,
   commitStats,
+  commitStatsStatus = 'ready',
   contributorModules,
   contributorModuleAllPaths,
   contributorModuleStatus,
   yearBounds,
 }: HeatmapCardGroupProps) {
   const { t } = useTCopy();
+  const loadingLabel = t.gitVisLoadingChart;
   const activeWorkspaceTab = useAppStore((s) => s.activeWorkspaceTab);
   const setGitVisTimeRange = useAppStore((s) => s.setGitVisTimeRange);
 
@@ -253,6 +256,8 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
           {activeHeatmapTab === 'calendar' && (
             <CalendarHeatmap
               data={commitStats?.dailyCommits}
+              status={commitStatsStatus}
+              loadingLabel={loadingLabel}
               year={
                 displayRange.since && displayRange.since.length >= 4
                   ? parseInt(displayRange.since.substring(0, 4), 10) || undefined
@@ -260,12 +265,20 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
               }
             />
           )}
-          {activeHeatmapTab === 'clock' && <ClockHeatmap data={commitStats?.hourlyDistribution} />}
+          {activeHeatmapTab === 'clock' && (
+            <ClockHeatmap
+              data={commitStats?.hourlyDistribution}
+              status={commitStatsStatus}
+              loadingLabel={loadingLabel}
+            />
+          )}
           {activeHeatmapTab === 'activity' && (
             <ContributorActivityHeatmap
               data={commitStats?.contributorActivity}
               since={displayRange.since}
               until={displayRange.until}
+              status={commitStatsStatus}
+              loadingLabel={loadingLabel}
             />
           )}
           {activeHeatmapTab === 'module' && (

@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
+import type { ChartStatus } from '@/components/charts/chart-phase';
 import {
   HeatmapChart,
   HeatmapCells,
@@ -7,6 +8,7 @@ import {
   HeatmapYAxis,
   HeatmapTooltip,
   buildHeatmapFillScale,
+  generateHeatmapSkeletonFromTarget,
   HEATMAP_DEFAULT_LEVEL_STYLES,
 } from '@/components/charts/heatmap';
 import { commitStatsToHeatmapColumns } from '../adapters/chartDataAdapters';
@@ -39,11 +41,15 @@ interface CalendarHeatmapProps {
   data?: { date: string; count: number }[];
   /** When set, expands data to all 365/366 days of the year so heatmap shows all weeks */
   year?: number;
+  status?: ChartStatus;
+  loadingLabel?: string;
 }
 
 export const CalendarHeatmap = React.memo(function CalendarHeatmap({
   data,
   year,
+  status = 'ready',
+  loadingLabel,
 }: CalendarHeatmapProps) {
   const { t, locale } = useTCopy();
   const expandedData = useMemo(() => {
@@ -71,6 +77,12 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
     }
     return columns;
   }, [expandedData, year]);
+  const skeletonData = useMemo(() => {
+    const cols = commitStatsToHeatmapColumns(
+      expandToFullYear([], year ?? new Date().getFullYear()),
+    );
+    return generateHeatmapSkeletonFromTarget(cols);
+  }, [year]);
   const dayLabels = useMemo(() => dayFmt(locale), [locale]);
 
   const defaultFillScale = useMemo(() => buildHeatmapFillScale(HEATMAP_DEFAULT_LEVEL_STYLES), []);
@@ -94,7 +106,9 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
 
   return (
     <HeatmapChart
-      data={heatmapData}
+      data={status === 'loading' ? skeletonData : heatmapData}
+      status={status}
+      loadingLabel={loadingLabel}
       locale={locale}
       rowLabels={dayLabels}
       margin={{ top: 24, right: 16, bottom: 0, left: 40 }}

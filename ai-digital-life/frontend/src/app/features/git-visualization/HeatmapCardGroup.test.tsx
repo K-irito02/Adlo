@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent, screen } from '@testing-library/react';
 import React from 'react';
 import { HeatmapCardGroup } from './HeatmapCardGroup';
 
@@ -85,6 +85,7 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisHeatmapTabActivity: 'Activity',
       gitVisHeatmapTabModule: 'Module',
       gitVisHeatmapNav: 'Heatmap type',
+      gitVisLoadingChart: 'Loading chart...',
     },
     formatT: vi.fn(),
   })),
@@ -158,5 +159,10 @@ describe('HeatmapCardGroup', () => {
     const desc = container.querySelector('.adl-git-vis__card-desc');
     expect(desc).toBeTruthy();
     expect(desc?.textContent).toBe('desc1');
+  });
+
+  it('passes commitStatsStatus loading to heatmap tabs', { timeout: 30000 }, () => {
+    render(<HeatmapCardGroup commitStatsStatus="loading" />);
+    expect(screen.getAllByText('Loading chart...').length).toBeGreaterThan(0);
   });
 });

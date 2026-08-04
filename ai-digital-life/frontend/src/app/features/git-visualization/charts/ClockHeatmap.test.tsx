@@ -68,4 +68,9 @@ describe('ClockHeatmap', () => {
     const { container } = render(<ClockHeatmap data={sampleData} />);
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
+
+  it('shows skeleton + loading label when status is loading', () => {
+    const { getByText } = render(<ClockHeatmap status="loading" loadingLabel="Loading chart..." />);
+    expect(getByText('Loading chart...')).toBeInTheDocument();
+  });
 });
