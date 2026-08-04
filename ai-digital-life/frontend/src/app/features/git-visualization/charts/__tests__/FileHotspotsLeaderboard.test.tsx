@@ -361,4 +361,14 @@ describe('FileHotspotsLeaderboard', () => {
     fireEvent.click(pathCopy);
     expect(writeText).toHaveBeenCalledWith('src/core/engine.ts');
   });
+
+  it('shows skeleton rows + loading label when status is loading', () => {
+    const { container, getByText } = render(
+      <FileHotspotsLeaderboard status="loading" loadingLabel="Loading chart..." />,
+    );
+    expect(getByText('Loading chart...')).toBeInTheDocument();
+    expect(
+      container.querySelectorAll('.adl-file-hotspots-ranking__skeleton-row').length,
+    ).toBeGreaterThan(0);
+  });
 });

@@ -1745,3 +1745,66 @@
     background-position: -200% 0;
   }
 }
+
+/* ── File hotspots loading skeleton ── */
+
+.adl-file-hotspots-ranking__skeleton-body {
+  flex: 1;
+  overflow: hidden;
+}
+
+.adl-file-hotspots-ranking__skeleton-header-cell,
+.adl-file-hotspots-ranking__skeleton-cell {
+  background: linear-gradient(
+    90deg,
+    var(--surface-secondary) 25%,
+    var(--surface-hover) 50%,
+    var(--surface-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: adl-git-vis-sweep 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+  height: 12px;
+}
+
+.adl-file-hotspots-ranking__skeleton-header-cell--rank {
+  width: 32px;
+  margin: 0 12px;
+}
+
+.adl-file-hotspots-ranking__skeleton-header-cell--name {
+  width: 30%;
+}
+
+.adl-file-hotspots-ranking__skeleton-header-cell--path {
+  width: 40%;
+}
+
+.adl-file-hotspots-ranking__skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.adl-file-hotspots-ranking__skeleton-cell--rank {
+  width: 24px;
+  flex-shrink: 0;
+}
+
+.adl-file-hotspots-ranking__skeleton-cell--name {
+  width: 30%;
+  flex-shrink: 0;
+}
+
+.adl-file-hotspots-ranking__skeleton-cell--path {
+  width: 40%;
+  flex-shrink: 0;
+}
+
+.adl-file-hotspots-ranking__skeleton-cell--num {
+  width: 48px;
+  flex-shrink: 0;
+  margin-left: auto;
+}

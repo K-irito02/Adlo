@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { GitVisFileHotspots } from '@/shared/ipc/workspace';
+import type { ChartStatus } from '@/components/charts/chart-phase';
+import { ChartLoadingLabel } from '@/components/charts/chart-loading-label';
 import { useTCopy } from '@i18n/useTCopy';
 import { cn } from '@/lib/utils';
 import { CopyButton } from '@components/CopyButton';
@@ -15,11 +17,45 @@ const ROW_HEIGHT = 32;
 const OVERSCAN = 5;
 const MAX_HEIGHT = 320;
 const HEADER_HEIGHT = 32;
+const SKELETON_ROW_COUNT = 8;
+
+const FileHotspotsLoading = React.memo(function FileHotspotsLoading({
+  label,
+}: {
+  label?: string;
+}) {
+  return (
+    <div className="adl-file-hotspots-ranking adl-git-vis__chart-loading">
+      <div className="adl-file-hotspots-ranking__header adl-file-hotspots-ranking__header--skeleton">
+        <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--rank" />
+        <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--name" />
+        <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--path" />
+      </div>
+      <div className="adl-file-hotspots-ranking__skeleton-body">
+        {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => (
+          <div
+            key={i}
+            className="adl-file-hotspots-ranking__skeleton-row"
+            style={{ height: 32 }}
+          >
+            <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--rank" />
+            <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--name" />
+            <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--path" />
+            <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--num" />
+          </div>
+        ))}
+      </div>
+      <ChartLoadingLabel text={label} />
+    </div>
+  );
+});
 
 export interface FileHotspotsLeaderboardProps {
   data?: GitVisFileHotspots;
   /** Outer scroll container (e.g. the git-vis page) whose bottom is revealed when the chart grows. */
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
+  status?: ChartStatus;
+  loadingLabel?: string;
 }
 
 interface LeaderboardRow {
@@ -92,6 +128,8 @@ function formatNumber(n: number): string {
 export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboard({
   data,
   scrollContainerRef,
+  status = 'ready',
+  loadingLabel,
 }: FileHotspotsLeaderboardProps) {
   const { t } = useTCopy();
   const state = useFileHotspotsState();
@@ -299,6 +337,10 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
   const offsetY = startIndex * ROW_HEIGHT;
   const viewHeight = Math.min(MAX_HEIGHT, totalHeight + HEADER_HEIGHT);
   viewHeightRef.current = viewHeight;
+
+  if (status === 'loading') {
+    return <FileHotspotsLoading label={loadingLabel} />;
+  }
 
   return (
     <div className="adl-file-hotspots-ranking">
