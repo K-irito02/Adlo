@@ -176,6 +176,13 @@ describe('CommitTimeline', () => {
       expect(x + width).toBeLessThanOrEqual(innerWidth);
     }
   });
+
+  it('shows loading skeleton when status is loading', () => {
+    const { getByText } = render(
+      <CommitTimeline status="loading" loadingLabel="Loading chart..." />,
+    );
+    expect(getByText('Loading chart...')).toBeInTheDocument();
+  });
 });
 
 describe('commitCountLabelFor', () => {

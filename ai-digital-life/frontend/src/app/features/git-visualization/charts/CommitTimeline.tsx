@@ -5,6 +5,7 @@ import { SeriesBar } from '@/components/charts/series-bar';
 import { Line } from '@/components/charts/line';
 import { Grid } from '@/components/charts/grid';
 import { ChartTooltip } from '@/components/charts/tooltip/chart-tooltip';
+import type { ChartStatus } from '@/components/charts/chart-phase';
 import {
   ChartBrushLayout,
   ChartBrush,
@@ -24,9 +25,15 @@ import {
 
 interface CommitTimelineProps {
   data?: { days: { date: string; count: number; cumulative: number }[] };
+  status?: ChartStatus;
+  loadingLabel?: string;
 }
 
-export const CommitTimeline = React.memo(function CommitTimeline({ data }: CommitTimelineProps) {
+export const CommitTimeline = React.memo(function CommitTimeline({
+  data,
+  status = 'ready',
+  loadingLabel,
+}: CommitTimelineProps) {
   const days = useMemo(() => data?.days ?? [], [data]);
 
   const dayRows = useMemo(() => aggregateCommitTimeline(days, 'day'), [days]);
@@ -62,6 +69,25 @@ export const CommitTimeline = React.memo(function CommitTimeline({ data }: Commi
     }
     return [new Date(stripData[0].date + 'T00:00:00Z'), fullRange.end];
   }, [stripData, fullRange.end]);
+
+  if (status === 'loading') {
+    return (
+      <div className="adl-git-vis__chart" style={{ position: 'relative', overflow: 'hidden' }}>
+        <ComposedChart
+          data={[]}
+          xDataKey="date"
+          status="loading"
+          loadingLabel={loadingLabel}
+          margin={{ top: 20, right: 60, bottom: 40, left: 60 }}
+          style={{ maxHeight: 280 }}
+        >
+          <SeriesBar dataKey="count" yAxisId="right" fill="var(--chart-line-primary)" radius={4} />
+          <Line dataKey="cumulative" stroke="var(--chart-line-secondary)" loadingStyle="sweep" />
+          <Grid />
+        </ComposedChart>
+      </div>
+    );
+  }
 
   if (dayRows.length === 0) {
     return (
