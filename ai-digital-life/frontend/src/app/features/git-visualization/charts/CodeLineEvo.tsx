@@ -2,6 +2,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { readJson, writeJson } from '@stores/shared';
+import { LineChartLoading } from '@/components/charts/line-chart-loading';
 import { LineChart, Line } from '@/components/charts/line-chart';
 import { Area } from '@/components/charts/area';
 import { Grid } from '@/components/charts/grid';
@@ -146,17 +147,7 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
   if (status === 'loading') {
     return (
       <div className="adl-git-vis__chart" style={{ position: 'relative', overflow: 'hidden' }}>
-        <LineChart
-          data={[]}
-          xDataKey="date"
-          status="loading"
-          loadingLabel={loadingLabel}
-          margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
-          style={{ maxHeight: 280 }}
-        >
-          <Line dataKey="net" loadingStyle="sweep" showHighlight={false} />
-          <Grid highlightRowValues={[0]} />
-        </LineChart>
+        <LineChartLoading label={loadingLabel} margin={{ top: 20, right: 20, bottom: 40, left: 60 }} />
       </div>
     );
   }
