@@ -61,15 +61,14 @@
 
 **当前**：`<HeatmapChart data={skeletonData} status="loading" loadingLabel={...}>` + 现有子组件
 
-**改为**：使用官方 `<HeatmapChartLoading data={目标列} label={loadingLabel} />`
-- `data` 传目标列（日历全年 / 时钟 24×7 / 活动月份范围），内部 `generateHeatmapSkeletonFromTarget` 生成骨架
-- shimmer 单元格 + 中央 `ChartLoadingLabel`
-- 保留各组件既有 `margin`/`binSize`/`gap` 配置
+**改为**：直接渲染官方 `HeatmapChart status="loading"`，装载数据用 `generateHeatmapSkeletonFromTarget(skeletonTarget)` 生成骨架网格（与官方 `HeatmapChartLoading` 内部逻辑一致）。
 
-**各组件目标列**：
+**注**：本地 `HeatmapChartLoading`（`@/components/charts/heatmap`）仅支持 `data/xDomain/margin/gap/cornerRadius/label/className`，**不支持** `locale`/`rowLabels`/`binSize`。为保留星期标签与网格尺寸，装载状态直接渲染 `HeatmapChart status="loading"`（接受完整 props），并显式用 `generateHeatmapSkeletonFromTarget` 生成骨架。
+
+**各组件骨架目标列**：
 - CalendarHeatmap：`commitStatsToHeatmapColumns(expandToFullYear([], year ?? 当前年))`
 - ClockHeatmap：`hourlyDistributionToHeatmapColumns(expandToFullGrid([]), dayLabels)`
-- ContributorActivityHeatmap：`contributorActivityToHeatmapColumns([{author:'',periods:months}], since, until)`
+- ContributorActivityHeatmap：`contributorActivityToHeatmapColumns([{author:'',periods:months}], since, until)`（保留 `buildSkeletonActivityPeriods` 生成月份范围）
 
 ### 4. 分支图（BranchGraph）/ 排行榜（FileHotspotsLeaderboard）
 

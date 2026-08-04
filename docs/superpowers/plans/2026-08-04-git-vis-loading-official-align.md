@@ -342,7 +342,7 @@ git commit -m "feat(git-vis): align CommitTimeline loading with official gray ba
 
 ---
 
-## Task 4: 热力图改用 HeatmapChartLoading
+## Task 4: 热力图装载对齐官方 HeatmapChartLoading 骨架逻辑
 
 **Files:**
 - Modify: `ai-digital-life/frontend/src/app/features/git-visualization/charts/CalendarHeatmap.tsx`
@@ -351,8 +351,8 @@ git commit -m "feat(git-vis): align CommitTimeline loading with official gray ba
 - Test: 对应三个 `.test.tsx`
 
 **Interfaces:**
-- Consumes: `HeatmapChartLoading` from `@/components/charts/heatmap`
-- Produces: 三个热力图组件 loading 时渲染 `HeatmapChartLoading`；删除 `buildSkeletonActivityPeriods`
+- Consumes: `generateHeatmapSkeletonFromTarget` from `@/components/charts/heatmap`
+- Produces: 三个热力图组件 loading 时渲染 `HeatmapChart status="loading"` + `generateHeatmapSkeletonFromTarget(skeletonTarget)` 骨架（与官方 `HeatmapChartLoading` 内部逻辑一致）；保留 `buildSkeletonActivityPeriods`
 
 ### 4a: CalendarHeatmap
 
@@ -365,11 +365,13 @@ git commit -m "feat(git-vis): align CommitTimeline loading with official gray ba
 Run: `pnpm --dir ai-digital-life/frontend exec vitest run src/app/features/git-visualization/charts/CalendarHeatmap.test.tsx`
 Expected: PASS
 
-- [ ] **Step 3: 改用 HeatmapChartLoading**
+- [ ] **Step 3: 改用官方 HeatmapChartLoading 骨架逻辑**
 
 在 `CalendarHeatmap.tsx`：
 
-修改 import：
+**注意**：本地 `HeatmapChartLoading`（`@/components/charts/heatmap`）仅支持 `data/xDomain/margin/gap/cornerRadius/label/className`，**不支持** `locale`/`rowLabels`/`binSize`。为保留完整图表配置（星期标签/网格尺寸），装载状态直接渲染官方 `HeatmapChart status="loading"`，并显式用 `generateHeatmapSkeletonFromTarget(skeletonTarget)` 生成骨架（与官方 `HeatmapChartLoading` 内部逻辑一致）。
+
+`generateHeatmapSkeletonFromTarget` 已在现有 import 中，保持 import 不变：
 
 ```tsx
 import {
@@ -384,39 +386,13 @@ import {
 } from '@/components/charts/heatmap';
 ```
 
-改为：
-
-```tsx
-import {
-  HeatmapChart,
-  HeatmapCells,
-  HeatmapChartLoading,
-  HeatmapXAxis,
-  HeatmapYAxis,
-  HeatmapTooltip,
-  buildHeatmapFillScale,
-  HEATMAP_DEFAULT_LEVEL_STYLES,
-} from '@/components/charts/heatmap';
-```
-
-删除 `skeletonData` useMemo：
-
-```tsx
-  const skeletonData = useMemo(() => {
-    const cols = commitStatsToHeatmapColumns(
-      expandToFullYear([], year ?? new Date().getFullYear()),
-    );
-    return generateHeatmapSkeletonFromTarget(cols);
-  }, [year]);
-```
-
-在 `customFillScale`/`formatLabel` 定义后、`return` 前新增骨架目标列：
+将 `skeletonData` useMemo 改为骨架目标列（保留 `generateHeatmapSkeletonFromTarget` 调用，改为独立计算）：
 
 ```tsx
   const skeletonTarget = useMemo(() => {
-    const cols = commitStatsToHeatmapColumns(expandToFullYear([], year ?? new Date().getFullYear()));
-    return cols;
+    return commitStatsToHeatmapColumns(expandToFullYear([], year ?? new Date().getFullYear()));
   }, [year]);
+  const skeletonData = useMemo(() => generateHeatmapSkeletonFromTarget(skeletonTarget), [skeletonTarget]);
 ```
 
 将 `return` 改为：
@@ -424,14 +400,21 @@ import {
 ```tsx
   if (status === 'loading') {
     return (
-      <HeatmapChartLoading
-        data={skeletonTarget}
-        label={loadingLabel}
+      <HeatmapChart
+        data={skeletonData}
+        status="loading"
+        loadingLabel={loadingLabel}
         locale={locale}
         rowLabels={dayLabels}
         margin={{ top: 24, right: 16, bottom: 0, left: 40 }}
         gap={2}
-      />
+        animate={false}
+        fillScale={defaultFillScale}
+      >
+        <HeatmapCells cornerRadius={2} />
+        <HeatmapXAxis labelFormat="numeric" />
+        <HeatmapYAxis tickFilter="even" labelFormat="full" />
+      </HeatmapChart>
     );
   }
 
@@ -455,7 +438,7 @@ import {
   );
 ```
 
-（`HeatmapChartLoading` 内部渲染 `HeatmapChart` + `HeatmapCells interactive={false}` + `HeatmapXAxis` + `HeatmapYAxis`，并用 `generateHeatmapSkeletonFromTarget(data)` 生成骨架网格。注意 `HeatmapChartLoading` 的 `data` 参数是**目标列** `HeatmapColumn[]`，非原始数据。）
+（`generateHeatmapSkeletonFromTarget(skeletonTarget)` 生成与官方 `HeatmapChartLoading` 相同的骨架网格：保留目标网格形状、count 全 0。loading 时 `HeatmapChart status="loading"` 显示骨架单元格 shimmer + `loadingLabel` 文字。装载骨架不含 Tooltip（避免交互）。）
 
 - [ ] **Step 4: 运行验证通过**
 
@@ -468,42 +451,34 @@ Expected: PASS
 
 在 `ClockHeatmap.test.tsx`，现有 loading 用例保持。
 
-- [ ] **Step 6: 改用 HeatmapChartLoading**
+- [ ] **Step 6: 改用官方 HeatmapChartLoading 骨架逻辑**
 
 在 `ClockHeatmap.tsx`：
 
-修改 import（同 4a）：
+（同 4a：`HeatmapChartLoading` 不支持 `locale`/`rowLabels`/`binSize`，故直接渲染 `HeatmapChart status="loading"` + `generateHeatmapSkeletonFromTarget`。）
+
+`generateHeatmapSkeletonFromTarget` 已在现有 import 中，保持 import 不变：
 
 ```tsx
 import {
   HeatmapChart,
   HeatmapCells,
-  HeatmapChartLoading,
   HeatmapXAxis,
   HeatmapYAxis,
   HeatmapTooltip,
   buildHeatmapFillScale,
+  generateHeatmapSkeletonFromTarget,
   HEATMAP_DEFAULT_LEVEL_STYLES,
 } from '@/components/charts/heatmap';
 ```
 
-删除 `skeletonData` useMemo：
-
-```tsx
-  const skeletonData = useMemo(() => {
-    const full = expandToFullGrid([]);
-    const cols = hourlyDistributionToHeatmapColumns(full, dayLabels);
-    return generateHeatmapSkeletonFromTarget(cols);
-  }, [dayLabels]);
-```
-
-新增骨架目标列（放在 `heatmapData` 之后）：
+将 `skeletonData` useMemo 改为骨架目标列：
 
 ```tsx
   const skeletonTarget = useMemo(() => {
-    const full = expandToFullGrid([]);
-    return hourlyDistributionToHeatmapColumns(full, dayLabels);
+    return hourlyDistributionToHeatmapColumns(expandToFullGrid([]), dayLabels);
   }, [dayLabels]);
+  const skeletonData = useMemo(() => generateHeatmapSkeletonFromTarget(skeletonTarget), [skeletonTarget]);
 ```
 
 将 `return` 改为：
@@ -511,15 +486,22 @@ import {
 ```tsx
   if (status === 'loading') {
     return (
-      <HeatmapChartLoading
-        data={skeletonTarget}
-        label={loadingLabel}
+      <HeatmapChart
+        data={skeletonData}
+        status="loading"
+        loadingLabel={loadingLabel}
         locale={locale}
         rowLabels={dayLabels}
         margin={{ top: 24, right: 16, bottom: 0, left: 40 }}
         gap={2}
         binSize={30}
-      />
+        animate={false}
+        fillScale={customFillScale}
+      >
+        <HeatmapCells cornerRadius={2} />
+        <HeatmapXAxis tickEvery={2} />
+        <HeatmapYAxis tickFilter="even" />
+      </HeatmapChart>
     );
   }
 
@@ -544,7 +526,7 @@ import {
   );
 ```
 
-（`HeatmapChartLoading` 的 `binSize` prop 用于网格尺寸。）
+（`generateHeatmapSkeletonFromTarget(skeletonTarget)` 生成 24×7 全零骨架网格。）
 
 - [ ] **Step 7: 运行验证通过**
 
@@ -557,52 +539,29 @@ Expected: PASS
 
 在 `ContributorActivityHeatmap.test.tsx`，现有 loading 用例保持。
 
-- [ ] **Step 9: 改用 HeatmapChartLoading + 删除 buildSkeletonActivityPeriods**
+- [ ] **Step 9: 改用官方 HeatmapChartLoading 骨架逻辑**
 
 在 `ContributorActivityHeatmap.tsx`：
 
-修改 import：
+（同 4a/4b：`HeatmapChartLoading` 不支持 `locale`/`rowLabels`/`binSize`，故直接渲染 `HeatmapChart status="loading"` + `generateHeatmapSkeletonFromTarget`。）
+
+`generateHeatmapSkeletonFromTarget` 已在现有 import 中，保持 import 不变：
 
 ```tsx
 import {
   HeatmapChart,
   HeatmapCells,
-  HeatmapChartLoading,
   HeatmapXAxis,
   HeatmapYAxis,
   HeatmapTooltip,
   HeatmapYearHint,
   buildHeatmapFillScale,
+  generateHeatmapSkeletonFromTarget,
   HEATMAP_DEFAULT_LEVEL_STYLES,
 } from '@/components/charts/heatmap';
 ```
 
-删除 `skeletonData` useMemo 和文件末尾的 `buildSkeletonActivityPeriods` 函数：
-
-```tsx
-  const skeletonData = useMemo(() => {
-    const months = buildSkeletonActivityPeriods(since, until);
-    const cols = contributorActivityToHeatmapColumns(
-      [{ author: '', authorEmail: '', totalCommits: 0, periods: months }],
-      since,
-      until,
-    );
-    return generateHeatmapSkeletonFromTarget(cols.columns);
-  }, [since, until]);
-```
-
-以及文件末尾：
-
-```tsx
-function buildSkeletonActivityPeriods(
-  since?: string,
-  until?: string,
-): { period: string; month: number; count: number }[] {
-  ...
-}
-```
-
-新增骨架目标列（放在 `customFillScale` 之后）：
+将 `skeletonData` useMemo 改为骨架目标列 + 骨架数据：
 
 ```tsx
   const skeletonTarget = useMemo(() => {
@@ -613,6 +572,7 @@ function buildSkeletonActivityPeriods(
       until,
     ).columns;
   }, [since, until]);
+  const skeletonData = useMemo(() => generateHeatmapSkeletonFromTarget(skeletonTarget), [skeletonTarget]);
 ```
 
 保留 `buildSkeletonActivityPeriods` 函数（骨架目标列仍需要它生成月份范围）。
@@ -622,15 +582,23 @@ function buildSkeletonActivityPeriods(
 ```tsx
   if (status === 'loading') {
     return (
-      <HeatmapChartLoading
-        data={skeletonTarget}
-        label={loadingLabel}
+      <HeatmapChart
+        data={skeletonData}
+        status="loading"
+        loadingLabel={loadingLabel}
         locale={locale}
         rowLabels={rowLabels}
         margin={{ top: 42, right: 16, bottom: 0, left: 80 }}
         gap={2}
         binSize={22}
-      />
+        animate={false}
+        fillScale={customFillScale}
+      >
+        <HeatmapCells cornerRadius={2} />
+        <HeatmapXAxis top={18} tickEvery={2} />
+        <HeatmapYearHint />
+        <HeatmapYAxis tickFilter="all" />
+      </HeatmapChart>
     );
   }
 
