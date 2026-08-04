@@ -1683,7 +1683,7 @@
   opacity: 0;
 }
 
-/* ── Loading skeleton (bklit-ui aligned: CSS shimmer rows + centered Loading label) ── */
+/* ── Loading skeleton (static gray rows + centered Loading label) ── */
 
 .adl-git-vis__chart-loading {
   position: relative;
@@ -1713,8 +1713,6 @@
     var(--surface-hover) 50%,
     var(--surface-secondary) 75%
   );
-  background-size: 200% 100%;
-  animation: adl-git-vis-sweep 1.5s ease-in-out infinite;
   border-radius: var(--radius-sm);
   height: 12px;
 }
@@ -1737,15 +1735,6 @@
   max-width: 80px;
 }
 
-@keyframes adl-git-vis-sweep {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
 /* ── File hotspots loading skeleton ── */
 
 .adl-file-hotspots-ranking__skeleton-body {
@@ -1761,8 +1750,6 @@
     var(--surface-hover) 50%,
     var(--surface-secondary) 75%
   );
-  background-size: 200% 100%;
-  animation: adl-git-vis-sweep 1.5s ease-in-out infinite;
   border-radius: var(--radius-sm);
   height: 12px;
 }
@@ -1807,13 +1794,4 @@
   width: 48px;
   flex-shrink: 0;
   margin-left: auto;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .adl-branch-graph__skeleton-lanes,
-  .adl-branch-graph__skeleton-cell,
-  .adl-file-hotspots-ranking__skeleton-header-cell,
-  .adl-file-hotspots-ranking__skeleton-cell {
-    animation: none;
-  }
 }
