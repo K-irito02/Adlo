@@ -1682,3 +1682,66 @@
   .adl-file-hotspots-ranking__folder-icon {
   opacity: 0;
 }
+
+/* ── Loading skeleton (bklit-ui aligned: CSS shimmer rows + centered Loading label) ── */
+
+.adl-git-vis__chart-loading {
+  position: relative;
+  min-height: 360px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.adl-branch-graph__skeleton {
+  display: flex;
+  flex-direction: column;
+}
+
+.adl-branch-graph__skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.adl-branch-graph__skeleton-lanes,
+.adl-branch-graph__skeleton-cell {
+  background: linear-gradient(
+    90deg,
+    var(--surface-secondary) 25%,
+    var(--surface-hover) 50%,
+    var(--surface-secondary) 75%
+  );
+  background-size: 200% 100%;
+  animation: adl-git-vis-sweep 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+  height: 12px;
+}
+
+.adl-branch-graph__skeleton-lanes {
+  width: 48px;
+  flex-shrink: 0;
+}
+
+.adl-branch-graph__skeleton-cell {
+  flex: 1;
+  max-width: 120px;
+}
+
+.adl-branch-graph__skeleton-cell--wide {
+  max-width: 220px;
+}
+
+.adl-branch-graph__skeleton-cell--medium {
+  max-width: 80px;
+}
+
+@keyframes adl-git-vis-sweep {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}

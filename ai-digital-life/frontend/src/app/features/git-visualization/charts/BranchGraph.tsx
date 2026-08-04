@@ -12,6 +12,8 @@ import { IconFileText } from '@icons/status';
 import type { ColumnInfo } from '../hooks/useLaneAssignment';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
 import type { CommitNode, CommitEdge } from '../types/gitGraph';
+import type { ChartStatus } from '@/components/charts/chart-phase';
+import { ChartLoadingLabel } from '@/components/charts/chart-loading-label';
 
 // ── Constants ──
 const emptyArr: never[] = [];
@@ -964,13 +966,37 @@ const TagRow = React.memo(function TagRow({
   );
 });
 
+// ── Loading skeleton (bklit-ui aligned: CSS shimmer rows + centered Loading label) ──
+
+const SKELETON_ROW_COUNT = 10;
+
+const BranchGraphLoading = React.memo(function BranchGraphLoading({ label }: { label?: string }) {
+  return (
+    <div className="adl-git-vis__chart adl-git-vis__chart-loading" style={{ overflowX: 'hidden' }}>
+      <div className="adl-branch-graph__skeleton">
+        {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => (
+          <div key={i} className="adl-branch-graph__skeleton-row" style={{ height: 36 }}>
+            <span className="adl-branch-graph__skeleton-lanes" />
+            <span className="adl-branch-graph__skeleton-cell adl-branch-graph__skeleton-cell--wide" />
+            <span className="adl-branch-graph__skeleton-cell" />
+            <span className="adl-branch-graph__skeleton-cell adl-branch-graph__skeleton-cell--medium" />
+          </div>
+        ))}
+      </div>
+      <ChartLoadingLabel text={label} />
+    </div>
+  );
+});
+
 // ── Main component ──
 
 interface BranchGraphProps {
   data?: RawBranchGraph;
+  status?: ChartStatus;
+  loadingLabel?: string;
 }
 
-export function BranchGraph({ data }: BranchGraphProps) {
+export function BranchGraph({ data, status = 'ready', loadingLabel }: BranchGraphProps) {
   // Design spec for tag hover effects (Issue 1) and head annotation (Issue 2):
   // docs/superpowers/specs/2026-07-29-branch-graph-tag-hover-and-head-annotation-design.md
   const { t } = useTCopy();
@@ -1300,6 +1326,10 @@ export function BranchGraph({ data }: BranchGraphProps) {
   const onRowHover = useCallback((id: string | null) => {
     setHoveredRowId(id);
   }, []);
+
+  if (status === 'loading') {
+    return <BranchGraphLoading label={loadingLabel} />;
+  }
 
   if (!hasData) {
     return <div className="adl-git-vis__chart" ref={chartContainerRef} />;

@@ -78,6 +78,14 @@ vi.mock('@i18n/useTCopy', () => ({
 }));
 
 describe('BranchGraph', () => {
+  it('shows skeleton rows + loading label when status is loading', () => {
+    const { container, getByText } = render(
+      <BranchGraph status="loading" loadingLabel="Loading chart..." />,
+    );
+    expect(getByText('Loading chart...')).toBeInTheDocument();
+    expect(container.querySelectorAll('.adl-branch-graph__skeleton-row').length).toBeGreaterThan(0);
+  });
+
   it('renders commit rows', () => {
     const { container } = render(<BranchGraph data={mockData} />);
     const rows = container.querySelectorAll('.adl-branch-graph__row');
