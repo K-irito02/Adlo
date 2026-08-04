@@ -109,7 +109,7 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({
         margin={{ top: 24, right: 16, bottom: 0, left: 40 }}
         gap={2}
         binSize={30}
-        animate={false}
+        animate={true}
         fillScale={customFillScale}
       >
         <HeatmapCells cornerRadius={2} />

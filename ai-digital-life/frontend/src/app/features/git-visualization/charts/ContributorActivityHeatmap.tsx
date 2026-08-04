@@ -76,7 +76,7 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
         margin={{ top: 42, right: 16, bottom: 0, left: 80 }}
         gap={2}
         binSize={22}
-        animate={false}
+        animate={true}
         fillScale={customFillScale}
       >
         <HeatmapCells cornerRadius={2} />

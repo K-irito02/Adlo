@@ -147,10 +147,12 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
   if (status === 'loading') {
     return (
       <div className="adl-git-vis__chart" style={{ position: 'relative', overflow: 'hidden' }}>
-        <LineChartLoading
-          label={loadingLabel}
-          margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
-        />
+        <div style={{ maxHeight: 280, overflow: 'hidden' }}>
+          <LineChartLoading
+            label={loadingLabel}
+            margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
+          />
+        </div>
       </div>
     );
   }
