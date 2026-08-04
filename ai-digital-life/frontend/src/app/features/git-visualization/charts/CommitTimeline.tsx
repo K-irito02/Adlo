@@ -266,9 +266,9 @@ const CommitTimelineMain = React.memo(function CommitTimelineMain({
 });
 
 /**
- * 官方灰色骨架柱（bklit-ui BarLoadingSkeleton）：var(--chart-foreground) + 0.45 透明度
- * + 12 柱 + 0.7 barFraction，带 sweep 扫视。通过 ChartContext 读取 inner 尺寸，
- * 渲染在 ComposedChart 的 loading 状态下。
+ * Official gray bar skeleton (bklit-ui BarLoadingSkeleton): var(--chart-foreground) + 0.45
+ * opacity, 12 bars, 0.7 barFraction, with a sweep shimmer. Reads inner dimensions
+ * from ChartContext and renders inside ComposedChart's loading state.
  */
 const ComposedBarSkeleton = React.memo(function ComposedBarSkeleton() {
   const { innerWidth, innerHeight } = useChartStable();

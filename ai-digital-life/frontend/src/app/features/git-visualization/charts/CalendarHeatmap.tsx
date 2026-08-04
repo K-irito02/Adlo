@@ -77,9 +77,10 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
     }
     return columns;
   }, [expandedData, year]);
+  const skeletonYear = year ?? new Date().getFullYear();
   const skeletonTarget = useMemo(() => {
-    return commitStatsToHeatmapColumns(expandToFullYear([], year ?? new Date().getFullYear()));
-  }, [year]);
+    return commitStatsToHeatmapColumns(expandToFullYear([], skeletonYear));
+  }, [skeletonYear]);
   const skeletonData = useMemo(
     () => generateHeatmapSkeletonFromTarget(skeletonTarget),
     [skeletonTarget],

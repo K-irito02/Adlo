@@ -113,8 +113,13 @@ function buildSkeletonActivityPeriods(
   since?: string,
   until?: string,
 ): { period: string; month: number; count: number }[] {
-  const end = until ? new Date(until) : new Date();
-  const start = since ? new Date(since) : new Date(end.getFullYear(), end.getMonth() - 11, 1);
+  // 'YYYY-MM-DD' alone is parsed as UTC per spec; +'T00:00:00' forces local-time
+  // parsing so the skeleton months align with the real since…until range
+  // (matching commitStatsToHeatmapColumns in chartDataAdapters).
+  const end = until ? new Date(until + 'T00:00:00') : new Date();
+  const start = since
+    ? new Date(since + 'T00:00:00')
+    : new Date(end.getFullYear(), end.getMonth() - 11, 1);
   const periods: { period: string; month: number; count: number }[] = [];
   const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
   while (cursor <= end) {
