@@ -86,6 +86,24 @@ describe('BranchGraph', () => {
     expect(container.querySelectorAll('.adl-branch-graph__skeleton-row').length).toBeGreaterThan(0);
   });
 
+  it('mirrors the ready structure while loading: tag row + lanes panel + table header', () => {
+    const { container } = render(
+      <BranchGraph status="loading" loadingLabel="Loading chart..." />,
+    );
+    expect(container.querySelectorAll('.adl-branch-graph__skeleton-tag').length).toBeGreaterThan(0);
+    expect(
+      container.querySelectorAll('.adl-branch-graph__skeleton-lane-row').length,
+    ).toBeGreaterThan(0);
+    expect(
+      container.querySelector('.adl-branch-graph__skeleton-table-header'),
+    ).toBeInTheDocument();
+    // Table header mirrors the ready four columns.
+    expect(
+      container.querySelectorAll('.adl-branch-graph__skeleton-table-header .adl-branch-graph__skeleton-cell')
+        .length,
+    ).toBe(4);
+  });
+
   it('renders commit rows', () => {
     const { container } = render(<BranchGraph data={mockData} />);
     const rows = container.querySelectorAll('.adl-branch-graph__row');

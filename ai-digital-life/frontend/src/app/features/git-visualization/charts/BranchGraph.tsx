@@ -973,15 +973,46 @@ const SKELETON_ROW_COUNT = 10;
 const BranchGraphLoading = React.memo(function BranchGraphLoading({ label }: { label?: string }) {
   return (
     <div className="adl-git-vis__chart adl-git-vis__chart-loading" style={{ overflowX: 'hidden' }}>
-      <div className="adl-branch-graph__skeleton">
-        {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => (
-          <div key={i} className="adl-branch-graph__skeleton-row" style={{ height: 36 }}>
-            <span className="adl-branch-graph__skeleton-lanes" />
-            <span className="adl-branch-graph__skeleton-cell adl-branch-graph__skeleton-cell--wide" />
-            <span className="adl-branch-graph__skeleton-cell" />
-            <span className="adl-branch-graph__skeleton-cell adl-branch-graph__skeleton-cell--medium" />
-          </div>
+      {/* Mirrors the ready TagRow: a row of colored branch tag pills. */}
+      <div className="adl-branch-graph__skeleton-tags">
+        {Array.from({ length: 4 }, (_, i) => (
+          <span
+            key={i}
+            className="adl-branch-graph__skeleton-tag"
+            style={{ width: `${46 + (i % 3) * 18}px` }}
+          />
         ))}
+      </div>
+      {/* Mirrors the ready body: lanes panel (泳道) + table header + rows. */}
+      <div className="adl-branch-graph__skeleton-body">
+        <div className="adl-branch-graph__skeleton-lanes-panel">
+          {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => (
+            <div key={i} className="adl-branch-graph__skeleton-lane-row" style={{ height: 36 }}>
+              {Array.from({ length: 3 }, (_, j) => (
+                <span
+                  key={j}
+                  className={`adl-branch-graph__skeleton-lane${j === 1 ? ' adl-branch-graph__skeleton-lane--active' : ''}`}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="adl-branch-graph__skeleton-table">
+          <div className="adl-branch-graph__skeleton-table-header">
+            <span className="adl-branch-graph__skeleton-cell adl-branch-graph__skeleton-cell--hash" />
+            <span className="adl-branch-graph__skeleton-cell adl-branch-graph__skeleton-cell--message" />
+            <span className="adl-branch-graph__skeleton-cell adl-branch-graph__skeleton-cell--author" />
+            <span className="adl-branch-graph__skeleton-cell adl-branch-graph__skeleton-cell--date" />
+          </div>
+          {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => (
+            <div key={i} className="adl-branch-graph__skeleton-row" style={{ height: 36 }}>
+              <span className="adl-branch-graph__skeleton-cell adl-branch-graph__skeleton-cell--hash" />
+              <span className="adl-branch-graph__skeleton-cell adl-branch-graph__skeleton-cell--message" />
+              <span className="adl-branch-graph__skeleton-cell adl-branch-graph__skeleton-cell--author" />
+              <span className="adl-branch-graph__skeleton-cell adl-branch-graph__skeleton-cell--date" />
+            </div>
+          ))}
+        </div>
       </div>
       <ChartLoadingLabel text={label} />
     </div>

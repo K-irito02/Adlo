@@ -371,4 +371,16 @@ describe('FileHotspotsLeaderboard', () => {
       container.querySelectorAll('.adl-file-hotspots-ranking__skeleton-row').length,
     ).toBeGreaterThan(0);
   });
+
+  it('mirrors the ready toolbar with a mode-toggle skeleton while loading', () => {
+    const { container } = render(
+      <FileHotspotsLeaderboard status="loading" loadingLabel="Loading chart..." />,
+    );
+    expect(
+      container.querySelector('.adl-file-hotspots-ranking__skeleton-mode-toggle'),
+    ).toBeInTheDocument();
+    expect(
+      container.querySelectorAll('.adl-file-hotspots-ranking__skeleton-mode-btn').length,
+    ).toBe(2);
+  });
 });

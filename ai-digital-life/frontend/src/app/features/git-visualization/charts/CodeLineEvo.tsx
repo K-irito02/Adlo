@@ -145,10 +145,10 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
   }, [stripData, fullRange.end]);
 
   if (status === 'loading') {
-    // Mirror the ready chart's structure: added/deleted render as area
-    // silhouettes (positive / negative bands) and net as a center line, one
-    // skeleton series per currently-visible toggle, each with its own sweep
-    // phase offset and vertical band so they never overlap.
+    // Mirror the ready chart's structure: added rises above the zero line
+    // (positive), deleted falls below it (negative), and net spans the center
+    // (it can be both positive and negative). All series sweep in sync
+    // (same phase) so the skeleton lines appear together.
     const activeSeries = (['added', 'deleted', 'net'] as const).filter((key) => visible[key]);
     return (
       <div className="adl-git-vis__chart" style={{ position: 'relative', overflow: 'hidden' }}>
@@ -161,8 +161,7 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
           margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
           style={{ height: 280 }}
         >
-          {activeSeries.map((key, i) => {
-            const phaseOffset = activeSeries.length > 1 ? i / activeSeries.length : 0;
+          {activeSeries.map((key) => {
             if (key === 'net') {
               return (
                 <Line
@@ -171,8 +170,8 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
                   dataKey="net"
                   fadeEdges={false}
                   loadingStyle="sweep"
-                  loadingSweepPhaseOffset={phaseOffset}
-                  loadingSweepVerticalRange={[0.3, 0.7]}
+                  loadingSweepPhaseOffset={0}
+                  loadingSweepVerticalRange={[0.02, 0.98]}
                   showHighlight={false}
                   stroke="transparent"
                   strokeWidth={2}
@@ -191,8 +190,8 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
                 loadingStroke="var(--chart-foreground)"
                 loadingStrokeOpacity={0.5}
                 loadingStyle="sweep"
-                loadingSweepPhaseOffset={phaseOffset}
-                loadingSweepVerticalRange={key === 'added' ? [0.08, 0.5] : [0.5, 0.92]}
+                loadingSweepPhaseOffset={0}
+                loadingSweepVerticalRange={key === 'added' ? [0.02, 0.5] : [0.5, 0.98]}
                 showHighlight={false}
                 stroke="transparent"
               />

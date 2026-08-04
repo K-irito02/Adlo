@@ -22,10 +22,18 @@ const SKELETON_ROW_COUNT = 8;
 const FileHotspotsLoading = React.memo(function FileHotspotsLoading({ label }: { label?: string }) {
   return (
     <div className="adl-file-hotspots-ranking adl-git-vis__chart-loading">
+      {/* Mirrors the ready toolbar with its Full / Drill mode toggle buttons. */}
+      <div className="adl-file-hotspots__toolbar">
+        <div className="adl-file-hotspots__mode-toggle adl-file-hotspots-ranking__skeleton-mode-toggle">
+          <span className="adl-file-hotspots-ranking__skeleton-mode-btn" />
+          <span className="adl-file-hotspots-ranking__skeleton-mode-btn" />
+        </div>
+      </div>
       <div className="adl-file-hotspots-ranking__header adl-file-hotspots-ranking__header--skeleton">
         <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--rank" />
         <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--name" />
         <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--path" />
+        <span className="adl-file-hotspots-ranking__skeleton-header-cell adl-file-hotspots-ranking__skeleton-header-cell--num" />
       </div>
       <div className="adl-file-hotspots-ranking__skeleton-body">
         {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => (
