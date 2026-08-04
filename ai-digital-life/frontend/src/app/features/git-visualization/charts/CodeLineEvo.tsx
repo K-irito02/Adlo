@@ -13,6 +13,7 @@ import {
   type BrushLayoutRenderProps,
 } from '@/components/charts/brush';
 import { XAxis } from '@/components/charts/x-axis';
+import type { ChartStatus } from '@/components/charts/chart-phase';
 import {
   aggregateCodeEvolutionDays,
   dateLabelFormatterFor,
@@ -24,6 +25,8 @@ import {
 interface CodeLineEvoProps {
   data?: { days: { date: string; additions: number; deletions: number }[] };
   visible: SeriesVisibility;
+  status?: ChartStatus;
+  loadingLabel?: string;
 }
 
 export interface SeriesVisibility {
@@ -98,7 +101,12 @@ export const CodeLineEvoSeriesToggle = React.memo(function CodeLineEvoSeriesTogg
   );
 });
 
-export const CodeLineEvo = React.memo(function CodeLineEvo({ data, visible }: CodeLineEvoProps) {
+export const CodeLineEvo = React.memo(function CodeLineEvo({
+  data,
+  visible,
+  status = 'ready',
+  loadingLabel,
+}: CodeLineEvoProps) {
   const days = useMemo(() => data?.days ?? [], [data]);
 
   const dayRows = useMemo(() => aggregateCodeEvolutionDays(days, 'day'), [days]);
@@ -134,6 +142,24 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({ data, visible }: Co
     }
     return [new Date(stripData[0].date + 'T00:00:00Z'), fullRange.end];
   }, [stripData, fullRange.end]);
+
+  if (status === 'loading') {
+    return (
+      <div className="adl-git-vis__chart" style={{ position: 'relative', overflow: 'hidden' }}>
+        <LineChart
+          data={[]}
+          xDataKey="date"
+          status="loading"
+          loadingLabel={loadingLabel}
+          margin={{ top: 20, right: 20, bottom: 40, left: 60 }}
+          style={{ maxHeight: 280 }}
+        >
+          <Line dataKey="net" loadingStyle="sweep" showHighlight={false} />
+          <Grid highlightRowValues={[0]} />
+        </LineChart>
+      </div>
+    );
+  }
 
   if (dayRows.length === 0) {
     return (

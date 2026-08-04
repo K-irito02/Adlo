@@ -188,6 +188,13 @@ describe('CodeLineEvo', () => {
     );
     expect(stripSvg!.querySelectorAll('linearGradient[id^="line-gradient-net-"]').length).toBe(1);
   });
+
+  it('shows loading skeleton when status is loading', () => {
+    const { getByText } = render(
+      <CodeLineEvo status="loading" loadingLabel="Loading chart..." visible={DEFAULT_VISIBILITY} />,
+    );
+    expect(getByText('Loading chart...')).toBeInTheDocument();
+  });
 });
 
 describe('useCodeLineEvoVisibility', () => {
