@@ -4,6 +4,8 @@ import { ComposedChart } from '@/components/charts/composed-chart';
 import { SeriesBar } from '@/components/charts/series-bar';
 import { Line } from '@/components/charts/line';
 import { Grid } from '@/components/charts/grid';
+import { BarLoadingSkeleton } from '@/components/charts/loading-sweep';
+import { useChartStable } from '@/components/charts/chart-context';
 import { ChartTooltip } from '@/components/charts/tooltip/chart-tooltip';
 import type { ChartStatus } from '@/components/charts/chart-phase';
 import {
@@ -81,9 +83,15 @@ export const CommitTimeline = React.memo(function CommitTimeline({
           margin={{ top: 20, right: 60, bottom: 40, left: 60 }}
           style={{ maxHeight: 280 }}
         >
-          <SeriesBar dataKey="count" yAxisId="right" fill="var(--chart-line-primary)" radius={4} />
-          <Line dataKey="cumulative" stroke="var(--chart-line-secondary)" loadingStyle="sweep" />
-          <Grid />
+          <ComposedBarSkeleton />
+          <Line
+            dataKey="cumulative"
+            stroke="transparent"
+            strokeWidth={2}
+            loadingStyle="pulse"
+            showHighlight={false}
+          />
+          <Grid shimmer />
         </ComposedChart>
       </div>
     );
@@ -254,5 +262,22 @@ const CommitTimelineMain = React.memo(function CommitTimelineMain({
         ]}
       />
     </ComposedChart>
+  );
+});
+
+/**
+ * 官方灰色骨架柱（bklit-ui BarLoadingSkeleton）：var(--foreground) + 0.45 透明度
+ * + 12 柱 + 0.7 barFraction，带 sweep 扫视。通过 ChartContext 读取 inner 尺寸，
+ * 渲染在 ComposedChart 的 loading 状态下。
+ */
+const ComposedBarSkeleton = React.memo(function ComposedBarSkeleton() {
+  const { innerWidth, innerHeight } = useChartStable();
+  if (innerWidth <= 0 || innerHeight <= 0) {
+    return null;
+  }
+  return (
+    <g className="composed-bar-skeleton">
+      <BarLoadingSkeleton innerWidth={innerWidth} innerHeight={innerHeight} />
+    </g>
   );
 });
