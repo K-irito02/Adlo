@@ -52,10 +52,11 @@ describe('CalendarHeatmap', () => {
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
 
-  it('shows skeleton + loading label when status is loading', () => {
-    const { getByText } = render(
+  it('shows skeleton cells + loading label when status is loading', () => {
+    const { container, getByText } = render(
       <CalendarHeatmap status="loading" loadingLabel="Loading chart..." year={2026} />,
     );
     expect(getByText('Loading chart...')).toBeInTheDocument();
+    expect(container.querySelectorAll('.visx-heatmap-rect').length).toBeGreaterThan(0);
   });
 });

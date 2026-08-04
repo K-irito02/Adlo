@@ -70,8 +70,8 @@ describe('ContributorActivityHeatmap', () => {
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
 
-  it('shows skeleton + loading label when status is loading', () => {
-    const { getByText } = render(
+  it('shows skeleton cells + loading label when status is loading', () => {
+    const { container, getByText } = render(
       <ContributorActivityHeatmap
         status="loading"
         loadingLabel="Loading chart..."
@@ -80,5 +80,6 @@ describe('ContributorActivityHeatmap', () => {
       />,
     );
     expect(getByText('Loading chart...')).toBeInTheDocument();
+    expect(container.querySelectorAll('.visx-heatmap-rect').length).toBeGreaterThan(0);
   });
 });
