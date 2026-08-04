@@ -714,7 +714,7 @@ interface BranchGraphProps {
 export function BranchGraph({ data, status = 'ready', loadingLabel }: BranchGraphProps) {
 ```
 
-在 `const hasData = data != null;` 之后新增：
+在现有 `if (!hasData) { return <div className="adl-git-vis__chart" ref={chartContainerRef} />; }` 判断**之前**新增（注意：该分支必须位于所有 hooks 之后——`BranchGraph` 组件在 `hasData` 定义之后仍有 `useRef`/`useState`/`useLaneAssignment`/`useMemo` 等多个 hooks，若在 `hasData` 之后立即 return 会违反 React hooks 规则；安全位置是组件 return 结构之前的 `if (!hasData)` 附近，此时所有 hooks 均已执行完毕）：
 
 ```tsx
   if (status === 'loading') {
@@ -722,7 +722,7 @@ export function BranchGraph({ data, status = 'ready', loadingLabel }: BranchGrap
   }
 ```
 
-（该分支位于所有 hooks 之后、现有 `if (!hasData)` 之前，满足 React hooks 规则。）
+（该分支紧邻现有 `if (!hasData)` 判断，位于所有 hooks 之后，满足 React hooks 规则。若 implementer 在实现中发现 `hasData` 定义位置与 `if (!hasData)` 之间仍存在 hooks，务必把 loading 分支放在最后一个 hooks 之后。）
 
 - [ ] **Step 4: 新增 CSS**
 
