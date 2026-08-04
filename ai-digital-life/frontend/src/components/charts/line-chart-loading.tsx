@@ -107,15 +107,18 @@ export function LineChartLoading({
   className = '',
 }: LineChartLoadingProps) {
   const resolvedLoadingStyle = loadingStyle ?? (series && series.length > 1 ? 'sweep' : 'pulse');
-  const seriesDataKey =
-    series && series.length > 0 ? series.map((s, i) => s.dataKey ?? `loading-${i}`) : undefined;
 
   const data = useMemo(
-    () => generateMultiSeriesSkeletonData(seriesDataKey ?? [LOADING_DATA_KEY]),
-    // seriesDataKey is derived from series (a stable array identity from the caller);
-    // regenerate only when the key list changes.
-    // biome-ignore lint/correctness/useExhaustiveDependencies: key list is the true input
-    [seriesDataKey],
+    () => {
+      const dataKeys =
+        series && series.length > 0
+          ? series.map((s, i) => s.dataKey ?? `loading-${i}`)
+          : [LOADING_DATA_KEY];
+      return generateMultiSeriesSkeletonData(dataKeys);
+    },
+    // `series` is the true input; deriving keys inside keeps the memo keyed on a
+    // stable caller-provided identity.
+    [series],
   );
 
   return (

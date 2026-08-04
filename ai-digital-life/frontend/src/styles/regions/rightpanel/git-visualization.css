@@ -1819,10 +1819,6 @@
   animation: adl-git-vis-sweep 1.5s ease-in-out infinite;
   border-radius: var(--radius-sm);
   height: 12px;
-}
-
-.adl-branch-graph__skeleton-cell {
-  flex: 1;
   max-width: 120px;
 }
 
@@ -1840,14 +1836,6 @@
 }
 
 .adl-branch-graph__skeleton-cell--date {
-  max-width: 80px;
-}
-
-.adl-branch-graph__skeleton-cell--wide {
-  max-width: 220px;
-}
-
-.adl-branch-graph__skeleton-cell--medium {
   max-width: 80px;
 }
 
@@ -1893,8 +1881,7 @@
 }
 
 .adl-file-hotspots-ranking__skeleton-header-cell--rank {
-  width: 32px;
-  margin: 0 12px;
+  width: 100%;
 }
 
 .adl-file-hotspots-ranking__skeleton-header-cell--name {
@@ -1945,7 +1932,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .adl-branch-graph__skeleton-tag,
-  .adl-branch-graph__skeleton-lanes-svg,
+  .adl-branch-graph__skeleton-lane-line,
+  .adl-branch-graph__skeleton-lane-edge,
+  .adl-branch-graph__skeleton-lane-node,
   .adl-branch-graph__skeleton-cell,
   .adl-file-hotspots-ranking__skeleton-header-cell,
   .adl-file-hotspots-ranking__skeleton-cell,

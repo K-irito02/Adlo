@@ -379,8 +379,8 @@ describe('FileHotspotsLeaderboard', () => {
     expect(
       container.querySelector('.adl-file-hotspots-ranking__skeleton-mode-toggle'),
     ).toBeInTheDocument();
-    expect(
-      container.querySelectorAll('.adl-file-hotspots-ranking__skeleton-mode-btn').length,
-    ).toBe(2);
+    expect(container.querySelectorAll('.adl-file-hotspots-ranking__skeleton-mode-btn').length).toBe(
+      2,
+    );
   });
 });

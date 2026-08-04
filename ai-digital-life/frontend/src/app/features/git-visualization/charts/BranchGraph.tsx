@@ -974,9 +974,16 @@ const SKELETON_ROW_HEIGHT = 36;
 
 const BranchGraphLoading = React.memo(function BranchGraphLoading({ label }: { label?: string }) {
   // A deterministic "linked list" of lanes: vertical lane lines with commit
-  // nodes and connecting edges, mirroring the real SvgLanes topology.
+  // nodes and connecting edges, mirroring the real SvgLanes topology. Consecutive
+  // commits sometimes stay on one lane (straight edge) and sometimes switch lanes
+  // (cubic curve), which is what makes it read as a linked list.
   const laneXs = Array.from({ length: SKELETON_LANE_COUNT }, (_, i) => 16 + i * 30);
-  const laneByRow = Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => i % SKELETON_LANE_COUNT);
+  const laneByRow = Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => {
+    if (i % 4 === 3) {
+      return (i - 1) % SKELETON_LANE_COUNT; // stay on the previous lane → straight edge
+    }
+    return i % SKELETON_LANE_COUNT;
+  });
   const nodeY = (i: number) => i * SKELETON_ROW_HEIGHT + SKELETON_ROW_HEIGHT / 2;
   const svgHeight = SKELETON_ROW_COUNT * SKELETON_ROW_HEIGHT;
   return (

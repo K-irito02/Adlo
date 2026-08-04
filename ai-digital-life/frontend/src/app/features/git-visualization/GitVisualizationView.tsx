@@ -24,11 +24,6 @@ import type { GitVisCommitStats } from '@shared/ipc';
 import type { GitVisFileHotspots } from '@shared/ipc/workspace';
 import type { RawContributorModules } from './adapters/chartDataAdapters';
 
-// TEMP(observation): keep every git-visualization chart's loading skeleton
-// resident so the sweep animation can be inspected. Set back to false when
-// observation is done.
-const FORCE_ALL_CHARTS_LOADING = true;
-
 class VisErrorBoundary extends Component<
   { children: React.ReactNode; onRetry: () => void; errorMsg: string; retryLabel: string },
   { hasError: boolean; errorInfo: string }
@@ -370,16 +365,14 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                 }
               | undefined
           }
-          commitStatsStatus={FORCE_ALL_CHARTS_LOADING || heatmapData.loading ? 'loading' : 'ready'}
+          commitStatsStatus={heatmapData.loading ? 'loading' : 'ready'}
           contributorModules={
             (contributorModulesData.data as RawContributorModules | undefined)?.matrix
           }
           contributorModuleAllPaths={
             (contributorModulesData.data as RawContributorModules | undefined)?.allPaths
           }
-          contributorModuleStatus={
-            FORCE_ALL_CHARTS_LOADING || contributorModulesData.loading ? 'loading' : 'ready'
-          }
+          contributorModuleStatus={contributorModulesData.loading ? 'loading' : 'ready'}
           yearBounds={yearBounds}
         />
         <TimeRangeAwareCard
@@ -410,7 +403,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                   }
                 | undefined
             }
-            status={FORCE_ALL_CHARTS_LOADING || branchGraphData.loading ? 'loading' : 'ready'}
+            status={branchGraphData.loading ? 'loading' : 'ready'}
             loadingLabel={t.gitVisLoadingChart}
           />
         </TimeRangeAwareCard>
@@ -435,7 +428,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                 | undefined
             }
             visible={codeLineEvoVis.visible}
-            status={FORCE_ALL_CHARTS_LOADING || codeLineEvoData.loading ? 'loading' : 'ready'}
+            status={codeLineEvoData.loading ? 'loading' : 'ready'}
             loadingLabel={t.gitVisLoadingChart}
           />
         </TimeRangeAwareCard>
@@ -452,9 +445,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
               days:
                 (commitTimelineData.data as GitVisCommitStats | undefined)?.commitTimeline ?? [],
             }}
-            status={
-              FORCE_ALL_CHARTS_LOADING || commitTimelineData.loading ? 'loading' : 'ready'
-            }
+            status={commitTimelineData.loading ? 'loading' : 'ready'}
             loadingLabel={t.gitVisLoadingChart}
           />
         </TimeRangeAwareCard>
@@ -468,7 +459,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           <FileHotspotsView
             data={fileHotspotsData.data as GitVisFileHotspots | undefined}
             scrollContainerRef={containerRef}
-            status={FORCE_ALL_CHARTS_LOADING || fileHotspotsData.loading ? 'loading' : 'ready'}
+            status={fileHotspotsData.loading ? 'loading' : 'ready'}
             loadingLabel={t.gitVisLoadingChart}
           />
         </TimeRangeAwareCard>
