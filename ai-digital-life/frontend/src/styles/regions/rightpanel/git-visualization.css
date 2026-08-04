@@ -1808,3 +1808,12 @@
   flex-shrink: 0;
   margin-left: auto;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .adl-branch-graph__skeleton-lanes,
+  .adl-branch-graph__skeleton-cell,
+  .adl-file-hotspots-ranking__skeleton-header-cell,
+  .adl-file-hotspots-ranking__skeleton-cell {
+    animation: none;
+  }
+}
