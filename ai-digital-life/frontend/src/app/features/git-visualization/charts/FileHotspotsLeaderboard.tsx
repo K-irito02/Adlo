@@ -19,11 +19,7 @@ const MAX_HEIGHT = 320;
 const HEADER_HEIGHT = 32;
 const SKELETON_ROW_COUNT = 8;
 
-const FileHotspotsLoading = React.memo(function FileHotspotsLoading({
-  label,
-}: {
-  label?: string;
-}) {
+const FileHotspotsLoading = React.memo(function FileHotspotsLoading({ label }: { label?: string }) {
   return (
     <div className="adl-file-hotspots-ranking adl-git-vis__chart-loading">
       <div className="adl-file-hotspots-ranking__header adl-file-hotspots-ranking__header--skeleton">
@@ -33,11 +29,7 @@ const FileHotspotsLoading = React.memo(function FileHotspotsLoading({
       </div>
       <div className="adl-file-hotspots-ranking__skeleton-body">
         {Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => (
-          <div
-            key={i}
-            className="adl-file-hotspots-ranking__skeleton-row"
-            style={{ height: 32 }}
-          >
+          <div key={i} className="adl-file-hotspots-ranking__skeleton-row" style={{ height: 32 }}>
             <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--rank" />
             <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--name" />
             <span className="adl-file-hotspots-ranking__skeleton-cell adl-file-hotspots-ranking__skeleton-cell--path" />
