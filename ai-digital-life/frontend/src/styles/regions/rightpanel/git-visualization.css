@@ -1742,6 +1742,8 @@
   stroke: var(--surface-hover);
   stroke-width: 3;
   stroke-linecap: round;
+  stroke-dasharray: 4 14;
+  animation: adl-git-vis-lane-flow 1.4s linear infinite;
 }
 
 .adl-branch-graph__skeleton-lane-edge {
@@ -1749,16 +1751,39 @@
   stroke-width: 2.5;
   stroke-linecap: round;
   fill: none;
+  stroke-dasharray: 4 14;
+  animation: adl-git-vis-lane-flow 1.4s linear infinite;
 }
 
 .adl-branch-graph__skeleton-lane-node {
   fill: var(--surface-hover);
   stroke: none;
+  animation: adl-git-vis-lane-node-pulse 1.4s ease-in-out infinite;
+}
+
+/* A bright dot travels down each lane line / edge (linked-list sweep). */
+@keyframes adl-git-vis-lane-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
+/* Nodes gently brighten/dim in step with the sweeping dot. */
+@keyframes adl-git-vis-lane-node-pulse {
+  0%,
+  100% {
+    fill: var(--surface-hover);
+  }
+  50% {
+    fill: var(--surface-active);
+  }
 }
 
 .adl-branch-graph__skeleton-lanes-svg {
   display: block;
-  animation: adl-git-vis-sweep 1.5s ease-in-out infinite;
 }
 
 .adl-branch-graph__skeleton-table {

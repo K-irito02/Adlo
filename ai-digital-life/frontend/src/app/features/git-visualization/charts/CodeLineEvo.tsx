@@ -112,14 +112,15 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
 
   // Loading skeleton rows carry positive AND negative values (added above,
   // deleted below zero) so the y-domain spans zero and the zero line renders
-  // mid-plot, not pinned to the bottom.
+  // mid-plot, not pinned to the bottom. Added/deleted magnitudes are balanced
+  // so the zero line sits slightly above the vertical center.
   const skeletonDays = useMemo(() => {
     const base = new Date('2025-01-01');
     return Array.from({ length: 7 }, (_, i) => {
       const date = new Date(base);
       date.setDate(base.getDate() + i);
-      const p = Math.round(40 + Math.sin(i * 1.15) * 16 + i * 3);
-      const n = Math.round(28 + Math.cos(i * 0.9) * 12 + i * 2);
+      const p = Math.round(44 + Math.sin(i * 1.15) * 18 + i * 2);
+      const n = Math.round(40 + Math.cos(i * 0.9) * 14 + i * 2);
       return { date, added: p, deletedNeg: -n, net: p - n };
     });
   }, []);
