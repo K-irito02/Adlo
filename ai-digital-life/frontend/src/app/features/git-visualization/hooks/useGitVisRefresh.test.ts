@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, cleanup } from '@testing-library/react';
 import { useGitVisRefresh } from './useGitVisRefresh';
+import { CHART_LOADING_MIN_VISIBLE_MS } from '@stores/actions/gitVisActions';
 import { useAppStore } from '@stores/slicedStore';
 import { resolveRollingRange } from '../timeRangeUtils';
 
@@ -139,6 +140,82 @@ describe('useGitVisRefresh latest-wins', () => {
       await p;
     });
     expect(useAppStore.getState().gitVisLoading[workspaceId]?.[CHART_ID]).toBe(false);
+  });
+
+  it('keeps the loading state visible for the minimum duration even when the fetch resolves instantly', async () => {
+    vi.useFakeTimers();
+    const workspaceId = 'ws-min-duration';
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+    setRange(workspaceId);
+
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    bridge.workspace.gitVisCodeEvolution.mockResolvedValueOnce({ ok: true, data: { days: [] } });
+
+    let p: Promise<void> | undefined;
+    act(() => {
+      p = result.current.refreshChart(CHART_ID);
+    });
+    await act(async () => {});
+    expect(useAppStore.getState().gitVisLoading[workspaceId]?.[CHART_ID]).toBe(true);
+
+    // The fetch resolved immediately, but loading must stay true until the
+    // minimum visible duration elapses so the "loading" label actually paints
+    // (otherwise React batches loading on/off into a single frame).
+    await vi.advanceTimersByTimeAsync(CHART_LOADING_MIN_VISIBLE_MS - 50);
+    expect(useAppStore.getState().gitVisLoading[workspaceId]?.[CHART_ID]).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(useAppStore.getState().gitVisLoading[workspaceId]?.[CHART_ID]).toBe(false);
+    await act(async () => {
+      await p;
+    });
+  });
+
+  it('does not clear loading for an older request while a newer request is in flight (hold re-check)', async () => {
+    vi.useFakeTimers();
+    const workspaceId = 'ws-toctou';
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+    setRange(workspaceId);
+
+    const a = deferred();
+    const b = deferred();
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    bridge.workspace.gitVisCodeEvolution
+      .mockReturnValueOnce(a.promise)
+      .mockReturnValueOnce(b.promise);
+
+    let pa: Promise<void> | undefined;
+    let pb: Promise<void> | undefined;
+    act(() => {
+      pa = result.current.refreshChart(CHART_ID);
+    });
+    await act(async () => {});
+
+    // Resolve A while it is still the latest request → its finally enters the
+    // min-duration hold (200ms) with loading still true.
+    a.resolve({ ok: true, data: { days: [{ date: '2026-07-02', additions: 9, deletions: 1 }] } });
+    await act(async () => {});
+
+    // A newer request B starts while A is holding loading visible.
+    act(() => {
+      pb = result.current.refreshChart(CHART_ID);
+    });
+    await act(async () => {});
+    expect(useAppStore.getState().gitVisLoading[workspaceId]?.[CHART_ID]).toBe(true);
+
+    // A's hold expires: its seq is now stale (B superseded it), so it must NOT
+    // clear the loading flag that B's in-flight fetch still owns.
+    await vi.advanceTimersByTimeAsync(CHART_LOADING_MIN_VISIBLE_MS + 50);
+    expect(useAppStore.getState().gitVisLoading[workspaceId]?.[CHART_ID]).toBe(true);
+
+    // B completes and clears loading after its own min-duration.
+    b.resolve({ ok: true, data: { days: [{ date: '2026-07-03', additions: 3, deletions: 1 }] } });
+    await vi.advanceTimersByTimeAsync(CHART_LOADING_MIN_VISIBLE_MS + 50);
+    expect(useAppStore.getState().gitVisLoading[workspaceId]?.[CHART_ID]).toBe(false);
+    await act(async () => {
+      await pa;
+      await pb;
+    });
   });
 
   it('propagates fetch failures so the caller can reset UI state', async () => {
@@ -293,6 +370,9 @@ describe('useGitVisRefresh relative preset re-resolution', () => {
       ok: true,
       data: { days: [{ date: '2026-07-01', additions: 5, deletions: 0 }] },
     });
+    // Loading is held visible for at least CHART_LOADING_MIN_VISIBLE_MS even
+    // after the fetch settles, so advance the fake timer to let it clear.
+    await vi.advanceTimersByTimeAsync(CHART_LOADING_MIN_VISIBLE_MS + 50);
     await act(async () => {
       await p;
     });
@@ -355,6 +435,9 @@ describe('useGitVisRefresh relative preset re-resolution', () => {
       ok: true,
       data: { days: [{ date: '2026-07-01', additions: 5, deletions: 0 }] },
     });
+    // Loading is held visible for at least CHART_LOADING_MIN_VISIBLE_MS even
+    // after the fetch settles, so advance the fake timer to let it clear.
+    await vi.advanceTimersByTimeAsync(CHART_LOADING_MIN_VISIBLE_MS + 50);
     await act(async () => {
       await p;
     });

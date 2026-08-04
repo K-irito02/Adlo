@@ -481,7 +481,7 @@ function HeatmapChartSurface({ layout, children }: { layout: HeatmapLayout; chil
             height: Math.max(height - margin.top - margin.bottom, 0),
           }}
         >
-          <ChartLoadingLabel exiting={chartPhase !== 'loading'} text={loadingLabel} />
+          <ChartLoadingLabel text={loadingLabel} />
         </div>
       ) : null}
     </div>

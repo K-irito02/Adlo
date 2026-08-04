@@ -1,6 +1,11 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
-import { fetchChartData, refreshWorkspace } from '@stores/actions/gitVisActions';
+import {
+  CHART_LOADING_MIN_VISIBLE_MS,
+  fetchChartData,
+  holdLoadingForMin,
+  refreshWorkspace,
+} from '@stores/actions/gitVisActions';
 import { getBridge } from '@stores/slices/githubSliceHelpers';
 import { resolveTimeRangeForFetch } from '../timeRangeUtils';
 
@@ -94,6 +99,7 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
       await Promise.resolve();
       setError(workspaceId, chartId, undefined);
       setLoading(workspaceId, chartId, true);
+      const startedAt = performance.now();
       try {
         const latestTimeRanges = useAppStore.getState().gitVisTimeRange[workspaceId] || {};
         const tr = latestTimeRanges[chartId];
@@ -117,7 +123,19 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
         }
       } finally {
         if (latestRequestSeqRef.current[key] === seq) {
-          setLoading(workspaceId, chartId, false);
+          // Hold the loading state visible long enough to paint even when the
+          // fetch resolves instantly (React may otherwise batch loading on/off
+          // into a single frame and the "loading" label never appears). Note the
+          // hold also delays an error rejection by up to the same amount, since
+          // callers see the rejection only after this finally block settles.
+          await holdLoadingForMin(startedAt, CHART_LOADING_MIN_VISIBLE_MS);
+          // Re-check the sequence after the wait: a newer request may have
+          // started while this one was holding loading visible. Only the newest
+          // request may clear the flag, otherwise the newer in-flight fetch
+          // would lose its loading indicator in a rapid tab-switch burst.
+          if (latestRequestSeqRef.current[key] === seq) {
+            setLoading(workspaceId, chartId, false);
+          }
         }
       }
     },

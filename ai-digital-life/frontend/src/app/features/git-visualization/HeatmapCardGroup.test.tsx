@@ -69,6 +69,8 @@ vi.mock('../hooks/useBklitTheme', () => ({
   }),
 }));
 
+let mockActiveHeatmapTab = 'calendar';
+
 vi.mock('@i18n/useTCopy', () => ({
   useTCopy: vi.fn(() => ({
     t: {
@@ -79,7 +81,7 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisCalendarHeatmapDesc: 'desc1',
       gitVisClockHeatmapDesc: 'desc2',
       gitVisContributorActivityDesc: 'desc3',
-      gitVisContributorModuleDesc: 'desc4',
+      gitVisContributorModuleDesc: 'Row: {rowCount}, Col: {colCount}',
       gitVisHeatmapTabCalendar: 'Calendar',
       gitVisHeatmapTabClock: 'Hours',
       gitVisHeatmapTabActivity: 'Activity',
@@ -87,7 +89,12 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisHeatmapNav: 'Heatmap type',
       gitVisLoadingChart: 'Loading chart...',
     },
-    formatT: vi.fn(),
+    formatT: (t: Record<string, string>, key: string, vars?: Record<string, string>) => {
+      const template = t[key] ?? '';
+      return template.replace(/\{(\w+)\}/g, (_, name: string) =>
+        String(vars?.[name] ?? `{${name}}`),
+      );
+    },
   })),
 }));
 
@@ -111,7 +118,7 @@ const mockRecentWorkspaces = [
 vi.mock('@stores/slicedStore', () => ({
   useAppStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({
-      activeHeatmapTab: 'calendar',
+      activeHeatmapTab: mockActiveHeatmapTab,
       setActiveHeatmapTab: mockSetActiveHeatmapTab,
       activeWorkspaceTab: 'workspace-1',
       recentWorkspaces: mockRecentWorkspaces,
@@ -131,6 +138,7 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   mockSetActiveHeatmapTab.mockClear();
+  mockActiveHeatmapTab = 'calendar';
 });
 
 describe('HeatmapCardGroup', () => {
@@ -164,5 +172,70 @@ describe('HeatmapCardGroup', () => {
   it('passes commitStatsStatus loading to heatmap tabs', { timeout: 30000 }, () => {
     render(<HeatmapCardGroup commitStatsStatus="loading" />);
     expect(screen.getAllByText('Loading chart...').length).toBeGreaterThan(0);
+  });
+
+  it(
+    'reports the module column count for the current drill level, not the cumulative total',
+    { timeout: 30000 },
+    () => {
+      mockActiveHeatmapTab = 'module';
+      const { container } = render(
+        <HeatmapCardGroup
+          commitStatsStatus="ready"
+          contributorModules={[
+            {
+              author: 'Alice',
+              authorEmail: 'alice@test.com',
+              modules: [
+                { module: 'src/components/bar.tsx', count: 3 },
+                { module: 'docs/readme.md', count: 4 },
+              ],
+            },
+            {
+              author: 'Bob',
+              authorEmail: 'bob@test.com',
+              modules: [{ module: 'src/utils/helpers.ts', count: 1 }],
+            },
+          ]}
+          contributorModuleAllPaths={[
+            'src/components/bar.tsx',
+            'src/components/foo.tsx',
+            'src/utils/helpers.ts',
+            'docs/readme.md',
+          ]}
+          contributorModuleStatus="ready"
+        />,
+      );
+      const desc = container.querySelector('.adl-git-vis__card-desc');
+      // Root level has 2 children (src, docs) and 2 contributors. The old
+      // behavior counted distinct module paths from the matrix (3: bar.tsx,
+      // readme.md, helpers.ts) — the fix reports the current level (2).
+      expect(desc?.textContent).toBe('Row: 2, Col: 2');
+    },
+  );
+
+  it('updates the module column count as the user drills into a level', { timeout: 30000 }, () => {
+    mockActiveHeatmapTab = 'module';
+    const { container } = render(
+      <HeatmapCardGroup
+        commitStatsStatus="ready"
+        contributorModules={[
+          {
+            author: 'Alice',
+            authorEmail: 'alice@test.com',
+            modules: [{ module: 'src/components/bar.tsx', count: 3 }],
+          },
+        ]}
+        contributorModuleAllPaths={['src/components/bar.tsx', 'docs/readme.md']}
+        contributorModuleStatus="ready"
+      />,
+    );
+    const desc = () => container.querySelector('.adl-git-vis__card-desc');
+    // Root level: children are src and docs → 2 columns.
+    expect(desc()?.textContent).toBe('Row: 1, Col: 2');
+    // Click the 'src' column label in the module heatmap to drill down.
+    fireEvent.click(screen.getByText('src'));
+    // Drilled to src: its only child is components → 1 column, not the root 2.
+    expect(desc()?.textContent).toBe('Row: 1, Col: 1');
   });
 });

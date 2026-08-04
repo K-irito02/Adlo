@@ -317,6 +317,39 @@ describe('FileHotspotsLeaderboard', () => {
     expect(outer.scrollTop).toBe(50);
   });
 
+  it('does not scroll the outer area when data arrives after mount (initial load)', () => {
+    const outerRef = React.createRef<HTMLDivElement>();
+    const { rerender } = render(
+      <div className="adl-git-vis__container" ref={outerRef}>
+        <FileHotspotsLeaderboard scrollContainerRef={outerRef} />
+      </div>,
+    );
+    const outer = outerRef.current as HTMLElement;
+    expect(outer).toBeTruthy();
+    Object.defineProperty(outer, 'scrollHeight', { value: 600, configurable: true });
+    Object.defineProperty(outer, 'clientHeight', { value: 300, configurable: true });
+    outer.scrollTop = 0;
+
+    // Simulate the initial load: the empty state (0 rows) is replaced by a full
+    // leaderboard (N rows). This growth must NOT yank the page to the bottom —
+    // only user-triggered mode/drill changes scroll the outer area.
+    rerender(
+      <div className="adl-git-vis__container" ref={outerRef}>
+        <FileHotspotsLeaderboard data={fileHotspotsMockData} scrollContainerRef={outerRef} />
+      </div>,
+    );
+    expect(outer.scrollTop).toBe(0);
+
+    // The baseline must survive the data-arrival path: a later user-triggered
+    // growth (drill shrinks, then switching back to full grows) still scrolls
+    // the outer area so the full leaderboard stays visible.
+    fireEvent.click(screen.getByText('Level Drill')); // full 128px -> drill 96px (shrink)
+    expect(outer.scrollTop).toBe(0);
+    outer.scrollTop = 50;
+    fireEvent.click(screen.getByText('Global Ranking')); // 96px -> 128px (grow)
+    expect(outer.scrollTop).toBe(300);
+  });
+
   it('opens the tree card via the jump button without drilling the row', () => {
     const { container } = render(<FileHotspotsLeaderboard data={fileHotspotsMockData} />);
     fireEvent.click(screen.getByText('Level Drill'));

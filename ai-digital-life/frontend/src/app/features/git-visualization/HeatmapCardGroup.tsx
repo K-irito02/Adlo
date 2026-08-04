@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { formatT } from '@i18n/formatT';
@@ -10,6 +10,7 @@ import { defaultTimeRange } from '@stores/slices/gitVisSlice';
 import { readJson, writeJson } from '@stores/storageHelpers';
 import type { ChartStatus } from '@/components/charts/chart-phase';
 import type { RawCommitStats } from './adapters/chartDataAdapters';
+import { buildModuleTree, getChildrenAtPath } from './moduleTreeUtils';
 import { HeatmapInteractionProvider, HeatmapLegend } from '@/components/charts/heatmap';
 import { CalendarHeatmap } from './charts/CalendarHeatmap';
 import { ClockHeatmap } from './charts/ClockHeatmap';
@@ -81,6 +82,11 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     })),
   );
 
+  // Drill path for the contributor-module heatmap, lifted here so the card's
+  // footer description can report the module count for the CURRENT level
+  // instead of the cumulative total across every path.
+  const [moduleDrillPath, setModuleDrillPath] = useState<string[]>([]);
+
   function loadTabRanges(): Record<HeatmapTab, TimeRangeState> {
     const saved = readJson<Partial<Record<HeatmapTab, TimeRangeState>> | null>(
       TAB_TIME_RANGE_KEY,
@@ -145,7 +151,9 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
       syncRangeForTab(tab, tabRangesRef.current[tab]);
       setActiveHeatmapTab(tab);
       tabChangeTimerRef.current = setTimeout(() => {
-        void refreshForTab(tab);
+        // Refresh errors are surfaced through setError in the refresh actions;
+        // swallow the rejection here to avoid an unhandled promise rejection.
+        void refreshForTab(tab).catch(() => {});
       }, 0);
     },
     [setActiveHeatmapTab, syncRangeForTab, refreshForTab],
@@ -169,6 +177,16 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     [activeHeatmapTab, syncRangeForTab, refreshCurrentTab, persistTabRanges],
   );
 
+  // Module tree used both by the module heatmap's footer column count and kept
+  // memoized so drill-path/desc re-renders don't rebuild the tree repeatedly.
+  const moduleTree = useMemo(
+    () =>
+      contributorModuleAllPaths && contributorModuleAllPaths.length > 0
+        ? buildModuleTree(contributorModuleAllPaths)
+        : null,
+    [contributorModuleAllPaths],
+  );
+
   const descVars = useMemo(() => {
     if (activeHeatmapTab === 'activity') {
       const rowCount = commitStats?.contributorActivity?.length ?? 0;
@@ -185,12 +203,21 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     }
     if (activeHeatmapTab === 'module') {
       const rowCount = contributorModules?.length ?? 0;
-      const allModules = new Set<string>();
-      contributorModules?.forEach((m) => m.modules.forEach((mod) => allModules.add(mod.module)));
-      return { rowCount: String(rowCount), colCount: String(allModules.size) };
+      // Columns correspond to the children of the tree node at the current
+      // drill path — i.e. exactly what the heatmap renders at this level, not
+      // the cumulative number of distinct module paths across all levels.
+      const colCount = moduleTree ? getChildrenAtPath(moduleTree, moduleDrillPath).length : 0;
+      return { rowCount: String(rowCount), colCount: String(colCount) };
     }
     return undefined;
-  }, [activeHeatmapTab, commitStats, contributorModules, displayRange]);
+  }, [
+    activeHeatmapTab,
+    commitStats,
+    contributorModules,
+    moduleTree,
+    moduleDrillPath,
+    displayRange,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     const idx = TABS.findIndex((tab) => tab.id === activeHeatmapTab);
@@ -287,6 +314,8 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
               allPaths={contributorModuleAllPaths}
               status={contributorModuleStatus || 'ready'}
               loadingLabel={loadingLabel}
+              drillPath={moduleDrillPath}
+              onDrillPathChange={setModuleDrillPath}
             />
           )}
         </div>

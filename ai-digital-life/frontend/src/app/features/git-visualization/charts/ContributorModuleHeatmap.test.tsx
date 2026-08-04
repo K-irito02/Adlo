@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { ContributorModuleHeatmap } from './ContributorModuleHeatmap';
 import { TCopyProvider } from '@app/i18n/TCopyContext';
@@ -142,5 +142,69 @@ describe('ContributorModuleHeatmap', () => {
       </Wrapper>,
     );
     expect(screen.getByText('Loading...')).toBeInTheDocument();
+  });
+
+  it('renders columns for the controlled drill path', () => {
+    const { container } = render(
+      <Wrapper>
+        <ContributorModuleHeatmap
+          data={mockData}
+          allPaths={mockAllPaths}
+          drillPath={['src']}
+          onDrillPathChange={vi.fn()}
+        />
+      </Wrapper>,
+    );
+    const labels = Array.from(
+      container.querySelectorAll('[data-testid="heatmap-x-axis-label"]'),
+    ).map((el) => (el.textContent ?? '').trim());
+    // drillPath=['src'] shows src's children only (components, utils) — not the
+    // whole cumulative path list.
+    expect(labels).toEqual(['components', 'utils']);
+  });
+
+  it('reports drill path changes to the parent when controlled', () => {
+    const onDrillPathChange = vi.fn();
+    render(
+      <Wrapper>
+        <ContributorModuleHeatmap
+          data={mockData}
+          allPaths={mockAllPaths}
+          drillPath={['src']}
+          onDrillPathChange={onDrillPathChange}
+        />
+      </Wrapper>,
+    );
+    fireEvent.click(screen.getByText('components'));
+    expect(onDrillPathChange).toHaveBeenCalledWith(['src', 'components']);
+  });
+
+  it('resets a stale drill path when the data no longer contains it', () => {
+    const onDrillPathChange = vi.fn();
+    const { rerender } = render(
+      <Wrapper>
+        <ContributorModuleHeatmap
+          data={mockData}
+          allPaths={mockAllPaths}
+          drillPath={['src']}
+          onDrillPathChange={onDrillPathChange}
+        />
+      </Wrapper>,
+    );
+    // 'src' is still present in the initial data → no reset.
+    expect(onDrillPathChange).not.toHaveBeenCalled();
+    // Re-render with data that no longer contains the 'src' directory: the
+    // stale path must fall back to root instead of leaving an empty heatmap.
+    rerender(
+      <Wrapper>
+        <ContributorModuleHeatmap
+          data={mockData}
+          allPaths={['docs/readme.md']}
+          drillPath={['src']}
+          onDrillPathChange={onDrillPathChange}
+        />
+      </Wrapper>,
+    );
+    expect(onDrillPathChange).toHaveBeenCalledWith([]);
   });
 });

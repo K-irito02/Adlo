@@ -3,6 +3,14 @@ import { render } from '@testing-library/react';
 import React from 'react';
 import { CalendarHeatmap } from './CalendarHeatmap';
 
+const mockLoadingLabel = vi.fn();
+vi.mock('@/components/charts/chart-loading-label', () => ({
+  ChartLoadingLabel: (props: { exiting?: boolean; text?: string }) => {
+    mockLoadingLabel(props);
+    return React.createElement('div', null, props.text);
+  },
+}));
+
 vi.mock('motion/react', () => {
   const createMV = (v = 0) => ({ get: () => v, set: () => {}, stop: () => {}, on: () => () => {} });
   return {
@@ -23,7 +31,7 @@ vi.mock('motion/react', () => {
     useMotionValue: <T,>(v: T) => createMV(v as number),
     useTransform: () => createMV(0),
     useSpring: (v: unknown) => createMV(typeof v === 'number' ? v : 0),
-    useReducedMotion: () => true,
+    useReducedMotion: () => false,
   };
 });
 
@@ -58,5 +66,23 @@ describe('CalendarHeatmap', () => {
     );
     expect(getByText('Loading chart...')).toBeInTheDocument();
     expect(container.querySelectorAll('.visx-heatmap-rect').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the loading label visible (exiting falsy) when transitioning ready → loading', () => {
+    const data = [{ date: '2026-01-15', count: 3 }];
+    const { rerender } = render(
+      <CalendarHeatmap data={data} year={2026} status="ready" loadingLabel="Loading chart..." />,
+    );
+    mockLoadingLabel.mockClear();
+    // Simulate a refresh: the chart was ready and flips to loading. The label
+    // mounts during the 'exitingReady' phase and must be fully visible — it must
+    // NOT be rendered with exiting=true (which paints it at opacity 0 via
+    // initial={false}), otherwise fast refreshes show no "loading" state at all.
+    rerender(
+      <CalendarHeatmap data={data} year={2026} status="loading" loadingLabel="Loading chart..." />,
+    );
+    expect(mockLoadingLabel).toHaveBeenCalled();
+    const last = mockLoadingLabel.mock.calls.at(-1)?.[0];
+    expect(last?.exiting).toBeFalsy();
   });
 });

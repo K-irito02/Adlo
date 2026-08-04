@@ -26,6 +26,13 @@ interface ContributorModuleHeatmapProps {
   allPaths?: string[];
   status?: ChartStatus;
   loadingLabel?: string;
+  /**
+   * Controlled drill path owned by the parent. When provided the component
+   * reports path changes via `onDrillPathChange`; when omitted it keeps the
+   * path in internal state (uncontrolled).
+   */
+  drillPath?: string[];
+  onDrillPathChange?: (path: string[]) => void;
 }
 
 export const ContributorModuleHeatmap = React.memo(function ContributorModuleHeatmap({
@@ -33,9 +40,22 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
   allPaths,
   status = 'ready',
   loadingLabel,
+  drillPath: drillPathProp,
+  onDrillPathChange,
 }: ContributorModuleHeatmapProps) {
   const { t, locale } = useTCopy();
-  const [drillPath, setDrillPath] = useState<string[]>([]);
+  const [internalDrillPath, setInternalDrillPath] = useState<string[]>([]);
+  const drillPath = drillPathProp ?? internalDrillPath;
+  const updateDrillPath = useCallback(
+    (next: string[]) => {
+      if (drillPathProp !== undefined) {
+        onDrillPathChange?.(next);
+      } else {
+        setInternalDrillPath(next);
+      }
+    },
+    [drillPathProp, onDrillPathChange],
+  );
   const [treeCard, setTreeCard] = useState<{
     subtree: ModuleTreeNode[];
     position: { x: number; y: number };
@@ -87,9 +107,26 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
     return result;
   }, [data, allPaths, drillPath]);
 
-  const handleColumnClick = useCallback((label: string) => {
-    setDrillPath((prev) => [...prev, label]);
-  }, []);
+  // Reset a stale drill path once the underlying data no longer contains it
+  // (mirrors FileHotspotsLeaderboard). With the path lifted into the parent it
+  // persists across tab switches, so a refresh that removed the drilled
+  // directory must fall back to root instead of rendering an empty heatmap with
+  // a stale breadcrumb.
+  useEffect(() => {
+    if (!data || !allPaths || drillPath.length === 0 || !treeRef.current) {
+      return;
+    }
+    if (getChildrenAtPath(treeRef.current, drillPath).length === 0) {
+      updateDrillPath([]);
+    }
+  }, [data, allPaths, drillPath, updateDrillPath]);
+
+  const handleColumnClick = useCallback(
+    (label: string) => {
+      updateDrillPath([...drillPath, label]);
+    },
+    [drillPath, updateDrillPath],
+  );
 
   const handleColumnContextMenu = useCallback(
     (label: string, x: number, y: number) => {
@@ -109,34 +146,40 @@ export const ContributorModuleHeatmap = React.memo(function ContributorModuleHea
     [drillPath],
   );
 
-  const handleBreadcrumbNavigate = useCallback((level: number) => {
-    if (level === -1) {
-      setDrillPath([]);
-    } else {
-      setDrillPath((prev) => prev.slice(0, level + 1));
-    }
-  }, []);
+  const handleBreadcrumbNavigate = useCallback(
+    (level: number) => {
+      if (level === -1) {
+        updateDrillPath([]);
+      } else {
+        updateDrillPath(drillPath.slice(0, level + 1));
+      }
+    },
+    [drillPath, updateDrillPath],
+  );
 
-  const handleTreeSelect = useCallback((path: string) => {
-    const segments = path.split('/');
-    if (treeRef.current) {
-      let current = treeRef.current;
-      let isFile = false;
-      for (const seg of segments) {
-        const found = current.children.find((c) => c.name === seg);
-        if (!found) {
-          break;
+  const handleTreeSelect = useCallback(
+    (path: string) => {
+      const segments = path.split('/');
+      if (treeRef.current) {
+        let current = treeRef.current;
+        let isFile = false;
+        for (const seg of segments) {
+          const found = current.children.find((c) => c.name === seg);
+          if (!found) {
+            break;
+          }
+          isFile = !found.isDir;
+          current = found;
         }
-        isFile = !found.isDir;
-        current = found;
+        if (isFile && segments.length > 0) {
+          segments.pop();
+        }
       }
-      if (isFile && segments.length > 0) {
-        segments.pop();
-      }
-    }
-    setDrillPath(segments);
-    setTreeCard(null);
-  }, []);
+      updateDrillPath(segments);
+      setTreeCard(null);
+    },
+    [updateDrillPath],
+  );
 
   const colCount = columns.length;
   const rotateAngle = colCount > 0 ? 45 : 0;

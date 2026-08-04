@@ -126,3 +126,14 @@ describe('i18n zh-CN mirror', () => {
     expect(msg.join('; '), msg.join('; ')).toBe('');
   });
 });
+
+describe('git-visualization copy', () => {
+  it('zh-CN branch graph desc separates legend symbols from text and avoids English "tagged"', () => {
+    const desc = String(zhCN.gitVisBranchGraphDesc);
+    // A space must sit between the legend glyph (●/■) and the following
+    // Chinese character, and "tagged" must not leak through as English.
+    expect(desc).toContain('● 圆点');
+    expect(desc).toContain('■ 方块');
+    expect(desc).not.toMatch(/tagged/i);
+  });
+});

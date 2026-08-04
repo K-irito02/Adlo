@@ -11,6 +11,25 @@ export const HEATMAP_TABS = [
   CHART_IDS.COMMIT_TIMELINE,
   CHART_IDS.CONTRIBUTOR_MODULES,
 ] as const;
+
+/**
+ * Minimum time a chart's loading state must remain visible before the fetched
+ * data can replace it. Without this, a fast fetch (cached data / quick backend)
+ * lets React batch setLoading(true) and setLoading(false) into a single frame,
+ * so the "loading" label is never painted — making tab switches flicker between
+ * "shows loading" and "no loading" depending on timing.
+ */
+export const CHART_LOADING_MIN_VISIBLE_MS = 200;
+
+/** Waits until at least `minMs` has elapsed since `startedAt` (no-op if already past). */
+export async function holdLoadingForMin(startedAt: number, minMs: number): Promise<void> {
+  const elapsed = performance.now() - startedAt;
+  const remaining = minMs - elapsed;
+  if (remaining > 0) {
+    await new Promise((resolve) => setTimeout(resolve, remaining));
+  }
+}
+
 export async function fetchChartData(
   bridge: DigitalLifeBridge,
   workspaceId: string,
@@ -58,6 +77,7 @@ export async function refreshWorkspace(
   setError: (chartId: string, error: string | undefined) => void,
   setData: (chartId: string, data: unknown) => void,
 ): Promise<void> {
+  const startedAt = performance.now();
   // Clear errors and flag loading before fetching
   for (const chartId of HEATMAP_TABS) {
     setError(chartId, undefined);
@@ -83,6 +103,10 @@ export async function refreshWorkspace(
       }
     }),
   );
+
+  // Keep the loading state visible long enough to paint (prevents flash-skip
+  // when every chart resolves within a single render batch).
+  await holdLoadingForMin(startedAt, CHART_LOADING_MIN_VISIBLE_MS);
 
   for (const result of results) {
     const chartId =

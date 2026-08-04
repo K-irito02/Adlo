@@ -161,7 +161,7 @@ export const changesZh = {
   gitVisHeatmapNav: '热力图类型',
   gitVisBranchGraph: '分支图谱',
   gitVisBranchGraphDesc:
-    '每条垂直泳道为一个分支。●圆点为单父提交，■方块为合并提交（2个以上父提交），标签徽章标记tagged版本。可查看项目的分支拓扑与合并历史。',
+    '每条垂直泳道为一个分支。● 圆点为单父提交，■ 方块为合并提交（2个以上父提交），带标签的版本以徽章标记。可查看项目的分支拓扑与合并历史。',
   gitVisBranch: '分支',
   gitVisHash: '哈希',
   gitVisMessage: '提交信息',

@@ -169,17 +169,21 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
     }
   }, [data, drillPath, setDrillPath]);
 
-  // When the chart's height grows (mode/drill/data changes), scroll the outer
-  // git-visualization area to the bottom so the grown chart stays fully visible.
-  // Shrink/equal heights never yank the viewport. The first call only records a
-  // baseline (no jump), so a mounted chart's first growth still scrolls.
+  // When the chart's height grows from a user-triggered mode/drill/breadcrumb
+  // change, scroll the outer git-visualization area to the bottom so the grown
+  // chart stays fully visible. Shrink/equal heights never yank the viewport.
+  // The height baseline (prevViewHeightRef) is recorded by the sorted.length
+  // effect below on mount and on every row-count change, so the very first
+  // user-triggered growth compares against the mounted height and scrolls.
+  // Data-driven growth (initial load / refresh) never scrolls the outer area —
+  // see the sorted.length effect below. This effect runs BEFORE the sorted.length
+  // effect (declaration order), so it compares against the pre-change baseline.
   const scrollOuterToBottom = useCallback(() => {
     const outer = scrollContainerRef?.current;
     const prev = prevViewHeightRef.current;
     if (outer && prev !== null && viewHeightRef.current > prev) {
       outer.scrollTop = outer.scrollHeight - outer.clientHeight;
     }
-    prevViewHeightRef.current = viewHeightRef.current;
   }, [scrollContainerRef]);
 
   // Keep the container's real scroll position in sync with the virtualization
@@ -232,15 +236,20 @@ export const FileHotspotsLeaderboard = React.memo(function FileHotspotsLeaderboa
   // Re-sync scroll/height state when the row count changes (e.g. after a data
   // refresh): the browser clamps the real scrollTop and the container height
   // follows the row count, but the state would stay stale, making the
-  // virtualization window overshoot into blank rows. Also scrolls the outer
-  // area to the bottom on growth (consistent with mode/drill changes).
+  // virtualization window overshoot into blank rows.
+  //
+  // Deliberately does NOT scroll the outer area on data-driven growth: that
+  // would yank the whole git-visualization page to the bottom on the initial
+  // load (0 → N rows). Outer scrolling to reveal a grown chart is reserved for
+  // user-triggered mode/drill/breadcrumb changes, which run above. Recording the
+  // height baseline here keeps that scroll decision accurate across refreshes.
   useLayoutEffect(() => {
     if (containerRef.current) {
       setScrollTop(containerRef.current.scrollTop);
       setContainerHeight(containerRef.current.clientHeight);
     }
-    scrollOuterToBottom();
-  }, [sorted.length, scrollOuterToBottom]);
+    prevViewHeightRef.current = viewHeightRef.current;
+  }, [sorted.length]);
 
   const handleModeChange = useCallback(
     (next: HotspotMode) => {
