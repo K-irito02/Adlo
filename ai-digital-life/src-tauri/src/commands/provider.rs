@@ -20,6 +20,8 @@ pub struct ProviderStatus {
     pub requires_key: bool,
     pub base_url: Option<String>,
     pub models: Vec<ModelDefinition>,
+    pub enabled: bool,
+    pub enabled_models: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -28,11 +30,22 @@ pub struct ConnectionTestResult {
     pub error: Option<String>,
 }
 
-fn map_def_to_status(def: &ProviderDefinition) -> ProviderStatus {
+fn merge_enabled(entry: Option<&adl_types::ModelProviderPreference>) -> (bool, Vec<String>) {
+    match entry {
+        Some(e) => (e.enabled, e.enabled_models.clone()),
+        None => (true, vec![]),
+    }
+}
+
+fn map_def_to_status(
+    def: &ProviderDefinition,
+    pref: Option<&adl_types::ModelProviderPreference>,
+) -> ProviderStatus {
     let models = match &def.models {
         ModelSource::Static(list) => list.clone(),
         ModelSource::Dynamic { .. } => vec![],
     };
+    let (enabled, enabled_models) = merge_enabled(pref);
     let has_secret = def.id == "ollama" || adl_model_gateway::get_provider_secret(&def.id).is_ok();
     ProviderStatus {
         id: def.id.clone(),
@@ -45,6 +58,8 @@ fn map_def_to_status(def: &ProviderDefinition) -> ProviderStatus {
         requires_key: matches!(def.auth_type, adl_model_gateway::registry::AuthType::ApiKey),
         base_url: def.default_base_url.clone(),
         models,
+        enabled,
+        enabled_models,
     }
 }
 
@@ -60,11 +75,18 @@ pub async fn list_providers(
     state: tauri::State<'_, crate::state::AppState>,
 ) -> CmdResult<Vec<ProviderStatus>> {
     let result = (|| -> Result<Vec<ProviderStatus>, AppError> {
+        let config =
+            state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
+        let prefs = &config.model_preferences.providers;
         let registry = state
             .provider_registry
             .read()
             .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?;
-        Ok(registry.list_all().into_iter().map(map_def_to_status).collect())
+        Ok(registry
+            .list_all()
+            .into_iter()
+            .map(|def| map_def_to_status(def, prefs.get(&def.id)))
+            .collect())
     })();
     Ok(ipc(result))
 }
@@ -349,5 +371,38 @@ mod tests {
     #[test]
     fn accepts_valid_https_url() {
         assert!(validate_provider_url("https://api.example.com/v1").is_ok());
+    }
+
+    #[test]
+    fn merge_enabled_no_entry_means_enabled_with_no_models() {
+        let (enabled, models) = merge_enabled(None);
+        assert!(enabled);
+        assert!(models.is_empty());
+    }
+
+    #[test]
+    fn merge_enabled_uses_entry_fields_when_present() {
+        let entry = adl_types::ModelProviderPreference {
+            enabled: true,
+            priority: 1,
+            model_id: "model-a".to_string(),
+            enabled_models: vec!["a".to_string()],
+        };
+        let (enabled, models) = merge_enabled(Some(&entry));
+        assert!(enabled);
+        assert_eq!(models, vec!["a"]);
+    }
+
+    #[test]
+    fn merge_enabled_disabled_provider() {
+        let entry = adl_types::ModelProviderPreference {
+            enabled: false,
+            priority: 1,
+            model_id: "model-a".to_string(),
+            enabled_models: vec![],
+        };
+        let (enabled, models) = merge_enabled(Some(&entry));
+        assert!(!enabled);
+        assert!(models.is_empty());
     }
 }
