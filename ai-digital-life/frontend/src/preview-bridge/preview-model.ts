@@ -5,7 +5,7 @@ import type {
   ModelDefinition,
 } from '@ai-digital-life/kernel';
 import type { ProviderStatus, ProviderInfo, ConnectionTestResult } from '../shared/ipc/provider';
-import type { ModelProviderPreference } from '../shared/ipc-types.generated';
+import type { ModelPreferences, ModelProviderPreference } from '../shared/ipc-types.generated';
 import { applyPreferencePatch } from '../shared/preferencesMerger';
 import { mockDigitalLifeBridge } from '../mock-bridge';
 import { MODEL_CATALOG } from '../shared/modelCatalog';
@@ -24,6 +24,29 @@ const previewApiKeys = new Map<string, string>();
 
 export function resetPreviewModelState(): void {
   previewApiKeys.clear();
+}
+
+const DEFAULT_PROVIDER_PRIORITY: Record<string, number> = {
+  deepseek: 1,
+  minimax: 2,
+  openai: 3,
+  anthropic: 4,
+  google: 5,
+  ollama: 6,
+  openrouter: 7,
+};
+
+function defaultModelPreferences(): ModelPreferences {
+  const providers: ModelPreferences['providers'] = {};
+  for (const catalog of MODEL_CATALOG) {
+    providers[catalog.id] = {
+      enabled: true,
+      priority: DEFAULT_PROVIDER_PRIORITY[catalog.id] ?? 10,
+      modelId: catalog.models[0]?.id ?? catalog.id,
+      enabledModels: [],
+    };
+  }
+  return { providers };
 }
 
 function catalogToStatus(
@@ -85,22 +108,7 @@ export function createBaseAppInfo(): AppInfo {
       terminalLogMode: 'overwrite',
       debugLogMode: 'overwrite',
       maxRecentWorkspaces: 10,
-      modelPreferences: savedPreferences.modelPreferences ?? {
-        providers: {
-          deepseek: {
-            enabled: true,
-            priority: 1,
-            modelId: 'deepseek-v4-pro',
-            enabledModels: [],
-          },
-          minimax: {
-            enabled: true,
-            priority: 2,
-            modelId: 'MiniMax-M2.7',
-            enabledModels: [],
-          },
-        },
-      },
+      modelPreferences: savedPreferences.modelPreferences ?? defaultModelPreferences(),
       keybinds: {},
       fonts: {},
       maxConcurrentWorkspaces: 6,

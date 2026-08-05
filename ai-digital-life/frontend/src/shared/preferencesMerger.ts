@@ -36,15 +36,18 @@ export function applyPreferencePatch(
       Partial<ModelProviderPreference>,
     ][]) {
       const key = providerId as keyof typeof nextProviders;
-      const existing = nextProviders[key];
-      if (existing) {
-        nextProviders[key] = {
-          enabled: providerPatch.enabled ?? existing.enabled,
-          priority: providerPatch.priority ?? existing.priority,
-          modelId: providerPatch.modelId ?? existing.modelId,
-          enabledModels: providerPatch.enabledModels ?? existing.enabledModels,
-        };
-      }
+      const existing = nextProviders[key] ?? {
+        enabled: true,
+        priority: 10,
+        modelId: providerId,
+        enabledModels: [],
+      };
+      nextProviders[key] = {
+        enabled: providerPatch.enabled ?? existing.enabled,
+        priority: providerPatch.priority ?? existing.priority,
+        modelId: providerPatch.modelId ?? existing.modelId,
+        enabledModels: providerPatch.enabledModels ?? existing.enabledModels,
+      };
     }
     nextConfig.modelPreferences = {
       ...nextConfig.modelPreferences,

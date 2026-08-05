@@ -106,6 +106,19 @@ describe('applyPreferencePatch', () => {
     expect(result.modelPreferences.providers.deepseek.enabledModels).toEqual([]);
   });
 
+  it('creates a new provider entry with defaults when patching a non-seeded provider', () => {
+    const patch = {
+      modelPreferences: { openai: { enabledModels: ['gpt-4o'] } },
+    } as AppPreferencePatch;
+    const result = applyPreferencePatch(baseConfig, patch);
+    const openai = result.modelPreferences.providers.openai;
+    expect(openai).toBeDefined();
+    expect(openai.enabled).toBe(true);
+    expect(openai.priority).toBe(10);
+    expect(openai.modelId).toBe('openai');
+    expect(openai.enabledModels).toEqual(['gpt-4o']);
+  });
+
   it('leaves enabledModels untouched when patch omits it', () => {
     const baseWithModels: ConfigSnapshot = {
       ...baseConfig,

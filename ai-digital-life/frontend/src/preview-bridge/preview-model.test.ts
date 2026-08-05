@@ -67,6 +67,49 @@ describe('preview-model provider bridge', () => {
     }
   });
 
+  it('updatePreferences persists enabled/enabledModels for a non-seeded provider', async () => {
+    const bridge = createBridge();
+    const update = await bridge.app.updatePreferences({
+      modelPreferences: {
+        openai: {
+          enabled: false,
+          enabledModels: ['gpt-4o'],
+        },
+      },
+    });
+    expect(update.ok).toBe(true);
+
+    const result = await bridge.provider.listProviders();
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    const openai = result.data.find((p) => p.id === 'openai');
+    expect(openai?.enabled).toBe(false);
+    expect(openai?.enabledModels).toEqual(['gpt-4o']);
+    for (const provider of result.data) {
+      if (provider.id !== 'openai') {
+        expect(provider.enabled).toBe(true);
+        expect(provider.enabledModels).toEqual([]);
+      }
+    }
+  });
+
+  it('createBaseAppInfo seeds all 7 providers with correct defaults', () => {
+    const info = createBaseAppInfo();
+    const providers = info.config.modelPreferences.providers;
+    const ids = Object.keys(providers).sort();
+    expect(ids).toEqual(MODEL_CATALOG.map((p) => p.id).sort());
+    const deepseek = providers.deepseek;
+    expect(deepseek.modelId).toBe('deepseek-chat');
+    expect(deepseek.enabled).toBe(true);
+    expect(deepseek.priority).toBe(1);
+    for (const provider of Object.values(providers)) {
+      expect(provider.enabled).toBe(true);
+      expect(provider.enabledModels).toEqual([]);
+    }
+  });
+
   it('setProviderApiKey then hasProviderApiKey returns true', async () => {
     const bridge = createBridge();
     const set = await bridge.provider.setProviderApiKey('deepseek', 'secret-key');
