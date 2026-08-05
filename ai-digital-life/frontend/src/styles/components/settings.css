@@ -180,7 +180,7 @@
   transition: var(--transition-colors);
 }
 .adl-settings-toggle.is-on .adl-settings-toggle__track {
-  background: var(--accent);
+  background: var(--text-primary);
 }
 .adl-settings-toggle__thumb {
   position: absolute;
