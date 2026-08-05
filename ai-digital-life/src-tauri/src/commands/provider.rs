@@ -9,6 +9,7 @@ use serde::Serialize;
 type CmdResult<T> = Result<IpcResult<T>, AppError>;
 
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProviderStatus {
     pub id: String,
     pub name: String,
@@ -404,5 +405,47 @@ mod tests {
         let (enabled, models) = merge_enabled(Some(&entry));
         assert!(!enabled);
         assert!(models.is_empty());
+    }
+
+    #[test]
+    fn provider_status_serializes_camel_case() {
+        let status = ProviderStatus {
+            id: "deepseek".to_string(),
+            name: "DeepSeek".to_string(),
+            description: "DeepSeek API".to_string(),
+            api_type: "OpenAICompatible".to_string(),
+            built_in: true,
+            configured: true,
+            has_key: true,
+            requires_key: true,
+            base_url: Some("https://api.deepseek.com".to_string()),
+            models: vec![ModelDefinition {
+                id: "deepseek-chat".to_string(),
+                provider_id: "deepseek".to_string(),
+                name: "DeepSeek Chat".to_string(),
+                description: None,
+                context_window: Some(65536),
+                max_output: Some(8192),
+                capabilities: vec![ModelCapability::Text, ModelCapability::Streaming],
+                tier: None,
+                released: None,
+            }],
+            enabled: true,
+            enabled_models: vec!["deepseek-chat".to_string()],
+        };
+
+        let json = serde_json::to_value(&status).expect("serialize ProviderStatus");
+        let obj = json.as_object().expect("ProviderStatus is an object");
+
+        for key in ["apiType", "builtIn", "hasKey", "baseUrl", "enabledModels"] {
+            assert!(obj.contains_key(key), "missing camelCase key '{key}'");
+        }
+        for key in ["api_type", "enabled_models"] {
+            assert!(!obj.contains_key(key), "unexpected snake_case key '{key}'");
+        }
+
+        let models = obj["models"].as_array().expect("models is an array");
+        let first = models[0].as_object().expect("model is an object");
+        assert!(first.contains_key("providerId"), "nested model missing camelCase 'providerId'");
     }
 }
