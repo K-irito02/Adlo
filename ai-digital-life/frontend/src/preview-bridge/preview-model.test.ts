@@ -35,7 +35,7 @@ describe('preview-model provider bridge', () => {
     expect(ids).toEqual(MODEL_CATALOG.map((p) => p.id).sort());
     for (const provider of result.data) {
       expect(provider.enabled).toBe(true);
-      expect(provider.enabledModels).toEqual([]);
+      expect(provider.enabledModels).toEqual(null);
     }
   });
 
@@ -62,7 +62,7 @@ describe('preview-model provider bridge', () => {
     for (const provider of result.data) {
       if (provider.id !== 'deepseek') {
         expect(provider.enabled).toBe(true);
-        expect(provider.enabledModels).toEqual([]);
+        expect(provider.enabledModels).toEqual(null);
       }
     }
   });
@@ -90,7 +90,7 @@ describe('preview-model provider bridge', () => {
     for (const provider of result.data) {
       if (provider.id !== 'openai') {
         expect(provider.enabled).toBe(true);
-        expect(provider.enabledModels).toEqual([]);
+        expect(provider.enabledModels).toEqual(null);
       }
     }
   });
@@ -106,7 +106,7 @@ describe('preview-model provider bridge', () => {
     expect(deepseek.priority).toBe(1);
     for (const provider of Object.values(providers)) {
       expect(provider.enabled).toBe(true);
-      expect(provider.enabledModels).toEqual([]);
+      expect(provider.enabledModels).toEqual(null);
     }
   });
 

@@ -69,7 +69,7 @@ export function ModelToggleList({ providers }: ModelToggleListProps) {
     <div className="adl-model-settings__model-list">
       {providers.map((provider) => {
         const defaultModelId = modelPrefs?.[provider.id]?.modelId;
-        const allEnabled = provider.enabledModels.length === 0;
+        const allEnabled = provider.enabledModels === null || provider.enabledModels.length === 0;
         return (
           <section
             key={provider.id}

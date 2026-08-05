@@ -26,14 +26,14 @@ export interface ModelProviderPreference {
   enabled: boolean;
   priority: number;
   modelId: string;
-  enabledModels: string[];
+  enabledModels: string[] | null;
 }
 
 export interface ModelProviderPreferencePatch {
   enabled?: boolean;
   priority?: number;
   modelId?: string;
-  enabledModels?: string[];
+  enabledModels?: string[] | null;
 }
 
 export interface FontPreferences {

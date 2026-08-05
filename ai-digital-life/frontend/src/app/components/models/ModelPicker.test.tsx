@@ -36,7 +36,7 @@ function makeProvider(
     baseUrl: 'https://api.example.com',
     models: [],
     enabled: true,
-    enabledModels: [],
+    enabledModels: null,
     ...overrides,
   };
 }
@@ -103,14 +103,14 @@ describe('ModelPicker enabled-state filtering', () => {
     expect(screen.queryByText('Off Model')).not.toBeInTheDocument();
   });
 
-  it('renders all models when enabledModels is empty (all enabled)', () => {
+  it('renders all models when enabledModels is null (all enabled)', () => {
     useAppStore.setState({
       providers: [
         makeProvider({
           id: 'all',
           name: 'AllCo',
           enabled: true,
-          enabledModels: [],
+          enabledModels: null,
           models: [makeModel('m1', 'Model One'), makeModel('m2', 'Model Two')],
         }),
       ],

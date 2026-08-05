@@ -4,7 +4,7 @@ import type { ModelDefinition, ProviderStatus } from './ipc/provider';
 
 function makeProvider(
   enabled: boolean,
-  enabledModels: string[],
+  enabledModels: string[] | null,
 ): Pick<ProviderStatus, 'enabled' | 'enabledModels'> {
   return { enabled, enabledModels };
 }
@@ -12,7 +12,7 @@ function makeProvider(
 function makeFullProvider(
   id: string,
   enabled: boolean,
-  enabledModels: string[],
+  enabledModels: string[] | null,
   models: ModelDefinition[],
 ): ProviderStatus {
   return {
@@ -41,9 +41,13 @@ describe('isModelEnabled', () => {
     expect(isModelEnabled(makeProvider(false, ['deepseek-chat']), 'deepseek-chat')).toBe(false);
   });
 
-  it('returns true when enabledModels is empty (all models enabled)', () => {
-    expect(isModelEnabled(makeProvider(true, []), 'deepseek-chat')).toBe(true);
-    expect(isModelEnabled(makeProvider(true, []), 'deepseek-reasoner')).toBe(true);
+  it('returns true when enabledModels is null (all models enabled)', () => {
+    expect(isModelEnabled(makeProvider(true, null), 'deepseek-chat')).toBe(true);
+    expect(isModelEnabled(makeProvider(true, null), 'deepseek-reasoner')).toBe(true);
+  });
+
+  it('returns false when enabledModels is an empty array (none enabled)', () => {
+    expect(isModelEnabled(makeProvider(true, []), 'deepseek-chat')).toBe(false);
   });
 
   it('returns true when modelId is present in explicit list', () => {
@@ -60,16 +64,16 @@ describe('isModelEnabled', () => {
 describe('filterEnabledOptions', () => {
   it('drops providers whose enabled is false', () => {
     const providers = [
-      makeFullProvider('disabled', false, [], [makeModel('m1')]),
-      makeFullProvider('enabled', true, [], [makeModel('m2')]),
+      makeFullProvider('disabled', false, null, [makeModel('m1')]),
+      makeFullProvider('enabled', true, null, [makeModel('m2')]),
     ];
     const options = filterEnabledOptions(providers);
     expect(options.map((o) => o.provider.id)).toEqual(['enabled']);
   });
 
-  it('keeps all models when enabledModels is empty (all enabled)', () => {
+  it('keeps all models when enabledModels is null (all enabled)', () => {
     const options = filterEnabledOptions([
-      makeFullProvider('p', true, [], [makeModel('m1'), makeModel('m2')]),
+      makeFullProvider('p', true, null, [makeModel('m1'), makeModel('m2')]),
     ]);
     expect(options[0].models.map((m) => m.id)).toEqual(['m1', 'm2']);
   });

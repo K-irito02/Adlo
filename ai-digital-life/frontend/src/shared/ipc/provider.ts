@@ -20,7 +20,7 @@ export interface ProviderStatus {
   baseUrl: string | null;
   models: ModelDefinition[];
   enabled: boolean;
-  enabledModels: string[];
+  enabledModels: string[] | null;
 }
 
 export interface ConnectionTestResult {

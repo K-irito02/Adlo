@@ -37,7 +37,7 @@ function makeProvider(
     baseUrl: 'https://api.example.com',
     models: [],
     enabled: true,
-    enabledModels: [],
+    enabledModels: null,
     ...overrides,
   };
 }
@@ -110,7 +110,7 @@ beforeEach(() => {
     connectionTestResults: {},
     testingProviderId: null,
     appInfo: makeAppInfo({
-      deepseek: { enabled: true, priority: 0, modelId: 'deepseek-chat', enabledModels: [] },
+      deepseek: { enabled: true, priority: 0, modelId: 'deepseek-chat', enabledModels: null },
     }),
   });
   const state = useAppStore.getState();
@@ -259,7 +259,7 @@ describe('ModelSettings lower zone — model toggle list', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows the all-enabled hint when enabledModels is empty', () => {
+  it('shows the all-enabled hint when enabledModels is null (all enabled)', () => {
     renderSettings();
     expect(
       within(screen.getByTestId('model-group-deepseek')).getByText('modelAllEnabledHint'),

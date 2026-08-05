@@ -23,7 +23,7 @@ export const mockProvider: ProviderBridge = {
       baseUrl: p.baseUrl,
       models: p.models,
       enabled: true,
-      enabledModels: [],
+      enabledModels: null,
     })),
   }),
   saveProviderConfig: async (_providerId: string, _config: Record<string, unknown>) => ({

@@ -12,7 +12,7 @@ describe('mockProvider', () => {
     for (const provider of result.data) {
       expect(provider.models.length).toBeGreaterThan(0);
       expect(typeof provider.enabled).toBe('boolean');
-      expect(Array.isArray(provider.enabledModels)).toBe(true);
+      expect(provider.enabledModels).toBeNull();
       expect(provider.id).toBeTruthy();
       expect(provider.name).toBeTruthy();
       expect(provider.apiType).toBeTruthy();

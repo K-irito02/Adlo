@@ -105,13 +105,13 @@ export const appInfo: AppInfo = {
           enabled: true,
           priority: 1,
           modelId: "deepseek-v4-pro",
-          enabledModels: []
+          enabledModels: null
         },
         minimax: {
           enabled: true,
           priority: 2,
           modelId: "MiniMax-M2.7",
-          enabledModels: []
+          enabledModels: null
         }
       }
     },

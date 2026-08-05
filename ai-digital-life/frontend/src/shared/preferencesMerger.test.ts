@@ -12,7 +12,7 @@ const baseConfig: ConfigSnapshot = {
   maxRecentWorkspaces: 10,
   modelPreferences: {
     providers: {
-      deepseek: { enabled: true, priority: 1, modelId: 'deepseek-chat', enabledModels: [] },
+      deepseek: { enabled: true, priority: 1, modelId: 'deepseek-chat', enabledModels: null },
     },
   },
   keybinds: {},
@@ -117,6 +117,37 @@ describe('applyPreferencePatch', () => {
     expect(openai.priority).toBe(10);
     expect(openai.modelId).toBe('openai');
     expect(openai.enabledModels).toEqual(['gpt-4o']);
+  });
+
+  it('explicitly sets enabledModels to null on an existing provider (all enabled)', () => {
+    const baseWithModels: ConfigSnapshot = {
+      ...baseConfig,
+      modelPreferences: {
+        providers: {
+          deepseek: {
+            enabled: true,
+            priority: 1,
+            modelId: 'deepseek-chat',
+            enabledModels: ['deepseek-chat'],
+          },
+        },
+      },
+    };
+    const patch = {
+      modelPreferences: { deepseek: { enabledModels: null } },
+    } as AppPreferencePatch;
+    const result = applyPreferencePatch(baseWithModels, patch);
+    expect(result.modelPreferences.providers.deepseek.enabledModels).toBeNull();
+  });
+
+  it('creates a new provider entry with enabledModels null when the patch omits it', () => {
+    const patch = {
+      modelPreferences: { openai: { priority: 5 } },
+    } as AppPreferencePatch;
+    const result = applyPreferencePatch(baseConfig, patch);
+    const openai = result.modelPreferences.providers.openai;
+    expect(openai).toBeDefined();
+    expect(openai.enabledModels).toBeNull();
   });
 
   it('leaves enabledModels untouched when patch omits it', () => {

@@ -16,8 +16,8 @@ const mockAppInfo: AppInfo = {
     maxRecentWorkspaces: 10,
     modelPreferences: {
       providers: {
-        deepseek: { enabled: true, priority: 1, modelId: 'deepseek-chat', enabledModels: [] },
-        minimax: { enabled: false, priority: 2, modelId: 'abab6', enabledModels: [] },
+        deepseek: { enabled: true, priority: 1, modelId: 'deepseek-chat', enabledModels: null },
+        minimax: { enabled: false, priority: 2, modelId: 'abab6', enabledModels: null },
       },
     },
     keybinds: {},

@@ -43,7 +43,7 @@ function defaultModelPreferences(): ModelPreferences {
       enabled: true,
       priority: DEFAULT_PROVIDER_PRIORITY[catalog.id] ?? 10,
       modelId: catalog.models[0]?.id ?? catalog.id,
-      enabledModels: [],
+      enabledModels: null,
     };
   }
   return { providers };
@@ -68,7 +68,7 @@ function catalogToStatus(
     baseUrl: catalog?.baseUrl ?? null,
     models: catalog?.models ?? [],
     enabled: pref?.enabled ?? true,
-    enabledModels: pref?.enabledModels ?? [],
+    enabledModels: pref?.enabledModels ?? null,
   };
 }
 
@@ -91,7 +91,7 @@ function customToStatus(custom: PreviewCustomProvider): ProviderStatus {
       capabilities: ['text'],
     })),
     enabled: true,
-    enabledModels: [],
+    enabledModels: null,
   };
 }
 

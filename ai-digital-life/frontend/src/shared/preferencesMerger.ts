@@ -40,13 +40,14 @@ export function applyPreferencePatch(
         enabled: true,
         priority: 10,
         modelId: providerId,
-        enabledModels: [],
+        enabledModels: null,
       };
       nextProviders[key] = {
         enabled: providerPatch.enabled ?? existing.enabled,
         priority: providerPatch.priority ?? existing.priority,
         modelId: providerPatch.modelId ?? existing.modelId,
-        enabledModels: providerPatch.enabledModels ?? existing.enabledModels,
+        enabledModels:
+          'enabledModels' in providerPatch ? providerPatch.enabledModels! : existing.enabledModels,
       };
     }
     nextConfig.modelPreferences = {
