@@ -12,14 +12,14 @@ export const settingsZh = {
   settingsWorkspace: '工作区',
   settingsShortcuts: '快捷键',
   settingsMcp: 'MCP 服务器',
-  settingsProviders: '模型供应商',
+  settingsModels: '模型',
   settingsCommands: '自定义命令',
   settingsPermissions: '权限规则',
   settingsReferences: '引用',
   settingsLsp: '语言服务',
 
   // 设置分区描述
-  settingsProvidersDesc: '配置模型 API 供应商和凭证',
+  settingsModelsDesc: '配置模型供应商、凭证与启用模型',
   settingsReferencesDesc: '管理参考材料和文档',
   settingsAgentDesc: '配置自定义智能体行为和预设',
 

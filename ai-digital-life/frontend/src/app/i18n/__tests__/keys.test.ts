@@ -105,6 +105,20 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS).toHaveProperty('settingsTitle');
   });
 
+  it('includes renamed model settings group keys', () => {
+    expect(enUS).toHaveProperty('settingsModels');
+    expect(enUS).toHaveProperty('settingsModelsDesc');
+    expect(zhCN).toHaveProperty('settingsModels');
+    expect(zhCN).toHaveProperty('settingsModelsDesc');
+  });
+
+  it('no longer exposes the legacy settingsProviders keys', () => {
+    expect(enUS).not.toHaveProperty('settingsProviders');
+    expect(enUS).not.toHaveProperty('settingsProvidersDesc');
+    expect(zhCN).not.toHaveProperty('settingsProviders');
+    expect(zhCN).not.toHaveProperty('settingsProvidersDesc');
+  });
+
   it('includes notification domain keys', () => {
     expect(enUS).toHaveProperty('notifTitle');
   });

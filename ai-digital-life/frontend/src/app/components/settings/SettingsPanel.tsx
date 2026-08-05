@@ -13,7 +13,7 @@ import { CommandSettings } from '../../features/command-editor/CommandSettings';
 import { CustomAgentSettings } from '../../features/custom-agent/CustomAgentSettings';
 import { PermissionSettings } from '../../features/permission-settings/PermissionSettings';
 import { ReferenceSettings } from '../../features/reference-manager/ReferenceSettings';
-import { ProviderSettings } from '../../features/provider-manager/ProviderSettings';
+import { ModelSettings } from '../../features/model-settings/ModelSettings';
 import { LspSettings } from '../../features/lsp-panel/LspSettings';
 import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSettings';
 import { getDefaultPreferences } from '../../../shared/defaultPreferences';
@@ -33,7 +33,7 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   commands: CommandSettings,
   permissions: PermissionSettings,
   references: ReferenceSettings,
-  providers: ProviderSettings,
+  providers: ModelSettings,
   lsp: LspSettings,
   agent: CustomAgentSettings,
   workspace: WorkspaceSettings,

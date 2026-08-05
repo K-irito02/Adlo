@@ -12,14 +12,14 @@ export const settingsEn = {
   settingsWorkspace: 'Workspace',
   settingsShortcuts: 'Shortcuts',
   settingsMcp: 'MCP Servers',
-  settingsProviders: 'Model Providers',
+  settingsModels: 'Models',
   settingsCommands: 'Custom Commands',
   settingsPermissions: 'Permission Rules',
   settingsReferences: 'References',
   settingsLsp: 'Language Server',
 
   // Settings section descriptions
-  settingsProvidersDesc: 'Configure model API providers and credentials',
+  settingsModelsDesc: 'Configure model providers, credentials and enabled models',
   settingsReferencesDesc: 'Manage reference materials and documentation',
   settingsAgentDesc: 'Configure custom agent behaviors and presets',
 
