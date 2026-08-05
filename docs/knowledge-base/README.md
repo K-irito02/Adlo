@@ -14,7 +14,7 @@
 | [interaction](./interaction/) | 跨功能面板的交互/UX 问题修复经验 | 21 |
 | [ci-monitoring](./ci-monitoring/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离、数据缓存、Rate Limit 保护） | 6 |
 | [logging](./logging/) | 日志系统统一改造经验（OpenOptions 权限、ANSI 控制、FormatTime、MakeWriter 兼容、双端一致性） | 1 |
-| [tauri-backend](./tauri-backend/) | Tauri 命令性能、Rust 异步模式、主线程阻塞等后端经验 | 1 |
+| [tauri-backend](./tauri-backend/) | Tauri 命令性能、Rust 异步模式、主线程阻塞、serde JSON null vs 缺省 等后端经验 | 3 |
 | [toolchain](./toolchain/) | 开发工具链与环境配置经验（Git、Node、Rust 等） | 2 |
 
 说明：
