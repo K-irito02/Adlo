@@ -319,10 +319,10 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
      * @see mock-bridge.ts → app.updatePreferences, app.getModelHealth
      * @see preview-bridge/index.ts → app.updatePreferences, app.getModelHealth
      */
-    updatePreferences: async (patch: AppPreferencePatch) => {
+    updatePreferences: async (patch: AppPreferencePatch): Promise<boolean> => {
       const key = 'updatePreferences';
       if (get().isFetching[key]) {
-        return;
+        return false;
       }
       clearError(get);
       set({ isFetching: { ...get().isFetching, [key]: true } });
@@ -330,7 +330,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         const result = await window.digitalLife.app.updatePreferences(patch);
         if (!result.ok) {
           captureError(get, result.error);
-          return;
+          return false;
         }
         const responseMode = result.data.config.themeMode;
         // result.data from Rust backend has stale resolvedTheme for system mode
@@ -344,8 +344,10 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         if (patch.modelPreferences) {
           await get().refreshModelHealth();
         }
+        return true;
       } catch (error) {
         captureError(get, error);
+        return false;
       } finally {
         set({ isFetching: { ...get().isFetching, [key]: false } });
       }

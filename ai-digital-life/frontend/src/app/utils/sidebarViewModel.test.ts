@@ -86,7 +86,7 @@ describe('buildSidebarViewModel', () => {
             deepseek: {
               enabled: true,
               priority: 1,
-              modelId: 'deepseek-v4-pro',
+              modelId: 'deepseek-chat',
               enabledModels: null,
             },
             minimax: { enabled: true, priority: 2, modelId: 'MiniMax-M2.7', enabledModels: null },

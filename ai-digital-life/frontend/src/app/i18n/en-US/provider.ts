@@ -38,5 +38,4 @@ export const providerEn = {
   providerCustomNamePlaceholder: 'e.g. My Provider',
   providerCustomUrlPlaceholder: 'https://api.example.com/v1',
   providerCustomModelsPlaceholder: 'gpt-4o, claude-3-opus',
-  providerRefreshAria: 'Refresh providers',
 } as const;

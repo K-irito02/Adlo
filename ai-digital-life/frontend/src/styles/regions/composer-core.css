@@ -222,6 +222,10 @@
   box-shadow: none;
 }
 
+.adl-prompt-modal__input:focus-visible {
+  box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring);
+}
+
 .adl-prompt-modal__input--error {
   border-color: var(--danger, #ef4444);
 }

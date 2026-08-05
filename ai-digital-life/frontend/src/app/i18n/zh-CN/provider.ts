@@ -38,5 +38,4 @@ export const providerZh = {
   providerCustomNamePlaceholder: '例如：我的提供商',
   providerCustomUrlPlaceholder: 'https://api.example.com/v1',
   providerCustomModelsPlaceholder: 'gpt-4o, claude-3-opus',
-  providerRefreshAria: '刷新提供商列表',
 } as const;

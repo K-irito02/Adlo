@@ -52,7 +52,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
         role="button"
         tabIndex={0}
         aria-expanded={expanded}
-        aria-label={t.modelProviderDetailsAria}
+        aria-label={formatT(t, 'modelProviderDetailsAria', { provider: provider.name })}
         onClick={() => setExpanded((v) => !v)}
         onKeyDown={(e) => {
           if (e.target !== e.currentTarget) {

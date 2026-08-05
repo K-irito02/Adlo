@@ -144,7 +144,7 @@ beforeEach(() => {
     setAllModelsEnabled: vi
       .spyOn(state, 'setAllModelsEnabled')
       .mockResolvedValue(undefined) as Mock,
-    updatePreferences: vi.spyOn(state, 'updatePreferences').mockResolvedValue(undefined) as Mock,
+    updatePreferences: vi.spyOn(state, 'updatePreferences').mockResolvedValue(true) as Mock,
     addCustomProvider: vi.spyOn(state, 'addCustomProvider').mockResolvedValue(undefined) as Mock,
   };
 });

@@ -104,7 +104,7 @@ export const appInfo: AppInfo = {
         deepseek: {
           enabled: true,
           priority: 1,
-          modelId: "deepseek-v4-pro",
+          modelId: "deepseek-chat",
           enabledModels: null
         },
         minimax: {

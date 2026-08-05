@@ -170,7 +170,7 @@ describe('KeybindSettings', () => {
   it('records new keybind and calls updatePreferences', async () => {
     const updatePreferencesSpy = vi
       .spyOn(useAppStore.getState(), 'updatePreferences')
-      .mockResolvedValue(undefined);
+      .mockResolvedValue(true);
 
     render(
       <TestProvider>
@@ -257,7 +257,7 @@ describe('KeybindSettings', () => {
   it('Escape stops recording without saving', async () => {
     const updatePreferencesSpy = vi
       .spyOn(useAppStore.getState(), 'updatePreferences')
-      .mockResolvedValue(undefined);
+      .mockResolvedValue(true);
 
     render(
       <TestProvider>
@@ -289,7 +289,7 @@ describe('KeybindSettings', () => {
   it('Backspace without modifiers clears the binding', async () => {
     const updatePreferencesSpy = vi
       .spyOn(useAppStore.getState(), 'updatePreferences')
-      .mockResolvedValue(undefined);
+      .mockResolvedValue(true);
 
     render(
       <TestProvider>

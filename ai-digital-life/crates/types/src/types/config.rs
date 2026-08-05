@@ -130,6 +130,9 @@ pub struct ModelProviderPreference {
     pub enabled: bool,
     pub priority: i32,
     pub model_id: String,
+    /// 三态模型启用语义：`None` = 全部启用；`Some([])` = 全部关闭；`Some(ids)` = 白名单子集。
+    /// 路由层（model-gateway::route）据此强校验：`model_id` 不在白名单时回退到首个启用模型，
+    /// 白名单为空时该 provider 不可路由。
     #[serde(default)]
     pub enabled_models: Option<Vec<String>>,
 }
@@ -200,8 +203,24 @@ pub struct ModelProviderPreferencePatch {
     pub priority: Option<i32>,
     #[ts(optional)]
     pub model_id: Option<String>,
+    /// 三态语义：缺省(JSON absent)→None(保留原值)；显式 null→Some(None)=全部启用；
+    /// 数组→Some(Some(list))=白名单(空数组=全部关闭)。
+    /// `deserialize_with` 使 JSON null 反序列化为 `Some(None)`（显式"全部启用"），
+    /// 而非与"缺省"相同的 `None`。ts-rs 无法解析 `deserialize_with` 会在构建时告警但忽略
+    /// （ipc-types.generated.ts 为手工维护，不受影响），clippy `-D warnings` 不受影响。
     #[ts(optional)]
+    #[serde(default, deserialize_with = "deserialize_enabled_models")]
     pub enabled_models: Option<Option<Vec<String>>>,
+}
+
+/// 使 JSON `null` → `Some(None)`（显式"全部启用"），JSON 数组 → `Some(Some(list))`。
+/// 缺省（键不存在）由 `#[serde(default)]` 提供外层 `None`。
+fn deserialize_enabled_models<'de, D>(deserializer: D) -> Result<Option<Option<Vec<String>>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let inner = Option::<Vec<String>>::deserialize(deserializer)?;
+    Ok(Some(inner))
 }
 
 /// User-defined font preferences. All fields optional — `None` means "use default".
@@ -362,5 +381,25 @@ mod enabled_models_serde_tests {
         };
         let json = serde_json::to_value(&pref).unwrap();
         assert_eq!(json["enabledModels"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn patch_json_null_maps_to_some_none_all_enabled() {
+        let patch: ModelProviderPreferencePatch =
+            serde_json::from_str(r#"{"enabledModels":null}"#).unwrap();
+        assert_eq!(patch.enabled_models, Some(None));
+    }
+
+    #[test]
+    fn patch_json_absent_maps_to_outer_none_keep() {
+        let patch: ModelProviderPreferencePatch = serde_json::from_str(r#"{}"#).unwrap();
+        assert_eq!(patch.enabled_models, None);
+    }
+
+    #[test]
+    fn patch_json_array_maps_to_some_some_list() {
+        let patch: ModelProviderPreferencePatch =
+            serde_json::from_str(r#"{"enabledModels":["deepseek-chat"]}"#).unwrap();
+        assert_eq!(patch.enabled_models, Some(Some(vec!["deepseek-chat".to_string()])));
     }
 }

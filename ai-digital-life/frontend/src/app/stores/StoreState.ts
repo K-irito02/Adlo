@@ -285,7 +285,7 @@ interface SessionForkActions {
 
 interface DataFetchActions {
   refreshModelHealth: () => Promise<void>;
-  updatePreferences: (patch: AppPreferencePatch) => Promise<void>;
+  updatePreferences: (patch: AppPreferencePatch) => Promise<boolean>;
   fetchIndexStatus: () => Promise<void>;
   fetchRepoMap: () => Promise<void>;
   fetchAuditEntries: (limit?: number) => Promise<void>;

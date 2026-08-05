@@ -6,7 +6,7 @@ export function isModelEnabled(
 ): boolean {
   return (
     provider.enabled &&
-    (provider.enabledModels === null || provider.enabledModels.includes(modelId))
+    (provider.enabledModels === null || (provider.enabledModels ?? []).includes(modelId))
   );
 }
 
