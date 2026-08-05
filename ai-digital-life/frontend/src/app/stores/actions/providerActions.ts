@@ -100,5 +100,45 @@ export function createProviderActions(
         ),
       });
     },
+
+    toggleModel: async (providerId: string, modelId: string, enabled: boolean) => {
+      clearError(get);
+      const current =
+        get().appInfo?.config.modelPreferences.providers[providerId]?.enabledModels ?? [];
+      let next: string[];
+      if (enabled) {
+        if (current.length === 0 || current.includes(modelId)) {
+          return;
+        }
+        next = [...current, modelId];
+      } else {
+        if (current.length === 0) {
+          const provider = get().providers.find((p) => p.id === providerId);
+          next = (provider?.models ?? []).map((m) => m.id).filter((id) => id !== modelId);
+        } else {
+          next = current.filter((id) => id !== modelId);
+        }
+      }
+      await get().updatePreferences({
+        modelPreferences: { [providerId]: { enabledModels: next } },
+      });
+      await get().fetchProviders();
+    },
+
+    setProviderEnabled: async (providerId: string, enabled: boolean) => {
+      clearError(get);
+      await get().updatePreferences({
+        modelPreferences: { [providerId]: { enabled } },
+      });
+      await get().fetchProviders();
+    },
+
+    setDefaultModel: async (providerId: string, modelId: string) => {
+      clearError(get);
+      await get().updatePreferences({
+        modelPreferences: { [providerId]: { modelId } },
+      });
+      await get().fetchProviders();
+    },
   };
 }
