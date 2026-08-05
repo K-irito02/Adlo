@@ -36,7 +36,7 @@ export function ModelSettings() {
   const showMoreButton = !searchQuery.trim() && providers.length > INITIAL_VISIBLE_PROVIDERS;
 
   return (
-    <div className="adl-settings-section">
+    <div className="adl-settings-section adl-model-settings">
       <SettingsHeader
         title={t.settingsModels}
         description={t.settingsModelsDesc}

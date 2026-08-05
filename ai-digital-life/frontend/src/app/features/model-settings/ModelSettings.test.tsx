@@ -332,6 +332,11 @@ describe('ModelSettings upper zone — provider cards', () => {
     expect(dialog).toHaveClass('adl-prompt-modal__panel');
     expect(document.querySelector('.adl-prompt-modal')).toBeInTheDocument();
   });
+
+  it('carries the adl-model-settings ancestor class so model-region button radius scoping applies', () => {
+    renderSettings();
+    expect(document.querySelector('.adl-settings-section')).toHaveClass('adl-model-settings');
+  });
 });
 
 function makeProviders(count: number): ProviderStatus[] {
