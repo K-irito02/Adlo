@@ -47,6 +47,10 @@ export function ProviderCard({ provider }: ProviderCardProps) {
 
   return (
     <article className="adl-provider-card" data-testid={`provider-card-${provider.id}`}>
+      {/* 整卡为可点击展开区（role="button"），内嵌独立开关 <button role="switch">。
+          已知 a11y 权衡：交互元素嵌套（axe 违规）。这是用户明确要求的交互
+          （"整卡可点展开/折叠，仅开关组件除外"）；开关通过 stopPropagation +
+          header onKeyDown 的 e.target !== e.currentTarget 守卫独立工作。 */}
       <div
         className="adl-provider-card__header"
         role="button"

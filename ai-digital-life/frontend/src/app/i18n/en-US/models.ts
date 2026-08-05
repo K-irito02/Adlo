@@ -19,7 +19,7 @@ export const modelsEn = {
   modelSettingsEnabledModelsZone: 'Enabled Models',
   modelProviderEnableAria: 'Enable {provider}',
   modelProviderDisableAria: 'Disable {provider}',
-  modelProviderDetailsAria: 'Provider details',
+  modelProviderDetailsAria: 'Provider details: {provider}',
   modelModelToggleAria: 'Toggle {model}',
   modelEnableAll: 'Enable all',
   modelDisableAll: 'Turn off all',

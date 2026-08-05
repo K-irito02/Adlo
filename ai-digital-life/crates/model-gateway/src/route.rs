@@ -85,7 +85,7 @@ pub(crate) async fn select_provider_for_model(
     let allowed = match gateway.preferences().providers.get(provider_id) {
         Some(pref) => match &pref.enabled_models {
             None => true,
-            Some(list) => list.is_empty() || list.iter().any(|m| m == model_id),
+            Some(list) => !list.is_empty() && list.iter().any(|m| m == model_id),
         },
         None => true,
     };

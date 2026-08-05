@@ -19,7 +19,7 @@ export const modelsZh = {
   modelSettingsEnabledModelsZone: '已启用模型',
   modelProviderEnableAria: '启用 {provider}',
   modelProviderDisableAria: '禁用 {provider}',
-  modelProviderDetailsAria: '供应商详情',
+  modelProviderDetailsAria: '供应商详情：{provider}',
   modelModelToggleAria: '切换 {model}',
   modelEnableAll: '全部启用',
   modelDisableAll: '全部关闭',

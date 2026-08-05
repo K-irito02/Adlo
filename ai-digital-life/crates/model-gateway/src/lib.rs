@@ -230,11 +230,13 @@ impl ModelGateway {
                 let registry = self.registry.read().map_err(|_| {
                     AppError::Internal("provider registry lock poisoned".to_string())
                 })?;
-                self.preferences
-                    .providers
-                    .get(provider)
-                    .map(|pref| pref.model_id.clone())
-                    .unwrap_or_else(|| fallback::default_model(provider, &registry))
+                match self.preferences.providers.get(provider) {
+                    Some(pref) => route::resolve_model_id(pref),
+                    None => Some(fallback::default_model(provider, &registry)),
+                }
+            };
+            let Some(model_id) = model_id else {
+                continue;
             };
             match crate::provider::call_provider_stream(self, provider, &model_id, &messages).await
             {
@@ -253,6 +255,18 @@ impl ModelGateway {
         model_id: &str,
         messages: Vec<ModelChatMessage>,
     ) -> Result<StreamReader, AppError> {
+        let allowed = match self.preferences.providers.get(provider_id) {
+            Some(pref) => match &pref.enabled_models {
+                None => true,
+                Some(list) => !list.is_empty() && list.iter().any(|m| m == model_id),
+            },
+            None => true,
+        };
+        if !allowed {
+            return Err(AppError::NotFound(format!(
+                "model '{model_id}' is disabled for provider '{provider_id}'"
+            )));
+        }
         crate::provider::call_provider_stream(self, provider_id, model_id, &messages).await
     }
 
