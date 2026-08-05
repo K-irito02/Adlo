@@ -83,8 +83,8 @@ describe('buildSidebarViewModel', () => {
         maxRecentWorkspaces: 10,
         modelPreferences: {
           providers: {
-            deepseek: { enabled: true, priority: 1, modelId: 'deepseek-v4-pro' },
-            minimax: { enabled: true, priority: 2, modelId: 'MiniMax-M2.7' },
+            deepseek: { enabled: true, priority: 1, modelId: 'deepseek-v4-pro', enabledModels: [] },
+            minimax: { enabled: true, priority: 2, modelId: 'MiniMax-M2.7', enabledModels: [] },
           },
         },
         keybinds: {},

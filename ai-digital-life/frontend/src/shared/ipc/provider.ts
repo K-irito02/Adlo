@@ -19,6 +19,8 @@ export interface ProviderStatus {
   requiresKey: boolean;
   baseUrl: string | null;
   models: ModelDefinition[];
+  enabled: boolean;
+  enabledModels: string[];
 }
 
 export interface ConnectionTestResult {

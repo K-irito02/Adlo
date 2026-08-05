@@ -42,6 +42,7 @@ export function applyPreferencePatch(
           enabled: providerPatch.enabled ?? existing.enabled,
           priority: providerPatch.priority ?? existing.priority,
           modelId: providerPatch.modelId ?? existing.modelId,
+          enabledModels: providerPatch.enabledModels ?? existing.enabledModels,
         };
       }
     }

@@ -11,7 +11,9 @@ const baseConfig: ConfigSnapshot = {
   debugLogMode: 'overwrite',
   maxRecentWorkspaces: 10,
   modelPreferences: {
-    providers: { deepseek: { enabled: true, priority: 1, modelId: 'deepseek-chat' } },
+    providers: {
+      deepseek: { enabled: true, priority: 1, modelId: 'deepseek-chat', enabledModels: [] },
+    },
   },
   keybinds: {},
   fonts: {},
@@ -73,5 +75,55 @@ describe('applyPreferencePatch', () => {
     const patch: AppPreferencePatch = { fonts: { uiFont: 'Inter' } };
     const result = applyPreferencePatch(baseWithKeybinds, patch);
     expect(result.keybinds['command.save']).toBe('mod+s');
+  });
+
+  it('merges enabledModels from patch onto existing provider', () => {
+    const patch = {
+      modelPreferences: { deepseek: { enabledModels: ['deepseek-reasoner'] } },
+    } as AppPreferencePatch;
+    const result = applyPreferencePatch(baseConfig, patch);
+    expect(result.modelPreferences.providers.deepseek.enabledModels).toEqual(['deepseek-reasoner']);
+  });
+
+  it('clears enabledModels when patch provides empty array', () => {
+    const baseWithModels: ConfigSnapshot = {
+      ...baseConfig,
+      modelPreferences: {
+        providers: {
+          deepseek: {
+            enabled: true,
+            priority: 1,
+            modelId: 'deepseek-chat',
+            enabledModels: ['deepseek-chat'],
+          },
+        },
+      },
+    };
+    const patch = {
+      modelPreferences: { deepseek: { enabledModels: [] } },
+    } as AppPreferencePatch;
+    const result = applyPreferencePatch(baseWithModels, patch);
+    expect(result.modelPreferences.providers.deepseek.enabledModels).toEqual([]);
+  });
+
+  it('leaves enabledModels untouched when patch omits it', () => {
+    const baseWithModels: ConfigSnapshot = {
+      ...baseConfig,
+      modelPreferences: {
+        providers: {
+          deepseek: {
+            enabled: true,
+            priority: 1,
+            modelId: 'deepseek-chat',
+            enabledModels: ['deepseek-chat'],
+          },
+        },
+      },
+    };
+    const patch: AppPreferencePatch = {
+      modelPreferences: { deepseek: { priority: 2 } },
+    };
+    const result = applyPreferencePatch(baseWithModels, patch);
+    expect(result.modelPreferences.providers.deepseek.enabledModels).toEqual(['deepseek-chat']);
   });
 });
