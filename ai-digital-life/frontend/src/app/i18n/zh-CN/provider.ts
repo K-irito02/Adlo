@@ -20,7 +20,7 @@ export const providerZh = {
   providerOpenrouter: 'OpenRouter',
   providerUnknown: '未知 Provider',
   providerManagerTitle: 'Provider 配置',
-  providerManagerAddCustom: '添加自定义 Provider',
+  providerManagerAddCustom: '添加自定义供应商',
   providerManagerStatusOk: '已连接',
   providerManagerStatusNoKey: '无 API 密钥',
   providerManagerApiKey: 'API 密钥',

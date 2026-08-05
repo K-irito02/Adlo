@@ -29,4 +29,7 @@ export const modelsZh = {
   modelAllEnabledHint: '全部模型已启用',
   modelProviderDisabledHint: '供应商已禁用',
   modelNoModels: '无模型',
+  modelSettingsSearchProviders: '搜索供应商',
+  modelSettingsShowMoreProviders: '查看更多供应商',
+  modelSettingsCollapseProviders: '收起',
 } as const;

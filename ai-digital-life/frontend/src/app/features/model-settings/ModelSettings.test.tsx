@@ -246,6 +246,74 @@ describe('ModelSettings upper zone — provider cards', () => {
     fireEvent.click(screen.getByRole('button', { name: 'providerManagerAddCustom' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
+
+  it('renders the add-custom button as secondary and the dialog as a centered modal with overlay', () => {
+    renderSettings();
+    const addButton = screen.getByRole('button', { name: 'providerManagerAddCustom' });
+    expect(addButton).toHaveClass('adl-btn--secondary');
+    fireEvent.click(addButton);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(document.querySelector('.adl-dialog-overlay')).toBeInTheDocument();
+  });
+});
+
+function makeProviders(count: number): ProviderStatus[] {
+  return Array.from({ length: count }, (_, i) =>
+    makeProvider({
+      id: `provider-${i}`,
+      name: `Provider ${i}`,
+      builtIn: true,
+      hasKey: false,
+      requiresKey: true,
+    }),
+  );
+}
+
+describe('ModelSettings upper zone — collapse & search', () => {
+  it('shows only the first 5 provider cards by default with a show-more button when >5 providers', () => {
+    useAppStore.setState({ providers: makeProviders(7) });
+    renderSettings();
+    expect(screen.getByTestId('provider-card-provider-0')).toBeInTheDocument();
+    expect(screen.getByTestId('provider-card-provider-4')).toBeInTheDocument();
+    expect(screen.queryByTestId('provider-card-provider-5')).not.toBeInTheDocument();
+    expect(screen.getByText('modelSettingsShowMoreProviders')).toBeInTheDocument();
+  });
+
+  it('shows all cards with the expanded class after clicking show more, and collapses again', () => {
+    useAppStore.setState({ providers: makeProviders(7) });
+    renderSettings();
+    fireEvent.click(screen.getByText('modelSettingsShowMoreProviders'));
+    expect(screen.getByTestId('provider-card-provider-6')).toBeInTheDocument();
+    expect(screen.getByText('modelSettingsCollapseProviders')).toBeInTheDocument();
+    expect(document.querySelector('.adl-model-settings__provider-grid')).toHaveClass('is-expanded');
+
+    fireEvent.click(screen.getByText('modelSettingsCollapseProviders'));
+    expect(screen.queryByTestId('provider-card-provider-5')).not.toBeInTheDocument();
+  });
+
+  it('filters the upper-zone cards by search and bypasses the 5-card limit', () => {
+    useAppStore.setState({ providers: makeProviders(7) });
+    renderSettings();
+    const input = screen.getByPlaceholderText('modelSettingsSearchProviders') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'provider-6' } });
+    expect(screen.getByTestId('provider-card-provider-6')).toBeInTheDocument();
+    expect(screen.queryByTestId('provider-card-provider-0')).not.toBeInTheDocument();
+    expect(screen.queryByText('modelSettingsShowMoreProviders')).not.toBeInTheDocument();
+  });
+
+  it('shows the loading row only when fetching and no providers exist yet', () => {
+    useAppStore.setState({ providers: [], isFetchingProviders: true });
+    renderSettings();
+    expect(screen.getByRole('status')).toBeInTheDocument();
+  });
+
+  it('does not show the loading row during a background fetch when providers already exist', () => {
+    useAppStore.setState({ providers: [deepseek, mystery, ollama], isFetchingProviders: true });
+    renderSettings();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByTestId('provider-card-deepseek')).toBeInTheDocument();
+  });
 });
 
 describe('ModelSettings lower zone — model toggle list', () => {

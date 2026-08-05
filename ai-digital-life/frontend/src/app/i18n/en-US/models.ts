@@ -29,4 +29,7 @@ export const modelsEn = {
   modelAllEnabledHint: 'All models enabled',
   modelProviderDisabledHint: 'Provider disabled',
   modelNoModels: 'No models',
+  modelSettingsSearchProviders: 'Search providers',
+  modelSettingsShowMoreProviders: 'Show more providers',
+  modelSettingsCollapseProviders: 'Show fewer',
 } as const;
