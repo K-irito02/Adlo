@@ -280,6 +280,23 @@ describe('ModelSettings upper zone — provider cards', () => {
     expect(within(card).queryByText('providerManagerCustom')).not.toBeInTheDocument();
   });
 
+  it('keyboard Enter on the master switch does not expand the card (header does not swallow keydown)', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    const master = within(card).getByRole('switch');
+    fireEvent.keyDown(master, { key: 'Enter' });
+    expect(within(card).queryByText(/providerManagerBaseUrl/)).not.toBeInTheDocument();
+  });
+
+  it('keyboard Enter on the header toggles the card body', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    const header = within(card).getByRole('button', { name: 'modelProviderDetailsAria' });
+    fireEvent.keyDown(header, { key: 'Enter' });
+    expect(header).toHaveAttribute('aria-expanded', 'true');
+    expect(within(card).getByText(/providerManagerBaseUrl/)).toBeInTheDocument();
+  });
+
   it('keeps the eye toggle inside the key input container', () => {
     renderSettings();
     const card = screen.getByTestId('provider-card-deepseek');

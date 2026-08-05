@@ -20,7 +20,7 @@ export function CustomProviderDialog({ onClose }: CustomProviderDialogProps) {
   const [saving, setSaving] = useState(false);
 
   const handleAdd = useCallback(async () => {
-    if (!name.trim() || !baseUrl.trim()) {
+    if (saving || !name.trim() || !baseUrl.trim()) {
       return;
     }
     setSaving(true);
@@ -31,7 +31,18 @@ export function CustomProviderDialog({ onClose }: CustomProviderDialogProps) {
     await addCustomProvider(name.trim(), baseUrl.trim(), apiKey.trim(), modelList);
     setSaving(false);
     onClose();
-  }, [name, baseUrl, apiKey, models, addCustomProvider, onClose]);
+  }, [name, baseUrl, apiKey, models, saving, addCustomProvider, onClose]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        void handleAdd();
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
+    },
+    [handleAdd, onClose],
+  );
 
   const handleOverlayClick = useCallback(
     (e: React.MouseEvent) => {
@@ -43,7 +54,7 @@ export function CustomProviderDialog({ onClose }: CustomProviderDialogProps) {
   );
 
   return createPortal(
-    <div className="adl-prompt-modal" onClick={handleOverlayClick}>
+    <div className="adl-prompt-modal" onClick={handleOverlayClick} onKeyDown={handleKeyDown}>
       <div
         className="adl-prompt-modal__panel adl-prompt-modal__panel--wide"
         role="dialog"

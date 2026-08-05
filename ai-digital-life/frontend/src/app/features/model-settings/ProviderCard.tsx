@@ -55,6 +55,9 @@ export function ProviderCard({ provider }: ProviderCardProps) {
         aria-label={t.modelProviderDetailsAria}
         onClick={() => setExpanded((v) => !v)}
         onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) {
+            return;
+          }
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             setExpanded((v) => !v);
