@@ -136,7 +136,7 @@ pub async fn app_update_preferences(
                             enabled: true,
                             priority: 10,
                             model_id: provider_id.clone(),
-                            enabled_models: Vec::new(),
+                            enabled_models: None,
                         }
                     });
                 apply_model_patch(entry, patch);
@@ -377,7 +377,7 @@ mod model_preference_patch_tests {
             enabled: true,
             priority: 5,
             model_id: "default".into(),
-            enabled_models: vec!["old".into()],
+            enabled_models: Some(vec!["old".into()]),
         }
     }
 
@@ -390,10 +390,10 @@ mod model_preference_patch_tests {
                 enabled: None,
                 priority: None,
                 model_id: None,
-                enabled_models: Some(vec!["a".into(), "b".into()]),
+                enabled_models: Some(Some(vec!["a".into(), "b".into()])),
             },
         );
-        assert_eq!(entry.enabled_models, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(entry.enabled_models, Some(vec!["a".to_string(), "b".to_string()]));
         assert!(entry.enabled);
         assert_eq!(entry.priority, 5);
         assert_eq!(entry.model_id, "default");
@@ -408,10 +408,10 @@ mod model_preference_patch_tests {
                 enabled: None,
                 priority: None,
                 model_id: None,
-                enabled_models: Some(vec![]),
+                enabled_models: Some(Some(vec![])),
             },
         );
-        assert!(entry.enabled_models.is_empty());
+        assert_eq!(entry.enabled_models, Some(vec![]));
         assert!(entry.enabled);
         assert_eq!(entry.priority, 5);
         assert_eq!(entry.model_id, "default");
@@ -429,7 +429,7 @@ mod model_preference_patch_tests {
                 enabled_models: None,
             },
         );
-        assert_eq!(entry.enabled_models, vec!["old".to_string()]);
+        assert_eq!(entry.enabled_models, Some(vec!["old".to_string()]));
         assert!(entry.enabled);
         assert_eq!(entry.priority, 5);
         assert_eq!(entry.model_id, "default");
@@ -444,12 +444,28 @@ mod model_preference_patch_tests {
                 enabled: Some(false),
                 priority: Some(99),
                 model_id: Some("gpt-4".into()),
-                enabled_models: Some(vec!["gpt-4".into()]),
+                enabled_models: Some(Some(vec!["gpt-4".into()])),
             },
         );
         assert!(!entry.enabled);
         assert_eq!(entry.priority, 99);
         assert_eq!(entry.model_id, "gpt-4");
-        assert_eq!(entry.enabled_models, vec!["gpt-4".to_string()]);
+        assert_eq!(entry.enabled_models, Some(vec!["gpt-4".to_string()]));
+    }
+
+    #[test]
+    fn enabled_models_explicit_none_sets_all_enabled() {
+        let mut entry = entry();
+        apply_model_patch(
+            &mut entry,
+            ModelProviderPreferencePatch {
+                enabled: None,
+                priority: None,
+                model_id: None,
+                enabled_models: Some(None),
+            },
+        );
+        assert!(entry.enabled_models.is_none());
+        assert_eq!(entry.enabled_models, None);
     }
 }

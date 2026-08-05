@@ -131,7 +131,7 @@ pub struct ModelProviderPreference {
     pub priority: i32,
     pub model_id: String,
     #[serde(default)]
-    pub enabled_models: Vec<String>,
+    pub enabled_models: Option<Vec<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -154,7 +154,7 @@ impl Default for ModelPreferences {
                     enabled: true,
                     priority: (idx + 1) as i32,
                     model_id: default_model_for_provider(id).to_string(),
-                    enabled_models: Vec::new(),
+                    enabled_models: None,
                 },
             );
         }
@@ -201,7 +201,7 @@ pub struct ModelProviderPreferencePatch {
     #[ts(optional)]
     pub model_id: Option<String>,
     #[ts(optional)]
-    pub enabled_models: Option<Vec<String>>,
+    pub enabled_models: Option<Option<Vec<String>>>,
 }
 
 /// User-defined font preferences. All fields optional — `None` means "use default".
@@ -338,17 +338,29 @@ mod enabled_models_serde_tests {
             enabled: true,
             priority: 1,
             model_id: "deepseek-chat".to_string(),
-            enabled_models: vec!["a".to_string(), "b".to_string()],
+            enabled_models: Some(vec!["a".to_string(), "b".to_string()]),
         };
         let json = serde_json::to_string(&pref).unwrap();
         let back: ModelProviderPreference = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.enabled_models, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(back.enabled_models, Some(vec!["a".to_string(), "b".to_string()]));
     }
 
     #[test]
-    fn missing_enabled_models_defaults_to_empty() {
+    fn missing_enabled_models_defaults_to_none() {
         let json = r#"{"enabled":true,"priority":1,"modelId":"deepseek-chat"}"#;
         let pref: ModelProviderPreference = serde_json::from_str(json).unwrap();
-        assert!(pref.enabled_models.is_empty());
+        assert!(pref.enabled_models.is_none());
+    }
+
+    #[test]
+    fn explicit_null_enabled_models_serializes_as_null() {
+        let pref = ModelProviderPreference {
+            enabled: true,
+            priority: 1,
+            model_id: "deepseek-chat".to_string(),
+            enabled_models: None,
+        };
+        let json = serde_json::to_value(&pref).unwrap();
+        assert_eq!(json["enabledModels"], serde_json::Value::Null);
     }
 }

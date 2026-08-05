@@ -22,7 +22,7 @@ pub struct ProviderStatus {
     pub base_url: Option<String>,
     pub models: Vec<ModelDefinition>,
     pub enabled: bool,
-    pub enabled_models: Vec<String>,
+    pub enabled_models: Option<Vec<String>>,
 }
 
 #[derive(Serialize)]
@@ -31,10 +31,12 @@ pub struct ConnectionTestResult {
     pub error: Option<String>,
 }
 
-fn merge_enabled(entry: Option<&adl_types::ModelProviderPreference>) -> (bool, Vec<String>) {
+fn merge_enabled(
+    entry: Option<&adl_types::ModelProviderPreference>,
+) -> (bool, Option<Vec<String>>) {
     match entry {
         Some(e) => (e.enabled, e.enabled_models.clone()),
-        None => (true, vec![]),
+        None => (true, None),
     }
 }
 
@@ -378,7 +380,7 @@ mod tests {
     fn merge_enabled_no_entry_means_enabled_with_no_models() {
         let (enabled, models) = merge_enabled(None);
         assert!(enabled);
-        assert!(models.is_empty());
+        assert!(models.is_none());
     }
 
     #[test]
@@ -387,11 +389,11 @@ mod tests {
             enabled: true,
             priority: 1,
             model_id: "model-a".to_string(),
-            enabled_models: vec!["a".to_string()],
+            enabled_models: Some(vec!["a".to_string()]),
         };
         let (enabled, models) = merge_enabled(Some(&entry));
         assert!(enabled);
-        assert_eq!(models, vec!["a"]);
+        assert_eq!(models, Some(vec!["a".to_string()]));
     }
 
     #[test]
@@ -400,11 +402,11 @@ mod tests {
             enabled: false,
             priority: 1,
             model_id: "model-a".to_string(),
-            enabled_models: vec![],
+            enabled_models: Some(vec![]),
         };
         let (enabled, models) = merge_enabled(Some(&entry));
         assert!(!enabled);
-        assert!(models.is_empty());
+        assert_eq!(models, Some(vec![]));
     }
 
     #[test]
@@ -431,7 +433,7 @@ mod tests {
                 released: None,
             }],
             enabled: true,
-            enabled_models: vec!["deepseek-chat".to_string()],
+            enabled_models: Some(vec!["deepseek-chat".to_string()]),
         };
 
         let json = serde_json::to_value(&status).expect("serialize ProviderStatus");
