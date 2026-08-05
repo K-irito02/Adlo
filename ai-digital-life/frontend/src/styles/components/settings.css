@@ -259,8 +259,8 @@
 
 .adl-settings-reset-all {
   padding: var(--space-1) var(--space-3);
-  background: var(--surface);
-  border: 1px solid var(--border-default);
+  background: transparent;
+  border: none;
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   color: var(--text-secondary);
@@ -269,7 +269,7 @@
 }
 
 .adl-settings-reset-all:hover {
-  background: var(--surface-hover);
+  background: var(--bg-muted);
   color: var(--text-primary);
 }
 
@@ -897,7 +897,7 @@
   padding: var(--space-1);
   display: inline-flex;
   align-items: center;
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
 }
 .adl-model-settings__fetch-models-btn:hover {
   background: var(--bg-muted);

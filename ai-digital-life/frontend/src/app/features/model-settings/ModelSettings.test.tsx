@@ -322,10 +322,11 @@ describe('ModelSettings upper zone — provider cards', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
-  it('renders the add-custom button as secondary and the dialog as a centered modal with overlay', () => {
+  it('renders the add-custom button as a borderless ghost button and the dialog as a centered modal', () => {
     renderSettings();
     const addButton = screen.getByRole('button', { name: 'providerManagerAddCustom' });
-    expect(addButton).toHaveClass('adl-btn--secondary');
+    expect(addButton).toHaveClass('adl-btn--ghost');
+    expect(addButton).not.toHaveClass('adl-btn--secondary');
     fireEvent.click(addButton);
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveAttribute('aria-modal', 'true');

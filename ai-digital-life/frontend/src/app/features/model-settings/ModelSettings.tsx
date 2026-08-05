@@ -43,7 +43,7 @@ export function ModelSettings() {
         action={
           <button
             type="button"
-            className="adl-btn adl-btn--sm adl-btn--secondary"
+            className="adl-btn adl-btn--sm adl-btn--ghost"
             onClick={() => setShowDialog(true)}
           >
             <IconPlus size={14} decorative />
