@@ -3,6 +3,12 @@ import type { StoreApi } from 'zustand';
 import type { ProviderStatus } from '../../../shared/ipc/provider';
 import { clearError, captureError } from '../shared';
 
+let preferencesQueue: Promise<void> = Promise.resolve();
+function enqueuePreferences(update: () => Promise<void>): Promise<void> {
+  preferencesQueue = preferencesQueue.then(update, update);
+  return preferencesQueue;
+}
+
 function applyProviderStatusPatch(
   set: StoreApi<StoreState>['setState'],
   get: () => StoreState,
@@ -117,15 +123,17 @@ export function createProviderActions(
       clearError(get);
       const next: string[] | null = enableAll ? null : [];
       applyProviderStatusPatch(set, get, providerId, { enabledModels: next });
-      await get().updatePreferences({
-        modelPreferences: { [providerId]: { enabledModels: next } },
-      });
+      await enqueuePreferences(() =>
+        get().updatePreferences({
+          modelPreferences: { [providerId]: { enabledModels: next } },
+        }),
+      );
     },
 
     toggleModel: async (providerId: string, modelId: string, enabled: boolean) => {
       clearError(get);
-      const pref = get().appInfo?.config.modelPreferences.providers[providerId];
-      const current: string[] | null = pref?.enabledModels ?? null;
+      const current: string[] | null =
+        get().providers.find((p) => p.id === providerId)?.enabledModels ?? null;
       let next: string[] | null;
       if (enabled) {
         if (current === null) {
@@ -146,17 +154,21 @@ export function createProviderActions(
         }
       }
       applyProviderStatusPatch(set, get, providerId, { enabledModels: next });
-      await get().updatePreferences({
-        modelPreferences: { [providerId]: { enabledModels: next } },
-      });
+      await enqueuePreferences(() =>
+        get().updatePreferences({
+          modelPreferences: { [providerId]: { enabledModels: next } },
+        }),
+      );
     },
 
     setProviderEnabled: async (providerId: string, enabled: boolean) => {
       clearError(get);
       applyProviderStatusPatch(set, get, providerId, { enabled });
-      await get().updatePreferences({
-        modelPreferences: { [providerId]: { enabled } },
-      });
+      await enqueuePreferences(() =>
+        get().updatePreferences({
+          modelPreferences: { [providerId]: { enabled } },
+        }),
+      );
     },
   };
 }

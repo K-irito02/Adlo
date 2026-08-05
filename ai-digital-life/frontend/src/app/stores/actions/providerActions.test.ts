@@ -227,3 +227,45 @@ describe('setProviderEnabled', () => {
     expect(mockListProviders).not.toHaveBeenCalled();
   });
 });
+
+describe('rapid consecutive toggles', () => {
+  it('serializes rapid toggles: B computes from A-applied providers state and both patches reach the server', async () => {
+    let resolveFirst!: (value: { ok: boolean; data: AppInfo }) => void;
+    let resolveSecond!: (value: { ok: boolean; data: AppInfo }) => void;
+    const first = new Promise<{ ok: boolean; data: AppInfo }>((r) => {
+      resolveFirst = r;
+    });
+    const second = new Promise<{ ok: boolean; data: AppInfo }>((r) => {
+      resolveSecond = r;
+    });
+    mockUpdatePreferences.mockReturnValueOnce(first).mockReturnValueOnce(second);
+
+    const store = useAppStore.getState();
+    const pA = store.toggleModel('deepseek', 'deepseek-chat', false);
+    const pB = store.toggleModel('deepseek', 'deepseek-reasoner', false);
+
+    expect(useAppStore.getState().providers[0].enabledModels).toEqual(['deepseek-coder']);
+
+    await vi.waitFor(() => expect(mockUpdatePreferences).toHaveBeenCalledTimes(1));
+    const firstCall = mockUpdatePreferences.mock.calls[0][0] as AppPreferencePatch;
+    expect(firstCall.modelPreferences?.deepseek?.enabledModels).toEqual([
+      'deepseek-reasoner',
+      'deepseek-coder',
+    ]);
+
+    resolveFirst({ ok: true, data: makeAppInfo(['deepseek-reasoner', 'deepseek-coder']) });
+    await pA;
+
+    await vi.waitFor(() => expect(mockUpdatePreferences).toHaveBeenCalledTimes(2));
+    const secondCall = mockUpdatePreferences.mock.calls[1][0] as AppPreferencePatch;
+    expect(secondCall.modelPreferences?.deepseek?.enabledModels).toEqual(['deepseek-coder']);
+
+    resolveSecond({ ok: true, data: makeAppInfo(['deepseek-coder']) });
+    await pB;
+
+    expect(useAppStore.getState().providers[0].enabledModels).toEqual(['deepseek-coder']);
+    expect(
+      useAppStore.getState().appInfo?.config.modelPreferences.providers.deepseek.enabledModels,
+    ).toEqual(['deepseek-coder']);
+  });
+});
