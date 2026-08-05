@@ -130,6 +130,8 @@ pub struct ModelProviderPreference {
     pub enabled: bool,
     pub priority: i32,
     pub model_id: String,
+    #[serde(default)]
+    pub enabled_models: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -141,22 +143,21 @@ pub struct ModelPreferences {
 impl Default for ModelPreferences {
     fn default() -> Self {
         let mut providers = std::collections::BTreeMap::new();
-        providers.insert(
-            "deepseek".to_string(),
-            ModelProviderPreference {
-                enabled: true,
-                priority: 1,
-                model_id: "deepseek-v4-pro".to_string(),
-            },
-        );
-        providers.insert(
-            "minimax".to_string(),
-            ModelProviderPreference {
-                enabled: true,
-                priority: 2,
-                model_id: "MiniMax-M2.7".to_string(),
-            },
-        );
+        for (idx, id) in
+            ["deepseek", "minimax", "openai", "anthropic", "google", "ollama", "openrouter"]
+                .into_iter()
+                .enumerate()
+        {
+            providers.insert(
+                id.to_string(),
+                ModelProviderPreference {
+                    enabled: true,
+                    priority: (idx + 1) as i32,
+                    model_id: default_model_for_provider(id).to_string(),
+                    enabled_models: Vec::new(),
+                },
+            );
+        }
         Self { providers }
     }
 }
@@ -199,6 +200,8 @@ pub struct ModelProviderPreferencePatch {
     pub priority: Option<i32>,
     #[ts(optional)]
     pub model_id: Option<String>,
+    #[ts(optional)]
+    pub enabled_models: Option<Vec<String>>,
 }
 
 /// User-defined font preferences. All fields optional — `None` means "use default".
@@ -296,5 +299,56 @@ mod provider_id_tests {
             let model = default_model_for_provider(id);
             assert!(!model.is_empty(), "Provider {id} has no default model");
         }
+    }
+}
+
+#[cfg(test)]
+mod model_preferences_default_tests {
+    use super::*;
+
+    #[test]
+    fn default_preferences_cover_all_builtin_providers() {
+        let prefs = ModelPreferences::default();
+        for id in ["deepseek", "minimax", "openai", "anthropic", "google", "ollama", "openrouter"] {
+            let entry = prefs
+                .providers
+                .get(id)
+                .unwrap_or_else(|| panic!("Default preferences missing provider {id}"));
+            assert!(entry.enabled, "Provider {id} should be enabled by default");
+            assert!(entry.priority > 0, "Provider {id} should have priority > 0");
+            assert!(!entry.model_id.is_empty(), "Provider {id} should have a default model");
+        }
+    }
+
+    #[test]
+    fn deepseek_default_model_matches_gateway() {
+        let prefs = ModelPreferences::default();
+        let deepseek = prefs.providers.get("deepseek").expect("deepseek present");
+        assert_eq!(deepseek.model_id, "deepseek-chat");
+    }
+}
+
+#[cfg(test)]
+mod enabled_models_serde_tests {
+    use super::*;
+
+    #[test]
+    fn enabled_models_serde_roundtrip() {
+        let pref = ModelProviderPreference {
+            enabled: true,
+            priority: 1,
+            model_id: "deepseek-chat".to_string(),
+            enabled_models: vec!["a".to_string(), "b".to_string()],
+        };
+        let json = serde_json::to_string(&pref).unwrap();
+        let back: ModelProviderPreference = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.enabled_models, vec!["a".to_string(), "b".to_string()]);
+    }
+
+    #[test]
+    fn missing_enabled_models_defaults_to_empty() {
+        let json = r#"{"enabled":true,"priority":1,"modelId":"deepseek-chat"}"#;
+        let pref: ModelProviderPreference = serde_json::from_str(json).unwrap();
+        assert!(pref.enabled_models.is_empty());
     }
 }
