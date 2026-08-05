@@ -324,6 +324,7 @@ interface ProviderActions {
   selectModel: (providerId: string, modelId: string) => void;
   fetchModels: (providerId: string) => Promise<void>;
   toggleModel: (providerId: string, modelId: string, enabled: boolean) => Promise<void>;
+  setAllModelsEnabled: (providerId: string, enableAll: boolean) => Promise<void>;
   setProviderEnabled: (providerId: string, enabled: boolean) => Promise<void>;
   setDefaultModel: (providerId: string, modelId: string) => Promise<void>;
 }

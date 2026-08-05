@@ -1,6 +1,18 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
+import type { ProviderStatus } from '../../../shared/ipc/provider';
 import { clearError, captureError } from '../shared';
+
+function applyProviderStatusPatch(
+  set: StoreApi<StoreState>['setState'],
+  get: () => StoreState,
+  providerId: string,
+  fields: Partial<Pick<ProviderStatus, 'enabled' | 'enabledModels'>>,
+) {
+  set({
+    providers: get().providers.map((p) => (p.id === providerId ? { ...p, ...fields } : p)),
+  });
+}
 
 export function createProviderActions(
   set: StoreApi<StoreState>['setState'],
@@ -101,36 +113,50 @@ export function createProviderActions(
       });
     },
 
+    setAllModelsEnabled: async (providerId: string, enableAll: boolean) => {
+      clearError(get);
+      const next: string[] | null = enableAll ? null : [];
+      applyProviderStatusPatch(set, get, providerId, { enabledModels: next });
+      await get().updatePreferences({
+        modelPreferences: { [providerId]: { enabledModels: next } },
+      });
+    },
+
     toggleModel: async (providerId: string, modelId: string, enabled: boolean) => {
       clearError(get);
-      const current =
-        get().appInfo?.config.modelPreferences.providers[providerId]?.enabledModels ?? [];
-      let next: string[];
+      const pref = get().appInfo?.config.modelPreferences.providers[providerId];
+      const current: string[] | null = pref?.enabledModels ?? null;
+      let next: string[] | null;
       if (enabled) {
-        if (current.length === 0 || current.includes(modelId)) {
+        if (current === null) {
+          next = [modelId];
+        } else if (current.includes(modelId)) {
           return;
+        } else {
+          next = [...current, modelId];
         }
-        next = [...current, modelId];
       } else {
-        if (current.length === 0) {
+        if (current === null) {
           const provider = get().providers.find((p) => p.id === providerId);
           next = (provider?.models ?? []).map((m) => m.id).filter((id) => id !== modelId);
+        } else if (current.length === 0) {
+          return;
         } else {
           next = current.filter((id) => id !== modelId);
         }
       }
+      applyProviderStatusPatch(set, get, providerId, { enabledModels: next });
       await get().updatePreferences({
         modelPreferences: { [providerId]: { enabledModels: next } },
       });
-      await get().fetchProviders();
     },
 
     setProviderEnabled: async (providerId: string, enabled: boolean) => {
       clearError(get);
+      applyProviderStatusPatch(set, get, providerId, { enabled });
       await get().updatePreferences({
         modelPreferences: { [providerId]: { enabled } },
       });
-      await get().fetchProviders();
     },
 
     setDefaultModel: async (providerId: string, modelId: string) => {
