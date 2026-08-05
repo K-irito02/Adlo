@@ -10,7 +10,6 @@ import {
   IconKey,
   IconEye,
   IconEyeOff,
-  IconRefreshCw,
   IconXCircle,
 } from '../../icons';
 
@@ -24,7 +23,6 @@ export function ProviderCard({ provider }: ProviderCardProps) {
   const clearApiKey = useAppStore((s) => s.clearApiKey);
   const testConnection = useAppStore((s) => s.testConnection);
   const removeCustomProvider = useAppStore((s) => s.removeCustomProvider);
-  const fetchModels = useAppStore((s) => s.fetchModels);
   const setProviderEnabled = useAppStore((s) => s.setProviderEnabled);
   const connectionTestResults = useAppStore((s) => s.connectionTestResults);
   const testingProviderId = useAppStore((s) => s.testingProviderId);
@@ -32,7 +30,6 @@ export function ProviderCard({ provider }: ProviderCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [showKey, setShowKey] = useState(false);
-  const [fetchingModels, setFetchingModels] = useState(false);
 
   const connected = provider.hasKey || !provider.requiresKey;
   const isTesting = testingProviderId === provider.id;
@@ -44,12 +41,6 @@ export function ProviderCard({ provider }: ProviderCardProps) {
     }
     await setApiKey(provider.id, apiKeyInput.trim());
     setApiKeyInput('');
-  };
-
-  const handleFetchModels = async () => {
-    setFetchingModels(true);
-    await fetchModels(provider.id);
-    setFetchingModels(false);
   };
 
   const keyInputId = `model-settings-key-${provider.id}`;
@@ -104,7 +95,10 @@ export function ProviderCard({ provider }: ProviderCardProps) {
                 provider: provider.name,
               },
             )}
-            onClick={() => void setProviderEnabled(provider.id, !provider.enabled)}
+            onClick={(e) => {
+              e.stopPropagation();
+              void setProviderEnabled(provider.id, !provider.enabled);
+            }}
           >
             <span className="adl-settings-toggle__track">
               <span className="adl-settings-toggle__thumb" />
@@ -146,31 +140,12 @@ export function ProviderCard({ provider }: ProviderCardProps) {
                 />
                 <button
                   type="button"
-                  className="adl-btn adl-btn--ghost adl-btn--xs"
+                  className="adl-provider-card__key-toggle"
                   onClick={() => setShowKey((v) => !v)}
                   aria-label={showKey ? t.providerHideKey : t.providerShowKey}
                 >
                   {showKey ? <IconEyeOff size={12} decorative /> : <IconEye size={12} decorative />}
                 </button>
-              </div>
-              <div className="adl-provider-card__key-actions">
-                <button
-                  type="button"
-                  className="adl-btn adl-btn--ghost adl-btn--xs"
-                  onClick={() => void handleSaveApiKey()}
-                  disabled={!apiKeyInput.trim()}
-                >
-                  {t.providerManagerSaveKey}
-                </button>
-                {provider.hasKey && (
-                  <button
-                    type="button"
-                    className="adl-btn adl-btn--ghost adl-btn--xs"
-                    onClick={() => void clearApiKey(provider.id)}
-                  >
-                    {t.providerClear}
-                  </button>
-                )}
               </div>
             </div>
           )}
@@ -179,20 +154,28 @@ export function ProviderCard({ provider }: ProviderCardProps) {
             <button
               type="button"
               className="adl-btn adl-btn--ghost adl-btn--xs"
+              onClick={() => void handleSaveApiKey()}
+              disabled={!apiKeyInput.trim()}
+            >
+              {t.providerManagerSaveKey}
+            </button>
+            <button
+              type="button"
+              className="adl-btn adl-btn--ghost adl-btn--xs"
               onClick={() => void testConnection(provider.id)}
               disabled={isTesting}
             >
               {isTesting ? t.processing : t.providerManagerTestConnection}
             </button>
-            <button
-              type="button"
-              className="adl-btn adl-btn--ghost adl-btn--xs"
-              onClick={() => void handleFetchModels()}
-              disabled={fetchingModels}
-            >
-              <IconRefreshCw size={12} decorative className={fetchingModels ? 'adl-spin' : ''} />
-              {t.providerManagerFetchModels}
-            </button>
+            {provider.hasKey && (
+              <button
+                type="button"
+                className="adl-btn adl-btn--ghost adl-btn--xs"
+                onClick={() => void clearApiKey(provider.id)}
+              >
+                {t.providerClear}
+              </button>
+            )}
             {!provider.builtIn && (
               <button
                 type="button"

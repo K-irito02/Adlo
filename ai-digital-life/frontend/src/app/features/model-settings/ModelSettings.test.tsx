@@ -123,7 +123,13 @@ beforeEach(() => {
     removeCustomProvider: vi
       .spyOn(state, 'removeCustomProvider')
       .mockResolvedValue(undefined) as Mock,
-    setProviderEnabled: vi.spyOn(state, 'setProviderEnabled').mockResolvedValue(undefined) as Mock,
+    setProviderEnabled: vi
+      .spyOn(state, 'setProviderEnabled')
+      .mockImplementation(async (providerId: string, enabled: boolean) => {
+        useAppStore.setState((s) => ({
+          providers: s.providers.map((p) => (p.id === providerId ? { ...p, enabled } : p)),
+        }));
+      }) as Mock,
     toggleModel: vi.spyOn(state, 'toggleModel').mockResolvedValue(undefined) as Mock,
     setDefaultModel: vi.spyOn(state, 'setDefaultModel').mockResolvedValue(undefined) as Mock,
     updatePreferences: vi.spyOn(state, 'updatePreferences').mockResolvedValue(undefined) as Mock,
@@ -216,7 +222,7 @@ describe('ModelSettings upper zone — provider cards', () => {
     expect(input).toHaveAttribute('type', 'password');
   });
 
-  it('dispatches testConnection and fetchModels from the expanded actions', () => {
+  it('dispatches testConnection from the expanded actions and leaves no fetch-models button', () => {
     renderSettings();
     const card = screen.getByTestId('provider-card-deepseek');
     fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
@@ -224,8 +230,58 @@ describe('ModelSettings upper zone — provider cards', () => {
     fireEvent.click(within(card).getByText('providerManagerTestConnection'));
     expect(spies.testConnection).toHaveBeenCalledWith('deepseek');
 
-    fireEvent.click(within(card).getByText('providerManagerFetchModels'));
-    expect(spies.fetchModels).toHaveBeenCalledWith('deepseek');
+    expect(spies.fetchModels).not.toHaveBeenCalled();
+    expect(within(card).queryByText('providerManagerFetchModels')).not.toBeInTheDocument();
+  });
+
+  it('toggles the card body when the whole header expand area is clicked', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    const expand = within(card).getByRole('button', { name: 'modelProviderDetailsAria' });
+    expect(expand).toHaveAttribute('aria-expanded', 'false');
+    expect(within(card).queryByText(/providerManagerBaseUrl/)).not.toBeInTheDocument();
+
+    fireEvent.click(expand);
+    expect(expand).toHaveAttribute('aria-expanded', 'true');
+    expect(within(card).getByText(/providerManagerBaseUrl/)).toBeInTheDocument();
+
+    fireEvent.click(expand);
+    expect(expand).toHaveAttribute('aria-expanded', 'false');
+    expect(within(card).queryByText(/providerManagerBaseUrl/)).not.toBeInTheDocument();
+  });
+
+  it('does not expand the card body when the enabled switch is clicked', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    const master = within(card).getByRole('switch');
+    expect(master).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(master);
+    expect(spies.setProviderEnabled).toHaveBeenCalledWith('deepseek', false);
+    expect(master).toHaveAttribute('aria-checked', 'false');
+    expect(within(card).queryByText(/providerManagerBaseUrl/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the eye toggle inside the key input container', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
+
+    const input = within(card).getByPlaceholderText(
+      'providerManagerApiKeyPlaceholder',
+    ) as HTMLInputElement;
+    const group = input.closest('.adl-provider-card__key-input-group') as HTMLElement;
+    expect(within(group).getByRole('button', { name: 'providerShowKey' })).toBeInTheDocument();
+  });
+
+  it('places the save-key and test-connection buttons on the same action row', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
+
+    const actionsRow = within(card)
+      .getByText('providerManagerSaveKey')
+      .closest('.adl-provider-card__actions') as HTMLElement;
+    expect(within(actionsRow).getByText('providerManagerTestConnection')).toBeInTheDocument();
   });
 
   it('renders remove-custom only for non-builtIn providers', () => {
