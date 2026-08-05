@@ -54,7 +54,6 @@ export function useRightPanelViewProps() {
       browser: browserTabs.length,
       terminal: terminalTabs.length,
       audit: auditEntries.length,
-      models: 0,
       settings: 0,
       ci: 0,
       communicate: communicateBadge,

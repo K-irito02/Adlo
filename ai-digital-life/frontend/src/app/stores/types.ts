@@ -5,7 +5,6 @@ export type ToolId =
   | 'terminal'
   | 'audit'
   | 'settings'
-  | 'models'
   | 'ci'
   | 'communicate';
 export type ChatMode = 'plan' | 'debug' | 'ask';

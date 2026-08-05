@@ -14,7 +14,6 @@ export const modelsZh = {
   modelApiKey: 'API Key',
   modelTestConnection: '测试连接',
   tokenBudget: 'Token 预算',
-  toolModels: '模型',
   toolSettings: '设置',
   toolCommunicate: '通信',
   modelSettingsProvidersZone: '供应商',

@@ -8,7 +8,6 @@ import {
   IconTerminal,
   IconShield,
   IconSettings,
-  IconCpu,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import type { ToolId } from '@stores/types';
@@ -59,12 +58,6 @@ const TAB_META: {
     shortcut: 'Ctrl+Shift+A',
     icon: <IconShield size={16} decorative />,
     labelKey: 'toolAudit',
-  },
-  {
-    id: 'models',
-    shortcut: 'Ctrl+Shift+M',
-    icon: <IconCpu size={16} decorative />,
-    labelKey: 'toolModels',
   },
   {
     id: 'settings',

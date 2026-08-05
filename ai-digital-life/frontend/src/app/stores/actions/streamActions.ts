@@ -106,7 +106,8 @@ registerSlashCommand('/rollback', async (set, get) => {
 });
 
 registerSlashCommand('/model', (set, get) => {
-  get().setActiveRightTool('models');
+  get().setActiveRightTool('settings');
+  get().setActiveSettingsGroup('providers');
   return true;
 });
 

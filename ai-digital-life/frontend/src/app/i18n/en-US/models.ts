@@ -14,7 +14,6 @@ export const modelsEn = {
   modelApiKey: 'API Key',
   modelTestConnection: 'Test connection',
   tokenBudget: 'Token budget',
-  toolModels: 'Models',
   toolSettings: 'Settings',
   toolCommunicate: 'Communication',
   modelSettingsProvidersZone: 'Providers',

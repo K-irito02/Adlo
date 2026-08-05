@@ -17,9 +17,6 @@ const TerminalPanel = lazy(() =>
 const AuditPanel = lazy(() =>
   import('../components/approval/AuditPanel').then((m) => ({ default: m.AuditPanel })),
 );
-const ProviderManager = lazy(() =>
-  import('../components/models/ProviderManager').then((m) => ({ default: m.ProviderManager })),
-);
 const SettingsPanel = lazy(() =>
   import('../components/settings/SettingsPanel').then((m) => ({ default: m.SettingsPanel })),
 );
@@ -149,11 +146,6 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
       <div hidden={activeTool !== 'audit'} style={{ height: '100%', minHeight: 0 }}>
         <Suspense fallback={<PanelSkeleton />}>
           <AuditPanel entries={auditProps.auditEntries} />
-        </Suspense>
-      </div>
-      <div hidden={activeTool !== 'models'} style={{ height: '100%', minHeight: 0 }}>
-        <Suspense fallback={<PanelSkeleton />}>
-          <ProviderManager />
         </Suspense>
       </div>
       <div hidden={activeTool !== 'settings'} style={{ height: '100%', minHeight: 0 }}>
