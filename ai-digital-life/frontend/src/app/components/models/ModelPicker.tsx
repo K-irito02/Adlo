@@ -4,6 +4,7 @@ import { useAppStore } from '../../stores/slicedStore';
 import { TooltipSimple } from '../Tooltip';
 import { IconChevronDown } from '../../icons';
 import { useTCopy } from '../../i18n/useTCopy';
+import { filterEnabledOptions } from '../../../shared/modelUtils';
 
 export function ModelPicker() {
   const { t } = useTCopy();
@@ -38,6 +39,8 @@ export function ModelPicker() {
       ? `${selectedProvider.name} / ${selectedModelId}`
       : t.modelSelector;
 
+  const options = filterEnabledOptions(providers);
+
   return (
     <div className="adl-model-picker" ref={ref}>
       <TooltipSimple content={t.modelSelector} placement="top">
@@ -54,31 +57,27 @@ export function ModelPicker() {
       </TooltipSimple>
       {open && (
         <div className="adl-model-picker__dropdown" role="listbox">
-          {providers.length === 0 && (
+          {options.length === 0 && (
             <div className="adl-model-picker__empty">{t.providerNoProviders}</div>
           )}
-          {providers.map((p) => (
+          {options.map(({ provider: p, models }) => (
             <div key={p.id} className="adl-model-picker__group">
               <div className="adl-model-picker__group-header">{p.name}</div>
-              {p.models.length === 0 ? (
-                <div className="adl-model-picker__no-models">{t.modelUnavailable}</div>
-              ) : (
-                p.models.map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    className={`adl-model-picker__option ${selectedProviderId === p.id && selectedModelId === m.id ? 'is-active' : ''}`}
-                    role="option"
-                    aria-selected={selectedProviderId === p.id && selectedModelId === m.id}
-                    onClick={() => {
-                      selectModel(p.id, m.id);
-                      setOpen(false);
-                    }}
-                  >
-                    {m.name}
-                  </button>
-                ))
-              )}
+              {models.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={`adl-model-picker__option ${selectedProviderId === p.id && selectedModelId === m.id ? 'is-active' : ''}`}
+                  role="option"
+                  aria-selected={selectedProviderId === p.id && selectedModelId === m.id}
+                  onClick={() => {
+                    selectModel(p.id, m.id);
+                    setOpen(false);
+                  }}
+                >
+                  {m.name}
+                </button>
+              ))}
             </div>
           ))}
         </div>

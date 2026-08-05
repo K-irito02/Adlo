@@ -7,6 +7,7 @@ import { CustomScrollArea } from '../features/file-tree/CustomScrollArea';
 import { IconCheck } from '../icons';
 import { TooltipSimple } from '../components/Tooltip';
 import { modelHealthLabel, modelHealthTone } from './StatusBar/utils';
+import { filterEnabledOptions } from '../../shared/modelUtils';
 
 interface StatusBarEditorInfoProps {
   appInfo?: AppInfo;
@@ -38,6 +39,8 @@ const StatusBarEditorInfo = React.memo(function StatusBarEditorInfo({
     })),
   );
 
+  const options = filterEnabledOptions(providers);
+
   return (
     <>
       <span className="adl-statusbar__spacer" />
@@ -67,7 +70,7 @@ const StatusBarEditorInfo = React.memo(function StatusBarEditorInfo({
             className="adl-model-picker__dropdown adl-model-picker__dropdown--statusbar"
             role="menu"
           >
-            {providers.length === 0 ? (
+            {options.length === 0 ? (
               <div className="adl-model-picker__empty">{t.providerNoProviders}</div>
             ) : (
               <CustomScrollArea
@@ -76,48 +79,41 @@ const StatusBarEditorInfo = React.memo(function StatusBarEditorInfo({
                 scrollbarClassName="adl-model-picker__scrollbar"
                 thumbClassName="adl-model-picker__scrollbar-thumb"
               >
-                {providers.map((p) => (
+                {options.map(({ provider: p, models }) => (
                   <div key={p.id} className="adl-model-picker__group">
                     <div className="adl-model-picker__group-header">{p.name}</div>
-                    {p.models.length === 0 ? (
-                      <div className="adl-model-picker__no-models">{t.modelUnavailable}</div>
-                    ) : (
-                      p.models.map((m) => {
-                        const isActive =
-                          activeProviderId === p.id && activeProviderModelId === m.id;
-                        return (
-                          <button
-                            key={m.id}
-                            type="button"
-                            role="menuitem"
-                            className={`adl-model-picker__option${isActive ? ' is-active' : ''}`}
-                            aria-selected={isActive}
-                            onClick={() => {
-                              selectModel(p.id, m.id);
-                              onRequestClose();
-                            }}
-                          >
-                            <span className="adl-model-picker__option-name">{m.name}</span>
-                            {isActive ? (
-                              <IconCheck size={14} decorative />
-                            ) : (
-                              <span
-                                className={`adl-model-picker__option-dot adl-model-picker__option-dot--${modelHealthTone(
-                                  modelHealth?.providers.find((h) => h.providerId === p.id)
-                                    ?.healthy,
-                                )}`}
-                                aria-label={modelHealthLabel(
-                                  t,
-                                  modelHealth?.providers.find((h) => h.providerId === p.id)
-                                    ?.healthy,
-                                )}
-                                role="img"
-                              />
-                            )}
-                          </button>
-                        );
-                      })
-                    )}
+                    {models.map((m) => {
+                      const isActive = activeProviderId === p.id && activeProviderModelId === m.id;
+                      return (
+                        <button
+                          key={m.id}
+                          type="button"
+                          role="menuitem"
+                          className={`adl-model-picker__option${isActive ? ' is-active' : ''}`}
+                          aria-selected={isActive}
+                          onClick={() => {
+                            selectModel(p.id, m.id);
+                            onRequestClose();
+                          }}
+                        >
+                          <span className="adl-model-picker__option-name">{m.name}</span>
+                          {isActive ? (
+                            <IconCheck size={14} decorative />
+                          ) : (
+                            <span
+                              className={`adl-model-picker__option-dot adl-model-picker__option-dot--${modelHealthTone(
+                                modelHealth?.providers.find((h) => h.providerId === p.id)?.healthy,
+                              )}`}
+                              aria-label={modelHealthLabel(
+                                t,
+                                modelHealth?.providers.find((h) => h.providerId === p.id)?.healthy,
+                              )}
+                              role="img"
+                            />
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 ))}
               </CustomScrollArea>

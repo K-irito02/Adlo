@@ -5,7 +5,6 @@ export const modelsZh = {
   providerEnabled: '启用',
   providerPriority: '优先级',
   providerModelId: '模型 ID',
-  modelUnavailable: '尚未检查模型提供方状态。',
   modelSelector: '模型选择',
   modelOnline: '在线',
   modelOffline: '离线',

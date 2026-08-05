@@ -5,7 +5,6 @@ export const modelsEn = {
   providerEnabled: 'Enabled',
   providerPriority: 'Priority',
   providerModelId: 'Model ID',
-  modelUnavailable: 'Model provider health has not been checked yet.',
   modelSelector: 'Model selector',
   modelOnline: 'Online',
   modelOffline: 'Offline',
