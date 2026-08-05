@@ -38,10 +38,12 @@ export function CustomProviderDialog({ onClose }: CustomProviderDialogProps) {
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        void handleAdd();
-      } else if (e.key === 'Escape') {
+      if (e.key === 'Escape') {
         onClose();
+        return;
+      }
+      if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
+        void handleAdd();
       }
     },
     [handleAdd, onClose],

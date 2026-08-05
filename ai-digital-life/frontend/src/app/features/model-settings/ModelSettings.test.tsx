@@ -371,6 +371,16 @@ describe('ModelSettings upper zone — provider cards', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
+  it('does not submit when Enter is pressed on a focused button (only on inputs)', () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'providerManagerAddCustom' }));
+    const actions = document.querySelector('.adl-prompt-modal__actions--fill') as HTMLElement;
+    fireEvent.keyDown(within(actions).getByRole('button', { name: 'providerCancel' }), {
+      key: 'Enter',
+    });
+    expect(spies.addCustomProvider).not.toHaveBeenCalled();
+  });
+
   it('renders the add-custom button as a borderless ghost button and the dialog as a centered modal', () => {
     renderSettings();
     const addButton = screen.getByRole('button', { name: 'providerManagerAddCustom' });

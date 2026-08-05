@@ -845,10 +845,6 @@
   flex-wrap: wrap;
 }
 
-.adl-provider-card .adl-btn {
-  border-radius: var(--radius-sm);
-}
-
 .adl-provider-card__remove-btn {
   color: var(--danger) !important;
 }
