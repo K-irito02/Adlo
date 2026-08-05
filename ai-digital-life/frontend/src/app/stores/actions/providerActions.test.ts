@@ -227,15 +227,3 @@ describe('setProviderEnabled', () => {
     expect(mockListProviders).not.toHaveBeenCalled();
   });
 });
-
-describe('setDefaultModel', () => {
-  it('patches modelId and refreshes providers', async () => {
-    const store = useAppStore.getState();
-    await store.setDefaultModel('deepseek', 'deepseek-reasoner');
-
-    expect(mockUpdatePreferences).toHaveBeenCalledTimes(1);
-    const patch = mockUpdatePreferences.mock.calls[0][0] as AppPreferencePatch;
-    expect(patch.modelPreferences?.deepseek).toEqual({ modelId: 'deepseek-reasoner' });
-    expect(mockListProviders).toHaveBeenCalled();
-  });
-});

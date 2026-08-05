@@ -903,6 +903,25 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.adl-model-settings__fetch-models-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  padding: var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius);
+}
+.adl-model-settings__fetch-models-btn:hover {
+  background: var(--bg-muted);
+  color: var(--text-primary);
+}
+
+.adl-model-settings .adl-btn {
+  border-radius: var(--radius);
+}
+
 .adl-model-settings__model-group-name {
   flex: 1;
   min-width: 0;
@@ -954,19 +973,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text-muted);
-}
-
-.adl-model-settings__set-default {
-  flex-shrink: 0;
-}
-
-.adl-model-settings__all-enabled-hint {
-  margin: 0;
-  padding: var(--space-1-5) var(--space-3);
-  font-size: var(--text-xs);
-  color: var(--success);
-  background: var(--success-bg, rgba(34, 197, 94, 0.08));
-  border-top: 1px solid var(--border-subtle);
 }
 
 .adl-model-settings__model-empty {

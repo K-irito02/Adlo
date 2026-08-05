@@ -158,13 +158,5 @@ export function createProviderActions(
         modelPreferences: { [providerId]: { enabled } },
       });
     },
-
-    setDefaultModel: async (providerId: string, modelId: string) => {
-      clearError(get);
-      await get().updatePreferences({
-        modelPreferences: { [providerId]: { modelId } },
-      });
-      await get().fetchProviders();
-    },
   };
 }

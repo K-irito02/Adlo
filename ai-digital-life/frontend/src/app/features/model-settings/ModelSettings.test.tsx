@@ -101,6 +101,16 @@ const ollama = makeProvider({
   baseUrl: 'http://localhost:11434',
 });
 
+const darkmode = makeProvider({
+  id: 'darkmode',
+  name: 'DarkMode',
+  builtIn: true,
+  hasKey: true,
+  requiresKey: true,
+  enabled: false,
+  models: [makeModel('dark-1', 'Dark One')],
+});
+
 let spies: Record<string, Mock> = {};
 
 beforeEach(() => {
@@ -131,7 +141,9 @@ beforeEach(() => {
         }));
       }) as Mock,
     toggleModel: vi.spyOn(state, 'toggleModel').mockResolvedValue(undefined) as Mock,
-    setDefaultModel: vi.spyOn(state, 'setDefaultModel').mockResolvedValue(undefined) as Mock,
+    setAllModelsEnabled: vi
+      .spyOn(state, 'setAllModelsEnabled')
+      .mockResolvedValue(undefined) as Mock,
     updatePreferences: vi.spyOn(state, 'updatePreferences').mockResolvedValue(undefined) as Mock,
     addCustomProvider: vi.spyOn(state, 'addCustomProvider').mockResolvedValue(undefined) as Mock,
   };
@@ -373,7 +385,8 @@ describe('ModelSettings upper zone — collapse & search', () => {
 });
 
 describe('ModelSettings lower zone — model toggle list', () => {
-  it('renders model rows grouped by provider', () => {
+  it('renders model rows grouped by enabled providers only', () => {
+    useAppStore.setState({ providers: [deepseek, mystery, ollama, darkmode] });
     renderSettings();
     const group = screen.getByTestId('model-group-deepseek');
     expect(within(group).getByText('DeepSeek Chat')).toBeInTheDocument();
@@ -381,13 +394,25 @@ describe('ModelSettings lower zone — model toggle list', () => {
     expect(
       within(screen.getByTestId('model-group-mystery')).getByText('Mystery Two'),
     ).toBeInTheDocument();
+    expect(screen.queryByTestId('model-group-darkmode')).not.toBeInTheDocument();
   });
 
-  it('shows the all-enabled hint when enabledModels is null (all enabled)', () => {
+  it('shows no set-default button, default badge, all-enabled hint or disabled hint', () => {
+    useAppStore.setState({ providers: [deepseek, mystery, ollama, darkmode] });
     renderSettings();
-    expect(
-      within(screen.getByTestId('model-group-deepseek')).getByText('modelAllEnabledHint'),
-    ).toBeInTheDocument();
+    expect(screen.queryByText('modelSetDefault')).not.toBeInTheDocument();
+    expect(screen.queryByText('modelDefaultBadge')).not.toBeInTheDocument();
+    expect(screen.queryByText('modelAllEnabledHint')).not.toBeInTheDocument();
+    expect(screen.queryByText('modelProviderDisabledHint')).not.toBeInTheDocument();
+  });
+
+  it('renders a fetch-models icon button in each group header with native title', () => {
+    renderSettings();
+    const group = screen.getByTestId('model-group-deepseek');
+    const btn = within(group).getByRole('button', { name: 'providerManagerFetchModels' });
+    expect(btn).toHaveAttribute('title', 'providerManagerFetchModels');
+    fireEvent.click(btn);
+    expect(spies.fetchModels).toHaveBeenCalledWith('deepseek');
   });
 
   it('calls toggleModel when a model switch is toggled', () => {
@@ -410,28 +435,22 @@ describe('ModelSettings lower zone — model toggle list', () => {
     expect(spies.toggleModel).toHaveBeenCalledWith('mystery', 'mystery-2', true);
   });
 
-  it('batch enable-all patches enabledModels to empty', () => {
+  it('batch enable-all calls setAllModelsEnabled(id, true)', () => {
     renderSettings();
     fireEvent.click(within(screen.getByTestId('model-group-mystery')).getByText('modelEnableAll'));
-    expect(spies.updatePreferences).toHaveBeenCalledWith({
-      modelPreferences: { mystery: { enabledModels: [] } },
-    });
+    expect(spies.setAllModelsEnabled).toHaveBeenCalledWith('mystery', true);
   });
 
-  it('batch disable-all calls setProviderEnabled(false)', () => {
+  it('batch disable-all calls setAllModelsEnabled(id, false)', () => {
     renderSettings();
     fireEvent.click(within(screen.getByTestId('model-group-mystery')).getByText('modelDisableAll'));
-    expect(spies.setProviderEnabled).toHaveBeenCalledWith('mystery', false);
+    expect(spies.setAllModelsEnabled).toHaveBeenCalledWith('mystery', false);
   });
 
-  it('marks the current default model and calls setDefaultModel', () => {
+  it('renders the empty message when no provider is enabled', () => {
+    useAppStore.setState({ providers: [darkmode] });
     renderSettings();
-    const group = screen.getByTestId('model-group-deepseek');
-    const defaultRow = within(group).getByText('DeepSeek Chat').closest('li') as HTMLElement;
-    expect(within(defaultRow).getByText('modelDefaultBadge')).toBeInTheDocument();
-
-    const reasonerRow = within(group).getByText('DeepSeek Reasoner').closest('li') as HTMLElement;
-    fireEvent.click(within(reasonerRow).getByText('modelSetDefault'));
-    expect(spies.setDefaultModel).toHaveBeenCalledWith('deepseek', 'deepseek-reasoner');
+    expect(screen.getByText('providerManagerNoProviders')).toBeInTheDocument();
+    expect(screen.queryByTestId('model-group-darkmode')).not.toBeInTheDocument();
   });
 });
