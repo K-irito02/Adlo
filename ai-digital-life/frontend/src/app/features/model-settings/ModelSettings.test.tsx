@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
-import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-library/react';
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
@@ -337,6 +337,38 @@ describe('ModelSettings upper zone — provider cards', () => {
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: 'providerManagerAddCustom' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('submits the custom provider dialog with Enter and closes it', async () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'providerManagerAddCustom' }));
+    fireEvent.change(screen.getByPlaceholderText('providerCustomNamePlaceholder'), {
+      target: { value: 'My Provider' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('providerCustomUrlPlaceholder'), {
+      target: { value: 'https://api.example.com/v1' },
+    });
+    fireEvent.keyDown(screen.getByPlaceholderText('providerCustomNamePlaceholder'), {
+      key: 'Enter',
+    });
+    await waitFor(() =>
+      expect(spies.addCustomProvider).toHaveBeenCalledWith(
+        'My Provider',
+        'https://api.example.com/v1',
+        '',
+        [],
+      ),
+    );
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('closes the custom provider dialog with Escape', () => {
+    renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: 'providerManagerAddCustom' }));
+    fireEvent.keyDown(document.querySelector('.adl-prompt-modal') as HTMLElement, {
+      key: 'Escape',
+    });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('renders the add-custom button as a borderless ghost button and the dialog as a centered modal', () => {

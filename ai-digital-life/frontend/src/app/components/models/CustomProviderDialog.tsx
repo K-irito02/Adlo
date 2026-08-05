@@ -24,12 +24,15 @@ export function CustomProviderDialog({ onClose }: CustomProviderDialogProps) {
       return;
     }
     setSaving(true);
-    const modelList = models
-      .split(',')
-      .map((m) => m.trim())
-      .filter(Boolean);
-    await addCustomProvider(name.trim(), baseUrl.trim(), apiKey.trim(), modelList);
-    setSaving(false);
+    try {
+      const modelList = models
+        .split(',')
+        .map((m) => m.trim())
+        .filter(Boolean);
+      await addCustomProvider(name.trim(), baseUrl.trim(), apiKey.trim(), modelList);
+    } finally {
+      setSaving(false);
+    }
     onClose();
   }, [name, baseUrl, apiKey, models, saving, addCustomProvider, onClose]);
 
