@@ -47,41 +47,35 @@ export function ProviderCard({ provider }: ProviderCardProps) {
 
   return (
     <article className="adl-provider-card" data-testid={`provider-card-${provider.id}`}>
-      <div className="adl-provider-card__header">
-        <button
-          type="button"
-          className="adl-provider-card__expand"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-          aria-label={t.modelProviderDetailsAria}
+      <div
+        className="adl-provider-card__header"
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        aria-label={t.modelProviderDetailsAria}
+        onClick={() => setExpanded((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setExpanded((v) => !v);
+          }
+        }}
+      >
+        <span
+          className={`adl-provider-card__status-dot${connected ? ' is-connected' : ' is-missing'}`}
         >
-          <span
-            className={`adl-provider-card__status-dot${connected ? ' is-connected' : ' is-missing'}`}
-          >
-            {connected ? (
-              <IconCheckCircle size={14} decorative />
-            ) : (
-              <IconCircle size={14} decorative />
-            )}
-          </span>
-          <span className="adl-provider-card__name">{provider.name}</span>
-          <span className="adl-provider-card__meta">
-            {provider.builtIn ? (
-              <span className="adl-chip adl-chip--xs adl-chip--muted">
-                {t.providerManagerBuiltIn}
-              </span>
-            ) : (
-              <span className="adl-chip adl-chip--xs adl-chip--info">
-                {t.providerManagerCustom}
-              </span>
-            )}
-          </span>
-          {expanded ? (
-            <IconChevronUp size={14} decorative />
+          {connected ? (
+            <IconCheckCircle size={14} decorative />
           ) : (
-            <IconChevronDown size={14} decorative />
+            <IconCircle size={14} decorative />
           )}
-        </button>
+        </span>
+        <span className="adl-provider-card__name">{provider.name}</span>
+        {expanded ? (
+          <IconChevronUp size={14} decorative />
+        ) : (
+          <IconChevronDown size={14} decorative />
+        )}
         <div className="adl-provider-card__controls">
           <button
             type="button"

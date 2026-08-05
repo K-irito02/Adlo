@@ -687,10 +687,10 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--accent);
+  color: var(--accent-orange);
   font-size: var(--text-xs);
   padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
 }
 .adl-model-settings__more-btn:hover {
   background: var(--bg-muted);
@@ -714,24 +714,15 @@
 .adl-provider-card__header {
   display: flex;
   align-items: center;
-}
-
-.adl-provider-card__expand {
-  display: flex;
-  align-items: center;
   gap: var(--space-2);
-  flex: 1;
-  min-width: 0;
   padding: var(--space-2) var(--space-3);
-  background: none;
-  border: none;
   cursor: pointer;
   color: var(--text-primary);
   font-size: var(--text-xs);
   text-align: left;
 }
 
-.adl-provider-card__header:hover .adl-provider-card__expand {
+.adl-provider-card__header:hover {
   background: var(--bg-hover);
 }
 
@@ -758,13 +749,8 @@
   font-weight: 600;
 }
 
-.adl-provider-card__meta {
-  flex-shrink: 0;
-}
-
 .adl-provider-card__controls {
   flex-shrink: 0;
-  padding: 0 var(--space-3);
   display: flex;
   align-items: center;
 }
@@ -851,7 +837,7 @@
 }
 
 .adl-provider-card .adl-btn {
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
 }
 
 .adl-provider-card__remove-btn {
@@ -919,7 +905,7 @@
 }
 
 .adl-model-settings .adl-btn {
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
 }
 
 .adl-model-settings__model-group-name {
