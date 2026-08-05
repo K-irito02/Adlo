@@ -7,7 +7,7 @@
 ```
 ┌────────────────────────────────────────┐
 │ [14] Tool Switcher                     │
-│ [文件|变更|浏览器|终端|审计|模型|设置] │
+│ [文件|变更|浏览器|终端|审计|设置]     │
 ├────────────────────────────────────────┤
 │ [17] Tool Panel Content                │
 │                                        │
@@ -35,8 +35,7 @@
 | `browser` | 浏览器 | [tools/browser.md](./tools/browser.md) | 内嵌浏览器 |
 | `terminal` | 终端 | [tools/terminal.md](./tools/terminal.md) | 命令执行终端 |
 | `audit` | 审计 | [tools/audit.md](./tools/audit.md) | 操作审计日志 |
-| `models` | 模型 | [tools/models.md](./tools/models.md) | 模型健康监控 |
-| `settings` | 设置 | [tools/settings.md](./tools/settings.md) | 应用设置 |
+| `settings` | 设置 | [tools/settings.md](./tools/settings.md) | 应用设置（含"模型"组：两区式供应商卡片 + 已启用模型列表） |
 | `communicate` | 通信 | [tools/communicate.md](./tools/communicate.md) | 多平台消息集成（GitHub CI / 飞书 / QQ / 微信 / 邮箱） |
 
 ## 容器选择器
