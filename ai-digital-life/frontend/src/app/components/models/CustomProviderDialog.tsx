@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
-import { IconClose } from '../../icons';
+import { IconClose, IconEye, IconEyeOff } from '../../icons';
 
 interface CustomProviderDialogProps {
   onClose: () => void;
@@ -14,6 +15,7 @@ export function CustomProviderDialog({ onClose }: CustomProviderDialogProps) {
   const [name, setName] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
   const [apiKey, setApiKey] = useState('');
+  const [keyVisible, setKeyVisible] = useState(false);
   const [models, setModels] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -40,67 +42,80 @@ export function CustomProviderDialog({ onClose }: CustomProviderDialogProps) {
     [onClose],
   );
 
-  return (
-    <div className="adl-dialog-overlay" onClick={handleOverlayClick}>
+  return createPortal(
+    <div className="adl-prompt-modal" onClick={handleOverlayClick}>
       <div
-        className="adl-dialog adl-custom-provider-dialog"
+        className="adl-prompt-modal__panel adl-prompt-modal__panel--wide"
         role="dialog"
         aria-modal="true"
         aria-label={t.providerManagerAddCustom}
       >
-        <header className="adl-dialog__header">
-          <h3>{t.providerManagerAddCustom}</h3>
+        <div className="adl-prompt-modal__header">
+          {t.providerManagerAddCustom}
           <button
             type="button"
-            className="adl-btn adl-btn--ghost adl-btn--xs"
+            className="adl-prompt-modal__header-close"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t.providerCancel}
           >
             <IconClose size={14} decorative />
           </button>
-        </header>
+        </div>
 
-        <div className="adl-dialog__body">
-          <label className="adl-custom-provider-dialog__field">
-            <span className="adl-custom-provider-dialog__label">{t.providerManagerCustomName}</span>
+        <div className="adl-prompt-modal__body">
+          <label className="adl-prompt-modal__field">
+            <span className="adl-prompt-modal__label">{t.providerManagerCustomName}</span>
             <input
               type="text"
-              className="adl-input"
+              className="adl-prompt-modal__input"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder={t.providerCustomNamePlaceholder}
             />
           </label>
 
-          <label className="adl-custom-provider-dialog__field">
-            <span className="adl-custom-provider-dialog__label">{t.providerManagerBaseUrl}</span>
+          <label className="adl-prompt-modal__field">
+            <span className="adl-prompt-modal__label">{t.providerManagerBaseUrl}</span>
             <input
               type="text"
-              className="adl-input"
+              className="adl-prompt-modal__input"
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
               placeholder={t.providerCustomUrlPlaceholder}
             />
           </label>
 
-          <label className="adl-custom-provider-dialog__field">
-            <span className="adl-custom-provider-dialog__label">{t.providerManagerApiKey}</span>
-            <input
-              type="password"
-              className="adl-input"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={t.providerManagerApiKeyPlaceholder}
-            />
+          <label className="adl-prompt-modal__field">
+            <span className="adl-prompt-modal__label">{t.providerManagerApiKey}</span>
+            <span className="adl-prompt-modal__token-input">
+              <input
+                type={keyVisible ? 'text' : 'password'}
+                className="adl-prompt-modal__input adl-prompt-modal__token-field"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={t.providerManagerApiKeyPlaceholder}
+              />
+              <button
+                type="button"
+                className="adl-prompt-modal__token-toggle"
+                onClick={() => setKeyVisible((v) => !v)}
+                title={keyVisible ? t.providerHideKey : t.providerShowKey}
+                aria-label={keyVisible ? t.providerHideKey : t.providerShowKey}
+              >
+                {keyVisible ? (
+                  <IconEyeOff size={14} decorative />
+                ) : (
+                  <IconEye size={14} decorative />
+                )}
+              </button>
+            </span>
           </label>
 
-          <label className="adl-custom-provider-dialog__field">
-            <span className="adl-custom-provider-dialog__label">
-              {t.providerManagerCustomModels}
-            </span>
+          <label className="adl-prompt-modal__field">
+            <span className="adl-prompt-modal__label">{t.providerManagerCustomModels}</span>
             <input
               type="text"
-              className="adl-input"
+              className="adl-prompt-modal__input"
               value={models}
               onChange={(e) => setModels(e.target.value)}
               placeholder={t.providerCustomModelsPlaceholder}
@@ -108,20 +123,21 @@ export function CustomProviderDialog({ onClose }: CustomProviderDialogProps) {
           </label>
         </div>
 
-        <footer className="adl-dialog__footer">
-          <button type="button" className="adl-btn adl-btn--ghost" onClick={onClose}>
+        <div className="adl-prompt-modal__actions adl-prompt-modal__actions--fill">
+          <button type="button" className="adl-btn adl-btn--square" onClick={onClose}>
             {t.providerCancel}
           </button>
           <button
             type="button"
-            className="adl-btn adl-btn--primary"
+            className="adl-btn adl-btn--square"
             onClick={handleAdd}
             disabled={!name.trim() || !baseUrl.trim() || saving}
           >
-            {saving ? '...' : t.providerSave}
+            {saving ? t.processing : t.providerSave}
           </button>
-        </footer>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

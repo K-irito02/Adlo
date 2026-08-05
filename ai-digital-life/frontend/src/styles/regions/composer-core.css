@@ -269,3 +269,52 @@
 .adl-prompt-modal .adl-btn:hover:not(:disabled) {
   background: var(--bg-hover);
 }
+
+.adl-prompt-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.adl-prompt-modal__label {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.adl-prompt-modal__token-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.adl-prompt-modal__token-field {
+  padding-right: 34px;
+}
+
+.adl-prompt-modal__token-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background var(--duration-100),
+    color var(--duration-100);
+}
+
+.adl-prompt-modal__token-toggle:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}

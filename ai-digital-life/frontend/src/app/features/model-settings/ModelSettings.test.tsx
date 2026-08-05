@@ -273,6 +273,13 @@ describe('ModelSettings upper zone — provider cards', () => {
     expect(within(card).queryByText(/providerManagerBaseUrl/)).not.toBeInTheDocument();
   });
 
+  it('does not render the built-in/custom meta chips on the provider card header', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    expect(within(card).queryByText('providerManagerBuiltIn')).not.toBeInTheDocument();
+    expect(within(card).queryByText('providerManagerCustom')).not.toBeInTheDocument();
+  });
+
   it('keeps the eye toggle inside the key input container', () => {
     renderSettings();
     const card = screen.getByTestId('provider-card-deepseek');
@@ -322,7 +329,8 @@ describe('ModelSettings upper zone — provider cards', () => {
     fireEvent.click(addButton);
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
-    expect(document.querySelector('.adl-dialog-overlay')).toBeInTheDocument();
+    expect(dialog).toHaveClass('adl-prompt-modal__panel');
+    expect(document.querySelector('.adl-prompt-modal')).toBeInTheDocument();
   });
 });
 
