@@ -1,9 +1,76 @@
-import type { AppPreferencePatch, AppInfo, IpcResult } from '@ai-digital-life/kernel';
-import type { ProviderStatus, ProviderInfo } from '../shared/ipc/provider';
+import type {
+  AppPreferencePatch,
+  AppInfo,
+  IpcResult,
+  ModelDefinition,
+} from '@ai-digital-life/kernel';
+import type { ProviderStatus, ProviderInfo, ConnectionTestResult } from '../shared/ipc/provider';
+import type { ModelProviderPreference } from '../shared/ipc-types.generated';
 import { applyPreferencePatch } from '../shared/preferencesMerger';
 import { mockDigitalLifeBridge } from '../mock-bridge';
-import { persistPreviewPreferences, loadPreviewPreferences } from './preview-storage';
+import { MODEL_CATALOG } from '../shared/modelCatalog';
+import {
+  persistPreviewPreferences,
+  loadPreviewPreferences,
+  loadPreviewCustomProviders,
+  persistPreviewCustomProviders,
+  type PreviewCustomProvider,
+} from './preview-storage';
 import type { PreviewContext } from './preview-context';
+
+// In-memory API keys for preview mode. API keys must NEVER be persisted to
+// localStorage (security constraint); the map is module-level and cleared on reset.
+const previewApiKeys = new Map<string, string>();
+
+export function resetPreviewModelState(): void {
+  previewApiKeys.clear();
+}
+
+function catalogToStatus(
+  providerId: string,
+  pref: ModelProviderPreference | undefined,
+): ProviderStatus {
+  const catalog = MODEL_CATALOG.find((p) => p.id === providerId);
+  const requiresKey = catalog?.requiresKey ?? true;
+  const hasKey = previewApiKeys.has(providerId);
+  return {
+    id: providerId,
+    name: catalog?.name ?? providerId,
+    description: catalog?.description ?? '',
+    apiType: catalog?.apiType ?? 'OpenAICompatible',
+    builtIn: true,
+    configured: !requiresKey || hasKey,
+    hasKey,
+    requiresKey,
+    baseUrl: catalog?.baseUrl ?? null,
+    models: catalog?.models ?? [],
+    enabled: pref?.enabled ?? true,
+    enabledModels: pref?.enabledModels ?? [],
+  };
+}
+
+function customToStatus(custom: PreviewCustomProvider): ProviderStatus {
+  const hasKey = previewApiKeys.has(custom.id);
+  return {
+    id: custom.id,
+    name: custom.name,
+    description: `Custom OpenAI-compatible: ${custom.name}`,
+    apiType: 'OpenAICompatible',
+    builtIn: false,
+    configured: hasKey,
+    hasKey,
+    requiresKey: true,
+    baseUrl: custom.baseUrl,
+    models: custom.models.map((m) => ({
+      id: m,
+      providerId: custom.id,
+      name: m,
+      capabilities: ['text'],
+    })),
+    enabled: true,
+    enabledModels: [],
+  };
+}
 
 export function createBaseAppInfo(): AppInfo {
   const savedPreferences = loadPreviewPreferences();
@@ -82,17 +149,93 @@ export function createPreviewModelBridge(
       },
     },
     provider: {
-      listProviders: () => Promise.resolve({ ok: true, data: [] as ProviderStatus[] }),
-      saveProviderConfig: () => Promise.resolve({ ok: true, data: undefined }),
-      testProviderConnection: () =>
-        Promise.resolve({ ok: true, data: { connected: false, error: null } }),
-      fetchProviderModels: () => Promise.resolve({ ok: true, data: [] }),
-      addCustomProvider: () => Promise.resolve({ ok: true, data: true }),
-      removeCustomProvider: () => Promise.resolve({ ok: true, data: true }),
-      setProviderApiKey: () => Promise.resolve({ ok: true, data: true }),
-      clearProviderApiKey: () => Promise.resolve({ ok: true, data: true }),
-      hasProviderApiKey: () => Promise.resolve({ ok: true, data: false }),
-      listSupportedProviders: () => Promise.resolve({ ok: true, data: [] as ProviderInfo[] }),
+      listProviders: async (): Promise<IpcResult<ProviderStatus[]>> => {
+        const prefs = loadPreviewPreferences().modelPreferences?.providers ?? {};
+        const builtins = MODEL_CATALOG.map((p) => catalogToStatus(p.id, prefs[p.id]));
+        const customs = loadPreviewCustomProviders().map(customToStatus);
+        return { ok: true as const, data: [...builtins, ...customs] };
+      },
+      saveProviderConfig: async (
+        providerId: string,
+        config: Record<string, unknown>,
+      ): Promise<IpcResult<void>> => {
+        const apiKey = config?.apiKey;
+        if (typeof apiKey === 'string' && apiKey.length > 0) {
+          previewApiKeys.set(providerId, apiKey);
+        }
+        return { ok: true as const, data: undefined };
+      },
+      testProviderConnection: async (
+        providerId: string,
+      ): Promise<IpcResult<ConnectionTestResult>> => {
+        const catalog = MODEL_CATALOG.find((p) => p.id === providerId);
+        const custom = loadPreviewCustomProviders().find((p) => p.id === providerId);
+        const requiresKey = custom ? true : (catalog?.requiresKey ?? true);
+        if (!requiresKey || previewApiKeys.has(providerId)) {
+          return { ok: true as const, data: { connected: true, error: null } };
+        }
+        return { ok: true as const, data: { connected: false, error: 'missing API key' } };
+      },
+      fetchProviderModels: async (providerId: string): Promise<IpcResult<ModelDefinition[]>> => {
+        const catalog = MODEL_CATALOG.find((p) => p.id === providerId);
+        const custom = loadPreviewCustomProviders().find((p) => p.id === providerId);
+        if (custom) {
+          return {
+            ok: true as const,
+            data: custom.models.map((m) => ({
+              id: m,
+              providerId: custom.id,
+              name: m,
+              capabilities: ['text'],
+            })),
+          };
+        }
+        return { ok: true as const, data: catalog?.models ?? [] };
+      },
+      addCustomProvider: async (
+        name: string,
+        baseUrl: string,
+        apiKey: string,
+        models: string[],
+      ): Promise<IpcResult<boolean>> => {
+        const id = `custom-${name.toLowerCase().replace(/ /g, '-')}`;
+        const providers = loadPreviewCustomProviders();
+        if (providers.some((p) => p.id === id)) {
+          return { ok: true as const, data: false };
+        }
+        providers.push({ id, name, baseUrl, models });
+        persistPreviewCustomProviders(providers);
+        if (apiKey) {
+          previewApiKeys.set(id, apiKey);
+        }
+        return { ok: true as const, data: true };
+      },
+      removeCustomProvider: async (providerId: string): Promise<IpcResult<boolean>> => {
+        const providers = loadPreviewCustomProviders();
+        const next = providers.filter((p) => p.id !== providerId);
+        persistPreviewCustomProviders(next);
+        previewApiKeys.delete(providerId);
+        return { ok: true as const, data: true };
+      },
+      setProviderApiKey: async (
+        providerId: string,
+        apiKey: string,
+      ): Promise<IpcResult<boolean>> => {
+        previewApiKeys.set(providerId, apiKey);
+        return { ok: true as const, data: true };
+      },
+      clearProviderApiKey: async (providerId: string): Promise<IpcResult<boolean>> => {
+        previewApiKeys.delete(providerId);
+        return { ok: true as const, data: true };
+      },
+      hasProviderApiKey: async (providerId: string): Promise<IpcResult<boolean>> => ({
+        ok: true as const,
+        data: previewApiKeys.has(providerId),
+      }),
+      listSupportedProviders: async (): Promise<IpcResult<ProviderInfo[]>> => ({
+        ok: true as const,
+        data: MODEL_CATALOG.map((p) => ({ id: p.id, name: p.name, requiresKey: p.requiresKey })),
+      }),
     },
     subscribeModelStream: mockDigitalLifeBridge.subscribeModelStream,
     subscribeRunActivity: mockDigitalLifeBridge.subscribeRunActivity,

@@ -122,7 +122,7 @@ export function setupPreviewBridge(): void {
     subscribeRunActivity: modelBridge.subscribeRunActivity,
     subscribeTerminalStream: modelBridge.subscribeTerminalStream,
     mcp: warnMockBridge('mcp', mockDigitalLifeBridge.mcp),
-    provider: warnMockBridge('provider', mockDigitalLifeBridge.provider),
+    provider: modelBridge.provider,
     commandsConfig: warnMockBridge('commandsConfig', mockDigitalLifeBridge.commandsConfig),
     permission: warnMockBridge('permission', mockDigitalLifeBridge.permission),
     // Phase 2 bridges (inherited from mock — add preview-specific overrides here if needed)

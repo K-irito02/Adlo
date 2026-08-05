@@ -1,4 +1,5 @@
-import type { ProviderBridge } from "../shared/ipc/provider";
+import type { ProviderBridge } from '../shared/ipc/provider';
+import { MODEL_CATALOG } from '../shared/modelCatalog';
 
 export const mockProvider: ProviderBridge = {
   setProviderApiKey: async (_provider: string, _apiKey: string) => ({ ok: true, data: true }),
@@ -6,17 +7,25 @@ export const mockProvider: ProviderBridge = {
   hasProviderApiKey: async (_provider: string) => ({ ok: true, data: false }),
   listSupportedProviders: async () => ({
     ok: true,
-    data: [
-      { id: 'deepseek', name: 'DeepSeek', requiresKey: true },
-      { id: 'minimax', name: 'MiniMax', requiresKey: true },
-      { id: 'openai', name: 'OpenAI', requiresKey: true },
-      { id: 'anthropic', name: 'Anthropic', requiresKey: true },
-      { id: 'google', name: 'Google Gemini', requiresKey: true },
-      { id: 'ollama', name: 'Ollama (Local)', requiresKey: false },
-      { id: 'openrouter', name: 'OpenRouter', requiresKey: true },
-    ],
+    data: MODEL_CATALOG.map(({ id, name, requiresKey }) => ({ id, name, requiresKey })),
   }),
-  listProviders: async () => ({ ok: true, data: [] }),
+  listProviders: async () => ({
+    ok: true,
+    data: MODEL_CATALOG.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      apiType: p.apiType,
+      builtIn: p.builtIn,
+      configured: !p.requiresKey,
+      hasKey: !p.requiresKey,
+      requiresKey: p.requiresKey,
+      baseUrl: p.baseUrl,
+      models: p.models,
+      enabled: true,
+      enabledModels: [],
+    })),
+  }),
   saveProviderConfig: async (_providerId: string, _config: Record<string, unknown>) => ({
     ok: true,
     data: undefined,
@@ -25,12 +34,15 @@ export const mockProvider: ProviderBridge = {
     ok: true,
     data: { connected: false, error: 'mock: no connection' },
   }),
-  fetchProviderModels: async (_providerId: string) => ({ ok: true, data: [] }),
+  fetchProviderModels: async (providerId: string) => ({
+    ok: true,
+    data: MODEL_CATALOG.find((p) => p.id === providerId)?.models ?? [],
+  }),
   addCustomProvider: async (
     _name: string,
     _baseUrl: string,
     _apiKey: string,
-    _models: string[]
+    _models: string[],
   ) => ({
     ok: true,
     data: true,
