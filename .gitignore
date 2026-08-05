@@ -50,3 +50,7 @@ digitalLife/
 # External reference code (not part of the project, for learning/reference only)
 references/opencode/
 references/bklit-ui/
+references/pi/
+
+# CodeGraph local knowledge graph (SQLite, regenerable via `codegraph init`)
+.codegraph/

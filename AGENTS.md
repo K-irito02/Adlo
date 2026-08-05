@@ -18,16 +18,23 @@
 
 ## 参考项目
 
-本项目的多项架构设计、编码模式与功能实现参考了 [OpenCode](https://github.com/anomalyco/opencode)（MIT 许可）开源项目。本地副本位于 `references/opencode/`，用于开发过程中查阅源码、借鉴设计模式与复用代码片段。
+本项目的多项架构设计、编码模式与功能实现参考了以下两个 MIT 许可开源项目，本地副本位于 `references/`，用于开发过程中查阅源码、借鉴设计模式与复用代码片段：
+
+- [OpenCode](https://github.com/anomalyco/opencode)（MIT）
+- [Pi](https://github.com/earendil-works/pi)（MIT，Copyright Mario Zechner）
 
 | 参考项 | 说明 |
 |------|------|
-| 本地路径 | `references/opencode/`（Git 子模块或手动拉取，不参与本项目构建） |
-| 上游仓库 | [github.com/anomalyco/opencode](https://github.com/anomalyco/opencode) |
+| 本地路径 (OpenCode) | `references/opencode/`（Git 子模块或手动拉取，不参与本项目构建） |
+| 上游仓库 (OpenCode) | [github.com/anomalyco/opencode](https://github.com/anomalyco/opencode) |
+| 本地路径 (Pi) | `references/pi/`（手动拉取，不参与本项目构建） |
+| 上游仓库 (Pi) | [github.com/earendil-works/pi](https://github.com/earendil-works/pi) |
 | 许可 | MIT |
 | 源码地图 (OpenCode) | [docs/analysis/opencode/](./docs/analysis/opencode/)（渐进式索引 — 快查/总览/架构/包索引/功能深度/编码模式/差距分析） |
 | 源码地图 (ADL) | [docs/analysis/ai-digital-life/](./docs/analysis/ai-digital-life/)（本项目的渐进式索引） |
 
+> **代码知识图谱**：`ai-digital-life/`、`references/pi/`、`references/opencode/` 三个项目均配置了 [CodeGraph](https://github.com/colbymchenry/codegraph)（MIT 许可）本地知识图谱（各项目根 `.codegraph/`，SQLite）。查询、检索代码时优先使用 `codegraph_*` MCP 工具或 `codegraph` CLI，详见技能 [`codegraph-knowledge-graph`](./.opencode/skills/codegraph-knowledge-graph/SKILL.md)。
+>
 > 参考代码直接复用需遵守 MIT 许可要求，并在代码注释中标注来源。
 
 ## 当前阶段
@@ -122,9 +129,9 @@ npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$H
 
 | 目录 | 职责 | 技能数量 |
 |------|------|----------|
-| `.opencode/skills/` | 源目录（真源） | 26 |
-| `.agents/skills/` | 同步备份 | 26 |
-| `.trae/skills/` | 同步备份 | 26 |
+| `.opencode/skills/` | 源目录（真源） | 27 |
+| `.agents/skills/` | 同步备份 | 27 |
+| `.trae/skills/` | 同步备份 | 27 |
 
 **同步规则**：`.opencode/skills/` 是真源，修改后需同步到 `.agents/skills/` 和 `.trae/skills/`。
 
@@ -149,12 +156,13 @@ npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$H
 | `using-git-worktrees` | Git 工作树使用 | 并行开发、隔离工作区 |
 | `writing-skills` | 技能创作 | 新增/修改技能 |
 
-**项目定制技能**（12 个）：
+**项目定制技能**（13 个）：
 
 | 技能 | 用途 |
 |------|------|
 | `browser-automation` | 浏览器自动化测试 |
 | `closing-workflow` | 工作结束后收尾流程（日志审查、代码审查循环、质量检测、文档同步、项目清理） |
+| `codegraph-knowledge-graph` | 三份本地 CodeGraph 知识图谱查询指南（MCP / CLI 双通道） |
 | `documentation-organizer` | 文档目录整理 |
 | `dogfood` | 内部试用与问题发现 |
 | `find-skills` | 技能发现与安装 |

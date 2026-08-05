@@ -157,12 +157,14 @@ app/stores/
 
 ## 相关文件
 
-- [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则（含 Superpowers 技能系统、参考项目 OpenCode）
-- [技能系统入口](../.opencode/skills/using-superpowers/SKILL.md) — using-superpowers 入口技能（共 26 个技能：14 Superpowers 核心 + 12 项目定制）
+- [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则（含 Superpowers 技能系统、参考项目 OpenCode / Pi）
+- [技能系统入口](../.opencode/skills/using-superpowers/SKILL.md) — using-superpowers 入口技能（共 27 个技能：14 Superpowers 核心 + 13 项目定制）
 - [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 远期规划
 - [references/opencode/](../references/opencode/) — 参考项目 OpenCode 本地源码（MIT 许可）
+- [references/pi/](../references/pi/) — 参考项目 Pi 本地源码（MIT 许可）
 - [docs/analysis/opencode/](../docs/analysis/opencode/) — OpenCode 源码地图
 - [docs/analysis/ai-digital-life/](../docs/analysis/ai-digital-life/) — ADL 源码地图（本项目的渐进式索引）
+- [技能：codegraph-knowledge-graph](../.opencode/skills/codegraph-knowledge-graph/SKILL.md) — 三份本地 CodeGraph 知识图谱查询指南（本应用、pi、opencode，MCP / CLI 双通道）
 
 ## 磁盘空间管理
 
