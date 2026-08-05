@@ -1,0 +1,1779 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 数字生命 · 项目设计标准 v2.0</title>
+<style>
+  :root {
+    --color-bg: #0b0d10;
+    --color-bg-soft: #12151a;
+    --color-bg-card: #181c22;
+    --color-bg-card-hover: #1f242c;
+    --color-border: #2a3038;
+    --color-text: #e6e8ea;
+    --color-text-soft: #98a2ad;
+    --color-text-muted: #6a7480;
+    --color-accent: #6366f1;
+    --color-accent-soft: #818cf8;
+    --color-accent-bg: rgba(99, 102, 241, 0.12);
+    --color-pi: #10b981;
+    --color-pi-bg: rgba(16, 185, 129, 0.12);
+    --color-oc: #f59e0b;
+    --color-oc-bg: rgba(245, 158, 11, 0.12);
+    --color-mix: #8b5cf6;
+    --color-mix-bg: rgba(139, 92, 246, 0.12);
+    --color-risk: #ef4444;
+    --color-risk-bg: rgba(239, 68, 68, 0.12);
+    --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+    --radius-lg: 16px;
+    --radius-md: 10px;
+    --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--color-bg);
+    color: var(--color-text);
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--color-accent-soft); text-decoration: none; }
+  a:hover { color: var(--color-accent); }
+
+  /* 顶部导航 */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(11, 13, 16, 0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .nav-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 14px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .nav-brand-mark {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-mix) 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; color: white; font-weight: 800;
+  }
+  .nav-links { display: flex; gap: 6px; flex-wrap: wrap; }
+  .nav-link {
+    padding: 6px 12px;
+    font-size: 13px;
+    color: var(--color-text-soft);
+    border-radius: var(--radius-sm);
+    transition: all 0.2s;
+  }
+  .nav-link:hover { background: var(--color-bg-card); color: var(--color-text); }
+
+  /* 容器 */
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
+
+  /* Hero */
+  .hero {
+    padding: 80px 0 60px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    top: -100px; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 400px;
+    background: radial-gradient(ellipse at center, var(--color-accent-bg) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: var(--color-accent-bg);
+    border: 1px solid var(--color-accent);
+    border-radius: 999px;
+    font-size: 13px;
+    color: var(--color-accent-soft);
+    margin-bottom: 24px;
+  }
+  .hero-title {
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #fff 0%, var(--color-accent-soft) 60%, var(--color-mix) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-subtitle {
+    font-size: 18px;
+    color: var(--color-text-soft);
+    max-width: 640px;
+    margin: 0 auto 40px;
+  }
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    flex-wrap: wrap;
+  }
+  .hero-stat {
+    text-align: center;
+  }
+  .hero-stat-num {
+    font-size: 36px;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--color-accent-soft), var(--color-mix));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero-stat-label {
+    font-size: 13px;
+    color: var(--color-text-muted);
+    margin-top: 4px;
+  }
+
+  /* Section */
+  .section {
+    padding: 72px 0;
+    border-top: 1px solid var(--color-border);
+  }
+  .section-header {
+    margin-bottom: 48px;
+  }
+  .section-tag {
+    display: inline-block;
+    padding: 4px 10px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    margin-bottom: 12px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .section-title {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .section-desc {
+    font-size: 16px;
+    color: var(--color-text-soft);
+    max-width: 720px;
+  }
+
+  /* 标签 */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .tag::before {
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 50%;
+  }
+  .tag-pi { background: var(--color-pi-bg); color: var(--color-pi); }
+  .tag-pi::before { background: var(--color-pi); }
+  .tag-oc { background: var(--color-oc-bg); color: var(--color-oc); }
+  .tag-oc::before { background: var(--color-oc); }
+  .tag-mix { background: var(--color-mix-bg); color: var(--color-mix); }
+  .tag-mix::before { background: var(--color-mix); }
+  .tag-risk { background: var(--color-risk-bg); color: var(--color-risk); }
+  .tag-risk::before { background: var(--color-risk); }
+
+  /* 卡片网格 */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  .card:hover {
+    background: var(--color-bg-card-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card);
+    border-color: #343b47;
+  }
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 12px;
+  }
+  .card-num {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    background: var(--color-accent-bg);
+    color: var(--color-accent-soft);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .card-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .card-choice {
+    font-size: 13px;
+    color: var(--color-text-muted);
+  }
+  .card-body {
+    font-size: 14px;
+    color: var(--color-text-soft);
+  }
+  .card-compare {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .compare-col {
+    padding: 12px;
+    border-radius: var(--radius-md);
+    background: var(--color-bg-soft);
+  }
+  .compare-col-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .compare-item {
+    font-size: 12px;
+    padding: 3px 0;
+    color: var(--color-text-soft);
+  }
+  .compare-item::before {
+    content: "▸ ";
+    color: var(--color-accent-soft);
+  }
+  .compare-why {
+    margin-top: 16px;
+    padding: 14px;
+    background: var(--color-accent-bg);
+    border-left: 3px solid var(--color-accent);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  }
+  .compare-why-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-accent-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .compare-why-text {
+    font-size: 13px;
+    color: var(--color-text-soft);
+  }
+
+  /* 两列对比 */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 768px) {
+    .compare-grid { grid-template-columns: 1fr; }
+    .card-compare { grid-template-columns: 1fr; }
+  }
+  .compare-card {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .compare-card-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .compare-card.pi .compare-card-header { background: var(--color-pi-bg); }
+  .compare-card.oc .compare-card-header { background: var(--color-oc-bg); }
+  .compare-card.mix .compare-card-header { background: var(--color-mix-bg); }
+  .compare-card-title {
+    font-size: 18px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .compare-card-body { padding: 24px; }
+  .compare-pros, .compare-cons { margin-bottom: 20px; }
+  .compare-pros-title, .compare-cons-title {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 10px;
+  }
+  .compare-pros-title { color: var(--color-pi); }
+  .compare-cons-title { color: var(--color-risk); }
+  .compare-list { list-style: none; }
+  .compare-list li {
+    font-size: 14px;
+    padding: 5px 0 5px 22px;
+    position: relative;
+    color: var(--color-text-soft);
+  }
+  .compare-list li::before {
+    position: absolute;
+    left: 0;
+    font-weight: 700;
+  }
+  .compare-pros .compare-list li::before { content: "✅"; }
+  .compare-cons .compare-list li::before { content: "⚠️"; }
+
+  /* 架构图 */
+  .arch-diagram {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 40px;
+    margin: 32px 0;
+    overflow-x: auto;
+  }
+  .arch-layer {
+    margin-bottom: 16px;
+    padding: 20px;
+    border-radius: var(--radius-md);
+    text-align: center;
+    font-weight: 600;
+    position: relative;
+  }
+  .arch-layer::after {
+    content: "";
+    position: absolute;
+    bottom: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px; height: 12px;
+    background: var(--color-text-muted);
+  }
+  .arch-layer:last-child::after { display: none; }
+  .arch-layer.ui { background: var(--color-oc-bg); border: 1px dashed var(--color-oc); color: var(--color-oc); }
+  .arch-layer.bridge { background: var(--color-mix-bg); border: 1px dashed var(--color-mix); color: var(--color-mix); }
+  .arch-layer.agent { background: var(--color-pi-bg); border: 1px dashed var(--color-pi); color: var(--color-pi); }
+  .arch-layer.core { background: var(--color-accent-bg); border: 1px dashed var(--color-accent); color: var(--color-accent-soft); }
+  .arch-layer.storage { background: var(--color-risk-bg); border: 1px dashed var(--color-risk); color: var(--color-risk); }
+  .arch-layer-modules {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .arch-module {
+    display: inline-block;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+  }
+
+  /* 数据模型 */
+  .model-box {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    font-family: "SF Mono", "JetBrains Mono", Consolas, monospace;
+    font-size: 13px;
+    overflow-x: auto;
+    line-height: 1.8;
+  }
+  .model-comment { color: var(--color-text-muted); font-style: italic; }
+  .model-keyword { color: var(--color-accent-soft); font-weight: 600; }
+  .model-string { color: #a5d6ff; }
+  .model-type { color: var(--color-pi); }
+  .model-field { color: var(--color-text-soft); }
+  .model-bracket { color: var(--color-text-muted); }
+
+  /* 风险卡 */
+  .risk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+  }
+  .risk-card {
+    background: var(--color-risk-bg);
+    border: 1px solid var(--color-risk);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+  }
+  .risk-card-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-risk);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .risk-card-title::before { content: "⚠️"; }
+  .risk-card-desc {
+    font-size: 13px;
+    color: var(--color-text-soft);
+    margin-bottom: 14px;
+  }
+  .risk-solution {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 12px;
+    border-radius: var(--radius-md);
+    font-size: 12px;
+    color: var(--color-text-soft);
+  }
+  .risk-solution-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-pi);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+
+  /* 路线图 */
+  .roadmap {
+    position: relative;
+    padding-left: 40px;
+  }
+  .roadmap::before {
+    content: "";
+    position: absolute;
+    left: 15px; top: 0; bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--color-accent) 0%, var(--color-mix) 50%, var(--color-pi) 100%);
+  }
+  .roadmap-item {
+    position: relative;
+    margin-bottom: 40px;
+    padding: 24px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+  .roadmap-item::before {
+    content: "";
+    position: absolute;
+    left: -32px; top: 28px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    border: 3px solid var(--color-bg);
+  }
+  .roadmap-phase {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-accent-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .roadmap-title {
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .roadmap-list {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 8px;
+  }
+  .roadmap-list li {
+    font-size: 13px;
+    color: var(--color-text-soft);
+    padding: 6px 10px;
+    background: var(--color-bg-soft);
+    border-radius: var(--radius-sm);
+  }
+
+  /* 底部 */
+  .footer {
+    padding: 48px 0;
+    border-top: 1px solid var(--color-border);
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: 13px;
+  }
+
+  /* 双视角说明框 */
+  .two-views {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 24px 0;
+  }
+  @media (max-width: 768px) { .two-views { grid-template-columns: 1fr; } }
+  .view-box {
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    border: 1px solid var(--color-border);
+  }
+  .view-box.pro { background: var(--color-accent-bg); border-color: var(--color-accent); }
+  .view-box.simple { background: var(--color-pi-bg); border-color: var(--color-pi); }
+  .view-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+  }
+  .view-box.pro .view-label { color: var(--color-accent-soft); }
+  .view-box.simple .view-label { color: var(--color-pi); }
+  .view-text {
+    font-size: 14px;
+    color: var(--color-text-soft);
+    line-height: 1.8;
+  }
+</style>
+</head>
+<body>
+
+<!-- 导航 -->
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="nav-brand">
+      <div class="nav-brand-mark">AI</div>
+      <span>项目设计标准</span>
+      <span style="font-size:12px;color:var(--color-text-muted);font-weight:400;">v2.0</span>
+    </div>
+    <div class="nav-links">
+      <a href="#decisions" class="nav-link">14 项决策</a>
+      <a href="#philosophy" class="nav-link">设计哲学</a>
+      <a href="#architecture" class="nav-link">架构蓝图</a>
+      <a href="#datamodel" class="nav-link">数据模型</a>
+      <a href="#risks" class="nav-link">风险对策</a>
+      <a href="#roadmap" class="nav-link">演进路线</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">
+      <span style="font-size:14px;">✨</span>
+      v2.0 · 基于 Pi × OpenCode 源码核对 + 现状对齐修订
+    </div>
+    <h1 class="hero-title">AI 数字生命<br>项目设计标准</h1>
+    <p class="hero-subtitle">
+      以 Pi 的状态驱动轻量内核与 OpenCode 的完整功能体系为参照，
+      在对照两项目真实源码并核对本项目现状后，形成可落地的架构真源。
+    </p>
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <div class="hero-stat-num">14</div>
+        <div class="hero-stat-label">核心决策项</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">5</div>
+        <div class="hero-stat-label">架构层级</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">7</div>
+        <div class="hero-stat-label">关键风险对策</div>
+      </div>
+      <div class="hero-stat">
+        <div class="hero-stat-num">3</div>
+        <div class="hero-stat-label">演化阶段</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 14 项决策总览 -->
+<section class="section" id="decisions">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Section 01</span>
+      <h2 class="section-title">14 项核心决策矩阵</h2>
+      <p class="section-desc">每一项决策均对照 Pi 与 OpenCode 真实源码核对，并结合项目现状修订。凡属自研抽象均已明确标注。</p>
+    </div>
+
+    <div class="card-grid">
+
+      <!-- 决策 1 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">01</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-mix">混合方案</span>
+          </div>
+        </div>
+        <div class="card-title">架构风格</div>
+        <div class="card-choice">分层主体 + 关键模块插件化</div>
+        <div class="card-body">
+          主体采用分层架构保证清晰可控，关键扩展点（模型 Provider、外部工具、自定义 Agent）采用插件化。
+          插件化在 Rust 内核层通过 trait + registry 落地，前端仅通过 IPC 消费能力，双端一致。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">分层架构</div>
+            <div class="compare-item">层间单向依赖，结构清晰</div>
+            <div class="compare-item">上手快，调试方便</div>
+            <div class="compare-item">适合项目早期</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">插件化模块</div>
+            <div class="compare-item">Provider、工具、Agent 可插拔</div>
+            <div class="compare-item">Rust trait + registry 落地</div>
+            <div class="compare-item">为未来扩展留空间</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            分层保证项目早期开发效率，关键模块插件化则避免了"大泥球"风险——
+            新增 Provider 或工具不需要改动核心层代码。已落地的 ProviderRegistry、AgentRegistry、ToolRegistry 即此决策的体现。
+          </div>
+        </div>
+      </div>
+
+      <!-- 决策 2 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">02</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-pi">来自 Pi</span>
+          </div>
+        </div>
+        <div class="card-title">Agent 设计</div>
+        <div class="card-choice">状态持有 + 事件订阅（Pi 模式）</div>
+        <div class="card-body">
+          Agent 持有 state（messages + 上下文），通过 subscribe() 对外通知，流程线性可预测。
+          状态由事件驱动更新（processEvents 归约），扩展可订阅事件流。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">控制方式</div>
+            <div class="compare-item">事件发布/订阅模式</div>
+            <div class="compare-item">subscribe() 监听事件</div>
+            <div class="compare-item">流程顺序确定</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">扩展方式</div>
+            <div class="compare-item">订阅生命周期事件介入</div>
+            <div class="compare-item">Pi 共 33 个事件类型</div>
+            <div class="compare-item">事件流可追踪调试</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            编码代理的核心流程是线性的（接收 Prompt → 思考 → 调用工具 → 生成回复），
+            状态驱动让这条主线清晰可控，调试效率远高于策略路由。Pi 的真实实现是
+            "可变状态对象 + 事件驱动更新"，本项目沿用该模式，不引入纯函数式事件溯源。
+          </div>
+        </div>
+      </div>
+
+      <!-- 决策 3 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">03</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-oc">来自 OpenCode</span>
+          </div>
+        </div>
+        <div class="card-title">会话管理</div>
+        <div class="card-choice">上下文 Epoch（自研抽象）</div>
+        <div class="card-body">
+          以 Epoch（一次 Prompt→Response 周期）为会话逻辑单元，四阶段框架为项目自研简化模型，
+          映射到现有的 message / run 记录，不直接对应任何参考项目的内部结构。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">阶段管理</div>
+            <div class="compare-item">每个 Epoch 明确阶段</div>
+            <div class="compare-item">token 计数精确</div>
+            <div class="compare-item">映射现有 message/run</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">压缩机制</div>
+            <div class="compare-item">超过阈值自动触发</div>
+            <div class="compare-item">保留最近 N 轮 turn</div>
+            <div class="compare-item">长会话无感运行</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            ⚠️ 版本说明：OpenCode 并无"四阶段 Epoch 状态机"——其真实结构是 12 类 Part
+            （Text/Tool/StepStart 等）+ PromptAdmitted/Prompted 事件 + Tool 事件，且 Epoch
+            一词在 OpenCode 中指系统上下文基线快照。本决策将 Epoch 定义为自研逻辑抽象，
+            目的是给长会话管理一个清晰"骨架"，与现有 message/run 结构对齐。
+          </div>
+        </div>
+      </div>
+
+      <!-- 决策 4 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">04</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-pi">来自 Pi</span>
+          </div>
+        </div>
+        <div class="card-title">工具系统</div>
+        <div class="card-choice">注册中心 + 运行时参数校验</div>
+        <div class="card-body">
+          通过工具注册中心（ToolRegistry）动态注册工具，参数 Schema 运行时校验，新增工具零侵入核心。
+          Pi 采用 TypeBox（Type.Object 为其 Schema 语法）做运行时校验，本项目在 Rust 侧用类型化结构体 + serde 落地同等的运行时校验能力。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">注册方式</div>
+            <div class="compare-item">registry.register() 调用</div>
+            <div class="compare-item">parameters 运行时校验</div>
+            <div class="compare-item">新增工具零侵入核心</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">执行流程</div>
+            <div class="compare-item">execute(ctx) → result</div>
+            <div class="compare-item">流式反馈支持</div>
+            <div class="compare-item">取消机制</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            编码代理的工具数量不会爆炸级增长（核心工具几十个足够），
+            不需要 Effect-TS 级别的类型安全——快速开发、快速迭代更重要。
+            ⚠️ 版本说明：v1.0 曾写"Type.Object 运行时参数校验"，易被误读为 zod；
+            Pi 实际使用 TypeBox（pi-ai 直接 re-export `Type from "typebox"`），此处已修正。
+          </div>
+        </div>
+      </div>
+
+      <!-- 决策 5 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">05</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-pi">来自 Pi</span>
+          </div>
+        </div>
+        <div class="card-title">扩展机制</div>
+        <div class="card-choice">Rust 层生命周期钩子（目标态）</div>
+        <div class="card-body">
+          以 Rust trait + hooks 链注册到内核层，监听 Agent 全生命周期事件。
+          ⚠️ 现状：后端暂无独立 Plugin hooks 系统，工具级注册已通过 ToolRegistry 落地，
+          生命周期钩子为待建设项（见演进路线 Phase 2）。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">生命周期钩子</div>
+            <div class="compare-item">Prompt 前预处理输入</div>
+            <div class="compare-item">Tool 调用后处理结果</div>
+            <div class="compare-item">消息更新时修改输出</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">能力扩展</div>
+            <div class="compare-item">注册工具、Agent</div>
+            <div class="compare-item">修改系统提示词</div>
+            <div class="compare-item">Rust trait + Vec 有序注册</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            与"状态驱动 Agent"天然契合——状态变更的关键节点就是事件钩子的切入点。
+            ⚠️ 版本说明：v1.0 引用的 onBeforePrompt / onAfterToolCall / onMessageUpdate
+            是 Claude Code 风格命名，Pi 实际为 on("event_name") 分发（共 33 个事件，
+            如 before_agent_start / tool_result / message_update）。本项目改为 Rust 层
+            trait 钩子，名称以 Rust 习惯为准，不再照搬任一项目命名。
+          </div>
+        </div>
+      </div>
+
+      <!-- 决策 6 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">06</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-oc">来自 OpenCode</span>
+          </div>
+        </div>
+        <div class="card-title">模型集成</div>
+        <div class="card-choice">动态 Provider 注册</div>
+        <div class="card-body">
+          配置文件声明 Provider（endpoint / options / enabled），运行时动态加载实例。
+          已落地：crates/model-gateway 的 ProviderRegistry + (provider, model) 对路由 + SSE 真实流式传输。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">注册方式</div>
+            <div class="compare-item">配置文件声明式注册</div>
+            <div class="compare-item">ProviderRegistry 管理</div>
+            <div class="compare-item">即插即用，无需改代码</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">策略控制</div>
+            <div class="compare-item">Provider allow/deny 策略</div>
+            <div class="compare-item">模型选择策略</div>
+            <div class="compare-item">动态模型获取 fetch_models</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            与 ProviderRegistry 现有实现完全兼容，用户在配置中新增 Provider
+            即可立刻使用——是"插件化架构"在模型层的具体落地。
+            与 OpenCode 的 Provider.Service 注册表思路一致，亦与 Pi 的 registerProvider 扩展 API 兼容。
+          </div>
+        </div>
+      </div>
+
+      <!-- 决策 7 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">07</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-mix">混合方案</span>
+          </div>
+        </div>
+        <div class="card-title">状态管理</div>
+        <div class="card-choice">SQLite 存储 + 增量事件流抽象</div>
+        <div class="card-body">
+          事件按 append-only 语义写入 SQLite 会话表，当前 state = fold(events, initial) 归约得出。
+          SQLite 为存储介质，事件流为逻辑抽象，兼顾现状与事件溯源收益。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">存储</div>
+            <div class="compare-item">SQLite 追加行 O(1) 高效</div>
+            <div class="compare-item">完整可追溯时间线</div>
+            <div class="compare-item">天然支持时间旅行</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">恢复</div>
+            <div class="compare-item">fold 归约重放事件</div>
+            <div class="compare-item">配合快照加速</div>
+            <div class="compare-item">支持回放任意点</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            与"原生 Fork"和"上下文 Epoch"必须配套——DAG 分支的每个节点就是一个事件序列的分叉点，
+            增量事件流让分支创建零拷贝成本。
+            ⚠️ 版本说明：v1.0 写"JSONL 追加写"不准确——OpenCode 实际用 SQLite（drizzle），
+            JSONL 仅用于调试日志；Pi 的 JSONL 是 append-only entry 树，落盘的是每轮最终 entry，
+            并非 token 级事件流。本项目定为 SQLite 介质 + 事件流逻辑抽象（fold 归约在
+            SQLite 表上实现），不引入 JSONL。
+          </div>
+        </div>
+      </div>
+
+      <!-- 决策 8 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">08</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-oc">来自 OpenCode</span>
+          </div>
+        </div>
+        <div class="card-title">压缩策略</div>
+        <div class="card-choice">自动阈值触发</div>
+        <div class="card-body">
+          超过 token 阈值自动压缩早期内容，保留最近 N 轮 turn + 保护区 token，用户零感知。
+          已落地：PRUNE_MINIMUM=20K 触发 / PRUNE_PROTECT=40K 保护区 / 保留最近 2 轮 turn + 2K~8K token。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">触发条件</div>
+            <div class="compare-item">token 计数超阈值</div>
+            <div class="compare-item">PRUNE_MINIMUM=20K 触发</div>
+            <div class="compare-item">压缩前可选通知用户</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">压缩范围</div>
+            <div class="compare-item">保留最近 N 轮 turn</div>
+            <div class="compare-item">保护区 token（2K~8K）</div>
+            <div class="compare-item">更早内容生成摘要</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            编码任务是超长会话，用户不应该被"请压缩上下文"打断。自动压缩在后台悄悄完成，
+            配合 turn 粒度可以精准决定"保留哪些、压缩哪些"。
+            ⚠️ 版本说明：v1.0 写"保留最近 N 个 Epoch"单位有误——OpenCode 实际保留最近 N 轮
+            turn（tail_turns 默认 2）+ token 保护区（2K~8K），本项目的 PRUNE_MINIMUM/PRUNE_PROTECT/
+            DEFAULT_TAIL_TURNS 常量即源于此，已按真实机制修正。
+          </div>
+        </div>
+      </div>
+
+      <!-- 决策 9 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">09</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-pi">来自 Pi</span>
+          </div>
+        </div>
+        <div class="card-title">会话分支</div>
+        <div class="card-choice">原生 Fork（DAG / 树结构）</div>
+        <div class="card-body">
+          任意会话点创建分支，子分支继承父上下文，形成有向无环图（DAG / 树）。
+          已落地：session_fork 命令 + forkSession/listSessionForks IPC + 前端 Fork UI。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">数据模型</div>
+            <div class="compare-item">每个节点有 parentId</div>
+            <div class="compare-item">每个节点标记 branchId</div>
+            <div class="compare-item">天然零拷贝分支</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">使用场景</div>
+            <div class="compare-item">探索不同方案对比</div>
+            <div class="compare-item">Agent 行为调试</div>
+            <div class="compare-item">方案 A/B 测试</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            这是产品差异化核心功能——"让用户尝试不同方案对比优劣"是编码代理的高频场景，
+            与增量事件流组合后，分支创建几乎是零成本的。
+            ✅ 真实来源：Pi 的 session-manager 即 append-only 树（每 entry 带 parentId，
+            branch()/fork() 移动 leaf 指针不改历史），本项目 Fork 机制与其同构。
+          </div>
+        </div>
+      </div>
+
+      <!-- 决策 10 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">10</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-oc">来自 OpenCode</span>
+          </div>
+        </div>
+        <div class="card-title">UI 组件风格</div>
+        <div class="card-choice">设计感精致型</div>
+        <div class="card-body">
+          充足留白、卡片化布局、流畅动画过渡，视觉层次清晰，强调品牌感和体验愉悦感。
+          已落地：CSS 设计 Token（亮暗主题）+ 自定义 Tooltip/滚动条 + i18n 936 keys。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">视觉原则</div>
+            <div class="compare-item">充足留白，不过度拥挤</div>
+            <div class="compare-item">卡片 + 圆角 + 柔和阴影</div>
+            <div class="compare-item">品牌色渐变点缀</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">交互原则</div>
+            <div class="compare-item">核心操作鼠标可达</div>
+            <div class="compare-item">快捷键作为进阶效率</div>
+            <div class="compare-item">微动画提升愉悦感</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            桌面 App 的用户对视觉体验有预期（参考 Linear、Notion 标准），
+            目前已有设计系统基础，继续精致化路线可以形成品牌识别。
+            ⚠️ 说明：OpenCode 的 UI 基于 SolidJS + Kobalte，本项目为 React，
+            借鉴其审美与交互范式，不照搬组件实现。
+          </div>
+        </div>
+      </div>
+
+      <!-- 决策 11 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">11</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-oc">来自 OpenCode</span>
+          </div>
+        </div>
+        <div class="card-title">热重载能力</div>
+        <div class="card-choice">配置级热重载</div>
+        <div class="card-body">
+          配置、Provider 配置、Skill 文件变更即时生效，无需重启 Agent。
+          代码级热重载（插件源码改完即生效）明确不在本期范围。
+          已落地：Hot Reloadable Config（配置热重载）。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">覆盖范围</div>
+            <div class="compare-item">配置文件变更即时生效</div>
+            <div class="compare-item">Provider 配置与注册</div>
+            <div class="compare-item">Skill 指令文件</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">实现思路</div>
+            <div class="compare-item">文件系统 watcher 监听</div>
+            <div class="compare-item">重建派生配置状态</div>
+            <div class="compare-item">代码级变更需重启</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            开发者体验是"数字生命"产品的灵魂——写 Skill、调 Provider 配置时，
+            "改完立刻生效" vs "重启应用等 10 秒"，体验差一个数量级。
+            ⚠️ 版本说明：v1.0 声称"插件/代码即时生效、无需重启"不属实——OpenCode 只有
+            RPC 触发的全量实例重建，Pi 也无代码级热重载。配置级热重载即可覆盖
+            高频开发者体验诉求，代码级热重载列为远期实验（不承诺）。
+          </div>
+        </div>
+      </div>
+
+      <!-- 决策 12 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">12</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-oc">来自 OpenCode</span>
+          </div>
+        </div>
+        <div class="card-title">错误处理</div>
+        <div class="card-choice">双端结构化错误（Rust Result + TS 归类）</div>
+        <div class="card-body">
+          Rust 侧 Result<T, AppError> 结构化传播，前端 captureTypedError 统一归类，
+          结构化 JSONL 日志可追溯。不再引入"统一 Error Channel 总线"。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">错误分类</div>
+            <div class="compare-item">UserError（用户操作）</div>
+            <div class="compare-item">SystemError（系统异常）</div>
+            <div class="compare-item">ProviderError（模型层）</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">处理流程</div>
+            <div class="compare-item">Result<T, AppError> 传播</div>
+            <div class="compare-item">captureTypedError 归类</div>
+            <div class="compare-item">结构化 JSONL 日志</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            ⚠️ 版本说明：v1.0 主张"统一 Error Channel 总线"系夸大——OpenCode 实际是
+            Effect 类型化错误（9 类 NamedError）+ fromError() 归一化，经多条通道流动，
+            并非单一总线。本项目对齐现有体系：Rust Result + TS captureTypedError，
+            遵循 error-handling.md 规则，不做"大爆炸"式重构。
+          </div>
+        </div>
+      </div>
+
+      <!-- 决策 13 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">13</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-mix">项目硬规则</span>
+          </div>
+        </div>
+        <div class="card-title">双端一致性</div>
+        <div class="card-choice">Tauri 桌面 / 浏览器模式行为一致</div>
+        <div class="card-body">
+          所有功能必须在 Tauri 桌面应用和浏览器模式中保持一致。
+          新增 IPC 方法必须同步实现 tauri-bridge.ts / preview-bridge / mock-bridge。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">覆盖范围</div>
+            <div class="compare-item">UI 展示与交互一致</div>
+            <div class="compare-item">IPC 桥接三端对齐</div>
+            <div class="compare-item">功能双端可用</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">实现约束</div>
+            <div class="compare-item">tauri-bridge / preview-bridge / mock-bridge</div>
+            <div class="compare-item">功能不能只在单一模式可用</div>
+            <div class="compare-item">WebView URL 变化不被动触发 Tauri</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            这是项目治理硬规则（见 AGENTS.md#双端一致性）。浏览器预览承担高频开发与
+            测试职能，若与桌面端行为不一致，将导致大量"仅桌面/仅浏览器"的隐性缺陷，
+            也无法用浏览器自动化覆盖桌面场景。
+          </div>
+        </div>
+      </div>
+
+      <!-- 决策 14 -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-num">14</div>
+          </div>
+          <div style="text-align:right;">
+            <span class="tag tag-mix">项目硬规则</span>
+          </div>
+        </div>
+        <div class="card-title">凭据与安全边界</div>
+        <div class="card-choice">credential crate + capabilities 白名单</div>
+        <div class="card-body">
+          凭据只经 crates/credential 存储（keyring + 加密文件降级），
+          WebView 不直接触达系统能力，通过 #[tauri::command] + capabilities 白名单暴露。
+        </div>
+        <div class="card-compare">
+          <div class="compare-col">
+            <div class="compare-col-title">凭据管理</div>
+            <div class="compare-item">keyring 系统凭据库</div>
+            <div class="compare-item">加密文件降级</div>
+            <div class="compare-item">禁止写入配置/日志</div>
+          </div>
+          <div class="compare-col">
+            <div class="compare-col-title">权限边界</div>
+            <div class="compare-item">WebView 不直接访问系统能力</div>
+            <div class="compare-item">capabilities 白名单（禁通配）</div>
+            <div class="compare-item">Ruleset 权限（Allow/Ask/Deny）</div>
+          </div>
+        </div>
+        <div class="compare-why">
+          <div class="compare-why-label">为什么这样选</div>
+          <div class="compare-why-text">
+            项目治理硬规则（见 AGENTS.md#安全边界与禁止项）。Pi 明确无内置权限系统
+            （依赖容器化隔离），OpenCode 有完整 Rule/Ruleset 权限体系——本项目取其
+            精华，落地为 Rust 侧 Ruleset + capabilities 白名单，且禁止 "all"/"**" 通配。
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- 设计哲学 -->
+<section class="section" id="philosophy">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Section 02</span>
+      <h2 class="section-title">设计哲学与核心原则</h2>
+      <p class="section-desc">14 项决策背后的底层逻辑，以及对照真实源码后，Pi 与 OpenCode 各自的取与舍。</p>
+    </div>
+
+    <div class="compare-grid">
+      <div class="compare-card pi">
+        <div class="compare-card-header">
+          <div class="compare-card-title">
+            <span class="tag tag-pi">Pi 基因</span>
+            轻量高效内核
+          </div>
+        </div>
+        <div class="compare-card-body">
+          <div class="compare-pros">
+            <div class="compare-pros-title">我们吸收的</div>
+            <ul class="compare-list">
+              <li>状态驱动 Agent：线性流程、可预测、易调试</li>
+              <li>事件订阅扩展：subscribe() + 33 个生命周期事件</li>
+              <li>工具注册中心：新增工具不改核心（ToolRegistry）</li>
+              <li>原生 Fork：append-only 树 + parentId 零拷贝分支</li>
+              <li>自动阈值压缩：DEFAULT_COMPACTION_SETTINGS 默认开启</li>
+            </ul>
+          </div>
+          <div class="compare-cons">
+            <div class="compare-cons-title">我们刻意不选的</div>
+            <ul class="compare-list">
+              <li>TUI 优先的极简 UI（不符合桌面用户预期）</li>
+              <li>无内置权限系统（依赖容器化，本项目需内置 Ruleset）</li>
+              <li>纯 JSONL 存储（项目采用 SQLite，JSONL 仅作调试日志）</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="compare-card oc">
+        <div class="compare-card-header">
+          <div class="compare-card-title">
+            <span class="tag tag-oc">OpenCode 基因</span>
+            完整功能体系
+          </div>
+        </div>
+        <div class="compare-card-body">
+          <div class="compare-pros">
+            <div class="compare-pros-title">我们吸收的</div>
+            <ul class="compare-list">
+              <li>动态 Provider 注册：即插即用模型接入（Provider.Service）</li>
+              <li>自动阈值压缩：PRUNE_MINIMUM/保护区 + 摘要</li>
+              <li>类型化错误分类：fromError() 归一化思路</li>
+              <li>精致 UI：审美与交互范式（非组件复用）</li>
+              <li>Ruleset 权限：Allow/Ask/Deny + 通配匹配</li>
+              <li>配置热重载：改动配置无需重启</li>
+            </ul>
+          </div>
+          <div class="compare-cons">
+            <div class="compare-cons-title">我们刻意不选的</div>
+            <ul class="compare-list">
+              <li>Effect-TS 函数式编程（学习曲线陡）</li>
+              <li>SQLite 直存全量状态（我们叠加事件流逻辑抽象）</li>
+              <li>代码级热重载（两项目均未实现，不承诺）</li>
+              <li>单一 Error Channel 总线（实际为多通道类型化错误）</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: var(--color-mix-bg); border: 1px solid var(--color-mix); border-radius: var(--radius-lg); padding: 32px; margin-top: 32px;">
+      <h3 style="font-size: 20px; margin-bottom: 20px; color: var(--color-mix);">🎯 组合公式：你的项目 = ?</h3>
+      <div style="font-family: 'SF Mono', monospace; font-size: 15px; color: var(--color-text-soft); line-height: 2.2;">
+        <div>
+          <span style="color: var(--color-pi); font-weight: 700;">// 核心内核（决定流程可控性）</span><br>
+          <span style="color: var(--color-text);">Agent 核心</span> = 
+          <span style="color: var(--color-pi);">Pi 状态持有 + 事件订阅</span> +
+          <span style="color: var(--color-text);">Epoch 抽象（自研）</span>
+        </div>
+        <div style="margin-top: 12px;">
+          <span style="color: var(--color-pi); font-weight: 700;">// 扩展能力（决定开发效率）</span><br>
+          <span style="color: var(--color-text);">扩展层</span> =
+          <span style="color: var(--color-pi);">Pi 工具注册中心 + 生命周期事件</span> +
+          <span style="color: var(--color-oc);">OpenCode 动态 Provider + Ruleset</span>
+        </div>
+        <div style="margin-top: 12px;">
+          <span style="color: var(--color-pi); font-weight: 700;">// 会话持久化（决定长会话体验）</span><br>
+          <span style="color: var(--color-text);">会话层</span> =
+          <span style="color: var(--color-pi);">Pi 原生 Fork (树)</span> +
+          <span style="color: var(--color-text);">SQLite + 事件流逻辑抽象 + 自动压缩</span>
+        </div>
+        <div style="margin-top: 12px;">
+          <span style="color: var(--color-pi); font-weight: 700;">// 用户体验（决定产品印象）</span><br>
+          <span style="color: var(--color-text);">表现层</span> =
+          <span style="color: var(--color-oc);">OpenCode 精致 UI + 配置热重载 + 双端结构化错误</span>
+        </div>
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--color-mix);">
+          <span style="color: var(--color-mix); font-weight: 700;">// 一句话总结</span><br>
+          <span style="color: var(--color-text); font-weight: 600;">
+            "Pi 的轻量骨架" + "OpenCode 的功能血肉" = "可控、可扩展、体验好"的编码代理
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 架构蓝图 -->
+<section class="section" id="architecture">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Section 03</span>
+      <h2 class="section-title">架构蓝图</h2>
+      <p class="section-desc">五层架构：UI 层 → 桥接层 → Agent 层 → 内核层 → 持久化层，每层职责明确。</p>
+    </div>
+
+    <div class="two-views">
+      <div class="view-box pro">
+        <div class="view-label">👨‍💻 专业视角</div>
+        <div class="view-text">
+          采用分层 + 插件化混合架构。严格遵循层间单向依赖原则：
+          UI → Bridge → Agent → Core → Storage。
+          插件通过 Core 层的 Extension Manager 注入，不允许跨层直接调用。
+          关键契约（IPC 接口、工具定义）使用 TypeScript 类型作为单一真源。
+        </div>
+      </div>
+      <div class="view-box simple">
+        <div class="view-label">🧑 通俗视角</div>
+        <div class="view-text">
+          把系统想象成一家餐厅：<br>
+          ① 顾客（用户）在前台（UI）点餐<br>
+          ② 服务员（Bridge）把订单传给后厨<br>
+          ③ 主厨（Agent）看菜单，决定怎么做<br>
+          ④ 帮厨（Core 工具）切菜、炒菜、装盘<br>
+          ⑤ 传菜口（Storage）存着做好的菜和历史订单<br>
+          想加新菜品？不需要装修后厨，找帮厨登记一下就行。
+        </div>
+      </div>
+    </div>
+
+    <div class="arch-diagram">
+      <div style="font-size: 12px; color: var(--color-text-muted); margin-bottom: 24px; text-align: center;">
+        ⬇️ 依赖方向：上层依赖下层，下层不得依赖上层
+      </div>
+
+      <div class="arch-layer ui">
+        🎨 UI 表现层
+        <div class="arch-layer-modules">
+          <span class="arch-module">React 组件</span>
+          <span class="arch-module">设计系统 Token</span>
+          <span class="arch-module">会话视图 (DAG 可视化)</span>
+          <span class="arch-module">面板 (工具/设置)</span>
+          <span class="arch-module">热重载 UI</span>
+        </div>
+      </div>
+
+      <div class="arch-layer bridge">
+        🌉 桥接层
+        <div class="arch-layer-modules">
+          <span class="arch-module">Tauri Bridge (桌面)</span>
+          <span class="arch-module">Preview Bridge (浏览器)</span>
+          <span class="arch-module">Mock Bridge (测试)</span>
+          <span class="arch-module">IPC 契约统一</span>
+        </div>
+      </div>
+
+      <div class="arch-layer agent">
+        🤖 Agent 层 （状态驱动 · 来自 Pi）
+        <div class="arch-layer-modules">
+          <span class="arch-module">Agent Runtime</span>
+          <span class="arch-module">事件订阅 (subscribe)</span>
+          <span class="arch-module">AgentRegistry / Router</span>
+          <span class="arch-module">生命周期钩子（目标态）</span>
+          <span class="arch-module">工具注册中心 (ToolRegistry)</span>
+        </div>
+      </div>
+
+      <div class="arch-layer core">
+        ⚙️ 内核层 （插件化模块）
+        <div class="arch-layer-modules">
+          <span class="arch-module">工具注册中心 （Pi 风格）</span>
+          <span class="arch-module">ProviderRegistry （OpenCode 风格）</span>
+          <span class="arch-module">模型调用网关 (ModelGateway)</span>
+          <span class="arch-module">结构化错误 (AppError)</span>
+          <span class="arch-module">配置热重载管理器</span>
+          <span class="arch-module">Ruleset 权限门禁</span>
+        </div>
+      </div>
+
+      <div class="arch-layer storage">
+        💾 持久化层 （SQLite + 事件流逻辑抽象）
+        <div class="arch-layer-modules">
+          <span class="arch-module">SQLite 会话存储</span>
+          <span class="arch-module">会话 Fork（树结构）</span>
+          <span class="arch-module">Snapshot 快照索引 (加速恢复)</span>
+          <span class="arch-module">压缩后摘要 (CompactionPart)</span>
+          <span class="arch-module">结构化日志</span>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size: 20px; margin: 48px 0 24px;">🔌 插件化扩展点（关键模块）</h3>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-title" style="font-size: 16px;">🧩 Agent / 工具扩展点</div>
+        <div style="margin-top: 12px;">
+          <div class="compare-item" style="padding: 4px 0;">ToolRegistry.register() — 注册新工具</div>
+          <div class="compare-item" style="padding: 4px 0;">AgentRegistry.register() — 注册自定义 Agent</div>
+          <div class="compare-item" style="padding: 4px 0;">生命周期钩子（目标态，Rust trait）</div>
+          <div class="compare-item" style="padding: 4px 0;">事件订阅（Pi 33 事件启发）</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="font-size: 16px;">🔌 Provider 扩展点</div>
+        <div style="margin-top: 12px;">
+          <div class="compare-item" style="padding: 4px 0;">配置文件声明式注册</div>
+          <div class="compare-item" style="padding: 4px 0;">endpoint / options / enabled</div>
+          <div class="compare-item" style="padding: 4px 0;">兼容 OpenAI / Anthropic 契约</div>
+          <div class="compare-item" style="padding: 4px 0;">ProviderRegistry.register() 动态注册</div>
+          <div class="compare-item" style="padding: 4px 0;">配置热重载立即生效</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="font-size: 16px;">📜 Skill 扩展点</div>
+        <div style="margin-top: 12px;">
+          <div class="compare-item" style="padding: 4px 0;">Markdown 文件 + Frontmatter</div>
+          <div class="compare-item" style="padding: 4px 0;">name / description / setup</div>
+          <div class="compare-item" style="padding: 4px 0;">文件 watcher 自动热重载</div>
+          <div class="compare-item" style="padding: 4px 0;">触发时注入 system prompt</div>
+          <div class="compare-item" style="padding: 4px 0;">内置使用示例 / 步骤说明</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 数据模型 -->
+<section class="section" id="datamodel">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Section 04</span>
+      <h2 class="section-title">核心数据模型</h2>
+      <p class="section-desc">SQLite 存储上的事件流逻辑抽象 + Epoch + 树形分支的组合数据结构，这是整个项目最复杂的部分。</p>
+    </div>
+
+    <div class="two-views">
+      <div class="view-box pro">
+        <div class="view-label">👨‍💻 专业视角</div>
+        <div class="view-text">
+          当前 state 由 fold(events, initialState) 归约得出，不直接存储为完整快照。
+          每个 Event 是不可变记录，以 append-only 语义写入 SQLite 会话事件表。
+          Epoch 作为事件的逻辑分组，对应一次完整的 Prompt→Response 周期（自研抽象）。
+          树形分支通过 parentId 形成，不做物理拷贝。
+          定期生成 snapshot 加速重放（snapshot + 其后 events = 当前 state）。
+        </div>
+      </div>
+      <div class="view-box simple">
+        <div class="view-label">🧑 通俗视角</div>
+        <div class="view-text">
+          想象拍视频（增量事件流）而不是拍照片（全量快照）：<br>
+          • 视频的每一帧就是一个 Event<br>
+          • 一段连续的镜头就是一个 Epoch<br>
+          • 想分镜（Fork）就从某帧开始另拍一条线<br>
+          • 视频太长（上下文超限）就把前面剪成精华版（压缩）<br>
+          • 为了跳过片头，每隔一段时间存一个"关键帧"（snapshot）<br>
+          • 所有素材统一存在一个"数据库仓库"（SQLite）里，而不是散落的视频文件
+        </div>
+      </div>
+    </div>
+
+    <h3 style="font-size: 20px; margin: 36px 0 20px;">📦 数据模型定义</h3>
+    <div class="model-box">
+<pre><span class="model-comment">// ===== 会话存储核心类型（SQLite 事件表 + 逻辑抽象） =====</span>
+
+<span class="model-keyword">type</span> <span class="model-type">EventID</span> = <span class="model-string">string</span>;  <span class="model-comment">// ULID：时间有序，支持排序</span>
+<span class="model-keyword">type</span> <span class="model-type">EpochID</span> = <span class="model-string">string</span>;
+<span class="model-keyword">type</span> <span class="model-type">BranchID</span> = <span class="model-string">string</span>;
+<span class="model-keyword">type</span> <span class="model-type">SessionID</span> = <span class="model-string">string</span>;
+
+<span class="model-comment">// EventType 为自研简化模型：对齐现有 message/run 结构，非借鉴任何参考项目</span>
+<span class="model-keyword">enum</span> <span class="model-type">EventType</span> <span class="model-bracket">{</span>
+  <span class="model-field">PROMPT_ADMITTED</span> = <span class="model-string">"prompt_admitted"</span>,
+  <span class="model-field">PROMPTED</span>         = <span class="model-string">"prompted"</span>,
+  <span class="model-field">TOOL_CALL</span>      = <span class="model-string">"tool_call"</span>,
+  <span class="model-field">TOOL_RESULT</span>    = <span class="model-string">"tool_result"</span>,
+  <span class="model-field">MESSAGE_UPDATE</span>   = <span class="model-string">"message_update"</span>,
+  <span class="model-field">EPOCH_COMPACTED</span> = <span class="model-string">"epoch_compacted"</span>,
+  <span class="model-field">BRANCH_CREATED</span>   = <span class="model-string">"branch_created"</span>,
+<span class="model-bracket">}</span>
+
+<span class="model-comment">// 不可变事件 —— 只能追加，不能修改（append-only 写入 SQLite 事件表）</span>
+<span class="model-keyword">interface</span> <span class="model-type">Event</span>&lt;T = unknown&gt; <span class="model-bracket">{</span>
+  <span class="model-field">id</span>: <span class="model-type">EventID</span>;
+  <span class="model-field">type</span>: <span class="model-type">EventType</span>;
+  <span class="model-field">epochId</span>: <span class="model-type">EpochID</span>;
+  <span class="model-field">branchId</span>: <span class="model-type">BranchID</span>;
+  <span class="model-field">sessionId</span>: <span class="model-type">SessionID</span>;
+  <span class="model-field">parentEventId</span>: <span class="model-type">EventID</span> | <span class="model-keyword">null</span>;  <span class="model-comment">// 树形链，用于 Fork</span>
+  <span class="model-field">timestamp</span>: <span class="model-type">number</span>;
+  <span class="model-field">payload</span>: T;
+<span class="model-bracket">}</span>
+
+<span class="model-comment">// ===== Epoch（一次 Prompt → Response 周期，自研抽象） =====</span>
+<span class="model-keyword">enum</span> <span class="model-type">EpochKind</span> <span class="model-bracket">{</span>
+  <span class="model-field">FULL</span>     = <span class="model-string">"full"</span>,       <span class="model-comment">// 完整 Epoch，事件都在</span>
+  <span class="model-field">COMPACT</span>  = <span class="model-string">"compact"</span>,    <span class="model-comment">// 压缩 Epoch，仅存摘要</span>
+<span class="model-bracket">}</span>
+
+<span class="model-keyword">interface</span> <span class="model-type">Epoch</span> <span class="model-bracket">{</span>
+  <span class="model-field">id</span>: <span class="model-type">EpochID</span>;
+  <span class="model-field">branchId</span>: <span class="model-type">BranchID</span>;
+  <span class="model-field">parentEpochId</span>: <span class="model-type">EpochID</span> | <span class="model-keyword">null</span>;  <span class="model-comment">// 形成树</span>
+  <span class="model-field">kind</span>: <span class="model-type">EpochKind</span>;
+  <span class="model-field">tokenCount</span>: <span class="model-type">number</span>;
+  <span class="model-field">summary</span>?: <span class="model-string">string</span>;  <span class="model-comment">// COMPACT 模式的摘要</span>
+  <span class="model-field">eventIds</span>: <span class="model-type">EventID</span>[];
+  <span class="model-field">createdAt</span>: <span class="model-type">number</span>;
+<span class="model-bracket">}</span>
+
+<span class="model-comment">// ===== Snapshot（加速恢复的关键帧） =====</span>
+<span class="model-keyword">interface</span> <span class="model-type">Snapshot</span> <span class="model-bracket">{</span>
+  <span class="model-field">id</span>: <span class="model-string">string</span>;
+  <span class="model-field">branchId</span>: <span class="model-type">BranchID</span>;
+  <span class="model-field">lastEventId</span>: <span class="model-type">EventID</span>;   <span class="model-comment">// snapshot 覆盖到这个事件为止</span>
+  <span class="model-field">state</span>: <span class="model-type">AgentState</span>;        <span class="model-comment">// 归约后的完整 state</span>
+  <span class="model-field">createdAt</span>: <span class="model-type">number</span>;
+<span class="model-bracket">}</span>
+
+<span class="model-comment">// ===== AgentState（fold 归约结果） =====</span>
+<span class="model-keyword">interface</span> <span class="model-type">AgentState</span> <span class="model-bracket">{</span>
+  <span class="model-field">messages</span>: <span class="model-type">Message</span>[];
+  <span class="model-field">contextTokens</span>: <span class="model-type">number</span>;
+  <span class="model-field">currentEpochId</span>: <span class="model-type">EpochID</span> | <span class="model-keyword">null</span>;
+  <span class="model-field">activeBranchId</span>: <span class="model-type">BranchID</span>;
+  <span class="model-field">toolStates</span>: <span class="model-type">Record</span>&lt;<span class="model-string">string</span>, unknown&gt;;
+<span class="model-bracket">}</span>
+
+<span class="model-comment">// ===== 恢复算法伪代码 =====</span>
+<span class="model-keyword">function</span> <span class="model-field">restoreState</span>(sessionId, branchId) <span class="model-bracket">{</span>
+  <span class="model-comment">// 1. 找最新 snapshot</span>
+  <span class="model-keyword">const</span> snap = <span class="model-field">findLatestSnapshot</span>(sessionId, branchId);
+  <span class="model-comment">// 2. 取 snap 之后的事件（增量）</span>
+  <span class="model-keyword">const</span> events = <span class="model-field">loadEventsSince</span>(sessionId, branchId, snap.lastEventId);
+  <span class="model-comment">// 3. fold 归约 = 增量还原</span>
+  <span class="model-keyword">return</span> events.<span class="model-field">reduce</span>((state, event) => <span class="model-field">applyEvent</span>(state, event), snap.state);
+<span class="model-bracket">}</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- 风险对策 -->
+<section class="section" id="risks">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Section 05</span>
+      <h2 class="section-title">关键风险与应对</h2>
+      <p class="section-desc">14 项决策之间存在兼容性挑战。提前识别风险，准备对应策略。</p>
+    </div>
+
+    <div class="risk-grid">
+
+      <div class="risk-card">
+        <div class="risk-card-title">风险 01 · 增量事件 + 树形分支 + 自动压缩</div>
+        <div class="risk-card-desc">
+          三者叠加的数据结构复杂度极高。增量事件是线性序列，但分支要求树结构，
+          自动压缩又需要理解"哪些事件属于哪个分支"。一个节点压缩错了可能导致整条分支损坏。
+          本项目坚持任意节点 Fork，复杂度风险需以机制化解而非功能缩水。
+        </div>
+        <div class="risk-solution">
+          <div class="risk-solution-label">✅ 应对策略</div>
+          ① 每个事件同时记录 branchId + parentEventId，通过索引表维护分支树<br>
+          ② 父节点冻结：已作为其他分支父节点的事件不可再增子节点，防止树结构退化<br>
+          ③ 压缩时仅处理该分支的祖先链（从叶子向上回溯），不跨分支<br>
+          ④ 压缩前先生成 snapshot 备份，压缩失败可回滚<br>
+          ⑤ 任意节点 Fork：通过 parentId 定位分叉点，新分支只复制指向（引用共享），不物理拷贝
+        </div>
+      </div>
+
+      <div class="risk-card">
+        <div class="risk-card-title">风险 02 · 结构化错误 vs 现有 captureTypedError</div>
+        <div class="risk-card-desc">
+          现有前端已实现 captureTypedError 体系（Zustand slice 中显式捕获），
+          Rust 侧已有 Result<T, AppError> 结构化错误。双端如何归类对齐？
+        </div>
+        <div class="risk-solution">
+          <div class="risk-solution-label">✅ 应对策略</div>
+          ① 不引入"统一 Error Channel 总线"，对齐现有双端体系<br>
+          ② Rust 侧：Result<T, AppError> 结构化传播，分类 User/System/Provider<br>
+          ③ 前端：captureTypedError 统一归类 + 结构化 JSONL 日志<br>
+          ④ 新增模块沿用现有模式，不做"大爆炸"式重构
+        </div>
+      </div>
+
+      <div class="risk-card">
+        <div class="risk-card-title">风险 03 · 配置热重载 + 状态一致性</div>
+        <div class="risk-card-desc">
+          配置热重载时，运行中的 Agent 可能持有旧配置引用（如旧 Provider endpoint），
+          与热重载后的新配置不一致。
+        </div>
+        <div class="risk-solution">
+          <div class="risk-solution-label">✅ 应对策略</div>
+          ① 明确热重载范围：仅配置文件 / Provider 配置 / Skill 文件，不含代码<br>
+          ② 热重载流程：重新加载配置 → 重建派生状态（Provider 实例、Agent 配置）<br>
+          ③ 运行中的请求不中断，下次调用采用新配置<br>
+          ④ 配置校验失败时保留旧配置并告警，不回滚到损坏状态<br>
+          ⑤ 代码级热重载明确不承诺（两参考项目均未实现）
+        </div>
+      </div>
+
+      <div class="risk-card">
+        <div class="risk-card-title">风险 04 · 生命周期钩子 + 事件流完整性</div>
+        <div class="risk-card-desc">
+          Agent 生命周期钩子（Rust trait，目标态）介入输入/输出时，
+          这些介入操作本身需被记录，否则会话重放恢复时钩子行为无法重放，导致结果不一致。
+        </div>
+        <div class="risk-solution">
+          <div class="risk-solution-label">✅ 应对策略</div>
+          ① 要求：钩子若修改输入/输出，必须将修改内容注入到事件 payload 中<br>
+          ② Prompt 前预处理返回新 Prompt 时，自动生成 PROMPT_MODIFIED 事件<br>
+          ③ 工具结果修改时，生成 TOOL_RESULT_MODIFIED 事件<br>
+          ④ 文档明确：钩子只做副作用（发通知、写日志）不要求记录；但改数据必须记录
+        </div>
+      </div>
+
+      <div class="risk-card">
+        <div class="risk-card-title">风险 05 · 动态 Provider + 自动压缩阈值</div>
+        <div class="risk-card-desc">
+          不同 Provider 的 token 计算标准不一致（OpenAI 用 tiktoken，Anthropic 另有算法）。
+          如果中途切换 Provider，token 计数基线变化，
+          可能导致"以为没超阈值，实际超了"，触发模型错误。
+        </div>
+        <div class="risk-solution">
+          <div class="risk-solution-label">✅ 应对策略</div>
+          ① 压缩阈值采用保守策略：以最大 token 上限的 80% 作为触发线<br>
+          ② 切换 Provider 时，强制重新计算当前 context tokens（用新 Provider 的 tokenizer）<br>
+          ③ 存储中同时保存"字符数"作为兜底参考，字符数阈值也触发压缩检查<br>
+          ④ Provider 契约要求暴露 getTokenizer() 方法，供上层使用
+        </div>
+      </div>
+
+      <div class="risk-card">
+        <div class="risk-card-title">风险 06 · 设计感 UI + Tauri 双端一致性</div>
+        <div class="risk-card-desc">
+          浏览器预览（Chromium）和 Tauri 桌面（WebView2）的渲染引擎差异、
+          系统字体差异、DPI 缩放差异，可能导致精致 UI 在 WebView2 中"看起来不精致"
+          （字体发虚、动画掉帧、颜色偏差）。
+        </div>
+        <div class="risk-solution">
+          <div class="risk-solution-label">✅ 应对策略</div>
+          ① 设计 Token 必须抽象：颜色、字号、间距全部用 CSS 变量，平台层覆盖<br>
+          ② 字体栈优先用 Web Font（Inter / HarmonyOS Sans），不依赖系统字体<br>
+          ③ 关键组件建立"双端验证清单"，每次修改后人工确认两端表现一致<br>
+          ④ 启用 CSS will-change + transform 动画，避免重排导致的掉帧
+        </div>
+      </div>
+
+      <div class="risk-card">
+        <div class="risk-card-title">风险 07 · 凭据管理 + 权限门禁误放</div>
+        <div class="risk-card-desc">
+          WebView 若绕过 Tauri Command 直接触达系统能力，或 capabilities 使用通配权限，
+          将破坏安全边界；凭据若落入普通配置或日志，会造成泄露。
+        </div>
+        <div class="risk-solution">
+          <div class="risk-solution-label">✅ 应对策略</div>
+          ① 凭据只经 crates/credential 存储（keyring + 加密文件降级）<br>
+          ② capabilities 白名单禁止 "all" / "**" 通配，新增命令必须登记<br>
+          ③ 敏感工具（文件写、命令执行）走 Ruleset 权限（Allow/Ask/Deny）<br>
+          ④ 日志中凭据脱敏，禁止明文打印
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- 演进路线 -->
+<section class="section" id="roadmap">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Section 06</span>
+      <h2 class="section-title">分阶段演进路线</h2>
+      <p class="section-desc">v2.0 对齐现状：标注已完成项与剩余缺口。每阶段结束后做验收，再进入下一阶段。</p>
+    </div>
+
+    <div class="roadmap">
+
+      <div class="roadmap-item">
+        <div class="roadmap-phase">✅ 已完成 · Phase 0–2</div>
+        <div class="roadmap-title">🟢 底座与全功能 MVP 已落地</div>
+        <ul class="roadmap-list">
+          <li>✅ Tauri 桌面壳 + SQLite 状态</li>
+          <li>✅ ProviderRegistry 动态 Provider 注册</li>
+          <li>✅ (provider, model) 对路由 + SSE 真实流式</li>
+          <li>✅ 自动压缩（PRUNE_MINIMUM=20K / 保护区 40K）</li>
+          <li>✅ Session Fork（任意节点分叉 + Fork UI）</li>
+          <li>✅ Snapshot / Revert</li>
+          <li>✅ Ruleset 权限（Allow/Ask/Deny）</li>
+          <li>✅ MCP / LSP / 多 Agent / Sub-agent</li>
+          <li>✅ Hot Reloadable Config（配置级热重载）</li>
+          <li>✅ Durable Session Execution</li>
+          <li>✅ 设计 Token + 自定义 Tooltip/滚动条</li>
+          <li>✅ i18n（13 领域 / 936 keys）</li>
+        </ul>
+      </div>
+
+      <div class="roadmap-item">
+        <div class="roadmap-phase">🔧 当前缺口 · 待建设</div>
+        <div class="roadmap-title">🟡 补齐数据结构与扩展机制</div>
+        <ul class="roadmap-list">
+          <li>SQLite 上的事件流逻辑抽象（append-only 表 + fold 归约）</li>
+          <li>任意节点 Fork 的树形索引与父节点冻结机制</li>
+          <li>生命周期钩子（Rust trait + Vec 有序注册）</li>
+          <li>钩子修改数据的 PROMPT_MODIFIED / TOOL_RESULT_MODIFIED 事件</li>
+          <li>Snapshot 加速恢复：每 N 轮自动快照</li>
+          <li>开发模式：事件流可视化调试面板</li>
+        </ul>
+      </div>
+
+      <div class="roadmap-item">
+        <div class="roadmap-phase">🔵 远期 · 体验打磨</div>
+        <div class="roadmap-title">🔵 提体验：Fork UI 深化 + 精致化</div>
+        <ul class="roadmap-list">
+          <li>Fork 分支树可视化，分支间快速切换对比</li>
+          <li>Skill Markdown 文件 watcher + 自动加载完善</li>
+          <li>Provider 配置热重载 + 切换无重启</li>
+          <li>UI 组件升级：微动画 + 卡片化 + 响应式打磨</li>
+          <li>双端验证清单常态化执行</li>
+          <li>（不承诺）代码级热重载实验性探索</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div style="margin-top: 48px; background: var(--color-accent-bg); border: 1px solid var(--color-accent); border-radius: var(--radius-lg); padding: 32px;">
+      <h3 style="font-size: 20px; margin-bottom: 16px; color: var(--color-accent-soft);">📝 本标准的使用说明</h3>
+      <div style="font-size: 14px; color: var(--color-text-soft); line-height: 2;">
+        <p><strong>✅ 当做决策时的依据：</strong>遇到"要不要做 X？怎么做 X？"的问题时，先查对应决策项，按标准走。</p>
+        <p><strong>⚖️ 标准冲突时的优先级：</strong>本标准 &gt; 现有代码习惯 &gt; Pi/OpenCode 原版实现。即"先按自己定的规矩来"。</p>
+        <p><strong>🔄 修订机制：</strong>遇到标准覆盖不到的新场景，按同样的"对比两方案优缺点 → 选一个 → 记录理由"流程补充本标准，不允许拍脑袋决定。</p>
+        <p><strong>🔒 冻结项：</strong>14 项核心决策中，决策 1–12 在 6 个月内不得变更（除非有充分的技术反证）；决策 13–14 为项目硬规则，任何时候不得放宽。频繁推翻架构是最大的开发杀手。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 底部 -->
+<footer class="footer">
+  <div class="container">
+    <p style="margin-bottom: 8px;">
+      AI 数字生命 · 项目设计标准 v2.0
+      <span style="color: var(--color-text-muted);">·</span>
+      基于 Pi × OpenCode 源码核对 + 现状对齐修订
+    </p>
+    <p style="color: var(--color-text-muted); font-size: 12px;">
+      升版时间：2026-08-05 · v1.0 的 8 处引用偏差已修正，新增决策 13/14 · 本文件为项目架构真源之一，重大修改需同步评审
+    </p>
+  </div>
+</footer>
+
+</body>
+</html>
