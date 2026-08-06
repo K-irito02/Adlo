@@ -89,7 +89,6 @@ export function computeBranchOwnership(
     }
   }
 
-  const reachable = new Map<string, Set<string>>();
   const distance = new Map<string, Map<string, number>>();
   for (const branch of nonMainline) {
     const tips = tipsByBranch.get(branch) ?? [];
@@ -115,7 +114,6 @@ export function computeBranchOwnership(
       }
     }
     distance.set(branch, dist);
-    reachable.set(branch, new Set(dist.keys()));
   }
 
   const mainReachable = new Set<string>();
