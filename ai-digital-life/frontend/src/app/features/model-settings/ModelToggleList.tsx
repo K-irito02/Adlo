@@ -26,6 +26,11 @@ function ModelRow({ providerId, model, enabled }: ModelRowProps) {
         role="switch"
         aria-checked={enabled}
         className={`adl-settings-toggle${enabled ? ' is-on' : ''}`}
+        title={formatT(
+          t,
+          enabled ? 'modelModelToggleStateEnabled' : 'modelModelToggleStateDisabled',
+          { model: model.name },
+        )}
         aria-label={formatT(t, 'modelModelToggleAria', { model: model.name })}
         onClick={() => void toggleModel(providerId, model.id, !enabled)}
       >

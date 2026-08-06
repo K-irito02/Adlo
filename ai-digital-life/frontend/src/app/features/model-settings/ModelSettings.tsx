@@ -37,20 +37,7 @@ export function ModelSettings() {
 
   return (
     <div className="adl-settings-section adl-model-settings">
-      <SettingsHeader
-        title={t.settingsModels}
-        description={t.settingsModelsDesc}
-        action={
-          <button
-            type="button"
-            className="adl-btn adl-btn--sm adl-btn--ghost"
-            onClick={() => setShowDialog(true)}
-          >
-            <IconPlus size={14} decorative />
-            {t.providerManagerAddCustom}
-          </button>
-        }
-      />
+      <SettingsHeader title={t.settingsModels} description={t.settingsModelsDesc} />
       {isFetchingProviders && providers.length === 0 ? (
         <LoadingRow variant="center" />
       ) : (
@@ -58,16 +45,26 @@ export function ModelSettings() {
           <section className="adl-model-settings__zone" aria-label={t.modelSettingsProvidersZone}>
             <div className="adl-model-settings__zone-title-row">
               <h4 className="adl-model-settings__zone-title">{t.modelSettingsProvidersZone}</h4>
-              <div className="adl-model-settings__search">
-                <IconSearch size={12} decorative />
-                <input
-                  type="search"
-                  className="adl-model-settings__search-input"
-                  placeholder={t.modelSettingsSearchProviders}
-                  aria-label={t.modelSettingsSearchProviders}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+              <div className="adl-model-settings__zone-controls">
+                <div className="adl-model-settings__search">
+                  <IconSearch size={12} decorative />
+                  <input
+                    type="search"
+                    className="adl-model-settings__search-input"
+                    placeholder={t.modelSettingsSearchProviders}
+                    aria-label={t.modelSettingsSearchProviders}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="adl-btn adl-btn--ghost adl-model-settings__add-custom"
+                  onClick={() => setShowDialog(true)}
+                >
+                  <IconPlus size={12} decorative />
+                  {t.providerManagerAddCustom}
+                </button>
               </div>
             </div>
             <div

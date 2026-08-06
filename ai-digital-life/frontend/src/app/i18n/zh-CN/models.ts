@@ -27,4 +27,8 @@ export const modelsZh = {
   modelSettingsSearchProviders: '搜索供应商',
   modelSettingsShowMoreProviders: '查看更多供应商',
   modelSettingsCollapseProviders: '收起',
+  modelProviderToggleStateEnabled: '供应商已启用：{provider}',
+  modelProviderToggleStateDisabled: '供应商已禁用：{provider}',
+  modelModelToggleStateEnabled: '模型已启用：{model}',
+  modelModelToggleStateDisabled: '模型已禁用：{model}',
 } as const;

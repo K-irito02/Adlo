@@ -38,4 +38,7 @@ export const providerEn = {
   providerCustomNamePlaceholder: 'e.g. My Provider',
   providerCustomUrlPlaceholder: 'https://api.example.com/v1',
   providerCustomModelsPlaceholder: 'gpt-4o, claude-3-opus',
+  providerApiKeyGuide: 'How to get an API key?',
+  providerApiKeyGuideHint:
+    'Register on the provider platform, create an API key, paste it into the field below and click "Save"',
 } as const;

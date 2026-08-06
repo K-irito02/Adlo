@@ -38,4 +38,6 @@ export const providerZh = {
   providerCustomNamePlaceholder: '例如：我的提供商',
   providerCustomUrlPlaceholder: 'https://api.example.com/v1',
   providerCustomModelsPlaceholder: 'gpt-4o, claude-3-opus',
+  providerApiKeyGuide: '如何获取 API 密钥？',
+  providerApiKeyGuideHint: '请前往供应商官方平台注册并创建 API 密钥，粘贴到下方输入框后点击"保存"',
 } as const;

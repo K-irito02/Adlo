@@ -652,6 +652,12 @@
   justify-content: space-between;
   gap: var(--space-2);
 }
+.adl-model-settings__zone-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
 .adl-model-settings__zone-title {
   margin: 0;
   font-size: var(--text-sm);
@@ -666,6 +672,8 @@
   background: transparent;
   border-radius: var(--radius-sm);
   color: var(--text-muted);
+  height: 26px;
+  box-sizing: border-box;
   transition: var(--transition-colors);
 }
 .adl-model-settings__search:hover,
@@ -678,7 +686,23 @@
   outline: none;
   color: var(--text-primary);
   font-size: var(--text-xs);
-  width: 160px;
+  width: 120px;
+}
+
+/* 与工具栏「搜索设置 + 恢复全部默认」组合宽度对齐：
+   搜索框尺寸与其保持一致，按钮采用与「恢复全部默认」相同的尺寸规范。
+   搜索框与按钮显式等高，确保悬停灰色背景高度一致 */
+.adl-model-settings .adl-model-settings__add-custom {
+  height: 26px;
+  box-sizing: border-box;
+  border: none;
+  padding: var(--space-1) var(--space-3);
+  font-weight: var(--font-normal);
+  color: var(--text-secondary);
+}
+.adl-model-settings .adl-model-settings__add-custom:hover:not(:disabled) {
+  background: var(--bg-muted);
+  color: var(--text-primary);
 }
 .adl-model-settings__provider-grid {
   display: grid;
@@ -807,11 +831,19 @@
   flex: 1;
   padding: var(--space-1) var(--space-6) var(--space-1) var(--space-2);
   border: none;
-  background: var(--bg-input);
+  background: var(--bg-input-translucent);
   color: var(--text-primary);
   font-size: var(--text-xs);
   font-family: var(--font-mono, monospace);
   border-radius: var(--radius-sm);
+}
+
+.adl-provider-card__key-input::-ms-reveal,
+.adl-provider-card__key-input::-ms-clear,
+.adl-provider-card__key-input::-webkit-credentials-auto-fill-button,
+.adl-provider-card__key-input::-webkit-contacts-auto-fill-button,
+.adl-provider-card__key-input::-webkit-strong-password-auto-fill-button {
+  display: none;
 }
 
 .adl-provider-card__key-input::placeholder {
@@ -838,11 +870,44 @@
   color: var(--text-primary);
 }
 
+.adl-provider-card__guide {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+}
+
+.adl-provider-card__guide-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-normal);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.adl-provider-card__guide-link:hover {
+  color: var(--text-primary);
+}
+
+.adl-provider-card__guide-hint {
+  color: var(--text-muted);
+}
+
 .adl-provider-card__actions {
   display: flex;
   align-items: center;
   gap: var(--space-1);
   flex-wrap: wrap;
+}
+
+.adl-provider-card__save-btn {
+  margin-left: auto;
 }
 
 .adl-provider-card__remove-btn {

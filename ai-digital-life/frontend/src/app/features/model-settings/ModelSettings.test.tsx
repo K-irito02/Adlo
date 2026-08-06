@@ -112,6 +112,7 @@ const darkmode = makeProvider({
 });
 
 let spies: Record<string, Mock> = {};
+let openExternalSpy: Mock;
 
 beforeEach(() => {
   useAppStore.setState({
@@ -123,6 +124,10 @@ beforeEach(() => {
       deepseek: { enabled: true, priority: 0, modelId: 'deepseek-chat', enabledModels: null },
     }),
   });
+  openExternalSpy = vi.fn().mockResolvedValue(undefined);
+  (window as unknown as { digitalLife?: unknown }).digitalLife = {
+    window: { openExternal: openExternalSpy },
+  };
   const state = useAppStore.getState();
   spies = {
     fetchProviders: vi.spyOn(state, 'fetchProviders').mockResolvedValue(undefined) as Mock,
@@ -152,6 +157,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  (window as unknown as { digitalLife?: unknown }).digitalLife = undefined;
   useAppStore.setState({
     providers: [],
     connectionTestResults: {},
@@ -200,13 +206,14 @@ describe('ModelSettings upper zone — provider cards', () => {
     expect(spies.setProviderEnabled).toHaveBeenCalledWith('deepseek', false);
   });
 
-  it('shows base URL, key chip and api key input with save/clear in the expanded area', () => {
+  it('shows base URL and api key input with save/clear in the expanded area (no status chip)', () => {
     renderSettings();
     const card = screen.getByTestId('provider-card-deepseek');
     fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
 
     expect(within(card).getByText('https://api.example.com')).toBeInTheDocument();
-    expect(within(card).getByText('providerManagerStatusOk')).toBeInTheDocument();
+    expect(within(card).queryByText('providerManagerStatusOk')).not.toBeInTheDocument();
+    expect(within(card).queryByText('providerManagerStatusNoKey')).not.toBeInTheDocument();
 
     const input = within(card).getByPlaceholderText(
       'providerManagerApiKeyPlaceholder',
@@ -333,7 +340,7 @@ describe('ModelSettings upper zone — provider cards', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('opens the custom provider dialog from the header action', () => {
+  it('opens the custom provider dialog from the provider zone title row', () => {
     renderSettings();
     fireEvent.click(screen.getByRole('button', { name: 'providerManagerAddCustom' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -393,9 +400,97 @@ describe('ModelSettings upper zone — provider cards', () => {
     expect(document.querySelector('.adl-prompt-modal')).toBeInTheDocument();
   });
 
+  it('sits in the provider zone title row next to the search input', () => {
+    renderSettings();
+    const addButton = screen.getByRole('button', { name: 'providerManagerAddCustom' });
+    const zoneControls = addButton.closest('.adl-model-settings__zone-controls') as HTMLElement;
+    expect(zoneControls).not.toBeNull();
+    expect(
+      within(zoneControls).getByPlaceholderText('modelSettingsSearchProviders'),
+    ).toBeInTheDocument();
+    expect(within(zoneControls).getByRole('button', { name: 'providerManagerAddCustom' })).toBe(
+      addButton,
+    );
+  });
+
   it('carries the adl-model-settings ancestor class so model-region button radius scoping applies', () => {
     renderSettings();
     expect(document.querySelector('.adl-settings-section')).toHaveClass('adl-model-settings');
+  });
+
+  it('does not render a status chip row inside the expanded provider card', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
+    expect(within(card).queryByText('providerManagerStatusOk')).not.toBeInTheDocument();
+    expect(within(card).queryByText('providerManagerStatusNoKey')).not.toBeInTheDocument();
+    expect(card.querySelector('.adl-chip')).toBeNull();
+  });
+
+  it('does not render the api key label above the input but keeps an accessible name', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
+    expect(within(card).queryByText('providerManagerApiKey')).not.toBeInTheDocument();
+    const input = within(card).getByPlaceholderText(
+      'providerManagerApiKeyPlaceholder',
+    ) as HTMLInputElement;
+    expect(input).toHaveAttribute('aria-label', 'providerManagerApiKey');
+  });
+
+  it('shows the api key guide link and friendly hint for built-in providers and opens the official url', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
+
+    const guide = within(card).getByRole('button', { name: 'providerApiKeyGuide' });
+    expect(guide).toBeInTheDocument();
+    expect(within(card).getByText('providerApiKeyGuideHint')).toBeInTheDocument();
+
+    fireEvent.click(guide);
+    expect(openExternalSpy).toHaveBeenCalledWith('https://platform.deepseek.com/api_keys');
+  });
+
+  it('shows only the friendly hint for custom providers without an official guide url', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-mystery');
+    fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
+
+    expect(
+      within(card).queryByRole('button', { name: 'providerApiKeyGuide' }),
+    ).not.toBeInTheDocument();
+    expect(within(card).getByText('providerApiKeyGuideHint')).toBeInTheDocument();
+  });
+
+  it('shows no guide block for providers that do not require an api key', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-ollama');
+    fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
+
+    expect(within(card).queryByText('providerApiKeyGuideHint')).not.toBeInTheDocument();
+    expect(
+      within(card).queryByPlaceholderText('providerManagerApiKeyPlaceholder'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('places the test-connection button leftmost and the save button rightmost', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
+
+    const actionsRow = within(card)
+      .getByText('providerManagerSaveKey')
+      .closest('.adl-provider-card__actions') as HTMLElement;
+    const buttons = within(actionsRow).getAllByRole('button');
+    expect(buttons[0].textContent).toBe('providerManagerTestConnection');
+    expect(buttons[buttons.length - 1].textContent).toBe('providerManagerSaveKey');
+  });
+
+  it('sets a native title tooltip on the provider master switch showing the current state', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    const master = within(card).getByRole('switch');
+    expect(master).toHaveAttribute('title', 'modelProviderToggleStateEnabled');
   });
 });
 
@@ -486,6 +581,14 @@ describe('ModelSettings lower zone — model toggle list', () => {
     expect(btn).toHaveAttribute('title', 'providerManagerFetchModels');
     fireEvent.click(btn);
     expect(spies.fetchModels).toHaveBeenCalledWith('deepseek');
+  });
+
+  it('sets a native title tooltip on model toggles showing the current state', () => {
+    renderSettings();
+    const group = screen.getByTestId('model-group-deepseek');
+    const row = within(group).getByText('DeepSeek Chat').closest('li') as HTMLElement;
+    const toggle = within(row).getByRole('switch');
+    expect(toggle).toHaveAttribute('title', 'modelModelToggleStateEnabled');
   });
 
   it('calls toggleModel when a model switch is toggled', () => {

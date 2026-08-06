@@ -27,4 +27,8 @@ export const modelsEn = {
   modelSettingsSearchProviders: 'Search providers',
   modelSettingsShowMoreProviders: 'Show more providers',
   modelSettingsCollapseProviders: 'Show fewer',
+  modelProviderToggleStateEnabled: 'Provider enabled: {provider}',
+  modelProviderToggleStateDisabled: 'Provider disabled: {provider}',
+  modelModelToggleStateEnabled: 'Model enabled: {model}',
+  modelModelToggleStateDisabled: 'Model disabled: {model}',
 } as const;

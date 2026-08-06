@@ -197,3 +197,18 @@ export const MODEL_CATALOG: CatalogProvider[] = [
 export function getCatalogProvider(providerId: string): CatalogProvider | undefined {
   return MODEL_CATALOG.find((p) => p.id === providerId);
 }
+
+// 官方 API 密钥获取指南网址（仅内置供应商）。自定义供应商无官方网址，
+// 由前端在卡片内展示通用友好提示。
+export const PROVIDER_API_KEY_GUIDE_URLS: Readonly<Record<string, string>> = {
+  openai: 'https://platform.openai.com/api-keys',
+  anthropic: 'https://console.anthropic.com/settings/keys',
+  google: 'https://aistudio.google.com/apikey',
+  openrouter: 'https://openrouter.ai/settings/keys',
+  deepseek: 'https://platform.deepseek.com/api_keys',
+  minimax: 'https://platform.minimaxi.com',
+};
+
+export function getProviderApiKeyGuideUrl(providerId: string): string | undefined {
+  return PROVIDER_API_KEY_GUIDE_URLS[providerId];
+}

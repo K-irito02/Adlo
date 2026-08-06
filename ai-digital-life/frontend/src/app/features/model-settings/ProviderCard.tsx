@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { ProviderStatus } from '@shared/ipc/provider';
+import { getProviderApiKeyGuideUrl } from '@shared/modelCatalog';
 import {
   IconCheckCircle,
   IconCircle,
   IconChevronDown,
   IconChevronUp,
-  IconKey,
   IconEye,
   IconEyeOff,
   IconXCircle,
@@ -34,6 +34,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
   const connected = provider.hasKey || !provider.requiresKey;
   const isTesting = testingProviderId === provider.id;
   const result = connectionTestResults[provider.id];
+  const guideUrl = getProviderApiKeyGuideUrl(provider.id);
 
   const handleSaveApiKey = async () => {
     if (!apiKeyInput.trim()) {
@@ -42,8 +43,6 @@ export function ProviderCard({ provider }: ProviderCardProps) {
     await setApiKey(provider.id, apiKeyInput.trim());
     setApiKeyInput('');
   };
-
-  const keyInputId = `model-settings-key-${provider.id}`;
 
   return (
     <article className="adl-provider-card" data-testid={`provider-card-${provider.id}`}>
@@ -89,6 +88,15 @@ export function ProviderCard({ provider }: ProviderCardProps) {
             role="switch"
             aria-checked={provider.enabled}
             className={`adl-settings-toggle${provider.enabled ? ' is-on' : ''}`}
+            title={formatT(
+              t,
+              provider.enabled
+                ? 'modelProviderToggleStateEnabled'
+                : 'modelProviderToggleStateDisabled',
+              {
+                provider: provider.name,
+              },
+            )}
             aria-label={formatT(
               t,
               provider.enabled ? 'modelProviderDisableAria' : 'modelProviderEnableAria',
@@ -115,51 +123,48 @@ export function ProviderCard({ provider }: ProviderCardProps) {
             <span className="adl-provider-card__value">{provider.baseUrl ?? '—'}</span>
           </div>
 
-          <div className="adl-provider-card__info-row">
-            <span className="adl-provider-card__label">{t.providerManagerStatusNoKey}:</span>
-            <span
-              className={`adl-chip adl-chip--xs ${connected ? 'adl-chip--success' : 'adl-chip--danger'}`}
-            >
-              {connected ? t.providerManagerStatusOk : t.providerManagerStatusNoKey}
-            </span>
-          </div>
-
           {provider.requiresKey && (
-            <div className="adl-provider-card__key-row">
-              <label className="adl-provider-card__label" htmlFor={keyInputId}>
-                <IconKey size={12} decorative />
-                {t.providerManagerApiKey}
-              </label>
-              <div className="adl-provider-card__key-input-group">
-                <input
-                  id={keyInputId}
-                  type={showKey ? 'text' : 'password'}
-                  className="adl-provider-card__key-input"
-                  placeholder={t.providerManagerApiKeyPlaceholder}
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="adl-provider-card__key-toggle"
-                  onClick={() => setShowKey((v) => !v)}
-                  aria-label={showKey ? t.providerHideKey : t.providerShowKey}
-                >
-                  {showKey ? <IconEyeOff size={12} decorative /> : <IconEye size={12} decorative />}
-                </button>
+            <>
+              <div className="adl-provider-card__guide">
+                {guideUrl && (
+                  <button
+                    type="button"
+                    className="adl-provider-card__guide-link"
+                    onClick={() => void window.digitalLife?.window?.openExternal?.(guideUrl)}
+                  >
+                    {t.providerApiKeyGuide}
+                  </button>
+                )}
+                <span className="adl-provider-card__guide-hint">{t.providerApiKeyGuideHint}</span>
               </div>
-            </div>
+              <div className="adl-provider-card__key-row">
+                <div className="adl-provider-card__key-input-group">
+                  <input
+                    type={showKey ? 'text' : 'password'}
+                    className="adl-provider-card__key-input"
+                    placeholder={t.providerManagerApiKeyPlaceholder}
+                    aria-label={t.providerManagerApiKey}
+                    value={apiKeyInput}
+                    onChange={(e) => setApiKeyInput(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="adl-provider-card__key-toggle"
+                    onClick={() => setShowKey((v) => !v)}
+                    aria-label={showKey ? t.providerHideKey : t.providerShowKey}
+                  >
+                    {showKey ? (
+                      <IconEyeOff size={12} decorative />
+                    ) : (
+                      <IconEye size={12} decorative />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </>
           )}
 
           <div className="adl-provider-card__actions">
-            <button
-              type="button"
-              className="adl-btn adl-btn--ghost adl-btn--xs"
-              onClick={() => void handleSaveApiKey()}
-              disabled={!apiKeyInput.trim()}
-            >
-              {t.providerManagerSaveKey}
-            </button>
             <button
               type="button"
               className="adl-btn adl-btn--ghost adl-btn--xs"
@@ -186,6 +191,14 @@ export function ProviderCard({ provider }: ProviderCardProps) {
                 {t.providerManagerRemoveProvider}
               </button>
             )}
+            <button
+              type="button"
+              className="adl-btn adl-btn--ghost adl-btn--xs adl-provider-card__save-btn"
+              onClick={() => void handleSaveApiKey()}
+              disabled={!apiKeyInput.trim()}
+            >
+              {t.providerManagerSaveKey}
+            </button>
           </div>
 
           {result && (

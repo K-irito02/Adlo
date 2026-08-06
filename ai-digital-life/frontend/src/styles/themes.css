@@ -116,6 +116,7 @@ html:not(.no-transition) [data-theme] {
   --bg-overlay: rgba(34, 34, 34, 0.35);
   --bg-card: #fbfbfb;
   --bg-input: #ffffff;
+  --bg-input-translucent: rgba(0, 0, 0, 0.06);
   --bg-hover: rgba(34, 34, 34, 0.06);
   --bg-active: rgba(34, 34, 34, 0.1);
   --bg-occlusion: #ebebeb;
@@ -384,6 +385,7 @@ html:not(.no-transition) [data-theme] {
   --bg-overlay: rgba(0, 0, 0, 0.65);
   --bg-card: #1a1a1a;
   --bg-input: #1c1c1c;
+  --bg-input-translucent: rgba(255, 255, 255, 0.08);
   --bg-hover: rgba(255, 255, 255, 0.08);
   --bg-active: rgba(255, 255, 255, 0.12);
   --bg-occlusion: #262626;
