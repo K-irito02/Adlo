@@ -26,8 +26,9 @@ describe('mockProvider', () => {
     if (!result.ok) {
       return;
     }
-    expect(result.data.length).toBeGreaterThan(0);
-    expect(result.data.some((m) => m.id === 'deepseek-chat')).toBe(true);
+    expect(result.data.fromFallback).toBe(true);
+    expect(result.data.models.length).toBeGreaterThan(0);
+    expect(result.data.models.some((m) => m.id === 'deepseek-chat')).toBe(true);
   });
 
   it('fetchProviderModels returns empty for an unknown provider', async () => {
@@ -36,6 +37,6 @@ describe('mockProvider', () => {
     if (!result.ok) {
       return;
     }
-    expect(result.data).toEqual([]);
+    expect(result.data.models).toEqual([]);
   });
 });

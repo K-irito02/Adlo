@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAppStore } from '../slicedStore';
+import { FETCH_MODELS_FAILED, FETCH_MODELS_FALLBACK } from './providerActions';
 import type { AppInfo } from '../../../kernel/types';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
 import type { ProviderStatus } from '../../../shared/ipc/provider';
@@ -16,6 +17,7 @@ const mockListProviders = vi.fn();
 const mockGetProviderApiKey = vi.fn();
 const mockClearProviderApiKey = vi.fn();
 const mockRemoveCustomProvider = vi.fn();
+const mockFetchProviderModels = vi.fn();
 
 function makeAppInfo(
   enabledModels: string[] | null,
@@ -109,6 +111,10 @@ beforeEach(() => {
         data: true,
       }),
       removeCustomProvider: mockRemoveCustomProvider.mockResolvedValue({ ok: true, data: true }),
+      fetchProviderModels: mockFetchProviderModels.mockResolvedValue({
+        ok: true,
+        data: { models: [], fromFallback: true },
+      }),
     },
   };
   useAppStore.setState({
@@ -372,6 +378,7 @@ describe('clearApiKey input clearing', () => {
   it('clears the in-memory input and stale test result after the credential is cleared', async () => {
     useAppStore.setState({
       apiKeyInputs: { deepseek: 'sk-secret' },
+      keyInputTouched: { deepseek: true },
       connectionTestResults: { deepseek: { connected: true, error: null } },
     });
     mockListProviders.mockResolvedValue({
@@ -383,6 +390,7 @@ describe('clearApiKey input clearing', () => {
 
     expect(mockClearProviderApiKey).toHaveBeenCalledWith('deepseek');
     expect(useAppStore.getState().apiKeyInputs.deepseek).toBeUndefined();
+    expect(useAppStore.getState().keyInputTouched.deepseek).toBeUndefined();
     expect(useAppStore.getState().connectionTestResults.deepseek).toBeUndefined();
   });
 
@@ -412,5 +420,47 @@ describe('removeCustomProvider state cleanup', () => {
     expect(s.apiKeyInputs['custom-foo']).toBeUndefined();
     expect(s.keyInputTouched['custom-foo']).toBeUndefined();
     expect(s.connectionTestResults['custom-foo']).toBeUndefined();
+  });
+});
+
+describe('fetchModels fallback semantics', () => {
+  it('returns FETCH_MODELS_FALLBACK but still updates the model list when the live fetch fell back', async () => {
+    mockFetchProviderModels.mockResolvedValue({
+      ok: true,
+      data: {
+        models: [{ id: 'm1', providerId: 'deepseek', name: 'M1', capabilities: ['text'] }],
+        fromFallback: true,
+      },
+    });
+    const store = useAppStore.getState();
+    const count = await store.fetchModels('deepseek');
+
+    expect(count).toBe(FETCH_MODELS_FALLBACK);
+    expect(useAppStore.getState().providers[0].models.map((m) => m.id)).toEqual(['m1']);
+  });
+
+  it('returns the live model count on a real fetch', async () => {
+    mockFetchProviderModels.mockResolvedValue({
+      ok: true,
+      data: {
+        models: [
+          { id: 'm1', providerId: 'deepseek', name: 'M1', capabilities: ['text'] },
+          { id: 'm2', providerId: 'deepseek', name: 'M2', capabilities: ['text'] },
+        ],
+        fromFallback: false,
+      },
+    });
+    const store = useAppStore.getState();
+    const count = await store.fetchModels('deepseek');
+
+    expect(count).toBe(2);
+  });
+
+  it('returns FETCH_MODELS_FAILED on an IPC-level failure', async () => {
+    mockFetchProviderModels.mockResolvedValue({ ok: false, error: 'boom' });
+    const store = useAppStore.getState();
+    const count = await store.fetchModels('deepseek');
+
+    expect(count).toBe(FETCH_MODELS_FAILED);
   });
 });

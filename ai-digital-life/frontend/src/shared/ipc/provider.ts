@@ -28,6 +28,15 @@ export interface ConnectionTestResult {
   error: string | null;
 }
 
+/** Result of a "fetch latest models" request. `fromFallback` lets the UI tell a
+    live fetch apart from a silent fallback to the static/cached catalog, so it
+    never shows a misleading "fetched N models" toast when the live request
+    actually failed. */
+export interface FetchModelsResult {
+  models: ModelDefinition[];
+  fromFallback: boolean;
+}
+
 export interface ProviderBridge {
   setProviderApiKey(provider: string, apiKey: string): Promise<IpcResult<boolean>>;
   clearProviderApiKey(provider: string): Promise<IpcResult<boolean>>;
@@ -43,7 +52,7 @@ export interface ProviderBridge {
     apiKey?: string,
   ): Promise<IpcResult<ConnectionTestResult>>;
   /** Fetch the live model list. `apiKey` (if provided) is preferred over the persisted credential. */
-  fetchProviderModels(providerId: string, apiKey?: string): Promise<IpcResult<ModelDefinition[]>>;
+  fetchProviderModels(providerId: string, apiKey?: string): Promise<IpcResult<FetchModelsResult>>;
   addCustomProvider(
     name: string,
     baseUrl: string,

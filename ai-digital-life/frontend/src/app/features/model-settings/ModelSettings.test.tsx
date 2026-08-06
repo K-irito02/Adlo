@@ -4,6 +4,7 @@ import { render, screen, fireEvent, cleanup, within, waitFor } from '@testing-li
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
+import { FETCH_MODELS_FAILED, FETCH_MODELS_FALLBACK } from '../../stores/actions/providerActions';
 import type { ProviderStatus, ModelDefinition } from '../../../shared/ipc/provider';
 import type { AppInfo } from '@shared/ipc';
 import { ModelSettings } from './ModelSettings';
@@ -715,7 +716,7 @@ describe('ModelSettings lower zone — model toggle list', () => {
   });
 
   it('shows an error toast when fetching models fails', async () => {
-    spies.fetchModels.mockResolvedValue(-1);
+    spies.fetchModels.mockResolvedValue(FETCH_MODELS_FAILED);
     renderSettings();
     fireEvent.click(
       within(screen.getByTestId('model-group-deepseek')).getByRole('button', {
@@ -726,6 +727,23 @@ describe('ModelSettings lower zone — model toggle list', () => {
       expect(spies.showToast).toHaveBeenCalledWith(
         'providerFetchModelsFailed',
         'error',
+        'model-fetch',
+      ),
+    );
+  });
+
+  it('shows a fallback notice (not success) when the live fetch fell back to the catalog', async () => {
+    spies.fetchModels.mockResolvedValue(FETCH_MODELS_FALLBACK);
+    renderSettings();
+    fireEvent.click(
+      within(screen.getByTestId('model-group-deepseek')).getByRole('button', {
+        name: 'providerManagerFetchModels',
+      }),
+    );
+    await waitFor(() =>
+      expect(spies.showToast).toHaveBeenCalledWith(
+        'providerFetchModelsFallback',
+        'warning',
         'model-fetch',
       ),
     );

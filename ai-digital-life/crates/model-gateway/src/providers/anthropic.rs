@@ -98,6 +98,7 @@ impl ProviderAdapter for AnthropicProvider {
                     ModelCapability::Text,
                     ModelCapability::Vision,
                     ModelCapability::ToolUse,
+                    ModelCapability::Streaming,
                 ],
                 tier: Some(ModelTier::Premium),
                 context_window: Some(200000),

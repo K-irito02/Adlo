@@ -289,10 +289,26 @@ impl ModelGateway {
             (adapter, def)
         };
         if adapter.supports_dynamic_models() {
-            let api_key = crate::get_provider_secret(provider_id).unwrap_or_default();
+            // Read the persisted credential off the async runtime (blocking
+            // keyring/file I/O must never run on the tokio executor).
+            let pid = provider_id.to_string();
+            let api_key = tokio::task::spawn_blocking(move || crate::get_provider_secret(&pid))
+                .await
+                .ok()
+                .and_then(|r| r.ok())
+                .unwrap_or_default();
             let base_url = def.default_base_url.as_deref().unwrap_or("");
             match adapter.fetch_models(&api_key, base_url).await {
-                Ok(models) if !models.is_empty() => Ok(models),
+                // Re-tag fetched models with the owning provider id: adapters
+                // shared across OpenAI-compatible providers (DeepSeek/MiniMax/
+                // custom) stamp a generic provider id.
+                Ok(models) if !models.is_empty() => Ok(models
+                    .into_iter()
+                    .map(|mut m| {
+                        m.provider_id = provider_id.to_string();
+                        m
+                    })
+                    .collect()),
                 _ => Ok(fallback_models(&def).to_vec()),
             }
         } else {

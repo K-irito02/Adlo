@@ -9,6 +9,12 @@ function enqueuePreferences(update: () => Promise<boolean>): Promise<boolean> {
   return preferencesQueue;
 }
 
+/** `fetchModels` return sentinel: hard failure (IPC-level error). */
+export const FETCH_MODELS_FAILED = -1;
+/** `fetchModels` return sentinel: the live fetch failed and the returned list is
+    the static/cached catalog (the UI shows a non-error notice, never a success). */
+export const FETCH_MODELS_FALLBACK = -2;
+
 function applyProviderStatusPatch(
   set: StoreApi<StoreState>['setState'],
   get: () => StoreState,
@@ -152,14 +158,17 @@ export function createProviderActions(
       const result = await window.digitalLife.provider.fetchProviderModels(providerId, apiKey);
       if (!result.ok) {
         captureError(get, result.error);
-        return -1;
+        return FETCH_MODELS_FAILED;
       }
       set({
         providers: get().providers.map((p) =>
-          p.id === providerId ? { ...p, models: result.data } : p,
+          p.id === providerId ? { ...p, models: result.data.models } : p,
         ),
       });
-      return result.data.length;
+      // fromFallback => the live fetch failed and the list is the static/cached
+      // catalog; report a fallback (still keep the updated list) so the UI never
+      // shows a misleading "fetched N models" success toast.
+      return result.data.fromFallback ? FETCH_MODELS_FALLBACK : result.data.models.length;
     },
 
     setAllModelsEnabled: async (providerId: string, enableAll: boolean) => {

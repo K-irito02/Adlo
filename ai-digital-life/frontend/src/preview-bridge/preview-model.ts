@@ -1,10 +1,10 @@
+import type { AppPreferencePatch, AppInfo, IpcResult } from '@ai-digital-life/kernel';
 import type {
-  AppPreferencePatch,
-  AppInfo,
-  IpcResult,
-  ModelDefinition,
-} from '@ai-digital-life/kernel';
-import type { ProviderStatus, ProviderInfo, ConnectionTestResult } from '../shared/ipc/provider';
+  ProviderStatus,
+  ProviderInfo,
+  ConnectionTestResult,
+  FetchModelsResult,
+} from '../shared/ipc/provider';
 import type { ModelPreferences, ModelProviderPreference } from '../shared/ipc-types.generated';
 import { applyPreferencePatch } from '../shared/preferencesMerger';
 import { mockDigitalLifeBridge } from '../mock-bridge';
@@ -177,13 +177,17 @@ export function createPreviewModelBridge(
         providerId: string,
         apiKey?: string,
       ): Promise<IpcResult<ConnectionTestResult>> => {
-        if (apiKey) {
-          previewApiKeys.set(providerId, apiKey);
-        }
+        // Mirror the Tauri command's resolve_api_key: a key passed for the test
+        // is used for THIS call only (blank/whitespace keys are ignored), it
+        // must not be promoted to the saved key — that happens only via
+        // setProviderApiKey — so hasKey / Clear-button / sort rank behave
+        // identically in browser and desktop modes.
+        const trimmed = apiKey?.trim();
+        const effectiveKey = trimmed ? trimmed : previewApiKeys.get(providerId);
         const catalog = MODEL_CATALOG.find((p) => p.id === providerId);
         const custom = loadPreviewCustomProviders().find((p) => p.id === providerId);
         const requiresKey = custom ? true : (catalog?.requiresKey ?? true);
-        if (!requiresKey || previewApiKeys.has(providerId)) {
+        if (!requiresKey || !!effectiveKey) {
           return { ok: true as const, data: { connected: true, error: null } };
         }
         return { ok: true as const, data: { connected: false, error: 'missing API key' } };
@@ -191,49 +195,85 @@ export function createPreviewModelBridge(
       fetchProviderModels: async (
         providerId: string,
         apiKey?: string,
-      ): Promise<IpcResult<ModelDefinition[]>> => {
-        if (apiKey) {
-          previewApiKeys.set(providerId, apiKey);
-        }
+      ): Promise<IpcResult<FetchModelsResult>> => {
+        const trimmed = apiKey?.trim();
+        const key = trimmed ? trimmed : previewApiKeys.get(providerId);
         const catalog = MODEL_CATALOG.find((p) => p.id === providerId);
         const custom = loadPreviewCustomProviders().find((p) => p.id === providerId);
         const baseUrl = custom?.baseUrl ?? catalog?.baseUrl;
-        const key = previewApiKeys.get(providerId);
-        if (baseUrl && key) {
-          try {
-            const response = await fetch(`${baseUrl.replace(/\/$/, '')}/models`, {
-              headers: { Authorization: `Bearer ${key}` },
-            });
-            if (response.ok) {
-              const body = (await response.json()) as { data?: { id: string }[] };
-              const models = (body.data ?? [])
-                .filter((m) => typeof m?.id === 'string' && m.id.length > 0)
-                .map((m) => ({
-                  id: m.id,
-                  providerId,
-                  name: m.id,
-                  capabilities: ['text' as const, 'streaming' as const],
-                }));
-              if (models.length > 0) {
-                return { ok: true as const, data: models };
+        if (baseUrl) {
+          // Ollama needs no API key and exposes /api/tags (mirrors the Tauri
+          // adapter); otherwise the OpenAI-compatible /models + Bearer pattern.
+          if (providerId === 'ollama' && !custom) {
+            try {
+              const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/tags`);
+              if (response.ok) {
+                const body = (await response.json()) as {
+                  models?: { name?: string }[];
+                };
+                const models = (body.models ?? [])
+                  .filter(
+                    (m): m is { name: string } => typeof m?.name === 'string' && m.name.length > 0,
+                  )
+                  .map((m) => ({
+                    id: m.name,
+                    providerId,
+                    name: m.name,
+                    capabilities: ['text' as const, 'streaming' as const],
+                  }));
+                if (models.length > 0) {
+                  return { ok: true as const, data: { models, fromFallback: false } };
+                }
               }
+            } catch {
+              // CORS / network failures fall back to the static catalog below.
             }
-          } catch {
-            // CORS / network failures fall back to the static catalog below.
+            // Ollama has no OpenAI-compatible endpoint; never fall through to
+            // the /models + Bearer branch even if a stray key exists.
+            return {
+              ok: true as const,
+              data: { models: catalog?.models ?? [], fromFallback: true },
+            };
+          }
+          if (key) {
+            try {
+              const response = await fetch(`${baseUrl.replace(/\/$/, '')}/models`, {
+                headers: { Authorization: `Bearer ${key}` },
+              });
+              if (response.ok) {
+                const body = (await response.json()) as { data?: { id: string }[] };
+                const models = (body.data ?? [])
+                  .filter((m) => typeof m?.id === 'string' && m.id.length > 0)
+                  .map((m) => ({
+                    id: m.id,
+                    providerId,
+                    name: m.id,
+                    capabilities: ['text' as const, 'streaming' as const],
+                  }));
+                if (models.length > 0) {
+                  return { ok: true as const, data: { models, fromFallback: false } };
+                }
+              }
+            } catch {
+              // CORS / network failures fall back to the static catalog below.
+            }
           }
         }
         if (custom) {
           return {
             ok: true as const,
-            data: custom.models.map((m) => ({
-              id: m,
-              providerId: custom.id,
-              name: m,
-              capabilities: ['text'],
-            })),
+            data: {
+              models: custom.models.map((m) => ({
+                id: m,
+                providerId: custom.id,
+                name: m,
+                capabilities: ['text'],
+              })),
+              fromFallback: true,
+            },
           };
         }
-        return { ok: true as const, data: catalog?.models ?? [] };
+        return { ok: true as const, data: { models: catalog?.models ?? [], fromFallback: true } };
       },
       addCustomProvider: async (
         name: string,

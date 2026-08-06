@@ -1,4 +1,5 @@
 import { useAppStore } from '@stores/slicedStore';
+import { FETCH_MODELS_FAILED, FETCH_MODELS_FALLBACK } from '@stores/actions/providerActions';
 import { useTCopy } from '@i18n/useTCopy';
 import type { ProviderStatus } from '@shared/ipc/provider';
 import type { ModelDefinition } from '@shared/ipc/provider';
@@ -55,10 +56,13 @@ export function ModelToggleList({ providers }: ModelToggleListProps) {
   const enabledProviders = providers.filter((p) => p.enabled);
 
   const handleFetchModels = async (providerId: string) => {
-    const count = await fetchModels(providerId, apiKeyInputs[providerId] || undefined);
+    const typed = apiKeyInputs[providerId]?.trim() || undefined;
+    const count = await fetchModels(providerId, typed);
     if (count >= 0) {
       showToast(formatT(t, 'providerFetchModelsSuccess', { count }), 'success', 'model-fetch');
-    } else {
+    } else if (count === FETCH_MODELS_FALLBACK) {
+      showToast(t.providerFetchModelsFallback, 'warning', 'model-fetch');
+    } else if (count === FETCH_MODELS_FAILED) {
       showToast(t.providerFetchModelsFailed, 'error', 'model-fetch');
     }
   };

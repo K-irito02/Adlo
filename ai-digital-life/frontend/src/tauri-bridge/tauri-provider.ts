@@ -1,10 +1,10 @@
 import type {
   ProviderBridge,
   ConnectionTestResult,
+  FetchModelsResult,
   ProviderInfo,
   ProviderStatus,
 } from '../shared/ipc/provider';
-import type { ModelDefinition } from '@ai-digital-life/kernel';
 import { invokeIpc } from './tauri-shared';
 
 export function createTauriProviderBridge(): ProviderBridge {
@@ -24,7 +24,7 @@ export function createTauriProviderBridge(): ProviderBridge {
     testProviderConnection: (providerId: string, apiKey?: string) =>
       invokeIpc<ConnectionTestResult>('test_provider_connection', { providerId, apiKey }),
     fetchProviderModels: (providerId: string, apiKey?: string) =>
-      invokeIpc<ModelDefinition[]>('fetch_provider_models', { providerId, apiKey }),
+      invokeIpc<FetchModelsResult>('fetch_provider_models', { providerId, apiKey }),
     addCustomProvider: (name: string, baseUrl: string, apiKey: string, models: string[]) =>
       invokeIpc<boolean>('add_custom_provider', { name, baseUrl, apiKey, models }),
     removeCustomProvider: (providerId: string) =>

@@ -169,7 +169,7 @@ describe('preview-model provider bridge', () => {
     expect(result.data.error).toBeNull();
   });
 
-  it('testProviderConnection accepts a typed api key without a prior save', async () => {
+  it('testProviderConnection accepts a typed api key without persisting it', async () => {
     const bridge = createBridge();
     const before = await bridge.provider.testProviderConnection('deepseek');
     expect(before.ok && !before.data.connected).toBe(true);
@@ -182,19 +182,21 @@ describe('preview-model provider bridge', () => {
     expect(typed.data.connected).toBe(true);
     expect(typed.data.error).toBeNull();
 
-    // The typed key becomes the stored key for subsequent calls.
+    // Mirror the Tauri command: a typed key used for a test is NOT promoted to
+    // the saved key, so hasKey stays false and the Clear button does not appear.
     const has = await bridge.provider.hasProviderApiKey('deepseek');
-    expect(has.ok && has.data).toBe(true);
+    expect(has.ok && has.data).toBe(false);
   });
 
-  it('fetchProviderModels returns the deepseek catalog', async () => {
+  it('fetchProviderModels returns the deepseek catalog (fromFallback)', async () => {
     const bridge = createBridge();
     const result = await bridge.provider.fetchProviderModels('deepseek');
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
     }
-    expect(result.data.map((m) => m.id)).toEqual([
+    expect(result.data.fromFallback).toBe(true);
+    expect(result.data.models.map((m) => m.id)).toEqual([
       'deepseek-chat',
       'deepseek-v4-flash',
       'deepseek-v4-pro',
@@ -222,15 +224,85 @@ describe('preview-model provider bridge', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, { headers: Record<string, string> }];
     expect(url).toBe('https://api.deepseek.com/models');
     expect(init.headers.Authorization).toBe('Bearer real-key');
-    expect(result.data.map((m) => m.id)).toEqual(['deepseek-v4-flash', 'deepseek-v4-pro']);
-    expect(result.data.every((m) => m.providerId === 'deepseek')).toBe(true);
+    expect(result.data.fromFallback).toBe(false);
+    expect(result.data.models.map((m) => m.id)).toEqual(['deepseek-v4-flash', 'deepseek-v4-pro']);
+    expect(result.data.models.every((m) => m.providerId === 'deepseek')).toBe(true);
     // Fetched models must match the catalog's capabilities (incl. streaming) so
     // browser mode stays consistent with Tauri mode.
     expect(
-      result.data.every(
+      result.data.models.every(
         (m) => m.capabilities.includes('text') && m.capabilities.includes('streaming'),
       ),
     ).toBe(true);
+  });
+
+  it('fetchProviderModels uses a typed key for the call only and does not persist it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [{ id: 'deepseek-v4-flash' }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const bridge = createBridge();
+    const result = await bridge.provider.fetchProviderModels('deepseek', 'typed-key');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    const [, init] = fetchMock.mock.calls[0] as [string, { headers: Record<string, string> }];
+    expect(init.headers.Authorization).toBe('Bearer typed-key');
+    expect(result.data.fromFallback).toBe(false);
+    // The typed key must not be promoted to the saved key.
+    const has = await bridge.provider.hasProviderApiKey('deepseek');
+    expect(has.ok && has.data).toBe(false);
+  });
+
+  it('fetchProviderModels falls back to the stored key when the typed key is blank', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [{ id: 'deepseek-v4-flash' }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const bridge = createBridge();
+    await bridge.provider.setProviderApiKey('deepseek', 'stored-key');
+    const result = await bridge.provider.fetchProviderModels('deepseek', '   ');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    const [, init] = fetchMock.mock.calls[0] as [string, { headers: Record<string, string> }];
+    expect(init.headers.Authorization).toBe('Bearer stored-key');
+  });
+
+  it('fetchProviderModels performs a keyless live fetch for ollama via /api/tags', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        models: [{ name: 'llama3.1' }, { name: 'qwen2.5' }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const bridge = createBridge();
+    const result = await bridge.provider.fetchProviderModels('ollama');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toBe('http://localhost:11434/api/tags');
+    expect(result.data.fromFallback).toBe(false);
+    expect(result.data.models.map((m) => m.id)).toEqual(['llama3.1', 'qwen2.5']);
+    expect(result.data.models.every((m) => m.providerId === 'ollama')).toBe(true);
   });
 
   it('fetchProviderModels falls back to the catalog when the request fails', async () => {
@@ -245,7 +317,8 @@ describe('preview-model provider bridge', () => {
     if (!result.ok) {
       return;
     }
-    expect(result.data.map((m) => m.id)).toEqual([
+    expect(result.data.fromFallback).toBe(true);
+    expect(result.data.models.map((m) => m.id)).toEqual([
       'deepseek-chat',
       'deepseek-v4-flash',
       'deepseek-v4-pro',

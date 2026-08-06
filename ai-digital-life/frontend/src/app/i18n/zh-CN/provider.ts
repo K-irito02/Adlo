@@ -46,4 +46,5 @@ export const providerZh = {
   providerKeyClearFailed: 'API 密钥清除失败，请重试',
   providerFetchModelsSuccess: '已获取 {count} 个模型',
   providerFetchModelsFailed: '获取模型失败，请检查 API 密钥与 Base URL 后重试',
+  providerFetchModelsFallback: '无法获取最新模型，已显示已保存的模型列表',
 } as const;

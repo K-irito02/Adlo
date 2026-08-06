@@ -37,9 +37,9 @@ export const mockProvider: ProviderBridge = {
       ? { connected: true, error: null }
       : { connected: false, error: 'mock: no connection' },
   }),
-  fetchProviderModels: async (providerId: string) => ({
+  fetchProviderModels: async (providerId: string, _apiKey?: string) => ({
     ok: true,
-    data: MODEL_CATALOG.find((p) => p.id === providerId)?.models ?? [],
+    data: { models: MODEL_CATALOG.find((p) => p.id === providerId)?.models ?? [], fromFallback: true },
   }),
   addCustomProvider: async (
     _name: string,

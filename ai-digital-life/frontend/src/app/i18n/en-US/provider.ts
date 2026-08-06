@@ -47,4 +47,5 @@ export const providerEn = {
   providerKeyClearFailed: 'Failed to clear API key. Please try again.',
   providerFetchModelsSuccess: 'Fetched {count} models',
   providerFetchModelsFailed: 'Failed to fetch models. Please check the API key and Base URL.',
+  providerFetchModelsFallback: 'Could not fetch the latest models — showing the saved model list.',
 } as const;

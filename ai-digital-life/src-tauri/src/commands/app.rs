@@ -68,18 +68,26 @@ pub fn app_get_diagnostics(
 }
 
 #[tauri::command]
-pub fn app_get_model_health(
+pub async fn app_get_model_health(
     state: tauri::State<'_, AppState>,
-) -> IpcResult<ModelGatewayHealthSnapshot> {
-    crate::commands::ipc_try(|| {
-        let config =
-            state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
-        let gateway = adl_model_gateway::ModelGateway::new(
-            config.model_preferences.clone(),
-            state.provider_registry.clone(),
-        )?;
-        Ok(gateway.health())
+) -> Result<IpcResult<ModelGatewayHealthSnapshot>, CommandError> {
+    // Snapshot config + registry, then run health (which does per-provider
+    // credential reads) on a blocking thread so keyring I/O never stalls the
+    // async runtime.
+    let config = state
+        .config
+        .read()
+        .map_err(|_| AppError::Internal("config lock poisoned".into()))?
+        .model_preferences
+        .clone();
+    let registry = state.provider_registry.clone();
+    let result = tokio::task::spawn_blocking(move || {
+        let gateway = adl_model_gateway::ModelGateway::new(config, registry)?;
+        Ok::<ModelGatewayHealthSnapshot, AppError>(gateway.health())
     })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?;
+    Ok(ipc(result))
 }
 
 /// 将单个 provider 的 preference patch 合并到已有配置；`None` 字段保持原值不变。

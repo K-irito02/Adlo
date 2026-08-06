@@ -79,10 +79,16 @@ export const MODEL_CATALOG: CatalogProvider[] = [
         ['text', 'vision', 'tooluse', 'streaming'],
         { tier: 'standard', contextWindow: 200000 },
       ),
-      model('claude-3-opus-20240229', 'anthropic', 'Claude 3 Opus', ['text', 'vision', 'tooluse'], {
-        tier: 'premium',
-        contextWindow: 200000,
-      }),
+      model(
+        'claude-3-opus-20240229',
+        'anthropic',
+        'Claude 3 Opus',
+        ['text', 'vision', 'tooluse', 'streaming'],
+        {
+          tier: 'premium',
+          contextWindow: 200000,
+        },
+      ),
     ],
   },
   {

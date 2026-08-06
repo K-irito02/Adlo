@@ -77,31 +77,48 @@ fn fallback_models(def: &ProviderDefinition) -> Vec<ModelDefinition> {
 /// Resolve the API key to use for a connection test / model fetch: the key the
 /// user just typed into the settings UI wins over the persisted credential, and
 /// a blank/absent typed key falls back to what is stored for the provider.
-fn resolve_api_key(passed: Option<String>, provider_id: &str) -> String {
-    passed
-        .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| adl_model_gateway::get_provider_secret(provider_id).unwrap_or_default())
+fn resolve_api_key(passed: Option<String>, stored: &str) -> String {
+    passed.filter(|s| !s.trim().is_empty()).unwrap_or_else(|| stored.to_string())
+}
+
+/// Read a provider's persisted credential off the async runtime thread.
+///
+/// Keyring / encrypted-file access can block (D-Bus on Linux, Windows Credential
+/// Manager), so it must never run on the tokio executor directly. Returns an
+/// empty string when no credential exists.
+async fn read_stored_key(provider_id: &str) -> String {
+    let pid = provider_id.to_string();
+    tokio::task::spawn_blocking(move || adl_model_gateway::get_provider_secret(&pid))
+        .await
+        .ok()
+        .and_then(|r| r.ok())
+        .unwrap_or_default()
 }
 
 #[tauri::command]
 pub async fn list_providers(
     state: tauri::State<'_, crate::state::AppState>,
 ) -> CmdResult<Vec<ProviderStatus>> {
-    let result = (|| -> Result<Vec<ProviderStatus>, AppError> {
+    // Snapshot owned data under the locks, then run the per-provider credential
+    // reads (has_key) on a blocking thread so keyring I/O never stalls the async
+    // runtime while holding the registry lock.
+    let (defs, prefs) = {
         let config =
             state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
-        let prefs = &config.model_preferences.providers;
+        let prefs = config.model_preferences.providers.clone();
         let registry = state
             .provider_registry
             .read()
             .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?;
-        Ok(registry
-            .list_all()
-            .into_iter()
-            .map(|def| map_def_to_status(def, prefs.get(&def.id)))
-            .collect())
-    })();
-    Ok(ipc(result))
+        let defs: Vec<ProviderDefinition> = registry.list_all().into_iter().cloned().collect();
+        (defs, prefs)
+    };
+    let result = tokio::task::spawn_blocking(move || {
+        defs.into_iter().map(|def| map_def_to_status(&def, prefs.get(&def.id))).collect::<Vec<_>>()
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?;
+    Ok(ipc(Ok(result)))
 }
 
 #[tauri::command]
@@ -111,8 +128,15 @@ pub async fn test_provider_connection(
     state: tauri::State<'_, crate::state::AppState>,
 ) -> CmdResult<ConnectionTestResult> {
     // Prefer the key currently typed into the settings UI; fall back to the
-    // persisted credential so testing works before a save or on reload.
-    let api_key = resolve_api_key(api_key, &provider_id);
+    // persisted credential so testing works before a save or on reload. The
+    // stored key is read off the async runtime (blocking keyring I/O) — but only
+    // when no non-blank typed key was supplied, so the common "test what I just
+    // typed" path skips the keyring read entirely.
+    let stored_key = match api_key.as_deref().map(str::trim).unwrap_or("") {
+        "" => read_stored_key(&provider_id).await,
+        _ => String::new(),
+    };
+    let api_key = resolve_api_key(api_key, &stored_key);
 
     let (adapter, base_url) = {
         let registry = state
@@ -140,13 +164,31 @@ pub async fn test_provider_connection(
     }
 }
 
+/// Result of a "fetch latest models" request. `from_fallback` lets the UI tell a
+/// live fetch apart from a silent fallback to the static/cached catalog, so it
+/// never presents a misleading "fetched N models" success toast when the live
+/// request actually failed.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FetchModelsResult {
+    pub models: Vec<ModelDefinition>,
+    /// True when the live fetch failed (or the provider has no dynamic list)
+    /// and `models` is the static/cached catalog rather than live data.
+    pub from_fallback: bool,
+}
+
 #[tauri::command]
 pub async fn fetch_provider_models(
     provider_id: String,
     api_key: Option<String>,
     state: tauri::State<'_, crate::state::AppState>,
-) -> CmdResult<Vec<ModelDefinition>> {
-    let (adapter, def, api_key) = {
+) -> CmdResult<FetchModelsResult> {
+    let stored_key = match api_key.as_deref().map(str::trim).unwrap_or("") {
+        "" => read_stored_key(&provider_id).await,
+        _ => String::new(),
+    };
+    let api_key = resolve_api_key(api_key, &stored_key);
+    let (adapter, def, base_url) = {
         let registry = state
             .provider_registry
             .read()
@@ -158,30 +200,31 @@ pub async fn fetch_provider_models(
             .get(&provider_id)
             .ok_or_else(|| AppError::NotFound(format!("provider '{}' not found", provider_id)))?
             .clone();
-        let api_key = resolve_api_key(api_key, &provider_id);
         let base_url = def.default_base_url.clone().unwrap_or_default();
-        (adapter, def, (api_key, base_url))
+        (adapter, def, base_url)
     };
-    let (api_key, base_url) = api_key;
     let result = if adapter.supports_dynamic_models() {
         match adapter.fetch_models(&api_key, &base_url).await {
             // Re-tag every fetched model with the provider that owns this
             // request. Adapters (e.g. OpenAIProvider used by DeepSeek / MiniMax
             // / custom OpenAI-compatible providers) may stamp a generic
             // provider id that would otherwise mislabel the models.
-            Ok(models) if !models.is_empty() => Ok(models
-                .into_iter()
-                .map(|mut m| {
-                    m.provider_id = provider_id.clone();
-                    m
-                })
-                .collect()),
-            _ => Ok(fallback_models(&def)),
+            Ok(models) if !models.is_empty() => FetchModelsResult {
+                models: models
+                    .into_iter()
+                    .map(|mut m| {
+                        m.provider_id = provider_id.clone();
+                        m
+                    })
+                    .collect(),
+                from_fallback: false,
+            },
+            _ => FetchModelsResult { models: fallback_models(&def), from_fallback: true },
         }
     } else {
-        Ok(fallback_models(&def))
+        FetchModelsResult { models: fallback_models(&def), from_fallback: true }
     };
-    Ok(ipc(result))
+    Ok(ipc(Ok(result)))
 }
 
 fn validate_provider_url(url: &str) -> Result<(), AppError> {
@@ -774,15 +817,14 @@ mod tests {
 
     #[test]
     fn resolve_api_key_prefers_typed_key_over_stored() {
-        assert_eq!(resolve_api_key(Some("sk-typed".to_string()), "deepseek"), "sk-typed");
+        assert_eq!(resolve_api_key(Some("sk-typed".to_string()), "sk-stored"), "sk-typed");
     }
 
     #[test]
     fn resolve_api_key_blank_typed_key_falls_back_to_stored() {
-        // No credential is guaranteed to exist for a random provider id, so the
-        // fallback resolves to an empty string deterministically.
-        assert_eq!(resolve_api_key(Some("   ".to_string()), "no-such-provider"), "");
-        assert_eq!(resolve_api_key(None, "no-such-provider"), "");
+        let stored = "sk-stored";
+        assert_eq!(resolve_api_key(Some("   ".to_string()), stored), "sk-stored");
+        assert_eq!(resolve_api_key(None, stored), "sk-stored");
     }
 
     #[test]
