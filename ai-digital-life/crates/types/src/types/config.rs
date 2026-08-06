@@ -206,8 +206,9 @@ pub struct ModelProviderPreferencePatch {
     /// 三态语义：缺省(JSON absent)→None(保留原值)；显式 null→Some(None)=全部启用；
     /// 数组→Some(Some(list))=白名单(空数组=全部关闭)。
     /// `deserialize_with` 使 JSON null 反序列化为 `Some(None)`（显式"全部启用"），
-    /// 而非与"缺省"相同的 `None`。ts-rs 无法解析 `deserialize_with` 会在构建时告警但忽略
-    /// （ipc-types.generated.ts 为手工维护，不受影响），clippy `-D warnings` 不受影响。
+    /// 而非与"缺省"相同的 `None`。ts-rs 无法解析 `deserialize_with`（纯运行时反序列化语义，
+    /// 且该结构体未 `#[ts(export)]`，前端类型来自手工维护的 ipc-types.generated.ts），
+    /// 已通过 ts-rs 依赖的 `no-serde-warnings` feature 抑制其构建告警。
     #[ts(optional)]
     #[serde(default, deserialize_with = "deserialize_enabled_models")]
     pub enabled_models: Option<Option<Vec<String>>>,
@@ -215,7 +216,9 @@ pub struct ModelProviderPreferencePatch {
 
 /// 使 JSON `null` → `Some(None)`（显式"全部启用"），JSON 数组 → `Some(Some(list))`。
 /// 缺省（键不存在）由 `#[serde(default)]` 提供外层 `None`。
-fn deserialize_enabled_models<'de, D>(deserializer: D) -> Result<Option<Option<Vec<String>>>, D::Error>
+fn deserialize_enabled_models<'de, D>(
+    deserializer: D,
+) -> Result<Option<Option<Vec<String>>>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {

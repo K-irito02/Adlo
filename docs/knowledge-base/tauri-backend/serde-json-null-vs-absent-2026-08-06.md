@@ -41,8 +41,11 @@ where D: serde::Deserializer<'de> {
    `deserialize_with`（或手动 `Deserialize`）。
 2. 单测不要只构造 Rust 结构直接测试合并逻辑——它会**绕过反序列化**给出假信心。必须加
    `serde_json::from_str` 往返测试覆盖真实 IPC 输入。
-3. ts-rs 无法解析 `deserialize_with`，会在构建时告警但忽略（`ipc-types.generated.ts` 为手工维护
-   不受影响），clippy `-D warnings` 不失败。用 `#[ts(optional)]` + `#[serde(default, deserialize_with)]`
+3. ts-rs 无法解析 `deserialize_with`（ts-rs-macros 字段级 serde 解析仅识别 rename/skip/flatten/
+   default/with），会在构建时打印 "failed to parse serde attribute" 告警但忽略。全仓库仅此一处时，
+   可在 ts-rs 依赖启用官方 `no-serde-warnings` feature 抑制该告警（源码级实证：该 feature 仅门控
+   `parse_serde_attrs` 的告警打印段，`None` 回退与类型生成逻辑无条件执行，不改变任何 TS 输出；
+   `#[ts(optional)]` 已显式声明可选性）。用 `#[ts(optional)]` + `#[serde(default, deserialize_with)]`
    组合即可，勿用 `#[ts(serde_attr)]`（当前 ts-rs 版本不支持）。
 4. 双端一致规则要求：前端合并器（preferencesMerger）用 `'enabledModels' in patch` 区分显式 null，
    与 Rust `deserialize_with` 语义严格对齐。

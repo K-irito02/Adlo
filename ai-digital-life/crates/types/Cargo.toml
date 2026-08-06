@@ -14,4 +14,4 @@ chrono.workspace = true
 adl-errors = { path = "../errors" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-ts-rs = { version = "10", features = ["serde-compat", "serde-json-impl"] }
+ts-rs = { version = "10", features = ["serde-compat", "serde-json-impl", "no-serde-warnings"] }
