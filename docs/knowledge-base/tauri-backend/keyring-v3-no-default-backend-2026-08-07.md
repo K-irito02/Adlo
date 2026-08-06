@@ -37,7 +37,26 @@ Tauri 桌面应用"保存 API 密钥后，重启即丢失"。排查发现密钥�
   Linux D-Bus 都会阻塞 worker）；且不要在持有 registry/config 锁时做阻塞 I/O
   （先快照 owned 数据出锁，再在 blocking 线程里读凭据）。
 
+## 后续演进（同日补充）
+
+探测兜底方案在收尾复审中进一步收敛为**进程级一次性探测 + 缓存**：
+
+- **问题**：`try_new` 每次 `CredentialStore::new` 都执行一次阻塞 `get_password()` 探测；
+  若 keychain 可用性在进程内翻转（D-Bus 拉起、钥匙串锁定/解锁），可能写入 keyring 却从加密
+  文件读取（或反之），表现为"密钥偶发丢失"（flip-flop）。
+- **修复**：`KEYRING_USABLE: OnceLock<bool>` 在进程首次构造时探测一次并固化后端选择；
+  探测身份用固定 `ai-digital-life-probe`/`availability`（只读、无残留、三平台均映射
+  `NoEntry` 为可用）。每次构造不再重复阻塞探测。
+- **取舍（已文档化）**：决策只对当前进程有效——跨启动后端漂移仍在（进程 A 探测失败写文件、
+  进程 B 探测成功读 keyring 时看不到）。完整根治需读端双后端兜底，列为未来工作。
+- **健壮性**：探测包 `std::panic::catch_unwind`（仅守护 unwind 构建；release `panic=abort`
+  下 abort 视为致命，探测本身无 unwrap/expect 故风险极低）；keyring 不可用与探测 panic
+  分别告警，均为进程级一次。
+- **错误分类**：加密文件后端的环境类 IO 失败（`create_dir_all`/`fs::write`/读/删）归
+  `AppError::Io`，加密/格式错误保持 `AppError::Storage`；跨进程持久化测试据此只在
+  "文件后端 + Io 错误"时跳过，keyring 写入失败或文件加密失败仍 panic（不掩盖真实回归）。
+
 ## 相关
 
-- 进度：`docs/root-cause-resolution/2026-08/progress-2026-08-06-225928.md`
+- 进度：`docs/root-cause-resolution/2026-08/progress-2026-08-06-225928.md`、`progress-2026-08-07-100000.md`
 - 同类：`tauri-sync-command-blocking-2026-07-14.md`（异步命令阻塞 I/O）
