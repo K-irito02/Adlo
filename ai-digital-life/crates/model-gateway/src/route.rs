@@ -9,8 +9,8 @@
 //! [`select_provider`] tries each provider in route order and returns the
 //! first successful response or the last error.
 
-use adl_types::{ModelChatMessage, ModelPreferences, ModelResponse};
 use adl_types::config::ModelProviderPreference;
+use adl_types::{ModelChatMessage, ModelPreferences, ModelResponse};
 
 use crate::ModelGateway;
 use crate::fallback::default_model;
@@ -90,9 +90,7 @@ pub(crate) async fn select_provider_for_model(
         None => true,
     };
     if !allowed {
-        return Err(Some(format!(
-            "model '{model_id}' is disabled for provider '{provider_id}'"
-        )));
+        return Err(Some(format!("model '{model_id}' is disabled for provider '{provider_id}'")));
     }
     match crate::provider::call_provider(gateway, provider_id, model_id, messages).await {
         Ok(response) => Ok((provider_id.to_string(), model_id.to_string(), response)),
@@ -115,10 +113,7 @@ mod tests {
 
     #[test]
     fn resolve_none_uses_model_id() {
-        assert_eq!(
-            resolve_model_id(&pref(None)),
-            Some("default-model".to_string())
-        );
+        assert_eq!(resolve_model_id(&pref(None)), Some("default-model".to_string()));
     }
 
     #[test]
@@ -131,10 +126,7 @@ mod tests {
 
     #[test]
     fn resolve_list_without_model_id_falls_back_to_first() {
-        assert_eq!(
-            resolve_model_id(&pref(Some(vec!["a", "b"]))),
-            Some("a".to_string())
-        );
+        assert_eq!(resolve_model_id(&pref(Some(vec!["a", "b"]))), Some("a".to_string()));
     }
 
     #[test]
