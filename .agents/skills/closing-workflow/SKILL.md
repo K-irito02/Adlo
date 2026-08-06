@@ -1,6 +1,6 @@
 ---
 name: closing-workflow
-description: End-of-work closing procedures after completing code changes, bug fixes, or feature implementations. Performs log review, multi-agent parallel code review with mandatory fixes, quality checks, mandatory doc sync, and cleanup.
+description: End-of-work mandatory closing procedures. Invoke after completing all code changes, bug fixes, or feature implementations in a conversation session. Performs environment check, log review, multi-agent parallel code review with mandatory fixes, quality gates, doc sync, and cleanup.
 ---
 
 # Closing Workflow
@@ -16,7 +16,7 @@ description: End-of-work closing procedures after completing code changes, bug f
 - 本轮对话中所有开发任务已完成，准备结束工作时
 - 用户明确要求执行收尾流程
 
-> 不要在每次代码编辑后触发，应在整轮工作完成、准备收尾时触发。
+> 不要在每次代码编辑后触发，应在整轮工作完成、准备收尾时触发。此技能与 `mandatory-testing.md` 规则互补：`mandatory-testing.md` 在每次代码变更后自动触发（轻量级验证），本技能在整轮对话收尾时触发（全面审查 + 文档同步 + 清理）。
 
 ---
 
@@ -24,14 +24,7 @@ description: End-of-work closing procedures after completing code changes, bug f
 
 ### 环境准备
 
-Windows 终端须设置 PATH（Trae PowerShell 不自动继承系统 PATH）：
-
-```powershell
-$env:Path = "D:\Program Files\nodejs;$env:Path"
-$env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
-```
-
-所有命令默认在 `ai-digital-life/` 目录执行。
+执行命令前按 `commands.md` 设置 PATH（Node.js + Rust）。所有命令默认在 `ai-digital-life/` 目录执行。
 
 ### 工作区状态
 
@@ -55,7 +48,7 @@ Get-ChildItem "ai-digital-life\src-tauri\target\debug\incremental" -ErrorAction 
 
 日志文件已被 `.gitignore` 排除，**Glob/Grep 无法找到它们**，必须使用 **LS/Read** 直接操作。
 
-**只分析最新日志：** 各日志目录可能存在多个历史文件，其中大部分是旧日志，非本次工作产生。逐项检查时，先 `LS` 列出并按 `LastWriteTime` 取**最新**的一个文件分析，忽略其余旧文件。同名覆盖式文件（`debug-logs.txt` 等）直接读取。
+**只分析最新日志：** 各日志目录可能存在多个历史文件。逐项检查时，先 `LS` 列出并按 `LastWriteTime` 取**最新**的一个文件分析，忽略其余旧文件。同名覆盖式文件（`debug-logs.txt` 等）直接读取。
 
 ### 检查清单
 
@@ -86,24 +79,27 @@ Get-ChildItem "ai-digital-life\src-tauri\target\debug\incremental" -ErrorAction 
 
 ### 2a. 收集变更
 
-三类变更独立采集后合并：
+三类变更独立采集：
 
-| 类型 | 命令 |
-|------|------|
-| 未暂存 | `git diff` |
-| 已暂存 | `git diff --cached` |
-| 已提交本地 | `git diff origin/HEAD..HEAD`（若分支无 upstream 则跳过） |
+| 类型 | 命令 | 说明 |
+|------|------|------|
+| 未暂存 + 已暂存 | `git diff HEAD` | 涵盖所有未提交变更 |
+| 已提交本地 | `git diff origin/HEAD..HEAD` | 若分支无 upstream 则跳过 |
 
 **规则：**
 - 已推送至远程的代码不纳入审查
 - 根据对话记录回顾本次修改的文件，与上述命令交叉验证变更集
-- 三类均无变更 → 跳过 Step 2
+- 两类均无变更 → 跳过 Step 2
 
 **Diff 快照预生成：** 合并后的变更一次性写入快照文件，供子代理直接读取，**不在终端重复执行 git 命令**：
 
 1. 在仓库根创建临时目录 `.review-diffs/`（已加入 `.gitignore`，Step 5 清理时删除）
-2. 生成完整快照：`git diff > .review-diffs/rev<N>.diff`（含未暂存 + 已暂存 + 已提交本地三类合并结果）
-3. 每个任务从完整快照中提取相关变更子集，生成独立快照：`.review-diffs/<task>-rev<N>.diff`；多任务修改同一文件时，给完整 diff 但明确指定审查范围
+2. 生成合并快照（合并两类变更，去重）：
+   ```powershell
+   git diff HEAD > .review-diffs/rev<N>.diff
+   git diff origin/HEAD..HEAD >> .review-diffs/rev<N>.diff
+   ```
+3. 每个任务从完整快照中提取相关变更子集，生成独立快照：`.review-diffs/<task>-rev<N>.diff`
 4. 子代理 prompt 中直接给出快照文件路径，令其 Read 该文件，而非自行 `git diff`
 5. 每轮修复后重新生成快照（rev 递增，如 `rev1` → `rev2`），供下一轮复审使用
 
@@ -111,9 +107,7 @@ Get-ChildItem "ai-digital-life\src-tauri\target\debug\incremental" -ErrorAction 
 
 按已解决的任务数量派发子代理，每个 Agent 对分配的任务做**全面审查**（技术方案、设计、正确性、安全、性能、最佳实践），而非单一维度。
 
-**Agent 数量：** 1 个任务 → 1 Agent；2+ 个任务 → N Agent（N=任务数，>5 时合并小型任务）。
-
-**素材准备：** 为每个任务从 `.review-diffs/<task>-rev<N>.diff` 快照中提取相关变更文件子集。多任务修改同一文件时，给完整 diff 但明确指定审查范围。
+**Agent 数量：** 1 个任务 → 1 Agent；2+ 个任务 → N Agent（N=任务数；>5 时合并变更量 < 50 行的小型任务）。
 
 **并行派发：** 在同一条消息中同时派发 N 个 Task（`subagent_type: "general_purpose_task"`），使用以下 prompt 模板：
 
@@ -164,7 +158,6 @@ Use Read to load the diff snapshot file: .review-diffs/<task>-rev<N>.diff (do NO
 **迭代控制：**
 - 每轮修复后必须重新运行多Agent审查，不可凭主代理判断跳过
 - 每轮修复后重新生成快照（rev 递增），下一轮子代理按**最新完整快照全量重看**（不得只看增量或复用过期快照）
-- 基于当前完整 diff 审查，而非仅审查上次问题点
 - 同一问题 3 轮仍未解决 → 向用户报告并等待指示
 
 **完成条件：** 所有 Agent 确认零问题。
@@ -173,32 +166,31 @@ Use Read to load the diff snapshot file: .review-diffs/<task>-rev<N>.diff (do NO
 
 ## Step 3: 代码质量检测
 
-> 此步骤与 `mandatory-testing.md` 规则一致。若本轮对话中已完整执行过（Lint + Format + Typecheck + Tests 全部通过），则跳过；否则运行全部。
+> 此步骤与 `mandatory-testing.md` 规则一致。若本轮对话中已完整执行过全量质量检测（Lint + Format + Typecheck + Tests 全部通过），则跳过；否则运行全部。
+
+**与 `mandatory-testing.md` 的关系：**
+- `mandatory-testing.md`：每次代码变更后自动触发（轻量级，按变更层级选择测试范围）
+- 本 Step 3：收尾时执行**全量**质量检测（确保累计变更无回归）
 
 **分级验证（避免冗余全量测试）：**
 
 | 时机 | 执行范围 |
 |------|---------|
-| Step 2 循环内每轮修复后 | 只跑受影响部分：Rust `cargo test -p <受影响crate>`、前端 `vitest run <受影响测试文件>`；保持 clippy/tsc 通过即可，**不跑全量** |
+| Step 2 循环内每轮修复后 | 只跑受影响部分：Rust `cargo test -p <受影响crate>`（通过 `git diff --name-only` 定位变更文件所属 crate）、前端 `vitest run <受影响测试文件>`（匹配 `__tests__/` 目录）；保持 clippy/tsc 通过即可，**不跑全量** |
 | 全部审查完成后（仅一次） | 全量质量检测：见下方"执行" |
 
 ### 执行（前后端并行）
 
-> **并行执行：** 在同一条消息中发两个 bash 命令（前端一组、后端一组），等待全部返回，禁止顺序串行执行。
+> **并行执行：** 在同一条消息中发两个命令（前端一组、后端一组），等待全部返回，禁止顺序串行执行。
 
 **前端：**
 ```powershell
-pnpm --dir frontend run lint:fix
-pnpm --dir frontend run format
-pnpm --dir frontend run typecheck
-pnpm --dir frontend run test
+pnpm --dir frontend run lint:fix; pnpm --dir frontend run format; pnpm --dir frontend run typecheck; pnpm --dir frontend run test
 ```
 
 **后端：**
 ```powershell
-cargo fmt --all
-cargo clippy --workspace --all-targets --fix -- -D warnings
-cargo test --workspace
+cargo fmt --all; cargo clippy --workspace --all-targets --fix -- -D warnings; cargo test --workspace
 ```
 
 > `cargo check --workspace` 不单独执行：`cargo clippy --all-targets` 已覆盖编译检查，避免与 `cargo test` 重复编译。
@@ -238,13 +230,15 @@ cargo test --workspace
 
 ### 4c. 同步规则
 
-- 规则更新：同步 `.agents/rules/`（真源）和 `.trae/rules/`（副本）
-- 技能更新：同步 `.opencode/skills/`（真源）、`.agents/skills/`、`.trae/skills/`
+- 规则更新：以 `.agents/rules/` 为真源，同步到 `.trae/rules/`
+- 技能更新：以 `.opencode/skills/` 为真源，同步到 `.agents/skills/`、`.trae/skills/`
 - 同步后检查 `.gitignore` 确保必要文件被 Git 跟踪
 
 ### 4d. 设计规范提取
 
-回顾 UI/UX 决策与交互模式，判断是否可确立为项目标准并更新相关文档。
+回顾本轮涉及的 UI/UX 决策与交互模式，若满足以下条件则提取为项目标准并更新相关文档：
+- 引入了新的可复用交互模式
+- 对现有设计规范有实质性补充或修正
 
 **完成条件：** 所有相关文档已更新，在最终总结中列出具体更新的文件。
 
@@ -298,7 +292,7 @@ cargo test --workspace
 |------|------|----------|----------|
 | 0 | 环境 PATH + 工作区状态 + 磁盘空间 | `git branch`/`git status` | 环境就绪 |
 | 1 | 检查日志（**用 LS/Read，只看最新日志**） | LS/Read | 无 P0/P1 问题 |
-| 2 | 采集变更 → 生成 diff 快照 → 按任务并行审查 → 合并 → 强制修复循环（每轮重新生成快照） | `git diff` + Task（N 并行） + AskUserQuestion | 所有 Agent 零问题 |
+| 2 | 采集变更（`git diff HEAD` + `origin/HEAD..HEAD`）→ 生成 diff 快照 → 按任务并行审查 → 合并 → 强制修复循环（每轮重新生成快照） | `git diff` + Task（N 并行） + AskUserQuestion | 所有 Agent 零问题 |
 | 3 | Lint/Format/Typecheck/Tests（**前后端并行**，循环内定向测试、收尾全量） | ESLint/Prettier/Clippy/rustfmt/tsc/vitest/cargo test | 零警告零错误 |
 | 4 | **强制**文档同步，提取规则与设计规范 | Write/Edit + 同步 | 逐项检查完成，列出具体文件 |
 | 5 | 清理临时/调试文件（按 LastWriteTime 判断年龄） | DeleteFile + PowerShell | 目录干净 |
@@ -308,12 +302,37 @@ cargo test --workspace
 
 ## Red Flags
 
-**流程：** 跳过前置检查（PATH 未设） · 串行派发 Task（非真正并行） · 按维度拆分而非按任务 · 一次性审查后未循环 · 发现问题未实际修复代码 · 仅跑 Lint 跳过 typecheck/test
+### 流程
+- 跳过前置检查（PATH 未设）
+- 串行派发 Task（非真正并行）
+- 按维度拆分审查而非按任务
+- 一次性审查后未循环
+- 发现问题未实际修复代码
+- 仅跑 Lint 跳过 typecheck/test
 
-**变更采集：** 遗漏未暂存/已暂存/已提交本地某类变更 · 将已推送代码纳入审查 · `origin/HEAD..HEAD` 失败未降级 · 3 轮未解决未报告 · 未生成 diff 快照 / 子代理在终端自行 `git diff` · 复审复用过期快照或只看增量
+### 变更采集
+- 遗漏未暂存/已暂存/已提交本地某类变更
+- 将已推送代码纳入审查
+- `origin/HEAD..HEAD` 失败未降级
+- 3 轮未解决未报告
+- 未生成 diff 快照 / 子代理在终端自行 `git diff`
+- 复审复用过期快照或只看增量
 
-**审查修复：** 多Agent结果未去重/未按 severity 排序 · 引入无关变更 · 测试失败未分析根因直接重试 · 修复后未重新检查
+### 审查修复
+- 多Agent结果未去重/未按 severity 排序
+- 引入无关变更
+- 测试失败未分析根因直接重试
+- 修复后未重新检查
 
-**同步：** 跳过 Step 4 文档同步 · 规则更新遗漏 `.trae/rules/` · 技能修改未三目录同步 · 以计划文档/commit 替代文档同步
+### 文档同步
+- 跳过 Step 4 文档同步
+- 规则更新遗漏 `.trae/rules/`
+- 技能修改未三目录同步
+- 以计划文档/commit 替代文档同步
 
-**其他：** 使用 Glob/Grep 搜索日志 · 删除文件前未确认存在 · 清理未用 LastWriteTime · 执行破坏性 git 操作 · 自动提交未确认变更
+### 其他
+- 使用 Glob/Grep 搜索日志
+- 删除文件前未确认存在
+- 清理未用 LastWriteTime
+- 执行破坏性 git 操作
+- 自动提交未确认变更
