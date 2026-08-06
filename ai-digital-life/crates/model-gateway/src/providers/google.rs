@@ -12,7 +12,12 @@ use std::error::Error as _;
 
 pub const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
 
+/// The Google Generative Language API returns camelCase field names
+/// (`displayName`, `supportedGenerationMethods`); without this rename the
+/// fields always deserialize to None/[] and every live fetch silently falls
+/// back to the static catalog.
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct GoogleModelItem {
     name: String,
     #[serde(default)]
@@ -351,6 +356,25 @@ mod tests {
     fn default_uses_official_endpoint() {
         let p = GoogleProvider::new();
         assert_eq!(p.base_url, "https://generativelanguage.googleapis.com/v1beta");
+    }
+
+    #[test]
+    fn google_models_response_parses_camel_case_fields() {
+        // The live API returns camelCase; the model item must deserialize
+        // displayName + supportedGenerationMethods so fetch_models does not
+        // silently fall back to the catalog.
+        let json = serde_json::json!({
+            "models": [{
+                "name": "models/gemini-2.0-flash",
+                "displayName": "Gemini 2.0 Flash",
+                "supportedGenerationMethods": ["generateContent", "countTokens"]
+            }]
+        });
+        let body: GoogleModelsResponse = serde_json::from_value(json).expect("parse camelCase");
+        assert_eq!(body.models.len(), 1);
+        let m = &body.models[0];
+        assert_eq!(m.display_name.as_deref(), Some("Gemini 2.0 Flash"));
+        assert!(m.supported_generation_methods.iter().any(|s| s == "generateContent"));
     }
 
     #[tokio::test]

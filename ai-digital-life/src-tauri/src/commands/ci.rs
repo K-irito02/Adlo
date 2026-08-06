@@ -2,6 +2,20 @@ use crate::commands::ipc;
 use adl_ci_status::CiStatusClient;
 use adl_types::{CiJobLogMap, CiRepoConfig, CiStatusSnapshot, IpcResult};
 
+/// Read the CI access token off the async runtime (blocking keyring/file I/O
+/// must run on a `spawn_blocking` thread, never on the tokio executor). A join
+/// failure is logged and degrades to `None`, same as an absent token — reads
+/// may safely degrade, whereas `ci_set_access_token` / `ci_clear_access_token`
+/// surface join failures as `AppError::Internal` because a write must never
+/// silently succeed.
+async fn read_ci_access_token() -> Option<String> {
+    tokio::task::spawn_blocking(adl_credential::get_ci_access_token)
+        .await
+        .inspect_err(|e| tracing::warn!(error = %e, "CI credential read task panicked"))
+        .ok()
+        .flatten()
+}
+
 #[tauri::command]
 pub async fn ci_get_status(config: CiRepoConfig) -> IpcResult<CiStatusSnapshot> {
     ipc(async move {
@@ -9,7 +23,7 @@ pub async fn ci_get_status(config: CiRepoConfig) -> IpcResult<CiStatusSnapshot> 
         // 如果前端没传 token，尝试从 credential store 读取
         let access_token = match &config.access_token {
             Some(t) if !t.trim().is_empty() => Some(t.clone()),
-            _ => adl_credential::get_ci_access_token(),
+            _ => read_ci_access_token().await,
         };
         let effective_config = CiRepoConfig { access_token, ..config };
         client
@@ -41,9 +55,11 @@ pub async fn ci_get_status_without_token(
 #[tauri::command]
 pub async fn ci_set_access_token(token: String) -> IpcResult<bool> {
     ipc(async move {
-        adl_credential::set_ci_access_token(token.trim())
+        let token = token.trim().to_string();
+        tokio::task::spawn_blocking(move || adl_credential::set_ci_access_token(&token))
+            .await
+            .map_err(|e| adl_errors::AppError::Internal(format!("spawn_blocking failed: {e}")))?
             .map(|_| true)
-            .map_err(|e| adl_errors::AppError::Security(e.to_string()))
     }
     .await)
 }
@@ -52,9 +68,10 @@ pub async fn ci_set_access_token(token: String) -> IpcResult<bool> {
 #[tauri::command]
 pub async fn ci_clear_access_token() -> IpcResult<bool> {
     ipc(async move {
-        adl_credential::delete_ci_access_token()
+        tokio::task::spawn_blocking(adl_credential::delete_ci_access_token)
+            .await
+            .map_err(|e| adl_errors::AppError::Internal(format!("spawn_blocking failed: {e}")))?
             .map(|_| true)
-            .map_err(|e| adl_errors::AppError::Security(e.to_string()))
     }
     .await)
 }
@@ -62,7 +79,7 @@ pub async fn ci_clear_access_token() -> IpcResult<bool> {
 /// 读取 CI access token 是否存在（不回显 token 内容，仅返回是否存在）
 #[tauri::command]
 pub async fn ci_has_access_token() -> IpcResult<bool> {
-    ipc(async move { Ok(adl_credential::get_ci_access_token().is_some()) }.await)
+    ipc(async move { Ok(read_ci_access_token().await.is_some()) }.await)
 }
 
 /// 获取指定 Workflow Run 的 Job 日志（解压 ZIP，返回 job_id → log_text 映射）
@@ -72,7 +89,7 @@ pub async fn ci_get_job_logs(config: CiRepoConfig, run_id: u64) -> IpcResult<CiJ
         let client = CiStatusClient::new();
         let access_token = match &config.access_token {
             Some(t) if !t.trim().is_empty() => Some(t.clone()),
-            _ => adl_credential::get_ci_access_token(),
+            _ => read_ci_access_token().await,
         };
         let effective_config = CiRepoConfig { access_token, ..config };
         client

@@ -24,17 +24,27 @@ pub struct SearchResultItem {
 /// Search the web using Tavily API (AI-optimized search).
 /// API key is retrieved from the credential store.
 pub async fn websearch(query: &str) -> WebSearchResult {
-    let api_key = match get_search_api_key() {
-        Some(k) => k,
-        None => {
-            return WebSearchResult {
-                query: query.to_string(),
-                results: vec![],
-                error: Some(
-                    "No search API key configured. Set Tavily API key in settings.".to_string(),
-                ),
-            };
-        },
+    let api_key = {
+        // Blocking keyring/credential-file I/O must never run on the tokio
+        // executor (D-Bus / Windows Credential Manager can block). Read the key
+        // on a blocking thread; a join failure is logged and degrades to the
+        // same "no key" result as an absent credential.
+        match tokio::task::spawn_blocking(get_search_api_key).await {
+            Ok(key) => key,
+            Err(e) => {
+                tracing::warn!(error = %e, "websearch: credential read task panicked");
+                None
+            },
+        }
+    };
+    let Some(api_key) = api_key else {
+        return WebSearchResult {
+            query: query.to_string(),
+            results: vec![],
+            error: Some(
+                "No search API key configured. Set Tavily API key in settings.".to_string(),
+            ),
+        };
     };
 
     let client = match Client::builder().timeout(Duration::from_secs(TIMEOUT_SECS)).build() {

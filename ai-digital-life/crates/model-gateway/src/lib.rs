@@ -34,13 +34,6 @@ pub struct ModelGateway {
     pub(crate) registry: Arc<RwLock<ProviderRegistry>>,
 }
 
-fn fallback_models(def: &registry::ProviderDefinition) -> &[adl_types::config::ModelDefinition] {
-    match &def.models {
-        registry::ModelSource::Static(models) => models.as_slice(),
-        registry::ModelSource::Dynamic { .. } => &[],
-    }
-}
-
 impl ModelGateway {
     pub fn new(
         preferences: ModelPreferences,
@@ -270,52 +263,11 @@ impl ModelGateway {
         crate::provider::call_provider_stream(self, provider_id, model_id, &messages).await
     }
 
-    pub async fn fetch_models(
-        &self,
-        provider_id: &str,
-    ) -> Result<Vec<adl_types::config::ModelDefinition>, AppError> {
-        let (adapter, def) = {
-            let registry = self
-                .registry
-                .read()
-                .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?;
-            let adapter = registry.get_adapter_owned(provider_id).ok_or_else(|| {
-                AppError::NotFound(format!("adapter '{}' not found", provider_id))
-            })?;
-            let def = registry
-                .get(provider_id)
-                .ok_or_else(|| AppError::NotFound(format!("provider '{}' not found", provider_id)))?
-                .clone();
-            (adapter, def)
-        };
-        if adapter.supports_dynamic_models() {
-            // Read the persisted credential off the async runtime (blocking
-            // keyring/file I/O must never run on the tokio executor).
-            let pid = provider_id.to_string();
-            let api_key = tokio::task::spawn_blocking(move || crate::get_provider_secret(&pid))
-                .await
-                .ok()
-                .and_then(|r| r.ok())
-                .unwrap_or_default();
-            let base_url = def.default_base_url.as_deref().unwrap_or("");
-            match adapter.fetch_models(&api_key, base_url).await {
-                // Re-tag fetched models with the owning provider id: adapters
-                // shared across OpenAI-compatible providers (DeepSeek/MiniMax/
-                // custom) stamp a generic provider id.
-                Ok(models) if !models.is_empty() => Ok(models
-                    .into_iter()
-                    .map(|mut m| {
-                        m.provider_id = provider_id.to_string();
-                        m
-                    })
-                    .collect()),
-                _ => Ok(fallback_models(&def).to_vec()),
-            }
-        } else {
-            Ok(fallback_models(&def).to_vec())
-        }
-    }
-
+    /// Health snapshot over the registered providers.
+    ///
+    /// NOTE: reads each provider's persisted credential synchronously (blocking
+    /// keyring/file I/O). Must be called from a blocking thread (e.g.
+    /// `tokio::task::spawn_blocking`), never directly on the async executor.
     pub fn health(&self) -> ModelGatewayHealthSnapshot {
         let checked_at = now_ms();
         let registry = match self.registry.read() {

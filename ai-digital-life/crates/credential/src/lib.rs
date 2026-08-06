@@ -6,6 +6,7 @@ use hkdf::Hkdf;
 use sha2::Sha256;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 
 const CREDENTIALS_SUBDIR: &str = "ai-digital-life/credentials";
 
@@ -35,6 +36,10 @@ enum StoreBackend {
 }
 
 impl CredentialStore {
+    /// NOTE: this may perform blocking keychain/file I/O (the availability
+    /// probe runs once per process; each credential access is blocking). Callers
+    /// on an async runtime must invoke it from a blocking thread (e.g.
+    /// `tokio::task::spawn_blocking`), never directly on the tokio executor.
     pub fn new(service: &str, account: &str) -> Self {
         match KeyringBackend::try_new(service, account) {
             Ok(entry) => CredentialStore {
@@ -43,6 +48,14 @@ impl CredentialStore {
                 store: StoreBackend::Keyring(entry),
             },
             Err(()) => {
+                // The keyring-down case is logged once per process inside
+                // keyring_usable(); this branch also covers Entry::new argument
+                // failures, so keep the per-construction log at debug level.
+                tracing::debug!(
+                    service = service,
+                    account = account,
+                    "using encrypted-file credential backend"
+                );
                 let config_dir = config_dir().unwrap_or_else(|| PathBuf::from("."));
                 let machine_key = derive_machine_key();
                 CredentialStore {
@@ -71,8 +84,10 @@ impl CredentialStore {
             StoreBackend::EncryptedFile { config_dir, machine_key } => {
                 let path = encrypted_path(config_dir, &self.service, &self.account);
                 if let Some(parent) = path.parent() {
+                    // IO-class error: an unwritable/headless environment, not a
+                    // code bug (distinguished from crypto/format Storage errors).
                     std::fs::create_dir_all(parent).map_err(|e| {
-                        AppError::Storage(format!("Failed to create credentials dir: {}", e))
+                        AppError::Io(format!("Failed to create credentials dir: {}", e))
                     })?;
                 }
                 let ciphertext = aes_encrypt(password.as_bytes(), machine_key)?;
@@ -97,7 +112,7 @@ impl CredentialStore {
                     if e.kind() == std::io::ErrorKind::NotFound {
                         AppError::Security("No credential found".into())
                     } else {
-                        AppError::Storage(format!("Failed to read credential file: {}", e))
+                        AppError::Io(format!("Failed to read credential file: {}", e))
                     }
                 })?;
                 let trimmed = content.trim();
@@ -167,12 +182,20 @@ impl CredentialStore {
                 match std::fs::remove_file(&path) {
                     Ok(()) => Ok(()),
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-                    Err(e) => {
-                        Err(AppError::Storage(format!("Failed to delete credential file: {}", e)))
-                    },
+                    Err(e) => Err(AppError::Io(format!("Failed to delete credential file: {}", e))),
                 }
             },
         }
+    }
+
+    /// Whether this store fell back to the encrypted-file backend.
+    ///
+    /// Exposed so callers can distinguish an environmental file-write failure
+    /// (unwritable config dir, headless runner) from a real keyring-write
+    /// regression: when the keyring probe succeeded but the write still fails,
+    /// that is a genuine bug that must not be swallowed.
+    pub fn uses_encrypted_file(&self) -> bool {
+        matches!(self.store, StoreBackend::EncryptedFile { .. })
     }
 }
 
@@ -375,7 +398,7 @@ fn aes_decrypt(data: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, AppError> {
 /// 写入凭证文件并在 Unix 上设置 0600 权限。
 fn write_secure_file(path: &Path, content: &str) -> Result<(), AppError> {
     std::fs::write(path, content)
-        .map_err(|e| AppError::Storage(format!("Failed to write credential file: {}", e)))?;
+        .map_err(|e| AppError::Io(format!("Failed to write credential file: {}", e)))?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -392,22 +415,83 @@ fn write_secure_file(path: &Path, content: &str) -> Result<(), AppError> {
 
 struct KeyringBackend;
 
+/// Process-wide cached keyring availability.
+///
+/// Keychain availability is a store-level property (D-Bus Secret Service
+/// reachability, keychain lock state), not a per-entry one, so it is probed
+/// once per process and the decision is fixed for the whole lifetime. Probing
+/// on every `CredentialStore::new` would (a) add a blocking `get_password()`
+/// call to every construction and (b) risk flip-flopping between the keyring
+/// and encrypted-file backends if keychain availability changes mid-process —
+/// a credential could then be written to one backend and read from the other,
+/// surfacing as "key occasionally lost".
+///
+/// Trade-off: the decision is fixed for this process only. If keychain
+/// availability differs between processes, a credential written by one process
+/// may be read from a different backend by the next — the process-wide cache
+/// eliminates intra-process flip-flop at the cost of this cross-process
+/// limitation (a dual-backend read fallback would be the fuller remedy).
+static KEYRING_USABLE: OnceLock<bool> = OnceLock::new();
+
+/// Deterministic probe identity. A credential under this identity is never
+/// expected to exist, so the probe settles on `NoEntry` (usable) without
+/// touching a real credential; the only prompt risk is a locked-keychain
+/// unlock dialog, identical to any real keychain access.
+const PROBE_SERVICE: &str = "ai-digital-life-probe";
+const PROBE_ACCOUNT: &str = "availability";
+
+fn keyring_usable() -> bool {
+    *KEYRING_USABLE.get_or_init(|| {
+        // The probe is panic-free by construction (keyring calls return
+        // Results; no unwrap/expect). catch_unwind additionally guards unwind
+        // builds (dev/test profiles); under the release profile's
+        // `panic = "abort"` a probe panic would abort regardless, which is
+        // accepted as fatal since the probe has no panicking calls.
+        let usable = match std::panic::catch_unwind(keyring_probe) {
+            Ok(usable) => usable,
+            Err(_) => {
+                tracing::warn!(
+                    "keyring availability probe panicked; treating keyring as unavailable"
+                );
+                false
+            },
+        };
+        if !usable {
+            // Emit exactly once per process (the cached decision below makes
+            // every later construction take the file-fallback path silently).
+            tracing::warn!(
+                "system keyring unavailable; credential stores fall back to encrypted files for this process"
+            );
+        }
+        usable
+    })
+}
+
+fn keyring_probe() -> bool {
+    match keyring::Entry::new(PROBE_SERVICE, PROBE_ACCOUNT) {
+        Ok(entry) => match entry.get_password() {
+            Ok(_) | Err(keyring::Error::NoEntry) => true,
+            Err(_) => false,
+        },
+        Err(_) => false,
+    }
+}
+
 impl KeyringBackend {
-    /// Create a keyring entry AND probe that the store is actually usable.
+    /// Create a keyring entry, falling back to the encrypted-file backend when
+    /// the native store is unusable.
     ///
     /// All three keyring v3.6.x platform backends validate lazily at use time —
     /// `Entry::new` succeeds even when the underlying store is unavailable (no
-    /// D-Bus Secret Service on headless Linux, locked keychain, etc.). Probing
-    /// with `get_password` distinguishes a reachable store (Ok, or NoEntry when
-    /// the entry simply doesn't exist yet) from an unusable one (any other
-    /// error). On the latter, the caller falls back to the encrypted-file
-    /// backend instead of failing hard at first use.
+    /// D-Bus Secret Service on headless Linux, locked keychain, etc.). The
+    /// cached probe distinguishes a reachable store from an unusable one; on
+    /// the latter, the caller falls back to the encrypted-file backend instead
+    /// of failing hard at first use.
     fn try_new(service: &str, account: &str) -> Result<keyring::Entry, ()> {
-        let entry = keyring::Entry::new(service, account).map_err(|_| ())?;
-        match entry.get_password() {
-            Ok(_) | Err(keyring::Error::NoEntry) => Ok(entry),
-            Err(_) => Err(()),
+        if !keyring_usable() {
+            return Err(());
         }
+        keyring::Entry::new(service, account).map_err(|_| ())
     }
 }
 
@@ -540,6 +624,33 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
     }
 
+    #[test]
+    fn file_backend_reports_uses_encrypted_file() {
+        let dir = std::env::temp_dir().join(format!("cred_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let store = CredentialStore::new_with_config_dir("file-svc", "file-acct", dir.clone());
+        assert!(store.uses_encrypted_file());
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn keyring_backend_reports_uses_encrypted_file_false() {
+        // keyring::Entry::new validates lazily and succeeds without a live
+        // store, so this direction is deterministic and CI-safe. It guards
+        // against an always-true regression that would re-silence the
+        // persistence-test skip path.
+        let store = CredentialStore {
+            service: "svc".to_string(),
+            account: "acct".to_string(),
+            store: StoreBackend::Keyring(
+                keyring::Entry::new("svc", "acct").expect("keyring Entry::new succeeds lazily"),
+            ),
+        };
+        assert!(!store.uses_encrypted_file());
+    }
+
     /// Regression guard: credentials MUST survive an app restart. keyring v3.x
     /// has no default features, and without an explicit platform backend it
     /// silently selects the in-memory mock store (CredentialPersistence::
@@ -567,11 +678,20 @@ mod tests {
         let account = format!("probe-{}", uuid::Uuid::new_v4());
         let store = CredentialStore::new(service, &account);
         if let Err(e) = store.set_password("probe-secret") {
+            // Skip only when the encrypted-file fallback hit an IO failure
+            // (unwritable config dir on a headless runner) — that is
+            // environmental, not a code regression. Every other failure — a
+            // keyring-backend write error, or a crypto/format error on the file
+            // path — IS a real bug and must panic so it is not silently hidden.
+            if !(store.uses_encrypted_file() && matches!(e, AppError::Io(_))) {
+                let _ = store.delete_password();
+                panic!("credential write failed: {e:?}");
+            }
             tracing::warn!(
                 service,
                 account,
                 error = %e,
-                "credential store unavailable; skipping cross-process persistence test"
+                "encrypted-file credential store unavailable; skipping cross-process persistence test"
             );
             // Clean up any partially-written encrypted file (random uuid account
             // makes residue harmless, but keep parity with the old panic path).

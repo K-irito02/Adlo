@@ -12,12 +12,16 @@ impl McpOAuthStore {
         Self
     }
 
+    /// Blocking keyring/encrypted-file I/O. When invoked from an async runtime,
+    /// callers must wrap this in `tokio::task::spawn_blocking`.
     pub fn save_token(&self, server_name: &str, token: &McpOAuthToken) -> Result<(), AppError> {
         let json = serde_json::to_string(token)?;
         let store = CredentialStore::new(MCP_OAUTH_SERVICE, server_name);
         store.set_password(&json)
     }
 
+    /// Blocking keyring/encrypted-file I/O. When invoked from an async runtime,
+    /// callers must wrap this in `tokio::task::spawn_blocking`.
     pub fn load_token(&self, server_name: &str) -> Result<Option<McpOAuthToken>, AppError> {
         let store = CredentialStore::new(MCP_OAUTH_SERVICE, server_name);
         match store.get_password() {
@@ -30,6 +34,8 @@ impl McpOAuthStore {
         }
     }
 
+    /// Blocking keyring/encrypted-file I/O. When invoked from an async runtime,
+    /// callers must wrap this in `tokio::task::spawn_blocking`.
     pub fn clear_token(&self, server_name: &str) -> Result<(), AppError> {
         let store = CredentialStore::new(MCP_OAUTH_SERVICE, server_name);
         store.delete_password()

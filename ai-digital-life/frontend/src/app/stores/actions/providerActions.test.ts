@@ -424,7 +424,7 @@ describe('removeCustomProvider state cleanup', () => {
 });
 
 describe('fetchModels fallback semantics', () => {
-  it('returns FETCH_MODELS_FALLBACK but still updates the model list when the live fetch fell back', async () => {
+  it('preserves the existing list when a non-empty live fetch fell back to the catalog', async () => {
     mockFetchProviderModels.mockResolvedValue({
       ok: true,
       data: {
@@ -433,10 +433,46 @@ describe('fetchModels fallback semantics', () => {
       },
     });
     const store = useAppStore.getState();
+    const before = useAppStore.getState().providers[0].models.map((m) => m.id);
     const count = await store.fetchModels('deepseek');
 
     expect(count).toBe(FETCH_MODELS_FALLBACK);
-    expect(useAppStore.getState().providers[0].models.map((m) => m.id)).toEqual(['m1']);
+    // A fallback must NOT clobber the last-known-good list.
+    expect(useAppStore.getState().providers[0].models.map((m) => m.id)).toEqual(before);
+  });
+
+  it('preserves the last-known-good list when a failed live fetch has an empty fallback', async () => {
+    // First a successful live fetch populates the list.
+    mockFetchProviderModels.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        models: [
+          { id: 'live-1', providerId: 'deepseek', name: 'Live 1', capabilities: ['text'] },
+          { id: 'live-2', providerId: 'deepseek', name: 'Live 2', capabilities: ['text'] },
+        ],
+        fromFallback: false,
+      },
+    });
+    const store = useAppStore.getState();
+    await store.fetchModels('deepseek');
+    expect(useAppStore.getState().providers[0].models.map((m) => m.id)).toEqual([
+      'live-1',
+      'live-2',
+    ]);
+
+    // A failed live fetch with an empty fallback (dynamic provider, no static
+    // catalog) must NOT wipe the last-known-good list.
+    mockFetchProviderModels.mockResolvedValueOnce({
+      ok: true,
+      data: { models: [], fromFallback: true },
+    });
+    const count = await store.fetchModels('deepseek');
+
+    expect(count).toBe(FETCH_MODELS_FALLBACK);
+    expect(useAppStore.getState().providers[0].models.map((m) => m.id)).toEqual([
+      'live-1',
+      'live-2',
+    ]);
   });
 
   it('returns the live model count on a real fetch', async () => {

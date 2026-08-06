@@ -160,15 +160,20 @@ export function createProviderActions(
         captureError(get, result.error);
         return FETCH_MODELS_FAILED;
       }
+      // Any fallback (live fetch failed, or the provider has no dynamic list)
+      // must not clobber the last-known-good list — only a genuine live success
+      // updates it, so a transient failure never loses the previously fetched
+      // models. The initial list already carries the static catalog (seeded by
+      // listProviders), so providers with no live data are unaffected.
+      if (result.data.fromFallback) {
+        return FETCH_MODELS_FALLBACK;
+      }
       set({
         providers: get().providers.map((p) =>
           p.id === providerId ? { ...p, models: result.data.models } : p,
         ),
       });
-      // fromFallback => the live fetch failed and the list is the static/cached
-      // catalog; report a fallback (still keep the updated list) so the UI never
-      // shows a misleading "fetched N models" success toast.
-      return result.data.fromFallback ? FETCH_MODELS_FALLBACK : result.data.models.length;
+      return result.data.models.length;
     },
 
     setAllModelsEnabled: async (providerId: string, enableAll: boolean) => {

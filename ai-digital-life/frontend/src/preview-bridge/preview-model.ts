@@ -4,6 +4,7 @@ import type {
   ProviderInfo,
   ConnectionTestResult,
   FetchModelsResult,
+  ModelDefinition,
 } from '../shared/ipc/provider';
 import type { ModelPreferences, ModelProviderPreference } from '../shared/ipc-types.generated';
 import { applyPreferencePatch } from '../shared/preferencesMerger';
@@ -21,6 +22,22 @@ import type { PreviewContext } from './preview-context';
 // In-memory API keys for preview mode. API keys must NEVER be persisted to
 // localStorage (security constraint); the map is module-level and cleared on reset.
 const previewApiKeys = new Map<string, string>();
+
+/// Live model-fetch timeout, mirroring the Tauri shared reqwest client (30s).
+const FETCH_TIMEOUT_MS = 30_000;
+
+/// Parse a JSON response body without throwing. A 2xx with an unparseable body
+/// (proxy HTML page, empty body) must still count as "connected" — the Tauri
+/// `test_connection` adapters check status only — so a parse failure yields
+/// `null` and the caller produces an empty model list (fetch falls back, test
+/// reports connected).
+async function safeJson<T>(response: Response): Promise<T | null> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
+}
 
 export function resetPreviewModelState(): void {
   previewApiKeys.clear();
@@ -93,6 +110,131 @@ function customToStatus(custom: PreviewCustomProvider): ProviderStatus {
     enabled: true,
     enabledModels: null,
   };
+}
+
+type LiveModelsResult =
+  | { kind: 'ok'; models: ModelDefinition[] }
+  | { kind: 'http-error'; status: number }
+  | { kind: 'no-key' }
+  | { kind: 'network-error' };
+
+/**
+ * Perform the real live model-list HTTP request for a provider, mirroring the
+ * Tauri adapters so browser preview and desktop stay dual-end consistent:
+ *  - ollama: keyless GET /api/tags
+ *  - anthropic: GET /models with x-api-key + anthropic-version headers
+ *  - google:   GET /models?key=... (key as query parameter, no Authorization)
+ *  - everything else (incl. custom OpenAI-compatible): GET /models + Bearer
+ * Returns a discriminated result so callers can distinguish a live success (any
+ * 2xx response; the model list may be empty), a non-2xx HTTP error, a missing
+ * key, and a network/CORS failure.
+ */
+async function fetchProviderModelsLive(
+  providerId: string,
+  key: string | undefined,
+  baseUrl: string,
+  custom: PreviewCustomProvider | undefined,
+): Promise<LiveModelsResult> {
+  if (providerId === 'ollama' && !custom) {
+    try {
+      const response = await fetch(
+        `${baseUrl.replace(/\/+$/, '')}/api/tags`,
+        // Mirror the Tauri shared reqwest client's 30s timeout so a stalled
+        // server cannot hang the Test/Fetch button indefinitely.
+        { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) },
+      );
+      if (response.ok) {
+        const body = (await safeJson<{ models?: { name?: string }[] }>(response)) ?? {};
+        const models = (body.models ?? [])
+          .filter((m): m is { name: string } => typeof m?.name === 'string' && m.name.length > 0)
+          .map(
+            (m): ModelDefinition => ({
+              id: m.name,
+              providerId,
+              name: m.name,
+              capabilities: ['text' as const, 'streaming' as const],
+            }),
+          );
+        return { kind: 'ok', models };
+      }
+      return { kind: 'http-error', status: response.status };
+    } catch {
+      return { kind: 'network-error' };
+    }
+  }
+  if (!key) {
+    return { kind: 'no-key' };
+  }
+  try {
+    const modelsUrl = `${baseUrl.replace(/\/+$/, '')}/models`;
+    const isAnthropic = providerId === 'anthropic' && !custom;
+    const isGoogle = providerId === 'google' && !custom;
+    const url = isGoogle ? `${modelsUrl}?key=${encodeURIComponent(key)}` : modelsUrl;
+    // Anthropic authenticates via x-api-key + anthropic-version headers, Google
+    // via the ?key= query parameter only (no Authorization header), everything
+    // else via Authorization: Bearer — mirrors the Tauri adapters.
+    const headers: Record<string, string> | undefined = isAnthropic
+      ? { 'x-api-key': key, 'anthropic-version': '2023-06-01' }
+      : isGoogle
+        ? undefined
+        : { Authorization: `Bearer ${key}` };
+    const response = await fetch(url, {
+      headers,
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    if (response.ok) {
+      if (isGoogle) {
+        // Google returns { models: [{ name: "models/gemini-...", displayName,
+        // supportedGenerationMethods }] }; strip the "models/" prefix and keep
+        // only generateContent-capable models (mirrors google.rs).
+        const body = (await safeJson<{
+          models?: {
+            name?: string;
+            displayName?: string;
+            supportedGenerationMethods?: string[];
+          }[];
+        }>(response)) ?? { models: [] };
+        const models = (body.models ?? [])
+          .filter(
+            (m): m is { name: string; displayName?: string } =>
+              typeof m?.name === 'string' &&
+              m.name.length > 0 &&
+              (m.supportedGenerationMethods ?? []).some((s) => s === 'generateContent'),
+          )
+          .map((m): ModelDefinition => {
+            const id = m.name.replace(/^models\//, '');
+            return {
+              id,
+              providerId,
+              name: m.displayName ?? id,
+              capabilities: ['text' as const, 'streaming' as const],
+            };
+          });
+        return { kind: 'ok', models };
+      }
+      // Anthropic returns { data: [{ id, display_name }] }, OpenRouter returns
+      // { data: [{ id, name }] }, OpenAI-compatible providers return only id.
+      // Prefer the provider's display name, then the raw id (mirrors
+      // anthropic.rs / openrouter.rs).
+      const body = (await safeJson<{
+        data?: { id: string; display_name?: string; name?: string }[];
+      }>(response)) ?? { data: [] };
+      const models = (body.data ?? [])
+        .filter((m) => typeof m?.id === 'string' && m.id.length > 0)
+        .map(
+          (m): ModelDefinition => ({
+            id: m.id,
+            providerId,
+            name: m.display_name ?? m.name ?? m.id,
+            capabilities: ['text' as const, 'streaming' as const],
+          }),
+        );
+      return { kind: 'ok', models };
+    }
+    return { kind: 'http-error', status: response.status };
+  } catch {
+    return { kind: 'network-error' };
+  }
 }
 
 export function createBaseAppInfo(): AppInfo {
@@ -187,10 +329,43 @@ export function createPreviewModelBridge(
         const catalog = MODEL_CATALOG.find((p) => p.id === providerId);
         const custom = loadPreviewCustomProviders().find((p) => p.id === providerId);
         const requiresKey = custom ? true : (catalog?.requiresKey ?? true);
-        if (!requiresKey || !!effectiveKey) {
-          return { ok: true as const, data: { connected: true, error: null } };
+        const baseUrl = custom?.baseUrl ?? catalog?.baseUrl;
+        if (baseUrl) {
+          // Real connectivity check mirroring the Tauri adapters (any 2xx
+          // response counts as connected). A browser network/CORS failure for
+          // a remote provider cannot be told apart from a blocked cross-origin
+          // request, so it falls back to the key-presence heuristic; Ollama is
+          // assumed-local, so a failed ping reports not reachable (the common
+          // case for a down daemon; a restrictive OLLAMA_ORIGINS / HTTPS-served
+          // preview can still produce a false negative here).
+          const live = await fetchProviderModelsLive(providerId, effectiveKey, baseUrl, custom);
+          switch (live.kind) {
+            case 'ok':
+              return { ok: true as const, data: { connected: true, error: null } };
+            case 'http-error':
+              return {
+                ok: true as const,
+                data: { connected: false, error: `Provider returned HTTP ${live.status}` },
+              };
+            case 'no-key':
+              return { ok: true as const, data: { connected: false, error: 'missing API key' } };
+            case 'network-error':
+              if (providerId === 'ollama' && !custom) {
+                return {
+                  ok: true as const,
+                  data: { connected: false, error: 'Ollama is not reachable' },
+                };
+              }
+              return { ok: true as const, data: { connected: true, error: null } };
+          }
         }
-        return { ok: true as const, data: { connected: false, error: 'missing API key' } };
+        return {
+          ok: true as const,
+          data: {
+            connected: !requiresKey || !!effectiveKey,
+            error: !requiresKey || !!effectiveKey ? null : 'missing API key',
+          },
+        };
       },
       fetchProviderModels: async (
         providerId: string,
@@ -202,62 +377,15 @@ export function createPreviewModelBridge(
         const custom = loadPreviewCustomProviders().find((p) => p.id === providerId);
         const baseUrl = custom?.baseUrl ?? catalog?.baseUrl;
         if (baseUrl) {
-          // Ollama needs no API key and exposes /api/tags (mirrors the Tauri
-          // adapter); otherwise the OpenAI-compatible /models + Bearer pattern.
-          if (providerId === 'ollama' && !custom) {
-            try {
-              const response = await fetch(`${baseUrl.replace(/\/$/, '')}/api/tags`);
-              if (response.ok) {
-                const body = (await response.json()) as {
-                  models?: { name?: string }[];
-                };
-                const models = (body.models ?? [])
-                  .filter(
-                    (m): m is { name: string } => typeof m?.name === 'string' && m.name.length > 0,
-                  )
-                  .map((m) => ({
-                    id: m.name,
-                    providerId,
-                    name: m.name,
-                    capabilities: ['text' as const, 'streaming' as const],
-                  }));
-                if (models.length > 0) {
-                  return { ok: true as const, data: { models, fromFallback: false } };
-                }
-              }
-            } catch {
-              // CORS / network failures fall back to the static catalog below.
-            }
-            // Ollama has no OpenAI-compatible endpoint; never fall through to
-            // the /models + Bearer branch even if a stray key exists.
-            return {
-              ok: true as const,
-              data: { models: catalog?.models ?? [], fromFallback: true },
-            };
+          const live = await fetchProviderModelsLive(providerId, key, baseUrl, custom);
+          // A live success is only reported for a NON-empty list (mirrors the
+          // Tauri fetch_provider_models `Ok(models) if !models.is_empty()`);
+          // an empty 2xx response counts as a fallback.
+          if (live.kind === 'ok' && live.models.length > 0) {
+            return { ok: true as const, data: { models: live.models, fromFallback: false } };
           }
-          if (key) {
-            try {
-              const response = await fetch(`${baseUrl.replace(/\/$/, '')}/models`, {
-                headers: { Authorization: `Bearer ${key}` },
-              });
-              if (response.ok) {
-                const body = (await response.json()) as { data?: { id: string }[] };
-                const models = (body.data ?? [])
-                  .filter((m) => typeof m?.id === 'string' && m.id.length > 0)
-                  .map((m) => ({
-                    id: m.id,
-                    providerId,
-                    name: m.id,
-                    capabilities: ['text' as const, 'streaming' as const],
-                  }));
-                if (models.length > 0) {
-                  return { ok: true as const, data: { models, fromFallback: false } };
-                }
-              }
-            } catch {
-              // CORS / network failures fall back to the static catalog below.
-            }
-          }
+          // Any other outcome (no key / HTTP error / empty list / network-CORS
+          // failure) falls back to the static/cached catalog below.
         }
         if (custom) {
           return {
