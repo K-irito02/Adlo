@@ -2,7 +2,7 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { IconMenu, IconClose } from '../../icons';
-import { IconAlertCircle } from '../../icons/status';
+import { IconCircleHelp } from '../../icons/status';
 import { HintCardTrigger } from '../../components/HintCardTrigger';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
 
@@ -98,7 +98,7 @@ export function SortableWorkspaceList({
             tabIndex={-1}
             aria-label=""
           >
-            <IconAlertCircle size={16} />
+            <IconCircleHelp size={16} />
           </button>
         </HintCardTrigger>
       </h4>

@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
-import { IconAlertCircle } from '../../icons/status';
+import { IconCircleHelp } from '../../icons/status';
 import { IconMenu, IconClose } from '../../icons';
 import { DndContext, pointerWithin, type CollisionDetection } from '@dnd-kit/core';
 import { useWorkspaceDnd } from './useWorkspaceDnd';
@@ -170,7 +170,7 @@ export function WorkspaceSettings() {
                     tabIndex={-1}
                     aria-label=""
                   >
-                    <IconAlertCircle size={16} />
+                    <IconCircleHelp size={16} />
                   </button>
                 </HintCardTrigger>
               </div>

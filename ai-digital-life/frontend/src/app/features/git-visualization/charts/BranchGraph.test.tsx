@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { BranchGraph } from './BranchGraph';
+import { getRefLabelColor } from '../utils/branchLabelColors';
 import { getAvatar, getCachedAvatarUrl } from '../utils/avatarCache';
 import { commitNodes, commitEdges, allBranches } from '../../../../test-fixtures/gitVisMockData';
 import type { RawBranchGraph } from '../adapters/chartDataAdapters';
@@ -18,7 +19,7 @@ const mockData: RawBranchGraph = {
     author: n.author,
     authorEmail: n.authorEmail,
     tag: n.tag,
-    refs: [],
+    refs: n.refs,
   })),
   edges: commitEdges.map((e) => ({
     from: `node-${nodeIdToIndex.get(e.source)}`,
@@ -72,6 +73,8 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisProgressTooltip: '{label} vs remote: ahead {ahead}, behind {behind}',
       gitVisCopyHash: 'Copy hash',
       gitVisLocalOnly: 'local only',
+      gitVisProgressBase: 'base',
+      gitVisMergedIntoMain: 'merged into main',
     },
     formatT: vi.fn(),
   })),
@@ -121,10 +124,10 @@ describe('BranchGraph', () => {
     expect(svg).toBeTruthy();
   });
 
-  it('renders branch labels', () => {
+  it('renders one branch label per local branch', () => {
     const { container } = render(<BranchGraph data={mockData} />);
     const labels = container.querySelectorAll('.adl-branch-graph__label');
-    expect(labels.length).toBe(6);
+    expect(labels.length).toBe(7);
   });
 
   it('shows tag badge for tagged commit', () => {
@@ -235,52 +238,186 @@ describe('BranchGraph', () => {
     });
   });
 
-  it('filters by branch label click', () => {
+  it('filters by branch label click', async () => {
     const { container } = render(<BranchGraph data={mockData} />);
     const labels = container.querySelectorAll('.adl-branch-graph__label');
-    // Click first label to filter by column
+    // Click the first label = mainline (sorted mainline-first). Rows not owned
+    // by mainline (its first-parent spine: a1,a2,a3,a7,a8,a10,a14,a15 = 8) are dimmed.
     fireEvent.click(labels[0]);
+
+    await vi.waitFor(() => {
+      const rows = container.querySelectorAll('.adl-branch-graph__row');
+      const dimmedRows = [...rows].filter((r) =>
+        r.classList.contains('adl-branch-graph__row--dimmed'),
+      );
+      const nonDimmedRows = [...rows].filter(
+        (r) => !r.classList.contains('adl-branch-graph__row--dimmed'),
+      );
+      expect(dimmedRows.length).toBeGreaterThan(0);
+      expect(nonDimmedRows.length).toBeGreaterThan(0);
+    });
+
     const rows = container.querySelectorAll('.adl-branch-graph__row');
-    // Some rows should be dimmed (different column), some not
     const dimmedRows = [...rows].filter((r) =>
       r.classList.contains('adl-branch-graph__row--dimmed'),
     );
     const nonDimmedRows = [...rows].filter(
       (r) => !r.classList.contains('adl-branch-graph__row--dimmed'),
     );
-    expect(dimmedRows.length).toBeGreaterThan(0);
-    expect(nonDimmedRows.length).toBeGreaterThan(0);
+    expect(nonDimmedRows.length).toBe(8);
+    expect(dimmedRows.length).toBe(31 - 8);
     dimmedRows.forEach((el) => {
       expect((el as HTMLElement).style.opacity).toBe('0.25');
     });
     nonDimmedRows.forEach((el) => {
       expect((el as HTMLElement).style.opacity).toBe('1');
     });
-    // Clicked label should have data-indicator
+    // Clicked label should have data-indicator (drag wrappers carry opacity)
     expect(labels[0].getAttribute('data-indicator')).toBe('true');
-    // Non-selected labels should not have data-indicator
-    for (let i = 1; i < labels.length; i++) {
-      expect(labels[i].getAttribute('data-indicator')).toBeNull();
-    }
+    const dragWrappers = container.querySelectorAll('.adl-branch-graph__label-drag');
     // Non-selected labels should have reduced opacity
-    for (let i = 1; i < labels.length; i++) {
-      expect((labels[i] as HTMLElement).style.opacity).toBe('0.4');
+    for (let i = 1; i < dragWrappers.length; i++) {
+      expect((dragWrappers[i] as HTMLElement).style.opacity).toBe('0.4');
     }
     // Click active label again to clear filter
     fireEvent.click(labels[0]);
-    const rowsAfterClear = container.querySelectorAll('.adl-branch-graph__row');
-    const dimmedAfterClear = [...rowsAfterClear].filter((r) =>
-      r.classList.contains('adl-branch-graph__row--dimmed'),
-    );
-    expect(dimmedAfterClear.length).toBe(0);
-    rowsAfterClear.forEach((el) => {
-      expect((el as HTMLElement).style.opacity).toBe('1');
+
+    await vi.waitFor(() => {
+      const rowsAfterClear = container.querySelectorAll('.adl-branch-graph__row');
+      const dimmedAfterClear = [...rowsAfterClear].filter((r) =>
+        r.classList.contains('adl-branch-graph__row--dimmed'),
+      );
+      expect(dimmedAfterClear.length).toBe(0);
+      rowsAfterClear.forEach((el) => {
+        expect((el as HTMLElement).style.opacity).toBe('1');
+      });
     });
     // All labels should clear data-indicator after un-selection
     for (const label of container.querySelectorAll('.adl-branch-graph__label')) {
       expect(label.getAttribute('data-indicator')).toBeNull();
-      expect((label as HTMLElement).style.opacity).toBe('1');
     }
+  });
+
+  it('exposes owning branch via data-branch and renders additional refs as commit badges', () => {
+    const dataWithExtraRefs: RawBranchGraph = {
+      ...mockData,
+      nodes: mockData.nodes.map((n) =>
+        n.hash === 'e7f8a9' ? { ...n, refs: ['main', 'experiment/playground'] } : n,
+      ),
+    };
+    const { container } = render(<BranchGraph data={dataWithExtraRefs} />);
+    // Owner (main) and remote refs are excluded from badges; extra ref shows up
+    const badges = container.querySelectorAll('.adl-branch-graph__commit-badge');
+    expect(badges.length).toBeGreaterThan(0);
+    expect([...badges].some((b) => b.textContent === 'experiment/playground')).toBe(true);
+    // Every row carries the owning branch for e.g. test/dogfood hooks
+    const rows = container.querySelectorAll('.adl-branch-graph__row');
+    expect(rows.length).toBe(31);
+    const rowBranches = new Set([...rows].map((r) => r.getAttribute('data-branch')));
+    expect(rowBranches.has('main')).toBe(true);
+    expect(rowBranches.has('feature-1')).toBe(true);
+    expect(rowBranches.has('hotfix')).toBe(true);
+  });
+
+  it('shows mergeBase short hash in the branch label tooltip when provided', () => {
+    const dataWithProgress = {
+      ...mockData,
+      branchProgress: { main: { ahead: 2, behind: 0, mergeBase: 'a2a3a4a5a6a7' } },
+    };
+    const { container } = render(<BranchGraph data={dataWithProgress} />);
+    const mainLabel = container.querySelector('.adl-branch-graph__label-text');
+    expect(mainLabel?.getAttribute('title')).toContain('a2a3a4');
+  });
+
+  it('shows a merged-into-main hint for fully merged branches, not for unmerged ones', () => {
+    // 'archived' is a branch whose tip (a8) sits on main's first-parent spine —
+    // fully merged. feature-1 is also merged (tip reachable via a14's octopus
+    // merge). feature-2 is not merged.
+    const mergedData: RawBranchGraph = {
+      ...mockData,
+      branches: [...allBranches, 'archived'],
+      nodes: mockData.nodes.map((n) =>
+        n.hash === 'a7a8a9' ? { ...n, refs: [...(n.refs ?? []), 'archived'] } : n,
+      ),
+    };
+    const { container } = render(<BranchGraph data={mergedData} />);
+    const labelTexts = [...container.querySelectorAll('.adl-branch-graph__label-text')];
+    const archivedLabel = labelTexts.find((l) => l.textContent === 'archived')!;
+    const feature1Label = labelTexts.find((l) => l.textContent === 'feature-1')!;
+    const feature2Label = labelTexts.find((l) => l.textContent === 'feature-2')!;
+    expect(archivedLabel.getAttribute('title')).toBe('archived — merged into main');
+    expect(feature1Label.getAttribute('title')).toBe('feature-1 — merged into main');
+    expect(feature2Label.getAttribute('title')).toBe('feature-2');
+  });
+
+  it('keeps the head node of a fully merged branch lit in its branch color when selected', async () => {
+    const mergedData: RawBranchGraph = {
+      ...mockData,
+      branches: [...allBranches, 'archived'],
+      nodes: mockData.nodes.map((n) =>
+        n.hash === 'a7a8a9' ? { ...n, refs: [...(n.refs ?? []), 'archived'] } : n,
+      ),
+    };
+    const { container } = render(<BranchGraph data={mergedData} />);
+    const labels = [...container.querySelectorAll('.adl-branch-graph__label')];
+    const archivedLabel = labels.find((l) => l.textContent === 'archived')!;
+    expect(archivedLabel).toBeTruthy();
+
+    fireEvent.click(archivedLabel);
+
+    await vi.waitFor(() => {
+      const rows = [...container.querySelectorAll('.adl-branch-graph__row')];
+      // a8 is owned by main (it is on the mainline spine), yet the branch label
+      // still points at it — the head anchor — so it must NOT be dimmed.
+      const a8Row = rows.find((r) => r.textContent?.includes('a7a8a9'))!;
+      expect(a8Row.classList.contains('adl-branch-graph__row--dimmed')).toBe(false);
+      expect((a8Row as HTMLElement).style.opacity).toBe('1');
+    });
+    // The anchor SVG node uses the archived branch color (not the owner's).
+    const archivedColor = getRefLabelColor('archived');
+    const anchorCircle = [...container.querySelectorAll('circle')].find(
+      (c) => c.getAttribute('fill') === archivedColor,
+    );
+    expect(anchorCircle).toBeTruthy();
+    // All other branches stay dimmed.
+    const dimmed = [...container.querySelectorAll('.adl-branch-graph__row')].filter((r) =>
+      r.classList.contains('adl-branch-graph__row--dimmed'),
+    );
+    expect(dimmed.length).toBeGreaterThan(0);
+  });
+
+  it('colors lane lines by branch ownership, matching the branch label colors', async () => {
+    const { container } = render(<BranchGraph data={mockData} />);
+    const labels = container.querySelectorAll('.adl-branch-graph__label');
+    const branchColors = allBranches.map((b) => getRefLabelColor(b));
+
+    // Default state: lane lines already use the owning branch's stable color,
+    // never the raw lane-assignment palette color.
+    const laneLines = [...container.querySelectorAll('line')].filter((l) =>
+      l.getAttribute('stroke')?.startsWith('hsl('),
+    );
+    expect(laneLines.length).toBeGreaterThan(0);
+    laneLines.forEach((l) => {
+      expect(branchColors).toContain(l.getAttribute('stroke'));
+    });
+
+    // Filter to a single branch: the dimmed (non-selected) lane segments must
+    // keep the OTHER branch's label color at low opacity — not a palette color.
+    fireEvent.click(labels[0]);
+    await vi.waitFor(() => {
+      const hasDimmedRow = [...container.querySelectorAll('.adl-branch-graph__row')].some((r) =>
+        r.classList.contains('adl-branch-graph__row--dimmed'),
+      );
+      expect(hasDimmedRow).toBe(true);
+    });
+    const dimmedLaneLines = [...container.querySelectorAll('line')].filter((l) => {
+      const stroke = l.getAttribute('stroke');
+      return stroke !== null && stroke.startsWith('hsl(') && l.getAttribute('opacity') === '0.1';
+    });
+    expect(dimmedLaneLines.length).toBeGreaterThan(0);
+    dimmedLaneLines.forEach((l) => {
+      expect(branchColors).toContain(l.getAttribute('stroke'));
+    });
   });
 
   it('replaces pixel avatar with cached avatar after async load', async () => {

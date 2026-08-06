@@ -228,4 +228,25 @@ export const changesEn = {
   gitVisProgressTooltip: '{label} vs remote: ahead {ahead}, behind {behind}',
   gitVisProgressBase: 'base',
   gitVisLocalOnly: 'local only',
+  gitVisMergedIntoMain: 'merged into main',
+  gitVisBranchGraphHelpTitle: 'Branch Graph Guide',
+  gitVisBranchGraphHelpAria: 'View branch graph guide',
+  gitVisBranchGraphHelpLanesTitle: 'Lanes',
+  gitVisBranchGraphHelpLanes:
+    'The lane diagram arranges commits into vertical lanes; connecting lines show parent→child relationships. Each lane segment is colored by the owning branch of its commits, matching the branch label colors above — so you can instantly tell which branch a commit belongs to.',
+  gitVisBranchGraphHelpNodesTitle: 'Commit nodes',
+  gitVisBranchGraphHelpNodes:
+    '● Circle = ordinary commit\n■ Rounded square = merge commit (has multiple parents)\n○ Ring with letter = tagged release (tag).\nHovering a table row enlarges the matching node in the lane diagram for easy locating.',
+  gitVisBranchGraphHelpLabelsTitle: 'Branch labels',
+  gitVisBranchGraphHelpLabels:
+    'The colored labels at the top map to local branches. Each label color is derived from the branch name, so the same branch always keeps the same color. ↑n / ↓n show commits ahead/behind the remote; branches without a remote show "local only".',
+  gitVisBranchGraphHelpFilterTitle: 'Filter & reorder',
+  gitVisBranchGraphHelpFilter:
+    'Click a label to filter: only that branch stays highlighted while other rows, lanes and nodes dim. Click again to clear. Drag labels to reorder them.',
+  gitVisBranchGraphHelpProgressTitle: 'Progress & merge',
+  gitVisBranchGraphHelpProgress:
+    'Hover a label for full progress details (ahead/behind vs. remote and sync base). "merged into main" means every commit of the branch is already in main — selecting it highlights only the branch head node.',
+  gitVisBranchGraphHelpTableTitle: 'Commit table',
+  gitVisBranchGraphHelpTable:
+    'The table lists commits newest-first: hash (click to copy), message, author and date. Hovering a row enlarges the matching lane node to locate the commit in the graph.',
 } as const;

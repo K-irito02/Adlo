@@ -74,6 +74,25 @@ describe('SortableWorkspaceList', () => {
     expect(infoButton).not.toBeNull();
   });
 
+  it('renders the circle-help icon (not the exclamation alert) inside the info button', () => {
+    const { container } = renderInDnd(
+      <SortableWorkspaceList
+        kind="priority"
+        title="P"
+        tooltipContent="t"
+        items={[]}
+        emptyText="Empty"
+        removeLabel="Remove {name}"
+      />,
+    );
+    const infoButton = container.querySelector('.adl-icon-button--info');
+    const helpPath = infoButton?.querySelector('path[d^="M10 20.777a8.942"]');
+    expect(helpPath).not.toBeNull();
+    // The old exclamation-in-circle icon must be gone.
+    const exclamationPath = infoButton?.querySelector('path[d="M12 8v4"]');
+    expect(exclamationPath).toBeNull();
+  });
+
   it('renders remove button for priority list', () => {
     renderInDnd(
       <SortableWorkspaceList

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { GitVisualizationView } from './GitVisualizationView';
 
@@ -171,6 +171,21 @@ vi.mock('@i18n/useTCopy', () => ({
       gitVisBranchGraphDesc: 'desc',
       gitVisBranch: 'Branch',
       gitVisBranchGraphFilterHint: 'Click a branch label to filter',
+      gitVisMergedIntoMain: 'merged into main',
+      gitVisBranchGraphHelpTitle: 'Branch Graph Guide',
+      gitVisBranchGraphHelpAria: 'View branch graph guide',
+      gitVisBranchGraphHelpLanesTitle: 'Lanes',
+      gitVisBranchGraphHelpLanes: 'Lanes body',
+      gitVisBranchGraphHelpNodesTitle: 'Commit nodes',
+      gitVisBranchGraphHelpNodes: 'Nodes body',
+      gitVisBranchGraphHelpLabelsTitle: 'Branch labels',
+      gitVisBranchGraphHelpLabels: 'Labels body',
+      gitVisBranchGraphHelpFilterTitle: 'Filter & reorder',
+      gitVisBranchGraphHelpFilter: 'Filter body',
+      gitVisBranchGraphHelpProgressTitle: 'Progress & merge',
+      gitVisBranchGraphHelpProgress: 'Progress body',
+      gitVisBranchGraphHelpTableTitle: 'Commit table',
+      gitVisBranchGraphHelpTable: 'Table body',
       gitVisCalendarHeatmapDesc: 'desc',
       gitVisClockHeatmapDesc: 'desc',
       gitVisCodeLineEvoDesc: 'desc',
@@ -260,5 +275,33 @@ describe('GitVisualizationView', () => {
     const { container } = render(<GitVisualizationView />);
     // gitVisLoading is {} in the store mock → all charts ready → chart areas render
     expect(container.querySelectorAll('.adl-git-vis__chart').length).toBeGreaterThan(0);
+  });
+
+  it('places a help trigger right after the Branch Graph title and shows the guide card on click', async () => {
+    const { container } = render(<GitVisualizationView />);
+    const cards = [...container.querySelectorAll('.adl-git-vis__card')];
+    const branchCard = cards.find(
+      (c) => c.querySelector('.adl-git-vis__card-title')?.textContent === 'Branch Graph',
+    );
+    expect(branchCard).toBeTruthy();
+
+    const title = branchCard!.querySelector('.adl-git-vis__card-title')!;
+    // The help trigger is the immediate next sibling of the title.
+    const helpTrigger = title.nextElementSibling?.querySelector(
+      'button.adl-branch-graph__help-trigger',
+    );
+    expect(helpTrigger).toBeTruthy();
+
+    // Click → the guide card appears (rendered in a portal).
+    fireEvent.click(helpTrigger!);
+    await vi.waitFor(
+      () => {
+        const card = document.body.querySelector('.adl-sub-hint-card');
+        expect(card).toBeTruthy();
+        expect(card!.textContent).toContain('Branch Graph Guide');
+        expect(card!.textContent).toContain('Lanes body');
+      },
+      { timeout: 2000 },
+    );
   });
 });

@@ -70,6 +70,7 @@ export const commitNodes: CommitNode[] = [
     id: 'a15',
     hash: 'e7f8a9',
     branch: 'main',
+    refs: ['main'],
     date: '2026-02-22',
     message: 'Release v2.0',
     author: 'Alex',
@@ -144,6 +145,7 @@ export const commitNodes: CommitNode[] = [
     id: 'b8',
     hash: 'b7b8b9',
     branch: 'feature-1',
+    refs: ['feature-1'],
     date: '2026-02-15',
     message: 'Add final integration tests',
     author: 'Ben',
@@ -191,6 +193,7 @@ export const commitNodes: CommitNode[] = [
     id: 'c5',
     hash: 'c4c5c6',
     branch: 'feature-2',
+    refs: ['feature-2'],
     date: '2026-01-28',
     message: 'Dashboard v2 work-in-progress',
     author: 'Cara',
@@ -229,6 +232,7 @@ export const commitNodes: CommitNode[] = [
     id: 'd4',
     hash: 'd3d4d5',
     branch: 'feature-3',
+    refs: ['feature-3'],
     date: '2026-01-26',
     message: 'Merge feature-4 into feature-3',
     author: 'Diana',
@@ -249,6 +253,7 @@ export const commitNodes: CommitNode[] = [
     id: 'e2',
     hash: 'e1e2e3',
     branch: 'feature-4',
+    refs: ['feature-4'],
     date: '2026-01-19',
     message: 'Add data export feature',
     author: 'Evan',
@@ -269,6 +274,7 @@ export const commitNodes: CommitNode[] = [
     id: 'r2',
     hash: 'r1r2r3',
     branch: 'release/v1.0',
+    refs: ['release/v1.0'],
     date: '2026-01-27',
     message: 'v1.0 release candidate 2',
     author: 'Evan',
@@ -290,6 +296,7 @@ export const commitNodes: CommitNode[] = [
     id: 'h2',
     hash: 'h3h4i5',
     branch: 'hotfix',
+    refs: ['hotfix'],
     date: '2026-02-10',
     message: 'Apply hotfix v2',
     author: 'Diana',
@@ -297,6 +304,9 @@ export const commitNodes: CommitNode[] = [
   },
 ];
 
+// Merge edges MUST be git-faithful: a merge commit's FIRST target edge is its
+// first parent (the current branch's previous tip), matching git's %P order.
+// This is required for the mainline first-parent spine in computeBranchOwnership.
 export const commitEdges: CommitEdge[] = [
   // main spine
   { source: 'a2', target: 'a1' },
@@ -327,9 +337,9 @@ export const commitEdges: CommitEdge[] = [
   { source: 'c5', target: 'c4' },
   // feature-1 continues
   { source: 'b5', target: 'b4' },
-  // a7 = merge of feature-1 (b5) + main (a3)
-  { source: 'a7', target: 'b5' },
+  // a7 = merge of main (a3) + feature-1 (b5) — first parent = main
   { source: 'a7', target: 'a3' },
+  { source: 'a7', target: 'b5' },
   // main continues
   { source: 'a8', target: 'a7' },
   // release/v1.0 from a8
@@ -344,10 +354,10 @@ export const commitEdges: CommitEdge[] = [
   // hotfix from a10
   { source: 'h1', target: 'a10' },
   { source: 'h2', target: 'h1' },
-  // a14 = octopus merge: feature-1 (b8) + hotfix (h2) + main (a10)
+  // a14 = octopus merge: main (a10) + feature-1 (b8) + hotfix (h2) — first parent = main
+  { source: 'a14', target: 'a10' },
   { source: 'a14', target: 'b8' },
   { source: 'a14', target: 'h2' },
-  { source: 'a14', target: 'a10' },
   // main continues
   { source: 'a15', target: 'a14' },
 ];

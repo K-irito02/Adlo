@@ -421,7 +421,7 @@ export const mockWorkspace: WorkspaceBridge = {
   gitVisBranchGraph: async () => ({
     ok: true as const,
     data: {
-      nodes: commitNodes.map(n => ({ hash: n.hash, shortHash: n.hash.substring(0, 6), parentHashes: [], branch: n.branch, date: n.date, message: n.message, author: n.author, authorEmail: n.authorEmail, tag: n.tag })),
+      nodes: commitNodes.map(n => ({ hash: n.hash, shortHash: n.hash.substring(0, 6), parentHashes: [], branch: n.branch, refs: n.refs ?? [], date: n.date, message: n.message, author: n.author, authorEmail: n.authorEmail, tag: n.tag })),
       edges: commitEdges.map(e => ({ from: e.source, to: e.target })),
       branches: allBranches,
     },

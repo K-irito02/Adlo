@@ -222,21 +222,25 @@ export async function handleBranchGraph(rootPath: string) {
     const parentHashes = (parentRaw || '').split(' ').filter(Boolean);
     let branch = '';
     let tag: string | undefined;
+    const allRefs: string[] = [];
     const refs = (refsRaw || '').split(', ');
     for (const r of refs) {
       if (r.startsWith('tag: ')) {
         tag = r.substring(5);
+        allRefs.push(tag);
       } else if (r.startsWith('HEAD -> ')) {
         const headRef = r.substring(8);
         if (!headBranch) headBranch = headRef;
         if (!branch) { branch = headRef; branchSet.add(branch); }
+        allRefs.push(headRef);
       } else if (r) {
         if (!branch) branch = r;
         branchSet.add(r);
+        allRefs.push(r);
       }
     }
     for (const p of parentHashes) { edges.push({ from: hash, to: p }); }
-    nodes.push({ hash, shortHash, parentHashes, branch, date, author, authorEmail, message, tag });
+    nodes.push({ hash, shortHash, parentHashes, branch, refs: allRefs, date, author, authorEmail, message, tag });
   }
 
   // Propagate branch names from children to parents

@@ -228,4 +228,25 @@ export const changesZh = {
   gitVisProgressTooltip: '{label} 相对远程: 领先 {ahead}, 落后 {behind}',
   gitVisProgressBase: '同步基准',
   gitVisLocalOnly: '仅本地',
+  gitVisMergedIntoMain: '已并入 main',
+  gitVisBranchGraphHelpTitle: '分支图谱使用说明',
+  gitVisBranchGraphHelpAria: '查看分支图谱使用说明',
+  gitVisBranchGraphHelpLanesTitle: '泳道',
+  gitVisBranchGraphHelpLanes:
+    '左侧泳道图将提交排布在多条垂直泳道中，连接线表示父子提交关系。每一段泳道的颜色按该段提交的归属分支着色，与顶部分支标签的颜色一一对应，便于快速识别提交属于哪条分支。',
+  gitVisBranchGraphHelpNodesTitle: '提交节点',
+  gitVisBranchGraphHelpNodes:
+    '● 圆形 = 普通提交\n■ 圆角方块 = 合并提交（merge，拥有多个父提交）\n○ 圆环带字母 = 打了标签（tag）的提交版本。\n悬停右侧表格中的某一行时，左侧泳道中对应的节点会放大高亮，方便定位。',
+  gitVisBranchGraphHelpLabelsTitle: '分支标签',
+  gitVisBranchGraphHelpLabels:
+    '顶部的彩色标签对应本地分支。标签颜色由分支名稳定生成——同名分支永远显示同一种颜色。标签上的 ↑n / ↓n 表示相对远程仓库领先/落后的提交数量；没有远程的分支仅显示"仅本地"。',
+  gitVisBranchGraphHelpFilterTitle: '筛选与排序',
+  gitVisBranchGraphHelpFilter:
+    '点击标签可筛选：只高亮该分支，其余行、泳道与节点置灰；再次点击取消筛选。拖动标签可以调整它们在顶部的排列顺序。',
+  gitVisBranchGraphHelpProgressTitle: '进度与合并',
+  gitVisBranchGraphHelpProgress:
+    '将鼠标悬停在标签上可查看完整进度详情（相对远程的领先/落后与同步基准）。若提示"已并入 main"，说明该分支的所有提交都已合入主干、没有独占提交；此时选中它只会点亮分支头节点，其余保持置灰。',
+  gitVisBranchGraphHelpTableTitle: '提交表格',
+  gitVisBranchGraphHelpTable:
+    '右侧表格按时间倒序列出提交：哈希（可点击复制）、提交信息、作者与日期。悬停行时左侧对应节点会放大，可辅助定位提交在泳道中的位置。',
 } as const;

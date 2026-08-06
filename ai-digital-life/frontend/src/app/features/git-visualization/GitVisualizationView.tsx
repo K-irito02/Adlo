@@ -12,6 +12,7 @@ import {
 import { CommitTimeline } from './charts/CommitTimeline';
 import { FileHotspotsView } from './charts/FileHotspotsView';
 import { BranchGraph } from './charts/BranchGraph';
+import { BranchGraphHelpCard } from './charts/BranchGraphHelpCard';
 import { ChartColorPresetSelector } from './ChartColorPresetSelector';
 import { WorkspaceTabBar } from './WorkspaceTabBar';
 import { useGitVisRefresh } from './hooks/useGitVisRefresh';
@@ -19,6 +20,8 @@ import { useChartData } from './hooks/useChartData';
 import { useYearBounds } from './hooks/useYearBounds';
 import { RefreshButton } from './RefreshButton';
 import { TimeRangeSelector } from './TimeRangeSelector';
+import { HintCardTrigger } from '../../components/HintCardTrigger';
+import { IconCircleHelp } from '../../icons/status';
 import { CHART_IDS } from './chartIds';
 import type { GitVisCommitStats } from '@shared/ipc';
 import type { GitVisFileHotspots } from '@shared/ipc/workspace';
@@ -68,6 +71,8 @@ interface TimeRangeAwareCardProps {
   refreshLabel: string;
   yearBounds?: { min: number; max: number } | null;
   headerExtra?: React.ReactNode;
+  /** Rendered immediately after the card title (e.g. a help trigger). */
+  titleExtra?: React.ReactNode;
 }
 
 const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
@@ -79,12 +84,14 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
   refreshLabel,
   yearBounds,
   headerExtra,
+  titleExtra,
 }: TimeRangeAwareCardProps) {
   return (
     <div className="adl-git-vis__card">
       <div className="adl-git-vis__card-header">
         <RefreshButton onRefresh={onRefresh} label={refreshLabel} />
         <h3 className="adl-git-vis__card-title">{title}</h3>
+        {titleExtra}
         {timeRange.hasTimeRange && timeRange.timeRange ? (
           <TimeRangeSelector
             value={timeRange.timeRange}
@@ -382,6 +389,18 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           refreshLabel={t.gitVisRefreshChart}
           timeRange={branchGraphData}
           yearBounds={yearBounds}
+          titleExtra={
+            <HintCardTrigger content={<BranchGraphHelpCard />}>
+              <button
+                type="button"
+                className="adl-icon-button adl-icon-button--info adl-branch-graph__help-trigger"
+                tabIndex={-1}
+                aria-label={t.gitVisBranchGraphHelpAria}
+              >
+                <IconCircleHelp size={16} />
+              </button>
+            </HintCardTrigger>
+          }
         >
           <BranchGraph
             data={

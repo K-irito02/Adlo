@@ -2,7 +2,7 @@ import { useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react
 import { createPortal } from 'react-dom';
 
 export interface HintCardTriggerProps {
-  content: string;
+  content: React.ReactNode;
   children: React.ReactNode;
   longHoverMs?: number;
 }
