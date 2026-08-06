@@ -19,6 +19,7 @@ use adl_model_gateway::registry::{
 use adl_pty::SessionManager;
 use adl_storage::Database;
 use adl_storage::durable::DurableSessionManager;
+use adl_types::config::{ModelCapability, ModelDefinition};
 use adl_types::now_ms;
 use adl_workspace::strip_verbatim_prefix;
 use anyhow::Context;
@@ -259,16 +260,70 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     let config_arc = Arc::new(RwLock::new(config));
 
     let t7 = std::time::Instant::now();
-    let shared_client = Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .pool_max_idle_per_host(16)
-        .user_agent("ai-digital-life/1.0")
-        .build()
-        .context("failed to build shared HTTP client")?;
+    let shared_client = Arc::new(
+        Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .pool_max_idle_per_host(16)
+            .user_agent("ai-digital-life/1.0")
+            .build()
+            .context("failed to build shared HTTP client")?,
+    );
     info!("[ADL-PERF] http client: {}ms", t7.elapsed().as_millis());
 
     let t8 = std::time::Instant::now();
-    let provider_registry = Arc::new(RwLock::new(register_builtin_providers(&shared_client)));
+    let mut provider_registry = register_builtin_providers(shared_client.as_ref());
+
+    // Load user-defined custom providers from config (persisted across restarts).
+    // NOTE: ConfigWatcher hot-reloads AppConfig in the background task below, but
+    // custom_providers are only reflected in ProviderRegistry on next restart.
+    // Operators editing config.json directly should restart for changes to take
+    // effect; in-app add/remove_custom_provider commands always mutate both the
+    // in-memory registry and the on-disk config atomically.
+    {
+        let config_guard = match config_arc.read() {
+            Ok(g) => g,
+            Err(poisoned) => {
+                tracing::warn!(
+                    "AppConfig RwLock poisoned during startup; recovering with into_inner() and continuing to load custom providers"
+                );
+                poisoned.into_inner()
+            },
+        };
+        for cp in &config_guard.custom_providers {
+            let model_defs: Vec<ModelDefinition> = cp
+                .models
+                .iter()
+                .map(|m| ModelDefinition {
+                    id: m.clone(),
+                    provider_id: cp.id.clone(),
+                    name: m.clone(),
+                    capabilities: vec![ModelCapability::Text],
+                    ..Default::default()
+                })
+                .collect();
+            let def = ProviderDefinition {
+                id: cp.id.clone(),
+                name: cp.name.clone(),
+                description: format!("Custom OpenAI-compatible: {}", cp.name),
+                api_type: ApiType::OpenAICompatible,
+                default_base_url: Some(cp.base_url.clone()),
+                auth_type: AuthType::ApiKey,
+                models: ModelSource::Static(model_defs),
+                built_in: false,
+                default_model: None,
+            };
+            provider_registry.register(
+                def,
+                // Reuse the shared connection-pooled HTTP client to avoid creating a
+                // per-custom-provider Client (each of which spawns background threads).
+                Box::new(OpenAIProvider::with_client_and_base_url(
+                    (*shared_client).clone(),
+                    cp.base_url.clone(),
+                )),
+            );
+        }
+    }
+    let provider_registry = Arc::new(RwLock::new(provider_registry));
     info!("[ADL-PERF] register providers: {}ms", t8.elapsed().as_millis());
 
     info!("[ADL-PERF] init_app_state TOTAL: {}ms", t0.elapsed().as_millis());
@@ -286,6 +341,8 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         started_at: now_ms(),
         durable_manager,
         provider_registry,
+        shared_http_client: shared_client,
+        provider_ops_mutex: tokio::sync::Mutex::new(()),
     })
 }
 
@@ -321,7 +378,18 @@ pub fn start_background_tasks(state: &AppState) {
             });
 
             // Create ConfigWatcher and start watching config.json
-            let initial_config = config_arc.read().unwrap_or_else(|e| e.into_inner()).clone();
+            // NOTE: Only simple config fields (theme/language/preferences) are
+            // truly hot-reloaded. Custom-provider registrations are NOT applied
+            // from background reloads; restart the app for those (see comment
+            // in init_app_state). This avoids complex race conditions between
+            // the add/remove command path and the file watcher.
+            let initial_config = match config_arc.read() {
+                Ok(g) => (*g).clone(),
+                Err(poisoned) => {
+                    tracing::warn!("AppConfig RwLock poisoned during ConfigWatcher init; recovering with into_inner()");
+                    (*poisoned.into_inner()).clone()
+                },
+            };
             let config_watcher = ConfigWatcher::new(initial_config);
             let mut watcher_rx = config_watcher.subscribe();
 
@@ -334,8 +402,13 @@ pub fn start_background_tasks(state: &AppState) {
             let config_update_handle = tokio::spawn(async move {
                 while watcher_rx.changed().await.is_ok() {
                     let new_config = watcher_rx.borrow().clone();
-                    if let Ok(mut cfg) = config_arc_watcher.write() {
-                        *cfg = (*new_config).clone();
+                    match config_arc_watcher.write() {
+                        Ok(mut cfg) => *cfg = (*new_config).clone(),
+                        Err(poisoned) => {
+                            tracing::warn!("AppConfig RwLock poisoned in background config updater; recovering with into_inner()");
+                            let mut cfg = poisoned.into_inner();
+                            *cfg = (*new_config).clone();
+                        },
                     }
                 }
             });

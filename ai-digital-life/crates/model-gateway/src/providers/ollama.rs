@@ -6,8 +6,20 @@ use adl_types::config::{ModelCapability, ModelDefinition, ModelTier};
 use adl_types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use async_trait::async_trait;
 use reqwest::Client;
+use serde::Deserialize;
+use std::error::Error as _;
 
 pub const DEFAULT_BASE_URL: &str = "http://localhost:11434";
+
+#[derive(Deserialize)]
+struct OllamaModelItem {
+    name: String,
+}
+
+#[derive(Deserialize)]
+struct OllamaModelsResponse {
+    models: Vec<OllamaModelItem>,
+}
 
 pub struct OllamaProvider {
     pub client: Client,
@@ -80,6 +92,63 @@ impl ProviderAdapter for OllamaProvider {
                 ..Default::default()
             },
         ]
+    }
+
+    fn supports_dynamic_models(&self) -> bool {
+        true
+    }
+
+    async fn fetch_models(
+        &self,
+        _api_key: &str,
+        base_url: &str,
+    ) -> Result<Vec<ModelDefinition>, AppError> {
+        let url = format!("{}/api/tags", base_url.trim_end_matches('/'));
+        let resp = self
+            .client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| map_http_err("fetch models request", e))?;
+        let status = resp.status();
+        if !status.is_success() {
+            let snippet = truncate_body(resp).await;
+            return Err(AppError::Network(format!(
+                "fetch models returned {status}{}",
+                snippet.map(|s| format!(": {s}")).unwrap_or_default()
+            )));
+        }
+        let body: OllamaModelsResponse = resp
+            .json()
+            .await
+            .map_err(|e| AppError::Internal(format!("fetch models parse failed: {e}")))?;
+        Ok(body
+            .models
+            .into_iter()
+            .map(|m| ModelDefinition {
+                id: m.name.clone(),
+                provider_id: "ollama".to_string(),
+                name: m.name,
+                capabilities: vec![ModelCapability::Text],
+                ..Default::default()
+            })
+            .collect())
+    }
+
+    async fn test_connection(&self, _api_key: &str, base_url: &str) -> Result<(), AppError> {
+        let url = format!("{}/api/tags", base_url.trim_end_matches('/'));
+        let resp =
+            self.client.get(&url).send().await.map_err(|e| map_http_err("connection test", e))?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let status = resp.status();
+            let snippet = truncate_body(resp).await;
+            Err(AppError::Network(format!(
+                "connection test returned {status}{}",
+                snippet.map(|s| format!(": {s}")).unwrap_or_default()
+            )))
+        }
     }
 
     async fn chat(
@@ -194,6 +263,34 @@ impl ProviderAdapter for OllamaProvider {
 
         Ok(Box::pin(stream))
     }
+}
+
+/// Classify a `reqwest::Error` — avoid embedding the full reqwest Display
+/// (which can contain URLs and sensitive headers under some transports).
+fn map_http_err(ctx: &'static str, err: reqwest::Error) -> AppError {
+    let is_network = err.is_timeout()
+        || err.is_connect()
+        || err.is_body()
+        || err.is_decode()
+        || err.status().is_some()
+        || err.is_redirect();
+    let kind = if is_network { "Network" } else { "Internal" };
+    let status_snippet = match err.status() {
+        Some(s) => format!(" (HTTP {s})"),
+        None => String::new(),
+    };
+    let msg = match err.source() {
+        Some(src) => format!("{ctx} failed: {kind}{status_snippet}: {src}"),
+        None => format!("{ctx} failed: {kind}{status_snippet}"),
+    };
+    if is_network { AppError::Network(msg) } else { AppError::Internal(msg) }
+}
+
+async fn truncate_body(resp: reqwest::Response) -> Option<String> {
+    let bytes = resp.bytes().await.ok()?;
+    let text = String::from_utf8_lossy(&bytes);
+    let snippet: String = text.chars().take(200).collect();
+    if snippet.is_empty() { None } else { Some(snippet) }
 }
 
 #[cfg(test)]

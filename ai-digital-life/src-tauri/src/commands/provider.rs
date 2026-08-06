@@ -3,7 +3,7 @@ use adl_errors::AppError;
 use adl_model_gateway::providers::openai::OpenAIProvider;
 use adl_model_gateway::registry::{ApiType, AuthType, ModelSource, ProviderDefinition};
 use adl_types::IpcResult;
-use adl_types::config::{ModelCapability, ModelDefinition};
+use adl_types::config::{CustomProviderConfig, ModelCapability, ModelDefinition};
 use serde::Serialize;
 
 type CmdResult<T> = Result<IpcResult<T>, AppError>;
@@ -49,15 +49,16 @@ fn map_def_to_status(
         ModelSource::Dynamic { .. } => vec![],
     };
     let (enabled, enabled_models) = merge_enabled(pref);
-    let has_secret = def.id == "ollama" || adl_model_gateway::get_provider_secret(&def.id).is_ok();
+    let has_key = adl_model_gateway::get_provider_secret(&def.id).is_ok();
+    let configured = def.id == "ollama" || has_key;
     ProviderStatus {
         id: def.id.clone(),
         name: def.name.clone(),
         description: def.description.clone(),
         api_type: format!("{:?}", def.api_type),
         built_in: def.built_in,
-        configured: has_secret,
-        has_key: adl_model_gateway::get_provider_secret(&def.id).is_ok(),
+        configured,
+        has_key,
         requires_key: matches!(def.auth_type, adl_model_gateway::registry::AuthType::ApiKey),
         base_url: def.default_base_url.clone(),
         models,
@@ -163,6 +164,13 @@ pub async fn fetch_provider_models(
 fn validate_provider_url(url: &str) -> Result<(), AppError> {
     let parsed = url::Url::parse(url)
         .map_err(|e| AppError::InvalidInput(format!("invalid provider URL: {e}")))?;
+    // Strip any embedded userinfo (username/password in URL) since secrets must be
+    // passed via the api_key parameter, not smuggled inside the base URL.
+    if parsed.username() != "" || parsed.password().is_some() {
+        return Err(AppError::InvalidInput(
+            "provider URL must not contain username/password; pass API key separately".into(),
+        ));
+    }
     if parsed.scheme() != "https" {
         // Allow HTTP for localhost/loopback for local development
         if let Some(host) = parsed.host_str() {
@@ -180,6 +188,60 @@ fn validate_provider_url(url: &str) -> Result<(), AppError> {
     Ok(())
 }
 
+/// Snapshot AppConfig and persist to disk via `spawn_blocking` (async-safe).
+/// All blocking I/O for config saves goes through this helper so that callers
+/// never do `std::thread::spawn(...).join()` inside a tokio Mutex scope (which
+/// would park the runtime thread, potentially starving other waiters on the
+/// same mutex in `current_thread` executors).
+async fn save_config_snapshot(
+    state: &tauri::State<'_, crate::state::AppState>,
+) -> Result<(), AppError> {
+    let config_snapshot = state
+        .config
+        .read()
+        .map_err(|e| AppError::Internal(format!("config lock poisoned: {e}")))?
+        .clone();
+    let data_dir = state.data_dir.clone();
+    tokio::task::spawn_blocking(move || adl_kernel::config::save(&data_dir, &config_snapshot))
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
+        .map_err(|e| AppError::Storage(e.to_string()))
+}
+
+/// Sanitize a user-supplied display name into a safe (non-empty, filesystem
+/// identifier segment for provider ids. Preserves ASCII alphanumerics and `-`. Only
+/// collapses whitespace to single `-`, lowercases, and rejects fully sanitized-to-empty
+/// inputs with a clear `InvalidInput` error.
+fn sanitize_provider_id_segment(raw: &str) -> Result<String, AppError> {
+    let lower = raw.to_lowercase();
+    let mut sanitized = String::with_capacity(lower.len());
+    let mut prev_dash = false;
+    for ch in lower.chars() {
+        if ch.is_ascii_alphanumeric() {
+            sanitized.push(ch);
+            prev_dash = false;
+        } else if (ch.is_whitespace() || ch == '-' || ch == '_')
+            && !prev_dash
+            && !sanitized.is_empty()
+        {
+            sanitized.push('-');
+            prev_dash = true;
+        }
+        // Drop anything else (unicode punctuation, control chars, etc.)
+    }
+    // strip trailing dash
+    while sanitized.ends_with('-') {
+        sanitized.pop();
+    }
+    if sanitized.is_empty() {
+        return Err(AppError::InvalidInput(
+            "provider name has no valid id characters; use at least one ASCII letter or digit"
+                .into(),
+        ));
+    }
+    Ok(sanitized)
+}
+
 #[tauri::command]
 pub async fn add_custom_provider(
     name: String,
@@ -189,45 +251,215 @@ pub async fn add_custom_provider(
     state: tauri::State<'_, crate::state::AppState>,
 ) -> CmdResult<bool> {
     validate_provider_url(&base_url)?;
-    let id = format!("custom-{}", name.to_lowercase().replace(' ', "-"));
+
+    let trimmed_name = name.trim().to_string();
+    if trimmed_name.is_empty() {
+        return Ok(ipc(Err(AppError::InvalidInput(
+            "provider display name cannot be empty".into(),
+        ))));
+    }
+    if models.is_empty() {
+        return Ok(ipc(Err(AppError::InvalidInput(
+            "at least one model id must be provided for a custom provider".into(),
+        ))));
+    }
+    for m in &models {
+        if m.trim().is_empty() {
+            return Ok(ipc(Err(AppError::InvalidInput("model id cannot be empty".into()))));
+        }
+    }
+
+    let id_segment = sanitize_provider_id_segment(&trimmed_name)?;
+    let id = format!("custom-{id_segment}");
+
+    // Serialize add/remove operations via an async-aware mutex so that
+    // registry/config/secret state never drift under concurrent same-name
+    // additions. tokio::sync::Mutex guards are Send across await points.
+    let _ops_guard = state.provider_ops_mutex.lock().await;
+
+    // Conflict check — reject if a built-in provider would share this id, or if
+    // a custom provider with the same id already exists (instead of silently
+    // overwriting a possibly-different base_url / secret owner).
+    {
+        let registry = state
+            .provider_registry
+            .read()
+            .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?;
+        if let Some(existing) = registry.get(&id) {
+            if existing.built_in {
+                return Ok(ipc(Err(AppError::InvalidInput(format!(
+                    "provider name '{trimmed_name}' collides with built-in provider id '{id}'"
+                )))));
+            }
+            return Ok(ipc(Err(AppError::InvalidInput(format!(
+                "custom provider id '{id}' already exists; remove it first to re-add"
+            )))));
+        }
+    }
 
     let model_defs: Vec<ModelDefinition> = models
         .into_iter()
-        .map(|m| ModelDefinition {
-            id: m.clone(),
-            provider_id: id.clone(),
-            name: m,
-            description: None,
-            context_window: None,
-            max_output: None,
-            capabilities: vec![ModelCapability::Text],
-            tier: None,
-            released: None,
+        .map(|m| {
+            let mid = m.trim().to_string();
+            ModelDefinition {
+                id: mid.clone(),
+                provider_id: id.clone(),
+                name: mid,
+                description: None,
+                context_window: None,
+                max_output: None,
+                capabilities: vec![ModelCapability::Text],
+                tier: None,
+                released: None,
+            }
         })
         .collect();
 
     let def = ProviderDefinition {
         id: id.clone(),
-        name: name.clone(),
-        description: format!("Custom OpenAI-compatible: {}", name),
+        name: trimmed_name.clone(),
+        description: format!("Custom OpenAI-compatible: {trimmed_name}"),
         api_type: ApiType::OpenAICompatible,
         default_base_url: Some(base_url.clone()),
         auth_type: AuthType::ApiKey,
-        models: ModelSource::Static(model_defs),
+        models: ModelSource::Static(model_defs.clone()),
         built_in: false,
         default_model: None,
     };
 
+    // ===== 三阶段提交 + 逐阶段回滚 =====
+    // 顺序：内存（便宜，可回滚）→ secret（I/O，失败回滚内存）→ config（I/O，失败全回滚）
+    // 每一步失败都回滚所有已成功的阶段，避免留下孤儿 secret / registry 条目。
+    // NOTE: stage flags start as unit here. Stage 1 failure (lock poison) exits
+    // before any flag is set, so no "unused assignment" warning from an
+    // unreachable `false` init.
+    let stage_registry_done: bool;
+    let mut stage_secret_done = false;
+
+    // Stage 1: Register in-memory registry. Cheapest (pure memory). Rollback is
+    // just `registry.remove(&id)` if later stages fail. If the write lock itself
+    // fails we haven't changed anything — exit immediately.
     {
-        let mut registry = state
-            .provider_registry
-            .write()
-            .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?;
-        registry.register(def, Box::new(OpenAIProvider::with_base_url(base_url.clone())));
+        let mut registry = match state.provider_registry.write() {
+            Ok(r) => r,
+            Err(e) => {
+                return Ok(ipc(Err(AppError::Internal(format!("registry lock poisoned: {e}")))));
+            },
+        };
+        let adapter = Box::new(OpenAIProvider::with_client_and_base_url(
+            (*state.shared_http_client).clone(),
+            base_url.clone(),
+        ));
+        registry.register(def, adapter);
+        stage_registry_done = true;
     }
 
-    if !api_key.is_empty() {
-        let _ = adl_model_gateway::set_provider_secret(&id, &api_key);
+    // Stage 2: Save API key via spawn_blocking (non-blocking await inside mutex
+    // scope — no sync .join() that parks the tokio thread). Failure → rollback
+    // stage 1.
+    if !api_key.trim().is_empty() {
+        let id_for_secret = id.clone();
+        let secret_for_secret = api_key.clone();
+        let secret_res = tokio::task::spawn_blocking(move || {
+            adl_model_gateway::set_provider_secret(&id_for_secret, &secret_for_secret)
+        })
+        .await;
+        match secret_res {
+            Ok(Ok(())) => stage_secret_done = true,
+            Ok(Err(secret_err)) => {
+                // rollback stage 1
+                if stage_registry_done {
+                    if let Ok(mut reg) = state.provider_registry.write() {
+                        reg.remove(&id);
+                    }
+                }
+                return Ok(ipc(Err(secret_err)));
+            },
+            Err(join_err) => {
+                if stage_registry_done {
+                    if let Ok(mut reg) = state.provider_registry.write() {
+                        reg.remove(&id);
+                    }
+                }
+                return Ok(ipc(Err(AppError::Internal(format!(
+                    "spawn_blocking for set_provider_secret failed: {join_err}"
+                )))));
+            },
+        }
+    }
+
+    // Stage 3a: Apply config mutation in memory.
+    // IMPORTANT: std::sync::RwLockWriteGuard is NOT Send, so we MUST drop all
+    // guards completely BEFORE any `.await` point. Hence: acquire in tiny
+    // `{...}` scopes, capture the result (lock-poisoned flag) as a bool/simple
+    // value, then do async work afterward.
+    let custom_config = CustomProviderConfig {
+        id: id.clone(),
+        name: trimmed_name,
+        base_url,
+        models: model_defs.into_iter().map(|m| m.id).collect(),
+        created_at: adl_types::now_ms(),
+    };
+    let config_apply_ok: bool = {
+        match state.config.write() {
+            Ok(mut config) => {
+                config.custom_providers.retain(|c| c.id != id);
+                config.custom_providers.push(custom_config);
+                true
+            },
+            Err(_) => false,
+        }
+    };
+    if !config_apply_ok {
+        // rollback 2 + 1 (NO .await inside the previous lock scope — it's now safe)
+        if stage_secret_done {
+            let cid = id.clone();
+            let _ =
+                tokio::task::spawn_blocking(move || adl_model_gateway::clear_provider_secret(&cid))
+                    .await;
+        }
+        if stage_registry_done {
+            if let Ok(mut reg) = state.provider_registry.write() {
+                reg.remove(&id);
+            }
+        }
+        return Ok(ipc(Err(AppError::Internal("config lock poisoned".into()))));
+    }
+
+    // Stage 3b: Persist to disk (save_config_snapshot = spawn_blocking, no
+    // blocking .join()). Failure → rollback config memory + secret + registry.
+    if let Err(e) = save_config_snapshot(&state).await {
+        // rollback config memory
+        if let Ok(mut c) = state.config.write() {
+            c.custom_providers.retain(|x| x.id != id);
+        }
+        // rollback secret
+        if stage_secret_done {
+            let clear_id = id.clone();
+            match tokio::task::spawn_blocking(move || {
+                adl_model_gateway::clear_provider_secret(&clear_id)
+            })
+            .await
+            {
+                Ok(Ok(())) => {},
+                other => {
+                    tracing::warn!(
+                        provider_id = %id,
+                        result = ?other,
+                        "add_custom_provider config-save rollback: clear_provider_secret failed"
+                    );
+                },
+            }
+        }
+        // rollback registry
+        if stage_registry_done {
+            if let Ok(mut reg) = state.provider_registry.write() {
+                reg.remove(&id);
+            }
+        }
+        return Ok(ipc(Err(AppError::Storage(format!(
+            "failed to persist custom provider config: {e}"
+        )))));
     }
 
     Ok(ipc(Ok(true)))
@@ -238,14 +470,106 @@ pub async fn remove_custom_provider(
     provider_id: String,
     state: tauri::State<'_, crate::state::AppState>,
 ) -> CmdResult<bool> {
+    // Coarse serialize with add_custom_provider / save_provider_config to
+    // avoid registry/config drift under concurrent mutations.
+    let _ops_guard = state.provider_ops_mutex.lock().await;
+
+    // Only allow removal of CUSTOM (non-built-in) providers. Protects built-ins
+    // like openai/anthropic/ollama.
     {
-        let mut registry = state
+        let registry = state
             .provider_registry
-            .write()
+            .read()
             .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?;
+        match registry.get(&provider_id) {
+            Some(def) if def.built_in => {
+                return Ok(ipc(Err(AppError::InvalidInput(format!(
+                    "provider '{provider_id}' is built-in and cannot be removed"
+                )))));
+            },
+            None => {
+                tracing::warn!(
+                    provider_id = %provider_id,
+                    "remove_custom_provider called on unknown id; continuing to drop config entry if any"
+                );
+            },
+            _ => {},
+        }
+    }
+
+    // ===== 持久化优先模式：先快照内存态 → 改内存 → 持久化 → 失败恢复快照 =====
+    // Snapshot registry entry and config row so we can restore on persist failure
+    // (prevents the classic "删除时报错但重启后又回来" inconsistency).
+    let registry_snapshot: Option<ProviderDefinition> =
+        state.provider_registry.read().ok().and_then(|r| r.get(&provider_id).cloned());
+    let config_snapshot_row: Option<CustomProviderConfig> = state
+        .config
+        .read()
+        .ok()
+        .and_then(|c| c.custom_providers.iter().find(|x| x.id == provider_id).cloned());
+
+    // Apply in-memory removals.
+    if let Ok(mut registry) = state.provider_registry.write() {
         registry.remove(&provider_id);
     }
-    let _ = adl_model_gateway::clear_provider_secret(&provider_id);
+    if let Ok(mut config) = state.config.write() {
+        config.custom_providers.retain(|c| c.id != provider_id);
+    }
+
+    // Persist. On failure → restore snapshots so running memory matches disk.
+    let save_result = save_config_snapshot(&state).await;
+    if let Err(e) = save_result {
+        tracing::warn!(
+            provider_id = %provider_id,
+            error = %e,
+            "remove_custom_provider: config save failed; rolling back in-memory state to match disk"
+        );
+        if let Some(saved_def) = registry_snapshot {
+            if let Ok(mut reg) = state.provider_registry.write() {
+                if let Some(base_url) = &saved_def.default_base_url {
+                    let adapter = Box::new(OpenAIProvider::with_client_and_base_url(
+                        (*state.shared_http_client).clone(),
+                        base_url.clone(),
+                    ));
+                    reg.register(saved_def, adapter);
+                }
+            }
+        }
+        if let Some(saved_row) = config_snapshot_row {
+            if let Ok(mut c) = state.config.write() {
+                c.custom_providers.retain(|x| x.id != provider_id);
+                c.custom_providers.push(saved_row);
+            }
+        }
+        return Ok(ipc(Err(AppError::Storage(format!(
+            "failed to persist custom provider removal: {e}"
+        )))));
+    }
+
+    // Clear secret LAST — best-effort only after the config+registry are
+    // durably removed; a failure here is logged but not surfaced to the user
+    // as a removal failure (provider is already gone from UI + config).
+    let clear_id = provider_id.clone();
+    match tokio::task::spawn_blocking(move || adl_model_gateway::clear_provider_secret(&clear_id))
+        .await
+    {
+        Ok(Ok(())) => {},
+        Ok(Err(e)) => {
+            tracing::warn!(
+                provider_id = %provider_id,
+                error = %e,
+                "remove_custom_provider: clear_provider_secret failed (secret orphaned)"
+            );
+        },
+        Err(join_err) => {
+            tracing::warn!(
+                provider_id = %provider_id,
+                error = %join_err,
+                "remove_custom_provider: clear_provider_secret join error"
+            );
+        },
+    }
+
     Ok(ipc(Ok(true)))
 }
 
@@ -283,14 +607,42 @@ pub async fn has_provider_api_key(provider_id: String) -> Result<IpcResult<bool>
 pub async fn save_provider_config(
     provider_id: String,
     config: serde_json::Value,
+    state: tauri::State<'_, crate::state::AppState>,
 ) -> CmdResult<bool> {
-    if let Some(api_key) = config.get("apiKey").and_then(|v| v.as_str()).filter(|s| !s.is_empty()) {
-        adl_model_gateway::set_provider_secret(&provider_id, api_key)
-            .map_err(|e| AppError::Security(e.to_string()))?;
+    // Serialize with add/remove so writes against a custom-* id cannot race with
+    // concurrent add/remove of the same id.
+    let _ops_guard = state.provider_ops_mutex.lock().await;
+
+    // Existence check: reject writes for ids that are not registered — prevents
+    // orphan secret keys for ids that never existed or were already removed.
+    let exists = state
+        .provider_registry
+        .read()
+        .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?
+        .get(&provider_id)
+        .is_some();
+    if !exists {
+        return Ok(ipc(Err(AppError::InvalidInput(format!(
+            "cannot save config for unknown provider id '{provider_id}'"
+        )))));
     }
 
-    let has_api_key = config.get("apiKey").and_then(|v| v.as_str()).is_some_and(|s| !s.is_empty());
-    tracing::info!(provider_id = %provider_id, has_api_key = has_api_key, "provider config saved");
+    // NOTE: This command intentionally handles ONLY the `apiKey` field inside
+    // `config`. Other fields (baseUrl, models, enabled etc.) are persisted
+    // elsewhere (AppConfig/custom_providers, provider preferences store). This
+    // is a deliberate scoping, not accidental discarding — name clarity is
+    // preferred over silently dropping fields a caller may have assumed we
+    // persist.
+    let api_key_opt = config.get("apiKey").and_then(|v| v.as_str()).filter(|s| !s.is_empty());
+    let has_api_key = api_key_opt.is_some();
+    if let Some(api_key) = api_key_opt {
+        let pid = provider_id.clone();
+        let key = api_key.to_string();
+        tokio::task::spawn_blocking(move || adl_model_gateway::set_provider_secret(&pid, &key))
+            .await
+            .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
+    }
+    tracing::info!(provider_id = %provider_id, has_api_key = has_api_key, "provider api-key config saved");
     Ok(ipc(Ok(true)))
 }
 

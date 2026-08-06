@@ -143,6 +143,18 @@ pub struct ModelPreferences {
     pub providers: std::collections::BTreeMap<String, ModelProviderPreference>,
 }
 
+/// 用户自定义 OpenAI 兼容供应商的持久化配置。
+/// API Key 不在此结构中——它通过 `adl_credential::CredentialStore` 单独持久化。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct CustomProviderConfig {
+    pub id: String,
+    pub name: String,
+    pub base_url: String,
+    pub models: Vec<String>,
+    pub created_at: super::TimestampMs,
+}
+
 impl Default for ModelPreferences {
     fn default() -> Self {
         let mut providers = std::collections::BTreeMap::new();

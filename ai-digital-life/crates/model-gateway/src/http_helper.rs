@@ -3,18 +3,34 @@ use reqwest::{Client, Response};
 
 /// Builder for HTTP requests to LLM provider chat endpoints.
 ///
-/// Collects URL, headers, and JSON body into a request that can be sent
-/// via [`send_chat_request`] or [`send_stream_request`].
+/// Collects URL, headers, query pairs, and JSON body into a request that can
+/// be sent via [`send_chat_request`] or [`send_stream_request`].
 pub struct HttpRequestBuilder {
     client: Client,
     url: String,
+    query: Vec<(String, String)>,
     headers: Vec<(String, String)>,
     body: Option<serde_json::Value>,
 }
 
 impl HttpRequestBuilder {
     pub fn new(client: Client, url: impl Into<String>) -> Self {
-        Self { client, url: url.into(), headers: Vec::new(), body: None }
+        Self { client, url: url.into(), query: Vec::new(), headers: Vec::new(), body: None }
+    }
+
+    /// Append a query key/value pair to the URL. Values are URL-encoded by
+    /// `reqwest` when applied via `.query()`, so secrets (e.g. API keys) that
+    /// contain `&`/`=`/`?` characters are safely handled and never double-
+    /// encoded or truncated in-transit.
+    pub fn query<K, V>(mut self, pairs: &[(K, V)]) -> Self
+    where
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        for (k, v) in pairs {
+            self.query.push((k.as_ref().to_string(), v.as_ref().to_string()));
+        }
+        self
     }
 
     pub fn header(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
@@ -29,6 +45,11 @@ impl HttpRequestBuilder {
 
     fn build_post(&self) -> reqwest::RequestBuilder {
         let mut rb = self.client.post(&self.url);
+        if !self.query.is_empty() {
+            let pairs: Vec<(&str, &str)> =
+                self.query.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+            rb = rb.query(&pairs);
+        }
         for (key, value) in &self.headers {
             rb = rb.header(key.as_str(), value.as_str());
         }

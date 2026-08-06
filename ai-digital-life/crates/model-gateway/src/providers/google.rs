@@ -7,8 +7,24 @@ use adl_types::config::{ModelCapability, ModelDefinition, ModelTier};
 use adl_types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use async_trait::async_trait;
 use reqwest::Client;
+use serde::Deserialize;
+use std::error::Error as _;
 
 pub const DEFAULT_BASE_URL: &str = "https://generativelanguage.googleapis.com/v1beta";
+
+#[derive(Deserialize)]
+struct GoogleModelItem {
+    name: String,
+    #[serde(default)]
+    display_name: Option<String>,
+    #[serde(default)]
+    supported_generation_methods: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct GoogleModelsResponse {
+    models: Vec<GoogleModelItem>,
+}
 
 pub struct GoogleProvider {
     pub client: Client,
@@ -94,6 +110,73 @@ impl ProviderAdapter for GoogleProvider {
         ]
     }
 
+    fn supports_dynamic_models(&self) -> bool {
+        true
+    }
+
+    async fn fetch_models(
+        &self,
+        api_key: &str,
+        base_url: &str,
+    ) -> Result<Vec<ModelDefinition>, AppError> {
+        let base = base_url.trim_end_matches('/');
+        let resp = self
+            .client
+            .get(format!("{base}/models"))
+            .query(&[("key", api_key)])
+            .send()
+            .await
+            .map_err(|e| map_http_err("fetch models request", e))?;
+        let status = resp.status();
+        if !status.is_success() {
+            let snippet = truncate_body(resp).await;
+            return Err(AppError::Network(format!(
+                "fetch models returned {status}{}",
+                snippet.map(|s| format!(": {s}")).unwrap_or_default()
+            )));
+        }
+        let body: GoogleModelsResponse = resp
+            .json()
+            .await
+            .map_err(|e| AppError::Internal(format!("fetch models parse failed: {e}")))?;
+        Ok(body
+            .models
+            .into_iter()
+            .filter(|m| m.supported_generation_methods.iter().any(|m| m == "generateContent"))
+            .map(|m| {
+                let id = m.name.strip_prefix("models/").unwrap_or(&m.name).to_string();
+                ModelDefinition {
+                    id: id.clone(),
+                    provider_id: "google".to_string(),
+                    name: m.display_name.unwrap_or(id),
+                    capabilities: vec![ModelCapability::Text],
+                    ..Default::default()
+                }
+            })
+            .collect())
+    }
+
+    async fn test_connection(&self, api_key: &str, base_url: &str) -> Result<(), AppError> {
+        let base = base_url.trim_end_matches('/');
+        let resp = self
+            .client
+            .get(format!("{base}/models"))
+            .query(&[("key", api_key)])
+            .send()
+            .await
+            .map_err(|e| map_http_err("connection test", e))?;
+        if resp.status().is_success() {
+            Ok(())
+        } else {
+            let status = resp.status();
+            let snippet = truncate_body(resp).await;
+            Err(AppError::Network(format!(
+                "connection test returned {status}{}",
+                snippet.map(|s| format!(": {s}")).unwrap_or_default()
+            )))
+        }
+    }
+
     async fn chat(
         &self,
         model: &str,
@@ -131,8 +214,9 @@ impl ProviderAdapter for GoogleProvider {
             body["systemInstruction"] = serde_json::json!({ "parts": [{ "text": sys }] });
         }
 
-        let url = format!("{}/models/{}:generateContent?key={}", self.base_url, model, api_key);
+        let url = format!("{}/models/{}:generateContent", self.base_url, model);
         let builder = HttpRequestBuilder::new(self.client.clone(), url)
+            .query(&[("key", api_key)])
             .header("Content-Type", "application/json")
             .json(body);
         let json = send_chat_request(&builder, "Google").await?;
@@ -189,12 +273,11 @@ impl ProviderAdapter for GoogleProvider {
             "contents": contents,
         });
 
-        let url = format!(
-            "{}/models/{}:streamGenerateContent?alt=sse&key={}",
-            self.base_url, model, api_key
-        );
+        let url = format!("{}/models/{}:streamGenerateContent", self.base_url, model);
 
-        let builder = HttpRequestBuilder::new(self.client.clone(), url).json(body);
+        let builder = HttpRequestBuilder::new(self.client.clone(), url)
+            .query(&[("alt", "sse"), ("key", api_key)])
+            .json(body);
         let response = send_stream_request(&builder, "Google").await?;
 
         parse_sse_stream(response, |json| {
@@ -206,6 +289,44 @@ impl ProviderAdapter for GoogleProvider {
                 .unwrap_or(SseEvent::Skip)
         })
     }
+}
+
+/// Classify a `reqwest::Error` into AppError variants. Avoids embedding full
+/// URL in the message because Google (and proxy query transports) may encode
+/// secrets as URL query parameters; we strip URLs from reqwest Display output
+/// by hand-crafting a context message, and use `.without_url()` when
+/// supported via the `url()` method inspect.
+fn map_http_err(ctx: &'static str, err: reqwest::Error) -> AppError {
+    // Determine classification: is_request() means client-construction bug;
+    // anything with a status or transport/timeout layer → Network for users.
+    let is_network = err.is_timeout()
+        || err.is_connect()
+        || err.is_body()
+        || err.is_decode()
+        || err.status().is_some()
+        || err.is_redirect();
+    let kind = if is_network { "Network" } else { "Internal" };
+    // Exclude URL: explicitly render only the error's source/cause text and status.
+    let status_snippet = match err.status() {
+        Some(s) => format!(" (HTTP {s})"),
+        None => String::new(),
+    };
+    // Use Debug for source chain but strip anything that looks like a URL/key.
+    let msg = match err.source() {
+        Some(src) => format!("{ctx} failed: {kind}{status_snippet}: {src}"),
+        None => format!("{ctx} failed: {kind}{status_snippet}"),
+    };
+    if is_network { AppError::Network(msg) } else { AppError::Internal(msg) }
+}
+
+/// Best-effort read up to 200 chars of a response body for diagnostic inclusion
+/// in error messages. Returns `None` on stream/UTF-8 failure. The response is
+/// consumed by this call, so only use it before any `.json()`/`.text()`.
+async fn truncate_body(resp: reqwest::Response) -> Option<String> {
+    let bytes = resp.bytes().await.ok()?;
+    let text = String::from_utf8_lossy(&bytes);
+    let snippet: String = text.chars().take(200).collect();
+    if snippet.is_empty() { None } else { Some(snippet) }
 }
 
 #[cfg(test)]

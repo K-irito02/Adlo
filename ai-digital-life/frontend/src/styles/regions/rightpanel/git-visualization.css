@@ -366,7 +366,9 @@
   justify-content: center;
   border-radius: 4px;
   color: var(--text-muted);
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
 
 .adl-branch-graph__help-trigger:hover {

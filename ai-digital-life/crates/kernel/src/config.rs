@@ -65,6 +65,11 @@ pub struct AppConfig {
     /// Default order: newest-added first (user can customize via drag-and-drop).
     #[serde(default)]
     pub workspace_natural_order: Vec<String>,
+    /// User-defined custom OpenAI-compatible providers (persisted across restarts).
+    /// API Keys are stored separately in the credential store.
+    #[serde(default)]
+    #[ts(skip)]
+    pub custom_providers: Vec<adl_types::types::config::CustomProviderConfig>,
 }
 
 impl AppConfig {
@@ -100,6 +105,7 @@ impl Default for AppConfig {
             workspace_priority_ids: Vec::new(),
             workspace_deferred_ids: Vec::new(),
             workspace_natural_order: Vec::new(),
+            custom_providers: Vec::new(),
         }
     }
 }
@@ -206,6 +212,7 @@ mod config_extension_tests {
             workspace_priority_ids: vec![],
             workspace_deferred_ids: vec![],
             workspace_natural_order: vec![],
+            custom_providers: vec![],
         };
         assert_eq!(config.commands.len(), 1);
         assert_eq!(config.commands[0].name, "deploy");

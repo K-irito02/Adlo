@@ -91,6 +91,7 @@ mod tests {
             workspace_priority_ids: vec![],
             workspace_deferred_ids: vec![],
             workspace_natural_order: vec![],
+            custom_providers: vec![],
         }
     }
 
