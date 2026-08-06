@@ -30,6 +30,9 @@ npm-debug.log*
 # Test artifacts
 dogfood-output/
 
+# Phase 4 review diff snapshots (temporary, regenerated each review round)
+.review-diffs/
+
 # Browser automation test artifacts (screenshots, videos, documents)
 test-artifacts/
 

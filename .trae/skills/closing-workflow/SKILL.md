@@ -55,6 +55,8 @@ Get-ChildItem "ai-digital-life\src-tauri\target\debug\incremental" -ErrorAction 
 
 日志文件已被 `.gitignore` 排除，**Glob/Grep 无法找到它们**，必须使用 **LS/Read** 直接操作。
 
+**只分析最新日志：** 各日志目录可能存在多个历史文件，其中大部分是旧日志，非本次工作产生。逐项检查时，先 `LS` 列出并按 `LastWriteTime` 取**最新**的一个文件分析，忽略其余旧文件。同名覆盖式文件（`debug-logs.txt` 等）直接读取。
+
 ### 检查清单
 
 | 路径 | 说明 |
@@ -97,13 +99,21 @@ Get-ChildItem "ai-digital-life\src-tauri\target\debug\incremental" -ErrorAction 
 - 根据对话记录回顾本次修改的文件，与上述命令交叉验证变更集
 - 三类均无变更 → 跳过 Step 2
 
+**Diff 快照预生成：** 合并后的变更一次性写入快照文件，供子代理直接读取，**不在终端重复执行 git 命令**：
+
+1. 在仓库根创建临时目录 `.review-diffs/`（已加入 `.gitignore`，Step 5 清理时删除）
+2. 生成完整快照：`git diff > .review-diffs/rev<N>.diff`（含未暂存 + 已暂存 + 已提交本地三类合并结果）
+3. 每个任务从完整快照中提取相关变更子集，生成独立快照：`.review-diffs/<task>-rev<N>.diff`；多任务修改同一文件时，给完整 diff 但明确指定审查范围
+4. 子代理 prompt 中直接给出快照文件路径，令其 Read 该文件，而非自行 `git diff`
+5. 每轮修复后重新生成快照（rev 递增，如 `rev1` → `rev2`），供下一轮复审使用
+
 ### 2b. 多Agent并行审查
 
 按已解决的任务数量派发子代理，每个 Agent 对分配的任务做**全面审查**（技术方案、设计、正确性、安全、性能、最佳实践），而非单一维度。
 
 **Agent 数量：** 1 个任务 → 1 Agent；2+ 个任务 → N Agent（N=任务数，>5 时合并小型任务）。
 
-**素材准备：** 为每个任务提取相关变更文件子集。多任务修改同一文件时，给完整 diff 但明确指定审查范围。
+**素材准备：** 为每个任务从 `.review-diffs/<task>-rev<N>.diff` 快照中提取相关变更文件子集。多任务修改同一文件时，给完整 diff 但明确指定审查范围。
 
 **并行派发：** 在同一条消息中同时派发 N 个 Task（`subagent_type: "general_purpose_task"`），使用以下 prompt 模板：
 
@@ -120,8 +130,7 @@ Perform a comprehensive review covering:
 
 For each issue, report: file + line range, severity (critical/high/medium/low), category, description, suggested fix.
 
-Diff:
-[TASK_DIFF]
+Use Read to load the diff snapshot file: .review-diffs/<task>-rev<N>.diff (do NOT run git commands in terminal).
 ```
 
 **合并结果：** 去重（同文件同行同类问题保留最详细者）→ 按 severity 降序排列 → 输出合并清单。
@@ -154,6 +163,7 @@ Diff:
 
 **迭代控制：**
 - 每轮修复后必须重新运行多Agent审查，不可凭主代理判断跳过
+- 每轮修复后重新生成快照（rev 递增），下一轮子代理按**最新完整快照全量重看**（不得只看增量或复用过期快照）
 - 基于当前完整 diff 审查，而非仅审查上次问题点
 - 同一问题 3 轮仍未解决 → 向用户报告并等待指示
 
@@ -165,7 +175,16 @@ Diff:
 
 > 此步骤与 `mandatory-testing.md` 规则一致。若本轮对话中已完整执行过（Lint + Format + Typecheck + Tests 全部通过），则跳过；否则运行全部。
 
-### 执行（前后端可并行）
+**分级验证（避免冗余全量测试）：**
+
+| 时机 | 执行范围 |
+|------|---------|
+| Step 2 循环内每轮修复后 | 只跑受影响部分：Rust `cargo test -p <受影响crate>`、前端 `vitest run <受影响测试文件>`；保持 clippy/tsc 通过即可，**不跑全量** |
+| 全部审查完成后（仅一次） | 全量质量检测：见下方"执行" |
+
+### 执行（前后端并行）
+
+> **并行执行：** 在同一条消息中发两个 bash 命令（前端一组、后端一组），等待全部返回，禁止顺序串行执行。
 
 **前端：**
 ```powershell
@@ -179,9 +198,10 @@ pnpm --dir frontend run test
 ```powershell
 cargo fmt --all
 cargo clippy --workspace --all-targets --fix -- -D warnings
-cargo check --workspace
 cargo test --workspace
 ```
+
+> `cargo check --workspace` 不单独执行：`cargo clippy --all-targets` 已覆盖编译检查，避免与 `cargo test` 重复编译。
 
 ### 修复与失败处理
 
@@ -235,6 +255,7 @@ cargo test --workspace
 1. 移除 `.adl-logs/` 中超过 7 天的日志文件
 2. 移除 `debug-logs.txt`、`debug-logs-browser.txt`（若存在）
 3. 移除 `test-artifacts/` 中超过 3 天的临时文件
+4. 移除 `.review-diffs/` 全部快照文件（Step 2 临时审查产物）
 
 使用 PowerShell `LastWriteTime` 判断文件年龄，DeleteFile 工具删除（删除前确认存在）。
 
@@ -276,9 +297,9 @@ cargo test --workspace
 | Step | 操作 | 关键工具 | 完成条件 |
 |------|------|----------|----------|
 | 0 | 环境 PATH + 工作区状态 + 磁盘空间 | `git branch`/`git status` | 环境就绪 |
-| 1 | 检查日志（**用 LS/Read，禁用 Glob/Grep**） | LS/Read | 无 P0/P1 问题 |
-| 2 | 收集变更 → 按任务拆分 → 并行审查 → 合并 → 强制修复循环 | `git diff` + Task（N 并行） + AskUserQuestion | 所有 Agent 零问题 |
-| 3 | Lint/Format/Typecheck/Tests（前后端并行） | ESLint/Prettier/Clippy/rustfmt/tsc/cargo check/vitest/cargo test | 零警告零错误 |
+| 1 | 检查日志（**用 LS/Read，只看最新日志**） | LS/Read | 无 P0/P1 问题 |
+| 2 | 采集变更 → 生成 diff 快照 → 按任务并行审查 → 合并 → 强制修复循环（每轮重新生成快照） | `git diff` + Task（N 并行） + AskUserQuestion | 所有 Agent 零问题 |
+| 3 | Lint/Format/Typecheck/Tests（**前后端并行**，循环内定向测试、收尾全量） | ESLint/Prettier/Clippy/rustfmt/tsc/vitest/cargo test | 零警告零错误 |
 | 4 | **强制**文档同步，提取规则与设计规范 | Write/Edit + 同步 | 逐项检查完成，列出具体文件 |
 | 5 | 清理临时/调试文件（按 LastWriteTime 判断年龄） | DeleteFile + PowerShell | 目录干净 |
 | 6 | 输出收尾总结表格 | 文本输出 | 用户已了解结果 |
@@ -289,7 +310,7 @@ cargo test --workspace
 
 **流程：** 跳过前置检查（PATH 未设） · 串行派发 Task（非真正并行） · 按维度拆分而非按任务 · 一次性审查后未循环 · 发现问题未实际修复代码 · 仅跑 Lint 跳过 typecheck/test
 
-**变更采集：** 遗漏未暂存/已暂存/已提交本地某类变更 · 将已推送代码纳入审查 · `origin/HEAD..HEAD` 失败未降级 · 3 轮未解决未报告
+**变更采集：** 遗漏未暂存/已暂存/已提交本地某类变更 · 将已推送代码纳入审查 · `origin/HEAD..HEAD` 失败未降级 · 3 轮未解决未报告 · 未生成 diff 快照 / 子代理在终端自行 `git diff` · 复审复用过期快照或只看增量
 
 **审查修复：** 多Agent结果未去重/未按 severity 排序 · 引入无关变更 · 测试失败未分析根因直接重试 · 修复后未重新检查
 
