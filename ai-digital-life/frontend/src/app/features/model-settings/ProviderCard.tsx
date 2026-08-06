@@ -24,12 +24,18 @@ export function ProviderCard({ provider }: ProviderCardProps) {
   const testConnection = useAppStore((s) => s.testConnection);
   const removeCustomProvider = useAppStore((s) => s.removeCustomProvider);
   const setProviderEnabled = useAppStore((s) => s.setProviderEnabled);
+  const showToast = useAppStore((s) => s.showToast);
   const connectionTestResults = useAppStore((s) => s.connectionTestResults);
   const testingProviderId = useAppStore((s) => s.testingProviderId);
 
   const [expanded, setExpanded] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState('');
   const [showKey, setShowKey] = useState(false);
+
+  // The typed API key lives in the store (in-memory only): once entered it stays
+  // in the input across re-renders / panel switches until the user clears it
+  // manually, and it is used by test/fetch without requiring a prior save.
+  const apiKeyInput = useAppStore((s) => s.apiKeyInputs[provider.id] ?? '');
+  const setApiKeyInput = useAppStore((s) => s.setApiKeyInput);
 
   const connected = provider.hasKey || !provider.requiresKey;
   const isTesting = testingProviderId === provider.id;
@@ -37,11 +43,23 @@ export function ProviderCard({ provider }: ProviderCardProps) {
   const guideUrl = getProviderApiKeyGuideUrl(provider.id);
 
   const handleSaveApiKey = async () => {
-    if (!apiKeyInput.trim()) {
-      return;
+    // Persist the current input (overwriting any previously stored key).
+    // The input value is intentionally kept — "save" must not erase it.
+    const ok = await setApiKey(provider.id, apiKeyInput.trim());
+    if (ok) {
+      showToast(t.providerKeySaveSuccess, 'success');
+    } else {
+      showToast(t.providerKeySaveFailed, 'error');
     }
-    await setApiKey(provider.id, apiKeyInput.trim());
-    setApiKeyInput('');
+  };
+
+  const handleClearApiKey = async () => {
+    const ok = await clearApiKey(provider.id);
+    if (ok) {
+      showToast(t.providerKeyCleared, 'success');
+    } else {
+      showToast(t.providerKeyClearFailed, 'error');
+    }
   };
 
   return (
@@ -145,7 +163,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
                     placeholder={t.providerManagerApiKeyPlaceholder}
                     aria-label={t.providerManagerApiKey}
                     value={apiKeyInput}
-                    onChange={(e) => setApiKeyInput(e.target.value)}
+                    onChange={(e) => setApiKeyInput(provider.id, e.target.value)}
                   />
                   <button
                     type="button"
@@ -168,7 +186,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
             <button
               type="button"
               className="adl-btn adl-btn--ghost adl-btn--xs"
-              onClick={() => void testConnection(provider.id)}
+              onClick={() => void testConnection(provider.id, apiKeyInput.trim() || undefined)}
               disabled={isTesting}
             >
               {isTesting ? t.processing : t.providerManagerTestConnection}
@@ -177,7 +195,7 @@ export function ProviderCard({ provider }: ProviderCardProps) {
               <button
                 type="button"
                 className="adl-btn adl-btn--ghost adl-btn--xs"
-                onClick={() => void clearApiKey(provider.id)}
+                onClick={() => void handleClearApiKey()}
               >
                 {t.providerClear}
               </button>

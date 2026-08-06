@@ -41,4 +41,10 @@ export const providerEn = {
   providerApiKeyGuide: 'How to get an API key?',
   providerApiKeyGuideHint:
     'Register on the provider platform, create an API key, paste it into the field below and click "Save"',
+  providerKeySaveSuccess: 'API key saved',
+  providerKeySaveFailed: 'Failed to save API key. Please try again.',
+  providerKeyCleared: 'API key cleared',
+  providerKeyClearFailed: 'Failed to clear API key. Please try again.',
+  providerFetchModelsSuccess: 'Fetched {count} models',
+  providerFetchModelsFailed: 'Failed to fetch models. Please check the API key and Base URL.',
 } as const;

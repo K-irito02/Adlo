@@ -129,7 +129,7 @@ impl ProviderAdapter for OllamaProvider {
                 id: m.name.clone(),
                 provider_id: "ollama".to_string(),
                 name: m.name,
-                capabilities: vec![ModelCapability::Text],
+                capabilities: vec![ModelCapability::Text, ModelCapability::Streaming],
                 ..Default::default()
             })
             .collect())

@@ -136,7 +136,7 @@ impl ProviderAdapter for OpenRouterProvider {
                 id: m.id.clone(),
                 provider_id: "openrouter".to_string(),
                 name: m.name.unwrap_or_else(|| m.id.clone()),
-                capabilities: vec![ModelCapability::Text],
+                capabilities: vec![ModelCapability::Text, ModelCapability::Streaming],
                 ..Default::default()
             })
             .collect())

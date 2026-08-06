@@ -35,32 +35,64 @@ export function createProviderActions(
         return;
       }
       set({ providers: result.data, isFetchingProviders: false });
+      // Re-fill in-memory key inputs from the persisted credential store for
+      // providers that have a stored key and an input the user has not edited
+      // this session (so keys survive an app restart). Never overwrite a key
+      // the user typed, and never re-fill an input the user deliberately
+      // cleared — both cases are tracked via keyInputTouched.
+      const isPrefillable = (id: string) =>
+        !(get().apiKeyInputs[id] ?? '').trim() && !get().keyInputTouched[id];
+      const emptyKeyed = result.data.filter((p) => p.hasKey && isPrefillable(p.id));
+      await Promise.all(
+        emptyKeyed.map(async (p) => {
+          const key = await window.digitalLife.provider.getProviderApiKey(p.id);
+          // Re-check emptiness AFTER the await: the user may have typed a key
+          // (or cleared the input) while the read was in flight — never
+          // overwrite their input.
+          if (key.ok && key.data && isPrefillable(p.id)) {
+            set({ apiKeyInputs: { ...get().apiKeyInputs, [p.id]: key.data } });
+          }
+        }),
+      );
     },
 
-    setApiKey: async (provider: string, apiKey: string) => {
+    setApiKey: async (provider: string, apiKey: string): Promise<boolean> => {
       clearError(get);
       const result = await window.digitalLife.provider.setProviderApiKey(provider, apiKey);
       if (!result.ok) {
         captureError(get, result.error);
-        return;
+        return false;
       }
       await get().fetchProviders();
+      return true;
     },
 
-    clearApiKey: async (provider: string) => {
+    clearApiKey: async (provider: string): Promise<boolean> => {
       clearError(get);
       const result = await window.digitalLife.provider.clearProviderApiKey(provider);
       if (!result.ok) {
         captureError(get, result.error);
-        return;
+        return false;
       }
+      // Drop the in-memory input so the cleared state is visible immediately —
+      // the input must not keep a stale key after clearing.
+      const apiKeyInputs = { ...get().apiKeyInputs };
+      delete apiKeyInputs[provider];
+      // Also drop the stale connection-test result: without a key the previous
+      // "successfully tested" state (chip + sort rank) no longer applies.
+      const connectionTestResults = { ...get().connectionTestResults };
+      delete connectionTestResults[provider];
+      const keyInputTouched = { ...get().keyInputTouched };
+      delete keyInputTouched[provider];
+      set({ apiKeyInputs, connectionTestResults, keyInputTouched });
       await get().fetchProviders();
+      return true;
     },
 
-    testConnection: async (providerId: string) => {
+    testConnection: async (providerId: string, apiKey?: string) => {
       clearError(get);
       set({ testingProviderId: providerId });
-      const result = await window.digitalLife.provider.testProviderConnection(providerId);
+      const result = await window.digitalLife.provider.testProviderConnection(providerId, apiKey);
       set({ testingProviderId: null });
       if (!result.ok) {
         captureError(get, result.error);
@@ -96,6 +128,16 @@ export function createProviderActions(
         captureError(get, result.error);
         return;
       }
+      const apiKeyInputs = { ...get().apiKeyInputs };
+      delete apiKeyInputs[providerId];
+      // Mirror clearApiKey: drop the per-provider touched flag and stale test
+      // result too, so a later re-added custom provider with the same id
+      // doesn't inherit suppressed prefill / a stale "successfully tested" chip.
+      const keyInputTouched = { ...get().keyInputTouched };
+      delete keyInputTouched[providerId];
+      const connectionTestResults = { ...get().connectionTestResults };
+      delete connectionTestResults[providerId];
+      set({ apiKeyInputs, keyInputTouched, connectionTestResults });
       await get().fetchProviders();
     },
 
@@ -105,18 +147,19 @@ export function createProviderActions(
       set({ selectedProviderId: providerId, selectedModelId: modelId, recentModelIds: updated });
     },
 
-    fetchModels: async (providerId: string) => {
+    fetchModels: async (providerId: string, apiKey?: string): Promise<number> => {
       clearError(get);
-      const result = await window.digitalLife.provider.fetchProviderModels(providerId);
+      const result = await window.digitalLife.provider.fetchProviderModels(providerId, apiKey);
       if (!result.ok) {
         captureError(get, result.error);
-        return;
+        return -1;
       }
       set({
         providers: get().providers.map((p) =>
           p.id === providerId ? { ...p, models: result.data } : p,
         ),
       });
+      return result.data.length;
     },
 
     setAllModelsEnabled: async (providerId: string, enableAll: boolean) => {

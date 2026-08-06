@@ -32,11 +32,18 @@ export interface ProviderBridge {
   setProviderApiKey(provider: string, apiKey: string): Promise<IpcResult<boolean>>;
   clearProviderApiKey(provider: string): Promise<IpcResult<boolean>>;
   hasProviderApiKey(provider: string): Promise<IpcResult<boolean>>;
+  /** Read back the persisted credential so the settings input can be re-filled after a restart. */
+  getProviderApiKey(provider: string): Promise<IpcResult<string | null>>;
   listSupportedProviders(): Promise<IpcResult<ProviderInfo[]>>;
   listProviders(): Promise<IpcResult<ProviderStatus[]>>;
   saveProviderConfig(providerId: string, config: Record<string, unknown>): Promise<IpcResult<void>>;
-  testProviderConnection(providerId: string): Promise<IpcResult<ConnectionTestResult>>;
-  fetchProviderModels(providerId: string): Promise<IpcResult<ModelDefinition[]>>;
+  /** Test connectivity. `apiKey` (if provided) is preferred over the persisted credential. */
+  testProviderConnection(
+    providerId: string,
+    apiKey?: string,
+  ): Promise<IpcResult<ConnectionTestResult>>;
+  /** Fetch the live model list. `apiKey` (if provided) is preferred over the persisted credential. */
+  fetchProviderModels(providerId: string, apiKey?: string): Promise<IpcResult<ModelDefinition[]>>;
   addCustomProvider(
     name: string,
     baseUrl: string,

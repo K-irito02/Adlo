@@ -75,6 +75,7 @@ rmcp = { version = "1", features = ["client", "server", "transport-child-process
 rmcp-macros = "2"
 lsp-server = "0.7"
 lsp-types = "0.97"
+indexmap = "2"
 
 [profile.dev]
 opt-level = 0

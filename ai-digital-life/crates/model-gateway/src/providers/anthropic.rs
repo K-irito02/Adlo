@@ -143,7 +143,7 @@ impl ProviderAdapter for AnthropicProvider {
                 id: m.id.clone(),
                 provider_id: "anthropic".to_string(),
                 name: m.display_name.unwrap_or_else(|| m.id.clone()),
-                capabilities: vec![ModelCapability::Text],
+                capabilities: vec![ModelCapability::Text, ModelCapability::Streaming],
                 ..Default::default()
             })
             .collect())

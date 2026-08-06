@@ -8,6 +8,7 @@ use adl_types::model::{ModelChatMessage, ModelResponse, ModelTokenUsage};
 use async_trait::async_trait;
 use reqwest::Client;
 use serde::Deserialize;
+use std::error::Error as _;
 
 pub const DEFAULT_BASE_URL: &str = "https://api.openai.com/v1";
 
@@ -74,9 +75,23 @@ impl ProviderAdapter for OpenAIProvider {
             .header("Authorization", format!("Bearer {}", api_key))
             .send()
             .await
-            .map_err(|e| AppError::Internal(format!("fetch models request failed: {e}")))?;
+            .map_err(|e| map_http_err("fetch models request", e))?;
         if !resp.status().is_success() {
-            return Err(AppError::Internal(format!("fetch models returned {}", resp.status())));
+            let status = resp.status();
+            // Only read the response body for statuses without a dedicated
+            // friendly message (401/403/404 already get one, so skip the
+            // wasted body read for the most common user-facing errors).
+            let message = match friendly_http_message("fetch models", status) {
+                Some(msg) => msg,
+                None => {
+                    let snippet = truncate_body(resp).await;
+                    format!(
+                        "fetch models returned {status}{}",
+                        snippet.map(|s| format!(": {s}")).unwrap_or_default()
+                    )
+                },
+            };
+            return Err(AppError::Network(message));
         }
         let body: OpenAIModelsResponse = resp
             .json()
@@ -89,7 +104,7 @@ impl ProviderAdapter for OpenAIProvider {
                 id: m.id.clone(),
                 provider_id: "openai".to_string(),
                 name: m.id,
-                capabilities: vec![ModelCapability::Text],
+                capabilities: vec![ModelCapability::Text, ModelCapability::Streaming],
                 ..Default::default()
             })
             .collect())
@@ -103,12 +118,22 @@ impl ProviderAdapter for OpenAIProvider {
             .header("Authorization", format!("Bearer {}", api_key))
             .send()
             .await
-            .map_err(|e| AppError::Internal(format!("connection test failed: {e}")))?;
+            .map_err(|e| map_http_err("connection test", e))?;
         if resp.status().is_success() {
-            Ok(())
-        } else {
-            Err(AppError::Internal(format!("connection test returned {}", resp.status())))
+            return Ok(());
         }
+        let status = resp.status();
+        let message = match friendly_http_message("connection test", status) {
+            Some(msg) => msg,
+            None => {
+                let snippet = truncate_body(resp).await;
+                format!(
+                    "connection test returned {status}{}",
+                    snippet.map(|s| format!(": {s}")).unwrap_or_default()
+                )
+            },
+        };
+        Err(AppError::Network(message))
     }
 
     fn supported_models(&self) -> Vec<ModelDefinition> {
@@ -243,6 +268,52 @@ impl ProviderAdapter for OpenAIProvider {
     }
 }
 
+/// Friendly, user-facing message for a non-success HTTP status. Returns `None`
+/// for statuses without a dedicated explanation (the caller falls back to the
+/// raw status + response snippet).
+fn friendly_http_message(operation: &str, status: reqwest::StatusCode) -> Option<String> {
+    match status {
+        reqwest::StatusCode::UNAUTHORIZED => {
+            Some(format!("{operation} failed: API key is invalid or expired ({status})"))
+        },
+        reqwest::StatusCode::FORBIDDEN => {
+            Some(format!("{operation} failed: access denied for this API key ({status})"))
+        },
+        reqwest::StatusCode::NOT_FOUND => Some(format!(
+            "{operation} failed: endpoint not found — the Base URL may be incorrect or missing a version prefix such as /v1 ({status})"
+        )),
+        _ => None,
+    }
+}
+
+/// Classify a `reqwest::Error` — avoid embedding the full reqwest Display
+/// (which can contain URLs and sensitive headers under some transports).
+fn map_http_err(ctx: &'static str, err: reqwest::Error) -> AppError {
+    let is_network = err.is_timeout()
+        || err.is_connect()
+        || err.is_body()
+        || err.is_decode()
+        || err.status().is_some()
+        || err.is_redirect();
+    let kind = if is_network { "Network" } else { "Internal" };
+    let status_snippet = match err.status() {
+        Some(s) => format!(" (HTTP {s})"),
+        None => String::new(),
+    };
+    let msg = match err.source() {
+        Some(src) => format!("{ctx} failed: {kind}{status_snippet}: {src}"),
+        None => format!("{ctx} failed: {kind}{status_snippet}"),
+    };
+    if is_network { AppError::Network(msg) } else { AppError::Internal(msg) }
+}
+
+async fn truncate_body(resp: reqwest::Response) -> Option<String> {
+    let bytes = resp.bytes().await.ok()?;
+    let text = String::from_utf8_lossy(&bytes);
+    let snippet: String = text.chars().take(200).collect();
+    if snippet.is_empty() { None } else { Some(snippet) }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -269,6 +340,23 @@ mod tests {
     fn custom_base_url_for_compatible_apis() {
         let p = OpenAIProvider::with_base_url("https://api.deepseek.com/v1".to_string());
         assert_eq!(p.base_url, "https://api.deepseek.com/v1");
+    }
+
+    #[test]
+    fn friendly_http_message_explains_auth_and_url_issues() {
+        use reqwest::StatusCode;
+        assert_eq!(
+            friendly_http_message("fetch models", StatusCode::UNAUTHORIZED).unwrap(),
+            "fetch models failed: API key is invalid or expired (401 Unauthorized)"
+        );
+        assert_eq!(
+            friendly_http_message("connection test", StatusCode::FORBIDDEN).unwrap(),
+            "connection test failed: access denied for this API key (403 Forbidden)"
+        );
+        let not_found = friendly_http_message("connection test", StatusCode::NOT_FOUND).unwrap();
+        assert!(not_found.contains("endpoint not found"));
+        assert!(not_found.contains("Base URL"));
+        assert_eq!(friendly_http_message("fetch models", StatusCode::BAD_REQUEST), None);
     }
 
     #[test]

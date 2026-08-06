@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
+import { sortProvidersForDisplay } from '@shared/providerSort';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { CustomProviderDialog } from '../../components/models/CustomProviderDialog';
 import { LoadingRow } from '../../components/LoadingRow';
@@ -13,6 +14,7 @@ const INITIAL_VISIBLE_PROVIDERS = 5;
 export function ModelSettings() {
   const { t } = useTCopy();
   const providers = useAppStore((s) => s.providers);
+  const connectionTestResults = useAppStore((s) => s.connectionTestResults);
   const isFetchingProviders = useAppStore((s) => s.isFetchingProviders);
   const fetchProviders = useAppStore((s) => s.fetchProviders);
   const [showDialog, setShowDialog] = useState(false);
@@ -30,8 +32,9 @@ export function ModelSettings() {
         (p) => p.name.toLowerCase().includes(query) || p.id.toLowerCase().includes(query),
       );
     }
-    return showMoreProviders ? providers : providers.slice(0, INITIAL_VISIBLE_PROVIDERS);
-  }, [providers, searchQuery, showMoreProviders]);
+    const sorted = sortProvidersForDisplay(providers, connectionTestResults);
+    return showMoreProviders ? sorted : sorted.slice(0, INITIAL_VISIBLE_PROVIDERS);
+  }, [providers, searchQuery, showMoreProviders, connectionTestResults]);
 
   const showMoreButton = !searchQuery.trim() && providers.length > INITIAL_VISIBLE_PROVIDERS;
 

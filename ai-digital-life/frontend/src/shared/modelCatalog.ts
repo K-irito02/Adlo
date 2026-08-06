@@ -176,6 +176,12 @@ export const MODEL_CATALOG: CatalogProvider[] = [
       model('deepseek-chat', 'deepseek', 'DeepSeek Chat', ['text', 'streaming'], {
         tier: 'standard',
       }),
+      model('deepseek-v4-flash', 'deepseek', 'DeepSeek V4 Flash', ['text', 'streaming'], {
+        tier: 'standard',
+      }),
+      model('deepseek-v4-pro', 'deepseek', 'DeepSeek V4 Pro', ['text', 'streaming'], {
+        tier: 'standard',
+      }),
     ],
   },
   {
@@ -185,9 +191,30 @@ export const MODEL_CATALOG: CatalogProvider[] = [
     apiType: 'OpenAICompatible',
     builtIn: true,
     requiresKey: true,
-    baseUrl: 'https://api.minimax.io',
+    baseUrl: 'https://api.minimaxi.com/v1',
     models: [
+      model('MiniMax-M3', 'minimax', 'MiniMax M3', ['text', 'streaming'], {
+        tier: 'standard',
+      }),
       model('MiniMax-M2.7', 'minimax', 'MiniMax M2.7', ['text', 'streaming'], {
+        tier: 'standard',
+      }),
+      model('MiniMax-M2.7-highspeed', 'minimax', 'MiniMax M2.7 High-Speed', ['text', 'streaming'], {
+        tier: 'standard',
+      }),
+      model('MiniMax-M2.5', 'minimax', 'MiniMax M2.5', ['text', 'streaming'], {
+        tier: 'standard',
+      }),
+      model('MiniMax-M2.5-highspeed', 'minimax', 'MiniMax M2.5 High-Speed', ['text', 'streaming'], {
+        tier: 'standard',
+      }),
+      model('MiniMax-M2.1', 'minimax', 'MiniMax M2.1', ['text', 'streaming'], {
+        tier: 'standard',
+      }),
+      model('MiniMax-M2.1-highspeed', 'minimax', 'MiniMax M2.1 High-Speed', ['text', 'streaming'], {
+        tier: 'standard',
+      }),
+      model('MiniMax-M2', 'minimax', 'MiniMax M2', ['text', 'streaming'], {
         tier: 'standard',
       }),
     ],

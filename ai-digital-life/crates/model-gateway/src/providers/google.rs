@@ -149,7 +149,7 @@ impl ProviderAdapter for GoogleProvider {
                     id: id.clone(),
                     provider_id: "google".to_string(),
                     name: m.display_name.unwrap_or(id),
-                    capabilities: vec![ModelCapability::Text],
+                    capabilities: vec![ModelCapability::Text, ModelCapability::Streaming],
                     ..Default::default()
                 }
             })

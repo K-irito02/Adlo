@@ -40,4 +40,10 @@ export const providerZh = {
   providerCustomModelsPlaceholder: 'gpt-4o, claude-3-opus',
   providerApiKeyGuide: '如何获取 API 密钥？',
   providerApiKeyGuideHint: '请前往供应商官方平台注册并创建 API 密钥，粘贴到下方输入框后点击"保存"',
+  providerKeySaveSuccess: 'API 密钥已保存',
+  providerKeySaveFailed: 'API 密钥保存失败，请重试',
+  providerKeyCleared: 'API 密钥已清除',
+  providerKeyClearFailed: 'API 密钥清除失败，请重试',
+  providerFetchModelsSuccess: '已获取 {count} 个模型',
+  providerFetchModelsFailed: '获取模型失败，请检查 API 密钥与 Base URL 后重试',
 } as const;

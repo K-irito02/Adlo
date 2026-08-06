@@ -198,6 +198,7 @@ fn main() {
             commands::provider::set_provider_api_key,
             commands::provider::clear_provider_api_key,
             commands::provider::has_provider_api_key,
+            commands::provider::get_provider_api_key,
             commands::provider::save_provider_config,
             commands::provider::list_supported_providers,
             commands::command::command_run,

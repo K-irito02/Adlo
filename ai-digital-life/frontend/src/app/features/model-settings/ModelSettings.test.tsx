@@ -120,6 +120,7 @@ beforeEach(() => {
     isFetchingProviders: false,
     connectionTestResults: {},
     testingProviderId: null,
+    apiKeyInputs: {},
     appInfo: makeAppInfo({
       deepseek: { enabled: true, priority: 0, modelId: 'deepseek-chat', enabledModels: null },
     }),
@@ -131,10 +132,11 @@ beforeEach(() => {
   const state = useAppStore.getState();
   spies = {
     fetchProviders: vi.spyOn(state, 'fetchProviders').mockResolvedValue(undefined) as Mock,
-    setApiKey: vi.spyOn(state, 'setApiKey').mockResolvedValue(undefined) as Mock,
-    clearApiKey: vi.spyOn(state, 'clearApiKey').mockResolvedValue(undefined) as Mock,
+    setApiKey: vi.spyOn(state, 'setApiKey').mockResolvedValue(true) as Mock,
+    clearApiKey: vi.spyOn(state, 'clearApiKey').mockResolvedValue(true) as Mock,
     testConnection: vi.spyOn(state, 'testConnection').mockResolvedValue(undefined) as Mock,
-    fetchModels: vi.spyOn(state, 'fetchModels').mockResolvedValue(undefined) as Mock,
+    fetchModels: vi.spyOn(state, 'fetchModels').mockResolvedValue(0) as Mock,
+    showToast: vi.spyOn(state, 'showToast').mockReturnValue('toast-1') as Mock,
     removeCustomProvider: vi
       .spyOn(state, 'removeCustomProvider')
       .mockResolvedValue(undefined) as Mock,
@@ -162,6 +164,8 @@ afterEach(() => {
     providers: [],
     connectionTestResults: {},
     testingProviderId: null,
+    apiKeyInputs: {},
+    keyInputTouched: {},
   });
 });
 
@@ -206,6 +210,39 @@ describe('ModelSettings upper zone — provider cards', () => {
     expect(spies.setProviderEnabled).toHaveBeenCalledWith('deepseek', false);
   });
 
+  it('orders provider cards by enabled > hasKey > tested > registration order', () => {
+    const enabledNoKey = makeProvider({ id: 'eno', name: 'Eno', enabled: true, hasKey: false });
+    const disabledKeyed = makeProvider({ id: 'dkey', name: 'DKey', enabled: false, hasKey: true });
+    const enabledKeyedTested = makeProvider({
+      id: 'et',
+      name: 'ET',
+      enabled: true,
+      hasKey: true,
+    });
+    const enabledKeyedUntested = makeProvider({
+      id: 'eu',
+      name: 'EU',
+      enabled: true,
+      hasKey: true,
+    });
+    useAppStore.setState({
+      providers: [disabledKeyed, enabledNoKey, enabledKeyedUntested, enabledKeyedTested],
+      connectionTestResults: { et: { connected: true, error: null } },
+    });
+    renderSettings();
+
+    const grid = document.querySelector('.adl-model-settings__provider-grid')!;
+    const ids = Array.from(grid.querySelectorAll('[data-testid^="provider-card-"]')).map((el) =>
+      el.getAttribute('data-testid'),
+    );
+    expect(ids).toEqual([
+      'provider-card-et',
+      'provider-card-eu',
+      'provider-card-eno',
+      'provider-card-dkey',
+    ]);
+  });
+
   it('shows base URL and api key input with save/clear in the expanded area (no status chip)', () => {
     renderSettings();
     const card = screen.getByTestId('provider-card-deepseek');
@@ -241,16 +278,84 @@ describe('ModelSettings upper zone — provider cards', () => {
     expect(input).toHaveAttribute('type', 'password');
   });
 
-  it('dispatches testConnection from the expanded actions and leaves no fetch-models button', () => {
+  it('dispatches testConnection with the typed api key from the expanded actions and leaves no fetch-models button', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
+
+    const input = within(card).getByPlaceholderText(
+      'providerManagerApiKeyPlaceholder',
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'sk-typed' } });
+
+    fireEvent.click(within(card).getByText('providerManagerTestConnection'));
+    expect(spies.testConnection).toHaveBeenCalledWith('deepseek', 'sk-typed');
+
+    expect(spies.fetchModels).not.toHaveBeenCalled();
+    expect(within(card).queryByText('providerManagerFetchModels')).not.toBeInTheDocument();
+  });
+
+  it('dispatches testConnection with no key when the input is empty (falls back to stored key)', () => {
     renderSettings();
     const card = screen.getByTestId('provider-card-deepseek');
     fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
 
     fireEvent.click(within(card).getByText('providerManagerTestConnection'));
-    expect(spies.testConnection).toHaveBeenCalledWith('deepseek');
+    expect(spies.testConnection).toHaveBeenCalledWith('deepseek', undefined);
+  });
 
-    expect(spies.fetchModels).not.toHaveBeenCalled();
-    expect(within(card).queryByText('providerManagerFetchModels')).not.toBeInTheDocument();
+  it('keeps the typed api key in the input after saving', () => {
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
+
+    const input = within(card).getByPlaceholderText(
+      'providerManagerApiKeyPlaceholder',
+    ) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'sk-test' } });
+    fireEvent.click(within(card).getByText('providerManagerSaveKey'));
+
+    expect(spies.setApiKey).toHaveBeenCalledWith('deepseek', 'sk-test');
+    expect(input.value).toBe('sk-test');
+  });
+
+  it('shows a success toast when the api key save succeeds', async () => {
+    spies.setApiKey.mockResolvedValue(true);
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
+    fireEvent.change(within(card).getByPlaceholderText('providerManagerApiKeyPlaceholder'), {
+      target: { value: 'sk-test' },
+    });
+    fireEvent.click(within(card).getByText('providerManagerSaveKey'));
+    await waitFor(() =>
+      expect(spies.showToast).toHaveBeenCalledWith('providerKeySaveSuccess', 'success'),
+    );
+  });
+
+  it('shows an error toast when the api key save fails', async () => {
+    spies.setApiKey.mockResolvedValue(false);
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
+    fireEvent.change(within(card).getByPlaceholderText('providerManagerApiKeyPlaceholder'), {
+      target: { value: 'sk-test' },
+    });
+    fireEvent.click(within(card).getByText('providerManagerSaveKey'));
+    await waitFor(() =>
+      expect(spies.showToast).toHaveBeenCalledWith('providerKeySaveFailed', 'error'),
+    );
+  });
+
+  it('shows a success toast when the api key is cleared', async () => {
+    spies.clearApiKey.mockResolvedValue(true);
+    renderSettings();
+    const card = screen.getByTestId('provider-card-deepseek');
+    fireEvent.click(within(card).getByRole('button', { name: 'modelProviderDetailsAria' }));
+    fireEvent.click(within(card).getByText('providerClear'));
+    await waitFor(() =>
+      expect(spies.showToast).toHaveBeenCalledWith('providerKeyCleared', 'success'),
+    );
   });
 
   it('toggles the card body when the whole header expand area is clicked', () => {
@@ -580,7 +685,50 @@ describe('ModelSettings lower zone — model toggle list', () => {
     const btn = within(group).getByRole('button', { name: 'providerManagerFetchModels' });
     expect(btn).toHaveAttribute('title', 'providerManagerFetchModels');
     fireEvent.click(btn);
-    expect(spies.fetchModels).toHaveBeenCalledWith('deepseek');
+    expect(spies.fetchModels).toHaveBeenCalledWith('deepseek', undefined);
+  });
+
+  it('passes the typed api key to the fetch-models button (no save required)', () => {
+    useAppStore.setState({ apiKeyInputs: { deepseek: 'sk-typed' } });
+    renderSettings();
+    const group = screen.getByTestId('model-group-deepseek');
+    const btn = within(group).getByRole('button', { name: 'providerManagerFetchModels' });
+    fireEvent.click(btn);
+    expect(spies.fetchModels).toHaveBeenCalledWith('deepseek', 'sk-typed');
+  });
+
+  it('shows a success toast with the model count after fetching models', async () => {
+    spies.fetchModels.mockResolvedValue(2);
+    renderSettings();
+    fireEvent.click(
+      within(screen.getByTestId('model-group-deepseek')).getByRole('button', {
+        name: 'providerManagerFetchModels',
+      }),
+    );
+    await waitFor(() =>
+      expect(spies.showToast).toHaveBeenCalledWith(
+        'providerFetchModelsSuccess',
+        'success',
+        'model-fetch',
+      ),
+    );
+  });
+
+  it('shows an error toast when fetching models fails', async () => {
+    spies.fetchModels.mockResolvedValue(-1);
+    renderSettings();
+    fireEvent.click(
+      within(screen.getByTestId('model-group-deepseek')).getByRole('button', {
+        name: 'providerManagerFetchModels',
+      }),
+    );
+    await waitFor(() =>
+      expect(spies.showToast).toHaveBeenCalledWith(
+        'providerFetchModelsFailed',
+        'error',
+        'model-fetch',
+      ),
+    );
   });
 
   it('sets a native title tooltip on model toggles showing the current state', () => {

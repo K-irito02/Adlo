@@ -9,10 +9,19 @@ export interface ProviderSlice {
   isFetchingProviders: boolean;
   connectionTestResults: Record<string, ConnectionTestResult>;
   testingProviderId: string | null;
+  /** In-memory API key inputs per provider. Never persisted to disk/localStorage.
+      Once a user types a key it stays until they manually clear it, so test/fetch
+      can use the typed value without requiring a prior save. */
+  apiKeyInputs: Record<string, string>;
+  /** Providers whose key input the user edited this session (typed or cleared).
+      Used to prevent the persisted-key prefill from re-filling an input the user
+      deliberately emptied. In-memory only; resets on restart. */
+  keyInputTouched: Record<string, boolean>;
+  setApiKeyInput: (providerId: string, value: string) => void;
 }
 
 export const createProviderSlice = (
-  _set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   _get: () => StoreState,
 ): ProviderSlice => ({
   providers: [],
@@ -22,4 +31,11 @@ export const createProviderSlice = (
   isFetchingProviders: false,
   connectionTestResults: {},
   testingProviderId: null,
+  apiKeyInputs: {},
+  keyInputTouched: {},
+  setApiKeyInput: (providerId: string, value: string) =>
+    set((state) => ({
+      apiKeyInputs: { ...state.apiKeyInputs, [providerId]: value },
+      keyInputTouched: { ...state.keyInputTouched, [providerId]: true },
+    })),
 });

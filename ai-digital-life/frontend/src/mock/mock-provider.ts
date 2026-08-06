@@ -5,6 +5,7 @@ export const mockProvider: ProviderBridge = {
   setProviderApiKey: async (_provider: string, _apiKey: string) => ({ ok: true, data: true }),
   clearProviderApiKey: async (_provider: string) => ({ ok: true, data: true }),
   hasProviderApiKey: async (_provider: string) => ({ ok: true, data: false }),
+  getProviderApiKey: async (_provider: string) => ({ ok: true, data: null }),
   listSupportedProviders: async () => ({
     ok: true,
     data: MODEL_CATALOG.map(({ id, name, requiresKey }) => ({ id, name, requiresKey })),
@@ -30,9 +31,11 @@ export const mockProvider: ProviderBridge = {
     ok: true,
     data: undefined,
   }),
-  testProviderConnection: async (_providerId: string) => ({
+  testProviderConnection: async (_providerId: string, apiKey?: string) => ({
     ok: true,
-    data: { connected: false, error: 'mock: no connection' },
+    data: apiKey
+      ? { connected: true, error: null }
+      : { connected: false, error: 'mock: no connection' },
   }),
   fetchProviderModels: async (providerId: string) => ({
     ok: true,

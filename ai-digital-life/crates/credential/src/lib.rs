@@ -526,4 +526,53 @@ mod tests {
 
         std::fs::remove_dir_all(&dir).ok();
     }
+
+    /// Regression guard: credentials MUST survive an app restart. keyring v3.x
+    /// has no default features, and without an explicit platform backend it
+    /// silently selects the in-memory mock store (CredentialPersistence::
+    /// EntryOnly): set_password "succeeds" in-process but the credential is
+    /// gone in the next process. This test writes a credential, spawns a fresh
+    /// subprocess (simulating restart) that reads it back, and fails if the
+    /// value is not there. It passes via either the real platform keyring or
+    /// the encrypted-file fallback — only the non-persistent mock store fails.
+    #[test]
+    fn credentials_persist_across_process_restart() {
+        if std::env::var("ADL_CRED_PROBE_READ").is_ok() {
+            let service =
+                std::env::var("ADL_CRED_PROBE_SERVICE").expect("probe service env not set");
+            let account =
+                std::env::var("ADL_CRED_PROBE_ACCOUNT").expect("probe account env not set");
+            let store = CredentialStore::new(&service, &account);
+            let ok = store.get_password().ok().as_deref() == Some("probe-secret");
+            std::process::exit(if ok { 0 } else { 1 });
+        }
+
+        let service = "adl-credential-persist-test";
+        let account = format!("probe-{}", uuid::Uuid::new_v4());
+        let store = CredentialStore::new(service, &account);
+        if let Err(e) = store.set_password("probe-secret") {
+            let _ = store.delete_password();
+            panic!("credential write failed: {e:?}");
+        }
+
+        let exe = std::env::current_exe().expect("current test binary");
+        let status = std::process::Command::new(exe)
+            .arg("--exact")
+            .arg("tests::credentials_persist_across_process_restart")
+            .env("ADL_CRED_PROBE_READ", "1")
+            .env("ADL_CRED_PROBE_SERVICE", service)
+            .env("ADL_CRED_PROBE_ACCOUNT", &account)
+            .status();
+        // Clean up the probe credential on every path (including spawn failure),
+        // so a failed test never leaks a credential into the OS keyring.
+        let _ = store.delete_password();
+        let status = match status {
+            Ok(s) => s,
+            Err(e) => panic!("spawn test subprocess: {e}"),
+        };
+        assert!(
+            status.success(),
+            "credential did not survive a process restart (keyring mock store?)"
+        );
+    }
 }

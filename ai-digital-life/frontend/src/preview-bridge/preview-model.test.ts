@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   createPreviewModelBridge,
   createBaseAppInfo,
@@ -21,6 +21,10 @@ describe('preview-model provider bridge', () => {
   beforeEach(() => {
     window.localStorage.clear();
     resetPreviewModelState();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('listProviders returns exactly the 7 builtin providers enabled by default', async () => {
@@ -165,6 +169,24 @@ describe('preview-model provider bridge', () => {
     expect(result.data.error).toBeNull();
   });
 
+  it('testProviderConnection accepts a typed api key without a prior save', async () => {
+    const bridge = createBridge();
+    const before = await bridge.provider.testProviderConnection('deepseek');
+    expect(before.ok && !before.data.connected).toBe(true);
+
+    const typed = await bridge.provider.testProviderConnection('deepseek', 'typed-key');
+    expect(typed.ok).toBe(true);
+    if (!typed.ok) {
+      return;
+    }
+    expect(typed.data.connected).toBe(true);
+    expect(typed.data.error).toBeNull();
+
+    // The typed key becomes the stored key for subsequent calls.
+    const has = await bridge.provider.hasProviderApiKey('deepseek');
+    expect(has.ok && has.data).toBe(true);
+  });
+
   it('fetchProviderModels returns the deepseek catalog', async () => {
     const bridge = createBridge();
     const result = await bridge.provider.fetchProviderModels('deepseek');
@@ -172,7 +194,62 @@ describe('preview-model provider bridge', () => {
     if (!result.ok) {
       return;
     }
-    expect(result.data.map((m) => m.id)).toEqual(['deepseek-chat']);
+    expect(result.data.map((m) => m.id)).toEqual([
+      'deepseek-chat',
+      'deepseek-v4-flash',
+      'deepseek-v4-pro',
+    ]);
+  });
+
+  it('fetchProviderModels performs a real network request when a key is available', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [{ id: 'deepseek-v4-flash' }, { id: 'deepseek-v4-pro' }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const bridge = createBridge();
+    await bridge.provider.setProviderApiKey('deepseek', 'real-key');
+    const result = await bridge.provider.fetchProviderModels('deepseek');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [string, { headers: Record<string, string> }];
+    expect(url).toBe('https://api.deepseek.com/models');
+    expect(init.headers.Authorization).toBe('Bearer real-key');
+    expect(result.data.map((m) => m.id)).toEqual(['deepseek-v4-flash', 'deepseek-v4-pro']);
+    expect(result.data.every((m) => m.providerId === 'deepseek')).toBe(true);
+    // Fetched models must match the catalog's capabilities (incl. streaming) so
+    // browser mode stays consistent with Tauri mode.
+    expect(
+      result.data.every(
+        (m) => m.capabilities.includes('text') && m.capabilities.includes('streaming'),
+      ),
+    ).toBe(true);
+  });
+
+  it('fetchProviderModels falls back to the catalog when the request fails', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 401 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const bridge = createBridge();
+    await bridge.provider.setProviderApiKey('deepseek', 'bad-key');
+    const result = await bridge.provider.fetchProviderModels('deepseek');
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.data.map((m) => m.id)).toEqual([
+      'deepseek-chat',
+      'deepseek-v4-flash',
+      'deepseek-v4-pro',
+    ]);
   });
 
   it('listSupportedProviders returns the 7 builtin providers', async () => {

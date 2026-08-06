@@ -47,10 +47,21 @@ function ModelRow({ providerId, model, enabled }: ModelRowProps) {
 }
 
 export function ModelToggleList({ providers }: ModelToggleListProps) {
-  const { t } = useTCopy();
+  const { t, formatT } = useTCopy();
   const setAllModelsEnabled = useAppStore((s) => s.setAllModelsEnabled);
   const fetchModels = useAppStore((s) => s.fetchModels);
+  const showToast = useAppStore((s) => s.showToast);
+  const apiKeyInputs = useAppStore((s) => s.apiKeyInputs);
   const enabledProviders = providers.filter((p) => p.enabled);
+
+  const handleFetchModels = async (providerId: string) => {
+    const count = await fetchModels(providerId, apiKeyInputs[providerId] || undefined);
+    if (count >= 0) {
+      showToast(formatT(t, 'providerFetchModelsSuccess', { count }), 'success', 'model-fetch');
+    } else {
+      showToast(t.providerFetchModelsFailed, 'error', 'model-fetch');
+    }
+  };
 
   if (enabledProviders.length === 0) {
     return <p className="adl-model-settings__empty">{t.providerManagerNoProviders}</p>;
@@ -71,7 +82,7 @@ export function ModelToggleList({ providers }: ModelToggleListProps) {
               className="adl-model-settings__fetch-models-btn"
               title={t.providerManagerFetchModels}
               aria-label={t.providerManagerFetchModels}
-              onClick={() => void fetchModels(provider.id)}
+              onClick={() => void handleFetchModels(provider.id)}
             >
               <IconRefreshCw size={12} decorative />
             </button>

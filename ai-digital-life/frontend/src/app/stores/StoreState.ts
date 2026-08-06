@@ -311,9 +311,9 @@ interface McpActions {
 
 interface ProviderActions {
   fetchProviders: () => Promise<void>;
-  setApiKey: (provider: string, apiKey: string) => Promise<void>;
-  clearApiKey: (provider: string) => Promise<void>;
-  testConnection: (providerId: string) => Promise<void>;
+  setApiKey: (provider: string, apiKey: string) => Promise<boolean>;
+  clearApiKey: (provider: string) => Promise<boolean>;
+  testConnection: (providerId: string, apiKey?: string) => Promise<void>;
   addCustomProvider: (
     name: string,
     baseUrl: string,
@@ -322,7 +322,7 @@ interface ProviderActions {
   ) => Promise<void>;
   removeCustomProvider: (providerId: string) => Promise<void>;
   selectModel: (providerId: string, modelId: string) => void;
-  fetchModels: (providerId: string) => Promise<void>;
+  fetchModels: (providerId: string, apiKey?: string) => Promise<number>;
   toggleModel: (providerId: string, modelId: string, enabled: boolean) => Promise<void>;
   setAllModelsEnabled: (providerId: string, enableAll: boolean) => Promise<void>;
   setProviderEnabled: (providerId: string, enabled: boolean) => Promise<void>;

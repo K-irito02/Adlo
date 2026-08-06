@@ -74,6 +74,15 @@ fn fallback_models(def: &ProviderDefinition) -> Vec<ModelDefinition> {
     }
 }
 
+/// Resolve the API key to use for a connection test / model fetch: the key the
+/// user just typed into the settings UI wins over the persisted credential, and
+/// a blank/absent typed key falls back to what is stored for the provider.
+fn resolve_api_key(passed: Option<String>, provider_id: &str) -> String {
+    passed
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| adl_model_gateway::get_provider_secret(provider_id).unwrap_or_default())
+}
+
 #[tauri::command]
 pub async fn list_providers(
     state: tauri::State<'_, crate::state::AppState>,
@@ -98,9 +107,12 @@ pub async fn list_providers(
 #[tauri::command]
 pub async fn test_provider_connection(
     provider_id: String,
+    api_key: Option<String>,
     state: tauri::State<'_, crate::state::AppState>,
 ) -> CmdResult<ConnectionTestResult> {
-    let api_key = adl_model_gateway::get_provider_secret(&provider_id).unwrap_or_default();
+    // Prefer the key currently typed into the settings UI; fall back to the
+    // persisted credential so testing works before a save or on reload.
+    let api_key = resolve_api_key(api_key, &provider_id);
 
     let (adapter, base_url) = {
         let registry = state
@@ -131,6 +143,7 @@ pub async fn test_provider_connection(
 #[tauri::command]
 pub async fn fetch_provider_models(
     provider_id: String,
+    api_key: Option<String>,
     state: tauri::State<'_, crate::state::AppState>,
 ) -> CmdResult<Vec<ModelDefinition>> {
     let (adapter, def, api_key) = {
@@ -145,14 +158,24 @@ pub async fn fetch_provider_models(
             .get(&provider_id)
             .ok_or_else(|| AppError::NotFound(format!("provider '{}' not found", provider_id)))?
             .clone();
-        let api_key = adl_model_gateway::get_provider_secret(&provider_id).unwrap_or_default();
+        let api_key = resolve_api_key(api_key, &provider_id);
         let base_url = def.default_base_url.clone().unwrap_or_default();
         (adapter, def, (api_key, base_url))
     };
     let (api_key, base_url) = api_key;
     let result = if adapter.supports_dynamic_models() {
         match adapter.fetch_models(&api_key, &base_url).await {
-            Ok(models) if !models.is_empty() => Ok(models),
+            // Re-tag every fetched model with the provider that owns this
+            // request. Adapters (e.g. OpenAIProvider used by DeepSeek / MiniMax
+            // / custom OpenAI-compatible providers) may stamp a generic
+            // provider id that would otherwise mislabel the models.
+            Ok(models) if !models.is_empty() => Ok(models
+                .into_iter()
+                .map(|mut m| {
+                    m.provider_id = provider_id.clone();
+                    m
+                })
+                .collect()),
             _ => Ok(fallback_models(&def)),
         }
     } else {
@@ -604,6 +627,20 @@ pub async fn has_provider_api_key(provider_id: String) -> Result<IpcResult<bool>
 }
 
 #[tauri::command]
+pub async fn get_provider_api_key(
+    provider_id: String,
+) -> Result<IpcResult<Option<String>>, AppError> {
+    // Read back the persisted credential so the settings input can be re-filled
+    // after an app restart. The key stays in the encrypted credential store and
+    // is masked (password input) in the UI.
+    let result =
+        tokio::task::spawn_blocking(move || adl_model_gateway::get_provider_secret(&provider_id))
+            .await
+            .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?;
+    Ok(ipc(Ok(result.ok())))
+}
+
+#[tauri::command]
 pub async fn save_provider_config(
     provider_id: String,
     config: serde_json::Value,
@@ -733,6 +770,19 @@ mod tests {
         let (enabled, models) = merge_enabled(None);
         assert!(enabled);
         assert!(models.is_none());
+    }
+
+    #[test]
+    fn resolve_api_key_prefers_typed_key_over_stored() {
+        assert_eq!(resolve_api_key(Some("sk-typed".to_string()), "deepseek"), "sk-typed");
+    }
+
+    #[test]
+    fn resolve_api_key_blank_typed_key_falls_back_to_stored() {
+        // No credential is guaranteed to exist for a random provider id, so the
+        // fallback resolves to an empty string deterministically.
+        assert_eq!(resolve_api_key(Some("   ".to_string()), "no-such-provider"), "");
+        assert_eq!(resolve_api_key(None, "no-such-provider"), "");
     }
 
     #[test]

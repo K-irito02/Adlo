@@ -131,6 +131,7 @@ commands.allow = [
   "set_provider_api_key",
   "clear_provider_api_key",
   "has_provider_api_key",
+  "get_provider_api_key",
   "compact_session_cmd",
   "lsp_start_server",
   "lsp_stop_server",

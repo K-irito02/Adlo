@@ -140,17 +140,41 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             api_type: ApiType::OpenAICompatible,
             default_base_url: Some("https://api.deepseek.com".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(vec![adl_types::types::config::ModelDefinition {
-                id: "deepseek-chat".into(),
-                provider_id: "deepseek".into(),
-                name: "DeepSeek Chat".into(),
-                capabilities: vec![
-                    adl_types::types::config::ModelCapability::Text,
-                    adl_types::types::config::ModelCapability::Streaming,
-                ],
-                tier: Some(adl_types::types::config::ModelTier::Standard),
-                ..Default::default()
-            }]),
+            models: ModelSource::Static(vec![
+                adl_types::types::config::ModelDefinition {
+                    id: "deepseek-chat".into(),
+                    provider_id: "deepseek".into(),
+                    name: "DeepSeek Chat".into(),
+                    capabilities: vec![
+                        adl_types::types::config::ModelCapability::Text,
+                        adl_types::types::config::ModelCapability::Streaming,
+                    ],
+                    tier: Some(adl_types::types::config::ModelTier::Standard),
+                    ..Default::default()
+                },
+                adl_types::types::config::ModelDefinition {
+                    id: "deepseek-v4-flash".into(),
+                    provider_id: "deepseek".into(),
+                    name: "DeepSeek V4 Flash".into(),
+                    capabilities: vec![
+                        adl_types::types::config::ModelCapability::Text,
+                        adl_types::types::config::ModelCapability::Streaming,
+                    ],
+                    tier: Some(adl_types::types::config::ModelTier::Standard),
+                    ..Default::default()
+                },
+                adl_types::types::config::ModelDefinition {
+                    id: "deepseek-v4-pro".into(),
+                    provider_id: "deepseek".into(),
+                    name: "DeepSeek V4 Pro".into(),
+                    capabilities: vec![
+                        adl_types::types::config::ModelCapability::Text,
+                        adl_types::types::config::ModelCapability::Streaming,
+                    ],
+                    tier: Some(adl_types::types::config::ModelTier::Standard),
+                    ..Default::default()
+                },
+            ]),
             built_in: true,
             default_model: Some("deepseek-chat".into()),
         },
@@ -166,25 +190,104 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
             name: "MiniMax".into(),
             description: "MiniMax models".into(),
             api_type: ApiType::OpenAICompatible,
-            default_base_url: Some("https://api.minimax.io".into()),
+            default_base_url: Some("https://api.minimaxi.com/v1".into()),
             auth_type: AuthType::ApiKey,
-            models: ModelSource::Static(vec![adl_types::types::config::ModelDefinition {
-                id: "MiniMax-M2.7".into(),
-                provider_id: "minimax".into(),
-                name: "MiniMax M2.7".into(),
-                capabilities: vec![
-                    adl_types::types::config::ModelCapability::Text,
-                    adl_types::types::config::ModelCapability::Streaming,
-                ],
-                tier: Some(adl_types::types::config::ModelTier::Standard),
-                ..Default::default()
-            }]),
+            models: ModelSource::Static(vec![
+                adl_types::types::config::ModelDefinition {
+                    id: "MiniMax-M3".into(),
+                    provider_id: "minimax".into(),
+                    name: "MiniMax M3".into(),
+                    capabilities: vec![
+                        adl_types::types::config::ModelCapability::Text,
+                        adl_types::types::config::ModelCapability::Streaming,
+                    ],
+                    tier: Some(adl_types::types::config::ModelTier::Standard),
+                    ..Default::default()
+                },
+                adl_types::types::config::ModelDefinition {
+                    id: "MiniMax-M2.7".into(),
+                    provider_id: "minimax".into(),
+                    name: "MiniMax M2.7".into(),
+                    capabilities: vec![
+                        adl_types::types::config::ModelCapability::Text,
+                        adl_types::types::config::ModelCapability::Streaming,
+                    ],
+                    tier: Some(adl_types::types::config::ModelTier::Standard),
+                    ..Default::default()
+                },
+                adl_types::types::config::ModelDefinition {
+                    id: "MiniMax-M2.7-highspeed".into(),
+                    provider_id: "minimax".into(),
+                    name: "MiniMax M2.7 High-Speed".into(),
+                    capabilities: vec![
+                        adl_types::types::config::ModelCapability::Text,
+                        adl_types::types::config::ModelCapability::Streaming,
+                    ],
+                    tier: Some(adl_types::types::config::ModelTier::Standard),
+                    ..Default::default()
+                },
+                adl_types::types::config::ModelDefinition {
+                    id: "MiniMax-M2.5".into(),
+                    provider_id: "minimax".into(),
+                    name: "MiniMax M2.5".into(),
+                    capabilities: vec![
+                        adl_types::types::config::ModelCapability::Text,
+                        adl_types::types::config::ModelCapability::Streaming,
+                    ],
+                    tier: Some(adl_types::types::config::ModelTier::Standard),
+                    ..Default::default()
+                },
+                adl_types::types::config::ModelDefinition {
+                    id: "MiniMax-M2.5-highspeed".into(),
+                    provider_id: "minimax".into(),
+                    name: "MiniMax M2.5 High-Speed".into(),
+                    capabilities: vec![
+                        adl_types::types::config::ModelCapability::Text,
+                        adl_types::types::config::ModelCapability::Streaming,
+                    ],
+                    tier: Some(adl_types::types::config::ModelTier::Standard),
+                    ..Default::default()
+                },
+                adl_types::types::config::ModelDefinition {
+                    id: "MiniMax-M2.1".into(),
+                    provider_id: "minimax".into(),
+                    name: "MiniMax M2.1".into(),
+                    capabilities: vec![
+                        adl_types::types::config::ModelCapability::Text,
+                        adl_types::types::config::ModelCapability::Streaming,
+                    ],
+                    tier: Some(adl_types::types::config::ModelTier::Standard),
+                    ..Default::default()
+                },
+                adl_types::types::config::ModelDefinition {
+                    id: "MiniMax-M2.1-highspeed".into(),
+                    provider_id: "minimax".into(),
+                    name: "MiniMax M2.1 High-Speed".into(),
+                    capabilities: vec![
+                        adl_types::types::config::ModelCapability::Text,
+                        adl_types::types::config::ModelCapability::Streaming,
+                    ],
+                    tier: Some(adl_types::types::config::ModelTier::Standard),
+                    ..Default::default()
+                },
+                adl_types::types::config::ModelDefinition {
+                    id: "MiniMax-M2".into(),
+                    provider_id: "minimax".into(),
+                    name: "MiniMax M2".into(),
+                    capabilities: vec![
+                        adl_types::types::config::ModelCapability::Text,
+                        adl_types::types::config::ModelCapability::Streaming,
+                    ],
+                    tier: Some(adl_types::types::config::ModelTier::Standard),
+                    ..Default::default()
+                },
+            ]),
             built_in: true,
             default_model: Some("MiniMax-M2.7".into()),
         },
         Box::new(OpenAIProvider::with_client_and_base_url(
             shared_client.clone(),
-            "https://api.minimax.io".into(),
+            "https://api.minimaxi.com/v1".into(),
         )),
     );
 

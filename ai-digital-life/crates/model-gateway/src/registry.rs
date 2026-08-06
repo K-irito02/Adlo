@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use indexmap::IndexMap;
 use std::sync::Arc;
 
 use crate::adapter::ProviderAdapter;
@@ -43,9 +43,13 @@ pub struct ProviderDefinition {
 }
 
 /// Registry of known providers with their definitions and adapters.
+///
+/// Uses an insertion-ordered `IndexMap` so `list_all()` returns providers in a
+/// deterministic, stable order (matching registration order) instead of the
+/// process-random iteration order of a plain `HashMap`.
 pub struct ProviderRegistry {
-    providers: HashMap<String, ProviderDefinition>,
-    adapters: HashMap<String, Arc<dyn ProviderAdapter + Send + Sync>>,
+    providers: IndexMap<String, ProviderDefinition>,
+    adapters: IndexMap<String, Arc<dyn ProviderAdapter + Send + Sync>>,
 }
 
 impl Default for ProviderRegistry {
@@ -56,7 +60,7 @@ impl Default for ProviderRegistry {
 
 impl ProviderRegistry {
     pub fn new() -> Self {
-        Self { providers: HashMap::new(), adapters: HashMap::new() }
+        Self { providers: IndexMap::new(), adapters: IndexMap::new() }
     }
 
     pub fn register(
@@ -86,8 +90,9 @@ impl ProviderRegistry {
     }
 
     pub fn remove(&mut self, id: &str) {
-        self.providers.remove(id);
-        self.adapters.remove(id);
+        // shift_remove preserves registration order for remaining providers.
+        self.providers.shift_remove(id);
+        self.adapters.shift_remove(id);
     }
 }
 
@@ -177,5 +182,35 @@ mod tests {
         reg.register(def.clone(), Box::new(TestAdapter));
         assert!(reg.get("test-provider").is_some());
         assert!(reg.get_adapter("test-provider").is_some());
+    }
+
+    #[test]
+    fn list_all_preserves_registration_order() {
+        let mut reg = ProviderRegistry::new();
+        for id in ["alpha", "bravo", "charlie"] {
+            reg.register(
+                ProviderDefinition {
+                    id: id.into(),
+                    name: id.into(),
+                    description: "".into(),
+                    api_type: ApiType::OpenAICompatible,
+                    default_base_url: None,
+                    auth_type: AuthType::ApiKey,
+                    models: ModelSource::Static(vec![]),
+                    built_in: true,
+                    default_model: None,
+                },
+                Box::new(TestAdapter),
+            );
+        }
+        let ids: Vec<&str> = reg.list_all().iter().map(|d| d.id.as_str()).collect();
+        assert_eq!(ids, ["alpha", "bravo", "charlie"]);
+        // Re-querying must never reorder.
+        let ids_again: Vec<&str> = reg.list_all().iter().map(|d| d.id.as_str()).collect();
+        assert_eq!(ids_again, ["alpha", "bravo", "charlie"]);
+        // Removal keeps the remaining order stable.
+        reg.remove("bravo");
+        let ids_after: Vec<&str> = reg.list_all().iter().map(|d| d.id.as_str()).collect();
+        assert_eq!(ids_after, ["alpha", "charlie"]);
     }
 }

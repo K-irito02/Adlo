@@ -175,7 +175,11 @@ export function createPreviewModelBridge(
       },
       testProviderConnection: async (
         providerId: string,
+        apiKey?: string,
       ): Promise<IpcResult<ConnectionTestResult>> => {
+        if (apiKey) {
+          previewApiKeys.set(providerId, apiKey);
+        }
         const catalog = MODEL_CATALOG.find((p) => p.id === providerId);
         const custom = loadPreviewCustomProviders().find((p) => p.id === providerId);
         const requiresKey = custom ? true : (catalog?.requiresKey ?? true);
@@ -184,9 +188,40 @@ export function createPreviewModelBridge(
         }
         return { ok: true as const, data: { connected: false, error: 'missing API key' } };
       },
-      fetchProviderModels: async (providerId: string): Promise<IpcResult<ModelDefinition[]>> => {
+      fetchProviderModels: async (
+        providerId: string,
+        apiKey?: string,
+      ): Promise<IpcResult<ModelDefinition[]>> => {
+        if (apiKey) {
+          previewApiKeys.set(providerId, apiKey);
+        }
         const catalog = MODEL_CATALOG.find((p) => p.id === providerId);
         const custom = loadPreviewCustomProviders().find((p) => p.id === providerId);
+        const baseUrl = custom?.baseUrl ?? catalog?.baseUrl;
+        const key = previewApiKeys.get(providerId);
+        if (baseUrl && key) {
+          try {
+            const response = await fetch(`${baseUrl.replace(/\/$/, '')}/models`, {
+              headers: { Authorization: `Bearer ${key}` },
+            });
+            if (response.ok) {
+              const body = (await response.json()) as { data?: { id: string }[] };
+              const models = (body.data ?? [])
+                .filter((m) => typeof m?.id === 'string' && m.id.length > 0)
+                .map((m) => ({
+                  id: m.id,
+                  providerId,
+                  name: m.id,
+                  capabilities: ['text' as const, 'streaming' as const],
+                }));
+              if (models.length > 0) {
+                return { ok: true as const, data: models };
+              }
+            }
+          } catch {
+            // CORS / network failures fall back to the static catalog below.
+          }
+        }
         if (custom) {
           return {
             ok: true as const,
@@ -239,6 +274,10 @@ export function createPreviewModelBridge(
       hasProviderApiKey: async (providerId: string): Promise<IpcResult<boolean>> => ({
         ok: true as const,
         data: previewApiKeys.has(providerId),
+      }),
+      getProviderApiKey: async (providerId: string): Promise<IpcResult<string | null>> => ({
+        ok: true as const,
+        data: previewApiKeys.get(providerId) ?? null,
       }),
       listSupportedProviders: async (): Promise<IpcResult<ProviderInfo[]>> => ({
         ok: true as const,
