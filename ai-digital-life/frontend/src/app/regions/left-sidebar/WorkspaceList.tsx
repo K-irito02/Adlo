@@ -58,8 +58,14 @@ export function WorkspaceList({
   const { t } = useTCopy();
   const [archiveOpen, setArchiveOpen] = useState(false);
 
-  const { isDragging, draggedItemId, localOrder, handleDragStart, cursorPosition } =
-    useWorkspaceDrag(workspaceItems, onReorderWorkspaces);
+  const {
+    isDragging,
+    draggedItemId,
+    localOrder,
+    handleDragStart,
+    cursorPosition,
+    suppressNextClick,
+  } = useWorkspaceDrag(workspaceItems, onReorderWorkspaces);
   const { handleTogglePin } = useWorkspacePin(workspaceItems, onPinWorkspace, onUnpinWorkspace);
 
   return (
@@ -148,7 +154,7 @@ export function WorkspaceList({
                   role="treeitem"
                   aria-expanded={expanded}
                   onClick={() => {
-                    if (!isDragging) {
+                    if (!isDragging && !suppressNextClick()) {
                       toggleSessionWorkspace(item.workspace.path, expanded);
                     }
                   }}
@@ -186,7 +192,7 @@ export function WorkspaceList({
                     title={item.workspace.path}
                     onClick={(event) => {
                       event.stopPropagation();
-                      if (!isDragging) {
+                      if (!isDragging && !suppressNextClick()) {
                         toggleSessionWorkspace(item.workspace.path, expanded);
                       }
                     }}

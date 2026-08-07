@@ -17,6 +17,8 @@ export interface WorkspaceDragResult {
   localOrder: string[];
   cursorPosition: { x: number; y: number };
   handleDragStart: (event: React.MouseEvent, wsId: string, isPinned: boolean) => void;
+  /** 真实拖拽结束后应抑制下一次 click（确定性：不依赖 React 状态 flush 时序）。 */
+  suppressNextClick: () => boolean;
 }
 
 export function useWorkspaceDrag(
@@ -28,6 +30,7 @@ export function useWorkspaceDrag(
   const dragSessionRef = useRef<DragSession | null>(null);
   const targetIdRef = useRef<string | null>(null);
   const targetPosRef = useRef<'before' | 'after'>('after');
+  const suppressClickRef = useRef(false);
 
   const [localOrder, setLocalOrder] = useState<string[]>(() =>
     workspaceItems.map((w) => w.workspace.id),
@@ -244,6 +247,10 @@ export function useWorkspaceDrag(
       }
 
       if (session.isDragging) {
+        // 真实拖拽（位移 >4px）结束后，pointerup 后续的 click 应被抑制，
+        // 避免误触发行/标签的 toggle。用 ref 而非 React 状态，
+        // 因 click 可能在 React 状态 flush 之前同任务触发。
+        suppressClickRef.current = true;
         const startOrder = sessionStartOrderRef.current;
         const currentOrder = localOrderRef.current;
         const orderChanged =
@@ -267,15 +274,23 @@ export function useWorkspaceDrag(
       cleanupDrag();
     };
 
+    // 统一在每次新指针手势开始时清除上一手势可能残留的抑制标志，
+    // 覆盖拖拽释放点不在行/标签上（标志未被消费）后下一次任意点击的场景。
+    const handlePointerDownReset = () => {
+      suppressClickRef.current = false;
+    };
+
     document.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('pointerup', handleMouseUp);
     window.addEventListener('pointercancel', handleBlur);
     window.addEventListener('blur', handleBlur);
+    document.addEventListener('pointerdown', handlePointerDownReset, true);
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('pointerup', handleMouseUp);
       window.removeEventListener('pointercancel', handleBlur);
       window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('pointerdown', handlePointerDownReset, true);
     };
   }, []);
 
@@ -285,6 +300,9 @@ export function useWorkspaceDrag(
         return;
       }
       event.preventDefault();
+      // 新手势开始即清除上一手势可能残留的抑制标志，
+      // 避免拖拽释放位置不在行/标签上时标志未消费导致下次点击被误吞。
+      suppressClickRef.current = false;
       (event.currentTarget as HTMLElement).blur();
       sessionStartOrderRef.current = [...localOrderRef.current];
       dragSessionRef.current = {
@@ -302,5 +320,12 @@ export function useWorkspaceDrag(
     localOrder,
     cursorPosition,
     handleDragStart,
+    suppressNextClick: () => {
+      if (suppressClickRef.current) {
+        suppressClickRef.current = false;
+        return true;
+      }
+      return false;
+    },
   };
 }

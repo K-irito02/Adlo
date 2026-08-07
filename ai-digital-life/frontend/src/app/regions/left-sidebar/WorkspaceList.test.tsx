@@ -163,8 +163,8 @@ describe('WorkspaceList mouseup persistence', () => {
         <WorkspaceList {...buildProps({ onReorderWorkspaces: onReorder })} />
       </TestProvider>,
     );
-    // Simulate a stray mouseup with no preceding mousedown.
-    fireEvent.mouseUp(document);
+    // Simulate a stray pointerup with no preceding mousedown (hook listens on window).
+    fireEvent.pointerUp(window, { pointerId: 1 });
     expect(onReorder).not.toHaveBeenCalled();
   });
 });
@@ -210,5 +210,96 @@ describe('WorkspaceList expand/collapse on click', () => {
     fireEvent.click(document.querySelector('.adl-workspace-row__label')!);
 
     expect(toggle).toHaveBeenCalledWith('/path/c', false);
+  });
+});
+
+describe('WorkspaceList expand/collapse toolbar', () => {
+  function toolbarButton(): HTMLElement {
+    const btn = document.querySelector('.adl-section-toolbar__title button') as HTMLElement;
+    expect(btn).not.toBeNull();
+    return btn;
+  }
+
+  it('expands all collapsed workspaces', () => {
+    const toggle = vi.fn();
+    const items = [buildItem('a', false, false), buildItem('b', false, false)];
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
+      </TestProvider>,
+    );
+
+    fireEvent.click(toolbarButton());
+
+    expect(toggle).toHaveBeenCalledWith('/path/a', false);
+    expect(toggle).toHaveBeenCalledWith('/path/b', false);
+  });
+
+  it('collapses all expanded workspaces', () => {
+    const toggle = vi.fn();
+    const items = [buildItem('a', false, true), buildItem('b', false, true)];
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
+      </TestProvider>,
+    );
+
+    fireEvent.click(toolbarButton());
+
+    expect(toggle).toHaveBeenCalledWith('/path/a', true);
+    expect(toggle).toHaveBeenCalledWith('/path/b', true);
+  });
+
+  it('expands collapsed workspaces and skips already-expanded ones in mixed state', () => {
+    const toggle = vi.fn();
+    const items = [buildItem('a', false, false), buildItem('b', false, true)];
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
+      </TestProvider>,
+    );
+
+    fireEvent.click(toolbarButton());
+
+    expect(toggle).toHaveBeenCalledTimes(1);
+    expect(toggle).toHaveBeenCalledWith('/path/a', false);
+  });
+});
+
+describe('WorkspaceList drag then click suppression', () => {
+  it('does not toggle the workspace after a real drag (>4px) ends with a click', () => {
+    const toggle = vi.fn();
+    const items = [buildItem('a', false, false)];
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
+      </TestProvider>,
+    );
+
+    const label = document.querySelector('.adl-workspace-row__label') as HTMLElement;
+    fireEvent.mouseDown(label, { button: 0, clientY: 10 });
+    fireEvent.mouseMove(document, { clientY: 50 });
+    fireEvent.pointerUp(window, { pointerId: 1, clientY: 50 });
+    fireEvent.click(label);
+
+    expect(toggle).not.toHaveBeenCalled();
+  });
+
+  it('still toggles when movement stays within the drag threshold', () => {
+    const toggle = vi.fn();
+    const items = [buildItem('a', false, false)];
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
+      </TestProvider>,
+    );
+
+    const label = document.querySelector('.adl-workspace-row__label') as HTMLElement;
+    fireEvent.mouseDown(label, { button: 0, clientY: 10 });
+    fireEvent.mouseMove(document, { clientY: 12 });
+    fireEvent.pointerUp(window, { pointerId: 1, clientY: 12 });
+    fireEvent.click(label);
+
+    expect(toggle).toHaveBeenCalledWith('/path/a', false);
   });
 });

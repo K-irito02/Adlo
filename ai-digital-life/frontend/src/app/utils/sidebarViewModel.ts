@@ -41,7 +41,8 @@ export interface VisibleSidebarSessions {
 
 export const SIDEBAR_SESSION_PREVIEW_LIMIT = 5;
 
-/** 路径去重 key：与后端 workspace_sidebar.rs path_dedup_key 对齐（分隔符统一 + 小写 + 去尾部斜杠）。 */
+/** 路径去重 key：与后端 workspace_sidebar.rs path_dedup_key 对齐（分隔符统一 + 小写 + 去尾部斜杠）。
+ *  后端已在出站数据（currentWorkspace / recentWorkspaces）剥除 verbatim 前缀，故前端无需处理 `\\?\`。 */
 function pathDedupKey(path: string): string {
   const normalized = path.replace(/\\/g, '/').toLowerCase();
   const trimmed = normalized.replace(/\/+$/, '');
@@ -178,13 +179,15 @@ export function buildSidebarViewModel(input: {
   }
 
   const workspaces = visibleEntries.map((workspace) => {
-    const isCurrent = currentWorkspace?.id === workspace.id;
+    const isCurrent =
+      currentWorkspace != null &&
+      (currentWorkspace.id === workspace.id ||
+        pathDedupKey(workspace.path) === pathDedupKey(currentWorkspace.path));
     const bucket = workspaceSessionBuckets.get(workspace.id);
     const activeSessions = bucket?.activeSessions ?? [];
     const archivedSessions = bucket?.archivedSessions ?? [];
     const statusCounts = bucket?.statusCounts ?? emptyStatusCounts();
-    const rollupStatus =
-      STATUS_PRIORITY.find((status) => statusCounts[status] > 0) ?? 'read';
+    const rollupStatus = STATUS_PRIORITY.find((status) => statusCounts[status] > 0) ?? 'read';
 
     return {
       workspace,

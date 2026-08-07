@@ -267,6 +267,6 @@ describe('buildSidebarViewModel', () => {
 
     expect(viewModel.workspaces).toHaveLength(1);
     expect(viewModel.workspaces[0]?.workspace.id).toBe('workspace_legacy');
-    expect(viewModel.workspaces[0]?.isCurrent).toBe(false);
+    expect(viewModel.workspaces[0]?.isCurrent).toBe(true);
   });
 });
