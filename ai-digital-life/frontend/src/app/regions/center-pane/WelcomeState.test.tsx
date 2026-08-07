@@ -58,9 +58,15 @@ describe('WelcomeState recent workspaces', () => {
 
   it('wraps the list in the reveal-scroll container', () => {
     const { container } = renderWelcome(9);
-    expect(
-      container.querySelector('.adl-welcome__recent-scroll.adl-reveal-scroll'),
-    ).not.toBeNull();
+    expect(container.querySelector('.adl-welcome__recent-scroll.adl-reveal-scroll')).not.toBeNull();
+  });
+
+  it('keeps the scrollbar track outside the scroll container', () => {
+    const { container } = renderWelcome(9);
+    const host = container.querySelector('.adl-reveal-scrollbar-host') as HTMLElement;
+    const scroll = container.querySelector('.adl-reveal-scroll') as HTMLElement;
+    expect(host).not.toBeNull();
+    expect(scroll.contains(container.querySelector('.adl-reveal-scrollbar'))).toBe(false);
   });
 
   it('does not render a scrollbar when there are few workspaces', () => {
@@ -70,11 +76,12 @@ describe('WelcomeState recent workspaces', () => {
 
   it('shows the overlay scrollbar on hover when scrollable', () => {
     const { container } = renderWelcome(9);
+    const host = container.querySelector('.adl-reveal-scrollbar-host') as HTMLElement;
     const scroll = container.querySelector('.adl-reveal-scroll') as HTMLElement;
     Object.defineProperty(scroll, 'scrollHeight', { configurable: true, value: 400 });
     Object.defineProperty(scroll, 'clientHeight', { configurable: true, value: 100 });
     fireEvent.scroll(scroll);
-    fireEvent.mouseEnter(scroll);
+    fireEvent.mouseEnter(host);
     const track = container.querySelector('.adl-reveal-scrollbar') as HTMLElement;
     expect(track).not.toBeNull();
     expect(track.getAttribute('data-visible')).toBe('true');

@@ -209,30 +209,31 @@ const StatusBar = React.memo(function StatusBar({
           <div className="adl-statusbar__menu adl-statusbar__menu--workspace" role="dialog">
             <div className="adl-statusbar__menu-section">
               <strong className="adl-statusbar__menu-subtitle">{t.workspaceRecentTitle}</strong>
-              <div
-                className="adl-statusbar__menu-list adl-reveal-scroll"
-                ref={recentScrollbar.scrollRef}
-                {...recentScrollbar.hoverProps}
-              >
-                {recentWorkspaces.length === 0 ? (
-                  <span className="adl-statusbar__menu-empty">{t.workspaceRecentEmpty}</span>
-                ) : (
-                  recentWorkspaces.map((workspace) => (
-                    <button
-                      key={workspace.id}
-                      type="button"
-                      title={`${workspace.name}\n${workspace.path}`}
-                      className={`adl-statusbar__menu-option${currentWorkspace?.id === workspace.id ? ' is-active' : ''}`}
-                      onClick={() => {
-                        onOpenWorkspace(workspace.path);
-                        setOpenMenu(undefined);
-                      }}
-                    >
-                      <span className="adl-statusbar__menu-option-main">{workspace.name}</span>
-                      <span className="adl-statusbar__menu-option-sub">{workspace.path}</span>
-                    </button>
-                  ))
-                )}
+              <div className="adl-reveal-scrollbar-host" {...recentScrollbar.hoverProps}>
+                <div
+                  className="adl-statusbar__menu-list adl-reveal-scroll"
+                  ref={recentScrollbar.scrollRef}
+                >
+                  {recentWorkspaces.length === 0 ? (
+                    <span className="adl-statusbar__menu-empty">{t.workspaceRecentEmpty}</span>
+                  ) : (
+                    recentWorkspaces.map((workspace) => (
+                      <button
+                        key={workspace.id}
+                        type="button"
+                        title={`${workspace.name}\n${workspace.path}`}
+                        className={`adl-statusbar__menu-option${currentWorkspace?.id === workspace.id ? ' is-active' : ''}`}
+                        onClick={() => {
+                          onOpenWorkspace(workspace.path);
+                          setOpenMenu(undefined);
+                        }}
+                      >
+                        <span className="adl-statusbar__menu-option-main">{workspace.name}</span>
+                        <span className="adl-statusbar__menu-option-sub">{workspace.path}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
                 <RevealScrollbar controller={recentScrollbar} />
               </div>
             </div>

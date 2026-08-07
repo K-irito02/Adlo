@@ -54,15 +54,22 @@ function computeThumb(geometry: Geometry): { height: number; top: number } {
 export function useRevealScrollbar(deps: DependencyList): RevealScrollbarController {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [hovered, setHovered] = useState(false);
-  const [geometry, setGeometry] = useState<Geometry>({ scrollTop: 0, scrollHeight: 0, clientHeight: 0 });
-  const dragState = useRef<{ pointerId: number; startY: number; startScrollTop: number } | null>(null);
+  const [geometry, setGeometry] = useState<Geometry>({
+    scrollTop: 0,
+    scrollHeight: 0,
+    clientHeight: 0,
+  });
+  const dragState = useRef<{ pointerId: number; startY: number; startScrollTop: number } | null>(
+    null,
+  );
 
   const measure = useCallback(() => {
     const el = scrollRef.current;
     if (!el) {
       return;
     }
-    setGeometry(readGeometry(el));
+    const geo = readGeometry(el);
+    setGeometry(geo);
   }, []);
 
   const depsKey = deps.join('\u0000');
@@ -105,7 +112,8 @@ export function useRevealScrollbar(deps: DependencyList): RevealScrollbarControl
       }
       const deltaY = event.clientY - state.startY;
       const scrollDelta = (deltaY / maxThumbTop) * maxScroll;
-      el.scrollTop = clamp(state.startScrollTop + scrollDelta, 0, maxScroll);
+      const nextScrollTop = clamp(state.startScrollTop + scrollDelta, 0, maxScroll);
+      el.scrollTop = nextScrollTop;
       measure();
     },
     [measure],

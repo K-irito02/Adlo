@@ -47,28 +47,29 @@ export function WelcomeState({
             <h3>{t.welcomeRecentWorkspaces}</h3>
           </header>
           {recentWorkspaces.length ? (
-            <div
-              className="adl-welcome__recent-scroll adl-reveal-scroll"
-              ref={scrollbar.scrollRef}
-              {...scrollbar.hoverProps}
-            >
-              <ul className="adl-welcome__recent-list">
-                {recentWorkspaces.map((workspace) => (
-                  <li key={workspace.path}>
-                    <button
-                      type="button"
-                      title={`${workspace.name}\n${workspace.path}`}
-                      onClick={() => onOpenWorkspace(workspace.path)}
-                    >
-                      <span className="adl-welcome__recent-icon" aria-hidden="true">
-                        <IconFolder size={14} decorative />
-                      </span>
-                      <span className="adl-welcome__recent-name">{workspace.name}</span>
-                      <span className="adl-welcome__path">{workspace.path}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            <div className="adl-reveal-scrollbar-host" {...scrollbar.hoverProps}>
+              <div
+                className="adl-welcome__recent-scroll adl-reveal-scroll"
+                ref={scrollbar.scrollRef}
+              >
+                <ul className="adl-welcome__recent-list">
+                  {recentWorkspaces.map((workspace) => (
+                    <li key={workspace.path}>
+                      <button
+                        type="button"
+                        title={`${workspace.name}\n${workspace.path}`}
+                        onClick={() => onOpenWorkspace(workspace.path)}
+                      >
+                        <span className="adl-welcome__recent-icon" aria-hidden="true">
+                          <IconFolder size={14} decorative />
+                        </span>
+                        <span className="adl-welcome__recent-name">{workspace.name}</span>
+                        <span className="adl-welcome__path">{workspace.path}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
               <RevealScrollbar controller={scrollbar} />
             </div>
           ) : (

@@ -1,5 +1,8 @@
-.adl-reveal-scroll {
+.adl-reveal-scrollbar-host {
   position: relative;
+}
+
+.adl-reveal-scroll {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;

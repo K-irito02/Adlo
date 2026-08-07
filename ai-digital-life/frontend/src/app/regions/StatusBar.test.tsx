@@ -59,9 +59,7 @@ beforeEach(() => {
 function renderStatusBar(count: number) {
   const props = {
     ...baseProps,
-    recentWorkspaces: Array.from({ length: count }, (_, i) =>
-      ws(`w${i}`, `E:/ws-${i}`, `WS ${i}`),
-    ),
+    recentWorkspaces: Array.from({ length: count }, (_, i) => ws(`w${i}`, `E:/ws-${i}`, `WS ${i}`)),
   };
   return render(
     <TestProvider>
@@ -73,8 +71,7 @@ function renderStatusBar(count: number) {
 function openWorkspaceMenu(container: HTMLElement) {
   const trigger = Array.from(container.querySelectorAll<HTMLElement>('.adl-statusbar__item')).find(
     (item) =>
-      item.getAttribute('aria-haspopup') === 'dialog' &&
-      !(item as HTMLButtonElement).disabled,
+      item.getAttribute('aria-haspopup') === 'dialog' && !(item as HTMLButtonElement).disabled,
   );
   if (!trigger) {
     throw new Error('workspace menu trigger not found');
@@ -100,11 +97,12 @@ describe('StatusBar recent workspaces', () => {
   it('shows the overlay scrollbar on hover when scrollable', () => {
     const { container } = renderStatusBar(9);
     openWorkspaceMenu(container);
+    const host = container.querySelector('.adl-reveal-scrollbar-host') as HTMLElement;
     const list = container.querySelector('.adl-statusbar__menu-list') as HTMLElement;
     Object.defineProperty(list, 'scrollHeight', { configurable: true, value: 400 });
     Object.defineProperty(list, 'clientHeight', { configurable: true, value: 100 });
     fireEvent.scroll(list);
-    fireEvent.mouseEnter(list);
+    fireEvent.mouseEnter(host);
     const track = container.querySelector('.adl-reveal-scrollbar') as HTMLElement;
     expect(track).not.toBeNull();
     expect(track.getAttribute('data-visible')).toBe('true');
