@@ -186,9 +186,10 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 180px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+}
+
+.adl-statusbar__menu-list.adl-reveal-scroll {
+  max-height: 132px;
 }
 
 .adl-statusbar__menu-empty {

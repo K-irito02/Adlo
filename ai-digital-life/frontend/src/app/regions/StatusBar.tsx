@@ -17,6 +17,8 @@ import { WorkspaceSplitButton } from '../components/WorkspaceSplitButton';
 import { modelLabel, isDirtyWorktree, type GitStatus } from './StatusBar/utils';
 import { StatusBarGitInfo } from './StatusBarGitInfo';
 import { StatusBarEditorInfo } from './StatusBarEditorInfo';
+import { useRevealScrollbar } from '../hooks/useRevealScrollbar';
+import { RevealScrollbar } from '../components/RevealScrollbar';
 
 type OpenMenu = 'workspace' | 'branch' | 'model' | undefined;
 
@@ -60,6 +62,7 @@ const StatusBar = React.memo(function StatusBar({
   const { t } = useTCopy();
   const [openMenu, setOpenMenu] = useState<OpenMenu>();
   const rootRef = useRef<HTMLDivElement>(null);
+  const recentScrollbar = useRevealScrollbar([recentWorkspaces.length, openMenu === 'workspace']);
 
   // TEMP: layout diagnostic, remove after verification
   useEffect(() => {
@@ -206,11 +209,15 @@ const StatusBar = React.memo(function StatusBar({
           <div className="adl-statusbar__menu adl-statusbar__menu--workspace" role="dialog">
             <div className="adl-statusbar__menu-section">
               <strong className="adl-statusbar__menu-subtitle">{t.workspaceRecentTitle}</strong>
-              <div className="adl-statusbar__menu-list">
+              <div
+                className="adl-statusbar__menu-list adl-reveal-scroll"
+                ref={recentScrollbar.scrollRef}
+                {...recentScrollbar.hoverProps}
+              >
                 {recentWorkspaces.length === 0 ? (
                   <span className="adl-statusbar__menu-empty">{t.workspaceRecentEmpty}</span>
                 ) : (
-                  recentWorkspaces.slice(0, 6).map((workspace) => (
+                  recentWorkspaces.map((workspace) => (
                     <button
                       key={workspace.id}
                       type="button"
@@ -226,6 +233,7 @@ const StatusBar = React.memo(function StatusBar({
                     </button>
                   ))
                 )}
+                <RevealScrollbar controller={recentScrollbar} />
               </div>
             </div>
 
