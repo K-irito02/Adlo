@@ -192,6 +192,12 @@
   max-height: 132px;
 }
 
+.adl-statusbar__menu--branch .adl-statusbar__menu-list {
+  max-height: 180px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .adl-statusbar__menu-empty {
   color: var(--text-muted);
   font-size: 11px;
