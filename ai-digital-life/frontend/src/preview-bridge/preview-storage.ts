@@ -39,6 +39,28 @@ export function persistRecentWorkspaces(entries: RecentWorkspaceEntry[]) {
   }
 }
 
+const MOCK_SEED_WORKSPACES: RecentWorkspaceEntry[] = Array.from({ length: 5 }, (_, index) => {
+  const n = index + 1;
+  return {
+    id: `mock-seed-workspace-${n}`,
+    path: `E:/Mock-Workspace-${n}`,
+    rootPath: `E:/Mock-Workspace-${n}`,
+    name: `模拟工作区 ${n}`,
+    lastOpenedAt: Date.now() - n,
+    isPinned: false,
+    pinnedOrder: 0,
+    unpinnedOrder: n,
+    removedFromSidebar: false,
+    available: true,
+    hiddenFromRightPanels: false,
+  };
+});
+
+export function seedMockRecentWorkspaces(entries: RecentWorkspaceEntry[]): RecentWorkspaceEntry[] {
+  const seen = new Set(entries.map((entry) => entry.path));
+  return [...MOCK_SEED_WORKSPACES.filter((entry) => !seen.has(entry.path)), ...entries];
+}
+
 export function updateRecentWorkspaces(
   currentEntries: RecentWorkspaceEntry[],
   entry: RecentWorkspaceEntry,

@@ -2,7 +2,7 @@ import type { AudioStatePayload, PageMeta } from '../shared/ipc/browser';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from '../mock-bridge';
 import { createPtyBridge } from './preview-pty-bridge';
-import { loadRecentWorkspaces } from './preview-storage';
+import { loadRecentWorkspaces, seedMockRecentWorkspaces } from './preview-storage';
 import type { PreviewContext } from './preview-context';
 import { createBaseAppInfo, createPreviewModelBridge } from './preview-model';
 import { createPreviewWorkspaceBridge } from './preview-workspace';
@@ -43,7 +43,9 @@ export function setupPreviewBridge(): void {
 
   const ctx: PreviewContext = {
     appInfo: createBaseAppInfo(),
-    recentWorkspaces: loadRecentWorkspaces(),
+    recentWorkspaces: import.meta.env.DEV
+      ? seedMockRecentWorkspaces(loadRecentWorkspaces())
+      : loadRecentWorkspaces(),
     currentWorkspace: undefined,
     retrievalStatus: undefined,
   };
