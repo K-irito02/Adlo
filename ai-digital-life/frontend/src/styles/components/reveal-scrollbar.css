@@ -29,14 +29,26 @@
   position: absolute;
   top: 0;
   left: 2px;
-  width: 4px;
+  width: 3px;
   border-radius: 999px;
   background: var(--text-muted);
   opacity: 0.75;
   cursor: pointer;
   touch-action: none;
+  transition:
+    width var(--duration-150) var(--ease-default),
+    left var(--duration-150) var(--ease-default),
+    background-color var(--duration-150) var(--ease-default),
+    opacity var(--duration-150) var(--ease-default);
 }
 
 .adl-reveal-scrollbar[data-visible='true'] .adl-reveal-scrollbar__thumb {
   pointer-events: auto;
+}
+
+.adl-reveal-scrollbar__thumb:hover {
+  left: 1px;
+  width: 6px;
+  background: var(--text-primary);
+  opacity: 1;
 }
