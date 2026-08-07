@@ -154,4 +154,61 @@ describe('buildSidebarViewModel', () => {
     ]);
     expect(viewModel.standaloneSessions.map((item) => item.session.id)).toEqual(['session-global']);
   });
+
+  it('does not duplicate a workspace when its id differs but path matches a recent entry', () => {
+    const appInfo: AppInfo = {
+      appName: 'AI Digital Life',
+      version: '0.1.0',
+      config: {
+        language: 'zh-CN',
+        themeMode: 'system',
+        resolvedTheme: 'light',
+        logLevel: 'info',
+        terminalLogMode: 'overwrite',
+        debugLogMode: 'overwrite',
+        maxRecentWorkspaces: 10,
+        modelPreferences: {
+          providers: {
+            deepseek: {
+              enabled: true,
+              priority: 1,
+              modelId: 'deepseek-chat',
+              enabledModels: null,
+            },
+            minimax: { enabled: true, priority: 2, modelId: 'MiniMax-M2.7', enabledModels: null },
+          },
+        },
+        keybinds: {},
+        fonts: {},
+        maxConcurrentWorkspaces: 6,
+        workspacePriorityIds: [],
+        workspaceDeferredIds: [],
+        workspaceNaturalOrder: [],
+      },
+      currentWorkspace: {
+        id: 'workspace_stale_old',
+        path: 'E:/same-workspace',
+        rootPath: 'E:/same-workspace',
+        name: 'same-workspace',
+        type: 'node',
+        status: 'ready',
+        createdAt: now,
+        updatedAt: now,
+        lastOpenedAt: now,
+      },
+      recentLogs: [],
+    };
+
+    // 同一路径的历史条目使用不同的旧 id
+    const recentWorkspaces = [buildWorkspace('workspace_legacy', 'E:/same-workspace')];
+
+    const viewModel = buildSidebarViewModel({
+      appInfo,
+      recentWorkspaces,
+      sessions: [],
+    });
+
+    expect(viewModel.workspaces).toHaveLength(1);
+    expect(viewModel.workspaces[0]?.workspace.path).toBe('E:/same-workspace');
+  });
 });

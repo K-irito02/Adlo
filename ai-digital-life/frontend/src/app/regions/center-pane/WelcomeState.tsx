@@ -47,7 +47,11 @@ export function WelcomeState({
             <ul className="adl-welcome__recent-list">
               {recentWorkspaces.slice(0, 5).map((workspace) => (
                 <li key={workspace.path}>
-                  <button type="button" onClick={() => onOpenWorkspace(workspace.path)}>
+                  <button
+                    type="button"
+                    title={`${workspace.name}\n${workspace.path}`}
+                    onClick={() => onOpenWorkspace(workspace.path)}
+                  >
                     <span className="adl-welcome__recent-icon" aria-hidden="true">
                       <IconFolder size={14} decorative />
                     </span>

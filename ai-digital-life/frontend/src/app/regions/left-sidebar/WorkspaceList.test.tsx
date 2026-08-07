@@ -58,7 +58,6 @@ function buildProps(overrides: Partial<Parameters<typeof WorkspaceList>[0]> = {}
     expandedSessionWorkspaces: {},
     toggleSessionWorkspace: vi.fn(),
     onReorderWorkspaces: vi.fn(),
-    onSwitchToWorkspace: vi.fn(),
     onPinWorkspace: vi.fn(),
     onUnpinWorkspace: vi.fn(),
     onCreateSession: vi.fn(),
@@ -167,5 +166,49 @@ describe('WorkspaceList mouseup persistence', () => {
     // Simulate a stray mouseup with no preceding mousedown.
     fireEvent.mouseUp(document);
     expect(onReorder).not.toHaveBeenCalled();
+  });
+});
+
+describe('WorkspaceList expand/collapse on click', () => {
+  it('toggles the session list when clicking a non-current workspace row', () => {
+    const toggle = vi.fn();
+    const items = [buildItem('a', false, false)];
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
+      </TestProvider>,
+    );
+
+    fireEvent.click(document.querySelector('.adl-workspace-row')!);
+
+    expect(toggle).toHaveBeenCalledWith('/path/a');
+  });
+
+  it('toggles the session list when clicking the current workspace row', () => {
+    const toggle = vi.fn();
+    const items = [buildItem('b', false, true)];
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
+      </TestProvider>,
+    );
+
+    fireEvent.click(document.querySelector('.adl-workspace-row')!);
+
+    expect(toggle).toHaveBeenCalledWith('/path/b');
+  });
+
+  it('toggles when clicking the workspace name label', () => {
+    const toggle = vi.fn();
+    const items = [buildItem('c', false, false)];
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
+      </TestProvider>,
+    );
+
+    fireEvent.click(document.querySelector('.adl-workspace-row__label')!);
+
+    expect(toggle).toHaveBeenCalledWith('/path/c');
   });
 });

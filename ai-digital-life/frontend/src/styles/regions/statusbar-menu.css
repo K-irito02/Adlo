@@ -86,20 +86,49 @@
   border-color: transparent;
 }
 
-.adl-statusbar__menu--workspace .adl-statusbar__menu-option--global {
+.adl-statusbar__menu--workspace .adl-statusbar__menu-option.adl-statusbar__menu-option--global {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   background: var(--surface-subtle);
+  color: var(--text-primary);
 }
 
 .adl-statusbar__menu--workspace
   .adl-statusbar__menu-option--global
   .adl-statusbar__menu-option-main {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
 }
 
-.adl-statusbar__menu--workspace .adl-statusbar__menu-option--global:hover,
-.adl-statusbar__menu--workspace .adl-statusbar__menu-option--global:focus-visible {
+.adl-statusbar__menu--workspace
+  .adl-statusbar__menu-option--global
+  .adl-statusbar__menu-option-sub {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.adl-statusbar__menu--workspace
+  .adl-statusbar__menu-option.adl-statusbar__menu-option--global:hover,
+.adl-statusbar__menu--workspace
+  .adl-statusbar__menu-option.adl-statusbar__menu-option--global:focus-visible {
   background: var(--bg-hover);
+  border-color: var(--border-strong);
+  box-shadow: none;
+  outline: none;
 }
 
 .adl-statusbar__menu--branch {
@@ -218,6 +247,26 @@
   white-space: normal;
   word-break: break-word;
   line-height: 1.35;
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__menu-option {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-0-5);
+}
+
+.adl-statusbar__menu--workspace .adl-statusbar__menu-option-main,
+.adl-statusbar__menu--workspace .adl-statusbar__menu-option-sub {
+  width: 100%;
+}
+
+.adl-statusbar__menu--workspace
+  .adl-statusbar__menu-option:not(.adl-statusbar__menu-option--global)
+  .adl-statusbar__menu-option-sub {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .adl-statusbar__menu-actions {

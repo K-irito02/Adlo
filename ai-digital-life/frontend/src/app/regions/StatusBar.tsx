@@ -60,6 +60,37 @@ const StatusBar = React.memo(function StatusBar({
   const { t } = useTCopy();
   const [openMenu, setOpenMenu] = useState<OpenMenu>();
   const rootRef = useRef<HTMLDivElement>(null);
+
+  // TEMP: layout diagnostic, remove after verification
+  useEffect(() => {
+    if (openMenu !== 'workspace') {
+      return;
+    }
+    const measure = () => {
+      const option = document.querySelector<HTMLElement>('.adl-statusbar__menu-option--global');
+      if (!option) {
+        return;
+      }
+      const main = option.querySelector<HTMLElement>('.adl-statusbar__menu-option-main');
+      const sub = option.querySelector<HTMLElement>('.adl-statusbar__menu-option-sub');
+      const cs = getComputedStyle(option);
+      const mr = main?.getBoundingClientRect();
+      const sr = sub?.getBoundingClientRect();
+      console.log(
+        '[STATUSBAR-LAYOUT]',
+        JSON.stringify({
+          flexDirection: cs.flexDirection,
+          flexWrap: cs.flexWrap,
+          mainTop: mr ? Math.round(mr.top) : null,
+          subTop: sr ? Math.round(sr.top) : null,
+          sameLine: mr && sr ? Math.abs(mr.top - sr.top) <= 1 : null,
+        }),
+      );
+    };
+    const raf = requestAnimationFrame(() => requestAnimationFrame(measure));
+    return () => cancelAnimationFrame(raf);
+  }, [openMenu]);
+
   const ContainerTag = inline ? 'div' : 'footer';
   const effectiveGitSnapshot = gitSnapshot ?? currentWorkspace?.gitSnapshot;
   const currentBranch = effectiveGitSnapshot?.branch ?? 'main';
@@ -174,13 +205,6 @@ const StatusBar = React.memo(function StatusBar({
         {openMenu === 'workspace' ? (
           <div className="adl-statusbar__menu adl-statusbar__menu--workspace" role="dialog">
             <div className="adl-statusbar__menu-section">
-              <strong className="adl-statusbar__menu-title">{t.workspaceLabel}</strong>
-              <p className="adl-statusbar__menu-hint">
-                {currentWorkspace?.path ?? t.workspaceStatusGlobalHint}
-              </p>
-            </div>
-
-            <div className="adl-statusbar__menu-section">
               <strong className="adl-statusbar__menu-subtitle">{t.workspaceRecentTitle}</strong>
               <div className="adl-statusbar__menu-list">
                 {recentWorkspaces.length === 0 ? (
@@ -190,6 +214,7 @@ const StatusBar = React.memo(function StatusBar({
                     <button
                       key={workspace.id}
                       type="button"
+                      title={`${workspace.name}\n${workspace.path}`}
                       className={`adl-statusbar__menu-option${currentWorkspace?.id === workspace.id ? ' is-active' : ''}`}
                       onClick={() => {
                         onOpenWorkspace(workspace.path);

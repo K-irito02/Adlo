@@ -268,6 +268,8 @@
     justify-self: start;
     max-width: 100%;
     text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .adl-composer__inner {

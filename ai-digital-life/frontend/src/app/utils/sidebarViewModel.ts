@@ -98,7 +98,14 @@ export function buildSidebarViewModel(input: {
 }): SidebarViewModel {
   const currentWorkspace = input.appInfo?.currentWorkspace;
   const entries = [...input.recentWorkspaces];
-  if (currentWorkspace && !entries.some((entry) => entry.id === currentWorkspace.id)) {
+  // 工作区真实身份是路径：id 可能因历史/归一化差异而不稳定。
+  // 当前工作区已在列表中（id 或 path 命中）则不再插入，避免同一路径重复显示。
+  if (
+    currentWorkspace &&
+    !entries.some(
+      (entry) => entry.id === currentWorkspace.id || entry.path === currentWorkspace.path,
+    )
+  ) {
     entries.unshift({
       id: currentWorkspace.id,
       path: currentWorkspace.path,

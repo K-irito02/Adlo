@@ -25,6 +25,22 @@ fn entry_from_workspace(meta: WorkspaceMeta, max_order: i32) -> RecentWorkspaceE
     }
 }
 
+/// 归一化路径用于去重：去除 verbatim 前缀、统一分隔符、忽略大小写。
+fn path_dedup_key(path: &str) -> String {
+    strip_verbatim_prefix(path).replace('\\', "/").to_lowercase()
+}
+
+/// 按归一化路径去重，优先保留 id 与 DB workspace 一致的条目（统一 id）。
+fn dedup_entries_by_path(
+    mut entries: Vec<RecentWorkspaceEntry>,
+    workspace_ids: &std::collections::HashSet<String>,
+) -> Vec<RecentWorkspaceEntry> {
+    entries.sort_by_key(|e| !workspace_ids.contains(&e.id));
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    entries.retain(|e| seen.insert(path_dedup_key(&e.path)));
+    entries
+}
+
 fn load_sidebar_entries_with_db(db: &Database) -> Result<Vec<RecentWorkspaceEntry>, AppError> {
     match db.get_state(RECENT_SIDEBAR_KEY)? {
         Some(json) => serde_json::from_str(&json)
@@ -87,11 +103,18 @@ fn merge_workspace_meta_into_sidebar(
 fn load_sidebar_with_meta_with_db(db: &Database) -> Result<Vec<RecentWorkspaceEntry>, AppError> {
     let workspaces: Vec<WorkspaceMeta> = db.list_entities(EntityTable::Workspaces)?;
     let mut all = load_or_seed_sidebar_with_db(db)?;
+
+    // 一次性清理历史遗留的同一路径重复条目（id 不稳定导致），优先保留 id 与 DB 一致者
+    let workspace_ids: std::collections::HashSet<String> =
+        workspaces.iter().map(|w| w.id.clone()).collect();
+    let before = all.len();
+    all = dedup_entries_by_path(all, &workspace_ids);
+    let mut changed = all.len() != before;
+
     merge_workspace_meta_into_sidebar(&mut all, &workspaces);
 
-    let mut changed = false;
     for w in workspaces {
-        if !all.iter().any(|e| e.id == w.id) {
+        if !all.iter().any(|e| e.id == w.id || path_dedup_key(&e.path) == path_dedup_key(&w.path)) {
             let max = unpinned_max(&all);
             all.push(entry_from_workspace(w, max));
             changed = true;
@@ -139,7 +162,13 @@ pub(super) fn upsert_sidebar_after_open(
     meta: &WorkspaceMeta,
 ) -> Result<(), AppError> {
     let mut all = load_or_seed_sidebar(state)?;
-    if let Some(i) = all.iter().position(|e| e.id == meta.id) {
+    // 同一工作区按 id 或归一化 path 命中：就地更新并统一 id，
+    // 避免因历史 id 不一致导致同一路径出现两条侧栏条目。
+    let normalized = path_dedup_key(&meta.path);
+    if let Some(i) =
+        all.iter().position(|e| e.id == meta.id || path_dedup_key(&e.path) == normalized)
+    {
+        all[i].id = meta.id.clone();
         all[i].path = meta.path.clone();
         all[i].root_path = meta.root_path.clone();
         all[i].name = meta.name.clone();
@@ -369,4 +398,75 @@ pub async fn workspace_show_in_right_panels(
         .await
         .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
     Ok(ipc(Ok(entries)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use adl_types::now_ms;
+
+    fn entry(id: &str, path: &str) -> RecentWorkspaceEntry {
+        RecentWorkspaceEntry {
+            id: id.to_string(),
+            path: path.to_string(),
+            root_path: path.to_string(),
+            name: path.split(['/', '\\']).next_back().unwrap_or(path).to_string(),
+            last_opened_at: now_ms(),
+            is_pinned: false,
+            pinned_order: 0,
+            unpinned_order: 0,
+            removed_from_sidebar: false,
+            available: true,
+            hidden_from_right_panels: false,
+        }
+    }
+
+    fn ids(entries: &[RecentWorkspaceEntry]) -> Vec<&str> {
+        entries.iter().map(|e| e.id.as_str()).collect()
+    }
+
+    #[test]
+    fn path_dedup_key_normalizes_separators_case_and_verbatim_prefix() {
+        assert_eq!(path_dedup_key(r"E:\Foo\Bar"), "e:/foo/bar");
+        assert_eq!(path_dedup_key(r"\\?\E:\Foo\Bar"), "e:/foo/bar");
+        assert_eq!(path_dedup_key("E:/FOO/bar"), "e:/foo/bar");
+    }
+
+    #[test]
+    fn dedup_entries_by_path_removes_same_path_with_different_ids() {
+        let workspace_ids = std::collections::HashSet::from(["workspace_new".to_string()]);
+        let entries = vec![
+            entry("workspace_legacy", r"E:\same\path"),
+            entry("workspace_new", "E:/same/path"),
+        ];
+
+        let deduped = dedup_entries_by_path(entries, &workspace_ids);
+
+        // 保留 id 与 DB 一致者（workspace_new），移除历史旧 id 条目
+        assert_eq!(ids(&deduped), ["workspace_new"]);
+    }
+
+    #[test]
+    fn dedup_entries_by_path_keeps_first_when_no_workspace_match() {
+        let workspace_ids = std::collections::HashSet::new();
+        let entries = vec![
+            entry("first", r"E:\same"),
+            entry("second", "e:/SAME"),
+            entry("third", "E:/other"),
+        ];
+
+        let deduped = dedup_entries_by_path(entries, &workspace_ids);
+
+        assert_eq!(ids(&deduped), ["first", "third"]);
+    }
+
+    #[test]
+    fn dedup_entries_by_path_keeps_distinct_paths() {
+        let workspace_ids = std::collections::HashSet::new();
+        let entries = vec![entry("a", r"E:\one"), entry("b", r"E:\two")];
+
+        let deduped = dedup_entries_by_path(entries, &workspace_ids);
+
+        assert_eq!(ids(&deduped), ["a", "b"]);
+    }
 }

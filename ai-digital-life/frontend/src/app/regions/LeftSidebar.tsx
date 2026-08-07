@@ -146,9 +146,6 @@ const LeftSidebar = React.memo(function LeftSidebar({
           expandedSessionWorkspaces={expandedSessionWorkspaces}
           toggleSessionWorkspace={toggleSessionWorkspace}
           onReorderWorkspaces={actions.reorderWorkspaces}
-          onSwitchToWorkspace={(id: string, path: string) =>
-            actions.switchToWorkspace(asWorkspaceID(id), path)
-          }
           onPinWorkspace={(id: string) => actions.pinWorkspace(asWorkspaceID(id))}
           onUnpinWorkspace={(id: string) => actions.unpinWorkspace(asWorkspaceID(id))}
           onCreateSession={onCreateSession}

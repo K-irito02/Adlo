@@ -23,7 +23,6 @@ export interface WorkspaceListProps {
   expandedSessionWorkspaces: Record<string, boolean>;
   toggleSessionWorkspace: (workspaceId: string) => void;
   onReorderWorkspaces: (input: ReorderWorkspacesInput) => void;
-  onSwitchToWorkspace: (workspaceId: string, workspacePath: string) => void;
   onPinWorkspace: (workspaceId: string) => void;
   onUnpinWorkspace: (workspaceId: string) => void;
   onCreateSession: () => void;
@@ -47,7 +46,6 @@ export function WorkspaceList({
   expandedSessionWorkspaces,
   toggleSessionWorkspace,
   onReorderWorkspaces,
-  onSwitchToWorkspace,
   onPinWorkspace,
   onUnpinWorkspace,
   onCreateSession,
@@ -151,10 +149,6 @@ export function WorkspaceList({
                   role="treeitem"
                   aria-expanded={expanded}
                   onClick={() => {
-                    if (!item.isCurrent) {
-                      onSwitchToWorkspace(item.workspace.id, item.workspace.path);
-                      return;
-                    }
                     toggleSessionWorkspace(item.workspace.path);
                   }}
                   onContextMenu={(event) => {
@@ -191,11 +185,7 @@ export function WorkspaceList({
                     title={item.workspace.path}
                     onClick={(event) => {
                       event.stopPropagation();
-                      if (!item.isCurrent) {
-                        onSwitchToWorkspace(item.workspace.id, item.workspace.path);
-                      } else {
-                        toggleSessionWorkspace(item.workspace.path);
-                      }
+                      toggleSessionWorkspace(item.workspace.path);
                     }}
                     onMouseDown={(event) =>
                       handleDragStart(event, item.workspace.id, item.workspace.isPinned)

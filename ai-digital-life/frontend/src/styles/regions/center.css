@@ -429,7 +429,7 @@ select:focus-visible {
 
 .adl-welcome__recent button {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) auto;
+  grid-template-columns: 14px minmax(0, 1fr) minmax(0, 45%);
   align-items: center;
   justify-items: start;
   column-gap: var(--space-1);
@@ -478,12 +478,12 @@ select:focus-visible {
   font-family: var(--font-mono);
   font-size: 11px;
   min-width: 0;
-  max-width: none;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  justify-self: end;
+  justify-self: stretch;
   text-align: right;
+  align-self: baseline;
 }
 
 .adl-welcome__recent-icon {
@@ -499,11 +499,14 @@ select:focus-visible {
 }
 
 .adl-welcome__recent-name {
+  grid-column: 2;
   color: var(--text-secondary);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  justify-self: stretch;
+  align-self: baseline;
 }
 
 .adl-welcome__hints {
