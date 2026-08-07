@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { IconFolder, IconFolderOpen, IconLightbulb, IconMessageSquare } from '../../icons';
 import { WorkspaceSplitButton } from '../../components/WorkspaceSplitButton';
+import { RevealScrollbar } from '../../components/RevealScrollbar';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import { useTCopy } from '../../i18n/useTCopy';
+import { useRevealScrollbar } from '../../hooks/useRevealScrollbar';
 
 export interface WelcomeStateProps {
   hasWorkspace: boolean;
@@ -20,6 +22,7 @@ export function WelcomeState({
   onCreateSession,
 }: WelcomeStateProps) {
   const { t } = useTCopy();
+  const scrollbar = useRevealScrollbar([recentWorkspaces.length]);
   const [showActionCard, setShowActionCard] = useState(false);
   const actionCardRef = useRef<HTMLDivElement>(null);
 
@@ -44,23 +47,30 @@ export function WelcomeState({
             <h3>{t.welcomeRecentWorkspaces}</h3>
           </header>
           {recentWorkspaces.length ? (
-            <ul className="adl-welcome__recent-list">
-              {recentWorkspaces.slice(0, 5).map((workspace) => (
-                <li key={workspace.path}>
-                  <button
-                    type="button"
-                    title={`${workspace.name}\n${workspace.path}`}
-                    onClick={() => onOpenWorkspace(workspace.path)}
-                  >
-                    <span className="adl-welcome__recent-icon" aria-hidden="true">
-                      <IconFolder size={14} decorative />
-                    </span>
-                    <span className="adl-welcome__recent-name">{workspace.name}</span>
-                    <span className="adl-welcome__path">{workspace.path}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <div
+              className="adl-welcome__recent-scroll adl-reveal-scroll"
+              ref={scrollbar.scrollRef}
+              {...scrollbar.hoverProps}
+            >
+              <ul className="adl-welcome__recent-list">
+                {recentWorkspaces.map((workspace) => (
+                  <li key={workspace.path}>
+                    <button
+                      type="button"
+                      title={`${workspace.name}\n${workspace.path}`}
+                      onClick={() => onOpenWorkspace(workspace.path)}
+                    >
+                      <span className="adl-welcome__recent-icon" aria-hidden="true">
+                        <IconFolder size={14} decorative />
+                      </span>
+                      <span className="adl-welcome__recent-name">{workspace.name}</span>
+                      <span className="adl-welcome__path">{workspace.path}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <RevealScrollbar controller={scrollbar} />
+            </div>
           ) : (
             <p className="adl-welcome__empty">{t.workspaceRecentEmpty}</p>
           )}
