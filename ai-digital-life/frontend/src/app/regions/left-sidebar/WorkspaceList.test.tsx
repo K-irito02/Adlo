@@ -181,7 +181,7 @@ describe('WorkspaceList expand/collapse on click', () => {
 
     fireEvent.click(document.querySelector('.adl-workspace-row')!);
 
-    expect(toggle).toHaveBeenCalledWith('/path/a');
+    expect(toggle).toHaveBeenCalledWith('/path/a', false);
   });
 
   it('toggles the session list when clicking the current workspace row', () => {
@@ -195,7 +195,7 @@ describe('WorkspaceList expand/collapse on click', () => {
 
     fireEvent.click(document.querySelector('.adl-workspace-row')!);
 
-    expect(toggle).toHaveBeenCalledWith('/path/b');
+    expect(toggle).toHaveBeenCalledWith('/path/b', true);
   });
 
   it('toggles when clicking the workspace name label', () => {
@@ -209,6 +209,6 @@ describe('WorkspaceList expand/collapse on click', () => {
 
     fireEvent.click(document.querySelector('.adl-workspace-row__label')!);
 
-    expect(toggle).toHaveBeenCalledWith('/path/c');
+    expect(toggle).toHaveBeenCalledWith('/path/c', false);
   });
 });

@@ -36,7 +36,7 @@ function ThumbProbe({ controller }: { controller: RevealScrollbarController }) {
   );
 }
 
-function Host({ items, box }: { items: number; box: { scrollHeight: number; clientHeight: number } }) {
+function Host({ items }: { items: number }) {
   const controller = useRevealScrollbar([items]);
   return (
     <div ref={controller.scrollRef} {...controller.hoverProps} data-testid="host">
@@ -49,7 +49,7 @@ function Host({ items, box }: { items: number; box: { scrollHeight: number; clie
 }
 
 function renderHost(items: number, box: { scrollHeight: number; clientHeight: number }) {
-  const rendered = render(<Host items={items} box={box} />);
+  const rendered = render(<Host items={items} />);
   const host = rendered.container.querySelector('[data-testid="host"]') as HTMLElement;
   mockLayout(host, box);
   fireEvent.scroll(host);
@@ -103,11 +103,11 @@ describe('useRevealScrollbar', () => {
 
   it('re-measures when deps change and content starts to overflow', () => {
     const box = { scrollHeight: 100, clientHeight: 100 };
-    const rendered = render(<Host items={2} box={box} />);
+    const rendered = render(<Host items={2} />);
     const host = rendered.container.querySelector('[data-testid="host"]') as HTMLElement;
     mockLayout(host, box);
     box.scrollHeight = 400;
-    rendered.rerender(<Host items={5} box={box} />);
+    rendered.rerender(<Host items={5} />);
     const thumb = document.querySelector('[data-testid="thumb"]') as HTMLElement;
     expect(thumb.dataset.scrollable).toBe('true');
   });

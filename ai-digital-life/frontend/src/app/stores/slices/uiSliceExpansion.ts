@@ -140,10 +140,9 @@ export function createUIExpansionSlice(
       writeChangesTreeExpanded({});
       set({ expandedChangesTreePaths: {} });
     },
-    toggleSessionWorkspace: (workspaceId) =>
+    toggleSessionWorkspace: (workspaceId, currentlyExpanded) =>
       set((state) => {
-        const current = state.expandedSessionWorkspaces[workspaceId] ?? true;
-        const next = { ...state.expandedSessionWorkspaces, [workspaceId]: !current };
+        const next = { ...state.expandedSessionWorkspaces, [workspaceId]: !currentlyExpanded };
         writeJson(SESSION_TABS_EXPANDED_KEY, next);
         return { expandedSessionWorkspaces: next };
       }),

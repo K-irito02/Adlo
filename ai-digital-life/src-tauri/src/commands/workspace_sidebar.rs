@@ -25,9 +25,11 @@ fn entry_from_workspace(meta: WorkspaceMeta, max_order: i32) -> RecentWorkspaceE
     }
 }
 
-/// 归一化路径用于去重：去除 verbatim 前缀、统一分隔符、忽略大小写。
+/// 归一化路径用于去重：去除 verbatim 前缀、统一分隔符、忽略大小写、去除尾部斜杠。
 fn path_dedup_key(path: &str) -> String {
-    strip_verbatim_prefix(path).replace('\\', "/").to_lowercase()
+    let stripped = strip_verbatim_prefix(path).replace('\\', "/").to_lowercase();
+    let trimmed = stripped.trim_end_matches('/').to_string();
+    if trimmed.is_empty() { stripped } else { trimmed }
 }
 
 /// 按归一化路径去重，优先保留 id 与 DB workspace 一致的条目（统一 id）。
@@ -175,6 +177,10 @@ pub(super) fn upsert_sidebar_after_open(
         all[i].last_opened_at = meta.last_opened_at;
         all[i].removed_from_sidebar = false;
         all[i].available = true;
+        // 命中后移除同归一化路径的其余历史重复条目（id 不稳定遗留），避免重复残留到下次加载。
+        // 已更新的条目 id 与 meta.id 一致，dedup 优先保留它。
+        let workspace_ids = std::collections::HashSet::from([meta.id.clone()]);
+        all = dedup_entries_by_path(all, &workspace_ids);
     } else {
         let max = unpinned_max(&all);
         all.push(entry_from_workspace(meta.clone(), max));
@@ -430,6 +436,9 @@ mod tests {
         assert_eq!(path_dedup_key(r"E:\Foo\Bar"), "e:/foo/bar");
         assert_eq!(path_dedup_key(r"\\?\E:\Foo\Bar"), "e:/foo/bar");
         assert_eq!(path_dedup_key("E:/FOO/bar"), "e:/foo/bar");
+        assert_eq!(path_dedup_key(r"E:\Foo\Bar\"), "e:/foo/bar");
+        assert_eq!(path_dedup_key(r"\\?\E:\Foo\"), "e:/foo");
+        assert_eq!(path_dedup_key("/"), "/");
     }
 
     #[test]
@@ -468,5 +477,23 @@ mod tests {
         let deduped = dedup_entries_by_path(entries, &workspace_ids);
 
         assert_eq!(ids(&deduped), ["a", "b"]);
+    }
+
+    #[test]
+    fn dedup_entries_by_path_keeps_updated_entry_and_drops_same_path_legacy() {
+        // 模拟 upsert 命中后：已更新条目 id 与 DB 一致（workspace_new），
+        // 同归一化路径的历史条目用旧 id（workspace_legacy_a/legacy_b）。
+        let workspace_ids = std::collections::HashSet::from(["workspace_new".to_string()]);
+        let entries = vec![
+            entry("workspace_legacy_a", r"E:\same\path"),
+            entry("workspace_new", "E:/same/path"),
+            entry("workspace_legacy_b", r"e:\SAME\path"),
+            entry("workspace_other", "E:/other"),
+        ];
+
+        let deduped = dedup_entries_by_path(entries, &workspace_ids);
+
+        // 保留 id 与 DB 一致者（workspace_new），移除同路径历史条目，保留不同路径
+        assert_eq!(ids(&deduped), ["workspace_new", "workspace_other"]);
     }
 }

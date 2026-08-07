@@ -25,9 +25,7 @@ describe('RevealScrollbar', () => {
 
   it('renders track and thumb with controller state when scrollable', () => {
     const { container } = render(
-      <RevealScrollbar
-        controller={makeController({ scrollable: true, visible: true })}
-      />,
+      <RevealScrollbar controller={makeController({ scrollable: true, visible: true })} />,
     );
     const track = container.querySelector('.adl-reveal-scrollbar') as HTMLElement;
     expect(track).not.toBeNull();

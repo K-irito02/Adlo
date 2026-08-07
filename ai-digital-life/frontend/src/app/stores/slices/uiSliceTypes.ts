@@ -134,7 +134,7 @@ export interface UISlice {
   toggleChangesTreePath: (path: string) => void;
   expandChangesTreePathChain: (path: string) => void;
   collapseAllChangesTreePaths: () => void;
-  toggleSessionWorkspace: (workspaceId: string) => void;
+  toggleSessionWorkspace: (workspaceId: string, currentlyExpanded: boolean) => void;
   addContextChip: (chip: ContextChip) => void;
   removeContextChip: (id: string) => void;
   clearContextChips: () => void;

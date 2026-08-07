@@ -161,7 +161,7 @@ export function useRevealScrollbar(deps: DependencyList): RevealScrollbarControl
     };
   }, [onDragMove, endDrag]);
 
-  const { scrollTop, scrollHeight, clientHeight } = geometry;
+  const { scrollHeight, clientHeight } = geometry;
   const scrollable = scrollHeight > clientHeight + 1;
   const thumb = computeThumb(geometry);
   const visible = hovered && scrollable;

@@ -41,6 +41,13 @@ export interface VisibleSidebarSessions {
 
 export const SIDEBAR_SESSION_PREVIEW_LIMIT = 5;
 
+/** 路径去重 key：与后端 workspace_sidebar.rs path_dedup_key 对齐（分隔符统一 + 小写 + 去尾部斜杠）。 */
+function pathDedupKey(path: string): string {
+  const normalized = path.replace(/\\/g, '/').toLowerCase();
+  const trimmed = normalized.replace(/\/+$/, '');
+  return trimmed.length > 0 ? trimmed : normalized;
+}
+
 const STATUS_PRIORITY: SessionVisualStatus[] = [
   'abnormal',
   'pending-approval',
@@ -99,11 +106,13 @@ export function buildSidebarViewModel(input: {
   const currentWorkspace = input.appInfo?.currentWorkspace;
   const entries = [...input.recentWorkspaces];
   // 工作区真实身份是路径：id 可能因历史/归一化差异而不稳定。
-  // 当前工作区已在列表中（id 或 path 命中）则不再插入，避免同一路径重复显示。
+  // 当前工作区已在列表中（id 或归一化 path 命中）则不再插入，避免同一路径重复显示。
   if (
     currentWorkspace &&
     !entries.some(
-      (entry) => entry.id === currentWorkspace.id || entry.path === currentWorkspace.path,
+      (entry) =>
+        entry.id === currentWorkspace.id ||
+        pathDedupKey(entry.path) === pathDedupKey(currentWorkspace.path),
     )
   ) {
     entries.unshift({
@@ -175,8 +184,7 @@ export function buildSidebarViewModel(input: {
     const archivedSessions = bucket?.archivedSessions ?? [];
     const statusCounts = bucket?.statusCounts ?? emptyStatusCounts();
     const rollupStatus =
-      STATUS_PRIORITY.find((status) => statusCounts[status] > 0) ??
-      (activeSessions.length > 0 ? 'read' : 'read');
+      STATUS_PRIORITY.find((status) => statusCounts[status] > 0) ?? 'read';
 
     return {
       workspace,

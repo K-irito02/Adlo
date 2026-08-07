@@ -21,7 +21,7 @@ import { DragOverlayPortal } from '../../components/drag/DragOverlayPortal';
 export interface WorkspaceListProps {
   workspaceItems: SidebarWorkspaceItem[];
   expandedSessionWorkspaces: Record<string, boolean>;
-  toggleSessionWorkspace: (workspaceId: string) => void;
+  toggleSessionWorkspace: (workspaceId: string, currentlyExpanded: boolean) => void;
   onReorderWorkspaces: (input: ReorderWorkspacesInput) => void;
   onPinWorkspace: (workspaceId: string) => void;
   onUnpinWorkspace: (workspaceId: string) => void;
@@ -86,11 +86,10 @@ export function WorkspaceList({
                 );
                 for (const item of workspaceItems) {
                   const shouldBeExpanded = !allExpanded;
-                  if (
-                    shouldBeExpanded !==
-                    (expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent)
-                  ) {
-                    toggleSessionWorkspace(item.workspace.path);
+                  const currentDisplayed =
+                    expandedSessionWorkspaces[item.workspace.path] ?? item.isCurrent;
+                  if (shouldBeExpanded !== currentDisplayed) {
+                    toggleSessionWorkspace(item.workspace.path, currentDisplayed);
                   }
                 }
               }}
@@ -149,7 +148,9 @@ export function WorkspaceList({
                   role="treeitem"
                   aria-expanded={expanded}
                   onClick={() => {
-                    toggleSessionWorkspace(item.workspace.path);
+                    if (!isDragging) {
+                      toggleSessionWorkspace(item.workspace.path, expanded);
+                    }
                   }}
                   onContextMenu={(event) => {
                     event.preventDefault();
@@ -185,7 +186,9 @@ export function WorkspaceList({
                     title={item.workspace.path}
                     onClick={(event) => {
                       event.stopPropagation();
-                      toggleSessionWorkspace(item.workspace.path);
+                      if (!isDragging) {
+                        toggleSessionWorkspace(item.workspace.path, expanded);
+                      }
                     }}
                     onMouseDown={(event) =>
                       handleDragStart(event, item.workspace.id, item.workspace.isPinned)

@@ -211,4 +211,62 @@ describe('buildSidebarViewModel', () => {
     expect(viewModel.workspaces).toHaveLength(1);
     expect(viewModel.workspaces[0]?.workspace.path).toBe('E:/same-workspace');
   });
+
+  it('deduplicates the current workspace when the recent entry path differs only in case/separators', () => {
+    const appInfo: AppInfo = {
+      appName: 'AI Digital Life',
+      version: '0.1.0',
+      config: {
+        language: 'zh-CN',
+        themeMode: 'system',
+        resolvedTheme: 'light',
+        logLevel: 'info',
+        terminalLogMode: 'overwrite',
+        debugLogMode: 'overwrite',
+        maxRecentWorkspaces: 10,
+        modelPreferences: {
+          providers: {
+            deepseek: {
+              enabled: true,
+              priority: 1,
+              modelId: 'deepseek-chat',
+              enabledModels: null,
+            },
+            minimax: { enabled: true, priority: 2, modelId: 'MiniMax-M2.7', enabledModels: null },
+          },
+        },
+        keybinds: {},
+        fonts: {},
+        maxConcurrentWorkspaces: 6,
+        workspacePriorityIds: [],
+        workspaceDeferredIds: [],
+        workspaceNaturalOrder: [],
+      },
+      currentWorkspace: {
+        id: 'workspace_live',
+        path: 'e:\\live-workspace',
+        rootPath: 'e:\\live-workspace',
+        name: 'live-workspace',
+        type: 'node',
+        status: 'ready',
+        createdAt: now,
+        updatedAt: now,
+        lastOpenedAt: now,
+      },
+      recentLogs: [],
+    };
+
+    // 历史条目使用正斜杠 + 大小写不同的路径（后端 path_dedup_key 归一化为 e:/live-workspace）
+    const recentWorkspaces = [buildWorkspace('workspace_legacy', 'E:/Live-Workspace')];
+
+    const viewModel = buildSidebarViewModel({
+      appInfo,
+      recentWorkspaces,
+      sessions: [],
+    });
+
+    expect(viewModel.workspaces).toHaveLength(1);
+    expect(viewModel.workspaces[0]?.workspace.id).toBe('workspace_legacy');
+    expect(viewModel.workspaces[0]?.isCurrent).toBe(false);
+  });
 });
