@@ -50,7 +50,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "sy
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "registry"] }
 tracing-appender = "0.2"
-rusqlite = { version = "0.39", features = ["bundled"] }
+rusqlite = { version = "0.39", features = ["bundled", "serde_json"] }
 notify = "7"
 reqwest = { version = "0.13.2", features = ["json", "rustls", "query", "form", "stream"], default-features = false }
 tauri = "2"

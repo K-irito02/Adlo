@@ -3,6 +3,7 @@ mod crud;
 pub mod durable;
 mod entity_crud;
 mod entity_table;
+mod part_crud;
 mod purge;
 pub mod repository;
 mod session;

@@ -575,7 +575,7 @@ mod session_ordered_tests {
 }
 
 #[cfg(test)]
-mod test_helpers {
+pub(crate) mod test_helpers {
     use crate::connection::Database;
     use std::sync::atomic::{AtomicU64, Ordering};
 
