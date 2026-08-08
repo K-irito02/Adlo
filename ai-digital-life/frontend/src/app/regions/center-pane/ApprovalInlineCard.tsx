@@ -8,7 +8,11 @@ export interface ApprovalInlineCardProps {
   readOnly?: boolean;
 }
 
-export function ApprovalInlineCard({ approval, onDecide, readOnly = false }: ApprovalInlineCardProps) {
+export function ApprovalInlineCard({
+  approval,
+  onDecide,
+  readOnly = false,
+}: ApprovalInlineCardProps) {
   const { t } = useTCopy();
   return (
     <article className="adl-inline-approval" role="alert">
