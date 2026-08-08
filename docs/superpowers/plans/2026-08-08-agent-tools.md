@@ -811,25 +811,28 @@ git commit -m "feat(tools): add question tool"
 - Modify: `crates/tools/Cargo.toml`（新增 `adl-subagent` 依赖）
 
 **Interfaces:**
-- Consumes: `adl_subagent::{TaskToolInput, TaskToolOutput, SubagentManager}`（需先阅读 manager.rs 确认 SubagentManager 的 dispatch API）, `adl_errors::AppError`
-- Produces: `task::execute(input: &TaskToolInput, manager: &SubagentManager) -> Result<ToolExecutionResult, AppError>`，`task::definition()`
+- Consumes: `adl_subagent::{TaskToolInput, SubagentId}`, `adl_errors::AppError`
+- Produces: `task::execute(input: &TaskToolInput, dispatch: impl Fn(&TaskToolInput) -> Result<ToolOutput, AppError>) -> Result<ToolOutput, AppError>`，`task::PARAMETERS`（JSON schema 常量）
 
-**Input schema**（对齐 OpenCode `task.ts` + ADL `TaskToolInput`）：`{ description, prompt, subagent_type, task_id?, background? }`
+**设计说明**：`SubagentManager`（`crates/subagent/src/manager.rs`）只有状态管理（register/get/update_status/list_active），**没有真正的子代理执行器**（实际运行由 src-tauri 驱动）。因此 task 工具接受 `dispatch` 闭包参数——B3 适配层注入真实子代理运行，本阶段测试用假闭包（返回 `ToolOutput { success: true, metadata: {task_id, subagent_type, description, state: "completed"} }`）。
+
+**Input schema**（对齐 ADL `TaskToolInput`）：`{ description, prompt, subagent_type, task_id?, background? }`
 
 **metadata**：`{ "task_id": <id>, "subagent_type": <type>, "description": <desc>, "state": <state> }`
 
-- [ ] **Step 1: 阅读 `adl_subagent::manager::SubagentManager` 的 API**
+**Input schema**（对齐 ADL `TaskToolInput`）：`{ description, prompt, subagent_type, task_id?, background? }`
 
-Read `crates/subagent/src/manager.rs` 全文，确认 dispatch 子代理的函数签名（参数、返回类型、是否 async）。`task.rs` 的 `execute` 调用它。
+**metadata**：`{ "task_id": <id>, "subagent_type": <type>, "description": <desc>, "state": <state> }`
 
-- [ ] **Step 2: 编写失败的测试**
+- [ ] **Step 1: 编写失败的测试**
 
-创建 `crates/tools/src/task.rs`（先只写测试）。测试需基于 Step 1 确认的 API。若 `SubagentManager` 依赖 Tauri/全局状态不易在单测构造，则测试 focus 于 `PARAMETERS` schema 与 input 解析:
+创建 `crates/tools/src/task.rs`（先只写测试）。`execute` 接受 `dispatch` 闭包，测试注入假闭包:
 
 ```rust
 #[cfg(test)]
 mod tests {
     use super::*;
+    use adl_subagent::TaskToolInput;
 
     #[test]
     fn task_schema_has_subagent_type() {
@@ -844,29 +847,112 @@ mod tests {
         .unwrap();
         assert_eq!(input.subagent_type, "explore");
     }
+
+    #[tokio::test]
+    async fn task_executes_via_dispatch_closure() {
+        let input = TaskToolInput {
+            description: "d".into(),
+            prompt: "p".into(),
+            subagent_type: "explore".into(),
+            task_id: None,
+            background: false,
+        };
+        let result = execute(&input, |_| {
+            Ok(ToolOutput {
+                output: "dispatched".into(),
+                success: true,
+                metadata: serde_json::json!({
+                    "task_id": "sub_test",
+                    "subagent_type": "explore",
+                    "description": "d",
+                    "state": "completed",
+                }),
+            })
+        })
+        .await;
+        let result = result.unwrap();
+        assert!(result.success);
+        assert_eq!(result.metadata["state"], "completed");
+    }
 }
 ```
 
-- [ ] **Step 3: 运行测试确认失败**
+- [ ] **Step 2: 运行测试确认失败**
 
 Run: `cargo test -p adl-tools task::tests`
 Expected: FAIL（模块不存在）
 
-- [ ] **Step 4: 实现**
+- [ ] **Step 3: 实现**
 
-基于 Step 1 确认的 `SubagentManager` API 实现 `execute`。核心：构造 `TaskToolInput`，dispatch 子代理，返回 metadata（task_id/subagent_type/description/state）。若 dispatch 需 Tauri 上下文，`execute` 接受一个 `dispatch` 闭包参数（由 B3 适配层注入），单测用假闭包。
+创建 `crates/tools/src/task.rs`:
 
-- [ ] **Step 5: 运行测试确认通过**
+```rust
+use adl_errors::AppError;
+use adl_subagent::TaskToolInput;
+
+use crate::ToolOutput;
+
+pub const NAME: &str = "task";
+
+pub static PARAMETERS: std::sync::LazyLock<serde_json::Value> = std::sync::LazyLock::new(|| {
+    serde_json::json!({
+        "type": "object",
+        "properties": {
+            "description": { "type": "string", "description": "Short description of the subtask" },
+            "prompt": { "type": "string", "description": "Prompt for the subagent" },
+            "subagent_type": { "type": "string", "description": "explore | general" },
+            "task_id": { "type": "string", "description": "Optional caller-provided task id" },
+            "background": { "type": "boolean", "description": "Run in background" }
+        },
+        "required": ["description", "prompt", "subagent_type"]
+    })
+});
+
+/// Dispatch a sub-agent task. The `dispatch` closure is injected by the
+/// B3 adapter layer with the real sub-agent runner; tests pass a stub.
+pub async fn execute<F>(
+    input: &TaskToolInput,
+    dispatch: F,
+) -> Result<ToolOutput, AppError>
+where
+    F: Fn(&TaskToolInput) -> Result<ToolOutput, AppError>,
+{
+    let output = dispatch(input)?;
+    // Ensure metadata carries the task identity even if the dispatcher
+    // returned minimal data.
+    let mut metadata = output.metadata;
+    if let Some(obj) = metadata.as_object_mut() {
+        obj.entry("task_id").or_insert_with(|| {
+            serde_json::Value::String(format!("task_{}", uuid::Uuid::new_v4()))
+        });
+        obj.entry("subagent_type")
+            .or_insert_with(|| serde_json::Value::String(input.subagent_type.clone()));
+        obj.entry("description")
+            .or_insert_with(|| serde_json::Value::String(input.description.clone()));
+    }
+    Ok(ToolOutput { output: output.output, success: output.success, metadata })
+}
+```
+
+注意：`adl-subagent` 需加入 `crates/tools/Cargo.toml`；`uuid` 已在 dev-dependencies（但 `execute` 生产代码用 `uuid::Uuid` 需将其加入正式 dependencies 或用 `adl_types::create_id`——优先用 `adl_types::create_id("task")`，需加 `adl-types` 依赖）。若 `uuid` 仅在测试用，则保持 dev-dependencies；生产代码的 task_id 生成用 `adl_types::create_id`。
+
+修改 `crates/tools/src/lib.rs`:
+
+```rust
+pub mod task;
+```
+
+- [ ] **Step 4: 运行测试确认通过**
 
 Run: `cargo test -p adl-tools task::tests`
-Expected: PASS
+Expected: PASS（3 个测试）
 
-- [ ] **Step 6: Clippy 检查**
+- [ ] **Step 5: Clippy 检查**
 
 Run: `cargo clippy -p adl-tools --all-targets -- -D warnings`
 Expected: 0 warnings
 
-- [ ] **Step 7: 提交**
+- [ ] **Step 6: 提交**
 
 ```bash
 git add crates/tools/src/task.rs crates/tools/src/lib.rs crates/tools/Cargo.toml
