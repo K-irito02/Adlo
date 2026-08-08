@@ -2,6 +2,8 @@
 
 pub mod compaction;
 pub mod compaction_summary;
+pub mod part_event_bus;
+pub mod part_store;
 pub mod permission_check;
 pub mod plan_mode;
 pub mod prompt;
