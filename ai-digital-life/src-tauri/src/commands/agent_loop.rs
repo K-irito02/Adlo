@@ -62,8 +62,7 @@ pub struct LoopRunResult {
 }
 
 /// Build the model messages for a loop turn: a system prompt plus the user prompt.
-fn build_llm_messages(session_id: &str, prompt: &str, _context: Option<&str>) -> Vec<ModelChatMessage> {
-    let _ = session_id;
+fn build_llm_messages(prompt: &str) -> Vec<ModelChatMessage> {
     vec![
         ModelChatMessage {
             role: adl_types::ConversationRole::System,
@@ -112,7 +111,30 @@ async fn run_loop(
 ) -> Result<LoopRunResult, AppError> {
     crate::commands::conversation::require_session(state, &input.session_id)?;
 
-    // 1. user message
+    // 1. provider/model resolution + gateway construction BEFORE any message
+    // persistence so pre-stream failures never leave ghost messages behind.
+    let (provider_id, model_id) = resolve_provider_model(state, input)?;
+    let gateway = {
+        let config = state
+            .config
+            .read()
+            .map_err(|_| AppError::Internal("config lock poisoned".into()))?;
+        adl_model_gateway::ModelGateway::new(
+            config.model_preferences.clone(),
+            state.provider_registry.clone(),
+        )?
+    };
+
+    // 2. executor
+    let store: Arc<dyn PartStore> = Arc::new(DbPartStore(state.db.clone()));
+    let bus = PartEventBus::new(256);
+    let questions = QuestionService::new(bus.clone());
+    let registry = Arc::new(ToolRegistry::with_builtins());
+    let executor = LoopExecutor::new(bus.clone(), store.clone(), questions, registry);
+
+    let model_meta = serde_json::json!({ "providerID": provider_id, "id": model_id });
+
+    // 3. user message
     let user_msg_id = adl_types::create_id("msg");
     let user_msg = MessageRecord {
         id: user_msg_id.clone(),
@@ -125,10 +147,9 @@ async fn run_loop(
         time_created: adl_types::now_ms(),
         time_completed: None,
     };
-    let store: Arc<dyn PartStore> = Arc::new(DbPartStore(state.db.clone()));
     store.save_message(&user_msg).await?;
 
-    // 2. assistant message
+    // 4. assistant message
     let assistant_msg_id = adl_types::create_id("msg");
     let assistant_msg = MessageRecord {
         id: assistant_msg_id.clone(),
@@ -143,32 +164,15 @@ async fn run_loop(
     };
     store.save_message(&assistant_msg).await?;
 
-    // 3. executor
-    let bus = PartEventBus::new(256);
-    let questions = QuestionService::new(bus.clone());
-    let registry = Arc::new(ToolRegistry::with_builtins());
-    let executor = LoopExecutor::new(bus.clone(), store.clone(), questions, registry);
-
-    // 4. provider/model resolution
-    let (provider_id, model_id) = resolve_provider_model(state, input)?;
-
-    // 5. gateway
-    let gateway = {
-        let config = state
-            .config
-            .read()
-            .map_err(|_| AppError::Internal("config lock poisoned".into()))?;
-        adl_model_gateway::ModelGateway::new(
-            config.model_preferences.clone(),
-            state.provider_registry.clone(),
-        )?
-    };
-
-    // 6. multi-round while loop
+    // 5. multi-round while loop
     let mut turn_count = 0u32;
     let mut status = "completed".to_string();
     loop {
-        let messages = build_llm_messages(&input.session_id, &input.prompt, None);
+        if cancel.is_cancelled() {
+            status = "cancelled".to_string();
+            break;
+        }
+        let messages = build_llm_messages(&input.prompt);
         let stream = gateway.chat_stream_for_model(&provider_id, &model_id, messages).await?;
         let llm_events = stream_chunks_to_llm_events(stream);
         let result = executor
@@ -177,7 +181,7 @@ async fn run_loop(
                     session_id: input.session_id.clone(),
                     message_id: assistant_msg_id.clone(),
                     parent_id: Some(user_msg_id.clone()),
-                    model: None,
+                    model: Some(model_meta.clone()),
                 },
                 llm_events,
                 cancel.clone(),
@@ -197,6 +201,12 @@ async fn run_loop(
             },
         }
     }
+
+    // 6. finalize assistant message: completion timestamp + resolved model.
+    let mut assistant_msg = assistant_msg;
+    assistant_msg.time_completed = Some(adl_types::now_ms());
+    assistant_msg.model = Some(model_meta);
+    store.save_message(&assistant_msg).await?;
 
     Ok(LoopRunResult { run_id: assistant_msg_id, turn_count, status })
 }
@@ -329,7 +339,7 @@ mod tests {
 
     #[test]
     fn build_llm_messages_from_prompt() {
-        let messages = build_llm_messages("s1", "hello", None);
+        let messages = build_llm_messages("hello");
         assert_eq!(messages.len(), 2); // system + user
         assert_eq!(messages[1].role, adl_types::ConversationRole::User);
         assert_eq!(messages[1].content, "hello");
@@ -414,6 +424,75 @@ mod tests {
             ..Default::default()
         };
         crate::commands::conversation::save_session(state, &session).expect("save session");
+    }
+
+    #[test]
+    fn resolve_provider_model_picks_priority_enabled_provider() {
+        use adl_types::config::{ModelPreferences, ModelProviderPreference};
+        use std::collections::BTreeMap;
+
+        let mut providers = BTreeMap::new();
+        // Disabled provider with the lowest priority must NOT win.
+        providers.insert(
+            "gamma".to_string(),
+            ModelProviderPreference {
+                enabled: false,
+                priority: 0,
+                model_id: "gamma-1".to_string(),
+                enabled_models: None,
+            },
+        );
+        providers.insert(
+            "alpha".to_string(),
+            ModelProviderPreference {
+                enabled: true,
+                priority: 5,
+                model_id: "alpha-1".to_string(),
+                enabled_models: None,
+            },
+        );
+        providers.insert(
+            "beta".to_string(),
+            ModelProviderPreference {
+                enabled: true,
+                priority: 1,
+                model_id: "beta-1".to_string(),
+                enabled_models: None,
+            },
+        );
+        let config = adl_kernel::config::AppConfig {
+            model_preferences: ModelPreferences { providers },
+            ..Default::default()
+        };
+        let state = test_app_state(temp_db(), config);
+
+        let implicit = LoopRunInput {
+            session_id: "s1".into(),
+            prompt: "hi".into(),
+            provider_id: None,
+            model_id: None,
+        };
+        let (pid, mid) = resolve_provider_model(&state, &implicit).unwrap();
+        assert_eq!((pid.as_str(), mid.as_str()), ("beta", "beta-1"));
+
+        // Explicit (provider, model) override wins over preferences.
+        let explicit = LoopRunInput {
+            session_id: "s1".into(),
+            prompt: "hi".into(),
+            provider_id: Some("alpha".into()),
+            model_id: Some("alpha-9".into()),
+        };
+        let (pid, mid) = resolve_provider_model(&state, &explicit).unwrap();
+        assert_eq!((pid.as_str(), mid.as_str()), ("alpha", "alpha-9"));
+
+        // No enabled provider → deepseek defaults.
+        let mut disabled = state.config.write().unwrap().clone();
+        for pref in disabled.model_preferences.providers.values_mut() {
+            pref.enabled = false;
+        }
+        let state = test_app_state(temp_db(), disabled);
+        let (pid, mid) = resolve_provider_model(&state, &implicit).unwrap();
+        assert_eq!((pid.as_str(), mid.as_str()), ("deepseek", "deepseek-chat"));
     }
 
     #[tokio::test]
