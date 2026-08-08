@@ -33,6 +33,7 @@ pub(crate) async fn consume_stream_to_response(
 ) -> ModelResponse {
     tokio::pin!(stream);
     let mut full_content = String::new();
+    let mut full_reasoning = String::new();
     let mut final_usage: Option<ModelTokenUsage> = None;
     let mut seq = 1usize;
 
@@ -56,7 +57,17 @@ pub(crate) async fn consume_stream_to_response(
                 seq += 1;
             },
             Ok(StreamChunk::ToolCallDelta { .. }) => {},
-            Ok(StreamChunk::ReasoningDelta(_)) => {},
+            Ok(StreamChunk::ReasoningDelta(text)) => {
+                full_reasoning.push_str(&text);
+                emit_stream_event(
+                    app,
+                    run_id,
+                    seq,
+                    "reasoning-delta",
+                    serde_json::json!({ "text": text }),
+                );
+                seq += 1;
+            },
             Ok(StreamChunk::Done(usage)) => {
                 final_usage = Some(usage);
             },
@@ -77,7 +88,7 @@ pub(crate) async fn consume_stream_to_response(
         provider_id: provider_id.to_string(),
         model_id: model_id.to_string(),
         content: full_content,
-        reasoning: None,
+        reasoning: (!full_reasoning.is_empty()).then_some(full_reasoning),
         synthetic: false,
         request_id: None,
         usage: final_usage,
@@ -165,6 +176,32 @@ mod tests {
         let u = response.usage.expect("should have usage");
         assert_eq!(u.prompt_tokens, Some(10));
         assert_eq!(u.completion_tokens, Some(5));
+    }
+
+    #[tokio::test]
+    #[cfg(not(windows))]
+    async fn consume_stream_accumulates_reasoning() {
+        let app = test_app_handle();
+        let stream = test_stream(vec![
+            Ok(StreamChunk::ReasoningDelta("think".to_string())),
+            Ok(StreamChunk::ReasoningDelta(" more".to_string())),
+            Ok(StreamChunk::Delta("answer".to_string())),
+        ]);
+        let response =
+            consume_stream_to_response(&app, "test-run", stream, "deepseek", "test-model").await;
+        assert_eq!(response.content, "answer");
+        assert_eq!(response.reasoning.as_deref(), Some("think more"));
+    }
+
+    #[tokio::test]
+    #[cfg(not(windows))]
+    async fn consume_stream_reasoning_none_when_absent() {
+        let app = test_app_handle();
+        let stream = test_stream(vec![Ok(StreamChunk::Delta("hi".to_string()))]);
+        let response =
+            consume_stream_to_response(&app, "test-run", stream, "deepseek", "test-model").await;
+        assert_eq!(response.content, "hi");
+        assert!(response.reasoning.is_none());
     }
 
     #[tokio::test]
