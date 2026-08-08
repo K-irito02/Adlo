@@ -7,6 +7,7 @@ pub struct ToolOutput {
     pub metadata: serde_json::Value,
 }
 
+pub mod apply_patch;
 pub mod bash;
 pub mod edit;
 pub mod glob;

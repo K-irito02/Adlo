@@ -298,9 +298,11 @@ dependencies = [
 name = "adl-tools"
 version = "0.1.0"
 dependencies = [
+ "adl-change-engine",
  "adl-command",
  "adl-credential",
  "adl-errors",
+ "adl-types",
  "glob",
  "html2text",
  "regex",
