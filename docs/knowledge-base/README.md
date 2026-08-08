@@ -9,7 +9,7 @@
 | [refactoring](./refactoring/) | 重构方法论、组件提取、执行报告、阶段性总结 | 28 |
 | [multi-workspace](./multi-workspace/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 11 |
 | [browser](./browser/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询、导航模式切换、并发回调去重、标题锁定与 Favicon Pin、标签右键菜单与悬停按钮、WebView2 `text-overflow` 剪辑特性、已打开标签模式过滤与多 iframe 状态保持、4模式导航栏重构、双层同步机制、延迟创建、WebView2 原生 COM 事件、历史记录修复、历史标签删除修复、音频指示器、书签对话框 Store 模式、navigateTab 显式调用重构等经验 | 41 |
-| [code-quality](./code-quality/) | 全量代码质量检测与修复经验 | 20 |
+| [code-quality](./code-quality/) | 全量代码质量检测与修复经验 | 21 |
 | [browser-automation](./browser-automation/) | 浏览器自动化调试记录与规则经验 | 2 |
 | [interaction](./interaction/) | 跨功能面板的交互/UX 问题修复经验 | 21 |
 | [ci-monitoring](./ci-monitoring/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离、数据缓存、Rate Limit 保护） | 6 |
@@ -190,6 +190,7 @@
 |------|------|------|
 | [chart-brush-portal-overlay-2026-08-02.md](./code-quality/2026-08/chart-brush-portal-overlay-2026-08-02.md) | 2026-08-02 ChartBrush 修复执行 | ChartBrush 门户 Overlay 与 CSS 级联陷阱（SVG backdrop-filter 不可靠改 createPortal、`:root` 同特异性靠后覆盖主题块值、拖拽换算用 innerWidth、jsdom 无 PointerEvent 测试处理） |
 | [icon-family-unification-two-registry-sync-2026-08-02.md](./code-quality/2026-08/icon-family-unification-two-registry-sync-2026-08-02.md) | 2026-08-02 chevron 家族统一重构 | 图标家族几何统一与双图标系统同步（共享图标修改是全应用级变更、家族须统一几何避免展开/折叠跳变、app/icons 与 design-system/icons 双注册表必须同步、SVG 尺寸换算、图标几何测试取舍） |
+| [mock-bridge-data-safety-demo-2026-08-08.md](./code-quality/2026-08/mock-bridge-data-safety-demo-2026-08-08.md) | 2026-08-08 demo workspace 多轮审查 | Mock Bridge 数据安全与流式模拟正确性（订阅通道透传、写操作拦截防真实文件/会话污染、done 时序从数据派生、cancelMessage 无副作用、单一消息源、reset 全覆盖、树嵌套契约、id 解耦） |
 
 ### Browser automation
 
