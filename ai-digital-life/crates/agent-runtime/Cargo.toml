@@ -21,7 +21,9 @@ tokenizers.workspace = true
 serde_json.workspace = true
 adl-tools = { path = "../tools" }
 adl-subagent = { path = "../subagent" }
+adl-model-gateway = { path = "../model-gateway" }
 async-trait.workspace = true
+tokio-stream.workspace = true
 
 [dev-dependencies]
 adl-storage = { path = "../storage" }
