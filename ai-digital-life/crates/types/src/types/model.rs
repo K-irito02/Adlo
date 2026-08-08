@@ -35,6 +35,8 @@ pub struct ModelResponse {
     pub provider_id: String,
     pub model_id: String,
     pub content: String,
+    /// Concatenated reasoning/thinking text streamed by the model (if any).
+    pub reasoning: Option<String>,
     pub synthetic: bool,
     pub request_id: Option<String>,
     pub usage: Option<ModelTokenUsage>,
@@ -213,4 +215,44 @@ pub struct ContextEntry {
     pub content: String,
     pub token_estimate: usize,
     pub path: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn model_response_reasoning_roundtrips() {
+        let resp = ModelResponse {
+            provider_id: "deepseek".into(),
+            model_id: "deepseek-chat".into(),
+            content: "answer".into(),
+            reasoning: Some("thinking".into()),
+            synthetic: false,
+            request_id: None,
+            usage: None,
+            route: None,
+        };
+        let encoded = serde_json::to_string(&resp).unwrap();
+        let decoded: ModelResponse = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(decoded.reasoning.as_deref(), Some("thinking"));
+        assert!(encoded.contains("\"reasoning\""));
+    }
+
+    #[test]
+    fn model_response_reasoning_optional() {
+        let resp = ModelResponse {
+            provider_id: "x".into(),
+            model_id: "y".into(),
+            content: "hi".into(),
+            reasoning: None,
+            synthetic: false,
+            request_id: None,
+            usage: None,
+            route: None,
+        };
+        let encoded = serde_json::to_string(&resp).unwrap();
+        let decoded: ModelResponse = serde_json::from_str(&encoded).unwrap();
+        assert!(decoded.reasoning.is_none());
+    }
 }

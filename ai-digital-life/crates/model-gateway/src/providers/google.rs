@@ -238,6 +238,7 @@ impl ProviderAdapter for GoogleProvider {
             provider_id: "google".to_string(),
             model_id: model.to_string(),
             content,
+            reasoning: None,
             synthetic: false,
             request_id: None,
             usage: Some(ModelTokenUsage {

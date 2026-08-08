@@ -134,6 +134,7 @@ mod tests {
                 provider_id: "openai".to_string(),
                 model_id: "test-model".to_string(),
                 content: "test response".to_string(),
+                reasoning: None,
                 synthetic: false,
                 request_id: None,
                 usage: Some(ModelTokenUsage {

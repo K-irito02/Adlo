@@ -14,6 +14,8 @@ pub type StreamReader =
 pub enum StreamChunk {
     /// Partial text delta.
     Delta(String),
+    /// Partial reasoning/thinking delta (separate from visible text).
+    ReasoningDelta(String),
     /// Tool call delta (function name + arguments fragment).
     ToolCallDelta { id: String, name: String, arguments_delta: String },
     /// Stream completed with final usage info.
@@ -117,6 +119,7 @@ mod tests {
                 provider_id: "openai".to_string(),
                 model_id: "stub-model".to_string(),
                 content: "stub response".to_string(),
+                reasoning: None,
                 synthetic: false,
                 request_id: None,
                 usage: Some(ModelTokenUsage {
@@ -154,5 +157,14 @@ mod tests {
         let opts = ChatOptions::default();
         assert!(opts.temperature.is_none());
         assert!(opts.tools.is_empty());
+    }
+
+    #[test]
+    fn stream_chunk_reasoning_delta_matches() {
+        let chunk = StreamChunk::ReasoningDelta("思考".to_string());
+        match &chunk {
+            StreamChunk::ReasoningDelta(text) => assert_eq!(text, "思考"),
+            _ => panic!("expected ReasoningDelta"),
+        }
     }
 }

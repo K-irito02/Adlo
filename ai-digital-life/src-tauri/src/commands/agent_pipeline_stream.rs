@@ -56,6 +56,7 @@ pub(crate) async fn consume_stream_to_response(
                 seq += 1;
             },
             Ok(StreamChunk::ToolCallDelta { .. }) => {},
+            Ok(StreamChunk::ReasoningDelta(_)) => {},
             Ok(StreamChunk::Done(usage)) => {
                 final_usage = Some(usage);
             },
@@ -76,6 +77,7 @@ pub(crate) async fn consume_stream_to_response(
         provider_id: provider_id.to_string(),
         model_id: model_id.to_string(),
         content: full_content,
+        reasoning: None,
         synthetic: false,
         request_id: None,
         usage: final_usage,

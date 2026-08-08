@@ -199,6 +199,7 @@ impl ProviderAdapter for OllamaProvider {
             provider_id: "ollama".to_string(),
             model_id: model.to_string(),
             content,
+            reasoning: None,
             synthetic: false,
             request_id: None,
             usage: Some(ModelTokenUsage {

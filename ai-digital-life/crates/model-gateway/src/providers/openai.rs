@@ -232,6 +232,7 @@ impl ProviderAdapter for OpenAIProvider {
             provider_id: "openai".to_string(),
             model_id: model.to_string(),
             content,
+            reasoning: None,
             synthetic: false,
             request_id: json["id"].as_str().map(String::from),
             usage: Some(ModelTokenUsage {
