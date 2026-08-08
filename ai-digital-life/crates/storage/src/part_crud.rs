@@ -194,6 +194,40 @@ impl Database {
             })
             .collect()
     }
+
+    /// List event_log rows with `seq > after_seq` across **all** sessions,
+    /// ascending by seq. Used by the global SSE stream to replay the durable
+    /// event_log when the in-memory history is exhausted or on restart.
+    pub fn list_event_log_after_global(
+        &self,
+        after_seq: i64,
+    ) -> Result<Vec<(i64, String, serde_json::Value, i64)>, AppError> {
+        let conn = self.conn()?;
+        let mut stmt = conn
+            .prepare(
+                "SELECT seq, type, payload, time_created FROM event_log \
+                 WHERE seq > ?1 ORDER BY seq ASC",
+            )
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+        let raw: Vec<(i64, String, String, i64)> = stmt
+            .query_map(params![after_seq], |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                ))
+            })
+            .map_err(|e| AppError::Storage(e.to_string()))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+        raw.into_iter()
+            .map(|(seq, event_type, payload, time_created)| {
+                let value = serde_json::from_str(&payload).map_err(AppError::from)?;
+                Ok((seq, event_type, value, time_created))
+            })
+            .collect()
+    }
 }
 
 #[cfg(test)]
@@ -333,5 +367,26 @@ mod tests {
         let after = db.list_event_log_after("session_1", s1).unwrap();
         assert_eq!(after.len(), 1);
         assert_eq!(after[0].1, "message.updated");
+    }
+
+    #[test]
+    fn list_event_log_after_global_spans_sessions() {
+        let db = open_test_db("adl-part-crud");
+        let s1 = db
+            .append_event_log("session_1", "session.status", &serde_json::json!({"status": "busy"}))
+            .unwrap();
+        let s2 = db
+            .append_event_log("session_2", "message.updated", &serde_json::json!({"info": {}}))
+            .unwrap();
+        assert!(s2 > s1);
+        let all = db.list_event_log_after_global(0).unwrap();
+        assert_eq!(all.len(), 2);
+        assert_eq!(all[0].1, "session.status");
+        assert_eq!(all[1].1, "message.updated");
+        let after = db.list_event_log_after_global(s1).unwrap();
+        assert_eq!(after.len(), 1);
+        assert_eq!(after[0].1, "message.updated");
+        assert_eq!(after[0].2, serde_json::json!({"info": {}}));
+        assert_eq!(db.list_event_log_after_global(s2).unwrap().len(), 0);
     }
 }

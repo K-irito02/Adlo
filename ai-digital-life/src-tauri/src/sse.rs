@@ -59,7 +59,42 @@ impl SseEventBus {
 
     pub fn replay_after(&self, after_seq: i64) -> Vec<(i64, SessionPartEvent)> {
         let h = self.history.lock().unwrap_or_else(|e| e.into_inner());
-        h.iter().filter(|(seq, _)| *seq > after_seq).cloned().collect()
+        let oldest_cached = h.first().map(|(seq, _)| *seq);
+        let cached: Vec<(i64, SessionPartEvent)> =
+            h.iter().filter(|(seq, _)| *seq > after_seq).cloned().collect();
+        drop(h);
+
+        // The in-memory cache only covers the last HISTORY_LIMIT events. When
+        // the requested `after` precedes the oldest cached seq — or the cache
+        // is empty, e.g. right after a restart — fall back to the durable
+        // event_log (global across sessions) so no events are lost.
+        let needs_db = oldest_cached.is_none_or(|oldest| after_seq < oldest);
+        if !needs_db {
+            return cached;
+        }
+
+        let rows = match self.db.list_event_log_after_global(after_seq) {
+            Ok(rows) => rows,
+            Err(e) => {
+                tracing::error!(%e, "failed to replay SSE event_log");
+                return cached;
+            },
+        };
+
+        // Merge cache + event_log into ascending order, deduping by seq. The
+        // cache only holds events already persisted, but a concurrent append
+        // may land in either source after the other is snapshotted — unioning
+        // by seq closes both gaps (cache-first keeps the in-memory value).
+        let mut by_seq: std::collections::BTreeMap<i64, SessionPartEvent> =
+            cached.into_iter().collect();
+        for (seq, _event_type, payload, _time_created) in rows {
+            if let std::collections::btree_map::Entry::Vacant(entry) = by_seq.entry(seq) {
+                if let Ok(event) = serde_json::from_value(payload) {
+                    entry.insert(event);
+                }
+            }
+        }
+        by_seq.into_iter().collect()
     }
 
     /// Subscribe to the real-time event stream forwarded by `spawn`. Used by

@@ -46,18 +46,32 @@ pub async fn spawn_sse_server(bus: SseEventBus, questions: QuestionService) -> u
 async fn sse_handler(
     State(state): State<SseState>,
     Query(params): Query<AfterParams>,
+    headers: axum::http::HeaderMap,
 ) -> Sse<impl tokio_stream::Stream<Item = Result<Event, Infallible>>> {
-    // 先重放 history（?after= 或 Last-Event-ID 支持断连重连）
-    let after = params.after.unwrap_or(0);
-    let history = state.bus.replay_after(after);
-    let replay_stream = tokio_stream::iter(history.into_iter().map(|(seq, ev)| {
+    // 支持 ?after= 查询参数与标准 EventSource 重连头 Last-Event-ID
+    // （浏览器自动重连会发送最后收到的 `id:` 作为该头），取两者较大值。
+    let query_after = params.after.unwrap_or(0);
+    let header_after = headers
+        .get("last-event-id")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(0);
+    let after = query_after.max(header_after);
+
+    // 先订阅 live，再重放 history，避免 spawn 任务在两次调用之间推进 seq
+    // 导致重放与实时流之间丢事件或重复；最后用 last_replayed 去重。
+    let live_rx = state.bus.subscribe_live();
+    let replay = state.bus.replay_after(after);
+    let last_replayed = replay.last().map(|(seq, _)| *seq).unwrap_or(after);
+
+    let replay_stream = tokio_stream::iter(replay.into_iter().map(|(seq, ev)| {
         let json = serde_json::to_string(&ev).unwrap_or_default();
         Ok(Event::default().id(seq.to_string()).data(json))
     }));
 
-    // 再实时订阅
-    let live_stream = BroadcastStream::new(state.bus.subscribe_live()).filter_map(|item| {
-        item.ok().map(|(seq, ev)| {
+    // 实时流只放行 seq > last_replayed 的事件，保证与重放流不重叠。
+    let live_stream = BroadcastStream::new(live_rx).filter_map(move |item| {
+        item.ok().filter(|(seq, _)| *seq > last_replayed).map(|(seq, ev)| {
             let json = serde_json::to_string(&ev).unwrap_or_default();
             Ok(Event::default().id(seq.to_string()).data(json))
         })
