@@ -153,15 +153,13 @@ impl Database {
         payload: &serde_json::Value,
     ) -> Result<i64, AppError> {
         let payload = serde_json::to_string(payload)?;
-        self.conn()?
-            .execute(
-                "INSERT INTO event_log (session_id, type, payload, time_created) VALUES (?1, ?2, ?3, ?4)",
-                params![session_id, event_type, payload, adl_types::now_ms()],
-            )
-            .map_err(|e| AppError::Storage(e.to_string()))?;
-        self.conn()?
-            .query_row("SELECT last_insert_rowid()", [], |row| row.get(0))
-            .map_err(|e| AppError::Storage(e.to_string()))
+        let conn = self.conn()?;
+        conn.execute(
+            "INSERT INTO event_log (session_id, type, payload, time_created) VALUES (?1, ?2, ?3, ?4)",
+            params![session_id, event_type, payload, adl_types::now_ms()],
+        )
+        .map_err(|e| AppError::Storage(e.to_string()))?;
+        Ok(conn.last_insert_rowid())
     }
     pub fn list_event_log_after(
         &self,
