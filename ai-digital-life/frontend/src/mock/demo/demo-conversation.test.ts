@@ -1,10 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
+  appendDemoUserMessage,
+  buildDemoSendResult,
+  getDemoRunDetail,
   getDemoSessions,
   getDemoSessionDetail,
   resetDemoConversation,
 } from './demo-conversation';
 import { DEMO_SESSION_IDS } from './demo-constants';
+import { DEMO_RUN_IDS } from './demo-run-activity';
 
 const ALL_BLOCK_TYPES = [
   'markdown',
@@ -66,5 +70,37 @@ describe('demo-conversation', () => {
 
   it('returns undefined for an unknown session', () => {
     expect(getDemoSessionDetail('nope')).toBeUndefined();
+  });
+
+  it('appends a user message with role user', () => {
+    const sessionId = DEMO_SESSION_IDS.complete;
+    const before = getDemoSessionDetail(sessionId)!.messages.length;
+    appendDemoUserMessage(sessionId, '追加的用户消息');
+    const detail = getDemoSessionDetail(sessionId)!;
+    expect(detail.messages.length).toBe(before + 1);
+    const appended = detail.messages[detail.messages.length - 1];
+    expect(appended.role).toBe('user');
+    expect(appended.content).toBe('追加的用户消息');
+  });
+
+  it('restores the original message count after reset', () => {
+    const sessionId = DEMO_SESSION_IDS.complete;
+    const original = getDemoSessionDetail(sessionId)!.messages.map((m) => m.id);
+    appendDemoUserMessage(sessionId, '应被重置清除');
+    expect(getDemoSessionDetail(sessionId)!.messages.length).toBe(original.length + 1);
+    resetDemoConversation();
+    const after = getDemoSessionDetail(sessionId)!.messages;
+    expect(after.map((m) => m.id)).toEqual(original);
+  });
+
+  it('returns a run detail for a known run and undefined for an unknown run', () => {
+    const detail = getDemoRunDetail(DEMO_RUN_IDS.complete);
+    expect(detail?.run.id).toBe(DEMO_RUN_IDS.complete);
+    expect(getDemoRunDetail('run-demo-unknown')).toBeUndefined();
+  });
+
+  it('registers the run produced by buildDemoSendResult', () => {
+    const result = buildDemoSendResult(DEMO_SESSION_IDS.tools, '发送演示消息');
+    expect(getDemoRunDetail(result.runDetail.run.id)?.run.id).toBe(result.runDetail.run.id);
   });
 });

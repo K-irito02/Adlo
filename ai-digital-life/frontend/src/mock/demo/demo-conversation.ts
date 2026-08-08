@@ -4,7 +4,6 @@ import type {
   ConversationMessageRecord,
   ConversationSendResult,
   ConversationSessionRecord,
-  ExecutionStepConversationBlock,
 } from '@ai-digital-life/kernel';
 import {
   DEMO_NOW,
@@ -12,7 +11,6 @@ import {
   DEMO_SESSION_TITLE_MARKERS,
   DEMO_WORKSPACE_ID,
 } from './demo-constants';
-import { buildDemoPatchSet, getDemoPatchSet } from './demo-workspace';
 import { DEMO_RUN_IDS } from './demo-run-activity';
 
 function session(id: string, title: string, order: number): ConversationSessionRecord {
@@ -93,24 +91,21 @@ const completeMessages: ConversationMessageRecord[] = [
       },
       {
         id: 'demo-block-complete-step4', type: 'execution-step', stepId: 'demo-step-4',
-        title: '验证构建', stepType: 'verify', status: 'failed', summary: 'tsc 报错', error: 'TS6133: 未使用变量',
-        toolCalls: [{ id: 'demo-tool-tsc', toolName: 'command', inputSummary: 'npx tsc --noEmit', outputSummary: '1 error', status: 'failed' }],
+        title: '验证构建', stepType: 'verify', status: 'completed', summary: 'tsc 通过，0 错误', riskLevel: 'medium',
+        toolCalls: [{ id: 'demo-tool-tsc', toolName: 'command', inputSummary: 'npx tsc --noEmit', outputSummary: '0 errors', status: 'completed' }],
       },
       { id: 'demo-block-complete-cmd1', type: 'command-output', command: 'npm', args: ['run', 'lint'], exitCode: 0, stdout: 'All files pass lint.\n', stderr: '', truncated: false },
-      { id: 'demo-block-complete-cmd2', type: 'command-output', command: 'npx', args: ['tsc', '--noEmit'], exitCode: 1, stdout: '', stderr: 'error TS6133: "foo" is declared but never read.\n', truncated: false },
+      { id: 'demo-block-complete-cmd2', type: 'command-output', command: 'npx', args: ['tsc', '--noEmit'], exitCode: 0, stdout: 'No type errors found.\n', stderr: '', truncated: false },
       { id: 'demo-block-complete-patch', type: 'patch-summary', patchSetId: 'patchset-demo-complete', summary: '在 main.tsx 顶部加入项目说明注释。', fileCount: 1, hunkCount: 1 },
       {
-        id: 'demo-block-complete-validation', type: 'validation-result', summary: '类型检查 2 项，1 项未通过', status: 'failed',
-        diagnostics: [
-          { id: 'diag-1', source: 'typescript', severity: 'error', message: '"foo" 声明后未使用', path: 'frontend/src/main.tsx', line: 2, column: 5 },
-          { id: 'diag-2', source: 'eslint', severity: 'warning', message: '建议使用 const', path: 'frontend/src/main.tsx', line: 5 },
-        ],
+        id: 'demo-block-complete-validation', type: 'validation-result', summary: 'lint 与类型检查 2 项均通过', status: 'passed',
+        diagnostics: [],
       },
       {
         id: 'demo-block-complete-exec-summary', type: 'execution-summary', status: 'succeeded',
         filesModified: ['frontend/src/main.tsx'],
         commandsExecuted: ['npm run lint', 'npx tsc --noEmit'],
-        validationPassed: 1,
+        validationPassed: 2,
         validationFailed: 0,
         tokenUsage: { promptTokens: 1200, completionTokens: 480, totalTokens: 1680 },
       },
@@ -212,12 +207,16 @@ const toolsMessages: ConversationMessageRecord[] = [
 ];
 
 const messagesBySession = new Map<string, ConversationMessageRecord[]>([
-  [completeSession.id, completeMessages],
-  [planSession.id, planMessages],
-  [toolsSession.id, toolsMessages],
+  [completeSession.id, [...completeMessages]],
+  [planSession.id, [...planMessages]],
+  [toolsSession.id, [...toolsMessages]],
 ]);
 
-const demoSessions = [completeSession, planSession, toolsSession];
+const demoSessions: ConversationSessionRecord[] = [
+  { ...completeSession },
+  { ...planSession },
+  { ...toolsSession },
+];
 
 const demoRunDetails = new Map<string, AgentRunDetail>([
   [
@@ -305,7 +304,7 @@ export function appendDemoUserMessage(sessionId: string, content: string): void 
   if (!list) {
     return;
   }
-  const message = msg(`demo-msg-user-${Date.now()}`, sessionId, 'user', content, []);
+  const message = msg(`demo-msg-user-${Date.now()}`, sessionId, 'user', content, [], undefined, Date.now());
   list.push(message);
   messagesBySession.set(sessionId, list);
   const session = demoSessions.find((s) => s.id === sessionId);
@@ -370,6 +369,9 @@ export function buildDemoSendResult(
     },
     steps: [],
   };
+  demoRunDetails.set(runId, runDetail);
+  session.updatedAt = Date.now();
+  session.lastMessageAt = Date.now();
   return {
     session,
     userMessage,
@@ -381,7 +383,14 @@ export function buildDemoSendResult(
 
 export function resetDemoConversation(): void {
   messagesBySession.clear();
-  messagesBySession.set(completeSession.id, completeMessages);
-  messagesBySession.set(planSession.id, planMessages);
-  messagesBySession.set(toolsSession.id, toolsMessages);
+  messagesBySession.set(completeSession.id, [...completeMessages]);
+  messagesBySession.set(planSession.id, [...planMessages]);
+  messagesBySession.set(toolsSession.id, [...toolsMessages]);
+  demoSessions.splice(
+    0,
+    demoSessions.length,
+    { ...completeSession },
+    { ...planSession },
+    { ...toolsSession },
+  );
 }
