@@ -20,6 +20,13 @@ pub(crate) fn emit_run_activity(app: &tauri::AppHandle, payload: serde_json::Val
     let _ = app.emit(RUN_ACTIVITY_EVENT, payload);
 }
 
+/// DEPRECATED: legacy `RunActivityEvents` persistence.
+///
+/// Disabled per spec §7.2 (old-format cleanup) — the new `agent_loop_run` path
+/// streams `SessionPartEvent` over SSE instead. Kept only so the type/table
+/// skeleton and any code paths that still reference it continue to compile;
+/// the frontend migrates off this format in a later phase.
+#[allow(dead_code)]
 pub(crate) fn persist_run_activity(
     state: &AppState,
     workspace_id: &str,
@@ -37,15 +44,20 @@ pub(crate) fn persist_run_activity(
     )
 }
 
+/// DEPRECATED: legacy activity emitter for `agent_start_run`.
+///
+/// Per spec §7.2 (old-format cleanup) this no longer persists RunActivityEvents
+/// to the database — events are only emitted to the frontend via the Tauri
+/// `digital-life://run-activity` channel. The new `agent_loop_run` path streams
+/// `SessionPartEvent` over SSE instead. Signature kept stable so the legacy
+/// command skeleton still compiles.
 pub(crate) fn make_activity_emitter<'a>(
     app: &'a tauri::AppHandle,
-    state: &'a AppState,
-    workspace_scope_id: &str,
-    session_id: &str,
+    _state: &'a AppState,
+    _workspace_scope_id: &str,
+    _session_id: &str,
     run_id: &str,
 ) -> impl Fn(serde_json::Value) + 'a {
-    let workspace_scope_id = workspace_scope_id.to_string();
-    let session_id = session_id.to_string();
     let run_id = run_id.to_string();
     move |event: serde_json::Value| {
         let ts = now_ms();
@@ -77,10 +89,6 @@ pub(crate) fn make_activity_emitter<'a>(
                 }),
             ),
         };
-        if let Ok(typed) = serde_json::from_value::<DigitalLifeRunActivityEventV1>(payload.clone())
-        {
-            let _ = persist_run_activity(state, &workspace_scope_id, &session_id, &run_id, &typed);
-        }
         emit_run_activity(app, payload);
     }
 }
