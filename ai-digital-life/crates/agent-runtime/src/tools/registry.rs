@@ -315,21 +315,21 @@ impl ToolRegistry {
                 }
             },
             "write" => {
-                if let Some(blocked) = self.gate_permission(name, input) {
-                    return Ok(blocked);
-                }
                 let parsed: WriteInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid write input: {}", e)))?;
+                if let Some(blocked) = self.gate_permission(name, &parsed.path) {
+                    return Ok(blocked);
+                }
                 let output =
                     write::execute(&parsed.path, &parsed.content, Path::new(".")).await?;
                 bridge(name, output)
             },
             "edit" => {
-                if let Some(blocked) = self.gate_permission(name, input) {
-                    return Ok(blocked);
-                }
                 let parsed: EditInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid edit input: {}", e)))?;
+                if let Some(blocked) = self.gate_permission(name, &parsed.path) {
+                    return Ok(blocked);
+                }
                 let output = edit::execute(
                     &parsed.path,
                     &parsed.old_string,
@@ -341,11 +341,11 @@ impl ToolRegistry {
                 bridge(name, output)
             },
             "bash" => {
-                if let Some(blocked) = self.gate_permission(name, input) {
-                    return Ok(blocked);
-                }
                 let parsed: BashInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid bash input: {}", e)))?;
+                if let Some(blocked) = self.gate_permission(name, &parsed.command) {
+                    return Ok(blocked);
+                }
                 let output = bash::execute(
                     &parsed.command,
                     parsed.workdir.as_deref(),
@@ -356,11 +356,11 @@ impl ToolRegistry {
                 bridge(name, output)
             },
             "apply_patch" => {
-                if let Some(blocked) = self.gate_permission(name, input) {
-                    return Ok(blocked);
-                }
                 let parsed: ApplyPatchInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid apply_patch input: {}", e)))?;
+                if let Some(blocked) = self.gate_permission(name, &parsed.path) {
+                    return Ok(blocked);
+                }
                 let output = apply_patch::execute(
                     &parsed.path,
                     &parsed.before,
@@ -378,9 +378,27 @@ impl ToolRegistry {
                 bridge(name, output)
             },
             "task" => {
-                let parsed: TaskToolInput = serde_json::from_str(input)
+                // The advertised PARAMETERS schema (adl_tools::task::PARAMETERS) uses
+                // snake_case keys (subagent_type / task_id) while TaskToolInput is
+                // camelCase — parse a snake_case mirror matching the schema, then map.
+                #[derive(serde::Deserialize)]
+                struct TaskInput {
+                    description: String,
+                    prompt: String,
+                    subagent_type: String,
+                    task_id: Option<String>,
+                    background: Option<bool>,
+                }
+                let parsed: TaskInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid task input: {}", e)))?;
-                let output = task::execute(&parsed, |_| {
+                let tool_input = TaskToolInput {
+                    description: parsed.description,
+                    prompt: parsed.prompt,
+                    subagent_type: parsed.subagent_type,
+                    task_id: parsed.task_id,
+                    background: parsed.background.unwrap_or(false),
+                };
+                let output = task::execute(&tool_input, |_| {
                     Ok(adl_tools::ToolOutput {
                         output: "Sub-agent task dispatched (stub dispatcher).".to_string(),
                         success: true,
@@ -402,13 +420,19 @@ impl ToolRegistry {
 
     /// Gate a mutating tool through the permission ruleset.
     ///
+    /// `subject` is the meaningful value the ruleset matches against — the
+    /// target file path for path-based tools (write/edit/apply_patch) and the
+    /// command string for `bash`. Passing the raw JSON input here would split on
+    /// whitespace and never match the ruleset patterns, so each branch extracts
+    /// the relevant field before calling this.
+    ///
     /// Returns `Some(failure result)` when the tool call is denied or requires
     /// user approval (with `permission` + `reason` metadata), and `None` when it
     /// is allowed. Ruleset and doom-loop state are defaults for now; B3 injects
     /// the real session state.
-    fn gate_permission(&self, tool_name: &str, input: &str) -> Option<ToolExecutionResult> {
+    fn gate_permission(&self, tool_name: &str, subject: &str) -> Option<ToolExecutionResult> {
         let ruleset = PermissionRuleset::default_rules();
-        match check_tool_permission(tool_name, input, &ruleset, 0) {
+        match check_tool_permission(tool_name, subject, &ruleset, 0) {
             PermissionCheckResult::Allow => None,
             PermissionCheckResult::Deny(reason) => Some(ToolExecutionResult {
                 tool_name: tool_name.to_string(),
@@ -811,5 +835,36 @@ mod tests {
         // 取决于默认规则：rm -rf / 应被 Deny 或 Ask。断言 success 为 false。
         let result = result.unwrap_or_else(|_| panic!("should not hard-error"));
         assert!(!result.success);
+    }
+
+    #[tokio::test]
+    async fn write_to_env_denied_by_permission() {
+        // 修复前，gate 拿到的是原始 JSON 字符串，规则集匹配不到 .env 保护规则，
+        // write 到 .env 会返回 Allow。修复后 gate 使用解析出的 path，`**/.env`
+        // 规则应触发（Ask），导致 success = false。
+        let registry = ToolRegistry::with_builtins();
+        let result = registry
+            .execute("write", "{\"path\":\"/tmp/.env\",\"content\":\"x\"}")
+            .await;
+        let result = result.unwrap_or_else(|_| panic!("should not hard-error"));
+        assert!(!result.success, "write to .env should be blocked by default ruleset");
+        let permission = result.metadata.get("permission").and_then(|v| v.as_str());
+        assert!(
+            matches!(permission, Some("ask") | Some("deny")),
+            "gate should surface a permission decision, got: {permission:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn task_executes_with_snake_case_schema_input() {
+        // 广告 schema（adl_tools::task::PARAMETERS）使用 snake_case
+        // （subagent_type / task_id），修复前直接反序列化 camelCase 的
+        // TaskToolInput 会报 "missing field subagentType"。
+        let registry = ToolRegistry::with_builtins();
+        let input = r#"{"description":"d","prompt":"p","subagent_type":"explore","task_id":"t1","background":false}"#;
+        let result = registry.execute("task", input).await;
+        let result =
+            result.unwrap_or_else(|e| panic!("task should not hard-error with snake_case: {e}"));
+        assert!(result.success);
     }
 }
