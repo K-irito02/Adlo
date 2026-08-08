@@ -141,6 +141,19 @@ describe('i18n zh-CN mirror', () => {
   });
 });
 
+describe('i18n demo keys', () => {
+  it('includes demo workspace name and session title keys in both locales', () => {
+    expect(enUS).toHaveProperty('demoWorkspaceName');
+    expect(zhCN).toHaveProperty('demoWorkspaceName');
+    expect(enUS).toHaveProperty('demoSessionCompleteTitle');
+    expect(zhCN).toHaveProperty('demoSessionCompleteTitle');
+    expect(enUS).toHaveProperty('demoSessionPlanTitle');
+    expect(zhCN).toHaveProperty('demoSessionPlanTitle');
+    expect(enUS).toHaveProperty('demoSessionToolsTitle');
+    expect(zhCN).toHaveProperty('demoSessionToolsTitle');
+  });
+});
+
 describe('git-visualization copy', () => {
   it('zh-CN branch graph desc separates legend symbols from text and avoids English "tagged"', () => {
     const desc = String(zhCN.gitVisBranchGraphDesc);
