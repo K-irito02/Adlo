@@ -543,20 +543,26 @@ git commit -m "feat(tools): add bash tool"
 - Modify: `crates/tools/Cargo.toml`（新增 `adl-change-engine` 依赖）
 
 **Interfaces:**
-- Consumes: `adl_change_engine::patch_apply`（或等价 API，需先阅读 `patch_apply.rs` 确认函数签名）, `adl_errors::AppError`
-- Produces: `apply_patch::execute(patch: &str, workspace_root: &Path) -> Result<ToolOutput, AppError>`，`apply_patch::PARAMETERS`（JSON schema 常量）
+- Consumes: `adl_change_engine::{create_single_file_patch_set, set_hunk_decision, apply_patch_set}`, `adl_types::{PatchHunkDecision}`, `adl_errors::AppError`, `std::path::Path`
+- Produces: `apply_patch::execute(relative_path: &str, before_content: &str, after_content: &str, workspace_root: &Path, session_id: &str) -> Result<ToolOutput, AppError>`，`apply_patch::PARAMETERS`（JSON schema 常量）
 
-**Input schema**（对齐 OpenCode `apply-patch.ts`）：`{ patch: string }`
+**Input schema**（ADL 结构化 PatchSet 模型的适配；OpenCode 的 apply_patch 接受裸 diff 字符串，但 ADL change-engine 是结构化 PatchSet）：`{ "path": <relative path>, "before": <原内容>, "after": <新内容> }`
+
+**实现逻辑**：
+1. 用 `create_single_file_patch_set` 从 path/before/after 构造 PatchSet
+2. 遍历 hunks，用 `set_hunk_decision(hunk, PatchHunkDecision::Accepted)` 全部接受
+3. 调 `apply_patch_set(patch_set, workspace_root, checkpoints_dir)` 应用（需 checkpoints 目录，本阶段用 `workspace_root/.ai-digital-life/checkpoints`）
+4. 返回 metadata `{ "files": [relative_path] }`
 
 **metadata**：`{ "files": [<affected file paths>] }`
 
-- [ ] **Step 1: 阅读 `adl_change_engine::patch_apply` 的 API**
+- [ ] **Step 1: 阅读 `adl_change_engine` 的 API**
 
-Read `crates/change-engine/src/patch_apply.rs` 全文，确认应用 patch 的函数签名（参数、返回类型、错误类型）。如果 patch 应用需要 `PatchSet` 结构（而非裸 patch 字符串），调整本 Task 的 `execute` 签名以匹配现有 API。
+Read `crates/change-engine/src/patch_create.rs`（`create_single_file_patch_set(PatchProposal) -> PatchSet`）、`lib.rs`（`PatchProposal` 结构）、`patch_apply.rs`（`apply_patch_set`）、`crates/types/src/types/patch.rs`（`PatchHunkDecision` 枚举、`PatchSet`/`FilePatch`/`Hunk` 结构的字段名）。确认 hunks 迭代与 `set_hunk_decision` 的用法。
 
 - [ ] **Step 2: 编写失败的测试**
 
-创建 `crates/tools/src/apply_patch.rs`（先只写测试）。测试需基于 Step 1 确认的 API。示例（以 `patch_apply` 函数签名为准调整）:
+创建 `crates/tools/src/apply_patch.rs`（先只写测试）。基于确认的 API:
 
 ```rust
 #[cfg(test)]
@@ -569,27 +575,95 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("a.txt");
         std::fs::write(&file, "line1\nline2\n").unwrap();
-        // 构造一个标准 diff（unified format）应用到 a.txt
-        let patch = format!(
-            "--- a/a.txt\n+++ b/a.txt\n@@ -1,2 +1,2 @@\n-line1\n+changed\n line2\n"
-        );
-        let result = execute(&patch, &dir).await;
+        let result = execute("a.txt", "line1\nline2\n", "changed\nline2\n", &dir, "sess-test").await;
         assert!(result.success);
         let content = std::fs::read_to_string(&file).unwrap();
         assert!(content.contains("changed"));
+        assert_eq!(result.metadata["files"][0], "a.txt");
         let _ = std::fs::remove_dir_all(dir);
     }
 }
 ```
 
+注意：`execute` 的签名是 `(relative_path, before_content, after_content, workspace_root, session_id) -> Result<ToolOutput, AppError>`。测试用 `.await.unwrap()`（interface 是 Result）。
+
 - [ ] **Step 3: 运行测试确认失败**
 
 Run: `cargo test -p adl-tools apply_patch::tests`
-Expected: FAIL（模块不存在或 API 不匹配）
+Expected: FAIL（模块不存在）
 
 - [ ] **Step 4: 实现**
 
-基于 Step 1 确认的 `adl_change_engine` API 实现 `execute`。核心：把 patch 文本交给 change-engine 应用，收集受影响文件路径到 metadata。
+创建 `crates/tools/src/apply_patch.rs`:
+
+```rust
+use adl_change_engine::{PatchProposal, apply_patch_set, create_single_file_patch_set};
+use adl_errors::AppError;
+use adl_types::PatchHunkDecision;
+use std::path::Path;
+
+use crate::ToolOutput;
+
+pub const NAME: &str = "apply_patch";
+
+pub static PARAMETERS: std::sync::LazyLock<serde_json::Value> = std::sync::LazyLock::new(|| {
+    serde_json::json!({
+        "type": "object",
+        "properties": {
+            "path": { "type": "string", "description": "File path (relative to workspace)" },
+            "before": { "type": "string", "description": "Current file content" },
+            "after": { "type": "string", "description": "New file content" }
+        },
+        "required": ["path", "before", "after"]
+    })
+});
+
+/// Apply a single-file change via the change-engine's structured PatchSet
+/// model. Creates a PatchSet from before/after content, accepts all hunks,
+/// and applies it atomically (with a checkpoint).
+pub async fn execute(
+    relative_path: &str,
+    before_content: &str,
+    after_content: &str,
+    workspace_root: &Path,
+    session_id: &str,
+) -> Result<ToolOutput, AppError> {
+    let proposal = PatchProposal {
+        workspace_id: "",
+        session_id,
+        run_id: None,
+        relative_path,
+        before_content,
+        after_content,
+        title: format!("Edit {relative_path}"),
+        summary: format!("Apply patch to {relative_path}"),
+    };
+    let mut patch_set = create_single_file_patch_set(proposal);
+    // Accept all hunks (the Loop has already approved the edit via permission gate)
+    let hunk_ids: Vec<String> = patch_set
+        .file_patches
+        .iter()
+        .flat_map(|fp| fp.hunks.iter().map(|h| h.id.clone()))
+        .collect();
+    for hunk_id in hunk_ids {
+        patch_set = adl_change_engine::set_hunk_decision(
+            patch_set,
+            &hunk_id,
+            PatchHunkDecision::Accepted,
+        )?;
+    }
+    let checkpoints_dir = workspace_root.join(".ai-digital-life").join("checkpoints");
+    std::fs::create_dir_all(&checkpoints_dir)?;
+    apply_patch_set(patch_set, workspace_root, &checkpoints_dir)?;
+    Ok(ToolOutput {
+        output: format!("Applied patch to {relative_path}"),
+        success: true,
+        metadata: serde_json::json!({ "files": [relative_path] }),
+    })
+}
+```
+
+注意：`adl_change_engine::set_hunk_decision` 与 `apply_patch_set` 返回的 `PatchSet` 字段/状态以实际代码为准；`adl_types::PatchHunkDecision` 的变体名以 `crates/types/src/types/patch.rs` 为准。添加 `pub mod apply_patch;` 到 lib.rs。
 
 - [ ] **Step 5: 运行测试确认通过**
 
