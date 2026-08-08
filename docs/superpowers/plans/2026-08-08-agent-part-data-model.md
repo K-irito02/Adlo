@@ -337,6 +337,7 @@ git commit -m "feat(types): add Part data model with tool state machine"
 
 **Files:**
 - Modify: `crates/migration/src/lib.rs`
+- Modify: `crates/storage/sql/init_schema.sql`（新表同时加入基础 schema，保证仅 `init_schema()` 的测试库与生产新装库均有表）
 - Test: `crates/migration/src/lib.rs`（内嵌 `#[cfg(test)]`）
 
 **Interfaces:**
@@ -453,20 +454,63 @@ Expected: FAIL（当前 `MIGRATIONS.len() == 5`，`current_version == 5`，断�
         assert!(m6.sql.contains("CREATE TABLE IF NOT EXISTS event_log"));
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [ ] **Step 4: 同步更新 `init_schema.sql`**
 
-Run: `cargo test -p adl_migration`
-Expected: PASS（含新增两个 v6 测试与更新的结构测试）
+在 `crates/storage/sql/init_schema.sql` 文件末尾追加（幂等建表，与 v6 迁移一致；保证仅 `init_schema()` 的测试库与生产新装库均含三表）:
 
-- [ ] **Step 5: Clippy 检查**
+```sql
+CREATE TABLE IF NOT EXISTS message (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    parent_id TEXT,
+    agent TEXT,
+    model TEXT,
+    summary TEXT,
+    time_created INTEGER NOT NULL,
+    time_completed INTEGER,
+    data TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_message_session_time
+    ON message(session_id, time_created, id);
+CREATE TABLE IF NOT EXISTS part (
+    id TEXT PRIMARY KEY,
+    message_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    ordinal INTEGER NOT NULL,
+    time_created INTEGER NOT NULL,
+    data TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_part_message_id
+    ON part(message_id, id);
+CREATE INDEX IF NOT EXISTS idx_part_session
+    ON part(session_id);
+CREATE TABLE IF NOT EXISTS event_log (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    payload TEXT NOT NULL DEFAULT '{}',
+    time_created INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_event_log_session
+    ON event_log(session_id, seq);
+```
 
-Run: `cargo clippy -p adl_migration --all-targets -- -D warnings`
+- [ ] **Step 5: 运行测试确认通过**
+
+Run: `cargo test -p adl_migration && cargo test -p adl_storage`
+Expected: 全部 PASS（含新增两个 v6 迁移测试、更新的结构测试，以及既有 storage 测试——验证 `init_schema.sql` 追加未破坏既有 schema）
+
+- [ ] **Step 6: Clippy 检查**
+
+Run: `cargo clippy -p adl_migration --all-targets -- -D warnings && cargo clippy -p adl_storage --all-targets -- -D warnings`
 Expected: 0 warnings
 
-- [ ] **Step 6: 提交**
+- [ ] **Step 7: 提交**
 
 ```bash
-git add crates/migration/src/lib.rs
+git add crates/migration/src/lib.rs crates/storage/sql/init_schema.sql
 git commit -m "feat(migration): add v6 message/part/event_log tables"
 ```
 
