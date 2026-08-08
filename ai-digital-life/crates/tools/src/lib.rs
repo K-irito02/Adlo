@@ -12,6 +12,7 @@ pub mod bash;
 pub mod edit;
 pub mod glob;
 pub mod grep;
+pub mod question;
 pub mod read;
 pub mod webfetch;
 pub mod websearch;
