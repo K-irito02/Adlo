@@ -192,3 +192,39 @@ CREATE TABLE IF NOT EXISTS git_vis_cache (
     cached_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (root_path, since, until, chart_type)
 );
+CREATE TABLE IF NOT EXISTS message (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    parent_id TEXT,
+    agent TEXT,
+    model TEXT,
+    summary TEXT,
+    time_created INTEGER NOT NULL,
+    time_completed INTEGER,
+    data TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_message_session_time
+    ON message(session_id, time_created, id);
+CREATE TABLE IF NOT EXISTS part (
+    id TEXT PRIMARY KEY,
+    message_id TEXT NOT NULL,
+    session_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    ordinal INTEGER NOT NULL,
+    time_created INTEGER NOT NULL,
+    data TEXT NOT NULL DEFAULT '{}'
+);
+CREATE INDEX IF NOT EXISTS idx_part_message_id
+    ON part(message_id, id);
+CREATE INDEX IF NOT EXISTS idx_part_session
+    ON part(session_id);
+CREATE TABLE IF NOT EXISTS event_log (
+    seq INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    type TEXT NOT NULL,
+    payload TEXT NOT NULL DEFAULT '{}',
+    time_created INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_event_log_session
+    ON event_log(session_id, seq);

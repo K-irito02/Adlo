@@ -89,6 +89,50 @@ pub const MIGRATIONS: &[Migration] = &[
             );
         "#,
     },
+    Migration {
+        version: 6,
+        description: "Create OpenCode-aligned message/part/event_log tables",
+        sql: r#"
+            CREATE TABLE IF NOT EXISTS message (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                parent_id TEXT,
+                agent TEXT,
+                model TEXT,
+                summary TEXT,
+                time_created INTEGER NOT NULL,
+                time_completed INTEGER,
+                data TEXT NOT NULL DEFAULT '{}'
+            );
+            CREATE INDEX IF NOT EXISTS idx_message_session_time
+                ON message(session_id, time_created, id);
+
+            CREATE TABLE IF NOT EXISTS part (
+                id TEXT PRIMARY KEY,
+                message_id TEXT NOT NULL,
+                session_id TEXT NOT NULL,
+                type TEXT NOT NULL,
+                ordinal INTEGER NOT NULL,
+                time_created INTEGER NOT NULL,
+                data TEXT NOT NULL DEFAULT '{}'
+            );
+            CREATE INDEX IF NOT EXISTS idx_part_message_id
+                ON part(message_id, id);
+            CREATE INDEX IF NOT EXISTS idx_part_session
+                ON part(session_id);
+
+            CREATE TABLE IF NOT EXISTS event_log (
+                seq INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                type TEXT NOT NULL,
+                payload TEXT NOT NULL DEFAULT '{}',
+                time_created INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_event_log_session
+                ON event_log(session_id, seq);
+        "#,
+    },
 ];
 
 pub fn current_version(db: &Database) -> Result<i64, AppError> {
@@ -164,7 +208,7 @@ mod tests {
         let result = run_pending(&db);
         assert!(result.is_ok());
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 5);
+        assert_eq!(version, 6);
         let _ = std::fs::remove_file(&path);
     }
 
@@ -178,13 +222,13 @@ mod tests {
         run_pending(&db).unwrap();
         run_pending(&db).unwrap();
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 5);
+        assert_eq!(version, 6);
         let _ = std::fs::remove_file(&path);
     }
 
     #[test]
     fn migration_records_have_correct_structure() {
-        assert_eq!(MIGRATIONS.len(), 5);
+        assert_eq!(MIGRATIONS.len(), 6);
         let m1 = &MIGRATIONS[0];
         assert_eq!(m1.version, 1);
         assert_eq!(m1.description, "Initial schema");
@@ -207,5 +251,48 @@ mod tests {
         assert_eq!(m5.description, "Key git_vis_cache by exact date ranges");
         assert!(m5.sql.contains("since"));
         assert!(m5.sql.contains("until"));
+        let m6 = &MIGRATIONS[5];
+        assert_eq!(m6.version, 6);
+        assert_eq!(m6.description, "Create OpenCode-aligned message/part/event_log tables");
+        assert!(m6.sql.contains("CREATE TABLE IF NOT EXISTS message"));
+        assert!(m6.sql.contains("CREATE TABLE IF NOT EXISTS part"));
+        assert!(m6.sql.contains("CREATE TABLE IF NOT EXISTS event_log"));
+    }
+
+    #[test]
+    fn v6_creates_part_tables() {
+        let path =
+            std::env::temp_dir().join(format!("adl-migration-v6-{}.db", uuid::Uuid::new_v4()));
+        let _ = std::fs::remove_file(&path);
+        let db = adl_storage::Database::open(&path).unwrap();
+        db.init_schema().unwrap();
+        run_pending(&db).unwrap();
+        let version = current_version(&db).unwrap();
+        assert_eq!(version, 6);
+
+        let conn = db.conn().unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('message','part','event_log')",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 3, "v6 should create message, part, event_log tables");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn run_pending_v6_is_idempotent() {
+        let path =
+            std::env::temp_dir().join(format!("adl-migration-v6-idem-{}.db", uuid::Uuid::new_v4()));
+        let _ = std::fs::remove_file(&path);
+        let db = adl_storage::Database::open(&path).unwrap();
+        db.init_schema().unwrap();
+        run_pending(&db).unwrap();
+        run_pending(&db).unwrap();
+        let version = current_version(&db).unwrap();
+        assert_eq!(version, 6);
+        let _ = std::fs::remove_file(&path);
     }
 }
