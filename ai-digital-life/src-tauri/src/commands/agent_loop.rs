@@ -79,17 +79,36 @@ fn build_llm_messages(session_id: &str, prompt: &str, _context: Option<&str>) ->
 
 #[tauri::command]
 pub async fn agent_loop_run(
-    app: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
     input: LoopRunInput,
 ) -> Result<IpcResult<LoopRunResult>, crate::error::CommandError> {
-    Ok(ipc(agent_loop_run_inner(&app, &state, input).await))
+    Ok(ipc(agent_loop_run_inner(&state, input).await))
 }
 
 async fn agent_loop_run_inner(
-    _app: &tauri::AppHandle,
     state: &AppState,
     input: LoopRunInput,
+) -> Result<LoopRunResult, AppError> {
+    // Register the cancel token BEFORE any fallible work so aborts during
+    // provider resolution / gateway streaming can cancel the loop.
+    let cancel = CancellationToken::new();
+    register_cancel(&state.loop_cancels, &input.session_id, cancel.clone()).await;
+
+    // Fallible work; the token is cleaned up regardless of the outcome.
+    let result = run_loop(state, &input, cancel.clone()).await;
+
+    // ALWAYS unregister — on success AND on error.
+    unregister_cancel(&state.loop_cancels, &input.session_id).await;
+    result
+}
+
+/// All fallible work for a loop run. The session's cancel token is registered
+/// by `agent_loop_run_inner` for the duration of this call, which guarantees
+/// the token is unregistered on success and error paths alike.
+async fn run_loop(
+    state: &AppState,
+    input: &LoopRunInput,
+    cancel: CancellationToken,
 ) -> Result<LoopRunResult, AppError> {
     crate::commands::conversation::require_session(state, &input.session_id)?;
 
@@ -129,11 +148,9 @@ async fn agent_loop_run_inner(
     let questions = QuestionService::new(bus.clone());
     let registry = Arc::new(ToolRegistry::with_builtins());
     let executor = LoopExecutor::new(bus.clone(), store.clone(), questions, registry);
-    let cancel = CancellationToken::new();
-    register_cancel(&state.loop_cancels, &input.session_id, cancel.clone()).await;
 
     // 4. provider/model resolution
-    let (provider_id, model_id) = resolve_provider_model(state, &input)?;
+    let (provider_id, model_id) = resolve_provider_model(state, input)?;
 
     // 5. gateway
     let gateway = {
@@ -180,7 +197,6 @@ async fn agent_loop_run_inner(
             },
         }
     }
-    unregister_cancel(&state.loop_cancels, &input.session_id).await;
 
     Ok(LoopRunResult { run_id: assistant_msg_id, turn_count, status })
 }
@@ -340,5 +356,115 @@ mod tests {
         register_cancel(&cancels, "s1", token.clone()).await;
         abort_loop(&cancels, "s1").await;
         assert!(token.is_cancelled());
+    }
+
+    /// `LogManager::init` installs a process-global tracing subscriber, so it
+    /// must run at most once per test binary.
+    fn shared_log_manager() -> Arc<adl_logging::LogManager> {
+        use std::sync::OnceLock;
+        static MANAGER: OnceLock<Arc<adl_logging::LogManager>> = OnceLock::new();
+        MANAGER
+            .get_or_init(|| {
+                let dir =
+                    std::env::temp_dir().join(format!("adl-log-{}", uuid::Uuid::new_v4()));
+                Arc::new(
+                    adl_logging::LogManager::init(
+                        &adl_logging::LogConfig {
+                            terminal_log_mode: adl_types::LogMode::Overwrite,
+                            debug_log_mode: adl_types::LogMode::Overwrite,
+                        },
+                        &dir,
+                    )
+                    .expect("LogManager::init failed"),
+                )
+            })
+            .clone()
+    }
+
+    fn test_app_state(db: adl_storage::Database, config: adl_kernel::config::AppConfig) -> AppState {
+        use adl_kernel::events::EventBus;
+        use adl_model_gateway::registry::ProviderRegistry;
+        use adl_pty::SessionManager;
+        use adl_storage::durable::DurableSessionManager;
+        use std::sync::RwLock;
+
+        AppState {
+            data_dir: std::env::temp_dir(),
+            db: db.clone(),
+            config: Arc::new(RwLock::new(config)),
+            event_bus: EventBus::new(64),
+            current_workspace: RwLock::new(None),
+            editor_dirty_paths: std::sync::Mutex::new(std::collections::HashSet::new()),
+            pty_sessions: Arc::new(std::sync::Mutex::new(SessionManager::new())),
+            browser_manager: adl_browser::BrowserManager::new(),
+            log_manager: shared_log_manager(),
+            started_at: adl_types::now_ms(),
+            durable_manager: DurableSessionManager::new(db),
+            provider_registry: Arc::new(RwLock::new(ProviderRegistry::new())),
+            shared_http_client: Arc::new(reqwest::Client::new()),
+            provider_ops_mutex: tokio::sync::Mutex::new(()),
+            loop_cancels: tokio::sync::Mutex::new(std::collections::HashMap::new()),
+        }
+    }
+
+    fn save_session(state: &AppState, id: &str) {
+        let session = adl_types::ConversationSessionRecord {
+            id: id.to_string(),
+            workspace_id: "ws1".to_string(),
+            ..Default::default()
+        };
+        crate::commands::conversation::save_session(state, &session).expect("save session");
+    }
+
+    #[tokio::test]
+    async fn cancel_token_unregistered_when_model_stream_errors() {
+        let db = temp_db();
+        let mut config = adl_kernel::config::AppConfig::default();
+        config
+            .model_preferences
+            .providers
+            .get_mut("openai")
+            .expect("openai preference")
+            .enabled_models = Some(vec![]);
+        let state = test_app_state(db, config);
+        save_session(&state, "s1");
+
+        // Disabled model → chat_stream_for_model returns Err after the token
+        // was already registered.
+        let result = agent_loop_run_inner(
+            &state,
+            LoopRunInput {
+                session_id: "s1".into(),
+                prompt: "hi".into(),
+                provider_id: Some("openai".into()),
+                model_id: Some("gpt-4o".into()),
+            },
+        )
+        .await;
+
+        assert!(result.is_err(), "expected provider error, got {result:?}");
+        assert!(
+            !state.loop_cancels.lock().await.contains_key("s1"),
+            "stale cancel token left after error"
+        );
+    }
+
+    #[tokio::test]
+    async fn cancel_token_unregistered_when_session_missing() {
+        let state = test_app_state(temp_db(), adl_kernel::config::AppConfig::default());
+
+        let result = agent_loop_run_inner(
+            &state,
+            LoopRunInput {
+                session_id: "missing".into(),
+                prompt: "hi".into(),
+                provider_id: None,
+                model_id: None,
+            },
+        )
+        .await;
+
+        assert!(result.is_err());
+        assert!(!state.loop_cancels.lock().await.contains_key("missing"));
     }
 }
