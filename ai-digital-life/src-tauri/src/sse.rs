@@ -16,7 +16,7 @@ const LIVE_CAPACITY: usize = 256;
 pub struct SseEventBus {
     db: Database,
     history: Arc<Mutex<Vec<(i64, SessionPartEvent)>>>,
-    live: broadcast::Sender<SessionPartEvent>,
+    live: broadcast::Sender<(i64, SessionPartEvent)>,
 }
 
 impl SseEventBus {
@@ -47,7 +47,7 @@ impl SseEventBus {
                                 let drain = h.len() - HISTORY_LIMIT;
                                 h.drain(..drain);
                             }
-                            let _ = live.send(event);
+                            let _ = live.send((seq, event));
                         }
                     },
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
@@ -64,7 +64,7 @@ impl SseEventBus {
 
     /// Subscribe to the real-time event stream forwarded by `spawn`. Used by
     /// the SSE endpoint for live events after history replay.
-    pub fn subscribe_live(&self) -> broadcast::Receiver<SessionPartEvent> {
+    pub fn subscribe_live(&self) -> broadcast::Receiver<(i64, SessionPartEvent)> {
         self.live.subscribe()
     }
 }
@@ -149,6 +149,45 @@ mod tests {
 
         let seq = db.append_event_log("s1", "test", &serde_json::json!({"x": 1})).unwrap();
         assert!(seq > 0);
+        cleanup(&path);
+    }
+
+    #[tokio::test]
+    async fn live_events_carry_seq() {
+        let (db, path) = temp_db();
+        let bus = PartEventBus::new(16);
+        let sse_bus = SseEventBus::new(db.clone());
+        sse_bus.spawn(bus.clone());
+        let mut live = sse_bus.subscribe_live();
+
+        // 让后台任务先完成订阅，避免 publish 早于 subscribe 被广播通道丢弃
+        tokio::task::yield_now().await;
+
+        bus.publish(SessionPartEvent::SessionStatus {
+            session_id: "s1".into(),
+            status: "busy".into(),
+        });
+
+        let (seq, event) = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            live.recv(),
+        )
+        .await
+        .expect("live event should arrive within timeout")
+        .expect("live channel should not close");
+
+        assert!(seq > 0, "live event must carry a positive seq");
+        assert!(matches!(
+            event,
+            SessionPartEvent::SessionStatus { status, .. } if status == "busy"
+        ));
+
+        // 与持久化的 event_log seq 一致
+        let persisted = db.list_event_log_after("s1", 0).unwrap();
+        assert!(
+            persisted.iter().any(|(s, t, _, _)| *s == seq && t == "session.status"),
+            "live seq should match the persisted event_log seq"
+        );
         cleanup(&path);
     }
 }

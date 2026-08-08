@@ -57,9 +57,9 @@ async fn sse_handler(
 
     // 再实时订阅
     let live_stream = BroadcastStream::new(state.bus.subscribe_live()).filter_map(|item| {
-        item.ok().map(|ev| {
+        item.ok().map(|(seq, ev)| {
             let json = serde_json::to_string(&ev).unwrap_or_default();
-            Ok(Event::default().data(json))
+            Ok(Event::default().id(seq.to_string()).data(json))
         })
     });
 
