@@ -298,6 +298,7 @@ dependencies = [
 name = "adl-tools"
 version = "0.1.0"
 dependencies = [
+ "adl-command",
  "adl-credential",
  "adl-errors",
  "glob",

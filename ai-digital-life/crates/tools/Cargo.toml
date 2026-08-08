@@ -7,6 +7,7 @@ edition.workspace = true
 workspace = true
 
 [dependencies]
+adl-command = { path = "../command" }
 adl-errors = { path = "../errors" }
 adl-credential = { path = "../credential" }
 tokio.workspace = true
