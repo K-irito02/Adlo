@@ -65,3 +65,28 @@ describe('welcome recent-workspaces reveal scrollbar', () => {
     expect(value).toBeLessThan(162);
   });
 });
+
+describe('.adl-message-stream layout', () => {
+  it('spans the full cross-axis width instead of shrinking to its child (react-window List) width', () => {
+    // Root cause: the message stream is a flex item of `.adl-center__body`
+    // (flex-direction: column). `margin: 0 auto` + `max-width: 900px` told it
+    // to size to its content, but its only child is the react-window `<List>`
+    // (position: relative with absolutely-positioned rows plus a `width: 100%`
+    // spacer), which contributes zero intrinsic width. The column therefore
+    // collapsed to ~10px, stacking every message row vertically (a single
+    // assistant row measured 6061px tall) — content invisible, scrollbar
+    // appearing in the middle of the center pane instead of at its right edge.
+    //
+    // Guard: the stream must resolve to the parent's width (width: 100% +
+    // min-width: 0) so the List's own scrollbar sits at the center pane's
+    // right edge. `margin: 0 auto` and `max-width` on this container are the
+    // exact properties that caused the collapse and must not return.
+    const groups = findRuleGroups(centerCss, '.adl-message-stream');
+    expect(groups.length).toBeGreaterThan(0);
+    const all = groups.join('\n');
+    expect(all).toMatch(/width:\s*100%/);
+    expect(all).toMatch(/min-width:\s*0/);
+    expect(all).not.toMatch(/margin:\s*0\s*auto/);
+    expect(all).not.toMatch(/max-width/);
+  });
+});
