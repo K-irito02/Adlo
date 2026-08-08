@@ -7,10 +7,27 @@ use adl_types::model::{ModelChatMessage, ModelTokenUsage};
 pub enum SseEvent {
     /// A text delta chunk to yield.
     Delta(String),
+    /// A reasoning/thinking delta chunk to yield.
+    Reasoning(String),
     /// Stream is done.
     Done,
     /// No matching event in this JSON value.
     Skip,
+}
+
+/// Map an [`SseEvent`] to the corresponding [`StreamChunk`] outcome.
+pub fn sse_event_to_chunk(event: SseEvent) -> Option<StreamChunk> {
+    match event {
+        SseEvent::Delta(d) => Some(StreamChunk::Delta(d)),
+        SseEvent::Reasoning(r) => Some(StreamChunk::ReasoningDelta(r)),
+        SseEvent::Done => Some(StreamChunk::Done(ModelTokenUsage {
+            prompt_tokens: None,
+            completion_tokens: None,
+            total_tokens: None,
+            estimated: None,
+        })),
+        SseEvent::Skip => None,
+    }
 }
 
 /// Parse an SSE stream from a provider response.
@@ -43,6 +60,7 @@ where
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
                     match extract(&json) {
                         SseEvent::Delta(d) => return Ok(StreamChunk::Delta(d)),
+                        SseEvent::Reasoning(r) => return Ok(StreamChunk::ReasoningDelta(r)),
                         SseEvent::Done => {
                             return Ok(StreamChunk::Done(ModelTokenUsage {
                                 prompt_tokens: None,
@@ -136,5 +154,37 @@ mod tests {
         assert_eq!(body["messages"][1]["role"], "user");
         assert_eq!(body["messages"][2]["role"], "assistant");
         assert_eq!(body["messages"][3]["role"], "tool");
+    }
+
+    #[test]
+    fn sse_event_reasoning_variant() {
+        let ev = SseEvent::Reasoning("think".into());
+        match &ev {
+            SseEvent::Reasoning(text) => assert_eq!(text, "think"),
+            _ => panic!("expected Reasoning"),
+        }
+    }
+
+    #[test]
+    fn sse_event_to_chunk_maps_reasoning() {
+        let chunk = sse_event_to_chunk(SseEvent::Reasoning("thinking".into()));
+        match chunk {
+            Some(StreamChunk::ReasoningDelta(t)) => assert_eq!(t, "thinking"),
+            _ => panic!("expected ReasoningDelta"),
+        }
+    }
+
+    #[test]
+    fn sse_event_to_chunk_maps_delta() {
+        let chunk = sse_event_to_chunk(SseEvent::Delta("hi".into()));
+        match chunk {
+            Some(StreamChunk::Delta(t)) => assert_eq!(t, "hi"),
+            _ => panic!("expected Delta"),
+        }
+    }
+
+    #[test]
+    fn sse_event_to_chunk_skips_skip() {
+        assert!(sse_event_to_chunk(SseEvent::Skip).is_none());
     }
 }
