@@ -317,7 +317,7 @@ impl ToolRegistry {
             "write" => {
                 let parsed: WriteInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid write input: {}", e)))?;
-                if let Some(blocked) = self.gate_permission(name, &parsed.path) {
+                if let Some(blocked) = self.gate_permission(name, "write", &parsed.path) {
                     return Ok(blocked);
                 }
                 let output =
@@ -327,7 +327,7 @@ impl ToolRegistry {
             "edit" => {
                 let parsed: EditInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid edit input: {}", e)))?;
-                if let Some(blocked) = self.gate_permission(name, &parsed.path) {
+                if let Some(blocked) = self.gate_permission(name, "write", &parsed.path) {
                     return Ok(blocked);
                 }
                 let output = edit::execute(
@@ -343,7 +343,7 @@ impl ToolRegistry {
             "bash" => {
                 let parsed: BashInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid bash input: {}", e)))?;
-                if let Some(blocked) = self.gate_permission(name, &parsed.command) {
+                if let Some(blocked) = self.gate_permission(name, "bash", &parsed.command) {
                     return Ok(blocked);
                 }
                 let output = bash::execute(
@@ -358,7 +358,7 @@ impl ToolRegistry {
             "apply_patch" => {
                 let parsed: ApplyPatchInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid apply_patch input: {}", e)))?;
-                if let Some(blocked) = self.gate_permission(name, &parsed.path) {
+                if let Some(blocked) = self.gate_permission(name, "write", &parsed.path) {
                     return Ok(blocked);
                 }
                 let output = apply_patch::execute(
@@ -399,10 +399,12 @@ impl ToolRegistry {
                     background: parsed.background.unwrap_or(false),
                 };
                 let output = task::execute(&tool_input, |_| {
-                    Ok(adl_tools::ToolOutput {
-                        output: "Sub-agent task dispatched (stub dispatcher).".to_string(),
-                        success: true,
-                        metadata: serde_json::json!({ "state": "completed" }),
+                    Box::pin(async {
+                        Ok(adl_tools::ToolOutput {
+                            output: "Sub-agent task dispatched (stub dispatcher).".to_string(),
+                            success: true,
+                            metadata: serde_json::json!({ "state": "completed" }),
+                        })
                     })
                 })
                 .await?;
@@ -420,6 +422,13 @@ impl ToolRegistry {
 
     /// Gate a mutating tool through the permission ruleset.
     ///
+    /// `tool_name` is the actual tool name (kept in the result metadata);
+    /// `family_token` is the permission-family identifier matched against each
+    /// rule's `tool_type` field. The three file-mutating tools (write/edit/
+    /// apply_patch) share the `"write"` family so rules like `**/.env` and
+    /// `**/external/**` gate every one of them, not just the literal `write`
+    /// tool. `bash` gates under the `"bash"` family.
+    ///
     /// `subject` is the meaningful value the ruleset matches against — the
     /// target file path for path-based tools (write/edit/apply_patch) and the
     /// command string for `bash`. Passing the raw JSON input here would split on
@@ -430,9 +439,14 @@ impl ToolRegistry {
     /// user approval (with `permission` + `reason` metadata), and `None` when it
     /// is allowed. Ruleset and doom-loop state are defaults for now; B3 injects
     /// the real session state.
-    fn gate_permission(&self, tool_name: &str, subject: &str) -> Option<ToolExecutionResult> {
+    fn gate_permission(
+        &self,
+        tool_name: &str,
+        family_token: &str,
+        subject: &str,
+    ) -> Option<ToolExecutionResult> {
         let ruleset = PermissionRuleset::default_rules();
-        match check_tool_permission(tool_name, subject, &ruleset, 0) {
+        match check_tool_permission(family_token, subject, &ruleset, 0) {
             PermissionCheckResult::Allow => None,
             PermissionCheckResult::Deny(reason) => Some(ToolExecutionResult {
                 tool_name: tool_name.to_string(),
@@ -853,6 +867,39 @@ mod tests {
             matches!(permission, Some("ask") | Some("deny")),
             "gate should surface a permission decision, got: {permission:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn edit_to_env_denied_by_permission() {
+        // edit/apply_patch share the "write" family token for gating, so the
+        // `**/.env` default rule must fire for them too — not just literal write.
+        let registry = ToolRegistry::with_builtins();
+        let result = registry
+            .execute(
+                "edit",
+                "{\"path\":\"/tmp/.env\",\"old_string\":\"x\",\"new_string\":\"y\"}",
+            )
+            .await;
+        let result = result.unwrap_or_else(|_| panic!("should not hard-error"));
+        assert!(!result.success, "edit to .env should be blocked by default ruleset");
+        let permission = result.metadata.get("permission").and_then(|v| v.as_str());
+        assert!(
+            matches!(permission, Some("ask") | Some("deny")),
+            "gate should surface a permission decision, got: {permission:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn apply_patch_to_env_denied_by_permission() {
+        let registry = ToolRegistry::with_builtins();
+        let result = registry
+            .execute(
+                "apply_patch",
+                "{\"path\":\"/tmp/.env\",\"before\":\"x\",\"after\":\"y\"}",
+            )
+            .await;
+        let result = result.unwrap_or_else(|_| panic!("should not hard-error"));
+        assert!(!result.success, "apply_patch to .env should be blocked by default ruleset");
     }
 
     #[tokio::test]

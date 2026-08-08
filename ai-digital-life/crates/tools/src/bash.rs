@@ -60,6 +60,7 @@ pub async fn execute(
     .map_err(|e| AppError::Terminal(format!("bash tool failed: {e}")))?;
     let stdout = result.stdout;
     let stderr = result.stderr;
+    let truncated = stdout.len() >= 60_000 || stderr.len() >= 60_000;
     Ok(ToolOutput {
         output: format!("{stdout}{stderr}"),
         success: result.success,
@@ -67,7 +68,7 @@ pub async fn execute(
             "command": command,
             "output": stdout,
             "exitCode": result.exit_code,
-            "truncated": false,
+            "truncated": truncated,
         }),
     })
 }

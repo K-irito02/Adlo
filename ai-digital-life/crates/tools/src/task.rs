@@ -1,5 +1,7 @@
 use adl_errors::AppError;
 use adl_subagent::TaskToolInput;
+use std::future::Future;
+use std::pin::Pin;
 
 use crate::ToolOutput;
 
@@ -21,14 +23,22 @@ pub static PARAMETERS: std::sync::LazyLock<serde_json::Value> = std::sync::LazyL
 
 /// Dispatch a sub-agent task. The `dispatch` closure is injected by the
 /// B3 adapter layer with the real sub-agent runner; tests pass a stub.
+/// The closure is async so the real runner can await the sub-agent task
+/// without blocking the calling tokio worker.
+///
+/// A `BoxFuture`-returning closure is used (rather than `AsyncFn`) because
+/// async closures do not yet satisfy higher-ranked bounds over the input
+/// reference lifetime; this form keeps the awaited future `Send` for tokio.
 pub async fn execute<F>(
     input: &TaskToolInput,
     dispatch: F,
 ) -> Result<ToolOutput, AppError>
 where
-    F: Fn(&TaskToolInput) -> Result<ToolOutput, AppError>,
+    F: for<'a> Fn(
+        &'a TaskToolInput,
+    ) -> Pin<Box<dyn Future<Output = Result<ToolOutput, AppError>> + Send + 'a>>,
 {
-    let output = dispatch(input)?;
+    let output = dispatch(input).await?;
     // Ensure metadata carries the task identity even if the dispatcher
     // returned minimal data.
     let mut metadata = output.metadata;
@@ -73,15 +83,17 @@ mod tests {
             background: false,
         };
         let result = execute(&input, |_| {
-            Ok(ToolOutput {
-                output: "dispatched".into(),
-                success: true,
-                metadata: serde_json::json!({
-                    "task_id": "sub_test",
-                    "subagent_type": "explore",
-                    "description": "d",
-                    "state": "completed",
-                }),
+            Box::pin(async {
+                Ok(ToolOutput {
+                    output: "dispatched".into(),
+                    success: true,
+                    metadata: serde_json::json!({
+                        "task_id": "sub_test",
+                        "subagent_type": "explore",
+                        "description": "d",
+                        "state": "completed",
+                    }),
+                })
             })
         })
         .await;

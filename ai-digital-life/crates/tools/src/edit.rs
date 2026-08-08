@@ -56,14 +56,20 @@ pub async fn execute(
     } else {
         content.replacen(old_string, new_string, 1)
     };
-    std::fs::write(&full_path, updated)?;
+    let before_lines: std::collections::HashSet<&str> = content.lines().collect();
+    let after_lines: std::collections::HashSet<&str> = updated.lines().collect();
+    let additions = after_lines.difference(&before_lines).count();
+    let deletions = before_lines.difference(&after_lines).count();
+    std::fs::write(&full_path, &updated)?;
     Ok(ToolOutput {
         output: format!("Edited file successfully: {path} (replacements: {count})"),
         success: true,
         metadata: serde_json::json!({
             "path": path,
             "replacements": count,
-            "filediff": { "file": path, "replacements": count },
+            "additions": additions,
+            "deletions": deletions,
+            "filediff": { "file": path, "replacements": count, "additions": additions, "deletions": deletions },
         }),
     })
 }
@@ -83,6 +89,10 @@ mod tests {
         assert!(result.success);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "hi world hello");
         assert_eq!(result.metadata["replacements"], 1);
+        assert_eq!(result.metadata["filediff"]["additions"], 1);
+        assert_eq!(result.metadata["filediff"]["deletions"], 1);
+        assert_eq!(result.metadata["additions"], 1);
+        assert_eq!(result.metadata["deletions"], 1);
         let _ = std::fs::remove_dir_all(dir);
     }
 
@@ -97,6 +107,8 @@ mod tests {
         assert!(result.success);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "hi hi");
         assert_eq!(result.metadata["replacements"], 2);
+        assert!(result.metadata["filediff"]["additions"].is_number());
+        assert!(result.metadata["filediff"]["deletions"].is_number());
         let _ = std::fs::remove_dir_all(dir);
     }
 
