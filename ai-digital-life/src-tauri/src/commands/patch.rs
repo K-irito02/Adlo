@@ -190,12 +190,12 @@ fn emit_patch_apply_event(
             "hunkCount": patch_set.file_patches.iter().map(|f| f.hunks.len()).sum::<usize>()
         });
         crate::commands::save_and_emit_run_activity(RunActivityContext {
-            state,
+            _state: state,
             app,
-            workspace_id: &workspace.id,
-            session_id: &patch_set.session_id,
+            _workspace_id: &workspace.id,
+            _session_id: &patch_set.session_id,
             run_id,
-            event: &event,
+            _event: &event,
             event_type: "patch",
             seq,
             ts,

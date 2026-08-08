@@ -38,7 +38,6 @@ pub mod workspace_sidebar;
 
 use crate::error::CommandError;
 use adl_errors::AppError;
-use adl_storage::EntityTable;
 use adl_types::IpcResult;
 use tauri::Emitter;
 
@@ -58,15 +57,12 @@ pub fn ipc_try<T>(f: impl FnOnce() -> Result<T, AppError>) -> IpcResult<T> {
     ipc(f())
 }
 
+// DEPRECATED: persistence write to EntityTable::RunActivityEvents was stopped
+// (spec §7.2 — stop ALL RunActivityEvents DB writes). The Tauri emit is kept:
+// the frontend still consumes `digital-life://run-activity`. Fields
+// `state`/`workspace_id`/`session_id`/`event` are now only used for call-site
+// API stability and are intentionally ignored.
 pub(crate) fn save_and_emit_run_activity(ctx: RunActivityContext<'_>) {
-    let _ = ctx.state.db.save_entity(
-        EntityTable::RunActivityEvents,
-        &adl_types::create_id("runact"),
-        Some(ctx.workspace_id),
-        Some(ctx.session_id),
-        Some(ctx.run_id),
-        ctx.event,
-    );
     let _ = ctx.app.emit(
         "digital-life://run-activity",
         adl_kernel::events::run_activity_event(

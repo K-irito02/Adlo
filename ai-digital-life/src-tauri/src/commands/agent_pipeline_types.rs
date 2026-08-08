@@ -35,12 +35,12 @@ pub struct FinalizeRunContext<'a, F: Fn(serde_json::Value)> {
 }
 
 pub struct RunActivityContext<'a> {
-    pub state: &'a AppState,
+    pub _state: &'a AppState,
     pub app: &'a tauri::AppHandle,
-    pub workspace_id: &'a str,
-    pub session_id: &'a str,
+    pub _workspace_id: &'a str,
+    pub _session_id: &'a str,
     pub run_id: &'a str,
-    pub event: &'a DigitalLifeRunActivityEventV1,
+    pub _event: &'a DigitalLifeRunActivityEventV1,
     pub event_type: &'a str,
     pub seq: i64,
     pub ts: i64,

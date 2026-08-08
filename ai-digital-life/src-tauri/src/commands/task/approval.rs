@@ -167,12 +167,12 @@ fn emit_approval_decided_event(
         "reason": approval.reason
     });
     crate::commands::save_and_emit_run_activity(RunActivityContext {
-        state,
+        _state: state,
         app,
-        workspace_id: &approval.workspace_id,
-        session_id: &task_session_id,
+        _workspace_id: &approval.workspace_id,
+        _session_id: &task_session_id,
         run_id,
-        event: &event,
+        _event: &event,
         event_type: "approval",
         seq,
         ts,
@@ -279,12 +279,12 @@ fn emit_command_activity_event(
     }
 
     crate::commands::save_and_emit_run_activity(RunActivityContext {
-        state,
+        _state: state,
         app,
-        workspace_id: &workspace.id,
-        session_id: &task.session_id,
+        _workspace_id: &workspace.id,
+        _session_id: &task.session_id,
         run_id,
-        event: &event,
+        _event: &event,
         event_type: "command",
         seq,
         ts,
