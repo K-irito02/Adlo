@@ -4,6 +4,7 @@ use adl_types::ConversationRole;
 use adl_types::model::{ModelChatMessage, ModelTokenUsage};
 
 /// Event returned by provider-specific SSE delta extractors.
+#[derive(Debug)]
 pub enum SseEvent {
     /// A text delta chunk to yield.
     Delta(String),

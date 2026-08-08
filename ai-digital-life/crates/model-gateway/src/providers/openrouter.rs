@@ -1,6 +1,6 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamReader};
 use crate::http_helper::{HttpRequestBuilder, send_chat_request, send_stream_request};
-use crate::providers::base::{SseEvent, build_request_body, parse_sse_stream};
+use crate::providers::base::{build_request_body, parse_sse_stream};
 use adl_errors::AppError;
 use adl_types::ConversationRole;
 use adl_types::config::{ModelCapability, ModelDefinition, ModelTier};
@@ -230,12 +230,7 @@ impl ProviderAdapter for OpenRouterProvider {
             .json(body);
         let response = send_stream_request(&builder, "OpenRouter").await?;
 
-        parse_sse_stream(response, |json| {
-            json["choices"][0]["delta"]["content"]
-                .as_str()
-                .map(|s| SseEvent::Delta(s.to_string()))
-                .unwrap_or(SseEvent::Skip)
-        })
+        parse_sse_stream(response, crate::providers::openai::extract_openai_delta)
     }
 }
 
@@ -270,6 +265,7 @@ async fn truncate_body(resp: reqwest::Response) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::providers::base::SseEvent;
 
     #[test]
     fn provider_metadata() {
@@ -283,6 +279,15 @@ mod tests {
     fn custom_base_url_for_compatible_apis() {
         let p = OpenRouterProvider::with_base_url("https://custom.openrouter.proxy".to_string());
         assert_eq!(p.base_url, "https://custom.openrouter.proxy");
+    }
+
+    #[test]
+    fn extract_reuse_parses_reasoning_content() {
+        let json = serde_json::json!({"choices": [{"delta": {"reasoning_content": "think"}}]});
+        match crate::providers::openai::extract_openai_delta(&json) {
+            SseEvent::Reasoning(t) => assert_eq!(t, "think"),
+            other => panic!("expected Reasoning, got {other:?}"),
+        }
     }
 
     #[test]

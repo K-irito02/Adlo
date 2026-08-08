@@ -22,6 +22,26 @@ struct OpenAIModelsResponse {
     data: Vec<OpenAIModelItem>,
 }
 
+/// Extract a text or reasoning delta from an OpenAI-compatible SSE chunk.
+///
+/// Priority: `delta.reasoning_content` (DeepSeek) → `delta.thinking`
+/// (OpenAI o-series) → `delta.content` (normal text). Returns `Skip` when
+/// none are present.
+pub fn extract_openai_delta(json: &serde_json::Value) -> SseEvent {
+    let delta = &json["choices"][0]["delta"];
+    if let Some(t) = delta["reasoning_content"].as_str() {
+        if !t.is_empty() {
+            return SseEvent::Reasoning(t.to_string());
+        }
+    }
+    if let Some(t) = delta["thinking"].as_str() {
+        if !t.is_empty() {
+            return SseEvent::Reasoning(t.to_string());
+        }
+    }
+    delta["content"].as_str().map(|s| SseEvent::Delta(s.to_string())).unwrap_or(SseEvent::Skip)
+}
+
 pub struct OpenAIProvider {
     pub client: Client,
     pub base_url: String,
@@ -260,12 +280,7 @@ impl ProviderAdapter for OpenAIProvider {
             .json(body);
         let response = send_stream_request(&builder, "OpenAI").await?;
 
-        parse_sse_stream(response, |json| {
-            json["choices"][0]["delta"]["content"]
-                .as_str()
-                .map(|s| SseEvent::Delta(s.to_string()))
-                .unwrap_or(SseEvent::Skip)
-        })
+        parse_sse_stream(response, extract_openai_delta)
     }
 }
 
@@ -341,6 +356,41 @@ mod tests {
     fn custom_base_url_for_compatible_apis() {
         let p = OpenAIProvider::with_base_url("https://api.deepseek.com/v1".to_string());
         assert_eq!(p.base_url, "https://api.deepseek.com/v1");
+    }
+
+    #[test]
+    fn extract_openai_delta_content() {
+        let json = serde_json::json!({"choices": [{"delta": {"content": "hi"}}]});
+        match extract_openai_delta(&json) {
+            SseEvent::Delta(t) => assert_eq!(t, "hi"),
+            other => panic!("expected Delta, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn extract_openai_delta_reasoning_content() {
+        // DeepSeek reasoning_content field
+        let json = serde_json::json!({"choices": [{"delta": {"reasoning_content": "think"}}]});
+        match extract_openai_delta(&json) {
+            SseEvent::Reasoning(t) => assert_eq!(t, "think"),
+            other => panic!("expected Reasoning, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn extract_openai_delta_thinking() {
+        // OpenAI o-series thinking field
+        let json = serde_json::json!({"choices": [{"delta": {"thinking": "plan"}}]});
+        match extract_openai_delta(&json) {
+            SseEvent::Reasoning(t) => assert_eq!(t, "plan"),
+            other => panic!("expected Reasoning, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn extract_openai_delta_skip_when_empty() {
+        let json = serde_json::json!({"choices": [{"delta": {}}]});
+        assert!(matches!(extract_openai_delta(&json), SseEvent::Skip));
     }
 
     #[test]
