@@ -170,6 +170,8 @@ fn main() {
             commands::agent::agent_get_run,
             commands::agent::agent_retry_run,
             commands::agent::agent_abort_run,
+            commands::agent_loop::agent_loop_run,
+            commands::agent_loop::agent_loop_abort,
             commands::agent::list_agents,
             commands::agent::select_agent,
             commands::agent::enter_plan_mode,

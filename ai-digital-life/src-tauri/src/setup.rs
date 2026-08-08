@@ -446,6 +446,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         provider_registry,
         shared_http_client: shared_client,
         provider_ops_mutex: tokio::sync::Mutex::new(()),
+        loop_cancels: tokio::sync::Mutex::new(std::collections::HashMap::new()),
     })
 }
 

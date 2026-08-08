@@ -32,4 +32,6 @@ pub struct AppState {
     /// Uses tokio::sync::Mutex so the guard can live across await points
     /// (required by Tauri's Send-bound command-future contract).
     pub provider_ops_mutex: AsyncMutex<()>,
+    /// Cancellation tokens for active agent loops (session_id → token).
+    pub loop_cancels: AsyncMutex<std::collections::HashMap<String, tokio_util::sync::CancellationToken>>,
 }

@@ -451,6 +451,7 @@ dependencies = [
  "tauri-plugin-shell",
  "tokio",
  "tokio-stream",
+ "tokio-util",
  "tracing",
  "url",
  "uuid",

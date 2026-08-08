@@ -52,6 +52,8 @@ commands.allow = [
   "agent_get_run",
   "agent_retry_run",
   "agent_abort_run",
+  "agent_loop_run",
+  "agent_loop_abort",
   "list_agents",
   "select_agent",
   "enter_plan_mode",
