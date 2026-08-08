@@ -7,6 +7,7 @@ pub mod part_store;
 pub mod permission_check;
 pub mod plan_mode;
 pub mod prompt;
+pub mod question;
 pub mod registry;
 pub mod router;
 pub mod run_activity_seq;
