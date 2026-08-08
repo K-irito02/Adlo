@@ -12,6 +12,7 @@ dependencies = [
  "adl-fs-ops",
  "adl-kernel",
  "adl-storage",
+ "adl-subagent",
  "adl-tools",
  "adl-types",
  "adl-workspace",

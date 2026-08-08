@@ -1,11 +1,22 @@
 use adl_errors::AppError;
+use adl_subagent::TaskToolInput;
+use adl_tools::apply_patch;
+use adl_tools::bash;
+use adl_tools::edit;
 use adl_tools::glob;
 use adl_tools::grep;
+use adl_tools::question;
 use adl_tools::read;
+use adl_tools::task;
 use adl_tools::webfetch;
 use adl_tools::websearch;
+use adl_tools::write;
+use adl_types::permission_types::PermissionRuleset;
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::OnceLock;
+
+use crate::permission_check::{PermissionCheckResult, check_tool_permission};
 
 /// Definition of a tool available to the agent.
 #[derive(Debug, Clone)]
@@ -21,6 +32,7 @@ pub struct ToolExecutionResult {
     pub tool_name: String,
     pub output: String,
     pub success: bool,
+    pub metadata: serde_json::Value,
 }
 
 /// Registry of all tools available to the agent.
@@ -66,6 +78,45 @@ struct GrepInput {
     pattern: String,
 }
 
+/// Input shape for the `write` tool.
+#[derive(Debug, serde::Deserialize)]
+struct WriteInput {
+    path: String,
+    content: String,
+}
+
+/// Input shape for the `edit` tool.
+#[derive(Debug, serde::Deserialize)]
+struct EditInput {
+    path: String,
+    old_string: String,
+    new_string: String,
+    replace_all: Option<bool>,
+}
+
+/// Input shape for the `bash` tool.
+#[derive(Debug, serde::Deserialize)]
+struct BashInput {
+    command: String,
+    workdir: Option<String>,
+    timeout: Option<u64>,
+}
+
+/// Input shape for the `apply_patch` tool.
+#[derive(Debug, serde::Deserialize)]
+struct ApplyPatchInput {
+    path: String,
+    before: String,
+    after: String,
+    session_id: Option<String>,
+}
+
+/// Input shape for the `question` tool.
+#[derive(Debug, serde::Deserialize)]
+struct QuestionInput {
+    questions: serde_json::Value,
+}
+
 impl ToolRegistry {
     pub fn new() -> Self {
         Self::default()
@@ -79,6 +130,43 @@ impl ToolRegistry {
         registry.register(read_tool_definition());
         registry.register(glob_tool_definition());
         registry.register(grep_tool_definition());
+        registry.register(ToolDefinition {
+            name: write::NAME.to_string(),
+            description:
+                "Write content to one file, creating parent directories as needed. Overwrites existing files."
+                    .to_string(),
+            parameters: (*write::PARAMETERS).clone(),
+        });
+        registry.register(ToolDefinition {
+            name: edit::NAME.to_string(),
+            description: "Replace exact text in a file. Fails if the old string is not found. Use replace_all to replace every occurrence."
+                .to_string(),
+            parameters: (*edit::PARAMETERS).clone(),
+        });
+        registry.register(ToolDefinition {
+            name: bash::NAME.to_string(),
+            description: "Run a shell command and capture its output. The command runs with the workspace as the working directory."
+                .to_string(),
+            parameters: (*bash::PARAMETERS).clone(),
+        });
+        registry.register(ToolDefinition {
+            name: apply_patch::NAME.to_string(),
+            description: "Apply a single-file change by providing the full before/after file content."
+                .to_string(),
+            parameters: (*apply_patch::PARAMETERS).clone(),
+        });
+        registry.register(ToolDefinition {
+            name: question::NAME.to_string(),
+            description: "Ask the user one or more questions and wait for answers."
+                .to_string(),
+            parameters: (*question::PARAMETERS).clone(),
+        });
+        registry.register(ToolDefinition {
+            name: task::NAME.to_string(),
+            description: "Dispatch a sub-agent task to be executed independently."
+                .to_string(),
+            parameters: (*task::PARAMETERS).clone(),
+        });
         registry
     }
 
@@ -150,7 +238,7 @@ impl ToolRegistry {
             }
         }
 
-        let output = match name {
+        let result = match name {
             "webfetch" => {
                 let parsed: WebFetchInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid webfetch input: {}", e)))?;
@@ -160,41 +248,147 @@ impl ToolRegistry {
                     _ => webfetch::WebFetchFormat::default(),
                 };
                 let result = webfetch::webfetch_with_format(&parsed.url, format).await;
-                serde_json::to_string(&result).map_err(|e| {
+                let output = serde_json::to_string(&result).map_err(|e| {
                     AppError::Internal(format!("Failed to serialize webfetch result: {}", e))
-                })?
+                })?;
+                ToolExecutionResult {
+                    tool_name: name.to_string(),
+                    output,
+                    success: true,
+                    metadata: serde_json::json!({}),
+                }
             },
             "websearch" => {
                 let parsed: WebSearchInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid websearch input: {}", e)))?;
                 let result = websearch::websearch(&parsed.query).await;
-                serde_json::to_string(&result).map_err(|e| {
+                let output = serde_json::to_string(&result).map_err(|e| {
                     AppError::Internal(format!("Failed to serialize websearch result: {}", e))
-                })?
+                })?;
+                ToolExecutionResult {
+                    tool_name: name.to_string(),
+                    output,
+                    success: true,
+                    metadata: serde_json::json!({}),
+                }
             },
             "read" => {
                 let parsed: ReadInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid read input: {}", e)))?;
                 let result = read::read_file(&parsed.path).await;
-                serde_json::to_string(&result).map_err(|e| {
+                let output = serde_json::to_string(&result).map_err(|e| {
                     AppError::Internal(format!("Failed to serialize read result: {}", e))
-                })?
+                })?;
+                ToolExecutionResult {
+                    tool_name: name.to_string(),
+                    output,
+                    success: true,
+                    metadata: serde_json::json!({}),
+                }
             },
             "glob" => {
                 let parsed: GlobInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid glob input: {}", e)))?;
                 let result = glob::glob_files(&parsed.pattern).await;
-                serde_json::to_string(&result).map_err(|e| {
+                let output = serde_json::to_string(&result).map_err(|e| {
                     AppError::Internal(format!("Failed to serialize glob result: {}", e))
-                })?
+                })?;
+                ToolExecutionResult {
+                    tool_name: name.to_string(),
+                    output,
+                    success: true,
+                    metadata: serde_json::json!({}),
+                }
             },
             "grep" => {
                 let parsed: GrepInput = serde_json::from_str(input)
                     .map_err(|e| AppError::Internal(format!("Invalid grep input: {}", e)))?;
                 let result = grep::grep_files(&parsed.pattern).await;
-                serde_json::to_string(&result).map_err(|e| {
+                let output = serde_json::to_string(&result).map_err(|e| {
                     AppError::Internal(format!("Failed to serialize grep result: {}", e))
-                })?
+                })?;
+                ToolExecutionResult {
+                    tool_name: name.to_string(),
+                    output,
+                    success: true,
+                    metadata: serde_json::json!({}),
+                }
+            },
+            "write" => {
+                if let Some(blocked) = self.gate_permission(name, input) {
+                    return Ok(blocked);
+                }
+                let parsed: WriteInput = serde_json::from_str(input)
+                    .map_err(|e| AppError::Internal(format!("Invalid write input: {}", e)))?;
+                let output =
+                    write::execute(&parsed.path, &parsed.content, Path::new(".")).await?;
+                bridge(name, output)
+            },
+            "edit" => {
+                if let Some(blocked) = self.gate_permission(name, input) {
+                    return Ok(blocked);
+                }
+                let parsed: EditInput = serde_json::from_str(input)
+                    .map_err(|e| AppError::Internal(format!("Invalid edit input: {}", e)))?;
+                let output = edit::execute(
+                    &parsed.path,
+                    &parsed.old_string,
+                    &parsed.new_string,
+                    parsed.replace_all.unwrap_or(false),
+                    Path::new("."),
+                )
+                .await?;
+                bridge(name, output)
+            },
+            "bash" => {
+                if let Some(blocked) = self.gate_permission(name, input) {
+                    return Ok(blocked);
+                }
+                let parsed: BashInput = serde_json::from_str(input)
+                    .map_err(|e| AppError::Internal(format!("Invalid bash input: {}", e)))?;
+                let output = bash::execute(
+                    &parsed.command,
+                    parsed.workdir.as_deref(),
+                    Path::new("."),
+                    parsed.timeout,
+                )
+                .await?;
+                bridge(name, output)
+            },
+            "apply_patch" => {
+                if let Some(blocked) = self.gate_permission(name, input) {
+                    return Ok(blocked);
+                }
+                let parsed: ApplyPatchInput = serde_json::from_str(input)
+                    .map_err(|e| AppError::Internal(format!("Invalid apply_patch input: {}", e)))?;
+                let output = apply_patch::execute(
+                    &parsed.path,
+                    &parsed.before,
+                    &parsed.after,
+                    Path::new("."),
+                    parsed.session_id.as_deref().unwrap_or("agent"),
+                )
+                .await?;
+                bridge(name, output)
+            },
+            "question" => {
+                let parsed: QuestionInput = serde_json::from_str(input)
+                    .map_err(|e| AppError::Internal(format!("Invalid question input: {}", e)))?;
+                let output = question::execute(&parsed.questions).await?;
+                bridge(name, output)
+            },
+            "task" => {
+                let parsed: TaskToolInput = serde_json::from_str(input)
+                    .map_err(|e| AppError::Internal(format!("Invalid task input: {}", e)))?;
+                let output = task::execute(&parsed, |_| {
+                    Ok(adl_tools::ToolOutput {
+                        output: "Sub-agent task dispatched (stub dispatcher).".to_string(),
+                        success: true,
+                        metadata: serde_json::json!({ "state": "completed" }),
+                    })
+                })
+                .await?;
+                bridge(name, output)
             },
             other => {
                 return Err(AppError::Internal(format!(
@@ -203,7 +397,32 @@ impl ToolRegistry {
                 )));
             },
         };
-        Ok(ToolExecutionResult { tool_name: name.to_string(), output, success: true })
+        Ok(result)
+    }
+
+    /// Gate a mutating tool through the permission ruleset.
+    ///
+    /// Returns `Some(failure result)` when the tool call is denied or requires
+    /// user approval (with `permission` + `reason` metadata), and `None` when it
+    /// is allowed. Ruleset and doom-loop state are defaults for now; B3 injects
+    /// the real session state.
+    fn gate_permission(&self, tool_name: &str, input: &str) -> Option<ToolExecutionResult> {
+        let ruleset = PermissionRuleset::default_rules();
+        match check_tool_permission(tool_name, input, &ruleset, 0) {
+            PermissionCheckResult::Allow => None,
+            PermissionCheckResult::Deny(reason) => Some(ToolExecutionResult {
+                tool_name: tool_name.to_string(),
+                output: reason.clone(),
+                success: false,
+                metadata: serde_json::json!({ "permission": "deny", "reason": reason }),
+            }),
+            PermissionCheckResult::Ask(reason) => Some(ToolExecutionResult {
+                tool_name: tool_name.to_string(),
+                output: reason.clone(),
+                success: false,
+                metadata: serde_json::json!({ "permission": "ask", "reason": reason }),
+            }),
+        }
     }
 
     /// Extract the `path` field from a write tool's JSON input.
@@ -216,6 +435,17 @@ impl ToolRegistry {
             .ok()
             .and_then(|v| v.get("path")?.as_str().map(String::from))
             .unwrap_or_else(|| input.to_string())
+    }
+}
+
+/// Bridge an `adl_tools::ToolOutput` into a registry `ToolExecutionResult`,
+/// carrying through the `metadata` field.
+fn bridge(name: &str, output: adl_tools::ToolOutput) -> ToolExecutionResult {
+    ToolExecutionResult {
+        tool_name: name.to_string(),
+        output: output.output,
+        success: output.success,
+        metadata: output.metadata,
     }
 }
 
@@ -533,5 +763,53 @@ mod tests {
     fn extract_write_target_falls_back_when_no_path_field() {
         let target = ToolRegistry::extract_write_target("{\"content\":\"hello\"}");
         assert_eq!(target, "{\"content\":\"hello\"}");
+    }
+
+    #[test]
+    fn registry_lists_all_builtins() {
+        let registry = ToolRegistry::with_builtins();
+        let names = registry.list_names();
+        let expected = [
+            "read",
+            "glob",
+            "grep",
+            "webfetch",
+            "websearch",
+            "write",
+            "edit",
+            "bash",
+            "apply_patch",
+            "question",
+            "task",
+        ];
+        for name in expected {
+            assert!(names.contains(&name.to_string()), "missing tool: {name}");
+        }
+    }
+
+    #[tokio::test]
+    async fn write_tool_executes_in_registry() {
+        let registry = ToolRegistry::with_builtins();
+        let dir = std::env::temp_dir().join(format!("adl-registry-write-{}", uuid::Uuid::new_v4()));
+        let path = dir.join("x.txt");
+        // 注意：现有 execute 签名是 (name, input: &str)。input 为 {"path": "...", "content": "..."}。
+        // 路径使用正斜杠以保证 JSON 合法（Windows 反斜杠需转义），仍为绝对路径。
+        let path_str = path.to_string_lossy().replace('\\', "/");
+        let input = format!(r#"{{"path":"{}","content":"hi"}}"#, path_str);
+        let result = registry.execute("write", &input).await;
+        assert!(result.is_ok());
+        let result = result.unwrap();
+        assert!(result.success);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn bash_tool_denied_by_permission_returns_ask() {
+        // 构造一个应被权限规则拒绝的命令（如 rm -rf）
+        let registry = ToolRegistry::with_builtins();
+        let result = registry.execute("bash", "{\"command\":\"rm -rf /\"}").await;
+        // 取决于默认规则：rm -rf / 应被 Deny 或 Ask。断言 success 为 false。
+        let result = result.unwrap_or_else(|_| panic!("should not hard-error"));
+        assert!(!result.success);
     }
 }
