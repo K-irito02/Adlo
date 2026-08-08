@@ -69,6 +69,7 @@ url = "2"
 async-trait = "0.1"
 futures = "0.3"
 tokio-stream = "0.1"
+tokio-util = { version = "0.7", features = ["rt"] }
 tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
 rmcp = { version = "1", features = ["client", "server", "transport-child-process", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"] }
 rmcp-macros = "2"

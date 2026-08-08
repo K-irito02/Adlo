@@ -22,9 +22,32 @@ pub struct QuestionService {
     pending: Arc<Mutex<HashMap<String, QuestionEntry>>>,
 }
 
+/// Outcome of an `ask()`: either the user's answers or an explicit rejection.
+/// Carrying rejection through the oneshot lets `ask` distinguish "rejected"
+/// from "request dropped" when reporting errors.
+enum QuestionAnswer {
+    Value(Vec<serde_json::Value>),
+    Rejected,
+}
+
 struct QuestionEntry {
-    sender: oneshot::Sender<Vec<serde_json::Value>>,
+    sender: oneshot::Sender<QuestionAnswer>,
     info: QuestionRequest,
+}
+
+/// Drop guard that removes a pending `ask` entry if the `ask` future is
+/// dropped before being resolved, so cancelled asks do not leak entries.
+struct PendingGuard {
+    pending: Arc<Mutex<HashMap<String, QuestionEntry>>>,
+    id: String,
+}
+
+impl Drop for PendingGuard {
+    fn drop(&mut self) {
+        if let Ok(mut pending) = self.pending.lock() {
+            pending.remove(&self.id);
+        }
+    }
 }
 
 impl QuestionService {
@@ -55,11 +78,19 @@ impl QuestionService {
             );
         self.bus.publish(SessionPartEvent::QuestionAsked {
             session_id: session_id.to_string(),
-            request_id: id,
+            request_id: id.clone(),
             questions,
             tool: None,
         });
-        rx.await.map_err(|_| AppError::Internal("question request was dropped".into()))
+        // 若 ask future 在解析前被丢弃，guard 会移除 pending 条目，避免泄漏
+        let _guard = PendingGuard { pending: self.pending.clone(), id: id.clone() };
+        match rx.await {
+            Ok(QuestionAnswer::Value(values)) => Ok(values),
+            Ok(QuestionAnswer::Rejected) => {
+                Err(AppError::Internal("question request was rejected".into()))
+            },
+            Err(_) => Err(AppError::Internal("question request was dropped".into())),
+        }
     }
 
     pub fn reply(&self, request_id: &str, answers: Vec<serde_json::Value>) -> Result<(), AppError> {
@@ -76,7 +107,7 @@ impl QuestionService {
             request_id: request_id.to_string(),
             answers: answers.clone(),
         });
-        let _ = entry.sender.send(answers);
+        let _ = entry.sender.send(QuestionAnswer::Value(answers));
         Ok(())
     }
 
@@ -89,7 +120,7 @@ impl QuestionService {
         let Some(entry) = entry else {
             return Err(AppError::NotFound(format!("question request {request_id}")));
         };
-        drop(entry.sender);
+        let _ = entry.sender.send(QuestionAnswer::Rejected);
         Ok(())
     }
 
@@ -173,5 +204,34 @@ mod tests {
         // ask 是 async 挂起的，list 应显示 pending 项
         // 测试简单验证 list 初始为空
         assert!(service.list().is_empty());
+    }
+
+    #[tokio::test]
+    async fn list_returns_live_pending_item() {
+        let bus = PartEventBus::new(16);
+        let service = QuestionService::new(bus.clone());
+        let mut rx = bus.subscribe();
+
+        let list_service = service.clone();
+        let waiter = tokio::spawn(async move {
+            loop {
+                match rx.recv().await.unwrap() {
+                    SessionPartEvent::QuestionAsked { request_id, .. } => {
+                        let listed = list_service.list();
+                        assert_eq!(listed.len(), 1);
+                        assert_eq!(listed[0].id, request_id);
+                        list_service
+                            .reply(&request_id, vec![serde_json::json!("yes")])
+                            .unwrap();
+                        break;
+                    },
+                    _ => continue,
+                }
+            }
+        });
+        let answers = service.ask("s1", vec![serde_json::json!({"question": "?"})]).await.unwrap();
+        waiter.await.unwrap();
+        assert_eq!(answers[0], "yes");
+        assert!(service.list().is_empty(), "resolved ask should leave no pending entry");
     }
 }

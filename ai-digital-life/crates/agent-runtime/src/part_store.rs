@@ -61,4 +61,25 @@ mod tests {
         assert_eq!(parts.len(), 1);
         assert_eq!(parts[0].id, "part_1");
     }
+
+    #[tokio::test]
+    async fn mem_store_saves_message() {
+        let store = MemStore::default();
+        let msg = MessageRecord {
+            id: "msg_1".into(),
+            session_id: "s1".into(),
+            role: "assistant".into(),
+            parent_id: None,
+            agent: None,
+            model: None,
+            summary: None,
+            time_created: 0,
+            time_completed: Some(1),
+        };
+        store.save_message(&msg).await.unwrap();
+        let messages = store.messages.lock().unwrap();
+        assert_eq!(messages.len(), 1);
+        assert_eq!(messages[0].id, "msg_1");
+        assert_eq!(messages[0].session_id, "s1");
+    }
 }

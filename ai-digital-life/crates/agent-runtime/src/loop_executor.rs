@@ -7,12 +7,24 @@ use adl_model_gateway::llm_event::{LLMEvent, LLMEventStream};
 use adl_types::{MessageRecord, PartRecord, PartType, SessionPartEvent, create_id, now_ms};
 use std::sync::Arc;
 use tokio::sync::oneshot;
+use tokio_util::sync::CancellationToken;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TurnResult {
     Continue,
     Stop,
     Error,
+}
+
+/// Inputs identifying and annotating the assistant message produced by a turn.
+/// `parent_id` / `model` are threaded into the saved `MessageRecord` so the
+/// executor never clobbers ownership metadata set by the caller (B3c).
+#[derive(Debug, Clone)]
+pub struct TurnConfig {
+    pub session_id: String,
+    pub message_id: String,
+    pub parent_id: Option<String>,
+    pub model: Option<serde_json::Value>,
 }
 
 /// Number of consecutive identical failed `(tool, input)` pairs after which
@@ -43,34 +55,46 @@ impl LoopExecutor {
 
     pub async fn run_turn(
         &self,
-        session_id: &str,
-        message_id: &str,
+        config: TurnConfig,
         events: LLMEventStream,
+        cancel: CancellationToken,
     ) -> Result<TurnResult, AppError> {
         use tokio_stream::StreamExt;
 
-        let mut ctx = TurnContext::new(session_id.to_string(), message_id.to_string());
+        let mut ctx = TurnContext::new(config);
         let mut stream = events;
         let mut loop_error: Option<AppError> = None;
 
-        while let Some(item) = stream.next().await {
-            match item {
-                Ok(event) => {
-                    if let Err(e) = self.handle_event(&mut ctx, event).await {
-                        loop_error = Some(e);
-                        break;
-                    }
-                },
-                Err(e) => {
-                    loop_error = Some(e);
+        loop {
+            tokio::select! {
+                _ = cancel.cancelled() => {
+                    // abort in-flight tools, mark interrupted, then fall through
+                    // to cleanup so the turn finalizes instead of leaking tasks
+                    self.abort_tools(&mut ctx).await;
                     break;
-                },
+                }
+                item = stream.next() => {
+                    match item {
+                        Some(Ok(event)) => {
+                            if let Err(e) = self.handle_event(&mut ctx, event).await {
+                                loop_error = Some(e);
+                                break;
+                            }
+                        },
+                        Some(Err(e)) => {
+                            loop_error = Some(e);
+                            break;
+                        },
+                        None => break,
+                    }
+                }
             }
         }
 
         // cleanup ALWAYS runs (awaits in-flight tools, marks interrupted,
-        // finalizes the message) even when the loop bailed out on an error.
-        self.cleanup(&mut ctx).await?;
+        // finalizes the message) even when the loop bailed out on an error
+        // or was cancelled.
+        self.cleanup(&mut ctx, loop_error.as_ref()).await?;
 
         if let Some(e) = loop_error {
             return Err(e);
@@ -92,9 +116,9 @@ impl LoopExecutor {
                     id: ctx.message_id.clone(),
                     session_id: ctx.session_id.clone(),
                     role: "assistant".into(),
-                    parent_id: None,
+                    parent_id: ctx.parent_id.clone(),
                     agent: None,
-                    model: None,
+                    model: ctx.model.clone(),
                     summary: None,
                     time_created: ctx.started_at,
                     time_completed: None,
@@ -276,7 +300,40 @@ impl LoopExecutor {
         Ok(())
     }
 
-    async fn cleanup(&self, ctx: &mut TurnContext) -> Result<(), AppError> {
+    /// Abort all in-flight tool tasks and mark every non-terminal tool part as
+    /// interrupted. Runs when the turn is cancelled so in-flight tools cannot
+    /// keep writing after the turn ends. `cleanup` then handles the remainder
+    /// (aborted joins are removed here, so nothing is double-processed).
+    async fn abort_tools(&self, ctx: &mut TurnContext) {
+        let keys: Vec<String> = ctx.tool_joins.keys().cloned().collect();
+        for key in keys {
+            if let Some((handle, _)) = ctx.tool_joins.remove(&key) {
+                handle.abort();
+            }
+        }
+        for (id, part) in ctx.tool_parts.clone() {
+            let status = part.data["state"]["status"].as_str();
+            if status == Some("pending") || status == Some("running") {
+                let mut p = part.clone();
+                p.data["state"] = serde_json::json!({
+                    "status": "error",
+                    "error": "Tool execution interrupted",
+                    "metadata": { "interrupted": true },
+                    "time": { "start": now_ms(), "end": now_ms() },
+                });
+                ctx.tool_parts.insert(id.clone(), p.clone());
+                let _ = self.store.save_part(&p).await;
+                self.bus.publish(SessionPartEvent::MessagePartUpdated {
+                    session_id: ctx.session_id.clone(),
+                    message_id: ctx.message_id.clone(),
+                    part_id: id,
+                    part: serde_json::to_value(&p).unwrap_or_default(),
+                });
+            }
+        }
+    }
+
+    async fn cleanup(&self, ctx: &mut TurnContext, loop_error: Option<&AppError>) -> Result<(), AppError> {
         // 收尾：text/reasoning 已累积；in-flight 工具置 interrupted
         let keys: Vec<String> = ctx.tool_joins.keys().cloned().collect();
         for key in keys {
@@ -298,20 +355,31 @@ impl LoopExecutor {
                     "metadata": { "interrupted": true },
                     "time": { "start": now_ms(), "end": now_ms() },
                 });
-                ctx.tool_parts.insert(id, p.clone());
+                ctx.tool_parts.insert(id.clone(), p.clone());
                 self.store.save_part(&p).await?;
+                self.bus.publish(SessionPartEvent::MessagePartUpdated {
+                    session_id: ctx.session_id.clone(),
+                    message_id: ctx.message_id.clone(),
+                    part_id: id,
+                    part: serde_json::to_value(&p)?,
+                });
             }
         }
         // 更新 assistant message（finish/error）
-        let status =
-            if ctx.finish_reason.as_deref() == Some("error") { "error" } else { "completed" };
+        let status = if ctx.doom_loop || loop_error.is_some()
+            || ctx.finish_reason.as_deref() == Some("error")
+        {
+            "error"
+        } else {
+            "completed"
+        };
         let msg = MessageRecord {
             id: ctx.message_id.clone(),
             session_id: ctx.session_id.clone(),
             role: "assistant".into(),
-            parent_id: None,
+            parent_id: ctx.parent_id.clone(),
             agent: None,
-            model: None,
+            model: ctx.model.clone(),
             summary: None,
             time_created: ctx.started_at,
             time_completed: Some(now_ms()),
@@ -325,13 +393,16 @@ impl LoopExecutor {
             info["usage"] = serde_json::to_value(usage)?;
         }
         if status == "error" {
-            let error_text = ctx
-                .tool_parts
-                .values()
-                .filter_map(|p| p.data["state"]["error"].as_str())
-                .next()
-                .unwrap_or("Tool execution failed")
-                .to_string();
+            let error_text = loop_error
+                .map(|e| e.to_string())
+                .or_else(|| {
+                    ctx.tool_parts
+                        .values()
+                        .filter_map(|p| p.data["state"]["error"].as_str())
+                        .next()
+                        .map(str::to_string)
+                })
+                .unwrap_or_else(|| "Tool execution failed".to_string());
             info["error"] = serde_json::Value::String(error_text);
         }
         self.bus.publish(SessionPartEvent::MessageUpdated {
@@ -345,6 +416,8 @@ impl LoopExecutor {
 struct TurnContext {
     session_id: String,
     message_id: String,
+    parent_id: Option<String>,
+    model: Option<serde_json::Value>,
     started_at: i64,
     #[allow(dead_code)] // reserved: step closure accounting for later steps
     step_open: bool,
@@ -365,10 +438,12 @@ struct TurnContext {
 }
 
 impl TurnContext {
-    fn new(session_id: String, message_id: String) -> Self {
+    fn new(config: TurnConfig) -> Self {
         Self {
-            session_id,
-            message_id,
+            session_id: config.session_id,
+            message_id: config.message_id,
+            parent_id: config.parent_id,
+            model: config.model,
             started_at: now_ms(),
             step_open: false,
             text_accum: None,
@@ -404,6 +479,7 @@ impl TurnContext {
     fn record_tool_result(&mut self, final_part: &PartRecord) {
         let state = &final_part.data["state"];
         if state["status"].as_str() != Some("error") {
+            self.consecutive_failures = 0;
             return;
         }
         let tool = final_part.data["tool"].as_str().unwrap_or("").to_string();
@@ -472,6 +548,15 @@ mod tests {
         Box::pin(tokio_stream::iter(events.into_iter().map(Ok)))
     }
 
+    fn config(session_id: &str, message_id: &str) -> TurnConfig {
+        TurnConfig {
+            session_id: session_id.into(),
+            message_id: message_id.into(),
+            parent_id: None,
+            model: None,
+        }
+    }
+
     #[tokio::test]
     async fn text_turn_produces_text_part() {
         let bus = PartEventBus::new(16);
@@ -487,7 +572,10 @@ mod tests {
             LLMEvent::StepFinish { index: 1, reason: "stop".into() },
             LLMEvent::Finish { reason: "stop".into(), usage: None },
         ];
-        let result = executor.run_turn("s1", "msg_1", event_stream(events)).await.unwrap();
+        let result = executor
+            .run_turn(config("s1", "msg_1"), event_stream(events), CancellationToken::new())
+            .await
+            .unwrap();
         assert!(matches!(result, TurnResult::Stop));
 
         let parts = store.list_parts("msg_1").await.unwrap();
@@ -513,7 +601,10 @@ mod tests {
             LLMEvent::StepFinish { index: 1, reason: "stop".into() },
             LLMEvent::Finish { reason: "stop".into(), usage: None },
         ];
-        let result = executor.run_turn("s1", "msg_2", event_stream(events)).await.unwrap();
+        let result = executor
+            .run_turn(config("s1", "msg_2"), event_stream(events), CancellationToken::new())
+            .await
+            .unwrap();
         assert!(matches!(result, TurnResult::Stop));
 
         let parts = store.list_parts("msg_2").await.unwrap();
@@ -535,7 +626,10 @@ mod tests {
             LLMEvent::ToolInputStart { id: "call_1".into(), name: "bash".into() },
             LLMEvent::Finish { reason: "error".into(), usage: None },
         ];
-        let result = executor.run_turn("s1", "msg_3", event_stream(events)).await.unwrap();
+        let result = executor
+            .run_turn(config("s1", "msg_3"), event_stream(events), CancellationToken::new())
+            .await
+            .unwrap();
         assert!(matches!(result, TurnResult::Error));
 
         let parts = store.list_parts("msg_3").await.unwrap();
@@ -565,7 +659,63 @@ mod tests {
         events.push(LLMEvent::StepFinish { index: 1, reason: "stop".into() });
         events.push(LLMEvent::Finish { reason: "stop".into(), usage: None });
 
-        let result = executor.run_turn("s1", "msg_4", event_stream(events)).await.unwrap();
+        let result = executor
+            .run_turn(config("s1", "msg_4"), event_stream(events), CancellationToken::new())
+            .await
+            .unwrap();
         assert!(matches!(result, TurnResult::Error), "doom loop should return Error, got {result:?}");
+    }
+
+    #[tokio::test]
+    async fn cancel_marks_pending_tools_interrupted_and_cleans_up() {
+        let bus = PartEventBus::new(16);
+        let store = Arc::new(MemStore::default());
+        let questions = crate::question::QuestionService::new(bus.clone());
+        let registry = Arc::new(crate::tools::registry::ToolRegistry::with_builtins());
+        let executor = LoopExecutor::new(bus.clone(), store.clone(), questions, registry);
+
+        // 流：StepStart + 一个 pending 工具，随后永久挂起（tx 保持存活）。
+        let (tx, rx) = tokio::sync::mpsc::channel::<Result<LLMEvent, AppError>>(16);
+        tx.send(Ok(LLMEvent::StepStart { index: 1 })).await.unwrap();
+        tx.send(Ok(LLMEvent::ToolInputStart { id: "call_1".into(), name: "bash".into() }))
+            .await
+            .unwrap();
+        let stream: LLMEventStream = Box::pin(tokio_stream::wrappers::ReceiverStream::new(rx));
+
+        let mut sub = bus.subscribe();
+        let cancel = CancellationToken::new();
+        let handle = tokio::spawn({
+            let cancel = cancel.clone();
+            async move { executor.run_turn(config("s1", "msg_cancel"), stream, cancel).await }
+        });
+
+        // 等到 pending 工具 part 发布后再取消，确保 abort_tools 能命中它
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            loop {
+                match sub.recv().await.unwrap() {
+                    SessionPartEvent::MessagePartUpdated { part, .. } => {
+                        if part["data"]["state"]["status"] == "pending" {
+                            break;
+                        }
+                    },
+                    _ => continue,
+                }
+            }
+        })
+        .await
+        .expect("pending tool part should be published before cancel");
+        cancel.cancel();
+        let result = handle.await.unwrap().unwrap();
+        assert!(matches!(result, TurnResult::Stop));
+
+        let parts = store.list_parts("msg_cancel").await.unwrap();
+        let tool = parts.iter().find(|p| p.r#type == PartType::Tool).expect("tool part");
+        assert_eq!(tool.data["state"]["status"], "error");
+        assert_eq!(tool.data["state"]["metadata"]["interrupted"], true);
+        let messages = store.messages.lock().unwrap();
+        assert!(
+            messages.iter().any(|m| m.id == "msg_cancel"),
+            "cleanup should finalize the assistant message on cancel"
+        );
     }
 }

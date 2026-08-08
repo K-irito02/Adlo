@@ -24,6 +24,7 @@ adl-subagent = { path = "../subagent" }
 adl-model-gateway = { path = "../model-gateway" }
 async-trait.workspace = true
 tokio-stream.workspace = true
+tokio-util.workspace = true
 
 [dev-dependencies]
 adl-storage = { path = "../storage" }
