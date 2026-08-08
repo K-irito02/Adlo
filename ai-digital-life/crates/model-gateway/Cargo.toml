@@ -10,6 +10,7 @@ workspace = true
 adl-types = { path = "../types" }
 adl-errors = { path = "../errors" }
 adl-credential = { path = "../credential" }
+futures.workspace = true
 reqwest.workspace = true
 tokio.workspace = true
 serde.workspace = true

@@ -223,6 +223,7 @@ dependencies = [
  "adl-errors",
  "adl-types",
  "async-trait",
+ "futures",
  "indexmap 2.14.0",
  "reqwest",
  "serde",
