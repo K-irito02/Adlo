@@ -1,30 +1,36 @@
-// Only the test module references this module today; the SSE endpoint (next
-// task) consumes `SseEventBus`. Remove this once wired up.
-#![allow(dead_code)]
-
 use adl_agent_runtime::part_event_bus::PartEventBus;
 use adl_storage::Database;
 use adl_types::SessionPartEvent;
 use std::sync::{Arc, Mutex};
+use tokio::sync::broadcast;
 
 const HISTORY_LIMIT: usize = 1000;
 
-/// Bridges the in-process `PartEventBus` to durable `event_log` storage and an
-/// in-memory replay cache, feeding the SSE endpoint.
+/// Capacity of the live SSE broadcast channel. A lagging subscriber misses
+/// events and is expected to reconnect with `after`/Last-Event-ID replay.
+const LIVE_CAPACITY: usize = 256;
+
+/// Bridges the in-process `PartEventBus` to durable `event_log` storage, an
+/// in-memory replay cache, and a live broadcast channel for the SSE endpoint.
+#[derive(Clone)]
 pub struct SseEventBus {
     db: Database,
     history: Arc<Mutex<Vec<(i64, SessionPartEvent)>>>,
+    live: broadcast::Sender<SessionPartEvent>,
 }
 
 impl SseEventBus {
     pub fn new(db: Database) -> Self {
-        Self { db, history: Arc::new(Mutex::new(Vec::new())) }
+        let (live, _) = broadcast::channel(LIVE_CAPACITY);
+        Self { db, history: Arc::new(Mutex::new(Vec::new())), live }
     }
 
-    /// Subscribe to `bus` and persist every event to `event_log` + replay cache.
+    /// Subscribe to `bus`, persisting every event to `event_log` + replay cache
+    /// and re-broadcasting it to live SSE subscribers.
     pub fn spawn(&self, bus: PartEventBus) {
         let db = self.db.clone();
         let history = self.history.clone();
+        let live = self.live.clone();
         tokio::spawn(async move {
             let mut rx = bus.subscribe();
             loop {
@@ -36,11 +42,12 @@ impl SseEventBus {
                         // The real seq comes from append_event_log's return value.
                         if let Ok(seq) = db.append_event_log(&session_id, &event_type, &payload) {
                             let mut h = history.lock().unwrap_or_else(|e| e.into_inner());
-                            h.push((seq, event));
+                            h.push((seq, event.clone()));
                             if h.len() > HISTORY_LIMIT {
                                 let drain = h.len() - HISTORY_LIMIT;
                                 h.drain(..drain);
                             }
+                            let _ = live.send(event);
                         }
                     },
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
@@ -53,6 +60,12 @@ impl SseEventBus {
     pub fn replay_after(&self, after_seq: i64) -> Vec<(i64, SessionPartEvent)> {
         let h = self.history.lock().unwrap_or_else(|e| e.into_inner());
         h.iter().filter(|(seq, _)| *seq > after_seq).cloned().collect()
+    }
+
+    /// Subscribe to the real-time event stream forwarded by `spawn`. Used by
+    /// the SSE endpoint for live events after history replay.
+    pub fn subscribe_live(&self) -> broadcast::Receiver<SessionPartEvent> {
+        self.live.subscribe()
     }
 }
 

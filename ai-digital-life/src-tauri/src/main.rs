@@ -9,6 +9,7 @@ mod commands;
 mod error;
 mod setup;
 mod sse;
+mod sse_server;
 mod state;
 mod tauri_webview_handle;
 mod terminal;

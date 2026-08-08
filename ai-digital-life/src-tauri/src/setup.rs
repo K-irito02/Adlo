@@ -1,4 +1,6 @@
 use crate::state::AppState;
+use adl_agent_runtime::part_event_bus::PartEventBus;
+use adl_agent_runtime::question::QuestionService;
 use adl_browser::BrowserManager;
 use adl_kernel::config_watcher::ConfigWatcher;
 use adl_kernel::{config as adl_config, events::EventBus};
@@ -347,6 +349,8 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     info!("[ADL-PERF] housekeeping: {}ms", t5.elapsed().as_millis());
 
     let event_bus = EventBus::default();
+    let part_bus = PartEventBus::new(256);
+    let questions = QuestionService::new(part_bus.clone());
     let t6 = std::time::Instant::now();
     let current_workspace: Option<adl_types::WorkspaceMeta> = db
         .get_state("current_workspace")
@@ -447,6 +451,9 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         shared_http_client: shared_client,
         provider_ops_mutex: tokio::sync::Mutex::new(()),
         loop_cancels: tokio::sync::Mutex::new(std::collections::HashMap::new()),
+        part_bus,
+        questions,
+        sse_port: std::sync::Arc::new(std::sync::atomic::AtomicU16::new(0)),
     })
 }
 
@@ -456,10 +463,21 @@ pub fn start_background_tasks(state: &AppState) {
     let data_dir = state.data_dir.clone();
     let durable_manager = state.durable_manager.clone();
     let config_arc = state.config.clone();
+    let sse_db = state.db.clone();
+    let part_bus = state.part_bus.clone();
+    let questions = state.questions.clone();
+    let sse_port = state.sse_port.clone();
 
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("failed to create background tokio runtime");
         rt.block_on(async move {
+            // 启动 SSE 服务：订阅共享 PartEventBus，向 /event 实时推送会话事件。
+            let sse_bus = crate::sse::SseEventBus::new(sse_db);
+            sse_bus.spawn(part_bus);
+            let port = crate::sse_server::spawn_sse_server(sse_bus, questions).await;
+            sse_port.store(port, std::sync::atomic::Ordering::Relaxed);
+            tracing::info!(port, "SSE HTTP server started");
+
             let recovery_manager = durable_manager;
             let data_dir_watch = data_dir.clone();
 

@@ -1,3 +1,5 @@
+use adl_agent_runtime::part_event_bus::PartEventBus;
+use adl_agent_runtime::question::QuestionService;
 use adl_browser::BrowserManager;
 use adl_kernel::{config::AppConfig, events::EventBus};
 use adl_logging::LogManager;
@@ -9,6 +11,7 @@ use adl_types::WorkspaceMeta;
 use reqwest::Client;
 use std::collections::HashSet;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicU16;
 use std::sync::{Arc, Mutex as StdMutex, RwLock};
 use tokio::sync::Mutex as AsyncMutex;
 
@@ -34,4 +37,12 @@ pub struct AppState {
     pub provider_ops_mutex: AsyncMutex<()>,
     /// Cancellation tokens for active agent loops (session_id → token).
     pub loop_cancels: AsyncMutex<std::collections::HashMap<String, tokio_util::sync::CancellationToken>>,
+    /// Shared PartEventBus for all Agent Loop runs; the SSE server subscribes
+    /// to it so session events reach SSE clients in real time.
+    pub part_bus: PartEventBus,
+    /// Shared QuestionService resolving question.asked events from any loop.
+    pub questions: QuestionService,
+    /// Port of the SSE HTTP server (0 = not started). Arc so the background
+    /// setup thread can store the port without borrowing AppState.
+    pub sse_port: Arc<AtomicU16>,
 }

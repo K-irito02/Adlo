@@ -1,9 +1,7 @@
 use crate::commands::ipc;
 use crate::state::AppState;
 use adl_agent_runtime::loop_executor::{LoopExecutor, TurnConfig, TurnResult};
-use adl_agent_runtime::part_event_bus::PartEventBus;
 use adl_agent_runtime::part_store::PartStore;
-use adl_agent_runtime::question::QuestionService;
 use adl_agent_runtime::ToolRegistry;
 use adl_errors::AppError;
 use adl_model_gateway::stream_adapter::stream_chunks_to_llm_events;
@@ -127,10 +125,13 @@ async fn run_loop(
 
     // 2. executor
     let store: Arc<dyn PartStore> = Arc::new(DbPartStore(state.db.clone()));
-    let bus = PartEventBus::new(256);
-    let questions = QuestionService::new(bus.clone());
     let registry = Arc::new(ToolRegistry::with_builtins());
-    let executor = LoopExecutor::new(bus.clone(), store.clone(), questions, registry);
+    let executor = LoopExecutor::new(
+        state.part_bus.clone(),
+        store.clone(),
+        state.questions.clone(),
+        registry,
+    );
 
     let model_meta = serde_json::json!({ "providerID": provider_id, "id": model_id });
 
@@ -403,12 +404,15 @@ mod tests {
     }
 
     fn test_app_state(db: adl_storage::Database, config: adl_kernel::config::AppConfig) -> AppState {
+        use adl_agent_runtime::part_event_bus::PartEventBus;
+        use adl_agent_runtime::question::QuestionService;
         use adl_kernel::events::EventBus;
         use adl_model_gateway::registry::ProviderRegistry;
         use adl_pty::SessionManager;
         use adl_storage::durable::DurableSessionManager;
         use std::sync::RwLock;
 
+        let part_bus = PartEventBus::new(16);
         AppState {
             data_dir: std::env::temp_dir(),
             db: db.clone(),
@@ -425,6 +429,9 @@ mod tests {
             shared_http_client: Arc::new(reqwest::Client::new()),
             provider_ops_mutex: tokio::sync::Mutex::new(()),
             loop_cancels: tokio::sync::Mutex::new(std::collections::HashMap::new()),
+            part_bus: part_bus.clone(),
+            questions: QuestionService::new(part_bus),
+            sse_port: std::sync::Arc::new(std::sync::atomic::AtomicU16::new(0)),
         }
     }
 
