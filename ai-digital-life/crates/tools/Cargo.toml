@@ -10,6 +10,7 @@ workspace = true
 adl-command = { path = "../command" }
 adl-change-engine = { path = "../change-engine" }
 adl-errors = { path = "../errors" }
+adl-subagent = { path = "../subagent" }
 adl-types = { path = "../types" }
 adl-credential = { path = "../credential" }
 tokio.workspace = true

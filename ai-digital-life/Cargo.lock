@@ -272,8 +272,6 @@ dependencies = [
 name = "adl-subagent"
 version = "0.1.0"
 dependencies = [
- "adl-agent-runtime",
- "adl-conversation",
  "adl-errors",
  "adl-types",
  "serde",
@@ -302,6 +300,7 @@ dependencies = [
  "adl-command",
  "adl-credential",
  "adl-errors",
+ "adl-subagent",
  "adl-types",
  "glob",
  "html2text",

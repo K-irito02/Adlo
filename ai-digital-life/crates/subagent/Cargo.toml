@@ -9,8 +9,6 @@ workspace = true
 [dependencies]
 adl-types = { path = "../types" }
 adl-errors = { path = "../errors" }
-adl-agent-runtime = { path = "../agent-runtime" }
-adl-conversation = { path = "../conversation" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
