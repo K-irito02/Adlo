@@ -3,6 +3,7 @@ import DOMPurify from 'dompurify';
 import { renderIcon } from '../../design-system/icons';
 import { TooltipSimple } from './Tooltip';
 import { useTCopy } from '../i18n/useTCopy';
+import { resolveDemoEntityText } from '../i18n/resolveDemoEntityText';
 import type { CopyDict, CopyKey } from '../i18n';
 
 /* ------------------------------------------------------------------ */
@@ -122,8 +123,8 @@ function WorkspaceItem({ workspace, onSelect, t }: WorkspaceItemProps) {
         }}
       />
       <span className="sidebar-workspace-tab__name">
-        <TooltipSimple content={workspace.name} placement="right">
-          <span>{workspace.name}</span>
+        <TooltipSimple content={resolveDemoEntityText(workspace.name, t)} placement="right">
+          <span>{resolveDemoEntityText(workspace.name, t)}</span>
         </TooltipSimple>
       </span>
       <span
@@ -197,8 +198,8 @@ function SessionItemEl({ session, isActive, onSelect, t, formatT }: SessionItemP
       />
       <span className="sidebar-session-item__content">
         <span className="sidebar-session-item__title">
-          <TooltipSimple content={session.title} placement="right">
-            <span>{session.title}</span>
+          <TooltipSimple content={resolveDemoEntityText(session.title, t)} placement="right">
+            <span>{resolveDemoEntityText(session.title, t)}</span>
           </TooltipSimple>
         </span>
         <span className="sidebar-session-item__time">

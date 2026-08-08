@@ -11,6 +11,7 @@ import type {
   WorkspaceMeta,
 } from '@ai-digital-life/kernel';
 import { useTCopy } from '../i18n/useTCopy';
+import { resolveDemoEntityText } from '../i18n/resolveDemoEntityText';
 import { IconFolderOpen } from '../icons';
 import { TooltipSimple } from '../components/Tooltip';
 import { WorkspaceSplitButton } from '../components/WorkspaceSplitButton';
@@ -104,10 +105,10 @@ const StatusBar = React.memo(function StatusBar({
 
   const workspaceStatusLabel = useMemo(() => {
     if (currentWorkspace) {
-      return currentWorkspace.name;
+      return resolveDemoEntityText(currentWorkspace.name, t);
     }
     return workspaceContextMode === 'global' ? t.conversations : t.workspaceLabel;
-  }, [currentWorkspace, t.conversations, t.workspaceLabel, workspaceContextMode]);
+  }, [currentWorkspace, t, workspaceContextMode]);
 
   const workspaceStatusHint = useMemo(() => {
     if (currentWorkspace) {
@@ -191,14 +192,16 @@ const StatusBar = React.memo(function StatusBar({
                       <button
                         key={workspace.id}
                         type="button"
-                        title={`${workspace.name}\n${workspace.path}`}
+                        title={`${resolveDemoEntityText(workspace.name, t)}\n${workspace.path}`}
                         className={`adl-statusbar__menu-option${currentWorkspace?.id === workspace.id ? ' is-active' : ''}`}
                         onClick={() => {
                           onOpenWorkspace(workspace.path);
                           setOpenMenu(undefined);
                         }}
                       >
-                        <span className="adl-statusbar__menu-option-main">{workspace.name}</span>
+                        <span className="adl-statusbar__menu-option-main">
+                          {resolveDemoEntityText(workspace.name, t)}
+                        </span>
                         <span className="adl-statusbar__menu-option-sub">{workspace.path}</span>
                       </button>
                     ))

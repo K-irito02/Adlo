@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { Locale } from '../i18n';
 import { useTCopy } from '../i18n/useTCopy';
+import { resolveDemoEntityText } from '../i18n/resolveDemoEntityText';
 import { IconArchive, IconPlug, IconSparkles } from '../icons';
 import { buildSidebarViewModel } from '../utils/sidebarViewModel';
 import { useAppStore } from '../stores/slicedStore';
@@ -251,7 +252,7 @@ const LeftSidebar = React.memo(function LeftSidebar({
                       onRename: () => {
                         setSessionToRename({
                           id: sessionItem.session.id,
-                          name: sessionItem.session.title,
+                          name: resolveDemoEntityText(sessionItem.session.title, t),
                         });
                         setRenameDialogOpen(true);
                       },

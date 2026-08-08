@@ -2,6 +2,7 @@ import React from 'react';
 import type {
   ConversationMessageRecord,
   ConversationBlock,
+  ApprovalConversationBlock,
   PlanConversationBlock,
   ToolCallConversationBlock,
   PatchSummaryConversationBlock,
@@ -17,6 +18,7 @@ import { PlanCard, type PlanStep } from '@components/agent/PlanCard';
 import { StepBlock } from '@components/agent/StepBlock';
 import { ExecutionSummaryCard } from '@components/agent/ExecutionSummary';
 import { CommandOutputBlock } from '@components/terminal/CommandOutputBlock';
+import { ApprovalInlineCard } from '../../regions/center-pane/ApprovalInlineCard';
 
 function renderPlanBlock(block: PlanConversationBlock, t: CopyDict): React.ReactElement {
   const steps: PlanStep[] = block.items.map((item) => ({
@@ -111,6 +113,27 @@ function renderFinalSummaryBlock(block: FinalSummaryConversationBlock): React.Re
   );
 }
 
+function renderApprovalBlock(block: ApprovalConversationBlock): React.ReactElement {
+  return (
+    <ApprovalInlineCard
+      key={block.id}
+      approval={{
+        id: block.id,
+        taskId: block.id,
+        title: block.title,
+        description: block.summary,
+        riskLevel: block.riskLevel,
+        impact: [],
+        reversible: true,
+        createdAt: Date.now(),
+      }}
+      onDecide={() => {
+        /* 历史消息只读：审批决策由 TaskCenter 面板处理，此处不改变会话状态。 */
+      }}
+    />
+  );
+}
+
 function renderMarkdownBlock(block: MarkdownConversationBlock): React.ReactElement {
   return (
     <section key={block.id} className="adl-block adl-block--markdown">
@@ -144,6 +167,8 @@ function renderMessageBlock(
       return renderFinalSummaryBlock(block);
     case 'markdown':
       return renderMarkdownBlock(block);
+    case 'approval':
+      return renderApprovalBlock(block);
     default:
       return null;
   }

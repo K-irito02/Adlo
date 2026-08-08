@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
+import { resolveDemoEntityText } from '@i18n/resolveDemoEntityText';
 import { useAppStore } from '@stores/slicedStore';
 import {
   IconRefreshCw,
@@ -136,10 +137,10 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
           onClick={handleNameClick}
           onContextMenu={handleNameContextMenu}
           onKeyDown={handleNameKeyDown}
-          aria-label={workspace.name}
+          aria-label={resolveDemoEntityText(workspace.name, t)}
         >
           <span className="adl-multitree-entry__name" title={workspace.path}>
-            {workspace.name}
+            {resolveDemoEntityText(workspace.name, t)}
           </span>
 
           <span className="adl-multitree-entry__count">{changeCount}</span>

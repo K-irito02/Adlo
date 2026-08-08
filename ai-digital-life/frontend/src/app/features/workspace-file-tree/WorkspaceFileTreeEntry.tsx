@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
+import { resolveDemoEntityText } from '@i18n/resolveDemoEntityText';
 import {
   IconRefreshCw,
   IconMoreVertical,
@@ -146,8 +147,8 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
 
   const handleCopyRelativePath = useCallback(async () => {
     closeMenu();
-    await copyToClipboard(workspace.name);
-  }, [workspace.name, closeMenu, copyToClipboard]);
+    await copyToClipboard(resolveDemoEntityText(workspace.name, t));
+  }, [workspace.name, t, closeMenu, copyToClipboard]);
 
   const handleRevealInFileManager = useCallback(async () => {
     closeMenu();
@@ -214,10 +215,10 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
           onClick={handleNameClick}
           onContextMenu={handleNameContextMenu}
           onKeyDown={handleNameKeyDown}
-          aria-label={workspace.name}
+          aria-label={resolveDemoEntityText(workspace.name, t)}
         >
           <span className="adl-multitree-entry__name" title={workspace.path}>
-            {workspace.name}
+            {resolveDemoEntityText(workspace.name, t)}
           </span>
 
           <div className="adl-multitree-entry__actions">

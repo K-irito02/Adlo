@@ -199,6 +199,7 @@ export function WorkspaceSettings() {
               emptyText={t.priorityListEmpty}
               onRemove={(id) => handleRemove(id, 'priority')}
               removeLabel={t.removeWorkspace}
+              t={t}
             />
 
             <SortableWorkspaceList
@@ -210,6 +211,7 @@ export function WorkspaceSettings() {
               emptyText={t.deferredListEmpty}
               onRemove={(id) => handleRemove(id, 'deferred')}
               removeLabel={t.removeWorkspace}
+              t={t}
             />
 
             <SortableWorkspaceList
@@ -219,6 +221,7 @@ export function WorkspaceSettings() {
               items={naturalWorkspaces}
               emptyText={t.workspaceTagListEmpty}
               removeLabel={t.removeWorkspace}
+              t={t}
             />
           </div>
         </div>

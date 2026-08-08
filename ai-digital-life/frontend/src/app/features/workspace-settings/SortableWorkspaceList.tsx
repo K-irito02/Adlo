@@ -4,6 +4,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { IconMenu, IconClose } from '../../icons';
 import { IconCircleHelp } from '../../icons/status';
 import { HintCardTrigger } from '../../components/HintCardTrigger';
+import { resolveDemoEntityText } from '../../i18n/resolveDemoEntityText';
+import type { CopyDict } from '../../i18n';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
 
 interface SortableItemProps {
@@ -11,12 +13,14 @@ interface SortableItemProps {
   showActions: boolean;
   onRemove?: (id: string) => void;
   removeLabel: string;
+  t?: CopyDict;
 }
 
-function SortableItem({ workspace, showActions, onRemove, removeLabel }: SortableItemProps) {
+function SortableItem({ workspace, showActions, onRemove, removeLabel, t }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: workspace.id,
   });
+  const copy = t ?? ({} as CopyDict);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -37,8 +41,8 @@ function SortableItem({ workspace, showActions, onRemove, removeLabel }: Sortabl
       <span className="adl-sortable-handle" aria-hidden="true">
         <IconMenu size={14} />
       </span>
-      <span className="adl-sortable-label" title={workspace.name}>
-        {workspace.name}
+      <span className="adl-sortable-label" title={resolveDemoEntityText(workspace.name, copy)}>
+        {resolveDemoEntityText(workspace.name, copy)}
       </span>
       {showActions && (
         <div className="adl-sortable-actions">
@@ -49,7 +53,7 @@ function SortableItem({ workspace, showActions, onRemove, removeLabel }: Sortabl
               e.stopPropagation();
               onRemove?.(workspace.id);
             }}
-            aria-label={removeLabel.replace('{name}', workspace.name)}
+            aria-label={removeLabel.replace('{name}', resolveDemoEntityText(workspace.name, copy))}
           >
             <IconClose size={14} />
           </button>
@@ -69,6 +73,8 @@ export interface SortableWorkspaceListProps {
   onRemove?: (id: string) => void;
   /** i18n labels passed from parent to avoid duplicate useTCopy calls */
   removeLabel: string;
+  /** i18n copy dict passed from parent; demo entity markers resolve only when provided */
+  t?: CopyDict;
 }
 
 export function SortableWorkspaceList({
@@ -80,6 +86,7 @@ export function SortableWorkspaceList({
   emptyText,
   onRemove,
   removeLabel,
+  t,
 }: SortableWorkspaceListProps) {
   const { setNodeRef } = useDroppable({ id: `list-${kind}` });
 
@@ -114,6 +121,7 @@ export function SortableWorkspaceList({
                 showActions={showActions}
                 onRemove={onRemove}
                 removeLabel={removeLabel}
+                t={t}
               />
             ))
           )}

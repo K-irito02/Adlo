@@ -1,5 +1,6 @@
 import type {
   AgentRunDetail,
+  ApprovalConversationBlock,
   CommandOutputConversationBlock,
   ConversationBlock,
   ConversationDetail,
@@ -20,6 +21,7 @@ import type {
 
 export type {
   AgentRunDetail,
+  ApprovalConversationBlock,
   CommandOutputConversationBlock,
   ConversationBlock,
   ConversationDetail,
