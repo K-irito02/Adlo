@@ -4,6 +4,7 @@
 
 pub mod adapter;
 pub mod http_helper;
+pub mod llm_event;
 pub mod registry;
 pub use adl_types::config::ModelDefinition;
 pub use registry::{ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry};
