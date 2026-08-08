@@ -94,3 +94,19 @@ describe('MessageStream', () => {
     expect(container.firstChild).toBeNull();
   });
 });
+
+import { getDemoSessionDetail } from '../../mock/demo/demo-conversation';
+import { DEMO_SESSION_IDS } from '../../mock/demo/demo-constants';
+
+it('renders demo session messages and plan/execution blocks', () => {
+  const detail = getDemoSessionDetail(DEMO_SESSION_IDS.complete);
+  expect(detail).toBeTruthy();
+  const messages = detail?.messages ?? [];
+  render(
+    <TestProvider>
+      <MessageStream messages={messages} />
+    </TestProvider>,
+  );
+  expect(screen.getByText(/代码修改执行计划/)).toBeTruthy();
+  expect(screen.getByText(/已完成 main.tsx 的注释添加/)).toBeTruthy();
+});

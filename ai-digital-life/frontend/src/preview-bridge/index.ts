@@ -1,6 +1,7 @@
 import type { AudioStatePayload, PageMeta } from '../shared/ipc/browser';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from '../mock-bridge';
+import { withDemoMode } from '../mock/demo/demo-mode';
 import { createPtyBridge } from './preview-pty-bridge';
 import { loadRecentWorkspaces } from './preview-storage';
 import type { PreviewContext } from './preview-context';
@@ -137,5 +138,5 @@ export function setupPreviewBridge(): void {
     customAgent: warnMockBridge('customAgent', mockDigitalLifeBridge.customAgent),
   };
 
-  (window as { digitalLife: DigitalLifeBridge }).digitalLife = previewBridge;
+  (window as { digitalLife: DigitalLifeBridge }).digitalLife = withDemoMode(previewBridge);
 }
