@@ -173,7 +173,18 @@ async fn run_loop(
             break;
         }
         let messages = build_llm_messages(&input.prompt);
-        let stream = gateway.chat_stream_for_model(&provider_id, &model_id, messages).await?;
+        let stream = match gateway.chat_stream_for_model(&provider_id, &model_id, messages).await {
+            Ok(s) => s,
+            Err(e) => {
+                // Finalize the assistant message so a failed stream open doesn't
+                // leave a ghost assistant row with time_completed: None / model: None.
+                let mut msg = assistant_msg.clone();
+                msg.time_completed = Some(adl_types::now_ms());
+                msg.model = Some(model_meta.clone());
+                store.save_message(&msg).await?;
+                return Err(e);
+            },
+        };
         let llm_events = stream_chunks_to_llm_events(stream);
         let result = executor
             .run_turn(
