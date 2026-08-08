@@ -1,4 +1,5 @@
 pub mod agent;
+pub mod agent_loop;
 pub mod agent_pipeline;
 pub(crate) mod agent_pipeline_stream;
 pub mod agent_pipeline_types;
