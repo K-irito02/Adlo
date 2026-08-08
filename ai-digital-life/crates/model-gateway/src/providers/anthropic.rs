@@ -288,14 +288,31 @@ impl ProviderAdapter for AnthropicProvider {
             .json(body);
         let response = send_stream_request(&builder, "Anthropic").await?;
 
-        parse_sse_stream(response, |json| match json["type"].as_str() {
-            Some("content_block_delta") => json["delta"]["text"]
-                .as_str()
-                .map(|s| SseEvent::Delta(s.to_string()))
-                .unwrap_or(SseEvent::Skip),
-            Some("message_stop") => SseEvent::Done,
-            _ => SseEvent::Skip,
-        })
+        parse_sse_stream(response, extract_anthropic_event)
+    }
+}
+
+/// Extract an [`SseEvent`] from an Anthropic Messages API stream JSON value.
+/// `thinking_delta` maps to [`SseEvent::Reasoning`], `text_delta` to
+/// [`SseEvent::Delta`], and `message_stop` to [`SseEvent::Done`].
+fn extract_anthropic_event(json: &serde_json::Value) -> SseEvent {
+    match json["type"].as_str() {
+        Some("content_block_delta") => {
+            let delta_type = json["delta"]["type"].as_str().unwrap_or("");
+            match delta_type {
+                "thinking_delta" => json["delta"]["thinking"]
+                    .as_str()
+                    .map(|s| SseEvent::Reasoning(s.to_string()))
+                    .unwrap_or(SseEvent::Skip),
+                "text_delta" => json["delta"]["text"]
+                    .as_str()
+                    .map(|s| SseEvent::Delta(s.to_string()))
+                    .unwrap_or(SseEvent::Skip),
+                _ => SseEvent::Skip,
+            }
+        },
+        Some("message_stop") => SseEvent::Done,
+        _ => SseEvent::Skip,
     }
 }
 
@@ -369,5 +386,35 @@ mod tests {
             Ok(_) => false,
         };
         assert!(!is_stub, "chat_stream should not return 'not yet implemented'");
+    }
+
+    #[test]
+    fn extract_anthropic_thinking_delta() {
+        let json = serde_json::json!({
+            "type": "content_block_delta",
+            "delta": {"type": "thinking_delta", "thinking": "ponder"}
+        });
+        match extract_anthropic_event(&json) {
+            SseEvent::Reasoning(t) => assert_eq!(t, "ponder"),
+            other => panic!("expected Reasoning, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn extract_anthropic_text_delta() {
+        let json = serde_json::json!({
+            "type": "content_block_delta",
+            "delta": {"type": "text_delta", "text": "hello"}
+        });
+        match extract_anthropic_event(&json) {
+            SseEvent::Delta(t) => assert_eq!(t, "hello"),
+            other => panic!("expected Delta, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn extract_anthropic_message_stop() {
+        let json = serde_json::json!({"type": "message_stop"});
+        assert!(matches!(extract_anthropic_event(&json), SseEvent::Done));
     }
 }

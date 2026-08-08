@@ -286,15 +286,32 @@ impl ProviderAdapter for GoogleProvider {
             .json(body);
         let response = send_stream_request(&builder, "Google").await?;
 
-        parse_sse_stream(response, |json| {
-            json["candidates"]
-                .as_array()
-                .and_then(|c| c.first())
-                .and_then(|c| c["content"]["parts"][0]["text"].as_str())
-                .map(|s| SseEvent::Delta(s.to_string()))
-                .unwrap_or(SseEvent::Skip)
-        })
+        parse_sse_stream(response, extract_google_delta)
     }
+}
+
+/// Extract an [`SseEvent`] from a Google streamGenerateContent JSON value.
+/// The first non-empty part of `candidates[0].content.parts` wins; a part
+/// flagged with `"thought": true` maps to [`SseEvent::Reasoning`], otherwise
+/// its text maps to [`SseEvent::Delta`].
+fn extract_google_delta(json: &serde_json::Value) -> SseEvent {
+    let parts = &json["candidates"][0]["content"]["parts"];
+    let parts = match parts.as_array() {
+        Some(p) => p,
+        None => return SseEvent::Skip,
+    };
+    for part in parts {
+        let text = part["text"].as_str().unwrap_or("");
+        let is_thought = part["thought"].as_bool().unwrap_or(false);
+        if text.is_empty() {
+            continue;
+        }
+        if is_thought {
+            return SseEvent::Reasoning(text.to_string());
+        }
+        return SseEvent::Delta(text.to_string());
+    }
+    SseEvent::Skip
 }
 
 /// Classify a `reqwest::Error` into AppError variants. Avoids embedding full
@@ -391,5 +408,30 @@ mod tests {
             Ok(_) => panic!("expected Err"),
         };
         assert!(!err.contains("not yet implemented"));
+    }
+
+    #[test]
+    fn extract_google_thought_part() {
+        let json = serde_json::json!({
+            "candidates": [{"content": {"parts": [
+                {"text": "inner monologue", "thought": true},
+                {"text": "visible answer"}
+            ]}}]
+        });
+        match extract_google_delta(&json) {
+            SseEvent::Reasoning(t) => assert_eq!(t, "inner monologue"),
+            other => panic!("expected Reasoning, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn extract_google_text_part() {
+        let json = serde_json::json!({
+            "candidates": [{"content": {"parts": [{"text": "answer"}]}}]
+        });
+        match extract_google_delta(&json) {
+            SseEvent::Delta(t) => assert_eq!(t, "answer"),
+            other => panic!("expected Delta, got {other:?}"),
+        }
     }
 }
