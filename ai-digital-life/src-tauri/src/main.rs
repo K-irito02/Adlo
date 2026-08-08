@@ -8,6 +8,7 @@ use tracing::info;
 mod commands;
 mod error;
 mod setup;
+mod sse;
 mod state;
 mod tauri_webview_handle;
 mod terminal;
