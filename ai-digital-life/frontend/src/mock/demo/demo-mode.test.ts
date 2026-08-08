@@ -204,4 +204,115 @@ describe('withDemoMode', () => {
     expect(spyArchive).not.toHaveBeenCalled();
     expect(spyDelete).not.toHaveBeenCalled();
   });
+
+  it('forwards model and activity subscriptions to the base bridge while inactive', () => {
+    const baseBridge = makeBaseBridge();
+    const modelSpy = vi.spyOn(baseBridge, 'subscribeModelStream');
+    const activitySpy = vi.spyOn(baseBridge, 'subscribeRunActivity');
+    const bridge = withDemoMode(baseBridge);
+
+    const modelListener = vi.fn();
+    const activityListener = vi.fn();
+    const unsubModel = bridge.subscribeModelStream(modelListener);
+    const unsubActivity = bridge.subscribeRunActivity(activityListener);
+
+    expect(modelSpy).toHaveBeenCalledTimes(1);
+    expect(activitySpy).toHaveBeenCalledTimes(1);
+
+    unsubModel();
+    unsubActivity();
+  });
+
+  it('blocks workspace write operations while demo is active', async () => {
+    const baseBridge = makeBaseBridge();
+    const createFileSpy = vi.spyOn(baseBridge.workspace, 'createFile');
+    const deleteFileSpy = vi.spyOn(baseBridge.workspace, 'deleteFile');
+    const bridge = withDemoMode(baseBridge);
+    await bridge.workspace.open(DEMO_WORKSPACE_PATH);
+
+    const created = await bridge.workspace.createFile('demo://x.txt', 'hi');
+    expect(created.ok).toBe(false);
+    const deleted = await bridge.workspace.deleteFile('demo://README.md');
+    expect(deleted.ok).toBe(false);
+
+    expect(createFileSpy).not.toHaveBeenCalled();
+    expect(deleteFileSpy).not.toHaveBeenCalled();
+  });
+
+  it('passes workspace write operations through when inactive', async () => {
+    const baseBridge = makeBaseBridge();
+    const createFileSpy = vi.spyOn(baseBridge.workspace, 'createFile');
+    const bridge = withDemoMode(baseBridge);
+    await bridge.workspace.createFile('real.txt', 'hi');
+    expect(createFileSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('deletes a demo session permanently while demo is active', async () => {
+    const bridge = withDemoMode(makeBaseBridge());
+    await bridge.workspace.open(DEMO_WORKSPACE_PATH);
+    const before = await bridge.conversation.listSessions();
+    expect(before.ok && before.data.some((s) => s.id === DEMO_SESSION_IDS.tools)).toBe(true);
+
+    await bridge.conversation.deleteSession(DEMO_SESSION_IDS.tools);
+    const after = await bridge.conversation.listSessions();
+    expect(after.ok && after.data.some((s) => s.id === DEMO_SESSION_IDS.tools)).toBe(false);
+  });
+
+  it('creates a demo session while demo is active and routes it to the demo list', async () => {
+    const baseBridge = makeBaseBridge();
+    const createSpy = vi.spyOn(baseBridge.conversation, 'createSession');
+    const bridge = withDemoMode(baseBridge);
+    await bridge.workspace.open(DEMO_WORKSPACE_PATH);
+
+    const created = await bridge.conversation.createSession('新演示会话');
+    expect(created.ok && created.data.id).toBeTruthy();
+    expect(createSpy).not.toHaveBeenCalled();
+    const createdId = created.ok ? created.data.id : '';
+
+    const sessions = await bridge.conversation.listSessions();
+    expect(sessions.ok && sessions.data.some((s) => s.id === createdId)).toBe(true);
+  });
+
+  it('intercepts renameSession for demo sessions while demo is active', async () => {
+    const baseBridge = makeBaseBridge();
+    const renameSpy = vi.spyOn(baseBridge.conversation, 'renameSession');
+    const bridge = withDemoMode(baseBridge);
+    await bridge.workspace.open(DEMO_WORKSPACE_PATH);
+
+    const renamed = await bridge.conversation.renameSession({
+      sessionId: DEMO_SESSION_IDS.plan,
+      title: '重命名后的计划会话',
+    });
+    expect(renamed.ok && renamed.data.title).toBe('重命名后的计划会话');
+    expect(renameSpy).not.toHaveBeenCalled();
+  });
+
+  it('passes renameSession through for demo sessions while inactive', async () => {
+    const baseBridge = makeBaseBridge();
+    const renameSpy = vi.spyOn(baseBridge.conversation, 'renameSession');
+    const bridge = withDemoMode(baseBridge);
+    await bridge.conversation.renameSession({ sessionId: DEMO_SESSION_IDS.plan, title: 'x' });
+    expect(renameSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists demo session reordering while demo is active without touching the base bridge', async () => {
+    const baseBridge = makeBaseBridge();
+    const reorderSpy = vi.spyOn(baseBridge.conversation, 'reorderSessions');
+    const bridge = withDemoMode(baseBridge);
+    await bridge.workspace.open(DEMO_WORKSPACE_PATH);
+
+    const sessions = await bridge.conversation.listSessions();
+    const ids = sessions.ok ? sessions.data.map((s) => s.id) : [];
+    const reversed = [...ids].reverse();
+
+    await bridge.conversation.reorderSessions({
+      workspaceId: DEMO_WORKSPACE_PATH,
+      pinnedIds: reversed,
+      unpinnedIds: [],
+    });
+
+    const after = await bridge.conversation.listSessions();
+    expect(after.ok && after.data.map((s) => s.id)).toEqual(reversed);
+    expect(reorderSpy).not.toHaveBeenCalled();
+  });
 });

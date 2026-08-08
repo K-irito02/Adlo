@@ -5,9 +5,10 @@ import { useTCopy } from '../../i18n/useTCopy';
 export interface ApprovalInlineCardProps {
   approval: ApprovalRequestSummary;
   onDecide: (id: string, decision: 'approved' | 'rejected') => void;
+  readOnly?: boolean;
 }
 
-export function ApprovalInlineCard({ approval, onDecide }: ApprovalInlineCardProps) {
+export function ApprovalInlineCard({ approval, onDecide, readOnly = false }: ApprovalInlineCardProps) {
   const { t } = useTCopy();
   return (
     <article className="adl-inline-approval" role="alert">
@@ -29,6 +30,7 @@ export function ApprovalInlineCard({ approval, onDecide }: ApprovalInlineCardPro
           type="button"
           className="adl-btn adl-btn--primary adl-btn--sm"
           onClick={() => onDecide(approval.id, 'approved')}
+          disabled={readOnly}
         >
           {t.approve}
         </button>
@@ -36,6 +38,7 @@ export function ApprovalInlineCard({ approval, onDecide }: ApprovalInlineCardPro
           type="button"
           className="adl-btn adl-btn--ghost adl-btn--sm"
           onClick={() => onDecide(approval.id, 'rejected')}
+          disabled={readOnly}
         >
           {t.rejectApproval}
         </button>

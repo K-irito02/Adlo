@@ -13,31 +13,60 @@ import {
   DEMO_WORKSPACE_NAME_MARKER,
   DEMO_WORKSPACE_PATH,
 } from './demo-constants';
-
-function demoNode(path: string): WorkspaceTreeNode {
-  const name = path.split('/').pop() ?? path;
-  return { path, name, kind: 'file', children: [] };
-}
+import { DEMO_RUN_IDS } from './demo-run-activity';
 
 export function buildDemoTree(): WorkspaceTreeNode[] {
   const docs = Object.keys(DEMO_DOCUMENTS);
-  const files = docs.map(demoNode);
-  const dirSet = new Set<string>();
+  type Node = WorkspaceTreeNode;
+  const rootNodes: Node[] = [];
+  const dirs = new Map<string, Node>();
+
+  function ensureDir(path: string): Node {
+    const cached = dirs.get(path);
+    if (cached) {
+      return cached;
+    }
+    const name = path.split('/').pop() ?? path;
+    const node: Node = { path, name, kind: 'directory', children: [] };
+    dirs.set(path, node);
+    const parent = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+    if (parent) {
+      ensureDir(parent).children.push(node);
+    } else {
+      rootNodes.push(node);
+    }
+    return node;
+  }
+
   for (const doc of docs) {
     const parts = doc.split('/');
     let acc = '';
     for (let i = 0; i < parts.length - 1; i += 1) {
       acc = acc ? `${acc}/${parts[i]}` : parts[i];
-      dirSet.add(acc);
+      ensureDir(acc);
+    }
+    const parent = doc.includes('/') ? doc.slice(0, doc.lastIndexOf('/')) : '';
+    const name = doc.split('/').pop() ?? doc;
+    const fileNode: Node = { path: doc, name, kind: 'file', children: [] };
+    if (parent) {
+      ensureDir(parent).children.push(fileNode);
+    } else {
+      rootNodes.push(fileNode);
     }
   }
-  const dirs = [...dirSet].sort().map((path) => {
-    const name = path.split('/').pop() ?? path;
-    return { path, name, kind: 'directory' as const, children: [] };
-  });
-  return [...dirs, ...files].sort((a, b) =>
-    a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'directory' ? -1 : 1,
-  );
+
+  const sort = (nodes: Node[]) => {
+    nodes.sort(
+      (a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name),
+    );
+    for (const node of nodes) {
+      if (node.children.length) {
+        sort(node.children);
+      }
+    }
+  };
+  sort(rootNodes);
+  return rootNodes;
 }
 
 export function buildDemoWorkspaceMeta(): WorkspaceMeta {
@@ -85,25 +114,35 @@ export function buildDemoGitSnapshot(): GitSnapshot {
 }
 
 export function buildDemoChangePreview(relativePath: string): WorkspaceChangePreview {
-  const currentContent = DEMO_DOCUMENTS[relativePath] ?? '';
-  const isModified = relativePath === 'frontend/src/main.tsx';
+  const normalizedPath = relativePath.replace(/\\/g, '/');
+  const snapshot = buildDemoGitSnapshot();
+  const status = snapshot.conflicts.includes(normalizedPath)
+    ? 'conflicted'
+    : snapshot.untracked.includes(normalizedPath)
+      ? 'untracked'
+      : snapshot.unstaged.includes(normalizedPath)
+        ? 'modified'
+        : 'staged';
+  const currentContent = DEMO_DOCUMENTS[normalizedPath] ?? '';
+  const currentExists = Boolean(currentContent);
+  const baseExists = status !== 'untracked';
   return {
-    path: relativePath,
-    changeKind: currentContent ? 'modified' : 'added',
-    status: isModified ? 'modified' : 'untracked',
-    baseExists: isModified,
-    currentExists: Boolean(currentContent),
-    baseContent: isModified ? `import { App } from './app/App';\n// (old)\n` : '',
+    path: normalizedPath,
+    changeKind: !baseExists ? 'added' : !currentExists ? 'deleted' : 'modified',
+    status,
+    baseExists,
+    currentExists,
+    baseContent: baseExists ? `// mock HEAD content for ${normalizedPath}\n` : '',
     currentContent,
   };
 }
 
-function demoPatchSet(sessionId: string, runId: string): PatchSet {
+function demoPatchSet(patchSetId: string, sessionId: string, runId: string): PatchSet {
   const relativePath = 'frontend/src/main.tsx';
   const before = DEMO_DOCUMENTS[relativePath] ?? '';
   const after = `// AI Digital Life\n${before}`;
   return {
-    id: `patchset-demo-${runId}`,
+    id: patchSetId,
     workspaceId: DEMO_WORKSPACE_ID,
     sessionId,
     runId,
@@ -115,7 +154,7 @@ function demoPatchSet(sessionId: string, runId: string): PatchSet {
     filePatches: [
       {
         id: `filepatch-demo-${runId}`,
-        patchSetId: `patchset-demo-${runId}`,
+        patchSetId,
         relativePath,
         beforeContent: before,
         afterContent: after,
@@ -123,7 +162,7 @@ function demoPatchSet(sessionId: string, runId: string): PatchSet {
           {
             id: `hunk-demo-${runId}`,
             filePatchId: `filepatch-demo-${runId}`,
-            patchSetId: `patchset-demo-${runId}`,
+            patchSetId,
             relativePath,
             oldStart: 1,
             oldLines: before.split(/\r?\n/).length,
@@ -141,15 +180,15 @@ function demoPatchSet(sessionId: string, runId: string): PatchSet {
 }
 
 export function buildDemoPatchSet(sessionId: string, runId: string): PatchSet {
-  return demoPatchSet(sessionId, runId);
+  return demoPatchSet(`patchset-demo-${runId}`, sessionId, runId);
 }
 
 export function getDemoPatchSet(patchSetId: string): PatchSet | undefined {
   if (patchSetId === 'patchset-demo-complete') {
-    return demoPatchSet('demo-session-complete', 'complete');
+    return demoPatchSet('patchset-demo-complete', 'demo-session-complete', DEMO_RUN_IDS.complete);
   }
   if (patchSetId === 'patchset-demo-plan') {
-    return demoPatchSet('demo-session-plan', 'plan');
+    return demoPatchSet('patchset-demo-plan', 'demo-session-plan', DEMO_RUN_IDS.plan);
   }
   return undefined;
 }

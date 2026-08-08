@@ -283,6 +283,18 @@ const demoRunDetails = new Map<string, AgentRunDetail>([
   ],
 ]);
 
+const STATIC_RUN_DETAILS = new Map<string, AgentRunDetail>();
+for (const [runId, detail] of demoRunDetails) {
+  STATIC_RUN_DETAILS.set(runId, detail);
+}
+
+function seedStaticRunDetails(target: Map<string, AgentRunDetail>): void {
+  target.clear();
+  for (const [runId, detail] of STATIC_RUN_DETAILS) {
+    target.set(runId, detail);
+  }
+}
+
 export function getDemoSessions(): ConversationSessionRecord[] {
   return demoSessions;
 }
@@ -320,7 +332,10 @@ export function appendDemoAssistantMessage(
   sessionId: string,
   message: ConversationMessageRecord,
 ): void {
-  const list = messagesBySession.get(sessionId) ?? [];
+  const list = messagesBySession.get(sessionId);
+  if (!list) {
+    return;
+  }
   list.push(message);
   messagesBySession.set(sessionId, list);
   const session = demoSessions.find((s) => s.id === sessionId);
@@ -335,43 +350,51 @@ export function appendDemoAssistantMessage(
 export function buildDemoSendResult(
   sessionId: string,
   content: string,
+  runId?: string,
 ): ConversationSendResult {
-  const session = demoSessions.find((s) => s.id === sessionId)!;
-  const runId = `run-demo-${Date.now()}`;
+  const session = demoSessions.find((s) => s.id === sessionId);
+  if (!session) {
+    throw new Error(`buildDemoSendResult: unknown demo session ${sessionId}`);
+  }
+  const resolvedRunId = runId ?? `run-demo-${Date.now()}`;
+  const now = Date.now();
   const userMessage: ConversationMessageRecord = {
-    id: `demo-msg-user-${Date.now()}`,
+    id: `demo-msg-user-${now}`,
     sessionId,
     role: 'user',
     content,
     blocks: [],
-    createdAt: Date.now(),
+    createdAt: now,
   };
   const assistantMessage: ConversationMessageRecord = {
-    id: `demo-msg-assistant-${Date.now()}`,
+    id: `demo-msg-assistant-${now}`,
     sessionId,
     role: 'assistant',
     content: '已生成演示回复。',
-    blocks: [{ id: `demo-block-md-${Date.now()}`, type: 'markdown', text: '这是流式模拟生成的演示回复。' }],
-    runId,
-    createdAt: Date.now(),
+    blocks: [{ id: `demo-block-md-${now}`, type: 'markdown', text: '这是流式模拟生成的演示回复。' }],
+    runId: resolvedRunId,
+    createdAt: now,
   };
   const runDetail: AgentRunDetail = {
     run: {
-      id: runId,
+      id: resolvedRunId,
       workspaceId: DEMO_WORKSPACE_ID,
       sessionId,
       prompt: content,
       scenario: 'chat',
       status: 'succeeded',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      completedAt: Date.now(),
+      createdAt: now,
+      updatedAt: now,
+      completedAt: now,
     },
     steps: [],
   };
-  demoRunDetails.set(runId, runDetail);
-  session.updatedAt = Date.now();
-  session.lastMessageAt = Date.now();
+  demoRunDetails.set(resolvedRunId, runDetail);
+  const list = messagesBySession.get(sessionId) ?? [];
+  list.push(userMessage);
+  messagesBySession.set(sessionId, list);
+  session.updatedAt = now;
+  session.lastMessageAt = now;
   return {
     session,
     userMessage,
@@ -379,6 +402,44 @@ export function buildDemoSendResult(
     runDetail,
     patchSet: undefined,
   };
+}
+
+export function removeDemoSession(sessionId: string): void {
+  const index = demoSessions.findIndex((s) => s.id === sessionId);
+  if (index >= 0) {
+    demoSessions.splice(index, 1);
+    messagesBySession.delete(sessionId);
+    for (const [runId, detail] of demoRunDetails) {
+      if (detail.run.sessionId === sessionId) {
+        demoRunDetails.delete(runId);
+      }
+    }
+  }
+}
+
+export function createDemoSession(
+  title: string,
+): ConversationSessionRecord {
+  const now = Date.now();
+  const record: ConversationSessionRecord = {
+    id: `demo-session-${now}`,
+    workspaceId: DEMO_WORKSPACE_ID,
+    title,
+    status: 'active',
+    isPinned: false,
+    pinnedOrder: 0,
+    unpinnedOrder: demoSessions.length,
+    manualUnread: false,
+    lastReadAt: now,
+    archivedAt: undefined,
+    titleUpdatedAt: now,
+    createdAt: now,
+    updatedAt: now,
+    lastMessageAt: now,
+  };
+  demoSessions.push(record);
+  messagesBySession.set(record.id, []);
+  return record;
 }
 
 export function resetDemoConversation(): void {
@@ -393,4 +454,5 @@ export function resetDemoConversation(): void {
     { ...planSession },
     { ...toolsSession },
   );
+  seedStaticRunDetails(demoRunDetails);
 }

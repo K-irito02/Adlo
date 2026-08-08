@@ -20,7 +20,6 @@ function SortableItem({ workspace, showActions, onRemove, removeLabel, t }: Sort
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: workspace.id,
   });
-  const copy = t ?? ({} as CopyDict);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -41,8 +40,8 @@ function SortableItem({ workspace, showActions, onRemove, removeLabel, t }: Sort
       <span className="adl-sortable-handle" aria-hidden="true">
         <IconMenu size={14} />
       </span>
-      <span className="adl-sortable-label" title={resolveDemoEntityText(workspace.name, copy)}>
-        {resolveDemoEntityText(workspace.name, copy)}
+      <span className="adl-sortable-label" title={resolveDemoEntityText(workspace.name, t)}>
+        {resolveDemoEntityText(workspace.name, t)}
       </span>
       {showActions && (
         <div className="adl-sortable-actions">
@@ -53,7 +52,7 @@ function SortableItem({ workspace, showActions, onRemove, removeLabel, t }: Sort
               e.stopPropagation();
               onRemove?.(workspace.id);
             }}
-            aria-label={removeLabel.replace('{name}', resolveDemoEntityText(workspace.name, copy))}
+            aria-label={removeLabel.replace('{name}', resolveDemoEntityText(workspace.name, t))}
           >
             <IconClose size={14} />
           </button>

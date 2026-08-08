@@ -5,8 +5,10 @@ import type {
   DigitalLifeRunActivityEventV1,
 } from '@ai-digital-life/kernel';
 import { DEMO_SESSION_IDS } from './demo-constants';
-import { appendLiveRunActivity } from './demo-run-activity';
-import { appendDemoUserMessage, appendDemoAssistantMessage, buildDemoSendResult } from './demo-conversation';
+import { appendLiveRunActivity, resetLiveRunActivity } from './demo-run-activity';
+import { appendDemoAssistantMessage, buildDemoSendResult } from './demo-conversation';
+
+const DEMO_REPLY_TEXT = '这是一个流式模拟的演示回复，用于观察逐字输出效果。';
 
 export interface DemoStreamSimulator {
   sendMessage(input: {
@@ -15,6 +17,7 @@ export interface DemoStreamSimulator {
   }): Promise<ConversationSendResult>;
   cancelMessage(runId: string): Promise<AgentRunDetail | undefined>;
   cancelActiveStream(): void;
+  reset(): void;
 }
 
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
@@ -63,7 +66,6 @@ export function createDemoStreamSimulator(options: {
 
   return {
     sendMessage: async ({ sessionId, content }) => {
-      appendDemoUserMessage(sessionId, content);
       const runId = `run-demo-${Date.now()}`;
       activeRunIds.add(runId);
 
@@ -77,22 +79,42 @@ export function createDemoStreamSimulator(options: {
         emitModel({ v: 1, runId, seq, ...e } as DigitalLifeModelStreamEventV1);
       };
 
-      const result = buildDemoSendResult(sessionId, content);
+      const result = buildDemoSendResult(sessionId, content, runId);
       const runDetail = result.runDetail;
-      const finalRunId = runDetail.run.id;
 
-      const finalize = () => {
-        emitA({ type: 'run-done', status: 'succeeded' });
-        appendLiveRunActivity(finalRunId, { v: 1, runId: finalRunId, seq: seq + 1, ts: Date.now(), type: 'run-done', status: 'succeeded' });
+      const finish = (status: 'succeeded' | 'aborted') => {
+        seq += 1;
+        const doneEvent: DigitalLifeRunActivityEventV1 = {
+          v: 1,
+          runId,
+          seq,
+          ts: Date.now(),
+          type: 'run-done',
+          status,
+        };
+        emitActivity(doneEvent);
+        appendLiveRunActivity(runId, doneEvent);
         const doneMessage = { ...result.assistantMessage };
         appendDemoAssistantMessage(sessionId, doneMessage);
         const pending = pendingSends.get(runId);
         if (pending) {
           pendingSends.delete(runId);
-          pending.resolve({ ...result, assistantMessage: doneMessage });
+          pending.resolve({
+            ...result,
+            assistantMessage: doneMessage,
+            runDetail:
+              status === 'aborted'
+                ? {
+                    ...runDetail,
+                    run: { ...runDetail.run, status: 'aborted' as const, completedAt: Date.now() },
+                  }
+                : runDetail,
+          });
         }
         activeRunIds.delete(runId);
       };
+
+      const isCancelled = () => cancelledRunIds.has(runId);
 
       return new Promise<ConversationSendResult>((resolve) => {
         pendingSends.set(runId, { result, resolve });
@@ -100,7 +122,7 @@ export function createDemoStreamSimulator(options: {
         emitM({ type: 'route', providerId: 'deepseek', modelId: 'deepseek-chat', reason: '演示场景路由' });
 
         schedule(300, () => {
-          if (cancelledRunIds.has(finalRunId)) {
+          if (isCancelled()) {
             return;
           }
           emitA({ type: 'run-start', scenario: 'chat' });
@@ -109,15 +131,14 @@ export function createDemoStreamSimulator(options: {
         });
 
         schedule(800, () => {
-          if (cancelledRunIds.has(finalRunId)) {
+          if (isCancelled()) {
             return;
           }
           emitA({ type: 'search', query: 'demo', hitCount: 3, samplePaths: ['README.md'] });
-          emitM({ type: 'route', providerId: 'deepseek', modelId: 'deepseek-chat', reason: '搜索完成' });
         });
 
         schedule(1200, () => {
-          if (cancelledRunIds.has(finalRunId)) {
+          if (isCancelled()) {
             return;
           }
           emitA({ type: 'command', phase: 'start', command: 'git', args: ['status'] });
@@ -125,49 +146,29 @@ export function createDemoStreamSimulator(options: {
         });
 
         schedule(1600, () => {
-          if (cancelledRunIds.has(finalRunId)) {
+          if (isCancelled()) {
             return;
           }
-          const text = '这是一个流式模拟的演示回复，用于观察逐字输出效果。';
-          for (let i = 0; i < text.length; i += 1) {
-            const char = text[i];
+          for (let i = 0; i < DEMO_REPLY_TEXT.length; i += 1) {
             const index = i;
-            schedule(80 * index + 1600, () => {
-              if (cancelledRunIds.has(finalRunId)) {
+            schedule(80 * index, () => {
+              if (isCancelled()) {
                 return;
               }
-              emitM({ type: 'delta', text: char });
+              emitM({ type: 'delta', text: DEMO_REPLY_TEXT[index] });
             });
           }
         });
 
-        const total = 1600 + 80 * 12 + 800;
+        const total = 1600 + 80 * (DEMO_REPLY_TEXT.length - 1) + 800;
         schedule(total, () => {
-          if (cancelledRunIds.has(finalRunId)) {
-            emitA({ type: 'run-done', status: 'aborted' });
-            const abortedDetail = {
-              ...runDetail,
-              run: { ...runDetail.run, status: 'aborted' as const, completedAt: Date.now() },
-            };
-            const pending = pendingSends.get(runId);
-            if (pending) {
-              pendingSends.delete(runId);
-              pending.resolve({
-                ...result,
-                runDetail: abortedDetail,
-                assistantMessage: result.assistantMessage,
-              });
-            }
-            activeRunIds.delete(runId);
+          if (isCancelled()) {
+            finish('aborted');
             return;
           }
           emitM({ type: 'usage', usage: { promptTokens: 60, completionTokens: 40, totalTokens: 100 } });
           emitM({ type: 'done' });
-          finalize();
-        });
-
-        schedule(999999, () => {
-          /* 兜底计时器：保证 cancelActiveStream 后仍有已登记计时器可清，测试可安全推进。 */
+          finish('succeeded');
         });
       });
     },
@@ -196,11 +197,43 @@ export function createDemoStreamSimulator(options: {
       cancelledRunIds.add(runId);
       activeRunIds.delete(runId);
       clearAll();
-      const base = buildDemoSendResult(DEMO_SESSION_IDS.tools, 'cancelled');
+      const pending = pendingSends.get(runId);
+      if (pending) {
+        pendingSends.delete(runId);
+        const abortedDetail = {
+          ...pending.result.runDetail,
+          run: {
+            ...pending.result.runDetail.run,
+            id: runId,
+            status: 'aborted' as const,
+            completedAt: Date.now(),
+          },
+        };
+        pending.resolve({ ...pending.result, runDetail: abortedDetail });
+        return abortedDetail;
+      }
       return {
-        run: { ...base.runDetail.run, id: runId, status: 'aborted' as const, completedAt: Date.now() },
+        run: {
+          id: runId,
+          workspaceId: 'workspace-demo',
+          sessionId: DEMO_SESSION_IDS.tools,
+          prompt: '',
+          scenario: 'chat',
+          status: 'aborted' as const,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          completedAt: Date.now(),
+        },
         steps: [],
       };
+    },
+
+    reset: () => {
+      clearAll();
+      cancelledRunIds.clear();
+      activeRunIds.clear();
+      pendingSends.clear();
+      resetLiveRunActivity();
     },
   };
 }

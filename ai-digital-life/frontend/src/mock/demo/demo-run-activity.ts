@@ -1,5 +1,5 @@
 import type { DigitalLifeRunActivityEventV1 } from '@ai-digital-life/kernel';
-import { DEMO_NOW, DEMO_SESSION_IDS } from './demo-constants';
+import { DEMO_NOW } from './demo-constants';
 
 export const DEMO_RUN_IDS = {
   complete: 'run-demo-complete',

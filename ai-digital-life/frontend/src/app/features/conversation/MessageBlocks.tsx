@@ -125,8 +125,9 @@ function renderApprovalBlock(block: ApprovalConversationBlock): React.ReactEleme
         riskLevel: block.riskLevel,
         impact: [],
         reversible: true,
-        createdAt: Date.now(),
+        createdAt: 0,
       }}
+      readOnly
       onDecide={() => {
         /* 历史消息只读：审批决策由 TaskCenter 面板处理，此处不改变会话状态。 */
       }}
