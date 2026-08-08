@@ -13,10 +13,11 @@ pub enum PartType {
     StepStart,
     StepFinish,
     Patch,
+    Snapshot,
 }
 
 /// A message in a session (mirrors OpenCode `Session.Message`).
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageRecord {
     pub id: String,
@@ -33,7 +34,7 @@ pub struct MessageRecord {
 }
 
 /// Tool invocation state machine (mirrors OpenCode `ToolState`).
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum ToolState {
     Pending {
@@ -62,28 +63,28 @@ pub enum ToolState {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolTime {
     pub start: TimestampMs,
     pub end: Option<TimestampMs>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct TextPartData {
     #[serde(default)]
     pub text: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ReasoningPartData {
     #[serde(default)]
     pub text: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ToolPartData {
     pub tool: String,
@@ -92,7 +93,7 @@ pub struct ToolPartData {
     pub state: ToolState,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct FilePartData {
     pub mime: String,
@@ -100,7 +101,7 @@ pub struct FilePartData {
     pub url: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PatchPartData {
     pub hash: String,
@@ -108,7 +109,7 @@ pub struct PatchPartData {
 }
 
 /// The payload of a Part (mirrors OpenCode `SessionV1.Part`).
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum PartData {
     Text(TextPartData),
@@ -118,10 +119,11 @@ pub enum PartData {
     StepStart,
     StepFinish,
     Patch(PatchPartData),
+    Snapshot { snapshot: String },
 }
 
 /// A stored Part row (mirrors OpenCode `part` table hydration).
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PartRecord {
     pub id: String,
@@ -136,7 +138,7 @@ pub struct PartRecord {
 }
 
 /// Structured event broadcast to SSE clients (mirrors OpenCode session events).
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum SessionPartEvent {
     #[serde(rename = "message.part.updated")]

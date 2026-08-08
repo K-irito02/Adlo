@@ -64,6 +64,7 @@ impl Database {
             PartType::StepStart => "step-start",
             PartType::StepFinish => "step-finish",
             PartType::Patch => "patch",
+            PartType::Snapshot => "snapshot",
         };
         self.execute(
             "INSERT OR REPLACE INTO part \
@@ -112,6 +113,7 @@ impl Database {
                 "step-start" => PartType::StepStart,
                 "step-finish" => PartType::StepFinish,
                 "patch" => PartType::Patch,
+                "snapshot" => PartType::Snapshot,
                 other => return Err(AppError::Storage(format!("unknown part type: {other}"))),
             };
             Ok(PartRecord {
@@ -264,6 +266,54 @@ mod tests {
     fn load_missing_part_returns_none() {
         let db = open_test_db("adl-part-crud");
         assert!(db.load_part("nope").unwrap().is_none());
+    }
+
+    #[test]
+    fn full_field_message_roundtrips() {
+        let db = open_test_db("adl-part-crud");
+        let msg = MessageRecord {
+            id: "msg_full".to_string(),
+            session_id: "session_full".to_string(),
+            role: "assistant".to_string(),
+            parent_id: Some("msg_0".to_string()),
+            agent: Some("build".to_string()),
+            model: Some(serde_json::json!({"providerID": "deepseek", "id": "deepseek-chat"})),
+            summary: Some(serde_json::json!({"count": 3, "tokens": 1200})),
+            time_created: 1700000000000,
+            time_completed: Some(1700000001000),
+        };
+        db.save_message(&msg).unwrap();
+        let loaded = db.load_message("msg_full").unwrap().expect("message should exist");
+        assert_eq!(loaded, msg);
+    }
+
+    #[test]
+    fn tool_part_roundtrips() {
+        let db = open_test_db("adl-part-crud");
+        db.save_message(&sample_message("msg_1")).unwrap();
+        let part = PartRecord {
+            id: "part_tool".to_string(),
+            message_id: "msg_1".to_string(),
+            session_id: "session_1".to_string(),
+            r#type: PartType::Tool,
+            ordinal: 0,
+            time_created: 1700000000000,
+            data: serde_json::json!({
+                "type": "tool",
+                "tool": "read",
+                "callID": "call_1",
+                "state": {
+                    "status": "running",
+                    "input": {"path": "a.txt"},
+                    "title": "Read a.txt",
+                    "metadata": {}
+                }
+            }),
+        };
+        db.save_part(&part).unwrap();
+        let loaded = db.load_part("part_tool").unwrap().expect("part should exist");
+        assert_eq!(loaded.r#type, PartType::Tool);
+        assert_eq!(loaded.data, part.data);
     }
 
     #[test]
