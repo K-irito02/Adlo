@@ -15,6 +15,10 @@ pub enum TurnResult {
     Error,
 }
 
+/// Number of consecutive identical failed `(tool, input)` pairs after which
+/// the turn is aborted as a doom loop (mirrors OpenCode `DOOM_LOOP_THRESHOLD`).
+const DOOM_LOOP_THRESHOLD: u32 = 3;
+
 /// Library-level multi-step tool loop executor. Consumes a stream of
 /// provider-neutral LLMEvents, drives the event state machine (mirroring
 /// OpenCode's processor.ts handleEvent), persists Parts via PartStore, and
@@ -47,14 +51,30 @@ impl LoopExecutor {
 
         let mut ctx = TurnContext::new(session_id.to_string(), message_id.to_string());
         let mut stream = events;
+        let mut loop_error: Option<AppError> = None;
 
         while let Some(item) = stream.next().await {
-            let event = item?;
-            self.handle_event(&mut ctx, event).await?;
+            match item {
+                Ok(event) => {
+                    if let Err(e) = self.handle_event(&mut ctx, event).await {
+                        loop_error = Some(e);
+                        break;
+                    }
+                },
+                Err(e) => {
+                    loop_error = Some(e);
+                    break;
+                },
+            }
         }
 
-        // cleanup: 收尾所有未完成部分
+        // cleanup ALWAYS runs (awaits in-flight tools, marks interrupted,
+        // finalizes the message) even when the loop bailed out on an error.
         self.cleanup(&mut ctx).await?;
+
+        if let Some(e) = loop_error {
+            return Err(e);
+        }
         ctx.finish_result()
     }
 
@@ -67,6 +87,23 @@ impl LoopExecutor {
                     serde_json::json!({"type": "step-start", "index": index}),
                 );
                 self.save_and_publish(ctx, part).await?;
+                // assistant message 在 step 打开时创建并广播
+                let msg = MessageRecord {
+                    id: ctx.message_id.clone(),
+                    session_id: ctx.session_id.clone(),
+                    role: "assistant".into(),
+                    parent_id: None,
+                    agent: None,
+                    model: None,
+                    summary: None,
+                    time_created: ctx.started_at,
+                    time_completed: None,
+                };
+                self.store.save_message(&msg).await?;
+                self.bus.publish(SessionPartEvent::MessageCreated {
+                    session_id: ctx.session_id.clone(),
+                    info: serde_json::json!({ "id": ctx.message_id, "finish": null }),
+                });
             },
             LLMEvent::TextStart { .. } => {
                 let part =
@@ -168,12 +205,14 @@ impl LoopExecutor {
                 let (done_tx, done_rx) = oneshot::channel();
                 let handle = tokio::spawn(async move {
                     let result = registry.execute(&name_for_spawn, &input_json_for_spawn).await;
+                    let spawned_input = part_for_spawn.data["state"]["input"].clone();
                     // 简化：直接在 spawn 内更新 part 并发布
                     let final_part = match result {
                         Ok(out) => {
                             let mut p = part_for_spawn.clone();
                             p.data["state"] = serde_json::json!({
                                 "status": "completed",
+                                "input": spawned_input,
                                 "output": out.output,
                                 "title": name_for_spawn.clone(),
                                 "metadata": out.metadata,
@@ -185,6 +224,7 @@ impl LoopExecutor {
                             let mut p = part_for_spawn.clone();
                             p.data["state"] = serde_json::json!({
                                 "status": "error",
+                                "input": spawned_input,
                                 "error": e.to_string(),
                                 "metadata": {},
                                 "time": { "start": now_ms(), "end": now_ms() },
@@ -211,6 +251,7 @@ impl LoopExecutor {
                     if let Some((handle, rx)) = ctx.tool_joins.remove(&key) {
                         let _ = handle.await;
                         if let Ok(final_part) = rx.await {
+                            ctx.record_tool_result(&final_part);
                             ctx.tool_parts.insert(key, final_part);
                         }
                     }
@@ -242,12 +283,14 @@ impl LoopExecutor {
             if let Some((handle, rx)) = ctx.tool_joins.remove(&key) {
                 let _ = handle.await;
                 if let Ok(final_part) = rx.await {
+                    ctx.record_tool_result(&final_part);
                     ctx.tool_parts.insert(key, final_part);
                 }
             }
         }
         for (id, part) in ctx.tool_parts.clone() {
-            if part.data["state"]["status"].as_str() != Some("completed") {
+            let status = part.data["state"]["status"].as_str();
+            if status == Some("pending") || status == Some("running") {
                 let mut p = part.clone();
                 p.data["state"] = serde_json::json!({
                     "status": "error",
@@ -274,9 +317,26 @@ impl LoopExecutor {
             time_completed: Some(now_ms()),
         };
         self.store.save_message(&msg).await?;
+        let mut info = serde_json::json!({
+            "id": ctx.message_id.clone(),
+            "finish": status,
+        });
+        if let Some(usage) = &ctx.usage {
+            info["usage"] = serde_json::to_value(usage)?;
+        }
+        if status == "error" {
+            let error_text = ctx
+                .tool_parts
+                .values()
+                .filter_map(|p| p.data["state"]["error"].as_str())
+                .next()
+                .unwrap_or("Tool execution failed")
+                .to_string();
+            info["error"] = serde_json::Value::String(error_text);
+        }
         self.bus.publish(SessionPartEvent::MessageUpdated {
             session_id: ctx.session_id.clone(),
-            info: serde_json::json!({ "id": ctx.message_id, "finish": status }),
+            info,
         });
         Ok(())
     }
@@ -297,8 +357,11 @@ struct TurnContext {
     >,
     ordinal: i64,
     finish_reason: Option<String>,
-    #[allow(dead_code)] // reserved: usage reporting to finish consumers
     usage: Option<adl_types::model::ModelTokenUsage>,
+    consecutive_failures: u32,
+    last_failed_tool: Option<String>,
+    last_failed_input: Option<String>,
+    doom_loop: bool,
 }
 
 impl TurnContext {
@@ -315,6 +378,10 @@ impl TurnContext {
             ordinal: 0,
             finish_reason: None,
             usage: None,
+            consecutive_failures: 0,
+            last_failed_tool: None,
+            last_failed_input: None,
+            doom_loop: false,
         }
     }
 
@@ -331,8 +398,28 @@ impl TurnContext {
         }
     }
 
+    /// Track a synced-back tool result for doom-loop detection. On an `error`
+    /// status, compares `(tool, input)` with the previous consecutive failure;
+    /// three consecutive identical failed pairs raise the `doom_loop` flag.
+    fn record_tool_result(&mut self, final_part: &PartRecord) {
+        let state = &final_part.data["state"];
+        if state["status"].as_str() != Some("error") {
+            return;
+        }
+        let tool = final_part.data["tool"].as_str().unwrap_or("").to_string();
+        let input = serde_json::to_string(&state["input"]).unwrap_or_default();
+        let same = self.last_failed_tool.as_deref() == Some(tool.as_str())
+            && self.last_failed_input.as_deref() == Some(input.as_str());
+        self.consecutive_failures = if same { self.consecutive_failures + 1 } else { 1 };
+        self.last_failed_tool = Some(tool);
+        self.last_failed_input = Some(input);
+        if self.consecutive_failures >= DOOM_LOOP_THRESHOLD {
+            self.doom_loop = true;
+        }
+    }
+
     fn finish_result(&self) -> Result<TurnResult, AppError> {
-        if self.finish_reason.as_deref() == Some("error") {
+        if self.doom_loop || self.finish_reason.as_deref() == Some("error") {
             return Ok(TurnResult::Error);
         }
         Ok(TurnResult::Stop)
@@ -455,5 +542,30 @@ mod tests {
         let tool = parts.iter().find(|p| p.r#type == PartType::Tool).expect("tool part");
         assert_eq!(tool.data["state"]["status"], "error");
         assert_eq!(tool.data["state"]["metadata"]["interrupted"], true);
+    }
+
+    #[tokio::test]
+    async fn doom_loop_returns_error_after_three_failures() {
+        let bus = PartEventBus::new(16);
+        let store = Arc::new(MemStore::default());
+        let questions = crate::question::QuestionService::new(bus.clone());
+        let registry = Arc::new(crate::tools::registry::ToolRegistry::with_builtins());
+        let executor = LoopExecutor::new(bus.clone(), store.clone(), questions, registry);
+
+        // Three consecutive same-tool calls to a nonexistent tool -> error
+        let mut events = Vec::new();
+        events.push(LLMEvent::StepStart { index: 1 });
+        for i in 0..3u32 {
+            events.push(LLMEvent::ToolCall {
+                id: format!("call_{i}"),
+                name: "nonexistent_tool_xyz".into(),
+                input: serde_json::json!({"path": "a.txt"}),
+            });
+        }
+        events.push(LLMEvent::StepFinish { index: 1, reason: "stop".into() });
+        events.push(LLMEvent::Finish { reason: "stop".into(), usage: None });
+
+        let result = executor.run_turn("s1", "msg_4", event_stream(events)).await.unwrap();
+        assert!(matches!(result, TurnResult::Error), "doom loop should return Error, got {result:?}");
     }
 }
