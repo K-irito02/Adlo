@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { DigitalLifeBridge } from '../../shared/ipc/digital-life';
 import { withDemoMode, isDemoActive, resetDemoModeForTest } from './demo-mode';
 import { DEMO_WORKSPACE_ID, DEMO_WORKSPACE_PATH } from './demo-constants';
@@ -171,5 +171,37 @@ describe('withDemoMode', () => {
     await bridge.workspace.open(DEMO_WORKSPACE_PATH);
     const patchSet = await bridge.patch.getPatchSet('patchset-demo-complete');
     expect(patchSet.ok && patchSet.data?.id).toBe('patchset-demo-complete');
+  });
+
+  it('handles session mutations for demo sessions without falling through to base bridge', async () => {
+    const baseBridge = makeBaseBridge();
+    const spyMarkRead = vi.spyOn(baseBridge.conversation, 'markSessionRead');
+    const spyMarkUnread = vi.spyOn(baseBridge.conversation, 'markSessionUnread');
+    const spyPin = vi.spyOn(baseBridge.conversation, 'pinSession');
+    const spyArchive = vi.spyOn(baseBridge.conversation, 'archiveSession');
+    const spyDelete = vi.spyOn(baseBridge.conversation, 'deleteSession');
+    const bridge = withDemoMode(baseBridge);
+    await bridge.workspace.open(DEMO_WORKSPACE_PATH);
+
+    const read = await bridge.conversation.markSessionRead({ sessionId: DEMO_SESSION_IDS.plan });
+    expect(read.ok && read.data?.id).toBe(DEMO_SESSION_IDS.plan);
+
+    const unread = await bridge.conversation.markSessionUnread(DEMO_SESSION_IDS.plan);
+    expect(unread.ok && unread.data?.id).toBe(DEMO_SESSION_IDS.plan);
+
+    const pin = await bridge.conversation.pinSession(DEMO_SESSION_IDS.tools);
+    expect(pin.ok && pin.data?.id).toBe(DEMO_SESSION_IDS.tools);
+
+    const archive = await bridge.conversation.archiveSession(DEMO_SESSION_IDS.tools);
+    expect(archive.ok && archive.data?.id).toBe(DEMO_SESSION_IDS.tools);
+
+    const remove = await bridge.conversation.deleteSession(DEMO_SESSION_IDS.tools);
+    expect(remove.ok && remove.data).toBe(true);
+
+    expect(spyMarkRead).not.toHaveBeenCalled();
+    expect(spyMarkUnread).not.toHaveBeenCalled();
+    expect(spyPin).not.toHaveBeenCalled();
+    expect(spyArchive).not.toHaveBeenCalled();
+    expect(spyDelete).not.toHaveBeenCalled();
   });
 });

@@ -190,6 +190,27 @@ export function withDemoMode(baseBridge: DigitalLifeBridge): DigitalLifeBridge {
     },
   };
 
+  const isDemoSession = (sessionId: string): boolean =>
+    Object.values(DEMO_SESSION_IDS).includes(sessionId as never);
+
+  const demoSessionRecord = (sessionId: string) =>
+    getDemoSessions().find((session) => session.id === sessionId);
+
+  const demoSessionMutation = async (
+    sessionId: string,
+    mutate: (record: NonNullable<ReturnType<typeof demoSessionRecord>>) => void,
+  ) => {
+    if (demoState.active && isDemoSession(sessionId)) {
+      const record = demoSessionRecord(sessionId);
+      if (!record) {
+        return { ok: false as const, error: { code: 'not_found' as const, message: 'Demo session not found' } };
+      }
+      mutate(record);
+      return { ok: true as const, data: record };
+    }
+    return undefined;
+  };
+
   const conversationBridge = {
     ...baseBridge.conversation,
     listSessions: async () => {
@@ -199,10 +220,63 @@ export function withDemoMode(baseBridge: DigitalLifeBridge): DigitalLifeBridge {
       return { ok: true as const, data: getDemoSessions() };
     },
     getSession: async (sessionId: string) => {
-      if (demoState.active && Object.values(DEMO_SESSION_IDS).includes(sessionId as never)) {
+      if (demoState.active && isDemoSession(sessionId)) {
         return { ok: true as const, data: getDemoSessionDetail(sessionId) };
       }
       return baseBridge.conversation.getSession(sessionId);
+    },
+    markSessionRead: async (input: { sessionId: string; readAt?: number }) => {
+      const demo = await demoSessionMutation(input.sessionId, (record) => {
+        record.manualUnread = false;
+        record.lastReadAt = input.readAt ?? Date.now();
+      });
+      if (demo) {
+        return demo;
+      }
+      return baseBridge.conversation.markSessionRead(input);
+    },
+    markSessionUnread: async (sessionId: string) => {
+      const demo = await demoSessionMutation(sessionId, (record) => {
+        record.manualUnread = true;
+      });
+      if (demo) {
+        return demo;
+      }
+      return baseBridge.conversation.markSessionUnread(sessionId);
+    },
+    pinSession: async (sessionId: string) => {
+      const demo = await demoSessionMutation(sessionId, (record) => {
+        record.isPinned = true;
+      });
+      if (demo) {
+        return demo;
+      }
+      return baseBridge.conversation.pinSession(sessionId);
+    },
+    unpinSession: async (sessionId: string) => {
+      const demo = await demoSessionMutation(sessionId, (record) => {
+        record.isPinned = false;
+      });
+      if (demo) {
+        return demo;
+      }
+      return baseBridge.conversation.unpinSession(sessionId);
+    },
+    archiveSession: async (sessionId: string) => {
+      const demo = await demoSessionMutation(sessionId, (record) => {
+        record.status = 'archived';
+        record.archivedAt = Date.now();
+      });
+      if (demo) {
+        return demo;
+      }
+      return baseBridge.conversation.archiveSession(sessionId);
+    },
+    deleteSession: async (sessionId: string) => {
+      if (demoState.active && isDemoSession(sessionId)) {
+        return { ok: true as const, data: true };
+      }
+      return baseBridge.conversation.deleteSession(sessionId);
     },
     sendMessage: async (input: {
       sessionId: string;
