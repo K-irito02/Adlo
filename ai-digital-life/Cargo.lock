@@ -23,6 +23,7 @@ dependencies = [
  "adl-storage",
  "adl-subagent",
  "adl-task",
+ "adl-tools",
  "adl-types",
  "adl-workspace",
  "async-trait",

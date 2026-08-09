@@ -26,6 +26,7 @@ adl-pty = { path = "../pty" }
 adl-storage = { path = "../storage" }
 adl-subagent = { path = "../subagent" }
 adl-task = { path = "../task" }
+adl-tools = { path = "../tools" }
 adl-types = { path = "../types" }
 adl-workspace = { path = "../workspace" }
 async-trait.workspace = true

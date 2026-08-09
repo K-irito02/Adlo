@@ -147,4 +147,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/retrieval/rebuild", post(handlers::retrieval::rebuild_index))
         // Run-activity domain (`run_activity_*` tauri commands — history only).
         .route("/run-activity/list", post(handlers::run_activity::list_by_run_id))
+        // Web-tools domain (`web_fetch` / `web_search` tauri commands).
+        .route("/web-tools/fetch", post(handlers::web_tools::web_fetch))
+        .route("/web-tools/search", post(handlers::web_tools::web_search))
 }
