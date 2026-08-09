@@ -47,4 +47,18 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/workspace/duplicate", post(handlers::workspace::duplicate_file))
         .route("/workspace/absolute-path", post(handlers::workspace::get_absolute_path))
         .route("/workspace/move", post(handlers::workspace::move_file))
+        // Provider domain (`provider_*` tauri commands). API keys travel in the
+        // body (frontend `ProviderBridge` contract) and are stored via the
+        // credential store — never plaintext in config/DB/logs.
+        .route("/provider/list", get(handlers::provider::list_providers))
+        .route("/provider/supported", get(handlers::provider::list_supported_providers))
+        .route("/provider/test-connection", post(handlers::provider::test_connection))
+        .route("/provider/fetch-models", post(handlers::provider::fetch_models))
+        .route("/provider/custom", post(handlers::provider::add_custom_provider))
+        .route("/provider/custom/remove", post(handlers::provider::remove_custom_provider))
+        .route("/provider/api-key", post(handlers::provider::set_api_key))
+        .route("/provider/api-key/clear", post(handlers::provider::clear_api_key))
+        .route("/provider/api-key/has", post(handlers::provider::has_api_key))
+        .route("/provider/api-key/get", post(handlers::provider::get_api_key))
+        .route("/provider/config", post(handlers::provider::save_provider_config))
 }
