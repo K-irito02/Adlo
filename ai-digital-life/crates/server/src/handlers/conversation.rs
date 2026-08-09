@@ -167,6 +167,36 @@ pub async fn get_session(
     ipc::to_response(result)
 }
 
+/// GET `/session/{id}/message` — history read for the S2 PartStore initial
+/// load. Returns every `MessageRecord` for the session with each message's
+/// `PartRecord`s:
+/// `{ "messages": [ { "message": MessageRecord, "parts": [PartRecord] } ] }`.
+///
+/// `MessageRecord` / `PartRecord` serialize camelCase (`sessionID`,
+/// `parentID`, `messageID`, `timeCreated`, …), so the wire casing matches the
+/// S2 `PartStore` schema. A missing session maps to `NOT_FOUND`; an empty
+/// message list is valid (session exists, no loop output yet).
+pub async fn get_session_messages(
+    State(state): State<ServerState>,
+    Path(session_id): Path<String>,
+) -> impl IntoResponse {
+    let db = state.db.clone();
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        require_session(&db, &session_id)?;
+        let messages = db.list_messages(&session_id)?;
+        let entries: Vec<serde_json::Value> = messages
+            .into_iter()
+            .map(|message| {
+                let parts = db.list_parts(&message.id)?;
+                Ok(serde_json::json!({ "message": message, "parts": parts }))
+            })
+            .collect::<Result<_, AppError>>()?;
+        Ok(serde_json::json!({ "messages": entries }))
+    })
+    .await;
+    ipc::to_response(result)
+}
+
 /// PATCH `/session/{id}` — single endpoint covering the legacy rename / pin /
 /// unpin / mark-read / mark-unread / archive sub-operations. The body is an
 /// object whose optional fields select which mutation(s) to apply:
@@ -509,9 +539,26 @@ impl PartStore for DbPartStore {
     }
 }
 
+/// Map the agent loop's terminal status onto the persisted session status
+/// vocabulary. Normal completion (`"idle"`) maps to `"active"` — the resting
+/// status `create_session` uses — and `"cancelled"` / `"error"` (including
+/// `"error: {detail}"`) stay distinct so the session list reflects the last
+/// loop outcome. Both the `Sessions` row and the SSE event use this canonical
+/// value so live status and `GET /session` agree.
+fn canonical_terminal_status(status: &str) -> &'static str {
+    match status {
+        "idle" => "active",
+        "cancelled" => "cancelled",
+        _ => "error", // "error" and "error: {detail}"
+    }
+}
+
 /// Fire-and-forget agent loop: registers a session-scoped cancel token, runs
-/// the LoopExecutor over `part_bus` / `questions`, always unregisters the token
-/// and publishes the terminal session status over SSE.
+/// the LoopExecutor over `part_bus` / `questions`, always unregisters the token,
+/// persists the terminal session status back to the `Sessions` table and
+/// publishes it over SSE. The persistence is what keeps `send_message`'s
+/// `"busy"` from sticking forever (previously only the SSE event carried the
+/// terminal status).
 fn spawn_loop_task(
     state: ServerState,
     session_id: String,
@@ -541,12 +588,35 @@ fn spawn_loop_task(
             cancels.remove(&session_id);
         }
         let status = match outcome {
-            Ok(status) => status,
+            Ok(status) => canonical_terminal_status(&status).to_string(),
             Err(e) => {
                 tracing::warn!(error = %e, session_id = %session_id, "ad-server agent loop failed");
                 "error".to_string()
             },
         };
+        // Persist the terminal status so `GET /session` / `GET /sessions` never
+        // report a stale "busy". Blocking rusqlite runs in `spawn_blocking`;
+        // persistence is best-effort — the SSE signal below still fires so the
+        // UI never spins forever even if the write fails.
+        {
+            let db = state.db.clone();
+            let session_id_for_db = session_id.clone();
+            let persisted = status.clone();
+            if let Err(e) = run_blocking(move || -> Result<(), AppError> {
+                let mut session = require_session(&db, &session_id_for_db)?;
+                session.status = persisted;
+                session.updated_at = now_ms();
+                save_session(&db, &session)
+            })
+            .await
+            {
+                tracing::warn!(
+                    error = %e,
+                    session_id = %session_id,
+                    "failed to persist terminal session status"
+                );
+            }
+        }
         state.part_bus.publish(SessionPartEvent::SessionStatus { session_id, status });
     });
 }

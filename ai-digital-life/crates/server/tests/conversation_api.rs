@@ -8,8 +8,10 @@
 
 use ad_server::engine::init_server_state;
 use ad_server::router::app_router;
+use adl_types::{MessageRecord, PartRecord, PartType, SessionPartEvent};
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
+use std::time::Duration;
 use tower::ServiceExt;
 
 async fn state() -> ad_server::ServerState {
@@ -198,4 +200,124 @@ async fn archive_all_in_workspace_archives_every_session() {
     let list = resp["data"].as_array().unwrap();
     assert!(list.iter().any(|s| s["id"] == id_a && s["status"] == "archived"));
     assert!(list.iter().any(|s| s["id"] == id_b && s["status"] == "archived"));
+}
+
+/// Regression: the async agent loop must persist its terminal `session.status`
+/// back to the `Sessions` table (previously only SSE-published it, so a session
+/// that received a message showed `status:"busy"` forever on GET /session).
+///
+/// Determinism: `resolve_provider_model` returns the request's provider/model
+/// verbatim when both are supplied, and an unknown provider fails at the
+/// credential lookup with no network I/O — so the loop terminates with
+/// `"error"` within milliseconds. The test polls GET /session until the status
+/// leaves `"busy"` (bounded timeout), then asserts the persisted value is a
+/// terminal value and matches the SSE-published `SessionStatus` event.
+#[tokio::test]
+async fn send_message_loop_persists_terminal_session_status() {
+    let state = state().await;
+    let mut events = state.part_bus.subscribe();
+    let (_, body) =
+        send(state.clone(), Method::POST, "/session", Some(r#"{"title":"status"}"#)).await;
+    let id = body["data"]["id"].as_str().unwrap().to_string();
+
+    let (status, body) = send(
+        state.clone(),
+        Method::POST,
+        &format!("/session/{id}/message"),
+        Some(r#"{"content":"hi","providerId":"__test_missing__","modelId":"__test_missing__"}"#),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "send body: {body}");
+    assert_eq!(body["data"]["session"]["status"], "busy", "in-flight status: {body}");
+
+    // Poll until the loop's terminal status is persisted (bounded timeout so a
+    // stuck loop fails the test instead of hanging it).
+    let persisted = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let (_, detail) =
+                send(state.clone(), Method::GET, &format!("/session/{id}"), None).await;
+            let status = detail["data"]["session"]["status"].as_str().unwrap().to_string();
+            if status != "busy" {
+                return status;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+    })
+    .await
+    .expect("session status should leave 'busy' within timeout");
+    assert_eq!(persisted, "error", "unknown provider should terminate the loop as error");
+
+    // The SSE-published terminal status must match the persisted one.
+    let published = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            match events.recv().await {
+                Ok(SessionPartEvent::SessionStatus { session_id, status })
+                    if session_id == id && status != "busy" =>
+                {
+                    return status;
+                },
+                _ => continue,
+            }
+        }
+    })
+    .await
+    .expect("terminal SessionStatus should be published within timeout");
+    assert_eq!(published, persisted, "SSE status should match persisted status");
+}
+
+/// GET /session/{id}/message returns the session's MessageRecord history with
+/// each message's PartRecords (S2 PartStore initial load).
+#[tokio::test]
+async fn get_session_messages_returns_message_with_parts() {
+    let state = state().await;
+    let (_, body) =
+        send(state.clone(), Method::POST, "/session", Some(r#"{"title":"hist"}"#)).await;
+    let id = body["data"]["id"].as_str().unwrap().to_string();
+
+    let msg = MessageRecord {
+        id: "msg-hist-1".into(),
+        session_id: id.clone(),
+        role: "user".into(),
+        parent_id: None,
+        agent: None,
+        model: None,
+        summary: None,
+        time_created: 1700000000000,
+        time_completed: Some(1700000001000),
+    };
+    state.db.save_message(&msg).unwrap();
+    let part = PartRecord {
+        id: "part-hist-1".into(),
+        message_id: msg.id.clone(),
+        session_id: id.clone(),
+        r#type: PartType::Text,
+        ordinal: 0,
+        time_created: 1700000000000,
+        data: serde_json::json!({ "type": "text", "text": "hello" }),
+    };
+    state.db.save_part(&part).unwrap();
+
+    let (status, body) = send(state, Method::GET, &format!("/session/{id}/message"), None).await;
+    assert_eq!(status, StatusCode::OK, "body: {body}");
+    let messages = body["data"]["messages"].as_array().unwrap();
+    assert_eq!(messages.len(), 1, "messages: {messages:?}");
+    assert_eq!(messages[0]["message"]["id"], "msg-hist-1");
+    assert_eq!(messages[0]["message"]["sessionID"], id);
+    assert_eq!(messages[0]["message"]["timeCompleted"], 1700000001000_i64);
+    let parts = messages[0]["parts"].as_array().unwrap();
+    assert_eq!(parts.len(), 1, "parts: {parts:?}");
+    assert_eq!(parts[0]["id"], "part-hist-1");
+    assert_eq!(parts[0]["messageID"], "msg-hist-1");
+    assert_eq!(parts[0]["type"], "text");
+    assert_eq!(parts[0]["data"]["text"], "hello");
+}
+
+/// GET /session/{id}/message for a missing session maps to HTTP 404.
+#[tokio::test]
+async fn get_session_messages_missing_session_returns_404() {
+    let state = state().await;
+    let (status, body) = send(state, Method::GET, "/session/nope/message", None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND, "body: {body}");
+    assert_eq!(body["ok"], false);
+    assert_eq!(body["error"]["code"], "NOT_FOUND");
 }

@@ -27,6 +27,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/session/:session_id", get(handlers::conversation::get_session))
         .route("/session/:session_id", patch(handlers::conversation::update_session))
         .route("/session/:session_id", delete(handlers::conversation::delete_session))
+        .route("/session/:session_id/message", get(handlers::conversation::get_session_messages))
         .route("/session/:session_id/message", post(handlers::conversation::send_message))
         .route("/session/:session_id/cancel", post(handlers::conversation::cancel_message))
 }
