@@ -21,6 +21,7 @@ dependencies = [
  "adl-model-gateway",
  "adl-pty",
  "adl-storage",
+ "adl-subagent",
  "adl-task",
  "adl-types",
  "adl-workspace",

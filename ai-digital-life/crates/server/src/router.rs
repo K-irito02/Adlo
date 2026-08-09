@@ -137,4 +137,9 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/reference/add", post(handlers::reference::add))
         .route("/reference/remove", post(handlers::reference::remove))
         .route("/reference/prompt", post(handlers::reference::prompt))
+        // Sub-agent domain (`subagent_*` tauri commands).
+        .route("/subagent/spawn", post(handlers::subagent::spawn))
+        .route("/subagent/get", post(handlers::subagent::get))
+        .route("/subagent/list-active", post(handlers::subagent::list_active))
+        .route("/subagent/cancel", post(handlers::subagent::cancel))
 }

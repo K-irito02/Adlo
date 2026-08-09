@@ -9,6 +9,7 @@ use adl_model_gateway::registry::ProviderRegistry;
 use adl_pty::SessionManager;
 use adl_storage::Database;
 use adl_storage::durable::DurableSessionManager;
+use adl_subagent::SubagentManager;
 use adl_types::WorkspaceMeta;
 use reqwest::Client;
 use std::collections::{HashMap, HashSet};
@@ -66,4 +67,8 @@ pub struct ServerState {
     /// module-level `MCP_CLIENT` static — moved here so the standalone server
     /// owns it).
     pub mcp_client: McpClient,
+    /// Sub-agent manager tracking spawned subagent tasks (mirrors the Tauri
+    /// module-level `SUBAGENT_MANAGER` static — moved here so the standalone
+    /// server owns it).
+    pub subagent_manager: SubagentManager,
 }

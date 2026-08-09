@@ -14,5 +14,6 @@ pub mod provider;
 pub mod reference;
 pub mod session_fork;
 pub mod snapshot;
+pub mod subagent;
 pub mod task;
 pub mod workspace;

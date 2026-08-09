@@ -24,6 +24,7 @@ adl-migration = { path = "../migration" }
 adl-model-gateway = { path = "../model-gateway" }
 adl-pty = { path = "../pty" }
 adl-storage = { path = "../storage" }
+adl-subagent = { path = "../subagent" }
 adl-task = { path = "../task" }
 adl-types = { path = "../types" }
 adl-workspace = { path = "../workspace" }
