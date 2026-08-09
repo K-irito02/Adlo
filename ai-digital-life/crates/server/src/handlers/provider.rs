@@ -3,9 +3,9 @@
 //! the old Tauri invoke payload and the frontend `ProviderBridge` contract) and
 //! are handed straight to the credential store via
 //! `adl_model_gateway::set_provider_secret` (keyring / encrypted file). Keys
-//! are never persisted to config or DB and never logged; `get_provider_api_key`
-//! is the only path that reads a key back, on demand, for the masked settings
-//! input.
+//! are never persisted to config or DB and never logged, and — OpenCode-aligned
+//! — they are **write-only over HTTP**: no endpoint reads a key back; `has`/`get`
+//! report only `true`/`false` presence.
 
 use crate::ServerState;
 use crate::ipc;
@@ -756,6 +756,24 @@ pub async fn has_api_key(
     State(_state): State<ServerState>,
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
+    api_key_presence(body).await
+}
+
+/// POST `/provider/api-key/get` — whether a credential exists for the provider.
+///
+/// OpenCode-aligned write-only contract: credentials are submitted in the
+/// request body once and stored in the OS credential store; they are never
+/// read back over HTTP. The response is a `true`/`false` presence flag, so the
+/// key itself can never leak through this endpoint.
+pub async fn get_api_key(
+    State(_state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    api_key_presence(body).await
+}
+
+/// Shared credential-presence check for the `has`/`get` api-key routes.
+async fn api_key_presence(body: axum::body::Bytes) -> impl IntoResponse {
     let input: ProviderIdBody = match ipc::json_body(body).await {
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
@@ -764,25 +782,6 @@ pub async fn has_api_key(
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
         let present = adl_model_gateway::get_provider_secret(&provider_id).is_ok();
         Ok(serde_json::json!(present))
-    })
-    .await;
-    ipc::to_response(result)
-}
-
-/// POST `/provider/api-key/get` — read the persisted credential back so the
-/// settings input can be re-filled (masked) after an app restart.
-pub async fn get_api_key(
-    State(_state): State<ServerState>,
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
-    let input: ProviderIdBody = match ipc::json_body(body).await {
-        Ok(v) => v,
-        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
-    };
-    let provider_id = input.provider_id;
-    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        let key = adl_model_gateway::get_provider_secret(&provider_id).ok();
-        Ok(serde_json::to_value(key)?)
     })
     .await;
     ipc::to_response(result)

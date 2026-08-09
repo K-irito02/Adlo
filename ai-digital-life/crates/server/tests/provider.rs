@@ -118,7 +118,8 @@ async fn get_key_until(state: ad_server::ServerState, pid: &str, expected: Value
 }
 
 /// set / get / has / clear API-key round trip through the credential store,
-/// using a unique test provider id so no real credential is touched.
+/// using a unique test provider id so no real credential is touched. `get`
+/// is write-only: it reports *presence* as a boolean and never echoes the key.
 #[tokio::test]
 async fn set_get_has_clear_api_key_round_trip() {
     let state = state().await;
@@ -134,7 +135,7 @@ async fn set_get_has_clear_api_key_round_trip() {
     assert_eq!(status, StatusCode::OK, "set body: {body}");
     assert_eq!(body["data"], true);
 
-    get_key_until(state.clone(), &pid, json!("sk-test-secret")).await;
+    get_key_until(state.clone(), &pid, json!(true)).await;
 
     let (status, body) = send(
         state.clone(),
@@ -156,7 +157,7 @@ async fn set_get_has_clear_api_key_round_trip() {
     assert_eq!(status, StatusCode::OK, "clear body: {body}");
     assert_eq!(body["data"], true);
 
-    get_key_until(state.clone(), &pid, Value::Null).await;
+    get_key_until(state.clone(), &pid, json!(false)).await;
 }
 
 /// test-connection on an unknown provider id → NOT_FOUND (no network I/O).
@@ -307,7 +308,7 @@ async fn save_provider_config_stores_api_key() {
     assert_eq!(status, StatusCode::OK, "config body: {body}");
     assert_eq!(body["data"], true);
 
-    get_key_until(state.clone(), &expected_id, json!("sk-from-config")).await;
+    get_key_until(state.clone(), &expected_id, json!(true)).await;
 
     // Cleanup: remove the custom provider (also clears its stored secret).
     let (_, _) = send(
@@ -317,5 +318,5 @@ async fn save_provider_config_stores_api_key() {
         Some(json!({ "providerId": expected_id })),
     )
     .await;
-    get_key_until(state, &expected_id, Value::Null).await;
+    get_key_until(state, &expected_id, json!(false)).await;
 }
