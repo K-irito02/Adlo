@@ -16,19 +16,23 @@ use std::sync::{Arc, Mutex as StdMutex, RwLock};
 use tokio::sync::Mutex as AsyncMutex;
 use tokio_util::sync::CancellationToken;
 
+use crate::sse::SseEventBus;
+
 /// Complete engine state for the standalone `ad-server` process.
 ///
 /// Field-for-field mirror of `AppState` (src-tauri/src/state.rs) minus the
 /// Tauri-bound pieces: `browser_manager` stays in the desktop shell, and the
 /// SSE-specific port slot is repurposed as `server_port` (0 = not bound).
-/// Not `Clone` (like `AppState`) — the axum layer later wraps it in `Arc`.
+/// `Clone` so axum `Router::with_state` can carry it; the non-Clone interior
+/// pieces are wrapped in `Arc`.
+#[derive(Clone)]
 pub struct ServerState {
     pub data_dir: PathBuf,
     pub db: Database,
     pub config: Arc<RwLock<AppConfig>>,
     pub event_bus: EventBus,
-    pub current_workspace: RwLock<Option<WorkspaceMeta>>,
-    pub editor_dirty_paths: StdMutex<HashSet<String>>,
+    pub current_workspace: Arc<RwLock<Option<WorkspaceMeta>>>,
+    pub editor_dirty_paths: Arc<StdMutex<HashSet<String>>>,
     pub pty_sessions: Arc<StdMutex<SessionManager>>,
     pub log_manager: Arc<LogManager>,
     pub started_at: i64,
@@ -38,14 +42,18 @@ pub struct ServerState {
     /// ad-hoc network calls. Avoids per-provider Client background threads.
     pub shared_http_client: Arc<Client>,
     /// Async-aware mutex guarding add/remove custom provider operations.
-    pub provider_ops_mutex: AsyncMutex<()>,
+    pub provider_ops_mutex: Arc<AsyncMutex<()>>,
     /// Cancellation tokens for active agent loops (session_id -> token).
-    pub loop_cancels: AsyncMutex<HashMap<String, CancellationToken>>,
+    pub loop_cancels: Arc<AsyncMutex<HashMap<String, CancellationToken>>>,
     /// Shared PartEventBus for all Agent Loop runs; the SSE server subscribes
     /// to it so session events reach SSE clients in real time.
     pub part_bus: PartEventBus,
     /// Shared QuestionService resolving question.asked events from any loop.
     pub questions: QuestionService,
+    /// SSE event bus bridging `part_bus` to durable `event_log`, the replay
+    /// cache and the live SSE stream. Built and subscribed via
+    /// [`SseEventBus::spawn`] in `engine::init_server_state`.
+    pub sse_bus: SseEventBus,
     /// Port of the HTTP (SSE/WebSocket) server (0 = not started). Arc so a
     /// background setup task can store the port without borrowing ServerState.
     pub server_port: Arc<AtomicU16>,

@@ -33,6 +33,7 @@ adl-logging = { path = "../crates/adl-logging" }
 adl-subagent = { path = "../crates/subagent" }
 adl-mcp-client = { path = "../crates/mcp-client" }
 adl-lsp-client = { path = "../crates/lsp-client" }
+ad-server = { path = "../crates/server" }
 
 tauri = { workspace = true, features = ["unstable"] }
 tauri-plugin-dialog.workspace = true
@@ -51,7 +52,6 @@ dirs.workspace = true
 async-trait.workspace = true
 futures.workspace = true
 tokio-stream.workspace = true
-axum = "0.7"
 
 [features]
 default = ["custom-protocol"]

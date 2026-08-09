@@ -27,12 +27,18 @@ impl SseEventBus {
 
     /// Subscribe to `bus`, persisting every event to `event_log` + replay cache
     /// and re-broadcasting it to live SSE subscribers.
+    ///
+    /// The receiver is attached synchronously (before `tokio::spawn`), so the
+    /// subscription is guaranteed to exist once this call returns. The spawned
+    /// task then only forwards; without this, a publisher writing shortly after
+    /// initiation would silently lose its first events to the broadcast channel
+    /// (no receiver subscribed yet).
     pub fn spawn(&self, bus: PartEventBus) {
         let db = self.db.clone();
         let history = self.history.clone();
         let live = self.live.clone();
+        let mut rx = bus.subscribe();
         tokio::spawn(async move {
-            let mut rx = bus.subscribe();
             loop {
                 match rx.recv().await {
                     Ok(event) => {
@@ -195,7 +201,7 @@ mod tests {
         sse_bus.spawn(bus.clone());
         let mut live = sse_bus.subscribe_live();
 
-        // 让后台任务先完成订阅，避免 publish 早于 subscribe 被广播通道丢弃
+        // 让后台任务先完成订阅，避免 publish 早于订阅 被广播通道丢弃
         tokio::task::yield_now().await;
 
         bus.publish(SessionPartEvent::SessionStatus {
@@ -203,13 +209,10 @@ mod tests {
             status: "busy".into(),
         });
 
-        let (seq, event) = tokio::time::timeout(
-            std::time::Duration::from_secs(2),
-            live.recv(),
-        )
-        .await
-        .expect("live event should arrive within timeout")
-        .expect("live channel should not close");
+        let (seq, event) = tokio::time::timeout(std::time::Duration::from_secs(2), live.recv())
+            .await
+            .expect("live event should arrive within timeout")
+            .expect("live channel should not close");
 
         assert!(seq > 0, "live event must carry a positive seq");
         assert!(matches!(

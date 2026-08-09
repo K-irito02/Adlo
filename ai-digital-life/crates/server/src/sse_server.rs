@@ -1,4 +1,6 @@
+use crate::router::app_router;
 use crate::sse::SseEventBus;
+use crate::state::ServerState;
 use adl_agent_runtime::question::QuestionService;
 use axum::extract::{Path, Query, State};
 use axum::response::sse::{Event, KeepAlive, Sse};
@@ -6,13 +8,17 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 use std::convert::Infallible;
-use tokio_stream::wrappers::BroadcastStream;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU16, Ordering};
 use tokio_stream::StreamExt;
+use tokio_stream::wrappers::BroadcastStream;
 
+/// Shared router state for the axum layer: the `SseEventBus` plus the
+/// `QuestionService` the `/question/{request_id}/reply` endpoint drives.
 #[derive(Clone)]
-struct SseState {
-    bus: SseEventBus,
-    questions: QuestionService,
+pub struct SseState {
+    pub bus: SseEventBus,
+    pub questions: QuestionService,
 }
 
 #[derive(Deserialize)]
@@ -20,27 +26,60 @@ struct AfterParams {
     after: Option<i64>,
 }
 
-/// Spawn the axum SSE server on 127.0.0.1 with a random port. Returns the port.
-pub async fn spawn_sse_server(bus: SseEventBus, questions: QuestionService) -> u16 {
-    let state = SseState { bus, questions };
-    let app = Router::new()
+/// Build the SSE routes (`/event`, `/question/{request_id}/reply`) with the
+/// shared [`SseState`]. Used by both the full `app_router` (ad-server) and the
+/// desktop shell's transitional `spawn_sse_server`.
+pub fn sse_router(state: SseState) -> Router {
+    Router::new()
         .route("/event", get(sse_handler))
         .route("/question/{request_id}/reply", post(reply_handler))
-        .with_state(state);
+        .with_state(state)
+}
 
+/// Desktop-shell (Tauri) entry during the transitional phase: spawns a bare
+/// [`SseEventBus`] + [`QuestionService`] over the shared `app_router` on an
+/// ephemeral port, stores the bound port into `port`, and returns it.
+pub async fn spawn_sse_server(
+    bus: SseEventBus,
+    questions: QuestionService,
+    port: Arc<AtomicU16>,
+) -> u16 {
     // NOTE: binds with `tokio::net::TcpListener::bind` rather than
     // `std::net::TcpListener::bind` + `from_std` — the latter stalls the tokio
     // runtime's timer/IO driver on Windows with mio 1.2.2, hanging every
     // connected client (verified empirically, see task-2-report).
-    let listener =
-        tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind SSE listener on ephemeral port");
-    let port = listener.local_addr().expect("SSE listener address").port();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind SSE listener on ephemeral port");
+    let bound = listener.local_addr().expect("SSE listener address").port();
+    let app = app_router(SseState { bus, questions });
     tokio::spawn(async move {
         if let Err(e) = axum::serve(listener, app).await {
             tracing::error!("SSE HTTP server failed: {e}");
         }
     });
-    port
+    port.store(bound, Ordering::Relaxed);
+    bound
+}
+
+/// Standalone `ad-server` entry: bind an ephemeral port, build the full
+/// `app_router` from the [`ServerState`]'s `sse_bus` + `questions`, spawn the
+/// axum server, write the bound port back into `state.server_port`, and return
+/// it.
+pub async fn spawn_http_server(state: &ServerState) -> u16 {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind ad-server listener on ephemeral port");
+    let bound = listener.local_addr().expect("ad-server listener address").port();
+    let app =
+        app_router(SseState { bus: state.sse_bus.clone(), questions: state.questions.clone() });
+    tokio::spawn(async move {
+        if let Err(e) = axum::serve(listener, app).await {
+            tracing::error!("ad-server HTTP failed: {e}");
+        }
+    });
+    state.server_port.store(bound, Ordering::Relaxed);
+    bound
 }
 
 async fn sse_handler(
@@ -91,9 +130,10 @@ async fn reply_handler(
     Path(request_id): Path<String>,
     Json(body): Json<ReplyBody>,
 ) -> Result<(), (axum::http::StatusCode, String)> {
-    state.questions.reply(&request_id, body.answers).map_err(|e| {
-        (axum::http::StatusCode::NOT_FOUND, e.to_string())
-    })
+    state
+        .questions
+        .reply(&request_id, body.answers)
+        .map_err(|e| (axum::http::StatusCode::NOT_FOUND, e.to_string()))
 }
 
 #[cfg(test)]
@@ -122,7 +162,7 @@ mod tests {
         tokio::task::yield_now().await;
         let questions = adl_agent_runtime::question::QuestionService::new(part_bus.clone());
 
-        let port = spawn_sse_server(sse_bus, questions).await;
+        let port = spawn_sse_server(sse_bus, questions, Arc::new(AtomicU16::new(0))).await;
         let url = format!("http://127.0.0.1:{port}/event");
 
         // 先发布一个事件，再连接（确保 history 有内容）
@@ -136,14 +176,12 @@ mod tests {
         // SSE 响应：content-type text/event-stream，body 含事件
         assert!(resp.status().is_success());
         // SSE 流永不结束，resp.text() 会挂起 —— 只读取首个 chunk 并加超时。
-        let first = tokio::time::timeout(
-            std::time::Duration::from_secs(3),
-            resp.bytes_stream().next(),
-        )
-        .await
-        .expect("SSE stream should emit a chunk within timeout")
-        .expect("SSE stream should not end")
-        .expect("reqwest read should not error");
+        let first =
+            tokio::time::timeout(std::time::Duration::from_secs(3), resp.bytes_stream().next())
+                .await
+                .expect("SSE stream should emit a chunk within timeout")
+                .expect("SSE stream should not end")
+                .expect("reqwest read should not error");
         let text = String::from_utf8_lossy(&first);
         assert!(
             text.contains("message.part.updated") || text.contains("session.status"),

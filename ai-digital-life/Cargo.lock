@@ -16,9 +16,13 @@ dependencies = [
  "adl-storage",
  "adl-types",
  "adl-workspace",
+ "axum",
+ "futures",
  "reqwest",
+ "serde",
  "serde_json",
  "tokio",
+ "tokio-stream",
  "tokio-util",
  "tracing",
  "uuid",
@@ -436,6 +440,7 @@ dependencies = [
 name = "ai-digital-life"
 version = "0.1.0"
 dependencies = [
+ "ad-server",
  "adl-agent-runtime",
  "adl-browser",
  "adl-change-engine",
@@ -461,7 +466,6 @@ dependencies = [
  "adl-workspace",
  "anyhow",
  "async-trait",
- "axum",
  "dirs 5.0.1",
  "futures",
  "reqwest",

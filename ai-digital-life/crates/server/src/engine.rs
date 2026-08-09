@@ -1,3 +1,4 @@
+use crate::sse::SseEventBus;
 use crate::state::ServerState;
 use adl_agent_runtime::part_event_bus::PartEventBus;
 use adl_agent_runtime::question::QuestionService;
@@ -364,6 +365,10 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     let event_bus = EventBus::default();
     let part_bus = PartEventBus::new(256);
     let questions = QuestionService::new(part_bus.clone());
+    // The SSE bus owns a clone of the DB so the connect from event_log replay
+    // work; the bus itself becomes a ServerState field and is subscribed to
+    // `part_bus` after the struct is built.
+    let sse_bus = SseEventBus::new(db.clone());
     let t6 = std::time::Instant::now();
     let current_workspace: Option<adl_types::WorkspaceMeta> = db
         .get_state("current_workspace")
@@ -446,23 +451,30 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
 
     info!("[ADL-PERF] init_server_state TOTAL: {}ms", t0.elapsed().as_millis());
 
-    Ok(ServerState {
+    let state = ServerState {
         data_dir: data_dir.to_path_buf(),
         db,
         config: config_arc,
         event_bus,
-        current_workspace: RwLock::new(current_workspace),
-        editor_dirty_paths: std::sync::Mutex::new(std::collections::HashSet::new()),
+        current_workspace: Arc::new(RwLock::new(current_workspace)),
+        editor_dirty_paths: Arc::new(std::sync::Mutex::new(std::collections::HashSet::new())),
         pty_sessions: std::sync::Arc::new(std::sync::Mutex::new(SessionManager::new())),
         log_manager: Arc::new(log_manager),
         started_at: now_ms(),
         durable_manager,
         provider_registry,
         shared_http_client: shared_client,
-        provider_ops_mutex: tokio::sync::Mutex::new(()),
-        loop_cancels: tokio::sync::Mutex::new(std::collections::HashMap::new()),
+        provider_ops_mutex: Arc::new(tokio::sync::Mutex::new(())),
+        loop_cancels: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
         part_bus,
         questions,
+        sse_bus,
         server_port: std::sync::Arc::new(std::sync::atomic::AtomicU16::new(0)),
-    })
+    };
+
+    // Subscribe the shared SSE bus to the PartEventBus so session events from
+    // any agent loop reach `/event` consumers (replay + live).
+    state.sse_bus.spawn(state.part_bus.clone());
+
+    Ok(state)
 }

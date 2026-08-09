@@ -472,10 +472,11 @@ pub fn start_background_tasks(state: &AppState) {
         let rt = tokio::runtime::Runtime::new().expect("failed to create background tokio runtime");
         rt.block_on(async move {
             // 启动 SSE 服务：订阅共享 PartEventBus，向 /event 实时推送会话事件。
-            let sse_bus = crate::sse::SseEventBus::new(sse_db);
+            // SSE 总线已迁入 ad-server crate；桌面壳在过渡期仍使用进程内
+            // spawn_sse_server（不构造 ServerState），端口回写到 AppState.sse_port。
+            let sse_bus = ad_server::sse::SseEventBus::new(sse_db);
             sse_bus.spawn(part_bus);
-            let port = crate::sse_server::spawn_sse_server(sse_bus, questions).await;
-            sse_port.store(port, std::sync::atomic::Ordering::Relaxed);
+            let port = ad_server::sse_server::spawn_sse_server(sse_bus, questions, sse_port.clone()).await;
             tracing::info!(port, "SSE HTTP server started");
 
             let recovery_manager = durable_manager;
