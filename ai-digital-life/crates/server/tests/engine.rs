@@ -8,9 +8,8 @@ async fn engine_init_creates_workable_state() {
     // The DB must be a real, usable SQLite store after init (schema + migrations
     // applied): run a trivial query to prove it.
     let conn = state.db.conn().expect("db connection should be obtainable");
-    let one: i64 = conn
-        .query_row("SELECT 1", [], |row| row.get(0))
-        .expect("db should answer a trivial query");
+    let one: i64 =
+        conn.query_row("SELECT 1", [], |row| row.get(0)).expect("db should answer a trivial query");
     assert_eq!(one, 1);
 
     // The SSE/HTTP port must start unbound.
