@@ -82,4 +82,9 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/agent/plan-mode/enter", post(handlers::agent::enter_plan_mode))
         .route("/agent/plan-mode/exit", post(handlers::agent::exit_plan_mode))
         .route("/agent/plan-mode/state", post(handlers::agent::get_plan_mode_state))
+        // Agent pipeline / loop domain (real commands `agent_loop_run` /
+        // `agent_loop_abort` from agent_loop.rs — the loop machinery shared via
+        // `crate::agent_loop::run_loop`).
+        .route("/agent/turn/run", post(handlers::agent_pipeline::loop_run))
+        .route("/agent/turn/abort", post(handlers::agent_pipeline::loop_abort))
 }
