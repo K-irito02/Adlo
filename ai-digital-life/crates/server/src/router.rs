@@ -92,4 +92,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/patch/hunk-decision", post(handlers::patch::set_hunk_decision))
         .route("/patch/apply", post(handlers::patch::apply_patch_set))
         .route("/patch/rollback", post(handlers::patch::rollback_patch_set))
+        // Session-fork domain (`session_fork_*` tauri commands).
+        .route("/session-fork", post(handlers::session_fork::fork_session))
+        .route("/session-fork/list", post(handlers::session_fork::list_session_forks))
 }

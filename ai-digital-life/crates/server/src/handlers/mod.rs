@@ -6,5 +6,6 @@ pub mod conversation;
 pub mod health;
 pub mod patch;
 pub mod provider;
+pub mod session_fork;
 pub mod snapshot;
 pub mod workspace;
