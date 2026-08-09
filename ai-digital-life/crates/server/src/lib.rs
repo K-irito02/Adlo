@@ -1,3 +1,4 @@
+pub mod agent_loop;
 pub mod engine;
 pub mod handlers;
 pub mod ipc;
