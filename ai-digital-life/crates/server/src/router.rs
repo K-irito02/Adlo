@@ -69,4 +69,6 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/snapshot/list", post(handlers::snapshot::list))
         .route("/snapshot/revert", post(handlers::snapshot::revert))
         .route("/snapshot/prune", post(handlers::snapshot::prune))
+        // Compaction domain (`compaction_*` tauri commands).
+        .route("/compaction/session", post(handlers::compaction::compact_session))
 }
