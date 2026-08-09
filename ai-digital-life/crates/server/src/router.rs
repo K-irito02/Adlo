@@ -150,4 +150,6 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         // Web-tools domain (`web_fetch` / `web_search` tauri commands).
         .route("/web-tools/fetch", post(handlers::web_tools::web_fetch))
         .route("/web-tools/search", post(handlers::web_tools::web_search))
+        // Audit domain (`audit_*` tauri helpers — read surface).
+        .route("/audit/list", post(handlers::audit::list_audit_entries))
 }

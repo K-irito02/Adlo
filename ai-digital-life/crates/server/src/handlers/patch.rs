@@ -16,16 +16,14 @@
 use crate::ServerState;
 use crate::agent_loop;
 use crate::handlers::agent as agent_handlers;
+use crate::handlers::audit::save_audit_entry_with_db;
 use crate::handlers::workspace::current_workspace;
 use crate::ipc;
 use adl_change_engine;
 use adl_command::{run_command, validation_command};
 use adl_errors::AppError;
 use adl_storage::EntityTable;
-use adl_types::{
-    AuditEntry, CommandRequest, PatchHunkDecision, PatchSet, PatchSetStatus, RiskLevel, create_id,
-    now_ms,
-};
+use adl_types::{CommandRequest, PatchHunkDecision, PatchSet, PatchSetStatus, RiskLevel, now_ms};
 use axum::extract::{Path, State};
 use axum::response::IntoResponse;
 use std::collections::HashSet;
@@ -376,37 +374,4 @@ fn save_patch_set_with_db(
         Some(status),
         patch_set,
     )
-}
-
-/// Save an audit entry via `&Database` (faithful port of the audit domain's
-/// `save_audit_entry_with_db`, inlined here because the audit domain migrates
-/// in a later batch — same as the command domain handler).
-fn save_audit_entry_with_db(
-    db: &adl_storage::Database,
-    workspace_id: &str,
-    session_id: Option<&str>,
-    operation_type: &str,
-    risk_level: RiskLevel,
-    summary: impl Into<String>,
-    decision: Option<&str>,
-    detail: Option<&str>,
-) -> Result<AuditEntry, AppError> {
-    let entry = AuditEntry {
-        id: create_id("audit"),
-        timestamp: now_ms(),
-        operation_type: operation_type.to_string(),
-        summary: summary.into(),
-        risk_level,
-        decision: decision.map(str::to_string),
-        detail: detail.map(str::to_string),
-    };
-    db.save_entity(
-        EntityTable::AuditRecords,
-        &entry.id,
-        Some(workspace_id),
-        session_id,
-        Some(operation_type),
-        &entry,
-    )?;
-    Ok(entry)
 }

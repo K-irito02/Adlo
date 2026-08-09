@@ -5,12 +5,11 @@
 //! `adl_command::run_command` and persist the execution + audit.
 
 use crate::ServerState;
+use crate::handlers::audit::save_audit_entry_with_db;
 use crate::ipc;
 use adl_errors::AppError;
 use adl_storage::EntityTable;
-use adl_types::{
-    AuditEntry, CommandRequest, CommandRunResult, RiskLevel, TaskOperation, create_id, now_ms,
-};
+use adl_types::{CommandRequest, CommandRunResult, RiskLevel, TaskOperation};
 use axum::extract::State;
 use axum::response::IntoResponse;
 
@@ -238,37 +237,4 @@ fn approval_for_command_with_db(
         &approval,
     )?;
     Ok((task, approval))
-}
-
-/// Save an audit entry via `&Database` (faithful port of the audit domain's
-/// `save_audit_entry_with_db`, inlined here because the audit domain migrates
-/// in a later batch).
-fn save_audit_entry_with_db(
-    db: &adl_storage::Database,
-    workspace_id: &str,
-    session_id: Option<&str>,
-    operation_type: &str,
-    risk_level: RiskLevel,
-    summary: impl Into<String>,
-    decision: Option<&str>,
-    detail: Option<&str>,
-) -> Result<AuditEntry, AppError> {
-    let entry = AuditEntry {
-        id: create_id("audit"),
-        timestamp: now_ms(),
-        operation_type: operation_type.to_string(),
-        summary: summary.into(),
-        risk_level,
-        decision: decision.map(str::to_string),
-        detail: detail.map(str::to_string),
-    };
-    db.save_entity(
-        EntityTable::AuditRecords,
-        &entry.id,
-        Some(workspace_id),
-        session_id,
-        Some(operation_type),
-        &entry,
-    )?;
-    Ok(entry)
 }
