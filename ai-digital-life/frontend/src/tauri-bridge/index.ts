@@ -15,6 +15,7 @@ import { createTauriProviderBridge } from './tauri-provider';
 import { createTauriPtyBridge } from './tauri-pty';
 import { createTauriReservedBridge } from './tauri-reserved';
 import { createTauriWindowBridge } from './tauri-window';
+import { createTauriWorkspaceBridge } from './tauri-workspace';
 
 /**
  * Compose the Tauri `DigitalLifeBridge`: every business domain delegates to
@@ -31,6 +32,7 @@ import { createTauriWindowBridge } from './tauri-window';
 export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
   const http = createHttpBridge({ baseUrl: baseUrl ?? resolveAdlServerBaseUrl() });
   const tauriProvider = createTauriProviderBridge();
+  const tauriWorkspace = createTauriWorkspaceBridge();
   return {
     ...http,
 
@@ -43,6 +45,16 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
       ...http.provider,
       getProviderApiKey: tauriProvider.getProviderApiKey,
       hasProviderApiKey: tauriProvider.hasProviderApiKey,
+    },
+
+    // `workspace.onFileChanged` is a Tauri channel subscription
+    // (`digital-life://workspace-file-changed`), not an HTTP RPC — the backend
+    // emits it from `src-tauri/src/commands/workspace.rs`. The httpBridge
+    // `onFileChanged` is a Task-8 SSE stub, so the desktop keeps the real
+    // channel impl while every other `workspace.*` RPC stays on httpBridge.
+    workspace: {
+      ...http.workspace,
+      onFileChanged: tauriWorkspace.onFileChanged,
     },
 
     subscribeModelStream: (listener: (event: DigitalLifeModelStreamEventV1) => void) => {

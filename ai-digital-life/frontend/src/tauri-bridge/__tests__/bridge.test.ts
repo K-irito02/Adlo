@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const { mockInvoke } = vi.hoisted(() => ({
+const { mockInvoke, mockListen } = vi.hoisted(() => ({
   mockInvoke: vi.fn(),
+  mockListen: vi.fn(),
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -9,7 +10,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 vi.mock('@tauri-apps/api/event', () => ({
-  listen: vi.fn(() => Promise.resolve(() => {})),
+  listen: mockListen,
 }));
 
 import { createTauriBridge } from '../index';
@@ -20,6 +21,8 @@ function okResult<T>(data: T) {
 
 beforeEach(() => {
   mockInvoke.mockReset();
+  mockListen.mockReset();
+  mockListen.mockResolvedValue(() => {});
   vi.unstubAllGlobals();
   vi.stubGlobal(
     'fetch',
@@ -68,5 +71,26 @@ describe('createTauriBridge provider domain', () => {
       expect.objectContaining({ method: 'POST' }),
     );
     expect(res).toEqual({ ok: true, data: true });
+  });
+});
+
+describe('createTauriBridge workspace domain', () => {
+  it('workspace.onFileChanged subscribes to the Tauri file-change channel (desktop)', () => {
+    const bridge = createTauriBridge('http://127.0.0.1:9999');
+    const listener = vi.fn();
+    const unsubscribe = bridge.workspace.onFileChanged(listener);
+
+    expect(mockListen).toHaveBeenCalledWith(
+      'digital-life://workspace-file-changed',
+      expect.any(Function),
+    );
+
+    const handler = mockListen.mock.calls[0][1];
+    const event = { path: 'src/main.ts', lastModifiedAt: 123 };
+    handler({ payload: event });
+    expect(listener).toHaveBeenCalledWith(event);
+
+    expect(typeof unsubscribe).toBe('function');
+    unsubscribe();
   });
 });
