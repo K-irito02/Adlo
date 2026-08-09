@@ -75,7 +75,13 @@
 
 ## 磁盘空间
 
-Rust 增量编译缓存 `target/debug/incremental/` 每次编译创建新会话，**永不自动清理**，可达 20~40 GB。运行 `ai-digital-life/.cargo\clean-incremental.ps1` 保留 7 天内会话。详见 [ai-digital-life/AGENTS.md#磁盘空间管理](./ai-digital-life/AGENTS.md#磁盘空间管理)。
+`ai-digital-life/target/debug` 曾因依赖 `debug=2` 全量调试符号累积至 **130+ GB**（`.pdb` 97 GB），现已治理：第三方依赖 `debug=1`（自己 crate 白名单保留 `debug=2` 可断点调试）。
+
+**清理策略（双条件触发，见 [ai-digital-life/AGENTS.md#磁盘空间管理](./ai-digital-life/AGENTS.md#磁盘空间管理)）：**
+- 空间条件：`ai-digital-life/target/debug` 超过 25 GB
+- 时间条件：距上次清理超过 7 天（首次运行视为命中）
+
+任一命中即运行 `ai-digital-life/.cargo/clean-target.ps1`（`-WhatIf` 干跑预览，`-Full` 全清 `cargo clean`）。`cargo prune` 为 `cargo clean` 别名。
 
 ## 禁止项
 

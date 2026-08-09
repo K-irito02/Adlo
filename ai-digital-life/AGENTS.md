@@ -169,18 +169,36 @@ app/stores/
 
 ## 磁盘空间管理
 
-### target/debug 无限增长
+### target/debug 成因与现状
 
-Rust 增量编译会在 `target/debug/incremental/` 为每次编译创建新会话且**永不自动清理**。经过数百次开发编译后可达 20~40 GB。
+`target/debug/deps` 曾达 **~126 GB**：`.pdb`（Windows 调试符号）97 GB 为主力 —— `[profile.dev]` 默认 `debug=2`（全量类型调试信息）为每个 exe/测试二进制生成约 300MB PDB。已通过 `.cargo/config.toml` 治理：
 
-**预防措施：** 在 `ai-digital-life/` 下运行：
+- 第三方依赖 `debug=1`（行号级）+ `opt-level=1`
+- 自己 27 个包 `[profile.dev.package.X]` 白名单保留 `debug=2`（可断点查变量类型）
+- 重开增量编译（`incremental=false` 已移除，ICE 于 1.97.1 修复）
+
+### 清理策略（双条件触发）
+
+| 条件 | 阈值 | 说明 |
+|------|------|------|
+| 空间 | `target/debug` > 25 GB | 即使 7 天内也触发（防井喷） |
+| 时间 | 距上次清理 > 7 天 | 首次运行无 `.disk-clean-stamp` 视为命中 |
+
+清理对象：`target/debug/deps` + `incremental` 中 mtime 超过保留窗口（默认 7 天）的旧产物，**不触发重建**；7 天内活跃产物不自动删。
+
+### 预防措施
 
 ```powershell
-# 保留 7 天内增量会话，删除更早的（安全，不触发重新编译）
-.cargo\clean-incremental.ps1
+# 干跑预览预计释放量（不实际删除）
+powershell -File .cargo\clean-target.ps1 -WhatIf
 
-# 或完全清除所有构建产物（下次编译需要完整重建）
+# 执行条件清理（超 25GB 或超 7 天时生效）
+powershell -File .cargo\clean-target.ps1
+
+# 全清所有构建产物（下次编译需完整重建；连续大改后空间仍爆可执行）
 cargo clean
+# 或等价别名
+cargo prune
 ```
 
-相关文件：`.cargo/config.toml`（Cargo 别名 `cargo rebuild` = `cargo clean && cargo build`）
+时间戳记于 `.cargo/.disk-clean-stamp`（已入 `.gitignore`）。相关文件：`.cargo/config.toml`（alias `rebuild` = `clean && build`、`prune` = `clean`）。
