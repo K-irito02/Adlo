@@ -32,7 +32,7 @@ adl-tools = { path = "../tools" }
 adl-types = { path = "../types" }
 adl-workspace = { path = "../workspace" }
 async-trait.workspace = true
-axum = "0.7"
+axum = { version = "0.7", features = ["ws"] }
 dirs.workspace = true
 futures.workspace = true
 reqwest.workspace = true
@@ -46,5 +46,6 @@ tracing.workspace = true
 url.workspace = true
 
 [dev-dependencies]
+tokio-tungstenite = "0.24"
 tower = { version = "0.5", features = ["util"] }
 uuid.workspace = true

@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import { handlePreviewWorkspaceApi, isPreviewWorkspaceApiRequest } from "./dev/previewWorkspaceService";
-import { handlePreviewTerminalApi, isPreviewTerminalApiRequest } from "./dev/previewTerminalService";
+import { setupPreviewTerminalWs } from "./dev/previewTerminalService";
 import { USER_AGENT } from "./src/shared/userAgent";
 
 let visualizerPlugin = null;
@@ -20,6 +20,9 @@ export default defineConfig({
     {
       name: "adl-preview-workspace-api",
       configureServer(server) {
+        if (server.httpServer) {
+          setupPreviewTerminalWs(server.httpServer);
+        }
         server.middlewares.use(async (req, res, next) => {
           if (req.url?.includes('/__adl_preview_api__/browser/check-embed')) {
             const searchParams = new URL(req.url, 'http://localhost').searchParams;
@@ -171,10 +174,6 @@ export default defineConfig({
             } catch { /* net module unavailable */ }
             res.statusCode = 200;
             res.end(JSON.stringify({ ok: true, data: discovered }));
-            return;
-          }
-          if (isPreviewTerminalApiRequest(req.url)) {
-            void handlePreviewTerminalApi(req, res);
             return;
           }
           if (!isPreviewWorkspaceApiRequest(req.url)) {

@@ -18,6 +18,7 @@ use axum::routing::{delete, get, patch, post};
 pub fn app_router(_state: ServerState) -> Router<ServerState> {
     Router::new()
         .route("/health", get(health::health))
+        .route("/pty", get(crate::pty_ws::ws_handler))
         .route("/event", get(sse_handler_state))
         .route("/question/:request_id/reply", post(reply_handler_state))
         .route("/session", post(handlers::conversation::create_session))
