@@ -27,14 +27,14 @@ pub(crate) struct AfterParams {
     after: Option<i64>,
 }
 
-/// Build the SSE routes (`/event`, `/question/{request_id}/reply`) over the
+/// Build the SSE routes (`/event`, `/question/:request_id/reply`) over the
 /// `SseState`-based handlers. Used exclusively by the desktop shell's
 /// transitional `spawn_sse_server` (the standalone ad-server mounts the
 /// `ServerState`-based variants via `app_router` instead).
 pub fn sse_router(state: SseState) -> Router {
     Router::new()
         .route("/event", get(sse_handler))
-        .route("/question/{request_id}/reply", post(reply_handler))
+        .route("/question/:request_id/reply", post(reply_handler))
         .with_state(state)
 }
 

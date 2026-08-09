@@ -78,7 +78,12 @@ impl LogManager {
             .with_writer(make_writer)
             .with_filter(filter());
 
-        Registry::default().with(stdout_layer).with(file_layer).init();
+        // Tolerate a second init in the same process (integration tests spin up
+        // multiple engine instances per binary). The production path calls this
+        // exactly once; re-init only means "subscriber already installed".
+        if let Err(e) = Registry::default().with(stdout_layer).with(file_layer).try_init() {
+            tracing::warn!("global tracing subscriber already set, reusing it ({e})");
+        }
 
         if let Ok(sessions) = terminal_sessions.lock() {
             if let Err(e) = sessions.prune_old_sessions() {
