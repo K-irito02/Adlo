@@ -12,6 +12,7 @@ pub mod patch;
 pub mod permission;
 pub mod provider;
 pub mod reference;
+pub mod retrieval;
 pub mod session_fork;
 pub mod snapshot;
 pub mod subagent;

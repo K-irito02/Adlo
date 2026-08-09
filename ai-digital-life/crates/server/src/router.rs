@@ -142,4 +142,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/subagent/get", post(handlers::subagent::get))
         .route("/subagent/list-active", post(handlers::subagent::list_active))
         .route("/subagent/cancel", post(handlers::subagent::cancel))
+        // Retrieval domain (`retrieval_*` tauri commands).
+        .route("/retrieval/status", get(handlers::retrieval::get_status))
+        .route("/retrieval/rebuild", post(handlers::retrieval::rebuild_index))
 }
