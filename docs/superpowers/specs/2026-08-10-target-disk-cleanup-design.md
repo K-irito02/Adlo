@@ -126,7 +126,7 @@ debug = 2
 
 | 能力 | 说明 |
 |---|---|
-| 双条件触发 | 计算 `target/debug` 总大小：超过 `-Threshold 25`（GB）→ 触发；或距上次清理（`.disk-clean-stamp`）超过 `-RetentionDays 7` → 触发 |
+| 双条件触发 | 计算 `target/debug` 总大小：超过 `-Threshold 25`（GB）→ 触发；或距上次清理（`.disk-clean-stamp`）超过 `-RetentionDays 7` → 触发。**首次运行无 stamp 文件视为需要清理**（触发时间周期） |
 | 清理动作 | 默认删除 `deps/` + `incremental/` 中 **mtime 超过 `-RetentionDays` 的旧产物**（不触发重建、安全）；若清理后仍超阈值 → 报告并提示 `-Full` |
 | `-Full` | 执行 `cargo clean`（全清，激进） |
 | `-WhatIf` / 干跑 | 只报告预估释放量与将删文件数，不实际删除 |
