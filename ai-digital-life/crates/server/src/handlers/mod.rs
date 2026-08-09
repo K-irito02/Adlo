@@ -6,6 +6,7 @@ pub mod conversation;
 pub mod custom_agent;
 pub mod durable;
 pub mod health;
+pub mod lsp;
 pub mod patch;
 pub mod permission;
 pub mod provider;

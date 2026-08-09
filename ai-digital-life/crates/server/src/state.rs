@@ -3,6 +3,7 @@ use adl_agent_runtime::question::QuestionService;
 use adl_kernel::config::AppConfig;
 use adl_kernel::events::EventBus;
 use adl_logging::LogManager;
+use adl_lsp_client::LspClient;
 use adl_model_gateway::registry::ProviderRegistry;
 use adl_pty::SessionManager;
 use adl_storage::Database;
@@ -57,4 +58,7 @@ pub struct ServerState {
     /// Port of the HTTP (SSE/WebSocket) server (0 = not started). Arc so a
     /// background setup task can store the port without borrowing ServerState.
     pub server_port: Arc<AtomicU16>,
+    /// Live LSP clients keyed by workspace id (mirrors the Tauri module-level
+    /// `LSP_CLIENTS` static — moved here so the standalone server owns it).
+    pub lsp_clients: Arc<AsyncMutex<HashMap<String, Arc<LspClient>>>>,
 }

@@ -471,6 +471,7 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
         questions,
         sse_bus,
         server_port: std::sync::Arc::new(std::sync::atomic::AtomicU16::new(0)),
+        lsp_clients: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
     };
 
     // Subscribe the shared SSE bus to the PartEventBus so session events from

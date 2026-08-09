@@ -118,4 +118,10 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/durable/heartbeat", post(handlers::durable::heartbeat))
         .route("/durable/crashed", post(handlers::durable::crashed))
         .route("/durable/recover", post(handlers::durable::recover))
+        // LSP domain (`lsp_*` tauri commands — language server lifecycle).
+        .route("/lsp/start", post(handlers::lsp::start_server))
+        .route("/lsp/stop", post(handlers::lsp::stop_server))
+        .route("/lsp/symbols", post(handlers::lsp::get_symbols))
+        .route("/lsp/diagnostics", post(handlers::lsp::get_diagnostics))
+        .route("/lsp/goto-definition", post(handlers::lsp::goto_definition))
 }
