@@ -145,4 +145,6 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         // Retrieval domain (`retrieval_*` tauri commands).
         .route("/retrieval/status", get(handlers::retrieval::get_status))
         .route("/retrieval/rebuild", post(handlers::retrieval::rebuild_index))
+        // Run-activity domain (`run_activity_*` tauri commands — history only).
+        .route("/run-activity/list", post(handlers::run_activity::list_by_run_id))
 }
