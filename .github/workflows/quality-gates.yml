@@ -44,6 +44,9 @@ jobs:
       - name: cargo test
         run: cargo test --workspace
 
+      - name: Disk cleanup (dual-condition)
+        run: powershell -NoProfile -File .cargo\clean-target.ps1
+
   frontend:
     name: Frontend (lint + format + typecheck + test)
     runs-on: windows-latest
