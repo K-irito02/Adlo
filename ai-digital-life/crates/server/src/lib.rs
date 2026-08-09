@@ -1,5 +1,6 @@
 pub mod agent_loop;
 pub mod engine;
+pub mod git_vis_cache;
 pub mod handlers;
 pub mod ipc;
 pub mod router;

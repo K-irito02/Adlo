@@ -23,4 +23,5 @@ pub mod task;
 pub mod web_tools;
 pub mod workspace;
 pub mod workspace_git;
+pub mod workspace_git_vis;
 pub mod workspace_sidebar;

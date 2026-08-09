@@ -178,4 +178,21 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/workspace/git/stage", post(handlers::workspace_git::git_stage_file))
         .route("/workspace/git/unstage", post(handlers::workspace_git::git_unstage_file))
         .route("/workspace/git/discard", post(handlers::workspace_git::git_discard_file))
+        // Workspace-git-visualization domain (`workspace_git_vis_*` tauri
+        // commands).
+        .route("/workspace/git-vis/commit-stats", post(handlers::workspace_git_vis::commit_stats))
+        .route(
+            "/workspace/git-vis/first-commit-year",
+            post(handlers::workspace_git_vis::first_commit_year),
+        )
+        .route(
+            "/workspace/git-vis/code-evolution",
+            post(handlers::workspace_git_vis::code_evolution),
+        )
+        .route(
+            "/workspace/git-vis/contributor-modules",
+            post(handlers::workspace_git_vis::contributor_modules),
+        )
+        .route("/workspace/git-vis/branch-graph", post(handlers::workspace_git_vis::branch_graph))
+        .route("/workspace/git-vis/file-hotspots", post(handlers::workspace_git_vis::file_hotspots))
 }
