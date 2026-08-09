@@ -62,7 +62,7 @@ pub(crate) fn get_plan_file_path(workspace_id: &str) -> Option<PathBuf> {
 // Run CRUD helpers (blocking)
 // ─────────────────────────────────────────────────────────────────────────────
 
-fn load_run_detail(
+pub(crate) fn load_run_detail(
     db: &adl_storage::Database,
     run_id: &str,
 ) -> Result<Option<AgentRunDetail>, AppError> {
@@ -74,7 +74,7 @@ fn load_run_detail(
     Ok(Some(AgentRunDetail { run, steps }))
 }
 
-fn save_run_detail_with_db(
+pub(crate) fn save_run_detail_with_db(
     db: &adl_storage::Database,
     detail: &AgentRunDetail,
 ) -> Result<(), AppError> {

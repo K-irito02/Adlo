@@ -87,4 +87,9 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         // `crate::agent_loop::run_loop`).
         .route("/agent/turn/run", post(handlers::agent_pipeline::loop_run))
         .route("/agent/turn/abort", post(handlers::agent_pipeline::loop_abort))
+        // Patch domain (`patch_*` tauri commands).
+        .route("/patch/:patch_set_id", get(handlers::patch::get_patch_set))
+        .route("/patch/hunk-decision", post(handlers::patch::set_hunk_decision))
+        .route("/patch/apply", post(handlers::patch::apply_patch_set))
+        .route("/patch/rollback", post(handlers::patch::rollback_patch_set))
 }

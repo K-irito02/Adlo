@@ -11,6 +11,7 @@ dependencies = [
  "adl-command",
  "adl-conversation",
  "adl-errors",
+ "adl-fs-ops",
  "adl-kernel",
  "adl-logging",
  "adl-migration",
