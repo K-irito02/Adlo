@@ -5,6 +5,7 @@ pub mod compaction;
 pub mod conversation;
 pub mod health;
 pub mod patch;
+pub mod permission;
 pub mod provider;
 pub mod session_fork;
 pub mod snapshot;

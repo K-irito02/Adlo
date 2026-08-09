@@ -95,4 +95,10 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         // Session-fork domain (`session_fork_*` tauri commands).
         .route("/session-fork", post(handlers::session_fork::fork_session))
         .route("/session-fork/list", post(handlers::session_fork::list_session_forks))
+        // Permission ruleset domain (`permission_*` tauri commands).
+        .route("/permission/list", post(handlers::permission::list_rules))
+        .route("/permission/add", post(handlers::permission::add_rule))
+        .route("/permission/delete", post(handlers::permission::delete_rule))
+        .route("/permission/include-defaults", post(handlers::permission::set_include_defaults))
+        .route("/permission/evaluate", post(handlers::permission::evaluate))
 }
