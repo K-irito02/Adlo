@@ -7,6 +7,7 @@ name = "ad-server"
 version = "0.1.0"
 dependencies = [
  "adl-agent-runtime",
+ "adl-change-engine",
  "adl-command",
  "adl-conversation",
  "adl-errors",
@@ -21,6 +22,7 @@ dependencies = [
  "adl-workspace",
  "async-trait",
  "axum",
+ "dirs 5.0.1",
  "futures",
  "reqwest",
  "serde",

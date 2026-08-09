@@ -64,4 +64,9 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         // Command domain (`command_*` tauri commands — custom slash-commands).
         .route("/command/run", post(handlers::command::run))
         .route("/command/recent", post(handlers::command::list_recent))
+        // Snapshot domain (`snapshot_*` tauri commands).
+        .route("/snapshot/create", post(handlers::snapshot::create))
+        .route("/snapshot/list", post(handlers::snapshot::list))
+        .route("/snapshot/revert", post(handlers::snapshot::revert))
+        .route("/snapshot/prune", post(handlers::snapshot::prune))
 }
