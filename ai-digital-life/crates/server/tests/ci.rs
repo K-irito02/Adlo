@@ -147,3 +147,34 @@ async fn get_job_logs_missing_config_returns_400() {
     assert_eq!(body["ok"], false, "body: {body}");
     assert_eq!(body["error"]["code"], "INVALID_INPUT", "body: {body}");
 }
+
+/// POST /ci/job-logs with the camelCase `{ config, runId }` body deserializes
+/// and reaches the CI client — the failure is a network-level error from
+/// fetching logs for a nonexistent repo/run, NOT a 400 from body parsing
+/// (proves the handler got past `JobLogsBody` and executed `fetch_job_logs`).
+#[tokio::test]
+async fn get_job_logs_camel_case_body_reaches_ci_client() {
+    let state = state().await;
+    let (_, body) = send(
+        state,
+        "/ci/job-logs",
+        Some(json!({
+            "config": {
+                "owner": "octocat",
+                "repo": "no-such-repo-adl",
+                "branch": "main"
+            },
+            "runId": 5
+        })),
+    )
+    .await;
+    assert_eq!(body["ok"], false, "body: {body}");
+    assert_eq!(
+        body["error"]["code"], "NETWORK_ERROR",
+        "must be the CI client's network error, not a parse 400: {body}"
+    );
+    assert!(
+        body["error"]["message"].as_str().unwrap().contains("fetch job logs:"),
+        "message shows the client ran: {body}"
+    );
+}

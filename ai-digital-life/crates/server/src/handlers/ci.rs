@@ -131,6 +131,7 @@ pub async fn has_access_token(State(_state): State<ServerState>) -> impl IntoRes
 }
 
 #[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct JobLogsBody {
     config: CiRepoConfig,
     run_id: u64,

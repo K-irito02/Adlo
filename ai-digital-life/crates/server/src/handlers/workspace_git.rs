@@ -238,6 +238,7 @@ async fn build_branch_change_result(
 }
 
 #[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct GitFileBody {
     relative_path: String,
     workspace_path: Option<String>,

@@ -224,8 +224,10 @@ async fn create_branch_non_git_workspace_returns_error() {
     assert_eq!(body["ok"], false, "body: {body}");
 }
 
-/// POST /workspace/git/stage on a non-git dir returns an error (covers
-/// `WorkspaceBridge.gitStageFile`).
+/// POST /workspace/git/stage on a non-git dir runs the real git subprocess and
+/// surfaces the git-level error (covers `WorkspaceBridge.gitStageFile`). The
+/// camelCase body (`relativePath`/`workspacePath`) must deserialize — a 400
+/// here must come from git, not from body parsing.
 #[tokio::test]
 async fn stage_file_non_git_dir_returns_error() {
     let state = state().await;
@@ -238,10 +240,16 @@ async fn stage_file_non_git_dir_returns_error() {
     .await;
     assert!(status.is_client_error(), "non-git dir -> error: {status} {body}");
     assert_eq!(body["ok"], false, "body: {body}");
+    // The git subprocess actually ran and failed (not a body-parse 400).
+    assert_eq!(body["error"]["code"], "WORKSPACE_ERROR", "git-level error: {body}");
+    assert!(
+        body["error"]["message"].as_str().unwrap().to_lowercase().contains("not a git repository"),
+        "message mentions the failed git op: {body}"
+    );
 }
 
-/// POST /workspace/git/unstage on a non-git dir returns an error (covers
-/// `WorkspaceBridge.gitUnstageFile`).
+/// POST /workspace/git/unstage on a non-git dir runs the real git subprocess and
+/// surfaces the git-level error (covers `WorkspaceBridge.gitUnstageFile`).
 #[tokio::test]
 async fn unstage_file_non_git_dir_returns_error() {
     let state = state().await;
@@ -254,10 +262,15 @@ async fn unstage_file_non_git_dir_returns_error() {
     .await;
     assert!(status.is_client_error(), "non-git dir -> error: {status} {body}");
     assert_eq!(body["ok"], false, "body: {body}");
+    assert_eq!(body["error"]["code"], "WORKSPACE_ERROR", "git-level error: {body}");
+    assert!(
+        body["error"]["message"].as_str().unwrap().to_lowercase().contains("not a git repository"),
+        "message mentions the failed git op: {body}"
+    );
 }
 
-/// POST /workspace/git/discard on a non-git dir returns an error (covers
-/// `WorkspaceBridge.gitDiscardFile`).
+/// POST /workspace/git/discard on a non-git dir runs the real git subprocess and
+/// surfaces the git-level error (covers `WorkspaceBridge.gitDiscardFile`).
 #[tokio::test]
 async fn discard_file_non_git_dir_returns_error() {
     let state = state().await;
@@ -270,4 +283,9 @@ async fn discard_file_non_git_dir_returns_error() {
     .await;
     assert!(status.is_client_error(), "non-git dir -> error: {status} {body}");
     assert_eq!(body["ok"], false, "body: {body}");
+    assert_eq!(body["error"]["code"], "WORKSPACE_ERROR", "git-level error: {body}");
+    assert!(
+        body["error"]["message"].as_str().unwrap().to_lowercase().contains("not a git repository"),
+        "message mentions the failed git op: {body}"
+    );
 }
