@@ -12,6 +12,7 @@ workspace = true
 adl-agent-runtime = { path = "../agent-runtime" }
 adl-change-engine = { path = "../change-engine" }
 adl-command = { path = "../command" }
+adl-context = { path = "../context" }
 adl-conversation = { path = "../conversation" }
 adl-errors = { path = "../errors" }
 adl-fs-ops = { path = "../fs-ops" }

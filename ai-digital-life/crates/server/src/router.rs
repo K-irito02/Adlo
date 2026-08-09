@@ -132,4 +132,9 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/mcp/disconnect", post(handlers::mcp::disconnect_server))
         .route("/mcp/catalog", post(handlers::mcp::catalog))
         .route("/mcp/load-config", post(handlers::mcp::load_config))
+        // Reference-domain (`reference_*` tauri commands).
+        .route("/reference/list", post(handlers::reference::list))
+        .route("/reference/add", post(handlers::reference::add))
+        .route("/reference/remove", post(handlers::reference::remove))
+        .route("/reference/prompt", post(handlers::reference::prompt))
 }

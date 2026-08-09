@@ -9,6 +9,7 @@ dependencies = [
  "adl-agent-runtime",
  "adl-change-engine",
  "adl-command",
+ "adl-context",
  "adl-conversation",
  "adl-errors",
  "adl-fs-ops",
