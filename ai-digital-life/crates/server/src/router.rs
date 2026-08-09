@@ -101,4 +101,9 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/permission/delete", post(handlers::permission::delete_rule))
         .route("/permission/include-defaults", post(handlers::permission::set_include_defaults))
         .route("/permission/evaluate", post(handlers::permission::evaluate))
+        // Custom-agent registry domain (`custom_agent_*` tauri commands).
+        .route("/custom-agent/list", post(handlers::custom_agent::list_agents))
+        .route("/custom-agent/add", post(handlers::custom_agent::add_agent))
+        .route("/custom-agent/delete", post(handlers::custom_agent::delete_agent))
+        .route("/custom-agent/update", post(handlers::custom_agent::update_agent))
 }

@@ -3,6 +3,7 @@ pub mod agent_pipeline;
 pub mod command;
 pub mod compaction;
 pub mod conversation;
+pub mod custom_agent;
 pub mod health;
 pub mod patch;
 pub mod permission;
