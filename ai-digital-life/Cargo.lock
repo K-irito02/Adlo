@@ -3,6 +3,28 @@
 version = 4
 
 [[package]]
+name = "ad-server"
+version = "0.1.0"
+dependencies = [
+ "adl-agent-runtime",
+ "adl-errors",
+ "adl-kernel",
+ "adl-logging",
+ "adl-migration",
+ "adl-model-gateway",
+ "adl-pty",
+ "adl-storage",
+ "adl-types",
+ "adl-workspace",
+ "reqwest",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "adl-agent-runtime"
 version = "0.1.0"
 dependencies = [

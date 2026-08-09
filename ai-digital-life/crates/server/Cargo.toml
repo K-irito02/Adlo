@@ -1,0 +1,29 @@
+[package]
+name = "ad-server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+adl-agent-runtime = { path = "../agent-runtime" }
+adl-errors = { path = "../errors" }
+adl-kernel = { path = "../kernel" }
+adl-logging = { path = "../adl-logging" }
+adl-migration = { path = "../migration" }
+adl-model-gateway = { path = "../model-gateway" }
+adl-pty = { path = "../pty" }
+adl-storage = { path = "../storage" }
+adl-types = { path = "../types" }
+adl-workspace = { path = "../workspace" }
+reqwest.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+uuid.workspace = true

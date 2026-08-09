@@ -25,6 +25,7 @@ members = [
     "crates/subagent",
     "crates/mcp-client",
     "crates/lsp-client",
+    "crates/server",
     "src-tauri",
 ]
 
