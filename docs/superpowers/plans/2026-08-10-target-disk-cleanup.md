@@ -126,9 +126,10 @@ try {
     Assert-True (Test-Path (Join-Path $cleanTarget "debug\deps\libold-aaaa.rlib")) "S4 不应删除文件"
     Assert-True (Test-Path (Join-Path $cleanTarget "debug\deps\libnew-bbbb.rlib")) "S4 新物仍在"
 
-    # -- S5: 时间触发执行后应写 stamp --
+    # -- S5: 时间触发执行后应写 stamp（先删 stamp 模拟首次运行） --
     Remove-Item -LiteralPath $cleanTarget -Recurse -Force
     Make-Target $cleanTarget
+    if (Test-Path $stampReal) { Remove-Item -LiteralPath $stampReal -Force }
     Run-Script @("-TargetDir", $cleanTarget, "-Threshold", "100000", "-RetentionDays", "7") | Out-Null
     Assert-True (Test-Path $stampReal) "S5 清理后应写 stamp"
 
@@ -177,12 +178,11 @@ powershell -File .cargo\clean-target.ps1 -WhatIf
 powershell -File .cargo\clean-target.ps1
 powershell -File .cargo\clean-target.ps1 -Full
 #>
-[CmdletBinding()]
+[CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [double]$Threshold = 25,
     [int]$RetentionDays = 7,
     [switch]$Full,
-    [switch]$WhatIf,
     [string]$TargetDir = (Join-Path $PSScriptRoot "..\target")
 )
 
