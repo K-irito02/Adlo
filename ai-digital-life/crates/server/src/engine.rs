@@ -1,4 +1,5 @@
 use crate::sse::SseEventBus;
+use crate::sse_server::{spawn_http_server, spawn_http_server_on_port};
 use crate::state::ServerState;
 use adl_agent_runtime::part_event_bus::PartEventBus;
 use adl_agent_runtime::question::QuestionService;
@@ -477,4 +478,25 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     state.sse_bus.spawn(state.part_bus.clone());
 
     Ok(state)
+}
+
+/// Bind and serve the full ad-server HTTP surface, returning the port that was
+/// actually bound (stored into `state.server_port`).
+///
+/// `requested_port == 0` binds an OS-assigned ephemeral port via
+/// [`spawn_http_server`]. A non-zero `requested_port` binds that exact port —
+/// if it is already in use the process prints the error to stderr and exits
+/// non-zero, so the parent/probe (which relies on `/health`) fails loudly
+/// instead of silently serving elsewhere.
+pub async fn serve(state: ServerState, requested_port: u16) -> u16 {
+    if requested_port == 0 {
+        return spawn_http_server(&state).await;
+    }
+    match spawn_http_server_on_port(&state, requested_port).await {
+        Ok(port) => port,
+        Err(e) => {
+            eprintln!("[ad-server] failed to bind port {requested_port}: {e}");
+            std::process::exit(1);
+        },
+    }
 }

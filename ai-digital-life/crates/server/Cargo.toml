@@ -30,4 +30,5 @@ tracing.workspace = true
 
 [dev-dependencies]
 futures.workspace = true
+tower = { version = "0.5", features = ["util"] }
 uuid.workspace = true
