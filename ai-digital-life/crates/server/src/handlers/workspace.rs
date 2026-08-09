@@ -1,0 +1,559 @@
+//! Workspace domain HTTP handlers — migrated from
+//! `src-tauri/src/commands/workspace.rs`. Follows the conversation-domain
+//! recipe: `State(state): State<ServerState>` replaces `app: tauri::AppHandle`
+//! / `State<'_, AppState>`, blocking file I/O runs in `spawn_blocking`, and
+//! responses are wrapped with [`crate::ipc::to_response`] into `IpcResult`.
+
+use crate::ServerState;
+use crate::ipc;
+use adl_errors::AppError;
+use adl_kernel::events::AppEvent;
+use adl_storage::EntityTable;
+use adl_types::{
+    FileOutlineItem, RetrievalSnapshot, WorkspaceChangePreview, WorkspaceFileChangedEvent,
+    WorkspaceMeta, WorkspaceSearchHit, WorkspaceTreeNode,
+};
+use axum::extract::State;
+use axum::response::IntoResponse;
+use std::path::PathBuf;
+
+/// Run a blocking closure and collapse the `spawn_blocking` join error into an
+/// `AppError::Internal`. Keeps every handler free of the `?` operator so the
+/// `impl IntoResponse` signature stays a plain `(StatusCode, Json<Value>)`.
+async fn run_blocking<T, F>(f: F) -> Result<T, AppError>
+where
+    T: Send + 'static,
+    F: FnOnce() -> Result<T, AppError> + Send + 'static,
+{
+    tokio::task::spawn_blocking(f)
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
+}
+
+/// Resolve the active workspace metadata (read side of `state.current_workspace`).
+fn current_workspace(state: &ServerState) -> Result<WorkspaceMeta, AppError> {
+    state
+        .current_workspace
+        .read()
+        .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))?
+        .clone()
+        .ok_or_else(|| AppError::NotFound("active workspace".into()))
+}
+
+/// Resolve the workspace root for a file operation: an explicit `workspacePath`
+/// wins, otherwise fall back to the active workspace.
+fn workspace_root(state: &ServerState, explicit: Option<String>) -> Result<String, AppError> {
+    match explicit {
+        Some(p) => Ok(p),
+        None => Ok(current_workspace(state)?.root_path),
+    }
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspacePathBody {
+    workspace_path: String,
+}
+
+/// POST `/workspace/open` — open a workspace path, persist it as the active
+/// workspace (DB row + state slot + in-memory), build the retrieval snapshot,
+/// and emit the kernel `WorkspaceOpened` / `RetrievalStatusChanged` events.
+///
+/// Migration note: the Tauri original also upserted the sidebar recent list via
+/// `workspace_sidebar::upsert_sidebar_after_open` and emitted the legacy
+/// `digital-life://retrieval-status` UI event — the sidebar domain is migrated
+/// in a later batch (workspace_sidebar), and the legacy UI event has no
+/// [`crate`] SSE equivalent, so it is warn+reported here instead of dropped.
+pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> impl IntoResponse {
+    let input: WorkspacePathBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let path = PathBuf::from(input.workspace_path);
+
+    // Phase 1 (blocking): open workspace (file I/O) + build retrieval snapshot.
+    let (meta, snapshot) =
+        match run_blocking(move || -> Result<(WorkspaceMeta, RetrievalSnapshot), AppError> {
+            let (meta, _recent) = adl_workspace::open_workspace(path.as_path())?;
+            let snapshot = adl_workspace::build_retrieval_snapshot(
+                &meta.id,
+                PathBuf::from(&meta.root_path).as_path(),
+            )?;
+            Ok((meta, snapshot))
+        })
+        .await
+        {
+            Ok(v) => v,
+            Err(e) => return ipc::to_response(Err(e)),
+        };
+
+    // Phase 2 (blocking): persist meta + snapshot to the DB.
+    let db = state.db.clone();
+    let meta_for_db = meta.clone();
+    let snapshot_for_db = snapshot.clone();
+    if let Err(e) = run_blocking(move || -> Result<(), AppError> {
+        db.save_entity(
+            EntityTable::Workspaces,
+            &meta_for_db.id,
+            Some(&meta_for_db.id),
+            None,
+            Some("ready"),
+            &meta_for_db,
+        )?;
+        db.put_state("current_workspace", &serde_json::to_string(&meta_for_db)?)?;
+        db.save_entity(
+            EntityTable::RetrievalSnapshots,
+            &meta_for_db.id,
+            Some(&meta_for_db.id),
+            None,
+            Some("completed"),
+            &snapshot_for_db,
+        )?;
+        Ok(())
+    })
+    .await
+    {
+        return ipc::to_response(Err(e));
+    }
+
+    // Phase 3 (async side): update the in-memory active workspace + emit events.
+    {
+        let mut ws = match state.current_workspace.write() {
+            Ok(w) => w,
+            Err(_) => {
+                return ipc::to_response(Err(AppError::Internal(
+                    "workspace mutex poisoned".into(),
+                )));
+            },
+        };
+        *ws = Some(meta.clone());
+    }
+    state.event_bus.emit(AppEvent::WorkspaceOpened(meta.id.clone()));
+    state.event_bus.emit(AppEvent::RetrievalStatusChanged(meta.id.clone()));
+    tracing::warn!(
+        workspace_id = %meta.id,
+        "workspace_open: legacy 'digital-life://retrieval-status' UI emit has no SSE equivalent; \
+         session-part bus carries no retrieval status signal — the S1 bridge must poll the snapshot row"
+    );
+
+    let value = match serde_json::to_value(&meta) {
+        Ok(v) => v,
+        Err(e) => return ipc::to_response(Err(AppError::from(e))),
+    };
+    ipc::to_response(Ok(value))
+}
+
+/// POST `/workspace/clear-current` — clear the persisted + in-memory active workspace.
+pub async fn clear_current(State(state): State<ServerState>) -> impl IntoResponse {
+    let db = state.db.clone();
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        db.put_state("current_workspace", "null")?;
+        Ok(serde_json::json!(true))
+    })
+    .await;
+    if result.is_ok() {
+        if let Err(e) = state
+            .current_workspace
+            .write()
+            .map(|mut w| *w = None)
+            .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))
+        {
+            return ipc::to_response(Err(e));
+        }
+    }
+    ipc::to_response(result)
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RelativePathBody {
+    relative_path: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FileOpsBody {
+    relative_path: String,
+    #[serde(default)]
+    content: Option<String>,
+    #[serde(default)]
+    workspace_path: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RenameBody {
+    relative_path: String,
+    new_name: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PathPairBody {
+    relative_path: String,
+    new_path: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TreeBody {
+    #[serde(default)]
+    workspace_path: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SearchBody {
+    query: String,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DirtyPathsBody {
+    relative_paths: Vec<String>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct FileChangedBody {
+    path: String,
+    last_modified_at: i64,
+}
+
+/// POST `/workspace/file` — create a file in the active workspace.
+pub async fn create_file(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: FileOpsBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        let content = input.content.as_deref().unwrap_or("");
+        let doc = adl_workspace::create_file(
+            PathBuf::from(root_path).as_path(),
+            &input.relative_path,
+            content,
+        )?;
+        Ok(serde_json::to_value(doc)?)
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// POST `/workspace/folder` — create a folder in the active workspace.
+pub async fn create_folder(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: RelativePathBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root_path = match current_workspace(&state) {
+        Ok(ws) => ws.root_path,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        adl_workspace::create_folder(PathBuf::from(root_path).as_path(), &input.relative_path)?;
+        Ok(serde_json::json!(true))
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// POST `/workspace/read` — read a file from the active workspace (or an
+/// explicit workspace path).
+pub async fn read_file(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: FileOpsBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        let doc =
+            adl_workspace::read_file(PathBuf::from(root_path).as_path(), &input.relative_path)?;
+        Ok(serde_json::to_value(doc)?)
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// POST `/workspace/change-preview` — diff preview for a file.
+pub async fn get_change_preview(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: FileOpsBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        let preview: WorkspaceChangePreview = adl_workspace::read_change_preview(
+            PathBuf::from(root_path).as_path(),
+            &input.relative_path,
+        )?;
+        Ok(serde_json::to_value(preview)?)
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// POST `/workspace/tree` — file tree for the active (or explicit) workspace.
+pub async fn list_tree(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: TreeBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let path = match input.workspace_path {
+        Some(p) => PathBuf::from(p),
+        None => match current_workspace(&state) {
+            Ok(ws) => PathBuf::from(&ws.root_path),
+            Err(e) => return ipc::to_response(Err(e)),
+        },
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        let tree: Vec<WorkspaceTreeNode> = adl_workspace::list_tree(path.as_path())?;
+        Ok(serde_json::to_value(tree)?)
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// POST `/workspace/search` — full-text search over the active workspace.
+pub async fn search(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: SearchBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root_path = match current_workspace(&state) {
+        Ok(ws) => ws.root_path,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        let hits: Vec<WorkspaceSearchHit> =
+            adl_workspace::search_text(PathBuf::from(root_path).as_path(), &input.query)?;
+        Ok(serde_json::to_value(hits)?)
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// POST `/workspace/outline` — symbol outline for a file in the active workspace.
+pub async fn outline(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: RelativePathBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root_path = match current_workspace(&state) {
+        Ok(ws) => ws.root_path,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        let items: Vec<FileOutlineItem> =
+            adl_workspace::outline(PathBuf::from(root_path).as_path(), &input.relative_path)?;
+        Ok(serde_json::to_value(items)?)
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// POST `/workspace/editor-dirty-paths` — replace the editor's dirty-path set.
+pub async fn set_editor_dirty_paths(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: DirtyPathsBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let result = match state.editor_dirty_paths.lock() {
+        Ok(mut dirty) => {
+            dirty.clear();
+            dirty.extend(input.relative_paths.into_iter().map(|p| p.replace('\\', "/")));
+            Ok(serde_json::json!(true))
+        },
+        Err(_) => Err(AppError::Internal("dirty path mutex poisoned".into())),
+    };
+    ipc::to_response(result)
+}
+
+/// POST `/workspace/emit-file-changed` — the desktop shell used this to tell the
+/// UI a file changed on disk. The legacy `digital-life://workspace-file-changed`
+/// UI event has no `SessionPartEvent` equivalent on the SSE bridge, so it is
+/// warn+reported (not silently dropped) and the call still returns `ok:true`.
+pub async fn emit_file_changed(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: FileChangedBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let event =
+        WorkspaceFileChangedEvent { path: input.path, last_modified_at: input.last_modified_at };
+    tracing::warn!(
+        path = %event.path,
+        "workspace_emit_file_changed: legacy 'digital-life://workspace-file-changed' UI emit has no \
+         SSE equivalent; S1 bridge must surface external file changes from the file watcher instead"
+    );
+    state.event_bus.emit(AppEvent::FileChanged { path: event.path });
+    ipc::to_response(Ok(serde_json::json!(true)))
+}
+
+/// POST `/workspace/rename` — rename a file entry in the active workspace.
+pub async fn rename_file(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: RenameBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root_path = match current_workspace(&state) {
+        Ok(ws) => ws.root_path,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        adl_workspace::rename_entry(
+            PathBuf::from(root_path).as_path(),
+            &input.relative_path,
+            &input.new_name,
+        )?;
+        Ok(serde_json::json!(true))
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// POST `/workspace/delete` — delete a file entry from the active workspace.
+/// On success the legacy file-changed UI event is warn+reported (no SSE
+/// equivalent); the kernel `AppEvent::FileChanged` is emitted as the internal
+/// signal.
+pub async fn delete_file(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: RelativePathBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root_path = match current_workspace(&state) {
+        Ok(ws) => ws.root_path,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let rel_path = input.relative_path.clone();
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        let succeeded = adl_workspace::delete_entry(PathBuf::from(root_path).as_path(), &rel_path)?;
+        Ok(serde_json::json!(succeeded))
+    })
+    .await;
+    if let Ok(serde_json::Value::Bool(true)) = &result {
+        tracing::warn!(
+            path = %input.relative_path,
+            "workspace_delete_file: legacy 'digital-life://workspace-file-changed' UI emit has no \
+             SSE equivalent; S1 bridge must surface deletions from the file watcher"
+        );
+        state.event_bus.emit(AppEvent::FileChanged { path: input.relative_path });
+    }
+    ipc::to_response(result)
+}
+
+/// POST `/workspace/duplicate` — copy a file entry.
+pub async fn duplicate_file(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: PathPairBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root_path = match current_workspace(&state) {
+        Ok(ws) => ws.root_path,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        adl_workspace::duplicate_entry(
+            PathBuf::from(root_path).as_path(),
+            &input.relative_path,
+            &input.new_path,
+        )?;
+        Ok(serde_json::json!(true))
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// POST `/workspace/absolute-path` — resolve a relative path against the active
+/// workspace root into an absolute, normalized path.
+pub async fn get_absolute_path(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: RelativePathBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root_path = match current_workspace(&state) {
+        Ok(ws) => ws.root_path,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        let abs = adl_workspace::get_absolute_path(
+            PathBuf::from(root_path).as_path(),
+            &input.relative_path,
+        )?;
+        Ok(serde_json::to_value(abs)?)
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// POST `/workspace/move` — move a file entry to a new path.
+pub async fn move_file(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: PathPairBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root_path = match current_workspace(&state) {
+        Ok(ws) => ws.root_path,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        adl_workspace::move_entry(
+            PathBuf::from(root_path).as_path(),
+            &input.relative_path,
+            &input.new_path,
+        )?;
+        Ok(serde_json::json!(true))
+    })
+    .await;
+    ipc::to_response(result)
+}
