@@ -4,6 +4,7 @@ pub mod command;
 pub mod compaction;
 pub mod conversation;
 pub mod custom_agent;
+pub mod durable;
 pub mod health;
 pub mod patch;
 pub mod permission;

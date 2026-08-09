@@ -113,4 +113,9 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/task/checkpoint-preview", post(handlers::task::checkpoint_preview))
         .route("/task/restore-checkpoint", post(handlers::task::restore_checkpoint))
         .route("/task/decide-approval", post(handlers::task::decide_approval))
+        // Durable-session domain (`durable_*` tauri commands).
+        .route("/durable/register", post(handlers::durable::register))
+        .route("/durable/heartbeat", post(handlers::durable::heartbeat))
+        .route("/durable/crashed", post(handlers::durable::crashed))
+        .route("/durable/recover", post(handlers::durable::recover))
 }
