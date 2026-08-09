@@ -61,4 +61,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/provider/api-key/has", post(handlers::provider::has_api_key))
         .route("/provider/api-key/get", post(handlers::provider::get_api_key))
         .route("/provider/config", post(handlers::provider::save_provider_config))
+        // Command domain (`command_*` tauri commands — custom slash-commands).
+        .route("/command/run", post(handlers::command::run))
+        .route("/command/recent", post(handlers::command::list_recent))
 }

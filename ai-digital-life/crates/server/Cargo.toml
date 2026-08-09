@@ -10,6 +10,7 @@ workspace = true
 
 [dependencies]
 adl-agent-runtime = { path = "../agent-runtime" }
+adl-command = { path = "../command" }
 adl-conversation = { path = "../conversation" }
 adl-errors = { path = "../errors" }
 adl-kernel = { path = "../kernel" }
@@ -18,6 +19,7 @@ adl-migration = { path = "../migration" }
 adl-model-gateway = { path = "../model-gateway" }
 adl-pty = { path = "../pty" }
 adl-storage = { path = "../storage" }
+adl-task = { path = "../task" }
 adl-types = { path = "../types" }
 adl-workspace = { path = "../workspace" }
 async-trait.workspace = true

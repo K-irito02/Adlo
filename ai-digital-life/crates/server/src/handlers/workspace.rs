@@ -31,7 +31,7 @@ where
 }
 
 /// Resolve the active workspace metadata (read side of `state.current_workspace`).
-fn current_workspace(state: &ServerState) -> Result<WorkspaceMeta, AppError> {
+pub(crate) fn current_workspace(state: &ServerState) -> Result<WorkspaceMeta, AppError> {
     state
         .current_workspace
         .read()
