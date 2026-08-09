@@ -170,4 +170,12 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/sidebar/restore", post(handlers::workspace_sidebar::restore_to_sidebar))
         .route("/sidebar/hide", post(handlers::workspace_sidebar::hide_from_right_panels))
         .route("/sidebar/show", post(handlers::workspace_sidebar::show_in_right_panels))
+        // Workspace-git domain (`workspace_*_git_*` tauri commands).
+        .route("/workspace/git/status", post(handlers::workspace_git::get_git_status))
+        .route("/workspace/git/branches", post(handlers::workspace_git::list_git_branches))
+        .route("/workspace/git/switch", post(handlers::workspace_git::switch_git_branch))
+        .route("/workspace/git/create", post(handlers::workspace_git::create_git_branch))
+        .route("/workspace/git/stage", post(handlers::workspace_git::git_stage_file))
+        .route("/workspace/git/unstage", post(handlers::workspace_git::git_unstage_file))
+        .route("/workspace/git/discard", post(handlers::workspace_git::git_discard_file))
 }
