@@ -1,3 +1,4 @@
+pub mod agent;
 pub mod command;
 pub mod compaction;
 pub mod conversation;

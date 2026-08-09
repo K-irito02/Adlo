@@ -71,4 +71,15 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/snapshot/prune", post(handlers::snapshot::prune))
         // Compaction domain (`compaction_*` tauri commands).
         .route("/compaction/session", post(handlers::compaction::compact_session))
+        // Agent domain (`agent_*` tauri commands — run CRUD, agent listing,
+        // scenario selection and Plan Mode state).
+        .route("/agent/start-run", post(handlers::agent::start_run))
+        .route("/agent/run/:run_id", get(handlers::agent::get_run))
+        .route("/agent/run/:run_id/retry", post(handlers::agent::retry_run))
+        .route("/agent/run/:run_id/abort", post(handlers::agent::abort_run))
+        .route("/agent/list", get(handlers::agent::list_agents))
+        .route("/agent/select", post(handlers::agent::select_agent))
+        .route("/agent/plan-mode/enter", post(handlers::agent::enter_plan_mode))
+        .route("/agent/plan-mode/exit", post(handlers::agent::exit_plan_mode))
+        .route("/agent/plan-mode/state", post(handlers::agent::get_plan_mode_state))
 }
