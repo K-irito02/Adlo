@@ -35,10 +35,22 @@ description: End-of-work mandatory closing procedures. Invoke after completing a
 ### 磁盘空间（可选）
 
 ```powershell
-Get-ChildItem "ai-digital-life\src-tauri\target\debug\incremental" -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum | ForEach-Object { "{0:N2} GB" -f ($_.Sum / 1GB) }
+powershell -File "ai-digital-life\.cargo\clean-target.ps1" -WhatIf
 ```
 
-超过 10 GB 时提醒用户运行 `ai-digital-life\.cargo\clean-incremental.ps1`。
+脚本按双条件触发（`ai-digital-life/target/debug` 超过 25 GB，或距上次清理超过 7 天），`-WhatIf` 干跑报告预计释放量后询问用户是否执行：
+
+```powershell
+powershell -File "ai-digital-life\.cargo\clean-target.ps1"
+```
+
+空间仍过大时全清：
+
+```powershell
+ai-digital-life> cargo clean
+```
+
+> `.trae/skills/`、`.agents/skills/` 的 `closing-workflow/SKILL.md` 为同步副本，修改真源后需同步。
 
 ---
 
