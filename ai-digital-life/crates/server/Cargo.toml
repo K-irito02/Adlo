@@ -14,6 +14,7 @@ adl-change-engine = { path = "../change-engine" }
 adl-command = { path = "../command" }
 adl-conversation = { path = "../conversation" }
 adl-errors = { path = "../errors" }
+adl-fs-ops = { path = "../fs-ops" }
 adl-kernel = { path = "../kernel" }
 adl-logging = { path = "../adl-logging" }
 adl-migration = { path = "../migration" }
@@ -36,7 +37,6 @@ tracing.workspace = true
 url.workspace = true
 
 [dev-dependencies]
-adl-fs-ops = { path = "../fs-ops" }
 futures.workspace = true
 tower = { version = "0.5", features = ["util"] }
 uuid.workspace = true

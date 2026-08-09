@@ -106,4 +106,11 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/custom-agent/add", post(handlers::custom_agent::add_agent))
         .route("/custom-agent/delete", post(handlers::custom_agent::delete_agent))
         .route("/custom-agent/update", post(handlers::custom_agent::update_agent))
+        // Task-center / approval domain (`task_*` tauri commands).
+        .route("/task/snapshot", post(handlers::task::snapshot))
+        .route("/task/pending-approvals", post(handlers::task::list_pending_approvals))
+        .route("/task/audit-entries", post(handlers::task::list_audit_entries))
+        .route("/task/checkpoint-preview", post(handlers::task::checkpoint_preview))
+        .route("/task/restore-checkpoint", post(handlers::task::restore_checkpoint))
+        .route("/task/decide-approval", post(handlers::task::decide_approval))
 }

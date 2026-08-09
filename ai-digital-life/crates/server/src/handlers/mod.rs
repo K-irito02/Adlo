@@ -10,4 +10,5 @@ pub mod permission;
 pub mod provider;
 pub mod session_fork;
 pub mod snapshot;
+pub mod task;
 pub mod workspace;
