@@ -1,20 +1,77 @@
 # Cargo 工作区配置
 #
-# 重要：target/debug/incremental/ 目录会无限增长（每次编译创建新会话，Cargo 不自动清理）。
-# 运行以下命令清理旧增量缓存（保留 7 天内会话用于快速增量编译）：
-#
-#   powershell -File .cargo/clean-incremental.ps1
-#
-# 或完全重建：
-#   cargo clean && cargo build
+# 磁盘治理（见 ai-digital-life/AGENTS.md#磁盘空间管理）：
+# - 清理脚本（双条件触发：空间 >25GB 或距上次清理 >7 天）：
+#     powershell -File .cargo/clean-target.ps1
+# - 全清所有构建产物（下次需完整重建）：
+#     cargo clean
 
 [alias]
-# 清理所有构建产物（释放 ~40 GB），然后完整重建
+# 清理所有构建产物，然后完整重建
 rebuild = "clean && build"
+# 全清入口（cargo alias 无法运行 PS 脚本，条件清理请用 clean-target.ps1）
+prune = "clean"
 
 [profile.dev]
-# 工具链 1.96.0 时 adl-subagent 增量编译触发 ICE：
-#   thread 'rustc' panicked at .../rustc_metadata/src/rmeta/encoder.rs:2448:51:
-#   no entry found for key
-# 2026-07-18 升级至 1.97.1 后保留此项待验证。若 ICE 已修复可移除以加速开发编译。
-incremental = false
+# 增量编译会话由 clean-target.ps1 按保留窗口清理，重新启用增量编译以加速开发迭代
+#（2026-07-18 曾因 rustc 1.96 ICE 关闭，1.97.1 已修复）
+
+# 第三方依赖：仅保留行号级调试信息，PDB 体积缩至 ~1/10
+#（请勿删除 —— target/debug 曾达 130+ GB，97 GB 为依赖全量 debug 类型的 .pdb）
+[profile.dev.package."*"]
+debug = 1
+opt-level = 1
+
+# 白名单：自己的 crate 保留全量调试信息（debug=2，可断点调试查变量类型）
+[profile.dev.package.ad-server]
+debug = 2
+[profile.dev.package.adl-agent-runtime]
+debug = 2
+[profile.dev.package.adl-browser]
+debug = 2
+[profile.dev.package.adl-change-engine]
+debug = 2
+[profile.dev.package.adl-ci-status]
+debug = 2
+[profile.dev.package.adl-command]
+debug = 2
+[profile.dev.package.adl-context]
+debug = 2
+[profile.dev.package.adl-conversation]
+debug = 2
+[profile.dev.package.adl-credential]
+debug = 2
+[profile.dev.package.adl-errors]
+debug = 2
+[profile.dev.package.adl-fs-ops]
+debug = 2
+[profile.dev.package.adl-kernel]
+debug = 2
+[profile.dev.package.adl-logging]
+debug = 2
+[profile.dev.package.adl-lsp-client]
+debug = 2
+[profile.dev.package.adl-mcp-client]
+debug = 2
+[profile.dev.package.adl-migration]
+debug = 2
+[profile.dev.package.adl-model-gateway]
+debug = 2
+[profile.dev.package.adl-outline]
+debug = 2
+[profile.dev.package.adl-pty]
+debug = 2
+[profile.dev.package.adl-storage]
+debug = 2
+[profile.dev.package.adl-subagent]
+debug = 2
+[profile.dev.package.adl-task]
+debug = 2
+[profile.dev.package.adl-tools]
+debug = 2
+[profile.dev.package.adl-types]
+debug = 2
+[profile.dev.package.adl-workspace]
+debug = 2
+[profile.dev.package.ai-digital-life]
+debug = 2
