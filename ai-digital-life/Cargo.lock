@@ -15,6 +15,7 @@ dependencies = [
  "adl-kernel",
  "adl-logging",
  "adl-lsp-client",
+ "adl-mcp-client",
  "adl-migration",
  "adl-model-gateway",
  "adl-pty",

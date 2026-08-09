@@ -18,6 +18,7 @@ adl-fs-ops = { path = "../fs-ops" }
 adl-kernel = { path = "../kernel" }
 adl-logging = { path = "../adl-logging" }
 adl-lsp-client = { path = "../lsp-client" }
+adl-mcp-client = { path = "../mcp-client" }
 adl-migration = { path = "../migration" }
 adl-model-gateway = { path = "../model-gateway" }
 adl-pty = { path = "../pty" }
@@ -28,6 +29,7 @@ adl-workspace = { path = "../workspace" }
 async-trait.workspace = true
 axum = "0.7"
 dirs.workspace = true
+futures.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -38,6 +40,5 @@ tracing.workspace = true
 url.workspace = true
 
 [dev-dependencies]
-futures.workspace = true
 tower = { version = "0.5", features = ["util"] }
 uuid.workspace = true

@@ -124,4 +124,12 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/lsp/symbols", post(handlers::lsp::get_symbols))
         .route("/lsp/diagnostics", post(handlers::lsp::get_diagnostics))
         .route("/lsp/goto-definition", post(handlers::lsp::goto_definition))
+        // MCP domain (`mcp_*` tauri commands — server management + catalog).
+        .route("/mcp/list", post(handlers::mcp::list_servers))
+        .route("/mcp/add", post(handlers::mcp::add_server))
+        .route("/mcp/remove", post(handlers::mcp::remove_server))
+        .route("/mcp/connect", post(handlers::mcp::connect_server))
+        .route("/mcp/disconnect", post(handlers::mcp::disconnect_server))
+        .route("/mcp/catalog", post(handlers::mcp::catalog))
+        .route("/mcp/load-config", post(handlers::mcp::load_config))
 }
