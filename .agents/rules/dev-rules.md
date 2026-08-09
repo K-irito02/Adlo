@@ -136,7 +136,7 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 
 1. 收尾流程（closing-workflow Step 0）执行 `powershell -File "ai-digital-life\.cargo\clean-target.ps1" -WhatIf` 干跑检查
 2. 双条件触发：`target/debug` 超 25 GB **或** 距上次清理超 7 天 → 执行清理脚本（非 `-Full` 不触发重建）
-3. 手动全清使用 `cargo clean`（或 `cargo prune` 别名 = `clean &&`）
+3. 手动全清使用 `cargo clean`（或 `cargo prune` 别名 = `clean`）
 4. 禁用空泛的 `cargo clean` 作为日常习惯 —— 优先条件清理，保留 7 天窗口内增量能力
 5. 清理时间戳 `.cargo/.disk-clean-stamp` 不入库
 

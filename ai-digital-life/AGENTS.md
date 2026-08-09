@@ -174,7 +174,7 @@ app/stores/
 `target/debug/deps` 曾达 **~126 GB**：`.pdb`（Windows 调试符号）97 GB 为主力 —— `[profile.dev]` 默认 `debug=2`（全量类型调试信息）为每个 exe/测试二进制生成约 300MB PDB。已通过 `.cargo/config.toml` 治理：
 
 - 第三方依赖 `debug=1`（行号级）+ `opt-level=1`
-- 自己 27 个包 `[profile.dev.package.X]` 白名单保留 `debug=2`（可断点查变量类型）
+- 自己 26 个包 `[profile.dev.package.X]` 白名单保留 `debug=2`（可断点查变量类型）
 - 重开增量编译（`incremental=false` 已移除，ICE 于 1.97.1 修复）
 
 ### 清理策略（双条件触发）
