@@ -70,8 +70,8 @@ function Assert-True {
 }
 
 function Run-Script {
-    param([string[]]$Args)
-    return & powershell -NoProfile -File $scriptTests @Args 2>&1
+    param([string[]]$RunArgs)
+    return & powershell -NoProfile -File $scriptTests @RunArgs 2>&1
 }
 
 function Make-Target {
@@ -201,7 +201,7 @@ function Get-DirSizeGB {
     $bytes = (Get-ChildItem -LiteralPath $Path -Recurse -Force -File -ErrorAction SilentlyContinue |
         Measure-Object -Property Length -Sum).Sum
     if ($null -eq $bytes) { return 0.0 }
-    return [math]::Round($bytes / 1GB, 2)
+    return [math]::Round($bytes / 1GB, 4)
 }
 
 function Get-LastCleanDate {
@@ -237,7 +237,7 @@ if (-not $Full -and -not $spaceTriggered -and -not $timeTriggered) {
 }
 
 if ($Full) {
-    if ($WhatIf) {
+    if ($WhatIfPreference) {
         Write-Host "干跑：将执行 cargo clean 全清所有构建产物。"
         exit 0
     }
@@ -261,7 +261,7 @@ foreach ($sub in @("deps", "incremental")) {
     Get-ChildItem -LiteralPath $dir -Recurse -File -Force -ErrorAction SilentlyContinue |
         Where-Object { $_.LastWriteTime -lt $cutoff } |
         ForEach-Object {
-            if ($WhatIf) {
+            if ($WhatIfPreference) {
                 $removed++
                 $removedBytes += $_.Length
             } else {
@@ -278,7 +278,7 @@ foreach ($sub in @("deps", "incremental")) {
 }
 
 $freedGB = [math]::Round($removedBytes / 1GB, 2)
-if ($WhatIf) {
+if ($WhatIfPreference) {
     Write-Host ("干跑：将删除 {0} 个旧产物，预计释放 {1} GB" -f $removed, $freedGB)
 } else {
     Write-Host ("已删除 {0} 个旧产物，释放 {1} GB" -f $removed, $freedGB)
