@@ -568,7 +568,10 @@ export function createHttpBridge({ baseUrl }: HttpBridgeOptions): DigitalLifeBri
 
     // ── Provider domain. API keys travel in request bodies only; the server
     // credential store is write-only — `getProviderApiKey` never reads a key
-    // back (it maps to the presence check and returns null).
+    // back over HTTP (it maps to the presence check and returns null). The
+    // desktop shell overrides `getProviderApiKey`/`hasProviderApiKey` in
+    // `tauri-bridge/index.ts` to the Tauri invoke channel so the settings key
+    // input can be re-filled after a restart — that is IPC, not HTTP.
     provider: {
       setProviderApiKey: (provider: string, apiKey: string) =>
         call<boolean>(baseUrl, '/provider/api-key', POST({ providerId: provider, apiKey })),
