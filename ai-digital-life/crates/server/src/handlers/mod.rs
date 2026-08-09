@@ -1,6 +1,7 @@
 pub mod agent;
 pub mod agent_pipeline;
 pub mod audit;
+pub mod ci;
 pub mod command;
 pub mod compaction;
 pub mod conversation;

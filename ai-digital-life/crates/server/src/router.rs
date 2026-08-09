@@ -152,4 +152,12 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/web-tools/search", post(handlers::web_tools::web_search))
         // Audit domain (`audit_*` tauri helpers — read surface).
         .route("/audit/list", post(handlers::audit::list_audit_entries))
+        // CI / GitHub domain (`ci_*` tauri commands). The access token is
+        // write-only: set/clear/has only — never read back over HTTP.
+        .route("/ci/status", post(handlers::ci::get_status))
+        .route("/ci/status-without-token", post(handlers::ci::get_status_without_token))
+        .route("/ci/access-token", post(handlers::ci::set_access_token))
+        .route("/ci/access-token/clear", post(handlers::ci::clear_access_token))
+        .route("/ci/access-token/has", post(handlers::ci::has_access_token))
+        .route("/ci/job-logs", post(handlers::ci::get_job_logs))
 }
