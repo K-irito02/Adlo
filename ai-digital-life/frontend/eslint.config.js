@@ -110,6 +110,8 @@ export default tseslint.config(
       'src/shared/**',
       'src/tauri-bridge/**',
       'src/preview-bridge/**',
+      'src/httpBridge/**',
+      'src/httpBridge.ts',
       'src/mock/**',
       'src/app/stores/**',
       'src/app/regions/**',

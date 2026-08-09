@@ -1,7 +1,32 @@
-import type { AudioStatePayload, PageMeta } from '../shared/ipc/browser';
+import type { AudioStatePayload, BrowserBridge, PageMeta } from '../shared/ipc/browser';
+import type { AppBridge } from '../shared/ipc/app';
+import type { WorkspaceBridge } from '../shared/ipc/workspace';
+import type { ConversationBridge } from '../shared/ipc/conversation';
+import type { AgentBridge } from '../shared/ipc/agent';
+import type { SubagentBridge } from '../shared/ipc/subagent';
+import type { PatchBridge } from '../shared/ipc/patch';
+import type { McpBridge } from '../shared/ipc/mcp';
+import type { CommandsConfigBridge } from '../shared/ipc/commands_config';
+import type { CompactionBridge } from '../shared/ipc/compaction';
+import type { CommandBridge } from '../shared/ipc/command';
+import type { CustomAgentBridge } from '../shared/ipc/custom_agent';
+import type { DurableBridge } from '../shared/ipc/durable';
+import type { GitHubBridge } from '../shared/ipc/github';
+import type { LspBridge } from '../shared/ipc/lsp';
+import type { PermissionBridge } from '../shared/ipc/permission';
+import type { ProviderBridge } from '../shared/ipc/provider';
+import type { ReferenceBridge } from '../shared/ipc/reference';
+import type { ReservedBridge } from '../shared/ipc/reserved';
+import type { RetrievalBridge } from '../shared/ipc/retrieval';
+import type { RunActivityBridge } from '../shared/ipc/run-activity';
+import type { SessionForkBridge } from '../shared/ipc/session_fork';
+import type { SnapshotBridge } from '../shared/ipc/snapshot';
+import type { TaskBridge } from '../shared/ipc/task';
+import type { WebToolsBridge } from '../shared/ipc/web_tools';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from '../mock-bridge';
 import { withDemoMode } from '../mock/demo/demo-mode';
+import { createHttpBridge, resolveAdlServerBaseUrl } from '../httpBridge';
 import { createPtyBridge } from './preview-pty-bridge';
 import { loadRecentWorkspaces } from './preview-storage';
 import type { PreviewContext } from './preview-context';
@@ -18,29 +43,81 @@ import { createPreviewPatchBridge } from './preview-patch';
 import { createPreviewCommandBridge } from './preview-command';
 import { BrowserAudioMonitor } from './preview-browser-audio';
 
-const warnedBridges = new Set<string>();
+const AD_SERVER_PROBE_TIMEOUT_MS = 2000;
 
-function warnMockBridge<T extends object>(bridgeName: string, bridge: T): T {
-  return new Proxy(bridge, {
+let adServerReachability: Promise<boolean> | null = null;
+const fallbackWarned = new Set<string>();
+
+/**
+ * Probe the ad-server `/health` endpoint once (cached). Until Task 9 wires the
+ * dev-script startup + port injection, the browser preview uses this to decide
+ * whether business calls should hit the real ad-server (httpBridge) or fall
+ * back to the preview/mock implementations that keep the demo working.
+ */
+function isAdServerReachable(baseUrl: string): Promise<boolean> {
+  adServerReachability ??= (async () => {
+    try {
+      const res = await fetch(`${baseUrl}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(AD_SERVER_PROBE_TIMEOUT_MS),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  })();
+  return adServerReachability;
+}
+
+/**
+ * Domain-level wrapper: routes every method to the httpBridge implementation
+ * once the ad-server is reachable, otherwise to the preview/mock fallback.
+ * The single cast keeps the Proxy typed as `T`; the fallback path preserves
+ * the existing browser demo without a running ad-server.
+ */
+function preferHttpWhenReachable<T extends object>(
+  baseUrl: string,
+  httpImpl: T,
+  fallbackImpl: T,
+): T {
+  const proxy = new Proxy(fallbackImpl, {
     get(target, prop, receiver) {
-      const key = `${bridgeName}.${String(prop)}`;
-      const targetRecord = target as Record<string, unknown>;
-      if (!warnedBridges.has(key) && typeof targetRecord[prop as string] === 'function') {
-        warnedBridges.add(key);
-        console.warn(
-          `[preview-bridge] "${key}" is using a mock implementation in preview mode. ` +
-            `Behavior may differ from Tauri mode. Implement a real preview bridge for production fidelity.`,
-        );
+      const value = Reflect.get(target, prop, receiver);
+      if (typeof value !== 'function') {
+        return value;
       }
-      return Reflect.get(target, prop, receiver);
+      return async (...args: unknown[]) => {
+        const reachable = await isAdServerReachable(baseUrl);
+        const source = (reachable ? httpImpl : target) as Record<
+          string,
+          (...callArgs: unknown[]) => unknown
+        >;
+        if (!reachable) {
+          const key = `${String(prop)}:${baseUrl}`;
+          if (!fallbackWarned.has(key)) {
+            fallbackWarned.add(key);
+            console.warn(
+              `[preview-bridge] ad-server at ${baseUrl} is not reachable — "${String(
+                prop,
+              )}" falls back to the preview/mock implementation.`,
+            );
+          }
+        }
+        const fn = source[prop as string];
+        return typeof fn === 'function' ? fn.apply(source, args) : undefined;
+      };
     },
   });
+  return proxy as unknown as T;
 }
 
 export function setupPreviewBridge(): void {
   if (typeof window === 'undefined' || (window as { digitalLife?: unknown }).digitalLife) {
     return;
   }
+
+  const adlServerBaseUrl = resolveAdlServerBaseUrl();
+  const http = createHttpBridge({ baseUrl: adlServerBaseUrl });
 
   const ctx: PreviewContext = {
     appInfo: createBaseAppInfo(),
@@ -69,8 +146,14 @@ export function setupPreviewBridge(): void {
   const patchBridge = createPreviewPatchBridge();
   const commandBridge = createPreviewCommandBridge();
 
+  const workspacePreview: WorkspaceBridge = {
+    ...workspace,
+    ...searchBridge,
+    ...gitBridge,
+    onFileChanged: eventsBridge.onFileChanged,
+  };
+
   const previewBridge: DigitalLifeBridge = {
-    ...mockDigitalLifeBridge,
     subscribePtyOutput: ptyBridge.subscribePtyOutput,
     pty: ptyBridge.pty,
     window: windowBridge.window,
@@ -78,17 +161,34 @@ export function setupPreviewBridge(): void {
       ...diagnosticBridge,
       getInfo: modelBridge.app.getInfo,
       updatePreferences: modelBridge.app.updatePreferences,
-    },
-    workspace: {
-      ...workspace,
-      ...searchBridge,
-      ...gitBridge,
-      onFileChanged: eventsBridge.onFileChanged,
-    },
-    retrieval,
-    conversation: conversationBridge,
-    patch: patchBridge,
-    command: commandBridge,
+    } satisfies AppBridge,
+    workspace: preferHttpWhenReachable<WorkspaceBridge>(
+      adlServerBaseUrl,
+      http.workspace,
+      workspacePreview,
+    ),
+    retrieval: preferHttpWhenReachable<RetrievalBridge>(
+      adlServerBaseUrl,
+      http.retrieval,
+      retrieval,
+    ),
+    conversation: preferHttpWhenReachable<ConversationBridge>(
+      adlServerBaseUrl,
+      http.conversation,
+      conversationBridge,
+    ),
+    agent: preferHttpWhenReachable<AgentBridge>(
+      adlServerBaseUrl,
+      http.agent,
+      mockDigitalLifeBridge.agent,
+    ),
+    subagent: preferHttpWhenReachable<SubagentBridge>(
+      adlServerBaseUrl,
+      http.subagent,
+      mockDigitalLifeBridge.subagent,
+    ),
+    patch: preferHttpWhenReachable<PatchBridge>(adlServerBaseUrl, http.patch, patchBridge),
+    command: preferHttpWhenReachable<CommandBridge>(adlServerBaseUrl, http.command, commandBridge),
     browser: {
       createForTab: (_tabId: string, _url: string, _colorScheme?: 'light' | 'dark') =>
         Promise.resolve(null),
@@ -117,25 +217,79 @@ export function setupPreviewBridge(): void {
       setZoom: (_tabId: string, _zoomFactor: number) => Promise.resolve(),
       clearCookies: (_tabId: string) => Promise.resolve(),
       clearCache: (_tabId: string) => Promise.resolve(),
-    },
-    github: taskBridge.github,
+    } satisfies BrowserBridge,
+    github: preferHttpWhenReachable<GitHubBridge>(adlServerBaseUrl, http.github, taskBridge.github),
+    provider: preferHttpWhenReachable<ProviderBridge>(
+      adlServerBaseUrl,
+      http.provider,
+      modelBridge.provider,
+    ),
+    mcp: preferHttpWhenReachable<McpBridge>(adlServerBaseUrl, http.mcp, mockDigitalLifeBridge.mcp),
+    snapshot: preferHttpWhenReachable<SnapshotBridge>(
+      adlServerBaseUrl,
+      http.snapshot,
+      mockDigitalLifeBridge.snapshot,
+    ),
+    webTools: preferHttpWhenReachable<WebToolsBridge>(
+      adlServerBaseUrl,
+      http.webTools,
+      mockDigitalLifeBridge.webTools,
+    ),
+    commandsConfig: preferHttpWhenReachable<CommandsConfigBridge>(
+      adlServerBaseUrl,
+      http.commandsConfig,
+      mockDigitalLifeBridge.commandsConfig,
+    ),
+    permission: preferHttpWhenReachable<PermissionBridge>(
+      adlServerBaseUrl,
+      http.permission,
+      mockDigitalLifeBridge.permission,
+    ),
+    compaction: preferHttpWhenReachable<CompactionBridge>(
+      adlServerBaseUrl,
+      http.compaction,
+      mockDigitalLifeBridge.compaction,
+    ),
+    sessionFork: preferHttpWhenReachable<SessionForkBridge>(
+      adlServerBaseUrl,
+      http.sessionFork,
+      mockDigitalLifeBridge.sessionFork,
+    ),
+    lsp: preferHttpWhenReachable<LspBridge>(adlServerBaseUrl, http.lsp, mockDigitalLifeBridge.lsp),
+    reference: preferHttpWhenReachable<ReferenceBridge>(
+      adlServerBaseUrl,
+      http.reference,
+      mockDigitalLifeBridge.reference,
+    ),
+    durable: preferHttpWhenReachable<DurableBridge>(
+      adlServerBaseUrl,
+      http.durable,
+      mockDigitalLifeBridge.durable,
+    ),
+    reserved: preferHttpWhenReachable<ReservedBridge>(
+      adlServerBaseUrl,
+      http.reserved,
+      mockDigitalLifeBridge.reserved,
+    ),
+    customAgent: preferHttpWhenReachable<CustomAgentBridge>(
+      adlServerBaseUrl,
+      http.customAgent,
+      mockDigitalLifeBridge.customAgent,
+    ),
+    task: preferHttpWhenReachable<TaskBridge>(
+      adlServerBaseUrl,
+      http.task,
+      mockDigitalLifeBridge.task,
+    ),
+    runActivity: preferHttpWhenReachable<RunActivityBridge>(
+      adlServerBaseUrl,
+      http.runActivity,
+      mockDigitalLifeBridge.runActivity,
+    ),
     subscribeModelStream: modelBridge.subscribeModelStream,
     subscribeRunActivity: modelBridge.subscribeRunActivity,
     subscribeTerminalStream: modelBridge.subscribeTerminalStream,
-    mcp: warnMockBridge('mcp', mockDigitalLifeBridge.mcp),
-    provider: modelBridge.provider,
-    commandsConfig: warnMockBridge('commandsConfig', mockDigitalLifeBridge.commandsConfig),
-    permission: warnMockBridge('permission', mockDigitalLifeBridge.permission),
-    // Phase 2 bridges (inherited from mock — add preview-specific overrides here if needed)
-    snapshot: warnMockBridge('snapshot', mockDigitalLifeBridge.snapshot),
-    webTools: warnMockBridge('webTools', mockDigitalLifeBridge.webTools),
-    compaction: warnMockBridge('compaction', mockDigitalLifeBridge.compaction),
-    sessionFork: warnMockBridge('sessionFork', mockDigitalLifeBridge.sessionFork),
-    lsp: warnMockBridge('lsp', mockDigitalLifeBridge.lsp),
-    reference: warnMockBridge('reference', mockDigitalLifeBridge.reference),
-    durable: warnMockBridge('durable', mockDigitalLifeBridge.durable),
-    reserved: warnMockBridge('reserved', mockDigitalLifeBridge.reserved),
-    customAgent: warnMockBridge('customAgent', mockDigitalLifeBridge.customAgent),
+    setLogMode: mockDigitalLifeBridge.setLogMode,
   };
 
   (window as { digitalLife: DigitalLifeBridge }).digitalLife = withDemoMode(previewBridge);

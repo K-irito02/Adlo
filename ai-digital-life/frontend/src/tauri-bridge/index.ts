@@ -8,35 +8,30 @@ import type {
 } from '@ai-digital-life/kernel';
 import { EventBuffer } from '../shared/eventBuffer';
 import { subscribeChannel } from './tauri-shared';
+import { createHttpBridge, resolveAdlServerBaseUrl } from '../httpBridge';
 import { createTauriAppBridge } from './tauri-app';
 import { createTauriBrowserBridge } from './tauri-browser';
-import { createTauriCommandBridge } from './tauri-command';
-import { createTauriCommandsConfigBridge } from './tauri-commands-config';
-import { createTauriCompactionBridge } from './tauri-compaction';
-import { createTauriConversationBridge } from './tauri-conversation';
-import { createTauriCustomAgentBridge } from './tauri-custom-agent';
-import { createTauriDurableBridge } from './tauri-durable';
-import { createTauriLspBridge } from './tauri-lsp';
-import { createTauriMcpBridge } from './tauri-mcp';
-import { createTauriPatchBridge } from './tauri-patch';
-import { createTauriPermissionBridge } from './tauri-permission';
-import { createTauriProviderBridge } from './tauri-provider';
 import { createTauriPtyBridge } from './tauri-pty';
-import { createTauriReferenceBridge } from './tauri-reference';
 import { createTauriReservedBridge } from './tauri-reserved';
-import { createTauriRetrievalBridge } from './tauri-retrieval';
-import { createTauriRunActivityBridge } from './tauri-run-activity';
-import { createTauriSessionForkBridge } from './tauri-session-fork';
-import { createTauriSnapshotBridge } from './tauri-snapshot';
-import { createTauriTaskBridge } from './tauri-task';
-import { createTauriWebToolsBridge } from './tauri-web-tools';
 import { createTauriWindowBridge } from './tauri-window';
-import { createTauriWorkspaceBridge } from './tauri-workspace';
-import { createTauriAgentBridge, createTauriSubagentBridge } from './tauri-agent';
-import { createTauriGithubBridge } from './tauri-ci-github';
 
-export function createTauriBridge(): DigitalLifeBridge {
+/**
+ * Compose the Tauri `DigitalLifeBridge`: every business domain delegates to
+ * [`createHttpBridge`] (the standalone ad-server is the single business
+ * backend over HTTP), while the system/shell capabilities stay on Tauri:
+ * `window`, `app`, `browser`, `pty` and `reserved` keep their `invoke` /
+ * native implementations, the stream subscriptions keep the Tauri event
+ * channels, and `setLogMode` keeps `app_set_log_mode`.
+ *
+ * @param baseUrl ad-server base URL; defaults to `resolveAdlServerBaseUrl()`
+ * (`VITE_ADL_SERVER_URL` or `http://127.0.0.1:61234`). Task 9 wires the port
+ * the dev script discovers.
+ */
+export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
+  const http = createHttpBridge({ baseUrl: baseUrl ?? resolveAdlServerBaseUrl() });
   return {
+    ...http,
+
     subscribeModelStream: (listener: (event: DigitalLifeModelStreamEventV1) => void) => {
       const buf = new EventBuffer<DigitalLifeModelStreamEventV1>();
       const channelSub = subscribeChannel<DigitalLifeModelStreamEventV1>(
@@ -71,31 +66,9 @@ export function createTauriBridge(): DigitalLifeBridge {
 
     window: createTauriWindowBridge(),
     app: createTauriAppBridge(),
-    workspace: createTauriWorkspaceBridge(),
-    retrieval: createTauriRetrievalBridge(),
-    conversation: createTauriConversationBridge(),
-    agent: createTauriAgentBridge(),
-    subagent: createTauriSubagentBridge(),
-    patch: createTauriPatchBridge(),
-    command: createTauriCommandBridge(),
-    pty: createTauriPtyBridge(),
-    task: createTauriTaskBridge(),
-    runActivity: createTauriRunActivityBridge(),
     browser: createTauriBrowserBridge(),
-    github: createTauriGithubBridge(),
-    mcp: createTauriMcpBridge(),
-    provider: createTauriProviderBridge(),
-    snapshot: createTauriSnapshotBridge(),
-    webTools: createTauriWebToolsBridge(),
-    commandsConfig: createTauriCommandsConfigBridge(),
-    permission: createTauriPermissionBridge(),
-    compaction: createTauriCompactionBridge(),
-    sessionFork: createTauriSessionForkBridge(),
-    lsp: createTauriLspBridge(),
-    reference: createTauriReferenceBridge(),
-    durable: createTauriDurableBridge(),
+    pty: createTauriPtyBridge(),
     reserved: createTauriReservedBridge(),
-    customAgent: createTauriCustomAgentBridge(),
   };
 }
 
