@@ -22,3 +22,4 @@ pub mod subagent;
 pub mod task;
 pub mod web_tools;
 pub mod workspace;
+pub mod workspace_sidebar;

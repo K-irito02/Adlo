@@ -60,10 +60,10 @@ struct WorkspacePathBody {
 /// and emit the kernel `WorkspaceOpened` / `RetrievalStatusChanged` events.
 ///
 /// Migration note: the Tauri original also upserted the sidebar recent list via
-/// `workspace_sidebar::upsert_sidebar_after_open` and emitted the legacy
-/// `digital-life://retrieval-status` UI event — the sidebar domain is migrated
-/// in a later batch (workspace_sidebar), and the legacy UI event has no
-/// [`crate`] SSE equivalent, so it is warn+reported here instead of dropped.
+/// `workspace_sidebar::upsert_sidebar_after_open` — now completed in Phase 2
+/// below (`handlers::workspace_sidebar::upsert_sidebar_after_open`). The legacy
+/// `digital-life://retrieval-status` UI event has no [`crate`] SSE equivalent,
+/// so it is warn+reported here instead of dropped.
 pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> impl IntoResponse {
     let input: WorkspacePathBody = match ipc::json_body(body).await {
         Ok(v) => v,
@@ -87,7 +87,7 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
             Err(e) => return ipc::to_response(Err(e)),
         };
 
-    // Phase 2 (blocking): persist meta + snapshot to the DB.
+    // Phase 2 (blocking): persist meta + snapshot + sidebar upsert to the DB.
     let db = state.db.clone();
     let meta_for_db = meta.clone();
     let snapshot_for_db = snapshot.clone();
@@ -109,6 +109,7 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
             Some("completed"),
             &snapshot_for_db,
         )?;
+        crate::handlers::workspace_sidebar::upsert_sidebar_after_open(&db, &meta_for_db)?;
         Ok(())
     })
     .await
