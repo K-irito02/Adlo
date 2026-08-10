@@ -101,10 +101,15 @@
 - 前端 `pty-bridge` 改为 WebSocket 客户端；`tauri-pty.ts` / `previewTerminalService` 收敛到同协议
 - Tauri 侧不再走 `pty_commands` invoke（保留向后兼容骨架，后续清理）
 
-### 4.4 验收（S1）
-- `cargo build`+`cargo clippy --workspace --all-targets -- -D warnings` 0 警告
-- Browser `pnpm preview` 通过 dev 脚本拉起 `adl-server`，SSE 事件可送达前端
-- 桌面端与浏览器端业务均通过同一 HTTP 桥 → 行为一致（双端一致验收脚本）
+### 4.4 验收（S1）✅ 完成（2026-08-10，Task 10）
+- `cargo build`+`cargo clippy --workspace --all-targets -- -D warnings` 0 警告 ✅
+- Browser `pnpm preview` 通过 dev 脚本拉起 `adl-server`，SSE 事件可送达前端 ✅
+- 桌面端与浏览器端业务均通过同一 HTTP 桥 → 行为一致（双端一致验收脚本）✅
+- Task 10 补充：桌面 Tauri 壳启动时 spawn `ad-server` 子进程（`--data-dir <app data dir> --port 0`），
+  读取 `AD_SERVER_PORT=` 后经 `app_get_server_info` 暴露 baseUrl 给前端 `httpBridge`；子进程随
+  Tauri 退出被 kill（Windows `taskkill /T /F`）。桌面 PTY 走 `/pty` WebSocket，流式订阅走
+  `/event` SSE，与浏览器同协议。Tauri 侧仅保留系统能力 invoke（app/browser/platform/provider
+  read-back/reserved/workspace-picker/log），迁移业务命令已删除。
 
 ## 5. S2：Part 渲染内核
 
