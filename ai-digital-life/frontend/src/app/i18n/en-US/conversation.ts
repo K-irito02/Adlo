@@ -82,6 +82,7 @@ export const conversationEn = {
   partToolCompleted: 'Completed',
   partToolError: 'Error',
   partContextGroup: 'Context',
+  partDiffPanel: 'Patch diff',
   refFile: 'File',
   refSymbol: 'Symbol',
   refTerminal: 'Terminal',

@@ -82,6 +82,7 @@ export const conversationZh = {
   partToolCompleted: '完成',
   partToolError: '出错',
   partContextGroup: '上下文',
+  partDiffPanel: '补丁差异',
   refFile: '文件',
   refSymbol: '符号',
   refTerminal: '终端',
