@@ -144,6 +144,21 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
     ipc::to_response(Ok(value))
 }
 
+/// GET `/workspace/current` — read the active workspace metadata (None when no
+/// workspace is open). The desktop shell's `app_get_info` sources its
+/// `current_workspace` field from here so the converged shell (which no longer
+/// owns the DB) stays in sync with the ad-server's persisted active workspace.
+pub async fn get_current(State(state): State<ServerState>) -> impl IntoResponse {
+    let value = match state.current_workspace.read().map(|g| serde_json::to_value(g.clone())) {
+        Ok(Ok(v)) => v,
+        Ok(Err(e)) => return ipc::to_response(Err(AppError::from(e))),
+        Err(_) => {
+            return ipc::to_response(Err(AppError::Internal("workspace mutex poisoned".into())));
+        },
+    };
+    ipc::to_response(Ok(value))
+}
+
 /// POST `/workspace/clear-current` — clear the persisted + in-memory active workspace.
 pub async fn clear_current(State(state): State<ServerState>) -> impl IntoResponse {
     let db = state.db.clone();

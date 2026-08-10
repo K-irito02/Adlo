@@ -51,6 +51,42 @@ fn make_workspace() -> PathBuf {
     dir
 }
 
+/// GET /workspace/current reflects the active workspace after open and after clear.
+#[tokio::test]
+async fn get_current_returns_active_workspace() {
+    let state = state().await;
+    let ws = make_workspace();
+
+    // No active workspace yet → data null.
+    let (status, body) = send(state.clone(), Method::GET, "/workspace/current", None).await;
+    assert_eq!(status, StatusCode::OK, "body: {body}");
+    assert_eq!(body["ok"], true, "body: {body}");
+    assert!(body["data"].is_null(), "body: {body}");
+
+    let (status, body) = send(
+        state.clone(),
+        Method::POST,
+        "/workspace/open",
+        Some(json!({ "workspacePath": ws.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "open body: {body}");
+    let id = body["data"]["id"].as_str().expect("workspace id").to_string();
+
+    let (status, body) = send(state.clone(), Method::GET, "/workspace/current", None).await;
+    assert_eq!(status, StatusCode::OK, "body: {body}");
+    assert_eq!(body["data"]["id"], id, "body: {body}");
+    assert_eq!(body["data"]["rootPath"], ws.to_string_lossy().to_string(), "body: {body}");
+
+    let (status, body) = send(state.clone(), Method::POST, "/workspace/clear-current", None).await;
+    assert_eq!(status, StatusCode::OK, "clear body: {body}");
+
+    let (status, body) = send(state, Method::GET, "/workspace/current", None).await;
+    assert_eq!(status, StatusCode::OK, "body: {body}");
+    assert!(body["data"].is_null(), "body: {body}");
+    let _ = std::fs::remove_dir_all(ws);
+}
+
 /// POST /workspace/open opens a path, returns its metadata, persists it as the
 /// active workspace and makes the file tree resolvable.
 #[tokio::test]

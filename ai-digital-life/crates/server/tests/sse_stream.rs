@@ -91,11 +91,7 @@ async fn sse_after_latest_is_live_only_skips_replay() {
     let mut chunks = resp.bytes_stream();
 
     // 先给后台一小段时间：若错误重放历史，这里就能在超时前捕获到。
-    let first = tokio::time::timeout(
-        std::time::Duration::from_millis(300),
-        chunks.next(),
-    )
-    .await;
+    let first = tokio::time::timeout(std::time::Duration::from_millis(300), chunks.next()).await;
     match first {
         Ok(Some(Ok(bytes))) => {
             let text = String::from_utf8_lossy(&bytes);

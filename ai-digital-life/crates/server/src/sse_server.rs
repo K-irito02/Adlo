@@ -38,9 +38,8 @@ const LIVE_ONLY_SENTINEL: i64 = -1;
 /// live-only sentinel; anything else parses as i64 (defaults to 0 when absent
 /// or unparseable, preserving the legacy `/event` replay-everything behavior).
 fn resolve_after(raw: Option<String>) -> Option<i64> {
-    raw.as_deref().map(|s| {
-        if s == "latest" { LIVE_ONLY_SENTINEL } else { s.parse::<i64>().unwrap_or(0) }
-    })
+    raw.as_deref()
+        .map(|s| if s == "latest" { LIVE_ONLY_SENTINEL } else { s.parse::<i64>().unwrap_or(0) })
 }
 
 /// Build the SSE routes (`/event`, `/question/:request_id/reply`) over the

@@ -1,11 +1,11 @@
 use crate::handlers::{self, health};
 use crate::sse_server::{reply_handler_state, sse_handler_state};
 use crate::state::ServerState;
+use axum::Router;
 use axum::body::Body;
 use axum::http::{Method, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::Response;
-use axum::Router;
 use axum::routing::{delete, get, patch, post};
 
 /// Permissive CORS for the standalone ad-server. The browser preview loads from
@@ -18,10 +18,7 @@ use axum::routing::{delete, get, patch, post};
 /// application/json`, a non-simple header that triggers one) and stamps every
 /// response — including the SSE `/event` stream and the `/pty` WebSocket
 /// upgrade — with `Access-Control-Allow-Origin`.
-async fn cors_layer(
-    request: axum::http::Request<Body>,
-    next: Next,
-) -> Response<Body> {
+async fn cors_layer(request: axum::http::Request<Body>, next: Next) -> Response<Body> {
     let is_preflight = request.method() == Method::OPTIONS;
     let mut response = if is_preflight {
         let mut resp = Response::new(Body::empty());
@@ -31,17 +28,16 @@ async fn cors_layer(
         next.run(request).await
     };
     let headers = response.headers_mut();
-    headers.insert(
-        header::ACCESS_CONTROL_ALLOW_ORIGIN,
-        header::HeaderValue::from_static("*"),
-    );
+    headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, header::HeaderValue::from_static("*"));
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_METHODS,
         header::HeaderValue::from_static("GET, POST, PATCH, DELETE, OPTIONS"),
     );
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
-        header::HeaderValue::from_static("content-type, last-event-id, x-ci-access-token, authorization"),
+        header::HeaderValue::from_static(
+            "content-type, last-event-id, x-ci-access-token, authorization",
+        ),
     );
     response
 }
@@ -75,6 +71,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/session/:session_id/cancel", post(handlers::conversation::cancel_message))
         // Workspace domain (`workspace_*` tauri commands).
         .route("/workspace/open", post(handlers::workspace::open))
+        .route("/workspace/current", get(handlers::workspace::get_current))
         .route("/workspace/clear-current", post(handlers::workspace::clear_current))
         .route("/workspace/file", post(handlers::workspace::create_file))
         .route("/workspace/folder", post(handlers::workspace::create_folder))
