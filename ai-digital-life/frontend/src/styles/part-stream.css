@@ -70,6 +70,39 @@
   gap: var(--space-2);
 }
 
+/* ── 会话文件 tab 条（SessionFileTabs）─────────────────────── */
+.adl-part-file-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.adl-part-file-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--adl-part-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-muted);
+  color: var(--adl-part-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  cursor: pointer;
+}
+
+.adl-part-file-tab:hover {
+  border-color: var(--adl-part-text);
+}
+
+.adl-part-file-tab__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── Markdown 正文 ──────────────────────────────────────────── */
 .adl-part-markdown {
   color: var(--adl-part-text);

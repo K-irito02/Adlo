@@ -8,6 +8,11 @@ import { useAppStore } from '../stores/slicedStore';
 import { useAppActions } from '../hooks/useAppActions';
 import { usePartStream } from '../features/part-stream/usePartStream';
 import { PartConversation } from '../features/part-stream/PartConversation';
+import { SessionFileTabs } from '../features/part-stream/SessionFileTabs';
+import {
+  collectSessionFileParts,
+  filePartUrlToWorkspaceRelativePath,
+} from '../features/part-stream/partFileUtils';
 import { asAgentRunID } from '../../shared/branded';
 
 import { CompactionIndicator } from '../components/conversation/CompactionIndicator';
@@ -157,6 +162,25 @@ const CenterPane = React.memo(function CenterPane() {
 
   const workspaceId = appInfo?.currentWorkspace?.id;
   const workspaceRoot = appInfo?.currentWorkspace?.rootPath;
+
+  // S3 Task 2: session file tab strip — `file` parts (FilePartData) collected
+  // from the session's partsByMessage, deduped by url. Rendered above the
+  // PartConversation so the user can jump from a file the assistant touched to
+  // the editor tab for that file.
+  const sessionFileParts = useMemo(
+    () => (partState ? collectSessionFileParts(partState.partsByMessage) : []),
+    [partState],
+  );
+  const handleOpenFile = useCallback(
+    (url: string) => {
+      const relativePath = filePartUrlToWorkspaceRelativePath(url, workspaceRoot);
+      if (relativePath) {
+        void actions.openFile(relativePath);
+      }
+    },
+    [actions, workspaceRoot],
+  );
+
   useEffect(() => {
     if (!workspaceId || !workspaceRoot) {
       setLatestSnapshotId(null);
@@ -345,11 +369,14 @@ const CenterPane = React.memo(function CenterPane() {
               ) : null}
             </div>
             {hasPartData && partState ? (
-              <PartConversation
-                state={partState}
-                userTextByMessageId={userTextByMessageId}
-                onReply={handlePartReply}
-              />
+              <>
+                <SessionFileTabs files={sessionFileParts} onSelect={handleOpenFile} />
+                <PartConversation
+                  state={partState}
+                  userTextByMessageId={userTextByMessageId}
+                  onReply={handlePartReply}
+                />
+              </>
             ) : (
               <MessageStream
                 messages={messages}

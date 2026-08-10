@@ -89,6 +89,7 @@ export const conversationEn = {
   partTurnError: 'Turn failed',
   partTurnCancelled: 'Turn cancelled',
   partTurnRunning: 'Turn running',
+  partSessionFileTabs: 'Session files',
   refFile: 'File',
   refSymbol: 'Symbol',
   refTerminal: 'Terminal',

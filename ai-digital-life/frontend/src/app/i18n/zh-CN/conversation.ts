@@ -89,6 +89,7 @@ export const conversationZh = {
   partTurnError: '回合出错',
   partTurnCancelled: '回合已取消',
   partTurnRunning: '回合进行中',
+  partSessionFileTabs: '会话文件',
   refFile: '文件',
   refSymbol: '符号',
   refTerminal: '终端',
