@@ -450,7 +450,7 @@ git commit -m "feat(frontend): session panel width constraints (OpenCode-aligned
 
 **Files:**
 - Create: `frontend/src/app/features/part-stream/SessionSidePanel.tsx`（会话上下文面板：会话关联文件树 + 变更 + 审核摘要的上下文视图）
-- Modify: `frontend/src/app/regions/right-panel/RightPanel.tsx`（当活动会话有 Part 数据时，注入会话上下文视图）
+- Modify: `frontend/src/app/regions/CenterPane.tsx`（在 part 路径的 PartTimeline 之后渲染 `SessionSidePanel`——**决策（2026-08-11，评审确认）：** 不接线进 RightPanel 的 view 机器，因为 `ActiveToolPanel` 是 `React.memo` + 严格引用相等 + ToolId 驱动 switch，注入会话视图需重构 ToolSwitcher/面板相等性；CenterPane part 路径的常驻卡片（`flex:1 1 auto`，不随虚拟化 timeline 滚动）是最小侵入且满足「会话文件 + patch 上下文视图」意图。计划原文的 RightPanel 目标改为 CenterPane，评审复核通过）
 - Test: `frontend/src/app/features/part-stream/__tests__/SessionSidePanel.test.tsx`
 
 **Interfaces:**
