@@ -43,13 +43,37 @@ fn parse_current_workspace_wire(wire: &serde_json::Value) -> Option<WorkspaceMet
     serde_json::from_value(data.clone()).ok()
 }
 
+/// Bounded timeout for ad-server HTTP fetches from the desktop shell. A hung
+/// `ad-server` child (e.g. a DB lock) must degrade to `None` instead of stalling
+/// the desktop bootstrap (`app_get_info` / `app_update_preferences`).
+const AD_SERVER_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// Build an HTTP client with a bounded timeout for ad-server fetches. `reqwest`
+/// `Client::new()`/`reqwest::get` carry no default timeout; a hung child would
+/// otherwise block the async shell indefinitely.
+fn ad_server_http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(AD_SERVER_FETCH_TIMEOUT)
+        .build()
+        .expect("failed to build ad-server HTTP client")
+}
+
 /// Fetch the active workspace from the spawned ad-server (`GET /workspace/current`).
 /// The shell no longer owns the DB; the ad-server is the single source of truth
 /// for workspace state. Returns `None` when the engine is not running (graceful
 /// system-only degradation).
 async fn fetch_current_workspace(state: &AppState) -> Option<WorkspaceMeta> {
     let base_url = state.ad_server.base_url()?;
-    let resp = reqwest::get(format!("{base_url}/workspace/current")).await.ok()?;
+    fetch_current_workspace_with_client(&ad_server_http_client(), &base_url).await
+}
+
+/// Fetch with an explicit client (injectable for tests; production uses
+/// [`ad_server_http_client`], which applies the bounded [`AD_SERVER_FETCH_TIMEOUT`]).
+async fn fetch_current_workspace_with_client(
+    client: &reqwest::Client,
+    base_url: &str,
+) -> Option<WorkspaceMeta> {
+    let resp = client.get(format!("{base_url}/workspace/current")).send().await.ok()?;
     if !resp.status().is_success() {
         return None;
     }
@@ -482,6 +506,58 @@ mod workspace_loading_tests {
         assert!(json.contains("\"workspacePriorityIds\":[\"a\"]"));
         assert!(json.contains("\"workspaceDeferredIds\":[\"b\"]"));
         assert!(json.contains("\"workspaceNaturalOrder\":[\"c\"]"));
+    }
+}
+
+#[cfg(test)]
+mod ad_server_fetch_tests {
+    use super::*;
+    use std::io::Read;
+    use std::net::TcpListener;
+    use std::time::{Duration, Instant};
+
+    /// A server that accepts a connection, reads the request bytes, then stalls
+    /// without responding — simulating a hung ad-server child (e.g. a DB lock).
+    /// Returns the base URL to point the client at.
+    fn spawn_stalling_server() -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                let mut buf = [0u8; 4096];
+                let _ = stream.read(&mut buf);
+                std::thread::sleep(Duration::from_secs(30));
+            }
+        });
+        format!("http://{addr}")
+    }
+
+    #[tokio::test]
+    async fn hung_server_degrades_to_none_within_bounded_timeout() {
+        let url = spawn_stalling_server();
+        let client = ad_server_http_client();
+        let start = Instant::now();
+        let result = fetch_current_workspace_with_client(&client, &url).await;
+        assert!(result.is_none());
+        assert!(
+            start.elapsed() < Duration::from_secs(10),
+            "fetch took {:?}; no bounded timeout applied",
+            start.elapsed()
+        );
+    }
+
+    #[tokio::test]
+    async fn no_timeout_client_stays_hung_on_stalling_server() {
+        // Harness sanity check: proves the stalling server genuinely hangs a
+        // timeout-less client, so the bounded-timeout test above is attributable
+        // to the timeout, not to the server closing the connection early.
+        let url = spawn_stalling_server();
+        let client = reqwest::Client::new();
+        let start = Instant::now();
+        let outcome =
+            tokio::time::timeout(Duration::from_secs(1), client.get(url.as_str()).send()).await;
+        assert!(outcome.is_err(), "no-timeout client should not resolve on a stalled server");
+        assert!(start.elapsed() < Duration::from_secs(10));
     }
 }
 
