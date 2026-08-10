@@ -195,6 +195,60 @@ async fn abort_run_marks_aborted() {
     assert_eq!(body["data"]["run"]["status"], "aborted", "persisted: {body}");
 }
 
+/// Finding 2: POST /agent/run/{id}/abort must ALSO cancel the live loop token
+/// registered under the run's session (`state.loop_cancels[session_id]`), so
+/// the in-flight model request stops instead of running/charging to completion.
+#[tokio::test]
+async fn abort_run_cancels_live_loop_token() {
+    let state = state().await;
+    let session_id = make_session(&state).await;
+    // Build a run record directly (no async loop kicked, so the token below is
+    // the only one and stays registered) and save it exactly like the
+    // agent-loop kick does.
+    let session_row = state
+        .db
+        .load_entity::<adl_types::ConversationSessionRecord>(
+            adl_storage::EntityTable::Sessions,
+            &session_id,
+        )
+        .unwrap()
+        .expect("session should exist");
+    let detail = adl_agent_runtime::create_run(
+        &session_row.workspace_id,
+        &session_id,
+        "abort me",
+        adl_types::ConversationScenario::Chat,
+    );
+    let run_id = detail.run.id.clone();
+    state
+        .db
+        .save_entity(
+            adl_storage::EntityTable::AgentRuns,
+            &run_id,
+            Some(&detail.run.workspace_id),
+            Some(&session_id),
+            Some(detail.run.status.as_status_str()),
+            &detail.run,
+        )
+        .unwrap();
+
+    // Simulate an in-flight agent loop: register a live cancellation token.
+    let token = tokio_util::sync::CancellationToken::new();
+    state.loop_cancels.lock().await.insert(session_id.clone(), token.clone());
+
+    let (status, body) =
+        send(state.clone(), Method::POST, &format!("/agent/run/{run_id}/abort"), None).await;
+    assert_eq!(status, StatusCode::OK, "abort body: {body}");
+    assert_eq!(body["data"]["run"]["status"], "aborted");
+    assert!(token.is_cancelled(), "abort must cancel the live loop token");
+
+    // The token is removed from the registry.
+    assert!(
+        !state.loop_cancels.lock().await.contains_key(&session_id),
+        "loop token should be unregistered after abort"
+    );
+}
+
 /// GET /agent/list returns the built-in primary agents (covers
 /// `AgentBridge.listAgents`). Faithful to `list_agents_inner`: only
 /// `mode == primary && !hidden` agents are listed (build + plan; general is a

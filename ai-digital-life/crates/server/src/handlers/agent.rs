@@ -243,14 +243,43 @@ pub async fn retry_run(
     ipc::to_response(result)
 }
 
-/// POST `/agent/run/:run_id/abort` — abort a run and persist it (covers
-/// `AgentBridge.abortRun`). Note this aborts the *run record*; the live agent
-/// loop for a session is cancelled via `POST /agent/turn/abort` /
-/// `/session/{id}/cancel`.
+/// POST `/agent/run/:run_id/abort` — abort a run, cancel its live loop, and
+/// persist the aborted record (covers `AgentBridge.abortRun`). Per Finding 2,
+/// abort must ALSO cancel the live agent loop registered under the run's
+/// session (`state.loop_cancels[session_id]`) — the run id alone does not stop
+/// the in-flight model request, and the frontend `cancelMessage(runId)` only
+/// has the run id. The run record carries `session_id`, so we resolve run →
+/// session first.
 pub async fn abort_run(
     State(state): State<ServerState>,
     Path(run_id): Path<String>,
 ) -> impl IntoResponse {
+    let db = state.db.clone();
+
+    // Resolve run → session id (blocking DB read; needed before the async
+    // cancel so the loop token lookup key is known).
+    let run_id_for_session = run_id.clone();
+    let session_id =
+        match agent_loop::run_blocking(move || -> Result<Option<String>, AppError> {
+            let Some(detail) = load_run_detail(&db, &run_id_for_session)? else {
+                return Ok(None);
+            };
+            Ok(Some(detail.run.session_id))
+        })
+        .await
+        {
+            Ok(v) => v,
+            Err(e) => return ipc::to_response(Err(e)),
+        };
+
+    // Cancel the live loop token for the run's session, then flip the record.
+    if let Some(session_id) = session_id {
+        agent_loop::abort_loop(&state.loop_cancels, &session_id).await;
+        // Unregister the token — the run is aborted, so no loop may remain
+        // registered under its session.
+        state.loop_cancels.lock().await.remove(&session_id);
+    }
+
     let db = state.db.clone();
     let result = agent_loop::run_blocking(move || -> Result<serde_json::Value, AppError> {
         let Some(detail) = load_run_detail(&db, &run_id)? else {
