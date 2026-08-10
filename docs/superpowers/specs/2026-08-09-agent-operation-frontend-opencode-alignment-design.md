@@ -153,6 +153,22 @@
 - `AskCard`：question.asked → 提交 → question.replied
 - 红绿先行（vitest），符合 mandatory-testing
 
+### 5.5 验收（S2）✅ 完成（2026-08-10，Task 10）
+
+- `pnpm --dir frontend test` 全绿（1464 tests，含新增 CenterPane.part 集成 4 + httpBridge replyToQuestion 2）✅
+- `pnpm --dir frontend run lint` 0 errors、`pnpm --dir frontend run typecheck` 0 errors ✅
+- `cargo clippy --workspace --all-targets -- -D warnings` 0 警告；`cargo test --workspace` 绿（Rust 侧未改动）✅
+- 会话页以 Part 渲染为主路径（CenterPane → `PartConversation`）：浏览器与桌面共用同一
+  `usePartStream` / `PartRenderer`，渲染无表面分支（双端一致）✅
+- AskCard 回答接通 `POST /question/{id}/reply`（新增 `conversation.replyToQuestion`，
+  contract + httpBridge + mock + preview 委托齐备，handle 空 body 200）✅
+- 旧 `MessageStream`（ConversationMessageRecord）仅在无 Part 数据时兜底，未新增兼容层 ✅
+- 用户消息文本缺口已定位并解决：Part wire 不含用户文本（MessageRecord 无 content 字段、
+  loop 不给用户消息挂文本 part），从旧 ConversationMessageRecord 按「直接 id / assistant
+  父跳（parentID→runId）」双路关联取回 ✅
+- `message.created` 信息仅 `{ id, finish: null }` 的角色推断启发式已文档化
+  （`resolvePartMessageRole`，见 PartConversation.tsx）✅
+
 ## 6. S3：桌面布局
 
 对标 `references/opencode/packages/app/src/pages/session/`：

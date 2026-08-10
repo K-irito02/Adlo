@@ -213,4 +213,16 @@ export interface ConversationBridge {
    * @see preview-bridge/index.ts → conversation.cancelMessage
    */
   cancelMessage: (runId: string) => Promise<IpcResult<AgentRunDetail | undefined>>;
+  /**
+   * 回答一个会话问询卡（question.asked → AskCard → POST /question/{id}/reply）。
+   * 空 answers 表示拒绝/关闭问询。
+   * @param requestId 问询请求 ID（question.asked 的 requestID）
+   * @param answers 选中的答案文本列表
+   * @returns 是否成功送达（服务器无 body 的 200）
+   * @route POST /question/{request_id}/reply
+   * @see httpBridge.ts → conversation.replyToQuestion
+   * @see mock-bridge.ts → conversation.replyToQuestion
+   * @see preview-bridge/index.ts → conversation.replyToQuestion
+   */
+  replyToQuestion: (requestId: string, answers: string[]) => Promise<IpcResult<boolean>>;
 }

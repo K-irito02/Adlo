@@ -112,5 +112,6 @@ export const mockConversation: ConversationBridge = {
       }
     };
   },
-  cancelMessage: async () => ({ ok: true, data: activeRun })
+  cancelMessage: async () => ({ ok: true, data: activeRun }),
+  replyToQuestion: async () => ({ ok: true, data: true })
 };

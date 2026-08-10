@@ -6,6 +6,8 @@ import { ApprovalCard } from '../components/approval/ApprovalCard';
 import { MessageStream } from '../components/MessageStream';
 import { useAppStore } from '../stores/slicedStore';
 import { useAppActions } from '../hooks/useAppActions';
+import { usePartStream } from '../features/part-stream/usePartStream';
+import { PartConversation } from '../features/part-stream/PartConversation';
 import { asAgentRunID } from '../../shared/branded';
 
 import { CompactionIndicator } from '../components/conversation/CompactionIndicator';
@@ -81,6 +83,64 @@ const CenterPane = React.memo(function CenterPane() {
   );
 
   const messages = useMemo(() => activeDetail?.messages ?? [], [activeDetail]);
+
+  // S2 part-stream (Task 10): the Part conversation is the PRIMARY render path
+  // once a session has part data. `usePartStream` hydrates history +
+  // subscribes the raw SSE part events; `PartConversation` renders the
+  // message/part/ask/status tree. The legacy `MessageStream` (ConversationMessageRecord)
+  // is retained ONLY as the fallback for sessions without part data (pre-S1
+  // sessions / mock) — it is deliberately NOT a compat layer for part data.
+  const partState = usePartStream(activeSessionId);
+  const hasPartMessages = (partState?.messages.size ?? 0) > 0;
+  const hasPartQuestions = (partState?.questions.length ?? 0) > 0;
+  const hasPartData = hasPartMessages || hasPartQuestions;
+
+  /**
+   * User prompt text by part-message id. The Part wire carries NO user text
+   * (MessageRecord has no `content`; the loop attaches no text part to user
+   * messages) — it lives only on the legacy ConversationMessageRecord the S1
+   * bridge persists (`kick_agent_run`), loaded into `sessionDetails`. Two
+   * correlations (see PartConversation):
+   *   1. direct: the `message.created` kick announcement carries the
+   *      ConversationMessageRecord id (`message_xxx`) — look up by id.
+   *   2. assistant-hop: the hydrated user MessageRecord (`msg_xxx`) is the
+   *      `parentID` of the assistant message whose id == the ConversationMessageRecord
+   *      `runId` — resolve via that chain.
+   */
+  const userTextByMessageId = useMemo(() => {
+    const map = new Map<string, string>();
+    const convMessages = activeDetail?.messages ?? [];
+    const userConv = convMessages.filter((m) => m.role === 'user');
+    for (const m of userConv) {
+      map.set(m.id, m.content);
+    }
+    if (partState) {
+      for (const [msgId, msg] of partState.messages) {
+        if (msg.role !== 'user' || map.has(msgId)) {
+          continue;
+        }
+        let assistantId: string | undefined;
+        for (const [id, candidate] of partState.messages) {
+          if (candidate.role === 'assistant' && candidate.parentID === msgId) {
+            assistantId = id;
+            break;
+          }
+        }
+        if (!assistantId) {
+          continue;
+        }
+        const conv = userConv.find((c) => c.runId === assistantId);
+        if (conv) {
+          map.set(msgId, conv.content);
+        }
+      }
+    }
+    return map;
+  }, [activeDetail, partState]);
+
+  const handlePartReply = useCallback((requestID: string, answers: string[]) => {
+    void window.digitalLife?.conversation.replyToQuestion(requestID, answers);
+  }, []);
 
   useEffect(() => {
     // Best-effort prefetch for replay: only when we see assistant messages with runId.
@@ -240,7 +300,9 @@ const CenterPane = React.memo(function CenterPane() {
   );
 
   const hasMessages =
-    messages.filter((m) => m.id !== 'message-welcome').length > 0 || !!streamingAssistantText;
+    messages.filter((m) => m.id !== 'message-welcome').length > 0 ||
+    !!streamingAssistantText ||
+    hasPartData;
 
   return (
     <section className="adl-center" aria-label={t.conversation}>
@@ -253,10 +315,8 @@ const CenterPane = React.memo(function CenterPane() {
       ) : null}
 
       {/* Region 8 / 9: Main stream area */}
-      <div
-        className={`adl-center__body${!activeDetail || !hasMessages ? ' adl-center__body--empty' : ''}`}
-      >
-        {!activeDetail || !hasMessages ? (
+      <div className={`adl-center__body${!hasMessages ? ' adl-center__body--empty' : ''}`}>
+        {!hasMessages ? (
           <div className="adl-center__empty">
             <WelcomeState
               hasWorkspace={hasWorkspace}
@@ -270,10 +330,12 @@ const CenterPane = React.memo(function CenterPane() {
           <>
             <CompactionIndicator />
             <div className="adl-center__toolbar">
-              <ForkButton
-                parentSession={activeDetail.session}
-                forkMessageId={activeDetail.messages[activeDetail.messages.length - 1]?.id ?? ''}
-              />
+              {activeDetail ? (
+                <ForkButton
+                  parentSession={activeDetail.session}
+                  forkMessageId={activeDetail.messages[activeDetail.messages.length - 1]?.id ?? ''}
+                />
+              ) : null}
               {latestSnapshotId && appInfo?.currentWorkspace ? (
                 <RevertButton
                   snapshotId={latestSnapshotId}
@@ -282,16 +344,24 @@ const CenterPane = React.memo(function CenterPane() {
                 />
               ) : null}
             </div>
-            <MessageStream
-              messages={messages}
-              streamingText={streamingAssistantText}
-              isStreaming={!!streamingAssistantText}
-              activeRun={activeRun}
-              streamingActiveRunId={streamingActiveRunId}
-              runActivityByRunId={runActivityByRunId}
-              runUsageByRunId={runUsageByRunId}
-              locale={locale}
-            />
+            {hasPartData && partState ? (
+              <PartConversation
+                state={partState}
+                userTextByMessageId={userTextByMessageId}
+                onReply={handlePartReply}
+              />
+            ) : (
+              <MessageStream
+                messages={messages}
+                streamingText={streamingAssistantText}
+                isStreaming={!!streamingAssistantText}
+                activeRun={activeRun}
+                streamingActiveRunId={streamingActiveRunId}
+                runActivityByRunId={runActivityByRunId}
+                runUsageByRunId={runUsageByRunId}
+                locale={locale}
+              />
+            )}
           </>
         )}
       </div>

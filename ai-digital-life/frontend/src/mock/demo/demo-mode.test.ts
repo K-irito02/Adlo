@@ -21,6 +21,7 @@ function makeBaseBridge(): DigitalLifeBridge {
     deleteSession: async () => ({ ok: true, data: true }),
     sendMessage: async (input) => ({ ok: true, data: { session: { id: input.sessionId, workspaceId: 'ws', title: 't', status: 'active', isPinned: false, pinnedOrder: 0, unpinnedOrder: 0, manualUnread: false, createdAt: 0, updatedAt: 0, lastMessageAt: 0 }, userMessage: { id: 'u', sessionId: input.sessionId, role: 'user', content: input.content, blocks: [], createdAt: 0 }, assistantMessage: { id: 'a', sessionId: input.sessionId, role: 'assistant', content: 'a', blocks: [], createdAt: 0 }, runDetail: { run: { id: 'r', workspaceId: 'ws', sessionId: input.sessionId, prompt: '', scenario: 'chat', status: 'succeeded', createdAt: 0, updatedAt: 0 }, steps: [] } } }),
     cancelMessage: async () => ({ ok: true, data: undefined }),
+    replyToQuestion: async () => ({ ok: true, data: true }),
   };
   return {
     subscribeModelStream: () => () => {},

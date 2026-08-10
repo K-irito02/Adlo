@@ -139,6 +139,51 @@ describe('createHttpBridge', () => {
     );
   });
 
+  it('maps conversation.replyToQuestion to POST /question/:id/reply and tolerates an empty-body 200', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '',
+      json: async () => {
+        throw new Error('empty body');
+      },
+    } as unknown as Response);
+    vi.stubGlobal('fetch', fetchMock);
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({ baseUrl: 'http://127.0.0.1:9999' });
+    const res = await bridge.conversation.replyToQuestion('q-1', ['Approve']);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:9999/question/q-1/reply',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    const init = fetchMock.mock.calls[0]?.[1];
+    const body = typeof init?.body === 'string' ? init.body : '{}';
+    expect(JSON.parse(body)).toEqual({ answers: ['Approve'] });
+    expect(res).toEqual({ ok: true, data: true });
+  });
+
+  it('maps conversation.replyToQuestion error to the structured server error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue({
+        ok: false,
+        status: 404,
+        text: async () => '',
+        json: async () => ({
+          ok: false,
+          error: { code: 'NOT_FOUND', message: 'question not found' },
+        }),
+      } as unknown as Response),
+    );
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({ baseUrl: 'http://127.0.0.1:9999' });
+    const res = await bridge.conversation.replyToQuestion('missing', []);
+    expect(res).toEqual({
+      ok: false,
+      error: { code: 'NOT_FOUND', message: 'question not found' },
+    });
+  });
+
   it('maps provider.getProviderApiKey to the write-only has route and returns null', async () => {
     const fetchMock = mockFetch(jsonResponse(200, { ok: true, data: true }));
     const { createHttpBridge } = await import('../../httpBridge');

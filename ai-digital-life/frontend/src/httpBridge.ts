@@ -197,6 +197,54 @@ const DELETE = (): RequestInit => ({ method: 'DELETE' });
 const taskNotSupported = <T>(what: string): Promise<IpcResult<T>> =>
   Promise.resolve(notSupported<T>(what));
 
+/**
+ * POST a JSON body and decode `IpcResult<T>` from the response, tolerating an
+ * EMPTY success body. The question-reply route (`POST /question/{id}/reply`,
+ * `crates/server/src/sse_server.rs`) is an axum `Result<(), _>` handler whose
+ * 200 response carries no JSON — `call` would choke on `resp.json()`. This
+ * variant treats any 2xx with an empty body as `{ ok: true }` (the caller maps
+ * it to `data: true`).
+ */
+async function callEmptyOk<T>(
+  baseUrl: string,
+  path: string,
+  init: RequestInit,
+  f: typeof fetch = fetch,
+): Promise<IpcResult<T>> {
+  try {
+    const resp = await f(`${baseUrl}${path}`, {
+      ...init,
+      headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },
+    });
+    if (!resp.ok) {
+      try {
+        const json = (await resp.json()) as IpcResult<T>;
+        if (json && typeof json === 'object' && 'ok' in json) {
+          return json;
+        }
+      } catch {
+        // non-JSON error body — fall through to the generic HTTP error
+      }
+      return {
+        ok: false,
+        error: { code: HTTP_ERROR_CODE, message: `HTTP ${resp.status}` },
+      };
+    }
+    const text = await resp.text();
+    if (text.length === 0) {
+      return { ok: true, data: true as T };
+    }
+    try {
+      return JSON.parse(text) as IpcResult<T>;
+    } catch {
+      return { ok: true, data: true as T };
+    }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: { code: NETWORK_ERROR_CODE, message } };
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Task 8 — SSE `/event` → v1 stream mapping.
 //
@@ -956,6 +1004,15 @@ export function createHttpBridge({
       // by session id and would miss the run record).
       cancelMessage: (runId: string) =>
         call<AgentRunDetail | undefined>(baseUrl, `/agent/run/${runId}/abort`, POST({})),
+      // Question reply (AskCard → `question.asked` → POST /question/{id}/reply).
+      // The route returns a bare 200 (no JSON body), so it uses the empty-ok
+      // tolerant variant and reports the unit response as `data: true`.
+      replyToQuestion: (requestId: string, answers: string[]) =>
+        callEmptyOk<boolean>(
+          baseUrl,
+          `/question/${encodeURIComponent(requestId)}/reply`,
+          POST({ answers }),
+        ).then((res) => (res.ok ? { ok: true as const, data: true } : res)),
     } satisfies ConversationBridge,
 
     // ── Agent domain (run CRUD, listing, scenario selection, Plan Mode).
