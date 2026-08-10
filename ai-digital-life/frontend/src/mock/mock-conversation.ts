@@ -1,5 +1,5 @@
 import type { ConversationBridge } from "../shared/ipc";
-import type { ConversationDetail, IpcResult } from "@ai-digital-life/kernel";
+import type { ConversationDetail, IpcResult, SessionMessagesPayload } from "@ai-digital-life/kernel";
 import {
   activeRun,
   activeWorkspaceScopeId,
@@ -42,6 +42,13 @@ export const mockConversation: ConversationBridge = {
         messages: messagesBySession.get(sessionId) ?? []
       }
     };
+  },
+  getSessionMessages: async (
+    sessionId: string,
+  ): Promise<IpcResult<SessionMessagesPayload | undefined>> => {
+    const session = sessions.find((item) => item.id === sessionId);
+    if (!session) return { ok: true, data: undefined };
+    return { ok: true, data: { messages: [] } };
   },
   renameSession: async ({ sessionId, title }) => {
     const session = sessions.find((candidate) => candidate.id === sessionId)!;

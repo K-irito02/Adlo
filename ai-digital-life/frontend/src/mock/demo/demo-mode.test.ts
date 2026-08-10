@@ -9,6 +9,7 @@ function makeBaseBridge(): DigitalLifeBridge {
     createSession: async () => ({ ok: true, data: { id: 'session-real', workspaceId: 'ws-real', title: 'real', status: 'active', isPinned: false, pinnedOrder: 0, unpinnedOrder: 0, manualUnread: false, createdAt: 0, updatedAt: 0, lastMessageAt: 0 } }),
     listSessions: async () => ({ ok: true, data: [{ id: 'session-real', workspaceId: 'ws-real', title: 'real', status: 'active', isPinned: false, pinnedOrder: 0, unpinnedOrder: 0, manualUnread: false, createdAt: 0, updatedAt: 0, lastMessageAt: 0 }] }),
     getSession: async () => ({ ok: true, data: undefined }),
+    getSessionMessages: async () => ({ ok: true, data: undefined }),
     renameSession: async (input) => ({ ok: true, data: { id: input.sessionId, workspaceId: 'ws', title: input.title, status: 'active', isPinned: false, pinnedOrder: 0, unpinnedOrder: 0, manualUnread: false, createdAt: 0, updatedAt: 0, lastMessageAt: 0 } }),
     pinSession: async (id) => ({ ok: true, data: { id, workspaceId: 'ws', title: 't', status: 'active', isPinned: true, pinnedOrder: 0, unpinnedOrder: 0, manualUnread: false, createdAt: 0, updatedAt: 0, lastMessageAt: 0 } }),
     unpinSession: async (id) => ({ ok: true, data: { id, workspaceId: 'ws', title: 't', status: 'active', isPinned: false, pinnedOrder: 0, unpinnedOrder: 0, manualUnread: false, createdAt: 0, updatedAt: 0, lastMessageAt: 0 } }),

@@ -15,6 +15,7 @@ import type {
   PatchSummaryConversationBlock,
   PlanConversationBlock,
   ReorderSessionsInput,
+  SessionMessagesPayload,
   ToolCallConversationBlock,
   ValidationResultConversationBlock,
 } from '@ai-digital-life/kernel';
@@ -36,6 +37,7 @@ export type {
   PatchSummaryConversationBlock,
   PlanConversationBlock,
   ReorderSessionsInput,
+  SessionMessagesPayload,
   ToolCallConversationBlock,
   ValidationResultConversationBlock,
 };
@@ -80,6 +82,16 @@ export interface ConversationBridge {
    * @see preview-bridge/index.ts → conversation.getSession
    */
   getSession: (sessionId: string) => Promise<IpcResult<ConversationDetail | undefined>>;
+  /**
+   * 获取会话的消息 + Part 历史（PartStore 初始加载）
+   * @param sessionId 会话 ID
+   * @returns 消息与 Part 记录，或 undefined (未找到)
+   * @command conversation_get_session_messages
+   * @see tauri-bridge.ts → conversation.getSessionMessages
+   * @see mock-bridge.ts → conversation.getSessionMessages
+   * @see preview-bridge/index.ts → conversation.getSessionMessages
+   */
+  getSessionMessages: (sessionId: string) => Promise<IpcResult<SessionMessagesPayload | undefined>>;
   /**
    * 重命名会话
    * @param input 包含会话 ID 和新标题

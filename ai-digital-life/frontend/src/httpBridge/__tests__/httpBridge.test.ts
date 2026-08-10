@@ -60,6 +60,63 @@ describe('createHttpBridge', () => {
     );
   });
 
+  it('maps conversation.getSessionMessages to GET /session/:id/message and passes through the Part payload', async () => {
+    const payload = {
+      messages: [
+        {
+          message: {
+            id: 'm-1',
+            sessionID: 's-1',
+            role: 'assistant',
+            timeCreated: 1700000000000,
+          },
+          parts: [
+            {
+              id: 'p-1',
+              messageID: 'm-1',
+              sessionID: 's-1',
+              type: 'tool',
+              ordinal: 0,
+              timeCreated: 1700000000000,
+              data: {
+                type: 'tool',
+                tool: 'read',
+                callID: 'c-1',
+                state: { status: 'pending', input: { path: 'a.txt' } },
+              },
+            },
+          ],
+        },
+      ],
+    };
+    const fetchMock = mockFetch(jsonResponse(200, { ok: true, data: payload }));
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({ baseUrl: 'http://127.0.0.1:9999' });
+    const res = await bridge.conversation.getSessionMessages('s-1');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:9999/session/s-1/message',
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(res).toEqual({ ok: true, data: payload });
+  });
+
+  it('maps conversation.getSessionMessages to a NOT_FOUND-structured error for a missing session', async () => {
+    const fetchMock = mockFetch(
+      jsonResponse(404, { ok: false, error: { code: 'NOT_FOUND', message: 'session not found' } }),
+    );
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({ baseUrl: 'http://127.0.0.1:9999' });
+    const res = await bridge.conversation.getSessionMessages('missing');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://127.0.0.1:9999/session/missing/message',
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(res).toEqual({
+      ok: false,
+      error: { code: 'NOT_FOUND', message: 'session not found' },
+    });
+  });
+
   it('maps conversation.renameSession to PATCH /session/:id with { title } body', async () => {
     const fetchMock = mockFetch(jsonResponse(200, { ok: true, data: { id: 's-1' } }));
     const { createHttpBridge } = await import('../../httpBridge');

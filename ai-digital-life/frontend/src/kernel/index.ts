@@ -4,6 +4,7 @@ export * from './result';
 export * from './types';
 export * from './types-task';
 export * from './types-conversation';
+export * from './types-part';
 export * from './types-model';
 export * from './types-agent';
 export * from './types-patch';

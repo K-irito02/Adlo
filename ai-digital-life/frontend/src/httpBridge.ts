@@ -75,6 +75,7 @@ import type {
   ReorderSessionsInput,
   RepoMapNode,
   RetrievalSnapshot,
+  SessionMessagesPayload,
   WorkspaceChangePreview,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
@@ -874,6 +875,8 @@ export function createHttpBridge({
       listSessions: () => call<ConversationSessionRecord[]>(baseUrl, '/sessions', GET()),
       getSession: (sessionId: string) =>
         call<ConversationDetail | undefined>(baseUrl, `/session/${sessionId}`, GET()),
+      getSessionMessages: (sessionId: string) =>
+        call<SessionMessagesPayload | undefined>(baseUrl, `/session/${sessionId}/message`, GET()),
       renameSession: (input: { sessionId: string; title: string }) =>
         call<ConversationSessionRecord>(
           baseUrl,
