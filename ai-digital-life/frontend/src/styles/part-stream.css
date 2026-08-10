@@ -1,12 +1,15 @@
 /* ==========================================================================
-   Part Stream (S2) — 会话区局部视觉作用域
+   Part Stream (S2 + S3) — 会话区局部视觉作用域 + 会话布局
    --------------------------------------------------------------------------
    - `.adl-part-scope` 只定义局部的 `--adl-part-*` 变量映射（近似 OpenCode
      风格），不改动任何全局 tokens —— 全局 UI 不受影响。
-   - 所有组件样式只消费 `--adl-part-*` 变量，颜色一律走 `var(--…)`。
-   - 组件类名对应 T5-8 渲染器实际输出的 className：
-     StreamingMarkdown / BasicToolCard / ToolErrorCard / ContextToolGroup /
-     PartDiffPanel / AskCard / TurnSummary。
+   - S3 会话布局类（timeline / file-tabs / docks / side-panel）**只消费全局
+     token**（`var(--…)`），绝不引用 scope-local `--adl-part-*`（T2 CSS-fix
+     约定 —— 这些组件在 CenterPane 中是 `.adl-part-scope` 的兄弟节点）。
+   - S2 渲染器组件类（StreamingMarkdown / BasicToolCard / ToolErrorCard /
+     ContextToolGroup / PartDiffPanel / AskCard / TurnSummary）在
+     `.adl-part-scope` 内部渲染，可消费 `--adl-part-*` 变量。
+   - 组件类名对应 T5-8 渲染器实际输出的 className。
    ========================================================================== */
 
 .adl-part-scope {
@@ -20,18 +23,14 @@
   --adl-part-success: var(--success);
 }
 
-/* ── 会话正文（PartConversation）────────────────────────────── */
-/* `adl-center__body` 已是滚动容器（overflow-y: auto + padding），会话正文
-   不再自带滚动/内边距，随父容器自然滚动。 */
-.adl-part-conversation {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  min-height: 0;
-}
+/* ══════════════════════════════════════════════════════════════════════
+   S3 会话布局（OpenCode 对齐）— 仅消费全局 token
+   ══════════════════════════════════════════════════════════════════════ */
 
-/* 虚拟化 timeline（PartTimeline）：作为 .adl-center__body 的 flex 子项撑满
-   可视区域，滚动由 react-window List 内部接管（对标 .adl-message-stream）。 */
+/* ── 虚拟化 timeline（PartTimeline）────────────────────────────
+   `adl-center__body` 已是滚动容器（overflow-y: auto + padding），会话正文
+   不再自带滚动/内边距，随父容器自然滚动。滚动由 react-window List 内部接管
+   （对标 .adl-message-stream）。 */
 .adl-part-timeline {
   display: flex;
   flex-direction: column;
@@ -40,41 +39,6 @@
   min-width: 0;
   flex: 1 1 auto;
   min-height: 0;
-}
-
-.adl-part-message {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.adl-part-message--user {
-  justify-items: start;
-}
-
-.adl-part-message--assistant {
-  justify-items: stretch;
-}
-
-.adl-part-message__text {
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--adl-part-border);
-  border-radius: var(--adl-part-radius);
-  background: var(--bg-muted);
-  color: var(--adl-part-text);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-/* ── Composer dock（SessionDocks）─────────────────────────────
-   Dock 容器同时带 `adl-part-scope`（在 SessionDocks.tsx 中），使内部
-   AskCard / TurnSummary 复用局部变量映射；自身沿用全局 bg/border 与
-   Composer 视觉一致。grid-row 放置见 center.css（.adl-center 第 3 行）。 */
-.adl-part-docks {
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  border-top: 1px solid var(--border-subtle);
-  background: var(--bg);
 }
 
 /* ── 会话文件 tab 条（SessionFileTabs）─────────────────────── */
@@ -108,6 +72,18 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ── Composer dock（SessionDocks）─────────────────────────────
+   Dock 容器同时带 `adl-part-scope`（在 SessionDocks.tsx 中），使内部
+   AskCard / TurnSummary 复用局部变量映射；自身沿用全局 bg/border 与
+   Composer 视觉一致。grid-row 放置见 center.css（.adl-center 第 3 行）。 */
+.adl-part-docks {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg);
 }
 
 /* ── 会话上下文侧栏（SessionSidePanel，S3 Task 5）────────────
@@ -151,6 +127,34 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   S2 Part 渲染器 — 在 `.adl-part-scope` 内，可消费 `--adl-part-*`
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── 会话消息行（PartTimeline 行内渲染）────────────────────── */
+.adl-part-message {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.adl-part-message--user {
+  justify-items: start;
+}
+
+.adl-part-message--assistant {
+  justify-items: stretch;
+}
+
+.adl-part-message__text {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--adl-part-border);
+  border-radius: var(--adl-part-radius);
+  background: var(--bg-muted);
+  color: var(--adl-part-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* ── Markdown 正文 ──────────────────────────────────────────── */

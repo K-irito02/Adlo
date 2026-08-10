@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { List, useListRef, useDynamicRowHeight } from 'react-window';
 import type { ListProps } from 'react-window';
 import type { MessageRecord, PartRecord } from '../../../kernel/types-part';
@@ -87,6 +87,7 @@ export function PartTimeline({ state, userTextByMessageId }: PartConversationPro
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerHeight, setContainerHeight] = useState(600);
   const dynamicRowHeight = useDynamicRowHeight({ defaultRowHeight: 120 });
+  const wasAtBottomRef = useRef(true);
 
   const rows = useMemo((): TimelineRow[] => {
     const ordered: TimelineRow[] = [];
@@ -141,6 +142,29 @@ export function PartTimeline({ state, userTextByMessageId }: PartConversationPro
     return () => observer.disconnect();
   }, []);
 
+  const handleRowsRendered = useCallback(
+    (visibleRows: { startIndex: number; stopIndex: number }) => {
+      if (rows.length > 0) {
+        wasAtBottomRef.current = visibleRows.stopIndex >= rows.length - 1;
+      }
+    },
+    [rows.length],
+  );
+
+  // Scroll-follow parity with MessageStream: keep the newest streaming row in
+  // view when the user is pinned to the bottom (or a new message arrives).
+  // Keyed on `rows` (not just `rows.length`) so part deltas that grow the last
+  // message's text re-trigger the follow.
+  useEffect(() => {
+    if (listRef.current && rows.length > 0 && wasAtBottomRef.current) {
+      listRef.current.scrollToRow({
+        index: rows.length - 1,
+        align: 'end',
+        behavior: state.status === 'busy' ? 'instant' : 'auto',
+      });
+    }
+  }, [rows, state.status, listRef]);
+
   return (
     <div
       ref={containerRef}
@@ -156,6 +180,7 @@ export function PartTimeline({ state, userTextByMessageId }: PartConversationPro
         rowCount={rows.length}
         rowHeight={dynamicRowHeight}
         overscanCount={5}
+        onRowsRendered={handleRowsRendered}
         rowProps={rowProps}
       />
     </div>

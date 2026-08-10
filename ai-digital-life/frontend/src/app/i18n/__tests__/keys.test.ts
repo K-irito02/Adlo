@@ -169,6 +169,7 @@ describe('i18n part-stream keys (S2 part renderers)', () => {
     'partTurnCancelled',
     'partTurnRunning',
     'partDocks',
+    'partSessionFileTabs',
     'partSessionSidePanel',
     'partSessionFiles',
     'partSessionPatches',

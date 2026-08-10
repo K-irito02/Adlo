@@ -183,6 +183,27 @@
 
 > 与现有 ADL 侧边栏/面板区域映射，不必改动全局布局；仅会话页内部对齐。
 
+### 6.1 验收（S3）✅ 完成（2026-08-11，Task 6）
+
+- S3 会话布局组件落地：`PartTimeline`（虚拟化 timeline，对标
+  `timeline/message-timeline.tsx`）、`SessionFileTabs`（会话文件 tab）、
+  `SessionDocks`（Composer dock：AskCard + TurnSummary）、`SessionSidePanel`
+  （会话文件 + patch 上下文侧栏）✅
+- i18n：`partSessionFileTabs` / `partDocks` / `partSessionSidePanel` /
+  `partSessionFiles` / `partSessionPatches` 五个 S3 key 在 en-US + zh-CN 均存在且
+  `check:i18n` parity 全绿（1443 keys 完全一致），`CopyKey` 类型派生可解析 ✅
+- CSS：S3 布局类全部落地于 `part-stream.css`（S3 区块，见 5.3 局部视觉作用域），
+  仅消费全局 token（`var(--…)`），`--adl-part-*` scope-local 变量不泄漏到
+  sibling 布局类（`part-stream-scope.test.ts` 新增 S3 类覆盖 + scope-var 审计）✅
+- 滚动跟随对齐：`PartTimeline` 补齐与 `MessageStream` 相同的
+  `onRowsRendered` + `scrollToRow` 底部跟随（新消息 / 流式 delta 到达时，
+  若用户停留在底部则跟随；用户上滚时不强拉视口）✅
+- 全量验收：`pnpm --dir frontend test` 全绿（1485 tests）、`lint` 0 errors、
+  `typecheck` 0 errors、`check:i18n` 通过、`cargo test --workspace -- --skip google` 绿、
+  `cargo clippy --workspace --all-targets -- -D warnings` 0 警告 ✅
+- 双端一致：`PartTimeline` / `SessionFileTabs` / `SessionDocks` / `SessionSidePanel`
+  共用同一 `usePartStream` / `PartRenderer` 渲染路径，Tauri 与浏览器模式无表面分支 ✅
+
 ## 7. 测试策略（全阶段）
 
 1. **后端 S1**：axum handler 单元测试（现有全套 crates 测试保持绿）；新增 server 路由测试

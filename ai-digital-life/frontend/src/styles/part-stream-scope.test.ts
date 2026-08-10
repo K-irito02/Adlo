@@ -61,11 +61,16 @@ function stripComments(css: string): string {
  *   - TurnSummary.tsx
  *   - SessionDocks.tsx
  *   - SessionSidePanel.tsx
+ *   - SessionFileTabs.tsx
+ *   - PartTimeline.tsx           (adl-part-scope, adl-part-timeline)
  *   - PartConversation.tsx
  */
 const RENDERED_CLASSES = [
   '.adl-part-scope',
-  '.adl-part-conversation',
+  '.adl-part-timeline',
+  '.adl-part-file-tabs',
+  '.adl-part-file-tab',
+  '.adl-part-file-tab__name',
   '.adl-part-message',
   '.adl-part-message--user',
   '.adl-part-message--assistant',
@@ -74,6 +79,7 @@ const RENDERED_CLASSES = [
   '.adl-part-side-panel',
   '.adl-part-side-panel__title',
   '.adl-part-side-panel__files',
+  '.adl-part-side-panel__files li',
   '.adl-part-markdown',
   '.adl-part-code',
   '.adl-part-tool',
@@ -142,6 +148,31 @@ describe('part-stream.css — .adl-part-scope local visual scope', () => {
       (sel) => findRuleGroups(partStreamCss, sel).length === 0,
     );
     expect(missing).toEqual([]);
+  });
+
+  it('S3 layout classes reference only global tokens (no --adl-part-* from scope siblings)', () => {
+    // The S3 layout components (PartTimeline / SessionFileTabs / SessionDocks /
+    // SessionSidePanel) are rendered as siblings in CenterPane; only their root
+    // containers carry `adl-part-scope`. Their own rules must consume GLOBAL
+    // tokens, never the scope-LOCAL `--adl-part-*` vars (T2 CSS-fix lesson).
+    const s3LayoutSelectors = [
+      '.adl-part-timeline',
+      '.adl-part-file-tabs',
+      '.adl-part-file-tab',
+      '.adl-part-file-tab__name',
+      '.adl-part-docks',
+      '.adl-part-side-panel',
+      '.adl-part-side-panel__title',
+      '.adl-part-side-panel__files',
+      '.adl-part-side-panel__files li',
+    ];
+    for (const sel of s3LayoutSelectors) {
+      const blocks = findRuleGroups(partStreamCss, sel);
+      expect(blocks.length, sel).toBeGreaterThan(0);
+      for (const block of blocks) {
+        expect(block, sel).not.toMatch(/--adl-part-/);
+      }
+    }
   });
 
   it('uses only var(--…) for colors (no raw hex / rgb literals in rule values)', () => {
