@@ -16,8 +16,8 @@ class FakeEventSource {
   onerror: (() => void) | null = null;
   addEventListener(_: string, _fn: () => void) {}
   close() {}
-  emit(data: string) {
-    this.onmessage?.({ data } as unknown as MessageEvent);
+  emit(data: string, recordId?: string) {
+    this.onmessage?.({ data, lastEventId: recordId } as unknown as MessageEvent);
   }
 }
 
@@ -52,6 +52,24 @@ class FakeWebSocket {
   }
 }
 
+function makeBridge(fake?: FakeEventSource) {
+  const fakeES = fake ?? new FakeEventSource();
+  const esFactory = vi.fn(() => fakeES as unknown as EventSource);
+  return { fakeES, esFactory };
+}
+
+/** Factory that mints a fresh FakeEventSource per subscribe call (each
+ *  `subscribe*` opens its own `/event` connection, like the real bridge). */
+function makeMintingFactory() {
+  const sources: FakeEventSource[] = [];
+  const esFactory = vi.fn(() => {
+    const fake = new FakeEventSource();
+    sources.push(fake);
+    return fake as unknown as EventSource;
+  });
+  return { sources, esFactory };
+}
+
 describe('httpBridge SSE event bridge', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -60,24 +78,6 @@ describe('httpBridge SSE event bridge', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
-
-  function makeBridge(fake?: FakeEventSource) {
-    const fakeES = fake ?? new FakeEventSource();
-    const esFactory = vi.fn(() => fakeES as unknown as EventSource);
-    return { fakeES, esFactory };
-  }
-
-  /** Factory that mints a fresh FakeEventSource per subscribe call (each
-   *  `subscribe*` opens its own `/event` connection, like the real bridge). */
-  function makeMintingFactory() {
-    const sources: FakeEventSource[] = [];
-    const esFactory = vi.fn(() => {
-      const fake = new FakeEventSource();
-      sources.push(fake);
-      return fake as unknown as EventSource;
-    });
-    return { sources, esFactory };
-  }
 
   it('yields a mapped model delta on a message.part.delta SSE event', async () => {
     const { fakeES, esFactory } = makeBridge();
@@ -275,5 +275,223 @@ describe('httpBridge SSE event bridge', () => {
     expect(listener).toHaveBeenCalledWith({ sessionId: 'p1', data: 'out' });
     expect(typeof unsubscribe).toBe('function');
     unsubscribe();
+  });
+});
+
+describe('Task 8 fix wave — live-only subscribe / reasoning-aware mapping / run-activity parity', () => {
+  it('a fresh subscribe resumes from the last seen seq (?after=) and never re-delivers pre-subscribe records', async () => {
+    const { sources, esFactory } = makeMintingFactory();
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({
+      baseUrl: 'http://127.0.0.1:9999',
+      eventSourceFactory: esFactory,
+    });
+    const got: unknown[] = [];
+
+    // First subscription consumes events up to event_log seq 7.
+    const unsub1 = bridge.subscribeModelStream((e) => got.push(e));
+    sources[0]!.emit(
+      JSON.stringify({
+        type: 'message.part.delta',
+        sessionID: 's1',
+        messageID: 'run-1',
+        partID: 'p1',
+        field: 'text',
+        delta: 'hi',
+      }),
+      '7',
+    );
+    expect(got).toHaveLength(1);
+    unsub1();
+
+    // A fresh subscribe must open ?after=7 so the server replays nothing.
+    const unsub2 = bridge.subscribeModelStream((e) => got.push(e));
+    expect(esFactory).toHaveBeenLastCalledWith('http://127.0.0.1:9999/event?after=7');
+
+    // Pre-subscribe records (seq <= 7) are never delivered even if replayed.
+    sources[1]!.emit(
+      JSON.stringify({
+        type: 'message.part.delta',
+        sessionID: 's1',
+        messageID: 'run-1',
+        partID: 'p2',
+        field: 'text',
+        delta: 'STALE',
+      }),
+      '5',
+    );
+    expect(got).toHaveLength(1);
+
+    // Post-subscribe records still flow.
+    sources[1]!.emit(
+      JSON.stringify({
+        type: 'message.part.delta',
+        sessionID: 's1',
+        messageID: 'run-1',
+        partID: 'p2',
+        field: 'text',
+        delta: 'yo',
+      }),
+      '8',
+    );
+    expect(got).toHaveLength(2);
+    expect(got[1]).toMatchObject({ v: 1, runId: 'run-1', type: 'delta', text: 'yo' });
+    unsub2();
+  });
+
+  it('drops reasoning deltas so reasoning never leaks into the chat text', async () => {
+    const { fakeES, esFactory } = makeBridge();
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({
+      baseUrl: 'http://127.0.0.1:9999',
+      eventSourceFactory: esFactory,
+    });
+    const got: unknown[] = [];
+    bridge.subscribeModelStream((e) => got.push(e));
+
+    // A reasoning part is announced via message.part.updated (data.type
+    // "reasoning"), then streamed as message.part.delta with field "text".
+    fakeES.emit(
+      JSON.stringify({
+        type: 'message.part.updated',
+        sessionID: 's1',
+        messageID: 'run-1',
+        partID: 'r1',
+        part: {
+          id: 'r1',
+          messageID: 'run-1',
+          sessionID: 's1',
+          type: 'reasoning',
+          ordinal: 1,
+          timeCreated: 1,
+          data: { type: 'reasoning', text: '' },
+        },
+      }),
+    );
+    fakeES.emit(
+      JSON.stringify({
+        type: 'message.part.delta',
+        sessionID: 's1',
+        messageID: 'run-1',
+        partID: 'r1',
+        field: 'text',
+        delta: 'thinking out loud',
+      }),
+    );
+    expect(got).toHaveLength(0);
+
+    // A text part still maps to a text delta.
+    fakeES.emit(
+      JSON.stringify({
+        type: 'message.part.updated',
+        sessionID: 's1',
+        messageID: 'run-1',
+        partID: 't1',
+        part: {
+          id: 't1',
+          messageID: 'run-1',
+          sessionID: 's1',
+          type: 'text',
+          ordinal: 2,
+          timeCreated: 1,
+          data: { type: 'text', text: '' },
+        },
+      }),
+    );
+    fakeES.emit(
+      JSON.stringify({
+        type: 'message.part.delta',
+        sessionID: 's1',
+        messageID: 'run-1',
+        partID: 't1',
+        field: 'text',
+        delta: 'hello',
+      }),
+    );
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatchObject({ v: 1, runId: 'run-1', type: 'delta', text: 'hello' });
+  });
+
+  it('emits a model run-activity event for message.updated usage (setRunUsage path)', async () => {
+    const { fakeES } = makeBridge();
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({
+      baseUrl: 'http://127.0.0.1:9999',
+      eventSourceFactory: () => fakeES as unknown as EventSource,
+    });
+    const got: unknown[] = [];
+    bridge.subscribeRunActivity((e) => got.push(e));
+
+    fakeES.emit(
+      JSON.stringify({
+        type: 'message.updated',
+        sessionID: 's1',
+        info: {
+          id: 'run-1',
+          finish: 'completed',
+          usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+        },
+      }),
+    );
+
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatchObject({
+      v: 1,
+      runId: 'run-1',
+      type: 'model',
+      phase: 'done',
+      usage: { promptTokens: 10, completionTokens: 5, totalTokens: 15 },
+    });
+  });
+
+  it('emits run-done for a busy→terminal session.status transition only', async () => {
+    const { fakeES } = makeBridge();
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({
+      baseUrl: 'http://127.0.0.1:9999',
+      eventSourceFactory: () => fakeES as unknown as EventSource,
+    });
+    const got: unknown[] = [];
+    bridge.subscribeRunActivity((e) => got.push(e));
+
+    fakeES.emit(JSON.stringify({ type: 'session.status', sessionID: 's1', status: 'busy' }));
+    expect(got).toHaveLength(0);
+
+    fakeES.emit(JSON.stringify({ type: 'session.status', sessionID: 's1', status: 'active' }));
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatchObject({ v: 1, runId: 's1', type: 'run-done', status: 'succeeded' });
+
+    // A resting session's terminal status without a prior busy emits nothing.
+    fakeES.emit(JSON.stringify({ type: 'session.status', sessionID: 's2', status: 'active' }));
+    expect(got).toHaveLength(1);
+  });
+
+  it('emits an approval decided run-activity event for question.replied', async () => {
+    const { fakeES } = makeBridge();
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({
+      baseUrl: 'http://127.0.0.1:9999',
+      eventSourceFactory: () => fakeES as unknown as EventSource,
+    });
+    const got: unknown[] = [];
+    bridge.subscribeRunActivity((e) => got.push(e));
+
+    fakeES.emit(
+      JSON.stringify({
+        type: 'question.replied',
+        sessionID: 's1',
+        requestID: 'q1',
+        answers: [{ value: 'yes' }],
+      }),
+    );
+
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatchObject({
+      v: 1,
+      runId: 's1',
+      type: 'approval',
+      phase: 'decided',
+      approvalId: 'q1',
+    });
   });
 });

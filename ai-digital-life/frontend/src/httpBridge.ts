@@ -24,6 +24,7 @@
  * reuses the shared `/pty` WebSocket client (Task 6).
  */
 import type {
+  AgentRunStatus,
   AppInfo,
   AppPreferencePatch,
   CiStatusSnapshot,
@@ -215,116 +216,265 @@ function parseSseWire(data: string): Record<string, unknown> | null {
 }
 
 /**
- * Map a wire record to model-stream v1 events (`DigitalLifeModelStreamEventV1`).
- *   - `message.part.delta` (field "text") → delta (text/reasoning increments)
+ * Create the model-stream wire mapper. Stateful: tracks each part's type from
+ * its `message.part.updated` announcement so `message.part.delta` records can
+ * be classified.
+ *
+ *   - `message.part.updated` → records the part type (text / reasoning / tool)
+ *   - `message.part.delta` (field "text", part type text or unknown) → text delta
+ *   - `message.part.delta` (field "text", part type reasoning) → **dropped**:
+ *     the loop executor publishes reasoning increments with `field: "text"`
+ *     (server-side conflation, see task-8-report), and reasoning must not leak
+ *     into the chat text. This mirrors the desktop `reasoning-delta` channel,
+ *     which the v1 UI ignores (so desktop never shows reasoning in chat).
  *   - `message.updated` info.error → error; info.usage → usage; finish → done
+ *
  * The `runId` is the assistant `messageID` (ad-server sets assistant message
  * id == run id, so the streaming deltas carry the run id on the wire).
  */
-function mapModelStreamWire(
+function createModelStreamMapper(): (
   wire: Record<string, unknown>,
   seq: number,
-): DigitalLifeModelStreamEventV1[] {
-  if (wire.type === 'message.part.delta') {
-    const field = wire.field as string | undefined;
-    const delta = wire.delta as string | undefined;
-    const messageID = wire.messageID as string | undefined;
-    if (field !== 'text' || typeof delta !== 'string' || typeof messageID !== 'string') {
+) => DigitalLifeModelStreamEventV1[] {
+  // partID → part type, learned from `message.part.updated` announcements. The
+  // map is bounded (each run has a handful of parts) and re-learned whenever a
+  // `message.part.updated` record arrives, so it never needs manual eviction.
+  const partTypes = new Map<string, string>();
+  return (wire, seq) => {
+    if (wire.type === 'message.part.updated') {
+      const part = (wire.part ?? {}) as Record<string, unknown>;
+      const data = (part.data ?? {}) as Record<string, unknown>;
+      if (typeof wire.partID === 'string' && typeof data.type === 'string') {
+        partTypes.set(wire.partID, data.type);
+      }
       return [];
     }
-    return [{ v: 1, runId: messageID, seq, type: 'delta', text: delta }];
-  }
-  if (wire.type === 'message.updated') {
-    const info = (wire.info ?? {}) as {
-      id?: string;
-      finish?: string;
-      usage?: ModelTokenUsage;
-      error?: string;
-    };
-    const runId = info.id ?? (wire.sessionID as string | undefined);
-    if (!runId) {
-      return [];
+    if (wire.type === 'message.part.delta') {
+      const field = wire.field as string | undefined;
+      const delta = wire.delta as string | undefined;
+      const messageID = wire.messageID as string | undefined;
+      if (field !== 'text' || typeof delta !== 'string' || typeof messageID !== 'string') {
+        return [];
+      }
+      // A part announced as `reasoning` streams its increments with field
+      // "text"; drop them so reasoning never appears in the assistant text.
+      // Unknown parts (e.g. a stream resumed mid-part) default to text so no
+      // legitimate text delta is lost.
+      if (typeof wire.partID === 'string' && partTypes.get(wire.partID) === 'reasoning') {
+        return [];
+      }
+      return [{ v: 1, runId: messageID, seq, type: 'delta', text: delta }];
     }
-    if (typeof info.error === 'string') {
-      return [{ v: 1, runId, seq, type: 'error', message: info.error }];
+    if (wire.type === 'message.updated') {
+      const info = (wire.info ?? {}) as {
+        id?: string;
+        finish?: string;
+        usage?: ModelTokenUsage;
+        error?: string;
+      };
+      const runId = info.id ?? (wire.sessionID as string | undefined);
+      if (!runId) {
+        return [];
+      }
+      if (typeof info.error === 'string') {
+        return [{ v: 1, runId, seq, type: 'error', message: info.error }];
+      }
+      // Lossless: mirror the old Tauri stream which emitted `usage` then `done`
+      // at the end of a successful run.
+      const events: DigitalLifeModelStreamEventV1[] = [];
+      if (info.usage) {
+        events.push({ v: 1, runId, seq, type: 'usage', usage: info.usage });
+      }
+      if (info.finish === 'completed') {
+        events.push({ v: 1, runId, seq: seq + events.length, type: 'done' });
+      }
+      return events;
     }
-    // Lossless: mirror the old Tauri stream which emitted `usage` then `done`
-    // at the end of a successful run.
-    const events: DigitalLifeModelStreamEventV1[] = [];
-    if (info.usage) {
-      events.push({ v: 1, runId, seq, type: 'usage', usage: info.usage });
-    }
-    if (info.finish === 'completed') {
-      events.push({ v: 1, runId, seq: seq + events.length, type: 'done' });
-    }
-    return events;
-  }
-  return [];
+    return [];
+  };
 }
 
 /**
- * Map a wire record to run-activity v1 events (`DigitalLifeRunActivityEventV1`).
- * The SSE stream carries tool parts as `message.part.updated`; tool state
- * transitions are the agent run phases (command / search / file-read / patch /
- * approval). `runId` is the assistant `messageID` (== run id on the wire).
+ * Map a terminal `session.status` value onto the v1 `run-done` `AgentRunStatus`
+ * vocabulary. The ad-server canonicalizes loop outcomes to `"active"` (idle),
+ * `"cancelled"` and `"error"` (see `agent_loop.rs` `canonical_terminal_status`).
  */
-function mapRunActivityWire(
+function terminalSessionStatus(status: string): AgentRunStatus | undefined {
+  switch (status) {
+    case 'active':
+      return 'succeeded';
+    case 'cancelled':
+      return 'aborted';
+    case 'error':
+      return 'failed';
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Create the run-activity wire mapper. Stateful: tracks which sessions went
+ * `busy` in this subscription so a terminal `session.status` only synthesizes a
+ * `run-done` for a transition we actually observed (a resting session replayed
+ * at subscribe time must not emit a spurious run-done).
+ *
+ * Tool parts (`message.part.updated`) map to the agent run phases (command /
+ * search / file-read / patch / approval). The remaining v1 event types that are
+ * synthesizable from the wire:
+ *   - `message.updated.info.usage` → `{type:'model', phase:'done', usage}`
+ *     (runId = assistant messageID == run id) so `setRunUsage` fires.
+ *   - `message.updated.info.error` → `{type:'model', phase:'error', message}`
+ *   - `session.status` busy → terminal → `{type:'run-done', status}`
+ *   - `question.replied` → `{type:'approval', phase:'decided'}`
+ * Wire-impossible gaps (flagged for Task 9/10): `run-start` (needs `scenario`),
+ * `context-added`, and `patch.phase:'rolled-back'` (apply_patch only publishes
+ * pending/running/completed/error on the wire).
+ */
+function createRunActivityMapper(): (
   wire: Record<string, unknown>,
   seq: number,
-): DigitalLifeRunActivityEventV1[] {
-  if (wire.type !== 'message.part.updated') {
-    return [];
-  }
-  const part = (wire.part ?? {}) as Record<string, unknown>;
-  const data = (part.data ?? {}) as Record<string, unknown>;
-  if (data.type !== 'tool' || typeof data.tool !== 'string') {
-    return [];
-  }
-  const state = (data.state ?? {}) as Record<string, unknown>;
-  const status = typeof state.status === 'string' ? state.status : '';
-  const runId = (wire.messageID as string | undefined) ?? (part.messageID as string | undefined);
-  if (!runId) {
-    return [];
-  }
-  const ts = Date.now();
-  const input = (state.input ?? {}) as Record<string, unknown>;
-  const metadata = (state.metadata ?? {}) as Record<string, unknown>;
-  const tool = data.tool;
-  const running = status === 'running';
-
-  switch (tool) {
-    case 'bash': {
-      const command = typeof input.command === 'string' ? input.command : '';
-      const exitCode = typeof metadata.exitCode === 'number' ? metadata.exitCode : undefined;
-      const phase: 'start' | 'done' = running ? 'start' : 'done';
-      return [{ v: 1, runId, seq, ts, type: 'command', phase, command, exitCode }];
+) => DigitalLifeRunActivityEventV1[] {
+  const busySessions = new Set<string>();
+  return (wire, seq) => {
+    if (wire.type === 'session.status') {
+      const sessionID = wire.sessionID as string | undefined;
+      const status = wire.status as string | undefined;
+      if (!sessionID || !status) {
+        return [];
+      }
+      if (status === 'busy') {
+        busySessions.add(sessionID);
+        return [];
+      }
+      if (!busySessions.has(sessionID)) {
+        return [];
+      }
+      busySessions.delete(sessionID);
+      const runStatus = terminalSessionStatus(status);
+      if (!runStatus) {
+        return [];
+      }
+      return [{ v: 1, runId: sessionID, seq, ts: Date.now(), type: 'run-done', status: runStatus }];
     }
-    case 'read': {
-      const path = typeof input.path === 'string' ? input.path : '';
-      return [{ v: 1, runId, seq, ts, type: 'file-read', path }];
+    if (wire.type === 'question.replied') {
+      const sessionID = wire.sessionID as string | undefined;
+      const requestID = wire.requestID as string | undefined;
+      if (!sessionID || !requestID) {
+        return [];
+      }
+      // A reply with no answers is a rejection; otherwise the answers are opaque
+      // values the wire cannot classify as approved/rejected.
+      const answers = Array.isArray(wire.answers) ? wire.answers : [];
+      const decision: 'approved' | 'rejected' | undefined =
+        answers.length === 0 ? 'rejected' : undefined;
+      return [
+        decision
+          ? {
+              v: 1,
+              runId: sessionID,
+              seq,
+              ts: Date.now(),
+              type: 'approval',
+              phase: 'decided',
+              approvalId: requestID,
+              decision,
+            }
+          : {
+              v: 1,
+              runId: sessionID,
+              seq,
+              ts: Date.now(),
+              type: 'approval',
+              phase: 'decided',
+              approvalId: requestID,
+            },
+      ];
     }
-    case 'grep':
-    case 'glob':
-    case 'list': {
-      const query = typeof input.pattern === 'string' ? input.pattern : '';
-      return [{ v: 1, runId, seq, ts, type: 'search', query }];
-    }
-    case 'apply_patch':
-    case 'edit':
-    case 'write': {
-      const patchSetId =
-        (data.callID as string | undefined) ?? (wire.partID as string | undefined) ?? '';
-      const phase: 'proposed' | 'applied' | 'rolled-back' = running ? 'proposed' : 'applied';
-      return [{ v: 1, runId, seq, ts, type: 'patch', phase, patchSetId }];
-    }
-    case 'question': {
-      const approvalId =
-        (data.callID as string | undefined) ?? (wire.partID as string | undefined) ?? '';
-      return [{ v: 1, runId, seq, ts, type: 'approval', phase: 'requested', approvalId }];
-    }
-    default:
+    if (wire.type === 'message.updated') {
+      const info = (wire.info ?? {}) as {
+        id?: string;
+        error?: unknown;
+        usage?: ModelTokenUsage;
+      };
+      const runId = info.id ?? (wire.sessionID as string | undefined);
+      if (!runId) {
+        return [];
+      }
+      if (info.error !== undefined && info.error !== null) {
+        return [
+          {
+            v: 1,
+            runId,
+            seq,
+            ts: Date.now(),
+            type: 'model',
+            phase: 'error',
+            message: String(info.error),
+          },
+        ];
+      }
+      if (info.usage) {
+        return [
+          { v: 1, runId, seq, ts: Date.now(), type: 'model', phase: 'done', usage: info.usage },
+        ];
+      }
       return [];
-  }
+    }
+    if (wire.type !== 'message.part.updated') {
+      return [];
+    }
+    const part = (wire.part ?? {}) as Record<string, unknown>;
+    const data = (part.data ?? {}) as Record<string, unknown>;
+    if (data.type !== 'tool' || typeof data.tool !== 'string') {
+      return [];
+    }
+    const state = (data.state ?? {}) as Record<string, unknown>;
+    const status = typeof state.status === 'string' ? state.status : '';
+    const runId = (wire.messageID as string | undefined) ?? (part.messageID as string | undefined);
+    if (!runId) {
+      return [];
+    }
+    const ts = Date.now();
+    const input = (state.input ?? {}) as Record<string, unknown>;
+    const metadata = (state.metadata ?? {}) as Record<string, unknown>;
+    const tool = data.tool;
+
+    switch (tool) {
+      case 'bash': {
+        const command = typeof input.command === 'string' ? input.command : '';
+        const exitCode = typeof metadata.exitCode === 'number' ? metadata.exitCode : undefined;
+        const phase: 'start' | 'done' = status === 'running' ? 'start' : 'done';
+        return [{ v: 1, runId, seq, ts, type: 'command', phase, command, exitCode }];
+      }
+      case 'read': {
+        const path = typeof input.path === 'string' ? input.path : '';
+        return [{ v: 1, runId, seq, ts, type: 'file-read', path }];
+      }
+      case 'grep':
+      case 'glob':
+      case 'list': {
+        const query = typeof input.pattern === 'string' ? input.pattern : '';
+        return [{ v: 1, runId, seq, ts, type: 'search', query }];
+      }
+      case 'apply_patch':
+      case 'edit':
+      case 'write': {
+        const patchSetId =
+          (data.callID as string | undefined) ?? (wire.partID as string | undefined) ?? '';
+        // Only a completed apply_patch is `applied`; pending/running announce the
+        // proposed change, and the wire carries no rolled-back state.
+        const phase: 'proposed' | 'applied' = status === 'completed' ? 'applied' : 'proposed';
+        return [{ v: 1, runId, seq, ts, type: 'patch', phase, patchSetId }];
+      }
+      case 'question': {
+        const approvalId =
+          (data.callID as string | undefined) ?? (wire.partID as string | undefined) ?? '';
+        return [{ v: 1, runId, seq, ts, type: 'approval', phase: 'requested', approvalId }];
+      }
+      default:
+        return [];
+    }
+  };
 }
 
 /**
@@ -379,23 +529,54 @@ function mapTerminalStreamWire(
 }
 
 /**
+ * Parse the SSE record `id:` (the event_log seq) into a positive integer, or
+ * `undefined` when the record carries none (e.g. a malformed/absent id line).
+ */
+function parseRecordId(recordId: string | undefined): number | undefined {
+  if (!recordId) {
+    return undefined;
+  }
+  const n = Number(recordId);
+  return Number.isSafeInteger(n) && n > 0 ? n : undefined;
+}
+
+/**
  * Open an `/event` EventSource and route mapped v1 events to `listener`.
  * Returns the synchronous `() => void` unsubscribe from the EventSource
  * wrapper. `seq` is a per-subscription monotonic counter (v1 semantics).
+ *
+ * `lastSeqRef.current` is the largest event_log seq this bridge has observed
+ * (shared by all SSE streams). Every subscribe passes it as `?after=` so the
+ * server replays nothing older than the resume point — a fresh subscribe is
+ * LIVE-ONLY from the current seq instead of replaying the whole durable
+ * event_log (the Task 8 flood). Each record's `id:` advances the ref.
  */
 function subscribeSseMapped<T>(
   baseUrl: string,
   eventSourceFactory: EventSourceFactory | undefined,
-  lastEventId: number | undefined,
+  lastSeqRef: { current: number | undefined },
   mapper: (wire: Record<string, unknown>, seq: number) => T[],
 ): (listener: (event: T) => void) => () => void {
   return (listener) => {
     let seq = 0;
+    const after = lastSeqRef.current;
     return subscribeEventSource({
       baseUrl,
       eventSourceFactory,
-      lastEventId,
-      onEvent: (data) => {
+      lastEventId: after,
+      onEvent: (data, recordId) => {
+        const recordSeq = parseRecordId(recordId);
+        if (
+          recordSeq !== undefined &&
+          (lastSeqRef.current === undefined || recordSeq > lastSeqRef.current)
+        ) {
+          lastSeqRef.current = recordSeq;
+        }
+        // Defensive: never re-deliver a record at/before the resume point even
+        // if a misbehaving server replays one (the server guarantees seq > after).
+        if (after !== undefined && recordSeq !== undefined && recordSeq <= after) {
+          return;
+        }
         const wire = parseSseWire(data);
         if (!wire) {
           return;
@@ -427,6 +608,11 @@ export function createHttpBridge({
     return ptyClient;
   };
 
+  // Largest event_log seq this bridge has observed, shared by all three SSE
+  // subscriptions so a fresh subscribe opens `?after=<lastSeen>` (live-only)
+  // instead of replaying the durable history. Seeded by the explicit option.
+  const lastSeqRef: { current: number | undefined } = { current: lastEventId };
+
   return {
     // ── Stream subscriptions: EventSource against the ad-server /event SSE
     // stream (see crates/server/src/sse_server.rs). Each subscription opens its
@@ -436,19 +622,19 @@ export function createHttpBridge({
     subscribeModelStream: subscribeSseMapped(
       baseUrl,
       eventSourceFactory,
-      lastEventId,
-      mapModelStreamWire,
+      lastSeqRef,
+      createModelStreamMapper(),
     ),
     subscribeRunActivity: subscribeSseMapped(
       baseUrl,
       eventSourceFactory,
-      lastEventId,
-      mapRunActivityWire,
+      lastSeqRef,
+      createRunActivityMapper(),
     ),
     subscribeTerminalStream: subscribeSseMapped(
       baseUrl,
       eventSourceFactory,
-      lastEventId,
+      lastSeqRef,
       mapTerminalStreamWire,
     ),
     subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) =>
