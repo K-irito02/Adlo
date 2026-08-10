@@ -21,5 +21,8 @@ export function clampSessionPanelWidth(input: {
   if (input.available === undefined) {
     return input.width;
   }
-  return Math.min(input.width, sessionPanelWidthMax({ available: input.available, split: input.split }));
+  return Math.min(
+    input.width,
+    sessionPanelWidthMax({ available: input.available, split: input.split }),
+  );
 }
