@@ -2,6 +2,7 @@
 import type { ComponentType } from 'react';
 import type { MessageRecord, PartData, PartRecord } from '../../../kernel/types-part';
 import { StreamingMarkdownPart } from './StreamingMarkdown';
+import { BasicToolCard } from './BasicToolCard';
 
 export interface PartRendererProps {
   message: MessageRecord;
@@ -26,3 +27,4 @@ export function PartRenderer({ message, part, defaultOpen }: PartRendererProps) 
 }
 
 registerPart('text', StreamingMarkdownPart);
+registerPart('tool', BasicToolCard);
