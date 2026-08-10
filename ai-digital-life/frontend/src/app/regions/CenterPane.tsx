@@ -15,6 +15,7 @@ import {
   filePartUrlToWorkspaceRelativePath,
 } from '../features/part-stream/partFileUtils';
 import { asAgentRunID } from '../../shared/branded';
+import { clampSessionPanelWidth } from '../features/part-stream/sessionPanelLayout';
 
 import { CompactionIndicator } from '../components/conversation/CompactionIndicator';
 import { ForkButton } from '../features/session-fork/ForkButton';
@@ -100,6 +101,60 @@ const CenterPane = React.memo(function CenterPane() {
   const hasPartMessages = (partState?.messages.size ?? 0) > 0;
   const hasPartQuestions = (partState?.questions.length ?? 0) > 0;
   const hasPartData = hasPartMessages || hasPartQuestions;
+
+  // S3 Task 4: session-panel width constraint (OpenCode-aligned). The center
+  // column is `1fr` in the shell grid, so the chat content can grow to fill the
+  // whole remaining row. When the session has part data, cap the conversation
+  // content so the review pane (right panel) keeps at least its OpenCode
+  // minimum (REVIEW_PANE_WIDTH_MIN) and the chat never squeezes it on wide
+  // windows. `available` mirrors OpenCode's "layout row" = shell body width
+  // minus the leftbar; the center column width is measured via the section.
+  const centerRef = useRef<HTMLElement | null>(null);
+  const [centerMetrics, setCenterMetrics] = useState<{
+    rowAvailable: number | undefined;
+    centerWidth: number | undefined;
+  }>({ rowAvailable: undefined, centerWidth: undefined });
+
+  useEffect(() => {
+    const el = centerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const measure = () => {
+      const shellBody = el.closest('.adl-shell__body') as HTMLElement | null;
+      if (!shellBody) {
+        return;
+      }
+      const leftbar = shellBody.querySelector('.adl-leftbar') as HTMLElement | null;
+      const leftWidth = leftbar?.getBoundingClientRect().width ?? 0;
+      const rowAvailable = shellBody.getBoundingClientRect().width - leftWidth;
+      const centerWidth = el.getBoundingClientRect().width;
+      setCenterMetrics({ rowAvailable, centerWidth });
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    measure();
+    window.addEventListener('resize', measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+
+  const centerContentMaxWidth = useMemo(() => {
+    if (!hasPartData) {
+      return undefined;
+    }
+    const { rowAvailable, centerWidth } = centerMetrics;
+    if (rowAvailable === undefined || centerWidth === undefined || centerWidth <= 0) {
+      return undefined;
+    }
+    return clampSessionPanelWidth({
+      width: centerWidth,
+      available: rowAvailable,
+      split: false,
+    });
+  }, [hasPartData, centerMetrics]);
 
   /**
    * User prompt text by part-message id. The Part wire carries NO user text
@@ -330,7 +385,7 @@ const CenterPane = React.memo(function CenterPane() {
     hasPartData;
 
   return (
-    <section className="adl-center" aria-label={t.conversation}>
+    <section className="adl-center" aria-label={t.conversation} ref={centerRef}>
       {taskCenter?.pendingApprovals?.length ? (
         <div className="adl-center__approvals">
           {taskCenter.pendingApprovals.map((approval) => (
@@ -340,7 +395,12 @@ const CenterPane = React.memo(function CenterPane() {
       ) : null}
 
       {/* Region 8 / 9: Main stream area */}
-      <div className={`adl-center__body${!hasMessages ? ' adl-center__body--empty' : ''}`}>
+      <div
+        className={`adl-center__body${!hasMessages ? ' adl-center__body--empty' : ''}`}
+        style={
+          centerContentMaxWidth !== undefined ? { maxWidth: centerContentMaxWidth } : undefined
+        }
+      >
         {!hasMessages ? (
           <div className="adl-center__empty">
             <WelcomeState
