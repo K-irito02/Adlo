@@ -154,6 +154,40 @@ describe('i18n demo keys', () => {
   });
 });
 
+describe('i18n part-stream keys (S2 part renderers)', () => {
+  const partStreamKeys = [
+    'partToolPending',
+    'partToolRunning',
+    'partToolCompleted',
+    'partToolError',
+    'partContextGroup',
+    'partDiffPanel',
+    'partAskCard',
+    'partAskPrompt',
+    'partTurnCompleted',
+    'partTurnError',
+    'partTurnCancelled',
+    'partTurnRunning',
+  ] as const;
+
+  it('every part-stream key exists in both locales with identical key sets', () => {
+    const missingInEn = partStreamKeys.filter((k) => !(k in enUS));
+    const missingInZh = partStreamKeys.filter((k) => !(k in zhCN));
+    expect(missingInEn).toEqual([]);
+    expect(missingInZh).toEqual([]);
+    const zhKeys = Object.keys(zhCN).filter((k) => partStreamKeys.includes(k as never));
+    const enKeys = Object.keys(enUS).filter((k) => partStreamKeys.includes(k as never));
+    expect(zhKeys.sort()).toEqual(enKeys.sort());
+  });
+
+  it('renders non-empty strings in both locales', () => {
+    for (const k of partStreamKeys) {
+      expect(enUS[k]).toBeTruthy();
+      expect(zhCN[k]).toBeTruthy();
+    }
+  });
+});
+
 describe('git-visualization copy', () => {
   it('zh-CN branch graph desc separates legend symbols from text and avoids English "tagged"', () => {
     const desc = String(zhCN.gitVisBranchGraphDesc);

@@ -1,0 +1,248 @@
+/* ==========================================================================
+   Part Stream (S2) — 会话区局部视觉作用域
+   --------------------------------------------------------------------------
+   - `.adl-part-scope` 只定义局部的 `--adl-part-*` 变量映射（近似 OpenCode
+     风格），不改动任何全局 tokens —— 全局 UI 不受影响。
+   - 所有组件样式只消费 `--adl-part-*` 变量，颜色一律走 `var(--…)`。
+   - 组件类名对应 T5-8 渲染器实际输出的 className：
+     StreamingMarkdown / BasicToolCard / ToolErrorCard / ContextToolGroup /
+     PartDiffPanel / AskCard / TurnSummary。
+   ========================================================================== */
+
+.adl-part-scope {
+  /* 会话区局部变量映射（近似 OpenCode 风格，但不改全局 tokens） */
+  --adl-part-text: var(--text-primary);
+  --adl-part-muted: var(--text-secondary);
+  --adl-part-border: var(--border-default);
+  --adl-part-radius: 8px;
+  --adl-part-tool-bg: var(--bg-card);
+  --adl-part-error: var(--danger);
+  --adl-part-success: var(--success);
+}
+
+/* ── Markdown 正文 ──────────────────────────────────────────── */
+.adl-part-markdown {
+  color: var(--adl-part-text);
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
+  overflow-wrap: break-word;
+}
+
+.adl-part-code {
+  margin: var(--space-2) 0;
+  padding: var(--space-3);
+  border: 1px solid var(--adl-part-border);
+  border-radius: var(--adl-part-radius);
+  background: var(--bg-muted);
+  color: var(--adl-part-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+/* ── 工具卡（BasicToolCard + ToolErrorCard）────────────────── */
+.adl-part-tool {
+  border: 1px solid var(--adl-part-border);
+  border-radius: var(--adl-part-radius);
+  background: var(--adl-part-tool-bg);
+  color: var(--adl-part-text);
+  overflow: hidden;
+}
+
+.adl-part-tool--pending {
+  border-color: var(--adl-part-border);
+  opacity: 0.8;
+}
+
+.adl-part-tool--running {
+  border-color: var(--adl-part-border);
+}
+
+.adl-part-tool--completed {
+  border-color: var(--adl-part-success);
+}
+
+.adl-part-tool--error {
+  border-color: var(--adl-part-error);
+}
+
+.adl-part-tool__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  list-style: none;
+}
+
+.adl-part-tool__summary::-webkit-details-marker {
+  display: none;
+}
+
+.adl-part-tool__title {
+  color: var(--adl-part-text);
+  font-weight: var(--font-medium);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adl-part-tool__status {
+  color: var(--adl-part-muted);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.adl-part-tool__body {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) var(--space-3);
+}
+
+.adl-part-tool__input,
+.adl-part-tool__output {
+  margin: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--adl-part-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-muted);
+  color: var(--adl-part-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.adl-part-tool-error {
+  padding: var(--space-2);
+  border: 1px solid var(--adl-part-error);
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  color: var(--adl-part-error);
+}
+
+.adl-part-tool-error__text {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ── 上下文工具组（ContextToolGroup）───────────────────────── */
+.adl-part-context {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--adl-part-muted);
+}
+
+.adl-part-context--busy {
+  color: var(--adl-part-text);
+}
+
+.adl-part-context__label {
+  color: var(--adl-part-text);
+  font-weight: var(--font-medium);
+}
+
+.adl-part-context__tools {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+/* ── Diff 面板（PartDiffPanel）─────────────────────────────── */
+.adl-part-diff {
+  border: 1px solid var(--adl-part-border);
+  border-radius: var(--adl-part-radius);
+  background: var(--adl-part-tool-bg);
+  padding: var(--space-3);
+}
+
+.adl-part-diff__files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.adl-part-diff__file {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--adl-part-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-muted);
+  color: var(--adl-part-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+/* ── 问询卡（AskCard）──────────────────────────────────────── */
+.adl-part-ask {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--adl-part-border);
+  border-radius: var(--adl-part-radius);
+  background: var(--adl-part-tool-bg);
+  color: var(--adl-part-text);
+}
+
+.adl-part-ask__prompt {
+  margin: 0;
+  color: var(--adl-part-text);
+}
+
+.adl-part-ask__options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.adl-part-ask__option {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--adl-part-border);
+  border-radius: var(--radius-md);
+  background: var(--bg-muted);
+  color: var(--adl-part-text);
+  text-align: left;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.adl-part-ask__option:hover {
+  border-color: var(--adl-part-text);
+}
+
+/* ── 回合摘要（TurnSummary）────────────────────────────────── */
+.adl-part-turn-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--adl-part-muted);
+  font-size: var(--text-sm);
+}
+
+.adl-part-turn-summary--idle {
+  color: var(--adl-part-muted);
+}
+
+.adl-part-turn-summary--busy {
+  color: var(--adl-part-text);
+}
+
+.adl-part-turn-summary--completed {
+  color: var(--adl-part-success);
+}
+
+.adl-part-turn-summary--error {
+  color: var(--adl-part-error);
+}
+
+.adl-part-turn-summary--cancelled {
+  color: var(--adl-part-muted);
+}
