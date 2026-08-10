@@ -41,36 +41,13 @@ import { createPreviewConversationBridge } from './preview-conversation';
 import { createPreviewPatchBridge } from './preview-patch';
 import { createPreviewCommandBridge } from './preview-command';
 import { BrowserAudioMonitor } from './preview-browser-audio';
+import { isAdServerReachable } from './preview-reachability';
 
-const AD_SERVER_PROBE_TIMEOUT_MS = 2000;
-
-let adServerReachability: Promise<boolean> | null = null;
 const fallbackWarned = new Set<string>();
 // Debug instrumentation (Task 9): log once per baseUrl when the httpBridge
 // routes to the real ad-server, so a `pnpm dev:preview` session is verifiable
 // by eye in the console. Dev-only observability — no behavior impact.
 const adServerConnected = new Set<string>();
-
-/**
- * Probe the ad-server `/health` endpoint once (cached). Until Task 9 wires the
- * dev-script startup + port injection, the browser preview uses this to decide
- * whether business calls should hit the real ad-server (httpBridge) or fall
- * back to the preview/mock implementations that keep the demo working.
- */
-function isAdServerReachable(baseUrl: string): Promise<boolean> {
-  adServerReachability ??= (async () => {
-    try {
-      const res = await fetch(`${baseUrl}/health`, {
-        method: 'GET',
-        signal: AbortSignal.timeout(AD_SERVER_PROBE_TIMEOUT_MS),
-      });
-      return res.ok;
-    } catch {
-      return false;
-    }
-  })();
-  return adServerReachability;
-}
 
 /**
  * Domain-level wrapper: routes every method to the httpBridge implementation

@@ -63,7 +63,8 @@ interface CreateResolver {
   timer: ReturnType<typeof setTimeout>;
 }
 
-function toWsUrl(baseUrl: string): string {
+/** Convert an http(s) base URL into the `/pty` WebSocket URL used by the client. */
+export function toWsUrl(baseUrl: string): string {
   const base = baseUrl.trim().replace(/\/+$/, '');
   if (!base) {
     return '/pty';

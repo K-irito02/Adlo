@@ -165,4 +165,48 @@ describe('createPtyBridge', () => {
     bridge.close();
     expect(socket.readyState).toBe(3); // CLOSED
   });
+
+  it('uses the ad-server /pty endpoint when the ad-server is reachable (Finding 4)', async () => {
+    vi.resetModules();
+    vi.stubEnv('VITE_ADL_SERVER_URL', 'http://127.0.0.1:9999');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true } as unknown as Response));
+    const { createPtyBridge } = await import('./preview-pty-bridge');
+
+    // Resolve the reachability probe deterministically before creating the
+    // bridge so the resolved base URL is the ad-server base.
+    const { isAdServerReachable } = await import('./preview-reachability');
+    await isAdServerReachable('http://127.0.0.1:9999');
+
+    let createdUrl: string | undefined;
+    class RecordingWebSocket {
+      static instances: RecordingWebSocket[] = [];
+      url: string;
+      readyState = 0;
+      onopen: (() => void) | null = null;
+      onmessage: ((event: { data: string }) => void) | null = null;
+      onclose: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(url: string) {
+        this.url = url;
+        createdUrl = url;
+        RecordingWebSocket.instances.push(this);
+      }
+      send() {}
+      close() {
+        this.readyState = 3;
+      }
+    }
+    vi.stubGlobal('WebSocket', RecordingWebSocket);
+
+    const bridge = createPtyBridge();
+    bridge.subscribePtyOutput(() => {});
+
+    // The socket must target the ad-server /pty (ws://127.0.0.1:9999/pty),
+    // NOT the window.location.origin Vite mock. Socket creation is async
+    // (waits on the probe), so wait for it.
+    await vi.waitFor(() => expect(RecordingWebSocket.instances.length).toBeGreaterThan(0));
+    expect(createdUrl).toBe('ws://127.0.0.1:9999/pty');
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
 });
