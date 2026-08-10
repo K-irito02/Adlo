@@ -5,6 +5,15 @@ import type {
   DigitalLifeRunActivityEventV1,
   AppInfo,
 } from '@ai-digital-life/kernel';
+
+/**
+ * Safety net for the converged send flow: the ad-server `send_message` ack
+ * returns the moment the agent loop spawns, and the loop streams for 1-30s+
+ * afterwards. `sendMessage` keeps the model/run-activity subscriptions alive
+ * until the run reaches a terminal state; this bounds that wait so a runaway
+ * or never-terminating loop cannot leak an open EventSource forever.
+ */
+const SEND_MESSAGE_TERMINAL_TIMEOUT_MS = 5 * 60 * 1000;
 import { mapPatchToEditorTab } from '@utils/editorTabs';
 import {
   sessionFallbackTitle,
@@ -169,7 +178,12 @@ async function refreshAfterSend(
 
   set((state: StoreState) => ({
     ...nextState,
-    sessionDetails: state.sessionDetails,
+    // Carry the refreshed detail into `sessionDetails` so the S1 message list
+    // (which renders `ConversationDetail.messages`) shows the user message
+    // immediately and, after the run completes, the persisted assistant reply.
+    sessionDetails: conversationState.detail
+      ? { ...state.sessionDetails, [sessionId]: conversationState.detail }
+      : state.sessionDetails,
   }));
 
   if (nextAppInfo?.currentWorkspace) {
@@ -234,11 +248,47 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
         sessionId = created.data.id;
       }
 
-      const unsubscribe = window.digitalLife.subscribeModelStream(createModelStreamSubscriber(set));
+      // The ad-server `send_message` handler returns its ack the moment the
+      // loop spawns; the loop then streams for 1-30s+. The demo simulator
+      // instead resolves its `sendMessage` promise at `finish` — its terminal
+      // events fire DURING the `await sendMessage` below, before `runId` is
+      // known. To mirror that contract on the converged path we keep the two
+      // subscriptions open past the ack and track which runIds have reached a
+      // terminal state, then wait for OUR runId's `run-done` when it has not
+      // already fired.
+      //
+      // `run-done` is the terminal signal (not the model `done`): the server
+      // persists the assistant reply (`persist_assistant_reply`) BEFORE it
+      // publishes the terminal `session.status` that synthesizes `run-done`, so
+      // waiting on it guarantees the refreshed session detail contains the
+      // assistant reply.
+      const terminalRunIds = new Set<string>();
+      let runId: string | undefined;
+      let resolveTerminal: (() => void) | undefined;
+      const terminalPromise = new Promise<void>((resolve) => {
+        resolveTerminal = resolve;
+      });
+      const markTerminal = (id: string) => {
+        terminalRunIds.add(id);
+        // The normal path keys `run-done` by the run id (Finding 3). When the
+        // loop errors before publishing any message events, no run id is
+        // learned and `run-done` falls back to the session id — accept both.
+        if (runId && (id === runId || id === sessionId)) {
+          resolveTerminal?.();
+        }
+      };
 
-      const unsubscribeRunActivity = window.digitalLife.subscribeRunActivity(
-        createRunActivitySubscriber(set, get),
-      );
+      const modelSubscriber = createModelStreamSubscriber(set);
+      const runActivitySubscriber = createRunActivitySubscriber(set, get);
+      const unsubscribe = window.digitalLife.subscribeModelStream((event) => {
+        modelSubscriber(event);
+      });
+      const unsubscribeRunActivity = window.digitalLife.subscribeRunActivity((event) => {
+        runActivitySubscriber(event);
+        if (event.v === 1 && event.type === 'run-done') {
+          markTerminal(event.runId);
+        }
+      });
 
       try {
         const { selectedProviderId, selectedModelId } = get();
@@ -257,11 +307,40 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
           captureError(get, result.error);
           return;
         }
+        runId = result.data.runDetail.run.id;
 
         const appInfoResult = await window.digitalLife.app.getInfo();
         const nextAppInfo = appInfoResult.ok ? appInfoResult.data : get().appInfo;
 
         await refreshAfterSend(sessionId, result, nextAppInfo, set, get);
+
+        // Keep the stream subscriptions alive until the run reaches a terminal
+        // state (with a safety-net timeout so a runaway loop cannot leak the
+        // EventSource forever). The demo path already fired the terminal event
+        // during `await sendMessage` above, so `terminalRunIds` has the id and
+        // we skip the wait. On the converged path the loop streams on and the
+        // terminal event arrives over SSE later.
+        if (!terminalRunIds.has(runId)) {
+          await Promise.race([
+            terminalPromise,
+            new Promise<void>((resolve) => setTimeout(resolve, SEND_MESSAGE_TERMINAL_TIMEOUT_MS)),
+          ]);
+        }
+
+        // The loop persists the assistant reply as a `ConversationMessageRecord`
+        // when it finishes, so refresh the session detail one more time — the
+        // earlier `refreshAfterSend` ran right after the ack, before the reply
+        // existed. This makes the assistant message appear in the S1 message list.
+        if (get().activeSessionId === sessionId) {
+          const conversationState = await refreshConversationSlice(sessionId);
+          set((state: StoreState) => ({
+            sessions: conversationState.sessions,
+            activeSessionId: conversationState.activeSessionId,
+            sessionDetails: conversationState.detail
+              ? { ...state.sessionDetails, [sessionId]: conversationState.detail }
+              : state.sessionDetails,
+          }));
+        }
       } finally {
         unsubscribe();
         unsubscribeRunActivity();

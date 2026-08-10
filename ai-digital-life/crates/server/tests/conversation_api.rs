@@ -321,3 +321,54 @@ async fn get_session_messages_missing_session_returns_404() {
     assert_eq!(body["ok"], false);
     assert_eq!(body["error"]["code"], "NOT_FOUND");
 }
+
+/// Finding 1 (converged round trip): the loop writes the assistant reply to the
+/// PartStore (`MessageRecord`/`PartRecord`); the S1 message list renders
+/// `ConversationMessageRecord` rows from `GET /session`. `persist_assistant_reply`
+/// bridges the two — after the loop finishes, the assistant's final text becomes
+/// a `ConversationMessageRecord` so the session view shows the reply.
+#[tokio::test]
+async fn persist_assistant_reply_makes_reply_visible_in_session_view() {
+    let state = state().await;
+    let (_, body) =
+        send(state.clone(), Method::POST, "/session", Some(r#"{"title":"reply"}"#)).await;
+    let id = body["data"]["id"].as_str().unwrap().to_string();
+
+    // Simulate what the loop writes to the PartStore for the assistant message:
+    // an assistant MessageRecord plus a text PartRecord carrying the reply text.
+    let assistant_id = "run-reply-1";
+    let msg = MessageRecord {
+        id: assistant_id.into(),
+        session_id: id.clone(),
+        role: "assistant".into(),
+        parent_id: None,
+        agent: None,
+        model: Some(serde_json::json!({ "providerID": "deepseek", "id": "deepseek-chat" })),
+        summary: None,
+        time_created: 1700000000000,
+        time_completed: Some(1700000001000),
+    };
+    state.db.save_message(&msg).unwrap();
+    let part = PartRecord {
+        id: "part-reply-1".into(),
+        message_id: assistant_id.into(),
+        session_id: id.clone(),
+        r#type: PartType::Text,
+        ordinal: 0,
+        time_created: 1700000000000,
+        data: serde_json::json!({ "type": "text", "text": "The assistant reply." }),
+    };
+    state.db.save_part(&part).unwrap();
+
+    ad_server::agent_loop::persist_assistant_reply(&state.db, &id, assistant_id).unwrap();
+
+    let (status, detail) = send(state, Method::GET, &format!("/session/{id}"), None).await;
+    assert_eq!(status, StatusCode::OK, "body: {detail}");
+    let messages = detail["data"]["messages"].as_array().unwrap();
+    let assistant = messages
+        .iter()
+        .find(|m| m["role"] == "assistant")
+        .expect("assistant message should be in the session view");
+    assert_eq!(assistant["content"], "The assistant reply.");
+    assert_eq!(assistant["runId"], assistant_id);
+}

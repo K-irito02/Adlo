@@ -20,7 +20,7 @@ use adl_storage::EntityTable;
 use adl_types::{
     AgentRunDetail, ConversationMessageRecord, ConversationRole, ConversationScenario,
     ConversationSendResult, ConversationSessionRecord, GLOBAL_WORKSPACE_ID, MessageRecord,
-    ModelChatMessage, PartRecord, SessionPartEvent, now_ms,
+    ModelChatMessage, PartRecord, PartType, SessionPartEvent, now_ms,
 };
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
@@ -211,6 +211,27 @@ pub fn spawn_loop_task(
                 );
             }
         }
+        // S1 bridge: persist the assistant's final reply as a
+        // `ConversationMessageRecord` so the legacy message list (which renders
+        // `ConversationMessageRecord` rows) shows the assistant reply. The loop
+        // wrote the text to the PartStore; this mirrors it onto the session view
+        // the S1 UI reads. Done here — before the SSE terminal event — so a
+        // post-run `GET /session` refresh (Finding 1 frontend) sees the reply.
+        {
+            let db = state.db.clone();
+            let session_id_for_db = session_id.clone();
+            let assistant_id = assistant_message_id.clone();
+            if let Err(e) =
+                run_blocking(move || persist_assistant_reply(&db, &session_id_for_db, &assistant_id))
+                    .await
+            {
+                tracing::warn!(
+                    error = %e,
+                    session_id = %session_id,
+                    "failed to persist assistant reply into conversation list"
+                );
+            }
+        }
         state.part_bus.publish(SessionPartEvent::SessionStatus { session_id, status });
     });
 }
@@ -369,6 +390,41 @@ pub async fn abort_loop(
     if let Some(token) = cancels.lock().await.get(session_id) {
         token.cancel();
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// S1 bridge: make the loop's PartStore writes visible to the legacy message list
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Read the assistant message's text parts from the PartStore and persist a
+/// `ConversationMessageRecord` (role assistant, content = concatenated text,
+/// run_id = assistant message id) so `GET /session/{id}` — the source of the S1
+/// message list, which renders `ConversationMessageRecord` rows — shows the
+/// assistant reply. This is the S1 bridge: the loop writes to
+/// `MessageRecord`/`PartRecord`; the legacy list renders
+/// `ConversationMessageRecord`. S2 replaces the render layer with the PartStore.
+pub fn persist_assistant_reply(
+    db: &Database,
+    session_id: &str,
+    assistant_message_id: &str,
+) -> Result<(), AppError> {
+    let workspace_id = require_session(db, session_id)?.workspace_id;
+    let parts = db.list_parts(assistant_message_id)?;
+    let content: String = parts
+        .iter()
+        .filter(|p| p.r#type == PartType::Text)
+        .filter_map(|p| p.data.get("text").and_then(|v| v.as_str()))
+        .collect();
+    let record = ConversationMessageRecord {
+        id: assistant_message_id.to_string(),
+        session_id: session_id.to_string(),
+        role: ConversationRole::Assistant,
+        content,
+        blocks: vec![],
+        run_id: Some(assistant_message_id.to_string()),
+        created_at: now_ms(),
+    };
+    save_message(db, &workspace_id, &record)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
