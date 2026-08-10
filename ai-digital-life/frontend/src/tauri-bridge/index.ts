@@ -47,13 +47,17 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
       hasProviderApiKey: tauriProvider.hasProviderApiKey,
     },
 
-    // `workspace.onFileChanged` is a Tauri channel subscription
-    // (`digital-life://workspace-file-changed`), not an HTTP RPC — the backend
-    // emits it from `src-tauri/src/commands/workspace.rs`. The httpBridge
-    // `onFileChanged` is a Task-8 SSE stub, so the desktop keeps the real
-    // channel impl while every other `workspace.*` RPC stays on httpBridge.
+    // `workspace.pickDirectory` (native folder dialog), `workspace.revealInFileManager`
+    // (OS file-manager reveal) and `workspace.onFileChanged` (a Tauri channel
+    // subscription `digital-life://workspace-file-changed`) are Tauri shell
+    // capabilities with NO ad-server HTTP route — the httpBridge implementations
+    // are `NOT_SUPPORTED` stubs. The desktop keeps the real invoke/channel impls
+    // from `createTauriWorkspaceBridge()` while every other `workspace.*` RPC
+    // stays on httpBridge.
     workspace: {
       ...http.workspace,
+      pickDirectory: tauriWorkspace.pickDirectory,
+      revealInFileManager: tauriWorkspace.revealInFileManager,
       onFileChanged: tauriWorkspace.onFileChanged,
     },
 
