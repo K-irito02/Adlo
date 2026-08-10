@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import type { ComponentType } from 'react';
 import type { MessageRecord, PartData, PartRecord } from '../../../kernel/types-part';
+import { StreamingMarkdownPart } from './StreamingMarkdown';
 
 export interface PartRendererProps {
   message: MessageRecord;
@@ -23,3 +24,5 @@ export function PartRenderer({ message, part, defaultOpen }: PartRendererProps) 
   const Comp = PART_MAPPING[data.type] ?? DEFAULT_PART;
   return <Comp message={message} part={part} defaultOpen={defaultOpen} />;
 }
+
+registerPart('text', StreamingMarkdownPart);
