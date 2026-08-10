@@ -108,6 +108,19 @@ impl SseEventBus {
     pub fn subscribe_live(&self) -> broadcast::Receiver<(i64, SessionPartEvent)> {
         self.live.subscribe()
     }
+
+    /// Largest seq currently known to the bus: the last in-memory cache entry,
+    /// else the durable event_log max (e.g. right after a restart, when the
+    /// replay cache is empty but rows persist). Used by the SSE `?after=latest`
+    /// live-only sentinel to skip the whole history on a cold subscribe.
+    pub fn latest_seq(&self) -> i64 {
+        let h = self.history.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((seq, _)) = h.last() {
+            return *seq;
+        }
+        drop(h);
+        self.db.max_event_log_seq().ok().flatten().unwrap_or(0)
+    }
 }
 
 fn event_type(event: &SessionPartEvent) -> String {

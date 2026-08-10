@@ -62,6 +62,78 @@ async fn sse_streams_session_status_and_replays() {
     let _ = std::fs::remove_dir_all(&data_dir);
 }
 
+/// `?after=latest`（live-only 哨兵）必须跳过 durable event_log 重放，只流式
+/// 输出连接之后新发布的事件 —— 修复冷启动页面首次订阅把整条历史（至多 1000
+/// 条）重放给前端的问题（Task 8 残留）。
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn sse_after_latest_is_live_only_skips_replay() {
+    let (db, path) = temp_db_path("adl-sse-latest");
+    let part_bus = PartEventBus::new(16);
+    let sse_bus = ad_server::sse::SseEventBus::new(db.clone());
+    sse_bus.spawn(part_bus.clone());
+    tokio::task::yield_now().await;
+    let questions = QuestionService::new(part_bus.clone());
+
+    let port_slot = Arc::new(AtomicU16::new(0));
+    let port = ad_server::sse_server::spawn_sse_server(sse_bus, questions, port_slot.clone()).await;
+
+    // 先在历史里发布一个事件并等待持久化 —— 普通 `?after=` 连接会把它重放。
+    part_bus.publish(SessionPartEvent::SessionStatus {
+        session_id: "history-1".into(),
+        status: "busy".into(),
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+
+    // 用 ?after=latest 连接（live-only）：历史事件绝不能被重放。
+    let url = format!("http://127.0.0.1:{port}/event?after=latest");
+    let resp = reqwest::get(&url).await.expect("GET /event?after=latest should connect");
+    assert!(resp.status().is_success(), "GET /event?after=latest should succeed");
+    let mut chunks = resp.bytes_stream();
+
+    // 先给后台一小段时间：若错误重放历史，这里就能在超时前捕获到。
+    let first = tokio::time::timeout(
+        std::time::Duration::from_millis(300),
+        chunks.next(),
+    )
+    .await;
+    match first {
+        Ok(Some(Ok(bytes))) => {
+            let text = String::from_utf8_lossy(&bytes);
+            assert!(
+                !text.contains("history-1"),
+                "?after=latest must not replay history, got: {text}"
+            );
+        },
+        // 没有数据（纯 live-only，尚无新事件）也是正确行为。
+        Ok(None) | Err(_) => {},
+        Ok(Some(Err(_))) => panic!("SSE read error"),
+    }
+
+    // 连接之后发布新事件，必须能实时收到。
+    part_bus.publish(SessionPartEvent::SessionStatus {
+        session_id: "live-1".into(),
+        status: "active".into(),
+    });
+    let live_arrived = tokio::time::timeout(std::time::Duration::from_secs(3), async {
+        loop {
+            match chunks.next().await {
+                Some(Ok(bytes)) => {
+                    let text = String::from_utf8_lossy(&bytes);
+                    if text.contains("live-1") {
+                        return true;
+                    }
+                },
+                _ => return false,
+            }
+        }
+    })
+    .await
+    .expect("live event should arrive within timeout");
+
+    assert!(live_arrived, "live-1 event should be observed");
+    cleanup(&path);
+}
+
 /// Tauri 过渡路径：不经过 ServerState，直接 SseEventBus + spawn_sse_server，
 /// 端口回写到调用方传入的 Arc<AtomicU16>（AppState.sse_port 的形状）。
 #[tokio::test]

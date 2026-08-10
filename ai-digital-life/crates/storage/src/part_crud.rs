@@ -228,6 +228,16 @@ impl Database {
             })
             .collect()
     }
+
+    /// Latest durable event_log seq across all sessions (`NULL` when the table
+    /// is empty). Used by the SSE `?after=latest` live-only sentinel so a cold
+    /// subscriber skips the whole history even after a server restart (when the
+    /// in-memory replay cache is empty but the DB still holds rows).
+    pub fn max_event_log_seq(&self) -> Result<Option<i64>, AppError> {
+        let conn = self.conn()?;
+        conn.query_row("SELECT MAX(seq) FROM event_log", [], |row| row.get(0))
+            .map_err(|e| AppError::Storage(e.to_string()))
+    }
 }
 
 #[cfg(test)]
@@ -388,5 +398,19 @@ mod tests {
         assert_eq!(after[0].1, "message.updated");
         assert_eq!(after[0].2, serde_json::json!({"info": {}}));
         assert_eq!(db.list_event_log_after_global(s2).unwrap().len(), 0);
+    }
+
+    #[test]
+    fn max_event_log_seq_tracks_latest_row() {
+        let db = open_test_db("adl-part-crud");
+        assert_eq!(db.max_event_log_seq().unwrap(), None, "empty event_log has no max");
+        let s1 = db
+            .append_event_log("session_1", "session.status", &serde_json::json!({"status": "busy"}))
+            .unwrap();
+        assert_eq!(db.max_event_log_seq().unwrap(), Some(s1));
+        let s2 = db
+            .append_event_log("session_2", "message.updated", &serde_json::json!({"info": {}}))
+            .unwrap();
+        assert_eq!(db.max_event_log_seq().unwrap(), Some(s2));
     }
 }
