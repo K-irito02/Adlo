@@ -73,16 +73,26 @@ function isAdServerReachable(baseUrl: string): Promise<boolean> {
  * once the ad-server is reachable, otherwise to the preview/mock fallback.
  * The single cast keeps the Proxy typed as `T`; the fallback path preserves
  * the existing browser demo without a running ad-server.
+ *
+ * `syncReturnMethods` lists methods that return a SYNCHRONOUS value (e.g. the
+ * `WorkspaceBridge.onFileChanged` unsubscribe `() => void`) rather than a
+ * `Promise<IpcResult<T>>`. They are returned as-is (never async-wrapped) so
+ * callers receive the real synchronous unsubscribe, exactly per the bridge
+ * contract.
  */
 function preferHttpWhenReachable<T extends object>(
   baseUrl: string,
   httpImpl: T,
   fallbackImpl: T,
+  syncReturnMethods?: readonly (keyof T)[],
 ): T {
   const proxy = new Proxy(fallbackImpl, {
     get(target, prop, receiver) {
       const value = Reflect.get(target, prop, receiver);
       if (typeof value !== 'function') {
+        return value;
+      }
+      if (syncReturnMethods?.includes(prop as keyof T)) {
         return value;
       }
       return async (...args: unknown[]) => {
@@ -180,6 +190,13 @@ export function setupPreviewBridge(): void {
       adlServerBaseUrl,
       workspaceHttp,
       workspacePreview,
+      // `onFileChanged` returns a synchronous unsubscribe (`() => void`) per
+      // the `WorkspaceBridge` contract — it must NOT be async-wrapped by the
+      // proxy, otherwise `useAppStartup` captures a `Promise` instead of the
+      // real unsubscribe (breaks the sync-unsubscribe contract + React effect
+      // cleanup). It is returned as-is from the preview impl (same in both
+      // reachable and fallback paths).
+      ['onFileChanged'],
     ),
     retrieval: preferHttpWhenReachable<RetrievalBridge>(
       adlServerBaseUrl,

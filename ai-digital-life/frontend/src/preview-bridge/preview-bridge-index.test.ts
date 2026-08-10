@@ -148,3 +148,63 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
     expect(res).toEqual({ ok: true, data: { enabled: false, port: null } });
   });
 });
+
+describe('preview-bridge browser workspace.onFileChanged sync unsubscribe (Task 7 wave 5)', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    delete (window as { digitalLife?: unknown }).digitalLife;
+    window.localStorage.clear();
+    vi.stubEnv('VITE_ADL_SERVER_URL', 'http://127.0.0.1:9999');
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    delete (window as { digitalLife?: unknown }).digitalLife;
+  });
+
+  async function setupBridge(
+    fetchImpl: (input: RequestInfo | URL) => Promise<Response>,
+  ): Promise<DigitalLifeBridge> {
+    vi.stubGlobal('fetch', vi.fn(fetchImpl));
+    const { setupPreviewBridge } = await import('./index');
+    setupPreviewBridge();
+    return (window as { digitalLife: DigitalLifeBridge }).digitalLife;
+  }
+
+  const reachableFetch: (input: RequestInfo | URL) => Promise<Response> = (input) => {
+    const url = String(input);
+    if (url.includes('/health')) {
+      return Promise.resolve(okJson({}));
+    }
+    return Promise.resolve(okJson({ ok: true, data: null }));
+  };
+
+  const unreachableFetch: (input: RequestInfo | URL) => Promise<Response> = (input) => {
+    const url = String(input);
+    if (url.includes('/health')) {
+      return Promise.resolve(notOkJson(503));
+    }
+    return Promise.resolve(okJson({ ok: true, data: null }));
+  };
+
+  it('returns a synchronous unsubscribe (not a Promise) when the ad-server is reachable, and it is callable', async () => {
+    const bridge = await setupBridge(reachableFetch);
+
+    const unsubscribe = bridge.workspace.onFileChanged(() => {});
+
+    expect(typeof unsubscribe).toBe('function');
+    expect((unsubscribe as { then?: unknown }).then).toBeUndefined();
+    expect(() => unsubscribe()).not.toThrow();
+  });
+
+  it('returns a synchronous unsubscribe (not a Promise) in the fallback (unreachable) case too', async () => {
+    const bridge = await setupBridge(unreachableFetch);
+
+    const unsubscribe = bridge.workspace.onFileChanged(() => {});
+
+    expect(typeof unsubscribe).toBe('function');
+    expect((unsubscribe as { then?: unknown }).then).toBeUndefined();
+    expect(() => unsubscribe()).not.toThrow();
+  });
+});
