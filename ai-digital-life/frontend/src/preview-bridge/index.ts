@@ -318,9 +318,9 @@ export function setupPreviewBridge(): void {
       http.runActivity,
       mockDigitalLifeBridge.runActivity,
     ),
-    subscribeModelStream: modelBridge.subscribeModelStream,
-    subscribeRunActivity: modelBridge.subscribeRunActivity,
-    subscribeTerminalStream: modelBridge.subscribeTerminalStream,
+    subscribeModelStream: http.subscribeModelStream,
+    subscribeRunActivity: http.subscribeRunActivity,
+    subscribeTerminalStream: http.subscribeTerminalStream,
     setLogMode: mockDigitalLifeBridge.setLogMode,
   };
 

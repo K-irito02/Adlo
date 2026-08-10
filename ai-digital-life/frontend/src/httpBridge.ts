@@ -17,8 +17,11 @@
  * `setLogMode` and the four `subscribe*` streams — have no fetch routes:
  * they are typed fallbacks here. The Tauri shell (`tauri-bridge`) and browser
  * preview (`preview-bridge`) override them with their real implementations.
- * The `subscribe*` streams are deferred to Task 8 (SSE event bridge over
- * `/event`); this task delivers the SSE wire parser in `httpBridge/sse.ts`.
+ * The `subscribe*` streams run over the ad-server SSE `/event` endpoint
+ * (`EventSource`): `subscribeModelStream` maps `message.part.delta` /
+ * `message.updated`, `subscribeRunActivity` maps tool-part run phases,
+ * `subscribeTerminalStream` maps bash tool output, and `subscribePtyOutput`
+ * reuses the shared `/pty` WebSocket client (Task 6).
  */
 import type {
   AppInfo,
@@ -30,6 +33,7 @@ import type {
   HealthSnapshot,
   IpcResult,
   ModelGatewayHealthSnapshot,
+  ModelTokenUsage,
   RuntimeDiagnosticsSnapshot,
 } from '@ai-digital-life/kernel';
 import type { DigitalLifeBridge } from './shared/ipc/digital-life';
@@ -96,6 +100,8 @@ import type { SubagentTask, TaskToolInput, TaskToolOutput } from './shared/ipc/s
 import type { SymbolInfo, DiagnosticInfo } from './shared/ipc/lsp';
 import type { DurableSessionState } from './shared/ipc/durable';
 import { repoMapEntriesToTree } from './shared/repoMapFromEntries';
+import { subscribeEventSource, type EventSourceFactory } from './httpBridge/event-source';
+import { createPtyWsClient, type PtyWsClient, type PtyWsClientOptions } from './shared/ipc/pty-ws';
 
 /** Default ad-server address until the dev-script port injection (Task 9). */
 export const DEFAULT_ADL_SERVER_BASE_URL = 'http://127.0.0.1:61234';
@@ -115,8 +121,12 @@ export function resolveAdlServerBaseUrl(): string {
 
 export interface HttpBridgeOptions {
   baseUrl: string;
-  /** Injectable EventSource constructor (defaults to the global one) — reserved for Task 8's SSE event bridge. */
-  eventSourceFactory?: (url: string, options?: EventSourceInit) => EventSource;
+  /** Injectable EventSource constructor (defaults to the global one). */
+  eventSourceFactory?: EventSourceFactory;
+  /** Initial `?after=` resume point (event_log seq) for the `/event` stream. */
+  lastEventId?: number;
+  /** Options for the reused `/pty` WebSocket client (tests inject `wsFactory`). */
+  ptyWsOptions?: PtyWsClientOptions;
 }
 
 const HTTP_ERROR_CODE = 'HTTP__ERROR';
@@ -180,33 +190,269 @@ const DELETE = (): RequestInit => ({ method: 'DELETE' });
 const taskNotSupported = <T>(what: string): Promise<IpcResult<T>> =>
   Promise.resolve(notSupported<T>(what));
 
-export function createHttpBridge({ baseUrl }: HttpBridgeOptions): DigitalLifeBridge {
+// ═══════════════════════════════════════════════════════════════════════════
+// Task 8 — SSE `/event` → v1 stream mapping.
+//
+// The ad-server `/event` stream (crates/server/src/sse_server.rs) carries
+// `SessionPartEvent` JSON records (camelCase, `type` discriminator):
+//   message.part.updated / message.part.delta / message.created /
+//   message.updated / session.status / question.asked / question.replied
+// Each record also carries the event_log `id:` (Last-Event-ID resume point).
+// These helpers map the wire records into the frontend v1 stream contracts.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Decode an SSE `data:` JSON payload, or `null` for malformed records. */
+function parseSseWire(data: string): Record<string, unknown> | null {
+  try {
+    const wire = JSON.parse(data) as unknown;
+    if (wire !== null && typeof wire === 'object' && !Array.isArray(wire)) {
+      return wire as Record<string, unknown>;
+    }
+  } catch {
+    // malformed record — ignore
+  }
+  return null;
+}
+
+/**
+ * Map a wire record to model-stream v1 events (`DigitalLifeModelStreamEventV1`).
+ *   - `message.part.delta` (field "text") → delta (text/reasoning increments)
+ *   - `message.updated` info.error → error; info.usage → usage; finish → done
+ * The `runId` is the assistant `messageID` (ad-server sets assistant message
+ * id == run id, so the streaming deltas carry the run id on the wire).
+ */
+function mapModelStreamWire(
+  wire: Record<string, unknown>,
+  seq: number,
+): DigitalLifeModelStreamEventV1[] {
+  if (wire.type === 'message.part.delta') {
+    const field = wire.field as string | undefined;
+    const delta = wire.delta as string | undefined;
+    const messageID = wire.messageID as string | undefined;
+    if (field !== 'text' || typeof delta !== 'string' || typeof messageID !== 'string') {
+      return [];
+    }
+    return [{ v: 1, runId: messageID, seq, type: 'delta', text: delta }];
+  }
+  if (wire.type === 'message.updated') {
+    const info = (wire.info ?? {}) as {
+      id?: string;
+      finish?: string;
+      usage?: ModelTokenUsage;
+      error?: string;
+    };
+    const runId = info.id ?? (wire.sessionID as string | undefined);
+    if (!runId) {
+      return [];
+    }
+    if (typeof info.error === 'string') {
+      return [{ v: 1, runId, seq, type: 'error', message: info.error }];
+    }
+    // Lossless: mirror the old Tauri stream which emitted `usage` then `done`
+    // at the end of a successful run.
+    const events: DigitalLifeModelStreamEventV1[] = [];
+    if (info.usage) {
+      events.push({ v: 1, runId, seq, type: 'usage', usage: info.usage });
+    }
+    if (info.finish === 'completed') {
+      events.push({ v: 1, runId, seq: seq + events.length, type: 'done' });
+    }
+    return events;
+  }
+  return [];
+}
+
+/**
+ * Map a wire record to run-activity v1 events (`DigitalLifeRunActivityEventV1`).
+ * The SSE stream carries tool parts as `message.part.updated`; tool state
+ * transitions are the agent run phases (command / search / file-read / patch /
+ * approval). `runId` is the assistant `messageID` (== run id on the wire).
+ */
+function mapRunActivityWire(
+  wire: Record<string, unknown>,
+  seq: number,
+): DigitalLifeRunActivityEventV1[] {
+  if (wire.type !== 'message.part.updated') {
+    return [];
+  }
+  const part = (wire.part ?? {}) as Record<string, unknown>;
+  const data = (part.data ?? {}) as Record<string, unknown>;
+  if (data.type !== 'tool' || typeof data.tool !== 'string') {
+    return [];
+  }
+  const state = (data.state ?? {}) as Record<string, unknown>;
+  const status = typeof state.status === 'string' ? state.status : '';
+  const runId = (wire.messageID as string | undefined) ?? (part.messageID as string | undefined);
+  if (!runId) {
+    return [];
+  }
+  const ts = Date.now();
+  const input = (state.input ?? {}) as Record<string, unknown>;
+  const metadata = (state.metadata ?? {}) as Record<string, unknown>;
+  const tool = data.tool;
+  const running = status === 'running';
+
+  switch (tool) {
+    case 'bash': {
+      const command = typeof input.command === 'string' ? input.command : '';
+      const exitCode = typeof metadata.exitCode === 'number' ? metadata.exitCode : undefined;
+      const phase: 'start' | 'done' = running ? 'start' : 'done';
+      return [{ v: 1, runId, seq, ts, type: 'command', phase, command, exitCode }];
+    }
+    case 'read': {
+      const path = typeof input.path === 'string' ? input.path : '';
+      return [{ v: 1, runId, seq, ts, type: 'file-read', path }];
+    }
+    case 'grep':
+    case 'glob':
+    case 'list': {
+      const query = typeof input.pattern === 'string' ? input.pattern : '';
+      return [{ v: 1, runId, seq, ts, type: 'search', query }];
+    }
+    case 'apply_patch':
+    case 'edit':
+    case 'write': {
+      const patchSetId =
+        (data.callID as string | undefined) ?? (wire.partID as string | undefined) ?? '';
+      const phase: 'proposed' | 'applied' | 'rolled-back' = running ? 'proposed' : 'applied';
+      return [{ v: 1, runId, seq, ts, type: 'patch', phase, patchSetId }];
+    }
+    case 'question': {
+      const approvalId =
+        (data.callID as string | undefined) ?? (wire.partID as string | undefined) ?? '';
+      return [{ v: 1, runId, seq, ts, type: 'approval', phase: 'requested', approvalId }];
+    }
+    default:
+      return [];
+  }
+}
+
+/**
+ * Map a wire record to terminal-stream v1 events (`DigitalLifeTerminalStreamEventV1`).
+ * A bash tool part carries the governed-command output; completed → stdout +
+ * done, error → error. `executionId` is the tool `callID` (falling back to the
+ * part id).
+ */
+function mapTerminalStreamWire(
+  wire: Record<string, unknown>,
+  seq: number,
+): DigitalLifeTerminalStreamEventV1[] {
+  if (wire.type !== 'message.part.updated') {
+    return [];
+  }
+  const part = (wire.part ?? {}) as Record<string, unknown>;
+  const data = (part.data ?? {}) as Record<string, unknown>;
+  if (data.type !== 'tool' || data.tool !== 'bash') {
+    return [];
+  }
+  const state = (data.state ?? {}) as Record<string, unknown>;
+  const status = typeof state.status === 'string' ? state.status : '';
+  const executionId =
+    (data.callID as string | undefined) ?? (wire.partID as string | undefined) ?? '';
+  if (!executionId) {
+    return [];
+  }
+  if (status === 'completed') {
+    const output = typeof state.output === 'string' ? state.output : '';
+    const metadata = (state.metadata ?? {}) as Record<string, unknown>;
+    const exitCode = typeof metadata.exitCode === 'number' ? metadata.exitCode : null;
+    const events: DigitalLifeTerminalStreamEventV1[] = [];
+    if (output) {
+      events.push({ v: 1, executionId, seq, type: 'stdout', text: output });
+    }
+    events.push({
+      v: 1,
+      executionId,
+      seq: seq + 1,
+      type: 'done',
+      exitCode,
+      success: exitCode === 0,
+      summary: `bash: exit ${exitCode ?? 'unknown'}`,
+    });
+    return events;
+  }
+  if (status === 'error') {
+    const message = typeof state.error === 'string' ? state.error : 'bash tool failed';
+    return [{ v: 1, executionId, seq, type: 'error', message }];
+  }
+  return [];
+}
+
+/**
+ * Open an `/event` EventSource and route mapped v1 events to `listener`.
+ * Returns the synchronous `() => void` unsubscribe from the EventSource
+ * wrapper. `seq` is a per-subscription monotonic counter (v1 semantics).
+ */
+function subscribeSseMapped<T>(
+  baseUrl: string,
+  eventSourceFactory: EventSourceFactory | undefined,
+  lastEventId: number | undefined,
+  mapper: (wire: Record<string, unknown>, seq: number) => T[],
+): (listener: (event: T) => void) => () => void {
+  return (listener) => {
+    let seq = 0;
+    return subscribeEventSource({
+      baseUrl,
+      eventSourceFactory,
+      lastEventId,
+      onEvent: (data) => {
+        const wire = parseSseWire(data);
+        if (!wire) {
+          return;
+        }
+        const events = mapper(wire, seq + 1);
+        if (events.length === 0) {
+          return;
+        }
+        seq += events.length;
+        for (const event of events) {
+          listener(event);
+        }
+      },
+    });
+  };
+}
+
+export function createHttpBridge({
+  baseUrl,
+  eventSourceFactory,
+  lastEventId,
+  ptyWsOptions,
+}: HttpBridgeOptions): DigitalLifeBridge {
+  // The `/pty` WebSocket client is shared across all `subscribePtyOutput`
+  // listeners for this bridge instance (one socket, fanned out by pty-ws).
+  let ptyClient: PtyWsClient | null = null;
+  const getPtyClient = (): PtyWsClient => {
+    ptyClient ??= createPtyWsClient(baseUrl, ptyWsOptions);
+    return ptyClient;
+  };
+
   return {
-    // ── Stream subscriptions: deferred to Task 8 (SSE event bridge over /event).
-    subscribeModelStream: (_listener: (event: DigitalLifeModelStreamEventV1) => void) => {
-      console.warn(
-        '[httpBridge] subscribeModelStream is deferred to Task 8 (SSE event bridge); no-op for now.',
-      );
-      return () => {};
-    },
-    subscribeRunActivity: (_listener: (event: DigitalLifeRunActivityEventV1) => void) => {
-      console.warn(
-        '[httpBridge] subscribeRunActivity is deferred to Task 8 (SSE event bridge); no-op for now.',
-      );
-      return () => {};
-    },
-    subscribeTerminalStream: (_listener: (event: DigitalLifeTerminalStreamEventV1) => void) => {
-      console.warn(
-        '[httpBridge] subscribeTerminalStream is deferred to Task 8 (SSE event bridge); no-op for now.',
-      );
-      return () => {};
-    },
-    subscribePtyOutput: (_listener: (event: PtyOutputEvent) => void) => {
-      console.warn(
-        '[httpBridge] subscribePtyOutput is deferred to Task 8 (SSE event bridge); no-op for now.',
-      );
-      return () => {};
-    },
+    // ── Stream subscriptions: EventSource against the ad-server /event SSE
+    // stream (see crates/server/src/sse_server.rs). Each subscription opens its
+    // own EventSource and maps the SessionPartEvent wire records to the v1
+    // stream contract; `subscribePtyOutput` reuses the shared `/pty` WebSocket
+    // client instead (Task 6).
+    subscribeModelStream: subscribeSseMapped(
+      baseUrl,
+      eventSourceFactory,
+      lastEventId,
+      mapModelStreamWire,
+    ),
+    subscribeRunActivity: subscribeSseMapped(
+      baseUrl,
+      eventSourceFactory,
+      lastEventId,
+      mapRunActivityWire,
+    ),
+    subscribeTerminalStream: subscribeSseMapped(
+      baseUrl,
+      eventSourceFactory,
+      lastEventId,
+      mapTerminalStreamWire,
+    ),
+    subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) =>
+      getPtyClient().subscribePtyOutput(listener),
 
     setLogMode: async (_target: 'terminal' | 'debug', _mode: 'overwrite' | 'append' | 'multi') => {
       console.warn('[httpBridge] setLogMode is a Tauri shell capability; no-op over HTTP.');
