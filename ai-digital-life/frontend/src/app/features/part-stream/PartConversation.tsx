@@ -1,13 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useMemo } from 'react';
 import type { MessageRecord, PartRecord } from '../../../kernel/types-part';
-import type { QuestionEntry, SessionPartState } from './partStoreTypes';
-import { groupParts, type PartRef } from './groupParts';
-import { PartRenderer } from './PartRenderer';
-import { ContextToolGroup } from './ContextToolGroup';
-import { AskCard } from './AskCard';
-import { TurnSummary } from './TurnSummary';
-import { useTCopy } from '../../i18n/useTCopy';
+import type { SessionPartState } from './partStoreTypes';
+import { normalizeQuestions } from './partTimelineUtils';
+import { PartTimeline } from './PartTimeline';
 
 export type PartTurnStatus = 'idle' | 'busy' | 'error' | 'cancelled' | 'completed';
 
@@ -76,24 +71,7 @@ export function resolvePartMessageRole(
   return 'user';
 }
 
-function normalizeQuestions(questions: unknown[]): { text?: string; [key: string]: unknown }[] {
-  return (questions ?? []).map((q) => {
-    if (typeof q === 'string') {
-      return { text: q };
-    }
-    if (q && typeof q === 'object') {
-      return { ...(q as Record<string, unknown>) };
-    }
-    return { text: String(q) };
-  });
-}
-
-function partByRef(
-  ref: PartRef,
-  partsByMessage: ReadonlyMap<string, PartRecord[]>,
-): PartRecord | undefined {
-  return partsByMessage.get(ref.messageID)?.find((p) => p.id === ref.partID);
-}
+export { normalizeQuestions };
 
 export interface PartConversationProps {
   /** Per-session part-render state from `selectSessionMessages` / `usePartStream`. */
@@ -111,92 +89,13 @@ export interface PartConversationProps {
 }
 
 /**
- * S2 part-render conversation body: renders the PartStore message list
- * (user text + assistant parts via PartRenderer/ContextToolGroup), pending
- * AskCards and the TurnSummary, all inside the `.adl-part-scope` local visual
- * scope. This is the PRIMARY render path in CenterPane whenever the session
- * has part data; the legacy `MessageStream` remains the fallback for
- * part-less sessions (it is NOT a compat layer for part data).
+ * S2 part-render conversation body: a thin shell over the virtualized
+ * `PartTimeline` (react-window List rendering the PartStore message list —
+ * user text + assistant parts via PartRenderer/ContextToolGroup — plus pending
+ * AskCards and the TurnSummary). This is the PRIMARY render path in CenterPane
+ * whenever the session has part data; the legacy `MessageStream` remains the
+ * fallback for part-less sessions (it is NOT a compat layer for part data).
  */
 export function PartConversation({ state, userTextByMessageId, onReply }: PartConversationProps) {
-  const { t } = useTCopy();
-
-  const rows = useMemo(() => {
-    const ordered: { message: MessageRecord; role: 'user' | 'assistant' }[] = [];
-    let lastUserText: string | undefined;
-    for (const message of state.messages.values()) {
-      const role = resolvePartMessageRole(message, state.messages, state.partsByMessage);
-      if (role === 'user') {
-        const text = userTextByMessageId?.get(message.id);
-        const hasParts = (state.partsByMessage.get(message.id)?.length ?? 0) > 0;
-        // Skip a user row with neither parts nor text: a transient
-        // `message.created` kick announcement whose hydrated twin carries the
-        // prompt. Also dedupe the rare hydrate/SSE twin — the same turn can
-        // appear as `message_xxx` (direct ConversationMessageRecord id) AND
-        // `msg_xxx` (hydrated MessageRecord via the assistant-parent hop) that
-        // resolve to the SAME prompt; render only the first consecutive
-        // identical user row.
-        if (!hasParts && !text) {
-          continue;
-        }
-        if (!hasParts && text === lastUserText) {
-          continue;
-        }
-        lastUserText = text;
-      }
-      ordered.push({ message, role });
-    }
-    return ordered;
-  }, [state, userTextByMessageId]);
-
-  return (
-    <div className="adl-part-scope adl-part-conversation" role="log" aria-label={t.conversation}>
-      {rows.map(({ message, role }) =>
-        role === 'user' ? (
-          <article key={message.id} className="adl-part-message adl-part-message--user">
-            <div className="adl-part-message__text">{userTextByMessageId?.get(message.id)}</div>
-          </article>
-        ) : (
-          <article key={message.id} className="adl-part-message adl-part-message--assistant">
-            {groupParts(
-              (state.partsByMessage.get(message.id) ?? []).map((part) => ({
-                messageID: message.id,
-                part,
-              })),
-            ).map((group) =>
-              group.type === 'context' ? (
-                <ContextToolGroup
-                  key={group.key}
-                  parts={group.refs
-                    .map((ref) => partByRef(ref, state.partsByMessage))
-                    .filter((p): p is PartRecord => !!p)}
-                />
-              ) : (
-                <PartRenderer
-                  key={group.key}
-                  message={message}
-                  part={partByRef(group.ref, state.partsByMessage) as PartRecord}
-                />
-              ),
-            )}
-          </article>
-        ),
-      )}
-
-      {state.questions.length > 0 ? (
-        <div className="adl-part-question-list">
-          {state.questions.map((question: QuestionEntry) => (
-            <AskCard
-              key={question.requestID}
-              requestID={question.requestID}
-              questions={normalizeQuestions(question.questions)}
-              onReply={onReply}
-            />
-          ))}
-        </div>
-      ) : null}
-
-      {state.status !== 'idle' ? <TurnSummary status={mapPartTurnStatus(state.status)} /> : null}
-    </div>
-  );
+  return <PartTimeline state={state} userTextByMessageId={userTextByMessageId} onReply={onReply} />;
 }
