@@ -101,7 +101,11 @@ import type { SubagentTask, TaskToolInput, TaskToolOutput } from './shared/ipc/s
 import type { SymbolInfo, DiagnosticInfo } from './shared/ipc/lsp';
 import type { DurableSessionState } from './shared/ipc/durable';
 import { repoMapEntriesToTree } from './shared/repoMapFromEntries';
-import { subscribeEventSource, type EventSourceFactory } from './httpBridge/event-source';
+import {
+  subscribeEventSource,
+  SSE_LIVE_ONLY_AFTER,
+  type EventSourceFactory,
+} from './httpBridge/event-source';
 import { createPtyWsClient, type PtyWsClient, type PtyWsClientOptions } from './shared/ipc/pty-ws';
 
 /** Default ad-server address until the dev-script port injection (Task 9). */
@@ -547,9 +551,10 @@ function parseRecordId(recordId: string | undefined): number | undefined {
  *
  * `lastSeqRef.current` is the largest event_log seq this bridge has observed
  * (shared by all SSE streams). Every subscribe passes it as `?after=` so the
- * server replays nothing older than the resume point — a fresh subscribe is
- * LIVE-ONLY from the current seq instead of replaying the whole durable
- * event_log (the Task 8 flood). Each record's `id:` advances the ref.
+ * server replays nothing older than the resume point. A COLD subscribe (no
+ * last-seen seq yet) opens `?after=latest` — the live-only sentinel — so it
+ * streams events from now on instead of replaying the whole durable event_log
+ * (the Task 8 flood). Each record's `id:` advances the ref.
  */
 function subscribeSseMapped<T>(
   baseUrl: string,
@@ -563,7 +568,9 @@ function subscribeSseMapped<T>(
     return subscribeEventSource({
       baseUrl,
       eventSourceFactory,
-      lastEventId: after,
+      // Cold subscribe (after === undefined) → `?after=latest` live-only;
+      // otherwise resume from the last observed seq.
+      lastEventId: after ?? SSE_LIVE_ONLY_AFTER,
       onEvent: (data, recordId) => {
         const recordSeq = parseRecordId(recordId);
         if (
@@ -574,6 +581,7 @@ function subscribeSseMapped<T>(
         }
         // Defensive: never re-deliver a record at/before the resume point even
         // if a misbehaving server replays one (the server guarantees seq > after).
+        // Skipped on the live-only cold path where there is no resume point.
         if (after !== undefined && recordSeq !== undefined && recordSeq <= after) {
           return;
         }

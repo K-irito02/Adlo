@@ -46,6 +46,10 @@ const AD_SERVER_PROBE_TIMEOUT_MS = 2000;
 
 let adServerReachability: Promise<boolean> | null = null;
 const fallbackWarned = new Set<string>();
+// Debug instrumentation (Task 9): log once per baseUrl when the httpBridge
+// routes to the real ad-server, so a `pnpm dev:preview` session is verifiable
+// by eye in the console. Dev-only observability — no behavior impact.
+const adServerConnected = new Set<string>();
 
 /**
  * Probe the ad-server `/health` endpoint once (cached). Until Task 9 wires the
@@ -101,12 +105,18 @@ function preferHttpWhenReachable<T extends object>(
           string,
           (...callArgs: unknown[]) => unknown
         >;
-        if (!reachable) {
+        if (reachable) {
+          const key = `connected:${baseUrl}`;
+          if (!adServerConnected.has(key)) {
+            adServerConnected.add(key);
+            console.log(`[adl-bridge] using ad-server at ${baseUrl}`);
+          }
+        } else {
           const key = `${String(prop)}:${baseUrl}`;
           if (!fallbackWarned.has(key)) {
             fallbackWarned.add(key);
             console.warn(
-              `[preview-bridge] ad-server at ${baseUrl} is not reachable — "${String(
+              `[adl-bridge] ad-server at ${baseUrl} is not reachable — "${String(
                 prop,
               )}" falls back to the preview/mock implementation.`,
             );

@@ -21,3 +21,54 @@ async fn health_returns_ok_with_port() {
     assert!(body["startedAt"].as_i64().is_some(), "startedAt should be present, body: {body}");
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// The browser preview loads from the Vite dev server on a different port, so
+/// the ad-server must answer cross-origin requests with
+/// `Access-Control-Allow-Origin: *` (no credentials). Both a plain response and
+/// an OPTIONS preflight (triggered by the httpBridge's `content-type: json`)
+/// must carry the header.
+#[tokio::test]
+async fn cors_headers_on_every_response_and_preflight() {
+    let dir = std::env::temp_dir().join(format!("adl-cors-{}", uuid::Uuid::new_v4()));
+    let state = init_server_state(&dir).await.unwrap();
+    let app = app_router(state.clone()).with_state(state);
+
+    let resp = app
+        .clone()
+        .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    assert_eq!(
+        resp.headers().get("access-control-allow-origin").and_then(|v| v.to_str().ok()),
+        Some("*"),
+        "every response must carry Access-Control-Allow-Origin"
+    );
+
+    let preflight = app
+        .oneshot(
+            Request::builder()
+                .method("OPTIONS")
+                .uri("/session")
+                .header("origin", "http://127.0.0.1:5173")
+                .header("access-control-request-method", "POST")
+                .header("access-control-request-headers", "content-type")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(preflight.status(), StatusCode::OK, "preflight must be answered");
+    assert_eq!(
+        preflight.headers().get("access-control-allow-origin").and_then(|v| v.to_str().ok()),
+        Some("*"),
+        "preflight must carry Access-Control-Allow-Origin"
+    );
+    assert_eq!(
+        preflight.headers().get("access-control-allow-methods").and_then(|v| v.to_str().ok()),
+        Some("GET, POST, PATCH, DELETE, OPTIONS"),
+        "preflight must advertise allowed methods"
+    );
+
+    let _ = std::fs::remove_dir_all(&dir);
+}

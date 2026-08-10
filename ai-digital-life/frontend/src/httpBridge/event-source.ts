@@ -9,12 +9,22 @@
 
 export type EventSourceFactory = (url: string, options?: EventSourceInit) => EventSource;
 
+/** `?after=latest` sentinel: a cold subscribe skips the durable history replay
+ *  and streams live events only (the Task 8 flood — a fresh page load has no
+ *  last-seen seq, so a plain `/event` would replay the whole event_log). */
+export const SSE_LIVE_ONLY_AFTER = 'latest' as const;
+
 export interface SseSubscriptionOptions {
   baseUrl: string;
   /** Injectable EventSource constructor — tests pass a fake. */
   eventSourceFactory?: EventSourceFactory;
-  /** Initial `?after=` resume point (event_log seq). */
-  lastEventId?: number;
+  /**
+   * Initial `?after=` resume point (event_log seq), or the `'latest'`
+   * live-only sentinel for a cold subscribe. `undefined` opens a plain
+   * `/event` (server replays everything) — legacy behavior kept for callers
+   * that explicitly want full history.
+   */
+  lastEventId?: number | typeof SSE_LIVE_ONLY_AFTER;
   /**
    * Called with each SSE record's `data:` payload and the record `id:` (when
    * the server sent one). `data` is the raw JSON string of a
@@ -23,9 +33,16 @@ export interface SseSubscriptionOptions {
   onEvent: (data: string, recordId?: string) => void;
 }
 
-/** Build the `/event` URL, honoring a leading `?after=` resume point. */
-export function eventSourceUrl(baseUrl: string, lastEventId?: number): string {
+/** Build the `/event` URL, honoring a leading `?after=` resume point or the
+ *  `?after=latest` live-only sentinel. */
+export function eventSourceUrl(
+  baseUrl: string,
+  lastEventId?: number | typeof SSE_LIVE_ONLY_AFTER,
+): string {
   const base = baseUrl.replace(/\/+$/, '');
+  if (lastEventId === SSE_LIVE_ONLY_AFTER) {
+    return `${base}/event?after=${SSE_LIVE_ONLY_AFTER}`;
+  }
   return lastEventId !== undefined ? `${base}/event?after=${lastEventId}` : `${base}/event`;
 }
 

@@ -1,8 +1,50 @@
 use crate::handlers::{self, health};
 use crate::sse_server::{reply_handler_state, sse_handler_state};
 use crate::state::ServerState;
+use axum::body::Body;
+use axum::http::{Method, StatusCode, header};
+use axum::middleware::{self, Next};
+use axum::response::Response;
 use axum::Router;
 use axum::routing::{delete, get, patch, post};
+
+/// Permissive CORS for the standalone ad-server. The browser preview loads from
+/// the Vite dev server (`127.0.0.1:<vite-port>`) and calls the ad-server on a
+/// different ephemeral port — a cross-origin request. The engine binds
+/// `127.0.0.1` only, so reflecting any origin with `*` (no credentials) is the
+/// safe, dev-appropriate posture.
+///
+/// Handles the OPTIONS preflight (the `httpBridge` sends `content-type:
+/// application/json`, a non-simple header that triggers one) and stamps every
+/// response — including the SSE `/event` stream and the `/pty` WebSocket
+/// upgrade — with `Access-Control-Allow-Origin`.
+async fn cors_layer(
+    request: axum::http::Request<Body>,
+    next: Next,
+) -> Response<Body> {
+    let is_preflight = request.method() == Method::OPTIONS;
+    let mut response = if is_preflight {
+        let mut resp = Response::new(Body::empty());
+        *resp.status_mut() = StatusCode::OK;
+        resp
+    } else {
+        next.run(request).await
+    };
+    let headers = response.headers_mut();
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_ORIGIN,
+        header::HeaderValue::from_static("*"),
+    );
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_METHODS,
+        header::HeaderValue::from_static("GET, POST, PATCH, DELETE, OPTIONS"),
+    );
+    headers.insert(
+        header::ACCESS_CONTROL_ALLOW_HEADERS,
+        header::HeaderValue::from_static("content-type, last-event-id, x-ci-access-token, authorization"),
+    );
+    response
+}
 
 /// Compose the full ad-server HTTP router over [`ServerState`]: `/health`, the
 /// SSE stream `/event`, the `/question/:request_id/reply` endpoint and the
@@ -203,4 +245,5 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         )
         .route("/workspace/git-vis/branch-graph", post(handlers::workspace_git_vis::branch_graph))
         .route("/workspace/git-vis/file-hotspots", post(handlers::workspace_git_vis::file_hotspots))
+        .layer(middleware::from_fn(cors_layer))
 }

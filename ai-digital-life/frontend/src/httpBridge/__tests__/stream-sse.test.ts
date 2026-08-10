@@ -101,7 +101,7 @@ describe('httpBridge SSE event bridge', () => {
     );
 
     expect(got[0]).toMatchObject({ v: 1, runId: 'run-1', type: 'delta', text: 'hi' });
-    expect(esFactory).toHaveBeenCalledWith('http://127.0.0.1:9999/event');
+    expect(esFactory).toHaveBeenCalledWith('http://127.0.0.1:9999/event?after=latest');
   });
 
   it('uses ?after= for the initial lastEventId (resume-from replay)', async () => {
@@ -279,6 +279,17 @@ describe('httpBridge SSE event bridge', () => {
 });
 
 describe('Task 8 fix wave — live-only subscribe / reasoning-aware mapping / run-activity parity', () => {
+  it('a cold subscribe opens ?after=latest (live-only) instead of replaying the whole event_log', async () => {
+    const { esFactory } = makeBridge();
+    const { createHttpBridge } = await import('../../httpBridge');
+    createHttpBridge({
+      baseUrl: 'http://127.0.0.1:9999',
+      eventSourceFactory: esFactory,
+    }).subscribeModelStream(() => {});
+
+    expect(esFactory).toHaveBeenCalledWith('http://127.0.0.1:9999/event?after=latest');
+  });
+
   it('a fresh subscribe resumes from the last seen seq (?after=) and never re-delivers pre-subscribe records', async () => {
     const { sources, esFactory } = makeMintingFactory();
     const { createHttpBridge } = await import('../../httpBridge');
