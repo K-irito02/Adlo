@@ -1,7 +1,5 @@
+use crate::ad_server::AdServerHandle;
 use crate::state::AppState;
-use adl_agent_runtime::part_event_bus::PartEventBus;
-use adl_agent_runtime::question::QuestionService;
-use adl_browser::BrowserManager;
 use adl_kernel::config_watcher::ConfigWatcher;
 use adl_kernel::{config as adl_config, events::EventBus};
 use adl_model_gateway::adapter::ProviderAdapter;
@@ -18,15 +16,12 @@ use adl_model_gateway::providers::openrouter::OpenRouterProvider;
 use adl_model_gateway::registry::{
     ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry,
 };
-use adl_pty::SessionManager;
-use adl_storage::Database;
-use adl_storage::durable::DurableSessionManager;
 use adl_types::config::{ModelCapability, ModelDefinition};
 use adl_types::now_ms;
-use adl_workspace::strip_verbatim_prefix;
 use anyhow::Context;
 use reqwest::Client;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use tauri::Manager;
 use tracing::{info, warn};
@@ -296,6 +291,10 @@ fn register_builtin_providers(shared_client: &Client) -> ProviderRegistry {
     registry
 }
 
+/// Build the system-only shell state. Business (DB, workspace, providers,
+/// durable sessions, SSE) lives in the spawned `ad-server` process — the shell
+/// keeps config + log manager + provider registry (for `app_get_model_health`)
+/// + browser manager, then spawns the ad-server child.
 pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     let t0 = std::time::Instant::now();
 
@@ -331,38 +330,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     .context("failed to init log manager")?;
     info!("[ADL-PERF] log init: {}ms", t1.elapsed().as_millis());
 
-    let db_path = data_dir.join("state").join("app-state.db");
-    let t2 = std::time::Instant::now();
-    let db = Database::open(&db_path).context("failed to open database")?;
-    db.init_schema().context("failed to init schema")?;
-    info!("[ADL-PERF] db open+init: {}ms", t2.elapsed().as_millis());
-    let durable_manager = DurableSessionManager::new(db.clone());
-
-    let t4 = std::time::Instant::now();
-    adl_migration::run_pending(&db).context("failed to run migrations")?;
-    info!("[ADL-PERF] migrations: {}ms", t4.elapsed().as_millis());
-
-    // Run-activity housekeeping (best-effort).
-    let t5 = std::time::Instant::now();
-    adl_agent_runtime::run_activity_seq::init_run_activity_seq_seed();
-    let _ = db.prune_run_activity_events(Some(30_i64 * 24 * 60 * 60 * 1_000), Some(200_000));
-    info!("[ADL-PERF] housekeeping: {}ms", t5.elapsed().as_millis());
-
     let event_bus = EventBus::default();
-    let part_bus = PartEventBus::new(256);
-    let questions = QuestionService::new(part_bus.clone());
-    let t6 = std::time::Instant::now();
-    let current_workspace: Option<adl_types::WorkspaceMeta> = db
-        .get_state("current_workspace")
-        .ok()
-        .flatten()
-        .and_then(|value| serde_json::from_str(&value).ok())
-        .map(|mut w: adl_types::WorkspaceMeta| {
-            w.path = strip_verbatim_prefix(&w.path);
-            w.root_path = strip_verbatim_prefix(&w.root_path);
-            w
-        });
-    info!("[ADL-PERF] load workspace: {}ms", t6.elapsed().as_millis());
 
     let config_arc = Arc::new(RwLock::new(config));
 
@@ -381,11 +349,6 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     let mut provider_registry = register_builtin_providers(shared_client.as_ref());
 
     // Load user-defined custom providers from config (persisted across restarts).
-    // NOTE: ConfigWatcher hot-reloads AppConfig in the background task below, but
-    // custom_providers are only reflected in ProviderRegistry on next restart.
-    // Operators editing config.json directly should restart for changes to take
-    // effect; in-app add/remove_custom_provider commands always mutate both the
-    // in-memory registry and the on-disk config atomically.
     {
         let config_guard = match config_arc.read() {
             Ok(g) => g,
@@ -421,8 +384,6 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
             };
             provider_registry.register(
                 def,
-                // Reuse the shared connection-pooled HTTP client to avoid creating a
-                // per-custom-provider Client (each of which spawns background threads).
                 Box::new(OpenAIProvider::with_client_and_base_url(
                     (*shared_client).clone(),
                     cp.base_url.clone(),
@@ -433,79 +394,37 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     let provider_registry = Arc::new(RwLock::new(provider_registry));
     info!("[ADL-PERF] register providers: {}ms", t8.elapsed().as_millis());
 
+    // Spawn the ad-server child (business engine). Graceful: a missing binary or
+    // failed spawn leaves `base_url: None` and the shell runs system-only.
+    let ad_server = AdServerHandle::spawn(&data_dir);
+    info!("[ADL-PERF] ad-server spawn: {}ms", t0.elapsed().as_millis());
+
     info!("[ADL-PERF] init_app_state TOTAL: {}ms", t0.elapsed().as_millis());
 
     Ok(AppState {
         data_dir,
-        db,
         config: config_arc,
         event_bus,
-        current_workspace: RwLock::new(current_workspace),
-        editor_dirty_paths: std::sync::Mutex::new(std::collections::HashSet::new()),
-        pty_sessions: std::sync::Arc::new(std::sync::Mutex::new(SessionManager::new())),
-        browser_manager: BrowserManager::new(),
+        browser_manager: adl_browser::BrowserManager::new(),
         log_manager: Arc::new(log_manager),
         started_at: now_ms(),
-        durable_manager,
         provider_registry,
-        shared_http_client: shared_client,
-        provider_ops_mutex: tokio::sync::Mutex::new(()),
-        loop_cancels: tokio::sync::Mutex::new(std::collections::HashMap::new()),
-        part_bus,
-        questions,
-        sse_port: std::sync::Arc::new(std::sync::atomic::AtomicU16::new(0)),
+        ad_server,
     })
 }
 
-/// Start background tasks (config watcher, durable session recovery).
-/// Spawns a dedicated std thread with its own tokio runtime so it works during Tauri setup.
+/// Start background tasks for the system shell: hot-reload `config.json` into
+/// the shell's in-memory config (used by the kept app commands). The in-process
+/// SSE server and durable-session recovery now live in the ad-server process —
+/// this shell no longer runs them.
 pub fn start_background_tasks(state: &AppState) {
     let data_dir = state.data_dir.clone();
-    let durable_manager = state.durable_manager.clone();
     let config_arc = state.config.clone();
-    let sse_db = state.db.clone();
-    let part_bus = state.part_bus.clone();
-    let questions = state.questions.clone();
-    let sse_port = state.sse_port.clone();
 
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("failed to create background tokio runtime");
         rt.block_on(async move {
-            // 启动 SSE 服务：订阅共享 PartEventBus，向 /event 实时推送会话事件。
-            // SSE 总线已迁入 ad-server crate；桌面壳在过渡期仍使用进程内
-            // spawn_sse_server（不构造 ServerState），端口回写到 AppState.sse_port。
-            let sse_bus = ad_server::sse::SseEventBus::new(sse_db);
-            sse_bus.spawn(part_bus);
-            let port = ad_server::sse_server::spawn_sse_server(sse_bus, questions, sse_port.clone()).await;
-            tracing::info!(port, "SSE HTTP server started");
-
-            let recovery_manager = durable_manager;
-            let data_dir_watch = data_dir.clone();
-
-            // Background task: periodic check for crashed durable sessions
-            let recovery_handle = tokio::spawn(async move {
-                let mut interval = tokio::time::interval(std::time::Duration::from_secs(60));
-                loop {
-                    interval.tick().await;
-                    let crashed = recovery_manager.find_crashed_sessions().await;
-                    if !crashed.is_empty() {
-                        tracing::info!(
-                            "Found {} crashed durable sessions, initiating recovery",
-                            crashed.len()
-                        );
-                        for session in &crashed {
-                            recovery_manager.start_recovery(&session.session_id).await;
-                        }
-                    }
-                }
-            });
-
-            // Create ConfigWatcher and start watching config.json
-            // NOTE: Only simple config fields (theme/language/preferences) are
-            // truly hot-reloaded. Custom-provider registrations are NOT applied
-            // from background reloads; restart the app for those (see comment
-            // in init_app_state). This avoids complex race conditions between
-            // the add/remove command path and the file watcher.
+            // ConfigWatcher hot-reloads config.json into the shell config.
             let initial_config = match config_arc.read() {
                 Ok(g) => (*g).clone(),
                 Err(poisoned) => {
@@ -516,10 +435,10 @@ pub fn start_background_tasks(state: &AppState) {
             let config_watcher = ConfigWatcher::new(initial_config);
             let mut watcher_rx = config_watcher.subscribe();
 
-            let config_path = adl_config::config_path(&data_dir_watch);
+            let config_path = adl_config::config_path(&data_dir);
             let config_arc_watcher = config_arc.clone();
             let watcher_handle = tokio::spawn(async move {
-                config_watcher.start_watching(config_path, data_dir_watch).await;
+                config_watcher.start_watching(config_path, data_dir).await;
             });
 
             let config_update_handle = tokio::spawn(async move {
@@ -536,7 +455,7 @@ pub fn start_background_tasks(state: &AppState) {
                 }
             });
 
-            let _ = tokio::try_join!(recovery_handle, watcher_handle, config_update_handle);
+            let _ = tokio::try_join!(watcher_handle, config_update_handle);
         });
     });
 }

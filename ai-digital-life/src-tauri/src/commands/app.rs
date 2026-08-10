@@ -5,14 +5,64 @@ use adl_errors::AppError;
 use adl_types::{
     APP_NAME, AppInfo, AppPreferencePatch, ConfigSnapshot, EventDiagnostics, HealthComponent,
     HealthSnapshot, HealthStatus, IpcResult, LogEntrySummary, MigrationDiagnostics,
-    ModelGatewayHealthSnapshot, RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot, now_ms,
+    ModelGatewayHealthSnapshot, RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot,
+    WorkspaceMeta, now_ms,
 };
 use adl_workspace::strip_verbatim_prefix;
+use serde::Serialize;
 use tauri::Manager;
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerInfo {
+    pub base_url: Option<String>,
+    pub running: bool,
+}
+
+/// Task 10 — the desktop shell spawns the `ad-server` child and exposes its
+/// discovered base URL so the frontend `httpBridge` (desktop) connects to the
+/// real engine over HTTP/SSE/WS. `baseUrl` is `None` when the engine could not
+/// start (system-only desktop); the frontend falls back to its default URL.
 #[tauri::command]
-pub fn app_get_info(state: tauri::State<'_, AppState>) -> IpcResult<AppInfo> {
-    ipc(build_app_info(&state))
+pub fn app_get_server_info(state: tauri::State<'_, AppState>) -> IpcResult<ServerInfo> {
+    let base_url = state.ad_server.base_url();
+    ipc(Ok(ServerInfo { base_url: base_url.clone(), running: state.ad_server.is_running() }))
+}
+
+/// Parse the `/workspace/current` `IpcResult<Option<WorkspaceMeta>>` wire body into
+/// the active workspace. Pure + testable: `null` data (no active workspace) →
+/// `None`, malformed/unwrapped errors → `None`.
+fn parse_current_workspace_wire(wire: &serde_json::Value) -> Option<WorkspaceMeta> {
+    if !wire.get("ok")?.as_bool()? {
+        return None;
+    }
+    let data = wire.get("data")?;
+    if data.is_null() {
+        return None;
+    }
+    serde_json::from_value(data.clone()).ok()
+}
+
+/// Fetch the active workspace from the spawned ad-server (`GET /workspace/current`).
+/// The shell no longer owns the DB; the ad-server is the single source of truth
+/// for workspace state. Returns `None` when the engine is not running (graceful
+/// system-only degradation).
+async fn fetch_current_workspace(state: &AppState) -> Option<WorkspaceMeta> {
+    let base_url = state.ad_server.base_url()?;
+    let resp = reqwest::get(format!("{base_url}/workspace/current")).await.ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    let wire: serde_json::Value = resp.json().await.ok()?;
+    parse_current_workspace_wire(&wire)
+}
+
+#[tauri::command]
+pub async fn app_get_info(
+    state: tauri::State<'_, AppState>,
+) -> Result<IpcResult<AppInfo>, AppError> {
+    let current_workspace = fetch_current_workspace(&state).await;
+    Ok(ipc(build_app_info(&state, current_workspace)))
 }
 
 #[tauri::command]
@@ -30,7 +80,7 @@ pub fn app_get_health(_state: tauri::State<'_, AppState>) -> IpcResult<HealthSna
             HealthComponent {
                 name: "storage".into(),
                 status: HealthStatus::Healthy,
-                detail: "SQLite connection is open.".into(),
+                detail: "Business storage runs in the ad-server process.".into(),
                 updated_at: now,
             },
             HealthComponent {
@@ -185,11 +235,15 @@ pub async fn app_update_preferences(
         .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
         .map_err(|e| AppError::Config(e.to_string()))?;
     state.event_bus.emit(adl_kernel::events::AppEvent::ConfigChanged);
-    let info = build_app_info(&state)?;
+    let current_workspace = fetch_current_workspace(&state).await;
+    let info = build_app_info(&state, current_workspace)?;
     Ok(ipc(Ok(info)))
 }
 
-pub fn build_app_info(state: &AppState) -> Result<AppInfo, AppError> {
+pub fn build_app_info(
+    state: &AppState,
+    current_workspace: Option<WorkspaceMeta>,
+) -> Result<AppInfo, AppError> {
     let config =
         state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
     let resolved = match config.theme_mode {
@@ -197,16 +251,11 @@ pub fn build_app_info(state: &AppState) -> Result<AppInfo, AppError> {
         adl_types::ThemeMode::Dark => adl_types::Theme::Dark,
         adl_types::ThemeMode::System => adl_types::Theme::Light,
     };
-    let current_workspace = state
-        .current_workspace
-        .read()
-        .map_err(|_| AppError::Internal("workspace lock poisoned".into()))?
-        .clone()
-        .map(|mut w: adl_types::WorkspaceMeta| {
-            w.path = strip_verbatim_prefix(&w.path);
-            w.root_path = strip_verbatim_prefix(&w.root_path);
-            w
-        });
+    let current_workspace = current_workspace.map(|mut w| {
+        w.path = strip_verbatim_prefix(&w.path);
+        w.root_path = strip_verbatim_prefix(&w.root_path);
+        w
+    });
     Ok(AppInfo {
         app_name: APP_NAME.into(),
         version: env!("CARGO_PKG_VERSION").to_string(),
@@ -294,6 +343,67 @@ pub async fn app_set_log_mode(
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod server_info_tests {
+    use super::*;
+
+    #[test]
+    fn server_info_serializes_camel_case() {
+        let info = ServerInfo { base_url: Some("http://127.0.0.1:54321".into()), running: true };
+        let json = serde_json::to_value(&info).unwrap();
+        assert_eq!(json["baseUrl"], "http://127.0.0.1:54321");
+        assert_eq!(json["running"], true);
+    }
+
+    #[test]
+    fn server_info_none_base_url() {
+        let info = ServerInfo { base_url: None, running: false };
+        let json = serde_json::to_value(&info).unwrap();
+        assert!(json["baseUrl"].is_null());
+        assert_eq!(json["running"], false);
+    }
+
+    #[test]
+    fn parse_current_workspace_wire_null_data_is_none() {
+        let wire = serde_json::json!({ "ok": true, "data": null });
+        assert!(parse_current_workspace_wire(&wire).is_none());
+    }
+
+    #[test]
+    fn parse_current_workspace_wire_error_is_none() {
+        let wire = serde_json::json!({ "ok": false, "error": { "code": "INTERNAL_ERROR", "message": "boom" } });
+        assert!(parse_current_workspace_wire(&wire).is_none());
+    }
+
+    #[test]
+    fn parse_current_workspace_wire_malformed_is_none() {
+        assert!(parse_current_workspace_wire(&serde_json::json!(42)).is_none());
+        assert!(parse_current_workspace_wire(&serde_json::json!({ "ok": true })).is_none());
+    }
+
+    #[test]
+    fn parse_current_workspace_wire_returns_workspace() {
+        let wire = serde_json::json!({
+            "ok": true,
+            "data": {
+                "id": "ws-1",
+                "path": "C:\\proj",
+                "rootPath": "C:\\proj",
+                "name": "proj",
+                "type": "rust",
+                "status": "ready",
+                "gitSnapshot": null,
+                "createdAt": 123,
+                "updatedAt": 123,
+                "lastOpenedAt": 123
+            }
+        });
+        let ws = parse_current_workspace_wire(&wire).expect("workspace");
+        assert_eq!(ws.id, "ws-1");
+        assert_eq!(ws.root_path, "C:\\proj");
+    }
 }
 
 #[cfg(test)]

@@ -1,47 +1,14 @@
-pub mod agent;
-pub mod agent_loop;
-pub mod agent_pipeline;
-pub(crate) mod agent_pipeline_stream;
-pub mod agent_pipeline_types;
 pub mod app;
-pub mod audit;
 pub mod browser;
 pub(crate) mod browser_webview_setup;
-pub mod ci;
-pub mod command;
-pub mod commands_config;
-pub mod compaction;
-pub mod conversation;
-pub mod custom_agent;
-pub mod durable;
-pub mod git_vis_cache;
-pub mod lsp;
-pub mod mcp;
-pub mod patch;
-pub mod permission;
 pub mod platform;
 pub mod provider;
-pub mod pty_commands;
-pub mod reference;
 pub mod reserved;
-pub mod retrieval;
-pub mod run_activity;
-pub mod session_fork;
-pub mod snapshot;
-pub mod subagent;
-pub mod task;
-pub mod web_tools;
 pub mod workspace;
-pub mod workspace_git;
-pub mod workspace_git_vis;
-pub mod workspace_sidebar;
 
 use crate::error::CommandError;
 use adl_errors::AppError;
 use adl_types::IpcResult;
-use tauri::Emitter;
-
-pub use self::agent_pipeline_types::{CallModelContext, FinalizeRunContext, RunActivityContext};
 
 pub fn ipc<T>(result: Result<T, AppError>) -> IpcResult<T> {
     match result {
@@ -51,46 +18,6 @@ pub fn ipc<T>(result: Result<T, AppError>) -> IpcResult<T> {
             IpcResult::err(cmd_err.code, cmd_err.message)
         },
     }
-}
-
-pub fn ipc_try<T>(f: impl FnOnce() -> Result<T, AppError>) -> IpcResult<T> {
-    ipc(f())
-}
-
-// DEPRECATED: persistence write to EntityTable::RunActivityEvents was stopped
-// (spec §7.2 — stop ALL RunActivityEvents DB writes). The Tauri emit is kept:
-// the frontend still consumes `digital-life://run-activity`. Fields
-// `state`/`workspace_id`/`session_id`/`event` are now only used for call-site
-// API stability and are intentionally ignored.
-pub(crate) fn save_and_emit_run_activity(ctx: RunActivityContext<'_>) {
-    let _ = ctx.app.emit(
-        "digital-life://run-activity",
-        adl_kernel::events::run_activity_event(
-            ctx.run_id,
-            ctx.seq,
-            ctx.ts,
-            ctx.event_type,
-            ctx.extra,
-        ),
-    );
-}
-
-#[macro_export]
-macro_rules! workspace_cmd {
-    ($state:expr, $fn:path $(, $arg:expr)*) => {
-        $crate::commands::ipc_try(|| {
-            use std::path::PathBuf;
-            let ws = $state
-                .current_workspace
-                .read()
-                .map_err(|_| adl_errors::AppError::Internal("workspace lock poisoned".into()))?;
-            let ws = ws
-                .as_ref()
-                .ok_or(adl_errors::AppError::Workspace("no workspace open".into()))?;
-            let root = PathBuf::from(&ws.root_path);
-            $fn(root.as_path() $(, $arg)*)
-        })
-    };
 }
 
 #[cfg(test)]
@@ -114,28 +41,6 @@ mod tests {
             IpcResult::Err { ok: false, error } => {
                 assert_eq!(error.code, "NOT_FOUND");
                 assert!(error.message.contains("test"));
-            },
-            other => panic!("expected Err, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn ipc_try_closure_ok() {
-        let result: IpcResult<String> = ipc_try(|| Ok("hello".into()));
-        match result {
-            IpcResult::Ok { ok: true, data } => {
-                assert_eq!(data, "hello");
-            },
-            other => panic!("expected Ok, got {other:?}"),
-        }
-    }
-
-    #[test]
-    fn ipc_try_closure_err() {
-        let result: IpcResult<i32> = ipc_try(|| Err(AppError::Internal("fail".into())));
-        match result {
-            IpcResult::Err { ok: false, error } => {
-                assert_eq!(error.code, "INTERNAL_ERROR");
             },
             other => panic!("expected Err, got {other:?}"),
         }
