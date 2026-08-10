@@ -65,9 +65,16 @@
   overflow-wrap: anywhere;
 }
 
-.adl-part-question-list {
+/* ── Composer dock（SessionDocks）─────────────────────────────
+   Dock 容器同时带 `adl-part-scope`（在 SessionDocks.tsx 中），使内部
+   AskCard / TurnSummary 复用局部变量映射；自身沿用全局 bg/border 与
+   Composer 视觉一致。grid-row 放置见 center.css（.adl-center 第 3 行）。 */
+.adl-part-docks {
   display: grid;
   gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg);
 }
 
 /* ── 会话文件 tab 条（SessionFileTabs）─────────────────────── */

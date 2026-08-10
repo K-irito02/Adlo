@@ -59,6 +59,7 @@ function stripComments(css: string): string {
  *   - PartDiffPanel.tsx
  *   - AskCard.tsx
  *   - TurnSummary.tsx
+ *   - SessionDocks.tsx
  *   - PartConversation.tsx
  */
 const RENDERED_CLASSES = [
@@ -68,7 +69,7 @@ const RENDERED_CLASSES = [
   '.adl-part-message--user',
   '.adl-part-message--assistant',
   '.adl-part-message__text',
-  '.adl-part-question-list',
+  '.adl-part-docks',
   '.adl-part-markdown',
   '.adl-part-code',
   '.adl-part-tool',

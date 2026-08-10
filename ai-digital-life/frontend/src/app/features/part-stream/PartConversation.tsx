@@ -84,18 +84,17 @@ export interface PartConversationProps {
    * correlation); absent → user rows render only their parts.
    */
   userTextByMessageId?: ReadonlyMap<string, string>;
-  /** AskCard reply — the caller wires `conversation.replyToQuestion`. */
-  onReply: (requestID: string, answers: string[]) => void;
 }
 
 /**
  * S2 part-render conversation body: a thin shell over the virtualized
  * `PartTimeline` (react-window List rendering the PartStore message list —
- * user text + assistant parts via PartRenderer/ContextToolGroup — plus pending
- * AskCards and the TurnSummary). This is the PRIMARY render path in CenterPane
+ * user text + assistant parts via PartRenderer/ContextToolGroup). AskCards
+ * and the TurnSummary are rendered by the Composer dock `SessionDocks` (Task
+ * 3), NOT by the timeline. This is the PRIMARY render path in CenterPane
  * whenever the session has part data; the legacy `MessageStream` remains the
  * fallback for part-less sessions (it is NOT a compat layer for part data).
  */
-export function PartConversation({ state, userTextByMessageId, onReply }: PartConversationProps) {
-  return <PartTimeline state={state} userTextByMessageId={userTextByMessageId} onReply={onReply} />;
+export function PartConversation({ state, userTextByMessageId }: PartConversationProps) {
+  return <PartTimeline state={state} userTextByMessageId={userTextByMessageId} />;
 }

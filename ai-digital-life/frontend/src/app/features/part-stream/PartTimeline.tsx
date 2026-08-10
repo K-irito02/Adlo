@@ -2,17 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { List, useListRef, useDynamicRowHeight } from 'react-window';
 import type { ListProps } from 'react-window';
 import type { MessageRecord, PartRecord } from '../../../kernel/types-part';
-import {
-  type PartConversationProps,
-  mapPartTurnStatus,
-  resolvePartMessageRole,
-} from './PartConversation';
-import { normalizeQuestions } from './partTimelineUtils';
+import { type PartConversationProps, resolvePartMessageRole } from './PartConversation';
 import { groupParts, type PartRef } from './groupParts';
 import { PartRenderer } from './PartRenderer';
 import { ContextToolGroup } from './ContextToolGroup';
-import { AskCard } from './AskCard';
-import { TurnSummary } from './TurnSummary';
 import { useTCopy } from '../../i18n/useTCopy';
 
 interface TimelineRow {
@@ -84,10 +77,11 @@ TimelineRowComponent.displayName = 'TimelineRow';
  * Virtualized part timeline (react-window). Renders only the viewport rows —
  * user messages (text) and assistant messages (parts via groupParts →
  * PartRenderer / ContextToolGroup) — with dynamic row heights, mirroring the
- * `MessageStream` List pattern. AskCards and the TurnSummary stay at the
- * bottom, non-virtualized (they are few; Task 3 moves them to the Composer dock).
+ * `MessageStream` List pattern. Pending AskCards and the TurnSummary are NOT
+ * rendered here — Task 3 moved them to the Composer dock (`SessionDocks`,
+ * anchored above ComposerFooter in CenterPane).
  */
-export function PartTimeline({ state, userTextByMessageId, onReply }: PartConversationProps) {
+export function PartTimeline({ state, userTextByMessageId }: PartConversationProps) {
   const { t } = useTCopy();
   const listRef = useListRef(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -164,19 +158,6 @@ export function PartTimeline({ state, userTextByMessageId, onReply }: PartConver
         overscanCount={5}
         rowProps={rowProps}
       />
-      {state.questions.length > 0 ? (
-        <div className="adl-part-question-list">
-          {state.questions.map((question) => (
-            <AskCard
-              key={question.requestID}
-              requestID={question.requestID}
-              questions={normalizeQuestions(question.questions)}
-              onReply={onReply}
-            />
-          ))}
-        </div>
-      ) : null}
-      {state.status !== 'idle' ? <TurnSummary status={mapPartTurnStatus(state.status)} /> : null}
     </div>
   );
 }

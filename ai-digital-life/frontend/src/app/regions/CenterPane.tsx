@@ -8,6 +8,7 @@ import { useAppStore } from '../stores/slicedStore';
 import { useAppActions } from '../hooks/useAppActions';
 import { usePartStream } from '../features/part-stream/usePartStream';
 import { PartConversation } from '../features/part-stream/PartConversation';
+import { SessionDocks } from '../features/part-stream/SessionDocks';
 import { SessionFileTabs } from '../features/part-stream/SessionFileTabs';
 import {
   collectSessionFileParts,
@@ -371,11 +372,7 @@ const CenterPane = React.memo(function CenterPane() {
             {hasPartData && partState ? (
               <>
                 <SessionFileTabs files={sessionFileParts} onSelect={handleOpenFile} />
-                <PartConversation
-                  state={partState}
-                  userTextByMessageId={userTextByMessageId}
-                  onReply={handlePartReply}
-                />
+                <PartConversation state={partState} userTextByMessageId={userTextByMessageId} />
               </>
             ) : (
               <MessageStream
@@ -392,6 +389,15 @@ const CenterPane = React.memo(function CenterPane() {
           </>
         )}
       </div>
+
+      {/* Composer dock (S3 Task 3): AskCards + TurnSummary anchored above the
+          composer. Ordering: timeline (messages) → docks (questions/status) →
+          composer footer. onReply reuses the S2-wired reply endpoint. Gated on
+          `hasPartData` so a part-less session (legacy MessageStream fallback)
+          renders no part scope. */}
+      {hasPartData && partState ? (
+        <SessionDocks state={partState} onReply={handlePartReply} />
+      ) : null}
 
       {/* Region 10-12: Composer */}
       <ComposerFooter

@@ -149,7 +149,7 @@ select:focus-visible {
 
 .adl-center {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr auto auto;
   min-height: 0;
   min-width: 0;
   position: relative;
@@ -165,8 +165,12 @@ select:focus-visible {
   grid-row: 2;
 }
 
-.adl-composer {
+.adl-part-docks {
   grid-row: 3;
+}
+
+.adl-composer {
+  grid-row: 4;
 }
 
 .adl-center__header {

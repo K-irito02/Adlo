@@ -168,6 +168,7 @@ describe('i18n part-stream keys (S2 part renderers)', () => {
     'partTurnError',
     'partTurnCancelled',
     'partTurnRunning',
+    'partDocks',
   ] as const;
 
   it('every part-stream key exists in both locales with identical key sets', () => {

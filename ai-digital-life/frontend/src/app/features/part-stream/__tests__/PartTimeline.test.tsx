@@ -49,13 +49,7 @@ describe('PartTimeline', () => {
       { id: 'a1', role: 'assistant', text: 'world' },
     ]);
     const { container } = render(
-      wrap(
-        <PartTimeline
-          state={state}
-          userTextByMessageId={new Map([['u1', 'hello']])}
-          onReply={() => {}}
-        />,
-      ),
+      wrap(<PartTimeline state={state} userTextByMessageId={new Map([['u1', 'hello']])} />),
     );
     expect(container.textContent).toContain('hello');
     expect(container.textContent).toContain('world');
