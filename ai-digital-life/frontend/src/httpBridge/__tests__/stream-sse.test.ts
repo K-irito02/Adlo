@@ -477,6 +477,40 @@ describe('Task 8 fix wave — live-only subscribe / reasoning-aware mapping / ru
     expect(got).toHaveLength(1);
   });
 
+  it('keys run-done by the run id learned from the loop message events (Finding 3)', async () => {
+    const { fakeES } = makeBridge();
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({
+      baseUrl: 'http://127.0.0.1:9999',
+      eventSourceFactory: () => fakeES as unknown as EventSource,
+    });
+    const got: unknown[] = [];
+    bridge.subscribeRunActivity((e) => got.push(e));
+
+    // The loop goes busy, then publishes message events carrying the run id
+    // (assistant message id == run id), then a terminal session.status.
+    fakeES.emit(JSON.stringify({ type: 'session.status', sessionID: 's1', status: 'busy' }));
+    fakeES.emit(
+      JSON.stringify({
+        type: 'message.part.delta',
+        sessionID: 's1',
+        messageID: 'run-1',
+        partID: 'p1',
+        field: 'text',
+        delta: 'hi',
+      }),
+    );
+    fakeES.emit(JSON.stringify({ type: 'session.status', sessionID: 's1', status: 'active' }));
+
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatchObject({
+      v: 1,
+      runId: 'run-1',
+      type: 'run-done',
+      status: 'succeeded',
+    });
+  });
+
   it('emits an approval decided run-activity event for question.replied', async () => {
     const { fakeES } = makeBridge();
     const { createHttpBridge } = await import('../../httpBridge');

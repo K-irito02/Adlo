@@ -320,7 +320,13 @@ function terminalSessionStatus(status: string): AgentRunStatus | undefined {
  * Create the run-activity wire mapper. Stateful: tracks which sessions went
  * `busy` in this subscription so a terminal `session.status` only synthesizes a
  * `run-done` for a transition we actually observed (a resting session replayed
- * at subscribe time must not emit a spurious run-done).
+ * at subscribe time must not emit a spurious run-done). Also tracks each busy
+ * session's **run id** (learned from the message events the loop publishes —
+ * `message.part.updated` / `message.part.delta` carry `messageID`, and
+ * `message.created` / `message.updated` carry `info.id`, where the assistant
+ * message id == run id on the converged wire) so the terminal `run-done` is
+ * keyed by the run id, not the session id (Finding 3: `runActivityByRunId`
+ * must hold every event of the run, including the terminal line).
  *
  * Tool parts (`message.part.updated`) map to the agent run phases (command /
  * search / file-read / patch / approval). The remaining v1 event types that are
@@ -339,7 +345,19 @@ function createRunActivityMapper(): (
   seq: number,
 ) => DigitalLifeRunActivityEventV1[] {
   const busySessions = new Set<string>();
+  const sessionRunIds = new Map<string, string>();
   return (wire, seq) => {
+    const sessionID = wire.sessionID as string | undefined;
+    // Learn the run id for a busy session from any message event the loop
+    // publishes (assistant message id == run id on the converged wire).
+    if (typeof sessionID === 'string' && typeof wire.messageID === 'string') {
+      sessionRunIds.set(sessionID, wire.messageID);
+    } else if (typeof sessionID === 'string' && wire.type === 'message.updated') {
+      const info = (wire.info ?? {}) as { id?: string };
+      if (typeof info.id === 'string') {
+        sessionRunIds.set(sessionID, info.id);
+      }
+    }
     if (wire.type === 'session.status') {
       const sessionID = wire.sessionID as string | undefined;
       const status = wire.status as string | undefined;
@@ -358,7 +376,9 @@ function createRunActivityMapper(): (
       if (!runStatus) {
         return [];
       }
-      return [{ v: 1, runId: sessionID, seq, ts: Date.now(), type: 'run-done', status: runStatus }];
+      const runId = sessionRunIds.get(sessionID) ?? sessionID;
+      sessionRunIds.delete(sessionID);
+      return [{ v: 1, runId, seq, ts: Date.now(), type: 'run-done', status: runStatus }];
     }
     if (wire.type === 'question.replied') {
       const sessionID = wire.sessionID as string | undefined;
