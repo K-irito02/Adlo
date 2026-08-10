@@ -110,6 +110,49 @@
   white-space: nowrap;
 }
 
+/* ── 会话上下文侧栏（SessionSidePanel，S3 Task 5）────────────
+   会话关联文件 + patch 列表的上下文视图。根容器带 `adl-part-scope`
+   （SessionDocks 同款）使内部 PartDiffPanel 复用局部 `--adl-part-*`
+   变量；面板自身规则只消费全局 token（T2 CSS-fix 约定，不引用
+   scope-local 变量——本面板是 PartTimeline 的兄弟节点）。 */
+.adl-part-side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.adl-part-side-panel__title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+}
+
+.adl-part-side-panel__files {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.adl-part-side-panel__files li {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── Markdown 正文 ──────────────────────────────────────────── */
 .adl-part-markdown {
   color: var(--adl-part-text);

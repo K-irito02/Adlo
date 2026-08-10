@@ -10,6 +10,7 @@ import { usePartStream } from '../features/part-stream/usePartStream';
 import { PartConversation } from '../features/part-stream/PartConversation';
 import { SessionDocks } from '../features/part-stream/SessionDocks';
 import { SessionFileTabs } from '../features/part-stream/SessionFileTabs';
+import { SessionSidePanel } from '../features/part-stream/SessionSidePanel';
 import {
   collectSessionFileParts,
   filePartUrlToWorkspaceRelativePath,
@@ -385,6 +386,7 @@ const CenterPane = React.memo(function CenterPane() {
               <>
                 <SessionFileTabs files={sessionFileParts} onSelect={handleOpenFile} />
                 <PartConversation state={partState} userTextByMessageId={userTextByMessageId} />
+                <SessionSidePanel state={partState} />
               </>
             ) : (
               <MessageStream
