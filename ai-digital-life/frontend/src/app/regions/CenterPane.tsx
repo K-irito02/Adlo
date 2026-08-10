@@ -15,7 +15,6 @@ import {
   filePartUrlToWorkspaceRelativePath,
 } from '../features/part-stream/partFileUtils';
 import { asAgentRunID } from '../../shared/branded';
-import { clampSessionPanelWidth } from '../features/part-stream/sessionPanelLayout';
 
 import { CompactionIndicator } from '../components/conversation/CompactionIndicator';
 import { ForkButton } from '../features/session-fork/ForkButton';
@@ -102,59 +101,17 @@ const CenterPane = React.memo(function CenterPane() {
   const hasPartQuestions = (partState?.questions.length ?? 0) > 0;
   const hasPartData = hasPartMessages || hasPartQuestions;
 
-  // S3 Task 4: session-panel width constraint (OpenCode-aligned). The center
-  // column is `1fr` in the shell grid, so the chat content can grow to fill the
-  // whole remaining row. When the session has part data, cap the conversation
-  // content so the review pane (right panel) keeps at least its OpenCode
-  // minimum (REVIEW_PANE_WIDTH_MIN) and the chat never squeezes it on wide
-  // windows. `available` mirrors OpenCode's "layout row" = shell body width
-  // minus the leftbar; the center column width is measured via the section.
-  const centerRef = useRef<HTMLElement | null>(null);
-  const [centerMetrics, setCenterMetrics] = useState<{
-    rowAvailable: number | undefined;
-    centerWidth: number | undefined;
-  }>({ rowAvailable: undefined, centerWidth: undefined });
-
-  useEffect(() => {
-    const el = centerRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') {
-      return;
-    }
-    const measure = () => {
-      const shellBody = el.closest('.adl-shell__body') as HTMLElement | null;
-      if (!shellBody) {
-        return;
-      }
-      const leftbar = shellBody.querySelector('.adl-leftbar') as HTMLElement | null;
-      const leftWidth = leftbar?.getBoundingClientRect().width ?? 0;
-      const rowAvailable = shellBody.getBoundingClientRect().width - leftWidth;
-      const centerWidth = el.getBoundingClientRect().width;
-      setCenterMetrics({ rowAvailable, centerWidth });
-    };
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    measure();
-    window.addEventListener('resize', measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', measure);
-    };
-  }, []);
-
-  const centerContentMaxWidth = useMemo(() => {
-    if (!hasPartData) {
-      return undefined;
-    }
-    const { rowAvailable, centerWidth } = centerMetrics;
-    if (rowAvailable === undefined || centerWidth === undefined || centerWidth <= 0) {
-      return undefined;
-    }
-    return clampSessionPanelWidth({
-      width: centerWidth,
-      available: rowAvailable,
-      split: false,
-    });
-  }, [hasPartData, centerMetrics]);
+  // S3 Task 4: session-panel width constraint (OpenCode-aligned). The
+  // `sessionPanelLayout` module (part-stream) is a faithful port of OpenCode's
+  // chat-width clamp. It is deliberately NOT wired into this pane: OpenCode
+  // sizes the chat and review pane from ONE shared row, but ADL's shell grid is
+  // `var(--leftbar-width) minmax(0,1fr) minmax(0,var(--rightpanel-width))` —
+  // chat and right panel are INDEPENDENT columns, so the right panel already
+  // keeps its own fixed width regardless of how wide the chat grows. Wiring the
+  // clamp here would be a no-op at the default panel width and, when the right
+  // panel is narrow, would leave a dead gutter inside the center column while
+  // protecting nothing. The module + tests are retained for future wiring if a
+  // reading-width cap on the conversation is ever needed.
 
   /**
    * User prompt text by part-message id. The Part wire carries NO user text
@@ -385,7 +342,7 @@ const CenterPane = React.memo(function CenterPane() {
     hasPartData;
 
   return (
-    <section className="adl-center" aria-label={t.conversation} ref={centerRef}>
+    <section className="adl-center" aria-label={t.conversation}>
       {taskCenter?.pendingApprovals?.length ? (
         <div className="adl-center__approvals">
           {taskCenter.pendingApprovals.map((approval) => (
@@ -395,12 +352,7 @@ const CenterPane = React.memo(function CenterPane() {
       ) : null}
 
       {/* Region 8 / 9: Main stream area */}
-      <div
-        className={`adl-center__body${!hasMessages ? ' adl-center__body--empty' : ''}`}
-        style={
-          centerContentMaxWidth !== undefined ? { maxWidth: centerContentMaxWidth } : undefined
-        }
-      >
+      <div className={`adl-center__body${!hasMessages ? ' adl-center__body--empty' : ''}`}>
         {!hasMessages ? (
           <div className="adl-center__empty">
             <WelcomeState
