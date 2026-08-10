@@ -16,12 +16,13 @@ export type PartTurnStatus = 'idle' | 'busy' | 'error' | 'cancelled' | 'complete
  *
  * The wire canonicalizes terminal statuses to `"active"` (a resting session,
  * `canonical_terminal_status("idle")`), `"cancelled"` and `"error"` (S1
- * `agent_loop.rs`). The store's typed union is `'idle' | 'busy' | 'error' |
- * 'cancelled'` but the reducer casts the raw wire value, so `'active'` also
- * appears at runtime. Both `'idle'` and `'active'` are terminal resting states
- * → mapped to `'completed'` for the summary display (a busy run that ended).
+ * `agent_loop.rs`). `'active'` is a member of the store's typed union (the
+ * reducer casts the raw wire value, and `active` is the terminal resting
+ * status the server actually publishes). Both `'idle'` and `'active'` are
+ * terminal resting states → mapped to `'completed'` for the summary display
+ * (a busy run that ended).
  */
-export function mapPartTurnStatus(status: SessionPartState['status'] | 'active'): PartTurnStatus {
+export function mapPartTurnStatus(status: SessionPartState['status']): PartTurnStatus {
   switch (status) {
     case 'busy':
       return 'busy';

@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 import type { PartData } from '../../../../kernel/types-part';
+import type { SessionPartState } from '../partStoreTypes';
 import {
   createInitialPartState,
   reducePartEvent,
@@ -105,6 +106,19 @@ describe('PartStore reducer', () => {
     let s = createInitialPartState();
     s = reducePartEvent(s, { type: 'session.status', sessionID: 's1', status: 'busy' });
     expect(selectSessionStatus(s, 's1')).toBe('busy');
+  });
+
+  it('session.status active sets the terminal resting status', () => {
+    let s = createInitialPartState();
+    s = reducePartEvent(s, { type: 'session.status', sessionID: 's1', status: 'active' });
+    expect(selectSessionStatus(s, 's1')).toBe('active');
+  });
+
+  it('status union includes the wire resting status active', () => {
+    // The server publishes `session.status` with `active` as a terminal resting
+    // state; the reducer casts the raw wire value, so the union must admit it
+    // (PartStore.ts `as SessionPartState['status']`).
+    expectTypeOf<'active'>().toExtend<SessionPartState['status']>();
   });
 
   it('hydratePartHistory loads messages+parts', () => {

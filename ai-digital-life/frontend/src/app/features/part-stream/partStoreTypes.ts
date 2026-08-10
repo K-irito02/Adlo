@@ -9,7 +9,7 @@ export interface QuestionEntry {
 export interface SessionPartState {
   messages: Map<string, MessageRecord>;
   partsByMessage: Map<string, PartRecord[]>;
-  status: 'idle' | 'busy' | 'error' | 'cancelled';
+  status: 'idle' | 'active' | 'busy' | 'error' | 'cancelled';
   questions: QuestionEntry[];
 }
 
