@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const { mockInvoke } = vi.hoisted(() => ({
+const { mockInvoke, mockListen } = vi.hoisted(() => ({
   mockInvoke: vi.fn(),
+  mockListen: vi.fn(),
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -9,7 +10,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 vi.mock('@tauri-apps/api/event', () => ({
-  listen: vi.fn(() => Promise.resolve(() => {})),
+  listen: mockListen,
 }));
 
 import { createTauriWorkspaceBridge } from '../tauri-workspace';
@@ -20,89 +21,52 @@ function okResult<T>(data: T) {
 
 beforeEach(() => {
   mockInvoke.mockReset();
+  mockListen.mockReset();
+  mockListen.mockResolvedValue(() => {});
 });
 
-describe('workspaceBridge', () => {
-  it('listRecent calls invoke with workspace_list_recent', async () => {
-    mockInvoke.mockResolvedValue(okResult([]));
+describe('workspaceBridge (system shell capabilities)', () => {
+  it('pickDirectory opens the native folder dialog via Tauri invoke', async () => {
+    mockInvoke.mockResolvedValue(okResult('/picked/path'));
     const bridge = createTauriWorkspaceBridge();
-    await bridge.listRecent();
-    expect(mockInvoke).toHaveBeenCalledWith('workspace_list_recent', undefined);
+    const res = await bridge.pickDirectory();
+    expect(mockInvoke).toHaveBeenCalledWith('workspace_pick_directory', undefined);
+    expect(res).toEqual({ ok: true, data: '/picked/path' });
   });
 
-  it('open calls invoke with workspace_open and args', async () => {
-    mockInvoke.mockResolvedValue(okResult({}));
+  it('pickDirectory maps a cancelled dialog (null) to undefined', async () => {
+    mockInvoke.mockResolvedValue(okResult(null));
     const bridge = createTauriWorkspaceBridge();
-    await bridge.open('/test/path');
-    expect(mockInvoke).toHaveBeenCalledWith('workspace_open', { workspacePath: '/test/path' });
+    const res = await bridge.pickDirectory();
+    expect(res).toEqual({ ok: true, data: undefined });
   });
 
-  it('clearCurrent calls invoke with workspace_clear_current', async () => {
+  it('revealInFileManager reveals the path in the OS file manager via Tauri invoke', async () => {
     mockInvoke.mockResolvedValue(okResult(true));
     const bridge = createTauriWorkspaceBridge();
-    await bridge.clearCurrent();
-    expect(mockInvoke).toHaveBeenCalledWith('workspace_clear_current', undefined);
-  });
-
-  it('listTree calls invoke with workspace_list_tree', async () => {
-    mockInvoke.mockResolvedValue(okResult([]));
-    const bridge = createTauriWorkspaceBridge();
-    await bridge.listTree();
-    expect(mockInvoke).toHaveBeenCalledWith('workspace_list_tree', undefined);
-  });
-
-  it('search calls invoke with workspace_search', async () => {
-    mockInvoke.mockResolvedValue(okResult([]));
-    const bridge = createTauriWorkspaceBridge();
-    await bridge.search('query');
-    expect(mockInvoke).toHaveBeenCalledWith('workspace_search', { query: 'query' });
-  });
-
-  it('pin calls invoke with workspace_pin', async () => {
-    mockInvoke.mockResolvedValue(okResult([]));
-    const bridge = createTauriWorkspaceBridge();
-    await bridge.pin('ws-1');
-    expect(mockInvoke).toHaveBeenCalledWith('workspace_pin', { workspaceId: 'ws-1' });
-  });
-
-  it('getGitStatus calls invoke with workspace_get_git_status', async () => {
-    mockInvoke.mockResolvedValue(okResult({}));
-    const bridge = createTauriWorkspaceBridge();
-    await bridge.getGitStatus();
-    expect(mockInvoke).toHaveBeenCalledWith('workspace_get_git_status', undefined);
-  });
-
-  it('readFile calls invoke with workspace_read_file', async () => {
-    mockInvoke.mockResolvedValue(okResult({}));
-    const bridge = createTauriWorkspaceBridge();
-    await bridge.readFile('src/main.ts');
-    expect(mockInvoke).toHaveBeenCalledWith('workspace_read_file', { relativePath: 'src/main.ts' });
-  });
-
-  it('createFile calls invoke with workspace_create_file', async () => {
-    mockInvoke.mockResolvedValue(okResult({}));
-    const bridge = createTauriWorkspaceBridge();
-    await bridge.createFile('test.txt', 'content');
-    expect(mockInvoke).toHaveBeenCalledWith('workspace_create_file', {
-      relativePath: 'test.txt',
-      content: 'content',
+    const res = await bridge.revealInFileManager('E:/project/src/main.ts');
+    expect(mockInvoke).toHaveBeenCalledWith('workspace_reveal_in_file_manager', {
+      path: 'E:/project/src/main.ts',
     });
+    expect(res).toEqual({ ok: true, data: true });
   });
 
-  it('deleteFile calls invoke with workspace_delete_file', async () => {
-    mockInvoke.mockResolvedValue(okResult(true));
+  it('onFileChanged subscribes to the Tauri file-change channel', () => {
     const bridge = createTauriWorkspaceBridge();
-    await bridge.deleteFile('old.txt');
-    expect(mockInvoke).toHaveBeenCalledWith('workspace_delete_file', { relativePath: 'old.txt' });
-  });
+    const listener = vi.fn();
+    const unsubscribe = bridge.onFileChanged(listener);
 
-  it('stageFile calls invoke with workspace_git_stage_file', async () => {
-    mockInvoke.mockResolvedValue(okResult(undefined));
-    const bridge = createTauriWorkspaceBridge();
-    await bridge.stageFile('file.ts');
-    expect(mockInvoke).toHaveBeenCalledWith('workspace_git_stage_file', {
-      relativePath: 'file.ts',
-      workspacePath: undefined,
-    });
+    expect(mockListen).toHaveBeenCalledWith(
+      'digital-life://workspace-file-changed',
+      expect.any(Function),
+    );
+
+    const handler = mockListen.mock.calls[0][1];
+    const event = { path: 'src/main.ts', lastModifiedAt: 123 };
+    handler({ payload: event });
+    expect(listener).toHaveBeenCalledWith(event);
+
+    expect(typeof unsubscribe).toBe('function');
+    unsubscribe();
   });
 });

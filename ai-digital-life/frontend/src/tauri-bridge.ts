@@ -1,1 +1,1 @@
-export { createTauriBridge, isTauriShell } from './tauri-bridge/index';
+export { createTauriBridge, isTauriShell, resolveTauriServerBaseUrl } from './tauri-bridge/index';

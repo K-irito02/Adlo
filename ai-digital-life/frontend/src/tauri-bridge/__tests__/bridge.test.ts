@@ -21,7 +21,7 @@ vi.mock('@tauri-apps/plugin-shell', () => ({
   open: mockShellOpen,
 }));
 
-import { createTauriBridge } from '../index';
+import { createTauriBridge, resolveTauriServerBaseUrl } from '../index';
 
 function okResult<T>(data: T) {
   return { ok: true as const, data };
@@ -41,6 +41,25 @@ beforeEach(() => {
       json: async () => ({ ok: true, data: null }),
     } as Response),
   );
+});
+
+describe('resolveTauriServerBaseUrl (Task 10 baseUrl discovery)', () => {
+  it('returns the baseUrl reported by app_get_server_info', async () => {
+    mockInvoke.mockResolvedValue(okResult({ baseUrl: 'http://127.0.0.1:54321' }));
+    await expect(resolveTauriServerBaseUrl()).resolves.toBe('http://127.0.0.1:54321');
+  });
+
+  it('falls back to the default ad-server URL when the engine is not running', async () => {
+    mockInvoke.mockResolvedValue(okResult({ baseUrl: null }));
+    const { DEFAULT_ADL_SERVER_BASE_URL } = await import('../../httpBridge');
+    await expect(resolveTauriServerBaseUrl()).resolves.toBe(DEFAULT_ADL_SERVER_BASE_URL);
+  });
+
+  it('falls back to the default when the invoke rejects', async () => {
+    mockInvoke.mockRejectedValue(new Error('invoke failed'));
+    const { DEFAULT_ADL_SERVER_BASE_URL } = await import('../../httpBridge');
+    await expect(resolveTauriServerBaseUrl()).resolves.toBe(DEFAULT_ADL_SERVER_BASE_URL);
+  });
 });
 
 describe('createTauriBridge provider domain', () => {
@@ -159,15 +178,52 @@ describe('createTauriBridge system-capability domains stay on Tauri (audit)', ()
     expect(res).toEqual({ ok: true, data: { name: 'adl' } });
   });
 
-  it('pty domain uses Tauri invoke, not the httpBridge NOT_SUPPORTED stubs', async () => {
-    mockInvoke.mockResolvedValue(okResult({ sessionId: 's1' }));
-    const bridge = createTauriBridge('http://127.0.0.1:9999');
-    const res = await bridge.pty.create({ cols: 80, rows: 24 });
+  it('pty domain uses the shared WebSocket /pty client, not Tauri invoke', async () => {
+    class FakeWebSocket {
+      static instances: FakeWebSocket[] = [];
+      sent: string[] = [];
+      readyState = 0; // CONNECTING
+      onopen: (() => void) | null = null;
+      onmessage: ((event: { data: string }) => void) | null = null;
+      onclose: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      constructor(public url: string) {
+        FakeWebSocket.instances.push(this);
+      }
+      send(data: string): void {
+        this.sent.push(data);
+      }
+      close(): void {
+        this.readyState = 3;
+      }
+      open(): void {
+        this.readyState = 1;
+        this.onopen?.();
+      }
+    }
 
-    expect(mockInvoke).toHaveBeenCalledWith('pty_create', {
-      input: { cols: 80, rows: 24 },
-    });
-    expect(res).toEqual({ ok: true, data: { sessionId: 's1' } });
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+    try {
+      const bridge = createTauriBridge('http://127.0.0.1:9999');
+      const promise = bridge.pty.create({ cols: 80, rows: 24 });
+
+      const socket = FakeWebSocket.instances[0];
+      expect(socket).toBeTruthy();
+      expect(socket.url).toBe('ws://127.0.0.1:9999/pty');
+      // Frame is queued until the socket opens, then flushed.
+      expect(socket.sent).toEqual([]);
+      socket.open();
+      expect(socket.sent).toEqual([
+        JSON.stringify({ kind: 'create', shell: undefined, cwd: undefined, cols: 80, rows: 24 }),
+      ]);
+      socket.onmessage?.({ data: JSON.stringify({ kind: 'created', sessionId: 's1' }) });
+      await expect(promise).resolves.toEqual({ ok: true, data: { sessionId: 's1' } });
+
+      // No Tauri pty_* invoke commands remain.
+      expect(mockInvoke).not.toHaveBeenCalledWith('pty_create', expect.anything());
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('reserved domain uses Tauri invoke, not the httpBridge NOT_SUPPORTED stubs', async () => {
