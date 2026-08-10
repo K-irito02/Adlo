@@ -16,7 +16,6 @@ import type { LspBridge } from '../shared/ipc/lsp';
 import type { PermissionBridge } from '../shared/ipc/permission';
 import type { ProviderBridge } from '../shared/ipc/provider';
 import type { ReferenceBridge } from '../shared/ipc/reference';
-import type { ReservedBridge } from '../shared/ipc/reserved';
 import type { RetrievalBridge } from '../shared/ipc/retrieval';
 import type { RunActivityBridge } from '../shared/ipc/run-activity';
 import type { SessionForkBridge } from '../shared/ipc/session_fork';
@@ -153,6 +152,21 @@ export function setupPreviewBridge(): void {
     onFileChanged: eventsBridge.onFileChanged,
   };
 
+  // `workspace.pickDirectory` (native folder dialog) and
+  // `workspace.revealInFileManager` (OS file-manager reveal) are system
+  // capabilities with NO ad-server HTTP route — the httpBridge implementations
+  // are `NOT_SUPPORTED` stubs (httpBridge.ts 279/297). The desktop merge keeps
+  // them on the Tauri invoke impl (tauri-bridge/index.ts); the browser merge
+  // keeps them on the real preview impls (`preview-workspace.ts` pickDirectory
+  // → `/workspace/pick-directory`, revealInFileManager → `/workspace/reveal`)
+  // while every other `workspace.*` RPC stays on httpBridge.
+  const workspaceHttp: WorkspaceBridge = {
+    ...http.workspace,
+    pickDirectory: workspacePreview.pickDirectory,
+    revealInFileManager: workspacePreview.revealInFileManager,
+    onFileChanged: workspacePreview.onFileChanged,
+  };
+
   const previewBridge: DigitalLifeBridge = {
     subscribePtyOutput: ptyBridge.subscribePtyOutput,
     pty: ptyBridge.pty,
@@ -164,7 +178,7 @@ export function setupPreviewBridge(): void {
     } satisfies AppBridge,
     workspace: preferHttpWhenReachable<WorkspaceBridge>(
       adlServerBaseUrl,
-      http.workspace,
+      workspaceHttp,
       workspacePreview,
     ),
     retrieval: preferHttpWhenReachable<RetrievalBridge>(
@@ -266,11 +280,12 @@ export function setupPreviewBridge(): void {
       http.durable,
       mockDigitalLifeBridge.durable,
     ),
-    reserved: preferHttpWhenReachable<ReservedBridge>(
-      adlServerBaseUrl,
-      http.reserved,
-      mockDigitalLifeBridge.reserved,
-    ),
+    // `reserved` (ACP/HTTP-API/CodeMode) has NO ad-server HTTP routes — the
+    // httpBridge implementations are all `NOT_SUPPORTED` stubs. The desktop
+    // keeps `reserved: createTauriReservedBridge()` on Tauri invoke; the
+    // browser keeps the preview/mock impl unconditionally (never wrapped in
+    // preferHttpWhenReachable).
+    reserved: mockDigitalLifeBridge.reserved,
     customAgent: preferHttpWhenReachable<CustomAgentBridge>(
       adlServerBaseUrl,
       http.customAgent,
