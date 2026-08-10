@@ -17,12 +17,24 @@ export function filePartUrlToWorkspaceRelativePath(
   workspaceRoot?: string,
 ): string | undefined {
   let path = url;
+  let isFileUrl = false;
   if (path.startsWith('file://')) {
     // `file:///C:/ws/src/a.ts` → `C:/ws/src/a.ts` (strip the empty host slash
     // before a Windows drive); `file:///home/u/ws/a.ts` → `/home/u/ws/a.ts`.
+    isFileUrl = true;
     path = path.slice('file://'.length);
     if (/^\/[a-zA-Z]:[\\/]/.test(path)) {
       path = path.slice(1);
+    }
+  }
+  if (isFileUrl) {
+    // `file://` URLs percent-encode their path (`my%20file.ts` → `my file.ts`);
+    // decode before the workspace-root comparison so both sides are plain paths.
+    try {
+      path = decodeURIComponent(path);
+    } catch {
+      // Malformed percent-escape — the URL cannot be mapped reliably.
+      return undefined;
     }
   }
   path = path.replace(/\\/g, '/');

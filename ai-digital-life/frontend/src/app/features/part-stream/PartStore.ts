@@ -19,7 +19,12 @@ function sessionState(state: PartState, sessionID: string): SessionPartState {
 function cloneSession(prev: SessionPartState): SessionPartState {
   return {
     messages: new Map(prev.messages),
-    partsByMessage: new Map(Array.from(prev.partsByMessage, ([k, v]) => [k, [...v]])),
+    // Shallow map copy: parts arrays are immutable here — every mutation path
+    // (`message.part.updated`/`message.part.delta`) replaces the touched
+    // message's array with a fresh one, never mutating in place. Reusing the
+    // untouched arrays preserves their identity across deltas so the timeline's
+    // memoized rows can bail out when their message's parts did not change.
+    partsByMessage: new Map(prev.partsByMessage),
     status: prev.status,
     questions: [...prev.questions],
   };

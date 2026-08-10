@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { List, useListRef, useDynamicRowHeight } from 'react-window';
 import type { ListProps } from 'react-window';
 import type { MessageRecord, PartRecord } from '../../../kernel/types-part';
@@ -26,51 +26,84 @@ function partByRef(
   return partsByMessage.get(ref.messageID)?.find((p) => p.id === ref.partID);
 }
 
-const TimelineRowComponent = ({
-  index,
-  style,
-  rows,
-  partsByMessage,
-}: {
-  index: number;
-  style: React.CSSProperties;
-  rows: RowProps['rows'];
-  partsByMessage: RowProps['partsByMessage'];
-}) => {
-  const row = rows[index];
-  if (!row) {
-    return null;
-  }
-  const parts = partsByMessage.get(row.message.id) ?? [];
-  return (
-    <div style={{ ...style, height: 'auto', minHeight: style.height }}>
-      {row.role === 'user' ? (
-        <article className="adl-part-message adl-part-message--user">
-          <div className="adl-part-message__text">{row.text}</div>
-        </article>
-      ) : (
-        <article className="adl-part-message adl-part-message--assistant">
-          {groupParts(parts.map((part) => ({ messageID: row.message.id, part }))).map((group) =>
-            group.type === 'context' ? (
-              <ContextToolGroup
-                key={group.key}
-                parts={group.refs
-                  .map((ref) => partByRef(ref, partsByMessage))
-                  .filter((p): p is PartRecord => !!p)}
-              />
-            ) : (
-              <PartRenderer
-                key={group.key}
-                message={row.message}
-                part={partByRef(group.ref, partsByMessage) as PartRecord}
-              />
-            ),
-          )}
-        </article>
-      )}
-    </div>
-  );
-};
+/**
+ * Memoized row — mirrors `MessageStream`'s fix for the re-render storm. During
+ * streaming every SSE delta rebuilds `rows` + `partsByMessage`, so without a
+ * comparator every visible row re-rendered per token chunk. The comparator only
+ * re-renders a row when its actual render deps changed: the row's message
+ * reference, role, text, and — for assistant rows — the parts-array identity of
+ * that message (preserved across deltas by `cloneSession`'s shallow copy).
+ */
+const TimelineRowComponent = memo(
+  ({
+    index,
+    style,
+    rows,
+    partsByMessage,
+  }: {
+    index: number;
+    style: React.CSSProperties;
+    rows: RowProps['rows'];
+    partsByMessage: RowProps['partsByMessage'];
+  }) => {
+    const row = rows[index];
+    if (!row) {
+      return null;
+    }
+    const parts = partsByMessage.get(row.message.id) ?? [];
+    return (
+      <div style={{ ...style, height: 'auto', minHeight: style.height }}>
+        {row.role === 'user' ? (
+          <article className="adl-part-message adl-part-message--user">
+            <div className="adl-part-message__text">{row.text}</div>
+          </article>
+        ) : (
+          <article className="adl-part-message adl-part-message--assistant">
+            {groupParts(parts.map((part) => ({ messageID: row.message.id, part }))).map((group) =>
+              group.type === 'context' ? (
+                <ContextToolGroup
+                  key={group.key}
+                  parts={group.refs
+                    .map((ref) => partByRef(ref, partsByMessage))
+                    .filter((p): p is PartRecord => !!p)}
+                />
+              ) : (
+                <PartRenderer
+                  key={group.key}
+                  message={row.message}
+                  part={partByRef(group.ref, partsByMessage) as PartRecord}
+                />
+              ),
+            )}
+          </article>
+        )}
+      </div>
+    );
+  },
+  (prevProps, nextProps) => {
+    if (prevProps.index !== nextProps.index) {
+      return false;
+    }
+    const row = prevProps.rows[prevProps.index];
+    const nextRow = nextProps.rows[nextProps.index];
+    if (!row || !nextRow) {
+      return row === nextRow;
+    }
+    if (row.message !== nextRow.message) {
+      return false;
+    }
+    if (row.role !== nextRow.role) {
+      return false;
+    }
+    if (row.text !== nextRow.text) {
+      return false;
+    }
+    return (
+      prevProps.partsByMessage.get(row.message.id) ===
+      nextProps.partsByMessage.get(nextRow.message.id)
+    );
+  },
+);
 TimelineRowComponent.displayName = 'TimelineRow';
 
 /**
@@ -92,8 +125,22 @@ export function PartTimeline({ state, userTextByMessageId }: PartConversationPro
   const rows = useMemo((): TimelineRow[] => {
     const ordered: TimelineRow[] = [];
     let lastUserText: string | undefined;
+    // Index the parentID linkage once per state (O(n)) so role resolution is
+    // O(1) per row instead of scanning all messages per row (O(n²) while
+    // streaming a 500+ message session).
+    const parentIdSet = new Set<string>();
     for (const message of state.messages.values()) {
-      const role = resolvePartMessageRole(message, state.messages, state.partsByMessage);
+      if (message.parentID) {
+        parentIdSet.add(message.parentID);
+      }
+    }
+    for (const message of state.messages.values()) {
+      const role = resolvePartMessageRole(
+        message,
+        state.messages,
+        state.partsByMessage,
+        parentIdSet,
+      );
       if (role === 'user') {
         const text = userTextByMessageId?.get(message.id);
         const hasParts = (state.partsByMessage.get(message.id)?.length ?? 0) > 0;

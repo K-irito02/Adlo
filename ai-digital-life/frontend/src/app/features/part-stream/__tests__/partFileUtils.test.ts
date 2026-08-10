@@ -18,6 +18,18 @@ describe('filePartUrlToWorkspaceRelativePath', () => {
     expect(filePartUrlToWorkspaceRelativePath('C:\\WS\\src\\b.ts', 'c:\\ws')).toBe('src/b.ts');
   });
 
+  it('percent-decodes a file url path (space in filename)', () => {
+    expect(filePartUrlToWorkspaceRelativePath('file:///C:/ws/my%20file.ts', 'C:/ws')).toBe(
+      'my file.ts',
+    );
+  });
+
+  it('returns undefined for a file url with a malformed percent-escape', () => {
+    expect(
+      filePartUrlToWorkspaceRelativePath('file:///C:/ws/bad%file.ts', 'C:/ws'),
+    ).toBeUndefined();
+  });
+
   it('returns undefined for absolute urls outside the workspace or remote urls', () => {
     expect(
       filePartUrlToWorkspaceRelativePath('file:///C:/elsewhere/a.txt', 'C:/ws'),

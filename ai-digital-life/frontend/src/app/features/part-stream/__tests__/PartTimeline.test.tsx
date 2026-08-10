@@ -54,4 +54,35 @@ describe('PartTimeline', () => {
     expect(container.textContent).toContain('hello');
     expect(container.textContent).toContain('world');
   });
+
+  it('resolves a part-less, role-less message that is a parentID to a user row', () => {
+    const state = makeState([{ id: 'a1', role: 'assistant' }]);
+    state.messages.set('u1', {
+      id: 'u1',
+      sessionID: 's1',
+      role: undefined,
+      timeCreated: 0,
+    } as never);
+    state.partsByMessage.set('a1', [
+      {
+        id: 'a1-p1',
+        messageID: 'a1',
+        sessionID: 's1',
+        type: 'text',
+        ordinal: 0,
+        timeCreated: 0,
+        data: { type: 'text', text: 'assistant answer' },
+      } as never,
+    ]);
+    const { container } = render(
+      wrap(
+        <PartTimeline
+          state={state}
+          userTextByMessageId={new Map([['u1', 'parent-linked prompt']])}
+        />,
+      ),
+    );
+    expect(container.textContent).toContain('parent-linked prompt');
+    expect(container.textContent).toContain('assistant answer');
+  });
 });

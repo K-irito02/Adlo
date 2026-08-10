@@ -48,11 +48,17 @@ export function mapPartTurnStatus(status: SessionPartState['status']): PartTurnS
  *      children is the `kick_agent_run` user announcement (published before the
  *      loop saves the hydrated `MessageRecord`); it renders the user prompt
  *      from the legacy ConversationMessageRecord until hydrate arrives.
+ *
+ * `parentIdSet` (optional) is the O(1) hoisted form of step 3's per-row scan:
+ * the timeline builds it once per state instead of scanning all messages per
+ * row during streaming. Both step 3 and step 4 resolve to 'user', so the
+ * lookup choice never changes the outcome — it only removes the O(n) scan.
  */
 export function resolvePartMessageRole(
   message: MessageRecord,
   messages: ReadonlyMap<string, MessageRecord>,
   partsByMessage: ReadonlyMap<string, PartRecord[]>,
+  parentIdSet?: ReadonlySet<string>,
 ): 'user' | 'assistant' {
   if (message.role === 'user') {
     return 'user';
@@ -62,6 +68,10 @@ export function resolvePartMessageRole(
   }
   if ((partsByMessage.get(message.id)?.length ?? 0) > 0) {
     return 'assistant';
+  }
+  if (parentIdSet) {
+    // S2 heuristic step 3, indexed: is this message the parentID of another?
+    return parentIdSet.has(message.id) ? 'user' : 'user';
   }
   for (const candidate of messages.values()) {
     if (candidate.parentID === message.id) {
