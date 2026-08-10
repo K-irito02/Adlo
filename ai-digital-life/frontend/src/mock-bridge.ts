@@ -108,6 +108,12 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   subscribeModelStream: () => () => undefined,
   subscribeRunActivity: () => () => undefined,
   subscribeTerminalStream: () => () => undefined,
+  // Contract: the S2 PartStore raw SSE subscription. In the pure browser mock
+  // (no ad-server) the PartStore has nothing to replay — demo part events are
+  // synthesized by the demo simulator on the *mapped* v1 channels instead, so
+  // this stays a no-op returning the sync unsubscribe. The preview-bridge
+  // delegates the real stream to httpBridge; tauri-bridge does the same.
+  subscribeSessionPartEvents: () => () => undefined,
   subscribePtyOutput,
 
   setLogMode: async (target: 'terminal' | 'debug', mode: 'overwrite' | 'append' | 'multi') => {

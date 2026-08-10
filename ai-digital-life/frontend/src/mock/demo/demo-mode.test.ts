@@ -27,6 +27,7 @@ function makeBaseBridge(): DigitalLifeBridge {
     subscribeRunActivity: () => () => {},
     subscribeTerminalStream: () => () => {},
     subscribePtyOutput: () => () => {},
+    subscribeSessionPartEvents: () => () => {},
     setLogMode: async () => {},
     window: {} as DigitalLifeBridge['window'],
     app: { getInfo: async () => ({ ok: true, data: { appName: 'real', version: '0', config: {} } as never }), getHealth: async () => ({ ok: true, data: {} as never }), getDiagnostics: async () => ({ ok: true, data: {} as never }), getModelHealth: async () => ({ ok: true, data: {} as never }), updatePreferences: async () => ({ ok: true, data: {} as never }) },

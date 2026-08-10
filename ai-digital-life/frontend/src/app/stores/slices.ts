@@ -145,6 +145,9 @@ export { type ReferenceSlice, createReferenceSlice } from './slices/referenceSli
 // Durable 切片
 export { type DurableSlice, createDurableSlice } from './slices/durableSlice';
 
+// Part 渲染切片（S2 渲染内核）
+export { type PartStreamSlice, createPartStreamSlice } from './slices/partStreamSlice';
+
 // Toast 切片（全局通知）
 export { type ToastSlice, createToastSlice } from './slices/toastSlice';
 

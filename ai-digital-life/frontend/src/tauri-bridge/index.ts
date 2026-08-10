@@ -17,8 +17,10 @@ import { invokeIpc } from './tauri-shared';
  * while the system/shell capabilities stay on Tauri invoke: `window`, `app`,
  * `browser`, `reserved`, `workspace.pickDirectory` / `revealInFileManager` /
  * `onFileChanged`, `provider.getProviderApiKey` / `hasProviderApiKey` and
- * `setLogMode`. The four stream subscriptions use the httpBridge SSE `/event`
- * and the shared `/pty` WebSocket client — identical to the browser preview.
+ * `setLogMode`. The stream subscriptions use the httpBridge SSE `/event`
+ * (the three v1-mapped `subscribe*` plus the raw `subscribeSessionPartEvents`
+ * for the S2 PartStore) and the shared `/pty` WebSocket client — identical to
+ * the browser preview.
  *
  * @param baseUrl ad-server base URL; when omitted, falls back to
  * `resolveAdlServerBaseUrl()` (used when the engine did not start, e.g. dev).

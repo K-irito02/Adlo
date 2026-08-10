@@ -73,6 +73,7 @@ import type { ReferenceSlice } from './slices/referenceSlice';
 import type { DurableSlice } from './slices/durableSlice';
 import type { ToastSlice } from './slices/toastSlice';
 import type { NotificationSlice } from './slices/notificationSlice';
+import type { PartStreamSlice } from './slices/partStreamSlice';
 import type { ReferenceConfig } from '@shared/ipc/reference';
 import type { PermissionRule } from '@shared/ipc/permission';
 import type { SnapshotRecord, RevertResult } from '@shared/ipc/snapshot';
@@ -150,6 +151,7 @@ type AllSlices = [
   DurableSlice,
   ToastSlice,
   NotificationSlice,
+  PartStreamSlice,
 ];
 
 interface WorkspaceActions {

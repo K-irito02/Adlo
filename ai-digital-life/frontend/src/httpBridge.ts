@@ -101,6 +101,7 @@ import type {
 import type { SubagentTask, TaskToolInput, TaskToolOutput } from './shared/ipc/subagent';
 import type { SymbolInfo, DiagnosticInfo } from './shared/ipc/lsp';
 import type { DurableSessionState } from './shared/ipc/durable';
+import type { SseWireEvent } from './app/features/part-stream/partStoreTypes';
 import { repoMapEntriesToTree } from './shared/repoMapFromEntries';
 import {
   subscribeEventSource,
@@ -218,6 +219,30 @@ function parseSseWire(data: string): Record<string, unknown> | null {
     // malformed record — ignore
   }
   return null;
+}
+
+/**
+ * Narrow a decoded `/event` wire record into a `SseWireEvent` by its `type`
+ * discriminator. This is the boundary cast: the SSE infra delivers records as
+ * `Record<string, unknown>`, and the S2 PartStore consumes the FULL raw wire
+ * (no v1 mapping — unlike the Task 8 model/activity/terminal mappers, which
+ * drop message.created / question.*). Records whose `type` is not part of the
+ * SessionPartEvent union are dropped at the boundary.
+ */
+function parseSessionPartEvent(wire: Record<string, unknown>): SseWireEvent | null {
+  const t = wire.type;
+  if (
+    t !== 'message.created' &&
+    t !== 'message.updated' &&
+    t !== 'message.part.updated' &&
+    t !== 'message.part.delta' &&
+    t !== 'session.status' &&
+    t !== 'question.asked' &&
+    t !== 'question.replied'
+  ) {
+    return null;
+  }
+  return wire as unknown as SseWireEvent;
 }
 
 /**
@@ -665,6 +690,20 @@ export function createHttpBridge({
       eventSourceFactory,
       lastSeqRef,
       mapTerminalStreamWire,
+    ),
+    // Raw SessionPartEvent subscription (S2 Part 渲染内核): reuses the same
+    // `/event` EventSource infra + lastSeqRef as the mapped streams above, but
+    // forwards EVERY parsed record verbatim (no v1 mapping) so the PartStore
+    // reducer sees message.created / message.part.* / session.status /
+    // question.*. The listener filters by `sessionID` itself.
+    subscribeSessionPartEvents: subscribeSseMapped<SseWireEvent>(
+      baseUrl,
+      eventSourceFactory,
+      lastSeqRef,
+      (wire) => {
+        const evt = parseSessionPartEvent(wire);
+        return evt ? [evt] : [];
+      },
     ),
     subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) =>
       getPtyClient().subscribePtyOutput(listener),

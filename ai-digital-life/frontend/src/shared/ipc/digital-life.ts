@@ -11,6 +11,7 @@ export type {
 };
 
 import type { PtyOutputEvent } from './pty';
+import type { SseWireEvent } from '../../app/features/part-stream/partStoreTypes';
 import type { WindowBridge } from './window';
 import type { AppBridge } from './app';
 import type { WorkspaceBridge } from './workspace';
@@ -87,6 +88,20 @@ export interface DigitalLifeBridge {
    * @see preview-bridge/index.ts → subscribePtyOutput
    */
   subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) => () => void;
+  /**
+   * 订阅会话 Part 原始 SSE 事件流（S2 Part 渲染内核）。
+   * 与 `subscribeModelStream` 共用同一 `/event` EventSource 基建，但**不做 v1
+   * 映射**：每个解析后的 `SseWireEvent` 记录原样转发（消息/Part/状态/提问），
+   * 由监听方自行按 `sessionID` 过滤。冷启动走 `?after=latest`，之后从最近
+   * 消费的 event_log seq 恢复。
+   * @param listener 接收原始 `/event` 解析后的 `SseWireEvent` 记录
+   * @returns 取消订阅的函数（同步）
+   * @command 无独立命令（通过 ad-server `/event` SSE）
+   * @see tauri-bridge.ts → subscribeSessionPartEvents（`...http` 委托 httpBridge）
+   * @see preview-bridge/index.ts → subscribeSessionPartEvents（委托 httpBridge）
+   * @see mock-bridge.ts → subscribeSessionPartEvents
+   */
+  subscribeSessionPartEvents: (listener: (event: SseWireEvent) => void) => () => void;
   /**
    * 设置日志模式
    * @param target 'terminal' | 'debug'

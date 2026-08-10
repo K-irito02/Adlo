@@ -308,6 +308,10 @@ export function setupPreviewBridge(): void {
     subscribeModelStream: http.subscribeModelStream,
     subscribeRunActivity: http.subscribeRunActivity,
     subscribeTerminalStream: http.subscribeTerminalStream,
+    // Raw SessionPartEvent stream (S2 PartStore): delegates to httpBridge like
+    // the other SSE subscriptions — the PartStore needs the full wire, so this
+    // is intentionally not the preview/mock fallback (which no-ops).
+    subscribeSessionPartEvents: http.subscribeSessionPartEvents,
     setLogMode: mockDigitalLifeBridge.setLogMode,
   };
 

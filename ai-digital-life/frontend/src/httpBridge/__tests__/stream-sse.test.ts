@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import type { SseWireEvent } from '../../app/features/part-stream/partStoreTypes';
 
 /**
  * Task 8 TDD — SSE event bridge over EventSource.
@@ -171,6 +172,66 @@ describe('httpBridge SSE event bridge', () => {
     );
 
     expect(got[0]).toMatchObject({ v: 1, runId: 'run-1', type: 'done' });
+  });
+
+  it('forwards every raw SessionPartEvent wire record to the part-stream listener (no v1 mapping)', async () => {
+    const { fakeES, esFactory } = makeBridge();
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({
+      baseUrl: 'http://127.0.0.1:9999',
+      eventSourceFactory: esFactory,
+    });
+    const got: SseWireEvent[] = [];
+    bridge.subscribeSessionPartEvents((e) => got.push(e));
+
+    fakeES.emit(JSON.stringify({ type: 'session.status', sessionID: 's1', status: 'busy' }));
+    fakeES.emit(
+      JSON.stringify({
+        type: 'message.created',
+        sessionID: 's1',
+        info: { id: 'm1', finish: null },
+      }),
+    );
+    fakeES.emit(
+      JSON.stringify({
+        type: 'message.part.updated',
+        sessionID: 's1',
+        messageID: 'm1',
+        partID: 'p1',
+        part: { id: 'p1', type: 'text', data: { type: 'text', text: '' } },
+      }),
+    );
+    fakeES.emit(
+      JSON.stringify({
+        type: 'question.asked',
+        sessionID: 's1',
+        requestID: 'q1',
+        questions: [],
+      }),
+    );
+
+    expect(got).toHaveLength(4);
+    expect(got[0]).toMatchObject({ type: 'session.status', sessionID: 's1', status: 'busy' });
+    expect(got[1]).toMatchObject({ type: 'message.created', sessionID: 's1' });
+    expect(got[2]).toMatchObject({ type: 'message.part.updated', messageID: 'm1' });
+    expect(got[3]).toMatchObject({ type: 'question.asked', requestID: 'q1' });
+    expect(esFactory).toHaveBeenCalledWith('http://127.0.0.1:9999/event?after=latest');
+  });
+
+  it('drops wire records that are not part of the SessionPartEvent union', async () => {
+    const { fakeES } = makeBridge();
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({
+      baseUrl: 'http://127.0.0.1:9999',
+      eventSourceFactory: () => fakeES as unknown as EventSource,
+    });
+    const got: SseWireEvent[] = [];
+    bridge.subscribeSessionPartEvents((e) => got.push(e));
+
+    fakeES.emit(JSON.stringify({ type: 'patch.pending', sessionID: 's1' }));
+    fakeES.emit(JSON.stringify({ nope: true }));
+
+    expect(got).toHaveLength(0);
   });
 
   it('returns a synchronous unsubscribe that closes the EventSource', async () => {

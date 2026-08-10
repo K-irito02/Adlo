@@ -41,6 +41,7 @@ import {
   createDurableSlice,
   createToastSlice,
   createNotificationSlice,
+  createPartStreamSlice,
 } from './slices';
 import { createGitVisSlice } from './slices/gitVisSlice';
 import { hydrateGitHubRepoSlice } from './slices/githubRepoSliceHelpers';
@@ -123,6 +124,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createToastSlice(set, get), // 全局 Toast 通知
   ...createNotificationSlice(set, get), // 通知系统
   ...createGitVisSlice(set, get), // Git 可视化数据缓存
+  ...createPartStreamSlice(set, get), // Part 渲染状态（S2：messages/parts/status）
 
   // ════════════════════════════════════════════════════════
   // 根级状态
