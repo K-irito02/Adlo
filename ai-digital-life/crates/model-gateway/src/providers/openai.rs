@@ -22,12 +22,46 @@ struct OpenAIModelsResponse {
     data: Vec<OpenAIModelItem>,
 }
 
+/// Parse an OpenAI-compatible `usage` payload, normalizing the many cache
+/// token field spellings (DeepSeek, xAI, Alibaba, moonshot) into our
+/// `ModelTokenUsage`. Mirrors OpenCode `oaCompatHelper.normalizeUsage`.
+pub fn parse_openai_compat_usage(json: &serde_json::Value) -> Option<ModelTokenUsage> {
+    let u = &json["usage"];
+    if !u.is_object() {
+        return None;
+    }
+    let prompt_tokens = u["prompt_tokens"].as_u64().map(|v| v as u32);
+    let completion_tokens = u["completion_tokens"].as_u64().map(|v| v as u32);
+    let total_tokens = u["total_tokens"].as_u64().map(|v| v as u32);
+    let details = &u["prompt_tokens_details"];
+    let cache_read = details["cached_tokens"]
+        .as_u64()
+        .or_else(|| u["cached_tokens"].as_u64())
+        .or_else(|| u["prompt_cache_hit_tokens"].as_u64());
+    let cache_write = details["cache_creation_input_tokens"].as_u64();
+    Some(ModelTokenUsage {
+        prompt_tokens,
+        completion_tokens,
+        total_tokens,
+        cache_creation_input_tokens: cache_write.map(|v| v as u32),
+        cache_read_input_tokens: cache_read.map(|v| v as u32),
+        ..Default::default()
+    })
+}
+
 /// Extract a text or reasoning delta from an OpenAI-compatible SSE chunk.
 ///
 /// Priority: `delta.reasoning_content` (DeepSeek) → `delta.thinking`
 /// (OpenAI o-series) → `delta.content` (normal text). Returns `Skip` when
-/// none are present.
+/// none are present. A final chunk with empty choices carrying usage yields
+/// `Usage`.
 pub fn extract_openai_delta(json: &serde_json::Value) -> SseEvent {
+    let choices = json["choices"].as_array();
+    if choices.map(|c| c.is_empty()).unwrap_or(false) {
+        if let Some(usage) = parse_openai_compat_usage(json) {
+            return SseEvent::Usage(usage);
+        }
+    }
     let delta = &json["choices"][0]["delta"];
     if let Some(t) = delta["reasoning_content"].as_str() {
         if !t.is_empty() {
@@ -247,6 +281,7 @@ impl ProviderAdapter for OpenAIProvider {
         let json = send_chat_request(&builder, "OpenAI").await?;
 
         let content = json["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string();
+        let cache_usage = parse_openai_compat_usage(&json);
 
         Ok(ModelResponse {
             provider_id: "openai".to_string(),
@@ -259,6 +294,12 @@ impl ProviderAdapter for OpenAIProvider {
                 prompt_tokens: json["usage"]["prompt_tokens"].as_u64().map(|v| v as u32),
                 completion_tokens: json["usage"]["completion_tokens"].as_u64().map(|v| v as u32),
                 total_tokens: json["usage"]["total_tokens"].as_u64().map(|v| v as u32),
+                cache_creation_input_tokens: cache_usage
+                    .as_ref()
+                    .and_then(|u| u.cache_creation_input_tokens),
+                cache_read_input_tokens: cache_usage
+                    .as_ref()
+                    .and_then(|u| u.cache_read_input_tokens),
                 estimated: Some(false),
                 ..Default::default()
             }),
@@ -273,7 +314,12 @@ impl ProviderAdapter for OpenAIProvider {
         _options: &ChatOptions,
         api_key: &str,
     ) -> Result<StreamReader, AppError> {
-        let body = build_request_body(model, messages, true, None);
+        let body = build_request_body(
+            model,
+            messages,
+            true,
+            Some(serde_json::json!({"stream_options": { "include_usage": true }})),
+        );
 
         let url = format!("{}/chat/completions", self.base_url);
         let builder = HttpRequestBuilder::new(self.client.clone(), url)
@@ -392,6 +438,54 @@ mod tests {
     fn extract_openai_delta_skip_when_empty() {
         let json = serde_json::json!({"choices": [{"delta": {}}]});
         assert!(matches!(extract_openai_delta(&json), SseEvent::Skip));
+    }
+
+    #[test]
+    fn parse_openai_compat_usage_deepseek_cache_hit() {
+        let json = serde_json::json!({
+            "usage": {
+                "prompt_tokens": 100,
+                "completion_tokens": 50,
+                "total_tokens": 150,
+                "prompt_cache_hit_tokens": 80,
+                "prompt_cache_miss_tokens": 20,
+            }
+        });
+        let u = parse_openai_compat_usage(&json).expect("usage");
+        assert_eq!(u.prompt_tokens, Some(100));
+        assert_eq!(u.cache_read_input_tokens, Some(80));
+    }
+
+    #[test]
+    fn parse_openai_compat_usage_details_cached() {
+        let json = serde_json::json!({
+            "usage": {
+                "prompt_tokens": 100,
+                "prompt_tokens_details": {
+                    "cached_tokens": 40,
+                    "cache_creation_input_tokens": 5,
+                },
+                "completion_tokens": 10,
+            }
+        });
+        let u = parse_openai_compat_usage(&json).expect("usage");
+        assert_eq!(u.cache_read_input_tokens, Some(40));
+        assert_eq!(u.cache_creation_input_tokens, Some(5));
+    }
+
+    #[test]
+    fn extract_openai_delta_usage_chunk() {
+        let json = serde_json::json!({
+            "choices": [],
+            "usage": { "prompt_tokens": 5, "completion_tokens": 3 }
+        });
+        match extract_openai_delta(&json) {
+            SseEvent::Usage(u) => {
+                assert_eq!(u.prompt_tokens, Some(5));
+                assert_eq!(u.completion_tokens, Some(3));
+            },
+            other => panic!("expected Usage, got {other:?}"),
+        }
     }
 
     #[test]

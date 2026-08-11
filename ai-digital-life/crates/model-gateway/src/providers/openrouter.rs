@@ -1,6 +1,7 @@
 use crate::adapter::{ChatOptions, ProviderAdapter, StreamReader};
 use crate::http_helper::{HttpRequestBuilder, send_chat_request, send_stream_request};
 use crate::providers::base::{build_request_body, parse_sse_stream};
+use crate::providers::openai::parse_openai_compat_usage;
 use adl_errors::AppError;
 use adl_types::ConversationRole;
 use adl_types::config::{ModelCapability, ModelDefinition, ModelTier};
@@ -197,6 +198,7 @@ impl ProviderAdapter for OpenRouterProvider {
         let json = send_chat_request(&builder, "OpenRouter").await?;
 
         let content = json["choices"][0]["message"]["content"].as_str().unwrap_or("").to_string();
+        let cache_usage = parse_openai_compat_usage(&json);
 
         Ok(ModelResponse {
             provider_id: "openrouter".to_string(),
@@ -209,6 +211,12 @@ impl ProviderAdapter for OpenRouterProvider {
                 prompt_tokens: json["usage"]["prompt_tokens"].as_u64().map(|v| v as u32),
                 completion_tokens: json["usage"]["completion_tokens"].as_u64().map(|v| v as u32),
                 total_tokens: json["usage"]["total_tokens"].as_u64().map(|v| v as u32),
+                cache_creation_input_tokens: cache_usage
+                    .as_ref()
+                    .and_then(|u| u.cache_creation_input_tokens),
+                cache_read_input_tokens: cache_usage
+                    .as_ref()
+                    .and_then(|u| u.cache_read_input_tokens),
                 estimated: Some(false),
                 ..Default::default()
             }),
@@ -223,7 +231,12 @@ impl ProviderAdapter for OpenRouterProvider {
         _options: &ChatOptions,
         api_key: &str,
     ) -> Result<StreamReader, AppError> {
-        let body = build_request_body(model, messages, true, None);
+        let body = build_request_body(
+            model,
+            messages,
+            true,
+            Some(serde_json::json!({"stream_options": { "include_usage": true }})),
+        );
 
         let url = format!("{}/chat/completions", self.base_url);
         let builder = HttpRequestBuilder::new(self.client.clone(), url)
