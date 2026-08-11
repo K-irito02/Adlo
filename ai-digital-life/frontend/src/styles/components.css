@@ -16,6 +16,7 @@
 @import './components/settings.css';
 @import './components/model-selector.css';
 @import './components/toast.css';
+@import './components/error-toast.css';
 @import './components/icon.css';
 @import './components/button.css';
 @import './components/input.css';

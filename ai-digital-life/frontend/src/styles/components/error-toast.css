@@ -1,0 +1,156 @@
+/* ==========================================================================
+   Error Toast (persistent bottom-right error notifications)
+   --------------------------------------------------------------------------
+   - Bottom-right region, newest closest to bottom (column-reverse)
+   - Small radius (slightly-curved right angles)
+   - Collapsible/expandable + copy + close actions; summary when over limit
+   ========================================================================== */
+
+.error-toast-region {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-2);
+  width: min(400px, calc(100vw - var(--space-8)));
+  max-width: 400px;
+  pointer-events: none;
+}
+
+.error-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2-5);
+  padding: var(--space-3);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(8px);
+  color: var(--text-primary);
+}
+
+.error-toast__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: var(--space-px);
+  color: var(--color-danger);
+}
+
+.error-toast__icon svg {
+  display: block;
+}
+
+.error-toast__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.error-toast__title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  line-height: var(--leading-normal);
+  color: var(--color-danger);
+}
+
+.error-toast__detail {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.error-toast.is-collapsed .error-toast__detail {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.error-toast__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.error-toast__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--duration-150) var(--ease-enter),
+    color var(--duration-150) var(--ease-enter);
+}
+
+.error-toast__btn:hover {
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+}
+
+.error-toast__btn svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+.error-toast--summary {
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+}
+
+.error-toast__summary-text {
+  flex: 1;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.error-toast--summary .error-toast__btn {
+  width: auto;
+  height: auto;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-danger);
+}
+
+/* 开发模式测试按钮（左下角，避开右下角报错区；仅 DEV 渲染） */
+.dev-error-buttons {
+  position: fixed;
+  left: var(--space-5);
+  bottom: var(--space-5);
+  z-index: var(--z-toast);
+  display: flex;
+  gap: var(--space-2);
+  pointer-events: auto;
+}
+
+.dev-error-buttons button {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: color var(--duration-150) var(--ease-enter);
+}
+
+.dev-error-buttons button:hover {
+  color: var(--text-primary);
+}
