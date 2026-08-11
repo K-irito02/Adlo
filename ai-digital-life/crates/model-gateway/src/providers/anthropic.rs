@@ -198,6 +198,10 @@ impl ProviderAdapter for AnthropicProvider {
             (Some(p), Some(c)) => Some(p + c),
             _ => None,
         };
+        let cache_creation_input_tokens =
+            json["usage"]["cache_creation_input_tokens"].as_u64().map(|v| v as u32);
+        let cache_read_input_tokens =
+            json["usage"]["cache_read_input_tokens"].as_u64().map(|v| v as u32);
 
         Ok(ModelResponse {
             provider_id: "anthropic".to_string(),
@@ -210,6 +214,8 @@ impl ProviderAdapter for AnthropicProvider {
                 prompt_tokens,
                 completion_tokens,
                 total_tokens,
+                cache_creation_input_tokens,
+                cache_read_input_tokens,
                 estimated: Some(false),
                 ..Default::default()
             }),
@@ -331,6 +337,31 @@ fn extract_anthropic_event(json: &serde_json::Value) -> SseEvent {
                 _ => SseEvent::Skip,
             }
         },
+        Some("message_delta") => {
+            let u = &json["message"]["usage"];
+            if u.is_object() {
+                let prompt_tokens = u["input_tokens"].as_u64().map(|v| v as u32);
+                let completion_tokens = u["output_tokens"].as_u64().map(|v| v as u32);
+                let total_tokens = match (prompt_tokens, completion_tokens) {
+                    (Some(p), Some(c)) => Some(p + c),
+                    _ => None,
+                };
+                SseEvent::Usage(ModelTokenUsage {
+                    prompt_tokens,
+                    completion_tokens,
+                    total_tokens,
+                    cache_creation_input_tokens: u["cache_creation_input_tokens"]
+                        .as_u64()
+                        .map(|v| v as u32),
+                    cache_read_input_tokens: u["cache_read_input_tokens"]
+                        .as_u64()
+                        .map(|v| v as u32),
+                    ..Default::default()
+                })
+            } else {
+                SseEvent::Skip
+            }
+        },
         Some("message_stop") => SseEvent::Done,
         _ => SseEvent::Skip,
     }
@@ -436,6 +467,30 @@ mod tests {
     fn extract_anthropic_message_stop() {
         let json = serde_json::json!({"type": "message_stop"});
         assert!(matches!(extract_anthropic_event(&json), SseEvent::Done));
+    }
+
+    #[test]
+    fn extract_anthropic_message_delta_usage() {
+        let json = serde_json::json!({
+            "type": "message_delta",
+            "message": {
+                "usage": {
+                    "input_tokens": 10,
+                    "output_tokens": 5,
+                    "cache_creation_input_tokens": 2,
+                    "cache_read_input_tokens": 8,
+                }
+            }
+        });
+        match extract_anthropic_event(&json) {
+            SseEvent::Usage(u) => {
+                assert_eq!(u.prompt_tokens, Some(10));
+                assert_eq!(u.completion_tokens, Some(5));
+                assert_eq!(u.cache_creation_input_tokens, Some(2));
+                assert_eq!(u.cache_read_input_tokens, Some(8));
+            },
+            other => panic!("expected Usage, got {other:?}"),
+        }
     }
 
     #[test]

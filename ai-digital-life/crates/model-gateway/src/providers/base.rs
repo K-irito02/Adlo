@@ -10,6 +10,9 @@ pub enum SseEvent {
     Delta(String),
     /// A reasoning/thinking delta chunk to yield.
     Reasoning(String),
+    /// A usage payload observed mid-stream (e.g. Anthropic `message_delta`).
+    /// Recorded and attached to the next `Done`.
+    Usage(ModelTokenUsage),
     /// Stream is done.
     Done,
     /// No matching event in this JSON value.
@@ -21,13 +24,8 @@ pub fn sse_event_to_chunk(event: SseEvent) -> Option<StreamChunk> {
     match event {
         SseEvent::Delta(d) => Some(StreamChunk::Delta(d)),
         SseEvent::Reasoning(r) => Some(StreamChunk::ReasoningDelta(r)),
-        SseEvent::Done => Some(StreamChunk::Done(ModelTokenUsage {
-            prompt_tokens: None,
-            completion_tokens: None,
-            total_tokens: None,
-            estimated: None,
-            ..Default::default()
-        })),
+        SseEvent::Done => Some(StreamChunk::Done(ModelTokenUsage::default())),
+        SseEvent::Usage(_) => None,
         SseEvent::Skip => None,
     }
 }
@@ -46,32 +44,22 @@ where
 {
     use tokio_stream::StreamExt;
 
+    let mut pending_usage: Option<ModelTokenUsage> = None;
     let stream = response.bytes_stream().map(move |chunk| {
         let chunk = chunk.map_err(|e| AppError::Model(e.to_string()))?;
         let text = String::from_utf8_lossy(&chunk);
         for line in text.lines() {
             if let Some(data) = line.strip_prefix("data: ") {
                 if data == "[DONE]" {
-                    return Ok(StreamChunk::Done(ModelTokenUsage {
-                        prompt_tokens: None,
-                        completion_tokens: None,
-                        total_tokens: None,
-                        estimated: None,
-                        ..Default::default()
-                    }));
+                    return Ok(StreamChunk::Done(pending_usage.clone().unwrap_or_default()));
                 }
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
                     match extract(&json) {
+                        SseEvent::Usage(u) => pending_usage = Some(u),
                         SseEvent::Delta(d) => return Ok(StreamChunk::Delta(d)),
                         SseEvent::Reasoning(r) => return Ok(StreamChunk::ReasoningDelta(r)),
                         SseEvent::Done => {
-                            return Ok(StreamChunk::Done(ModelTokenUsage {
-                                prompt_tokens: None,
-                                completion_tokens: None,
-                                total_tokens: None,
-                                estimated: None,
-                                ..Default::default()
-                            }));
+                            return Ok(StreamChunk::Done(pending_usage.clone().unwrap_or_default()));
                         },
                         SseEvent::Skip => {},
                     }
@@ -166,6 +154,18 @@ mod tests {
         match &ev {
             SseEvent::Reasoning(text) => assert_eq!(text, "think"),
             _ => panic!("expected Reasoning"),
+        }
+    }
+
+    #[test]
+    fn sse_event_usage_variant_roundtrips() {
+        let usage = ModelTokenUsage {
+            cache_read_input_tokens: Some(7),
+            ..Default::default()
+        };
+        match SseEvent::Usage(usage.clone()) {
+            SseEvent::Usage(u) => assert_eq!(u.cache_read_input_tokens, Some(7)),
+            other => panic!("expected Usage, got {other:?}"),
         }
     }
 
