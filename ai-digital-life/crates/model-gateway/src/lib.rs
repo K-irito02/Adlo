@@ -3,6 +3,7 @@
 //! back to a local synthetic response when all providers fail.
 
 pub mod adapter;
+pub mod cache_policy;
 pub mod http_helper;
 pub mod llm_event;
 pub mod registry;

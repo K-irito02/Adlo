@@ -22,6 +22,14 @@ pub enum StreamChunk {
     Done(ModelTokenUsage),
 }
 
+/// Whether to auto-inject Anthropic cache breakpoints (cache_control).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CachePolicy {
+    #[default]
+    Auto,
+    Off,
+}
+
 /// Options passed to chat/chat_stream.
 #[derive(Debug, Clone, Default)]
 pub struct ChatOptions {
@@ -30,6 +38,7 @@ pub struct ChatOptions {
     pub max_tokens: Option<u32>,
     pub agent_id: Option<AgentId>,
     pub tools: Vec<ToolDefinition>,
+    pub cache_policy: CachePolicy,
 }
 
 /// Definition of a tool the model can call.
