@@ -122,6 +122,12 @@ describe('i18n en-US namespace keys', () => {
   it('includes notification domain keys', () => {
     expect(enUS).toHaveProperty('notifTitle');
   });
+
+  it('includes token usage cost keys', () => {
+    expect(enUS).toHaveProperty('tokenUsageCacheRead');
+    expect(enUS).toHaveProperty('tokenUsageCacheWrite');
+    expect(enUS).toHaveProperty('tokenUsageCost');
+  });
 });
 
 describe('i18n zh-CN mirror', () => {

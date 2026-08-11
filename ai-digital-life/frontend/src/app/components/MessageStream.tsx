@@ -7,6 +7,7 @@ import { IconBrain } from '../icons';
 import { MessageBlocks } from '../features/conversation/MessageBlocks';
 import { RunSummaryBlock } from './conversation/RunSummaryBlock';
 import { useTCopy } from '../i18n/useTCopy';
+import { sumUsageCost } from '../stores/activityUtils';
 
 interface MessageStreamProps {
   messages: ConversationMessageRecord[];
@@ -216,6 +217,11 @@ export function MessageStream({
   const dynamicRowHeight = useDynamicRowHeight({ defaultRowHeight: 200 });
   const wasAtBottomRef = useRef(true);
 
+  const sessionCost = useMemo(
+    () => sumUsageCost(Object.values(runUsageByRunId)),
+    [runUsageByRunId],
+  );
+
   const visibleMessages = useMemo(
     () => messages.filter((message) => message.id !== 'message-welcome'),
     [messages],
@@ -300,25 +306,32 @@ export function MessageStream({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="adl-message-stream"
-      role="log"
-      aria-label={t.conversationMessageStream}
-      aria-live="polite"
-      style={{ display: 'block' }}
-    >
-      <List
-        listRef={listRef}
-        style={{ height: containerHeight, width: '100%' }}
-        rowComponent={RowComponent as unknown as ListProps<RowProps>['rowComponent']}
-        rowCount={streamItems.length}
-        rowHeight={dynamicRowHeight}
-        overscanCount={5}
-        onRowsRendered={handleRowsRendered}
-        rowProps={rowProps}
-      />
-    </div>
+    <>
+      {sessionCost > 0 ? (
+        <div className="adl-session-cost">
+          {t.tokenUsageCost}: ≈${sessionCost.toFixed(4)}
+        </div>
+      ) : null}
+      <div
+        ref={containerRef}
+        className="adl-message-stream"
+        role="log"
+        aria-label={t.conversationMessageStream}
+        aria-live="polite"
+        style={{ display: 'block' }}
+      >
+        <List
+          listRef={listRef}
+          style={{ height: containerHeight, width: '100%' }}
+          rowComponent={RowComponent as unknown as ListProps<RowProps>['rowComponent']}
+          rowCount={streamItems.length}
+          rowHeight={dynamicRowHeight}
+          overscanCount={5}
+          onRowsRendered={handleRowsRendered}
+          rowProps={rowProps}
+        />
+      </div>
+    </>
   );
 }
 

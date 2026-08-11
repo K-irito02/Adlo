@@ -40,6 +40,21 @@ export function TokenUsage({ t, usage }: TokenUsageProps) {
           <span>
             {t.tokenUsageOutput}: {(usage.completionTokens ?? 0).toLocaleString()}
           </span>
+          {usage.cacheReadInputTokens ? (
+            <span>
+              {t.tokenUsageCacheRead}: {usage.cacheReadInputTokens.toLocaleString()}
+            </span>
+          ) : null}
+          {usage.cacheCreationInputTokens ? (
+            <span>
+              {t.tokenUsageCacheWrite}: {usage.cacheCreationInputTokens.toLocaleString()}
+            </span>
+          ) : null}
+          {usage.cost?.totalCost ? (
+            <span>
+              {t.tokenUsageCost}: ≈${usage.cost.totalCost.toFixed(4)}
+            </span>
+          ) : null}
         </div>
       )}
     </div>

@@ -72,6 +72,13 @@
   padding: var(--space-1) 0 0 var(--space-4);
 }
 
+/* -------- Session Cost -------- */
+.adl-session-cost {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  padding: var(--space-1) var(--space-3);
+}
+
 /* -------- Run Summary -------- */
 .adl-run-summary {
   margin: var(--space-2) 0 0;

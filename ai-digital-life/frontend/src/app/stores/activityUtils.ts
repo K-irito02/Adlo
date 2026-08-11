@@ -24,6 +24,11 @@ export function trimActivityList(
   return activities.slice(-MIN_ACTIVITY_RETAIN);
 }
 
+/** Sum the total cost (USD) across run usages. */
+export function sumUsageCost(usages: (ModelTokenUsage | undefined)[]): number {
+  return usages.reduce((acc, u) => acc + (u?.cost?.totalCost ?? 0), 0);
+}
+
 /**
  * 修剪旧的 runs，保留最近访问的
  * @param activityMap runId 到活动列表的映射
