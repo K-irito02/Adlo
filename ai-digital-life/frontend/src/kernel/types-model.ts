@@ -22,7 +22,18 @@ export interface ModelTokenUsage {
   promptTokens?: number;
   completionTokens?: number;
   totalTokens?: number;
+  cacheCreationInputTokens?: number;
+  cacheReadInputTokens?: number;
   estimated?: boolean;
+  cost?: ModelUsageCost;
+}
+
+export interface ModelUsageCost {
+  inputCost?: number;
+  outputCost?: number;
+  cacheReadCost?: number;
+  cacheWriteCost?: number;
+  totalCost?: number;
 }
 
 export interface ModelRouteDecision {

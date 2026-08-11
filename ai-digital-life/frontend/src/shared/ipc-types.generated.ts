@@ -20,6 +20,14 @@ export interface ModelDefinition {
   capabilities: ModelCapability[];
   tier?: ModelTier;
   released?: string;
+  cost?: ModelCost;
+}
+
+export interface ModelCost {
+  inputPerMtok?: number;
+  outputPerMtok?: number;
+  cacheReadPerMtok?: number;
+  cacheWritePerMtok?: number;
 }
 
 export interface ModelProviderPreference {
