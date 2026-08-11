@@ -151,6 +151,9 @@ export { type PartStreamSlice, createPartStreamSlice } from './slices/partStream
 // Toast 切片（全局通知）
 export { type ToastSlice, createToastSlice } from './slices/toastSlice';
 
+// 报错 Toast 切片（持久报错队列）
+export { type ErrorToastSlice, createErrorToastSlice } from './slices/errorToastSlice';
+
 // 通知切片（冲突通知与弹出式管理）
 export {
   type NotificationSlice,

@@ -72,6 +72,7 @@ import type { WebToolsSlice } from './slices/webToolsSlice';
 import type { ReferenceSlice } from './slices/referenceSlice';
 import type { DurableSlice } from './slices/durableSlice';
 import type { ToastSlice } from './slices/toastSlice';
+import type { ErrorToastSlice } from './slices/errorToastSlice';
 import type { NotificationSlice } from './slices/notificationSlice';
 import type { PartStreamSlice } from './slices/partStreamSlice';
 import type { ReferenceConfig } from '@shared/ipc/reference';
@@ -150,6 +151,7 @@ type AllSlices = [
   ReferenceSlice,
   DurableSlice,
   ToastSlice,
+  ErrorToastSlice,
   NotificationSlice,
   PartStreamSlice,
 ];

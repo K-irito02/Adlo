@@ -40,6 +40,7 @@ import {
   createReferenceSlice,
   createDurableSlice,
   createToastSlice,
+  createErrorToastSlice,
   createNotificationSlice,
   createPartStreamSlice,
 } from './slices';
@@ -122,6 +123,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createReferenceSlice(set, get), // 参考代码仓库管理
   ...createDurableSlice(set, get), // 持久化会话管理
   ...createToastSlice(set, get), // 全局 Toast 通知
+  ...createErrorToastSlice(set, get), // 报错 Toast 队列（右下角持久）
   ...createNotificationSlice(set, get), // 通知系统
   ...createGitVisSlice(set, get), // Git 可视化数据缓存
   ...createPartStreamSlice(set, get), // Part 渲染状态（S2：messages/parts/status）
