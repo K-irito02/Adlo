@@ -62,18 +62,18 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/obra/superpowers.git",
       "skillPath": "skills/using-superpowers/SKILL.md",
-      "skillFolderHash": "64c70a2b656d440ddb50818c2477e028facbc468",
+      "skillFolderHash": "a5e27b759e1c907c5076340848308f6aa37f33d4",
       "installedAt": "2026-03-26T14:23:00.279Z",
-      "updatedAt": "2026-04-16T21:07:32.736Z"
+      "updatedAt": "2026-08-11T03:29:28.942Z"
     },
     "brainstorming": {
       "source": "obra/superpowers",
       "sourceType": "github",
       "sourceUrl": "https://github.com/obra/superpowers.git",
       "skillPath": "skills/brainstorming/SKILL.md",
-      "skillFolderHash": "f260c775073816860fef8a37c032ac77e2ff5821",
+      "skillFolderHash": "a24cbf66c526b88d26cb9c816a843df9e50d0fc7",
       "installedAt": "2026-04-16T21:01:31.270Z",
-      "updatedAt": "2026-04-16T21:01:31.270Z"
+      "updatedAt": "2026-08-11T03:29:28.942Z"
     },
     "frontend-design": {
       "source": "anthropics/skills",
@@ -99,9 +99,9 @@
       "sourceType": "github",
       "sourceUrl": "https://github.com/obra/superpowers.git",
       "skillPath": "skills/requesting-code-review/SKILL.md",
-      "skillFolderHash": "ed265b1a03114cc400d5524afc5c961a4aa9ea8b",
+      "skillFolderHash": "adfc337f87084b705c1a5811ba2436dc99fb7216",
       "installedAt": "2026-04-17T20:04:02.957Z",
-      "updatedAt": "2026-04-17T20:04:02.957Z"
+      "updatedAt": "2026-08-11T03:29:28.942Z"
     },
     "typescript-advanced-types": {
       "source": "wshobson/agents",
