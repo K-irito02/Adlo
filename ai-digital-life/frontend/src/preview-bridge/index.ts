@@ -24,7 +24,6 @@ import type { TaskBridge } from '../shared/ipc/task';
 import type { WebToolsBridge } from '../shared/ipc/web_tools';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from '../mock-bridge';
-import { withDemoMode } from '../mock/demo/demo-mode';
 import { createHttpBridge, resolveAdlServerBaseUrl } from '../httpBridge';
 import { createPtyBridge } from './preview-pty-bridge';
 import { loadRecentWorkspaces } from './preview-storage';
@@ -315,5 +314,5 @@ export function setupPreviewBridge(): void {
     setLogMode: mockDigitalLifeBridge.setLogMode,
   };
 
-  (window as { digitalLife: DigitalLifeBridge }).digitalLife = withDemoMode(previewBridge);
+  (window as { digitalLife: DigitalLifeBridge }).digitalLife = previewBridge;
 }

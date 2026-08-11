@@ -1,6 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
 import { useTCopy } from '../i18n/useTCopy';
-import { resolveDemoEntityText } from '../i18n/resolveDemoEntityText';
 import { Icon } from './Icon';
 
 interface WelcomeStateProps {
@@ -124,9 +123,7 @@ export function WelcomeState({
                   aria-selected={false}
                 >
                   <Icon name="folder-open" size="sm" />
-                  <span className="welcome-state__item-name">
-                    {resolveDemoEntityText(workspace.name, t)}
-                  </span>
+                  <span className="welcome-state__item-name">{workspace.name}</span>
                   <span className="welcome-state__item-path">{workspace.path}</span>
                 </button>
               </li>

@@ -14,7 +14,6 @@ import type { SidebarSessionItem, SidebarWorkspaceItem } from '../../utils/sideb
 import { STATUS_LABEL, buildWorkspaceTooltip } from './SidebarContextMenu.utils';
 import { WorkspaceDirectoryIcon, StatusLamp } from './SidebarContextMenu';
 import { useTCopy } from '../../i18n/useTCopy';
-import { resolveDemoEntityText } from '../../i18n/resolveDemoEntityText';
 import { useWorkspaceDrag } from './useWorkspaceDrag';
 import { useWorkspacePin } from './useWorkspacePin';
 import { DragOverlayPortal } from '../../components/drag/DragOverlayPortal';
@@ -201,7 +200,7 @@ export function WorkspaceList({
                       handleDragStart(event, item.workspace.id, item.workspace.isPinned)
                     }
                   >
-                    <span>{resolveDemoEntityText(item.workspace.name, t)}</span>
+                    <span>{item.workspace.name}</span>
                   </button>
 
                   <div className="adl-workspace-row__tail">
@@ -301,7 +300,7 @@ export function WorkspaceList({
                                 </span>
                                 <span className="adl-session-item__title">
                                   <span className="adl-session-item__title-text">
-                                    {resolveDemoEntityText(sessionItem.session.title, t)}
+                                    {sessionItem.session.title}
                                   </span>
                                 </span>
                               </button>
@@ -321,10 +320,7 @@ export function WorkspaceList({
       <DragOverlayPortal visible={isDragging} position={cursorPosition}>
         {draggedItemId ? (
           <span className="adl-sortable-label">
-            {resolveDemoEntityText(
-              workspaceItems.find((w) => w.workspace.id === draggedItemId)?.workspace.name ?? '',
-              t,
-            )}
+            {workspaceItems.find((w) => w.workspace.id === draggedItemId)?.workspace.name ?? ''}
           </span>
         ) : null}
       </DragOverlayPortal>

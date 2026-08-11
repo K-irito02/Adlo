@@ -4,7 +4,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { IconMenu, IconClose } from '../../icons';
 import { IconCircleHelp } from '../../icons/status';
 import { HintCardTrigger } from '../../components/HintCardTrigger';
-import { resolveDemoEntityText } from '../../i18n/resolveDemoEntityText';
 import type { CopyDict } from '../../i18n';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
 
@@ -16,7 +15,7 @@ interface SortableItemProps {
   t?: CopyDict;
 }
 
-function SortableItem({ workspace, showActions, onRemove, removeLabel, t }: SortableItemProps) {
+function SortableItem({ workspace, showActions, onRemove, removeLabel }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: workspace.id,
   });
@@ -40,8 +39,8 @@ function SortableItem({ workspace, showActions, onRemove, removeLabel, t }: Sort
       <span className="adl-sortable-handle" aria-hidden="true">
         <IconMenu size={14} />
       </span>
-      <span className="adl-sortable-label" title={resolveDemoEntityText(workspace.name, t)}>
-        {resolveDemoEntityText(workspace.name, t)}
+      <span className="adl-sortable-label" title={workspace.name}>
+        {workspace.name}
       </span>
       {showActions && (
         <div className="adl-sortable-actions">
@@ -52,7 +51,7 @@ function SortableItem({ workspace, showActions, onRemove, removeLabel, t }: Sort
               e.stopPropagation();
               onRemove?.(workspace.id);
             }}
-            aria-label={removeLabel.replace('{name}', resolveDemoEntityText(workspace.name, t))}
+            aria-label={removeLabel.replace('{name}', workspace.name)}
           >
             <IconClose size={14} />
           </button>

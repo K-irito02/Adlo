@@ -5,8 +5,6 @@ import type { SidebarSessionItem } from '../../utils/sidebarViewModel';
 import { STATUS_LABEL } from './SidebarContextMenu.utils';
 import { StatusLamp } from './SidebarContextMenu';
 import { useTCopy } from '../../i18n/useTCopy';
-import { resolveDemoEntityText } from '../../i18n/resolveDemoEntityText';
-
 interface SessionListRowProps {
   sessionItem: SidebarSessionItem;
   activeSessionId?: string;
@@ -165,14 +163,9 @@ const SessionListRow = React.memo(function SessionListRow({
           </span>
         )}
 
-        <TooltipSimple
-          content={resolveDemoEntityText(sessionItem.session.title, t)}
-          placement="right"
-        >
+        <TooltipSimple content={sessionItem.session.title} placement="right">
           <span className="adl-session-item__title">
-            <span className="adl-session-item__title-text">
-              {resolveDemoEntityText(sessionItem.session.title, t)}
-            </span>
+            <span className="adl-session-item__title-text">{sessionItem.session.title}</span>
           </span>
         </TooltipSimple>
 

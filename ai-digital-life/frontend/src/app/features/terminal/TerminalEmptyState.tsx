@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { IconTerminal } from '@icons';
 import type { TerminalProfile } from '@stores/types';
 import type { CopyDict } from '@i18n';
-import { resolveDemoEntityText } from '@i18n/resolveDemoEntityText';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 
 function ShellPrefix({ profile }: { profile?: TerminalProfile }) {
@@ -84,7 +83,7 @@ export const TerminalEmptyState = React.memo(function TerminalEmptyState({
                   onClick={() => setSelectedWorkspaceId(workspace.id)}
                   title={workspace.path}
                 >
-                  <span>{resolveDemoEntityText(workspace.name, t)}</span>
+                  <span>{workspace.name}</span>
                 </button>
               ))}
           </div>

@@ -3,9 +3,6 @@ import { useCallback, useState } from 'react';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import { useAppStore } from '@stores/slicedStore';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
-import { useTCopy } from '@i18n/useTCopy';
-import { resolveDemoEntityText } from '@i18n/resolveDemoEntityText';
-
 export interface UseWorkspaceChangesActionsParams {
   workspace: RecentWorkspaceEntry;
   onToggleExpand: () => void;
@@ -42,7 +39,6 @@ export function useWorkspaceChangesActions({
   onRefreshTree,
   getContextMenuItems,
 }: UseWorkspaceChangesActionsParams): WorkspaceChangesActions {
-  const { t } = useTCopy();
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [branchSubOpen, setBranchSubOpen] = useState(false);
@@ -114,8 +110,8 @@ export function useWorkspaceChangesActions({
 
   const handleCopyRelativePath = useCallback(async () => {
     closeMenu();
-    await copyToClipboard(resolveDemoEntityText(workspace.name, t));
-  }, [workspace.name, t, closeMenu, copyToClipboard]);
+    await copyToClipboard(workspace.name);
+  }, [workspace.name, closeMenu, copyToClipboard]);
 
   const handleRevealInFileManager = useCallback(async () => {
     closeMenu();

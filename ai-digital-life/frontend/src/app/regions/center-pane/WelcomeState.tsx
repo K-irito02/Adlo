@@ -4,7 +4,6 @@ import { WorkspaceSplitButton } from '../../components/WorkspaceSplitButton';
 import { RevealScrollbar } from '../../components/RevealScrollbar';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import { useTCopy } from '../../i18n/useTCopy';
-import { resolveDemoEntityText } from '../../i18n/resolveDemoEntityText';
 import { useRevealScrollbar } from '../../hooks/useRevealScrollbar';
 
 export interface WelcomeStateProps {
@@ -58,15 +57,13 @@ export function WelcomeState({
                     <li key={workspace.path}>
                       <button
                         type="button"
-                        title={`${resolveDemoEntityText(workspace.name, t)}\n${workspace.path}`}
+                        title={`${workspace.name}\n${workspace.path}`}
                         onClick={() => onOpenWorkspace(workspace.path)}
                       >
                         <span className="adl-welcome__recent-icon" aria-hidden="true">
                           <IconFolder size={14} decorative />
                         </span>
-                        <span className="adl-welcome__recent-name">
-                          {resolveDemoEntityText(workspace.name, t)}
-                        </span>
+                        <span className="adl-welcome__recent-name">{workspace.name}</span>
                         <span className="adl-welcome__path">{workspace.path}</span>
                       </button>
                     </li>

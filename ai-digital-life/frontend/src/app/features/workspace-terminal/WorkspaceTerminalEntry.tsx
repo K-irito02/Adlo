@@ -4,7 +4,6 @@ import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
 import type { TerminalTabState } from '@stores/slices/terminalSlice';
 import type { TerminalProfile } from '@stores/types';
-import { resolveDemoEntityText } from '@i18n/resolveDemoEntityText';
 import {
   IconRefreshCw,
   IconTrash,
@@ -122,10 +121,10 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
           onClick={handleNameClick}
           onContextMenu={handleNameContextMenu}
           onKeyDown={handleNameKeyDown}
-          aria-label={resolveDemoEntityText(workspace.name, t)}
+          aria-label={workspace.name}
         >
           <span className="adl-multitree-entry__name" title={workspace.path}>
-            {resolveDemoEntityText(workspace.name, t)}
+            {workspace.name}
           </span>
           <span className="adl-multitree-entry__count">{tabCount}</span>
 
