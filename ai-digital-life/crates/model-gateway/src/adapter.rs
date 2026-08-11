@@ -127,6 +127,7 @@ mod tests {
                     completion_tokens: Some(5),
                     total_tokens: Some(15),
                     estimated: Some(false),
+                    ..Default::default()
                 }),
                 route: None,
             })

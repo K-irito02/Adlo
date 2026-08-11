@@ -145,6 +145,7 @@ mod tests {
             completion_tokens: None,
             total_tokens: None,
             estimated: None,
+            ..Default::default()
         }
     }
 

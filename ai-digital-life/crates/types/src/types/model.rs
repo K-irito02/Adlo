@@ -12,13 +12,26 @@ pub struct ModelChatMessage {
     pub content: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelTokenUsage {
     pub prompt_tokens: Option<u32>,
     pub completion_tokens: Option<u32>,
     pub total_tokens: Option<u32>,
+    pub cache_creation_input_tokens: Option<u32>,
+    pub cache_read_input_tokens: Option<u32>,
     pub estimated: Option<bool>,
+    pub cost: Option<ModelUsageCost>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelUsageCost {
+    pub input_cost: Option<f64>,
+    pub output_cost: Option<f64>,
+    pub cache_read_cost: Option<f64>,
+    pub cache_write_cost: Option<f64>,
+    pub total_cost: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -254,5 +267,29 @@ mod tests {
         let encoded = serde_json::to_string(&resp).unwrap();
         let decoded: ModelResponse = serde_json::from_str(&encoded).unwrap();
         assert!(decoded.reasoning.is_none());
+    }
+
+    #[test]
+    fn model_token_usage_default_and_cache_fields() {
+        let u = ModelTokenUsage::default();
+        assert_eq!(u.cache_creation_input_tokens, None);
+        assert_eq!(u.cache_read_input_tokens, None);
+        assert_eq!(u.cost, None);
+    }
+
+    #[test]
+    fn model_usage_cost_roundtrips_camel_case() {
+        let c = ModelUsageCost {
+            input_cost: Some(0.001),
+            output_cost: None,
+            cache_read_cost: Some(0.0001),
+            cache_write_cost: None,
+            total_cost: Some(0.0011),
+        };
+        let encoded = serde_json::to_string(&c).unwrap();
+        assert!(encoded.contains("\"inputCost\""));
+        assert!(encoded.contains("\"totalCost\""));
+        let decoded: ModelUsageCost = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(decoded.input_cost, Some(0.001));
     }
 }

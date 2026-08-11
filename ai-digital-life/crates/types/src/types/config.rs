@@ -72,6 +72,15 @@ pub enum LogLevel {
     Error,
 }
 
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ModelCost {
+    pub input_per_mtok: Option<f64>,
+    pub output_per_mtok: Option<f64>,
+    pub cache_read_per_mtok: Option<f64>,
+    pub cache_write_per_mtok: Option<f64>,
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ModelDefinition {
@@ -89,6 +98,8 @@ pub struct ModelDefinition {
     pub tier: Option<ModelTier>,
     #[ts(optional)]
     pub released: Option<String>,
+    #[ts(optional)]
+    pub cost: Option<ModelCost>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -320,6 +331,12 @@ mod tests {
         let json = serde_json::to_string(&t).unwrap();
         assert!(json.contains("SET_LANGUAGE"));
         assert!(json.contains("en-US"));
+    }
+
+    #[test]
+    fn model_definition_cost_field_defaults_none() {
+        let m = ModelDefinition::default();
+        assert_eq!(m.cost, None);
     }
 }
 

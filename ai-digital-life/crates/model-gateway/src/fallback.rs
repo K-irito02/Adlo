@@ -48,6 +48,7 @@ pub(crate) fn estimate_usage(messages: &[ModelChatMessage]) -> ModelTokenUsage {
         completion_tokens: Some(64),
         total_tokens: Some(prompt_tokens + 64),
         estimated: Some(true),
+        ..Default::default()
     }
 }
 

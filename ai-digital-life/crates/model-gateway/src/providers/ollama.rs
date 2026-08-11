@@ -207,6 +207,7 @@ impl ProviderAdapter for OllamaProvider {
                 completion_tokens,
                 total_tokens,
                 estimated: Some(false),
+                ..Default::default()
             }),
             route: None,
         })
@@ -252,6 +253,7 @@ impl ProviderAdapter for OllamaProvider {
                             completion_tokens: None,
                             total_tokens: None,
                             estimated: None,
+                            ..Default::default()
                         }));
                     }
                     if let Some(content) = json["message"]["content"].as_str() {

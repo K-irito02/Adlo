@@ -210,6 +210,7 @@ impl ProviderAdapter for OpenRouterProvider {
                 completion_tokens: json["usage"]["completion_tokens"].as_u64().map(|v| v as u32),
                 total_tokens: json["usage"]["total_tokens"].as_u64().map(|v| v as u32),
                 estimated: Some(false),
+                ..Default::default()
             }),
             route: None,
         })

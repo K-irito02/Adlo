@@ -470,6 +470,7 @@ async fn add_custom_provider_inner(
                 capabilities: vec![ModelCapability::Text],
                 tier: None,
                 released: None,
+                ..Default::default()
             }
         })
         .collect();

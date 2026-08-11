@@ -240,6 +240,7 @@ impl ProviderAdapter for AnthropicProvider {
                 completion_tokens,
                 total_tokens,
                 estimated: Some(false),
+                ..Default::default()
             }),
             route: None,
         })

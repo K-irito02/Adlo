@@ -26,6 +26,7 @@ pub fn sse_event_to_chunk(event: SseEvent) -> Option<StreamChunk> {
             completion_tokens: None,
             total_tokens: None,
             estimated: None,
+            ..Default::default()
         })),
         SseEvent::Skip => None,
     }
@@ -56,6 +57,7 @@ where
                         completion_tokens: None,
                         total_tokens: None,
                         estimated: None,
+                        ..Default::default()
                     }));
                 }
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
@@ -68,6 +70,7 @@ where
                                 completion_tokens: None,
                                 total_tokens: None,
                                 estimated: None,
+                                ..Default::default()
                             }));
                         },
                         SseEvent::Skip => {},
