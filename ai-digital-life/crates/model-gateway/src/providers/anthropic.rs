@@ -1,6 +1,7 @@
-use crate::adapter::{ChatOptions, ProviderAdapter, StreamReader};
+use crate::adapter::{CachePolicy, ChatOptions, ProviderAdapter, StreamReader};
+use crate::cache_policy::CacheBreakpoints;
 use crate::http_helper::{HttpRequestBuilder, send_chat_request, send_stream_request};
-use crate::providers::base::{SseEvent, build_request_body, parse_sse_stream};
+use crate::providers::base::{SseEvent, parse_sse_stream};
 use adl_errors::AppError;
 use adl_types::ConversationRole;
 use adl_types::config::{ModelCapability, ModelDefinition, ModelTier};
@@ -176,40 +177,10 @@ impl ProviderAdapter for AnthropicProvider {
         &self,
         model: &str,
         messages: &[ModelChatMessage],
-        _options: &ChatOptions,
+        options: &ChatOptions,
         api_key: &str,
     ) -> Result<ModelResponse, AppError> {
-        let mut system_text: Option<String> = None;
-        let messages_arr: Vec<serde_json::Value> = messages
-            .iter()
-            .filter_map(|m| match m.role {
-                ConversationRole::System => {
-                    system_text = Some(m.content.clone());
-                    None
-                },
-                ConversationRole::User => Some(serde_json::json!({
-                    "role": "user",
-                    "content": m.content,
-                })),
-                ConversationRole::Assistant => Some(serde_json::json!({
-                    "role": "assistant",
-                    "content": m.content,
-                })),
-                ConversationRole::Tool => Some(serde_json::json!({
-                    "role": "user",
-                    "content": m.content,
-                })),
-            })
-            .collect();
-
-        let mut body = serde_json::json!({
-            "model": model,
-            "max_tokens": 4096,
-            "messages": messages_arr,
-        });
-        if let Some(sys) = system_text {
-            body["system"] = serde_json::Value::String(sys);
-        }
+        let body = build_anthropic_body(model, messages, options, false);
 
         let url = format!("{}/messages", self.base_url);
         let builder = HttpRequestBuilder::new(self.client.clone(), url)
@@ -250,37 +221,10 @@ impl ProviderAdapter for AnthropicProvider {
         &self,
         model: &str,
         messages: &[ModelChatMessage],
-        _options: &ChatOptions,
+        options: &ChatOptions,
         api_key: &str,
     ) -> Result<StreamReader, AppError> {
-        let mut system_text = None;
-        let chat_messages: Vec<ModelChatMessage> = messages
-            .iter()
-            .filter_map(|m| {
-                if m.role == ConversationRole::System {
-                    system_text = Some(m.content.clone());
-                    None
-                } else {
-                    Some(ModelChatMessage {
-                        role: match m.role {
-                            ConversationRole::Tool => ConversationRole::User,
-                            _ => m.role,
-                        },
-                        content: m.content.clone(),
-                    })
-                }
-            })
-            .collect();
-
-        let mut body = build_request_body(
-            model,
-            &chat_messages,
-            true,
-            Some(serde_json::json!({"max_tokens": 4096})),
-        );
-        if let Some(sys) = system_text {
-            body["system"] = serde_json::Value::String(sys);
-        }
+        let body = build_anthropic_body(model, messages, options, true);
 
         let url = format!("{}/messages", self.base_url);
         let builder = HttpRequestBuilder::new(self.client.clone(), url)
@@ -291,6 +235,81 @@ impl ProviderAdapter for AnthropicProvider {
 
         parse_sse_stream(response, extract_anthropic_event)
     }
+}
+
+/// Split messages into (system_value, body_messages) where the system prompt
+/// and the latest user message become Anthropic content-block arrays carrying
+/// an ephemeral cache breakpoint when caching is Auto and the session has more
+/// than one message (mirrors OpenCode `buildAnthropicMessages`).
+fn anthropic_system_and_messages(
+    messages: &[ModelChatMessage],
+    cache_policy: CachePolicy,
+) -> (Option<serde_json::Value>, Vec<serde_json::Value>) {
+    let mut breakpoints = CacheBreakpoints::new();
+    let multi_turn = messages.len() > 1 && cache_policy == CachePolicy::Auto;
+
+    let mut system: Option<serde_json::Value> = None;
+    let user_texts: Vec<&ModelChatMessage> =
+        messages.iter().filter(|m| m.role == ConversationRole::User).collect();
+    let last_user = user_texts.last().copied();
+
+    let mut out: Vec<serde_json::Value> = Vec::with_capacity(messages.len());
+    for m in messages {
+        match m.role {
+            ConversationRole::System => {
+                if multi_turn && breakpoints.allocate() {
+                    system = Some(serde_json::json!([{
+                        "type": "text",
+                        "text": m.content,
+                        "cache_control": { "type": "ephemeral" },
+                    }]));
+                } else {
+                    system = Some(serde_json::Value::String(m.content.clone()));
+                }
+            },
+            ConversationRole::User => {
+                let is_last_user = last_user.map(|u| std::ptr::eq(u, m)).unwrap_or(false);
+                let content = if multi_turn && is_last_user && breakpoints.allocate() {
+                    serde_json::json!([{
+                        "type": "text",
+                        "text": m.content,
+                        "cache_control": { "type": "ephemeral" },
+                    }])
+                } else {
+                    serde_json::Value::String(m.content.clone())
+                };
+                out.push(serde_json::json!({ "role": "user", "content": content }));
+            },
+            ConversationRole::Assistant => {
+                out.push(serde_json::json!({ "role": "assistant", "content": m.content }));
+            },
+            ConversationRole::Tool => {
+                // Anthropic embeds tool results as user messages (existing behavior).
+                out.push(serde_json::json!({ "role": "user", "content": m.content }));
+            },
+        }
+    }
+    (system, out)
+}
+
+fn build_anthropic_body(
+    model: &str,
+    messages: &[ModelChatMessage],
+    options: &ChatOptions,
+    stream: bool,
+) -> serde_json::Value {
+    let (system, messages_arr) =
+        anthropic_system_and_messages(messages, options.cache_policy);
+    let mut body = serde_json::json!({
+        "model": model,
+        "max_tokens": 4096,
+        "stream": stream,
+        "messages": messages_arr,
+    });
+    if let Some(sys) = system {
+        body["system"] = sys;
+    }
+    body
 }
 
 /// Extract an [`SseEvent`] from an Anthropic Messages API stream JSON value.
@@ -417,5 +436,46 @@ mod tests {
     fn extract_anthropic_message_stop() {
         let json = serde_json::json!({"type": "message_stop"});
         assert!(matches!(extract_anthropic_event(&json), SseEvent::Done));
+    }
+
+    #[test]
+    fn anthropic_body_injects_cache_control_on_multi_turn() {
+        let msgs = vec![
+            ModelChatMessage { role: ConversationRole::System, content: "sys".into() },
+            ModelChatMessage { role: ConversationRole::User, content: "first".into() },
+            ModelChatMessage { role: ConversationRole::Assistant, content: "hi".into() },
+            ModelChatMessage { role: ConversationRole::User, content: "latest".into() },
+        ];
+        let body = build_anthropic_body("claude-3-5-sonnet", &msgs, &ChatOptions::default(), false);
+        // system is a content-block array with cache_control
+        let sys = body["system"].as_array().expect("system array");
+        assert_eq!(sys[0]["type"], "text");
+        assert_eq!(sys[0]["cache_control"]["type"], "ephemeral");
+        // only the latest user message becomes a content-block array
+        let msgs_arr = body["messages"].as_array().unwrap();
+        let latest = msgs_arr.last().unwrap();
+        assert_eq!(latest["content"][0]["cache_control"]["type"], "ephemeral");
+        // middle user message stays a plain string
+        let middle = &msgs_arr[0];
+        assert!(middle["content"].is_string(), "non-latest user stays string");
+    }
+
+    #[test]
+    fn anthropic_body_no_cache_for_single_turn() {
+        let msgs = vec![ModelChatMessage { role: ConversationRole::User, content: "hi".into() }];
+        let body = build_anthropic_body("m", &msgs, &ChatOptions::default(), false);
+        assert!(body["system"].is_null() || body["system"].is_string());
+        assert!(body["messages"][0]["content"].is_string());
+    }
+
+    #[test]
+    fn anthropic_body_cache_policy_off_disables_injection() {
+        let msgs = vec![
+            ModelChatMessage { role: ConversationRole::User, content: "a".into() },
+            ModelChatMessage { role: ConversationRole::User, content: "b".into() },
+        ];
+        let opts = ChatOptions { cache_policy: CachePolicy::Off, ..Default::default() };
+        let body = build_anthropic_body("m", &msgs, &opts, false);
+        assert!(body["messages"][1]["content"].is_string());
     }
 }
