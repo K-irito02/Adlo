@@ -13,6 +13,7 @@ mod audit;
 mod fallback;
 pub mod prompts;
 mod provider;
+pub mod pricing;
 pub mod providers;
 mod route;
 mod secret;
