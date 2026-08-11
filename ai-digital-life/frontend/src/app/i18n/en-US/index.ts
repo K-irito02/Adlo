@@ -23,6 +23,7 @@ import { customAgentEn } from './customAgent';
 import { durableEn } from './durable';
 import { settingsEn } from './settings';
 import { notificationEn } from './notification';
+import { errorsEn } from './errors';
 export const enUS = {
   ...menuEn,
   ...workspaceEn,
@@ -49,4 +50,5 @@ export const enUS = {
   ...durableEn,
   ...settingsEn,
   ...notificationEn,
+  ...errorsEn,
 } as const;

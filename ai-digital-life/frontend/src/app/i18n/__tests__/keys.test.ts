@@ -128,6 +128,16 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS).toHaveProperty('tokenUsageCacheWrite');
     expect(enUS).toHaveProperty('tokenUsageCost');
   });
+
+  it('includes error toast domain keys', () => {
+    expect(enUS).toHaveProperty('errorsGenericTitle');
+    expect(enUS).toHaveProperty('errorsWorkspace');
+    expect(enUS).toHaveProperty('errorsMore');
+    expect(enUS).toHaveProperty('errorsClearAll');
+    expect(zhCN).toHaveProperty('errorsGenericTitle');
+    expect(zhCN).toHaveProperty('errorsWorkspace');
+    expect(zhCN).toHaveProperty('errorsClearAll');
+  });
 });
 
 describe('i18n zh-CN mirror', () => {
