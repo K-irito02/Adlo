@@ -235,7 +235,6 @@ export const createUISlice = (
         isFetching: { ...state.isFetching, [key]: value },
       }));
     },
-    setError: (message) => set({ error: message }),
 
     setFilesNavigatorMode: (mode) => {
       writeFilesNavigatorMode(mode);

@@ -65,7 +65,6 @@ beforeEach(() => {
       recentLogs: [],
     },
     recentWorkspaces: [],
-    error: undefined,
     isFetching: {},
   });
 });

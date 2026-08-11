@@ -57,7 +57,6 @@ export async function openFileGeneric(
       );
       void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
       return {
-        error: undefined,
         openTabs: state.openTabs.some((tab) => tab.path === relativePath)
           ? state.openTabs
           : [...state.openTabs, createEditorTab(relativePath)],
@@ -78,7 +77,6 @@ export async function openFileGeneric(
     return;
   }
   set((state: StoreState) => ({
-    error: undefined,
     openTabs: state.openTabs.some((tab) => tab.path === relativePath)
       ? state.openTabs
       : [...state.openTabs, createEditorTab(relativePath)],
@@ -125,7 +123,6 @@ export async function openChangePreviewGeneric(
       selectedChangePreviewWorkspaceId: config.workspaceId,
       changePreview: cachedPreview,
       changePreviewLoading: false,
-      error: undefined,
     });
     return;
   }
@@ -155,6 +152,5 @@ export async function openChangePreviewGeneric(
     selectedChangePreviewWorkspaceId: config.workspaceId,
     changePreviewLoading: false,
     changePreview: result.data,
-    error: undefined,
   });
 }

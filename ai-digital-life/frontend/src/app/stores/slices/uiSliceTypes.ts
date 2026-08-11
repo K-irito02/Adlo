@@ -116,7 +116,6 @@ export interface UISlice {
   setGitHubNavigatorWidth: (width: number) => void;
   setSettingsNavigatorWidth: (width: number) => void;
   setIsFetching: (key: string, value: boolean) => void;
-  setError: (message?: string) => void;
   setFileTreePathExpanded: (workspaceId: string, path: string, expanded: boolean) => void;
   toggleFileTreePath: (workspaceId: string, path: string) => void;
   expandFileTreePathChain: (workspaceId: string, path: string) => void;

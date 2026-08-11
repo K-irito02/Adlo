@@ -44,7 +44,7 @@ describe('loading and switching performance guards', () => {
 
   it('keeps root shell subscriptions granular instead of subscribing to the full app store', () => {
     expect(appSource).not.toContain('const store = useAppStore();');
-    expect(appSource).toContain('useAppStore((state) => state.error)');
+    expect(appSource).toContain('useAppStore((state) => state.errorToasts)');
   });
 
   it('renders all right-side tool panels and hides inactive ones via hidden attribute', () => {

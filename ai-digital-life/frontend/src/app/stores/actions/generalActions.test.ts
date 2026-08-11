@@ -35,7 +35,6 @@ describe('updatePreferences action', () => {
     setupWindowDigitalLife();
     // 重置 store 状态
     useAppStore.setState({
-      error: undefined,
       isFetching: {},
       errorToasts: [],
     });
@@ -43,7 +42,6 @@ describe('updatePreferences action', () => {
 
   afterEach(() => {
     useAppStore.setState({
-      error: undefined,
       isFetching: {},
       errorToasts: [],
     });

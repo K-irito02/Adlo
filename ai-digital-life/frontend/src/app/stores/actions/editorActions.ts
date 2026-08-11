@@ -105,7 +105,6 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         );
         void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
         return {
-          error: undefined,
           openTabs: state.openTabs.some((tab) => tab.path === relativePath)
             ? state.openTabs
             : [...state.openTabs, createEditorTab(relativePath)],

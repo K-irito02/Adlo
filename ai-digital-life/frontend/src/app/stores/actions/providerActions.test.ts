@@ -120,7 +120,6 @@ beforeEach(() => {
   useAppStore.setState({
     appInfo: makeAppInfo(null),
     providers: [makeProvider(null)],
-    error: undefined,
     isFetching: {},
     apiKeyInputs: {},
     keyInputTouched: {},

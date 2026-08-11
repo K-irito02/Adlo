@@ -95,7 +95,7 @@ export function createSessionActions(set: StoreApi<StoreState>['setState'], get:
     selectSession: async (sessionId: SessionID) => {
       clearError(get);
       const requestSeq = getNextSessionRequestSeq();
-      set({ activeSessionId: sessionId, error: undefined });
+      set({ activeSessionId: sessionId });
       const markReadResult = await window.digitalLife.conversation.markSessionRead({
         sessionId: sessionId as string,
       });

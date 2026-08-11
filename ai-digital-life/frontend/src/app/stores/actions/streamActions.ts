@@ -232,7 +232,6 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
       set({
         streamingAssistantText: '',
         streamingActiveRunId: undefined,
-        error: undefined,
       });
 
       let sessionId = get().activeSessionId;

@@ -133,7 +133,6 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   // ════════════════════════════════════════════════════════
   loading: true,
   appReady: false,
-  error: undefined,
   isFetching: {},
   lspActiveServers: [],
   lspDiagnostics: [],

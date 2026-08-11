@@ -133,7 +133,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           ...nextState,
           workspaceTrees: {},
           dirtyEditorPaths: [],
-          error: undefined,
         });
 
         if (patchResult?.ok) {

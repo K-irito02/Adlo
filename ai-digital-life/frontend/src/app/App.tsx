@@ -19,12 +19,14 @@ const RightPanel = lazy(() =>
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
 import { ToastContainer } from './components/Toast';
+import { ErrorToastContainer } from './components/ErrorToast';
+import { DevErrorTestButtons } from './components/DevErrorTestButtons';
 import { ConflictModal } from './components/ConflictModal';
 import { asSessionID } from '../shared/branded';
 import { StartupOverlayWrapper } from './components/StartupOverlayWrapper';
 
 export function App() {
-  const error = useAppStore((state) => state.error);
+  const errorToasts = useAppStore((state) => state.errorToasts);
   const { appInfo, leftCollapsed, rightCollapsed, rightPanelWidth } = useAppStore(
     useShallow((state) => ({
       appInfo: state.appInfo,
@@ -37,6 +39,8 @@ export function App() {
   const setActiveRightTool = useAppStore((s) => s.setActiveRightTool);
   const toasts = useAppStore((s) => s.toasts);
   const removeToast = useAppStore((s) => s.removeToast);
+  const dismissErrorToast = useAppStore((s) => s.dismissErrorToast);
+  const clearErrorToasts = useAppStore((s) => s.clearErrorToasts);
   const notifications = useAppStore((s) => s.notifications);
   const activePopupId = useAppStore((s) => s.activePopupId);
   const dismissPopup = useAppStore((s) => s.dismissPopup);
@@ -179,12 +183,6 @@ export function App() {
             onSelectLanguage={handleSelectLanguage}
           />
 
-          {error ? (
-            <div className="adl-banner adl-banner--error" role="alert">
-              {error}
-            </div>
-          ) : null}
-
           <div
             className={`adl-shell__body${leftCollapsed ? ' is-left-collapsed' : ''}${rightCollapsed ? ' is-right-collapsed' : ''}`}
             style={{ '--rightpanel-width': `${rightPanelWidth}px` } as React.CSSProperties}
@@ -247,6 +245,12 @@ export function App() {
           />
         </main>
         <ToastContainer toasts={toasts} onRemove={removeToast} />
+        <ErrorToastContainer
+          errorToasts={errorToasts}
+          onDismiss={dismissErrorToast}
+          onClearAll={clearErrorToasts}
+        />
+        {import.meta.env.DEV ? <DevErrorTestButtons /> : null}
         {activeNotification && (
           <ConflictModal notification={activeNotification} onDismiss={dismissPopup} />
         )}

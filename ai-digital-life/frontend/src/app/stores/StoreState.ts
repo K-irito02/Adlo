@@ -106,7 +106,6 @@ type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) exten
 interface StoreStateRootFields {
   loading: boolean;
   appReady: boolean;
-  error?: string;
   isFetching: Record<string, boolean>;
   isTauri: boolean;
   customAgents: AgentConfig[];
