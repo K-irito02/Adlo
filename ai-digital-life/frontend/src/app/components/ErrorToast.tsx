@@ -46,6 +46,7 @@ function ErrorToast({ entry, onDismiss }: ErrorToastProps) {
 
   const handleCopy = async () => {
     const result = await copyToClipboard(entry.detail);
+    console.log('[ADL-DEBUG][error-toast] copy clicked', { id: entry.id, ok: result.ok });
     if (result.ok) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
@@ -75,7 +76,13 @@ function ErrorToast({ entry, onDismiss }: ErrorToastProps) {
           type="button"
           className="error-toast__btn"
           aria-label={expanded ? t.errorsCollapse : t.errorsExpand}
-          onClick={() => setExpanded((v) => !v)}
+          onClick={() => {
+            console.log('[ADL-DEBUG][error-toast] toggle collapsed', {
+              id: entry.id,
+              collapsed: expanded,
+            });
+            setExpanded((v) => !v);
+          }}
           dangerouslySetInnerHTML={{
             __html: iconHtml(expanded ? 'chevron-down' : 'chevron-up', 'sm'),
           }}
@@ -91,7 +98,10 @@ function ErrorToast({ entry, onDismiss }: ErrorToastProps) {
           type="button"
           className="error-toast__btn"
           aria-label={t.errorsClose}
-          onClick={() => onDismiss(entry.id)}
+          onClick={() => {
+            console.log('[ADL-DEBUG][error-toast] close clicked', { id: entry.id });
+            onDismiss(entry.id);
+          }}
           dangerouslySetInnerHTML={{ __html: iconHtml('close', 'sm') }}
         />
       </div>
@@ -113,6 +123,11 @@ export function ErrorToastContainer({
   const { t } = useTCopy();
   const visible = errorToasts.slice(-ERROR_TOAST_VISIBLE_LIMIT);
   const hiddenCount = errorToasts.length - visible.length;
+  console.log('[ADL-DEBUG][error-toast] container render', {
+    total: errorToasts.length,
+    visible: visible.length,
+    hidden: hiddenCount,
+  });
 
   return createPortal(
     <div className="error-toast-region" role="region" aria-label={t.errorsGenericTitle}>
@@ -136,7 +151,16 @@ export function ErrorToastContainer({
             <span className="error-toast__summary-text">
               {formatT(t, 'errorsMore', { n: hiddenCount })}
             </span>
-            <button type="button" className="error-toast__btn" onClick={onClearAll}>
+            <button
+              type="button"
+              className="error-toast__btn"
+              onClick={() => {
+                console.log('[ADL-DEBUG][error-toast] clearAll clicked', {
+                  total: errorToasts.length,
+                });
+                onClearAll();
+              }}
+            >
               {t.errorsClearAll}
             </button>
           </motion.div>
