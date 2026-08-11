@@ -5,9 +5,10 @@
 
 use adl_errors::AppError;
 use adl_types::{ModelChatMessage, ModelResponse};
+use tokio_stream::StreamExt;
 
 use crate::ModelGateway;
-use crate::adapter::{ChatOptions, StreamReader};
+use crate::adapter::{ChatOptions, StreamReader, StreamChunk};
 use crate::secret::get_provider_secret;
 
 pub(crate) async fn call_provider(
@@ -66,7 +67,22 @@ pub(crate) async fn call_provider_stream(
         .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?
         .get_adapter_owned(provider)
         .ok_or_else(|| AppError::Internal(format!("unknown provider: {provider}")))?;
-    adapter.chat_stream(model_id, messages, &options, &api_key).await
+    let stream = adapter.chat_stream(model_id, messages, &options, &api_key).await?;
+    Ok(with_stream_cost(provider, model_id, stream))
+}
+
+/// Attach cost to every `Done` chunk in a stream for the given (provider, model).
+fn with_stream_cost(provider: &str, model: &str, stream: StreamReader) -> StreamReader {
+    let provider = provider.to_string();
+    let model = model.to_string();
+    Box::pin(stream.map(move |chunk| {
+        chunk.map(|c| match c {
+            StreamChunk::Done(usage) => {
+                StreamChunk::Done(crate::pricing::attach_cost(&provider, &model, usage))
+            }
+            other => other,
+        })
+    }))
 }
 
 /// Route a chat request to the appropriate provider adapter via registry
@@ -88,7 +104,11 @@ pub(crate) async fn dispatch_to_provider(
         .map_err(|e| AppError::Internal(format!("registry lock poisoned: {e}")))?
         .get_adapter_owned(provider)
         .ok_or_else(|| AppError::Internal(format!("unknown provider: {provider}")))?;
-    adapter.chat(model_id, messages, &options, api_key).await
+    let mut resp = adapter.chat(model_id, messages, &options, api_key).await?;
+    if let Some(usage) = resp.usage.take() {
+        resp.usage = Some(crate::pricing::attach_cost(provider, model_id, usage));
+    }
+    Ok(resp)
 }
 
 #[cfg(test)]
@@ -100,6 +120,7 @@ mod tests {
     use crate::providers::openai::OpenAIProvider;
     use crate::providers::openrouter::OpenRouterProvider;
     use crate::registry::{ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry};
+    use adl_types::model::ModelTokenUsage;
     use adl_types::{ConversationRole, ModelChatMessage, ModelPreferences};
     use std::sync::{Arc, RwLock};
 
@@ -256,5 +277,23 @@ mod tests {
             !err_str.contains("not yet implemented"),
             "OpenRouter should be routed to adapter, got: {err_str}"
         );
+    }
+
+    // Validates cost attachment on the stream Done chunk for a known model.
+    #[tokio::test]
+    async fn stream_done_chunk_gets_cost() {
+        let stream: StreamReader = Box::pin(tokio_stream::iter(vec![
+            Ok(StreamChunk::Done(ModelTokenUsage {
+                prompt_tokens: Some(1000),
+                completion_tokens: Some(500),
+                ..Default::default()
+            })),
+        ]));
+        let mut pinned = with_stream_cost("anthropic", "claude-3-5-sonnet-20241022", stream);
+        let item = tokio_stream::StreamExt::next(&mut pinned).await.unwrap().unwrap();
+        match item {
+            StreamChunk::Done(usage) => assert!(usage.cost.is_some()),
+            _ => panic!("expected Done"),
+        }
     }
 }
