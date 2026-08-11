@@ -1,7 +1,8 @@
 /* ==========================================================================
    Error Toast (persistent bottom-right error notifications)
    --------------------------------------------------------------------------
-   - Bottom-right region, newest closest to bottom (column-reverse)
+   - Bottom-right region, newest at top, oldest at bottom (column-reverse: last DOM
+     child / newest renders at the top, oldest sits near the screen edge at the bottom)
    - Small radius (slightly-curved right angles)
    - Collapsible/expandable + copy + close actions; summary when over limit
    ========================================================================== */
