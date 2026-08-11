@@ -132,41 +132,38 @@ export function clearWorkspaceCaches(workspacePrefix: string) {
   }
 }
 
-/** 清除全局错误 */
+/** 清除全部错误 toast */
 export function clearError(get: () => StoreState): void {
-  if (get().error) {
-    get().setError(undefined);
+  if (get().errorToasts.length > 0) {
+    get().clearErrorToasts();
   }
 }
 
-/** 捕获错误并设置到全局错误状态 */
+/** 捕获错误并入队错误 toast（code 与完整 message 分离） */
 export function captureError(get: () => StoreState, error: unknown): void {
+  let code = '';
+  let detail = '';
   if (error instanceof AppError) {
-    get().setError(`[${error.code}] ${error.message}`);
-    return;
+    code = error.code;
+    detail = error.message;
+  } else if (error && typeof error === 'object' && 'code' in error && 'message' in error) {
+    const { code: c, message } = error as { code: string; message: string };
+    const typed = fromIpcErrorCode(c, message);
+    code = typed.code;
+    detail = typed.message;
+  } else {
+    detail =
+      typeof error === 'string'
+        ? error
+        : error instanceof Error
+          ? error.message
+          : error && typeof error === 'object' && 'message' in error
+            ? String((error as { message: string }).message)
+            : error
+              ? String(error)
+              : 'An unknown error occurred';
   }
-  if (error && typeof error === 'object' && 'code' in error && 'message' in error) {
-    const { code, message } = error as { code: string; message: string };
-    const typed = fromIpcErrorCode(code, message);
-    get().setError(`[${typed.code}] ${typed.message}`);
-    return;
-  }
-  const message =
-    typeof error === 'string'
-      ? error
-      : error instanceof Error
-        ? error.message
-        : error && typeof error === 'object' && 'message' in error
-          ? String((error as { message: string }).message)
-          : error
-            ? String(error)
-            : 'An unknown error occurred';
-  get().setError(message);
-}
-
-/** 设置全局错误消息 */
-export function setError(get: () => StoreState, message: string): void {
-  get().setError(message);
+  get().reportError(code, detail);
 }
 
 /** 低优先级刷新辅助（使用 setTimeout(0) 允许浏览器先渲染再执行） */

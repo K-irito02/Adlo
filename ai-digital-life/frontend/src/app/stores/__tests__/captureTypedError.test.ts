@@ -4,24 +4,24 @@ import { captureError } from '../shared';
 import type { StoreState } from '../StoreState';
 
 describe('captureError', () => {
-  it('calls setError with formatted AppError message', () => {
-    const setError = vi.fn();
-    const get = vi.fn(() => ({ setError })) as unknown as () => StoreState;
+  it('reports an AppError with its code and raw message', () => {
+    const reportError = vi.fn();
+    const get = vi.fn(() => ({ reportError })) as unknown as () => StoreState;
     captureError(get, new NotFoundError('file'));
-    expect(setError).toHaveBeenCalledWith('[NOT_FOUND] Not found: file');
+    expect(reportError).toHaveBeenCalledWith('NOT_FOUND', 'Not found: file');
   });
 
-  it('calls setError with formatted code+message object', () => {
-    const setError = vi.fn();
-    const get = vi.fn(() => ({ setError })) as unknown as () => StoreState;
+  it('reports typed code+message objects via fromIpcErrorCode', () => {
+    const reportError = vi.fn();
+    const get = vi.fn(() => ({ reportError })) as unknown as () => StoreState;
     captureError(get, { code: 'NETWORK_ERROR', message: 'timeout' });
-    expect(setError).toHaveBeenCalledWith('[NETWORK_ERROR] Network error: timeout');
+    expect(reportError).toHaveBeenCalledWith('NETWORK_ERROR', 'Network error: timeout');
   });
 
-  it('falls back to plain message for strings', () => {
-    const setError = vi.fn();
-    const get = vi.fn(() => ({ setError })) as unknown as () => StoreState;
+  it('falls back to a plain message with empty code for strings', () => {
+    const reportError = vi.fn();
+    const get = vi.fn(() => ({ reportError })) as unknown as () => StoreState;
     captureError(get, 'plain error');
-    expect(setError).toHaveBeenCalledWith('plain error');
+    expect(reportError).toHaveBeenCalledWith('', 'plain error');
   });
 });

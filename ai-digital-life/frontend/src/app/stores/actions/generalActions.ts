@@ -69,7 +69,8 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       }
 
       if (!appInfoResult.ok) {
-        set({ loading: false, error: appInfoResult.error.message });
+        set({ loading: false });
+        captureError(get, appInfoResult.error);
         return;
       }
 

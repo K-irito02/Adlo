@@ -37,6 +37,7 @@ describe('updatePreferences action', () => {
     useAppStore.setState({
       error: undefined,
       isFetching: {},
+      errorToasts: [],
     });
   });
 
@@ -44,6 +45,7 @@ describe('updatePreferences action', () => {
     useAppStore.setState({
       error: undefined,
       isFetching: {},
+      errorToasts: [],
     });
   });
 
@@ -82,9 +84,10 @@ describe('updatePreferences action', () => {
     const store = useAppStore.getState();
     await store.updatePreferences({ language: 'invalid' } as AppPreferencePatch);
 
-    const error = useAppStore.getState().error;
-    expect(error).toContain('[CONFIG_ERROR]');
-    expect(error).toContain('Invalid preference');
+    const toasts = useAppStore.getState().errorToasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].code).toBe('CONFIG_ERROR');
+    expect(toasts[0].detail).toContain('Invalid preference');
     expect(useAppStore.getState().isFetching['updatePreferences']).toBe(false);
   });
 
@@ -101,11 +104,11 @@ describe('updatePreferences action', () => {
     });
 
     const store = useAppStore.getState();
-    store.setError('previous error');
-    expect(useAppStore.getState().error).toBe('previous error');
+    store.reportError('CONFIG_ERROR', 'previous error');
+    expect(useAppStore.getState().errorToasts).toHaveLength(1);
 
     await store.updatePreferences({ language: 'en-US' } as AppPreferencePatch);
-    expect(useAppStore.getState().error).toBeUndefined();
+    expect(useAppStore.getState().errorToasts).toEqual([]);
   });
 
   it('does not re-enter when isFetching is already true', async () => {
