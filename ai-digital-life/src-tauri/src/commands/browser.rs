@@ -286,6 +286,18 @@ async fn download_favicon_data_uri(client: &reqwest::Client, favicon_url: &str) 
     if !resp.status().is_success() {
         return String::new();
     }
+    // Precheck the declared Content-Length so an oversized favicon is rejected
+    // before its body is buffered (bounded memory against hostile/large
+    // endpoints). The post-download check remains as the backstop for servers
+    // that omit Content-Length.
+    let content_length = resp
+        .headers()
+        .get(reqwest::header::CONTENT_LENGTH)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.parse::<usize>().ok());
+    if content_length.is_some_and(|len| len > 64 * 1024) {
+        return String::new();
+    }
     let content_type = resp
         .headers()
         .get(reqwest::header::CONTENT_TYPE)
@@ -380,10 +392,14 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
     let title = extract_title(&body);
     let favicon = extract_favicon(&body, url);
 
-    let final_title = title.unwrap_or_else(|| {
-        tracing::warn!(url = %url, "fetch_page_meta_inner: <title> not found, returning empty title");
-        String::new()
-    });
+    let final_title = title
+        .unwrap_or_else(|| {
+            tracing::warn!(url = %url, "fetch_page_meta_inner: <title> not found, returning empty title");
+            String::new()
+        })
+        .chars()
+        .take(200)
+        .collect::<String>();
 
     let final_favicon = favicon.unwrap_or_else(|| origin_favicon_fallback(url));
 

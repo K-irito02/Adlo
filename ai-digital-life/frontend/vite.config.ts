@@ -144,10 +144,15 @@ export default defineConfig({
                   const iconResp = await fetch(favicon, { signal: iconController.signal, headers: { 'User-Agent': USER_AGENT } });
                   clearTimeout(iconTimeout);
                   if (iconResp.ok) {
-                    const buf = await iconResp.arrayBuffer();
-                    if (buf.byteLength > 0 && buf.byteLength <= 64 * 1024) {
-                      const contentType = iconResp.headers.get('content-type')?.split(';')[0] ?? 'image/x-icon';
-                      faviconDataUri = `data:${contentType};base64,${Buffer.from(buf).toString('base64')}`;
+                    const declared = Number(iconResp.headers.get('content-length'));
+                    if (declared && declared > 64 * 1024) {
+                      faviconDataUri = '';
+                    } else {
+                      const buf = await iconResp.arrayBuffer();
+                      if (buf.byteLength > 0 && buf.byteLength <= 64 * 1024) {
+                        const contentType = iconResp.headers.get('content-type')?.split(';')[0] ?? 'image/x-icon';
+                        faviconDataUri = `data:${contentType};base64,${Buffer.from(buf).toString('base64')}`;
+                      }
                     }
                   }
                 } catch { faviconDataUri = ''; }
