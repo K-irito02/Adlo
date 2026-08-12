@@ -2,16 +2,18 @@ export interface RenderHintCardOptions {
   content: string;
   buttonRect: DOMRect;
   menuRect: DOMRect;
-  containerEl: HTMLElement;
   direction?: 'right' | 'left';
   onCardMouseEnter?: () => void;
   onCardMouseLeave?: () => void;
 }
 
 /**
- * Creates and appends hint card DOM elements (card + arrow + arrow border)
- * to a container element (typically the parent menu). Avoids duplicating
- * this imperative DOM construction across 5+ context menu components.
+ * Creates and appends hint card DOM elements (card + arrow + arrow border).
+ * Elements are appended to `document.body` because they use `position: fixed`
+ * with viewport-space coordinates — appending inside a transformed ancestor
+ * (e.g. `.adl-rightpanel__content`) would make `position: fixed` resolve
+ * against that box instead of the viewport, misplacing the card by the
+ * panel's offset. This mirrors `HintCardTrigger`, which portals to `body`.
  *
  * Returns [card, arrow, arrowBorder] for cleanup purposes.
  */
@@ -19,7 +21,6 @@ export function renderHintCard({
   content,
   buttonRect,
   menuRect,
-  containerEl,
   direction = 'right',
   onCardMouseEnter,
   onCardMouseLeave,
@@ -64,9 +65,9 @@ export function renderHintCard({
   }
   arrowBorder.style.top = `${centerY - 5}px`;
 
-  containerEl.appendChild(card);
-  containerEl.appendChild(arrow);
-  containerEl.appendChild(arrowBorder);
+  document.body.appendChild(card);
+  document.body.appendChild(arrow);
+  document.body.appendChild(arrowBorder);
 
   return [card, arrow, arrowBorder];
 }

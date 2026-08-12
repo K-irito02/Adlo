@@ -88,7 +88,6 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
         content: hintText,
         buttonRect: btnRect,
         menuRect,
-        containerEl: ref.current,
         onCardMouseEnter: () => {
           if (closeTimerRef.current) {
             window.clearTimeout(closeTimerRef.current);

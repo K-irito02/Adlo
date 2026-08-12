@@ -84,7 +84,6 @@ export function MenuHintItem({ label, hint, onClick, menuId, danger }: MenuHintI
               content: hint,
               buttonRect,
               menuRect,
-              containerEl: menuCard,
               onCardMouseEnter: () => {
                 if (closeTimerRef.current) {
                   window.clearTimeout(closeTimerRef.current);

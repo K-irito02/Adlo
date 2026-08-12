@@ -89,7 +89,6 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
           content: hintText,
           buttonRect: btnRect,
           menuRect,
-          containerEl: menuEl,
           onCardMouseEnter: () => {
             if (childCloseTimerRef.current) {
               window.clearTimeout(childCloseTimerRef.current);

@@ -86,7 +86,6 @@ export function useBrowserTreeEntryMenu({
           content: hintText,
           buttonRect: btnRect,
           menuRect,
-          containerEl: menuEl,
           onCardMouseEnter: () => {
             if (closeTimerRef.current) {
               window.clearTimeout(closeTimerRef.current);
@@ -123,7 +122,6 @@ export function useBrowserTreeEntryMenu({
           content: hintText,
           buttonRect: btnRect,
           menuRect,
-          containerEl: menuEl,
           onCardMouseEnter: () => {
             if (closeTimerRef.current) {
               window.clearTimeout(closeTimerRef.current);
