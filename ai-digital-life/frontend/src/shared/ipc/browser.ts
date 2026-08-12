@@ -1,6 +1,7 @@
 export interface PageMeta {
   title: string;
   favicon: string;
+  faviconDataUri?: string;
   url: string;
 }
 
