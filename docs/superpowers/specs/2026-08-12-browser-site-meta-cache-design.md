@@ -94,8 +94,14 @@ const memoryCache = new Map<string, SiteMetaCacheEntry>();
 ### `siteMetaCache.ts`（新模块）
 
 ```ts
-// 启动时一次性预载（幂等，可多次调用）
+// 启动时一次性预载（幂等，可多次调用；返回 Promise 供等待）
 export async function initSiteMetaCache(): Promise<void>;
+
+// 预载是否完成（渲染门控：完成前不显示回退图标）
+export function isSiteMetaCacheReady(): boolean;
+
+// 等待预载完成
+export function whenSiteMetaCacheReady(): Promise<void>;
 
 // 同步读取 — 渲染唯一入口
 export function getCachedSiteMeta(url: string): SiteMetaCacheEntry | undefined;
@@ -175,7 +181,7 @@ interface SiteMetaBackend {
 |------|------|
 | 后端文件读写失败 | 静默失败 + console.warn，前端内存层仍可用（本次会话内缓存生效） |
 | JSON 解析损坏 | 重建空缓存（丢弃损坏文件） |
-| 启动预载失败 | 内存层为空，功能回退为「未命中 → Google 回退」现状 |
+| 启动预载失败 | `isSiteMetaCacheReady` 仍置为 true（门控放行），内存层为空 → 所有条目按未命中处理（回退图标），不阻塞渲染 |
 | 抓取失败 | 返回 null，不改缓存 |
 | 配额 / 写入超限 | 静默失败，不阻塞 |
 | 防抖落盘期间再次写入 | 防抖合并，最后一次为准 |
@@ -184,11 +190,13 @@ interface SiteMetaBackend {
 
 无上限缓存的核心风险是「规模增长后启动变慢、落盘变重」。对策遵循 **限尺寸不限条数、序列化仅发生在落盘、渲染热路径零解析** 三条原则。
 
-### 1. 启动异步预载（不阻塞首屏）
+### 1. 启动异步预载（不阻塞首屏，预载门控渲染）
 
 - `initSiteMetaCache()` 在应用启动时异步调用，**不阻塞首次渲染**
-- 首次渲染：内存 Map 未灌满前，未命中条目显示回退图标；预载完成后订阅回调一次性刷新为 data-URI（图标从回退变为真实，无白屏）
-- 预载为纯本地文件读取（Tauri 后端读 JSON / preview 服务读文件），通常 <50ms；即使缓存很大也只在启动瞬间发生，且不产生任何网络请求
+- **预载门控**：`BrowserFavicon` 在 `isSiteMetaCacheReady()` 为 true 前，渲染固定尺寸空占位 span（尺寸与图标一致，避免布局跳动），**不显示任何回退图标**
+- 预载完成后（本地文件读，通常 <50ms）：命中缓存 → 立即显示 data-URI；未命中 → 才走 Google S2 / 字母占位回退
+- 语义：**图标要么不出现在屏幕上，一出现就是真实缓存图标**；回退图标只在"确定未命中"后才显示，杜绝"先回退后真实"的闪烁
+- 预载为纯本地文件读取，不产生任何网络请求
 
 ### 2. 单条大小上限（限尺寸不限条数）
 
@@ -231,7 +239,7 @@ interface SiteMetaBackend {
 
 | 模块 | 用例 |
 |------|------|
-| `siteMetaCache`（内存层） | set/get/remove/clear；data-URI 优先；键归一化一致性；订阅触发重渲染 |
+| `siteMetaCache`（内存层） | set/get/remove/clear；data-URI 优先；键归一化一致性；订阅触发重渲染；`isSiteMetaCacheReady` 门控语义 |
 | `siteMetaCache`（防抖落盘） | 防抖合并；删除排程落盘；多次写入合并为一次 |
 | `siteMetaCache`（性能） | 渲染读路径不做 URL 解析（O(1) 断言）；单条超限丢弃图片本体仅留标题；启动预载合并已存在内存条目 |
 | Rust `site_meta_cache.rs` | JSON 文件 upsert/remove/clear/load；损坏文件重建；原子写（临时文件+rename） |
@@ -241,7 +249,9 @@ interface SiteMetaBackend {
 
 | 用例 |
 |------|
-| 启动预载后重渲染显示 data-URI 图标（零网络断言） |
+| 预载完成前图标区域为空占位（不显示回退图标） |
+| 预载完成后命中缓存 → 直接显示 data-URI 图标（零网络断言） |
+| 预载完成后未命中 → 显示回退图标 |
 | 点击打开 → 成功写入 → 树节点自动更新图标 |
 | 打开抓取失败 → 旧缓存保留 |
 | 删除最后一个引用 → 缓存条目消失 |
@@ -257,7 +267,7 @@ interface SiteMetaBackend {
 | `frontend/src/app/utils/siteMetaBackends/mock.ts` | 新增 |
 | `frontend/src/app/utils/fetchPageMeta.ts` | 重构（移除缓存状态，仅保留纯抓取逻辑） |
 | `frontend/src/app/utils/favicon.ts` | 修改（`getFaviconUrl` 改走 `siteMetaCache` data-URI 优先） |
-| `frontend/src/app/components/BrowserFavicon.tsx` | 修改（订阅切到 `subscribeSiteMeta`） |
+| `frontend/src/app/components/BrowserFavicon.tsx` | 修改（预载门控空占位 + 订阅切到 `subscribeSiteMeta`） |
 | `frontend/src/app/features/browser/useBrowserPageMeta.ts` | 修改（写缓存改走 `setCachedSiteMeta`） |
 | `frontend/src/app/features/browser/useBrowserTagActions.ts` | 修改（刷新/删除改用新 API） |
 | `frontend/src/app/features/browser/useBrowserMenuActions.ts` | 修改 |
