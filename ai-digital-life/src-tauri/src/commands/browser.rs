@@ -177,6 +177,34 @@ pub async fn browser_fetch_page_meta(
 }
 
 #[tauri::command]
+pub fn browser_site_meta_get_all(
+    state: State<'_, AppState>,
+) -> Result<IpcResult<HashMap<String, adl_browser::SiteMetaCacheEntry>>, CommandError> {
+    Ok(ipc(state.browser_manager.site_meta_cache().get_all()))
+}
+
+#[tauri::command]
+pub fn browser_site_meta_upsert(
+    state: State<'_, AppState>,
+    entries: HashMap<String, adl_browser::SiteMetaCacheEntry>,
+) -> Result<IpcResult<()>, CommandError> {
+    Ok(ipc(state.browser_manager.site_meta_cache().upsert(&entries)))
+}
+
+#[tauri::command]
+pub fn browser_site_meta_remove(
+    state: State<'_, AppState>,
+    urls: Vec<String>,
+) -> Result<IpcResult<()>, CommandError> {
+    Ok(ipc(state.browser_manager.site_meta_cache().remove(&urls)))
+}
+
+#[tauri::command]
+pub fn browser_site_meta_clear(state: State<'_, AppState>) -> Result<IpcResult<()>, CommandError> {
+    Ok(ipc(state.browser_manager.site_meta_cache().clear()))
+}
+
+#[tauri::command]
 pub fn browser_mute_tab(
     state: State<'_, AppState>,
     tab_id: String,

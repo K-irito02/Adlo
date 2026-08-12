@@ -401,11 +401,15 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
 
     info!("[ADL-PERF] init_app_state TOTAL: {}ms", t0.elapsed().as_millis());
 
+    let site_meta_cache = adl_browser::SiteMetaCacheStore::open(&data_dir)
+        .map_err(|e| anyhow::anyhow!("failed to open site-meta-cache store: {e}"))?;
+    let browser_manager = adl_browser::BrowserManager::new(site_meta_cache);
+
     Ok(AppState {
         data_dir,
         config: config_arc,
         event_bus,
-        browser_manager: adl_browser::BrowserManager::new(),
+        browser_manager,
         log_manager: Arc::new(log_manager),
         started_at: now_ms(),
         provider_registry,

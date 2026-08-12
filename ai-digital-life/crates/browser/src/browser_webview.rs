@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::browser_pool::BrowserPool;
+use crate::site_meta_cache::SiteMetaCacheStore;
 use crate::webview_handle::{Bounds, WebView2EventBridge, WebViewHandle};
 
 pub const BROWSER_WEBVIEW_LABEL: &str = "adl-browser-view";
@@ -46,21 +47,37 @@ pub struct BrowserManager {
     pool: BrowserPool,
     handles: Mutex<HashMap<String, Arc<dyn WebViewHandle>>>,
     current_color_scheme: Mutex<String>,
+    site_meta_cache: Arc<SiteMetaCacheStore>,
 }
 
 impl Default for BrowserManager {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl BrowserManager {
-    pub fn new() -> Self {
         Self {
             pool: BrowserPool::new(DEFAULT_POOL_SIZE),
             handles: Mutex::new(HashMap::new()),
             current_color_scheme: Mutex::new("dark".to_string()),
+            site_meta_cache: SiteMetaCacheStore::open(std::env::temp_dir().as_path())
+                .expect("in-memory store open"),
         }
+    }
+}
+
+impl BrowserManager {
+    pub fn new(store: Arc<SiteMetaCacheStore>) -> Self {
+        Self {
+            pool: BrowserPool::new(DEFAULT_POOL_SIZE),
+            handles: Mutex::new(HashMap::new()),
+            current_color_scheme: Mutex::new("dark".to_string()),
+            site_meta_cache: store,
+        }
+    }
+
+    pub fn site_meta_cache(&self) -> &Arc<SiteMetaCacheStore> {
+        &self.site_meta_cache
+    }
+
+    pub fn set_site_meta_cache(&mut self, store: Arc<SiteMetaCacheStore>) {
+        self.site_meta_cache = store;
     }
 
     pub fn current_color_scheme(&self) -> String {
