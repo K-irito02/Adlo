@@ -29,7 +29,9 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
 
   useEffect(() => {
     setFaviconUrl(url ? getFaviconUrl(url) : '');
-    if (!url) return;
+    if (!url) {
+      return;
+    }
     const unsubscribe = subscribeSiteMeta(url, () => {
       setFaviconUrl(getFaviconUrl(url));
     });
@@ -71,14 +73,18 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
               parent.classList.remove('adl-filetree__file-icon--favicon');
               parent.classList.add('adl-filetree__file-icon--default');
               const link = parent.querySelector('.adl-browser-tree__link-fallback');
-              if (link) (link as HTMLElement).style.display = 'inline-flex';
+              if (link) {
+                (link as HTMLElement).style.display = 'inline-flex';
+              }
             }
           }}
           onLoad={(e) => {
             const parent = (e.target as HTMLImageElement).parentElement;
             if (parent) {
               const link = parent.querySelector('.adl-browser-tree__link-fallback');
-              if (link) (link as HTMLElement).style.display = 'none';
+              if (link) {
+                (link as HTMLElement).style.display = 'none';
+              }
             }
           }}
         />

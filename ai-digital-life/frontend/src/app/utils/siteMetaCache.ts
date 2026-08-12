@@ -37,8 +37,8 @@ let ready = false;
 let initPromise: Promise<void> | null = null;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 let flushChain: Promise<void> = Promise.resolve();
-let pendingUpserts = new Map<string, SiteMetaCacheEntry>();
-let pendingRemoves = new Set<string>();
+const pendingUpserts = new Map<string, SiteMetaCacheEntry>();
+const pendingRemoves = new Set<string>();
 
 let backend: SiteMetaBackend = isTauriShell() ? tauriSiteMetaBackend : previewSiteMetaBackend;
 
@@ -71,15 +71,25 @@ export function buildCachedSiteMetaEntry(
 
 function notify(url: string): void {
   urlListeners.get(url)?.forEach((fn) => {
-    try { fn(); } catch { /* listener error */ }
+    try {
+      fn();
+    } catch {
+      /* listener error */
+    }
   });
   globalListeners.forEach((fn) => {
-    try { fn(url); } catch { /* listener error */ }
+    try {
+      fn(url);
+    } catch {
+      /* listener error */
+    }
   });
 }
 
 function schedulePersist(): void {
-  if (persistTimer) return;
+  if (persistTimer) {
+    return;
+  }
   persistTimer = setTimeout(() => {
     persistTimer = null;
     flushChain = flushChain.then(() => flushPersist()).catch(() => {});
@@ -87,7 +97,9 @@ function schedulePersist(): void {
 }
 
 async function flushPersist(): Promise<void> {
-  if (pendingUpserts.size === 0 && pendingRemoves.size === 0) return;
+  if (pendingUpserts.size === 0 && pendingRemoves.size === 0) {
+    return;
+  }
   const upserts = new Map(pendingUpserts);
   const removes = [...pendingRemoves];
   try {
@@ -111,19 +123,27 @@ async function flushPersist(): Promise<void> {
 }
 
 export async function initSiteMetaCache(): Promise<void> {
-  if (initPromise) return initPromise;
+  if (initPromise) {
+    return initPromise;
+  }
   initPromise = (async () => {
     try {
       const persisted = await backend.getAll();
       for (const [url, entry] of Object.entries(persisted ?? {})) {
-        if (!memoryCache.has(url)) memoryCache.set(url, clamp(entry));
+        if (!memoryCache.has(url)) {
+          memoryCache.set(url, clamp(entry));
+        }
       }
     } catch (err) {
       console.warn('siteMetaCache: preload failed', err);
     } finally {
       ready = true;
       readyListeners.forEach((fn) => {
-        try { fn(); } catch { /* listener error */ }
+        try {
+          fn();
+        } catch {
+          /* listener error */
+        }
       });
       readyListeners.clear();
     }
@@ -181,12 +201,16 @@ export function removeCachedSiteMeta(url: string): void {
 
 export function subscribeSiteMeta(url: string, callback: () => void): () => void {
   const key = normalizeUrlForCache(url);
-  if (!urlListeners.has(key)) urlListeners.set(key, new Set());
+  if (!urlListeners.has(key)) {
+    urlListeners.set(key, new Set());
+  }
   urlListeners.get(key)!.add(callback);
   return () => {
     const set = urlListeners.get(key);
     set?.delete(callback);
-    if (set?.size === 0) urlListeners.delete(key);
+    if (set?.size === 0) {
+      urlListeners.delete(key);
+    }
   };
 }
 

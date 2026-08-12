@@ -9,10 +9,14 @@ export function getFaviconUrl(url: string): string {
     const hostname = urlObj.hostname;
 
     const dataUri = getCachedFavicon(url);
-    if (dataUri) return dataUri;
+    if (dataUri) {
+      return dataUri;
+    }
 
     const entry = getCachedSiteMeta(url);
-    if (entry?.faviconUrl) return entry.faviconUrl;
+    if (entry?.faviconUrl) {
+      return entry.faviconUrl;
+    }
 
     if (hostname === 'localhost' || /^127\./.test(hostname) || /^192\.168\./.test(hostname)) {
       return '';
@@ -24,7 +28,9 @@ export function getFaviconUrl(url: string): string {
 }
 
 export function getGoogleFaviconUrl(url: string | undefined): string {
-  if (!url) return '';
+  if (!url) {
+    return '';
+  }
   try {
     const urlObj = new URL(url);
     const hostname = urlObj.hostname;

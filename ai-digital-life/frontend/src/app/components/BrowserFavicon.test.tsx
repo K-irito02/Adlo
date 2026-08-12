@@ -14,7 +14,9 @@ describe('BrowserFavicon gating', () => {
     render(<mod.BrowserFavicon url="https://a.com" />);
     // before init: placeholder, no <img>
     expect(document.querySelector('.adl-browser-tree__favicon')).toBeNull();
-    await act(async () => { await cache.initSiteMetaCache(); });
+    await act(async () => {
+      await cache.initSiteMetaCache();
+    });
     // after init: still no cache -> Google fallback img appears
     expect(document.querySelector('.adl-browser-tree__favicon')).not.toBeNull();
   });

@@ -13,7 +13,12 @@ describe('siteMetaCache memory layer', () => {
     const mod = await import('./siteMetaCache');
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
-    mod.setCachedSiteMeta('https://a.com', { title: 'A', faviconUrl: 'https://a.com/favicon.ico', faviconDataUri: 'data:image/png;base64,AA', fetchedAt: 1 });
+    mod.setCachedSiteMeta('https://a.com', {
+      title: 'A',
+      faviconUrl: 'https://a.com/favicon.ico',
+      faviconDataUri: 'data:image/png;base64,AA',
+      fetchedAt: 1,
+    });
     expect(mod.getCachedFavicon('https://a.com')).toBe('data:image/png;base64,AA');
     expect(mod.getCachedTitle('https://a.com')).toBe('A');
   });
@@ -22,7 +27,12 @@ describe('siteMetaCache memory layer', () => {
     const mod = await import('./siteMetaCache');
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
-    mod.setCachedSiteMeta('https://a.com', { title: 'A', faviconUrl: '', faviconDataUri: 'data:x;base64,AA', fetchedAt: 1 });
+    mod.setCachedSiteMeta('https://a.com', {
+      title: 'A',
+      faviconUrl: '',
+      faviconDataUri: 'data:x;base64,AA',
+      fetchedAt: 1,
+    });
     mod.removeCachedSiteMeta('https://a.com');
     expect(mod.getCachedSiteMeta('https://a.com')).toBeUndefined();
   });
@@ -40,7 +50,12 @@ describe('siteMetaCache memory layer', () => {
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
     const big = 'data:image/png;base64,' + 'x'.repeat(FAVICON_MAX_DATA_URI_LEN + 1);
-    mod.setCachedSiteMeta('https://a.com', { title: 'A'.repeat(500), faviconUrl: '', faviconDataUri: big, fetchedAt: 1 });
+    mod.setCachedSiteMeta('https://a.com', {
+      title: 'A'.repeat(500),
+      faviconUrl: '',
+      faviconDataUri: big,
+      fetchedAt: 1,
+    });
     const entry = mod.getCachedSiteMeta('https://a.com')!;
     expect(entry.faviconDataUri).toBe('');
     expect(entry.title).toHaveLength(200);
@@ -67,8 +82,15 @@ describe('siteMetaCache memory layer', () => {
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
     let fired = 0;
-    mod.subscribeSiteMeta('https://a.com', () => { fired++; });
-    mod.setCachedSiteMeta('https://a.com', { title: 'A', faviconUrl: '', faviconDataUri: '', fetchedAt: 1 });
+    mod.subscribeSiteMeta('https://a.com', () => {
+      fired++;
+    });
+    mod.setCachedSiteMeta('https://a.com', {
+      title: 'A',
+      faviconUrl: '',
+      faviconDataUri: '',
+      fetchedAt: 1,
+    });
     expect(fired).toBe(1);
   });
 
@@ -115,10 +137,20 @@ describe('siteMetaCache memory layer', () => {
     const mod = await import('./siteMetaCache');
     const backend = mod.createMockSiteMetaBackend();
     await backend.upsert({
-      'https://p.com/': { title: 'P', faviconUrl: '', faviconDataUri: 'data:x;base64,PP', fetchedAt: 2 },
+      'https://p.com/': {
+        title: 'P',
+        faviconUrl: '',
+        faviconDataUri: 'data:x;base64,PP',
+        fetchedAt: 2,
+      },
     });
     mod.setSiteMetaBackendForTest(backend);
-    mod.setCachedSiteMeta('https://m.com', { title: 'M', faviconUrl: '', faviconDataUri: '', fetchedAt: 1 });
+    mod.setCachedSiteMeta('https://m.com', {
+      title: 'M',
+      faviconUrl: '',
+      faviconDataUri: '',
+      fetchedAt: 1,
+    });
     await mod.initSiteMetaCache();
     expect(mod.getCachedSiteMeta('https://p.com')?.title).toBe('P');
     expect(mod.getCachedSiteMeta('https://m.com')?.title).toBe('M');
@@ -150,9 +182,13 @@ describe('siteMetaCache memory layer', () => {
       upsert: async (entries) => {
         upsertCalls++;
         if (upsertCalls === 1) {
-          await new Promise<void>((resolve) => { resolveUpsert = resolve; });
+          await new Promise<void>((resolve) => {
+            resolveUpsert = resolve;
+          });
         }
-        for (const [url, entry] of Object.entries(entries)) store.set(url, entry);
+        for (const [url, entry] of Object.entries(entries)) {
+          store.set(url, entry);
+        }
       },
       remove: async () => {},
       clear: async () => {},
@@ -184,10 +220,14 @@ describe('siteMetaCache memory layer', () => {
             resolveUpsert = resolve;
           });
         }
-        for (const [url, entry] of Object.entries(entries)) store.set(url, entry);
+        for (const [url, entry] of Object.entries(entries)) {
+          store.set(url, entry);
+        }
       },
       remove: async (urls) => {
-        for (const url of urls) store.delete(url);
+        for (const url of urls) {
+          store.delete(url);
+        }
       },
       clear: async () => {},
     };
@@ -217,8 +257,12 @@ describe('siteMetaCache memory layer', () => {
     const backend: SiteMetaBackend = {
       getAll: async () => Object.fromEntries(store.entries()),
       upsert: async (entries) => {
-        if (fail) throw new Error('boom');
-        for (const [url, entry] of Object.entries(entries)) store.set(url, entry);
+        if (fail) {
+          throw new Error('boom');
+        }
+        for (const [url, entry] of Object.entries(entries)) {
+          store.set(url, entry);
+        }
       },
       remove: async () => {},
       clear: async () => {},

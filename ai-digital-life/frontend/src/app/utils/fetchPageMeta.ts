@@ -6,10 +6,19 @@ const PREFETCH_TIMEOUT = 5000;
 
 async function fetchPageMetaHttp(url: string): Promise<PageMeta | null> {
   try {
-    const res = await fetch(`/__adl_preview_api__/browser/page-meta?url=${encodeURIComponent(url)}`);
-    if (!res.ok) return null;
+    const res = await fetch(
+      `/__adl_preview_api__/browser/page-meta?url=${encodeURIComponent(url)}`,
+    );
+    if (!res.ok) {
+      return null;
+    }
     const data = (await res.json()) as PageMeta & { faviconDataUri?: string };
-    return { title: data.title ?? '', favicon: data.favicon ?? '', faviconDataUri: data.faviconDataUri ?? '', url: data.url ?? url };
+    return {
+      title: data.title ?? '',
+      favicon: data.favicon ?? '',
+      faviconDataUri: data.faviconDataUri ?? '',
+      url: data.url ?? url,
+    };
   } catch {
     return null;
   }
@@ -21,7 +30,9 @@ function withTimeout<T>(promise: Promise<T>): Promise<T> {
     timer = setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT);
   });
   return Promise.race([promise, timeoutPromise]).finally(() => {
-    if (timer) clearTimeout(timer);
+    if (timer) {
+      clearTimeout(timer);
+    }
   });
 }
 

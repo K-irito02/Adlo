@@ -18,7 +18,9 @@ function isUrlReferenced(url: string): boolean {
 }
 
 export function removeSiteMetaIfUnreferenced(url: string): void {
-  if (!url) return;
+  if (!url) {
+    return;
+  }
   if (!isUrlReferenced(url)) {
     removeCachedSiteMeta(url);
   }

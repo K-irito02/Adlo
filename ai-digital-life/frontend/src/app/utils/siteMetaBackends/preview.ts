@@ -13,20 +13,26 @@ export const previewSiteMetaBackend: SiteMetaBackend = {
       method: 'PUT',
       body: JSON.stringify({ entries }),
     });
-    if (!r.ok) throw new Error(`site-meta upsert failed: ${r.error?.message}`);
+    if (!r.ok) {
+      throw new Error(`site-meta upsert failed: ${r.error?.message}`);
+    }
   },
   remove: async (urls) => {
     const r = await requestPreviewApi<void>(`${PREFIX}`, {
       method: 'DELETE',
       body: JSON.stringify({ urls }),
     });
-    if (!r.ok) throw new Error(`site-meta remove failed: ${r.error?.message}`);
+    if (!r.ok) {
+      throw new Error(`site-meta remove failed: ${r.error?.message}`);
+    }
   },
   clear: async () => {
     const r = await requestPreviewApi<void>(`${PREFIX}`, {
       method: 'DELETE',
       body: JSON.stringify({ clearAll: true }),
     });
-    if (!r.ok) throw new Error(`site-meta clear failed: ${r.error?.message}`);
+    if (!r.ok) {
+      throw new Error(`site-meta clear failed: ${r.error?.message}`);
+    }
   },
 };

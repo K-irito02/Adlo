@@ -1,7 +1,11 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
-import { setCachedSiteMeta, getCachedSiteMeta, buildCachedSiteMetaEntry } from '@utils/siteMetaCache';
+import {
+  setCachedSiteMeta,
+  getCachedSiteMeta,
+  buildCachedSiteMetaEntry,
+} from '@utils/siteMetaCache';
 import { prefetchPageMeta } from '@utils/fetchPageMeta';
 import { existingFaviconBaseline, shouldReplaceFavicon } from './faviconQuality';
 import type { ToastType } from '@components/Toast';

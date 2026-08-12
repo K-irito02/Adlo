@@ -5,10 +5,14 @@ export function createMockSiteMetaBackend(): SiteMetaBackend {
   return {
     getAll: async () => Object.fromEntries(store.entries()),
     upsert: async (entries) => {
-      for (const [url, entry] of Object.entries(entries)) store.set(url, entry);
+      for (const [url, entry] of Object.entries(entries)) {
+        store.set(url, entry);
+      }
     },
     remove: async (urls) => {
-      for (const url of urls) store.delete(url);
+      for (const url of urls) {
+        store.delete(url);
+      }
     },
     clear: async () => store.clear(),
   };
