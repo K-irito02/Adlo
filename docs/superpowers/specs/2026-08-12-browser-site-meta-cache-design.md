@@ -66,12 +66,15 @@ interface SiteMetaCacheEntry {
 const memoryCache = new Map<string, SiteMetaCacheEntry>();
 ```
 
+与持久化层同源、同规模：启动时整体预载，无条数上限、无淘汰；条目移除仅由引用计数归零触发。
+
 ### Tauri 后端存储
 
 - 文件：`data_dir/site-meta-cache.json`
 - 格式：`Record<normalizedUrl, SiteMetaCacheEntry>`
 - 防抖原子写入：合并变更后写入临时文件再 rename（避免损坏）
-- LRU 上限 200 条：写满时淘汰最久未使用条目（Map 插入序 + 读取时 refresh 顺序）
+- **无条数上限**：条目仅随用户删除标签/书签/历史项（引用归零）而清除，天然绑定用户实际数据，不做 LRU 淘汰
+  - 淘汰会误伤"用户仍保留书签"的条目，导致重开时重新抓取——违背零网络秒开目标
 
 ### 浏览器 preview 服务存储
 
@@ -191,8 +194,8 @@ interface SiteMetaBackend {
 | 模块 | 用例 |
 |------|------|
 | `siteMetaCache`（内存层） | set/get/remove/clear；data-URI 优先；键归一化一致性；订阅触发重渲染 |
-| `siteMetaCache`（防抖落盘） | 防抖合并；写满 LRU 淘汰 200 条；删除排程落盘 |
-| Rust `site_meta_cache.rs` | JSON 文件 upsert/remove/clear/load；损坏文件重建；LRU 上限 |
+| `siteMetaCache`（防抖落盘） | 防抖合并；删除排程落盘；多次写入合并为一次 |
+| Rust `site_meta_cache.rs` | JSON 文件 upsert/remove/clear/load；损坏文件重建 |
 | 引用计数逻辑 | URL 仍被其他标签/书签引用时保留缓存；引用归零后删除 |
 
 ### 集成测试
@@ -243,8 +246,8 @@ interface SiteMetaBackend {
 | 维度 | 评估 |
 |------|------|
 | 首次渲染（命中） | 纯同步内存读，零网络、零 IPC |
-| 启动预载 | 一次批量 `getAll`（200 条约 1~2MB JSON） |
-| 内存占用 | 200 条 ≈ 1~2MB |
-| 磁盘占用 | JSON 文件 ≈ 1~2MB |
+| 启动预载 | 一次批量 `getAll`（随用户打开过的 URL 数量线性增长） |
+| 内存占用 | 随缓存规模线性（单条约 2~10KB） |
+| 磁盘占用 | JSON 文件随缓存规模线性，无上限，仅随引用归零收缩 |
 | 写入 | 防抖合并，仅变更时落盘，不阻塞渲染 |
 | 未命中 | 仅 Google S2 回退（浏览器 HTTP 缓存），不向目标站点请求 |
