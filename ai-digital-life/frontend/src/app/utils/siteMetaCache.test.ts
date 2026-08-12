@@ -205,6 +205,7 @@ describe('siteMetaCache memory layer', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(store.has(key)).toBe(false);
     expect(store.get(key)).toBeUndefined();
+    vi.useRealTimers();
   });
 
   it('failed backend upsert keeps the pending entry so the next flush retries', async () => {

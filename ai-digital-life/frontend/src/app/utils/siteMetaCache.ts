@@ -91,15 +91,19 @@ async function flushPersist(): Promise<void> {
   const upserts = new Map(pendingUpserts);
   const removes = [...pendingRemoves];
   try {
-    if (upserts.size > 0) await backend.upsert(Object.fromEntries(upserts));
-    if (removes.length > 0) await backend.remove(removes);
-    for (const [key, val] of upserts) {
-      if (pendingUpserts.get(key) === val) {
-        pendingUpserts.delete(key);
+    if (upserts.size > 0) {
+      await backend.upsert(Object.fromEntries(upserts));
+      for (const [key, val] of upserts) {
+        if (pendingUpserts.get(key) === val) {
+          pendingUpserts.delete(key);
+        }
       }
     }
-    for (const url of removes) {
-      pendingRemoves.delete(url);
+    if (removes.length > 0) {
+      await backend.remove(removes);
+      for (const url of removes) {
+        pendingRemoves.delete(url);
+      }
     }
   } catch (err) {
     console.warn('siteMetaCache: persist failed', err);

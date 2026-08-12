@@ -67,6 +67,9 @@ export async function putSiteMetaCacheRoute(body: unknown): Promise<IpcResult<bo
   if (!b?.entries || typeof b.entries !== 'object' || Array.isArray(b.entries)) {
     return fail('entries required', 'INVALID_INPUT');
   }
+  if (b.baseDir !== undefined && typeof b.baseDir !== 'string') {
+    return fail('baseDir must be a string', 'INVALID_INPUT');
+  }
   const baseDir = b.baseDir ?? process.cwd();
   await siteMetaCache.upsertSiteMetaCache(
     baseDir,
@@ -80,6 +83,9 @@ export async function deleteSiteMetaCacheRoute(body: unknown): Promise<IpcResult
   if (b?.urls !== undefined && !Array.isArray(b.urls)) {
     return fail('urls must be an array', 'INVALID_INPUT');
   }
+  if (b?.baseDir !== undefined && typeof b.baseDir !== 'string') {
+    return fail('baseDir must be a string', 'INVALID_INPUT');
+  }
   const baseDir = b?.baseDir ?? process.cwd();
   if (b?.clearAll) {
     await siteMetaCache.writeSiteMetaCache(baseDir, {});
@@ -92,7 +98,7 @@ export async function deleteSiteMetaCacheRoute(body: unknown): Promise<IpcResult
   const current = await siteMetaCache.readSiteMetaCache(baseDir);
   let changed = false;
   for (const url of urls) {
-    if (url in current) {
+    if (Object.hasOwn(current, url)) {
       delete current[url];
       changed = true;
     }

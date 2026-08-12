@@ -150,7 +150,7 @@ export default defineConfig({
                     } else {
                       const buf = await iconResp.arrayBuffer();
                       if (buf.byteLength > 0 && buf.byteLength <= 64 * 1024) {
-                        const contentType = iconResp.headers.get('content-type')?.split(';')[0]?.trim() ?? '';
+                        const contentType = iconResp.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() ?? '';
                         if (contentType.startsWith('image/')) {
                           faviconDataUri = `data:${contentType};base64,${Buffer.from(buf).toString('base64')}`;
                         }

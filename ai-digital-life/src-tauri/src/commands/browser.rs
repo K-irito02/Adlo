@@ -272,7 +272,7 @@ where
 const FETCH_DEDUP_WINDOW_MS: u64 = 3000;
 
 fn normalized_content_type(raw: &str) -> String {
-    raw.split(';').next().unwrap_or(raw).trim().to_string()
+    raw.split(';').next().unwrap_or("").trim().to_lowercase()
 }
 
 /// Download favicon image bytes as a base64 data-URI. Returns empty string on

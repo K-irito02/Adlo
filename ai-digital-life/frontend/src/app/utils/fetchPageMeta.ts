@@ -16,10 +16,13 @@ async function fetchPageMetaHttp(url: string): Promise<PageMeta | null> {
 }
 
 function withTimeout<T>(promise: Promise<T>): Promise<T> {
-  const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT),
-  );
-  return Promise.race([promise, timeoutPromise]);
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
 }
 
 export async function fetchPageMeta(url: string): Promise<PageMeta | null> {
