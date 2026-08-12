@@ -69,24 +69,32 @@ impl SiteMetaCacheStore {
     }
 
     pub fn upsert(&self, entries: &HashMap<String, SiteMetaCacheEntry>) -> Result<(), AppError> {
-        let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
+        let mut conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
+        let tx = conn
+            .transaction()
+            .map_err(|e| AppError::Storage(format!("begin upsert transaction: {e}")))?;
         for (url, entry) in entries {
-            conn.execute(
+            tx.execute(
                 "INSERT OR REPLACE INTO site_meta_cache (url, title, favicon_url, favicon_data_uri, fetched_at)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
                 params![url, entry.title, entry.favicon_url, entry.favicon_data_uri, entry.fetched_at],
             )
             .map_err(|e| AppError::Storage(format!("upsert {url}: {e}")))?;
         }
+        tx.commit().map_err(|e| AppError::Storage(format!("commit upsert: {e}")))?;
         Ok(())
     }
 
     pub fn remove(&self, urls: &[String]) -> Result<(), AppError> {
-        let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
+        let mut conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
+        let tx = conn
+            .transaction()
+            .map_err(|e| AppError::Storage(format!("begin remove transaction: {e}")))?;
         for url in urls {
-            conn.execute("DELETE FROM site_meta_cache WHERE url = ?1", params![url])
+            tx.execute("DELETE FROM site_meta_cache WHERE url = ?1", params![url])
                 .map_err(|e| AppError::Storage(format!("delete {url}: {e}")))?;
         }
+        tx.commit().map_err(|e| AppError::Storage(format!("commit remove: {e}")))?;
         Ok(())
     }
 

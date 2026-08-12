@@ -8,9 +8,7 @@ use crate::commands::ipc;
 use crate::error::CommandError;
 use crate::state::AppState;
 use crate::webview_event_bridge::TauriWebView2EventBridge;
-use adl_browser::html_meta::{
-    extract_favicon, extract_title, google_favicon_url, origin_favicon_fallback,
-};
+use adl_browser::html_meta::{extract_favicon, extract_title, origin_favicon_fallback};
 use adl_browser::webview_handle::{Bounds, EventBridgeRef};
 use adl_browser::{PageMeta, webview_label};
 use adl_errors::AppError;
@@ -368,10 +366,10 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
             body
         },
         Err(e) => {
-            tracing::info!(url = %url, err = %e, "fetch_page_meta_inner: HTTP failed, returning empty title");
+            tracing::info!(url = %url, err = %e, "fetch_page_meta_inner: HTTP failed, returning empty title/favicon (previous cache entry is kept)");
             return Ok(PageMeta {
                 title: String::new(),
-                favicon: google_favicon_url(url),
+                favicon: String::new(),
                 url: url.to_string(),
                 favicon_data_uri: String::new(),
             });
@@ -424,7 +422,7 @@ mod favicon_data_uri_tests {
     }
 
     #[test]
-    fn empty_favicon_url_produces_empty_data_uri() {
+    fn empty_bytes_produce_valid_data_uri() {
         let out = to_data_uri(&[], "image/x-icon");
         assert!(out.starts_with("data:image/x-icon;base64,"));
     }
