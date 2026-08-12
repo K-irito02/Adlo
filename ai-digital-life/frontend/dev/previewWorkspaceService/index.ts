@@ -493,7 +493,7 @@ const routes: Route[] = [
       const b = body as { baseDir?: string; entries?: Record<string, siteMetaCache.SiteMetaCacheEntry> } | undefined;
       if (!b?.entries) return fail('entries required', 'INVALID_INPUT');
       const baseDir = b.baseDir ?? process.cwd();
-      await siteMetaCache.writeSiteMetaCache(baseDir, b.entries);
+      await siteMetaCache.upsertSiteMetaCache(baseDir, b.entries);
       return ok(true);
     },
   },

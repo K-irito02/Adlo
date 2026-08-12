@@ -32,3 +32,11 @@ export async function writeSiteMetaCache(
   await fs.mkdir(path.dirname(cachePath(baseDir)), { recursive: true });
   await fs.writeFile(cachePath(baseDir), JSON.stringify(entries), 'utf8');
 }
+
+export async function upsertSiteMetaCache(
+  baseDir: string,
+  entries: Record<string, SiteMetaCacheEntry>,
+): Promise<void> {
+  const current = await readSiteMetaCache(baseDir);
+  await writeSiteMetaCache(baseDir, { ...current, ...entries });
+}
