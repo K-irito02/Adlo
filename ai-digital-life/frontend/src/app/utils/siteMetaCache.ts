@@ -24,7 +24,7 @@ export function normalizeUrlForCache(url: string): string {
   }
 }
 
-const FAVICON_MAX_DATA_URI_LEN = 128 * 1024;
+const FAVICON_MAX_DATA_URI_LEN = Math.ceil((64 * 1024 * 4) / 3);
 const TITLE_MAX_LEN = 200;
 const PERSIST_DEBOUNCE_MS = 500;
 
@@ -62,7 +62,7 @@ export function buildCachedSiteMetaEntry(
 ): SiteMetaCacheEntry {
   return {
     title: metaTitle || existing?.title || '',
-    faviconUrl,
+    faviconUrl: faviconUrl || existing?.faviconUrl || '',
     faviconDataUri: dataUri || existing?.faviconDataUri || '',
     fetchedAt: Date.now(),
   };
@@ -92,8 +92,14 @@ async function flushPersist(): Promise<void> {
   try {
     if (upserts.size > 0) await backend.upsert(Object.fromEntries(upserts));
     if (removes.length > 0) await backend.remove(removes);
-    pendingUpserts.clear();
-    pendingRemoves.clear();
+    for (const [key, val] of upserts) {
+      if (pendingUpserts.get(key) === val) {
+        pendingUpserts.delete(key);
+      }
+    }
+    for (const url of removes) {
+      pendingRemoves.delete(url);
+    }
   } catch (err) {
     console.warn('siteMetaCache: persist failed', err);
   }
@@ -105,7 +111,7 @@ export async function initSiteMetaCache(): Promise<void> {
     try {
       const persisted = await backend.getAll();
       for (const [url, entry] of Object.entries(persisted ?? {})) {
-        if (!memoryCache.has(url)) memoryCache.set(url, entry);
+        if (!memoryCache.has(url)) memoryCache.set(url, clamp(entry));
       }
     } catch (err) {
       console.warn('siteMetaCache: preload failed', err);

@@ -7,12 +7,15 @@ export const tauriSiteMetaBackend: SiteMetaBackend = {
     return r.ok ? (r.data ?? {}) : {};
   },
   upsert: async (entries) => {
-    await invokeIpc<void>('browser_site_meta_upsert', { entries });
+    const r = await invokeIpc<void>('browser_site_meta_upsert', { entries });
+    if (!r.ok) throw new Error(`site-meta upsert failed: ${r.error?.message}`);
   },
   remove: async (urls) => {
-    await invokeIpc<void>('browser_site_meta_remove', { urls });
+    const r = await invokeIpc<void>('browser_site_meta_remove', { urls });
+    if (!r.ok) throw new Error(`site-meta remove failed: ${r.error?.message}`);
   },
   clear: async () => {
-    await invokeIpc<void>('browser_site_meta_clear');
+    const r = await invokeIpc<void>('browser_site_meta_clear');
+    if (!r.ok) throw new Error(`site-meta clear failed: ${r.error?.message}`);
   },
 };

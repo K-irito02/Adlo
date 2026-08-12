@@ -1,4 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { SiteMetaBackend, SiteMetaCacheEntry } from './siteMetaBackends/types';
+
+const FAVICON_MAX_DATA_URI_LEN = Math.ceil((64 * 1024 * 4) / 3);
 
 describe('siteMetaCache memory layer', () => {
   beforeEach(() => {
@@ -36,7 +39,7 @@ describe('siteMetaCache memory layer', () => {
     const mod = await import('./siteMetaCache');
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
-    const big = 'data:image/png;base64,' + 'x'.repeat(128 * 1024 + 1);
+    const big = 'data:image/png;base64,' + 'x'.repeat(FAVICON_MAX_DATA_URI_LEN + 1);
     mod.setCachedSiteMeta('https://a.com', { title: 'A'.repeat(500), faviconUrl: '', faviconDataUri: big, fetchedAt: 1 });
     const entry = mod.getCachedSiteMeta('https://a.com')!;
     expect(entry.faviconDataUri).toBe('');
@@ -120,6 +123,77 @@ describe('siteMetaCache memory layer', () => {
     expect(mod.getCachedSiteMeta('https://p.com')?.title).toBe('P');
     expect(mod.getCachedSiteMeta('https://m.com')?.title).toBe('M');
   });
+
+  it('init clamps persisted oversized data-URIs when loading into memory', async () => {
+    const mod = await import('./siteMetaCache');
+    const backend = mod.createMockSiteMetaBackend();
+    const big = 'data:image/png;base64,' + 'x'.repeat(FAVICON_MAX_DATA_URI_LEN + 1);
+    await backend.upsert({
+      'https://p.com/': { title: 'P', faviconUrl: '', faviconDataUri: big, fetchedAt: 2 },
+    });
+    mod.setSiteMetaBackendForTest(backend);
+    await mod.initSiteMetaCache();
+    const entry = mod.getCachedSiteMeta('https://p.com')!;
+    expect(entry.faviconDataUri).toBe('');
+    expect(entry.title).toBe('P');
+  });
+
+  it('flushPersist keeps a concurrent write made during an in-flight upsert', async () => {
+    vi.useFakeTimers();
+    const mod = await import('./siteMetaCache');
+    const key = mod.normalizeUrlForCache('https://h1.example');
+    const store = new Map<string, SiteMetaCacheEntry>();
+    let upsertCalls = 0;
+    let resolveUpsert: (() => void) | undefined;
+    const backend: SiteMetaBackend = {
+      getAll: async () => Object.fromEntries(store.entries()),
+      upsert: async (entries) => {
+        upsertCalls++;
+        if (upsertCalls === 1) {
+          await new Promise<void>((resolve) => { resolveUpsert = resolve; });
+        }
+        for (const [url, entry] of Object.entries(entries)) store.set(url, entry);
+      },
+      remove: async () => {},
+      clear: async () => {},
+    };
+    mod.setSiteMetaBackendForTest(backend);
+    await mod.initSiteMetaCache();
+    mod.setCachedSiteMeta(key, { title: 'A', faviconUrl: '', faviconDataUri: '', fetchedAt: 1 });
+    await vi.advanceTimersByTimeAsync(500);
+    mod.setCachedSiteMeta(key, { title: 'B', faviconUrl: '', faviconDataUri: '', fetchedAt: 2 });
+    resolveUpsert!();
+    await vi.advanceTimersByTimeAsync(500);
+    vi.useRealTimers();
+    expect(store.get(key)?.title).toBe('B');
+  });
+
+  it('failed backend upsert keeps the pending entry so the next flush retries', async () => {
+    vi.useFakeTimers();
+    const mod = await import('./siteMetaCache');
+    const key = mod.normalizeUrlForCache('https://retry.example');
+    const store = new Map<string, SiteMetaCacheEntry>();
+    let fail = true;
+    const backend: SiteMetaBackend = {
+      getAll: async () => Object.fromEntries(store.entries()),
+      upsert: async (entries) => {
+        if (fail) throw new Error('boom');
+        for (const [url, entry] of Object.entries(entries)) store.set(url, entry);
+      },
+      remove: async () => {},
+      clear: async () => {},
+    };
+    mod.setSiteMetaBackendForTest(backend);
+    await mod.initSiteMetaCache();
+    mod.setCachedSiteMeta(key, { title: 'A', faviconUrl: '', faviconDataUri: '', fetchedAt: 1 });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(store.get(key)).toBeUndefined();
+    fail = false;
+    mod.setCachedSiteMeta(key, { title: 'B', faviconUrl: '', faviconDataUri: '', fetchedAt: 2 });
+    await vi.advanceTimersByTimeAsync(500);
+    vi.useRealTimers();
+    expect(store.get(key)?.title).toBe('B');
+  });
 });
 
 describe('buildCachedSiteMetaEntry (write-path entry builder)', () => {
@@ -174,5 +248,18 @@ describe('buildCachedSiteMetaEntry (write-path entry builder)', () => {
     expect(entry.title).toBe('');
     expect(entry.faviconDataUri).toBe('');
     expect(entry.faviconUrl).toBe('https://x.com/favicon.ico');
+  });
+
+  it('keeps existing faviconUrl when meta provides none (symmetric merge)', async () => {
+    const mod = await import('./siteMetaCache');
+    const entry = mod.buildCachedSiteMetaEntry('X', '', '', {
+      title: 'Old',
+      faviconUrl: 'old.ico',
+      faviconDataUri: '',
+      fetchedAt: 1,
+    });
+    expect(entry.title).toBe('X');
+    expect(entry.faviconUrl).toBe('old.ico');
+    expect(entry.faviconDataUri).toBe('');
   });
 });

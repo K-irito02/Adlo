@@ -9,21 +9,24 @@ export const previewSiteMetaBackend: SiteMetaBackend = {
     return r.ok ? (r.data ?? {}) : {};
   },
   upsert: async (entries) => {
-    await requestPreviewApi<void>(`${PREFIX}`, {
+    const r = await requestPreviewApi<void>(`${PREFIX}`, {
       method: 'PUT',
       body: JSON.stringify({ entries }),
     });
+    if (!r.ok) throw new Error(`site-meta upsert failed: ${r.error?.message}`);
   },
   remove: async (urls) => {
-    await requestPreviewApi<void>(`${PREFIX}`, {
+    const r = await requestPreviewApi<void>(`${PREFIX}`, {
       method: 'DELETE',
       body: JSON.stringify({ urls }),
     });
+    if (!r.ok) throw new Error(`site-meta remove failed: ${r.error?.message}`);
   },
   clear: async () => {
-    await requestPreviewApi<void>(`${PREFIX}`, {
+    const r = await requestPreviewApi<void>(`${PREFIX}`, {
       method: 'DELETE',
       body: JSON.stringify({ clearAll: true }),
     });
+    if (!r.ok) throw new Error(`site-meta clear failed: ${r.error?.message}`);
   },
 };
