@@ -28,6 +28,7 @@ tracing.workspace = true
 anyhow.workspace = true
 reqwest.workspace = true
 url.workspace = true
+base64 = "0.22"
 
 [features]
 default = ["custom-protocol"]

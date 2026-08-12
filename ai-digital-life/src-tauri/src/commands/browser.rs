@@ -15,6 +15,7 @@ use adl_browser::webview_handle::{Bounds, EventBridgeRef};
 use adl_browser::{PageMeta, webview_label};
 use adl_errors::AppError;
 use adl_types::IpcResult;
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use tauri::{Manager, State};
 
 #[tauri::command]
@@ -244,6 +245,40 @@ where
 
 const FETCH_DEDUP_WINDOW_MS: u64 = 3000;
 
+/// Download favicon image bytes as a base64 data-URI. Returns empty string on
+/// any failure (network / timeout / non-success / > 64KB). Callers must not
+/// cache a failed result — the previous cached entry stays intact.
+async fn download_favicon_data_uri(client: &reqwest::Client, favicon_url: &str) -> String {
+    if favicon_url.is_empty()
+        || !favicon_url.starts_with("http://") && !favicon_url.starts_with("https://")
+    {
+        return String::new();
+    }
+    let Ok(resp) = client.get(favicon_url).send().await else {
+        return String::new();
+    };
+    if !resp.status().is_success() {
+        return String::new();
+    }
+    let content_type = resp
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.split(';').next().unwrap_or(s).trim().to_string())
+        .unwrap_or_else(|| "image/x-icon".to_string());
+    let Ok(bytes) = resp.bytes().await else {
+        return String::new();
+    };
+    if bytes.is_empty() || bytes.len() > 64 * 1024 {
+        return String::new();
+    }
+    to_data_uri(&bytes, &content_type)
+}
+
+fn to_data_uri(bytes: &[u8], content_type: &str) -> String {
+    format!("data:{content_type};base64,{}", STANDARD.encode(bytes))
+}
+
 async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, AppError> {
     if !skip_dedup {
         let is_dupe = with_fetch_cache(|cache| {
@@ -267,6 +302,7 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
                 title: String::new(),
                 favicon: String::new(),
                 url: url.to_string(),
+                favicon_data_uri: String::new(),
             });
         }
     }
@@ -275,7 +311,12 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
 
     if !url.starts_with("http://") && !url.starts_with("https://") {
         tracing::warn!(url = %url, "fetch_page_meta_inner: non-http URL, returning empty");
-        return Ok(PageMeta { title: String::new(), favicon: String::new(), url: url.to_string() });
+        return Ok(PageMeta {
+            title: String::new(),
+            favicon: String::new(),
+            url: url.to_string(),
+            favicon_data_uri: String::new(),
+        });
     }
 
     let client = reqwest::Client::builder()
@@ -304,6 +345,7 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
                 title: String::new(),
                 favicon: google_favicon_url(url),
                 url: url.to_string(),
+                favicon_data_uri: String::new(),
             });
         },
     };
@@ -319,6 +361,43 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
 
     let final_favicon = favicon.unwrap_or_else(|| origin_favicon_fallback(url));
 
-    tracing::info!(url = %url, title = %final_title, favicon_len = final_favicon.len(), "fetch_page_meta_inner: result");
-    Ok(PageMeta { title: final_title, favicon: final_favicon, url: url.to_string() })
+    let favicon_data_uri = if final_favicon.is_empty() {
+        String::new()
+    } else {
+        download_favicon_data_uri(&client, &final_favicon).await
+    };
+
+    tracing::info!(url = %url, title = %final_title, favicon_len = final_favicon.len(), favicon_data_uri_len = favicon_data_uri.len(), "fetch_page_meta_inner: result");
+    Ok(PageMeta {
+        title: final_title,
+        favicon: final_favicon,
+        url: url.to_string(),
+        favicon_data_uri,
+    })
+}
+
+#[cfg(test)]
+mod favicon_data_uri_tests {
+    use super::*;
+
+    fn sample_meta() -> PageMeta {
+        PageMeta {
+            title: "T".into(),
+            favicon: "https://a.com/favicon.ico".into(),
+            url: "https://a.com/".into(),
+            favicon_data_uri: String::new(),
+        }
+    }
+
+    #[test]
+    fn page_meta_serializes_camel_case() {
+        let json = serde_json::to_string(&sample_meta()).unwrap();
+        assert!(json.contains("\"faviconDataUri\""));
+    }
+
+    #[test]
+    fn empty_favicon_url_produces_empty_data_uri() {
+        let out = to_data_uri(&[], "image/x-icon");
+        assert!(out.starts_with("data:image/x-icon;base64,"));
+    }
 }
