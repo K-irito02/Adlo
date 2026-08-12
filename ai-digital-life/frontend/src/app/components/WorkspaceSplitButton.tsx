@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTCopy } from '../i18n/useTCopy';
 import { IconChevronRight, IconFolder, IconFolderOpen } from '../icons';
 import { TooltipSimple } from './Tooltip';
@@ -44,14 +44,57 @@ export function WorkspaceSplitButton({
   const splitHoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const settingsHoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  useEffect(() => {
+    if (!splitMenuOpen) {
+      return;
+    }
+    const containerRect = (el: Element | null | undefined): string => {
+      if (!el) {
+        return 'none';
+      }
+      const r = el.getBoundingClientRect();
+      return `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(
+        r.height,
+      )}`;
+    };
+    const menuEl = document.querySelector('.adl-split-btn__menu');
+    const dropEl = document.querySelector('[data-anchor-name="split-btn-menu-trigger"]');
+    const mainEl = menuEl?.closest('.adl-split-btn')?.querySelector('.adl-split-btn__main');
+    console.info(
+      `[ADL-DEBUG:split] menu open` +
+        ` anchorSupport=${CSS.supports?.('position-anchor', 'anchor(top)') ?? 'unknown'}` +
+        ` menuLeft=${menuEl ? getComputedStyle(menuEl).left : 'none'}` +
+        ` menuTop=${menuEl ? getComputedStyle(menuEl).top : 'none'}` +
+        ` menuPos=${menuEl ? getComputedStyle(menuEl).position : 'none'}` +
+        ` menuRect=${containerRect(menuEl)}` +
+        ` dropRect=${containerRect(dropEl)}` +
+        ` mainRect=${containerRect(mainEl)}` +
+        ` inActionCard=${Boolean(menuEl?.closest('.adl-welcome__action-card'))}` +
+        ` inStatusbar=${Boolean(menuEl?.closest('.adl-statusbar__menu'))}` +
+        ` anchors=${Array.from(
+          document.querySelectorAll('[data-anchor-name="split-btn-menu-trigger"]'),
+        )
+          .map((el) => containerRect(el))
+          .join('|')}`,
+    );
+  }, [splitMenuOpen]);
+
   const handlePickDirectory = async () => {
     setProcessing(true);
+    const t0 = performance.now();
+    console.info('[ADL-DEBUG] handlePickDirectory start');
     try {
       const selectedPath = await onPickWorkspaceDirectory();
+      console.info(
+        `[ADL-DEBUG] handlePickDirectory dialog resolved in ${(performance.now() - t0).toFixed(1)}ms hasPath=${Boolean(selectedPath)}`,
+      );
       if (!selectedPath) {
         return;
       }
       await onOpenWorkspace(selectedPath);
+      console.info(
+        `[ADL-DEBUG] handlePickDirectory workspace opened in ${(performance.now() - t0).toFixed(1)}ms`,
+      );
       onClose?.();
     } finally {
       setProcessing(false);
