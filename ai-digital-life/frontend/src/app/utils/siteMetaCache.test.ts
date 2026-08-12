@@ -168,6 +168,45 @@ describe('siteMetaCache memory layer', () => {
     expect(store.get(key)?.title).toBe('B');
   });
 
+  it('remove scheduled during an in-flight upsert is not resurrected by that upsert (flushes serialized)', async () => {
+    vi.useFakeTimers();
+    const mod = await import('./siteMetaCache');
+    const key = mod.normalizeUrlForCache('https://interleave-remove.example');
+    const store = new Map<string, SiteMetaCacheEntry>();
+    let resolveUpsert: (() => void) | undefined;
+    let upsertStarted = false;
+    const backend: SiteMetaBackend = {
+      getAll: async () => Object.fromEntries(store.entries()),
+      upsert: async (entries) => {
+        if (!upsertStarted) {
+          upsertStarted = true;
+          await new Promise<void>((resolve) => {
+            resolveUpsert = resolve;
+          });
+        }
+        for (const [url, entry] of Object.entries(entries)) store.set(url, entry);
+      },
+      remove: async (urls) => {
+        for (const url of urls) store.delete(url);
+      },
+      clear: async () => {},
+    };
+    mod.setSiteMetaBackendForTest(backend);
+    await mod.initSiteMetaCache();
+    mod.setCachedSiteMeta(key, { title: 'A', faviconUrl: '', faviconDataUri: '', fetchedAt: 1 });
+    await vi.advanceTimersByTimeAsync(500);
+    // Remove lands while flush1's upsert is still in flight. With unsynchronized
+    // concurrent flushes, flush2's remove can complete first and flush1's slow
+    // upsert then resurrects A in the backend. Serialized flushes must run the
+    // remove AFTER the in-flight upsert.
+    mod.removeCachedSiteMeta(key);
+    await vi.advanceTimersByTimeAsync(500);
+    resolveUpsert!();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store.has(key)).toBe(false);
+    expect(store.get(key)).toBeUndefined();
+  });
+
   it('failed backend upsert keeps the pending entry so the next flush retries', async () => {
     vi.useFakeTimers();
     const mod = await import('./siteMetaCache');

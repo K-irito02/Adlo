@@ -36,6 +36,7 @@ const readyListeners = new Set<() => void>();
 let ready = false;
 let initPromise: Promise<void> | null = null;
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let flushChain: Promise<void> = Promise.resolve();
 let pendingUpserts = new Map<string, SiteMetaCacheEntry>();
 let pendingRemoves = new Set<string>();
 
@@ -81,7 +82,7 @@ function schedulePersist(): void {
   if (persistTimer) return;
   persistTimer = setTimeout(() => {
     persistTimer = null;
-    void flushPersist();
+    flushChain = flushChain.then(() => flushPersist()).catch(() => {});
   }, PERSIST_DEBOUNCE_MS);
 }
 
