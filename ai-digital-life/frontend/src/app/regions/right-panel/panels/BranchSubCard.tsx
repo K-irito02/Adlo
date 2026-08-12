@@ -322,7 +322,6 @@ export function BranchMenuItem({
   return (
     <div
       className="adl-multitree-entry__menu-item--with-sub"
-      data-anchor-name="branch-sub-trigger"
       onMouseEnter={handleMenuEnter}
       onMouseLeave={handleMenuLeave}
     >

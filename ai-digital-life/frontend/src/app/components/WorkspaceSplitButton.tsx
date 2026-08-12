@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTCopy } from '../i18n/useTCopy';
 import { IconChevronRight, IconFolder, IconFolderOpen } from '../icons';
 
@@ -42,6 +42,17 @@ export function WorkspaceSplitButton({
   const [processing, setProcessing] = useState(false);
   const splitHoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const settingsHoverTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    return () => {
+      if (splitHoverTimer.current) {
+        clearTimeout(splitHoverTimer.current);
+      }
+      if (settingsHoverTimer.current) {
+        clearTimeout(settingsHoverTimer.current);
+      }
+    };
+  }, []);
 
   const handlePickDirectory = async () => {
     setProcessing(true);
@@ -116,6 +127,14 @@ export function WorkspaceSplitButton({
   };
 
   const handleActionModeChange = (mode: WorkspaceActionMode) => {
+    if (splitHoverTimer.current) {
+      clearTimeout(splitHoverTimer.current);
+      splitHoverTimer.current = undefined;
+    }
+    if (settingsHoverTimer.current) {
+      clearTimeout(settingsHoverTimer.current);
+      settingsHoverTimer.current = undefined;
+    }
     setActionMode(mode);
     setActionError('');
     setSettingPanelOpen(false);
@@ -146,6 +165,11 @@ export function WorkspaceSplitButton({
   const handleSplitDropLeave = () => {
     if (splitHoverTimer.current) {
       clearTimeout(splitHoverTimer.current);
+      splitHoverTimer.current = undefined;
+    }
+    if (settingsHoverTimer.current) {
+      clearTimeout(settingsHoverTimer.current);
+      settingsHoverTimer.current = undefined;
     }
     splitHoverTimer.current = setTimeout(() => setSplitMenuOpen(false), 300);
   };
@@ -157,6 +181,9 @@ export function WorkspaceSplitButton({
   };
 
   const handleSplitMenuLeave = () => {
+    if (splitHoverTimer.current) {
+      clearTimeout(splitHoverTimer.current);
+    }
     splitHoverTimer.current = setTimeout(() => setSplitMenuOpen(false), 300);
   };
 
@@ -177,6 +204,11 @@ export function WorkspaceSplitButton({
   const handleSettingsLeave = () => {
     if (settingsHoverTimer.current) {
       clearTimeout(settingsHoverTimer.current);
+      settingsHoverTimer.current = undefined;
+    }
+    if (splitHoverTimer.current) {
+      clearTimeout(splitHoverTimer.current);
+      splitHoverTimer.current = undefined;
     }
     settingsHoverTimer.current = setTimeout(() => setSettingPanelOpen(false), 300);
   };
@@ -188,6 +220,9 @@ export function WorkspaceSplitButton({
   };
 
   const handleSettingsPanelLeave = () => {
+    if (settingsHoverTimer.current) {
+      clearTimeout(settingsHoverTimer.current);
+    }
     settingsHoverTimer.current = setTimeout(() => setSettingPanelOpen(false), 300);
   };
 

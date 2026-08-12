@@ -313,9 +313,8 @@
   gap: var(--space-3);
 }
 
-/* 列点符号：自然宽度，保持与行文本的基线对齐 */
+/* 列点符号：在 flex 容器中保持自然宽度，不收缩 */
 .adl-sub-hint-card__bullet {
-  display: inline;
   flex-shrink: 0;
   /* 精细视觉基线微调（补偿 · 字符在某些字体中的轻微下沉） */
   transform: translateY(-0.03em);
@@ -393,9 +392,7 @@
   cursor: pointer;
   border-radius: var(--radius-sm);
 }
-[data-anchor-name='branch-sub-trigger'] {
-  anchor-name: --branch-sub-trigger;
-}
+
 .adl-multitree-entry__menu-item--with-sub:hover {
   background: var(--bg-hover);
 }

@@ -386,7 +386,7 @@ select:focus-visible {
   position: absolute;
   top: calc(100% + 8px);
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);

@@ -9,8 +9,7 @@ export interface RenderHintCardOptions {
 
 function appendHintCardContent(card: HTMLElement, content: string): void {
   const lines = content.split('\n');
-  lines.forEach((rawLine, idx) => {
-    const line = rawLine;
+  lines.forEach((line, idx) => {
     if (line.startsWith('· ')) {
       const item = document.createElement('div');
       item.className = 'adl-sub-hint-card__bullet-line';
@@ -23,12 +22,16 @@ function appendHintCardContent(card: HTMLElement, content: string): void {
       item.appendChild(bullet);
       item.appendChild(text);
       card.appendChild(item);
-    } else if (line) {
+      return;
+    }
+    if (line) {
       const p = document.createElement('div');
       p.className = 'adl-sub-hint-card__line';
       p.textContent = line;
       card.appendChild(p);
-    } else if (idx !== lines.length - 1) {
+      return;
+    }
+    if (idx !== lines.length - 1) {
       card.appendChild(document.createElement('br'));
     }
   });

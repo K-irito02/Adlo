@@ -42,15 +42,6 @@
   overflow: hidden;
 }
 
-@supports (position-anchor) {
-  .adl-changes-branch-submenu {
-    position-anchor: --branch-sub-trigger;
-    left: anchor(right);
-    top: anchor(top);
-    margin-left: var(--space-px);
-  }
-}
-
 .adl-changes-branch-search {
   flex-shrink: 0;
   padding: var(--space-2);

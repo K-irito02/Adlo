@@ -1289,18 +1289,6 @@
   font-weight: 600;
 }
 
-@supports (position-anchor) {
-  .adl-git-vis__timerange-menu-item--has-sub {
-    anchor-name: --timerange-sub-trigger;
-  }
-  .adl-git-vis__timerange-subcard {
-    position-anchor: --timerange-sub-trigger;
-    left: anchor(right);
-    top: anchor(top);
-    margin-left: var(--space-px);
-  }
-}
-
 /* ── Year Selector Menu ── */
 .adl-git-vis__year-menu {
   max-height: calc(5 * 28px + 8px);
