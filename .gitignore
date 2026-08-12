@@ -21,6 +21,7 @@ npm-debug.log*
 # debug-logs-browser.txt
 # terminal-logs.txt
 .adl-logs/
+.adl-cache/
 
 # Environment
 .env

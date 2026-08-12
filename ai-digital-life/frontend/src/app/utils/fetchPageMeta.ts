@@ -15,23 +15,32 @@ async function fetchPageMetaHttp(url: string): Promise<PageMeta | null> {
   }
 }
 
+function withTimeout<T>(promise: Promise<T>): Promise<T> {
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT),
+  );
+  return Promise.race([promise, timeoutPromise]);
+}
+
 export async function fetchPageMeta(url: string): Promise<PageMeta | null> {
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     return null;
   }
-  if (isTauriShell()) {
-    try {
-      const result = (await invoke('browser_fetch_page_meta', { url })) as {
-        ok: boolean;
-        data?: PageMeta;
-      };
-      if (result?.ok && result.data) return result.data;
-    } catch {
-      return null;
+  try {
+    if (isTauriShell()) {
+      const raw = await withTimeout(invoke('browser_fetch_page_meta', { url }));
+      const result = raw as { ok: boolean; data?: PageMeta };
+      if (result?.ok && result.data) {
+        return result.data;
+      }
+    } else {
+      const meta = (await withTimeout(fetchPageMetaHttp(url))) as PageMeta | null;
+      return meta;
     }
+  } catch {
     return null;
   }
-  return fetchPageMetaHttp(url);
+  return null;
 }
 
 export async function prefetchPageMeta(
@@ -41,26 +50,18 @@ export async function prefetchPageMeta(
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     return null;
   }
-  if (isTauriShell()) {
-    try {
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT),
-      );
-      const result = (await Promise.race([
+  try {
+    if (isTauriShell()) {
+      const raw = await withTimeout(
         invoke('browser_fetch_page_meta', { url, force: options?.force ?? false }),
-        timeoutPromise,
-      ])) as { ok: boolean; data?: PageMeta };
-      if (result?.ok && result.data) return result.data;
-    } catch {
+      );
+      const result = raw as { ok: boolean; data?: PageMeta };
+      if (result?.ok && result.data) {
+        return result.data;
+      }
       return null;
     }
-    return null;
-  }
-  try {
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('timeout')), PREFETCH_TIMEOUT),
-    );
-    const meta = (await Promise.race([fetchPageMetaHttp(url), timeoutPromise])) as PageMeta | null;
+    const meta = (await withTimeout(fetchPageMetaHttp(url))) as PageMeta | null;
     return meta;
   } catch {
     return null;

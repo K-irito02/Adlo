@@ -12,4 +12,15 @@ describe('fetchPageMeta pure fetch', () => {
     expect(await mod.fetchPageMeta('about:blank')).toBeNull();
     expect(await mod.prefetchPageMeta('file:///x')).toBeNull();
   });
+
+  it('fetchPageMeta returns null when the request hangs past the 5s timeout', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', () => new Promise(() => {}));
+    const mod = await import('../fetchPageMeta');
+    const pending = mod.fetchPageMeta('https://hang.example');
+    await vi.advanceTimersByTimeAsync(5000);
+    await expect(pending).resolves.toBeNull();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
 });
