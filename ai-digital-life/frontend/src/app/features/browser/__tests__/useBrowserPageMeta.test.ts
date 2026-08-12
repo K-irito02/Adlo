@@ -119,7 +119,7 @@ describe('useBrowserPageMeta write path (siteMetaCache mock backend)', () => {
     expect(entry.faviconDataUri).toBe('');
   });
 
-  it('keeps existing cached favicon data-URI when a lower-quality fetch has none', async () => {
+  it('keeps existing cached favicon data-URI (no write) when a URL-only favicon arrives', async () => {
     siteMetaCache.setCachedSiteMeta('https://write-keep-existing.example', {
       title: 'Old',
       faviconUrl: 'https://x.com/old.ico',
@@ -134,8 +134,8 @@ describe('useBrowserPageMeta write path (siteMetaCache mock backend)', () => {
     });
     const entry = siteMetaCache.getCachedSiteMeta('https://write-keep-existing.example')!;
     expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
-    expect(entry.faviconUrl).toBe('https://x.com/better.png');
-    expect(entry.title).toBe('X');
+    expect(entry.faviconUrl).toBe('https://x.com/old.ico');
+    expect(entry.title).toBe('Old');
   });
 
   it('Google S2 favicon (low quality) does NOT overwrite a cached high-quality faviconUrl', async () => {

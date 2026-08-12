@@ -77,4 +77,44 @@ describe('useBrowserDialogs create-tab write gate', () => {
     expect(entry.faviconUrl).toBe('https://x.com/f.png');
     expect(entry.faviconDataUri).toBe('');
   });
+
+  it('does NOT overwrite a cached high-quality faviconUrl with a low-quality create-tab favicon', async () => {
+    siteMetaCache.setCachedSiteMeta('https://dlg-q.example', {
+      title: 'Old',
+      faviconUrl: 'https://cdn.example.com/icons/icon-512.png',
+      faviconDataUri: '',
+      fetchedAt: 1,
+    });
+    vi.mocked(prefetchPageMeta).mockResolvedValue(
+      makeMeta({
+        title: 'New',
+        favicon: 'https://dlg-q.example/favicon.ico',
+        url: 'https://dlg-q.example',
+      }),
+    );
+    await confirmCreateTab('https://dlg-q.example');
+    const entry = siteMetaCache.getCachedSiteMeta('https://dlg-q.example')!;
+    expect(entry.faviconUrl).toBe('https://cdn.example.com/icons/icon-512.png');
+  });
+
+  it('preserves cached title when the create-tab fetch returns a data-URI but empty title', async () => {
+    siteMetaCache.setCachedSiteMeta('https://dlg-title.example', {
+      title: 'Old Title',
+      faviconUrl: '',
+      faviconDataUri: 'data:image/png;base64,OLD',
+      fetchedAt: 1,
+    });
+    vi.mocked(prefetchPageMeta).mockResolvedValue(
+      makeMeta({
+        title: '',
+        favicon: 'https://x.com/f.png',
+        faviconDataUri: 'data:image/png;base64,NEW',
+        url: 'https://dlg-title.example',
+      }),
+    );
+    await confirmCreateTab('https://dlg-title.example');
+    const entry = siteMetaCache.getCachedSiteMeta('https://dlg-title.example')!;
+    expect(entry.title).toBe('Old Title');
+    expect(entry.faviconDataUri).toBe('data:image/png;base64,NEW');
+  });
 });

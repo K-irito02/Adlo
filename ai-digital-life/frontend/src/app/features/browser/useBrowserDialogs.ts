@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
-import { setCachedSiteMeta, getCachedFavicon } from '@utils/siteMetaCache';
+import { setCachedSiteMeta, getCachedSiteMeta, buildCachedSiteMetaEntry } from '@utils/siteMetaCache';
 import { prefetchPageMeta } from '@utils/fetchPageMeta';
+import { shouldReplaceFavicon } from './useBrowserPageMeta';
 import type { ToastType } from '@components/Toast';
 
 interface UseBrowserDialogsDeps {
@@ -79,14 +80,15 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         const meta = await prefetchPageMeta(url);
         if (meta?.title?.trim() || meta?.faviconDataUri) {
           title = meta.title?.trim() || title;
-          const existingFavicon = getCachedFavicon(url);
-          if (meta.favicon && (!existingFavicon || meta.faviconDataUri)) {
-            setCachedSiteMeta(url, {
-              title: title,
-              faviconUrl: meta.favicon,
-              faviconDataUri: meta.faviconDataUri || '',
-              fetchedAt: Date.now(),
-            });
+          const existing = getCachedSiteMeta(url);
+          const faviconUrl = shouldReplaceFavicon(existing?.faviconUrl, meta.favicon ?? '')
+            ? (meta.favicon ?? '')
+            : (existing?.faviconUrl ?? '');
+          if (faviconUrl || meta.faviconDataUri) {
+            setCachedSiteMeta(
+              url,
+              buildCachedSiteMetaEntry(title, faviconUrl, meta.faviconDataUri || '', existing),
+            );
           }
         }
       } catch {

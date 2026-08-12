@@ -37,7 +37,7 @@ describe('useBrowserTagActions refresh write gate', () => {
     });
   });
 
-  it('force-refresh that fails to re-download favicon bytes preserves the cached dataUri', async () => {
+  it('force-refresh that fails to re-download bytes preserves cached dataUri and does NOT downgrade a high-quality faviconUrl', async () => {
     siteMetaCache.setCachedSiteMeta('https://refresh.example', {
       title: 'Old',
       faviconUrl: 'https://x.com/big.png',
@@ -57,7 +57,7 @@ describe('useBrowserTagActions refresh write gate', () => {
     const entry = siteMetaCache.getCachedSiteMeta('https://refresh.example')!;
     expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
     expect(entry.title).toBe('X');
-    expect(entry.faviconUrl).toBe('https://x.com/new.ico');
+    expect(entry.faviconUrl).toBe('https://x.com/big.png');
   });
 
   it('failed fetch (empty title/dataUri) does NOT clobber the existing entry', async () => {

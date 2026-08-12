@@ -118,8 +118,11 @@ function getFaviconQualityScore(favicon: string): number {
   return 3;
 }
 
-function shouldReplaceFavicon(existing: string | undefined, incoming: string): boolean {
+export function shouldReplaceFavicon(existing: string | undefined, incoming: string): boolean {
   if (!incoming) {
+    return false;
+  }
+  if (existing?.startsWith('data:')) {
     return false;
   }
   if (!existing) {
