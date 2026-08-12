@@ -300,7 +300,7 @@ mod favicon_data_uri_tests {
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cargo test -p tauri-app`（若 workspace 包名不同，用 `cargo test -p $(cat src-tauri/Cargo.toml | Select-String -Pattern '^name' | head -1)` 查包名；测试预期 FAIL：`to_data_uri` 未定义 / `PageMeta` 无 `favicon_data_uri`）
+Run: `cargo test -p ai-digital-life`（Tauri shell 包名；若报错用 `cargo metadata --no-deps --format-version 1` 确认）——测试预期 FAIL：`to_data_uri` 未定义 / `PageMeta` 无 `favicon_data_uri`
 
 - [ ] **Step 3: 扩展 `crates/browser/src/browser_meta.rs`**
 
@@ -383,7 +383,7 @@ fn to_data_uri(bytes: &[u8], content_type: &str) -> String {
 
 - [ ] **Step 6: 运行测试确认通过**
 
-Run: `cargo test -p <tauri-package> favicon_data_uri`（及 `cargo test -p adl-browser` 确认 PageMeta 变更不破坏现有）
+Run: `cargo test -p ai-digital-life favicon_data_uri`（及 `cargo test -p adl-browser` 确认 PageMeta 变更不破坏现有）
 Expected: PASS；PageMeta 序列化含 `faviconDataUri`，空字节返回 `data:image/x-icon;base64,`
 
 - [ ] **Step 7: Commit**
@@ -529,7 +529,7 @@ pub fn browser_site_meta_clear(
 
 - [ ] **Step 6: 编译验证**
 
-Run: `cargo build -p <tauri-package>` 与 `cargo build -p adl-browser`
+Run: `cargo build -p ai-digital-life` 与 `cargo build -p adl-browser`
 Expected: 编译通过，无警告（`cargo clippy -p adl-browser -- -D warnings` 0 警告）
 
 - [ ] **Step 7: Commit**
@@ -891,7 +891,7 @@ export const previewSiteMetaBackend: SiteMetaBackend = {
 - [ ] **Step 7: 实现 `siteMetaCache.ts`**
 
 ```ts
-import { isTauriShell } from '../../../tauri-bridge/tauri-shared';
+import { isTauriShell } from '../../tauri-bridge/tauri-shared';
 import type { SiteMetaBackend, SiteMetaCacheEntry } from './siteMetaBackends/types';
 import { tauriSiteMetaBackend } from './siteMetaBackends/tauri';
 import { previewSiteMetaBackend } from './siteMetaBackends/preview';
