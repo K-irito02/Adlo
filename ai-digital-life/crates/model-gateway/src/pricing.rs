@@ -15,7 +15,10 @@ pub fn lookup_cost(provider_id: &str, model_id: &str) -> Option<ModelCost> {
     };
     match provider_id {
         "anthropic" => {
-            if prefix("claude-3-5-sonnet") || prefix("claude-3-7-sonnet") || prefix("claude-sonnet-4") {
+            if prefix("claude-3-5-sonnet")
+                || prefix("claude-3-7-sonnet")
+                || prefix("claude-sonnet-4")
+            {
                 Some(cost(3.0, 15.0, 0.30, 3.75))
             } else if prefix("claude-3-5-haiku") {
                 Some(cost(0.80, 4.0, 0.08, 1.00))
@@ -218,9 +221,13 @@ mod tests {
         assert_eq!(c.input_cost, Some(0.0)); // fully cached: uncached input = 0
         assert_eq!(c.cache_read_cost, Some(0.00024)); // 800 / 1e6 * 0.30
         assert_eq!(c.cache_write_cost, Some(0.00075)); // 200 / 1e6 * 3.75
-        let expected = c.output_cost.unwrap() + c.cache_read_cost.unwrap() + c.cache_write_cost.unwrap();
+        let expected =
+            c.output_cost.unwrap() + c.cache_read_cost.unwrap() + c.cache_write_cost.unwrap();
         let total = c.total_cost.expect("total cost present");
-        assert!((total - expected).abs() < 1e-9, "total cost {total} should be output + cache only");
+        assert!(
+            (total - expected).abs() < 1e-9,
+            "total cost {total} should be output + cache only"
+        );
     }
 
     #[test]

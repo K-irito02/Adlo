@@ -259,18 +259,17 @@ pub async fn abort_run(
     // Resolve run → session id (blocking DB read; needed before the async
     // cancel so the loop token lookup key is known).
     let run_id_for_session = run_id.clone();
-    let session_id =
-        match agent_loop::run_blocking(move || -> Result<Option<String>, AppError> {
-            let Some(detail) = load_run_detail(&db, &run_id_for_session)? else {
-                return Ok(None);
-            };
-            Ok(Some(detail.run.session_id))
-        })
-        .await
-        {
-            Ok(v) => v,
-            Err(e) => return ipc::to_response(Err(e)),
+    let session_id = match agent_loop::run_blocking(move || -> Result<Option<String>, AppError> {
+        let Some(detail) = load_run_detail(&db, &run_id_for_session)? else {
+            return Ok(None);
         };
+        Ok(Some(detail.run.session_id))
+    })
+    .await
+    {
+        Ok(v) => v,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
 
     // Cancel the live loop token for the run's session, then flip the record.
     if let Some(session_id) = session_id {

@@ -50,11 +50,8 @@ pub async fn execute(
         .flat_map(|fp| fp.hunks.iter().map(|h| h.id.clone()))
         .collect();
     for hunk_id in hunk_ids {
-        patch_set = adl_change_engine::set_hunk_decision(
-            patch_set,
-            &hunk_id,
-            PatchHunkDecision::Accepted,
-        )?;
+        patch_set =
+            adl_change_engine::set_hunk_decision(patch_set, &hunk_id, PatchHunkDecision::Accepted)?;
     }
     let checkpoints_dir = workspace_root.join(".ai-digital-life").join("checkpoints");
     std::fs::create_dir_all(&checkpoints_dir)?;
@@ -76,10 +73,9 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("a.txt");
         std::fs::write(&file, "line1\nline2\n").unwrap();
-        let result =
-            execute("a.txt", "line1\nline2\n", "changed\nline2\n", &dir, "sess-test")
-                .await
-                .unwrap();
+        let result = execute("a.txt", "line1\nline2\n", "changed\nline2\n", &dir, "sess-test")
+            .await
+            .unwrap();
         assert!(result.success);
         let content = std::fs::read_to_string(&file).unwrap();
         assert!(content.contains("changed"));

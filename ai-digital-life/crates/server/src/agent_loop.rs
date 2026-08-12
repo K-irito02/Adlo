@@ -221,9 +221,10 @@ pub fn spawn_loop_task(
             let db = state.db.clone();
             let session_id_for_db = session_id.clone();
             let assistant_id = assistant_message_id.clone();
-            if let Err(e) =
-                run_blocking(move || persist_assistant_reply(&db, &session_id_for_db, &assistant_id))
-                    .await
+            if let Err(e) = run_blocking(move || {
+                persist_assistant_reply(&db, &session_id_for_db, &assistant_id)
+            })
+            .await
             {
                 tracing::warn!(
                     error = %e,

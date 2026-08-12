@@ -249,6 +249,33 @@ async function waitForAllMenusClosed(timeout = 2000) {
 }
 ```
 
+### 9. 错误通知（error toast）
+
+```javascript
+// 等待错误通知出现（右下角 .error-toast-region）
+await page.waitForSelector('.error-toast:not(.error-toast--summary)', { timeout: 5000 });
+
+// 等待指定级别的错误通知出现
+await page.waitForSelector('.error-toast--error', { timeout: 5000 });
+await page.waitForSelector('.error-toast--warning', { timeout: 5000 });
+await page.waitForSelector('.error-toast--info', { timeout: 5000 });
+
+// 等待错误通知消失（被关闭或清空）
+await page.waitForFunction(
+  () => document.querySelectorAll('.error-toast:not(.error-toast--summary)').length === 0,
+  { timeout: 5000 }
+);
+
+// 等待错误通知展开（显示完整 detail）
+await page.waitForFunction(
+  () => document.querySelector('.error-toast.is-expanded'),
+  { timeout: 3000 }
+);
+
+// 等待摘要出现（超过 5 条）
+await page.waitForSelector('.error-toast--summary', { timeout: 3000 });
+```
+
 ## 超时建议
 
 | 操作类型 | 建议超时 | 说明 |

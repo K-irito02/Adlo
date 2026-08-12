@@ -304,8 +304,7 @@ fn build_anthropic_body(
     options: &ChatOptions,
     stream: bool,
 ) -> serde_json::Value {
-    let (system, messages_arr) =
-        anthropic_system_and_messages(messages, options.cache_policy);
+    let (system, messages_arr) = anthropic_system_and_messages(messages, options.cache_policy);
     let mut body = serde_json::json!({
         "model": model,
         "max_tokens": 4096,

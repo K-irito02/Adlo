@@ -370,6 +370,20 @@ alwaysApply: true
 - [components.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/components/components.md) →
   Toast Notification 章节
 
+### 持久错误通知（Error Toast）
+
+- 文件：[ErrorToast.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ErrorToast.tsx)
+- **与顶部 Toast 区别**：右下角持久渲染，不自动消失，由用户手动关闭/清空；顶部 Toast 自动消失
+- **三级分级**（resolveErrorToastLevel(code, detail) 按 code 语义判定）：
+  - error（红 --error-toast-error）：真实失败（STORAGE/MODEL/NETWORK/INTERNAL 等），role="alert" + aria-live="assertive"
+  - warning（黄 --error-toast-warning）：可恢复（NOT_FOUND/INVALID_INPUT 等），role="alert" + aria-live="assertive"
+  - info（普通色）：提示（如"非 Git 仓库"工作区错误），role="status" + aria-live="polite"，标题用 errorsInfo（提示/Notice）而非"xx错误"
+  - 未知 code 默认 error
+- **模块作用域清除**：reportError(code, detail, scope?) 记录来源模块；clearError(get, scope?) 只清该模块错误，clearError(get) 缺省清全部。每个 action 模块定义 const SCOPE
+- **队列上限**：store 保留最近 50 条（ERROR_TOAST_STORE_LIMIT），UI 显示最近 5 条 + "+N 摘要"
+- **动画**：AnimatePresence mode="popLayout" + layout——新 toast 出现时最旧退出、上方整体下移让位、摘要不移动；关闭不留空位。ErrorToast 需 forwardRef（popLayout 测量要求）
+- **操作**：折叠/展开、复制、关闭（单条）、清空全部（摘要行）
+
 ---
 
 ## 11. 输入框（Input）

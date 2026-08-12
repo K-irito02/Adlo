@@ -333,7 +333,11 @@ impl LoopExecutor {
         }
     }
 
-    async fn cleanup(&self, ctx: &mut TurnContext, loop_error: Option<&AppError>) -> Result<(), AppError> {
+    async fn cleanup(
+        &self,
+        ctx: &mut TurnContext,
+        loop_error: Option<&AppError>,
+    ) -> Result<(), AppError> {
         // 收尾：text/reasoning 已累积；in-flight 工具置 interrupted
         let keys: Vec<String> = ctx.tool_joins.keys().cloned().collect();
         for key in keys {
@@ -366,7 +370,8 @@ impl LoopExecutor {
             }
         }
         // 更新 assistant message（finish/error）
-        let status = if ctx.doom_loop || loop_error.is_some()
+        let status = if ctx.doom_loop
+            || loop_error.is_some()
             || ctx.finish_reason.as_deref() == Some("error")
         {
             "error"
@@ -405,10 +410,8 @@ impl LoopExecutor {
                 .unwrap_or_else(|| "Tool execution failed".to_string());
             info["error"] = serde_json::Value::String(error_text);
         }
-        self.bus.publish(SessionPartEvent::MessageUpdated {
-            session_id: ctx.session_id.clone(),
-            info,
-        });
+        self.bus
+            .publish(SessionPartEvent::MessageUpdated { session_id: ctx.session_id.clone(), info });
         Ok(())
     }
 }
@@ -663,7 +666,10 @@ mod tests {
             .run_turn(config("s1", "msg_4"), event_stream(events), CancellationToken::new())
             .await
             .unwrap();
-        assert!(matches!(result, TurnResult::Error), "doom loop should return Error, got {result:?}");
+        assert!(
+            matches!(result, TurnResult::Error),
+            "doom loop should return Error, got {result:?}"
+        );
     }
 
     #[tokio::test]

@@ -55,11 +55,9 @@ mod tests {
             session_id: "s1".into(),
             info: serde_json::json!({}),
         });
-        let got1 =
-            tokio::time::timeout(std::time::Duration::from_secs(1), rx1.recv()).await;
+        let got1 = tokio::time::timeout(std::time::Duration::from_secs(1), rx1.recv()).await;
         assert!(got1.is_ok(), "subscriber 1 should receive the published event");
-        let got2 =
-            tokio::time::timeout(std::time::Duration::from_secs(1), rx2.recv()).await;
+        let got2 = tokio::time::timeout(std::time::Duration::from_secs(1), rx2.recv()).await;
         assert!(got2.is_ok(), "subscriber 2 should receive the published event");
     }
 }

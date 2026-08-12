@@ -105,6 +105,32 @@ const isCurrent = workspaceItem.classList.contains('is-current');
 const isExpanded = workspaceItem.querySelector('.adl-workspace-row')?.getAttribute('aria-expanded') === 'true';
 ```
 
+### 检查错误通知区状态
+
+```javascript
+// 右下角持久错误通知区（.error-toast-region，挂载于 document.body）
+const region = document.querySelector('.error-toast-region');
+const toasts = [...document.querySelectorAll('.error-toast:not(.error-toast--summary)')];
+
+// 单条 toast 状态
+const toast = toasts[0];
+const level = toast?.className.match(/error-toast--(error|warning|info)/)?.[1];
+// 返回: 'error' | 'warning' | 'info' | undefined
+const isCollapsed = toast?.classList.contains('is-collapsed');
+const isExpanded = toast?.classList.contains('is-expanded');
+
+// 摘要（超过 5 条时）
+const summary = document.querySelector('.error-toast--summary');
+const hiddenCount = summary?.querySelector('.error-toast__summary-text')?.textContent;
+
+// 操作按钮（按 aria-label 定位）
+const collapseBtn = toast?.querySelector('button[aria-label="折叠"], button[aria-label="Collapse"]');
+const expandBtn = toast?.querySelector('button[aria-label="展开"], button[aria-label="Expand"]');
+const copyBtn = toast?.querySelector('button[aria-label="复制"], button[aria-label="Copy"]');
+const closeBtn = toast?.querySelector('button[aria-label="关闭"], button[aria-label="Close"]');
+const clearAllBtn = summary?.querySelector('button');
+```
+
 ## 状态变化监听
 
 ### 等待元素状态变化

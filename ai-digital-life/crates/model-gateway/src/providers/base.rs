@@ -59,7 +59,9 @@ where
                         SseEvent::Delta(d) => return Ok(StreamChunk::Delta(d)),
                         SseEvent::Reasoning(r) => return Ok(StreamChunk::ReasoningDelta(r)),
                         SseEvent::Done => {
-                            return Ok(StreamChunk::Done(pending_usage.clone().unwrap_or_default()));
+                            return Ok(StreamChunk::Done(
+                                pending_usage.clone().unwrap_or_default(),
+                            ));
                         },
                         SseEvent::Skip => {},
                     }
@@ -159,10 +161,7 @@ mod tests {
 
     #[test]
     fn sse_event_usage_variant_roundtrips() {
-        let usage = ModelTokenUsage {
-            cache_read_input_tokens: Some(7),
-            ..Default::default()
-        };
+        let usage = ModelTokenUsage { cache_read_input_tokens: Some(7), ..Default::default() };
         match SseEvent::Usage(usage.clone()) {
             SseEvent::Usage(u) => assert_eq!(u.cache_read_input_tokens, Some(7)),
             other => panic!("expected Usage, got {other:?}"),

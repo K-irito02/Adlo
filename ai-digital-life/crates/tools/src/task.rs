@@ -29,10 +29,7 @@ pub static PARAMETERS: std::sync::LazyLock<serde_json::Value> = std::sync::LazyL
 /// A `BoxFuture`-returning closure is used (rather than `AsyncFn`) because
 /// async closures do not yet satisfy higher-ranked bounds over the input
 /// reference lifetime; this form keeps the awaited future `Send` for tokio.
-pub async fn execute<F>(
-    input: &TaskToolInput,
-    dispatch: F,
-) -> Result<ToolOutput, AppError>
+pub async fn execute<F>(input: &TaskToolInput, dispatch: F) -> Result<ToolOutput, AppError>
 where
     F: for<'a> Fn(
         &'a TaskToolInput,
@@ -43,9 +40,8 @@ where
     // returned minimal data.
     let mut metadata = output.metadata;
     if let Some(obj) = metadata.as_object_mut() {
-        obj.entry("task_id").or_insert_with(|| {
-            serde_json::Value::String(adl_types::create_id("task"))
-        });
+        obj.entry("task_id")
+            .or_insert_with(|| serde_json::Value::String(adl_types::create_id("task")));
         obj.entry("subagent_type")
             .or_insert_with(|| serde_json::Value::String(input.subagent_type.clone()));
         obj.entry("description")

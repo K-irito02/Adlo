@@ -151,20 +151,19 @@ impl ToolRegistry {
         });
         registry.register(ToolDefinition {
             name: apply_patch::NAME.to_string(),
-            description: "Apply a single-file change by providing the full before/after file content."
-                .to_string(),
+            description:
+                "Apply a single-file change by providing the full before/after file content."
+                    .to_string(),
             parameters: (*apply_patch::PARAMETERS).clone(),
         });
         registry.register(ToolDefinition {
             name: question::NAME.to_string(),
-            description: "Ask the user one or more questions and wait for answers."
-                .to_string(),
+            description: "Ask the user one or more questions and wait for answers.".to_string(),
             parameters: (*question::PARAMETERS).clone(),
         });
         registry.register(ToolDefinition {
             name: task::NAME.to_string(),
-            description: "Dispatch a sub-agent task to be executed independently."
-                .to_string(),
+            description: "Dispatch a sub-agent task to be executed independently.".to_string(),
             parameters: (*task::PARAMETERS).clone(),
         });
         registry
@@ -320,8 +319,7 @@ impl ToolRegistry {
                 if let Some(blocked) = self.gate_permission(name, "write", &parsed.path) {
                     return Ok(blocked);
                 }
-                let output =
-                    write::execute(&parsed.path, &parsed.content, Path::new(".")).await?;
+                let output = write::execute(&parsed.path, &parsed.content, Path::new(".")).await?;
                 bridge(name, output)
             },
             "edit" => {
@@ -857,9 +855,7 @@ mod tests {
         // write 到 .env 会返回 Allow。修复后 gate 使用解析出的 path，`**/.env`
         // 规则应触发（Ask），导致 success = false。
         let registry = ToolRegistry::with_builtins();
-        let result = registry
-            .execute("write", "{\"path\":\"/tmp/.env\",\"content\":\"x\"}")
-            .await;
+        let result = registry.execute("write", "{\"path\":\"/tmp/.env\",\"content\":\"x\"}").await;
         let result = result.unwrap_or_else(|_| panic!("should not hard-error"));
         assert!(!result.success, "write to .env should be blocked by default ruleset");
         let permission = result.metadata.get("permission").and_then(|v| v.as_str());
@@ -875,10 +871,7 @@ mod tests {
         // `**/.env` default rule must fire for them too — not just literal write.
         let registry = ToolRegistry::with_builtins();
         let result = registry
-            .execute(
-                "edit",
-                "{\"path\":\"/tmp/.env\",\"old_string\":\"x\",\"new_string\":\"y\"}",
-            )
+            .execute("edit", "{\"path\":\"/tmp/.env\",\"old_string\":\"x\",\"new_string\":\"y\"}")
             .await;
         let result = result.unwrap_or_else(|_| panic!("should not hard-error"));
         assert!(!result.success, "edit to .env should be blocked by default ruleset");
@@ -893,10 +886,7 @@ mod tests {
     async fn apply_patch_to_env_denied_by_permission() {
         let registry = ToolRegistry::with_builtins();
         let result = registry
-            .execute(
-                "apply_patch",
-                "{\"path\":\"/tmp/.env\",\"before\":\"x\",\"after\":\"y\"}",
-            )
+            .execute("apply_patch", "{\"path\":\"/tmp/.env\",\"before\":\"x\",\"after\":\"y\"}")
             .await;
         let result = result.unwrap_or_else(|_| panic!("should not hard-error"));
         assert!(!result.success, "apply_patch to .env should be blocked by default ruleset");

@@ -8,7 +8,7 @@ use adl_types::{ModelChatMessage, ModelResponse};
 use tokio_stream::StreamExt;
 
 use crate::ModelGateway;
-use crate::adapter::{ChatOptions, StreamReader, StreamChunk};
+use crate::adapter::{ChatOptions, StreamChunk, StreamReader};
 use crate::secret::get_provider_secret;
 
 pub(crate) async fn call_provider(
@@ -79,7 +79,7 @@ fn with_stream_cost(provider: &str, model: &str, stream: StreamReader) -> Stream
         chunk.map(|c| match c {
             StreamChunk::Done(usage) => {
                 StreamChunk::Done(crate::pricing::attach_cost(&provider, &model, usage))
-            }
+            },
             other => other,
         })
     }))
@@ -282,13 +282,12 @@ mod tests {
     // Validates cost attachment on the stream Done chunk for a known model.
     #[tokio::test]
     async fn stream_done_chunk_gets_cost() {
-        let stream: StreamReader = Box::pin(tokio_stream::iter(vec![
-            Ok(StreamChunk::Done(ModelTokenUsage {
+        let stream: StreamReader =
+            Box::pin(tokio_stream::iter(vec![Ok(StreamChunk::Done(ModelTokenUsage {
                 prompt_tokens: Some(1000),
                 completion_tokens: Some(500),
                 ..Default::default()
-            })),
-        ]));
+            }))]));
         let mut pinned = with_stream_cost("anthropic", "claude-3-5-sonnet-20241022", stream);
         let item = tokio_stream::StreamExt::next(&mut pinned).await.unwrap().unwrap();
         match item {

@@ -24,9 +24,7 @@ pub static PARAMETERS: std::sync::LazyLock<serde_json::Value> = std::sync::LazyL
     })
 });
 
-pub async fn execute(
-    questions: &serde_json::Value,
-) -> Result<ToolOutput, AppError> {
+pub async fn execute(questions: &serde_json::Value) -> Result<ToolOutput, AppError> {
     let questions = questions.clone();
     // B3's Question service will replace this stub to truly suspend via a
     // Deferred and publish question.asked events. For now, validate shape

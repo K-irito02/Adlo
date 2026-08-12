@@ -11,7 +11,7 @@
 | [browser](./browser/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询、导航模式切换、并发回调去重、标题锁定与 Favicon Pin、标签右键菜单与悬停按钮、WebView2 `text-overflow` 剪辑特性、已打开标签模式过滤与多 iframe 状态保持、4模式导航栏重构、双层同步机制、延迟创建、WebView2 原生 COM 事件、历史记录修复、历史标签删除修复、音频指示器、书签对话框 Store 模式、navigateTab 显式调用重构等经验 | 41 |
 | [code-quality](./code-quality/) | 全量代码质量检测与修复经验 | 21 |
 | [browser-automation](./browser-automation/) | 浏览器自动化调试记录与规则经验 | 2 |
-| [interaction](./interaction/) | 跨功能面板的交互/UX 问题修复经验 | 21 |
+| [interaction](./interaction/) | 跨功能面板的交互/UX 问题修复经验 | 22 |
 | [ci-monitoring](./ci-monitoring/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离、数据缓存、Rate Limit 保护） | 6 |
 | [logging](./logging/) | 日志系统统一改造经验（OpenOptions 权限、ANSI 控制、FormatTime、MakeWriter 兼容、双端一致性） | 1 |
 | [tauri-backend](./tauri-backend/) | Tauri 命令性能、Rust 异步模式、主线程阻塞、serde JSON null vs 缺省 等后端经验 | 3 |
@@ -239,6 +239,7 @@
 | [git-vis-file-hotspots-leaderboard-2026-08-04.md](./interaction/2026-08/git-vis-file-hotspots-leaderboard-2026-08-04.md) | 2026-08-04 文件热点排行榜改进 + closing-workflow 复审 | 7 条经验：git numstat C 转义→core.quotepath=false、路径文本禁用 direction:rtl（bidi 重排）、--until 裸日期补 T23:59:59、虚拟滚动 DOM scrollTop 与状态同步、图表高度显式 height、外层"增长才滚动到底"、悬停按钮 pointer-events + :focus-visible |
 | [git-vis-heatmap-loading-polish-2026-08-05.md](./interaction/2026-08/git-vis-heatmap-loading-polish-2026-08-05.md) | 2026-08-05 热力图 loading 修复 + root-cause/closing 复审 | 9 条经验：exitingReady 阶段 loading 标签 opacity 0 不可见、React 批处理吞掉 loading→最小可见时长、hold await 后复查 seq（TOCTOU）、workspace 与 per-chart loading 所有权分离（inflight 追踪）、superseded 失败不抛错、stale-path 重置放状态所有者、统计数字反映当前渲染、外层滚动仅用户触发增高才滚、i18n 符号空格与正向断言 |
 | [welcome-statusbar-path-layout-fix-2026-08-07.md](./interaction/2026-08/welcome-statusbar-path-layout-fix-2026-08-07.md) | 2026-08-07 最近工作区名称/路径布局修复 | 6 条经验：`justify-self: end`+`overflow:hidden` 是长路径重叠根因（改 `stretch`）、`minmax(0,45%)` 统一比例上限（不随名称变化）、`align-self: baseline` 对齐混合字号文本、原生 `title` 展示完整名称+路径、卡片纵向堆叠+单行省略（不加宽）、纯 CSS 用调试日志数值化排查 |
+| [error-toast-severity-scope-popLayout-2026-08-12.md](./interaction/2026-08/error-toast-severity-scope-popLayout-2026-08-12.md) | 2026-08-12 持久错误通知实现与优化 | 3 类经验：三级分级（error/warning/info 按 code 语义 + 亮暗主题独立对比度验证 + info 用 role=status/polite + errorsInfo 标题）；模块作用域清除（scope 用 !== undefined 判断 + 脚本批量替换后 tsc 兜底 + 队列上限 50）；popLayout 让位动画（退出元素脱离布局流、摘要不动、forwardRef 是硬性要求非防御代码） |
 
 ### CI monitoring
 

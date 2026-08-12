@@ -1,7 +1,7 @@
 use crate::adapter::{StreamChunk, StreamReader};
 use crate::llm_event::{LLMEvent, LLMEventStream};
-use futures::stream;
 use futures::StreamExt;
+use futures::stream;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -111,14 +111,20 @@ pub fn stream_chunks_to_llm_events(chunks: StreamReader) -> LLMEventStream {
                 Ok(StreamChunk::Done(usage)) => {
                     let mut ev = Vec::new();
                     for (id, accum) in std::mem::take(&mut tool_args) {
-                        ev.push(LLMEvent::ToolInputEnd { id: id.clone(), name: accum.name.clone() });
+                        ev.push(LLMEvent::ToolInputEnd {
+                            id: id.clone(),
+                            name: accum.name.clone(),
+                        });
                         let input = serde_json::from_str::<serde_json::Value>(&accum.arguments)
                             .unwrap_or_else(|_| serde_json::json!({}));
                         ev.push(LLMEvent::ToolCall { id, name: accum.name, input });
                     }
                     if step_open {
                         step_open = false;
-                        ev.push(LLMEvent::StepFinish { index: step_counter, reason: "stop".into() });
+                        ev.push(LLMEvent::StepFinish {
+                            index: step_counter,
+                            reason: "stop".into(),
+                        });
                     }
                     ev.push(LLMEvent::Finish { reason: "stop".into(), usage: Some(usage) });
                     ev.into_iter().map(Ok).collect()
@@ -251,7 +257,7 @@ mod tests {
             LLMEvent::ToolCall { name, input, .. } => {
                 assert_eq!(name, "read");
                 assert_eq!(input["path"], "a.txt");
-            }
+            },
             _ => unreachable!(),
         }
     }
@@ -275,7 +281,7 @@ mod tests {
             LLMEvent::ToolCall { name, input, .. } => {
                 assert_eq!(name, "bash");
                 assert!(input.is_object(), "fallback should be an empty object");
-            }
+            },
             _ => unreachable!(),
         }
     }
@@ -288,16 +294,17 @@ mod tests {
             Ok(StreamChunk::Done(usage())), // should be suppressed after error
         ]));
         let events = collect_preserving_errors(stream_chunks_to_llm_events(stream)).await;
-        let kinds: Vec<&str> = events
-            .iter()
-            .map(|r| r.as_ref().map(|e| e.kind()).unwrap_or("ERROR"))
-            .collect();
+        let kinds: Vec<&str> =
+            events.iter().map(|r| r.as_ref().map(|e| e.kind()).unwrap_or("ERROR")).collect();
         assert_eq!(
             kinds,
             vec!["step-start", "text-start", "text-delta", "ERROR"],
             "events before the error survive, then the stream ends with the error"
         );
-        assert!(events.last().expect("events not empty").is_err(), "stream should end with the error");
+        assert!(
+            events.last().expect("events not empty").is_err(),
+            "stream should end with the error"
+        );
     }
 
     #[tokio::test]

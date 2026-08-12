@@ -220,9 +220,7 @@ mod tests {
                         let listed = list_service.list();
                         assert_eq!(listed.len(), 1);
                         assert_eq!(listed[0].id, request_id);
-                        list_service
-                            .reply(&request_id, vec![serde_json::json!("yes")])
-                            .unwrap();
+                        list_service.reply(&request_id, vec![serde_json::json!("yes")]).unwrap();
                         break;
                     },
                     _ => continue,

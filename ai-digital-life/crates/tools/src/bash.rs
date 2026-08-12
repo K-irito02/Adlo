@@ -51,13 +51,10 @@ pub async fn execute(
         });
     }
     let request = build_request("", None, program.to_string(), args, false);
-    let result = run_command(
-        workspace_root,
-        request,
-        Some(timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS)),
-    )
-    .await
-    .map_err(|e| AppError::Terminal(format!("bash tool failed: {e}")))?;
+    let result =
+        run_command(workspace_root, request, Some(timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS)))
+            .await
+            .map_err(|e| AppError::Terminal(format!("bash tool failed: {e}")))?;
     let stdout = result.stdout;
     let stderr = result.stderr;
     let truncated = stdout.len() >= 60_000 || stderr.len() >= 60_000;

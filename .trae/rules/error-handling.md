@@ -10,10 +10,9 @@ alwaysApply: true
 ### 工具函数（定义在 shared.ts / cacheHelpers.ts）
 | 函数 | 定义位置 | 用途 |
 |------|----------|------|
-| `clearError(get)` | `cacheHelpers.ts` | 在 mutation action 入口清空全局 error |
-| `captureError(get, error)` | `cacheHelpers.ts` | 捕获错误（支持 string/Error/{message} 三种格式） |
-| `captureTypedError(get, error)` | `cacheHelpers.ts` | 类型化捕获（支持 `AppError` instance、`{code,message}` 对象、普通 Error/string 三级降级） |
-| `setError(get, message)` | `cacheHelpers.ts` | 直接设置全局 error 消息 |
+| `clearError(get, scope?)` | `cacheHelpers.ts` | mutation action 入口清错误 toast；scope 提供只清该模块错误，缺省清全部 |
+| `captureError(get, error, scope?)` | `cacheHelpers.ts` | 捕获错误入队，支持 string/Error/{code,message}/AppError；scope 记录来源模块 |
+| `reportError(code, detail, scope?)` | `errorToastSlice.ts` | 直接入队错误 toast 并返回 id（store action） |
 
 ### Typed Error Classes（类型化错误类）
 前端 `shared/typedErrors.ts` 定义了 16 个 `AppError` 子类（其中 14 个对应 Rust 后端 `AppError` 变体，另 2 个为前端专用：`InvokeError`、`PreviewApiError`），支持 `instanceof` 判断：
@@ -21,10 +20,9 @@ alwaysApply: true
 - 前端专用：`InvokeError`、`PreviewApiError`
 - 通过 `fromIpcErrorCode(code, message)` 工厂函数从 IPC 返回的错误码创建具体错误实例
 - 优先使用 `captureTypedError` 替代 `captureError`，以获得更精确的错误类型信息
-
 ### Action 规范
-- 每个 mutation action 入口第一行调用 `clearError(get)`
-- 每个异步调用失败时必须调用 `captureError(get, error)`
+- 每个 mutation action 入口第一行调用 `clearError(get, SCOPE)`（模块内定义 `const SCOPE = '模块名'`，只清本模块错误）
+- 每个异步操作失败时调用 `captureError(get, error, SCOPE)`（scope 标记来源模块，便于按模块清除）
 - 禁止静默吞下 IPC 错误（`if (!result.ok) return;` 无错误记录）
 - 禁止混用不同格式的错误值（IPC `result.error.message` 和中文字符串）
 

@@ -1,8 +1,8 @@
 use adl_errors::AppError;
 use std::path::Path;
 
-use crate::write::resolve_path;
 use crate::ToolOutput;
+use crate::write::resolve_path;
 
 pub const NAME: &str = "edit";
 
@@ -84,8 +84,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("a.txt");
         std::fs::write(&path, "hello world hello").unwrap();
-        let result =
-            execute(&path.to_string_lossy(), "hello", "hi", false, &dir).await.unwrap();
+        let result = execute(&path.to_string_lossy(), "hello", "hi", false, &dir).await.unwrap();
         assert!(result.success);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "hi world hello");
         assert_eq!(result.metadata["replacements"], 1);
@@ -102,8 +101,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("a.txt");
         std::fs::write(&path, "hello hello").unwrap();
-        let result =
-            execute(&path.to_string_lossy(), "hello", "hi", true, &dir).await.unwrap();
+        let result = execute(&path.to_string_lossy(), "hello", "hi", true, &dir).await.unwrap();
         assert!(result.success);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "hi hi");
         assert_eq!(result.metadata["replacements"], 2);
