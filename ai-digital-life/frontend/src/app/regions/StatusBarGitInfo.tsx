@@ -191,7 +191,6 @@ const StatusBarGitInfo = React.memo(function StatusBarGitInfo({
                   <button
                     type="button"
                     className="adl-statusbar__submenu-trigger"
-                    data-anchor-name="statusbar-sub-trigger"
                     aria-haspopup="menu"
                     aria-expanded={baseBranchMenuOpen}
                     onClick={() => setBaseBranchMenuOpen((current) => !current)}

@@ -180,6 +180,15 @@ export function useBrowserTreeEntryMenu({
     };
   }, [menuOpen, menuId, setMenuOpen, hideHint, entryBtnRef]);
 
+  const handleTabMenuAction = useCallback(
+    (fn: () => void) => () => {
+      fn();
+      setContextMenuForTab(null);
+      hideHint();
+    },
+    [setContextMenuForTab, hideHint],
+  );
+
   useEffect(() => {
     if (!contextMenuForTab) {
       return;
@@ -191,10 +200,12 @@ export function useBrowserTreeEntryMenu({
         return;
       }
       setContextMenuForTab(null);
+      hideHint();
     };
     const escHandler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setContextMenuForTab(null);
+        hideHint();
       }
     };
     window.addEventListener('mousedown', handler);
@@ -202,8 +213,13 @@ export function useBrowserTreeEntryMenu({
     return () => {
       window.removeEventListener('mousedown', handler);
       window.removeEventListener('keydown', escHandler);
+      if (closeTimerRef.current) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+      hintElementsRef.current.forEach((el) => el.remove());
+      hintElementsRef.current = [];
     };
-  }, [contextMenuForTab, setContextMenuForTab]);
+  }, [contextMenuForTab, setContextMenuForTab, hideHint]);
 
   const entryMenuSlot =
     menuOpen && menuPosition
@@ -348,7 +364,7 @@ export function useBrowserTreeEntryMenu({
               type="button"
               className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
               role="menuitem"
-              onClick={item.action}
+              onClick={handleTabMenuAction(item.action)}
             >
               <span>{item.label}</span>
               {item.hint ? (

@@ -78,7 +78,7 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
         match run_blocking(move || -> Result<(WorkspaceMeta, RetrievalSnapshot), AppError> {
             let t_open = std::time::Instant::now();
             let (meta, _recent) = adl_workspace::open_workspace(path.as_path())?;
-            tracing::info!(
+            tracing::debug!(
                 elapsed_ms = t_open.elapsed().as_millis(),
                 root = %path.display(),
                 "workspace_open_phase1: open_workspace done"
@@ -88,7 +88,7 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
                 &meta.id,
                 PathBuf::from(&meta.root_path).as_path(),
             )?;
-            tracing::info!(
+            tracing::debug!(
                 elapsed_ms = t_snapshot.elapsed().as_millis(),
                 root = %path.display(),
                 "workspace_open_phase1: build_retrieval_snapshot done"
@@ -100,7 +100,7 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
             Ok(v) => v,
             Err(e) => return ipc::to_response(Err(e)),
         };
-    tracing::info!(
+    tracing::debug!(
         phase1_ms = t_phase1.elapsed().as_millis(),
         root = %workspace_path_str,
         "workspace_open_phase1: total"
@@ -136,7 +136,7 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
     {
         return ipc::to_response(Err(e));
     }
-    tracing::info!(
+    tracing::debug!(
         phase2_ms = t_phase2.elapsed().as_millis(),
         root = %workspace_path_str,
         "workspace_open_phase2: persist done"

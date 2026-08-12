@@ -431,10 +431,6 @@
   white-space: nowrap;
 }
 
-[data-anchor-name='statusbar-sub-trigger'] {
-  anchor-name: --statusbar-sub-trigger;
-}
-
 .adl-statusbar__submenu {
   position: absolute;
   top: 0;
@@ -449,15 +445,6 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-}
-
-@supports (position-anchor) {
-  .adl-statusbar__submenu {
-    position-anchor: --statusbar-sub-trigger;
-    left: anchor(right);
-    top: anchor(top);
-    margin-left: 11px;
-  }
 }
 
 .adl-statusbar__submenu .adl-statusbar__menu-option {

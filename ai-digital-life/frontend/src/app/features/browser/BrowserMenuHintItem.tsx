@@ -78,19 +78,6 @@ export function BrowserMenuHintItem({
     const dropdownEl = menuEl.querySelector('.adl-menu__dropdown') as HTMLElement | null;
     const anchorRect = dropdownEl?.getBoundingClientRect() ?? menuEl.getBoundingClientRect();
 
-    const rect = (r: DOMRect) =>
-      `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.width)},${Math.round(r.height)}`;
-    const centerY = btnRect.top + btnRect.height / 2;
-    console.info(
-      `[ADL-DEBUG:hint] show id=${id} label=${label}` +
-        ` target=${(e.target as HTMLElement).nodeName}:${(e.target as HTMLElement).className}` +
-        ` btnRect=${rect(btnRect)} centerY=${Math.round(centerY)}` +
-        ` dropdown=${Boolean(dropdownEl)} anchorRect=${rect(anchorRect)}` +
-        ` direction=left card.right=${window.innerWidth - anchorRect.left + 1}` +
-        ` canvas=${window.innerWidth}x${window.innerHeight}` +
-        ` cardTransform=${getComputedStyle(menuEl).transform}`,
-    );
-
     hideHint();
     hintElementsRef.current = renderHintCard({
       content: hint ?? '',
@@ -105,22 +92,6 @@ export function BrowserMenuHintItem({
       },
       onCardMouseLeave: scheduleHideHint,
     });
-    const cardEl = hintElementsRef.current[0];
-    const arrowEl = hintElementsRef.current[1];
-    const rect2 = (el: HTMLElement | undefined) =>
-      el
-        ? `${Math.round(el.getBoundingClientRect().left)},${Math.round(
-            el.getBoundingClientRect().top,
-          )},${Math.round(el.getBoundingClientRect().right)},${Math.round(
-            el.getBoundingClientRect().bottom,
-          )}`
-        : 'none';
-    console.info(
-      `[ADL-DEBUG:hint] rendered id=${id}` +
-        ` cardRect=${rect2(cardEl)} arrowRect=${rect2(arrowEl)}` +
-        ` cardTop=${cardEl?.style.top} cardRight=${cardEl?.style.right} cardTransform=${cardEl?.style.transform}` +
-        ` arrowLeft=${arrowEl?.style.left} arrowTop=${arrowEl?.style.top}`,
-    );
   };
 
   return (

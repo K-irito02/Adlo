@@ -365,8 +365,8 @@ select:focus-visible {
 }
 
 .adl-welcome__action-card {
-  position: fixed;
-  top: 50%;
+  position: absolute;
+  top: calc(100% + 8px);
   left: 50%;
   transform: translate(-50%, -50%);
   background: var(--bg-card);
@@ -376,6 +376,10 @@ select:focus-visible {
   padding: var(--space-3);
   z-index: var(--z-overlay);
   width: 300px;
+}
+
+.adl-welcome__action-card .adl-split-btn {
+  width: 100%;
 }
 
 .adl-welcome__action-card .adl-split-btn__menu {

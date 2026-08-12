@@ -82,7 +82,6 @@
   border-radius: var(--radius-sm);
   overflow: visible;
   position: relative;
-  width: 100%;
 }
 
 .adl-split-btn__main {
@@ -132,10 +131,6 @@
   background: var(--bg-hover);
 }
 
-[data-anchor-name='split-btn-menu-trigger'] {
-  anchor-name: --split-btn-menu-trigger;
-}
-
 .adl-split-btn__menu {
   position: absolute;
   top: 0;
@@ -146,15 +141,6 @@
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow);
   z-index: var(--z-popover);
-}
-
-@supports (position-anchor) {
-  .adl-split-btn__menu {
-    position-anchor: --split-btn-menu-trigger;
-    left: anchor(right);
-    top: anchor(top);
-    margin-left: 11px;
-  }
 }
 
 .adl-split-btn__settings {
@@ -169,16 +155,6 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow);
-}
-
-@supports (position-anchor) {
-  .adl-split-btn__settings {
-    position-anchor: --split-btn-settings-trigger;
-    left: anchor(right);
-    bottom: auto;
-    top: anchor(bottom);
-    margin-left: 10px;
-  }
 }
 
 .adl-split-btn__option {
@@ -240,10 +216,6 @@
   font-size: var(--text-xs, 11px);
   color: var(--danger, #ef4444);
   line-height: 1.4;
-}
-
-[data-anchor-name='split-btn-settings-trigger'] {
-  anchor-name: --split-btn-settings-trigger;
 }
 
 .adl-split-btn__dots {
