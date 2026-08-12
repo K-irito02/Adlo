@@ -12,7 +12,7 @@
    - 缓存填充/刷新：仅在用户「点击打开标签/书签/历史项」或「地址栏导航」时触发，成功才写
    - 抓取失败：一律保留旧缓存，不删除、不回退
    - 彻底删除标签/书签/历史项：按引用计数清除对应缓存
-4. **后端持久化（方案 C）**：Tauri 后端 JSON 文件 + 浏览器 preview 服务文件 + 前端内存层三层架构
+4. **后端持久化（方案 C）**：Tauri 后端 SQLite + 浏览器 preview 服务 JSON 文件 + 前端内存层三层架构
 5. **双端一致**：Tauri 桌面与浏览器模式行为完全一致
 
 ## 非目标（YAGNI）
@@ -36,8 +36,8 @@
         ↓ 同步读 / 即时生效 + 防抖落盘
 持久化层（SiteMetaCache 后端抽象）
   getAll() / upsert() / delete() / clear()
-    ├─ Tauri:  invoke(Rust 命令) → data_dir/site-meta-cache.json
-    ├─ 浏览器: fetch(preview 服务 HTTP 端点) → 工作区 .adl-cache/ 文件
+    ├─ Tauri:  invoke(Rust 命令) → data_dir/site-meta-cache.db (SQLite, 行级写)
+    ├─ 浏览器: fetch(preview 服务 HTTP 端点) → 工作区 .adl-cache/site-meta-cache.json
     └─ Mock:   内存 Map（测试）
 ```
 
@@ -68,18 +68,32 @@ const memoryCache = new Map<string, SiteMetaCacheEntry>();
 
 与持久化层同源、同规模：启动时整体预载，无条数上限、无淘汰；条目移除仅由引用计数归零触发。
 
-### Tauri 后端存储
+### Tauri 后端存储（SQLite）
 
-- 文件：`data_dir/site-meta-cache.json`
-- 格式：`Record<normalizedUrl, SiteMetaCacheEntry>`
-- 防抖原子写入：合并变更后写入临时文件再 rename（避免损坏）
+- 专用 DB 文件：`data_dir/site-meta-cache.db`（与主业务库分离；主库在 ad-server 进程，本缓存归 shell 进程的 `crates/browser`）
+- 表结构：
+
+```sql
+CREATE TABLE IF NOT EXISTS site_meta_cache (
+    url              TEXT PRIMARY KEY,            -- 规范化 URL
+    title            TEXT NOT NULL,
+    favicon_url      TEXT NOT NULL DEFAULT '',
+    favicon_data_uri TEXT NOT NULL DEFAULT '',    -- 图片本体 base64
+    fetched_at       INTEGER NOT NULL             -- 成功抓取时间戳
+);
+```
+
+- 连接：`rusqlite` + WAL 模式（`PRAGMA journal_mode=WAL`），沿用 `crates/browser` 职责范围（命令运行于 shell 进程）
+- **行级写入**：upsert/delete 只碰变更行（O(log N)），写入成本与缓存总量无关——这是相对 JSON 整文件重写（O(N)）的关键优势
 - **无条数上限**：条目仅随用户删除标签/书签/历史项（引用归零）而清除，天然绑定用户实际数据，不做 LRU 淘汰
   - 淘汰会误伤"用户仍保留书签"的条目，导致重开时重新抓取——违背零网络秒开目标
 
-### 浏览器 preview 服务存储
+> **选型理由**：缓存无上限 + 单条含 ≤64KB base64 图片，JSON 方案每次防抖落盘需整文件重写（读全文→合并→重写），成本 O(N) 随规模恶化；SQLite 行级写 O(log N) 恒定。项目已有 `git_vis_cache` 缓存表先例。浏览器模式（Node preview 服务，无内建 SQLite）保持 JSON 文件，由 `SiteMetaBackend` 接口统一，与现有 tauri/preview/mock 三桥接架构同构。
+
+### 浏览器 preview 服务存储（JSON 文件）
 
 - 目录：工作区根 `.adl-cache/`（与 `.adl-logs/` 调试日志同模式）
-- 文件：`site-meta-cache.json`，格式与 Tauri 端一致
+- 文件：`site-meta-cache.json`，格式为 `Record<normalizedUrl, SiteMetaCacheEntry>`
 - 新增 HTTP 端点（`/__adl_preview_api__/browser/site-meta-cache`）：
   - `GET` → 返回全部条目
   - `PUT` → upsert 一批条目
@@ -150,7 +164,9 @@ interface SiteMetaBackend {
 #[tauri::command] pub async fn browser_site_meta_clear(state) -> Result<IpcResult<()>>;
 ```
 
-所有命令在 `crates/browser` 内实现文件读写逻辑（`site_meta_cache.rs`），命令层仅转发。注册到 `capabilities/*.json`。
+所有命令在 `crates/browser` 内实现 SQLite 读写逻辑（`site_meta_cache.rs`，持有 `data_dir/site-meta-cache.db` 连接），命令层仅转发。注册到 `capabilities/*.json`。
+
+`SiteMetaCacheEntry` 序列化经 serde 映射到表字段（`favicon_data_uri`/`fetched_at` 等），`getAll` 返回全表。`BrowserManager` 持有 `Arc<SiteMetaCacheStore>`，初始化于 `BrowserManager::new()`（延迟建连，首次访问时 `CREATE TABLE IF NOT EXISTS`）。
 
 ## 生命周期规则
 
@@ -179,8 +195,8 @@ interface SiteMetaBackend {
 
 | 场景 | 处理 |
 |------|------|
-| 后端文件读写失败 | 静默失败 + console.warn，前端内存层仍可用（本次会话内缓存生效） |
-| JSON 解析损坏 | 重建空缓存（丢弃损坏文件） |
+| 后端读写失败（SQLite 错误 / preview JSON 读写失败） | 静默失败 + console.warn，前端内存层仍可用（本次会话内缓存生效） |
+| SQLite 表损坏 / preview JSON 解析损坏 | 重建空缓存（丢弃损坏文件/重建表） |
 | 启动预载失败 | `isSiteMetaCacheReady` 仍置为 true（门控放行），内存层为空 → 所有条目按未命中处理（回退图标），不阻塞渲染 |
 | 抓取失败 | 返回 null，不改缓存 |
 | 配额 / 写入超限 | 静默失败，不阻塞 |
@@ -188,7 +204,7 @@ interface SiteMetaBackend {
 
 ## 性能优化
 
-无上限缓存的核心风险是「规模增长后启动变慢、落盘变重」。对策遵循 **限尺寸不限条数、序列化仅发生在落盘、渲染热路径零解析** 三条原则。
+无上限缓存的核心风险是「规模增长后启动变慢、落盘变重」。对策遵循 **限尺寸不限条数、防抖合并行级写、渲染热路径零解析** 三条原则。
 
 ### 1. 启动异步预载（不阻塞首屏，预载门控渲染）
 
@@ -208,11 +224,12 @@ interface SiteMetaBackend {
 
 - 内存总量 ≈ 条目数 × 单条上限，天然有界；即便 1000 条也仅 ~10MB 级
 
-### 3. 落盘效率（序列化仅在防抖触发时）
+### 3. 落盘效率（防抖合并 + 行级写）
 
-- 内存 Map 是**唯一真源**；每次 `set/remove` 只改内存，不立即序列化
-- 防抖窗口（500ms）合并突发写入 → 一次 `getAll 结果替换 + 原子写`（临时文件 + rename）
-- 落盘内容为当前内存全量快照，保证「最后一次为准」且文件永不半写损坏
+- 内存 Map 是**唯一真源**；每次 `set/remove` 只改内存，不立即落盘
+- 防抖窗口（500ms）合并突发变更 → 一次性批量写后端
+- Tauri 端 SQLite：批量 `INSERT OR REPLACE` / `DELETE` 只碰变更行（O(log N)），写入成本与缓存总量无关
+- 浏览器端 JSON：防抖合并后整文件重写（O(N)），但为开发态、量级小，可接受
 - 启动预载时若内存已有部分条目，与后端结果合并（以后端为准，内存缺失才补）
 
 ### 4. 渲染热路径零解析
@@ -228,8 +245,8 @@ interface SiteMetaBackend {
 
 ## 双端一致性
 
-- Tauri 模式：Rust 后端 JSON 文件 + IPC
-- 浏览器预览模式：preview 服务 HTTP 端点 + 工作区文件
+- Tauri 模式：Rust 后端 SQLite（`crates/browser`）+ IPC
+- 浏览器预览模式：preview 服务 HTTP 端点 + 工作区 JSON 文件
 - Mock 模式：内存 Map（测试）
 - 三端同一 `SiteMetaBackend` 接口；前端渲染/订阅/生命周期逻辑完全共享
 
@@ -242,7 +259,7 @@ interface SiteMetaBackend {
 | `siteMetaCache`（内存层） | set/get/remove/clear；data-URI 优先；键归一化一致性；订阅触发重渲染；`isSiteMetaCacheReady` 门控语义 |
 | `siteMetaCache`（防抖落盘） | 防抖合并；删除排程落盘；多次写入合并为一次 |
 | `siteMetaCache`（性能） | 渲染读路径不做 URL 解析（O(1) 断言）；单条超限丢弃图片本体仅留标题；启动预载合并已存在内存条目 |
-| Rust `site_meta_cache.rs` | JSON 文件 upsert/remove/clear/load；损坏文件重建；原子写（临时文件+rename） |
+| Rust `site_meta_cache.rs` | SQLite upsert/remove/clear/load；行级写（只碰变更行）；WAL 模式；表不存在自动建表 |
 | 引用计数逻辑 | URL 仍被其他标签/书签引用时保留缓存；引用归零后删除 |
 
 ### 集成测试
@@ -282,8 +299,11 @@ interface SiteMetaBackend {
 | `frontend/src/app/stores/slices/browserBookmarkSlice.ts` | 修改（删除时引用计数判定后清除缓存） |
 | `src-tauri/src/commands/browser.rs` | 修改（新增 4 个命令 + `fetch_page_meta_inner` 下载 favicon 字节） |
 | `frontend/vite.config.ts` | 修改（`/browser/page-meta` 端点下载 favicon 字节） |
-| `crates/browser/src/site_meta_cache.rs` | 新增 |
-| `crates/browser/src/lib.rs` | 修改（导出模块） |
+| `crates/browser/src/site_meta_cache.rs` | 新增（SQLite store，行级 CRUD + WAL） |
+| `crates/browser/src/lib.rs` | 修改（导出 `SiteMetaCacheStore`） |
+| `crates/browser/Cargo.toml` | 修改（新增 `rusqlite` 依赖） |
+| `crates/browser/src/browser_webview.rs` | 修改（`BrowserManager` 持有 `Arc<SiteMetaCacheStore>`） |
+| `src-tauri/src/setup.rs` | 修改（初始化 store 传入 `data_dir`） |
 | `src-tauri/capabilities/*.json` | 修改（登记命令） |
 | `frontend/dev/previewWorkspaceService/siteMetaCache.ts` | 新增（preview 服务端实现） |
 | `frontend/dev/previewWorkspaceService/index.ts` | 修改（注册端点） |
@@ -297,6 +317,6 @@ interface SiteMetaBackend {
 | 首次渲染（命中） | 纯同步 `Map.get` 返回 data-URI，零网络、零 IPC、零 URL 解析 |
 | 启动预载 | 异步不阻塞首屏，纯本地读 <50ms；与渲染并行 |
 | 内存占用 | 随缓存规模线性，单条 ≤ 64KB（上限内），天然有界 |
-| 磁盘占用 | JSON 文件随缓存规模线性，无上限，仅随引用归零收缩 |
-| 写入 | 防抖合并 + 序列化仅在落盘时发生，不阻塞渲染 |
+| 磁盘占用 | SQLite DB 随缓存规模线性，无上限，仅随引用归零收缩 |
+| 写入 | 防抖合并 + 行级写（O(log N)），不阻塞渲染 |
 | 未命中 | 仅 Google S2 回退（浏览器 HTTP 缓存），不向目标站点请求 |
