@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { getFaviconUrl, getGoogleFaviconUrl } from '../utils/favicon';
-import { subscribeFavicon, clearFaviconCacheForUrl } from '../utils/fetchPageMeta';
+import {
+  subscribeSiteMeta,
+  subscribeSiteMetaReady,
+  isSiteMetaCacheReady,
+  initSiteMetaCache,
+  removeCachedSiteMeta,
+} from '../utils/siteMetaCache';
 import { IconLink, type IconSize } from '../icons';
 
 interface BrowserFaviconProps {
@@ -9,18 +15,35 @@ interface BrowserFaviconProps {
 }
 
 export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
-  const [faviconUrl, setFaviconUrl] = useState<string>(() => (url ? getFaviconUrl(url) : ''));
+  const [ready, setReady] = useState<boolean>(isSiteMetaCacheReady());
+  const [faviconUrl, setFaviconUrl] = useState<string>('');
+
+  useEffect(() => {
+    void initSiteMetaCache();
+    if (isSiteMetaCacheReady()) {
+      setReady(true);
+    }
+    const unsubReady = subscribeSiteMetaReady(() => setReady(true));
+    return unsubReady;
+  }, []);
 
   useEffect(() => {
     setFaviconUrl(url ? getFaviconUrl(url) : '');
-    if (!url) {
-      return;
-    }
-    const unsubscribe = subscribeFavicon(url, () => {
+    if (!url) return;
+    const unsubscribe = subscribeSiteMeta(url, () => {
       setFaviconUrl(getFaviconUrl(url));
     });
     return unsubscribe;
-  }, [url]);
+  }, [url, ready]);
+
+  if (!ready) {
+    return (
+      <span
+        className="adl-filetree__file-icon"
+        style={{ width: size, height: size, display: 'inline-flex' }}
+      />
+    );
+  }
 
   return (
     <span
@@ -35,7 +58,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
           onError={(e) => {
             const img = e.target as HTMLImageElement;
             if (!img.src.includes('google.com/s2/favicons')) {
-              clearFaviconCacheForUrl(url);
+              removeCachedSiteMeta(url);
               const fallback = getGoogleFaviconUrl(url);
               if (fallback) {
                 img.src = fallback;
@@ -48,18 +71,14 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
               parent.classList.remove('adl-filetree__file-icon--favicon');
               parent.classList.add('adl-filetree__file-icon--default');
               const link = parent.querySelector('.adl-browser-tree__link-fallback');
-              if (link) {
-                (link as HTMLElement).style.display = 'inline-flex';
-              }
+              if (link) (link as HTMLElement).style.display = 'inline-flex';
             }
           }}
           onLoad={(e) => {
             const parent = (e.target as HTMLImageElement).parentElement;
             if (parent) {
               const link = parent.querySelector('.adl-browser-tree__link-fallback');
-              if (link) {
-                (link as HTMLElement).style.display = 'none';
-              }
+              if (link) (link as HTMLElement).style.display = 'none';
             }
           }}
         />
