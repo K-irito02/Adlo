@@ -136,9 +136,26 @@ export default defineConfig({
                 favicon = `${origin}/favicon.ico`;
               }
 
+              let faviconDataUri = '';
+              if (favicon && (favicon.startsWith('http://') || favicon.startsWith('https://'))) {
+                try {
+                  const iconController = new AbortController();
+                  const iconTimeout = setTimeout(() => iconController.abort(), 5000);
+                  const iconResp = await fetch(favicon, { signal: iconController.signal, headers: { 'User-Agent': USER_AGENT } });
+                  clearTimeout(iconTimeout);
+                  if (iconResp.ok) {
+                    const buf = await iconResp.arrayBuffer();
+                    if (buf.byteLength > 0 && buf.byteLength <= 64 * 1024) {
+                      const contentType = iconResp.headers.get('content-type')?.split(';')[0] ?? 'image/x-icon';
+                      faviconDataUri = `data:${contentType};base64,${Buffer.from(buf).toString('base64')}`;
+                    }
+                  }
+                } catch { faviconDataUri = ''; }
+              }
+
               res.setHeader('Content-Type', 'application/json; charset=utf-8');
               res.statusCode = 200;
-              res.end(JSON.stringify({ title, favicon, url: targetUrl }));
+              res.end(JSON.stringify({ title, favicon, faviconDataUri, url: targetUrl }));
             } catch {
               res.setHeader('Content-Type', 'application/json; charset=utf-8');
               res.statusCode = 200;

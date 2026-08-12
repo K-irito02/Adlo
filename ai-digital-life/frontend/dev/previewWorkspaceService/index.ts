@@ -9,6 +9,7 @@ import * as search from './search';
 import * as ciModule from './ci';
 import * as logging from './logging';
 import * as gitVis from './gitVisualization';
+import * as siteMetaCache from './siteMetaCache';
 
 export { git, files, search, ciModule as ci, logging };
 export * from './git';
@@ -479,6 +480,38 @@ const routes: Route[] = [
       return ok(data);
     },
   },
+  {
+    method: 'GET', pathname: makePath('/browser/site-meta-cache'),
+    handler: async (_req, _body, searchParams) => {
+      const baseDir = searchParams.get('baseDir') ?? process.cwd();
+      return ok(await siteMetaCache.readSiteMetaCache(baseDir));
+    },
+  },
+  {
+    method: 'PUT', pathname: makePath('/browser/site-meta-cache'),
+    handler: async (_req, body) => {
+      const b = body as { baseDir?: string; entries?: Record<string, siteMetaCache.SiteMetaCacheEntry> } | undefined;
+      if (!b?.entries) return fail('entries required', 'INVALID_INPUT');
+      const baseDir = b.baseDir ?? process.cwd();
+      await siteMetaCache.writeSiteMetaCache(baseDir, b.entries);
+      return ok(true);
+    },
+  },
+  {
+    method: 'DELETE', pathname: makePath('/browser/site-meta-cache'),
+    handler: async (_req, body) => {
+      const b = body as { baseDir?: string; urls?: string[]; clearAll?: boolean } | undefined;
+      const baseDir = b?.baseDir ?? process.cwd();
+      const current = await siteMetaCache.readSiteMetaCache(baseDir);
+      if (b?.clearAll) {
+        await siteMetaCache.writeSiteMetaCache(baseDir, {});
+        return ok(true);
+      }
+      for (const url of b?.urls ?? []) delete current[url];
+      await siteMetaCache.writeSiteMetaCache(baseDir, current);
+      return ok(true);
+    },
+  },
 ];
 
 export async function handlePreviewWorkspaceApi(request: IncomingMessage, response: ServerResponse): Promise<boolean> {
@@ -493,7 +526,7 @@ export async function handlePreviewWorkspaceApi(request: IncomingMessage, respon
     }
 
     let body: unknown = undefined;
-    if (request.method === 'POST') {
+    if (request.method === 'POST' || request.method === 'PUT' || request.method === 'DELETE') {
       body = await readBody(request);
     }
 
