@@ -1,6 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
-import { setCachedFavicon, getCachedFavicon } from '@utils/fetchPageMeta';
+import { setCachedSiteMeta, getCachedFavicon, getCachedSiteMeta } from '@utils/siteMetaCache';
 import type { ToastType } from '@components/Toast';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
@@ -211,19 +211,36 @@ export function useBrowserPageMeta(
       if (meta.favicon) {
         const existingFavicon = getCachedFavicon(cleanUrl);
         if (shouldReplaceFavicon(existingFavicon, meta.favicon)) {
+          const existing = getCachedSiteMeta(cleanUrl);
+          const dataUri = (meta as { faviconDataUri?: string }).faviconDataUri ?? '';
           if (source === 'com') {
             // COM-sourced favicons need preload to prevent flicker
             const img = new Image();
             img.onload = () => {
-              setCachedFavicon(cleanUrl, meta.favicon);
+              setCachedSiteMeta(cleanUrl, {
+                title: meta.title || existing?.title || '',
+                faviconUrl: meta.favicon,
+                faviconDataUri: dataUri || existing?.faviconDataUri || '',
+                fetchedAt: Date.now(),
+              });
             };
             img.onerror = () => {
-              setCachedFavicon(cleanUrl, meta.favicon);
+              setCachedSiteMeta(cleanUrl, {
+                title: meta.title || existing?.title || '',
+                faviconUrl: meta.favicon,
+                faviconDataUri: dataUri || existing?.faviconDataUri || '',
+                fetchedAt: Date.now(),
+              });
             };
             img.src = meta.favicon;
           } else {
             // HTTP/iframe/google sources: image was already loaded or will be loaded naturally
-            setCachedFavicon(cleanUrl, meta.favicon);
+            setCachedSiteMeta(cleanUrl, {
+              title: meta.title || existing?.title || '',
+              faviconUrl: meta.favicon,
+              faviconDataUri: dataUri || existing?.faviconDataUri || '',
+              fetchedAt: Date.now(),
+            });
           }
         }
       }

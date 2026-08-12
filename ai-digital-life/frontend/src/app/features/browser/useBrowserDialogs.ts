@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
-import { getCachedFavicon, setCachedFavicon, prefetchPageMeta } from '@utils/fetchPageMeta';
-import { getGoogleFaviconUrl } from '@utils/favicon';
+import { setCachedSiteMeta, getCachedFavicon } from '@utils/siteMetaCache';
+import { prefetchPageMeta } from '@utils/fetchPageMeta';
 import type { ToastType } from '@components/Toast';
 
 interface UseBrowserDialogsDeps {
@@ -77,10 +77,16 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       let title = '';
       try {
         const meta = await prefetchPageMeta(url);
-        if (meta?.title?.trim()) {
-          title = meta.title.trim();
-          if (meta.favicon) {
-            setCachedFavicon(url, meta.favicon, true);
+        if (meta?.title?.trim() || meta?.faviconDataUri) {
+          title = meta.title?.trim() || title;
+          const existingFavicon = getCachedFavicon(url);
+          if (meta.favicon && (!existingFavicon || meta.faviconDataUri)) {
+            setCachedSiteMeta(url, {
+              title: title,
+              faviconUrl: meta.favicon,
+              faviconDataUri: meta.faviconDataUri || '',
+              fetchedAt: Date.now(),
+            });
           }
         }
       } catch {
@@ -88,12 +94,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       }
       if (!title) {
         title = hostnameFromUrl(url) || url;
-      }
-      if (!getCachedFavicon(url)) {
-        const googleFavicon = getGoogleFaviconUrl(url);
-        if (googleFavicon) {
-          setCachedFavicon(url, googleFavicon, true);
-        }
       }
       setIsCreatingTab(false);
       setCreateTabDialog({ open: false });

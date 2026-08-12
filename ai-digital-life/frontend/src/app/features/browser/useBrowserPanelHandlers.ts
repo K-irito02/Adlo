@@ -1,5 +1,4 @@
 import { useCallback, useRef } from 'react';
-import { setCachedFavicon } from '@utils/fetchPageMeta';
 import { getGoogleFaviconUrl } from '@utils/favicon';
 
 export interface UseBrowserPanelHandlersParams {
@@ -37,7 +36,6 @@ export function useBrowserPanelHandlers(
     // Preload Google S2 favicon so image is already loading when tab renders
     const faviconUrl = getGoogleFaviconUrl(url);
     if (faviconUrl) {
-      setCachedFavicon(url, faviconUrl);
       new Image().src = faviconUrl;
     }
   }, []);

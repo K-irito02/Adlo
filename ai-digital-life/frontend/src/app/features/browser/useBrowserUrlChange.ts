@@ -86,6 +86,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             onPageMeta?.({
               title: iframeTitle || activeTab.title,
               favicon: iframeFavicon,
+              faviconDataUri: '',
               url: href,
             });
           } else {
@@ -109,6 +110,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
               {
                 title: meta.title || tab.title,
                 favicon: meta.favicon || '',
+                faviconDataUri: (meta as { faviconDataUri?: string }).faviconDataUri || '',
                 url: href,
               },
               'http',
@@ -135,6 +137,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           onPageMeta?.({
             title: iframeTitle || activeTab.title,
             favicon: iframeFavicon,
+            faviconDataUri: '',
             url: href,
           });
         }
@@ -152,6 +155,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             {
               title: meta.title || tab.title,
               favicon: meta.favicon || '',
+              faviconDataUri: (meta as { faviconDataUri?: string }).faviconDataUri || '',
               url: href,
             },
             'http',
@@ -301,7 +305,12 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
               return;
             }
             onPageMeta?.(
-              { title: meta.title, favicon: meta.favicon || '', url: normalizedUrl },
+              {
+                title: meta.title,
+                favicon: meta.favicon || '',
+                faviconDataUri: meta.faviconDataUri || '',
+                url: normalizedUrl,
+              },
               'http',
             );
           });

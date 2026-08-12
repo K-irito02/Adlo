@@ -111,6 +111,7 @@ export function useBrowserPanelAddressSubmit({
             {
               title: meta.title || finalUrl,
               favicon: meta.favicon || '',
+              faviconDataUri: meta.faviconDataUri || '',
               url: finalUrl,
             },
             'http',
