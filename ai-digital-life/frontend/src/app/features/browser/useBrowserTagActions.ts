@@ -1,13 +1,10 @@
 import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import {
-  prefetchPageMeta,
-  clearFaviconCacheForUrl,
-  clearPageMetaCacheForUrl,
-  setCachedFavicon,
-} from '@utils/fetchPageMeta';
+import { prefetchPageMeta } from '@utils/fetchPageMeta';
+import { setCachedSiteMeta } from '@utils/siteMetaCache';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
+import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 
 export function useBrowserTagActions() {
   const {
@@ -40,8 +37,6 @@ export function useBrowserTagActions() {
       if (!url) {
         return;
       }
-      clearFaviconCacheForUrl(url);
-      clearPageMetaCacheForUrl(url);
       const meta = await prefetchPageMeta(url, { force: true });
 
       const state = useAppStore.getState();
@@ -57,8 +52,13 @@ export function useBrowserTagActions() {
         }
       }
 
-      if (meta?.favicon) {
-        setCachedFavicon(url, meta.favicon, true);
+      if (meta?.favicon || meta?.title) {
+        setCachedSiteMeta(url, {
+          title: meta.title || hostnameFromUrl(url),
+          faviconUrl: meta.favicon || '',
+          faviconDataUri: meta.faviconDataUri || '',
+          fetchedAt: Date.now(),
+        });
       }
     },
     [browserUpdateTab, browserUpdateHistoryTitle],
@@ -70,18 +70,16 @@ export function useBrowserTagActions() {
       const isHistoryEntry = state.browserHistory.some((h) => h.id === tabId);
 
       if (isHistoryEntry) {
-        if (url) {
-          clearFaviconCacheForUrl(url);
-          clearPageMetaCacheForUrl(url);
-        }
         browserDeleteHistoryEntry(tabId);
+        if (url) {
+          removeSiteMetaIfUnreferenced(url);
+        }
       } else {
         browserRemoveTabBookmarks(tabId, url);
-        if (url) {
-          clearFaviconCacheForUrl(url);
-          clearPageMetaCacheForUrl(url);
-        }
         browserCloseTab(tabId);
+        if (url) {
+          removeSiteMetaIfUnreferenced(url);
+        }
       }
     },
     [browserCloseTab, browserRemoveTabBookmarks, browserDeleteHistoryEntry],

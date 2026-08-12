@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import { clearFaviconCacheForUrl, clearPageMetaCacheForUrl } from '@utils/fetchPageMeta';
+import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 import {
   findFolderByIdLocal,
   collectAllDescendantTabIdsLocal,
@@ -178,10 +178,6 @@ export function useBrowserFolderCrud() {
         urls = entries.map((h) => h.url).filter((u): u is string => !!u);
       }
 
-      for (const url of urls) {
-        clearFaviconCacheForUrl(url);
-        clearPageMetaCacheForUrl(url);
-      }
       const allTabUrls: { tabId: string; url: string }[] = [];
       if (nodePath.startsWith('folder:')) {
         const fId = nodePath.slice('folder:'.length);
@@ -213,6 +209,10 @@ export function useBrowserFolderCrud() {
       browserDeleteAllTabsInNode(nodePath);
 
       browserRemoveOrphanedBookmarks();
+
+      for (const url of urls) {
+        removeSiteMetaIfUnreferenced(url);
+      }
     },
     [browserDeleteAllTabsInNode, browserRemoveTabBookmarks, browserRemoveOrphanedBookmarks],
   );
@@ -288,10 +288,6 @@ export function useBrowserFolderCrud() {
         urls = entries.map((h) => h.url).filter((u): u is string => !!u);
       }
 
-      for (const url of urls) {
-        clearFaviconCacheForUrl(url);
-        clearPageMetaCacheForUrl(url);
-      }
       if (nodePath.startsWith('folder:')) {
         const folderId = nodePath.slice('folder:'.length);
         const folder = state.browserTabFolders.find((f) => f.id === folderId);
@@ -314,6 +310,10 @@ export function useBrowserFolderCrud() {
       browserDeleteOwnTabsInNode(nodePath);
 
       browserRemoveOrphanedBookmarks();
+
+      for (const url of urls) {
+        removeSiteMetaIfUnreferenced(url);
+      }
     },
     [browserDeleteOwnTabsInNode, browserRemoveTabBookmarks, browserRemoveOrphanedBookmarks],
   );
@@ -371,13 +371,10 @@ export function useBrowserFolderCrud() {
           const dy = String(d.getDate()).padStart(2, '0');
           return `${y}-${m}-${dy}` === dayDate;
         });
-        for (const entry of entries) {
-          if (entry.url) {
-            clearFaviconCacheForUrl(entry.url);
-            clearPageMetaCacheForUrl(entry.url);
-          }
-        }
         browserDeleteAllTabsInNode(folderId);
+        for (const entry of entries) {
+          removeSiteMetaIfUnreferenced(entry.url);
+        }
       } else {
         const actualId = folderId.startsWith('folder:')
           ? folderId.slice('folder:'.length)
@@ -391,6 +388,7 @@ export function useBrowserFolderCrud() {
           }[],
           actualId,
         );
+        let folderTabUrls: string[] = [];
         if (folder) {
           const allTabIds = [
             ...collectAllDescendantTabIdsLocal(
@@ -402,14 +400,10 @@ export function useBrowserFolderCrud() {
               actualId,
             ),
           ];
-          const urls = state.browserTabs
+          folderTabUrls = state.browserTabs
             .filter((t) => allTabIds.includes(t.id))
             .map((t) => t.url)
             .filter((u): u is string => !!u);
-          for (const url of urls) {
-            clearFaviconCacheForUrl(url);
-            clearPageMetaCacheForUrl(url);
-          }
           const allTabUrls: { tabId: string; url: string }[] = [];
           const collectFolderTabEntries = (fId: string) => {
             const f = state.browserTabFolders.find((f) => f.id === fId);
@@ -433,6 +427,9 @@ export function useBrowserFolderCrud() {
         }
         browserDeleteTabFolder(actualId);
         browserRemoveOrphanedBookmarks();
+        for (const url of folderTabUrls) {
+          removeSiteMetaIfUnreferenced(url);
+        }
       }
     },
     [

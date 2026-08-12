@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import { clearFaviconCacheForUrl, clearPageMetaCacheForUrl } from '@utils/fetchPageMeta';
+import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 
 export function useBrowserBookmarkActions() {
   const { browserRemoveTabBookmarks } = useAppStore(
@@ -19,8 +19,7 @@ export function useBrowserBookmarkActions() {
       const scopeFolderId = owningFolder?.id;
       browserRemoveTabBookmarks(tabId, url, scopeFolderId);
       if (url) {
-        clearFaviconCacheForUrl(url);
-        clearPageMetaCacheForUrl(url);
+        removeSiteMetaIfUnreferenced(url);
       }
     },
     [browserRemoveTabBookmarks],

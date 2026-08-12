@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
-import { clearFaviconCacheForUrl, clearPageMetaCacheForUrl } from '@utils/fetchPageMeta';
+import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 
 export type BrowserNavigatorMode = 'open' | 'tabs' | 'list' | 'search';
 
@@ -107,28 +107,28 @@ export function useBrowserTabs() {
     (tabId: string) => {
       const state = useAppStore.getState();
       const tab = state.browserTabs.find((t) => t.id === tabId);
-      if (tab) {
-        if (tab.url) {
-          clearFaviconCacheForUrl(tab.url);
-          clearPageMetaCacheForUrl(tab.url);
-        }
-      }
       browserCloseTab(tabId);
+      if (tab?.url) {
+        removeSiteMetaIfUnreferenced(tab.url);
+      }
     },
     [browserCloseTab],
   );
 
   const handleCloseAllTabs = useCallback(
     (workspaceId?: string) => {
-      if (!workspaceId) {
-        const state = useAppStore.getState();
-        const allUrls = state.browserTabs.map((t) => t.url).filter((u): u is string => !!u);
-        for (const url of allUrls) {
-          clearFaviconCacheForUrl(url);
-          clearPageMetaCacheForUrl(url);
-        }
-      }
+      const state = useAppStore.getState();
+      const closingUrls = (
+        workspaceId
+          ? state.browserTabs.filter((t) => t.workspaceId === workspaceId)
+          : state.browserTabs
+      )
+        .map((t) => t.url)
+        .filter((u): u is string => !!u);
       browserCloseAllTabs(workspaceId);
+      for (const url of closingUrls) {
+        removeSiteMetaIfUnreferenced(url);
+      }
     },
     [browserCloseAllTabs],
   );

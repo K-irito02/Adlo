@@ -1,8 +1,8 @@
 import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import { clearFaviconCacheForUrl, clearPageMetaCacheForUrl } from '@utils/fetchPageMeta';
 import { asWorkspaceID } from '@shared/branded';
+import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 
 export function useBrowserMenuActions() {
   const { browserDeleteHistoryByLevel } = useAppStore(
@@ -37,13 +37,8 @@ export function useBrowserMenuActions() {
         const dayKey = nodePath.replace('history:day:', '');
         return `${y}-${m}-${dy}` === dayKey;
       });
-      deletedEntries.forEach((entry) => {
-        if (entry.url) {
-          clearFaviconCacheForUrl(entry.url);
-          clearPageMetaCacheForUrl(entry.url);
-        }
-      });
       browserDeleteHistoryByLevel(level, nodePath);
+      deletedEntries.forEach((entry) => removeSiteMetaIfUnreferenced(entry.url));
     },
     [browserDeleteHistoryByLevel],
   );
