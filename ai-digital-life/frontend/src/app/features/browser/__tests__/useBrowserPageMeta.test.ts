@@ -137,4 +137,37 @@ describe('useBrowserPageMeta write path (siteMetaCache mock backend)', () => {
     expect(entry.faviconUrl).toBe('https://x.com/better.png');
     expect(entry.title).toBe('X');
   });
+
+  it('Google S2 favicon (low quality) does NOT overwrite a cached high-quality faviconUrl', async () => {
+    siteMetaCache.setCachedSiteMeta('https://quality-s2.example', {
+      title: 'Q',
+      faviconUrl: 'https://cdn.example.com/icons/icon-512.png',
+      faviconDataUri: '',
+      fetchedAt: 1,
+    });
+    await handle({
+      title: 'Q',
+      favicon: 'https://www.google.com/s2/favicons?domain=quality-s2.example&sz=64',
+      url: 'https://quality-s2.example',
+    });
+    const entry = siteMetaCache.getCachedSiteMeta('https://quality-s2.example')!;
+    expect(entry.faviconUrl).toBe('https://cdn.example.com/icons/icon-512.png');
+    expect(entry.faviconDataUri).toBe('');
+  });
+
+  it('favicon.ico (low quality) does NOT overwrite a cached high-quality faviconUrl', async () => {
+    siteMetaCache.setCachedSiteMeta('https://quality-ico.example', {
+      title: 'Q',
+      faviconUrl: 'https://cdn.example.com/icons/icon-512.png',
+      faviconDataUri: '',
+      fetchedAt: 1,
+    });
+    await handle({
+      title: 'Q',
+      favicon: 'https://quality-ico.example/favicon.ico',
+      url: 'https://quality-ico.example',
+    });
+    const entry = siteMetaCache.getCachedSiteMeta('https://quality-ico.example')!;
+    expect(entry.faviconUrl).toBe('https://cdn.example.com/icons/icon-512.png');
+  });
 });

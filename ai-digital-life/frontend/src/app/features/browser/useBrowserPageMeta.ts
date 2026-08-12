@@ -2,7 +2,6 @@ import { useCallback, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import {
   setCachedSiteMeta,
-  getCachedFavicon,
   getCachedSiteMeta,
   buildCachedSiteMetaEntry,
 } from '@utils/siteMetaCache';
@@ -214,9 +213,11 @@ export function useBrowserPageMeta(
       }
 
       if (meta.favicon) {
-        const existingFavicon = getCachedFavicon(cleanUrl);
+        const existing = getCachedSiteMeta(cleanUrl);
+        const existingFavicon = existing?.faviconDataUri
+          ? existing.faviconDataUri
+          : (existing?.faviconUrl ?? '');
         if (shouldReplaceFavicon(existingFavicon, meta.favicon)) {
-          const existing = getCachedSiteMeta(cleanUrl);
           const dataUri = (meta as { faviconDataUri?: string }).faviconDataUri ?? '';
           const writeEntry = () => {
             setCachedSiteMeta(

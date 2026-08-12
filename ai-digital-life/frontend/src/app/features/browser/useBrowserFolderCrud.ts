@@ -274,6 +274,19 @@ export function useBrowserFolderCrud() {
             .filter((t) => tabIds.includes(t.id))
             .map((t) => t.url)
             .filter((u): u is string => !!u);
+          const folderSnapshotUrls = collectFolderTabSnapshotUrls(
+            state.browserTabFolders as {
+              id: string;
+              parentId?: string;
+              tabs?: { tabId: string; url: string }[];
+            }[],
+            folderId,
+          );
+          for (const url of folderSnapshotUrls.values()) {
+            if (!urls.includes(url)) {
+              urls.push(url);
+            }
+          }
         }
       } else if (nodePath.startsWith('history:day:')) {
         const dayDate = nodePath.slice('history:day:'.length);
@@ -404,6 +417,19 @@ export function useBrowserFolderCrud() {
             .filter((t) => allTabIds.includes(t.id))
             .map((t) => t.url)
             .filter((u): u is string => !!u);
+          const folderSnapshotUrls = collectFolderTabSnapshotUrls(
+            state.browserTabFolders as {
+              id: string;
+              parentId?: string;
+              tabs?: { tabId: string; url: string }[];
+            }[],
+            actualId,
+          );
+          for (const url of folderSnapshotUrls.values()) {
+            if (!folderTabUrls.includes(url)) {
+              folderTabUrls.push(url);
+            }
+          }
           const allTabUrls: { tabId: string; url: string }[] = [];
           const collectFolderTabEntries = (fId: string) => {
             const f = state.browserTabFolders.find((f) => f.id === fId);

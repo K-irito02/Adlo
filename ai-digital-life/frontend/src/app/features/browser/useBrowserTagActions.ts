@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { prefetchPageMeta } from '@utils/fetchPageMeta';
-import { setCachedSiteMeta } from '@utils/siteMetaCache';
+import { setCachedSiteMeta, getCachedSiteMeta, buildCachedSiteMetaEntry } from '@utils/siteMetaCache';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
 import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 
@@ -52,13 +52,17 @@ export function useBrowserTagActions() {
         }
       }
 
-      if (meta?.favicon || meta?.title) {
-        setCachedSiteMeta(url, {
-          title: meta.title || hostnameFromUrl(url),
-          faviconUrl: meta.favicon || '',
-          faviconDataUri: meta.faviconDataUri || '',
-          fetchedAt: Date.now(),
-        });
+      if (meta?.title || meta?.faviconDataUri) {
+        const existing = getCachedSiteMeta(url);
+        setCachedSiteMeta(
+          url,
+          buildCachedSiteMetaEntry(
+            meta.title || '',
+            meta.favicon || existing?.faviconUrl || '',
+            meta.faviconDataUri || '',
+            existing,
+          ),
+        );
       }
     },
     [browserUpdateTab, browserUpdateHistoryTitle],
