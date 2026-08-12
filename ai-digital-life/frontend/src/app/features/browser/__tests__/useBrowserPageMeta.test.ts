@@ -1,4 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { useBrowserPageMeta } from '../useBrowserPageMeta';
+import * as siteMetaCache from '@utils/siteMetaCache';
 
 describe('meta source priority', () => {
   it('should allow higher priority to overwrite lower priority within TTL', () => {
@@ -53,5 +56,85 @@ describe('meta source priority', () => {
     processed.set('https://example.com', { timestamp: Date.now() - 100, source: 'com' });
     await new Promise((r) => setTimeout(r, 10));
     expect(shouldProcess('https://example.com', 'google')).toBe(true);
+  });
+});
+
+interface HandlePageMetaMeta {
+  title: string;
+  favicon: string;
+  faviconDataUri?: string;
+  url: string;
+}
+
+describe('useBrowserPageMeta write path (siteMetaCache mock backend)', () => {
+  beforeEach(async () => {
+    siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
+    await siteMetaCache.initSiteMetaCache();
+  });
+
+  async function handle(meta: HandlePageMetaMeta, source?: 'com' | 'http' | 'iframe' | 'google') {
+    const pendingNavigationsRef = { current: new Set<string>() };
+    const { result } = renderHook(() => useBrowserPageMeta(pendingNavigationsRef));
+    await act(async () => {
+      result.current.handlePageMeta(meta, source ?? 'http');
+    });
+  }
+
+  it('successful fetch writes a full entry via setCachedSiteMeta', async () => {
+    await handle({
+      title: 'X',
+      favicon: 'https://x.com/f.png',
+      faviconDataUri: 'data:image/png;base64,AAA',
+      url: 'https://write-full.example',
+    });
+    const entry = siteMetaCache.getCachedSiteMeta('https://write-full.example')!;
+    expect(entry).toMatchObject({
+      title: 'X',
+      faviconUrl: 'https://x.com/f.png',
+      faviconDataUri: 'data:image/png;base64,AAA',
+    });
+    expect(typeof entry.fetchedAt).toBe('number');
+  });
+
+  it('meta with no title and no favicon (failed-fetch contract) does NOT write', async () => {
+    await handle({ title: '', favicon: '', url: 'https://write-no-meta.example' });
+    expect(siteMetaCache.getCachedSiteMeta('https://write-no-meta.example')).toBeUndefined();
+  });
+
+  it('meta with title but no favicon does NOT write (render falls back at draw time)', async () => {
+    await handle({ title: 'X', favicon: '', url: 'https://write-title-only.example' });
+    expect(siteMetaCache.getCachedSiteMeta('https://write-title-only.example')).toBeUndefined();
+  });
+
+  it('meta with favicon but empty faviconDataUri still caches title + faviconUrl', async () => {
+    await handle({
+      title: 'X',
+      favicon: 'https://x.com/f.png',
+      faviconDataUri: '',
+      url: 'https://write-empty-datauri.example',
+    });
+    const entry = siteMetaCache.getCachedSiteMeta('https://write-empty-datauri.example')!;
+    expect(entry.title).toBe('X');
+    expect(entry.faviconUrl).toBe('https://x.com/f.png');
+    expect(entry.faviconDataUri).toBe('');
+  });
+
+  it('keeps existing cached favicon data-URI when a lower-quality fetch has none', async () => {
+    siteMetaCache.setCachedSiteMeta('https://write-keep-existing.example', {
+      title: 'Old',
+      faviconUrl: 'https://x.com/old.ico',
+      faviconDataUri: 'data:image/png;base64,OLD',
+      fetchedAt: 1,
+    });
+    await handle({
+      title: 'X',
+      favicon: 'https://x.com/better.png',
+      faviconDataUri: '',
+      url: 'https://write-keep-existing.example',
+    });
+    const entry = siteMetaCache.getCachedSiteMeta('https://write-keep-existing.example')!;
+    expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
+    expect(entry.faviconUrl).toBe('https://x.com/better.png');
+    expect(entry.title).toBe('X');
   });
 });

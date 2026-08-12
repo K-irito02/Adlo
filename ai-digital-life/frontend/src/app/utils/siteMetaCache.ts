@@ -54,6 +54,20 @@ function clamp(entry: SiteMetaCacheEntry): SiteMetaCacheEntry {
   };
 }
 
+export function buildCachedSiteMetaEntry(
+  metaTitle: string,
+  faviconUrl: string,
+  dataUri: string,
+  existing?: SiteMetaCacheEntry,
+): SiteMetaCacheEntry {
+  return {
+    title: metaTitle || existing?.title || '',
+    faviconUrl,
+    faviconDataUri: dataUri || existing?.faviconDataUri || '',
+    fetchedAt: Date.now(),
+  };
+}
+
 function notify(url: string): void {
   urlListeners.get(url)?.forEach((fn) => {
     try { fn(); } catch { /* listener error */ }
