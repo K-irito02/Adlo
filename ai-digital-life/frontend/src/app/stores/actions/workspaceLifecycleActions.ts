@@ -38,7 +38,13 @@ export function createWorkspaceLifecycleActions(
       getNextChangePreviewRequestSeq();
       getNextSessionRequestSeq();
       clearError(get, SCOPE);
+      const openStart = performance.now();
+      console.info(`[ADL-DEBUG:open] openWorkspace start path=${workspacePath}`);
       const result = await window.digitalLife.workspace.open(workspacePath);
+      const openElapsed = performance.now() - openStart;
+      console.info(
+        `[ADL-DEBUG:open] workspace.open resolved in ${openElapsed.toFixed(1)}ms ok=${result.ok}`,
+      );
       if (requestSeq !== workspaceRequestSeq) {
         return { ok: false, error: 'Request superseded' };
       }
@@ -46,7 +52,14 @@ export function createWorkspaceLifecycleActions(
         captureError(get, result.error, SCOPE);
         return { ok: false, error: result.error.message };
       }
+      const bootstrapStart = performance.now();
       await get().bootstrap();
+      const bootstrapElapsed = performance.now() - bootstrapStart;
+      console.info(
+        `[ADL-DEBUG:open] bootstrap done in ${bootstrapElapsed.toFixed(1)}ms (total ${(
+          performance.now() - openStart
+        ).toFixed(1)}ms)`,
+      );
 
       return { ok: true };
     },

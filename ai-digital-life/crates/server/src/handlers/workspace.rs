@@ -69,16 +69,30 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
+    let workspace_path_str = input.workspace_path.clone();
     let path = PathBuf::from(input.workspace_path);
 
     // Phase 1 (blocking): open workspace (file I/O) + build retrieval snapshot.
+    let t_phase1 = std::time::Instant::now();
     let (meta, snapshot) =
         match run_blocking(move || -> Result<(WorkspaceMeta, RetrievalSnapshot), AppError> {
+            let t_open = std::time::Instant::now();
             let (meta, _recent) = adl_workspace::open_workspace(path.as_path())?;
+            tracing::info!(
+                elapsed_ms = t_open.elapsed().as_millis(),
+                root = %path.display(),
+                "workspace_open_phase1: open_workspace done"
+            );
+            let t_snapshot = std::time::Instant::now();
             let snapshot = adl_workspace::build_retrieval_snapshot(
                 &meta.id,
                 PathBuf::from(&meta.root_path).as_path(),
             )?;
+            tracing::info!(
+                elapsed_ms = t_snapshot.elapsed().as_millis(),
+                root = %path.display(),
+                "workspace_open_phase1: build_retrieval_snapshot done"
+            );
             Ok((meta, snapshot))
         })
         .await
@@ -86,8 +100,14 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
             Ok(v) => v,
             Err(e) => return ipc::to_response(Err(e)),
         };
+    tracing::info!(
+        phase1_ms = t_phase1.elapsed().as_millis(),
+        root = %workspace_path_str,
+        "workspace_open_phase1: total"
+    );
 
     // Phase 2 (blocking): persist meta + snapshot + sidebar upsert to the DB.
+    let t_phase2 = std::time::Instant::now();
     let db = state.db.clone();
     let meta_for_db = meta.clone();
     let snapshot_for_db = snapshot.clone();
@@ -116,6 +136,11 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
     {
         return ipc::to_response(Err(e));
     }
+    tracing::info!(
+        phase2_ms = t_phase2.elapsed().as_millis(),
+        root = %workspace_path_str,
+        "workspace_open_phase2: persist done"
+    );
 
     // Phase 3 (async side): update the in-memory active workspace + emit events.
     {

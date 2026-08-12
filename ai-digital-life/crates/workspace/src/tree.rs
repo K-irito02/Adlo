@@ -174,6 +174,7 @@ pub fn build_retrieval_snapshot(
         scanned_files = files.len(),
         indexed_text_files = files.len(),
         repo_map_entries = repo_map.len(),
+        elapsed_ms = now_ms().saturating_sub(started),
         top_extensions = ?top_extensions,
         "retrieval snapshot built"
     );

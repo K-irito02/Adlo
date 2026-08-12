@@ -7,23 +7,65 @@ use super::git_helpers::{
 };
 
 pub fn capture_git_snapshot(root: &Path) -> GitSnapshot {
+    let t_total = std::time::Instant::now();
+    let t0 = std::time::Instant::now();
     let branch = run_git(root, &["branch", "--show-current"]).and_then(first_non_empty_line);
+    tracing::info!(
+        elapsed_ms = t0.elapsed().as_millis(),
+        cmd = "branch --show-current",
+        "[ADL-DEBUG:git] capture_git_snapshot command"
+    );
+    let t1 = std::time::Instant::now();
     let head = run_git(root, &["rev-parse", "--short", "HEAD"]).and_then(first_non_empty_line);
+    tracing::info!(
+        elapsed_ms = t1.elapsed().as_millis(),
+        cmd = "rev-parse --short HEAD",
+        "[ADL-DEBUG:git] capture_git_snapshot command"
+    );
+    let t2 = std::time::Instant::now();
     let staged = capture_git_paths_with_fallback(
         root,
         &["diff", "--name-only", "--cached", "-z"],
         "diff --cached",
     );
+    tracing::info!(
+        elapsed_ms = t2.elapsed().as_millis(),
+        cmd = "diff --name-only --cached -z",
+        "[ADL-DEBUG:git] capture_git_snapshot command"
+    );
+    let t3 = std::time::Instant::now();
     let unstaged = capture_git_paths_with_fallback(root, &["diff", "--name-only", "-z"], "diff");
+    tracing::info!(
+        elapsed_ms = t3.elapsed().as_millis(),
+        cmd = "diff --name-only -z",
+        "[ADL-DEBUG:git] capture_git_snapshot command"
+    );
+    let t4 = std::time::Instant::now();
     let untracked = capture_git_paths_with_fallback(
         root,
         &["ls-files", "--others", "--exclude-standard", "-z"],
         "ls-files --others",
     );
+    tracing::info!(
+        elapsed_ms = t4.elapsed().as_millis(),
+        cmd = "ls-files --others --exclude-standard -z",
+        "[ADL-DEBUG:git] capture_git_snapshot command"
+    );
+    let t5 = std::time::Instant::now();
     let conflicts = capture_git_paths_with_fallback(
         root,
         &["diff", "--name-only", "--diff-filter=U", "-z"],
         "diff --diff-filter=U",
+    );
+    tracing::info!(
+        elapsed_ms = t5.elapsed().as_millis(),
+        cmd = "diff --name-only --diff-filter=U -z",
+        "[ADL-DEBUG:git] capture_git_snapshot command"
+    );
+    tracing::info!(
+        total_ms = t_total.elapsed().as_millis(),
+        root = %root.display(),
+        "[ADL-DEBUG:git] capture_git_snapshot total"
     );
     GitSnapshot {
         is_repo: root.join(".git").exists() || branch.is_some() || head.is_some(),
