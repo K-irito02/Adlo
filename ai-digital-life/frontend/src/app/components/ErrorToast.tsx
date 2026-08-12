@@ -58,7 +58,6 @@ const ErrorToast = forwardRef<HTMLDivElement, ErrorToastProps>(function ErrorToa
 
   const handleCopy = async () => {
     const result = await copyToClipboard(entry.detail);
-    console.log('[ADL-DEBUG][error-toast] copy clicked', { id: entry.id, ok: result.ok });
     if (result.ok) {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
@@ -69,8 +68,8 @@ const ErrorToast = forwardRef<HTMLDivElement, ErrorToastProps>(function ErrorToa
     <motion.div
       ref={ref}
       className={`error-toast error-toast--${level}${expanded ? ' is-expanded' : ' is-collapsed'}`}
-      role="alert"
-      aria-live="assertive"
+      role={level === 'info' ? 'status' : 'alert'}
+      aria-live={level === 'info' ? 'polite' : 'assertive'}
       layout
       initial={{ opacity: 0, y: 12, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -91,10 +90,6 @@ const ErrorToast = forwardRef<HTMLDivElement, ErrorToastProps>(function ErrorToa
           className="error-toast__btn"
           aria-label={expanded ? t.errorsCollapse : t.errorsExpand}
           onClick={() => {
-            console.log('[ADL-DEBUG][error-toast] toggle collapsed', {
-              id: entry.id,
-              collapsed: expanded,
-            });
             setExpanded((v) => !v);
           }}
           dangerouslySetInnerHTML={{
@@ -113,7 +108,6 @@ const ErrorToast = forwardRef<HTMLDivElement, ErrorToastProps>(function ErrorToa
           className="error-toast__btn"
           aria-label={t.errorsClose}
           onClick={() => {
-            console.log('[ADL-DEBUG][error-toast] close clicked', { id: entry.id });
             onDismiss(entry.id);
           }}
           dangerouslySetInnerHTML={{ __html: iconHtml('close', 'sm') }}
@@ -137,11 +131,6 @@ export function ErrorToastContainer({
   const { t } = useTCopy();
   const visible = errorToasts.slice(-ERROR_TOAST_VISIBLE_LIMIT);
   const hiddenCount = errorToasts.length - visible.length;
-  console.log('[ADL-DEBUG][error-toast] container render', {
-    total: errorToasts.length,
-    visible: visible.length,
-    hidden: hiddenCount,
-  });
 
   return createPortal(
     <div className="error-toast-region" role="region" aria-label={t.errorsGenericTitle}>
@@ -170,9 +159,6 @@ export function ErrorToastContainer({
               type="button"
               className="error-toast__btn"
               onClick={() => {
-                console.log('[ADL-DEBUG][error-toast] clearAll clicked', {
-                  total: errorToasts.length,
-                });
                 onClearAll();
               }}
             >

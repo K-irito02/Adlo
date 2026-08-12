@@ -173,6 +173,34 @@ describe('ErrorToastContainer', () => {
     expect(screen.queryByText('Workspace error')).toBeNull();
   });
 
+  it('uses polite aria-live for info-level toasts and assertive for errors', () => {
+    render(
+      <TestProvider>
+        <ErrorToastContainer
+          errorToasts={[
+            entry({
+              code: 'WORKSPACE_ERROR',
+              detail: 'fatal: not a git repository (or any of the parent directories): .git',
+            }),
+            entry({
+              id: 'e2',
+              code: 'STORAGE_ERROR',
+              detail: 'disk full',
+            }),
+          ]}
+          onDismiss={vi.fn()}
+          onClearAll={vi.fn()}
+        />
+      </TestProvider>,
+    );
+    const infoToast = document.body.querySelector('.error-toast--info');
+    const errorToast = document.body.querySelector('.error-toast--error');
+    expect(infoToast?.getAttribute('role')).toBe('status');
+    expect(infoToast?.getAttribute('aria-live')).toBe('polite');
+    expect(errorToast?.getAttribute('role')).toBe('alert');
+    expect(errorToast?.getAttribute('aria-live')).toBe('assertive');
+  });
+
   it('keeps the summary icon the same size as toast icons', () => {
     const many = Array.from({ length: 7 }, (_, i) => entry({ id: `e${i}`, detail: `detail ${i}` }));
     render(

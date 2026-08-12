@@ -26,25 +26,18 @@ export const createErrorToastSlice = (
   reportError: (code, detail) => {
     const id = createUiId('error-toast');
     const entry: ErrorToastEntry = { id, code, detail };
-    set((state) => {
-      const next = [...state.errorToasts, entry];
-      console.log('[ADL-DEBUG][error-toast] reportError', { id, code, detail, total: next.length });
-      return { errorToasts: next };
-    });
+    set((state) => ({
+      errorToasts: [...state.errorToasts, entry],
+    }));
     return id;
   },
   dismissErrorToast: (id) => {
-    set((state) => {
-      const next = state.errorToasts.filter((t) => t.id !== id);
-      console.log('[ADL-DEBUG][error-toast] dismissErrorToast', { id, remaining: next.length });
-      return { errorToasts: next };
-    });
+    set((state) => ({
+      errorToasts: state.errorToasts.filter((t) => t.id !== id),
+    }));
   },
   clearErrorToasts: () =>
-    set((state) => {
-      console.log('[ADL-DEBUG][error-toast] clearErrorToasts', {
-        cleared: state.errorToasts.length,
-      });
-      return { errorToasts: [] };
-    }),
+    set(() => ({
+      errorToasts: [],
+    })),
 });

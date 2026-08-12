@@ -20,13 +20,12 @@ const ERROR_LEVEL_BY_CODE: Record<string, ErrorToastLevel> = {
   WORKSPACE_ERROR: 'warning',
 };
 
-const NON_GIT_REPO_MARKERS = ['not a git repository', 'not a git repo'];
+const NON_GIT_REPO_MARKER = 'not a git repository';
 
 /** 依据 code 与 detail 解析错误 toast 提示级别 */
 export function resolveErrorToastLevel(code: string, detail?: string): ErrorToastLevel {
   if (code === 'WORKSPACE_ERROR' && detail) {
-    const lower = detail.toLowerCase();
-    if (NON_GIT_REPO_MARKERS.some((marker) => lower.includes(marker))) {
+    if (detail.toLowerCase().includes(NON_GIT_REPO_MARKER)) {
       return 'info';
     }
   }
