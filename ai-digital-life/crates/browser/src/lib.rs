@@ -6,6 +6,7 @@ mod browser_navigation;
 mod browser_pool;
 mod browser_webview;
 pub mod html_meta;
+mod site_meta_cache;
 mod webview2_audio;
 mod webview2_background;
 mod webview2_cleanup;
@@ -25,6 +26,7 @@ pub use browser_webview::{BROWSER_WEBVIEW_LABEL, BrowserManager, webview_label};
 pub use html_meta::{
     extract_favicon, extract_title, google_favicon_url, html_entity_decode, origin_favicon_fallback,
 };
+pub use site_meta_cache::{SiteMetaCacheEntry, SiteMetaCacheStore};
 pub use webview_handle::{Bounds, EventBridgeRef, WebView2EventBridge, WebViewHandle};
 pub use webview2_audio::{mute_tab, setup_audio_changed_handler};
 pub use webview2_background::theme_to_rgb;
