@@ -150,8 +150,10 @@ export default defineConfig({
                     } else {
                       const buf = await iconResp.arrayBuffer();
                       if (buf.byteLength > 0 && buf.byteLength <= 64 * 1024) {
-                        const contentType = iconResp.headers.get('content-type')?.split(';')[0] ?? 'image/x-icon';
-                        faviconDataUri = `data:${contentType};base64,${Buffer.from(buf).toString('base64')}`;
+                        const contentType = iconResp.headers.get('content-type')?.split(';')[0]?.trim() ?? '';
+                        if (contentType.startsWith('image/')) {
+                          faviconDataUri = `data:${contentType};base64,${Buffer.from(buf).toString('base64')}`;
+                        }
                       }
                     }
                   }

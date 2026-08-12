@@ -62,6 +62,47 @@ function fail(message: string, code = 'PREVIEW_WORKSPACE_ERROR'): IpcResult<neve
   return { ok: false, error: { code, message } };
 }
 
+export async function putSiteMetaCacheRoute(body: unknown): Promise<IpcResult<boolean>> {
+  const b = body as { baseDir?: string; entries?: unknown } | undefined;
+  if (!b?.entries || typeof b.entries !== 'object' || Array.isArray(b.entries)) {
+    return fail('entries required', 'INVALID_INPUT');
+  }
+  const baseDir = b.baseDir ?? process.cwd();
+  await siteMetaCache.upsertSiteMetaCache(
+    baseDir,
+    b.entries as Record<string, siteMetaCache.SiteMetaCacheEntry>,
+  );
+  return ok(true);
+}
+
+export async function deleteSiteMetaCacheRoute(body: unknown): Promise<IpcResult<boolean>> {
+  const b = body as { baseDir?: string; urls?: unknown; clearAll?: boolean } | undefined;
+  if (b?.urls !== undefined && !Array.isArray(b.urls)) {
+    return fail('urls must be an array', 'INVALID_INPUT');
+  }
+  const baseDir = b?.baseDir ?? process.cwd();
+  if (b?.clearAll) {
+    await siteMetaCache.writeSiteMetaCache(baseDir, {});
+    return ok(true);
+  }
+  const urls = (b?.urls ?? []) as string[];
+  if (urls.length === 0) {
+    return ok(true);
+  }
+  const current = await siteMetaCache.readSiteMetaCache(baseDir);
+  let changed = false;
+  for (const url of urls) {
+    if (url in current) {
+      delete current[url];
+      changed = true;
+    }
+  }
+  if (changed) {
+    await siteMetaCache.writeSiteMetaCache(baseDir, current);
+  }
+  return ok(true);
+}
+
 // --- Platform-specific operations ---
 
 async function resolveWindowsBinary(name: string): Promise<string> {
@@ -489,28 +530,11 @@ const routes: Route[] = [
   },
   {
     method: 'PUT', pathname: makePath('/browser/site-meta-cache'),
-    handler: async (_req, body) => {
-      const b = body as { baseDir?: string; entries?: Record<string, siteMetaCache.SiteMetaCacheEntry> } | undefined;
-      if (!b?.entries) return fail('entries required', 'INVALID_INPUT');
-      const baseDir = b.baseDir ?? process.cwd();
-      await siteMetaCache.upsertSiteMetaCache(baseDir, b.entries);
-      return ok(true);
-    },
+    handler: async (_req, body) => putSiteMetaCacheRoute(body),
   },
   {
     method: 'DELETE', pathname: makePath('/browser/site-meta-cache'),
-    handler: async (_req, body) => {
-      const b = body as { baseDir?: string; urls?: string[]; clearAll?: boolean } | undefined;
-      const baseDir = b?.baseDir ?? process.cwd();
-      const current = await siteMetaCache.readSiteMetaCache(baseDir);
-      if (b?.clearAll) {
-        await siteMetaCache.writeSiteMetaCache(baseDir, {});
-        return ok(true);
-      }
-      for (const url of b?.urls ?? []) delete current[url];
-      await siteMetaCache.writeSiteMetaCache(baseDir, current);
-      return ok(true);
-    },
+    handler: async (_req, body) => deleteSiteMetaCacheRoute(body),
   },
 ];
 

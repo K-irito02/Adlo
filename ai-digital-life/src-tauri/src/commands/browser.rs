@@ -271,9 +271,14 @@ where
 
 const FETCH_DEDUP_WINDOW_MS: u64 = 3000;
 
+fn normalized_content_type(raw: &str) -> String {
+    raw.split(';').next().unwrap_or(raw).trim().to_string()
+}
+
 /// Download favicon image bytes as a base64 data-URI. Returns empty string on
-/// any failure (network / timeout / non-success / > 64KB). Callers must not
-/// cache a failed result — the previous cached entry stays intact.
+/// any failure (network / timeout / non-success / > 64KB / non-image
+/// Content-Type). Callers must not cache a failed result — the previous cached
+/// entry stays intact.
 async fn download_favicon_data_uri(client: &reqwest::Client, favicon_url: &str) -> String {
     if favicon_url.is_empty()
         || !favicon_url.starts_with("http://") && !favicon_url.starts_with("https://")
@@ -298,12 +303,17 @@ async fn download_favicon_data_uri(client: &reqwest::Client, favicon_url: &str) 
     if content_length.is_some_and(|len| len > 64 * 1024) {
         return String::new();
     }
+    // Missing or non-image Content-Type: do not persist an invalid data-URI
+    // (the cached favicon must render as an image).
     let content_type = resp
         .headers()
         .get(reqwest::header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
-        .map(|s| s.split(';').next().unwrap_or(s).trim().to_string())
-        .unwrap_or_else(|| "image/x-icon".to_string());
+        .map(normalized_content_type)
+        .filter(|ct| ct.starts_with("image/"));
+    let Some(content_type) = content_type else {
+        return String::new();
+    };
     let Ok(bytes) = resp.bytes().await else {
         return String::new();
     };
@@ -441,5 +451,31 @@ mod favicon_data_uri_tests {
     fn empty_bytes_produce_valid_data_uri() {
         let out = to_data_uri(&[], "image/x-icon");
         assert!(out.starts_with("data:image/x-icon;base64,"));
+    }
+
+    #[test]
+    fn normalized_content_type_strips_parameters_and_whitespace() {
+        assert_eq!(normalized_content_type("image/png"), "image/png");
+        assert_eq!(normalized_content_type("image/svg+xml; charset=utf-8"), "image/svg+xml");
+        assert_eq!(normalized_content_type("  image/png; boundary=xyz  "), "image/png");
+        assert_eq!(normalized_content_type("image/png;"), "image/png");
+    }
+
+    #[test]
+    fn favicon_content_type_must_be_an_image() {
+        // Acceptance set: any image/* mime is acceptable.
+        for ct in ["image/png", "image/x-icon", "image/svg+xml", "image/webp"] {
+            assert!(
+                ct.starts_with("image/"),
+                "expected {ct} to be accepted as an image content type"
+            );
+        }
+        // Reject set: non-image and empty content types must not be persisted.
+        for ct in ["text/html", "application/octet-stream", "image", ""] {
+            assert!(
+                !ct.starts_with("image/"),
+                "expected {ct:?} to be rejected as a favicon content type"
+            );
+        }
     }
 }
