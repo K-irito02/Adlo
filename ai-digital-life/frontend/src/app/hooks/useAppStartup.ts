@@ -5,6 +5,7 @@ import { loadLocale } from '../i18n/i18nLoader';
 import { useAppActions } from './useAppActions';
 import { useThemeSync } from './useThemeSync';
 import { useTaskCenterPolling } from './useTaskCenterPolling';
+import { initSiteMetaCache } from '@utils/siteMetaCache';
 
 export function useAppStartup(appInfo: AppInfo | undefined) {
   const actions = useAppActions();
@@ -32,6 +33,7 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
 
   useEffect(() => {
     void actions.bootstrap();
+    void initSiteMetaCache();
   }, [actions, actions.bootstrap]);
 
   useEffect(() => {

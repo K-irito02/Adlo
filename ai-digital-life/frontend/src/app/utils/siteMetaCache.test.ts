@@ -91,6 +91,19 @@ describe('siteMetaCache memory layer', () => {
     expect(mod.getCachedFavicon('https://x.com')).toBe('');
     expect(mod.getCachedSiteMeta('https://x.com')?.faviconUrl).toBe('https://x.com/favicon.ico');
   });
+
+  it('preload merges persisted entries and keeps existing memory entries', async () => {
+    const mod = await import('./siteMetaCache');
+    const backend = mod.createMockSiteMetaBackend();
+    await backend.upsert({
+      'https://p.com/': { title: 'P', faviconUrl: '', faviconDataUri: 'data:x;base64,PP', fetchedAt: 2 },
+    });
+    mod.setSiteMetaBackendForTest(backend);
+    mod.setCachedSiteMeta('https://m.com', { title: 'M', faviconUrl: '', faviconDataUri: '', fetchedAt: 1 });
+    await mod.initSiteMetaCache();
+    expect(mod.getCachedSiteMeta('https://p.com')?.title).toBe('P');
+    expect(mod.getCachedSiteMeta('https://m.com')?.title).toBe('M');
+  });
 });
 
 describe('buildCachedSiteMetaEntry (write-path entry builder)', () => {
