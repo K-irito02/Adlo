@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { forwardRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTCopy, copyToClipboard, formatT } from '../i18n';
 import { renderIcon, type IconName } from '../../design-system/icons';
+import { resolveErrorToastLevel, type ErrorToastLevel } from './errorToastLevel';
 import type { ErrorToastEntry } from '../stores/slices/errorToastSlice';
 import type { CopyKey } from '../i18n/types';
 
@@ -37,12 +38,23 @@ interface ErrorToastProps {
   onDismiss: (id: string) => void;
 }
 
-function ErrorToast({ entry, onDismiss }: ErrorToastProps) {
+const LEVEL_ICON: Record<ErrorToastLevel, IconName> = {
+  error: 'alert-circle',
+  warning: 'alert-circle',
+  info: 'info',
+};
+
+const ErrorToast = forwardRef<HTMLDivElement, ErrorToastProps>(function ErrorToast(
+  { entry, onDismiss },
+  ref,
+) {
   const { t } = useTCopy();
   const [expanded, setExpanded] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  const title = t[ERROR_TITLE_BY_CODE[entry.code] ?? 'errorsGenericTitle'];
+  const level = resolveErrorToastLevel(entry.code, entry.detail);
+  const title =
+    level === 'info' ? t.errorsInfo : t[ERROR_TITLE_BY_CODE[entry.code] ?? 'errorsGenericTitle'];
 
   const handleCopy = async () => {
     const result = await copyToClipboard(entry.detail);
@@ -55,9 +67,11 @@ function ErrorToast({ entry, onDismiss }: ErrorToastProps) {
 
   return (
     <motion.div
-      className={`error-toast${expanded ? ' is-expanded' : ' is-collapsed'}`}
+      ref={ref}
+      className={`error-toast error-toast--${level}${expanded ? ' is-expanded' : ' is-collapsed'}`}
       role="alert"
       aria-live="assertive"
+      layout
       initial={{ opacity: 0, y: 12, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -65,7 +79,7 @@ function ErrorToast({ entry, onDismiss }: ErrorToastProps) {
     >
       <span
         className="error-toast__icon"
-        dangerouslySetInnerHTML={{ __html: iconHtml('alert-octagon') }}
+        dangerouslySetInnerHTML={{ __html: iconHtml(LEVEL_ICON[level]) }}
       />
       <div className="error-toast__body">
         <p className="error-toast__title">{title}</p>
@@ -107,7 +121,7 @@ function ErrorToast({ entry, onDismiss }: ErrorToastProps) {
       </div>
     </motion.div>
   );
-}
+});
 
 interface ErrorToastContainerProps {
   errorToasts: ErrorToastEntry[];
@@ -131,7 +145,7 @@ export function ErrorToastContainer({
 
   return createPortal(
     <div className="error-toast-region" role="region" aria-label={t.errorsGenericTitle}>
-      <AnimatePresence>
+      <AnimatePresence mode="popLayout">
         {visible.map((entry) => (
           <ErrorToast key={entry.id} entry={entry} onDismiss={onDismiss} />
         ))}
@@ -139,6 +153,7 @@ export function ErrorToastContainer({
           <motion.div
             key="error-toast-summary"
             className="error-toast error-toast--summary"
+            layout
             initial={{ opacity: 0, y: 12, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -146,7 +161,7 @@ export function ErrorToastContainer({
           >
             <span
               className="error-toast__icon"
-              dangerouslySetInnerHTML={{ __html: iconHtml('alert-octagon') }}
+              dangerouslySetInnerHTML={{ __html: iconHtml('info') }}
             />
             <span className="error-toast__summary-text">
               {formatT(t, 'errorsMore', { n: hiddenCount })}

@@ -1,6 +1,7 @@
 export const errorsZh = {
   errorsGenericTitle: '操作失败',
   errorsWorkspace: '工作区错误',
+  errorsInfo: '提示',
   errorsNotFound: '未找到',
   errorsInvalidInput: '无效输入',
   errorsStorage: '存储错误',
@@ -23,6 +24,4 @@ export const errorsZh = {
   errorsClose: '关闭',
   errorsMore: '还有 {n} 条',
   errorsClearAll: '清空全部',
-  errorsInjectOne: '注入测试报错',
-  errorsInjectBatch: '批量注入 7 条',
 } as const;

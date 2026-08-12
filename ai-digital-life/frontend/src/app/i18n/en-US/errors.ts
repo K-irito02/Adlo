@@ -1,6 +1,7 @@
 export const errorsEn = {
   errorsGenericTitle: 'Operation failed',
   errorsWorkspace: 'Workspace error',
+  errorsInfo: 'Notice',
   errorsNotFound: 'Not found',
   errorsInvalidInput: 'Invalid input',
   errorsStorage: 'Storage error',
@@ -23,6 +24,4 @@ export const errorsEn = {
   errorsClose: 'Close',
   errorsMore: '{n} more',
   errorsClearAll: 'Clear all',
-  errorsInjectOne: 'Inject test error',
-  errorsInjectBatch: 'Inject 7 errors',
 } as const;

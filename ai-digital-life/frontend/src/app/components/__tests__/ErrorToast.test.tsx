@@ -11,6 +11,7 @@ const mockT = new Proxy({} as Record<string, string>, {
     const formatMap: Record<string, string> = {
       errorsGenericTitle: 'Operation failed',
       errorsWorkspace: 'Workspace error',
+      errorsInfo: 'Notice',
       errorsNotFound: 'Not found',
       errorsCopy: 'Copy',
       errorsCopied: 'Copied',
@@ -104,5 +105,86 @@ describe('ErrorToastContainer', () => {
       </TestProvider>,
     );
     expect(screen.getByText('Operation failed')).toBeTruthy();
+  });
+
+  it('applies the error level class for failure codes', () => {
+    render(
+      <TestProvider>
+        <ErrorToastContainer
+          errorToasts={[entry({ code: 'STORAGE_ERROR', detail: 'disk full' })]}
+          onDismiss={vi.fn()}
+          onClearAll={vi.fn()}
+        />
+      </TestProvider>,
+    );
+    const toast = document.body.querySelector('.error-toast:not(.error-toast--summary)');
+    expect(toast?.className).toContain('error-toast--error');
+  });
+
+  it('applies the warning level class for recoverable codes', () => {
+    render(
+      <TestProvider>
+        <ErrorToastContainer
+          errorToasts={[entry({ code: 'NOT_FOUND', detail: 'missing' })]}
+          onDismiss={vi.fn()}
+          onClearAll={vi.fn()}
+        />
+      </TestProvider>,
+    );
+    const toast = document.body.querySelector('.error-toast:not(.error-toast--summary)');
+    expect(toast?.className).toContain('error-toast--warning');
+  });
+
+  it('applies the info level class for non-git workspace errors', () => {
+    render(
+      <TestProvider>
+        <ErrorToastContainer
+          errorToasts={[
+            entry({
+              code: 'WORKSPACE_ERROR',
+              detail: 'fatal: not a git repository (or any of the parent directories): .git',
+            }),
+          ]}
+          onDismiss={vi.fn()}
+          onClearAll={vi.fn()}
+        />
+      </TestProvider>,
+    );
+    const toast = document.body.querySelector('.error-toast:not(.error-toast--summary)');
+    expect(toast?.className).toContain('error-toast--info');
+  });
+
+  it('renders a notice title for info-level toasts', () => {
+    render(
+      <TestProvider>
+        <ErrorToastContainer
+          errorToasts={[
+            entry({
+              code: 'WORKSPACE_ERROR',
+              detail: 'fatal: not a git repository (or any of the parent directories): .git',
+            }),
+          ]}
+          onDismiss={vi.fn()}
+          onClearAll={vi.fn()}
+        />
+      </TestProvider>,
+    );
+    expect(screen.getByText('Notice')).toBeTruthy();
+    expect(screen.queryByText('Workspace error')).toBeNull();
+  });
+
+  it('keeps the summary icon the same size as toast icons', () => {
+    const many = Array.from({ length: 7 }, (_, i) => entry({ id: `e${i}`, detail: `detail ${i}` }));
+    render(
+      <TestProvider>
+        <ErrorToastContainer errorToasts={many} onDismiss={vi.fn()} onClearAll={vi.fn()} />
+      </TestProvider>,
+    );
+    const toastIcon = document.body.querySelector(
+      '.error-toast:not(.error-toast--summary) .error-toast__icon svg',
+    );
+    const summaryIcon = document.body.querySelector('.error-toast--summary .error-toast__icon svg');
+    expect(toastIcon?.getAttribute('class')).toContain('icon--md');
+    expect(summaryIcon?.getAttribute('class')).toContain('icon--md');
   });
 });

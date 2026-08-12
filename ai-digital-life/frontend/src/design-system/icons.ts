@@ -27,6 +27,7 @@ export type IconName =
   | 'close'
   | 'alert-triangle'
   | 'alert-octagon'
+  | 'alert-circle'
   | 'shield'
   | 'refresh'
   | 'play'
@@ -136,6 +137,7 @@ const ICON_PATHS: Record<IconName, string> = {
     '<path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" /><path d="M12 9v4" /><path d="M12 17h.01" />',
   'alert-octagon':
     '<polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2" /><path d="M12 8v4" /><path d="M12 16h.01" />',
+  'alert-circle': '<circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" />',
   shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />',
   refresh: '<path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 4v5h-5" />',
   play: '<polygon points="5 3 19 12 5 21 5 3" />',

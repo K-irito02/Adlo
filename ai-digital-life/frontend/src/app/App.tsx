@@ -20,7 +20,6 @@ import { NewSessionDialog } from './components/NewSessionDialog';
 import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
 import { ToastContainer } from './components/Toast';
 import { ErrorToastContainer } from './components/ErrorToast';
-import { DevErrorTestButtons } from './components/DevErrorTestButtons';
 import { ConflictModal } from './components/ConflictModal';
 import { asSessionID } from '../shared/branded';
 import { StartupOverlayWrapper } from './components/StartupOverlayWrapper';
@@ -250,7 +249,6 @@ export function App() {
           onDismiss={dismissErrorToast}
           onClearAll={clearErrorToasts}
         />
-        {import.meta.env.DEV ? <DevErrorTestButtons /> : null}
         {activeNotification && (
           <ConflictModal notification={activeNotification} onDismiss={dismissPopup} />
         )}
