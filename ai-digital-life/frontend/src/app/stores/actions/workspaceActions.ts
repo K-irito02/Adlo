@@ -6,6 +6,7 @@ import type { StoreApi } from 'zustand';
 import { createBrowserCleanupActions } from './browserCleanupActions';
 import { createWorkspaceTreeActions } from './workspaceTreeActions';
 import { createWorkspaceLifecycleActions } from './workspaceLifecycleActions';
+const SCOPE = 'workspace';
 
 // Re-export for test convenience (tests import from workspaceActions)
 export { type BrowserCleanupResult, stripWorkspaceFromBrowserState } from './browserCleanupHelpers';
@@ -29,10 +30,10 @@ export function createWorkspaceActions(
      * @see preview-bridge/index.ts → workspace.renameFile
      */
     renameWorkspaceFile: async (relativePath: string, newName: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.renameFile(relativePath, newName);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       await get().refreshWorkspaceTree();
@@ -57,10 +58,10 @@ export function createWorkspaceActions(
      * @see preview-bridge/index.ts → workspace.deleteFile
      */
     deleteWorkspaceFile: async (relativePath: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.deleteFile(relativePath);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       await get().refreshWorkspaceTree();
@@ -82,10 +83,10 @@ export function createWorkspaceActions(
      * @see preview-bridge/index.ts → workspace.moveFile
      */
     moveWorkspaceFile: async (relativePath: string, newPath: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.moveFile(relativePath, newPath);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       await get().refreshWorkspaceTree();
@@ -99,13 +100,13 @@ export function createWorkspaceActions(
      * @see preview-bridge/index.ts → workspace.duplicateFile
      */
     duplicateWorkspaceFile: async (srcRelativePath: string, dstRelativePath: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.duplicateFile(
         srcRelativePath,
         dstRelativePath,
       );
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       await get().refreshWorkspaceTree();
@@ -119,10 +120,10 @@ export function createWorkspaceActions(
      * @see preview-bridge/index.ts → workspace.pin
      */
     pinWorkspace: async (workspaceId: WorkspaceID) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.pin(workspaceId as string);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({ recentWorkspaces: result.data });
@@ -136,10 +137,10 @@ export function createWorkspaceActions(
      * @see preview-bridge/index.ts → workspace.unpin
      */
     unpinWorkspace: async (workspaceId: WorkspaceID) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.unpin(workspaceId as string);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({ recentWorkspaces: result.data });
@@ -153,10 +154,10 @@ export function createWorkspaceActions(
      * @see preview-bridge/index.ts → workspace.reorder
      */
     reorderWorkspaces: async (input: ReorderWorkspacesInput) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.reorder(input);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({ recentWorkspaces: result.data });
@@ -171,10 +172,10 @@ export function createWorkspaceActions(
      * @see preview-bridge/index.ts → workspace.revealInFileManager
      */
     revealWorkspaceInFileManager: async (workspacePath: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.revealInFileManager(workspacePath);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
       }
     },
 
@@ -187,10 +188,10 @@ export function createWorkspaceActions(
      * @see preview-bridge/index.ts → workspace.listTree
      */
     refreshWorkspaceTree: async () => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.listTree();
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       const appInfo = get().appInfo;
@@ -212,10 +213,10 @@ export function createWorkspaceActions(
      * @see preview-bridge/index.ts → workspace.showFromRightPanels
      */
     showWorkspaceInRightPanels: async (workspaceId: WorkspaceID) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.showInRightPanels(workspaceId as string);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({ recentWorkspaces: result.data });

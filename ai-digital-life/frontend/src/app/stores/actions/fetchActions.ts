@@ -4,6 +4,7 @@ import type { AgentRunID } from '../../../shared/branded';
 import type { StoreApi } from 'zustand';
 import { captureError } from '../shared';
 import { trimOldRuns, trimActivityList } from '../activityUtils';
+const SCOPE = 'fetch';
 
 function startFetch(get: () => StoreState, key: string): boolean {
   if (get().isFetching[key]) {
@@ -47,7 +48,7 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
           };
           set({ indexingStatus: status });
         } else if (!result.ok) {
-          captureError(get, result.error);
+          captureError(get, result.error, SCOPE);
         }
       } finally {
         set({ isFetching: { ...get().isFetching, [key]: false } });
@@ -72,7 +73,7 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
         if (result.ok) {
           set({ repoMap: result.data });
         } else {
-          captureError(get, result.error);
+          captureError(get, result.error, SCOPE);
         }
       } finally {
         set({ isFetching: { ...get().isFetching, [key]: false } });
@@ -169,7 +170,7 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
             };
           });
         } else {
-          captureError(get, result.error);
+          captureError(get, result.error, SCOPE);
         }
       } finally {
         set({ isFetching: { ...get().isFetching, [key]: false } });
@@ -197,7 +198,7 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
       try {
         const result = await window.digitalLife.runActivity.listByRunId(runId as string, limit);
         if (!result.ok) {
-          captureError(get, result.error);
+          captureError(get, result.error, SCOPE);
           return;
         }
         get().setRunActivity(runId as string, result.data);
@@ -228,7 +229,7 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
             ),
           });
         } else {
-          captureError(get, result.error);
+          captureError(get, result.error, SCOPE);
         }
       } finally {
         set({ isFetching: { ...get().isFetching, [key]: false } });
@@ -251,7 +252,7 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
       try {
         const result = await window.digitalLife.task.getSnapshot();
         if (!result.ok) {
-          captureError(get, result.error);
+          captureError(get, result.error, SCOPE);
           return;
         }
         set({ taskCenter: result.data });
@@ -276,7 +277,7 @@ export function createFetchActions(set: StoreApi<StoreState>['setState'], get: (
       try {
         const result = await window.digitalLife.app.getModelHealth();
         if (!result.ok) {
-          captureError(get, result.error);
+          captureError(get, result.error, SCOPE);
           return;
         }
         set({ modelHealth: result.data });

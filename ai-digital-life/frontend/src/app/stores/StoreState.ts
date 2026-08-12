@@ -35,7 +35,7 @@
  *
  * ### 根级字段
  * - `loading: boolean` — 应用启动状态
- * - `error?: string` — 全局错误消息
+ * - `errorToasts: ErrorToastEntry[]` — 右下角持久错误提示队列（不自动消失）
  */
 
 import type { UISlice } from './slices/uiSlice';

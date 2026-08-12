@@ -118,7 +118,7 @@ export class PreviewApiError extends AppError {
   }
 }
 
-const errorCodeMap: Record<string, new (detail: string) => AppError> = {
+export const errorCodeMap: Record<string, new (detail: string) => AppError> = {
   NOT_FOUND: NotFoundError,
   INVALID_INPUT: InvalidInputError,
   STORAGE_ERROR: StorageError,

@@ -1,6 +1,7 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import { clearError, captureError } from '../shared';
+const SCOPE = 'webTools';
 
 export function createWebToolsActions(
   set: StoreApi<StoreState>['setState'],
@@ -9,10 +10,10 @@ export function createWebToolsActions(
   return {
     webFetch: async (url: string) => {
       set({ isWebFetching: true });
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.webTools.webFetch(url);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         set({ isWebFetching: false });
         return;
       }
@@ -21,10 +22,10 @@ export function createWebToolsActions(
 
     webSearch: async (query: string) => {
       set({ isWebFetching: true });
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.webTools.webSearch(query);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         set({ isWebFetching: false });
         return;
       }

@@ -2,6 +2,7 @@ import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import { clearError, captureError, expandSingle, batchExpandAll } from '../shared';
 import { applyGitOperation } from './gitSnapshotActions';
+const SCOPE = 'git';
 
 export function createGitFileOpsActions(
   set: StoreApi<StoreState>['setState'],
@@ -57,42 +58,42 @@ export function createGitFileOpsActions(
     },
 
     stageWorkspaceFile: async (relativePath: string, workspacePath?: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const path =
         workspacePath ??
         get().appInfo?.currentWorkspace?.rootPath ??
         get().appInfo?.currentWorkspace?.path;
       const result = await window.digitalLife.workspace.stageFile(relativePath, path);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       applyGitOperation(get, set, path, relativePath, 'stage');
     },
 
     unstageWorkspaceFile: async (relativePath: string, workspacePath?: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const path =
         workspacePath ??
         get().appInfo?.currentWorkspace?.rootPath ??
         get().appInfo?.currentWorkspace?.path;
       const result = await window.digitalLife.workspace.unstageFile(relativePath, path);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       applyGitOperation(get, set, path, relativePath, 'unstage');
     },
 
     discardWorkspaceFile: async (relativePath: string, workspacePath?: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const path =
         workspacePath ??
         get().appInfo?.currentWorkspace?.rootPath ??
         get().appInfo?.currentWorkspace?.path;
       const result = await window.digitalLife.workspace.discardFile(relativePath, path);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       applyGitOperation(get, set, path, relativePath, 'discard');

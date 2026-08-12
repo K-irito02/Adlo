@@ -16,6 +16,8 @@ import {
   captureError,
 } from '../shared';
 
+const SCOPE = 'workspace';
+
 export function createWorkspaceLifecycleActions(
   set: StoreApi<StoreState>['setState'],
   get: () => StoreState,
@@ -35,13 +37,13 @@ export function createWorkspaceLifecycleActions(
       getNextFileRequestSeq();
       getNextChangePreviewRequestSeq();
       getNextSessionRequestSeq();
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.open(workspacePath);
       if (requestSeq !== workspaceRequestSeq) {
         return { ok: false, error: 'Request superseded' };
       }
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return { ok: false, error: result.error.message };
       }
       await get().bootstrap();
@@ -63,13 +65,13 @@ export function createWorkspaceLifecycleActions(
       getNextFileRequestSeq();
       getNextChangePreviewRequestSeq();
       getNextSessionRequestSeq();
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.clearCurrent();
       if (requestSeq !== workspaceRequestSeq) {
         return;
       }
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       await get().bootstrap();
@@ -84,10 +86,10 @@ export function createWorkspaceLifecycleActions(
      * @see preview-bridge/index.ts → workspace.pickDirectory
      */
     pickWorkspaceDirectory: async () => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.pickDirectory();
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return undefined;
       }
       return result.data?.trim() || undefined;

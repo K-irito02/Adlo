@@ -1,6 +1,7 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import { postMutationRefresh, clearError, captureError } from '../shared';
+const SCOPE = 'task';
 
 export function createTaskActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
@@ -12,13 +13,13 @@ export function createTaskActions(set: StoreApi<StoreState>['setState'], get: ()
      * @see preview-bridge/index.ts → task.decideApproval
      */
     decideApproval: async (approvalId: string, decision: 'approved' | 'rejected') => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.task.decideApproval({
         approvalId,
         decision,
       });
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({
@@ -36,10 +37,10 @@ export function createTaskActions(set: StoreApi<StoreState>['setState'], get: ()
      * @see preview-bridge/index.ts → task.restoreCheckpoint
      */
     restoreCheckpoint: async (checkpointId: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.task.restoreCheckpoint(checkpointId);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({ taskCenter: result.data });

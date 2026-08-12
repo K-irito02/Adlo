@@ -1,6 +1,7 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import { clearError, captureError } from '../shared';
+const SCOPE = 'agent';
 
 export function createAgentActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
@@ -13,10 +14,10 @@ export function createAgentActions(set: StoreApi<StoreState>['setState'], get: (
      */
     fetchAgents: async () => {
       set({ isFetchingAgents: true });
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.agent.listAgents();
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         set({ isFetchingAgents: false });
         return;
       }
@@ -29,10 +30,10 @@ export function createAgentActions(set: StoreApi<StoreState>['setState'], get: (
      * @see shared/ipc/agent.ts → agent.selectAgent
      */
     selectAgentForScenario: async (scenario: string, userPrompt: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.agent.selectAgent(scenario, userPrompt);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({ selectedAgent: result.data });
@@ -44,10 +45,10 @@ export function createAgentActions(set: StoreApi<StoreState>['setState'], get: (
      * @see shared/ipc/agent.ts → agent.enterPlanMode
      */
     enterPlanMode: async (workspaceId: string, workspaceRoot: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.agent.enterPlanMode(workspaceId, workspaceRoot);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({ planModeActive: true, planFile: result.data });
@@ -59,10 +60,10 @@ export function createAgentActions(set: StoreApi<StoreState>['setState'], get: (
      * @see shared/ipc/agent.ts → agent.exitPlanMode
      */
     exitPlanMode: async (workspaceId: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.agent.exitPlanMode(workspaceId);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({ planModeActive: false, planFile: null });

@@ -1,6 +1,7 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import { clearError, captureError } from '../shared';
+const SCOPE = 'snapshot';
 
 export function createSnapshotActions(
   set: StoreApi<StoreState>['setState'],
@@ -13,34 +14,34 @@ export function createSnapshotActions(
       messageId: string;
       sessionId: string;
     }) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.snapshot.createSnapshot(params);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return null;
       }
       return result.data;
     },
 
     listSnapshots: async (workspaceId: string, workspaceRoot: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.snapshot.listSnapshots(workspaceId, workspaceRoot);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return [];
       }
       return result.data;
     },
 
     revertToSnapshot: async (workspaceId: string, workspaceRoot: string, snapshotId: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.snapshot.revertToSnapshot(
         workspaceId,
         workspaceRoot,
         snapshotId,
       );
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return null;
       }
       return result.data;

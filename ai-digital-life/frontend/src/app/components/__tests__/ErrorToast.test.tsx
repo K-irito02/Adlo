@@ -4,7 +4,10 @@ import { TCopyProvider } from '../../i18n/TCopyContext';
 import { ErrorToastContainer } from '../ErrorToast';
 import type { ErrorToastEntry } from '../../stores/slices/errorToastSlice';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const mockT = new Proxy({} as Record<string, string>, {
   get: (_, key) => {
@@ -20,6 +23,7 @@ const mockT = new Proxy({} as Record<string, string>, {
       errorsExpand: 'Expand',
       errorsMore: '{n} more',
       errorsClearAll: 'Clear all',
+      errorsRegionLabel: 'Error notifications',
     };
     return key in formatMap ? formatMap[key as string] : typeof key === 'string' ? key : '';
   },
@@ -60,7 +64,7 @@ describe('ErrorToastContainer', () => {
 
   it('copies the full detail when copy is clicked', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, { clipboard: { writeText } });
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
     render(
       <TestProvider>
         <ErrorToastContainer errorToasts={[entry()]} onDismiss={vi.fn()} onClearAll={vi.fn()} />

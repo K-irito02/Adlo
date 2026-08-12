@@ -2,6 +2,7 @@ import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import type { ProviderStatus } from '../../../shared/ipc/provider';
 import { clearError, captureError } from '../shared';
+const SCOPE = 'provider';
 
 let preferencesQueue: Promise<boolean> = Promise.resolve(true);
 function enqueuePreferences(update: () => Promise<boolean>): Promise<boolean> {
@@ -33,10 +34,10 @@ export function createProviderActions(
   return {
     fetchProviders: async () => {
       set({ isFetchingProviders: true });
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.provider.listProviders();
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         set({ isFetchingProviders: false });
         return;
       }
@@ -63,10 +64,10 @@ export function createProviderActions(
     },
 
     setApiKey: async (provider: string, apiKey: string): Promise<boolean> => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.provider.setProviderApiKey(provider, apiKey);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return false;
       }
       await get().fetchProviders();
@@ -74,10 +75,10 @@ export function createProviderActions(
     },
 
     clearApiKey: async (provider: string): Promise<boolean> => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.provider.clearProviderApiKey(provider);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return false;
       }
       // Drop the in-memory input so the cleared state is visible immediately —
@@ -96,12 +97,12 @@ export function createProviderActions(
     },
 
     testConnection: async (providerId: string, apiKey?: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       set({ testingProviderId: providerId });
       const result = await window.digitalLife.provider.testProviderConnection(providerId, apiKey);
       set({ testingProviderId: null });
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({
@@ -113,7 +114,7 @@ export function createProviderActions(
     },
 
     addCustomProvider: async (name: string, baseUrl: string, apiKey: string, models: string[]) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.provider.addCustomProvider(
         name,
         baseUrl,
@@ -121,17 +122,17 @@ export function createProviderActions(
         models,
       );
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       await get().fetchProviders();
     },
 
     removeCustomProvider: async (providerId: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.provider.removeCustomProvider(providerId);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       const apiKeyInputs = { ...get().apiKeyInputs };
@@ -154,10 +155,10 @@ export function createProviderActions(
     },
 
     fetchModels: async (providerId: string, apiKey?: string): Promise<number> => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.provider.fetchProviderModels(providerId, apiKey);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return FETCH_MODELS_FAILED;
       }
       // Any fallback (live fetch failed, or the provider has no dynamic list)
@@ -177,7 +178,7 @@ export function createProviderActions(
     },
 
     setAllModelsEnabled: async (providerId: string, enableAll: boolean) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const next: string[] | null = enableAll ? null : [];
       applyProviderStatusPatch(set, get, providerId, { enabledModels: next });
       const ok = await enqueuePreferences(() =>
@@ -191,7 +192,7 @@ export function createProviderActions(
     },
 
     toggleModel: async (providerId: string, modelId: string, enabled: boolean) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const current: string[] | null =
         get().providers.find((p) => p.id === providerId)?.enabledModels ?? null;
       let next: string[] | null;
@@ -228,7 +229,7 @@ export function createProviderActions(
     },
 
     setProviderEnabled: async (providerId: string, enabled: boolean) => {
-      clearError(get);
+      clearError(get, SCOPE);
       applyProviderStatusPatch(set, get, providerId, { enabled });
       const ok = await enqueuePreferences(() =>
         get().updatePreferences({

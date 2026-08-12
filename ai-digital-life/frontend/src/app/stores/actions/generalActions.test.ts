@@ -102,7 +102,7 @@ describe('updatePreferences action', () => {
     });
 
     const store = useAppStore.getState();
-    store.reportError('CONFIG_ERROR', 'previous error');
+    store.reportError('CONFIG_ERROR', 'previous error', 'general');
     expect(useAppStore.getState().errorToasts).toHaveLength(1);
 
     await store.updatePreferences({ language: 'en-US' } as AppPreferencePatch);

@@ -183,8 +183,8 @@ html:not(.no-transition) [data-theme] {
   --purple-subtle: rgba(124, 58, 237, 0.06);
 
   /* === Error Toast Severity === */
-  --error-toast-error: #eb7153;
-  --error-toast-warning: #f09c42;
+  --error-toast-error: #dc2626;
+  --error-toast-warning: #b45309;
 
   /* === Focus & Interaction === */
   --focus-ring: rgba(37, 99, 235, 0.28);

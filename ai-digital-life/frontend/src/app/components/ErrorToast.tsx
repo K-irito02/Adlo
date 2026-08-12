@@ -1,4 +1,4 @@
-import { forwardRef, useState } from 'react';
+import { forwardRef, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTCopy, copyToClipboard, formatT } from '../i18n';
@@ -51,6 +51,15 @@ const ErrorToast = forwardRef<HTMLDivElement, ErrorToastProps>(function ErrorToa
   const { t } = useTCopy();
   const [expanded, setExpanded] = useState(true);
   const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimer.current !== null) {
+        window.clearTimeout(copiedTimer.current);
+      }
+    };
+  }, []);
 
   const level = resolveErrorToastLevel(entry.code, entry.detail);
   const title =
@@ -60,7 +69,10 @@ const ErrorToast = forwardRef<HTMLDivElement, ErrorToastProps>(function ErrorToa
     const result = await copyToClipboard(entry.detail);
     if (result.ok) {
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
+      if (copiedTimer.current !== null) {
+        window.clearTimeout(copiedTimer.current);
+      }
+      copiedTimer.current = window.setTimeout(() => setCopied(false), 1500);
     }
   };
 
@@ -133,7 +145,7 @@ export function ErrorToastContainer({
   const hiddenCount = errorToasts.length - visible.length;
 
   return createPortal(
-    <div className="error-toast-region" role="region" aria-label={t.errorsGenericTitle}>
+    <div className="error-toast-region" role="region" aria-label={t.errorsRegionLabel}>
       <AnimatePresence mode="popLayout">
         {visible.map((entry) => (
           <ErrorToast key={entry.id} entry={entry} onDismiss={onDismiss} />

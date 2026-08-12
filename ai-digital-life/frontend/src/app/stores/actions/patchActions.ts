@@ -2,6 +2,7 @@ import type { StoreState } from '../StoreState';
 import { mapPatchToEditorTab } from '@utils/editorTabs';
 import type { StoreApi } from 'zustand';
 import { postMutationRefresh, clearError, captureError } from '../shared';
+const SCOPE = 'patch';
 
 export function createPatchActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
@@ -17,14 +18,14 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
       hunkId: string,
       decision: 'pending' | 'accepted' | 'rejected',
     ) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.patch.setHunkDecision({
         patchSetId,
         hunkId,
         decision,
       });
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({ activePatchSet: result.data });
@@ -39,10 +40,10 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
      * @see preview-bridge/index.ts → patch.applyPatchSet, conversation.getSession, agent.getRun
      */
     applyPatchSet: async (patchSetId: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.patch.applyPatchSet(patchSetId);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({
@@ -94,10 +95,10 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
      * @see preview-bridge/index.ts → patch.rollbackPatchSet, agent.getRun
      */
     rollbackPatchSet: async (patchSetId: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.patch.rollbackPatchSet(patchSetId);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({

@@ -15,6 +15,7 @@ import { runWithConcurrency } from '../../shared/asyncUtils';
 import { computeLoadPhases } from './workspaceLoadOrder';
 import { syncNewWorkspacesToNaturalOrder } from './workspaceNaturalOrderSync';
 import type { StoreApi } from 'zustand';
+const SCOPE = 'general';
 
 /**
  * 批量累加辅助函数 — 在 Partial<StoreState> 中累积 Record 字段的变更。
@@ -70,7 +71,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
 
       if (!appInfoResult.ok) {
         set({ loading: false });
-        captureError(get, appInfoResult.error);
+        captureError(get, appInfoResult.error, SCOPE);
         return;
       }
 
@@ -324,12 +325,12 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       if (get().isFetching[key]) {
         return false;
       }
-      clearError(get);
+      clearError(get, SCOPE);
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
         const result = await window.digitalLife.app.updatePreferences(patch);
         if (!result.ok) {
-          captureError(get, result.error);
+          captureError(get, result.error, SCOPE);
           return false;
         }
         const responseMode = result.data.config.themeMode;
@@ -346,7 +347,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         }
         return true;
       } catch (error) {
-        captureError(get, error);
+        captureError(get, error, SCOPE);
         return false;
       } finally {
         set({ isFetching: { ...get().isFetching, [key]: false } });

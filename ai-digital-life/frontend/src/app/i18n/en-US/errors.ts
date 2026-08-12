@@ -24,4 +24,5 @@ export const errorsEn = {
   errorsClose: 'Close',
   errorsMore: '{n} more',
   errorsClearAll: 'Clear all',
+  errorsRegionLabel: 'Error notifications',
 } as const;

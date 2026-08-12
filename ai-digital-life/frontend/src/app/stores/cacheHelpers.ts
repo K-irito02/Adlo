@@ -7,7 +7,7 @@ import type {
 import type { StoreState } from './StoreState';
 import type { StoreApi } from 'zustand';
 import { normalizeWorkspaceRelativePath } from '../utils/workspacePaths';
-import { AppError, fromIpcErrorCode } from '../../shared/typedErrors';
+import { AppError, errorCodeMap, fromIpcErrorCode } from '../../shared/typedErrors';
 
 /** 全局请求序列计数器 */
 export let workspaceRequestSeq = 0;
@@ -132,15 +132,15 @@ export function clearWorkspaceCaches(workspacePrefix: string) {
   }
 }
 
-/** 清除全部错误 toast */
-export function clearError(get: () => StoreState): void {
+/** 清除错误 toast（scope 提供时仅清除该作用域，缺省清空全部） */
+export function clearError(get: () => StoreState, scope?: string): void {
   if (get().errorToasts.length > 0) {
-    get().clearErrorToasts();
+    get().clearErrorToasts(scope);
   }
 }
 
-/** 捕获错误并入队错误 toast（code 与完整 message 分离） */
-export function captureError(get: () => StoreState, error: unknown): void {
+/** 捕获错误并入队错误 toast（code 与完整 message 分离；scope 标记来源模块） */
+export function captureError(get: () => StoreState, error: unknown, scope?: string): void {
   let code = '';
   let detail = '';
   if (error instanceof AppError) {
@@ -148,9 +148,15 @@ export function captureError(get: () => StoreState, error: unknown): void {
     detail = error.message;
   } else if (error && typeof error === 'object' && 'code' in error && 'message' in error) {
     const { code: c, message } = error as { code: string; message: string };
-    const typed = fromIpcErrorCode(c, message);
-    code = typed.code;
-    detail = typed.message;
+    if (c in errorCodeMap) {
+      const typed = fromIpcErrorCode(c, message);
+      code = typed.code;
+      detail = typed.message;
+    } else {
+      // 未知 code：保留原始 code 与 message，交由 UI 的通用标题兜底
+      code = c;
+      detail = message;
+    }
   } else {
     detail =
       typeof error === 'string'
@@ -163,7 +169,7 @@ export function captureError(get: () => StoreState, error: unknown): void {
               ? String(error)
               : 'An unknown error occurred';
   }
-  get().reportError(code, detail);
+  get().reportError(code, detail, scope);
 }
 
 /** 低优先级刷新辅助（使用 setTimeout(0) 允许浏览器先渲染再执行） */

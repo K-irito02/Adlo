@@ -10,6 +10,7 @@ import {
 import type { StoreApi } from 'zustand';
 import { clearError, captureError } from '../cacheHelpers';
 import { openFileGeneric, openChangePreviewGeneric } from './editorActionsHelpers';
+const SCOPE = 'editor';
 
 export function createEditorActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
@@ -90,10 +91,10 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
      * @see preview-bridge/index.ts → workspace.createFile
      */
     createWorkspaceFile: async (relativePath: string, content = '') => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.createFile(relativePath, content);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return undefined;
       }
       await get().refreshWorkspaceTree();
@@ -128,14 +129,14 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
      * @see preview-bridge/index.ts → workspace.createFolder
      */
     createWorkspaceFolder: async (relativePath: string) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.createFolder(relativePath);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return undefined;
       }
       await get().refreshWorkspaceTree();
-      clearError(get);
+      clearError(get, SCOPE);
       return relativePath;
     },
 

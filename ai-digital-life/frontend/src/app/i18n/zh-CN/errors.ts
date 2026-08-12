@@ -24,4 +24,5 @@ export const errorsZh = {
   errorsClose: '关闭',
   errorsMore: '还有 {n} 条',
   errorsClearAll: '清空全部',
+  errorsRegionLabel: '错误通知',
 } as const;

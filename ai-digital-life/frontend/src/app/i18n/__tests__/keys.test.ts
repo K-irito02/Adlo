@@ -135,10 +135,12 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS).toHaveProperty('errorsInfo');
     expect(enUS).toHaveProperty('errorsMore');
     expect(enUS).toHaveProperty('errorsClearAll');
+    expect(enUS).toHaveProperty('errorsRegionLabel');
     expect(zhCN).toHaveProperty('errorsGenericTitle');
     expect(zhCN).toHaveProperty('errorsWorkspace');
     expect(zhCN).toHaveProperty('errorsInfo');
     expect(zhCN).toHaveProperty('errorsClearAll');
+    expect(zhCN).toHaveProperty('errorsRegionLabel');
   });
 });
 

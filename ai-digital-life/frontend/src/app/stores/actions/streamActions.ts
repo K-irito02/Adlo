@@ -29,6 +29,7 @@ import {
 } from '@utils/composerSend';
 import type { StoreApi } from 'zustand';
 import { postMutationRefresh, captureError } from '../shared';
+const SCOPE = 'stream';
 
 function createModelStreamSubscriber(
   set: StoreApi<StoreState>['setState'],
@@ -98,7 +99,7 @@ registerSlashCommand('/apply', async (set, get) => {
     await get().applyPatchSet(ps.id);
   } else {
     const dict = await loadLocale(localeFrom(get));
-    captureError(get, dict.patchesNoneApplyable);
+    captureError(get, dict.patchesNoneApplyable, SCOPE);
   }
   return true;
 });
@@ -109,7 +110,7 @@ registerSlashCommand('/rollback', async (set, get) => {
     await get().rollbackPatchSet(ps.id);
   } else {
     const dict = await loadLocale(localeFrom(get));
-    captureError(get, dict.patchesNoneRollback);
+    captureError(get, dict.patchesNoneRollback, SCOPE);
   }
   return true;
 });
@@ -122,7 +123,7 @@ registerSlashCommand('/model', (set, get) => {
 
 registerSlashCommand('/clear', async (set, get) => {
   const dict = await loadLocale(localeFrom(get));
-  captureError(get, dict.clearCommandNotImplemented);
+  captureError(get, dict.clearCommandNotImplemented, SCOPE);
   return true;
 });
 
@@ -130,7 +131,7 @@ registerSlashCommand('/plan', async (_set, get) => {
   const workspaceId = get().appInfo?.currentWorkspace?.id;
   const workspaceRoot = get().appInfo?.currentWorkspace?.rootPath;
   if (!workspaceId || !workspaceRoot) {
-    captureError(get, 'No active workspace: cannot enter plan mode');
+    captureError(get, 'No active workspace: cannot enter plan mode', SCOPE);
     return true;
   }
   await get().enterPlanMode(workspaceId, workspaceRoot);
@@ -241,7 +242,7 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
           await sessionFallbackTitle(get().appInfo),
         );
         if (!created.ok) {
-          captureError(get, created.error);
+          captureError(get, created.error, SCOPE);
           return;
         }
         sessionId = created.data.id;
@@ -303,7 +304,7 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
             : {}),
         });
         if (!result.ok) {
-          captureError(get, result.error);
+          captureError(get, result.error, SCOPE);
           return;
         }
         runId = result.data.runDetail.run.id;
@@ -368,7 +369,7 @@ export function createStreamActions(set: StoreApi<StoreState>['setState'], get: 
       }
       const result = await window.digitalLife.conversation.cancelMessage(runId);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
       }
     },
   };

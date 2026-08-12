@@ -5,6 +5,7 @@ import type {
 } from '@ai-digital-life/kernel';
 import type { StoreApi } from 'zustand';
 import { clearError, captureError, postMutationRefresh } from '../shared';
+const SCOPE = 'git';
 
 async function refreshAfterBranchChange(get: () => StoreState) {
   await postMutationRefresh(get);
@@ -33,11 +34,11 @@ export function createGitBranchActions(
       }
       const result = await window.digitalLife.workspace.listGitBranches();
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         set({ gitBranches: [] });
         return;
       }
-      clearError(get);
+      clearError(get, SCOPE);
       set({ gitBranches: result.data });
     },
 
@@ -49,10 +50,10 @@ export function createGitBranchActions(
      * @see preview-bridge/index.ts → workspace.switchGitBranch
      */
     switchGitBranch: async (input: WorkspaceGitBranchSwitchInput) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.switchGitBranch(input);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       const { hasRestored, gitSnapshot, previousBranch, currentBranch } = result.data;
@@ -95,10 +96,10 @@ export function createGitBranchActions(
      * @see preview-bridge/index.ts → workspace.createGitBranch
      */
     createGitBranch: async (input: WorkspaceGitBranchCreateInput) => {
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.createGitBranch(input);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set((state: StoreState) => ({

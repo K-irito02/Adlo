@@ -1,6 +1,7 @@
 import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import { postMutationRefresh, clearError, captureError } from '../shared';
+const SCOPE = 'command';
 
 export function createCommandActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
@@ -15,7 +16,7 @@ export function createCommandActions(set: StoreApi<StoreState>['setState'], get:
       if (!command.trim()) {
         return;
       }
-      clearError(get);
+      clearError(get, SCOPE);
       const args = argsText
         .split(/\s+/)
         .map((item: string) => item.trim())
@@ -25,7 +26,7 @@ export function createCommandActions(set: StoreApi<StoreState>['setState'], get:
         args,
       });
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         return;
       }
       set({ latestCommandRun: result.data });

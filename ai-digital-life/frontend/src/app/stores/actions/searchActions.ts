@@ -2,6 +2,7 @@ import type { StoreState } from '../StoreState';
 import { createDebouncedSearch } from '../shared';
 import { captureError } from '../cacheHelpers';
 import type { StoreApi } from 'zustand';
+const SCOPE = 'search';
 
 const debouncedSearch = createDebouncedSearch(300);
 
@@ -29,7 +30,7 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
           return;
         }
         if (!result.ok) {
-          captureError(get, result.error);
+          captureError(get, result.error, SCOPE);
           return;
         }
         set({ searchResults: result.data });

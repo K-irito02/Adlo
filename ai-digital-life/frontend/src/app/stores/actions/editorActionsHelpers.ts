@@ -32,6 +32,8 @@ import type {
   WorkspaceChangePreview,
 } from '@ai-digital-life/kernel';
 
+const SCOPE = 'editor';
+
 export interface OpenFileConfig {
   cacheKey: string;
   workspaceId: string | undefined;
@@ -45,7 +47,7 @@ export async function openFileGeneric(
   requestSeq: number,
   config: OpenFileConfig,
 ) {
-  clearError(get);
+  clearError(get, SCOPE);
   const cachedDocument = getCachedFileDocument(config.cacheKey);
 
   const applyDocument = (document: CachedFileDocument, outlineOverride?: FileOutlineItem[]) => {
@@ -89,7 +91,7 @@ export async function openFileGeneric(
     return;
   }
   if (!fileResult.ok) {
-    captureError(get, fileResult.error);
+    captureError(get, fileResult.error, SCOPE);
     return;
   }
   const nextOutline = buildOutlineFromContent(fileResult.data.content, relativePath);
@@ -137,7 +139,7 @@ export async function openChangePreviewGeneric(
     return;
   }
   if (!result.ok) {
-    captureError(get, result.error);
+    captureError(get, result.error, SCOPE);
     set({
       selectedChangePreviewPath: relativePath,
       selectedChangePreviewWorkspaceId: config.workspaceId,

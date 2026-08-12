@@ -2,6 +2,7 @@ import type { StoreState } from '../StoreState';
 import type { StoreApi } from 'zustand';
 import type { CompactSessionInput } from '@shared/ipc';
 import { clearError, captureError } from '../shared';
+const SCOPE = 'compaction';
 
 export function createCompactionActions(
   set: StoreApi<StoreState>['setState'],
@@ -10,10 +11,10 @@ export function createCompactionActions(
   return {
     compactSession: async (input: CompactSessionInput) => {
       set({ isCompacting: true });
-      clearError(get);
+      clearError(get, SCOPE);
       const result = await window.digitalLife.compaction.compactSession(input);
       if (!result.ok) {
-        captureError(get, result.error);
+        captureError(get, result.error, SCOPE);
         set({ isCompacting: false });
         return null;
       }
