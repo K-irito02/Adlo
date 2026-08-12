@@ -155,7 +155,7 @@ Rust 端 `crates/kernel/src/command_risk.rs`，基于 OpenCode 的 deny/ask/allo
 项目管理模块，支持 Git 操作（clone/commit/diff/worktree）、文件树、大纲解析、搜索。
 
 ### 浏览器 (Browser)
-内嵌 WebView（Tauri 模式）和 iframe（浏览器模式）面板，支持多标签页、书签、历史记录。
+内嵌 WebView（Tauri 模式）和 iframe（浏览器模式）面板，支持多标签页、书签、历史记录。网站元数据缓存（favicon data-URI + 标题）为三层架构：Tauri 端 `crates/browser/src/site_meta_cache.rs`（SQLite）、浏览器端 preview JSON 文件（`.adl-cache/`）、前端内存层 `siteMetaCache.ts`（唯一渲染真源）。
 
 ### 终端 (Terminal)
 伪终端管理模块。Tauri 模式后端通过 `crates/pty/` 管理进程，浏览器模式通过 `previewTerminalService.ts`（Node.js）管理；前端通过 xterm.js 渲染，浏览器模式采用轮询机制（1000ms，`preview-pty-bridge.ts`）。
