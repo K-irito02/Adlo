@@ -159,7 +159,7 @@ export default defineConfig({
             } catch {
               res.setHeader('Content-Type', 'application/json; charset=utf-8');
               res.statusCode = 200;
-              res.end(JSON.stringify({ title: '', favicon: '', url: targetUrl }));
+              res.end(JSON.stringify({ title: '', favicon: '', faviconDataUri: '', url: targetUrl }));
             }
             return;
           }

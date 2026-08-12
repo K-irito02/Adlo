@@ -24,7 +24,7 @@ export function normalizeUrlForCache(url: string): string {
   }
 }
 
-const FAVICON_MAX_BYTES = 64 * 1024;
+const FAVICON_MAX_DATA_URI_LEN = 128 * 1024;
 const TITLE_MAX_LEN = 200;
 const PERSIST_DEBOUNCE_MS = 500;
 
@@ -50,7 +50,7 @@ function clamp(entry: SiteMetaCacheEntry): SiteMetaCacheEntry {
     ...entry,
     title: entry.title.slice(0, TITLE_MAX_LEN),
     faviconDataUri:
-      entry.faviconDataUri.length <= FAVICON_MAX_BYTES ? entry.faviconDataUri : '',
+      entry.faviconDataUri.length <= FAVICON_MAX_DATA_URI_LEN ? entry.faviconDataUri : '',
   };
 }
 
@@ -89,11 +89,11 @@ async function flushPersist(): Promise<void> {
   if (pendingUpserts.size === 0 && pendingRemoves.size === 0) return;
   const upserts = new Map(pendingUpserts);
   const removes = [...pendingRemoves];
-  pendingUpserts.clear();
-  pendingRemoves.clear();
   try {
     if (upserts.size > 0) await backend.upsert(Object.fromEntries(upserts));
     if (removes.length > 0) await backend.remove(removes);
+    pendingUpserts.clear();
+    pendingRemoves.clear();
   } catch (err) {
     console.warn('siteMetaCache: persist failed', err);
   }
@@ -184,6 +184,6 @@ export function subscribeSiteMetaGlobal(callback: (url: string) => void): () => 
   return () => globalListeners.delete(callback);
 }
 
-export function getSiteMetaCacheStats(): { size: number; persisted: boolean } {
-  return { size: memoryCache.size, persisted: ready };
+export function getSiteMetaCacheStats(): { size: number; ready: boolean } {
+  return { size: memoryCache.size, ready };
 }

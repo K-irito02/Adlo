@@ -36,11 +36,27 @@ describe('siteMetaCache memory layer', () => {
     const mod = await import('./siteMetaCache');
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
-    const big = 'data:image/png;base64,' + 'x'.repeat(64 * 1024 + 1);
+    const big = 'data:image/png;base64,' + 'x'.repeat(128 * 1024 + 1);
     mod.setCachedSiteMeta('https://a.com', { title: 'A'.repeat(500), faviconUrl: '', faviconDataUri: big, fetchedAt: 1 });
     const entry = mod.getCachedSiteMeta('https://a.com')!;
     expect(entry.faviconDataUri).toBe('');
     expect(entry.title).toHaveLength(200);
+  });
+
+  it('size cap: data-URI in the 64-128KB char band is kept (Rust 64KB binary cap alignment)', async () => {
+    const mod = await import('./siteMetaCache');
+    mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
+    await mod.initSiteMetaCache();
+    // ~70KB of base64 chars ≈ 52KB binary — under the Rust 64KB binary cap, so
+    // the frontend clamp must NOT drop it (old 64KB-char cap did).
+    const mid = 'data:image/png;base64,' + 'x'.repeat(70 * 1024);
+    mod.setCachedSiteMeta('https://a.com', {
+      title: 'A',
+      faviconUrl: '',
+      faviconDataUri: mid,
+      fetchedAt: 1,
+    });
+    expect(mod.getCachedSiteMeta('https://a.com')!.faviconDataUri).toBe(mid);
   });
 
   it('subscribe fires on set for matching url', async () => {
