@@ -7,6 +7,7 @@ import {
 } from '@utils/siteMetaCache';
 import type { ToastType } from '@components/Toast';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { existingFaviconBaseline, shouldReplaceFavicon } from './faviconQuality';
 
 function normalizeUrlForDedup(url: string): string {
   try {
@@ -50,88 +51,6 @@ interface MetaProcessedEntry {
  * Must be long enough to cover the fast poll interval overlap.
  */
 const META_DEDUP_TTL = 2000; // ms
-
-function getFaviconQualityScore(favicon: string): number {
-  if (!favicon) {
-    return 0;
-  }
-  const lower = favicon.toLowerCase();
-
-  if (
-    lower.includes('google.com/s2/favicons') ||
-    lower.includes('favicon.cc') ||
-    lower.includes('faviconkit') ||
-    lower.includes('besticon') ||
-    lower.includes('favicon-generator')
-  ) {
-    return 1;
-  }
-
-  if (lower.endsWith('/favicon.ico')) {
-    return 2;
-  }
-  if (lower.endsWith('favicon.ico')) {
-    return 3;
-  }
-  if (lower.endsWith('.ico')) {
-    return 4;
-  }
-  if (lower.endsWith('.svg')) {
-    return 10;
-  }
-  if (
-    lower.endsWith('.png') ||
-    lower.endsWith('.jpg') ||
-    lower.endsWith('.webp') ||
-    lower.endsWith('.gif')
-  ) {
-    const sizeMatch = lower.match(/(\d+)(?:x\d+)?\.(?:png|jpg|webp|gif)$/);
-    if (sizeMatch) {
-      const size = parseInt(sizeMatch[1], 10);
-      if (size >= 256) {
-        return 15;
-      }
-      if (size >= 128) {
-        return 14;
-      }
-      if (size >= 64) {
-        return 13;
-      }
-      if (size >= 32) {
-        return 12;
-      }
-      return 11;
-    }
-    if (lower.includes('apple-touch-icon')) {
-      return 13;
-    }
-    if (
-      lower.includes('512') ||
-      lower.includes('256') ||
-      lower.includes('192') ||
-      lower.includes('180')
-    ) {
-      return 14;
-    }
-    return 11;
-  }
-  return 3;
-}
-
-export function shouldReplaceFavicon(existing: string | undefined, incoming: string): boolean {
-  if (!incoming) {
-    return false;
-  }
-  if (existing?.startsWith('data:')) {
-    return false;
-  }
-  if (!existing) {
-    return true;
-  }
-  const existingScore = getFaviconQualityScore(existing);
-  const incomingScore = getFaviconQualityScore(incoming);
-  return incomingScore >= existingScore;
-}
 
 function normalizeMetaUrl(url: string): string {
   try {
@@ -217,9 +136,7 @@ export function useBrowserPageMeta(
 
       if (meta.favicon) {
         const existing = getCachedSiteMeta(cleanUrl);
-        const existingFavicon = existing?.faviconDataUri
-          ? existing.faviconDataUri
-          : (existing?.faviconUrl ?? '');
+        const existingFavicon = existingFaviconBaseline(existing);
         if (shouldReplaceFavicon(existingFavicon, meta.favicon)) {
           const dataUri = (meta as { faviconDataUri?: string }).faviconDataUri ?? '';
           const writeEntry = () => {

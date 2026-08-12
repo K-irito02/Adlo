@@ -85,4 +85,29 @@ describe('useBrowserTagActions refresh write gate', () => {
     expect(entry.title).toBe('Old');
     expect(entry.faviconUrl).toBe('https://x.com/big.png');
   });
+
+  it('dataUri-only cache + low-quality URL favicon on refresh does NOT write a faviconUrl', async () => {
+    siteMetaCache.setCachedSiteMeta('https://refresh-datauri-only.example', {
+      title: 'Old',
+      faviconUrl: '',
+      faviconDataUri: 'data:image/png;base64,OLD',
+      fetchedAt: 1,
+    });
+    useAppStore.setState({
+      browserTabs: [makeTab('tab1', 'https://refresh-datauri-only.example')],
+    });
+    vi.mocked(prefetchPageMeta).mockResolvedValue({
+      title: 'X',
+      favicon: 'https://refresh-datauri-only.example/favicon.ico',
+      faviconDataUri: '',
+      url: 'https://refresh-datauri-only.example',
+    });
+    const { result } = renderHook(() => useBrowserTagActions());
+    await act(async () => {
+      await result.current.handleRefreshTab('tab1', 'https://refresh-datauri-only.example');
+    });
+    const entry = siteMetaCache.getCachedSiteMeta('https://refresh-datauri-only.example')!;
+    expect(entry.faviconUrl).toBe('');
+    expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
+  });
 });

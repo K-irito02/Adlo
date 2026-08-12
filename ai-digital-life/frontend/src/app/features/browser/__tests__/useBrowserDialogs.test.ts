@@ -97,6 +97,27 @@ describe('useBrowserDialogs create-tab write gate', () => {
     expect(entry.faviconUrl).toBe('https://cdn.example.com/icons/icon-512.png');
   });
 
+  it('dataUri-only cache + low-quality URL favicon on create-tab does NOT write a faviconUrl', async () => {
+    siteMetaCache.setCachedSiteMeta('https://dlg-datauri-only.example', {
+      title: 'Old',
+      faviconUrl: '',
+      faviconDataUri: 'data:image/png;base64,OLD',
+      fetchedAt: 1,
+    });
+    vi.mocked(prefetchPageMeta).mockResolvedValue(
+      makeMeta({
+        title: 'New',
+        favicon: 'https://dlg-datauri-only.example/favicon.ico',
+        faviconDataUri: '',
+        url: 'https://dlg-datauri-only.example',
+      }),
+    );
+    await confirmCreateTab('https://dlg-datauri-only.example');
+    const entry = siteMetaCache.getCachedSiteMeta('https://dlg-datauri-only.example')!;
+    expect(entry.faviconUrl).toBe('');
+    expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
+  });
+
   it('preserves cached title when the create-tab fetch returns a data-URI but empty title', async () => {
     siteMetaCache.setCachedSiteMeta('https://dlg-title.example', {
       title: 'Old Title',

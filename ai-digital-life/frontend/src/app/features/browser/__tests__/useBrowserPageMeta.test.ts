@@ -1,7 +1,33 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBrowserPageMeta } from '../useBrowserPageMeta';
+import { existingFaviconBaseline } from '../faviconQuality';
 import * as siteMetaCache from '@utils/siteMetaCache';
+
+describe('existingFaviconBaseline (quality-gate baseline helper)', () => {
+  it('prefers the data-URI over the URL', () => {
+    expect(
+      existingFaviconBaseline({
+        faviconDataUri: 'data:image/png;base64,AA',
+        faviconUrl: 'https://a.com/favicon.ico',
+      }),
+    ).toBe('data:image/png;base64,AA');
+  });
+
+  it('falls back to the URL when no data-URI exists', () => {
+    expect(
+      existingFaviconBaseline({ faviconDataUri: '', faviconUrl: 'https://a.com/favicon.ico' }),
+    ).toBe('https://a.com/favicon.ico');
+  });
+
+  it('returns an empty string when the cache holds only an empty data-URI', () => {
+    expect(existingFaviconBaseline({ faviconDataUri: '', faviconUrl: '' })).toBe('');
+  });
+
+  it('returns an empty string for undefined entries', () => {
+    expect(existingFaviconBaseline(undefined)).toBe('');
+  });
+});
 
 describe('meta source priority', () => {
   it('should allow higher priority to overwrite lower priority within TTL', () => {
@@ -169,5 +195,23 @@ describe('useBrowserPageMeta write path (siteMetaCache mock backend)', () => {
     });
     const entry = siteMetaCache.getCachedSiteMeta('https://quality-ico.example')!;
     expect(entry.faviconUrl).toBe('https://cdn.example.com/icons/icon-512.png');
+  });
+
+  it('dataUri-only cache + low-quality URL favicon does NOT write a faviconUrl', async () => {
+    siteMetaCache.setCachedSiteMeta('https://quality-datauri-only.example', {
+      title: 'Q',
+      faviconUrl: '',
+      faviconDataUri: 'data:image/png;base64,OLD',
+      fetchedAt: 1,
+    });
+    await handle({
+      title: 'Q',
+      favicon: 'https://quality-datauri-only.example/favicon.ico',
+      faviconDataUri: '',
+      url: 'https://quality-datauri-only.example',
+    });
+    const entry = siteMetaCache.getCachedSiteMeta('https://quality-datauri-only.example')!;
+    expect(entry.faviconUrl).toBe('');
+    expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
   });
 });

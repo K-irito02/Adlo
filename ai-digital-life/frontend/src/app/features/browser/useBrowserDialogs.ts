@@ -3,7 +3,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
 import { setCachedSiteMeta, getCachedSiteMeta, buildCachedSiteMetaEntry } from '@utils/siteMetaCache';
 import { prefetchPageMeta } from '@utils/fetchPageMeta';
-import { shouldReplaceFavicon } from './useBrowserPageMeta';
+import { existingFaviconBaseline, shouldReplaceFavicon } from './faviconQuality';
 import type { ToastType } from '@components/Toast';
 
 interface UseBrowserDialogsDeps {
@@ -81,7 +81,10 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         if (meta?.title?.trim() || meta?.faviconDataUri) {
           title = meta.title?.trim() || title;
           const existing = getCachedSiteMeta(url);
-          const faviconUrl = shouldReplaceFavicon(existing?.faviconUrl, meta.favicon ?? '')
+          const faviconUrl = shouldReplaceFavicon(
+            existingFaviconBaseline(existing),
+            meta.favicon ?? '',
+          )
             ? (meta.favicon ?? '')
             : (existing?.faviconUrl ?? '');
           if (faviconUrl || meta.faviconDataUri) {

@@ -2,9 +2,13 @@ import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { prefetchPageMeta } from '@utils/fetchPageMeta';
-import { setCachedSiteMeta, getCachedSiteMeta, buildCachedSiteMetaEntry } from '@utils/siteMetaCache';
+import {
+  setCachedSiteMeta,
+  getCachedSiteMeta,
+  buildCachedSiteMetaEntry,
+} from '@utils/siteMetaCache';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
-import { shouldReplaceFavicon } from './useBrowserPageMeta';
+import { existingFaviconBaseline, shouldReplaceFavicon } from './faviconQuality';
 import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 
 export function useBrowserTagActions() {
@@ -55,7 +59,10 @@ export function useBrowserTagActions() {
 
       if (meta?.title || meta?.faviconDataUri) {
         const existing = getCachedSiteMeta(url);
-        const faviconUrl = shouldReplaceFavicon(existing?.faviconUrl, meta.favicon ?? '')
+        const faviconUrl = shouldReplaceFavicon(
+          existingFaviconBaseline(existing),
+          meta.favicon ?? '',
+        )
           ? (meta.favicon ?? '')
           : (existing?.faviconUrl ?? '');
         setCachedSiteMeta(
