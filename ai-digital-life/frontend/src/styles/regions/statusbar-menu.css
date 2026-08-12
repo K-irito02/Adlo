@@ -438,7 +438,7 @@
 .adl-statusbar__submenu {
   position: absolute;
   top: 0;
-  left: calc(100% + 10px);
+  left: calc(100% + 11px);
   z-index: calc(var(--z-popover) + 1);
   display: flex;
   flex-direction: column;
@@ -456,7 +456,7 @@
     position-anchor: --statusbar-sub-trigger;
     left: anchor(right);
     top: anchor(top);
-    margin-left: var(--space-px);
+    margin-left: 11px;
   }
 }
 

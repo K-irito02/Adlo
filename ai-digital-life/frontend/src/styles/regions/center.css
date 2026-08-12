@@ -375,7 +375,15 @@ select:focus-visible {
   box-shadow: var(--shadow-xl);
   padding: var(--space-3);
   z-index: var(--z-overlay);
-  min-width: 300px;
+  width: 300px;
+}
+
+.adl-welcome__action-card .adl-split-btn__menu {
+  left: calc(100% + 15px);
+}
+
+.adl-welcome__action-card .adl-split-btn__settings {
+  left: calc(100% + 14px);
 }
 
 .adl-welcome__empty {
