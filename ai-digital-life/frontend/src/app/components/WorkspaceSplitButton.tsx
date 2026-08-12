@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import { useTCopy } from '../i18n/useTCopy';
 import { IconChevronRight, IconFolder, IconFolderOpen } from '../icons';
-import { TooltipSimple } from './Tooltip';
 
 export type WorkspaceActionMode = 'pick' | 'open' | 'create';
 
@@ -133,6 +132,11 @@ export function WorkspaceSplitButton({
   const handleSplitDropEnter = () => {
     if (splitHoverTimer.current) {
       clearTimeout(splitHoverTimer.current);
+      splitHoverTimer.current = undefined;
+    }
+    if (settingsHoverTimer.current) {
+      clearTimeout(settingsHoverTimer.current);
+      settingsHoverTimer.current = undefined;
     }
     setActionError('');
     setSettingPanelOpen(false);
@@ -159,8 +163,14 @@ export function WorkspaceSplitButton({
   const handleSettingsEnter = () => {
     if (settingsHoverTimer.current) {
       clearTimeout(settingsHoverTimer.current);
+      settingsHoverTimer.current = undefined;
+    }
+    if (splitHoverTimer.current) {
+      clearTimeout(splitHoverTimer.current);
+      splitHoverTimer.current = undefined;
     }
     setCreateDirDraft(defaultCreateDir);
+    setSplitMenuOpen(false);
     setSettingPanelOpen(true);
   };
 
@@ -295,10 +305,9 @@ export function WorkspaceSplitButton({
               className="adl-split-btn__dots"
               onMouseEnter={handleSettingsEnter}
               onMouseLeave={handleSettingsLeave}
+              title={t.workspaceCreateDefaultDirTooltip}
             >
-              <TooltipSimple content={t.workspaceCreateDefaultDirTooltip} placement="top">
-                <span>⋮</span>
-              </TooltipSimple>
+              <span>⋮</span>
             </button>
           </div>
           {actionError ? <p className="adl-split-btn__error">{actionError}</p> : null}

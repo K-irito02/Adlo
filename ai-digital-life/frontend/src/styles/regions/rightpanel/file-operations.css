@@ -291,7 +291,41 @@
   word-break: break-word;
   overflow-wrap: break-word;
   line-break: loose;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.adl-sub-hint-card__line {
   white-space: pre-line;
+}
+
+/* 列点行：使用 flex 精确控制列点与文本间距
+ * 列点左边距（卡片左边缘到·）= 列点右边距（·到文字首字）
+ * 实现：gap 与卡片 padding-left 取相同值（var(--space-3)），
+ *       列点用自然宽度（无定宽居中），字符左右两侧的"字符半宽"自动相互抵消，
+ *       最终 card_padding + ·_half == ·_half + gap → 视觉对称
+ */
+.adl-sub-hint-card__bullet-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: var(--space-3);
+}
+
+/* 列点符号：自然宽度，保持与行文本的基线对齐 */
+.adl-sub-hint-card__bullet {
+  display: inline;
+  flex-shrink: 0;
+  /* 精细视觉基线微调（补偿 · 字符在某些字体中的轻微下沉） */
+  transform: translateY(-0.03em);
+  line-height: 1;
+}
+
+/* 列点后的文本 */
+.adl-sub-hint-card__bullet-text {
+  flex: 1;
+  min-width: 0;
 }
 
 /* 箭头填充 - border-right 在 0 宽元素上生成指向左侧的三角形 */

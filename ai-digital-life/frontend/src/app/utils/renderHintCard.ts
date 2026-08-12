@@ -7,6 +7,33 @@ export interface RenderHintCardOptions {
   onCardMouseLeave?: () => void;
 }
 
+function appendHintCardContent(card: HTMLElement, content: string): void {
+  const lines = content.split('\n');
+  lines.forEach((rawLine, idx) => {
+    const line = rawLine;
+    if (line.startsWith('· ')) {
+      const item = document.createElement('div');
+      item.className = 'adl-sub-hint-card__bullet-line';
+      const bullet = document.createElement('span');
+      bullet.className = 'adl-sub-hint-card__bullet';
+      bullet.textContent = '·';
+      const text = document.createElement('span');
+      text.className = 'adl-sub-hint-card__bullet-text';
+      text.textContent = line.slice(2);
+      item.appendChild(bullet);
+      item.appendChild(text);
+      card.appendChild(item);
+    } else if (line) {
+      const p = document.createElement('div');
+      p.className = 'adl-sub-hint-card__line';
+      p.textContent = line;
+      card.appendChild(p);
+    } else if (idx !== lines.length - 1) {
+      card.appendChild(document.createElement('br'));
+    }
+  });
+}
+
 /**
  * Creates and appends hint card DOM elements (card + arrow + arrow border).
  * Elements are appended to `document.body` because they use `position: fixed`
@@ -29,7 +56,7 @@ export function renderHintCard({
 
   const card = document.createElement('div');
   card.className = `adl-sub-hint-card${direction === 'left' ? ' adl-sub-hint-card--left' : ''}`;
-  card.textContent = content;
+  appendHintCardContent(card, content);
   card.style.pointerEvents = 'auto';
   card.style.userSelect = 'text';
   if (direction === 'left') {
