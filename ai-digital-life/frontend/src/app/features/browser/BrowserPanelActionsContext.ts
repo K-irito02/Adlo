@@ -43,6 +43,8 @@ export interface BrowserPanelActions {
   handleGoBack: () => void;
   handleGoForward: () => void;
   handleReload: () => void;
+  canGoBack: boolean;
+  canGoForward: boolean;
   setNavigatorMode: React.Dispatch<React.SetStateAction<BrowserNavigatorMode>>;
   handleSelectTreePath: (path: string | null) => void;
   showToast: (message: string, type?: 'success' | 'warning' | 'error') => void;

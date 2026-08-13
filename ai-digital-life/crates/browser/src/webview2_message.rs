@@ -34,7 +34,6 @@ pub(crate) mod shared {
         Lazy::new(|| RwLock::new(HashMap::new()));
     pub(crate) static FAVICON_CHANGED_COUNT: AtomicU64 = AtomicU64::new(0);
     pub(crate) static HISTORY_CHANGED_COUNT: AtomicU64 = AtomicU64::new(0);
-    pub(crate) static LAST_HISTORY_URL: Mutex<String> = Mutex::new(String::new());
 
     /// 去重：追踪最近一次发射的 (url, title, favicon) 和时间戳
     pub(crate) static LAST_EMIT_URL: Mutex<String> = Mutex::new(String::new());

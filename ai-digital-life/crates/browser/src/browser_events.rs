@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::sync::LazyLock;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
@@ -24,6 +26,45 @@ pub(crate) const EMIT_DEDUP_WINDOW: Duration = Duration::from_secs(4);
 /// Signal: tell poll thread to enter fast-poll mode immediately.
 /// Set by the HistoryChanged COM handler (Method 5) when SPA pushState is detected.
 pub(crate) static POLL_FAST_NOW: AtomicBool = AtomicBool::new(false);
+
+/// Per-tab last-seen history URL for HistoryChanged dedup.
+///
+/// Keyed by `tab_id` so back/forward events on one tab are never suppressed by
+/// another tab's activity, and windowed by time so a legitimate back/forward
+/// traversal to a previously-visited URL (which always repeats a URL) is not
+/// mistaken for a duplicate event. A bare "same URL as last time" check would
+/// drop the `url-changed` event on back/forward, desyncing the frontend tab
+/// state from the actual WebView navigation.
+pub(crate) static LAST_HISTORY_URL: LazyLock<Mutex<HashMap<String, (String, Instant)>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// HistoryChanged dedup window: only a repeated URL within this window is
+/// treated as a duplicate (WebView2 can fire HistoryChanged more than once for
+/// a single pushState navigation). Longer-lived revisits pass through.
+const HISTORY_DEDUP_MS: u64 = 2000;
+
+/// Returns `true` if the `url-changed` event for this tab/URL should be
+/// emitted, `false` if it is a rapid duplicate within `HISTORY_DEDUP_MS`.
+pub(crate) fn should_emit_history_changed(tab_id: &str, url: &str) -> bool {
+    should_emit_history_changed_at(tab_id, url, Instant::now())
+}
+
+fn should_emit_history_changed_at(tab_id: &str, url: &str, now: Instant) -> bool {
+    if let Ok(mut map) = LAST_HISTORY_URL.lock() {
+        let key = tab_id.to_string();
+        if let Some((last_url, last_time)) = map.get(&key) {
+            if *last_url == url
+                && (now.duration_since(*last_time).as_millis() as u64) < HISTORY_DEDUP_MS
+            {
+                return false;
+            }
+        }
+        map.insert(key, (url.to_string(), now));
+        true
+    } else {
+        true
+    }
+}
 
 pub fn navigation_handler<F: Fn(&str)>(url: &url::Url, emit_url: &F) -> bool {
     if url.scheme() != "http" && url.scheme() != "https" {
@@ -67,4 +108,57 @@ pub fn navigation_handler<F: Fn(&str)>(url: &url::Url, emit_url: &F) -> bool {
         tracing::debug!(normalized = %normalized, "navigation_handler: SKIPPED emit (dedup)");
     }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn history_dedup_suppresses_rapid_same_url() {
+        let t0 = Instant::now();
+        assert!(should_emit_history_changed_at("tab-dedup-1", "https://a.com", t0));
+        assert!(!should_emit_history_changed_at(
+            "tab-dedup-1",
+            "https://a.com",
+            t0 + Duration::from_millis(100),
+        ));
+        // after the window expires, the same URL is a legitimate revisit (back/forward)
+        assert!(should_emit_history_changed_at(
+            "tab-dedup-1",
+            "https://a.com",
+            t0 + Duration::from_millis(2100),
+        ));
+    }
+
+    #[test]
+    fn history_dedup_allows_back_to_previous_url_after_window() {
+        let t0 = Instant::now();
+        assert!(should_emit_history_changed_at("tab-back-1", "https://a.com", t0));
+        assert!(should_emit_history_changed_at(
+            "tab-back-1",
+            "https://b.com",
+            t0 + Duration::from_millis(100),
+        ));
+        // back to a previously-visited URL after the window must emit, not dedup
+        assert!(should_emit_history_changed_at(
+            "tab-back-1",
+            "https://a.com",
+            t0 + Duration::from_millis(2100),
+        ));
+    }
+
+    #[test]
+    fn history_dedup_is_isolated_per_tab() {
+        let t0 = Instant::now();
+        assert!(should_emit_history_changed_at("tab-iso-1", "https://a.com", t0));
+        // same URL on a different tab is independent
+        assert!(should_emit_history_changed_at("tab-iso-2", "https://a.com", t0));
+        // rapid repeat on the first tab is still suppressed
+        assert!(!should_emit_history_changed_at(
+            "tab-iso-1",
+            "https://a.com",
+            t0 + Duration::from_millis(50),
+        ));
+    }
 }

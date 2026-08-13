@@ -10,23 +10,33 @@ use std::sync::Arc;
 
 use crate::state::AppState;
 use crate::tauri_webview_handle::TauriWebViewHandle;
-use adl_browser::BROWSER_WEBVIEW_LABEL;
 use adl_browser::webview_handle::{EventBridgeRef, WebViewHandle};
 use adl_errors::AppError;
 use tauri::{Emitter, Manager};
+
+/// Decide whether a new-window request (`target="_blank"` / `window.open`)
+/// should be routed to a brand-new browser tab. Returns the resolved URL to
+/// open, or `None` for non-http(s) schemes that must stay blocked.
+fn new_window_target(url: &url::Url) -> Option<String> {
+    if url.scheme() == "http" || url.scheme() == "https" {
+        adl_browser::resolve_url(url.as_str())
+            .ok()
+            .map(|u| u.to_string())
+    } else {
+        None
+    }
+}
 
 fn new_window_handler(
     app: &tauri::AppHandle,
     url: &url::Url,
 ) -> tauri::webview::NewWindowResponse<tauri::Wry> {
-    if url.scheme() == "http" || url.scheme() == "https" {
-        if let Some(window) = app.get_window("main") {
-            if let Some(webview) = window.get_webview(BROWSER_WEBVIEW_LABEL) {
-                if let Ok(parsed_url) = adl_browser::resolve_url(url.as_str()) {
-                    let _ = webview.navigate(parsed_url);
-                }
-            }
-        }
+    if let Some(target) = new_window_target(url) {
+        tracing::debug!(target, "new_window_handler: emitting browser-open-new-tab");
+        let _ = app.emit(
+            "digital-life://browser-open-new-tab",
+            serde_json::json!({ "url": target }),
+        );
     }
     tauri::webview::NewWindowResponse::Deny
 }
@@ -196,4 +206,33 @@ pub(super) fn register_webview_with_manager(
         .browser_manager
         .create_for_tab(handle, tab_id)
         .map_err(|e| AppError::Internal(format!("failed to register browser: {e}")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_window_target_opens_http_and_https() {
+        let http = url::Url::parse("http://example.com/page").unwrap();
+        let https = url::Url::parse("https://www.bilibili.com/video/BV1xx").unwrap();
+        assert_eq!(
+            new_window_target(&http),
+            Some("http://example.com/page".to_string())
+        );
+        assert_eq!(
+            new_window_target(&https),
+            Some("https://www.bilibili.com/video/BV1xx".to_string())
+        );
+    }
+
+    #[test]
+    fn new_window_target_ignores_other_schemes() {
+        let ftp = url::Url::parse("ftp://example.com/file").unwrap();
+        let js = url::Url::parse("javascript:void(0)").unwrap();
+        let data = url::Url::parse("data:text/html,hi").unwrap();
+        assert_eq!(new_window_target(&ftp), None);
+        assert_eq!(new_window_target(&js), None);
+        assert_eq!(new_window_target(&data), None);
+    }
 }

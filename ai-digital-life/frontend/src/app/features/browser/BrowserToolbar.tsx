@@ -46,6 +46,8 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
     handleGoBack,
     handleGoForward,
     handleReload,
+    canGoBack,
+    canGoForward,
     browserOpenTab,
     handleOpenBookmarkDialog,
     setBrowserMenuOpen,
@@ -83,7 +85,9 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
             type="button"
             className="adl-tool-context__iconbtn"
             onClick={handleGoBack}
+            disabled={!canGoBack}
             aria-label={t.browserBack}
+            aria-disabled={!canGoBack}
           >
             <IconArrowLeft size={14} decorative />
           </button>
@@ -93,7 +97,9 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
             type="button"
             className="adl-tool-context__iconbtn"
             onClick={handleGoForward}
+            disabled={!canGoForward}
             aria-label={t.browserForward}
+            aria-disabled={!canGoForward}
           >
             <IconArrowRight size={14} decorative />
           </button>

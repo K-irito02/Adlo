@@ -3,6 +3,10 @@
 //! Registers a WebMessageReceived handler on the WebView2 instance,
 //! allowing JavaScript to send meta events instantly via
 //! `chrome.webview.postMessage(JSON.stringify({type:'meta', ...}))`.
+//!
+//! Also handles `{type:'open-new-tab', url}` messages sent by the injected
+//! `init_script.js` when the page requests a new tab (target="_blank" links
+//! and `window.open`), routing them to the platform event bridge.
 
 #[cfg(windows)]
 mod imp {
@@ -64,6 +68,50 @@ mod imp {
                     }
 
                     if let Ok(meta) = serde_json::from_str::<serde_json::Value>(&json_str) {
+                        if meta.get("type").and_then(|t| t.as_str()) == Some("adl-c1-debug") {
+                            let tag = meta
+                                .get("tag")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("?")
+                                .to_string();
+                            let raw = meta
+                                .get("raw")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let cur = meta
+                                .get("cur")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let action = meta
+                                .get("action")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let out = meta
+                                .get("out")
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            info!(
+                                "[ADL-C1] {} | raw: {} | cur: {} | action: {} | out: {}",
+                                tag,
+                                raw.chars().take(100).collect::<String>(),
+                                cur.chars().take(100).collect::<String>(),
+                                action,
+                                out.chars().take(100).collect::<String>()
+                            );
+                            return Ok(());
+                        }
+                        if let Some(url) = super::open_new_tab_url_from_message(&json_str) {
+                            info!(
+                                "[ADL-META-RECV] Method 1 (postMessage): OPEN-NEW-TAB → {}",
+                                url.chars().take(80).collect::<String>()
+                            );
+                            bridge_for_handler.emit_open_new_tab(&url);
+                            return Ok(());
+                        }
                         if meta.get("type").and_then(|t| t.as_str()) == Some("meta") {
                             let title = meta
                                 .get("title")
@@ -142,3 +190,63 @@ mod imp {
 }
 
 pub use imp::setup_webview2_messaging;
+
+/// Pure parse of an `{type:'open-new-tab', url}` postMessage payload.
+///
+/// Returns the URL only when the message type matches and the URL uses an
+/// http/https scheme. Anything else returns `None` so the message is ignored.
+pub fn open_new_tab_url_from_message(json: &str) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_str(json).ok()?;
+    if value.get("type").and_then(|t| t.as_str()) != Some("open-new-tab") {
+        return None;
+    }
+    let url = value.get("url").and_then(|v| v.as_str())?;
+    if url.starts_with("http://") || url.starts_with("https://") {
+        Some(url.to_string())
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::open_new_tab_url_from_message;
+
+    #[test]
+    fn open_new_tab_http_url_returns_some() {
+        let json = r#"{"type":"open-new-tab","url":"https://www.bilibili.com/video/BV1eSGP6BEfn"}"#;
+        assert_eq!(
+            open_new_tab_url_from_message(json),
+            Some("https://www.bilibili.com/video/BV1eSGP6BEfn".to_string())
+        );
+    }
+
+    #[test]
+    fn open_new_tab_http_scheme_returns_some() {
+        let json = r#"{"type":"open-new-tab","url":"http://example.com/a"}"#;
+        assert_eq!(open_new_tab_url_from_message(json), Some("http://example.com/a".to_string()));
+    }
+
+    #[test]
+    fn open_new_tab_meta_type_returns_none() {
+        let json = r#"{"type":"meta","title":"t","url":"https://example.com"}"#;
+        assert_eq!(open_new_tab_url_from_message(json), None);
+    }
+
+    #[test]
+    fn open_new_tab_non_http_url_returns_none() {
+        let json = r#"{"type":"open-new-tab","url":"javascript:alert(1)"}"#;
+        assert_eq!(open_new_tab_url_from_message(json), None);
+    }
+
+    #[test]
+    fn open_new_tab_malformed_json_returns_none() {
+        assert_eq!(open_new_tab_url_from_message("not json"), None);
+    }
+
+    #[test]
+    fn open_new_tab_missing_url_returns_none() {
+        let json = r#"{"type":"open-new-tab"}"#;
+        assert_eq!(open_new_tab_url_from_message(json), None);
+    }
+}

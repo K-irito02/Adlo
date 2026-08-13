@@ -39,6 +39,10 @@ export interface BrowserBridge {
   goBackTab: (tabId: string) => Promise<boolean>;
   /** Go forward in a specific tab */
   goForwardTab: (tabId: string) => Promise<boolean>;
+  /** Whether a specific tab can go back (native history has a previous entry). */
+  canGoBackTab: (tabId: string) => Promise<boolean>;
+  /** Whether a specific tab can go forward (native history has a next entry). */
+  canGoForwardTab: (tabId: string) => Promise<boolean>;
   /** Reload a specific tab */
   reloadTab: (tabId: string) => Promise<void>;
   /** Subscribe to URL changes (global event) */
@@ -49,6 +53,8 @@ export interface BrowserBridge {
   muteTab: (tabId: string, muted: boolean) => Promise<void>;
   /** Subscribe to audio state changes */
   onAudioStateChanged: (listener: (payload: AudioStatePayload) => void) => () => void;
+  /** Subscribe to new-window requests (`target="_blank"` / `window.open`); open a new tab. */
+  onOpenNewTab: (listener: (url: string) => void) => () => void;
   /** Set the preferred color scheme on all browser WebViews (Tauri mode) */
   setBrowserColorScheme: (resolvedTheme: 'light' | 'dark') => Promise<void>;
   /** Set zoom level for a specific tab's WebView */

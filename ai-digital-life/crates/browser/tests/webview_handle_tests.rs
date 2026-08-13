@@ -41,6 +41,18 @@ impl WebViewHandle for MockHandle {
     fn clear_cache(&self) -> Result<(), adl_errors::AppError> {
         Ok(())
     }
+    fn go_back(&self) -> Result<bool, adl_errors::AppError> {
+        Ok(true)
+    }
+    fn go_forward(&self) -> Result<bool, adl_errors::AppError> {
+        Ok(true)
+    }
+    fn can_go_back(&self) -> Result<bool, adl_errors::AppError> {
+        Ok(true)
+    }
+    fn can_go_forward(&self) -> Result<bool, adl_errors::AppError> {
+        Ok(true)
+    }
 }
 
 #[test]
@@ -85,4 +97,11 @@ fn mock_handle_mute_clear() {
     assert!(h.mute(true).is_ok());
     assert!(h.clear_cookies().is_ok());
     assert!(h.clear_cache().is_ok());
+}
+
+#[test]
+fn mock_handle_back_forward() {
+    let h = MockHandle { id: "nav-test".into() };
+    assert!(h.go_back().unwrap());
+    assert!(h.go_forward().unwrap());
 }

@@ -147,4 +147,111 @@ impl WebViewHandle for TauriWebViewHandle {
         }
         Ok(())
     }
+
+    fn go_back(&self) -> Result<bool, AppError> {
+        #[cfg(windows)]
+        {
+            let wv = self.webview()?;
+            wv.with_webview(move |platform_wv| unsafe {
+                let controller = platform_wv.controller();
+                if let Ok(core) = controller.CoreWebView2() {
+                    // ICoreWebView2::GoBack is a no-op when there is no previous
+                    // history entry, so no CanGoBack pre-check is required.
+                    if let Err(e) = core.GoBack() {
+                        tracing::warn!(error = %e, "go_back: native GoBack failed");
+                    }
+                }
+            })
+            .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
+            Ok(true)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = self;
+            Ok(false)
+        }
+    }
+
+    fn go_forward(&self) -> Result<bool, AppError> {
+        #[cfg(windows)]
+        {
+            let wv = self.webview()?;
+            wv.with_webview(move |platform_wv| unsafe {
+                let controller = platform_wv.controller();
+                if let Ok(core) = controller.CoreWebView2() {
+                    if let Err(e) = core.GoForward() {
+                        tracing::warn!(error = %e, "go_forward: native GoForward failed");
+                    }
+                }
+            })
+            .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
+            Ok(true)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = self;
+            Ok(false)
+        }
+    }
+
+    fn can_go_back(&self) -> Result<bool, AppError> {
+        #[cfg(windows)]
+        {
+            let Ok(wv) = self.webview() else {
+                // WebView not yet created for this tab — treat as "cannot go
+                // back" so the button stays disabled until a later refresh.
+                return Ok(false);
+            };
+            let (tx, rx) = std::sync::mpsc::channel::<bool>();
+            wv.with_webview(move |platform_wv| unsafe {
+                let controller = platform_wv.controller();
+                let mut result = false;
+                if let Ok(core) = controller.CoreWebView2() {
+                    result = adl_browser::can_go_back_webview2(&core);
+                } else {
+                    tracing::warn!("[ADL-BACKFWD] can_go_back: CoreWebView2() failed");
+                }
+                let _ = tx.send(result);
+            })
+            .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
+            // with_webview dispatches to the main-thread event loop asynchronously,
+            // so block until the callback has actually run and produced a result.
+            // On timeout fall back to "cannot go back" (conservative) rather than
+            // erroring, so the frontend keeps the button disabled instead of
+            // flashing between states.
+            Ok(rx.recv_timeout(std::time::Duration::from_millis(1000)).unwrap_or(false))
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = self;
+            Ok(false)
+        }
+    }
+
+    fn can_go_forward(&self) -> Result<bool, AppError> {
+        #[cfg(windows)]
+        {
+            let Ok(wv) = self.webview() else {
+                return Ok(false);
+            };
+            let (tx, rx) = std::sync::mpsc::channel::<bool>();
+            wv.with_webview(move |platform_wv| unsafe {
+                let controller = platform_wv.controller();
+                let mut result = false;
+                if let Ok(core) = controller.CoreWebView2() {
+                    result = adl_browser::can_go_forward_webview2(&core);
+                } else {
+                    tracing::warn!("[ADL-BACKFWD] can_go_forward: CoreWebView2() failed");
+                }
+                let _ = tx.send(result);
+            })
+            .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
+            Ok(rx.recv_timeout(std::time::Duration::from_millis(1000)).unwrap_or(false))
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = self;
+            Ok(false)
+        }
+    }
 }

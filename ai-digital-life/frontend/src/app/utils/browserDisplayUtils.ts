@@ -15,17 +15,91 @@ export function normalizeTabTitle(title: string | undefined, _url: string): stri
 }
 
 /**
+ * Known tracking/analytics query params that carry no page identity. SPA sites
+ * (Bilibili `vd_source`/`spm_id_from`/`trackid`, UTM campaigns, ad click ids)
+ * mutate/append these during navigation, which would otherwise create redundant
+ * history entries and break URL-based tab matching.
+ */
+const TRACKING_PARAM_PATTERN =
+  /^(vd_source|spm_id_from|trackid|sfrom|ref|referrer|utm_source|utm_medium|utm_campaign|utm_term|utm_content|utm_id|utm_campaign_type|gclid|fbclid|yclid|igshid|igsh)$/i;
+
+/**
+ * YouTube radio/auto-play params that carry no page identity. `start_radio=1`
+ * only signals "start radio"; a `list=RD...` value is an auto-generated radio
+ * queue (RD = radio) that changes as the queue advances — neither should split
+ * a video's history identity. `pp` and `index` are queue-progress markers that
+ * also change every radio step. A real user playlist (`list=PL...`) is kept.
+ */
+function isNonIdentityParam(key: string, value: string): boolean {
+  if (TRACKING_PARAM_PATTERN.test(key)) {
+    return true;
+  }
+  if (key === 'start_radio') {
+    return true;
+  }
+  if (key === 'list' && /^RD/i.test(value)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * YouTube radio-queue progress markers (`pp`, `index`) that are meaningless for
+ * history identity but change on every radio auto-advance. They only apply when
+ * the URL is inside a radio queue (list=RD...).
+ */
+const RADIO_PROGRESS_PARAMS = /^(pp|index)$/i;
+
+/**
+ * Normalize a URL query string for identity/dedup purposes: strip known
+ * tracking params and sort the remaining params (so `?b=2&a=1` and `?a=1&b=2`
+ * collapse to the same key).
+ */
+export function normalizedQueryForDedup(search: string): string {
+  if (!search) {
+    return '';
+  }
+  const params = new URLSearchParams(search);
+  // Detect radio queue (list=RD...) so queue-progress markers can be dropped.
+  const isRadioQueue = Array.from(params.entries()).some(
+    ([key, value]) => key === 'list' && /^RD/i.test(value),
+  );
+  const kept: [string, string][] = [];
+  for (const [key, value] of params.entries()) {
+    if (isNonIdentityParam(key, value)) {
+      continue;
+    }
+    if (isRadioQueue && RADIO_PROGRESS_PARAMS.test(key)) {
+      continue;
+    }
+    kept.push([key, value]);
+  }
+  if (kept.length === 0) {
+    return '';
+  }
+  kept.sort((a, b) => a[0].localeCompare(b[0]));
+  const sp = new URLSearchParams();
+  for (const [k, v] of kept) {
+    sp.append(k, v);
+  }
+  const s = sp.toString();
+  return s ? `?${s}` : '';
+}
+
+/**
  * Normalize URL for history dedup — matches by hostname+pathname+query string,
  * ignoring hash, trailing slash, and www. prefix.
- * Query string is included so SPA pages with different query params (e.g. YouTube
- * `?v=AAA` vs `?v=BBB`) get separate history entries.
+ * Query params are normalized (tracking params stripped, remaining sorted) so
+ * SPA pages that only differ by tracking params (e.g. Bilibili adding
+ * `vd_source`) collapse into one entry, while genuinely different pages
+ * (YouTube `?v=AAA` vs `?v=BBB`) stay separate.
  */
 export function historyDedupKey(url: string): string {
   try {
     const u = new URL(url);
     const hostname = u.hostname.replace(/^www\./, '');
     const path = u.pathname.length > 1 ? u.pathname.replace(/\/+$/, '') : u.pathname;
-    const query = u.search || '';
+    const query = normalizedQueryForDedup(u.search);
     return `${hostname}${path}${query}`;
   } catch {
     return url;

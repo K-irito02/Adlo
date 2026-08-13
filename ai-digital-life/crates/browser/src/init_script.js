@@ -1,6 +1,25 @@
 (function() {
     console.log('[ADL Browser] Initialization script loaded');
 
+    // Global error reporter: any exception thrown during init_script execution
+    // (or later) is reported to Rust so we can see exactly where the script
+    // died. Without this, a mid-script error silently prevents later blocks
+    // (e.g. the C1 history wrapper) from being installed.
+    window.__adlReportInitError = function(tag, err) {
+        try {
+            if (typeof chrome !== 'undefined' && chrome.webview && chrome.webview.postMessage) {
+                chrome.webview.postMessage(JSON.stringify({
+                    type: 'adl-c1-debug',
+                    tag: tag,
+                    raw: err ? String(err.message || err).slice(0, 200) : '',
+                }));
+            }
+        } catch (e) {}
+    };
+    window.addEventListener('error', function(ev) {
+        window.__adlReportInitError('page-error', ev.error || ev.message || '');
+    });
+
     // 检查是否是有效的网页 URL
     function isValidWebUrl(href) {
         if (!href || typeof href !== 'string') return false;
@@ -15,6 +34,23 @@
         } else {
             window.location.href = href;
         }
+    }
+
+    // Route a new-tab request (target="_blank"/"_new" or modified click) through
+    // the WebView2 postMessage channel so Rust can emit the open-new-tab event.
+    // Returns true when the message was sent; false in non-WebView2 environments
+    // (caller then leaves the native default action untouched so the
+    // NewWindowRequested handler can fire instead).
+    function __adlTryOpenNewTab(href) {
+        try {
+            if (typeof chrome !== 'undefined' && chrome.webview && chrome.webview.postMessage) {
+                chrome.webview.postMessage(JSON.stringify({ type: 'open-new-tab', url: href }));
+                return true;
+            }
+        } catch (e) {
+            console.warn('[ADL Browser] postMessage open-new-tab failed:', e);
+        }
+        return false;
     }
     
     // Compare only origin+pathname (ignore query params & hash) to detect SPA pushState
@@ -32,6 +68,8 @@
     // observe the event (no stopPropagation). Use event-driven SPA detection:
     // if the SPA calls history.pushState/replaceState or popstate fires within
     // NAV_GUARD_TIMEOUT_MS, we skip the fallback; otherwise, we navigate.
+    // New-tab targets (target="_blank"/"_new" or ctrl/meta/shift/middle-click)
+    // are routed to the open-new-tab channel instead of the in-place nav guard.
     document.addEventListener('click', function(event) {
         var target = event.target;
         
@@ -39,6 +77,18 @@
             if (target.tagName === 'A' && target.href) {
                 var href = target.href;
                 if (isValidWebUrl(href)) {
+                    var linkTarget = (target.getAttribute('target') || '').toLowerCase();
+                    var wantsNewTab = linkTarget === '_blank' || linkTarget === '_new' ||
+                        event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
+                    if (wantsNewTab) {
+                        console.log('[ADL Browser] Link intercepted (new tab):', href);
+                        // PostMessage available → Rust opens a new tab. Otherwise
+                        // leave the default action so native NewWindowRequested fires.
+                        if (__adlTryOpenNewTab(href)) {
+                            event.preventDefault();
+                        }
+                        return;
+                    }
                     console.log('[ADL Browser] Link intercepted (click <a>):', href);
                     event.preventDefault();
                     // Don't stopPropagation — SPA handlers (Vue/React) need the event
@@ -52,6 +102,16 @@
             if (target.tagName === 'AREA' && target.href) {
                 var href = target.href;
                 if (isValidWebUrl(href)) {
+                    var areaTarget = (target.getAttribute('target') || '').toLowerCase();
+                    var areaWantsNewTab = areaTarget === '_blank' || areaTarget === '_new' ||
+                        event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
+                    if (areaWantsNewTab) {
+                        console.log('[ADL Browser] Link intercepted (new tab <area>):', href);
+                        if (__adlTryOpenNewTab(href)) {
+                            event.preventDefault();
+                        }
+                        return;
+                    }
                     console.log('[ADL Browser] Link intercepted (click <area>):', href);
                     event.preventDefault();
                     if (window.__startNavGuard) {
@@ -65,11 +125,13 @@
         }
     }, true);
     
-    // 1. 重写 window.open（阻止所有弹窗，外部HTTP链接在当前WebView导航）
+    // 1. 重写 window.open（阻止所有弹窗；http/https 委托原生 NewWindowRequested，
+//    由 Rust new_window_handler 发射 open-new-tab 事件；其它 scheme 直接返回 null）
+    var origOpen = window.open;
     window.open = function(url, name, features) {
         if (url && isValidWebUrl(url)) {
-            console.log('[ADL Browser] window.open intercepted, navigating in-place:', url);
-            navigateToUrl(url);
+            console.log('[ADL Browser] window.open intercepted, delegating to native new-window:', url);
+            return origOpen.call(window, url, name, features);
         }
         return null;
     };
@@ -137,6 +199,9 @@
     // and no fallback occurs. Otherwise, the guard falls back to navigateToUrl.
     // This avoids the race condition where a deferred SPA navigation fires
     // AFTER a fixed-delay fallback, causing a double page reload.
+    // Isolated in try/catch so an error here cannot abort the outer IIFE and
+    // prevent the C1 history wrapper (installed after) from being applied.
+    try {
     (function() {
         var NAV_GUARD_TIMEOUT_MS = 200;
         var guardHref = null;
@@ -188,10 +253,19 @@
             }, NAV_GUARD_TIMEOUT_MS);
         };
     })();
+    } catch (err) {
+        window.__adlReportInitError && window.__adlReportInitError('nav-guard-iife', err);
+    }
 
     // ---- REAL-TIME META REPORTING (title + favicon) ----
     // Method 1: WebView2 postMessage (real-time, initiated by page JS)
     // Method 2: Rust-side active fetch via __adlGetMeta (polling-based, reliable fallback)
+    // IMPORTANT: this IIFE is isolated in a try/catch. Any error inside (e.g.
+    // a page where document.head is not yet available when the init script runs)
+    // must NOT abort the outer IIFE — otherwise the C1 history wrapper installed
+    // AFTER this block would never be applied, leaving the native history stack
+    // full of redundant SPA entries (the multi-click back bug).
+    try {
     (function() {
         if (window.top !== window.self) return;
         var LOG_PREFIX = '[ADL-META]';
@@ -240,6 +314,27 @@
             return best;
         }
 
+        // Extract the *current* page title, preferring a SPA-updated heading over
+        // the static document.title. YouTube radio auto-play (watch?v=..&list=RD..
+        // &start_radio=1) pins document.title/og:title to the FIRST video while
+        // the URL advances through the queue — but the visible h1 (the current
+        // video's title) is updated by the SPA. For YouTube watch pages use h1;
+        // everywhere else fall back to document.title.
+        function getPageTitle() {
+            var t = document.title ? document.title.trim() : '';
+            try {
+                if (location.hostname.indexOf('youtube.com') !== -1 &&
+                    location.pathname.indexOf('/watch') === 0) {
+                    var h1 = document.querySelector('h1.ytd-watch-metadata, h1.title');
+                    if (h1) {
+                        var h = (h1.textContent || h1.innerText || '').trim();
+                        if (h) return h;
+                    }
+                }
+            } catch (e) {}
+            return t;
+        }
+
         function getHostname() {
             try {
                 return location.hostname;
@@ -285,7 +380,7 @@
         }
 
         function handleUrlChanged(u) {
-            preNavTitle = document.title ? document.title.trim() : '';
+            preNavTitle = getPageTitle();
             lastUrl = u;
             lastTitle = '';
             lastFavicon = '';
@@ -304,7 +399,7 @@
 
         function reportMeta(reason) {
             if (isReporting) return;
-            var t = document.title ? document.title.trim() : '';
+            var t = getPageTitle();
             var f = getFavicon();
             var u = location.href.split('#')[0];
 
@@ -355,7 +450,7 @@
             navPollCount = 0;
             function tick() {
                 navPollCount++;
-                var t = document.title ? document.title.trim() : '';
+                var t = getPageTitle();
                 var f = getFavicon();
                 var u = location.href.split('#')[0];
 
@@ -467,7 +562,9 @@
             }
             if (shouldReport) setTimeout(function() { reportMeta('head-change'); }, 10);
         });
-        headObs.observe(head, { childList: true, subtree: true, attributes: false });
+        if (head) {
+            headObs.observe(head, { childList: true, subtree: true, attributes: false });
+        }
 
         var origPushState = history.pushState;
         var origReplaceState = history.replaceState;
@@ -486,9 +583,9 @@
         });
 
         window.__adlGetMeta = function() {
-            var t = document.title ? document.title.trim() : '';
+            var t = getPageTitle();
 
-            // Fallback to og:title if document.title is empty or just hostname
+            // Fallback to og:title if getPageTitle is empty or just hostname
             if (!isTitleMeaningful(t)) {
                 var ogMeta = document.querySelector('meta[property="og:title"]');
                 if (ogMeta && ogMeta.content) {
@@ -537,6 +634,152 @@
                 favicon: outFavicon,
                 url: u
             });
+        };
+    })();
+    } catch (err) {
+        window.__adlReportInitError && window.__adlReportInitError('meta-iife', err);
+    }
+
+    // ---- C1: HISTORY URL NORMALIZATION ----
+    // Pure helpers (extracted by frontend tests between __ADL_PURE markers).
+    // Mirrors the frontend historyDedupKey rules: strip tracking params
+    // (vd_source / spm_id_from / trackid / utm_* / gclid / ...), sort the
+    // remaining query params, strip the trailing slash. The *compare* key also
+    // drops the www hostname prefix; the *returned* URL keeps the page's own
+    // origin so it stays pushState-safe (same-origin requirement).
+    // __ADL_PURE_START__
+    var __adlTrackingParamPattern = /^(vd_source|spm_id_from|trackid|sfrom|ref|referrer|utm_source|utm_medium|utm_campaign|utm_term|utm_content|utm_id|utm_campaign_type|gclid|fbclid|yclid|igshid|igsh)$/i;
+
+    function __adlNormalizeHistoryUrl(rawUrl, baseHref) {
+        try {
+            var u = new URL(rawUrl, baseHref);
+            var sp = u.searchParams;
+            var keys = [];
+            sp.forEach(function(value, key) { if (keys.indexOf(key) === -1) keys.push(key); });
+            // Detect YouTube radio queue (list=RD...) so queue-progress markers
+            // (pp/index) can be dropped along with the tracking params.
+            var isRadioQueue = false;
+            for (var r = 0; r < keys.length; r++) {
+                if (keys[r] === 'list' && /^RD/i.test(sp.get('list') || '')) {
+                    isRadioQueue = true;
+                    break;
+                }
+            }
+            var kept = [];
+            for (var i = 0; i < keys.length; i++) {
+                var k = keys[i];
+                var vals = sp.getAll(k);
+                // Strip tracking params plus YouTube radio params (start_radio,
+                // auto-generated list=RD... queue, pp/index progress markers) so
+                // radio churn does not split a video's native history entry.
+                var drop = __adlTrackingParamPattern.test(k) ||
+                    k === 'start_radio' ||
+                    (k === 'list' && /^RD/i.test(vals[0] || '')) ||
+                    (isRadioQueue && (k === 'pp' || k === 'index'));
+                if (!drop) {
+                    for (var j = 0; j < vals.length; j++) kept.push([k, vals[j]]);
+                }
+            }
+            if (kept.length === 0) {
+                u.search = '';
+            } else {
+                kept.sort(function(a, b) { return a[0] < b[0] ? -1 : (a[0] > b[0] ? 1 : 0); });
+                var sp2 = new URLSearchParams();
+                for (var m = 0; m < kept.length; m++) sp2.append(kept[m][0], kept[m][1]);
+                u.search = sp2.toString();
+            }
+            if (u.pathname.length > 1 && /\/$/.test(u.pathname)) {
+                u.pathname = u.pathname.replace(/\/+$/, '');
+            }
+            return u.href;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // Compare key: origin (www stripped) + path + sorted non-tracking query +
+    // hash. Hash is KEPT so page#a -> page#b stays a distinct history entry.
+    function __adlCompareHistoryUrl(rawUrl, baseHref) {
+        try {
+            var u = new URL(rawUrl, baseHref);
+            var host = u.hostname.replace(/^www\./, '');
+            u.hostname = host;
+            var normalized = __adlNormalizeHistoryUrl(u.href, baseHref);
+            if (normalized === null) return null;
+            var n = new URL(normalized);
+            n.hostname = host;
+            return n.href;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function __adlResolveHistoryNavigation(rawUrl, baseHref) {
+        var normalized = __adlNormalizeHistoryUrl(rawUrl, baseHref);
+        if (normalized === null) {
+            return { action: 'push', url: rawUrl };
+        }
+        var targetKey = __adlCompareHistoryUrl(normalized, baseHref);
+        var currentKey = __adlCompareHistoryUrl(baseHref, baseHref);
+        if (targetKey !== null && targetKey === currentKey) {
+            return { action: 'replace', url: normalized };
+        }
+        return { action: 'push', url: normalized };
+    }
+    // __ADL_PURE_END__
+
+    // Outermost pushState/replaceState wrapper (runs after the meta-reporting
+    // wrapper): normalize the URL and convert pushState to replaceState when the
+    // normalized target equals the current location. This collapses SPA
+    // tracking-parameter churn (Bilibili vd_source/spm_id_from/trackid) into a
+    // single native history entry, fixing the "two-click back" symptom.
+    (function() {
+        var origPushState = history.pushState;
+        var origReplaceState = history.replaceState;
+
+        function __adlC1Debug(tag, extra) {
+            try {
+                if (typeof chrome !== 'undefined' && chrome.webview && chrome.webview.postMessage) {
+                    var msg = { type: 'adl-c1-debug', tag: tag };
+                    if (extra) for (var k in extra) msg[k] = extra[k];
+                    chrome.webview.postMessage(JSON.stringify(msg));
+                }
+            } catch (e) {}
+        }
+        __adlC1Debug('installed', {
+            wrapped: String(origPushState).indexOf('__adlResolveHistoryNavigation') !== -1 ? 'yes' : 'no',
+        });
+
+        history.pushState = function(state, title, url) {
+            if (url != null) {
+                var resolved = __adlResolveHistoryNavigation(url, location.href);
+                __adlC1Debug('pushState', {
+                    raw: String(url).slice(0, 120),
+                    cur: location.href.slice(0, 120),
+                    action: resolved.action,
+                    out: String(resolved.url).slice(0, 120),
+                });
+                if (resolved.action === 'replace') {
+                    return origReplaceState.call(this, state, title, resolved.url);
+                }
+                return origPushState.call(this, state, title, resolved.url);
+            }
+            __adlC1Debug('pushState-no-url', { raw: String(url) });
+            return origPushState.apply(this, arguments);
+        };
+        history.replaceState = function(state, title, url) {
+            if (url != null) {
+                var resolved = __adlResolveHistoryNavigation(url, location.href);
+                __adlC1Debug('replaceState', {
+                    raw: String(url).slice(0, 120),
+                    cur: location.href.slice(0, 120),
+                    action: resolved.action,
+                    out: String(resolved.url).slice(0, 120),
+                });
+                return origReplaceState.call(this, state, title, resolved.url);
+            }
+            __adlC1Debug('replaceState-no-url', { raw: String(url) });
+            return origReplaceState.apply(this, arguments);
         };
     })();
 })();

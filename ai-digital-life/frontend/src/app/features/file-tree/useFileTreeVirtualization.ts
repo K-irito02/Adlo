@@ -144,11 +144,17 @@ export function useFileTreeVirtualization<T extends FileTreeRenderableNode>(
           [{ transform: `translateY(${deltaY}px)` }, { transform: 'translateY(0)' }],
           { duration: 300, easing: 'ease' },
         );
+        // A previous animation on the same node is replaced (new flip frame)
+        // which cancels it — the `finished` promise rejects on cancel. That is
+        // expected, so swallow it instead of logging a warning per frame.
+        flipAnimationsRef.current.get(path)?.cancel();
         flipAnimationsRef.current.set(path, anim);
         anim.finished
-          .then(() => flipAnimationsRef.current.delete(path))
-          .catch((err) => {
-            console.warn('file tree scroll failed', err);
+          .then(() => {
+            flipAnimationsRef.current.delete(path);
+          })
+          .catch(() => {
+            flipAnimationsRef.current.delete(path);
           });
       }
     });

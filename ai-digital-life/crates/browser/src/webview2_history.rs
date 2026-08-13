@@ -20,21 +20,8 @@ mod imp {
     use windows::core::IUnknown;
 
     use crate::WebView2EventBridge;
-    use crate::browser_events::POLL_FAST_NOW;
-    use crate::webview2_message::shared::{HISTORY_CHANGED_COUNT, LAST_HISTORY_URL};
-
-    fn dedup_history_url(clean_url: &str) -> bool {
-        if let Ok(mut last) = LAST_HISTORY_URL.lock() {
-            if *last == clean_url {
-                false
-            } else {
-                *last = clean_url.to_string();
-                true
-            }
-        } else {
-            true
-        }
-    }
+    use crate::browser_events::{POLL_FAST_NOW, should_emit_history_changed};
+    use crate::webview2_message::shared::HISTORY_CHANGED_COUNT;
 
     fn build_history_handler(
         bridge: Arc<dyn WebView2EventBridge>,
@@ -59,7 +46,7 @@ mod imp {
 
                 let clean_url = url.split("#adl-meta").next().unwrap_or(&url).to_string();
 
-                if !dedup_history_url(&clean_url) {
+                if !should_emit_history_changed(&tab_id, &clean_url) {
                     return Ok(());
                 }
 
@@ -112,6 +99,38 @@ mod imp {
 
         Ok(())
     }
+
+    /// Whether the WebView's native history has a previous entry to go back to.
+    pub fn can_go_back_webview2(core: &ICoreWebView2) -> bool {
+        unsafe {
+            let mut value: windows::core::BOOL = windows::core::BOOL::default();
+            let ok = core.CanGoBack(&mut value).is_ok();
+            let result = ok && value.as_bool();
+            tracing::info!(
+                ok,
+                raw = value.0,
+                result,
+                "[ADL-BACKFWD] can_go_back_webview2"
+            );
+            result
+        }
+    }
+
+    /// Whether the WebView's native history has a next entry to go forward to.
+    pub fn can_go_forward_webview2(core: &ICoreWebView2) -> bool {
+        unsafe {
+            let mut value: windows::core::BOOL = windows::core::BOOL::default();
+            let ok = core.CanGoForward(&mut value).is_ok();
+            let result = ok && value.as_bool();
+            tracing::info!(
+                ok,
+                raw = value.0,
+                result,
+                "[ADL-BACKFWD] can_go_forward_webview2"
+            );
+            result
+        }
+    }
 }
 
 #[cfg(not(windows))]
@@ -124,6 +143,16 @@ mod imp {
         );
         Ok(())
     }
+
+    pub fn can_go_back_webview2() -> bool {
+        false
+    }
+
+    pub fn can_go_forward_webview2() -> bool {
+        false
+    }
 }
 
 pub use imp::setup_history_changed_handler;
+pub use imp::can_go_back_webview2;
+pub use imp::can_go_forward_webview2;

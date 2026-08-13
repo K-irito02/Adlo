@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useBrowserPageMeta } from '../useBrowserPageMeta';
+import {
+  useBrowserPageMeta,
+  isPlaceholderTitle,
+  shouldApplyExactMatchTitle,
+} from '../useBrowserPageMeta';
 import { existingFaviconBaseline } from '../faviconQuality';
+import { useAppStore } from '@stores/slicedStore';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
 import * as siteMetaCache from '@utils/siteMetaCache';
 
 describe('existingFaviconBaseline (quality-gate baseline helper)', () => {
@@ -82,6 +88,99 @@ describe('meta source priority', () => {
     processed.set('https://example.com', { timestamp: Date.now() - 100, source: 'com' });
     await new Promise((r) => setTimeout(r, 10));
     expect(shouldProcess('https://example.com', 'google')).toBe(true);
+  });
+});
+
+describe('isPlaceholderTitle', () => {
+  it('treats an empty title as a placeholder', () => {
+    expect(isPlaceholderTitle('', 'https://a.com')).toBe(true);
+  });
+
+  it('treats a title equal to the URL as a placeholder', () => {
+    expect(isPlaceholderTitle('https://a.com/video', 'https://a.com/video')).toBe(true);
+  });
+
+  it('treats a raw http(s) URL title as a placeholder', () => {
+    expect(isPlaceholderTitle('https://other.example/x', 'https://a.com/video')).toBe(true);
+  });
+
+  it('treats a real page title as non-placeholder', () => {
+    expect(isPlaceholderTitle('第一个视频标题', 'https://a.com/video')).toBe(false);
+  });
+
+  it('treats the bare hostname as a placeholder (douyin.com regression)', () => {
+    expect(isPlaceholderTitle('douyin.com', 'https://www.douyin.com/')).toBe(true);
+    expect(isPlaceholderTitle('www.douyin.com', 'https://www.douyin.com/')).toBe(true);
+  });
+
+  it('does not treat an unrelated word as the hostname placeholder', () => {
+    expect(isPlaceholderTitle('douyin.com', 'https://www.bilibili.com/')).toBe(false);
+  });
+});
+
+describe('shouldApplyExactMatchTitle', () => {
+  it('never applies an empty incoming title', () => {
+    expect(shouldApplyExactMatchTitle('当前', 'https://a.com/video', '', 'com')).toBe(false);
+    expect(shouldApplyExactMatchTitle('', 'https://a.com/video', '', 'http')).toBe(false);
+  });
+
+  it('applies http even when current title is already a real title (upgrade)', () => {
+    expect(shouldApplyExactMatchTitle('旧标题', 'https://a.com/video', '新标题', 'http')).toBe(
+      true,
+    );
+  });
+
+  it('applies iframe when current title is already a real title (upgrade)', () => {
+    expect(shouldApplyExactMatchTitle('旧标题', 'https://a.com/video', '新标题', 'iframe')).toBe(
+      true,
+    );
+  });
+
+  it('blocks com from clobbering an existing real title with a different stale title', () => {
+    // Douyin regression: com reports the stale first-video title while the
+    // URL advanced; the fetched http title must survive.
+    expect(
+      shouldApplyExactMatchTitle(
+        '第一个视频标题',
+        'https://douyin.com/video/2',
+        '第二个视频标题',
+        'com',
+      ),
+    ).toBe(false);
+  });
+
+  it('allows com to fill a placeholder current title', () => {
+    expect(shouldApplyExactMatchTitle('', 'https://a.com/video', '真实标题', 'com')).toBe(true);
+    expect(
+      shouldApplyExactMatchTitle('https://a.com/video', 'https://a.com/video', '真实标题', 'com'),
+    ).toBe(true);
+  });
+
+  it('allows com to upgrade a hostname placeholder current title (douyin regression)', () => {
+    expect(
+      shouldApplyExactMatchTitle(
+        'douyin.com',
+        'https://www.douyin.com/',
+        '抖音-记录美好生活',
+        'com',
+      ),
+    ).toBe(true);
+  });
+
+  it('blocks a hostname placeholder incoming title from being applied (douyin regression)', () => {
+    expect(shouldApplyExactMatchTitle('', 'https://www.douyin.com/', 'douyin.com', 'com')).toBe(
+      false,
+    );
+  });
+
+  it('skips when incoming equals current (no-op)', () => {
+    expect(shouldApplyExactMatchTitle('同名', 'https://a.com/video', '同名', 'http')).toBe(false);
+  });
+
+  it('blocks google from upgrading a real title', () => {
+    expect(
+      shouldApplyExactMatchTitle('真实标题', 'https://a.com/video', '谷歌标题', 'google'),
+    ).toBe(false);
   });
 });
 
@@ -213,5 +312,71 @@ describe('useBrowserPageMeta write path (siteMetaCache mock backend)', () => {
     const entry = siteMetaCache.getCachedSiteMeta('https://quality-datauri-only.example')!;
     expect(entry.faviconUrl).toBe('');
     expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
+  });
+});
+
+describe('useBrowserPageMeta exactMatch duplicate-URL tabs', () => {
+  function makeTab(id: string, url: string, title = ''): BrowserTabState {
+    return {
+      id,
+      workspaceId: 'ws1',
+      title,
+      url,
+      isPinned: false,
+      sortOrder: 0,
+      isPlayingAudio: false,
+      isAudioMuted: false,
+    };
+  }
+
+  beforeEach(async () => {
+    siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
+    await siteMetaCache.initSiteMetaCache();
+    useAppStore.setState({
+      browserTabs: [],
+      browserActiveTabId: undefined,
+      browserHistory: [],
+      browserTabFolders: [],
+      browserBookmarks: [],
+      browserWorkspaceBookmarks: {},
+    });
+  });
+
+  async function fireMeta(title: string, url: string) {
+    const pendingNavigationsRef = { current: new Set<string>() };
+    const { result } = renderHook(() => useBrowserPageMeta(pendingNavigationsRef));
+    await act(async () => {
+      result.current.handlePageMeta({ title, favicon: '', url }, 'com');
+    });
+  }
+
+  it('fills the title on BOTH duplicate-URL tabs, not just the first', async () => {
+    const url = 'https://www.bilibili.com/video/BV1RSKJ6AE9R?t=7';
+    useAppStore.setState({
+      browserTabs: [makeTab('tab-a', url, ''), makeTab('tab-b', url, '')],
+      browserActiveTabId: 'tab-b',
+    });
+
+    await fireMeta('标题A_bilibili', url);
+
+    const tabs = useAppStore.getState().browserTabs;
+    expect(tabs.find((t) => t.id === 'tab-a')?.title).toBe('标题A_bilibili');
+    expect(tabs.find((t) => t.id === 'tab-b')?.title).toBe('标题A_bilibili');
+  });
+
+  it('leaves a duplicate tab title untouched when the incoming title is a placeholder', async () => {
+    const url = 'https://www.bilibili.com/video/BV1RSKJ6AE9R?t=7';
+    useAppStore.setState({
+      browserTabs: [makeTab('tab-a', url, ''), makeTab('tab-b', url, '真实标题')],
+      browserActiveTabId: 'tab-a',
+    });
+
+    // com reports the bare hostname (placeholder) — must NOT clobber tab-b's
+    // real title, and should not fill tab-a with a placeholder either.
+    await fireMeta('bilibili.com', url);
+
+    const tabs = useAppStore.getState().browserTabs;
+    expect(tabs.find((t) => t.id === 'tab-a')?.title).toBe('');
+    expect(tabs.find((t) => t.id === 'tab-b')?.title).toBe('真实标题');
   });
 });

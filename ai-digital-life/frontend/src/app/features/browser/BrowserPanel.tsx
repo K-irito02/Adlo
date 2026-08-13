@@ -23,6 +23,7 @@ import { useBrowserDialogs } from './useBrowserDialogs';
 import { useBrowserToast } from './useBrowserToast';
 import { useBrowserPanelHandlers } from './useBrowserPanelHandlers';
 import { useBrowserPanelMetaWiring } from './useBrowserPanelMetaWiring';
+import { useBrowserNewTabSubscription } from './useBrowserNewTabSubscription';
 import { BrowserPanelActionsCtx } from './BrowserPanelActionsContext';
 import { BrowserPanelStateCtx } from './BrowserPanelStateContext';
 import { useBrowserPanelActions } from './useBrowserPanelActions';
@@ -269,6 +270,10 @@ export function BrowserPanel(props: BrowserPanelProps) {
     t,
   });
 
+  useBrowserNewTabSubscription((url) => {
+    browserOpenTab(url, undefined, undefined);
+  });
+
   const { submitAddress } = useBrowserPanelAddressSubmit({
     address,
     setAddress,
@@ -284,12 +289,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
     validatedUrlsRef,
   });
 
-  const { handleGoBack, handleGoForward, handleReload } = useBrowserNavigation({
-    iframeRef,
-    iframeHistory,
-    navigateBrowser,
-    activeTabId: activeTab?.id,
-  });
+  const { handleGoBack, handleGoForward, handleReload, canGoBack, canGoForward } =
+    useBrowserNavigation({
+      iframeRef,
+      iframeHistory,
+      navigateBrowser,
+      activeTabId: activeTab?.id,
+    });
 
   const activeTabUrl =
     addressSubmittedForTabRef.current === (activeTab?.url || 'about:blank')
@@ -369,6 +375,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
       handleGoBack,
       handleGoForward,
       handleReload,
+      canGoBack,
+      canGoForward,
       setNavigatorMode,
       handleSelectTreePath,
       showToast,
@@ -409,6 +417,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
       handleGoBack,
       handleGoForward,
       handleReload,
+      canGoBack,
+      canGoForward,
       setNavigatorMode,
       handleSelectTreePath,
       showToast,

@@ -23,6 +23,10 @@ export function createTauriBrowserBridge(): BrowserBridge {
       invokeIpc<boolean>('browser_go_back_tab', { tabId }).then((r) => r.ok && !!r.data),
     goForwardTab: (tabId: string) =>
       invokeIpc<boolean>('browser_go_forward_tab', { tabId }).then((r) => r.ok && !!r.data),
+    canGoBackTab: (tabId: string) =>
+      invokeIpc<boolean>('browser_can_go_back_tab', { tabId }).then((r) => r.ok && !!r.data),
+    canGoForwardTab: (tabId: string) =>
+      invokeIpc<boolean>('browser_can_go_forward_tab', { tabId }).then((r) => r.ok && !!r.data),
     reloadTab: (tabId: string) =>
       invokeIpc<void>('browser_reload_tab', { tabId }).then(() => undefined),
     onUrlChanged: (listener: (tabId: string, url: string) => void) => {
@@ -73,6 +77,26 @@ export function createTauriBrowserBridge(): BrowserBridge {
     },
     muteTab: (tabId: string, muted: boolean) =>
       invoke('browser_mute_tab', { tabId, muted }).then(() => undefined),
+    onOpenNewTab: (listener: (url: string) => void) => {
+      let active = true;
+      let ul: UnlistenFn | undefined;
+      void listen<{ url: string }>('digital-life://browser-open-new-tab', (event) => {
+        if (active) {
+          listener(event.payload.url);
+        }
+      }).then((unlisten) => {
+        if (active) {
+          ul = unlisten;
+        } else {
+          /* unlisten() is typed as () => void but actually async; catch rejection via wrapper */
+          void Promise.resolve(unlisten()).catch(() => {});
+        }
+      });
+      return () => {
+        active = false;
+        void Promise.resolve(ul?.()).catch(() => {});
+      };
+    },
     onAudioStateChanged: (
       listener: (payload: { tabId: string; isPlaying: boolean; isMuted: boolean }) => void,
     ) => {

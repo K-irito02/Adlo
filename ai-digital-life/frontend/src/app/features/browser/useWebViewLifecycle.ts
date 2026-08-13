@@ -123,31 +123,28 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
 
     const activateOrCreate = async () => {
       const currentTabId = tab.id;
-      setLoadingTabId(currentTabId);
+      const prevUrl = tabUrlMapRef.current.get(currentTabId);
+      const urlChanged = prevUrl !== undefined && prevUrl !== tab.url;
       try {
         if (!isTabInPool(currentTabId)) {
+          // Real WebView creation: show loading.
+          setLoadingTabId(currentTabId);
           await createWebViewForTab(currentTabId, tab.url, getResolvedTheme());
-        } else {
+        } else if (urlChanged) {
           // WebView already exists: if the URL changed since last activation
           // (e.g. "current tab" mode navigation), navigate to the new URL.
-          const prevUrl = tabUrlMapRef.current.get(currentTabId);
-          const urlChanged = prevUrl !== undefined && prevUrl !== tab.url;
-
-          if (urlChanged) {
-            // Check if this URL was recorded by useBrowserUrlChange (via
-            // onUrlChanged). If so, the WebView already navigated on its
-            // own — skip navigateTabInPool to avoid a redundant double-
-            // navigation. Using Set.has() instead of a boolean so that
-            // redirect chains (URL-A → URL-B) are both tracked and neither
-            // triggers a redundant navigation. Normalize before checking
-            // to account for trailing-slash differences between event
-            // sources (onUrlChanged vs meta events).
-            const selfNav = webViewSelfNavigatedRef.current;
-            if (!selfNav.has(normalizeUrlForCompare(tab.url))) {
-              await navigateTabInPool(currentTabId, tab.url);
-            }
-            selfNav.delete(normalizeUrlForCompare(tab.url));
+          // Check if this URL was recorded by useBrowserUrlChange (via
+          // onUrlChanged). If so, the WebView already navigated on its
+          // own (SPA pushState, GoBack/GoForward, redirects) — skip
+          // navigateTabInPool to avoid a redundant double-navigation AND
+          // skip the loading overlay, which would otherwise flash as an
+          // unwanted "auto refresh" right after a successful back/forward.
+          const selfNav = webViewSelfNavigatedRef.current;
+          if (!selfNav.has(normalizeUrlForCompare(tab.url))) {
+            setLoadingTabId(currentTabId);
+            await navigateTabInPool(currentTabId, tab.url);
           }
+          selfNav.delete(normalizeUrlForCompare(tab.url));
         }
         await activateTabInPool(currentTabId);
         webViewActiveRef.current = true;

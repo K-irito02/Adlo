@@ -192,21 +192,51 @@ impl BrowserManager {
     }
 
     pub fn go_back_tab(&self, tab_id: &str) -> Result<bool, AppError> {
-        tracing::info!(tab_id = tab_id, "go_back_tab");
+        tracing::info!(tab_id = tab_id, "[ADL-BACKFWD] go_back_tab: native GoBack");
         self.with_handle(tab_id, |handle| {
-            handle.eval_js("history.back()")?;
-            tracing::info!(tab_id = tab_id, "go_back_tab: eval history.back() ok");
-            Ok(true)
+            let issued = handle.go_back()?;
+            tracing::info!(tab_id = tab_id, "[ADL-BACKFWD] go_back_tab: native GoBack ok, issued={}", issued);
+            Ok(issued)
+        })
+    }
+    pub fn go_forward_tab(&self, tab_id: &str) -> Result<bool, AppError> {
+        tracing::info!(tab_id = tab_id, "[ADL-BACKFWD] go_forward_tab: native GoForward");
+        self.with_handle(tab_id, |handle| {
+            let issued = handle.go_forward()?;
+            tracing::info!(tab_id = tab_id, "[ADL-BACKFWD] go_forward_tab: native GoForward ok, issued={}", issued);
+            Ok(issued)
         })
     }
 
-    pub fn go_forward_tab(&self, tab_id: &str) -> Result<bool, AppError> {
-        tracing::info!(tab_id = tab_id, "go_forward_tab");
-        self.with_handle(tab_id, |handle| {
-            handle.eval_js("history.forward()")?;
-            tracing::info!(tab_id = tab_id, "go_forward_tab: eval history.forward() ok");
-            Ok(true)
-        })
+    /// Whether the tab's WebView has a previous history entry to go back to.
+    /// Returns `Ok(false)` when the WebView is not registered yet (tab exists but
+    /// webview still being created) instead of an error — the frontend keeps the
+    /// button disabled and re-queries after the webview is ready.
+    pub fn can_go_back_tab(&self, tab_id: &str) -> Result<bool, AppError> {
+        tracing::info!(tab_id = tab_id, "[ADL-BACKFWD] can_go_back_tab: ENTER");
+        let Some(handle) = self.handles.lock().map_err(|e| {
+            AppError::Internal(format!("handles lock poisoned: {e}"))
+        })?.get(tab_id).cloned() else {
+            tracing::debug!(tab_id = tab_id, "[ADL-BACKFWD] can_go_back_tab: webview not registered yet -> false");
+            return Ok(false);
+        };
+        let can = handle.can_go_back()?;
+        tracing::info!(tab_id = tab_id, can = can, "[ADL-BACKFWD] can_go_back_tab: resolved");
+        Ok(can)
+    }
+
+    /// Whether the tab's WebView has a forward history entry to go forward to.
+    pub fn can_go_forward_tab(&self, tab_id: &str) -> Result<bool, AppError> {
+        tracing::info!(tab_id = tab_id, "[ADL-BACKFWD] can_go_forward_tab: ENTER");
+        let Some(handle) = self.handles.lock().map_err(|e| {
+            AppError::Internal(format!("handles lock poisoned: {e}"))
+        })?.get(tab_id).cloned() else {
+            tracing::debug!(tab_id = tab_id, "[ADL-BACKFWD] can_go_forward_tab: webview not registered yet -> false");
+            return Ok(false);
+        };
+        let can = handle.can_go_forward()?;
+        tracing::info!(tab_id = tab_id, can = can, "[ADL-BACKFWD] can_go_forward_tab: resolved");
+        Ok(can)
     }
 
     pub fn reload_tab(&self, tab_id: &str) -> Result<(), AppError> {

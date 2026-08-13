@@ -42,20 +42,44 @@ impl WebView2EventBridge for TauriWebView2EventBridge {
         );
     }
 
+    fn emit_open_new_tab(&self, url: &str) {
+        let _ = self.app.emit(
+            "digital-life://browser-open-new-tab",
+            serde_json::json!({ "url": url }),
+        );
+    }
+
     fn spawn_spa_fallback(&self, label: &str, _url: &str) {
         let app = self.app.clone();
         let label = label.to_string();
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
             if let Some(wv) = app.get_webview(&label) {
+                tracing::info!(label = %label, "[ADL-META-RECV] Method 5 SPA fallback: evaluating title extractor");
                 let _ = wv.eval(
                     r#"(function(){
-                        var t = document.title;
-                        if (t && t.trim()) {
+                        function pickContent(sel) {
+                            var el = document.querySelector(sel);
+                            return el ? (el.getAttribute('content') || '').trim() : '';
+                        }
+                        // SPA video sites (Douyin/Bilibili/YouTube) keep
+                        // document.title/og:title pinned to the first video while
+                        // the URL advances via pushState/radio queue. The visible
+                        // h1 (current video's title) is SPA-updated and is the
+                        // most reliable source. Prefer h1 first, then per-page
+                        // meta tags, then document.title.
+                        var h1 = '';
+                        var h1El = document.querySelector('h1.ytd-watch-metadata, h1.title, h1');
+                        if (h1El) { h1 = (h1El.textContent || h1El.innerText || '').trim(); }
+                        var og = pickContent('meta[property="og:title"]');
+                        var tw = pickContent('meta[name="twitter:title"]');
+                        var t = (document.title || '').trim();
+                        var best = h1 || og || tw || t;
+                        if (best) {
                             try {
                                 chrome.webview.postMessage(JSON.stringify({
                                     type: 'meta',
-                                    title: t,
+                                    title: best,
                                     favicon: '',
                                     url: location.href
                                 }));

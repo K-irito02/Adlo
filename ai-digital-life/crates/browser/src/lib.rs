@@ -34,6 +34,7 @@ pub use webview2_cleanup::{clear_cache, clear_cookies};
 pub use webview2_profile::set_profile_color_scheme as webview2_set_profile_color_scheme;
 
 pub use browser_webview::setup_webview2_handlers;
+pub use webview2_history::{can_go_back_webview2, can_go_forward_webview2};
 
 #[cfg(windows)]
 pub use webview2_background::{navigate_core, set_default_background_color};

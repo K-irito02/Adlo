@@ -7,13 +7,14 @@ import {
 } from '@utils/siteMetaCache';
 import type { ToastType } from '@components/Toast';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { normalizedQueryForDedup } from '@utils/browserDisplayUtils';
 import { existingFaviconBaseline, shouldReplaceFavicon } from './faviconQuality';
 
 function normalizeUrlForDedup(url: string): string {
   try {
     const u = new URL(url);
     const path = u.pathname.length > 1 ? u.pathname.replace(/\/+$/, '') : u.pathname;
-    return `${u.protocol}//${u.hostname.toLowerCase()}${path}${u.search}${u.hash}`;
+    return `${u.protocol}//${u.hostname.toLowerCase()}${path}${normalizedQueryForDedup(u.search)}${u.hash}`;
   } catch {
     return url;
   }
@@ -39,6 +40,74 @@ const SOURCE_PRIORITY: Record<MetaSource, number> = {
   http: 2,
   google: 1,
 };
+
+/**
+ * Returns true when a title is just the URL's hostname (optionally with a
+ * `www.` prefix) — e.g. `"douyin.com"` for `https://www.douyin.com/`. These
+ * are URL-derived placeholders, not real page names.
+ */
+function isHostnameTitle(title: string, url: string): boolean {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
+    if (!host) {
+      return false;
+    }
+    const t = title.trim().toLowerCase();
+    return t === host || t === `www.${host}`;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Returns true when `title` carries no real page-name information — empty,
+ * equal to the URL, a raw URL, or the bare hostname. Placeholders are safe to
+ * overwrite from any source.
+ */
+export function isPlaceholderTitle(title: string, url: string): boolean {
+  if (!title) {
+    return true;
+  }
+  if (title === url) {
+    return true;
+  }
+  if (/^https?:\/\//i.test(title)) {
+    return true;
+  }
+  return isHostnameTitle(title, url);
+}
+
+/**
+ * Decide whether an incoming meta title may overwrite the title already
+ * accepted for the SAME URL (the `exactMatch` branch of handlePageMeta).
+ *
+ * The `com` source reports the live `document.title`, which SPA video sites
+ * (e.g. Douyin) often leave stale (still the first video's title) while the
+ * URL advances via pushState. The `http`/`iframe` sources carry a title that
+ * was actually fetched for this URL, so they may always upgrade. `com` is
+ * only allowed to fill placeholders so a stale native title can never clobber
+ * a real fetched title.
+ */
+export function shouldApplyExactMatchTitle(
+  currentTitle: string,
+  url: string,
+  incomingTitle: string,
+  source: MetaSource,
+): boolean {
+  if (!incomingTitle) {
+    return false;
+  }
+  if (incomingTitle === currentTitle) {
+    return false;
+  }
+  if (isPlaceholderTitle(incomingTitle, url)) {
+    return false;
+  }
+  if (isPlaceholderTitle(currentTitle, url)) {
+    return true;
+  }
+  return source === 'http' || source === 'iframe';
+}
 
 interface MetaProcessedEntry {
   timestamp: number;
@@ -161,16 +230,39 @@ export function useBrowserPageMeta(
       const pageTitle = meta.title;
 
       if (exactMatch) {
-        if (exactMatch.title !== pageTitle) {
-          state.browserUpdateTab(exactMatch.id, { title: pageTitle });
+        // The native meta event is URL-scoped, not tab-scoped: several tabs may
+        // hold the same URL (e.g. the same Bilibili video opened in multiple
+        // tabs). Update EVERY matching tab's title so a duplicate tab does not
+        // stay title-less. Each tab is gated by its own current title so a
+        // stale native title never clobbers a real fetched title on any tab.
+        const matchingTabs = state.browserTabs.filter(
+          (t: BrowserTabState) =>
+            normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizedMetaUrl,
+        );
+        let anyApplied = false;
+        for (const matchTab of matchingTabs) {
+          const shouldApply = shouldApplyExactMatchTitle(
+            matchTab.title,
+            cleanUrl,
+            pageTitle,
+            source,
+          );
+          console.debug('[ADL-TITLE] exactMatch gate', {
+            source,
+            cleanUrl,
+            tabId: matchTab.id,
+            currentTitle: matchTab.title,
+            incomingTitle: pageTitle,
+            shouldApply,
+          });
+          if (shouldApply) {
+            state.browserUpdateTab(matchTab.id, { title: pageTitle });
+            anyApplied = true;
+          }
+        }
+        if (anyApplied) {
           state.browserAddToHistory(cleanUrl, pageTitle);
           state.browserUpdateHistoryTitle(cleanUrl, pageTitle);
-        }
-        // Also update the active tab's title if it's a different tab with the
-        // same URL (e.g. user opened the same link in multiple tabs — only
-        // the first tab would get the title without this).
-        if (activeTab && activeTab.id !== exactMatch.id && activeTab.title !== pageTitle) {
-          state.browserUpdateTab(activeTab.id, { title: pageTitle });
         }
         return;
       }

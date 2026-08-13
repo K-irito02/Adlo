@@ -22,6 +22,21 @@ pub trait WebViewHandle: Send + Sync {
     fn mute(&self, muted: bool) -> Result<(), AppError>;
     fn clear_cookies(&self) -> Result<(), AppError>;
     fn clear_cache(&self) -> Result<(), AppError>;
+    /// Navigate back in the WebView's native history stack.
+    ///
+    /// Implemented via the platform's native history API (ICoreWebView2::GoBack)
+    /// instead of `history.back()` so the URL change arrives through the same
+    /// HistoryChanged path as forward navigation. Returns `Ok(true)` when a
+    /// navigation was issued.
+    fn go_back(&self) -> Result<bool, AppError>;
+    /// Navigate forward in the WebView's native history stack.
+    ///
+    /// Implemented via the platform's native history API (ICoreWebView2::GoForward).
+    fn go_forward(&self) -> Result<bool, AppError>;
+    /// Whether the WebView has a previous history entry to go back to.
+    fn can_go_back(&self) -> Result<bool, AppError>;
+    /// Whether the WebView has a forward history entry to go forward to.
+    fn can_go_forward(&self) -> Result<bool, AppError>;
 }
 
 /// Bridge for emitting events from native WebView2 handlers back to the platform layer.
@@ -31,6 +46,10 @@ pub trait WebView2EventBridge: Send + Sync {
     fn emit_url_changed(&self, tab_id: &str, url: &str);
     fn emit_audio_changed(&self, tab_id: &str, is_playing: bool, is_muted: bool);
     fn spawn_spa_fallback(&self, label: &str, url: &str);
+    /// Emit a request to open `url` in a new browser tab. Triggered by the
+    /// injected `init_script.js` when the page targets `_blank` or calls
+    /// `window.open` (postMessage `{type:'open-new-tab', url}`).
+    fn emit_open_new_tab(&self, url: &str);
 }
 
 /// Type alias for an optional shared event bridge reference.

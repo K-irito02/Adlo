@@ -123,6 +123,8 @@ fn main() {
             commands::browser::browser_set_tab_bounds,
             commands::browser::browser_go_back_tab,
             commands::browser::browser_go_forward_tab,
+            commands::browser::browser_can_go_back_tab,
+            commands::browser::browser_can_go_forward_tab,
             commands::browser::browser_reload_tab,
             commands::browser::browser_fetch_page_meta,
             commands::browser::browser_mute_tab,
