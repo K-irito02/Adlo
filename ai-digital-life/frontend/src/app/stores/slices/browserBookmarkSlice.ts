@@ -198,6 +198,12 @@ function computeBookmarkTabOutcome(
         const existing = existingTabs.find((item) => item.tabId === tabId && item.url === url);
         if (existing) {
           if (existing.title !== title) {
+            const titleCollision = existingTabs.some(
+              (item) => item.tabId !== tabId && item.url === url && item.title === title,
+            );
+            if (titleCollision) {
+              return folder;
+            }
             return {
               ...folder,
               tabs: existingTabs.map((item) =>
@@ -231,12 +237,18 @@ function computeBookmarkTabOutcome(
       (entry) => entry.tabId === tabId && entry.url === url,
     );
     if (existingIdx >= 0) {
-      const updated = [...existingWsTabs];
-      updated[existingIdx] = { tabId, url, title };
-      nextWorkspaceBookmarks = {
-        ...state.browserWorkspaceBookmarks,
-        [workspaceId]: updated,
-      };
+      const titleCollision = existingWsTabs.some(
+        (entry) => entry.tabId !== tabId && entry.url === url && entry.title === title,
+      );
+      if (!titleCollision) {
+        const updated = [...existingWsTabs];
+        updated[existingIdx] = { tabId, url, title };
+        nextWorkspaceBookmarks = {
+          ...state.browserWorkspaceBookmarks,
+          [workspaceId]: updated,
+        };
+        wsBookmarksChanged = true;
+      }
     } else {
       const duplicate = existingWsTabs.some((entry) => entry.url === url && entry.title === title);
       if (!duplicate) {
@@ -244,9 +256,9 @@ function computeBookmarkTabOutcome(
           ...state.browserWorkspaceBookmarks,
           [workspaceId]: [...existingWsTabs, { tabId, url, title }],
         };
+        wsBookmarksChanged = true;
       }
     }
-    wsBookmarksChanged = true;
   }
 
   return {
