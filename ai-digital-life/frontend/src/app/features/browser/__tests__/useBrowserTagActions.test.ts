@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { prefetchPageMeta } from '@utils/fetchPageMeta';
 import * as siteMetaCache from '@utils/siteMetaCache';
@@ -109,5 +109,28 @@ describe('useBrowserTagActions refresh write gate', () => {
     const entry = siteMetaCache.getCachedSiteMeta('https://refresh-datauri-only.example')!;
     expect(entry.faviconUrl).toBe('');
     expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
+  });
+});
+
+describe('useBrowserTagActions handleOpenTabInCurrentTab', () => {
+  afterEach(() => {
+    useAppStore.setState({
+      browserTabs: [],
+      browserActiveTabId: '',
+    });
+  });
+
+  it('updates active tab url only, not the bookmark title', () => {
+    const browserUpdateTab = vi.fn();
+    useAppStore.setState({
+      browserTabs: [makeTab('t1', 'https://e.com', '自定义标题')],
+      browserActiveTabId: 'active',
+      browserUpdateTab,
+    });
+    const { result } = renderHook(() => useBrowserTagActions());
+    act(() => {
+      result.current.handleOpenTabInCurrentTab('t1');
+    });
+    expect(browserUpdateTab).toHaveBeenCalledWith('active', { url: 'https://e.com' });
   });
 });

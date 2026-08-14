@@ -128,7 +128,7 @@ export function useBrowserTagActions() {
       const tab = state.browserTabs.find((t) => t.id === tabId);
       const activeTabId = state.browserActiveTabId;
       if (tab && activeTabId) {
-        browserUpdateTab(activeTabId, { url: tab.url, title: tab.title });
+        browserUpdateTab(activeTabId, { url: tab.url });
       }
     },
     [browserUpdateTab],
