@@ -440,16 +440,20 @@ git commit -m "feat(frontend): return ok+pathLabel from browserBookmarkTab"
 
 **Files:**
 - Modify: `ai-digital-life/frontend/src/app/features/browser/useBrowserDialogs.ts`
+- Modify: `ai-digital-life/frontend/src/app/stores/slices/browserBookmarkSlice.ts`（`browserBookmarkTab` 加 `titleOverride?: string` 参数）
 - Modify: `ai-digital-life/frontend/src/app/i18n/zh-CN/browser.ts`
 - Modify: `ai-digital-life/frontend/src/app/i18n/en-US/browser.ts`
 - Modify: `ai-digital-life/frontend/src/app/features/browser/__tests__/useBrowserDialogs.test.ts`
+- Modify: `ai-digital-life/frontend/src/app/stores/slices/__tests__/browserBookmarkSlice.test.ts`
 
 **Interfaces:**
-- Consumes: Task 2-4 的 store 返回值 `{ ok, pathLabel }`；`formatT(t, key, { path })`；新 key `browserBookmarkDuplicateWithPath`。
+- Consumes: Task 2-4 的 store 返回值 `{ ok, pathLabel }`；`formatT(t, key, { path })`；新 key `browserBookmarkDuplicateWithPath`；`checkBookmarkCollision(url, title, opts, state, workspaces, excludeTabId?)`（Task 2/4 导出）。
 - Produces: 行为变化——
   - `handleEditTabConfirm`：`ok:false` → toast 含路径，不更新 live tab 标题，不关闭对话框；`ok:true` → `browserUpdateTab(tabId, { url })`（不传 title）+ save-and-open。
   - `handleCreateTabConfirm` save-only：`{ok:false}` → toast 含路径；`{ok:true}` → 无提示。
-  - `handleCreateTabConfirm` save-and-open：先 `browserCreateBookmarkEntry` 预检；`{ok:false}` → toast 含路径并 return（不开标签）；`{ok:true}` → `browserOpenTab(url, undefined, ...)`（不传自定义标题）+ `bookmarkNewTab`（真实 tabId 关联）。
+  - `handleCreateTabConfirm` save-and-open：先 `checkBookmarkCollision` **只读预检**；`{ok:false}` → toast 含路径并 return（不开标签）；`{ok:true}` → `browserOpenTab(url, undefined, ...)`（不传自定义标题）+ `bookmarkNewTab(workspaceId, folderId, title)`（**第 3 参 = 用户自定义标题**）。
+  - `bookmarkNewTab(workspaceId?, folderId?, titleOverride?)`：透传 titleOverride 给 `browserBookmarkTab(tabId, folderId, undefined, workspaceId, titleOverride)`。
+  - `browserBookmarkTab(tabId, folderId?, newFolderName?, workspaceId?, titleOverride?)`：`titleOverride` 提供时，预检与 `computeBookmarkTabOutcome` 的标题都用它（否则沿用 `tab.title || hostnameFromUrl(url) || url`）。
 
 - [ ] **Step 1: 写失败测试**
 
@@ -522,13 +526,15 @@ const handleCreateTabConfirm = useCallback(
       }
       return;
     }
-    // save-and-open：先预检冲突
-    const precheck = store.browserCreateBookmarkEntry({
+    // save-and-open：先只读预检冲突（不写状态）
+    const state = useAppStore.getState();
+    const precheck = checkBookmarkCollision(
       url,
       title,
-      workspaceId: folderId ? undefined : workspaceId,
-      folderId,
-    });
+      { workspaceId: folderId ? undefined : workspaceId, folderId },
+      state,
+      state.recentWorkspaces,
+    );
     if (precheck.ok === false) {
       const msg = precheck.pathLabel
         ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', { path: precheck.pathLabel })
@@ -541,16 +547,19 @@ const handleCreateTabConfirm = useCallback(
     } else {
       browserOpenTab(url, undefined, folderId ? undefined : workspaceId, undefined);
     }
-    bookmarkNewTab(workspaceId, folderId);
+    // 收藏记录写"用户填的自定义标题"（标签标题仍由页面抓取，互不影响）
+    bookmarkNewTab(workspaceId, folderId, title);
   },
   [browserOpenTab, createTabDialog, bookmarkNewTab],
 );
 ```
 
-> 说明：
-> - 上述实现中 save-and-open 的"预检"实际**写入了**书签（`browserCreateBookmarkEntry` 成功即写入收藏，合成 tabId），随后 `bookmarkNewTab` 用真实 tabId 调用 `browserBookmarkTab` 建立关联。`computeBookmarkTabOutcome` 对同 tabId+url 更新标题、对同 url+title 查重拦截，因此真实 tabId 条目会替换/更新合成条目，不产生两条重复（Task 8 已保证）。实现时**必须**补一个集成测试确认：save-and-open 成功后 folder 内只有一条该 url 的收藏（无合成+真实两条）。
-> - `browserOpenTab` 的 folderId 传 `undefined`（收藏写入统一由 `bookmarkNewTab`→`browserBookmarkTab` 负责，避免 `browserOpenTab` 用空标题 append 一条）。
-> - `browserNavigateActiveTab` 第 2 参传 `undefined`（不写自定义标题）。
+> 说明（2026-08-14 最终评审修订）：
+> - **save-and-open 用只读预检**：`checkBookmarkCollision(url, title, opts, state, state.recentWorkspaces)`（Task 2 导出的纯函数），不写状态；`ok:false` → toast + return，不开标签。
+> - **标题双轨**：打开标签传 `undefined`（标签标题由页面抓取 = 网站真实标题）；**收藏记录显式写"用户填的自定义标题"**——`bookmarkNewTab(workspaceId, folderId, title)` 第 3 参为自定义标题，透传给 `browserBookmarkTab(tabId, folderId, undefined, workspaceId, titleOverride)` 的 `titleOverride`。这样书签树显示自定义标题、标签显示网站标题，两者互不影响。
+> - **`browserBookmarkTab` 新增可选 `titleOverride?: string`**：预检与 `computeBookmarkTabOutcome` 的标题都优先用 `titleOverride`（有则用，否则沿用 `tab.title || hostnameFromUrl(url) || url`）。Task 4 的 tabId-aware 逻辑不变。
+> - `browserOpenTab` 的 folderId 传 `undefined`（收藏写入统一由 `bookmarkNewTab`→`browserBookmarkTab` 负责）。
+> - 集成测试确认：save-and-open 成功后 folder 内**只有一条**该 url 的收藏，且其 title 为自定义标题（非 hostname）。
 
 `handleEditTabConfirm`（约 :142-172）：
 
