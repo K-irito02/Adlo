@@ -19,4 +19,32 @@ describe('previewCrawlerGate', () => {
     const fail = vi.fn(async () => ({ ok: false, status: 500 } as Response));
     expect(await pageMetaGateAllows('https://example.com/x', fail, 1000)).toBe(true);
   });
+
+  // 模块级单例限速器跨测试持久，此处每例使用独立域名避免状态泄漏。
+  it('rate limits same public domain within 5s window', async () => {
+    const fail = vi.fn(async () => ({ ok: false, status: 500 } as Response));
+    const url = 'https://rl-same.test/page';
+    expect(await pageMetaGateAllows(url, fail, 1000)).toBe(true);
+    expect(await pageMetaGateAllows(url, fail, 2000)).toBe(false);
+  });
+
+  it('rate limit releases after window elapses', async () => {
+    const fail = vi.fn(async () => ({ ok: false, status: 500 } as Response));
+    const url = 'https://rl-release.test/page';
+    expect(await pageMetaGateAllows(url, fail, 1000)).toBe(true);
+    expect(await pageMetaGateAllows(url, fail, 6000)).toBe(true);
+  });
+
+  it('different domains are rate limited independently', async () => {
+    const fail = vi.fn(async () => ({ ok: false, status: 500 } as Response));
+    expect(await pageMetaGateAllows('https://rl-a.test/', fail, 1000)).toBe(true);
+    expect(await pageMetaGateAllows('https://rl-b.test/', fail, 1000)).toBe(true);
+  });
+
+  it('private url is never rate limited', async () => {
+    const fetchImpl = vi.fn();
+    expect(await pageMetaGateAllows('http://localhost:3000', fetchImpl, 1000)).toBe(true);
+    expect(await pageMetaGateAllows('http://localhost:3000', fetchImpl, 1000)).toBe(true);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
 });
