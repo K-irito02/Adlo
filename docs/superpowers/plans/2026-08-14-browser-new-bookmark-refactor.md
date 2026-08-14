@@ -70,6 +70,7 @@
 - [ ] **Step 3: 更新所有消费点（机械改名，不改行为）**
 
 - `BrowserNavUtilityButtons.tsx:7,16,22`：prop `newTabLabel` → `newBookmarkLabel`（接口、解构、`plusLabel` 计算三处）。
+- `BrowserNavUtilityButtons.tsx`：tabs 模式 "+" 按钮（`:26-34`）由原生 `title` 改为 `TooltipSimple` 包裹（`open` 模式保持原生 `title`）。改为条件渲染：`navigatorMode === 'tabs'` 时用 `<TooltipSimple content={plusLabel} placement="top">` 包裹按钮且移除 `title` 属性；`open` 模式按钮保持 `title={plusLabel}`。
 - `BrowserNavigator.tsx:182`：`newTabLabel={t.browserNewTab}` → `newBookmarkLabel={t.browserNewBookmark}`。
 - `useBrowserMenus.ts:104`：`label: t.browserNewTab` → `label: t.browserMenuNewTab`（保留"新建标签"措辞，真·开标签语义）。
 - `CreateTabDialog.tsx:94`：创建标题 `t.browserNewTab` → `t.browserNewBookmark`（编辑分支 `t.browserEditTab` → `t.browserEditBookmark`）。
@@ -78,7 +79,7 @@
 - `BookmarkToFolderDialog.tsx:354,361`：`t.browserTabName` → `t.browserBookmarkName`。
 - `browserTreeEntryUtils.tsx:98`：`label: t.browserContextCreateTab` → `label: t.browserContextCreateBookmark`。
 - `browserEntrySubEntriesUtils.tsx:48`：`label: t.browserContextCreateTab` → `label: t.browserContextCreateBookmark`。
-- `BrowserNavUtilityButtons.test.tsx`：`labels.newTab: '新建标签'` → `labels.newTab: '新建书签'`（prop 名 `newTabLabel` → `newBookmarkLabel`，第 17 行）。行为断言不变（tabs 仍原生 title，Task 2 再改）。
+- `BrowserNavUtilityButtons.test.tsx`：`labels.newTab: '新建标签'` → `labels.newTab: '新建书签'`（prop 名 `newTabLabel` → `newBookmarkLabel`，第 17 行）。tabs 模式测试（第 42-46 行）改为断言无原生 `title` 属性（tabs 走 TooltipSimple）；open 模式断言（第 28-40 行）保持不变。
 
 - [ ] **Step 4: 验证**
 
