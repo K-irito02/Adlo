@@ -56,19 +56,23 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
     [],
   );
 
-  const bookmarkNewTab = useCallback((workspaceId?: string, folderId?: string) => {
-    const tabId = useAppStore.getState().browserActiveTabId;
-    if (tabId && (workspaceId || folderId)) {
-      useAppStore
-        .getState()
-        .browserBookmarkTab(
-          tabId,
-          folderId || undefined,
-          undefined,
-          folderId ? undefined : workspaceId,
-        );
-    }
-  }, []);
+  const bookmarkNewTab = useCallback(
+    (workspaceId?: string, folderId?: string, titleOverride?: string) => {
+      const tabId = useAppStore.getState().browserActiveTabId;
+      if (tabId && (workspaceId || folderId)) {
+        useAppStore
+          .getState()
+          .browserBookmarkTab(
+            tabId,
+            folderId || undefined,
+            undefined,
+            folderId ? undefined : workspaceId,
+            titleOverride,
+          );
+      }
+    },
+    [],
+  );
 
   const handleCreateTabConfirm = useCallback(
     async (name: string, url: string, mode: 'save-only' | 'save-and-open' = 'save-and-open') => {
@@ -146,7 +150,8 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       } else {
         browserOpenTab(url, undefined, folderId ? undefined : workspaceId, undefined);
       }
-      bookmarkNewTab(workspaceId, folderId);
+      // 收藏记录写"用户填的自定义标题"（标签标题仍由页面抓取，互不影响）
+      bookmarkNewTab(workspaceId, folderId, title);
     },
     [browserOpenTab, createTabDialog, bookmarkNewTab, showToast, t],
   );

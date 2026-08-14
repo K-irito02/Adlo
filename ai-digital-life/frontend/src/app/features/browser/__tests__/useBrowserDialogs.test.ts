@@ -318,7 +318,7 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     expect(openTab).toHaveBeenCalledWith('https://e.com', undefined, undefined, undefined);
   });
 
-  it('save-and-open success lands exactly ONE folder entry for the url (no synthetic orphan)', async () => {
+  it('save-and-open success lands exactly ONE folder entry with the user title (no synthetic orphan)', async () => {
     useAppStore.setState({
       browserNavigateInPlace: false,
       browserCreateBookmarkEntry: originalActions.browserCreateBookmarkEntry,
@@ -344,10 +344,12 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
       result.current.handleSetCreateTabDialog({ open: true, workspaceId: 'ws1', folderId: 'f1' });
     });
     await act(async () => {
-      await result.current.handleCreateTabConfirm('Name', 'https://example.com', 'save-and-open');
+      await result.current.handleCreateTabConfirm('Title', 'https://example.com', 'save-and-open');
     });
     const folder = useAppStore.getState().browserTabFolders.find((f) => f.id === 'f1')!;
-    expect(folder.tabs!.filter((t) => t.url === 'https://example.com')).toHaveLength(1);
+    const urlEntries = folder.tabs!.filter((t) => t.url === 'https://example.com');
+    expect(urlEntries).toHaveLength(1);
+    expect(urlEntries[0].title).toBe('Title');
   });
 });
 

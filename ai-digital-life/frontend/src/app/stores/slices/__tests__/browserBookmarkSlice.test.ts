@@ -710,3 +710,62 @@ describe('browserBookmarkTab returns ok+pathLabel', () => {
     expect(result).toEqual({ ok: false, pathLabel: '工作区' });
   });
 });
+
+describe('browserBookmarkTab titleOverride', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('writes the titleOverride title into the folder entry (not hostname)', async () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [{ id: 'f1', name: '工具', createdAt: 0, tabs: [] }];
+    (get() as any).recentWorkspaces = [];
+    (get() as any).browserTabs = [{ id: 't1', workspaceId: 'w', title: '', url: 'https://e.com' }];
+    const result = await slice.browserBookmarkTab('t1', 'f1', undefined, undefined, '自定义标题');
+    expect(result).toEqual({ ok: true });
+    expect((get() as any).browserTabFolders[0].tabs).toHaveLength(1);
+    expect((get() as any).browserTabFolders[0].tabs[0]).toMatchObject({
+      tabId: 't1',
+      url: 'https://e.com',
+      title: '自定义标题',
+    });
+  });
+
+  it('writes the titleOverride title into the workspace entry', async () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [];
+    (get() as any).browserWorkspaceBookmarks = {};
+    (get() as any).recentWorkspaces = [{ id: 'ws1', name: '工作区', path: '/ws1' }];
+    (get() as any).browserTabs = [
+      { id: 't1', workspaceId: 'ws1', title: '', url: 'https://e.com' },
+    ];
+    const result = await slice.browserBookmarkTab('t1', undefined, undefined, 'ws1', '自定义标题');
+    expect(result).toEqual({ ok: true });
+    expect((get() as any).browserWorkspaceBookmarks['ws1']).toHaveLength(1);
+    expect((get() as any).browserWorkspaceBookmarks['ws1'][0]).toMatchObject({
+      tabId: 't1',
+      url: 'https://e.com',
+      title: '自定义标题',
+    });
+  });
+
+  it('uses titleOverride in the collision precheck (blocks same url+title under a different tabId)', async () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [
+      {
+        id: 'f1',
+        name: '工具',
+        createdAt: 0,
+        tabs: [{ tabId: 'a', url: 'https://e.com', title: '自定义标题' }],
+      },
+    ];
+    (get() as any).recentWorkspaces = [];
+    (get() as any).browserTabs = [{ id: 't1', workspaceId: 'w', title: '', url: 'https://e.com' }];
+    const result = await slice.browserBookmarkTab('t1', 'f1', undefined, undefined, '自定义标题');
+    expect(result).toEqual({ ok: false, pathLabel: '工具' });
+    expect((get() as any).browserTabFolders[0].tabs).toHaveLength(1);
+  });
+});

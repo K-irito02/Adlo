@@ -96,6 +96,7 @@ interface BookmarkTabParams {
   folderId?: string;
   newFolderName?: string;
   workspaceId?: string;
+  titleOverride?: string;
   newFolderId: string;
   now: number;
   locale: 'en-US' | 'zh-CN';
@@ -196,7 +197,7 @@ function computeBookmarkTabOutcome(
   state: BrowserBookmarkHelpersState,
   params: BookmarkTabParams,
 ): BookmarkOutcome {
-  const { tabId, folderId, newFolderName, workspaceId, newFolderId, now } = params;
+  const { tabId, folderId, newFolderName, workspaceId, newFolderId, now, titleOverride } = params;
   const tab = state.browserTabs.find((t) => t.id === tabId);
   if (!tab || !tab.url) {
     return {
@@ -209,7 +210,7 @@ function computeBookmarkTabOutcome(
   }
 
   const url = tab.url;
-  const rawTitle = tab.title;
+  const rawTitle = titleOverride?.trim() || tab.title;
   const title = rawTitle || hostnameFromUrl(url) || url;
 
   const existsInBookmarks = state.browserBookmarks.some((b) => b.url === url && b.title === title);
@@ -336,6 +337,7 @@ export interface BrowserBookmarkSlice {
     folderId?: string,
     newFolderName?: string,
     workspaceId?: string,
+    titleOverride?: string,
   ) => Promise<BookmarkCollisionCheck>;
   browserUpdateBookmarkTitle: (url: string, title: string) => void;
   browserUpdateSavedBookmark: (
@@ -465,7 +467,7 @@ export const createBrowserBookmarkSlice = (
     return { ok: true };
   },
 
-  browserBookmarkTab: async (tabId, folderId, newFolderName, workspaceId) => {
+  browserBookmarkTab: async (tabId, folderId, newFolderName, workspaceId, titleOverride) => {
     const locale = (_get().appInfo?.config.language ?? 'zh-CN') as 'zh-CN' | 'en-US';
     const folders = _get().browserTabFolders;
     const resolvedName =
@@ -477,7 +479,7 @@ export const createBrowserBookmarkSlice = (
     const tab = currentState.browserTabs.find((t) => t.id === tabId);
     if (tab?.url) {
       const url = tab.url;
-      const title = tab.title || hostnameFromUrl(url) || url;
+      const title = titleOverride?.trim() || tab.title || hostnameFromUrl(url) || url;
       const collision = checkBookmarkCollision(
         url,
         title,
@@ -497,6 +499,7 @@ export const createBrowserBookmarkSlice = (
         folderId,
         newFolderName: resolvedName,
         workspaceId,
+        titleOverride,
         newFolderId: createUiId('tab-folder'),
         now: Date.now(),
         locale,
