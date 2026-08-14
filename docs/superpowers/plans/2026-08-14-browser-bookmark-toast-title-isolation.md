@@ -725,6 +725,13 @@ git commit -m "fix(frontend): open bookmark in current tab without overwriting t
   - `FileTree` 新 prop `getNodeTitle?: (node: T) => string | undefined`。
   - `BrowserEntrySubEntries` 提供 `getNodeTitle`：目录→`buildFolderPathLabel(folderId, tabFolders, workspaces)`；书签叶子→`"{父路径} / {名称}"`（父路径可解析）或 `node.name`；历史叶子→`node.name`。
 
+> **2026-08-14 最终评审修订（叶子真实父路径）**：`getNodeTitle` 回调只收到单个 node，拿不到"该叶子的真实父级"。浏览器树把整棵子树（`node.children`）交给共享 FileTree 扁平化渲染。修复：`BrowserEntrySubEntries` 在渲染前**遍历 `node.children` 整棵子树**，为每个叶子节点建立 `node.path → 语义化父路径` 映射（沿子树中 directory 节点的 folderId 链，用 `buildFolderPathLabel` 计算）；`getNodeTitle` 直接查该映射：
+  - 目录节点 → `buildFolderPathLabel(node.folderId, ...)`（用节点自身 folderId，行为不变）。
+  - 叶子节点 → 查映射：父路径非空 → `"{父路径} / {node.name}"`；否则 → `node.name`。
+  - 历史叶子 → `node.name`。
+  - 结果：工作区文件夹叶子 → `工具 / 百度`；嵌套子文件夹叶子 → `工具 → 子文件夹 / 百度`；工作区根下叶子 → 名称（无父目录，合理）。
+  - 映射在 `useMemo` 中随 `node.children`/`browserTabFolders`/`recentWorkspaces` 重建。
+
 - [ ] **Step 1: 写失败测试**
 
 创建 `BrowserEntrySubEntries.test.tsx`（或追加到现有文件），测试 `getNodeTitle` 回调输出：
@@ -735,24 +742,18 @@ import { render } from '@testing-library/react';
 import { BrowserEntrySubEntries } from '../BrowserEntrySubEntries';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTreeNode } from '../types';
-
-// 说明：BrowserEntrySubEntries 渲染依赖 FileTree；更稳妥的做法是把
-// getNodeTitle 逻辑抽成纯函数 getBrowserNodeTitle(node, tabFolders, workspaces, parentPath?)
-// 并单测该纯函数（推荐）。若抽纯函数，则：
-// - getBrowserNodeTitle({kind:'directory', folderId:'sub', name:'子文件夹'}, folders, workspaces)
-//   → '工具 → 子文件夹'
-// - getBrowserNodeTitle({kind:'file', name:'百度', folderId:'sub'}, folders, workspaces)
-//   → '工具 → 子文件夹 / 百度'
-// - getBrowserNodeTitle({kind:'file', name:'历史条目', nodeType:'history'}, folders, workspaces)
-//   → '历史条目'
 ```
 
-> **推荐实现方式**：在 `BrowserEntrySubEntries.tsx` 内抽纯函数 `getBrowserNodeTitle(node, tabFolders, workspaces)` 并导出，单测该纯函数（无需渲染 FileTree）。计划以此为默认；若实现者遇到渲染层依赖问题，用纯函数方案。
+> **测试对象**：抽纯函数 `buildBrowserNodeTitleMap(rootNodes, tabFolders, workspaces)`（遍历整棵子树，返回 `Map<nodePath, string>` 语义化 title），单测该纯函数（无需渲染 FileTree）：
+> - 目录节点 → `buildFolderPathLabel(folderId, ...)`。
+> - 叶子节点 → `"{父路径} / {node.name}"`（父路径由子树中 directory 祖先的 folderId 链构建）或 `node.name`（父路径不可解析）。
+> - 历史叶子 → `node.name`。
+> - 用例：顶层目录、嵌套目录（`工具 → 子文件夹`）、嵌套目录下的叶子（`工具 → 子文件夹 / 百度`）、工作区目录下的叶子（`工具 / 百度`）、工作区根下叶子（`百度`）、历史叶子（`历史条目`）、未知节点 → `node.name`。
 
 - [ ] **Step 2: 运行确认失败**
 
 Run: `npx vitest run src/app/features/browser-tree` （或新建测试文件对应路径）
-Expected: FAIL（`getBrowserNodeTitle` 未定义 / 输出不符）。
+Expected: FAIL（`buildBrowserNodeTitleMap` 未定义 / 输出不符）。
 
 - [ ] **Step 3: 实现**
 
@@ -761,49 +762,50 @@ Expected: FAIL（`getBrowserNodeTitle` 未定义 / 输出不符）。
 `FileTree.tsx`：props 接口加 `getNodeTitle?: (node: T) => string | undefined`；`VirtualNodeComponent` 接收并在 `TreeNodeRow` 传 `nodeTitle={getNodeTitle?.(node)}`；`FileTree` 把 `getNodeTitle` 传给 `VirtualNodeComponent`。
 
 `BrowserEntrySubEntries.tsx`：
-- 新增导出的纯函数：
+- 新增导出的纯函数 `buildBrowserNodeTitleMap`（遍历子树建映射）：
+- `getNodeTitle` 查该映射。
 
-```ts
-export function getBrowserNodeTitle(
-  node: BrowserTreeNode,
-  tabFolders: TabFolderState[],
-  workspaces: RecentWorkspaceEntry[],
-): string {
-  if (node.kind === 'directory' && node.nodeType === 'folder' && node.folderId) {
-    return buildFolderPathLabel(node.folderId, tabFolders, workspaces);
-  }
-  if (node.kind === 'file' && node.nodeType === 'history') {
-    return node.name;
-  }
-  // 书签/标签叶子
-  if (node.kind === 'file') {
-    const parentFolderId = node.folderId;
-    if (parentFolderId) {
-      const parentPath = buildFolderPathLabel(parentFolderId, tabFolders, workspaces);
-      if (parentPath) {
-        return `${parentPath} / ${node.name}`;
-      }
-    }
-    return node.name;
-  }
-  return node.name;
-}
-```
-
-> 注意：`BrowserTreeNode` 叶子节点的 `folderId` 字段——树构建时叶子（`buildFolderNode` 内 tab/bookmark 节点）未设 `folderId`；其父级 folder 的 `folderId` 才是路径锚点。实现时 `getNodeTitle` 的叶子需要知道**父级 folderId**。**方案**：`BrowserEntrySubEntries` 的 `getNodeTitle` 闭包内捕获 `node.folderId`（当前父目录节点，即正在渲染其子项的那个 folder）作为父路径锚点，对叶子拼 `"父路径 / 名称"`。即 `getNodeTitle` 在 `BrowserEntrySubEntries` 内部定义，使用外层 `node.folderId`/`node.workspaceId`。
-> 因此推荐：`getBrowserNodeTitle(node, parentFolderId, tabFolders, workspaces)`，parentFolderId 来自渲染上下文。
-- `FileTree` 调用处传入：
-
-```tsx
-getNodeTitle={(childNode) =>
-  getBrowserNodeTitle(
-    childNode,
-    node.folderId || node.workspaceId ? (node.folderId ?? '') : '',
-    browserTabFolders,
-    recentWorkspaces,
-  )
-}
-```
+> **实现注意（2026-08-14 修订）**：叶子节点的真实父路径由**子树中 directory 祖先的 folderId 链**决定，而非单一顶层锚点。实现时用递归/栈遍历 `node.children`：
+> ```ts
+> export function buildBrowserNodeTitleMap(
+>   rootNodes: BrowserTreeNode[],
+>   tabFolders: TabFolderState[],
+>   workspaces: RecentWorkspaceEntry[],
+> ): Map<string, string> {
+>   const map = new Map<string, string>();
+>   const stack: { node: BrowserTreeNode; parentPath: string }[] = rootNodes.map((n) => ({
+>     node: n,
+>     parentPath: '',
+>   }));
+>   while (stack.length > 0) {
+>     const { node, parentPath } = stack.pop()!;
+>     if (node.kind === 'directory') {
+>       const dirPath =
+>         node.nodeType === 'folder' && node.folderId
+>           ? buildFolderPathLabel(node.folderId, tabFolders, workspaces)
+>           : node.name;
+>       map.set(node.path, dirPath);
+>       for (const child of node.children) {
+>         stack.push({ node: child, parentPath: dirPath });
+>       }
+>     } else if (node.kind === 'file') {
+>       if (node.nodeType === 'history') {
+>         map.set(node.path, node.name);
+>       } else if (parentPath) {
+>         map.set(node.path, `${parentPath} / ${node.name}`);
+>       } else {
+>         map.set(node.path, node.name);
+>       }
+>     } else {
+>       map.set(node.path, node.name);
+>     }
+>   }
+>   return map;
+> }
+> ```
+> - `useMemo` 内调用 `buildBrowserNodeTitleMap(node.children, browserTabFolders, recentWorkspaces)`，deps：`[node.children, browserTabFolders, recentWorkspaces]`。
+> - `getNodeTitle={(childNode) => nodeTitleMap.get(childNode.path)}`。
+> - 历史叶子（nodeType 'history'）→ `node.name`；工作区根下叶子（parentPath 空）→ `node.name`。
 
 > 实现者需确认 `BrowserEntrySubEntries` 能读取 `browserTabFolders`/`recentWorkspaces`（已有 `useAppStore` import，用 `useAppStore((s) => s.browserTabFolders)`/`useAppStore((s) => s.recentWorkspaces)`）。父路径锚点：叶子挂载在 folder 下用 `node.folderId`（外层当前目录节点）；挂在工作区根下用工作区名。
 
@@ -869,7 +871,7 @@ git commit -m "chore(frontend): finalize bookmark toast and title isolation"
 - 需求 1（toast 含路径）：路径工具（Task 1）→ store 返回值（Task 2-4）→ UI toast（Task 5）→ i18n（Task 5）✓
 - 需求 2（标题隔离）：编辑不写 title（Task 5 4a）、当前标签打开不写 title（Task 6 4b）、保存并打开不传自定义 title（Task 5 4c）✓
 - 需求 3（悬停语义化路径）：TreeNodeRow/FileTree prop（Task 7）→ BrowserEntrySubEntries 提供（Task 7）✓
-- 测试：路径工具单测（Task 1）、store 返回值（Task 2-4）、dialog handler（Task 5）、tag actions（Task 6）、getBrowserNodeTitle（Task 7）、keys parity（Task 5/8）✓
+- 测试：路径工具单测（Task 1）、store 返回值（Task 2-4）、dialog handler（Task 5）、tag actions（Task 6）、buildBrowserNodeTitleMap（Task 7）、keys parity（Task 5/8）✓
 
 **Placeholder 扫描：** 无 TBD/TODO；所有代码块含完整实现或明确"实现时核对"的指引。
 
