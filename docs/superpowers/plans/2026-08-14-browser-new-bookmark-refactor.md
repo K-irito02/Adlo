@@ -925,6 +925,10 @@ it('browserBookmarks global dedup is url+title (same url different title both st
 - 编辑收藏条目（无对应 live tab）改名/改网址后，store 中该 tabId 的收藏条目 url/title 更新。
 - 编辑撞上同路径同 url 同 title → 拦截，对话框保持打开或关闭但显示提示（按实现，至少不破坏状态）。
 
+追加 `browserBookmarkTab`（computeBookmarkTabOutcome）标题更新碰撞用例：
+- 预置 folder f1 含 `{tabId:'a', url:'https://e.com', title:'Title A'}` 与 `{tabId:'b', url:'https://e.com', title:'Title B'}`；`browserBookmarkTab('a', 'f1')` 且把标签 a 的标题更新为 'Title B' 的路径下，断言 f1.tabs 仍为 2 条（标题未覆盖为重复）。
+- 无碰撞时（新标题 'Title C'）→ 更新生效。
+
 - [ ] **Step 2: 运行确认失败**
 
 Run: `pnpm --dir frontend vitest run src/app/stores/slices/__tests__/browserBookmarkSlice.test.ts src/app/features/browser/__tests__/useBrowserDialogs.test.ts`
@@ -941,9 +945,11 @@ Expected: FAIL（新去重语义与 browserUpdateSavedBookmark 未实现）。
 - [ ] **Step 4: 修订 `computeBookmarkTabOutcome`（保存并打开路径）去重**
 
 `computeBookmarkTabOutcome`：
-- folder 分支：保留"同 tabId + 同 url → 更新标题"逻辑（`existing` 按 `item.tabId === tabId && item.url === url` 查找，更新 title）；新增：当 `existing` 不存在时，追加前检查 `existingTabs.some((item) => item.url === url && item.title === title)` → 不追加（拦截）。
-- workspace 分支：`existingIdx` 按 `entry.tabId === tabId && entry.url === url` 更新标题逻辑保留；当 `existingIdx < 0` 时，追加前检查 `existingWsTabs.some((entry) => entry.url === url && entry.title === title)` → 不追加（拦截）。
+- folder 分支：保留"同 tabId + 同 url → 更新标题"逻辑（`existing` 按 `item.tabId === tabId && item.url === url` 查找，更新 title）。**修订（用户裁决 2026-08-14）**：更新标题前也做碰撞检查——若该路径下存在**其它 tabId** 的条目 `item.url === url && item.title === 新title`，则不更新（拦截，避免产生同路径同 url 同标题的真重复）。新增：当 `existing` 不存在时，追加前检查 `existingTabs.some((item) => item.url === url && item.title === title)` → 不追加（拦截）。
+- workspace 分支：`existingIdx` 按 `entry.tabId === tabId && entry.url === url` 更新标题逻辑保留；**同样在更新标题前检查**该 workspace 下其它 tabId 条目是否 `entry.url === url && entry.title === 新title` → 是则不更新（拦截）。当 `existingIdx < 0` 时，追加前检查 `existingWsTabs.some((entry) => entry.url === url && entry.title === title)` → 不追加（拦截）。
 - browserBookmarks 全局：`existsInBookmarks = state.browserBookmarks.some((b) => b.url === url && b.title === title)`。
+
+> **去重铁律（用户确认）**：URL 是核心身份。URL 不同、仅标题相同 → 始终允许（不构成碰撞）。URL 相同 + 同路径 + 标题相同 → 真重复，拦截。适用于所有新增、更新标题、编辑路径。
 
 - [ ] **Step 5: 修订 `browserOpenTab` folder append 去重（browserTabsSlice.ts:83-104）**
 
