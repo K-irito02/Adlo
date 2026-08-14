@@ -130,8 +130,8 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
         const btns = getTabHoverButtons(t, !!callbacks.onCloseTab);
         return (
           <span className="adl-browser-node__actions">
-            {btns.map((btn) => (
-              <TooltipSimple key={btn.id} content={btn.label} placement="top">
+            {btns.map((btn) => {
+              const tabButton = (
                 <button
                   type="button"
                   className={`adl-icon-btn adl-icon-btn--xs${btn.isClose ? ' adl-icon-btn--danger-hover' : ''}`}
@@ -157,11 +157,19 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
                     }
                   }}
                   aria-label={btn.label}
+                  title={btn.id === 'close' ? undefined : btn.label}
                 >
                   {btn.icon}
                 </button>
-              </TooltipSimple>
-            ))}
+              );
+              return btn.id === 'close' ? (
+                <TooltipSimple key={btn.id} content={btn.label} placement="top">
+                  {tabButton}
+                </TooltipSimple>
+              ) : (
+                <React.Fragment key={btn.id}>{tabButton}</React.Fragment>
+              );
+            })}
           </span>
         );
       }
@@ -173,8 +181,8 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
       }
       return (
         <span className="adl-browser-node__actions">
-          {btns.map((btn) => (
-            <TooltipSimple key={btn.id} content={btn.label} placement="top">
+          {btns.map((btn) => {
+            const dirButton = (
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
@@ -196,11 +204,19 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
                   }
                 }}
                 aria-label={btn.label}
+                title={btn.id === 'more' ? btn.label : undefined}
               >
                 {btn.icon}
               </button>
-            </TooltipSimple>
-          ))}
+            );
+            return btn.id === 'more' ? (
+              <React.Fragment key={btn.id}>{dirButton}</React.Fragment>
+            ) : (
+              <TooltipSimple key={btn.id} content={btn.label} placement="top">
+                {dirButton}
+              </TooltipSimple>
+            );
+          })}
         </span>
       );
     },
