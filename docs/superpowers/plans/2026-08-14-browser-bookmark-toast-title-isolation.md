@@ -710,6 +710,97 @@ git commit -m "fix(frontend): open bookmark in current tab without overwriting t
 
 ---
 
+### Task 6.5: 最终评审修复（标题隔离补漏 + 预检排除当前标签）
+
+> 2026-08-14 最终整支评审发现 2 个 Important（用户裁决：都修复）。
+
+**Files:**
+- Modify: `ai-digital-life/frontend/src/app/features/browser-tree/browserEntrySubEntriesUtils.tsx`（`getTabContextMenuItems` 的 `open-new` 项）
+- Modify: `ai-digital-life/frontend/src/app/features/browser/useBrowserDialogs.ts`（save-and-open 预检）
+- Modify: `ai-digital-life/frontend/src/app/features/browser/__tests__/useBrowserDialogs.test.ts`
+
+**Interfaces:**
+- 行为变化——
+  - **#1 标题隔离补漏**：`getTabContextMenuItems` 的 `open-new` 项（browserEntrySubEntriesUtils.tsx ~:183）目前 `callbacks.onOpenTabInNewTab(node.url, node.name)`，把书签快照/自定义标题传入新标签。改为对**书签/已收藏标签**节点传 `undefined` 标题（`onOpenTabInNewTab(node.url, undefined)`）；普通标签节点仍传 `node.name`。
+  - **#2 预检排除当前标签**：`handleCreateTabConfirm` save-and-open 的只读预检 `checkBookmarkCollision(url, title, opts, state, state.recentWorkspaces)` 增加 `excludeTabId` 参数——当 `browserNavigateInPlace` 开启时传入 `state.browserActiveTabId`（避免对"已收藏的当前标签重新打开"误报重复）；未开启时不传（新建标签无既有 tabId 关联）。
+
+- [ ] **Step 1: 写失败测试**
+
+`browserEntrySubEntriesUtils.test.tsx` 追加：
+```ts
+it('open-new passes undefined title for saved bookmark nodes', () => {
+  // getTabContextMenuItems 一个 isSavedBookmark 的 tab 节点
+  // 断言 open-new 项 action 后 callbacks.onOpenTabInNewTab(url, undefined) 被调用
+});
+
+it('open-new passes node.name for normal tab nodes', () => {
+  // 普通 tab 节点 → onOpenTabInNewTab(url, name)
+});
+```
+
+`useBrowserDialogs.test.ts` 追加：
+```ts
+it('save-and-open navigate-in-place re-save does not false-toast', async () => {
+  // store: browserNavigateInPlace=true, browserActiveTabId='t1',
+  // 目标 folder 已有 {tabId:'t1', url:'https://e.com', title:'Title'}
+  // handleCreateTabConfirm('Title', 'https://e.com', 'save-and-open')
+  // 断言 showToast 未被调用（同 tabId 排除，不误报）；browserNavigateActiveTab 被调用
+});
+```
+
+- [ ] **Step 2: 运行确认失败**
+
+Run: `npx vitest run src/app/features/browser-tree src/app/features/browser/__tests__/useBrowserDialogs.test.ts`
+Expected: FAIL（open-new 仍传 title；预检仍误报）。
+
+- [ ] **Step 3: 实现**
+
+1. `browserEntrySubEntriesUtils.tsx` `getTabContextMenuItems` 的 `open-new` 项：
+```tsx
+{
+  id: 'open-new',
+  label: t.browserContextOpenNewTab,
+  action: () => {
+    if (node.url) {
+      callbacks.onOpenTabInNewTab(node.url, node.isSavedBookmark ? undefined : node.name);
+    }
+  },
+},
+```
+2. `useBrowserDialogs.ts` save-and-open 预检：
+```ts
+const state = useAppStore.getState();
+const precheck = checkBookmarkCollision(
+  url,
+  title,
+  { workspaceId: folderId ? undefined : workspaceId, folderId },
+  state,
+  state.recentWorkspaces,
+  store.browserNavigateInPlace ? store.browserActiveTabId : undefined,
+);
+```
+（其余逻辑不变。）
+
+- [ ] **Step 4: 运行确认通过**
+
+Run: `npx vitest run src/app/features/browser-tree src/app/features/browser/__tests__/useBrowserDialogs.test.ts`
+Expected: PASS。
+
+Run: `npx tsc --noEmit`
+Expected: 0 错误。
+
+Run: `npx eslint .`
+Expected: 0 errors。
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add ai-digital-life/frontend/src/app/features/browser-tree/browserEntrySubEntriesUtils.tsx ai-digital-life/frontend/src/app/features/browser/useBrowserDialogs.ts ai-digital-life/frontend/src/app/features/browser-tree/browserEntrySubEntriesUtils.test.tsx ai-digital-life/frontend/src/app/features/browser/__tests__/useBrowserDialogs.test.ts
+git commit -m "fix(frontend): close title-isolation gap and fix precheck false-positive"
+```
+
+---
+
 ### Task 7: 悬停 title 语义化（TreeNodeRow / FileTree / BrowserEntrySubEntries）
 
 **Files:**
