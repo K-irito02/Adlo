@@ -199,6 +199,7 @@ export function BrowserNavigator() {
                 }
                 setCreateTabDialog({ open: true, workspaceId: wsId, folderId: fId });
               } else {
+                // open 模式：始终新建标签页，不受 browserNavigateInPlace 影响
                 handleAlwaysNewTab(t.browserNewTabPage);
               }
             }}

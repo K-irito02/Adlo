@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 将浏览器导航栏 open 模式的两个工具按钮（"始终新建标签页" 与 "关闭所有已打开标签页"）的自定义 Tooltip 改为系统原生 `title`，并把关闭按钮的中文/英文文案改为"关闭所有已打开标签页 / Close all open tabs"。
+**Goal:** 将浏览器导航栏两个工具按钮（"+" 按钮——同时服务 tabs 与 open 模式——与 open 模式"关闭所有已打开标签页"按钮）的自定义 Tooltip 改为系统原生 `title`，并把关闭按钮的中文/英文文案改为"关闭所有已打开标签页 / Close all open tabs"。
 
-**Architecture:** 抽取 open 模式两个工具按钮为叶子组件 `BrowserNavUtilityButtons`（props 化文案与回调），在组件内用原生 `title` 替代 `TooltipSimple`；BrowserNavigator 只做接线。遵循 Task 7 抽取 `BrowserNavModeSwitch` 的既有先例。
+**Architecture:** 抽取服务 tabs/open 模式的 "+" 按钮与 open 模式"关闭所有已打开标签页"按钮为叶子组件 `BrowserNavUtilityButtons`（props 化文案与回调），在组件内用原生 `title` 替代 `TooltipSimple`；BrowserNavigator 只做接线。遵循 Task 7 抽取 `BrowserNavModeSwitch` 的既有先例。
 
 **Tech Stack:** React 19 + TypeScript + Vitest + @testing-library/react + i18n（en/zh 双域）
 
@@ -14,7 +14,7 @@
 
 - 中文文案：**关闭所有已打开标签页**；英文文案：**Close all open tabs**。
 - 保留 `aria-label`（与原生 `title` 并存，参照 BrowserNavModeSwitch 既有模式）。
-- tabs 模式的 "+" 按钮、书签删除按钮、模式切换开关等其它按钮的 tooltip 方案**保持不变**。
+- "+" 按钮统一抽入叶子组件并以原生 `title` 呈现（tabs/open 两模式一致，用户已确认）；书签删除按钮、模式切换开关等其它按钮的 tooltip 方案**保持不变**。
 - 不改动 `common.clearAllOpenTabs` 死 key（common.ts:133，未使用）。
 - i18n 双域 parity：新增/修改文案必须在 en-US 与 zh-CN 中同时存在（keys.test.ts 校验 key 集合一致）。
 - 命令执行目录：前端 `E:\AI-DIGITAL-LIFE\SourceWorkspace\ai-digital-life\frontend`；仓库根 `E:\AI-DIGITAL-LIFE\SourceWorkspace`。
@@ -354,6 +354,6 @@ git commit -m "refactor(frontend): use BrowserNavUtilityButtons native title in 
 
 ## Self-Review（计划自查）
 
-- **Spec 覆盖**：① 文案改为"关闭所有已打开标签页 / Close all open tabs"→ Task 1 ✅；② 关闭按钮原生 title 化 → Task 2/3 ✅；③ "始终新建标签页"按钮原生 title 化 → Task 2/3 ✅；④ 保留 aria-label → Task 2 测试断言 ✅；⑤ 抽叶子组件 + 组件测试 → Task 2 ✅；⑥ 命名不改 → 计划未动 key/handler 名 ✅；⑦ tabs 模式其它按钮不动 → Task 3 明确保留 ✅；⑧ 不改 common 死 key → 计划未涉及 ✅。
+- **Spec 覆盖**：① 文案改为"关闭所有已打开标签页 / Close all open tabs"→ Task 1 ✅；② 关闭按钮原生 title 化 → Task 2/3 ✅；③ "始终新建标签页"按钮原生 title 化 → Task 2/3 ✅；④ 保留 aria-label → Task 2 测试断言 ✅；⑤ 抽叶子组件 + 组件测试 → Task 2 ✅；⑥ 命名不改 → 计划未动 key/handler 名 ✅；⑦ tabs 模式 "+" 按钮同样原生 title 化（两模式一致，用户已确认）→ Task 2 测试断言 tabs 模式渲染原生 `title` ✅，书签删除按钮、模式切换开关等其它按钮不动 ✅；⑧ 不改 common 死 key → 计划未涉及 ✅。
 - **占位符扫描**：无 "TBD/TODO"；每个代码步骤均含实际代码。
 - **类型一致性**：`BrowserNavUtilityButtonsProps` 在 Task 2 定义、Task 3 消费，字段名一致（`navigatorMode`/`newTabLabel`/`alwaysNewTabLabel`/`clearOpenTabsLabel`/`onAlwaysNewTab`/`onClearOpenTabs`）。i18n key `browserClearAllOpenTabs` 三处一致。

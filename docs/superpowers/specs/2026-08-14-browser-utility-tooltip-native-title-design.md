@@ -17,6 +17,7 @@
 | 中文文案 | **关闭所有已打开标签页**（强调"关闭"动作——内部 `handleCloseAllTabs` 实际执行关闭全部标签；保留"所有"强调全部范围） |
 | 英文文案 | **Close all open tabs**（与中文"关闭"动作对齐） |
 | 测试方式 | 抽取叶子组件 + 组件测试（遵循 Task 7 抽取 `BrowserNavModeSwitch` 的先例） |
+| tabs 模式覆盖（2026-08-14 用户确认） | tabs 模式 "+" 按钮同样采用原生 `title`（与 open 模式一致），统一抽入叶子组件 `BrowserNavUtilityButtons`，行为不变 |
 
 ## 命名检查结论
 
@@ -36,7 +37,7 @@
 
 ### 2. 抽取叶子组件
 
-新建 `frontend/src/app/features/browser/BrowserNavUtilityButtons.tsx`，抽出 open 模式下的两个按钮（"+"/"始终新建标签页"按钮 与 "清空已打开标签页"按钮），props 化以支持独立测试：
+新建 `frontend/src/app/features/browser/BrowserNavUtilityButtons.tsx`，抽出服务 tabs/open 模式的 "+" 按钮（tabs 文案 `browserNewTab`/新建标签、open 文案 `browserNewTabAlways`/始终新建标签页）与 open 模式"清空已打开标签页"按钮，props 化以支持独立测试：
 
 - `alwaysNewTabLabel` / `clearOpenTabsLabel`：文案
 - 回调：`onAlwaysNewTab`、`onClearOpenTabs`
@@ -51,9 +52,9 @@
 - 保持 display 显隐逻辑（open/tabs 模式）不变。
 - 原有 `handleAlwaysNewTab(t.browserNewTabPage)`、`handleCloseAllTabs()` 逻辑通过 props 传入。
 
-注意：BrowserNavigator.tsx:183-215 的 "+" 按钮同时服务 `tabs` 模式（`browserNewTab` 文案、打开新建标签对话框）与 `open` 模式（`browserNewTabAlways` 文案、始终新建标签）。为最小化改动与风险，**tabs 模式下的行为与 Tooltip 保持原样**（仍在 BrowserNavigator 内联），仅将 open 模式的"始终新建标签页"按钮抽为叶子组件并原生 title 化。
+注意：BrowserNavigator.tsx:183-215 的 "+" 按钮同时服务 `tabs` 模式（`browserNewTab` 文案、打开新建标签对话框）与 `open` 模式（`browserNewTabAlways` 文案、始终新建标签）。该 "+" 按钮统一抽入叶子组件 `BrowserNavUtilityButtons`，两模式均使用原生 `title`（tabs 文案 `browserNewTab`/新建标签、open 文案 `browserNewTabAlways`/始终新建标签页），行为（tabs→新建标签对话框、open→`handleAlwaysNewTab`）不变。
 
-> 澄清：抽取范围聚焦"本次要改的两个 open 模式按钮"。若两按钮分属不同显隐容器（`span style=display` 分支），则分别对应两个 leaf；如结构合适也可合并为一个叶子组件，以实际文件结构为准。
+> 澄清：抽取范围涵盖同时服务 tabs/open 模式的 "+" 按钮与 open 模式"清空"按钮，合并为单一叶子组件 `BrowserNavUtilityButtons`（显隐通过组件内条件渲染承担，等价原 `display:none` span 的视觉结果）。
 
 ### 4. 测试
 
@@ -73,5 +74,5 @@
 
 ## 非目标
 
-- 不改动 tabs 模式 "+" 按钮、书签删除按钮、模式切换开关等其它按钮的 tooltip 方案。
+- 不改动书签删除按钮、模式切换开关、新建目录按钮等其它按钮的 tooltip 方案。
 - 不清理 `common.clearAllOpenTabs` 死 key。
