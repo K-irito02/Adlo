@@ -142,6 +142,11 @@ describe('i18n en-US namespace keys', () => {
     expect(zhCN).toHaveProperty('errorsClearAll');
     expect(zhCN).toHaveProperty('errorsRegionLabel');
   });
+
+  it('browserClearAllOpenTabs copy is close-all-open-tabs', () => {
+    expect(enUS.browserClearAllOpenTabs).toBe('Close all open tabs');
+    expect(zhCN.browserClearAllOpenTabs).toBe('关闭所有已打开标签页');
+  });
 });
 
 describe('i18n zh-CN mirror', () => {

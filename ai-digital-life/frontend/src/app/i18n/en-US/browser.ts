@@ -138,7 +138,7 @@ export const browserEn = {
   browserTabCount: '{count} tabs',
   browserNewTabPage: 'New tab page',
   browserSearchBookmarkHistory: 'Search bookmarks and history by keyword',
-  browserClearAllOpenTabs: 'Clear all open tabs',
+  browserClearAllOpenTabs: 'Close all open tabs',
   browserDeleteAllBookmarks:
     'Delete all workspace and custom directory bookmarks (keep directory structure)',
   browserNoSearchResults: 'No matching results',

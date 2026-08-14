@@ -130,7 +130,7 @@ export const browserZh = {
   browserTabCount: '共 {count} 个标签',
   browserNewTabPage: '新建标签页',
   browserSearchBookmarkHistory: '输入关键词搜索书签和历史记录',
-  browserClearAllOpenTabs: '清空所有已打开标签',
+  browserClearAllOpenTabs: '关闭所有已打开标签页',
   browserDeleteAllBookmarks: '删除工作区与非工作区全部书签（保留目录结构）',
   browserNoSearchResults: '没有找到匹配的结果',
   browserBookmark: '收藏标签',
