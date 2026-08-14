@@ -413,7 +413,7 @@ browserCreateBookmarkEntry: (input) => {
     }
 
     let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
-    if (input.folderId) {
+    if (input.folderId && foldersChanged) {
       nextTabIdUrlMap = { ...nextTabIdUrlMap, [syntheticTabId]: url };
     }
 
@@ -426,7 +426,7 @@ browserCreateBookmarkEntry: (input) => {
     if (wsChanged) {
       writeWorkspaceBookmarks(nextWorkspaceBookmarks);
     }
-    if (input.folderId) {
+    if (input.folderId && foldersChanged) {
       writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
     }
 
@@ -881,4 +881,5 @@ git commit -m "chore(frontend): finalize new-bookmark refactor"
 **已知风险（实现时核对）：**
 - Task 4 中 `useBrowserDialogs.test.ts` 需为 store 读取新增 mock；若现有测试因新增 store 读取而失败，需在 `confirmCreateTab` setup 中补充 mock（保持原有断言语义）。
 - Task 3 测试对 `browserTabs` 字段的引用若类型不满足，退化为读取 mock state 原始字段。
+- Task 3 的 `browserCreateBookmarkEntry`：`browserBookmarkTabIdUrlMap` 的写入仅在 `input.folderId && foldersChanged` 时执行（评审修复：避免目录去重场景下的多余写入与孤儿映射条目）。
 - Task 1 中 CreateTabDialog:190 提交按钮是 Task 2 的临时占位（值用 `browserNewBookmark`），Task 2 完整替换，无兼容层。
