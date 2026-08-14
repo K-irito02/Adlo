@@ -12,6 +12,8 @@ export const browserEn = {
   browserEditBookmark: 'Edit bookmark',
   browserEditBookmarkDuplicate:
     'A bookmark with the same URL and title already exists in this directory',
+  browserBookmarkDuplicateWithPath:
+    'A bookmark with the same URL and title already exists at: {path}',
   browserBookmarks: 'Bookmarks',
   browserHistory: 'History',
   browserSavedTabs: 'Saved tabs',

@@ -1,5 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAppStore } from '@stores/slicedStore';
+import { checkBookmarkCollision } from '@stores/slices/browserBookmarkSlice';
+import { formatT } from '@i18n/formatT';
+import type { CopyDict } from '@i18n/types';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
 import {
   setCachedSiteMeta,
@@ -104,22 +107,48 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       setCreateTabDialog({ open: false });
       const store = useAppStore.getState();
       if (mode === 'save-only') {
-        store.browserCreateBookmarkEntry({
+        const result = store.browserCreateBookmarkEntry({
           url,
           title,
           workspaceId: folderId ? undefined : workspaceId,
           folderId,
         });
+        if (result.ok === false) {
+          const msg = result.pathLabel
+            ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
+                path: result.pathLabel,
+              })
+            : t.browserEditBookmarkDuplicate;
+          showToast(msg, 'warning');
+        }
         return;
       }
-      if (store.browserNavigateInPlace) {
-        store.browserNavigateActiveTab(url, title);
+      // save-and-open：先预检冲突（只读，不写书签）
+      const state = useAppStore.getState();
+      const precheck = checkBookmarkCollision(
+        url,
+        title,
+        { workspaceId: folderId ? undefined : workspaceId, folderId },
+        state,
+        state.recentWorkspaces,
+      );
+      if (precheck.ok === false) {
+        const msg = precheck.pathLabel
+          ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
+              path: precheck.pathLabel,
+            })
+          : t.browserEditBookmarkDuplicate;
+        showToast(msg, 'warning');
+        return;
+      }
+      if (state.browserNavigateInPlace) {
+        state.browserNavigateActiveTab(url, undefined);
       } else {
-        browserOpenTab(url, title, folderId ? undefined : workspaceId, folderId || undefined);
+        browserOpenTab(url, undefined, folderId ? undefined : workspaceId, undefined);
       }
       bookmarkNewTab(workspaceId, folderId);
     },
-    [browserOpenTab, createTabDialog, bookmarkNewTab],
+    [browserOpenTab, createTabDialog, bookmarkNewTab, showToast, t],
   );
 
   const handleCreateTabCancel = useCallback(() => {
@@ -151,18 +180,20 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           title: trimmedName,
         });
         if (result.ok === false) {
-          showToast(t.browserEditBookmarkDuplicate, 'warning');
+          const msg = result.pathLabel
+            ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
+                path: result.pathLabel,
+              })
+            : t.browserEditBookmarkDuplicate;
+          showToast(msg, 'warning');
           return;
         }
-        browserUpdateTab(tabId, {
-          title: trimmedName || undefined,
-          url: trimmedUrl || undefined,
-        });
+        browserUpdateTab(tabId, { url: trimmedUrl || undefined });
         if (mode === 'save-and-open') {
           if (store.browserNavigateInPlace) {
-            store.browserNavigateActiveTab(trimmedUrl, trimmedName);
+            store.browserNavigateActiveTab(trimmedUrl, undefined);
           } else {
-            store.browserOpenTab(trimmedUrl, trimmedName);
+            store.browserOpenTab(trimmedUrl, undefined);
           }
         }
       }

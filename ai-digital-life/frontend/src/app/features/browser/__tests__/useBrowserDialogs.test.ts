@@ -163,24 +163,35 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
       browserNavigateInPlace: false,
       browserCreateBookmarkEntry: originalActions.browserCreateBookmarkEntry,
       browserNavigateActiveTab: originalActions.browserNavigateActiveTab,
+      browserTabFolders: [],
+      browserWorkspaceBookmarks: {},
+      browserBookmarks: [],
+      browserBookmarkTabIdUrlMap: {},
+      browserTabs: [],
+      browserActiveTabId: '',
+      recentWorkspaces: [],
     });
   });
 
-  function renderDialogs(openTab: ReturnType<typeof vi.fn>) {
+  function renderDialogs(
+    openTab: ReturnType<typeof vi.fn>,
+    showToast = vi.fn(),
+    t: Record<string, string> = {},
+  ) {
     return renderHook(() =>
       useBrowserDialogs({
         browserOpenTab: openTab,
         browserUpdateTab: vi.fn(),
         activeTab: null,
         isBookmarked: false,
-        showToast: vi.fn(),
-        t: {},
+        showToast,
+        t,
       }),
     );
   }
 
   it('save-only mode calls browserCreateBookmarkEntry without opening a tab', async () => {
-    const createBookmarkEntry = vi.fn();
+    const createBookmarkEntry = vi.fn().mockReturnValue({ ok: true });
     const navigateActiveTab = vi.fn();
     useAppStore.setState({
       browserCreateBookmarkEntry: createBookmarkEntry,
@@ -198,7 +209,7 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     expect(navigateActiveTab).not.toHaveBeenCalled();
   });
 
-  it('save-and-open with navigateInPlace=true navigates active tab', async () => {
+  it('save-and-open with navigateInPlace=true navigates active tab without custom title', async () => {
     const navigateActiveTab = vi.fn();
     useAppStore.setState({
       browserNavigateInPlace: true,
@@ -209,18 +220,18 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     await act(async () => {
       await result.current.handleCreateTabConfirm('Name', 'https://example.com', 'save-and-open');
     });
-    expect(navigateActiveTab).toHaveBeenCalledWith('https://example.com', 'Name');
+    expect(navigateActiveTab).toHaveBeenCalledWith('https://example.com', undefined);
     expect(openTab).not.toHaveBeenCalled();
   });
 
-  it('save-and-open with navigateInPlace=false opens new tab', async () => {
+  it('save-and-open with navigateInPlace=false opens new tab without custom title', async () => {
     useAppStore.setState({ browserNavigateInPlace: false });
     const openTab = vi.fn();
     const { result } = renderDialogs(openTab);
     await act(async () => {
       await result.current.handleCreateTabConfirm('Name', 'https://example.com', 'save-and-open');
     });
-    expect(openTab).toHaveBeenCalled();
+    expect(openTab).toHaveBeenCalledWith('https://example.com', undefined, undefined, undefined);
   });
 
   it('save-only with both workspaceId and folderId lands the bookmark in the folder ONLY', async () => {
@@ -242,6 +253,101 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     expect(folder.tabs).toHaveLength(1);
     expect(folder.tabs![0]).toMatchObject({ url: 'https://example.com', title: 'Name' });
     expect(state.browserWorkspaceBookmarks['ws1']).toBeUndefined();
+  });
+
+  it('save-only collision shows toast with path and writes nothing', async () => {
+    const createBookmarkEntry = vi.fn().mockReturnValue({ ok: false, pathLabel: '工具' });
+    useAppStore.setState({ browserCreateBookmarkEntry: createBookmarkEntry });
+    const openTab = vi.fn();
+    const showToast = vi.fn();
+    const { result } = renderDialogs(openTab, showToast, {
+      browserEditBookmarkDuplicate: 'DUP',
+      browserBookmarkDuplicateWithPath: 'DUP at {path}',
+    });
+    await act(async () => {
+      await result.current.handleCreateTabConfirm('Title', 'https://e.com', 'save-only');
+    });
+    expect(createBookmarkEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://e.com', title: 'Title' }),
+    );
+    expect(showToast).toHaveBeenCalledWith('DUP at 工具', 'warning');
+    expect(openTab).not.toHaveBeenCalled();
+  });
+
+  it('save-and-open collision shows toast with path and does not open tab', async () => {
+    useAppStore.setState({
+      browserNavigateInPlace: false,
+      browserTabFolders: [
+        {
+          id: 'f1',
+          name: '工作区A',
+          createdAt: 0,
+          tabs: [{ tabId: 'existing', url: 'https://e.com', title: 'Title' }],
+        },
+      ],
+      browserWorkspaceBookmarks: {},
+      browserBookmarks: [{ url: 'https://e.com', title: 'Title' }],
+      browserBookmarkTabIdUrlMap: { existing: 'https://e.com' },
+    });
+    const openTab = vi.fn();
+    const showToast = vi.fn();
+    const { result } = renderDialogs(openTab, showToast, {
+      browserEditBookmarkDuplicate: 'DUP',
+      browserBookmarkDuplicateWithPath: 'DUP at {path}',
+    });
+    await act(async () => {
+      result.current.handleSetCreateTabDialog({ open: true, workspaceId: 'ws1', folderId: 'f1' });
+    });
+    await act(async () => {
+      await result.current.handleCreateTabConfirm('Title', 'https://e.com', 'save-and-open');
+    });
+    expect(showToast).toHaveBeenCalledWith('DUP at 工作区A', 'warning');
+    expect(openTab).not.toHaveBeenCalled();
+  });
+
+  it('save-and-open success opens tab without custom title', async () => {
+    useAppStore.setState({
+      browserNavigateInPlace: false,
+      browserCreateBookmarkEntry: vi.fn().mockReturnValue({ ok: true }),
+    });
+    const openTab = vi.fn();
+    const { result } = renderDialogs(openTab);
+    await act(async () => {
+      await result.current.handleCreateTabConfirm('Title', 'https://e.com', 'save-and-open');
+    });
+    expect(openTab).toHaveBeenCalledWith('https://e.com', undefined, undefined, undefined);
+  });
+
+  it('save-and-open success lands exactly ONE folder entry for the url (no synthetic orphan)', async () => {
+    useAppStore.setState({
+      browserNavigateInPlace: false,
+      browserCreateBookmarkEntry: originalActions.browserCreateBookmarkEntry,
+      browserTabs: [],
+      browserActiveTabId: '',
+      browserTabFolders: [{ id: 'f1', name: 'F', createdAt: 0, tabs: [] }],
+      browserWorkspaceBookmarks: {},
+      browserBookmarks: [],
+      browserBookmarkTabIdUrlMap: {},
+    });
+    const openTab = useAppStore.getState().browserOpenTab;
+    const { result } = renderHook(() =>
+      useBrowserDialogs({
+        browserOpenTab: openTab,
+        browserUpdateTab: vi.fn(),
+        activeTab: null,
+        isBookmarked: false,
+        showToast: vi.fn(),
+        t: {},
+      }),
+    );
+    await act(async () => {
+      result.current.handleSetCreateTabDialog({ open: true, workspaceId: 'ws1', folderId: 'f1' });
+    });
+    await act(async () => {
+      await result.current.handleCreateTabConfirm('Name', 'https://example.com', 'save-and-open');
+    });
+    const folder = useAppStore.getState().browserTabFolders.find((f) => f.id === 'f1')!;
+    expect(folder.tabs!.filter((t) => t.url === 'https://example.com')).toHaveLength(1);
   });
 });
 
@@ -286,7 +392,10 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
         activeTab: null,
         isBookmarked: false,
         showToast,
-        t: { browserEditBookmarkDuplicate: 'DUP' },
+        t: {
+          browserEditBookmarkDuplicate: 'DUP',
+          browserBookmarkDuplicateWithPath: 'DUP at {path}',
+        },
       }),
     );
   }
@@ -310,7 +419,7 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
     expect(showToast).not.toHaveBeenCalled();
   });
 
-  it('intercepts a same-path url+title collision with a toast and keeps dialog open', () => {
+  it('intercepts a same-path url+title collision with a path toast and keeps dialog open', () => {
     useAppStore.setState({
       browserTabFolders: [
         {
@@ -332,7 +441,7 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
     act(() => {
       result.current.handleEditTabConfirm('A', 'https://e.com', 'save-only');
     });
-    expect(showToast).toHaveBeenCalledWith('DUP', 'warning');
+    expect(showToast).toHaveBeenCalledWith('DUP at F', 'warning');
     expect(result.current.editTabDialog.open).toBe(true);
     const folder = useAppStore.getState().browserTabFolders.find((f) => f.id === 'f1')!;
     expect(folder.tabs).toHaveLength(2);
@@ -361,7 +470,10 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
         activeTab: null,
         isBookmarked: false,
         showToast,
-        t: { browserEditBookmarkDuplicate: 'DUP' },
+        t: {
+          browserEditBookmarkDuplicate: 'DUP',
+          browserBookmarkDuplicateWithPath: 'DUP at {path}',
+        },
       }),
     );
     act(() => {
@@ -370,8 +482,66 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
     act(() => {
       result.current.handleEditTabConfirm('A', 'https://e.com', 'save-only');
     });
-    expect(showToast).toHaveBeenCalledWith('DUP', 'warning');
+    expect(showToast).toHaveBeenCalledWith('DUP at F', 'warning');
     expect(result.current.editTabDialog.open).toBe(true);
     expect(updateTab).not.toHaveBeenCalled();
+  });
+
+  it('edit collision shows toast with path and does not call browserUpdateTab', () => {
+    useAppStore.setState({
+      browserUpdateSavedBookmark: vi.fn().mockReturnValue({ ok: false, pathLabel: '工具' }),
+    });
+    const showToast = vi.fn();
+    const updateTab = vi.fn();
+    const { result } = renderHook(() =>
+      useBrowserDialogs({
+        browserOpenTab: vi.fn(),
+        browserUpdateTab: updateTab,
+        activeTab: null,
+        isBookmarked: false,
+        showToast,
+        t: {
+          browserEditBookmarkDuplicate: 'DUP',
+          browserBookmarkDuplicateWithPath: 'DUP at {path}',
+        },
+      }),
+    );
+    act(() => {
+      result.current.handleEditTab('saved-1', 'A', 'https://e.com');
+    });
+    act(() => {
+      result.current.handleEditTabConfirm('A', 'https://e.com', 'save-only');
+    });
+    expect(showToast).toHaveBeenCalledWith('DUP at 工具', 'warning');
+    expect(updateTab).not.toHaveBeenCalled();
+    expect(result.current.editTabDialog.open).toBe(true);
+  });
+
+  it('edit success calls browserUpdateTab with url only (no title)', () => {
+    useAppStore.setState({
+      browserUpdateSavedBookmark: vi.fn().mockReturnValue({ ok: true }),
+    });
+    const updateTab = vi.fn();
+    const { result } = renderHook(() =>
+      useBrowserDialogs({
+        browserOpenTab: vi.fn(),
+        browserUpdateTab: updateTab,
+        activeTab: null,
+        isBookmarked: false,
+        showToast: vi.fn(),
+        t: {
+          browserEditBookmarkDuplicate: 'DUP',
+          browserBookmarkDuplicateWithPath: 'DUP at {path}',
+        },
+      }),
+    );
+    act(() => {
+      result.current.handleEditTab('saved-1', 'A', 'https://e.com');
+    });
+    act(() => {
+      result.current.handleEditTabConfirm('NewName', 'https://e.com', 'save-only');
+    });
+    expect(updateTab).toHaveBeenCalledTimes(1);
+    expect(updateTab).toHaveBeenCalledWith('saved-1', { url: 'https://e.com' });
   });
 });
