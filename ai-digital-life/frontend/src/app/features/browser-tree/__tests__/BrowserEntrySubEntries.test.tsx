@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type { TabFolderState } from '@stores/slices/browserSlice';
 import type { BrowserTreeNode } from '../types';
-import { getBrowserNodeTitle } from '../browserTreeTitle';
+import { buildBrowserNodeTitleMap } from '../browserTreeTitle';
 
 function makeWorkspace(id: string, name: string, path: string): RecentWorkspaceEntry {
   return {
@@ -23,105 +23,108 @@ function makeWorkspace(id: string, name: string, path: string): RecentWorkspaceE
 const folders: TabFolderState[] = [
   { id: 'root', name: '工具', createdAt: 0 },
   { id: 'sub', name: '子文件夹', createdAt: 0, parentId: 'root', parentType: 'folder' },
-  { id: 'deep', name: '三层', createdAt: 0, parentId: 'sub', parentType: 'folder' },
   { id: 'wsRoot', name: '工作区根目录', createdAt: 0, parentId: 'ws1', parentType: 'workspace' },
-  { id: 'wsSub', name: '工作区子目录', createdAt: 0, parentId: 'wsRoot', parentType: 'folder' },
 ];
 
 const workspaces = [makeWorkspace('ws1', '工作区A', 'E:/ws-a')];
 
-function folderNode(
+function fileNode(
+  path: string,
   name: string,
-  folderId: string,
-  nodeType: BrowserTreeNode['nodeType'] = 'folder',
+  nodeType: BrowserTreeNode['nodeType'] = 'tab',
 ): BrowserTreeNode {
-  return { path: `folder:${folderId}`, name, kind: 'directory', children: [], nodeType, folderId };
+  return { path, name, kind: 'file', children: [], nodeType };
 }
 
-function fileNode(name: string, nodeType: BrowserTreeNode['nodeType'] = 'tab'): BrowserTreeNode {
-  return { path: 'file:1', name, kind: 'file', children: [], nodeType };
-}
+const tree: BrowserTreeNode[] = [
+  {
+    path: 'workspace:ws1',
+    name: '工作区A',
+    kind: 'directory',
+    children: [
+      fileNode('tab:ws1:root', '工作区根叶'),
+      {
+        path: 'folder:root',
+        name: '工具',
+        kind: 'directory',
+        folderId: 'root',
+        nodeType: 'folder',
+        children: [
+          fileNode('bookmark:root:baidu', '百度'),
+          {
+            path: 'folder:sub',
+            name: '子文件夹',
+            kind: 'directory',
+            folderId: 'sub',
+            nodeType: 'folder',
+            children: [fileNode('bookmark:sub:baidu', '百度')],
+          },
+        ],
+      },
+      {
+        path: 'folder:wsRoot',
+        name: '工作区根目录',
+        kind: 'directory',
+        folderId: 'wsRoot',
+        nodeType: 'folder',
+        children: [fileNode('bookmark:wsRoot:baidu', '百度')],
+      },
+    ],
+    nodeType: 'workspace',
+    workspaceId: 'ws1',
+  },
+  {
+    path: 'history-year:2026',
+    name: '2026年',
+    kind: 'directory',
+    children: [fileNode('history-entry:1', '历史条目', 'history')],
+    nodeType: 'year',
+  },
+];
 
-describe('getBrowserNodeTitle', () => {
-  it('顶层文件夹目录返回文件夹名', () => {
-    expect(getBrowserNodeTitle(folderNode('工具', 'root'), '', folders, workspaces)).toBe('工具');
+describe('buildBrowserNodeTitleMap', () => {
+  it('顶层目录返回文件夹路径', () => {
+    const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
+    expect(map.get('folder:root')).toBe('工具');
   });
 
-  it('嵌套文件夹返回 "根 → 子"', () => {
-    expect(getBrowserNodeTitle(folderNode('子文件夹', 'sub'), '', folders, workspaces)).toBe(
-      '工具 → 子文件夹',
-    );
-    expect(getBrowserNodeTitle(folderNode('三层', 'deep'), '', folders, workspaces)).toBe(
-      '工具 → 子文件夹 → 三层',
-    );
+  it('嵌套目录返回 "根 → 子"', () => {
+    const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
+    expect(map.get('folder:sub')).toBe('工具 → 子文件夹');
   });
 
-  it('挂在工作区下的文件夹最前面加工作区名', () => {
-    expect(getBrowserNodeTitle(folderNode('工作区子目录', 'wsSub'), '', folders, workspaces)).toBe(
-      '工作区A → 工作区根目录 → 工作区子目录',
-    );
+  it('嵌套目录下的叶子使用完整父路径', () => {
+    const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
+    expect(map.get('bookmark:sub:baidu')).toBe('工具 → 子文件夹 / 百度');
   });
 
-  it('书签/标签叶子使用父路径 + 名称', () => {
-    expect(getBrowserNodeTitle(fileNode('百度'), 'sub', folders, workspaces)).toBe(
-      '工具 → 子文件夹 / 百度',
-    );
+  it('工作区顶级目录下的叶子使用父目录路径', () => {
+    const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
+    expect(map.get('bookmark:root:baidu')).toBe('工具 / 百度');
   });
 
-  it('叶子父路径无法解析时回退为名称', () => {
-    expect(getBrowserNodeTitle(fileNode('百度'), 'nope', folders, workspaces)).toBe('百度');
-    expect(getBrowserNodeTitle(fileNode('百度'), '', folders, workspaces)).toBe('百度');
+  it('挂在工作区根目录下的叶子使用工作区前缀路径', () => {
+    const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
+    expect(map.get('bookmark:wsRoot:baidu')).toBe('工作区A → 工作区根目录 / 百度');
+  });
+
+  it('工作区根下的叶子回退为名称', () => {
+    const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
+    expect(map.get('tab:ws1:root')).toBe('工作区根叶');
   });
 
   it('历史叶子返回名称', () => {
-    expect(getBrowserNodeTitle(fileNode('历史条目', 'history'), 'sub', folders, workspaces)).toBe(
-      '历史条目',
-    );
+    const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
+    expect(map.get('history-entry:1')).toBe('历史条目');
   });
 
-  it('工作区根目录（无 folderId）返回名称', () => {
-    expect(
-      getBrowserNodeTitle(
-        {
-          path: 'workspace:ws1',
-          name: '工作区A',
-          kind: 'directory',
-          children: [],
-          nodeType: 'workspace',
-          workspaceId: 'ws1',
-        },
-        '',
-        folders,
-        workspaces,
-      ),
-    ).toBe('工作区A');
+  it('非文件夹目录节点（年/月/日）返回名称标签', () => {
+    const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
+    expect(map.get('history-year:2026')).toBe('2026年');
   });
 
-  it('历史年月日目录节点返回名称标签', () => {
-    expect(getBrowserNodeTitle(folderNode('2026年', 'nope', 'year'), '', folders, workspaces)).toBe(
-      '2026年',
-    );
-  });
-
-  it('未知文件叶子（有父路径）也使用 "父路径 / 名称"', () => {
-    expect(
-      getBrowserNodeTitle(
-        { path: 'x', name: '未知', kind: 'file', children: [], nodeType: 'day' },
-        'sub',
-        folders,
-        workspaces,
-      ),
-    ).toBe('工具 → 子文件夹 / 未知');
-  });
-
-  it('未知文件叶子（无父路径）返回名称', () => {
-    expect(
-      getBrowserNodeTitle(
-        { path: 'x', name: '未知', kind: 'file', children: [], nodeType: 'day' },
-        '',
-        folders,
-        workspaces,
-      ),
-    ).toBe('未知');
+  it('工作区根目录节点返回名称', () => {
+    const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
+    expect(map.get('workspace:ws1')).toBe('工作区A');
   });
 });

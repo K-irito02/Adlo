@@ -3,24 +3,38 @@ import type { RecentWorkspaceEntry } from '@shared/ipc';
 import { buildFolderPathLabel } from '@stores/slices/browserFoldersUtils';
 import type { BrowserTreeNode } from './types';
 
-export function getBrowserNodeTitle(
-  node: BrowserTreeNode,
-  parentFolderId: string,
+export function buildBrowserNodeTitleMap(
+  rootNodes: BrowserTreeNode[],
   tabFolders: TabFolderState[],
   workspaces: RecentWorkspaceEntry[],
-): string {
-  if (node.kind === 'directory' && node.nodeType === 'folder' && node.folderId) {
-    return buildFolderPathLabel(node.folderId, tabFolders, workspaces);
-  }
-  if (node.kind === 'file' && node.nodeType === 'history') {
-    return node.name;
-  }
-  // 书签/标签叶子：父级 folder 的路径作为锚点
-  if (node.kind === 'file' && parentFolderId) {
-    const parentPath = buildFolderPathLabel(parentFolderId, tabFolders, workspaces);
-    if (parentPath) {
-      return `${parentPath} / ${node.name}`;
+): Map<string, string> {
+  const map = new Map<string, string>();
+  const stack: { node: BrowserTreeNode; parentPath: string }[] = rootNodes.map((n) => ({
+    node: n,
+    parentPath: '',
+  }));
+  while (stack.length > 0) {
+    const { node, parentPath } = stack.pop()!;
+    if (node.kind === 'directory') {
+      const folderLabel =
+        node.nodeType === 'folder' && node.folderId
+          ? buildFolderPathLabel(node.folderId, tabFolders, workspaces)
+          : '';
+      map.set(node.path, folderLabel || node.name);
+      for (const child of node.children) {
+        stack.push({ node: child, parentPath: folderLabel });
+      }
+    } else if (node.kind === 'file') {
+      if (node.nodeType === 'history') {
+        map.set(node.path, node.name);
+      } else if (parentPath) {
+        map.set(node.path, `${parentPath} / ${node.name}`);
+      } else {
+        map.set(node.path, node.name);
+      }
+    } else {
+      map.set(node.path, node.name);
     }
   }
-  return node.name;
+  return map;
 }

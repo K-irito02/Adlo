@@ -10,7 +10,7 @@ import { BrowserFavicon } from '@components/BrowserFavicon';
 import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTreeNode } from './types';
-import { getBrowserNodeTitle } from './browserTreeTitle';
+import { buildBrowserNodeTitleMap } from './browserTreeTitle';
 import { resolveChildCount } from './useBrowserTreeData';
 import {
   type BrowserEntrySubEntriesProps,
@@ -123,10 +123,14 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     [counts],
   );
 
+  const nodeTitleMap = useMemo(
+    () => buildBrowserNodeTitleMap(node.children, browserTabFolders, recentWorkspaces),
+    [node.children, browserTabFolders, recentWorkspaces],
+  );
+
   const getChildNodeTitle = useCallback(
-    (childNode: BrowserTreeNode) =>
-      getBrowserNodeTitle(childNode, node.folderId ?? '', browserTabFolders, recentWorkspaces),
-    [node.folderId, browserTabFolders, recentWorkspaces],
+    (childNode: BrowserTreeNode) => nodeTitleMap.get(childNode.path),
+    [nodeTitleMap],
   );
 
   const renderChildMeta = useCallback(
