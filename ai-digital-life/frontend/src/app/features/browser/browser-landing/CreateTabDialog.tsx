@@ -91,7 +91,7 @@ export function CreateTabDialog({
   );
 
   const isEditMode = !!initialName || !!initialUrl;
-  const dialogTitle = isEditMode ? t.browserEditTab : t.browserNewTab;
+  const dialogTitle = isEditMode ? t.browserEditBookmark : t.browserNewBookmark;
 
   if (!open) {
     return null;
@@ -127,7 +127,7 @@ export function CreateTabDialog({
                 marginBottom: 4,
               }}
             >
-              {t.browserTabName}
+              {t.browserBookmarkName}
             </div>
             <input
               ref={nameRef}
@@ -135,7 +135,7 @@ export function CreateTabDialog({
               type="text"
               value={name}
               onChange={(e) => setName(e.currentTarget.value)}
-              placeholder={t.browserTabName}
+              placeholder={t.browserBookmarkName}
               disabled={loading}
             />
           </div>
@@ -187,7 +187,7 @@ export function CreateTabDialog({
             onClick={handleConfirm}
             disabled={!url.trim() || loading}
           >
-            {loading ? t.browserCreating : isEditMode ? t.browserSave : t.browserNewTab}
+            {loading ? t.browserCreating : isEditMode ? t.browserSave : t.browserNewBookmark}
           </button>
         </div>
       </div>

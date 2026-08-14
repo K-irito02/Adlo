@@ -4,12 +4,12 @@ export const browserEn = {
   browserBack: 'Back',
   browserForward: 'Forward',
   browserRefresh: 'Refresh',
-  browserRefreshMeta: 'Refresh Logo/Title',
+  browserRefreshMeta: 'Refresh Website Icon & Title',
   browserRefreshMetaHint:
-    'Re-fetch logo icon and title, clearing old cache. If the tab name has been customized, the custom name is preserved.',
+    'Re-fetch website icon and title, clearing old cache. If the tab name has been customized, the custom name is preserved.',
   browserHome: 'Home',
-  browserNewTab: 'New tab',
-  browserEditTab: 'Edit tab',
+  browserNewBookmark: 'New bookmark',
+  browserEditBookmark: 'Edit bookmark',
   browserBookmarks: 'Bookmarks',
   browserHistory: 'History',
   browserSavedTabs: 'Saved tabs',
@@ -55,7 +55,7 @@ export const browserEn = {
   browserRenamePrompt: 'Rename',
 
   // Create tab dialog
-  browserTabName: 'Tab name',
+  browserBookmarkName: 'Bookmark name',
   browserTabUrl: 'URL',
 
   // Landing page
@@ -110,7 +110,7 @@ export const browserEn = {
   browserContextCopyLink: 'Copy link',
   browserContextDelete: 'Delete',
   browserContextMore: 'More actions',
-  browserContextCreateTab: 'New tab',
+  browserContextCreateBookmark: 'New bookmark',
   browserContextDeleteAllTabs: 'Delete all tabs [nested]',
   browserDeleteAllTabsHint:
     'Delete child tabs under this directory, including nested directories, but keep the directory structure.',
@@ -175,5 +175,8 @@ export const browserEn = {
   browserDateMonth: 'mo',
   browserDateDay: 'd',
   browserNewTabFolder: 'New Tab Folder',
+  browserMenuNewTab: 'New tab',
+  browserBookmarkSaveOnly: 'Save only',
+  browserBookmarkSaveAndOpen: 'Save and open',
   resizeLabel: 'Resize browser navigator',
 } as const;

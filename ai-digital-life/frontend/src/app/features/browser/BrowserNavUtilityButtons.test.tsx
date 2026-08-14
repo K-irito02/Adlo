@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { BrowserNavUtilityButtons } from './BrowserNavUtilityButtons';
 
 const labels = {
-  newTab: '新建标签',
+  newTab: '新建书签',
   alwaysNewTab: '始终新建标签页',
   clearOpenTabs: '关闭所有已打开标签页',
 };
@@ -14,7 +14,7 @@ function setup(navigatorMode: 'tabs' | 'open' | 'list' | 'search') {
   render(
     <BrowserNavUtilityButtons
       navigatorMode={navigatorMode}
-      newTabLabel={labels.newTab}
+      newBookmarkLabel={labels.newTab}
       alwaysNewTabLabel={labels.alwaysNewTab}
       clearOpenTabsLabel={labels.clearOpenTabs}
       onAlwaysNewTab={onAlwaysNewTab}
@@ -39,10 +39,10 @@ describe('BrowserNavUtilityButtons', () => {
     expect(trash).toHaveAttribute('aria-label', labels.clearOpenTabs);
   });
 
-  it('renders new-tab button (tabs mode) with native title', () => {
+  it('renders new-bookmark button (tabs mode) without native title (uses custom tooltip)', () => {
     setup('tabs');
     const plus = screen.getByRole('button', { name: labels.newTab });
-    expect(plus).toHaveAttribute('title', labels.newTab);
+    expect(plus).not.toHaveAttribute('title');
   });
 
   it('does not render custom tooltip content element', () => {

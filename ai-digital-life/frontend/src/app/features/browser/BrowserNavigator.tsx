@@ -179,7 +179,7 @@ export function BrowserNavigator() {
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
           <BrowserNavUtilityButtons
             navigatorMode={navigatorMode}
-            newTabLabel={t.browserNewTab}
+            newBookmarkLabel={t.browserNewBookmark}
             alwaysNewTabLabel={t.browserNewTabAlways}
             clearOpenTabsLabel={t.browserClearAllOpenTabs}
             onAlwaysNewTab={() => {

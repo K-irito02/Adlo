@@ -4,12 +4,12 @@ export const browserZh = {
   browserBack: '后退',
   browserForward: '前进',
   browserRefresh: '刷新',
-  browserRefreshMeta: '刷新Logo/标题',
+  browserRefreshMeta: '刷新网站图标与标题',
   browserRefreshMetaHint:
-    '重新获取Logo图标与标题，并清除旧缓存。若标签名称已自定义则保留自定义名称。',
+    '重新获取网站图标与标题，并清除旧缓存。若标签名称已自定义则保留自定义名称。',
   browserHome: '主页',
-  browserNewTab: '新建标签',
-  browserEditTab: '编辑标签',
+  browserNewBookmark: '新建书签',
+  browserEditBookmark: '编辑书签',
   browserBookmarks: '书签',
   browserHistory: '历史记录',
   browserSavedTabs: '收藏标签',
@@ -51,7 +51,7 @@ export const browserZh = {
   browserRenamePrompt: '重命名',
 
   // 新建标签对话框
-  browserTabName: '标签名称',
+  browserBookmarkName: '书签名称',
   browserTabUrl: '网址',
 
   // 空标签引导页
@@ -106,7 +106,7 @@ export const browserZh = {
   browserContextCopyLink: '复制链接',
   browserContextDelete: '删除',
   browserContextMore: '更多操作',
-  browserContextCreateTab: '新建标签',
+  browserContextCreateBookmark: '新建书签',
   browserContextDeleteAllTabs: '删除所有标签[嵌套]',
   browserDeleteAllTabsHint:
     '删除自身目录下的子标签，并且包括嵌套目录下的子标签，但保留所有目录结构。',
@@ -166,5 +166,8 @@ export const browserZh = {
   browserDateMonth: '月',
   browserDateDay: '日',
   browserNewTabFolder: '新建标签文件夹',
+  browserMenuNewTab: '新建标签',
+  browserBookmarkSaveOnly: '仅保存',
+  browserBookmarkSaveAndOpen: '保存并打开',
   resizeLabel: '调整浏览器导航栏大小',
 } as const;

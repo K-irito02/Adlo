@@ -95,7 +95,7 @@ export function getEntryHoverButtons(
   return [
     {
       id: 'create-tab',
-      label: t.browserContextCreateTab,
+      label: t.browserContextCreateBookmark,
       icon: <IconPlus size={12} decorative />,
     },
     {

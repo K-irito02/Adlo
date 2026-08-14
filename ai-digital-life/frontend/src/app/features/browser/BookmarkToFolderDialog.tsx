@@ -351,14 +351,14 @@ export function BookmarkToFolderDialog({
                 marginBottom: 4,
               }}
             >
-              {t.browserTabName}
+              {t.browserBookmarkName}
             </div>
             <input
               className="adl-prompt-modal__input"
               type="text"
               value={bookmarkName ?? ''}
               onChange={handleNameChange}
-              placeholder={t.browserTabName}
+              placeholder={t.browserBookmarkName}
             />
           </div>
         )}

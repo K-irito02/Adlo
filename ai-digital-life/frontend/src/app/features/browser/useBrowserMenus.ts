@@ -101,7 +101,7 @@ export function useBrowserMenus({
   const browserMenuItems: BrowserMenuItem[] = [
     { id: 'new-tab-folder', label: t.browserNewTabFolder, disabled: true },
     { id: 'sep-0', separator: true },
-    { id: 'new-tab', label: t.browserNewTab, action: () => browserOpenTab() },
+    { id: 'new-tab', label: t.browserMenuNewTab, action: () => browserOpenTab() },
     { id: 'sep-1', separator: true },
     { id: 'clear-history', label: t.browserClearHistory },
     { id: 'clear-cookies', label: t.browserClearCookies, disabled: true },
