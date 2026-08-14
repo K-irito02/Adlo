@@ -8,6 +8,7 @@ import {
   robotsAllowFetch,
 } from './crawlerPolicy';
 import { parseRobotsTxt } from './crawlerRobots';
+import { USER_AGENT } from '../src/shared/userAgent';
 
 describe('crawlerPolicy', () => {
   it('isPrivateUrl detects localhost and private ranges', () => {
@@ -60,6 +61,15 @@ describe('crawlerPolicy', () => {
   it('robotsAllowFetch: fail-open on robots fetch failure', async () => {
     const fetchImpl = vi.fn(async () => ({ ok: false, status: 500 } as Response));
     expect(await robotsAllowFetch('https://example.com/x', fetchImpl, 1000)).toBe(true);
+  });
+
+  it('robots fetch sends canonical USER_AGENT header (mirror invariant)', async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 500 } as Response));
+    await robotsAllowFetch('https://example.com/x', fetchImpl, 1000);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://example.com/robots.txt',
+      expect.objectContaining({ headers: { 'User-Agent': USER_AGENT } }),
+    );
   });
 
   it('robotsAllowFetch: disallow hard blocks public url', async () => {

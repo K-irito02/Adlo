@@ -346,6 +346,20 @@ async fn robots_allow_fetch(client: &reqwest::Client, url_str: &str) -> bool {
     }
 }
 
+/// 按域名限速（5s/次）的决策。私网 URL 直接放行且不消费限速令牌
+/// （与前端 `pageMetaGateAllows` 的私网豁免一致）；仅公有域名进入限速器。
+fn rate_limit_allowed(url: &str) -> bool {
+    if is_private_url(url) {
+        return true;
+    }
+    match domain_of(url) {
+        Some(domain) => RATE_LIMITER
+            .get_or_init(|| DomainRateLimiter::new(RATE_LIMIT_WINDOW))
+            .try_acquire(&domain, std::time::Instant::now()),
+        None => true,
+    }
+}
+
 fn normalized_content_type(raw: &str) -> String {
     raw.split(';').next().unwrap_or("").trim().to_lowercase()
 }
@@ -454,15 +468,10 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
         tracing::info!(url = %url, "fetch_page_meta_inner: blocked by robots.txt, returning empty");
         return Ok(empty_page_meta(url));
     }
-    // 按域名限速（5s/次）；私网已在上层豁免。
-    if let Some(domain) = domain_of(url) {
-        if !RATE_LIMITER
-            .get_or_init(|| DomainRateLimiter::new(RATE_LIMIT_WINDOW))
-            .try_acquire(&domain, std::time::Instant::now())
-        {
-            tracing::info!(url = %url, domain = %domain, "fetch_page_meta_inner: rate limited, returning empty");
-            return Ok(empty_page_meta(url));
-        }
+    // 按域名限速（5s/次）；私网 URL 豁免限速，不消费任何令牌。
+    if !rate_limit_allowed(url) {
+        tracing::info!(url = %url, "fetch_page_meta_inner: rate limited, returning empty");
+        return Ok(empty_page_meta(url));
     }
 
     let response = client
@@ -617,5 +626,15 @@ mod robots_gate_tests {
         let rules = parse_robots_txt("User-agent: AIDigitalLife\nDisallow: /private");
         assert!(!gate("https://example.com/private/a", Some(&rules)));
         assert!(gate("https://example.com/public", Some(&rules)));
+    }
+
+    #[test]
+    fn private_url_never_consumes_rate_token() {
+        // 私网 URL 豁免限速：连续两次请求均放行（限速器不为其扣减令牌），
+        // 否则 `domain_of("http://localhost:3000")` 返回 `Some("localhost")`
+        // 会在 5s 窗口内命中限速，与"私网豁免"规格相悖。
+        assert!(rate_limit_allowed("http://localhost:3000"));
+        assert!(rate_limit_allowed("http://localhost:3000"));
+        assert!(rate_limit_allowed("http://127.0.0.1/x"));
     }
 }

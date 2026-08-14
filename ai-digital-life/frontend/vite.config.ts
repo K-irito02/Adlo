@@ -148,7 +148,7 @@ export default defineConfig({
               if (
                 favicon &&
                 (favicon.startsWith('http://') || favicon.startsWith('https://')) &&
-                (await pageMetaGateAllows(favicon))
+                (await pageMetaGateAllows(favicon, undefined, undefined, { rateLimit: false }))
               ) {
                 try {
                   const iconController = new AbortController();

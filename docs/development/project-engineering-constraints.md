@@ -116,7 +116,7 @@
 
 ### 菜单与 Tooltip 约束
 
-- 禁止原生 HTML `title` 属性 — 必须使用 `TooltipSimple` 组件包裹
+- Tooltip 实现方式：自定义 Tooltip 组件与原生 HTML `title` 属性均可使用，具体方案开发时由用户决策（需保持双端一致）
 - 菜单卡片必须使用 `min-width: 176px; width: max-content; max-width: 90vw` 自适应宽度，防止英文长文本溢出
 - 菜单项中提示图标（如 `!`）必须使用 flex 流式布局（`margin-left: auto`），禁用 `position: absolute` 避免文本重叠
 - 菜单项标签必须设置 `flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis` 确保溢出截断
@@ -157,7 +157,7 @@
 - 不允许把“深色主题”当作默认视觉假设；浅色主题必须一等支持
 - 主题切换不得造成闪烁、布局跳变或明显的首次渲染错误主题
 - 主题选择必须持久化，并允许用户显式覆盖系统主题
-- 常规产品 UI Tooltip 必须使用受控组件层实现；仅对 Monaco gutter 折叠控件这类第三方内部 DOM 无法稳定承载自定义 Tooltip 的场景，允许在受限互操作层同步本地化原生 `title` 作为回退
+- 常规产品 UI Tooltip 可使用自定义 Tooltip 组件或原生 `title` 属性实现，具体方案开发时由用户决策；第三方内部 DOM（如代码编辑器折叠控件）无法稳定承载自定义 Tooltip 时，允许使用原生 `title` 并同步本地化文案
 
 推荐约束：
 

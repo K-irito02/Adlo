@@ -4,6 +4,7 @@
  * 供 `vite.config.ts` `/__adl_preview_api__/browser/page-meta` 中间件使用。
  */
 import { parseRobotsTxt, isAllowed, type RobotsRules } from './crawlerRobots';
+import { USER_AGENT } from '../src/shared/userAgent';
 
 declare global {
   var __adlRobotsCache: RobotsCache | undefined;
@@ -95,7 +96,7 @@ export async function robotsAllowFetch(
     try {
       fetched = await fetchImpl(`${parsed.protocol}//${domain}/robots.txt`, {
         signal: controller.signal,
-        headers: { 'User-Agent': 'AIDigitalLife/1.0 (+https://github.com/K-irito02/Kora; MetaFetcher)' },
+        headers: { 'User-Agent': USER_AGENT },
       });
     } catch {
       fetched = null;

@@ -8,5 +8,4 @@
  * This is a compliant crawler identity (robots.txt product token: `AIDigitalLife`),
  * not a browser UA spoof.
  */
-export const USER_AGENT =
-  'AIDigitalLife/1.0 (+https://github.com/K-irito02/Kora; MetaFetcher)';
+export const USER_AGENT = 'AIDigitalLife/1.0 (+https://github.com/K-irito02/Kora; MetaFetcher)';

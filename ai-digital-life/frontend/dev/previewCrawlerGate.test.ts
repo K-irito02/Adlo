@@ -41,6 +41,18 @@ describe('previewCrawlerGate', () => {
     expect(await pageMetaGateAllows('https://rl-b.test/', fail, 1000)).toBe(true);
   });
 
+  it('same-origin favicon after HTML gate is not rate limited (rateLimit:false)', async () => {
+    const fail = vi.fn(async () => ({ ok: false, status: 500 } as Response));
+    const url = 'https://rl-fav.test/page';
+    const favicon = 'https://rl-fav.test/favicon.ico';
+    // HTML 门控：为域名扣减令牌
+    expect(await pageMetaGateAllows(url, fail, 1000)).toBe(true);
+    // 默认限速路径：同窗口内第二次请求被拒（证明存在限速）
+    expect(await pageMetaGateAllows(favicon, fail, 2000)).toBe(false);
+    // favicon 门控走 robots-only 路径（rateLimit:false）：同窗口内不被限速
+    expect(await pageMetaGateAllows(favicon, fail, 2000, { rateLimit: false })).toBe(true);
+  });
+
   it('private url is never rate limited', async () => {
     const fetchImpl = vi.fn();
     expect(await pageMetaGateAllows('http://localhost:3000', fetchImpl, 1000)).toBe(true);

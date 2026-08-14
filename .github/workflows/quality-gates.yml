@@ -75,6 +75,9 @@ jobs:
       - name: TypeScript
         run: pnpm typecheck
 
+      - name: TypeScript (dev server tooling)
+        run: pnpm typecheck:dev
+
       - name: Prettier format check
         run: pnpm format:check
 
