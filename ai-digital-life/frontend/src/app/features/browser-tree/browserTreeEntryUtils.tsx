@@ -154,6 +154,15 @@ export function getEntryMoreMenuItems(
     action: () => void;
   }[] = [];
   items.push({
+    id: 'create-bookmark',
+    label: t.browserContextCreateBookmark,
+    action: () => {
+      const wsId = nodePath.startsWith('workspace:') ? nodePath.slice('workspace:'.length) : '';
+      const folderId = nodePath.startsWith('folder:') ? nodePath.slice('folder:'.length) : '';
+      callbacks.onCreateTab(wsId || undefined, folderId || undefined);
+    },
+  });
+  items.push({
     id: 'open-all-tabs',
     label: t.browserContextOpenAllNewTabs,
     action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),

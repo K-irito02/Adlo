@@ -100,6 +100,11 @@ export function getChildNodeMoreMenuItems(
     const folderId = nodePath.startsWith('folder:') ? nodePath.slice('folder:'.length) : '';
     return [
       {
+        id: 'create-bookmark',
+        label: t.browserContextCreateBookmark,
+        action: () => callbacks.onCreateTab(undefined, folderId || undefined),
+      },
+      {
         id: 'open-all-tabs',
         label: t.browserContextOpenAllNewTabs,
         action: () => callbacks.onOpenAllInNewTabs(categoryType, nodePath),

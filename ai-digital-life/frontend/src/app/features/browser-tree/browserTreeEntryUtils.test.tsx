@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { buildFlatTabItems } from './browserTreeEntryUtils';
+import { describe, it, expect, vi } from 'vitest';
+import { buildFlatTabItems, getEntryMoreMenuItems } from './browserTreeEntryUtils';
+import type { CopyDict } from '@i18n';
 import type { BrowserTreeNode } from './types';
 
 function makeTabNode(tabId: string, name: string): BrowserTreeNode {
@@ -86,5 +87,59 @@ describe('buildFlatTabItems with filterTabIds', () => {
     const filterTabIds = new Set(['t1']);
     const result = buildFlatTabItems(root, true, filterTabIds);
     expect(result.filter((r) => r.type === 'tab')).toHaveLength(1);
+  });
+});
+
+function makeCallbacks() {
+  return {
+    onCreateTab: vi.fn(),
+    onOpenAllInNewTabs: vi.fn(),
+    onRemoveFromArea: vi.fn(),
+    onDeleteAllChildTabs: vi.fn(),
+    onDeleteOwnChildTabs: vi.fn(),
+    onDeleteDirectory: vi.fn(),
+    onRenameDirectory: vi.fn(),
+    onDeleteHistory: vi.fn(),
+    onOpenTab: vi.fn(),
+    onRefreshTab: vi.fn(),
+    onEditTab: vi.fn(),
+    onDeleteTab: vi.fn(),
+    onCopyTabLink: vi.fn(),
+    onOpenTabInNewTab: vi.fn(),
+    onOpenTabInCurrentTab: vi.fn(),
+  };
+}
+
+const t = {
+  browserContextCreateBookmark: '新建书签',
+  browserContextOpenAllNewTabs: '全部打开',
+  browserContextRemoveFromView: '移除',
+  browserContextRename: '重命名',
+  browserContextDeleteAllTabs: '删除全部',
+  browserContextDeleteSelfTabs: '删除自身',
+  browserContextDeleteDir: '删除目录',
+  browserDeleteAllTabsHint: 'h',
+  browserDeleteSelfTabsHint: 'h',
+  browserDeleteDirHint: 'h',
+} as unknown as CopyDict;
+
+describe('getEntryMoreMenuItems', () => {
+  it('adds create-bookmark item for workspace node', () => {
+    const callbacks = makeCallbacks();
+    const items = getEntryMoreMenuItems('workspace', 'workspace', 'workspace:ws1', callbacks, t);
+    const item = items.find((i) => i.id === 'create-bookmark')!;
+    expect(item).toBeDefined();
+    expect(item.label).toBe('新建书签');
+    item.action();
+    expect(callbacks.onCreateTab).toHaveBeenCalledWith('ws1', undefined);
+  });
+
+  it('adds create-bookmark item for folder node', () => {
+    const callbacks = makeCallbacks();
+    const items = getEntryMoreMenuItems('folder', 'userFolder', 'folder:f1', callbacks, t);
+    const item = items.find((i) => i.id === 'create-bookmark')!;
+    expect(item).toBeDefined();
+    item.action();
+    expect(callbacks.onCreateTab).toHaveBeenCalledWith(undefined, 'f1');
   });
 });
