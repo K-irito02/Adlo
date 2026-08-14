@@ -7,15 +7,15 @@
 
 对浏览器导航栏（open/tabs 模式）中的两个工具按钮做两处调整：
 
-1. **文案**：open 模式"清空所有已打开标签"按钮的 tooltip 文字改为"清空已打开标签页"。
-2. **原生 title 化**：该"清空"按钮与"始终新建标签页"（open 模式 "+"）按钮的自定义 Tooltip（TooltipSimple）改为系统原生 `title` 提示。
+1. **文案**：open 模式"清空所有已打开标签"按钮的 tooltip 文字改为"关闭所有已打开标签页"。
+2. **原生 title 化**：该"关闭"按钮与"始终新建标签页"（open 模式 "+"）按钮的自定义 Tooltip（TooltipSimple）改为系统原生 `title` 提示。
 
 ## 决策（已与用户确认）
 
 | 决策点 | 结论 |
 |--------|------|
-| 中文文案 | **清空已打开标签页**（与 open 模式名 `browserOpenTabs`"已打开标签页"对齐） |
-| 英文文案 | 保持 `Clear all open tabs` 不变（更精确表达"关闭全部"） |
+| 中文文案 | **关闭所有已打开标签页**（强调"关闭"动作——内部 `handleCloseAllTabs` 实际执行关闭全部标签；保留"所有"强调全部范围） |
+| 英文文案 | **Close all open tabs**（与中文"关闭"动作对齐） |
 | 测试方式 | 抽取叶子组件 + 组件测试（遵循 Task 7 抽取 `BrowserNavModeSwitch` 的先例） |
 
 ## 命名检查结论
@@ -29,10 +29,10 @@
 ### 1. i18n 文案
 
 `frontend/src/app/i18n/zh-CN/browser.ts:133`
-- `browserClearAllOpenTabs: '清空所有已打开标签'` → `'清空已打开标签页'`
+- `browserClearAllOpenTabs: '清空所有已打开标签'` → `'关闭所有已打开标签页'`
 
 `frontend/src/app/i18n/en-US/browser.ts:141`
-- `browserClearAllOpenTabs: 'Clear all open tabs'` → 保持不变
+- `browserClearAllOpenTabs: 'Clear all open tabs'` → `'Close all open tabs'`
 
 ### 2. 抽取叶子组件
 
@@ -59,7 +59,7 @@
 
 新增 `BrowserNavUtilityButtons.test.tsx`（仿 `BrowserNavModeSwitch.test.tsx`）：
 
-- 断言"清空已打开标签页"按钮渲染原生 `title` 属性且值正确、`aria-label` 保留。
+- 断言"关闭所有已打开标签页"按钮渲染原生 `title` 属性且值正确、`aria-label` 保留。
 - 断言"始终新建标签页"按钮渲染原生 `title` 且值正确、`aria-label` 保留。
 - 断言按钮触发对应回调。
 
