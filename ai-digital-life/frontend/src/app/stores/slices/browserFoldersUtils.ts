@@ -115,5 +115,5 @@ export function buildFolderPathLabel(
     currentId = folder.parentId ?? '';
     steps += 1;
   }
-  return parts.filter(Boolean).join(' → ');
+  return parts.filter(Boolean).join('/');
 }

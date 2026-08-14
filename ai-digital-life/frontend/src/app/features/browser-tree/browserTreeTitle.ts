@@ -28,7 +28,7 @@ export function buildBrowserNodeTitleMap(
       if (node.nodeType === 'history') {
         map.set(node.path, node.name);
       } else if (parentPath) {
-        map.set(node.path, `${parentPath} / ${node.name}`);
+        map.set(node.path, `${parentPath}/${node.name}`);
       } else {
         map.set(node.path, node.name);
       }

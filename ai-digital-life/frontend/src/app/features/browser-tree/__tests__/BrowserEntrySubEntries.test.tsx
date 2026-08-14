@@ -88,24 +88,24 @@ describe('buildBrowserNodeTitleMap', () => {
     expect(map.get('folder:root')).toBe('工具');
   });
 
-  it('嵌套目录返回 "根 → 子"', () => {
+  it('嵌套目录返回 "根/子"', () => {
     const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
-    expect(map.get('folder:sub')).toBe('工具 → 子文件夹');
+    expect(map.get('folder:sub')).toBe('工具/子文件夹');
   });
 
   it('嵌套目录下的叶子使用完整父路径', () => {
     const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
-    expect(map.get('bookmark:sub:baidu')).toBe('工具 → 子文件夹 / 百度');
+    expect(map.get('bookmark:sub:baidu')).toBe('工具/子文件夹/百度');
   });
 
   it('工作区顶级目录下的叶子使用父目录路径', () => {
     const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
-    expect(map.get('bookmark:root:baidu')).toBe('工具 / 百度');
+    expect(map.get('bookmark:root:baidu')).toBe('工具/百度');
   });
 
   it('挂在工作区根目录下的叶子使用工作区前缀路径', () => {
     const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
-    expect(map.get('bookmark:wsRoot:baidu')).toBe('工作区A → 工作区根目录 / 百度');
+    expect(map.get('bookmark:wsRoot:baidu')).toBe('工作区A/工作区根目录/百度');
   });
 
   it('工作区根下的叶子回退为名称', () => {

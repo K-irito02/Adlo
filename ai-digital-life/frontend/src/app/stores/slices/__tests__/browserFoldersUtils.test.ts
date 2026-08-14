@@ -34,15 +34,15 @@ describe('buildFolderPathLabel', () => {
     expect(buildFolderPathLabel('root', folders, workspaces)).toBe('工具');
   });
 
-  it('嵌套文件夹返回 "根 → 子"', () => {
-    expect(buildFolderPathLabel('sub', folders, workspaces)).toBe('工具 → 子文件夹');
-    expect(buildFolderPathLabel('deep', folders, workspaces)).toBe('工具 → 子文件夹 → 三层');
+  it('嵌套文件夹返回 "根/子"', () => {
+    expect(buildFolderPathLabel('sub', folders, workspaces)).toBe('工具/子文件夹');
+    expect(buildFolderPathLabel('deep', folders, workspaces)).toBe('工具/子文件夹/三层');
   });
 
   it('挂在工作区下的文件夹最前面加工作区名', () => {
-    expect(buildFolderPathLabel('wsRoot', folders, workspaces)).toBe('工作区A → 工作区根目录');
+    expect(buildFolderPathLabel('wsRoot', folders, workspaces)).toBe('工作区A/工作区根目录');
     expect(buildFolderPathLabel('wsSub', folders, workspaces)).toBe(
-      '工作区A → 工作区根目录 → 工作区子目录',
+      '工作区A/工作区根目录/工作区子目录',
     );
   });
 
