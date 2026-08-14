@@ -32,10 +32,13 @@ export function checkBookmarkCollision(
   opts: { workspaceId?: string; folderId?: string },
   state: BrowserBookmarkHelpersState,
   workspaces: RecentWorkspaceEntry[] = [],
+  excludeTabId?: string,
 ): BookmarkCollisionCheck {
   if (opts.folderId) {
     const folder = state.browserTabFolders.find((f) => f.id === opts.folderId);
-    const collides = folder?.tabs?.some((item) => item.url === url && item.title === title);
+    const collides = folder?.tabs?.some(
+      (item) => item.tabId !== excludeTabId && item.url === url && item.title === title,
+    );
     if (collides) {
       return {
         ok: false,
@@ -45,7 +48,11 @@ export function checkBookmarkCollision(
   }
   if (opts.workspaceId) {
     const entries = state.browserWorkspaceBookmarks[opts.workspaceId] || [];
-    if (entries.some((entry) => entry.url === url && entry.title === title)) {
+    if (
+      entries.some(
+        (entry) => entry.tabId !== excludeTabId && entry.url === url && entry.title === title,
+      )
+    ) {
       return {
         ok: false,
         pathLabel: buildWorkspacePathLabel(opts.workspaceId, workspaces),
@@ -329,7 +336,7 @@ export interface BrowserBookmarkSlice {
     folderId?: string,
     newFolderName?: string,
     workspaceId?: string,
-  ) => void;
+  ) => Promise<BookmarkCollisionCheck>;
   browserUpdateBookmarkTitle: (url: string, title: string) => void;
   browserUpdateSavedBookmark: (
     tabId: string,
@@ -465,6 +472,25 @@ export const createBrowserBookmarkSlice = (
       newFolderName != null
         ? newFolderName.trim() || (await formatNewFolderNameByLocale(locale, folders.length + 1))
         : undefined;
+
+    const currentState = _get();
+    const tab = currentState.browserTabs.find((t) => t.id === tabId);
+    if (tab?.url) {
+      const url = tab.url;
+      const title = tab.title || hostnameFromUrl(url) || url;
+      const collision = checkBookmarkCollision(
+        url,
+        title,
+        { folderId, workspaceId },
+        currentState,
+        currentState.recentWorkspaces,
+        tabId,
+      );
+      if (!collision.ok) {
+        return collision;
+      }
+    }
+
     set((state) => {
       const outcome = computeBookmarkTabOutcome(state, {
         tabId,
@@ -492,6 +518,7 @@ export const createBrowserBookmarkSlice = (
       }
       return outcome.partial;
     });
+    return { ok: true };
   },
 
   browserUpdateBookmarkTitle: (url: string, title: string) => {

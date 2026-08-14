@@ -637,3 +637,76 @@ describe('browserBookmarkTab title-update collision (path url+title)', () => {
     expect(entries[0]).toMatchObject({ tabId: 'a', url: 'https://e.com', title: 'Title A' });
   });
 });
+
+describe('browserBookmarkTab returns ok+pathLabel', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('browserBookmarkTab returns {ok:false, pathLabel} on folder dedup under a different tabId', async () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [
+      {
+        id: 'f1',
+        name: '工具',
+        createdAt: 0,
+        tabs: [{ tabId: 'a', url: 'https://e.com', title: 'Title A' }],
+      },
+    ];
+    (get() as any).recentWorkspaces = [];
+    (get() as any).browserTabs = [
+      { id: 't1', workspaceId: 'w', title: 'Title A', url: 'https://e.com' },
+    ];
+    const result = await slice.browserBookmarkTab('t1', 'f1');
+    expect(result).toEqual({ ok: false, pathLabel: '工具' });
+    expect((get() as any).browserTabFolders[0].tabs).toHaveLength(1);
+  });
+
+  it('browserBookmarkTab returns {ok:true} and performs the save on normal bookmark', async () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [{ id: 'f1', name: '工具', createdAt: 0, tabs: [] }];
+    (get() as any).recentWorkspaces = [];
+    (get() as any).browserTabs = [
+      { id: 't1', workspaceId: 'w', title: 'Title A', url: 'https://e.com' },
+    ];
+    const result = await slice.browserBookmarkTab('t1', 'f1');
+    expect(result).toEqual({ ok: true });
+    expect((get() as any).browserTabFolders[0].tabs).toHaveLength(1);
+  });
+
+  it('browserBookmarkTab does NOT block re-saving the same tabId (update path)', async () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [
+      {
+        id: 'f1',
+        name: '工具',
+        createdAt: 0,
+        tabs: [{ tabId: 't1', url: 'https://e.com', title: 'Title A' }],
+      },
+    ];
+    (get() as any).recentWorkspaces = [];
+    (get() as any).browserTabs = [
+      { id: 't1', workspaceId: 'w', title: 'Title A', url: 'https://e.com' },
+    ];
+    const result = await slice.browserBookmarkTab('t1', 'f1');
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('browserBookmarkTab returns {ok:false, pathLabel} on workspace dedup under a different tabId', async () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [];
+    (get() as any).browserWorkspaceBookmarks = {
+      ws1: [{ tabId: 'a', url: 'https://e.com', title: 'Title A' }],
+    };
+    (get() as any).recentWorkspaces = [{ id: 'ws1', name: '工作区', path: '/ws1' }];
+    (get() as any).browserTabs = [
+      { id: 't1', workspaceId: 'ws1', title: 'Title A', url: 'https://e.com' },
+    ];
+    const result = await slice.browserBookmarkTab('t1', undefined, undefined, 'ws1');
+    expect(result).toEqual({ ok: false, pathLabel: '工作区' });
+  });
+});
