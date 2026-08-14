@@ -35,8 +35,11 @@ pub(crate) static LAST_HISTORY_URL: LazyLock<Mutex<HashMap<String, (String, Inst
 
 /// HistoryChanged dedup window: only a repeated URL within this window is
 /// treated as a duplicate (WebView2 can fire HistoryChanged more than once for
-/// a single pushState navigation). Longer-lived revisits pass through.
-const HISTORY_DEDUP_MS: u64 = 2000;
+/// a single pushState navigation). Longer-lived revisits pass through. Kept
+/// short (500ms) so a legitimate quick back/forward to a recently-visited URL
+/// is not swallowed: WebView2's duplicate events for one navigation arrive in
+/// milliseconds, far inside this window.
+const HISTORY_DEDUP_MS: u64 = 500;
 
 /// Returns `true` if the `url-changed` event for this tab/URL should be
 /// emitted, `false` if it is a rapid duplicate within `HISTORY_DEDUP_MS`.
@@ -116,13 +119,13 @@ mod tests {
         assert!(!should_emit_history_changed_at(
             "tab-dedup-1",
             "https://a.com",
-            t0 + Duration::from_millis(100),
+            t0 + Duration::from_millis(300),
         ));
         // after the window expires, the same URL is a legitimate revisit (back/forward)
         assert!(should_emit_history_changed_at(
             "tab-dedup-1",
             "https://a.com",
-            t0 + Duration::from_millis(2100),
+            t0 + Duration::from_millis(600),
         ));
     }
 
@@ -139,7 +142,7 @@ mod tests {
         assert!(should_emit_history_changed_at(
             "tab-back-1",
             "https://a.com",
-            t0 + Duration::from_millis(2100),
+            t0 + Duration::from_millis(600),
         ));
     }
 

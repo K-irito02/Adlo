@@ -146,15 +146,22 @@ export function useFileTreeVirtualization<T extends FileTreeRenderableNode>(
         );
         // A previous animation on the same node is replaced (new flip frame)
         // which cancels it — the `finished` promise rejects on cancel. That is
-        // expected, so swallow it instead of logging a warning per frame.
+        // expected, so swallow it instead of logging a warning per frame. Only
+        // clear the map entry if it still points at THIS animation: a cancelled
+        // earlier animation resolves after a newer one was stored, and must not
+        // delete the newer animation's bookkeeping reference.
         flipAnimationsRef.current.get(path)?.cancel();
         flipAnimationsRef.current.set(path, anim);
         anim.finished
           .then(() => {
-            flipAnimationsRef.current.delete(path);
+            if (flipAnimationsRef.current.get(path) === anim) {
+              flipAnimationsRef.current.delete(path);
+            }
           })
           .catch(() => {
-            flipAnimationsRef.current.delete(path);
+            if (flipAnimationsRef.current.get(path) === anim) {
+              flipAnimationsRef.current.delete(path);
+            }
           });
       }
     });

@@ -26,12 +26,15 @@ pub trait WebViewHandle: Send + Sync {
     ///
     /// Implemented via the platform's native history API (ICoreWebView2::GoBack)
     /// instead of `history.back()` so the URL change arrives through the same
-    /// HistoryChanged path as forward navigation. Returns `Ok(true)` when a
-    /// navigation was issued.
+    /// HistoryChanged path as forward navigation. Returns `Ok(true)` when the
+    /// native call was reachable (GoBack is a no-op when no previous entry
+    /// exists, so `true` does not imply a navigation actually happened).
     fn go_back(&self) -> Result<bool, AppError>;
     /// Navigate forward in the WebView's native history stack.
     ///
     /// Implemented via the platform's native history API (ICoreWebView2::GoForward).
+    /// Returns `Ok(true)` when the native call was reachable (no-op at the top
+    /// of the stack, so `true` does not imply a navigation actually happened).
     fn go_forward(&self) -> Result<bool, AppError>;
     /// Whether the WebView has a previous history entry to go back to.
     fn can_go_back(&self) -> Result<bool, AppError>;

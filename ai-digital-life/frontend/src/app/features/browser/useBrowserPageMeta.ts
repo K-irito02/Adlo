@@ -290,10 +290,28 @@ export function useBrowserPageMeta(
         }
         processedMetaRef.current.set(cleanUrl, { timestamp: Date.now(), source });
 
+        // The tab's URL advances to the meta-reported URL regardless of title
+        // gating (this branch fires when the meta event arrived before
+        // onUrlChanged). The title, however, is gated exactly like the
+        // exactMatch branch: a stale `com` title (e.g. Douyin's first-video
+        // `document.title`) must not clobber a real title already accepted for
+        // this tab, and provenance is recorded so a later com event can still
+        // perform a legitimate real-time update without being blocked. Note: an
+        // unchanged title re-applied here also records provenance (a same-title
+        // com event may downgrade an http source to com) — the later http event
+        // restores the authoritative source, and stale-title risk is negligible.
+        const currentSource = titleSourceRef.current.get(activeTab.id);
+        const titleChanged = activeTab.title !== pageTitle;
+        const shouldApplyTitle =
+          !titleChanged ||
+          shouldApplyExactMatchTitle(activeTab.title, cleanUrl, pageTitle, source, currentSource);
         state.browserUpdateTab(activeTab.id, {
           url: cleanUrl,
-          title: pageTitle,
+          title: shouldApplyTitle ? pageTitle : activeTab.title,
         });
+        if (shouldApplyTitle) {
+          titleSourceRef.current.set(activeTab.id, source);
+        }
         state.browserAddToHistory(cleanUrl, pageTitle);
         state.browserUpdateHistoryTitle(cleanUrl, pageTitle);
         return;

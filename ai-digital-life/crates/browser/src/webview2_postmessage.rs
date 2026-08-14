@@ -161,7 +161,8 @@ pub fn open_new_tab_url_from_message(json: &str) -> Option<String> {
         return None;
     }
     let url = value.get("url").and_then(|v| v.as_str())?;
-    if url.starts_with("http://") || url.starts_with("https://") {
+    let lower = url.to_ascii_lowercase();
+    if lower.starts_with("http://") || lower.starts_with("https://") {
         Some(url.to_string())
     } else {
         None
@@ -185,6 +186,12 @@ mod tests {
     fn open_new_tab_http_scheme_returns_some() {
         let json = r#"{"type":"open-new-tab","url":"http://example.com/a"}"#;
         assert_eq!(open_new_tab_url_from_message(json), Some("http://example.com/a".to_string()));
+    }
+
+    #[test]
+    fn open_new_tab_scheme_is_case_insensitive() {
+        let json = r#"{"type":"open-new-tab","url":"HTTPS://example.com/a"}"#;
+        assert_eq!(open_new_tab_url_from_message(json), Some("HTTPS://example.com/a".to_string()));
     }
 
     #[test]

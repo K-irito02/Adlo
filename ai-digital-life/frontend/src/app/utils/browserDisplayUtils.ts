@@ -77,7 +77,10 @@ export function normalizedQueryForDedup(search: string): string {
   if (kept.length === 0) {
     return '';
   }
-  kept.sort((a, b) => a[0].localeCompare(b[0]));
+  // Code-unit comparison (matches the C1 injected-script sorter in
+  // init_script.js) so both sides produce identical normalized keys
+  // regardless of locale.
+  kept.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   const sp = new URLSearchParams();
   for (const [k, v] of kept) {
     sp.append(k, v);

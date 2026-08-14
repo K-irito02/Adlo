@@ -81,7 +81,15 @@ impl WebView2EventBridge for TauriWebView2EventBridge {
                             (host === 'douyin.com' || host.endsWith('.douyin.com')) &&
                             path.indexOf('/video/') === 0;
                         if (isVideoPage) {
-                            var h1El = document.querySelector('h1.ytd-watch-metadata, h1.title, h1');
+                            // Prefer the SPA-updated video-title heading; unlike
+                            // the init_script.js A3 extractor (YouTube-only), this
+                            // fallback also covers bilibili/douyin, so the bare
+                            // `h1` is scoped to a class containing "title" to
+                            // avoid misreading a nav/brand heading as the current
+                            // video's title.
+                            var h1El = document.querySelector(
+                                'h1.ytd-watch-metadata, h1.title, h1[class*="title"]'
+                            );
                             if (h1El) { h1 = (h1El.textContent || h1El.innerText || '').trim(); }
                         }
                         var og = pickContent('meta[property="og:title"]');

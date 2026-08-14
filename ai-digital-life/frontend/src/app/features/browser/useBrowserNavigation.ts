@@ -99,8 +99,10 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
     let settleTimer: ReturnType<typeof setTimeout> | null = null;
     let guardTimer: ReturnType<typeof setTimeout> | null = null;
     let lastLandedUrl = '';
+    let cancelled = false;
 
     const stop = () => {
+      cancelled = true;
       smartBackRunningRef.current.delete(tabId);
       if (settleTimer) {
         clearTimeout(settleTimer);
@@ -115,7 +117,7 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
 
     const settleAndMaybeContinue = () => {
       settleTimer = null;
-      if (!shouldContinueSmartBack(fromUrl, lastLandedUrl, steps)) {
+      if (cancelled || !shouldContinueSmartBack(fromUrl, lastLandedUrl, steps)) {
         stop();
         return;
       }
@@ -126,6 +128,9 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
       void window.digitalLife?.browser
         ?.canGoBackTab(tabId)
         .then((can) => {
+          if (cancelled) {
+            return;
+          }
           if (!can) {
             // Reached the bottom of the native stack — reflect it immediately so
             // the back button turns transparent without waiting for a later
@@ -139,12 +144,17 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
           void window.digitalLife?.browser
             ?.goBackTab(tabId)
             .then((issued) => {
+              if (cancelled) {
+                return;
+              }
               if (!issued) {
                 stop();
               }
             })
             .catch((err) => {
-              console.warn('browser navigate back failed', err);
+              if (!cancelled) {
+                console.warn('browser navigate back failed', err);
+              }
               stop();
             });
         })
@@ -171,12 +181,17 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
     void window.digitalLife?.browser
       ?.goBackTab(tabId)
       .then((issued) => {
+        if (cancelled) {
+          return;
+        }
         if (!issued) {
           stop();
         }
       })
       .catch((err) => {
-        console.warn('browser navigate back failed', err);
+        if (!cancelled) {
+          console.warn('browser navigate back failed', err);
+        }
         stop();
       });
 

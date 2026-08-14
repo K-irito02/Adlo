@@ -569,4 +569,27 @@ describe('useBrowserPageMeta provenance state machine (single hook instance)', (
     const tabs = useAppStore.getState().browserTabs;
     expect(tabs.every((t) => t.title === '第二个视频标题')).toBe(true);
   });
+
+  it('gates the title in the activeTab branch when a stale com event targets a new URL', async () => {
+    const newUrl = 'https://douyin.com/video/2';
+    const oldUrl = 'https://douyin.com/video/1';
+    // The tab is on the OLD URL. First an http prefetch establishes the
+    // authoritative title via the exactMatch branch (URL matches the tab), so
+    // the tab's provenance becomes http. Then a stale com event for the NEW URL
+    // arrives before onUrlChanged — the tab still shows the old URL, so it is
+    // handled by the activeTab branch (not exactMatch). The com title must be
+    // gated: the tab advances to the new URL but keeps the http-fetched title.
+    useAppStore.setState({
+      browserTabs: [makeTab('tab-old', oldUrl, '')],
+      browserActiveTabId: 'tab-old',
+    });
+    const { handle } = mount();
+
+    await handle({ title: '视频2标题', url: oldUrl }, 'http');
+    await handle({ title: '视频1标题', url: newUrl }, 'com');
+
+    const tab = useAppStore.getState().browserTabs[0];
+    expect(tab.url).toBe(newUrl);
+    expect(tab.title).toBe('视频2标题');
+  });
 });
