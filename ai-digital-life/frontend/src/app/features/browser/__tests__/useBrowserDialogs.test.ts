@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { PageMeta } from '@shared/ipc/browser';
 import { prefetchPageMeta } from '@utils/fetchPageMeta';
 import * as siteMetaCache from '@utils/siteMetaCache';
+import { useAppStore } from '@stores/slicedStore';
 import { useBrowserDialogs } from '../useBrowserDialogs';
 
 vi.mock('@utils/fetchPageMeta', () => ({
@@ -137,5 +138,88 @@ describe('useBrowserDialogs create-tab write gate', () => {
     const entry = siteMetaCache.getCachedSiteMeta('https://dlg-title.example')!;
     expect(entry.title).toBe('Old Title');
     expect(entry.faviconDataUri).toBe('data:image/png;base64,NEW');
+  });
+});
+
+describe('useBrowserDialogs create-tab save-mode branching', () => {
+  const originalActions = {
+    browserCreateBookmarkEntry: useAppStore.getState().browserCreateBookmarkEntry,
+    browserNavigateActiveTab: useAppStore.getState().browserNavigateActiveTab,
+  };
+
+  beforeEach(async () => {
+    vi.mocked(prefetchPageMeta).mockReset();
+    siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
+    await siteMetaCache.initSiteMetaCache();
+    useAppStore.setState({
+      browserNavigateInPlace: false,
+      browserCreateBookmarkEntry: originalActions.browserCreateBookmarkEntry,
+      browserNavigateActiveTab: originalActions.browserNavigateActiveTab,
+    });
+  });
+
+  afterEach(() => {
+    useAppStore.setState({
+      browserNavigateInPlace: false,
+      browserCreateBookmarkEntry: originalActions.browserCreateBookmarkEntry,
+      browserNavigateActiveTab: originalActions.browserNavigateActiveTab,
+    });
+  });
+
+  function renderDialogs(openTab: ReturnType<typeof vi.fn>) {
+    return renderHook(() =>
+      useBrowserDialogs({
+        browserOpenTab: openTab,
+        browserUpdateTab: vi.fn(),
+        activeTab: null,
+        isBookmarked: false,
+        showToast: vi.fn(),
+        t: {},
+      }),
+    );
+  }
+
+  it('save-only mode calls browserCreateBookmarkEntry without opening a tab', async () => {
+    const createBookmarkEntry = vi.fn();
+    const navigateActiveTab = vi.fn();
+    useAppStore.setState({
+      browserCreateBookmarkEntry: createBookmarkEntry,
+      browserNavigateActiveTab: navigateActiveTab,
+    });
+    const openTab = vi.fn();
+    const { result } = renderDialogs(openTab);
+    await act(async () => {
+      await result.current.handleCreateTabConfirm('Name', 'https://example.com', 'save-only');
+    });
+    expect(createBookmarkEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://example.com', title: 'Name' }),
+    );
+    expect(openTab).not.toHaveBeenCalled();
+    expect(navigateActiveTab).not.toHaveBeenCalled();
+  });
+
+  it('save-and-open with navigateInPlace=true navigates active tab', async () => {
+    const navigateActiveTab = vi.fn();
+    useAppStore.setState({
+      browserNavigateInPlace: true,
+      browserNavigateActiveTab: navigateActiveTab,
+    });
+    const openTab = vi.fn();
+    const { result } = renderDialogs(openTab);
+    await act(async () => {
+      await result.current.handleCreateTabConfirm('Name', 'https://example.com', 'save-and-open');
+    });
+    expect(navigateActiveTab).toHaveBeenCalledWith('https://example.com', 'Name');
+    expect(openTab).not.toHaveBeenCalled();
+  });
+
+  it('save-and-open with navigateInPlace=false opens new tab', async () => {
+    useAppStore.setState({ browserNavigateInPlace: false });
+    const openTab = vi.fn();
+    const { result } = renderDialogs(openTab);
+    await act(async () => {
+      await result.current.handleCreateTabConfirm('Name', 'https://example.com', 'save-and-open');
+    });
+    expect(openTab).toHaveBeenCalled();
   });
 });

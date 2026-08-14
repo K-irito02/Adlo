@@ -68,45 +68,50 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
   }, []);
 
   const handleCreateTabConfirm = useCallback(
-    async (name: string, url: string) => {
+    async (name: string, url: string, mode: 'save-only' | 'save-and-open' = 'save-and-open') => {
       const { workspaceId } = createTabDialog;
       const folderId = pendingFolderIdRef.current;
       pendingFolderIdRef.current = '';
-      if (name.trim()) {
-        setCreateTabDialog({ open: false });
-        browserOpenTab(url, name, folderId ? undefined : workspaceId, folderId || undefined);
-        bookmarkNewTab(workspaceId, folderId);
+      let title = name.trim();
+      if (!title) {
+        setIsCreatingTab(true);
+        try {
+          const meta = await prefetchPageMeta(url);
+          if (meta?.title?.trim() || meta?.faviconDataUri) {
+            title = meta.title?.trim() || title;
+            const existing = getCachedSiteMeta(url);
+            const faviconUrl = shouldReplaceFavicon(
+              existingFaviconBaseline(existing),
+              meta.favicon ?? '',
+            )
+              ? (meta.favicon ?? '')
+              : (existing?.faviconUrl ?? '');
+            if (faviconUrl || meta.faviconDataUri) {
+              setCachedSiteMeta(
+                url,
+                buildCachedSiteMetaEntry(title, faviconUrl, meta.faviconDataUri || '', existing),
+              );
+            }
+          }
+        } catch {
+          // fallback: use hostname
+        }
+        if (!title) {
+          title = hostnameFromUrl(url) || url;
+        }
+        setIsCreatingTab(false);
+      }
+      setCreateTabDialog({ open: false });
+      const store = useAppStore.getState();
+      if (mode === 'save-only') {
+        store.browserCreateBookmarkEntry({ url, title, workspaceId, folderId });
         return;
       }
-      setIsCreatingTab(true);
-      let title = '';
-      try {
-        const meta = await prefetchPageMeta(url);
-        if (meta?.title?.trim() || meta?.faviconDataUri) {
-          title = meta.title?.trim() || title;
-          const existing = getCachedSiteMeta(url);
-          const faviconUrl = shouldReplaceFavicon(
-            existingFaviconBaseline(existing),
-            meta.favicon ?? '',
-          )
-            ? (meta.favicon ?? '')
-            : (existing?.faviconUrl ?? '');
-          if (faviconUrl || meta.faviconDataUri) {
-            setCachedSiteMeta(
-              url,
-              buildCachedSiteMetaEntry(title, faviconUrl, meta.faviconDataUri || '', existing),
-            );
-          }
-        }
-      } catch {
-        // fallback: use hostname
+      if (store.browserNavigateInPlace) {
+        store.browserNavigateActiveTab(url, title);
+      } else {
+        browserOpenTab(url, title, folderId ? undefined : workspaceId, folderId || undefined);
       }
-      if (!title) {
-        title = hostnameFromUrl(url) || url;
-      }
-      setIsCreatingTab(false);
-      setCreateTabDialog({ open: false });
-      browserOpenTab(url, title, folderId ? undefined : workspaceId, folderId || undefined);
       bookmarkNewTab(workspaceId, folderId);
     },
     [browserOpenTab, createTabDialog, bookmarkNewTab],
@@ -130,10 +135,21 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
   }, []);
 
   const handleEditTabConfirm = useCallback(
-    (name: string, url: string) => {
+    (name: string, url: string, mode: 'save-only' | 'save-and-open' = 'save-only') => {
       const { tabId } = editTabDialog;
       if (tabId) {
-        browserUpdateTab(tabId, { title: name.trim() || undefined, url: url.trim() || undefined });
+        browserUpdateTab(tabId, {
+          title: name.trim() || undefined,
+          url: url.trim() || undefined,
+        });
+      }
+      if (mode === 'save-and-open') {
+        const store = useAppStore.getState();
+        if (store.browserNavigateInPlace) {
+          store.browserNavigateActiveTab(url.trim(), name.trim());
+        } else {
+          store.browserOpenTab(url.trim(), name.trim());
+        }
       }
       setEditTabDialog({ open: false, tabId: '', name: '', url: '' });
     },
