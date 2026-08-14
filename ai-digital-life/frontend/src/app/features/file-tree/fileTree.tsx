@@ -28,6 +28,7 @@ interface VirtualNodeProps<T extends FileTreeRenderableNode> {
   renderCount?: (node: T) => React.ReactNode;
   renderIconBefore?: (node: T) => React.ReactNode;
   getNodeClassName?: (node: T) => string | undefined;
+  getNodeTitle?: (node: T) => string | undefined;
   onShowContextMenu?: (event: React.MouseEvent<HTMLDivElement>, node: T) => void;
   expandLabel: string;
   collapseLabel: string;
@@ -52,6 +53,7 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   renderCount,
   renderIconBefore,
   getNodeClassName,
+  getNodeTitle,
   onShowContextMenu,
   expandLabel,
   collapseLabel,
@@ -75,6 +77,7 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   const customCount = renderCount?.(node);
   const customIconBefore = renderIconBefore?.(node);
   const nodeClassName = getNodeClassName?.(node);
+  const nodeTitle = getNodeTitle?.(node);
   const isHoveredDescendant = hoveredDescendantPaths?.has(flatNode.node.path) ?? false;
   // Cache the style object so TreeNodeRow's React.memo sees a stable
   // reference when `top` and `trunkHeight` are unchanged. Previously a
@@ -138,6 +141,7 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
       labelContentClassName="adl-filetree__node-main"
       label={node.name}
       nodePath={node.path}
+      nodeTitle={nodeTitle}
       iconBefore={
         isDirectory ? undefined : customIconBefore ? (
           customIconBefore
@@ -184,6 +188,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
   renderCount,
   renderIconBefore,
   getNodeClassName,
+  getNodeTitle,
   getContextMenuItems,
   contextMenuPersistRef,
   clearMenuHighlightRef,
@@ -329,6 +334,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
                 renderCount={renderCount}
                 renderIconBefore={renderIconBefore}
                 getNodeClassName={getNodeClassName}
+                getNodeTitle={getNodeTitle}
                 onShowContextMenu={getContextMenuItems ? handleShowContextMenu : undefined}
                 expandLabel={expandLabel}
                 collapseLabel={collapseLabel}

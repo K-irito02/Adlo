@@ -10,6 +10,7 @@ import { BrowserFavicon } from '@components/BrowserFavicon';
 import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTreeNode } from './types';
+import { getBrowserNodeTitle } from './browserTreeTitle';
 import { resolveChildCount } from './useBrowserTreeData';
 import {
   type BrowserEntrySubEntriesProps,
@@ -32,6 +33,8 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
   filterTabIds,
 }: BrowserEntrySubEntriesProps) {
   const { t } = useTCopy();
+  const browserTabFolders = useAppStore((s) => s.browserTabFolders);
+  const recentWorkspaces = useAppStore((s) => s.recentWorkspaces);
   const isExpanded = expandedPaths[node.path] ?? false;
 
   const [childMenuState, setChildMenuState] = useState<{
@@ -118,6 +121,12 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
   const renderChildCount = useCallback(
     (childNode: BrowserTreeNode) => resolveChildCount(counts, childNode),
     [counts],
+  );
+
+  const getChildNodeTitle = useCallback(
+    (childNode: BrowserTreeNode) =>
+      getBrowserNodeTitle(childNode, node.folderId ?? '', browserTabFolders, recentWorkspaces),
+    [node.folderId, browserTabFolders, recentWorkspaces],
   );
 
   const renderChildMeta = useCallback(
@@ -329,6 +338,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
           renderCount={renderChildCount}
           renderIconBefore={renderBrowserIcon}
           getContextMenuItems={handleChildContextMenu}
+          getNodeTitle={getChildNodeTitle}
           expandLabel={t.expand}
           collapseLabel={t.collapse}
           flipAnimation={categoryType === 'history'}

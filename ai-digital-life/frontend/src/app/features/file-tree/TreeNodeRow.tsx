@@ -33,6 +33,7 @@ interface TreeNodeRowProps {
   meta?: React.ReactNode;
   children?: React.ReactNode;
   nodePath?: string;
+  nodeTitle?: string;
   style?: React.CSSProperties;
 }
 
@@ -68,6 +69,7 @@ export const TreeNodeRow = React.memo(function TreeNodeRow({
   meta,
   children,
   nodePath,
+  nodeTitle,
   style,
 }: TreeNodeRowProps) {
   return (
@@ -114,7 +116,7 @@ export const TreeNodeRow = React.memo(function TreeNodeRow({
         <button
           type="button"
           className={`adl-tree-node__label${labelClassName ? ` ${labelClassName}` : ''}`}
-          title={nodePath}
+          title={nodeTitle ?? nodePath}
           onMouseEnter={onLabelMouseEnter}
           onMouseLeave={onLabelMouseLeave}
           onFocus={onLabelFocus}

@@ -44,6 +44,7 @@ export interface FileTreeProps<T extends FileTreeRenderableNode> {
   renderCount?: (node: T) => React.ReactNode;
   renderIconBefore?: (node: T) => React.ReactNode;
   getNodeClassName?: (node: T) => string | undefined;
+  getNodeTitle?: (node: T) => string | undefined;
   getContextMenuItems?: (node: T, multiSelectedNodes: T[]) => FileTreeContextMenuItem<T>[];
   contextMenuPersistRef?: React.MutableRefObject<boolean>;
   clearMenuHighlightRef?: React.MutableRefObject<(() => void) | undefined>;
