@@ -139,8 +139,8 @@ export const browserEn = {
   browserNewTabPage: 'New tab page',
   browserSearchBookmarkHistory: 'Search bookmarks and history by keyword',
   browserClearAllOpenTabs: 'Clear all open tabs',
-  browserDeleteAllTabDirs:
-    'Delete all workspace and custom directory tabs (keep directory structure)',
+  browserDeleteAllBookmarks:
+    'Delete all workspace and custom directory bookmarks (keep directory structure)',
   browserNoSearchResults: 'No matching results',
   browserBookmark: 'Bookmark tab',
   browserUnbookmark: 'Unbookmark',

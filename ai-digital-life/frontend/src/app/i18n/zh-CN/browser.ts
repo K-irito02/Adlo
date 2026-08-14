@@ -42,7 +42,7 @@ export const browserZh = {
   browserCategoryWorkspace: '工作区目录',
   browserCategoryUserFolder: '非工作区目录',
   browserCategoryHistory: '历史目录',
-  browserOpenTabs: '已打开的标签',
+  browserOpenTabs: '已打开标签页',
   browserCreateDir: '新建目录',
   browserCreateDirHint:
     '• 当选中某个目录时，点击此按钮会在该目录下新建子目录。\n• 当未选中任何目录时，会在"非工作区目录"分类下新建顶级目录。',
@@ -131,7 +131,7 @@ export const browserZh = {
   browserNewTabPage: '新建标签页',
   browserSearchBookmarkHistory: '输入关键词搜索书签和历史记录',
   browserClearAllOpenTabs: '清空所有已打开标签',
-  browserDeleteAllTabDirs: '删除工作区与非工作区全部标签 （保留目录结构）',
+  browserDeleteAllBookmarks: '删除工作区与非工作区全部书签（保留目录结构）',
   browserNoSearchResults: '没有找到匹配的结果',
   browserBookmark: '收藏标签',
   browserUnbookmark: '取消收藏',

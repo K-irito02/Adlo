@@ -7,6 +7,7 @@ interface BrowserNavModeSwitchProps {
   onCheckedChange: (checked: boolean) => void;
   leftLabel: string;
   rightLabel: string;
+  title?: string;
   onMouseEnter?: (e: React.MouseEvent) => void;
   onMouseLeave?: (e: React.MouseEvent) => void;
   onFocus?: (e: React.FocusEvent) => void;
@@ -19,6 +20,7 @@ export function BrowserNavModeSwitch({
   onCheckedChange,
   leftLabel,
   rightLabel,
+  title,
   onMouseEnter,
   onMouseLeave,
   onFocus,
@@ -40,6 +42,7 @@ export function BrowserNavModeSwitch({
         onTapCancel={() => setIsTapped(false)}
         onTap={() => setIsTapped(false)}
         aria-label={checked ? rightLabel : leftLabel}
+        title={title}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         onFocus={onFocus}

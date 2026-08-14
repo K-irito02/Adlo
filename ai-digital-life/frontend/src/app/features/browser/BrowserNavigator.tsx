@@ -244,16 +244,15 @@ export function BrowserNavigator() {
           <span
             style={{ display: navigatorMode === 'tabs' || navigatorMode === 'list' ? '' : 'none' }}
           >
-            <TooltipSimple content={t.browserDeleteAllTabDirs} placement="top">
-              <button
-                type="button"
-                className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                onClick={() => handleClearTabDirectories()}
-                aria-label={t.browserDeleteAllTabDirs}
-              >
-                <IconTrash size={14} decorative />
-              </button>
-            </TooltipSimple>
+            <button
+              type="button"
+              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+              onClick={() => handleClearTabDirectories()}
+              aria-label={t.browserDeleteAllBookmarks}
+              title={t.browserDeleteAllBookmarks}
+            >
+              <IconTrash size={14} decorative />
+            </button>
           </span>
         </div>
       </div>
