@@ -554,7 +554,12 @@ const handleCreateTabConfirm = useCallback(
     setCreateTabDialog({ open: false });
     const store = useAppStore.getState();
     if (mode === 'save-only') {
-      store.browserCreateBookmarkEntry({ url, title, workspaceId, folderId });
+      store.browserCreateBookmarkEntry({
+        url,
+        title,
+        workspaceId: folderId ? undefined : workspaceId,
+        folderId,
+      });
       return;
     }
     if (store.browserNavigateInPlace) {
@@ -570,24 +575,35 @@ const handleCreateTabConfirm = useCallback(
 
 > 保持原 `prefetchPageMeta` + `setCachedSiteMeta` 分支结构不变（原测试对缓存行为的断言必须继续通过）。
 
-`handleEditTabConfirm` 改为：
+`handleEditTabConfirm` 改为（最终评审修订：先做收藏条目碰撞检查，`ok:false` 时不动 live tab、不关闭对话框）：
 
 ```ts
 const handleEditTabConfirm = useCallback(
   (name: string, url: string, mode: 'save-only' | 'save-and-open' = 'save-only') => {
     const { tabId } = editTabDialog;
+    const trimmedUrl = url.trim();
+    const trimmedName = name.trim();
     if (tabId) {
+      const store = useAppStore.getState();
+      const result = store.browserUpdateSavedBookmark(tabId, {
+        url: trimmedUrl,
+        title: trimmedName,
+      });
+      if (result.ok === false) {
+        showToast(t.browserEditBookmarkDuplicate, 'warning');
+        return;
+      }
       browserUpdateTab(tabId, {
-        title: name.trim() || undefined,
-        url: url.trim() || undefined,
+        title: trimmedName || undefined,
+        url: trimmedUrl || undefined,
       });
     }
     if (mode === 'save-and-open') {
       const store = useAppStore.getState();
       if (store.browserNavigateInPlace) {
-        store.browserNavigateActiveTab(url.trim(), name.trim());
+        store.browserNavigateActiveTab(trimmedUrl, trimmedName);
       } else {
-        store.browserOpenTab(url.trim(), name.trim());
+        store.browserOpenTab(trimmedUrl, trimmedName);
       }
     }
     setEditTabDialog({ open: false, tabId: '', name: '', url: '' });
@@ -990,10 +1006,11 @@ browserUpdateSavedBookmark: (tabId: string, updates: { url: string; title: strin
 > 需要"路径内其它条目"判断：对一个 folder，遍历 `folder.tabs.filter(item => item.tabId !== tabId)` 中 `item.url === url && item.title === title`。对 workspace 同理。若 tabId 同时在 folder.tabs 和 workspaceBookmarks 出现（罕见），按任一路径校验即可，以先校验到重复为准。
 > 若 tabId 既不在任何 folder.tabs 也不在 workspaceBookmarks（即非收藏条目），`browserUpdateSavedBookmark` 直接返回 `{ ok: true }`（无操作，由 browserUpdateTab 处理 live tab）。
 
-`useBrowserDialogs.ts` `handleEditTabConfirm`：
-- 现有 `browserUpdateTab(tabId, { title, url })` 保留（更新 live tab）。
-- 新增：调用 `store.browserUpdateSavedBookmark(tabId, { url: url.trim(), title: name.trim() })`；若返回 `{ ok: false }`，用 `showToast(t.browserEditBookmarkDuplicate, 'warning')` 提示，且**不关闭对话框**、不执行后续打开逻辑（拦截）。
-- `ok: true` 时继续现有逻辑（save-and-open 分支 + 关闭对话框）。
+> **最终评审修订（#2，全局表按 (url,title) 元组键清理）**：`browserUpdateSavedBookmark` 步骤 5 的"旧 url 若不再被引用则移除"改为按元组键：旧条目 `{oldUrl, oldTitle}` 若**没有任何 folder/workspace 条目以相同的 (url, title) 引用**则移除该元组（而非仅按 url 判断）。同时 `browserRemoveOrphanedBookmarks` 的清理也改为按 `(url, title)` 元组去重/移除（不再仅按 url），避免仅改标题时残留旧标题条目。两处全局表清理逻辑统一为元组键。
+
+`useBrowserDialogs.ts` `handleEditTabConfirm`（**最终评审修订 #3：先碰撞检查，拦截时不动 live tab**）：
+- **先**调用 `store.browserUpdateSavedBookmark(tabId, { url: url.trim(), title: name.trim() })`；若返回 `{ ok: false }`，用 `showToast(t.browserEditBookmarkDuplicate, 'warning')` 提示，且**不关闭对话框、不执行后续打开逻辑、也不更新 live tab**（拦截）。
+- `ok: true`（或 tabId 为空 / 非收藏条目返回 ok:true）时，才执行 `browserUpdateTab(tabId, { title, url })` 更新 live tab，再继续 save-and-open 分支与关闭对话框。
 - 注意：`handleEditTabConfirm` 需新增对 `useAppStore.getState()` 与 `showToast`、`t` 的依赖（`showToast`/`t` 已在 deps 中）。
 
 - [ ] **Step 7: i18n key**
