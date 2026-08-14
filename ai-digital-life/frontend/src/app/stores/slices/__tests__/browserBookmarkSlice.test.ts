@@ -236,6 +236,36 @@ describe('browserCreateBookmarkEntry', () => {
       { url: 'https://e.com', title: 'Title B' },
     ]);
   });
+
+  it('browserCreateBookmarkEntry returns {ok:false, pathLabel} on folder dedup collision', () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [
+      {
+        id: 'f1',
+        name: '工具',
+        createdAt: 0,
+        tabs: [{ tabId: 'a', url: 'https://e.com', title: 'Title A' }],
+      },
+    ];
+    (get() as any).recentWorkspaces = [];
+    const result = slice.browserCreateBookmarkEntry({
+      url: 'https://e.com',
+      title: 'Title A',
+      folderId: 'f1',
+    });
+    expect(result).toEqual({ ok: false, pathLabel: '工具' });
+  });
+
+  it('browserCreateBookmarkEntry returns {ok:true} when no collision', () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    const result = slice.browserCreateBookmarkEntry({
+      url: 'https://e.com',
+      title: 'Title A',
+    });
+    expect(result).toEqual({ ok: true });
+  });
 });
 
 describe('browserUpdateSavedBookmark', () => {

@@ -15,9 +15,45 @@ import type {
   BookmarkTabItem,
 } from './browserTypes';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
+import { buildFolderPathLabel, buildWorkspacePathLabel } from './browserFoldersUtils';
+import type { RecentWorkspaceEntry } from '@shared/ipc';
 
 export type BrowserBookmark = _BrowserBookmark;
 export type WorkspaceBookmarkEntry = _WorkspaceBookmarkEntry;
+
+export interface BookmarkCollisionCheck {
+  ok: boolean;
+  pathLabel?: string;
+}
+
+export function checkBookmarkCollision(
+  url: string,
+  title: string,
+  opts: { workspaceId?: string; folderId?: string },
+  state: BrowserBookmarkHelpersState,
+  workspaces: RecentWorkspaceEntry[] = [],
+): BookmarkCollisionCheck {
+  if (opts.folderId) {
+    const folder = state.browserTabFolders.find((f) => f.id === opts.folderId);
+    const collides = folder?.tabs?.some((item) => item.url === url && item.title === title);
+    if (collides) {
+      return {
+        ok: false,
+        pathLabel: buildFolderPathLabel(opts.folderId, state.browserTabFolders, workspaces),
+      };
+    }
+  }
+  if (opts.workspaceId) {
+    const entries = state.browserWorkspaceBookmarks[opts.workspaceId] || [];
+    if (entries.some((entry) => entry.url === url && entry.title === title)) {
+      return {
+        ok: false,
+        pathLabel: buildWorkspacePathLabel(opts.workspaceId, workspaces),
+      };
+    }
+  }
+  return { ok: true };
+}
 
 const writeBookmarks = makePersistedWriter(BROWSER_BOOKMARKS_KEY);
 const writeTabFolders = makePersistedWriter(BROWSER_TAB_FOLDERS_KEY);
@@ -287,7 +323,7 @@ export interface BrowserBookmarkSlice {
     title: string;
     workspaceId?: string;
     folderId?: string;
-  }) => void;
+  }) => BookmarkCollisionCheck;
   browserBookmarkTab: (
     tabId: string,
     folderId?: string,
@@ -337,6 +373,22 @@ export const createBrowserBookmarkSlice = (
   },
 
   browserCreateBookmarkEntry: (input) => {
+    const url = input.url.trim();
+    const title = input.title.trim() || hostnameFromUrl(url) || url;
+    if (!url) {
+      return { ok: true };
+    }
+    const currentState = _get();
+    const collision = checkBookmarkCollision(
+      url,
+      title,
+      { folderId: input.folderId, workspaceId: input.workspaceId },
+      currentState,
+      currentState.recentWorkspaces,
+    );
+    if (!collision.ok) {
+      return collision;
+    }
     set((state) => {
       const url = input.url.trim();
       const title = input.title.trim() || hostnameFromUrl(url) || url;
@@ -403,6 +455,7 @@ export const createBrowserBookmarkSlice = (
         browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
       };
     });
+    return { ok: true };
   },
 
   browserBookmarkTab: async (tabId, folderId, newFolderName, workspaceId) => {
