@@ -223,3 +223,97 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     expect(openTab).toHaveBeenCalled();
   });
 });
+
+describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
+  const originalUpdateSavedBookmark = useAppStore.getState().browserUpdateSavedBookmark;
+
+  beforeEach(async () => {
+    vi.mocked(prefetchPageMeta).mockReset();
+    siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
+    await siteMetaCache.initSiteMetaCache();
+    useAppStore.setState({
+      browserTabFolders: [
+        {
+          id: 'f1',
+          name: 'F',
+          createdAt: 0,
+          tabs: [{ tabId: 'saved-1', url: 'https://old.com', title: 'Old Title' }],
+        },
+      ],
+      browserWorkspaceBookmarks: {},
+      browserBookmarks: [{ url: 'https://old.com', title: 'Old Title' }],
+      browserBookmarkTabIdUrlMap: { 'saved-1': 'https://old.com' },
+      browserUpdateSavedBookmark: originalUpdateSavedBookmark,
+    });
+  });
+
+  afterEach(() => {
+    useAppStore.setState({
+      browserTabFolders: [],
+      browserWorkspaceBookmarks: {},
+      browserBookmarks: [],
+      browserBookmarkTabIdUrlMap: {},
+      browserUpdateSavedBookmark: originalUpdateSavedBookmark,
+    });
+  });
+
+  function renderEditDialogs(showToast: ReturnType<typeof vi.fn>) {
+    return renderHook(() =>
+      useBrowserDialogs({
+        browserOpenTab: vi.fn(),
+        browserUpdateTab: vi.fn(),
+        activeTab: null,
+        isBookmarked: false,
+        showToast,
+        t: { browserEditBookmarkDuplicate: 'DUP' },
+      }),
+    );
+  }
+
+  it('updates the saved bookmark entry (no live tab) when editing', () => {
+    const showToast = vi.fn();
+    const { result } = renderEditDialogs(showToast);
+    act(() => {
+      result.current.handleEditTab('saved-1', 'Old Title', 'https://old.com');
+    });
+    act(() => {
+      result.current.handleEditTabConfirm('New Title', 'https://new.com', 'save-only');
+    });
+    const folder = useAppStore.getState().browserTabFolders.find((f) => f.id === 'f1')!;
+    expect(folder.tabs![0]).toMatchObject({
+      tabId: 'saved-1',
+      url: 'https://new.com',
+      title: 'New Title',
+    });
+    expect(result.current.editTabDialog.open).toBe(false);
+    expect(showToast).not.toHaveBeenCalled();
+  });
+
+  it('intercepts a same-path url+title collision with a toast and keeps dialog open', () => {
+    useAppStore.setState({
+      browserTabFolders: [
+        {
+          id: 'f1',
+          name: 'F',
+          createdAt: 0,
+          tabs: [
+            { tabId: 'saved-1', url: 'https://e.com', title: 'A' },
+            { tabId: 'other-2', url: 'https://e.com', title: 'A' },
+          ],
+        },
+      ],
+    });
+    const showToast = vi.fn();
+    const { result } = renderEditDialogs(showToast);
+    act(() => {
+      result.current.handleEditTab('saved-1', 'A', 'https://e.com');
+    });
+    act(() => {
+      result.current.handleEditTabConfirm('A', 'https://e.com', 'save-only');
+    });
+    expect(showToast).toHaveBeenCalledWith('DUP', 'warning');
+    expect(result.current.editTabDialog.open).toBe(true);
+    const folder = useAppStore.getState().browserTabFolders.find((f) => f.id === 'f1')!;
+    expect(folder.tabs).toHaveLength(2);
+  });
+});

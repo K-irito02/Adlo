@@ -10,6 +10,7 @@ export const browserZh = {
   browserHome: '主页',
   browserNewBookmark: '新建书签',
   browserEditBookmark: '编辑书签',
+  browserEditBookmarkDuplicate: '该目录已存在相同网址与标题的书签',
   browserBookmarks: '书签',
   browserHistory: '历史记录',
   browserSavedTabs: '收藏标签',

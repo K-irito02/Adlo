@@ -142,18 +142,26 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           title: name.trim() || undefined,
           url: url.trim() || undefined,
         });
-      }
-      if (mode === 'save-and-open') {
         const store = useAppStore.getState();
-        if (store.browserNavigateInPlace) {
-          store.browserNavigateActiveTab(url.trim(), name.trim());
-        } else {
-          store.browserOpenTab(url.trim(), name.trim());
+        const result = store.browserUpdateSavedBookmark(tabId, {
+          url: url.trim(),
+          title: name.trim(),
+        });
+        if (result.ok === false) {
+          showToast(t.browserEditBookmarkDuplicate, 'warning');
+          return;
+        }
+        if (mode === 'save-and-open') {
+          if (store.browserNavigateInPlace) {
+            store.browserNavigateActiveTab(url.trim(), name.trim());
+          } else {
+            store.browserOpenTab(url.trim(), name.trim());
+          }
         }
       }
       setEditTabDialog({ open: false, tabId: '', name: '', url: '' });
     },
-    [editTabDialog, browserUpdateTab],
+    [editTabDialog, browserUpdateTab, showToast, t],
   );
 
   const handleEditTabCancel = useCallback(() => {

@@ -10,6 +10,8 @@ export const browserEn = {
   browserHome: 'Home',
   browserNewBookmark: 'New bookmark',
   browserEditBookmark: 'Edit bookmark',
+  browserEditBookmarkDuplicate:
+    'A bookmark with the same URL and title already exists in this directory',
   browserBookmarks: 'Bookmarks',
   browserHistory: 'History',
   browserSavedTabs: 'Saved tabs',

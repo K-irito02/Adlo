@@ -169,7 +169,7 @@ function computeBookmarkTabOutcome(
   const rawTitle = tab.title;
   const title = rawTitle || hostnameFromUrl(url) || url;
 
-  const existsInBookmarks = state.browserBookmarks.some((b) => b.url === url);
+  const existsInBookmarks = state.browserBookmarks.some((b) => b.url === url && b.title === title);
   let nextBookmarks = state.browserBookmarks;
 
   if (!existsInBookmarks) {
@@ -206,6 +206,10 @@ function computeBookmarkTabOutcome(
             };
           }
         } else {
+          const duplicate = existingTabs.some((item) => item.url === url && item.title === title);
+          if (duplicate) {
+            return folder;
+          }
           return {
             ...folder,
             tabs: [...existingTabs, { tabId, url, title }],
@@ -234,10 +238,13 @@ function computeBookmarkTabOutcome(
         [workspaceId]: updated,
       };
     } else {
-      nextWorkspaceBookmarks = {
-        ...state.browserWorkspaceBookmarks,
-        [workspaceId]: [...existingWsTabs, { tabId, url, title }],
-      };
+      const duplicate = existingWsTabs.some((entry) => entry.url === url && entry.title === title);
+      if (!duplicate) {
+        nextWorkspaceBookmarks = {
+          ...state.browserWorkspaceBookmarks,
+          [workspaceId]: [...existingWsTabs, { tabId, url, title }],
+        };
+      }
     }
     wsBookmarksChanged = true;
   }
@@ -276,6 +283,10 @@ export interface BrowserBookmarkSlice {
     workspaceId?: string,
   ) => void;
   browserUpdateBookmarkTitle: (url: string, title: string) => void;
+  browserUpdateSavedBookmark: (
+    tabId: string,
+    updates: { url: string; title: string },
+  ) => { ok: boolean };
   browserRemoveTabBookmarks: (tabId: string, url: string, scopeFolderId?: string) => void;
   browserRemoveOrphanedBookmarks: () => void;
   browserClearAllWorkspaceBookmarks: () => void;
@@ -321,7 +332,7 @@ export const createBrowserBookmarkSlice = (
         return state;
       }
       const syntheticTabId = createUiId('bookmark');
-      const exists = state.browserBookmarks.some((b) => b.url === url);
+      const exists = state.browserBookmarks.some((b) => b.url === url && b.title === title);
       const nextBookmarks = exists
         ? state.browserBookmarks
         : [...state.browserBookmarks, { url, title }];
@@ -334,7 +345,7 @@ export const createBrowserBookmarkSlice = (
             return folder;
           }
           const existingTabs = folder.tabs || [];
-          if (existingTabs.some((item) => item.url === url)) {
+          if (existingTabs.some((item) => item.url === url && item.title === title)) {
             return folder;
           }
           foldersChanged = true;
@@ -346,7 +357,7 @@ export const createBrowserBookmarkSlice = (
       let wsChanged = false;
       if (input.workspaceId) {
         const existing = state.browserWorkspaceBookmarks[input.workspaceId] || [];
-        if (!existing.some((entry) => entry.url === url)) {
+        if (!existing.some((entry) => entry.url === url && entry.title === title)) {
           nextWorkspaceBookmarks = {
             ...state.browserWorkspaceBookmarks,
             [input.workspaceId]: [...existing, { tabId: syntheticTabId, url, title }],
@@ -430,6 +441,117 @@ export const createBrowserBookmarkSlice = (
       writeBookmarks(nextBookmarks);
       return { browserBookmarks: nextBookmarks };
     });
+  },
+
+  browserUpdateSavedBookmark: (tabId: string, updates: { url: string; title: string }) => {
+    const url = updates.url.trim();
+    const title = updates.title.trim();
+    let ok = true;
+    set((state) => {
+      if (!url) {
+        return state;
+      }
+      const folder = (state.browserTabFolders || []).find((f) =>
+        f.tabs?.some((item) => item.tabId === tabId),
+      );
+      const wsId = Object.keys(state.browserWorkspaceBookmarks || {}).find((id) =>
+        state.browserWorkspaceBookmarks[id].some((entry) => entry.tabId === tabId),
+      );
+      if (!folder && !wsId) {
+        return state;
+      }
+
+      if (folder) {
+        const folderCollides = (folder.tabs || []).some(
+          (item) => item.tabId !== tabId && item.url === url && item.title === title,
+        );
+        if (folderCollides) {
+          ok = false;
+          return state;
+        }
+      }
+      if (wsId) {
+        const wsCollides = state.browserWorkspaceBookmarks[wsId].some(
+          (entry) => entry.tabId !== tabId && entry.url === url && entry.title === title,
+        );
+        if (wsCollides) {
+          ok = false;
+          return state;
+        }
+      }
+
+      const oldUrls = new Set<string>();
+      let nextFolders = state.browserTabFolders;
+      if (folder) {
+        const oldUrl = folder.tabs!.find((item) => item.tabId === tabId)!.url;
+        oldUrls.add(oldUrl);
+        nextFolders = state.browserTabFolders.map((f) =>
+          f.id === folder.id
+            ? {
+                ...f,
+                tabs: (f.tabs || []).map((item) =>
+                  item.tabId === tabId ? { tabId, url, title } : item,
+                ),
+              }
+            : f,
+        );
+      }
+
+      let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
+      if (wsId) {
+        const oldUrl = state.browserWorkspaceBookmarks[wsId].find(
+          (entry) => entry.tabId === tabId,
+        )!.url;
+        oldUrls.add(oldUrl);
+        nextWorkspaceBookmarks = {
+          ...state.browserWorkspaceBookmarks,
+          [wsId]: state.browserWorkspaceBookmarks[wsId].map((entry) =>
+            entry.tabId === tabId ? { tabId, url, title } : entry,
+          ),
+        };
+      }
+
+      let nextBookmarks = state.browserBookmarks;
+      let bookmarksChanged = false;
+      if (!nextBookmarks.some((b) => b.url === url && b.title === title)) {
+        nextBookmarks = [...nextBookmarks, { url, title }];
+        bookmarksChanged = true;
+      }
+      for (const oldUrl of oldUrls) {
+        if (url === oldUrl) {
+          continue;
+        }
+        const stillReferenced =
+          Object.values(nextWorkspaceBookmarks || {}).some((entries) =>
+            entries.some((e) => e.url === oldUrl),
+          ) || (nextFolders || []).some((f) => f.tabs?.some((t) => t.url === oldUrl));
+        if (!stillReferenced) {
+          nextBookmarks = nextBookmarks.filter((b) => b.url !== oldUrl);
+          bookmarksChanged = true;
+        }
+      }
+
+      const nextTabIdUrlMap = { ...state.browserBookmarkTabIdUrlMap, [tabId]: url };
+
+      if (bookmarksChanged) {
+        writeBookmarks(nextBookmarks);
+      }
+      if (folder) {
+        writeTabFolders(nextFolders);
+      }
+      if (wsId) {
+        writeWorkspaceBookmarks(nextWorkspaceBookmarks);
+      }
+      writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
+
+      return {
+        browserBookmarks: nextBookmarks,
+        browserTabFolders: nextFolders,
+        browserWorkspaceBookmarks: nextWorkspaceBookmarks,
+        browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
+      };
+    });
+    return { ok };
   },
 
   browserRemoveTabBookmarks: (tabId: string, url: string, scopeFolderId?: string) => {
