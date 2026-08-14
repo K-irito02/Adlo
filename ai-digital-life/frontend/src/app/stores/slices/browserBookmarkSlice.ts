@@ -356,7 +356,7 @@ export const createBrowserBookmarkSlice = (
       }
 
       let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
-      if (input.folderId) {
+      if (input.folderId && foldersChanged) {
         nextTabIdUrlMap = { ...nextTabIdUrlMap, [syntheticTabId]: url };
       }
 
@@ -369,7 +369,7 @@ export const createBrowserBookmarkSlice = (
       if (wsChanged) {
         writeWorkspaceBookmarks(nextWorkspaceBookmarks);
       }
-      if (input.folderId) {
+      if (input.folderId && foldersChanged) {
         writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
       }
 

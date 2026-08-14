@@ -66,6 +66,35 @@ describe('browserCreateBookmarkEntry', () => {
     expect(folder.tabs![0].tabId).toBeTruthy();
   });
 
+  it('does not duplicate a folder tab or tabIdUrlMap entry on repeated folderId calls', () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    const folderId = 'f1';
+    const raw0 = get() as Record<string, unknown>;
+    raw0.browserTabFolders = [{ id: folderId, name: 'F', createdAt: 0, tabs: [] }];
+    slice.browserCreateBookmarkEntry({
+      url: 'https://example.com',
+      title: 'Example',
+      folderId,
+    });
+    slice.browserCreateBookmarkEntry({
+      url: 'https://example.com',
+      title: 'Example',
+      folderId,
+    });
+    const raw = get() as Record<string, unknown>;
+    const folders = raw.browserTabFolders as {
+      id: string;
+      name: string;
+      createdAt: number;
+      tabs?: { tabId: string; url: string; title: string }[];
+    }[];
+    const folder = folders.find((f) => f.id === folderId)!;
+    expect(folder.tabs).toHaveLength(1);
+    const state = get() as unknown as BrowserBookmarkSlice;
+    expect(Object.keys(state.browserBookmarkTabIdUrlMap)).toHaveLength(1);
+  });
+
   it('appends a workspace bookmark entry when workspaceId provided', () => {
     const { get } = createMockStore();
     const slice = get() as unknown as BrowserBookmarkSlice;
