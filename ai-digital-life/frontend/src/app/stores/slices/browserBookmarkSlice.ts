@@ -492,11 +492,11 @@ export const createBrowserBookmarkSlice = (
         }
       }
 
-      const oldUrls = new Set<string>();
+      const oldTuples: { url: string; title: string }[] = [];
       let nextFolders = state.browserTabFolders;
       if (folder) {
-        const oldUrl = folder.tabs!.find((item) => item.tabId === tabId)!.url;
-        oldUrls.add(oldUrl);
+        const oldItem = folder.tabs!.find((item) => item.tabId === tabId)!;
+        oldTuples.push({ url: oldItem.url, title: oldItem.title });
         nextFolders = state.browserTabFolders.map((f) =>
           f.id === folder.id
             ? {
@@ -511,10 +511,10 @@ export const createBrowserBookmarkSlice = (
 
       let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
       if (wsId) {
-        const oldUrl = state.browserWorkspaceBookmarks[wsId].find(
+        const oldEntry = state.browserWorkspaceBookmarks[wsId].find(
           (entry) => entry.tabId === tabId,
-        )!.url;
-        oldUrls.add(oldUrl);
+        )!;
+        oldTuples.push({ url: oldEntry.url, title: oldEntry.title });
         nextWorkspaceBookmarks = {
           ...state.browserWorkspaceBookmarks,
           [wsId]: state.browserWorkspaceBookmarks[wsId].map((entry) =>
@@ -529,16 +529,21 @@ export const createBrowserBookmarkSlice = (
         nextBookmarks = [...nextBookmarks, { url, title }];
         bookmarksChanged = true;
       }
-      for (const oldUrl of oldUrls) {
-        if (url === oldUrl) {
+      for (const oldTuple of oldTuples) {
+        if (url === oldTuple.url && title === oldTuple.title) {
           continue;
         }
         const stillReferenced =
           Object.values(nextWorkspaceBookmarks || {}).some((entries) =>
-            entries.some((e) => e.url === oldUrl),
-          ) || (nextFolders || []).some((f) => f.tabs?.some((t) => t.url === oldUrl));
+            entries.some((e) => e.url === oldTuple.url && e.title === oldTuple.title),
+          ) ||
+          (nextFolders || []).some((f) =>
+            f.tabs?.some((t) => t.url === oldTuple.url && t.title === oldTuple.title),
+          );
         if (!stillReferenced) {
-          nextBookmarks = nextBookmarks.filter((b) => b.url !== oldUrl);
+          nextBookmarks = nextBookmarks.filter(
+            (b) => !(b.url === oldTuple.url && b.title === oldTuple.title),
+          );
           bookmarksChanged = true;
         }
       }
@@ -642,11 +647,12 @@ export const createBrowserBookmarkSlice = (
 
   browserRemoveOrphanedBookmarks: () =>
     set((state) => {
+      const tupleKey = (url: string, title: string) => JSON.stringify([url, title]);
       const referenced = new Set<string>();
       for (const entries of Object.values(state.browserWorkspaceBookmarks)) {
         for (const entry of entries) {
           if (entry.url) {
-            referenced.add(entry.url);
+            referenced.add(tupleKey(entry.url, entry.title));
           }
         }
       }
@@ -654,12 +660,14 @@ export const createBrowserBookmarkSlice = (
         if (folder.tabs) {
           for (const tab of folder.tabs) {
             if (tab.url) {
-              referenced.add(tab.url);
+              referenced.add(tupleKey(tab.url, tab.title));
             }
           }
         }
       }
-      const nextBookmarks = state.browserBookmarks.filter((b) => !b.url || referenced.has(b.url));
+      const nextBookmarks = state.browserBookmarks.filter(
+        (b) => !b.url || referenced.has(tupleKey(b.url, b.title)),
+      );
       if (nextBookmarks.length === state.browserBookmarks.length) {
         return state;
       }

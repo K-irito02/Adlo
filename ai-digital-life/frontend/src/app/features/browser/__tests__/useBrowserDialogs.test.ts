@@ -222,6 +222,27 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     });
     expect(openTab).toHaveBeenCalled();
   });
+
+  it('save-only with both workspaceId and folderId lands the bookmark in the folder ONLY', async () => {
+    useAppStore.setState({
+      browserCreateBookmarkEntry: originalActions.browserCreateBookmarkEntry,
+      browserTabFolders: [{ id: 'f1', name: 'F', createdAt: 0, tabs: [] }],
+      browserWorkspaceBookmarks: {},
+    });
+    const openTab = vi.fn();
+    const { result } = renderDialogs(openTab);
+    await act(async () => {
+      result.current.handleSetCreateTabDialog({ open: true, workspaceId: 'ws1', folderId: 'f1' });
+    });
+    await act(async () => {
+      await result.current.handleCreateTabConfirm('Name', 'https://example.com', 'save-only');
+    });
+    const state = useAppStore.getState();
+    const folder = state.browserTabFolders.find((f) => f.id === 'f1')!;
+    expect(folder.tabs).toHaveLength(1);
+    expect(folder.tabs![0]).toMatchObject({ url: 'https://example.com', title: 'Name' });
+    expect(state.browserWorkspaceBookmarks['ws1']).toBeUndefined();
+  });
 });
 
 describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
@@ -315,5 +336,42 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
     expect(result.current.editTabDialog.open).toBe(true);
     const folder = useAppStore.getState().browserTabFolders.find((f) => f.id === 'f1')!;
     expect(folder.tabs).toHaveLength(2);
+  });
+
+  it('does not call browserUpdateTab on a blocked collision edit (live tab untouched)', () => {
+    useAppStore.setState({
+      browserTabFolders: [
+        {
+          id: 'f1',
+          name: 'F',
+          createdAt: 0,
+          tabs: [
+            { tabId: 'saved-1', url: 'https://e.com', title: 'A' },
+            { tabId: 'other-2', url: 'https://e.com', title: 'A' },
+          ],
+        },
+      ],
+    });
+    const showToast = vi.fn();
+    const updateTab = vi.fn();
+    const { result } = renderHook(() =>
+      useBrowserDialogs({
+        browserOpenTab: vi.fn(),
+        browserUpdateTab: updateTab,
+        activeTab: null,
+        isBookmarked: false,
+        showToast,
+        t: { browserEditBookmarkDuplicate: 'DUP' },
+      }),
+    );
+    act(() => {
+      result.current.handleEditTab('saved-1', 'A', 'https://e.com');
+    });
+    act(() => {
+      result.current.handleEditTabConfirm('A', 'https://e.com', 'save-only');
+    });
+    expect(showToast).toHaveBeenCalledWith('DUP', 'warning');
+    expect(result.current.editTabDialog.open).toBe(true);
+    expect(updateTab).not.toHaveBeenCalled();
   });
 });

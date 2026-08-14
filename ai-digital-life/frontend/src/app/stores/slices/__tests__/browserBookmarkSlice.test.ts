@@ -386,6 +386,79 @@ describe('browserUpdateSavedBookmark', () => {
     const state = get() as unknown as BrowserBookmarkSlice;
     expect(state.browserBookmarkTabIdUrlMap['a']).toBe('https://new.com');
   });
+
+  it('title-only edit removes the old (url, oldTitle) tuple from browserBookmarks when unreferenced', () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as Record<string, unknown>).browserTabFolders = [
+      {
+        id: 'f1',
+        name: 'F',
+        createdAt: 0,
+        tabs: [{ tabId: 'a', url: 'https://e.com', title: 'Old Title' }],
+      },
+    ];
+    (get() as Record<string, unknown>).browserBookmarks = [
+      { url: 'https://e.com', title: 'Old Title' },
+    ];
+    const result = slice.browserUpdateSavedBookmark('a', {
+      url: 'https://e.com',
+      title: 'New Title',
+    });
+    expect(result).toEqual({ ok: true });
+    const state = get() as unknown as BrowserBookmarkSlice;
+    expect(state.browserBookmarks).toContainEqual({ url: 'https://e.com', title: 'New Title' });
+    expect(state.browserBookmarks).not.toContainEqual({ url: 'https://e.com', title: 'Old Title' });
+  });
+
+  it('title-only edit keeps the old (url, oldTitle) tuple when another entry still references it', () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as Record<string, unknown>).browserTabFolders = [
+      {
+        id: 'f1',
+        name: 'F',
+        createdAt: 0,
+        tabs: [
+          { tabId: 'a', url: 'https://e.com', title: 'Old Title' },
+          { tabId: 'b', url: 'https://e.com', title: 'Old Title' },
+        ],
+      },
+    ];
+    (get() as Record<string, unknown>).browserBookmarks = [
+      { url: 'https://e.com', title: 'Old Title' },
+    ];
+    const result = slice.browserUpdateSavedBookmark('a', {
+      url: 'https://e.com',
+      title: 'New Title',
+    });
+    expect(result).toEqual({ ok: true });
+    const state = get() as unknown as BrowserBookmarkSlice;
+    expect(state.browserBookmarks).toContainEqual({ url: 'https://e.com', title: 'New Title' });
+    expect(state.browserBookmarks).toContainEqual({ url: 'https://e.com', title: 'Old Title' });
+  });
+
+  it('browserRemoveOrphanedBookmarks reclaims unreferenced (url,title) tuples, keeping same-url referenced titles', () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as Record<string, unknown>).browserTabFolders = [
+      {
+        id: 'f1',
+        name: 'F',
+        createdAt: 0,
+        tabs: [{ tabId: 'a', url: 'https://e.com', title: 'New Title' }],
+      },
+    ];
+    (get() as Record<string, unknown>).browserWorkspaceBookmarks = {};
+    (get() as Record<string, unknown>).browserBookmarks = [
+      { url: 'https://e.com', title: 'New Title' },
+      { url: 'https://e.com', title: 'Old Title' },
+    ];
+    slice.browserRemoveOrphanedBookmarks();
+    const state = get() as unknown as BrowserBookmarkSlice;
+    expect(state.browserBookmarks).toContainEqual({ url: 'https://e.com', title: 'New Title' });
+    expect(state.browserBookmarks).not.toContainEqual({ url: 'https://e.com', title: 'Old Title' });
+  });
 });
 
 describe('browserBookmarkTab title-update collision (path url+title)', () => {

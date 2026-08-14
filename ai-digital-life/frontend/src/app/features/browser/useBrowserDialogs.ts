@@ -104,7 +104,12 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       setCreateTabDialog({ open: false });
       const store = useAppStore.getState();
       if (mode === 'save-only') {
-        store.browserCreateBookmarkEntry({ url, title, workspaceId, folderId });
+        store.browserCreateBookmarkEntry({
+          url,
+          title,
+          workspaceId: folderId ? undefined : workspaceId,
+          folderId,
+        });
         return;
       }
       if (store.browserNavigateInPlace) {
@@ -137,25 +142,27 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
   const handleEditTabConfirm = useCallback(
     (name: string, url: string, mode: 'save-only' | 'save-and-open' = 'save-only') => {
       const { tabId } = editTabDialog;
+      const trimmedUrl = url.trim();
+      const trimmedName = name.trim();
       if (tabId) {
-        browserUpdateTab(tabId, {
-          title: name.trim() || undefined,
-          url: url.trim() || undefined,
-        });
         const store = useAppStore.getState();
         const result = store.browserUpdateSavedBookmark(tabId, {
-          url: url.trim(),
-          title: name.trim(),
+          url: trimmedUrl,
+          title: trimmedName,
         });
         if (result.ok === false) {
           showToast(t.browserEditBookmarkDuplicate, 'warning');
           return;
         }
+        browserUpdateTab(tabId, {
+          title: trimmedName || undefined,
+          url: trimmedUrl || undefined,
+        });
         if (mode === 'save-and-open') {
           if (store.browserNavigateInPlace) {
-            store.browserNavigateActiveTab(url.trim(), name.trim());
+            store.browserNavigateActiveTab(trimmedUrl, trimmedName);
           } else {
-            store.browserOpenTab(url.trim(), name.trim());
+            store.browserOpenTab(trimmedUrl, trimmedName);
           }
         }
       }
