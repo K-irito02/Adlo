@@ -858,6 +858,165 @@ git commit -m "chore(frontend): finalize new-bookmark refactor"
 
 ---
 
+### Task 8: 去重语义修订为 (路径, url, title) + 编辑对收藏书签生效
+
+> 用户最终评审新增需求（2026-08-14）：重复收藏同一 URL 时——
+> - **允许**：不同收藏路径（标题相同或不同均可）；相同路径但标题不同。
+> - **拦截**：相同路径 + 标题相同（真重复）。
+> - "路径" = 每个文件夹或工作区（用户已确认：顶层文件夹下每个嵌套子目录也是独立路径）。
+> - 同时要求"编辑书签"对收藏在目录里、未打开的书签也真正生效（改名/改网址后收藏记录同步更新，且撞上同路径同 url 同标题的既有项时拦截）。
+> - 星标收藏按钮（收藏/取消收藏当前标签）是开关语义，**不动**。
+
+**Files:**
+- Modify: `ai-digital-life/frontend/src/app/stores/slices/browserBookmarkSlice.ts`
+- Modify: `ai-digital-life/frontend/src/app/stores/slices/browserTabsSlice.ts`
+- Modify: `ai-digital-life/frontend/src/app/features/browser/useBrowserDialogs.ts`
+- Modify: `ai-digital-life/frontend/src/app/i18n/zh-CN/browser.ts`
+- Modify: `ai-digital-life/frontend/src/app/i18n/en-US/browser.ts`
+- Modify: `ai-digital-life/frontend/src/app/stores/slices/__tests__/browserBookmarkSlice.test.ts`
+- Modify: `ai-digital-life/frontend/src/app/features/browser/__tests__/useBrowserDialogs.test.ts`
+- Create: `ai-digital-life/frontend/src/app/stores/slices/__tests__/browserTabsSlice.test.ts`（如已存在则修改）
+
+**Interfaces:**
+- 去重键从「url」修订为「路径 + url + title」：
+  - folder.tabs 条目去重：`item.url === url && item.title === title`
+  - workspaceBookmarks 条目去重：`entry.url === url && entry.title === title`
+  - browserBookmarks 全局表（无路径概念）去重退化为 `url + title`：`b.url === url && b.title === title`
+- 新增 store action：`browserUpdateSavedBookmark(tabId: string, updates: { url: string; title: string }) => { ok: boolean }`——编辑收藏条目（更新 folder.tabs / workspaceBookmarks / browserBookmarks / tabIdUrlMap 中该 tabId 对应条目的 url/title），`ok: false` 表示撞上同路径同 url 同 title 的既有项（拦截）。
+- 新增 i18n key：`browserEditBookmarkDuplicate`（zh: '该目录已存在相同网址与标题的书签' / en: 'A bookmark with the same URL and title already exists in this directory'）。
+
+- [ ] **Step 1: 写失败测试（去重语义）**
+
+在 `browserBookmarkSlice.test.ts` 追加用例：
+
+```ts
+it('allows same url with different title in the same folder (path dedup = url+title)', () => {
+  // 预置 folder f1 已含 {tabId:'a', url:'https://e.com', title:'Title A'}
+  // browserCreateBookmarkEntry({ url:'https://e.com', title:'Title B', folderId:'f1' })
+  // 断言 folder.tabs 长度 2，含两条 url 相同 title 不同的条目
+});
+
+it('blocks same url + same title in the same folder', () => {
+  // 预置 folder f1 已含 {tabId:'a', url:'https://e.com', title:'Title A'}
+  // browserCreateBookmarkEntry({ url:'https://e.com', title:'Title A', folderId:'f1' })
+  // 断言 folder.tabs 长度仍 1
+});
+
+it('allows same url + same title in a different folder', () => {
+  // 预置 folder f1 含条目；写入 folderId:'f2'
+  // 断言 f1 和 f2 各 1 条
+});
+
+it('allows same url with different title in the same workspace', () => { /* 类似 folder 用例 */ });
+it('blocks same url + same title in the same workspace', () => { /* 类似 */ });
+it('browserBookmarks global dedup is url+title (same url different title both stored)', () => {
+  // 两次 browserCreateBookmarkEntry 无 folderId/workspaceId，url 相同 title 不同
+  // 断言 browserBookmarks 长度 2
+});
+```
+
+在 `browserBookmarkSlice.test.ts` 追加 `browserUpdateSavedBookmark` 用例：
+- 更新 folder.tabs 中 tabId 条目的 url/title 生效。
+- 更新 workspaceBookmarks 条目生效。
+- 撞上同路径同 url 同 title 既有项（不同 tabId）→ 返回 `{ ok: false }`，状态不变。
+- 正常更新 → 返回 `{ ok: true }`。
+
+在 `useBrowserDialogs.test.ts` 追加编辑收藏书签用例：
+- 编辑收藏条目（无对应 live tab）改名/改网址后，store 中该 tabId 的收藏条目 url/title 更新。
+- 编辑撞上同路径同 url 同 title → 拦截，对话框保持打开或关闭但显示提示（按实现，至少不破坏状态）。
+
+- [ ] **Step 2: 运行确认失败**
+
+Run: `pnpm --dir frontend vitest run src/app/stores/slices/__tests__/browserBookmarkSlice.test.ts src/app/features/browser/__tests__/useBrowserDialogs.test.ts`
+Expected: FAIL（新去重语义与 browserUpdateSavedBookmark 未实现）。
+
+- [ ] **Step 3: 修订 `browserCreateBookmarkEntry` 去重**
+
+`browserBookmarkSlice.ts` 的 `browserCreateBookmarkEntry`：
+- `const exists = state.browserBookmarks.some((b) => b.url === url && b.title === title);`
+- folder.tabs 去重：`existingTabs.some((item) => item.url === url && item.title === title)` → return folder（拦截）。
+- workspace 去重：`existing.some((entry) => entry.url === url && entry.title === title)` → 不追加（拦截）。
+- 保持 `foldersChanged` / `wsChanged` 只在真正追加时置 true；tabIdUrlMap 写入仍 gated 于 `input.folderId && foldersChanged`。
+
+- [ ] **Step 4: 修订 `computeBookmarkTabOutcome`（保存并打开路径）去重**
+
+`computeBookmarkTabOutcome`：
+- folder 分支：保留"同 tabId + 同 url → 更新标题"逻辑（`existing` 按 `item.tabId === tabId && item.url === url` 查找，更新 title）；新增：当 `existing` 不存在时，追加前检查 `existingTabs.some((item) => item.url === url && item.title === title)` → 不追加（拦截）。
+- workspace 分支：`existingIdx` 按 `entry.tabId === tabId && entry.url === url` 更新标题逻辑保留；当 `existingIdx < 0` 时，追加前检查 `existingWsTabs.some((entry) => entry.url === url && entry.title === title)` → 不追加（拦截）。
+- browserBookmarks 全局：`existsInBookmarks = state.browserBookmarks.some((b) => b.url === url && b.title === title)`。
+
+- [ ] **Step 5: 修订 `browserOpenTab` folder append 去重（browserTabsSlice.ts:83-104）**
+
+`browserOpenTab` 带 folderId 时向 folder.tabs append 前，去重键改为 url+title：
+```ts
+const existingTabs = f.tabs || [];
+const tabTitle = tab.title?.trim() || tab.url?.trim() || '';
+if (!existingTabs.some((item) => item.url === tab.url && item.title === tabTitle)) {
+  return { ...f, tabs: [...existingTabs, { tabId: tab.id, url: tab.url || '', title: tabTitle }] };
+}
+```
+（不再用 `item.tabId === tab.id` 作为唯一去重键——新标签每次新建 tabId 必然不同，需按 url+title 拦截同路径同标题重复。）
+> 保持 `tabIdUrlMap` 写入逻辑不变。
+
+- [ ] **Step 6: 编辑对收藏书签生效**
+
+新增 `browserUpdateSavedBookmark(tabId, { url, title })` 到 `BrowserBookmarkSlice` 接口与实现（置于 `browserUpdateBookmarkTitle` 之后）：
+
+```ts
+browserUpdateSavedBookmark: (tabId: string, updates: { url: string; title: string }) => {
+  const url = updates.url.trim();
+  const title = updates.title.trim();
+  let ok = true;
+  set((state) => {
+    // 1) 在 folder.tabs 中找 tabId → 得到其所在 folderId 与旧条目
+    // 2) 在 workspaceBookmarks 中找 tabId → 得到旧条目
+    // 拦截校验：新 (url,title) 在该路径下已存在于【其它 tabId】的条目 → ok=false 返回 state
+    // 3) 更新 folder.tabs 中该 tabId 条目 url/title
+    // 4) 更新 workspaceBookmarks 中该 tabId 条目
+    // 5) 同步 browserBookmarks：新 url 不在表中则 append；旧 url 若不再被任何 folder/workspace 条目引用则移除
+    // 6) 更新 browserBookmarkTabIdUrlMap[tabId] = url
+    // 7) 条件 write（同 browserCreateBookmarkEntry 模式）
+  });
+  return { ok };
+},
+```
+
+> 需要"路径内其它条目"判断：对一个 folder，遍历 `folder.tabs.filter(item => item.tabId !== tabId)` 中 `item.url === url && item.title === title`。对 workspace 同理。若 tabId 同时在 folder.tabs 和 workspaceBookmarks 出现（罕见），按任一路径校验即可，以先校验到重复为准。
+> 若 tabId 既不在任何 folder.tabs 也不在 workspaceBookmarks（即非收藏条目），`browserUpdateSavedBookmark` 直接返回 `{ ok: true }`（无操作，由 browserUpdateTab 处理 live tab）。
+
+`useBrowserDialogs.ts` `handleEditTabConfirm`：
+- 现有 `browserUpdateTab(tabId, { title, url })` 保留（更新 live tab）。
+- 新增：调用 `store.browserUpdateSavedBookmark(tabId, { url: url.trim(), title: name.trim() })`；若返回 `{ ok: false }`，用 `showToast(t.browserEditBookmarkDuplicate, 'warning')` 提示，且**不关闭对话框**、不执行后续打开逻辑（拦截）。
+- `ok: true` 时继续现有逻辑（save-and-open 分支 + 关闭对话框）。
+- 注意：`handleEditTabConfirm` 需新增对 `useAppStore.getState()` 与 `showToast`、`t` 的依赖（`showToast`/`t` 已在 deps 中）。
+
+- [ ] **Step 7: i18n key**
+
+`zh-CN/browser.ts` 与 `en-US/browser.ts` 同时新增 `browserEditBookmarkDuplicate`（值见 Interfaces）。
+
+- [ ] **Step 8: 运行验证**
+
+Run: `pnpm --dir frontend vitest run src/app/stores/slices/__tests__/browserBookmarkSlice.test.ts src/app/features/browser/__tests__/useBrowserDialogs.test.ts`
+Expected: PASS。
+
+Run: `pnpm --dir frontend vitest run src/app/i18n/__tests__/keys.test.ts`
+Expected: PASS（parity）。
+
+Run: `pnpm --dir frontend run typecheck`
+Expected: 0 错误。
+
+Run: `pnpm --dir frontend run lint`
+Expected: 0 errors。
+
+- [ ] **Step 9: Commit**
+
+```bash
+git add ai-digital-life/frontend/src/app/stores/slices/browserBookmarkSlice.ts ai-digital-life/frontend/src/app/stores/slices/browserTabsSlice.ts ai-digital-life/frontend/src/app/features/browser/useBrowserDialogs.ts ai-digital-life/frontend/src/app/i18n/zh-CN/browser.ts ai-digital-life/frontend/src/app/i18n/en-US/browser.ts ai-digital-life/frontend/src/app/stores/slices/__tests__/browserBookmarkSlice.test.ts ai-digital-life/frontend/src/app/features/browser/__tests__/useBrowserDialogs.test.ts ai-digital-life/frontend/src/app/stores/slices/__tests__/browserTabsSlice.test.ts
+git commit -m "feat(frontend): dedup bookmarks by path+url+title and support editing saved bookmarks"
+```
+
+---
+
 ## Self-Review
 
 **Spec 覆盖：**
