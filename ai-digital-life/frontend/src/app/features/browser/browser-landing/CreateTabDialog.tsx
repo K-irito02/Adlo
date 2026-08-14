@@ -8,7 +8,7 @@ interface CreateTabDialogProps {
   t: Record<string, string>;
   initialName?: string;
   initialUrl?: string;
-  onConfirm: (name: string, url: string) => void;
+  onConfirm: (name: string, url: string, mode: 'save-only' | 'save-and-open') => void;
   onCancel: () => void;
 }
 
@@ -49,21 +49,24 @@ export function CreateTabDialog({
     }
   }, [open, initialName, initialUrl]);
 
-  const handleConfirm = useCallback(() => {
-    if (loading) {
-      return;
-    }
-    const trimmedUrl = url.trim();
-    if (!trimmedUrl) {
-      return;
-    }
-    if (!isValidBrowserUrl(trimmedUrl)) {
-      setUrlError(t.browserAddPortInvalid);
-      return;
-    }
-    const finalUrl = /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`;
-    onConfirm(name.trim(), finalUrl);
-  }, [name, url, loading, onConfirm, t.browserAddPortInvalid]);
+  const handleConfirm = useCallback(
+    (mode: 'save-only' | 'save-and-open') => {
+      if (loading) {
+        return;
+      }
+      const trimmedUrl = url.trim();
+      if (!trimmedUrl) {
+        return;
+      }
+      if (!isValidBrowserUrl(trimmedUrl)) {
+        setUrlError(t.browserAddPortInvalid);
+        return;
+      }
+      const finalUrl = /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`;
+      onConfirm(name.trim(), finalUrl, mode);
+    },
+    [name, url, loading, onConfirm, t.browserAddPortInvalid],
+  );
 
   const handleUrlChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setUrl(e.currentTarget.value);
@@ -73,7 +76,7 @@ export function CreateTabDialog({
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === 'Enter') {
-        handleConfirm();
+        handleConfirm('save-and-open');
       } else if (e.key === 'Escape') {
         onCancel();
       }
@@ -175,19 +178,19 @@ export function CreateTabDialog({
         <div className="adl-prompt-modal__actions adl-prompt-modal__actions--fill">
           <button
             type="button"
-            className="adl-btn adl-btn--ghost adl-btn--square"
-            onClick={onCancel}
-            disabled={loading}
+            className="adl-btn adl-btn--primary adl-btn--square"
+            onClick={() => handleConfirm('save-and-open')}
+            disabled={!url.trim() || loading}
           >
-            {t.browserCancel}
+            {t.browserBookmarkSaveAndOpen}
           </button>
           <button
             type="button"
-            className="adl-btn adl-btn--primary adl-btn--square"
-            onClick={handleConfirm}
+            className="adl-btn adl-btn--ghost adl-btn--square"
+            onClick={() => handleConfirm('save-only')}
             disabled={!url.trim() || loading}
           >
-            {loading ? t.browserCreating : isEditMode ? t.browserSave : t.browserNewBookmark}
+            {t.browserBookmarkSaveOnly}
           </button>
         </div>
       </div>

@@ -12,9 +12,9 @@ export interface BrowserPanelDialogsProps {
   createTabDialog: { open: boolean; workspaceId?: string; folderId?: string };
   editTabDialog: { open: boolean; name: string; url: string };
   isCreatingTab: boolean;
-  handleCreateTabConfirm: (name: string, url: string) => void;
+  handleCreateTabConfirm: (name: string, url: string, mode: 'save-only' | 'save-and-open') => void;
   handleCreateTabCancel: () => void;
-  handleEditTabConfirm: (name: string, url: string) => void;
+  handleEditTabConfirm: (name: string, url: string, mode: 'save-only' | 'save-and-open') => void;
   handleEditTabCancel: () => void;
   bookmarkDialogOpen: boolean;
   bookmarkTreeData: {
