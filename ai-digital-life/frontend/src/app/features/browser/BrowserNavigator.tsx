@@ -1,7 +1,6 @@
 import {
   IconFolderPlus,
   IconFolder,
-  IconPlus,
   IconTrash,
   IconSearch,
   IconList,
@@ -13,6 +12,7 @@ import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { useNavigatorResize } from '@hooks/useNavigatorResize';
 import { resolveFolderWorkspaceId } from './browserPanelHelpers';
+import { BrowserNavUtilityButtons } from './BrowserNavUtilityButtons';
 import { BrowserNavOpenMode } from './BrowserNavOpenMode';
 import { BrowserNavTabsMode } from './BrowserNavTabsMode';
 import { BrowserNavListMode } from './BrowserNavListMode';
@@ -177,43 +177,33 @@ export function BrowserNavigator() {
           </TooltipSimple>
         </div>
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-          <span
-            style={{ display: navigatorMode === 'open' || navigatorMode === 'tabs' ? '' : 'none' }}
-          >
-            <TooltipSimple
-              content={navigatorMode === 'tabs' ? t.browserNewTab : t.browserNewTabAlways}
-              placement="top"
-            >
-              <button
-                type="button"
-                className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                onClick={() => {
-                  if (navigatorMode === 'tabs') {
-                    const path = selectedTreePathRef.current;
-                    if (!path || (!path.startsWith('folder:') && !path.startsWith('workspace:'))) {
-                      showToast(t.browserSelectDirFirst, 'warning');
-                      return;
-                    }
-                    let wsId: string | undefined;
-                    let fId: string | undefined;
-                    if (path.startsWith('workspace:')) {
-                      wsId = path.slice('workspace:'.length);
-                    } else if (path.startsWith('folder:')) {
-                      fId = path.slice('folder:'.length);
-                      wsId = resolveFolderWorkspaceId(fId, browserTabFolders);
-                    }
-                    setCreateTabDialog({ open: true, workspaceId: wsId, folderId: fId });
-                  } else {
-                    // open 模式：始终新建标签页，不受 browserNavigateInPlace 影响
-                    handleAlwaysNewTab(t.browserNewTabPage);
-                  }
-                }}
-                aria-label={navigatorMode === 'tabs' ? t.browserNewTab : t.browserNewTabAlways}
-              >
-                <IconPlus size={14} decorative />
-              </button>
-            </TooltipSimple>
-          </span>
+          <BrowserNavUtilityButtons
+            navigatorMode={navigatorMode}
+            newTabLabel={t.browserNewTab}
+            alwaysNewTabLabel={t.browserNewTabAlways}
+            clearOpenTabsLabel={t.browserClearAllOpenTabs}
+            onAlwaysNewTab={() => {
+              if (navigatorMode === 'tabs') {
+                const path = selectedTreePathRef.current;
+                if (!path || (!path.startsWith('folder:') && !path.startsWith('workspace:'))) {
+                  showToast(t.browserSelectDirFirst, 'warning');
+                  return;
+                }
+                let wsId: string | undefined;
+                let fId: string | undefined;
+                if (path.startsWith('workspace:')) {
+                  wsId = path.slice('workspace:'.length);
+                } else if (path.startsWith('folder:')) {
+                  fId = path.slice('folder:'.length);
+                  wsId = resolveFolderWorkspaceId(fId, browserTabFolders);
+                }
+                setCreateTabDialog({ open: true, workspaceId: wsId, folderId: fId });
+              } else {
+                handleAlwaysNewTab(t.browserNewTabPage);
+              }
+            }}
+            onClearOpenTabs={() => handleCloseAllTabs()}
+          />
           <span style={{ display: navigatorMode === 'tabs' ? '' : 'none' }}>
             <TooltipSimple content={t.browserCreateDir} placement="top">
               <button
@@ -226,18 +216,6 @@ export function BrowserNavigator() {
                 aria-label={t.browserCreateDir}
               >
                 <IconFolderPlus size={14} decorative />
-              </button>
-            </TooltipSimple>
-          </span>
-          <span style={{ display: navigatorMode === 'open' ? '' : 'none' }}>
-            <TooltipSimple content={t.browserClearAllOpenTabs} placement="top">
-              <button
-                type="button"
-                className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                onClick={() => handleCloseAllTabs()}
-                aria-label={t.browserClearAllOpenTabs}
-              >
-                <IconTrash size={14} decorative />
               </button>
             </TooltipSimple>
           </span>
