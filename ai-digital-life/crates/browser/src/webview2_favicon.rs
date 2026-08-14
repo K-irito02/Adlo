@@ -11,7 +11,7 @@
 mod imp {
     use std::sync::atomic::Ordering;
 
-    use tracing::{debug, info, warn};
+    use tracing::{debug, warn};
     use webview2_com::FaviconChangedEventHandler;
     use webview2_com::Microsoft::Web::WebView2::Win32::{ICoreWebView2, ICoreWebView2_15};
     use webview2_com::take_pwstr;
@@ -71,7 +71,7 @@ mod imp {
     }
 
     pub fn setup_favicon_changed_handler(core: &ICoreWebView2) -> Result<(), String> {
-        info!("[ADL-META-RECV] Method 4 (FaviconChanged): setting up handler");
+        debug!("[ADL-META-RECV] Method 4 (FaviconChanged): setting up handler");
         unsafe {
             let core15: ICoreWebView2_15 = match core.cast() {
                 Ok(c) => c,
@@ -89,7 +89,7 @@ mod imp {
             let mut token: i64 = 0;
             match core15.add_FaviconChanged(&handler, &mut token as *mut _ as *mut _) {
                 Ok(_) => {
-                    info!(
+                    debug!(
                         "[ADL-META-RECV] Method 4 (FaviconChanged): handler REGISTERED ✓ (token={}), NATIVE FAVICON DETECTION ENABLED",
                         token
                     );

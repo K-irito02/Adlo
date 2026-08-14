@@ -258,7 +258,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setIframeLoadError,
     browserNavigateActiveTab,
     browserUpdateTab,
-    showToast,
     onNavigationStart: handleNavigationStart,
   });
 

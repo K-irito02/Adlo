@@ -1,5 +1,4 @@
 import type { BrowserTabState } from '@stores/slices/browserSlice';
-import type { ToastType } from '@components/Toast';
 import type { PageMeta } from '@shared/ipc/browser';
 import { useBrowserPageMeta } from './useBrowserPageMeta';
 import type { MetaSource } from './useBrowserPageMeta';
@@ -18,7 +17,6 @@ export interface UseBrowserPanelMetaWiringParams {
   setIframeLoadError: React.Dispatch<React.SetStateAction<boolean>>;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   browserUpdateTab: (id: string, data: Partial<BrowserTabState>) => void;
-  showToast: (message: string, type?: ToastType, source?: string) => void;
   onNavigationStart: (url: string) => void;
 }
 
@@ -31,12 +29,10 @@ export interface UseBrowserPanelMetaWiringResult {
 export function useBrowserPanelMetaWiring(
   params: UseBrowserPanelMetaWiringParams,
 ): UseBrowserPanelMetaWiringResult {
-  const { showToast, markUrlSeen, pendingNavigationsRef } = params;
+  const { markUrlSeen, pendingNavigationsRef } = params;
 
   const { handlePageMeta: _handlePageMeta } = useBrowserPageMeta(
     pendingNavigationsRef,
-    undefined,
-    showToast,
     markUrlSeen,
   );
 

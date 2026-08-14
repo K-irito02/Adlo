@@ -96,7 +96,8 @@ describe('init_script.js C1 URL normalization', () => {
 
   it('collapses YouTube radio churn (list=RD / start_radio / pp / index)', () => {
     const entry = 'https://www.youtube.com/watch?v=GwoY5ooF8oQ&list=RDGwoY5ooF8oQ&start_radio=1';
-    const withPp = 'https://www.youtube.com/watch?v=GwoY5ooF8oQ&list=RDGwoY5ooF8oQ&start_radio=1&pp=oAcB';
+    const withPp =
+      'https://www.youtube.com/watch?v=GwoY5ooF8oQ&list=RDGwoY5ooF8oQ&start_radio=1&pp=oAcB';
     const withIndex = 'https://www.youtube.com/watch?v=GwoY5ooF8oQ&list=RDGwoY5ooF8oQ&index=8';
     expect(normalize(withPp, entry)).toBe(normalize(entry, entry));
     expect(normalize(withIndex, entry)).toBe(normalize(entry, entry));

@@ -53,6 +53,26 @@ function hashOf(url: string): string {
   }
 }
 
+/**
+ * Derive whether the back/forward toolbar buttons should be enabled for the
+ * iframe navigation stack used in browser (non-Tauri) mode. `index` is the
+ * current position; there is history behind it when `index > 0` and ahead of
+ * it when `index` is before the last entry. Pure so it can be unit-tested for
+ * dual-end (Tauri vs browser) button parity.
+ */
+export function deriveIframeCanNavigate(
+  index: number,
+  entryCount: number,
+): {
+  canGoBack: boolean;
+  canGoForward: boolean;
+} {
+  return {
+    canGoBack: index > 0,
+    canGoForward: index >= 0 && index < entryCount - 1,
+  };
+}
+
 export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
   const { iframeRef, iframeHistory, navigateBrowser, activeTabId } = options;
   /** Guards against re-entrancy: a smart-back chain in progress for a tab. */
@@ -110,7 +130,7 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
             // Reached the bottom of the native stack — reflect it immediately so
             // the back button turns transparent without waiting for a later
             // url-changed refresh.
-            setCanGoBack(false);
+            setTauriCanGoBack(false);
             stop();
             return;
           }
@@ -215,19 +235,23 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
   // Track whether the active tab's WebView can go back/forward in its native
   // history. A freshly-opened tab (e.g. a Bilibili video opened from the
   // homepage) has no previous entry, so the back button must render disabled.
-  const [canGoBack, setCanGoBack] = useState(false);
-  const [canGoForward, setCanGoForward] = useState(false);
+  // In browser (non-Tauri) mode there is no native WebView — the buttons are
+  // instead driven by the iframe navigation stack, so both modes must derive a
+  // usable state here to keep the toolbar behavior consistent (dual-end parity).
+  const [tauriCanGoBack, setTauriCanGoBack] = useState(false);
+  const [tauriCanGoForward, setTauriCanGoForward] = useState(false);
+
+  const { canGoBack: iframeCanGoBack, canGoForward: iframeCanGoForward } = deriveIframeCanNavigate(
+    iframeHistory.index,
+    iframeHistory.entries.length,
+  );
 
   const refreshCanNavigate = useCallback(async () => {
     if (!isTauriShell() || !activeTabId) {
-      setCanGoBack(false);
-      setCanGoForward(false);
       return;
     }
     const bridge = window.digitalLife?.browser;
     if (!bridge) {
-      setCanGoBack(false);
-      setCanGoForward(false);
       return;
     }
     try {
@@ -235,11 +259,11 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
         bridge.canGoBackTab(activeTabId),
         bridge.canGoForwardTab(activeTabId),
       ]);
-      console.debug('[ADL-BACKFWD] canNavigate', { tabId: activeTabId, back, forward });
-      setCanGoBack(back);
-      setCanGoForward(forward);
-    } catch (err) {
-      console.warn('[ADL-BACKFWD] canNavigate query failed', err);
+      setTauriCanGoBack(back);
+      setTauriCanGoForward(forward);
+    } catch {
+      // Keep the last known state; a failed query is not a reason to flash the
+      // buttons between enabled/disabled.
     }
   }, [activeTabId]);
 
@@ -266,6 +290,9 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
       unsub();
     };
   }, [activeTabId, refreshCanNavigate]);
+
+  const canGoBack = isTauriShell() ? tauriCanGoBack : iframeCanGoBack;
+  const canGoForward = isTauriShell() ? tauriCanGoForward : iframeCanGoForward;
 
   return { handleGoBack, handleGoForward, handleReload, canGoBack, canGoForward };
 }

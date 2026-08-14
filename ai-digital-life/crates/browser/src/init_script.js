@@ -1,25 +1,4 @@
 (function() {
-    console.log('[ADL Browser] Initialization script loaded');
-
-    // Global error reporter: any exception thrown during init_script execution
-    // (or later) is reported to Rust so we can see exactly where the script
-    // died. Without this, a mid-script error silently prevents later blocks
-    // (e.g. the C1 history wrapper) from being installed.
-    window.__adlReportInitError = function(tag, err) {
-        try {
-            if (typeof chrome !== 'undefined' && chrome.webview && chrome.webview.postMessage) {
-                chrome.webview.postMessage(JSON.stringify({
-                    type: 'adl-c1-debug',
-                    tag: tag,
-                    raw: err ? String(err.message || err).slice(0, 200) : '',
-                }));
-            }
-        } catch (e) {}
-    };
-    window.addEventListener('error', function(ev) {
-        window.__adlReportInitError('page-error', ev.error || ev.message || '');
-    });
-
     // 检查是否是有效的网页 URL
     function isValidWebUrl(href) {
         if (!href || typeof href !== 'string') return false;
@@ -28,7 +7,6 @@
 
     // 处理导航（确保在当前窗口中打开）
     function navigateToUrl(href) {
-        console.log('[ADL Browser] Navigating to:', href);
         if (href.startsWith('//')) {
             window.location.href = 'https:' + href;
         } else {
@@ -47,9 +25,7 @@
                 chrome.webview.postMessage(JSON.stringify({ type: 'open-new-tab', url: href }));
                 return true;
             }
-        } catch (e) {
-            console.warn('[ADL Browser] postMessage open-new-tab failed:', e);
-        }
+        } catch (e) {}
         return false;
     }
     
@@ -81,7 +57,6 @@
                     var wantsNewTab = linkTarget === '_blank' || linkTarget === '_new' ||
                         event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
                     if (wantsNewTab) {
-                        console.log('[ADL Browser] Link intercepted (new tab):', href);
                         // PostMessage available → Rust opens a new tab. Otherwise
                         // leave the default action so native NewWindowRequested fires.
                         if (__adlTryOpenNewTab(href)) {
@@ -89,7 +64,6 @@
                         }
                         return;
                     }
-                    console.log('[ADL Browser] Link intercepted (click <a>):', href);
                     event.preventDefault();
                     // Don't stopPropagation — SPA handlers (Vue/React) need the event
                     if (window.__startNavGuard) {
@@ -106,13 +80,11 @@
                     var areaWantsNewTab = areaTarget === '_blank' || areaTarget === '_new' ||
                         event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
                     if (areaWantsNewTab) {
-                        console.log('[ADL Browser] Link intercepted (new tab <area>):', href);
                         if (__adlTryOpenNewTab(href)) {
                             event.preventDefault();
                         }
                         return;
                     }
-                    console.log('[ADL Browser] Link intercepted (click <area>):', href);
                     event.preventDefault();
                     if (window.__startNavGuard) {
                         window.__startNavGuard(href);
@@ -130,7 +102,6 @@
     var origOpen = window.open;
     window.open = function(url, name, features) {
         if (url && isValidWebUrl(url)) {
-            console.log('[ADL Browser] window.open intercepted, delegating to native new-window:', url);
             return origOpen.call(window, url, name, features);
         }
         return null;
@@ -144,7 +115,6 @@
 
     Location.prototype.assign = function(url) {
         if (url && isValidWebUrl(url)) {
-            console.log('[ADL Browser] location.assign intercepted:', url);
             originalAssign.call(this, url);
             return;
         }
@@ -153,45 +123,12 @@
 
     Location.prototype.replace = function(url) {
         if (url && isValidWebUrl(url)) {
-            console.log('[ADL Browser] location.replace intercepted:', url);
             originalReplace.call(this, url);
             return;
         }
         return originalReplace.apply(this, arguments);
     };
     
-    // 3. 拦截表单提交
-    document.addEventListener('submit', function(event) {
-        console.log('[ADL Browser] Form submit event observed');
-        // 表单正常提交通常我们希望保留行为
-    }, true);
-    
-    // 4. 拦截 contextmenu 事件，用于调试
-    document.addEventListener('contextmenu', function(event) {
-        let target = event.target;
-        while (target) {
-            if (target.tagName === 'A' && target.href) {
-                console.log('[ADL Browser] Right-click on link:', target.href);
-            }
-            target = target.parentElement;
-        }
-    }, true);
-    
-    // 5. 为所有现有链接添加调试信息
-    try {
-        const allLinks = document.querySelectorAll('a, area');
-        allLinks.forEach(function(link, index) {
-            if (link.href) {
-                console.log('[ADL Browser] Link found [' + index + ']:', link.href);
-            }
-        });
-        console.log('[ADL Browser] Total links found:', allLinks.length);
-    } catch (e) {
-        console.warn('[ADL Browser] Error scanning links:', e);
-    }
-    
-    console.log('[ADL Browser] Initialization complete');
-
     // ---- SPA NAVIGATION GUARD ----
     // Wraps the meta IIFE's history patches. When a click is intercepted,
     // __startNavGuard sets a guard. If pushState/replaceState/popstate fires
@@ -253,13 +190,10 @@
             }, NAV_GUARD_TIMEOUT_MS);
         };
     })();
-    } catch (err) {
-        window.__adlReportInitError && window.__adlReportInitError('nav-guard-iife', err);
-    }
+    } catch (err) {}
 
     // ---- REAL-TIME META REPORTING (title + favicon) ----
     // Method 1: WebView2 postMessage (real-time, initiated by page JS)
-    // Method 2: Rust-side active fetch via __adlGetMeta (polling-based, reliable fallback)
     // IMPORTANT: this IIFE is isolated in a try/catch. Any error inside (e.g.
     // a page where document.head is not yet available when the init script runs)
     // must NOT abort the outer IIFE — otherwise the C1 history wrapper installed
@@ -268,7 +202,6 @@
     try {
     (function() {
         if (window.top !== window.self) return;
-        var LOG_PREFIX = '[ADL-META]';
         var lastTitle = '';
         var lastFavicon = '';
         var lastUrl = '';
@@ -282,10 +215,6 @@
         var navPollCount = 0;
         var NAV_POLL_MAX = 30;
         var NAV_POLL_INTERVAL = 100;
-
-        console.log(LOG_PREFIX, '=== Meta reporting initialized ===');
-        console.log(LOG_PREFIX, 'Method 1 (postMessage):', hasPostMessage ? 'AVAILABLE' : 'NOT AVAILABLE');
-        console.log(LOG_PREFIX, 'Method 2 (Rust active fetch via __adlGetMeta): available');
 
         function getFavicon() {
             var best = '';
@@ -323,8 +252,11 @@
         function getPageTitle() {
             var t = document.title ? document.title.trim() : '';
             try {
-                if (location.hostname.indexOf('youtube.com') !== -1 &&
-                    location.pathname.indexOf('/watch') === 0) {
+                var host = location.hostname;
+                var isYouTubeWatch =
+                    (host === 'youtube.com' || host.endsWith('.youtube.com')) &&
+                    location.pathname.indexOf('/watch') === 0;
+                if (isYouTubeWatch) {
                     var h1 = document.querySelector('h1.ytd-watch-metadata, h1.title');
                     if (h1) {
                         var h = (h1.textContent || h1.innerText || '').trim();
@@ -333,14 +265,6 @@
                 }
             } catch (e) {}
             return t;
-        }
-
-        function getHostname() {
-            try {
-                return location.hostname;
-            } catch(e) {
-                return '';
-            }
         }
 
         function isTitleMeaningful(t) {
@@ -374,7 +298,6 @@
                 return true;
             } catch(e) {
                 postMessageWorks = false;
-                console.warn(LOG_PREFIX, 'Method 1 (postMessage): FAILED |', e.message);
                 return false;
             }
         }
@@ -391,9 +314,6 @@
                 lastFavicon = fNow;
                 hasFavicon = true;
             }
-            console.log(LOG_PREFIX, '► URL changed → ' + u.substring(0, 80) +
-                ' | favicon:' + (fNow ? '✓(immediate)' : '(waiting)') +
-                ' | preNavTitle:' + (preNavTitle ? preNavTitle.substring(0, 40) : '(empty)'));
             startNavPolling();
         }
 
@@ -425,10 +345,6 @@
             if (!titleAccepted && !faviconAccepted) {
                 return;
             }
-
-            console.log(LOG_PREFIX, '► reportMeta [' + reason + '] title:' +
-                (titleAccepted ? t.substring(0, 50) : '(waiting)') +
-                ' | favicon:' + (faviconAccepted ? '✓' : (hasFavicon ? '=' : '(waiting)')));
 
             isReporting = true;
             var sendTitle = hasTitle ? lastTitle : '';
@@ -581,64 +497,8 @@
         window.addEventListener('popstate', function() {
             setTimeout(function() { reportMeta('popstate'); }, 0);
         });
-
-        window.__adlGetMeta = function() {
-            var t = getPageTitle();
-
-            // Fallback to og:title if getPageTitle is empty or just hostname
-            if (!isTitleMeaningful(t)) {
-                var ogMeta = document.querySelector('meta[property="og:title"]');
-                if (ogMeta && ogMeta.content) {
-                    t = ogMeta.content.trim();
-                }
-            }
-
-            var f = getFavicon();
-            var u = location.href.split('#')[0];
-
-            if (u !== lastUrl) {
-                return JSON.stringify({ title: '', favicon: f || '', url: u, pending: true });
-            }
-
-            var outTitle = '';
-            var outFavicon = '';
-
-            // Branch 1: already have a real title, confirm it matches
-            if (hasTitle && lastTitle && isTitleMeaningful(t) && t === lastTitle) {
-                outTitle = t;
-            }
-            // Branch 2: don't have a real title yet, and a meaningful one just appeared
-            else if (!hasTitle && isTitleMeaningful(t) && t !== preNavTitle) {
-                outTitle = t;
-                lastTitle = t;
-                hasTitle = true;
-            }
-            // Branch 3: hasTitle was forced true by nav polling timeout but lastTitle is empty,
-            // and a meaningful title just appeared — accept it
-            else if (hasTitle && !lastTitle && isTitleMeaningful(t) && t !== preNavTitle) {
-                outTitle = t;
-                lastTitle = t;
-            }
-
-            if (hasFavicon && f) {
-                outFavicon = f;
-                if (f !== lastFavicon) lastFavicon = f;
-            } else if (!hasFavicon && f) {
-                outFavicon = f;
-                lastFavicon = f;
-                hasFavicon = true;
-            }
-
-            return JSON.stringify({
-                title: outTitle,
-                favicon: outFavicon,
-                url: u
-            });
-        };
     })();
-    } catch (err) {
-        window.__adlReportInitError && window.__adlReportInitError('meta-iife', err);
-    }
+    } catch (err) {}
 
     // ---- C1: HISTORY URL NORMALIZATION ----
     // Pure helpers (extracted by frontend tests between __ADL_PURE markers).
@@ -737,48 +597,21 @@
         var origPushState = history.pushState;
         var origReplaceState = history.replaceState;
 
-        function __adlC1Debug(tag, extra) {
-            try {
-                if (typeof chrome !== 'undefined' && chrome.webview && chrome.webview.postMessage) {
-                    var msg = { type: 'adl-c1-debug', tag: tag };
-                    if (extra) for (var k in extra) msg[k] = extra[k];
-                    chrome.webview.postMessage(JSON.stringify(msg));
-                }
-            } catch (e) {}
-        }
-        __adlC1Debug('installed', {
-            wrapped: String(origPushState).indexOf('__adlResolveHistoryNavigation') !== -1 ? 'yes' : 'no',
-        });
-
         history.pushState = function(state, title, url) {
             if (url != null) {
                 var resolved = __adlResolveHistoryNavigation(url, location.href);
-                __adlC1Debug('pushState', {
-                    raw: String(url).slice(0, 120),
-                    cur: location.href.slice(0, 120),
-                    action: resolved.action,
-                    out: String(resolved.url).slice(0, 120),
-                });
                 if (resolved.action === 'replace') {
                     return origReplaceState.call(this, state, title, resolved.url);
                 }
                 return origPushState.call(this, state, title, resolved.url);
             }
-            __adlC1Debug('pushState-no-url', { raw: String(url) });
             return origPushState.apply(this, arguments);
         };
         history.replaceState = function(state, title, url) {
             if (url != null) {
                 var resolved = __adlResolveHistoryNavigation(url, location.href);
-                __adlC1Debug('replaceState', {
-                    raw: String(url).slice(0, 120),
-                    cur: location.href.slice(0, 120),
-                    action: resolved.action,
-                    out: String(resolved.url).slice(0, 120),
-                });
                 return origReplaceState.call(this, state, title, resolved.url);
             }
-            __adlC1Debug('replaceState-no-url', { raw: String(url) });
             return origReplaceState.apply(this, arguments);
         };
     })();

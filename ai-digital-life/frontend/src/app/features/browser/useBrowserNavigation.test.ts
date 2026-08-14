@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { shouldContinueSmartBack } from './useBrowserNavigation';
+import { deriveIframeCanNavigate, shouldContinueSmartBack } from './useBrowserNavigation';
 
 describe('shouldContinueSmartBack', () => {
   const videoA = 'https://www.bilibili.com/video/BV1uhAazAEyv';
   const videoAWithSlash = 'https://www.bilibili.com/video/BV1uhAazAEyv/';
-  const videoAWithTracking = 'https://www.bilibili.com/video/BV1uhAazAEyv/?spm_id_from=333.788.recommend_more_video.0';
+  const videoAWithTracking =
+    'https://www.bilibili.com/video/BV1uhAazAEyv/?spm_id_from=333.788.recommend_more_video.0';
   const videoB = 'https://www.bilibili.com/video/BV1v1um6JETE';
 
   it('continues when the landed URL is the same video (trailing-slash variant)', () => {
@@ -42,8 +43,30 @@ describe('shouldContinueSmartBack', () => {
   });
 
   it('continues when the hash is unchanged across a tracking variant', () => {
-    expect(shouldContinueSmartBack(`${videoA}#comment`, `${videoA}/?spm_id_from=1#comment`, 0)).toBe(
-      true,
-    );
+    expect(
+      shouldContinueSmartBack(`${videoA}#comment`, `${videoA}/?spm_id_from=1#comment`, 0),
+    ).toBe(true);
+  });
+});
+
+describe('deriveIframeCanNavigate (browser-mode toolbar parity)', () => {
+  it('empty stack: no back, no forward', () => {
+    expect(deriveIframeCanNavigate(-1, 0)).toEqual({ canGoBack: false, canGoForward: false });
+  });
+
+  it('single entry at index 0: no back, no forward', () => {
+    expect(deriveIframeCanNavigate(0, 1)).toEqual({ canGoBack: false, canGoForward: false });
+  });
+
+  it('middle of a stack: both back and forward', () => {
+    expect(deriveIframeCanNavigate(1, 3)).toEqual({ canGoBack: true, canGoForward: true });
+  });
+
+  it('end of a stack: back only', () => {
+    expect(deriveIframeCanNavigate(2, 3)).toEqual({ canGoBack: true, canGoForward: false });
+  });
+
+  it('beginning of a multi-entry stack: forward only', () => {
+    expect(deriveIframeCanNavigate(0, 3)).toEqual({ canGoBack: false, canGoForward: true });
   });
 });

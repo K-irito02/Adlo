@@ -152,18 +152,24 @@ impl WebViewHandle for TauriWebViewHandle {
         #[cfg(windows)]
         {
             let wv = self.webview()?;
+            let (tx, rx) = std::sync::mpsc::channel::<bool>();
             wv.with_webview(move |platform_wv| unsafe {
                 let controller = platform_wv.controller();
+                let mut issued = false;
                 if let Ok(core) = controller.CoreWebView2() {
                     // ICoreWebView2::GoBack is a no-op when there is no previous
-                    // history entry, so no CanGoBack pre-check is required.
-                    if let Err(e) = core.GoBack() {
-                        tracing::warn!(error = %e, "go_back: native GoBack failed");
+                    // history entry; it still returns Ok, so `issued` reflects
+                    // whether the native call was reachable, not whether a
+                    // navigation happened.
+                    issued = core.GoBack().is_ok();
+                    if !issued {
+                        tracing::warn!("go_back: native GoBack failed");
                     }
                 }
+                let _ = tx.send(issued);
             })
             .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
-            Ok(true)
+            Ok(rx.recv_timeout(std::time::Duration::from_millis(1000)).unwrap_or(false))
         }
         #[cfg(not(windows))]
         {
@@ -176,16 +182,20 @@ impl WebViewHandle for TauriWebViewHandle {
         #[cfg(windows)]
         {
             let wv = self.webview()?;
+            let (tx, rx) = std::sync::mpsc::channel::<bool>();
             wv.with_webview(move |platform_wv| unsafe {
                 let controller = platform_wv.controller();
+                let mut issued = false;
                 if let Ok(core) = controller.CoreWebView2() {
-                    if let Err(e) = core.GoForward() {
-                        tracing::warn!(error = %e, "go_forward: native GoForward failed");
+                    issued = core.GoForward().is_ok();
+                    if !issued {
+                        tracing::warn!("go_forward: native GoForward failed");
                     }
                 }
+                let _ = tx.send(issued);
             })
             .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
-            Ok(true)
+            Ok(rx.recv_timeout(std::time::Duration::from_millis(1000)).unwrap_or(false))
         }
         #[cfg(not(windows))]
         {
@@ -208,8 +218,6 @@ impl WebViewHandle for TauriWebViewHandle {
                 let mut result = false;
                 if let Ok(core) = controller.CoreWebView2() {
                     result = adl_browser::can_go_back_webview2(&core);
-                } else {
-                    tracing::warn!("[ADL-BACKFWD] can_go_back: CoreWebView2() failed");
                 }
                 let _ = tx.send(result);
             })
@@ -240,8 +248,6 @@ impl WebViewHandle for TauriWebViewHandle {
                 let mut result = false;
                 if let Ok(core) = controller.CoreWebView2() {
                     result = adl_browser::can_go_forward_webview2(&core);
-                } else {
-                    tracing::warn!("[ADL-BACKFWD] can_go_forward: CoreWebView2() failed");
                 }
                 let _ = tx.send(result);
             })

@@ -13,7 +13,7 @@ mod imp {
     use std::sync::Arc;
     use std::sync::atomic::Ordering;
 
-    use tracing::{debug, error, info, warn};
+    use tracing::{debug, error, warn};
     use webview2_com::Microsoft::Web::WebView2::Win32::{
         ICoreWebView2, ICoreWebView2_2, ICoreWebView2WebMessageReceivedEventArgs,
     };
@@ -28,7 +28,7 @@ mod imp {
         tab_id: &str,
         bridge: &Arc<dyn WebView2EventBridge>,
     ) -> Result<(), String> {
-        info!("[ADL-META-RECV] Method 1 (postMessage): setting up handler");
+        debug!("[ADL-META-RECV] Method 1 (postMessage): setting up handler");
         unsafe {
             let core2: ICoreWebView2_2 = match core.cast() {
                 Ok(c) => c,
@@ -68,47 +68,7 @@ mod imp {
                     }
 
                     if let Ok(meta) = serde_json::from_str::<serde_json::Value>(&json_str) {
-                        if meta.get("type").and_then(|t| t.as_str()) == Some("adl-c1-debug") {
-                            let tag = meta
-                                .get("tag")
-                                .and_then(|t| t.as_str())
-                                .unwrap_or("?")
-                                .to_string();
-                            let raw = meta
-                                .get("raw")
-                                .and_then(|t| t.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            let cur = meta
-                                .get("cur")
-                                .and_then(|t| t.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            let action = meta
-                                .get("action")
-                                .and_then(|t| t.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            let out = meta
-                                .get("out")
-                                .and_then(|t| t.as_str())
-                                .unwrap_or("")
-                                .to_string();
-                            info!(
-                                "[ADL-C1] {} | raw: {} | cur: {} | action: {} | out: {}",
-                                tag,
-                                raw.chars().take(100).collect::<String>(),
-                                cur.chars().take(100).collect::<String>(),
-                                action,
-                                out.chars().take(100).collect::<String>()
-                            );
-                            return Ok(());
-                        }
                         if let Some(url) = super::open_new_tab_url_from_message(&json_str) {
-                            info!(
-                                "[ADL-META-RECV] Method 1 (postMessage): OPEN-NEW-TAB → {}",
-                                url.chars().take(80).collect::<String>()
-                            );
                             bridge_for_handler.emit_open_new_tab(&url);
                             return Ok(());
                         }
@@ -138,7 +98,7 @@ mod imp {
 
                             let count =
                                 POSTMESSAGE_RECEIVED_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-                            info!(
+                            debug!(
                                 "[ADL-META-RECV] ◄ Method 1 (postMessage): RECEIVED ✓ (#{}) | title: {} | url: {}",
                                 count,
                                 title.chars().take(50).collect::<String>(),
@@ -161,7 +121,7 @@ mod imp {
             let mut token: i64 = 0;
             match core2.add_WebMessageReceived(&handler, &mut token as *mut _ as *mut _) {
                 Ok(_) => {
-                    info!(
+                    debug!(
                         "[ADL-META-RECV] Method 1 (postMessage): handler REGISTERED ✓ (token={}), REAL-TIME SYNC ENABLED",
                         token
                     );

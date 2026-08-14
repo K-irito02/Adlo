@@ -43,10 +43,8 @@ impl WebView2EventBridge for TauriWebView2EventBridge {
     }
 
     fn emit_open_new_tab(&self, url: &str) {
-        let _ = self.app.emit(
-            "digital-life://browser-open-new-tab",
-            serde_json::json!({ "url": url }),
-        );
+        let _ =
+            self.app.emit("digital-life://browser-open-new-tab", serde_json::json!({ "url": url }));
     }
 
     fn spawn_spa_fallback(&self, label: &str, _url: &str) {
@@ -66,11 +64,26 @@ impl WebView2EventBridge for TauriWebView2EventBridge {
                         // document.title/og:title pinned to the first video while
                         // the URL advances via pushState/radio queue. The visible
                         // h1 (current video's title) is SPA-updated and is the
-                        // most reliable source. Prefer h1 first, then per-page
-                        // meta tags, then document.title.
+                        // most reliable source — but only on video pages where an
+                        // h1 is the video title. Everywhere else (homepage,
+                        // search, channel) h1 may be a nav/brand heading, so it
+                        // must not outrank the meta tags. Match the domain
+                        // exactly (endsWith guards against subdomain/typo
+                        // spoofing) AND the video path.
                         var h1 = '';
-                        var h1El = document.querySelector('h1.ytd-watch-metadata, h1.title, h1');
-                        if (h1El) { h1 = (h1El.textContent || h1El.innerText || '').trim(); }
+                        var host = location.hostname;
+                        var path = location.pathname;
+                        var isVideoPage =
+                            (host === 'youtube.com' || host.endsWith('.youtube.com')) &&
+                            path.indexOf('/watch') === 0 ||
+                            (host === 'bilibili.com' || host.endsWith('.bilibili.com')) &&
+                            path.indexOf('/video/') === 0 ||
+                            (host === 'douyin.com' || host.endsWith('.douyin.com')) &&
+                            path.indexOf('/video/') === 0;
+                        if (isVideoPage) {
+                            var h1El = document.querySelector('h1.ytd-watch-metadata, h1.title, h1');
+                            if (h1El) { h1 = (h1El.textContent || h1El.innerText || '').trim(); }
+                        }
                         var og = pickContent('meta[property="og:title"]');
                         var tw = pickContent('meta[name="twitter:title"]');
                         var t = (document.title || '').trim();

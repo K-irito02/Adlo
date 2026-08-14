@@ -11,7 +11,7 @@ mod imp {
     use std::sync::Arc;
     use std::sync::atomic::Ordering;
 
-    use tracing::{info, warn};
+    use tracing::{debug, warn};
     use webview2_com::HistoryChangedEventHandler;
     use webview2_com::Microsoft::Web::WebView2::Win32::{
         ICoreWebView2, ICoreWebView2HistoryChangedEventHandler,
@@ -20,7 +20,7 @@ mod imp {
     use windows::core::IUnknown;
 
     use crate::WebView2EventBridge;
-    use crate::browser_events::{POLL_FAST_NOW, should_emit_history_changed};
+    use crate::browser_events::should_emit_history_changed;
     use crate::webview2_message::shared::HISTORY_CHANGED_COUNT;
 
     fn build_history_handler(
@@ -50,12 +50,10 @@ mod imp {
                     return Ok(());
                 }
 
-                POLL_FAST_NOW.store(true, Ordering::Release);
-
                 bridge.emit_url_changed(&tab_id, &clean_url);
 
                 let count = HISTORY_CHANGED_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-                info!(
+                debug!(
                     "[ADL-META-RECV] ◄ Method 5 (HistoryChanged): RECEIVED ✓ (#{}) | url: {}",
                     count,
                     clean_url.chars().take(80).collect::<String>()
@@ -74,7 +72,7 @@ mod imp {
         label: &str,
         bridge: &Arc<dyn WebView2EventBridge>,
     ) -> Result<(), String> {
-        info!("[ADL-META-RECV] Method 5 (HistoryChanged): setting up handler");
+        debug!("[ADL-META-RECV] Method 5 (HistoryChanged): setting up handler");
         unsafe {
             let bridge_for_handler = bridge.clone();
             let handler =
@@ -83,7 +81,7 @@ mod imp {
             let mut token: i64 = 0;
             match core.add_HistoryChanged(&handler, &mut token as *mut _ as *mut _) {
                 Ok(_) => {
-                    info!(
+                    debug!(
                         "[ADL-META-RECV] Method 5 (HistoryChanged): handler REGISTERED ✓ (token={}), SPA NAVIGATION DETECTION ENABLED",
                         token
                     );
@@ -105,14 +103,7 @@ mod imp {
         unsafe {
             let mut value: windows::core::BOOL = windows::core::BOOL::default();
             let ok = core.CanGoBack(&mut value).is_ok();
-            let result = ok && value.as_bool();
-            tracing::info!(
-                ok,
-                raw = value.0,
-                result,
-                "[ADL-BACKFWD] can_go_back_webview2"
-            );
-            result
+            ok && value.as_bool()
         }
     }
 
@@ -121,14 +112,7 @@ mod imp {
         unsafe {
             let mut value: windows::core::BOOL = windows::core::BOOL::default();
             let ok = core.CanGoForward(&mut value).is_ok();
-            let result = ok && value.as_bool();
-            tracing::info!(
-                ok,
-                raw = value.0,
-                result,
-                "[ADL-BACKFWD] can_go_forward_webview2"
-            );
-            result
+            ok && value.as_bool()
         }
     }
 }
@@ -153,6 +137,6 @@ mod imp {
     }
 }
 
-pub use imp::setup_history_changed_handler;
 pub use imp::can_go_back_webview2;
 pub use imp::can_go_forward_webview2;
+pub use imp::setup_history_changed_handler;

@@ -196,7 +196,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       }
 
       const normalizedUrl = normalizeUrlForCompare(url);
-      const _urlChangeTs = performance.now();
       markUrlSeen(normalizedUrl);
 
       const state = useAppStore.getState();

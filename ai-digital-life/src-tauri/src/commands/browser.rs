@@ -128,11 +128,6 @@ pub fn browser_navigate_tab(
     tab_id: String,
     url: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    tracing::info!(
-        tab_id = %tab_id,
-        url = %url,
-        "[ADL-BACKFWD] browser_navigate_tab: FRONTEND-ISSUED navigateTabInPool"
-    );
     Ok(ipc(state.browser_manager.navigate_tab(&tab_id, &url)))
 }
 
@@ -166,20 +161,7 @@ pub fn browser_can_go_back_tab(
     state: State<'_, AppState>,
     tab_id: String,
 ) -> Result<IpcResult<bool>, CommandError> {
-    let result = state.browser_manager.can_go_back_tab(&tab_id);
-    match &result {
-        Ok(v) => tracing::info!(
-            tab_id = %tab_id,
-            can = %v,
-            "[ADL-BACKFWD] browser_can_go_back_tab: ok"
-        ),
-        Err(e) => tracing::warn!(
-            tab_id = %tab_id,
-            err = %e,
-            "[ADL-BACKFWD] browser_can_go_back_tab: error"
-        ),
-    }
-    Ok(ipc(result))
+    Ok(ipc(state.browser_manager.can_go_back_tab(&tab_id)))
 }
 
 #[tauri::command]
@@ -187,20 +169,7 @@ pub fn browser_can_go_forward_tab(
     state: State<'_, AppState>,
     tab_id: String,
 ) -> Result<IpcResult<bool>, CommandError> {
-    let result = state.browser_manager.can_go_forward_tab(&tab_id);
-    match &result {
-        Ok(v) => tracing::info!(
-            tab_id = %tab_id,
-            can = %v,
-            "[ADL-BACKFWD] browser_can_go_forward_tab: ok"
-        ),
-        Err(e) => tracing::warn!(
-            tab_id = %tab_id,
-            err = %e,
-            "[ADL-BACKFWD] browser_can_go_forward_tab: error"
-        ),
-    }
-    Ok(ipc(result))
+    Ok(ipc(state.browser_manager.can_go_forward_tab(&tab_id)))
 }
 
 #[tauri::command]

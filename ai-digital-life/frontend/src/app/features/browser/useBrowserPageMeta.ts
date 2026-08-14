@@ -5,7 +5,6 @@ import {
   getCachedSiteMeta,
   buildCachedSiteMetaEntry,
 } from '@utils/siteMetaCache';
-import type { ToastType } from '@components/Toast';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { normalizedQueryForDedup } from '@utils/browserDisplayUtils';
 import { existingFaviconBaseline, shouldReplaceFavicon } from './faviconQuality';
@@ -84,15 +83,22 @@ export function isPlaceholderTitle(title: string, url: string): boolean {
  * The `com` source reports the live `document.title`, which SPA video sites
  * (e.g. Douyin) often leave stale (still the first video's title) while the
  * URL advances via pushState. The `http`/`iframe` sources carry a title that
- * was actually fetched for this URL, so they may always upgrade. `com` is
- * only allowed to fill placeholders so a stale native title can never clobber
- * a real fetched title.
+ * was actually fetched for this URL, so they may always upgrade.
+ *
+ * `com` may upgrade a placeholder OR a title that itself came from `com`/
+ * `google` (legitimate real-time updates such as an unread-count badge on a
+ * non-video site). It must never clobber a title fetched by `http`/`iframe`,
+ * because a stale native title would otherwise overwrite the correct one.
+ * `currentSource` is the provenance of the currently-accepted title; unknown
+ * (undefined) is treated conservatively as "fetch-backed" so `com` cannot
+ * unexpectedly overwrite a real title.
  */
 export function shouldApplyExactMatchTitle(
   currentTitle: string,
   url: string,
   incomingTitle: string,
   source: MetaSource,
+  currentSource?: MetaSource,
 ): boolean {
   if (!incomingTitle) {
     return false;
@@ -106,7 +112,13 @@ export function shouldApplyExactMatchTitle(
   if (isPlaceholderTitle(currentTitle, url)) {
     return true;
   }
-  return source === 'http' || source === 'iframe';
+  if (source === 'http' || source === 'iframe') {
+    return true;
+  }
+  if (source === 'com') {
+    return currentSource === 'com' || currentSource === 'google';
+  }
+  return false;
 }
 
 interface MetaProcessedEntry {
@@ -140,10 +152,6 @@ function normalizeMetaUrl(url: string): string {
 
 export function useBrowserPageMeta(
   pendingNavigationsRef: React.MutableRefObject<Set<string>>,
-  _setToastMessage?: React.Dispatch<
-    React.SetStateAction<{ id: string; message: string; type?: ToastType; source?: string }[]>
-  >,
-  _showToast?: (message: string, type?: ToastType, source?: string) => void,
   markUrlSeen?: (url: string) => void,
 ) {
   /**
@@ -152,6 +160,17 @@ export function useBrowserPageMeta(
    * from creating duplicate tabs / history entries for the same navigation.
    */
   const processedMetaRef = useRef<Map<string, MetaProcessedEntry>>(new Map());
+
+  /**
+   * Provenance of the title currently accepted for a browser TAB (keyed by tab
+   * id), rather than by URL. Keying per-tab isolates duplicate-URL tabs: a
+   * placeholder title on one tab must not let a `com` event flip the
+   * provenance of another tab that already holds a fetched `http` title.
+   * Lets `shouldApplyExactMatchTitle` distinguish a stale `com` title from a
+   * legitimate real-time `com` update without clobbering a fetched `http`/
+   * `iframe` title.
+   */
+  const titleSourceRef = useRef<Map<string, MetaSource>>(new Map());
 
   const shouldProcessMeta = useCallback((url: string, source: MetaSource): boolean => {
     const now = Date.now();
@@ -241,22 +260,17 @@ export function useBrowserPageMeta(
         );
         let anyApplied = false;
         for (const matchTab of matchingTabs) {
+          const currentSource = titleSourceRef.current.get(matchTab.id);
           const shouldApply = shouldApplyExactMatchTitle(
             matchTab.title,
             cleanUrl,
             pageTitle,
             source,
+            currentSource,
           );
-          console.debug('[ADL-TITLE] exactMatch gate', {
-            source,
-            cleanUrl,
-            tabId: matchTab.id,
-            currentTitle: matchTab.title,
-            incomingTitle: pageTitle,
-            shouldApply,
-          });
           if (shouldApply) {
             state.browserUpdateTab(matchTab.id, { title: pageTitle });
+            titleSourceRef.current.set(matchTab.id, source);
             anyApplied = true;
           }
         }

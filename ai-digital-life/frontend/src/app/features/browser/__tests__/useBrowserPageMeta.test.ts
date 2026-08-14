@@ -10,6 +10,33 @@ import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import * as siteMetaCache from '@utils/siteMetaCache';
 
+// Global store reset: useBrowserPageMeta reads/writes the module-level
+// useAppStore singleton. Every test must start from a clean store regardless of
+// which describe block runs (or whether a prior block's async side effects
+// leaked), so per-describe resets are insufficient on their own. Also clear the
+// persisted localStorage slice: browser tab mutations write through to storage,
+// and a fresh store hydration (e.g. a re-imported module in a reused worker)
+// would otherwise read a stale tab left behind by an earlier test.
+beforeEach(() => {
+  useAppStore.setState({
+    browserTabs: [],
+    browserActiveTabId: undefined,
+    browserHistory: [],
+    browserTabFolders: [],
+    browserBookmarks: [],
+    browserWorkspaceBookmarks: {},
+  });
+  try {
+    window.localStorage.removeItem('adl-ui:browser-tabs');
+    window.localStorage.removeItem('adl-ui:browser-active-tab');
+    window.localStorage.removeItem('adl-ui:browser-tab-folders');
+    window.localStorage.removeItem('adl-ui:browser-bookmarks');
+    window.localStorage.removeItem('adl-ui:browser-bookmark-tabid-url-map');
+  } catch {
+    /* localStorage unavailable */
+  }
+});
+
 describe('existingFaviconBaseline (quality-gate baseline helper)', () => {
   it('prefers the data-URI over the URL', () => {
     expect(
@@ -182,6 +209,54 @@ describe('shouldApplyExactMatchTitle', () => {
       shouldApplyExactMatchTitle('真实标题', 'https://a.com/video', '谷歌标题', 'google'),
     ).toBe(false);
   });
+
+  it('allows com to upgrade a com-sourced real title (real-time update, non-video site)', () => {
+    // e.g. a chat/mail page whose document.title legally gains "(3)" — com is
+    // allowed to update a title that itself came from com.
+    expect(
+      shouldApplyExactMatchTitle('收件箱', 'https://a.com/mail', '收件箱 (3)', 'com', 'com'),
+    ).toBe(true);
+  });
+
+  it('allows com to upgrade a google-sourced real title (real-time update)', () => {
+    expect(
+      shouldApplyExactMatchTitle('页面标题', 'https://a.com/p', '页面标题 (2)', 'com', 'google'),
+    ).toBe(true);
+  });
+
+  it('blocks com from overwriting an http-sourced real title (douyin regression stays)', () => {
+    // The stale native title must never clobber a title actually fetched over
+    // http for this URL — even when both are "real" titles.
+    expect(
+      shouldApplyExactMatchTitle(
+        '第一个视频标题',
+        'https://douyin.com/video/2',
+        '第二个视频标题',
+        'com',
+        'http',
+      ),
+    ).toBe(false);
+  });
+
+  it('blocks com from overwriting an iframe-sourced real title', () => {
+    expect(
+      shouldApplyExactMatchTitle(
+        '视频标题',
+        'https://douyin.com/video/3',
+        '别的标题',
+        'com',
+        'iframe',
+      ),
+    ).toBe(false);
+  });
+
+  it('treats an unknown current source conservatively (com cannot overwrite)', () => {
+    // No provenance recorded (e.g. title was set before this hook mounted):
+    // a stale com title must not overwrite it.
+    expect(shouldApplyExactMatchTitle('已有标题', 'https://a.com/video', '新的标题', 'com')).toBe(
+      false,
+    );
+  });
 });
 
 interface HandlePageMetaMeta {
@@ -195,6 +270,14 @@ describe('useBrowserPageMeta write path (siteMetaCache mock backend)', () => {
   beforeEach(async () => {
     siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
     await siteMetaCache.initSiteMetaCache();
+    useAppStore.setState({
+      browserTabs: [],
+      browserActiveTabId: undefined,
+      browserHistory: [],
+      browserTabFolders: [],
+      browserBookmarks: [],
+      browserWorkspaceBookmarks: {},
+    });
   });
 
   async function handle(meta: HandlePageMetaMeta, source?: 'com' | 'http' | 'iframe' | 'google') {
@@ -378,5 +461,112 @@ describe('useBrowserPageMeta exactMatch duplicate-URL tabs', () => {
     const tabs = useAppStore.getState().browserTabs;
     expect(tabs.find((t) => t.id === 'tab-a')?.title).toBe('');
     expect(tabs.find((t) => t.id === 'tab-b')?.title).toBe('真实标题');
+  });
+});
+
+describe('useBrowserPageMeta provenance state machine (single hook instance)', () => {
+  function makeTab(id: string, url: string, title = ''): BrowserTabState {
+    return {
+      id,
+      workspaceId: 'ws1',
+      title,
+      url,
+      isPinned: false,
+      sortOrder: 0,
+      isPlayingAudio: false,
+      isAudioMuted: false,
+    };
+  }
+
+  beforeEach(async () => {
+    siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
+    await siteMetaCache.initSiteMetaCache();
+    useAppStore.setState({
+      browserTabs: [],
+      browserActiveTabId: undefined,
+      browserHistory: [],
+      browserTabFolders: [],
+      browserBookmarks: [],
+      browserWorkspaceBookmarks: {},
+    });
+  });
+
+  function mount() {
+    const pendingNavigationsRef = { current: new Set<string>() };
+    const { result } = renderHook(() => useBrowserPageMeta(pendingNavigationsRef));
+    return {
+      handle: (meta: { title: string; url: string }, source: 'com' | 'http') =>
+        act(async () => {
+          result.current.handlePageMeta({ title: meta.title, favicon: '', url: meta.url }, source);
+        }),
+    };
+  }
+
+  it('allows com to update a title it established (real-time (3) unread badge)', async () => {
+    const url = 'https://mail.example.com/inbox';
+    useAppStore.setState({
+      browserTabs: [makeTab('tab-mail', url, '')],
+      browserActiveTabId: 'tab-mail',
+    });
+    const { handle } = mount();
+
+    await handle({ title: '收件箱', url }, 'com');
+    await handle({ title: '收件箱 (3)', url }, 'com');
+
+    const tab = useAppStore.getState().browserTabs[0];
+    expect(tab.title).toBe('收件箱 (3)');
+  });
+
+  it('blocks a stale com title from overwriting an http-fetched title (douyin regression)', async () => {
+    const url = 'https://douyin.com/video/2';
+    useAppStore.setState({
+      browserTabs: [makeTab('tab-dy', url, '')],
+      browserActiveTabId: 'tab-dy',
+    });
+    const { handle } = mount();
+
+    // http prefetch establishes the correct fetched title first.
+    await handle({ title: '第二个视频标题', url }, 'http');
+    // A stale com (document.title still the first video) event arrives later.
+    await handle({ title: '第一个视频标题', url }, 'com');
+
+    const tab = useAppStore.getState().browserTabs[0];
+    expect(tab.title).toBe('第二个视频标题');
+  });
+
+  it('keeps provenance per-tab: placeholder tab does not flip another tab http title', async () => {
+    const url = 'https://www.bilibili.com/video/BV1RSKJ6AE9R?t=7';
+    // tab-empty iterates FIRST: if provenance were shared per-URL, its com
+    // write would flip the shared source to com and let the stale com title
+    // clobber tab-fetched's http-fetched title. Per-tab keying must prevent it.
+    useAppStore.setState({
+      browserTabs: [makeTab('tab-empty', url, ''), makeTab('tab-fetched', url, '抓取标题')],
+      browserActiveTabId: 'tab-empty',
+    });
+    const { handle } = mount();
+
+    await handle({ title: '过期com标题', url }, 'com');
+
+    const tabs = useAppStore.getState().browserTabs;
+    expect(tabs.find((t) => t.id === 'tab-fetched')?.title).toBe('抓取标题');
+  });
+
+  it('blocks com once http established the title, per tab independently', async () => {
+    const url = 'https://douyin.com/video/2';
+    useAppStore.setState({
+      browserTabs: [makeTab('tab-dy-a', url, ''), makeTab('tab-dy-b', url, '')],
+      browserActiveTabId: 'tab-dy-a',
+    });
+    const { handle } = mount();
+
+    // http prefetch establishes the correct fetched title on BOTH tabs
+    // (http may always fill placeholders).
+    await handle({ title: '第二个视频标题', url }, 'http');
+
+    // A stale com event must not overwrite either http-fetched title.
+    await handle({ title: '第一个视频标题', url }, 'com');
+
+    const tabs = useAppStore.getState().browserTabs;
+    expect(tabs.every((t) => t.title === '第二个视频标题')).toBe(true);
   });
 });

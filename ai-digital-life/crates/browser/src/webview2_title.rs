@@ -9,7 +9,7 @@ mod imp {
     use std::sync::Arc;
     use std::sync::atomic::Ordering;
 
-    use tracing::{debug, info, warn};
+    use tracing::{debug, warn};
     use webview2_com::DocumentTitleChangedEventHandler;
     use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2;
     use webview2_com::take_pwstr;
@@ -25,7 +25,7 @@ mod imp {
         tab_id: &str,
         bridge: &Arc<dyn WebView2EventBridge>,
     ) -> Result<(), String> {
-        info!("[ADL-META-RECV] Method 3 (DocumentTitleChanged): setting up handler");
+        debug!("[ADL-META-RECV] Method 3 (DocumentTitleChanged): setting up handler");
         unsafe {
             let bridge_for_handler = bridge.clone();
             let tab_id_for_handler = tab_id.to_string();
@@ -84,7 +84,7 @@ mod imp {
                     }
 
                     let count = DOCUMENT_TITLE_CHANGED_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
-                    info!(
+                    debug!(
                         "[ADL-META-RECV] ◄ Method 3 (DocumentTitleChanged): RECEIVED ✓ (#{}) | title: {} | favicon: {} | url: {}",
                         count,
                         title.chars().take(50).collect::<String>(),
@@ -106,7 +106,7 @@ mod imp {
             let mut token: i64 = 0;
             match core.add_DocumentTitleChanged(&handler, &mut token as *mut _ as *mut _) {
                 Ok(_) => {
-                    info!(
+                    debug!(
                         "[ADL-META-RECV] Method 3 (DocumentTitleChanged): handler REGISTERED ✓ (token={}), NATIVE TITLE DETECTION ENABLED",
                         token
                     );

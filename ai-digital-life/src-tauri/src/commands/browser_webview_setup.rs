@@ -19,9 +19,7 @@ use tauri::{Emitter, Manager};
 /// open, or `None` for non-http(s) schemes that must stay blocked.
 fn new_window_target(url: &url::Url) -> Option<String> {
     if url.scheme() == "http" || url.scheme() == "https" {
-        adl_browser::resolve_url(url.as_str())
-            .ok()
-            .map(|u| u.to_string())
+        adl_browser::resolve_url(url.as_str()).ok().map(|u| u.to_string())
     } else {
         None
     }
@@ -33,10 +31,8 @@ fn new_window_handler(
 ) -> tauri::webview::NewWindowResponse<tauri::Wry> {
     if let Some(target) = new_window_target(url) {
         tracing::debug!(target, "new_window_handler: emitting browser-open-new-tab");
-        let _ = app.emit(
-            "digital-life://browser-open-new-tab",
-            serde_json::json!({ "url": target }),
-        );
+        let _ =
+            app.emit("digital-life://browser-open-new-tab", serde_json::json!({ "url": target }));
     }
     tauri::webview::NewWindowResponse::Deny
 }
@@ -216,10 +212,7 @@ mod tests {
     fn new_window_target_opens_http_and_https() {
         let http = url::Url::parse("http://example.com/page").unwrap();
         let https = url::Url::parse("https://www.bilibili.com/video/BV1xx").unwrap();
-        assert_eq!(
-            new_window_target(&http),
-            Some("http://example.com/page".to_string())
-        );
+        assert_eq!(new_window_target(&http), Some("http://example.com/page".to_string()));
         assert_eq!(
             new_window_target(&https),
             Some("https://www.bilibili.com/video/BV1xx".to_string())
