@@ -14,6 +14,7 @@ export interface UseBrowserPanelHandlersResult {
   handleNavigationStart: (url: string) => void;
   handleOpenTabFromTree: (url: string, tabId?: string) => void;
   handleToggleNavigateMode: (checked: boolean) => void;
+  handleAlwaysNewTab: (title: string) => void;
   handlePointerDown: (e: React.PointerEvent) => void;
 }
 
@@ -63,6 +64,15 @@ export function useBrowserPanelHandlers(
     [setBrowserNavigateInPlace],
   );
 
+  // "已打开的标签"模式下的 "+" 按钮：始终新建标签页，不受 browserNavigateInPlace 影响。
+  // 与 handleOpenTabFromTree（受开关影响）语义区分。
+  const handleAlwaysNewTab = useCallback(
+    (title: string) => {
+      browserOpenTab(undefined, title);
+    },
+    [browserOpenTab],
+  );
+
   const handlePointerDown = useCallback((_e: React.PointerEvent) => {}, []);
 
   return {
@@ -70,6 +80,7 @@ export function useBrowserPanelHandlers(
     handleNavigationStart,
     handleOpenTabFromTree,
     handleToggleNavigateMode,
+    handleAlwaysNewTab,
     handlePointerDown,
   };
 }

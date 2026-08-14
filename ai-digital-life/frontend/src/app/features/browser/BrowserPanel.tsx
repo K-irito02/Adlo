@@ -67,6 +67,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleNavigationStart,
     handleOpenTabFromTree,
     handleToggleNavigateMode,
+    handleAlwaysNewTab,
     handlePointerDown,
   } = useBrowserPanelHandlers({
     browserOpenTab,
@@ -380,6 +381,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       handleSelectTreePath,
       showToast,
       handleToggleNavigateMode,
+      handleAlwaysNewTab,
     },
     [
       wrappedHandleCloseTab,
@@ -422,6 +424,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       handleSelectTreePath,
       showToast,
       handleToggleNavigateMode,
+      handleAlwaysNewTab,
     ],
   );
 

@@ -136,6 +136,7 @@ export const browserZh = {
   browserBookmark: '收藏标签',
   browserUnbookmark: '取消收藏',
   browserNewTabBtn: '新建标签页',
+  browserNewTabAlways: '始终新建标签页',
   browserDeleteHistoryYearLabel: '删除全部历史记录 · 年',
   browserDeleteHistoryMonthLabel: '删除全部历史记录 · 月',
   browserDeleteHistoryDayLabel: '删除全部历史记录 · 日',

@@ -44,7 +44,6 @@ export function BrowserNavigator() {
     browserTabs,
     browserTabFolders,
     tabTreeExpanded,
-    urlState: { handlePlusClick },
   } = useBrowserPanelState();
 
   const activeTabId = activeTab?.id ?? '';
@@ -63,8 +62,8 @@ export function BrowserNavigator() {
     handleDeleteHistoryLevel,
     handleCloseAllTabs,
     handleClearTabDirectories,
-    browserOpenTab,
     handleOpenTabFromTree,
+    handleAlwaysNewTab,
     handleRefreshTab,
     handleEditTab,
     handleDeleteTab,
@@ -89,7 +88,6 @@ export function BrowserNavigator() {
     browserWorkspaceBookmarks,
     setBrowserNavigatorWidth,
     browserSelectTab,
-    browserNavigateInPlace,
   } = useAppStore(
     useShallow((state) => ({
       browserBookmarks: state.browserBookmarks,
@@ -98,7 +96,6 @@ export function BrowserNavigator() {
       browserWorkspaceBookmarks: state.browserWorkspaceBookmarks,
       setBrowserNavigatorWidth: state.setBrowserNavigatorWidth,
       browserSelectTab: state.browserSelectTab,
-      browserNavigateInPlace: state.browserNavigateInPlace,
     })),
   );
 
@@ -184,7 +181,7 @@ export function BrowserNavigator() {
             style={{ display: navigatorMode === 'open' || navigatorMode === 'tabs' ? '' : 'none' }}
           >
             <TooltipSimple
-              content={navigatorMode === 'tabs' ? t.browserNewTab : t.browserNewTabBtn}
+              content={navigatorMode === 'tabs' ? t.browserNewTab : t.browserNewTabAlways}
               placement="top"
             >
               <button
@@ -206,13 +203,12 @@ export function BrowserNavigator() {
                       wsId = resolveFolderWorkspaceId(fId, browserTabFolders);
                     }
                     setCreateTabDialog({ open: true, workspaceId: wsId, folderId: fId });
-                  } else if (browserNavigateInPlace) {
-                    handlePlusClick();
                   } else {
-                    browserOpenTab(undefined, t.browserNewTabPage);
+                    // open 模式：始终新建标签页，不受 browserNavigateInPlace 影响
+                    handleAlwaysNewTab(t.browserNewTabPage);
                   }
                 }}
-                aria-label={navigatorMode === 'tabs' ? t.browserNewTab : t.browserNewTabBtn}
+                aria-label={navigatorMode === 'tabs' ? t.browserNewTab : t.browserNewTabAlways}
               >
                 <IconPlus size={14} decorative />
               </button>

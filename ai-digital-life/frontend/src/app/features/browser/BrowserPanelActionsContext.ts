@@ -50,6 +50,7 @@ export interface BrowserPanelActions {
   showToast: (message: string, type?: 'success' | 'warning' | 'error') => void;
   browserOpenTab: (url?: string, title?: string, folderId?: string) => void;
   handleToggleNavigateMode: (checked: boolean) => void;
+  handleAlwaysNewTab: (title: string) => void;
   toggleNavigator: (tool: string) => void;
 }
 
