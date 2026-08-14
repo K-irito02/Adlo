@@ -6,6 +6,7 @@ mod browser_navigation;
 mod browser_pool;
 mod browser_webview;
 pub mod html_meta;
+pub mod robots_txt;
 mod site_meta_cache;
 mod webview2_audio;
 mod webview2_background;
