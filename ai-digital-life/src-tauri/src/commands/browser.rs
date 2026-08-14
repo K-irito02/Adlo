@@ -9,6 +9,8 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use crate::webview_event_bridge::TauriWebView2EventBridge;
 use adl_browser::html_meta::{extract_favicon, extract_title, origin_favicon_fallback};
+use adl_browser::robots_policy::{DomainRateLimiter, RobotsCache, domain_of, is_private_url};
+use adl_browser::robots_txt::parse_robots_txt;
 use adl_browser::webview_handle::{Bounds, EventBridgeRef};
 use adl_browser::{PageMeta, webview_label};
 use adl_errors::AppError;
@@ -268,8 +270,10 @@ pub fn browser_clear_cache(
 ///
 /// Mirrors `frontend/src/shared/userAgent.ts` (`USER_AGENT`). Update both
 /// locations together — they must stay in sync so Tauri-mode and preview-mode
-/// requests appear identical to servers.
-const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+/// requests appear identical to servers. This is a compliant crawler identity
+/// (robots.txt product token: `AIDigitalLife`), not a browser UA spoof.
+const USER_AGENT: &str = "AIDigitalLife/1.0 (+https://github.com/K-irito02/Kora; MetaFetcher)";
+const BOT_PRODUCT_TOKEN: &str = "AIDigitalLife";
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -286,6 +290,61 @@ where
 }
 
 const FETCH_DEDUP_WINDOW_MS: u64 = 3000;
+
+const RATE_LIMIT_WINDOW: std::time::Duration = std::time::Duration::from_secs(5);
+
+static ROBOTS_CACHE: std::sync::OnceLock<RobotsCache> = std::sync::OnceLock::new();
+static RATE_LIMITER: std::sync::OnceLock<DomainRateLimiter> = std::sync::OnceLock::new();
+
+/// 统一构造空 PageMeta（robots 拦截 / 限速兜底返回值）。
+fn empty_page_meta(url: &str) -> PageMeta {
+    PageMeta {
+        title: String::new(),
+        favicon: String::new(),
+        url: url.to_string(),
+        favicon_data_uri: String::new(),
+    }
+}
+
+/// robots 门控（含私网豁免与 fail-open）。返回 true 表示允许抓取。
+/// 私网直接放行；否则查缓存 → 未命中则拉取 robots.txt（失败按 Allow）→
+/// 用 `BOT_PRODUCT_TOKEN` 匹配 URL 的 path。
+async fn robots_allow_fetch(client: &reqwest::Client, url_str: &str) -> bool {
+    if is_private_url(url_str) {
+        return true;
+    }
+    let Ok(parsed) = url::Url::parse(url_str) else {
+        return true;
+    };
+    let Some(domain) = parsed.host_str().map(|s| s.to_string()) else {
+        return true;
+    };
+    let now = std::time::Instant::now();
+    let rules = {
+        let cache = ROBOTS_CACHE.get_or_init(RobotsCache::new);
+        if let Some(rules) = cache.get(&domain, now) {
+            Some(rules)
+        } else {
+            let robots_url = format!("{}://{domain}/robots.txt", parsed.scheme());
+            let fetched = client.get(&robots_url).send().await;
+            let rules = match fetched {
+                Ok(resp) if resp.status().is_success() => {
+                    let body = resp.text().await.unwrap_or_default();
+                    (!body.is_empty()).then(|| parse_robots_txt(&body))
+                },
+                _ => None,
+            };
+            if let Some(rules) = &rules {
+                cache.insert(&domain, rules.clone(), std::time::Instant::now());
+            }
+            rules
+        }
+    };
+    match rules {
+        Some(rules) => rules.is_allowed(BOT_PRODUCT_TOKEN, parsed.path()),
+        None => true, // fail-open
+    }
+}
 
 fn normalized_content_type(raw: &str) -> String {
     raw.split(';').next().unwrap_or("").trim().to_lowercase()
@@ -390,6 +449,22 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
         .build()
         .map_err(|e| AppError::Internal(format!("failed to build http client: {e}")))?;
 
+    // 合规爬虫门控：robots.txt Disallow 硬跳过（私网豁免 / fail-open 见辅助函数）。
+    if !robots_allow_fetch(&client, url).await {
+        tracing::info!(url = %url, "fetch_page_meta_inner: blocked by robots.txt, returning empty");
+        return Ok(empty_page_meta(url));
+    }
+    // 按域名限速（5s/次）；私网已在上层豁免。
+    if let Some(domain) = domain_of(url) {
+        if !RATE_LIMITER
+            .get_or_init(|| DomainRateLimiter::new(RATE_LIMIT_WINDOW))
+            .try_acquire(&domain, std::time::Instant::now())
+        {
+            tracing::info!(url = %url, domain = %domain, "fetch_page_meta_inner: rate limited, returning empty");
+            return Ok(empty_page_meta(url));
+        }
+    }
+
     let response = client
         .get(url)
         .header("Accept", "text/html,application/xhtml+xml")
@@ -432,7 +507,12 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
     let favicon_data_uri = if final_favicon.is_empty() {
         String::new()
     } else {
-        download_favicon_data_uri(&client, &final_favicon).await
+        // 对 favicon URL 再查一次 robots 门控（跨域 CDN 也受保护）。
+        if robots_allow_fetch(&client, &final_favicon).await {
+            download_favicon_data_uri(&client, &final_favicon).await
+        } else {
+            String::new()
+        }
     };
 
     tracing::info!(url = %url, title = %final_title, favicon_len = final_favicon.len(), favicon_data_uri_len = favicon_data_uri.len(), "fetch_page_meta_inner: result");
@@ -493,5 +573,49 @@ mod favicon_data_uri_tests {
                 "expected {ct:?} to be rejected as a favicon content type"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod robots_gate_tests {
+    use super::*;
+    use adl_browser::robots_txt::{RobotsRules, parse_robots_txt};
+
+    /// 纯决策：私网直接放行；无 robots（fail-open）放行；Disallow 硬跳过。
+    fn gate(url: &str, robots: Option<&RobotsRules>) -> bool {
+        if is_private_url(url) {
+            return true;
+        }
+        match robots {
+            None => true, // fail-open
+            Some(rules) => {
+                let path = url
+                    .parse::<url::Url>()
+                    .map(|u| u.path().to_string())
+                    .unwrap_or_else(|_| "/".to_string());
+                rules.is_allowed(BOT_PRODUCT_TOKEN, &path)
+            },
+        }
+    }
+
+    #[test]
+    fn private_url_always_allowed() {
+        assert!(gate("http://localhost:3000", None));
+        assert!(gate(
+            "http://127.0.0.1/x",
+            Some(&parse_robots_txt("User-agent: *\nDisallow: /\n"))
+        ));
+    }
+
+    #[test]
+    fn fail_open_when_robots_unavailable() {
+        assert!(gate("https://example.com/x", None));
+    }
+
+    #[test]
+    fn disallow_hard_skips_public_url() {
+        let rules = parse_robots_txt("User-agent: AIDigitalLife\nDisallow: /private");
+        assert!(!gate("https://example.com/private/a", Some(&rules)));
+        assert!(gate("https://example.com/public", Some(&rules)));
     }
 }
