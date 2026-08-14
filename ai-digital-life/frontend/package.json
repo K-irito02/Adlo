@@ -9,6 +9,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "typecheck:dev": "tsc --noEmit -p dev/tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
