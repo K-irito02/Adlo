@@ -13,6 +13,7 @@ import {
   BROWSER_WORKSPACE_BOOKMARKS_KEY,
 } from './browserSliceShared';
 import type { TabFolderState } from './browserFoldersTypes';
+import type { RecentWorkspaceEntry } from '@shared/ipc';
 
 export {
   BROWSER_TAB_FOLDERS_KEY,
@@ -76,4 +77,43 @@ export function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTa
     result[tab.id] = tab;
   }
   return result;
+}
+
+const MAX_PATH_STEPS = 20;
+
+export function buildWorkspacePathLabel(wsId: string, workspaces: RecentWorkspaceEntry[]): string {
+  const ws = workspaces.find((w) => w.id === wsId);
+  if (!ws) {
+    return '';
+  }
+  return (ws.name?.trim() || ws.path?.trim() || '').trim();
+}
+
+export function buildFolderPathLabel(
+  folderId: string,
+  folders: TabFolderState[],
+  workspaces: RecentWorkspaceEntry[],
+): string {
+  const parts: string[] = [];
+  let currentId = folderId;
+  let steps = 0;
+  const visited = new Set<string>();
+  while (currentId && steps < MAX_PATH_STEPS && !visited.has(currentId)) {
+    const folder = findFolderById(folders, currentId);
+    if (!folder) {
+      break;
+    }
+    visited.add(currentId);
+    parts.unshift(folder.name?.trim() || '');
+    if (folder.parentType === 'workspace' && folder.parentId) {
+      const wsLabel = buildWorkspacePathLabel(folder.parentId, workspaces);
+      if (wsLabel) {
+        parts.unshift(wsLabel);
+      }
+      break;
+    }
+    currentId = folder.parentId ?? '';
+    steps += 1;
+  }
+  return parts.filter(Boolean).join(' → ');
 }
