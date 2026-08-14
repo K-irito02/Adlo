@@ -1,18 +1,20 @@
-# 书签错误提示友好化 + 标签标题隔离设计
+# 书签错误提示友好化 + 标签标题隔离 + 悬停语义化路径设计
 
 **日期**：2026-08-14
 
 ## 背景
 
-浏览器"新建书签"重构（已完成 Task 1-8）引入了按 (路径, url, title) 去重的语义。本次是两项收尾优化：
+浏览器"新建书签"重构（已完成 Task 1-8）引入了按 (路径, url, title) 去重的语义。本次是三项收尾优化：
 
 1. **错误提示友好化**：当"新建书签/编辑书签"因真重复被拦截时，当前只有编辑书签有 toast（`browserEditBookmarkDuplicate`），且不附带重复发生的**位置**。需补全新建书签的提示，并在所有提示中内嵌**语义化路径**（用户界面显示的层级路径，如"工作区A → 工具 → 子文件夹"），帮助用户定位。
 2. **标签标题隔离**：书签自定义标题只应在书签树/列表里显示，**绝不**影响已打开的标签或将要打开的标签。已打开的标签始终显示网站自身的真实标题（页面抓取）。
+3. **悬停语义化路径**：鼠标悬停在目录或书签上时，系统原生 `title` 显示内部标识（`folder:xxx` / `bookmark:...`），与用户界面看到的路径不一致。需改为语义化路径（如"工作区A → 工具 → 子文件夹"）。
 
 ## 需求澄清（用户确认）
 
 - **需求 1**：toast 文案内嵌语义化路径，覆盖全面（新建书签仅保存/保存并打开 + 编辑书签）、提示详细。
 - **需求 2**：标签始终显示网站真实标题；自定义标题只在书签树里显示。范围覆盖：编辑书签、新建书签（保存并打开）、点击打开书签。
+- **需求 3**：目录/书签悬停 title 改为语义化路径，与用户界面显示的路径一致。
 
 ## 当前行为与问题点
 
@@ -81,7 +83,9 @@ export function buildWorkspacePathLabel(
 **调用方**（`useBrowserDialogs.ts`）：
 - `handleEditTabConfirm`：`result.ok === false` → `showToast(t.browserBookmarkDuplicateWithPath, 'warning', ...)`（用 `{path}` 插值 `result.pathLabel`）。回退：`pathLabel` 为空时用不含路径的 `browserEditBookmarkDuplicate`。
 - `handleCreateTabConfirm` save-only 分支：`store.browserCreateBookmarkEntry(...)` 返回 `{ok, pathLabel}`；`ok:false` → toast（含路径），不写任何状态。
-- `handleCreateTabConfirm` save-and-open 分支：`bookmarkNewTab` 改为返回 `{ok, pathLabel}`（内部调 `browserBookmarkTab` 拿返回值）；`ok:false` → toast（含路径）。注意：`browserOpenTab` 会先创建真实标签——**顺序调整**为先判断冲突再开标签：save-and-open 分支先调 `browserCreateBookmarkEntry` 预检（返回 `{ok,pathLabel}`），`ok:false` → toast 并 return（不开标签）；`ok:true` → 再 `browserOpenTab(url, undefined, ...)` + `bookmarkNewTab` 建立真实 tabId 关联（此时 `browserCreateBookmarkEntry` 已写入收藏，`bookmarkNewTab` 的写入是幂等的/更新标题）。
+- `handleCreateTabConfirm` save-and-open 分支：`bookmarkNewTab` 改为返回 `{ok, pathLabel}`（内部调 `browserBookmarkTab` 拿返回值）；`ok:false` → toast（含路径）。注意：`browserOpenTab` 会先创建真实标签——**顺序调整**为先判断冲突再开标签：save-and-open 分支先调 `browserCreateBookmarkEntry` 预检（返回 `{ok,pathLabel}`），`ok:false` → toast 并 return（不开标签）；`ok:true` → 再 `browserOpenTab(url, undefined, ...)` + `bookmarkNewTab` 建立真实 tabId 关联（此时 `browserCreateBookmarkEntry` 已用合成 tabId 写入收藏，`bookmarkNewTab`/`browserBookmarkTab` 以真实 tabId 幂等更新——同 tabId+url 则更新标题，语义一致）。
+
+> **实现注意**：save-and-open 的双写（`browserCreateBookmarkEntry` 合成 tabId + `browserBookmarkTab` 真实 tabId）需在实现时核对 `computeBookmarkTabOutcome` 的查重逻辑，确保合成 tabId 条目会被真实 tabId 条目正确更新/覆盖，避免残留两条记录。若存在残留风险，改为：save-and-open 分支先仅做**只读预检**（新增纯函数 `checkBookmarkCollision(url, title, workspaceId?, folderId?)` 返回 `{ok, pathLabel}`，不写状态），`ok` 后再走原 `browserOpenTab` + `bookmarkNewTab`（真实 tabId 单写）。计划阶段以"只读预检"为推荐实现。
 
 ### 3. i18n key（需求 1）
 
@@ -110,7 +114,25 @@ export function buildWorkspacePathLabel(
 
 **4d. 树显示不变**：书签树节点仍显示快照/自定义标题（`buildFolderNode` 用 snapshotTitle）。仅打开标签的行为变化。
 
-### 5. 测试
+### 5. 悬停语义化路径（需求 3）
+
+**问题定位**：
+- 顶层目录/工作区条目：`MultiTreeEntryShell.tsx:110` `<span title={label}>` —— 已显示名称（语义化）。✅ 无需改。
+- **嵌套节点**（书签、子文件夹、工作区书签）：`TreeNodeRow.tsx:117` `<button title={nodePath}>` —— 显示内部路径（`folder:xxx` / `bookmark:...` / `tab:...`）。❌ 需改。
+- 嵌套节点由 `BrowserEntrySubEntries` → `FileTree` → `TreeNodeRow` 渲染；`FileTree` 传入 `nodePath={node.path}`，`TreeNodeRow` 直接用作 `title`。
+
+**方案**：
+- `TreeNodeRow` 新增可选 prop `nodeTitle?: string`：`title={nodeTitle ?? nodePath}`（默认回退 `nodePath`，不影响其他文件树——git 树、工作区树等仍显示内部路径，本次不改它们）。
+- `FileTree` 新增可选 prop `getNodeTitle?: (node: T) => string | undefined`：`VirtualNodeComponent` 计算 `title={getNodeTitle?.(node)}` 传入 `TreeNodeRow`。
+- `BrowserEntrySubEntries`（浏览器树唯一的 `FileTree` 调用方）提供 `getNodeTitle`：
+  - 子文件夹（`kind === 'directory'`，nodeType `folder`）：`buildFolderPathLabel(node.folderId!, tabFolders, workspaces)` → 如"工作区A → 工具 → 子文件夹"。需从 store 读取 `browserTabFolders` + `recentWorkspaces`。
+  - 书签/标签叶子（`kind === 'file'`）：**路径 + 书签名**（用户已确认）——若该叶子所属的父目录能解析出路径，则显示 `"{父路径} / {书签名}"`（如"工具 → 子文件夹 / 百度"）；无法解析路径（如历史叶子、独立工作区书签无父目录）则退化为仅名称 `node.name`。
+  - 历史叶子（history）：名称（`node.name`）。
+- 保持 `data-path={nodePath}` 不变（内部逻辑/测试依赖）。
+
+> `BrowserEntrySubEntries` 当前已 `useAppStore`（line 11 import），可读取 `browserTabFolders`/`recentWorkspaces`。
+
+### 6. 测试
 
 - **`browserFoldersUtils.test.ts`**（新）：路径构建——顶层文件夹、嵌套（父→子）、workspace 下嵌套、未知 id 返回空、循环 parentId 截断。
 - **store 测试**（`browserBookmarkSlice.test.ts`）：
@@ -124,6 +146,9 @@ export function buildWorkspacePathLabel(
   - 保存并打开成功 → `browserOpenTab` 不传自定义标题。
 - **`browserBookmarkSlice.test.ts`**：`browserBookmarkTab` 拦截返回 `{ok:false, pathLabel}`；成功 `{ok:true}`。
 - **`useBrowserTagActions.test.ts`**（若存在）：当前标签打开书签 → `browserUpdateTab` 只传 url（不传 title）。若文件不存在则新建或并入 useBrowserDialogs 测试。
+- **悬停 title（需求 3）**：
+  - `TreeNodeRow`/`FileTree`：新增 `nodeTitle`/`getNodeTitle` prop 且默认回退 `nodePath`（不影响其他文件树）；现有文件树测试不破坏。
+  - `BrowserEntrySubEntries` 的 `getNodeTitle`：目录节点 title = `buildFolderPathLabel` 结果；书签/标签叶子 = `"{父路径} / {书签名}"`（父路径无法解析时退化为 `node.name`）；历史叶子 = `node.name`。
 - **`keys.test.ts`**：parity 自动校验新 key。
 
 ## 变更文件清单
@@ -134,8 +159,11 @@ export function buildWorkspacePathLabel(
 | `stores/slices/browserBookmarkSlice.ts` | `browserCreateBookmarkEntry` 返回 `{ok,pathLabel}`；`browserUpdateSavedBookmark` 返回 `{ok,pathLabel}`；`browserBookmarkTab` 返回 `{ok,pathLabel}` |
 | `features/browser/useBrowserDialogs.ts` | 编辑/新建拦截 toast（含路径）；编辑不再写 live tab title；保存并打开不带自定义标题（仍走 bookmarkNewTab 建立真实 tabId 关联，先预检冲突再开标签） |
 | `features/browser/useBrowserTagActions.ts` | 当前标签打开书签不再写 title |
+| `features/file-tree/TreeNodeRow.tsx` | 新增 `nodeTitle?: string`，`title={nodeTitle ?? nodePath}` |
+| `features/file-tree/FileTree.tsx` | 新增 `getNodeTitle?: (node) => string \| undefined`，传给 TreeNodeRow |
+| `features/browser-tree/BrowserEntrySubEntries.tsx` | 提供 `getNodeTitle`（目录→语义化路径；叶子→名称） |
 | `i18n/zh-CN/browser.ts`、`i18n/en-US/browser.ts` | 新增 `browserBookmarkDuplicateWithPath` |
-| 各测试文件 | 见第 5 节 |
+| 各测试文件 | 见第 6 节 |
 
 ## 不做的事（YAGNI）
 
@@ -143,3 +171,4 @@ export function buildWorkspacePathLabel(
 - 不动星标收藏按钮（url 开关语义，之前已确认）。
 - 不动书签树节点标题显示（保留自定义标题展示）。
 - 不动 `browserToggleBookmark` 去重（保持 url-keyed）。
+- 不改其他文件树（git 树、工作区文件树等）的悬停 title——本次仅浏览器树，`nodeTitle ?? nodePath` 默认回退保证无影响。
