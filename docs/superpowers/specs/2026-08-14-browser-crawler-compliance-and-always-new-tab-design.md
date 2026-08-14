@@ -1,7 +1,7 @@
 # 浏览器面板：合规爬虫优化 + "始终新建标签页"按钮
 
 - 日期：2026-08-14
-- 状态：已批准
+- 状态：已批准（含 2026-08-14 补充：tooltip 优化 + Tooltip 规则放宽）
 - 范围：浏览器面板（右侧面板）
 
 ## 背景
@@ -107,3 +107,41 @@ tooltip 使用 `t.browserNewTabBtn`（"新建标签页"）。
 
 - 新增/更新单测：`open` 模式下点击该按钮总是调用新建标签（不受 `browserNavigateInPlace` 影响）。
 - 既有 `BrowserNavModeSwitch` 相关测试不回归。
+
+## 设计 3：tooltip 优化与规则放宽
+
+### 目标
+
+1. "新建标签/当前标签"切换开关（`BrowserNavModeSwitch`）tooltip 由自定义 `TooltipSimple` 改为系统原生 `title`。
+2. "删除工作区与非工作区全部书签（保留目录结构）"按钮 tooltip 改为原生 `title`。
+3. 该按钮 tooltip 文字由"删除工作区与非工作区全部标签 （保留目录结构）"改为"删除工作区与非工作区全部书签（保留目录结构）"（语义核实：`browserClearAllFolderTabs` 清理的是目录内书签条目 `BookmarkTabItem`，不碰打开标签页，故"书签"更准确）。
+4. "已打开的标签"按钮 tooltip 文字由"已打开的标签"改为"已打开标签页"（"标签页"为浏览器标准术语）。
+5. Tooltip 相关规则**取消硬性绑定**：不再规定某场景必须用自定义 Tooltip 或原生 `title`，改为开发时询问用户、由用户决策。
+
+### 具体改动
+
+| 位置 | 改动 |
+|------|------|
+| `BrowserToolbar.tsx:121-131` | 移除包住 `BrowserNavModeSwitch` 的 `TooltipSimple`，改为在开关按钮上使用原生 `title` 属性 |
+| `BrowserNavModeSwitch.tsx` | 新增 `title` prop（由调用方传入 i18n 文案），替代内部对 `TooltipSimple` 的依赖 |
+| `BrowserNavigator.tsx:251-260` | 删除书签按钮：移除 `TooltipSimple`，改用原生 `title`；tooltip/aria-label 改用新 i18n key |
+| i18n `browser.ts`（en/zh） | `browserDeleteAllTabDirs` → **重命名**为 `browserDeleteAllBookmarks`，值改为"删除工作区与非工作区全部书签（保留目录结构）"；`browserOpenTabs` → 值改为"已打开标签页" |
+| 函数命名 | 内部函数名（`handleClearTabDirectories` / `browserClearAllFolderTabs` / `browserDeleteAllTabsInNode`）**不改**：描述的是数据结构操作，不面向用户 |
+| i18n key 引用 | `browserDeleteAllTabDirs` 的引用同步更新：`BrowserNavigator.tsx:251/256`、`browserTreeEntryUtils.tsx:184`（hint）、`browserEntrySubEntriesUtils.tsx:116`（hint）、相关测试 |
+
+### 规则文件更新（取消硬性绑定）
+
+| 文件 | 改动 |
+|------|------|
+| `.agents/rules/ui-patterns.md` §9 Tooltip | 删除"非路径场景**禁止**原生 `title` 属性"等硬性绑定表述；改为"自定义 Tooltip 与原生 `title` 均可使用，开发时由用户决策" |
+| `.agents/rules/design-system.md` | 核心约束表 Tooltip 行：删除"必须统一使用一种 Tooltip 方案"，改为"开发时由用户决策" |
+| 根 `AGENTS.md` 禁止项 | 删除"混合使用多种 Tooltip 方案"禁令（或改写为"Tooltip 方案选择开发时询问用户"） |
+| `ai-digital-life/AGENTS.md` 设计系统约束 | Tooltip 行删除"优先使用 `TooltipSimple`"的硬性绑定，改为询问用户 |
+| `.opencode/rules/` + `.trae/rules/` | 同步上述规则副本 |
+
+> 注：规格文档与规则文件同步更新需与实现计划一起执行；规则文件更新属于文档/治理变更，不改变运行时行为。
+
+### 测试
+
+- 前端单测：`BrowserNavModeSwitch` 的 `title` prop 渲染正确；删除书签按钮 tooltip/aria-label 使用新 i18n 值。
+- 双端一致性：Tauri 与浏览器模式均显示原生 `title`。
