@@ -5,6 +5,7 @@ import path from "node:path";
 import { handlePreviewWorkspaceApi, isPreviewWorkspaceApiRequest } from "./dev/previewWorkspaceService";
 import { setupPreviewTerminalWs } from "./dev/previewTerminalService";
 import { USER_AGENT } from "./src/shared/userAgent";
+import { pageMetaGateAllows } from "./dev/previewCrawlerGate";
 
 let visualizerPlugin = null;
 if (process.env.BUILD_ANALYZE === "true") {
@@ -92,6 +93,13 @@ export default defineConfig({
               res.end(JSON.stringify({ ok: false, error: 'missing url parameter' }));
               return;
             }
+            // 合规爬虫门控：robots.txt Disallow 硬跳过（私网豁免 / fail-open 见辅助函数）。
+            if (!(await pageMetaGateAllows(targetUrl))) {
+              res.setHeader('Content-Type', 'application/json; charset=utf-8');
+              res.statusCode = 200;
+              res.end(JSON.stringify({ title: '', favicon: '', faviconDataUri: '', url: targetUrl }));
+              return;
+            }
             try {
               const controller = new AbortController();
               const timeout = setTimeout(() => controller.abort(), 5000);
@@ -137,7 +145,11 @@ export default defineConfig({
               }
 
               let faviconDataUri = '';
-              if (favicon && (favicon.startsWith('http://') || favicon.startsWith('https://'))) {
+              if (
+                favicon &&
+                (favicon.startsWith('http://') || favicon.startsWith('https://')) &&
+                (await pageMetaGateAllows(favicon))
+              ) {
                 try {
                   const iconController = new AbortController();
                   const iconTimeout = setTimeout(() => iconController.abort(), 5000);
