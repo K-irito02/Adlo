@@ -343,7 +343,7 @@ describe('browserUpdateSavedBookmark', () => {
     expect(state.browserBookmarks.find((b) => b.url === 'https://old.com')).toBeUndefined();
   });
 
-  it('returns { ok: false } and leaves state unchanged on same-path url+title collision', () => {
+  it('returns { ok: false, pathLabel } and leaves state unchanged on same-path url+title collision', () => {
     const { get } = createMockStore();
     const slice = get() as unknown as BrowserBookmarkSlice;
     (get() as Record<string, unknown>).browserTabFolders = [
@@ -357,16 +357,17 @@ describe('browserUpdateSavedBookmark', () => {
         ],
       },
     ];
+    (get() as Record<string, unknown>).recentWorkspaces = [];
     const before = JSON.stringify(get().browserTabFolders);
     const result = slice.browserUpdateSavedBookmark('a', {
       url: 'https://e.com',
       title: 'Title A',
     });
-    expect(result).toEqual({ ok: false });
+    expect(result).toEqual({ ok: false, pathLabel: 'F' });
     expect(JSON.stringify(get().browserTabFolders)).toBe(before);
   });
 
-  it('returns { ok: false } on workspace url+title collision under a different tabId', () => {
+  it('returns { ok: false, pathLabel } on workspace url+title collision under a different tabId', () => {
     const { get } = createMockStore();
     const slice = get() as unknown as BrowserBookmarkSlice;
     (get() as Record<string, unknown>).browserWorkspaceBookmarks = {
@@ -375,12 +376,15 @@ describe('browserUpdateSavedBookmark', () => {
         { tabId: 'b', url: 'https://e.com', title: 'Title A' },
       ],
     };
+    (get() as Record<string, unknown>).recentWorkspaces = [
+      { id: 'ws1', name: 'WS1', path: '/ws1' },
+    ];
     const before = JSON.stringify(get().browserWorkspaceBookmarks);
     const result = slice.browserUpdateSavedBookmark('a', {
       url: 'https://e.com',
       title: 'Title A',
     });
-    expect(result).toEqual({ ok: false });
+    expect(result).toEqual({ ok: false, pathLabel: 'WS1' });
     expect(JSON.stringify(get().browserWorkspaceBookmarks)).toBe(before);
   });
 
@@ -488,6 +492,66 @@ describe('browserUpdateSavedBookmark', () => {
     const state = get() as unknown as BrowserBookmarkSlice;
     expect(state.browserBookmarks).toContainEqual({ url: 'https://e.com', title: 'New Title' });
     expect(state.browserBookmarks).not.toContainEqual({ url: 'https://e.com', title: 'Old Title' });
+  });
+
+  it('browserUpdateSavedBookmark returns {ok:false, pathLabel} on folder collision', () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [
+      {
+        id: 'f1',
+        name: '工具',
+        createdAt: 0,
+        tabs: [
+          { tabId: 'a', url: 'https://e.com', title: 'Title A' },
+          { tabId: 'b', url: 'https://e.com', title: 'Title B' },
+        ],
+      },
+    ];
+    (get() as any).recentWorkspaces = [];
+    const result = slice.browserUpdateSavedBookmark('a', {
+      url: 'https://e.com',
+      title: 'Title B',
+    });
+    expect(result).toEqual({ ok: false, pathLabel: '工具' });
+    expect((get() as any).browserTabFolders[0].tabs[0].title).toBe('Title A');
+  });
+
+  it('browserUpdateSavedBookmark returns {ok:false, pathLabel} on workspace collision', () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserWorkspaceBookmarks = {
+      ws1: [
+        { tabId: 'a', url: 'https://e.com', title: 'Title A' },
+        { tabId: 'b', url: 'https://e.com', title: 'Title B' },
+      ],
+    };
+    (get() as any).recentWorkspaces = [{ id: 'ws1', name: '工作区', path: '/ws1' }];
+    const result = slice.browserUpdateSavedBookmark('a', {
+      url: 'https://e.com',
+      title: 'Title B',
+    });
+    expect(result).toEqual({ ok: false, pathLabel: '工作区' });
+    expect((get() as any).browserWorkspaceBookmarks['ws1'][0].title).toBe('Title A');
+  });
+
+  it('browserUpdateSavedBookmark returns {ok:true} on normal update', () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [
+      {
+        id: 'f1',
+        name: '工具',
+        createdAt: 0,
+        tabs: [{ tabId: 'a', url: 'https://e.com', title: 'Title A' }],
+      },
+    ];
+    (get() as any).recentWorkspaces = [];
+    const result = slice.browserUpdateSavedBookmark('a', {
+      url: 'https://e.com',
+      title: 'Title C',
+    });
+    expect(result).toEqual({ ok: true });
   });
 });
 

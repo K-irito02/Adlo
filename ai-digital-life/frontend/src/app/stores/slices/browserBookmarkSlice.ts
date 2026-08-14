@@ -334,7 +334,7 @@ export interface BrowserBookmarkSlice {
   browserUpdateSavedBookmark: (
     tabId: string,
     updates: { url: string; title: string },
-  ) => { ok: boolean };
+  ) => { ok: boolean; pathLabel?: string };
   browserRemoveTabBookmarks: (tabId: string, url: string, scopeFolderId?: string) => void;
   browserRemoveOrphanedBookmarks: () => void;
   browserClearAllWorkspaceBookmarks: () => void;
@@ -511,7 +511,9 @@ export const createBrowserBookmarkSlice = (
   browserUpdateSavedBookmark: (tabId: string, updates: { url: string; title: string }) => {
     const url = updates.url.trim();
     const title = updates.title.trim();
+    const workspaces = _get().recentWorkspaces ?? [];
     let ok = true;
+    let pathLabel: string | undefined;
     set((state) => {
       if (!url) {
         return state;
@@ -532,6 +534,7 @@ export const createBrowserBookmarkSlice = (
         );
         if (folderCollides) {
           ok = false;
+          pathLabel = buildFolderPathLabel(folder.id, state.browserTabFolders, workspaces);
           return state;
         }
       }
@@ -541,6 +544,7 @@ export const createBrowserBookmarkSlice = (
         );
         if (wsCollides) {
           ok = false;
+          pathLabel = buildWorkspacePathLabel(wsId, workspaces);
           return state;
         }
       }
@@ -621,7 +625,7 @@ export const createBrowserBookmarkSlice = (
         browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
       };
     });
-    return { ok };
+    return { ok, ...(pathLabel !== undefined ? { pathLabel } : {}) };
   },
 
   browserRemoveTabBookmarks: (tabId: string, url: string, scopeFolderId?: string) => {
