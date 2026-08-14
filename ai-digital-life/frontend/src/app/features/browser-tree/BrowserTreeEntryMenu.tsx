@@ -281,7 +281,9 @@ export function useBrowserTreeEntryMenu({
                 if (contextMenuForTab.node.url) {
                   callbacks.onOpenTabInNewTab(
                     contextMenuForTab.node.url,
-                    contextMenuForTab.node.name,
+                    contextMenuForTab.node.isSavedBookmark
+                      ? undefined
+                      : contextMenuForTab.node.name,
                   );
                 }
                 setContextMenuForTab(null);
