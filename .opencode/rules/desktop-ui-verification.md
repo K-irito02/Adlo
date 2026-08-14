@@ -40,7 +40,7 @@ alwaysApply: false
 | 主题/语言切换 | 两模式一致 |
 | 文件树/变更面板 | Tauri: Rust 后端; 浏览器: Preview API |
 | 终端面板（多会话/Shell 切换/命令执行） | Tauri: Rust PTY; 浏览器: Node.js `child_process.spawn` |
-| Tooltip 组件 / 原生 `title` 残留检查 | 两模式一致 |
+| Tooltip 方案（自定义组件/原生 `title`）双端一致检查 | 两模式一致 |
 | 终端主题同步 / 空状态按钮组 | 两模式一致 |
 
 ## 相关文件

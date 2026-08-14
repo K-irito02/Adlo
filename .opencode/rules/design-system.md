@@ -13,7 +13,7 @@ alwaysApply: false
 | 颜色 | CSS 自定义属性 `var(--…)`，禁止硬编码 |
 | 图标 | SVG 格式，继承 `currentColor`，禁止 emoji |
 | 窗口 | 最小宽度 640px |
-| Tooltip | 必须统一使用一种 Tooltip 方案。例外：纯文本路径展示可使用原生 `title`（详见 [ui-patterns.md](./ui-patterns.md#9-tooltip)） |
+| Tooltip | 自定义 Tooltip 组件与原生 `title` 均可使用，具体方案开发时由用户决策（详见 [ui-patterns.md](./ui-patterns.md#9-tooltip)） |
 
 ## Tooltip 组件
 

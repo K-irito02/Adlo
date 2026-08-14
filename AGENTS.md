@@ -88,7 +88,6 @@
 - WebView 直接触达系统能力（必须通过 Tauri Command）
 - 低层 crate 依赖高层 crate
 - 凭据写入普通配置或日志（必须通过 `crates/credential/` 存储）
-- 混合使用多种 Tooltip 方案（例外：纯文本路径展示可使用原生 `title`，见 [ui-patterns.md](./.agents/rules/ui-patterns.md#9-tooltip)）
 - UI/UX 或功能变更后跳过红绿测试
 - 在 capability 文件中使用 `"all"` / `"**"` 通配权限
 - 功能或显示效果仅在 Tauri 或浏览器单一模式下可用（必须双端一致）

@@ -303,16 +303,14 @@ alwaysApply: true
 
 ## 9. Tooltip
 
-### 统一入口
+### 方案选择
 
-- **推荐**：`TooltipSimple`（便捷组件）
-- **复杂场景**：`Tooltip` + `TooltipTrigger` + `TooltipContent`（组合模式）
-- **文件系统路径展示**：可使用原生 `title` 属性（如 `WorkspaceList.tsx` 中的工作区路径）
-  - 理由：路径內容为纯文本，原生 tooltip 无定位闪烁问题
-  - 适用场景：工作区路径、文件路径等纯文本路径展示
-  - **此例外已在根 AGENTS.md `禁止项`中明列**，与"禁止混合使用多种 Tooltip 方案"不冲突
+- **可选方案**：`TooltipSimple`（便捷组件）、`Tooltip` + `TooltipTrigger` + `TooltipContent`（组合模式）、系统原生 `title` 属性。
+- **决策方式**：自定义 Tooltip 与原生 `title` 均可使用，**开发时由用户决策**，不预设硬性绑定。
+- 参考：
+  - `TooltipSimple` 适用于多数按钮提示。
+  - 原生 `title` 适用于轻量纯文本提示（无定位/动画需求）。
 - 文件：[Tooltip.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/Tooltip.tsx)
-- 非路径场景**禁止**原生 `title` 属性
 
 ### 视觉规范
 
