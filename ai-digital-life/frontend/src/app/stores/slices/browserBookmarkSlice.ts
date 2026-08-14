@@ -263,6 +263,12 @@ export interface BrowserBookmarkSlice {
   browserPendingBookmark: { url: string; title: string; tabId?: string } | null;
 
   browserToggleBookmark: (input?: { url?: string; title?: string }) => void;
+  browserCreateBookmarkEntry: (input: {
+    url: string;
+    title: string;
+    workspaceId?: string;
+    folderId?: string;
+  }) => void;
   browserBookmarkTab: (
     tabId: string,
     folderId?: string,
@@ -304,6 +310,75 @@ export const createBrowserBookmarkSlice = (
         writeBookmarkTabIdUrlMap(outcome.partial.browserBookmarkTabIdUrlMap);
       }
       return outcome.partial;
+    });
+  },
+
+  browserCreateBookmarkEntry: (input) => {
+    set((state) => {
+      const url = input.url.trim();
+      const title = input.title.trim() || hostnameFromUrl(url) || url;
+      if (!url) {
+        return state;
+      }
+      const syntheticTabId = createUiId('bookmark');
+      const exists = state.browserBookmarks.some((b) => b.url === url);
+      const nextBookmarks = exists
+        ? state.browserBookmarks
+        : [...state.browserBookmarks, { url, title }];
+
+      let nextFolders = state.browserTabFolders;
+      let foldersChanged = false;
+      if (input.folderId) {
+        nextFolders = state.browserTabFolders.map((folder) => {
+          if (folder.id !== input.folderId) {
+            return folder;
+          }
+          const existingTabs = folder.tabs || [];
+          if (existingTabs.some((item) => item.url === url)) {
+            return folder;
+          }
+          foldersChanged = true;
+          return { ...folder, tabs: [...existingTabs, { tabId: syntheticTabId, url, title }] };
+        });
+      }
+
+      let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
+      let wsChanged = false;
+      if (input.workspaceId) {
+        const existing = state.browserWorkspaceBookmarks[input.workspaceId] || [];
+        if (!existing.some((entry) => entry.url === url)) {
+          nextWorkspaceBookmarks = {
+            ...state.browserWorkspaceBookmarks,
+            [input.workspaceId]: [...existing, { tabId: syntheticTabId, url, title }],
+          };
+          wsChanged = true;
+        }
+      }
+
+      let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
+      if (input.folderId) {
+        nextTabIdUrlMap = { ...nextTabIdUrlMap, [syntheticTabId]: url };
+      }
+
+      if (!exists) {
+        writeBookmarks(nextBookmarks);
+      }
+      if (foldersChanged) {
+        writeTabFolders(nextFolders);
+      }
+      if (wsChanged) {
+        writeWorkspaceBookmarks(nextWorkspaceBookmarks);
+      }
+      if (input.folderId) {
+        writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
+      }
+
+      return {
+        browserBookmarks: nextBookmarks,
+        browserTabFolders: nextFolders,
+        browserWorkspaceBookmarks: nextWorkspaceBookmarks,
+        browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
+      };
     });
   },
 
