@@ -13,7 +13,7 @@
 4. **对话框**：创建模式标题"新建书签"、编辑模式标题"编辑书签"；底部按钮改为左 `[保存并打开]`、右 `[仅保存]`，两模式均无"取消"按钮；`onConfirm` 增加 mode 参数。
 5. **保存语义**："保存并打开"遵循"新建标签/当前标签"开关；"仅保存"不开标签（新增 store action）。
 6. **悬停按钮原生 title 化（新增调整点 1）**：目录或书签悬停时，"更多操作"（`more`）与"刷新Logo/标题"（`refresh`）按钮由 TooltipSimple 改为系统原生 `title`。
-7. **文案调整（新增调整点 2）**："刷新Logo/标题"按钮与右键菜单提示文字改为"刷新图标与标题"。
+7. **文案调整（新增调整点 2）**："刷新Logo/标题"按钮与右键菜单提示文字改为"刷新网站图标与标题"。
 
 ## 决策（已与用户确认）
 
@@ -27,7 +27,7 @@
 | 目录右键菜单 | 仅新增 **"新建书签"** 一项（不加"保存并打开"项） |
 | 工具栏 tabs "+" tooltip | 改 **TooltipSimple**（新建书签）；open "+" 保持原生 `title` |
 | 悬停按钮 tooltip（新） | 目录/书签悬停的 `more`、`refresh` 按钮改原生 `title`；`create-tab`、`close` 保持 TooltipSimple |
-| "刷新"文案（新） | 按钮与右键菜单提示改为"刷新图标与标题" |
+| "刷新"文案（新） | 按钮与右键菜单提示改为"刷新网站图标与标题" |
 
 ## 改动点
 
@@ -42,8 +42,8 @@
 | 新增 | `browserMenuNewTab` | 新建标签 | New tab | 工具栏"更多"菜单 `new-tab` 项（真·开标签，语义不同，保留"标签"措辞） |
 | 新增 | `browserBookmarkSaveOnly` | 仅保存 | Save only | 两对话框右侧按钮 |
 | 新增 | `browserBookmarkSaveAndOpen` | 保存并打开 | Save and open | 两对话框左侧按钮 |
-| `browserRefreshMeta` | （值改） | 刷新图标与标题 | Refresh Icon & Title | 书签悬停 `refresh` 按钮 + 右键菜单项 |
-| `browserRefreshMetaHint` | （值改） | 重新获取图标与标题，并清除旧缓存。若标签名称已自定义则保留自定义名称。 | Re-fetch icon and title, clearing old cache. If the tab name has been customized, the custom name is preserved. | 右键菜单提示文字 |
+| `browserRefreshMeta` | （值改） | 刷新网站图标与标题 | Refresh Website Icon & Title | 书签悬停 `refresh` 按钮 + 右键菜单项 |
+| `browserRefreshMetaHint` | （值改） | 重新获取网站图标与标题，并清除旧缓存。若标签名称已自定义则保留自定义名称。 | Re-fetch website icon and title, clearing old cache. If the tab name has been customized, the custom name is preserved. | 右键菜单提示文字 |
 
 文件：`frontend/src/app/i18n/zh-CN/browser.ts`、`frontend/src/app/i18n/en-US/browser.ts`。
 
@@ -133,6 +133,7 @@
 - i18n parity（keys.test.ts）通过
 - 双端一致：Tauri 与浏览器模式行为一致
 - 工具栏 tabs "+" 为 TooltipSimple，open "+" 为原生 title；目录/书签悬停 `more`/`refresh` 为原生 title，`create-tab`/`close` 为 TooltipSimple
+- "刷新网站图标与标题"文案双端一致
 
 ## 非目标
 
