@@ -116,7 +116,7 @@ export function useBrowserTagActions() {
   }, []);
 
   const handleOpenTabInNewTab = useCallback(
-    (url: string, title: string) => {
+    (url: string, title?: string) => {
       browserOpenTab(url, title);
     },
     [browserOpenTab],

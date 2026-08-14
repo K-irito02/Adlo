@@ -17,7 +17,7 @@ export interface SectionCallbacks {
   onEditTab: (tabId: string, name: string, url: string) => void;
   onDeleteTab: (tabId: string, url: string) => void;
   onCopyTabLink: (url: string) => void;
-  onOpenTabInNewTab: (url: string, title: string) => void;
+  onOpenTabInNewTab: (url: string, title?: string) => void;
   onOpenTabInCurrentTab: (tabId: string) => void;
   onCloseTab?: (tabId: string) => void;
   onBookmarkTab?: (url: string, title: string) => void;

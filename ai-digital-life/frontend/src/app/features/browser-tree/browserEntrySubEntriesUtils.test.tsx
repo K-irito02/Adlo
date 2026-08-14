@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getChildNodeMoreMenuItems } from './browserEntrySubEntriesUtils';
+import { getChildNodeMoreMenuItems, getTabContextMenuItems } from './browserEntrySubEntriesUtils';
 import type { CopyDict } from '@i18n';
+import type { BrowserTreeNode } from './types';
 
 function makeCallbacks() {
   return {
@@ -50,5 +51,40 @@ describe('getChildNodeMoreMenuItems', () => {
     const items = getChildNodeMoreMenuItems('day', 'history', 'history:2026-08', callbacks, t);
     const item = items.find((i) => i.id === 'create-bookmark');
     expect(item).toBeUndefined();
+  });
+});
+
+describe('getTabContextMenuItems open-new title isolation', () => {
+  function tabNode(partial: Partial<BrowserTreeNode>): BrowserTreeNode {
+    return {
+      path: 'p',
+      name: 'Snapshot Title',
+      kind: 'file',
+      children: [],
+      nodeType: 'tab',
+      url: 'https://example.com',
+      ...partial,
+    };
+  }
+
+  it('open-new passes undefined title for saved bookmark nodes', () => {
+    const callbacks = makeCallbacks();
+    const items = getTabContextMenuItems(tabNode({ isSavedBookmark: true }), callbacks, t, true);
+    const item = items.find((i) => i.id === 'open-new')!;
+    expect(item).toBeDefined();
+    item.action();
+    expect(callbacks.onOpenTabInNewTab).toHaveBeenCalledWith('https://example.com', undefined);
+  });
+
+  it('open-new passes node.name for normal tab nodes', () => {
+    const callbacks = makeCallbacks();
+    const items = getTabContextMenuItems(tabNode({ isSavedBookmark: false }), callbacks, t, false);
+    const item = items.find((i) => i.id === 'open-new')!;
+    expect(item).toBeDefined();
+    item.action();
+    expect(callbacks.onOpenTabInNewTab).toHaveBeenCalledWith(
+      'https://example.com',
+      'Snapshot Title',
+    );
   });
 });

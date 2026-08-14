@@ -32,7 +32,7 @@ export interface BrowserPanelActions {
   handleRefreshTab: (tabId: string, url: string) => Promise<void>;
   handleDeleteTab: (tabId: string, url: string) => void;
   handleCopyTabLink: (url: string) => Promise<void>;
-  handleOpenTabInNewTab: (url: string, title: string) => void;
+  handleOpenTabInNewTab: (url: string, title?: string) => void;
   handleOpenTabInCurrentTab: (tabId: string) => void;
   onBookmarkTab?: (url: string, title: string) => void;
   onRemoveBookmarkTab?: (tabId: string, url: string) => void;

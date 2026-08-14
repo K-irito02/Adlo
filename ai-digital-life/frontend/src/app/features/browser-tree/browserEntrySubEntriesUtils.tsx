@@ -180,7 +180,7 @@ export function getTabContextMenuItems(
       label: t.browserContextOpenNewTab,
       action: () => {
         if (node.url) {
-          callbacks.onOpenTabInNewTab(node.url, node.name);
+          callbacks.onOpenTabInNewTab(node.url, node.isSavedBookmark ? undefined : node.name);
         }
       },
     },

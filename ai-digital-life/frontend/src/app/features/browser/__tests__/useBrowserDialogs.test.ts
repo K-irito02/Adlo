@@ -305,6 +305,40 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     expect(openTab).not.toHaveBeenCalled();
   });
 
+  it('save-and-open navigate-in-place re-save does not false-toast', async () => {
+    useAppStore.setState({
+      browserNavigateInPlace: true,
+      browserActiveTabId: 't1',
+      browserTabFolders: [
+        {
+          id: 'f1',
+          name: 'F',
+          createdAt: 0,
+          tabs: [{ tabId: 't1', url: 'https://e.com', title: 'Title' }],
+        },
+      ],
+      browserWorkspaceBookmarks: {},
+      browserBookmarks: [{ url: 'https://e.com', title: 'Title' }],
+      browserBookmarkTabIdUrlMap: { t1: 'https://e.com' },
+    });
+    const navigateActiveTab = vi.fn();
+    useAppStore.setState({ browserNavigateActiveTab: navigateActiveTab });
+    const openTab = vi.fn();
+    const showToast = vi.fn();
+    const { result } = renderDialogs(openTab, showToast, {
+      browserEditBookmarkDuplicate: 'DUP',
+      browserBookmarkDuplicateWithPath: 'DUP at {path}',
+    });
+    await act(async () => {
+      result.current.handleSetCreateTabDialog({ open: true, workspaceId: 'ws1', folderId: 'f1' });
+    });
+    await act(async () => {
+      await result.current.handleCreateTabConfirm('Title', 'https://e.com', 'save-and-open');
+    });
+    expect(showToast).not.toHaveBeenCalled();
+    expect(navigateActiveTab).toHaveBeenCalledWith('https://e.com', undefined);
+  });
+
   it('save-and-open success opens tab without custom title', async () => {
     useAppStore.setState({
       browserNavigateInPlace: false,

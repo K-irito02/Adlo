@@ -135,6 +135,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         { workspaceId: folderId ? undefined : workspaceId, folderId },
         state,
         state.recentWorkspaces,
+        state.browserNavigateInPlace ? state.browserActiveTabId : undefined,
       );
       if (precheck.ok === false) {
         const msg = precheck.pathLabel
