@@ -86,7 +86,8 @@ export function buildWorkspacePathLabel(wsId: string, workspaces: RecentWorkspac
   if (!ws) {
     return '';
   }
-  return (ws.name?.trim() || ws.path?.trim() || '').trim();
+  const label = (ws.name?.trim() || ws.path?.trim() || '').trim();
+  return label.replace(/\\/g, '/');
 }
 
 export function buildFolderPathLabel(

@@ -397,7 +397,7 @@ export const createBrowserBookmarkSlice = (
     const url = input.url.trim();
     const title = input.title.trim() || hostnameFromUrl(url) || url;
     if (!url) {
-      return { ok: true };
+      return { ok: false };
     }
     const currentState = _get();
     const collision = checkBookmarkCollision(
@@ -596,11 +596,15 @@ export const createBrowserBookmarkSlice = (
 
       const oldTuples: { url: string; title: string }[] = [];
       let nextFolders = state.browserTabFolders;
+      let foldersChanged = false;
       if (foldersWithTab.length > 0) {
         for (const folder of foldersWithTab) {
           const oldItem = folder.tabs?.find((item) => item.tabId === tabId);
           if (oldItem) {
             oldTuples.push({ url: oldItem.url, title: oldItem.title });
+            if (oldItem.url !== url || oldItem.title !== title) {
+              foldersChanged = true;
+            }
           }
         }
         const tabIdSet = new Set(foldersWithTab.map((f) => f.id));
@@ -617,6 +621,7 @@ export const createBrowserBookmarkSlice = (
       }
 
       let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
+      let wsChanged = false;
       if (wsIdsWithTab.length > 0) {
         for (const id of wsIdsWithTab) {
           const oldEntry = state.browserWorkspaceBookmarks[id].find(
@@ -624,6 +629,9 @@ export const createBrowserBookmarkSlice = (
           );
           if (oldEntry) {
             oldTuples.push({ url: oldEntry.url, title: oldEntry.title });
+            if (oldEntry.url !== url || oldEntry.title !== title) {
+              wsChanged = true;
+            }
           }
         }
         const wsIdSet = new Set(wsIdsWithTab);
@@ -667,10 +675,10 @@ export const createBrowserBookmarkSlice = (
       if (bookmarksChanged) {
         writeBookmarks(nextBookmarks);
       }
-      if (foldersWithTab.length > 0 && nextFolders !== state.browserTabFolders) {
+      if (foldersChanged) {
         writeTabFolders(nextFolders);
       }
-      if (wsIdsWithTab.length > 0 && nextWorkspaceBookmarks !== state.browserWorkspaceBookmarks) {
+      if (wsChanged) {
         writeWorkspaceBookmarks(nextWorkspaceBookmarks);
       }
       if (nextTabIdUrlMap[tabId] !== state.browserBookmarkTabIdUrlMap[tabId]) {

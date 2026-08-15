@@ -148,7 +148,6 @@ export const browserEn = {
   browserNoSearchResults: 'No matching results',
   browserBookmark: 'Bookmark tab',
   browserUnbookmark: 'Unbookmark',
-  browserNewTabBtn: 'New tab page',
   browserNewTabAlways: 'Always new tab',
   browserCollapse: 'Collapse',
   browserExpand: 'Expand',
