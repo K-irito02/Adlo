@@ -104,7 +104,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
     (buttonId: string, e: React.MouseEvent) => {
       e.stopPropagation();
       switch (buttonId) {
-        case 'create-tab':
+        case 'create-bookmark':
           callbacks.onCreateTab(node.workspaceId, node.folderId);
           break;
         case 'delete-all-tabs':

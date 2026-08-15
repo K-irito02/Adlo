@@ -210,7 +210,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
                       nodeType: childNode.nodeType,
                       node: childNode,
                     });
-                  } else if (btn.id === 'create-tab') {
+                  } else if (btn.id === 'create-bookmark') {
                     callbacks.onCreateTab(childNode.workspaceId, childNode.folderId);
                   } else if (btn.id === 'delete-self-tabs') {
                     callbacks.onDeleteOwnChildTabs(categoryType, childNode.path);

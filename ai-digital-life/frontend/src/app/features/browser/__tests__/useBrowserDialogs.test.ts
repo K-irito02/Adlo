@@ -265,6 +265,9 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
       browserBookmarkDuplicateWithPath: 'DUP at {path}',
     });
     await act(async () => {
+      result.current.handleSetCreateTabDialog({ open: true, workspaceId: 'ws1', folderId: 'f1' });
+    });
+    await act(async () => {
       await result.current.handleCreateTabConfirm('Title', 'https://e.com', 'save-only');
     });
     expect(createBookmarkEntry).toHaveBeenCalledWith(
@@ -272,6 +275,7 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     );
     expect(showToast).toHaveBeenCalledWith('DUP at 工具', 'warning');
     expect(openTab).not.toHaveBeenCalled();
+    expect(result.current.createTabDialog.open).toBe(true);
   });
 
   it('save-and-open collision shows toast with path and does not open tab', async () => {
@@ -555,7 +559,19 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
 
   it('edit success calls browserUpdateTab with url only (no title)', () => {
     useAppStore.setState({
-      browserUpdateSavedBookmark: vi.fn().mockReturnValue({ ok: true }),
+      browserUpdateSavedBookmark: vi.fn().mockReturnValue({ ok: true, isSavedBookmark: true }),
+      browserTabs: [
+        {
+          id: 'saved-1',
+          workspaceId: 'w',
+          title: 'A',
+          url: 'https://e.com',
+          isPinned: false,
+          sortOrder: 0,
+          isPlayingAudio: false,
+          isAudioMuted: false,
+        },
+      ],
     });
     const updateTab = vi.fn();
     const { result } = renderHook(() =>
@@ -579,5 +595,47 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
     });
     expect(updateTab).toHaveBeenCalledTimes(1);
     expect(updateTab).toHaveBeenCalledWith('saved-1', { url: 'https://e.com' });
+  });
+
+  it('edit of a regular (non-saved) live tab updates title and url', () => {
+    useAppStore.setState({
+      browserUpdateSavedBookmark: vi.fn().mockReturnValue({ ok: true, isSavedBookmark: false }),
+      browserTabs: [
+        {
+          id: 'live-1',
+          workspaceId: 'w',
+          title: 'Old',
+          url: 'https://old.com',
+          isPinned: false,
+          sortOrder: 0,
+          isPlayingAudio: false,
+          isAudioMuted: false,
+        },
+      ],
+    });
+    const updateTab = vi.fn();
+    const { result } = renderHook(() =>
+      useBrowserDialogs({
+        browserOpenTab: vi.fn(),
+        browserUpdateTab: updateTab,
+        activeTab: null,
+        isBookmarked: false,
+        showToast: vi.fn(),
+        t: {
+          browserEditBookmarkDuplicate: 'DUP',
+          browserBookmarkDuplicateWithPath: 'DUP at {path}',
+        },
+      }),
+    );
+    act(() => {
+      result.current.handleEditTab('live-1', 'Old', 'https://old.com');
+    });
+    act(() => {
+      result.current.handleEditTabConfirm('NewName', 'https://new.com', 'save-only');
+    });
+    expect(updateTab).toHaveBeenCalledWith('live-1', {
+      title: 'NewName',
+      url: 'https://new.com',
+    });
   });
 });

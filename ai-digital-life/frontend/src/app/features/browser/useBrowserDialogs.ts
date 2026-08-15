@@ -57,19 +57,24 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
   );
 
   const bookmarkNewTab = useCallback(
-    (workspaceId?: string, folderId?: string, titleOverride?: string) => {
-      const tabId = useAppStore.getState().browserActiveTabId;
-      if (tabId && (workspaceId || folderId)) {
-        useAppStore
-          .getState()
-          .browserBookmarkTab(
-            tabId,
-            folderId || undefined,
-            undefined,
-            folderId ? undefined : workspaceId,
-            titleOverride,
-          );
+    async (
+      workspaceId?: string,
+      folderId?: string,
+      titleOverride?: string,
+    ): Promise<boolean> => {
+      const state = useAppStore.getState();
+      const tabId = state.browserActiveTabId;
+      if (!tabId || !(workspaceId || folderId)) {
+        return true;
       }
+      const result = await state.browserBookmarkTab(
+        tabId,
+        folderId || undefined,
+        undefined,
+        folderId ? undefined : workspaceId,
+        titleOverride,
+      );
+      return result.ok !== false;
     },
     [],
   );
@@ -108,7 +113,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         }
         setIsCreatingTab(false);
       }
-      setCreateTabDialog({ open: false });
       const store = useAppStore.getState();
       if (mode === 'save-only') {
         const result = store.browserCreateBookmarkEntry({
@@ -124,7 +128,9 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
               })
             : t.browserEditBookmarkDuplicate;
           showToast(msg, 'warning');
+          return;
         }
+        setCreateTabDialog({ open: false });
         return;
       }
       // save-and-open：先预检冲突（只读，不写书签）
@@ -146,13 +152,18 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         showToast(msg, 'warning');
         return;
       }
+      setCreateTabDialog({ open: false });
       if (state.browserNavigateInPlace) {
         state.browserNavigateActiveTab(url, undefined);
       } else {
         browserOpenTab(url, undefined, folderId ? undefined : workspaceId, undefined);
       }
       // 收藏记录写"用户填的自定义标题"（标签标题仍由页面抓取，互不影响）
-      bookmarkNewTab(workspaceId, folderId, title);
+      const bookmarked = await bookmarkNewTab(workspaceId, folderId, title);
+      if (!bookmarked) {
+        const msg = t.browserEditBookmarkDuplicate;
+        showToast(msg, 'warning');
+      }
     },
     [browserOpenTab, createTabDialog, bookmarkNewTab, showToast, t],
   );
@@ -179,28 +190,52 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       const { tabId } = editTabDialog;
       const trimmedUrl = url.trim();
       const trimmedName = name.trim();
-      if (tabId) {
-        const store = useAppStore.getState();
-        const result = store.browserUpdateSavedBookmark(tabId, {
-          url: trimmedUrl,
-          title: trimmedName,
-        });
-        if (result.ok === false) {
-          const msg = result.pathLabel
-            ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
-                path: result.pathLabel,
-              })
-            : t.browserEditBookmarkDuplicate;
-          showToast(msg, 'warning');
-          return;
+      if (!tabId) {
+        setEditTabDialog({ open: false, tabId: '', name: '', url: '' });
+        return;
+      }
+      const store = useAppStore.getState();
+      const isLiveTab = store.browserTabs.some((tab) => tab.id === tabId);
+
+      // 收藏条目：更新书签记录；冲突则拦截（对话框保持打开）
+      const result = store.browserUpdateSavedBookmark(tabId, {
+        url: trimmedUrl,
+        title: trimmedName,
+      });
+      if (result.ok === false) {
+        const msg = result.pathLabel
+          ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
+              path: result.pathLabel,
+            })
+          : t.browserEditBookmarkDuplicate;
+        showToast(msg, 'warning');
+        return;
+      }
+
+      if (result.isSavedBookmark) {
+        // 书签：live tab 标题保持页面抓取，只更新 url；save-and-open 导航到被编辑标签
+        if (isLiveTab) {
+          browserUpdateTab(tabId, { url: trimmedUrl || undefined });
         }
-        browserUpdateTab(tabId, { url: trimmedUrl || undefined });
         if (mode === 'save-and-open') {
-          if (store.browserNavigateInPlace) {
-            store.browserNavigateActiveTab(trimmedUrl, undefined);
+          if (isLiveTab) {
+            if (trimmedUrl && !store.browserNavigateInPlace) {
+              browserUpdateTab(tabId, { url: trimmedUrl });
+              store.browserSelectTab(tabId);
+            }
           } else {
             store.browserOpenTab(trimmedUrl, undefined);
           }
+        }
+      } else {
+        // 普通标签：完整改名 + 更新 url；save-and-open 导航到该标签
+        browserUpdateTab(tabId, {
+          title: trimmedName || undefined,
+          url: trimmedUrl || undefined,
+        });
+        if (mode === 'save-and-open' && trimmedUrl) {
+          browserUpdateTab(tabId, { url: trimmedUrl });
+          store.browserSelectTab(tabId);
         }
       }
       setEditTabDialog({ open: false, tabId: '', name: '', url: '' });

@@ -44,7 +44,7 @@ export function getChildNodeHoverButtons(
   if (nodeType === 'folder') {
     return [
       {
-        id: 'create-tab',
+        id: 'create-bookmark',
         label: t.browserContextCreateBookmark,
         icon: <IconPlus size={12} decorative />,
       },

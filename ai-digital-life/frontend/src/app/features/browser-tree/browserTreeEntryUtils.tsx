@@ -94,7 +94,7 @@ export function getEntryHoverButtons(
   }
   return [
     {
-      id: 'create-tab',
+      id: 'create-bookmark',
       label: t.browserContextCreateBookmark,
       icon: <IconPlus size={12} decorative />,
     },
@@ -153,15 +153,17 @@ export function getEntryMoreMenuItems(
     hint?: string;
     action: () => void;
   }[] = [];
-  items.push({
-    id: 'create-bookmark',
-    label: t.browserContextCreateBookmark,
-    action: () => {
-      const wsId = nodePath.startsWith('workspace:') ? nodePath.slice('workspace:'.length) : '';
-      const folderId = nodePath.startsWith('folder:') ? nodePath.slice('folder:'.length) : '';
-      callbacks.onCreateTab(wsId || undefined, folderId || undefined);
-    },
-  });
+  if (nodeType === 'workspace' || nodeType === 'folder') {
+    items.push({
+      id: 'create-bookmark',
+      label: t.browserContextCreateBookmark,
+      action: () => {
+        const wsId = nodePath.startsWith('workspace:') ? nodePath.slice('workspace:'.length) : '';
+        const folderId = nodePath.startsWith('folder:') ? nodePath.slice('folder:'.length) : '';
+        callbacks.onCreateTab(wsId || undefined, folderId || undefined);
+      },
+    });
+  }
   items.push({
     id: 'open-all-tabs',
     label: t.browserContextOpenAllNewTabs,
