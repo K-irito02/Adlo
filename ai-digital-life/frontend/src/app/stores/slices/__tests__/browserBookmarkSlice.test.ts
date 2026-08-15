@@ -844,3 +844,65 @@ describe('browserBookmarkTab in-place stale entry removal', () => {
     expect(folder.tabs[0]).toMatchObject({ tabId: 't1', url: 'https://new.com' });
   });
 });
+
+describe('browserToggleBookmark tuple semantics', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('adds the specific (url,title) tuple on star-on', () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [];
+    (get() as any).browserWorkspaceBookmarks = {};
+    (get() as any).browserTabs = [
+      { id: 't1', workspaceId: 'w', title: 'Title A', url: 'https://e.com' },
+    ];
+    (get() as any).browserActiveTabId = 't1';
+    slice.browserToggleBookmark();
+    const state = get() as unknown as BrowserBookmarkSlice;
+    expect(state.browserBookmarks).toContainEqual({ url: 'https://e.com', title: 'Title A' });
+  });
+
+  it('removes only the matching (url,title) tuple on star-off, keeping other-title tuples', () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [];
+    (get() as any).browserWorkspaceBookmarks = {};
+    (get() as any).browserTabs = [
+      { id: 't1', workspaceId: 'w', title: 'Title A', url: 'https://e.com' },
+    ];
+    (get() as any).browserActiveTabId = 't1';
+    (get() as any).browserBookmarks = [
+      { url: 'https://e.com', title: 'Title A' },
+      { url: 'https://e.com', title: 'Title B' },
+    ];
+    slice.browserToggleBookmark();
+    const state = get() as unknown as BrowserBookmarkSlice;
+    expect(state.browserBookmarks).not.toContainEqual({ url: 'https://e.com', title: 'Title A' });
+    expect(state.browserBookmarks).toContainEqual({ url: 'https://e.com', title: 'Title B' });
+  });
+
+  it('keeps the global tuple on star-off when a folder entry still references it', () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [
+      {
+        id: 'f1',
+        name: 'F',
+        createdAt: 0,
+        tabs: [{ tabId: 'synth', url: 'https://e.com', title: 'Title A' }],
+      },
+    ];
+    (get() as any).browserTabs = [
+      { id: 't1', workspaceId: 'w', title: 'Title A', url: 'https://e.com' },
+    ];
+    (get() as any).browserActiveTabId = 't1';
+    (get() as any).browserBookmarks = [
+      { url: 'https://e.com', title: 'Title A' },
+    ];
+    slice.browserToggleBookmark();
+    const state = get() as unknown as BrowserBookmarkSlice;
+    expect(state.browserBookmarks).toContainEqual({ url: 'https://e.com', title: 'Title A' });
+  });
+});

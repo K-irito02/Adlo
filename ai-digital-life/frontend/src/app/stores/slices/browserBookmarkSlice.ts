@@ -112,13 +112,13 @@ function computeToggleBookmarkOutcome(
   const url = input?.url?.trim() ?? active?.url ?? 'about:blank';
   const rawTitle = input?.title?.trim() || active?.title || url;
   const title = rawTitle || hostnameFromUrl(url) || url;
-  const exists = state.browserBookmarks.some((bookmark) => bookmark.url === url);
-  const nextBookmarks = exists
-    ? state.browserBookmarks.filter((bookmark) => bookmark.url !== url)
-    : [...state.browserBookmarks, { url, title }];
+
+  // 元组语义：按 (url,title) 判断该具体收藏是否存在
+  const exists = state.browserBookmarks.some((b) => b.url === url && b.title === title);
 
   let nextFolders = state.browserTabFolders;
   let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
+  let nextBookmarks = state.browserBookmarks;
 
   let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
   if (exists) {
@@ -178,6 +178,19 @@ function computeToggleBookmarkOutcome(
       }
       wsBookmarksChanged = true;
     }
+
+    // 仅当该 (url,title) 元组不再被任何 folder/workspace 条目引用时才从全局移除
+    const stillReferenced =
+      Object.values(nextWorkspaceBookmarks).some((entries) =>
+        entries.some((e) => e.url === url && e.title === title),
+      ) || nextFolders.some((f) => f.tabs?.some((t) => t.url === url && t.title === title));
+    if (!stillReferenced) {
+      nextBookmarks = state.browserBookmarks.filter(
+        (b) => !(b.url === url && b.title === title),
+      );
+    }
+  } else {
+    nextBookmarks = [...state.browserBookmarks, { url, title }];
   }
 
   return {
@@ -187,10 +200,10 @@ function computeToggleBookmarkOutcome(
       browserWorkspaceBookmarks: nextWorkspaceBookmarks,
       browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
     },
-    bookmarksChanged: true,
+    bookmarksChanged: nextBookmarks !== state.browserBookmarks,
     foldersChanged,
     wsBookmarksChanged,
-    tabIdUrlMapChanged: true,
+    tabIdUrlMapChanged: nextTabIdUrlMap !== state.browserBookmarkTabIdUrlMap,
   };
 }
 

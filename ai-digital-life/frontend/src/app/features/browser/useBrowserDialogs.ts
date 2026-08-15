@@ -354,7 +354,12 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
                 .getState()
                 .browserBookmarkTab(tabId, folderId, undefined, undefined, title);
               if (result.ok === false && result.reason !== 'no-tab') {
-                showToast(t.browserEditBookmarkDuplicate, 'warning');
+                const msg = result.pathLabel
+                  ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
+                      path: result.pathLabel,
+                    })
+                  : t.browserEditBookmarkDuplicate;
+                showToast(msg, 'warning');
                 setBookmarkDialogOpen(false);
                 setPendingBookmark(null);
                 return;
@@ -365,7 +370,12 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
                 .getState()
                 .browserBookmarkTab(tabId, undefined, undefined, workspaceId, title);
               if (result.ok === false && result.reason !== 'no-tab') {
-                showToast(t.browserEditBookmarkDuplicate, 'warning');
+                const msg = result.pathLabel
+                  ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
+                      path: result.pathLabel,
+                    })
+                  : t.browserEditBookmarkDuplicate;
+                showToast(msg, 'warning');
                 setBookmarkDialogOpen(false);
                 setPendingBookmark(null);
                 return;
