@@ -11,6 +11,7 @@ import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTreeNode } from './types';
 import { buildBrowserNodeTitleMap } from './browserTreeTitle';
+import { buildFolderPathLabel } from '@stores/slices/browserFoldersUtils';
 import { resolveChildCount } from './useBrowserTreeData';
 import {
   type BrowserEntrySubEntriesProps,
@@ -123,10 +124,18 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     [counts],
   );
 
-  const nodeTitleMap = useMemo(
-    () => buildBrowserNodeTitleMap(node.children, browserTabFolders, recentWorkspaces),
-    [node.children, browserTabFolders, recentWorkspaces],
-  );
+  const nodeTitleMap = useMemo(() => {
+    const baseParentPath =
+      node.nodeType === 'folder' && node.folderId
+        ? buildFolderPathLabel(node.folderId, browserTabFolders, recentWorkspaces)
+        : '';
+    return buildBrowserNodeTitleMap(
+      node.children,
+      browserTabFolders,
+      recentWorkspaces,
+      baseParentPath,
+    );
+  }, [node.children, node.nodeType, node.folderId, browserTabFolders, recentWorkspaces]);
 
   const getChildNodeTitle = useCallback(
     (childNode: BrowserTreeNode) => nodeTitleMap.get(childNode.path),

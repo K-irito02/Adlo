@@ -7,11 +7,12 @@ export function buildBrowserNodeTitleMap(
   rootNodes: BrowserTreeNode[],
   tabFolders: TabFolderState[],
   workspaces: RecentWorkspaceEntry[],
+  baseParentPath = '',
 ): Map<string, string> {
   const map = new Map<string, string>();
   const stack: { node: BrowserTreeNode; parentPath: string }[] = rootNodes.map((n) => ({
     node: n,
-    parentPath: '',
+    parentPath: baseParentPath,
   }));
   while (stack.length > 0) {
     const { node, parentPath } = stack.pop()!;

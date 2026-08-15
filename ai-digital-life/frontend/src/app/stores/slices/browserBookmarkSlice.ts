@@ -561,18 +561,19 @@ export const createBrowserBookmarkSlice = (
       if (!url) {
         return state;
       }
-      const folder = (state.browserTabFolders || []).find((f) =>
+      const foldersWithTab = (state.browserTabFolders || []).filter((f) =>
         f.tabs?.some((item) => item.tabId === tabId),
       );
-      const wsId = Object.keys(state.browserWorkspaceBookmarks || {}).find((id) =>
+      const wsIdsWithTab = Object.keys(state.browserWorkspaceBookmarks || {}).filter((id) =>
         state.browserWorkspaceBookmarks[id].some((entry) => entry.tabId === tabId),
       );
-      if (!folder && !wsId) {
+      if (foldersWithTab.length === 0 && wsIdsWithTab.length === 0) {
         return state;
       }
       isSavedBookmark = true;
 
-      if (folder) {
+      // 任一包含该 tabId 的路径存在同路径 (url,title) 碰撞（其它 tabId）→ 拦截
+      for (const folder of foldersWithTab) {
         const folderCollides = (folder.tabs || []).some(
           (item) => item.tabId !== tabId && item.url === url && item.title === title,
         );
@@ -582,26 +583,29 @@ export const createBrowserBookmarkSlice = (
           return state;
         }
       }
-      if (wsId) {
-        const wsCollides = state.browserWorkspaceBookmarks[wsId].some(
+      for (const id of wsIdsWithTab) {
+        const wsCollides = state.browserWorkspaceBookmarks[id].some(
           (entry) => entry.tabId !== tabId && entry.url === url && entry.title === title,
         );
         if (wsCollides) {
           ok = false;
-          pathLabel = buildWorkspacePathLabel(wsId, workspaces);
+          pathLabel = buildWorkspacePathLabel(id, workspaces);
           return state;
         }
       }
 
       const oldTuples: { url: string; title: string }[] = [];
       let nextFolders = state.browserTabFolders;
-      if (folder) {
-        const oldItem = folder.tabs?.find((item) => item.tabId === tabId);
-        if (oldItem) {
-          oldTuples.push({ url: oldItem.url, title: oldItem.title });
+      if (foldersWithTab.length > 0) {
+        for (const folder of foldersWithTab) {
+          const oldItem = folder.tabs?.find((item) => item.tabId === tabId);
+          if (oldItem) {
+            oldTuples.push({ url: oldItem.url, title: oldItem.title });
+          }
         }
+        const tabIdSet = new Set(foldersWithTab.map((f) => f.id));
         nextFolders = state.browserTabFolders.map((f) =>
-          f.id === folder.id
+          tabIdSet.has(f.id)
             ? {
                 ...f,
                 tabs: (f.tabs || []).map((item) =>
@@ -613,19 +617,24 @@ export const createBrowserBookmarkSlice = (
       }
 
       let nextWorkspaceBookmarks = state.browserWorkspaceBookmarks;
-      if (wsId) {
-        const oldEntry = state.browserWorkspaceBookmarks[wsId].find(
-          (entry) => entry.tabId === tabId,
-        );
-        if (oldEntry) {
-          oldTuples.push({ url: oldEntry.url, title: oldEntry.title });
+      if (wsIdsWithTab.length > 0) {
+        for (const id of wsIdsWithTab) {
+          const oldEntry = state.browserWorkspaceBookmarks[id].find(
+            (entry) => entry.tabId === tabId,
+          );
+          if (oldEntry) {
+            oldTuples.push({ url: oldEntry.url, title: oldEntry.title });
+          }
         }
-        nextWorkspaceBookmarks = {
-          ...state.browserWorkspaceBookmarks,
-          [wsId]: state.browserWorkspaceBookmarks[wsId].map((entry) =>
-            entry.tabId === tabId ? { tabId, url, title } : entry,
-          ),
-        };
+        const wsIdSet = new Set(wsIdsWithTab);
+        nextWorkspaceBookmarks = Object.fromEntries(
+          Object.entries(state.browserWorkspaceBookmarks).map(([id, entries]) => [
+            id,
+            wsIdSet.has(id)
+              ? entries.map((entry) => (entry.tabId === tabId ? { tabId, url, title } : entry))
+              : entries,
+          ]),
+        );
       }
 
       let nextBookmarks = state.browserBookmarks;
@@ -658,13 +667,15 @@ export const createBrowserBookmarkSlice = (
       if (bookmarksChanged) {
         writeBookmarks(nextBookmarks);
       }
-      if (folder) {
+      if (foldersWithTab.length > 0 && nextFolders !== state.browserTabFolders) {
         writeTabFolders(nextFolders);
       }
-      if (wsId) {
+      if (wsIdsWithTab.length > 0 && nextWorkspaceBookmarks !== state.browserWorkspaceBookmarks) {
         writeWorkspaceBookmarks(nextWorkspaceBookmarks);
       }
-      writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
+      if (nextTabIdUrlMap[tabId] !== state.browserBookmarkTabIdUrlMap[tabId]) {
+        writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
+      }
 
       return {
         browserBookmarks: nextBookmarks,

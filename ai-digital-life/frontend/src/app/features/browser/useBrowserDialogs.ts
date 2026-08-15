@@ -83,7 +83,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
     async (name: string, url: string, mode: 'save-only' | 'save-and-open' = 'save-and-open') => {
       const { workspaceId } = createTabDialog;
       const folderId = pendingFolderIdRef.current;
-      pendingFolderIdRef.current = '';
       let title = name.trim();
       if (!title) {
         setIsCreatingTab(true);
@@ -131,6 +130,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           return;
         }
         setCreateTabDialog({ open: false });
+        pendingFolderIdRef.current = '';
         return;
       }
       // save-and-open：先预检冲突（只读，不写书签）
@@ -153,6 +153,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         return;
       }
       setCreateTabDialog({ open: false });
+      pendingFolderIdRef.current = '';
       if (state.browserNavigateInPlace) {
         state.browserNavigateActiveTab(url, undefined);
       } else {

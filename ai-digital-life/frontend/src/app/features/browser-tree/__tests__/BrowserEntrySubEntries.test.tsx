@@ -118,6 +118,25 @@ describe('buildBrowserNodeTitleMap', () => {
     expect(map.get('history-entry:1')).toBe('历史条目');
   });
 
+  it('baseParentPath 使顶层文件夹的直接书签子级获得文件夹前缀', () => {
+    // 模拟 userFolder 顶层文件夹"工具"的直接子级（书签叶子 + 子文件夹）
+    const directChildren: BrowserTreeNode[] = [
+      fileNode('bookmark:root:baidu', '百度'),
+      {
+        path: 'folder:sub',
+        name: '子文件夹',
+        kind: 'directory',
+        children: [fileNode('bookmark:sub:baidu', '百度')],
+        nodeType: 'folder',
+        folderId: 'sub',
+      },
+    ];
+    const map = buildBrowserNodeTitleMap(directChildren, folders, workspaces, '工具');
+    expect(map.get('bookmark:root:baidu')).toBe('工具/百度');
+    // 嵌套目录用自己的完整路径覆盖 base，不产生双前缀
+    expect(map.get('bookmark:sub:baidu')).toBe('工具/子文件夹/百度');
+  });
+
   it('非文件夹目录节点（年/月/日）返回名称标签', () => {
     const map = buildBrowserNodeTitleMap(tree, folders, workspaces);
     expect(map.get('history-year:2026')).toBe('2026年');
