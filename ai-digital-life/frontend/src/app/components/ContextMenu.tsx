@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { HINT_CLOSE_DELAY_MS } from './HintCardTrigger';
 import { renderHintCard } from '../utils/renderHintCard';
@@ -20,10 +20,35 @@ interface ContextMenuProps {
   onClose: () => void;
 }
 
+const CONTEXT_MENU_MARGIN = 8;
+
 export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const hintElementsRef = useRef<HTMLElement[]>([]);
   const closeTimerRef = useRef<number | undefined>(undefined);
+  const [adjustedPosition, setAdjustedPosition] = useState(position);
+
+  useEffect(() => {
+    if (!ref.current) {
+      setAdjustedPosition(position);
+      return;
+    }
+    const rect = ref.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let { x, y } = position;
+
+    // Adjust horizontal position if menu extends beyond right edge
+    if (x + rect.width > vw - CONTEXT_MENU_MARGIN) {
+      x = Math.max(CONTEXT_MENU_MARGIN, vw - rect.width - CONTEXT_MENU_MARGIN);
+    }
+    // Adjust vertical position if menu extends beyond bottom edge
+    if (y + rect.height > vh - CONTEXT_MENU_MARGIN) {
+      y = Math.max(CONTEXT_MENU_MARGIN, vh - rect.height - CONTEXT_MENU_MARGIN);
+    }
+
+    setAdjustedPosition({ x, y });
+  }, [position]);
 
   useEffect(() => {
     const handlePointer = (event: MouseEvent) => {
@@ -104,7 +129,7 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
       ref={ref}
       className="adl-sidebar-menu"
       role="menu"
-      style={{ left: position.x, top: position.y }}
+      style={{ left: adjustedPosition.x, top: adjustedPosition.y }}
     >
       {items.map((item) => {
         if (item.separator) {

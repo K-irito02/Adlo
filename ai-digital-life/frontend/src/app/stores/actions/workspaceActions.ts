@@ -23,20 +23,31 @@ export function createWorkspaceActions(
     /**
      * [renameWorkspaceFile - 重命名工作区中的文件]
      * @reads editorSlice.selectedFilePath
-     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree)
+     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree / refreshOneWorkspaceTree)
      * @writes editorSlice.selectedFilePath, editorSlice.fileContent, editorSlice.openTabs (通过 openFile)
      * @see shared/ipc.ts → workspace.renameFile
      * @see mock-bridge.ts → workspace.renameFile
      * @see preview-bridge/index.ts → workspace.renameFile
      */
-    renameWorkspaceFile: async (relativePath: string, newName: string) => {
+    renameWorkspaceFile: async (relativePath: string, newName: string, workspacePath?: string) => {
       clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.renameFile(relativePath, newName);
+      const result = await window.digitalLife.workspace.renameFile(
+        relativePath,
+        newName,
+        workspacePath,
+      );
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
         return;
       }
-      await get().refreshWorkspaceTree();
+      if (workspacePath) {
+        const ws = get().recentWorkspaces.find((r) => r.path === workspacePath);
+        if (ws) {
+          await get().refreshOneWorkspaceTree(ws.id as unknown as WorkspaceID, workspacePath);
+        }
+      } else {
+        await get().refreshWorkspaceTree();
+      }
       const currentPath = get().selectedFilePath;
       if (currentPath) {
         const parts = currentPath.split('/');
@@ -51,20 +62,27 @@ export function createWorkspaceActions(
     /**
      * [deleteWorkspaceFile - 删除工作区中的文件]
      * @reads editorSlice.selectedFilePath, editorSlice.openTabs
-     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree)
+     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree / refreshOneWorkspaceTree)
      * @writes editorSlice.selectedFilePath, editorSlice.fileContent, editorSlice.openTabs
      * @see shared/ipc.ts → workspace.deleteFile
      * @see mock-bridge.ts → workspace.deleteFile
      * @see preview-bridge/index.ts → workspace.deleteFile
      */
-    deleteWorkspaceFile: async (relativePath: string) => {
+    deleteWorkspaceFile: async (relativePath: string, workspacePath?: string) => {
       clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.deleteFile(relativePath);
+      const result = await window.digitalLife.workspace.deleteFile(relativePath, workspacePath);
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
         return;
       }
-      await get().refreshWorkspaceTree();
+      if (workspacePath) {
+        const ws = get().recentWorkspaces.find((r) => r.path === workspacePath);
+        if (ws) {
+          await get().refreshOneWorkspaceTree(ws.id as unknown as WorkspaceID, workspacePath);
+        }
+      } else {
+        await get().refreshWorkspaceTree();
+      }
       const currentPath = get().selectedFilePath;
       if (currentPath === relativePath) {
         set({
@@ -77,39 +95,62 @@ export function createWorkspaceActions(
 
     /**
      * [moveWorkspaceFile - 移动工作区中的文件]
-     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree)
+     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree / refreshOneWorkspaceTree)
      * @see shared/ipc.ts → workspace.moveFile
      * @see mock-bridge.ts → workspace.moveFile
      * @see preview-bridge/index.ts → workspace.moveFile
      */
-    moveWorkspaceFile: async (relativePath: string, newPath: string) => {
+    moveWorkspaceFile: async (relativePath: string, newPath: string, workspacePath?: string) => {
       clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.moveFile(relativePath, newPath);
-      if (!result.ok) {
-        captureError(get, result.error, SCOPE);
-        return;
-      }
-      await get().refreshWorkspaceTree();
-    },
-
-    /**
-     * [duplicateWorkspaceFile - 复制工作区中的文件]
-     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree)
-     * @see shared/ipc.ts → workspace.duplicateFile
-     * @see mock-bridge.ts → workspace.duplicateFile
-     * @see preview-bridge/index.ts → workspace.duplicateFile
-     */
-    duplicateWorkspaceFile: async (srcRelativePath: string, dstRelativePath: string) => {
-      clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.duplicateFile(
-        srcRelativePath,
-        dstRelativePath,
+      const result = await window.digitalLife.workspace.moveFile(
+        relativePath,
+        newPath,
+        workspacePath,
       );
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
         return;
       }
-      await get().refreshWorkspaceTree();
+      if (workspacePath) {
+        const ws = get().recentWorkspaces.find((r) => r.path === workspacePath);
+        if (ws) {
+          await get().refreshOneWorkspaceTree(ws.id as unknown as WorkspaceID, workspacePath);
+        }
+      } else {
+        await get().refreshWorkspaceTree();
+      }
+    },
+
+    /**
+     * [duplicateWorkspaceFile - 复制工作区中的文件]
+     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree / refreshOneWorkspaceTree)
+     * @see shared/ipc.ts → workspace.duplicateFile
+     * @see mock-bridge.ts → workspace.duplicateFile
+     * @see preview-bridge/index.ts → workspace.duplicateFile
+     */
+    duplicateWorkspaceFile: async (
+      srcRelativePath: string,
+      dstRelativePath: string,
+      workspacePath?: string,
+    ) => {
+      clearError(get, SCOPE);
+      const result = await window.digitalLife.workspace.duplicateFile(
+        srcRelativePath,
+        dstRelativePath,
+        workspacePath,
+      );
+      if (!result.ok) {
+        captureError(get, result.error, SCOPE);
+        return;
+      }
+      if (workspacePath) {
+        const ws = get().recentWorkspaces.find((r) => r.path === workspacePath);
+        if (ws) {
+          await get().refreshOneWorkspaceTree(ws.id as unknown as WorkspaceID, workspacePath);
+        }
+      } else {
+        await get().refreshWorkspaceTree();
+      }
     },
 
     /**

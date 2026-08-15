@@ -177,10 +177,22 @@ interface WorkspaceActions {
   showWorkspaceInRightPanels: (workspaceId: WorkspaceID) => Promise<void>;
   expandAllWorkspaceTreesInFileNav: () => Promise<void>;
   collapseAllWorkspaceTreesInFileNav: () => void;
-  renameWorkspaceFile: (relativePath: string, newName: string) => Promise<void>;
-  moveWorkspaceFile: (relativePath: string, newPath: string) => Promise<void>;
-  deleteWorkspaceFile: (relativePath: string) => Promise<void>;
-  duplicateWorkspaceFile: (srcRelativePath: string, dstRelativePath: string) => Promise<void>;
+  renameWorkspaceFile: (
+    relativePath: string,
+    newName: string,
+    workspacePath?: string,
+  ) => Promise<void>;
+  moveWorkspaceFile: (
+    relativePath: string,
+    newPath: string,
+    workspacePath?: string,
+  ) => Promise<void>;
+  deleteWorkspaceFile: (relativePath: string, workspacePath?: string) => Promise<void>;
+  duplicateWorkspaceFile: (
+    srcRelativePath: string,
+    dstRelativePath: string,
+    workspacePath?: string,
+  ) => Promise<void>;
 }
 
 interface SessionActions {

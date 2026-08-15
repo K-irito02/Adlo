@@ -191,7 +191,7 @@ export const mockWorkspace: WorkspaceBridge = {
     const items: FileOutlineItem[] = buildOutlineFromContent(content, relativePath);
     return { ok: true, data: items };
   },
-  renameFile: async (relativePath: string, newName: string) => {
+  renameFile: async (relativePath: string, newName: string, _workspacePath?: string) => {
     const keys = Array.from(documents.keys());
     const prefix = relativePath.endsWith("/") ? relativePath : relativePath.substring(0, relativePath.lastIndexOf("/") + 1);
     for (const key of keys) {
@@ -207,7 +207,7 @@ export const mockWorkspace: WorkspaceBridge = {
     }
     return { ok: true, data: true };
   },
-  deleteFile: async (relativePath: string) => {
+  deleteFile: async (relativePath: string, _workspacePath?: string) => {
     const keys = Array.from(documents.keys());
     for (const key of keys) {
       if (key === relativePath || key.startsWith(relativePath + "/")) {
@@ -218,7 +218,7 @@ export const mockWorkspace: WorkspaceBridge = {
     emptyDirectories.delete(relativePath);
     return { ok: true, data: true };
   },
-  duplicateFile: async (srcRelativePath: string, dstRelativePath: string) => {
+  duplicateFile: async (srcRelativePath: string, dstRelativePath: string, _workspacePath?: string) => {
     const keys = Array.from(documents.keys());
     for (const key of keys) {
       if (key === srcRelativePath || key.startsWith(srcRelativePath + "/")) {
@@ -233,7 +233,7 @@ export const mockWorkspace: WorkspaceBridge = {
   getAbsolutePath: async (relativePath: string) => {
     return { ok: true, data: `/mock/workspace/${relativePath}` };
   },
-  moveFile: async (relativePath: string, newPath: string) => {
+  moveFile: async (relativePath: string, newPath: string, _workspacePath?: string) => {
     const content = documents.get(relativePath);
     if (content !== undefined) {
       documents.delete(relativePath);

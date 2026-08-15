@@ -232,13 +232,17 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
 
   const [renameDialogOpen, setRenameDialogOpen] = useState(false);
   const [renamingPath, setRenamingPath] = useState<string | null>(null);
+  const [renamingWorkspacePath, setRenamingWorkspacePath] = useState<string | undefined>(undefined);
   const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
+  const [deleteWorkspacePath, setDeleteWorkspacePath] = useState<string | undefined>(undefined);
   const { getContextMenuItems, contextMenuPersistRef, clearMenuHighlightRef } =
     useFileNavigatorContextMenu({
       t,
       setRenamingPath,
       setRenameDialogOpen,
       setDeleteConfirmPath,
+      setRenamingWorkspacePath,
+      setDeleteWorkspacePath,
     });
 
   const handleRenameConfirm = useCallback(
@@ -247,16 +251,19 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
         return;
       }
       const path = renamingPath;
+      const wsPath = renamingWorkspacePath;
       setRenamingPath(null);
+      setRenamingWorkspacePath(undefined);
       setRenameDialogOpen(false);
       clearMenuHighlightRef.current?.();
-      await useAppStore.getState().renameWorkspaceFile(path, newName);
+      await useAppStore.getState().renameWorkspaceFile(path, newName, wsPath);
     },
-    [clearMenuHighlightRef, renamingPath],
+    [clearMenuHighlightRef, renamingPath, renamingWorkspacePath],
   );
 
   const handleRenameCancel = useCallback(() => {
     setRenamingPath(null);
+    setRenamingWorkspacePath(undefined);
     setRenameDialogOpen(false);
     clearMenuHighlightRef.current?.();
   }, [clearMenuHighlightRef]);
@@ -266,13 +273,16 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       return;
     }
     const path = deleteConfirmPath;
+    const wsPath = deleteWorkspacePath;
     setDeleteConfirmPath(null);
+    setDeleteWorkspacePath(undefined);
     clearMenuHighlightRef.current?.();
-    await useAppStore.getState().deleteWorkspaceFile(path);
-  }, [clearMenuHighlightRef, deleteConfirmPath]);
+    await useAppStore.getState().deleteWorkspaceFile(path, wsPath);
+  }, [clearMenuHighlightRef, deleteConfirmPath, deleteWorkspacePath]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteConfirmPath(null);
+    setDeleteWorkspacePath(undefined);
     clearMenuHighlightRef.current?.();
   }, [clearMenuHighlightRef]);
 

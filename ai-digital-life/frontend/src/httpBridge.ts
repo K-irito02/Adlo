@@ -874,20 +874,20 @@ export function createHttpBridge({
         call<FileOutlineItem[]>(baseUrl, '/workspace/outline', POST({ relativePath })),
       setEditorDirtyPaths: (relativePaths: string[]) =>
         call<boolean>(baseUrl, '/workspace/editor-dirty-paths', POST({ relativePaths })),
-      renameFile: (relativePath: string, newName: string) =>
-        call<boolean>(baseUrl, '/workspace/rename', POST({ relativePath, newName })),
-      deleteFile: (relativePath: string) =>
-        call<boolean>(baseUrl, '/workspace/delete', POST({ relativePath })),
-      duplicateFile: (srcRelativePath: string, dstRelativePath: string) =>
+      renameFile: (relativePath: string, newName: string, workspacePath?: string) =>
+        call<boolean>(baseUrl, '/workspace/rename', POST({ relativePath, newName, workspacePath })),
+      deleteFile: (relativePath: string, workspacePath?: string) =>
+        call<boolean>(baseUrl, '/workspace/delete', POST({ relativePath, workspacePath })),
+      duplicateFile: (srcRelativePath: string, dstRelativePath: string, workspacePath?: string) =>
         call<boolean>(
           baseUrl,
           '/workspace/duplicate',
-          POST({ relativePath: srcRelativePath, newPath: dstRelativePath }),
+          POST({ relativePath: srcRelativePath, newPath: dstRelativePath, workspacePath }),
         ),
       getAbsolutePath: (relativePath: string) =>
         call<string>(baseUrl, '/workspace/absolute-path', POST({ relativePath })),
-      moveFile: (relativePath: string, newPath: string) =>
-        call<boolean>(baseUrl, '/workspace/move', POST({ relativePath, newPath })),
+      moveFile: (relativePath: string, newPath: string, workspacePath?: string) =>
+        call<boolean>(baseUrl, '/workspace/move', POST({ relativePath, newPath, workspacePath })),
       onFileChanged: (_listener: (event: WorkspaceFileChangedEvent) => void) => {
         console.warn(
           '[httpBridge] workspace.onFileChanged is deferred to Task 8 (SSE event bridge); no-op for now.',

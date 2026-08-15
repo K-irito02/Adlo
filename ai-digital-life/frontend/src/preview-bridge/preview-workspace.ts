@@ -245,35 +245,66 @@ export function createPreviewWorkspaceBridge(
       const params = new URLSearchParams({ rootPath: ctx.currentWorkspace.rootPath });
       return requestPreviewApi<WorkspaceTreeNode[]>(`/workspace/tree?${params.toString()}`);
     },
-    renameFile: withWorkspace<boolean, [string, string]>(async (rootPath, relativePath, newName) =>
-      requestPreviewApi<boolean>('/workspace/rename-file', {
+    renameFile: async (relativePath: string, newName: string, workspacePath?: string) => {
+      const rootPath = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!rootPath) {
+        return {
+          ok: false as const,
+          error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
+        };
+      }
+      return requestPreviewApi<boolean>('/workspace/rename-file', {
         method: 'POST',
         body: JSON.stringify({ rootPath, relativePath, newName }),
-      }),
-    ),
-    deleteFile: withWorkspace<boolean, [string]>(async (rootPath, relativePath) =>
-      requestPreviewApi<boolean>('/workspace/delete-file', {
+      });
+    },
+    deleteFile: async (relativePath: string, workspacePath?: string) => {
+      const rootPath = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!rootPath) {
+        return {
+          ok: false as const,
+          error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
+        };
+      }
+      return requestPreviewApi<boolean>('/workspace/delete-file', {
         method: 'POST',
         body: JSON.stringify({ rootPath, relativePath }),
-      }),
-    ),
-    duplicateFile: withWorkspace<boolean, [string, string]>(
-      async (rootPath, srcRelativePath, dstRelativePath) =>
-        requestPreviewApi<boolean>('/workspace/duplicate-file', {
-          method: 'POST',
-          body: JSON.stringify({ rootPath, srcRelativePath, dstRelativePath }),
-        }),
-    ),
+      });
+    },
+    duplicateFile: async (
+      srcRelativePath: string,
+      dstRelativePath: string,
+      workspacePath?: string,
+    ) => {
+      const rootPath = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!rootPath) {
+        return {
+          ok: false as const,
+          error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
+        };
+      }
+      return requestPreviewApi<boolean>('/workspace/duplicate-file', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath, srcRelativePath, dstRelativePath }),
+      });
+    },
     getAbsolutePath: withWorkspace<string, [string]>(async (rootPath, relativePath) => {
       const params = new URLSearchParams({ rootPath, relativePath });
       return requestPreviewApi<string>(`/workspace/absolute-path?${params.toString()}`);
     }),
-    moveFile: withWorkspace<boolean, [string, string]>(async (rootPath, relativePath, newPath) =>
-      requestPreviewApi<boolean>('/workspace/move-file', {
+    moveFile: async (relativePath: string, newPath: string, workspacePath?: string) => {
+      const rootPath = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!rootPath) {
+        return {
+          ok: false as const,
+          error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
+        };
+      }
+      return requestPreviewApi<boolean>('/workspace/move-file', {
         method: 'POST',
         body: JSON.stringify({ rootPath, relativePath, newPath }),
-      }),
-    ),
+      });
+    },
     setEditorDirtyPaths: async () => ({ ok: true as const, data: true }),
   };
 

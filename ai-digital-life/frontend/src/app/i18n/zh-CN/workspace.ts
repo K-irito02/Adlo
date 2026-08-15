@@ -27,7 +27,7 @@ export const workspaceZh = {
   sessionMenuDelete: '删除',
   sessionMenuCopyId: '复制会话 ID',
   sessionMenuExport: '导出对话',
-  sessionMenuRevealFolder: '在文件管理器中显示',
+  sessionMenuRevealFolder: '在文件管理器中打开',
   showInRightPanels: '在右侧面板显示',
   statusProcessing: '处理中',
   statusPendingApproval: '待审核',

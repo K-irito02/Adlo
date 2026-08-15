@@ -898,9 +898,7 @@ describe('browserToggleBookmark tuple semantics', () => {
       { id: 't1', workspaceId: 'w', title: 'Title A', url: 'https://e.com' },
     ];
     (get() as any).browserActiveTabId = 't1';
-    (get() as any).browserBookmarks = [
-      { url: 'https://e.com', title: 'Title A' },
-    ];
+    (get() as any).browserBookmarks = [{ url: 'https://e.com', title: 'Title A' }];
     slice.browserToggleBookmark();
     const state = get() as unknown as BrowserBookmarkSlice;
     expect(state.browserBookmarks).toContainEqual({ url: 'https://e.com', title: 'Title A' });

@@ -190,9 +190,7 @@ function computeToggleBookmarkOutcome(
         entries.some((e) => e.url === url && e.title === title),
       ) || nextFolders.some((f) => f.tabs?.some((t) => t.url === url && t.title === title));
     if (!stillReferenced) {
-      nextBookmarks = state.browserBookmarks.filter(
-        (b) => !(b.url === url && b.title === title),
-      );
+      nextBookmarks = state.browserBookmarks.filter((b) => !(b.url === url && b.title === title));
     }
   } else {
     nextBookmarks = [...state.browserBookmarks, { url, title }];

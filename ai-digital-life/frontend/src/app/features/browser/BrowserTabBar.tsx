@@ -65,7 +65,9 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
   return (
     <ul className="adl-tool-list adl-tool-list--terminal">
       {tabs.map((tab) => {
-        const isBookmarked = tab.url ? bookmarkedKeys.has(JSON.stringify([tab.url, tab.title])) : false;
+        const isBookmarked = tab.url
+          ? bookmarkedKeys.has(JSON.stringify([tab.url, tab.title]))
+          : false;
 
         return (
           <li

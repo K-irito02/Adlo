@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
@@ -16,6 +16,7 @@ import { TooltipSimple } from '@components/Tooltip';
 import { LoadingRow, EmptyRow } from '@components/LoadingRow';
 import { useAppStore } from '@stores/slicedStore';
 import { BranchMenuItem } from '@regions/right-panel/panels/BranchSubCard';
+import { joinPathSegments } from '@app/utils/workspacePaths';
 
 export interface WorkspaceFileTreeEntryProps {
   workspace: RecentWorkspaceEntry;
@@ -69,6 +70,11 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
 }: WorkspaceFileTreeEntryProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [adjustedMenuPosition, setAdjustedMenuPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const menuId = `ws-menu-${workspace.id}`;
   const [branchSubOpen, setBranchSubOpen] = useState(false);
   const gitSnapshot = useAppStore((s) => s.gitSnapshots[workspace.id]);
@@ -108,6 +114,27 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
     };
   }, [menuOpen, menuId]);
 
+  useEffect(() => {
+    if (!menuOpen || !menuPosition || !menuRef.current) {
+      setAdjustedMenuPosition(menuPosition);
+      return;
+    }
+    const rect = menuRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const MARGIN = 8;
+    let { top, left } = menuPosition;
+
+    if (left + rect.width > vw - MARGIN) {
+      left = Math.max(MARGIN, vw - rect.width - MARGIN);
+    }
+    if (top + rect.height > vh - MARGIN) {
+      top = Math.max(MARGIN, vh - rect.height - MARGIN);
+    }
+
+    setAdjustedMenuPosition({ top, left });
+  }, [menuOpen, menuPosition]);
+
   const handleNameClick = useCallback(() => {
     onToggleExpand();
   }, [onToggleExpand]);
@@ -138,6 +165,65 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
       console.warn('[WorkspaceFileTreeEntry] clipboard write failed');
     }
   }, []);
+
+  // Wrap getContextMenuItems to bind workspace.path for reveal/copy-full-path
+  const wrappedGetContextMenuItems = useCallback(
+    (node: WorkspaceTreeNode) => {
+      const items = getContextMenuItems(node);
+      return items.map((item) => {
+        if (item.separator) {
+          return item;
+        }
+        // Override reveal and copy-full-path to use this workspace's path
+        if (item.id === 'reveal' || item.id === 'copy-full-path') {
+          const isReveal = item.id === 'reveal';
+          return {
+            ...item,
+            action: (targetNode: WorkspaceTreeNode) => {
+              const fullPath = joinPathSegments(workspace.path, targetNode.path);
+              if (isReveal) {
+                window.digitalLife.workspace.revealInFileManager(fullPath);
+              } else {
+                copyToClipboard(fullPath);
+              }
+            },
+          };
+        }
+        // Override paste to use this workspace's path
+        if (item.id === 'paste') {
+          return {
+            ...item,
+            action: async (targetNode: WorkspaceTreeNode) => {
+              const store = useAppStore.getState();
+              const sourcePath = store.clipboardSourcePath;
+              const operation = store.clipboardOperation;
+              if (!sourcePath || !operation) {
+                return;
+              }
+              const targetDir =
+                targetNode.kind === 'directory'
+                  ? targetNode.path
+                  : targetNode.path.substring(0, targetNode.path.lastIndexOf('/') + 1);
+              const sourceName = sourcePath.split('/').pop() || sourcePath;
+              const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
+              if (operation === 'copy') {
+                await store.duplicateWorkspaceFile(sourcePath, newPath, workspace.path);
+              } else if (operation === 'cut') {
+                if (sourcePath === newPath) {
+                  store.clearClipboard();
+                  return;
+                }
+                await store.moveWorkspaceFile(sourcePath, newPath, workspace.path);
+              }
+              store.clearClipboard();
+            },
+          };
+        }
+        return item;
+      });
+    },
+    [getContextMenuItems, workspace.path, copyToClipboard],
+  );
 
   const handleCopyFullPath = useCallback(async () => {
     closeMenu();
@@ -247,13 +333,14 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
         </div>
       </div>
 
-      {menuOpen && menuPosition
+      {menuOpen && adjustedMenuPosition
         ? createPortal(
             <div
+              ref={menuRef}
               className="adl-multitree-entry__menu"
               role="menu"
               data-menu-id={menuId}
-              style={{ top: menuPosition.top, left: menuPosition.left }}
+              style={{ top: adjustedMenuPosition.top, left: adjustedMenuPosition.left }}
             >
               <BranchMenuItem
                 isSubOpen={branchSubOpen}
@@ -323,7 +410,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
               externalChangePath={externalChangePath}
               onToggle={onToggleFileTreePath}
               onOpenFile={onOpenFile}
-              getContextMenuItems={getContextMenuItems}
+              getContextMenuItems={wrappedGetContextMenuItems}
               contextMenuPersistRef={contextMenuPersistRef}
               clearMenuHighlightRef={clearMenuHighlightRef}
               expandLabel={expandLabel}

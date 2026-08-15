@@ -1,12 +1,16 @@
 import { useCallback, useRef, type MutableRefObject } from 'react';
 import type { CopyDict } from '@i18n';
 import { useFileContextMenuItems } from './hooks/useFileContextMenuItems';
+import type { FileTreeRenderableNode } from '@features/file-tree';
 
 export interface UseFileNavigatorContextMenuParams {
   t: CopyDict;
   setRenamingPath: (path: string | null) => void;
   setRenameDialogOpen: (open: boolean) => void;
   setDeleteConfirmPath: (path: string | null) => void;
+  setRenamingWorkspacePath?: (path: string | undefined) => void;
+  setDeleteWorkspacePath?: (path: string | undefined) => void;
+  getWorkspacePath?: (node: FileTreeRenderableNode) => string | undefined;
 }
 
 export interface UseFileNavigatorContextMenuResult {
@@ -18,7 +22,15 @@ export interface UseFileNavigatorContextMenuResult {
 export function useFileNavigatorContextMenu(
   params: UseFileNavigatorContextMenuParams,
 ): UseFileNavigatorContextMenuResult {
-  const { t, setRenamingPath, setRenameDialogOpen, setDeleteConfirmPath } = params;
+  const {
+    t,
+    setRenamingPath,
+    setRenameDialogOpen,
+    setDeleteConfirmPath,
+    setRenamingWorkspacePath,
+    setDeleteWorkspacePath,
+    getWorkspacePath,
+  } = params;
   const contextMenuPersistRef = useRef(false);
   const clearMenuHighlightRef = useRef<(() => void) | undefined>(undefined);
 
@@ -37,6 +49,9 @@ export function useFileNavigatorContextMenu(
     setRenamingPath,
     setRenameDialogOpen,
     setDeleteConfirmPath,
+    setRenamingWorkspacePath,
+    setDeleteWorkspacePath,
+    getWorkspacePath,
     showMenuForDirectories: true,
   });
 

@@ -209,6 +209,8 @@ pub async fn clear_current(State(state): State<ServerState>) -> impl IntoRespons
 #[serde(rename_all = "camelCase")]
 struct RelativePathBody {
     relative_path: String,
+    #[serde(default)]
+    workspace_path: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -226,6 +228,8 @@ struct FileOpsBody {
 struct RenameBody {
     relative_path: String,
     new_name: String,
+    #[serde(default)]
+    workspace_path: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -233,6 +237,8 @@ struct RenameBody {
 struct PathPairBody {
     relative_path: String,
     new_path: String,
+    #[serde(default)]
+    workspace_path: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -475,8 +481,8 @@ pub async fn rename_file(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
-    let root_path = match current_workspace(&state) {
-        Ok(ws) => ws.root_path,
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
         Err(e) => return ipc::to_response(Err(e)),
     };
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
@@ -503,8 +509,8 @@ pub async fn delete_file(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
-    let root_path = match current_workspace(&state) {
-        Ok(ws) => ws.root_path,
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
         Err(e) => return ipc::to_response(Err(e)),
     };
     let rel_path = input.relative_path.clone();
@@ -533,8 +539,8 @@ pub async fn duplicate_file(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
-    let root_path = match current_workspace(&state) {
-        Ok(ws) => ws.root_path,
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
         Err(e) => return ipc::to_response(Err(e)),
     };
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
@@ -559,8 +565,8 @@ pub async fn get_absolute_path(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
-    let root_path = match current_workspace(&state) {
-        Ok(ws) => ws.root_path,
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
         Err(e) => return ipc::to_response(Err(e)),
     };
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
@@ -583,8 +589,8 @@ pub async fn move_file(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
-    let root_path = match current_workspace(&state) {
-        Ok(ws) => ws.root_path,
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
         Err(e) => return ipc::to_response(Err(e)),
     };
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {

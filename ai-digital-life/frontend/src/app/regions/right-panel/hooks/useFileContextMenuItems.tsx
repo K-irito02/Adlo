@@ -23,12 +23,15 @@ export interface UseFileContextMenuItemsParams {
   setRenamingPath: (path: string | null) => void;
   setRenameDialogOpen: (open: boolean) => void;
   setDeleteConfirmPath: (path: string | null) => void;
+  setRenamingWorkspacePath?: (path: string | undefined) => void;
+  setDeleteWorkspacePath?: (path: string | undefined) => void;
   includeOpenInFiles?: boolean;
   onOpenFile?: (relativePath: string) => void;
   isNodeDeleted?: (node: FileTreeRenderableNode) => boolean;
   showMenuForDirectories?: boolean;
   showClipboard?: boolean;
   showGitActions?: boolean;
+  getWorkspacePath?: (node: FileTreeRenderableNode) => string | undefined;
 }
 
 export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
@@ -45,6 +48,9 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
     showMenuForDirectories = true,
     showClipboard = true,
     showGitActions = false,
+    getWorkspacePath,
+    setRenamingWorkspacePath,
+    setDeleteWorkspacePath,
   } = params;
 
   const getContextMenuItems = useCallback(
@@ -127,7 +133,9 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
         action: async (targetNode) => {
           const store = useAppStore.getState();
           const rootPath =
-            store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
+            getWorkspacePath?.(targetNode) ??
+            store.appInfo?.currentWorkspace?.rootPath ??
+            store.appInfo?.currentWorkspace?.path;
           if (!rootPath) {
             return;
           }
@@ -145,7 +153,9 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
         action: async (targetNode) => {
           const store = useAppStore.getState();
           const rootPath =
-            store.appInfo?.currentWorkspace?.rootPath ?? store.appInfo?.currentWorkspace?.path;
+            getWorkspacePath?.(targetNode) ??
+            store.appInfo?.currentWorkspace?.rootPath ??
+            store.appInfo?.currentWorkspace?.path;
           if (!rootPath) {
             return;
           }
@@ -201,14 +211,15 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
                 : targetNode.path.substring(0, targetNode.path.lastIndexOf('/') + 1);
             const sourceName = sourcePath.split('/').pop() || sourcePath;
             const newPath = targetDir ? `${targetDir}/${sourceName}` : sourceName;
+            const workspacePath = getWorkspacePath?.(targetNode);
             if (operation === 'copy') {
-              await store.duplicateWorkspaceFile(sourcePath, newPath);
+              await store.duplicateWorkspaceFile(sourcePath, newPath, workspacePath);
             } else if (operation === 'cut') {
               if (sourcePath === newPath) {
                 store.clearClipboard();
                 return;
               }
-              await store.moveWorkspaceFile(sourcePath, newPath);
+              await store.moveWorkspaceFile(sourcePath, newPath, workspacePath);
             }
             store.clearClipboard();
           },
@@ -225,6 +236,7 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
         action: (targetNode) => {
           contextMenuPersistRef.current = true;
           setRenamingPath(targetNode.path);
+          setRenamingWorkspacePath?.(getWorkspacePath?.(targetNode));
           setRenameDialogOpen(true);
         },
       });
@@ -238,6 +250,7 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
         action: (targetNode) => {
           contextMenuPersistRef.current = true;
           setDeleteConfirmPath(targetNode.path);
+          setDeleteWorkspacePath?.(getWorkspacePath?.(targetNode));
         },
       });
 
@@ -250,6 +263,9 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
       setRenamingPath,
       setRenameDialogOpen,
       setDeleteConfirmPath,
+      getWorkspacePath,
+      setRenamingWorkspacePath,
+      setDeleteWorkspacePath,
       includeOpenInFiles,
       onOpenFile,
       isNodeDeleted,

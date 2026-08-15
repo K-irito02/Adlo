@@ -37,7 +37,7 @@ export const fileZh = {
   fileExplorerContext: '文件资源管理器上下文',
   fileSelectFileHint: '从左侧文件树打开一个文件后，这里会显示内容预览。',
   fileContextOpenWith: '打开方式',
-  fileContextReveal: '在文件管理器中显示',
+  fileContextReveal: '在文件管理器中打开',
   fileContextRevealDir: '在文件管理器中打开',
   fileContextCopyFullPath: '复制完整路径',
   fileContextCopyRelativePath: '复制相对路径',

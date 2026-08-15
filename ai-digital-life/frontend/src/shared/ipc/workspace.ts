@@ -320,7 +320,11 @@ export interface WorkspaceBridge {
    * @see mock-bridge.ts → workspace.renameFile
    * @see preview-bridge/index.ts → workspace.renameFile
    */
-  renameFile: (relativePath: string, newName: string) => Promise<IpcResult<boolean>>;
+  renameFile: (
+    relativePath: string,
+    newName: string,
+    workspacePath?: string,
+  ) => Promise<IpcResult<boolean>>;
   /**
    * 删除当前工作区内的文件
    * @param relativePath 相对于工作区的路径
@@ -330,7 +334,7 @@ export interface WorkspaceBridge {
    * @see mock-bridge.ts → workspace.deleteFile
    * @see preview-bridge/index.ts → workspace.deleteFile
    */
-  deleteFile: (relativePath: string) => Promise<IpcResult<boolean>>;
+  deleteFile: (relativePath: string, workspacePath?: string) => Promise<IpcResult<boolean>>;
   /**
    * 复制当前工作区内的文件
    * @param srcRelativePath 源文件相对路径
@@ -341,7 +345,11 @@ export interface WorkspaceBridge {
    * @see mock-bridge.ts → workspace.duplicateFile
    * @see preview-bridge/index.ts → workspace.duplicateFile
    */
-  duplicateFile: (srcRelativePath: string, dstRelativePath: string) => Promise<IpcResult<boolean>>;
+  duplicateFile: (
+    srcRelativePath: string,
+    dstRelativePath: string,
+    workspacePath?: string,
+  ) => Promise<IpcResult<boolean>>;
   /**
    * 获取文件的绝对路径
    * @param relativePath 相对于工作区的路径
@@ -362,7 +370,11 @@ export interface WorkspaceBridge {
    * @see mock-bridge.ts → workspace.moveFile
    * @see preview-bridge/index.ts → workspace.moveFile
    */
-  moveFile: (relativePath: string, newPath: string) => Promise<IpcResult<boolean>>;
+  moveFile: (
+    relativePath: string,
+    newPath: string,
+    workspacePath?: string,
+  ) => Promise<IpcResult<boolean>>;
   /**
    * 获取当前工作区的 Git 状态快照
    * @returns Git 状态快照 (isRepo/staged/unstaged/untracked/conflicts)
