@@ -29,6 +29,8 @@ interface FileNavigatorTreeProps {
   ) => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
+  setRenamingWorkspacePath?: (path: string | undefined) => void;
+  setDeleteWorkspacePath?: (path: string | undefined) => void;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
 }
 
@@ -52,6 +54,8 @@ const FileNavigatorTree = React.memo(function FileNavigatorTree({
   onOpenFileForWorkspace,
   getContextMenuItems,
   contextMenuPersistRef,
+  setRenamingWorkspacePath,
+  setDeleteWorkspacePath,
   clearMenuHighlightRef,
 }: FileNavigatorTreeProps) {
   if (visibleWorkspaces.length === 0) {
@@ -88,6 +92,8 @@ const FileNavigatorTree = React.memo(function FileNavigatorTree({
         onOpenFileForWorkspace={onOpenFileForWorkspace}
         getContextMenuItems={getContextMenuItems}
         contextMenuPersistRef={contextMenuPersistRef}
+        setRenamingWorkspacePath={setRenamingWorkspacePath}
+        setDeleteWorkspacePath={setDeleteWorkspacePath}
         clearMenuHighlightRef={clearMenuHighlightRef}
       />
     </CustomScrollArea>

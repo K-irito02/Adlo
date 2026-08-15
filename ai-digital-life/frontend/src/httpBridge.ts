@@ -884,8 +884,8 @@ export function createHttpBridge({
           '/workspace/duplicate',
           POST({ relativePath: srcRelativePath, newPath: dstRelativePath, workspacePath }),
         ),
-      getAbsolutePath: (relativePath: string) =>
-        call<string>(baseUrl, '/workspace/absolute-path', POST({ relativePath })),
+      getAbsolutePath: (relativePath: string, workspacePath?: string) =>
+        call<string>(baseUrl, '/workspace/absolute-path', POST({ relativePath, workspacePath })),
       moveFile: (relativePath: string, newPath: string, workspacePath?: string) =>
         call<boolean>(baseUrl, '/workspace/move', POST({ relativePath, newPath, workspacePath })),
       onFileChanged: (_listener: (event: WorkspaceFileChangedEvent) => void) => {

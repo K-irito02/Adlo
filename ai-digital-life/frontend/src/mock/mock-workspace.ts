@@ -230,7 +230,7 @@ export const mockWorkspace: WorkspaceBridge = {
     }
     return { ok: true, data: true };
   },
-  getAbsolutePath: async (relativePath: string) => {
+  getAbsolutePath: async (relativePath: string, _workspacePath?: string) => {
     return { ok: true, data: `/mock/workspace/${relativePath}` };
   },
   moveFile: async (relativePath: string, newPath: string, _workspacePath?: string) => {

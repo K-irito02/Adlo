@@ -288,10 +288,17 @@ export function createPreviewWorkspaceBridge(
         body: JSON.stringify({ rootPath, srcRelativePath, dstRelativePath }),
       });
     },
-    getAbsolutePath: withWorkspace<string, [string]>(async (rootPath, relativePath) => {
+    getAbsolutePath: async (relativePath: string, workspacePath?: string) => {
+      const rootPath = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!rootPath) {
+        return {
+          ok: false as const,
+          error: { code: IpcErrorCode.NOT_FOUND, message: 'active workspace' },
+        };
+      }
       const params = new URLSearchParams({ rootPath, relativePath });
       return requestPreviewApi<string>(`/workspace/absolute-path?${params.toString()}`);
-    }),
+    },
     moveFile: async (relativePath: string, newPath: string, workspacePath?: string) => {
       const rootPath = workspacePath ?? ctx.currentWorkspace?.rootPath;
       if (!rootPath) {

@@ -37,7 +37,7 @@ export const fileEn = {
   fileExplorerContext: 'File Explorer Context',
   fileSelectFileHint: 'Open a file from the tree on the left to preview it here.',
   fileContextOpenWith: 'Open with',
-  fileContextReveal: 'Reveal in Explorer',
+  fileContextReveal: 'Open in Explorer',
   fileContextRevealDir: 'Open in Explorer',
   fileContextCopyFullPath: 'Copy full path',
   fileContextCopyRelativePath: 'Copy rel. path',

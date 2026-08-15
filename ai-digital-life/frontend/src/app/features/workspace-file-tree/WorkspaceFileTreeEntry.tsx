@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
@@ -38,6 +38,8 @@ export interface WorkspaceFileTreeEntryProps {
   onOpenFile: (relativePath: string) => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
+  setRenamingWorkspacePath?: (path: string | undefined) => void;
+  setDeleteWorkspacePath?: (path: string | undefined) => void;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
   expandLabel: string;
   collapseLabel: string;
@@ -63,6 +65,8 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
   onOpenFile,
   getContextMenuItems,
   contextMenuPersistRef,
+  setRenamingWorkspacePath,
+  setDeleteWorkspacePath,
   clearMenuHighlightRef,
   expandLabel,
   collapseLabel,
@@ -114,7 +118,9 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
     };
   }, [menuOpen, menuId]);
 
-  useEffect(() => {
+  // 菜单挂载后再测量并调整位置（useLayoutEffect 在 paint 前同步执行，
+  // 渲染条件不再依赖 adjustedMenuPosition，打破"portal 依赖派生状态 + effect 依赖 ref"的循环依赖）
+  useLayoutEffect(() => {
     if (!menuOpen || !menuPosition || !menuRef.current) {
       setAdjustedMenuPosition(menuPosition);
       return;
@@ -166,7 +172,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
     }
   }, []);
 
-  // Wrap getContextMenuItems to bind workspace.path for reveal/copy-full-path
+  // Wrap getContextMenuItems to bind workspace.path for reveal/copy-full-path/paste/rename/delete
   const wrappedGetContextMenuItems = useCallback(
     (node: WorkspaceTreeNode) => {
       const items = getContextMenuItems(node);
@@ -219,10 +225,32 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
             },
           };
         }
+        // Override rename/delete to inject this workspace's path into the panel-local setters
+        if (item.id === 'rename' || item.id === 'delete') {
+          const isRename = item.id === 'rename';
+          const originalAction = item.action;
+          return {
+            ...item,
+            action: (targetNode: WorkspaceTreeNode) => {
+              originalAction?.(targetNode, [targetNode]);
+              if (isRename) {
+                setRenamingWorkspacePath?.(workspace.path);
+              } else {
+                setDeleteWorkspacePath?.(workspace.path);
+              }
+            },
+          };
+        }
         return item;
       });
     },
-    [getContextMenuItems, workspace.path, copyToClipboard],
+    [
+      getContextMenuItems,
+      workspace.path,
+      copyToClipboard,
+      setRenamingWorkspacePath,
+      setDeleteWorkspacePath,
+    ],
   );
 
   const handleCopyFullPath = useCallback(async () => {
@@ -333,14 +361,17 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
         </div>
       </div>
 
-      {menuOpen && adjustedMenuPosition
+      {menuOpen && menuPosition
         ? createPortal(
             <div
               ref={menuRef}
               className="adl-multitree-entry__menu"
               role="menu"
               data-menu-id={menuId}
-              style={{ top: adjustedMenuPosition.top, left: adjustedMenuPosition.left }}
+              style={{
+                top: (adjustedMenuPosition ?? menuPosition).top,
+                left: (adjustedMenuPosition ?? menuPosition).left,
+              }}
             >
               <BranchMenuItem
                 isSubOpen={branchSubOpen}

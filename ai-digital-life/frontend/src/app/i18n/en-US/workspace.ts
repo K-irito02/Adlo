@@ -27,7 +27,7 @@ export const workspaceEn = {
   sessionMenuDelete: 'Delete',
   sessionMenuCopyId: 'Copy session ID',
   sessionMenuExport: 'Export conversation',
-  sessionMenuRevealFolder: 'Reveal in Explorer',
+  sessionMenuRevealFolder: 'Open in Explorer',
   showInRightPanels: 'Show in right panel',
   statusProcessing: 'Processing',
   statusPendingApproval: 'Pending approval',

@@ -30,6 +30,8 @@ export interface MultiWorkspaceFileTreeProps {
   ) => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
+  setRenamingWorkspacePath?: (path: string | undefined) => void;
+  setDeleteWorkspacePath?: (path: string | undefined) => void;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
 }
 
@@ -53,6 +55,8 @@ export function MultiWorkspaceFileTree({
   onOpenFileForWorkspace,
   getContextMenuItems,
   contextMenuPersistRef,
+  setRenamingWorkspacePath,
+  setDeleteWorkspacePath,
   clearMenuHighlightRef,
 }: MultiWorkspaceFileTreeProps) {
   const { t } = useTCopy();
@@ -85,6 +89,8 @@ export function MultiWorkspaceFileTree({
             onOpenFile={handleOpenFile}
             getContextMenuItems={getContextMenuItems}
             contextMenuPersistRef={contextMenuPersistRef}
+            setRenamingWorkspacePath={setRenamingWorkspacePath}
+            setDeleteWorkspacePath={setDeleteWorkspacePath}
             clearMenuHighlightRef={clearMenuHighlightRef}
             expandLabel={t.expandDetails as string}
             collapseLabel={t.collapseDetails as string}

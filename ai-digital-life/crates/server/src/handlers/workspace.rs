@@ -302,8 +302,8 @@ pub async fn create_folder(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
-    let root_path = match current_workspace(&state) {
-        Ok(ws) => ws.root_path,
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
         Err(e) => return ipc::to_response(Err(e)),
     };
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
@@ -416,8 +416,8 @@ pub async fn outline(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
-    let root_path = match current_workspace(&state) {
-        Ok(ws) => ws.root_path,
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
         Err(e) => return ipc::to_response(Err(e)),
     };
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {

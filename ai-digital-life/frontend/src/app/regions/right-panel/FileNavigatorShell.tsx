@@ -326,6 +326,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
           onOpenFileForWorkspace={onOpenFileForWorkspace}
           getContextMenuItems={getContextMenuItems}
           contextMenuPersistRef={contextMenuPersistRef}
+          setRenamingWorkspacePath={setRenamingWorkspacePath}
+          setDeleteWorkspacePath={setDeleteWorkspacePath}
           clearMenuHighlightRef={clearMenuHighlightRef}
         />
       ) : null}

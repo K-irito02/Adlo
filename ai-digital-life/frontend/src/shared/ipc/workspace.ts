@@ -359,7 +359,7 @@ export interface WorkspaceBridge {
    * @see mock-bridge.ts → workspace.getAbsolutePath
    * @see preview-bridge/index.ts → workspace.getAbsolutePath
    */
-  getAbsolutePath: (relativePath: string) => Promise<IpcResult<string>>;
+  getAbsolutePath: (relativePath: string, workspacePath?: string) => Promise<IpcResult<string>>;
   /**
    * 移动文件到新路径
    * @param relativePath 源文件相对路径

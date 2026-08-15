@@ -40,3 +40,49 @@
   1. `i18n/zh-CN/file.ts`：`fileContextReveal` → "在文件管理器中打开"
   2. `i18n/zh-CN/workspace.ts`：`sessionMenuRevealFolder` → "在文件管理器中打开"
 - 验证：文案统一，类型检查通过
+
+---
+
+## 子代理 A 审查报告（rev2）
+
+**报告文件**: `.review-diffs/review-issue-1-rev2.md`
+
+### 预存/遗留问题
+
+| 优先级 | 问题 | 影响 | 工作量 |
+|--------|------|------|--------|
+| P0 | `create_folder` handler 未同步更新 — 请求体已含 `workspace_path`，但 handler 仍用 `current_workspace` | 非活跃工作区创建文件夹会创建到错误位置 | 小（Rust 端 1 行） |
+| P1 | 右侧面板 `FileNavigator` 上下文菜单未适配多工作区 — `FileNavigatorShell` 未传入 `getWorkspacePath` | 右侧面板非活跃工作区文件的 rename/delete 操作可能作用到错误工作区 | 中 |
+| P2 | `getAbsolutePath` 前端桥接未同步 — Rust 端已支持显式 `workspace_path`，但前端三桥接接口签名未更新 | 前端无法获取非活跃工作区文件的绝对路径 | 小 |
+| P3 | `refreshOneWorkspaceTree` 找不到工作区时静默空转 — 应降级为 `refreshWorkspaceTree()` | 特定场景下文件树不刷新 | 小 |
+| P4 | 视口边界逻辑重复 — `ContextMenu.tsx` 和 `WorkspaceFileTreeEntry.tsx` 重复相同视口计算代码 | 后续维护需同步两处 | 小 |
+| P5 | `outline`/`search` handler 未使用 `workspace_root` | 非活跃工作区的符号大纲/搜索可能解析到错误根路径 | 小 |
+
+## [x] 事项 5：循环代码审查 — 修复遗留问题
+- 状态：已完成（2026-08-15）
+- 备注：执行完整的 Phase 4 审查循环，修复 P0-P5 问题，执行子代理 B（死代码清理），循环直到无问题
+
+### 修复内容
+
+| 优先级 | 问题 | 修复 | 文件 |
+|--------|------|------|------|
+| P0 | `create_folder` handler 未同步 | `current_workspace` → `workspace_root(&state, input.workspace_path)` | `crates/server/src/handlers/workspace.rs` |
+| P2 | `getAbsolutePath` 前端桥接未同步 | 三桥接增加 `workspacePath?: string` 参数，preview bridge 改用直接实现 | `shared/ipc/workspace.ts`, `httpBridge.ts`, `mock-workspace.ts`, `preview-workspace.ts` |
+| P3 | `refreshOneWorkspaceTree` 静默空转 | 4 个 action 中找不到工作区时降级为 `refreshWorkspaceTree()` | `stores/actions/workspaceActions.ts` |
+| P5 | `outline` handler 未同步 | `current_workspace` → `workspace_root(&state, input.workspace_path)` | `crates/server/src/handlers/workspace.rs` |
+
+### 子代理审查报告
+
+| 轮次 | 报告文件 | 结论 |
+|------|----------|------|
+| 子代理 B（死代码清理） | `.review-diffs/review-deadcode-rev1.md` | 8 个问题，均为低/中优先级，未阻塞 |
+| 第三轮审查 | `.review-diffs/review-issue-1-rev3.md` | **通过** — 所有修复正确 |
+
+### 测试结果
+
+| 测试类型 | 结果 |
+|----------|------|
+| TypeScript 类型检查 | 通过 |
+| 前端测试 | **221 文件 / 1750 测试 — 全部通过** |
+| Rust cargo check | 编译通过 |
+| Rust lib 测试 | **339 测试 — 全部通过** |

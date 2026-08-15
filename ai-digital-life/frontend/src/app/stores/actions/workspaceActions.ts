@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import type { ReorderWorkspacesInput } from '@ai-digital-life/kernel';
-import type { WorkspaceID } from '../../../shared/branded';
+import { asWorkspaceID, type WorkspaceID } from '../../../shared/branded';
 import { clearError, captureError } from '../shared';
 import type { StoreApi } from 'zustand';
 import { createBrowserCleanupActions } from './browserCleanupActions';
@@ -10,6 +10,22 @@ const SCOPE = 'workspace';
 
 // Re-export for test convenience (tests import from workspaceActions)
 export { type BrowserCleanupResult, stripWorkspaceFromBrowserState } from './browserCleanupHelpers';
+
+/**
+ * 按工作区路径刷新对应文件树；找不到对应工作区或未提供路径时降级为全量刷新。
+ */
+async function refreshTreeByWorkspacePath(get: () => StoreState, workspacePath?: string) {
+  if (!workspacePath) {
+    await get().refreshWorkspaceTree();
+    return;
+  }
+  const ws = get().recentWorkspaces.find((r) => r.path === workspacePath);
+  if (ws) {
+    await get().refreshOneWorkspaceTree(asWorkspaceID(ws.id), workspacePath);
+  } else {
+    await get().refreshWorkspaceTree();
+  }
+}
 
 export function createWorkspaceActions(
   set: StoreApi<StoreState>['setState'],
@@ -40,14 +56,7 @@ export function createWorkspaceActions(
         captureError(get, result.error, SCOPE);
         return;
       }
-      if (workspacePath) {
-        const ws = get().recentWorkspaces.find((r) => r.path === workspacePath);
-        if (ws) {
-          await get().refreshOneWorkspaceTree(ws.id as unknown as WorkspaceID, workspacePath);
-        }
-      } else {
-        await get().refreshWorkspaceTree();
-      }
+      await refreshTreeByWorkspacePath(get, workspacePath);
       const currentPath = get().selectedFilePath;
       if (currentPath) {
         const parts = currentPath.split('/');
@@ -75,14 +84,7 @@ export function createWorkspaceActions(
         captureError(get, result.error, SCOPE);
         return;
       }
-      if (workspacePath) {
-        const ws = get().recentWorkspaces.find((r) => r.path === workspacePath);
-        if (ws) {
-          await get().refreshOneWorkspaceTree(ws.id as unknown as WorkspaceID, workspacePath);
-        }
-      } else {
-        await get().refreshWorkspaceTree();
-      }
+      await refreshTreeByWorkspacePath(get, workspacePath);
       const currentPath = get().selectedFilePath;
       if (currentPath === relativePath) {
         set({
@@ -111,14 +113,7 @@ export function createWorkspaceActions(
         captureError(get, result.error, SCOPE);
         return;
       }
-      if (workspacePath) {
-        const ws = get().recentWorkspaces.find((r) => r.path === workspacePath);
-        if (ws) {
-          await get().refreshOneWorkspaceTree(ws.id as unknown as WorkspaceID, workspacePath);
-        }
-      } else {
-        await get().refreshWorkspaceTree();
-      }
+      await refreshTreeByWorkspacePath(get, workspacePath);
     },
 
     /**
@@ -143,14 +138,7 @@ export function createWorkspaceActions(
         captureError(get, result.error, SCOPE);
         return;
       }
-      if (workspacePath) {
-        const ws = get().recentWorkspaces.find((r) => r.path === workspacePath);
-        if (ws) {
-          await get().refreshOneWorkspaceTree(ws.id as unknown as WorkspaceID, workspacePath);
-        }
-      } else {
-        await get().refreshWorkspaceTree();
-      }
+      await refreshTreeByWorkspacePath(get, workspacePath);
     },
 
     /**
