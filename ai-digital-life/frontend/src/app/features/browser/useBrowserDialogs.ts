@@ -386,11 +386,15 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         return;
       }
 
+      const trimmedName = bookmarkName.trim();
+      const title = trimmedName || activeTab.title || '';
       let url = '';
       if (folderPath.startsWith('folder:')) {
         const folderId = folderPath.slice('folder:'.length);
-        const result = await useAppStore.getState().browserBookmarkTab(activeTab.id, folderId);
-        if (result.ok === false) {
+        const result = await useAppStore
+          .getState()
+          .browserBookmarkTab(activeTab.id, folderId, undefined, undefined, title || undefined);
+        if (result.ok === false && result.reason !== 'no-tab') {
           showToast(t.browserEditBookmarkDuplicate, 'warning');
           return;
         }
@@ -401,8 +405,8 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         const workspaceId = folderPath.slice('workspace:'.length);
         const result = await useAppStore
           .getState()
-          .browserBookmarkTab(activeTab.id, undefined, undefined, workspaceId);
-        if (result.ok === false) {
+          .browserBookmarkTab(activeTab.id, undefined, undefined, workspaceId, title || undefined);
+        if (result.ok === false && result.reason !== 'no-tab') {
           showToast(t.browserEditBookmarkDuplicate, 'warning');
           return;
         }
@@ -412,10 +416,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       } else {
         showToast(t.browserSelectDirFirst, 'warning');
         return;
-      }
-      const trimmedName = bookmarkName.trim();
-      if (trimmedName && url) {
-        useAppStore.getState().browserUpdateBookmarkTitle(url, trimmedName);
       }
     },
     [activeTab, showToast, t, bookmarkName, pendingBookmark],

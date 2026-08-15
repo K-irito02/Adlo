@@ -352,7 +352,6 @@ export interface BrowserBookmarkSlice {
     workspaceId?: string,
     titleOverride?: string,
   ) => Promise<BookmarkCollisionCheck>;
-  browserUpdateBookmarkTitle: (url: string, title: string) => void;
   browserUpdateSavedBookmark: (
     tabId: string,
     updates: { url: string; title: string },
@@ -538,20 +537,6 @@ export const createBrowserBookmarkSlice = (
       return outcome.partial;
     });
     return { ok: true };
-  },
-
-  browserUpdateBookmarkTitle: (url: string, title: string) => {
-    set((state) => {
-      const exists = state.browserBookmarks.some((b) => b.url === url && b.title !== title);
-      if (!exists) {
-        return state;
-      }
-      const nextBookmarks = state.browserBookmarks.map((b) =>
-        b.url === url ? { ...b, title } : b,
-      );
-      writeBookmarks(nextBookmarks);
-      return { browserBookmarks: nextBookmarks };
-    });
   },
 
   browserUpdateSavedBookmark: (tabId: string, updates: { url: string; title: string }) => {

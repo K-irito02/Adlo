@@ -115,7 +115,7 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
         }
       }
     },
-    [callbacks, categoryType, node],
+    [callbacks, node],
   );
 
   const handleExpandBtnClick = useCallback(
