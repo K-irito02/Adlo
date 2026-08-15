@@ -4,7 +4,7 @@
 
 ## 背景
 
-浏览器「新建书签/编辑书签」重构（配合 `docs/superpowers/plans/2026-08-14-browser-bookmark-toast-title-isolation.md`）将书签去重语义从「按网址（URL）唯一」改为「(网址, 标题) 元组唯一」，并实现标签标题隔离与悬停语义化路径。
+浏览器「新建书签/编辑书签」重构（配合 `docs/plans/browser/2026-08-14-browser-bookmark-toast-title-isolation.md`）将书签去重语义从「按网址（URL）唯一」改为「(网址, 标题) 元组唯一」，并实现标签标题隔离与悬停语义化路径。
 
 ## 变更内容
 

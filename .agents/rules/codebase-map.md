@@ -17,7 +17,8 @@ ai-digital-life/
 ├── docs/               # 架构与设计文档
 │   ├── architecture/   # 系统架构
 │   ├── design-system/  # 设计系统
-│   └── superpowers/    # 功能设计 & 实施计划 (specs/ + plans/)
+│   ├── plans/          # 功能实施计划（按领域分类）
+│   └── specs/          # 功能规格设计（按领域分类）
 └── tests/              # 集成 / E2E
 ```
 

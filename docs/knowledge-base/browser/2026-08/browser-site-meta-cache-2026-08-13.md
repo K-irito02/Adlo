@@ -51,6 +51,6 @@ Rust `fetch_page_meta_inner` 的 HTTP 错误分支初版返回 `favicon: google_
 ## 相关文件
 
 - 架构：`docs/architecture/features/builtin-browser.md`
-- Spec：`docs/superpowers/specs/2026-08-12-browser-site-meta-cache-design.md`
-- 计划：`docs/superpowers/plans/2026-08-12-browser-site-meta-cache.md`
+- Spec：`docs/specs/browser/2026-08-12-browser-site-meta-cache-design.md`
+- 计划：`docs/plans/browser/2026-08-12-browser-site-meta-cache.md`
 - 核心模块：`frontend/src/app/utils/siteMetaCache.ts`、`crates/browser/src/site_meta_cache.rs`
