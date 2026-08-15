@@ -146,7 +146,9 @@ export function handleBookmarkToggle(url: string, title: string, tabId?: string)
   if (!url) {
     return;
   }
-  const stillBookmarked = useAppStore.getState().browserBookmarks.some((b) => b.url === url);
+  const stillBookmarked = useAppStore
+    .getState()
+    .browserBookmarks.some((b) => b.url === url && b.title === title);
   if (stillBookmarked) {
     useAppStore.getState().browserToggleBookmark({ url, title });
   } else {

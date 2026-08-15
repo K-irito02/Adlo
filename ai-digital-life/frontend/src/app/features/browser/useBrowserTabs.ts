@@ -81,7 +81,9 @@ export function useBrowserTabs() {
 
   const hasActiveTab = activeTab !== null;
   const isBookmarked = activeTab?.url
-    ? browserBookmarks.some((bookmark) => bookmark.url === activeTab.url)
+    ? browserBookmarks.some(
+        (bookmark) => bookmark.url === activeTab.url && bookmark.title === activeTab.title,
+      )
     : false;
 
   const handleDoubleClick = useCallback((tabId: string, title: string) => {

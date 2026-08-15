@@ -407,7 +407,12 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           .getState()
           .browserBookmarkTab(activeTab.id, folderId, undefined, undefined, title || undefined);
         if (result.ok === false && result.reason !== 'no-tab') {
-          showToast(t.browserEditBookmarkDuplicate, 'warning');
+          const msg = result.pathLabel
+            ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
+                path: result.pathLabel,
+              })
+            : t.browserEditBookmarkDuplicate;
+          showToast(msg, 'warning');
           return;
         }
         showToast(t.browserBookmarkAddedToast, 'success');
@@ -418,7 +423,12 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           .getState()
           .browserBookmarkTab(activeTab.id, undefined, undefined, workspaceId, title || undefined);
         if (result.ok === false && result.reason !== 'no-tab') {
-          showToast(t.browserEditBookmarkDuplicate, 'warning');
+          const msg = result.pathLabel
+            ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
+                path: result.pathLabel,
+              })
+            : t.browserEditBookmarkDuplicate;
+          showToast(msg, 'warning');
           return;
         }
         showToast(t.browserBookmarkAddedToast, 'success');

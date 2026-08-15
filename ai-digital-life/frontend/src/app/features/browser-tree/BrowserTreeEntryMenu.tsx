@@ -330,7 +330,11 @@ export function useBrowserTreeEntryMenu({
                 contextMenuForTab.node.url &&
                 useAppStore
                   .getState()
-                  .browserBookmarks.some((b) => b.url === contextMenuForTab.node.url)
+                  .browserBookmarks.some(
+                    (b) =>
+                      b.url === contextMenuForTab.node.url &&
+                      b.title === contextMenuForTab.node.name,
+                  )
                   ? t.browserUnbookmark
                   : t.browserBookmark,
               action: () => {

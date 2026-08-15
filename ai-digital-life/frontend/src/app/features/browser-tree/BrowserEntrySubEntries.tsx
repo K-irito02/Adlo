@@ -299,7 +299,10 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
   }, []);
 
   const bookmarks = useAppStore((s) => s.browserBookmarks);
-  const bookmarkedUrls = useMemo(() => new Set(bookmarks.map((b) => b.url)), [bookmarks]);
+  const bookmarkedKeys = useMemo(
+    () => new Set(bookmarks.map((b) => `${b.url}|${b.title}`)),
+    [bookmarks],
+  );
 
   const handleChildContextMenu = useCallback(
     (childNode: BrowserTreeNode) => {
@@ -308,7 +311,10 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
         childNode.kind === 'file' &&
         (childNode.nodeType === 'tab' || childNode.nodeType === 'history')
       ) {
-        const isBookmarked = childNode.url ? bookmarkedUrls.has(childNode.url) : false;
+        const isBookmarked =
+          childNode.url && childNode.name
+            ? bookmarkedKeys.has(`${childNode.url}|${childNode.name}`)
+            : false;
         return getTabContextMenuItems(childNode, callbacks, t, isBookmarked);
       }
       const items = getChildNodeMoreMenuItems(
@@ -327,7 +333,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
         action: () => item.action(),
       }));
     },
-    [categoryType, callbacks, bookmarkedUrls, t],
+    [categoryType, callbacks, bookmarkedKeys, t],
   );
 
   const handleChildMenuClick = useCallback(
@@ -382,7 +388,8 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
           (childMenuState.nodeType === 'tab' || childMenuState.nodeType === 'history')
             ? (() => {
                 const node = childMenuState.node;
-                const isBookmarked = node.url ? bookmarkedUrls.has(node.url) : false;
+                const isBookmarked =
+                  node.url && node.name ? bookmarkedKeys.has(`${node.url}|${node.name}`) : false;
                 return getTabContextMenuItems(node, callbacks, t, isBookmarked);
               })()
             : getChildNodeMoreMenuItems(

@@ -327,13 +327,16 @@ function computeBookmarkTabOutcome(
         (entry) => entry.tabId !== tabId && entry.url === url && entry.title === title,
       );
       if (!titleCollision) {
-        const updated = [...existingWsTabs];
-        updated[existingIdx] = { tabId, url, title };
-        nextWorkspaceBookmarks = {
-          ...state.browserWorkspaceBookmarks,
-          [workspaceId]: updated,
-        };
-        wsBookmarksChanged = true;
+        const current = existingWsTabs[existingIdx];
+        if (current.url !== url || current.title !== title) {
+          const updated = [...existingWsTabs];
+          updated[existingIdx] = { tabId, url, title };
+          nextWorkspaceBookmarks = {
+            ...state.browserWorkspaceBookmarks,
+            [workspaceId]: updated,
+          };
+          wsBookmarksChanged = true;
+        }
       }
     } else {
       const duplicate = existingWsTabs.some((entry) => entry.url === url && entry.title === title);

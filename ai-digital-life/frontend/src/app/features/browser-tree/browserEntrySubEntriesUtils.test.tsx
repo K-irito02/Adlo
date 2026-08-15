@@ -46,6 +46,22 @@ describe('getChildNodeMoreMenuItems', () => {
     expect(callbacks.onCreateTab).toHaveBeenCalledWith(undefined, 'f1');
   });
 
+  it('forwards workspaceId to onCreateTab when provided', () => {
+    const callbacks = makeCallbacks();
+    const items = getChildNodeMoreMenuItems(
+      'folder',
+      'workspace',
+      'folder:f1',
+      callbacks,
+      t,
+      'ws1',
+    );
+    const item = items.find((i) => i.id === 'create-bookmark')!;
+    expect(item).toBeDefined();
+    item.action();
+    expect(callbacks.onCreateTab).toHaveBeenCalledWith('ws1', 'f1');
+  });
+
   it('does not add create-bookmark item for history day node', () => {
     const callbacks = makeCallbacks();
     const items = getChildNodeMoreMenuItems('day', 'history', 'history:2026-08', callbacks, t);
