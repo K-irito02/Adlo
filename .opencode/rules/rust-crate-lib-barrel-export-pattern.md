@@ -1,48 +1,44 @@
 ---
-description: Rust use statement three-section ordering convention — std → external crates → adl_* internal crates, separated by blank lines
-globs: ai-digital-life/crates/**/*.rs,ai-digital-life/src-tauri/**/*.rs
+description: Rust crate lib.rs public API barrel export pattern — module declarations followed by centralized pub use re-exports
+globs: ai-digital-life/crates/*/src/lib.rs
 alwaysApply: false
 ---
 
-## Rust use 语句三段式排序约定
+## Rust crate lib.rs 公共 API 桶导出模式
 
 ### 规则描述
 
-Rust 源文件中的 `use` 语句必须按三段式排序，每组之间用空行分隔：
-1. **标准库**：`std::` 开头的导入
-2. **外部 crate**：第三方依赖（tokio、serde、sha2 等）
-3. **内部 crate**：`adl_*` 前缀的项目内部 crate
+所有 Rust crate 的 `lib.rs` 必须遵循"模块声明 + 公共 API 桶导出"两层结构：
+1. 先声明所有模块（`pub mod` 为公开模块，`mod` 为私有模块）
+2. 再通过 `pub use` 从各模块重导出公共 API 项
 
-`crate::` 本地模块引用（如有）放在第三组之后。
+外部消费者统一从 crate root 导入，不直接引用内部模块路径。
 
 ### 正确示例
 
 ```rust
-// ✅ 正确：三段式排序，空行分隔
-use std::path::Path;
-use std::sync::Arc;
+// ✅ 正确：模块声明后集中 pub use
+pub mod browser_pool;
+pub mod browser_webview;
+mod browser_events;
 
-use serde::{Deserialize, Serialize};
-use tokio::process::Command;
-
-use adl_errors::AppError;
-use adl_types::IpcResult;
+pub use browser_pool::BrowserPool;
+pub use browser_webview::{BrowserManager, webview_label};
 ```
 
 ### 错误示例
 
 ```rust
-// ❌ 错误：混排，无分组
-use adl_errors::AppError;
-use std::path::Path;
-use serde::Serialize;
+// ❌ 错误：pub mod 但不 pub use，消费方需写完整路径
+pub mod browser_pool;
+// 消费方被迫 use adl_browser::browser_pool::BrowserPool;
 
-// ❌ 错误：内部 crate 放在外部 crate 之前
-use adl_errors::AppError;
-use tokio::process::Command;
-use std::path::Path;
+// ❌ 错误：pub use 散落在模块声明之间
+pub use browser_pool::BrowserPool;
+pub mod browser_webview;
+pub use browser_webview::BrowserManager;
 ```
 
 ### 适用场景
 
-所有 `crates/` 和 `src-tauri/src/` 目录下的 Rust 源文件。`rustfmt` 不强制 use 排序，需人工维护此约定。
+所有 `crates/` 目录下的 Rust crate 的 `lib.rs` 文件。新增 crate 时必须遵循此模式。

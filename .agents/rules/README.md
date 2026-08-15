@@ -38,6 +38,9 @@ alwaysApply: true
 | `region-layout-shell-architecture.md` | Region 布局壳架构（shell 布局与领域功能分离） | Region 布局变更 |
 | `rust-command-domain-action-naming.md` | Tauri Command 函数 `{domain}_{action}` 蛇形命名 | 新增 Tauri Command |
 | `rust-crate-adl-prefix-convention.md` | Rust 内部 crate 统一 `adl-` 前缀命名 | 新增 crate |
+| `rust-crate-lib-barrel-export-pattern.md` | Rust crate lib.rs 公共 API 桶导出模式（模块声明 + pub use 重导出） | 新增 crate / Rust 代码变更 |
+| `rust-inline-cfg-test-pattern.md` | Rust 内联 `#[cfg(test)]` 单元测试组织（内联于源文件末尾） | Rust 代码变更 |
+| `rust-use-statement-ordering-convention.md` | Rust use 语句三段式排序（std → 外部 crate → adl_* 内部 crate） | Rust 代码变更 |
 | `serde-default-rename-all-convention.md` | 跨 IPC 边界 Rust 类型的 serde 双注解约定 | 新增共享类型 |
 | `ts-rs-type-generation-barrel-import.md` | Rust→TypeScript 自动类型生成及 kernel 桶导入规范 | 类型生成变更 |
 
@@ -107,7 +110,7 @@ Trae IDE 内置浏览器自动化工具（16 个 MCP 工具，含 `browser_evalu
 
 ## 技能系统
 
-本项目使用 **Superpowers 技能系统** 增强 AI 代理能力，共 26 个技能（含项目定制 12 个）。
+本项目使用 **Superpowers 技能系统** 增强 AI 代理能力，共 28 个技能（含项目定制 14 个）。
 
 | 项目 | 说明 |
 |------|------|

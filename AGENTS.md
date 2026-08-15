@@ -133,9 +133,9 @@ npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$H
 
 | 目录 | 职责 | 技能数量 |
 |------|------|----------|
-| `.opencode/skills/` | 源目录（真源） | 27 |
-| `.agents/skills/` | 同步备份 | 27 |
-| `.trae/skills/` | 同步备份 | 27 |
+| `.opencode/skills/` | 源目录（真源） | 28 |
+| `.agents/skills/` | 同步备份 | 28 |
+| `.trae/skills/` | 同步备份 | 28 |
 
 **同步规则**：`.opencode/skills/` 是真源，修改后需同步到 `.agents/skills/` 和 `.trae/skills/`。
 
@@ -160,7 +160,7 @@ npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$H
 | `using-git-worktrees` | Git 工作树使用 | 并行开发、隔离工作区 |
 | `writing-skills` | 技能创作 | 新增/修改技能 |
 
-**项目定制技能**（13 个）：
+**项目定制技能**（14 个）：
 
 | 技能 | 用途 |
 |------|------|
@@ -171,6 +171,7 @@ npm install superpowers@git+https://github.com/obra/superpowers.git --prefix "$H
 | `dogfood` | 内部试用与问题发现 |
 | `find-skills` | 技能发现与安装 |
 | `frontend-design` | 前端界面设计 |
+| `governance-audit` | 治理文档审计（规则文件、AGENTS.md、README.md） |
 | `learn` | 代码库模式学习与规则自动生成 |
 | `refactoring-insight` | 重构洞察 |
 | `root-cause-resolution` | 根因解决方案（根因→方案设计→日志验证→外部调研→清理，衔接 systematic-debugging） |

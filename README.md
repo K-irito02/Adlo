@@ -16,7 +16,7 @@ AI 数字生命桌面应用的规划与治理仓库。当前 **Phase 2（Agent �
 | [.agents/rules/](./.agents/rules/) | AI 代理规则源目录（同步到 `.opencode/rules/` 和 `.trae/rules/`） |
 | [.opencode/rules/](./.opencode/rules/) | AI 代理规则副本（由 `.agents/rules/` 同步） |
 | [.trae/rules/](./.trae/rules/) | AI 代理规则副本（由 `.agents/rules/` 同步） |
-| [.opencode/skills/](./.opencode/skills/) | AI 代理技能包（26 个，含 Superpowers 核心） |
+| [.opencode/skills/](./.opencode/skills/) | AI 代理技能包（28 个，含 Superpowers 核心） |
 
 ## 技术栈
 

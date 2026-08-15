@@ -159,7 +159,7 @@ app/stores/
 ## 相关文件
 
 - [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则（含 Superpowers 技能系统、参考项目 OpenCode / Pi）
-- [技能系统入口](../.opencode/skills/using-superpowers/SKILL.md) — using-superpowers 入口技能（共 27 个技能：14 Superpowers 核心 + 13 项目定制）
+- [技能系统入口](../.opencode/skills/using-superpowers/SKILL.md) — using-superpowers 入口技能（共 28 个技能：14 Superpowers 核心 + 14 项目定制）
 - [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 远期规划
 - [references/opencode/](../references/opencode/) — 参考项目 OpenCode 本地源码（MIT 许可）
 - [references/pi/](../references/pi/) — 参考项目 Pi 本地源码（MIT 许可）
