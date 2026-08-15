@@ -24,6 +24,7 @@ export type WorkspaceBookmarkEntry = _WorkspaceBookmarkEntry;
 export interface BookmarkCollisionCheck {
   ok: boolean;
   pathLabel?: string;
+  reason?: 'no-tab';
 }
 
 export function checkBookmarkCollision(
@@ -490,7 +491,7 @@ export const createBrowserBookmarkSlice = (
     const currentState = _get();
     const tab = currentState.browserTabs.find((t) => t.id === tabId);
     if (!tab || !tab.url) {
-      return { ok: false };
+      return { ok: false, reason: 'no-tab' };
     }
     {
       const url = tab.url;

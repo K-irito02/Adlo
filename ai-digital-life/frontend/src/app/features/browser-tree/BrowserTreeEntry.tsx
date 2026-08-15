@@ -107,9 +107,6 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
         case 'create-bookmark':
           callbacks.onCreateTab(node.workspaceId, node.folderId);
           break;
-        case 'delete-all-tabs':
-          callbacks.onDeleteAllChildTabs(categoryType, node.path);
-          break;
         case 'more': {
           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
           setMenuPosition({ top: rect.top, left: rect.right + 4 });

@@ -65,6 +65,7 @@ export function getChildNodeMoreMenuItems(
   nodePath: string,
   callbacks: SectionCallbacks,
   t: CopyDict,
+  workspaceId?: string,
 ): {
   id: string;
   label: string;
@@ -102,7 +103,7 @@ export function getChildNodeMoreMenuItems(
       {
         id: 'create-bookmark',
         label: t.browserContextCreateBookmark,
-        action: () => callbacks.onCreateTab(undefined, folderId || undefined),
+        action: () => callbacks.onCreateTab(workspaceId, folderId || undefined),
       },
       {
         id: 'open-all-tabs',

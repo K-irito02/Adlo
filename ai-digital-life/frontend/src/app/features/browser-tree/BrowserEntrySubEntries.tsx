@@ -307,6 +307,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
         childNode.path,
         callbacks,
         t,
+        childNode.workspaceId,
       );
       return items.map((item) => ({
         id: item.id,
@@ -380,6 +381,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
                 childMenuState.nodePath,
                 callbacks,
                 t,
+                childMenuState.node?.workspaceId,
               )
           ).map((item) => (
             <button

@@ -69,4 +69,7 @@ describe('buildWorkspacePathLabel', () => {
   it('工作区无 name 时用 path 回退', () => {
     expect(buildWorkspacePathLabel('ws2', [makeWorkspace('ws2', '', 'E:/ws-b')])).toBe('E:/ws-b');
   });
+  it('path 回退中的反斜杠归一化为正斜杠', () => {
+    expect(buildWorkspacePathLabel('ws3', [makeWorkspace('ws3', '', 'E:\\ws-c')])).toBe('E:/ws-c');
+  });
 });
