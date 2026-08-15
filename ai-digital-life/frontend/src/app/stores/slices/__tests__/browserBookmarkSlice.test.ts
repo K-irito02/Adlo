@@ -905,4 +905,39 @@ describe('browserToggleBookmark tuple semantics', () => {
     const state = get() as unknown as BrowserBookmarkSlice;
     expect(state.browserBookmarks).toContainEqual({ url: 'https://e.com', title: 'Title A' });
   });
+
+  it('removes only the matching title entries for the tab, keeping other-title entries in other folders', () => {
+    const { get } = createMockStore();
+    const slice = get() as unknown as BrowserBookmarkSlice;
+    (get() as any).browserTabFolders = [
+      {
+        id: 'f1',
+        name: 'F1',
+        createdAt: 0,
+        tabs: [{ tabId: 't1', url: 'https://e.com', title: 'Custom A' }],
+      },
+      {
+        id: 'f2',
+        name: 'F2',
+        createdAt: 0,
+        tabs: [{ tabId: 't1', url: 'https://e.com', title: 'Custom A2' }],
+      },
+    ];
+    (get() as any).browserTabs = [
+      { id: 't1', workspaceId: 'w', title: 'Custom A', url: 'https://e.com' },
+    ];
+    (get() as any).browserActiveTabId = 't1';
+    (get() as any).browserBookmarks = [
+      { url: 'https://e.com', title: 'Custom A' },
+      { url: 'https://e.com', title: 'Custom A2' },
+    ];
+    slice.browserToggleBookmark();
+    const state = get() as unknown as BrowserBookmarkSlice;
+    const folders = (get() as any).browserTabFolders;
+    expect(folders[0].tabs).toHaveLength(0);
+    expect(folders[1].tabs).toHaveLength(1);
+    expect(folders[1].tabs[0].title).toBe('Custom A2');
+    expect(state.browserBookmarks).not.toContainEqual({ url: 'https://e.com', title: 'Custom A' });
+    expect(state.browserBookmarks).toContainEqual({ url: 'https://e.com', title: 'Custom A2' });
+  });
 });

@@ -150,11 +150,15 @@ function computeToggleBookmarkOutcome(
       nextFolders = state.browserTabFolders.map((folder) => {
         if (
           folder.tabs &&
-          folder.tabs.some((item) => tabIdsForUrl.has(item.tabId) && item.url === url)
+          folder.tabs.some(
+            (item) => tabIdsForUrl.has(item.tabId) && item.url === url && item.title === title,
+          )
         ) {
           return {
             ...folder,
-            tabs: folder.tabs.filter((item) => !(tabIdsForUrl.has(item.tabId) && item.url === url)),
+            tabs: folder.tabs.filter(
+              (item) => !(tabIdsForUrl.has(item.tabId) && item.url === url && item.title === title),
+            ),
           };
         }
         return folder;
@@ -165,11 +169,12 @@ function computeToggleBookmarkOutcome(
       for (const wsId of Object.keys(nextWorkspaceBookmarks)) {
         if (
           nextWorkspaceBookmarks[wsId].some(
-            (entry) => tabIdsForUrl.has(entry.tabId) && entry.url === url,
+            (entry) => tabIdsForUrl.has(entry.tabId) && entry.url === url && entry.title === title,
           )
         ) {
           nextWorkspaceBookmarks[wsId] = nextWorkspaceBookmarks[wsId].filter(
-            (entry) => !(tabIdsForUrl.has(entry.tabId) && entry.url === url),
+            (entry) =>
+              !(tabIdsForUrl.has(entry.tabId) && entry.url === url && entry.title === title),
           );
           if (nextWorkspaceBookmarks[wsId].length === 0) {
             delete nextWorkspaceBookmarks[wsId];

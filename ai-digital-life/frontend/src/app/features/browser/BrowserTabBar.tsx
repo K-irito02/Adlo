@@ -54,7 +54,7 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
 }: BrowserTabBarProps) {
   const browserBookmarks = useAppStore((state) => state.browserBookmarks);
   const bookmarkedKeys = useMemo(
-    () => new Set(browserBookmarks.map((b) => `${b.url}|${b.title}`)),
+    () => new Set(browserBookmarks.map((b) => JSON.stringify([b.url, b.title]))),
     [browserBookmarks],
   );
 
@@ -65,7 +65,7 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
   return (
     <ul className="adl-tool-list adl-tool-list--terminal">
       {tabs.map((tab) => {
-        const isBookmarked = tab.url ? bookmarkedKeys.has(`${tab.url}|${tab.title}`) : false;
+        const isBookmarked = tab.url ? bookmarkedKeys.has(JSON.stringify([tab.url, tab.title])) : false;
 
         return (
           <li

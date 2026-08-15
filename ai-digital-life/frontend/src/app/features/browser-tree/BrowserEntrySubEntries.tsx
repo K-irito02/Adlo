@@ -300,7 +300,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
 
   const bookmarks = useAppStore((s) => s.browserBookmarks);
   const bookmarkedKeys = useMemo(
-    () => new Set(bookmarks.map((b) => `${b.url}|${b.title}`)),
+    () => new Set(bookmarks.map((b) => JSON.stringify([b.url, b.title]))),
     [bookmarks],
   );
 
@@ -313,7 +313,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
       ) {
         const isBookmarked =
           childNode.url && childNode.name
-            ? bookmarkedKeys.has(`${childNode.url}|${childNode.name}`)
+            ? bookmarkedKeys.has(JSON.stringify([childNode.url, childNode.name]))
             : false;
         return getTabContextMenuItems(childNode, callbacks, t, isBookmarked);
       }
@@ -389,7 +389,9 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
             ? (() => {
                 const node = childMenuState.node;
                 const isBookmarked =
-                  node.url && node.name ? bookmarkedKeys.has(`${node.url}|${node.name}`) : false;
+                  node.url && node.name
+                    ? bookmarkedKeys.has(JSON.stringify([node.url, node.name]))
+                    : false;
                 return getTabContextMenuItems(node, callbacks, t, isBookmarked);
               })()
             : getChildNodeMoreMenuItems(
