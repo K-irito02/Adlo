@@ -59,6 +59,3 @@ ms-playwright/
 
 # Git worktree isolation
 /.worktrees/
-
-# Cargo disk-clean 时间戳（本机状态）
-/.cargo/.disk-clean-stamp

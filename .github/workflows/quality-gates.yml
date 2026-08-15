@@ -44,7 +44,7 @@ jobs:
       - name: cargo test
         run: cargo test --workspace
 
-      - name: Disk cleanup (dual-condition)
+      - name: Disk cleanup (over 30GB → full clean)
         run: powershell -NoProfile -File .cargo\clean-target.ps1
 
   frontend:

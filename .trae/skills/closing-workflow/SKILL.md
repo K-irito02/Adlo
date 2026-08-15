@@ -102,16 +102,10 @@ description: End-of-work mandatory closing procedures. Invoke when all developme
 powershell -File "ai-digital-life\.cargo\clean-target.ps1" -WhatIf
 ```
 
-脚本按双条件触发（`ai-digital-life/target/debug` 超过 25 GB，或距上次清理超过 7 天）。`-WhatIf` 干跑报告预计释放量后询问用户是否执行：
+脚本按空间阈值触发（`ai-digital-life/target/debug` 超过 30 GB 即全量 `cargo clean`，不按时间窗口判断）。`-WhatIf` 干跑后询问用户是否执行：
 
 ```powershell
 powershell -File "ai-digital-life\.cargo\clean-target.ps1"
-```
-
-空间仍过大时全清：
-
-```powershell
-cargo clean
 ```
 
 > `.agents/skills/`、`.trae/skills/` 的 `closing-workflow/SKILL.md` 为同步副本，修改真源 `.opencode/skills/` 后需同步（见 Step 4c）。

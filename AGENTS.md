@@ -77,11 +77,10 @@
 
 `ai-digital-life/target/debug` 曾因依赖 `debug=2` 全量调试符号累积至 **130+ GB**（`.pdb` 97 GB），现已治理：第三方依赖 `debug=1`（自己 crate 白名单保留 `debug=2` 可断点调试）。
 
-**清理策略（双条件触发，见 [ai-digital-life/AGENTS.md#磁盘空间管理](./ai-digital-life/AGENTS.md#磁盘空间管理)）：**
-- 空间条件：`ai-digital-life/target/debug` 超过 25 GB
-- 时间条件：距上次清理超过 7 天（首次运行视为命中）
+**清理策略（空间阈值触发全量清理，见 [ai-digital-life/AGENTS.md#磁盘空间管理](./ai-digital-life/AGENTS.md#磁盘空间管理)）：**
+- 空间条件：`ai-digital-life/target/debug` 超过 30 GB → 全量清理
 
-任一命中即运行 `ai-digital-life/.cargo/clean-target.ps1`（`-WhatIf` 干跑预览，`-Full` 全清 `cargo clean`）。`cargo prune` 为 `cargo clean` 别名。
+超过阈值即运行 `ai-digital-life/.cargo/clean-target.ps1` 执行 `cargo clean` 全量删除（不按时间窗口判断；`-WhatIf` 干跑预览，`-Full` 强制全清）。`cargo prune` 为 `cargo clean` 别名。
 
 ## 禁止项
 
