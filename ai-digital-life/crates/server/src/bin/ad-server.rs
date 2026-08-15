@@ -1,3 +1,5 @@
+#![allow(linker_messages)]
+
 //! `ad-server` — standalone HTTP engine for the AI Digital Life app.
 //!
 //! Usage: `ad-server [--port <u16>] [--data-dir <path>]`
