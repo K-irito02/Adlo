@@ -1,13 +1,13 @@
 ---
 name: closing-workflow
-description: End-of-work mandatory closing procedures. Invoke after completing all code changes, bug fixes, or feature implementations in a conversation session. Performs environment check, log review, multi-agent parallel code review with mandatory fixes, quality gates, doc sync, and cleanup.
+description: End-of-work mandatory closing procedures. Invoke when all development tasks in a conversation session are complete. Runs environment check, log review, multi-agent parallel code review with mandatory fixes, quality gates, doc sync, and cleanup.
 ---
 
 # Closing Workflow
 
 ## Overview
 
-所有开发任务完成后，执行标准收尾流程确保工作质量与项目整洁。
+所有开发任务完成后，执行标准收尾流程，确保工作质量与项目整洁。
 
 **流程：** 前置检查 → 日志审查 → 代码审查（多Agent并行 + 强制修复） → 质量检测 → 文档同步 → 项目清理 → 最终总结；全程自动记录，测试分级执行。
 
@@ -16,23 +16,23 @@ description: End-of-work mandatory closing procedures. Invoke after completing a
 - 本轮对话中所有开发任务已完成，准备结束工作时
 - 用户明确要求执行收尾流程
 
-> 不要在每次代码编辑后触发，应在整轮工作完成、准备收尾时触发。此技能与 `mandatory-testing.md` 规则互补：`mandatory-testing.md` 在每次代码变更后自动触发（轻量级验证），本技能在整轮对话收尾时触发（全面审查 + 文档同步 + 清理）。
+> 不要在每次代码编辑后触发，应在整轮工作完成、准备收尾时触发。与 `mandatory-testing.md` 规则互补：该规则在每次代码变更后自动触发（轻量级验证），本技能在整轮对话收尾时触发（全面审查 + 文档同步 + 清理）。
 
 ---
 
 ## 阶段自动记录（防上下文丢失）
 
-**目的：** 防止上下文压缩导致必要信息丢失。所有关键信息必须存在于文档中，禁止依赖 Agent 记忆、回溯或追踪。**主 Agent 与子 Agent 都必须自动记录到对应文档。**
+**目的：** 防止上下文压缩导致必要信息丢失。所有关键信息必须存在于文档中，禁止依赖 Agent 记忆、回溯或追踪。主 Agent 与子 Agent 都必须自动记录到对应文档。
 
 ### 收尾记录文件
 
-- **目录**：`docs/closing-workflow/`（不存在则创建），按月归档到 `docs/closing-workflow/YYYY-MM/`
+- **目录**：`docs/closing-workflow/YYYY-MM/`（不存在则创建）
 - **文件名**：`progress-YYYY-MM-DD-HHmmss.md`（精确到秒，避免重复）
 - 与 `docs/root-cause-resolution/` 进度文件不同，本文件专门记录收尾流程（Step 0-6）的执行过程与结果
 
 ### 主 Agent：每 Step 完成后立即记录
 
-每个 Step（0-6）**完成时立即**写入收尾记录文件：
+每个 Step（0-6）**完成时立即**写入收尾记录文件，禁止"稍后一起记"：
 
 - **结论** — 审查问题数、修复情况、测试结果、同步的文件清单
 - **关键证据** — 日志异常摘要、审查报告摘要、错误信息
@@ -44,8 +44,6 @@ description: End-of-work mandatory closing procedures. Invoke after completing a
 | 任务类型分类完成 | 任务清单、类型（需求/解决/优化/调整）、产物路径 |
 | 每 Step 完成 | Step 结论 + 关键证据 + 决策理由 + 下一步 |
 | 上下文压缩前 | 确认所有关键信息已写入文档 |
-
-Step 完成即记录，禁止"稍后一起记"。
 
 ### 子 Agent（Step 2 审查 Agent）：必须写入独立报告文件
 
@@ -59,14 +57,14 @@ Step 完成即记录，禁止"稍后一起记"。
 
 > **已实测（2026-08-15）：** 主 Agent 无法读取子 Agent 的窗口/会话上下文，只能获得子 Agent 的最终返回消息（隐藏信息无法透出）。因此子 Agent 必须写独立报告文件，不能依赖返回消息承载必要信息。
 
-### 主 Agent 转写与索引
+### 主 Agent 转写与索引（两者同时执行）
 
-子 Agent 报告返回后，主 Agent 立即将关键信息**转写**到收尾记录文件，**并**将对应子 Agent 报告**索引**添加到收尾记录文件——两件事必须同时执行，不是"转写或索引"二选一：
+子 Agent 报告返回后，主 Agent 必须同时做两件事，不是"转写或索引"二选一：
 
-1. **转写关键信息** — 逐问题结论摘要、severity 分布、需修复清单（直接写入收尾记录文件正文）
+1. **转写关键信息** — 逐问题结论摘要、severity 分布、需修复清单（写入收尾记录文件正文）
 2. **添加子 Agent 报告索引** — 报告文件路径（`.review-diffs/<task>-rev<N>-report.md`）
 
-使收尾记录文件成为唯一真实来源：正文含可直接使用的关键信息（转写），同时保留可回溯完整报告的路径（索引）。任何子 Agent 报告丢失时仍可恢复。
+使收尾记录文件成为唯一真实来源：正文含可直接使用的关键信息（转写），同时保留可回溯完整报告的路径（索引），任何子 Agent 报告丢失时仍可恢复。
 
 ---
 
@@ -74,7 +72,9 @@ Step 完成即记录，禁止"稍后一起记"。
 
 ### 环境准备
 
-执行命令前按 `commands.md` 设置 PATH（Node.js + Rust）。所有命令默认在 `ai-digital-life/` 目录执行。
+执行命令前按 `commands.md` 设置 PATH（Node.js + Rust）。
+
+**工作目录：** git 命令（branch/status/diff）在仓库根（工作区根）执行；`cargo`/`pnpm` 在 `ai-digital-life/` 执行。
 
 ### 工作区状态
 
@@ -93,7 +93,7 @@ Step 完成即记录，禁止"稍后一起记"。
 | **混合内容** | 两类都有 | 上述两类检查都执行 |
 
 **规则：**
-- 当需求相关类型使用了 `brainstorming` 且任务同时包含解决/优化/调整问题时，两类问题都必须在 **Step 2 审查**与 **Step 4 文档同步**中覆盖，不能只处理需求部分
+- 使用过 `brainstorming` 且任务同时含解决/优化/调整问题时，两类都必须在 Step 2 审查与 Step 4 文档同步中覆盖，不能只处理需求部分
 - 分类结果与产物路径写入收尾记录文件，供 Step 2/4 使用
 
 ### 磁盘空间（可选）
@@ -102,7 +102,7 @@ Step 完成即记录，禁止"稍后一起记"。
 powershell -File "ai-digital-life\.cargo\clean-target.ps1" -WhatIf
 ```
 
-脚本按双条件触发（`ai-digital-life/target/debug` 超过 25 GB，或距上次清理超过 7 天），`-WhatIf` 干跑报告预计释放量后询问用户是否执行：
+脚本按双条件触发（`ai-digital-life/target/debug` 超过 25 GB，或距上次清理超过 7 天）。`-WhatIf` 干跑报告预计释放量后询问用户是否执行：
 
 ```powershell
 powershell -File "ai-digital-life\.cargo\clean-target.ps1"
@@ -111,10 +111,10 @@ powershell -File "ai-digital-life\.cargo\clean-target.ps1"
 空间仍过大时全清：
 
 ```powershell
-ai-digital-life> cargo clean
+cargo clean
 ```
 
-> `.trae/skills/`、`.agents/skills/` 的 `closing-workflow/SKILL.md` 为同步副本，修改真源后需同步。
+> `.agents/skills/`、`.trae/skills/` 的 `closing-workflow/SKILL.md` 为同步副本，修改真源 `.opencode/skills/` 后需同步（见 Step 4c）。
 
 ---
 
@@ -153,14 +153,12 @@ ai-digital-life> cargo clean
 
 ## Step 2: 代码审查（多Agent并行 + 强制修复）
 
-### 2a. 收集变更
-
-三类变更独立采集：
+### 2a. 收集变更（两类）
 
 | 类型 | 命令 | 说明 |
 |------|------|------|
 | 未暂存 + 已暂存 | `git diff HEAD` | 涵盖所有未提交变更 |
-| 已提交本地 | `git diff origin/HEAD..HEAD` | 若分支无 upstream 则跳过 |
+| 已提交本地 | `git diff origin/HEAD..HEAD` | 若 `origin/HEAD` 不存在则跳过该部分 |
 
 **规则：**
 - 已推送至远程的代码不纳入审查
@@ -186,7 +184,7 @@ ai-digital-life> cargo clean
 
 **Agent 数量：** 1 个任务 → 1 Agent；2+ 个任务 → N Agent（N=任务数；>5 时合并变更量 < 50 行的小型任务）。
 
-**并行派发：** 在同一条消息中同时派发 N 个 Task（使用**可写文件**的子代理，如 `subagent_type: "general"`，因需写报告文件；禁止其修改任何源代码/配置/文档文件），使用以下 prompt 模板：
+**并行派发：** 在同一条消息中同时派发 N 个 Task（使用**可写文件**的子代理，如 `subagent_type: "general_purpose_task"`，因需写报告文件；禁止其修改任何源代码/配置/文档文件），使用以下 prompt 模板：
 
 ```
 Review the following completed task's code changes:
@@ -223,34 +221,28 @@ Write your complete review report to .review-diffs/<task>-rev<N>-report.md (inpu
   └─ 无问题 → 审查通过
 ```
 
-**主 Agent 问题验证（修复前置）：**
+#### 主 Agent 问题验证（修复前置）
 
-所有被报告的问题（包括预存问题、低程度问题）默认都要修复，但修复前主 Agent 必须逐项验证，结果写入收尾记录文件：
+主 Agent 必须逐项验证被报告的问题，结果写入收尾记录文件：
 
 1. **真实性验证** — 重新阅读相关代码、复现、核对逻辑与调用链，排除子代理误报与过期快照假阳性；核对 diff 快照与实际代码一致
-2. **特殊情况判断** — 逐项判定每个被报告问题是否应修复。**默认都要修复**，仅以下真正有正当理由的情形不修复（并记录理由）：
+2. **特殊情况判断** — 默认都要修复，仅以下真正有正当理由的情形不修复（并记录理由）：
 
 | 情形 | 判定 | 处理 |
 |------|------|------|
 | **用户特殊设计** | 刻意为之的行为/命名/结构或已知取舍（有注释、文档、历史提交佐证） | 不修复，记录理由；无法确认时询问用户 |
 | **正当防御性代码** | 系统边界验证、生产调试用的错误处理/日志、有意的性能取舍 | 保留 |
 | **无用/不必要的防御性代码** | 根因修复后不再需要、冗余守卫、多重检查、不必要的预防措施 | **修复并清理删除** |
-| **合理兼容处理** | 合理、符合有利于**长期演进**收益、非偷懒性兼容 | 保留 |
-| **不合理兼容处理** | 不合理、不利于长期演进收益、**偷懒性兼容**（为省事绕开重构） | **修复** |
+| **合理兼容处理** | 合理、符合长期演进收益、非偷懒性兼容 | 保留 |
+| **不合理兼容处理** | 不合理、不利于长期演进、**偷懒性兼容**（为省事绕开重构） | **修复** |
+| **误报** | 子代理误报 / 过期快照假阳性 | 不修复，记录理由 |
 | **非本次变更引入** | 只要在审查范围内发现，无论是否本次变更引入 | **同样修复解决** |
 
-**整体原则：** 保证代码的**准确性、一致性**，所有相关代码**高度吻合、完美契合**。**尽量不引入兼容性代码**，反对"A 兼容 B、B 兼容 C"式的相互兼容层；发现此类兼容一律按上述规则修复为统一、一致的正确实现。
-3. **判定处理：**
+**整体原则：** 保证代码的准确性、一致性，所有相关代码高度吻合、完美契合。尽量不引入兼容性代码，反对"A 兼容 B、B 兼容 C"式的相互兼容层；发现此类兼容一律修复为统一、一致的正确实现。
 
-| 判定 | 操作 |
-|------|------|
-| 真实存在且应修复 | 修复（含预存/低程度问题、非本次变更引入的问题） |
-| 误报 | **不修复**，记录理由（子代理误报/过期快照假阳性） |
-| 用户特殊设计 / 正当防御性代码 / 合理兼容处理 | **不修复**，记录理由到收尾记录文件 |
+3. **复审联动：** "不修复"判定及理由写入收尾记录文件，并随下一轮审查 prompt 提供给子代理；子代理可提出异议，异议成立则重新评估，循环直到一致。
 
-4. **复审联动：** "不修复"判定及理由写入收尾记录文件，并随下一轮审查 prompt 提供给子代理；子代理可提出异议，异议成立则重新评估，循环直到一致。
-
-**AskUserQuestion 触发条件（满足任一即弹出）：**
+#### AskUserQuestion 触发条件（满足任一即弹出）
 
 | 条件 | 示例 |
 |------|------|
@@ -262,12 +254,10 @@ Write your complete review report to .review-diffs/<task>-rev<N>-report.md (inpu
 
 **询问卡片格式：** 列出 2-4 个方案，各说明优缺点与风险，标注推荐方案。
 
-**修复约束：** 仅修复经主 Agent 问题验证确认真实且应修复的问题，遵循 `.agents/rules/` 编码规范，不破坏现有功能及 UI/UX。
+#### 修复约束与迭代控制
 
-**迭代控制：**
-- 每轮修复后必须重新运行多Agent审查，不可凭主代理判断跳过
-- 每轮修复后重新生成快照（rev 递增），下一轮子代理按**最新完整快照全量重看**（不得只看增量或复用过期快照）
-- 同一问题 3 轮仍未解决 → 向用户报告并等待指示
+- **修复约束：** 仅修复经主 Agent 问题验证确认真实且应修复的问题，遵循 `.agents/rules/` 编码规范，不破坏现有功能及 UI/UX
+- **迭代控制：** 每轮修复后必须重新运行多Agent审查，不可凭主代理判断跳过；每轮重新生成快照（rev 递增），下一轮子代理按**最新完整快照全量重看**（不得只看增量或复用过期快照）；同一问题 3 轮仍未解决 → 向用户报告并等待指示
 
 **完成条件：** 所有 Agent 确认零问题。
 
@@ -275,11 +265,7 @@ Write your complete review report to .review-diffs/<task>-rev<N>-report.md (inpu
 
 ## Step 3: 代码质量检测
 
-> 此步骤与 `mandatory-testing.md` 规则一致。若本轮对话中已完整执行过全量质量检测（Lint + Format + Typecheck + Tests 全部通过），则跳过；否则运行全部。
-
-**与 `mandatory-testing.md` 的关系：**
-- `mandatory-testing.md`：每次代码变更后自动触发（轻量级，按变更层级选择测试范围）
-- 本 Step 3：收尾时执行**全量**质量检测（确保累计变更无回归）
+> 与 `mandatory-testing.md` 的关系：该规则每次代码变更后自动触发（轻量级，按变更层级选择测试范围）；本 Step 3 在收尾时执行**全量**质量检测（确保累计变更无回归）。若本轮对话已完整执行过全量检测（Lint + Format + Typecheck + Tests 全部通过），则跳过；否则运行全部。
 
 **分级验证（避免冗余全量测试）：**
 
@@ -311,8 +297,7 @@ cargo fmt --all; cargo clippy --workspace --all-targets --fix -- -D warnings; ca
 - 仅修复工具报告的问题，不做无关变更；预存警告/报错也须修复
 - 自动修复产生新代码变更后，重新执行类型检查和编译检查
 - 3 次修复仍失败 → 向用户报告并等待指示
-- 疑似 flaky test：连续 5 次，≤2 次失败标记为 flaky 不阻塞，>2 次视为真实失败
-- 已知 flaky test：验收时排除
+- 疑似 flaky test：连续 5 次，≤2 次失败标记为 flaky 不阻塞，>2 次视为真实失败；已知 flaky test 验收时排除
 
 **完成条件：** 零警告零错误，测试全通过（排除已知 flaky）。
 
@@ -403,7 +388,7 @@ cargo fmt --all; cargo clippy --workspace --all-targets --fix -- -D warnings; ca
 |------|------|----------|----------|
 | 0 | 环境 PATH + 工作区状态 + 磁盘空间 + **任务类型分类** | `git branch`/`git status` | 环境就绪，任务已分类并记录 |
 | 1 | 检查日志（**用 LS/Read，只看最新日志**） | LS/Read | 无 P0/P1 问题 |
-| 2 | 采集变更（`git diff HEAD` + `origin/HEAD..HEAD`）→ 生成 diff 快照 → 按任务并行审查（**子代理写报告文件**）→ 合并 → 主 Agent 问题验证（真实性 + 特殊情况）→ 强制修复循环（每轮重新生成快照） | `git diff` + Task（N 并行） + AskUserQuestion | 所有 Agent 零问题 |
+| 2 | 采集变更（两类）→ 生成 diff 快照 → 按任务并行审查（**子代理写报告文件**）→ 合并 → 主 Agent 问题验证 → 强制修复循环（每轮重新生成快照） | `git diff` + Task（N 并行） + AskUserQuestion | 所有 Agent 零问题 |
 | 3 | Lint/Format/Typecheck/Tests（**前后端并行**，循环内定向测试、子 Agent 审查结束后全量一次） | ESLint/Prettier/Clippy/rustfmt/tsc/vitest/cargo test | 零警告零错误 |
 | 4 | **强制**文档同步，提取规则与设计规范 | Write/Edit + 同步 | 逐项检查完成，列出具体文件 |
 | 5 | 清理临时/调试文件（按 LastWriteTime 判断年龄） | DeleteFile + PowerShell | 目录干净 |
