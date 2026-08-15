@@ -215,9 +215,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
 
       if (result.isSavedBookmark) {
         // 书签：live tab 标题保持页面抓取，只更新 url；save-and-open 导航到被编辑标签
-        if (isLiveTab) {
-          browserUpdateTab(tabId, { url: trimmedUrl || undefined });
-        }
         if (mode === 'save-and-open') {
           if (isLiveTab) {
             if (trimmedUrl) {
@@ -227,6 +224,8 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           } else {
             store.browserOpenTab(trimmedUrl, undefined);
           }
+        } else if (isLiveTab) {
+          browserUpdateTab(tabId, { url: trimmedUrl || undefined });
         }
       } else {
         // 普通标签：完整改名 + 更新 url；save-and-open 导航到该标签
@@ -309,6 +308,31 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       if (pendingBookmark) {
         const trimmedName = bookmarkName.trim();
         const title = trimmedName || pendingBookmark.title;
+
+        // 先预检目录碰撞（只读），冲突则拦截，避免 toggle 已改变状态
+        if (folderPath) {
+          const state = useAppStore.getState();
+          const precheck = checkBookmarkCollision(
+            pendingBookmark.url,
+            title,
+            folderPath.startsWith('folder:')
+              ? { folderId: folderPath.slice('folder:'.length) }
+              : { workspaceId: folderPath.slice('workspace:'.length) },
+            state,
+            state.recentWorkspaces,
+          );
+          if (precheck.ok === false) {
+            const msg = precheck.pathLabel
+              ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
+                  path: precheck.pathLabel,
+                })
+              : t.browserEditBookmarkDuplicate;
+            showToast(msg, 'warning');
+            setBookmarkDialogOpen(false);
+            setPendingBookmark(null);
+            return;
+          }
+        }
 
         useAppStore.getState().browserToggleBookmark({
           url: pendingBookmark.url,

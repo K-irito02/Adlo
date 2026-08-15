@@ -489,7 +489,10 @@ export const createBrowserBookmarkSlice = (
 
     const currentState = _get();
     const tab = currentState.browserTabs.find((t) => t.id === tabId);
-    if (tab?.url) {
+    if (!tab || !tab.url) {
+      return { ok: false };
+    }
+    {
       const url = tab.url;
       const title = titleOverride?.trim() || tab.title || hostnameFromUrl(url) || url;
       const collision = checkBookmarkCollision(

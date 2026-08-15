@@ -83,7 +83,7 @@ export function getEntryHoverButtons(
   categoryType: BrowserCategoryType,
   t: CopyDict,
 ): { id: string; label: string; icon: React.ReactNode }[] {
-  if (categoryType === 'history') {
+  if (categoryType === 'history' || (nodeType !== 'workspace' && nodeType !== 'folder')) {
     return [
       {
         id: 'more',

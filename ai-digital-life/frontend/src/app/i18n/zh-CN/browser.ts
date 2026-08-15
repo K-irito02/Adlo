@@ -151,7 +151,6 @@ export const browserZh = {
   browserNavigateInPlace: '当前标签：侧栏/地址栏链接在当前标签页打开',
   browserNavigateNewTab: '新建标签：侧栏/地址栏链接在新标签页打开',
   browserFetchingPageMeta: '正在获取页面信息...',
-  browserCreating: '创建中...',
   browserMute: '静音',
   browserUnmute: '取消静音',
   browserHardReloadHint: '· 不使用已保存的临时文件\n· 重新从服务器获取当前页面的最新内容',

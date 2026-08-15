@@ -159,7 +159,6 @@ export const browserEn = {
   browserNavigateInPlace: 'Current tab: sidebar/address bar links open in active tab',
   browserNavigateNewTab: 'New tab: sidebar/address bar links open in new tabs',
   browserFetchingPageMeta: 'Fetching page info...',
-  browserCreating: 'Creating...',
   browserMute: 'Mute',
   browserUnmute: 'Unmute',
   browserHardReloadHint:

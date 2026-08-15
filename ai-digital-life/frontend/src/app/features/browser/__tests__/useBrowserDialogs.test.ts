@@ -324,6 +324,18 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
       browserWorkspaceBookmarks: {},
       browserBookmarks: [{ url: 'https://e.com', title: 'Title' }],
       browserBookmarkTabIdUrlMap: { t1: 'https://e.com' },
+      browserTabs: [
+        {
+          id: 't1',
+          workspaceId: 'w',
+          title: 'Title',
+          url: 'https://e.com',
+          isPinned: false,
+          sortOrder: 0,
+          isPlayingAudio: false,
+          isAudioMuted: false,
+        },
+      ],
     });
     const navigateActiveTab = vi.fn();
     useAppStore.setState({ browserNavigateActiveTab: navigateActiveTab });
