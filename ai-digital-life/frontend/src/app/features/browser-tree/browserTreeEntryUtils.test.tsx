@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildFlatTabItems, getEntryMoreMenuItems } from './browserTreeEntryUtils';
+import {
+  buildFlatTabItems,
+  getEntryHoverButtons,
+  getEntryMoreMenuItems,
+} from './browserTreeEntryUtils';
 import type { CopyDict } from '@i18n';
 import type { BrowserTreeNode } from './types';
 
@@ -115,6 +119,7 @@ const t = {
   browserContextOpenAllNewTabs: '全部打开',
   browserContextRemoveFromView: '移除',
   browserContextRename: '重命名',
+  browserContextMore: '更多',
   browserContextDeleteAllTabs: '删除全部',
   browserContextDeleteSelfTabs: '删除自身',
   browserContextDeleteDir: '删除目录',
@@ -141,5 +146,27 @@ describe('getEntryMoreMenuItems', () => {
     expect(item).toBeDefined();
     item.action();
     expect(callbacks.onCreateTab).toHaveBeenCalledWith(undefined, 'f1');
+  });
+});
+
+describe('getEntryHoverButtons', () => {
+  it('history category returns only the more button', () => {
+    const btns = getEntryHoverButtons('year', 'history', t);
+    expect(btns.map((b) => b.id)).toEqual(['more']);
+  });
+
+  it('non-workspace/folder node type returns only the more button', () => {
+    const btns = getEntryHoverButtons('tab', 'workspace', t);
+    expect(btns.map((b) => b.id)).toEqual(['more']);
+  });
+
+  it('workspace node returns create-bookmark and more', () => {
+    const btns = getEntryHoverButtons('workspace', 'workspace', t);
+    expect(btns.map((b) => b.id)).toEqual(['create-bookmark', 'more']);
+  });
+
+  it('folder node returns create-bookmark and more', () => {
+    const btns = getEntryHoverButtons('folder', 'userFolder', t);
+    expect(btns.map((b) => b.id)).toEqual(['create-bookmark', 'more']);
   });
 });

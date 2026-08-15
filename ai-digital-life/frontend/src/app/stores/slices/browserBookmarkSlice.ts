@@ -225,6 +225,24 @@ function computeBookmarkTabOutcome(
   let targetFolderId = folderId;
   let foldersChanged = false;
 
+  // 记录该 tabId 在目标路径中的旧 (url,title) 元组，供标题变更后修剪全局孤儿
+  const oldTuples: { url: string; title: string }[] = [];
+  if (targetFolderId) {
+    const folder = state.browserTabFolders.find((f) => f.id === targetFolderId);
+    const oldItem = folder?.tabs?.find((item) => item.tabId === tabId);
+    if (oldItem) {
+      oldTuples.push({ url: oldItem.url, title: oldItem.title });
+    }
+  }
+  if (workspaceId) {
+    const oldEntry = (state.browserWorkspaceBookmarks[workspaceId] || []).find(
+      (entry) => entry.tabId === tabId,
+    );
+    if (oldEntry) {
+      oldTuples.push({ url: oldEntry.url, title: oldEntry.title });
+    }
+  }
+
   if (!targetFolderId && newFolderName) {
     const folderCount = nextFolders.length;
     const folderName = newFolderName.trim() || `New Folder ${folderCount + 1}`;
@@ -266,9 +284,10 @@ function computeBookmarkTabOutcome(
           }
           // 就地导航场景：同 tabId 的旧 URL 条目一并移除，避免残留
           const priorSameTab = existingTabs.filter((item) => item.tabId === tabId);
-          const tabsWithoutStale = priorSameTab.length > 0
-            ? existingTabs.filter((item) => item.tabId !== tabId)
-            : existingTabs;
+          const tabsWithoutStale =
+            priorSameTab.length > 0
+              ? existingTabs.filter((item) => item.tabId !== tabId)
+              : existingTabs;
           foldersChanged = true;
           return {
             ...folder,
@@ -317,6 +336,27 @@ function computeBookmarkTabOutcome(
     }
   }
 
+  // 修剪全局孤儿元组：旧 (url,title) 若不再被任何 folder/workspace 条目引用则移除
+  let bookmarksChanged = nextBookmarks !== state.browserBookmarks;
+  for (const oldTuple of oldTuples) {
+    if (oldTuple.url === url && oldTuple.title === title) {
+      continue;
+    }
+    const stillReferenced =
+      Object.values(nextWorkspaceBookmarks).some((entries) =>
+        entries.some((e) => e.url === oldTuple.url && e.title === oldTuple.title),
+      ) ||
+      nextFolders.some((f) =>
+        f.tabs?.some((t) => t.url === oldTuple.url && t.title === oldTuple.title),
+      );
+    if (!stillReferenced) {
+      nextBookmarks = nextBookmarks.filter(
+        (b) => !(b.url === oldTuple.url && b.title === oldTuple.title),
+      );
+      bookmarksChanged = true;
+    }
+  }
+
   return {
     partial: {
       browserTabFolders: nextFolders,
@@ -324,11 +364,10 @@ function computeBookmarkTabOutcome(
       browserWorkspaceBookmarks: nextWorkspaceBookmarks,
       browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
     },
-    bookmarksChanged: nextBookmarks !== state.browserBookmarks,
+    bookmarksChanged,
     foldersChanged,
     wsBookmarksChanged,
-    tabIdUrlMapChanged:
-      nextTabIdUrlMap[tabId] !== state.browserBookmarkTabIdUrlMap[tabId],
+    tabIdUrlMapChanged: nextTabIdUrlMap[tabId] !== state.browserBookmarkTabIdUrlMap[tabId],
   };
 }
 
@@ -754,12 +793,15 @@ export const createBrowserBookmarkSlice = (
         Object.values(nextWorkspaceBookmarks).some((entries) =>
           entries.some((e) => e.url === u && e.title === t),
         ) || nextFolders.some((f) => f.tabs?.some((i) => i.url === u && i.title === t));
-      const toRemoveTuples = removedTuples.filter((tuple) => !stillReferenced(tuple.url, tuple.title));
-      const nextBookmarks = toRemoveTuples.length > 0
-        ? state.browserBookmarks.filter(
-            (b) => !toRemoveTuples.some((t) => t.url === b.url && t.title === b.title),
-          )
-        : state.browserBookmarks;
+      const toRemoveTuples = removedTuples.filter(
+        (tuple) => !stillReferenced(tuple.url, tuple.title),
+      );
+      const nextBookmarks =
+        toRemoveTuples.length > 0
+          ? state.browserBookmarks.filter(
+              (b) => !toRemoveTuples.some((t) => t.url === b.url && t.title === b.title),
+            )
+          : state.browserBookmarks;
       if (nextBookmarks !== state.browserBookmarks) {
         writeBookmarks(nextBookmarks);
       }

@@ -125,6 +125,9 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
   );
 
   const nodeTitleMap = useMemo(() => {
+    if (!isExpanded) {
+      return new Map<string, string>();
+    }
     const baseParentPath =
       node.nodeType === 'folder' && node.folderId
         ? buildFolderPathLabel(node.folderId, browserTabFolders, recentWorkspaces)
@@ -135,7 +138,14 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
       recentWorkspaces,
       baseParentPath,
     );
-  }, [node.children, node.nodeType, node.folderId, browserTabFolders, recentWorkspaces]);
+  }, [
+    isExpanded,
+    node.children,
+    node.nodeType,
+    node.folderId,
+    browserTabFolders,
+    recentWorkspaces,
+  ]);
 
   const getChildNodeTitle = useCallback(
     (childNode: BrowserTreeNode) => nodeTitleMap.get(childNode.path),

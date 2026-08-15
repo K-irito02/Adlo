@@ -61,20 +61,19 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       workspaceId?: string,
       folderId?: string,
       titleOverride?: string,
-    ): Promise<boolean> => {
+    ): Promise<{ ok: boolean; pathLabel?: string; reason?: 'no-tab' } | null> => {
       const state = useAppStore.getState();
       const tabId = state.browserActiveTabId;
       if (!tabId || !(workspaceId || folderId)) {
-        return true;
+        return null;
       }
-      const result = await state.browserBookmarkTab(
+      return state.browserBookmarkTab(
         tabId,
         folderId || undefined,
         undefined,
         folderId ? undefined : workspaceId,
         titleOverride,
       );
-      return result.ok !== false;
     },
     [],
   );
@@ -161,8 +160,12 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       }
       // 收藏记录写"用户填的自定义标题"（标签标题仍由页面抓取，互不影响）
       const bookmarked = await bookmarkNewTab(workspaceId, folderId, title);
-      if (!bookmarked) {
-        const msg = t.browserEditBookmarkDuplicate;
+      if (bookmarked && bookmarked.ok === false && bookmarked.reason !== 'no-tab') {
+        const msg = bookmarked.pathLabel
+          ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
+              path: bookmarked.pathLabel,
+            })
+          : t.browserEditBookmarkDuplicate;
         showToast(msg, 'warning');
       }
     },
@@ -388,7 +391,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
 
       const trimmedName = bookmarkName.trim();
       const title = trimmedName || activeTab.title || '';
-      let url = '';
       if (folderPath.startsWith('folder:')) {
         const folderId = folderPath.slice('folder:'.length);
         const result = await useAppStore
@@ -398,7 +400,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           showToast(t.browserEditBookmarkDuplicate, 'warning');
           return;
         }
-        url = activeTab.url ?? '';
         showToast(t.browserBookmarkAddedToast, 'success');
         setBookmarkDialogOpen(false);
       } else if (folderPath.startsWith('workspace:')) {
@@ -410,7 +411,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           showToast(t.browserEditBookmarkDuplicate, 'warning');
           return;
         }
-        url = activeTab.url ?? '';
         showToast(t.browserBookmarkAddedToast, 'success');
         setBookmarkDialogOpen(false);
       } else {
