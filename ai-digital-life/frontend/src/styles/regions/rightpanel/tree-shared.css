@@ -24,20 +24,16 @@
    弱选中使用更淡的背景 + 左侧强调色条，避免与强选中（--bg-active）混淆。
    注：点击文件会使其成为编辑器打开文件，强选中与弱选中会同时落在同一节点上；
    此时仍需显示淡蓝弱选中以标识"被当前编辑器打开"，故弱选中样式优先于强选中（!important）。 */
-.adl-tree-node.is-weak-selected:not(.is-context-menu-target)
-  > .adl-tree-node__row,
-.adl-filetree__item.is-weak-selected:not(.is-context-menu-target)
-  > .adl-filetree__row {
+.adl-tree-node.is-weak-selected:not(.is-context-menu-target) > .adl-tree-node__row,
+.adl-filetree__item.is-weak-selected:not(.is-context-menu-target) > .adl-filetree__row {
   background: color-mix(in srgb, var(--accent) 8%, transparent) !important;
   color: var(--text-primary) !important;
   box-shadow: inset 2px 0 0 0 var(--accent);
 }
 
 /* 弱选中 + 悬停：保留左侧强调色条，同时叠加悬停反馈 */
-.adl-tree-node.is-weak-selected.is-hovered:not(.is-context-menu-target)
-  > .adl-tree-node__row,
-.adl-filetree__item.is-weak-selected.is-hovered:not(.is-context-menu-target)
-  > .adl-filetree__row {
+.adl-tree-node.is-weak-selected.is-hovered:not(.is-context-menu-target) > .adl-tree-node__row,
+.adl-filetree__item.is-weak-selected.is-hovered:not(.is-context-menu-target) > .adl-filetree__row {
   background: color-mix(in srgb, var(--accent) 8%, var(--bg-hover)) !important;
   box-shadow: inset 2px 0 0 0 var(--accent);
 }
