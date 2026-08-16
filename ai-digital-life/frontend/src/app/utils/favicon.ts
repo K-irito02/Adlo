@@ -23,8 +23,10 @@ export function getFaviconUrl(url: string): string {
     if (hostname === 'localhost' || /^127\./.test(hostname) || /^192\.168\./.test(hostname)) {
       return '';
     }
-    // 外部兜底链：DDG（优先）→ Google S2（getGoogleFaviconUrl 显式兜底）→ ''
-    return DDG_FAVICON.replace('{domain}', hostname);
+    // 外部兜底链：DDG（优先）→ Google S2 → ''（DDG 模板为空时回落 Google S2）
+    // 完整兜底链：cache dataUri → cache faviconUrl → 私网返回空 → DDG → Google S2 → ''
+    const ddg = DDG_FAVICON.replace('{domain}', hostname);
+    return ddg || GOOGLE_FAVICON.replace('{domain}', hostname);
   } catch {
     return '';
   }
