@@ -1,7 +1,7 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
-import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';
+import { MultiWorkspaceTreeShell } from '../multi-workspace/MultiWorkspaceTreeShell';
 import { WorkspaceFileTreeEntry } from './WorkspaceFileTreeEntry';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
@@ -70,33 +70,8 @@ export function MultiWorkspaceFileTree({
 }: MultiWorkspaceFileTreeProps) {
   const { t } = useTCopy();
 
-  // 点击选中态清除逻辑：
-  // - 处于"新建/重命名/删除"对话框、新建按钮、真实文件树行、工作区头部等交互元素上时，
-  //   保留选中态（新建/重命名目标需要依赖当前选中的目录）。
-  // - 点击其余区域（包括文件树容器内的空白/无关区域）时清除选中态，与主流编辑器一致：
-  //   仅真正的树内容行/头部才被视为"目标区域"，容器的空白处不占位。
-  useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (
-        target?.closest(
-          [
-            '.adl-prompt-modal', // 新建文件/文件夹、重命名对话框
-            '.adl-confirm-overlay', // 删除确认对话框
-            '.adl-tool-navigator__create-action', // 新建文件/文件夹按钮
-            '.adl-filetree__row', // 文件树节点行
-            '.adl-multitree-entry__header', // 工作区头部（点击即选中根目录）
-            '.adl-sidebar-menu', // 右键上下文菜单（重命名/删除等）：点击菜单项时保留选中态，
-            // 使用户能看清正在操作的是哪个节点，对齐主流编辑器行为
-          ].join(', '),
-        )
-      ) {
-        return;
-      }
-      useAppStore.getState().clearFileTreeClickedNode();
-    };
-    document.addEventListener('mousedown', handleMouseDown);
-    return () => document.removeEventListener('mousedown', handleMouseDown);
+  const onClearSelection = useCallback(() => {
+    useAppStore.getState().clearFileTreeClickedNode();
   }, []);
 
   const renderContent = useCallback(
@@ -173,21 +148,13 @@ export function MultiWorkspaceFileTree({
     ],
   );
 
-  if (workspaces.length === 0) {
-    return (
-      <div className="adl-multitree">
-        <div className="adl-multitree__empty">
-          <p className="adl-empty-hint">{t.workspaceEmpty as string}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <MultiWorkspaceContainer
+    <MultiWorkspaceTreeShell
       visibleWorkspaces={workspaces}
       expandedState={expandedStates}
+      emptyText={t.workspaceEmpty as string}
       onToggleExpand={onToggleExpand}
+      onClearSelection={onClearSelection}
       renderContent={renderContent}
     />
   );
