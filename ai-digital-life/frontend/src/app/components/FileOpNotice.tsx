@@ -1,4 +1,3 @@
-import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTCopy, formatT } from '../i18n';
 import { renderIcon } from '../../design-system/icons';
@@ -31,7 +30,7 @@ function FileOpNoticeCard({ notice, onDismiss }: FileOpNoticeCardProps) {
       icon="alert-circle"
       title={title}
       detail={detail}
-      role="alert"
+      role="status"
       ariaLive="polite"
       onDismiss={() => onDismiss(notice.id)}
     />
@@ -48,8 +47,8 @@ export function FileOpNoticeContainer({ notices, onDismiss }: FileOpNoticeContai
   const visible = notices.slice(-FILE_OP_NOTICE_LIMIT);
   const hiddenCount = notices.length - visible.length;
 
-  return createPortal(
-    <div className="toast-card-region" role="region" aria-label={t.fileOpNoticeRegionLabel}>
+  return (
+    <div className="toast-card-region__group" role="region" aria-label={t.fileOpNoticeRegionLabel}>
       <AnimatePresence mode="popLayout">
         {visible.map((notice) => (
           <FileOpNoticeCard key={notice.id} notice={notice} onDismiss={onDismiss} />
@@ -76,7 +75,6 @@ export function FileOpNoticeContainer({ notices, onDismiss }: FileOpNoticeContai
           </motion.div>
         )}
       </AnimatePresence>
-    </div>,
-    document.body,
+    </div>
   );
 }

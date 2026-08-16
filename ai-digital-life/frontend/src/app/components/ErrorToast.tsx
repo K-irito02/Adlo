@@ -1,5 +1,4 @@
 import { forwardRef } from 'react';
-import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTCopy, formatT } from '../i18n';
 import { renderIcon, type IconName } from '../../design-system/icons';
@@ -83,8 +82,8 @@ export function ErrorToastContainer({
   const visible = errorToasts.slice(-ERROR_TOAST_VISIBLE_LIMIT);
   const hiddenCount = errorToasts.length - visible.length;
 
-  return createPortal(
-    <div className="toast-card-region" role="region" aria-label={t.errorsRegionLabel}>
+  return (
+    <div className="toast-card-region__group" role="region" aria-label={t.errorsRegionLabel}>
       <AnimatePresence mode="popLayout">
         {visible.map((entry) => (
           <ErrorToast key={entry.id} entry={entry} onDismiss={onDismiss} />
@@ -118,7 +117,6 @@ export function ErrorToastContainer({
           </motion.div>
         )}
       </AnimatePresence>
-    </div>,
-    document.body,
+    </div>
   );
 }

@@ -19,9 +19,8 @@ const RightPanel = lazy(() =>
 import { NewSessionDialog } from './components/NewSessionDialog';
 import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
 import { ToastContainer } from './components/Toast';
-import { ErrorToastContainer } from './components/ErrorToast';
+import { ToastRegion } from './components/ToastRegion';
 import { ConflictModal } from './components/ConflictModal';
-import { FileOpNoticeContainer } from './components/FileOpNotice';
 import { asSessionID } from '../shared/branded';
 import { StartupOverlayWrapper } from './components/StartupOverlayWrapper';
 
@@ -247,15 +246,16 @@ export function App() {
           />
         </main>
         <ToastContainer toasts={toasts} onRemove={removeToast} />
-        <ErrorToastContainer
+        <ToastRegion
           errorToasts={errorToasts}
-          onDismiss={dismissErrorToast}
-          onClearAll={clearErrorToasts}
+          onDismissError={dismissErrorToast}
+          onClearAllError={clearErrorToasts}
+          notices={fileOpNotices}
+          onDismissNotice={dismissFileOpNotice}
         />
         {activeNotification && (
           <ConflictModal notification={activeNotification} onDismiss={dismissPopup} />
         )}
-        <FileOpNoticeContainer notices={fileOpNotices} onDismiss={dismissFileOpNotice} />
       </TCopyProvider>
       <StartupOverlayWrapper visible={!overlayHidden} />
     </>

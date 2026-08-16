@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { useTCopy, copyToClipboard } from '../i18n';
 import { renderIcon, type IconName } from '../../design-system/icons';
@@ -39,6 +39,7 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
   const [detailHeight, setDetailHeight] = useState<number | null>(null);
   const copiedTimer = useRef<number | null>(null);
   const detailRef = useRef<HTMLParagraphElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     return () => {
@@ -72,26 +73,47 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
   };
 
   const handleDetailTransitionEnd = (e: React.TransitionEvent<HTMLParagraphElement>) => {
+    if (e.target !== detailRef.current) {
+      return;
+    }
     if (!expanded && e.propertyName === 'max-height') {
       setCollapsedSettled(true);
     }
   };
 
-  useLayoutEffect(() => {
-    if (collapsedSettled) {
-      return;
-    }
+  const measureDetail = useCallback(() => {
     const el = detailRef.current;
     if (!el) {
       return;
     }
     setDetailHeight(el.scrollHeight);
-  }, [detail, hasDetail, expanded, collapsedSettled]);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (collapsedSettled) {
+      return;
+    }
+    measureDetail();
+  }, [detail, hasDetail, expanded, collapsedSettled, measureDetail]);
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      if (!collapsedSettled) {
+        measureDetail();
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [detail, hasDetail, collapsedSettled, measureDetail]);
 
   return (
     <motion.div
       ref={ref}
-      className={`toast-card toast-card--${tone}${expanded ? ' is-expanded' : ' is-collapsed'}${className ? ` ${className}` : ''}`}
+      className={`toast-card toast-card--${tone}${className ? ` ${className}` : ''}`}
       role={role}
       aria-live={ariaLive}
       initial={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -100,14 +122,18 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
       transition={{ duration: 0.2 }}
     >
       <span className="toast-card__icon" dangerouslySetInnerHTML={{ __html: iconHtml(icon) }} />
-      <div className="toast-card__body">
+      <div ref={bodyRef} className="toast-card__body">
         {title ? <p className="toast-card__title">{title}</p> : null}
         {hasDetail ? (
           <p
             ref={detailRef}
             className={`toast-card__detail${collapsed && collapsedSettled ? ' is-collapsed-settled' : ''}`}
             style={{
-              maxHeight: expanded ? (detailHeight != null ? `${detailHeight}px` : 'none') : '1.5em',
+              maxHeight: expanded
+                ? detailHeight != null
+                  ? `${detailHeight}px`
+                  : 'none'
+                : 'calc(var(--text-xs) * var(--leading-normal))',
             }}
             onTransitionEnd={handleDetailTransitionEnd}
           >

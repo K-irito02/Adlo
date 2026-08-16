@@ -10,12 +10,21 @@
   position: fixed;
   right: var(--space-5);
   bottom: var(--space-5);
-  z-index: var(--z-toast);
+  z-index: var(--z-toast, 9999);
   display: flex;
   flex-direction: column-reverse;
   gap: var(--space-2);
   width: min(400px, calc(100vw - var(--space-8)));
   max-width: 400px;
+  pointer-events: none;
+}
+
+/* 单一区域内按类型分组的容器：与父容器同向堆叠卡片，
+   pointer-events 透传（卡片自身 re-enable）。 */
+.toast-card-region__group {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-2);
   pointer-events: none;
 }
 
@@ -76,12 +85,12 @@
   word-break: break-all;
   white-space: pre-wrap;
   overflow: hidden;
-  max-height: 60em;
   transition: max-height var(--duration-200) var(--ease-default);
 }
 
 /* 折叠动画结束后才应用单行省略：动画期间保持 pre-wrap，避免文本瞬间重排跳变。
-   收起时的 max-height 由组件内联控制（1.5em），展开时用实测内容高度。 */
+   收起时的 max-height 由组件内联控制（calc(var(--text-xs) * var(--leading-normal))），
+   展开时用实测内容高度。 */
 .toast-card__detail.is-collapsed-settled {
   white-space: nowrap;
   text-overflow: ellipsis;
