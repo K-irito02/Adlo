@@ -241,6 +241,20 @@ pub fn google_favicon_url(url: &str) -> String {
     String::new()
 }
 
+/// DuckDuckGo favicon 服务：返回真实网站图标（比 Google S2 质量高）。
+/// 私网/本地地址返回空（与 `google_favicon_url` 一致）。
+pub fn duckduckgo_favicon_url(url: &str) -> String {
+    if let Ok(parsed) = Url::parse(url) {
+        if let Some(host) = parsed.host_str() {
+            if host == "localhost" || host.starts_with("127.") || host.starts_with("192.168.") {
+                return String::new();
+            }
+            return format!("https://icons.duckduckgo.com/ip3/{host}.png");
+        }
+    }
+    String::new()
+}
+
 /// Fallback to `{origin}/favicon.ico` when no favicon link was found
 /// in the HTML. Falls back further to `google_favicon_url` if the
 /// URL cannot be parsed.
@@ -363,6 +377,17 @@ mod tests {
     #[test]
     fn google_favicon_url_returns_empty_for_invalid_url() {
         assert_eq!(google_favicon_url("not-a-url"), "");
+    }
+
+    #[test]
+    fn duckduckgo_favicon_url_builds_and_skips_private() {
+        assert_eq!(
+            duckduckgo_favicon_url("https://example.com/page"),
+            "https://icons.duckduckgo.com/ip3/example.com.png"
+        );
+        assert_eq!(duckduckgo_favicon_url("http://localhost:3000/x"), "");
+        assert_eq!(duckduckgo_favicon_url("http://192.168.1.5/x"), "");
+        assert_eq!(duckduckgo_favicon_url("not-a-url"), "");
     }
 
     #[test]
