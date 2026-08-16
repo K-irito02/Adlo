@@ -68,4 +68,31 @@ describe('refreshGitSnapshot', () => {
     await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
     expect(store.getState().changesTreeRefreshing['ws-1']).toBeUndefined();
   });
+
+  it('silent 失败时仍写入 error 且不写 refreshing', async () => {
+    (window as any).digitalLife.workspace.listGitStatusForWorkspace.mockResolvedValue({
+      ok: false,
+      error: { message: 'boom' },
+    });
+    const store = makeStore();
+    await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
+    expect(store.getState().workspaceChangesTreeErrors['ws-1']).toBe('boom');
+    expect(store.getState().changesTreeRefreshing['ws-1']).toBeUndefined();
+  });
+
+  it('silent 成功时清除既有的陈旧 error', async () => {
+    (window as any).digitalLife.workspace.listGitStatusForWorkspace.mockResolvedValue({
+      ok: true,
+      data: { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 0 },
+    });
+    const store = makeStore();
+    store.setState({
+      workspaceChangesTreeErrors: {
+        ...store.getState().workspaceChangesTreeErrors,
+        'ws-1': 'stale',
+      },
+    });
+    await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
+    expect(store.getState().workspaceChangesTreeErrors['ws-1']).toBeUndefined();
+  });
 });

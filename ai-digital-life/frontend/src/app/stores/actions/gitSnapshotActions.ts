@@ -180,18 +180,20 @@ export function createGitSnapshotActions(
         });
       }
       if (!result.ok) {
-        if (!silent) {
-          set({
-            workspaceChangesTreeErrors: {
-              ...get().workspaceChangesTreeErrors,
-              [workspaceId]: result.error.message,
-            },
-          });
-        }
+        set({
+          workspaceChangesTreeErrors: {
+            ...get().workspaceChangesTreeErrors,
+            [workspaceId]: result.error.message,
+          },
+        });
         return;
       }
       set({
         gitSnapshots: { ...get().gitSnapshots, [workspaceId]: result.data },
+        workspaceChangesTreeErrors: {
+          ...get().workspaceChangesTreeErrors,
+          [workspaceId]: undefined,
+        },
       });
     },
   };
