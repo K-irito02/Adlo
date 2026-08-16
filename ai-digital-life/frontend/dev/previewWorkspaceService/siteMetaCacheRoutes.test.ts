@@ -37,9 +37,13 @@ describe('preview site-meta-cache route validation (N2)', () => {
       entries: {
         'https://a.com/': {
           title: 'A',
+          titleSource: '',
           faviconUrl: '',
           faviconDataUri: 'data:image/png;base64,AA',
           fetchedAt: 1,
+          lastOkAt: 0,
+          nextRetryAt: 0,
+          failCount: 0,
         },
       },
     });
@@ -59,7 +63,7 @@ describe('preview site-meta-cache DELETE no-op handling (L3)', () => {
   it('DELETE with no urls and no clearAll does NOT rewrite the cache file', async () => {
     const dir = await makeCacheDir();
     await writeSiteMetaCache(dir, {
-      'https://a.com/': { title: 'A', faviconUrl: '', faviconDataUri: '', fetchedAt: 1 },
+      'https://a.com/': { title: 'A', titleSource: '', faviconUrl: '', faviconDataUri: '', fetchedAt: 1, lastOkAt: 0, nextRetryAt: 0, failCount: 0 },
     });
     const filePath = cacheFilePath(dir);
     const beforeMtime = (await fs.stat(filePath)).mtimeMs;
@@ -74,7 +78,7 @@ describe('preview site-meta-cache DELETE no-op handling (L3)', () => {
   it('DELETE with urls that do not exist in the cache does NOT rewrite the file', async () => {
     const dir = await makeCacheDir();
     await writeSiteMetaCache(dir, {
-      'https://a.com/': { title: 'A', faviconUrl: '', faviconDataUri: '', fetchedAt: 1 },
+      'https://a.com/': { title: 'A', titleSource: '', faviconUrl: '', faviconDataUri: '', fetchedAt: 1, lastOkAt: 0, nextRetryAt: 0, failCount: 0 },
     });
     const filePath = cacheFilePath(dir);
     const beforeMtime = (await fs.stat(filePath)).mtimeMs;
@@ -89,8 +93,8 @@ describe('preview site-meta-cache DELETE no-op handling (L3)', () => {
   it('DELETE with matching urls removes the keys and writes the file', async () => {
     const dir = await makeCacheDir();
     await writeSiteMetaCache(dir, {
-      'https://a.com/': { title: 'A', faviconUrl: '', faviconDataUri: '', fetchedAt: 1 },
-      'https://b.com/': { title: 'B', faviconUrl: '', faviconDataUri: '', fetchedAt: 1 },
+      'https://a.com/': { title: 'A', titleSource: '', faviconUrl: '', faviconDataUri: '', fetchedAt: 1, lastOkAt: 0, nextRetryAt: 0, failCount: 0 },
+      'https://b.com/': { title: 'B', titleSource: '', faviconUrl: '', faviconDataUri: '', fetchedAt: 1, lastOkAt: 0, nextRetryAt: 0, failCount: 0 },
     });
     const result = await deleteSiteMetaCacheRoute({ baseDir: dir, urls: ['https://a.com/'] });
     expect(result.ok).toBe(true);
@@ -102,7 +106,7 @@ describe('preview site-meta-cache DELETE no-op handling (L3)', () => {
   it('DELETE with clearAll empties the cache even with no urls', async () => {
     const dir = await makeCacheDir();
     await writeSiteMetaCache(dir, {
-      'https://a.com/': { title: 'A', faviconUrl: '', faviconDataUri: '', fetchedAt: 1 },
+      'https://a.com/': { title: 'A', titleSource: '', faviconUrl: '', faviconDataUri: '', fetchedAt: 1, lastOkAt: 0, nextRetryAt: 0, failCount: 0 },
     });
     const result = await deleteSiteMetaCacheRoute({ baseDir: dir, clearAll: true });
     expect(result.ok).toBe(true);
