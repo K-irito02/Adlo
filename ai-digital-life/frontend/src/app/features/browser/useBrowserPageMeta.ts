@@ -105,17 +105,20 @@ export function useBrowserPageMeta() {
     const exact = state.browserTabs.find((t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl));
     if (exact) {
       for (const t of state.browserTabs.filter((x) => normalizeUrlForDedup(normalizeMetaUrl(x.url)) === normalizeUrlForDedup(cleanUrl))) {
-        if (applyBroadcastTitle(t, cleanUrl, meta.title, source, titleSourceRef.get(t.id))) {
+        // 门控与 titleSourceRef 均用 effectiveSource：调用方硬编码 'http' 时，
+        // effectiveSource 取 get 返回的真实来源（如 com）——否则 titleSourceRef=http
+        // 会冻结后续合法 com 更新（R2 回归）。
+        if (applyBroadcastTitle(t, cleanUrl, meta.title, effectiveSource, titleSourceRef.get(t.id))) {
           state.browserUpdateTab(t.id, { title: meta.title });
-          titleSourceRef.set(t.id, source);
+          titleSourceRef.set(t.id, effectiveSource);
         }
       }
       state.browserUpdateHistoryTitle(cleanUrl, meta.title || getCachedTitle(cleanUrl));
     } else if (activeTab) {
       const urlChanged = normalizeUrlForDedup(normalizeMetaUrl(activeTab.url)) !== normalizeUrlForDedup(cleanUrl);
-      const shouldTitle = !urlChanged && applyBroadcastTitle(activeTab, cleanUrl, meta.title, source, titleSourceRef.get(activeTab.id));
+      const shouldTitle = !urlChanged && applyBroadcastTitle(activeTab, cleanUrl, meta.title, effectiveSource, titleSourceRef.get(activeTab.id));
       state.browserUpdateTab(activeTab.id, { url: cleanUrl, title: shouldTitle ? meta.title : activeTab.title });
-      if (shouldTitle) titleSourceRef.set(activeTab.id, source);
+      if (shouldTitle) titleSourceRef.set(activeTab.id, effectiveSource);
       state.browserUpdateHistoryTitle(cleanUrl, meta.title || getCachedTitle(cleanUrl));
     }
     void pageMetaClient.report(

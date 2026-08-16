@@ -83,7 +83,9 @@ impl PageMetaService {
         if !force {
             if let Some(entry) = self.peek(&key) {
                 if entry.last_ok_at > 0 && now - entry.last_ok_at < META_TTL_MS {
-                    return Ok(to_page_meta(entry));
+                    // 携带真实 url（缓存键）返回：命令层 emit_page_meta_updated 按 meta.url
+                    // 广播，url 为空将导致前端无法匹配任何 tab（R1 回归）。
+                    return Ok(PageMeta { url: key.clone(), ..to_page_meta(entry) });
                 }
             }
         }
@@ -105,7 +107,11 @@ impl PageMetaService {
             if let Some(n) = notify {
                 n.notified().await;
             }
-            return Ok(self.peek(&key).map(to_page_meta).unwrap_or_default());
+            // 等待者路径同样携带真实 url（缓存键），与持有者抓取路径一致（R1 回归）。
+            return Ok(self
+                .peek(&key)
+                .map(|e| PageMeta { url: key.clone(), ..to_page_meta(e) })
+                .unwrap_or_default());
         }
         // 执行抓取（持有者）
         let meta = fetcher.fetch(url, force).await;
@@ -408,6 +414,10 @@ mod tests {
         );
         assert!(r1.is_ok() && r2.is_ok());
         assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        // R1 回归：等待者路径（返回持有者缓存结果）必须携带真实 url（缓存键），
+        // 与持有者抓取路径一致——否则 TTL 命中广播 url="" 无法匹配任何 tab。
+        assert_eq!(r1.as_ref().unwrap().url, "https://a.com/");
+        assert_eq!(r2.as_ref().unwrap().url, "https://a.com/");
     }
 
     #[tokio::test]
@@ -511,6 +521,9 @@ mod tests {
         let meta = svc.get("https://a.com/", false, &f).await.unwrap();
         assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0, "TTL 命中不得触发抓取");
         assert_eq!(meta.source, META_SOURCE_COM);
+        // R1 回归：TTL 命中必须携带真实 url（缓存键），否则命令层按 meta.url 广播出
+        // url="" 事件，前端无法匹配任何 tab（镜像与 titleSourceRef 均不更新）。
+        assert_eq!(meta.url, "https://a.com/");
     }
 
     #[tokio::test]

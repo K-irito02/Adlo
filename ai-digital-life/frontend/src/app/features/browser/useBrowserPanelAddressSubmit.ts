@@ -112,6 +112,9 @@ export function useBrowserPanelAddressSubmit({
             favicon: meta.favicon || '',
             faviconDataUri: meta.faviconDataUri || '',
             url: finalUrl,
+            // 透传 get 返回的真实来源：否则 effectiveSource 回退硬编码 'http'，
+            // com 权威条目被冻结（R3 回归）。
+            source: (meta as { source?: MetaSource }).source,
           },
           'http',
         );

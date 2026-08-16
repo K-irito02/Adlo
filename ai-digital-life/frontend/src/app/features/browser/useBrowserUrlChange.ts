@@ -111,6 +111,9 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
                 favicon: meta.favicon || '',
                 faviconDataUri: (meta as { faviconDataUri?: string }).faviconDataUri || '',
                 url: href,
+                // 透传 get 返回的真实来源：否则 effectiveSource 回退调用方硬编码 'http'，
+                // com 权威条目被冻结（R3 回归）。
+                source: (meta as { source?: MetaSource }).source,
               },
               'http',
             );
@@ -156,6 +159,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
               favicon: meta.favicon || '',
               faviconDataUri: (meta as { faviconDataUri?: string }).faviconDataUri || '',
               url: href,
+              source: (meta as { source?: MetaSource }).source,
             },
             'http',
           );
@@ -301,6 +305,9 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
                 favicon: meta.favicon || '',
                 faviconDataUri: meta.faviconDataUri || '',
                 url: normalizedUrl,
+                // Tauri 模式导航主路径（onUrlChanged → prefetch → TTL 命中 get）：
+                // 透传真实来源，否则 com 权威条目按 'http' 落地并冻结后续 com 更新（R3 回归）。
+                source: (meta as { source?: MetaSource }).source,
               },
               'http',
             );
