@@ -227,7 +227,8 @@ pub async fn browser_page_meta_get(
 ) -> Result<IpcResult<PageMeta>, CommandError> {
     let svc = state.browser_manager.page_meta_service();
     let meta = svc.get(&url, force.unwrap_or(false), &AppFetcher).await?;
-    emit_page_meta_updated(&app, &meta, META_SOURCE_HTTP);
+    let src = if meta.source.is_empty() { META_SOURCE_HTTP } else { meta.source.as_str() };
+    emit_page_meta_updated(&app, &meta, src);
     Ok(ipc(Ok(meta)))
 }
 
@@ -258,7 +259,8 @@ pub async fn browser_page_meta_refresh(
 ) -> Result<IpcResult<PageMeta>, CommandError> {
     let svc = state.browser_manager.page_meta_service();
     let meta = svc.get(&url, true, &AppFetcher).await?;
-    emit_page_meta_updated(&app, &meta, META_SOURCE_HTTP);
+    let src = if meta.source.is_empty() { META_SOURCE_HTTP } else { meta.source.as_str() };
+    emit_page_meta_updated(&app, &meta, src);
     Ok(ipc(Ok(meta)))
 }
 
@@ -389,6 +391,7 @@ fn empty_page_meta(url: &str) -> PageMeta {
         favicon: String::new(),
         url: url.to_string(),
         favicon_data_uri: String::new(),
+        source: String::new(),
     }
 }
 
@@ -526,6 +529,7 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
                 favicon: String::new(),
                 url: url.to_string(),
                 favicon_data_uri: String::new(),
+                source: String::new(),
             });
         }
     }
@@ -539,6 +543,7 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
             favicon: String::new(),
             url: url.to_string(),
             favicon_data_uri: String::new(),
+            source: String::new(),
         });
     }
 
@@ -580,6 +585,7 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
                 favicon: String::new(),
                 url: url.to_string(),
                 favicon_data_uri: String::new(),
+                source: String::new(),
             });
         },
     };
@@ -622,6 +628,7 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
         favicon: final_favicon,
         url: url.to_string(),
         favicon_data_uri,
+        source: String::new(),
     })
 }
 
@@ -635,6 +642,7 @@ mod favicon_data_uri_tests {
             favicon: "https://a.com/favicon.ico".into(),
             url: "https://a.com/".into(),
             favicon_data_uri: String::new(),
+            source: String::new(),
         }
     }
 

@@ -192,7 +192,13 @@ export function shouldReplaceFavicon(existing: string | undefined, incoming: str
 }
 
 function toPageMeta(e: SiteMetaCacheEntry): PageMeta {
-  return { title: e.title, favicon: e.faviconUrl, faviconDataUri: e.faviconDataUri, url: '' };
+  return {
+    title: e.title,
+    favicon: e.faviconUrl,
+    faviconDataUri: e.faviconDataUri,
+    url: '',
+    source: e.titleSource === '' ? 'http' : (e.titleSource as MetaSource),
+  };
 }
 
 export interface PreviewPageMetaServiceOptions {
@@ -362,11 +368,15 @@ export function createPreviewPageMetaService(
     } else {
       markFailure(key);
     }
+    // 与 Rust get 抓取路径同构：source 反映缓存条目的真实 title_source
+    // （成功写后为 http；失败保留既有 com 权威条目则返回 com）。
+    const entry = memory.get(key);
     return {
       title: meta.title ?? '',
       favicon: meta.favicon ?? '',
       faviconDataUri: meta.faviconDataUri ?? '',
       url: key,
+      source: (entry?.titleSource as MetaSource | undefined) || 'http',
     };
   }
 

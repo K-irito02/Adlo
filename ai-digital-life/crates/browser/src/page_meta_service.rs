@@ -118,7 +118,13 @@ impl PageMetaService {
         if let Some(n) = self.in_flight.lock().unwrap_or_else(|e| e.into_inner()).remove(&key) {
             n.notify_waiters();
         }
-        Ok(PageMeta { url: key, ..meta })
+        // source 反映缓存条目的真实 title_source（write_success 后为 http；此前
+        // 若已有 com 权威条目则保留），供命令层广播使用，避免硬编码 http 冻结 com 更新。
+        Ok(PageMeta {
+            source: self.peek(&key).map(|e| e.title_source.clone()).unwrap_or_default(),
+            url: key,
+            ..meta
+        })
     }
 
     fn write_success(&self, key: &str, meta: &PageMeta, source: &str, now: i64) {
@@ -266,6 +272,7 @@ fn to_page_meta(e: SiteMetaCacheEntry) -> PageMeta {
         favicon: e.favicon_url,
         favicon_data_uri: e.favicon_data_uri,
         url: String::new(),
+        source: e.title_source,
     }
 }
 
@@ -331,6 +338,7 @@ mod tests {
                 favicon: "https://a.com/favicon.ico".into(),
                 favicon_data_uri: "".into(),
                 url: "https://a.com/".into(),
+                source: String::new(),
             })),
         };
         let meta = svc.get("https://a.com/", false, &fetcher).await.unwrap();
@@ -352,6 +360,7 @@ mod tests {
                 favicon: "".into(),
                 favicon_data_uri: "".into(),
                 url: "https://a.com/".into(),
+                source: String::new(),
             })),
         };
         svc.get("https://a.com/", false, &fetcher).await.unwrap();
@@ -387,6 +396,7 @@ mod tests {
                         favicon: "".into(),
                         favicon_data_uri: "".into(),
                         url: "https://a.com/".into(),
+                        source: String::new(),
                     }
                 })
             }
@@ -452,6 +462,7 @@ mod tests {
                         favicon: "".into(),
                         favicon_data_uri: "".into(),
                         url: "https://a.com/".into(),
+                        source: String::new(),
                     }
                 })
             }
@@ -468,6 +479,41 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn get_ttl_hit_returns_real_cached_title_source() {
+        // BLOCKING 修复回归：TTL 命中的 get 必须返回缓存条目的真实 title_source（com），
+        // 而非硬编码 http —— 否则命令层广播 source=http，前端会拒绝后续合法 com 更新。
+        let (svc, _) = open_service("ttl-source");
+        let calls = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+        struct CountingFetcher(std::sync::Arc<std::sync::atomic::AtomicU32>);
+        impl PageMetaFetcher for CountingFetcher {
+            fn fetch(
+                &self,
+                _url: &str,
+                _force: bool,
+            ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>>
+            {
+                self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Box::pin(async move {
+                    PageMeta {
+                        title: "X".into(),
+                        favicon: "".into(),
+                        favicon_data_uri: "".into(),
+                        url: "https://a.com/".into(),
+                        source: String::new(),
+                    }
+                })
+            }
+        }
+        let f = CountingFetcher(calls.clone());
+        // com report 设置 title_source=com 且 last_ok_at=now（TTL 窗口内）
+        svc.report("https://a.com/", "真实标题", "", META_SOURCE_COM).await.unwrap();
+        // TTL 命中：mock fetcher 不触发，返回缓存条目的真实来源
+        let meta = svc.get("https://a.com/", false, &f).await.unwrap();
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0, "TTL 命中不得触发抓取");
+        assert_eq!(meta.source, META_SOURCE_COM);
+    }
+
+    #[tokio::test]
     async fn get_placeholder_title_does_not_clobber_authoritative() {
         let (svc, _) = open_service("placeholder");
         let fetcher = MockFetcher {
@@ -476,6 +522,7 @@ mod tests {
                 favicon: "".into(),
                 favicon_data_uri: "".into(),
                 url: "https://a.com/".into(),
+                source: String::new(),
             })),
         };
         svc.get("https://a.com/", true, &fetcher).await.unwrap();
@@ -485,6 +532,7 @@ mod tests {
             favicon: "".into(),
             favicon_data_uri: "".into(),
             url: "https://a.com/".into(),
+            source: String::new(),
         });
         svc.get("https://a.com/", true, &fetcher).await.unwrap();
         assert_eq!(

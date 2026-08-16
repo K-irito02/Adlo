@@ -87,8 +87,18 @@ export function useBrowserPageMeta() {
   useEffect(() => pageMetaClient.subscribeUpdated(applyBroadcast), [applyBroadcast]);
 
   const handlePageMeta = useCallback((meta: PageMeta, source: MetaSource = 'http') => {
+    // 生效来源：服务端返回的 meta.source 优先（TTL 命中/缓存读取的真实 title_source），
+    // 缺省时回退调用方来源（iframe/地址栏渲染期事件）——防止 com 权威条目被
+    // 广播/上报为 http 而冻结后续合法 com 更新。
+    const effectiveSource: MetaSource = (meta.source as MetaSource | undefined) ?? source;
     // 本地渲染期事件（iframe/地址栏）：先同步落地 store（保持即时性），再异步上报服务端合并
-    applyBroadcastUpdate({ url: meta.url, title: meta.title, faviconUrl: meta.favicon, faviconDataUri: meta.faviconDataUri || '', source });
+    applyBroadcastUpdate({
+      url: meta.url,
+      title: meta.title,
+      faviconUrl: meta.favicon,
+      faviconDataUri: meta.faviconDataUri || '',
+      source: effectiveSource,
+    });
     const state = useAppStore.getState();
     const cleanUrl = normalizeMetaUrl(meta.url);
     const activeTab = state.browserTabs.find((t) => t.id === state.browserActiveTabId);
@@ -108,7 +118,10 @@ export function useBrowserPageMeta() {
       if (shouldTitle) titleSourceRef.set(activeTab.id, source);
       state.browserUpdateHistoryTitle(cleanUrl, meta.title || getCachedTitle(cleanUrl));
     }
-    void pageMetaClient.report({ url: meta.url, title: meta.title, favicon: meta.favicon }, source);
+    void pageMetaClient.report(
+      { url: meta.url, title: meta.title, favicon: meta.favicon },
+      effectiveSource,
+    );
   }, []);
 
   return { handlePageMeta };

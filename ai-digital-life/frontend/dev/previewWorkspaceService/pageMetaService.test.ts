@@ -49,6 +49,27 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     expect(calls).toBe(2);
   });
 
+  it('get ttl-hit returns the real cached title source (com)', async () => {
+    // BLOCKING 修复回归（与 Rust get_ttl_hit_returns_real_cached_title_source 同构）：
+    // TTL 命中的 get 必须返回缓存条目的真实 titleSource（com），而非硬编码 http。
+    let calls = 0;
+    const svc = createPreviewPageMetaService({
+      baseDir: dir,
+      gateAllows: allowGate,
+      fetchOnce: async (url) => {
+        calls += 1;
+        return { title: 'X', favicon: '', faviconDataUri: '', url };
+      },
+    });
+
+    // com report 设置 titleSource=com 且 lastOkAt=now（TTL 窗口内）
+    await svc.report('https://a.com/', '真实标题', '', 'com');
+    // TTL 命中：不触发抓取，返回缓存条目的真实来源 com
+    const meta = await svc.get('https://a.com/');
+    expect(calls).toBe(0);
+    expect(meta?.source).toBe('com');
+  });
+
   it('get failure keeps cache and backs off', async () => {
     let result: PageMeta = { title: 'A', favicon: '', faviconDataUri: '', url: '' };
     const svc = createPreviewPageMetaService({
