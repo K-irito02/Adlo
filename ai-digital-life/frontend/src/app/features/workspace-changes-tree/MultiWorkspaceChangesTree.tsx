@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
-import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';
+import { MultiWorkspaceTreeShell } from '../multi-workspace/MultiWorkspaceTreeShell';
 import { WorkspaceChangesEntry } from './WorkspaceChangesEntry';
 import { useTCopy } from '@i18n/useTCopy';
 
@@ -11,9 +11,12 @@ export interface MultiWorkspaceChangesTreeProps {
   expandedStates: Record<string, boolean>;
   treeData: Record<string, WorkspaceTreeNode[]>;
   loadingStates: Record<string, boolean>;
+  refreshingStates?: Record<string, boolean>;
   errorStates: Record<string, string | undefined>;
   selectedChangePreviewPath: string | undefined;
   selectedChangePreviewWorkspaceId: string | undefined;
+  clickedPath: string | undefined;
+  clickedWorkspaceId: string | undefined;
   expandedPaths: Record<string, Record<string, boolean>>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
@@ -23,6 +26,9 @@ export interface MultiWorkspaceChangesTreeProps {
   onHideFromRightPanels: (workspaceId: string) => void;
   onToggleFileTreePath: (workspaceId: string, path: string) => void;
   onOpenChangePreview: (workspacePath: string, relativePath: string) => void;
+  onNodeClicked: (workspaceId: string, path: string, kind: 'directory' | 'file') => void;
+  onWorkspaceRootClick: (workspaceId: string) => void;
+  onClearSelection: () => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
@@ -36,9 +42,12 @@ export function MultiWorkspaceChangesTree({
   expandedStates,
   treeData,
   loadingStates,
+  refreshingStates,
   errorStates,
   selectedChangePreviewPath,
   selectedChangePreviewWorkspaceId,
+  clickedPath,
+  clickedWorkspaceId,
   expandedPaths,
   dirtyPaths,
   externalChangePath,
@@ -48,6 +57,9 @@ export function MultiWorkspaceChangesTree({
   onHideFromRightPanels,
   onToggleFileTreePath,
   onOpenChangePreview,
+  onNodeClicked,
+  onWorkspaceRootClick,
+  onClearSelection,
   getContextMenuItems,
   contextMenuPersistRef,
   clearMenuHighlightRef,
@@ -66,9 +78,11 @@ export function MultiWorkspaceChangesTree({
             isExpanded={isExpanded}
             treeNodes={treeData[workspace.id]}
             isLoading={loadingStates[workspace.id] ?? false}
+            isRefreshing={refreshingStates?.[workspace.id] ?? false}
             error={errorStates[workspace.id]}
             selectedChangePreviewPath={selectedChangePreviewPath}
             selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
+            clickedPath={clickedWorkspaceId === workspace.id ? clickedPath : undefined}
             expandedPaths={expandedPaths[workspace.id] ?? {}}
             dirtyPaths={dirtyPaths}
             externalChangePath={externalChangePath}
@@ -78,6 +92,8 @@ export function MultiWorkspaceChangesTree({
             onRefreshTree={() => onRefreshOne(workspace.id)}
             onToggleFileTreePath={(path) => onToggleFileTreePath(workspace.id, path)}
             onOpenChangePreview={onOpenChangePreview}
+            onNodeClicked={(path, kind) => onNodeClicked(workspace.id, path, kind)}
+            onWorkspaceRootClick={() => onWorkspaceRootClick(workspace.id)}
             getContextMenuItems={getContextMenuItems}
             contextMenuPersistRef={contextMenuPersistRef}
             clearMenuHighlightRef={clearMenuHighlightRef}
@@ -94,9 +110,12 @@ export function MultiWorkspaceChangesTree({
       activeWorkspaceId,
       treeData,
       loadingStates,
+      refreshingStates,
       errorStates,
       selectedChangePreviewPath,
       selectedChangePreviewWorkspaceId,
+      clickedPath,
+      clickedWorkspaceId,
       expandedPaths,
       dirtyPaths,
       externalChangePath,
@@ -106,6 +125,8 @@ export function MultiWorkspaceChangesTree({
       changeCounts,
       onToggleFileTreePath,
       onOpenChangePreview,
+      onNodeClicked,
+      onWorkspaceRootClick,
       getContextMenuItems,
       contextMenuPersistRef,
       clearMenuHighlightRef,
@@ -115,21 +136,13 @@ export function MultiWorkspaceChangesTree({
     ],
   );
 
-  if (workspaces.length === 0) {
-    return (
-      <div className="adl-multitree">
-        <div className="adl-multitree__empty">
-          <p className="adl-empty-hint">{t.changesEmpty as string}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <MultiWorkspaceContainer
+    <MultiWorkspaceTreeShell
       visibleWorkspaces={workspaces}
       expandedState={expandedStates}
+      emptyText={t.changesEmpty as string}
       onToggleExpand={onToggleExpand}
+      onClearSelection={onClearSelection}
       renderContent={renderContent}
     />
   );

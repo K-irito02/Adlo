@@ -45,6 +45,13 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     setPreviewEnabled,
     workspaceChangesTreeLoading,
     workspaceChangesTreeErrors,
+    changesTreeRefreshing,
+    refreshingAllChanges,
+    changesTreeClickedPath,
+    changesTreeClickedWorkspaceId,
+    handleChangesNodeClicked,
+    handleChangesWorkspaceRootClick,
+    handleChangesClearSelection,
     snapshot,
     lineNumbersEnabled,
     wordWrapEnabled,
@@ -124,6 +131,10 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
           changesTreeData={changesTreeData}
           workspaceChangesTreeLoading={workspaceChangesTreeLoading}
           workspaceChangesTreeErrors={workspaceChangesTreeErrors}
+          changesTreeRefreshing={changesTreeRefreshing}
+          refreshingAll={refreshingAllChanges}
+          changesTreeClickedPath={changesTreeClickedPath}
+          changesTreeClickedWorkspaceId={changesTreeClickedWorkspaceId}
           navigatorSelectedPath={navigatorSelectedPath}
           selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
           expandedPathsByWs={expandedPathsByWs}
@@ -134,6 +145,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
           onHideFromRightPanels={onHideFromRightPanels}
           onToggleFileTreePath={handleToggleFileTreePath}
           onOpenChangePreview={handleSelectNavigatorNode}
+          onNodeClicked={handleChangesNodeClicked}
+          onWorkspaceRootClick={handleChangesWorkspaceRootClick}
+          onClearSelection={handleChangesClearSelection}
           getContextMenuItems={getContextMenuItems}
           contextMenuPersistRef={changesContextMenuPersistRef}
           clearMenuHighlightRef={changesClearMenuHighlightRef}

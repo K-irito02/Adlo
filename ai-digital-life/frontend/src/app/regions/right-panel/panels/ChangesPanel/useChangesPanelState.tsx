@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import type { ChangesPanelProps } from '@regions/right-panel/types';
 import { useTCopy } from '@app/i18n/useTCopy';
@@ -60,6 +60,10 @@ export function useChangesPanelState(props: ChangesPanelProps) {
   } = useChangesPanelStore();
   const showGitVisualization = useAppStore((s) => s.showGitVisualization);
   const setShowGitVisualization = useAppStore((s) => s.setShowGitVisualization);
+  const changesTreeRefreshing = useAppStore((s) => s.changesTreeRefreshing);
+  const refreshingAllChanges = useAppStore((s) => s.refreshingAllChanges);
+  const changesTreeClickedPath = useAppStore((s) => s.changesTreeClickedPath);
+  const changesTreeClickedWorkspaceId = useAppStore((s) => s.changesTreeClickedWorkspaceId);
   const snapshot = props.gitSnapshot ?? appInfo?.currentWorkspace?.gitSnapshot;
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
   const [wordWrapEnabled, setWordWrapEnabled] = useState(true);
@@ -189,6 +193,21 @@ export function useChangesPanelState(props: ChangesPanelProps) {
 
   const { renderNavigatorMeta, renderNavigatorCount } = useChangesPanelRenderers();
 
+  const handleChangesNodeClicked = useCallback(
+    (workspaceId: string, path: string, kind: 'directory' | 'file') => {
+      useAppStore.getState().setChangesTreeClickedNode(workspaceId, path, kind);
+    },
+    [],
+  );
+
+  const handleChangesWorkspaceRootClick = useCallback((workspaceId: string) => {
+    useAppStore.getState().setChangesTreeClickedWorkspaceRoot(workspaceId);
+  }, []);
+
+  const handleChangesClearSelection = useCallback(() => {
+    useAppStore.getState().clearChangesTreeClickedNode();
+  }, []);
+
   const {
     changesNavigatorMode,
     setChangesNavigatorMode,
@@ -248,6 +267,13 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     collapseAllChangesTreePaths,
     workspaceChangesTreeLoading,
     workspaceChangesTreeErrors,
+    changesTreeRefreshing,
+    refreshingAllChanges,
+    changesTreeClickedPath,
+    changesTreeClickedWorkspaceId,
+    handleChangesNodeClicked,
+    handleChangesWorkspaceRootClick,
+    handleChangesClearSelection,
     snapshot,
     lineNumbersEnabled,
     wordWrapEnabled,

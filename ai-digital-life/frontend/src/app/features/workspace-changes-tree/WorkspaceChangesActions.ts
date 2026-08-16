@@ -9,6 +9,7 @@ export interface UseWorkspaceChangesActionsParams {
   onHideFromRightPanels: (workspaceId: string) => void;
   onRefreshTree: () => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
+  onWorkspaceRootClick?: () => void;
 }
 
 export interface WorkspaceChangesActions {
@@ -38,6 +39,7 @@ export function useWorkspaceChangesActions({
   onHideFromRightPanels,
   onRefreshTree,
   getContextMenuItems,
+  onWorkspaceRootClick,
 }: UseWorkspaceChangesActionsParams): WorkspaceChangesActions {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
@@ -74,7 +76,8 @@ export function useWorkspaceChangesActions({
 
   const handleNameClick = useCallback(() => {
     onToggleExpand();
-  }, [onToggleExpand]);
+    onWorkspaceRootClick?.();
+  }, [onToggleExpand, onWorkspaceRootClick]);
 
   const handleNameContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

@@ -21,9 +21,11 @@ export interface WorkspaceChangesEntryProps {
   isExpanded: boolean;
   treeNodes: WorkspaceTreeNode[] | undefined;
   isLoading: boolean;
+  isRefreshing: boolean;
   error: string | undefined;
   selectedChangePreviewPath: string | undefined;
   selectedChangePreviewWorkspaceId: string | undefined;
+  clickedPath: string | undefined;
   expandedPaths: Record<string, boolean>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
@@ -33,6 +35,8 @@ export interface WorkspaceChangesEntryProps {
   onRefreshTree: () => void;
   onToggleFileTreePath: (path: string) => void;
   onOpenChangePreview: (workspacePath: string, relativePath: string) => void;
+  onNodeClicked: (path: string, kind: 'directory' | 'file') => void;
+  onWorkspaceRootClick?: () => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
@@ -49,9 +53,11 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   isExpanded,
   treeNodes,
   isLoading,
+  isRefreshing,
   error,
   selectedChangePreviewPath,
   selectedChangePreviewWorkspaceId,
+  clickedPath,
   expandedPaths,
   dirtyPaths,
   externalChangePath,
@@ -61,6 +67,8 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   onRefreshTree,
   onToggleFileTreePath,
   onOpenChangePreview,
+  onNodeClicked,
+  onWorkspaceRootClick,
   getContextMenuItems,
   contextMenuPersistRef,
   clearMenuHighlightRef,
@@ -93,6 +101,7 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
     onHideFromRightPanels,
     onRefreshTree,
     getContextMenuItems,
+    onWorkspaceRootClick,
   });
 
   const effectiveSelectedPath = useMemo(() => {
@@ -155,7 +164,7 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
                 <IconRefreshCw
                   size={12}
                   decorative
-                  className={isLoading ? 'adl-spin' : undefined}
+                  className={isRefreshing ? 'adl-spin' : undefined}
                 />
               </button>
             </TooltipSimple>
@@ -198,11 +207,19 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
             <FileTree
               nodes={treeNodes}
               selectedFilePath={effectiveSelectedPath}
+              extraSelectedPath={clickedPath}
+              activePathIsWeak
               expandedPaths={expandedPaths}
               dirtyPaths={dirtyPaths}
               externalChangePath={externalChangePath}
-              onToggle={onToggleFileTreePath}
-              onOpenFile={(path) => onOpenChangePreview(workspace.path, path)}
+              onToggle={(path) => {
+                onNodeClicked(path, 'directory');
+                onToggleFileTreePath(path);
+              }}
+              onOpenFile={(path) => {
+                onNodeClicked(path, 'file');
+                onOpenChangePreview(workspace.path, path);
+              }}
               getContextMenuItems={wrappedGetContextMenuItems}
               contextMenuPersistRef={contextMenuPersistRef}
               clearMenuHighlightRef={clearMenuHighlightRef}

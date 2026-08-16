@@ -26,6 +26,10 @@ interface TreeDataProps {
   changesTreeData: Record<string, ChangeTreeNode[]>;
   workspaceChangesTreeLoading: Record<string, boolean>;
   workspaceChangesTreeErrors: Record<string, string | undefined>;
+  changesTreeRefreshing: Record<string, boolean>;
+  refreshingAll: boolean;
+  changesTreeClickedPath: string | undefined;
+  changesTreeClickedWorkspaceId: string | undefined;
   navigatorSelectedPath: string | undefined;
   selectedChangePreviewWorkspaceId: string | undefined;
   expandedPathsByWs: Record<string, Record<string, boolean>>;
@@ -39,6 +43,9 @@ interface TreeCallbacks {
   onHideFromRightPanels: (workspaceId: string) => void;
   onToggleFileTreePath: (workspaceId: string, path: string) => void;
   onOpenChangePreview: (workspacePath: string, relativePath: string) => void;
+  onNodeClicked: (workspaceId: string, path: string, kind: 'directory' | 'file') => void;
+  onWorkspaceRootClick: (workspaceId: string) => void;
+  onClearSelection: () => void;
   getContextMenuItems: (node: ChangeTreeNode) => FileTreeContextMenuItem<ChangeTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
@@ -87,6 +94,10 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     changesTreeData,
     workspaceChangesTreeLoading,
     workspaceChangesTreeErrors,
+    changesTreeRefreshing,
+    refreshingAll,
+    changesTreeClickedPath,
+    changesTreeClickedWorkspaceId,
     navigatorSelectedPath,
     selectedChangePreviewWorkspaceId,
     expandedPathsByWs,
@@ -97,6 +108,9 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     onHideFromRightPanels,
     onToggleFileTreePath,
     onOpenChangePreview,
+    onNodeClicked,
+    onWorkspaceRootClick,
+    onClearSelection,
     getContextMenuItems,
     contextMenuPersistRef,
     clearMenuHighlightRef,
@@ -136,8 +150,6 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     maxWidth: 300,
   });
 
-  const anyChangesTreeLoading = visibleWorkspaces.some((w) => workspaceChangesTreeLoading[w.id]);
-
   return (
     <aside className="adl-tool-navigator" aria-label={t.toolChanges}>
       <ChangesToolbar
@@ -149,7 +161,7 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
         totalChangeCount={totalChangeCount}
         hasVisibleWorkspaces={hasVisibleWorkspaces}
         onRefreshAll={onRefreshAll}
-        isRefreshingAll={anyChangesTreeLoading}
+        isRefreshingAll={refreshingAll}
         changesNavigatorMode={changesNavigatorMode}
         onSetNavigatorMode={onChangeNavigatorMode}
         changesStatusFilter={changesStatusFilter}
@@ -189,9 +201,12 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
             expandedStates={workspaceChangesExpanded}
             treeData={changesTreeData as Record<string, WorkspaceTreeNode[]>}
             loadingStates={workspaceChangesTreeLoading}
+            refreshingStates={changesTreeRefreshing}
             errorStates={workspaceChangesTreeErrors}
             selectedChangePreviewPath={navigatorSelectedPath}
             selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
+            clickedPath={changesTreeClickedPath}
+            clickedWorkspaceId={changesTreeClickedWorkspaceId}
             expandedPaths={expandedPathsByWs}
             dirtyPaths={dirtyPathsSet}
             externalChangePath={externalChangePath}
@@ -201,6 +216,9 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
             onHideFromRightPanels={onHideFromRightPanels}
             onToggleFileTreePath={onToggleFileTreePath}
             onOpenChangePreview={onOpenChangePreview}
+            onNodeClicked={onNodeClicked}
+            onWorkspaceRootClick={onWorkspaceRootClick}
+            onClearSelection={onClearSelection}
             getContextMenuItems={
               getContextMenuItems as unknown as (
                 node: WorkspaceTreeNode,
