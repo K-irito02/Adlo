@@ -53,8 +53,15 @@ interface FileNavigatorShellProps {
   onRefreshOneWorkspace: (workspaceId: string) => void;
   onToggleExpandInFileNav: (workspaceId: string) => void;
   onHideFromRightPanels: (workspaceId: string) => void;
-  onCreateWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
-  onCreateWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
+  onCreateWorkspaceFile: (
+    relativePath: string,
+    content?: string,
+    workspacePath?: string,
+  ) => Promise<string | undefined>;
+  onCreateWorkspaceFolder: (
+    relativePath: string,
+    workspacePath?: string,
+  ) => Promise<string | undefined>;
   onEditorChange: (value: string | undefined) => void;
   onNavigateLine: (line: number) => void;
   workspaceTreeExpandedInFileNav: Record<string, boolean>;
@@ -156,6 +163,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
 
   const fileCreation = useFileCreation({
     selectedFilePath,
+    selectedFileWorkspaceId,
     activeWorkspaceId,
     recentWorkspaces,
     clickedNode:

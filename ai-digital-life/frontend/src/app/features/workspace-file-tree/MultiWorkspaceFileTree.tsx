@@ -167,6 +167,8 @@ export function MultiWorkspaceFileTree({
       getContextMenuItems,
       contextMenuPersistRef,
       clearMenuHighlightRef,
+      setRenamingWorkspacePath,
+      setDeleteWorkspacePath,
       t,
     ],
   );

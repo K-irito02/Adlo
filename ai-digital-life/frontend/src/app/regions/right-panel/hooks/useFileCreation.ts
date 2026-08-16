@@ -11,12 +11,14 @@ function parentDir(path: string): string {
  * 计算新建文件/文件夹的目标目录：
  * 点击了工作区顶级目录（rootSelected）→ 根目录；
  * 点击了目录节点 → 该目录；点击了文件节点 → 其父目录；
- * 否则回退到当前选中文件的父目录，都没有则代表工作区根目录。
+ * 否则回退到当前选中文件的父目录（仅当该文件属于目标工作区，避免跨工作区路径锚定错误），
+ * 都没有则代表工作区根目录。
  */
 function resolveCreationTargetDir(
   clickedNode: { path: string; kind: 'directory' | 'file' } | undefined,
   selectedFilePath: string | undefined,
   rootSelected: boolean,
+  useSelectedFileFallback: boolean,
 ): string {
   if (rootSelected) {
     return '';
@@ -24,7 +26,7 @@ function resolveCreationTargetDir(
   if (clickedNode) {
     return clickedNode.kind === 'directory' ? clickedNode.path : parentDir(clickedNode.path);
   }
-  return selectedFilePath ? parentDir(selectedFilePath) : '';
+  return useSelectedFileFallback && selectedFilePath ? parentDir(selectedFilePath) : '';
 }
 
 /**
@@ -66,6 +68,8 @@ function normalizeCreationPath(input: string): string | undefined {
 
 interface UseFileCreationInput {
   selectedFilePath: string | undefined;
+  /** 编辑器当前打开文件所属的工作区 id（与 selectedFilePath 配套） */
+  selectedFileWorkspaceId: string | undefined;
   activeWorkspaceId: string | undefined;
   recentWorkspaces: { id: string; path: string }[];
   clickedNode?: { path: string; workspaceId: string; kind: 'directory' | 'file' };
@@ -151,10 +155,13 @@ function useFileCreation(input: UseFileCreationInput): UseFileCreationResult {
     }
     // 名称创建在目标目录下（点击节点/选中文件所在目录/工作区顶级目录，缺省为工作区根目录）。
     // 根目录选中仅当"最后点击的顶级目录就是目标工作区"且没有更具体的节点选中时成立。
+    // 回退到选中文件父目录前，先确认该文件确实属于目标工作区，否则直接落到目标工作区根目录，
+    // 避免把文件锚定到与目标工作区不一致的目录结构（跨工作区路径污染）。
     const targetDir = resolveCreationTargetDir(
       input.clickedNode,
       input.selectedFilePath,
       input.clickedWorkspaceRoot === targetWorkspaceId && !input.clickedNode,
+      !input.selectedFileWorkspaceId || input.selectedFileWorkspaceId === targetWorkspaceId,
     );
     const relativePath = targetDir ? `${targetDir}/${normalized}` : normalized;
     if (createTarget === 'file') {

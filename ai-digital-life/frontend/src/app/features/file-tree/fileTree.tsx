@@ -17,7 +17,6 @@ interface VirtualNodeProps<T extends FileTreeRenderableNode> {
   flatNode: FlattenedTreeNode<T>;
   expandedPaths: Record<string, boolean>;
   activePath: string | undefined;
-  selectedPaths: Set<string>;
   extraSelectedPath: string | undefined;
   activePathIsWeak: boolean;
   highlightedPath: string | undefined;
@@ -44,7 +43,6 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   flatNode,
   expandedPaths,
   activePath,
-  selectedPaths,
   extraSelectedPath,
   activePathIsWeak,
   highlightedPath,
@@ -341,7 +339,6 @@ export function FileTree<T extends FileTreeRenderableNode>({
                 flatNode={flatNode}
                 expandedPaths={expandedPaths}
                 activePath={activePath}
-                selectedPaths={selectedPaths}
                 extraSelectedPath={extraSelectedPath}
                 activePathIsWeak={activePathIsWeak}
                 highlightedPath={highlightedPath}

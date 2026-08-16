@@ -19,6 +19,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 function makeInput(overrides: Partial<UseFileCreationInput> = {}): UseFileCreationInput {
   return {
     selectedFilePath: 'src/App.tsx',
+    selectedFileWorkspaceId: 'ws-1',
     activeWorkspaceId: 'ws-1',
     recentWorkspaces: [{ id: 'ws-1', path: '/workspace-one' }],
     onCreateWorkspaceFile: async () => undefined,
@@ -255,5 +256,59 @@ describe('useFileCreation submit target workspace', () => {
     });
 
     expect(onCreateWorkspaceFile).not.toHaveBeenCalled();
+  });
+
+  it('does not anchor to the selected file parent when the file belongs to another workspace', async () => {
+    // 边界场景：编辑器打开的文件在 ws-1，但目标工作区是 ws-2（无点击节点/顶级目录）。
+    // 回退不应把文件锚定到 ws-1 的目录结构，而应落到 ws-2 工作区根目录，避免跨工作区路径污染。
+    const onCreateWorkspaceFile = vi.fn(async () => undefined);
+    const { result } = renderHook(
+      () =>
+        useFileCreation(
+          makeInput({
+            selectedFilePath: 'src/App.tsx',
+            selectedFileWorkspaceId: 'ws-1',
+            activeWorkspaceId: 'ws-2',
+            recentWorkspaces: [
+              { id: 'ws-1', path: '/workspace-one' },
+              { id: 'ws-2', path: '/workspace-two' },
+            ],
+            onCreateWorkspaceFile,
+          }),
+        ),
+      { wrapper },
+    );
+
+    act(() => result.current.startCreate('file'));
+    act(() => result.current.setCreatePathValue('foo.md'));
+    await act(async () => {
+      await result.current.submitCreate();
+    });
+
+    expect(onCreateWorkspaceFile).toHaveBeenCalledWith('foo.md', undefined, '/workspace-two');
+  });
+
+  it('anchors to the selected file parent when the file belongs to the target workspace', async () => {
+    const onCreateWorkspaceFile = vi.fn(async () => undefined);
+    const { result } = renderHook(
+      () =>
+        useFileCreation(
+          makeInput({
+            selectedFilePath: 'src/App.tsx',
+            selectedFileWorkspaceId: 'ws-1',
+            activeWorkspaceId: 'ws-1',
+            onCreateWorkspaceFile,
+          }),
+        ),
+      { wrapper },
+    );
+
+    act(() => result.current.startCreate('file'));
+    act(() => result.current.setCreatePathValue('foo.md'));
+    await act(async () => {
+      await result.current.submitCreate();
+    });
+
+    expect(onCreateWorkspaceFile).toHaveBeenCalledWith('src/foo.md', undefined, '/workspace-one');
   });
 });

@@ -62,3 +62,42 @@
 - 前端 ESLint：0 错误（仅 1 条 pre-existing `useCallback` 依赖缺失 warning，与本次改动无关）
 - 前端测试：`useFileCreation.test.tsx` 9 条全过；`editorSlice.test.ts` 4 条全过；`fileTree.test.tsx` 6 条全过
 - 事项 5（右键高亮保留）：前端 typecheck 通过
+
+## Phase 4 代码审查与收尾
+
+### 子代理 A（根因验证全面审查）
+- 报告：`.review-diffs/review-issue-1-rev1.md`
+- 结论：5 项问题根因均正确、修复方案合理、三端桥接签名对齐、i18n 全覆盖、Rust 冲突识别端到端一致。未发现阻断性缺陷。
+- 发现 6 项问题（1 中 + 5 低），处理如下：
+
+| # | 严重性 | 问题 | 处理 |
+|---|--------|------|------|
+| 1 | 中 | 选中文件回退父目录时未校验所属工作区，可能跨工作区路径污染 | ✅ 已修复：`useFileCreation.ts` 新增 `selectedFileWorkspaceId` 校验，仅当选中文件属于目标工作区才回退其父目录 |
+| 2 | 低 | `workspaceTreeLoading`/`workspaceTreeRefreshing` 职责需明确 | ✅ 已修复：`refreshOneWorkspaceTree` JSDoc 明确二者职责（loading=初始加载占位，refreshing=刷新旋转） |
+| 3 | 低 | 前后端用字符串前缀匹配冲突，耦合脆弱 | ⏸ 记录待后续：建议后端返回结构化错误码，当前为既存架构，非本轮引入 |
+| 4 | 低 | `deleteConfirmKind` 默认 `'file'`，仅右键入口设置 | ⏸ 记录待后续：当前唯一入口为右键菜单，无实际影响 |
+| 5 | 低 | 疑似 `insertTreeNode` 死代码 | ✅ 已核实非死代码：被 `editorActions.ts:14/49` 导入使用 |
+| 6 | 低 | 工作区头部下拉菜单不在保留集 | ⏸ 无需改动：属工作区级操作，语义可接受 |
+
+### 子代理 B（死代码清理专项审查）
+- 报告：`.review-diffs/review-issue-1-rev2-deadcode.md`
+- 结论：独立核实 `insertTreeNode` 非死代码；发现 2 项真死代码（均低严重性、均非本轮引入）：
+
+| # | 位置 | 问题 | 处理 |
+|---|------|------|------|
+| 1 | `useFileCreation.ts:197` + `hooks/index.ts:6` | `normalizeCreationPath` 导出无业务消费方（仅内部使用） | ⏸ 记录：预存死导出，非本轮引入，不在本次变更最小范围 |
+| 2 | `TreeRow.tsx:13/29/43` | `isWeakSelected` prop 永不被置 true（唯一调用方 `ModuleTreeCard.tsx:434` 未传） | ⏸ 记录：预存死属性，非本轮引入 |
+| 3 | `FileNavigatorShell.tsx:56-57` | `onCreateWorkspaceFile`/`onCreateWorkspaceFolder` 类型签名比 `types.ts` 窄（父级实际传 3/2 参） | ✅ 已修复：同步为 `types.ts` 一致签名（3 参含 `workspacePath` / 2 参含 `workspacePath`） |
+
+### 修复后状态
+- 跨工作区路径守卫（A-1）+ 刷新字段 JSDoc（A-2）+ 类型签名对齐（B-3）均已落地
+- 前端 typecheck：通过（含新增 `selectedFileWorkspaceId` 传参）
+- 新增测试：`useFileCreation.test.tsx` 覆盖跨工作区回退守卫（`selectedFileWorkspaceId` 与目标工作区不一致时落到目标工作区根目录）
+
+### 全量验收（mandatory-testing L3）
+- **ESLint**：0 错误 0 warning（修复 2 条本轮引入 warning）：
+  - `fileTree.tsx` `VirtualNodeComponent` 的 `selectedPaths` 死 prop（新逻辑改用 `extraSelectedPath`/`activePathIsWeak`）→ 已从接口/解构/调用处移除
+  - `MultiWorkspaceFileTree.tsx` `useCallback` 遗漏 `setRenamingWorkspacePath`/`setDeleteWorkspacePath` 依赖（均为稳定 `useState` setter）→ 已补入依赖数组
+- **TypeScript typecheck**：通过
+- **前端全量测试**：226 文件 / 1795 条全过（含 `useFileCreation` 11 条、`editorSlice` 4 条、`fileTree` 6 条、`workspaceTreeRename` 12 条）
+- 本轮变更纯前端（无 Rust 改动），无需 cargo 验收
