@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { createPreviewPageMetaService } from './pageMetaService';
-import { readSiteMetaCache } from './siteMetaCache';
+import { readSiteMetaCache, upsertSiteMetaCache } from './siteMetaCache';
 import type { PageMeta } from '../../src/shared/ipc/browser';
 
 describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
@@ -105,6 +105,36 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     await svc.report('https://a.com/', '陈旧标题', '', 'com');
 
     expect(svc.peek('https://a.com/')?.title).toBe('真实标题');
+  });
+
+  it('report com fills placeholder title', async () => {
+    // 占位标题无法经 report/get 写入（占位门控拒绝 incoming 占位），故经 JSON 持久层
+    // 预载构造内存条目，模拟"当前为占位标题"（与 Rust 测试直接构造内存条目等价）。
+    await upsertSiteMetaCache(dir, {
+      'https://a.com/': {
+        title: 'a.com',
+        titleSource: 'http',
+        faviconUrl: '',
+        faviconDataUri: '',
+        fetchedAt: 0,
+        lastOkAt: 0,
+        nextRetryAt: 0,
+        failCount: 0,
+      },
+    });
+    const svc = createPreviewPageMetaService({
+      baseDir: dir,
+      gateAllows: allowGate,
+      fetchOnce: async (url) => emptyMeta(url),
+    });
+
+    // report 内部 await preloadPromise，内存已含占位条目；com 上报真实标题 → 占位被覆盖
+    const changed = await svc.report('https://a.com/', '真实标题', '', 'com');
+
+    expect(changed).toBe(true);
+    const e = svc.peek('https://a.com/');
+    expect(e?.title).toBe('真实标题');
+    expect(e?.titleSource).toBe('com');
   });
 
   it('placeholder title from get does not clobber authoritative', async () => {

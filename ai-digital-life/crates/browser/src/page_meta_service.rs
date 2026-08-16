@@ -409,6 +409,31 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn report_com_fills_placeholder_title() {
+        let (svc, _) = open_service("report-placeholder");
+        // 占位标题无法经 write_success / report 写入（占位门控拒绝 incoming 占位），
+        // 故直接构造内存条目，模拟"当前为占位标题"（与 JS 侧经 JSON 持久层预载等价）。
+        svc.memory.lock().unwrap().insert(
+            "https://a.com/".into(),
+            SiteMetaCacheEntry {
+                title: "a.com".into(),
+                title_source: META_SOURCE_HTTP.into(),
+                favicon_url: String::new(),
+                favicon_data_uri: String::new(),
+                fetched_at: 0,
+                last_ok_at: 0,
+                next_retry_at: 0,
+                fail_count: 0,
+            },
+        );
+        // com 上报真实标题 → 占位当前标题可被覆盖（should_apply_exact_match_title 占位分支）
+        assert!(svc.report("https://a.com/", "真实标题", "", META_SOURCE_COM).await.unwrap());
+        let e = svc.peek("https://a.com/").unwrap();
+        assert_eq!(e.title, "真实标题");
+        assert_eq!(e.title_source, META_SOURCE_COM);
+    }
+
+    #[tokio::test]
     async fn get_returns_cached_within_ttl_without_fetching() {
         let (svc, _) = open_service("ttl");
         let calls = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
