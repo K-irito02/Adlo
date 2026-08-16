@@ -49,7 +49,7 @@ export function FileOpNoticeContainer({ notices, onDismiss }: FileOpNoticeContai
   const hiddenCount = notices.length - visible.length;
 
   return createPortal(
-    <div className="file-op-notice-region" role="region" aria-label={t.fileOpNoticeRegionLabel}>
+    <div className="toast-card-region" role="region" aria-label={t.fileOpNoticeRegionLabel}>
       <AnimatePresence mode="popLayout">
         {visible.map((notice) => (
           <FileOpNoticeCard key={notice.id} notice={notice} onDismiss={onDismiss} />

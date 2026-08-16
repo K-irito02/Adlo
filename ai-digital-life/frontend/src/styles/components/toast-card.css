@@ -2,9 +2,22 @@
    Toast Card (reusable bottom-right card)
    --------------------------------------------------------------------------
    - Shared visual shell for bottom-right notification cards (icon + title/body
-     + actions). Reference implementation: ErrorToast.
+     + actions). Single source for both global error toasts and file-op notices.
    - tone modifier drives the emphasis color (error / warning / info).
    ========================================================================== */
+
+.toast-card-region {
+  position: fixed;
+  right: var(--space-5);
+  bottom: var(--space-5);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--space-2);
+  width: min(400px, calc(100vw - var(--space-8)));
+  max-width: 400px;
+  pointer-events: none;
+}
 
 .toast-card {
   pointer-events: auto;
@@ -62,11 +75,15 @@
   color: var(--text-secondary);
   word-break: break-all;
   white-space: pre-wrap;
+  overflow: hidden;
+  max-height: 60em;
+  transition: max-height var(--duration-200) var(--ease-default);
 }
 
-.toast-card.is-collapsed .toast-card__detail {
+/* 折叠动画结束后才应用单行省略：动画期间保持 pre-wrap，避免文本瞬间重排跳变。
+   收起时的 max-height 由组件内联控制（1.5em），展开时用实测内容高度。 */
+.toast-card__detail.is-collapsed-settled {
   white-space: nowrap;
-  overflow: hidden;
   text-overflow: ellipsis;
 }
 
@@ -99,7 +116,9 @@
   color: var(--text-primary);
 }
 
-/* 收起/展开、复制按钮默认隐藏，仅在悬停（或键盘聚焦）卡片时显示 */
+/* 收起/展开、复制按钮默认隐藏，仅在悬停（或键盘聚焦到按钮自身）时显示。
+   用按钮的 :focus-visible 而非卡片的 :focus-within：鼠标点击后按钮聚焦但
+   focus-visible 不命中，移出卡片即可正确隐藏；键盘 Tab 聚焦仍可见。 */
 .toast-card__btn--detail {
   opacity: 0;
   pointer-events: none;
@@ -110,7 +129,7 @@
 }
 
 .toast-card:hover .toast-card__btn--detail,
-.toast-card:focus-within .toast-card__btn--detail {
+.toast-card__btn--detail:focus-visible {
   opacity: 1;
   pointer-events: auto;
 }

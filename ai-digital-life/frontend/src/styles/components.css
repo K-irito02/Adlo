@@ -16,7 +16,6 @@
 @import './components/settings.css';
 @import './components/model-selector.css';
 @import './components/toast.css';
-@import './components/error-toast.css';
 @import './components/toast-card.css';
 @import './components/icon.css';
 @import './components/button.css';
@@ -37,7 +36,6 @@
 @import './components/notification-badge.css';
 @import './components/notification-dropdown.css';
 @import './components/conflict-modal.css';
-@import './components/file-op-notice.css';
 @import './components/loading-row.css';
 @import './components/drag.css';
 @import './components/reveal-scrollbar.css';

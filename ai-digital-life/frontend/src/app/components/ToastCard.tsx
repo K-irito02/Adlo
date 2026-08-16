@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { useTCopy, copyToClipboard } from '../i18n';
 import { renderIcon, type IconName } from '../../design-system/icons';
@@ -35,7 +35,10 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
   const { t } = useTCopy();
   const [expanded, setExpanded] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [collapsedSettled, setCollapsedSettled] = useState(false);
+  const [detailHeight, setDetailHeight] = useState<number | null>(null);
   const copiedTimer = useRef<number | null>(null);
+  const detailRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     return () => {
@@ -61,13 +64,36 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
 
   const hasDetail = detail != null && detail.length > 0;
 
+  const collapsed = !expanded;
+
+  const toggleExpanded = () => {
+    setExpanded((v) => !v);
+    setCollapsedSettled(false);
+  };
+
+  const handleDetailTransitionEnd = (e: React.TransitionEvent<HTMLParagraphElement>) => {
+    if (!expanded && e.propertyName === 'max-height') {
+      setCollapsedSettled(true);
+    }
+  };
+
+  useLayoutEffect(() => {
+    if (collapsedSettled) {
+      return;
+    }
+    const el = detailRef.current;
+    if (!el) {
+      return;
+    }
+    setDetailHeight(el.scrollHeight);
+  }, [detail, hasDetail, expanded, collapsedSettled]);
+
   return (
     <motion.div
       ref={ref}
       className={`toast-card toast-card--${tone}${expanded ? ' is-expanded' : ' is-collapsed'}${className ? ` ${className}` : ''}`}
       role={role}
       aria-live={ariaLive}
-      layout
       initial={{ opacity: 0, y: 12, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -76,7 +102,18 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
       <span className="toast-card__icon" dangerouslySetInnerHTML={{ __html: iconHtml(icon) }} />
       <div className="toast-card__body">
         {title ? <p className="toast-card__title">{title}</p> : null}
-        {hasDetail ? <p className="toast-card__detail">{detail}</p> : null}
+        {hasDetail ? (
+          <p
+            ref={detailRef}
+            className={`toast-card__detail${collapsed && collapsedSettled ? ' is-collapsed-settled' : ''}`}
+            style={{
+              maxHeight: expanded ? (detailHeight != null ? `${detailHeight}px` : 'none') : '1.5em',
+            }}
+            onTransitionEnd={handleDetailTransitionEnd}
+          >
+            {detail}
+          </p>
+        ) : null}
       </div>
       <div className="toast-card__actions">
         {hasDetail ? (
@@ -84,9 +121,7 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
             type="button"
             className="toast-card__btn toast-card__btn--detail"
             aria-label={expanded ? t.errorsCollapse : t.errorsExpand}
-            onClick={() => {
-              setExpanded((v) => !v);
-            }}
+            onClick={toggleExpanded}
             dangerouslySetInnerHTML={{
               __html: iconHtml(expanded ? 'chevron-down' : 'chevron-up', 'sm'),
             }}

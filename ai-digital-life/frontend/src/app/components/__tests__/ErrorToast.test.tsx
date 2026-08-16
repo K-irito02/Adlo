@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, screen, fireEvent, act, cleanup } from '@testing-library/react';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { ErrorToastContainer } from '../ErrorToast';
 import type { ErrorToastEntry } from '../../stores/slices/errorToastSlice';
@@ -62,6 +62,37 @@ describe('ErrorToastContainer', () => {
     expect(screen.getByRole('button', { name: 'Expand' })).toBeTruthy();
   });
 
+  it('defers the single-line ellipsis until the collapse transition ends', () => {
+    render(
+      <TestProvider>
+        <ErrorToastContainer errorToasts={[entry()]} onDismiss={vi.fn()} onClearAll={vi.fn()} />
+      </TestProvider>,
+    );
+    const detail = document.body.querySelector('.toast-card__detail');
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse' }));
+    expect(detail?.className).not.toContain('is-collapsed-settled');
+    act(() => {
+      const evt = new Event('transitionend', { bubbles: true });
+      Object.defineProperty(evt, 'propertyName', { value: 'max-height' });
+      detail?.dispatchEvent(evt);
+    });
+    expect(detail?.className).toContain('is-collapsed-settled');
+  });
+
+  it('marks collapse/copy as hover-only detail buttons and close as always visible', () => {
+    render(
+      <TestProvider>
+        <ErrorToastContainer errorToasts={[entry()]} onDismiss={vi.fn()} onClearAll={vi.fn()} />
+      </TestProvider>,
+    );
+    const collapse = screen.getByRole('button', { name: 'Collapse' });
+    const copy = screen.getByRole('button', { name: 'Copy' });
+    const close = screen.getByRole('button', { name: 'Close' });
+    expect(collapse.className).toContain('toast-card__btn--detail');
+    expect(copy.className).toContain('toast-card__btn--detail');
+    expect(close.className).not.toContain('toast-card__btn--detail');
+  });
+
   it('copies the full detail when copy is clicked', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { clipboard: { writeText } });
@@ -121,8 +152,8 @@ describe('ErrorToastContainer', () => {
         />
       </TestProvider>,
     );
-    const toast = document.body.querySelector('.error-toast:not(.error-toast--summary)');
-    expect(toast?.className).toContain('error-toast--error');
+    const toast = document.body.querySelector('.toast-card:not(.toast-card--summary)');
+    expect(toast?.className).toContain('toast-card--error');
   });
 
   it('applies the warning level class for recoverable codes', () => {
@@ -135,8 +166,8 @@ describe('ErrorToastContainer', () => {
         />
       </TestProvider>,
     );
-    const toast = document.body.querySelector('.error-toast:not(.error-toast--summary)');
-    expect(toast?.className).toContain('error-toast--warning');
+    const toast = document.body.querySelector('.toast-card:not(.toast-card--summary)');
+    expect(toast?.className).toContain('toast-card--warning');
   });
 
   it('applies the info level class for non-git workspace errors', () => {
@@ -154,8 +185,8 @@ describe('ErrorToastContainer', () => {
         />
       </TestProvider>,
     );
-    const toast = document.body.querySelector('.error-toast:not(.error-toast--summary)');
-    expect(toast?.className).toContain('error-toast--info');
+    const toast = document.body.querySelector('.toast-card:not(.toast-card--summary)');
+    expect(toast?.className).toContain('toast-card--info');
   });
 
   it('renders a notice title for info-level toasts', () => {
@@ -197,8 +228,8 @@ describe('ErrorToastContainer', () => {
         />
       </TestProvider>,
     );
-    const infoToast = document.body.querySelector('.error-toast--info');
-    const errorToast = document.body.querySelector('.error-toast--error');
+    const infoToast = document.body.querySelector('.toast-card--info');
+    const errorToast = document.body.querySelector('.toast-card--error');
     expect(infoToast?.getAttribute('role')).toBe('status');
     expect(infoToast?.getAttribute('aria-live')).toBe('polite');
     expect(errorToast?.getAttribute('role')).toBe('alert');
@@ -213,9 +244,9 @@ describe('ErrorToastContainer', () => {
       </TestProvider>,
     );
     const toastIcon = document.body.querySelector(
-      '.error-toast:not(.error-toast--summary) .error-toast__icon svg',
+      '.toast-card:not(.toast-card--summary) .toast-card__icon svg',
     );
-    const summaryIcon = document.body.querySelector('.error-toast--summary .error-toast__icon svg');
+    const summaryIcon = document.body.querySelector('.toast-card--summary .toast-card__icon svg');
     expect(toastIcon?.getAttribute('class')).toContain('icon--md');
     expect(summaryIcon?.getAttribute('class')).toContain('icon--md');
   });
