@@ -1269,6 +1269,9 @@ import { IconLink, type IconSize } from '../icons';
 export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const [ready, setReady] = useState(isSiteMetaCacheReady());
   const [faviconUrl, setFaviconUrl] = useState('');
+  // 渲染降级状态（React 驱动，避免 DOM 直接操作导致 display:none 残留）：
+  // 真实图标与 Google S2 均加载失败时置 true → 显示内置占位图标；新图标到来时重置
+  const [degraded, setDegraded] = useState(false);
 
   useEffect(() => {
     void initSiteMetaCache();
@@ -1279,35 +1282,48 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
 
   useEffect(() => {
     setFaviconUrl(url ? getFaviconUrl(url) : '');
+    setDegraded(false);
     if (!url) return;
     const unsubMeta = subscribeSiteMeta(url, () => setFaviconUrl(getFaviconUrl(url)));
     const unsubUpdated = pageMetaClient.subscribeUpdated((p) => {
-      if (p.url === url) setFaviconUrl(getFaviconUrl(url));
+      if (p.url === url) {
+        setFaviconUrl(getFaviconUrl(url));
+        setDegraded(false);
+      }
     });
     return () => { unsubMeta(); unsubUpdated(); };
   }, [url, ready]);
 
   // 未命中/未就绪：显示占位图标（非空白）
-  const current = faviconUrl || url ? getFaviconUrl(url) : '';
+  const current = faviconUrl;
+  const showImg = Boolean(current) && !degraded;
   const handleError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    // 本次降级显示：切换到 Google S2 或隐藏 img 显示内置图标；绝不删缓存
+    // 本次降级显示：先切 Google S2；再失败则置 degraded（显示内置图标）。绝不删缓存
     const img = e.target as HTMLImageElement;
     if (!img.src.includes('google.com/s2/favicons')) {
       const fallback = getGoogleFaviconUrl(url);
       if (fallback) { img.src = fallback; return; }
     }
-    img.style.display = 'none';
-    const parent = img.parentElement;
-    if (parent) {
-      parent.classList.remove('adl-filetree__file-icon--favicon');
-      parent.classList.add('adl-filetree__file-icon--default');
-    }
+    setDegraded(true);
   }, [url]);
 
   return (
-    <span className={`adl-filetree__file-icon ${current ? 'adl-filetree__file-icon--favicon' : 'adl-filetree__file-icon--default'}`}>
-      {current && <img src={current} alt="" className="adl-browser-tree__favicon" style={{ width: size, height: size }} onError={handleError} />}
-      <IconLink size={size} decorative className="adl-browser-tree__link-fallback" style={current ? { display: 'none' } : undefined} />
+    <span className={`adl-filetree__file-icon ${showImg ? 'adl-filetree__file-icon--favicon' : 'adl-filetree__file-icon--default'}`}>
+      {showImg && (
+        <img
+          src={current}
+          alt=""
+          className="adl-browser-tree__favicon"
+          style={{ width: size, height: size, transition: 'opacity 0.15s ease-in-out' }}
+          onError={handleError}
+        />
+      )}
+      <IconLink
+        size={size}
+        decorative
+        className="adl-browser-tree__link-fallback"
+        style={showImg ? { display: 'none' } : undefined}
+      />
     </span>
   );
 }
@@ -1606,13 +1622,26 @@ Expected: FAIL（无预热调用）。
 
 - [ ] **Step 3: 实现**
 
-`useAppStartup.ts` 增加 effect（在 `initSiteMetaCache()` 后）：
+`useAppStartup.ts` 增加 effect（在 `initSiteMetaCache()` 后）。**注意竞态**：浏览器切片数据由 `hydrateBrowserDefaults` 延迟水合（requestIdleCallback/setTimeout 200ms），一次性同步收集在 preview 模式会读到空 store 导致 warmup 静默失效；需在空结果时延迟重试（300ms 间隔，最多 4 次，覆盖水合窗口；有数据即停）：
 
 ```ts
 useEffect(() => {
   void initSiteMetaCache();
-  const urls = collectWarmupUrls();
-  if (urls.length > 0) void pageMetaClient.warmup(urls);
+  let attempts = 0;
+  const MAX_ATTEMPTS = 4;
+  const tryCollect = () => {
+    const urls = collectWarmupUrls();
+    if (urls.length > 0) {
+      void pageMetaClient.warmup(urls);
+      return;
+    }
+    // 浏览器数据可能仍在延迟水合（requestIdleCallback/setTimeout 200ms）
+    attempts += 1;
+    if (attempts < MAX_ATTEMPTS) {
+      setTimeout(tryCollect, 300);
+    }
+  };
+  tryCollect();
 }, []);
 ```
 `collectWarmupUrls`（新工具，放 `frontend/src/app/utils/warmupUrls.ts`）：
@@ -1696,7 +1725,7 @@ Expected: FAIL（模块不存在）。
 
 - [ ] **Step 3: 实现**
 
-`pageMetaService.ts`：JS 同构移植 Task 2/4 的合并引擎与缓存策略（`isPlaceholderTitle`/`shouldApplyExactMatchTitle`/`shouldReplaceFavicon`/TTL 7d/退避 5min×2^n≤2h/单飞行 Map<string, Promise>），抓取走 `pageMetaGateAllows` + fetch（复用 vite 中间件逻辑抽出的共享函数 `fetchPageMetaOnce(url)`，放 `frontend/dev/previewFetchPageMeta.ts`，vite.config.ts 与 previewPageMetaService 共同引用）。内存缓存 + `readSiteMetaCache`/`writeSiteMetaCache`（防抖 500ms）持久化；`subscribeUpdated` 用本地 `Set<listener>` 广播。
+`pageMetaService.ts`：JS 同构移植 Task 2/4 的合并引擎与缓存策略（`isPlaceholderTitle`/`shouldApplyExactMatchTitle`/`shouldReplaceFavicon`/TTL 7d/退避 5min×2^n≤2h/单飞行 Map<string, Promise>），抓取走 `pageMetaGateAllows` + fetch（复用 vite 中间件逻辑抽出的共享函数 `fetchPageMetaOnce(url)`，放 `frontend/dev/previewFetchPageMeta.ts`，vite.config.ts 与 previewPageMetaService 共同引用）。**合规门控（强制）**：服务路由的抓取路径必须执行 HTML 级 `pageMetaGateAllows(url)`（robots + 域名限速）——默认 fetchOnce 包装层或 get 内部在 fetch 前调用，被拒返回空 PageMeta；favicon 下载保留 robots-only 门控（`{ rateLimit: false }`）。内存缓存 + `readSiteMetaCache`/`writeSiteMetaCache`（防抖 500ms）持久化；`subscribeUpdated` 用本地 `Set<listener>` 广播。
 
 `index.ts` 新增路由（仿现有 site-meta-cache 路由风格）：
 
