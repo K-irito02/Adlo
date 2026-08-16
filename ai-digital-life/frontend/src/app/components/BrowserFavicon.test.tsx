@@ -41,3 +41,37 @@ it('shows built-in fallback icon when both real icon and google-s2 fail', async 
     }
   }
 });
+
+it('recovers from degraded state when mirror updates bring a new favicon', async () => {
+  const { container } = render(<BrowserFavicon url="https://a.com" />);
+  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
+  if (img) {
+    // 第一次 error → 切 Google S2（无状态变更）
+    fireEvent.error(img);
+    const img2 = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
+    // 第二次 error → degraded（img 卸载）
+    if (img2 && img2.src.includes('google.com/s2/favicons')) {
+      act(() => { fireEvent.error(img2); });
+      expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
+      // 镜像更新（__mirrorUpsertForTest 等价于服务端广播写入镜像）：notify 同步触发
+      // 镜像订阅回调 → setFaviconUrl + setDegraded(false) → img 恢复
+      act(() => {
+        cache.__mirrorUpsertForTest('https://a.com', {
+          title: 'A',
+          titleSource: '',
+          faviconUrl: 'https://cdn.example.com/favicon.ico',
+          faviconDataUri: '',
+          fetchedAt: 1,
+          lastOkAt: 0,
+          nextRetryAt: 0,
+          failCount: 0,
+        });
+      });
+      const img3 = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
+      expect(img3).not.toBeNull();
+      expect(img3?.src).toBe('https://cdn.example.com/favicon.ico');
+      const iconLink = container.querySelector('.adl-browser-tree__link-fallback') as HTMLElement | null;
+      expect(iconLink?.style.display).toBe('none');
+    }
+  }
+});

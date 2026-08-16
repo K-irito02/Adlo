@@ -32,7 +32,10 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     setFaviconUrl(url ? getFaviconUrl(url) : '');
     setDegraded(false);
     if (!url) return;
-    const unsubMeta = subscribeSiteMeta(url, () => setFaviconUrl(getFaviconUrl(url)));
+    const unsubMeta = subscribeSiteMeta(url, () => {
+      setFaviconUrl(getFaviconUrl(url));
+      setDegraded(false);
+    });
     const unsubUpdated = pageMetaClient.subscribeUpdated((p) => {
       if (p.url === url) {
         setFaviconUrl(getFaviconUrl(url));
