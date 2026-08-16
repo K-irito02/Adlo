@@ -84,6 +84,10 @@ export interface WorkspaceSlice {
   workspaceChangesTreeData: Record<string, WorkspaceTreeNode[]>;
   workspaceChangesTreeLoading: Record<string, boolean>;
   workspaceChangesTreeErrors: Record<string, string | undefined>;
+  /** Changes 面板单工作区「刷新中」状态（与 Files 的 workspaceTreeRefreshing 对齐） */
+  changesTreeRefreshing: Record<string, boolean>;
+  /** Changes 面板「刷新全部」进行中标记 */
+  refreshingAllChanges: boolean;
   workspaceContextMode: 'workspace' | 'global';
 
   setAppInfo: (appInfo: AppInfo | undefined) => void;
@@ -99,6 +103,8 @@ export interface WorkspaceSlice {
   setWorkspaceChangesTreeData: (data: Record<string, WorkspaceTreeNode[]>) => void;
   setWorkspaceChangesTreeLoading: (loading: Record<string, boolean>) => void;
   setWorkspaceChangesTreeErrors: (errors: Record<string, string | undefined>) => void;
+  setChangesTreeRefreshing: (refreshing: Record<string, boolean>) => void;
+  setRefreshingAllChanges: (refreshing: boolean) => void;
   setWorkspaceContextMode: (mode: 'workspace' | 'global') => void;
 }
 
@@ -123,6 +129,8 @@ export const createWorkspaceSlice = (
     workspaceChangesTreeData: {},
     workspaceChangesTreeLoading: {},
     workspaceChangesTreeErrors: {},
+    changesTreeRefreshing: {},
+    refreshingAllChanges: false,
     workspaceContextMode: 'workspace',
 
     setAppInfo: (appInfo) => set({ appInfo }),
@@ -144,6 +152,8 @@ export const createWorkspaceSlice = (
     setWorkspaceChangesTreeData: (data) => set({ workspaceChangesTreeData: data }),
     setWorkspaceChangesTreeLoading: (loading) => set({ workspaceChangesTreeLoading: loading }),
     setWorkspaceChangesTreeErrors: (errors) => set({ workspaceChangesTreeErrors: errors }),
+    setChangesTreeRefreshing: (refreshing) => set({ changesTreeRefreshing: refreshing }),
+    setRefreshingAllChanges: (refreshing) => set({ refreshingAllChanges: refreshing }),
     setWorkspaceContextMode: (mode) => set({ workspaceContextMode: mode }),
   };
 };
