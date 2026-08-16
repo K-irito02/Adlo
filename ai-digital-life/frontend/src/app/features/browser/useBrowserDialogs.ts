@@ -4,13 +4,7 @@ import { checkBookmarkCollision } from '@stores/slices/browserBookmarkSlice';
 import { formatT } from '@i18n/formatT';
 import type { CopyDict } from '@i18n/types';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
-import {
-  setCachedSiteMeta,
-  getCachedSiteMeta,
-  buildCachedSiteMetaEntry,
-} from '@utils/siteMetaCache';
-import { prefetchPageMeta } from '@utils/fetchPageMeta';
-import { existingFaviconBaseline, shouldReplaceFavicon } from './faviconQuality';
+import { pageMetaClient } from '@utils/pageMetaClient';
 import type { ToastType } from '@components/Toast';
 
 interface UseBrowserDialogsDeps {
@@ -86,22 +80,9 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       if (!title) {
         setIsCreatingTab(true);
         try {
-          const meta = await prefetchPageMeta(url);
+          const meta = await pageMetaClient.get(url);
           if (meta?.title?.trim() || meta?.faviconDataUri) {
             title = meta.title?.trim() || title;
-            const existing = getCachedSiteMeta(url);
-            const faviconUrl = shouldReplaceFavicon(
-              existingFaviconBaseline(existing),
-              meta.favicon ?? '',
-            )
-              ? (meta.favicon ?? '')
-              : (existing?.faviconUrl ?? '');
-            if (faviconUrl || meta.faviconDataUri) {
-              setCachedSiteMeta(
-                url,
-                buildCachedSiteMetaEntry(title, faviconUrl, meta.faviconDataUri || '', existing),
-              );
-            }
           }
         } catch {
           // fallback: use hostname

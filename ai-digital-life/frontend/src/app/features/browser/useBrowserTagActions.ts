@@ -1,14 +1,9 @@
 import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import { prefetchPageMeta } from '@utils/fetchPageMeta';
-import {
-  setCachedSiteMeta,
-  getCachedSiteMeta,
-  buildCachedSiteMetaEntry,
-} from '@utils/siteMetaCache';
+import { pageMetaClient } from '@utils/pageMetaClient';
 import { hostnameFromUrl } from '@utils/browserDisplayUtils';
-import { existingFaviconBaseline, shouldReplaceFavicon } from './faviconQuality';
+import { applyBroadcastTitle, isPlaceholderTitle, titleSourceRef } from './useBrowserPageMeta';
 import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 
 export function useBrowserTagActions() {
@@ -42,38 +37,32 @@ export function useBrowserTagActions() {
       if (!url) {
         return;
       }
-      const meta = await prefetchPageMeta(url, { force: true });
+      const meta = await pageMetaClient.refresh(url); // force=true
 
       const state = useAppStore.getState();
       const tab = state.browserTabs.find((t) => t.id === tabId);
 
       const title = meta?.title || hostnameFromUrl(url);
       if (tab) {
-        browserUpdateTab(tabId, { title });
+        const shouldApply = applyBroadcastTitle(tab, url, title, 'http', titleSourceRef.get(tabId));
+        browserUpdateTab(tabId, { title: shouldApply ? title : tab.title });
       } else {
         const isHistoryEntry = state.browserHistory.some((h) => h.id === tabId);
         if (isHistoryEntry) {
           browserUpdateHistoryTitle(url, title);
         }
-      }
-
-      if (meta?.title || meta?.faviconDataUri) {
-        const existing = getCachedSiteMeta(url);
-        const faviconUrl = shouldReplaceFavicon(
-          existingFaviconBaseline(existing),
-          meta.favicon ?? '',
-        )
-          ? (meta.favicon ?? '')
-          : (existing?.faviconUrl ?? '');
-        setCachedSiteMeta(
-          url,
-          buildCachedSiteMetaEntry(
-            meta.title || '',
-            faviconUrl,
-            meta.faviconDataUri || '',
-            existing,
-          ),
-        );
+        // 书签快照：仅占位标题时覆盖（服务端广播也会经 Task 9 落地，此处为兜底直连）
+        // 注：扁平 browserBookmarks（{url,title}）无 tabId，带 tabId 的快照存于
+        // browserTabFolders[].tabs / browserWorkspaceBookmarks[]，故由此定位并走
+        // browserUpdateSavedBookmark（brief 原 `bm.tabId` 写法在类型上不存在，无法编译）。
+        const bmSnapshot =
+          state.browserTabFolders.flatMap((f) => f.tabs ?? []).find((t) => t.url === url) ??
+          Object.values(state.browserWorkspaceBookmarks)
+            .flat()
+            .find((e) => e.url === url);
+        if (bmSnapshot && isPlaceholderTitle(bmSnapshot.title, url)) {
+          state.browserUpdateSavedBookmark(bmSnapshot.tabId, { title, url: bmSnapshot.url });
+        }
       }
     },
     [browserUpdateTab, browserUpdateHistoryTitle],

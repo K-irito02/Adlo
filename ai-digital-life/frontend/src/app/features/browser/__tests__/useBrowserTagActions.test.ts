@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { prefetchPageMeta } from '@utils/fetchPageMeta';
+import { pageMetaClient } from '@utils/pageMetaClient';
 import * as siteMetaCache from '@utils/siteMetaCache';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { useBrowserTagActions } from '../useBrowserTagActions';
 
-vi.mock('@utils/fetchPageMeta', () => ({
-  prefetchPageMeta: vi.fn(),
+vi.mock('@utils/pageMetaClient', () => ({
+  pageMetaClient: { refresh: vi.fn() },
 }));
 
 function makeTab(id: string, url: string, title = 'Old'): BrowserTabState {
@@ -23,9 +23,9 @@ function makeTab(id: string, url: string, title = 'Old'): BrowserTabState {
   };
 }
 
-describe('useBrowserTagActions refresh write gate', () => {
+describe('useBrowserTagActions refresh no longer writes site-meta cache', () => {
   beforeEach(async () => {
-    vi.mocked(prefetchPageMeta).mockReset();
+    vi.mocked(pageMetaClient.refresh).mockReset();
     siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
     await siteMetaCache.initSiteMetaCache();
     useAppStore.setState({
@@ -37,7 +37,7 @@ describe('useBrowserTagActions refresh write gate', () => {
     });
   });
 
-  it('force-refresh that fails to re-download bytes preserves cached dataUri and does NOT downgrade a high-quality faviconUrl', async () => {
+  it('refresh preserves the cached entry (title/dataUri/faviconUrl untouched — no direct write)', async () => {
     siteMetaCache.setCachedSiteMeta('https://refresh.example', {
       title: 'Old',
       faviconUrl: 'https://x.com/big.png',
@@ -48,7 +48,7 @@ describe('useBrowserTagActions refresh write gate', () => {
       nextRetryAt: 0,
       failCount: 0,
     });
-    vi.mocked(prefetchPageMeta).mockResolvedValue({
+    vi.mocked(pageMetaClient.refresh).mockResolvedValue({
       title: 'X',
       favicon: 'https://x.com/new.ico',
       faviconDataUri: '',
@@ -60,7 +60,7 @@ describe('useBrowserTagActions refresh write gate', () => {
     });
     const entry = siteMetaCache.getCachedSiteMeta('https://refresh.example')!;
     expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
-    expect(entry.title).toBe('X');
+    expect(entry.title).toBe('Old');
     expect(entry.faviconUrl).toBe('https://x.com/big.png');
   });
 
@@ -78,7 +78,7 @@ describe('useBrowserTagActions refresh write gate', () => {
     useAppStore.setState({
       browserTabs: [makeTab('tab1', 'https://refresh-empty.example')],
     });
-    vi.mocked(prefetchPageMeta).mockResolvedValue({
+    vi.mocked(pageMetaClient.refresh).mockResolvedValue({
       title: '',
       favicon: '',
       faviconDataUri: '',
@@ -108,7 +108,7 @@ describe('useBrowserTagActions refresh write gate', () => {
     useAppStore.setState({
       browserTabs: [makeTab('tab1', 'https://refresh-datauri-only.example')],
     });
-    vi.mocked(prefetchPageMeta).mockResolvedValue({
+    vi.mocked(pageMetaClient.refresh).mockResolvedValue({
       title: 'X',
       favicon: 'https://refresh-datauri-only.example/favicon.ico',
       faviconDataUri: '',
@@ -121,6 +121,66 @@ describe('useBrowserTagActions refresh write gate', () => {
     const entry = siteMetaCache.getCachedSiteMeta('https://refresh-datauri-only.example')!;
     expect(entry.faviconUrl).toBe('');
     expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
+  });
+});
+
+describe('useBrowserTagActions refresh bookmark snapshot sync', () => {
+  beforeEach(async () => {
+    vi.mocked(pageMetaClient.refresh).mockReset();
+    useAppStore.setState({
+      browserTabs: [],
+      browserHistory: [],
+      browserTabFolders: [
+        {
+          id: 'f1',
+          name: 'F',
+          createdAt: 0,
+          tabs: [{ tabId: 'tabX', url: 'https://x.com/', title: 'x.com' }],
+        },
+      ],
+      browserWorkspaceBookmarks: {},
+      browserBookmarks: [],
+    });
+  });
+
+  it('refresh updates bookmark snapshot title when placeholder', async () => {
+    vi.mocked(pageMetaClient.refresh).mockResolvedValue({
+      title: '真实标题',
+      favicon: '',
+      faviconDataUri: '',
+      url: 'https://x.com/',
+    });
+    const { result } = renderHook(() => useBrowserTagActions());
+    await act(async () => {
+      await result.current.handleRefreshTab('tabX', 'https://x.com/');
+    });
+    const folder = useAppStore.getState().browserTabFolders.find((f) => f.id === 'f1')!;
+    expect(folder.tabs![0].title).toBe('真实标题');
+  });
+
+  it('refresh keeps custom bookmark title', async () => {
+    useAppStore.setState({
+      browserTabFolders: [
+        {
+          id: 'f1',
+          name: 'F',
+          createdAt: 0,
+          tabs: [{ tabId: 'tabX', url: 'https://x.com/', title: '我的书签' }],
+        },
+      ],
+    });
+    vi.mocked(pageMetaClient.refresh).mockResolvedValue({
+      title: '真实标题',
+      favicon: '',
+      faviconDataUri: '',
+      url: 'https://x.com/',
+    });
+    const { result } = renderHook(() => useBrowserTagActions());
+    await act(async () => {
+      await result.current.handleRefreshTab('tabX', 'https://x.com/');
+    });
+    const folder = useAppStore.getState().browserTabFolders.find((f) => f.id === 'f1')!;
+    expect(folder.tabs![0].title).toBe('我的书签');
   });
 });
 

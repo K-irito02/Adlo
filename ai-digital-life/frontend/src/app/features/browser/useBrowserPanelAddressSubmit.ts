@@ -2,8 +2,8 @@ import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction 
 import { useAppStore } from '@stores/slicedStore';
 import { findInBrowserLookupIndex } from './useBrowserSearch';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
-import type { MetaSource } from './useBrowserPageMeta';
-import type { PageMeta } from '@shared/ipc/browser';
+import type { MetaSource, PageMeta } from '@shared/ipc/browser';
+import { pageMetaClient } from '@utils/pageMetaClient';
 
 interface UseBrowserPanelAddressSubmitParams {
   address: string;
@@ -101,22 +101,20 @@ export function useBrowserPanelAddressSubmit({
     }
 
     if (!useAppStore.getState().isTauri && finalUrl) {
-      import('@utils/fetchPageMeta').then((mod) => {
-        mod.fetchPageMeta(finalUrl).then((meta) => {
-          if (!meta) {
-            useAppStore.getState().browserAddToHistory(finalUrl, finalUrl);
-            return;
-          }
-          handlePageMeta(
-            {
-              title: meta.title || finalUrl,
-              favicon: meta.favicon || '',
-              faviconDataUri: meta.faviconDataUri || '',
-              url: finalUrl,
-            },
-            'http',
-          );
-        });
+      pageMetaClient.get(finalUrl).then((meta) => {
+        if (!meta) {
+          useAppStore.getState().browserAddToHistory(finalUrl, finalUrl);
+          return;
+        }
+        handlePageMeta(
+          {
+            title: meta.title || finalUrl,
+            favicon: meta.favicon || '',
+            faviconDataUri: meta.faviconDataUri || '',
+            url: finalUrl,
+          },
+          'http',
+        );
       });
     }
   }, [

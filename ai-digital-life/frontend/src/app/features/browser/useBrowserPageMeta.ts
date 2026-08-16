@@ -5,11 +5,6 @@ import { applyBroadcastUpdate, getCachedTitle } from '@utils/siteMetaCache';
 import type { PageMeta, PageMetaUpdatedPayload, MetaSource } from '@shared/ipc/browser';
 import { normalizedQueryForDedup } from '@utils/browserDisplayUtils';
 
-// 共享类型收敛（Task 6 注：Task 9 收敛 MetaSource 至 @shared/ipc/browser）。
-// 仍保留导出：useBrowserUrlChange.ts / useBrowserPanelAddressSubmit.ts（Task 10 迁移）
-// 目前从此模块导入 MetaSource；Task 10 迁移后可移除本重导出。
-export type { MetaSource } from '@shared/ipc/browser';
-
 export const titleSourceRef = new Map<string, MetaSource>();
 
 export function isPlaceholderTitle(title: string, url: string): boolean {

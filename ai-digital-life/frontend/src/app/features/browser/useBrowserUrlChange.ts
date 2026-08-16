@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
-import type { PageMeta } from '@shared/ipc/browser';
-import { fetchPageMeta, prefetchPageMeta } from '@utils/fetchPageMeta';
-import type { MetaSource } from './useBrowserPageMeta';
+import type { MetaSource, PageMeta } from '@shared/ipc/browser';
+import { pageMetaClient } from '@utils/pageMetaClient';
 import { useAppStore } from '@stores';
 import { normalizeUrlForCompare, isProbablySameSite } from './browserUrlUtils';
 import { historyDedupKey } from '@utils/browserDisplayUtils';
@@ -96,7 +95,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         } catch {
           /* cross-origin: navigate without title, fetch via proxy */
           browserNavigateActiveTab(href);
-          fetchPageMeta(href).then((meta) => {
+          pageMetaClient.get(href).then((meta) => {
             if (!meta) {
               const s = useAppStore.getState();
               s.browserAddToHistory(href, href);
@@ -143,7 +142,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         }
       } catch {
         /* cross-origin: fetch via proxy */
-        fetchPageMeta(href).then((meta) => {
+        pageMetaClient.get(href).then((meta) => {
           if (!meta) {
             return;
           }
@@ -274,13 +273,10 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         // correct title+icon are shown atomically.
 
         // Always fetch real page title via HTTP (same-site and cross-site).
-        const MAX_RETRIES = 1;
-        const RETRY_INTERVAL = 5000;
         const PREFETCH_KEY = 'prefetch-' + normalizedUrl;
-        let retryCount = 0;
 
         const tryPrefetch = (): void => {
-          prefetchPageMeta(normalizedUrl).then((meta) => {
+          pageMetaClient.get(normalizedUrl).then((meta) => {
             if (captureGeneration !== navigationGenerationRef.current) {
               return;
             }
@@ -296,11 +292,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
               fallbackTimeoutsRef.current.delete(normalizedUrl);
             }
             if (!meta?.title) {
-              retryCount++;
-              if (retryCount < MAX_RETRIES) {
-                const retryTimerId = setTimeout(tryPrefetch, RETRY_INTERVAL);
-                fallbackTimeoutsRef.current.set(PREFETCH_KEY, retryTimerId);
-              }
+              // 失败重试由服务端 SWR/失败处理承担（Task 10 移除前端重试）
               return;
             }
             onPageMeta?.(

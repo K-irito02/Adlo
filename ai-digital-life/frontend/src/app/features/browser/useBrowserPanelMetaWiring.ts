@@ -1,7 +1,6 @@
 import type { BrowserTabState } from '@stores/slices/browserSlice';
-import type { PageMeta } from '@shared/ipc/browser';
+import type { MetaSource, PageMeta } from '@shared/ipc/browser';
 import { useBrowserPageMeta } from './useBrowserPageMeta';
-import type { MetaSource } from './useBrowserPageMeta';
 import { useBrowserMetaSubscription } from './useBrowserMetaSubscription';
 import { useBrowserUrlChange } from './useBrowserUrlChange';
 
