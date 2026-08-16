@@ -10,6 +10,8 @@ import * as ciModule from './ci';
 import * as logging from './logging';
 import * as gitVis from './gitVisualization';
 import * as siteMetaCache from './siteMetaCache';
+import { createPreviewPageMetaService } from './pageMetaService';
+import type { MetaSource } from '../../src/shared/ipc/browser';
 
 export { git, files, search, ciModule as ci, logging };
 export * from './git';
@@ -22,6 +24,9 @@ export * from './mcp';
 const API_PREFIX = '/__adl_preview_api__';
 
 let ciAccessToken: string = '';
+
+// 预览模式 PageMeta 服务单例（baseDir 与既有 site-meta-cache 路由的默认一致）。
+const pageMetaSvc = createPreviewPageMetaService({ baseDir: process.cwd() });
 
 const WIN_SYSTEM_DIRS =
   process.platform === 'win32'
@@ -525,6 +530,43 @@ const routes: Route[] = [
       if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
       const data = await gitVis.handleFileHotspots(rootPath, since, until);
       return ok(data);
+    },
+  },
+  {
+    method: 'POST', pathname: makePath('/browser/page-meta/get'),
+    handler: async (_req, body) => {
+      const b = body as { url?: string; force?: boolean } | undefined;
+      if (!b?.url) return fail('url is required', 'INVALID_INPUT');
+      return ok(await pageMetaSvc.get(b.url, b.force));
+    },
+  },
+  {
+    method: 'POST', pathname: makePath('/browser/page-meta/report'),
+    handler: async (_req, body) => {
+      const b = body as { url?: string; title?: string; favicon?: string; source?: string } | undefined;
+      if (!b?.url) return fail('url is required', 'INVALID_INPUT');
+      return ok(
+        await pageMetaSvc.report(b.url, b.title ?? '', b.favicon ?? '', (b.source ?? '') as MetaSource),
+      );
+    },
+  },
+  {
+    method: 'POST', pathname: makePath('/browser/page-meta/refresh'),
+    handler: async (_req, body) => {
+      const b = body as { url?: string } | undefined;
+      if (!b?.url) return fail('url is required', 'INVALID_INPUT');
+      return ok(await pageMetaSvc.get(b.url, true));
+    },
+  },
+  {
+    method: 'POST', pathname: makePath('/browser/page-meta/warmup'),
+    handler: async (_req, body) => {
+      const b = body as { urls?: unknown } | undefined;
+      if (!Array.isArray(b?.urls) || b.urls.some((u) => typeof u !== 'string')) {
+        return fail('urls is required', 'INVALID_INPUT');
+      }
+      await pageMetaSvc.warmup(b.urls as string[]);
+      return ok(true);
     },
   },
   {

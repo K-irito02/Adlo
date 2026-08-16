@@ -4,8 +4,8 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import { handlePreviewWorkspaceApi, isPreviewWorkspaceApiRequest } from "./dev/previewWorkspaceService";
 import { setupPreviewTerminalWs } from "./dev/previewTerminalService";
-import { USER_AGENT } from "./src/shared/userAgent";
 import { pageMetaGateAllows } from "./dev/previewCrawlerGate";
+import { fetchPageMetaOnce } from "./dev/previewFetchPageMeta";
 
 let visualizerPlugin = null;
 if (process.env.BUILD_ANALYZE === "true") {
@@ -84,7 +84,10 @@ export default defineConfig({
             }
             return;
           }
-          if (req.url?.includes('/__adl_preview_api__/browser/page-meta')) {
+          // 仅精确匹配遗留 GET 端点 /__adl_preview_api__/browser/page-meta；
+          // /browser/page-meta/get|report|refresh|warmup 等 POST 路由交给
+          // handlePreviewWorkspaceApi 处理（pageMetaService.ts）。
+          if (req.url && new URL(req.url, 'http://localhost').pathname === '/__adl_preview_api__/browser/page-meta') {
             const searchParams = new URL(req.url, 'http://localhost').searchParams;
             const targetUrl = searchParams.get('url');
             if (!targetUrl) {
@@ -101,80 +104,11 @@ export default defineConfig({
               return;
             }
             try {
-              const controller = new AbortController();
-              const timeout = setTimeout(() => controller.abort(), 5000);
-              const response = await fetch(targetUrl, {
-                signal: controller.signal,
-                redirect: 'follow',
-                headers: {
-                  'User-Agent': USER_AGENT,
-                  'Accept': 'text/html,application/xhtml+xml',
-                },
-              });
-              clearTimeout(timeout);
-
-              const html = await response.text().then((t: string) => t.slice(0, 65536));
-              const origin = new URL(targetUrl).origin;
-
-              const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-              let title = titleMatch?.[1]?.trim() || '';
-              if (!title) {
-                const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i);
-                title = ogTitle?.[1]?.trim() || '';
-              }
-              title = title.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#x27;/g, "'");
-
-              const iconPatterns = [
-                /<link[^>]*rel=["']icon["'][^>]*sizes=["']any["'][^>]*href=["']([^"']+)["']/i,
-                /<link[^>]*rel=["']icon["'][^>]*type=["']image\/svg\+xml["'][^>]*href=["']([^"']+)["']/i,
-                /<link[^>]*rel=["']icon["'][^>]*href=["']([^"']+)["']/i,
-                /<link[^>]*rel=["']shortcut icon["'][^>]*href=["']([^"']+)["']/i,
-                /<link[^>]*rel=["']apple-touch-icon["'][^>]*href=["']([^"']+)["']/i,
-              ];
-              let favicon = '';
-              for (const pattern of iconPatterns) {
-                const m = html.match(pattern);
-                if (m) { favicon = m[1]; break; }
-              }
-              if (favicon) {
-                favicon = favicon.startsWith('//') ? `https:${favicon}` :
-                  favicon.startsWith('http') ? favicon :
-                  `${origin}${favicon.startsWith('/') ? '' : '/'}${favicon}`;
-              } else {
-                favicon = `${origin}/favicon.ico`;
-              }
-
-              let faviconDataUri = '';
-              if (
-                favicon &&
-                (favicon.startsWith('http://') || favicon.startsWith('https://')) &&
-                (await pageMetaGateAllows(favicon, undefined, undefined, { rateLimit: false }))
-              ) {
-                try {
-                  const iconController = new AbortController();
-                  const iconTimeout = setTimeout(() => iconController.abort(), 5000);
-                  const iconResp = await fetch(favicon, { signal: iconController.signal, headers: { 'User-Agent': USER_AGENT } });
-                  clearTimeout(iconTimeout);
-                  if (iconResp.ok) {
-                    const declared = Number(iconResp.headers.get('content-length'));
-                    if (declared && declared > 64 * 1024) {
-                      faviconDataUri = '';
-                    } else {
-                      const buf = await iconResp.arrayBuffer();
-                      if (buf.byteLength > 0 && buf.byteLength <= 64 * 1024) {
-                        const contentType = iconResp.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() ?? '';
-                        if (contentType.startsWith('image/')) {
-                          faviconDataUri = `data:${contentType};base64,${Buffer.from(buf).toString('base64')}`;
-                        }
-                      }
-                    }
-                  }
-                } catch { faviconDataUri = ''; }
-              }
-
+              // 共享抓取：HTML 解析 + 图标回退链 + dataUri 下载（内部含 favicon robots-only 门控）。
+              const meta = await fetchPageMetaOnce(targetUrl);
               res.setHeader('Content-Type', 'application/json; charset=utf-8');
               res.statusCode = 200;
-              res.end(JSON.stringify({ title, favicon, faviconDataUri, url: targetUrl }));
+              res.end(JSON.stringify(meta));
             } catch {
               res.setHeader('Content-Type', 'application/json; charset=utf-8');
               res.statusCode = 200;
