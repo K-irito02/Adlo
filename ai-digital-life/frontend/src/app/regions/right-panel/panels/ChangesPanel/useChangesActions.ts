@@ -166,8 +166,14 @@ export function useChangesActions(params: UseChangesActionsParams) {
   );
 
   const onRefreshAll = useCallback(() => {
-    refreshAllChanges(visibleWorkspaces, (id, p) =>
-      useAppStore.getState().refreshGitSnapshot(id, p),
+    const s = useAppStore.getState();
+    void refreshAllChanges(
+      visibleWorkspaces,
+      new Set(
+        Object.keys(s.workspaceChangesExpanded).filter((id) => s.workspaceChangesExpanded[id]),
+      ),
+      s.setRefreshingAllChanges,
+      (id, p, opts) => s.refreshGitSnapshot(id, p, opts),
     );
   }, [visibleWorkspaces]);
 

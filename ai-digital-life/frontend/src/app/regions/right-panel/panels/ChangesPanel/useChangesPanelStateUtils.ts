@@ -373,7 +373,7 @@ export function toggleWorkspaceExpand(
 export function refreshOneWorkspace(
   workspaceId: string,
   recentWorkspaces: RecentWorkspaceEntry[],
-  refreshGitSnapshot: (id: string, path: string) => void,
+  refreshGitSnapshot: (id: string, path: string, options?: { silent?: boolean }) => void,
 ): void {
   const ws = recentWorkspaces.find((w) => w.id === workspaceId);
   if (ws) {
@@ -381,13 +381,21 @@ export function refreshOneWorkspace(
   }
 }
 
-export function refreshAllChanges(
+export async function refreshAllChanges(
   visibleWorkspaces: RecentWorkspaceEntry[],
-  refreshGitSnapshot: (id: string, path: string) => void,
-): void {
-  visibleWorkspaces.forEach((ws) => {
-    refreshGitSnapshot(ws.id, ws.path);
-  });
+  expandedWorkspaceIds: ReadonlySet<string>,
+  setRefreshingAll: (refreshing: boolean) => void,
+  refreshGitSnapshot: (id: string, path: string, options?: { silent?: boolean }) => void,
+): Promise<void> {
+  const targets = visibleWorkspaces.filter((ws) => expandedWorkspaceIds.has(ws.id));
+  if (targets.length === 0) {
+    return;
+  }
+  setRefreshingAll(true);
+  await Promise.allSettled(
+    targets.map((ws) => refreshGitSnapshot(ws.id, ws.path, { silent: true })),
+  );
+  setRefreshingAll(false);
 }
 
 export function handleChangesRenameConfirm(
