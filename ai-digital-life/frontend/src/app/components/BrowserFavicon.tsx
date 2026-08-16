@@ -17,6 +17,9 @@ interface BrowserFaviconProps {
 export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const [ready, setReady] = useState(isSiteMetaCacheReady());
   const [faviconUrl, setFaviconUrl] = useState('');
+  // 渲染降级状态（React 驱动，避免 DOM 直接操作导致 display:none 残留）：
+  // 真实图标与 Google S2 均加载失败时置 true → 显示内置占位图标；新图标到来时重置
+  const [degraded, setDegraded] = useState(false);
 
   useEffect(() => {
     void initSiteMetaCache();
@@ -27,34 +30,34 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
 
   useEffect(() => {
     setFaviconUrl(url ? getFaviconUrl(url) : '');
+    setDegraded(false);
     if (!url) return;
     const unsubMeta = subscribeSiteMeta(url, () => setFaviconUrl(getFaviconUrl(url)));
     const unsubUpdated = pageMetaClient.subscribeUpdated((p) => {
-      if (p.url === url) setFaviconUrl(getFaviconUrl(url));
+      if (p.url === url) {
+        setFaviconUrl(getFaviconUrl(url));
+        setDegraded(false);
+      }
     });
     return () => { unsubMeta(); unsubUpdated(); };
   }, [url, ready]);
 
   // 未命中/未就绪：显示占位图标（非空白）
   const current = faviconUrl;
+  const showImg = Boolean(current) && !degraded;
   const handleError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    // 本次降级显示：切换到 Google S2 或隐藏 img 显示内置图标；绝不删缓存
+    // 本次降级显示：先切 Google S2；再失败则置 degraded（显示内置图标）。绝不删缓存
     const img = e.target as HTMLImageElement;
     if (!img.src.includes('google.com/s2/favicons')) {
       const fallback = getGoogleFaviconUrl(url);
       if (fallback) { img.src = fallback; return; }
     }
-    img.style.display = 'none';
-    const parent = img.parentElement;
-    if (parent) {
-      parent.classList.remove('adl-filetree__file-icon--favicon');
-      parent.classList.add('adl-filetree__file-icon--default');
-    }
+    setDegraded(true);
   }, [url]);
 
   return (
-    <span className={`adl-filetree__file-icon ${current ? 'adl-filetree__file-icon--favicon' : 'adl-filetree__file-icon--default'}`}>
-      {current && (
+    <span className={`adl-filetree__file-icon ${showImg ? 'adl-filetree__file-icon--favicon' : 'adl-filetree__file-icon--default'}`}>
+      {showImg && (
         <img
           src={current}
           alt=""
@@ -67,7 +70,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
         size={size}
         decorative
         className="adl-browser-tree__link-fallback"
-        style={current ? { display: 'none' } : undefined}
+        style={showImg ? { display: 'none' } : undefined}
       />
     </span>
   );
