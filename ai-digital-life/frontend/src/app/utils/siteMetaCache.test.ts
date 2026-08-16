@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { SiteMetaBackend, SiteMetaCacheEntry } from './siteMetaBackends/types';
+import type { SiteMetaBackend } from './siteMetaBackends/types';
 
 const FAVICON_MAX_DATA_URI_LEN = Math.ceil((64 * 1024 * 4) / 3);
 
@@ -13,7 +13,7 @@ describe('siteMetaCache memory layer', () => {
     const mod = await import('./siteMetaCache');
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
-    mod.setCachedSiteMeta('https://a.com', {
+    mod.__mirrorUpsertForTest('https://a.com', {
       title: 'A',
       faviconUrl: 'https://a.com/favicon.ico',
       faviconDataUri: 'data:image/png;base64,AA',
@@ -31,7 +31,7 @@ describe('siteMetaCache memory layer', () => {
     const mod = await import('./siteMetaCache');
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
-    mod.setCachedSiteMeta('https://a.com', {
+    mod.__mirrorUpsertForTest('https://a.com', {
       title: 'A',
       faviconUrl: '',
       faviconDataUri: 'data:x;base64,AA',
@@ -58,7 +58,7 @@ describe('siteMetaCache memory layer', () => {
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
     const big = 'data:image/png;base64,' + 'x'.repeat(FAVICON_MAX_DATA_URI_LEN + 1);
-    mod.setCachedSiteMeta('https://a.com', {
+    mod.__mirrorUpsertForTest('https://a.com', {
       title: 'A'.repeat(500),
       faviconUrl: '',
       faviconDataUri: big,
@@ -80,7 +80,7 @@ describe('siteMetaCache memory layer', () => {
     // ~70KB of base64 chars ≈ 52KB binary — under the Rust 64KB binary cap, so
     // the frontend clamp must NOT drop it (old 64KB-char cap did).
     const mid = 'data:image/png;base64,' + 'x'.repeat(70 * 1024);
-    mod.setCachedSiteMeta('https://a.com', {
+    mod.__mirrorUpsertForTest('https://a.com', {
       title: 'A',
       faviconUrl: '',
       faviconDataUri: mid,
@@ -93,7 +93,7 @@ describe('siteMetaCache memory layer', () => {
     expect(mod.getCachedSiteMeta('https://a.com')!.faviconDataUri).toBe(mid);
   });
 
-  it('subscribe fires on set for matching url', async () => {
+  it('subscribe fires on mirror upsert for matching url', async () => {
     const mod = await import('./siteMetaCache');
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
@@ -101,7 +101,7 @@ describe('siteMetaCache memory layer', () => {
     mod.subscribeSiteMeta('https://a.com', () => {
       fired++;
     });
-    mod.setCachedSiteMeta('https://a.com', {
+    mod.__mirrorUpsertForTest('https://a.com', {
       title: 'A',
       faviconUrl: '',
       faviconDataUri: '',
@@ -120,11 +120,11 @@ describe('siteMetaCache memory layer', () => {
     expect(mod.normalizeUrlForCache('https://a.com/path/')).toBe('https://a.com/path');
   });
 
-  it('write path: successful fetch stores full entry (title/faviconUrl/faviconDataUri/fetchedAt)', async () => {
+  it('mirror upsert stores full entry (title/faviconUrl/faviconDataUri/fetchedAt)', async () => {
     const mod = await import('./siteMetaCache');
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
-    mod.setCachedSiteMeta('https://x.com', {
+    mod.__mirrorUpsertForTest('https://x.com', {
       title: 'X',
       faviconUrl: 'https://x.com/favicon.ico',
       faviconDataUri: 'data:image/png;base64,AAA',
@@ -146,11 +146,11 @@ describe('siteMetaCache memory layer', () => {
     });
   });
 
-  it('write path: empty faviconDataUri still caches title + faviconUrl (render falls back to faviconUrl)', async () => {
+  it('mirror upsert with empty faviconDataUri still caches title + faviconUrl (render falls back to faviconUrl)', async () => {
     const mod = await import('./siteMetaCache');
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
-    mod.setCachedSiteMeta('https://x.com', {
+    mod.__mirrorUpsertForTest('https://x.com', {
       title: 'X',
       faviconUrl: 'https://x.com/favicon.ico',
       faviconDataUri: '',
@@ -181,7 +181,7 @@ describe('siteMetaCache memory layer', () => {
       },
     });
     mod.setSiteMetaBackendForTest(backend);
-    mod.setCachedSiteMeta('https://m.com', {
+    mod.__mirrorUpsertForTest('https://m.com', {
       title: 'M',
       faviconUrl: '',
       faviconDataUri: '',
@@ -219,134 +219,56 @@ describe('siteMetaCache memory layer', () => {
     expect(entry.title).toBe('P');
   });
 
-  it('flushPersist keeps a concurrent write made during an in-flight upsert', async () => {
-    vi.useFakeTimers();
+  it('mirror updates from pageMetaClient broadcast without backend writes', async () => {
     const mod = await import('./siteMetaCache');
-    const key = mod.normalizeUrlForCache('https://h1.example');
-    const store = new Map<string, SiteMetaCacheEntry>();
-    let upsertCalls = 0;
-    let resolveUpsert: (() => void) | undefined;
-    const backend: SiteMetaBackend = {
-      getAll: async () => Object.fromEntries(store.entries()),
-      upsert: async (entries) => {
-        upsertCalls++;
-        if (upsertCalls === 1) {
-          await new Promise<void>((resolve) => {
-            resolveUpsert = resolve;
-          });
-        }
-        for (const [url, entry] of Object.entries(entries)) {
-          store.set(url, entry);
-        }
-      },
-      remove: async () => {},
-      clear: async () => {},
-    };
-    mod.setSiteMetaBackendForTest(backend);
+    mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
-    mod.setCachedSiteMeta(key, {
+    mod.__mirrorUpsertForTest('https://a.com/', {
       title: 'A',
+      titleSource: 'http',
       faviconUrl: '',
       faviconDataUri: '',
       fetchedAt: 1,
-      titleSource: '',
-      lastOkAt: 0,
+      lastOkAt: 1,
       nextRetryAt: 0,
       failCount: 0,
     });
-    await vi.advanceTimersByTimeAsync(500);
-    mod.setCachedSiteMeta(key, {
-      title: 'B',
-      faviconUrl: '',
-      faviconDataUri: '',
-      fetchedAt: 2,
-      titleSource: '',
-      lastOkAt: 0,
-      nextRetryAt: 0,
-      failCount: 0,
-    });
-    resolveUpsert!();
-    await vi.advanceTimersByTimeAsync(500);
-    vi.useRealTimers();
-    expect(store.get(key)?.title).toBe('B');
+    expect(mod.getCachedTitle('https://a.com/')).toBe('A');
   });
 
-  it('remove scheduled during an in-flight upsert is not resurrected by that upsert (flushes serialized)', async () => {
-    vi.useFakeTimers();
+  it('applyBroadcastUpdate mirrors the server payload and notifies subscribers', async () => {
     const mod = await import('./siteMetaCache');
-    const key = mod.normalizeUrlForCache('https://interleave-remove.example');
-    const store = new Map<string, SiteMetaCacheEntry>();
-    let resolveUpsert: (() => void) | undefined;
-    let upsertStarted = false;
-    const backend: SiteMetaBackend = {
-      getAll: async () => Object.fromEntries(store.entries()),
-      upsert: async (entries) => {
-        if (!upsertStarted) {
-          upsertStarted = true;
-          await new Promise<void>((resolve) => {
-            resolveUpsert = resolve;
-          });
-        }
-        for (const [url, entry] of Object.entries(entries)) {
-          store.set(url, entry);
-        }
-      },
-      remove: async (urls) => {
-        for (const url of urls) {
-          store.delete(url);
-        }
-      },
-      clear: async () => {},
-    };
-    mod.setSiteMetaBackendForTest(backend);
+    mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
-    mod.setCachedSiteMeta(key, {
-      title: 'A',
-      faviconUrl: '',
-      faviconDataUri: '',
-      fetchedAt: 1,
-      titleSource: '',
-      lastOkAt: 0,
-      nextRetryAt: 0,
-      failCount: 0,
+    let fired = 0;
+    mod.subscribeSiteMeta('https://b.com', () => {
+      fired++;
     });
-    await vi.advanceTimersByTimeAsync(500);
-    // Remove lands while flush1's upsert is still in flight. With unsynchronized
-    // concurrent flushes, flush2's remove can complete first and flush1's slow
-    // upsert then resurrects A in the backend. Serialized flushes must run the
-    // remove AFTER the in-flight upsert.
-    mod.removeCachedSiteMeta(key);
-    await vi.advanceTimersByTimeAsync(500);
-    resolveUpsert!();
-    await vi.advanceTimersByTimeAsync(0);
-    expect(store.has(key)).toBe(false);
-    expect(store.get(key)).toBeUndefined();
-    vi.useRealTimers();
+    mod.applyBroadcastUpdate({
+      url: 'https://b.com/',
+      title: 'B',
+      faviconUrl: 'https://b.com/favicon.ico',
+      faviconDataUri: 'data:image/png;base64,BB',
+      source: 'http',
+    });
+    const entry = mod.getCachedSiteMeta('https://b.com')!;
+    expect(entry.title).toBe('B');
+    expect(entry.titleSource).toBe('http');
+    expect(entry.faviconUrl).toBe('https://b.com/favicon.ico');
+    expect(entry.faviconDataUri).toBe('data:image/png;base64,BB');
+    expect(entry.failCount).toBe(0);
+    expect(fired).toBe(1);
   });
 
-  it('failed backend upsert keeps the pending entry so the next flush retries', async () => {
-    vi.useFakeTimers();
+  it('setCachedSiteMeta/removeCachedSiteMeta do not persist to backend (write path removed)', async () => {
     const mod = await import('./siteMetaCache');
-    const key = mod.normalizeUrlForCache('https://retry.example');
-    const store = new Map<string, SiteMetaCacheEntry>();
-    let fail = true;
-    const backend: SiteMetaBackend = {
-      getAll: async () => Object.fromEntries(store.entries()),
-      upsert: async (entries) => {
-        if (fail) {
-          throw new Error('boom');
-        }
-        for (const [url, entry] of Object.entries(entries)) {
-          store.set(url, entry);
-        }
-      },
-      remove: async () => {},
-      clear: async () => {},
-    };
+    const backend: SiteMetaBackend = mod.createMockSiteMetaBackend();
+    const upsertSpy = vi.spyOn(backend, 'upsert');
+    const removeSpy = vi.spyOn(backend, 'remove');
     mod.setSiteMetaBackendForTest(backend);
     await mod.initSiteMetaCache();
-    mod.setCachedSiteMeta(key, {
-      title: 'A',
+    mod.setCachedSiteMeta('https://x.com', {
+      title: 'X',
       faviconUrl: '',
       faviconDataUri: '',
       fetchedAt: 1,
@@ -355,26 +277,16 @@ describe('siteMetaCache memory layer', () => {
       nextRetryAt: 0,
       failCount: 0,
     });
-    await vi.advanceTimersByTimeAsync(500);
-    expect(store.get(key)).toBeUndefined();
-    fail = false;
-    mod.setCachedSiteMeta(key, {
-      title: 'B',
-      faviconUrl: '',
-      faviconDataUri: '',
-      fetchedAt: 2,
-      titleSource: '',
-      lastOkAt: 0,
-      nextRetryAt: 0,
-      failCount: 0,
-    });
-    await vi.advanceTimersByTimeAsync(500);
-    vi.useRealTimers();
-    expect(store.get(key)?.title).toBe('B');
+    expect(upsertSpy).not.toHaveBeenCalled();
+    // mirror is still updated in memory
+    expect(mod.getCachedTitle('https://x.com')).toBe('X');
+    mod.removeCachedSiteMeta('https://x.com');
+    expect(removeSpy).not.toHaveBeenCalled();
+    expect(mod.getCachedSiteMeta('https://x.com')).toBeUndefined();
   });
 });
 
-describe('buildCachedSiteMetaEntry (write-path entry builder)', () => {
+describe('buildCachedSiteMetaEntry (entry builder)', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {}, removeItem: () => {} });

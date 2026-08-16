@@ -3,6 +3,7 @@ import type { SiteMetaBackend, SiteMetaCacheEntry } from './siteMetaBackends/typ
 import { tauriSiteMetaBackend } from './siteMetaBackends/tauri';
 import { previewSiteMetaBackend } from './siteMetaBackends/preview';
 import { createMockSiteMetaBackend } from './siteMetaBackends/mock';
+import type { PageMetaUpdatedPayload } from '../../shared/ipc/browser';
 
 export type { SiteMetaCacheEntry };
 export { createMockSiteMetaBackend };
@@ -26,7 +27,6 @@ export function normalizeUrlForCache(url: string): string {
 
 const FAVICON_MAX_DATA_URI_LEN = Math.ceil((64 * 1024 * 4) / 3);
 const TITLE_MAX_LEN = 200;
-const PERSIST_DEBOUNCE_MS = 500;
 
 const memoryCache = new Map<string, SiteMetaCacheEntry>();
 const urlListeners = new Map<string, Set<() => void>>();
@@ -35,10 +35,6 @@ const readyListeners = new Set<() => void>();
 
 let ready = false;
 let initPromise: Promise<void> | null = null;
-let persistTimer: ReturnType<typeof setTimeout> | null = null;
-let flushChain: Promise<void> = Promise.resolve();
-const pendingUpserts = new Map<string, SiteMetaCacheEntry>();
-const pendingRemoves = new Set<string>();
 
 let backend: SiteMetaBackend = isTauriShell() ? tauriSiteMetaBackend : previewSiteMetaBackend;
 
@@ -90,40 +86,14 @@ function notify(url: string): void {
   });
 }
 
-function schedulePersist(): void {
-  if (persistTimer) {
-    return;
-  }
-  persistTimer = setTimeout(() => {
-    persistTimer = null;
-    flushChain = flushChain.then(() => flushPersist()).catch(() => {});
-  }, PERSIST_DEBOUNCE_MS);
-}
-
-async function flushPersist(): Promise<void> {
-  if (pendingUpserts.size === 0 && pendingRemoves.size === 0) {
-    return;
-  }
-  const upserts = new Map(pendingUpserts);
-  const removes = [...pendingRemoves];
-  try {
-    if (upserts.size > 0) {
-      await backend.upsert(Object.fromEntries(upserts));
-      for (const [key, val] of upserts) {
-        if (pendingUpserts.get(key) === val) {
-          pendingUpserts.delete(key);
-        }
-      }
-    }
-    if (removes.length > 0) {
-      await backend.remove(removes);
-      for (const url of removes) {
-        pendingRemoves.delete(url);
-      }
-    }
-  } catch (err) {
-    console.warn('siteMetaCache: persist failed', err);
-  }
+/**
+ * 只读镜像写入口：clamp + 内存 set + notify。
+ * 写路径唯一在服务端 PageMetaService——本模块只维护镜像，不触碰后端持久化。
+ */
+function upsertMirror(key: string, entry: SiteMetaCacheEntry): void {
+  const clean = clamp(entry);
+  memoryCache.set(key, clean);
+  notify(key);
 }
 
 export async function initSiteMetaCache(): Promise<void> {
@@ -184,23 +154,45 @@ export function getCachedTitle(url: string): string {
   return memoryCache.get(normalizeUrlForCache(url))?.title ?? '';
 }
 
+/**
+ * 仅更新内存镜像（写路径唯一在服务端）。保留函数名以便 Task 9/10 迁移
+ * 前的调用点编译通过；生产代码不再通过它写后端。
+ */
 export function setCachedSiteMeta(url: string, entry: SiteMetaCacheEntry): void {
-  const key = normalizeUrlForCache(url);
-  const clean = clamp(entry);
-  memoryCache.set(key, clean);
-  pendingUpserts.set(key, clean);
-  pendingRemoves.delete(key);
-  notify(key);
-  schedulePersist();
+  upsertMirror(normalizeUrlForCache(url), entry);
 }
 
+/**
+ * 仅清理内存镜像。写/删路径唯一在服务端——生产路径不得调用本函数；
+ * 保留导出仅为 Task 8 重写 BrowserFavicon 前编译通过。
+ */
 export function removeCachedSiteMeta(url: string): void {
   const key = normalizeUrlForCache(url);
   memoryCache.delete(key);
-  pendingRemoves.add(key);
-  pendingUpserts.delete(key);
   notify(key);
-  schedulePersist();
+}
+
+/**
+ * 测试专用：模拟服务端广播写入镜像（等价于 applyBroadcastUpdate 的镜像效果）。
+ */
+export function __mirrorUpsertForTest(url: string, entry: SiteMetaCacheEntry): void {
+  upsertMirror(normalizeUrlForCache(url), entry);
+}
+
+/**
+ * 服务端 page-meta-updated 广播驱动镜像更新。
+ */
+export function applyBroadcastUpdate(payload: PageMetaUpdatedPayload): void {
+  upsertMirror(normalizeUrlForCache(payload.url), {
+    title: payload.title,
+    titleSource: payload.source,
+    faviconUrl: payload.faviconUrl,
+    faviconDataUri: payload.faviconDataUri,
+    fetchedAt: Date.now(),
+    lastOkAt: Date.now(),
+    nextRetryAt: 0,
+    failCount: 0,
+  });
 }
 
 export function subscribeSiteMeta(url: string, callback: () => void): () => void {
