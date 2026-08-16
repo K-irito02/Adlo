@@ -15,7 +15,7 @@
 | [ci-monitoring](./ci-monitoring/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离、数据缓存、Rate Limit 保护） | 6 |
 | [logging](./logging/) | 日志系统统一改造经验（OpenOptions 权限、ANSI 控制、FormatTime、MakeWriter 兼容、双端一致性） | 1 |
 | [tauri-backend](./tauri-backend/) | Tauri 命令性能、Rust 异步模式、主线程阻塞、serde JSON null vs 缺省 等后端经验 | 3 |
-| [toolchain](./toolchain/) | 开发工具链与环境配置经验（Git、Node、Rust 等） | 2 |
+| [toolchain](./toolchain/) | 开发工具链与环境配置经验（Git、Node、Rust 等） | 3 |
 
 说明：
 - 文件数超过 15 的目录按年月分子目录归档（如 `2026-06/`、`2026-07/`）
@@ -270,3 +270,4 @@
 |------|------|------|
 | [git-schannel-revocation-check-fix-2026-07-21.md](./toolchain/git-schannel-revocation-check-fix-2026-07-21.md) | 2026-07-21 git push 修复 | Git for Windows Schannel 证书吊销检查导致推送超时的根因与修复 |
 | [git-proxy-port-mismatch-fix-2026-07-30.md](./toolchain/git-proxy-port-mismatch-fix-2026-07-30.md) | 2026-07-30 git push 修复 | git 代理端口 7890 与 maoxiong-vpn 实际监听端口 17890 不一致导致推送失败 |
+| [tauri-dev-stale-exe-lock-2026-08-16.md](./toolchain/tauri-dev-stale-exe-lock-2026-08-16.md) | 2026-08-16 dev:tauri 修复 | Tauri dev 模式 Windows 残留进程锁定 exe 导致 Rust 修改不生效（根因、路径精确 kill、waitForUnlock、红绿测试方法） |
