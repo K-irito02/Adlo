@@ -8,11 +8,14 @@ use crate::commands::ipc;
 use crate::error::CommandError;
 use crate::state::AppState;
 use crate::webview_event_bridge::TauriWebView2EventBridge;
-use adl_browser::html_meta::{extract_favicon, extract_title, origin_favicon_fallback};
+use adl_browser::html_meta::{
+    duckduckgo_favicon_url, extract_favicon, extract_title, google_favicon_url,
+    origin_favicon_fallback,
+};
 use adl_browser::robots_policy::{DomainRateLimiter, RobotsCache, domain_of, is_private_url};
 use adl_browser::robots_txt::parse_robots_txt;
 use adl_browser::webview_handle::{Bounds, EventBridgeRef};
-use adl_browser::{PageMeta, webview_label};
+use adl_browser::{META_SOURCE_HTTP, PageMeta, PageMetaFetcher, webview_label};
 use adl_errors::AppError;
 use adl_types::IpcResult;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -199,25 +202,108 @@ pub fn browser_site_meta_get_all(
     Ok(ipc(state.browser_manager.site_meta_cache().get_all()))
 }
 
-#[tauri::command]
-pub fn browser_site_meta_upsert(
-    state: State<'_, AppState>,
-    entries: HashMap<String, adl_browser::SiteMetaCacheEntry>,
-) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.site_meta_cache().upsert(&entries)))
+struct AppFetcher;
+impl PageMetaFetcher for AppFetcher {
+    fn fetch(
+        &self,
+        url: &str,
+        force: bool,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>> {
+        // 借用无法跨 trait 返回的生命周期逃逸（返回值绑定在 &self 上），
+        // 故 future 持有 owned 拷贝，避免借用 url: &str。
+        let url = url.to_string();
+        Box::pin(async move {
+            fetch_page_meta_inner(&url, force).await.unwrap_or_else(|_| empty_page_meta(&url))
+        })
+    }
 }
 
 #[tauri::command]
-pub fn browser_site_meta_remove(
+pub async fn browser_page_meta_get(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    url: String,
+    force: Option<bool>,
+) -> Result<IpcResult<PageMeta>, CommandError> {
+    let svc = state.browser_manager.page_meta_service();
+    let meta = svc.get(&url, force.unwrap_or(false), &AppFetcher).await?;
+    emit_page_meta_updated(&app, &meta, META_SOURCE_HTTP);
+    Ok(ipc(Ok(meta)))
+}
+
+#[tauri::command]
+pub async fn browser_page_meta_report(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    url: String,
+    title: String,
+    favicon: String,
+    source: String,
+) -> Result<IpcResult<bool>, CommandError> {
+    let svc = state.browser_manager.page_meta_service();
+    let changed = svc.report(&url, &title, &favicon, &source).await?;
+    if changed {
+        if let Some(e) = svc.peek(&url) {
+            emit_page_meta_updated_raw(&app, &url, &e, &source);
+        }
+    }
+    Ok(ipc(Ok(changed)))
+}
+
+#[tauri::command]
+pub async fn browser_page_meta_refresh(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    url: String,
+) -> Result<IpcResult<PageMeta>, CommandError> {
+    let svc = state.browser_manager.page_meta_service();
+    let meta = svc.get(&url, true, &AppFetcher).await?;
+    emit_page_meta_updated(&app, &meta, META_SOURCE_HTTP);
+    Ok(ipc(Ok(meta)))
+}
+
+#[tauri::command]
+pub async fn browser_page_meta_warmup(
     state: State<'_, AppState>,
     urls: Vec<String>,
 ) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.site_meta_cache().remove(&urls)))
+    let svc = state.browser_manager.page_meta_service();
+    svc.warmup(&urls, &AppFetcher, 8).await?;
+    Ok(ipc(Ok(())))
 }
 
-#[tauri::command]
-pub fn browser_site_meta_clear(state: State<'_, AppState>) -> Result<IpcResult<()>, CommandError> {
-    Ok(ipc(state.browser_manager.site_meta_cache().clear()))
+fn emit_page_meta_updated(app: &tauri::AppHandle, meta: &PageMeta, source: &str) {
+    emit_page_meta_updated_raw(
+        app,
+        &meta.url,
+        &adl_browser::SiteMetaCacheEntry {
+            title: meta.title.clone(),
+            title_source: source.to_string(),
+            favicon_url: meta.favicon.clone(),
+            favicon_data_uri: meta.favicon_data_uri.clone(),
+            fetched_at: 0,
+            last_ok_at: 0,
+            next_retry_at: 0,
+            fail_count: 0,
+        },
+        source,
+    );
+}
+
+fn emit_page_meta_updated_raw(
+    app: &tauri::AppHandle,
+    url: &str,
+    e: &adl_browser::SiteMetaCacheEntry,
+    source: &str,
+) {
+    use tauri::Emitter;
+    let _ = app.emit(
+        "digital-life://page-meta-updated",
+        serde_json::json!({
+            "url": url, "title": e.title, "faviconUrl": e.favicon_url,
+            "faviconDataUri": e.favicon_data_uri, "source": source,
+        }),
+    );
 }
 
 #[tauri::command]
@@ -511,7 +597,13 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
         .take(200)
         .collect::<String>();
 
-    let final_favicon = favicon.unwrap_or_else(|| origin_favicon_fallback(url));
+    let final_favicon = match favicon.or_else(|| Some(origin_favicon_fallback(url))) {
+        Some(f) if !f.is_empty() => f,
+        _ => {
+            let ddg = duckduckgo_favicon_url(url);
+            if ddg.is_empty() { google_favicon_url(url) } else { ddg }
+        },
+    };
 
     let favicon_data_uri = if final_favicon.is_empty() {
         String::new()
@@ -636,5 +728,32 @@ mod robots_gate_tests {
         assert!(rate_limit_allowed("http://localhost:3000"));
         assert!(rate_limit_allowed("http://localhost:3000"));
         assert!(rate_limit_allowed("http://127.0.0.1/x"));
+    }
+}
+
+#[cfg(test)]
+mod page_meta_service_cmd_tests {
+    use super::*;
+    use adl_browser::html_meta::duckduckgo_favicon_url;
+
+    #[test]
+    fn fallback_chain_orders_ddg_before_google() {
+        let url = "https://example.com/page";
+        let ddg = duckduckgo_favicon_url(url);
+        assert!(ddg.contains("icons.duckduckgo.com/ip3/example.com.png"));
+        assert!(ddg < google_favicon_url(url), "DDG 必须在回退链中先于 Google S2");
+    }
+
+    #[test]
+    fn report_merge_keeps_http_title_over_com() {
+        // 命令层冒烟：browser_page_meta_report 走 PageMetaService::report 的
+        // 来源优先级决策 —— com 来源不得覆盖 http 权威标题。
+        assert!(!adl_browser::should_apply_exact_match_title(
+            "真实标题",
+            "https://example.com/",
+            "陈旧标题",
+            adl_browser::META_SOURCE_COM,
+            Some(adl_browser::META_SOURCE_HTTP)
+        ));
     }
 }

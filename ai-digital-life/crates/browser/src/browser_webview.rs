@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::browser_pool::BrowserPool;
+use crate::page_meta_service::PageMetaService;
 use crate::site_meta_cache::SiteMetaCacheStore;
 use crate::webview_handle::{Bounds, WebView2EventBridge, WebViewHandle};
 
@@ -48,16 +49,19 @@ pub struct BrowserManager {
     handles: Mutex<HashMap<String, Arc<dyn WebViewHandle>>>,
     current_color_scheme: Mutex<String>,
     site_meta_cache: Arc<SiteMetaCacheStore>,
+    page_meta_service: Arc<PageMetaService>,
 }
 
 impl Default for BrowserManager {
     fn default() -> Self {
+        let store =
+            SiteMetaCacheStore::open(std::env::temp_dir().as_path()).expect("in-memory store open");
         Self {
             pool: BrowserPool::new(DEFAULT_POOL_SIZE),
             handles: Mutex::new(HashMap::new()),
             current_color_scheme: Mutex::new("dark".to_string()),
-            site_meta_cache: SiteMetaCacheStore::open(std::env::temp_dir().as_path())
-                .expect("in-memory store open"),
+            site_meta_cache: store.clone(),
+            page_meta_service: Arc::new(PageMetaService::new(store)),
         }
     }
 }
@@ -68,12 +72,17 @@ impl BrowserManager {
             pool: BrowserPool::new(DEFAULT_POOL_SIZE),
             handles: Mutex::new(HashMap::new()),
             current_color_scheme: Mutex::new("dark".to_string()),
-            site_meta_cache: store,
+            site_meta_cache: store.clone(),
+            page_meta_service: Arc::new(PageMetaService::new(store)),
         }
     }
 
     pub fn site_meta_cache(&self) -> &Arc<SiteMetaCacheStore> {
         &self.site_meta_cache
+    }
+
+    pub fn page_meta_service(&self) -> &Arc<PageMetaService> {
+        &self.page_meta_service
     }
 
     pub fn set_site_meta_cache(&mut self, store: Arc<SiteMetaCacheStore>) {
