@@ -54,11 +54,24 @@
 - 结论：所有 medium 已关闭，剩余均为 low/信息性项（设计取舍/无害冗余/低风险边界），经主 Agent 验证后判定保留，代码审查通过
 - 本轮修订 commit：`9c79f479`（弱选中+错误处理）、`fb4c1d50`（导航工作区复位）、`bd0dc046`（死代码+通知上限+静默反馈）
 
-## Step 3: 质量检测
-- 待执行
+## Step 3: 质量检测（前后端全量）
+- 前端：lint:fix ✅ / format ✅ / typecheck ✅ / test ✅（228 文件 1809 用例全过）
+- 后端：cargo fmt ✅ / clippy --workspace --all-targets -D warnings ✅ / cargo test --workspace ✅
+- 收尾质量检测发现并修复 1 个真实 Bug：`renameTreeNodePaths` 的 `isAncestor` 判定方向错误（`oldSegments.every` 误写为对较长数组取样，导致嵌套目录乐观改名失败）→ 改为 `segments.every(... oldSegments[index] ...)`，commit `58a468e7`
+- 静默失败（flaky）判定：`siteMetaCleanup.test.ts` 在全量并行下偶发 5s 超时，单跑 6/6 通过（~1.8s），判定为并行负载导致的 flaky，非真实缺陷；全量复跑通过
+- 额外 commit：`8d7c135f`（prettier 格式化文件树共享样式与测试）
 
 ## Step 4: 文档同步
-- 待执行
+- 4a 变更总结：本轮统一 Files/Changes 面板文件树组件（共享 `FileTree` + `MultiWorkspaceTreeShell`），引入"弱选中"（编辑器当前打开文件淡蓝高亮）可复用交互模式，并修复导航选中工作区回退、乐观改名/删除引用保持等正确性问题
+- 4b 文档检查清单：
+  - 规则文件（`.agents/rules/`、`.trae/rules/`）：无需更新（未引入新编码规范/架构模式）
+  - 技能文件（三目录）：无需更新
+  - 治理文档（AGENTS.md / CONTEXT.md）：无需更新
+  - 架构文档：无需更新
+  - 知识沉淀：root-cause 进度已归档 `docs/root-cause-resolution/2026-08/progress-2026-08-16-file-tree-weak-selection.md`
+  - 操作手册（`docs/operations/ui-manual/`）：**已更新** — `rightpanel/tools/files.md`（新增"选中态（强选中/弱选中）"节）、`rightpanel/tools/changes.md`（文件树选择器表补充 `.is-selected`/`.is-weak-selected`）
+- 4d 设计规范提取：新增"弱选中"交互模式（语义、与强选中共存、右键多选排除弱选中）已写入 UI 手册，作为后续文件树实现的标准
+- 涉及产物核验：计划文档 `docs/plans/multi-workspace/2026-08-16-file-tree-panels-unified-shell.md` 存在；root-cause 进度文件归档完整
 
 ## Step 5: 项目清理
 - 待执行

@@ -60,6 +60,8 @@ await page.waitForSelector('div[data-testid="changes-preview-shell"]');
 | `.adl-filetree__label` | 文件 / 文件夹名称按钮 |
 | `.adl-filetree__toggle` | 文件夹收起 / 展开按钮 |
 | `.adl-filetree__item.is-active` | 当前点击选中节点 |
+| `.adl-filetree__item.is-selected` | 强选中（用户点击节点，蓝底 `--bg-active` + 左侧强调条） |
+| `.adl-filetree__item.is-weak-selected` | 弱选中（编辑器当前打开的文件，淡蓝底 + 左侧强调条，`!important` 优先于强选中） |
 | `.adl-filetree__meta` | 元数据容器（变更字母类型） |
 | `.adl-filetree__count` | 统计数字容器 |
 | `.adl-filetree__status-badge` | 变更字母类型 badge（A/D/M） |
