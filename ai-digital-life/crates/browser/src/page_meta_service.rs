@@ -5,8 +5,8 @@ use adl_errors::AppError;
 
 use crate::browser_meta::PageMeta;
 use crate::meta_merge::{
-    META_SOURCE_HTTP, existing_favicon_baseline, should_apply_exact_match_title,
-    should_replace_favicon,
+    META_SOURCE_HTTP, existing_favicon_baseline, is_placeholder_title,
+    should_apply_exact_match_title, should_replace_favicon,
 };
 use crate::site_meta_cache::{SiteMetaCacheEntry, SiteMetaCacheStore, normalize_cache_key};
 
@@ -79,6 +79,14 @@ impl PageMetaService {
     ) -> Result<PageMeta, AppError> {
         let key = normalize_cache_key(url);
         let now = chrono_now_ms();
+        // TTL 短路（spec 4.1）：内存命中且未过期直接返回，不发起抓取；force 绕过。
+        if !force {
+            if let Some(entry) = self.peek(&key) {
+                if entry.last_ok_at > 0 && now - entry.last_ok_at < META_TTL_MS {
+                    return Ok(to_page_meta(entry));
+                }
+            }
+        }
         // 单飞行：用 contains_key 区分持有者（Arc::ptr_eq 无法区分：entry() 会返回
         // 与持有者同一个 Arc clone，导致并发请求错误地也执行抓取）。
         let is_owner = {
@@ -129,7 +137,7 @@ impl PageMetaService {
             }
         };
         let entry = SiteMetaCacheEntry {
-            title: if meta.title.is_empty() {
+            title: if meta.title.is_empty() || is_placeholder_title(&meta.title, key) {
                 existing.as_ref().map(|e| e.title.clone()).unwrap_or_default()
             } else {
                 meta.title.clone()
@@ -347,9 +355,9 @@ mod tests {
             })),
         };
         svc.get("https://a.com/", false, &fetcher).await.unwrap();
-        // 再失败
+        // 再失败（force 绕过 TTL 短路：TTL 内 force=false 会直接返回缓存，不触发抓取）
         *fetcher.result.lock().unwrap() = Some(PageMeta::default());
-        let meta = svc.get("https://a.com/", false, &fetcher).await.unwrap();
+        let meta = svc.get("https://a.com/", true, &fetcher).await.unwrap();
         assert!(meta.title.is_empty());
         let cached = svc.peek("https://a.com/").unwrap();
         assert_eq!(cached.title, "A", "失败不得删除缓存");
@@ -398,5 +406,66 @@ mod tests {
         svc.report("https://a.com/", "真实标题", "", META_SOURCE_HTTP).await.unwrap();
         svc.report("https://a.com/", "陈旧标题", "", META_SOURCE_COM).await.unwrap();
         assert_eq!(svc.peek("https://a.com/").unwrap().title, "真实标题");
+    }
+
+    #[tokio::test]
+    async fn get_returns_cached_within_ttl_without_fetching() {
+        let (svc, _) = open_service("ttl");
+        let calls = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
+        struct CountingFetcher(std::sync::Arc<std::sync::atomic::AtomicU32>);
+        impl PageMetaFetcher for CountingFetcher {
+            fn fetch(
+                &self,
+                _url: &str,
+                _force: bool,
+            ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>>
+            {
+                self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Box::pin(async move {
+                    PageMeta {
+                        title: "X".into(),
+                        favicon: "".into(),
+                        favicon_data_uri: "".into(),
+                        url: "https://a.com/".into(),
+                    }
+                })
+            }
+        }
+        let f = CountingFetcher(calls.clone());
+        svc.get("https://a.com/", false, &f).await.unwrap();
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        // TTL 内第二次 get：命中缓存，不抓取
+        svc.get("https://a.com/", false, &f).await.unwrap();
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        // force 绕过 TTL：强制重抓
+        svc.get("https://a.com/", true, &f).await.unwrap();
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn get_placeholder_title_does_not_clobber_authoritative() {
+        let (svc, _) = open_service("placeholder");
+        let fetcher = MockFetcher {
+            result: std::sync::Mutex::new(Some(PageMeta {
+                title: "真实标题".into(),
+                favicon: "".into(),
+                favicon_data_uri: "".into(),
+                url: "https://a.com/".into(),
+            })),
+        };
+        svc.get("https://a.com/", true, &fetcher).await.unwrap();
+        // 第二次抓取返回 hostname 占位标题（force 绕过 TTL）
+        *fetcher.result.lock().unwrap() = Some(PageMeta {
+            title: "a.com".into(),
+            favicon: "".into(),
+            favicon_data_uri: "".into(),
+            url: "https://a.com/".into(),
+        });
+        svc.get("https://a.com/", true, &fetcher).await.unwrap();
+        assert_eq!(
+            svc.peek("https://a.com/").unwrap().title,
+            "真实标题",
+            "占位标题不得覆盖权威标题"
+        );
     }
 }
