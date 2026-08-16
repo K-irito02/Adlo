@@ -9,9 +9,17 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 
+function normalizePath(p) {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
+
 const isMain = Boolean(process.argv[1]) && (process.platform === "win32"
-  ? path.resolve(process.argv[1]).toLowerCase() === __filename.toLowerCase()
-  : path.resolve(process.argv[1]) === __filename);
+  ? normalizePath(process.argv[1]).toLowerCase() === normalizePath(__filename).toLowerCase()
+  : normalizePath(process.argv[1]) === normalizePath(__filename));
 
 const modeArg = (process.argv[2] ?? "tauri").toLowerCase();
 const modeAliases = {
@@ -32,7 +40,11 @@ const host = process.env.ADL_HOST ?? "127.0.0.1";
 const cargoCommand = process.platform === "win32" ? "cargo.exe" : "cargo";
 const viteEntry = path.join(repoRoot, "frontend", "node_modules", "vite", "bin", "vite.js");
 const appImageName = process.platform === "win32" ? "ai-digital-life.exe" : "ai-digital-life";
-const appDevExePath = path.join(repoRoot, "target", "debug", "ai-digital-life.exe");
+// Probe/kill target assumes cargo's default target dir; the workspace has no target-dir
+// override (verified in .cargo/config.toml). A future override must update this path too.
+// repoRoot is realpath-normalized so the probe/kill path matches PowerShell's canonical
+// $_.Path even when the repo is reached through a junction/8.3 short-name segment.
+const appDevExePath = path.join(normalizePath(repoRoot), "target", "debug", appImageName);
 const children = [];
 
 if (isMain) {
@@ -67,13 +79,20 @@ async function main() {
     return;
   }
 
-  // Windows: a leftover app instance locks target/debug/ai-digital-life.exe, which
+  // Windows: a leftover dev instance locks target/debug/ai-digital-life.exe, which
   // blocks cargo from relinking changed code (tauri dev runs `cargo run` internally).
-  // Kill it only when the dev exe is actually locked, right before the dev build, to
-  // avoid killing legitimate instances that do not hold the lock. Unix linkers replace
-  // the binary via rename, so the lock problem does not exist there.
+  // Kill it only when the dev exe is actually locked, right before the dev build, and
+  // only processes running that exact exe path (a separate release/installed build is
+  // left untouched). Unix linkers replace the binary via rename, so no lock exists there.
   if (process.platform === "win32" && isExeLocked(appDevExePath)) {
-    await killProcessesByName(appImageName);
+    console.log(`[adl-run] existing dev instance detected -- force-terminating it to release the build lock`);
+    await killProcessesByName(appImageName, appDevExePath);
+    if (!(await waitForUnlock(appDevExePath))) {
+      console.warn(
+        `[adl-run] ${appDevExePath} is still locked after terminating instances -- the dev build ` +
+          "may fail to relink. Stop any running ai-digital-life instance manually if the build fails.",
+      );
+    }
   }
 
   const tauriConfig = JSON.stringify({
@@ -249,6 +268,10 @@ function isExeLocked(file) {
     fs.closeSync(fd);
     return false;
   } catch (error) {
+    // EACCES/EPERM may also be a read-only attribute or an ACL denial, not necessarily a
+    // live process holding the image open; the only cost then is a possibly-unnecessary kill.
+    // Unusual codes (not EBUSY/EPERM/EACCES/ENOENT) fail OPEN by design: warn and report
+    // unlocked, rather than stalling startup on a theoretical sharing-violation alias.
     if (["EBUSY", "EPERM", "EACCES"].includes(error.code)) {
       return true;
     }
@@ -259,37 +282,117 @@ function isExeLocked(file) {
   }
 }
 
-export async function killProcessesByName(imageName) {
-  console.log(`[adl-run] killing stale ${imageName} processes to release the dev binary lock`);
+// Wait (up to timeoutMs) for a file to become writable again after a process kill. taskkill's
+// "exit" event does not strictly guarantee the OS has released the image handle yet; a short
+// re-probe loop absorbs that lag and also confirms a failed kill (elevated instance, etc.).
+async function waitForUnlock(file, timeoutMs = 1500) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (!isExeLocked(file)) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return !isExeLocked(file);
+}
+
+export async function killProcessesByName(imageName, exePath) {
   if (process.platform === "win32") {
-    await new Promise((resolve) => {
-      const killer = spawn("taskkill", ["/F", "/IM", imageName, "/T"], { stdio: "ignore" });
-      killer.once("exit", (code) => {
-        if (code !== 0 && code !== 128) {
-          console.warn(`[adl-run] taskkill ${imageName} exited with code ${code}`);
-        }
-        resolve(undefined);
-      });
-      killer.once("error", (error) => {
-        console.warn(`[adl-run] failed to run taskkill for ${imageName}: ${error.message}`);
-        resolve(undefined);
-      });
-    });
+    // Kill only processes whose executable path equals the dev exe, so a concurrently running
+    // release/installed build (same image name, different path) is left untouched.
+    // Get-Process -Name rejects the ".exe" suffix (stripped here) and accepts wildcards;
+    // imageName is a hardcoded constant in the dev flow, so the pattern surface is inert.
+    if (!exePath) {
+      throw new Error("killProcessesByName: exePath is required on win32");
+    }
+    const baseName = imageName.replace(/\.exe$/i, "").replace(/'/g, "''");
+    const escaped = exePath.replace(/'/g, "''");
+    const script =
+      `Get-Process -Name '${baseName}' -ErrorAction SilentlyContinue | ` +
+      `Where-Object { $_.Path -eq '${escaped}' } | Stop-Process -Force -ErrorAction SilentlyContinue`;
+    await withTimeout(
+      `cleanup for ${imageName}`,
+      (settle, isTimedOut) => {
+        const killer = spawn(
+          "powershell.exe",
+          ["-NoProfile", "-NonInteractive", "-Command", script],
+          { stdio: "ignore" },
+        );
+        let reported = false;
+        killer.once("error", (error) => {
+          reported = true;
+          if (!isTimedOut()) {
+            console.warn(`[adl-run] failed to run cleanup for ${imageName}: ${error.message}`);
+          }
+          settle();
+        });
+        killer.once("exit", (code) => {
+          if (code !== 0 && !reported && !isTimedOut()) {
+            console.warn(`[adl-run] cleanup for ${imageName} exited with code ${code}`);
+          }
+          settle();
+        });
+        return killer;
+      },
+      10_000,
+    );
     return;
   }
 
-  await new Promise((resolve) => {
-    const killer = spawn("pkill", ["-x", imageName], { stdio: "ignore" });
-    killer.once("exit", (code) => {
-      if (code !== 0 && code !== 1) {
-        console.warn(`[adl-run] pkill ${imageName} exited with code ${code}`);
-      }
+  // Unix: name-based only (pkill matches any process with that image name, regardless of
+  // path) -- deliberately diverges from the win32 path-precise contract above. The dev
+  // flow only ever reaches the win32 branch, so this path serves the exported helper's
+  // cross-platform contract and test/reuse scenarios.
+  await withTimeout(
+    `pkill ${imageName}`,
+    (settle, isTimedOut) => {
+      const killer = spawn("pkill", ["-x", imageName], { stdio: "ignore" });
+      let reported = false;
+      killer.once("error", (error) => {
+        reported = true;
+        if (!isTimedOut()) {
+          console.warn(`[adl-run] failed to run pkill for ${imageName}: ${error.message}`);
+        }
+        settle();
+      });
+      killer.once("exit", (code) => {
+        if (code !== 0 && code !== 1 && !reported && !isTimedOut()) {
+          console.warn(`[adl-run] pkill ${imageName} exited with code ${code}`);
+        }
+        settle();
+      });
+      return killer;
+    },
+    10_000,
+  );
+}
+
+// Race a spawned-cleanup child against a timeout so a hung process cannot block the
+// startup path forever. `run` receives a settle callback and an isTimedOut predicate, and
+// must return the spawned child; on timeout the child is killed, a warning is logged, and
+// the promise resolves (fail-soft -- waitForUnlock provides the authoritative post-kill
+// confirmation). A synchronous throw from `run` also degrades fail-soft.
+function withTimeout(label, run, ms) {
+  return new Promise((resolve) => {
+    let child;
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      console.warn(`[adl-run] timed out waiting for ${label}; continuing`);
+      child?.kill();
       resolve(undefined);
-    });
-    killer.once("error", (error) => {
-      console.warn(`[adl-run] failed to run pkill for ${imageName}: ${error.message}`);
+    }, ms);
+    const settle = () => {
+      clearTimeout(timer);
       resolve(undefined);
-    });
+    };
+    try {
+      child = run(settle, () => timedOut);
+    } catch (error) {
+      clearTimeout(timer);
+      console.warn(`[adl-run] failed to start ${label}: ${error.message}`);
+      resolve(undefined);
+    }
   });
 }
 
