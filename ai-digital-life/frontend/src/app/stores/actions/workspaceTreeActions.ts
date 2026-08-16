@@ -137,16 +137,19 @@ export function createWorkspaceTreeActions(
         return;
       }
       set({ refreshingAllWorkspaces: true });
-      await Promise.allSettled(
-        expandedIds.map((id) => {
-          const ws = state.recentWorkspaces.find((r) => r.id === id);
-          if (!ws) {
-            return Promise.resolve();
-          }
-          return get().refreshOneWorkspaceTree(asWorkspaceID(id), ws.path, { silent: true });
-        }),
-      );
-      set({ refreshingAllWorkspaces: false });
+      try {
+        await Promise.allSettled(
+          expandedIds.map((id) => {
+            const ws = state.recentWorkspaces.find((r) => r.id === id);
+            if (!ws) {
+              return Promise.resolve();
+            }
+            return get().refreshOneWorkspaceTree(asWorkspaceID(id), ws.path, { silent: true });
+          }),
+        );
+      } finally {
+        set({ refreshingAllWorkspaces: false });
+      }
     },
 
     /**

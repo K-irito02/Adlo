@@ -16,7 +16,7 @@ import { asWorkspaceID } from '../../../shared/branded';
 const SCOPE = 'editor';
 
 /**
- * 乐观插入新建节点到目标工作区文件树，让 UI 立即反馈，无需等待全量 `listTree`
+ * 创建成功后本地插入新建节点到目标工作区文件树，避免立即全量 `listTree`
  * 递归扫描（大工作区下可达数秒）。之后再由调用方做后台静默刷新校准。
  */
 function insertTreeNodeOptimistic(

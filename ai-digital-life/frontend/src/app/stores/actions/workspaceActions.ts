@@ -71,7 +71,7 @@ export function createWorkspaceActions(
     /**
      * [renameWorkspaceFile - 重命名工作区中的文件]
      * @reads editorSlice.selectedFilePath
-     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree / refreshOneWorkspaceTree)
+     * @writes workspaceSlice.workspaceTrees (乐观重命名节点 + refreshTreeByWorkspacePath 静默校准)
      * @writes editorSlice.selectedFilePath, editorSlice.fileContent, editorSlice.openTabs (通过 openFile)
      * @see shared/ipc.ts → workspace.renameFile
      * @see mock-bridge.ts → workspace.renameFile
@@ -191,7 +191,7 @@ export function createWorkspaceActions(
 
     /**
      * [moveWorkspaceFile - 移动工作区中的文件]
-     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree / refreshOneWorkspaceTree)
+     * @writes workspaceSlice.workspaceTrees (通过 refreshTreeByWorkspacePath 静默校准)
      * @see shared/ipc.ts → workspace.moveFile
      * @see mock-bridge.ts → workspace.moveFile
      * @see preview-bridge/index.ts → workspace.moveFile
@@ -212,7 +212,7 @@ export function createWorkspaceActions(
 
     /**
      * [duplicateWorkspaceFile - 复制工作区中的文件]
-     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree / refreshOneWorkspaceTree)
+     * @writes workspaceSlice.workspaceTrees (通过 refreshTreeByWorkspacePath 静默校准)
      * @see shared/ipc.ts → workspace.duplicateFile
      * @see mock-bridge.ts → workspace.duplicateFile
      * @see preview-bridge/index.ts → workspace.duplicateFile

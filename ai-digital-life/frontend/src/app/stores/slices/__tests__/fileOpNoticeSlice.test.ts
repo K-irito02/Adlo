@@ -32,13 +32,15 @@ describe('fileOpNoticeSlice', () => {
     expect(notices[1].suffixHint).toBeFalsy();
   });
 
-  it('keeps all pushed notices (visible limit & summary handled by the container)', () => {
+  it('trims to FILE_OP_NOTICE_LIMIT when many notices are pushed', () => {
     const s = useAppStore.getState();
     for (let i = 0; i < 6; i += 1) {
       s.pushFileOpNotice('file', `f${i}`);
     }
     const notices = useAppStore.getState().fileOpNotices;
-    expect(notices).toHaveLength(6);
+    // 超出 FILE_OP_NOTICE_LIMIT(4) 时裁剪最旧条目，保留最新 4 条
+    expect(notices).toHaveLength(4);
     expect(notices[notices.length - 1].name).toBe('f5');
+    expect(notices[0].name).toBe('f2');
   });
 });

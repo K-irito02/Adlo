@@ -145,12 +145,16 @@ function useFileCreation(input: UseFileCreationInput): UseFileCreationResult {
     // 避免多工作区场景下把 A 工作区的创建作用到 B 工作区。
     const targetWorkspaceId = resolveTargetWorkspaceId(input);
     if (!targetWorkspaceId) {
+      // 无可用目标工作区（无最近工作区/数据不一致）：给出提示，避免对话框静默无响应。
+      useAppStore.getState().showToast(t.fileNoWorkspace as string, 'warning');
       return;
     }
     const targetWorkspacePath = input.recentWorkspaces.find(
       (w) => w.id === targetWorkspaceId,
     )?.path;
     if (!targetWorkspacePath) {
+      // 目标工作区虽存在但缺少路径（数据不一致）：提示而非静默失败。
+      useAppStore.getState().showToast(t.fileNoWorkspacePath as string, 'warning');
       return;
     }
     // 名称创建在目标目录下（点击节点/选中文件所在目录/工作区顶级目录，缺省为工作区根目录）。

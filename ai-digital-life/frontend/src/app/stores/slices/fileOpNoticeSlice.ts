@@ -34,9 +34,10 @@ export const createFileOpNoticeSlice = (
   pushFileOpNotice: (kind, name, suffixHint = false) => {
     const id = createUiId('file-op');
     const notice: FileOpNotice = { id, kind, name, suffixHint, timestamp: Date.now() };
-    // 全部保留，可见条数与摘要折叠由容器（FileOpNoticeContainer）决定，与全局错误卡片一致。
+    // 状态数组同样受 FILE_OP_NOTICE_LIMIT 约束：超出时裁剪最旧条目，避免长时间会话
+    // 中冲突通知累积导致数组无限增长。容器可见条数与摘要折叠逻辑不变。
     set((state) => ({
-      fileOpNotices: [...state.fileOpNotices, notice],
+      fileOpNotices: [...state.fileOpNotices, notice].slice(-FILE_OP_NOTICE_LIMIT),
     }));
     return id;
   },

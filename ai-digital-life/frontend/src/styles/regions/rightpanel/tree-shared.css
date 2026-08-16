@@ -27,9 +27,7 @@
 .adl-tree-node.is-weak-selected:not(.is-context-menu-target)
   > .adl-tree-node__row,
 .adl-filetree__item.is-weak-selected:not(.is-context-menu-target)
-  > .adl-filetree__row,
-.adl-outline-tree__item.is-weak-selected:not(.is-context-menu-target)
-  > .adl-outline-tree__row {
+  > .adl-filetree__row {
   background: color-mix(in srgb, var(--accent) 8%, transparent) !important;
   color: var(--text-primary) !important;
   box-shadow: inset 2px 0 0 0 var(--accent);
@@ -39,9 +37,7 @@
 .adl-tree-node.is-weak-selected.is-hovered:not(.is-context-menu-target)
   > .adl-tree-node__row,
 .adl-filetree__item.is-weak-selected.is-hovered:not(.is-context-menu-target)
-  > .adl-filetree__row,
-.adl-outline-tree__item.is-weak-selected.is-hovered:not(.is-context-menu-target)
-  > .adl-outline-tree__row {
+  > .adl-filetree__row {
   background: color-mix(in srgb, var(--accent) 8%, var(--bg-hover)) !important;
   box-shadow: inset 2px 0 0 0 var(--accent);
 }

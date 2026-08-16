@@ -20,6 +20,8 @@ export const fileZh = {
   fileNewNamePlaceholder: '输入名称…',
   fileNameRequired: '请输入名称，创建文件或文件夹',
   fileNameEmpty: '请输入名称',
+  fileNoWorkspace: '没有可用工作区，无法创建',
+  fileNoWorkspacePath: '目标工作区路径缺失，无法创建',
   fileCreateDuplicateFileTitle: '无法新建文件',
   fileCreateDuplicateFile: '此路径下已存在同名文件或目录「{name}」',
   fileCreateDuplicateFileSuffixHint: '请注意是否填写了文件类型后缀',

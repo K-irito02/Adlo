@@ -6,6 +6,8 @@ import { useFileCreation, type UseFileCreationInput } from './useFileCreation';
 const mockT = {
   fileNameRequired: 'Please enter a name to create the file or folder',
   fileNameEmpty: 'Please enter a name',
+  fileNoWorkspace: 'No workspace available to create',
+  fileNoWorkspacePath: 'Target workspace path is missing',
 } as Record<string, string>;
 
 function wrapper({ children }: { children: React.ReactNode }) {

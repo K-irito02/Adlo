@@ -20,6 +20,8 @@ export const fileEn = {
   fileNewNamePlaceholder: 'Enter name…',
   fileNameRequired: 'Please enter a name to create the file or folder',
   fileNameEmpty: 'Please enter a name',
+  fileNoWorkspace: 'No workspace available to create',
+  fileNoWorkspacePath: 'Target workspace path is missing',
   fileCreateDuplicateFileTitle: 'Cannot create file',
   fileCreateDuplicateFile: 'A file or folder with the same name already exists here «{name}»',
   fileCreateDuplicateFileSuffixHint: 'Please check whether the file type suffix was filled in',
