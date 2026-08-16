@@ -56,4 +56,24 @@ describe('ToastRegion', () => {
     expect(screen.getByText('Workspace error')).toBeTruthy();
     expect(screen.getByText('Cannot create file')).toBeTruthy();
   });
+
+  it('exposes no region landmark when both lists are empty', () => {
+    render(
+      <TestProvider>
+        <ToastRegion
+          errorToasts={[]}
+          onDismissError={vi.fn()}
+          onClearAllError={vi.fn()}
+          notices={[]}
+          onDismissNotice={vi.fn()}
+        />
+      </TestProvider>,
+    );
+    const groups = document.body.querySelectorAll('.toast-card-region__group');
+    expect(groups.length).toBe(2);
+    for (const group of groups) {
+      expect(group.getAttribute('role')).toBeNull();
+      expect(group.getAttribute('aria-label')).toBeNull();
+    }
+  });
 });

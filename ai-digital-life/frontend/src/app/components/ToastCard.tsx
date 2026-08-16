@@ -40,6 +40,10 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
   const copiedTimer = useRef<number | null>(null);
   const detailRef = useRef<HTMLParagraphElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const detailHeightRef = useRef(detailHeight);
+  detailHeightRef.current = detailHeight;
+  const collapsedSettledRef = useRef(collapsedSettled);
+  collapsedSettledRef.current = collapsedSettled;
 
   useEffect(() => {
     return () => {
@@ -86,7 +90,10 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
     if (!el) {
       return;
     }
-    setDetailHeight(el.scrollHeight);
+    const next = el.scrollHeight;
+    if (next !== detailHeightRef.current) {
+      setDetailHeight(next);
+    }
   }, []);
 
   useLayoutEffect(() => {
@@ -102,13 +109,43 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
       return;
     }
     const observer = new ResizeObserver(() => {
-      if (!collapsedSettled) {
+      if (!collapsedSettledRef.current) {
         measureDetail();
       }
     });
     observer.observe(el);
     return () => observer.disconnect();
   }, [detail, hasDetail, collapsedSettled, measureDetail]);
+
+  // 兜底重测：展开态 detail 被自身 max-height 封顶时，内容变高（字体加载/文本缩放
+  // 重排）不改变 body 盒尺寸，ResizeObserver 静默。字体就绪后与窗口缩放时补测一次。
+  useEffect(() => {
+    const reMeasure = () => {
+      if (!collapsedSettledRef.current) {
+        measureDetail();
+      }
+    };
+    let raf = 0;
+    const onResize = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(reMeasure);
+    };
+    window.addEventListener('resize', onResize);
+    const fonts = document.fonts;
+    const fontsReady =
+      fonts && typeof fonts.ready === 'object' && typeof fonts.ready.then === 'function'
+        ? fonts.ready
+        : null;
+    if (fontsReady) {
+      fontsReady.then(reMeasure).catch(() => {});
+    }
+    return () => {
+      window.removeEventListener('resize', onResize);
+      if (raf) {
+        cancelAnimationFrame(raf);
+      }
+    };
+  }, [measureDetail]);
 
   return (
     <motion.div

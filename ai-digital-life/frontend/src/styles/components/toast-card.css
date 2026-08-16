@@ -20,8 +20,11 @@
 }
 
 /* 单一区域内按类型分组的容器：与父容器同向堆叠卡片，
-   pointer-events 透传（卡片自身 re-enable）。 */
+   pointer-events 透传（卡片自身 re-enable）。
+   position:relative 作为 AnimatePresence popLayout 退场卡片的偏移祖先锚点
+   （避免依赖 fixed 区域容器的 offsetParent 实现细节）。 */
 .toast-card-region__group {
+  position: relative;
   display: flex;
   flex-direction: column-reverse;
   gap: var(--space-2);

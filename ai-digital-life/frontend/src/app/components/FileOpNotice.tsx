@@ -46,9 +46,14 @@ export function FileOpNoticeContainer({ notices, onDismiss }: FileOpNoticeContai
   const { t } = useTCopy();
   const visible = notices.slice(-FILE_OP_NOTICE_LIMIT);
   const hiddenCount = notices.length - visible.length;
+  const hasContent = visible.length > 0;
 
   return (
-    <div className="toast-card-region__group" role="region" aria-label={t.fileOpNoticeRegionLabel}>
+    <div
+      className="toast-card-region__group"
+      role={hasContent ? 'region' : undefined}
+      aria-label={hasContent ? t.fileOpNoticeRegionLabel : undefined}
+    >
       <AnimatePresence mode="popLayout">
         {visible.map((notice) => (
           <FileOpNoticeCard key={notice.id} notice={notice} onDismiss={onDismiss} />

@@ -81,9 +81,14 @@ export function ErrorToastContainer({
   const { t } = useTCopy();
   const visible = errorToasts.slice(-ERROR_TOAST_VISIBLE_LIMIT);
   const hiddenCount = errorToasts.length - visible.length;
+  const hasContent = visible.length > 0;
 
   return (
-    <div className="toast-card-region__group" role="region" aria-label={t.errorsRegionLabel}>
+    <div
+      className="toast-card-region__group"
+      role={hasContent ? 'region' : undefined}
+      aria-label={hasContent ? t.errorsRegionLabel : undefined}
+    >
       <AnimatePresence mode="popLayout">
         {visible.map((entry) => (
           <ErrorToast key={entry.id} entry={entry} onDismiss={onDismiss} />

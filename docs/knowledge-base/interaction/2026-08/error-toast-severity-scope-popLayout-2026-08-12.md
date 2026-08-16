@@ -1,6 +1,8 @@
 # Error Toast 持久错误通知：三级分级、模块作用域、popLayout 动画
 
 > 2026-08-12 — 右下角持久错误通知（error toast）完整实现与优化中沉淀的可复用经验。
+>
+> **更新（2026-08-16）**：ErrorToast 已统一为复用 `ToastCard` 外壳 + 单一 `ToastRegion` 区域容器；「经验 3 popLayout」中"各 toast `layout`"已变更——**卡片级不再设 `layout`**（避免折叠时 framer 全卡 FLIP 缩放抖动，卡片增删时兄弟瞬间就位为已知取舍，仅摘要卡保留 layout）；`error-toast.css` 已删除（样式迁移至 `toast-card.css`）。见 [toast-card-unification-hover-collapse-2026-08-16.md](./toast-card-unification-hover-collapse-2026-08-16.md)。
 
 ## 背景
 
@@ -66,7 +68,7 @@ AnimatePresence 默认 sync 模式下，退出元素仍占 flex 布局空间：�
 
 ## 相关文件
 
-- 组件：`frontend/src/app/components/ErrorToast.tsx`、`errorToastLevel.ts`
+- 组件：`frontend/src/app/components/ErrorToast.tsx`、`errorToastLevel.ts`、`ToastCard.tsx`（统一外壳）
 - 切片：`frontend/src/app/stores/slices/errorToastSlice.ts`
-- 样式：`frontend/src/styles/components/error-toast.css`、`themes.css`
+- 样式：`frontend/src/styles/components/toast-card.css`（原 error-toast.css 已删除）、`themes.css`
 - i18n：`errors.ts`（en/zh）

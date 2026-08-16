@@ -106,9 +106,9 @@ alwaysApply: true
 - 场景：行/卡片悬停才出现的操作按钮（复制、跳转、更多操作）
 - 默认 `opacity: 0` 且**必须** `pointer-events: none`，否则不可见区域仍可点击，误触发操作
 - 悬停时 `opacity: 1; pointer-events: auto`
-- 键盘可访问：`:focus-visible` / `:focus-within` 同样置 `opacity: 1; pointer-events: auto`
+- 键盘可访问：用按钮自身的 `:focus-visible`（`opacity: 1; pointer-events: auto`）——**禁止**用容器级 `:focus-within`：鼠标点击按钮后按钮保持聚焦，`:focus-within` 持续命中 → 移出容器后按钮不消失
 - 叠放占位图标：悬停按钮覆盖的默认图标（如文件夹图标）在 `:has(:focus-visible)` 时隐藏，避免与按钮重叠
-- 参考：[git-vis-file-hotspots-leaderboard-2026-08-04.md](../../docs/knowledge-base/interaction/2026-08/git-vis-file-hotspots-leaderboard-2026-08-04.md)
+- 参考：[git-vis-file-hotspots-leaderboard-2026-08-04.md](../../docs/knowledge-base/interaction/2026-08/git-vis-file-hotspots-leaderboard-2026-08-04.md)、[toast-card-unification-hover-collapse-2026-08-16.md](../../docs/knowledge-base/interaction/2026-08/toast-card-unification-hover-collapse-2026-08-16.md)
 
 ### 文件树悬停传播
 
@@ -370,17 +370,19 @@ alwaysApply: true
 
 ### 持久错误通知（Error Toast）
 
-- 文件：[ErrorToast.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ErrorToast.tsx)
+- 文件：[ErrorToast.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ErrorToast.tsx)、[ToastCard.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ToastCard.tsx)、[ToastRegion.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ToastRegion.tsx)
 - **与顶部 Toast 区别**：右下角持久渲染，不自动消失，由用户手动关闭/清空；顶部 Toast 自动消失
+- **统一卡片外壳**：ErrorToast 与 FileOpNotice 均复用 `ToastCard` 外壳（tone/icon/title/detail/onDismiss/role/ariaLive 映射）；右下角为**单一固定区域** `ToastRegion`（`.toast-card-region`，portal 到 body），内嵌两个 labeled group（error 组贴边、notice 组在上），避免两个同位固定区域重叠
 - **三级分级**（resolveErrorToastLevel(code, detail) 按 code 语义判定）：
   - error（红 --error-toast-error）：真实失败（STORAGE/MODEL/NETWORK/INTERNAL 等），role="alert" + aria-live="assertive"
   - warning（黄 --error-toast-warning）：可恢复（NOT_FOUND/INVALID_INPUT 等），role="alert" + aria-live="assertive"
   - info（普通色）：提示（如"非 Git 仓库"工作区错误），role="status" + aria-live="polite"，标题用 errorsInfo（提示/Notice）而非"xx错误"
-  - 未知 code 默认 error
+  - 未知 code 默认 error；FileOpNotice 用 role="status" + polite（良性提示）
 - **模块作用域清除**：reportError(code, detail, scope?) 记录来源模块；clearError(get, scope?) 只清该模块错误，clearError(get) 缺省清全部。每个 action 模块定义 const SCOPE
 - **队列上限**：store 保留最近 50 条（ERROR_TOAST_STORE_LIMIT），UI 显示最近 5 条 + "+N 摘要"
-- **动画**：AnimatePresence mode="popLayout" + layout——新 toast 出现时最旧退出、上方整体下移让位、摘要不移动；关闭不留空位。ErrorToast 需 forwardRef（popLayout 测量要求）
-- **操作**：折叠/展开、复制、关闭（单条）、清空全部（摘要行）
+- **动画**：AnimatePresence mode="popLayout" + forwardRef（popLayout 测量要求）；**卡片级不设 `layout`**（避免折叠时 framer 全卡 FLIP 缩放抖动，卡片增删时兄弟瞬间就位为已知取舍，仅摘要卡保留 layout）；折叠/展开用**实测 max-height 过渡**（useLayoutEffect 读 scrollHeight 设内联 max-height + 两阶段收起：动画期间保持 pre-wrap，`transitionend` 后加 nowrap+ellipsis；ResizeObserver/fonts.ready/resize 兜底重测）
+- **操作**：折叠/展开、复制、关闭（单条）、清空全部（摘要行）。折叠/复制按钮为 **hover-only**（`.toast-card__btn--detail`，`:hover` 或按钮自身 `:focus-visible` 显示）
+- 经验：[toast-card-unification-hover-collapse-2026-08-16.md](../../docs/knowledge-base/interaction/2026-08/toast-card-unification-hover-collapse-2026-08-16.md)
 
 ---
 
