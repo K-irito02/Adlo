@@ -51,7 +51,11 @@ export interface EditorSlice {
   setFileTreeClickedNode: (workspaceId: string, path: string, kind: 'directory' | 'file') => void;
   setFileTreeClickedWorkspaceRoot: (workspaceId: string) => void;
   clearFileTreeClickedNode: () => void;
-  setChangesTreeClickedNode: (workspaceId: string, path: string, kind: 'directory' | 'file') => void;
+  setChangesTreeClickedNode: (
+    workspaceId: string,
+    path: string,
+    kind: 'directory' | 'file',
+  ) => void;
   setChangesTreeClickedWorkspaceRoot: (workspaceId: string) => void;
   clearChangesTreeClickedNode: () => void;
   setFileNavigatorActiveWorkspace: (workspaceId: string | undefined) => void;
