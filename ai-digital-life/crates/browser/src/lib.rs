@@ -7,6 +7,7 @@ mod browser_pool;
 mod browser_webview;
 pub mod html_meta;
 mod meta_merge;
+mod page_meta_service;
 pub mod robots_policy;
 pub mod robots_txt;
 mod site_meta_cache;
@@ -34,6 +35,9 @@ pub use meta_merge::{
     META_SOURCE_COM, META_SOURCE_GOOGLE, META_SOURCE_HTTP, META_SOURCE_IFRAME,
     existing_favicon_baseline, get_favicon_quality_score, is_placeholder_title,
     should_apply_exact_match_title, should_replace_favicon,
+};
+pub use page_meta_service::{
+    META_TTL_MS, PageMetaFetcher, PageMetaService, RETRY_BASE_MS, RETRY_MAX_MS,
 };
 pub use site_meta_cache::{SiteMetaCacheEntry, SiteMetaCacheStore, normalize_cache_key};
 pub use webview_handle::{Bounds, EventBridgeRef, WebView2EventBridge, WebViewHandle};
