@@ -43,6 +43,10 @@ describe('useBrowserTagActions refresh write gate', () => {
       faviconUrl: 'https://x.com/big.png',
       faviconDataUri: 'data:image/png;base64,OLD',
       fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
     });
     vi.mocked(prefetchPageMeta).mockResolvedValue({
       title: 'X',
@@ -66,6 +70,10 @@ describe('useBrowserTagActions refresh write gate', () => {
       faviconUrl: 'https://x.com/big.png',
       faviconDataUri: 'data:image/png;base64,OLD',
       fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
     });
     useAppStore.setState({
       browserTabs: [makeTab('tab1', 'https://refresh-empty.example')],
@@ -92,6 +100,10 @@ describe('useBrowserTagActions refresh write gate', () => {
       faviconUrl: '',
       faviconDataUri: 'data:image/png;base64,OLD',
       fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
     });
     useAppStore.setState({
       browserTabs: [makeTab('tab1', 'https://refresh-datauri-only.example')],

@@ -85,6 +85,10 @@ describe('useBrowserDialogs create-tab write gate', () => {
       faviconUrl: 'https://cdn.example.com/icons/icon-512.png',
       faviconDataUri: '',
       fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
     });
     vi.mocked(prefetchPageMeta).mockResolvedValue(
       makeMeta({
@@ -104,6 +108,10 @@ describe('useBrowserDialogs create-tab write gate', () => {
       faviconUrl: '',
       faviconDataUri: 'data:image/png;base64,OLD',
       fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
     });
     vi.mocked(prefetchPageMeta).mockResolvedValue(
       makeMeta({
@@ -125,6 +133,10 @@ describe('useBrowserDialogs create-tab write gate', () => {
       faviconUrl: '',
       faviconDataUri: 'data:image/png;base64,OLD',
       fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
     });
     vi.mocked(prefetchPageMeta).mockResolvedValue(
       makeMeta({

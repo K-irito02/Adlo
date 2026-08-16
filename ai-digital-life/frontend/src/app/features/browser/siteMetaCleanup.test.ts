@@ -15,6 +15,10 @@ describe('removeSiteMetaIfUnreferenced', () => {
       faviconUrl: '',
       faviconDataUri: '',
       fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
     });
 
     const store = await import('../../stores/slicedStore');

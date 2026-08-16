@@ -20,6 +20,10 @@ const entry: SiteMetaCacheEntry = {
   faviconUrl: '',
   faviconDataUri: '',
   fetchedAt: 1,
+  titleSource: '',
+  lastOkAt: 0,
+  nextRetryAt: 0,
+  failCount: 0,
 };
 
 describe('siteMeta backends propagate failures (ok:false must throw)', () => {

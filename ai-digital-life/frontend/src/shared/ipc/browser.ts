@@ -1,8 +1,19 @@
+export type MetaSource = 'com' | 'http' | 'iframe' | 'google';
+
 export interface PageMeta {
   title: string;
   favicon: string;
   faviconDataUri?: string;
   url: string;
+  source?: MetaSource;
+}
+
+export interface PageMetaUpdatedPayload {
+  url: string;
+  title: string;
+  faviconUrl: string;
+  faviconDataUri: string;
+  source: MetaSource;
 }
 
 export interface AudioStatePayload {

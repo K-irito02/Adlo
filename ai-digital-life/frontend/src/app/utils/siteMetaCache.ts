@@ -63,9 +63,13 @@ export function buildCachedSiteMetaEntry(
 ): SiteMetaCacheEntry {
   return {
     title: metaTitle || existing?.title || '',
+    titleSource: existing?.titleSource ?? '',
     faviconUrl: faviconUrl || existing?.faviconUrl || '',
     faviconDataUri: dataUri || existing?.faviconDataUri || '',
     fetchedAt: Date.now(),
+    lastOkAt: existing?.lastOkAt ?? 0,
+    nextRetryAt: existing?.nextRetryAt ?? 0,
+    failCount: existing?.failCount ?? 0,
   };
 }
 

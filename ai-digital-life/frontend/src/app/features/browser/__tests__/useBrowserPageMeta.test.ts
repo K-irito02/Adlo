@@ -333,6 +333,10 @@ describe('useBrowserPageMeta write path (siteMetaCache mock backend)', () => {
       faviconUrl: 'https://x.com/old.ico',
       faviconDataUri: 'data:image/png;base64,OLD',
       fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
     });
     await handle({
       title: 'X',
@@ -352,6 +356,10 @@ describe('useBrowserPageMeta write path (siteMetaCache mock backend)', () => {
       faviconUrl: 'https://cdn.example.com/icons/icon-512.png',
       faviconDataUri: '',
       fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
     });
     await handle({
       title: 'Q',
@@ -369,6 +377,10 @@ describe('useBrowserPageMeta write path (siteMetaCache mock backend)', () => {
       faviconUrl: 'https://cdn.example.com/icons/icon-512.png',
       faviconDataUri: '',
       fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
     });
     await handle({
       title: 'Q',
@@ -385,6 +397,10 @@ describe('useBrowserPageMeta write path (siteMetaCache mock backend)', () => {
       faviconUrl: '',
       faviconDataUri: 'data:image/png;base64,OLD',
       fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
     });
     await handle({
       title: 'Q',

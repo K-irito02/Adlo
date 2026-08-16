@@ -1,8 +1,12 @@
 export interface SiteMetaCacheEntry {
   title: string;
+  titleSource: string;
   faviconUrl: string;
   faviconDataUri: string;
   fetchedAt: number;
+  lastOkAt: number;
+  nextRetryAt: number;
+  failCount: number;
 }
 
 export interface SiteMetaBackend {
