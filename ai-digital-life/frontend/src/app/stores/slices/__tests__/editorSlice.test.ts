@@ -85,4 +85,27 @@ describe('editorSlice changes tree clicked state', () => {
     expect(store.getState().changesTreeClickedKind).toBeUndefined();
     expect(store.getState().changesTreeClickedWorkspaceRoot).toBeUndefined();
   });
+
+  it('点击 Changes 节点同步 changesNavigatorActiveWorkspaceId 到该节点工作区', () => {
+    const store = makeStore();
+    store.getState().setChangesNavigatorActiveWorkspace('ws-2');
+    store.getState().setChangesTreeClickedNode('ws-1', 'src/App.tsx', 'file');
+
+    expect(store.getState().changesNavigatorActiveWorkspaceId).toBe('ws-1');
+  });
+
+  it('点击 Changes 工作区顶级目录同步 changesNavigatorActiveWorkspaceId', () => {
+    const store = makeStore();
+    store.getState().setChangesNavigatorActiveWorkspace('ws-1');
+    store.getState().setChangesTreeClickedWorkspaceRoot('ws-2');
+
+    expect(store.getState().changesNavigatorActiveWorkspaceId).toBe('ws-2');
+  });
+
+  it('setChangesNavigatorActiveWorkspace 直接设置选中工作区', () => {
+    const store = makeStore();
+    store.getState().setChangesNavigatorActiveWorkspace('ws-3');
+
+    expect(store.getState().changesNavigatorActiveWorkspaceId).toBe('ws-3');
+  });
 });

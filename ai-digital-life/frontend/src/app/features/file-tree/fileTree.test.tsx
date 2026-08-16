@@ -187,9 +187,10 @@ describe('FileTree', () => {
         collapseLabel="Collapse"
       />,
     );
-    // 点击的文件同时是编辑器文件：只保留强选中，不出现弱选中
+    // 点击的文件同时是编辑器文件：强选中与弱选中同时保留，
+    // 弱选中（淡蓝）标识"被当前编辑器打开"，不因点击而被屏蔽
     expect(clickedMarkup.match(/adl-tree-node is-selected/g)).toHaveLength(1);
-    expect(clickedMarkup).not.toContain('is-weak-selected');
+    expect(clickedMarkup).toContain('adl-tree-node is-selected is-weak-selected');
 
     const noClickedMarkup = renderToStaticMarkup(
       <FileTree

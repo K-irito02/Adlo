@@ -56,6 +56,7 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
     dirtyEditorPaths,
   } = params;
   const changesNavigatorMode = useAppStore((s) => s.changesNavigatorMode);
+  const changesNavigatorActiveWorkspaceId = useAppStore((s) => s.changesNavigatorActiveWorkspaceId);
 
   const patchSummaries = useMemo(
     () => summarizePatchSet(activePatchSet, collapsedPatchHunkIds),
@@ -107,9 +108,12 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
     return joinPathSegments(wsPath, navigatorRelativePath);
   }, [navigatorRelativePath, appInfo]);
 
-  const activeWorkspaceId = appInfo?.currentWorkspace?.path
+  // Changes 面板"选中工作区"：优先取用户点击选中的工作区（轻量前端态，不触发重载），
+  // 未选中时回退到后端当前激活工作区。与 Files 面板 fileNavigatorActiveWorkspaceId 行为一致。
+  const derivedActiveWorkspaceId = appInfo?.currentWorkspace?.path
     ? recentWorkspaces.find((w) => w.path === appInfo.currentWorkspace?.path)?.id
     : undefined;
+  const activeWorkspaceId = changesNavigatorActiveWorkspaceId ?? derivedActiveWorkspaceId;
 
   const visibleWorkspaces = useMemo(
     () => computeVisibleWorkspaces(recentWorkspaces),

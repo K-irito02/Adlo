@@ -31,6 +31,8 @@ export interface EditorSlice {
   /** 点击"工作区顶级目录"（根目录）时记录 */
   changesTreeClickedWorkspaceRoot?: string;
   fileNavigatorActiveWorkspaceId?: string;
+  /** Changes 面板"选中工作区"（与 Files 面板 fileNavigatorActiveWorkspaceId 隔离） */
+  changesNavigatorActiveWorkspaceId?: string;
 
   setOpenTabs: (tabs: EditorTabState[]) => void;
   addOpenTab: (tab: EditorTabState) => void;
@@ -59,6 +61,7 @@ export interface EditorSlice {
   setChangesTreeClickedWorkspaceRoot: (workspaceId: string) => void;
   clearChangesTreeClickedNode: () => void;
   setFileNavigatorActiveWorkspace: (workspaceId: string | undefined) => void;
+  setChangesNavigatorActiveWorkspace: (workspaceId: string | undefined) => void;
   clearEditorState: () => void;
 }
 
@@ -144,6 +147,9 @@ export const createEditorSlice = (
       changesTreeClickedPath: path,
       changesTreeClickedKind: kind,
       changesTreeClickedWorkspaceRoot: undefined,
+      // 点击 Changes 树节点时，把"选中工作区"同步为该节点所属工作区，使顶部工作区高亮
+      // （左侧蓝条 + 蓝底）始终跟随用户实际正在操作的工作区，与 Files 面板行为一致。
+      changesNavigatorActiveWorkspaceId: workspaceId,
     }),
   setChangesTreeClickedWorkspaceRoot: (workspaceId) =>
     set({
@@ -151,6 +157,7 @@ export const createEditorSlice = (
       changesTreeClickedPath: undefined,
       changesTreeClickedKind: undefined,
       changesTreeClickedWorkspaceRoot: workspaceId,
+      changesNavigatorActiveWorkspaceId: workspaceId,
     }),
   clearChangesTreeClickedNode: () =>
     set({
@@ -161,6 +168,8 @@ export const createEditorSlice = (
     }),
   setFileNavigatorActiveWorkspace: (fileNavigatorActiveWorkspaceId) =>
     set({ fileNavigatorActiveWorkspaceId }),
+  setChangesNavigatorActiveWorkspace: (changesNavigatorActiveWorkspaceId) =>
+    set({ changesNavigatorActiveWorkspaceId }),
   clearEditorState: () =>
     set({
       openTabs: [],
@@ -184,5 +193,6 @@ export const createEditorSlice = (
       changesTreeClickedKind: undefined,
       changesTreeClickedWorkspaceRoot: undefined,
       fileNavigatorActiveWorkspaceId: undefined,
+      changesNavigatorActiveWorkspaceId: undefined,
     }),
 });

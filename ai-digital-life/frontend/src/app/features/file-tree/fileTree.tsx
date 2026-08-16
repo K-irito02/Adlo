@@ -70,11 +70,10 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   // 强选中：activePathIsWeak 时仅来自“点击选中”的节点（extraSelectedPath），
   // 点击文件树外部/其它节点时会被清除；否则保持旧行为（activePath 强选中）。
   const isSelected = activePathIsWeak ? node.path === extraSelectedPath : node.path === activePath;
-  // 弱选中：编辑器当前打开的文件（activePath = selectedFilePath），跟随编辑器保持，
-  // 与强选中视觉区分，不与点击选中混淆。
-  const isWeakSelected = activePathIsWeak
-    ? node.path === activePath && node.path !== extraSelectedPath
-    : false;
+  // 弱选中：编辑器当前打开的文件（activePath = selectedFilePath），跟随编辑器保持。
+  // 点击文件会使其成为编辑器打开文件，强选中与弱选中会同时落在同一节点上；
+  // 此时仍应显示弱选中（淡蓝）以标识"被当前编辑器打开"，故不排除 extraSelectedPath。
+  const isWeakSelected = activePathIsWeak ? node.path === activePath : false;
   const isContextMenuTarget = node.path === highlightedPath;
   const isHovered = node.path === hoveredPath;
   const isDirty = dirtyPaths?.has(node.path) ?? false;
