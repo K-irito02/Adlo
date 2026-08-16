@@ -107,8 +107,9 @@ fn entry_with_new_fields_roundtrips() {
 
 #[test]
 fn normalize_cache_key_strips_hash_and_trailing_slash() {
-    assert_eq!(normalize_cache_key("https://a.com/path/#sec"), "https://a.com/path/");
-    assert_eq!(normalize_cache_key("https://a.com/path//"), "https://a.com/path/");
+    // 注意：与前端 normalizeUrlForCache 同构 —— 路径尾部斜杠全部去除（根路径 "/" 保留）
+    assert_eq!(normalize_cache_key("https://a.com/path/#sec"), "https://a.com/path");
+    assert_eq!(normalize_cache_key("https://a.com/path//"), "https://a.com/path");
     assert_eq!(normalize_cache_key("https://a.com"), "https://a.com/");
 }
 ```
