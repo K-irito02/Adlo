@@ -20,7 +20,8 @@ pub fn is_placeholder_title(title: &str, url: &str) -> bool {
     if title == url {
         return true;
     }
-    if title.starts_with("http://") || title.starts_with("https://") {
+    let lower_title = title.to_lowercase();
+    if lower_title.starts_with("http://") || lower_title.starts_with("https://") {
         return true;
     }
     let host = hostname_without_www(url);
@@ -113,21 +114,34 @@ pub fn get_favicon_quality_score(favicon: &str) -> i32 {
     3
 }
 
-/// 简化版尺寸提取：匹配文件名中首个数字段（如 "icon-256.png" → 256）。
-/// 与前端 `faviconQuality.ts` 的 `/(\d+)(?:x\d+)?\.(?:png|jpg|webp|gif)$/` 语义对齐：
-/// 仅当文件名以 "NNN.png" / "NNNxNNN.png" 形式结尾时命中。
+/// 与前端 faviconQuality.ts 的 /(\d+)(?:x\d+)?\.(?:png|jpg|webp|gif)$/ 完全同构：
+/// 仅命中文件名结尾的 "NNN" 或 "NNNxMMM" 数字段，返回第一个数字段（group1）。
 fn regex_size(lower: &str) -> Option<i32> {
-    let trimmed = lower.trim_end_matches(|c: char| !c.is_ascii_digit());
-    let mut end = trimmed.len();
-    let bytes = trimmed.as_bytes();
+    let rest = [".png", ".jpg", ".jpeg", ".webp", ".gif"]
+        .iter()
+        .find_map(|ext| lower.strip_suffix(ext))?;
+    let bytes = rest.as_bytes();
+    let mut end = rest.len();
     while end > 0 && bytes[end - 1].is_ascii_digit() {
         end -= 1;
     }
-    let digits = &trimmed[end..];
-    if digits.is_empty() {
-        return None;
+    if end == rest.len() {
+        return None; // 文件名结尾无数字
     }
-    digits.parse::<i32>().ok()
+    let second: &str = &rest[end..];
+    let before = &rest[..end];
+    if let Some(first_rest) = before.strip_suffix('x') {
+        // "NNNxMMM"：前端正则 group1 是 'x' 前的数字段
+        let fb = first_rest.as_bytes();
+        let mut fe = first_rest.len();
+        while fe > 0 && fb[fe - 1].is_ascii_digit() {
+            fe -= 1;
+        }
+        if fe < first_rest.len() {
+            return first_rest[fe..].parse::<i32>().ok();
+        }
+    }
+    second.parse::<i32>().ok()
 }
 
 pub fn should_replace_favicon(existing: Option<&str>, incoming: &str) -> bool {
@@ -165,6 +179,8 @@ mod tests {
         assert!(is_placeholder_title("https://a.com/", "https://a.com/"));
         assert!(is_placeholder_title("douyin.com", "https://www.douyin.com/"));
         assert!(!is_placeholder_title("真实标题", "https://a.com/"));
+        // scheme 前缀大小写不敏感（与前端 /^https?:\/\//i 一致）
+        assert!(is_placeholder_title("HTTP://A.COM/", "https://a.com/"));
     }
 
     #[test]
@@ -223,5 +239,17 @@ mod tests {
     fn favicon_score_extras() {
         assert_eq!(get_favicon_quality_score("https://x.com/icon.svg"), 10);
         assert_eq!(get_favicon_quality_score("https://x.com/apple-touch-icon.png"), 13);
+    }
+
+    #[test]
+    fn favicon_quality_size_extraction_matches_frontend_regex() {
+        // 不等宽 NNNxMMM：前端 group1 取第一个数字段
+        assert_eq!(get_favicon_quality_score("https://x.com/icon-256x128.png"), 15);
+        assert_eq!(get_favicon_quality_score("https://x.com/icon-128x256.png"), 14);
+        // 带 query：前端 faviconQuality.ts 的尺寸/回落分支以 endsWith('.png'|'.jpg'|'.webp'|'.gif')
+        // 为门，'.png?v=2' 结尾不命中 → 直接返回 3（与前端实测行为一致）
+        assert_eq!(get_favicon_quality_score("https://x.com/icon-256.png?v=2"), 3);
+        // 无数字结尾
+        assert_eq!(get_favicon_quality_score("https://x.com/icon.png"), 11);
     }
 }
