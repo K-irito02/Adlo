@@ -10,21 +10,53 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct SiteMetaCacheEntry {
     pub title: String,
+    pub title_source: String,
     pub favicon_url: String,
     pub favicon_data_uri: String,
     pub fetched_at: i64,
+    pub last_ok_at: i64,
+    pub next_retry_at: i64,
+    pub fail_count: u32,
 }
 
 const CREATE_TABLE_SQL: &str = "CREATE TABLE IF NOT EXISTS site_meta_cache (
     url              TEXT PRIMARY KEY,
-    title            TEXT NOT NULL,
+    title            TEXT NOT NULL DEFAULT '',
+    title_source     TEXT NOT NULL DEFAULT '',
     favicon_url      TEXT NOT NULL DEFAULT '',
     favicon_data_uri TEXT NOT NULL DEFAULT '',
-    fetched_at       INTEGER NOT NULL
+    fetched_at       INTEGER NOT NULL,
+    last_ok_at       INTEGER NOT NULL DEFAULT 0,
+    next_retry_at    INTEGER NOT NULL DEFAULT 0,
+    fail_count       INTEGER NOT NULL DEFAULT 0
 );";
 
 pub struct SiteMetaCacheStore {
     db: Mutex<Connection>,
+}
+
+/// 与前端 `normalizeUrlForCache` 同构：去 hash、去尾部多余斜杠。
+pub fn normalize_cache_key(url: &str) -> String {
+    if let Ok(mut u) = url::Url::parse(url) {
+        u.set_fragment(None);
+        let mut path = u.path().to_string();
+        if path.len() > 1 && path.ends_with('/') {
+            while path.len() > 1 && path.ends_with('/') {
+                path.pop();
+            }
+            u.set_path(&path);
+        }
+        u.to_string()
+    } else {
+        let no_hash = url.split('#').next().unwrap_or(url);
+        let mut s = no_hash.to_string();
+        if s.len() > 8 && s.ends_with('/') {
+            while s.len() > 8 && s.ends_with('/') {
+                s.pop();
+            }
+        }
+        s
+    }
 }
 
 impl SiteMetaCacheStore {
@@ -44,7 +76,7 @@ impl SiteMetaCacheStore {
         let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn
             .prepare(
-                "SELECT url, title, favicon_url, favicon_data_uri, fetched_at FROM site_meta_cache",
+                "SELECT url, title, title_source, favicon_url, favicon_data_uri, fetched_at, last_ok_at, next_retry_at, fail_count FROM site_meta_cache",
             )
             .map_err(|e| AppError::Storage(format!("prepare select: {e}")))?;
         let rows = stmt
@@ -53,9 +85,13 @@ impl SiteMetaCacheStore {
                     row.get::<_, String>(0)?,
                     SiteMetaCacheEntry {
                         title: row.get(1)?,
-                        favicon_url: row.get(2)?,
-                        favicon_data_uri: row.get(3)?,
-                        fetched_at: row.get(4)?,
+                        title_source: row.get(2)?,
+                        favicon_url: row.get(3)?,
+                        favicon_data_uri: row.get(4)?,
+                        fetched_at: row.get(5)?,
+                        last_ok_at: row.get(6)?,
+                        next_retry_at: row.get(7)?,
+                        fail_count: row.get(8)?,
                     },
                 ))
             })
@@ -75,9 +111,19 @@ impl SiteMetaCacheStore {
             .map_err(|e| AppError::Storage(format!("begin upsert transaction: {e}")))?;
         for (url, entry) in entries {
             tx.execute(
-                "INSERT OR REPLACE INTO site_meta_cache (url, title, favicon_url, favicon_data_uri, fetched_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![url, entry.title, entry.favicon_url, entry.favicon_data_uri, entry.fetched_at],
+                "INSERT OR REPLACE INTO site_meta_cache (url, title, title_source, favicon_url, favicon_data_uri, fetched_at, last_ok_at, next_retry_at, fail_count)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![
+                    url,
+                    entry.title,
+                    entry.title_source,
+                    entry.favicon_url,
+                    entry.favicon_data_uri,
+                    entry.fetched_at,
+                    entry.last_ok_at,
+                    entry.next_retry_at,
+                    entry.fail_count
+                ],
             )
             .map_err(|e| AppError::Storage(format!("upsert {url}: {e}")))?;
         }
@@ -121,9 +167,13 @@ mod tests {
     fn entry(title: &str) -> SiteMetaCacheEntry {
         SiteMetaCacheEntry {
             title: title.to_string(),
+            title_source: "".into(),
             favicon_url: format!("https://{title}/favicon.ico"),
             favicon_data_uri: "data:image/png;base64,AAAA".to_string(),
             fetched_at: 1700000000000,
+            last_ok_at: 0,
+            next_retry_at: 0,
+            fail_count: 0,
         }
     }
 
@@ -180,5 +230,42 @@ mod tests {
     fn empty_store_returns_empty_map() {
         let store = open_test_store("empty");
         assert!(store.get_all().unwrap().is_empty());
+    }
+
+    #[test]
+    fn entry_with_new_fields_roundtrips() {
+        let dir = temp_dir().join(format!("adl-site-meta-newfields-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let store = SiteMetaCacheStore::open(&dir).unwrap();
+        let mut map = HashMap::new();
+        map.insert(
+            "https://a.com/".to_string(),
+            SiteMetaCacheEntry {
+                title: "A".into(),
+                title_source: "http".into(),
+                favicon_url: "https://a.com/icon.png".into(),
+                favicon_data_uri: "data:image/png;base64,AAAA".into(),
+                fetched_at: 1,
+                last_ok_at: 2,
+                next_retry_at: 3,
+                fail_count: 4,
+            },
+        );
+        store.upsert(&map).unwrap();
+        let all = store.get_all().unwrap();
+        let e = all.get("https://a.com/").unwrap();
+        assert_eq!(e.title_source, "http");
+        assert_eq!(e.last_ok_at, 2);
+        assert_eq!(e.next_retry_at, 3);
+        assert_eq!(e.fail_count, 4);
+    }
+
+    #[test]
+    fn normalize_cache_key_strips_hash_and_trailing_slash() {
+        // 预期与前端 normalizeUrlForCache 一致（siteMetaCache.test.ts）：路径的尾部斜杠全部去除。
+        assert_eq!(normalize_cache_key("https://a.com/path/#sec"), "https://a.com/path");
+        assert_eq!(normalize_cache_key("https://a.com/path//"), "https://a.com/path");
+        assert_eq!(normalize_cache_key("https://a.com"), "https://a.com/");
     }
 }

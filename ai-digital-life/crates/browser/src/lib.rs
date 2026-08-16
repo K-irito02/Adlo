@@ -28,7 +28,7 @@ pub use browser_webview::{BROWSER_WEBVIEW_LABEL, BrowserManager, webview_label};
 pub use html_meta::{
     extract_favicon, extract_title, google_favicon_url, html_entity_decode, origin_favicon_fallback,
 };
-pub use site_meta_cache::{SiteMetaCacheEntry, SiteMetaCacheStore};
+pub use site_meta_cache::{SiteMetaCacheEntry, SiteMetaCacheStore, normalize_cache_key};
 pub use webview_handle::{Bounds, EventBridgeRef, WebView2EventBridge, WebViewHandle};
 pub use webview2_audio::{mute_tab, setup_audio_changed_handler};
 pub use webview2_background::theme_to_rgb;
