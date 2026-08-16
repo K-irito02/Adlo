@@ -151,35 +151,47 @@ export function createGitSnapshotActions(
 
     /**
      * [refreshGitSnapshot - 刷新单个工作区的 Git 状态快照]
-     * @reads gitSlice.workspaceChangesTreeLoading, gitSlice.workspaceChangesTreeErrors
-     * @writes gitSlice.gitSnapshots, gitSlice.workspaceChangesTreeLoading, gitSlice.workspaceChangesTreeErrors
+     * @reads gitSlice.workspaceChangesTreeErrors, gitSlice.changesTreeRefreshing
+     * @writes gitSlice.gitSnapshots, gitSlice.workspaceChangesTreeErrors, gitSlice.changesTreeRefreshing
      * @see shared/ipc.ts → workspace.listGitStatusForWorkspace
      * @see mock-bridge.ts → workspace.listGitStatusForWorkspace
      * @see preview-bridge/index.ts → workspace.listGitStatusForWorkspace
+     * @param silent 为 true 时静默刷新，不触发该工作区刷新图标旋转
      */
-    refreshGitSnapshot: async (workspaceId: string, workspacePath: string) => {
-      set({
-        workspaceChangesTreeLoading: { ...get().workspaceChangesTreeLoading, [workspaceId]: true },
-        workspaceChangesTreeErrors: {
-          ...get().workspaceChangesTreeErrors,
-          [workspaceId]: undefined,
-        },
-      });
-      const result = await window.digitalLife.workspace.listGitStatusForWorkspace(workspacePath);
-      const loading = { ...get().workspaceChangesTreeLoading, [workspaceId]: false };
-      if (!result.ok) {
+    refreshGitSnapshot: async (
+      workspaceId: string,
+      workspacePath: string,
+      options?: { silent?: boolean },
+    ) => {
+      const silent = options?.silent ?? false;
+      if (!silent) {
         set({
-          workspaceChangesTreeLoading: loading,
+          changesTreeRefreshing: { ...get().changesTreeRefreshing, [workspaceId]: true },
           workspaceChangesTreeErrors: {
             ...get().workspaceChangesTreeErrors,
-            [workspaceId]: result.error.message,
+            [workspaceId]: undefined,
           },
         });
+      }
+      const result = await window.digitalLife.workspace.listGitStatusForWorkspace(workspacePath);
+      if (!silent) {
+        set({
+          changesTreeRefreshing: { ...get().changesTreeRefreshing, [workspaceId]: false },
+        });
+      }
+      if (!result.ok) {
+        if (!silent) {
+          set({
+            workspaceChangesTreeErrors: {
+              ...get().workspaceChangesTreeErrors,
+              [workspaceId]: result.error.message,
+            },
+          });
+        }
         return;
       }
       set({
         gitSnapshots: { ...get().gitSnapshots, [workspaceId]: result.data },
-        workspaceChangesTreeLoading: loading,
       });
     },
   };

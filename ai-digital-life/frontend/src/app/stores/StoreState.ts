@@ -241,7 +241,11 @@ interface EditorActions {
 
 interface GitActions {
   loadGitSnapshot: (workspaceId: string, workspacePath: string) => Promise<void>;
-  refreshGitSnapshot: (workspaceId: string, workspacePath: string) => Promise<void>;
+  refreshGitSnapshot: (
+    workspaceId: string,
+    workspacePath: string,
+    options?: { silent?: boolean },
+  ) => Promise<void>;
   expandWorkspaceChangesInFileNav: (workspaceId: string, workspacePath: string) => Promise<void>;
   collapseAllWorkspaceChanges: () => void;
   expandAllWorkspaceChanges: () => Promise<void>;
