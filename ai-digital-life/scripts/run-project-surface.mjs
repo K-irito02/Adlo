@@ -29,16 +29,24 @@ const cargoCommand = process.platform === "win32" ? "cargo.exe" : "cargo";
 const viteEntry = path.join(repoRoot, "frontend", "node_modules", "vite", "bin", "vite.js");
 const children = [];
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  void shutdown(1);
-});
+const isMain = Boolean(process.argv[1]) && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMain) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    void shutdown(1);
+  });
+}
 
 async function main() {
   const port = requestedPort ?? (await findOpenPort(host));
   const devUrl = `http://${host}:${port}`;
 
   console.log(`[adl-run] mode=${mode} url=${devUrl}`);
+
+  if (mode === "tauri" || mode === "both") {
+    await killProcessesByName(process.platform === "win32" ? "ai-digital-life.exe" : "ai-digital-life");
+  }
 
   const vite = spawnChecked(
     process.execPath,
@@ -223,6 +231,24 @@ async function terminateChild(pid) {
   } catch {
     // Ignore already-exited processes.
   }
+}
+
+export async function killProcessesByName(imageName) {
+  console.log(`[adl-run] killing stale ${imageName} processes to release the dev binary lock`);
+  if (process.platform === "win32") {
+    await new Promise((resolve) => {
+      const killer = spawn("taskkill", ["/F", "/IM", imageName, "/T"], { stdio: "ignore" });
+      killer.once("exit", () => resolve(undefined));
+      killer.once("error", () => resolve(undefined));
+    });
+    return;
+  }
+
+  await new Promise((resolve) => {
+    const killer = spawn("pkill", ["-f", imageName], { stdio: "ignore" });
+    killer.once("exit", () => resolve(undefined));
+    killer.once("error", () => resolve(undefined));
+  });
 }
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
