@@ -51,3 +51,38 @@ describe('editorSlice file tree click state', () => {
     expect(store.getState().fileTreeClickedWorkspaceRoot).toBeUndefined();
   });
 });
+
+describe('editorSlice changes tree clicked state', () => {
+  it('setChangesTreeClickedNode 记录节点并清除根目录选中', () => {
+    const store = makeStore();
+    store.getState().setChangesTreeClickedWorkspaceRoot('ws-1');
+    store.getState().setChangesTreeClickedNode('ws-1', 'src/index.ts', 'file');
+
+    expect(store.getState().changesTreeClickedWorkspaceId).toBe('ws-1');
+    expect(store.getState().changesTreeClickedPath).toBe('src/index.ts');
+    expect(store.getState().changesTreeClickedKind).toBe('file');
+    expect(store.getState().changesTreeClickedWorkspaceRoot).toBeUndefined();
+  });
+
+  it('setChangesTreeClickedWorkspaceRoot 选中根目录并清除节点选中', () => {
+    const store = makeStore();
+    store.getState().setChangesTreeClickedNode('ws-1', 'a.ts', 'file');
+    store.getState().setChangesTreeClickedWorkspaceRoot('ws-1');
+
+    expect(store.getState().changesTreeClickedWorkspaceRoot).toBe('ws-1');
+    expect(store.getState().changesTreeClickedWorkspaceId).toBe('ws-1');
+    expect(store.getState().changesTreeClickedPath).toBeUndefined();
+    expect(store.getState().changesTreeClickedKind).toBeUndefined();
+  });
+
+  it('clearChangesTreeClickedNode 清除全部', () => {
+    const store = makeStore();
+    store.getState().setChangesTreeClickedNode('ws-1', 'a.ts', 'file');
+    store.getState().clearChangesTreeClickedNode();
+
+    expect(store.getState().changesTreeClickedPath).toBeUndefined();
+    expect(store.getState().changesTreeClickedWorkspaceId).toBeUndefined();
+    expect(store.getState().changesTreeClickedKind).toBeUndefined();
+    expect(store.getState().changesTreeClickedWorkspaceRoot).toBeUndefined();
+  });
+});

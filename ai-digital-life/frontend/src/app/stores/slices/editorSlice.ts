@@ -24,6 +24,12 @@ export interface EditorSlice {
   fileTreeClickedKind?: 'directory' | 'file';
   /** 点击"工作区顶级目录"（根目录）时记录，用于将新建文件/文件夹的目标目录指向根目录 */
   fileTreeClickedWorkspaceRoot?: string;
+  /** Changes 面板点击节点选中态（与 Files 面板 fileTreeClicked* 隔离） */
+  changesTreeClickedPath?: string;
+  changesTreeClickedWorkspaceId?: string;
+  changesTreeClickedKind?: 'directory' | 'file';
+  /** 点击"工作区顶级目录"（根目录）时记录 */
+  changesTreeClickedWorkspaceRoot?: string;
   fileNavigatorActiveWorkspaceId?: string;
 
   setOpenTabs: (tabs: EditorTabState[]) => void;
@@ -45,6 +51,9 @@ export interface EditorSlice {
   setFileTreeClickedNode: (workspaceId: string, path: string, kind: 'directory' | 'file') => void;
   setFileTreeClickedWorkspaceRoot: (workspaceId: string) => void;
   clearFileTreeClickedNode: () => void;
+  setChangesTreeClickedNode: (workspaceId: string, path: string, kind: 'directory' | 'file') => void;
+  setChangesTreeClickedWorkspaceRoot: (workspaceId: string) => void;
+  clearChangesTreeClickedNode: () => void;
   setFileNavigatorActiveWorkspace: (workspaceId: string | undefined) => void;
   clearEditorState: () => void;
 }
@@ -125,6 +134,27 @@ export const createEditorSlice = (
       fileTreeClickedKind: undefined,
       fileTreeClickedWorkspaceRoot: undefined,
     }),
+  setChangesTreeClickedNode: (workspaceId, path, kind) =>
+    set({
+      changesTreeClickedWorkspaceId: workspaceId,
+      changesTreeClickedPath: path,
+      changesTreeClickedKind: kind,
+      changesTreeClickedWorkspaceRoot: undefined,
+    }),
+  setChangesTreeClickedWorkspaceRoot: (workspaceId) =>
+    set({
+      changesTreeClickedWorkspaceId: workspaceId,
+      changesTreeClickedPath: undefined,
+      changesTreeClickedKind: undefined,
+      changesTreeClickedWorkspaceRoot: workspaceId,
+    }),
+  clearChangesTreeClickedNode: () =>
+    set({
+      changesTreeClickedPath: undefined,
+      changesTreeClickedWorkspaceId: undefined,
+      changesTreeClickedKind: undefined,
+      changesTreeClickedWorkspaceRoot: undefined,
+    }),
   setFileNavigatorActiveWorkspace: (fileNavigatorActiveWorkspaceId) =>
     set({ fileNavigatorActiveWorkspaceId }),
   clearEditorState: () =>
@@ -145,6 +175,10 @@ export const createEditorSlice = (
       fileTreeClickedWorkspaceId: undefined,
       fileTreeClickedKind: undefined,
       fileTreeClickedWorkspaceRoot: undefined,
+      changesTreeClickedPath: undefined,
+      changesTreeClickedWorkspaceId: undefined,
+      changesTreeClickedKind: undefined,
+      changesTreeClickedWorkspaceRoot: undefined,
       fileNavigatorActiveWorkspaceId: undefined,
     }),
 });
