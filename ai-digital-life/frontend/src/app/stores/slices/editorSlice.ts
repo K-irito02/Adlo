@@ -140,6 +140,10 @@ export const createEditorSlice = (
       fileTreeClickedWorkspaceId: undefined,
       fileTreeClickedKind: undefined,
       fileTreeClickedWorkspaceRoot: undefined,
+      // 清除选中态时同步清空"选中工作区"，使回退分支（derivedActiveWorkspaceId）
+      // 可重新触达，避免点击后高亮/新建目标永久粘滞在陈旧工作区（后端激活工作区
+      // 切换或该工作区被移除时指向错误）。
+      fileNavigatorActiveWorkspaceId: undefined,
     }),
   setChangesTreeClickedNode: (workspaceId, path, kind) =>
     set({
@@ -165,6 +169,8 @@ export const createEditorSlice = (
       changesTreeClickedWorkspaceId: undefined,
       changesTreeClickedKind: undefined,
       changesTreeClickedWorkspaceRoot: undefined,
+      // 与 Files 面板一致：清除选中态时同步清空"选中工作区"，使回退分支可重新触达。
+      changesNavigatorActiveWorkspaceId: undefined,
     }),
   setFileNavigatorActiveWorkspace: (fileNavigatorActiveWorkspaceId) =>
     set({ fileNavigatorActiveWorkspaceId }),

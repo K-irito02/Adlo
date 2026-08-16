@@ -50,6 +50,14 @@ describe('editorSlice file tree click state', () => {
     expect(store.getState().fileTreeClickedPath).toBeUndefined();
     expect(store.getState().fileTreeClickedWorkspaceRoot).toBeUndefined();
   });
+
+  it('clearFileTreeClickedNode 同时清空导航"选中工作区"，使回退分支可重新触达', () => {
+    const store = makeStore();
+    store.getState().setFileTreeClickedNode('ws-1', 'src', 'directory');
+    store.getState().clearFileTreeClickedNode();
+
+    expect(store.getState().fileNavigatorActiveWorkspaceId).toBeUndefined();
+  });
 });
 
 describe('editorSlice changes tree clicked state', () => {
@@ -84,6 +92,14 @@ describe('editorSlice changes tree clicked state', () => {
     expect(store.getState().changesTreeClickedWorkspaceId).toBeUndefined();
     expect(store.getState().changesTreeClickedKind).toBeUndefined();
     expect(store.getState().changesTreeClickedWorkspaceRoot).toBeUndefined();
+  });
+
+  it('clearChangesTreeClickedNode 同时清空导航选中工作区', () => {
+    const store = makeStore();
+    store.getState().setChangesTreeClickedNode('ws-1', 'a.ts', 'file');
+    store.getState().clearChangesTreeClickedNode();
+
+    expect(store.getState().changesNavigatorActiveWorkspaceId).toBeUndefined();
   });
 
   it('点击 Changes 节点同步 changesNavigatorActiveWorkspaceId 到该节点工作区', () => {
