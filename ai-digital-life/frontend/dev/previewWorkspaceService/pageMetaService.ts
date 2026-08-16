@@ -10,8 +10,14 @@
  * 职责：内存 Map + JSON 持久化（防抖 500ms）+ 本地 subscribeUpdated 广播 +
  * 单飞行合并。抓取默认委托 `previewFetchPageMeta.fetchPageMetaOnce`，
  * 测试可注入 `fetchOnce` stub。
+ *
+ * 门控：所有抓取路径（默认与注入的 fetchOnce）在执行 HTML 抓取前先过
+ * `pageMetaGateAllows`（robots + 域名限速，测试可注入 `gateAllows` stub）——
+ * 与 Rust fetcher 内部 `robots_allow_fetch` + `rate_limit_allowed` 对所有
+ * 抓取路径生效同构；被拒返回空 PageMeta → 走失败退避（mark_failure）。
  */
 import { fetchPageMetaOnce } from '../previewFetchPageMeta';
+import { pageMetaGateAllows } from '../previewCrawlerGate';
 import { readSiteMetaCache, upsertSiteMetaCache } from './siteMetaCache';
 import type { SiteMetaCacheEntry } from './siteMetaCache';
 import type { MetaSource, PageMeta, PageMetaUpdatedPayload } from '../../src/shared/ipc/browser';
@@ -193,6 +199,12 @@ export interface PreviewPageMetaServiceOptions {
   baseDir: string;
   /** 抓取依赖；测试注入 stub。默认 previewFetchPageMeta.fetchPageMetaOnce。 */
   fetchOnce?: (url: string) => Promise<PageMeta>;
+  /**
+   * HTML 级门控（robots + 域名限速）；测试注入 stub。
+   * 默认 previewCrawlerGate.pageMetaGateAllows（robots + 5s/域名限速）。
+   * 被拒 → 空 PageMeta → 失败退避，不触发抓取（与 Rust fetcher 内部门控一致）。
+   */
+  gateAllows?: (url: string) => Promise<boolean>;
 }
 
 export interface PreviewPageMetaService {
@@ -208,6 +220,18 @@ export function createPreviewPageMetaService(
 ): PreviewPageMetaService {
   const { baseDir } = opts;
   const fetchOnce = opts.fetchOnce ?? fetchPageMetaOnce;
+  const gateAllows = opts.gateAllows ?? pageMetaGateAllows;
+
+  /**
+   * 门控抓取包装：HTML 抓取前先过 robots + 域名限速门控，被拒返回空 PageMeta
+   * （不触发抓取；空结果 → executeFetch 走 markFailure 失败退避，不写成功缓存）。
+   */
+  async function gatedFetchOnce(url: string): Promise<PageMeta> {
+    if (!(await gateAllows(url))) {
+      return { title: '', favicon: '', faviconDataUri: '', url };
+    }
+    return fetchOnce(url);
+  }
 
   const memory = new Map<string, SiteMetaCacheEntry>();
   const inFlight = new Map<string, Promise<PageMeta | null>>();
@@ -328,7 +352,7 @@ export function createPreviewPageMetaService(
     const now = Date.now();
     let meta: PageMeta;
     try {
-      meta = await fetchOnce(url);
+      meta = await gatedFetchOnce(url);
     } catch {
       // 与 Rust AppFetcher 一致：抓取异常视为空结果（走失败退避，不删除既有缓存）
       meta = { title: '', favicon: '', faviconDataUri: '', url };

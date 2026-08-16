@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -15,10 +15,14 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
 
   const emptyMeta = (url: string): PageMeta => ({ title: '', favicon: '', faviconDataUri: '', url });
 
+  /** HTML 级门控 stub：测试默认放行，避免真实 robots.txt 网络请求与单例限速器干扰。 */
+  const allowGate = (): Promise<boolean> => Promise.resolve(true);
+
   it('get success caches with http source; ttl short-circuit skips refetch', async () => {
     let calls = 0;
     const svc = createPreviewPageMetaService({
       baseDir: dir,
+      gateAllows: allowGate,
       fetchOnce: async (url) => {
         calls += 1;
         return { title: 'X', favicon: 'https://a.com/favicon.ico', faviconDataUri: '', url };
@@ -49,6 +53,7 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     let result: PageMeta = { title: 'A', favicon: '', faviconDataUri: '', url: '' };
     const svc = createPreviewPageMetaService({
       baseDir: dir,
+      gateAllows: allowGate,
       fetchOnce: async (url) => result,
     });
 
@@ -63,9 +68,36 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     expect(cached?.nextRetryAt).toBeGreaterThan(0);
   });
 
+  it('get returns empty when robots gate blocks the url', async () => {
+    const fetchSpy = vi.fn(async (url: string) => ({
+      title: 'X',
+      favicon: 'https://blocked.example/favicon.ico',
+      faviconDataUri: '',
+      url,
+    }));
+    const svc = createPreviewPageMetaService({
+      baseDir: dir,
+      fetchOnce: fetchSpy,
+      gateAllows: () => Promise.resolve(false), // robots 门控拒绝该 URL
+    });
+
+    const meta = await svc.get('https://blocked.example/');
+
+    // 被 gate 拦截：返回空 PageMeta，且不触发真实抓取
+    expect(meta?.title).toBe('');
+    expect(meta?.favicon).toBe('');
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    // 空 PageMeta → 失败退避语义（与 Rust robots 拦截返回 empty_page_meta → mark_failure 一致）
+    const entry = svc.peek('https://blocked.example/');
+    expect(entry?.failCount).toBe(1);
+    expect(entry?.nextRetryAt).toBeGreaterThan(0);
+  });
+
   it('report com does not clobber http title', async () => {
     const svc = createPreviewPageMetaService({
       baseDir: dir,
+      gateAllows: allowGate,
       fetchOnce: async (url) => emptyMeta(url),
     });
 
@@ -79,6 +111,7 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     let result: PageMeta = { title: '真实标题', favicon: '', faviconDataUri: '', url: '' };
     const svc = createPreviewPageMetaService({
       baseDir: dir,
+      gateAllows: allowGate,
       fetchOnce: async (url) => result,
     });
 
@@ -94,6 +127,7 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     let resolveFetch: (m: PageMeta) => void = () => {};
     const svc = createPreviewPageMetaService({
       baseDir: dir,
+      gateAllows: allowGate,
       fetchOnce: () => {
         calls += 1;
         return new Promise<PageMeta>((resolve) => {
@@ -116,6 +150,7 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
   it('get success persists the merged entry to the json cache (debounced)', async () => {
     const svc = createPreviewPageMetaService({
       baseDir: dir,
+      gateAllows: allowGate,
       fetchOnce: async (url) => ({
         title: 'A',
         favicon: 'https://a.com/favicon.ico',
@@ -139,6 +174,7 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
   it('report with rejected title/favicon returns false and leaves cache unchanged', async () => {
     const svc = createPreviewPageMetaService({
       baseDir: dir,
+      gateAllows: allowGate,
       fetchOnce: async (url) => emptyMeta(url),
     });
 
@@ -154,6 +190,7 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
   it('peek normalizes hash and trailing-slash url variants', async () => {
     const svc = createPreviewPageMetaService({
       baseDir: dir,
+      gateAllows: allowGate,
       fetchOnce: async (url) => ({ title: 'A', favicon: '', faviconDataUri: '', url }),
     });
 
@@ -165,6 +202,7 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
   it('subscribeUpdated broadcasts get success and report change; unsubscribe stops', async () => {
     const svc = createPreviewPageMetaService({
       baseDir: dir,
+      gateAllows: allowGate,
       fetchOnce: async (url) => ({ title: 'A', favicon: '', faviconDataUri: '', url }),
     });
 
@@ -188,6 +226,7 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     let calls = 0;
     const svc = createPreviewPageMetaService({
       baseDir: dir,
+      gateAllows: allowGate,
       fetchOnce: async (url) => {
         calls += 1;
         return emptyMeta(url);
