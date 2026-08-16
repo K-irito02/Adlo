@@ -32,7 +32,7 @@ export function renameTreeNodePaths(
     // 且后代未变化时保留原引用，避免无谓重建整棵树（破坏 React.memo 引用相等）。
     const isAncestor =
       segments.length < oldSegments.length &&
-      oldSegments.every((segment, index) => segments[index] === segment) &&
+      segments.every((segment, index) => oldSegments[index] === segment) &&
       node.children.length > 0;
     if (!isAncestor) {
       return node;
