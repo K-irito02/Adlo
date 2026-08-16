@@ -115,4 +115,28 @@ describe('useAppStartup warmup', () => {
     expect(urls.length).toBe(200);
     expect(new Set(urls).size).toBe(200);
   });
+
+  it('retries warmup when store is empty (deferred hydration) until data appears', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      // beforeEach 已把浏览器数据置空：首次收集为空 → 不调用 warmup，仅安排重试
+      renderHook(() => useAppStartup(undefined));
+
+      expect(vi.mocked(pageMetaClient.warmup)).not.toHaveBeenCalled();
+
+      // 模拟延迟水合完成（browserSlice 的 requestIdleCallback / setTimeout 200ms 之后）
+      useAppStore.setState({
+        browserTabs: [makeTab('tab1', 'https://a.example/')],
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(vi.mocked(pageMetaClient.warmup)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(pageMetaClient.warmup)).toHaveBeenCalledWith(['https://a.example/']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

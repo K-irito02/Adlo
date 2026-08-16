@@ -40,10 +40,28 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
 
   useEffect(() => {
     void initSiteMetaCache();
-    const urls = collectWarmupUrls();
-    if (urls.length > 0) {
-      void pageMetaClient.warmup(urls);
-    }
+    let attempts = 0;
+    const MAX_ATTEMPTS = 4;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const tryCollect = () => {
+      const urls = collectWarmupUrls();
+      if (urls.length > 0) {
+        void pageMetaClient.warmup(urls);
+        return;
+      }
+      // 浏览器数据可能仍在延迟水合（requestIdleCallback timeout:1000 / setTimeout 200ms），
+      // 空结果时延迟重试以覆盖水合窗口；一旦有数据即停。
+      attempts += 1;
+      if (attempts < MAX_ATTEMPTS) {
+        retryTimer = setTimeout(tryCollect, 300);
+      }
+    };
+    tryCollect();
+    return () => {
+      if (retryTimer !== undefined) {
+        clearTimeout(retryTimer);
+      }
+    };
   }, []);
 
   useEffect(() => {
