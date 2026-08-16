@@ -74,7 +74,18 @@
 - 涉及产物核验：计划文档 `docs/plans/multi-workspace/2026-08-16-file-tree-panels-unified-shell.md` 存在；root-cause 进度文件归档完整
 
 ## Step 5: 项目清理
-- 待执行
+- 移除 `.review-diffs/` 全部 16 个 Step 2 审查临时产物（diff 快照 + 报告），目录已删除
+- `.adl-logs/`：`debug-logs.txt`（14:36）、`terminal-logs.txt`（14:26）均为当日日志（< 7 天），保留
+- 根目录 `debug-logs.txt` / `debug-logs-browser.txt`：不存在，无需清理
+- `test-artifacts/`：不存在
+- 结论：清理完成
 
 ## Step 6: 最终总结
-- 待执行
+详见主回复中的收尾总结表格。关键结论：
+- Step 0 前置检查 ✅（分支 main、工作区提交后干净、Node v24.15.0 / cargo 1.97.1、任务类型=解决/优化/调整）
+- Step 1 日志审查 ✅ 无 P0/P1
+- Step 2 代码审查 ✅ 4 Agent 并行，rev1 33 问题（0/0/8/25）→ rev2 21 项修复全部验证通过，medium 全关闭，遗留 low 项经主 Agent 验证判定保留
+- Step 3 质量检测 ✅ 前后端全量通过；修复 renameTreeNodePaths 祖先判定方向 Bug + 判定 siteMetaCleanup 为 flaky
+- Step 4 文档同步 ✅ 更新 files.md / changes.md（弱选中交互模式）
+- Step 5 项目清理 ✅ 移除 .review-diffs，日志均为当日保留
+- 本轮追加 commit：`58a468e7`（rename 修复）、`8d7c135f`（prettier）、`6ec66bdd`（文档同步）
