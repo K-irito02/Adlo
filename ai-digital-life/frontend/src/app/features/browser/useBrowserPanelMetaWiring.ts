@@ -29,12 +29,10 @@ export interface UseBrowserPanelMetaWiringResult {
 export function useBrowserPanelMetaWiring(
   params: UseBrowserPanelMetaWiringParams,
 ): UseBrowserPanelMetaWiringResult {
-  const { markUrlSeen, pendingNavigationsRef } = params;
-
-  const { handlePageMeta: _handlePageMeta } = useBrowserPageMeta(
-    pendingNavigationsRef,
-    markUrlSeen,
-  );
+  // Task 9: useBrowserPageMeta 已重写为广播处理器，签名无参。
+  // pendingNavigationsRef/markUrlSeen 参数保留在接口中（BrowserPanel.tsx 调用处不变），
+  // 但不再传递给 useBrowserPageMeta——去重已由服务端 3s 窗口承担（Task 10 收尾时评估移除）。
+  const { handlePageMeta: _handlePageMeta } = useBrowserPageMeta();
 
   useBrowserMetaSubscription((meta) => {
     _handlePageMeta(meta, 'com');

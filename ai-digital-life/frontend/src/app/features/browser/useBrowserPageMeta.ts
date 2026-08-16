@@ -1,14 +1,52 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useAppStore } from '@stores/slicedStore';
-import {
-  setCachedSiteMeta,
-  getCachedSiteMeta,
-  buildCachedSiteMetaEntry,
-} from '@utils/siteMetaCache';
-import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { pageMetaClient } from '@utils/pageMetaClient';
+import { applyBroadcastUpdate, getCachedTitle } from '@utils/siteMetaCache';
+import type { PageMeta, PageMetaUpdatedPayload, MetaSource } from '@shared/ipc/browser';
 import { normalizedQueryForDedup } from '@utils/browserDisplayUtils';
-import { existingFaviconBaseline, shouldReplaceFavicon } from './faviconQuality';
 
+// 共享类型收敛（Task 6 注：Task 9 收敛 MetaSource 至 @shared/ipc/browser）。
+// 仍保留导出：useBrowserUrlChange.ts / useBrowserPanelAddressSubmit.ts（Task 10 迁移）
+// 目前从此模块导入 MetaSource；Task 10 迁移后可移除本重导出。
+export type { MetaSource } from '@shared/ipc/browser';
+
+export const titleSourceRef = new Map<string, MetaSource>();
+
+export function isPlaceholderTitle(title: string, url: string): boolean {
+  if (!title) return true;
+  if (title === url) return true;
+  if (/^https?:\/\//i.test(title)) return true;
+  try {
+    const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
+    if (!host) return false;
+    const t = title.trim().toLowerCase();
+    return t === host || t === `www.${host}`;
+  } catch {
+    return false;
+  }
+}
+
+export function applyBroadcastTitle(
+  tab: { title: string; id: string },
+  url: string,
+  broadcastTitle: string,
+  source: MetaSource,
+  currentSource?: MetaSource,
+): boolean {
+  if (!broadcastTitle) return false;
+  if (broadcastTitle === tab.title) return false;
+  if (isPlaceholderTitle(broadcastTitle, url)) return false; // 广播的是占位 → 不应用
+  if (isPlaceholderTitle(tab.title, url)) return true;        // 当前是占位 → 应用
+  if (source === 'http' || source === 'iframe') return true;
+  if (source === 'com') return currentSource === 'com' || currentSource === 'google';
+  return false;
+}
+
+/**
+ * Normalize a URL for tab/URL identity comparison: strip hash + trailing
+ * slash, and normalize the query string (tracking params dropped, remaining
+ * sorted) so SPA URL variants collapse to the same key.
+ */
 function normalizeUrlForDedup(url: string): string {
   try {
     const u = new URL(url);
@@ -19,317 +57,64 @@ function normalizeUrlForDedup(url: string): string {
   }
 }
 
-function hostnamePathKey(url: string): string {
-  try {
-    const u = new URL(url);
-    const path = (
-      u.pathname.length > 1 ? u.pathname.replace(/\/+$/, '') : u.pathname
-    ).toLowerCase();
-    return `${u.hostname.toLowerCase()}${path}`;
-  } catch {
-    return '';
-  }
-}
-
-export type MetaSource = 'com' | 'http' | 'iframe' | 'google';
-
-const SOURCE_PRIORITY: Record<MetaSource, number> = {
-  com: 4,
-  iframe: 3,
-  http: 2,
-  google: 1,
-};
-
-/**
- * Returns true when a title is just the URL's hostname (optionally with a
- * `www.` prefix) — e.g. `"douyin.com"` for `https://www.douyin.com/`. These
- * are URL-derived placeholders, not real page names.
- */
-function isHostnameTitle(title: string, url: string): boolean {
-  try {
-    const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
-    if (!host) {
-      return false;
-    }
-    const t = title.trim().toLowerCase();
-    return t === host || t === `www.${host}`;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Returns true when `title` carries no real page-name information — empty,
- * equal to the URL, a raw URL, or the bare hostname. Placeholders are safe to
- * overwrite from any source.
- */
-export function isPlaceholderTitle(title: string, url: string): boolean {
-  if (!title) {
-    return true;
-  }
-  if (title === url) {
-    return true;
-  }
-  if (/^https?:\/\//i.test(title)) {
-    return true;
-  }
-  return isHostnameTitle(title, url);
-}
-
-/**
- * Decide whether an incoming meta title may overwrite the title already
- * accepted for the SAME URL (the `exactMatch` branch of handlePageMeta).
- *
- * The `com` source reports the live `document.title`, which SPA video sites
- * (e.g. Douyin) often leave stale (still the first video's title) while the
- * URL advances via pushState. The `http`/`iframe` sources carry a title that
- * was actually fetched for this URL, so they may always upgrade.
- *
- * `com` may upgrade a placeholder OR a title that itself came from `com`/
- * `google` (legitimate real-time updates such as an unread-count badge on a
- * non-video site). It must never clobber a title fetched by `http`/`iframe`,
- * because a stale native title would otherwise overwrite the correct one.
- * `currentSource` is the provenance of the currently-accepted title; unknown
- * (undefined) is treated conservatively as "fetch-backed" so `com` cannot
- * unexpectedly overwrite a real title.
- */
-export function shouldApplyExactMatchTitle(
-  currentTitle: string,
-  url: string,
-  incomingTitle: string,
-  source: MetaSource,
-  currentSource?: MetaSource,
-): boolean {
-  if (!incomingTitle) {
-    return false;
-  }
-  if (incomingTitle === currentTitle) {
-    return false;
-  }
-  if (isPlaceholderTitle(incomingTitle, url)) {
-    return false;
-  }
-  if (isPlaceholderTitle(currentTitle, url)) {
-    return true;
-  }
-  if (source === 'http' || source === 'iframe') {
-    return true;
-  }
-  if (source === 'com') {
-    return currentSource === 'com' || currentSource === 'google';
-  }
-  return false;
-}
-
-interface MetaProcessedEntry {
-  timestamp: number;
-  source: MetaSource;
-}
-
-/**
- * TTL for deduplicating rapid handlePageMeta calls from
- * meta-changed events (WebView2 postMessage + Rust active fetch).
- * Must be long enough to cover the fast poll interval overlap.
- */
-const META_DEDUP_TTL = 2000; // ms
-
 function normalizeMetaUrl(url: string): string {
   try {
     const u = new URL(url);
     u.hash = '';
-    if (u.pathname.length > 1 && u.pathname.endsWith('/')) {
-      u.pathname = u.pathname.replace(/\/+$/, '');
-    }
+    if (u.pathname.length > 1 && u.pathname.endsWith('/')) u.pathname = u.pathname.replace(/\/+$/, '');
     return u.toString();
   } catch {
     const noHash = url.split('#')[0] || url;
-    if (noHash.length > 8 && noHash.endsWith('/')) {
-      return noHash.replace(/\/+$/, '');
-    }
-    return noHash;
+    return noHash.length > 8 && noHash.endsWith('/') ? noHash.replace(/\/+$/, '') : noHash;
   }
 }
 
-export function useBrowserPageMeta(
-  pendingNavigationsRef: React.MutableRefObject<Set<string>>,
-  markUrlSeen?: (url: string) => void,
-) {
-  /**
-   * Tracks URLs that have been recently processed by handlePageMeta.
-   * Prevents the two concurrent callback paths (onUrlChanged + meta-changed)
-   * from creating duplicate tabs / history entries for the same navigation.
-   */
-  const processedMetaRef = useRef<Map<string, MetaProcessedEntry>>(new Map());
-
-  /**
-   * Provenance of the title currently accepted for a browser TAB (keyed by tab
-   * id), rather than by URL. Keying per-tab isolates duplicate-URL tabs: a
-   * placeholder title on one tab must not let a `com` event flip the
-   * provenance of another tab that already holds a fetched `http` title.
-   * Lets `shouldApplyExactMatchTitle` distinguish a stale `com` title from a
-   * legitimate real-time `com` update without clobbering a fetched `http`/
-   * `iframe` title.
-   */
-  const titleSourceRef = useRef<Map<string, MetaSource>>(new Map());
-
-  const shouldProcessMeta = useCallback((url: string, source: MetaSource): boolean => {
-    const now = Date.now();
-    const entry = processedMetaRef.current.get(url);
-    if (!entry) {
-      return true;
-    }
-    if (now - entry.timestamp > META_DEDUP_TTL) {
-      processedMetaRef.current.delete(url);
-      return true;
-    }
-    // Also check by hostname+pathname to catch SPA pushState URL variants
-    const metaKey = hostnamePathKey(url);
-    if (!metaKey) {
-      return false;
-    }
-    for (const [seenUrl, seenEntry] of processedMetaRef.current.entries()) {
-      if (now - seenEntry.timestamp > META_DEDUP_TTL) {
-        processedMetaRef.current.delete(seenUrl);
-        continue;
-      }
-      if (hostnamePathKey(seenUrl) === metaKey) {
-        // Allow overwrite only if incoming has strictly higher priority
-        return SOURCE_PRIORITY[source] > SOURCE_PRIORITY[seenEntry.source];
+export function useBrowserPageMeta() {
+  const applyBroadcast = useCallback((p: PageMetaUpdatedPayload) => {
+    applyBroadcastUpdate(p); // 镜像更新（Task 7）
+    const state = useAppStore.getState();
+    const cleanUrl = normalizeMetaUrl(p.url);
+    const matchingTabs = state.browserTabs.filter(
+      (t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl),
+    );
+    for (const tab of matchingTabs) {
+      const curSource = titleSourceRef.get(tab.id);
+      if (applyBroadcastTitle(tab, cleanUrl, p.title, p.source, curSource)) {
+        state.browserUpdateTab(tab.id, { title: p.title });
+        titleSourceRef.set(tab.id, p.source);
       }
     }
-    return true;
+    if (matchingTabs.length > 0 || state.browserHistory.some((h) => h.url === cleanUrl)) {
+      state.browserUpdateHistoryTitle(cleanUrl, p.title || getCachedTitle(cleanUrl));
+    }
   }, []);
 
-  const handlePageMeta = useCallback(
-    (meta: { title: string; favicon: string; url: string }, source: MetaSource = 'http') => {
-      const cleanUrl = normalizeMetaUrl(meta.url);
-      if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-        return;
-      }
+  useEffect(() => pageMetaClient.subscribeUpdated(applyBroadcast), [applyBroadcast]);
 
-      const state = useAppStore.getState();
-      pendingNavigationsRef.current.delete(cleanUrl);
-
-      const normalizedMetaUrl = normalizeUrlForDedup(cleanUrl);
-      const exactMatch = state.browserTabs.find(
-        (t: BrowserTabState) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizedMetaUrl,
-      );
-      const activeTab = state.browserTabs.find(
-        (t: BrowserTabState) => t.id === state.browserActiveTabId,
-      );
-
-      if (!meta.title && !meta.favicon) {
-        return;
-      }
-
-      if (meta.favicon) {
-        const existing = getCachedSiteMeta(cleanUrl);
-        const existingFavicon = existingFaviconBaseline(existing);
-        if (shouldReplaceFavicon(existingFavicon, meta.favicon)) {
-          const dataUri = (meta as { faviconDataUri?: string }).faviconDataUri ?? '';
-          const writeEntry = () => {
-            setCachedSiteMeta(
-              cleanUrl,
-              buildCachedSiteMetaEntry(meta.title, meta.favicon, dataUri, existing),
-            );
-          };
-          if (source === 'com') {
-            // COM-sourced favicons need preload to prevent flicker
-            const img = new Image();
-            img.onload = writeEntry;
-            img.onerror = writeEntry;
-            img.src = meta.favicon;
-          } else {
-            // HTTP/iframe/google sources: image was already loaded or will be loaded naturally
-            writeEntry();
-          }
+  const handlePageMeta = useCallback((meta: PageMeta, source: MetaSource = 'http') => {
+    // 本地渲染期事件（iframe/地址栏）：先同步落地 store（保持即时性），再异步上报服务端合并
+    applyBroadcastUpdate({ url: meta.url, title: meta.title, faviconUrl: meta.favicon, faviconDataUri: meta.faviconDataUri || '', source });
+    const state = useAppStore.getState();
+    const cleanUrl = normalizeMetaUrl(meta.url);
+    const activeTab = state.browserTabs.find((t) => t.id === state.browserActiveTabId);
+    const exact = state.browserTabs.find((t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl));
+    if (exact) {
+      for (const t of state.browserTabs.filter((x) => normalizeUrlForDedup(normalizeMetaUrl(x.url)) === normalizeUrlForDedup(cleanUrl))) {
+        if (applyBroadcastTitle(t, cleanUrl, meta.title, source, titleSourceRef.get(t.id))) {
+          state.browserUpdateTab(t.id, { title: meta.title });
+          titleSourceRef.set(t.id, source);
         }
       }
-
-      const pageTitle = meta.title;
-
-      if (exactMatch) {
-        // The native meta event is URL-scoped, not tab-scoped: several tabs may
-        // hold the same URL (e.g. the same Bilibili video opened in multiple
-        // tabs). Update EVERY matching tab's title so a duplicate tab does not
-        // stay title-less. Each tab is gated by its own current title so a
-        // stale native title never clobbers a real fetched title on any tab.
-        const matchingTabs = state.browserTabs.filter(
-          (t: BrowserTabState) =>
-            normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizedMetaUrl,
-        );
-        let anyApplied = false;
-        for (const matchTab of matchingTabs) {
-          const currentSource = titleSourceRef.current.get(matchTab.id);
-          const shouldApply = shouldApplyExactMatchTitle(
-            matchTab.title,
-            cleanUrl,
-            pageTitle,
-            source,
-            currentSource,
-          );
-          if (shouldApply) {
-            state.browserUpdateTab(matchTab.id, { title: pageTitle });
-            titleSourceRef.current.set(matchTab.id, source);
-            anyApplied = true;
-          }
-        }
-        if (anyApplied) {
-          state.browserAddToHistory(cleanUrl, pageTitle);
-          state.browserUpdateHistoryTitle(cleanUrl, pageTitle);
-        }
-        return;
-      }
-
-      if (activeTab) {
-        if (!shouldProcessMeta(cleanUrl, source)) {
-          return;
-        }
-        if (markUrlSeen) {
-          markUrlSeen(cleanUrl);
-        }
-        processedMetaRef.current.set(cleanUrl, { timestamp: Date.now(), source });
-
-        // The tab's URL advances to the meta-reported URL regardless of title
-        // gating (this branch fires when the meta event arrived before
-        // onUrlChanged). The title, however, is gated exactly like the
-        // exactMatch branch: a stale `com` title (e.g. Douyin's first-video
-        // `document.title`) must not clobber a real title already accepted for
-        // this tab, and provenance is recorded so a later com event can still
-        // perform a legitimate real-time update without being blocked. Note: an
-        // unchanged title re-applied here also records provenance (a same-title
-        // com event may downgrade an http source to com) — the later http event
-        // restores the authoritative source, and stale-title risk is negligible.
-        const currentSource = titleSourceRef.current.get(activeTab.id);
-        const titleChanged = activeTab.title !== pageTitle;
-        const shouldApplyTitle =
-          !titleChanged ||
-          shouldApplyExactMatchTitle(activeTab.title, cleanUrl, pageTitle, source, currentSource);
-        state.browserUpdateTab(activeTab.id, {
-          url: cleanUrl,
-          title: shouldApplyTitle ? pageTitle : activeTab.title,
-        });
-        if (shouldApplyTitle) {
-          titleSourceRef.current.set(activeTab.id, source);
-        }
-        state.browserAddToHistory(cleanUrl, pageTitle);
-        state.browserUpdateHistoryTitle(cleanUrl, pageTitle);
-        return;
-      }
-
-      if (!shouldProcessMeta(cleanUrl, source)) {
-        return;
-      }
-      if (markUrlSeen) {
-        markUrlSeen(cleanUrl);
-      }
-      processedMetaRef.current.set(cleanUrl, { timestamp: Date.now(), source });
-      state.browserOpenTab(cleanUrl, pageTitle);
-      state.browserAddToHistory(cleanUrl, pageTitle);
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: handler reads latest state via refs and useAppStore.getState(); adding deps would recreate the callback and break the subscription
-    [],
-  );
+      state.browserUpdateHistoryTitle(cleanUrl, meta.title || getCachedTitle(cleanUrl));
+    } else if (activeTab) {
+      const urlChanged = normalizeUrlForDedup(normalizeMetaUrl(activeTab.url)) !== normalizeUrlForDedup(cleanUrl);
+      const shouldTitle = !urlChanged && applyBroadcastTitle(activeTab, cleanUrl, meta.title, source, titleSourceRef.get(activeTab.id));
+      state.browserUpdateTab(activeTab.id, { url: cleanUrl, title: shouldTitle ? meta.title : activeTab.title });
+      if (shouldTitle) titleSourceRef.set(activeTab.id, source);
+      state.browserUpdateHistoryTitle(cleanUrl, meta.title || getCachedTitle(cleanUrl));
+    }
+    void pageMetaClient.report({ url: meta.url, title: meta.title, favicon: meta.favicon }, source);
+  }, []);
 
   return { handlePageMeta };
 }
