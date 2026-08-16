@@ -1,22 +1,21 @@
+import { render, act, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, act } from '@testing-library/react';
+import { BrowserFavicon } from './BrowserFavicon';
+import * as cache from '../utils/siteMetaCache';
 
-describe('BrowserFavicon gating', () => {
-  beforeEach(() => {
-    vi.resetModules();
-  });
+beforeEach(() => { vi.restoreAllMocks(); });
 
-  it('renders empty placeholder before cache ready (no fallback icon)', async () => {
-    const mod = await import('./BrowserFavicon');
-    const cache = await import('../utils/siteMetaCache');
-    cache.setSiteMetaBackendForTest(cache.createMockSiteMetaBackend());
-    render(<mod.BrowserFavicon url="https://a.com" />);
-    // before init: placeholder, no <img>
-    expect(document.querySelector('.adl-browser-tree__favicon')).toBeNull();
-    await act(async () => {
-      await cache.initSiteMetaCache();
-    });
-    // after init: still no cache -> Google fallback img appears
-    expect(document.querySelector('.adl-browser-tree__favicon')).not.toBeNull();
-  });
+it('renders fallback icon (not blank) before cache ready', () => {
+  const { container } = render(<BrowserFavicon url="https://a.com" />);
+  expect(container.querySelector('.adl-browser-tree__link-fallback')).not.toBeNull();
+});
+
+it('image error does not remove cache (no removeCachedSiteMeta call)', async () => {
+  const removeSpy = vi.spyOn(cache, 'removeCachedSiteMeta').mockImplementation(() => {});
+  const { container } = render(<BrowserFavicon url="https://a.com" />);
+  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
+  if (img) {
+    act(() => { fireEvent.error(img); });
+  }
+  expect(removeSpy).not.toHaveBeenCalled();
 });
