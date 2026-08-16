@@ -592,7 +592,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use adl_errors::AppError;
 use crate::browser_meta::PageMeta;
-use crate::meta_merge::{META_SOURCE_HTTP, existing_favicon_baseline, should_apply_exact_match_title, should_replace_favicon};
+use crate::meta_merge::{META_SOURCE_HTTP, existing_favicon_baseline, is_placeholder_title, should_apply_exact_match_title, should_replace_favicon};
 use crate::site_meta_cache::{SiteMetaCacheEntry, SiteMetaCacheStore, normalize_cache_key};
 
 pub const META_TTL_MS: i64 = 7 * 24 * 3600 * 1000;
@@ -648,7 +648,15 @@ impl PageMetaService {
     pub async fn get(&self, url: &str, force: bool, fetcher: &dyn PageMetaFetcher) -> Result<PageMeta, AppError> {
         let key = normalize_cache_key(url);
         let now = chrono_now_ms();
-        // 单飞行：同 URL 并发共享一次抓取
+        // TTL 短路（spec 4.1）：缓存未过期直接返回，不发起抓取；force 绕过
+        if !force {
+            if let Some(entry) = self.peek(&key) {
+                if entry.last_ok_at > 0 && now - entry.last_ok_at < META_TTL_MS {
+                    return Ok(to_page_meta(entry));
+                }
+            }
+        }
+        // 单飞行（用 contains_key 区分持有者）：同 URL 并发只抓一次
         let notify = {
             let mut map = self.in_flight.lock().unwrap_or_else(|e| e.into_inner());
             map.entry(key.clone()).or_insert_with(|| Arc::new(tokio::sync::Notify::new())).clone()
@@ -690,7 +698,11 @@ impl PageMetaService {
             }
         };
         let entry = SiteMetaCacheEntry {
-            title: if meta.title.is_empty() { existing.as_ref().map(|e| e.title.clone()).unwrap_or_default() } else { meta.title.clone() },
+            title: if meta.title.is_empty() || is_placeholder_title(&meta.title, key) {
+                existing.as_ref().map(|e| e.title.clone()).unwrap_or_default()
+            } else {
+                meta.title.clone()
+            },
             title_source,
             favicon_url: {
                 let existing_fav = existing.as_ref().map(|e| existing_favicon_baseline(&e.favicon_data_uri, &e.favicon_url));
