@@ -38,10 +38,10 @@ function insertTreeNodeOptimistic(
   if (!tree) {
     return;
   }
-  const segments = relativePath.split('/').filter(Boolean);
+  const normalizedPath = relativePath.replace(/\\/g, '/');
+  const segments = normalizedPath.split('/').filter(Boolean);
   const name = segments[segments.length - 1];
   const parentPath = segments.slice(0, -1).join('/');
-  const normalizedPath = relativePath.replace(/\\/g, '/');
   const newNode = { path: normalizedPath, name, kind, children: [] };
   set({
     workspaceTrees: {
@@ -226,7 +226,6 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       // 乐观插入节点，立即显示；后台静默刷新校准，不阻塞 UI。
       insertTreeNodeOptimistic(get, set, relativePath, 'directory', workspacePath);
       void refreshTreeByWorkspacePath(get, workspacePath);
-      clearError(get, SCOPE);
       return relativePath;
     },
 

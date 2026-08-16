@@ -171,19 +171,20 @@ export function createWorkspaceActions(
         });
       }
       const currentPath = get().selectedFilePath;
-      if (currentPath === relativePath) {
-        set({
-          selectedFilePath: undefined,
-          fileContent: undefined,
-          openTabs: get().openTabs.filter((t) => t.path !== relativePath),
-        });
-      }
       const result = await window.digitalLife.workspace.deleteFile(relativePath, workspacePath);
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
         // 删除失败：刷新以恢复乐观移除的节点。
         await refreshTreeByWorkspacePath(get, workspacePath);
         return;
+      }
+      // 删除成功后，若被删除的正是当前打开文件，则关闭编辑器标签并清空其内容。
+      if (currentPath === relativePath) {
+        set({
+          selectedFilePath: undefined,
+          fileContent: undefined,
+          openTabs: get().openTabs.filter((t) => t.path !== relativePath),
+        });
       }
       await refreshTreeByWorkspacePath(get, workspacePath);
     },

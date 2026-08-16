@@ -18,6 +18,7 @@ export function renameTreeNodePaths(
       segments.length >= oldSegments.length &&
       oldSegments.every((segment, index) => segments[index] === segment)
     ) {
+      // 节点自身位于被重命名路径上：重建其 path/name/children。
       const rest = segments.slice(oldSegments.length);
       const nextPath = [...newSegments, ...rest].join('/');
       return {
@@ -27,7 +28,24 @@ export function renameTreeNodePaths(
         children: node.children.map(mapNode),
       };
     }
-    return { ...node, children: node.children.map(mapNode) };
+    // 节点不在重命名路径上；仅当其某个后代在路径上（即它是 oldPath 的祖先）时才重建，
+    // 且后代未变化时保留原引用，避免无谓重建整棵树（破坏 React.memo 引用相等）。
+    const isAncestor =
+      segments.length < oldSegments.length &&
+      oldSegments.every((segment, index) => segments[index] === segment) &&
+      node.children.length > 0;
+    if (!isAncestor) {
+      return node;
+    }
+    const nextChildren = node.children.map(mapNode);
+    let changed = false;
+    for (let i = 0; i < nextChildren.length; i++) {
+      if (nextChildren[i] !== node.children[i]) {
+        changed = true;
+        break;
+      }
+    }
+    return changed ? { ...node, children: nextChildren } : node;
   };
   return nodes.map(mapNode);
 }

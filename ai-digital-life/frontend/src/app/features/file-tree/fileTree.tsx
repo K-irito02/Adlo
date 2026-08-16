@@ -217,16 +217,27 @@ export function FileTree<T extends FileTreeRenderableNode>({
   const highlightedPath = contextMenuTargetPath;
 
   const activePath = selectedFilePath;
+  // 右键"多选"判定集合：只收集真正被"选中"的节点（强选中），供右键菜单分组操作。
+  // 弱选中模式下，activePath（编辑器当前打开文件）仅用于弱选中渲染，不进入该集合；
+  // 否则用户已在另一处节点进行强选中（extraSelectedPath）后，再右键点击弱选中文件，
+  // 会把两个节点一起收集进多选分组，导致删除/重命名被错误作用到两个节点，
+  // 与视觉状态（仅强选中被选中）不一致。非弱选中模式保持旧行为。
   const selectedPaths = useMemo((): Set<string> => {
     const paths = new Set<string>();
-    if (activePath) {
-      paths.add(activePath);
-    }
-    if (extraSelectedPath) {
-      paths.add(extraSelectedPath);
+    if (activePathIsWeak) {
+      if (extraSelectedPath) {
+        paths.add(extraSelectedPath);
+      }
+    } else {
+      if (activePath) {
+        paths.add(activePath);
+      }
+      if (extraSelectedPath) {
+        paths.add(extraSelectedPath);
+      }
     }
     return paths;
-  }, [activePath, extraSelectedPath]);
+  }, [activePathIsWeak, activePath, extraSelectedPath]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const clearContextMenu = () => setContextMenuTargetPath(undefined);

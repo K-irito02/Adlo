@@ -95,26 +95,29 @@ export function createWorkspaceTreeActions(
           workspaceTreeErrors: { ...get().workspaceTreeErrors, [workspaceId]: undefined },
         });
       }
-      const result = await window.digitalLife.workspace.listTreeForWorkspace(workspacePath);
-      if (!silent) {
-        set({
-          workspaceTreeRefreshing: { ...get().workspaceTreeRefreshing, [workspaceId]: false },
-        });
-      }
-      if (!result.ok) {
-        if (!silent) {
+      try {
+        const result = await window.digitalLife.workspace.listTreeForWorkspace(workspacePath);
+        if (!result.ok) {
+          // 静默刷新失败同样记录错误，与 refreshGitSnapshot 的 silent 行为对齐，
+          // 避免 create/rename/delete 后的校准刷新失败被静默吞掉（乐观结果可能失真）。
           set({
             workspaceTreeErrors: {
               ...get().workspaceTreeErrors,
               [workspaceId]: result.error.message,
             },
           });
+          return;
         }
-        return;
+        set({
+          workspaceTrees: { ...get().workspaceTrees, [workspaceId]: result.data },
+        });
+      } finally {
+        if (!silent) {
+          set({
+            workspaceTreeRefreshing: { ...get().workspaceTreeRefreshing, [workspaceId]: false },
+          });
+        }
       }
-      set({
-        workspaceTrees: { ...get().workspaceTrees, [workspaceId]: result.data },
-      });
     },
 
     /**

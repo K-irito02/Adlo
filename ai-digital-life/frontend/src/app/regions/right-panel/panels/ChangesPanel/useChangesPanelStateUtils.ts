@@ -373,7 +373,7 @@ export function toggleWorkspaceExpand(
 export function refreshOneWorkspace(
   workspaceId: string,
   recentWorkspaces: RecentWorkspaceEntry[],
-  refreshGitSnapshot: (id: string, path: string, options?: { silent?: boolean }) => void,
+  refreshGitSnapshot: (id: string, path: string) => void,
 ): void {
   const ws = recentWorkspaces.find((w) => w.id === workspaceId);
   if (ws) {
@@ -385,17 +385,27 @@ export async function refreshAllChanges(
   visibleWorkspaces: RecentWorkspaceEntry[],
   expandedWorkspaceIds: ReadonlySet<string>,
   setRefreshingAll: (refreshing: boolean) => void,
-  refreshGitSnapshot: (id: string, path: string, options?: { silent?: boolean }) => void,
+  refreshGitSnapshot: (id: string, path: string, options?: { silent?: boolean }) => Promise<void>,
 ): Promise<void> {
   const targets = visibleWorkspaces.filter((ws) => expandedWorkspaceIds.has(ws.id));
   if (targets.length === 0) {
     return;
   }
   setRefreshingAll(true);
-  await Promise.allSettled(
-    targets.map((ws) => refreshGitSnapshot(ws.id, ws.path, { silent: true })),
-  );
-  setRefreshingAll(false);
+  try {
+    const results = await Promise.allSettled(
+      targets.map((ws) => refreshGitSnapshot(ws.id, ws.path, { silent: true })),
+    );
+    // 桥接层抛错（refreshGitSnapshot 对 !result.ok 的 IPC 错误已写入 workspaceChangesTreeErrors，
+    // 但桥接 reject 会在此被 allSettled 捕获）——记录拒绝原因，避免静默吞掉。
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        console.warn('[refreshAllChanges] refreshGitSnapshot rejected', result.reason);
+      }
+    }
+  } finally {
+    setRefreshingAll(false);
+  }
 }
 
 export function handleChangesRenameConfirm(

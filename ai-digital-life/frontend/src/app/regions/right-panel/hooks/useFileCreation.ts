@@ -164,23 +164,30 @@ function useFileCreation(input: UseFileCreationInput): UseFileCreationResult {
       !input.selectedFileWorkspaceId || input.selectedFileWorkspaceId === targetWorkspaceId,
     );
     const relativePath = targetDir ? `${targetDir}/${normalized}` : normalized;
-    if (createTarget === 'file') {
-      const created = await input.onCreateWorkspaceFile(
-        relativePath,
-        undefined,
-        targetWorkspacePath,
-      );
-      if (created) {
-        input.expandFileTreePathChain(targetWorkspaceId, created);
+    try {
+      if (createTarget === 'file') {
+        const created = await input.onCreateWorkspaceFile(
+          relativePath,
+          undefined,
+          targetWorkspacePath,
+        );
+        if (created) {
+          input.expandFileTreePathChain(targetWorkspaceId, created);
+        }
+      } else {
+        const created = await input.onCreateWorkspaceFolder(relativePath, targetWorkspacePath);
+        if (created) {
+          input.expandFileTreePathChain(targetWorkspaceId, created);
+          input.setFileTreePathExpanded(targetWorkspaceId, created, true);
+        }
       }
-    } else {
-      const created = await input.onCreateWorkspaceFolder(relativePath, targetWorkspacePath);
-      if (created) {
-        input.expandFileTreePathChain(targetWorkspaceId, created);
-        input.setFileTreePathExpanded(targetWorkspaceId, created, true);
-      }
+    } catch (error) {
+      // store action（createWorkspaceFile/createWorkspaceFolder）已对常规失败给出反馈并返回 undefined；
+      // 此处为防御性兜底，捕获桥接层抛出的异常，避免未处理 rejection，同时保证对话框状态收敛。
+      console.error('[useFileCreation] submitCreate failed', error);
+    } finally {
+      cancelCreate();
     }
-    cancelCreate();
   }, [createTarget, createPathValue, input, t, cancelCreate]);
 
   return {

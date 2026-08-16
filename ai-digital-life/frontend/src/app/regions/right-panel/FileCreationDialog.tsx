@@ -33,6 +33,10 @@ function FileCreationDialog({
     setSubmitting(true);
     try {
       await onSubmit();
+    } catch (error) {
+      // onSubmit（useFileCreation.submitCreate）已对常规失败给出反馈；此处兜底捕获
+      // 桥接层抛出的异常，避免 void handleSubmit() 产生未处理 Promise rejection。
+      console.error('[FileCreationDialog] handleSubmit failed', error);
     } finally {
       setSubmitting(false);
     }
