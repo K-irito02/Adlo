@@ -108,7 +108,7 @@ export function RenameDialog({
           onChange={(e) => setValue(e.currentTarget.value)}
           disabled={loading}
         />
-        <div className="adl-prompt-modal__actions">
+        <div className="adl-prompt-modal__actions adl-prompt-modal__actions--fill">
           <button
             type="button"
             className="adl-btn adl-btn--ghost adl-btn--square"

@@ -74,8 +74,15 @@ export interface RightPanelViewProps {
   onOpenChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => void;
   onOpenFileAtLine: (relativePath: string, line: number) => void;
   onReloadExternal: () => void;
-  onCreateWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
-  onCreateWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
+  onCreateWorkspaceFile: (
+    relativePath: string,
+    content?: string,
+    workspacePath?: string,
+  ) => Promise<string | undefined>;
+  onCreateWorkspaceFolder: (
+    relativePath: string,
+    workspacePath?: string,
+  ) => Promise<string | undefined>;
   onEditorChange: (value: string | undefined) => void;
   onEditorMount: (editor: EditorRef) => void;
   onDiffMount: (editor: EditorRef | DiffEditorRef) => void;

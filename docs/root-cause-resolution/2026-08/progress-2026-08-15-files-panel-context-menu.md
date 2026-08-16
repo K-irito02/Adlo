@@ -1,7 +1,39 @@
 # 进度 — 2026-08-15 文件面板右键菜单问题
 
 ## 问题来源
-用户反馈"应用程序-右侧面板-文件面板"右键菜单的 4 个问题。
+用户反馈"应用程序-右侧面板-文件面板"右键菜单问题，以及后续补充的"工作区顶级目录点击选中"与"新建文件/文件夹报错"问题。
+
+## 新补充事项
+
+## [x] 事项 6：工作区顶级目录不支持鼠标点击选中效果
+- 状态：已完成（Phase 2A 修复，待 Tauri 用户验证）
+- 现象：点击文件面板中的"工作区顶级目录"（workspace 名称）没有选中高亮效果，用户无法知道新建文件/文件夹会创建在哪个工作区。
+- 根因：`activeWorkspaceId` 是**派生值**（来自后端 `appInfo.currentWorkspace`），Tauri 下该值为 null → `activeWorkspaceId === undefined` → `.is-current` 永久不高亮。`WorkspaceFileTreeEntry.handleNameClick` 只 `onToggleExpand()`，未设置选中态；而 `onOpenWorkspace` prop 已传 4 层却从未使用。
+- 修复（用户选择方案 B「轻量选中」）：
+  1. `editorSlice.ts` 新增 `fileNavigatorActiveWorkspaceId` 状态 + `setFileNavigatorActiveWorkspace` setter（`clearEditorState` 同步重置）
+  2. `FileNavigatorShell` 读取该状态，`activeWorkspaceId = fileNavigatorActiveWorkspaceId ?? derivedActiveWorkspaceId`（未选中回退后端当前工作区），新增 `handleSelectWorkspace` 并传入树
+  3. 将未使用的重载 `onOpenWorkspace`（原 `openWorkspace` 重载）改为轻量 `onSelectWorkspace(workspaceId)`，贯穿 `FileNavigatorTree`→`MultiWorkspaceFileTree`→`WorkspaceFileTreeEntry`
+  4. `WorkspaceFileTreeEntry.handleNameClick` 同时调用 `onSelectWorkspace()`（选中）与 `onToggleExpand()`（保留展开）
+- 验证：typecheck 通过；ESLint 通过（仅 1 条 pre-existing 依赖缺失 warning）；`useFileCreation` 8 测试通过
+
+## [~] 事项 7：新建文件/文件夹报错 "Not found: Not found: active workspace"
+- 状态：进行中（代码已修复，判定为后端 ad-server 运行旧代码，需重启）
+- 现象：Tauri 桌面应用下点击"新建文件/新建文件夹"报错 `Not found: Not found: active workspace`，创建失败。
+- 根因：
+  1. 前端 `useFileCreation.submitCreate` 已正确解析 `targetWorkspacePath` 并作为 `workspacePath` 传入（`targetWorkspaceId = activeWorkspaceId ?? recentWorkspaces[0]?.id`，无工作区提前返回）
+  2. `editorActions` → `window.digitalLife.workspace.createFile/createFolder` → `httpBridge`（POST body 含 `workspacePath`）链路全部正确
+  3. 后端 `workspace.rs` 的 `create_file`/`create_folder` 均已使用 `workspace_root(&state, input.workspace_path)`，显式路径优先
+  4. **但用户仍收到后端 `AppError::NotFound("active workspace")`（前端重前缀为双 "Not found:"）** → 说明请求到达的 ad-server 是**旧二进制**，其 handler 忽略 `workspace_path` 直接走 `current_workspace`
+  5. 验证：`Get-Process` 未发现任何 node/tauri/ad-server 进程，运行中的应用已退出；用户此前测试的是旧实例
+- 修复（代码已在工作区，待重启生效）：
+  1. 前端：`useFileCreation.submitCreate` 显式传 `workspacePath`
+  2. 后端：`create_file`/`create_folder`/`create_folder` handler 使用 `workspace_root` 支持显式路径
+- 验证（Phase 2A）：`useFileCreation` 8 测试通过（含 3 个 `submitCreate` 目标工作区测试）；typecheck/lint 通过
+- 下一步：重启 `pnpm run dev:tauri`（强制重新编译 Rust 后端 + 加载最新前端），请用户重新测试
+
+## 方案确认
+- 用户选择方案 B「点击 = 轻量选中，不重载」（2026-08-15）
+- 方案 A「点击 = openWorkspace 重载」被否决，未实施
 
 ## 事项清单
 

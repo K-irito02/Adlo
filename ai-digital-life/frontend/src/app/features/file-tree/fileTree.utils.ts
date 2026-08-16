@@ -35,6 +35,13 @@ export interface FileTreeProps<T extends FileTreeRenderableNode> {
   nodes: T[];
   selectedFilePath?: string;
   selectedFileWorkspaceId?: string;
+  extraSelectedPath?: string;
+  /**
+   * 弱选中模式：为 true 时 selectedFilePath 表示“编辑器当前打开的文件”，
+   * 以弱选中态渲染（跟随编辑器保持），强选中仅来自 extraSelectedPath（点击选中）。
+   * 缺省为 false 时保持旧行为：selectedFilePath 以强选中态渲染（GitHub/浏览器/变更树等）。
+   */
+  activePathIsWeak?: boolean;
   expandedPaths: Record<string, boolean>;
   dirtyPaths?: Set<string>;
   externalChangePath?: string;

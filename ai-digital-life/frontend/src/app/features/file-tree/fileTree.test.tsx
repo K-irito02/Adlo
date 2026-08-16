@@ -121,4 +121,117 @@ describe('FileTree', () => {
     expect(markup).toContain('is-selected');
     expect(markup).not.toContain('is-context-menu-target');
   });
+
+  it('highlights an extra selected path (clicked directory) alongside the active file', () => {
+    const nodes: FileTreeRenderableNode[] = [
+      {
+        path: 'src',
+        name: 'src',
+        kind: 'directory',
+        children: [
+          {
+            path: 'src/file.ts',
+            name: 'file.ts',
+            kind: 'file',
+            children: [],
+          },
+        ],
+      },
+    ];
+
+    const markup = renderToStaticMarkup(
+      <FileTree
+        nodes={nodes}
+        selectedFilePath="src/file.ts"
+        extraSelectedPath="src"
+        activePathIsWeak
+        expandedPaths={{ src: true }}
+        onToggle={() => undefined}
+        onOpenFile={() => undefined}
+        expandLabel="Expand"
+        collapseLabel="Collapse"
+      />,
+    );
+
+    // 点击选中的目录（extraSelectedPath）为强选中；编辑器当前打开的文件为弱选中
+    expect(markup.match(/adl-tree-node is-selected/g)).toHaveLength(1);
+    expect(markup).toContain('adl-tree-node is-weak-selected');
+  });
+
+  it('weak mode: clicked file is strong, editor-active file is weak (deselectable)', () => {
+    const nodes: FileTreeRenderableNode[] = [
+      {
+        path: 'src/file.ts',
+        name: 'file.ts',
+        kind: 'file',
+        children: [],
+      },
+      {
+        path: 'src/other.ts',
+        name: 'other.ts',
+        kind: 'file',
+        children: [],
+      },
+    ];
+
+    const clickedMarkup = renderToStaticMarkup(
+      <FileTree
+        nodes={nodes}
+        selectedFilePath="src/file.ts"
+        extraSelectedPath="src/file.ts"
+        activePathIsWeak
+        expandedPaths={{}}
+        onToggle={() => undefined}
+        onOpenFile={() => undefined}
+        expandLabel="Expand"
+        collapseLabel="Collapse"
+      />,
+    );
+    // 点击的文件同时是编辑器文件：只保留强选中，不出现弱选中
+    expect(clickedMarkup.match(/adl-tree-node is-selected/g)).toHaveLength(1);
+    expect(clickedMarkup).not.toContain('is-weak-selected');
+
+    const noClickedMarkup = renderToStaticMarkup(
+      <FileTree
+        nodes={nodes}
+        selectedFilePath="src/file.ts"
+        extraSelectedPath={undefined}
+        activePathIsWeak
+        expandedPaths={{}}
+        onToggle={() => undefined}
+        onOpenFile={() => undefined}
+        expandLabel="Expand"
+        collapseLabel="Collapse"
+      />,
+    );
+    // 点击外部清除 extraSelectedPath 后：编辑器文件仅保留弱选中，不再强选中
+    expect(noClickedMarkup).not.toContain('adl-tree-node is-selected');
+    expect(noClickedMarkup).toContain('adl-tree-node is-weak-selected');
+  });
+
+  it('legacy mode: active file remains strongly selected when no click selection is tracked', () => {
+    const nodes: FileTreeRenderableNode[] = [
+      {
+        path: 'src/file.ts',
+        name: 'file.ts',
+        kind: 'file',
+        children: [],
+      },
+    ];
+
+    const markup = renderToStaticMarkup(
+      <FileTree
+        nodes={nodes}
+        selectedFilePath="src/file.ts"
+        expandedPaths={{}}
+        onToggle={() => undefined}
+        onOpenFile={() => undefined}
+        expandLabel="Expand"
+        collapseLabel="Collapse"
+      />,
+    );
+
+    expect(markup).toContain('adl-tree-node is-selected');
+    expect(markup).not.toContain('is-weak-selected');
+  });
 });

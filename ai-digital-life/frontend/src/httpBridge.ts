@@ -847,10 +847,14 @@ export function createHttpBridge({
         call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/show', POST({ workspaceId })),
       revealInFileManager: (_workspacePath: string) =>
         taskNotSupported<boolean>('workspace.revealInFileManager'),
-      createFile: (relativePath: string, content = '') =>
-        call<WorkspaceFileDocument>(baseUrl, '/workspace/file', POST({ relativePath, content })),
-      createFolder: (relativePath: string) =>
-        call<boolean>(baseUrl, '/workspace/folder', POST({ relativePath })),
+      createFile: (relativePath: string, content = '', workspacePath?: string) =>
+        call<WorkspaceFileDocument>(
+          baseUrl,
+          '/workspace/file',
+          POST({ relativePath, content, workspacePath }),
+        ),
+      createFolder: (relativePath: string, workspacePath?: string) =>
+        call<boolean>(baseUrl, '/workspace/folder', POST({ relativePath, workspacePath })),
       readFile: (relativePath: string) =>
         call<WorkspaceFileDocument>(baseUrl, '/workspace/read', POST({ relativePath })),
       readFileForWorkspace: (workspacePath: string, relativePath: string) =>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { stripWorkspaceFromBrowserState } from './workspaceActions';
+import { stripWorkspaceFromBrowserState, resolvePostRenameOpenTarget } from './workspaceActions';
 import type {
   BrowserTabState,
   TabFolderState,
@@ -118,6 +118,66 @@ describe('stripWorkspaceFromBrowserState (cleanup on workspace delete)', () => {
     const result = stripWorkspaceFromBrowserState('ws-a', [], [], {}, wsBookmarks, '');
     expect(result.browserWorkspaceBookmarks).toEqual({
       'ws-b': [{ tabId: 't3', url: '', title: '' }],
+    });
+  });
+});
+
+describe('resolvePostRenameOpenTarget (re-open renamed open file)', () => {
+  const workspaces = [
+    { id: 'ws-1', path: 'C:/proj/a' },
+    { id: 'ws-2', path: 'D:/proj/b' },
+  ];
+
+  it('reopens via openFileForWorkspace with the explicit workspace when renaming the open file', () => {
+    expect(
+      resolvePostRenameOpenTarget(
+        'src/App.tsx',
+        'src/App.tsx',
+        'App2.tsx',
+        'C:/proj/a',
+        workspaces,
+      ),
+    ).toEqual({
+      kind: 'openFileForWorkspace',
+      workspaceId: 'ws-1',
+      workspacePath: 'C:/proj/a',
+      path: 'src/App2.tsx',
+    });
+  });
+
+  it('does not reopen when renaming a file that is not currently open', () => {
+    expect(
+      resolvePostRenameOpenTarget(
+        'src/App.tsx',
+        'README.md',
+        'README2.md',
+        'C:/proj/a',
+        workspaces,
+      ),
+    ).toBeNull();
+  });
+
+  it('falls back to openFile when the workspace path is unknown to the recent list', () => {
+    expect(
+      resolvePostRenameOpenTarget(
+        'src/App.tsx',
+        'src/App.tsx',
+        'App2.tsx',
+        'E:/unknown',
+        workspaces,
+      ),
+    ).toEqual({
+      kind: 'openFile',
+      path: 'src/App2.tsx',
+    });
+  });
+
+  it('falls back to openFile when no workspace path was provided', () => {
+    expect(
+      resolvePostRenameOpenTarget('src/App.tsx', 'src/App.tsx', 'App2.tsx', undefined, workspaces),
+    ).toEqual({
+      kind: 'openFile',
+      path: 'src/App2.tsx',
     });
   });
 });

@@ -11,7 +11,6 @@ import {
   IconUnfoldVertical,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
-import { FileCreationBar } from './FileCreationBar';
 import type { UseFileCreationResult } from './hooks';
 
 interface FileNavigatorToolbarProps {
@@ -23,6 +22,7 @@ interface FileNavigatorToolbarProps {
   outline: FileOutlineItem[];
   onToggleNavigatorStructure: () => void;
   onRefreshAll: () => void;
+  isRefreshingAll: boolean;
   onSetNavigatorMode: (mode: 'tree' | 'search' | 'outline') => void;
   fileCreation: UseFileCreationResult;
 }
@@ -36,6 +36,7 @@ const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
   outline,
   onToggleNavigatorStructure,
   onRefreshAll,
+  isRefreshingAll,
   onSetNavigatorMode,
   fileCreation,
 }: FileNavigatorToolbarProps) {
@@ -76,7 +77,11 @@ const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
               onClick={onRefreshAll}
               aria-label={t.fileRefresh as string}
             >
-              <IconRefreshCw size={14} decorative />
+              <IconRefreshCw
+                size={14}
+                decorative
+                className={isRefreshingAll ? 'adl-spin' : undefined}
+              />
             </button>
           </TooltipSimple>
         </div>
@@ -110,7 +115,7 @@ const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
           <TooltipSimple content={t.fileNewFile} placement="top">
             <button
               type="button"
-              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn adl-tool-navigator__create-action"
               onClick={() => fileCreation.startCreate('file')}
               aria-label={t.fileNewFile as string}
             >
@@ -120,7 +125,7 @@ const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
           <TooltipSimple content={t.fileNewFolder} placement="top">
             <button
               type="button"
-              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn adl-tool-navigator__create-action"
               onClick={() => fileCreation.startCreate('folder')}
               aria-label={t.fileNewFolder as string}
             >
@@ -129,31 +134,6 @@ const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
           </TooltipSimple>
         </div>
       </div>
-
-      {fileCreation.createTarget ? (
-        <FileCreationBar
-          createTarget={fileCreation.createTarget}
-          createPathValue={fileCreation.createPathValue}
-          createInputRef={fileCreation.createInputRef}
-          isValidPath={(value) => {
-            const trimmed = value.trim();
-            if (!trimmed) {
-              return false;
-            }
-            if (
-              /^[A-Za-z]:[\\/]/.test(trimmed) ||
-              trimmed.startsWith('/') ||
-              trimmed.startsWith('\\')
-            ) {
-              return false;
-            }
-            return true;
-          }}
-          onPathChange={fileCreation.setCreatePathValue}
-          onSubmit={fileCreation.submitCreate}
-          onCancel={fileCreation.cancelCreate}
-        />
-      ) : null}
     </>
   );
 });

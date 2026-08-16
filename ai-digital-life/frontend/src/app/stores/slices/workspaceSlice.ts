@@ -75,8 +75,10 @@ export interface WorkspaceSlice {
   recentWorkspaces: RecentWorkspaceEntry[];
   workspaceTrees: Record<string, WorkspaceTreeNode[]>;
   workspaceTreeLoading: Record<string, boolean>;
+  workspaceTreeRefreshing: Record<string, boolean>;
   workspaceTreeErrors: Record<string, string | undefined>;
   workspaceTreeExpandedInFileNav: Record<string, boolean>;
+  refreshingAllWorkspaces: boolean;
   gitSnapshots: Record<string, GitSnapshot>;
   workspaceChangesExpanded: Record<string, boolean>;
   workspaceChangesTreeData: Record<string, WorkspaceTreeNode[]>;
@@ -88,8 +90,10 @@ export interface WorkspaceSlice {
   setRecentWorkspaces: (workspaces: RecentWorkspaceEntry[]) => void;
   setWorkspaceTrees: (trees: Record<string, WorkspaceTreeNode[]>) => void;
   setWorkspaceTreeLoading: (loading: Record<string, boolean>) => void;
+  setWorkspaceTreeRefreshing: (refreshing: Record<string, boolean>) => void;
   setWorkspaceTreeErrors: (errors: Record<string, string | undefined>) => void;
   setWorkspaceTreeExpandedInFileNav: (expanded: Record<string, boolean>) => void;
+  setRefreshingAllWorkspaces: (refreshing: boolean) => void;
   setGitSnapshots: (snapshots: Record<string, GitSnapshot>) => void;
   setWorkspaceChangesExpanded: (expanded: Record<string, boolean>) => void;
   setWorkspaceChangesTreeData: (data: Record<string, WorkspaceTreeNode[]>) => void;
@@ -110,8 +114,10 @@ export const createWorkspaceSlice = (
     recentWorkspaces: [],
     workspaceTrees: {},
     workspaceTreeLoading: {},
+    workspaceTreeRefreshing: {},
     workspaceTreeErrors: {},
     workspaceTreeExpandedInFileNav: {},
+    refreshingAllWorkspaces: false,
     gitSnapshots: {},
     workspaceChangesExpanded: {},
     workspaceChangesTreeData: {},
@@ -123,11 +129,13 @@ export const createWorkspaceSlice = (
     setRecentWorkspaces: (workspaces) => set({ recentWorkspaces: workspaces }),
     setWorkspaceTrees: (trees) => set({ workspaceTrees: trees }),
     setWorkspaceTreeLoading: (loading) => set({ workspaceTreeLoading: loading }),
+    setWorkspaceTreeRefreshing: (refreshing) => set({ workspaceTreeRefreshing: refreshing }),
     setWorkspaceTreeErrors: (errors) => set({ workspaceTreeErrors: errors }),
     setWorkspaceTreeExpandedInFileNav: (expanded) => {
       scheduleWrite(WORKSPACE_TREE_EXPANDED_KEY, expanded);
       set({ workspaceTreeExpandedInFileNav: expanded });
     },
+    setRefreshingAllWorkspaces: (refreshing) => set({ refreshingAllWorkspaces: refreshing }),
     setGitSnapshots: (snapshots) => set({ gitSnapshots: snapshots }),
     setWorkspaceChangesExpanded: (expanded) => {
       scheduleWrite(WORKSPACE_CHANGES_EXPANDED_KEY, expanded);

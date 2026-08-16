@@ -19,6 +19,12 @@ export interface EditorSlice {
   externalFileChange?: { path: string; lastModifiedAt: number };
   outline: FileOutlineItem[];
   dirtyEditorPaths: string[];
+  fileTreeClickedPath?: string;
+  fileTreeClickedWorkspaceId?: string;
+  fileTreeClickedKind?: 'directory' | 'file';
+  /** 点击"工作区顶级目录"（根目录）时记录，用于将新建文件/文件夹的目标目录指向根目录 */
+  fileTreeClickedWorkspaceRoot?: string;
+  fileNavigatorActiveWorkspaceId?: string;
 
   setOpenTabs: (tabs: EditorTabState[]) => void;
   addOpenTab: (tab: EditorTabState) => void;
@@ -36,6 +42,10 @@ export interface EditorSlice {
   setDirtyEditorPaths: (paths: string[]) => void;
   addDirtyPath: (path: string) => void;
   removeDirtyPath: (path: string) => void;
+  setFileTreeClickedNode: (workspaceId: string, path: string, kind: 'directory' | 'file') => void;
+  setFileTreeClickedWorkspaceRoot: (workspaceId: string) => void;
+  clearFileTreeClickedNode: () => void;
+  setFileNavigatorActiveWorkspace: (workspaceId: string | undefined) => void;
   clearEditorState: () => void;
 }
 
@@ -88,6 +98,35 @@ export const createEditorSlice = (
         ),
       };
     }),
+  setFileTreeClickedNode: (workspaceId, path, kind) => {
+    set({
+      fileTreeClickedWorkspaceId: workspaceId,
+      fileTreeClickedPath: path,
+      fileTreeClickedKind: kind,
+      fileTreeClickedWorkspaceRoot: undefined,
+      // 点击文件树节点时，把"选中工作区"同步为该节点所属工作区，使顶部工作区高亮
+      // （左侧蓝条 + 蓝底）始终跟随用户实际正在操作的工作区。否则会出现：用户先点了
+      // B 顶级目录（高亮在 B），随后回到 A 工作区里展开/点击节点，高亮却仍停在 B，
+      // 导致在该工作区新建/重命名的目标被错误作用到 B 工作区。
+      fileNavigatorActiveWorkspaceId: workspaceId,
+    });
+  },
+  setFileTreeClickedWorkspaceRoot: (workspaceId) =>
+    set({
+      fileTreeClickedWorkspaceId: workspaceId,
+      fileTreeClickedPath: undefined,
+      fileTreeClickedKind: undefined,
+      fileTreeClickedWorkspaceRoot: workspaceId,
+    }),
+  clearFileTreeClickedNode: () =>
+    set({
+      fileTreeClickedPath: undefined,
+      fileTreeClickedWorkspaceId: undefined,
+      fileTreeClickedKind: undefined,
+      fileTreeClickedWorkspaceRoot: undefined,
+    }),
+  setFileNavigatorActiveWorkspace: (fileNavigatorActiveWorkspaceId) =>
+    set({ fileNavigatorActiveWorkspaceId }),
   clearEditorState: () =>
     set({
       openTabs: [],
@@ -102,5 +141,10 @@ export const createEditorSlice = (
       externalFileChange: undefined,
       outline: [],
       dirtyEditorPaths: [],
+      fileTreeClickedPath: undefined,
+      fileTreeClickedWorkspaceId: undefined,
+      fileTreeClickedKind: undefined,
+      fileTreeClickedWorkspaceRoot: undefined,
+      fileNavigatorActiveWorkspaceId: undefined,
     }),
 });

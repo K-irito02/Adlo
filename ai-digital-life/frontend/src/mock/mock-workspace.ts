@@ -123,7 +123,7 @@ export const mockWorkspace: WorkspaceBridge = {
     return { ok: true, data: recentWorkspaces };
   },
   revealInFileManager: async () => ({ ok: true, data: true }),
-  createFile: async (relativePath: string, content = "") => {
+  createFile: async (relativePath: string, content = "", _workspacePath?: string) => {
     documents.set(relativePath, content);
     fileVersions.set(relativePath, Date.now());
     return {
@@ -135,7 +135,7 @@ export const mockWorkspace: WorkspaceBridge = {
       }
     };
   },
-  createFolder: async (relativePath: string) => {
+  createFolder: async (relativePath: string, _workspacePath?: string) => {
     emptyDirectories.add(relativePath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""));
     return { ok: true, data: true };
   },

@@ -25,6 +25,7 @@ export interface UseFileContextMenuItemsParams {
   setDeleteConfirmPath: (path: string | null) => void;
   setRenamingWorkspacePath?: (path: string | undefined) => void;
   setDeleteWorkspacePath?: (path: string | undefined) => void;
+  setDeleteConfirmKind?: (kind: 'directory' | 'file') => void;
   includeOpenInFiles?: boolean;
   onOpenFile?: (relativePath: string) => void;
   isNodeDeleted?: (node: FileTreeRenderableNode) => boolean;
@@ -51,6 +52,7 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
     getWorkspacePath,
     setRenamingWorkspacePath,
     setDeleteWorkspacePath,
+    setDeleteConfirmKind,
   } = params;
 
   const getContextMenuItems = useCallback(
@@ -251,6 +253,7 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
           contextMenuPersistRef.current = true;
           setDeleteConfirmPath(targetNode.path);
           setDeleteWorkspacePath?.(getWorkspacePath?.(targetNode));
+          setDeleteConfirmKind?.(targetNode.kind);
         },
       });
 
@@ -266,6 +269,7 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
       getWorkspacePath,
       setRenamingWorkspacePath,
       setDeleteWorkspacePath,
+      setDeleteConfirmKind,
       includeOpenInFiles,
       onOpenFile,
       isNodeDeleted,

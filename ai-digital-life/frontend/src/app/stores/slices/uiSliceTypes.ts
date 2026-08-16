@@ -122,6 +122,7 @@ export interface UISlice {
   collapseAllFileTreePaths: (workspaceId: string) => void;
   setFilesNavigatorMode: (mode: FilesNavigatorMode) => void;
   setFilePreviewModeForPath: (path: string, previewEnabled: boolean) => void;
+  carryFilePreviewModeForRename: (oldPath: string, newPath: string) => void;
   setChangesPreviewEnabled: (previewEnabled: boolean) => void;
   setShowGitVisualization: (show: boolean) => void;
   setActiveHeatmapTab: (tab: HeatmapTab) => void;

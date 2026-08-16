@@ -136,6 +136,8 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     maxWidth: 300,
   });
 
+  const anyChangesTreeLoading = visibleWorkspaces.some((w) => workspaceChangesTreeLoading[w.id]);
+
   return (
     <aside className="adl-tool-navigator" aria-label={t.toolChanges}>
       <ChangesToolbar
@@ -147,6 +149,7 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
         totalChangeCount={totalChangeCount}
         hasVisibleWorkspaces={hasVisibleWorkspaces}
         onRefreshAll={onRefreshAll}
+        isRefreshingAll={anyChangesTreeLoading}
         changesNavigatorMode={changesNavigatorMode}
         onSetNavigatorMode={onChangeNavigatorMode}
         changesStatusFilter={changesStatusFilter}

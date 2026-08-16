@@ -76,39 +76,51 @@ export function createWorkspaceTreeActions(
 
     /**
      * [refreshOneWorkspaceTree - 刷新单个工作区的文件树]
-     * @reads workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTrees
-     * @writes workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTrees
+     * @param silent 为 true 时视为静默刷新（仅更新数据），不触发该工作区刷新图标旋转
+     * @reads workspaceSlice.workspaceTreeRefreshing, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTrees
+     * @writes workspaceSlice.workspaceTreeRefreshing, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTrees
      * @see shared/ipc.ts → workspace.listTreeForWorkspace
      * @see mock-bridge.ts → workspace.listTreeForWorkspace
      * @see preview-bridge/index.ts → workspace.listTreeForWorkspace
      */
-    refreshOneWorkspaceTree: async (workspaceId: WorkspaceID, workspacePath: string) => {
-      set({
-        workspaceTreeLoading: { ...get().workspaceTreeLoading, [workspaceId]: true },
-        workspaceTreeErrors: { ...get().workspaceTreeErrors, [workspaceId]: undefined },
-      });
-      const result = await window.digitalLife.workspace.listTreeForWorkspace(workspacePath);
-      const loading = { ...get().workspaceTreeLoading, [workspaceId]: false };
-      if (!result.ok) {
+    refreshOneWorkspaceTree: async (
+      workspaceId: WorkspaceID,
+      workspacePath: string,
+      options?: { silent?: boolean },
+    ) => {
+      const silent = options?.silent ?? false;
+      if (!silent) {
         set({
-          workspaceTreeLoading: loading,
-          workspaceTreeErrors: {
-            ...get().workspaceTreeErrors,
-            [workspaceId]: result.error.message,
-          },
+          workspaceTreeRefreshing: { ...get().workspaceTreeRefreshing, [workspaceId]: true },
+          workspaceTreeErrors: { ...get().workspaceTreeErrors, [workspaceId]: undefined },
         });
+      }
+      const result = await window.digitalLife.workspace.listTreeForWorkspace(workspacePath);
+      if (!silent) {
+        set({
+          workspaceTreeRefreshing: { ...get().workspaceTreeRefreshing, [workspaceId]: false },
+        });
+      }
+      if (!result.ok) {
+        if (!silent) {
+          set({
+            workspaceTreeErrors: {
+              ...get().workspaceTreeErrors,
+              [workspaceId]: result.error.message,
+            },
+          });
+        }
         return;
       }
       set({
         workspaceTrees: { ...get().workspaceTrees, [workspaceId]: result.data },
-        workspaceTreeLoading: loading,
       });
     },
 
     /**
      * [refreshAllWorkspaceTrees - 刷新所有已展开工作区的文件树]
      * @reads workspaceSlice.workspaceTreeExpandedInFileNav, workspaceSlice.recentWorkspaces
-     * @writes workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTrees (通过 refreshOneWorkspaceTree)
+     * @writes workspaceSlice.refreshingAllWorkspaces, workspaceSlice.workspaceTrees (通过 refreshOneWorkspaceTree)
      * @see shared/ipc.ts → workspace.listTreeForWorkspace (通过 refreshOneWorkspaceTree)
      * @see mock-bridge.ts → workspace.listTreeForWorkspace (通过 refreshOneWorkspaceTree)
      * @see preview-bridge/index.ts → workspace.listTreeForWorkspace (通过 refreshOneWorkspaceTree)
@@ -118,15 +130,20 @@ export function createWorkspaceTreeActions(
       const expandedIds = Object.entries(state.workspaceTreeExpandedInFileNav)
         .filter(([, expanded]) => expanded)
         .map(([id]) => id);
+      if (expandedIds.length === 0) {
+        return;
+      }
+      set({ refreshingAllWorkspaces: true });
       await Promise.allSettled(
         expandedIds.map((id) => {
           const ws = state.recentWorkspaces.find((r) => r.id === id);
           if (!ws) {
             return Promise.resolve();
           }
-          return get().refreshOneWorkspaceTree(asWorkspaceID(id), ws.path);
+          return get().refreshOneWorkspaceTree(asWorkspaceID(id), ws.path, { silent: true });
         }),
       );
+      set({ refreshingAllWorkspaces: false });
     },
 
     /**

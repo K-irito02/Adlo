@@ -202,7 +202,11 @@ export interface WorkspaceBridge {
    * @see mock-bridge.ts → workspace.createFile
    * @see preview-bridge/index.ts → workspace.createFile
    */
-  createFile: (relativePath: string, content?: string) => Promise<IpcResult<WorkspaceFileDocument>>;
+  createFile: (
+    relativePath: string,
+    content?: string,
+    workspacePath?: string,
+  ) => Promise<IpcResult<WorkspaceFileDocument>>;
   /**
    * 在当前工作区创建文件夹
    * @param relativePath 相对于工作区的路径 (包含目录名)
@@ -212,7 +216,7 @@ export interface WorkspaceBridge {
    * @see mock-bridge.ts → workspace.createFolder
    * @see preview-bridge/index.ts → workspace.createFolder
    */
-  createFolder: (relativePath: string) => Promise<IpcResult<boolean>>;
+  createFolder: (relativePath: string, workspacePath?: string) => Promise<IpcResult<boolean>>;
   /**
    * 读取当前工作区内的文件内容
    * @param relativePath 相对于工作区的路径

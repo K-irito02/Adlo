@@ -203,18 +203,27 @@ export function createPreviewWorkspaceBridge(
         method: 'POST',
         body: JSON.stringify({ path: workspacePath }),
       }),
-    createFile: (relativePath: string, content = '') =>
-      withWorkspace<WorkspaceFileDocument, [string, string]>(async (rootPath, rp, c) =>
-        requestPreviewApi<WorkspaceFileDocument>('/workspace/create-file', {
+    createFile: (relativePath: string, content = '', workspacePath?: string) =>
+      withWorkspace<WorkspaceFileDocument, [string, string, string?]>(
+        async (rootPath, rp, c, wsPath) =>
+          requestPreviewApi<WorkspaceFileDocument>('/workspace/create-file', {
+            method: 'POST',
+            body: JSON.stringify({
+              rootPath: wsPath ?? rootPath,
+              relativePath: rp,
+              content: c,
+            }),
+          }),
+      )(relativePath, content, workspacePath),
+    createFolder: withWorkspace<boolean, [string, string?]>(
+      async (rootPath, relativePath, wsPath) =>
+        requestPreviewApi<boolean>('/workspace/create-folder', {
           method: 'POST',
-          body: JSON.stringify({ rootPath, relativePath: rp, content: c }),
+          body: JSON.stringify({
+            rootPath: wsPath ?? rootPath,
+            relativePath,
+          }),
         }),
-      )(relativePath, content),
-    createFolder: withWorkspace<boolean, [string]>(async (rootPath, relativePath) =>
-      requestPreviewApi<boolean>('/workspace/create-folder', {
-        method: 'POST',
-        body: JSON.stringify({ rootPath, relativePath }),
-      }),
     ),
     readFile: withWorkspace<WorkspaceFileDocument, [string]>(async (rootPath, relativePath) => {
       const params = new URLSearchParams({ rootPath, relativePath });

@@ -246,6 +246,21 @@ export const createUISlice = (
         writeFilePreviewMode(next);
         return { filePreviewModeByPath: next };
       }),
+    carryFilePreviewModeForRename: (oldPath, newPath) =>
+      set((state) => {
+        const value = state.filePreviewModeByPath[oldPath];
+        if (value === undefined) {
+          return state;
+        }
+        if (state.filePreviewModeByPath[newPath] === value) {
+          return state;
+        }
+        const next = { ...state.filePreviewModeByPath };
+        delete next[oldPath];
+        next[newPath] = value;
+        writeFilePreviewMode(next);
+        return { filePreviewModeByPath: next };
+      }),
     setChangesPreviewEnabled: (previewEnabled) => {
       writeFlag(CHANGES_PREVIEW_ENABLED_KEY, previewEnabled);
       set({ changesPreviewEnabled: previewEnabled });

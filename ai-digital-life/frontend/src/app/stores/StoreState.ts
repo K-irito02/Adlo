@@ -74,6 +74,7 @@ import type { DurableSlice } from './slices/durableSlice';
 import type { ToastSlice } from './slices/toastSlice';
 import type { ErrorToastSlice } from './slices/errorToastSlice';
 import type { NotificationSlice } from './slices/notificationSlice';
+import type { FileOpNoticeSlice } from './slices/fileOpNoticeSlice';
 import type { PartStreamSlice } from './slices/partStreamSlice';
 import type { ReferenceConfig } from '@shared/ipc/reference';
 import type { PermissionRule } from '@shared/ipc/permission';
@@ -152,6 +153,7 @@ type AllSlices = [
   ToastSlice,
   ErrorToastSlice,
   NotificationSlice,
+  FileOpNoticeSlice,
   PartStreamSlice,
 ];
 
@@ -164,11 +166,22 @@ interface WorkspaceActions {
   removeWorkspaceFromSidebar: (workspaceId: WorkspaceID) => Promise<void>;
   reorderWorkspaces: (input: ReorderWorkspacesInput) => Promise<void>;
   revealWorkspaceInFileManager: (workspacePath: string) => Promise<void>;
-  createWorkspaceFile: (relativePath: string, content?: string) => Promise<string | undefined>;
-  createWorkspaceFolder: (relativePath: string) => Promise<string | undefined>;
+  createWorkspaceFile: (
+    relativePath: string,
+    content?: string,
+    workspacePath?: string,
+  ) => Promise<string | undefined>;
+  createWorkspaceFolder: (
+    relativePath: string,
+    workspacePath?: string,
+  ) => Promise<string | undefined>;
   refreshWorkspaceTree: () => Promise<void>;
   loadWorkspaceTree: (workspaceId: WorkspaceID, workspacePath: string) => Promise<void>;
-  refreshOneWorkspaceTree: (workspaceId: WorkspaceID, workspacePath: string) => Promise<void>;
+  refreshOneWorkspaceTree: (
+    workspaceId: WorkspaceID,
+    workspacePath: string,
+    options?: { silent?: boolean },
+  ) => Promise<void>;
   toggleWorkspaceTreeInFileNav: (workspaceId: WorkspaceID) => void;
   expandWorkspaceTreeInFileNav: (workspaceId: WorkspaceID, workspacePath: string) => Promise<void>;
   refreshAllWorkspaceTrees: () => Promise<void>;

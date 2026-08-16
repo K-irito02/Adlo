@@ -152,7 +152,11 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
                 onClick={handleRefreshClick}
                 aria-label={t.fileRefresh}
               >
-                <IconRefreshCw size={12} decorative />
+                <IconRefreshCw
+                  size={12}
+                  decorative
+                  className={isLoading ? 'adl-spin' : undefined}
+                />
               </button>
             </TooltipSimple>
 
@@ -190,14 +194,7 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
 
       {isExpanded ? (
         <div className="adl-multitree-entry__tree">
-          {isLoading ? (
-            <LoadingRow />
-          ) : error ? (
-            <div className="adl-multitree-entry__error">
-              <IconAlertTriangle size={14} decorative />
-              <span>{error}</span>
-            </div>
-          ) : treeNodes && treeNodes.length > 0 ? (
+          {treeNodes && treeNodes.length > 0 ? (
             <FileTree
               nodes={treeNodes}
               selectedFilePath={effectiveSelectedPath}
@@ -214,6 +211,13 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
               renderMeta={renderMeta}
               renderCount={renderCount}
             />
+          ) : isLoading ? (
+            <LoadingRow />
+          ) : error ? (
+            <div className="adl-multitree-entry__error">
+              <IconAlertTriangle size={14} decorative />
+              <span>{error}</span>
+            </div>
           ) : (
             <EmptyRow message={t.changesEmpty as string} />
           )}

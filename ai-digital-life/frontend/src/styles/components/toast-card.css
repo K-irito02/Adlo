@@ -1,0 +1,151 @@
+/* ==========================================================================
+   Toast Card (reusable bottom-right card)
+   --------------------------------------------------------------------------
+   - Shared visual shell for bottom-right notification cards (icon + title/body
+     + actions). Reference implementation: ErrorToast.
+   - tone modifier drives the emphasis color (error / warning / info).
+   ========================================================================== */
+
+.toast-card {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2-5);
+  padding: var(--space-3);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(8px);
+  color: var(--text-primary);
+}
+
+.toast-card--warning .toast-card__icon,
+.toast-card--warning .toast-card__title {
+  color: var(--error-toast-warning);
+}
+
+.toast-card--error .toast-card__icon,
+.toast-card--error .toast-card__title {
+  color: var(--error-toast-error);
+}
+
+.toast-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: var(--space-px);
+}
+
+.toast-card__icon svg {
+  display: block;
+}
+
+.toast-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-card__title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  line-height: var(--leading-normal);
+}
+
+.toast-card__detail {
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.toast-card.is-collapsed .toast-card__detail {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.toast-card__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--duration-150) var(--ease-enter),
+    color var(--duration-150) var(--ease-enter);
+}
+
+.toast-card__btn:hover {
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+}
+
+/* 收起/展开、复制按钮默认隐藏，仅在悬停（或键盘聚焦）卡片时显示 */
+.toast-card__btn--detail {
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-150) var(--ease-default),
+    background var(--duration-150) var(--ease-enter),
+    color var(--duration-150) var(--ease-enter);
+}
+
+.toast-card:hover .toast-card__btn--detail,
+.toast-card:focus-within .toast-card__btn--detail {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.toast-card__btn svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+/* 摘要卡片（条目超限时） */
+.toast-card--summary {
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+}
+
+.toast-card--summary .toast-card__icon {
+  margin-top: 0;
+  color: var(--text-secondary);
+}
+
+.toast-card__summary-text {
+  flex: 1;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.toast-card--summary .toast-card__btn {
+  width: auto;
+  height: auto;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.toast-card--summary .toast-card__btn:hover {
+  color: var(--text-primary);
+}

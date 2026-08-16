@@ -19,6 +19,7 @@ export interface ChangesNavigatorToolbarProps {
   totalChangeCount: number;
   hasVisibleWorkspaces: boolean;
   onRefreshAll: () => void;
+  isRefreshingAll: boolean;
   changesNavigatorMode: 'tree' | 'list' | 'outline';
   onSetNavigatorMode: (mode: 'tree' | 'list' | 'outline') => void;
   changesStatusFilter: Set<ChangeFileState>;
@@ -41,6 +42,7 @@ export function ChangesNavigatorToolbar({
   totalChangeCount,
   hasVisibleWorkspaces: _hasVisibleWorkspaces,
   onRefreshAll,
+  isRefreshingAll,
   changesNavigatorMode,
   onSetNavigatorMode,
   changesStatusFilter,
@@ -87,7 +89,11 @@ export function ChangesNavigatorToolbar({
             onClick={onRefreshAll}
             aria-label={t.changesRefresh}
           >
-            <IconRefreshCw size={14} decorative />
+            <IconRefreshCw
+              size={14}
+              decorative
+              className={isRefreshingAll ? 'adl-spin' : undefined}
+            />
           </button>
         </TooltipSimple>
       </div>

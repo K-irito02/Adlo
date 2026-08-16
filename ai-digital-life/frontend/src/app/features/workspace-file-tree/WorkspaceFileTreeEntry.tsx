@@ -24,18 +24,21 @@ export interface WorkspaceFileTreeEntryProps {
   isExpanded: boolean;
   treeNodes: WorkspaceTreeNode[] | undefined;
   isLoading: boolean;
+  isRefreshing: boolean;
   error: string | undefined;
   selectedFilePath: string | undefined;
   selectedFileWorkspaceId: string | undefined;
+  clickedPath: string | undefined;
   expandedPaths: Record<string, boolean>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
   onToggleExpand: () => void;
-  onOpenWorkspace: (path: string) => void;
+  onSelectWorkspace: () => void;
   onHideFromRightPanels: (workspaceId: string) => void;
   onRefreshTree: () => void;
   onToggleFileTreePath: (path: string) => void;
   onOpenFile: (relativePath: string) => void;
+  onNodeClicked: (path: string, kind: 'directory' | 'file') => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   setRenamingWorkspacePath?: (path: string | undefined) => void;
@@ -52,17 +55,21 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
   isExpanded,
   treeNodes,
   isLoading,
+  isRefreshing,
   error,
   selectedFilePath,
   selectedFileWorkspaceId,
+  clickedPath,
   expandedPaths,
   dirtyPaths,
   externalChangePath,
   onToggleExpand,
+  onSelectWorkspace,
   onHideFromRightPanels,
   onRefreshTree,
   onToggleFileTreePath,
   onOpenFile,
+  onNodeClicked,
   getContextMenuItems,
   contextMenuPersistRef,
   setRenamingWorkspacePath,
@@ -143,7 +150,11 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
 
   const handleNameClick = useCallback(() => {
     onToggleExpand();
-  }, [onToggleExpand]);
+    onSelectWorkspace();
+    // 点击"工作区顶级目录"（根目录）：取消文件树中已点击节点的选中态，
+    // 并将新建文件/文件夹的目标目录指向根目录。
+    useAppStore.getState().setFileTreeClickedWorkspaceRoot(workspace.id);
+  }, [onToggleExpand, onSelectWorkspace, workspace.id]);
 
   const handleNameContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -342,7 +353,11 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
                 onClick={handleRefreshClick}
                 aria-label={t.fileRefresh}
               >
-                <IconRefreshCw size={12} decorative />
+                <IconRefreshCw
+                  size={12}
+                  decorative
+                  className={isRefreshing ? 'adl-spin' : undefined}
+                />
               </button>
             </TooltipSimple>
 
@@ -425,28 +440,36 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
 
       {isExpanded ? (
         <div className="adl-multitree-entry__tree">
-          {isLoading ? (
-            <LoadingRow />
-          ) : error ? (
-            <div className="adl-multitree-entry__error">
-              <IconAlertTriangle size={14} decorative />
-              <span>{error}</span>
-            </div>
-          ) : treeNodes && treeNodes.length > 0 ? (
+          {treeNodes && treeNodes.length > 0 ? (
             <FileTree
               nodes={treeNodes}
               selectedFilePath={effectiveSelectedPath}
+              extraSelectedPath={clickedPath}
+              activePathIsWeak
               expandedPaths={expandedPaths}
               dirtyPaths={dirtyPaths}
               externalChangePath={externalChangePath}
-              onToggle={onToggleFileTreePath}
-              onOpenFile={onOpenFile}
+              onToggle={(path) => {
+                onNodeClicked(path, 'directory');
+                onToggleFileTreePath(path);
+              }}
+              onOpenFile={(path) => {
+                onNodeClicked(path, 'file');
+                onOpenFile(path);
+              }}
               getContextMenuItems={wrappedGetContextMenuItems}
               contextMenuPersistRef={contextMenuPersistRef}
               clearMenuHighlightRef={clearMenuHighlightRef}
               expandLabel={expandLabel}
               collapseLabel={collapseLabel}
             />
+          ) : isLoading ? (
+            <LoadingRow />
+          ) : error ? (
+            <div className="adl-multitree-entry__error">
+              <IconAlertTriangle size={14} decorative />
+              <span>{error}</span>
+            </div>
           ) : (
             <EmptyRow message={t.workspaceEmpty as string} />
           )}

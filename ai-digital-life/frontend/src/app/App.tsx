@@ -21,6 +21,7 @@ import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
 import { ToastContainer } from './components/Toast';
 import { ErrorToastContainer } from './components/ErrorToast';
 import { ConflictModal } from './components/ConflictModal';
+import { FileOpNoticeContainer } from './components/FileOpNotice';
 import { asSessionID } from '../shared/branded';
 import { StartupOverlayWrapper } from './components/StartupOverlayWrapper';
 
@@ -43,6 +44,8 @@ export function App() {
   const notifications = useAppStore((s) => s.notifications);
   const activePopupId = useAppStore((s) => s.activePopupId);
   const dismissPopup = useAppStore((s) => s.dismissPopup);
+  const fileOpNotices = useAppStore((s) => s.fileOpNotices);
+  const dismissFileOpNotice = useAppStore((s) => s.dismissFileOpNotice);
   const appReady = useAppStore((s) => s.appReady);
 
   const activeNotification = useMemo(
@@ -252,6 +255,7 @@ export function App() {
         {activeNotification && (
           <ConflictModal notification={activeNotification} onDismiss={dismissPopup} />
         )}
+        <FileOpNoticeContainer notices={fileOpNotices} onDismiss={dismissFileOpNotice} />
       </TCopyProvider>
       <StartupOverlayWrapper visible={!overlayHidden} />
     </>

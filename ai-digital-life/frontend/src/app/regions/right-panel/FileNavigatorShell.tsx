@@ -18,6 +18,7 @@ import type { SearchHit } from './hooks/useSearchPanel';
 import { FileNavigatorToolbar } from './FileNavigatorToolbar';
 import { FileNavigatorTree } from './FileNavigatorTree';
 import { FileNavigatorRenaming } from './FileNavigatorRenaming';
+import { FileCreationDialog } from './FileCreationDialog';
 import { useFileNavigatorContextMenu } from './FileNavigatorContextMenu';
 
 interface FileNavigatorShellProps {
@@ -103,6 +104,12 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     setFileTreePathExpanded,
     toggleFileTreePath,
     expandFileTreePathChain,
+    fileTreeClickedPath,
+    fileTreeClickedWorkspaceId,
+    fileTreeClickedKind,
+    fileTreeClickedWorkspaceRoot,
+    fileNavigatorActiveWorkspaceId,
+    setFileNavigatorActiveWorkspace,
   } = useAppStore(
     useShallow((s) => ({
       navigatorMode: s.filesNavigatorMode,
@@ -112,14 +119,32 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       setFileTreePathExpanded: s.setFileTreePathExpanded,
       toggleFileTreePath: s.toggleFileTreePath,
       expandFileTreePathChain: s.expandFileTreePathChain,
+      fileTreeClickedPath: s.fileTreeClickedPath,
+      fileTreeClickedWorkspaceId: s.fileTreeClickedWorkspaceId,
+      fileTreeClickedKind: s.fileTreeClickedKind,
+      fileTreeClickedWorkspaceRoot: s.fileTreeClickedWorkspaceRoot,
+      fileNavigatorActiveWorkspaceId: s.fileNavigatorActiveWorkspaceId,
+      setFileNavigatorActiveWorkspace: s.setFileNavigatorActiveWorkspace,
     })),
   );
   const expandedPaths = useAppStore(useShallow((s) => s.expandedFileTreePaths));
+  const workspaceTreeRefreshing = useAppStore(useShallow((s) => s.workspaceTreeRefreshing));
+  const refreshingAllWorkspaces = useAppStore((s) => s.refreshingAllWorkspaces);
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const activeWorkspaceId = appInfo?.currentWorkspace?.path
+  // 文件导航器"选中工作区"：优先取用户点击选中的工作区（轻量前端态，不触发重载），
+  // 未选中时回退到后端当前激活工作区。
+  const derivedActiveWorkspaceId = appInfo?.currentWorkspace?.path
     ? recentWorkspaces.find((w) => w.path === appInfo.currentWorkspace?.path)?.id
     : undefined;
+  const activeWorkspaceId = fileNavigatorActiveWorkspaceId ?? derivedActiveWorkspaceId;
+
+  const handleSelectWorkspace = useCallback(
+    (workspaceId: string) => {
+      setFileNavigatorActiveWorkspace(workspaceId);
+    },
+    [setFileNavigatorActiveWorkspace],
+  );
 
   const visibleWorkspaces = useMemo(
     () =>
@@ -131,18 +156,21 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
 
   const fileCreation = useFileCreation({
     selectedFilePath,
+    activeWorkspaceId,
+    recentWorkspaces,
+    clickedNode:
+      fileTreeClickedPath && fileTreeClickedWorkspaceId && fileTreeClickedKind
+        ? {
+            path: fileTreeClickedPath,
+            workspaceId: fileTreeClickedWorkspaceId,
+            kind: fileTreeClickedKind,
+          }
+        : undefined,
+    clickedWorkspaceRoot: fileTreeClickedWorkspaceRoot,
     onCreateWorkspaceFile,
     onCreateWorkspaceFolder,
-    expandFileTreePathChain: (path: string) => {
-      if (activeWorkspaceId) {
-        expandFileTreePathChain(activeWorkspaceId, path);
-      }
-    },
-    setFileTreePathExpanded: (path: string, expanded: boolean) => {
-      if (activeWorkspaceId) {
-        setFileTreePathExpanded(activeWorkspaceId, path, expanded);
-      }
-    },
+    expandFileTreePathChain,
+    setFileTreePathExpanded,
   });
 
   const searchPanel = useSearchPanel({
@@ -235,6 +263,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   const [renamingWorkspacePath, setRenamingWorkspacePath] = useState<string | undefined>(undefined);
   const [deleteConfirmPath, setDeleteConfirmPath] = useState<string | null>(null);
   const [deleteWorkspacePath, setDeleteWorkspacePath] = useState<string | undefined>(undefined);
+  const [deleteConfirmKind, setDeleteConfirmKind] = useState<'directory' | 'file'>('file');
   const { getContextMenuItems, contextMenuPersistRef, clearMenuHighlightRef } =
     useFileNavigatorContextMenu({
       t,
@@ -243,6 +272,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       setDeleteConfirmPath,
       setRenamingWorkspacePath,
       setDeleteWorkspacePath,
+      setDeleteConfirmKind,
     });
 
   const handleRenameConfirm = useCallback(
@@ -267,6 +297,13 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     setRenameDialogOpen(false);
     clearMenuHighlightRef.current?.();
   }, [clearMenuHighlightRef]);
+
+  const handleNodeClicked = useCallback(
+    (workspaceId: string, path: string, kind: 'directory' | 'file') => {
+      useAppStore.getState().setFileTreeClickedNode(workspaceId, path, kind);
+    },
+    [],
+  );
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteConfirmPath) {
@@ -301,6 +338,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
         outline={outline}
         onToggleNavigatorStructure={handleToggleNavigatorStructure}
         onRefreshAll={onRefreshAll}
+        isRefreshingAll={refreshingAllWorkspaces}
         onSetNavigatorMode={setNavigatorMode}
         fileCreation={fileCreation}
       />
@@ -311,10 +349,13 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
           activeWorkspaceId={activeWorkspaceId}
           treeData={workspaceTrees}
           loadingStates={workspaceTreeLoading}
+          refreshingStates={workspaceTreeRefreshing}
           errorStates={workspaceTreeErrors}
           expandedStates={workspaceTreeExpandedInFileNav}
           selectedFilePath={selectedFilePath}
           selectedFileWorkspaceId={selectedFileWorkspaceId}
+          clickedPath={fileTreeClickedPath}
+          clickedWorkspaceId={fileTreeClickedWorkspaceId}
           expandedPaths={expandedPaths}
           dirtyPaths={dirtyPaths}
           externalChangePath={externalChangePath}
@@ -324,6 +365,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
           onToggleFileTreePath={toggleFileTreePath}
           onOpenFile={onOpenFile}
           onOpenFileForWorkspace={onOpenFileForWorkspace}
+          onNodeClicked={handleNodeClicked}
+          onSelectWorkspace={handleSelectWorkspace}
           getContextMenuItems={getContextMenuItems}
           contextMenuPersistRef={contextMenuPersistRef}
           setRenamingWorkspacePath={setRenamingWorkspacePath}
@@ -472,12 +515,24 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
         renameDialogOpen={renameDialogOpen}
         renamingPath={renamingPath}
         deleteConfirmPath={deleteConfirmPath}
+        deleteConfirmKind={deleteConfirmKind}
         t={t}
         onConfirmRename={handleRenameConfirm}
         onCancelRename={handleRenameCancel}
         onConfirmDelete={handleDeleteConfirm}
         onCancelDelete={handleDeleteCancel}
       />
+      {fileCreation.createTarget ? (
+        <FileCreationDialog
+          open
+          target={fileCreation.createTarget}
+          value={fileCreation.createPathValue}
+          inputRef={fileCreation.createInputRef}
+          onChange={fileCreation.setCreatePathValue}
+          onSubmit={fileCreation.submitCreate}
+          onCancel={fileCreation.cancelCreate}
+        />
+      ) : null}
     </aside>
   );
 });

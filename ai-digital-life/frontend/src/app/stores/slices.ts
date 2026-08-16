@@ -160,3 +160,10 @@ export {
   type NotificationData,
   createNotificationSlice,
 } from './slices/notificationSlice';
+
+// 文件操作提示卡片切片（右下角警告卡片，如新建同名冲突）
+export {
+  type FileOpNoticeSlice,
+  type FileOpNotice,
+  createFileOpNoticeSlice,
+} from './slices/fileOpNoticeSlice';

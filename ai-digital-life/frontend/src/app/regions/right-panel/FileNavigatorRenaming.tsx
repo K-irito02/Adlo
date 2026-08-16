@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatT, type CopyDict } from '@i18n';
+import type { CopyDict } from '@i18n';
 import { ConfirmDialog } from '@components/ConfirmDialog';
 import { RenameDialog } from '@components/RenameDialog';
 
@@ -7,6 +7,7 @@ interface FileNavigatorRenamingProps {
   renameDialogOpen: boolean;
   renamingPath: string | null;
   deleteConfirmPath: string | null;
+  deleteConfirmKind: 'directory' | 'file';
   t: CopyDict;
   onConfirmRename: (newName: string) => void | Promise<void>;
   onCancelRename: () => void;
@@ -18,18 +19,23 @@ const FileNavigatorRenaming = React.memo(function FileNavigatorRenaming({
   renameDialogOpen,
   renamingPath,
   deleteConfirmPath,
+  deleteConfirmKind,
   t,
   onConfirmRename,
   onCancelRename,
   onConfirmDelete,
   onCancelDelete,
 }: FileNavigatorRenamingProps) {
+  const deleteMessage =
+    deleteConfirmKind === 'directory'
+      ? (t.fileDeleteFolderMessage as string)
+      : (t.fileDeleteFileMessage as string);
   return (
     <>
       {deleteConfirmPath ? (
         <ConfirmDialog
           title={t.fileDeleteConfirm as string}
-          message={t.fileDeleteMessage as string}
+          message={deleteMessage}
           confirmLabel={t.fileDeleteAction as string}
           cancelLabel={t.cancel as string}
           danger
@@ -42,7 +48,6 @@ const FileNavigatorRenaming = React.memo(function FileNavigatorRenaming({
           open={renameDialogOpen}
           initialValue={renamingPath.split('/').pop() || ''}
           title={t.changesRename}
-          itemInfo={formatT(t, 'changesCurrentPath', { path: renamingPath })}
           placeholder={t.changesEnterNewName}
           onConfirm={onConfirmRename}
           onCancel={onCancelRename}

@@ -6,6 +6,7 @@ import type { StoreApi } from 'zustand';
 import { createBrowserCleanupActions } from './browserCleanupActions';
 import { createWorkspaceTreeActions } from './workspaceTreeActions';
 import { createWorkspaceLifecycleActions } from './workspaceLifecycleActions';
+import { renameTreeNodePaths, remapExpandedTreePaths, removeTreeNode } from './workspaceTreeRename';
 const SCOPE = 'workspace';
 
 // Re-export for test convenience (tests import from workspaceActions)
@@ -14,17 +15,48 @@ export { type BrowserCleanupResult, stripWorkspaceFromBrowserState } from './bro
 /**
  * 按工作区路径刷新对应文件树；找不到对应工作区或未提供路径时降级为全量刷新。
  */
-async function refreshTreeByWorkspacePath(get: () => StoreState, workspacePath?: string) {
+export async function refreshTreeByWorkspacePath(get: () => StoreState, workspacePath?: string) {
   if (!workspacePath) {
     await get().refreshWorkspaceTree();
     return;
   }
   const ws = get().recentWorkspaces.find((r) => r.path === workspacePath);
   if (ws) {
-    await get().refreshOneWorkspaceTree(asWorkspaceID(ws.id), workspacePath);
+    // 自动刷新（重命名/删除/移动/复制后）为静默刷新，不触发刷新按钮旋转
+    await get().refreshOneWorkspaceTree(asWorkspaceID(ws.id), workspacePath, { silent: true });
   } else {
     await get().refreshWorkspaceTree();
   }
+}
+
+export type PostRenameOpenTarget =
+  | { kind: 'openFileForWorkspace'; workspaceId: string; workspacePath: string; path: string }
+  | { kind: 'openFile'; path: string };
+
+/**
+ * 决定重命名成功后是否重新打开被重命名的文件。
+ * 若被重命名的正是当前打开文件，且已知其工作区路径，则用带显式工作区的
+ * openFileForWorkspace（避免走无 path 的 readFile 依赖服务端 active workspace）；
+ * 否则回退为无 path 的 openFile。
+ */
+export function resolvePostRenameOpenTarget(
+  currentPath: string | undefined,
+  relativePath: string,
+  newName: string,
+  workspacePath: string | undefined,
+  recentWorkspaces: { id: string; path: string }[],
+): PostRenameOpenTarget | null {
+  if (!currentPath || currentPath !== relativePath) {
+    return null;
+  }
+  const parts = currentPath.split('/');
+  parts[parts.length - 1] = newName;
+  const newPath = parts.join('/');
+  const ws = workspacePath ? recentWorkspaces.find((r) => r.path === workspacePath) : undefined;
+  if (ws && workspacePath) {
+    return { kind: 'openFileForWorkspace', workspaceId: ws.id, workspacePath, path: newPath };
+  }
+  return { kind: 'openFile', path: newPath };
 }
 
 export function createWorkspaceActions(
@@ -56,14 +88,60 @@ export function createWorkspaceActions(
         captureError(get, result.error, SCOPE);
         return;
       }
-      await refreshTreeByWorkspacePath(get, workspacePath);
-      const currentPath = get().selectedFilePath;
-      if (currentPath) {
-        const parts = currentPath.split('/');
-        parts[parts.length - 1] = newName;
-        const newPath = parts.join('/');
-        if (currentPath === relativePath) {
-          await get().openFile(newPath);
+      const segments = relativePath.split('/');
+      segments[segments.length - 1] = newName;
+      const newPath = segments.join('/');
+      const ws = workspacePath
+        ? get().recentWorkspaces.find((r) => r.path === workspacePath)
+        : undefined;
+      if (ws) {
+        const workspaceId = asWorkspaceID(ws.id);
+        const tree = get().workspaceTrees[workspaceId];
+        if (tree) {
+          set({
+            workspaceTrees: {
+              ...get().workspaceTrees,
+              [workspaceId]: renameTreeNodePaths(tree, relativePath, newPath),
+            },
+          });
+          const expandedForWs = get().expandedFileTreePaths[workspaceId];
+          if (expandedForWs) {
+            const remapped = remapExpandedTreePaths(expandedForWs, relativePath, newPath);
+            if (remapped !== expandedForWs) {
+              set({
+                expandedFileTreePaths: {
+                  ...get().expandedFileTreePaths,
+                  [workspaceId]: remapped,
+                },
+              });
+            }
+          }
+        }
+        const expandedChanges = remapExpandedTreePaths(
+          get().expandedChangesTreePaths,
+          relativePath,
+          newPath,
+        );
+        if (expandedChanges !== get().expandedChangesTreePaths) {
+          set({ expandedChangesTreePaths: expandedChanges });
+        }
+        if (get().filePreviewModeByPath[relativePath] !== undefined) {
+          get().carryFilePreviewModeForRename(relativePath, newPath);
+        }
+      }
+      void refreshTreeByWorkspacePath(get, workspacePath);
+      const target = resolvePostRenameOpenTarget(
+        get().selectedFilePath,
+        relativePath,
+        newName,
+        workspacePath,
+        get().recentWorkspaces,
+      );
+      if (target) {
+        if (target.kind === 'openFileForWorkspace') {
+          await get().openFileForWorkspace(target.workspaceId, target.workspacePath, target.path);
+        } else {
+          await get().openFile(target.path);
         }
       }
     },
@@ -71,7 +149,7 @@ export function createWorkspaceActions(
     /**
      * [deleteWorkspaceFile - 删除工作区中的文件]
      * @reads editorSlice.selectedFilePath, editorSlice.openTabs
-     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree / refreshOneWorkspaceTree)
+     * @writes workspaceSlice.workspaceTrees (乐观移除节点 + refreshTreeByWorkspacePath 校准)
      * @writes editorSlice.selectedFilePath, editorSlice.fileContent, editorSlice.openTabs
      * @see shared/ipc.ts → workspace.deleteFile
      * @see mock-bridge.ts → workspace.deleteFile
@@ -79,12 +157,19 @@ export function createWorkspaceActions(
      */
     deleteWorkspaceFile: async (relativePath: string, workspacePath?: string) => {
       clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.deleteFile(relativePath, workspacePath);
-      if (!result.ok) {
-        captureError(get, result.error, SCOPE);
-        return;
+      // 乐观更新：先从文件树移除节点，让 UI 立即反馈，再异步删除并以刷新校准结果。
+      const ws = workspacePath
+        ? get().recentWorkspaces.find((r) => r.path === workspacePath)
+        : undefined;
+      const workspaceId = ws ? asWorkspaceID(ws.id) : undefined;
+      if (workspaceId && get().workspaceTrees[workspaceId]) {
+        set({
+          workspaceTrees: {
+            ...get().workspaceTrees,
+            [workspaceId]: removeTreeNode(get().workspaceTrees[workspaceId], relativePath),
+          },
+        });
       }
-      await refreshTreeByWorkspacePath(get, workspacePath);
       const currentPath = get().selectedFilePath;
       if (currentPath === relativePath) {
         set({
@@ -93,6 +178,14 @@ export function createWorkspaceActions(
           openTabs: get().openTabs.filter((t) => t.path !== relativePath),
         });
       }
+      const result = await window.digitalLife.workspace.deleteFile(relativePath, workspacePath);
+      if (!result.ok) {
+        captureError(get, result.error, SCOPE);
+        // 删除失败：刷新以恢复乐观移除的节点。
+        await refreshTreeByWorkspacePath(get, workspacePath);
+        return;
+      }
+      await refreshTreeByWorkspacePath(get, workspacePath);
     },
 
     /**

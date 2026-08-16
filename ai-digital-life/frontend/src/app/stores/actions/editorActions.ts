@@ -10,7 +10,74 @@ import {
 import type { StoreApi } from 'zustand';
 import { clearError, captureError } from '../cacheHelpers';
 import { openFileGeneric, openChangePreviewGeneric } from './editorActionsHelpers';
+import { refreshTreeByWorkspacePath } from './workspaceActions';
+import { insertTreeNode } from './workspaceTreeRename';
+import { asWorkspaceID } from '../../../shared/branded';
 const SCOPE = 'editor';
+
+/**
+ * 乐观插入新建节点到目标工作区文件树，让 UI 立即反馈，无需等待全量 `listTree`
+ * 递归扫描（大工作区下可达数秒）。之后再由调用方做后台静默刷新校准。
+ */
+function insertTreeNodeOptimistic(
+  get: () => StoreState,
+  set: StoreApi<StoreState>['setState'],
+  relativePath: string,
+  kind: 'file' | 'directory',
+  workspacePath?: string,
+) {
+  if (!workspacePath) {
+    return;
+  }
+  const ws = get().recentWorkspaces.find((r) => r.path === workspacePath);
+  if (!ws) {
+    return;
+  }
+  const workspaceId = asWorkspaceID(ws.id);
+  const tree = get().workspaceTrees[workspaceId];
+  if (!tree) {
+    return;
+  }
+  const segments = relativePath.split('/').filter(Boolean);
+  const name = segments[segments.length - 1];
+  const parentPath = segments.slice(0, -1).join('/');
+  const normalizedPath = relativePath.replace(/\\/g, '/');
+  const newNode = { path: normalizedPath, name, kind, children: [] };
+  set({
+    workspaceTrees: {
+      ...get().workspaceTrees,
+      [workspaceId]: insertTreeNode(tree, parentPath, newNode),
+    },
+  });
+}
+
+/**
+ * 判断新建文件/文件夹是否因"同路径下已存在同名项"而失败。
+ * 后端 create_file/create_folder 在命中已存在路径时返回
+ * "Invalid input: (file|path) already exists: <path>"，据此识别。
+ */
+function isAlreadyExistsError(error: unknown): error is { message: string } {
+  return (
+    !!error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof (error as { message: string }).message === 'string' &&
+    (error as { message: string }).message.includes('already exists')
+  );
+}
+
+/**
+ * 判断新建文件失败是否因同路径下已存在同名目录（而非同名文件）。
+ * 后端 create_file 对目录冲突返回 "file already exists (directory): <path>"。
+ * 此时用户很可能遗漏了文件类型后缀，需要额外提示。
+ */
+function isExistingDirectoryCollision(error: { message: string }): boolean {
+  return error.message.includes('file already exists (directory)');
+}
+
+function lastPathSegment(relativePath: string): string {
+  return relativePath.split('/').filter(Boolean).pop() ?? relativePath;
+}
 
 export function createEditorActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
@@ -85,19 +152,35 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
 
     /**
      * [createWorkspaceFile - 创建工作区文件并在编辑器打开]
-     * @writes editorSlice.openTabs, editorSlice.selectedFilePath, editorSlice.fileContent, editorSlice.fileLastModifiedAt, editorSlice.outline, editorSlice.dirtyEditorPaths, workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree)
+     * @writes editorSlice.openTabs, editorSlice.selectedFilePath, editorSlice.fileContent, editorSlice.fileLastModifiedAt, editorSlice.outline, editorSlice.dirtyEditorPaths, workspaceSlice.workspaceTrees (乐观插入节点 + 后台静默刷新)
      * @see shared/ipc.ts → workspace.createFile
      * @see mock-bridge.ts → workspace.createFile
      * @see preview-bridge/index.ts → workspace.createFile
      */
-    createWorkspaceFile: async (relativePath: string, content = '') => {
+    createWorkspaceFile: async (relativePath: string, content = '', workspacePath?: string) => {
       clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.createFile(relativePath, content);
+      const result = await window.digitalLife.workspace.createFile(
+        relativePath,
+        content,
+        workspacePath,
+      );
       if (!result.ok) {
-        captureError(get, result.error, SCOPE);
+        if (isAlreadyExistsError(result.error)) {
+          // 同路径同名冲突：右下角警告卡片提示，而非错误 toast。
+          // 若冲突项是同名目录，额外提示检查文件类型后缀。
+          get().pushFileOpNotice(
+            'file',
+            lastPathSegment(relativePath),
+            isExistingDirectoryCollision(result.error),
+          );
+        } else {
+          captureError(get, result.error, SCOPE);
+        }
         return undefined;
       }
-      await get().refreshWorkspaceTree();
+      // 乐观插入节点，立即显示；后台静默刷新校准，不阻塞 UI。
+      insertTreeNodeOptimistic(get, set, relativePath, 'file', workspacePath);
+      void refreshTreeByWorkspacePath(get, workspacePath);
       const nextOutline = buildOutlineFromContent(result.data.content, relativePath);
       const norm = normalizeWorkspaceRelativePath(relativePath);
       set((state: StoreState) => {
@@ -123,19 +206,26 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
 
     /**
      * [createWorkspaceFolder - 创建工作区文件夹]
-     * @writes workspaceSlice.workspaceTrees (通过 refreshWorkspaceTree)
+     * @writes workspaceSlice.workspaceTrees (乐观插入节点 + 后台静默刷新)
      * @see shared/ipc.ts → workspace.createFolder
      * @see mock-bridge.ts → workspace.createFolder
      * @see preview-bridge/index.ts → workspace.createFolder
      */
-    createWorkspaceFolder: async (relativePath: string) => {
+    createWorkspaceFolder: async (relativePath: string, workspacePath?: string) => {
       clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.createFolder(relativePath);
+      const result = await window.digitalLife.workspace.createFolder(relativePath, workspacePath);
       if (!result.ok) {
-        captureError(get, result.error, SCOPE);
+        if (isAlreadyExistsError(result.error)) {
+          // 同路径同名冲突：右下角警告卡片提示，而非错误 toast。
+          get().pushFileOpNotice('folder', lastPathSegment(relativePath));
+        } else {
+          captureError(get, result.error, SCOPE);
+        }
         return undefined;
       }
-      await get().refreshWorkspaceTree();
+      // 乐观插入节点，立即显示；后台静默刷新校准，不阻塞 UI。
+      insertTreeNodeOptimistic(get, set, relativePath, 'directory', workspacePath);
+      void refreshTreeByWorkspacePath(get, workspacePath);
       clearError(get, SCOPE);
       return relativePath;
     },

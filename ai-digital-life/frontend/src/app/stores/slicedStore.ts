@@ -42,6 +42,7 @@ import {
   createToastSlice,
   createErrorToastSlice,
   createNotificationSlice,
+  createFileOpNoticeSlice,
   createPartStreamSlice,
 } from './slices';
 import { createGitVisSlice } from './slices/gitVisSlice';
@@ -125,6 +126,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createToastSlice(set, get), // 全局 Toast 通知
   ...createErrorToastSlice(set, get), // 报错 Toast 队列（右下角持久）
   ...createNotificationSlice(set, get), // 通知系统
+  ...createFileOpNoticeSlice(set, get), // 文件操作提示卡片（右下角警告）
   ...createGitVisSlice(set, get), // Git 可视化数据缓存
   ...createPartStreamSlice(set, get), // Part 渲染状态（S2：messages/parts/status）
 

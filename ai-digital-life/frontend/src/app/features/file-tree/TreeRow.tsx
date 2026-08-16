@@ -9,6 +9,8 @@ interface TreeRowProps {
   depth: number;
   isExpanded?: boolean;
   isSelected?: boolean;
+  /** 弱选中态（与 isSelected 视觉区分），用于“点击节点”这类非打开场景的临时高亮 */
+  isWeakSelected?: boolean;
   isHoveredByAncestor?: boolean;
   onToggle?: (path: string) => void;
   onActivate?: (path: string, isDir: boolean) => void;
@@ -24,6 +26,7 @@ export const TreeRow = React.memo(function TreeRow({
   depth,
   isExpanded = false,
   isSelected = false,
+  isWeakSelected = false,
   isHoveredByAncestor = false,
   onToggle,
   onActivate,
@@ -37,7 +40,7 @@ export const TreeRow = React.memo(function TreeRow({
 
   return (
     <li
-      className={`adl-tree-node${isSelected ? ' is-selected' : ''}${isHoveredByAncestor ? ' is-hovered-by-ancestor' : ''} adl-filetree__item${isDir ? ' adl-filetree__node--directory' : ' adl-filetree__node--file'}${className ? ` ${className}` : ''}`}
+      className={`adl-tree-node${isSelected ? ' is-selected' : ''}${isWeakSelected ? ' is-weak-selected' : ''}${isHoveredByAncestor ? ' is-hovered-by-ancestor' : ''} adl-filetree__item${isDir ? ' adl-filetree__node--directory' : ' adl-filetree__node--file'}${className ? ` ${className}` : ''}`}
       data-depth={depth}
       data-path={path}
       style={

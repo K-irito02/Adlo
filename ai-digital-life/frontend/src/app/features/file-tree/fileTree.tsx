@@ -18,6 +18,8 @@ interface VirtualNodeProps<T extends FileTreeRenderableNode> {
   expandedPaths: Record<string, boolean>;
   activePath: string | undefined;
   selectedPaths: Set<string>;
+  extraSelectedPath: string | undefined;
+  activePathIsWeak: boolean;
   highlightedPath: string | undefined;
   hoveredPath: string | undefined;
   dirtyPaths?: Set<string>;
@@ -43,6 +45,8 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   expandedPaths,
   activePath,
   selectedPaths,
+  extraSelectedPath,
+  activePathIsWeak,
   highlightedPath,
   hoveredPath,
   dirtyPaths,
@@ -65,9 +69,14 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   const { node, depth } = flatNode;
   const isDirectory = node.kind === 'directory';
   const isExpanded = expandedPaths[node.path] ?? false;
-  const isActive = node.path === activePath;
-  const isMultiSelected = selectedPaths.has(node.path);
-  const isSelected = isActive || isMultiSelected;
+  // 强选中：activePathIsWeak 时仅来自“点击选中”的节点（extraSelectedPath），
+  // 点击文件树外部/其它节点时会被清除；否则保持旧行为（activePath 强选中）。
+  const isSelected = activePathIsWeak ? node.path === extraSelectedPath : node.path === activePath;
+  // 弱选中：编辑器当前打开的文件（activePath = selectedFilePath），跟随编辑器保持，
+  // 与强选中视觉区分，不与点击选中混淆。
+  const isWeakSelected = activePathIsWeak
+    ? node.path === activePath && node.path !== extraSelectedPath
+    : false;
   const isContextMenuTarget = node.path === highlightedPath;
   const isHovered = node.path === hoveredPath;
   const isDirty = dirtyPaths?.has(node.path) ?? false;
@@ -127,6 +136,7 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
       hasChildren={isDirectory}
       isExpanded={isExpanded}
       isActive={isSelected}
+      isWeakSelected={isWeakSelected}
       isHovered={isHovered}
       isContextMenuTarget={isContextMenuTarget}
       expandLabel={expandLabel}
@@ -179,6 +189,8 @@ const MemoizedVirtualNode = memo(VirtualNodeComponent) as typeof VirtualNodeComp
 export function FileTree<T extends FileTreeRenderableNode>({
   nodes,
   selectedFilePath,
+  extraSelectedPath,
+  activePathIsWeak = false,
   expandedPaths,
   dirtyPaths,
   externalChangePath,
@@ -208,10 +220,16 @@ export function FileTree<T extends FileTreeRenderableNode>({
   const highlightedPath = contextMenuTargetPath;
 
   const activePath = selectedFilePath;
-  const selectedPaths = useMemo(
-    (): Set<string> => (activePath ? new Set([activePath]) : new Set()),
-    [activePath],
-  );
+  const selectedPaths = useMemo((): Set<string> => {
+    const paths = new Set<string>();
+    if (activePath) {
+      paths.add(activePath);
+    }
+    if (extraSelectedPath) {
+      paths.add(extraSelectedPath);
+    }
+    return paths;
+  }, [activePath, extraSelectedPath]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const clearContextMenu = () => setContextMenuTargetPath(undefined);
@@ -324,6 +342,8 @@ export function FileTree<T extends FileTreeRenderableNode>({
                 expandedPaths={expandedPaths}
                 activePath={activePath}
                 selectedPaths={selectedPaths}
+                extraSelectedPath={extraSelectedPath}
+                activePathIsWeak={activePathIsWeak}
                 highlightedPath={highlightedPath}
                 hoveredPath={hoveredPath}
                 dirtyPaths={dirtyPaths}
@@ -365,7 +385,11 @@ export function FileTree<T extends FileTreeRenderableNode>({
           }))}
           position={{ x: contextMenuState.x, y: contextMenuState.y }}
           onClose={() => {
-            setContextMenuTargetPath(undefined);
+            // 仅当未选择"重命名/删除"等对话框类操作（persistRef 为 false）时清除菜单高亮，
+            // 使对话框操作期间目标节点保持可见；其它情况（普通操作/点击外部/Esc）随菜单一起清除。
+            if (!contextMenuPersistRef?.current) {
+              setContextMenuTargetPath(undefined);
+            }
             setContextMenuState(null);
             if (contextMenuPersistRef) {
               contextMenuPersistRef.current = false;

@@ -2,7 +2,6 @@ import React from 'react';
 import type { WorkspaceTreeNode, RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import { MultiWorkspaceFileTree } from '@features/workspace-file-tree';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
-import { useAppStore } from '@stores/slicedStore';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
 
 interface FileNavigatorTreeProps {
@@ -10,10 +9,13 @@ interface FileNavigatorTreeProps {
   activeWorkspaceId: string | undefined;
   treeData: Record<string, WorkspaceTreeNode[]>;
   loadingStates: Record<string, boolean>;
+  refreshingStates?: Record<string, boolean>;
   errorStates: Record<string, string | undefined>;
   expandedStates: Record<string, boolean>;
   selectedFilePath: string | undefined;
   selectedFileWorkspaceId: string | undefined;
+  clickedPath: string | undefined;
+  clickedWorkspaceId: string | undefined;
   expandedPaths: Record<string, Record<string, boolean>>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
@@ -27,6 +29,8 @@ interface FileNavigatorTreeProps {
     workspacePath: string,
     relativePath: string,
   ) => void;
+  onNodeClicked: (workspaceId: string, path: string, kind: 'directory' | 'file') => void;
+  onSelectWorkspace: (workspaceId: string) => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   setRenamingWorkspacePath?: (path: string | undefined) => void;
@@ -39,10 +43,13 @@ const FileNavigatorTree = React.memo(function FileNavigatorTree({
   activeWorkspaceId,
   treeData,
   loadingStates,
+  refreshingStates,
   errorStates,
   expandedStates,
   selectedFilePath,
   selectedFileWorkspaceId,
+  clickedPath,
+  clickedWorkspaceId,
   expandedPaths,
   dirtyPaths,
   externalChangePath,
@@ -52,6 +59,8 @@ const FileNavigatorTree = React.memo(function FileNavigatorTree({
   onToggleFileTreePath,
   onOpenFile,
   onOpenFileForWorkspace,
+  onNodeClicked,
+  onSelectWorkspace,
   getContextMenuItems,
   contextMenuPersistRef,
   setRenamingWorkspacePath,
@@ -74,22 +83,24 @@ const FileNavigatorTree = React.memo(function FileNavigatorTree({
         activeWorkspaceId={activeWorkspaceId}
         treeData={treeData}
         loadingStates={loadingStates}
+        refreshingStates={refreshingStates}
         errorStates={errorStates}
         expandedStates={expandedStates}
         selectedFilePath={selectedFilePath}
         selectedFileWorkspaceId={selectedFileWorkspaceId}
+        clickedPath={clickedPath}
+        clickedWorkspaceId={clickedWorkspaceId}
         expandedPaths={expandedPaths}
         dirtyPaths={dirtyPaths}
         externalChangePath={externalChangePath}
         onToggleExpand={onToggleExpand}
         onRefreshOne={onRefreshOne}
-        onOpenWorkspace={(path: string) => {
-          useAppStore.getState().openWorkspace(path);
-        }}
+        onSelectWorkspace={onSelectWorkspace}
         onHideFromRightPanels={onHideFromRightPanels}
         onToggleFileTreePath={onToggleFileTreePath}
         onOpenFile={onOpenFile}
         onOpenFileForWorkspace={onOpenFileForWorkspace}
+        onNodeClicked={onNodeClicked}
         getContextMenuItems={getContextMenuItems}
         contextMenuPersistRef={contextMenuPersistRef}
         setRenamingWorkspacePath={setRenamingWorkspacePath}

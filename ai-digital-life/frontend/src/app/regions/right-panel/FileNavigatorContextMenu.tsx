@@ -10,6 +10,7 @@ export interface UseFileNavigatorContextMenuParams {
   setDeleteConfirmPath: (path: string | null) => void;
   setRenamingWorkspacePath?: (path: string | undefined) => void;
   setDeleteWorkspacePath?: (path: string | undefined) => void;
+  setDeleteConfirmKind?: (kind: 'directory' | 'file') => void;
   getWorkspacePath?: (node: FileTreeRenderableNode) => string | undefined;
 }
 
@@ -29,6 +30,7 @@ export function useFileNavigatorContextMenu(
     setDeleteConfirmPath,
     setRenamingWorkspacePath,
     setDeleteWorkspacePath,
+    setDeleteConfirmKind,
     getWorkspacePath,
   } = params;
   const contextMenuPersistRef = useRef(false);
@@ -51,6 +53,7 @@ export function useFileNavigatorContextMenu(
     setDeleteConfirmPath,
     setRenamingWorkspacePath,
     setDeleteWorkspacePath,
+    setDeleteConfirmKind,
     getWorkspacePath,
     showMenuForDirectories: true,
   });

@@ -84,10 +84,33 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
+/* 当前选中（活动）工作区：突出显示，便于新建文件/文件夹时确认落点 */
+.adl-multitree-entry.is-current .adl-multitree-entry__header {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.adl-multitree-entry.is-current .adl-multitree-entry__name {
+  color: var(--accent);
+  font-weight: var(--font-semibold);
+}
+.adl-multitree-entry.is-current .adl-multitree-entry__header::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--accent);
+}
+.adl-multitree-entry.is-current .adl-multitree-entry__header:hover {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
 .adl-multitree-entry__header {
   display: flex;
   align-items: stretch;
   min-height: 34px;
+  position: relative;
 }
 .adl-multitree-entry__header:hover {
   background: var(--bg-hover);

@@ -171,15 +171,19 @@ export function useFilesPanelProps(
   );
 
   const handleCreateWorkspaceFile = useCallback(
-    (relativePath: string, content?: string): Promise<string | undefined> => {
-      return actions.createWorkspaceFile(relativePath, content);
+    (
+      relativePath: string,
+      content?: string,
+      workspacePath?: string,
+    ): Promise<string | undefined> => {
+      return actions.createWorkspaceFile(relativePath, content, workspacePath);
     },
     [actions],
   );
 
   const handleCreateWorkspaceFolder = useCallback(
-    (relativePath: string): Promise<string | undefined> => {
-      return actions.createWorkspaceFolder(relativePath);
+    (relativePath: string, workspacePath?: string): Promise<string | undefined> => {
+      return actions.createWorkspaceFolder(relativePath, workspacePath);
     },
     [actions],
   );

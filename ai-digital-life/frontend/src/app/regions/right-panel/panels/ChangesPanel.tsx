@@ -15,7 +15,6 @@ import { useChangesPanelState } from './ChangesPanel/useChangesPanelState';
 const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) {
   const {
     t,
-    formatT,
     appInfo,
     activePatchSet,
     latestPatchApplication,
@@ -226,7 +225,6 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
           open={changesRenameDialogOpen}
           initialValue={changesRenamingPath.split('/').pop() || ''}
           title={t.changesRename}
-          itemInfo={formatT(t, 'changesCurrentPath', { path: changesRenamingPath })}
           placeholder={t.changesEnterNewName}
           onConfirm={handleChangesRenameConfirm}
           onCancel={handleChangesRenameCancel}

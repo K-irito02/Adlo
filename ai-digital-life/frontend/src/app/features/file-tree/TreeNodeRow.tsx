@@ -7,6 +7,8 @@ interface TreeNodeRowProps {
   hasChildren: boolean;
   isExpanded?: boolean;
   isActive?: boolean;
+  /** 弱选中态（与 isActive 视觉区分），用于“点击节点”这类非打开场景的临时高亮 */
+  isWeakSelected?: boolean;
   isHovered?: boolean;
   isContextMenuTarget?: boolean;
   expandLabel: string;
@@ -43,6 +45,7 @@ export const TreeNodeRow = React.memo(function TreeNodeRow({
   hasChildren,
   isExpanded = false,
   isActive = false,
+  isWeakSelected = false,
   isHovered = false,
   isContextMenuTarget = false,
   expandLabel,
@@ -74,7 +77,7 @@ export const TreeNodeRow = React.memo(function TreeNodeRow({
 }: TreeNodeRowProps) {
   return (
     <li
-      className={`adl-tree-node${isActive ? ' is-selected' : ''}${isHovered ? ' is-hovered' : ''}${isContextMenuTarget ? ' is-context-menu-target' : ''}${itemClassName ? ` ${itemClassName}` : ''}`}
+      className={`adl-tree-node${isActive ? ' is-selected' : ''}${isWeakSelected ? ' is-weak-selected' : ''}${isHovered ? ' is-hovered' : ''}${isContextMenuTarget ? ' is-context-menu-target' : ''}${itemClassName ? ` ${itemClassName}` : ''}`}
       data-depth={depth}
       data-path={nodePath}
       style={
