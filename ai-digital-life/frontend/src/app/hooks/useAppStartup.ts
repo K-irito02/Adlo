@@ -6,6 +6,8 @@ import { useAppActions } from './useAppActions';
 import { useThemeSync } from './useThemeSync';
 import { useTaskCenterPolling } from './useTaskCenterPolling';
 import { initSiteMetaCache } from '@utils/siteMetaCache';
+import { pageMetaClient } from '@utils/pageMetaClient';
+import { collectWarmupUrls } from '@utils/warmupUrls';
 
 export function useAppStartup(appInfo: AppInfo | undefined) {
   const actions = useAppActions();
@@ -35,6 +37,14 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
     void actions.bootstrap();
     void initSiteMetaCache();
   }, [actions, actions.bootstrap]);
+
+  useEffect(() => {
+    void initSiteMetaCache();
+    const urls = collectWarmupUrls();
+    if (urls.length > 0) {
+      void pageMetaClient.warmup(urls);
+    }
+  }, []);
 
   useEffect(() => {
     return window.digitalLife.workspace.onFileChanged((event) => {
