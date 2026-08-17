@@ -15,6 +15,35 @@ export function normalizeTabTitle(title: string | undefined, _url: string): stri
 }
 
 /**
+ * 占位标题：空 / 等于 URL / http(s) 前缀 / 裸域名（与 useBrowserPageMeta / meta_merge 一致）。
+ */
+export function isPlaceholderTitle(title: string, url: string): boolean {
+  if (!title) return true;
+  if (title === url) return true;
+  if (/^https?:\/\//i.test(title)) return true;
+  try {
+    const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
+    if (!host) return false;
+    const t = title.trim().toLowerCase();
+    return t === host || t === `www.${host}`;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 收藏树节点标题解析（快照优先）：
+ * 快照标题非占位（用户自定义）→ 返回快照标题（永不覆盖）；
+ * 快照标题为占位（空 / 纯 URL / 裸域名）→ 返回服务端 metaTitle（可为空串）。
+ */
+export function resolveDisplayTitle(snapshotTitle: string, metaTitle: string, url: string): string {
+  if (!isPlaceholderTitle(snapshotTitle, url)) {
+    return snapshotTitle;
+  }
+  return metaTitle;
+}
+
+/**
  * Known tracking/analytics query params that carry no page identity. SPA sites
  * (Bilibili `vd_source`/`spm_id_from`/`trackid`, UTM campaigns, ad click ids)
  * mutate/append these during navigation, which would otherwise create redundant

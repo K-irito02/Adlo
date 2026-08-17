@@ -292,4 +292,24 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     await svc.warmup(['https://a.com/']);
     expect(calls).toBe(1);
   });
+
+  it('warmup processes ALL retry-due urls (not truncated at concurrency) and returns their metas (⑦)', async () => {
+    const fetched: string[] = [];
+    const svc = createPreviewPageMetaService({
+      baseDir: dir,
+      gateAllows: allowGate,
+      fetchOnce: async (url) => {
+        fetched.push(url);
+        return { title: `T-${url}`, favicon: '', faviconDataUri: '', url };
+      },
+    });
+    const urls = Array.from({ length: 12 }, (_, i) => `https://warmup${i}.example/`);
+    const metas = await svc.warmup(urls);
+    // 旧实现 tasks.length >= WARMUP_CONCURRENCY(8) 截断 → 仅 8 个被抓取
+    expect(fetched.length).toBe(12);
+    // 预热结果返回全部 metas（供 preview 路由回传 → 前端镜像落地）
+    expect(metas.length).toBe(12);
+    expect(metas[0]?.title).toBe('T-https://warmup0.example/');
+    expect(metas[0]?.url).toBe('https://warmup0.example/');
+  });
 });

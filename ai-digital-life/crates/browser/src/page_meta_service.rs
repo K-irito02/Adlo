@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use adl_errors::AppError;
+use futures::StreamExt;
 
 use crate::browser_meta::PageMeta;
 use crate::meta_merge::{
@@ -27,6 +28,23 @@ pub struct PageMetaService {
     store: Arc<SiteMetaCacheStore>,
     pub(crate) memory: Mutex<HashMap<String, SiteMetaCacheEntry>>,
     in_flight: Mutex<HashMap<String, Arc<tokio::sync::Notify>>>,
+}
+
+/// RAII 守卫：无论抓取正常结束还是 panic 展开，都移除 in_flight 条目并唤醒等待者，
+/// 防止 fetcher 内部 panic 后条目永久泄漏（⑬b）导致后续请求永久阻塞。
+struct InFlightGuard<'a> {
+    svc: &'a PageMetaService,
+    key: String,
+}
+
+impl Drop for InFlightGuard<'_> {
+    fn drop(&mut self) {
+        if let Some(n) =
+            self.svc.in_flight.lock().unwrap_or_else(|e| e.into_inner()).remove(&self.key)
+        {
+            n.notify_waiters();
+        }
+    }
 }
 
 impl PageMetaService {
@@ -63,8 +81,8 @@ impl PageMetaService {
             favicon_data_uri: String::new(),
             fetched_at: now,
             last_ok_at: 0,
-            next_retry_at: now + RETRY_BASE_MS,
-            fail_count: 1,
+            next_retry_at: now,
+            fail_count: 0,
         });
         entry.fail_count = entry.fail_count.saturating_add(1);
         let delay = (RETRY_BASE_MS << entry.fail_count.min(5)).min(RETRY_MAX_MS);
@@ -113,17 +131,15 @@ impl PageMetaService {
                 .map(|e| PageMeta { url: key.clone(), ..to_page_meta(e) })
                 .unwrap_or_default());
         }
-        // 执行抓取（持有者）
+        // 执行抓取（持有者）。守卫保证即使 fetch panic，in_flight 条目也被清理。
+        let _guard = InFlightGuard { svc: self, key: key.clone() };
         let meta = fetcher.fetch(url, force).await;
         if !meta.title.is_empty() || !meta.favicon.is_empty() || !meta.favicon_data_uri.is_empty() {
             self.write_success(&key, &meta, META_SOURCE_HTTP, now);
         } else {
             self.mark_failure(&key);
         }
-        // 释放单飞行并唤醒等待者
-        if let Some(n) = self.in_flight.lock().unwrap_or_else(|e| e.into_inner()).remove(&key) {
-            n.notify_waiters();
-        }
+        drop(_guard); // 提前释放，通知等待者（与正常结束等价）
         // source 反映缓存条目的真实 title_source（write_success 后为 http；此前
         // 若已有 com 权威条目则保留），供命令层广播使用，避免硬编码 http 冻结 com 更新。
         Ok(PageMeta {
@@ -183,7 +199,9 @@ impl PageMetaService {
         drop(memory);
         let mut map = HashMap::new();
         map.insert(key.to_string(), entry);
-        let _ = self.store.upsert(&map);
+        if let Err(e) = self.store.upsert(&map) {
+            tracing::warn!(url = %key, error = %e, "persist site meta upsert failed");
+        }
     }
 
     pub async fn report(
@@ -236,8 +254,10 @@ impl PageMetaService {
         memory.insert(key.clone(), entry.clone());
         drop(memory);
         let mut map = HashMap::new();
-        map.insert(key, entry);
-        let _ = self.store.upsert(&map);
+        map.insert(key.clone(), entry);
+        if let Err(e) = self.store.upsert(&map) {
+            tracing::warn!(url = %key, error = %e, "persist site meta upsert failed");
+        }
         Ok(true)
     }
 
@@ -246,29 +266,42 @@ impl PageMetaService {
         urls: &[String],
         fetcher: &dyn PageMetaFetcher,
         limit: usize,
-    ) -> Result<(), AppError> {
+    ) -> Result<Vec<PageMeta>, AppError> {
         let mut seen = std::collections::HashSet::new();
-        let mut tasks = Vec::new();
+        let mut keys = Vec::new();
         for u in urls {
             let key = normalize_cache_key(u);
             if !seen.insert(key.clone()) {
                 continue;
             }
-            if tasks.len() >= limit {
-                break;
-            }
             if self.retry_due(&key, chrono_now_ms()) {
-                // 任务持有 key 的 owned 拷贝，避免借用循环局部变量导致 E0597
-                let key = key.clone();
-                tasks.push(async move {
-                    let _ = self.get(&key, false, fetcher).await;
-                });
+                keys.push(key);
             }
         }
-        for t in tasks {
-            t.await;
-        }
-        Ok(())
+        // 全部 retry_due URL 并发抓取（并发上限 limit），不再截断 tasks 数量。
+        let metas = futures::stream::iter(keys.into_iter().map(|key| {
+            // 任务持有 key 的 owned 拷贝，避免借用循环局部变量导致 E0597
+            async move {
+                let _ = self.get(&key, false, fetcher).await;
+                key
+            }
+        }))
+        .buffer_unordered(limit)
+        .collect::<Vec<_>>()
+        .await;
+        // 返回每个已处理 URL 的缓存结果（用于命令层 emit 镜像传播）
+        Ok(metas
+            .iter()
+            .filter_map(|key| {
+                self.peek(key).map(|e| PageMeta {
+                    title: e.title.clone(),
+                    favicon: e.favicon_url.clone(),
+                    favicon_data_uri: e.favicon_data_uri.clone(),
+                    url: key.clone(),
+                    source: e.title_source,
+                })
+            })
+            .collect())
     }
 }
 
@@ -381,6 +414,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn first_failure_on_fresh_url_backs_off_at_base_delay() {
+        // ③ 首败 off-by-one 回归：全新 URL 首败后 fail_count 必须为 1（延迟=基础 10min），
+        // 而非 2（20min）——JS 侧 `5min * 2^failCount` 首败即 10min。
+        let (svc, _) = open_service("first-fail");
+        // 直接走失败路径（抓取返回空）触发 mark_failure
+        let fetcher = MockFetcher { result: std::sync::Mutex::new(Some(PageMeta::default())) };
+        let meta = svc.get("https://firstfail.example/", true, &fetcher).await.unwrap();
+        assert!(meta.title.is_empty());
+        let cached = svc.peek("https://firstfail.example/").unwrap();
+        assert_eq!(cached.fail_count, 1, "首败 fail_count 应为 1");
+        assert_eq!(
+            cached.next_retry_at,
+            chrono_now_ms() + (RETRY_BASE_MS << 1),
+            "首败延迟应为 RETRY_BASE_MS << 1（10min，与 JS 5min * 2^failCount 一致）"
+        );
+        // 二次失败 → fail_count 2 → 2^2=4 倍基础延迟（与 JS 指数退避一致）
+        let meta = svc.get("https://firstfail.example/", true, &fetcher).await.unwrap();
+        assert!(meta.title.is_empty());
+        let cached = svc.peek("https://firstfail.example/").unwrap();
+        assert_eq!(cached.fail_count, 2);
+        assert_eq!(cached.next_retry_at, chrono_now_ms() + (RETRY_BASE_MS << 2));
+    }
+
+    #[tokio::test]
     async fn single_flight_deduplicates_concurrent_gets() {
         let (svc, _) = open_service("flight");
         let calls = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
@@ -451,6 +508,127 @@ mod tests {
         let e = svc.peek("https://a.com/").unwrap();
         assert_eq!(e.title, "真实标题");
         assert_eq!(e.title_source, META_SOURCE_COM);
+    }
+
+    /// 最小测试订阅者：捕获 WARN/ERROR 事件消息（⑬a 断言 upsert 失败被记录日志）。
+    #[derive(Clone)]
+    struct CapturingSubscriber {
+        warns: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    }
+    impl tracing::Subscriber for CapturingSubscriber {
+        fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
+            true
+        }
+        fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+            tracing::span::Id::from_u64(1)
+        }
+        fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+        fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+        fn event(&self, event: &tracing::Event<'_>) {
+            if event.metadata().level() <= &tracing::Level::WARN {
+                let mut out = String::new();
+                let mut v = CollectFields(&mut out);
+                event.record(&mut v);
+                self.warns.lock().unwrap().push(out);
+            }
+        }
+        fn enter(&self, _: &tracing::span::Id) {}
+        fn exit(&self, _: &tracing::span::Id) {}
+    }
+    struct CollectFields<'a>(&'a mut String);
+    impl tracing::field::Visit for CollectFields<'_> {
+        fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+            self.0.push_str(&format!("{}={} ", field.name(), value));
+        }
+        fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+            self.0.push_str(&format!("{}={:?} ", field.name(), value));
+        }
+        fn record_i64(&mut self, field: &tracing::field::Field, value: i64) {
+            self.0.push_str(&format!("{}={} ", field.name(), value));
+        }
+        fn record_u64(&mut self, field: &tracing::field::Field, value: u64) {
+            self.0.push_str(&format!("{}={} ", field.name(), value));
+        }
+        fn record_bool(&mut self, field: &tracing::field::Field, value: bool) {
+            self.0.push_str(&format!("{}={} ", field.name(), value));
+        }
+    }
+
+    #[tokio::test]
+    async fn upsert_failure_logs_warning() {
+        // ⑬a：write_success / report 的 upsert 失败此前被 `let _ =` 静默吞掉，
+        // 磁盘持久化丢失无任何痕迹。必须通过 tracing::warn! 记录。
+        let dir = temp_dir().join(format!("adl-pms-upsert-warn-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // 用只读连接制造 upsert 必然失败（query_only 阻止写入）。
+        let conn = rusqlite::Connection::open(dir.join("db.sqlite")).unwrap();
+        conn.execute_batch("PRAGMA query_only = ON;").unwrap();
+        let store = Arc::new(crate::site_meta_cache::from_connection_for_test(conn));
+        let svc = Arc::new(PageMetaService::new(store));
+
+        let warns = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let sub = CapturingSubscriber { warns: warns.clone() };
+        // with_default 只影响当前线程；report 是 async，须在独立线程的 runtime 上执行，
+        // 且该线程的默认订阅者指向捕获器（tokio::test 内部不能再次 block_on）。
+        let svc2 = svc.clone();
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            tracing::subscriber::with_default(sub, || {
+                rt.block_on(async {
+                    svc2.report("https://a.com/", "标题", "", META_SOURCE_HTTP).await.unwrap();
+                });
+            });
+        })
+        .join()
+        .unwrap();
+        assert!(
+            !warns.lock().unwrap().is_empty(),
+            "upsert 失败必须记录 warn 日志（当前被静默吞掉）"
+        );
+    }
+
+    #[tokio::test]
+    async fn fetcher_panic_does_not_leak_in_flight_entry() {
+        // ⑬b：fetcher.fetch 若 panic，in_flight 单飞行条目必须被清理并通知等待者，
+        // 否则后续该 URL 的所有请求都会永久阻塞在 Notify 上。
+        let (svc, _) = open_service("panic-leak");
+        struct PanicFetcher;
+        impl PageMetaFetcher for PanicFetcher {
+            fn fetch(
+                &self,
+                _url: &str,
+                _force: bool,
+            ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>>
+            {
+                Box::pin(async move { panic!("fetcher boom") })
+            }
+        }
+        // 在独立任务中触发 panic（tokio 捕获为 JoinError）
+        let h = {
+            let svc = svc.clone();
+            tokio::spawn(async move { svc.get("https://a.com/", true, &PanicFetcher).await })
+        };
+        assert!(h.await.is_err(), "fetcher panic 应传播为任务错误");
+
+        // panic 后再次 get：若 in_flight 泄漏，会永久等待 Notify（timeout 兜底防挂死）
+        let ok_fetcher = MockFetcher {
+            result: std::sync::Mutex::new(Some(PageMeta {
+                title: "Recovered".into(),
+                favicon: "".into(),
+                favicon_data_uri: "".into(),
+                url: "https://a.com/".into(),
+                source: String::new(),
+            })),
+        };
+        let r = tokio::time::timeout(
+            std::time::Duration::from_millis(2000),
+            svc.get("https://a.com/", true, &ok_fetcher),
+        )
+        .await;
+        let meta = r.expect("panic 后 get 必须能完成（否则 in_flight 泄漏导致永久阻塞）");
+        assert_eq!(meta.unwrap().title, "Recovered");
+        assert_eq!(svc.in_flight.lock().unwrap().len(), 0);
     }
 
     #[tokio::test]
@@ -553,5 +731,74 @@ mod tests {
             "真实标题",
             "占位标题不得覆盖权威标题"
         );
+    }
+
+    #[tokio::test]
+    async fn warmup_processes_all_retry_due_urls_with_bounded_concurrency() {
+        // ⑦ 预热修复：必须处理全部 retry_due URL（而不是被 limit=8 截断），
+        // 且并发受 limit 上限约束（buffer_unordered）。
+        let (svc, _) = open_service("warmup-all");
+        let urls: Vec<String> = (0..20).map(|i| format!("https://warmup{i}.example/")).collect();
+        let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let active = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let max_active = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        struct ConcurrentFetcher {
+            calls: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+            active: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+            max_active: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        }
+        impl PageMetaFetcher for ConcurrentFetcher {
+            fn fetch(
+                &self,
+                _url: &str,
+                _force: bool,
+            ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>>
+            {
+                let calls = self.calls.clone();
+                let active = self.active.clone();
+                let max_active = self.max_active.clone();
+                Box::pin(async move {
+                    calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    let now = active.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                    max_active.fetch_max(now, std::sync::atomic::Ordering::SeqCst);
+                    // 让出，使并发真正并行（否则串行跑完才轮到下一个）
+                    tokio::task::yield_now().await;
+                    active.fetch_sub(1, std::sync::atomic::Ordering::SeqCst);
+                    PageMeta {
+                        title: "Warmed".into(),
+                        favicon: "".into(),
+                        favicon_data_uri: "".into(),
+                        url: String::new(),
+                        source: String::new(),
+                    }
+                })
+            }
+        }
+        let fetcher = ConcurrentFetcher {
+            calls: calls.clone(),
+            active: active.clone(),
+            max_active: max_active.clone(),
+        };
+        let metas = svc.warmup(&urls, &fetcher, 8).await.unwrap();
+        // 全部 20 个 URL 均被处理（旧实现 tasks.len() >= limit 在 8 处截断）
+        assert_eq!(
+            calls.load(std::sync::atomic::Ordering::SeqCst),
+            20,
+            "warmup 必须处理全部 retry_due URL"
+        );
+        assert_eq!(metas.len(), 20);
+        // 返回的 meta 必须携带真实 url（命令层 emit 广播用）
+        assert!(
+            metas
+                .iter()
+                .all(|m| m.url.starts_with("https://warmup") && m.url.ends_with(".example/"))
+        );
+        // 并发受 limit=8 约束
+        assert!(
+            max_active.load(std::sync::atomic::Ordering::SeqCst) <= 8,
+            "warmup 并发不得超过 limit"
+        );
+        // 所有 URL 都被缓存（write_success 写入内存）
+        assert!(svc.peek("https://warmup19.example/").is_some());
     }
 }

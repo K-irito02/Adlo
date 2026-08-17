@@ -78,6 +78,7 @@ name = "adl-browser"
 version = "0.1.0"
 dependencies = [
  "adl-errors",
+ "futures",
  "once_cell",
  "rusqlite",
  "serde",

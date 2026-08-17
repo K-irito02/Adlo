@@ -4,8 +4,6 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import { handlePreviewWorkspaceApi, isPreviewWorkspaceApiRequest } from "./dev/previewWorkspaceService";
 import { setupPreviewTerminalWs } from "./dev/previewTerminalService";
-import { pageMetaGateAllows } from "./dev/previewCrawlerGate";
-import { fetchPageMetaOnce } from "./dev/previewFetchPageMeta";
 
 let visualizerPlugin = null;
 if (process.env.BUILD_ANALYZE === "true") {
@@ -84,38 +82,8 @@ export default defineConfig({
             }
             return;
           }
-          // 仅精确匹配遗留 GET 端点 /__adl_preview_api__/browser/page-meta；
           // /browser/page-meta/get|report|refresh|warmup 等 POST 路由交给
           // handlePreviewWorkspaceApi 处理（pageMetaService.ts）。
-          if (req.url && new URL(req.url, 'http://localhost').pathname === '/__adl_preview_api__/browser/page-meta') {
-            const searchParams = new URL(req.url, 'http://localhost').searchParams;
-            const targetUrl = searchParams.get('url');
-            if (!targetUrl) {
-              res.setHeader('Content-Type', 'application/json; charset=utf-8');
-              res.statusCode = 400;
-              res.end(JSON.stringify({ ok: false, error: 'missing url parameter' }));
-              return;
-            }
-            // 合规爬虫门控：robots.txt Disallow 硬跳过（私网豁免 / fail-open 见辅助函数）。
-            if (!(await pageMetaGateAllows(targetUrl))) {
-              res.setHeader('Content-Type', 'application/json; charset=utf-8');
-              res.statusCode = 200;
-              res.end(JSON.stringify({ title: '', favicon: '', faviconDataUri: '', url: targetUrl }));
-              return;
-            }
-            try {
-              // 共享抓取：HTML 解析 + 图标回退链 + dataUri 下载（内部含 favicon robots-only 门控）。
-              const meta = await fetchPageMetaOnce(targetUrl);
-              res.setHeader('Content-Type', 'application/json; charset=utf-8');
-              res.statusCode = 200;
-              res.end(JSON.stringify(meta));
-            } catch {
-              res.setHeader('Content-Type', 'application/json; charset=utf-8');
-              res.statusCode = 200;
-              res.end(JSON.stringify({ title: '', favicon: '', faviconDataUri: '', url: targetUrl }));
-            }
-            return;
-          }
           if (req.url?.includes('/__adl_preview_api__/browser/scan-ports')) {
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
             const COMMON_PORTS = [3000, 5173, 8000, 8080, 9000, 4000, 5000, 4200, 3001, 5174];

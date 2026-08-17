@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type {
   BrowserTabState,
@@ -13,6 +13,8 @@ import {
   buildUserFolderCategoryTree,
   buildHistoryCategoryTree,
 } from './useBrowserTreeData';
+import { getCachedTitle } from '@utils/siteMetaCache';
+import { subscribeSiteMetaGlobal } from '@utils/siteMetaCache';
 
 export interface UseBrowserTreeCacheInput {
   workspaces: RecentWorkspaceEntry[];
@@ -59,6 +61,10 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
 
   const tabIdToUrl = browserBookmarkTabIdUrlMap;
 
+  // 站点元数据镜像更新时强制重建收藏树节点标题（resolveDisplayTitle 依赖 metaTitle）
+  const [metaVersion, setMetaVersion] = useState(0);
+  useEffect(() => subscribeSiteMetaGlobal(() => setMetaVersion((v) => v + 1)), []);
+
   const workspaceNodes = useMemo(
     () =>
       buildWorkspaceCategoryTree(
@@ -68,6 +74,7 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
         browserWorkspaceBookmarks,
         browserBookmarks,
         tabIdToUrl,
+        getCachedTitle,
       ),
     [
       workspaces,
@@ -76,6 +83,7 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
       browserWorkspaceBookmarks,
       browserBookmarks,
       tabIdToUrl,
+      metaVersion,
     ],
   );
 
@@ -91,8 +99,9 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
   );
 
   const userFolderNodes = useMemo(
-    () => buildUserFolderCategoryTree(browserTabFolders, browserTabs, browserBookmarks, tabIdToUrl),
-    [browserTabFolders, browserTabs, browserBookmarks, tabIdToUrl],
+    () =>
+      buildUserFolderCategoryTree(browserTabFolders, browserTabs, browserBookmarks, tabIdToUrl, getCachedTitle),
+    [browserTabFolders, browserTabs, browserBookmarks, tabIdToUrl, metaVersion],
   );
 
   const userFolderCategory: BrowserCategoryState = useMemo(

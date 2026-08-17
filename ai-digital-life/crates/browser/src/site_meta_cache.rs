@@ -35,6 +35,12 @@ pub struct SiteMetaCacheStore {
     db: Mutex<Connection>,
 }
 
+/// 测试专用：用给定连接构造 store（用于注入 query_only 等失败连接）。
+#[cfg(test)]
+pub(crate) fn from_connection_for_test(conn: Connection) -> SiteMetaCacheStore {
+    SiteMetaCacheStore { db: Mutex::new(conn) }
+}
+
 /// 与前端 `normalizeUrlForCache` 同构：去 hash、去尾部多余斜杠。
 pub fn normalize_cache_key(url: &str) -> String {
     if let Ok(mut u) = url::Url::parse(url) {
@@ -67,6 +73,42 @@ impl SiteMetaCacheStore {
             .map_err(|e| AppError::Storage(format!("open site-meta-cache.db: {e}")))?;
         conn.execute_batch("PRAGMA journal_mode=WAL;")
             .map_err(|e| AppError::Storage(format!("set WAL: {e}")))?;
+        // 早期迭代创建的旧表缺 4 列（title_source/last_ok_at/next_retry_at/fail_count）；
+        // CREATE TABLE IF NOT EXISTS 不会补列 → 读取/写入会因 "no such column" 失败。
+        // 未发布阶段直接丢弃式重建（PRAGMA 校验缺列 → DROP + CREATE）。
+        let required = [
+            "url",
+            "title",
+            "title_source",
+            "favicon_url",
+            "favicon_data_uri",
+            "fetched_at",
+            "last_ok_at",
+            "next_retry_at",
+            "fail_count",
+        ];
+        let has_table = conn
+            .query_row(
+                "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='site_meta_cache'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .map_err(|e| AppError::Storage(format!("check table existence: {e}")))?;
+        if has_table > 0 {
+            let mut stmt = conn
+                .prepare("PRAGMA table_info(site_meta_cache)")
+                .map_err(|e| AppError::Storage(format!("prepare table_info: {e}")))?;
+            let cols: Vec<String> = stmt
+                .query_map([], |row| row.get::<_, String>(1))
+                .map_err(|e| AppError::Storage(format!("query table_info: {e}")))?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| AppError::Storage(format!("read table_info: {e}")))?;
+            if !required.iter().all(|c| cols.iter().any(|x| x == c)) {
+                conn.execute_batch("DROP TABLE site_meta_cache;").map_err(|e| {
+                    AppError::Storage(format!("drop stale site_meta_cache table: {e}"))
+                })?;
+            }
+        }
         conn.execute_batch(CREATE_TABLE_SQL)
             .map_err(|e| AppError::Storage(format!("create site_meta_cache table: {e}")))?;
         Ok(Arc::new(Self { db: Mutex::new(conn) }))
@@ -267,5 +309,57 @@ mod tests {
         assert_eq!(normalize_cache_key("https://a.com/path/#sec"), "https://a.com/path");
         assert_eq!(normalize_cache_key("https://a.com/path//"), "https://a.com/path");
         assert_eq!(normalize_cache_key("https://a.com"), "https://a.com/");
+    }
+
+    #[test]
+    fn open_rebuilds_stale_table_missing_new_columns() {
+        // 模拟早期迭代创建的旧表（仅 5 列，无 title_source/last_ok_at/next_retry_at/fail_count）。
+        // CREATE TABLE IF NOT EXISTS 不会补列 → 旧库 get_all/upsert 会因 "no such column" 失败。
+        let dir = temp_dir().join(format!("adl-site-meta-stale-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let db_path = dir.join("site-meta-cache.db");
+        {
+            let conn = rusqlite::Connection::open(&db_path).unwrap();
+            conn.execute_batch(
+                "CREATE TABLE site_meta_cache (
+                    url              TEXT PRIMARY KEY,
+                    title            TEXT NOT NULL DEFAULT '',
+                    favicon_url      TEXT NOT NULL DEFAULT '',
+                    favicon_data_uri TEXT NOT NULL DEFAULT '',
+                    fetched_at       INTEGER NOT NULL
+                );",
+            )
+            .unwrap();
+            conn.execute(
+                "INSERT INTO site_meta_cache (url, title, favicon_url, favicon_data_uri, fetched_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                rusqlite::params!["https://stale.com/", "旧标题", "https://stale.com/f.ico", "", 1700000000000i64],
+            )
+            .unwrap();
+        }
+
+        let store = SiteMetaCacheStore::open(&dir).unwrap();
+        // 旧表被丢弃重建（PRAGMA 校验缺列 → drop + recreate）
+        let mut map = HashMap::new();
+        map.insert(
+            "https://stale.com/".to_string(),
+            SiteMetaCacheEntry {
+                title: "新标题".into(),
+                title_source: "http".into(),
+                favicon_url: "https://stale.com/f.ico".into(),
+                favicon_data_uri: "".into(),
+                fetched_at: 1700000000000,
+                last_ok_at: 1,
+                next_retry_at: 0,
+                fail_count: 0,
+            },
+        );
+        store.upsert(&map).unwrap();
+        let all = store.get_all().unwrap();
+        let e = all.get("https://stale.com/").unwrap();
+        assert_eq!(e.title, "新标题");
+        assert_eq!(e.title_source, "http");
+        assert_eq!(e.last_ok_at, 1);
     }
 }

@@ -5,6 +5,7 @@ import * as siteMetaCache from '@utils/siteMetaCache';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { useBrowserTagActions } from '../useBrowserTagActions';
+import { titleSourceRef, applyBroadcastTitle } from '../useBrowserPageMeta';
 
 vi.mock('@utils/pageMetaClient', () => ({
   pageMetaClient: { refresh: vi.fn() },
@@ -121,6 +122,33 @@ describe('useBrowserTagActions refresh no longer writes site-meta cache', () => 
     const entry = siteMetaCache.getCachedSiteMeta('https://refresh-datauri-only.example')!;
     expect(entry.faviconUrl).toBe('');
     expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
+  });
+
+  it('refresh that applies a title records http source so a later com broadcast cannot overwrite it (⑥)', async () => {
+    useAppStore.setState({
+      browserTabs: [makeTab('tab1', 'https://refresh-source.example', '')],
+    });
+    vi.mocked(pageMetaClient.refresh).mockResolvedValue({
+      title: '刷新标题',
+      favicon: '',
+      faviconDataUri: '',
+      url: 'https://refresh-source.example',
+    });
+    const { result } = renderHook(() => useBrowserTagActions());
+    await act(async () => {
+      await result.current.handleRefreshTab('tab1', 'https://refresh-source.example');
+    });
+    expect(titleSourceRef.get('tab1')).toBe('http');
+    expect(
+      applyBroadcastTitle(
+        { title: '刷新标题', id: 'tab1' },
+        'https://refresh-source.example',
+        'com陈旧标题',
+        'com',
+        titleSourceRef.get('tab1'),
+      ),
+    ).toBe(false);
+    titleSourceRef.delete('tab1');
   });
 });
 

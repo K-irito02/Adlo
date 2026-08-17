@@ -46,6 +46,9 @@ export function useBrowserTagActions() {
       if (tab) {
         const shouldApply = applyBroadcastTitle(tab, url, title, 'http', titleSourceRef.get(tabId));
         browserUpdateTab(tabId, { title: shouldApply ? title : tab.title });
+        if (shouldApply) {
+          titleSourceRef.set(tabId, 'http');
+        }
       } else {
         const isHistoryEntry = state.browserHistory.some((h) => h.id === tabId);
         if (isHistoryEntry) {

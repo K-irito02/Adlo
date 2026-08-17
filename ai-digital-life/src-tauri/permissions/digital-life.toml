@@ -25,7 +25,6 @@ commands.allow = [
   "browser_can_go_back_tab",
   "browser_can_go_forward_tab",
   "browser_reload_tab",
-  "browser_fetch_page_meta",
   "browser_mute_tab",
   "browser_set_color_scheme",
   "browser_set_zoom",
