@@ -22,30 +22,81 @@ import type { PageMeta } from '../src/shared/ipc/browser';
 const FETCH_TIMEOUT_MS = 5000;
 const HTML_MAX_LEN = 65536;
 const FAVICON_MAX_BYTES = 64 * 1024;
+const TITLE_MAX_LEN = 200;
 
 function emptyPageMeta(url: string): PageMeta {
   return { title: '', favicon: '', faviconDataUri: '', url };
 }
 
+/** 与 Rust `html_meta.rs::html_entity_decode` 同构的实体解码集。 */
+function htmlEntityDecode(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/')
+    .replace(/&nbsp;/g, ' ');
+}
+
+/** 从 `<meta>` 标签片段中按属性名取值（双引号/单引号均可），与 Rust
+ *  `extract_attr_value` 同构：在 tag 内查找 `attr="…"` 或 `attr='…'`。 */
+function metaContentOf(tag: string, attr: string): string {
+  for (const marker of [`${attr}="`, `${attr}='`]) {
+    const idx = tag.indexOf(marker);
+    if (idx !== -1) {
+      const valueStart = idx + marker.length;
+      const quote = marker[marker.length - 1];
+      const end = tag.indexOf(quote, valueStart);
+      if (end !== -1) {
+        const raw = tag.slice(valueStart, end);
+        if (raw.length > 0) return raw;
+      }
+    }
+  }
+  return '';
+}
+
+/** 从 HTML 中按 property 值提取 `<meta>` 的 content（与 Rust `extract_meta_content`
+ *  同构：property 匹配容忍空格与单/双引号，content 属性顺序不限）。 */
+function extractMetaContent(html: string, property: string): string {
+  const lower = html.toLowerCase();
+  const propLower = property.toLowerCase();
+  const markers = [
+    `property="${propLower}"`,
+    `property='${propLower}'`,
+    `property = "${propLower}"`,
+    `property = '${propLower}'`,
+  ];
+  for (const marker of markers) {
+    const start = lower.indexOf(marker);
+    if (start !== -1) {
+      const tagStart = lower.lastIndexOf('<meta', start);
+      if (tagStart === -1) continue;
+      const tagEnd = lower.indexOf('>', tagStart);
+      if (tagEnd === -1) continue;
+      const tag = html.slice(tagStart, tagEnd);
+      const content = metaContentOf(tag, 'content');
+      if (content.length > 0) return content;
+    }
+  }
+  return '';
+}
+
 /**
  * 提取页面标题：`<title>` 优先，其次 `<meta property="og:title">`。
- * 保留 vite.config.ts 中间件既有正则与 HTML 实体解码集（&amp;/&lt;/&gt;/&quot;/&#x27;）。
+ * 语义与 Rust `html_meta.rs::extract_title` 对齐：实体解码全集、
+ * og:title 属性顺序/引号/空格鲁棒、标题截断 200 字符。
  */
 function extractTitle(html: string): string {
   const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
   let title = titleMatch?.[1]?.trim() || '';
   if (!title) {
-    const ogTitle = html.match(
-      /<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i,
-    );
-    title = ogTitle?.[1]?.trim() || '';
+    title = extractMetaContent(html, 'og:title').trim();
   }
-  return title
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'");
+  return htmlEntityDecode(title).slice(0, TITLE_MAX_LEN);
 }
 
 const ICON_PATTERNS = [

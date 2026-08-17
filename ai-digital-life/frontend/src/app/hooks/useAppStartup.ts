@@ -41,7 +41,7 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
   useEffect(() => {
     void initSiteMetaCache();
     let attempts = 0;
-    const MAX_ATTEMPTS = 4;
+    const MAX_ATTEMPTS = 5;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     const tryCollect = () => {
       const urls = collectWarmupUrls();

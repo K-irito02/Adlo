@@ -139,4 +139,33 @@ describe('useAppStartup warmup', () => {
       vi.useRealTimers();
     }
   });
+
+  it('keeps retrying past the 1000ms hydration window (rIC timeout) and warms up late data (⑨)', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    try {
+      renderHook(() => useAppStartup(undefined));
+      expect(vi.mocked(pageMetaClient.warmup)).not.toHaveBeenCalled();
+
+      // 空结果重试 4 次（300ms × 4 = 1200ms）：水合窗口 requestIdleCallback timeout:1000 可能
+      // 晚于 900ms，重试必须覆盖到 1000ms 之后。
+      act(() => {
+        vi.advanceTimersByTime(1000);
+      });
+      expect(vi.mocked(pageMetaClient.warmup)).not.toHaveBeenCalled();
+
+      // 数据在 1000ms 后出现（超出旧实现 900ms 覆盖窗口）
+      useAppStore.setState({
+        browserTabs: [makeTab('tab1', 'https://late.example/')],
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(vi.mocked(pageMetaClient.warmup)).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(pageMetaClient.warmup)).toHaveBeenCalledWith(['https://late.example/']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

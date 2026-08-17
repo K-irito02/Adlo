@@ -216,7 +216,7 @@ export interface PreviewPageMetaServiceOptions {
 export interface PreviewPageMetaService {
   get(url: string, force?: boolean): Promise<PageMeta | null>;
   report(url: string, title: string, favicon: string, source: MetaSource): Promise<boolean>;
-  warmup(urls: string[]): Promise<void>;
+  warmup(urls: string[]): Promise<PageMeta[]>;
   peek(url: string): SiteMetaCacheEntry | undefined;
   subscribeUpdated(listener: (p: PageMetaUpdatedPayload) => void): () => void;
 }
@@ -450,7 +450,7 @@ export function createPreviewPageMetaService(
     return true;
   }
 
-  async function warmup(urls: string[]): Promise<void> {
+  async function warmup(urls: string[]): Promise<PageMeta[]> {
     await preloadPromise;
     const seen = new Set<string>();
     const tasks: string[] = [];
@@ -458,13 +458,13 @@ export function createPreviewPageMetaService(
       const key = normalizeCacheKey(u);
       if (seen.has(key)) continue;
       seen.add(key);
-      if (tasks.length >= WARMUP_CONCURRENCY) break;
       const now = Date.now();
       const entry = memory.get(key);
       if (!entry || now >= entry.nextRetryAt) {
         tasks.push(key);
       }
     }
+    // 全部 retry_due URL 并发抓取（并发上限 WARMUP_CONCURRENCY），不再截断数量。
     let index = 0;
     const workers = Array.from(
       { length: Math.min(WARMUP_CONCURRENCY, tasks.length) },
@@ -477,6 +477,11 @@ export function createPreviewPageMetaService(
       },
     );
     await Promise.all(workers);
+    // 返回每个已处理 URL 的缓存结果（供 preview 路由回传 → 前端镜像落地）
+    return tasks.flatMap((key) => {
+      const entry = memory.get(key);
+      return entry ? [{ ...toPageMeta(entry), url: key }] : [];
+    });
   }
 
   function subscribeUpdated(listener: (p: PageMetaUpdatedPayload) => void): () => void {

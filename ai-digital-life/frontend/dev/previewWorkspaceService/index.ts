@@ -26,7 +26,16 @@ const API_PREFIX = '/__adl_preview_api__';
 let ciAccessToken: string = '';
 
 // 预览模式 PageMeta 服务单例（baseDir 与既有 site-meta-cache 路由的默认一致）。
-const pageMetaSvc = createPreviewPageMetaService({ baseDir: process.cwd() });
+// Vite HMR 时复用既有实例，避免热更新导致状态丢失（内存缓存、单飞行、持久化队列）。
+let pageMetaSvc = createPreviewPageMetaService({ baseDir: process.cwd() });
+if (typeof import.meta !== 'undefined' && import.meta.hot && import.meta.hot.data) {
+  if (import.meta.hot.data.pageMetaServiceInstance) {
+    pageMetaSvc = import.meta.hot.data.pageMetaServiceInstance;
+  }
+  import.meta.hot.dispose(() => {
+    import.meta.hot.data.pageMetaServiceInstance = pageMetaSvc;
+  });
+}
 
 const WIN_SYSTEM_DIRS =
   process.platform === 'win32'
@@ -565,8 +574,11 @@ const routes: Route[] = [
       if (!Array.isArray(b?.urls) || b.urls.some((u) => typeof u !== 'string')) {
         return fail('urls is required', 'INVALID_INPUT');
       }
-      await pageMetaSvc.warmup(b.urls as string[]);
-      return ok(true);
+      if ((b.urls as string[]).length > 200) {
+        return fail('URL list exceeds maximum length of 200', 'INVALID_INPUT');
+      }
+      const metas = await pageMetaSvc.warmup(b.urls as string[]);
+      return ok(metas);
     },
   },
   {

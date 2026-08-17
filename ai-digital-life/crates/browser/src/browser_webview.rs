@@ -86,7 +86,10 @@ impl BrowserManager {
     }
 
     pub fn set_site_meta_cache(&mut self, store: Arc<SiteMetaCacheStore>) {
-        self.site_meta_cache = store;
+        // 必须同时重建 page_meta_service，否则 service 仍指向旧 store，
+        // 后续 get/report/preload 读写全部落到旧库（②）。
+        self.site_meta_cache = store.clone();
+        self.page_meta_service = Arc::new(PageMetaService::new(store));
     }
 
     pub fn current_color_scheme(&self) -> String {
@@ -318,10 +321,56 @@ impl BrowserManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::meta_merge::META_SOURCE_HTTP;
+    use crate::site_meta_cache::SiteMetaCacheEntry;
 
     #[test]
     fn test_webview_label_format() {
         let label = webview_label("test-tab-123");
         assert_eq!(label, "adl-browser-view-test-tab-123");
+    }
+
+    #[tokio::test]
+    async fn set_site_meta_cache_rebuilds_page_meta_service() {
+        // ② set_site_meta_cache 必须同时重建 page_meta_service（旧实现只换 store，
+        // service 仍指向旧 store，交换后读不到新数据）。
+        let dir_a =
+            std::env::temp_dir().join(format!("adl-bwm-set-cache-a-{}", std::process::id()));
+        let dir_b =
+            std::env::temp_dir().join(format!("adl-bwm-set-cache-b-{}", std::process::id()));
+        for d in [&dir_a, &dir_b] {
+            let _ = std::fs::remove_dir_all(d);
+            std::fs::create_dir_all(d).unwrap();
+        }
+
+        let store_a = crate::site_meta_cache::SiteMetaCacheStore::open(&dir_a).unwrap();
+        let mut manager = BrowserManager::new(store_a.clone());
+
+        // 新 store（不同目录，含预置元数据）——旧实现只换 store 不重建 service，
+        // service 仍指向 store_a，peek 读不到 x.com 条目。
+        let store_b = crate::site_meta_cache::SiteMetaCacheStore::open(&dir_b).unwrap();
+        let mut map = HashMap::new();
+        map.insert(
+            "https://x.com/".to_string(),
+            SiteMetaCacheEntry {
+                title: "NewTitle".into(),
+                title_source: META_SOURCE_HTTP.into(),
+                favicon_url: String::new(),
+                favicon_data_uri: String::new(),
+                fetched_at: 0,
+                last_ok_at: 0,
+                next_retry_at: 0,
+                fail_count: 0,
+            },
+        );
+        store_b.upsert(&map).unwrap();
+
+        manager.set_site_meta_cache(store_b);
+        manager.page_meta_service().preload().await.unwrap();
+
+        let e = manager.page_meta_service().peek("https://x.com/");
+        assert_eq!(e.unwrap().title, "NewTitle");
+        let all = manager.site_meta_cache().get_all().unwrap();
+        assert_eq!(all.get("https://x.com/").unwrap().title, "NewTitle");
     }
 }

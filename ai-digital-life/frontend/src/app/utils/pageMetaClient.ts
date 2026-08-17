@@ -3,7 +3,7 @@ import { listen } from '@tauri-apps/api/event';
 import { requestPreviewApi } from '../../preview-bridge/preview-api';
 import type { PageMeta, PageMetaUpdatedPayload, MetaSource } from '../../shared/ipc/browser';
 import type { SiteMetaCacheEntry } from './siteMetaBackends/types';
-import { getCachedSiteMeta } from './siteMetaCache';
+import { applyBroadcastUpdate, getCachedSiteMeta } from './siteMetaCache';
 
 export interface PageMetaClient {
   peek(url: string): SiteMetaCacheEntry | undefined;
@@ -48,13 +48,15 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
           if (active) {
             listener(e.payload);
           }
-        }).then((u) => {
-          if (active) {
-            unlisten = u;
-          } else {
-            void Promise.resolve(u()).catch(() => {});
-          }
-        });
+        })
+          .then((u) => {
+            if (active) {
+              unlisten = u;
+            } else {
+              void Promise.resolve(u()).catch(() => {});
+            }
+          })
+          .catch(() => {});
         return () => {
           active = false;
           void Promise.resolve(unlisten?.()).catch(() => {});
@@ -86,13 +88,34 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
           method: 'POST',
           body: JSON.stringify({ url }),
         });
-        return r.ok && r.data ? r.data : null;
+        const meta = r.ok && r.data ? r.data : null;
+        // 预览模式无事件（subscribeUpdated no-op），刷新结果直接落地镜像
+        if (meta) {
+          applyBroadcastUpdate({
+            url: meta.url,
+            title: meta.title,
+            faviconUrl: meta.favicon,
+            faviconDataUri: meta.faviconDataUri || '',
+            source: (meta.source as MetaSource | undefined) || 'http',
+          });
+        }
+        return meta;
       },
       warmup: async (urls) => {
-        await requestPreviewApi<void>('/browser/page-meta/warmup', {
+        const r = await requestPreviewApi<PageMeta[]>('/browser/page-meta/warmup', {
           method: 'POST',
           body: JSON.stringify({ urls }),
         });
+        // 预览模式无事件（subscribeUpdated no-op），返回的 metas 直接落地镜像
+        for (const meta of r.ok ? (r.data ?? []) : []) {
+          applyBroadcastUpdate({
+            url: meta.url,
+            title: meta.title,
+            faviconUrl: meta.favicon,
+            faviconDataUri: meta.faviconDataUri || '',
+            source: (meta.source as MetaSource | undefined) || 'http',
+          });
+        }
       },
       subscribeUpdated: () => () => {}, // 预览模式事件由 Task 12 previewPageMetaService 提供
     };

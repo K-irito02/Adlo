@@ -4,6 +4,7 @@ import type {
   BrowserTabState,
   TabFolderState,
   BrowserHistoryState,
+  WorkspaceBookmarkEntry,
 } from '@stores/slices/browserSlice';
 import type { BrowserCategoryType, BrowserTreeNode } from './types';
 import {
@@ -363,5 +364,29 @@ describe('resolveChildCount (renderer for FileTree child count slot)', () => {
     };
     const counts = new Map<string, number>();
     expect(resolveChildCount(counts, dirNode)).toBe(0);
+  });
+});
+
+describe('bookmark tree node title via resolveDisplayTitle (⑪)', () => {
+  it('placeholder snapshot title falls back to the cached meta title', () => {
+    const bookmarks: WorkspaceBookmarkEntry[] = [
+      { tabId: 'bm-tab', url: 'https://a.com/', title: 'a.com' },
+    ];
+    const tree = buildWorkspaceCategoryTree([workspace], [], [], { 'ws-1': bookmarks }, [], {}, (url) =>
+      url === 'https://a.com/' ? '真实标题' : '',
+    );
+    const bmNode = tree[0].children.find((c) => c.url === 'https://a.com/');
+    expect(bmNode?.name).toBe('真实标题');
+  });
+
+  it('custom snapshot title is preserved even when a meta title exists', () => {
+    const bookmarks: WorkspaceBookmarkEntry[] = [
+      { tabId: 'bm-tab', url: 'https://b.com/', title: '我的书签' },
+    ];
+    const tree = buildWorkspaceCategoryTree([workspace], [], [], { 'ws-1': bookmarks }, [], {}, (url) =>
+      url === 'https://b.com/' ? '服务端标题' : '',
+    );
+    const bmNode = tree[0].children.find((c) => c.url === 'https://b.com/');
+    expect(bmNode?.name).toBe('我的书签');
   });
 });

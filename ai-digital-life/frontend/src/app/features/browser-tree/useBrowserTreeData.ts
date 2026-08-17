@@ -7,7 +7,7 @@ import type {
   WorkspaceBookmarkEntry,
 } from '@stores/slices/browserSlice';
 import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from './types';
-import { normalizeTabTitle } from '@utils/browserDisplayUtils';
+import { normalizeTabTitle, resolveDisplayTitle } from '@utils/browserDisplayUtils';
 import { useBrowserTreeCache } from './useBrowserTreeCache';
 import { useBrowserTreeVirtualization } from './useBrowserTreeVirtualization';
 import { useTCopy } from '@app/i18n/useTCopy';
@@ -129,6 +129,7 @@ function buildFolderNode(
   parentWorkspaceId?: string,
   browserBookmarks: BrowserBookmark[] = [],
   tabIdToUrlMap: Record<string, string> = {},
+  getMetaTitle: (url: string) => string = () => '',
 ): BrowserTreeNode {
   const childFolders = allFolders.filter(
     (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder'),
@@ -141,7 +142,10 @@ function buildFolderNode(
         if (snapshotUrl) {
           return {
             path: `bookmark:${tabId}::${encodeURIComponent(snapshotUrl)}`,
-            name: normalizeTabTitle(snapshotTitle, snapshotUrl),
+            name: normalizeTabTitle(
+              resolveDisplayTitle(snapshotTitle, getMetaTitle(snapshotUrl), snapshotUrl),
+              snapshotUrl,
+            ),
             kind: 'file' as const,
             children: [],
             nodeType: 'tab' as const,
@@ -163,7 +167,7 @@ function buildFolderNode(
       );
       node.isSavedBookmark = true;
       // 使用文件夹级快照，保留收藏时的原始 URL/标题
-      const displayTitle = snapshotTitle || tab.title || '';
+      const displayTitle = resolveDisplayTitle(snapshotTitle || tab.title || '', getMetaTitle(displayUrl), displayUrl);
       node.name = normalizeTabTitle(displayTitle, displayUrl);
       node.url = displayUrl;
       // 收藏条目：仅在标签仍在收藏的 URL 上时才保留音频状态
@@ -184,6 +188,7 @@ function buildFolderNode(
       parentWorkspaceId,
       browserBookmarks,
       tabIdToUrlMap,
+      getMetaTitle,
     ),
   );
 
@@ -205,6 +210,7 @@ export function buildWorkspaceCategoryTree(
   workspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]> = {},
   browserBookmarks: BrowserBookmark[] = [],
   tabIdToUrlMap: Record<string, string> = {},
+  getMetaTitle: (url: string) => string = () => '',
 ): BrowserTreeNode[] {
   return workspaces.map((ws) => {
     const wsTabs = browserTabs.filter((t) => t.workspaceId === ws.id);
@@ -257,12 +263,18 @@ export function buildWorkspaceCategoryTree(
             ws.id,
             `ws-bookmark-${ws.id}-${entry.tabId}-${encodeURIComponent(snapshotUrl)}`,
           );
-          node.name = normalizeTabTitle(snapshotTitle, snapshotUrl);
+          node.name = normalizeTabTitle(
+            resolveDisplayTitle(snapshotTitle, getMetaTitle(snapshotUrl), snapshotUrl),
+            snapshotUrl,
+          );
           node.url = snapshotUrl;
         } else {
           node = {
             path: `bookmark:${ws.id}:${entry.tabId}:${encodeURIComponent(snapshotUrl)}`,
-            name: normalizeTabTitle(snapshotTitle, snapshotUrl),
+            name: normalizeTabTitle(
+              resolveDisplayTitle(snapshotTitle, getMetaTitle(snapshotUrl), snapshotUrl),
+              snapshotUrl,
+            ),
             kind: 'file' as const,
             children: [],
             nodeType: 'tab' as const,
@@ -285,7 +297,16 @@ export function buildWorkspaceCategoryTree(
       (f) => f.parentType === 'workspace' && f.parentId === ws.id,
     );
     const folderNodes: BrowserTreeNode[] = wsRootFolders.map((folder) =>
-      buildFolderNode(folder, tabFolders, browserTabs, 0, ws.id, browserBookmarks, tabIdToUrlMap),
+      buildFolderNode(
+        folder,
+        tabFolders,
+        browserTabs,
+        0,
+        ws.id,
+        browserBookmarks,
+        tabIdToUrlMap,
+        getMetaTitle,
+      ),
     );
 
     return {
@@ -304,10 +325,20 @@ export function buildUserFolderCategoryTree(
   browserTabs: BrowserTabState[],
   browserBookmarks: BrowserBookmark[] = [],
   tabIdToUrlMap: Record<string, string> = {},
+  getMetaTitle: (url: string) => string = () => '',
 ): BrowserTreeNode[] {
   const rootFolders = tabFolders.filter((f) => !f.parentId);
   return rootFolders.map((folder) =>
-    buildFolderNode(folder, tabFolders, browserTabs, 0, undefined, browserBookmarks, tabIdToUrlMap),
+    buildFolderNode(
+      folder,
+      tabFolders,
+      browserTabs,
+      0,
+      undefined,
+      browserBookmarks,
+      tabIdToUrlMap,
+      getMetaTitle,
+    ),
   );
 }
 

@@ -3,7 +3,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import { applyBroadcastUpdate, getCachedTitle } from '@utils/siteMetaCache';
 import type { PageMeta, PageMetaUpdatedPayload, MetaSource } from '@shared/ipc/browser';
-import { normalizedQueryForDedup } from '@utils/browserDisplayUtils';
+import { historyDedupKey, normalizedQueryForDedup } from '@utils/browserDisplayUtils';
 
 export const titleSourceRef = new Map<string, MetaSource>();
 
@@ -79,7 +79,7 @@ export function useBrowserPageMeta() {
         titleSourceRef.set(tab.id, p.source);
       }
     }
-    if (matchingTabs.length > 0 || state.browserHistory.some((h) => h.url === cleanUrl)) {
+    if (matchingTabs.length > 0 || state.browserHistory.some((h) => historyDedupKey(h.url) === historyDedupKey(cleanUrl))) {
       state.browserUpdateHistoryTitle(cleanUrl, p.title || getCachedTitle(cleanUrl));
     }
   }, []);
@@ -87,6 +87,9 @@ export function useBrowserPageMeta() {
   useEffect(() => pageMetaClient.subscribeUpdated(applyBroadcast), [applyBroadcast]);
 
   const handlePageMeta = useCallback((meta: PageMeta, source: MetaSource = 'http') => {
+    if (!/^https?:\/\//i.test(meta.url)) {
+      return;
+    }
     // 生效来源：服务端返回的 meta.source 优先（TTL 命中/缓存读取的真实 title_source），
     // 缺省时回退调用方来源（iframe/地址栏渲染期事件）——防止 com 权威条目被
     // 广播/上报为 http 而冻结后续合法 com 更新。
