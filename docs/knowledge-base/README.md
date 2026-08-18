@@ -148,6 +148,15 @@
 | [browser-bookmark-click-handler-fix-2026-07-02.md](./browser/2026-07/browser-bookmark-click-handler-fix-2026-07-02.md) | 2026-07-02 Bug 修复 | 书签点击处理器修复 |
 | [browser-favicon-title-sync-2026-07-01.md](./browser/2026-07/browser-favicon-title-sync-2026-07-01.md) | 2026-07-01 修复执行 | 浏览器 Favicon/Title 同步修复：5 个根因（缓存未持久化、多源争用、HTTP 路径绕过质量检查、TabBar 未订阅 favicon、过期缓存无驱逐）、统一 handlePageMeta 入口 + 源优先级 + localStorage 持久化 + subscribeFavicon 订阅 + onError 驱逐 |
 
+#### 2026-08
+
+| 文件 | 来源 | 说明 |
+|------|------|------|
+| [browser-site-meta-cache-2026-08-13.md](./browser/2026-08/browser-site-meta-cache-2026-08-13.md) | 2026-08-13 网站元数据持久化缓存 | favicon data-URI + 标题持久化缓存（三层架构：Rust SQLite / preview JSON / 前端镜像）经验（三端语义一致、质量门控输入漂移、失败路径不能伪造成功值） |
+| [browser-history-navigation-2026-08-14.md](./browser/2026-08/browser-history-navigation-2026-08-14.md) | 2026-08-14 历史导航与标题提取修复 | 历史 URL 归一化 + 前端智能回退 + 标题来源门控（provenance）+ can_go_back 原生 IPC 经验（去重窗口 ms 级、异步投递同步通道、注入脚本 IIFE 隔离） |
+| [browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md](./browser/2026-08/browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md) | 2026-08-15 书签去重修复 | 书签去重 (网址,标题) 元组语义 + 标题隔离（store 语义与 UI 判断同步、统一去重规则、元组键清理路径、标题双轨） |
+| [browser-favicon-proxy-removal-and-merge-guard-2026-08-18.md](./browser/2026-08/browser-favicon-proxy-removal-and-merge-guard-2026-08-18.md) | 2026-08-18 favicon 修复 | DDG/Google 代理图标移除 + 镜像合并守卫经验（外部兜底"合法但错误"图标、失败返回最佳已知状态而非空、三端短路路径逐字段对齐、dedup 命中≠失败、IconWorld 继承描边破坏填充图标、图标颜色 token 化） |
+
 ### Code quality
 
 #### 综合参考（根目录）
