@@ -6,6 +6,7 @@ mod browser_navigation;
 mod browser_pool;
 mod browser_webview;
 pub mod html_meta;
+mod meta_cache_bridge;
 mod meta_merge;
 mod page_meta_service;
 pub mod robots_policy;
@@ -28,6 +29,7 @@ pub use browser_navigation::{INIT_SCRIPT, init_script_with_background, resolve_u
 pub use browser_pool::BrowserPool;
 pub use browser_webview::{BROWSER_WEBVIEW_LABEL, BrowserManager, webview_label};
 pub use html_meta::{extract_favicon, extract_title, html_entity_decode, origin_favicon_fallback};
+pub use meta_cache_bridge::CachedMetaBridge;
 pub use meta_merge::{
     META_SOURCE_COM, META_SOURCE_GOOGLE, META_SOURCE_HTTP, META_SOURCE_IFRAME,
     existing_favicon_baseline, get_favicon_quality_score, is_framework_default_favicon,
