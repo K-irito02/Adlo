@@ -277,7 +277,13 @@ describe('siteMetaCache memory layer', () => {
       fired++;
     });
     // 空广播（抓取失败/被限速/robots 拦截）→ 不得清空镜像
-    mod.applyBroadcastUpdate({ url: 'https://c.com/', title: '', faviconUrl: '', faviconDataUri: '', source: 'http' });
+    mod.applyBroadcastUpdate({
+      url: 'https://c.com/',
+      title: '',
+      faviconUrl: '',
+      faviconDataUri: '',
+      source: 'http',
+    });
     const entry = mod.getCachedSiteMeta('https://c.com')!;
     expect(entry.title).toBe('C');
     expect(entry.faviconUrl).toBe('https://c.com/favicon.ico');

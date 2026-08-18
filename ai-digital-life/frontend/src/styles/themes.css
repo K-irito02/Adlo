@@ -307,6 +307,8 @@ html:not(.no-transition) [data-theme] {
 
   /* === File Badge Colors === */
   --adl-file-badge-ink-default: #5f6368;
+  /* 浏览器 favicon 兜底图标墨色：浅色主题沿用文件徽标默认墨色保持可见 */
+  --adl-browser-tree-fallback-ink: var(--adl-file-badge-ink-default);
   --adl-file-badge-ink-typescript: #2563eb;
   --adl-file-badge-ink-javascript: #b45309;
   --adl-file-badge-ink-node: #2f7d32;
@@ -585,6 +587,8 @@ html:not(.no-transition) [data-theme] {
 
   /* === File Badge Colors === */
   --adl-file-badge-ink-default: #c4c7cc;
+  /* 浏览器 favicon 兜底图标墨色：深色主题纯白实心球，对应自定义 favicon 设计稿 */
+  --adl-browser-tree-fallback-ink: #ffffff;
   --adl-file-badge-ink-typescript: #60a5fa;
   --adl-file-badge-ink-javascript: #f59e0b;
   --adl-file-badge-ink-node: #4ade80;

@@ -84,3 +84,22 @@ it('recovers from degraded state when mirror updates bring a new favicon', () =>
   ) as HTMLElement | null;
   expect(iconLink?.style.display).toBe('none');
 });
+
+it('stays degraded when a broadcast keeps the same faviconUrl (no remount flicker)', () => {
+  // L6：faviconUrl 未变化时保持降级态，避免每次广播重挂 img → 404 → 再降级的闪烁
+  mirrorFavicon('https://same.example', 'https://same.example/favicon.ico');
+  const { container } = render(<BrowserFavicon url="https://same.example" />);
+  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
+  expect(img).not.toBeNull();
+  act(() => {
+    fireEvent.error(img!);
+  });
+  expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
+  // 相同 faviconUrl 的镜像广播 → faviconUrl 未变 → 保持降级，img 不重挂
+  mirrorFavicon('https://same.example', 'https://same.example/favicon.ico');
+  expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
+  const iconLink = container.querySelector(
+    '.adl-browser-tree__link-fallback',
+  ) as HTMLElement | null;
+  expect(iconLink?.style.display).not.toBe('none');
+});

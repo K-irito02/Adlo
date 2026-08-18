@@ -194,7 +194,6 @@ impl PageMetaFetcher for AppFetcher {
     fn fetch(
         &self,
         url: &str,
-        _force: bool,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>> {
         // 借用无法跨 trait 返回的生命周期逃逸（返回值绑定在 &self 上），
         // 故 future 持有 owned 拷贝，避免借用 url: &str。

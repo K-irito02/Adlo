@@ -373,16 +373,8 @@ export function createPreviewPageMetaService(
     // writeSuccess 合并后的权威值（含质量门控保留的既有图标）。
     // source 反映缓存条目的真实 title_source（成功写后为 http；失败保留既有 com
     // 权威条目则返回 com）。
-    const entry = memory.get(key) ?? {
-      title: '',
-      titleSource: '',
-      faviconUrl: '',
-      faviconDataUri: '',
-      fetchedAt: now,
-      lastOkAt: 0,
-      nextRetryAt: now,
-      failCount: 0,
-    };
+    // writeSuccess / markFailure 均写入内存条目，此处必命中（与 Rust get 抓取路径的 expect 对称）。
+    const entry = memory.get(key)!;
     return {
       title: entry.title,
       favicon: entry.faviconUrl,
@@ -404,7 +396,9 @@ export function createPreviewPageMetaService(
         const ttlHit = entry.lastOkAt > 0 && now - entry.lastOkAt < META_TTL_MS;
         const backedOff = entry.lastOkAt === 0 && now < entry.nextRetryAt;
         if (ttlHit || backedOff) {
-          return toPageMeta(entry);
+          // 携带真实 url（缓存键）返回：与 Rust get 短路路径一致（R1 回归防护），
+          // 避免 url 为空导致调用方按 meta.url 写镜像时落到空 key。
+          return { ...toPageMeta(entry), url: key };
         }
       }
     }

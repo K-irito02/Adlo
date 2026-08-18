@@ -17,10 +17,10 @@ pub const RETRY_MAX_MS: i64 = 2 * 3600 * 1000;
 
 pub trait PageMetaFetcher: Send + Sync {
     /// 返回空 title/favicon 表示抓取失败（复用 empty_page_meta 语义）。
+    /// force 仅在 PageMetaService::get 层生效（绕过 TTL/退避短路），不传递给抓取实现。
     fn fetch(
         &self,
         url: &str,
-        force: bool,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>>;
 }
 
@@ -137,7 +137,7 @@ impl PageMetaService {
         }
         // 执行抓取（持有者）。守卫保证即使 fetch panic，in_flight 条目也被清理。
         let _guard = InFlightGuard { svc: self, key: key.clone() };
-        let meta = fetcher.fetch(url, force).await;
+        let meta = fetcher.fetch(url).await;
         if !meta.title.is_empty() || !meta.favicon.is_empty() || !meta.favicon_data_uri.is_empty() {
             self.write_success(&key, &meta, META_SOURCE_HTTP, now);
         } else {
@@ -150,17 +150,10 @@ impl PageMetaService {
         // （含质量门控保留的既有图标）。
         // source 反映缓存条目的真实 title_source（write_success 后为 http；此前
         // 若已有 com 权威条目则保留），供命令层广播使用，避免硬编码 http 冻结 com 更新。
-        // write_success / mark_failure 均写入内存条目，peek 必命中（兜底为空条目）。
-        let entry = self.peek(&key).unwrap_or_else(|| SiteMetaCacheEntry {
-            title: String::new(),
-            title_source: String::new(),
-            favicon_url: String::new(),
-            favicon_data_uri: String::new(),
-            fetched_at: now,
-            last_ok_at: 0,
-            next_retry_at: now,
-            fail_count: 0,
-        });
+        // write_success / mark_failure 均写入内存条目，peek 必命中（expect 固化不变量）。
+        let entry = self
+            .peek(&key)
+            .expect("write_success/mark_failure 均写入内存条目，抓取路径 peek 必命中");
         Ok(PageMeta {
             title: entry.title,
             favicon: entry.favicon_url,
@@ -357,7 +350,6 @@ mod tests {
         fn fetch(
             &self,
             _url: &str,
-            _force: bool,
         ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>> {
             let r = self.result.lock().unwrap().clone().unwrap_or_default();
             Box::pin(async move { r })
@@ -492,7 +484,6 @@ mod tests {
             fn fetch(
                 &self,
                 _url: &str,
-                _force: bool,
             ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>>
             {
                 self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -644,7 +635,6 @@ mod tests {
             fn fetch(
                 &self,
                 _url: &str,
-                _force: bool,
             ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>>
             {
                 Box::pin(async move { panic!("fetcher boom") })
@@ -686,7 +676,6 @@ mod tests {
             fn fetch(
                 &self,
                 _url: &str,
-                _force: bool,
             ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>>
             {
                 self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -723,7 +712,6 @@ mod tests {
             fn fetch(
                 &self,
                 _url: &str,
-                _force: bool,
             ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>>
             {
                 self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -797,7 +785,6 @@ mod tests {
             fn fetch(
                 &self,
                 _url: &str,
-                _force: bool,
             ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>>
             {
                 let calls = self.calls.clone();

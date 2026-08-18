@@ -64,10 +64,33 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
 
     // com report 设置 titleSource=com 且 lastOkAt=now（TTL 窗口内）
     await svc.report('https://a.com/', '真实标题', '', 'com');
-    // TTL 命中：不触发抓取，返回缓存条目的真实来源 com
+    // TTL 命中：不触发抓取，返回缓存条目的真实来源 com 与真实 url（缓存键）
     const meta = await svc.get('https://a.com/');
     expect(calls).toBe(0);
     expect(meta?.source).toBe('com');
+    expect(meta?.url).toBe('https://a.com/');
+  });
+
+  it('get backoff short-circuit returns the real cache key url (R1 isomorphic)', async () => {
+    // 与 Rust get 退避短路路径（携带 url: key）同构：失败域名在退避期内 get
+    // 必须返回缓存条目且 url 为缓存键，而非空 —— 否则调用方按 meta.url 写镜像
+    // 会落到空 key（R1 回归类别）。
+    let result: PageMeta = { title: 'A', favicon: '', faviconDataUri: '', url: '' };
+    const svc = createPreviewPageMetaService({
+      baseDir: dir,
+      gateAllows: allowGate,
+      fetchOnce: async () => result,
+    });
+
+    await svc.get('https://a.com/'); // 成功 → lastOkAt 已置
+    result = emptyMeta(''); // 后续抓取返回空 → 失败 → 进入退避
+    await svc.get('https://a.com/', true);
+    expect(svc.peek('https://a.com/')?.failCount).toBe(1);
+
+    // 退避短路：lastOkAt===0 且 now < nextRetryAt → 不抓取，返回缓存条目 + 真实 url
+    const meta = await svc.get('https://a.com/');
+    expect(meta?.title).toBe('A');
+    expect(meta?.url).toBe('https://a.com/');
   });
 
   it('get failure keeps cache and backs off', async () => {

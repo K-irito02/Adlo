@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { getFaviconUrl } from '../utils/favicon';
 import {
   subscribeSiteMeta,
@@ -21,6 +21,19 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   // 真实图标加载失败时置 true → 显示内置占位图标；新图标到来时重置（Fix D：
   // 不再重试 Google S2 代理——被墙/不稳定，且对无收录域名返回默认图标）。
   const [degraded, setDegraded] = useState(false);
+  // 同步 faviconUrl 的 ref：镜像更新时对比是否真的变化（L6）。
+  // 仅在 faviconUrl 变化时重置降级态——未变化时保持降级，避免每次广播
+  // 重挂 img → 404 → 再降级的闪烁。
+  const faviconUrlRef = useRef('');
+
+  const applyMetaUpdate = useCallback(() => {
+    const next = url ? getFaviconUrl(url) : '';
+    if (faviconUrlRef.current !== next) {
+      faviconUrlRef.current = next;
+      setFaviconUrl(next);
+      setDegraded(false);
+    }
+  }, [url]);
 
   useEffect(() => {
     void initSiteMetaCache();
@@ -32,26 +45,21 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   }, []);
 
   useEffect(() => {
-    setFaviconUrl(url ? getFaviconUrl(url) : '');
-    setDegraded(false);
+    applyMetaUpdate();
     if (!url) {
       return;
     }
-    const unsubMeta = subscribeSiteMeta(url, () => {
-      setFaviconUrl(getFaviconUrl(url));
-      setDegraded(false);
-    });
+    const unsubMeta = subscribeSiteMeta(url, applyMetaUpdate);
     const unsubUpdated = pageMetaClient.subscribeUpdated((p) => {
       if (p.url === url) {
-        setFaviconUrl(getFaviconUrl(url));
-        setDegraded(false);
+        applyMetaUpdate();
       }
     });
     return () => {
       unsubMeta();
       unsubUpdated();
     };
-  }, [url, ready]);
+  }, [url, ready, applyMetaUpdate]);
 
   // 未命中/未就绪：显示占位图标（非空白）
   const current = faviconUrl;

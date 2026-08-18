@@ -3,9 +3,8 @@
  *
  * 语义真源：Rust `src-tauri/src/commands/browser.rs::fetch_page_meta_inner`
  * （HTML 抓取 → `<title>`/`og:title` 解析 → `<link rel=icon>` 解析 →
- * `{origin}/favicon.ico` 兜底 → DDG 图标服务兜底 → favicon 字节下载转 dataUri），
- * 以及 `crates/browser/src/html_meta.rs` 的 `duckduckgo_favicon_url` /
- * `google_favicon_url` 私网豁免规则。
+ * `{origin}/favicon.ico` 惯例兜底），以及 `crates/browser/src/html_meta.rs`
+ * 的私网豁免规则。DDG / Google S2 代理图标兜底已移除（Fix C/D）。
  *
  * 门控分工：HTML 级 robots/限速门控由调用方（vite.config.ts 中间件）先行执行
  * （本函数入参 url 已通过门控）；favicon 下载的 robots-only 门控
@@ -160,7 +159,7 @@ async function downloadFaviconDataUri(favicon: string): Promise<string> {
 /**
  * 抓取一次页面元数据（不缓存、不合并，纯抓取层）。
  * 回退链与 Rust `fetch_page_meta_inner` 一致：
- * `<link rel=icon>` → `{origin}/favicon.ico` → DDG（仍无时）→ Google S2（DDG 为空时）。
+ * `<link rel=icon>` → `{origin}/favicon.ico`，无代理兜底（Fix C）。
  * 任何失败返回空字段 PageMeta。
  */
 export async function fetchPageMetaOnce(url: string): Promise<PageMeta> {
@@ -196,8 +195,8 @@ export async function fetchPageMetaOnce(url: string): Promise<PageMeta> {
     // 且被墙/不稳定），仅接受页面真实声明或 origin 惯例兜底。
 
     let faviconDataUri = '';
+    // favicon 在上方兜底后必非空（origin 惯例），无需再判 truthy。
     if (
-      favicon &&
       (favicon.startsWith('http://') || favicon.startsWith('https://')) &&
       (await pageMetaGateAllows(favicon, undefined, undefined, { rateLimit: false }))
     ) {

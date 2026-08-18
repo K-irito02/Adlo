@@ -7,13 +7,9 @@ import { getCachedFavicon, getCachedSiteMeta } from './siteMetaCache';
  * 不一致的图标；未缓存时展示内置占位图标，等待后端抓取广播真实数据。
  */
 export function getFaviconUrl(url: string): string {
-  try {
-    const dataUri = getCachedFavicon(url);
-    if (dataUri) {
-      return dataUri;
-    }
-    return getCachedSiteMeta(url)?.faviconUrl ?? '';
-  } catch {
-    return '';
+  const dataUri = getCachedFavicon(url);
+  if (dataUri) {
+    return dataUri;
   }
+  return getCachedSiteMeta(url)?.faviconUrl ?? '';
 }
