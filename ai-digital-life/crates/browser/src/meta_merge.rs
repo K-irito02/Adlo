@@ -32,6 +32,79 @@ pub fn is_placeholder_title(title: &str, url: &str) -> bool {
     t == host || t == format!("www.{host}")
 }
 
+/// 反爬 / 验证码 / 安全校验拦截页占位标题检测。
+///
+/// 站点对爬虫下发验证码页时，`<title>` 常为"验证码_哔哩哔哩"、"安全验证"、
+/// "captcha"、"人机验证" 等，这些并非页面真实标题。若被误写为权威缓存，
+/// 收藏/标签会长期显示错误标题。命中时调用方应视为"未抓到真实标题"：
+/// 丢弃该标题（写缓存时清空），且不得作为权威标题覆盖既有真实标题。
+pub fn is_unsafe_title(title: &str) -> bool {
+    if title.is_empty() {
+        return false;
+    }
+    let lower = title.trim().to_lowercase();
+    // 中文/多语言反爬关键词
+    for kw in [
+        "验证码",
+        "人机验证",
+        "安全验证",
+        "滑动验证",
+        "行为验证",
+        "访问验证",
+        "安全检查",
+        "身份验证",
+        "异常访问",
+        "访问被拦截",
+        "访问拒绝",
+        "please confirm you are a human",
+        "captcha",
+        "verify you are human",
+        "are you human",
+        "anti-bot",
+        "antibot",
+        "confirm you are not a robot",
+        "robot check",
+        "access denied",
+        "forbidden",
+    ] {
+        if lower.contains(kw) {
+            return true;
+        }
+    }
+    false
+}
+
+/// 已知前端框架默认 favicon 路径检测（Vite / Next.js / Vercel / React 占位图标）。
+/// 这些是脚手架占位图，不是站点真实品牌图标；不得作为权威图标覆盖真实 favicon，
+/// 也不得优先于 `{origin}/favicon.ico` 惯例兜底被选中。
+pub fn is_framework_default_favicon(favicon: &str) -> bool {
+    let lower = favicon.trim().to_lowercase();
+    if !lower.starts_with("http://") && !lower.starts_with("https://") && !lower.starts_with("//") {
+        return false;
+    }
+    // 匹配 URL 末尾路径段（含 query 前缀），命中已知默认图标文件名。
+    let path = lower
+        .split_once("://")
+        .and_then(|(_, rest)| rest.split_once('/').map(|(_, p)| format!("/{p}")))
+        .unwrap_or_else(|| lower.clone());
+    let path = path.split(['?', '#']).next().unwrap_or(path.as_str());
+    let file = path.rsplit('/').next().unwrap_or("").to_lowercase();
+    [
+        "vite.svg",
+        "next.svg",
+        "vercel.svg",
+        "now.svg",
+        "favicon.svg", // 脚手架默认 favicon.svg
+        "logo.svg",
+        "react.svg",
+        "svelte-logo.svg",
+        "nuxt.svg",
+        "vitejs.svg",
+    ]
+    .iter()
+    .any(|f| file == *f || path.ends_with(&format!("/{f}")))
+}
+
 pub fn should_apply_exact_match_title(
     current_title: &str,
     url: &str,
@@ -43,6 +116,10 @@ pub fn should_apply_exact_match_title(
         return false;
     }
     if incoming_title == current_title {
+        return false;
+    }
+    // 反爬/验证码标题永远不作为权威标题写入（RW bookmarks 场景）。
+    if is_unsafe_title(incoming_title) {
         return false;
     }
     if is_placeholder_title(incoming_title, url) {
@@ -72,6 +149,11 @@ pub fn get_favicon_quality_score(favicon: &str) -> i32 {
         .any(|k| lower.contains(k))
     {
         return 1;
+    }
+    // 框架默认占位图标（vite.svg 等）质量分压低（3，等同未知扩展名），
+    // 防止其覆盖真实品牌 favicon 并被锁定（WX3 回归）。
+    if is_framework_default_favicon(&lower) {
+        return 3;
     }
     if lower.ends_with("/favicon.ico") {
         return 2;
@@ -239,6 +321,54 @@ mod tests {
     fn favicon_score_extras() {
         assert_eq!(get_favicon_quality_score("https://x.com/icon.svg"), 10);
         assert_eq!(get_favicon_quality_score("https://x.com/apple-touch-icon.png"), 13);
+    }
+
+    #[test]
+    fn unsafe_title_detection() {
+        // 反爬/验证码标题必须被识别为 unsafe（不得作为权威标题）。
+        assert!(is_unsafe_title("验证码_哔哩哔哩"));
+        assert!(is_unsafe_title("安全验证 请完成验证"));
+        assert!(is_unsafe_title("Please confirm you are a human"));
+        assert!(is_unsafe_title("captcha check"));
+        assert!(!is_unsafe_title("哔哩哔哩 (゜-゜)つロ 干杯~"));
+        assert!(!is_unsafe_title("抖音"));
+        assert!(!is_unsafe_title(""));
+    }
+
+    #[test]
+    fn unsafe_title_never_applies_as_authoritative() {
+        // 反爬标题不得覆盖占位标题，也不得作为权威标题写入。
+        let url = "https://www.bilibili.com/";
+        assert!(!should_apply_exact_match_title(
+            "bilibili.com",
+            url,
+            "验证码_哔哩哔哩",
+            META_SOURCE_HTTP,
+            None
+        ));
+    }
+
+    #[test]
+    fn framework_default_favicon_detected() {
+        assert!(is_framework_default_favicon("https://x.com/vite.svg"));
+        assert!(is_framework_default_favicon("https://x.com/assets/vite.svg"));
+        assert!(is_framework_default_favicon("https://x.com/next.svg"));
+        assert!(is_framework_default_favicon("//cdn.x.com/vercel.svg"));
+        assert!(!is_framework_default_favicon("https://x.com/favicon.ico"));
+        assert!(!is_framework_default_favicon("https://x.com/real-icon-512.png"));
+        assert!(!is_framework_default_favicon("vite.svg")); // 非 URL 不判占位
+    }
+
+    #[test]
+    fn framework_default_favicon_scored_low() {
+        // vite.svg 占位图标质量分压低，不得覆盖真实 /favicon.ico（分 2/3 或更高）。
+        assert_eq!(get_favicon_quality_score("https://x.com/vite.svg"), 3);
+        // 真实 svg 图标仍是高质量。
+        assert_eq!(get_favicon_quality_score("https://x.com/brand/icon.svg"), 10);
+        assert!(!should_replace_favicon(
+            Some("https://x.com/icon-256.png"),
+            "https://x.com/vite.svg"
+        ));
     }
 
     #[test]

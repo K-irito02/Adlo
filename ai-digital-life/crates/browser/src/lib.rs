@@ -30,8 +30,8 @@ pub use browser_webview::{BROWSER_WEBVIEW_LABEL, BrowserManager, webview_label};
 pub use html_meta::{extract_favicon, extract_title, html_entity_decode, origin_favicon_fallback};
 pub use meta_merge::{
     META_SOURCE_COM, META_SOURCE_GOOGLE, META_SOURCE_HTTP, META_SOURCE_IFRAME,
-    existing_favicon_baseline, get_favicon_quality_score, is_placeholder_title,
-    should_apply_exact_match_title, should_replace_favicon,
+    existing_favicon_baseline, get_favicon_quality_score, is_framework_default_favicon,
+    is_placeholder_title, is_unsafe_title, should_apply_exact_match_title, should_replace_favicon,
 };
 pub use page_meta_service::{
     META_TTL_MS, PageMetaFetcher, PageMetaService, RETRY_BASE_MS, RETRY_MAX_MS,

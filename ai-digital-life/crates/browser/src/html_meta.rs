@@ -3,6 +3,7 @@
 //! raw HTML responses. These functions perform no I/O and have no
 //! dependencies on `reqwest` or platform-specific APIs.
 
+use crate::meta_merge::is_framework_default_favicon;
 use url::Url;
 
 /// Decode the most common HTML entities (`&amp;`, `&lt;`, `&gt;`,
@@ -166,7 +167,15 @@ pub fn extract_favicon(html: &str, base_url: &str) -> Option<String> {
         search_start = abs_link + tag_end;
     }
 
-    if best_href.is_empty() { None } else { Some(best_href) }
+    if best_href.is_empty() {
+        None
+    } else if is_framework_default_favicon(&best_href) {
+        // 页面声明的是脚手架默认占位图标（如 /vite.svg），非真实品牌图标：
+        // 返回 None，让调用方回退 `{origin}/favicon.ico` 惯例兜底，避免占位图标被权威化。
+        None
+    } else {
+        Some(best_href)
+    }
 }
 
 /// Extract an attribute's value from a lowercased HTML tag snippet.
@@ -193,6 +202,12 @@ fn extract_attr(snippet_lower: &str, attr: &str) -> Option<String> {
 fn favicon_score(href: &str, rel: &str, sizes: &str) -> i32 {
     let href_lower = href.to_lowercase();
     let mut score = 0i32;
+
+    // 脚手架默认占位图标（vite.svg 等）质量分压到最低，优先选真实品牌图标；
+    // 仅当页面只声明占位图标时它才会成为 best（随后在 extract_favicon 里被丢弃 → 走 favicon.ico 兜底）。
+    if is_framework_default_favicon(href) {
+        return -1000;
+    }
 
     if rel.contains("apple-touch-icon") {
         score += 50;
@@ -293,6 +308,24 @@ mod tests {
     fn extract_title_decodes_entities() {
         let html = "<title>A &amp; B</title>";
         assert_eq!(extract_title(html), Some("A & B".to_string()));
+    }
+
+    #[test]
+    fn extract_favicon_skips_framework_default() {
+        // 页面仅声明 /vite.svg（脚手架占位）→ 返回 None，交由调用方走 favicon.ico 兜底。
+        let html = "<link rel=\"icon\" href=\"/vite.svg\">";
+        assert_eq!(extract_favicon(html, "https://example.com"), None);
+    }
+
+    #[test]
+    fn extract_favicon_keeps_real_icon_with_framework_default() {
+        // 同时存在真实 PNG 与 vite.svg → 选真实 PNG。
+        let html = "<link rel=\"icon\" href=\"/vite.svg\">".to_string()
+            + "<link rel=\"icon\" href=\"/icon-256.png\">";
+        assert_eq!(
+            extract_favicon(&html, "https://example.com"),
+            Some("https://example.com/icon-256.png".to_string())
+        );
     }
 
     #[test]

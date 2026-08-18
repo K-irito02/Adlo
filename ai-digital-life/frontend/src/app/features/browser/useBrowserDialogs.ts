@@ -3,9 +3,16 @@ import { useAppStore } from '@stores/slicedStore';
 import { checkBookmarkCollision } from '@stores/slices/browserBookmarkSlice';
 import { formatT } from '@i18n/formatT';
 import type { CopyDict } from '@i18n/types';
-import { hostnameFromUrl } from '@utils/browserDisplayUtils';
+import { hostnameFromUrl, isPlaceholderTitle, isUnsafeTitle } from '@utils/browserDisplayUtils';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import type { ToastType } from '@components/Toast';
+
+/**
+ * 新建书签（save-only / save-and-open 无自定义标题）时等待页面元数据的最大时限（ms）。
+ * 超时后先用宿主名占位保存书签，后台请求继续在服务端抓取并广播，收藏节点标题/图标随后刷新
+ * （resolveDisplayTitle 会消费缓存 metaTitle/BrowserFavicon 消费 faviconDataUri）。
+ */
+const META_FETCH_TIMEOUT_MS = 6000;
 
 interface UseBrowserDialogsDeps {
   browserOpenTab: (url: string, title?: string, workspaceId?: string, folderId?: string) => void;
@@ -78,17 +85,48 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       const folderId = pendingFolderIdRef.current;
       let title = name.trim();
       if (!title) {
+        // 无自定义标题：解析页面元数据用于收藏标题。为缓解"正在获取页面信息…"慢，
+        // 采用 cache-first + 有界超时 + 后台继续的策略（见 META_FETCH_TIMEOUT_MS）。
         setIsCreatingTab(true);
-        try {
-          const meta = await pageMetaClient.get(url);
-          if (meta?.title?.trim() || meta?.faviconDataUri) {
-            title = meta.title?.trim() || title;
+        const requestStart = Date.now();
+        console.info('[bookmark-new-meta] start', { url });
+        const cached = pageMetaClient.peek(url);
+        const cachedTitle = cached?.title?.trim() ?? '';
+        if (cachedTitle && !isUnsafeTitle(cachedTitle) && !isPlaceholderTitle(cachedTitle, url)) {
+          // 命中缓存真实标题：直接使用，不发起网络请求。
+          title = cachedTitle;
+          console.info('[bookmark-new-meta] cache hit', { url, cachedTitle });
+        } else {
+          try {
+            const meta = await Promise.race([
+              pageMetaClient.get(url),
+              new Promise<null>((resolve) =>
+                setTimeout(() => resolve(null), META_FETCH_TIMEOUT_MS),
+              ),
+            ]);
+            const metaTitle = meta?.title?.trim() ?? '';
+            const titleOk =
+              Boolean(metaTitle) &&
+              !isUnsafeTitle(metaTitle) &&
+              !isPlaceholderTitle(metaTitle, url);
+            console.info('[bookmark-new-meta] fetched', {
+              url,
+              metaTitle,
+              titleOk,
+              hasFavicon: Boolean(meta?.faviconDataUri),
+              elapsedMs: Date.now() - requestStart,
+            });
+            if (titleOk && (metaTitle || meta?.faviconDataUri)) {
+              title = metaTitle;
+            }
+          } catch (err) {
+            console.warn('[bookmark-new-meta] fetch failed', { url, err: String(err) });
           }
-        } catch {
-          // fallback: use hostname
-        }
-        if (!title) {
-          title = hostnameFromUrl(url) || url;
+          if (!title) {
+            // 抓取成功但元数据缺失/超时/失败 → 用宿主名占位先保存（后台请求继续刷新缓存）。
+            title = hostnameFromUrl(url) || url;
+            console.info('[bookmark-new-meta] fallback hostname', { url, title });
+          }
         }
         setIsCreatingTab(false);
       }

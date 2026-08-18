@@ -21,12 +21,16 @@ describe('resolveDisplayTitle', () => {
   });
   it('falls back to meta title when snapshot is a placeholder', () => {
     expect(resolveDisplayTitle('', '服务端标题', 'https://a.com/')).toBe('服务端标题');
-    expect(resolveDisplayTitle('https://a.com/', '服务端标题', 'https://a.com/')).toBe('服务端标题');
+    expect(resolveDisplayTitle('https://a.com/', '服务端标题', 'https://a.com/')).toBe(
+      '服务端标题',
+    );
     expect(resolveDisplayTitle('a.com', '服务端标题', 'https://a.com/')).toBe('服务端标题');
   });
-  it('returns empty meta title as-is when snapshot is placeholder (may be empty)', () => {
+  it('falls back to snapshot placeholder hostname when meta title is empty/placeholder (never empty)', () => {
     expect(resolveDisplayTitle('', '', 'https://a.com/')).toBe('');
-    expect(resolveDisplayTitle('a.com', '', 'https://a.com/')).toBe('');
+    // 快照占位（宿主名）保持显示，不用空 metaTitle 覆盖成空 → 不显示空标题
+    expect(resolveDisplayTitle('a.com', '', 'https://a.com/')).toBe('a.com');
+    expect(resolveDisplayTitle('a.com', 'a.com', 'https://a.com/')).toBe('a.com');
   });
 });
 

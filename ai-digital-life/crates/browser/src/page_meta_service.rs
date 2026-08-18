@@ -6,7 +6,7 @@ use futures::StreamExt;
 
 use crate::browser_meta::PageMeta;
 use crate::meta_merge::{
-    META_SOURCE_HTTP, existing_favicon_baseline, is_placeholder_title,
+    META_SOURCE_HTTP, existing_favicon_baseline, is_placeholder_title, is_unsafe_title,
     should_apply_exact_match_title, should_replace_favicon,
 };
 use crate::site_meta_cache::{SiteMetaCacheEntry, SiteMetaCacheStore, normalize_cache_key};
@@ -105,6 +105,15 @@ impl PageMetaService {
                 // 避免失败域名被后续每次 get/warmup 反复重抓（限速放大、图标来回切换）。
                 let backed_off = entry.last_ok_at == 0 && now < entry.next_retry_at;
                 if ttl_hit || backed_off {
+                    tracing::debug!(
+                        url = %key,
+                        ttl_hit,
+                        backed_off,
+                        title_len = entry.title.len(),
+                        favicon_len = entry.favicon_url.len(),
+                        data_uri_len = entry.favicon_data_uri.len(),
+                        "page_meta.get: cache short-circuit"
+                    );
                     // 携带真实 url（缓存键）返回：命令层 emit_page_meta_updated 按 meta.url
                     // 广播，url 为空将导致前端无法匹配任何 tab（R1 回归）。
                     return Ok(PageMeta { url: key.clone(), ..to_page_meta(entry) });
@@ -137,7 +146,16 @@ impl PageMetaService {
         }
         // 执行抓取（持有者）。守卫保证即使 fetch panic，in_flight 条目也被清理。
         let _guard = InFlightGuard { svc: self, key: key.clone() };
+        let fetch_started = chrono_now_ms();
+        tracing::info!(url = %key, force, "page_meta.get: fetching (owner)");
         let meta = fetcher.fetch(url).await;
+        tracing::info!(
+            url = %key,
+            fetch_ms = chrono_now_ms() - fetch_started,
+            title_len = meta.title.len(),
+            favicon_len = meta.favicon.len(),
+            "page_meta.get: fetch completed"
+        );
         if !meta.title.is_empty() || !meta.favicon.is_empty() || !meta.favicon_data_uri.is_empty() {
             self.write_success(&key, &meta, META_SOURCE_HTTP, now);
         } else {
@@ -179,10 +197,18 @@ impl PageMetaService {
             }
         };
         let entry = SiteMetaCacheEntry {
-            title: if meta.title.is_empty() || is_placeholder_title(&meta.title, key) {
-                existing.as_ref().map(|e| e.title.clone()).unwrap_or_default()
-            } else {
-                meta.title.clone()
+            title: {
+                let incoming_unsafe = is_unsafe_title(&meta.title);
+                if incoming_unsafe {
+                    // 反爬/验证码页标题：清空缓存标题（含清除历史误存的验证码标题），
+                    // 使收藏/标签回退宿主名占位，而不是长期显示"验证码_哔哩哔哩"。
+                    tracing::info!(url = %key, title = %meta.title, "write_success: unsafe/captcha title cleared");
+                    String::new()
+                } else if meta.title.is_empty() || is_placeholder_title(&meta.title, key) {
+                    existing.as_ref().map(|e| e.title.clone()).unwrap_or_default()
+                } else {
+                    meta.title.clone()
+                }
             },
             title_source,
             favicon_url: {
@@ -736,6 +762,54 @@ mod tests {
         // R1 回归：TTL 命中必须携带真实 url（缓存键），否则命令层按 meta.url 广播出
         // url="" 事件，前端无法匹配任何 tab（镜像与 titleSourceRef 均不更新）。
         assert_eq!(meta.url, "https://a.com/");
+    }
+
+    #[tokio::test]
+    async fn get_unsafe_title_clears_cached_captcha() {
+        // 反爬/验证码标题不得写入缓存；若旧缓存已是验证码标题，也会被清空
+        // （收藏/标签回退宿主名占位，而不是长期显示"验证码_哔哩哔哩"）。
+        let (svc, _) = open_service("unsafe-title");
+        // 预先模拟缓存了错误的验证码标题（来源 http，可被覆盖）。
+        svc.memory.lock().unwrap().insert(
+            "https://www.bilibili.com/".into(),
+            SiteMetaCacheEntry {
+                title: "验证码_哔哩哔哩".into(),
+                title_source: META_SOURCE_HTTP.into(),
+                favicon_url: String::new(),
+                favicon_data_uri: String::new(),
+                fetched_at: 0,
+                last_ok_at: 0,
+                next_retry_at: 0,
+                fail_count: 0,
+            },
+        );
+        let fetcher = MockFetcher {
+            result: std::sync::Mutex::new(Some(PageMeta {
+                title: "验证码_哔哩哔哩".into(),
+                favicon: "".into(),
+                favicon_data_uri: "".into(),
+                url: "https://www.bilibili.com/".into(),
+                source: String::new(),
+            })),
+        };
+        // force 抓取到验证码标题 → 缓存标题被清空（而非覆盖保留）。
+        let meta = svc.get("https://www.bilibili.com/", true, &fetcher).await.unwrap();
+        assert_eq!(meta.title, "", "验证码标题必须被清空");
+        assert_eq!(svc.peek("https://www.bilibili.com/").unwrap().title, "");
+    }
+
+    #[tokio::test]
+    async fn report_captcha_title_is_rejected() {
+        // report 来源（iframe 渲染期）携带验证码标题 → should_apply_exact_match_title 拒绝，
+        // 不会覆盖现有占位/真实标题。
+        let (svc, _) = open_service("report-captcha");
+        let changed = svc
+            .report("https://www.bilibili.com/", "验证码_哔哩哔哩", "", META_SOURCE_HTTP)
+            .await
+            .unwrap();
+        // 无既有条目时 report 返回 false 且不新增内存条目（验证码标题绝不落库/落缓存）。
+        assert!(!changed);
+        assert!(svc.peek("https://www.bilibili.com/").is_none(), "验证码标题不得写入缓存");
     }
 
     #[tokio::test]

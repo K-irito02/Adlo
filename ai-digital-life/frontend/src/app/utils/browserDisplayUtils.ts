@@ -15,15 +15,57 @@ export function normalizeTabTitle(title: string | undefined, _url: string): stri
 }
 
 /**
+ * 反爬/验证码/安全校验拦截页占位标题检测（与 Rust `adl_browser::is_unsafe_title` 镜像对齐）。
+ * 命中视为"未抓到真实标题"，调用方回退宿主名而非显示验证码页标题。
+ */
+export function isUnsafeTitle(title: string): boolean {
+  const lower = (title || '').trim().toLowerCase();
+  if (!lower) {
+    return false;
+  }
+  return [
+    '验证码',
+    '人机验证',
+    '安全验证',
+    '滑动验证',
+    '行为验证',
+    '访问验证',
+    '安全检查',
+    '身份验证',
+    '异常访问',
+    '访问被拦截',
+    '访问拒绝',
+    'please confirm you are a human',
+    'captcha',
+    'verify you are human',
+    'are you human',
+    'anti-bot',
+    'antibot',
+    'confirm you are not a robot',
+    'robot check',
+    'access denied',
+    'forbidden',
+  ].some((kw) => lower.includes(kw));
+}
+
+/**
  * 占位标题：空 / 等于 URL / http(s) 前缀 / 裸域名（与 useBrowserPageMeta / meta_merge 一致）。
  */
 export function isPlaceholderTitle(title: string, url: string): boolean {
-  if (!title) return true;
-  if (title === url) return true;
-  if (/^https?:\/\//i.test(title)) return true;
+  if (!title) {
+    return true;
+  }
+  if (title === url) {
+    return true;
+  }
+  if (/^https?:\/\//i.test(title)) {
+    return true;
+  }
   try {
     const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
-    if (!host) return false;
+    if (!host) {
+      return false;
+    }
     const t = title.trim().toLowerCase();
     return t === host || t === `www.${host}`;
   } catch {
@@ -34,13 +76,19 @@ export function isPlaceholderTitle(title: string, url: string): boolean {
 /**
  * 收藏树节点标题解析（快照优先）：
  * 快照标题非占位（用户自定义）→ 返回快照标题（永不覆盖）；
- * 快照标题为占位（空 / 纯 URL / 裸域名）→ 返回服务端 metaTitle（可为空串）。
+ * 快照标题为占位（空 / 纯 URL / 裸域名）→ 优先返回服务端 metaTitle（可为空串）。
+ *
+ * 修复：当 metaTitle 为空或本身就是占位（如 JS/SPA 站抓不到真实标题）时，
+ * 回退快照占位（宿主名），保证收藏节点永不显示空标题。
  */
 export function resolveDisplayTitle(snapshotTitle: string, metaTitle: string, url: string): string {
   if (!isPlaceholderTitle(snapshotTitle, url)) {
     return snapshotTitle;
   }
-  return metaTitle;
+  if (metaTitle && !isPlaceholderTitle(metaTitle, url)) {
+    return metaTitle;
+  }
+  return snapshotTitle;
 }
 
 /**

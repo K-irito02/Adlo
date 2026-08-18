@@ -490,6 +490,7 @@ fn to_data_uri(bytes: &[u8], content_type: &str) -> String {
 }
 
 async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
+    let t0 = std::time::Instant::now();
     tracing::info!(url = %url, "fetch_page_meta_inner: start");
 
     if !url.starts_with("http://") && !url.starts_with("https://") {
@@ -511,7 +512,9 @@ async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
         .map_err(|e| AppError::Internal(format!("failed to build http client: {e}")))?;
 
     // 合规爬虫门控：robots.txt Disallow 硬跳过（私网豁免 / fail-open 见辅助函数）。
-    if !robots_allow_fetch(&client, url).await {
+    let robots_allowed = robots_allow_fetch(&client, url).await;
+    tracing::info!(url = %url, robots_allowed, robots_ms = t0.elapsed().as_millis(), "fetch_page_meta_inner: robots gate");
+    if !robots_allowed {
         tracing::info!(url = %url, "fetch_page_meta_inner: blocked by robots.txt, returning empty");
         return Ok(empty_page_meta(url));
     }
@@ -530,12 +533,13 @@ async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
 
     let body = match response {
         Ok(resp) => {
+            let status = resp.status().as_u16();
             let body = resp.text().await.unwrap_or_default();
-            tracing::info!(url = %url, body_len = body.len(), "fetch_page_meta_inner: HTTP success");
+            tracing::info!(url = %url, status, body_len = body.len(), page_ms = t0.elapsed().as_millis(), "fetch_page_meta_inner: HTTP success");
             body
         },
         Err(e) => {
-            tracing::info!(url = %url, err = %e, "fetch_page_meta_inner: HTTP failed, returning empty title/favicon (previous cache entry is kept)");
+            tracing::info!(url = %url, err = %e, page_ms = t0.elapsed().as_millis(), "fetch_page_meta_inner: HTTP failed, returning empty title/favicon (previous cache entry is kept)");
             return Ok(PageMeta {
                 title: String::new(),
                 favicon: String::new(),
@@ -550,6 +554,7 @@ async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
     let title = extract_title(&body);
     let favicon = extract_favicon(&body, url);
 
+    let is_unsafe = title.as_deref().is_some_and(adl_browser::is_unsafe_title);
     let final_title = title
         .unwrap_or_else(|| {
             tracing::warn!(url = %url, "fetch_page_meta_inner: <title> not found, returning empty title");
@@ -558,6 +563,12 @@ async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
         .chars()
         .take(200)
         .collect::<String>();
+    tracing::info!(
+        url = %url,
+        raw_title = %final_title,
+        is_unsafe,
+        "fetch_page_meta_inner: title extracted (unsafe/captcha will be cleared in write_success)"
+    );
 
     // 仅接受页面真实声明或 origin 惯例兜底（RC5）：不再使用 DDG/Google 代理图标服务
     // —— 它们对无收录域名返回默认地球图标，且在国内被墙/不稳定，误存后还会被
@@ -566,6 +577,13 @@ async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
         Some(f) if !f.is_empty() => f,
         _ => String::new(),
     };
+    tracing::info!(
+        url = %url,
+        final_favicon = %final_favicon,
+        is_framework_default = adl_browser::is_framework_default_favicon(&final_favicon),
+        parse_ms = t0.elapsed().as_millis(),
+        "fetch_page_meta_inner: favicon decided"
+    );
 
     let favicon_data_uri = if final_favicon.is_empty() {
         String::new()
@@ -578,7 +596,7 @@ async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
         }
     };
 
-    tracing::info!(url = %url, title = %final_title, favicon_len = final_favicon.len(), favicon_data_uri_len = favicon_data_uri.len(), "fetch_page_meta_inner: result");
+    tracing::info!(url = %url, title = %final_title, favicon_len = final_favicon.len(), favicon_data_uri_len = favicon_data_uri.len(), total_ms = t0.elapsed().as_millis(), "fetch_page_meta_inner: result");
     Ok(PageMeta {
         title: final_title,
         favicon: final_favicon,

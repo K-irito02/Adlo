@@ -5,6 +5,31 @@ export function existingFaviconBaseline(existing?: {
   return existing?.faviconDataUri || existing?.faviconUrl || '';
 }
 
+/**
+ * 前端框架默认占位图标检测（Vite `/vite.svg`、Next `/next.svg`、Vercel `/vercel.svg` 等）。
+ * 与 Rust `adl_browser::is_framework_default_favicon` 镜像对齐。
+ */
+export function isFrameworkDefaultFavicon(favicon: string): boolean {
+  const lower = favicon.trim().toLowerCase();
+  if (!/^(https?:)?\/\//.test(lower)) {
+    return false;
+  }
+  const path = lower.split(/[?#]/)[0];
+  const file = path.split('/').pop() || '';
+  return [
+    'vite.svg',
+    'next.svg',
+    'vercel.svg',
+    'now.svg',
+    'favicon.svg',
+    'logo.svg',
+    'react.svg',
+    'svelte-logo.svg',
+    'nuxt.svg',
+    'vitejs.svg',
+  ].includes(file);
+}
+
 export function getFaviconQualityScore(favicon: string): number {
   if (!favicon) {
     return 0;
@@ -19,6 +44,10 @@ export function getFaviconQualityScore(favicon: string): number {
     lower.includes('favicon-generator')
   ) {
     return 1;
+  }
+
+  if (isFrameworkDefaultFavicon(lower)) {
+    return 3;
   }
 
   if (lower.endsWith('/favicon.ico')) {
