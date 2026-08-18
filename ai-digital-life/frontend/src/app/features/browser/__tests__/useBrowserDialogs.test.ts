@@ -7,7 +7,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useBrowserDialogs } from '../useBrowserDialogs';
 
 vi.mock('@utils/pageMetaClient', () => ({
-  pageMetaClient: { get: vi.fn() },
+  pageMetaClient: { peek: vi.fn(), get: vi.fn(), getSilent: vi.fn() },
 }));
 
 function makeMeta(partial: Partial<PageMeta>): PageMeta {
@@ -22,7 +22,9 @@ function makeMeta(partial: Partial<PageMeta>): PageMeta {
 
 describe('useBrowserDialogs create-tab write gate', () => {
   beforeEach(async () => {
+    vi.mocked(pageMetaClient.peek).mockReset();
     vi.mocked(pageMetaClient.get).mockReset();
+    vi.mocked(pageMetaClient.getSilent).mockReset();
     siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
     await siteMetaCache.initSiteMetaCache();
   });
@@ -46,14 +48,14 @@ describe('useBrowserDialogs create-tab write gate', () => {
   }
 
   it('failed fetch (null meta) does NOT write and no Google-fallback write happens', async () => {
-    vi.mocked(pageMetaClient.get).mockResolvedValue(null);
+    vi.mocked(pageMetaClient.getSilent).mockResolvedValue(null);
     await confirmCreateTab('https://dlg-null.example');
     expect(siteMetaCache.getCachedSiteMeta('https://dlg-null.example')).toBeUndefined();
     expect(siteMetaCache.getCachedFavicon('https://dlg-null.example')).toBe('');
   });
 
   it('empty-title create-tab adopts fetched title without writing the cache', async () => {
-    vi.mocked(pageMetaClient.get).mockResolvedValue(
+    vi.mocked(pageMetaClient.getSilent).mockResolvedValue(
       makeMeta({
         title: 'X',
         faviconDataUri: 'data:image/png;base64,AAA',
@@ -83,7 +85,7 @@ describe('useBrowserDialogs create-tab write gate', () => {
   });
 
   it('meta with favicon but empty faviconDataUri does not write the cache', async () => {
-    vi.mocked(pageMetaClient.get).mockResolvedValue(
+    vi.mocked(pageMetaClient.getSilent).mockResolvedValue(
       makeMeta({ faviconDataUri: '', url: 'https://dlg-empty-datauri.example' }),
     );
     await confirmCreateTab('https://dlg-empty-datauri.example');
@@ -101,7 +103,7 @@ describe('useBrowserDialogs create-tab write gate', () => {
       nextRetryAt: 0,
       failCount: 0,
     });
-    vi.mocked(pageMetaClient.get).mockResolvedValue(
+    vi.mocked(pageMetaClient.getSilent).mockResolvedValue(
       makeMeta({
         title: 'New',
         favicon: 'https://dlg-q.example/favicon.ico',
@@ -124,7 +126,7 @@ describe('useBrowserDialogs create-tab write gate', () => {
       nextRetryAt: 0,
       failCount: 0,
     });
-    vi.mocked(pageMetaClient.get).mockResolvedValue(
+    vi.mocked(pageMetaClient.getSilent).mockResolvedValue(
       makeMeta({
         title: 'New',
         favicon: 'https://dlg-datauri-only.example/favicon.ico',
@@ -138,6 +140,93 @@ describe('useBrowserDialogs create-tab write gate', () => {
     expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
   });
 
+  it('no-title cache hit uses cached title without calling getSilent', async () => {
+    vi.mocked(pageMetaClient.peek).mockReturnValue({
+      title: 'Cached Real',
+      faviconUrl: '',
+      faviconDataUri: '',
+      fetchedAt: 1,
+      titleSource: 'http',
+      lastOkAt: 1,
+      nextRetryAt: 0,
+      failCount: 0,
+    });
+    const createBookmarkEntry = vi.fn().mockReturnValue({ ok: true });
+    useAppStore.setState({ browserCreateBookmarkEntry: createBookmarkEntry });
+    const openTab = vi.fn();
+    const { result } = renderHook(() =>
+      useBrowserDialogs({
+        browserOpenTab: openTab,
+        browserUpdateTab: vi.fn(),
+        activeTab: null,
+        isBookmarked: false,
+        showToast: vi.fn(),
+        t: {},
+      }),
+    );
+    await act(async () => {
+      await result.current.handleCreateTabConfirm('', 'https://dlg-cache-hit.example', 'save-only');
+    });
+    expect(createBookmarkEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://dlg-cache-hit.example', title: 'Cached Real' }),
+    );
+    expect(pageMetaClient.getSilent).not.toHaveBeenCalled();
+  });
+
+  it('no-title cache miss calls getSilent', async () => {
+    vi.mocked(pageMetaClient.getSilent).mockResolvedValue(
+      makeMeta({ title: 'Silent', url: 'https://dlg-silent.example' }),
+    );
+    const createBookmarkEntry = vi.fn().mockReturnValue({ ok: true });
+    useAppStore.setState({ browserCreateBookmarkEntry: createBookmarkEntry });
+    const openTab = vi.fn();
+    const { result } = renderHook(() =>
+      useBrowserDialogs({
+        browserOpenTab: openTab,
+        browserUpdateTab: vi.fn(),
+        activeTab: null,
+        isBookmarked: false,
+        showToast: vi.fn(),
+        t: {},
+      }),
+    );
+    await act(async () => {
+      await result.current.handleCreateTabConfirm('', 'https://dlg-silent.example', 'save-only');
+    });
+    expect(pageMetaClient.getSilent).toHaveBeenCalledWith('https://dlg-silent.example');
+    expect(createBookmarkEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://dlg-silent.example', title: 'Silent' }),
+    );
+    expect(pageMetaClient.get).not.toHaveBeenCalled();
+  });
+
+  it('no-title getSilent null falls back to hostname title', async () => {
+    vi.mocked(pageMetaClient.getSilent).mockResolvedValue(null);
+    const createBookmarkEntry = vi.fn().mockReturnValue({ ok: true });
+    useAppStore.setState({ browserCreateBookmarkEntry: createBookmarkEntry });
+    const openTab = vi.fn();
+    const { result } = renderHook(() =>
+      useBrowserDialogs({
+        browserOpenTab: openTab,
+        browserUpdateTab: vi.fn(),
+        activeTab: null,
+        isBookmarked: false,
+        showToast: vi.fn(),
+        t: {},
+      }),
+    );
+    await act(async () => {
+      await result.current.handleCreateTabConfirm('', 'https://dlg-null-host.example', 'save-only');
+    });
+    expect(pageMetaClient.getSilent).toHaveBeenCalledWith('https://dlg-null-host.example');
+    expect(createBookmarkEntry).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'https://dlg-null-host.example',
+        title: 'dlg-null-host.example',
+      }),
+    );
+  });
+
   it('create-tab fetch does not touch a cached entry (title + dataUri preserved)', async () => {
     siteMetaCache.setCachedSiteMeta('https://dlg-title.example', {
       title: 'Old Title',
@@ -149,7 +238,7 @@ describe('useBrowserDialogs create-tab write gate', () => {
       nextRetryAt: 0,
       failCount: 0,
     });
-    vi.mocked(pageMetaClient.get).mockResolvedValue(
+    vi.mocked(pageMetaClient.getSilent).mockResolvedValue(
       makeMeta({
         title: '',
         favicon: 'https://x.com/f.png',
@@ -171,7 +260,9 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
   };
 
   beforeEach(async () => {
+    vi.mocked(pageMetaClient.peek).mockReset();
     vi.mocked(pageMetaClient.get).mockReset();
+    vi.mocked(pageMetaClient.getSilent).mockReset();
     siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
     await siteMetaCache.initSiteMetaCache();
     useAppStore.setState({
@@ -430,7 +521,9 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
   const originalUpdateSavedBookmark = useAppStore.getState().browserUpdateSavedBookmark;
 
   beforeEach(async () => {
+    vi.mocked(pageMetaClient.peek).mockReset();
     vi.mocked(pageMetaClient.get).mockReset();
+    vi.mocked(pageMetaClient.getSilent).mockReset();
     siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
     await siteMetaCache.initSiteMetaCache();
     useAppStore.setState({

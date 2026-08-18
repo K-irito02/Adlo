@@ -8,6 +8,7 @@ import { applyBroadcastUpdate, getCachedSiteMeta } from './siteMetaCache';
 export interface PageMetaClient {
   peek(url: string): SiteMetaCacheEntry | undefined;
   get(url: string, opts?: { force?: boolean }): Promise<PageMeta | null>;
+  getSilent(url: string): Promise<PageMeta | null>;
   report(meta: PageMeta, source: MetaSource): Promise<void>;
   refresh(url: string): Promise<PageMeta | null>;
   warmup(urls: string[]): Promise<void>;
@@ -24,6 +25,10 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
           url,
           force: opts?.force ?? false,
         });
+        return r.ok && r.data ? r.data : null;
+      },
+      getSilent: async (url) => {
+        const r = await invokeIpc<PageMeta>('browser_page_meta_get_silent', { url });
         return r.ok && r.data ? r.data : null;
       },
       report: async (meta, source) => {
@@ -69,6 +74,13 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
         const r = await requestPreviewApi<PageMeta>('/browser/page-meta/get', {
           method: 'POST',
           body: JSON.stringify({ url, force: opts?.force ?? false }),
+        });
+        return r.ok && r.data ? r.data : null;
+      },
+      getSilent: async (url) => {
+        const r = await requestPreviewApi<PageMeta>('/browser/page-meta/get', {
+          method: 'POST',
+          body: JSON.stringify({ url, force: false }),
         });
         return r.ok && r.data ? r.data : null;
       },

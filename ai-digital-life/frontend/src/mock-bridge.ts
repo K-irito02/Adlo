@@ -190,12 +190,20 @@ function normalizeCacheKey(url: string): string {
 
 /** 占位标题：空 / 等于 URL / http(s) 前缀 / 裸域名（与 useBrowserPageMeta / meta_merge 一致）。 */
 function isPlaceholderTitle(title: string, url: string): boolean {
-  if (!title) return true;
-  if (title === url) return true;
-  if (/^https?:\/\//i.test(title)) return true;
+  if (!title) {
+    return true;
+  }
+  if (title === url) {
+    return true;
+  }
+  if (/^https?:\/\//i.test(title)) {
+    return true;
+  }
   try {
     const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
-    if (!host) return false;
+    if (!host) {
+      return false;
+    }
     const t = title.trim().toLowerCase();
     return t === host || t === `www.${host}`;
   } catch {
@@ -211,11 +219,21 @@ function shouldApplyExactMatchTitle(
   source: MetaSource,
   currentSource: MetaSource | undefined,
 ): boolean {
-  if (incomingTitle === '') return false;
-  if (incomingTitle === currentTitle) return false;
-  if (isPlaceholderTitle(incomingTitle, url)) return false;
-  if (isPlaceholderTitle(currentTitle, url)) return true;
-  if (source === 'http' || source === 'iframe') return true;
+  if (incomingTitle === '') {
+    return false;
+  }
+  if (incomingTitle === currentTitle) {
+    return false;
+  }
+  if (isPlaceholderTitle(incomingTitle, url)) {
+    return false;
+  }
+  if (isPlaceholderTitle(currentTitle, url)) {
+    return true;
+  }
+  if (source === 'http' || source === 'iframe') {
+    return true;
+  }
   if (source === 'com') {
     return currentSource === 'com' || currentSource === 'google';
   }
@@ -244,7 +262,21 @@ export function createMockPageMetaClient(): PageMetaClient {
     peek: (url) => memory.get(normalizeCacheKey(url)),
     get: async (url) => {
       const entry = memory.get(normalizeCacheKey(url));
-      if (!entry) return null;
+      if (!entry) {
+        return null;
+      }
+      return {
+        title: entry.title,
+        favicon: entry.faviconUrl,
+        faviconDataUri: entry.faviconDataUri,
+        url,
+      };
+    },
+    getSilent: async (url) => {
+      const entry = memory.get(normalizeCacheKey(url));
+      if (!entry) {
+        return null;
+      }
       return {
         title: entry.title,
         favicon: entry.faviconUrl,
@@ -294,7 +326,9 @@ export function createMockPageMetaClient(): PageMetaClient {
     refresh: async (url) => {
       // mock 中 force 语义无差别：与 get 同返回内存缓存
       const entry = memory.get(normalizeCacheKey(url));
-      if (!entry) return null;
+      if (!entry) {
+        return null;
+      }
       return {
         title: entry.title,
         favicon: entry.faviconUrl,

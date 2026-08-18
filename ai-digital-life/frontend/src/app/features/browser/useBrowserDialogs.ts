@@ -7,13 +7,6 @@ import { hostnameFromUrl, isPlaceholderTitle, isUnsafeTitle } from '@utils/brows
 import { pageMetaClient } from '@utils/pageMetaClient';
 import type { ToastType } from '@components/Toast';
 
-/**
- * 新建书签（save-only / save-and-open 无自定义标题）时等待页面元数据的最大时限（ms）。
- * 超时后先用宿主名占位保存书签，后台请求继续在服务端抓取并广播，收藏节点标题/图标随后刷新
- * （resolveDisplayTitle 会消费缓存 metaTitle/BrowserFavicon 消费 faviconDataUri）。
- */
-const META_FETCH_TIMEOUT_MS = 6000;
-
 interface UseBrowserDialogsDeps {
   browserOpenTab: (url: string, title?: string, workspaceId?: string, folderId?: string) => void;
   browserUpdateTab: (tabId: string, updates: { title?: string; url?: string }) => void;
@@ -86,7 +79,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       let title = name.trim();
       if (!title) {
         // 无自定义标题：解析页面元数据用于收藏标题。为缓解"正在获取页面信息…"慢，
-        // 采用 cache-first + 有界超时 + 后台继续的策略（见 META_FETCH_TIMEOUT_MS）。
+        // 采用 cache-first + 静默渲染命令（超时由后端静默 tab 自兜底 ≤6s）。
         setIsCreatingTab(true);
         const requestStart = Date.now();
         console.info('[bookmark-new-meta] start', { url });
@@ -98,29 +91,25 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           console.info('[bookmark-new-meta] cache hit', { url, cachedTitle });
         } else {
           try {
-            const meta = await Promise.race([
-              pageMetaClient.get(url),
-              new Promise<null>((resolve) =>
-                setTimeout(() => resolve(null), META_FETCH_TIMEOUT_MS),
-              ),
-            ]);
+            // 移除 META_FETCH_TIMEOUT_MS：超时由后端静默 tab 自兜底（≤6s）
+            const meta = await pageMetaClient.getSilent(url);
             const metaTitle = meta?.title?.trim() ?? '';
             const titleOk =
               Boolean(metaTitle) &&
               !isUnsafeTitle(metaTitle) &&
               !isPlaceholderTitle(metaTitle, url);
-            console.info('[bookmark-new-meta] fetched', {
+            console.info('[bookmark-new-meta] silent fetched', {
               url,
               metaTitle,
               titleOk,
               hasFavicon: Boolean(meta?.faviconDataUri),
               elapsedMs: Date.now() - requestStart,
             });
-            if (titleOk && (metaTitle || meta?.faviconDataUri)) {
+            if (titleOk && metaTitle) {
               title = metaTitle;
             }
           } catch (err) {
-            console.warn('[bookmark-new-meta] fetch failed', { url, err: String(err) });
+            console.warn('[bookmark-new-meta] silent fetch failed', { url, err: String(err) });
           }
           if (!title) {
             // 抓取成功但元数据缺失/超时/失败 → 用宿主名占位先保存（后台请求继续刷新缓存）。
