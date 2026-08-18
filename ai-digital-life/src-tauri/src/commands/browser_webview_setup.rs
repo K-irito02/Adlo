@@ -81,6 +81,28 @@ pub(super) fn build_webview_builder(
         .on_new_window(move |url, _window_features| new_window_handler(&app_handle, &url))
 }
 
+/// Build a WebView builder for a **silent** (background, off-screen) tab that does
+/// **not** forward any events to the frontend.
+///
+/// Unlike `build_webview_builder`, this intentionally omits the `on_navigation`
+/// (→ `digital-life://browser-url-changed`) and `on_new_window`
+/// (→ `digital-life://browser-open-new-tab`) handlers. A silent tab only renders
+/// title/favicon into the meta channel consumed by the background fetch loop; it
+/// must not pollute the visible tab list or the frontend's event stream.
+pub(super) fn build_silent_webview_builder(
+    label: &str,
+    target: url::Url,
+    color_scheme: &str,
+) -> tauri::webview::WebviewBuilder<tauri::Wry> {
+    let init_script = adl_browser::init_script_with_background(color_scheme);
+    tracing::debug!(
+        color_scheme,
+        "build_silent_webview_builder: generated init_script with background"
+    );
+    tauri::webview::WebviewBuilder::new(label, tauri::WebviewUrl::External(target))
+        .initialization_script(init_script)
+}
+
 pub(super) fn setup_webview2_handlers_for_platform(
     webview: &tauri::Webview<tauri::Wry>,
     tab_id: &str,

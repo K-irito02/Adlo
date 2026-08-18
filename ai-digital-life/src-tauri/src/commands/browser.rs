@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::commands::browser_webview_setup::{
-    apply_theme_and_navigate_for_platform, build_webview_builder, register_webview_with_manager,
-    resolve_window_and_url, setup_webview2_handlers_for_platform,
+    apply_theme_and_navigate_for_platform, build_silent_webview_builder, build_webview_builder,
+    register_webview_with_manager, resolve_window_and_url, setup_webview2_handlers_for_platform,
 };
 use crate::commands::ipc;
 use crate::error::CommandError;
@@ -12,7 +12,7 @@ use adl_browser::html_meta::{extract_favicon, extract_title, origin_favicon_fall
 use adl_browser::robots_policy::{DomainRateLimiter, RobotsCache, domain_of, is_private_url};
 use adl_browser::robots_txt::parse_robots_txt;
 use adl_browser::webview_handle::{Bounds, EventBridgeRef};
-use adl_browser::{META_SOURCE_HTTP, PageMeta, PageMetaFetcher, webview_label};
+use adl_browser::{CachedMetaBridge, META_SOURCE_HTTP, PageMeta, PageMetaFetcher, webview_label};
 use adl_errors::AppError;
 use adl_types::IpcResult;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
@@ -52,23 +52,11 @@ pub async fn browser_create_for_tab(
                 .map_err(|e| AppError::Internal(format!("failed to parse about:blank: {e}")))?;
             let webview_builder = build_webview_builder(&label, &tab_id, blank_url, app_inner.clone(), &cs);
 
-            window
-                .add_child(
-                    webview_builder,
-                    tauri::LogicalPosition::new(-10000.0, -10000.0),
-                    tauri::LogicalSize::new(800.0, 600.0),
-                )
-                .map_err(|e| {
-                    AppError::Internal(format!("failed to create webview for tab {tab_id}: {e}"))
-                })?;
-
-            tracing::info!(tab_id = &tab_id, url = &url, "browser webview created for tab");
-
-            if let Some(webview) = window.get_webview(&label) {
-                let bridge: EventBridgeRef =
-                    Arc::new(TauriWebView2EventBridge::new(app_inner.clone()));
-                setup_webview2_handlers_for_platform(&webview, &tab_id, &label, bridge.clone());
-            }
+            // Off-screen child attachment + WebView2 handler setup — shared with
+            // the silent-tab path so both paths keep identical creation semantics.
+            attach_webview_child(&window, &label, &tab_id, webview_builder, || {
+                Arc::new(TauriWebView2EventBridge::new(app_inner.clone()))
+            })?;
 
             // Register the webview with BrowserManager BEFORE calling
             // apply_theme_and_navigate_for_platform. This ensures the webview is
@@ -77,12 +65,8 @@ pub async fn browser_create_for_tab(
             // will also re-read the latest color scheme at closure execution time,
             // handling the race where the theme was changed between
             // browser_create_for_tab and the with_webview closure execution.
-            let register_result = register_webview_with_manager(
-                &state,
-                app_inner.clone(),
-                label.clone(),
-                &tab_id,
-            );
+            let register_result =
+                register_webview_with_manager(&state, app_inner.clone(), label.clone(), &tab_id);
 
             match register_result {
                 Ok(result) => {
@@ -90,14 +74,14 @@ pub async fn browser_create_for_tab(
                         apply_theme_and_navigate_for_platform(&webview, app_inner.clone(), &url);
                     }
                     Ok(result)
-                }
+                },
                 Err(e) => {
                     // Clean up the orphan WebView to prevent resource leaks
                     if let Some(webview) = window.get_webview(&label) {
                         let _ = webview.close();
                     }
                     Err(e)
-                }
+                },
             }
         })();
 
@@ -106,6 +90,111 @@ pub async fn browser_create_for_tab(
     .map_err(|e| AppError::Internal(format!("main thread dispatch: {e}")))?;
 
     Ok(ipc(rx.await.map_err(|e| AppError::Internal(format!("creation channel: {e}")))?))
+}
+
+/// Attach a child WebView to the main window at an off-screen position and set
+/// up its platform (WebView2) handlers with the given event bridge.
+///
+/// Shared by the visible-tab (`browser_create_for_tab`) and silent-tab
+/// (`create_silent_webview`) creation paths. The off-screen placement keeps the
+/// webview invisible to the user; navigation onto a real page happens later via
+/// `apply_theme_and_navigate_for_platform` (registered visible tabs) or the
+/// silent path described in `create_silent_webview`.
+fn attach_webview_child(
+    window: &tauri::Window<tauri::Wry>,
+    label: &str,
+    tab_id: &str,
+    webview_builder: tauri::webview::WebviewBuilder<tauri::Wry>,
+    make_bridge: impl FnOnce() -> EventBridgeRef,
+) -> Result<(), AppError> {
+    window
+        .add_child(
+            webview_builder,
+            tauri::LogicalPosition::new(-10000.0, -10000.0),
+            tauri::LogicalSize::new(800.0, 600.0),
+        )
+        .map_err(|e| {
+            AppError::Internal(format!("failed to create webview for tab {tab_id}: {e}"))
+        })?;
+
+    tracing::info!(tab_id = &tab_id, "browser webview created for tab");
+
+    if let Some(webview) = window.get_webview(label) {
+        let bridge = make_bridge();
+        setup_webview2_handlers_for_platform(&webview, tab_id, label, bridge);
+    }
+    Ok(())
+}
+
+/// WebView label for a silent (background, off-screen) tab.
+///
+/// Uses a distinct prefix (`adl-silent-view-`) so it can never collide with the
+/// visible-tab labels produced by `webview_label` (`adl-browser-view-{tab_id}`).
+/// Task 3 holds the silent tab id returned by `create_silent_webview` and uses
+/// this to locate / close the underlying webview.
+pub fn silent_webview_label(tab_id: &str) -> String {
+    format!("adl-silent-view-{tab_id}")
+}
+
+/// 创建静默 WebView（后台不可见，不注册进可见标签系统）。
+///
+/// 在主线程 dispatch；渲染出的 title/favicon 经 Task 1 的 `CachedMetaBridge`
+/// 流入返回的 channel（channel receiver 由 Task 3 的 fetch 循环在 tokio await
+/// 上下文消费）。返回 `(silent_tab_id, meta 接收 channel)`。
+///
+/// # dead-code 说明
+/// Task 3（SilentTabFetcher + 命令接线）会消费本函数并使其成为可达命令的一部分。
+/// 在接线完成前用 `#[allow(dead_code)]` 放行，避免 `-D warnings` 因"临时未引用"
+/// 而失败。这是有意为之：函数本身即本任务交付物，非废弃代码。
+#[allow(dead_code)]
+#[allow(clippy::type_complexity)] // 签名按简报锁定，不可改为类型别名
+pub fn create_silent_webview(
+    app: tauri::AppHandle,
+    state: &AppState,
+    url: &str,
+) -> Result<
+    (String, tokio::sync::mpsc::UnboundedReceiver<(String, String, String, String)>),
+    AppError,
+> {
+    // 静默 tab 不可见，配色仅用于 INIT_SCRIPT 背景色，无需像可见 tab 那样处理
+    // 主题闪烁的竞态（apply_theme... 命名处仍会在主线程闭包执行时重读最新配色）。
+    let cs = state.browser_manager.current_color_scheme();
+    let url_owned = url.to_string();
+    let silent_tab_id = adl_types::create_id("silent");
+    let label = silent_webview_label(&silent_tab_id);
+    let tab_id_inner = silent_tab_id.clone();
+
+    // meta 经非阻塞 channel 流入由调用方持有的 receiver。
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<(String, String, String, String)>();
+    let (created_tx, created_rx) = tokio::sync::oneshot::channel();
+    let app_inner = app.clone();
+
+    app.run_on_main_thread(move || {
+        let result = (|| -> Result<(), AppError> {
+            let (window, _target) = resolve_window_and_url(&app_inner, &url_owned)?;
+            let blank_url = url::Url::parse("about:blank")
+                .map_err(|e| AppError::Internal(format!("failed to parse about:blank: {e}")))?;
+            let webview_builder = build_silent_webview_builder(&label, blank_url, &cs);
+            attach_webview_child(&window, &label, &tab_id_inner, webview_builder, move || {
+                Arc::new(CachedMetaBridge::new(Some(tx)))
+            })?;
+            if let Some(webview) = window.get_webview(&label) {
+                apply_theme_and_navigate_for_platform(&webview, app_inner.clone(), &url_owned);
+            }
+            Ok(())
+        })();
+        let _ = created_tx.send(result);
+    })
+    .map_err(|e| AppError::Internal(format!("main thread dispatch: {e}")))?;
+
+    // 本函数为同步 `pub fn`（签名锁定），故用 blocking_recv 等待主线程创建结果，
+    // 而非 `.await`。调用方（Task 3 的 fetch 循环）应在其自身的阻塞/tokio 上下文
+    // 调用本函数，避免在 tokio runtime 的工作线程内直接调用（会 panic）。
+    let created: Result<(), AppError> = created_rx
+        .blocking_recv()
+        .map_err(|e| AppError::Internal(format!("creation channel: {e}")))?;
+    created?;
+    Ok((silent_tab_id, rx))
 }
 
 #[tauri::command]
