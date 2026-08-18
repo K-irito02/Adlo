@@ -230,11 +230,27 @@ fn best_silent_meta(svc: &PageMetaService, url: &str) -> PageMeta {
     }
 }
 
+/// 轮询参数（可注入以便单测用短时长加速驱动时序分支）。
+#[derive(Clone, Copy)]
+struct SilentPollDurations {
+    /// 单轮 recv 超时：无数据收包时本轮等待时长。
+    round_ms: u64,
+    /// 部分元数据（自首个有效起）等待的提前返回阈值。
+    partial_ms: u64,
+}
+
+impl Default for SilentPollDurations {
+    fn default() -> Self {
+        SilentPollDurations { round_ms: 300, partial_ms: 1500 }
+    }
+}
+
 /// 轮询静默元数据 channel 直至收敛 / 部分提前返回 / 总体超时。
 ///
 /// - 收到元组即 `svc.report(_, _, _, META_SOURCE_COM)` 持久化入缓存；
 /// - 已收敛（真实标题 + favicon）→ 立即返回；
-/// - 部分（仅标题或仅 favicon）→ 自首个非空起等待 ≥ 1500ms 提前返回；
+/// - 部分（仅标题或仅 favicon）→ 自首个非空起等待 ≥ `partial_ms` 提前返回
+///   （无论该等待期间 channel 是否仍有数据/静默）；
 /// - 总体 `SILENT_FETCH_TIMEOUT_MS`（6s）超时 → 返回已得部分，无则空。
 async fn wait_for_silent_meta(
     rx: &mut tokio::sync::mpsc::UnboundedReceiver<(String, String, String, String)>,
@@ -243,7 +259,7 @@ async fn wait_for_silent_meta(
 ) -> PageMeta {
     let result = tokio::time::timeout(
         std::time::Duration::from_millis(SILENT_FETCH_TIMEOUT_MS),
-        poll_silent_meta(rx, svc, url),
+        poll_silent_meta(rx, svc, url, SilentPollDurations::default()),
     )
     .await;
 
@@ -258,10 +274,13 @@ async fn poll_silent_meta(
     rx: &mut tokio::sync::mpsc::UnboundedReceiver<(String, String, String, String)>,
     svc: &PageMetaService,
     url: &str,
+    d: SilentPollDurations,
 ) -> PageMeta {
+    let round = std::time::Duration::from_millis(d.round_ms);
+    let partial_threshold = std::time::Duration::from_millis(d.partial_ms);
     let mut first_meta_at: Option<std::time::Instant> = None;
     loop {
-        let recv = tokio::time::timeout(std::time::Duration::from_millis(300), rx.recv()).await;
+        let recv = tokio::time::timeout(round, rx.recv()).await;
         match recv {
             Ok(Some((_tab_id, u, title, fav))) => {
                 if let Err(e) = svc.report(&u, &title, &fav, META_SOURCE_COM).await {
@@ -275,14 +294,20 @@ async fn poll_silent_meta(
                         first_meta_at.get_or_insert_with(std::time::Instant::now);
                     }
                 }
-                if first_meta_at
-                    .is_some_and(|st| st.elapsed() >= std::time::Duration::from_millis(1500))
-                {
+                if first_meta_at.is_some_and(|st| st.elapsed() >= partial_threshold) {
                     return best_silent_meta(svc, url);
                 }
             },
             Ok(None) => return best_silent_meta(svc, url), // channel 已关闭
-            Err(_elapsed) => {},                           // 单轮 300ms 无数据，继续轮询
+            // 单轮无数据收包：
+            // - 若早已记录部分元数据且等待已到 `partial_ms` → 立即提前返回部分结果，
+            //   而非继续空转直到外层 6s 总体超时（修复前行为）。
+            // - 否则继续轮询等待（后续消息或总体超时兜底）。
+            Err(_elapsed) => {
+                if first_meta_at.is_some_and(|st| st.elapsed() >= partial_threshold) {
+                    return best_silent_meta(svc, url);
+                }
+            },
         }
     }
 }
@@ -1126,5 +1151,35 @@ mod silent_meta_tests {
         assert!(meta.favicon.is_empty());
         assert_eq!(meta.source, META_SOURCE_COM);
         assert_eq!(meta.url, "https://p.example/");
+    }
+
+    /// 回归修复（Important-1）：部分元数据到达一次后 channel 保持静默（不关闭、
+    /// 不再发数据），也应自首个有效起等待 ≥ `partial_ms` 后提前返回当前部分结果，
+    /// 而非空转直到外层 6s 总体超时。
+    ///
+    /// 注入短时长：round_ms=20ms / partial_ms=100ms，使时序路径确定且毫秒级完成。
+    #[tokio::test]
+    async fn partial_meta_pre_returns_even_when_channel_goes_silent() {
+        let svc = empty_svc();
+        let url = "https://silent-partial.example/";
+        let (tx, mut rx) =
+            tokio::sync::mpsc::unbounded_channel::<(String, String, String, String)>();
+        // 只上报标题（无 favicon）→ 部分元数据；tx 保持存活 → channel 静默但不关闭。
+        tx.send(("tab".into(), url.into(), "部分标题".into(), String::new())).unwrap();
+
+        let d = SilentPollDurations { round_ms: 20, partial_ms: 100 };
+        let start = std::time::Instant::now();
+        let meta = poll_silent_meta(&mut rx, &svc, url, d).await;
+        let elapsed = start.elapsed();
+
+        // 应在约 `partial_ms` 处（而非 6s 总体超时）提前返回。
+        assert!(
+            elapsed < std::time::Duration::from_millis(1000),
+            "partial pre-return too slow (would wait until 6s timeout): {elapsed:?}"
+        );
+        assert_eq!(meta.title, "部分标题");
+        assert!(meta.favicon.is_empty());
+        assert_eq!(meta.source, META_SOURCE_COM);
+        assert_eq!(meta.url, url);
     }
 }
