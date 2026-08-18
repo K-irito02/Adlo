@@ -100,7 +100,11 @@ impl PageMetaService {
         // TTL 短路（spec 4.1）：内存命中且未过期直接返回，不发起抓取；force 绕过。
         if !force {
             if let Some(entry) = self.peek(&key) {
-                if entry.last_ok_at > 0 && now - entry.last_ok_at < META_TTL_MS {
+                let ttl_hit = entry.last_ok_at > 0 && now - entry.last_ok_at < META_TTL_MS;
+                // 退避短路（RC4）：从未成功过且退避期未到 → 直接返回缓存不触发抓取，
+                // 避免失败域名被后续每次 get/warmup 反复重抓（限速放大、图标来回切换）。
+                let backed_off = entry.last_ok_at == 0 && now < entry.next_retry_at;
+                if ttl_hit || backed_off {
                     // 携带真实 url（缓存键）返回：命令层 emit_page_meta_updated 按 meta.url
                     // 广播，url 为空将导致前端无法匹配任何 tab（R1 回归）。
                     return Ok(PageMeta { url: key.clone(), ..to_page_meta(entry) });
@@ -140,12 +144,29 @@ impl PageMetaService {
             self.mark_failure(&key);
         }
         drop(_guard); // 提前释放，通知等待者（与正常结束等价）
+        // 统一返回缓存条目的合并值（RC3）：抓取失败时避免把空结果传给命令层
+        // 广播 → 前端 applyBroadcastUpdate 清空镜像（真实图标被清 → 回落 DDG →
+        // 下次成功恢复 → 来回切换）；成功路径同样返回 write_success 合并后的权威值
+        // （含质量门控保留的既有图标）。
         // source 反映缓存条目的真实 title_source（write_success 后为 http；此前
         // 若已有 com 权威条目则保留），供命令层广播使用，避免硬编码 http 冻结 com 更新。
+        // write_success / mark_failure 均写入内存条目，peek 必命中（兜底为空条目）。
+        let entry = self.peek(&key).unwrap_or_else(|| SiteMetaCacheEntry {
+            title: String::new(),
+            title_source: String::new(),
+            favicon_url: String::new(),
+            favicon_data_uri: String::new(),
+            fetched_at: now,
+            last_ok_at: 0,
+            next_retry_at: now,
+            fail_count: 0,
+        });
         Ok(PageMeta {
-            source: self.peek(&key).map(|e| e.title_source.clone()).unwrap_or_default(),
+            title: entry.title,
+            favicon: entry.favicon_url,
+            favicon_data_uri: entry.favicon_data_uri,
             url: key,
-            ..meta
+            source: entry.title_source,
         })
     }
 
@@ -406,11 +427,36 @@ mod tests {
         // 再失败（force 绕过 TTL 短路：TTL 内 force=false 会直接返回缓存，不触发抓取）
         *fetcher.result.lock().unwrap() = Some(PageMeta::default());
         let meta = svc.get("https://a.com/", true, &fetcher).await.unwrap();
-        assert!(meta.title.is_empty());
+        // RC3：抓取失败时 get 必须返回缓存条目的合并值（A），而非空结果 ——
+        // 否则命令层广播空 meta 会清空前端镜像（真实图标来回切换）。
+        assert_eq!(meta.title, "A");
         let cached = svc.peek("https://a.com/").unwrap();
         assert_eq!(cached.title, "A", "失败不得删除缓存");
         assert_eq!(cached.fail_count, 1);
         assert!(cached.next_retry_at > 0);
+    }
+
+    #[tokio::test]
+    async fn get_respects_backoff_for_failed_url_without_force() {
+        // RC4：失败域名在退避期内（next_retry_at 未到）→ get(force=false) 直接返回缓存，
+        // 不触发抓取（避免失败域名被后续 get/warmup 反复重抓、限速放大）；
+        // force=true 仍可强制重试。
+        let (svc, _) = open_service("backoff-shortcircuit");
+        let fetcher = MockFetcher { result: std::sync::Mutex::new(Some(PageMeta::default())) };
+        let meta = svc.get("https://backoff.example/", true, &fetcher).await.unwrap();
+        assert!(meta.title.is_empty());
+        assert_eq!(svc.peek("https://backoff.example/").unwrap().fail_count, 1);
+        // 退避期内非 force get：命中退避短路，不抓取
+        let cached = svc.get("https://backoff.example/", false, &fetcher).await.unwrap();
+        assert!(cached.title.is_empty());
+        assert_eq!(
+            svc.peek("https://backoff.example/").unwrap().fail_count,
+            1,
+            "退避期内不得重复抓取"
+        );
+        // force=true 绕过退避短路，再次抓取 → 失败计数递增
+        let _ = svc.get("https://backoff.example/", true, &fetcher).await.unwrap();
+        assert_eq!(svc.peek("https://backoff.example/").unwrap().fail_count, 2);
     }
 
     #[tokio::test]

@@ -27,10 +27,7 @@ pub use browser_meta::PageMeta;
 pub use browser_navigation::{INIT_SCRIPT, init_script_with_background, resolve_url};
 pub use browser_pool::BrowserPool;
 pub use browser_webview::{BROWSER_WEBVIEW_LABEL, BrowserManager, webview_label};
-pub use html_meta::{
-    duckduckgo_favicon_url, extract_favicon, extract_title, google_favicon_url, html_entity_decode,
-    origin_favicon_fallback,
-};
+pub use html_meta::{extract_favicon, extract_title, html_entity_decode, origin_favicon_fallback};
 pub use meta_merge::{
     META_SOURCE_COM, META_SOURCE_GOOGLE, META_SOURCE_HTTP, META_SOURCE_IFRAME,
     existing_favicon_baseline, get_favicon_quality_score, is_placeholder_title,

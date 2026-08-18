@@ -470,6 +470,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* 兜底 favicon：深色主题白色实心球（对应自定义 favicon 设计稿），浅色主题用主题墨色保持可见 */
+  color: #ffffff;
+}
+
+[data-theme='light'] .adl-browser-tree__link-fallback {
+  color: var(--adl-file-badge-ink-default);
 }
 
 .adl-filetree__dirty-dot {

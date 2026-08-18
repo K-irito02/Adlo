@@ -1,5 +1,4 @@
 import { useCallback, useRef } from 'react';
-import { getGoogleFaviconUrl } from '@utils/favicon';
 
 export interface UseBrowserPanelHandlersParams {
   browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) => void;
@@ -34,11 +33,6 @@ export function useBrowserPanelHandlers(
   const handleNavigationStart = useCallback((url: string) => {
     // Track pending navigation so handlePageMeta creates tab only when real title arrives
     pendingNavigationsRef.current.add(url);
-    // Preload Google S2 favicon so image is already loading when tab renders
-    const faviconUrl = getGoogleFaviconUrl(url);
-    if (faviconUrl) {
-      new Image().src = faviconUrl;
-    }
   }, []);
 
   const handleOpenTabFromTree = useCallback(

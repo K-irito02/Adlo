@@ -82,7 +82,9 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     result = emptyMeta(''); // 后续抓取返回空 → 失败
     const meta = await svc.get('https://a.com/', true); // force 绕过 TTL 短路
 
-    expect(meta?.title).toBe('');
+    // RC3：抓取失败时 get 返回缓存条目的合并值（A），而非空结果 ——
+    // 否则空 meta 经预览路由/广播清空前端镜像（真实图标来回切换）。
+    expect(meta?.title).toBe('A');
     const cached = svc.peek('https://a.com/');
     expect(cached?.title).toBe('A');
     expect(cached?.failCount).toBe(1);

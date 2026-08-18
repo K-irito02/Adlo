@@ -1,48 +1,18 @@
 import { getCachedFavicon, getCachedSiteMeta } from './siteMetaCache';
 
-const GOOGLE_FAVICON_API = 'https://www.google.com/s2/favicons';
-const GOOGLE_FAVICON = `${GOOGLE_FAVICON_API}?domain={domain}&sz=64`;
-const DDG_FAVICON = 'https://icons.duckduckgo.com/ip3/{domain}.png';
-
+/**
+ * 仅返回缓存的真实图标：data-URI 优先，其次 favicon URL；无缓存返回 ''。
+ * 不再使用 DDG / Google S2 代理图标兜底（Fix C/D）——代理服务对无收录
+ * 域名返回默认地球图标且被墙/不稳定，误用会让用户看到与真实 favicon
+ * 不一致的图标；未缓存时展示内置占位图标，等待后端抓取广播真实数据。
+ */
 export function getFaviconUrl(url: string): string {
   try {
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname;
-
     const dataUri = getCachedFavicon(url);
     if (dataUri) {
       return dataUri;
     }
-
-    const entry = getCachedSiteMeta(url);
-    if (entry?.faviconUrl) {
-      return entry.faviconUrl;
-    }
-
-    // 私网地址跳过外部兜底
-    if (hostname === 'localhost' || /^127\./.test(hostname) || /^192\.168\./.test(hostname)) {
-      return '';
-    }
-    // 外部兜底链：DDG（优先）→ Google S2 → ''（DDG 模板为空时回落 Google S2）
-    // 完整兜底链：cache dataUri → cache faviconUrl → 私网返回空 → DDG → Google S2 → ''
-    const ddg = DDG_FAVICON.replace('{domain}', hostname);
-    return ddg || GOOGLE_FAVICON.replace('{domain}', hostname);
-  } catch {
-    return '';
-  }
-}
-
-export function getGoogleFaviconUrl(url: string | undefined): string {
-  if (!url) {
-    return '';
-  }
-  try {
-    const urlObj = new URL(url);
-    const hostname = urlObj.hostname;
-    if (hostname === 'localhost' || /^127\./.test(hostname) || /^192\.168\./.test(hostname)) {
-      return '';
-    }
-    return GOOGLE_FAVICON.replace('{domain}', hostname);
+    return getCachedSiteMeta(url)?.faviconUrl ?? '';
   } catch {
     return '';
   }

@@ -181,13 +181,29 @@ export function __mirrorUpsertForTest(url: string, entry: SiteMetaCacheEntry): v
 
 /**
  * 服务端 page-meta-updated 广播驱动镜像更新。
+ *
+ * RC3 合并守卫：空/部分字段的广播（抓取失败、被限速、robots 拦截等瞬态）
+ * 不得清空镜像中已有的真实数据 —— 否则真实图标被清后回落 DDG 代理图标、
+ * 下次成功又恢复，导致图标在"兜底↔真实"之间来回切换。合并规则与 Rust
+ * write_success 一致：空字段保留既有值；favicon 仅在 URL 未变时保留既有
+ * data-URI（避免新 URL 配上旧站点的陈旧图标）。
  */
 export function applyBroadcastUpdate(payload: PageMetaUpdatedPayload): void {
-  upsertMirror(normalizeUrlForCache(payload.url), {
-    title: payload.title,
-    titleSource: payload.source,
-    faviconUrl: payload.faviconUrl,
-    faviconDataUri: payload.faviconDataUri,
+  const key = normalizeUrlForCache(payload.url);
+  const existing = memoryCache.get(key);
+  const hasData =
+    payload.title !== '' || payload.faviconUrl !== '' || payload.faviconDataUri !== '';
+  if (!hasData && existing) {
+    notify(key);
+    return;
+  }
+  upsertMirror(key, {
+    title: payload.title || existing?.title || '',
+    titleSource: payload.source || existing?.titleSource || '',
+    faviconUrl: payload.faviconUrl || existing?.faviconUrl || '',
+    faviconDataUri:
+      payload.faviconDataUri ||
+      (existing && payload.faviconUrl === existing.faviconUrl ? existing.faviconDataUri : ''),
     fetchedAt: Date.now(),
     lastOkAt: Date.now(),
     nextRetryAt: 0,

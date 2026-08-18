@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getFaviconUrl, getGoogleFaviconUrl } from '../utils/favicon';
+import { getFaviconUrl } from '../utils/favicon';
 import {
   subscribeSiteMeta,
   subscribeSiteMetaReady,
@@ -7,7 +7,7 @@ import {
   initSiteMetaCache,
 } from '../utils/siteMetaCache';
 import { pageMetaClient } from '../utils/pageMetaClient';
-import { IconLink, type IconSize } from '../icons';
+import { IconWorld, type IconSize } from '../icons';
 
 interface BrowserFaviconProps {
   url: string;
@@ -18,12 +18,15 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const [ready, setReady] = useState(isSiteMetaCacheReady());
   const [faviconUrl, setFaviconUrl] = useState('');
   // 渲染降级状态（React 驱动，避免 DOM 直接操作导致 display:none 残留）：
-  // 真实图标与 Google S2 均加载失败时置 true → 显示内置占位图标；新图标到来时重置
+  // 真实图标加载失败时置 true → 显示内置占位图标；新图标到来时重置（Fix D：
+  // 不再重试 Google S2 代理——被墙/不稳定，且对无收录域名返回默认图标）。
   const [degraded, setDegraded] = useState(false);
 
   useEffect(() => {
     void initSiteMetaCache();
-    if (isSiteMetaCacheReady()) setReady(true);
+    if (isSiteMetaCacheReady()) {
+      setReady(true);
+    }
     const unsubReady = subscribeSiteMetaReady(() => setReady(true));
     return unsubReady;
   }, []);
@@ -31,7 +34,9 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   useEffect(() => {
     setFaviconUrl(url ? getFaviconUrl(url) : '');
     setDegraded(false);
-    if (!url) return;
+    if (!url) {
+      return;
+    }
     const unsubMeta = subscribeSiteMeta(url, () => {
       setFaviconUrl(getFaviconUrl(url));
       setDegraded(false);
@@ -42,24 +47,25 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
         setDegraded(false);
       }
     });
-    return () => { unsubMeta(); unsubUpdated(); };
+    return () => {
+      unsubMeta();
+      unsubUpdated();
+    };
   }, [url, ready]);
 
   // 未命中/未就绪：显示占位图标（非空白）
   const current = faviconUrl;
   const showImg = Boolean(current) && !degraded;
-  const handleError = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    // 本次降级显示：先切 Google S2；再失败则置 degraded（显示内置图标）。绝不删缓存
-    const img = e.target as HTMLImageElement;
-    if (!img.src.includes('google.com/s2/favicons')) {
-      const fallback = getGoogleFaviconUrl(url);
-      if (fallback) { img.src = fallback; return; }
-    }
+  const handleError = useCallback(() => {
+    // 真实图标加载失败 → 直接降级为内置占位图标（Fix D：不再重试 Google S2）。
+    // 绝不删除缓存：后续广播更新会重置 degraded 并尝试新图标。
     setDegraded(true);
-  }, [url]);
+  }, []);
 
   return (
-    <span className={`adl-filetree__file-icon ${showImg ? 'adl-filetree__file-icon--favicon' : 'adl-filetree__file-icon--default'}`}>
+    <span
+      className={`adl-filetree__file-icon ${showImg ? 'adl-filetree__file-icon--favicon' : 'adl-filetree__file-icon--default'}`}
+    >
       {showImg && (
         <img
           src={current}
@@ -69,7 +75,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
           onError={handleError}
         />
       )}
-      <IconLink
+      <IconWorld
         size={size}
         decorative
         className="adl-browser-tree__link-fallback"

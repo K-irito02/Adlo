@@ -368,15 +368,27 @@ export function createPreviewPageMetaService(
     } else {
       markFailure(key);
     }
-    // 与 Rust get 抓取路径同构：source 反映缓存条目的真实 title_source
-    // （成功写后为 http；失败保留既有 com 权威条目则返回 com）。
-    const entry = memory.get(key);
+    // 与 Rust get 抓取路径同构（RC3）：统一返回缓存条目的合并值 —— 抓取失败时
+    // 避免把空结果经路由/广播清空前端镜像（真实图标来回切换）；成功时返回
+    // writeSuccess 合并后的权威值（含质量门控保留的既有图标）。
+    // source 反映缓存条目的真实 title_source（成功写后为 http；失败保留既有 com
+    // 权威条目则返回 com）。
+    const entry = memory.get(key) ?? {
+      title: '',
+      titleSource: '',
+      faviconUrl: '',
+      faviconDataUri: '',
+      fetchedAt: now,
+      lastOkAt: 0,
+      nextRetryAt: now,
+      failCount: 0,
+    };
     return {
-      title: meta.title ?? '',
-      favicon: meta.favicon ?? '',
-      faviconDataUri: meta.faviconDataUri ?? '',
+      title: entry.title,
+      favicon: entry.faviconUrl,
+      faviconDataUri: entry.faviconDataUri,
       url: key,
-      source: (entry?.titleSource as MetaSource | undefined) || 'http',
+      source: (entry.titleSource as MetaSource | undefined) || 'http',
     };
   }
 
@@ -384,11 +396,16 @@ export function createPreviewPageMetaService(
     await preloadPromise;
     const key = normalizeCacheKey(url);
     const now = Date.now();
-    // TTL 短路：内存命中且未过期直接返回缓存，不发起抓取；force 绕过。
+    // TTL 短路 + 退避短路（RC4）：内存命中且未过期 / 未到退避期直接返回缓存，
+    // 不发起抓取；force 绕过（避免失败域名被后续 get/warmup 反复重抓、限速放大）。
     if (!force) {
       const entry = memory.get(key);
-      if (entry && entry.lastOkAt > 0 && now - entry.lastOkAt < META_TTL_MS) {
-        return toPageMeta(entry);
+      if (entry) {
+        const ttlHit = entry.lastOkAt > 0 && now - entry.lastOkAt < META_TTL_MS;
+        const backedOff = entry.lastOkAt === 0 && now < entry.nextRetryAt;
+        if (ttlHit || backedOff) {
+          return toPageMeta(entry);
+        }
       }
     }
     const existing = inFlight.get(key);

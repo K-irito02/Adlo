@@ -260,6 +260,67 @@ describe('siteMetaCache memory layer', () => {
     expect(fired).toBe(1);
   });
 
+  it('applyBroadcastUpdate merge guard: empty broadcast does not clear good mirror (RC3)', async () => {
+    const mod = await import('./siteMetaCache');
+    mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
+    await mod.initSiteMetaCache();
+    // 先写入真实镜像数据（等价于之前成功广播/抓取落地的缓存）
+    mod.applyBroadcastUpdate({
+      url: 'https://c.com/',
+      title: 'C',
+      faviconUrl: 'https://c.com/favicon.ico',
+      faviconDataUri: 'data:image/png;base64,CC',
+      source: 'http',
+    });
+    let fired = 0;
+    mod.subscribeSiteMeta('https://c.com', () => {
+      fired++;
+    });
+    // 空广播（抓取失败/被限速/robots 拦截）→ 不得清空镜像
+    mod.applyBroadcastUpdate({ url: 'https://c.com/', title: '', faviconUrl: '', faviconDataUri: '', source: 'http' });
+    const entry = mod.getCachedSiteMeta('https://c.com')!;
+    expect(entry.title).toBe('C');
+    expect(entry.faviconUrl).toBe('https://c.com/favicon.ico');
+    expect(entry.faviconDataUri).toBe('data:image/png;base64,CC');
+    expect(fired).toBe(1);
+  });
+
+  it('applyBroadcastUpdate merge guard: partial broadcast keeps favicon only when url unchanged', async () => {
+    const mod = await import('./siteMetaCache');
+    mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
+    await mod.initSiteMetaCache();
+    mod.applyBroadcastUpdate({
+      url: 'https://d.com/',
+      title: 'D',
+      faviconUrl: 'https://d.com/favicon.ico',
+      faviconDataUri: 'data:image/png;base64,DD',
+      source: 'http',
+    });
+    // 新广播带新标题但同 URL、无 dataUri（下载失败）→ 保留既有 dataUri（避免闪烁）
+    mod.applyBroadcastUpdate({
+      url: 'https://d.com/',
+      title: 'D2',
+      faviconUrl: 'https://d.com/favicon.ico',
+      faviconDataUri: '',
+      source: 'http',
+    });
+    let entry = mod.getCachedSiteMeta('https://d.com')!;
+    expect(entry.title).toBe('D2');
+    expect(entry.faviconUrl).toBe('https://d.com/favicon.ico');
+    expect(entry.faviconDataUri).toBe('data:image/png;base64,DD');
+    // favicon URL 变更但 dataUri 缺失 → 丢弃陈旧 dataUri（避免旧站点图标配新 URL）
+    mod.applyBroadcastUpdate({
+      url: 'https://d.com/',
+      title: 'D3',
+      faviconUrl: 'https://d.com/new.ico',
+      faviconDataUri: '',
+      source: 'http',
+    });
+    entry = mod.getCachedSiteMeta('https://d.com')!;
+    expect(entry.faviconUrl).toBe('https://d.com/new.ico');
+    expect(entry.faviconDataUri).toBe('');
+  });
+
   it('setCachedSiteMeta/removeCachedSiteMeta do not persist to backend (write path removed)', async () => {
     const mod = await import('./siteMetaCache');
     const backend: SiteMetaBackend = mod.createMockSiteMetaBackend();

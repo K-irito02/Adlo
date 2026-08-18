@@ -8,10 +8,7 @@ use crate::commands::ipc;
 use crate::error::CommandError;
 use crate::state::AppState;
 use crate::webview_event_bridge::TauriWebView2EventBridge;
-use adl_browser::html_meta::{
-    duckduckgo_favicon_url, extract_favicon, extract_title, google_favicon_url,
-    origin_favicon_fallback,
-};
+use adl_browser::html_meta::{extract_favicon, extract_title, origin_favicon_fallback};
 use adl_browser::robots_policy::{DomainRateLimiter, RobotsCache, domain_of, is_private_url};
 use adl_browser::robots_txt::parse_robots_txt;
 use adl_browser::webview_handle::{Bounds, EventBridgeRef};
@@ -197,13 +194,13 @@ impl PageMetaFetcher for AppFetcher {
     fn fetch(
         &self,
         url: &str,
-        force: bool,
+        _force: bool,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>> {
         // 借用无法跨 trait 返回的生命周期逃逸（返回值绑定在 &self 上），
         // 故 future 持有 owned 拷贝，避免借用 url: &str。
         let url = url.to_string();
         Box::pin(async move {
-            fetch_page_meta_inner(&url, force).await.unwrap_or_else(|_| empty_page_meta(&url))
+            fetch_page_meta_inner(&url).await.unwrap_or_else(|_| empty_page_meta(&url))
         })
     }
 }
@@ -366,20 +363,6 @@ const USER_AGENT: &str = "AIDigitalLife/1.0 (+https://github.com/K-irito02/Kora;
 const BOT_PRODUCT_TOKEN: &str = "AIDigitalLife";
 
 use std::collections::HashMap;
-use std::sync::Mutex;
-use std::time::Instant;
-
-fn with_fetch_cache<F, R>(f: F) -> R
-where
-    F: FnOnce(&mut HashMap<String, Instant>) -> R,
-{
-    static CACHE: std::sync::OnceLock<Mutex<HashMap<String, Instant>>> = std::sync::OnceLock::new();
-    let mutex = CACHE.get_or_init(|| Mutex::new(HashMap::new()));
-    let mut guard = mutex.lock().unwrap_or_else(|e| e.into_inner());
-    f(&mut guard)
-}
-
-const FETCH_DEDUP_WINDOW_MS: u64 = 3000;
 
 const RATE_LIMIT_WINDOW: std::time::Duration = std::time::Duration::from_secs(5);
 
@@ -507,35 +490,7 @@ fn to_data_uri(bytes: &[u8], content_type: &str) -> String {
     format!("data:{content_type};base64,{}", STANDARD.encode(bytes))
 }
 
-async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, AppError> {
-    if !skip_dedup {
-        let is_dupe = with_fetch_cache(|cache| {
-            let now = Instant::now();
-            match cache.get(url) {
-                Some(last)
-                    if now.duration_since(*last)
-                        < std::time::Duration::from_millis(FETCH_DEDUP_WINDOW_MS) =>
-                {
-                    true
-                },
-                _ => {
-                    cache.insert(url.to_string(), now);
-                    false
-                },
-            }
-        });
-        if is_dupe {
-            tracing::info!(url = %url, "fetch_page_meta_inner: skipped (dedup within {}ms)", FETCH_DEDUP_WINDOW_MS);
-            return Ok(PageMeta {
-                title: String::new(),
-                favicon: String::new(),
-                url: url.to_string(),
-                favicon_data_uri: String::new(),
-                source: String::new(),
-            });
-        }
-    }
-
+async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
     tracing::info!(url = %url, "fetch_page_meta_inner: start");
 
     if !url.starts_with("http://") && !url.starts_with("https://") {
@@ -605,12 +560,12 @@ async fn fetch_page_meta_inner(url: &str, skip_dedup: bool) -> Result<PageMeta, 
         .take(200)
         .collect::<String>();
 
+    // 仅接受页面真实声明或 origin 惯例兜底（RC5）：不再使用 DDG/Google 代理图标服务
+    // —— 它们对无收录域名返回默认地球图标，且在国内被墙/不稳定，误存后还会被
+    // should_replace_favicon 当权威图标锁死，导致"与真实 favicon 不一致"。
     let final_favicon = match favicon.or_else(|| Some(origin_favicon_fallback(url))) {
         Some(f) if !f.is_empty() => f,
-        _ => {
-            let ddg = duckduckgo_favicon_url(url);
-            if ddg.is_empty() { google_favicon_url(url) } else { ddg }
-        },
+        _ => String::new(),
     };
 
     let favicon_data_uri = if final_favicon.is_empty() {
@@ -744,15 +699,6 @@ mod robots_gate_tests {
 #[cfg(test)]
 mod page_meta_service_cmd_tests {
     use super::*;
-    use adl_browser::html_meta::duckduckgo_favicon_url;
-
-    #[test]
-    fn fallback_chain_orders_ddg_before_google() {
-        let url = "https://example.com/page";
-        let ddg = duckduckgo_favicon_url(url);
-        assert!(ddg.contains("icons.duckduckgo.com/ip3/example.com.png"));
-        assert!(ddg < google_favicon_url(url), "DDG 必须在回退链中先于 Google S2");
-    }
 
     #[test]
     fn report_merge_keeps_http_title_over_com() {

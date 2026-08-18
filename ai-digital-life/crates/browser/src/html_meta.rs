@@ -226,45 +226,17 @@ fn favicon_score(href: &str, rel: &str, sizes: &str) -> i32 {
     score
 }
 
-/// Build a Google S2 favicon URL for the given page URL. Returns an
-/// empty string for localhost / private addresses (no external
-/// favicon lookup for local dev servers).
-pub fn google_favicon_url(url: &str) -> String {
-    if let Ok(parsed) = Url::parse(url) {
-        if let Some(host) = parsed.host_str() {
-            if host == "localhost" || host.starts_with("127.") || host.starts_with("192.168.") {
-                return String::new();
-            }
-            return format!("https://www.google.com/s2/favicons?domain={host}&sz=64");
-        }
-    }
-    String::new()
-}
-
-/// DuckDuckGo favicon 服务：返回真实网站图标（比 Google S2 质量高）。
-/// 私网/本地地址返回空（与 `google_favicon_url` 一致）。
-pub fn duckduckgo_favicon_url(url: &str) -> String {
-    if let Ok(parsed) = Url::parse(url) {
-        if let Some(host) = parsed.host_str() {
-            if host == "localhost" || host.starts_with("127.") || host.starts_with("192.168.") {
-                return String::new();
-            }
-            return format!("https://icons.duckduckgo.com/ip3/{host}.png");
-        }
-    }
-    String::new()
-}
-
 /// Fallback to `{origin}/favicon.ico` when no favicon link was found
-/// in the HTML. Falls back further to `google_favicon_url` if the
-/// URL cannot be parsed.
+/// in the HTML. Returns an empty string when the URL cannot be parsed
+/// (no external proxy fallback — proxy services are unreliable and are
+/// not treated as authoritative favicon sources).
 pub fn origin_favicon_fallback(url: &str) -> String {
     if let Ok(parsed) = Url::parse(url) {
         let origin = parsed.origin().ascii_serialization();
         let ico_url = format!("{origin}/favicon.ico");
         return ico_url;
     }
-    google_favicon_url(url)
+    String::new()
 }
 
 #[cfg(test)]
@@ -362,42 +334,13 @@ mod tests {
     }
 
     #[test]
-    fn google_favicon_url_returns_empty_for_localhost() {
-        assert_eq!(google_favicon_url("http://localhost:3000"), "");
-        assert_eq!(google_favicon_url("http://127.0.0.1:3000"), "");
-        assert_eq!(google_favicon_url("http://192.168.1.1"), "");
-    }
-
-    #[test]
-    fn google_favicon_url_returns_s2_for_public_host() {
-        let result = google_favicon_url("https://example.com/page");
-        assert_eq!(result, "https://www.google.com/s2/favicons?domain=example.com&sz=64");
-    }
-
-    #[test]
-    fn google_favicon_url_returns_empty_for_invalid_url() {
-        assert_eq!(google_favicon_url("not-a-url"), "");
-    }
-
-    #[test]
-    fn duckduckgo_favicon_url_builds_and_skips_private() {
-        assert_eq!(
-            duckduckgo_favicon_url("https://example.com/page"),
-            "https://icons.duckduckgo.com/ip3/example.com.png"
-        );
-        assert_eq!(duckduckgo_favicon_url("http://localhost:3000/x"), "");
-        assert_eq!(duckduckgo_favicon_url("http://192.168.1.5/x"), "");
-        assert_eq!(duckduckgo_favicon_url("not-a-url"), "");
-    }
-
-    #[test]
     fn origin_favicon_fallback_returns_origin_ico() {
         let result = origin_favicon_fallback("https://example.com/page");
         assert_eq!(result, "https://example.com/favicon.ico");
     }
 
     #[test]
-    fn origin_favicon_fallback_falls_back_to_google_for_invalid_url() {
+    fn origin_favicon_fallback_returns_empty_for_invalid_url() {
         let result = origin_favicon_fallback("not-a-url");
         assert_eq!(result, "");
     }

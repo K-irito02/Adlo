@@ -127,37 +127,6 @@ function extractFavicon(html: string, origin: string): string {
 }
 
 /**
- * DuckDuckGo 图标服务 URL。私网/本地地址返回空（与 Rust
- * `html_meta.rs::duckduckgo_favicon_url` 的 localhost / 127.* / 192.168.* 豁免一致）。
- */
-function duckduckgoFaviconUrl(url: string): string {
-  try {
-    const host = new URL(url).hostname;
-    if (host === 'localhost' || host.startsWith('127.') || host.startsWith('192.168.')) {
-      return '';
-    }
-    return `https://icons.duckduckgo.com/ip3/${host}.png`;
-  } catch {
-    return '';
-  }
-}
-
-/**
- * Google S2 图标服务 URL（DDG 为空时的末级兜底，与 Rust `_` 分支同构）。
- */
-function googleFaviconUrl(url: string): string {
-  try {
-    const host = new URL(url).hostname;
-    if (host === 'localhost' || host.startsWith('127.') || host.startsWith('192.168.')) {
-      return '';
-    }
-    return `https://www.google.com/s2/favicons?domain=${host}&sz=64`;
-  } catch {
-    return '';
-  }
-}
-
-/**
  * 下载 favicon 字节并转 data URI：≤64KB、content-type 以 image/ 开头
  * （与 Rust `download_favicon_data_uri` 及 vite 中间件既有约束一致）。
  */
@@ -223,10 +192,8 @@ export async function fetchPageMetaOnce(url: string): Promise<PageMeta> {
     if (!favicon) {
       favicon = `${origin}/favicon.ico`;
     }
-    if (!favicon) {
-      const ddg = duckduckgoFaviconUrl(url);
-      favicon = ddg || googleFaviconUrl(url);
-    }
+    // Fix C：不再回退 DDG / Google S2 代理图标（对无收录域名返回默认地球图标、
+    // 且被墙/不稳定），仅接受页面真实声明或 origin 惯例兜底。
 
     let faviconDataUri = '';
     if (
