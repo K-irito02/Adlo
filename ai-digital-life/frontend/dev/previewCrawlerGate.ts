@@ -11,7 +11,7 @@ export interface PageMetaGateOptions {
   /**
    * 是否对公有域名应用单例限速器。默认 true。
    * favicon 门控必须传 false —— 预览模式爬虫对 favicon 仅做
-   * `robots_allow_fetch` 门控、不参与限速，否则 HTML 门控
+   * `robotsAllowFetch` 门控、不参与限速，否则 HTML 门控
    * 刚为同一域名扣减过令牌，紧随其后的同源 favicon 会被确定性限速击穿。
    */
   rateLimit?: boolean;

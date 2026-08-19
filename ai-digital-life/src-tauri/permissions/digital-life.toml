@@ -32,6 +32,8 @@ commands.allow = [
   "browser_clear_cache",
   "browser_site_meta_get_all",
   "browser_site_meta_clear",
+  "browser_site_meta_upsert",
+  "browser_site_meta_remove",
   "browser_page_meta_get",
   "browser_page_meta_get_silent",
   "browser_page_meta_report",

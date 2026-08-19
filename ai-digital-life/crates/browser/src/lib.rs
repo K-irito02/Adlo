@@ -5,7 +5,6 @@ mod browser_meta;
 mod browser_navigation;
 mod browser_pool;
 mod browser_webview;
-pub mod html_meta;
 mod meta_cache_bridge;
 mod meta_merge;
 mod page_meta_service;
@@ -26,16 +25,13 @@ pub use browser_meta::PageMeta;
 pub use browser_navigation::{INIT_SCRIPT, init_script_with_background, resolve_url};
 pub use browser_pool::BrowserPool;
 pub use browser_webview::{BROWSER_WEBVIEW_LABEL, BrowserManager, webview_label};
-pub use html_meta::{extract_favicon, extract_title, html_entity_decode, origin_favicon_fallback};
 pub use meta_cache_bridge::CachedMetaBridge;
 pub use meta_merge::{
     META_SOURCE_COM, META_SOURCE_GOOGLE, META_SOURCE_HTTP, META_SOURCE_IFRAME,
     existing_favicon_baseline, get_favicon_quality_score, is_framework_default_favicon,
     is_placeholder_title, is_unsafe_title, should_apply_exact_match_title, should_replace_favicon,
 };
-pub use page_meta_service::{
-    META_TTL_MS, PageMetaFetcher, PageMetaService, RETRY_BASE_MS, RETRY_MAX_MS,
-};
+pub use page_meta_service::PageMetaService;
 pub use site_meta_cache::{SiteMetaCacheEntry, SiteMetaCacheStore, normalize_cache_key};
 pub use webview_handle::{Bounds, EventBridgeRef, WebView2EventBridge, WebViewHandle};
 pub use webview2_audio::{mute_tab, setup_audio_changed_handler};

@@ -1,6 +1,6 @@
 /**
  * robots.txt 解析与匹配（RFC 9309 子集）——纯函数，无 I/O。
- * 与 Rust `crates/browser/src/robots_txt.rs` 语义一一对应。
+ * 仅预览端本地抓取路径使用（桌面端静默 WebView2 渲染不经过 robots 门控）。
  */
 
 export interface RobotsGroup {
@@ -29,7 +29,8 @@ export function parseRobotsTxt(raw: string): RobotsRules {
     const field = line.slice(0, colonIdx).trim().toLowerCase();
     const value = line.slice(colonIdx + 1).trim();
     if (field === 'user-agent') {
-      const hasRules = current !== null && (current.allow.length > 0 || current.disallow.length > 0);
+      const hasRules =
+        current !== null && (current.allow.length > 0 || current.disallow.length > 0);
       if (hasRules) {
         groups.push(current!);
         current = null;
@@ -57,8 +58,12 @@ export function isAllowed(rules: RobotsRules, userAgent: string, path: string): 
     rules.groups.find((g) => g.userAgents.some((ua) => ua === '*'));
   if (!group) return true;
   const p = path.length ? path : '/';
-  const allowLen = group.allow.map((pat) => longestMatch(pat, p)).filter((n): n is number => n !== null);
-  const disallowLen = group.disallow.map((pat) => longestMatch(pat, p)).filter((n): n is number => n !== null);
+  const allowLen = group.allow
+    .map((pat) => longestMatch(pat, p))
+    .filter((n): n is number => n !== null);
+  const disallowLen = group.disallow
+    .map((pat) => longestMatch(pat, p))
+    .filter((n): n is number => n !== null);
   const aMax = allowLen.length ? Math.max(...allowLen) : null;
   const dMax = disallowLen.length ? Math.max(...disallowLen) : null;
   if (aMax === null && dMax === null) return true;

@@ -207,6 +207,15 @@ pub fn create_silent_webview(
 /// 静默标签页抓取超时（毫秒），与前端 bookMarkMeta 体验对齐。
 pub const SILENT_FETCH_TIMEOUT_MS: u64 = 6000;
 
+/// 后台 favicon 字节下载并发上限：warmup 至多 200 路静默抓取各自触发一次下载，
+/// 无上限会对 CDN/远端打满连接（M2 移入后台任务后新引入的并发面）。
+static FAVICON_DOWNLOAD_SEM: std::sync::OnceLock<std::sync::Arc<tokio::sync::Semaphore>> =
+    std::sync::OnceLock::new();
+
+fn favicon_download_semaphore() -> std::sync::Arc<tokio::sync::Semaphore> {
+    FAVICON_DOWNLOAD_SEM.get_or_init(|| std::sync::Arc::new(tokio::sync::Semaphore::new(8))).clone()
+}
+
 /// 缓存命中判定：缓存条目含有效标题（非空且过 unsafe/placeholder 检查）或非空
 /// favicon 视为有效缓存 → 可直接返回（零 WebView 创建）。
 fn silent_cache_hit(e: &SiteMetaCacheEntry, url: &str) -> bool {
@@ -239,13 +248,26 @@ fn page_meta_from_entry(e: SiteMetaCacheEntry, url: &str) -> PageMeta {
 }
 
 /// 从缓存条目返回"已得部分"元数据；无任何有效元数据则回退 `empty_page_meta`。
-fn best_silent_meta(svc: &PageMetaService, url: &str) -> PageMeta {
-    match svc.peek(url) {
-        Some(e) if silent_title_ok(&e.title, url) || !e.favicon_url.is_empty() => {
-            page_meta_from_entry(e, url)
-        },
-        _ => empty_page_meta(url),
+///
+/// `reported`：静默 WebView2 实际上报的 URL（`sender.Source()`，重定向后与请求 URL
+/// 不同）。条目经 `svc.report` 存于上报键下，故优先探测上报键；请求键作回退
+/// （L1：重定向站点此前收敛判定/读取用请求键落空 → 空转 6s 后返回空 meta）。
+fn best_silent_meta(svc: &PageMetaService, url: &str, reported: Option<&str>) -> PageMeta {
+    let mut keys = Vec::with_capacity(2);
+    if let Some(r) = reported {
+        if !r.is_empty() && r != url {
+            keys.push(r);
+        }
     }
+    keys.push(url);
+    for key in keys {
+        if let Some(e) = svc.peek(key) {
+            if silent_title_ok(&e.title, key) || !e.favicon_url.is_empty() {
+                return page_meta_from_entry(e, key);
+            }
+        }
+    }
+    empty_page_meta(url)
 }
 
 /// 轮询参数（可注入以便单测用短时长加速驱动时序分支）。
@@ -283,7 +305,8 @@ async fn wait_for_silent_meta(
 
     match result {
         Ok(meta) => meta,
-        Err(_elapsed) => best_silent_meta(svc, url),
+        // 总体超时：poll 内部无有效上报到达（channel 全程静默），双键探测兜底。
+        Err(_elapsed) => best_silent_meta(svc, url, None),
     }
 }
 
@@ -297,6 +320,10 @@ async fn poll_silent_meta(
     let round = std::time::Duration::from_millis(d.round_ms);
     let partial_threshold = std::time::Duration::from_millis(d.partial_ms);
     let mut first_meta_at: Option<std::time::Instant> = None;
+    // 最近一次实际上报的 URL（`sender.Source()`）。重定向后与请求 URL 不同：
+    // `svc.report` 把条目存于上报键下，收敛判定/部分返回/最终读取都必须用它
+    // （L1：此前用请求键 peek 落空 → 空转直到 6s 总体超时后返回空 meta）。
+    let mut last_reported: Option<String> = None;
     loop {
         let recv = tokio::time::timeout(round, rx.recv()).await;
         match recv {
@@ -313,11 +340,14 @@ async fn poll_silent_meta(
                 if let Err(e) = svc.report(&u, &title, &fav, META_SOURCE_COM).await {
                     tracing::warn!(url = %u, error = %e, "wait_for_silent_meta: report failed");
                 }
-                if let Some(entry) = svc.peek(url) {
-                    let title_ok = silent_title_ok(&entry.title, url);
+                last_reported = Some(u.clone());
+                let peek_key = last_reported.as_deref().unwrap_or(url);
+                if let Some(entry) = svc.peek(peek_key) {
+                    let title_ok = silent_title_ok(&entry.title, peek_key);
                     let fav_present = !entry.favicon_url.is_empty();
                     tracing::debug!(
                         req_url = %url,
+                        peek_key = %peek_key,
                         stored_title = %entry.title,
                         stored_favicon = %entry.favicon_url,
                         stored_favicon_len = entry.favicon_url.len(),
@@ -326,12 +356,13 @@ async fn poll_silent_meta(
                         converged = title_ok && fav_present,
                         "wait_for_silent_meta: cache state after report"
                     );
-                    if silent_converged(&entry.title, url, &entry.favicon_url) {
+                    if silent_converged(&entry.title, peek_key, &entry.favicon_url) {
                         tracing::debug!(
                             req_url = %url,
+                            peek_key = %peek_key,
                             "wait_for_silent_meta: CONVERGED → return early"
                         );
-                        return page_meta_from_entry(entry, url);
+                        return page_meta_from_entry(entry, peek_key);
                     }
                     if title_ok || fav_present {
                         first_meta_at.get_or_insert_with(std::time::Instant::now);
@@ -342,17 +373,17 @@ async fn poll_silent_meta(
                         req_url = %url,
                         "wait_for_silent_meta: partial threshold reached → return partial"
                     );
-                    return best_silent_meta(svc, url);
+                    return best_silent_meta(svc, url, last_reported.as_deref());
                 }
             },
-            Ok(None) => return best_silent_meta(svc, url), // channel 已关闭
+            Ok(None) => return best_silent_meta(svc, url, last_reported.as_deref()), // channel 已关闭
             // 单轮无数据收包：
             // - 若早已记录部分元数据且等待已到 `partial_ms` → 立即提前返回部分结果，
             //   而非继续空转直到外层 6s 总体超时（修复前行为）。
             // - 否则继续轮询等待（后续消息或总体超时兜底）。
             Err(_elapsed) => {
                 if first_meta_at.is_some_and(|st| st.elapsed() >= partial_threshold) {
-                    return best_silent_meta(svc, url);
+                    return best_silent_meta(svc, url, last_reported.as_deref());
                 }
             },
         }
@@ -411,49 +442,85 @@ async fn fetch_silent_meta(
     .await
     .map_err(|e| AppError::Internal(format!("silent webview join: {e}")))??;
 
-    let mut page_meta =
+    let page_meta =
         wait_for_silent_meta(&mut rx, state.browser_manager.page_meta_service(), url).await;
 
-    // 静默路径补全 data-URI：WebView2 只给出 favicon URL，若前端直接跨域 <img> 加载
-    // 会命中 CDN 防盗链（bilibili/runoob 等），导致渲染回退到兜底图标。因此以页面
-    // 自身为 Referer 下载 favicon 字节内嵌为 data-URI，使渲染不受跨域/防盗链影响。
+    destroy_silent_webview(&app, &tab_id);
+
+    // 静默路径补全 data-URI（M2）：WebView2 只给出 favicon URL，若前端直接跨域 <img>
+    // 加载会命中 CDN 防盗链（bilibili/runoob 等），导致渲染回退到兜底图标。以页面自身
+    // 为 Referer 下载 favicon 字节内嵌为 data-URI，使渲染不受跨域/防盗链影响。
+    // 下载移入后台任务：命令先行返回（≤6s 抓取窗口），favicon 字节下载（至多 ~10s）
+    // 不再阻塞调用方；完成后持久化 + emit 广播，前端镜像自愈。
     if !page_meta.favicon.is_empty() && page_meta.favicon_data_uri.is_empty() {
         let favicon_url = page_meta.favicon.clone();
-        let page_url = url.to_string();
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(10))
-            .user_agent(USER_AGENT)
-            .redirect(reqwest::redirect::Policy::limited(10))
-            .build()
-            .map_err(|e| AppError::Internal(format!("failed to build http client: {e}")))?;
-        // 仅对公有/合法 http(s) CDN 尝试，避免向不可达地址阻塞太久（内部自带超时）。
-        let data_uri = download_favicon_data_uri(&client, &favicon_url, Some(&page_url)).await;
-        tracing::info!(
-            req_url = %url,
-            favicon_len = favicon_url.len(),
-            data_uri_len = data_uri.len(),
-            has_data_uri = !data_uri.is_empty(),
-            "fetch_silent_meta: favicon data-URI resolved"
-        );
-        if !data_uri.is_empty() {
-            page_meta.favicon_data_uri = data_uri;
-            // 持久化回后端缓存：静默路径 data-URI 只广播到前端内存镜像，不落 store 会在
-            // 重启后丢失 → 防盗链站点（bilibili/runoob）回退兜底。这里回填磁盘缓存闭环。
-            if let Err(e) = state
-                .browser_manager
-                .page_meta_service()
-                .update_favicon_data_uri(url, &page_meta.favicon_data_uri)
-            {
-                tracing::warn!(
-                    req_url = %url,
-                    error = %e,
-                    "fetch_silent_meta: persist favicon data-URI failed"
-                );
+        // L1：条目经 report 存于实际最终 URL（重定向后 ≠ 请求 URL），data-URI 必须以
+        // page_meta.url（= 实际缓存键）回填，否则 update_favicon_data_uri 写入空键丢失。
+        let cache_key = page_meta.url.clone();
+        let req_url_owned = url.to_string();
+        let svc = state.browser_manager.page_meta_service().clone();
+        let app = app.clone();
+        tokio::spawn(async move {
+            // 并发上限：同一 URL 多次重叠抓取/大批量 warmup 时限制并发 HTTP 下载。
+            let Ok(_permit) = favicon_download_semaphore().acquire_owned().await else {
+                return;
+            };
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(10))
+                .user_agent(USER_AGENT)
+                .redirect(reqwest::redirect::Policy::limited(10))
+                .build();
+            let Ok(client) = client else {
+                tracing::warn!(favicon_url = %favicon_url, "fetch_silent_meta: http client build failed");
+                return;
+            };
+            // 仅对公有/合法 http(s) CDN 尝试，避免向不可达地址阻塞太久（内部自带超时）。
+            let data_uri = download_favicon_data_uri(&client, &favicon_url, Some(&cache_key)).await;
+            if data_uri.is_empty() {
+                return;
             }
-        }
+            // 竞态守卫：下载期间该 URL 可能被重新抓取且 favicon 已更换 → 陈旧下载的
+            // data-URI 不得配到新 favicon_url 上（否则被 should_replace_favicon 冻结）。
+            if svc.peek(&cache_key).is_some_and(|e| e.favicon_url != favicon_url) {
+                tracing::debug!(
+                    req_url = %req_url_owned,
+                    cache_key = %cache_key,
+                    "fetch_silent_meta: stale favicon download dropped (entry favicon changed)"
+                );
+                return;
+            }
+            match svc.update_favicon_data_uri(&cache_key, &data_uri) {
+                Ok(true) => {
+                    tracing::info!(
+                        req_url = %req_url_owned,
+                        cache_key = %cache_key,
+                        favicon_len = favicon_url.len(),
+                        data_uri_len = data_uri.len(),
+                        "fetch_silent_meta: favicon data-URI resolved & persisted (background)"
+                    );
+                    // 广播回填后的完整条目，前端镜像自愈（替换命令层先行的空 data-URI 事件）。
+                    if let Some(e) = svc.peek(&cache_key) {
+                        emit_page_meta_updated_raw(&app, &cache_key, &e, META_SOURCE_COM);
+                    }
+                },
+                Ok(false) => {
+                    tracing::debug!(
+                        req_url = %req_url_owned,
+                        cache_key = %cache_key,
+                        "fetch_silent_meta: no cache entry to backfill data-URI into"
+                    );
+                },
+                Err(e) => {
+                    tracing::warn!(
+                        req_url = %req_url_owned,
+                        cache_key = %cache_key,
+                        error = %e,
+                        "fetch_silent_meta: persist favicon data-URI failed"
+                    );
+                },
+            }
+        });
     }
-
-    destroy_silent_webview(&app, &tab_id);
 
     tracing::info!(
         req_url = %url,
@@ -585,8 +652,31 @@ pub fn browser_site_meta_get_all(
 pub fn browser_site_meta_clear(state: State<'_, AppState>) -> Result<IpcResult<()>, CommandError> {
     let store = state.browser_manager.site_meta_cache();
     let count = store.get_all().map(|m| m.len()).unwrap_or(0);
-    store.clear().map_err(CommandError::from)?;
+    // 经 PageMetaService::clear 清空：仅清 store 会留下会话内 peek 命中陈旧内存条目的窗口。
+    state.browser_manager.page_meta_service().clear().map_err(CommandError::from)?;
     tracing::info!(cleared = count, "browser_site_meta_clear: site meta cache cleared");
+    Ok(ipc(Ok(())))
+}
+
+#[tauri::command]
+pub fn browser_site_meta_upsert(
+    state: State<'_, AppState>,
+    entries: HashMap<String, adl_browser::SiteMetaCacheEntry>,
+) -> Result<IpcResult<()>, CommandError> {
+    let count = entries.len();
+    state.browser_manager.page_meta_service().upsert(&entries).map_err(CommandError::from)?;
+    tracing::info!(count, "browser_site_meta_upsert: site meta cache upserted");
+    Ok(ipc(Ok(())))
+}
+
+#[tauri::command]
+pub fn browser_site_meta_remove(
+    state: State<'_, AppState>,
+    urls: Vec<String>,
+) -> Result<IpcResult<()>, CommandError> {
+    let count = urls.len();
+    state.browser_manager.page_meta_service().remove(&urls).map_err(CommandError::from)?;
+    tracing::info!(count, "browser_site_meta_remove: site meta cache removed");
     Ok(ipc(Ok(())))
 }
 
@@ -1085,7 +1175,7 @@ mod page_meta_service_cmd_tests {
         ];
         // 客户端层传 3 个（含重复），仍可接受
         assert!(urls.len() <= 200);
-        // 去重逻辑在 PageMetaService::warmup 内部验证
+        // 去重逻辑在 browser_page_meta_warmup 命令内验证
     }
 }
 
@@ -1170,7 +1260,7 @@ mod silent_meta_tests {
     #[tokio::test]
     async fn best_silent_meta_falls_back_to_empty_when_no_cache() {
         let svc = empty_svc();
-        let meta = best_silent_meta(&svc, "https://nope.example/");
+        let meta = best_silent_meta(&svc, "https://nope.example/", None);
         assert!(meta.title.is_empty());
         assert!(meta.favicon.is_empty());
         assert_eq!(meta.url, "https://nope.example/");
@@ -1181,10 +1271,54 @@ mod silent_meta_tests {
         let svc = empty_svc();
         // 只上报标题（无 favicon）→ 部分元数据，来源应为 COM
         svc.report("https://a.example/", "标题", "", META_SOURCE_COM).await.unwrap();
-        let meta = best_silent_meta(&svc, "https://a.example/");
+        let meta = best_silent_meta(&svc, "https://a.example/", None);
         assert_eq!(meta.title, "标题");
         assert!(meta.favicon.is_empty());
         assert_eq!(meta.source, META_SOURCE_COM);
+    }
+
+    #[tokio::test]
+    async fn best_silent_meta_probes_reported_key_before_request_key() {
+        // L1：重定向后条目存于上报 URL（最终 URL）下；请求键/上报键均有条目时
+        // 必须优先返回上报键（探测顺序为上报键优先）。
+        let svc = empty_svc();
+        svc.report(
+            "https://final.example/page",
+            "重定向后标题",
+            "https://cdn.example/icon.ico",
+            META_SOURCE_COM,
+        )
+        .await
+        .unwrap();
+        // 请求键也存在条目（旧缓存或并发写入）→ 用于证明上报键被优先探测。
+        svc.report("https://request.example/", "请求键标题", "", META_SOURCE_COM).await.unwrap();
+        let meta =
+            best_silent_meta(&svc, "https://request.example/", Some("https://final.example/page"));
+        assert_eq!(meta.title, "重定向后标题", "上报键条目必须优先于请求键条目");
+        assert_eq!(meta.url, "https://final.example/page", "返回值应携带实际缓存键");
+    }
+
+    #[tokio::test]
+    async fn poll_converges_on_reported_url_after_redirect() {
+        // L1 回归：请求 URL 与上报 URL 不同（重定向）时，poll 必须用上报键收敛，
+        // 否则空转至总体超时后返回空 meta。
+        let svc = empty_svc();
+        let req_url = "https://request.example/";
+        let final_url = "https://final.example/page";
+        let (tx, mut rx) =
+            tokio::sync::mpsc::unbounded_channel::<(String, String, String, String)>();
+        // 上报键 = final_url（WebView2 sender.Source()），请求键 = req_url。
+        tx.send((
+            "tab".into(),
+            final_url.into(),
+            "重定向后标题".into(),
+            "https://cdn.example/icon.ico".into(),
+        ))
+        .unwrap();
+        drop(tx);
+        let meta = wait_for_silent_meta(&mut rx, &svc, req_url).await;
+        assert_eq!(meta.title, "重定向后标题", "重定向后应从上报键收敛而非返回空");
+        assert_eq!(meta.url, final_url);
     }
 
     #[tokio::test]

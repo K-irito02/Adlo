@@ -133,6 +133,8 @@ fn main() {
             commands::browser::browser_clear_cache,
             commands::browser::browser_site_meta_get_all,
             commands::browser::browser_site_meta_clear,
+            commands::browser::browser_site_meta_upsert,
+            commands::browser::browser_site_meta_remove,
             commands::browser::browser_page_meta_get,
             commands::browser::browser_page_meta_report,
             commands::browser::browser_page_meta_refresh,

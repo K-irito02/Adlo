@@ -7,8 +7,9 @@
  *   `<link rel=icon>` 解析 → `{origin}/favicon.ico` 惯例兜底）。本文件是
  *   预览模式专属实现，不再对应对应 Rust 函数（Tauri 侧爬虫已删除）。
  *
- * 解析语义与 `crates/browser/src/html_meta.rs`（`extract_title`/`extract_favicon`/
- * `origin_favicon_fallback`）对齐；私网豁免/限速语义与本地 `crawlerPolicy.ts` 对齐。
+ * 解析语义为本地 TS 独立实现（`extract_title`/`extract_favicon`/
+ * `origin_favicon_fallback` 同构语义；Rust 侧 `html_meta.rs` 已随 Tauri 爬虫
+ * 一并删除）；私网豁免/限速语义与本地 `crawlerPolicy.ts` 对齐。
  * DDG / Google S2 代理图标兜底已移除（Fix C/D）。
  *
  * 门控分工：HTML 级 robots/限速门控由调用方（vite.config.ts 中间件）先行执行
@@ -32,7 +33,7 @@ function emptyPageMeta(url: string): PageMeta {
   return { title: '', favicon: '', faviconDataUri: '', url };
 }
 
-/** 与 Rust `html_meta.rs::html_entity_decode` 同构的实体解码集。 */
+/** 与 Rust 已删除 `html_meta.rs` 同构的实体解码集（本地 TS 实现）。 */
 function htmlEntityDecode(s: string): string {
   return s
     .replace(/&amp;/g, '&')
@@ -45,8 +46,8 @@ function htmlEntityDecode(s: string): string {
     .replace(/&nbsp;/g, ' ');
 }
 
-/** 从 `<meta>` 标签片段中按属性名取值（双引号/单引号均可），与 Rust
- *  `extract_attr_value` 同构：在 tag 内查找 `attr="…"` 或 `attr='…'`。 */
+/** 从 `<meta>` 标签片段中按属性名取值（双引号/单引号均可）。本地 TS 独立实现，
+ * 与 Rust 侧已删除 `html_meta.rs::extract_attr_value` 同构语义。 */
 function metaContentOf(tag: string, attr: string): string {
   for (const marker of [`${attr}="`, `${attr}='`]) {
     const idx = tag.indexOf(marker);
@@ -63,8 +64,8 @@ function metaContentOf(tag: string, attr: string): string {
   return '';
 }
 
-/** 从 HTML 中按 property 值提取 `<meta>` 的 content（与 Rust `extract_meta_content`
- *  同构：property 匹配容忍空格与单/双引号，content 属性顺序不限）。 */
+/** 从 HTML 中按 property 值提取 `<meta>` 的 content。本地 TS 独立实现，与 Rust 侧
+ * 已删除 `html_meta.rs::extract_meta_content` 同构语义。 */
 function extractMetaContent(html: string, property: string): string {
   const lower = html.toLowerCase();
   const propLower = property.toLowerCase();
@@ -91,7 +92,7 @@ function extractMetaContent(html: string, property: string): string {
 
 /**
  * 提取页面标题：`<title>` 优先，其次 `<meta property="og:title">`。
- * 语义与 Rust `html_meta.rs::extract_title` 对齐：实体解码全集、
+ * 语义与 Rust 侧已删除 `html_meta.rs::extract_title` 同构：实体解码全集、
  * og:title 属性顺序/引号/空格鲁棒、标题截断 200 字符。
  */
 function extractTitle(html: string): string {
@@ -162,7 +163,7 @@ async function downloadFaviconDataUri(favicon: string): Promise<string> {
 
 /**
  * 抓取一次页面元数据（不缓存、不合并，纯抓取层）。
- * 预览模式专属 HTTP 爬虫，回退链与 `html_meta.rs` 一致：
+ * 预览模式专属 HTTP 爬虫，回退链与 Rust 侧已删除 `html_meta.rs` 同构：
  * `<link rel=icon>` → `{origin}/favicon.ico`，无代理兜底（Fix C）。
  * 任何失败返回空字段 PageMeta。
  */

@@ -434,10 +434,19 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
 pub fn start_background_tasks(state: &AppState) {
     let data_dir = state.data_dir.clone();
     let config_arc = state.config.clone();
+    let page_meta_svc = state.browser_manager.page_meta_service().clone();
 
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("failed to create background tokio runtime");
         rt.block_on(async move {
+            // Site-meta 缓存冷启动预载：将磁盘持久化条目载入内存，使
+            // browser_page_meta_get 的缓存优先 peek 在重启后立即命中，
+            // 避免每个 URL 首次访问都重复建一次静默 WebView。
+            tokio::spawn(async move {
+                if let Err(e) = page_meta_svc.preload().await {
+                    tracing::warn!(error = %e, "site-meta-cache preload failed");
+                }
+            });
             // ConfigWatcher hot-reloads config.json into the shell config.
             let initial_config = match config_arc.read() {
                 Ok(g) => (*g).clone(),

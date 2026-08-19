@@ -161,7 +161,7 @@ mod imp {
 mod imp {
     use tracing::debug;
 
-    pub fn setup_favicon_changed_handler() -> Result<(), String> {
+    pub fn setup_favicon_changed_handler(_tab_id: &str) -> Result<(), String> {
         debug!(
             "favicon changed handler not available on this platform (non-Windows), using fallback"
         );

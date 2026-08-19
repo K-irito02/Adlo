@@ -187,7 +187,7 @@ export function __mirrorUpsertForTest(url: string, entry: SiteMetaCacheEntry): v
  * 下次成功又恢复，导致图标在"兜底↔真实"之间来回切换。合并规则：
  * 空字段保留既有值；data-URI 优先保留广播新值，仅在广播 faviconUrl 变化
  * 且未携带新 data-URI 时丢弃既有 data-URI（避免新 URL 配上旧站点的陈旧
- * 图标）。与 Rust write_success 收敛：镜像 data-URI 非空 ⇒ 后端
+ * 图标）。与后端 `should_replace_favicon` 收敛：镜像 data-URI 非空 ⇒ 后端
  * `should_replace_favicon` 不会替换 faviconUrl ⇒ 广播 faviconUrl 实际不变
  * ⇒ 两分支在真实数据下结果一致。
  */

@@ -52,20 +52,6 @@ pub struct BrowserManager {
     page_meta_service: Arc<PageMetaService>,
 }
 
-impl Default for BrowserManager {
-    fn default() -> Self {
-        let store =
-            SiteMetaCacheStore::open(std::env::temp_dir().as_path()).expect("in-memory store open");
-        Self {
-            pool: BrowserPool::new(DEFAULT_POOL_SIZE),
-            handles: Mutex::new(HashMap::new()),
-            current_color_scheme: Mutex::new("dark".to_string()),
-            site_meta_cache: store.clone(),
-            page_meta_service: Arc::new(PageMetaService::new(store)),
-        }
-    }
-}
-
 impl BrowserManager {
     pub fn new(store: Arc<SiteMetaCacheStore>) -> Self {
         Self {
@@ -85,6 +71,7 @@ impl BrowserManager {
         &self.page_meta_service
     }
 
+    #[cfg(test)]
     pub fn set_site_meta_cache(&mut self, store: Arc<SiteMetaCacheStore>) {
         // 必须同时重建 page_meta_service，否则 service 仍指向旧 store，
         // 后续 get/report/preload 读写全部落到旧库（②）。

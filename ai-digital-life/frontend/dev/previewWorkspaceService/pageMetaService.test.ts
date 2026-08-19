@@ -13,7 +13,12 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     dir = await fs.mkdtemp(path.join(os.tmpdir(), 'adl-pms-'));
   });
 
-  const emptyMeta = (url: string): PageMeta => ({ title: '', favicon: '', faviconDataUri: '', url });
+  const emptyMeta = (url: string): PageMeta => ({
+    title: '',
+    favicon: '',
+    faviconDataUri: '',
+    url,
+  });
 
   /** HTML 级门控 stub：测试默认放行，避免真实 robots.txt 网络请求与单例限速器干扰。 */
   const allowGate = (): Promise<boolean> => Promise.resolve(true);
@@ -134,7 +139,7 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     expect(meta?.favicon).toBe('');
     expect(fetchSpy).not.toHaveBeenCalled();
 
-    // 空 PageMeta → 失败退避语义（与 Rust robots 拦截返回 empty_page_meta → mark_failure 一致）
+    // 空 PageMeta → 失败退避语义（预览保留的旧策略：失败不删缓存、记 failCount + nextRetryAt）
     const entry = svc.peek('https://blocked.example/');
     expect(entry?.failCount).toBe(1);
     expect(entry?.nextRetryAt).toBeGreaterThan(0);
@@ -255,7 +260,12 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     });
 
     await svc.report('https://a.com/', '真实标题', 'https://a.com/icon-256.png', 'http');
-    const changed = await svc.report('https://a.com/', '陈旧标题', 'https://a.com/favicon.ico', 'com');
+    const changed = await svc.report(
+      'https://a.com/',
+      '陈旧标题',
+      'https://a.com/favicon.ico',
+      'com',
+    );
 
     expect(changed).toBe(false);
     const e = svc.peek('https://a.com/');

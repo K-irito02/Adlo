@@ -2,9 +2,10 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { fetchPageMetaOnce } from './previewFetchPageMeta';
 
 /**
- * previewFetchPageMeta 与 `crates/browser/src/html_meta.rs` 的解析层对齐测试：
+ * previewFetchPageMeta 的解析层对齐测试：
  * 实体解码集 / og:title 提取鲁棒性 / 标题截断（200 字符）。
- * 预览模式专属爬虫，与 Tauri（静默 WebView2）方案相互独立。
+ * 预览模式专属爬虫（本地 TS 实现，与 Rust 已删除 `html_meta.rs` 同构语义），
+ * 与 Tauri（静默 WebView2）方案相互独立。
  */
 
 function stubFetch(html: string): void {
@@ -25,8 +26,8 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('previewFetchPageMeta (preview http-crawler, isomorphic to html_meta)', () => {
-  it('decodes full entity set (&#39; &#x2F; &nbsp;) like Rust html_entity_decode', async () => {
+describe('previewFetchPageMeta (preview http-crawler)', () => {
+  it('decodes full entity set (&#39; &#x2F; &nbsp;)', async () => {
     stubFetch('<html><head><title>IT&#39;s a&#x2F;b&nbsp;c</title></head></html>');
     const meta = await fetchPageMetaOnce('https://example.com/page');
     expect(meta.title).toBe("IT's a/b c");

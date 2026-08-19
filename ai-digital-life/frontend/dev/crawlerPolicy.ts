@@ -1,6 +1,6 @@
 /**
  * 爬虫策略：私网判定、robots 缓存、域名限速、robots 门控决策。
- * 与 Rust `crates/browser/src/robots_policy.rs` 语义一一对应。
+ * 仅预览端本地抓取路径使用（桌面端静默 WebView2 渲染不经过该策略）。
  * 供 `vite.config.ts` `/__adl_preview_api__/browser/page-meta` 中间件使用。
  */
 import { parseRobotsTxt, isAllowed, type RobotsRules } from './crawlerRobots';

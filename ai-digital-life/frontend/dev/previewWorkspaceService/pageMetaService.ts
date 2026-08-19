@@ -1,11 +1,14 @@
 /**
  * pageMetaService.ts —— 浏览器预览模式的 PageMeta 集中式服务层（JS 同构实现）。
  *
- * 语义真源：Rust `crates/browser/src/page_meta_service.rs`（缓存策略：TTL 7 天 /
- * 失败指数退避 5min×2^n≤2h / get 的 TTL 短路 / write_success 占位标题门控 /
- * mark_failure 失败不删缓存 / 单飞行）与 `crates/browser/src/meta_merge.rs`
- * （合并引擎：is_placeholder_title / should_apply_exact_match_title /
- * get_favicon_quality_score / should_replace_favicon）。
+ * 语义说明：预览模式刻意保留旧的"完整缓存策略"语义（TTL 7 天 /
+ * 失败指数退避 5min×2^n≤2h / get 的 TTL 短路 / 占位标题门控 /
+ * 失败不删缓存 / 单飞行）——Rust `crates/browser/src/page_meta_service.rs`
+ * 已简化为"仅缓存 + report 上报"实现（无 TTL/退避/单飞行），二者语义不一致
+ * 是刻意保留的预览行为，非 bug。合并引擎语义真源仍为
+ * `crates/browser/src/meta_merge.rs`（is_placeholder_title /
+ * should_apply_exact_match_title / get_favicon_quality_score /
+ * should_replace_favicon）。
  *
  * 职责：内存 Map + JSON 持久化（防抖 500ms）+ 本地 subscribeUpdated 广播 +
  * 单飞行合并。抓取默认委托 `previewFetchPageMeta.fetchPageMetaOnce`，
@@ -22,7 +25,7 @@ import { readSiteMetaCache, upsertSiteMetaCache } from './siteMetaCache';
 import type { SiteMetaCacheEntry } from './siteMetaCache';
 import type { MetaSource, PageMeta, PageMetaUpdatedPayload } from '../../src/shared/ipc/browser';
 
-// --- 常量（与 Rust page_meta_service.rs / meta_merge.rs 一致）---
+// --- 常量（合并引擎与 Rust meta_merge.rs 一致；缓存策略常量预览模式自持）---
 export const META_SOURCE_COM: MetaSource = 'com';
 export const META_SOURCE_HTTP: MetaSource = 'http';
 export const META_SOURCE_IFRAME: MetaSource = 'iframe';
@@ -310,7 +313,7 @@ export function createPreviewPageMetaService(
   }
 
   /**
-   * 成功写入（对应 Rust `write_success`）：占位标题门控保留权威标题、
+   * 成功写入（预览保留的旧 `write_success` 语义）：占位标题门控保留权威标题、
    * 图标质量门控、dataUri 不可被覆盖；lastOkAt/fetchedAt 刷新、退避清零。
    */
   function writeSuccess(key: string, meta: PageMeta, source: MetaSource, now: number): void {
@@ -471,7 +474,7 @@ export function createPreviewPageMetaService(
         tasks.push(key);
       }
     }
-    // 全部 retry_due URL 并发抓取（并发上限 WARMUP_CONCURRENCY），不再截断数量。
+    // 全部到期可重试 URL 并发抓取（并发上限 WARMUP_CONCURRENCY），不再截断数量。
     let index = 0;
     const workers = Array.from({ length: Math.min(WARMUP_CONCURRENCY, tasks.length) }, async () => {
       while (index < tasks.length) {

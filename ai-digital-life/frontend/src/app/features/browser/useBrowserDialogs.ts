@@ -119,7 +119,8 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           });
         } else {
           try {
-            // 移除 META_FETCH_TIMEOUT_MS：超时由后端静默 tab 自兜底（≤6s）
+            // 移除 META_FETCH_TIMEOUT_MS：命令先行返回（≤6s 抓取窗口），favicon 字节
+            // 下载已在后端移入后台任务，data-URI 经 page-meta-updated 广播自愈。
             const meta = await pageMetaClient.getSilent(url);
             const metaTitle = meta?.title?.trim() ?? '';
             const titleOk =
