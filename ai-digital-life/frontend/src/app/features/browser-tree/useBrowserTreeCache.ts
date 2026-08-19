@@ -100,7 +100,13 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
 
   const userFolderNodes = useMemo(
     () =>
-      buildUserFolderCategoryTree(browserTabFolders, browserTabs, browserBookmarks, tabIdToUrl, getCachedTitle),
+      buildUserFolderCategoryTree(
+        browserTabFolders,
+        browserTabs,
+        browserBookmarks,
+        tabIdToUrl,
+        getCachedTitle,
+      ),
     [browserTabFolders, browserTabs, browserBookmarks, tabIdToUrl, metaVersion],
   );
 

@@ -167,7 +167,11 @@ function buildFolderNode(
       );
       node.isSavedBookmark = true;
       // 使用文件夹级快照，保留收藏时的原始 URL/标题
-      const displayTitle = resolveDisplayTitle(snapshotTitle || tab.title || '', getMetaTitle(displayUrl), displayUrl);
+      const displayTitle = resolveDisplayTitle(
+        snapshotTitle || tab.title || '',
+        getMetaTitle(displayUrl),
+        displayUrl,
+      );
       node.name = normalizeTabTitle(displayTitle, displayUrl);
       node.url = displayUrl;
       // 收藏条目：仅在标签仍在收藏的 URL 上时才保留音频状态

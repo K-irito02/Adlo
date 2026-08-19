@@ -1,3 +1,5 @@
+use tracing::debug;
+
 use crate::webview_handle::WebView2EventBridge;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -18,6 +20,12 @@ impl WebView2EventBridge for CachedMetaBridge {
         if url.is_empty() || title.is_empty() {
             return;
         }
+        debug!(
+            url = url.chars().take(80).collect::<String>(),
+            title = title.chars().take(50).collect::<String>(),
+            favicon = favicon.chars().take(60).collect::<String>(),
+            "CachedMetaBridge: forwarding meta to silent fetch loop"
+        );
         if let Some(tx) = &self.tx {
             let _ = tx.send((
                 tab_id.to_string(),

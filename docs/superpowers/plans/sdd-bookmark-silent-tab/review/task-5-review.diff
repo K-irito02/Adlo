@@ -1,0 +1,195 @@
+commit 11be1b9f8755af113fb03af010c34a8f4973e929
+Author: Kora <Kirito3143285505@outlook.com>
+Date:   Tue Aug 18 23:53:41 2026 +0800
+
+    feat(frontend): cache→tab→silent three-step bookmark meta, drop 6s timer
+
+diff --git a/ai-digital-life/frontend/src/app/features/browser/useBrowserDialogs.ts b/ai-digital-life/frontend/src/app/features/browser/useBrowserDialogs.ts
+index 35048271..e407b3d3 100644
+--- a/ai-digital-life/frontend/src/app/features/browser/useBrowserDialogs.ts
++++ b/ai-digital-life/frontend/src/app/features/browser/useBrowserDialogs.ts
+@@ -7,13 +7,6 @@ import { hostnameFromUrl, isPlaceholderTitle, isUnsafeTitle } from '@utils/brows
+ import { pageMetaClient } from '@utils/pageMetaClient';
+ import type { ToastType } from '@components/Toast';
+ 
+-/**
+- * 新建书签（save-only / save-and-open 无自定义标题）时等待页面元数据的最大时限（ms）。
+- * 超时后先用宿主名占位保存书签，后台请求继续在服务端抓取并广播，收藏节点标题/图标随后刷新
+- * （resolveDisplayTitle 会消费缓存 metaTitle/BrowserFavicon 消费 faviconDataUri）。
+- */
+-const META_FETCH_TIMEOUT_MS = 6000;
+-
+ interface UseBrowserDialogsDeps {
+   browserOpenTab: (url: string, title?: string, workspaceId?: string, folderId?: string) => void;
+   browserUpdateTab: (tabId: string, updates: { title?: string; url?: string }) => void;
+@@ -86,7 +79,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
+       let title = name.trim();
+       if (!title) {
+         // 无自定义标题：解析页面元数据用于收藏标题。为缓解"正在获取页面信息…"慢，
+-        // 采用 cache-first + 有界超时 + 后台继续的策略（见 META_FETCH_TIMEOUT_MS）。
++        // 采用 cache-first + 静默渲染命令（超时由后端静默 tab 自兜底 ≤6s）。
+         setIsCreatingTab(true);
+         const requestStart = Date.now();
+         console.info('[bookmark-new-meta] start', { url });
+@@ -98,29 +91,25 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
+           console.info('[bookmark-new-meta] cache hit', { url, cachedTitle });
+         } else {
+           try {
+-            const meta = await Promise.race([
+-              pageMetaClient.get(url),
+-              new Promise<null>((resolve) =>
+-                setTimeout(() => resolve(null), META_FETCH_TIMEOUT_MS),
+-              ),
+-            ]);
++            // 移除 META_FETCH_TIMEOUT_MS：超时由后端静默 tab 自兜底（≤6s）
++            const meta = await pageMetaClient.getSilent(url);
+             const metaTitle = meta?.title?.trim() ?? '';
+             const titleOk =
+               Boolean(metaTitle) &&
+               !isUnsafeTitle(metaTitle) &&
+               !isPlaceholderTitle(metaTitle, url);
+-            console.info('[bookmark-new-meta] fetched', {
++            console.info('[bookmark-new-meta] silent fetched', {
+               url,
+               metaTitle,
+               titleOk,
+               hasFavicon: Boolean(meta?.faviconDataUri),
+               elapsedMs: Date.now() - requestStart,
+             });
+-            if (titleOk && (metaTitle || meta?.faviconDataUri)) {
++            if (titleOk && metaTitle) {
+               title = metaTitle;
+             }
+           } catch (err) {
+-            console.warn('[bookmark-new-meta] fetch failed', { url, err: String(err) });
++            console.warn('[bookmark-new-meta] silent fetch failed', { url, err: String(err) });
+           }
+           if (!title) {
+             // 抓取成功但元数据缺失/超时/失败 → 用宿主名占位先保存（后台请求继续刷新缓存）。
+diff --git a/ai-digital-life/frontend/src/app/utils/pageMetaClient.ts b/ai-digital-life/frontend/src/app/utils/pageMetaClient.ts
+index 339dec75..bdae50af 100644
+--- a/ai-digital-life/frontend/src/app/utils/pageMetaClient.ts
++++ b/ai-digital-life/frontend/src/app/utils/pageMetaClient.ts
+@@ -8,6 +8,7 @@ import { applyBroadcastUpdate, getCachedSiteMeta } from './siteMetaCache';
+ export interface PageMetaClient {
+   peek(url: string): SiteMetaCacheEntry | undefined;
+   get(url: string, opts?: { force?: boolean }): Promise<PageMeta | null>;
++  getSilent(url: string): Promise<PageMeta | null>;
+   report(meta: PageMeta, source: MetaSource): Promise<void>;
+   refresh(url: string): Promise<PageMeta | null>;
+   warmup(urls: string[]): Promise<void>;
+@@ -26,6 +27,10 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
+         });
+         return r.ok && r.data ? r.data : null;
+       },
++      getSilent: async (url) => {
++        const r = await invokeIpc<PageMeta>('browser_page_meta_get_silent', { url });
++        return r.ok && r.data ? r.data : null;
++      },
+       report: async (meta, source) => {
+         await invokeIpc<void>('browser_page_meta_report', {
+           url: meta.url,
+@@ -72,6 +77,13 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
+         });
+         return r.ok && r.data ? r.data : null;
+       },
++      getSilent: async (url) => {
++        const r = await requestPreviewApi<PageMeta>('/browser/page-meta/get', {
++          method: 'POST',
++          body: JSON.stringify({ url, force: false }),
++        });
++        return r.ok && r.data ? r.data : null;
++      },
+       report: async (meta, source) => {
+         await requestPreviewApi<void>('/browser/page-meta/report', {
+           method: 'POST',
+diff --git a/ai-digital-life/frontend/src/mock-bridge.ts b/ai-digital-life/frontend/src/mock-bridge.ts
+index 3903f7e2..82c608f9 100644
+--- a/ai-digital-life/frontend/src/mock-bridge.ts
++++ b/ai-digital-life/frontend/src/mock-bridge.ts
+@@ -190,12 +190,20 @@ function normalizeCacheKey(url: string): string {
+ 
+ /** 占位标题：空 / 等于 URL / http(s) 前缀 / 裸域名（与 useBrowserPageMeta / meta_merge 一致）。 */
+ function isPlaceholderTitle(title: string, url: string): boolean {
+-  if (!title) return true;
+-  if (title === url) return true;
+-  if (/^https?:\/\//i.test(title)) return true;
++  if (!title) {
++    return true;
++  }
++  if (title === url) {
++    return true;
++  }
++  if (/^https?:\/\//i.test(title)) {
++    return true;
++  }
+   try {
+     const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
+-    if (!host) return false;
++    if (!host) {
++      return false;
++    }
+     const t = title.trim().toLowerCase();
+     return t === host || t === `www.${host}`;
+   } catch {
+@@ -211,11 +219,21 @@ function shouldApplyExactMatchTitle(
+   source: MetaSource,
+   currentSource: MetaSource | undefined,
+ ): boolean {
+-  if (incomingTitle === '') return false;
+-  if (incomingTitle === currentTitle) return false;
+-  if (isPlaceholderTitle(incomingTitle, url)) return false;
+-  if (isPlaceholderTitle(currentTitle, url)) return true;
+-  if (source === 'http' || source === 'iframe') return true;
++  if (incomingTitle === '') {
++    return false;
++  }
++  if (incomingTitle === currentTitle) {
++    return false;
++  }
++  if (isPlaceholderTitle(incomingTitle, url)) {
++    return false;
++  }
++  if (isPlaceholderTitle(currentTitle, url)) {
++    return true;
++  }
++  if (source === 'http' || source === 'iframe') {
++    return true;
++  }
+   if (source === 'com') {
+     return currentSource === 'com' || currentSource === 'google';
+   }
+@@ -244,7 +262,21 @@ export function createMockPageMetaClient(): PageMetaClient {
+     peek: (url) => memory.get(normalizeCacheKey(url)),
+     get: async (url) => {
+       const entry = memory.get(normalizeCacheKey(url));
+-      if (!entry) return null;
++      if (!entry) {
++        return null;
++      }
++      return {
++        title: entry.title,
++        favicon: entry.faviconUrl,
++        faviconDataUri: entry.faviconDataUri,
++        url,
++      };
++    },
++    getSilent: async (url) => {
++      const entry = memory.get(normalizeCacheKey(url));
++      if (!entry) {
++        return null;
++      }
+       return {
+         title: entry.title,
+         favicon: entry.faviconUrl,
+@@ -294,7 +326,9 @@ export function createMockPageMetaClient(): PageMetaClient {
+     refresh: async (url) => {
+       // mock 中 force 语义无差别：与 get 同返回内存缓存
+       const entry = memory.get(normalizeCacheKey(url));
+-      if (!entry) return null;
++      if (!entry) {
++        return null;
++      }
+       return {
+         title: entry.title,
+         favicon: entry.faviconUrl,

@@ -140,7 +140,7 @@ describe('useBrowserDialogs create-tab write gate', () => {
     expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
   });
 
-  it('no-title cache hit uses cached title without calling getSilent', async () => {
+  it('no-title cache hit adopts cached title and only fire-and-forget getSilent for favicon self-heal', async () => {
     vi.mocked(pageMetaClient.peek).mockReturnValue({
       title: 'Cached Real',
       faviconUrl: '',
@@ -151,6 +151,9 @@ describe('useBrowserDialogs create-tab write gate', () => {
       nextRetryAt: 0,
       failCount: 0,
     });
+    vi.mocked(pageMetaClient.getSilent).mockResolvedValue(
+      makeMeta({ title: 'Silent Heal', url: 'https://dlg-cache-hit.example' }),
+    );
     const createBookmarkEntry = vi.fn().mockReturnValue({ ok: true });
     useAppStore.setState({ browserCreateBookmarkEntry: createBookmarkEntry });
     const openTab = vi.fn();
@@ -170,7 +173,8 @@ describe('useBrowserDialogs create-tab write gate', () => {
     expect(createBookmarkEntry).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'https://dlg-cache-hit.example', title: 'Cached Real' }),
     );
-    expect(pageMetaClient.getSilent).not.toHaveBeenCalled();
+    // 缓存命中但 favicon 缺失 → 后台静默自愈刷新一次 favicon（不影响标题）。
+    expect(pageMetaClient.getSilent).toHaveBeenCalledWith('https://dlg-cache-hit.example');
   });
 
   it('no-title cache miss calls getSilent', async () => {

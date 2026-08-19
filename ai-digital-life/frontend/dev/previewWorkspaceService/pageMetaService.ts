@@ -13,8 +13,8 @@
  *
  * 门控：所有抓取路径（默认与注入的 fetchOnce）在执行 HTML 抓取前先过
  * `pageMetaGateAllows`（robots + 域名限速，测试可注入 `gateAllows` stub）——
- * 与 Rust fetcher 内部 `robots_allow_fetch` + `rate_limit_allowed` 对所有
- * 抓取路径生效同构；被拒返回空 PageMeta → 走失败退避（mark_failure）。
+ * 与本地 `previewCrawlerGate.ts`/`crawlerPolicy.ts` 对所有抓取路径生效同构；
+ * 被拒返回空 PageMeta → 走失败退避（mark_failure）。
  */
 import { fetchPageMetaOnce } from '../previewFetchPageMeta';
 import { pageMetaGateAllows } from '../previewCrawlerGate';
@@ -305,10 +305,7 @@ export function createPreviewPageMetaService(
       };
       memory.set(key, entry);
     }
-    const delay = Math.min(
-      RETRY_BASE_MS * Math.pow(2, Math.min(entry.failCount, 5)),
-      RETRY_MAX_MS,
-    );
+    const delay = Math.min(RETRY_BASE_MS * Math.pow(2, Math.min(entry.failCount, 5)), RETRY_MAX_MS);
     entry.nextRetryAt = now + delay;
   }
 
@@ -321,8 +318,7 @@ export function createPreviewPageMetaService(
     const curTitle = existing?.title ?? '';
     const curSource = existing?.titleSource;
     const titleSource =
-      shouldApplyExactMatchTitle(curTitle, key, meta.title, source, curSource) ||
-      meta.title === ''
+      shouldApplyExactMatchTitle(curTitle, key, meta.title, source, curSource) || meta.title === ''
         ? source
         : (existing?.titleSource ?? '');
     const title =
@@ -360,7 +356,7 @@ export function createPreviewPageMetaService(
     try {
       meta = await gatedFetchOnce(url);
     } catch {
-      // 与 Rust AppFetcher 一致：抓取异常视为空结果（走失败退避，不删除既有缓存）
+      // 预览模式爬虫一致：抓取异常视为空结果（走失败退避，不删除既有缓存）
       meta = { title: '', favicon: '', faviconDataUri: '', url };
     }
     if (meta.title !== '' || meta.favicon !== '' || (meta.faviconDataUri ?? '') !== '') {
@@ -477,16 +473,13 @@ export function createPreviewPageMetaService(
     }
     // 全部 retry_due URL 并发抓取（并发上限 WARMUP_CONCURRENCY），不再截断数量。
     let index = 0;
-    const workers = Array.from(
-      { length: Math.min(WARMUP_CONCURRENCY, tasks.length) },
-      async () => {
-        while (index < tasks.length) {
-          const key = tasks[index];
-          index += 1;
-          await get(key, false);
-        }
-      },
-    );
+    const workers = Array.from({ length: Math.min(WARMUP_CONCURRENCY, tasks.length) }, async () => {
+      while (index < tasks.length) {
+        const key = tasks[index];
+        index += 1;
+        await get(key, false);
+      }
+    });
     await Promise.all(workers);
     // 返回每个已处理 URL 的缓存结果（供 preview 路由回传 → 前端镜像落地）
     return tasks.flatMap((key) => {

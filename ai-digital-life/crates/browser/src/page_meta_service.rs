@@ -244,6 +244,28 @@ impl PageMetaService {
         }
     }
 
+    /// 回填已抓取 favicon 的 data-URI（静默渲染路径生成后调用），持久化到内存 + 磁盘，
+    /// 使重启后镜像/缓存仍携带 data-URI —— 否则防盗链站点（bilibili/runoob）重启后
+    /// 只剩裸 favicon URL，前端跨域 <img> 命中防盗链重定向回兜底图标。
+    /// 无该 URL 的既有条目时不写入（data-URI 仅在已有 favicon_url 的基础上补全）。
+    pub fn update_favicon_data_uri(&self, url: &str, data_uri: &str) -> Result<bool, AppError> {
+        let key = normalize_cache_key(url);
+        let mut memory = self.memory.lock().unwrap_or_else(|e| e.into_inner());
+        let Some(entry) = memory.get_mut(&key) else {
+            return Ok(false);
+        };
+        if entry.favicon_data_uri == data_uri {
+            return Ok(false);
+        }
+        entry.favicon_data_uri = data_uri.to_string();
+        let cloned = entry.clone();
+        drop(memory);
+        let mut map = HashMap::new();
+        map.insert(key.clone(), cloned);
+        self.store.upsert(&map)?;
+        Ok(true)
+    }
+
     pub async fn report(
         &self,
         url: &str,
@@ -293,6 +315,16 @@ impl PageMetaService {
         };
         memory.insert(key.clone(), entry.clone());
         drop(memory);
+        tracing::debug!(
+            url = %key,
+            title_applied,
+            favicon_applied,
+            new_title = %entry.title,
+            new_title_len = entry.title.len(),
+            new_favicon = %entry.favicon_url,
+            new_favicon_len = entry.favicon_url.len(),
+            "page_meta.report: cache updated"
+        );
         let mut map = HashMap::new();
         map.insert(key.clone(), entry);
         if let Err(e) = self.store.upsert(&map) {
@@ -538,6 +570,43 @@ mod tests {
         // 与持有者抓取路径一致——否则 TTL 命中广播 url="" 无法匹配任何 tab。
         assert_eq!(r1.as_ref().unwrap().url, "https://a.com/");
         assert_eq!(r2.as_ref().unwrap().url, "https://a.com/");
+    }
+
+    #[tokio::test]
+    async fn update_favicon_data_uri_persists_and_preserves_fields() {
+        // 静默路径回填 data-URI：必须写内存 + 磁盘，且保留既有的 title/favicon_url。
+        let (svc, dir) = open_service("data-uri");
+        svc.report("https://b.example/", "B站", "https://cdn.b.example/icon.ico", META_SOURCE_COM)
+            .await
+            .unwrap();
+        // 更新 data-URI → 返回 changed=true
+        assert!(
+            svc.update_favicon_data_uri("https://b.example/", "data:image/x-icon;base64,AA")
+                .unwrap()
+        );
+        let e = svc.peek("https://b.example/").unwrap();
+        assert_eq!(e.favicon_data_uri, "data:image/x-icon;base64,AA");
+        assert_eq!(e.title, "B站", "回填 data-URI 不得覆盖标题");
+        assert_eq!(e.favicon_url, "https://cdn.b.example/icon.ico", "回填不得覆盖 favicon URL");
+        // 相同值再更新 → changed=false 且不报错
+        assert!(
+            !svc.update_favicon_data_uri("https://b.example/", "data:image/x-icon;base64,AA")
+                .unwrap()
+        );
+        // 磁盘持久化（新建服务从 store 预载能取回 data-URI）
+        let store = crate::site_meta_cache::SiteMetaCacheStore::open(&dir).unwrap();
+        let svc2 = PageMetaService::new(store);
+        svc2.preload().await.unwrap();
+        assert_eq!(
+            svc2.peek("https://b.example/").unwrap().favicon_data_uri,
+            "data:image/x-icon;base64,AA"
+        );
+        // 无既有条目 → no-op（返回 false，不新增）
+        assert!(
+            !svc.update_favicon_data_uri("https://missing.example/", "data:image/png;base64,BB")
+                .unwrap()
+        );
+        assert!(svc.peek("https://missing.example/").is_none());
     }
 
     #[tokio::test]

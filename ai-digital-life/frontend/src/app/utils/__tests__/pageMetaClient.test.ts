@@ -94,7 +94,12 @@ describe('pageMetaClient (preview adapter) warmup mirror propagation (⑦)', () 
     shell.requestPreviewApi.mockResolvedValue({
       ok: true,
       data: [
-        { title: 'Warm', favicon: 'https://a.com/f.ico', faviconDataUri: '', url: 'https://a.com/' },
+        {
+          title: 'Warm',
+          favicon: 'https://a.com/f.ico',
+          faviconDataUri: '',
+          url: 'https://a.com/',
+        },
       ],
     });
     const { pageMetaClient } = await import('../pageMetaClient');
@@ -108,7 +113,12 @@ describe('pageMetaClient (preview adapter) warmup mirror propagation (⑦)', () 
   it('refresh applies the returned meta to the local mirror (⑧)', async () => {
     shell.requestPreviewApi.mockResolvedValue({
       ok: true,
-      data: { title: 'Refreshed', favicon: 'https://a.com/f.ico', faviconDataUri: '', url: 'https://a.com/' },
+      data: {
+        title: 'Refreshed',
+        favicon: 'https://a.com/f.ico',
+        faviconDataUri: '',
+        url: 'https://a.com/',
+      },
     });
     const { pageMetaClient } = await import('../pageMetaClient');
     const meta = await pageMetaClient.refresh('https://a.com/');

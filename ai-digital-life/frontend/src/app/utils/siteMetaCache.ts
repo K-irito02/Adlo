@@ -197,9 +197,22 @@ export function applyBroadcastUpdate(payload: PageMetaUpdatedPayload): void {
   const hasData =
     payload.title !== '' || payload.faviconUrl !== '' || payload.faviconDataUri !== '';
   if (!hasData && existing) {
+    console.info('[site-meta-cache] broadcast no-data ignored', {
+      url: payload.url,
+      title: payload.title,
+      faviconUrl: payload.faviconUrl,
+    });
     notify(key);
     return;
   }
+  console.info('[site-meta-cache] broadcast apply', {
+    url: payload.url,
+    srcTitle: payload.title,
+    srcFaviconUrl: payload.faviconUrl,
+    srcFaviconUrlLen: payload.faviconUrl.length,
+    hasDataUri: Boolean(payload.faviconDataUri),
+    hadCache: Boolean(existing),
+  });
   upsertMirror(key, {
     title: payload.title || existing?.title || '',
     titleSource: payload.source || existing?.titleSource || '',

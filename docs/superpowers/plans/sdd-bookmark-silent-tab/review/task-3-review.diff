@@ -1,0 +1,330 @@
+=== COMMITS ===
+13c9f901 feat(browser): add silent-tab meta fetch command with cache polling + timeout
+
+=== STAT ===
+ ai-digital-life/src-tauri/src/commands/browser.rs | 280 +++++++++++++++++++++-
+ ai-digital-life/src-tauri/src/main.rs             |   1 +
+ 2 files changed, 274 insertions(+), 7 deletions(-)
+
+=== FULL DIFF ===
+diff --git a/ai-digital-life/src-tauri/src/commands/browser.rs b/ai-digital-life/src-tauri/src/commands/browser.rs
+index ea2e2539..b18808fd 100644
+--- a/ai-digital-life/src-tauri/src/commands/browser.rs
++++ b/ai-digital-life/src-tauri/src/commands/browser.rs
+@@ -12,7 +12,10 @@ use adl_browser::html_meta::{extract_favicon, extract_title, origin_favicon_fall
+ use adl_browser::robots_policy::{DomainRateLimiter, RobotsCache, domain_of, is_private_url};
+ use adl_browser::robots_txt::parse_robots_txt;
+ use adl_browser::webview_handle::{Bounds, EventBridgeRef};
+-use adl_browser::{CachedMetaBridge, META_SOURCE_HTTP, PageMeta, PageMetaFetcher, webview_label};
++use adl_browser::{
++    CachedMetaBridge, META_SOURCE_COM, META_SOURCE_HTTP, PageMeta, PageMetaFetcher,
++    PageMetaService, SiteMetaCacheEntry, is_placeholder_title, is_unsafe_title, webview_label,
++};
+ use adl_errors::AppError;
+ use adl_types::IpcResult;
+ use base64::{Engine as _, engine::general_purpose::STANDARD};
+@@ -141,12 +144,6 @@ pub fn silent_webview_label(tab_id: &str) -> String {
+ /// 在主线程 dispatch；渲染出的 title/favicon 经 Task 1 的 `CachedMetaBridge`
+ /// 流入返回的 channel（channel receiver 由 Task 3 的 fetch 循环在 tokio await
+ /// 上下文消费）。返回 `(silent_tab_id, meta 接收 channel)`。
+-///
+-/// # dead-code 说明
+-/// Task 3（SilentTabFetcher + 命令接线）会消费本函数并使其成为可达命令的一部分。
+-/// 在接线完成前用 `#[allow(dead_code)]` 放行，避免 `-D warnings` 因"临时未引用"
+-/// 而失败。这是有意为之：函数本身即本任务交付物，非废弃代码。
+-#[allow(dead_code)]
+ #[allow(clippy::type_complexity)] // 签名按简报锁定，不可改为类型别名
+ pub fn create_silent_webview(
+     app: tauri::AppHandle,
+@@ -197,6 +194,162 @@ pub fn create_silent_webview(
+     Ok((silent_tab_id, rx))
+ }
+ 
++/// 静默标签页抓取超时（毫秒），与前端 bookMarkMeta 体验对齐。
++pub const SILENT_FETCH_TIMEOUT_MS: u64 = 6000;
++
++/// 标题启发式：真实（非空、非占位标题、非反爬/验证码）标题才算有效。
++fn silent_title_ok(title: &str, url: &str) -> bool {
++    !title.is_empty() && !is_placeholder_title(title, url) && !is_unsafe_title(title)
++}
++
++/// 收敛判定：同时具备真实标题与 favicon 才视为完整元数据，可立即返回。
++fn silent_converged(title: &str, url: &str, favicon_url: &str) -> bool {
++    silent_title_ok(title, url) && !favicon_url.is_empty()
++}
++
++/// 将缓存条目转换为返回给命令层的 `PageMeta`。source 语义：有真实标题则标
++/// `META_SOURCE_COM`（对齐 WebView2/Chromium 静默渲染来源），否则置空。
++fn page_meta_from_entry(e: SiteMetaCacheEntry, url: &str) -> PageMeta {
++    let source = if e.title.is_empty() { String::new() } else { META_SOURCE_COM.to_string() };
++    PageMeta {
++        title: e.title,
++        favicon: e.favicon_url,
++        favicon_data_uri: e.favicon_data_uri,
++        url: url.to_string(),
++        source,
++    }
++}
++
++/// 从缓存条目返回"已得部分"元数据；无任何有效元数据则回退 `empty_page_meta`。
++fn best_silent_meta(svc: &PageMetaService, url: &str) -> PageMeta {
++    match svc.peek(url) {
++        Some(e) if silent_title_ok(&e.title, url) || !e.favicon_url.is_empty() => {
++            page_meta_from_entry(e, url)
++        },
++        _ => empty_page_meta(url),
++    }
++}
++
++/// 轮询静默元数据 channel 直至收敛 / 部分提前返回 / 总体超时。
++///
++/// - 收到元组即 `svc.report(_, _, _, META_SOURCE_COM)` 持久化入缓存；
++/// - 已收敛（真实标题 + favicon）→ 立即返回；
++/// - 部分（仅标题或仅 favicon）→ 自首个非空起等待 ≥ 1500ms 提前返回；
++/// - 总体 `SILENT_FETCH_TIMEOUT_MS`（6s）超时 → 返回已得部分，无则空。
++async fn wait_for_silent_meta(
++    rx: &mut tokio::sync::mpsc::UnboundedReceiver<(String, String, String, String)>,
++    svc: &PageMetaService,
++    url: &str,
++) -> PageMeta {
++    let result = tokio::time::timeout(
++        std::time::Duration::from_millis(SILENT_FETCH_TIMEOUT_MS),
++        poll_silent_meta(rx, svc, url),
++    )
++    .await;
++
++    match result {
++        Ok(meta) => meta,
++        Err(_elapsed) => best_silent_meta(svc, url),
++    }
++}
++
++/// `wait_for_silent_meta` 的轮询主体（无总体超时，由外层 `timeout` 兜底）。
++async fn poll_silent_meta(
++    rx: &mut tokio::sync::mpsc::UnboundedReceiver<(String, String, String, String)>,
++    svc: &PageMetaService,
++    url: &str,
++) -> PageMeta {
++    let mut first_meta_at: Option<std::time::Instant> = None;
++    loop {
++        let recv = tokio::time::timeout(std::time::Duration::from_millis(300), rx.recv()).await;
++        match recv {
++            Ok(Some((_tab_id, u, title, fav))) => {
++                if let Err(e) = svc.report(&u, &title, &fav, META_SOURCE_COM).await {
++                    tracing::warn!(url = %u, error = %e, "wait_for_silent_meta: report failed");
++                }
++                if let Some(entry) = svc.peek(url) {
++                    if silent_converged(&entry.title, url, &entry.favicon_url) {
++                        return page_meta_from_entry(entry, url);
++                    }
++                    if silent_title_ok(&entry.title, url) || !entry.favicon_url.is_empty() {
++                        first_meta_at.get_or_insert_with(std::time::Instant::now);
++                    }
++                }
++                if first_meta_at
++                    .is_some_and(|st| st.elapsed() >= std::time::Duration::from_millis(1500))
++                {
++                    return best_silent_meta(svc, url);
++                }
++            },
++            Ok(None) => return best_silent_meta(svc, url), // channel 已关闭
++            Err(_elapsed) => {},                           // 单轮 300ms 无数据，继续轮询
++        }
++    }
++}
++
++/// 在主线程销毁静默 WebView（按 label 定位），找不到则记 warn 提示泄漏风险。
++fn destroy_silent_webview(app: &tauri::AppHandle, tab_id: &str) {
++    let label = silent_webview_label(tab_id);
++    let app_inner = app.clone();
++    if let Err(e) = app.run_on_main_thread(move || match app_inner.get_window("main") {
++        Some(window) => match window.get_webview(&label) {
++            Some(webview) => {
++                if let Err(e) = webview.close() {
++                    tracing::warn!(
++                        error = %e,
++                        label = %label,
++                        "destroy_silent_webview: close failed"
++                    );
++                }
++            },
++            None => tracing::warn!(
++                label = %label,
++                "destroy_silent_webview: webview not found (leak risk)"
++            ),
++        },
++        None => tracing::warn!(label = %label, "destroy_silent_webview: main window not found"),
++    }) {
++        tracing::warn!(
++            error = %e,
++            tab_id,
++            "destroy_silent_webview: main thread dispatch failed"
++        );
++    }
++}
++
++/// 静默标签页元数据抓取命令：渲染真实页面 → 轮询 title/favicon → 写入缓存 →
++/// 销毁静默 WebView → 广播并返回。
++///
++/// # spawn_blocking 契约
++/// `create_silent_webview` 是同步函数（内部 `blocking_recv()` 等待主线程创建结果），
++/// 在 tokio async 命令工作线程内直接调用会 panic。故创建必须放入 `spawn_blocking`，
++/// 轮询封装的 channel 在 async 上下文 await 消费。
++#[tauri::command]
++pub async fn browser_page_meta_get_silent(
++    app: tauri::AppHandle,
++    state: State<'_, AppState>,
++    url: String,
++) -> Result<IpcResult<PageMeta>, CommandError> {
++    let svc = state.browser_manager.page_meta_service();
++
++    let app_owned = app.clone();
++    let url_owned = url.clone();
++    let (tab_id, mut rx) = tokio::task::spawn_blocking(move || {
++        let g = app_owned.state::<AppState>(); // Manager trait；borrow 绑定到 app_owned
++        create_silent_webview(app_owned.clone(), &g, &url_owned)
++    })
++    .await
++    .map_err(|e| AppError::Internal(format!("silent webview join: {e}")))??;
++
++    let page_meta = wait_for_silent_meta(&mut rx, svc, &url).await;
++
++    destroy_silent_webview(&app, &tab_id);
++
++    let src = if page_meta.source.is_empty() { META_SOURCE_COM } else { page_meta.source.as_str() };
++    emit_page_meta_updated(&app, &page_meta, src);
++    Ok(ipc(Ok(page_meta)))
++}
++
+ #[tauri::command]
+ pub fn browser_activate_tab(
+     state: State<'_, AppState>,
+@@ -862,3 +1015,116 @@ mod page_meta_service_cmd_tests {
+         // 去重逻辑在 PageMetaService::warmup 内部验证
+     }
+ }
++
++#[cfg(test)]
++mod silent_meta_tests {
++    use super::*;
++    use adl_browser::{SiteMetaCacheEntry, SiteMetaCacheStore};
++
++    /// 构造一个内存空缓存的 PageMetaService（隔离于真实磁盘存储，使用临时目录）。
++    /// 目录名加入 `create_id` 唯一后缀：tests 并行时若复用同一目录会互相删建导致
++    /// 磁盘竞争（Store::open 在目录被并发删除时失败）。
++    fn empty_svc() -> PageMetaService {
++        let dir = std::env::temp_dir()
++            .join(format!("adl-silent-meta-test-{}", adl_types::create_id("sm")));
++        let _ = std::fs::remove_dir_all(&dir);
++        std::fs::create_dir_all(&dir).unwrap();
++        PageMetaService::new(SiteMetaCacheStore::open(&dir).unwrap())
++    }
++
++    #[test]
++    fn silent_title_ok_rejects_unsafe_and_placeholder() {
++        let url = "https://www.bilibili.com/";
++        assert!(!silent_title_ok("", url));
++        assert!(!silent_title_ok("验证码_哔哩哔哩", url));
++        assert!(!silent_title_ok("安全验证", url));
++        assert!(!silent_title_ok("bilibili.com", url));
++        assert!(!silent_title_ok("https://www.bilibili.com/", url));
++    }
++
++    #[test]
++    fn silent_title_ok_accepts_real_title() {
++        assert!(silent_title_ok("哔哩哔哩 (゜-゜)つロ 干杯~", "https://www.bilibili.com/"));
++        assert!(silent_title_ok("真实的标题", "https://a.com/"));
++    }
++
++    #[test]
++    fn silent_converged_requires_title_and_favicon() {
++        let url = "https://a.com/";
++        assert!(silent_converged("真实标题", url, "https://a.com/favicon.ico"));
++        assert!(!silent_converged("真实标题", url, ""));
++        assert!(!silent_converged("", url, "https://a.com/favicon.ico"));
++        assert!(!silent_converged("a.com", url, "https://a.com/favicon.ico"));
++    }
++
++    #[test]
++    fn page_meta_from_entry_sets_com_source_when_title_present() {
++        let e = SiteMetaCacheEntry {
++            title: "标题".into(),
++            title_source: META_SOURCE_COM.into(),
++            favicon_url: "https://a.com/favicon.ico".into(),
++            favicon_data_uri: String::new(),
++            fetched_at: 0,
++            last_ok_at: 0,
++            next_retry_at: 0,
++            fail_count: 0,
++        };
++        let meta = page_meta_from_entry(e, "https://a.com/");
++        assert_eq!(meta.title, "标题");
++        assert_eq!(meta.favicon, "https://a.com/favicon.ico");
++        assert_eq!(meta.source, META_SOURCE_COM);
++        assert_eq!(meta.url, "https://a.com/");
++    }
++
++    #[test]
++    fn page_meta_from_entry_empty_title_loses_source() {
++        let e = SiteMetaCacheEntry {
++            title: String::new(),
++            title_source: META_SOURCE_COM.into(),
++            favicon_url: String::new(),
++            favicon_data_uri: String::new(),
++            fetched_at: 0,
++            last_ok_at: 0,
++            next_retry_at: 0,
++            fail_count: 0,
++        };
++        let meta = page_meta_from_entry(e, "https://a.com/");
++        assert!(meta.title.is_empty());
++        assert!(meta.source.is_empty());
++        assert_eq!(meta.url, "https://a.com/");
++    }
++
++    #[tokio::test]
++    async fn best_silent_meta_falls_back_to_empty_when_no_cache() {
++        let svc = empty_svc();
++        let meta = best_silent_meta(&svc, "https://nope.example/");
++        assert!(meta.title.is_empty());
++        assert!(meta.favicon.is_empty());
++        assert_eq!(meta.url, "https://nope.example/");
++    }
++
++    #[tokio::test]
++    async fn report_then_best_returns_partial_com_meta() {
++        let svc = empty_svc();
++        // 只上报标题（无 favicon）→ 部分元数据，来源应为 COM
++        svc.report("https://a.example/", "标题", "", META_SOURCE_COM).await.unwrap();
++        let meta = best_silent_meta(&svc, "https://a.example/");
++        assert_eq!(meta.title, "标题");
++        assert!(meta.favicon.is_empty());
++        assert_eq!(meta.source, META_SOURCE_COM);
++    }
++
++    #[tokio::test]
++    async fn channel_close_returns_best_partial_meta() {
++        let svc = empty_svc();
++        let (tx, mut rx) =
++            tokio::sync::mpsc::unbounded_channel::<(String, String, String, String)>();
++        tx.send(("tab".into(), "https://p.example/".into(), "标题".into(), String::new())).unwrap();
++        drop(tx); // 关闭 channel → poll 走 Ok(None) 分支返回已得部分
++        let meta = wait_for_silent_meta(&mut rx, &svc, "https://p.example/").await;
++        assert_eq!(meta.title, "标题");
++        assert!(meta.favicon.is_empty());
++        assert_eq!(meta.source, META_SOURCE_COM);
++        assert_eq!(meta.url, "https://p.example/");
++    }
++}
+diff --git a/ai-digital-life/src-tauri/src/main.rs b/ai-digital-life/src-tauri/src/main.rs
+index f0976cb7..31d4f7f7 100644
+--- a/ai-digital-life/src-tauri/src/main.rs
++++ b/ai-digital-life/src-tauri/src/main.rs
+@@ -136,6 +136,7 @@ fn main() {
+             commands::browser::browser_page_meta_report,
+             commands::browser::browser_page_meta_refresh,
+             commands::browser::browser_page_meta_warmup,
++            commands::browser::browser_page_meta_get_silent,
+             commands::reserved::acp_get_status,
+             commands::reserved::acp_get_config,
+             commands::reserved::http_api_get_status,

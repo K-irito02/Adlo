@@ -8,12 +8,20 @@ import { historyDedupKey, normalizedQueryForDedup } from '@utils/browserDisplayU
 export const titleSourceRef = new Map<string, MetaSource>();
 
 export function isPlaceholderTitle(title: string, url: string): boolean {
-  if (!title) return true;
-  if (title === url) return true;
-  if (/^https?:\/\//i.test(title)) return true;
+  if (!title) {
+    return true;
+  }
+  if (title === url) {
+    return true;
+  }
+  if (/^https?:\/\//i.test(title)) {
+    return true;
+  }
   try {
     const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
-    if (!host) return false;
+    if (!host) {
+      return false;
+    }
     const t = title.trim().toLowerCase();
     return t === host || t === `www.${host}`;
   } catch {
@@ -28,12 +36,24 @@ export function applyBroadcastTitle(
   source: MetaSource,
   currentSource?: MetaSource,
 ): boolean {
-  if (!broadcastTitle) return false;
-  if (broadcastTitle === tab.title) return false;
-  if (isPlaceholderTitle(broadcastTitle, url)) return false; // 广播的是占位 → 不应用
-  if (isPlaceholderTitle(tab.title, url)) return true;        // 当前是占位 → 应用
-  if (source === 'http' || source === 'iframe') return true;
-  if (source === 'com') return currentSource === 'com' || currentSource === 'google';
+  if (!broadcastTitle) {
+    return false;
+  }
+  if (broadcastTitle === tab.title) {
+    return false;
+  }
+  if (isPlaceholderTitle(broadcastTitle, url)) {
+    return false;
+  } // 广播的是占位 → 不应用
+  if (isPlaceholderTitle(tab.title, url)) {
+    return true;
+  } // 当前是占位 → 应用
+  if (source === 'http' || source === 'iframe') {
+    return true;
+  }
+  if (source === 'com') {
+    return currentSource === 'com' || currentSource === 'google';
+  }
   return false;
 }
 
@@ -56,7 +76,9 @@ function normalizeMetaUrl(url: string): string {
   try {
     const u = new URL(url);
     u.hash = '';
-    if (u.pathname.length > 1 && u.pathname.endsWith('/')) u.pathname = u.pathname.replace(/\/+$/, '');
+    if (u.pathname.length > 1 && u.pathname.endsWith('/')) {
+      u.pathname = u.pathname.replace(/\/+$/, '');
+    }
     return u.toString();
   } catch {
     const noHash = url.split('#')[0] || url;
@@ -79,7 +101,10 @@ export function useBrowserPageMeta() {
         titleSourceRef.set(tab.id, p.source);
       }
     }
-    if (matchingTabs.length > 0 || state.browserHistory.some((h) => historyDedupKey(h.url) === historyDedupKey(cleanUrl))) {
+    if (
+      matchingTabs.length > 0 ||
+      state.browserHistory.some((h) => historyDedupKey(h.url) === historyDedupKey(cleanUrl))
+    ) {
       state.browserUpdateHistoryTitle(cleanUrl, p.title || getCachedTitle(cleanUrl));
     }
   }, []);
@@ -105,23 +130,43 @@ export function useBrowserPageMeta() {
     const state = useAppStore.getState();
     const cleanUrl = normalizeMetaUrl(meta.url);
     const activeTab = state.browserTabs.find((t) => t.id === state.browserActiveTabId);
-    const exact = state.browserTabs.find((t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl));
+    const exact = state.browserTabs.find(
+      (t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl),
+    );
     if (exact) {
-      for (const t of state.browserTabs.filter((x) => normalizeUrlForDedup(normalizeMetaUrl(x.url)) === normalizeUrlForDedup(cleanUrl))) {
+      for (const t of state.browserTabs.filter(
+        (x) => normalizeUrlForDedup(normalizeMetaUrl(x.url)) === normalizeUrlForDedup(cleanUrl),
+      )) {
         // 门控与 titleSourceRef 均用 effectiveSource：调用方硬编码 'http' 时，
         // effectiveSource 取 get 返回的真实来源（如 com）——否则 titleSourceRef=http
         // 会冻结后续合法 com 更新（R2 回归）。
-        if (applyBroadcastTitle(t, cleanUrl, meta.title, effectiveSource, titleSourceRef.get(t.id))) {
+        if (
+          applyBroadcastTitle(t, cleanUrl, meta.title, effectiveSource, titleSourceRef.get(t.id))
+        ) {
           state.browserUpdateTab(t.id, { title: meta.title });
           titleSourceRef.set(t.id, effectiveSource);
         }
       }
       state.browserUpdateHistoryTitle(cleanUrl, meta.title || getCachedTitle(cleanUrl));
     } else if (activeTab) {
-      const urlChanged = normalizeUrlForDedup(normalizeMetaUrl(activeTab.url)) !== normalizeUrlForDedup(cleanUrl);
-      const shouldTitle = !urlChanged && applyBroadcastTitle(activeTab, cleanUrl, meta.title, effectiveSource, titleSourceRef.get(activeTab.id));
-      state.browserUpdateTab(activeTab.id, { url: cleanUrl, title: shouldTitle ? meta.title : activeTab.title });
-      if (shouldTitle) titleSourceRef.set(activeTab.id, effectiveSource);
+      const urlChanged =
+        normalizeUrlForDedup(normalizeMetaUrl(activeTab.url)) !== normalizeUrlForDedup(cleanUrl);
+      const shouldTitle =
+        !urlChanged &&
+        applyBroadcastTitle(
+          activeTab,
+          cleanUrl,
+          meta.title,
+          effectiveSource,
+          titleSourceRef.get(activeTab.id),
+        );
+      state.browserUpdateTab(activeTab.id, {
+        url: cleanUrl,
+        title: shouldTitle ? meta.title : activeTab.title,
+      });
+      if (shouldTitle) {
+        titleSourceRef.set(activeTab.id, effectiveSource);
+      }
       state.browserUpdateHistoryTitle(cleanUrl, meta.title || getCachedTitle(cleanUrl));
     }
     void pageMetaClient.report(

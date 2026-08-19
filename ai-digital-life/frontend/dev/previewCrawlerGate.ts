@@ -2,16 +2,16 @@
 import { isPrivateUrl, robotsAllowFetch, domainOf, DomainRateLimiter } from './crawlerPolicy';
 
 /**
- * 单例限速器，跨请求共享（对应 Rust `crates/browser/src/browser.rs` 的 `OnceLock` 静态限速器）。
- * 窗口 5s，与 `fetch_page_meta_inner` 的 `RATE_LIMIT_WINDOW` 语义一致。
+ * 单例限速器，跨请求共享（来源：本地 `crawlerPolicy.ts` 的 `DomainRateLimiter`）。
+ * 窗口 5s，预览模式专属爬虫的 HTML 抓取限速语义。
  */
 const rateLimiter = new DomainRateLimiter(5000);
 
 export interface PageMetaGateOptions {
   /**
    * 是否对公有域名应用单例限速器。默认 true。
-   * favicon 门控必须传 false —— 与 Rust `fetch_page_meta_inner` 一致：
-   * 该端对 favicon 仅做 `robots_allow_fetch` 门控、不参与限速，否则 HTML 门控
+   * favicon 门控必须传 false —— 预览模式爬虫对 favicon 仅做
+   * `robots_allow_fetch` 门控、不参与限速，否则 HTML 门控
    * 刚为同一域名扣减过令牌，紧随其后的同源 favicon 会被确定性限速击穿。
    */
   rateLimit?: boolean;

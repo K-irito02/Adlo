@@ -1,15 +1,20 @@
 /**
- * previewFetchPageMeta.ts —— 浏览器预览模式的共享抓取函数。
+ * previewFetchPageMeta.ts —— 浏览器预览模式的 HTTP 爬虫抓取函数。
  *
- * 语义真源：Rust `src-tauri/src/commands/browser.rs::fetch_page_meta_inner`
- * （HTML 抓取 → `<title>`/`og:title` 解析 → `<link rel=icon>` 解析 →
- * `{origin}/favicon.ico` 惯例兜底），以及 `crates/browser/src/html_meta.rs`
- * 的私网豁免规则。DDG / Google S2 代理图标兜底已移除（Fix C/D）。
+ * 【模式分离】预览模式与 Tauri 桌面应用各自独立：
+ * - Tauri 模式：使用静默 WebView2 渲染抓取（`fetch_silent_meta`），无 HTTP 爬虫。
+ * - 预览模式：使用本文件的 HTTP 爬虫（HTML 抓取 → `<title>`/`og:title` 解析 →
+ *   `<link rel=icon>` 解析 → `{origin}/favicon.ico` 惯例兜底）。本文件是
+ *   预览模式专属实现，不再对应对应 Rust 函数（Tauri 侧爬虫已删除）。
+ *
+ * 解析语义与 `crates/browser/src/html_meta.rs`（`extract_title`/`extract_favicon`/
+ * `origin_favicon_fallback`）对齐；私网豁免/限速语义与本地 `crawlerPolicy.ts` 对齐。
+ * DDG / Google S2 代理图标兜底已移除（Fix C/D）。
  *
  * 门控分工：HTML 级 robots/限速门控由调用方（vite.config.ts 中间件）先行执行
  * （本函数入参 url 已通过门控）；favicon 下载的 robots-only 门控
  * （`pageMetaGateAllows(..., { rateLimit: false })`）在本函数内部执行，
- * 与 Rust `fetch_page_meta_inner` 对 favicon URL 的二次 robots 检查同构。
+ * 对 favicon URL 做二次 robots 检查。
  *
  * 任何失败（非 http(s) URL / 网络错误 / 下载超限）均返回空字段 PageMeta，
  * 由上层 `pageMetaService` 走失败退避路径（不删缓存）。
@@ -147,8 +152,7 @@ async function downloadFaviconDataUri(favicon: string): Promise<string> {
     if (declared && declared > FAVICON_MAX_BYTES) return '';
     const buf = await resp.arrayBuffer();
     if (buf.byteLength === 0 || buf.byteLength > FAVICON_MAX_BYTES) return '';
-    const contentType =
-      resp.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() ?? '';
+    const contentType = resp.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() ?? '';
     if (!contentType.startsWith('image/')) return '';
     return `data:${contentType};base64,${Buffer.from(buf).toString('base64')}`;
   } catch {
@@ -158,7 +162,7 @@ async function downloadFaviconDataUri(favicon: string): Promise<string> {
 
 /**
  * 抓取一次页面元数据（不缓存、不合并，纯抓取层）。
- * 回退链与 Rust `fetch_page_meta_inner` 一致：
+ * 预览模式专属 HTTP 爬虫，回退链与 `html_meta.rs` 一致：
  * `<link rel=icon>` → `{origin}/favicon.ico`，无代理兜底（Fix C）。
  * 任何失败返回空字段 PageMeta。
  */

@@ -9,8 +9,6 @@ pub mod html_meta;
 mod meta_cache_bridge;
 mod meta_merge;
 mod page_meta_service;
-pub mod robots_policy;
-pub mod robots_txt;
 mod site_meta_cache;
 mod webview2_audio;
 mod webview2_background;

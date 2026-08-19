@@ -8,13 +8,10 @@ use crate::commands::ipc;
 use crate::error::CommandError;
 use crate::state::AppState;
 use crate::webview_event_bridge::TauriWebView2EventBridge;
-use adl_browser::html_meta::{extract_favicon, extract_title, origin_favicon_fallback};
-use adl_browser::robots_policy::{DomainRateLimiter, RobotsCache, domain_of, is_private_url};
-use adl_browser::robots_txt::parse_robots_txt;
 use adl_browser::webview_handle::{Bounds, EventBridgeRef};
 use adl_browser::{
-    CachedMetaBridge, META_SOURCE_COM, META_SOURCE_HTTP, PageMeta, PageMetaFetcher,
-    PageMetaService, SiteMetaCacheEntry, is_placeholder_title, is_unsafe_title, webview_label,
+    CachedMetaBridge, META_SOURCE_COM, PageMeta, PageMetaService, SiteMetaCacheEntry,
+    is_placeholder_title, is_unsafe_title, webview_label,
 };
 use adl_errors::AppError;
 use adl_types::IpcResult;
@@ -190,16 +187,25 @@ pub fn create_silent_webview(
     let created: Result<(), AppError> = created_rx
         .blocking_recv()
         .map_err(|e| AppError::Internal(format!("creation channel: {e}")))?;
+    match &created {
+        Ok(()) => tracing::info!(
+            url = %url,
+            tab_id = %silent_tab_id,
+            "[ADL-META] create_silent_webview: created OK"
+        ),
+        Err(e) => tracing::error!(
+            url = %url,
+            tab_id = %silent_tab_id,
+            error = %e,
+            "[ADL-META] create_silent_webview: created FAILED"
+        ),
+    }
     created?;
     Ok((silent_tab_id, rx))
 }
 
 /// 静默标签页抓取超时（毫秒），与前端 bookMarkMeta 体验对齐。
 pub const SILENT_FETCH_TIMEOUT_MS: u64 = 6000;
-
-/// 静默 WebView 抓取开关。true → 真实渲染主路径（Chrome/Edge 式）；false → 回退 HTTP 爬虫。
-/// 唯一真源：Task 5 前端独立判断，不与后端强同步。
-pub const SILENT_FETCH_ENABLED: bool = true;
 
 /// 缓存命中判定：缓存条目含有效标题（非空且过 unsafe/placeholder 检查）或非空
 /// favicon 视为有效缓存 → 可直接返回（零 WebView 创建）。
@@ -295,18 +301,47 @@ async fn poll_silent_meta(
         let recv = tokio::time::timeout(round, rx.recv()).await;
         match recv {
             Ok(Some((_tab_id, u, title, fav))) => {
+                tracing::debug!(
+                    url = %u,
+                    req_url = %url,
+                    title_len = title.len(),
+                    title = %title,
+                    favicon_len = fav.len(),
+                    favicon_full = %fav,
+                    "wait_for_silent_meta: received tuple from silent webview"
+                );
                 if let Err(e) = svc.report(&u, &title, &fav, META_SOURCE_COM).await {
                     tracing::warn!(url = %u, error = %e, "wait_for_silent_meta: report failed");
                 }
                 if let Some(entry) = svc.peek(url) {
+                    let title_ok = silent_title_ok(&entry.title, url);
+                    let fav_present = !entry.favicon_url.is_empty();
+                    tracing::debug!(
+                        req_url = %url,
+                        stored_title = %entry.title,
+                        stored_favicon = %entry.favicon_url,
+                        stored_favicon_len = entry.favicon_url.len(),
+                        title_ok,
+                        favicon_present = fav_present,
+                        converged = title_ok && fav_present,
+                        "wait_for_silent_meta: cache state after report"
+                    );
                     if silent_converged(&entry.title, url, &entry.favicon_url) {
+                        tracing::debug!(
+                            req_url = %url,
+                            "wait_for_silent_meta: CONVERGED → return early"
+                        );
                         return page_meta_from_entry(entry, url);
                     }
-                    if silent_title_ok(&entry.title, url) || !entry.favicon_url.is_empty() {
+                    if title_ok || fav_present {
                         first_meta_at.get_or_insert_with(std::time::Instant::now);
                     }
                 }
                 if first_meta_at.is_some_and(|st| st.elapsed() >= partial_threshold) {
+                    tracing::debug!(
+                        req_url = %url,
+                        "wait_for_silent_meta: partial threshold reached → return partial"
+                    );
                     return best_silent_meta(svc, url);
                 }
             },
@@ -376,10 +411,59 @@ async fn fetch_silent_meta(
     .await
     .map_err(|e| AppError::Internal(format!("silent webview join: {e}")))??;
 
-    let page_meta =
+    let mut page_meta =
         wait_for_silent_meta(&mut rx, state.browser_manager.page_meta_service(), url).await;
 
+    // 静默路径补全 data-URI：WebView2 只给出 favicon URL，若前端直接跨域 <img> 加载
+    // 会命中 CDN 防盗链（bilibili/runoob 等），导致渲染回退到兜底图标。因此以页面
+    // 自身为 Referer 下载 favicon 字节内嵌为 data-URI，使渲染不受跨域/防盗链影响。
+    if !page_meta.favicon.is_empty() && page_meta.favicon_data_uri.is_empty() {
+        let favicon_url = page_meta.favicon.clone();
+        let page_url = url.to_string();
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .user_agent(USER_AGENT)
+            .redirect(reqwest::redirect::Policy::limited(10))
+            .build()
+            .map_err(|e| AppError::Internal(format!("failed to build http client: {e}")))?;
+        // 仅对公有/合法 http(s) CDN 尝试，避免向不可达地址阻塞太久（内部自带超时）。
+        let data_uri = download_favicon_data_uri(&client, &favicon_url, Some(&page_url)).await;
+        tracing::info!(
+            req_url = %url,
+            favicon_len = favicon_url.len(),
+            data_uri_len = data_uri.len(),
+            has_data_uri = !data_uri.is_empty(),
+            "fetch_silent_meta: favicon data-URI resolved"
+        );
+        if !data_uri.is_empty() {
+            page_meta.favicon_data_uri = data_uri;
+            // 持久化回后端缓存：静默路径 data-URI 只广播到前端内存镜像，不落 store 会在
+            // 重启后丢失 → 防盗链站点（bilibili/runoob）回退兜底。这里回填磁盘缓存闭环。
+            if let Err(e) = state
+                .browser_manager
+                .page_meta_service()
+                .update_favicon_data_uri(url, &page_meta.favicon_data_uri)
+            {
+                tracing::warn!(
+                    req_url = %url,
+                    error = %e,
+                    "fetch_silent_meta: persist favicon data-URI failed"
+                );
+            }
+        }
+    }
+
     destroy_silent_webview(&app, &tab_id);
+
+    tracing::info!(
+        req_url = %url,
+        favicon_len = page_meta.favicon.len(),
+        favicon_full = %page_meta.favicon,
+        title_len = page_meta.title.len(),
+        title = %page_meta.title,
+        data_uri_len = page_meta.favicon_data_uri.len(),
+        "fetch_silent_meta: FINAL returned meta"
+    );
 
     Ok(page_meta)
 }
@@ -390,10 +474,30 @@ pub async fn browser_page_meta_get_silent(
     state: State<'_, AppState>,
     url: String,
 ) -> Result<IpcResult<PageMeta>, CommandError> {
-    let page_meta = fetch_silent_meta(app.clone(), &state, &url).await?;
-    let src = if page_meta.source.is_empty() { META_SOURCE_COM } else { page_meta.source.as_str() };
-    emit_page_meta_updated(&app, &page_meta, src);
-    Ok(ipc(Ok(page_meta)))
+    tracing::info!(url = %url, "[ADL-META] browser_page_meta_get_silent: ENTER (tauri IPC hit)");
+    match fetch_silent_meta(app.clone(), &state, &url).await {
+        Ok(page_meta) => {
+            let src = if page_meta.source.is_empty() {
+                META_SOURCE_COM
+            } else {
+                page_meta.source.as_str()
+            };
+            emit_page_meta_updated(&app, &page_meta, src);
+            tracing::info!(
+                url = %url,
+                title_len = page_meta.title.len(),
+                title = %page_meta.title,
+                favicon_len = page_meta.favicon.len(),
+                data_uri_len = page_meta.favicon_data_uri.len(),
+                "[ADL-META] browser_page_meta_get_silent: OK"
+            );
+            Ok(ipc(Ok(page_meta)))
+        },
+        Err(e) => {
+            tracing::error!(url = %url, error = %e, "[ADL-META] browser_page_meta_get_silent: FAILED");
+            Err(e.into())
+        },
+    }
 }
 
 #[tauri::command]
@@ -477,19 +581,13 @@ pub fn browser_site_meta_get_all(
     Ok(ipc(state.browser_manager.site_meta_cache().get_all()))
 }
 
-struct AppFetcher;
-impl PageMetaFetcher for AppFetcher {
-    fn fetch(
-        &self,
-        url: &str,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = PageMeta> + Send + '_>> {
-        // 借用无法跨 trait 返回的生命周期逃逸（返回值绑定在 &self 上），
-        // 故 future 持有 owned 拷贝，避免借用 url: &str。
-        let url = url.to_string();
-        Box::pin(async move {
-            fetch_page_meta_inner(&url).await.unwrap_or_else(|_| empty_page_meta(&url))
-        })
-    }
+#[tauri::command]
+pub fn browser_site_meta_clear(state: State<'_, AppState>) -> Result<IpcResult<()>, CommandError> {
+    let store = state.browser_manager.site_meta_cache();
+    let count = store.get_all().map(|m| m.len()).unwrap_or(0);
+    store.clear().map_err(CommandError::from)?;
+    tracing::info!(cleared = count, "browser_site_meta_clear: site meta cache cleared");
+    Ok(ipc(Ok(())))
 }
 
 #[tauri::command]
@@ -500,37 +598,28 @@ pub async fn browser_page_meta_get(
     force: Option<bool>,
 ) -> Result<IpcResult<PageMeta>, CommandError> {
     let svc = state.browser_manager.page_meta_service();
-    if SILENT_FETCH_ENABLED {
-        // 静默主路径：缓存优先（零 WebView）。命中有效缓存（有效标题或非空 favicon）
-        // 直接返回；`force=true` 绕过缓存。
-        if !force.unwrap_or(false) {
-            if let Some(e) = svc.peek(&url) {
-                if silent_cache_hit(&e, &url) {
-                    let meta = PageMeta {
-                        title: e.title,
-                        favicon: e.favicon_url,
-                        favicon_data_uri: e.favicon_data_uri,
-                        url: url.clone(),
-                        source: e.title_source,
-                    };
-                    let src = if meta.source.is_empty() {
-                        META_SOURCE_HTTP
-                    } else {
-                        meta.source.as_str()
-                    };
-                    emit_page_meta_updated(&app, &meta, src);
-                    return Ok(ipc(Ok(meta)));
-                }
+    // 静默主路径：缓存优先（零 WebView）。命中有效缓存（有效标题或非空 favicon）
+    // 直接返回；`force=true` 绕过缓存。Tauri 桌面应用只用 WebView2 静默渲染抓取，
+    // 不再保留任何 HTTP 爬虫回退。
+    if !force.unwrap_or(false) {
+        if let Some(e) = svc.peek(&url) {
+            if silent_cache_hit(&e, &url) {
+                let meta = PageMeta {
+                    title: e.title,
+                    favicon: e.favicon_url,
+                    favicon_data_uri: e.favicon_data_uri,
+                    url: url.clone(),
+                    source: e.title_source,
+                };
+                let src =
+                    if meta.source.is_empty() { META_SOURCE_COM } else { meta.source.as_str() };
+                emit_page_meta_updated(&app, &meta, src);
+                return Ok(ipc(Ok(meta)));
             }
         }
-        let meta = fetch_silent_meta(app.clone(), &state, &url).await?;
-        emit_page_meta_updated(&app, &meta, META_SOURCE_COM);
-        return Ok(ipc(Ok(meta)));
     }
-    // —— 原回退爬虫路径（SILENT 关闭时）——
-    let meta = svc.get(&url, force.unwrap_or(false), &AppFetcher).await?;
-    let src = if meta.source.is_empty() { META_SOURCE_HTTP } else { meta.source.as_str() };
-    emit_page_meta_updated(&app, &meta, src);
+    let meta = fetch_silent_meta(app.clone(), &state, &url).await?;
+    emit_page_meta_updated(&app, &meta, META_SOURCE_COM);
     Ok(ipc(Ok(meta)))
 }
 
@@ -559,17 +648,9 @@ pub async fn browser_page_meta_refresh(
     state: State<'_, AppState>,
     url: String,
 ) -> Result<IpcResult<PageMeta>, CommandError> {
-    let svc = state.browser_manager.page_meta_service();
-    if SILENT_FETCH_ENABLED {
-        // 静默主路径：刷新强制重新渲染抓取。
-        let meta = fetch_silent_meta(app.clone(), &state, &url).await?;
-        emit_page_meta_updated(&app, &meta, META_SOURCE_COM);
-        return Ok(ipc(Ok(meta)));
-    }
-    // —— 原回退爬虫路径（SILENT 关闭时）——
-    let meta = svc.get(&url, true, &AppFetcher).await?;
-    let src = if meta.source.is_empty() { META_SOURCE_HTTP } else { meta.source.as_str() };
-    emit_page_meta_updated(&app, &meta, src);
+    // 静默主路径：刷新强制重新渲染抓取。Tauri 桌面应用只用 WebView2 静默渲染。
+    let meta = fetch_silent_meta(app.clone(), &state, &url).await?;
+    emit_page_meta_updated(&app, &meta, META_SOURCE_COM);
     Ok(ipc(Ok(meta)))
 }
 
@@ -586,11 +667,34 @@ pub async fn browser_page_meta_warmup(
         ))));
     }
     let svc = state.browser_manager.page_meta_service();
-    let metas = svc.warmup(&urls, &AppFetcher, 8).await?;
+    // 静默预热：去重；仅对尚无有效缓存（真实标题或非空 favicon）的 URL 触发
+    // WebView2 静默渲染抓取（复用主路径 fetch_silent_meta）。每路都会创建一个
+    // 隐藏 WebView2，故用信号量限制并发，避免一次性实例化过多浏览器。
+    let mut seen = std::collections::HashSet::new();
+    let targets: Vec<String> = urls
+        .into_iter()
+        .filter(|u| {
+            let key = adl_browser::normalize_cache_key(u);
+            seen.insert(key.clone()) && !svc.peek(&key).is_some_and(|e| silent_cache_hit(&e, u))
+        })
+        .collect();
+
+    let sem = std::sync::Arc::new(tokio::sync::Semaphore::new(3));
+    let mut handles = Vec::with_capacity(targets.len());
+    for url in targets {
+        let permit = sem.clone();
+        let app = app.clone();
+        handles.push(tokio::spawn(async move {
+            let _permit = permit.acquire_owned().await.ok()?;
+            let g = app.state::<AppState>();
+            fetch_silent_meta(app.clone(), &g, &url).await.ok()
+        }));
+    }
     // 镜像传播：预热完成后逐个广播，前端 siteMetaCache 镜像与标签标题实时落地
-    for meta in metas {
-        let src = if meta.source.is_empty() { META_SOURCE_HTTP } else { meta.source.as_str() };
-        emit_page_meta_updated(&app, &meta, src);
+    for h in handles {
+        if let Ok(Some(meta)) = h.await {
+            emit_page_meta_updated(&app, &meta, META_SOURCE_COM);
+        }
     }
     Ok(ipc(Ok(())))
 }
@@ -675,23 +779,16 @@ pub fn browser_clear_cache(
     Ok(ipc(state.browser_manager.clear_cache_for_tab(&tab_id)))
 }
 
-/// Canonical User-Agent for outbound browser HTTP requests.
+/// Canonical User-Agent for outbound HTTP requests that fetch favicon bytes.
 ///
 /// Mirrors `frontend/src/shared/userAgent.ts` (`USER_AGENT`). Update both
 /// locations together — they must stay in sync so Tauri-mode and preview-mode
-/// requests appear identical to servers. This is a compliant crawler identity
-/// (robots.txt product token: `AIDigitalLife`), not a browser UA spoof.
+/// requests appear identical to servers.
 const USER_AGENT: &str = "AIDigitalLife/1.0 (+https://github.com/K-irito02/Kora; MetaFetcher)";
-const BOT_PRODUCT_TOKEN: &str = "AIDigitalLife";
 
 use std::collections::HashMap;
 
-const RATE_LIMIT_WINDOW: std::time::Duration = std::time::Duration::from_secs(5);
-
-static ROBOTS_CACHE: std::sync::OnceLock<RobotsCache> = std::sync::OnceLock::new();
-static RATE_LIMITER: std::sync::OnceLock<DomainRateLimiter> = std::sync::OnceLock::new();
-
-/// 统一构造空 PageMeta（robots 拦截 / 限速兜底返回值）。
+/// 统一构造空 PageMeta（抓取无结果时的兜底返回值）。
 fn empty_page_meta(url: &str) -> PageMeta {
     PageMeta {
         title: String::new(),
@@ -702,78 +799,79 @@ fn empty_page_meta(url: &str) -> PageMeta {
     }
 }
 
-/// robots 门控（含私网豁免与 fail-open）。返回 true 表示允许抓取。
-/// 私网直接放行；否则查缓存 → 未命中则拉取 robots.txt（失败按 Allow）→
-/// 用 `BOT_PRODUCT_TOKEN` 匹配 URL 的 path。
-async fn robots_allow_fetch(client: &reqwest::Client, url_str: &str) -> bool {
-    if is_private_url(url_str) {
-        return true;
-    }
-    let Ok(parsed) = url::Url::parse(url_str) else {
-        return true;
-    };
-    let Some(domain) = parsed.host_str().map(|s| s.to_string()) else {
-        return true;
-    };
-    let now = std::time::Instant::now();
-    let rules = {
-        let cache = ROBOTS_CACHE.get_or_init(RobotsCache::new);
-        if let Some(rules) = cache.get(&domain, now) {
-            Some(rules)
-        } else {
-            let robots_url = format!("{}://{domain}/robots.txt", parsed.scheme());
-            let fetched = client.get(&robots_url).send().await;
-            let rules = match fetched {
-                Ok(resp) if resp.status().is_success() => {
-                    let body = resp.text().await.unwrap_or_default();
-                    (!body.is_empty()).then(|| parse_robots_txt(&body))
-                },
-                _ => None,
-            };
-            if let Some(rules) = &rules {
-                cache.insert(&domain, rules.clone(), std::time::Instant::now());
-            }
-            rules
-        }
-    };
-    match rules {
-        Some(rules) => rules.is_allowed(BOT_PRODUCT_TOKEN, parsed.path()),
-        None => true, // fail-open
-    }
-}
-
-/// 按域名限速（5s/次）的决策。私网 URL 直接放行且不消费限速令牌
-/// （与前端 `pageMetaGateAllows` 的私网豁免一致）；仅公有域名进入限速器。
-fn rate_limit_allowed(url: &str) -> bool {
-    if is_private_url(url) {
-        return true;
-    }
-    match domain_of(url) {
-        Some(domain) => RATE_LIMITER
-            .get_or_init(|| DomainRateLimiter::new(RATE_LIMIT_WINDOW))
-            .try_acquire(&domain, std::time::Instant::now()),
-        None => true,
-    }
-}
-
 fn normalized_content_type(raw: &str) -> String {
     raw.split(';').next().unwrap_or("").trim().to_lowercase()
 }
 
+/// Favicon body size cap. Must be bounded (each favicon is persisted as a
+/// base64 data-URI in the site-meta cache), but generous enough for legitimate
+/// multi-resolution .ico / PNG / SVG icons that routinely exceed 64KB.
+const MAX_FAVICON_BYTES: usize = 512 * 1024;
+
+/// Magic-byte content sniffing fallback for favicons. Many CDNs serve `.ico` /
+/// `.png` without (or with a non-image) `Content-Type`, which would otherwise
+/// block data-URI generation. Detect from the decoded body when the declared
+/// header is unusable. Returns a stable `image/*` mime or `None` when unknown.
+fn sniff_image_content_type(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.len() >= 8 && bytes[..8] == [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a] {
+        Some("image/png")
+    } else if bytes.len() >= 3 && bytes[..3] == [0xff, 0xd8, 0xff] {
+        Some("image/jpeg")
+    } else if bytes.len() >= 4 && bytes[..4] == [0x47, 0x49, 0x46, 0x38] {
+        Some("image/gif")
+    } else if bytes.len() >= 4 && bytes[..4] == [0x00, 0x00, 0x01, 0x00] {
+        Some("image/x-icon") // ICO
+    } else if bytes.len() >= 12 && &bytes[..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        Some("image/webp")
+    } else if bytes.len() >= 2 && &bytes[..2] == b"BM" {
+        Some("image/bmp")
+    } else {
+        None
+    }
+}
+
 /// Download favicon image bytes as a base64 data-URI. Returns empty string on
-/// any failure (network / timeout / non-success / > 64KB / non-image
-/// Content-Type). Callers must not cache a failed result — the previous cached
-/// entry stays intact.
-async fn download_favicon_data_uri(client: &reqwest::Client, favicon_url: &str) -> String {
+/// any failure (network / timeout / non-success / > `MAX_FAVICON_BYTES` /
+/// unrecognized image format). Callers must not cache a failed result — the
+/// previous cached entry stays intact.
+///
+/// `referer`（可选）：传入目标页面 URL 以模拟页面内资源加载，规避 CDN 防盗链
+/// （如 bilibili `i0.hdslb.com`、runoob `static.char123.com`）的 Referer 校验。
+async fn download_favicon_data_uri(
+    client: &reqwest::Client,
+    favicon_url: &str,
+    referer: Option<&str>,
+) -> String {
     if favicon_url.is_empty()
         || !favicon_url.starts_with("http://") && !favicon_url.starts_with("https://")
     {
         return String::new();
     }
-    let Ok(resp) = client.get(favicon_url).send().await else {
+    let mut req = client.get(favicon_url);
+    if let Some(referer) = referer {
+        if !referer.is_empty() {
+            req = req.header(reqwest::header::REFERER, referer);
+        }
+    }
+    tracing::info!(
+        favicon_url = %favicon_url,
+        referer = referer.unwrap_or(""),
+        "download_favicon_data_uri: attempt (resolving via backend client)"
+    );
+    let Ok(resp) = req.send().await else {
+        tracing::info!(
+            favicon_url = %favicon_url,
+            referer = ?referer,
+            "download_favicon_data_uri: request send failed (network/timeout/TLS)"
+        );
         return String::new();
     };
     if !resp.status().is_success() {
+        tracing::info!(
+            favicon_url = %favicon_url,
+            status = resp.status().as_u16(),
+            "download_favicon_data_uri: non-success status"
+        );
         return String::new();
     }
     // Precheck the declared Content-Length so an oversized favicon is rejected
@@ -785,156 +883,59 @@ async fn download_favicon_data_uri(client: &reqwest::Client, favicon_url: &str) 
         .get(reqwest::header::CONTENT_LENGTH)
         .and_then(|v| v.to_str().ok())
         .and_then(|s| s.parse::<usize>().ok());
-    if content_length.is_some_and(|len| len > 64 * 1024) {
+    if content_length.is_some_and(|len| len > MAX_FAVICON_BYTES) {
+        tracing::info!(
+            favicon_url = %favicon_url,
+            content_length,
+            "download_favicon_data_uri: Content-Length exceeds MAX_FAVICON_BYTES"
+        );
         return String::new();
     }
-    // Missing or non-image Content-Type: do not persist an invalid data-URI
-    // (the cached favicon must render as an image).
-    let content_type = resp
+    // Capture the declared `Content-Type` before the body is consumed (bytes()
+    // moves the response); it drives the data-URI mime when usable as an image.
+    let declared: Option<String> = resp
         .headers()
         .get(reqwest::header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
         .map(normalized_content_type)
         .filter(|ct| ct.starts_with("image/"));
-    let Some(content_type) = content_type else {
-        return String::new();
-    };
     let Ok(bytes) = resp.bytes().await else {
+        tracing::info!(favicon_url = %favicon_url, "download_favicon_data_uri: read body failed");
         return String::new();
     };
-    if bytes.is_empty() || bytes.len() > 64 * 1024 {
+    if bytes.is_empty() || bytes.len() > MAX_FAVICON_BYTES {
+        tracing::info!(
+            favicon_url = %favicon_url,
+            bytes_len = bytes.len(),
+            "download_favicon_data_uri: empty/oversized body"
+        );
         return String::new();
     }
-    to_data_uri(&bytes, &content_type)
+    // 兜底：声明头缺失或非 image/* 时，用魔数判定真实格式（很多 CDN 提供
+    // .ico/.png 时不带可用 Content-Type，如 kimi.com/favicon.ico）。
+    let content_type: String = declared.unwrap_or_else(|| {
+        sniff_image_content_type(&bytes).map(str::to_string).unwrap_or_default()
+    });
+    if content_type.is_empty() {
+        tracing::info!(
+            favicon_url = %favicon_url,
+            content_type = "(unrecognized by sniffing)",
+            "download_favicon_data_uri: unrecognized image format"
+        );
+        return String::new();
+    }
+    let data_uri = to_data_uri(&bytes, &content_type);
+    tracing::info!(
+        favicon_url = %favicon_url,
+        content_type = %content_type,
+        bytes_len = bytes.len(),
+        "download_favicon_data_uri: SUCCESS"
+    );
+    data_uri
 }
 
 fn to_data_uri(bytes: &[u8], content_type: &str) -> String {
     format!("data:{content_type};base64,{}", STANDARD.encode(bytes))
-}
-
-async fn fetch_page_meta_inner(url: &str) -> Result<PageMeta, AppError> {
-    let t0 = std::time::Instant::now();
-    tracing::info!(url = %url, "fetch_page_meta_inner: start");
-
-    if !url.starts_with("http://") && !url.starts_with("https://") {
-        tracing::warn!(url = %url, "fetch_page_meta_inner: non-http URL, returning empty");
-        return Ok(PageMeta {
-            title: String::new(),
-            favicon: String::new(),
-            url: url.to_string(),
-            favicon_data_uri: String::new(),
-            source: String::new(),
-        });
-    }
-
-    // 爬虫主路径禁用短路：静默 WebView 渲染为主路径时，HTTP 爬虫不再作为抓取来源
-    // （var 宿主的 encode 通常命中验证码/反爬）。保留全部原爬虫代码，验证通过后由
-    // 用户决定是否删除。
-    if SILENT_FETCH_ENABLED {
-        tracing::debug!(url = %url, "fetch_page_meta_inner: HTTP crawler disabled by SILENT_FETCH_ENABLED");
-        return Ok(empty_page_meta(url));
-    }
-
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .user_agent(USER_AGENT)
-        .redirect(reqwest::redirect::Policy::limited(10))
-        .build()
-        .map_err(|e| AppError::Internal(format!("failed to build http client: {e}")))?;
-
-    // 合规爬虫门控：robots.txt Disallow 硬跳过（私网豁免 / fail-open 见辅助函数）。
-    let robots_allowed = robots_allow_fetch(&client, url).await;
-    tracing::info!(url = %url, robots_allowed, robots_ms = t0.elapsed().as_millis(), "fetch_page_meta_inner: robots gate");
-    if !robots_allowed {
-        tracing::info!(url = %url, "fetch_page_meta_inner: blocked by robots.txt, returning empty");
-        return Ok(empty_page_meta(url));
-    }
-    // 按域名限速（5s/次）；私网 URL 豁免限速，不消费任何令牌。
-    if !rate_limit_allowed(url) {
-        tracing::info!(url = %url, "fetch_page_meta_inner: rate limited, returning empty");
-        return Ok(empty_page_meta(url));
-    }
-
-    let response = client
-        .get(url)
-        .header("Accept", "text/html,application/xhtml+xml")
-        .header("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
-        .send()
-        .await;
-
-    let body = match response {
-        Ok(resp) => {
-            let status = resp.status().as_u16();
-            let body = resp.text().await.unwrap_or_default();
-            tracing::info!(url = %url, status, body_len = body.len(), page_ms = t0.elapsed().as_millis(), "fetch_page_meta_inner: HTTP success");
-            body
-        },
-        Err(e) => {
-            tracing::info!(url = %url, err = %e, page_ms = t0.elapsed().as_millis(), "fetch_page_meta_inner: HTTP failed, returning empty title/favicon (previous cache entry is kept)");
-            return Ok(PageMeta {
-                title: String::new(),
-                favicon: String::new(),
-                url: url.to_string(),
-                favicon_data_uri: String::new(),
-                source: String::new(),
-            });
-        },
-    };
-
-    let body = body.chars().take(65536).collect::<String>();
-    let title = extract_title(&body);
-    let favicon = extract_favicon(&body, url);
-
-    let is_unsafe = title.as_deref().is_some_and(adl_browser::is_unsafe_title);
-    let final_title = title
-        .unwrap_or_else(|| {
-            tracing::warn!(url = %url, "fetch_page_meta_inner: <title> not found, returning empty title");
-            String::new()
-        })
-        .chars()
-        .take(200)
-        .collect::<String>();
-    tracing::info!(
-        url = %url,
-        raw_title = %final_title,
-        is_unsafe,
-        "fetch_page_meta_inner: title extracted (unsafe/captcha will be cleared in write_success)"
-    );
-
-    // 仅接受页面真实声明或 origin 惯例兜底（RC5）：不再使用 DDG/Google 代理图标服务
-    // —— 它们对无收录域名返回默认地球图标，且在国内被墙/不稳定，误存后还会被
-    // should_replace_favicon 当权威图标锁死，导致"与真实 favicon 不一致"。
-    let final_favicon = match favicon.or_else(|| Some(origin_favicon_fallback(url))) {
-        Some(f) if !f.is_empty() => f,
-        _ => String::new(),
-    };
-    tracing::info!(
-        url = %url,
-        final_favicon = %final_favicon,
-        is_framework_default = adl_browser::is_framework_default_favicon(&final_favicon),
-        parse_ms = t0.elapsed().as_millis(),
-        "fetch_page_meta_inner: favicon decided"
-    );
-
-    let favicon_data_uri = if final_favicon.is_empty() {
-        String::new()
-    } else {
-        // 对 favicon URL 再查一次 robots 门控（跨域 CDN 也受保护）。
-        if robots_allow_fetch(&client, &final_favicon).await {
-            download_favicon_data_uri(&client, &final_favicon).await
-        } else {
-            String::new()
-        }
-    };
-
-    tracing::info!(url = %url, title = %final_title, favicon_len = final_favicon.len(), favicon_data_uri_len = favicon_data_uri.len(), total_ms = t0.elapsed().as_millis(), "fetch_page_meta_inner: result");
-    Ok(PageMeta {
-        title: final_title,
-        favicon: final_favicon,
-        url: url.to_string(),
-        favicon_data_uri,
-        source: String::new(),
-    })
 }
 
 #[cfg(test)]
@@ -988,59 +989,42 @@ mod favicon_data_uri_tests {
             );
         }
     }
-}
 
-#[cfg(test)]
-mod robots_gate_tests {
-    use super::*;
-    use adl_browser::robots_txt::{RobotsRules, parse_robots_txt};
+    #[test]
+    fn sniff_image_content_type_recognizes_common_formats() {
+        let png = [0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a];
+        assert_eq!(sniff_image_content_type(&png), Some("image/png"));
 
-    /// 纯决策：私网直接放行；无 robots（fail-open）放行；Disallow 硬跳过。
-    fn gate(url: &str, robots: Option<&RobotsRules>) -> bool {
-        if is_private_url(url) {
-            return true;
-        }
-        match robots {
-            None => true, // fail-open
-            Some(rules) => {
-                let path = url
-                    .parse::<url::Url>()
-                    .map(|u| u.path().to_string())
-                    .unwrap_or_else(|_| "/".to_string());
-                rules.is_allowed(BOT_PRODUCT_TOKEN, &path)
-            },
-        }
+        let jpeg = [0xff, 0xd8, 0xff, 0xe0];
+        assert_eq!(sniff_image_content_type(&jpeg), Some("image/jpeg"));
+
+        let gif = *b"GIF89a";
+        assert_eq!(sniff_image_content_type(&gif), Some("image/gif"));
+
+        // ICO 头：0x00 0x00 0x01 0x00 —— 常见于无 Content-Type 的 favicon.ico
+        let ico = [0x00, 0x00, 0x01, 0x00, 0x01, 0x00];
+        assert_eq!(sniff_image_content_type(&ico), Some("image/x-icon"));
+
+        let webp = [b'R', b'I', b'F', b'F', 0, 0, 0, 0, b'W', b'E', b'B', b'P'];
+        assert_eq!(sniff_image_content_type(&webp), Some("image/webp"));
+
+        let bmp = [b'B', b'M', 0, 0];
+        assert_eq!(sniff_image_content_type(&bmp), Some("image/bmp"));
     }
 
     #[test]
-    fn private_url_always_allowed() {
-        assert!(gate("http://localhost:3000", None));
-        assert!(gate(
-            "http://127.0.0.1/x",
-            Some(&parse_robots_txt("User-agent: *\nDisallow: /\n"))
-        ));
+    fn sniff_image_content_type_rejects_unknown_or_short_buffers() {
+        assert_eq!(sniff_image_content_type(b""), None);
+        // Too short to hold any signature.
+        assert_eq!(sniff_image_content_type(&[0x89, b'P']), None);
+        // SVG 文本 / 未知二进制不应误判成位图。
+        assert_eq!(sniff_image_content_type(b"<svg xmlns=\"http://www.w3.org/2000/svg\">"), None);
     }
 
     #[test]
-    fn fail_open_when_robots_unavailable() {
-        assert!(gate("https://example.com/x", None));
-    }
-
-    #[test]
-    fn disallow_hard_skips_public_url() {
-        let rules = parse_robots_txt("User-agent: AIDigitalLife\nDisallow: /private");
-        assert!(!gate("https://example.com/private/a", Some(&rules)));
-        assert!(gate("https://example.com/public", Some(&rules)));
-    }
-
-    #[test]
-    fn private_url_never_consumes_rate_token() {
-        // 私网 URL 豁免限速：连续两次请求均放行（限速器不为其扣减令牌），
-        // 否则 `domain_of("http://localhost:3000")` 返回 `Some("localhost")`
-        // 会在 5s 窗口内命中限速，与"私网豁免"规格相悖。
-        assert!(rate_limit_allowed("http://localhost:3000"));
-        assert!(rate_limit_allowed("http://localhost:3000"));
-        assert!(rate_limit_allowed("http://127.0.0.1/x"));
+    fn to_data_uri_embeds_sniffed_mime() {
+        let out = to_data_uri(&[0x89, b'P', b'N', b'G', 0x0d, 0x0a, 0x1a, 0x0a], "image/png");
+        assert!(out.starts_with("data:image/png;base64,"));
     }
 }
 
@@ -1296,19 +1280,5 @@ mod silent_meta_tests {
             &cache_entry("真实标题", "https://a.com/favicon.ico"),
             "https://a.com/"
         ));
-    }
-
-    #[tokio::test]
-    async fn fetch_page_meta_inner_short_circuits_when_silent_enabled() {
-        if !SILENT_FETCH_ENABLED {
-            return;
-        }
-        // SILENT 开启时 HTTP 爬虫主路径被禁用短路：直接返回 empty，不发网络请求。
-        let meta = fetch_page_meta_inner("https://example.com/").await.unwrap();
-        assert!(meta.title.is_empty());
-        assert!(meta.favicon.is_empty());
-        assert!(meta.favicon_data_uri.is_empty());
-        assert_eq!(meta.url, "https://example.com/");
-        assert!(meta.source.is_empty());
     }
 }

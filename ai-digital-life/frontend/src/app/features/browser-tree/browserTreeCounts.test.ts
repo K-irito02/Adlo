@@ -372,8 +372,14 @@ describe('bookmark tree node title via resolveDisplayTitle (⑪)', () => {
     const bookmarks: WorkspaceBookmarkEntry[] = [
       { tabId: 'bm-tab', url: 'https://a.com/', title: 'a.com' },
     ];
-    const tree = buildWorkspaceCategoryTree([workspace], [], [], { 'ws-1': bookmarks }, [], {}, (url) =>
-      url === 'https://a.com/' ? '真实标题' : '',
+    const tree = buildWorkspaceCategoryTree(
+      [workspace],
+      [],
+      [],
+      { 'ws-1': bookmarks },
+      [],
+      {},
+      (url) => (url === 'https://a.com/' ? '真实标题' : ''),
     );
     const bmNode = tree[0].children.find((c) => c.url === 'https://a.com/');
     expect(bmNode?.name).toBe('真实标题');
@@ -383,8 +389,14 @@ describe('bookmark tree node title via resolveDisplayTitle (⑪)', () => {
     const bookmarks: WorkspaceBookmarkEntry[] = [
       { tabId: 'bm-tab', url: 'https://b.com/', title: '我的书签' },
     ];
-    const tree = buildWorkspaceCategoryTree([workspace], [], [], { 'ws-1': bookmarks }, [], {}, (url) =>
-      url === 'https://b.com/' ? '服务端标题' : '',
+    const tree = buildWorkspaceCategoryTree(
+      [workspace],
+      [],
+      [],
+      { 'ws-1': bookmarks },
+      [],
+      {},
+      (url) => (url === 'https://b.com/' ? '服务端标题' : ''),
     );
     const bmNode = tree[0].children.find((c) => c.url === 'https://b.com/');
     expect(bmNode?.name).toBe('我的书签');

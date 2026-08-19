@@ -28,7 +28,7 @@ pub fn setup_webview2_handlers(
     if let Err(e) = crate::webview2_message::setup_document_title_handler(core, tab_id, bridge) {
         tracing::warn!(tab_id = tab_id, error = %e, "document title handler setup failed");
     }
-    if let Err(e) = crate::webview2_message::setup_favicon_changed_handler(core) {
+    if let Err(e) = crate::webview2_message::setup_favicon_changed_handler(core, tab_id, bridge) {
         tracing::warn!(tab_id = tab_id, error = %e, "favicon changed handler setup failed");
     }
     if let Err(e) =

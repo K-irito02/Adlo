@@ -29,6 +29,27 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
       },
       getSilent: async (url) => {
         const r = await invokeIpc<PageMeta>('browser_page_meta_get_silent', { url });
+        let logEntry: Record<string, unknown>;
+        if (r.ok) {
+          logEntry = {
+            ok: true,
+            code: null,
+            errMsg: null,
+            hasData: true,
+            metaTitle: r.data.title,
+            faviconLen: r.data.favicon?.length ?? null,
+          };
+        } else {
+          logEntry = {
+            ok: false,
+            code: r.error.code,
+            errMsg: r.error.message,
+            hasData: false,
+            metaTitle: null,
+            faviconLen: null,
+          };
+        }
+        console.info('[page-meta] getSilent(TAURI-branch)', { url, ...logEntry });
         return r.ok && r.data ? r.data : null;
       },
       report: async (meta, source) => {
@@ -82,6 +103,27 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
           method: 'POST',
           body: JSON.stringify({ url, force: false }),
         });
+        let logEntry: Record<string, unknown>;
+        if (r.ok) {
+          logEntry = {
+            ok: true,
+            code: null,
+            errMsg: null,
+            hasData: true,
+            metaTitle: r.data.title,
+            faviconLen: r.data.favicon?.length ?? null,
+          };
+        } else {
+          logEntry = {
+            ok: false,
+            code: r.error.code,
+            errMsg: r.error.message,
+            hasData: false,
+            metaTitle: null,
+            faviconLen: null,
+          };
+        }
+        console.info('[page-meta] getSilent(PREVIEW-branch/http-crawler)', { url, ...logEntry });
         return r.ok && r.data ? r.data : null;
       },
       report: async (meta, source) => {

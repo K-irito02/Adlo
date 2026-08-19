@@ -88,7 +88,35 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         if (cachedTitle && !isUnsafeTitle(cachedTitle) && !isPlaceholderTitle(cachedTitle, url)) {
           // 命中缓存真实标题：直接使用，不发起网络请求。
           title = cachedTitle;
-          console.info('[bookmark-new-meta] cache hit', { url, cachedTitle });
+          // 自愈：缓存命中但缺 data-URI（历史条目只有裸 faviconURL，或防盗链站点如
+          // bilibili/runoob 需内嵌 base64 才能渲染）时，后台静默刷新一次缓存，使后续
+          // 渲染/重进对话框拿到真实 favicon。判断只看 data-URI 缺失（而非 faviconUrl 也
+          // 缺失）——否则 "有 URL 无 data-URI" 的防盗链站点永不触发补全、永远兜底图标。
+          const favMissing = !cached?.faviconDataUri;
+          if (favMissing) {
+            void pageMetaClient
+              .getSilent(url)
+              .then((meta) => {
+                console.info('[bookmark-new-meta] cache favicon self-heal', {
+                  url,
+                  hasFavicon: Boolean(meta?.faviconDataUri),
+                });
+              })
+              .catch((err) =>
+                console.warn('[bookmark-new-meta] favicon self-heal failed', {
+                  url,
+                  err: String(err),
+                }),
+              );
+          }
+          console.info('[bookmark-new-meta] cache hit', {
+            url,
+            cachedTitle,
+            favMissing,
+            cachedFaviconUrl: cached?.faviconUrl,
+            cachedFaviconUrlLen: cached?.faviconUrl?.length ?? 0,
+            cachedHasDataUri: Boolean(cached?.faviconDataUri),
+          });
         } else {
           try {
             // 移除 META_FETCH_TIMEOUT_MS：超时由后端静默 tab 自兜底（≤6s）
