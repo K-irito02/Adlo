@@ -153,6 +153,37 @@ export function getCachedFavicon(url: string): string {
   return memoryCache.get(normalizeUrlForCache(url))?.faviconDataUri ?? '';
 }
 
+/** 解析 url 的 origin（scheme://host[:port]）；失败返回 ''。 */
+export function originOf(url: string): string {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return '';
+  }
+}
+
+/** 遍历镜像，返回与 url 同 origin 的第一条条目（供非精确 URL 回落到站点图标）。 */
+function findOriginEntry(url: string): SiteMetaCacheEntry | undefined {
+  const origin = originOf(url);
+  if (!origin) {
+    return undefined;
+  }
+  for (const [cacheKey, entry] of memoryCache) {
+    if (originOf(cacheKey) === origin) {
+      return entry;
+    }
+  }
+  return undefined;
+}
+
+export function getOriginFaviconDataUri(url: string): string {
+  return findOriginEntry(url)?.faviconDataUri ?? '';
+}
+
+export function getOriginFaviconUrl(url: string): string {
+  return findOriginEntry(url)?.faviconUrl ?? '';
+}
+
 export function getCachedTitle(url: string): string {
   return memoryCache.get(normalizeUrlForCache(url))?.title ?? '';
 }
