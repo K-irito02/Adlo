@@ -85,6 +85,17 @@ it('recovers from degraded state when mirror updates bring a new favicon', () =>
   expect(iconLink?.style.display).toBe('none');
 });
 
+it('renders site initial letter as the ultimate fallback when no favicon available', () => {
+  // uncached.example → host 首字母 u → 大写 'U'
+  const { container } = render(<BrowserFavicon url="https://uncached.example" />);
+  const fallback = container.querySelector(
+    '.adl-browser-tree__link-fallback',
+  ) as HTMLElement | null;
+  expect(fallback).not.toBeNull();
+  expect(fallback?.textContent).toBe('U');
+  expect(fallback?.style.display).not.toBe('none');
+});
+
 it('stays degraded when a broadcast keeps the same faviconUrl (no remount flicker)', () => {
   // L6：faviconUrl 未变化时保持降级态，避免每次广播重挂 img → 404 → 再降级的闪烁
   mirrorFavicon('https://same.example', 'https://same.example/favicon.ico');

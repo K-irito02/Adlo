@@ -7,7 +7,20 @@ import {
   initSiteMetaCache,
 } from '../utils/siteMetaCache';
 import { pageMetaClient } from '../utils/pageMetaClient';
-import { IconWorld, type IconSize } from '../icons';
+import type { IconSize } from '../icons';
+
+/**
+ * 取站点首字母作为终级兜底：解析 host 首字符，字母转大写；
+ * 数字、非字母（如 '-'、'_'）或解析失败统一回退 '#'。
+ */
+function siteInitial(url: string): string {
+  try {
+    const first = new URL(url).hostname.charAt(0).toUpperCase();
+    return /[A-Z]/.test(first) ? first : '#';
+  } catch {
+    return '#';
+  }
+}
 
 interface BrowserFaviconProps {
   url: string;
@@ -101,12 +114,12 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
           onError={handleError}
         />
       )}
-      <IconWorld
-        size={size}
-        decorative
+      <span
         className="adl-browser-tree__link-fallback"
         style={showImg ? { display: 'none' } : undefined}
-      />
+      >
+        {showImg ? '' : siteInitial(url)}
+      </span>
     </span>
   );
 }
