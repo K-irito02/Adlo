@@ -1,5 +1,5 @@
 import { useAppStore } from '@stores/slicedStore';
-import { removeCachedSiteMeta, normalizeUrlForCache } from '@utils/siteMetaCache';
+import { removeSiteMetaFromCache, normalizeUrlForCache } from '@utils/siteMetaCache';
 
 function isUrlReferenced(url: string): boolean {
   const s = useAppStore.getState();
@@ -22,6 +22,7 @@ export function removeSiteMetaIfUnreferenced(url: string): void {
     return;
   }
   if (!isUrlReferenced(url)) {
-    removeCachedSiteMeta(url);
+    // 引用计数删除：内存镜像 + 后端持久化同步移除（fire-and-forget）。
+    void removeSiteMetaFromCache(url);
   }
 }

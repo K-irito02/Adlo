@@ -26,7 +26,10 @@ import type { PageMeta } from '../src/shared/ipc/browser';
 
 const FETCH_TIMEOUT_MS = 5000;
 const HTML_MAX_LEN = 65536;
-const FAVICON_MAX_BYTES = 64 * 1024;
+// 与 Tauri 后端 `MAX_FAVICON_BYTES`（512KB）保持一致（双端一致性）。
+// 每次 favicon 会以 base64 data-URI 持久化入站点缓存，上限需有界但容纳
+// 合法的多分辨率 .ico / PNG / SVG 图标（常超 64KB）。
+const FAVICON_MAX_BYTES = 512 * 1024;
 const TITLE_MAX_LEN = 200;
 
 function emptyPageMeta(url: string): PageMeta {
@@ -132,10 +135,32 @@ function extractFavicon(html: string, origin: string): string {
 }
 
 /**
- * 下载 favicon 字节并转 data URI：≤64KB、content-type 以 image/ 开头
- * （与 Rust `download_favicon_data_uri` 及 vite 中间件既有约束一致）。
+ * 魔数内容嗅探兜底：很多 CDN 提供 `.ico`/`.png` 时不带（或带非 image）Content-Type，
+ * 会阻塞 data-URI 生成。与 Rust `sniff_image_content_type`（commands/browser.rs）
+ * 保持同构，使预览与 Tauri 双端接受相同的 favicon 集合。返回稳定的 `image/*` mime
+ * 或 `None`（未知格式）。
  */
-async function downloadFaviconDataUri(favicon: string): Promise<string> {
+function sniffImageContentType(bytes: Uint8Array): string | null {
+  const sig = (offset: number, expected: number[]) =>
+    bytes.length >= offset + expected.length && expected.every((b, i) => bytes[offset + i] === b);
+  if (sig(0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png';
+  if (sig(0, [0xff, 0xd8, 0xff])) return 'image/jpeg';
+  if (sig(0, [0x47, 0x49, 0x46, 0x38])) return 'image/gif';
+  if (sig(0, [0x00, 0x00, 0x01, 0x00])) return 'image/x-icon';
+  if (bytes.length >= 12 && sig(0, [0x52, 0x49, 0x46, 0x46]) && sig(8, [0x57, 0x45, 0x42, 0x50]))
+    return 'image/webp';
+  if (sig(0, [0x42, 0x4d])) return 'image/bmp';
+  return null;
+}
+
+/**
+ * 下载 favicon 字节并转 data URI：≤`FAVICON_MAX_BYTES`（512KB，与 Tauri 双端一致），
+ * 声明头为 image/* 或魔数可识别（与 Rust `download_favicon_data_uri` 同构）。
+ * `referer` 为页面 URL（模拟页面内资源加载以规避 CDN 防盗链，与 Rust 端
+ * `download_favicon_data_uri(..., Some(referer))` 双端一致）。
+ * 任何失败返回空串。
+ */
+async function downloadFaviconDataUri(favicon: string, referer: string): Promise<string> {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -143,7 +168,7 @@ async function downloadFaviconDataUri(favicon: string): Promise<string> {
     try {
       resp = await fetch(favicon, {
         signal: controller.signal,
-        headers: { 'User-Agent': USER_AGENT },
+        headers: { 'User-Agent': USER_AGENT, Referer: referer },
       });
     } finally {
       clearTimeout(timeout);
@@ -153,9 +178,14 @@ async function downloadFaviconDataUri(favicon: string): Promise<string> {
     if (declared && declared > FAVICON_MAX_BYTES) return '';
     const buf = await resp.arrayBuffer();
     if (buf.byteLength === 0 || buf.byteLength > FAVICON_MAX_BYTES) return '';
+    const bytes = new Uint8Array(buf);
     const contentType = resp.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() ?? '';
-    if (!contentType.startsWith('image/')) return '';
-    return `data:${contentType};base64,${Buffer.from(buf).toString('base64')}`;
+    // 声明头缺失或非 image/* 时，用魔数判定真实格式（同 Rust 兜底语义）。
+    const mime = contentType.startsWith('image/')
+      ? contentType
+      : (sniffImageContentType(bytes) ?? '');
+    if (!mime) return '';
+    return `data:${mime};base64,${Buffer.from(bytes).toString('base64')}`;
   } catch {
     return '';
   }
@@ -205,7 +235,7 @@ export async function fetchPageMetaOnce(url: string): Promise<PageMeta> {
       (favicon.startsWith('http://') || favicon.startsWith('https://')) &&
       (await pageMetaGateAllows(favicon, undefined, undefined, { rateLimit: false }))
     ) {
-      faviconDataUri = await downloadFaviconDataUri(favicon);
+      faviconDataUri = await downloadFaviconDataUri(favicon, url);
     }
 
     return { title, favicon, faviconDataUri, url };

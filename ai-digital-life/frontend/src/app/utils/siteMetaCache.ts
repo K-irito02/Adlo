@@ -25,7 +25,10 @@ export function normalizeUrlForCache(url: string): string {
   }
 }
 
-const FAVICON_MAX_DATA_URI_LEN = Math.ceil((64 * 1024 * 4) / 3);
+// Rust 侧 MAX_FAVICON_BYTES=512KB 是二进制上限；前端收的是其 base64 data-URI（约
+// 512KB·4/3=699052 字符）再加 `data:…;base64,` 前缀（~25 字符）。clamp 需带上前缀
+// 余量，否则恰好顶满后端上限的 favicon 会被整段丢弃。
+const FAVICON_MAX_DATA_URI_LEN = Math.ceil((512 * 1024 * 4) / 3) + 128;
 const TITLE_MAX_LEN = 200;
 
 const memoryCache = new Map<string, SiteMetaCacheEntry>();
@@ -163,13 +166,29 @@ export function setCachedSiteMeta(url: string, entry: SiteMetaCacheEntry): void 
 }
 
 /**
- * 仅清理内存镜像。写/删路径唯一在服务端——生产路径不得调用本函数；
- * 保留导出仅为 Task 8 重写 BrowserFavicon 前编译通过。
+ * 仅清理内存镜像（不触达后端持久化）。生产引用计数删除请用
+ * `removeSiteMetaFromCache`（镜像 + 后端同步）；本函数仅供测试直接驱动镜像。
  */
 export function removeCachedSiteMeta(url: string): void {
   const key = normalizeUrlForCache(url);
   memoryCache.delete(key);
   notify(key);
+}
+
+/**
+ * 引用计数删除：内存镜像 + 后端持久化（Tauri SQLite / 预览 JSON）同步移除。
+ * 配合 `removeSiteMetaIfUnreferenced`：关闭最后一个引用该 URL 的 tab/书签后
+ * 真正删除磁盘缓存，避免重启后 `initSiteMetaCache` 重新灌回镜像。
+ */
+export async function removeSiteMetaFromCache(url: string): Promise<void> {
+  const key = normalizeUrlForCache(url);
+  memoryCache.delete(key);
+  notify(key);
+  try {
+    await backend.remove([key]);
+  } catch (err) {
+    console.warn('siteMetaCache: backend remove failed', err);
+  }
 }
 
 /**

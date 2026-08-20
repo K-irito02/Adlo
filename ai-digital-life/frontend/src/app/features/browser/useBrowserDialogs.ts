@@ -16,6 +16,27 @@ interface UseBrowserDialogsDeps {
   t: Record<string, string>;
 }
 
+/** favicon 自愈节流窗口（毫秒）：同一 URL 在窗口内不重复触发静默重渲染，避免对
+ * 永久无 favicon 的站点每次开对话框都重建一次 WebView2。会话级（模块状态）。 */
+const FAVICON_SELF_HEAL_THROTTLE_MS = 10 * 60 * 1000;
+const faviconSelfHealAttempts = new Map<string, number>();
+
+/** 是否应发起该 URL 的 favicon 自愈：窗口内已尝试过则跳过，否则记录本次尝试。 */
+function shouldAttemptFaviconSelfHeal(url: string): boolean {
+  const now = Date.now();
+  const last = faviconSelfHealAttempts.get(url) ?? 0;
+  if (now - last < FAVICON_SELF_HEAL_THROTTLE_MS) {
+    return false;
+  }
+  faviconSelfHealAttempts.set(url, now);
+  return true;
+}
+
+/** 仅测试用：清空会话级自愈节流状态。 */
+export function resetFaviconSelfHealThrottleForTest(): void {
+  faviconSelfHealAttempts.clear();
+}
+
 export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
   const { browserOpenTab, browserUpdateTab, activeTab, isBookmarked, showToast, t } = deps;
 
@@ -92,8 +113,9 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           // bilibili/runoob 需内嵌 base64 才能渲染）时，后台静默刷新一次缓存，使后续
           // 渲染/重进对话框拿到真实 favicon。判断只看 data-URI 缺失（而非 faviconUrl 也
           // 缺失）——否则 "有 URL 无 data-URI" 的防盗链站点永不触发补全、永远兜底图标。
+          // 即便 faviconUrl 为空也触发：静默重渲染可能发现此前抓取时尚未就绪的 favicon。
           const favMissing = !cached?.faviconDataUri;
-          if (favMissing) {
+          if (favMissing && shouldAttemptFaviconSelfHeal(url)) {
             void pageMetaClient
               .getSilent(url)
               .then((meta) => {
@@ -119,8 +141,9 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           });
         } else {
           try {
-            // 移除 META_FETCH_TIMEOUT_MS：命令先行返回（≤6s 抓取窗口），favicon 字节
-            // 下载已在后端移入后台任务，data-URI 经 page-meta-updated 广播自愈。
+            // 移除 META_FETCH_TIMEOUT_MS：命令先行返回（≤6s 抓取窗口，创建本身另有
+            // ≤6s 兜底），favicon 字节下载已在后端移入后台任务，data-URI 经
+            // page-meta-updated 广播自愈。
             const meta = await pageMetaClient.getSilent(url);
             const metaTitle = meta?.title?.trim() ?? '';
             const titleOk =

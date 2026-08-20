@@ -4,7 +4,7 @@ import type { PageMeta } from '@shared/ipc/browser';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import * as siteMetaCache from '@utils/siteMetaCache';
 import { useAppStore } from '@stores/slicedStore';
-import { useBrowserDialogs } from '../useBrowserDialogs';
+import { resetFaviconSelfHealThrottleForTest, useBrowserDialogs } from '../useBrowserDialogs';
 
 vi.mock('@utils/pageMetaClient', () => ({
   pageMetaClient: { peek: vi.fn(), get: vi.fn(), getSilent: vi.fn() },
@@ -22,6 +22,7 @@ function makeMeta(partial: Partial<PageMeta>): PageMeta {
 
 describe('useBrowserDialogs create-tab write gate', () => {
   beforeEach(async () => {
+    resetFaviconSelfHealThrottleForTest();
     vi.mocked(pageMetaClient.peek).mockReset();
     vi.mocked(pageMetaClient.get).mockReset();
     vi.mocked(pageMetaClient.getSilent).mockReset();
@@ -175,6 +176,43 @@ describe('useBrowserDialogs create-tab write gate', () => {
     );
     // 缓存命中但 favicon 缺失 → 后台静默自愈刷新一次 favicon（不影响标题）。
     expect(pageMetaClient.getSilent).toHaveBeenCalledWith('https://dlg-cache-hit.example');
+  });
+
+  it('cache hit WITH data-URI present does NOT fire getSilent self-heal', async () => {
+    vi.mocked(pageMetaClient.peek).mockReturnValue({
+      title: 'Cached Data',
+      faviconUrl: 'https://dlg-cache-data.example/f.ico',
+      faviconDataUri: 'data:image/png;base64,AAAA',
+      fetchedAt: 1,
+      titleSource: 'http',
+      nextRetryAt: 0,
+      failCount: 0,
+      lastOkAt: 1,
+    });
+    const createBookmarkEntry = vi.fn().mockReturnValue({ ok: true });
+    useAppStore.setState({ browserCreateBookmarkEntry: createBookmarkEntry });
+    const openTab = vi.fn();
+    const { result } = renderHook(() =>
+      useBrowserDialogs({
+        browserOpenTab: openTab,
+        browserUpdateTab: vi.fn(),
+        activeTab: null,
+        isBookmarked: false,
+        showToast: vi.fn(),
+        t: {},
+      }),
+    );
+    await act(async () => {
+      await result.current.handleCreateTabConfirm(
+        '',
+        'https://dlg-cache-data.example',
+        'save-only',
+      );
+    });
+    expect(pageMetaClient.getSilent).not.toHaveBeenCalled();
+    expect(createBookmarkEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://dlg-cache-data.example', title: 'Cached Data' }),
+    );
   });
 
   it('no-title cache miss calls getSilent', async () => {

@@ -403,16 +403,6 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
 
     let site_meta_cache = adl_browser::SiteMetaCacheStore::open(&data_dir)
         .map_err(|e| anyhow::anyhow!("failed to open site-meta-cache store: {e}"))?;
-    // 调试用：设置 ADL_CLEAR_META_CACHE=1 可清空已持久化的站点 meta 缓存，便于干净重测。
-    if std::env::var("ADL_CLEAR_META_CACHE").as_deref() == Ok("1") {
-        let cleared = site_meta_cache.get_all().map(|m| m.len()).unwrap_or(0);
-        site_meta_cache
-            .clear()
-            .map_err(|e| anyhow::anyhow!("failed to clear site-meta-cache on startup: {e}"))?;
-        info!(
-            "[ADL-META] startup clear site-meta-cache: cleared={cleared} (env ADL_CLEAR_META_CACHE=1)"
-        );
-    }
     let browser_manager = adl_browser::BrowserManager::new(site_meta_cache);
 
     Ok(AppState {

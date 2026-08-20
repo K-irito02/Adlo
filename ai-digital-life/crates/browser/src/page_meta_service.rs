@@ -19,8 +19,11 @@ impl PageMetaService {
     }
 
     pub async fn preload(&self) -> Result<(), AppError> {
-        let all = self.store.get_all()?;
+        // 先持 memory 锁再读 store：与 clear/upsert/remove/report 串行化，避免
+        // preload 读快照 → clear 清空 → preload 把过期快照写回内存的竞态（否则
+        // 内存/磁盘短暂分叉直到重启）。store.get_all 为同步调用，锁内无 await。
         let mut memory = self.memory.lock().unwrap_or_else(|e| e.into_inner());
+        let all = self.store.get_all()?;
         for (k, v) in all {
             memory.entry(k).or_insert(v);
         }
@@ -34,56 +37,67 @@ impl PageMetaService {
 
     /// 清空全部缓存条目（内存 + 磁盘）。命令层 `browser_site_meta_clear` 使用：
     /// 仅清 store 会留下会话内 `peek`/get 仍命中陈旧内存条目的窗口。
+    /// 全程持有 memory 锁：先写 store（写失败则不动内存，错误上抛），再清内存，
+    /// 避免并发 `report()` 在 store 与内存提交之间插入后被清掉（内存/磁盘分叉）。
     pub fn clear(&self) -> Result<(), AppError> {
-        self.memory.lock().unwrap_or_else(|e| e.into_inner()).clear();
-        self.store.clear()
+        let mut memory = self.memory.lock().unwrap_or_else(|e| e.into_inner());
+        self.store.clear()?;
+        memory.clear();
+        Ok(())
     }
 
     /// 批量写入缓存条目（前端写路径，与预览端 PUT /site-meta-cache 对齐）。
     /// 键统一经 `normalize_cache_key` 规范化；内存 + 磁盘同步写入。
+    /// 全程持有 memory 锁：先写 store（写失败则不动内存，错误上抛），再以同一快照
+    /// 提交内存，避免并发 `report()` 的更新在窗口内被旧快照覆盖。
     pub fn upsert(&self, entries: &HashMap<String, SiteMetaCacheEntry>) -> Result<(), AppError> {
         let mut normalized = HashMap::with_capacity(entries.len());
         for (url, entry) in entries {
             normalized.insert(normalize_cache_key(url), entry.clone());
         }
         let mut memory = self.memory.lock().unwrap_or_else(|e| e.into_inner());
+        self.store.upsert(&normalized)?;
         for (k, v) in &normalized {
             memory.insert(k.clone(), v.clone());
         }
-        drop(memory);
-        self.store.upsert(&normalized)
+        Ok(())
     }
 
     /// 批量删除缓存条目（前端写路径，与预览端 DELETE /site-meta-cache 对齐）。
+    /// 全程持有 memory 锁：先写 store（写失败则不动内存，错误上抛），再删内存，
+    /// 避免并发 `report()` 在窗口内写回的条目被内存侧漏删（store 残留）。
     pub fn remove(&self, urls: &[String]) -> Result<(), AppError> {
         let keys: Vec<String> = urls.iter().map(|u| normalize_cache_key(u)).collect();
         let mut memory = self.memory.lock().unwrap_or_else(|e| e.into_inner());
+        self.store.remove(&keys)?;
         for k in &keys {
             memory.remove(k);
         }
-        drop(memory);
-        self.store.remove(&keys)
+        Ok(())
     }
 
     /// 回填已抓取 favicon 的 data-URI（静默渲染路径生成后调用），持久化到内存 + 磁盘，
     /// 使重启后镜像/缓存仍携带 data-URI —— 否则防盗链站点（bilibili/runoob）重启后
     /// 只剩裸 favicon URL，前端跨域 <img> 命中防盗链重定向回兜底图标。
     /// 无该 URL 的既有条目时不写入（data-URI 仅在已有 favicon_url 的基础上补全）。
+    /// 全程持有 memory 锁（读-改-写与 store 提交、内存提交同一临界区）：写失败则
+    /// 不动内存，错误上抛；同时保证与并发 `report()` 串行化，不丢失其标题/图标更新。
     pub fn update_favicon_data_uri(&self, url: &str, data_uri: &str) -> Result<bool, AppError> {
         let key = normalize_cache_key(url);
         let mut memory = self.memory.lock().unwrap_or_else(|e| e.into_inner());
-        let Some(entry) = memory.get_mut(&key) else {
+        let Some(existing) = memory.get(&key).cloned() else {
             return Ok(false);
         };
-        if entry.favicon_data_uri == data_uri {
+        if existing.favicon_data_uri == data_uri {
             return Ok(false);
         }
-        entry.favicon_data_uri = data_uri.to_string();
-        let cloned = entry.clone();
-        drop(memory);
+        let mut updated = existing;
+        updated.favicon_data_uri = data_uri.to_string();
         let mut map = HashMap::new();
-        map.insert(key.clone(), cloned);
+        map.insert(key.clone(), updated.clone());
+        // 先写 store：写失败则不动内存，错误上抛，避免内存/磁盘 data-URI 分叉。
         self.store.upsert(&map)?;
+        memory.insert(key, updated);
         Ok(true)
     }
 
@@ -134,8 +148,14 @@ impl PageMetaService {
             next_retry_at: 0,
             fail_count: 0,
         };
-        memory.insert(key.clone(), entry.clone());
-        drop(memory);
+        // 全程持有 memory 锁：先写 store（失败仅记 warn，report 为尽力持久化），
+        // 再提交内存，保证持久化快照与内存快照一致，且与 update_favicon_data_uri /
+        // clear / upsert / remove 串行化，避免并发交错覆盖丢失更新。
+        let mut map = HashMap::new();
+        map.insert(key.clone(), entry.clone());
+        if let Err(e) = self.store.upsert(&map) {
+            tracing::warn!(url = %key, error = %e, "persist site meta upsert failed");
+        }
         tracing::debug!(
             url = %key,
             title_applied,
@@ -146,11 +166,8 @@ impl PageMetaService {
             new_favicon_len = entry.favicon_url.len(),
             "page_meta.report: cache updated"
         );
-        let mut map = HashMap::new();
-        map.insert(key.clone(), entry);
-        if let Err(e) = self.store.upsert(&map) {
-            tracing::warn!(url = %key, error = %e, "persist site meta upsert failed");
-        }
+        memory.insert(key, entry);
+        drop(memory);
         Ok(true)
     }
 }

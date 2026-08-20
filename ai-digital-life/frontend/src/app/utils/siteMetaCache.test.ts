@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { SiteMetaBackend } from './siteMetaBackends/types';
 
-const FAVICON_MAX_DATA_URI_LEN = Math.ceil((64 * 1024 * 4) / 3);
+const FAVICON_MAX_DATA_URI_LEN = Math.ceil((512 * 1024 * 4) / 3) + 128;
 
 describe('siteMetaCache memory layer', () => {
   beforeEach(() => {
@@ -73,13 +73,13 @@ describe('siteMetaCache memory layer', () => {
     expect(entry.title).toHaveLength(200);
   });
 
-  it('size cap: data-URI in the 64-128KB char band is kept (Rust 64KB binary cap alignment)', async () => {
+  it('size cap: data-URI in the 64-512KB char band is kept (Rust 512KB binary cap alignment)', async () => {
     const mod = await import('./siteMetaCache');
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
     await mod.initSiteMetaCache();
-    // ~70KB of base64 chars ≈ 52KB binary — under the Rust 64KB binary cap, so
+    // ~400KB of base64 chars ≈ 300KB binary — under the Rust 512KB binary cap, so
     // the frontend clamp must NOT drop it (old 64KB-char cap did).
-    const mid = 'data:image/png;base64,' + 'x'.repeat(70 * 1024);
+    const mid = 'data:image/png;base64,' + 'x'.repeat(400 * 1024);
     mod.__mirrorUpsertForTest('https://a.com', {
       title: 'A',
       faviconUrl: '',
@@ -350,6 +350,27 @@ describe('siteMetaCache memory layer', () => {
     mod.removeCachedSiteMeta('https://x.com');
     expect(removeSpy).not.toHaveBeenCalled();
     expect(mod.getCachedSiteMeta('https://x.com')).toBeUndefined();
+  });
+
+  it('removeSiteMetaFromCache deletes mirror AND backend (reference-count cleanup)', async () => {
+    const mod = await import('./siteMetaCache');
+    const backend: SiteMetaBackend = mod.createMockSiteMetaBackend();
+    const removeSpy = vi.spyOn(backend, 'remove');
+    mod.setSiteMetaBackendForTest(backend);
+    await mod.initSiteMetaCache();
+    mod.__mirrorUpsertForTest('https://x.com', {
+      title: 'X',
+      faviconUrl: '',
+      faviconDataUri: '',
+      fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
+    });
+    await mod.removeSiteMetaFromCache('https://x.com');
+    expect(mod.getCachedSiteMeta('https://x.com')).toBeUndefined();
+    expect(removeSpy).toHaveBeenCalledWith(['https://x.com/']);
   });
 });
 

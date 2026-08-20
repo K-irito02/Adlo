@@ -119,9 +119,18 @@ mod imp {
 
 #[cfg(not(windows))]
 mod imp {
+    use std::ffi::c_void;
+    use std::sync::Arc;
     use tracing::debug;
 
-    pub fn setup_history_changed_handler(_tab_id: &str, _label: &str) -> Result<(), String> {
+    use crate::webview_handle::WebView2EventBridge;
+
+    pub fn setup_history_changed_handler(
+        _core: &c_void,
+        _tab_id: &str,
+        _label: &str,
+        _bridge: &Arc<dyn WebView2EventBridge>,
+    ) -> Result<(), String> {
         debug!(
             "history changed handler not available on this platform (non-Windows), using fallback"
         );

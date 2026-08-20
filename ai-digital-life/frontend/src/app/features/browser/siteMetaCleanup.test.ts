@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { SiteMetaBackend } from '../../utils/siteMetaBackends/types';
 
 describe('removeSiteMetaIfUnreferenced', () => {
   beforeEach(() => {
@@ -8,7 +9,9 @@ describe('removeSiteMetaIfUnreferenced', () => {
   it('keeps cache when url still referenced by a tab', async () => {
     const cleanup = await import('./siteMetaCleanup');
     const cache = await import('../../utils/siteMetaCache');
-    cache.setSiteMetaBackendForTest(cache.createMockSiteMetaBackend());
+    const backend: SiteMetaBackend = cache.createMockSiteMetaBackend();
+    const removeSpy = vi.spyOn(backend, 'remove');
+    cache.setSiteMetaBackendForTest(backend);
     await cache.initSiteMetaCache();
     cache.setCachedSiteMeta('https://a.com', {
       title: 'A',
@@ -39,9 +42,13 @@ describe('removeSiteMetaIfUnreferenced', () => {
 
     cleanup.removeSiteMetaIfUnreferenced('https://a.com');
     expect(cache.getCachedSiteMeta('https://a.com')).toBeDefined();
+    expect(removeSpy).not.toHaveBeenCalled();
 
     store.useAppStore.setState({ browserTabs: [] });
     cleanup.removeSiteMetaIfUnreferenced('https://a.com');
     expect(cache.getCachedSiteMeta('https://a.com')).toBeUndefined();
+    // fire-and-forget backend removal is eventually issued (disk cache truly deleted)
+    await new Promise((r) => setTimeout(r, 0));
+    expect(removeSpy).toHaveBeenCalledWith(['https://a.com/']);
   });
 });

@@ -159,9 +159,17 @@ mod imp {
 
 #[cfg(not(windows))]
 mod imp {
+    use std::ffi::c_void;
+    use std::sync::Arc;
     use tracing::debug;
 
-    pub fn setup_favicon_changed_handler(_tab_id: &str) -> Result<(), String> {
+    use crate::webview_handle::WebView2EventBridge;
+
+    pub fn setup_favicon_changed_handler(
+        _core: &c_void,
+        _tab_id: &str,
+        _bridge: &Arc<dyn WebView2EventBridge>,
+    ) -> Result<(), String> {
         debug!(
             "favicon changed handler not available on this platform (non-Windows), using fallback"
         );

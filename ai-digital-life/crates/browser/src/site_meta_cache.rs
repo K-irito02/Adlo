@@ -192,6 +192,14 @@ impl SiteMetaCacheStore {
             .map_err(|e| AppError::Storage(format!("clear site_meta_cache: {e}")))?;
         Ok(())
     }
+
+    /// 只读计数（不载入整表——含 512KB data-URI 行时 get_all 内存开销大）。
+    pub fn count(&self) -> Result<usize, AppError> {
+        let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.query_row("SELECT COUNT(*) FROM site_meta_cache", [], |row| row.get::<_, i64>(0))
+            .map(|n| n as usize)
+            .map_err(|e| AppError::Storage(format!("count site_meta_cache: {e}")))
+    }
 }
 
 #[cfg(test)]
@@ -266,6 +274,21 @@ mod tests {
         store.upsert(&map).unwrap();
         store.clear().unwrap();
         assert!(store.get_all().unwrap().is_empty());
+    }
+
+    #[test]
+    fn count_matches_upserted_rows() {
+        let store = open_test_store("count");
+        assert_eq!(store.count().unwrap(), 0);
+        let mut map = HashMap::new();
+        map.insert("https://a.com/".to_string(), entry("A"));
+        map.insert("https://b.com/x".to_string(), entry("B"));
+        store.upsert(&map).unwrap();
+        assert_eq!(store.count().unwrap(), 2, "count 应反映 upsert 后的行数");
+        store.remove(&["https://a.com/".to_string()]).unwrap();
+        assert_eq!(store.count().unwrap(), 1);
+        store.clear().unwrap();
+        assert_eq!(store.count().unwrap(), 0);
     }
 
     #[test]
