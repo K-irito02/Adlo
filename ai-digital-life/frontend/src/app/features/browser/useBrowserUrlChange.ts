@@ -209,6 +209,15 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
 
       const urlChanged = eventTab && normalizeUrlForCompare(eventTab.url) !== normalizedUrl;
       const noTabExists = !eventTab;
+      // DEBUG(问题2): onUrlChanged 事件入口——记录 URL 变化与标签匹配情况
+      console.warn('[browser-url-change] onUrlChanged', {
+        tabId,
+        url,
+        normalizedUrl,
+        urlChanged,
+        noTabExists,
+        pendingPrefetch: pendingPrefetchRef.current.has(normalizedUrl),
+      });
 
       if (noTabExists || urlChanged) {
         if (noTabExists && pendingPrefetchRef.current.has(normalizedUrl)) {
@@ -242,12 +251,21 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             set.delete(first);
           }
         }
+        // DEBUG(问题2): 记录 selfNav Set 状态（加库/淘汰），供 lifecycle nav 决策比对
+        console.warn('[browser-url-change] selfNav-recorded', {
+          tabId,
+          url: normalizedUrl,
+          setSize: set.size,
+          evicted: set.size > 10 ? 'yes' : 'no',
+        });
 
         if (eventTab && tabId) {
           // Use the tabId from the event to update the correct tab,
           // not the currently active tab (which may differ if user
           // switched tabs before this event was processed).
           s.browserUpdateTab(tabId, { url: normalizedUrl, title: '' });
+          // DEBUG(问题2): 分支 eventTab——更新该标签 URL（不导航）
+          console.warn('[browser-url-change] branch-eventTab', { tabId, url: normalizedUrl });
           if (existingEntry) {
             s.browserAddToHistory(normalizedUrl, existingEntry.title);
             s.browserUpdateHistoryTitle(normalizedUrl, existingEntry.title);
@@ -255,8 +273,12 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             s.browserAddToHistory(normalizedUrl, normalizedUrl);
           }
         } else if (existingEntry) {
+          // DEBUG(问题2): 分支 existingEntry——导航激活标签并回填历史标题
+          console.warn('[browser-url-change] branch-existingEntry', { url: normalizedUrl });
           s.browserNavigateActiveTab(normalizedUrl);
         } else {
+          // DEBUG(问题2): 分支 fallback——导航激活标签（无 tab 时）
+          console.warn('[browser-url-change] branch-fallback-navigate', { url: normalizedUrl });
           s.browserAddToHistory(normalizedUrl, normalizedUrl);
           s.browserNavigateActiveTab(normalizedUrl);
         }

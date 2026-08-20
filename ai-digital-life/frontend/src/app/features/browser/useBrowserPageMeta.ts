@@ -94,9 +94,27 @@ export function useBrowserPageMeta() {
     const matchingTabs = state.browserTabs.filter(
       (t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl),
     );
+    // DEBUG(问题1): 标题广播处理——记录匹配到的标签与标题应用结果
+    console.warn('[browser-page-meta] broadcast', {
+      url: p.url,
+      cleanUrl,
+      title: p.title,
+      source: p.source,
+      matchingTabIds: matchingTabs.map((t) => t.id),
+    });
     for (const tab of matchingTabs) {
       const curSource = titleSourceRef.get(tab.id);
-      if (applyBroadcastTitle(tab, cleanUrl, p.title, p.source, curSource)) {
+      const applied = applyBroadcastTitle(tab, cleanUrl, p.title, p.source, curSource);
+      console.warn('[browser-page-meta] broadcast-title-apply', {
+        tabId: tab.id,
+        curTitle: tab.title,
+        broadcastTitle: p.title,
+        source: p.source,
+        curSource,
+        applied,
+        reason: applied ? 'applied' : 'rejected-by-gate',
+      });
+      if (applied) {
         state.browserUpdateTab(tab.id, { title: p.title });
         titleSourceRef.set(tab.id, p.source);
       }
@@ -133,6 +151,15 @@ export function useBrowserPageMeta() {
     const exact = state.browserTabs.find(
       (t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl),
     );
+    // DEBUG(问题1+2): 进入 handlePageMeta——记录来源、分支(exact/activeTab)、是否 URL 变化
+    console.warn('[browser-page-meta] handlePageMeta', {
+      url: meta.url,
+      cleanUrl,
+      title: meta.title,
+      source: effectiveSource,
+      hasExact: Boolean(exact),
+      activeTabId: activeTab?.id,
+    });
     if (exact) {
       for (const t of state.browserTabs.filter(
         (x) => normalizeUrlForDedup(normalizeMetaUrl(x.url)) === normalizeUrlForDedup(cleanUrl),
@@ -140,9 +167,20 @@ export function useBrowserPageMeta() {
         // 门控与 titleSourceRef 均用 effectiveSource：调用方硬编码 'http' 时，
         // effectiveSource 取 get 返回的真实来源（如 com）——否则 titleSourceRef=http
         // 会冻结后续合法 com 更新（R2 回归）。
-        if (
-          applyBroadcastTitle(t, cleanUrl, meta.title, effectiveSource, titleSourceRef.get(t.id))
-        ) {
+        const applied = applyBroadcastTitle(
+          t,
+          cleanUrl,
+          meta.title,
+          effectiveSource,
+          titleSourceRef.get(t.id),
+        );
+        console.warn('[browser-page-meta] exact-title-apply', {
+          tabId: t.id,
+          curTitle: t.title,
+          newTitle: meta.title,
+          applied,
+        });
+        if (applied) {
           state.browserUpdateTab(t.id, { title: meta.title });
           titleSourceRef.set(t.id, effectiveSource);
         }
@@ -160,9 +198,19 @@ export function useBrowserPageMeta() {
           effectiveSource,
           titleSourceRef.get(activeTab.id),
         );
+      const prevUrl = activeTab.url;
       state.browserUpdateTab(activeTab.id, {
         url: cleanUrl,
         title: shouldTitle ? meta.title : activeTab.title,
+      });
+      // DEBUG(问题1+2): 记录 activeTab 分支的 url 变更与标题应用——这是可能触发重载的路径
+      console.warn('[browser-page-meta] activeTab-branch', {
+        tabId: activeTab.id,
+        prevUrl,
+        newUrl: cleanUrl,
+        urlChanged,
+        shouldTitle,
+        reason: urlChanged ? 'url-changed-by-meta' : shouldTitle ? 'title-applied' : 'rejected-by-gate',
       });
       if (shouldTitle) {
         titleSourceRef.set(activeTab.id, effectiveSource);

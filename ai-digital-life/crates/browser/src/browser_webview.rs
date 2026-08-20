@@ -174,10 +174,11 @@ impl BrowserManager {
         tracing::debug!(tab_id = tab_id, url = url, "BrowserManager::navigate_tab: ENTER");
         self.with_handle(tab_id, |handle| {
             handle.navigate(url)?;
-            tracing::debug!(
+            // DEBUG(问题2): 记录每次 navigate 成功——这是可能造成网页重载的关键路径，带调用来源
+            tracing::warn!(
                 tab_id = tab_id,
                 url = url,
-                "BrowserManager::navigate_tab: navigate() succeeded"
+                "BrowserManager::navigate_tab: navigate() succeeded (POTENTIAL RELOAD SITE)"
             );
             Ok(())
         })

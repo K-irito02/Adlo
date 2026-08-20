@@ -140,8 +140,25 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
           // skip the loading overlay, which would otherwise flash as an
           // unwanted "auto refresh" right after a successful back/forward.
           const selfNav = webViewSelfNavigatedRef.current;
-          if (!selfNav.has(normalizeUrlForCompare(tab.url))) {
+          const selfNavigated = selfNav.has(normalizeUrlForCompare(tab.url));
+          // DEBUG(问题2): URL 变化后 lifecycle 的导航决策——是否命中 selfNav（命中=不重载）
+          console.warn('[webview-lifecycle] urlChanged-decision', {
+            tabId: currentTabId,
+            tabUrl: tab.url,
+            prevUrl,
+            inSelfNavSet: selfNavigated,
+            setSize: selfNav.size,
+            action: selfNavigated ? 'skip-navigate-selfNav' : 'NAVIGATE-TAB',
+          });
+          if (!selfNavigated) {
             setLoadingTabId(currentTabId);
+            // DEBUG(问题2): 触发 navigateTabInPool（重载点）——记录 URL
+            console.warn('[webview-lifecycle] NAVIGATE-triggered', {
+              tabId: currentTabId,
+              tabUrl: tab.url,
+              prevUrl,
+              stack: new Error().stack,
+            });
             await navigateTabInPool(currentTabId, tab.url);
           }
           selfNav.delete(normalizeUrlForCompare(tab.url));

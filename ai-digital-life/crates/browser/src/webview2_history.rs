@@ -46,7 +46,15 @@ mod imp {
 
                 let clean_url = url.split("#adl-meta").next().unwrap_or(&url).to_string();
 
-                if !should_emit_history_changed(&tab_id, &clean_url) {
+                // DEBUG(问题2): 记录每次 HistoryChanged 事件与是否放行的判定结果，便于对照重载触发链
+                let should_emit = should_emit_history_changed(&tab_id, &clean_url);
+                debug!(
+                    "[ADL-NAV] HistoryChanged entered | tab: {} | url: {} | should_emit: {}",
+                    tab_id,
+                    clean_url.chars().take(80).collect::<String>(),
+                    should_emit
+                );
+                if !should_emit {
                     return Ok(());
                 }
 

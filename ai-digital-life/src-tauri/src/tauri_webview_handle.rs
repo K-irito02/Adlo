@@ -22,6 +22,12 @@ impl TauriWebViewHandle {
 impl WebViewHandle for TauriWebViewHandle {
     fn navigate(&self, url: &str) -> Result<(), AppError> {
         let parsed = url::Url::parse(url).map_err(|e| AppError::Internal(e.to_string()))?;
+        // DEBUG(问题2): tauri 层实际 Navigate（= 网页重载）记录——确认 WebView2.Navigate 调用点
+        tracing::warn!(
+            label = self.label,
+            url = url,
+            "TauriWebViewHandle::navigate: issuing Navigate (= RELOAD)"
+        );
         let _ = self.webview()?.navigate(parsed);
         Ok(())
     }

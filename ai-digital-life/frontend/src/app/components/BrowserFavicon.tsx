@@ -17,6 +17,12 @@ interface BrowserFaviconProps {
 export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const [ready, setReady] = useState(isSiteMetaCacheReady());
   const [faviconUrl, setFaviconUrl] = useState('');
+  // DEBUG(问题1): 记录初始渲染状态，用于判断是否在缓存水合前就显示了兜底图标
+  console.warn('[browser-favicon] render', {
+    url,
+    ready: isSiteMetaCacheReady(),
+    cached: getFaviconUrl(url),
+  });
   // 渲染降级状态（React 驱动，避免 DOM 直接操作导致 display:none 残留）：
   // 真实图标加载失败时置 true → 显示内置占位图标；新图标到来时重置（Fix D：
   // 不再重试 Google S2 代理——被墙/不稳定，且对无收录域名返回默认图标）。
@@ -27,13 +33,23 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const faviconUrlRef = useRef('');
 
   const applyMetaUpdate = useCallback(() => {
+    const prev = faviconUrlRef.current;
     const next = url ? getFaviconUrl(url) : '';
-    if (faviconUrlRef.current !== next) {
+    // DEBUG(问题1): 记录 favicon 从兜底/旧值切换到新值的过程，含缓存命中来源
+    if (prev !== next) {
+      console.warn('[browser-favicon] applyMetaUpdate changed', {
+        url,
+        prev,
+        next,
+        nextLen: next.length,
+        isDataUri: next.startsWith('data:'),
+        ready,
+      });
       faviconUrlRef.current = next;
       setFaviconUrl(next);
       setDegraded(false);
     }
-  }, [url]);
+  }, [url, ready]);
 
   useEffect(() => {
     void initSiteMetaCache();
@@ -65,10 +81,12 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const current = faviconUrl;
   const showImg = Boolean(current) && !degraded;
   const handleError = useCallback(() => {
+    // DEBUG(问题1): 真实图标加载失败 → 降级为内置占位图标
+    console.warn('[browser-favicon] real favicon load failed', { url, faviconUrl });
     // 真实图标加载失败 → 直接降级为内置占位图标（Fix D：不再重试 Google S2）。
     // 绝不删除缓存：后续广播更新会重置 degraded 并尝试新图标。
     setDegraded(true);
-  }, []);
+  }, [url, faviconUrl]);
 
   return (
     <span
