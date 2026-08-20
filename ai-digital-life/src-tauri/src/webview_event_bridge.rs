@@ -47,67 +47,32 @@ impl WebView2EventBridge for TauriWebView2EventBridge {
             self.app.emit("digital-life://browser-open-new-tab", serde_json::json!({ "url": url }));
     }
 
-    fn spawn_spa_fallback(&self, label: &str, _url: &str) {
+    fn spawn_spa_fallback(&self, label: &str, url: &str) {
         let app = self.app.clone();
         let label = label.to_string();
+        let trigger_url = url.to_string();
+        // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：记录触发 URL，
+        // 用于验证兜底以"触发页"配对上报（URL 前进即跳过，杜绝过期标题污染）。
+        tracing::info!(
+            label = %label,
+            trigger_url = %trigger_url,
+            "[ADL-DEBUG][fallback] SPA fallback scheduled (eval in 2000ms)"
+        );
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
             if let Some(wv) = app.get_webview(&label) {
-                tracing::info!(label = %label, "[ADL-META-RECV] Method 5 SPA fallback: evaluating title extractor");
-                let _ = wv.eval(
-                    r#"(function(){
-                        function pickContent(sel) {
-                            var el = document.querySelector(sel);
-                            return el ? (el.getAttribute('content') || '').trim() : '';
-                        }
-                        // SPA video sites (Douyin/Bilibili/YouTube) keep
-                        // document.title/og:title pinned to the first video while
-                        // the URL advances via pushState/radio queue. The visible
-                        // h1 (current video's title) is SPA-updated and is the
-                        // most reliable source — but only on video pages where an
-                        // h1 is the video title. Everywhere else (homepage,
-                        // search, channel) h1 may be a nav/brand heading, so it
-                        // must not outrank the meta tags. Match the domain
-                        // exactly (endsWith guards against subdomain/typo
-                        // spoofing) AND the video path.
-                        var h1 = '';
-                        var host = location.hostname;
-                        var path = location.pathname;
-                        var isVideoPage =
-                            (host === 'youtube.com' || host.endsWith('.youtube.com')) &&
-                            path.indexOf('/watch') === 0 ||
-                            (host === 'bilibili.com' || host.endsWith('.bilibili.com')) &&
-                            path.indexOf('/video/') === 0 ||
-                            (host === 'douyin.com' || host.endsWith('.douyin.com')) &&
-                            path.indexOf('/video/') === 0;
-                        if (isVideoPage) {
-                            // Prefer the SPA-updated video-title heading; unlike
-                            // the init_script.js A3 extractor (YouTube-only), this
-                            // fallback also covers bilibili/douyin, so the bare
-                            // `h1` is scoped to a class containing "title" to
-                            // avoid misreading a nav/brand heading as the current
-                            // video's title.
-                            var h1El = document.querySelector(
-                                'h1.ytd-watch-metadata, h1.title, h1[class*="title"]'
-                            );
-                            if (h1El) { h1 = (h1El.textContent || h1El.innerText || '').trim(); }
-                        }
-                        var og = pickContent('meta[property="og:title"]');
-                        var tw = pickContent('meta[name="twitter:title"]');
-                        var t = (document.title || '').trim();
-                        var best = h1 || og || tw || t;
-                        if (best) {
-                            try {
-                                chrome.webview.postMessage(JSON.stringify({
-                                    type: 'meta',
-                                    title: best,
-                                    favicon: '',
-                                    url: location.href
-                                }));
-                            } catch(e) {}
-                        }
-                    })()"#,
+                tracing::info!(
+                    label = %label,
+                    trigger_url = %trigger_url,
+                    "[ADL-DEBUG][fallback] SPA fallback evaluating title extractor"
                 );
+                // 对齐 Chrome/Edge 语义（详见 crates/browser/src/spa_fallback.js 头部注释）：
+                // 仅视频页 h1 内容标题 + 仅限触发页（URL 未前进）+ 永不 og/tw/document.title 兜底。
+                let trigger_literal = serde_json::to_string(&trigger_url)
+                    .unwrap_or_else(|_| String::from("\"\""));
+                let script = include_str!("../../crates/browser/src/spa_fallback.js")
+                    .replace("__ADL_TRIGGER_URL__", &trigger_literal);
+                let _ = wv.eval(&script);
             }
         });
     }

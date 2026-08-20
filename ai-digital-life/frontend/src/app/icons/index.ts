@@ -29,6 +29,7 @@ export {
   IconUnfoldVertical,
   IconList,
   IconHierarchy,
+  IconNewTabPage,
 } from './core';
 export {
   IconFolder,

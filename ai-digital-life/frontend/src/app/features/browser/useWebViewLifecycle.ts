@@ -71,6 +71,13 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     // Hide previous tab's WebView when switching away (including to an empty new tab)
     if (prevActiveTabIdRef.current && prevActiveTabIdRef.current !== tab?.id) {
       const prevId = prevActiveTabIdRef.current;
+      // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：切换标签时旧 tab WebView 处理。
+      console.info('[ADL-DEBUG][webview] hide prev tab webview', {
+        prevId,
+        nextTabId: tab?.id ?? null,
+        nextTabUrl: tab?.url ?? null,
+        inPool: isTabInPool(prevId),
+      });
       if (isTabInPool(prevId)) {
         window.digitalLife?.browser
           ?.setTabBounds(prevId, {
@@ -111,6 +118,13 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
 
     const activateOrCreate = async () => {
       const currentTabId = tab.id;
+      // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：WebView 创建/激活（音频恢复播放证据）。
+      console.info('[ADL-DEBUG][webview] activate/create webview', {
+        tabId: currentTabId,
+        url: tab.url,
+        inPool: isTabInPool(currentTabId),
+        webViewActive: webViewActiveRef.current,
+      });
       try {
         if (!isTabInPool(currentTabId)) {
           // Real WebView creation: show loading.

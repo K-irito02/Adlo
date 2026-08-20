@@ -414,3 +414,52 @@ describe('bookmark tree node title via resolveDisplayTitle (⑪)', () => {
     expect(bmNode?.name).toBe('我的书签');
   });
 });
+
+describe('audio indicator propagation across tree categories (事项 7)', () => {
+  // URL 变体（尾斜杠/跟踪参数）也应匹配到正在播放的标签 → 音量图标稳定显示。
+  it('history leaf picks up playing state from a tab whose URL differs by trailing slash', () => {
+    const entry = makeHistoryEntry(
+      'e1',
+      '视频',
+      'https://www.bilibili.com/video/BV1/',
+      Date.now(), // 当天 → 参与播放状态匹配
+    );
+    const tab = makeTab('t1', '视频', 'https://www.bilibili.com/video/BV1', 'ws-1');
+    tab.isPlayingAudio = true;
+    const tree = buildHistoryCategoryTree([entry], [tab], mockDateLabels);
+    const day = tree[0].children[0].children[0].children[0];
+    const leaf = day.children[0];
+    expect(leaf.isPlayingAudio).toBe(true);
+  });
+
+  it('history leaf does NOT show playing state when no matching tab is open', () => {
+    const entry = makeHistoryEntry('e1', '视频', 'https://www.bilibili.com/video/BV1/', Date.now());
+    const tree = buildHistoryCategoryTree([entry], [], mockDateLabels);
+    const day = tree[0].children[0].children[0].children[0];
+    const leaf = day.children[0];
+    expect(leaf.isPlayingAudio).toBe(false);
+  });
+
+  it('folder bookmark keeps playing state when the tab is still on the (normalized) URL', () => {
+    const tab = makeTab('t1', '视频', 'https://www.bilibili.com/video/BV1', 'ws-1');
+    tab.isPlayingAudio = true;
+    const folder = makeFolder('root', 'Root', undefined, undefined);
+    folder.tabs = [{ tabId: 't1', url: 'https://www.bilibili.com/video/BV1/', title: '视频' }];
+    const tree = buildUserFolderCategoryTree([folder], [tab]);
+    const leaf = tree[0].children[0];
+    expect(leaf.isPlayingAudio).toBe(true);
+  });
+
+  it('workspace bookmark keeps playing state when the tab is still on the (normalized) URL', () => {
+    // tab 属于其它工作区（不属于 ws-1 的"已打开标签"）→ 走书签节点分支（tab 存在），
+    // 归一化 URL 匹配时保留音频状态。
+    const tab = makeTab('bm-tab', '视频', 'https://www.bilibili.com/video/BV1', 'other-ws');
+    tab.isPlayingAudio = true;
+    const bookmarks: WorkspaceBookmarkEntry[] = [
+      { tabId: 'bm-tab', url: 'https://www.bilibili.com/video/BV1/', title: '视频' },
+    ];
+    const tree = buildWorkspaceCategoryTree([workspace], [tab], [], { 'ws-1': bookmarks });
+    const bmNode = tree[0].children.find((c) => c.url === 'https://www.bilibili.com/video/BV1/');
+    expect(bmNode?.isPlayingAudio).toBe(true);
+  });
+});

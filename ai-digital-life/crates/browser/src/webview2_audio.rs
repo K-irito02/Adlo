@@ -68,6 +68,14 @@ mod imp {
                     let mut is_muted_val: windows::core::BOOL = windows::core::BOOL(0);
                     let _ = core18.IsMuted(&mut is_muted_val);
                     let is_muted = is_muted_val.0 != 0;
+                    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：音频状态事件（播放变化）。
+                    tracing::info!(
+                        tab_id = %tid_for_audio,
+                        is_playing = %is_playing,
+                        is_muted = %is_muted,
+                        source = "audio-change",
+                        "[ADL-DEBUG][audio] emit"
+                    );
                     bridge_for_audio.emit_audio_changed(&tid_for_audio, is_playing, is_muted);
                     Ok(())
                 },
@@ -96,14 +104,32 @@ mod imp {
                     let Some(sender) = sender else {
                         return Ok(());
                     };
-                    let core18: ICoreWebView2_18 = match sender.cast() {
+                    // 读取当前实际播放状态：静音变化不应改变播放状态——此前硬编码
+                    // is_playing=false 会把"正在播放"错误清零，导致音量图标闪烁消失
+                    // （2026-08-21 事项 7 根因 1）。
+                    let core17: ICoreWebView2_17 = match sender.cast() {
+                        Ok(c) => c,
+                        Err(_) => return Ok(()),
+                    };
+                    let mut is_playing_val: windows::core::BOOL = windows::core::BOOL(0);
+                    let _ = core17.IsDocumentPlayingAudio(&mut is_playing_val);
+                    let is_playing = is_playing_val.0 != 0;
+                    let core18: ICoreWebView2_18 = match core17.cast() {
                         Ok(c) => c,
                         Err(_) => return Ok(()),
                     };
                     let mut is_muted_val: windows::core::BOOL = windows::core::BOOL(0);
                     let _ = core18.IsMuted(&mut is_muted_val);
                     let is_muted = is_muted_val.0 != 0;
-                    bridge_for_mute.emit_audio_changed(&tid_for_mute, false, is_muted);
+                    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：音频状态事件（静音变化）。
+                    tracing::info!(
+                        tab_id = %tid_for_mute,
+                        is_playing = %is_playing,
+                        is_muted = %is_muted,
+                        source = "mute-change",
+                        "[ADL-DEBUG][audio] emit"
+                    );
+                    bridge_for_mute.emit_audio_changed(&tid_for_mute, is_playing, is_muted);
                     Ok(())
                 },
             ));

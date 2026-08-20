@@ -222,8 +222,25 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       const identityKey = historyDedupKey(url);
       const urlChanged = eventTab && historyDedupKey(eventTab.url) !== identityKey;
       const noTabExists = !eventTab;
+      // Chrome/Edge 语义：显式导航入口（书签/快捷站点/就地打开等预置 tab.url 的路径）
+      // 导航完成时 urlChanged 为 false（tab 已在该 URL），但历史尚无该 URL 条目——
+      // 仍应记录（首次导航补写）。历史已有条目（SPA 重复事件/重复打开）则不补。
+      const missingHistoryEntry = eventTab
+        ? !state.browserHistory.some((h) => historyDedupKey(h.url) === identityKey)
+        : false;
+      console.info('[ADL-DEBUG][nav] urlChanged', {
+        tabId,
+        url,
+        normalizedUrl,
+        identityKey,
+        urlChanged,
+        noTabExists,
+        missingHistoryEntry,
+        eventTabUrl: eventTab?.url ?? null,
+        eventTabTitle: eventTab?.title ?? null,
+      });
 
-      if (noTabExists || urlChanged) {
+      if (noTabExists || urlChanged || missingHistoryEntry) {
         if (noTabExists && pendingPrefetchRef.current.has(normalizedUrl)) {
           setAddress(normalizedUrl);
           return;
@@ -261,6 +278,12 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         const existingEntry = s.browserHistory.find(
           (h) => historyDedupKey(h.url) === dedupKey && h.title !== h.url,
         );
+        console.info('[ADL-DEBUG][nav] existingEntry', {
+          url,
+          dedupKey,
+          existingEntryTitle: existingEntry?.title ?? null,
+          existingEntryUrl: existingEntry?.url ?? null,
+        });
 
         if (eventTab && tabId) {
           // Use the tabId from the event to update the correct tab,
@@ -374,6 +397,9 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         }
       }
 
+      // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：URL 变化事件无条件刷新地址栏——
+      // 若发生在"新建标签页"切换之后，可能把新标签页空地址覆盖回旧链接。
+      console.info('[ADL-DEBUG][address] onUrlChanged setAddress', { tabId, url: normalizedUrl });
       setAddress(normalizedUrl);
       onNavigationStart?.(normalizedUrl);
     });

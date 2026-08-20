@@ -159,6 +159,11 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
               className="adl-copy-btn"
               onClick={(e) => {
                 e.stopPropagation();
+                // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：新建标签入口与模式。
+                console.info('[ADL-DEBUG][newtab] toolbar plus click', {
+                  browserNavigateInPlace,
+                  activeTabUrl: activeTab?.url ?? null,
+                });
                 if (browserNavigateInPlace) {
                   handlePlusClick();
                 } else {

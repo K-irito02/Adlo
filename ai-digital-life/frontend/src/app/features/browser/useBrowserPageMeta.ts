@@ -73,6 +73,18 @@ export function useBrowserPageMeta() {
     applyBroadcastUpdate(p); // 镜像更新（Task 7）
     const state = useAppStore.getState();
     const cleanUrl = normalizeMetaUrl(p.url);
+    console.info('[ADL-DEBUG][meta] broadcast', {
+      url: p.url,
+      cleanUrl,
+      title: p.title,
+      source: p.source,
+      matchingTabs: state.browserTabs.filter(
+        (t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl),
+      ).length,
+      hasHistoryEntry: state.browserHistory.some(
+        (h) => historyDedupKey(h.url) === historyDedupKey(cleanUrl),
+      ),
+    });
     const matchingTabs = state.browserTabs.filter(
       (t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl),
     );
@@ -116,6 +128,17 @@ export function useBrowserPageMeta() {
     const exact = state.browserTabs.find(
       (t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl),
     );
+    console.info('[ADL-DEBUG][meta] handlePageMeta', {
+      url: meta.url,
+      cleanUrl,
+      title: meta.title,
+      source: effectiveSource,
+      branch: exact ? 'exact' : activeTab ? 'activeTab' : 'none',
+      activeTabUrl: activeTab?.url ?? null,
+      activeTabTitle: activeTab?.title ?? null,
+      historyDedupKey: historyDedupKey(cleanUrl),
+      cachedTitle: getCachedTitle(cleanUrl),
+    });
     if (exact) {
       for (const t of state.browserTabs.filter(
         (x) => normalizeUrlForDedup(normalizeMetaUrl(x.url)) === normalizeUrlForDedup(cleanUrl),

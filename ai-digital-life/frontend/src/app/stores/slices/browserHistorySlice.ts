@@ -59,6 +59,17 @@ export const createBrowserHistorySlice = (
       const dedupKey = historyDedupKey(url);
       const addedIsVideo = hasViewIdentityParam(url);
       const containerKey = historyContainerKey(url);
+      console.info('[ADL-DEBUG][history] add ENTER', {
+        url,
+        title,
+        dedupKey,
+        docKey: historyDocumentKey(url),
+        addedIsVideo,
+        historyLen: state.browserHistory.length,
+        newestUrl: state.browserHistory[0]?.url ?? null,
+        newestTitle: state.browserHistory[0]?.title ?? null,
+        newestVisitedAt: state.browserHistory[0]?.visitedAt ?? null,
+      });
 
       // 同一文档（同 hostname+pathname+身份参数）在导航窗口内到达的 URL 变体：
       // SPA 一次点击的多次 HistoryChanged 产生仅来源/导航参数不同的变体，合并为一条
@@ -81,6 +92,14 @@ export const createBrowserHistorySlice = (
         const newTitleOk = !isPlaceholderTitle(title, url);
         const oldTitleOk = !isPlaceholderTitle(newest.title, newest.url);
         const mergedTitle = newTitleOk ? title : oldTitleOk ? newest.title : title || url;
+        console.info('[ADL-DEBUG][history] add COALESCED', {
+          url,
+          title,
+          mergedTitle,
+          prevTitle: newest.title,
+          newTitleOk,
+          oldTitleOk,
+        });
         const merged: BrowserHistoryState = {
           ...newest,
           url,
@@ -115,6 +134,13 @@ export const createBrowserHistorySlice = (
         title: title || url,
         visitedAt: now,
       };
+      console.info('[ADL-DEBUG][history] add INSERTED', {
+        url,
+        entryTitle: newHistoryItem.title,
+        prevLen: state.browserHistory.length,
+        newLen: filteredHistory.length + 1,
+        dedupFiltered: filteredHistory.length !== state.browserHistory.length,
+      });
       const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100);
       writeHistory(nextHistory);
       return { browserHistory: nextHistory };
@@ -130,11 +156,19 @@ export const createBrowserHistorySlice = (
     // 占位标题（空/纯URL/主机/主机+路径如 "douyin.com/jingxuan"）不覆盖已有更优标题，
     // 避免 URL 式标题污染真实/主机标题（Chrome/Edge 语义）。
     if (isPlaceholderTitle(title, url)) {
+      console.info('[ADL-DEBUG][history] updateTitle SKIP(placeholder)', { url, title });
       return;
     }
     set((state) => {
       const dedupKey = historyDedupKey(url);
       const matched = state.browserHistory.filter((h) => historyDedupKey(h.url) === dedupKey);
+      console.info('[ADL-DEBUG][history] updateTitle', {
+        url,
+        title,
+        dedupKey,
+        matchedCount: matched.length,
+        matchedBefore: matched.map((h) => ({ id: h.id, title: h.title })),
+      });
       const changed = matched.some((h) => h.title !== title);
       if (!changed) {
         return state;

@@ -15,6 +15,12 @@ export function useBrowserMetaSubscription(
       return;
     }
     const unsub = bridge.onMetaChanged((tabId, meta) => {
+      console.info('[ADL-DEBUG][meta] received', {
+        tabId,
+        url: meta.url,
+        title: meta.title,
+        favicon: meta.favicon,
+      });
       if (tabId) {
         const state = useAppStore.getState();
         const eventTab = state.browserTabs.find((t) => t.id === tabId);

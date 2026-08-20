@@ -18,6 +18,18 @@ export const IconMenu = make(
 export const IconMinus = make(<path d="M5 12h14" />);
 export const IconSquare = make(<rect x="4" y="4" width="16" height="16" rx="2" />);
 
+/**
+ * 新标签页图标（browser/page/website/web/interface 语义）：圆角窗口 + 标题栏两点。
+ * 用于"新建标签页"标签的 favicon 占位（BrowserFavicon 空 URL 分支）。
+ */
+export const IconNewTabPage = make(
+  <>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <path d="M6 8h.01" />
+    <path d="M9 8h.01" />
+  </>,
+);
+
 export const IconClose = make(
   <>
     <path d="M18 6 6 18" />

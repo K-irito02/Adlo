@@ -93,6 +93,8 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
       return;
     }
     smartBackRunningRef.current.add(tabId);
+    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：智能回退触发。
+    console.info('[ADL-DEBUG][backfwd] smartGoBack start', { tabId, fromUrl });
 
     let steps = 0;
     let unlisten: (() => void) | null = null;
@@ -118,6 +120,13 @@ export function useBrowserNavigation(options: UseBrowserNavigationOptions) {
     const settleAndMaybeContinue = () => {
       settleTimer = null;
       if (cancelled || !shouldContinueSmartBack(fromUrl, lastLandedUrl, steps)) {
+        // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：回退落点（是否继续循环）。
+        console.info('[ADL-DEBUG][backfwd] settle', {
+          tabId,
+          steps,
+          landedUrl: lastLandedUrl,
+          continue: !cancelled && shouldContinueSmartBack(fromUrl, lastLandedUrl, steps),
+        });
         stop();
         return;
       }

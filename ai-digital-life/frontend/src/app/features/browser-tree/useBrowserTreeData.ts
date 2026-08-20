@@ -7,7 +7,7 @@ import type {
   WorkspaceBookmarkEntry,
 } from '@stores/slices/browserSlice';
 import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from './types';
-import { normalizeTabTitle } from '@utils/browserDisplayUtils';
+import { historyDedupKey, normalizeTabTitle } from '@utils/browserDisplayUtils';
 import { useBrowserTreeCache } from './useBrowserTreeCache';
 import { useBrowserTreeVirtualization } from './useBrowserTreeVirtualization';
 import { useTCopy } from '@app/i18n/useTCopy';
@@ -78,7 +78,11 @@ function buildHistoryLeafNode(
   const entryDateStr = `${entryDate.getFullYear()}-${String(entryDate.getMonth() + 1).padStart(2, '0')}-${String(entryDate.getDate()).padStart(2, '0')}`;
 
   if (entryDateStr === todayStr) {
-    const matchedTab = browserTabs.find((t) => t.url === entry.url);
+    // 归一化匹配当前打开的标签（剥离跟踪参数/尾斜杠/www）：URL 变体（如 B 站
+    // 尾斜杠、YouTube 追加参数）也能关联到正在播放的标签，音量图标稳定显示
+    // （2026-08-21 事项 7：此前 t.url === entry.url 精确匹配导致图标缺失/闪烁）。
+    const entryKey = historyDedupKey(entry.url);
+    const matchedTab = browserTabs.find((t) => historyDedupKey(t.url) === entryKey);
     if (matchedTab) {
       isPlayingAudio = matchedTab.isPlayingAudio;
       isAudioMuted = matchedTab.isAudioMuted;
@@ -173,8 +177,9 @@ function buildFolderNode(
       // 使用文件夹级快照，保留收藏时的原始 URL/标题
       node.name = resolveTitle(snapshotTitle || tab.title || '', displayUrl);
       node.url = displayUrl;
-      // 收藏条目：仅在标签仍在收藏的 URL 上时才保留音频状态
-      if (tab.url !== (snapshotUrl || tab.url)) {
+      // 收藏条目：仅在标签仍在收藏的 URL（归一化匹配，剥离跟踪参数/尾斜杠/www）上
+      // 时才保留音频状态——URL 变体不丢失音量图标（2026-08-21 事项 7）。
+      if (snapshotUrl && historyDedupKey(tab.url) !== historyDedupKey(snapshotUrl)) {
         node.isPlayingAudio = false;
         node.isAudioMuted = false;
       }
@@ -283,9 +288,14 @@ export function buildWorkspaceCategoryTree(
             isAudioMuted: false,
           };
         }
-        // 收藏条目始终清除音频状态（避免时序竞争导致的闪烁）
-        node.isPlayingAudio = false;
-        node.isAudioMuted = false;
+        // 收藏条目：标签仍在该快照 URL（归一化匹配）上时保留音频状态（音量图标），
+        // 否则清除——URL 变体不丢失图标（2026-08-21 事项 7：此前"始终清除"导致
+        // 书签/收藏目录不显示音量图标）。
+        const keepAudio = Boolean(
+          tab && snapshotUrl && historyDedupKey(tab.url) === historyDedupKey(snapshotUrl),
+        );
+        node.isPlayingAudio = keepAudio ? tab!.isPlayingAudio : false;
+        node.isAudioMuted = keepAudio ? tab!.isAudioMuted : false;
         node.isSavedBookmark = true;
         return node;
       })

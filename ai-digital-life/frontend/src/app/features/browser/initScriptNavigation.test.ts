@@ -155,10 +155,22 @@ describe('init_script.js new-tab interception markers', () => {
     expect(initScript).toContain('chrome.webview.postMessage');
   });
 
-  it('uses the helper for target=_blank and modified clicks', () => {
-    expect(initScript).toContain("linkTarget === '_blank'");
+  it('uses the helper ONLY for modified clicks (explicit new-tab intent)', () => {
     expect(initScript).toContain('event.ctrlKey || event.metaKey || event.shiftKey');
     expect(initScript).toContain('__adlTryOpenNewTab(href)');
+    // 2026-08-20 用户决策：target="_blank" 的普通点击不再触发新标签（网页内跳转
+    // 就地当前标签导航）；仅修饰键/中键点击保留新标签通道。
+    expect(initScript).not.toContain("linkTarget === '_blank'");
+    expect(initScript).not.toContain("areaTarget === '_blank'");
+  });
+
+  it('routes plain in-page clicks (incl. target=_blank) to the SPA nav-guard', () => {
+    // 定位 __startNavGuard(href) 调用处（非定义处），断言其前置 preventDefault。
+    const guardCall = initScript.indexOf('window.__startNavGuard(href)');
+    expect(guardCall).toBeGreaterThan(-1);
+    const before = initScript.slice(guardCall - 300, guardCall + 30);
+    expect(before).toContain('event.preventDefault()');
+    expect(before).not.toContain('__adlTryOpenNewTab');
   });
 
   it('does not start the SPA nav-guard in the new-tab path', () => {

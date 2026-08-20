@@ -109,6 +109,13 @@ impl BrowserManager {
         tab_id: &str,
     ) -> Result<Option<String>, AppError> {
         let evicted = self.pool.register(tab_id.to_string());
+        // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：WebView 创建/驱逐。
+        tracing::info!(
+            tab_id = tab_id,
+            evicted = ?evicted,
+            pool_size = self.pool.size(),
+            "[ADL-DEBUG][webview] create_for_tab"
+        );
 
         if let Some(ref evict_id) = evicted {
             crate::webview2_audio::cleanup_audio_handler(evict_id);
@@ -143,8 +150,18 @@ impl BrowserManager {
             };
             if let Some(handle) = handle {
                 if entry_id == tab_id {
+                    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：激活 tab（show）。
+                    tracing::info!(
+                        tab_id = entry_id,
+                        "[ADL-DEBUG][webview] activate_tab show"
+                    );
                     handle.show()?;
                 } else {
+                    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：隐藏其它 tab（hide）。
+                    tracing::info!(
+                        tab_id = entry_id,
+                        "[ADL-DEBUG][webview] activate_tab hide"
+                    );
                     let _ = handle.hide();
                 }
             }
@@ -171,7 +188,13 @@ impl BrowserManager {
     }
 
     pub fn navigate_tab(&self, tab_id: &str, url: &str) -> Result<(), AppError> {
-        tracing::debug!(tab_id = tab_id, url = url, "BrowserManager::navigate_tab: ENTER");
+        // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：任何 WebView 导航——
+        // 若"新建标签页"后旧 tab 出现 navigate，即为音频恢复播放/页面刷新来源。
+        tracing::info!(
+            tab_id = tab_id,
+            url = url,
+            "[ADL-DEBUG][webview] navigate_tab"
+        );
         self.with_handle(tab_id, |handle| {
             handle.navigate(url)?;
             tracing::debug!(
@@ -184,6 +207,12 @@ impl BrowserManager {
     }
 
     pub fn set_tab_bounds(&self, tab_id: &str, bounds: Bounds) -> Result<(), AppError> {
+        // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：WebView 边界（off-screen 隐藏）。
+        tracing::info!(
+            tab_id = tab_id,
+            bounds = ?bounds,
+            "[ADL-DEBUG][webview] set_tab_bounds"
+        );
         self.with_handle(tab_id, |handle| {
             handle.set_bounds(bounds)?;
             Ok(())

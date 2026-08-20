@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, beforeEach } from 'vitest';
 import { createStore } from 'zustand/vanilla';
 import { createBrowserTabsSlice } from '../browserTabsSlice';
 import type { BrowserTabState } from '../browserTabsSlice';
+import { createBrowserHistorySlice } from '../browserHistorySlice';
 
 function makeTab(id: string, overrides: Partial<BrowserTabState> = {}): BrowserTabState {
   return {
@@ -65,9 +66,14 @@ describe('browserTabsSlice - audio control', () => {
 });
 
 describe('browserOpenTab folder append dedup (url+title)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
   function makeStoreWithFolder(folderId: string) {
     return createStore<any>((set, get) => ({
       ...createBrowserTabsSlice(set, get),
+      ...createBrowserHistorySlice(set, get),
       browserTabs: [],
       browserTabsById: {},
       browserActiveTabId: '',
@@ -91,5 +97,46 @@ describe('browserOpenTab folder append dedup (url+title)', () => {
     store.getState().browserOpenTab('https://e.com', 'Title B', undefined, 'f1');
     const folder = store.getState().browserTabFolders.find((f: any) => f.id === 'f1');
     expect(folder.tabs).toHaveLength(2);
+  });
+});
+
+describe('browserOpenTab writes history (Chrome/Edge semantics)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  function makeStore() {
+    return createStore<any>((set, get) => ({
+      ...createBrowserTabsSlice(set, get),
+      ...createBrowserHistorySlice(set, get),
+      browserTabs: [],
+      browserTabsById: {},
+      browserActiveTabId: '',
+      browserTabFolders: [],
+      browserBookmarkTabIdUrlMap: {},
+      browserBookmarks: [],
+    }));
+  }
+
+  it('records a history entry when opening a URL in a new tab (bookmark/quick-site path)', () => {
+    const store = makeStore();
+    store.getState().browserOpenTab('https://www.youtube.com/');
+    const history = store.getState().browserHistory as { url: string; title: string }[];
+    expect(history.some((h) => h.url === 'https://www.youtube.com/')).toBe(true);
+  });
+
+  it('uses the passed title when available', () => {
+    const store = makeStore();
+    store.getState().browserOpenTab('https://www.youtube.com/', 'YouTube');
+    const history = store.getState().browserHistory as { url: string; title: string }[];
+    const entry = history.find((h) => h.url === 'https://www.youtube.com/');
+    expect(entry?.title).toBe('YouTube');
+  });
+
+  it('does NOT record history for an empty/blank new tab', () => {
+    const store = makeStore();
+    store.getState().browserOpenTab();
+    store.getState().browserOpenTab(undefined, 'New tab page');
+    expect(store.getState().browserHistory).toHaveLength(0);
   });
 });

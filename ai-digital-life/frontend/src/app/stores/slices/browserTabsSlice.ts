@@ -57,13 +57,13 @@ export interface BrowserTabsSlice {
 
 export const createBrowserTabsSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState,
+  get: () => StoreState,
 ): BrowserTabsSlice => ({
   browserTabs: [],
   browserTabsById: {},
   browserActiveTabId: '',
 
-  browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) =>
+  browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) => {
     set((state) => {
       const maxSortOrder =
         state.browserTabs.length > 0 ? Math.max(...state.browserTabs.map((t) => t.sortOrder)) : 0;
@@ -110,7 +110,17 @@ export const createBrowserTabsSlice = (
         browserBookmarkTabIdUrlMap: nextTabIdUrlMap,
         browserBookmarks: state.browserBookmarks,
       };
-    }),
+    });
+    // Chrome/Edge 语义：显式打开一个 URL（书签/快捷站点/右键新标签/文件夹恢复）即一次
+    // 导航，应记录历史。browserOpenTab 预置 tab.url 后，导航完成时 onUrlChanged 的
+    // urlChanged 判定为 false（tab 已在该 URL），历史写入不能依赖该事件，必须在打开
+    // 入口同步写入（与地址栏提交 browserAddToHistory 语义一致；browserAddToHistory 的
+    // 同日同 dedupKey 去重保证恢复/重复打开不产生重复条目）。
+    const trimmedUrl = url?.trim();
+    if (trimmedUrl) {
+      get().browserAddToHistory(trimmedUrl, title?.trim() || trimmedUrl);
+    }
+  },
 
   browserSelectTab: (tabId) => {
     writeActiveTab(tabId);
@@ -157,6 +167,17 @@ export const createBrowserTabsSlice = (
         if (isMuted !== undefined) {
           next.isAudioMuted = isMuted;
         }
+        // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：音频状态落地（前后值）。
+        console.info('[ADL-DEBUG][audio] store update', {
+          tabId,
+          url: tab.url,
+          prevPlaying: tab.isPlayingAudio,
+          prevMuted: tab.isAudioMuted,
+          nextPlaying: next.isPlayingAudio,
+          nextMuted: next.isAudioMuted,
+          incomingPlaying: isPlaying,
+          incomingMuted: isMuted,
+        });
         return next;
       });
       const hasMuteChange = isMuted !== undefined;

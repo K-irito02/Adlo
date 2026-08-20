@@ -44,8 +44,12 @@
     // observe the event (no stopPropagation). Use event-driven SPA detection:
     // if the SPA calls history.pushState/replaceState or popstate fires within
     // NAV_GUARD_TIMEOUT_MS, we skip the fallback; otherwise, we navigate.
-    // New-tab targets (target="_blank"/"_new" or ctrl/meta/shift/middle-click)
-    // are routed to the open-new-tab channel instead of the in-place nav guard.
+    // Modified clicks (ctrl/meta/shift/middle) are the user's EXPLICIT new-tab
+    // intent and are routed to the open-new-tab channel. Plain clicks on
+    // in-page links (including target="_blank" links) navigate IN-PLACE in the
+    // current tab — single-tab in-page navigation (user decision 2026-08-20),
+    // handled by the SPA nav-guard; back/forward stays single-step via the C1
+    // pushState normalization + frontend smartGoBack (unchanged).
     document.addEventListener('click', function(event) {
         var target = event.target;
         
@@ -53,10 +57,17 @@
             if (target.tagName === 'A' && target.href) {
                 var href = target.href;
                 if (isValidWebUrl(href)) {
-                    var linkTarget = (target.getAttribute('target') || '').toLowerCase();
-                    var wantsNewTab = linkTarget === '_blank' || linkTarget === '_new' ||
-                        event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
-                    if (wantsNewTab) {
+                    var forcedNewTab = event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
+                    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：链接点击决策。
+                    try {
+                        chrome.webview.postMessage(JSON.stringify({
+                            type: 'adl-nav-click-diag',
+                            href: href,
+                            forcedNewTab: forcedNewTab,
+                            linkTarget: (target.getAttribute('target') || '').toLowerCase()
+                        }));
+                    } catch(e) {}
+                    if (forcedNewTab) {
                         // PostMessage available → Rust opens a new tab. Otherwise
                         // leave the default action so native NewWindowRequested fires.
                         if (__adlTryOpenNewTab(href)) {
@@ -76,10 +87,17 @@
             if (target.tagName === 'AREA' && target.href) {
                 var href = target.href;
                 if (isValidWebUrl(href)) {
-                    var areaTarget = (target.getAttribute('target') || '').toLowerCase();
-                    var areaWantsNewTab = areaTarget === '_blank' || areaTarget === '_new' ||
-                        event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
-                    if (areaWantsNewTab) {
+                    var areaForcedNewTab = event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
+                    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：链接点击决策（AREA）。
+                    try {
+                        chrome.webview.postMessage(JSON.stringify({
+                            type: 'adl-nav-click-diag',
+                            href: href,
+                            forcedNewTab: areaForcedNewTab,
+                            linkTarget: (target.getAttribute('target') || '').toLowerCase()
+                        }));
+                    } catch(e) {}
+                    if (areaForcedNewTab) {
                         if (__adlTryOpenNewTab(href)) {
                             event.preventDefault();
                         }

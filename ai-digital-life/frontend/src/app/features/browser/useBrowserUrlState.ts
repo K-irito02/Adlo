@@ -46,6 +46,11 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
   );
 
   const handleAddressBlur = useCallback(() => {
+    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：失焦时地址栏恢复值（不提交导航）。
+    console.info('[ADL-DEBUG][address] blur', {
+      activeTabUrl,
+      restoreTo: activeTabUrl ?? '(undefined)',
+    });
     setAddressExpanded(false);
     if (activeTabUrl !== undefined) {
       setAddress(activeTabUrl);

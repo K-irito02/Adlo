@@ -8,7 +8,7 @@ import {
   isSiteMetaResolved,
 } from '../utils/siteMetaCache';
 import { pageMetaClient } from '../utils/pageMetaClient';
-import type { IconSize } from '../icons';
+import { IconNewTabPage, type IconSize } from '../icons';
 
 /**
  * 取站点首字母作为终级兜底：解析 host 首字符，字母转大写；
@@ -93,6 +93,16 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     // 绝不删除缓存：后续广播更新会重置 degraded 并尝试新图标。
     setDegraded(true);
   }, []);
+
+  // 新标签页（无 URL/about:blank）没有站点 favicon：显示内置"新标签页"图标，
+  // 避免空白占位（用户 2026-08-20 报告：open 模式下新建标签页标签图标缺失）。
+  if (!url || url === 'about:blank') {
+    return (
+      <span className="adl-filetree__file-icon adl-filetree__file-icon--default">
+        <IconNewTabPage size={size} decorative />
+      </span>
+    );
+  }
 
   return (
     <span
