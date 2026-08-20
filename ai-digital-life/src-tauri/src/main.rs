@@ -120,6 +120,7 @@ fn main() {
             commands::browser::browser_activate_tab,
             commands::browser::browser_destroy_tab,
             commands::browser::browser_navigate_tab,
+            commands::browser::browser_mark_navigation_intent,
             commands::browser::browser_set_tab_bounds,
             commands::browser::browser_go_back_tab,
             commands::browser::browser_go_forward_tab,

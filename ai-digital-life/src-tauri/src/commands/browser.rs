@@ -594,6 +594,15 @@ pub fn browser_navigate_tab(
 }
 
 #[tauri::command]
+pub fn browser_mark_navigation_intent(
+    tab_id: String,
+    url: String,
+) -> Result<IpcResult<()>, CommandError> {
+    adl_browser::mark_navigation_intent(&tab_id, &url);
+    Ok(ipc(Ok(())))
+}
+
+#[tauri::command]
 pub fn browser_set_tab_bounds(
     state: State<'_, AppState>,
     tab_id: String,
