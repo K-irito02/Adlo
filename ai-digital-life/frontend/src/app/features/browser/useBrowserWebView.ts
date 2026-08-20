@@ -10,7 +10,6 @@ interface UseBrowserWebViewOptions {
   webViewDisabled?: boolean;
   isVisible: boolean;
   overlayActive: boolean;
-  webViewSelfNavigatedRef: React.RefObject<Set<string>>;
 }
 
 /**
@@ -27,20 +26,13 @@ interface UseBrowserWebViewOptions {
  * - visibility 依赖 bounds 的 primaryRef 与 updateWebViewBounds(Ref)
  */
 export function useBrowserWebView(options: UseBrowserWebViewOptions) {
-  const {
-    activeTab,
-    webViewDisabled = false,
-    isVisible,
-    overlayActive,
-    webViewSelfNavigatedRef,
-  } = options;
+  const { activeTab, webViewDisabled = false, isVisible, overlayActive } = options;
 
   const {
     poolSize: _poolSize,
     isTabInPool,
     createWebViewForTab,
     activateTabInPool,
-    navigateTabInPool,
     removeFromPool,
     poolVersion,
   } = useBrowserPool();
@@ -69,12 +61,10 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     isTabInPool,
     createWebViewForTab,
     activateTabInPool,
-    navigateTabInPool,
     webViewActiveRef,
     overlayActiveRef,
     hideWebViewRequestedRef,
     updateWebViewBounds,
-    webViewSelfNavigatedRef,
   });
 
   useWebViewVisibility({

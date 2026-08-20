@@ -10,7 +10,6 @@ export interface UseBrowserPanelMetaWiringParams {
   iframeRef: React.MutableRefObject<HTMLIFrameElement | null>;
   expectedNavigationUrlRef: React.MutableRefObject<string | null>;
   pendingNavigationsRef: React.MutableRefObject<Set<string>>;
-  webViewSelfNavigatedRef: React.MutableRefObject<Set<string>>;
   markUrlSeen: (url: string) => void;
   setAddress: (address: string) => void;
   setIframeLoadError: React.Dispatch<React.SetStateAction<boolean>>;
@@ -49,7 +48,6 @@ export function useBrowserPanelMetaWiring(
     onNavigationStart: params.onNavigationStart,
     markUrlSeen: params.markUrlSeen,
     setIframeLoadError: params.setIframeLoadError,
-    webViewSelfNavigatedRef: params.webViewSelfNavigatedRef,
   });
 
   return {

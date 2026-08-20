@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { isTauriShell } from '@shared/env';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { getResolvedTheme } from './useBrowserThemeSync';
-import { normalizeUrlForCompare } from './browserUrlUtils';
 
 interface UseWebViewLifecycleOptions {
   activeTab?: BrowserTabState;
@@ -14,19 +13,10 @@ interface UseWebViewLifecycleOptions {
     colorScheme?: 'light' | 'dark',
   ) => Promise<string | null>;
   activateTabInPool: (tabId: string) => Promise<void>;
-  navigateTabInPool: (tabId: string, url: string) => Promise<void>;
   webViewActiveRef: React.RefObject<boolean>;
   overlayActiveRef: React.RefObject<boolean>;
   hideWebViewRequestedRef: React.RefObject<boolean>;
   updateWebViewBounds: () => void;
-  /**
-   * Set of URLs recorded by `useBrowserUrlChange` when `onUrlChanged` fires,
-   * indicating the WebView already navigated on its own. When the tab's URL
-   * is found in this Set, `useWebViewLifecycle` skips `navigateTabInPool`
-   * to avoid a redundant double-navigation (e.g. YouTube's `?themeRefresh=1`
-   * or Bilibili's server redirects).
-   */
-  webViewSelfNavigatedRef: React.RefObject<Set<string>>;
 }
 
 /**
@@ -46,12 +36,10 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     isTabInPool,
     createWebViewForTab,
     activateTabInPool,
-    navigateTabInPool,
     webViewActiveRef,
     overlayActiveRef,
     hideWebViewRequestedRef,
     updateWebViewBounds,
-    webViewSelfNavigatedRef,
   } = options;
 
   const [loadingTabId, setLoadingTabId] = useState<string | null>(null);
@@ -123,45 +111,11 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
 
     const activateOrCreate = async () => {
       const currentTabId = tab.id;
-      const prevUrl = tabUrlMapRef.current.get(currentTabId);
-      const urlChanged = prevUrl !== undefined && prevUrl !== tab.url;
       try {
         if (!isTabInPool(currentTabId)) {
           // Real WebView creation: show loading.
           setLoadingTabId(currentTabId);
           await createWebViewForTab(currentTabId, tab.url, getResolvedTheme());
-        } else if (urlChanged) {
-          // WebView already exists: if the URL changed since last activation
-          // (e.g. "current tab" mode navigation), navigate to the new URL.
-          // Check if this URL was recorded by useBrowserUrlChange (via
-          // onUrlChanged). If so, the WebView already navigated on its
-          // own (SPA pushState, GoBack/GoForward, redirects) — skip
-          // navigateTabInPool to avoid a redundant double-navigation AND
-          // skip the loading overlay, which would otherwise flash as an
-          // unwanted "auto refresh" right after a successful back/forward.
-          const selfNav = webViewSelfNavigatedRef.current;
-          const selfNavigated = selfNav.has(normalizeUrlForCompare(tab.url));
-          // DEBUG(问题2): URL 变化后 lifecycle 的导航决策——是否命中 selfNav（命中=不重载）
-          console.warn('[webview-lifecycle] urlChanged-decision', {
-            tabId: currentTabId,
-            tabUrl: tab.url,
-            prevUrl,
-            inSelfNavSet: selfNavigated,
-            setSize: selfNav.size,
-            action: selfNavigated ? 'skip-navigate-selfNav' : 'NAVIGATE-TAB',
-          });
-          if (!selfNavigated) {
-            setLoadingTabId(currentTabId);
-            // DEBUG(问题2): 触发 navigateTabInPool（重载点）——记录 URL
-            console.warn('[webview-lifecycle] NAVIGATE-triggered', {
-              tabId: currentTabId,
-              tabUrl: tab.url,
-              prevUrl,
-              stack: new Error().stack,
-            });
-            await navigateTabInPool(currentTabId, tab.url);
-          }
-          selfNav.delete(normalizeUrlForCompare(tab.url));
         }
         await activateTabInPool(currentTabId);
         webViewActiveRef.current = true;
@@ -201,12 +155,10 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     isTabInPool,
     createWebViewForTab,
     activateTabInPool,
-    navigateTabInPool,
     updateWebViewBounds,
     hideWebViewRequestedRef,
     overlayActiveRef,
     webViewActiveRef,
-    webViewSelfNavigatedRef,
   ]);
 
   // Cleanup on unmount

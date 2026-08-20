@@ -78,14 +78,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
   });
 
   const activatedTabIdsRef = useRef(new Set<string>());
-  /** Shared between useBrowserUrlChange and useWebViewLifecycle: tracks
-   *  URLs that were navigated by the WebView itself (via onUrlChanged).
-   *  A Set is used instead of a boolean to handle server redirects: when
-   *  on_navigation fires for URL-A then URL-B (redirect), both are added
-   *  to the set so useWebViewLifecycle skips navigateTabInPool for both —
-   *  avoiding a double page reload (the bug with Bilibili's tracking-param
-   *  redirects). Kept capped at 10 to avoid unbounded growth. */
-  const webViewSelfNavigatedRef = useRef(new Set<string>());
 
   const {
     activeTab,
@@ -232,7 +224,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     webViewDisabled: false,
     isVisible: isBrowserVisible,
     overlayActive: hasOverlayActive,
-    webViewSelfNavigatedRef,
   });
 
   const { wrappedHandleCloseTab, handleCloseAllTabs, handleClearTabDirectories } =
@@ -253,7 +244,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     iframeRef,
     expectedNavigationUrlRef,
     pendingNavigationsRef,
-    webViewSelfNavigatedRef,
     markUrlSeen,
     setAddress,
     setIframeLoadError,

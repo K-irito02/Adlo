@@ -26,7 +26,6 @@ interface UseBrowserUrlChangeOptions {
   onNavigationStart?: (url: string) => void;
   markUrlSeen: (url: string) => void;
   setIframeLoadError: React.Dispatch<React.SetStateAction<boolean>>;
-  webViewSelfNavigatedRef: React.MutableRefObject<Set<string>>;
 }
 
 export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
@@ -36,7 +35,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
     iframeRef,
     expectedNavigationUrlRef,
     setAddress,
-    webViewSelfNavigatedRef,
     browserNavigateActiveTab,
     browserUpdateTab,
     onPageMeta,
@@ -236,29 +234,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           (h) => historyDedupKey(h.url) === dedupKey && h.title !== h.url,
         );
 
-        // Mark that this URL change came from the WebView itself (via
-        // onUrlChanged). This tells useWebViewLifecycle to skip
-        // navigateTabInPool, preventing a redundant double-navigation
-        // (e.g. YouTube's ?themeRefresh=1 or Bilibili's tracking-param
-        // redirect — the WebView already navigated, we must not navigate
-        // again). Using a Set so redirects (URL-A → URL-B) are both
-        // tracked and neither triggers a redundant navigation.
-        const set = webViewSelfNavigatedRef.current;
-        set.add(normalizedUrl);
-        if (set.size > 10) {
-          const first = set.values().next().value;
-          if (first) {
-            set.delete(first);
-          }
-        }
-        // DEBUG(问题2): 记录 selfNav Set 状态（加库/淘汰），供 lifecycle nav 决策比对
-        console.warn('[browser-url-change] selfNav-recorded', {
-          tabId,
-          url: normalizedUrl,
-          setSize: set.size,
-          evicted: set.size > 10 ? 'yes' : 'no',
-        });
-
         if (eventTab && tabId) {
           // Use the tabId from the event to update the correct tab,
           // not the currently active tab (which may differ if user
@@ -384,14 +359,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       }
       fallbackTimeoutsRef.current.clear();
     };
-  }, [
-    markUrlSeen,
-    setAddress,
-    onNavigationStart,
-    onPageMeta,
-    expectedNavigationUrlRef,
-    webViewSelfNavigatedRef,
-  ]);
+  }, [markUrlSeen, setAddress, onNavigationStart, onPageMeta, expectedNavigationUrlRef]);
 
   return {
     handleIframeLoad,
