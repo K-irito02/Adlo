@@ -19,6 +19,7 @@ commands.allow = [
   "browser_activate_tab",
   "browser_destroy_tab",
   "browser_navigate_tab",
+  "browser_mark_navigation_intent",
   "browser_set_tab_bounds",
   "browser_go_back_tab",
   "browser_go_forward_tab",

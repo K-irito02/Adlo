@@ -15,6 +15,8 @@ export function createTauriBrowserBridge(): BrowserBridge {
       invokeIpc<void>('browser_destroy_tab', { tabId }).then(() => undefined),
     navigateTab: (tabId: string, url: string) =>
       invokeIpc<void>('browser_navigate_tab', { tabId, url }).then(() => undefined),
+    markNavigationIntent: (input: { tabId: string; url: string }) =>
+      invokeIpc<unknown>('browser_mark_navigation_intent', { tabId: input.tabId, url: input.url }),
     setTabBounds: (
       tabId: string,
       bounds: { x: number; y: number; width: number; height: number },
