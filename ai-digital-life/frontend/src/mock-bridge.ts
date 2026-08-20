@@ -7,6 +7,7 @@ import {
   existingFaviconBaseline,
   shouldReplaceFavicon,
 } from './app/features/browser/faviconQuality';
+import { isPlaceholderTitle } from './app/utils/browserDisplayUtils';
 import {
   appInfo,
   currentWorkspaceMeta,
@@ -186,35 +187,6 @@ function normalizeCacheKey(url: string): string {
     }
     return noHash;
   }
-}
-
-/** 占位标题：空 / 等于 URL / http(s) 前缀 / 裸域名 / 无 scheme 的主机+路径（与 useBrowserPageMeta / meta_merge 一致）。 */
-function isPlaceholderTitle(title: string, url: string): boolean {
-  if (!title) {
-    return true;
-  }
-  if (title === url) {
-    return true;
-  }
-  if (/^https?:\/\//i.test(title)) {
-    return true;
-  }
-  const trimmed = title.trim();
-  try {
-    const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
-    if (!host) {
-      return false;
-    }
-    const t = trimmed.toLowerCase();
-    if (t === host || t === `www.${host}`) {
-      return true;
-    }
-  } catch {
-    return false;
-  }
-  return /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+(?:\/[\S]*)?$/i.test(
-    trimmed,
-  );
 }
 
 /** 标题合并门控（与 Rust meta_merge::should_apply_exact_match_title 一致）。 */

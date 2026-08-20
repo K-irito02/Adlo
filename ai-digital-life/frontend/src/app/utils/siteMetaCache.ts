@@ -207,35 +207,18 @@ export function findCanonicalOriginEntry(
   return candidates[0]!;
 }
 
-/** 该 URL 站点级 canonical 图标（含命中的缓存 key，供调试/日志）。 */
+/** 该 URL 站点级 canonical 图标。 */
 export function getCanonicalOriginFavicon(url: string): {
   faviconDataUri: string;
   faviconUrl: string;
   cacheKey: string;
 } {
   const found = findCanonicalOriginEntry(url);
-  const result = {
+  return {
     faviconDataUri: found?.entry.faviconDataUri ?? '',
     faviconUrl: found?.entry.faviconUrl ?? '',
     cacheKey: found?.cacheKey ?? '',
   };
-  console.info('[site-meta-cache] canonical-origin-favicon', {
-    url,
-    origin: originOf(url),
-    chosenCacheKey: result.cacheKey,
-    hasDataUri: Boolean(result.faviconDataUri),
-    hasFaviconUrl: Boolean(result.faviconUrl),
-    faviconUrl: result.faviconUrl,
-  });
-  return result;
-}
-
-export function getOriginFaviconDataUri(url: string): string {
-  return findCanonicalOriginEntry(url)?.entry.faviconDataUri ?? '';
-}
-
-export function getOriginFaviconUrl(url: string): string {
-  return findCanonicalOriginEntry(url)?.entry.faviconUrl ?? '';
 }
 
 export function getCachedTitle(url: string): string {
@@ -251,6 +234,30 @@ export function getCachedTitle(url: string): string {
  */
 export function isSiteMetaResolved(url: string): boolean {
   return memoryCache.has(normalizeUrlForCache(url));
+}
+
+/**
+ * 该 URL 是否"已抓取结算"——精确 URL 有 entry，或同 origin 任意路径已有 entry。
+ * 仅用于收藏/历史树节点的标题解析（resolveSiteTitle 的 resolved 参数）：
+ * 同站点其它页面已抓取，说明该站点元数据管道正常工作，历史条目可从
+ * 主机名兜底进入最终标题；标签头/图标等对 URL 精确性敏感的场景仍用
+ * `isSiteMetaResolved`（精确匹配，避免同站点另一页的结算提前终止空占位）。
+ */
+export function isSiteMetaResolvedForTree(url: string): boolean {
+  const key = normalizeUrlForCache(url);
+  if (memoryCache.has(key)) {
+    return true;
+  }
+  const origin = originOf(url);
+  if (!origin) {
+    return false;
+  }
+  for (const k of memoryCache.keys()) {
+    if (originOf(k) === origin) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

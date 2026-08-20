@@ -313,4 +313,28 @@ describe('historyDocumentKey', () => {
       historyDocumentKey('https://www.google.com/search?q=dog'),
     );
   });
+
+  it('keeps other content-identity params distinct (id/skuId/itemId/aid/search_query/wd/keyword)', () => {
+    expect(historyDocumentKey('https://item.taobao.com/item.htm?id=1')).not.toBe(
+      historyDocumentKey('https://item.taobao.com/item.htm?id=2'),
+    );
+    expect(historyDocumentKey('https://www.jd.com/product/skuId=1001')).not.toBe(
+      historyDocumentKey('https://www.jd.com/product/skuId=1002'),
+    );
+    expect(historyDocumentKey('https://shop.com/p?itemId=abc')).not.toBe(
+      historyDocumentKey('https://shop.com/p?itemId=def'),
+    );
+    expect(historyDocumentKey('https://www.toutiao.com/article/?aid=111')).not.toBe(
+      historyDocumentKey('https://www.toutiao.com/article/?aid=222'),
+    );
+    expect(historyDocumentKey('https://www.google.com/search?search_query=cat')).not.toBe(
+      historyDocumentKey('https://www.google.com/search?search_query=dog'),
+    );
+    expect(historyDocumentKey('https://www.baidu.com/s?wd=cat')).not.toBe(
+      historyDocumentKey('https://www.baidu.com/s?wd=dog'),
+    );
+    expect(historyDocumentKey('https://search.com/?keyword=cat')).not.toBe(
+      historyDocumentKey('https://search.com/?keyword=dog'),
+    );
+  });
 });

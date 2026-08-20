@@ -314,6 +314,17 @@ describe('count rules per category type', () => {
     const tree = buildHistoryCategoryTree([e1], [], mockDateLabels);
     expect(tree).toHaveLength(1);
   });
+
+  it('filters out history leaves with an empty resolved name', () => {
+    const e1 = makeHistoryEntry('e1', 'E1', 'https://a.example', new Date(2026, 5, 2).getTime());
+    const e2 = makeHistoryEntry('e2', '', 'https://b.example', new Date(2026, 5, 2).getTime());
+    const tree = buildHistoryCategoryTree([e1, e2], [], mockDateLabels, (title, url) =>
+      url.includes('b.example') ? '' : title,
+    );
+    const day = tree[0].children[0].children[0].children[0];
+    expect(countDirectFileChildren(day)).toBe(1);
+    expect(day.children.map((c) => c.url)).toEqual(['https://a.example']);
+  });
 });
 
 describe('useBrowserTreeData count dispatch by categoryType', () => {

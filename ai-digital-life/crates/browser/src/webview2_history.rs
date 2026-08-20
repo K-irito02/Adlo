@@ -46,23 +46,7 @@ mod imp {
 
                 let clean_url = url.split("#adl-meta").next().unwrap_or(&url).to_string();
 
-                // DEBUG(问题4): 记录每次 HistoryChanged 到达时的"去重前原始 URL"（含被 Rust 去重拦下的
-                // 重复/变体），用于对照"一次点击产生多条历史"——揭示 WebView2 为单次导航实际发出的全部 URL。
-                warn!(
-                    "[ADL-NAV-DEBUG] HistoryChanged raw (pre-dedup) | tab: {} | url: {}",
-                    tab_id,
-                    clean_url
-                );
-
-                // DEBUG(问题2): 记录每次 HistoryChanged 事件与是否放行的判定结果，便于对照重载触发链
-                let should_emit = should_emit_history_changed(&tab_id, &clean_url);
-                debug!(
-                    "[ADL-NAV] HistoryChanged entered | tab: {} | url: {} | should_emit: {}",
-                    tab_id,
-                    clean_url.chars().take(80).collect::<String>(),
-                    should_emit
-                );
-                if !should_emit {
+                if !should_emit_history_changed(&tab_id, &clean_url) {
                     return Ok(());
                 }
 

@@ -1,5 +1,3 @@
-import type { IpcResult } from '@ai-digital-life/kernel';
-
 export type MetaSource = 'com' | 'http' | 'iframe' | 'google';
 
 export interface PageMeta {
@@ -43,8 +41,6 @@ export interface BrowserBridge {
   destroyTab: (tabId: string) => Promise<void>;
   /** Navigate a specific tab's WebView. */
   navigateTab: (tabId: string, url: string) => Promise<void>;
-  /** 登记 per-tab 显式导航意图，供 Rust 在 NavigationStarting/SourceChanged 消费（避免把 SPA pushState 软导航误当显式导航触发 Navigate）。 */
-  markNavigationIntent: (input: { tabId: string; url: string }) => Promise<IpcResult<unknown>>;
   /** Set bounds for a specific tab's WebView. */
   setTabBounds: (
     tabId: string,

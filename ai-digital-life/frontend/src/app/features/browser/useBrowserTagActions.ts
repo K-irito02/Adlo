@@ -2,11 +2,14 @@ import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { pageMetaClient } from '@utils/pageMetaClient';
-import { hostnameFromUrl } from '@utils/browserDisplayUtils';
-import { applyBroadcastTitle, isPlaceholderTitle, titleSourceRef } from './useBrowserPageMeta';
+import { hostnameFromUrl, isPlaceholderTitle } from '@utils/browserDisplayUtils';
+import { applyBroadcastTitle, titleSourceRef } from './useBrowserPageMeta';
 import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 
-export function useBrowserTagActions() {
+export function useBrowserTagActions(options?: {
+  navigateTabExplicit?: (tabId: string, url: string, title?: string) => void;
+}) {
+  const { navigateTabExplicit } = options ?? {};
   const {
     browserOpenTab,
     browserCloseTab,
@@ -120,10 +123,16 @@ export function useBrowserTagActions() {
       const tab = state.browserTabs.find((t) => t.id === tabId);
       const activeTabId = state.browserActiveTabId;
       if (tab && activeTabId) {
-        browserUpdateTab(activeTabId, { url: tab.url });
+        if (navigateTabExplicit) {
+          // D4：显式导航 —— 在更新 active tab URL 的同时真正 Navigate 其已入池 WebView，
+          // 否则 Tauri 下标签 URL 与画面脱节（store action 不再触发 WebView2.Navigate）。
+          navigateTabExplicit(activeTabId, tab.url);
+        } else {
+          browserUpdateTab(activeTabId, { url: tab.url });
+        }
       }
     },
-    [browserUpdateTab],
+    [browserUpdateTab, navigateTabExplicit],
   );
 
   return {

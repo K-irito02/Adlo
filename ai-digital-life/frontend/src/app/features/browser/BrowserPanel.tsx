@@ -91,6 +91,25 @@ export function BrowserPanel(props: BrowserPanelProps) {
     [browserNavigateActiveTab],
   );
 
+  // 标签感知的显式导航（D4）：活动标签走 navigateActiveTabExplicit；非活动标签
+  // 更新其 URL 后直接 Navigate 其已入池 WebView（池外/新建交由 lifecycle 创建时导航）。
+  // 供新建/编辑标签对话框"就地打开"、树"在当下标签打开"等显式入口复用，避免
+  // store action 更新 URL 后 Tauri 下 WebView 停在旧页的双端分叉。
+  const navigateTabExplicit = useCallback(
+    async (tabId: string, url: string, title?: string) => {
+      const s = useAppStore.getState();
+      if (tabId === s.browserActiveTabId) {
+        await navigateActiveTabExplicit(url, title);
+      } else {
+        s.browserUpdateTab(tabId, { url, ...(title ? { title } : {}) });
+        if (isTauriShell() && navigationHelpersRef.current.isTabInPool(tabId)) {
+          await navigationHelpersRef.current.navigateTabInPool(tabId, url);
+        }
+      }
+    },
+    [navigateActiveTabExplicit],
+  );
+
   const {
     pendingNavigationsRef,
     handleNavigationStart,
@@ -161,6 +180,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
   } = useBrowserDialogs({
     browserOpenTab,
     browserUpdateTab,
+    navigateTabExplicit,
     activeTab,
     isBookmarked,
     showToast,
@@ -217,7 +237,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleOpenTabInNewTab,
     handleOpenTabInCurrentTab,
     handleRemoveBookmarkTab,
-  } = useBrowserTreeActions();
+  } = useBrowserTreeActions({ navigateTabExplicit });
 
   const {
     browserMenuOpen,
@@ -285,9 +305,17 @@ export function BrowserPanel(props: BrowserPanelProps) {
     onNavigationStart: handleNavigationStart,
   });
 
+  const { handleGoBack, handleGoForward, handleReload, canGoBack, canGoForward } =
+    useBrowserNavigation({
+      iframeRef,
+      iframeHistory,
+      navigateBrowser,
+      activeTabId: activeTab?.id,
+    });
+
   const { browserMenuItems } = useBrowserPanelMenuItems({
     activeTab,
-    browserNavigateActiveTab,
+    hardReload: handleReload,
     zoomLevel,
     setZoomLevel,
     t,
@@ -311,14 +339,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     submitVersionRef,
     validatedUrlsRef,
   });
-
-  const { handleGoBack, handleGoForward, handleReload, canGoBack, canGoForward } =
-    useBrowserNavigation({
-      iframeRef,
-      iframeHistory,
-      navigateBrowser,
-      activeTabId: activeTab?.id,
-    });
 
   const activeTabUrl =
     addressSubmittedForTabRef.current === (activeTab?.url || 'about:blank')

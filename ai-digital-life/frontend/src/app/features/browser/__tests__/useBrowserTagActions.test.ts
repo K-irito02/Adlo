@@ -220,7 +220,20 @@ describe('useBrowserTagActions handleOpenTabInCurrentTab', () => {
     });
   });
 
-  it('updates active tab url only, not the bookmark title', () => {
+  it('navigates the active tab to the target url via explicit navigation (D4)', () => {
+    const navigateTabExplicit = vi.fn();
+    useAppStore.setState({
+      browserTabs: [makeTab('t1', 'https://e.com', '自定义标题')],
+      browserActiveTabId: 'active',
+    });
+    const { result } = renderHook(() => useBrowserTagActions({ navigateTabExplicit }));
+    act(() => {
+      result.current.handleOpenTabInCurrentTab('t1');
+    });
+    expect(navigateTabExplicit).toHaveBeenCalledWith('active', 'https://e.com');
+  });
+
+  it('falls back to store url update when no explicit navigation helper is provided', () => {
     const browserUpdateTab = vi.fn();
     useAppStore.setState({
       browserTabs: [makeTab('t1', 'https://e.com', '自定义标题')],

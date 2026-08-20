@@ -4,7 +4,7 @@
 > 调研：已完成（Edge/Chrome favicon 兜底分级、SPA pushState 软导航）
 
 ## [x] 事项 1：标签/历史条目 favicon 与标题"兜底→真实"闪烁
-- 状态：进行中（**根因已确认**，待实施修复）
+- 状态：✅ 已完成（2026-08-20 实施修复 + 用户测试验证通过 + Phase 4 收尾确认）
 - 现象：已打开标签页、历史目录下的条目，favicon/标题先显示占位（兜底），再变为真实值
 - 日志证据（.adl-logs/debug-logs.txt，本次重测 @ 12:57:55 ~ 12:59:13）：
   - `[browser-favicon] render { url:"...jingxuan?modal_id=7666786391379954984", ..., cached:"" }`（**L800, L803**）→ **新 modal_id 的精确 URL 缓存未就绪** → `getFaviconUrl` 返回 `''` → `BrowserFavicon` 显示内置占位图标
@@ -24,7 +24,7 @@
 - 验证：待修复实施后实测抖音，确认首屏即真实 favicon/标题、无兜底闪烁
 
 ## [x] 事项 2：刷/切视频时网页自动刷新重载
-- 状态：进行中（**根因已确认**，待实施修复）
+- 状态：✅ 已完成（2026-08-20 实施修复 + Phase 4 收尾确认）
 - 现象：抖音刷视频/切视频时，网页自动刷新重新加载
 - 日志证据（L175~L929 的"刷视频"过程 + 4 处重载点）：
   - `[browser-url-change] onUrlChanged` 交替上报 **base 形态** URL `.../search/音乐合集?aid=...&type=general` 与 **modal_id 形态** URL `...&modal_id=XXXX&type=general`（如 L368/L929）
@@ -51,6 +51,18 @@
 - 验证：待修复实施后实测抖音刷视频/切视频，确认不再整页重载
 - 说明（日志缺口）：Rust 侧 `navigate_tab`/`tauri_webview_handle::navigate` 的 `[warn]` 未出现在日志（debLog 仅捕获到前端 console + TAURI 部分）；前端 `NAVIGATE-triggered` 已带调用堆栈，足以证明重载决策发生在 `useWebViewLifecycle`，需确认 Rust WebView2.Navigate 日志在重编译/日志转发下可见（用于最终闭环验证）
 
-## [ ] 事项 3：调试日志收集与验证
-- 状态：已完成日志分析（根因已确认）
+## Phase 4 收尾（2026-08-20）
+- **子代理 A 审查报告索引**：`.review-diffs/review-issue-1-rev1.md` / `review-issue-2-rev1.md` / `review-issue-3-rev1.md`（已删除，收尾完成）。与本文件（事项 1 favicon/标题、事项 2 导航重载）相关的高/中/低发现全部处理：
+  - **A（高）导航回归 R1/R2/R3/R5**：事项 2 修复引入的"保存并打开/编辑保存并打开/右键当前位置打开/刷新"显式导航回归，统一经 `navigateTabExplicit`（BrowserPanel.tsx:98）修复 + `hardReload` 菜单刷新 + 相关测试更新（R3 回归同现于普通标签分支，一并修复）。
+  - **B（高）调试日志清理**：事项 1/2 修复留下的 9 文件调试日志全清（Rust 3 + 前端 6），grep 零残留；`browser_webview.rs` 日志还原 `tracing::debug!`。
+  - **C（中）navigation_intent 死代码删除**：事项 2 设计（D1-D4）遗留的 `navigation_intent.rs`/命令/权限/前端 5 桥全链删除，零引用。
+  - **D（中）meta_merge 占位标题同步**：`is_placeholder_title` 与 `SCHEME_LESS_URL_LABEL` 对齐 + 单测（事项 1 标题兜底链路相关）。
+  - **G（中）树解析状态 origin 级判定**：新增 `isSiteMetaResolvedForTree`（`siteMetaCache.ts`），树标题回退判定不再依赖精确 URL（事项 1 兜底跳变链路）；`suppressBase` 同日限制（`getDayKey`）。
+  - **H（低）死导出删除**：`getOriginFaviconDataUri` / `getOriginFaviconUrl`（事项 1 favicon 链路死代码）。
+- **复审（rev2 快照 `.review-diffs/rev2-fixes.diff`）**：子代理 A 复审 **APPROVED**；子代理 B 死代码扫描 **CLEAN**（含 `markNavigationIntent` 等全部 removed symbols 零引用；新符号接线正确）。
+- **全量验收（Phase 4 仅一次）**：前端 236 文件 **1865 测试通过**；Rust workspace **950 通过 0 失败**；clippy `--workspace --all-targets -D warnings` 0 警告；eslint 0 errors（仅 3 条既有 metaVersion exhaustive-deps warnings）；tsc 0 errors；prettier 全绿。
+- 变更未提交（待用户确认后提交）。
+
+## [x] 事项 3：调试日志收集与验证
+- 状态：✅ 已完成（日志分析完成、根因已确认、Phase 4 收尾确认）
 - 说明：已读取 .adl-logs/debug-logs.txt（1000 行，840 处调试标记），确认两个事项根因；Rust 导航日志未见（见事项 2 说明），待修复验证时补闭环

@@ -36,6 +36,7 @@ describe('useBrowserDialogs create-tab write gate', () => {
       useBrowserDialogs({
         browserOpenTab: openTab,
         browserUpdateTab: vi.fn(),
+        navigateTabExplicit: vi.fn(),
         activeTab: null,
         isBookmarked: false,
         showToast: vi.fn(),
@@ -70,6 +71,7 @@ describe('useBrowserDialogs create-tab write gate', () => {
       useBrowserDialogs({
         browserOpenTab: openTab,
         browserUpdateTab: vi.fn(),
+        navigateTabExplicit: vi.fn(),
         activeTab: null,
         isBookmarked: false,
         showToast: vi.fn(),
@@ -162,6 +164,7 @@ describe('useBrowserDialogs create-tab write gate', () => {
       useBrowserDialogs({
         browserOpenTab: openTab,
         browserUpdateTab: vi.fn(),
+        navigateTabExplicit: vi.fn(),
         activeTab: null,
         isBookmarked: false,
         showToast: vi.fn(),
@@ -196,6 +199,7 @@ describe('useBrowserDialogs create-tab write gate', () => {
       useBrowserDialogs({
         browserOpenTab: openTab,
         browserUpdateTab: vi.fn(),
+        navigateTabExplicit: vi.fn(),
         activeTab: null,
         isBookmarked: false,
         showToast: vi.fn(),
@@ -226,6 +230,7 @@ describe('useBrowserDialogs create-tab write gate', () => {
       useBrowserDialogs({
         browserOpenTab: openTab,
         browserUpdateTab: vi.fn(),
+        navigateTabExplicit: vi.fn(),
         activeTab: null,
         isBookmarked: false,
         showToast: vi.fn(),
@@ -251,6 +256,7 @@ describe('useBrowserDialogs create-tab write gate', () => {
       useBrowserDialogs({
         browserOpenTab: openTab,
         browserUpdateTab: vi.fn(),
+        navigateTabExplicit: vi.fn(),
         activeTab: null,
         isBookmarked: false,
         showToast: vi.fn(),
@@ -333,11 +339,13 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     openTab: ReturnType<typeof vi.fn>,
     showToast = vi.fn(),
     t: Record<string, string> = {},
+    navigateTabExplicit = vi.fn(),
   ) {
     return renderHook(() =>
       useBrowserDialogs({
         browserOpenTab: openTab,
         browserUpdateTab: vi.fn(),
+        navigateTabExplicit,
         activeTab: null,
         isBookmarked: false,
         showToast,
@@ -365,18 +373,15 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     expect(navigateActiveTab).not.toHaveBeenCalled();
   });
 
-  it('save-and-open with navigateInPlace=true navigates active tab without custom title', async () => {
-    const navigateActiveTab = vi.fn();
-    useAppStore.setState({
-      browserNavigateInPlace: true,
-      browserNavigateActiveTab: navigateActiveTab,
-    });
+  it('save-and-open with navigateInPlace=true navigates active tab via explicit navigation', async () => {
+    useAppStore.setState({ browserNavigateInPlace: true });
+    const navigateTabExplicit = vi.fn();
     const openTab = vi.fn();
-    const { result } = renderDialogs(openTab);
+    const { result } = renderDialogs(openTab, vi.fn(), {}, navigateTabExplicit);
     await act(async () => {
       await result.current.handleCreateTabConfirm('Name', 'https://example.com', 'save-and-open');
     });
-    expect(navigateActiveTab).toHaveBeenCalledWith('https://example.com', undefined);
+    expect(navigateTabExplicit).toHaveBeenCalledWith('', 'https://example.com');
     expect(openTab).not.toHaveBeenCalled();
   });
 
@@ -493,14 +498,18 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
         },
       ],
     });
-    const navigateActiveTab = vi.fn();
-    useAppStore.setState({ browserNavigateActiveTab: navigateActiveTab });
+    const navigateTabExplicit = vi.fn();
     const openTab = vi.fn();
     const showToast = vi.fn();
-    const { result } = renderDialogs(openTab, showToast, {
-      browserEditBookmarkDuplicate: 'DUP',
-      browserBookmarkDuplicateWithPath: 'DUP at {path}',
-    });
+    const { result } = renderDialogs(
+      openTab,
+      showToast,
+      {
+        browserEditBookmarkDuplicate: 'DUP',
+        browserBookmarkDuplicateWithPath: 'DUP at {path}',
+      },
+      navigateTabExplicit,
+    );
     await act(async () => {
       result.current.handleSetCreateTabDialog({ open: true, workspaceId: 'ws1', folderId: 'f1' });
     });
@@ -508,7 +517,7 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
       await result.current.handleCreateTabConfirm('Title', 'https://e.com', 'save-and-open');
     });
     expect(showToast).not.toHaveBeenCalled();
-    expect(navigateActiveTab).toHaveBeenCalledWith('https://e.com', undefined);
+    expect(navigateTabExplicit).toHaveBeenCalledWith('t1', 'https://e.com');
   });
 
   it('save-and-open success opens tab without custom title', async () => {
@@ -540,6 +549,7 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
       useBrowserDialogs({
         browserOpenTab: openTab,
         browserUpdateTab: vi.fn(),
+        navigateTabExplicit: vi.fn(),
         activeTab: null,
         isBookmarked: false,
         showToast: vi.fn(),
@@ -599,6 +609,7 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
       useBrowserDialogs({
         browserOpenTab: vi.fn(),
         browserUpdateTab: vi.fn(),
+        navigateTabExplicit: vi.fn(),
         activeTab: null,
         isBookmarked: false,
         showToast,
@@ -677,6 +688,7 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
       useBrowserDialogs({
         browserOpenTab: vi.fn(),
         browserUpdateTab: updateTab,
+        navigateTabExplicit: vi.fn(),
         activeTab: null,
         isBookmarked: false,
         showToast,
@@ -707,6 +719,7 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
       useBrowserDialogs({
         browserOpenTab: vi.fn(),
         browserUpdateTab: updateTab,
+        navigateTabExplicit: vi.fn(),
         activeTab: null,
         isBookmarked: false,
         showToast,
@@ -748,6 +761,7 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
       useBrowserDialogs({
         browserOpenTab: vi.fn(),
         browserUpdateTab: updateTab,
+        navigateTabExplicit: vi.fn(),
         activeTab: null,
         isBookmarked: false,
         showToast: vi.fn(),
@@ -788,6 +802,7 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
       useBrowserDialogs({
         browserOpenTab: vi.fn(),
         browserUpdateTab: updateTab,
+        navigateTabExplicit: vi.fn(),
         activeTab: null,
         isBookmarked: false,
         showToast: vi.fn(),

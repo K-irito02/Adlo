@@ -10,6 +10,7 @@ import type { ToastType } from '@components/Toast';
 interface UseBrowserDialogsDeps {
   browserOpenTab: (url: string, title?: string, workspaceId?: string, folderId?: string) => void;
   browserUpdateTab: (tabId: string, updates: { title?: string; url?: string }) => void;
+  navigateTabExplicit: (tabId: string, url: string, title?: string) => void;
   activeTab: { id: string; url?: string; title?: string } | null | undefined;
   isBookmarked: boolean;
   showToast: (message: string, type?: ToastType, source?: string) => void;
@@ -38,7 +39,15 @@ export function resetFaviconSelfHealThrottleForTest(): void {
 }
 
 export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
-  const { browserOpenTab, browserUpdateTab, activeTab, isBookmarked, showToast, t } = deps;
+  const {
+    browserOpenTab,
+    browserUpdateTab,
+    navigateTabExplicit,
+    activeTab,
+    isBookmarked,
+    showToast,
+    t,
+  } = deps;
 
   // ── create tab dialog ──
   const [createTabDialog, setCreateTabDialog] = useState<{
@@ -214,7 +223,8 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
       setCreateTabDialog({ open: false });
       pendingFolderIdRef.current = '';
       if (state.browserNavigateInPlace) {
-        state.browserNavigateActiveTab(url, undefined);
+        // D4：显式导航——就地在当前标签打开并真正 Navigate 已入池 WebView
+        navigateTabExplicit(state.browserActiveTabId, url);
       } else {
         browserOpenTab(url, undefined, folderId ? undefined : workspaceId, undefined);
       }
@@ -229,7 +239,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         showToast(msg, 'warning');
       }
     },
-    [browserOpenTab, createTabDialog, bookmarkNewTab, showToast, t],
+    [browserOpenTab, createTabDialog, bookmarkNewTab, showToast, t, navigateTabExplicit],
   );
 
   const handleCreateTabCancel = useCallback(() => {
@@ -281,7 +291,9 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         if (mode === 'save-and-open') {
           if (isLiveTab) {
             if (trimmedUrl) {
-              browserUpdateTab(tabId, { url: trimmedUrl });
+              // D4：显式导航——更新标签 URL 并真正 Navigate 其已入池 WebView（若为活动标签，
+              // 内部走 navigateActiveTabExplicit；否则先导航池内 WebView 再选中切换）。
+              navigateTabExplicit(tabId, trimmedUrl);
               store.browserSelectTab(tabId);
             }
           } else {
@@ -297,12 +309,14 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           url: trimmedUrl || undefined,
         });
         if (mode === 'save-and-open' && trimmedUrl) {
+          // D4：显式导航——更新标签 URL 并真正 Navigate 其已入池 WebView
+          navigateTabExplicit(tabId, trimmedUrl, trimmedName || undefined);
           store.browserSelectTab(tabId);
         }
       }
       setEditTabDialog({ open: false, tabId: '', name: '', url: '' });
     },
-    [editTabDialog, browserUpdateTab, showToast, t],
+    [editTabDialog, browserUpdateTab, showToast, t, navigateTabExplicit],
   );
 
   const handleEditTabCancel = useCallback(() => {

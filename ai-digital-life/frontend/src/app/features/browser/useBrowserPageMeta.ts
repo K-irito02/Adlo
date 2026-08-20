@@ -3,38 +3,13 @@ import { useAppStore } from '@stores/slicedStore';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import { applyBroadcastUpdate, getCachedTitle } from '@utils/siteMetaCache';
 import type { PageMeta, PageMetaUpdatedPayload, MetaSource } from '@shared/ipc/browser';
-import { historyDedupKey, normalizedQueryForDedup } from '@utils/browserDisplayUtils';
+import {
+  historyDedupKey,
+  isPlaceholderTitle,
+  normalizedQueryForDedup,
+} from '@utils/browserDisplayUtils';
 
 export const titleSourceRef = new Map<string, MetaSource>();
-
-export function isPlaceholderTitle(title: string, url: string): boolean {
-  if (!title) {
-    return true;
-  }
-  if (title === url) {
-    return true;
-  }
-  if (/^https?:\/\//i.test(title)) {
-    return true;
-  }
-  const trimmed = title.trim();
-  try {
-    const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
-    if (!host) {
-      return false;
-    }
-    const t = trimmed.toLowerCase();
-    if (t === host || t === `www.${host}`) {
-      return true;
-    }
-  } catch {
-    return false;
-  }
-  // 无 scheme 的主机[+路径]标签（如 "douyin.com/jingxuan"）——占位而非真实标题
-  return /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+(?:\/[\S]*)?$/i.test(
-    trimmed,
-  );
-}
 
 export function applyBroadcastTitle(
   tab: { title: string; id: string },
@@ -101,26 +76,9 @@ export function useBrowserPageMeta() {
     const matchingTabs = state.browserTabs.filter(
       (t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl),
     );
-    // DEBUG(问题1): 标题广播处理——记录匹配到的标签与标题应用结果
-    console.warn('[browser-page-meta] broadcast', {
-      url: p.url,
-      cleanUrl,
-      title: p.title,
-      source: p.source,
-      matchingTabIds: matchingTabs.map((t) => t.id),
-    });
     for (const tab of matchingTabs) {
       const curSource = titleSourceRef.get(tab.id);
       const applied = applyBroadcastTitle(tab, cleanUrl, p.title, p.source, curSource);
-      console.warn('[browser-page-meta] broadcast-title-apply', {
-        tabId: tab.id,
-        curTitle: tab.title,
-        broadcastTitle: p.title,
-        source: p.source,
-        curSource,
-        applied,
-        reason: applied ? 'applied' : 'rejected-by-gate',
-      });
       if (applied) {
         state.browserUpdateTab(tab.id, { title: p.title });
         titleSourceRef.set(tab.id, p.source);
@@ -158,15 +116,6 @@ export function useBrowserPageMeta() {
     const exact = state.browserTabs.find(
       (t) => normalizeUrlForDedup(normalizeMetaUrl(t.url)) === normalizeUrlForDedup(cleanUrl),
     );
-    // DEBUG(问题1+2): 进入 handlePageMeta——记录来源、分支(exact/activeTab)、是否 URL 变化
-    console.warn('[browser-page-meta] handlePageMeta', {
-      url: meta.url,
-      cleanUrl,
-      title: meta.title,
-      source: effectiveSource,
-      hasExact: Boolean(exact),
-      activeTabId: activeTab?.id,
-    });
     if (exact) {
       for (const t of state.browserTabs.filter(
         (x) => normalizeUrlForDedup(normalizeMetaUrl(x.url)) === normalizeUrlForDedup(cleanUrl),
@@ -181,12 +130,6 @@ export function useBrowserPageMeta() {
           effectiveSource,
           titleSourceRef.get(t.id),
         );
-        console.warn('[browser-page-meta] exact-title-apply', {
-          tabId: t.id,
-          curTitle: t.title,
-          newTitle: meta.title,
-          applied,
-        });
         if (applied) {
           state.browserUpdateTab(t.id, { title: meta.title });
           titleSourceRef.set(t.id, effectiveSource);
@@ -205,23 +148,9 @@ export function useBrowserPageMeta() {
           effectiveSource,
           titleSourceRef.get(activeTab.id),
         );
-      const prevUrl = activeTab.url;
       state.browserUpdateTab(activeTab.id, {
         url: cleanUrl,
         title: shouldTitle ? meta.title : activeTab.title,
-      });
-      // DEBUG(问题1+2): 记录 activeTab 分支的 url 变更与标题应用——这是可能触发重载的路径
-      console.warn('[browser-page-meta] activeTab-branch', {
-        tabId: activeTab.id,
-        prevUrl,
-        newUrl: cleanUrl,
-        urlChanged,
-        shouldTitle,
-        reason: urlChanged
-          ? 'url-changed-by-meta'
-          : shouldTitle
-            ? 'title-applied'
-            : 'rejected-by-gate',
       });
       if (shouldTitle) {
         titleSourceRef.set(activeTab.id, effectiveSource);

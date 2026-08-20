@@ -399,7 +399,9 @@ export function buildHistoryCategoryTree(
           path: `history:day:${year}-${month}-${day}`,
           name: `${Number(day)}${dateLabels.day}`,
           kind: 'directory',
-          children: entries.map((entry) => buildHistoryLeafNode(entry, entry.id, browserTabs, resolveTitle)),
+          children: entries
+            .map((entry) => buildHistoryLeafNode(entry, entry.id, browserTabs, resolveTitle))
+            .filter((n) => n.name),
           nodeType: 'day',
         };
         monthNode.children.push(dayNode);

@@ -137,3 +137,16 @@
   - `rejected-by-gate` → 标题已一致时的去重守卫，非异常
   - `TAURI Couldn't find callback id` ×2 → reload 时序无害提示
 - 结论：**事项 4 标题闪烁（"主机名→真实"）已不再触发，本次测试验证通过**。该过渡项走"空占位→真实值"，正是用户期望的短占位行为
+
+## Phase 4 收尾（2026-08-20）
+- **子代理 A 审查报告索引**：`.review-diffs/review-issue-1-rev1.md` / `review-issue-2-rev1.md` / `review-issue-3-rev1.md`（已删除，收尾完成）。与本文件（favicon/历史/标题系列事项）相关的高/中/低发现全部处理：
+  - **A（高）导航回归 R1/R2/R3/R5**：新标签保存并打开 / 书签编辑实时保存并打开（含普通标签分支）/ 右键"在当前位置打开"在原标签就地打开 等显式导航改为统一经 `navigateTabExplicit`（BrowserPanel.tsx:98，active 标签 `navigateActiveTabExplicit`，非 active 标签 `browserUpdateTab`+`navigateTabInPool`），消除依赖"恰好未触发 URL 变化"的隐式导航；菜单"刷新"改用 `hardReload`。相关测试更新（`useBrowserDialogs.test.ts` 33、`useBrowserTagActions.test.ts` 8）。
+  - **B（高）调试日志清理**：9 文件（Rust `browser_webview.rs`/`tauri_webview_handle.rs`/`webview2_history.rs` + 前端 `BrowserFavicon.tsx`/`useBrowserTreeCache.ts`/`useBrowserPageMeta.ts`/`useBrowserUrlChange.ts`/`browserHistorySlice.ts`/`siteMetaCache.ts`）遗留调试日志全部移除，grep 验证零残留（保留预存的 `[bookmark-new-meta]`/`[site-meta-cache] broadcast apply`/`[ADL-META-RECV]`/`[ADL-PERF]`/`localStorage operation failed` 等生产诊断日志）；`browser_webview.rs` 日志还原为 `tracing::debug!`。
+  - **C（中）navigation_intent 死代码删除**：删除 Rust `navigation_intent.rs` + `browser_mark_navigation_intent` 命令 + permission + main.rs 注册 + 5 处前端桥（shared/ipc、tauri-browser、preview-bridge、mock-browser、httpBridge），全仓零引用。
+  - **D（中）meta_merge 占位标题同步**：`meta_merge.rs::is_placeholder_title` 与 `SCHEME_LESS_URL_LABEL` 对齐（新增 `is_scheme_less_url_label`：ASCII + 含 `.` + 无 `://` + `Url::parse("http://{t}")` 有 host）+ 单测。
+  - **G（中）树解析状态改用 origin 级**：`siteMetaCache.ts` 新增 `isSiteMetaResolvedForTree`（精确 OR 同 origin 扫描），仅 `useBrowserTreeCache.ts` 使用（书签/历史/标签树标题回退判定）；`isSiteMetaResolved` 保持精确级供 `BrowserFavicon`。`useBrowserUrlChange.ts` 新增 `getDayKey` 辅助 + `suppressBase` 同日限制（24h 内同容器 base 不再重复抑制判定）。
+  - **H（低）死导出删除**：移除 `getOriginFaviconDataUri` / `getOriginFaviconUrl`。
+  - **isPlaceholderTitle 三副本收敛**：`useBrowserPageMeta.ts` / `mock-bridge.ts` 改为从 `browserDisplayUtils.ts` import（单一真源），删除本地复制。
+- **复审（rev2 快照 `.review-diffs/rev2-fixes.diff`）**：子代理 A 复审 **APPROVED**；子代理 B 死代码扫描 **CLEAN**（`markNavigationIntent`/`navigation_intent`/`getOriginFaviconDataUri`/`getOriginFaviconUrl`/`isPlaceholderTitle` 本地副本/`urlChangeEventSeq` 全部零引用；`isSiteMetaResolvedForTree` 恰一次使用）。注：`frontend/dev/previewWorkspaceService/pageMetaService.ts:74` 有独立局部 `isPlaceholderTitle`（dev 目录，非悬空引用，不在范围）。
+- **全量验收（Phase 4 仅一次）**：前端 236 文件 **1865 测试通过**；Rust workspace **950 通过 0 失败**；clippy `--workspace --all-targets -D warnings` 0 警告；eslint 0 errors（仅 3 条既有 metaVersion exhaustive-deps warnings）；tsc 0 errors；prettier 全绿。
+- 变更未提交（待用户确认后提交）。

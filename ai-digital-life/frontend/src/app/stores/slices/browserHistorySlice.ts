@@ -64,6 +64,13 @@ export const createBrowserHistorySlice = (
       // SPA 一次点击的多次 HistoryChanged 产生仅来源/导航参数不同的变体，合并为一条
       // （保留最新 URL 与更优标题），避免"一次点击多条历史"。内容身份不同
       // （YouTube v=AAA→BBB、不同 modal_id/q）的变体在 historyDocumentKey 上不同，不合并。
+      //
+      // 已知局限（2026-08-20）：合并只与最新一条（browserHistory[0]）比较，且要求
+      // 到达间隔 <= HISTORY_COALESCE_WINDOW_MS（2s）。若单次点击的变体在 2s 窗口内
+      // 已有其它条目插入到首部（例如前一视频条目落表），或变体间隔超过 2s，
+      // 则不会合并、按常规去重追加。实测抖音单次点击的变体均在窗口内连续到达，
+      // 该局限不影响已观测场景；如需覆盖更宽的突发窗口，可扩展为扫描最近 N 条
+      // 相同 docKey 合并（当前刻意不做，避免过度归并）。
       const newest = state.browserHistory[0];
       const docKey = historyDocumentKey(url);
       if (
@@ -81,17 +88,6 @@ export const createBrowserHistorySlice = (
           visitedAt: now,
         };
         const nextHistory = [merged, ...state.browserHistory.slice(1)];
-        // DEBUG(问题4): 同一文档导航突发合并——记录变体合并（前条→本条），供核对
-        // "一次点击多条历史"已折叠为一条（保留最新 URL + 更优标题）。
-        console.warn('[browser-history] merge', {
-          url,
-          title: mergedTitle,
-          docKey,
-          mergedFromUrl: newest.url,
-          mergedFromTitle: newest.title,
-          withinMs: now - newest.visitedAt,
-          truncatedTo: nextHistory.length,
-        });
         writeHistory(nextHistory);
         return { browserHistory: nextHistory };
       }
@@ -120,23 +116,6 @@ export const createBrowserHistorySlice = (
         visitedAt: now,
       };
       const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100);
-      // DEBUG(问题3+4): 历史条写入——记录 (url, title, dedupKey) 以追踪"笼统标题"来源，
-      // 并输出写入前后最近 15 条历史快照（url/title/dedupKey），用于核对"一次点击出现多条历史"
-      // 到底累积了哪些 URL 变体、各自标题来源。
-      const snapshotOf = (list: typeof nextHistory) =>
-        list
-          .slice(0, 15)
-          .map((h) => ({ url: h.url, title: h.title, dedupKey: historyDedupKey(h.url) }));
-      console.warn('[browser-history] add', {
-        url,
-        title: newHistoryItem.title,
-        dedupKey,
-        today,
-        filteredOutSameDay: state.browserHistory.length - filteredHistory.length,
-        truncatedTo: nextHistory.length,
-        before: snapshotOf(state.browserHistory),
-        after: snapshotOf(nextHistory),
-      });
       writeHistory(nextHistory);
       return { browserHistory: nextHistory };
     });
@@ -151,22 +130,12 @@ export const createBrowserHistorySlice = (
     // 占位标题（空/纯URL/主机/主机+路径如 "douyin.com/jingxuan"）不覆盖已有更优标题，
     // 避免 URL 式标题污染真实/主机标题（Chrome/Edge 语义）。
     if (isPlaceholderTitle(title, url)) {
-      console.warn('[browser-history] updateTitle-skip-placeholder', { url, title });
       return;
     }
     set((state) => {
       const dedupKey = historyDedupKey(url);
       const matched = state.browserHistory.filter((h) => historyDedupKey(h.url) === dedupKey);
       const changed = matched.some((h) => h.title !== title);
-      // DEBUG(问题3+4): 历史标题更新——记录目标 (url, title, dedupKey)、匹配到条目的
-      // 旧标题与是否变更，用于核对标题为何停留在"douyin.com"/空占位（占位门控是否拦截）。
-      console.warn('[browser-history] updateTitle', {
-        url,
-        title,
-        dedupKey,
-        changed,
-        matchedOldTitles: matched.map((h) => h.title),
-      });
       if (!changed) {
         return state;
       }

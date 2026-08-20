@@ -18,9 +18,11 @@ import {
 const URL_CHANGE_FALLBACK_MS_NO_TAB = 8000;
 const URL_CHANGE_FALLBACK_MS_WITH_TAB = 15000;
 
-// DEBUG(问题4): 模块级事件序列计数器——每次 onUrlChanged 递增，用于观察"一次点击"触发的
-// 多个 URL 变更事件的先后顺序与时间间隔（配合 debugLogCollector 的毫秒时间戳）。
-let urlChangeEventSeq = 0;
+/** 本地时区日期键（YYYY-MM-DD）：同日判定用（避免跨日时误合并/误抑制）。 */
+function getDayKey(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 interface UseBrowserUrlChangeOptions {
   activeTab?: BrowserTabState;
@@ -220,22 +222,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       const identityKey = historyDedupKey(url);
       const urlChanged = eventTab && historyDedupKey(eventTab.url) !== identityKey;
       const noTabExists = !eventTab;
-      const seq = ++urlChangeEventSeq;
-      // DEBUG(问题2+4): onUrlChanged 事件入口——记录事件序号、URL 变化、标签匹配情况，
-      // 以及处理前 eventTab 的 url/title/dedupKey（用于确认 urlChanged 判定与历史条目的累积）
-      console.warn('[browser-url-change] onUrlChanged', {
-        seq,
-        tabId,
-        url,
-        normalizedUrl,
-        identityKey,
-        urlChanged,
-        noTabExists,
-        eventTabUrl: eventTab?.url,
-        eventTabTitle: eventTab?.title,
-        eventTabDedupKey: eventTab ? historyDedupKey(eventTab.url) : undefined,
-        pendingPrefetch: pendingPrefetchRef.current.has(normalizedUrl),
-      });
 
       if (noTabExists || urlChanged) {
         if (noTabExists && pendingPrefetchRef.current.has(normalizedUrl)) {
@@ -248,21 +234,19 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         const s = useAppStore.getState();
 
         // 只记录视频条目（Chrome/Edge 行为）：当前为"基础URL"（无 modal_id，
-        // 只是 feed/scaffold 骨架）且同容器已存在具体视频条目时，判定为刷视频时
+        // 只是 feed/scaffold 骨架）且同容器当日已存在具体视频条目时，判定为刷视频时
         // SPA 的 transient base 重发，不单独写历史、不改动标签 URL（保持当前
         // 视频上下文），避免基础URL反复置顶引发的重复标签/URL标题/跳位闪烁。
+        // 同日限制：跨日后基础页的真实访问不再被抑制，正常记录。
+        const today = getDayKey(Date.now());
         const suppressBase =
           !hasViewIdentityParam(url) &&
           s.browserHistory.some(
-            (h) => hasViewIdentityParam(h.url) && historyContainerKey(h.url) === identityKey,
+            (h) =>
+              hasViewIdentityParam(h.url) &&
+              getDayKey(h.visitedAt) === today &&
+              historyContainerKey(h.url) === identityKey,
           );
-        // DEBUG(新现象): 记录 base scaffold 抑制判定
-        console.warn('[browser-url-change] scaffold-suppression', {
-          url,
-          identityKey,
-          containerKey: historyContainerKey(url),
-          suppressBase,
-        });
 
         if (suppressBase) {
           setAddress(normalizedUrl);
@@ -285,14 +269,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           // 标签 URL 用原始 url（保留 modal_id），使声音/标题能精确关联到
           // 当前视频历史条目（buildHistoryLeafNode 以 t.url === entry.url 精确匹配）。
           s.browserUpdateTab(tabId, { url, title: '' });
-          // DEBUG(问题2+4): 分支 eventTab——更新该标签 URL（不导航），身份用保留 modal_id 的 url 写历史
-          console.warn('[browser-url-change] branch-eventTab', {
-            seq,
-            tabId,
-            displayUrl: normalizedUrl,
-            historyUrl: url,
-            dedupKey,
-          });
           if (existingEntry) {
             s.browserAddToHistory(url, existingEntry.title);
             s.browserUpdateHistoryTitle(url, existingEntry.title);
@@ -300,20 +276,8 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             s.browserAddToHistory(url, url);
           }
         } else if (existingEntry) {
-          // DEBUG(问题2+4): 分支 existingEntry——导航激活标签并回填历史标题
-          console.warn('[browser-url-change] branch-existingEntry', {
-            seq,
-            displayUrl: normalizedUrl,
-            historyUrl: url,
-          });
           s.browserNavigateActiveTab(normalizedUrl);
         } else {
-          // DEBUG(问题2+4): 分支 fallback——导航激活标签（无 tab 时）
-          console.warn('[browser-url-change] branch-fallback-navigate', {
-            seq,
-            displayUrl: normalizedUrl,
-            historyUrl: url,
-          });
           s.browserAddToHistory(url, url);
           s.browserNavigateActiveTab(normalizedUrl);
         }

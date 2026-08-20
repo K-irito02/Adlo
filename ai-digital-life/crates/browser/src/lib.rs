@@ -7,7 +7,6 @@ mod browser_pool;
 mod browser_webview;
 mod meta_cache_bridge;
 mod meta_merge;
-mod navigation_intent;
 mod page_meta_service;
 mod site_meta_cache;
 mod webview2_audio;
@@ -32,7 +31,6 @@ pub use meta_merge::{
     existing_favicon_baseline, get_favicon_quality_score, is_framework_default_favicon,
     is_placeholder_title, is_unsafe_title, should_apply_exact_match_title, should_replace_favicon,
 };
-pub use navigation_intent::{consume_navigation_intent, mark_navigation_intent};
 pub use page_meta_service::PageMetaService;
 pub use site_meta_cache::{SiteMetaCacheEntry, SiteMetaCacheStore, normalize_cache_key};
 pub use webview_handle::{Bounds, EventBridgeRef, WebView2EventBridge, WebViewHandle};

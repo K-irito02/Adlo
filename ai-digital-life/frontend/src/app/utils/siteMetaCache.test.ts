@@ -372,6 +372,28 @@ describe('siteMetaCache memory layer', () => {
     expect(mod.getCachedSiteMeta('https://x.com')).toBeUndefined();
     expect(removeSpy).toHaveBeenCalledWith(['https://x.com/']);
   });
+
+  it('isSiteMetaResolvedForTree is origin-level while isSiteMetaResolved is exact', async () => {
+    const mod = await import('./siteMetaCache');
+    mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
+    await mod.initSiteMetaCache();
+    // 同 origin 另一路径有 entry：树解析视为已结算（可回退主机名）；
+    // 精确 URL 判定仍为未结算（标签头/图标保持空占位，避免提前终止跳动）。
+    mod.__mirrorUpsertForTest('https://a.com/other', {
+      title: 'Other',
+      faviconUrl: '',
+      faviconDataUri: '',
+      fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
+    });
+    expect(mod.isSiteMetaResolved('https://a.com/page')).toBe(false);
+    expect(mod.isSiteMetaResolvedForTree('https://a.com/page')).toBe(true);
+    expect(mod.isSiteMetaResolvedForTree('https://a.com/other')).toBe(true);
+    expect(mod.isSiteMetaResolvedForTree('https://b.com/anything')).toBe(false);
+  });
 });
 
 describe('buildCachedSiteMetaEntry (entry builder)', () => {

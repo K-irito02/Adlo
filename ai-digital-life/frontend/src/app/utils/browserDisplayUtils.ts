@@ -265,10 +265,12 @@ export function historyContainerKey(url: string): string {
 /**
  * 页面/文档"内容身份"参数：值一旦不同即视为不同的资源/页面（跨站点通用）。
  * SPA 导航突发中的来源/导航参数（from_*、enter_*、showTab 等）不会出现在此，
- * 而 YouTube `v`、Bilibili `bvid`、搜索引擎 `q`、抖音视频弹层 `modal_id`
- * 属于内容身份，值变化时不得合并（Chrome/Edge 语义：同一文档合并，不同内容各自成条）。
+ * 而 YouTube `v`、Bilibili `bvid`、搜索引擎 `q`、抖音视频弹层 `modal_id`、
+ * 淘宝/京东商品 `id`/`skuId`/`itemId`、今日头条/抖音 `aid`、Google/百度搜索
+ * `search_query`/`wd`、通用 `keyword` 属于内容身份，值变化时不得合并
+ * （Chrome/Edge 语义：同一文档合并，不同内容各自成条）。
  */
-const IDENTITY_PARAM_PATTERN = /^(modal_id|v|bvid|q)$/i;
+const IDENTITY_PARAM_PATTERN = /^(modal_id|v|bvid|q|id|skuId|itemId|aid|search_query|wd|keyword)$/i;
 
 /**
  * 历史合并用的"文档键"：hostname + pathname + 身份参数值（仅 IDENTITY_PARAM_PATTERN）。

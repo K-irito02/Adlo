@@ -7,7 +7,7 @@ import type { useTCopy } from '@i18n/useTCopy';
 
 interface UseBrowserPanelMenuItemsParams {
   activeTab: BrowserTabState | undefined;
-  browserNavigateActiveTab: (url: string, title?: string) => void;
+  hardReload: () => void;
   zoomLevel: number;
   setZoomLevel: (level: number) => void;
   t: ReturnType<typeof useTCopy>['t'];
@@ -15,7 +15,7 @@ interface UseBrowserPanelMenuItemsParams {
 
 export function useBrowserPanelMenuItems({
   activeTab,
-  browserNavigateActiveTab,
+  hardReload,
   zoomLevel,
   setZoomLevel,
   t,
@@ -28,12 +28,11 @@ export function useBrowserPanelMenuItems({
         id: 'hard-reload',
         label: t.browserHardReload,
         hint: t.browserHardReloadHint,
+        // D4：菜单"硬刷新"改走 reloadTab（与工具栏刷新一致）。此前调用
+        // browserNavigateActiveTab(同 URL) 在删除响应式导航后已不再触发
+        // WebView2.Navigate，Tauri 下彻底变 no-op。
         action: () => {
-          const tabTitle =
-            activeTab?.title && !/^https?:\/\//i.test(activeTab.title)
-              ? activeTab.title
-              : undefined;
-          browserNavigateActiveTab(activeTab?.url ?? 'about:blank', tabTitle);
+          hardReload();
         },
       },
       {
@@ -145,7 +144,7 @@ export function useBrowserPanelMenuItems({
         },
       },
     ],
-    [activeTab, browserNavigateActiveTab, t, isTauri, zoomLevel, setZoomLevel],
+    [activeTab, hardReload, t, isTauri, zoomLevel, setZoomLevel],
   );
 
   return { browserMenuItems };

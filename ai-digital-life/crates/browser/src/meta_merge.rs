@@ -13,6 +13,20 @@ fn hostname_without_www(url: &str) -> String {
         .unwrap_or_default()
 }
 
+/// 无 scheme 的"主机[/路径]"标签（如 "douyin.com"、"douyin.com/jingxuan"、
+/// "m.youtube.com/watch"）。SPA 水合前 document.title 常回落成这种 URL 片段，
+/// 属于占位而非真实标题（与前端 SCHEME_LESS_URL_LABEL 语义一致）。
+fn is_scheme_less_url_label(title: &str) -> bool {
+    let t = title.trim();
+    if t.is_empty() || !t.is_ascii() || t.contains("://") || !t.contains('.') {
+        return false;
+    }
+    url::Url::parse(&format!("http://{t}"))
+        .ok()
+        .map(|u| u.host_str().is_some())
+        .unwrap_or(false)
+}
+
 pub fn is_placeholder_title(title: &str, url: &str) -> bool {
     if title.is_empty() {
         return true;
@@ -29,7 +43,7 @@ pub fn is_placeholder_title(title: &str, url: &str) -> bool {
         return false;
     }
     let t = title.trim().to_lowercase();
-    t == host || t == format!("www.{host}")
+    t == host || t == format!("www.{host}") || is_scheme_less_url_label(title)
 }
 
 /// 反爬 / 验证码 / 安全校验拦截页占位标题检测。
@@ -263,6 +277,24 @@ mod tests {
         assert!(!is_placeholder_title("真实标题", "https://a.com/"));
         // scheme 前缀大小写不敏感（与前端 /^https?:\/\//i 一致）
         assert!(is_placeholder_title("HTTP://A.COM/", "https://a.com/"));
+    }
+
+    #[test]
+    fn placeholder_title_scheme_less_url_label() {
+        // 无 scheme 的主机[/路径]占位（与前端 SCHEME_LESS_URL_LABEL 一致）
+        assert!(is_placeholder_title(
+            "douyin.com/jingxuan",
+            "https://www.douyin.com/jingxuan"
+        ));
+        assert!(is_placeholder_title(
+            "m.youtube.com/watch?v=AAA",
+            "https://www.youtube.com/watch?v=AAA"
+        ));
+        assert!(is_placeholder_title("a.com/x", "https://a.com/x"));
+        // 真实标题不是无 scheme URL 标签
+        assert!(!is_placeholder_title("我的书签", "https://a.com/"));
+        assert!(!is_placeholder_title("A Real Title", "https://a.com/"));
+        assert!(!is_placeholder_title("验证码_哔哩哔哩", "https://www.bilibili.com/"));
     }
 
     #[test]

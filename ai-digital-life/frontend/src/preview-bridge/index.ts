@@ -215,8 +215,6 @@ export function setupPreviewBridge(): void {
         return Promise.resolve();
       },
       navigateTab: (_tabId: string, _url: string) => Promise.resolve(),
-      markNavigationIntent: (_input: { tabId: string; url: string }) =>
-        Promise.resolve({ ok: true, data: null }),
       setTabBounds: (
         _tabId: string,
         _bounds: { x: number; y: number; width: number; height: number },
