@@ -7,7 +7,7 @@ import type {
   WorkspaceBookmarkEntry,
 } from '@stores/slices/browserSlice';
 import type { BrowserCategoryState, BrowserCategoryType, BrowserTreeNode } from './types';
-import { normalizeTabTitle, resolveDisplayTitle } from '@utils/browserDisplayUtils';
+import { normalizeTabTitle } from '@utils/browserDisplayUtils';
 import { useBrowserTreeCache } from './useBrowserTreeCache';
 import { useBrowserTreeVirtualization } from './useBrowserTreeVirtualization';
 import { useTCopy } from '@app/i18n/useTCopy';
@@ -46,10 +46,11 @@ function buildTabNode(
   tab: BrowserTabState,
   workspaceId: string,
   uniqueKey: string,
+  resolveTitle: (title: string, url: string) => string,
 ): BrowserTreeNode {
   return {
     path: `tab:${uniqueKey}:${tab.id}`,
-    name: normalizeTabTitle(tab.title, tab.url),
+    name: resolveTitle(tab.title, tab.url),
     kind: 'file',
     children: [],
     nodeType: 'tab',
@@ -65,6 +66,7 @@ function buildHistoryLeafNode(
   entry: BrowserHistoryState,
   _uniqueKey: string,
   browserTabs: BrowserTabState[],
+  resolveTitle?: (title: string, url: string) => string,
 ): BrowserTreeNode {
   let isPlayingAudio = false;
   let isAudioMuted = false;
@@ -86,7 +88,11 @@ function buildHistoryLeafNode(
 
   return {
     path: `history-entry:${entry.id}`,
-    name: normalizeTabTitle(entry.title, entry.url),
+    // 传入结算感知解析器时走 resolveSiteTitle（未结算空占位，避免"主机名→真实标题"跳变）；
+    // 缺省保持原 normalizeTabTitle 行为（向后兼容测试/无缓存场景）。
+    name: resolveTitle
+      ? resolveTitle(entry.title, entry.url)
+      : normalizeTabTitle(entry.title, entry.url),
     kind: 'file',
     children: [],
     nodeType: 'history',
@@ -129,7 +135,7 @@ function buildFolderNode(
   parentWorkspaceId?: string,
   browserBookmarks: BrowserBookmark[] = [],
   tabIdToUrlMap: Record<string, string> = {},
-  getMetaTitle: (url: string) => string = () => '',
+  resolveTitle: (title: string, url: string) => string = () => '',
 ): BrowserTreeNode {
   const childFolders = allFolders.filter(
     (f) => f.parentId === folder.id && (!f.parentType || f.parentType === 'folder'),
@@ -142,10 +148,7 @@ function buildFolderNode(
         if (snapshotUrl) {
           return {
             path: `bookmark:${tabId}::${encodeURIComponent(snapshotUrl)}`,
-            name: normalizeTabTitle(
-              resolveDisplayTitle(snapshotTitle, getMetaTitle(snapshotUrl), snapshotUrl),
-              snapshotUrl,
-            ),
+            name: resolveTitle(snapshotTitle, snapshotUrl),
             kind: 'file' as const,
             children: [],
             nodeType: 'tab' as const,
@@ -164,15 +167,11 @@ function buildFolderNode(
         tab,
         tab.workspaceId,
         `folder-${folder.id}-${tabId}-${encodeURIComponent(displayUrl)}`,
+        resolveTitle,
       );
       node.isSavedBookmark = true;
       // 使用文件夹级快照，保留收藏时的原始 URL/标题
-      const displayTitle = resolveDisplayTitle(
-        snapshotTitle || tab.title || '',
-        getMetaTitle(displayUrl),
-        displayUrl,
-      );
-      node.name = normalizeTabTitle(displayTitle, displayUrl);
+      node.name = resolveTitle(snapshotTitle || tab.title || '', displayUrl);
       node.url = displayUrl;
       // 收藏条目：仅在标签仍在收藏的 URL 上时才保留音频状态
       if (tab.url !== (snapshotUrl || tab.url)) {
@@ -192,7 +191,7 @@ function buildFolderNode(
       parentWorkspaceId,
       browserBookmarks,
       tabIdToUrlMap,
-      getMetaTitle,
+      resolveTitle,
     ),
   );
 
@@ -214,12 +213,12 @@ export function buildWorkspaceCategoryTree(
   workspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]> = {},
   browserBookmarks: BrowserBookmark[] = [],
   tabIdToUrlMap: Record<string, string> = {},
-  getMetaTitle: (url: string) => string = () => '',
+  resolveTitle: (title: string, url: string) => string = () => '',
 ): BrowserTreeNode[] {
   return workspaces.map((ws) => {
     const wsTabs = browserTabs.filter((t) => t.workspaceId === ws.id);
     const tabNodes: BrowserTreeNode[] = wsTabs.map((tab) =>
-      buildTabNode(tab, ws.id, `ws-${ws.id}-${tab.id}`),
+      buildTabNode(tab, ws.id, `ws-${ws.id}-${tab.id}`, resolveTitle),
     );
 
     // 添加工作区级别的书签标签（使用快照数据）
@@ -266,19 +265,14 @@ export function buildWorkspaceCategoryTree(
             tab,
             ws.id,
             `ws-bookmark-${ws.id}-${entry.tabId}-${encodeURIComponent(snapshotUrl)}`,
+            resolveTitle,
           );
-          node.name = normalizeTabTitle(
-            resolveDisplayTitle(snapshotTitle, getMetaTitle(snapshotUrl), snapshotUrl),
-            snapshotUrl,
-          );
+          node.name = resolveTitle(snapshotTitle, snapshotUrl);
           node.url = snapshotUrl;
         } else {
           node = {
             path: `bookmark:${ws.id}:${entry.tabId}:${encodeURIComponent(snapshotUrl)}`,
-            name: normalizeTabTitle(
-              resolveDisplayTitle(snapshotTitle, getMetaTitle(snapshotUrl), snapshotUrl),
-              snapshotUrl,
-            ),
+            name: resolveTitle(snapshotTitle, snapshotUrl),
             kind: 'file' as const,
             children: [],
             nodeType: 'tab' as const,
@@ -309,7 +303,7 @@ export function buildWorkspaceCategoryTree(
         ws.id,
         browserBookmarks,
         tabIdToUrlMap,
-        getMetaTitle,
+        resolveTitle,
       ),
     );
 
@@ -329,7 +323,7 @@ export function buildUserFolderCategoryTree(
   browserTabs: BrowserTabState[],
   browserBookmarks: BrowserBookmark[] = [],
   tabIdToUrlMap: Record<string, string> = {},
-  getMetaTitle: (url: string) => string = () => '',
+  resolveTitle: (title: string, url: string) => string = () => '',
 ): BrowserTreeNode[] {
   const rootFolders = tabFolders.filter((f) => !f.parentId);
   return rootFolders.map((folder) =>
@@ -341,7 +335,7 @@ export function buildUserFolderCategoryTree(
       undefined,
       browserBookmarks,
       tabIdToUrlMap,
-      getMetaTitle,
+      resolveTitle,
     ),
   );
 }
@@ -350,6 +344,7 @@ export function buildHistoryCategoryTree(
   history: BrowserHistoryState[],
   browserTabs: BrowserTabState[],
   dateLabels: { year: string; month: string; day: string; history: string },
+  resolveTitle?: (title: string, url: string) => string,
 ): BrowserTreeNode[] {
   const groupMap = new Map<string, Map<string, Map<string, BrowserHistoryState[]>>>();
 
@@ -404,9 +399,7 @@ export function buildHistoryCategoryTree(
           path: `history:day:${year}-${month}-${day}`,
           name: `${Number(day)}${dateLabels.day}`,
           kind: 'directory',
-          children: entries
-            .map((entry) => buildHistoryLeafNode(entry, entry.id, browserTabs))
-            .filter((n) => n.name),
+          children: entries.map((entry) => buildHistoryLeafNode(entry, entry.id, browserTabs, resolveTitle)),
           nodeType: 'day',
         };
         monthNode.children.push(dayNode);

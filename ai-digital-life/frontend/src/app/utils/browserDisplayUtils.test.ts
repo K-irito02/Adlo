@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { historyDedupKey, isPlaceholderTitle, resolveDisplayTitle } from './browserDisplayUtils';
+import {
+  historyDedupKey,
+  hasViewIdentityParam,
+  historyContainerKey,
+  isPlaceholderTitle,
+  normalizeTabTitle,
+  resolveDisplayTitle,
+  resolveSiteTitle,
+} from './browserDisplayUtils';
 
 describe('isPlaceholderTitle', () => {
   it('empty, pure URL, and bare hostname are placeholders', () => {
@@ -8,9 +16,32 @@ describe('isPlaceholderTitle', () => {
     expect(isPlaceholderTitle('a.com', 'https://a.com/')).toBe(true);
     expect(isPlaceholderTitle('www.a.com', 'https://a.com/')).toBe(true);
   });
+  it('scheme-less host/path labels (SPA pre-hydration title) are placeholders', () => {
+    expect(isPlaceholderTitle('douyin.com/jingxuan', 'https://www.douyin.com/jingxuan')).toBe(true);
+    expect(
+      isPlaceholderTitle('m.youtube.com/watch?v=AAA', 'https://www.youtube.com/watch?v=AAA'),
+    ).toBe(true);
+  });
   it('custom titles are not placeholders', () => {
     expect(isPlaceholderTitle('我的书签', 'https://a.com/')).toBe(false);
     expect(isPlaceholderTitle('A Real Title', 'https://a.com/')).toBe(false);
+  });
+});
+
+describe('normalizeTabTitle', () => {
+  it('keeps a real title', () => {
+    expect(normalizeTabTitle('第97集 | 河北村民上山砍柴', 'https://www.douyin.com/video/1')).toBe(
+      '第97集 | 河北村民上山砍柴',
+    );
+  });
+  it('falls back to hostname for URL sessions and scheme-less host/path labels', () => {
+    expect(normalizeTabTitle('', 'https://www.douyin.com/jingxuan')).toBe('douyin.com');
+    expect(
+      normalizeTabTitle('https://www.douyin.com/jingxuan', 'https://www.douyin.com/jingxuan'),
+    ).toBe('douyin.com');
+    expect(normalizeTabTitle('douyin.com/jingxuan', 'https://www.douyin.com/jingxuan')).toBe(
+      'douyin.com',
+    );
   });
 });
 
@@ -30,7 +61,33 @@ describe('resolveDisplayTitle', () => {
     expect(resolveDisplayTitle('', '', 'https://a.com/')).toBe('');
     // 快照占位（宿主名）保持显示，不用空 metaTitle 覆盖成空 → 不显示空标题
     expect(resolveDisplayTitle('a.com', '', 'https://a.com/')).toBe('a.com');
-    expect(resolveDisplayTitle('a.com', 'a.com', 'https://a.com/')).toBe('a.com');
+    expect(resolveDisplayTitle('a.com', '', 'https://a.com/')).toBe('a.com');
+  });
+});
+
+describe('resolveSiteTitle', () => {
+  it('keeps a real stored title', () => {
+    expect(resolveSiteTitle('第97集 | 视频标题', '', 'https://www.douyin.com/video/1', true)).toBe(
+      '第97集 | 视频标题',
+    );
+  });
+  it('uses a real meta title when stored title is a placeholder', () => {
+    expect(
+      resolveSiteTitle('douyin.com', '第97集 | 视频标题', 'https://www.douyin.com/video/1', true),
+    ).toBe('第97集 | 视频标题');
+    expect(resolveSiteTitle('', '第97集 | 视频标题', 'https://www.douyin.com/video/1', false)).toBe(
+      '第97集 | 视频标题',
+    );
+  });
+  it('returns empty placeholder while fetch not settled even if no real title yet', () => {
+    expect(resolveSiteTitle('', '', 'https://a.com/', false)).toBe('');
+    expect(resolveSiteTitle('douyin.com', '', 'https://www.douyin.com/jingxuan', false)).toBe('');
+  });
+  it('falls back to hostname only after fetch is settled with no real title', () => {
+    expect(resolveSiteTitle('', '', 'https://www.douyin.com/jingxuan', true)).toBe('douyin.com');
+    expect(resolveSiteTitle('douyin.com', '', 'https://www.douyin.com/jingxuan', true)).toBe(
+      'douyin.com',
+    );
   });
 });
 
@@ -150,5 +207,54 @@ describe('historyDedupKey', () => {
     const a = 'https://youtube.com/watch?v=AAA&list=RDR0di5GVDKMU&start_radio=1';
     const b = 'https://youtube.com/watch?v=BBB&list=RDR0di5GVDKMU&start_radio=1';
     expect(historyDedupKey(a)).not.toBe(historyDedupKey(b));
+  });
+});
+
+describe('hasViewIdentityParam', () => {
+  it('returns true only when the URL carries a modal_id param', () => {
+    expect(hasViewIdentityParam('https://www.douyin.com/jingxuan')).toBe(false);
+    expect(
+      hasViewIdentityParam('https://www.douyin.com/jingxuan?modal_id=7667522447830256915'),
+    ).toBe(true);
+    expect(hasViewIdentityParam('https://www.douyin.com/jingxuan?foo=1&modal_id=2&bar=3')).toBe(
+      true,
+    );
+  });
+
+  it('returns false for URLs without modal_id', () => {
+    expect(hasViewIdentityParam('https://youtube.com/watch?v=AAA')).toBe(false);
+    expect(hasViewIdentityParam('not-a-url')).toBe(false);
+  });
+});
+
+describe('historyContainerKey', () => {
+  it('collapses a base feed URL and its modal_id video to the same container key', () => {
+    expect(historyContainerKey('https://www.douyin.com/jingxuan')).toBe(
+      historyContainerKey('https://www.douyin.com/jingxuan?modal_id=7667522447830256915'),
+    );
+  });
+
+  it('equals historyDedupKey when no modal_id is present', () => {
+    const url = 'https://example.com/page';
+    expect(historyContainerKey(url)).toBe(historyDedupKey(url));
+  });
+
+  it('keeps different videos distinct (different modal_id)', () => {
+    const a = historyContainerKey('https://www.douyin.com/jingxuan?modal_id=111');
+    const b = historyContainerKey('https://www.douyin.com/jingxuan?modal_id=222');
+    // Same container, but the video entries themselves stay distinct on their modal_id.
+    expect(a).toBe(b);
+    expect(historyDedupKey('https://www.douyin.com/jingxuan?modal_id=111')).not.toBe(
+      historyDedupKey('https://www.douyin.com/jingxuan?modal_id=222'),
+    );
+  });
+
+  it('does not collapse across different paths/hosts', () => {
+    expect(historyContainerKey('https://a.com/jingxuan')).not.toBe(
+      historyContainerKey('https://a.com/other'),
+    );
+    expect(historyContainerKey('https://a.com/jingxuan')).not.toBe(
+      historyContainerKey('https://b.com/jingxuan'),
+    );
   });
 });

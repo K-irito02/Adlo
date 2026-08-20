@@ -85,8 +85,21 @@ it('recovers from degraded state when mirror updates bring a new favicon', () =>
   expect(iconLink?.style.display).toBe('none');
 });
 
-it('renders site initial letter as the ultimate fallback when no favicon available', () => {
-  // uncached.example → host 首字母 u → 大写 'U'
+it('shows empty placeholder (not letter/favicon) while meta fetch has not settled', () => {
+  // 未缓存/未结算：空占位，避免"兜底字母 → 真实图标"的中间态跳动
+  const { container } = render(<BrowserFavicon url="https://never-fetched.example" />);
+  const fallback = container.querySelector(
+    '.adl-browser-tree__link-fallback',
+  ) as HTMLElement | null;
+  expect(fallback).not.toBeNull();
+  expect(fallback?.style.display).not.toBe('none');
+  expect(fallback?.textContent).toBe('');
+  expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
+});
+
+it('renders site initial letter as the ultimate fallback once meta resolved with no favicon', () => {
+  // 已结算仍是空图标 → 显示兜底字母；未结算时装空占位（见上一用例）
+  mirrorFavicon('https://uncached.example', '');
   const { container } = render(<BrowserFavicon url="https://uncached.example" />);
   const fallback = container.querySelector(
     '.adl-browser-tree__link-fallback',

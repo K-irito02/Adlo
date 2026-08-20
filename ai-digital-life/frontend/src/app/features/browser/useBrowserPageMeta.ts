@@ -17,16 +17,23 @@ export function isPlaceholderTitle(title: string, url: string): boolean {
   if (/^https?:\/\//i.test(title)) {
     return true;
   }
+  const trimmed = title.trim();
   try {
     const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
     if (!host) {
       return false;
     }
-    const t = title.trim().toLowerCase();
-    return t === host || t === `www.${host}`;
+    const t = trimmed.toLowerCase();
+    if (t === host || t === `www.${host}`) {
+      return true;
+    }
   } catch {
     return false;
   }
+  // 无 scheme 的主机[+路径]标签（如 "douyin.com/jingxuan"）——占位而非真实标题
+  return /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+(?:\/[\S]*)?$/i.test(
+    trimmed,
+  );
 }
 
 export function applyBroadcastTitle(
@@ -210,7 +217,11 @@ export function useBrowserPageMeta() {
         newUrl: cleanUrl,
         urlChanged,
         shouldTitle,
-        reason: urlChanged ? 'url-changed-by-meta' : shouldTitle ? 'title-applied' : 'rejected-by-gate',
+        reason: urlChanged
+          ? 'url-changed-by-meta'
+          : shouldTitle
+            ? 'title-applied'
+            : 'rejected-by-gate',
       });
       if (shouldTitle) {
         titleSourceRef.set(activeTab.id, effectiveSource);

@@ -7,11 +7,13 @@ export function hostnameFromUrl(url: string): string {
   }
 }
 
-export function normalizeTabTitle(title: string | undefined, _url: string): string {
-  if (title && !/^https?:\/\//.test(title)) {
+export function normalizeTabTitle(title: string | undefined, url: string): string {
+  if (title && !isPlaceholderTitle(title, url)) {
     return title;
   }
-  return '';
+  // 无真实标题/占位标题（空、纯URL、主机、主机+路径如 "douyin.com/jingxuan"）时，
+  // 回退主机名（如 "douyin.com"）——Chrome/Edge 语义，通用所有站点。
+  return hostnameFromUrl(url);
 }
 
 /**
@@ -49,7 +51,15 @@ export function isUnsafeTitle(title: string): boolean {
 }
 
 /**
- * 占位标题：空 / 等于 URL / http(s) 前缀 / 裸域名（与 useBrowserPageMeta / meta_merge 一致）。
+ * 无 scheme 的"主机[/路径]"标签（如 "douyin.com"、"douyin.com/jingxuan"、"m.youtube.com/watch"）。
+ * SPA 水合前 document.title 常回落成这种 URL 片段，属于占位而非真实标题。
+ */
+const SCHEME_LESS_URL_LABEL =
+  /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+(?:\/[\S]*)?$/i;
+
+/**
+ * 占位标题：空 / 等于 URL / http(s) 前缀 / 裸域名 / 无 scheme 的主机+路径标签
+ * （与 useBrowserPageMeta / meta_merge 一致）。
  */
 export function isPlaceholderTitle(title: string, url: string): boolean {
   if (!title) {
@@ -61,16 +71,20 @@ export function isPlaceholderTitle(title: string, url: string): boolean {
   if (/^https?:\/\//i.test(title)) {
     return true;
   }
+  const trimmed = title.trim();
   try {
     const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
     if (!host) {
       return false;
     }
-    const t = title.trim().toLowerCase();
-    return t === host || t === `www.${host}`;
+    const t = trimmed.toLowerCase();
+    if (t === host || t === `www.${host}`) {
+      return true;
+    }
   } catch {
     return false;
   }
+  return SCHEME_LESS_URL_LABEL.test(trimmed);
 }
 
 /**
@@ -89,6 +103,38 @@ export function resolveDisplayTitle(snapshotTitle: string, metaTitle: string, ur
     return metaTitle;
   }
   return snapshotTitle;
+}
+
+/**
+ * 站点标题展示解析（仓库"已打开标签页/书签"节点使用；Chrome/Edge 语义 + 去中间态跳动）。
+ *
+ * 优先级：
+ * 1. 真实标题（storedTitle / metaTitle 非占位）→ 直接返回真实标题；
+ * 2. 已确认抓取结算（resolved=true）但仍无真实标题 → 回退主机名（兜底）；
+ * 3. 尚未确认（resolved=false，抓取/加载中）→ 返回空串占位，等真实标题到达后直接显示，
+ *    避免"主机名 → 真实标题"的中间态跳动。
+ *
+ * @param storedTitle 存储标题（标签 live 标题 / 书签快照标题）
+ * @param metaTitle   站点缓存元数据标题（getCachedTitle）
+ * @param url         页面 URL，用于占位/回退判定与主机名解析
+ * @param resolved    该 URL 元数据是否已抓取结算（isSiteMetaResolved）
+ */
+export function resolveSiteTitle(
+  storedTitle: string,
+  metaTitle: string,
+  url: string,
+  resolved: boolean,
+): string {
+  if (storedTitle && !isPlaceholderTitle(storedTitle, url)) {
+    return storedTitle;
+  }
+  if (metaTitle && !isPlaceholderTitle(metaTitle, url)) {
+    return metaTitle;
+  }
+  if (resolved) {
+    return hostnameFromUrl(url);
+  }
+  return '';
 }
 
 /**
@@ -183,5 +229,35 @@ export function historyDedupKey(url: string): string {
     return `${hostname}${path}${query}`;
   } catch {
     return url;
+  }
+}
+
+/**
+ * 是否携带"视图身份"参数 modal_id（抖音等 SPA 视频弹层）。
+ * 同一 path 下每个视频以 modal_id 区分；不带 modal_id 的同 path URL 只是
+ * "容器/scaffold"（feed 骨架），并非独立视图。与 normalizeUrlForCompare 的
+ * modal_id 特判约定保持一致。
+ */
+export function hasViewIdentityParam(url: string): boolean {
+  try {
+    return new URL(url).searchParams.has('modal_id');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * "容器"身份键：剥离 modal_id 后计算的历史键。
+ * 视频条目与其 base 脚手架共享同一容器键，用于识别并清理冗余的 base 条目，
+ * 使历史中只保留具体视频条目（Chrome/Edge 式：每个刷到的视频各自成条，
+ * 不重复累积/跳位基础 URL）。
+ */
+export function historyContainerKey(url: string): string {
+  try {
+    const u = new URL(url);
+    u.searchParams.delete('modal_id');
+    return historyDedupKey(u.toString());
+  } catch {
+    return historyDedupKey(url);
   }
 }

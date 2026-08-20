@@ -162,30 +162,95 @@ export function originOf(url: string): string {
   }
 }
 
-/** 遍历镜像，返回与 url 同 origin 的第一条条目（供非精确 URL 回落到站点图标）。 */
-function findOriginEntry(url: string): SiteMetaCacheEntry | undefined {
+function hasFavicon(entry: SiteMetaCacheEntry): boolean {
+  return Boolean(entry.faviconDataUri || entry.faviconUrl);
+}
+
+/**
+ * 确定性选取同一 origin 的"站点级"canonical 图标条目（Chrome/Edge 式：每个站点一个唯一 favicon）。
+ *
+ * 优先级（目标：稳定，不随缓存插入顺序/各页 URL 不同而在多种真实图标间来回切换）：
+ * 1. 站点根条目（origin 或 origin + '/'）且含图标 —— 站点根图标为准，最稳定；
+ * 2. 含图标的条目中 lastOkAt 最新 → fetchedAt 最新（最近成功/最近抓取）；
+ * 3. 完全没有任何图标的同 origin 条目里，取插入顺序第一条。
+ *
+ * 返回 `{ entry, cacheKey }`；同 origin 无任何条目返回 undefined。
+ */
+export function findCanonicalOriginEntry(
+  url: string,
+): { entry: SiteMetaCacheEntry; cacheKey: string } | undefined {
   const origin = originOf(url);
   if (!origin) {
     return undefined;
   }
-  for (const [cacheKey, entry] of memoryCache) {
-    if (originOf(cacheKey) === origin) {
-      return entry;
+  const candidates: { cacheKey: string; entry: SiteMetaCacheEntry }[] = [];
+  for (const [key, entry] of memoryCache) {
+    if (originOf(key) === origin) {
+      candidates.push({ cacheKey: key, entry });
     }
   }
-  return undefined;
+  if (candidates.length === 0) {
+    return undefined;
+  }
+  const root = candidates.find((c) => c.cacheKey === origin || c.cacheKey === `${origin}/`);
+  if (root && hasFavicon(root.entry)) {
+    return root;
+  }
+  const withFav = candidates.filter((c) => hasFavicon(c.entry));
+  if (withFav.length > 0) {
+    // Array.prototype.sort 稳定：时间戳相同时保留原插入顺序，保证确定性。
+    const chosen = [...withFav].sort(
+      (a, b) => b.entry.lastOkAt - a.entry.lastOkAt || b.entry.fetchedAt - a.entry.fetchedAt,
+    )[0]!;
+    return chosen;
+  }
+  return candidates[0]!;
+}
+
+/** 该 URL 站点级 canonical 图标（含命中的缓存 key，供调试/日志）。 */
+export function getCanonicalOriginFavicon(url: string): {
+  faviconDataUri: string;
+  faviconUrl: string;
+  cacheKey: string;
+} {
+  const found = findCanonicalOriginEntry(url);
+  const result = {
+    faviconDataUri: found?.entry.faviconDataUri ?? '',
+    faviconUrl: found?.entry.faviconUrl ?? '',
+    cacheKey: found?.cacheKey ?? '',
+  };
+  console.info('[site-meta-cache] canonical-origin-favicon', {
+    url,
+    origin: originOf(url),
+    chosenCacheKey: result.cacheKey,
+    hasDataUri: Boolean(result.faviconDataUri),
+    hasFaviconUrl: Boolean(result.faviconUrl),
+    faviconUrl: result.faviconUrl,
+  });
+  return result;
 }
 
 export function getOriginFaviconDataUri(url: string): string {
-  return findOriginEntry(url)?.faviconDataUri ?? '';
+  return findCanonicalOriginEntry(url)?.entry.faviconDataUri ?? '';
 }
 
 export function getOriginFaviconUrl(url: string): string {
-  return findOriginEntry(url)?.faviconUrl ?? '';
+  return findCanonicalOriginEntry(url)?.entry.faviconUrl ?? '';
 }
 
 export function getCachedTitle(url: string): string {
   return memoryCache.get(normalizeUrlForCache(url))?.title ?? '';
+}
+
+/**
+ * 该 URL 的站点元数据是否已"抓取结算"（内存镜像中已有记录）。
+ * 有 entry（fetchedAt>0，无论是否成功抓到真实标题/图标）即视为已确认；
+ * 无 entry 视为尚未抓取（加载中）。用于标题/图标显示：未确认时不急于回退
+ * 主机名/兜底字母，舍去"主机名→真实标题/图标"的中间态跳动——
+ * 等真实数据到来直接显示真实值，只有确认抓取结算仍无真实数据时才回退。
+ */
+export function isSiteMetaResolved(url: string): boolean {
+  return memoryCache.has(normalizeUrlForCache(url));
 }
 
 /**

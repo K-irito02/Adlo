@@ -379,7 +379,7 @@ describe('bookmark tree node title via resolveDisplayTitle (⑪)', () => {
       { 'ws-1': bookmarks },
       [],
       {},
-      (url) => (url === 'https://a.com/' ? '真实标题' : ''),
+      (_title, url) => (url === 'https://a.com/' ? '真实标题' : ''),
     );
     const bmNode = tree[0].children.find((c) => c.url === 'https://a.com/');
     expect(bmNode?.name).toBe('真实标题');
@@ -389,6 +389,7 @@ describe('bookmark tree node title via resolveDisplayTitle (⑪)', () => {
     const bookmarks: WorkspaceBookmarkEntry[] = [
       { tabId: 'bm-tab', url: 'https://b.com/', title: '我的书签' },
     ];
+    // resolver 持有真实标题决策（生产为 resolveSiteTitle）：非占位快照标题优先
     const tree = buildWorkspaceCategoryTree(
       [workspace],
       [],
@@ -396,7 +397,7 @@ describe('bookmark tree node title via resolveDisplayTitle (⑪)', () => {
       { 'ws-1': bookmarks },
       [],
       {},
-      (url) => (url === 'https://b.com/' ? '服务端标题' : ''),
+      (title, url) => (url === 'https://b.com/' ? title || '服务端标题' : ''),
     );
     const bmNode = tree[0].children.find((c) => c.url === 'https://b.com/');
     expect(bmNode?.name).toBe('我的书签');

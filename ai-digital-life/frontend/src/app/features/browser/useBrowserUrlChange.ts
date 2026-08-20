@@ -4,7 +4,11 @@ import type { MetaSource, PageMeta } from '@shared/ipc/browser';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import { useAppStore } from '@stores';
 import { normalizeUrlForCompare, isProbablySameSite } from './browserUrlUtils';
-import { historyDedupKey } from '@utils/browserDisplayUtils';
+import {
+  historyDedupKey,
+  hasViewIdentityParam,
+  historyContainerKey,
+} from '@utils/browserDisplayUtils';
 
 /**
  * Fallback delay (ms) before treating a navigation as completed when no
@@ -205,13 +209,19 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         ? state.browserTabs.find((t: BrowserTabState) => t.id === tabId)
         : undefined;
 
-      const urlChanged = eventTab && normalizeUrlForCompare(eventTab.url) !== normalizedUrl;
+      // 身份键：保留 modal_id 等"页面身份"参数（historyDedupKey 语义），用于历史写入门槛。
+      // 刷视频（仅 modal_id 变化）时 normalizedUrl 剥离 modal_id 后恒相等，会误判为"未变化"
+      // 而漏写历史；改用保留 modal_id 的身份键比较，每个视频识别为不同条目（Chrome/Edge 行为）。
+      // display/meta 归一仍使用 normalizedUrl（剥离 modal_id）。
+      const identityKey = historyDedupKey(url);
+      const urlChanged = eventTab && historyDedupKey(eventTab.url) !== identityKey;
       const noTabExists = !eventTab;
-      // DEBUG(问题2): onUrlChanged 事件入口——记录 URL 变化与标签匹配情况
+      // DEBUG(问题2): onUrlChanged 事件入口——记录 URL 变化、身份键与标签匹配情况
       console.warn('[browser-url-change] onUrlChanged', {
         tabId,
         url,
         normalizedUrl,
+        identityKey,
         urlChanged,
         noTabExists,
         pendingPrefetch: pendingPrefetchRef.current.has(normalizedUrl),
@@ -227,9 +237,33 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         // 立即更新标签 URL + 写入历史条目，使历史树可即时通过 URL 匹配音频状态
         const s = useAppStore.getState();
 
+        // 只记录视频条目（Chrome/Edge 行为）：当前为"基础URL"（无 modal_id，
+        // 只是 feed/scaffold 骨架）且同容器已存在具体视频条目时，判定为刷视频时
+        // SPA 的 transient base 重发，不单独写历史、不改动标签 URL（保持当前
+        // 视频上下文），避免基础URL反复置顶引发的重复标签/URL标题/跳位闪烁。
+        const suppressBase =
+          !hasViewIdentityParam(url) &&
+          s.browserHistory.some(
+            (h) => hasViewIdentityParam(h.url) && historyContainerKey(h.url) === identityKey,
+          );
+        // DEBUG(新现象): 记录 base scaffold 抑制判定
+        console.warn('[browser-url-change] scaffold-suppression', {
+          url,
+          identityKey,
+          containerKey: historyContainerKey(url),
+          suppressBase,
+        });
+
+        if (suppressBase) {
+          setAddress(normalizedUrl);
+          onNavigationStart?.(normalizedUrl);
+          return;
+        }
+
         // 防止 SPA URL 规范化（如 YouTube 移除 tracking params、Bilibili 添加 vd_source）
         // 用 real-title 条目替换掉 placeholder。检查 same dedupKey 下是否已有真实标题。
-        const dedupKey = historyDedupKey(normalizedUrl);
+        // dedupKey 使用保留 modal_id 的 identityKey：每个视频各自成条（Chrome/Edge 行为）。
+        const dedupKey = identityKey;
         const existingEntry = s.browserHistory.find(
           (h) => historyDedupKey(h.url) === dedupKey && h.title !== h.url,
         );
@@ -238,23 +272,36 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           // Use the tabId from the event to update the correct tab,
           // not the currently active tab (which may differ if user
           // switched tabs before this event was processed).
-          s.browserUpdateTab(tabId, { url: normalizedUrl, title: '' });
-          // DEBUG(问题2): 分支 eventTab——更新该标签 URL（不导航）
-          console.warn('[browser-url-change] branch-eventTab', { tabId, url: normalizedUrl });
+          // 标签 URL 用原始 url（保留 modal_id），使声音/标题能精确关联到
+          // 当前视频历史条目（buildHistoryLeafNode 以 t.url === entry.url 精确匹配）。
+          s.browserUpdateTab(tabId, { url, title: '' });
+          // DEBUG(问题2): 分支 eventTab——更新该标签 URL（不导航），身份用保留 modal_id 的 url 写历史
+          console.warn('[browser-url-change] branch-eventTab', {
+            tabId,
+            displayUrl: normalizedUrl,
+            historyUrl: url,
+            dedupKey,
+          });
           if (existingEntry) {
-            s.browserAddToHistory(normalizedUrl, existingEntry.title);
-            s.browserUpdateHistoryTitle(normalizedUrl, existingEntry.title);
+            s.browserAddToHistory(url, existingEntry.title);
+            s.browserUpdateHistoryTitle(url, existingEntry.title);
           } else {
-            s.browserAddToHistory(normalizedUrl, normalizedUrl);
+            s.browserAddToHistory(url, url);
           }
         } else if (existingEntry) {
           // DEBUG(问题2): 分支 existingEntry——导航激活标签并回填历史标题
-          console.warn('[browser-url-change] branch-existingEntry', { url: normalizedUrl });
+          console.warn('[browser-url-change] branch-existingEntry', {
+            displayUrl: normalizedUrl,
+            historyUrl: url,
+          });
           s.browserNavigateActiveTab(normalizedUrl);
         } else {
           // DEBUG(问题2): 分支 fallback——导航激活标签（无 tab 时）
-          console.warn('[browser-url-change] branch-fallback-navigate', { url: normalizedUrl });
-          s.browserAddToHistory(normalizedUrl, normalizedUrl);
+          console.warn('[browser-url-change] branch-fallback-navigate', {
+            displayUrl: normalizedUrl,
+            historyUrl: url,
+          });
+          s.browserAddToHistory(url, url);
           s.browserNavigateActiveTab(normalizedUrl);
         }
 
@@ -301,7 +348,10 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
                 title: meta.title,
                 favicon: meta.favicon || '',
                 faviconDataUri: meta.faviconDataUri || '',
-                url: normalizedUrl,
+                // 传递原始 url（保留 modal_id）：使 handlePageMeta 的 cleanUrl 与标签
+                // URL 精确匹配（exact 分支），从而只更新标题、不把标签 URL 覆盖回
+                // base，维持声音/标题对当前视频条目的精确关联。
+                url,
                 // Tauri 模式导航主路径（onUrlChanged → prefetch → TTL 命中 get）：
                 // 透传真实来源，否则 com 权威条目按 'http' 落地并冻结后续 com 更新（R3 回归）。
                 source: (meta as { source?: MetaSource }).source,

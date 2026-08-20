@@ -5,6 +5,7 @@ import {
   subscribeSiteMetaReady,
   isSiteMetaCacheReady,
   initSiteMetaCache,
+  isSiteMetaResolved,
 } from '../utils/siteMetaCache';
 import { pageMetaClient } from '../utils/pageMetaClient';
 import type { IconSize } from '../icons';
@@ -30,12 +31,18 @@ interface BrowserFaviconProps {
 export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const [ready, setReady] = useState(isSiteMetaCacheReady());
   const [faviconUrl, setFaviconUrl] = useState('');
-  // DEBUG(问题1): 记录初始渲染状态，用于判断是否在缓存水合前就显示了兜底图标
-  console.warn('[browser-favicon] render', {
-    url,
-    ready: isSiteMetaCacheReady(),
-    cached: getFaviconUrl(url),
-  });
+  // DEBUG(问题1): 记录初始渲染状态，用于判断是否在缓存水合前就显示了兜底图标。
+  // 只记录长度/来源而非完整 base64——否则每个 favicon 每次渲染都写入数 KB 日志，瞬间撑爆
+  // 日志文件 cap，把更重要的导航/历史诊断日志（browser-url-change/history/meta）淹没丢弃。
+  {
+    const cached = getFaviconUrl(url);
+    console.warn('[browser-favicon] render', {
+      url,
+      ready: isSiteMetaCacheReady(),
+      cachedLen: cached.length,
+      isDataUri: cached.startsWith('data:'),
+    });
+  }
   // 渲染降级状态（React 驱动，避免 DOM 直接操作导致 display:none 残留）：
   // 真实图标加载失败时置 true → 显示内置占位图标；新图标到来时重置（Fix D：
   // 不再重试 Google S2 代理——被墙/不稳定，且对无收录域名返回默认图标）。
@@ -44,16 +51,20 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   // 仅在 faviconUrl 变化时重置降级态——未变化时保持降级，避免每次广播
   // 重挂 img → 404 → 再降级的闪烁。
   const faviconUrlRef = useRef('');
+  // 同步"元数据是否已抓取结算"状态：未确认时不显示兜底字母（空占位），
+  // 确认结算仍无真实图标时才显示兜底字母，避免"兜底字母 → 真实图标"的跳动。
+  const resolvedRef = useRef(url ? isSiteMetaResolved(url) : false);
+  const [resolved, setResolved] = useState(resolvedRef.current);
 
   const applyMetaUpdate = useCallback(() => {
     const prev = faviconUrlRef.current;
     const next = url ? getFaviconUrl(url) : '';
-    // DEBUG(问题1): 记录 favicon 从兜底/旧值切换到新值的过程，含缓存命中来源
+    // DEBUG(问题1): 记录 favicon 从兜底/旧值切换到新值的过程，含缓存命中来源。
+    // 只记录长度不记录完整字符串（见 render 日志注释，防日志撑爆）。
     if (prev !== next) {
       console.warn('[browser-favicon] applyMetaUpdate changed', {
         url,
-        prev,
-        next,
+        prevLen: prev.length,
         nextLen: next.length,
         isDataUri: next.startsWith('data:'),
         ready,
@@ -61,6 +72,11 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
       faviconUrlRef.current = next;
       setFaviconUrl(next);
       setDegraded(false);
+    }
+    const r = url ? isSiteMetaResolved(url) : false;
+    if (r !== resolvedRef.current) {
+      resolvedRef.current = r;
+      setResolved(r);
     }
   }, [url, ready]);
 
@@ -94,8 +110,12 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const current = faviconUrl;
   const showImg = Boolean(current) && !degraded;
   const handleError = useCallback(() => {
-    // DEBUG(问题1): 真实图标加载失败 → 降级为内置占位图标
-    console.warn('[browser-favicon] real favicon load failed', { url, faviconUrl });
+    // DEBUG(问题1): 真实图标加载失败 → 降级为内置占位图标（只记录长度）
+    console.warn('[browser-favicon] real favicon load failed', {
+      url,
+      faviconUrlLen: faviconUrl.length,
+      isDataUri: faviconUrl.startsWith('data:'),
+    });
     // 真实图标加载失败 → 直接降级为内置占位图标（Fix D：不再重试 Google S2）。
     // 绝不删除缓存：后续广播更新会重置 degraded 并尝试新图标。
     setDegraded(true);
@@ -118,7 +138,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
         className="adl-browser-tree__link-fallback"
         style={showImg ? { display: 'none' } : undefined}
       >
-        {showImg ? '' : siteInitial(url)}
+        {showImg ? '' : resolved ? siteInitial(url) : ''}
       </span>
     </span>
   );

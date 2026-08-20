@@ -1,27 +1,14 @@
-import {
-  getCachedFavicon,
-  getCachedSiteMeta,
-  getOriginFaviconDataUri,
-  getOriginFaviconUrl,
-} from './siteMetaCache';
+import { getCanonicalOriginFavicon } from './siteMetaCache';
 
 /**
- * 分级兜底阶梯（Chrome/Edge 式）：
- * L1 精确 URL data-URI → L1b 精确 URL faviconUrl → L2 同 origin data-URI →
- * L2b 同 origin faviconUrl → ''（组件据此显示"站点首字母"兜底）。
+ * 站点级 favicon（Chrome/Edge 式：每个站点一个唯一 favicon）。
+ *
+ * 修复：不再做"精确 URL → origin 回落"的两级切换——否则同站不同 URL（如抖音
+ * 首页 vs 带 `?modal_id=` 的视频页）会各自命中不同真实 favicon，造成同站出现
+ * 两种真实图标并来回切换。改为按 origin 确定性选取一个 canonical 图标（优先站点
+ * 根条目的图标），所有同站 URL 显示一致。无则返回 ''（组件显示"站点首字母"兜底）。
  */
 export function getFaviconUrl(url: string): string {
-  const dataUri = getCachedFavicon(url);
-  if (dataUri) {
-    return dataUri;
-  }
-  const exact = getCachedSiteMeta(url)?.faviconUrl;
-  if (exact) {
-    return exact;
-  }
-  const originDataUri = getOriginFaviconDataUri(url);
-  if (originDataUri) {
-    return originDataUri;
-  }
-  return getOriginFaviconUrl(url);
+  const { faviconDataUri, faviconUrl } = getCanonicalOriginFavicon(url);
+  return faviconDataUri || faviconUrl;
 }
