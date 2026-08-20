@@ -1,6 +1,7 @@
-import { useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
+import { isTauriShell } from '@shared/env';
 import { useBrowserTabs } from './useBrowserTabs';
 import { useBrowserWebView } from './useBrowserWebView';
 import { useBrowserSearch } from './useBrowserSearch';
@@ -62,6 +63,34 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const { toastMessages, showToast, removeToast } = useBrowserToast();
 
+  // 经 useBrowserWebView 在每次 render 时赋值，供 navigateActiveTabExplicit 在
+  // 显式导航时判断"目标 tab 的 WebView 是否已入池"并真正调用 Navigate。
+  const navigationHelpersRef = useRef<{
+    isTabInPool: (tabId: string) => boolean;
+    navigateTabInPool: (tabId: string, url: string) => Promise<void>;
+  }>({
+    isTabInPool: () => false,
+    navigateTabInPool: async () => {},
+  });
+
+  // 显式导航入口（地址栏回车、历史/书签树"在此标签打开"）。
+  // 设计 D4：前端只在显式导航时才 navigate。被删的响应式反向导航分支已不再
+  // 触发 Navigate（软导航/被动 URL 变化绝不整页重载——由 lifecycle 保证）。
+  // 因此这里需在保留 store action 职责（更新 tab.url / 新建 tab）的同时，
+  // 对"已入池 tab"显式补一次 navigateTabInPool（= WebView2.Navigate）。
+  // 未入池/新建 tab 交由 lifecycle createWebViewForTab(tab.url) 创建并导航，
+  // 池中无 WebView 时不要 navigate（会失败或 no-op）。
+  const navigateActiveTabExplicit = useCallback(
+    async (url: string, title?: string) => {
+      const id = useAppStore.getState().browserActiveTabId;
+      browserNavigateActiveTab(url, title);
+      if (isTauriShell() && id && navigationHelpersRef.current.isTabInPool(id)) {
+        await navigationHelpersRef.current.navigateTabInPool(id, url);
+      }
+    },
+    [browserNavigateActiveTab],
+  );
+
   const {
     pendingNavigationsRef,
     handleNavigationStart,
@@ -71,7 +100,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handlePointerDown,
   } = useBrowserPanelHandlers({
     browserOpenTab,
-    browserNavigateActiveTab,
+    browserNavigateActiveTab: navigateActiveTabExplicit,
     browserSelectTab,
     browserNavigateInPlace,
     setBrowserNavigateInPlace,
@@ -217,6 +246,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     primaryRef,
     removeFromPool,
     isTabInPool,
+    navigateTabInPool,
     loadingTabId,
     poolVersion: _poolVersion,
   } = useBrowserWebView({
@@ -225,6 +255,9 @@ export function BrowserPanel(props: BrowserPanelProps) {
     isVisible: isBrowserVisible,
     overlayActive: hasOverlayActive,
   });
+
+  // render 期镜像最新 helper，供显式导航函数运行时读取
+  navigationHelpersRef.current = { isTabInPool, navigateTabInPool };
 
   const { wrappedHandleCloseTab, handleCloseAllTabs, handleClearTabDirectories } =
     useBrowserPanelCloseHandlers({
@@ -270,7 +303,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     browserLookupIndex,
     handleNavigationStart,
     navigateBrowser,
-    browserNavigateActiveTab,
+    browserNavigateActiveTab: navigateActiveTabExplicit,
     setIframeLoadError,
     setIframeBlockedDetected,
     handlePageMeta: _handlePageMeta,

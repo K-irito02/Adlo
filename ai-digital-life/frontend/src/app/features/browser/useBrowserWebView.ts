@@ -33,6 +33,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     isTabInPool,
     createWebViewForTab,
     activateTabInPool,
+    navigateTabInPool,
     removeFromPool,
     poolVersion,
   } = useBrowserPool();
@@ -88,6 +89,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     updateWebViewBounds,
     createWebViewForTab,
     activateTabInPool,
+    navigateTabInPool,
     loadingTabId,
     poolVersion,
   };
