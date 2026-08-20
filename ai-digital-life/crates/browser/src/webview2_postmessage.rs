@@ -72,38 +72,6 @@ mod imp {
                             bridge_for_handler.emit_open_new_tab(&url);
                             return Ok(());
                         }
-                        // [ADL-DEBUG] 临时诊断分支（Phase 0 验证，Phase 4 清理）：
-                        // init_script 链接点击决策（就地导航 vs 用户显式新标签）。
-                        if meta.get("type").and_then(|t| t.as_str()) == Some("adl-nav-click-diag") {
-                            let s = |k: &str| {
-                                meta.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string()
-                            };
-                            tracing::info!(
-                                "[ADL-DEBUG][navclick] DIAG | href={} | forcedNewTab={} | linkTarget={}",
-                                s("href"),
-                                s("forcedNewTab"),
-                                s("linkTarget"),
-                            );
-                            return Ok(());
-                        }
-                        // [ADL-DEBUG] 临时诊断分支（Phase 0 验证，Phase 4 清理）：
-                        // spawn_spa_fallback 2s 兜底的触发页/候选标题/跳过原因证据。
-                        if meta.get("type").and_then(|t| t.as_str()) == Some("adl-fallback-diag") {
-                            let s = |k: &str| {
-                                meta.get(k).and_then(|v| v.as_str()).unwrap_or("").to_string()
-                            };
-                            tracing::info!(
-                                "[ADL-DEBUG][fallback] DIAG | triggerUrl={} | locHref={} | docTitle={} | h1={} | best={} | src={} | skipReason={}",
-                                s("triggerUrl"),
-                                s("locHref"),
-                                s("docTitle"),
-                                s("h1"),
-                                s("best"),
-                                s("src"),
-                                s("skipReason"),
-                            );
-                            return Ok(());
-                        }
                         if meta.get("type").and_then(|t| t.as_str()) == Some("meta") {
                             let title = meta
                                 .get("title")

@@ -264,3 +264,83 @@
 - 用户 2026-08-21 确认：**所有问题/任务都解决完成（事项 3 除外——暂停、其 `[ADL-DEBUG]` 日志保留）**；更新进度文件 → 提交所有变更到本地 → 执行 root-cause-resolution 技能 Phase 4 及后续步骤。
 - 事项状态：事项 1/2/4/5/6/7 = 已完成；事项 3 = 已暂停（日志保留）。
 - 临时日志清理范围：清理事项 1/2/6/7 埋点（[history]/[meta]/[nav]/[fallback]/[navclick]/[backfwd]/[audio]）；**保留事项 3 埋点**（[newtab]/[address]/[webview]）。
+
+### Phase 4 执行记录（2026-08-21 00:4x）
+1. 基线提交：`05698e5a fix(browser): 历史标题/写入/图标/导航/音频系列修复（Phase 0-3 完成）`（26 文件 +965/-98，含临时日志与进度文件）。
+2. 生成审查快照：`.review-diffs/issue-all-rev1.diff`（`git diff HEAD~1 HEAD`，100KB）。
+3. 并行派发子代理 A（根因验证，源码只读，写报告文件）：A1 历史（事项 1/2）→ `review-issue-1-rev1.md`；A2 导航音频（事项 6/7）→ `review-issue-2-rev1.md`；A3 UI 图标/全量（事项 4/5 + 预存问题）→ `review-issue-3-rev1.md`。
+4. 待 A 报告 → 主代理逐项验证 → 修复（含 M1 调试日志清理：清事项 1/2/6/7，保留事项 3）→ 重新生成快照（rev2）→ 复审 → 子代理 B（死代码清理）→ 修复 → 复审 → 全量验证（cargo test --workspace + 前端全量 + clippy/tsc/eslint/prettier）→ 标记完成 → README 归档 → 二次提交。
+
+### 子代理 A2（导航/音频）报告转写 + 主代理验证（2026-08-21）
+- 报告：`.review-diffs/review-issue-2-rev1.md`（12 项：1 严重/3 高/4 中/4 低）
+- **主代理逐项验证结论**：
+
+| # | 子代理结论 | 主代理验证 | 处理 |
+|---|-----------|-----------|------|
+| 1 严重 | click listener 注册位置在 nav-guard 前 → 冲突 | **误报**：click listener（useCapture=true）与 nav-guard 无注册时序依赖——`__startNavGuard` 在脚本同步执行完已赋值，click 事件在运行时才触发且 `if (window.__startNavGuard)` 有存在性检查 | 不修，记录 |
+| 2 高 | target=_blank 就地导航影响 window.open 弹窗 | **用户特殊设计**：window.open（JS 弹窗）走独立路径（window.open 重写→NewWindowRequested→open-new-tab），不受影响；target=_blank 普通点击就地导航是用户 2026-08-20 明确决策，注释已写明 | 不修，记录 |
+| 3 高 | AREA 未提取 alt/title 语义标题 | **误报**：点击处理是导航决策，标题由 meta 链路（DocumentTitleChanged/init_script meta/服务端抓取）负责，与 AREA alt 无关 | 不修，记录 |
+| 4 中 | 书签归一化注释缺 modal_id 说明（子代理误称 historyDedupKey 剥离 modal_id） | **部分误报**：historyDedupKey **保留** modal_id（剥离的是 normalizeUrlForCompare/historyContainerKey）；音频匹配用 historyDedupKey 精确到具体视频是正确的；补充注释说明归一化范围（低成本文档改进） | 补充注释 |
+| 5 低 | spa_fallback h1 选择器容错（抖音） | **无实证**：当前选择器是 2026-08-13 A2 审慎限定，抖音 2026-08-13 用户实测正常 | 不修，记录 |
+| 6 中 | browserOpenTab folder.tabs 追加用精确 URL 去重 → URL 变体冗余 | **真实预存问题**（本次变更前已存在，审查范围内）：改为 historyDedupKey 归一化去重 | **修复** |
+| 7 低 | browserTreeCounts.test.ts 缺 historyDedupKey 导入 | **误报**：测试未直接引用 historyDedupKey（子代理引用的是实现文件 import 行）；24/24 测试通过佐证 | 不修，记录 |
+| 8 低 | spaFallback.test.ts 未覆盖 m.youtube.com | **误报/过期快照**：已有 `isVideoPage('m.youtube.com', '/watch')` 断言；子代理引用行号 664+ 超出文件长度（约 150 行） | 不修，记录 |
+| 预存1 高 | IsMutedChanged 事件解绑不完全 → 内存泄漏 | **误报**：`cleanup_audio_handler` 已 `store.remove(tab_id)`；WebView2 事件随 WebView close 自动清理（token 与 WebView 生命周期绑定），无需手动 remove | 不修，记录 |
+| 预存2 中 | browserOpenTab 写历史与标签更新重绘顺序 | **无实害**：Zustand set 同步 + React 自动批处理，无中间渲染 | 不修，记录 |
+
+- 待修复：问题 6（folder.tabs 归一化去重）+ 问题 4 注释补充。A1/A3 报告到达后统一修复。
+
+### 子代理 A1（历史标题/写入）报告转写 + 主代理验证（2026-08-21）
+- 报告：`.review-diffs/review-issue-1-rev1.md`（7 项：1 严重/2 高/3 中/1 低 + 预存 2）
+- **主代理逐项验证结论**：
+
+| # | 子代理结论 | 主代理验证 | 处理 |
+|---|-----------|-----------|------|
+| 1 严重 | SPA 兜底 2s 延迟 + samePage 守卫是技术债，建议审计/移除 | **架构权衡**（非 bug）：兜底已消除污染（仅视频页 h1、shorts 完全跳过由服务端抓取负责）；移除=行为变更。记录为已知技术债（Phase 4 后可选跟进），本次不重构 | 不修，记录 |
+| 2 高 | 过早置信服务端抓取，SW 缓存可能返回首标题，建议时效性校验 | **无实证/机制不符**：服务端抓取是**按 URL 独立渲染**（渲染 /shorts/X 得该视频真实标题，非 live DOM 钉死标题）；缓存按 URL 精确 key；修复后 report 路径不再写错误标题。时效性校验（visitedAt>3s 降级）会误伤合法慢标题 | 不修，记录 |
+| 3 中 | 缺滚动集成测试（模拟连续滚动 3-5 视频） | **已覆盖**：spaFallback.test.ts 已测 samePage/isVideoPage + 结构反污染断言（不读 og/tw）；滚动场景的"错误标题不产生"在 Rust 兜底层，前端单测无法覆盖 | 不补，记录 |
+| 4 低 | 事项 2 缺 folder 恢复场景测试（同 URL 写历史 1 次） | **已覆盖**：browserAddToHistory 去重（同日同 key）有 browserHistorySlice.test；folder.tabs 去重有 browserTabsSlice.test | 不补，记录 |
+| 预存1 高 | browserUpdateTabAudioState 硬编码 is_playing=false | **事项 7 已修复**（webview2_audio.rs 读取实际播放状态），子代理确认 | 已修 ✓ |
+| 预存2 中 | [ADL-DEBUG] 日志 12+ 处过载 | **按 Phase 4 计划执行**：清事项 1/2/6/7 日志，保留事项 3 | 执行中 |
+
+- 汇总：A1 无必须修复项（架构建议/无实证/已覆盖/已修复）。
+
+### 子代理 A3（UI 图标/title + 全量）报告转写 + 主代理验证（2026-08-21）
+- 报告：`.review-diffs/review-issue-3-rev1.md`（16 项：1 严重/1 高/3 中/11 低）
+- **主代理逐项验证结论**：
+
+| # | 子代理结论 | 主代理验证 | 处理 |
+|---|-----------|-----------|------|
+| P1 严重 | SPA fallback 跨层耦合/测试-生产一致性/浏览器模式缺失 | **误报/过度工程**：init_script diag 与 fallback diag 是**本次临时日志（M1 清理）**，清理后无耦合；spa_fallback 生产逻辑已用户实测+13 单测；浏览器模式缺失是用户已决策（事项 6"先 Tauri，iframe 后续评估"）；__ADL_TESTS__ 隔离等建议超出范围 | 不修，记录 |
+| P2 高 | webview2_audio.rs 遗留 info 日志 | **M1 清理范围**（临时诊断日志） | 清理 ✓ |
+| P3 中 | 历史 URL 归一化边界测试（utm 参数） | **合理低成本**：historyDedupKey 已剥离 utm_*；补 1 个 utm 变体匹配断言防回归 | **补测试** |
+| P4 中 | browserHistorySlice console.info 清理 | **M1 清理范围**（事项 1/2 日志） | 清理 ✓ |
+| P5 低 | 测试 beforeEach 清理不彻底 | **无实证**：browserTreeCounts 为纯函数测试（无 store/localStorage）；vitest 默认 per-file isolate | 不修，记录 |
+| P6-P14 低 | 各处 console.info/tracing 日志 | 全部为临时日志：P6/P7/P9（newtab/address/webview）= 事项 3 **保留**；P8 的 [address] onUrlChanged setAddress = 事项 3 **保留**（同文件 [nav] 日志 = 事项 1/2 清理）；P10/P11/P12/P13 = 事项 1/2/6/7 **清理** | 按计划清理 |
+| 事项4 测试缺失 | BrowserFavicon 空 URL 分支无测试 | **合理低成本**：补组件测试（空 url/about:blank → IconNewTabPage；正常 url → img），mock 依赖 | **补测试** |
+
+- 汇总修复清单（与 A2 合并）：① A2-6 browserOpenTab folder.tabs 归一化去重；② A2-4 书签注释补充 modal_id 说明；③ A3-P3 utm 变体测试；④ A3-事项4 BrowserFavicon 组件测试；⑤ M1 日志清理（事项 1/2/6/7，保留事项 3）。
+
+### Phase 4 主代理修复执行（2026-08-21 00:35-00:45）
+- 修复 1（A2-6）：`browserTabsSlice.browserOpenTab` folder.tabs 追加改为 `historyDedupKey` 归一化去重（URL 变体不产生重复快照条目）。
+- 修复 2（A2-4）：`useBrowserTreeData.buildFolderNode` 书签音频注释补充 modal_id 说明（historyDedupKey 保留 modal_id，精确到具体视频）。
+- 修复 3（A3-P3）：`browserTreeCounts.test.ts` 补 utm_* 参数变体匹配断言。
+- 修复 4（A3-事项4）：`BrowserFavicon.test.tsx` 追加 3 断言（空 url/about:blank → IconNewTabPage；真实 url → 无）——该测试文件 pre-existing（A3 上轮未在 diff 中可见，故误报"测试缺失"）。
+- 修复 5（M1 日志清理）：
+  - **清理**（事项 1/2/6/7）：browserHistorySlice（[history]×5）、useBrowserPageMeta（[meta]×2）、useBrowserMetaSubscription（[meta] received）、useBrowserUrlChange（[nav] urlChanged/existingEntry）、useBrowserNavigation（[backfwd]×2）、browserTabsSlice（[audio] store update）、webview_event_bridge.rs（[fallback]×2）、spa_fallback.js（diag 块 + skipReason 等仅诊断变量）、webview2_postmessage.rs（[fallback] DIAG + [navclick] DIAG 分支）、init_script.js（adl-nav-click-diag×2）、webview2_audio.rs（[audio] emit×2）。
+  - **保留**（事项 3）：BrowserToolbar [newtab]、useBrowserPanelEffects [address]、useBrowserUrlState [address]、useBrowserUrlChange [address] onUrlChanged setAddress、useWebViewLifecycle [webview]、browser_webview.rs [webview]。
+  - 同步更新：spaFallback.test.ts 结构断言（skipReason → 短路 return/h1 检查）。
+- 验证：cargo check/clippy 0 警告、tsc 通过、eslint 干净（prettier --fix 后）、受影响 66 文件 563/563 测试通过。
+- 复审：重新生成 `.review-diffs/issue-all-rev2.diff`（96KB），并行派发 3 个复审子代理（读 rev2 全量重看，写 review-issue-N-rev2.md）。
+
+### Phase 4 复审与全量验证（2026-08-21 00:45-01:05）
+- **子代理复审/B 清理连续失败**（A1/A2/A3 复审 ×3 与 B 死代码清理均读完整 diff/文件后在写报告前中断，无 closing message）→ **改为主代理直接执行复审与死代码检查**（技能允许主代理验证；记录此环境异常）。
+- **主代理复审结论**（对照 rev1 报告问题清单 + rev2 代码状态逐项核验）：
+  - A2-6 folder 归一化去重已修复 ✓；A2-4 注释已补 ✓；A1/A3 无必须修复项 ✓
+  - M1 日志清理范围正确：残留 `[ADL-DEBUG]` 全部为事项 3 埋点（[webview] browser_webview.rs/useWebViewLifecycle、[newtab] BrowserToolbar、[address] useBrowserPanelEffects/useBrowserUrlState/useBrowserUrlChange）✓
+  - 死代码检查：useBrowserPageMeta 的 historyDedupKey/getCachedTitle/normalizedQueryForDedup 均仍使用；前端无残留调试 console（仅 useBrowserNavigation 4 处生产 console.warn 错误日志）；Rust clippy 0 警告（-D warnings）保证无未使用代码；spa_fallback.js 清理后无残留诊断变量 ✓
+- **全量验证（Phase 4 唯一一次）**：
+  - `cargo test --workspace`：exit 0 全绿
+  - 前端全量 `vitest run`：**237 文件 1890/1890 通过**
+  - clippy 0 警告、rustfmt 通过（含 cargo fmt 修正 webview_event_bridge.rs 格式）、tsc 通过、eslint 0 error（3 pre-existing warnings 非本次变更）、prettier 干净
+- **Phase 4 结论**：全部通过，进入归档。

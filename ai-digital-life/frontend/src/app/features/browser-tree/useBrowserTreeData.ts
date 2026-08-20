@@ -179,6 +179,8 @@ function buildFolderNode(
       node.url = displayUrl;
       // 收藏条目：仅在标签仍在收藏的 URL（归一化匹配，剥离跟踪参数/尾斜杠/www）上
       // 时才保留音频状态——URL 变体不丢失音量图标（2026-08-21 事项 7）。
+      // 注意：historyDedupKey 保留 modal_id（同一视频弹层的不同变体仍精确匹配到
+      // 正在播放的标签；不同 modal_id 的不同视频不会被误关联）。
       if (snapshotUrl && historyDedupKey(tab.url) !== historyDedupKey(snapshotUrl)) {
         node.isPlayingAudio = false;
         node.isAudioMuted = false;

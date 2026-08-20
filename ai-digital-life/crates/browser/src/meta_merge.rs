@@ -21,10 +21,7 @@ fn is_scheme_less_url_label(title: &str) -> bool {
     if t.is_empty() || !t.is_ascii() || t.contains("://") || !t.contains('.') {
         return false;
     }
-    url::Url::parse(&format!("http://{t}"))
-        .ok()
-        .map(|u| u.host_str().is_some())
-        .unwrap_or(false)
+    url::Url::parse(&format!("http://{t}")).ok().map(|u| u.host_str().is_some()).unwrap_or(false)
 }
 
 pub fn is_placeholder_title(title: &str, url: &str) -> bool {
@@ -282,10 +279,7 @@ mod tests {
     #[test]
     fn placeholder_title_scheme_less_url_label() {
         // 无 scheme 的主机[/路径]占位（与前端 SCHEME_LESS_URL_LABEL 一致）
-        assert!(is_placeholder_title(
-            "douyin.com/jingxuan",
-            "https://www.douyin.com/jingxuan"
-        ));
+        assert!(is_placeholder_title("douyin.com/jingxuan", "https://www.douyin.com/jingxuan"));
         assert!(is_placeholder_title(
             "m.youtube.com/watch?v=AAA",
             "https://www.youtube.com/watch?v=AAA"

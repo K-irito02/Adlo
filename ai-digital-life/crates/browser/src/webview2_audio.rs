@@ -68,14 +68,6 @@ mod imp {
                     let mut is_muted_val: windows::core::BOOL = windows::core::BOOL(0);
                     let _ = core18.IsMuted(&mut is_muted_val);
                     let is_muted = is_muted_val.0 != 0;
-                    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：音频状态事件（播放变化）。
-                    tracing::info!(
-                        tab_id = %tid_for_audio,
-                        is_playing = %is_playing,
-                        is_muted = %is_muted,
-                        source = "audio-change",
-                        "[ADL-DEBUG][audio] emit"
-                    );
                     bridge_for_audio.emit_audio_changed(&tid_for_audio, is_playing, is_muted);
                     Ok(())
                 },
@@ -121,14 +113,6 @@ mod imp {
                     let mut is_muted_val: windows::core::BOOL = windows::core::BOOL(0);
                     let _ = core18.IsMuted(&mut is_muted_val);
                     let is_muted = is_muted_val.0 != 0;
-                    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：音频状态事件（静音变化）。
-                    tracing::info!(
-                        tab_id = %tid_for_mute,
-                        is_playing = %is_playing,
-                        is_muted = %is_muted,
-                        source = "mute-change",
-                        "[ADL-DEBUG][audio] emit"
-                    );
                     bridge_for_mute.emit_audio_changed(&tid_for_mute, is_playing, is_muted);
                     Ok(())
                 },

@@ -117,14 +117,13 @@ describe('spa_fallback.js — anti-contamination structure', () => {
   });
 
   it('gates emission behind the atomic same-page check and a content title', () => {
-    // 上报路径必须同时满足：同页守卫 + best（仅 h1 内容标题）非空。
+    // 上报路径必须同时满足：同页守卫（短路 return）+ 视频页检查 + h1 内容标题。
     expect(runtime).toContain('__adlFallbackSamePage');
-    expect(runtime).toContain("skipReason = 'url-advanced'");
-    expect(runtime).toContain("skipReason = 'not-video-page'");
+    expect(runtime).toContain('__adlFallbackIsVideoPage');
     const metaEmit = runtime.indexOf("type: 'meta'");
     expect(metaEmit).toBeGreaterThan(-1);
-    // meta 上报位于 `if (best)` 守卫内（best 只能来自 h1 内容标题）。
-    const bestGuard = runtime.lastIndexOf('if (best) {', metaEmit);
-    expect(bestGuard).toBeGreaterThan(-1);
+    // meta 上报位于 h1 检查之后（只能来自 h1 内容标题）；同页/视频页不满足直接 return。
+    const h1Check = runtime.lastIndexOf('if (!h1) {', metaEmit);
+    expect(h1Check).toBeGreaterThan(-1);
   });
 });

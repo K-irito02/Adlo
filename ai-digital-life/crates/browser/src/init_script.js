@@ -58,15 +58,6 @@
                 var href = target.href;
                 if (isValidWebUrl(href)) {
                     var forcedNewTab = event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
-                    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：链接点击决策。
-                    try {
-                        chrome.webview.postMessage(JSON.stringify({
-                            type: 'adl-nav-click-diag',
-                            href: href,
-                            forcedNewTab: forcedNewTab,
-                            linkTarget: (target.getAttribute('target') || '').toLowerCase()
-                        }));
-                    } catch(e) {}
                     if (forcedNewTab) {
                         // PostMessage available → Rust opens a new tab. Otherwise
                         // leave the default action so native NewWindowRequested fires.
@@ -88,15 +79,6 @@
                 var href = target.href;
                 if (isValidWebUrl(href)) {
                     var areaForcedNewTab = event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
-                    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：链接点击决策（AREA）。
-                    try {
-                        chrome.webview.postMessage(JSON.stringify({
-                            type: 'adl-nav-click-diag',
-                            href: href,
-                            forcedNewTab: areaForcedNewTab,
-                            linkTarget: (target.getAttribute('target') || '').toLowerCase()
-                        }));
-                    } catch(e) {}
                     if (areaForcedNewTab) {
                         if (__adlTryOpenNewTab(href)) {
                             event.preventDefault();

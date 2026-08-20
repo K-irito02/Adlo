@@ -51,25 +51,13 @@ impl WebView2EventBridge for TauriWebView2EventBridge {
         let app = self.app.clone();
         let label = label.to_string();
         let trigger_url = url.to_string();
-        // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：记录触发 URL，
-        // 用于验证兜底以"触发页"配对上报（URL 前进即跳过，杜绝过期标题污染）。
-        tracing::info!(
-            label = %label,
-            trigger_url = %trigger_url,
-            "[ADL-DEBUG][fallback] SPA fallback scheduled (eval in 2000ms)"
-        );
         tauri::async_runtime::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
             if let Some(wv) = app.get_webview(&label) {
-                tracing::info!(
-                    label = %label,
-                    trigger_url = %trigger_url,
-                    "[ADL-DEBUG][fallback] SPA fallback evaluating title extractor"
-                );
                 // 对齐 Chrome/Edge 语义（详见 crates/browser/src/spa_fallback.js 头部注释）：
                 // 仅视频页 h1 内容标题 + 仅限触发页（URL 未前进）+ 永不 og/tw/document.title 兜底。
-                let trigger_literal = serde_json::to_string(&trigger_url)
-                    .unwrap_or_else(|_| String::from("\"\""));
+                let trigger_literal =
+                    serde_json::to_string(&trigger_url).unwrap_or_else(|_| String::from("\"\""));
                 let script = include_str!("../../crates/browser/src/spa_fallback.js")
                     .replace("__ADL_TRIGGER_URL__", &trigger_literal);
                 let _ = wv.eval(&script);

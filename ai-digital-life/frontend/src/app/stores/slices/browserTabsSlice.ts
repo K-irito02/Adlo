@@ -7,6 +7,7 @@ import {
   BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
 } from './browserSliceShared';
 import type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
+import { historyDedupKey } from '@utils/browserDisplayUtils';
 
 // Re-export the tab state types from the shared leaf module so existing
 // consumers (e.g. tests, browserSlice, browserFoldersUtils) keep working
@@ -85,7 +86,14 @@ export const createBrowserTabsSlice = (
           if (f.id === folderId) {
             const existingTabs = f.tabs || [];
             const tabTitle = tab.title?.trim() || tab.url?.trim() || '';
-            if (!existingTabs.some((item) => item.url === tab.url && item.title === tabTitle)) {
+            // 归一化去重（剥离跟踪参数/尾斜杠/www）：URL 变体不产生重复快照条目
+            // （2026-08-21 事项 7 审查 A2-6 预存问题）。
+            const entryKey = historyDedupKey(tab.url || '');
+            if (
+              !existingTabs.some(
+                (item) => historyDedupKey(item.url || '') === entryKey && item.title === tabTitle,
+              )
+            ) {
               return {
                 ...f,
                 tabs: [...existingTabs, { tabId: tab.id, url: tab.url || '', title: tabTitle }],
@@ -167,17 +175,6 @@ export const createBrowserTabsSlice = (
         if (isMuted !== undefined) {
           next.isAudioMuted = isMuted;
         }
-        // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：音频状态落地（前后值）。
-        console.info('[ADL-DEBUG][audio] store update', {
-          tabId,
-          url: tab.url,
-          prevPlaying: tab.isPlayingAudio,
-          prevMuted: tab.isAudioMuted,
-          nextPlaying: next.isPlayingAudio,
-          nextMuted: next.isAudioMuted,
-          incomingPlaying: isPlaying,
-          incomingMuted: isMuted,
-        });
         return next;
       });
       const hasMuteChange = isMuted !== undefined;

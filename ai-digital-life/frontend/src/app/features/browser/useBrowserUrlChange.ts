@@ -228,17 +228,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       const missingHistoryEntry = eventTab
         ? !state.browserHistory.some((h) => historyDedupKey(h.url) === identityKey)
         : false;
-      console.info('[ADL-DEBUG][nav] urlChanged', {
-        tabId,
-        url,
-        normalizedUrl,
-        identityKey,
-        urlChanged,
-        noTabExists,
-        missingHistoryEntry,
-        eventTabUrl: eventTab?.url ?? null,
-        eventTabTitle: eventTab?.title ?? null,
-      });
 
       if (noTabExists || urlChanged || missingHistoryEntry) {
         if (noTabExists && pendingPrefetchRef.current.has(normalizedUrl)) {
@@ -278,12 +267,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         const existingEntry = s.browserHistory.find(
           (h) => historyDedupKey(h.url) === dedupKey && h.title !== h.url,
         );
-        console.info('[ADL-DEBUG][nav] existingEntry', {
-          url,
-          dedupKey,
-          existingEntryTitle: existingEntry?.title ?? null,
-          existingEntryUrl: existingEntry?.url ?? null,
-        });
 
         if (eventTab && tabId) {
           // Use the tabId from the event to update the correct tab,

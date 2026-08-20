@@ -151,17 +151,11 @@ impl BrowserManager {
             if let Some(handle) = handle {
                 if entry_id == tab_id {
                     // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：激活 tab（show）。
-                    tracing::info!(
-                        tab_id = entry_id,
-                        "[ADL-DEBUG][webview] activate_tab show"
-                    );
+                    tracing::info!(tab_id = entry_id, "[ADL-DEBUG][webview] activate_tab show");
                     handle.show()?;
                 } else {
                     // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：隐藏其它 tab（hide）。
-                    tracing::info!(
-                        tab_id = entry_id,
-                        "[ADL-DEBUG][webview] activate_tab hide"
-                    );
+                    tracing::info!(tab_id = entry_id, "[ADL-DEBUG][webview] activate_tab hide");
                     let _ = handle.hide();
                 }
             }
@@ -190,11 +184,7 @@ impl BrowserManager {
     pub fn navigate_tab(&self, tab_id: &str, url: &str) -> Result<(), AppError> {
         // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：任何 WebView 导航——
         // 若"新建标签页"后旧 tab 出现 navigate，即为音频恢复播放/页面刷新来源。
-        tracing::info!(
-            tab_id = tab_id,
-            url = url,
-            "[ADL-DEBUG][webview] navigate_tab"
-        );
+        tracing::info!(tab_id = tab_id, url = url, "[ADL-DEBUG][webview] navigate_tab");
         self.with_handle(tab_id, |handle| {
             handle.navigate(url)?;
             tracing::debug!(

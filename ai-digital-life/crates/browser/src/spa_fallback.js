@@ -59,55 +59,31 @@ function __adlFallbackIsVideoPage(host, path) {
         var path = location.pathname;
         var triggerUrl = __ADL_TRIGGER_URL__;
         var locHref = location.href;
-        var docTitle = (document.title || '').trim();
-        var h1Raw = '';
-        var best = '';
-        var src = '';
-        var skipReason = '';
 
+        // 仅当页面仍是触发 HistoryChanged 的那一页（原子 URL 配对）且为视频页
+        // 且 h1 内容标题存在时上报；否则保持静默（DocumentTitleChanged /
+        // init_script / 服务端抓取负责其余场景）。
         if (!__adlFallbackSamePage(locHref, triggerUrl)) {
-            skipReason = 'url-advanced';
-        } else if (__adlFallbackIsVideoPage(host, path)) {
-            var h1El = document.querySelector(
-                'h1.ytd-watch-metadata, h1.title, h1[class*="title"]'
-            );
-            h1Raw = h1El ? (h1El.textContent || h1El.innerText || '').trim() : '';
-            if (h1Raw) {
-                best = h1Raw;
-                src = 'h1';
-            } else {
-                skipReason = 'no-h1';
-            }
-        } else {
-            // Not a video page: no content-backed title available. Deliberately
-            // silent — native DocumentTitleChanged / init_script / server fetch
-            // cover these; og/tw/document.title may be pinned (contamination).
-            skipReason = 'not-video-page';
+            return;
+        }
+        if (!__adlFallbackIsVideoPage(host, path)) {
+            return;
+        }
+        var h1El = document.querySelector(
+            'h1.ytd-watch-metadata, h1.title, h1[class*="title"]'
+        );
+        var h1 = h1El ? (h1El.textContent || h1El.innerText || '').trim() : '';
+        if (!h1) {
+            return;
         }
 
-        // [ADL-DEBUG] temporary diagnostics (removed in Phase 4).
         try {
             chrome.webview.postMessage(JSON.stringify({
-                type: 'adl-fallback-diag',
-                triggerUrl: triggerUrl,
-                locHref: locHref,
-                docTitle: docTitle,
-                h1: h1Raw,
-                best: best,
-                src: src,
-                skipReason: skipReason
+                type: 'meta',
+                title: h1,
+                favicon: '',
+                url: locHref
             }));
         } catch (e) {}
-
-        if (best) {
-            try {
-                chrome.webview.postMessage(JSON.stringify({
-                    type: 'meta',
-                    title: best,
-                    favicon: '',
-                    url: locHref
-                }));
-            } catch (e) {}
-        }
     } catch (err) {}
 })();

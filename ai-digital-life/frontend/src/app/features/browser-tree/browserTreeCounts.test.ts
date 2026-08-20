@@ -432,6 +432,21 @@ describe('audio indicator propagation across tree categories (事项 7)', () => 
     expect(leaf.isPlayingAudio).toBe(true);
   });
 
+  it('history leaf keeps playing state when the tab URL carries tracking params (utm_*)', () => {
+    const entry = makeHistoryEntry('e1', '视频', 'https://www.youtube.com/watch?v=AAA', Date.now());
+    const tab = makeTab(
+      't1',
+      '视频',
+      'https://www.youtube.com/watch?v=AAA&utm_medium=social',
+      'ws-1',
+    );
+    tab.isPlayingAudio = true;
+    const tree = buildHistoryCategoryTree([entry], [tab], mockDateLabels);
+    const day = tree[0].children[0].children[0].children[0];
+    const leaf = day.children[0];
+    expect(leaf.isPlayingAudio).toBe(true);
+  });
+
   it('history leaf does NOT show playing state when no matching tab is open', () => {
     const entry = makeHistoryEntry('e1', '视频', 'https://www.bilibili.com/video/BV1/', Date.now());
     const tree = buildHistoryCategoryTree([entry], [], mockDateLabels);

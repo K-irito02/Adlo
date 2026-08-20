@@ -127,3 +127,21 @@ it('stays degraded when a broadcast keeps the same faviconUrl (no remount flicke
   ) as HTMLElement | null;
   expect(iconLink?.style.display).not.toBe('none');
 });
+
+it('renders the new-tab page icon for an empty URL (事项 4)', () => {
+  // 新标签页（url=''）无站点 favicon → 内置"新标签页"图标（非空白占位）
+  const { container } = render(<BrowserFavicon url="" />);
+  expect(container.querySelector('svg.adl-icon')).not.toBeNull();
+  expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
+});
+
+it('renders the new-tab page icon for about:blank (事项 4)', () => {
+  const { container } = render(<BrowserFavicon url="about:blank" />);
+  expect(container.querySelector('svg.adl-icon')).not.toBeNull();
+  expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
+});
+
+it('does NOT render the new-tab page icon for a real URL (事项 4)', () => {
+  const { container } = render(<BrowserFavicon url="https://real.example" />);
+  expect(container.querySelector('svg.adl-icon')).toBeNull();
+});
