@@ -1,6 +1,13 @@
 /// Per-tab 显式导航意图（宿主主动导航：地址栏/后退/前进/历史/书签/新标签）。
 /// 单槽覆盖（只记最近一次显式导航）；软导航（SPA pushState）无 NavigationStarting，
 /// 不会走到消费点，故宿主永不据此重新 Navigate。
+///
+/// # 当前消费状态（2026-08-20）
+/// 本机制为**预留的幂等硬约束接缝**：软导航不重载由前端移除响应式反向导航
+/// （Task 4）根治，宿主侧尚无 NavigationStarting/SourceChanged 消费点，前端亦
+/// 未在本路径调用 `mark_navigation_intent`。因此 `PENDING_INTENT` 运行时恒空，
+/// 以下函数当前不被生产调用，仅供后续若需在 Rust 侧对导航加"显式意图校验"时
+/// 复用（接口已稳定 + 单测覆盖）。勿误以为此处已落地运行时导航防御。
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
