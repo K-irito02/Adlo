@@ -18,6 +18,10 @@ import {
 const URL_CHANGE_FALLBACK_MS_NO_TAB = 8000;
 const URL_CHANGE_FALLBACK_MS_WITH_TAB = 15000;
 
+// DEBUG(问题4): 模块级事件序列计数器——每次 onUrlChanged 递增，用于观察"一次点击"触发的
+// 多个 URL 变更事件的先后顺序与时间间隔（配合 debugLogCollector 的毫秒时间戳）。
+let urlChangeEventSeq = 0;
+
 interface UseBrowserUrlChangeOptions {
   activeTab?: BrowserTabState;
   activeTabRef: React.MutableRefObject<BrowserTabState | undefined>;
@@ -216,14 +220,20 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       const identityKey = historyDedupKey(url);
       const urlChanged = eventTab && historyDedupKey(eventTab.url) !== identityKey;
       const noTabExists = !eventTab;
-      // DEBUG(问题2): onUrlChanged 事件入口——记录 URL 变化、身份键与标签匹配情况
+      const seq = ++urlChangeEventSeq;
+      // DEBUG(问题2+4): onUrlChanged 事件入口——记录事件序号、URL 变化、标签匹配情况，
+      // 以及处理前 eventTab 的 url/title/dedupKey（用于确认 urlChanged 判定与历史条目的累积）
       console.warn('[browser-url-change] onUrlChanged', {
+        seq,
         tabId,
         url,
         normalizedUrl,
         identityKey,
         urlChanged,
         noTabExists,
+        eventTabUrl: eventTab?.url,
+        eventTabTitle: eventTab?.title,
+        eventTabDedupKey: eventTab ? historyDedupKey(eventTab.url) : undefined,
         pendingPrefetch: pendingPrefetchRef.current.has(normalizedUrl),
       });
 
@@ -275,8 +285,9 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           // 标签 URL 用原始 url（保留 modal_id），使声音/标题能精确关联到
           // 当前视频历史条目（buildHistoryLeafNode 以 t.url === entry.url 精确匹配）。
           s.browserUpdateTab(tabId, { url, title: '' });
-          // DEBUG(问题2): 分支 eventTab——更新该标签 URL（不导航），身份用保留 modal_id 的 url 写历史
+          // DEBUG(问题2+4): 分支 eventTab——更新该标签 URL（不导航），身份用保留 modal_id 的 url 写历史
           console.warn('[browser-url-change] branch-eventTab', {
+            seq,
             tabId,
             displayUrl: normalizedUrl,
             historyUrl: url,
@@ -289,15 +300,17 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             s.browserAddToHistory(url, url);
           }
         } else if (existingEntry) {
-          // DEBUG(问题2): 分支 existingEntry——导航激活标签并回填历史标题
+          // DEBUG(问题2+4): 分支 existingEntry——导航激活标签并回填历史标题
           console.warn('[browser-url-change] branch-existingEntry', {
+            seq,
             displayUrl: normalizedUrl,
             historyUrl: url,
           });
           s.browserNavigateActiveTab(normalizedUrl);
         } else {
-          // DEBUG(问题2): 分支 fallback——导航激活标签（无 tab 时）
+          // DEBUG(问题2+4): 分支 fallback——导航激活标签（无 tab 时）
           console.warn('[browser-url-change] branch-fallback-navigate', {
+            seq,
             displayUrl: normalizedUrl,
             historyUrl: url,
           });

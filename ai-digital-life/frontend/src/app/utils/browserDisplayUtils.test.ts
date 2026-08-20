@@ -3,6 +3,7 @@ import {
   historyDedupKey,
   hasViewIdentityParam,
   historyContainerKey,
+  historyDocumentKey,
   isPlaceholderTitle,
   normalizeTabTitle,
   resolveDisplayTitle,
@@ -255,6 +256,61 @@ describe('historyContainerKey', () => {
     );
     expect(historyContainerKey('https://a.com/jingxuan')).not.toBe(
       historyContainerKey('https://b.com/jingxuan'),
+    );
+  });
+});
+
+describe('historyDocumentKey', () => {
+  it('collapses same-document variants that differ only in navigation/source params (Douyin user/self)', () => {
+    const baseKey = historyDocumentKey('https://www.douyin.com/user/self');
+    const variants = [
+      'https://www.douyin.com/user/self?from_nav=1',
+      'https://www.douyin.com/user/self?from_tab_name=main&showTab=like',
+      'https://www.douyin.com/user/self?enter_from=discover&enter_method=left_entrance&from_tab_name=main&showTab=like',
+      'https://www.douyin.com/user/self?from_nav=1&showTab=like',
+      'https://www.douyin.com/user/self?recommend=1',
+    ];
+    for (const v of variants) {
+      expect(historyDocumentKey(v)).toBe(baseKey);
+    }
+  });
+
+  it('keeps different paths distinct', () => {
+    expect(historyDocumentKey('https://www.douyin.com/user/self')).not.toBe(
+      historyDocumentKey('https://www.douyin.com/jingxuan'),
+    );
+  });
+
+  it('keeps different hosts distinct', () => {
+    expect(historyDocumentKey('https://a.com/user/self')).not.toBe(
+      historyDocumentKey('https://b.com/user/self'),
+    );
+  });
+
+  it('keeps YouTube videos with different v distinct', () => {
+    expect(historyDocumentKey('https://youtube.com/watch?v=AAA')).not.toBe(
+      historyDocumentKey('https://youtube.com/watch?v=BBB'),
+    );
+  });
+
+  it('collapses YouTube variants of the same video (v unchanged)', () => {
+    expect(historyDocumentKey('https://youtube.com/watch?v=AAA&t=30')).toBe(
+      historyDocumentKey('https://youtube.com/watch?v=AAA'),
+    );
+    expect(historyDocumentKey('https://youtube.com/watch?v=AAA&utm_source=x')).toBe(
+      historyDocumentKey('https://youtube.com/watch?v=AAA'),
+    );
+  });
+
+  it('keeps different Douyin modal_id videos distinct', () => {
+    expect(historyDocumentKey('https://www.douyin.com/jingxuan?modal_id=111')).not.toBe(
+      historyDocumentKey('https://www.douyin.com/jingxuan?modal_id=222'),
+    );
+  });
+
+  it('keeps different search queries (q) distinct', () => {
+    expect(historyDocumentKey('https://www.google.com/search?q=cat')).not.toBe(
+      historyDocumentKey('https://www.google.com/search?q=dog'),
     );
   });
 });

@@ -261,3 +261,35 @@ export function historyContainerKey(url: string): string {
     return historyDedupKey(url);
   }
 }
+
+/**
+ * 页面/文档"内容身份"参数：值一旦不同即视为不同的资源/页面（跨站点通用）。
+ * SPA 导航突发中的来源/导航参数（from_*、enter_*、showTab 等）不会出现在此，
+ * 而 YouTube `v`、Bilibili `bvid`、搜索引擎 `q`、抖音视频弹层 `modal_id`
+ * 属于内容身份，值变化时不得合并（Chrome/Edge 语义：同一文档合并，不同内容各自成条）。
+ */
+const IDENTITY_PARAM_PATTERN = /^(modal_id|v|bvid|q)$/i;
+
+/**
+ * 历史合并用的"文档键"：hostname + pathname + 身份参数值（仅 IDENTITY_PARAM_PATTERN）。
+ * 同一文档（同 hostname+pathname+身份参数值）在一段导航窗口内到达的 URL 变体
+ * （如抖音一次点击产生的 user/self?from_nav=1 / ?from_tab_name=... / 裸 user/self）
+ * 应合并为一条历史；不同内容（YouTube v=AAA → v=BBB、不同 modal_id、不同 q）则分开。
+ */
+export function historyDocumentKey(url: string): string {
+  try {
+    const u = new URL(url);
+    const hostname = u.hostname.replace(/^www\./, '');
+    const path = u.pathname.length > 1 ? u.pathname.replace(/\/+$/, '') : u.pathname;
+    const identity: string[] = [];
+    for (const [key, value] of u.searchParams.entries()) {
+      if (IDENTITY_PARAM_PATTERN.test(key)) {
+        identity.push(`${key}=${value}`);
+      }
+    }
+    identity.sort();
+    return identity.length ? `${hostname}${path}?${identity.join('&')}` : `${hostname}${path}`;
+  } catch {
+    return url;
+  }
+}
