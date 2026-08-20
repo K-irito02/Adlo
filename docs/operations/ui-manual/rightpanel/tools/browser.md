@@ -61,6 +61,10 @@ expect(label).toBe('就地导航：新链接在当前标签打开');  // ON 状�
 expect(label).toBe('新建标签：新链接在新标签打开');    // OFF 状态
 ```
 
+**网页内链接跳转行为**（v2026-08-21）：
+
+无论"新建标签"还是"就地导航"模式，**网页内链接的普通左键点击（含 `target="_blank"` 的站内链接）一律在当前标签导航**，不新建标签；仅 **Ctrl/Shift/中键点击**（用户显式新标签意图）与网站 JS 的 `window.open` 弹窗仍打开新标签。回退/前进保持一次到位（C1 pushState 归一化 + smartGoBack）。
+
 #### 地址栏
 
 ```javascript
@@ -161,6 +165,8 @@ await page.click('.adl-browser-audio-indicator');
 ```
 
 **位置**：favicon 右侧，标签名称左侧
+
+**覆盖范围**（v2026-08-21）：音频指示器不仅显示在"已打开标签页"的标签上，**历史目录、书签/收藏目录中与当前打开标签同 URL（归一化匹配，剥离跟踪参数/尾斜杠/www）的条目也显示**——视频有声音时对应历史/书签条目稳定出现音量图标。
 
 **行为差异**：
 
@@ -435,7 +441,7 @@ await page.click('.adl-multitree-entry__expand-btn:first-child');
 
 | 按钮 | 图标 | 说明 |
 |------|------|------|
-| 关闭 | `IconClose` | 关闭标签（保留书签），悬停变红 |
+| 关闭 | `IconClose` | 关闭标签（保留书签），悬停变红；悬停提示为系统原生 `title`（v2026-08-21 起不再使用自定义 Tooltip） |
 | 刷新Logo/标题 | `IconRefreshCw` | 与右键菜单"刷新Logo/标题"功能一致 |
 | 更多操作 | `IconMoreVertical` | 点击弹出右键菜单 |
 
@@ -451,6 +457,7 @@ await page.click('.adl-multitree-entry__expand-btn:first-child');
 | 分隔行过滤 | 目录没有已打开标签时不显示对应分隔行 |
 | 历史分类隐藏 | 已打开标签模式下，历史分类被隐藏 |
 | 切换标签不刷新 | 使用多 iframe 堆叠方案，每个标签的 iframe 保持挂载，切换时仅切换可见性 |
+| 新标签页 favicon（v2026-08-21） | "新建标签页"（无 URL）标签的 favicon 显示内置窗口图标（`IconNewTabPage`，非空白） |
 
 **自动化测试：**
 ```javascript
