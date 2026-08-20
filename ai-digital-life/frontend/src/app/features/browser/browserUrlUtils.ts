@@ -1,6 +1,12 @@
 export function normalizeUrlForCompare(url: string): string {
   try {
     const u = new URL(url);
+    // 剥离 modal_id：SPA 中 base≡modal_id 同属一页（抖音等），否则 base 与
+    // modal_id 变体被判为不同 URL，引发 urlChanged 误判/缓存 miss。
+    if (u.searchParams.has('modal_id')) {
+      const kept = [...u.searchParams.entries()].filter(([k]) => k !== 'modal_id');
+      u.search = kept.length ? `?${new URLSearchParams(kept).toString()}` : '';
+    }
     u.hash = '';
     if (u.pathname.length > 1 && u.pathname.endsWith('/')) {
       u.pathname = u.pathname.replace(/\/+$/, '');
