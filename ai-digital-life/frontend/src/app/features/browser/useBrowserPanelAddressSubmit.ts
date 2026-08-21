@@ -2,6 +2,7 @@ import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction 
 import { useAppStore } from '@stores/slicedStore';
 import { findInBrowserLookupIndex } from './useBrowserSearch';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
+import { isSearchQuery, buildSearchUrl, ensureProtocol } from './browserUrlUtils';
 import type { MetaSource, PageMeta } from '@shared/ipc/browser';
 import { pageMetaClient } from '@utils/pageMetaClient';
 
@@ -51,11 +52,25 @@ export function useBrowserPanelAddressSubmit({
 
     addressSubmittedForTabRef.current = '';
     const matchedItem = findInBrowserLookupIndex(browserLookupIndex, input);
-    const finalUrl = matchedItem?.url
-      ? matchedItem.url
-      : /^[a-z]+:\/\/|about:/i.test(input.trim())
-        ? input.trim()
-        : `https://${input.trim()}`;
+    let finalUrl: string;
+    let searchInfo: { engineName: string; query: string } | undefined;
+
+    if (matchedItem?.url) {
+      finalUrl = matchedItem.url;
+    } else if (isSearchQuery(input)) {
+      const state = useAppStore.getState();
+      const engine =
+        state.searchEngines.find((e) => e.id === state.defaultSearchEngineId) ??
+        state.searchEngines[0];
+      if (engine) {
+        finalUrl = buildSearchUrl(engine, input);
+        searchInfo = { engineName: engine.name, query: input };
+      } else {
+        finalUrl = ensureProtocol(input);
+      }
+    } else {
+      finalUrl = ensureProtocol(input);
+    }
 
     const version = ++submitVersionRef.current;
 
@@ -96,6 +111,9 @@ export function useBrowserPanelAddressSubmit({
     // Always defer tab creation until real title arrives via handlePageMeta
     handleNavigationStart(finalUrl);
     setAddress(finalUrl);
+    if (searchInfo) {
+      useAppStore.getState().browserAddToHistory(finalUrl, `${searchInfo.engineName}: ${searchInfo.query}`);
+    }
     if (useAppStore.getState().isTauri) {
       browserNavigateActiveTab(finalUrl, undefined);
     }
