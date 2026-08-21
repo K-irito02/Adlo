@@ -88,6 +88,8 @@ export {
   IconSearch,
   IconSearchEngine,
   IconGlobeSearch,
+  IconGlobeSettings,
+  IconGlobePlus,
   IconBookmarkStar,
   IconBookmarkStarFilled,
   IconSend,

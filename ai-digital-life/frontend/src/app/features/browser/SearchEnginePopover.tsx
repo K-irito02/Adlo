@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import './SearchEnginePopover.css';
-import { IconArrowLeft, IconCheck, IconPencil, IconTrash, IconPlus, IconGlobeSearch, IconSettings } from '@icons';
+import { IconArrowLeft, IconCheck, IconPencil, IconTrash, IconGlobeSearch, IconGlobeSettings, IconGlobePlus } from '@icons';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { SearchEngine } from '@stores/slices/browserSearchEnginesSlice';
@@ -194,6 +194,21 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
   );
 });
 
+function EngineFavicon({ engine, className }: { engine: SearchEngine; className?: string }) {
+  const [error, setError] = useState(false);
+  if (error || !engine.faviconUrl) {
+    return <IconGlobeSearch size={14} decorative />;
+  }
+  return (
+    <img
+      src={engine.faviconUrl}
+      className={className}
+      alt=""
+      onError={() => setError(true)}
+    />
+  );
+}
+
 interface SearchEngineMainViewProps {
   builtInEngines: SearchEngine[];
   customEngines: SearchEngine[];
@@ -223,7 +238,7 @@ function SearchEngineMainView({
             onClick={() => onSelect(engine.id)}
           >
             <span className="adl-search-engine-popover__icon">
-              <IconGlobeSearch size={14} decorative />
+              <EngineFavicon engine={engine} className="adl-search-engine-popover__favicon" />
             </span>
             <span className="adl-search-engine-popover__name">{engine.name}</span>
             {engine.id === defaultSearchEngineId && (
@@ -247,7 +262,7 @@ function SearchEngineMainView({
               onClick={() => onSelect(engine.id)}
             >
               <span className="adl-search-engine-popover__icon">
-                <IconGlobeSearch size={14} decorative />
+                <EngineFavicon engine={engine} className="adl-search-engine-popover__favicon" />
               </span>
               <span className="adl-search-engine-popover__name">{engine.name}</span>
               {engine.id === defaultSearchEngineId && (
@@ -265,7 +280,7 @@ function SearchEngineMainView({
         className="adl-search-engine-popover__manage-btn"
         onClick={onOpenManage}
       >
-        <IconSettings size={14} decorative />
+        <IconGlobeSettings size={14} decorative />
         <span>{t.browserSearchEngineManage}</span>
       </button>
     </>
@@ -364,7 +379,7 @@ function SearchEngineManageView({
         </div>
       ) : (
         <button type="button" className="adl-search-engine-popover__add-btn" onClick={onStartAdd}>
-          <IconPlus size={14} decorative />
+          <IconGlobePlus size={14} decorative />
           <span>{t.browserSearchEngineAdd}</span>
         </button>
       )}
@@ -391,30 +406,36 @@ function SearchEngineForm({
 }: SearchEngineFormProps) {
   return (
     <div className="adl-search-engine-popover__form">
-      <input
-        type="text"
-        className="adl-search-engine-popover__input"
-        placeholder={t.browserSearchEngineName}
-        value={formData.name}
-        onChange={(e) => onFormDataChange({ ...formData, name: e.target.value })}
-      />
-      <input
-        type="text"
-        className={`adl-search-engine-popover__input${urlError ? ' is-error' : ''}`}
-        placeholder={t.browserSearchEngineUrl}
-        value={formData.urlTemplate}
-        onChange={(e) => {
-          onFormDataChange({ ...formData, urlTemplate: e.target.value });
-        }}
-      />
+      <div className="adl-search-engine-popover__field">
+        <label className="adl-search-engine-popover__label">{t.browserSearchEngineName}</label>
+        <input
+          type="text"
+          className="adl-search-engine-popover__input"
+          placeholder={t.browserSearchEngineName}
+          value={formData.name}
+          onChange={(e) => onFormDataChange({ ...formData, name: e.target.value })}
+        />
+      </div>
+      <div className="adl-search-engine-popover__field">
+        <label className="adl-search-engine-popover__label">{t.browserSearchEngineUrl}</label>
+        <input
+          type="text"
+          className={`adl-search-engine-popover__input${urlError ? ' is-error' : ''}`}
+          placeholder={t.browserSearchEngineUrl}
+          value={formData.urlTemplate}
+          onChange={(e) => {
+            onFormDataChange({ ...formData, urlTemplate: e.target.value });
+          }}
+        />
+      </div>
       {urlError && (
         <div className="adl-search-engine-popover__error">{t.browserSearchEngineUrlRequired}</div>
       )}
       <div className="adl-search-engine-popover__form-actions">
-        <button type="button" className="adl-btn adl-btn--secondary" onClick={onCancel}>
+        <button type="button" className="adl-search-engine-popover__btn-cancel" onClick={onCancel}>
           {t.browserSearchEngineCancel}
         </button>
-        <button type="button" className="adl-btn adl-btn--primary" onClick={onSave}>
+        <button type="button" className="adl-search-engine-popover__btn-save" onClick={onSave}>
           {t.browserSearchEngineSave}
         </button>
       </div>
