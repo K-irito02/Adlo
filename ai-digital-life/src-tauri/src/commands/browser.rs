@@ -504,36 +504,83 @@ async fn fetch_silent_meta(
     // 下载 favicon（能访问 reqwest 无法直连的站点，如无代理环境下的 YouTube），
     // `GetFavicon` 直接返回 PNG 字节流 → 转 data-URI。这是无代理环境下生成
     // data-URI 的唯一可靠路径（reqwest 直连超时 / 前端 canvas 被 CORS 污染）。
-    let webview_favicon_data_uri: Option<String> = {
+    //
+    // 重要守卫：
+    // 1. **仅当页面声明了 favicon（page_meta.favicon 非空）才调用**——否则 WebView2
+    //    `GetFavicon` 对无 favicon 的页面返回默认球状图标（非空流），会被误当真实
+    //    favicon 持久化，导致 YouTube 等显示默认球而不是真实图标。
+    // 2. **拒绝过小字节**（< FAVICON_MIN_BYTES）：WebView2 默认球图标通常极小
+    //    （dogedoge 无 favicon 时返回 425 字节），真实 favicon（YouTube 144x144）
+    //    一般更大。过小字节视为默认图标，不持久化。
+    let has_real_favicon = !page_meta.favicon.is_empty();
+    let webview_favicon_data_uri: Option<String> = if has_real_favicon {
         let handle = crate::tauri_webview_handle::TauriWebViewHandle::new(
             app.clone(),
             silent_webview_label(&tab_id),
         );
-        match handle.get_favicon_data() {
-            Ok(bytes) if !bytes.is_empty() => {
-                tracing::info!(
-                    url = %url,
-                    bytes_len = bytes.len(),
-                    "fetch_silent_meta: WebView2 GetFavicon succeeded"
-                );
-                let content_type = "image/png";
-                Some(format!(
-                    "data:{content_type};base64,{}",
-                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes)
-                ))
-            },
-            Ok(_) => {
-                tracing::warn!(
-                    url = %url,
-                    "fetch_silent_meta: WebView2 GetFavicon returned no data"
-                );
-                None
-            },
-            Err(e) => {
-                tracing::warn!(url = %url, error = %e, "fetch_silent_meta: WebView2 GetFavicon failed");
-                None
-            },
+        // WebView2 的 favicon 字节下载是异步的：`wait_for_silent_meta` 在拿到
+        // favicon URL（FaviconChanged 事件）时可能尚未下载完字节，此时
+        // `GetFavicon` 返回默认球图标。重试等待真实 favicon 就绪：小字节
+        // （默认球）时短暂等待后重试，直至超时。
+        let mut attempts = 0;
+        let mut favicon_bytes: Vec<u8> = Vec::new();
+        while attempts < 3 {
+            match handle.get_favicon_data() {
+                Ok(bytes) if bytes.len() >= FAVICON_MIN_BYTES => {
+                    favicon_bytes = bytes;
+                    break;
+                },
+                Ok(bytes) if !bytes.is_empty() => {
+                    tracing::warn!(
+                        url = %url,
+                        bytes_len = bytes.len(),
+                        attempt = attempts + 1,
+                        "fetch_silent_meta: GetFavicon returned default/small icon, retrying"
+                    );
+                },
+                Ok(_) => {
+                    tracing::debug!(
+                        url = %url,
+                        attempt = attempts + 1,
+                        "fetch_silent_meta: GetFavicon returned no data, retrying"
+                    );
+                },
+                Err(e) => {
+                    tracing::warn!(
+                        url = %url,
+                        attempt = attempts + 1,
+                        error = %e,
+                        "fetch_silent_meta: GetFavicon failed, retrying"
+                    );
+                },
+            }
+            attempts += 1;
+            // 短暂等待 favicon 字节下载完成（异步），再重试。
+            std::thread::sleep(std::time::Duration::from_millis(800));
         }
+        if !favicon_bytes.is_empty() {
+            tracing::info!(
+                url = %url,
+                bytes_len = favicon_bytes.len(),
+                attempts,
+                "fetch_silent_meta: WebView2 GetFavicon succeeded"
+            );
+            Some(format!(
+                "data:image/png;base64,{}",
+                base64::Engine::encode(
+                    &base64::engine::general_purpose::STANDARD,
+                    &favicon_bytes
+                )
+            ))
+        } else {
+            None
+        }
+    } else {
+        tracing::debug!(
+            url = %url,
+            "fetch_silent_meta: page declares no favicon, skip WebView2 GetFavicon"
+        );
+        None
     };
 
     destroy_silent_webview(&app, &tab_id);
@@ -990,6 +1037,12 @@ fn normalized_content_type(raw: &str) -> String {
 /// base64 data-URI in the site-meta cache), but generous enough for legitimate
 /// multi-resolution .ico / PNG / SVG icons that routinely exceed 64KB.
 const MAX_FAVICON_BYTES: usize = 512 * 1024;
+
+/// WebView2 `GetFavicon` 返回字节的下限：小于此值视为默认球状图标（无真实
+/// favicon 时 WebView2 返回极小图标，实测 425 字节），不得持久化——否则
+/// YouTube 等显示默认球而不是真实图标。设为 500 以过滤 WebView2 默认球
+/// （425B），同时保留 bing（534B）/douyin（849B）等真实小 favicon。
+const FAVICON_MIN_BYTES: usize = 500;
 
 /// Magic-byte content sniffing fallback for favicons. Many CDNs serve `.ico` /
 /// `.png` without (or with a non-image) `Content-Type`, which would otherwise
