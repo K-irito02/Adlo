@@ -20,6 +20,13 @@
   color: var(--text-secondary);
 }
 
+.adl-toolbar__search-engine-icon {
+  width: 16px;
+  height: 16px;
+  filter: grayscale(100%);
+  opacity: 0.7;
+}
+
 .adl-tool-search input {
   flex: 1;
   min-width: 0;

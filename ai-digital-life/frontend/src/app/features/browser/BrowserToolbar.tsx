@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   IconArrowLeft,
   IconArrowRight,
-  IconLink,
   IconPlus,
   IconRefreshCw,
+  IconSearch,
   IconStar,
   IconStarFilled,
   IconPanelLeft,
@@ -14,12 +14,15 @@ import { TooltipSimple } from '@components/Tooltip';
 import { CopyButton } from '@components/CopyButton';
 import { BrowserNavModeSwitch } from './BrowserNavModeSwitch';
 import { BrowserMenuDropdown } from './BrowserMenuDropdown';
+import { SearchEnginePopover } from './SearchEnginePopover';
 import { useBrowserPanelState } from './BrowserPanelStateContext';
 import { useBrowserPanelActions } from './BrowserPanelActionsContext';
 import { useAppStore } from '@stores/slicedStore';
 
 export const BrowserToolbar = React.memo(function BrowserToolbar() {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [searchEnginePopoverOpen, setSearchEnginePopoverOpen] = useState(false);
+  const searchEngineBtnRef = useRef<HTMLButtonElement>(null);
 
   const {
     t,
@@ -54,6 +57,12 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
     handleToggleNavigateMode,
     toggleNavigator,
   } = useBrowserPanelActions();
+
+  const searchEngines = useAppStore((s) => s.searchEngines);
+  const defaultSearchEngineId = useAppStore((s) => s.defaultSearchEngineId);
+  const currentEngine = searchEngines.find((e) => e.id === defaultSearchEngineId);
+
+  const [faviconError, setFaviconError] = useState(false);
 
   const handleRefreshClick = () => {
     setIsRefreshing(true);
@@ -130,11 +139,18 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
           className={`adl-tool-search adl-tool-search--address${addressExpanded ? ' is-expanded' : ''}`}
           onClick={handleSearchClick}
         >
-          <IconLink
-            size={14}
-            decorative
-            className="adl-tool-search__icon adl-tool-search__icon--address"
-          />
+          <span className="adl-tool-search__icon adl-tool-search__icon--address">
+            {!faviconError && currentEngine?.faviconUrl ? (
+              <img
+                src={currentEngine.faviconUrl}
+                className="adl-toolbar__search-engine-icon"
+                alt=""
+                onError={() => setFaviconError(true)}
+              />
+            ) : (
+              <IconSearch size={14} decorative />
+            )}
+          </span>
           <span className="adl-tool-search__preview" aria-hidden={addressExpanded}>
             {address.trim()}
           </span>
@@ -153,17 +169,31 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
             tooltip={t.browserCopyLink as string}
             tooltipCopied={t.copySuccessClipboard as string}
           />
+          <TooltipSimple content={isBookmarked ? t.unbookmark : t.bookmark} placement="top">
+            <button
+              type="button"
+              className="adl-copy-btn"
+              aria-label={isBookmarked ? t.unbookmark : t.bookmark}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (address) {
+                  handleOpenBookmarkDialog();
+                }
+              }}
+            >
+              {isBookmarked ? (
+                <IconStarFilled size={14} decorative />
+              ) : (
+                <IconStar size={14} decorative />
+              )}
+            </button>
+          </TooltipSimple>
           <TooltipSimple content={t.newTabPage} placement="top">
             <button
               type="button"
               className="adl-copy-btn"
               onClick={(e) => {
                 e.stopPropagation();
-                // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：新建标签入口与模式。
-                console.info('[ADL-DEBUG][newtab] toolbar plus click', {
-                  browserNavigateInPlace,
-                  activeTabUrl: activeTab?.url ?? null,
-                });
                 if (browserNavigateInPlace) {
                   handlePlusClick();
                 } else {
@@ -177,22 +207,15 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
         </label>
       </div>
       <div className="adl-tool-context__group adl-tool-context__group--files-actions">
-        <TooltipSimple content={isBookmarked ? t.unbookmark : t.bookmark} placement="top">
+        <TooltipSimple content={t.browserSearchEngineSettings} placement="top">
           <button
+            ref={searchEngineBtnRef}
             type="button"
             className="adl-tool-context__iconbtn"
-            aria-label={isBookmarked ? t.unbookmark : t.bookmark}
-            onClick={() => {
-              if (address) {
-                handleOpenBookmarkDialog();
-              }
-            }}
+            onClick={() => setSearchEnginePopoverOpen((v) => !v)}
+            aria-label={t.browserSearchEngineSettings}
           >
-            {isBookmarked ? (
-              <IconStarFilled size={14} decorative />
-            ) : (
-              <IconStar size={14} decorative />
-            )}
+            <IconSearch size={14} decorative />
           </button>
         </TooltipSimple>
         <BrowserMenuDropdown
@@ -203,6 +226,11 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
           onClose={() => setBrowserMenuOpen(false)}
         />
       </div>
+      <SearchEnginePopover
+        open={searchEnginePopoverOpen}
+        onClose={() => setSearchEnginePopoverOpen(false)}
+        anchorRef={searchEngineBtnRef as React.RefObject<HTMLElement>}
+      />
     </div>
   );
 });
