@@ -4,10 +4,10 @@ import {
   IconArrowRight,
   IconPlus,
   IconRefreshCw,
-  IconSearch,
+  IconGlobeSearch,
   IconSearchEngine,
-  IconStar,
-  IconStarFilled,
+  IconBookmarkStar,
+  IconBookmarkStarFilled,
   IconPanelLeft,
   IconPanelLeftClose,
 } from '@icons';
@@ -149,7 +149,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
                 onError={() => setFaviconError(true)}
               />
             ) : (
-              <IconSearch size={14} decorative />
+              <IconGlobeSearch size={14} decorative />
             )}
           </span>
           <span className="adl-tool-search__preview" aria-hidden={addressExpanded}>
@@ -183,9 +183,9 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
               }}
             >
               {isBookmarked ? (
-                <IconStarFilled size={14} decorative />
+                <IconBookmarkStarFilled size={14} decorative />
               ) : (
-                <IconStar size={14} decorative />
+                <IconBookmarkStar size={14} decorative />
               )}
             </button>
           </TooltipSimple>
