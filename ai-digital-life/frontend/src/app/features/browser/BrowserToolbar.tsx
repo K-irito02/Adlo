@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   IconArrowLeft,
   IconArrowRight,
@@ -61,7 +61,12 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
 
   const searchEngines = useAppStore((s) => s.searchEngines);
   const defaultSearchEngineId = useAppStore((s) => s.defaultSearchEngineId);
+  const initializeSearchEngines = useAppStore((s) => s.initializeSearchEngines);
   const currentEngine = searchEngines.find((e) => e.id === defaultSearchEngineId);
+
+  useEffect(() => {
+    initializeSearchEngines();
+  }, [initializeSearchEngines]);
 
   const [faviconError, setFaviconError] = useState(false);
 

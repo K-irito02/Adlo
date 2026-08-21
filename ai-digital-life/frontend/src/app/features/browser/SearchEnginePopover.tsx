@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import './SearchEnginePopover.css';
-import { IconArrowLeft, IconCheck, IconPencil, IconTrash, IconPlus, IconSearch } from '@icons';
+import { IconArrowLeft, IconCheck, IconPencil, IconTrash, IconPlus, IconGlobeSearch, IconSettings } from '@icons';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { SearchEngine } from '@stores/slices/browserSearchEnginesSlice';
@@ -219,11 +219,11 @@ function SearchEngineMainView({
           <button
             key={engine.id}
             type="button"
-            className="adl-search-engine-popover__item"
+            className={`adl-search-engine-popover__item${engine.id === defaultSearchEngineId ? ' is-active' : ''}`}
             onClick={() => onSelect(engine.id)}
           >
             <span className="adl-search-engine-popover__icon">
-              <IconSearch size={14} decorative />
+              <IconGlobeSearch size={14} decorative />
             </span>
             <span className="adl-search-engine-popover__name">{engine.name}</span>
             {engine.id === defaultSearchEngineId && (
@@ -243,11 +243,11 @@ function SearchEngineMainView({
             <button
               key={engine.id}
               type="button"
-              className="adl-search-engine-popover__item"
+              className={`adl-search-engine-popover__item${engine.id === defaultSearchEngineId ? ' is-active' : ''}`}
               onClick={() => onSelect(engine.id)}
             >
               <span className="adl-search-engine-popover__icon">
-                <IconSearch size={14} decorative />
+                <IconGlobeSearch size={14} decorative />
               </span>
               <span className="adl-search-engine-popover__name">{engine.name}</span>
               {engine.id === defaultSearchEngineId && (
@@ -265,7 +265,8 @@ function SearchEngineMainView({
         className="adl-search-engine-popover__manage-btn"
         onClick={onOpenManage}
       >
-        {t.browserSearchEngineManage}
+        <IconSettings size={14} decorative />
+        <span>{t.browserSearchEngineManage}</span>
       </button>
     </>
   );
@@ -324,7 +325,7 @@ function SearchEngineManageView({
                 t={t}
               />
             ) : (
-              <>
+              <div className="adl-search-engine-popover__manage-row">
                 <div className="adl-search-engine-popover__manage-info">
                   <span className="adl-search-engine-popover__name">{engine.name}</span>
                   <span className="adl-search-engine-popover__url">{engine.urlTemplate}</span>
@@ -345,7 +346,7 @@ function SearchEngineManageView({
                     <IconTrash size={14} decorative />
                   </button>
                 </div>
-              </>
+              </div>
             )}
           </div>
         ))}

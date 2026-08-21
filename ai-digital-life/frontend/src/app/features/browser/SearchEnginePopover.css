@@ -1,7 +1,7 @@
 .adl-search-engine-popover {
   min-width: 240px;
   max-width: 320px;
-  padding: 4px;
+  padding: var(--space-1);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   background: var(--bg-card);
@@ -14,13 +14,13 @@
 .adl-search-engine-popover__group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 
 .adl-search-engine-popover__group-label {
-  padding: 4px 8px 2px;
+  padding: var(--space-1) var(--space-2) var(--space-0-5);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   text-transform: uppercase;
   color: var(--text-tertiary);
   letter-spacing: 0.04em;
@@ -31,7 +31,7 @@
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  padding: 6px 8px;
+  padding: var(--space-1-5) var(--space-2);
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -40,10 +40,15 @@
   font-size: var(--text-xs);
   cursor: pointer;
   white-space: nowrap;
+  transition: background-color var(--duration-150) var(--ease-default);
 }
 
 .adl-search-engine-popover__item:hover {
   background: var(--bg-hover);
+}
+
+.adl-search-engine-popover__item.is-active {
+  background: var(--bg-active);
 }
 
 .adl-search-engine-popover__icon {
@@ -74,15 +79,16 @@
 
 .adl-search-engine-popover__sep {
   height: 1px;
-  margin: 4px 8px;
+  margin: var(--space-1) var(--space-2);
   background: var(--border-subtle);
 }
 
 .adl-search-engine-popover__manage-btn {
   display: flex;
   align-items: center;
+  gap: var(--space-2);
   width: 100%;
-  padding: 6px 8px;
+  padding: var(--space-1-5) var(--space-2);
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -90,6 +96,7 @@
   text-align: left;
   font-size: var(--text-xs);
   cursor: pointer;
+  transition: background-color var(--duration-150) var(--ease-default);
 }
 
 .adl-search-engine-popover__manage-btn:hover {
@@ -99,8 +106,8 @@
 .adl-search-engine-popover__header {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: 4px 4px 4px 2px;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-0-5);
 }
 
 .adl-search-engine-popover__back-btn {
@@ -116,6 +123,7 @@
   color: var(--text-primary);
   cursor: pointer;
   flex-shrink: 0;
+  transition: background-color var(--duration-150) var(--ease-default);
 }
 
 .adl-search-engine-popover__back-btn:hover {
@@ -124,23 +132,36 @@
 
 .adl-search-engine-popover__header-title {
   font-size: var(--text-xs);
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
 
 .adl-search-engine-popover__hint {
-  padding: 4px 8px 6px;
+  padding: var(--space-1) var(--space-2) var(--space-1-5);
   font-size: 10px;
-  color: var(--text-tertiary);
-  line-height: 1.4;
+  color: var(--text-muted);
+  line-height: var(--leading-normal);
   border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 
 .adl-search-engine-popover__manage-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0-5);
+}
+
+.adl-search-engine-popover__manage-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background-color var(--duration-150) var(--ease-default);
+}
+
+.adl-search-engine-popover__manage-row:hover {
+  background: var(--bg-hover);
 }
 
 .adl-search-engine-popover__manage-info {
@@ -148,11 +169,12 @@
   flex-direction: column;
   gap: 1px;
   min-width: 0;
+  flex: 1;
 }
 
 .adl-search-engine-popover__url {
   font-size: 10px;
-  color: var(--text-tertiary);
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -160,8 +182,8 @@
 
 .adl-search-engine-popover__manage-actions {
   display: flex;
-  gap: 2px;
-  margin-top: 2px;
+  gap: var(--space-0-5);
+  margin-top: var(--space-0-5);
 }
 
 .adl-search-engine-popover__action-btn {
@@ -176,10 +198,12 @@
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
+  transition: background-color var(--duration-150) var(--ease-default), color var(--duration-150) var(--ease-default);
 }
 
 .adl-search-engine-popover__action-btn:hover {
   background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .adl-search-engine-popover__action-btn--danger {
@@ -188,6 +212,7 @@
 
 .adl-search-engine-popover__action-btn--danger:hover {
   background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .adl-search-engine-popover__add-btn {
@@ -195,7 +220,7 @@
   align-items: center;
   gap: var(--space-2);
   width: 100%;
-  padding: 6px 8px;
+  padding: var(--space-1-5) var(--space-2);
   border: none;
   border-radius: var(--radius-sm);
   background: transparent;
@@ -203,7 +228,8 @@
   text-align: left;
   font-size: var(--text-xs);
   cursor: pointer;
-  margin-top: 4px;
+  margin-top: var(--space-1);
+  transition: background-color var(--duration-150) var(--ease-default);
 }
 
 .adl-search-engine-popover__add-btn:hover {
@@ -211,30 +237,36 @@
 }
 
 .adl-search-engine-popover__add-form {
-  padding: 4px 0;
+  padding: var(--space-1) 0;
 }
 
 .adl-search-engine-popover__form {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px 8px;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
 }
 
 .adl-search-engine-popover__input {
   width: 100%;
-  padding: 4px 8px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   background: var(--bg-elevated);
   color: var(--text-primary);
   font-size: var(--text-xs);
   outline: none;
   box-sizing: border-box;
+  transition: border-color var(--duration-150) var(--ease-default), box-shadow var(--duration-150) var(--ease-default);
+}
+
+.adl-search-engine-popover__input:hover {
+  border-color: var(--border-strong);
 }
 
 .adl-search-engine-popover__input:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 var(--focus-ring-width, 2px) var(--focus-ring, rgba(37, 99, 235, 0.15));
 }
 
 .adl-search-engine-popover__input.is-error {
@@ -244,12 +276,12 @@
 .adl-search-engine-popover__error {
   font-size: 10px;
   color: var(--danger);
-  line-height: 1.3;
+  line-height: var(--leading-tight);
 }
 
 .adl-search-engine-popover__form-actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-2);
-  margin-top: 4px;
+  margin-top: var(--space-1);
 }
