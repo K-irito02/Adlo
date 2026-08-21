@@ -364,6 +364,38 @@ export function applyBroadcastUpdate(payload: PageMetaUpdatedPayload): void {
   });
 }
 
+/**
+ * 持久化 favicon data-URI（Chrome/Edge 式写回路径）：
+ * 前端 canvas 预加载成功转换外部 favicon → data-URI 后调用，将 data-URI 写回
+ * 内存镜像 + 后端持久层（Tauri SQLite / preview JSON），使重启后 initSiteMetaCache
+ * 水合直接命中，无需再次网络请求。
+ *
+ * 合并语义与 applyBroadcastUpdate 一致：保留既有 title/faviconUrl，仅更新
+ * faviconDataUri（广播新值优先，否则保留既有值）。
+ */
+export async function persistFaviconDataUri(url: string, dataUri: string): Promise<void> {
+  if (!dataUri || !url) return;
+  const key = normalizeUrlForCache(url);
+  const existing = memoryCache.get(key);
+  if (existing?.faviconDataUri === dataUri) return;
+  const next: SiteMetaCacheEntry = {
+    title: existing?.title ?? '',
+    titleSource: existing?.titleSource ?? '',
+    faviconUrl: existing?.faviconUrl ?? '',
+    faviconDataUri: dataUri || existing?.faviconDataUri || '',
+    fetchedAt: Date.now(),
+    lastOkAt: existing?.lastOkAt ?? Date.now(),
+    nextRetryAt: 0,
+    failCount: 0,
+  };
+  upsertMirror(key, next);
+  try {
+    await backend.upsert({ [key]: next });
+  } catch (err) {
+    console.warn('siteMetaCache: persist favicon data-URI failed', err);
+  }
+}
+
 export function subscribeSiteMeta(url: string, callback: () => void): () => void {
   const key = normalizeUrlForCache(url);
   if (!urlListeners.has(key)) {

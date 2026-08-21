@@ -314,7 +314,8 @@ describe('siteMetaCache memory layer', () => {
     expect(entry.title).toBe('D2');
     expect(entry.faviconUrl).toBe('https://d.com/favicon.ico');
     expect(entry.faviconDataUri).toBe('data:image/png;base64,DD');
-    // favicon URL 变更但 dataUri 缺失 → 丢弃陈旧 dataUri（避免旧站点图标配新 URL）
+    // favicon URL 变更但 dataUri 缺失 → 保留既有 dataUri（YouTube 等 CDN 轮换哈希时
+    // URL 变化但图标图片不变；丢弃会导致重新下载，重启后仍慢）。新 data-URI 到达时覆盖。
     mod.applyBroadcastUpdate({
       url: 'https://d.com/',
       title: 'D3',
@@ -324,7 +325,7 @@ describe('siteMetaCache memory layer', () => {
     });
     entry = mod.getCachedSiteMeta('https://d.com')!;
     expect(entry.faviconUrl).toBe('https://d.com/new.ico');
-    expect(entry.faviconDataUri).toBe('');
+    expect(entry.faviconDataUri).toBe('data:image/png;base64,DD');
   });
 
   it('setCachedSiteMeta/removeCachedSiteMeta do not persist to backend (write path removed)', async () => {
@@ -371,6 +372,47 @@ describe('siteMetaCache memory layer', () => {
     await mod.removeSiteMetaFromCache('https://x.com');
     expect(mod.getCachedSiteMeta('https://x.com')).toBeUndefined();
     expect(removeSpy).toHaveBeenCalledWith(['https://x.com/']);
+  });
+
+  it('persistFaviconDataUri updates mirror AND persists to backend (Chrome/Edge write path)', async () => {
+    const mod = await import('./siteMetaCache');
+    const backend: SiteMetaBackend = mod.createMockSiteMetaBackend();
+    mod.setSiteMetaBackendForTest(backend);
+    await mod.initSiteMetaCache();
+    mod.__mirrorUpsertForTest('https://youtube.com', {
+      title: 'YouTube',
+      faviconUrl: 'https://www.youtube.com/favicon.ico',
+      faviconDataUri: '',
+      fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
+    });
+    await mod.persistFaviconDataUri('https://youtube.com', 'data:image/png;base64,AA');
+    // mirror updated
+    expect(mod.getCachedFavicon('https://youtube.com')).toBe('data:image/png;base64,AA');
+    // title/faviconUrl preserved
+    const entry = mod.getCachedSiteMeta('https://youtube.com');
+    expect(entry?.title).toBe('YouTube');
+    expect(entry?.faviconUrl).toBe('https://www.youtube.com/favicon.ico');
+    // backend persisted (getAll on fresh mock backend returns it)
+    const all = await backend.getAll();
+    expect(all['https://youtube.com/']?.faviconDataUri).toBe('data:image/png;base64,AA');
+  });
+
+  it('persistFaviconDataUri no-ops for empty data-URI or missing entry', async () => {
+    const mod = await import('./siteMetaCache');
+    const backend: SiteMetaBackend = mod.createMockSiteMetaBackend();
+    const upsertSpy = vi.spyOn(backend, 'upsert');
+    mod.setSiteMetaBackendForTest(backend);
+    await mod.initSiteMetaCache();
+    // empty data-URI → no write
+    await mod.persistFaviconDataUri('https://empty.com', '');
+    expect(upsertSpy).not.toHaveBeenCalled();
+    // missing entry → writes only key without prior entry (data-URI preserved, faviconUrl empty)
+    await mod.persistFaviconDataUri('https://missing.com', 'data:image/png;base64,BB');
+    expect(upsertSpy).toHaveBeenCalledTimes(1);
   });
 
   it('isSiteMetaResolvedForTree is origin-level while isSiteMetaResolved is exact', async () => {
