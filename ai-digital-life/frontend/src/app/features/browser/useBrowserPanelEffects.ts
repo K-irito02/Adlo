@@ -18,7 +18,6 @@ interface UseBrowserPanelEffectsParams {
   activeTab: BrowserTabState | undefined;
   addressSubmittedForTabRef: MutableRefObject<string>;
   setAddress: Dispatch<SetStateAction<string>>;
-  setSearchQueryDisplay: Dispatch<SetStateAction<string>>;
   setIframeHistory: Dispatch<SetStateAction<IframeHistoryState>>;
   browserMenuOpen: boolean;
   setBrowserMenuOpen: Dispatch<SetStateAction<boolean>>;
@@ -35,7 +34,6 @@ export function useBrowserPanelEffects({
   activeTab,
   addressSubmittedForTabRef,
   setAddress,
-  setSearchQueryDisplay,
   setIframeHistory,
   browserMenuOpen,
   setBrowserMenuOpen,
@@ -54,7 +52,6 @@ export function useBrowserPanelEffects({
       url,
       setAddressTo: url === 'about:blank' ? '' : url,
     });
-    setSearchQueryDisplay('');
     addressSubmittedForTabRef.current = url || 'about:blank';
     setAddress(url === 'about:blank' ? '' : url);
 
@@ -73,7 +70,7 @@ export function useBrowserPanelEffects({
         });
       });
     }
-  }, [activeTab?.id, activeTab?.url, setAddress, setSearchQueryDisplay, setIframeHistory, addressSubmittedForTabRef]);
+  }, [activeTab?.id, activeTab?.url, setAddress, setIframeHistory, addressSubmittedForTabRef]);
 
   useEffect(() => {
     if (!browserMenuOpen && !addressExpanded && navigatorMode !== 'search') {

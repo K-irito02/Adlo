@@ -34,16 +34,9 @@ interface BrowserFaviconProps {
 export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const [ready, setReady] = useState(isSiteMetaCacheReady());
   const [faviconUrl, setFaviconUrl] = useState('');
-  // 渲染降级状态（React 驱动，避免 DOM 直接操作导致 display:none 残留）：
-  // 真实图标加载失败时置 true → 显示内置占位图标；新图标到来时重置（Fix D：
-  // 不再重试 Google S2 代理——被墙/不稳定，且对无收录域名返回默认图标）。
   const [degraded, setDegraded] = useState(false);
-  // 同步 faviconUrl 的 ref：镜像更新时对比是否真的变化（L6）。
-  // 仅在 faviconUrl 变化时重置降级态——未变化时保持降级，避免每次广播
-  // 重挂 img → 404 → 再降级的闪烁。
+  const [imgReady, setImgReady] = useState(false);
   const faviconUrlRef = useRef('');
-  // 同步"元数据是否已抓取结算"状态：未确认时不显示兜底字母（空占位），
-  // 确认结算仍无真实图标时才显示兜底字母，避免"兜底字母 → 真实图标"的跳动。
   const resolvedRef = useRef(url ? isSiteMetaResolved(url) : false);
   const [resolved, setResolved] = useState(resolvedRef.current);
 
@@ -54,6 +47,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
       faviconUrlRef.current = next;
       setFaviconUrl(next);
       setDegraded(false);
+      setImgReady(false);
       console.info(`[ADL-BROWSER-FAVICON] meta update: ${url?.slice(0, 80)} → ${next ? (next.startsWith('data:') ? 'data-URI' : next.slice(0, 80)) : 'empty'}`);
     }
     const r = url ? isSiteMetaResolved(url) : false;
@@ -136,13 +130,15 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
 
   // 未命中/未就绪：显示占位图标（非空白）
   const current = faviconUrl;
-  const showImg = Boolean(current) && !degraded;
+  const isDataUri = current.startsWith('data:');
+  const showImg = Boolean(current) && !degraded && (isDataUri || imgReady);
   const handleError = useCallback(() => {
     console.warn(`[ADL-BROWSER-FAVICON] img load failed, degrading: ${url?.slice(0, 80)} (src: ${faviconUrlRef.current?.startsWith('data:') ? 'data-URI' : faviconUrlRef.current?.slice(0, 80)})`);
     setDegraded(true);
   }, [url]);
 
   const handleLoad = useCallback(() => {
+    setImgReady(true);
     console.info(`[ADL-BROWSER-FAVICON] img loaded: ${url?.slice(0, 80)} (src: ${faviconUrlRef.current?.startsWith('data:') ? 'data-URI' : faviconUrlRef.current?.slice(0, 80)})`);
   }, [url]);
 
