@@ -3,7 +3,7 @@ import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { MetaSource, PageMeta } from '@shared/ipc/browser';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import { useAppStore } from '@stores';
-import { normalizeUrlForCompare, isProbablySameSite } from './browserUrlUtils';
+import { normalizeUrlForCompare, isProbablySameSite, extractSearchQueryFromUrl } from './browserUrlUtils';
 import {
   historyDedupKey,
   hasViewIdentityParam,
@@ -30,6 +30,7 @@ interface UseBrowserUrlChangeOptions {
   iframeRef: React.MutableRefObject<HTMLIFrameElement | null>;
   expectedNavigationUrlRef: React.MutableRefObject<string | null>;
   setAddress: (address: string) => void;
+  setSearchQueryDisplay: (query: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   browserUpdateTab: (id: string, data: Partial<BrowserTabState>) => void;
   onPageMeta?: (meta: PageMeta, source?: MetaSource) => void;
@@ -45,6 +46,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
     iframeRef,
     expectedNavigationUrlRef,
     setAddress,
+    setSearchQueryDisplay,
     browserNavigateActiveTab,
     browserUpdateTab,
     onPageMeta,
@@ -384,6 +386,12 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       // 若发生在"新建标签页"切换之后，可能把新标签页空地址覆盖回旧链接。
       console.info('[ADL-DEBUG][address] onUrlChanged setAddress', { tabId, url: normalizedUrl });
       setAddress(normalizedUrl);
+
+      // 从搜索结果 URL 中提取查询文本显示在地址栏
+      const engines = useAppStore.getState().searchEngines;
+      const query = normalizedUrl ? extractSearchQueryFromUrl(normalizedUrl, engines) : '';
+      setSearchQueryDisplay(query);
+
       onNavigationStart?.(normalizedUrl);
     });
 

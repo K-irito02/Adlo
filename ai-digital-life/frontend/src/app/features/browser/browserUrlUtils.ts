@@ -86,3 +86,31 @@ export function ensureProtocol(input: string): string {
   if (/^about:/i.test(trimmed)) return trimmed;
   return `https://${trimmed}`;
 }
+
+/**
+ * 从搜索结果 URL 中提取用户查询文本。
+ * 匹配已知搜索引擎的 URL 模板，返回解码后的查询词；
+ * 非搜索 URL 返回空字符串。
+ */
+export function extractSearchQueryFromUrl(url: string, engines: SearchEngine[]): string {
+  try {
+    const u = new URL(url);
+    for (const engine of engines) {
+      try {
+        const tpl = new URL(engine.urlTemplate.replace('%s', '___PLACEHOLDER___'));
+        if (u.hostname !== tpl.hostname) continue;
+        const paramName = [...tpl.searchParams.keys()].find(
+          (k) => tpl.searchParams.get(k) === '___PLACEHOLDER___',
+        );
+        if (!paramName) continue;
+        const raw = u.searchParams.get(paramName);
+        if (raw) return decodeURIComponent(raw);
+      } catch {
+        // 跳过无效模板
+      }
+    }
+  } catch {
+    // 无效 URL
+  }
+  return '';
+}

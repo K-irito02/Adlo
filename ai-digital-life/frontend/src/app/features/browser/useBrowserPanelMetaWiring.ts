@@ -12,6 +12,7 @@ export interface UseBrowserPanelMetaWiringParams {
   pendingNavigationsRef: React.MutableRefObject<Set<string>>;
   markUrlSeen: (url: string) => void;
   setAddress: (address: string) => void;
+  setSearchQueryDisplay: (query: string) => void;
   setIframeLoadError: React.Dispatch<React.SetStateAction<boolean>>;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   browserUpdateTab: (id: string, data: Partial<BrowserTabState>) => void;
@@ -42,6 +43,7 @@ export function useBrowserPanelMetaWiring(
     iframeRef: params.iframeRef,
     expectedNavigationUrlRef: params.expectedNavigationUrlRef,
     setAddress: params.setAddress,
+    setSearchQueryDisplay: params.setSearchQueryDisplay,
     browserNavigateActiveTab: params.browserNavigateActiveTab,
     browserUpdateTab: params.browserUpdateTab,
     onPageMeta: _handlePageMeta,

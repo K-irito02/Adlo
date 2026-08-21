@@ -8,6 +8,7 @@ import {
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { BrowserNavigatorMode } from './useBrowserTabs';
+import { extractSearchQueryFromUrl } from './browserUrlUtils';
 
 interface IframeHistoryState {
   index: number;
@@ -54,9 +55,13 @@ export function useBrowserPanelEffects({
       url,
       setAddressTo: url === 'about:blank' ? '' : url,
     });
-    setSearchQueryDisplay('');
     addressSubmittedForTabRef.current = url || 'about:blank';
     setAddress(url === 'about:blank' ? '' : url);
+
+    // 从搜索结果 URL 中提取查询文本显示在地址栏
+    const engines = useAppStore.getState().searchEngines;
+    const query = url ? extractSearchQueryFromUrl(url, engines) : '';
+    setSearchQueryDisplay(query);
 
     if (!useAppStore.getState().isTauri && url && url !== '' && url !== 'about:blank') {
       requestAnimationFrame(() => {

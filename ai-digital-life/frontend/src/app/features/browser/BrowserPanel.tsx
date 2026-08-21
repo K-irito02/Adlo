@@ -301,6 +301,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     pendingNavigationsRef,
     markUrlSeen,
     setAddress,
+    setSearchQueryDisplay,
     setIframeLoadError,
     browserNavigateActiveTab,
     browserUpdateTab,
