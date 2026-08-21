@@ -355,7 +355,8 @@ export function applyBroadcastUpdate(payload: PageMetaUpdatedPayload): void {
     faviconUrl: payload.faviconUrl || existing?.faviconUrl || '',
     faviconDataUri:
       payload.faviconDataUri ||
-      (existing && payload.faviconUrl === existing.faviconUrl ? existing.faviconDataUri : ''),
+      existing?.faviconDataUri ||
+      '',
     fetchedAt: Date.now(),
     lastOkAt: Date.now(),
     nextRetryAt: 0,
