@@ -959,7 +959,7 @@ async fn download_favicon_data_uri(
         "download_favicon_data_uri: attempt (resolving via backend client)"
     );
     let Ok(resp) = req.send().await else {
-        tracing::debug!(
+        tracing::warn!(
             favicon_url = %favicon_url,
             referer = ?referer,
             "download_favicon_data_uri: request send failed (network/timeout/TLS)"
@@ -967,7 +967,7 @@ async fn download_favicon_data_uri(
         return String::new();
     };
     if !resp.status().is_success() {
-        tracing::debug!(
+        tracing::warn!(
             favicon_url = %favicon_url,
             status = resp.status().as_u16(),
             "download_favicon_data_uri: non-success status"
@@ -1078,7 +1078,7 @@ fn favicon_download_cooldown()
         .get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
 }
 
-const FAVICON_DOWNLOAD_COOLDOWN_MS: u64 = 600_000;
+const FAVICON_DOWNLOAD_COOLDOWN_MS: u64 = 60_000;
 
 /// 检查并记录该 URL 的下载尝试：冷却期内返回 false（跳过），否则记录本次尝试时间。
 fn favicon_download_cooldown_check(url: &str) -> bool {
@@ -1124,7 +1124,7 @@ fn spawn_favicon_download(
             return;
         };
         let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(10))
+            .timeout(std::time::Duration::from_secs(60))
             .user_agent(USER_AGENT)
             .redirect(reqwest::redirect::Policy::limited(10))
             .build();
@@ -1242,6 +1242,24 @@ mod favicon_data_uri_tests {
                 "expected {ct:?} to be rejected as a favicon content type"
             );
         }
+    }
+
+    #[test]
+    fn favicon_download_cooldown_allows_retry_after_window() {
+        // 冷却窗口（60s）内同 URL 重试被拒绝；窗口过后允许再次尝试。
+        let url = "https://cooldown.test/favicon.ico";
+        // 首次尝试 → 允许
+        assert!(favicon_download_cooldown_check(url));
+        // 窗口内立即重试 → 拒绝（防 CDN 反复打）
+        assert!(!favicon_download_cooldown_check(url));
+        // 模拟窗口流逝：直接改写记录时间戳
+        {
+            let mut map = favicon_download_cooldown().lock().unwrap();
+            let now = std::time::Instant::now();
+            map.insert(url.to_string(), now - std::time::Duration::from_millis(FAVICON_DOWNLOAD_COOLDOWN_MS + 1));
+        }
+        // 窗口过后 → 允许重试
+        assert!(favicon_download_cooldown_check(url));
     }
 
     #[test]
