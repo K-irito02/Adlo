@@ -515,19 +515,24 @@ async fn fetch_silent_meta(
             app.clone(),
             silent_webview_label(&tab_id),
         );
-        // JS：同源 fetch favicon → arrayBuffer → base64 data-URI。使用 async IIFE
-        // 避免污染全局。返回 data-URI 字符串（ExecuteScript JSON 编码）。
+        // JS：同源 fetch favicon → base64 data-URI。
+        // **必须同步**：`ExecuteScript` 不等待 Promise，async IIFE 返回 Promise 无法
+        // 序列化（结果恒为空）。改用同步 XMLHttpRequest——silent webview 后台不可见，
+        // 阻塞渲染线程可接受；且 backfill 在 `<img>` onLoad 后触发，favicon 已在
+        // WebView2 磁盘缓存，同步 XHR 直接命中缓存快速返回。
         let favicon_url = page_meta.favicon.clone();
         let js = format!(
-            r#"(async () => {{
+            r#"(function() {{
                 try {{
-                    const r = await fetch({favicon_url_json}, {{ credentials: 'omit' }});
-                    if (!r.ok) return '';
-                    const buf = await r.arrayBuffer();
-                    const bytes = new Uint8Array(buf);
-                    let bin = '';
-                    const chunk = 0x8000;
-                    for (let i = 0; i < bytes.length; i += chunk) {{
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('GET', {favicon_url_json}, false);
+                    xhr.responseType = 'arraybuffer';
+                    xhr.send(null);
+                    if (xhr.status !== 200 || !xhr.response) return '';
+                    var bytes = new Uint8Array(xhr.response);
+                    var bin = '';
+                    var chunk = 0x8000;
+                    for (var i = 0; i < bytes.length; i += chunk) {{
                         bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
                     }}
                     return 'data:image/png;base64,' + btoa(bin);

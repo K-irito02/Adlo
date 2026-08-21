@@ -115,7 +115,7 @@ impl WebViewHandle for TauriWebViewHandle {
                 };
             })
             .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
-            Ok(rx.recv_timeout(std::time::Duration::from_millis(10000)).unwrap_or_default())
+            Ok(rx.recv_timeout(std::time::Duration::from_millis(15000)).unwrap_or_default())
         }
         #[cfg(not(windows))]
         {
