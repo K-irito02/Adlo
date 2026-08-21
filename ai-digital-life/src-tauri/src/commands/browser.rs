@@ -524,7 +524,7 @@ async fn fetch_silent_meta(
         // （默认球）时短暂等待后重试，直至超时。
         let mut attempts = 0;
         let mut favicon_bytes: Vec<u8> = Vec::new();
-        while attempts < 3 {
+        while attempts < 5 {
             match handle.get_favicon_data() {
                 Ok(bytes) if bytes.len() >= FAVICON_MIN_BYTES => {
                     favicon_bytes = bytes;
@@ -556,7 +556,7 @@ async fn fetch_silent_meta(
             }
             attempts += 1;
             // 短暂等待 favicon 字节下载完成（异步），再重试。
-            std::thread::sleep(std::time::Duration::from_millis(800));
+            std::thread::sleep(std::time::Duration::from_millis(1000));
         }
         if !favicon_bytes.is_empty() {
             tracing::info!(

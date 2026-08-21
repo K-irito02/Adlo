@@ -147,12 +147,20 @@ it('does NOT render the new-tab page icon for a real URL (事项 4)', () => {
   expect(container.querySelector('svg.adl-icon')).toBeNull();
 });
 
-it('triggers data-URI backfill via pageMetaClient.get with force when favicon is external (missing data-URI)', async () => {
+it('triggers data-URI backfill via pageMetaClient.get with force after external favicon img onLoad', async () => {
   const getSpy = vi.spyOn(pageMeta.pageMetaClient, 'get').mockResolvedValue(null);
   mirrorFavicon('https://youtube.com', 'https://www.youtube.com/favicon.ico');
-  render(<BrowserFavicon url="https://youtube.com" />);
+  const { container } = render(<BrowserFavicon url="https://youtube.com" />);
+  // mount 时（img 未加载）不触发
   await act(async () => {
     await Promise.resolve();
+  });
+  expect(getSpy).not.toHaveBeenCalled();
+  // img onLoad（外部 favicon 成功加载，浏览器缓存就绪）→ 触发 WebView2 backfill
+  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
+  expect(img).not.toBeNull();
+  await act(async () => {
+    fireEvent.load(img!);
   });
   expect(getSpy).toHaveBeenCalledWith('https://youtube.com', { force: true });
 });
@@ -160,9 +168,10 @@ it('triggers data-URI backfill via pageMetaClient.get with force when favicon is
 it('does NOT trigger backfill when favicon is a data-URI', async () => {
   const getSpy = vi.spyOn(pageMeta.pageMetaClient, 'get').mockResolvedValue(null);
   mirrorFavicon('https://cached.example', 'https://cached.example/favicon.ico', 'data:image/png;base64,AA');
-  render(<BrowserFavicon url="https://cached.example" />);
+  const { container } = render(<BrowserFavicon url="https://cached.example" />);
+  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
   await act(async () => {
-    await Promise.resolve();
+    fireEvent.load(img!);
   });
   expect(getSpy).not.toHaveBeenCalled();
 });
