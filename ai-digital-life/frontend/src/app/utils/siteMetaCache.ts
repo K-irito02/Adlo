@@ -153,6 +153,12 @@ export function getCachedSiteMeta(url: string): SiteMetaCacheEntry | undefined {
   return memoryCache.get(normalizeUrlForCache(url));
 }
 
+export function isFaviconConfirmed(url: string): boolean {
+  const entry = memoryCache.get(normalizeUrlForCache(url));
+  if (!entry) return false;
+  return Boolean(entry.faviconDataUri || entry.lastOkAt > 0);
+}
+
 export function getCachedFavicon(url: string): string {
   return memoryCache.get(normalizeUrlForCache(url))?.faviconDataUri ?? '';
 }

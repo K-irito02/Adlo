@@ -209,6 +209,10 @@ function EngineFavicon({ engine, className }: { engine: SearchEngine; className?
       setShowFallback(true);
       return;
     }
+    if (url.startsWith('/')) {
+      setShowFallback(false);
+      return;
+    }
     if (isKnownFailed) {
       setShowFallback(true);
       return;

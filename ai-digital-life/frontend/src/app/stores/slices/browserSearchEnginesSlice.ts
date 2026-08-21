@@ -11,14 +11,14 @@ export interface SearchEngine {
 }
 
 const BUILT_IN_ENGINES: Omit<SearchEngine, 'id'>[] = [
-  { name: 'Google', urlTemplate: 'https://www.google.com/search?q=%s', isBuiltIn: true, isDefault: true, faviconUrl: 'https://www.google.com/favicon.ico' },
-  { name: 'Bing', urlTemplate: 'https://www.bing.com/search?q=%s', isBuiltIn: true, isDefault: false, faviconUrl: 'https://www.bing.com/favicon.ico' },
-  { name: 'DuckDuckGo', urlTemplate: 'https://duckduckgo.com/?q=%s', isBuiltIn: true, isDefault: false, faviconUrl: 'https://duckduckgo.com/favicon.ico' },
-  { name: 'Yahoo', urlTemplate: 'https://search.yahoo.com/search?p=%s', isBuiltIn: true, isDefault: false, faviconUrl: 'https://search.yahoo.com/favicon.ico' },
-  { name: '百度', urlTemplate: 'https://www.baidu.com/s?wd=%s', isBuiltIn: true, isDefault: false, faviconUrl: 'https://www.baidu.com/favicon.ico' },
-  { name: '搜狗', urlTemplate: 'https://www.sogou.com/web?query=%s', isBuiltIn: true, isDefault: false, faviconUrl: 'https://www.sogou.com/favicon.ico' },
-  { name: '360搜索', urlTemplate: 'https://www.so.com/s?q=%s', isBuiltIn: true, isDefault: false, faviconUrl: 'https://www.so.com/favicon.ico' },
-  { name: '必应中国', urlTemplate: 'https://cn.bing.com/search?q=%s', isBuiltIn: true, isDefault: false, faviconUrl: 'https://cn.bing.com/favicon.ico' },
+  { name: 'Google', urlTemplate: 'https://www.google.com/search?q=%s', isBuiltIn: true, isDefault: true, faviconUrl: '/search-engines/google.ico' },
+  { name: 'Bing', urlTemplate: 'https://www.bing.com/search?q=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/bing.ico' },
+  { name: 'DuckDuckGo', urlTemplate: 'https://duckduckgo.com/?q=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/duckduckgo.ico' },
+  { name: 'Yahoo', urlTemplate: 'https://search.yahoo.com/search?p=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/yahoo.ico' },
+  { name: '百度', urlTemplate: 'https://www.baidu.com/s?wd=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/baidu.ico' },
+  { name: '搜狗', urlTemplate: 'https://www.sogou.com/web?query=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/sogou.ico' },
+  { name: '360搜索', urlTemplate: 'https://www.so.com/s?q=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/360.ico' },
+  { name: '必应中国', urlTemplate: 'https://cn.bing.com/search?q=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/cnbing.ico' },
 ];
 
 const writeSearchEngines = makePersistedWriter('adl:browser:searchEngines');

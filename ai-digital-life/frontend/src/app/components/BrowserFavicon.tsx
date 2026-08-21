@@ -6,6 +6,7 @@ import {
   isSiteMetaCacheReady,
   initSiteMetaCache,
   isSiteMetaResolved,
+  isFaviconConfirmed,
 } from '../utils/siteMetaCache';
 import { pageMetaClient } from '../utils/pageMetaClient';
 import { IconNewTabPage, type IconSize } from '../icons';
@@ -91,6 +92,9 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   useEffect(() => {
     const src = faviconUrlRef.current;
     if (!src || src.startsWith('data:')) {
+      return;
+    }
+    if (url && isFaviconConfirmed(url)) {
       return;
     }
 
