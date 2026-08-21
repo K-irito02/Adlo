@@ -6,12 +6,9 @@ import {
   isSiteMetaCacheReady,
   initSiteMetaCache,
   isSiteMetaResolved,
-  isFaviconConfirmed,
 } from '../utils/siteMetaCache';
 import { pageMetaClient } from '../utils/pageMetaClient';
 import { IconNewTabPage, type IconSize } from '../icons';
-
-const EXTERNAL_FAVICON_TIMEOUT_MS = 3000;
 
 /**
  * 取站点首字母作为终级兜底：解析 host 首字符，字母转大写；
@@ -35,7 +32,6 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const [ready, setReady] = useState(isSiteMetaCacheReady());
   const [faviconUrl, setFaviconUrl] = useState('');
   const [degraded, setDegraded] = useState(false);
-  const [imgReady, setImgReady] = useState(false);
   const faviconUrlRef = useRef('');
   const resolvedRef = useRef(url ? isSiteMetaResolved(url) : false);
   const [resolved, setResolved] = useState(resolvedRef.current);
@@ -47,7 +43,6 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
       faviconUrlRef.current = next;
       setFaviconUrl(next);
       setDegraded(false);
-      setImgReady(false);
       console.info(`[ADL-BROWSER-FAVICON] meta update: ${url?.slice(0, 80)} → ${next ? (next.startsWith('data:') ? 'data-URI' : next.slice(0, 80)) : 'empty'}`);
     }
     const r = url ? isSiteMetaResolved(url) : false;
@@ -83,67 +78,13 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     };
   }, [url, ready, applyMetaUpdate]);
 
-  useEffect(() => {
-    const src = faviconUrlRef.current;
-    if (!src || src.startsWith('data:')) {
-      return;
-    }
-    const confirmed = url ? isFaviconConfirmed(url) : false;
-    if (confirmed) {
-      return;
-    }
-    console.info(`[ADL-BROWSER-FAVICON] preload check: ${url?.slice(0, 80)} confirmed=${confirmed} src=${src.slice(0, 80)}`);
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      if (!controller.signal.aborted) {
-        console.warn(`[ADL-BROWSER-FAVICON] external favicon timeout (${EXTERNAL_FAVICON_TIMEOUT_MS}ms): ${url?.slice(0, 80)} (src: ${src.slice(0, 80)})`);
-        setDegraded(true);
-        controller.abort();
-      }
-    }, EXTERNAL_FAVICON_TIMEOUT_MS);
-
-    const img = new Image();
-    img.onload = () => {
-      clearTimeout(timer);
-      if (!controller.signal.aborted) {
-        console.info(`[ADL-BROWSER-FAVICON] external favicon loaded: ${url?.slice(0, 80)} (src: ${src.slice(0, 80)})`);
-      }
-    };
-    img.onerror = () => {
-      clearTimeout(timer);
-      if (!controller.signal.aborted) {
-        console.warn(`[ADL-BROWSER-FAVICON] external favicon failed: ${url?.slice(0, 80)} (src: ${src.slice(0, 80)})`);
-        setDegraded(true);
-        controller.abort();
-      }
-    };
-    img.src = src;
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-      img.onload = null;
-      img.onerror = null;
-    };
-  }, [faviconUrl, url]);
-
   // 未命中/未就绪：显示占位图标（非空白）
   const current = faviconUrl;
   const isDataUri = current.startsWith('data:');
-  const confirmed = url ? isFaviconConfirmed(url) : false;
-  const showImg = Boolean(current) && !degraded && (isDataUri || confirmed || imgReady);
-  if (url && !showImg && current && !degraded) {
-    console.info(`[ADL-BROWSER-FAVICON] waiting for img: ${url.slice(0, 60)} isDataUri=${isDataUri} confirmed=${confirmed} imgReady=${imgReady}`);
-  }
+  const showImg = Boolean(current) && !degraded;
   const handleError = useCallback(() => {
     console.warn(`[ADL-BROWSER-FAVICON] img load failed, degrading: ${url?.slice(0, 80)} (src: ${faviconUrlRef.current?.startsWith('data:') ? 'data-URI' : faviconUrlRef.current?.slice(0, 80)})`);
     setDegraded(true);
-  }, [url]);
-
-  const handleLoad = useCallback(() => {
-    setImgReady(true);
-    console.info(`[ADL-BROWSER-FAVICON] img loaded: ${url?.slice(0, 80)} (src: ${faviconUrlRef.current?.startsWith('data:') ? 'data-URI' : faviconUrlRef.current?.slice(0, 80)})`);
   }, [url]);
 
   // 新标签页（无 URL/about:blank）没有站点 favicon：显示内置"新标签页"图标，
@@ -167,7 +108,6 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
           className="adl-browser-tree__favicon"
           style={{ width: size, height: size, transition: 'opacity 0.15s ease-in-out' }}
           onError={handleError}
-          onLoad={handleLoad}
         />
       )}
       <span
