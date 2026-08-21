@@ -6,6 +6,7 @@ import {
   isSiteMetaCacheReady,
   initSiteMetaCache,
   isSiteMetaResolved,
+  persistFaviconUrl,
 } from '../utils/siteMetaCache';
 import { pageMetaClient } from '../utils/pageMetaClient';
 import { IconNewTabPage, type IconSize } from '../icons';
@@ -80,11 +81,23 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
 
   // 未命中/未就绪：显示占位图标（非空白）
   const current = faviconUrl;
-  const isDataUri = current.startsWith('data:');
   const showImg = Boolean(current) && !degraded;
   const handleError = useCallback(() => {
     console.warn(`[ADL-BROWSER-FAVICON] img load failed, degrading: ${url?.slice(0, 80)} (src: ${faviconUrlRef.current?.startsWith('data:') ? 'data-URI' : faviconUrlRef.current?.slice(0, 80)})`);
     setDegraded(true);
+  }, [url]);
+
+  // 外部 URL 成功加载 → 回写 SQLite（Chrome/Edge 式兜底持久化）：
+  // 即使 data-URI 生成失败（CORS/无代理），URL 也落库，重启后水合命中立即显示。
+  const handleLoad = useCallback(() => {
+    const src = faviconUrlRef.current;
+    if (!src || src.startsWith('data:')) {
+      return;
+    }
+    console.info(
+      `[ADL-BROWSER-FAVICON] external favicon loaded & persisted: ${url?.slice(0, 80)} (src: ${src.slice(0, 80)})`,
+    );
+    void persistFaviconUrl(url, src);
   }, [url]);
 
   // 新标签页（无 URL/about:blank）没有站点 favicon：显示内置"新标签页"图标，
@@ -108,6 +121,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
           className="adl-browser-tree__favicon"
           style={{ width: size, height: size, transition: 'opacity 0.15s ease-in-out' }}
           onError={handleError}
+          onLoad={handleLoad}
         />
       )}
       <span
