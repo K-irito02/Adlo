@@ -396,40 +396,6 @@ export async function persistFaviconDataUri(url: string, dataUri: string): Promi
   }
 }
 
-/**
- * 持久化 favicon 外部 URL（Chrome/Edge 式兜底写回路径）：
- * 当组件 `<img>` 用外部 URL（非 data-URI）成功加载 favicon 时调用，将 faviconUrl
- * 确认写入内存镜像 + 后端持久层。即使 data-URI 生成失败（跨域 CORS 拦截 / 无代理
- * 导致 Rust 后台下载失败），URL 也会落库——重启后 initSiteMetaCache 水合立即命中，
- * `<img>` 从浏览器 HTTP 磁盘缓存加载外部 URL，实现秒显示。
- *
- * 幂等：同 URL 且已成功（lastOkAt>0）时不重复写。
- */
-export async function persistFaviconUrl(url: string, faviconUrl: string): Promise<void> {
-  if (!faviconUrl || !url || faviconUrl.startsWith('data:')) return;
-  const key = normalizeUrlForCache(url);
-  const existing = memoryCache.get(key);
-  if (existing?.faviconUrl === faviconUrl && (existing?.lastOkAt ?? 0) > 0) {
-    return;
-  }
-  const next: SiteMetaCacheEntry = {
-    title: existing?.title ?? '',
-    titleSource: existing?.titleSource ?? '',
-    faviconUrl: faviconUrl || existing?.faviconUrl || '',
-    faviconDataUri: existing?.faviconDataUri ?? '',
-    fetchedAt: Date.now(),
-    lastOkAt: Date.now(),
-    nextRetryAt: 0,
-    failCount: 0,
-  };
-  upsertMirror(key, next);
-  try {
-    await backend.upsert({ [key]: next });
-  } catch (err) {
-    console.warn('siteMetaCache: persist favicon URL failed', err);
-  }
-}
-
 export function subscribeSiteMeta(url: string, callback: () => void): () => void {
   const key = normalizeUrlForCache(url);
   if (!urlListeners.has(key)) {

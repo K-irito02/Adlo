@@ -2,7 +2,6 @@ import { render, act, fireEvent } from '@testing-library/react';
 import { it, expect, vi, beforeEach } from 'vitest';
 import { BrowserFavicon } from './BrowserFavicon';
 import * as cache from '../utils/siteMetaCache';
-import * as pageMeta from '../utils/pageMetaClient';
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -145,42 +144,4 @@ it('renders the new-tab page icon for about:blank (事项 4)', () => {
 it('does NOT render the new-tab page icon for a real URL (事项 4)', () => {
   const { container } = render(<BrowserFavicon url="https://real.example" />);
   expect(container.querySelector('svg.adl-icon')).toBeNull();
-});
-
-it('triggers data-URI backfill via pageMetaClient.get with force after external favicon img onLoad', async () => {
-  const getSpy = vi.spyOn(pageMeta.pageMetaClient, 'get').mockResolvedValue(null);
-  mirrorFavicon('https://youtube.com', 'https://www.youtube.com/favicon.ico');
-  const { container } = render(<BrowserFavicon url="https://youtube.com" />);
-  // mount 时（img 未加载）不触发
-  await act(async () => {
-    await Promise.resolve();
-  });
-  expect(getSpy).not.toHaveBeenCalled();
-  // img onLoad（外部 favicon 成功加载，浏览器缓存就绪）→ 触发 WebView2 backfill
-  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
-  expect(img).not.toBeNull();
-  await act(async () => {
-    fireEvent.load(img!);
-  });
-  expect(getSpy).toHaveBeenCalledWith('https://youtube.com', { force: true });
-});
-
-it('does NOT trigger backfill when favicon is a data-URI', async () => {
-  const getSpy = vi.spyOn(pageMeta.pageMetaClient, 'get').mockResolvedValue(null);
-  mirrorFavicon('https://cached.example', 'https://cached.example/favicon.ico', 'data:image/png;base64,AA');
-  const { container } = render(<BrowserFavicon url="https://cached.example" />);
-  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
-  await act(async () => {
-    fireEvent.load(img!);
-  });
-  expect(getSpy).not.toHaveBeenCalled();
-});
-
-it('does NOT trigger backfill when no favicon cached at all', async () => {
-  const getSpy = vi.spyOn(pageMeta.pageMetaClient, 'get').mockResolvedValue(null);
-  render(<BrowserFavicon url="https://empty.example" />);
-  await act(async () => {
-    await Promise.resolve();
-  });
-  expect(getSpy).not.toHaveBeenCalled();
 });

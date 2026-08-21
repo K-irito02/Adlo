@@ -17,12 +17,6 @@ impl WebViewHandle for MockHandle {
     fn eval_js(&self, _js: &str) -> Result<String, adl_errors::AppError> {
         Ok("".into())
     }
-    fn eval_js_with_result(&self, _js: &str) -> Result<String, adl_errors::AppError> {
-        Ok("".into())
-    }
-    fn get_favicon_data(&self) -> Result<Vec<u8>, adl_errors::AppError> {
-        Ok(Vec::new())
-    }
     fn set_color_scheme(&self, _scheme: &str) -> Result<(), adl_errors::AppError> {
         Ok(())
     }
@@ -81,12 +75,6 @@ fn mock_handle_eval_js_returns_string() {
     let h = MockHandle { id: "eval-test".into() };
     let result = h.eval_js("1+1").unwrap();
     assert_eq!(result, "");
-}
-
-#[test]
-fn mock_handle_get_favicon_data_returns_empty() {
-    let h = MockHandle { id: "favicon-test".into() };
-    assert!(h.get_favicon_data().unwrap().is_empty());
 }
 
 #[test]
