@@ -518,6 +518,19 @@ async fn fetch_silent_meta(
             app.clone(),
             silent_webview_label(&tab_id),
         );
+
+        // 诊断：确认 silent webview 页面实际状态（是否加载了 YouTube、favicon link、
+        // 图片是否可通过 WebView2 网络栈加载）。
+        if let Ok(probe_json) = handle.eval_js_with_result(
+            r#"(function() {
+                var links = Array.prototype.slice.call(document.querySelectorAll('link[rel*="icon"]'));
+                var hrefs = links.map(function(l) { return l.href; }).join('|');
+                return 'ready=' + document.readyState + ' hrefs=' + hrefs + ' title=' + (document.title||'').slice(0,30);
+            })()"#,
+        ) {
+            tracing::info!(url = %url, probe = %probe_json, "fetch_silent_meta: silent webview page state");
+        }
+
         // 重试等待真实 favicon 就绪：小字节（默认球 425B）时等待后重试，直至
         // 拿到真实 favicon 或超时（慢速网络下 YouTube 需 ~25s）。
         let mut attempts = 0;
