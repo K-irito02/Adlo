@@ -2,6 +2,7 @@ import { render, act, fireEvent } from '@testing-library/react';
 import { it, expect, vi, beforeEach } from 'vitest';
 import { BrowserFavicon } from './BrowserFavicon';
 import * as cache from '../utils/siteMetaCache';
+import * as pageMeta from '../utils/pageMetaClient';
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -144,4 +145,33 @@ it('renders the new-tab page icon for about:blank (事项 4)', () => {
 it('does NOT render the new-tab page icon for a real URL (事项 4)', () => {
   const { container } = render(<BrowserFavicon url="https://real.example" />);
   expect(container.querySelector('svg.adl-icon')).toBeNull();
+});
+
+it('triggers data-URI backfill via pageMetaClient.get when favicon is external (missing data-URI)', async () => {
+  const getSpy = vi.spyOn(pageMeta.pageMetaClient, 'get').mockResolvedValue(null);
+  mirrorFavicon('https://youtube.com', 'https://www.youtube.com/favicon.ico');
+  render(<BrowserFavicon url="https://youtube.com" />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(getSpy).toHaveBeenCalledWith('https://youtube.com');
+});
+
+it('does NOT trigger backfill when favicon is a data-URI', async () => {
+  const getSpy = vi.spyOn(pageMeta.pageMetaClient, 'get').mockResolvedValue(null);
+  mirrorFavicon('https://cached.example', 'https://cached.example/favicon.ico', 'data:image/png;base64,AA');
+  render(<BrowserFavicon url="https://cached.example" />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(getSpy).not.toHaveBeenCalled();
+});
+
+it('does NOT trigger backfill when no favicon cached at all', async () => {
+  const getSpy = vi.spyOn(pageMeta.pageMetaClient, 'get').mockResolvedValue(null);
+  render(<BrowserFavicon url="https://empty.example" />);
+  await act(async () => {
+    await Promise.resolve();
+  });
+  expect(getSpy).not.toHaveBeenCalled();
 });
