@@ -14,6 +14,9 @@ pub trait WebViewHandle: Send + Sync {
     fn close(&self) -> Result<(), AppError>;
     fn set_bounds(&self, bounds: Bounds) -> Result<(), AppError>;
     fn eval_js(&self, js: &str) -> Result<String, AppError>;
+    /// 执行 JS 并返回其值（ExecuteScript JSON 编码结果）。用于在 silent webview
+    /// 页面上下文内 fetch 同源 favicon 字节（绕过 CORS 与 reqwest 网络限制）。
+    fn eval_js_with_result(&self, js: &str) -> Result<String, AppError>;
     /// 用 WebView2 原生 `ICoreWebView2_15::GetFavicon` 获取当前页面 favicon 的
     /// PNG 字节流（WebView2 用自己的网络栈下载，能访问 reqwest 无法直连的站点，
     /// 如无代理环境下的 YouTube）。返回 PNG 字节；失败/无 favicon 返回空。

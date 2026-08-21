@@ -75,6 +75,56 @@ impl WebViewHandle for TauriWebViewHandle {
         Ok(String::new())
     }
 
+    fn eval_js_with_result(&self, js: &str) -> Result<String, AppError> {
+        #[cfg(windows)]
+        {
+            use webview2_com::ExecuteScriptCompletedHandler;
+
+            let wv = self.webview()?;
+            let (tx, rx) = std::sync::mpsc::channel::<String>();
+            let js_owned = js.to_string();
+            wv.with_webview(move |platform_wv| unsafe {
+                use windows::core::Error as WinError;
+
+                let controller = platform_wv.controller();
+                let _ = match controller.CoreWebView2() {
+                    Ok(core) => ExecuteScriptCompletedHandler::wait_for_async_operation(
+                        Box::new(move |handler| {
+                            let js_utf16 = windows::core::PCWSTR::from_raw(
+                                js_owned.encode_utf16().collect::<Vec<u16>>().as_ptr(),
+                            );
+                            core.ExecuteScript(js_utf16, &handler)
+                                .map_err(webview2_com::Error::WindowsError)
+                        }),
+                        Box::new(
+                            move |error_code, result: String| {
+                                error_code?;
+                                tx.send(result).map_err(|_| {
+                                    WinError::from_hresult(
+                                        windows::Win32::Foundation::E_POINTER,
+                                    )
+                                })?;
+                                Ok(())
+                            },
+                        ),
+                    ),
+                    Err(e) => {
+                        tracing::warn!(error = %e, "eval_js_with_result: CoreWebView2() failed");
+                        Ok(())
+                    },
+                };
+            })
+            .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
+            Ok(rx.recv_timeout(std::time::Duration::from_millis(10000)).unwrap_or_default())
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = self;
+            let _ = js;
+            Ok(String::new())
+        }
+    }
+
     fn get_favicon_data(&self) -> Result<Vec<u8>, AppError> {
         #[cfg(windows)]
         {

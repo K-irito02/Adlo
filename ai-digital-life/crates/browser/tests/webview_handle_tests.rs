@@ -17,6 +17,9 @@ impl WebViewHandle for MockHandle {
     fn eval_js(&self, _js: &str) -> Result<String, adl_errors::AppError> {
         Ok("".into())
     }
+    fn eval_js_with_result(&self, _js: &str) -> Result<String, adl_errors::AppError> {
+        Ok("".into())
+    }
     fn get_favicon_data(&self) -> Result<Vec<u8>, adl_errors::AppError> {
         Ok(Vec::new())
     }
