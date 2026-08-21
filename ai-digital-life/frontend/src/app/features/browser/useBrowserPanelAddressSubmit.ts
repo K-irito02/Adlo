@@ -120,7 +120,7 @@ export function useBrowserPanelAddressSubmit({
       useAppStore.getState().browserAddToHistory(finalUrl, `${searchInfo.engineName}: ${searchInfo.query}`);
     }
     if (useAppStore.getState().isTauri) {
-      browserNavigateActiveTab(finalUrl, undefined);
+      browserNavigateActiveTab(finalUrl, searchInfo ? `${searchInfo.engineName}: ${searchInfo.query}` : undefined);
     }
 
     if (!useAppStore.getState().isTauri && finalUrl) {

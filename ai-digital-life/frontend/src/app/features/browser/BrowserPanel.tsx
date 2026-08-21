@@ -367,6 +367,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     activeTab,
     addressSubmittedForTabRef,
     setAddress,
+    setSearchQueryDisplay,
     setIframeHistory,
     browserMenuOpen,
     setBrowserMenuOpen,
