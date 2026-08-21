@@ -6,6 +6,9 @@ import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { SearchEngine } from '@stores/slices/browserSearchEnginesSlice';
 
+const failedFaviconUrls = new Set<string>();
+const loadedFaviconUrls = new Set<string>();
+
 interface SearchEnginePopoverProps {
   open: boolean;
   onClose: () => void;
@@ -195,16 +198,45 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
 });
 
 function EngineFavicon({ engine, className }: { engine: SearchEngine; className?: string }) {
-  const [error, setError] = useState(false);
-  if (error || !engine.faviconUrl) {
+  const url = engine.faviconUrl;
+  const isKnownFailed = !url || failedFaviconUrls.has(url);
+  const isKnownLoaded = url && loadedFaviconUrls.has(url);
+  const [showFallback, setShowFallback] = useState(isKnownFailed);
+
+  useEffect(() => {
+    if (!url || isKnownFailed || isKnownLoaded) {
+      if (isKnownLoaded) setShowFallback(false);
+      return;
+    }
+
+    const img = new Image();
+    img.onload = () => {
+      loadedFaviconUrls.add(url);
+      setShowFallback(false);
+    };
+    img.onerror = () => {
+      console.warn(`[ADL-SEARCH-ENGINE] favicon load failed: ${engine.name} (${url})`);
+      failedFaviconUrls.add(url);
+      setShowFallback(true);
+    };
+    img.src = url;
+
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [url, engine.name, isKnownFailed, isKnownLoaded]);
+
+  if (showFallback || isKnownFailed) {
     return <IconGlobeSearch size={14} decorative />;
   }
+
   return (
     <img
-      src={engine.faviconUrl}
+      src={url}
       className={className}
       alt=""
-      onError={() => setError(true)}
+      loading="lazy"
     />
   );
 }
@@ -326,7 +358,12 @@ function SearchEngineManageView({
           {t.browserSearchEngineManage}
         </span>
       </div>
-      <div className="adl-search-engine-popover__hint">{t.browserSearchEngineGetMethod}</div>
+      <div className="adl-search-engine-popover__hint">
+        {t.browserSearchEngineGetMethod.split('%s').reduce<React.ReactNode[]>((parts, part, i) => {
+          if (i === 0) return [part];
+          return [...parts, <mark key={i} className="adl-search-engine-popover__hint-mark">%s</mark>, part];
+        }, [])}
+      </div>
       <div className="adl-search-engine-popover__group">
         {customEngines.map((engine) => (
           <div key={engine.id} className="adl-search-engine-popover__manage-item">
