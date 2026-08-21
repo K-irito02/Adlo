@@ -90,14 +90,15 @@ impl WebViewHandle for TauriWebViewHandle {
                 let _ = match controller.CoreWebView2() {
                     Ok(core) => ExecuteScriptCompletedHandler::wait_for_async_operation(
                         Box::new(move |handler| {
-                            // UTF-16 编码的 Vec 在闭包体内存活，`ExecuteScript` 同步
-                            // 调用期间指针有效（WebView2 会复制字符串）。
-                            let js_utf16: Vec<u16> = js_owned.encode_utf16().collect();
-                            core.ExecuteScript(
-                                windows::core::PCWSTR::from_raw(js_utf16.as_ptr()),
-                                &handler,
-                            )
-                            .map_err(webview2_com::Error::WindowsError)
+                            // **必须用 CoTaskMemAlloc 分配持久 COM 内存**：ExecuteScript
+                            // 是异步的，WebView2 在方法返回后仍会读取 JS 字符串。用 Rust
+                            // 临时 Vec 的 as_ptr() 会在 handler 触发前释放 → 悬垂指针 →
+                            // 读取垃圾内存 → ExecuteScript 返回 null/空（已实测探针
+                            // `1+1` 返回空）。`CoTaskMemPWSTR` 分配的 CoTaskMem 内存由
+                            // WebView2 负责释放，生命周期覆盖整个异步操作。
+                            let js_com = webview2_com::CoTaskMemPWSTR::from(js_owned.as_str());
+                            core.ExecuteScript(*js_com.as_ref().as_pcwstr(), &handler)
+                                .map_err(webview2_com::Error::WindowsError)
                         }),
                         Box::new(
                             move |error_code, result: String| {
