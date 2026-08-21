@@ -10,6 +10,8 @@ import {
 import { pageMetaClient } from '../utils/pageMetaClient';
 import { IconNewTabPage, type IconSize } from '../icons';
 
+const EXTERNAL_FAVICON_TIMEOUT_MS = 3000;
+
 /**
  * 取站点首字母作为终级兜底：解析 host 首字符，字母转大写；
  * 数字、非字母（如 '-'、'_'）或解析失败统一回退 '#'。
@@ -85,6 +87,46 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
       unsubUpdated();
     };
   }, [url, ready, applyMetaUpdate]);
+
+  useEffect(() => {
+    const src = faviconUrlRef.current;
+    if (!src || src.startsWith('data:')) {
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      if (!controller.signal.aborted) {
+        console.warn(`[ADL-BROWSER-FAVICON] external favicon timeout (${EXTERNAL_FAVICON_TIMEOUT_MS}ms): ${url?.slice(0, 80)} (src: ${src.slice(0, 80)})`);
+        setDegraded(true);
+        controller.abort();
+      }
+    }, EXTERNAL_FAVICON_TIMEOUT_MS);
+
+    const img = new Image();
+    img.onload = () => {
+      clearTimeout(timer);
+      if (!controller.signal.aborted) {
+        console.info(`[ADL-BROWSER-FAVICON] external favicon loaded: ${url?.slice(0, 80)} (src: ${src.slice(0, 80)})`);
+      }
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      if (!controller.signal.aborted) {
+        console.warn(`[ADL-BROWSER-FAVICON] external favicon failed: ${url?.slice(0, 80)} (src: ${src.slice(0, 80)})`);
+        setDegraded(true);
+        controller.abort();
+      }
+    };
+    img.src = src;
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [faviconUrl, url]);
 
   // 未命中/未就绪：显示占位图标（非空白）
   const current = faviconUrl;
