@@ -56,8 +56,8 @@ export const IconCheckCheck = make(
 
 export const IconSearch = make(
   <>
-    <circle cx="11" cy="11" r="7" />
-    <path d="m20 20-3.5-3.5" />
+    <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+    <path d="M21 21l-6 -6" />
   </>,
 );
 
