@@ -147,14 +147,14 @@ it('does NOT render the new-tab page icon for a real URL (事项 4)', () => {
   expect(container.querySelector('svg.adl-icon')).toBeNull();
 });
 
-it('triggers data-URI backfill via pageMetaClient.get when favicon is external (missing data-URI)', async () => {
+it('triggers data-URI backfill via pageMetaClient.get with force when favicon is external (missing data-URI)', async () => {
   const getSpy = vi.spyOn(pageMeta.pageMetaClient, 'get').mockResolvedValue(null);
   mirrorFavicon('https://youtube.com', 'https://www.youtube.com/favicon.ico');
   render(<BrowserFavicon url="https://youtube.com" />);
   await act(async () => {
     await Promise.resolve();
   });
-  expect(getSpy).toHaveBeenCalledWith('https://youtube.com');
+  expect(getSpy).toHaveBeenCalledWith('https://youtube.com', { force: true });
 });
 
 it('does NOT trigger backfill when favicon is a data-URI', async () => {

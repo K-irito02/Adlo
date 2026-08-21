@@ -8,7 +8,7 @@ use crate::commands::ipc;
 use crate::error::CommandError;
 use crate::state::AppState;
 use crate::webview_event_bridge::TauriWebView2EventBridge;
-use adl_browser::webview_handle::{Bounds, EventBridgeRef};
+use adl_browser::webview_handle::{Bounds, EventBridgeRef, WebViewHandle};
 use adl_browser::{
     CachedMetaBridge, META_SOURCE_COM, PageMeta, PageMetaService, SiteMetaCacheEntry,
     is_placeholder_title, is_unsafe_title, webview_label,
@@ -500,13 +500,96 @@ async fn fetch_silent_meta(
     let page_meta =
         wait_for_silent_meta(&mut rx, state.browser_manager.page_meta_service(), url).await;
 
+    // WebView2 原生 favicon 字节获取（Chrome/Edge 式）：WebView2 用自己的网络栈
+    // 下载 favicon（能访问 reqwest 无法直连的站点，如无代理环境下的 YouTube），
+    // `GetFavicon` 直接返回 PNG 字节流 → 转 data-URI。这是无代理环境下生成
+    // data-URI 的唯一可靠路径（reqwest 直连超时 / 前端 canvas 被 CORS 污染）。
+    let webview_favicon_data_uri: Option<String> = {
+        let handle = crate::tauri_webview_handle::TauriWebViewHandle::new(
+            app.clone(),
+            silent_webview_label(&tab_id),
+        );
+        match handle.get_favicon_data() {
+            Ok(bytes) if !bytes.is_empty() => {
+                tracing::info!(
+                    url = %url,
+                    bytes_len = bytes.len(),
+                    "fetch_silent_meta: WebView2 GetFavicon succeeded"
+                );
+                let content_type = "image/png";
+                Some(format!(
+                    "data:{content_type};base64,{}",
+                    base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes)
+                ))
+            },
+            Ok(_) => {
+                tracing::warn!(
+                    url = %url,
+                    "fetch_silent_meta: WebView2 GetFavicon returned no data"
+                );
+                None
+            },
+            Err(e) => {
+                tracing::warn!(url = %url, error = %e, "fetch_silent_meta: WebView2 GetFavicon failed");
+                None
+            },
+        }
+    };
+
     destroy_silent_webview(&app, &tab_id);
+
+    // WebView2 原生获取成功 → 直接回填 data-URI（优先于 reqwest 后台下载）。
+    if let Some(data_uri) = webview_favicon_data_uri {
+        if !data_uri.is_empty() {
+            let cache_key = resolve_favicon_backfill_key(
+                state.browser_manager.page_meta_service(),
+                &page_meta.url,
+                url,
+                &page_meta.favicon,
+            );
+            if !cache_key.is_empty() {
+                match state.browser_manager.page_meta_service().update_favicon_data_uri(
+                    &cache_key,
+                    &data_uri,
+                ) {
+                    Ok(true) => {
+                        tracing::info!(
+                            url = %url,
+                            cache_key = %cache_key,
+                            data_uri_len = data_uri.len(),
+                            "fetch_silent_meta: data-URI persisted via WebView2 GetFavicon"
+                        );
+                        if let Some(e) = state.browser_manager.page_meta_service().peek(&cache_key) {
+                            emit_page_meta_updated_raw(&app, &cache_key, &e, META_SOURCE_COM);
+                        }
+                    },
+                    Ok(false) => {
+                        tracing::debug!(
+                            url = %url,
+                            cache_key = %cache_key,
+                            "fetch_silent_meta: no data-URI backfill (entry missing or unchanged)"
+                        );
+                    },
+                    Err(e) => {
+                        tracing::warn!(
+                            url = %url,
+                            cache_key = %cache_key,
+                            error = %e,
+                            "fetch_silent_meta: persist WebView2 data-URI failed"
+                        );
+                    },
+                }
+            }
+        }
+    }
 
     // 静默路径补全 data-URI（M2）：WebView2 只给出 favicon URL，若前端直接跨域 <img>
     // 加载会命中 CDN 防盗链（bilibili/runoob 等），导致渲染回退到兜底图标。以页面自身
     // 为 Referer 下载 favicon 字节内嵌为 data-URI，使渲染不受跨域/防盗链影响。
     // 下载移入后台任务：命令先行返回（≤6s 抓取窗口），favicon 字节下载（至多 ~10s）
     // 不再阻塞调用方；完成后持久化 + emit 广播，前端镜像自愈。
+    // 注：WebView2 原生 GetFavicon 已回填 data-URI 时，此处 favicon_data_uri 非空，
+    // 条件不满足 → 不会重复触发 reqwest 下载。
     if !page_meta.favicon.is_empty() && page_meta.favicon_data_uri.is_empty() {
         // L1：条目经 report 存于实际最终 URL（重定向后 ≠ 请求 URL），data-URI 必须以
         // 持有该 favicon 的条目键回填（重定向/fork 时标题与 favicon 可能分落两键，

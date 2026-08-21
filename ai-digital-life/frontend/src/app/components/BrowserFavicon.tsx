@@ -81,13 +81,14 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   }, [url, ready, applyMetaUpdate]);
 
   // data-URI 回填触发：当前 favicon 是外部 URL（缺 data-URI）时，调用
-  // pageMetaClient.get(url) 命中 Rust `browser_page_meta_get` 的"缓存命中但缺
-  // data-URI"路径 → 触发 spawn_favicon_download 后台下载 favicon 字节 → data-URI
-  // 持久化 SQLite 并广播回前端镜像自愈。
+  // pageMetaClient.get(url, { force: true }) 走 Rust `browser_page_meta_get` 的
+  // force 路径 → fetch_silent_meta 创建 silent webview 渲染页面 → **WebView2 原生
+  // GetFavicon 获取 favicon 字节**（WebView2 用自己的网络栈，能访问 reqwest 无法
+  // 直连的站点，如无代理环境下的 YouTube）→ data-URI 持久化 SQLite 并广播回前端。
   //
   // 背景：persistFaviconUrl 把外部 faviconUrl 落库后，warmup 会因 faviconUrl 非空
-  // 视为"有效缓存"跳过静默渲染，导致 Rust 下载永远不触发 → data-URI 永不生成。
-  // 此处在组件渲染时显式补触发一次（幂等：同一 URL 只触发一次，直到 data-URI 落地）。
+  // 视为"有效缓存"跳过静默渲染，导致 data-URI 永不生成。此处在组件渲染时显式
+  // force 补触发一次（幂等：同一 URL 只触发一次，直到 data-URI 落地）。
   useEffect(() => {
     if (!url || !faviconUrl || faviconUrl.startsWith('data:')) {
       return;
@@ -97,9 +98,9 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     }
     backfillTriggeredRef.current = url;
     console.info(
-      `[ADL-BROWSER-FAVICON] triggering data-URI backfill: ${url.slice(0, 80)} (src: ${faviconUrl.slice(0, 80)})`,
+      `[ADL-BROWSER-FAVICON] triggering WebView2 data-URI backfill: ${url.slice(0, 80)} (src: ${faviconUrl.slice(0, 80)})`,
     );
-    void pageMetaClient.get(url);
+    void pageMetaClient.get(url, { force: true });
   }, [url, faviconUrl]);
 
   // 未命中/未就绪：显示占位图标（非空白）

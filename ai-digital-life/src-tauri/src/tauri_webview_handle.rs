@@ -2,6 +2,32 @@ use adl_browser::webview_handle::{Bounds, WebViewHandle};
 use adl_errors::AppError;
 use tauri::{AppHandle, Manager, Webview};
 
+/// 读取 COM `IStream` 的全部字节（favicon 图片流）。循环 Read 直至返回 0 字节。
+#[cfg(windows)]
+fn read_istream_bytes(stream: &windows::Win32::System::Com::IStream) -> std::io::Result<Vec<u8>> {
+    let mut out: Vec<u8> = Vec::new();
+    let mut buffer = [0u8; 8192];
+    loop {
+        let mut bytes_read = 0u32;
+        let hr = unsafe {
+            stream.Read(
+                buffer.as_mut_ptr() as *mut core::ffi::c_void,
+                buffer.len() as u32,
+                Some(&mut bytes_read),
+            )
+        };
+        if hr.is_ok() {
+            if bytes_read == 0 {
+                break;
+            }
+            out.extend_from_slice(&buffer[..bytes_read as usize]);
+        } else {
+            break;
+        }
+    }
+    Ok(out)
+}
+
 pub struct TauriWebViewHandle {
     label: String,
     app: AppHandle,
@@ -47,6 +73,68 @@ impl WebViewHandle for TauriWebViewHandle {
     fn eval_js(&self, js: &str) -> Result<String, AppError> {
         self.webview()?.eval(js).map_err(|e| AppError::Internal(e.to_string()))?;
         Ok(String::new())
+    }
+
+    fn get_favicon_data(&self) -> Result<Vec<u8>, AppError> {
+        #[cfg(windows)]
+        {
+            use windows::core::Interface as _;
+
+            let wv = self.webview()?;
+            let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
+            wv.with_webview(move |platform_wv| unsafe {
+                use webview2_com::Microsoft::Web::WebView2::Win32::{
+                    COREWEBVIEW2_FAVICON_IMAGE_FORMAT_PNG, ICoreWebView2_15,
+                };
+                use webview2_com::GetFaviconCompletedHandler;
+                use windows::core::Error as WinError;
+
+                let controller = platform_wv.controller();
+                let _ = match controller.CoreWebView2() {
+                    Ok(core) => match core.cast::<ICoreWebView2_15>() {
+                        Ok(core15) => GetFaviconCompletedHandler::wait_for_async_operation(
+                            Box::new(move |handler| {
+                                core15
+                                    .GetFavicon(COREWEBVIEW2_FAVICON_IMAGE_FORMAT_PNG, &handler)
+                                    .map_err(webview2_com::Error::WindowsError)
+                            }),
+                            Box::new(
+                                move |error_code, stream: Option<windows::Win32::System::Com::IStream>| {
+                                    error_code?;
+                                    let bytes = stream
+                                        .and_then(|s| read_istream_bytes(&s).ok())
+                                        .unwrap_or_default();
+                                    tx.send(bytes).map_err(|_| {
+                                        WinError::from_hresult(
+                                            windows::Win32::Foundation::E_POINTER,
+                                        )
+                                    })?;
+                                    Ok(())
+                                },
+                            ),
+                        ),
+                        Err(e) => {
+                            tracing::warn!(
+                                error = %e,
+                                "get_favicon_data: ICoreWebView2_15 cast failed"
+                            );
+                            Ok(())
+                        },
+                    },
+                    Err(e) => {
+                        tracing::warn!(error = %e, "get_favicon_data: CoreWebView2() failed");
+                        Ok(())
+                    },
+                };
+            })
+            .map_err(|e| AppError::Internal(format!("with_webview failed: {e}")))?;
+            Ok(rx.recv_timeout(std::time::Duration::from_millis(5000)).unwrap_or_default())
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = self;
+            Ok(Vec::new())
+        }
     }
 
     fn set_color_scheme(&self, scheme: &str) -> Result<(), AppError> {

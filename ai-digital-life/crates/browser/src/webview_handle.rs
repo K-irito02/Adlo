@@ -14,6 +14,10 @@ pub trait WebViewHandle: Send + Sync {
     fn close(&self) -> Result<(), AppError>;
     fn set_bounds(&self, bounds: Bounds) -> Result<(), AppError>;
     fn eval_js(&self, js: &str) -> Result<String, AppError>;
+    /// 用 WebView2 原生 `ICoreWebView2_15::GetFavicon` 获取当前页面 favicon 的
+    /// PNG 字节流（WebView2 用自己的网络栈下载，能访问 reqwest 无法直连的站点，
+    /// 如无代理环境下的 YouTube）。返回 PNG 字节；失败/无 favicon 返回空。
+    fn get_favicon_data(&self) -> Result<Vec<u8>, AppError>;
     fn set_color_scheme(&self, scheme: &str) -> Result<(), AppError>;
     fn id(&self) -> &str;
     fn show(&self) -> Result<(), AppError>;
