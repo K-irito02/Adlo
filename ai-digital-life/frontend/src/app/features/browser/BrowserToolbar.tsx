@@ -5,6 +5,7 @@ import {
   IconPlus,
   IconRefreshCw,
   IconSearch,
+  IconSearchEngine,
   IconStar,
   IconStarFilled,
   IconPanelLeft,
@@ -215,7 +216,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
             onClick={() => setSearchEnginePopoverOpen((v) => !v)}
             aria-label={t.browserSearchEngineSettings}
           >
-            <IconSearch size={14} decorative />
+            <IconSearchEngine size={14} decorative />
           </button>
         </TooltipSimple>
         <BrowserMenuDropdown

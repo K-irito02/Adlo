@@ -86,6 +86,7 @@ export {
   IconCheck,
   IconCheckCheck,
   IconSearch,
+  IconSearchEngine,
   IconSend,
   IconDownload,
   IconUpload,
