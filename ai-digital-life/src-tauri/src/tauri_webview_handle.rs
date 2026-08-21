@@ -90,11 +90,14 @@ impl WebViewHandle for TauriWebViewHandle {
                 let _ = match controller.CoreWebView2() {
                     Ok(core) => ExecuteScriptCompletedHandler::wait_for_async_operation(
                         Box::new(move |handler| {
-                            let js_utf16 = windows::core::PCWSTR::from_raw(
-                                js_owned.encode_utf16().collect::<Vec<u16>>().as_ptr(),
-                            );
-                            core.ExecuteScript(js_utf16, &handler)
-                                .map_err(webview2_com::Error::WindowsError)
+                            // UTF-16 编码的 Vec 在闭包体内存活，`ExecuteScript` 同步
+                            // 调用期间指针有效（WebView2 会复制字符串）。
+                            let js_utf16: Vec<u16> = js_owned.encode_utf16().collect();
+                            core.ExecuteScript(
+                                windows::core::PCWSTR::from_raw(js_utf16.as_ptr()),
+                                &handler,
+                            )
+                            .map_err(webview2_com::Error::WindowsError)
                         }),
                         Box::new(
                             move |error_code, result: String| {

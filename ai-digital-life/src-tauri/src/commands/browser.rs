@@ -515,64 +515,94 @@ async fn fetch_silent_meta(
             app.clone(),
             silent_webview_label(&tab_id),
         );
-        // JS：同源 fetch favicon → base64 data-URI。
-        // **必须同步**：`ExecuteScript` 不等待 Promise，async IIFE 返回 Promise 无法
-        // 序列化（结果恒为空）。改用同步 XMLHttpRequest——silent webview 后台不可见，
-        // 阻塞渲染线程可接受；且 backfill 在 `<img>` onLoad 后触发，favicon 已在
-        // WebView2 磁盘缓存，同步 XHR 直接命中缓存快速返回。
+        // JS：异步 fetch favicon → 存全局 `window.__adlFavicon`。
+        // **不能同步 XHR**（WebView2 禁止主线程同步 XHR，且会阻塞渲染进程导致
+        // ExecuteScript 回调超时返回空）。改用异步 fetch，完成后把 data-URI 存入
+        // 全局变量；Rust 侧随后用同步 `eval_js_with_result` 读取该全局变量（秒回）。
         let favicon_url = page_meta.favicon.clone();
         let js = format!(
             r#"(function() {{
                 try {{
-                    var xhr = new XMLHttpRequest();
-                    xhr.open('GET', {favicon_url_json}, false);
-                    xhr.responseType = 'arraybuffer';
-                    xhr.send(null);
-                    if (xhr.status !== 200) return 'ERR_STATUS:' + xhr.status;
-                    if (!xhr.response) return 'ERR_NO_RESPONSE';
-                    var bytes = new Uint8Array(xhr.response);
-                    var bin = '';
-                    var chunk = 0x8000;
-                    for (var i = 0; i < bytes.length; i += chunk) {{
-                        bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-                    }}
-                    return 'data:image/png;base64,' + btoa(bin);
+                    window.__adlFavicon = '';
+                    fetch({favicon_url_json}, {{ credentials: 'omit' }})
+                        .then(function(r) {{
+                            if (!r.ok) {{ window.__adlFavicon = 'ERR_STATUS:' + r.status; return; }}
+                            return r.arrayBuffer();
+                        }})
+                        .then(function(buf) {{
+                            if (!buf) return;
+                            var bytes = new Uint8Array(buf);
+                            var bin = '';
+                            var chunk = 0x8000;
+                            for (var i = 0; i < bytes.length; i += chunk) {{
+                                bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+                            }}
+                            window.__adlFavicon = 'data:image/png;base64,' + btoa(bin);
+                        }})
+                        .catch(function(e) {{
+                            window.__adlFavicon = 'ERR_EXC:' + (e && e.name ? e.name : String(e));
+                        }});
                 }} catch (e) {{
-                    return 'ERR_EXC:' + (e && e.name ? e.name : String(e));
+                    window.__adlFavicon = 'ERR_EXC:' + (e && e.name ? e.name : String(e));
                 }}
-            }})()"#,
+            }})(); 'started'"#,
             favicon_url_json = serde_json::to_string(&favicon_url).unwrap_or_default(),
         );
-        match handle.eval_js_with_result(&js) {
-            // ExecuteScript 结果 JSON 编码：data-URI 字符串被包裹为 `"data:..."`。
-            // 可能返回 `""`（脚本返回空串）或错误标记 `ERR_*`。
-            Ok(result_json) => {
-                let data_uri: String = serde_json::from_str(&result_json).unwrap_or_default();
-                if !data_uri.is_empty() && data_uri.len() > FAVICON_MIN_DATA_URI_LEN {
-                    tracing::info!(
-                        url = %url,
-                        data_uri_len = data_uri.len(),
-                        "fetch_silent_meta: WebView2 same-origin fetch favicon succeeded"
-                    );
-                    Some(data_uri)
-                } else {
+
+        // 诊断探针：确认 ExecuteScript 结果获取机制本身可用（`1+1` 应返回 `"2"`）。
+        if let Ok(probe_json) = handle.eval_js_with_result("1+1") {
+            tracing::info!(
+                url = %url,
+                probe = %probe_json,
+                "fetch_silent_meta: ExecuteScript probe result"
+            );
+        } else {
+            tracing::warn!(
+                url = %url,
+                "fetch_silent_meta: ExecuteScript probe failed (eval_js_with_result returned Err)"
+            );
+        }
+
+        let _ = handle.eval_js_with_result(&js);
+
+        // 轮询读取 `window.__adlFavicon`（异步 fetch 完成后写入）。同步读取秒回。
+        let mut attempts = 0;
+        let mut favicon_data_uri: String = String::new();
+        while attempts < 15 {
+            std::thread::sleep(std::time::Duration::from_millis(1000));
+            let read_js = "window.__adlFavicon || ''";
+            if let Ok(result_json) = handle.eval_js_with_result(read_js) {
+                let parsed: String = serde_json::from_str(&result_json).unwrap_or_default();
+                if parsed.starts_with("data:image/") && parsed.len() > FAVICON_MIN_DATA_URI_LEN {
+                    favicon_data_uri = parsed;
+                    break;
+                }
+                if parsed.starts_with("ERR_") {
                     tracing::warn!(
                         url = %url,
-                        result_json = %result_json,
-                        parsed = %data_uri,
-                        "fetch_silent_meta: WebView2 fetch favicon failed (empty/error)"
+                        parsed = %parsed,
+                        attempt = attempts + 1,
+                        "fetch_silent_meta: WebView2 fetch favicon error marker"
                     );
-                    None
+                    break;
                 }
-            },
-            Err(e) => {
-                tracing::warn!(
-                    url = %url,
-                    error = %e,
-                    "fetch_silent_meta: WebView2 fetch favicon eval failed"
-                );
-                None
-            },
+            }
+            attempts += 1;
+        }
+        if !favicon_data_uri.is_empty() {
+            tracing::info!(
+                url = %url,
+                data_uri_len = favicon_data_uri.len(),
+                attempts,
+                "fetch_silent_meta: WebView2 async fetch favicon succeeded"
+            );
+            Some(favicon_data_uri)
+        } else {
+            tracing::warn!(
+                url = %url,
+                "fetch_silent_meta: WebView2 fetch favicon timed out"
+            );
+            None
         }
     } else {
         tracing::debug!(
