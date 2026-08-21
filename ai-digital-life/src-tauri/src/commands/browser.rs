@@ -528,7 +528,8 @@ async fn fetch_silent_meta(
                     xhr.open('GET', {favicon_url_json}, false);
                     xhr.responseType = 'arraybuffer';
                     xhr.send(null);
-                    if (xhr.status !== 200 || !xhr.response) return '';
+                    if (xhr.status !== 200) return 'ERR_STATUS:' + xhr.status;
+                    if (!xhr.response) return 'ERR_NO_RESPONSE';
                     var bytes = new Uint8Array(xhr.response);
                     var bin = '';
                     var chunk = 0x8000;
@@ -537,14 +538,14 @@ async fn fetch_silent_meta(
                     }}
                     return 'data:image/png;base64,' + btoa(bin);
                 }} catch (e) {{
-                    return '';
+                    return 'ERR_EXC:' + (e && e.name ? e.name : String(e));
                 }}
             }})()"#,
             favicon_url_json = serde_json::to_string(&favicon_url).unwrap_or_default(),
         );
         match handle.eval_js_with_result(&js) {
-            // ExecuteScript 结果 JSON 编码：data-URI 字符串被包裹为 `"data:..."`，
-            // 需反序列化。
+            // ExecuteScript 结果 JSON 编码：data-URI 字符串被包裹为 `"data:..."`。
+            // 可能返回 `""`（脚本返回空串）或错误标记 `ERR_*`。
             Ok(result_json) => {
                 let data_uri: String = serde_json::from_str(&result_json).unwrap_or_default();
                 if !data_uri.is_empty() && data_uri.len() > FAVICON_MIN_DATA_URI_LEN {
@@ -557,8 +558,9 @@ async fn fetch_silent_meta(
                 } else {
                     tracing::warn!(
                         url = %url,
-                        result_len = result_json.len(),
-                        "fetch_silent_meta: WebView2 fetch favicon returned empty/small data-URI"
+                        result_json = %result_json,
+                        parsed = %data_uri,
+                        "fetch_silent_meta: WebView2 fetch favicon failed (empty/error)"
                     );
                     None
                 }
