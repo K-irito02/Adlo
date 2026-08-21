@@ -51,6 +51,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
       faviconUrlRef.current = next;
       setFaviconUrl(next);
       setDegraded(false);
+      console.info(`[ADL-BROWSER-FAVICON] meta update: ${url?.slice(0, 80)} → ${next ? (next.startsWith('data:') ? 'data-URI' : next.slice(0, 80)) : 'empty'}`);
     }
     const r = url ? isSiteMetaResolved(url) : false;
     if (r !== resolvedRef.current) {
@@ -89,10 +90,13 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const current = faviconUrl;
   const showImg = Boolean(current) && !degraded;
   const handleError = useCallback(() => {
-    // 真实图标加载失败 → 直接降级为内置占位图标（Fix D：不再重试 Google S2）。
-    // 绝不删除缓存：后续广播更新会重置 degraded 并尝试新图标。
+    console.warn(`[ADL-BROWSER-FAVICON] img load failed, degrading: ${url?.slice(0, 80)} (src: ${faviconUrlRef.current?.startsWith('data:') ? 'data-URI' : faviconUrlRef.current?.slice(0, 80)})`);
     setDegraded(true);
-  }, []);
+  }, [url]);
+
+  const handleLoad = useCallback(() => {
+    console.info(`[ADL-BROWSER-FAVICON] img loaded: ${url?.slice(0, 80)} (src: ${faviconUrlRef.current?.startsWith('data:') ? 'data-URI' : faviconUrlRef.current?.slice(0, 80)})`);
+  }, [url]);
 
   // 新标签页（无 URL/about:blank）没有站点 favicon：显示内置"新标签页"图标，
   // 避免空白占位（用户 2026-08-20 报告：open 模式下新建标签页标签图标缺失）。
@@ -115,6 +119,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
           className="adl-browser-tree__favicon"
           style={{ width: size, height: size, transition: 'opacity 0.15s ease-in-out' }}
           onError={handleError}
+          onLoad={handleLoad}
         />
       )}
       <span

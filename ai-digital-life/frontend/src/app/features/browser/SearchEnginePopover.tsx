@@ -8,6 +8,7 @@ import type { SearchEngine } from '@stores/slices/browserSearchEnginesSlice';
 
 const failedFaviconUrls = new Set<string>();
 const loadedFaviconUrls = new Set<string>();
+const PRELOAD_TIMEOUT_MS = 3000;
 
 interface SearchEnginePopoverProps {
   open: boolean;
@@ -204,24 +205,51 @@ function EngineFavicon({ engine, className }: { engine: SearchEngine; className?
   const [showFallback, setShowFallback] = useState(isKnownFailed);
 
   useEffect(() => {
-    if (!url || isKnownFailed || isKnownLoaded) {
-      if (isKnownLoaded) setShowFallback(false);
+    if (!url) {
+      setShowFallback(true);
+      return;
+    }
+    if (isKnownFailed) {
+      setShowFallback(true);
+      return;
+    }
+    if (isKnownLoaded) {
+      setShowFallback(false);
       return;
     }
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      if (!controller.signal.aborted) {
+        console.warn(`[ADL-SEARCH-ENGINE] favicon preload timeout (${PRELOAD_TIMEOUT_MS}ms): ${engine.name} (${url})`);
+        failedFaviconUrls.add(url);
+        setShowFallback(true);
+        controller.abort();
+      }
+    }, PRELOAD_TIMEOUT_MS);
+
     const img = new Image();
     img.onload = () => {
-      loadedFaviconUrls.add(url);
-      setShowFallback(false);
+      clearTimeout(timer);
+      if (!controller.signal.aborted) {
+        loadedFaviconUrls.add(url);
+        setShowFallback(false);
+        console.info(`[ADL-SEARCH-ENGINE] favicon loaded: ${engine.name} (${url})`);
+      }
     };
     img.onerror = () => {
-      console.warn(`[ADL-SEARCH-ENGINE] favicon load failed: ${engine.name} (${url})`);
-      failedFaviconUrls.add(url);
-      setShowFallback(true);
+      clearTimeout(timer);
+      if (!controller.signal.aborted) {
+        console.warn(`[ADL-SEARCH-ENGINE] favicon load failed: ${engine.name} (${url})`);
+        failedFaviconUrls.add(url);
+        setShowFallback(true);
+      }
     };
     img.src = url;
 
     return () => {
+      clearTimeout(timer);
+      controller.abort();
       img.onload = null;
       img.onerror = null;
     };

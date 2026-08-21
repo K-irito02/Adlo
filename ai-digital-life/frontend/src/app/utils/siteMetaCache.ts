@@ -95,7 +95,11 @@ function notify(url: string): void {
  */
 function upsertMirror(key: string, entry: SiteMetaCacheEntry): void {
   const clean = clamp(entry);
+  const prev = memoryCache.get(key);
   memoryCache.set(key, clean);
+  if (entry.faviconDataUri && !prev?.faviconDataUri) {
+    console.info(`[site-meta-cache] data-URI backfilled: ${key.slice(0, 80)} (${entry.faviconDataUri.length} chars)`);
+  }
   notify(key);
 }
 
@@ -328,12 +332,14 @@ export function applyBroadcastUpdate(payload: PageMetaUpdatedPayload): void {
     return;
   }
   console.info('[site-meta-cache] broadcast apply', {
-    url: payload.url,
+    url: payload.url.slice(0, 80),
     srcTitle: payload.title,
-    srcFaviconUrl: payload.faviconUrl,
+    srcFaviconUrl: payload.faviconUrl.slice(0, 80),
     srcFaviconUrlLen: payload.faviconUrl.length,
     hasDataUri: Boolean(payload.faviconDataUri),
+    dataUriLen: payload.faviconDataUri?.length ?? 0,
     hadCache: Boolean(existing),
+    hadExistingDataUri: Boolean(existing?.faviconDataUri),
   });
   upsertMirror(key, {
     title: payload.title || existing?.title || '',
