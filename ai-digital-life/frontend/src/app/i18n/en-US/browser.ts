@@ -181,4 +181,21 @@ export const browserEn = {
   browserBookmarkSaveOnly: 'Save only',
   browserBookmarkSaveAndOpen: 'Save and open',
   resizeLabel: 'Resize browser navigator',
+
+  // Search Engines
+  browserSearchEngineSettings: 'Search Engine Settings',
+  browserSearchEngineManage: 'Manage Custom Search Engines',
+  browserSearchEngineBuiltIn: 'Built-in Engines',
+  browserSearchEngineCustom: 'Custom Engines',
+  browserSearchEngineAdd: 'Add Search Engine',
+  browserSearchEngineEdit: 'Edit',
+  browserSearchEngineDelete: 'Delete',
+  browserSearchEngineName: 'Name',
+  browserSearchEngineUrl: 'URL Template',
+  browserSearchEngineUrlHint: 'Use %s as query placeholder',
+  browserSearchEngineGetMethod: 'Get method: Search once on the target site, copy the result URL, replace the query with %s.',
+  browserSearchEngineCancel: 'Cancel',
+  browserSearchEngineSave: 'Save',
+  browserSearchEngineUrlRequired: 'Please enter a search URL containing %s',
+  browserSearchEngineAddTitle: 'Add Custom Search Engine',
 } as const;
