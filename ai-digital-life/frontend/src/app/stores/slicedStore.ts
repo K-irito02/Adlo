@@ -24,6 +24,7 @@ import {
   createBrowserHistorySlice,
   createBrowserFoldersSlice,
   createBrowserLandingSlice,
+  createBrowserSearchEnginesSlice,
   createBrowserSlice,
   createCiSlice,
   createCommunicateSlice,
@@ -108,6 +109,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createBrowserHistorySlice(set, get), // 浏览器历史记录
   ...createBrowserFoldersSlice(set, get), // 浏览器标签文件夹
   ...createBrowserLandingSlice(set, get), // 浏览器落地页（快捷站点、端口、背景）
+  ...createBrowserSearchEnginesSlice(set, get), // 浏览器搜索引擎配置
   ...createBrowserSlice(set, get), // 浏览器核心状态（导航栏、视图模式、持久化）
   ...createCiSlice(set, get), // CI 状态（GitHub Actions）
   ...createCommunicateSlice(set, get), // 通信状态（多平台）

@@ -86,6 +86,13 @@ export {
   createBrowserLandingSlice,
 } from './slices/browserLandingSlice';
 
+// 浏览器搜索引擎切片
+export {
+  type BrowserSearchEnginesSlice,
+  type SearchEngine,
+  createBrowserSearchEnginesSlice,
+} from './slices/browserSearchEnginesSlice';
+
 // 浏览器切片 — 核心层（组合所有子切片）
 export { type BrowserSlice, createBrowserSlice } from './slices/browserSlice';
 

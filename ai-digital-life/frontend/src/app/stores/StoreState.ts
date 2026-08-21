@@ -56,6 +56,7 @@ import type { BrowserBookmarkSlice } from './slices/browserBookmarkSlice';
 import type { BrowserHistorySlice } from './slices/browserHistorySlice';
 import type { BrowserFoldersSlice } from './slices/browserFoldersSlice';
 import type { BrowserLandingSlice } from './slices/browserLandingSlice';
+import type { BrowserSearchEnginesSlice } from './slices/browserSearchEnginesSlice';
 import type { BrowserSlice } from './slices/browserSlice';
 import type { CiSlice } from './slices/ciSlice';
 import type { CommunicateSlice } from './slices/communicateSlice';
@@ -135,6 +136,7 @@ type AllSlices = [
   BrowserHistorySlice,
   BrowserFoldersSlice,
   BrowserLandingSlice,
+  BrowserSearchEnginesSlice,
   BrowserSlice,
   CiSlice,
   CommunicateSlice,

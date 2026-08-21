@@ -43,14 +43,9 @@ export function isProbablySameSite(expected: string, actual: string): boolean {
   }
 }
 
-export interface SearchEngine {
-  id: string;
-  name: string;
-  urlTemplate: string;
-  isBuiltIn: boolean;
-  isDefault: boolean;
-  faviconUrl?: string;
-}
+import type { SearchEngine } from '../../stores/slices/browserSearchEnginesSlice';
+
+export type { SearchEngine } from '../../stores/slices/browserSearchEnginesSlice';
 
 /**
  * 判断输入是否为搜索词（而非 URL）
