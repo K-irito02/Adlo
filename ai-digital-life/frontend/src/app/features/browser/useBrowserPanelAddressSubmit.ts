@@ -110,9 +110,10 @@ export function useBrowserPanelAddressSubmit({
     handleNavigationStart(finalUrl);
     if (searchInfo) {
       setSearchQueryDisplay(searchInfo.query);
-      console.info(`[ADL-SEARCH] submitAddress: search query="${searchInfo.query}" engine="${searchInfo.engineName}" finalUrl=${finalUrl.slice(0, 100)}`);
+      console.info(`[ADL-SEARCH] submitAddress: search query="${searchInfo.query}" engine="${searchInfo.engineName}" finalUrl=${finalUrl.slice(0, 100)} searchQueryDisplay set to "${searchInfo.query}"`);
     } else {
       setSearchQueryDisplay('');
+      console.info(`[ADL-SEARCH] submitAddress: not a search, searchQueryDisplay cleared`);
     }
     setAddress(finalUrl);
     if (searchInfo) {

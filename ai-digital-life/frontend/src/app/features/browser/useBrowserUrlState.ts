@@ -29,9 +29,10 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
 
   const handleAddressChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
+      setSearchQueryDisplay('');
       setAddress(event.target.value);
     },
-    [setAddress],
+    [setAddress, setSearchQueryDisplay],
   );
 
   const handleAddressKeyDown = useCallback(
@@ -39,7 +40,6 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
       if (event.key === 'Enter') {
         submitAddress();
       } else if (event.key === 'Escape') {
-        setSearchQueryDisplay('');
         if (activeTabUrl !== undefined) {
           setAddress(activeTabUrl);
         }
@@ -47,20 +47,20 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
         addressInputRef.current?.blur();
       }
     },
-    [submitAddress, activeTabUrl, setAddress, setAddressExpanded, addressInputRef, setSearchQueryDisplay],
+    [submitAddress, activeTabUrl, setAddress, setAddressExpanded, addressInputRef],
   );
 
   const handleAddressBlur = useCallback(() => {
     console.info('[ADL-DEBUG][address] blur', {
       activeTabUrl,
       restoreTo: activeTabUrl ?? '(undefined)',
+      searchQueryDisplay,
     });
-    setSearchQueryDisplay('');
     setAddressExpanded(false);
     if (activeTabUrl !== undefined) {
       setAddress(activeTabUrl);
     }
-  }, [setAddressExpanded, activeTabUrl, setAddress, setSearchQueryDisplay]);
+  }, [setAddressExpanded, activeTabUrl, setAddress, searchQueryDisplay]);
 
   const handleSearchClick = useCallback(() => {
     setAddressExpanded(true);
