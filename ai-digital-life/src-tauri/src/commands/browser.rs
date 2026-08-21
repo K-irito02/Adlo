@@ -500,107 +500,76 @@ async fn fetch_silent_meta(
     let page_meta =
         wait_for_silent_meta(&mut rx, state.browser_manager.page_meta_service(), url).await;
 
-    // WebView2 页面上下文同源 fetch favicon（Chrome/Edge 式）：silent webview 已
-    // 渲染出页面（页面 URL 与 favicon 同源，如 youtube.com 页面 + youtube.com
-    // favicon），在页面上下文执行 `fetch(faviconUrl)` **无 CORS 限制**，直接获取
-    // 真实 favicon 字节 → base64 data-URI。这是无代理环境下生成 data-URI 的可靠
-    // 路径：WebView2 用自己的网络栈下载（能访问 reqwest 无法直连的站点），同源
-    // fetch 绕开 CORS 与 WebView2 `GetFavicon` 默认球图标问题。
+    // WebView2 原生 favicon 字节获取（Chrome/Edge 式）：silent webview 渲染出页面
+    // 后，`GetFavicon` 用 WebView2 自己的网络栈下载 favicon 字节（能访问 reqwest
+    // 无法直连的站点，如无代理环境下的 YouTube），绕开 CORS 与 fetch 限制。
+    // 这是无代理环境下生成 data-URI 的可靠路径。
     //
-    // 重要守卫：仅当页面声明了真实 favicon（page_meta.favicon 非空）才执行，
-    // 避免对无 favicon 的页面（如 dogedoge）误抓默认球图标。
+    // 时序关键：`GetFavicon` 在 favicon 字节下载完成前返回**默认球图标**（425B）。
+    // 用户主 WebView `<img>` 加载 favicon 后，favicon 已在共享 HTTP 磁盘缓存；
+    // silent webview 导航同一站点后，WebView2 内部 favicon 下载命中缓存。但仍需
+    // 等待 favicon 就绪——重试直到返回大于阈值（真实 favicon）的字节或超时。
+    //
+    // 守卫：仅当页面声明了真实 favicon（page_meta.favicon 非空）才执行，避免对
+    // 无 favicon 的页面（如 dogedoge）误抓默认球图标。
     let has_real_favicon = !page_meta.favicon.is_empty();
     let webview_favicon_data_uri: Option<String> = if has_real_favicon {
         let handle = crate::tauri_webview_handle::TauriWebViewHandle::new(
             app.clone(),
             silent_webview_label(&tab_id),
         );
-        // JS：异步 fetch favicon → 存全局 `window.__adlFavicon`。
-        // **不能同步 XHR**（WebView2 禁止主线程同步 XHR，且会阻塞渲染进程导致
-        // ExecuteScript 回调超时返回空）。改用异步 fetch，完成后把 data-URI 存入
-        // 全局变量；Rust 侧随后用同步 `eval_js_with_result` 读取该全局变量（秒回）。
-        let favicon_url = page_meta.favicon.clone();
-        let js = format!(
-            r#"(function() {{
-                try {{
-                    window.__adlFavicon = '';
-                    fetch({favicon_url_json}, {{ credentials: 'omit' }})
-                        .then(function(r) {{
-                            if (!r.ok) {{ window.__adlFavicon = 'ERR_STATUS:' + r.status; return; }}
-                            return r.arrayBuffer();
-                        }})
-                        .then(function(buf) {{
-                            if (!buf) return;
-                            var bytes = new Uint8Array(buf);
-                            var bin = '';
-                            var chunk = 0x8000;
-                            for (var i = 0; i < bytes.length; i += chunk) {{
-                                bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
-                            }}
-                            window.__adlFavicon = 'data:image/png;base64,' + btoa(bin);
-                        }})
-                        .catch(function(e) {{
-                            window.__adlFavicon = 'ERR_EXC:' + (e && e.name ? e.name : String(e));
-                        }});
-                }} catch (e) {{
-                    window.__adlFavicon = 'ERR_EXC:' + (e && e.name ? e.name : String(e));
-                }}
-            }})(); 'started'"#,
-            favicon_url_json = serde_json::to_string(&favicon_url).unwrap_or_default(),
-        );
-
-        // 诊断探针：确认 ExecuteScript 结果获取机制本身可用（`1+1` 应返回 `"2"`）。
-        if let Ok(probe_json) = handle.eval_js_with_result("1+1") {
-            tracing::info!(
-                url = %url,
-                probe = %probe_json,
-                "fetch_silent_meta: ExecuteScript probe result"
-            );
-        } else {
-            tracing::warn!(
-                url = %url,
-                "fetch_silent_meta: ExecuteScript probe failed (eval_js_with_result returned Err)"
-            );
-        }
-
-        let _ = handle.eval_js_with_result(&js);
-
-        // 轮询读取 `window.__adlFavicon`（异步 fetch 完成后写入）。同步读取秒回。
+        // 重试等待真实 favicon 就绪：小字节（默认球 425B）时等待后重试，直至
+        // 拿到真实 favicon 或超时（慢速网络下 YouTube 需 ~25s）。
         let mut attempts = 0;
-        let mut favicon_data_uri: String = String::new();
-        while attempts < 15 {
-            std::thread::sleep(std::time::Duration::from_millis(1000));
-            let read_js = "window.__adlFavicon || ''";
-            if let Ok(result_json) = handle.eval_js_with_result(read_js) {
-                let parsed: String = serde_json::from_str(&result_json).unwrap_or_default();
-                if parsed.starts_with("data:image/") && parsed.len() > FAVICON_MIN_DATA_URI_LEN {
-                    favicon_data_uri = parsed;
+        let mut favicon_bytes: Vec<u8> = Vec::new();
+        while attempts < 30 {
+            match handle.get_favicon_data() {
+                Ok(bytes) if bytes.len() >= FAVICON_MIN_BYTES => {
+                    favicon_bytes = bytes;
                     break;
-                }
-                if parsed.starts_with("ERR_") {
+                },
+                Ok(bytes) if !bytes.is_empty() => {
+                    tracing::debug!(
+                        url = %url,
+                        bytes_len = bytes.len(),
+                        attempt = attempts + 1,
+                        "fetch_silent_meta: GetFavicon returned default/small icon, retrying"
+                    );
+                },
+                Ok(_) => {
+                    tracing::debug!(
+                        url = %url,
+                        attempt = attempts + 1,
+                        "fetch_silent_meta: GetFavicon returned no data, retrying"
+                    );
+                },
+                Err(e) => {
                     tracing::warn!(
                         url = %url,
-                        parsed = %parsed,
                         attempt = attempts + 1,
-                        "fetch_silent_meta: WebView2 fetch favicon error marker"
+                        error = %e,
+                        "fetch_silent_meta: GetFavicon failed, retrying"
                     );
-                    break;
-                }
+                },
             }
             attempts += 1;
+            std::thread::sleep(std::time::Duration::from_millis(1000));
         }
-        if !favicon_data_uri.is_empty() {
+        if !favicon_bytes.is_empty() {
             tracing::info!(
                 url = %url,
-                data_uri_len = favicon_data_uri.len(),
+                bytes_len = favicon_bytes.len(),
                 attempts,
-                "fetch_silent_meta: WebView2 async fetch favicon succeeded"
+                "fetch_silent_meta: WebView2 GetFavicon succeeded"
             );
-            Some(favicon_data_uri)
+            Some(format!(
+                "data:image/png;base64,{}",
+                base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &favicon_bytes)
+            ))
         } else {
             tracing::warn!(
                 url = %url,
-                "fetch_silent_meta: WebView2 fetch favicon timed out"
+                "fetch_silent_meta: WebView2 GetFavicon timed out (default ball only)"
             );
             None
         }
@@ -1067,10 +1036,11 @@ fn normalized_content_type(raw: &str) -> String {
 /// multi-resolution .ico / PNG / SVG icons that routinely exceed 64KB.
 const MAX_FAVICON_BYTES: usize = 512 * 1024;
 
-/// WebView2 同源 fetch favicon 返回的 data-URI 长度下限：`data:image/png;base64,`
-/// 前缀约 22 字符，真实 favicon 至少几百字符。仅拒绝空/异常短的结果
-/// （fetch 失败返回空串），不过滤真实小 favicon。
-const FAVICON_MIN_DATA_URI_LEN: usize = 100;
+/// WebView2 `GetFavicon` 返回字节的下限：小于此值视为默认球状图标（无真实
+/// favicon 时 WebView2 返回极小图标，实测 425 字节），不得持久化——否则
+/// YouTube 等显示默认球而不是真实图标。设为 500 以过滤 WebView2 默认球
+/// （425B），同时保留 bing（534B）/douyin（849B）等真实小 favicon。
+const FAVICON_MIN_BYTES: usize = 500;
 
 /// Magic-byte content sniffing fallback for favicons. Many CDNs serve `.ico` /
 /// `.png` without (or with a non-image) `Content-Type`, which would otherwise
