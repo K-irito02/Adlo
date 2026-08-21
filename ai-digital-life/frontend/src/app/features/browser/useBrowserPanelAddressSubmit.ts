@@ -110,6 +110,9 @@ export function useBrowserPanelAddressSubmit({
 
     // Always defer tab creation until real title arrives via handlePageMeta
     handleNavigationStart(finalUrl);
+    if (searchInfo) {
+      console.info(`[ADL-SEARCH] submitAddress: search query="${searchInfo.query}" engine="${searchInfo.engineName}" finalUrl=${finalUrl.slice(0, 100)}`);
+    }
     setAddress(finalUrl);
     if (searchInfo) {
       useAppStore.getState().browserAddToHistory(finalUrl, `${searchInfo.engineName}: ${searchInfo.query}`);

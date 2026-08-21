@@ -155,8 +155,13 @@ export function getCachedSiteMeta(url: string): SiteMetaCacheEntry | undefined {
 
 export function isFaviconConfirmed(url: string): boolean {
   const entry = memoryCache.get(normalizeUrlForCache(url));
-  if (!entry) return false;
-  return Boolean(entry.faviconDataUri || entry.lastOkAt > 0);
+  const exactMatch = Boolean(entry && (entry.faviconDataUri || entry.lastOkAt > 0));
+  const originEntry = findCanonicalOriginEntry(url);
+  const originConfirmed = Boolean(originEntry && (originEntry.entry.faviconDataUri || originEntry.entry.lastOkAt > 0));
+  if (!exactMatch && originConfirmed) {
+    console.info(`[ADL-FAVICON-CACHE] isFaviconConfirmed: exact MISS but origin HIT for ${url.slice(0, 60)} origin=${originOf(url).slice(0, 40)} hasDataUri=${Boolean(originEntry?.entry.faviconDataUri)} lastOkAt=${originEntry?.entry.lastOkAt ?? 0}`);
+  }
+  return exactMatch;
 }
 
 export function getCachedFavicon(url: string): string {

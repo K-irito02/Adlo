@@ -43,13 +43,17 @@ export const createBrowserSearchEnginesSlice = (
 
   initializeSearchEngines: () => {
     const existing = get().searchEngines;
-    if (existing.length > 0) return;
+    if (existing.length > 0) {
+      console.info('[ADL-SEARCH-ENGINE] initialize: already initialized, defaultSearchEngineId=', get().defaultSearchEngineId);
+      return;
+    }
     const engines: SearchEngine[] = BUILT_IN_ENGINES.map((e, idx) => ({
       ...e,
       id: e.name.toLowerCase().replace(/\s+/g, '-'),
       isDefault: idx === 0,
     }));
     writeSearchEngines(engines);
+    console.info('[ADL-SEARCH-ENGINE] initialize: created built-in engines, default=', engines[0].id);
     set({ searchEngines: engines, defaultSearchEngineId: engines[0].id });
   },
 
@@ -57,6 +61,7 @@ export const createBrowserSearchEnginesSlice = (
     set((state) => {
       const next = state.searchEngines.map((e) => ({ ...e, isDefault: e.id === id }));
       writeSearchEngines(next);
+      console.info('[ADL-SEARCH-ENGINE] setDefaultSearchEngine:', id, 'engines count:', next.length);
       return { searchEngines: next, defaultSearchEngineId: id };
     }),
 

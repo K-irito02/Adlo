@@ -94,9 +94,11 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     if (!src || src.startsWith('data:')) {
       return;
     }
-    if (url && isFaviconConfirmed(url)) {
+    const confirmed = url ? isFaviconConfirmed(url) : false;
+    if (confirmed) {
       return;
     }
+    console.info(`[ADL-BROWSER-FAVICON] preload check: ${url?.slice(0, 80)} confirmed=${confirmed} src=${src.slice(0, 80)}`);
 
     const controller = new AbortController();
     const timer = setTimeout(() => {
