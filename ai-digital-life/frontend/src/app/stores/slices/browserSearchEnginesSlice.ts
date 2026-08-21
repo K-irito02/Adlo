@@ -1,5 +1,5 @@
 import type { StoreState } from '../StoreState';
-import { makePersistedWriter } from '../shared';
+import { makePersistedWriter, readJson } from '../shared';
 
 export interface SearchEngine {
   id: string;
@@ -22,6 +22,7 @@ const BUILT_IN_ENGINES: Omit<SearchEngine, 'id'>[] = [
 ];
 
 const writeSearchEngines = makePersistedWriter('adl:browser:searchEngines');
+const writeDefaultEngineId = makePersistedWriter('adl:browser:defaultSearchEngineId');
 
 export interface BrowserSearchEnginesSlice {
   searchEngines: SearchEngine[];
@@ -53,14 +54,20 @@ export const createBrowserSearchEnginesSlice = (
       isDefault: idx === 0,
     }));
     writeSearchEngines(engines);
-    console.info('[ADL-SEARCH-ENGINE] initialize: created built-in engines, default=', engines[0].id);
-    set({ searchEngines: engines, defaultSearchEngineId: engines[0].id });
+
+    const savedId = readJson<string>('adl:browser:defaultSearchEngineId', '');
+    const savedEngine = savedId ? engines.find((e) => e.id === savedId) : undefined;
+    const defaultId = savedEngine ? savedId : engines[0].id;
+
+    console.info('[ADL-SEARCH-ENGINE] initialize: built-in engines created, default=', defaultId, savedId ? '(restored)' : '(fallback)');
+    set({ searchEngines: engines, defaultSearchEngineId: defaultId });
   },
 
   setDefaultSearchEngine: (id) =>
     set((state) => {
       const next = state.searchEngines.map((e) => ({ ...e, isDefault: e.id === id }));
       writeSearchEngines(next);
+      writeDefaultEngineId(id);
       console.info('[ADL-SEARCH-ENGINE] setDefaultSearchEngine:', id, 'engines count:', next.length);
       return { searchEngines: next, defaultSearchEngineId: id };
     }),

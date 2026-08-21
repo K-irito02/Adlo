@@ -7,6 +7,8 @@ interface UseBrowserUrlStateOptions {
   addressInputRef: React.RefObject<HTMLInputElement | null>;
   setAddress: React.Dispatch<React.SetStateAction<string>>;
   setAddressExpanded: React.Dispatch<React.SetStateAction<boolean>>;
+  searchQueryDisplay: string;
+  setSearchQueryDisplay: React.Dispatch<React.SetStateAction<string>>;
   submitAddress: () => void;
   activeTabUrl?: string;
 }
@@ -19,6 +21,8 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
     addressInputRef,
     setAddress,
     setAddressExpanded,
+    searchQueryDisplay,
+    setSearchQueryDisplay,
     submitAddress,
     activeTabUrl,
   } = options;
@@ -35,6 +39,7 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
       if (event.key === 'Enter') {
         submitAddress();
       } else if (event.key === 'Escape') {
+        setSearchQueryDisplay('');
         if (activeTabUrl !== undefined) {
           setAddress(activeTabUrl);
         }
@@ -42,20 +47,20 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
         addressInputRef.current?.blur();
       }
     },
-    [submitAddress, activeTabUrl, setAddress, setAddressExpanded, addressInputRef],
+    [submitAddress, activeTabUrl, setAddress, setAddressExpanded, addressInputRef, setSearchQueryDisplay],
   );
 
   const handleAddressBlur = useCallback(() => {
-    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：失焦时地址栏恢复值（不提交导航）。
     console.info('[ADL-DEBUG][address] blur', {
       activeTabUrl,
       restoreTo: activeTabUrl ?? '(undefined)',
     });
+    setSearchQueryDisplay('');
     setAddressExpanded(false);
     if (activeTabUrl !== undefined) {
       setAddress(activeTabUrl);
     }
-  }, [setAddressExpanded, activeTabUrl, setAddress]);
+  }, [setAddressExpanded, activeTabUrl, setAddress, setSearchQueryDisplay]);
 
   const handleSearchClick = useCallback(() => {
     setAddressExpanded(true);
@@ -84,6 +89,7 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
       addressExpanded,
       addressSearchRef,
       addressInputRef,
+      searchQueryDisplay,
       handleAddressChange,
       handleAddressKeyDown,
       handleAddressBlur,
@@ -95,6 +101,7 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
       addressExpanded,
       addressSearchRef,
       addressInputRef,
+      searchQueryDisplay,
       handleAddressChange,
       handleAddressKeyDown,
       handleAddressBlur,

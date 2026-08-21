@@ -38,6 +38,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
       addressExpanded,
       addressSearchRef,
       addressInputRef,
+      searchQueryDisplay,
       handleAddressChange,
       handleAddressKeyDown,
       handleAddressBlur,
@@ -158,7 +159,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
             )}
           </span>
           <span className="adl-tool-search__preview" aria-hidden={addressExpanded}>
-            {address.trim()}
+            {searchQueryDisplay || address.trim()}
           </span>
           <input
             ref={addressInputRef}

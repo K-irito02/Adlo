@@ -42,6 +42,7 @@ export interface BrowserPanelState {
     addressExpanded: boolean;
     addressSearchRef: React.RefObject<HTMLLabelElement | null>;
     addressInputRef: React.RefObject<HTMLInputElement | null>;
+    searchQueryDisplay: string;
     handleAddressChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleAddressKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
     handleAddressBlur: () => void;

@@ -21,6 +21,7 @@ export function useBrowserNavigatorState({
   const [navigatorMode, setNavigatorMode] = useState<BrowserNavigatorMode>('tabs');
   const [address, setAddress] = useState('');
   const [addressExpanded, setAddressExpanded] = useState(false);
+  const [searchQueryDisplay, setSearchQueryDisplay] = useState('');
   const addressSearchRef = useRef<HTMLLabelElement | null>(null);
   const addressInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -90,6 +91,8 @@ export function useBrowserNavigatorState({
     setAddress,
     addressExpanded,
     setAddressExpanded,
+    searchQueryDisplay,
+    setSearchQueryDisplay,
     addressSearchRef,
     addressInputRef,
     selectedTreePath,

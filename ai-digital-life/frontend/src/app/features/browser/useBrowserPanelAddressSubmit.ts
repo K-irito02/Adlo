@@ -9,6 +9,7 @@ import { pageMetaClient } from '@utils/pageMetaClient';
 interface UseBrowserPanelAddressSubmitParams {
   address: string;
   setAddress: (address: string) => void;
+  setSearchQueryDisplay: (query: string) => void;
   browserLookupIndex: { title: string; url: string }[];
   handleNavigationStart: (url: string) => void;
   navigateBrowser: (url: string) => void;
@@ -24,6 +25,7 @@ interface UseBrowserPanelAddressSubmitParams {
 export function useBrowserPanelAddressSubmit({
   address,
   setAddress,
+  setSearchQueryDisplay,
   browserLookupIndex,
   handleNavigationStart,
   navigateBrowser,
@@ -38,10 +40,6 @@ export function useBrowserPanelAddressSubmit({
   const submitAddress = useCallback(async () => {
     const input = address.trim();
     if (!input) {
-      // Empty input: restore the address bar to the current tab's URL
-      // instead of showing the landing page. This ensures that pressing
-      // Enter with an empty address bar (e.g. after clicking "+") does
-      // not change anything — the user must enter a URL to navigate.
       const state = useAppStore.getState();
       const activeTab = state.browserTabs.find((t) => t.id === state.browserActiveTabId);
       const currentUrl = activeTab?.url ?? '';
@@ -111,7 +109,10 @@ export function useBrowserPanelAddressSubmit({
     // Always defer tab creation until real title arrives via handlePageMeta
     handleNavigationStart(finalUrl);
     if (searchInfo) {
+      setSearchQueryDisplay(searchInfo.query);
       console.info(`[ADL-SEARCH] submitAddress: search query="${searchInfo.query}" engine="${searchInfo.engineName}" finalUrl=${finalUrl.slice(0, 100)}`);
+    } else {
+      setSearchQueryDisplay('');
     }
     setAddress(finalUrl);
     if (searchInfo) {
@@ -143,6 +144,7 @@ export function useBrowserPanelAddressSubmit({
     }
   }, [
     address,
+    setSearchQueryDisplay,
     browserLookupIndex,
     handleNavigationStart,
     navigateBrowser,

@@ -209,6 +209,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setAddress,
     addressExpanded,
     setAddressExpanded,
+    searchQueryDisplay,
+    setSearchQueryDisplay,
     addressSearchRef,
     addressInputRef,
     selectedTreePath,
@@ -328,6 +330,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const { submitAddress } = useBrowserPanelAddressSubmit({
     address,
     setAddress,
+    setSearchQueryDisplay,
     browserLookupIndex,
     handleNavigationStart,
     navigateBrowser,
@@ -354,6 +357,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     addressInputRef,
     setAddress,
     setAddressExpanded,
+    searchQueryDisplay,
+    setSearchQueryDisplay,
     submitAddress,
     activeTabUrl,
   });
@@ -362,6 +367,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     activeTab,
     addressSubmittedForTabRef,
     setAddress,
+    setSearchQueryDisplay,
     setIframeHistory,
     browserMenuOpen,
     setBrowserMenuOpen,

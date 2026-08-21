@@ -18,6 +18,7 @@ interface UseBrowserPanelEffectsParams {
   activeTab: BrowserTabState | undefined;
   addressSubmittedForTabRef: MutableRefObject<string>;
   setAddress: Dispatch<SetStateAction<string>>;
+  setSearchQueryDisplay: Dispatch<SetStateAction<string>>;
   setIframeHistory: Dispatch<SetStateAction<IframeHistoryState>>;
   browserMenuOpen: boolean;
   setBrowserMenuOpen: Dispatch<SetStateAction<boolean>>;
@@ -34,6 +35,7 @@ export function useBrowserPanelEffects({
   activeTab,
   addressSubmittedForTabRef,
   setAddress,
+  setSearchQueryDisplay,
   setIframeHistory,
   browserMenuOpen,
   setBrowserMenuOpen,
@@ -47,12 +49,12 @@ export function useBrowserPanelEffects({
 }: UseBrowserPanelEffectsParams): void {
   useEffect(() => {
     const url = activeTab?.url ?? '';
-    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：activeTab 切换时地址栏同步值。
     console.info('[ADL-DEBUG][address] activeTab sync', {
       tabId: activeTab?.id ?? null,
       url,
       setAddressTo: url === 'about:blank' ? '' : url,
     });
+    setSearchQueryDisplay('');
     addressSubmittedForTabRef.current = url || 'about:blank';
     setAddress(url === 'about:blank' ? '' : url);
 
@@ -71,7 +73,7 @@ export function useBrowserPanelEffects({
         });
       });
     }
-  }, [activeTab?.id, activeTab?.url, setAddress, setIframeHistory, addressSubmittedForTabRef]);
+  }, [activeTab?.id, activeTab?.url, setAddress, setSearchQueryDisplay, setIframeHistory, addressSubmittedForTabRef]);
 
   useEffect(() => {
     if (!browserMenuOpen && !addressExpanded && navigatorMode !== 'search') {
