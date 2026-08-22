@@ -724,15 +724,6 @@ pub async fn browser_page_meta_get(
     emit_page_meta_updated(&app, &meta, META_SOURCE_COM);
     Ok(ipc(Ok(meta)))
 }
-                return Ok(ipc(Ok(meta)));
-            }
-        }
-    }
-    tracing::info!(url = %url, force = force.unwrap_or(false), "browser_page_meta_get: cache miss, fetching via silent webview");
-    let meta = fetch_silent_meta(app.clone(), &state, &url).await?;
-    emit_page_meta_updated(&app, &meta, META_SOURCE_COM);
-    Ok(ipc(Ok(meta)))
-}
 
 #[tauri::command]
 pub async fn browser_page_meta_report(
