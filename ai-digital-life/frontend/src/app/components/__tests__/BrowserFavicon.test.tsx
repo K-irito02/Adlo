@@ -1,7 +1,7 @@
 import { render, act, fireEvent } from '@testing-library/react';
 import { it, expect, vi, beforeEach } from 'vitest';
-import { BrowserFavicon } from './BrowserFavicon';
-import * as cache from '../utils/siteMetaCache';
+import { BrowserFavicon } from '../BrowserFavicon';
+import * as cache from '../../utils/siteMetaCache';
 
 beforeEach(() => {
   vi.restoreAllMocks();

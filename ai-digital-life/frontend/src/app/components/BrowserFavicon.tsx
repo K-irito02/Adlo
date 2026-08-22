@@ -83,11 +83,8 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const current = faviconUrl;
   const showImg = Boolean(current) && !degraded;
   const handleError = useCallback(() => {
-    console.warn(
-      `[ADL-BROWSER-FAVICON] img load failed, degrading: ${url?.slice(0, 80)} (src: ${faviconUrlRef.current?.startsWith('data:') ? 'data-URI' : faviconUrlRef.current?.slice(0, 80)})`,
-    );
     setDegraded(true);
-  }, [url]);
+  }, []);
 
   // 新标签页（无 URL/about:blank）没有站点 favicon：显示内置"新标签页"图标，
   // 避免空白占位（用户 2026-08-20 报告：open 模式下新建标签页标签图标缺失）。

@@ -386,9 +386,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         }
       }
 
-      // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：URL 变化事件无条件刷新地址栏——
-      // 若发生在"新建标签页"切换之后，可能把新标签页空地址覆盖回旧链接。
-      console.info('[ADL-DEBUG][address] onUrlChanged setAddress', { tabId, url: normalizedUrl });
       setAddress(normalizedUrl);
 
       // 从搜索结果 URL 中提取查询文本显示在地址栏
@@ -407,7 +404,14 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       }
       fallbackTimeoutsRef.current.clear();
     };
-  }, [markUrlSeen, setAddress, onNavigationStart, onPageMeta, expectedNavigationUrlRef]);
+  }, [
+    markUrlSeen,
+    setAddress,
+    onNavigationStart,
+    onPageMeta,
+    expectedNavigationUrlRef,
+    setSearchQueryDisplay,
+  ]);
 
   return {
     handleIframeLoad,

@@ -41,6 +41,7 @@ export function ShimmeringText({
 }: ShimmeringTextProps) {
   const reducedMotion = useReducedMotion();
   const stopped = isStopped || paused || reducedMotion === true;
+  const effectiveStagger = Number.isFinite(staggerSpread) && staggerSpread > 0 ? staggerSpread : 1;
 
   const createCharVariants = useCallback(
     (charIndex: number): Variants => ({
@@ -51,7 +52,7 @@ export function ShimmeringText({
           repeat: Number.POSITIVE_INFINITY,
           repeatType: 'loop',
           repeatDelay: text.length * 0.05,
-          delay: ((charIndex * duration) / text.length) * staggerSpread,
+          delay: ((charIndex * duration) / text.length) * effectiveStagger,
           ease: 'easeInOut',
         },
       },
@@ -63,7 +64,7 @@ export function ShimmeringText({
         },
       },
     }),
-    [duration, text.length, staggerSpread],
+    [duration, text.length, effectiveStagger],
   );
 
   return (

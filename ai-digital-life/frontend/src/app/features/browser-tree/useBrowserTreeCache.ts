@@ -77,6 +77,8 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
     return resolveSiteTitle(title, metaTitle, url, resolved);
   }, []);
 
+  /* eslint-disable react-hooks/exhaustive-deps -- meta-version 脏标记：site meta 全局更新时 +1 强制重 build 树以重新 resolve 标题（依赖仅作触发信号，body 未直接引用） */
+
   const workspaceNodes = useMemo(
     () =>
       buildWorkspaceCategoryTree(
@@ -149,6 +151,8 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
     }),
     [historyNodes, labels.historyCategory],
   );
+
+  /* eslint-enable react-hooks/exhaustive-deps */
 
   return {
     workspaceCategory,

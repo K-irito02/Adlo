@@ -122,7 +122,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         // 无自定义标题：解析页面元数据用于收藏标题。为缓解"正在获取页面信息…"慢，
         // 采用 cache-first + 静默渲染命令（超时由后端静默 tab 自兜底 ≤6s）。
         setIsCreatingTab(true);
-        const requestStart = Date.now();
         const cached = pageMetaClient.peek(url);
         const cachedTitle = cached?.title?.trim() ?? '';
         if (cachedTitle && !isUnsafeTitle(cachedTitle) && !isPlaceholderTitle(cachedTitle, url)) {

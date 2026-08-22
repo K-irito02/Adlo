@@ -69,4 +69,5 @@
   - rev3 复审补 2 处：EngineFavicon effect 死依赖 `engine.name` 移除；browserSearchEnginesSlice.ts 3 处 `[ADL-SEARCH-ENGINE]` 诊断日志删除。
   - rev4 最终复审：**无剩余问题**；附注 Tooltip.tsx `?? undefined` 冗余已同步清理；另清理 slice 测试未用 `SearchEngine` import。
 - 最终验证：全量前端 240 套件通过 / 1 flaky（useBrowserDialogs 与本次无关，单独重跑 25/25 通过）；typecheck ✅、eslint 0 errors、prettier ✅；slice 测试 9/9 ✅。
-- 收尾：更新归档 README.md 追加本进度条目。
+- 收尾：更新归档 README.md 追加本进度条目。清理 `.review-diffs/` 临时目录。重建 dist 成功。
+- 提交：`1b090ea9`（Phase 4 清理：popover clamp/resize、移除诊断日志、测试迁 __tests__/、进度文档）。连同 `cd0f0a4` 全部变更已提交本地。

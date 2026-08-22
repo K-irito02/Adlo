@@ -19,6 +19,17 @@ interface TooltipContextValue extends UseTooltipReturn {
 
 const TooltipContext = createContext<TooltipContextValue | null>(null);
 
+function forwardRefValue(
+  existingRef: React.Ref<HTMLElement> | undefined,
+  node: HTMLElement | null,
+): void {
+  if (typeof existingRef === 'function') {
+    existingRef(node);
+  } else if (existingRef && typeof existingRef === 'object') {
+    (existingRef as React.MutableRefObject<HTMLElement | null>).current = node;
+  }
+}
+
 function useTooltipContext(): TooltipContextValue {
   const ctx = useContext(TooltipContext);
   if (!ctx) {
@@ -99,6 +110,12 @@ export function TooltipTrigger({ children, asChild = false }: TooltipTriggerProp
 
   const childProps = child.props as Record<string, unknown>;
 
+  const nativeChildRef = useRef<React.Ref<HTMLElement> | undefined>(undefined);
+  nativeChildRef.current = childProps.ref as React.Ref<HTMLElement> | undefined;
+  const nativeRef = useCallback((node: HTMLElement | null) => {
+    forwardRefValue(nativeChildRef.current, node);
+  }, []);
+
   const mergedProps = useMemo(() => {
     const props: Record<string, unknown> = {
       onMouseEnter: (e: React.MouseEvent) => {
@@ -124,14 +141,7 @@ export function TooltipTrigger({ children, asChild = false }: TooltipTriggerProp
     };
 
     if (typeof child.type === 'string') {
-      const childRef = childProps.ref as React.Ref<HTMLElement> | undefined;
-      props.ref = (node: HTMLElement | null) => {
-        if (typeof childRef === 'function') {
-          childRef(node);
-        } else if (childRef && typeof childRef === 'object') {
-          (childRef as React.MutableRefObject<HTMLElement | null>).current = node;
-        }
-      };
+      props.ref = nativeRef;
     }
 
     return props;
@@ -143,6 +153,7 @@ export function TooltipTrigger({ children, asChild = false }: TooltipTriggerProp
     handleTriggerFocus,
     handleTriggerBlur,
     handleClick,
+    nativeRef,
   ]);
 
   const asChildActive = asChild && typeof child.type !== 'string';
@@ -156,12 +167,7 @@ export function TooltipTrigger({ children, asChild = false }: TooltipTriggerProp
 
   const mergedRef = useCallback(
     (node: HTMLElement | null) => {
-      const existingRef = existingRefContainer.current;
-      if (typeof existingRef === 'function') {
-        existingRef(node);
-      } else if (existingRef && typeof existingRef === 'object') {
-        (existingRef as React.MutableRefObject<HTMLElement | null>).current = node;
-      }
+      forwardRefValue(existingRefContainer.current, node);
       triggerRef(node);
     },
     [triggerRef],

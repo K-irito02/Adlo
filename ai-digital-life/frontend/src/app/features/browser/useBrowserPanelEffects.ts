@@ -50,11 +50,6 @@ export function useBrowserPanelEffects({
 }: UseBrowserPanelEffectsParams): void {
   useEffect(() => {
     const url = activeTab?.url ?? '';
-    console.info('[ADL-DEBUG][address] activeTab sync', {
-      tabId: activeTab?.id ?? null,
-      url,
-      setAddressTo: url === 'about:blank' ? '' : url,
-    });
     addressSubmittedForTabRef.current = url || 'about:blank';
     setAddress(url === 'about:blank' ? '' : url);
 

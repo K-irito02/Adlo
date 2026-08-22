@@ -473,7 +473,8 @@ async fn poll_silent_meta(
                         }
                     }
                     // 延长等待到期：favicon_only_ms 从首个元数据开始算
-                    if favicon_extended && since_first >= partial_threshold + favicon_only_threshold {
+                    if favicon_extended && since_first >= partial_threshold + favicon_only_threshold
+                    {
                         tracing::debug!(
                             req_url = %url,
                             elapsed_ms = elapsed_ms,
@@ -499,7 +500,8 @@ async fn poll_silent_meta(
             Err(_elapsed) => {
                 if let Some(start) = first_meta_at {
                     let since_first = start.elapsed();
-                    if favicon_extended && since_first >= partial_threshold + favicon_only_threshold {
+                    if favicon_extended && since_first >= partial_threshold + favicon_only_threshold
+                    {
                         tracing::debug!(
                             req_url = %url,
                             elapsed_ms = poll_start.elapsed().as_millis(),
@@ -1348,7 +1350,10 @@ mod favicon_data_uri_tests {
         {
             let mut map = favicon_download_cooldown().lock().unwrap();
             let now = std::time::Instant::now();
-            map.insert(url.to_string(), now - std::time::Duration::from_millis(FAVICON_DOWNLOAD_COOLDOWN_MS + 1));
+            map.insert(
+                url.to_string(),
+                now - std::time::Duration::from_millis(FAVICON_DOWNLOAD_COOLDOWN_MS + 1),
+            );
         }
         // 窗口过后 → 允许重试
         assert!(favicon_download_cooldown_check(url));

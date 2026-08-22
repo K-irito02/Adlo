@@ -47,9 +47,6 @@ function preloadExternalFavicon(faviconUrl: string, cacheKey: string): void {
         reader.onloadend = () => {
           const dataUri = reader.result as string;
           preloadCache.set(faviconUrl, dataUri);
-          console.info(
-            `[ADL-FAVICON-PRELOAD] converted: ${faviconUrl.slice(0, 80)} → data-URI (${dataUri.length} chars)`,
-          );
           if (cacheKey) {
             void persistFaviconDataUri(cacheKey, dataUri);
           }
@@ -59,9 +56,6 @@ function preloadExternalFavicon(faviconUrl: string, cacheKey: string): void {
     } catch {
       // Canvas tainted or other error — skip silently
     }
-  };
-  img.onerror = () => {
-    console.warn(`[ADL-FAVICON-PRELOAD] img load failed: ${faviconUrl.slice(0, 80)}`);
   };
   img.src = faviconUrl;
 }

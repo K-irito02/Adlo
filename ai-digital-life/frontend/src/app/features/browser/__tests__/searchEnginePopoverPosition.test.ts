@@ -39,7 +39,8 @@ describe('computePopoverPosition', () => {
       popoverWidth: 260,
       viewportWidth: 800,
     });
-    expect(result.right).toBe(800 - 804);
+    // anchorRight 超视口右缘 → right 被钳制为非负（800-804=-4 → 0），避免 popover 移出视口
+    expect(result.right).toBe(0);
     expect(result.left).toBeUndefined();
   });
 
@@ -67,7 +68,7 @@ describe('computePopoverPosition', () => {
 
   it('falls back to left margin when right-aligned would overflow the left edge', () => {
     // 锚点贴右边缘且 popover 很宽：右对齐后左边缘 anchorRight - popoverWidth 会 < margin，
-    // 回退为左边缘对齐视口左侧并留 margin。
+    // 回退为左边缘对齐视口左侧并留 margin，同时以 maxWidth 钳制右缘不溢出。
     const result = computePopoverPosition({
       anchorLeft: 700,
       anchorRight: 724,
@@ -77,5 +78,30 @@ describe('computePopoverPosition', () => {
     });
     expect(result.left).toBe(8);
     expect(result.right).toBeUndefined();
+    expect(result.maxWidth).toBe(800 - 8);
+  });
+
+  it('clamps left alignment when anchor is negative (outside left viewport edge)', () => {
+    const result = computePopoverPosition({
+      ...base,
+      anchorLeft: -20,
+      anchorRight: 4,
+      popoverWidth: 260,
+    });
+    // anchorLeft < margin → clamp 到 margin=8，避免贴/越过视口左缘
+    expect(result.left).toBe(8);
+  });
+
+  it('clamps right to 0 when anchor right is beyond the viewport right edge', () => {
+    const result = computePopoverPosition({
+      anchorLeft: 780,
+      anchorRight: 820,
+      anchorBottom: 150,
+      popoverWidth: 260,
+      viewportWidth: 800,
+    });
+    // anchorRight > viewportWidth → right 恒为非负；anchorLeft+width 溢出不 fit → 右对齐
+    expect(result.right).toBe(0);
+    expect(result.left).toBeUndefined();
   });
 });

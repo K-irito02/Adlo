@@ -24,16 +24,17 @@ export function computePopoverPosition({
   popoverWidth,
   viewportWidth,
   margin = VIEWPORT_MARGIN,
-}: PopoverPositionInput): Pick<CSSProperties, 'left' | 'right' | 'top'> {
+}: PopoverPositionInput): Pick<CSSProperties, 'left' | 'right' | 'top' | 'maxWidth'> {
   const fitsOnRight = anchorLeft + popoverWidth <= viewportWidth - margin;
   const top = Math.round(anchorBottom + VERTICAL_GAP);
   if (fitsOnRight) {
-    return { left: Math.round(anchorLeft), top };
+    return { left: Math.max(margin, Math.round(anchorLeft)), top };
   }
   // 右对齐：右边缘对齐锚点右边缘；右对齐后若左边缘会溢出视口左侧，回退为从视口左边缘留边距
   const rightAlignedLeft = anchorRight - popoverWidth;
   if (rightAlignedLeft >= margin) {
-    return { right: Math.round(viewportWidth - anchorRight), top };
+    return { right: Math.max(0, Math.round(viewportWidth - anchorRight)), top };
   }
-  return { left: margin, top };
+  // 极端左缘兜底：左缘对齐 margin，同时以 maxWidth 钳制右缘不溢出视口
+  return { left: margin, top, maxWidth: Math.max(0, viewportWidth - margin) };
 }

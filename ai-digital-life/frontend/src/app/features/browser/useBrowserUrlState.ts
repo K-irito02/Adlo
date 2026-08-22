@@ -51,16 +51,11 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
   );
 
   const handleAddressBlur = useCallback(() => {
-    console.info('[ADL-DEBUG][address] blur', {
-      activeTabUrl,
-      restoreTo: activeTabUrl ?? '(undefined)',
-      searchQueryDisplay,
-    });
     setAddressExpanded(false);
     if (activeTabUrl !== undefined) {
       setAddress(activeTabUrl);
     }
-  }, [setAddressExpanded, activeTabUrl, setAddress, searchQueryDisplay]);
+  }, [setAddressExpanded, activeTabUrl, setAddress]);
 
   const handleSearchClick = useCallback(() => {
     setAddressExpanded(true);

@@ -459,6 +459,7 @@ function SearchEngineManageView({
                   <button
                     type="button"
                     className="adl-search-engine-popover__action-btn"
+                    aria-label={t.browserSearchEngineEdit}
                     onClick={() => onStartEdit(engine)}
                   >
                     <IconPencil size={14} decorative />
@@ -466,6 +467,7 @@ function SearchEngineManageView({
                   <button
                     type="button"
                     className="adl-search-engine-popover__action-btn adl-search-engine-popover__action-btn--danger"
+                    aria-label={t.browserSearchEngineDelete}
                     onClick={() => onDelete(engine.id)}
                   >
                     <IconTrash size={14} decorative />
