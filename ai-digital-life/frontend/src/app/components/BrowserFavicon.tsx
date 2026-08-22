@@ -81,6 +81,12 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   // 未命中/未就绪：显示占位图标（非空白）
   const current = faviconUrl;
   const showImg = Boolean(current) && !degraded;
+  
+  // Debug: log render state
+  if (url && !url.startsWith('about:')) {
+    console.info(`[ADL-BROWSER-FAVICON] render: ${url.slice(0, 80)} → showImg=${showImg}, hasDataUri=${current?.startsWith('data:') ?? false}, resolved=${resolved}, degraded=${degraded}`);
+  }
+  
   const handleError = useCallback(() => {
     console.warn(`[ADL-BROWSER-FAVICON] img load failed, degrading: ${url?.slice(0, 80)} (src: ${faviconUrlRef.current?.startsWith('data:') ? 'data-URI' : faviconUrlRef.current?.slice(0, 80)})`);
     setDegraded(true);

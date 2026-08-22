@@ -692,7 +692,7 @@ pub async fn browser_page_meta_get(
 ) -> Result<IpcResult<PageMeta>, CommandError> {
     let svc = state.browser_manager.page_meta_service();
     // 静默主路径：缓存优先（零 WebView）。命中有效缓存（有效标题或非空 favicon）
-    // 直接返回；`force=true` 绕过缓存。Tauri 桌面应用只用 WebView2 静默渲染抓取，
+    // 直接返回；`force=true` 绕过缓存。Tauri 桼面应用只用 WebView2 静默渲染抓取，
     // 不再保留任何 HTTP 爬虫回退。
     if !force.unwrap_or(false) {
         if let Some(e) = svc.peek(&url) {
@@ -706,6 +706,12 @@ pub async fn browser_page_meta_get(
                 };
                 let src =
                     if meta.source.is_empty() { META_SOURCE_COM } else { meta.source.as_str() };
+                tracing::info!(
+                    url = %url,
+                    has_favicon = !meta.favicon.is_empty(),
+                    has_data_uri = !meta.favicon_data_uri.is_empty(),
+                    "browser_page_meta_get: cache hit"
+                );
                 emit_page_meta_updated(&app, &meta, src);
                 // 缓存命中但缺 data-URI（重启后 / 此前下载与退出竞态）：后台补全，
                 // 使可见标签的防盗链 favicon 不再长期停留在兜底图标（去重/冷却/信号量兜底）。
@@ -714,12 +720,18 @@ pub async fn browser_page_meta_get(
                     let favicon_url = meta.favicon.clone();
                     let req_url = url.clone();
                     let svc_backfill = state.browser_manager.page_meta_service().clone();
+                    tracing::info!(
+                        url = %url,
+                        favicon_url = %favicon_url,
+                        "browser_page_meta_get: cache hit but no data-URI, triggering backfill"
+                    );
                     spawn_favicon_download(&app, svc_backfill, cache_key, favicon_url, req_url);
                 }
                 return Ok(ipc(Ok(meta)));
             }
         }
     }
+    tracing::info!(url = %url, force = force.unwrap_or(false), "browser_page_meta_get: cache miss, fetching via silent webview");
     let meta = fetch_silent_meta(app.clone(), &state, &url).await?;
     emit_page_meta_updated(&app, &meta, META_SOURCE_COM);
     Ok(ipc(Ok(meta)))

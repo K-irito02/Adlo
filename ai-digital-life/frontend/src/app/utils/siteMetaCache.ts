@@ -100,6 +100,9 @@ function upsertMirror(key: string, entry: SiteMetaCacheEntry): void {
   if (entry.faviconDataUri && !prev?.faviconDataUri) {
     console.info(`[site-meta-cache] data-URI backfilled: ${key.slice(0, 80)} (${entry.faviconDataUri.length} chars)`);
   }
+  if (entry.faviconUrl && !prev?.faviconUrl) {
+    console.info(`[site-meta-cache] faviconUrl set: ${key.slice(0, 80)} → ${entry.faviconUrl.slice(0, 80)}`);
+  }
   notify(key);
 }
 
@@ -110,9 +113,16 @@ export async function initSiteMetaCache(): Promise<void> {
   initPromise = (async () => {
     try {
       const persisted = await backend.getAll();
-      for (const [url, entry] of Object.entries(persisted ?? {})) {
+      const entries = Object.entries(persisted ?? {});
+      console.info(`[site-meta-cache] initSiteMetaCache: loaded ${entries.length} entries from backend`);
+      for (const [url, entry] of entries) {
         if (!memoryCache.has(url)) {
           memoryCache.set(url, clamp(entry));
+          if (entry.faviconDataUri) {
+            console.info(`[site-meta-cache] initSiteMetaCache: ${url.slice(0, 80)} has data-URI (${entry.faviconDataUri.length} chars)`);
+          } else if (entry.faviconUrl) {
+            console.info(`[site-meta-cache] initSiteMetaCache: ${url.slice(0, 80)} has faviconUrl but NO data-URI: ${entry.faviconUrl.slice(0, 80)}`);
+          }
         }
       }
     } catch (err) {

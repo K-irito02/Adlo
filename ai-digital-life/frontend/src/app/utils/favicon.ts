@@ -28,15 +28,22 @@ const preloadCache = new Map<string, string>();
  * data-URI 必须写回该键才能让同站所有 URL 命中。
  */
 function preloadExternalFavicon(faviconUrl: string, cacheKey: string): void {
-  if (preloadCache.has(faviconUrl)) return;
+  if (preloadCache.has(faviconUrl)) {
+    console.info(`[ADL-FAVICON-PRELOAD] already cached: ${faviconUrl.slice(0, 80)}`);
+    return;
+  }
 
+  console.info(`[ADL-FAVICON-PRELOAD] starting preload: ${faviconUrl.slice(0, 80)} → cacheKey: ${cacheKey.slice(0, 80)}`);
   const img = new Image();
   img.crossOrigin = 'anonymous';
   img.onload = () => {
     try {
       const canvas = new OffscreenCanvas(img.naturalWidth, img.naturalHeight);
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) {
+        console.warn(`[ADL-FAVICON-PRELOAD] canvas context failed: ${faviconUrl.slice(0, 80)}`);
+        return;
+      }
       ctx.drawImage(img, 0, 0);
       canvas.convertToBlob({ type: 'image/png' }).then((blob) => {
         const reader = new FileReader();
@@ -53,9 +60,12 @@ function preloadExternalFavicon(faviconUrl: string, cacheKey: string): void {
         };
         reader.readAsDataURL(blob);
       });
-    } catch {
-      // Canvas tainted or other error — skip silently
+    } catch (err) {
+      console.warn(`[ADL-FAVICON-PRELOAD] canvas error: ${faviconUrl.slice(0, 80)}`, err);
     }
+  };
+  img.onerror = () => {
+    console.warn(`[ADL-FAVICON-PRELOAD] img load failed: ${faviconUrl.slice(0, 80)}`);
   };
   img.src = faviconUrl;
 }
