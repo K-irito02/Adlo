@@ -22,9 +22,8 @@ function mirrorFavicon(url: string, faviconUrl: string, faviconDataUri = '') {
   });
 }
 
-it('renders fallback icon (not blank) when no cached favicon / no proxy fallback', () => {
-  // Fix D：未缓存且不再有 DDG/Google 代理兜底 → getFaviconUrl 返回 '' → 无 img，
-  // 占位图标真正可见（非 display:none）。
+it('renders fallback icon (not blank) when no cached favicon', () => {
+  // 未缓存 → getFaviconUrl 返回 '' → 无 img，占位图标真正可见（非 display:none）
   const { container } = render(<BrowserFavicon url="https://uncached.example" />);
   const iconLink = container.querySelector(
     '.adl-browser-tree__link-fallback',
@@ -34,55 +33,37 @@ it('renders fallback icon (not blank) when no cached favicon / no proxy fallback
   expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
 });
 
-it('image error does not remove cache (no removeCachedSiteMeta call)', () => {
-  mirrorFavicon('https://err.example', 'https://err.example/favicon.ico');
-  const removeSpy = vi.spyOn(cache, 'removeCachedSiteMeta').mockImplementation(() => {});
-  const { container } = render(<BrowserFavicon url="https://err.example" />);
-  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
-  expect(img).not.toBeNull();
-  act(() => {
-    fireEvent.error(img!);
-  });
-  expect(removeSpy).not.toHaveBeenCalled();
-});
-
-it('shows built-in fallback icon when real icon fails (single error, no google retry)', () => {
-  mirrorFavicon('https://fail.example', 'https://fail.example/favicon.ico');
-  const { container } = render(<BrowserFavicon url="https://fail.example" />);
-  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
-  // 镜像提供真实 favicon → img 渲染；触发加载失败 → 直接 degraded → img 卸载、占位可见
-  expect(img).not.toBeNull();
-  act(() => {
-    fireEvent.error(img!);
-  });
-  const iconLink = container.querySelector(
+it('shows fallback letter when only external URL cached (no data-URI)', () => {
+  // 只有外部 URL 无 data-URI → 不显示 img，显示兜底字母（用户需求：删除外部 URL 方案）
+  mirrorFavicon('https://external.example', 'https://external.example/favicon.ico');
+  const { container } = render(<BrowserFavicon url="https://external.example" />);
+  const fallback = container.querySelector(
     '.adl-browser-tree__link-fallback',
   ) as HTMLElement | null;
-  expect(iconLink).not.toBeNull();
-  expect(iconLink?.style.display).not.toBe('none');
+  expect(fallback).not.toBeNull();
+  expect(fallback?.textContent).toBe('E'); // 首字母大写
   expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
 });
 
-it('recovers from degraded state when mirror updates bring a new favicon', () => {
-  mirrorFavicon('https://recover.example', 'https://recover.example/favicon.ico');
-  const { container } = render(<BrowserFavicon url="https://recover.example" />);
+it('renders img when data-URI is available', () => {
+  // 有 data-URI → 显示真实 favicon
+  mirrorFavicon('https://hasdata.example', 'https://hasdata.example/favicon.ico', 'data:image/png;base64,AA');
+  const { container } = render(<BrowserFavicon url="https://hasdata.example" />);
   const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
   expect(img).not.toBeNull();
-  // 加载失败 → degraded（img 卸载）
-  act(() => {
-    fireEvent.error(img!);
-  });
-  expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
-  // 镜像更新（等价于服务端广播写入镜像）：notify 触发订阅回调 → setFaviconUrl +
-  // setDegraded(false) → img 恢复为新图标
-  mirrorFavicon('https://recover.example', 'https://cdn.example.com/favicon.ico');
-  const img2 = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
-  expect(img2).not.toBeNull();
-  expect(img2?.src).toBe('https://cdn.example.com/favicon.ico');
-  const iconLink = container.querySelector(
+  expect(img?.src).toContain('data:image/png;base64,AA');
+});
+
+it('shows fallback letter when meta resolved with empty faviconUrl', () => {
+  // 已结算仍是空图标 → 显示兜底字母
+  mirrorFavicon('https://uncached.example', '');
+  const { container } = render(<BrowserFavicon url="https://uncached.example" />);
+  const fallback = container.querySelector(
     '.adl-browser-tree__link-fallback',
   ) as HTMLElement | null;
-  expect(iconLink?.style.display).toBe('none');
+  expect(fallback).not.toBeNull();
+  expect(fallback?.textContent).toBe('U');
+  expect(fallback?.style.display).not.toBe('none');
 });
 
 it('shows empty placeholder (not letter/favicon) while meta fetch has not settled', () => {
@@ -97,21 +78,61 @@ it('shows empty placeholder (not letter/favicon) while meta fetch has not settle
   expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
 });
 
-it('renders site initial letter as the ultimate fallback once meta resolved with no favicon', () => {
-  // 已结算仍是空图标 → 显示兜底字母；未结算时装空占位（见上一用例）
-  mirrorFavicon('https://uncached.example', '');
-  const { container } = render(<BrowserFavicon url="https://uncached.example" />);
-  const fallback = container.querySelector(
-    '.adl-browser-tree__link-fallback',
-  ) as HTMLElement | null;
-  expect(fallback).not.toBeNull();
-  expect(fallback?.textContent).toBe('U');
-  expect(fallback?.style.display).not.toBe('none');
+it('image error does not remove cache (no removeCachedSiteMeta call)', () => {
+  // 有 data-URI → img 渲染 → 触发错误 → degraded → img 卸载，但缓存不删除
+  mirrorFavicon('https://err.example', 'https://err.example/favicon.ico', 'data:image/png;base64,AA');
+  const removeSpy = vi.spyOn(cache, 'removeCachedSiteMeta').mockImplementation(() => {});
+  const { container } = render(<BrowserFavicon url="https://err.example" />);
+  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
+  expect(img).not.toBeNull();
+  act(() => {
+    fireEvent.error(img!);
+  });
+  expect(removeSpy).not.toHaveBeenCalled();
 });
 
-it('stays degraded when a broadcast keeps the same faviconUrl (no remount flicker)', () => {
-  // L6：faviconUrl 未变化时保持降级态，避免每次广播重挂 img → 404 → 再降级的闪烁
-  mirrorFavicon('https://same.example', 'https://same.example/favicon.ico');
+it('shows fallback when img load fails (degraded state)', () => {
+  // 有 data-URI → img 渲染 → 触发错误 → degraded → img 卸载、占位可见
+  mirrorFavicon('https://fail.example', 'https://fail.example/favicon.ico', 'data:image/png;base64,AA');
+  const { container } = render(<BrowserFavicon url="https://fail.example" />);
+  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
+  expect(img).not.toBeNull();
+  act(() => {
+    fireEvent.error(img!);
+  });
+  const iconLink = container.querySelector(
+    '.adl-browser-tree__link-fallback',
+  ) as HTMLElement | null;
+  expect(iconLink).not.toBeNull();
+  expect(iconLink?.style.display).not.toBe('none');
+  expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
+});
+
+it('recovers from degraded state when mirror updates bring a new data-URI', () => {
+  // 有 data-URI → img 渲染 → 错误 → degraded → 镜像更新新 data-URI → 恢复
+  mirrorFavicon('https://recover.example', 'https://recover.example/favicon.ico', 'data:image/png;base64,AA');
+  const { container } = render(<BrowserFavicon url="https://recover.example" />);
+  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
+  expect(img).not.toBeNull();
+  // 加载失败 → degraded（img 卸载）
+  act(() => {
+    fireEvent.error(img!);
+  });
+  expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
+  // 镜像更新新 data-URI → 恢复
+  mirrorFavicon('https://recover.example', 'https://cdn.example.com/favicon.ico', 'data:image/png;base64,BB');
+  const img2 = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
+  expect(img2).not.toBeNull();
+  expect(img2?.src).toContain('data:image/png;base64,BB');
+  const iconLink = container.querySelector(
+    '.adl-browser-tree__link-fallback',
+  ) as HTMLElement | null;
+  expect(iconLink?.style.display).toBe('none');
+});
+
+it('stays degraded when a broadcast keeps the same data-URI (no remount flicker)', () => {
+  // L6：data-URI 未变化时保持降级态，避免每次广播重挂 img → 失败 → 再降级的闪烁
+  mirrorFavicon('https://same.example', 'https://same.example/favicon.ico', 'data:image/png;base64,AA');
   const { container } = render(<BrowserFavicon url="https://same.example" />);
   const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
   expect(img).not.toBeNull();
@@ -119,8 +140,8 @@ it('stays degraded when a broadcast keeps the same faviconUrl (no remount flicke
     fireEvent.error(img!);
   });
   expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
-  // 相同 faviconUrl 的镜像广播 → faviconUrl 未变 → 保持降级，img 不重挂
-  mirrorFavicon('https://same.example', 'https://same.example/favicon.ico');
+  // 相同 data-URI 的镜像广播 → faviconUrl 未变 → 保持降级，img 不重挂
+  mirrorFavicon('https://same.example', 'https://same.example/favicon.ico', 'data:image/png;base64,AA');
   expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
   const iconLink = container.querySelector(
     '.adl-browser-tree__link-fallback',
