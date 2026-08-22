@@ -193,7 +193,8 @@ export const browserEn = {
   browserSearchEngineName: 'Search Engine Name',
   browserSearchEngineUrl: 'Search Engine URL',
   browserSearchEngineUrlHint: 'Use %s as query placeholder',
-  browserSearchEngineGetMethod: 'How to get: Search once on the target site, copy the result URL, replace the query with %s. Example: searching "weather" gives https://www.google.com/search?q=weather, template is https://www.google.com/search?q=%s',
+  browserSearchEngineGetMethod:
+    'How to get: Search once on the target site, copy the result URL, replace the query with %s. Example: searching "weather" gives https://www.google.com/search?q=weather, template is https://www.google.com/search?q=%s',
   browserSearchEngineCancel: 'Cancel',
   browserSearchEngineSave: 'Save',
   browserSearchEngineUrlRequired: 'Please enter a search URL containing %s',

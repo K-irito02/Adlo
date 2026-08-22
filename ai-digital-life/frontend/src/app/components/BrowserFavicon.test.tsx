@@ -47,7 +47,11 @@ it('shows fallback letter when only external URL cached (no data-URI)', () => {
 
 it('renders img when data-URI is available', () => {
   // 有 data-URI → 显示真实 favicon
-  mirrorFavicon('https://hasdata.example', 'https://hasdata.example/favicon.ico', 'data:image/png;base64,AA');
+  mirrorFavicon(
+    'https://hasdata.example',
+    'https://hasdata.example/favicon.ico',
+    'data:image/png;base64,AA',
+  );
   const { container } = render(<BrowserFavicon url="https://hasdata.example" />);
   const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
   expect(img).not.toBeNull();
@@ -80,7 +84,11 @@ it('shows empty placeholder (not letter/favicon) while meta fetch has not settle
 
 it('image error does not remove cache (no removeCachedSiteMeta call)', () => {
   // 有 data-URI → img 渲染 → 触发错误 → degraded → img 卸载，但缓存不删除
-  mirrorFavicon('https://err.example', 'https://err.example/favicon.ico', 'data:image/png;base64,AA');
+  mirrorFavicon(
+    'https://err.example',
+    'https://err.example/favicon.ico',
+    'data:image/png;base64,AA',
+  );
   const removeSpy = vi.spyOn(cache, 'removeCachedSiteMeta').mockImplementation(() => {});
   const { container } = render(<BrowserFavicon url="https://err.example" />);
   const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
@@ -93,7 +101,11 @@ it('image error does not remove cache (no removeCachedSiteMeta call)', () => {
 
 it('shows fallback when img load fails (degraded state)', () => {
   // 有 data-URI → img 渲染 → 触发错误 → degraded → img 卸载、占位可见
-  mirrorFavicon('https://fail.example', 'https://fail.example/favicon.ico', 'data:image/png;base64,AA');
+  mirrorFavicon(
+    'https://fail.example',
+    'https://fail.example/favicon.ico',
+    'data:image/png;base64,AA',
+  );
   const { container } = render(<BrowserFavicon url="https://fail.example" />);
   const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
   expect(img).not.toBeNull();
@@ -110,7 +122,11 @@ it('shows fallback when img load fails (degraded state)', () => {
 
 it('recovers from degraded state when mirror updates bring a new data-URI', () => {
   // 有 data-URI → img 渲染 → 错误 → degraded → 镜像更新新 data-URI → 恢复
-  mirrorFavicon('https://recover.example', 'https://recover.example/favicon.ico', 'data:image/png;base64,AA');
+  mirrorFavicon(
+    'https://recover.example',
+    'https://recover.example/favicon.ico',
+    'data:image/png;base64,AA',
+  );
   const { container } = render(<BrowserFavicon url="https://recover.example" />);
   const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
   expect(img).not.toBeNull();
@@ -120,7 +136,11 @@ it('recovers from degraded state when mirror updates bring a new data-URI', () =
   });
   expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
   // 镜像更新新 data-URI → 恢复
-  mirrorFavicon('https://recover.example', 'https://cdn.example.com/favicon.ico', 'data:image/png;base64,BB');
+  mirrorFavicon(
+    'https://recover.example',
+    'https://cdn.example.com/favicon.ico',
+    'data:image/png;base64,BB',
+  );
   const img2 = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
   expect(img2).not.toBeNull();
   expect(img2?.src).toContain('data:image/png;base64,BB');
@@ -132,7 +152,11 @@ it('recovers from degraded state when mirror updates bring a new data-URI', () =
 
 it('stays degraded when a broadcast keeps the same data-URI (no remount flicker)', () => {
   // L6：data-URI 未变化时保持降级态，避免每次广播重挂 img → 失败 → 再降级的闪烁
-  mirrorFavicon('https://same.example', 'https://same.example/favicon.ico', 'data:image/png;base64,AA');
+  mirrorFavicon(
+    'https://same.example',
+    'https://same.example/favicon.ico',
+    'data:image/png;base64,AA',
+  );
   const { container } = render(<BrowserFavicon url="https://same.example" />);
   const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
   expect(img).not.toBeNull();
@@ -141,7 +165,11 @@ it('stays degraded when a broadcast keeps the same data-URI (no remount flicker)
   });
   expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
   // 相同 data-URI 的镜像广播 → faviconUrl 未变 → 保持降级，img 不重挂
-  mirrorFavicon('https://same.example', 'https://same.example/favicon.ico', 'data:image/png;base64,AA');
+  mirrorFavicon(
+    'https://same.example',
+    'https://same.example/favicon.ico',
+    'data:image/png;base64,AA',
+  );
   expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
   const iconLink = container.querySelector(
     '.adl-browser-tree__link-fallback',

@@ -29,14 +29,21 @@ describe('isSearchQuery', () => {
 
 describe('buildSearchUrl', () => {
   const googleEngine: SearchEngine = {
-    id: 'google', name: 'Google', urlTemplate: 'https://www.google.com/search?q=%s',
-    isBuiltIn: true, isDefault: true,
+    id: 'google',
+    name: 'Google',
+    urlTemplate: 'https://www.google.com/search?q=%s',
+    isBuiltIn: true,
+    isDefault: true,
   };
   it('replaces %s with encoded query', () => {
-    expect(buildSearchUrl(googleEngine, 'react hooks')).toBe('https://www.google.com/search?q=react%20hooks');
+    expect(buildSearchUrl(googleEngine, 'react hooks')).toBe(
+      'https://www.google.com/search?q=react%20hooks',
+    );
   });
   it('encodes Chinese characters', () => {
-    expect(buildSearchUrl(googleEngine, '你好')).toBe('https://www.google.com/search?q=%E4%BD%A0%E5%A5%BD');
+    expect(buildSearchUrl(googleEngine, '你好')).toBe(
+      'https://www.google.com/search?q=%E4%BD%A0%E5%A5%BD',
+    );
   });
 });
 

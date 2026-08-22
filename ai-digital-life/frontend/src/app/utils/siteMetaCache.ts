@@ -152,7 +152,9 @@ export function getCachedSiteMeta(url: string): SiteMetaCacheEntry | undefined {
 export function isFaviconConfirmed(url: string): boolean {
   const entry = memoryCache.get(normalizeUrlForCache(url));
   const exactMatch = Boolean(entry && (entry.faviconDataUri || entry.lastOkAt > 0));
-  if (exactMatch) return true;
+  if (exactMatch) {
+    return true;
+  }
   const originEntry = findCanonicalOriginEntry(url);
   return Boolean(
     originEntry && (originEntry.entry.faviconDataUri || originEntry.entry.lastOkAt > 0),
@@ -354,10 +356,14 @@ export function applyBroadcastUpdate(payload: PageMetaUpdatedPayload): void {
  * faviconDataUri（广播新值优先，否则保留既有值）。
  */
 export async function persistFaviconDataUri(url: string, dataUri: string): Promise<void> {
-  if (!dataUri || !url) return;
+  if (!dataUri || !url) {
+    return;
+  }
   const key = normalizeUrlForCache(url);
   const existing = memoryCache.get(key);
-  if (existing?.faviconDataUri === dataUri) return;
+  if (existing?.faviconDataUri === dataUri) {
+    return;
+  }
   const next: SiteMetaCacheEntry = {
     title: existing?.title ?? '',
     titleSource: existing?.titleSource ?? '',

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { IconClose } from '@icons';
+import { ShimmeringText } from '@/components/shimmering-text';
 
 interface CreateTabDialogProps {
   open: boolean;
@@ -167,11 +168,15 @@ export function CreateTabDialog({
             <div
               style={{
                 fontSize: 11,
-                color: 'var(--text-secondary)',
                 marginTop: 4,
               }}
             >
-              {t.browserFetchingPageMeta}
+              <ShimmeringText
+                className="[--color:var(--text-secondary)] [--shimmering-color:var(--text-primary)]"
+                duration={0.72}
+                staggerSpread={1.25}
+                text={t.browserFetchingPageMeta}
+              />
             </div>
           )}
         </div>

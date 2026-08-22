@@ -182,7 +182,8 @@ export const browserZh = {
   browserSearchEngineName: '搜索引擎名称',
   browserSearchEngineUrl: '搜索引擎地址',
   browserSearchEngineUrlHint: '使用 %s 作为查询词占位符',
-  browserSearchEngineGetMethod: '获取方法：在目标网站搜索一次，复制结果页 URL，将查询词替换为 %s 即得模板。示例：搜索 "天气" 得到 https://www.baidu.com/s?wd=天气，模板为 https://www.baidu.com/s?wd=%s',
+  browserSearchEngineGetMethod:
+    '获取方法：在目标网站搜索一次，复制结果页 URL，将查询词替换为 %s 即得模板。示例：搜索 "天气" 得到 https://www.baidu.com/s?wd=天气，模板为 https://www.baidu.com/s?wd=%s',
   browserSearchEngineCancel: '取消',
   browserSearchEngineSave: '保存',
   browserSearchEngineUrlRequired: '请输入包含 %s 的搜索地址',

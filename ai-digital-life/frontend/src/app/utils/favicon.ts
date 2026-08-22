@@ -28,7 +28,9 @@ const preloadCache = new Map<string, string>();
  * data-URI 必须写回该键才能让同站所有 URL 命中。
  */
 function preloadExternalFavicon(faviconUrl: string, cacheKey: string): void {
-  if (preloadCache.has(faviconUrl)) return;
+  if (preloadCache.has(faviconUrl)) {
+    return;
+  }
 
   const img = new Image();
   img.crossOrigin = 'anonymous';
@@ -36,7 +38,9 @@ function preloadExternalFavicon(faviconUrl: string, cacheKey: string): void {
     try {
       const canvas = new OffscreenCanvas(img.naturalWidth, img.naturalHeight);
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) {
+        return;
+      }
       ctx.drawImage(img, 0, 0);
       canvas.convertToBlob({ type: 'image/png' }).then((blob) => {
         const reader = new FileReader();

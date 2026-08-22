@@ -53,19 +53,33 @@ export type { SearchEngine } from '../../stores/slices/browserSearchEnginesSlice
 export function isSearchQuery(input: string): boolean {
   const trimmed = input.trim();
   // 已有协议 → 导航
-  if (/^[a-z]+:\/\//i.test(trimmed)) return false;
+  if (/^[a-z]+:\/\//i.test(trimmed)) {
+    return false;
+  }
   // about: 协议 → 导航
-  if (/^about:/i.test(trimmed)) return false;
+  if (/^about:/i.test(trimmed)) {
+    return false;
+  }
   // IP 地址 → 导航
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(trimmed)) return false;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(trimmed)) {
+    return false;
+  }
   // localhost → 导航
-  if (/^localhost(:\d+)?/.test(trimmed)) return false;
+  if (/^localhost(:\d+)?/.test(trimmed)) {
+    return false;
+  }
   // 含空格 → 搜索
-  if (/\s/.test(trimmed)) return true;
+  if (/\s/.test(trimmed)) {
+    return true;
+  }
   // 含中文 → 搜索
-  if (/[\u4e00-\u9fff]/.test(trimmed)) return true;
+  if (/[\u4e00-\u9fff]/.test(trimmed)) {
+    return true;
+  }
   // 无点号 → 搜索
-  if (!/\./.test(trimmed)) return true;
+  if (!/\./.test(trimmed)) {
+    return true;
+  }
   // 其它按 URL 处理
   return false;
 }
@@ -82,8 +96,12 @@ export function buildSearchUrl(engine: SearchEngine, query: string): string {
  */
 export function ensureProtocol(input: string): string {
   const trimmed = input.trim();
-  if (/^[a-z]+:\/\//i.test(trimmed)) return trimmed;
-  if (/^about:/i.test(trimmed)) return trimmed;
+  if (/^[a-z]+:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  if (/^about:/i.test(trimmed)) {
+    return trimmed;
+  }
   return `https://${trimmed}`;
 }
 
@@ -98,13 +116,19 @@ export function extractSearchQueryFromUrl(url: string, engines: SearchEngine[]):
     for (const engine of engines) {
       try {
         const tpl = new URL(engine.urlTemplate.replace('%s', '___PLACEHOLDER___'));
-        if (u.hostname !== tpl.hostname) continue;
+        if (u.hostname !== tpl.hostname) {
+          continue;
+        }
         const paramName = [...tpl.searchParams.keys()].find(
           (k) => tpl.searchParams.get(k) === '___PLACEHOLDER___',
         );
-        if (!paramName) continue;
+        if (!paramName) {
+          continue;
+        }
         const raw = u.searchParams.get(paramName);
-        if (raw) return decodeURIComponent(raw);
+        if (raw) {
+          return decodeURIComponent(raw);
+        }
       } catch {
         // 跳过无效模板
       }

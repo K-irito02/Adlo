@@ -22,6 +22,12 @@ export type ShimmeringTextProps = Omit<ComponentProps<typeof motion.span>, 'chil
    * @defaultValue false
    */
   isStopped?: boolean;
+  /**
+   * 相邻字符扫光相位的间距缩放因子。默认 1 为现有满带宽（约 70% 文字同时处于高光）；
+   * 值越大高光带越窄越集中。仅影响扫光带宽，不影响整体速度。
+   * @defaultValue 1
+   */
+  staggerSpread?: number;
 };
 
 export function ShimmeringText({
@@ -29,6 +35,7 @@ export function ShimmeringText({
   duration = 1,
   isStopped = false,
   paused = false,
+  staggerSpread = 1,
   className,
   ...props
 }: ShimmeringTextProps) {
@@ -44,7 +51,7 @@ export function ShimmeringText({
           repeat: Number.POSITIVE_INFINITY,
           repeatType: 'loop',
           repeatDelay: text.length * 0.05,
-          delay: (charIndex * duration) / text.length,
+          delay: ((charIndex * duration) / text.length) * staggerSpread,
           ease: 'easeInOut',
         },
       },
@@ -56,7 +63,7 @@ export function ShimmeringText({
         },
       },
     }),
-    [duration, text.length],
+    [duration, text.length, staggerSpread],
   );
 
   return (

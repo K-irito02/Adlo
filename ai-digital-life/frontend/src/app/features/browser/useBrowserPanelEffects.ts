@@ -78,7 +78,14 @@ export function useBrowserPanelEffects({
         });
       });
     }
-  }, [activeTab?.id, activeTab?.url, setAddress, setSearchQueryDisplay, setIframeHistory, addressSubmittedForTabRef]);
+  }, [
+    activeTab?.id,
+    activeTab?.url,
+    setAddress,
+    setSearchQueryDisplay,
+    setIframeHistory,
+    addressSubmittedForTabRef,
+  ]);
 
   useEffect(() => {
     if (!browserMenuOpen && !addressExpanded && navigatorMode !== 'search') {

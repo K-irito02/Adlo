@@ -135,14 +135,12 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           // 即便 faviconUrl 为空也触发：静默重渲染可能发现此前抓取时尚未就绪的 favicon。
           const favMissing = !cached?.faviconDataUri;
           if (favMissing && shouldAttemptFaviconSelfHeal(url)) {
-            void pageMetaClient
-              .getSilent(url)
-              .catch((err) =>
-                console.warn('[bookmark-new-meta] favicon self-heal failed', {
-                  url,
-                  err: String(err),
-                }),
-              );
+            void pageMetaClient.getSilent(url).catch((err) =>
+              console.warn('[bookmark-new-meta] favicon self-heal failed', {
+                url,
+                err: String(err),
+              }),
+            );
           }
         } else {
           try {
@@ -518,7 +516,9 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           showToast(msg, 'warning');
           return;
         }
-        if (activeTab.url) scheduleFaviconFetch(activeTab.url);
+        if (activeTab.url) {
+          scheduleFaviconFetch(activeTab.url);
+        }
         showToast(t.browserBookmarkAddedToast, 'success');
         setBookmarkDialogOpen(false);
       } else if (folderPath.startsWith('workspace:')) {
@@ -535,7 +535,9 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           showToast(msg, 'warning');
           return;
         }
-        if (activeTab.url) scheduleFaviconFetch(activeTab.url);
+        if (activeTab.url) {
+          scheduleFaviconFetch(activeTab.url);
+        }
         showToast(t.browserBookmarkAddedToast, 'success');
         setBookmarkDialogOpen(false);
       } else {

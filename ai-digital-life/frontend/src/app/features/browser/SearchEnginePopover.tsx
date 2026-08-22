@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import './SearchEnginePopover.css';
-import { IconArrowLeft, IconCheck, IconPencil, IconTrash, IconGlobeSearch, IconGlobeSettings, IconGlobePlus } from '@icons';
+import {
+  IconArrowLeft,
+  IconCheck,
+  IconPencil,
+  IconTrash,
+  IconGlobeSearch,
+  IconGlobeSettings,
+  IconGlobePlus,
+} from '@icons';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { SearchEngine } from '@stores/slices/browserSearchEnginesSlice';
@@ -225,7 +233,9 @@ function EngineFavicon({ engine, className }: { engine: SearchEngine; className?
     const controller = new AbortController();
     const timer = setTimeout(() => {
       if (!controller.signal.aborted) {
-        console.warn(`[ADL-SEARCH-ENGINE] favicon preload timeout (${PRELOAD_TIMEOUT_MS}ms): ${engine.name} (${url})`);
+        console.warn(
+          `[ADL-SEARCH-ENGINE] favicon preload timeout (${PRELOAD_TIMEOUT_MS}ms): ${engine.name} (${url})`,
+        );
         failedFaviconUrls.add(url);
         setShowFallback(true);
         controller.abort();
@@ -263,14 +273,7 @@ function EngineFavicon({ engine, className }: { engine: SearchEngine; className?
     return <IconGlobeSearch size={14} decorative />;
   }
 
-  return (
-    <img
-      src={url}
-      className={className}
-      alt=""
-      loading="lazy"
-    />
-  );
+  return <img src={url} className={className} alt="" loading="lazy" />;
 }
 
 interface SearchEngineMainViewProps {
@@ -392,8 +395,16 @@ function SearchEngineManageView({
       </div>
       <div className="adl-search-engine-popover__hint">
         {t.browserSearchEngineGetMethod.split('%s').reduce<React.ReactNode[]>((parts, part, i) => {
-          if (i === 0) return [part];
-          return [...parts, <mark key={i} className="adl-search-engine-popover__hint-mark">%s</mark>, part];
+          if (i === 0) {
+            return [part];
+          }
+          return [
+            ...parts,
+            <mark key={i} className="adl-search-engine-popover__hint-mark">
+              %s
+            </mark>,
+            part,
+          ];
         }, [])}
       </div>
       <div className="adl-search-engine-popover__group">

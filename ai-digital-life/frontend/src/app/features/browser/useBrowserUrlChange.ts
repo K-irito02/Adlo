@@ -3,7 +3,11 @@ import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { MetaSource, PageMeta } from '@shared/ipc/browser';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import { useAppStore } from '@stores';
-import { normalizeUrlForCompare, isProbablySameSite, extractSearchQueryFromUrl } from './browserUrlUtils';
+import {
+  normalizeUrlForCompare,
+  isProbablySameSite,
+  extractSearchQueryFromUrl,
+} from './browserUrlUtils';
 import {
   historyDedupKey,
   hasViewIdentityParam,

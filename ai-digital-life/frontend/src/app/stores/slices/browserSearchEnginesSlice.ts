@@ -11,14 +11,62 @@ export interface SearchEngine {
 }
 
 const BUILT_IN_ENGINES: Omit<SearchEngine, 'id'>[] = [
-  { name: 'Google', urlTemplate: 'https://www.google.com/search?q=%s', isBuiltIn: true, isDefault: true, faviconUrl: '/search-engines/google.ico' },
-  { name: 'Bing', urlTemplate: 'https://www.bing.com/search?q=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/bing.ico' },
-  { name: 'DuckDuckGo', urlTemplate: 'https://duckduckgo.com/?q=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/duckduckgo.ico' },
-  { name: 'Yahoo', urlTemplate: 'https://search.yahoo.com/search?p=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/yahoo.ico' },
-  { name: '百度', urlTemplate: 'https://www.baidu.com/s?wd=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/baidu.ico' },
-  { name: '搜狗', urlTemplate: 'https://www.sogou.com/web?query=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/sogou.ico' },
-  { name: '360搜索', urlTemplate: 'https://www.so.com/s?q=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/360.ico' },
-  { name: '必应中国', urlTemplate: 'https://cn.bing.com/search?q=%s', isBuiltIn: true, isDefault: false, faviconUrl: '/search-engines/cnbing.ico' },
+  {
+    name: 'Google',
+    urlTemplate: 'https://www.google.com/search?q=%s',
+    isBuiltIn: true,
+    isDefault: true,
+    faviconUrl: '/search-engines/google.ico',
+  },
+  {
+    name: 'Bing',
+    urlTemplate: 'https://www.bing.com/search?q=%s',
+    isBuiltIn: true,
+    isDefault: false,
+    faviconUrl: '/search-engines/bing.ico',
+  },
+  {
+    name: 'DuckDuckGo',
+    urlTemplate: 'https://duckduckgo.com/?q=%s',
+    isBuiltIn: true,
+    isDefault: false,
+    faviconUrl: '/search-engines/duckduckgo.ico',
+  },
+  {
+    name: 'Yahoo',
+    urlTemplate: 'https://search.yahoo.com/search?p=%s',
+    isBuiltIn: true,
+    isDefault: false,
+    faviconUrl: '/search-engines/yahoo.ico',
+  },
+  {
+    name: '百度',
+    urlTemplate: 'https://www.baidu.com/s?wd=%s',
+    isBuiltIn: true,
+    isDefault: false,
+    faviconUrl: '/search-engines/baidu.ico',
+  },
+  {
+    name: '搜狗',
+    urlTemplate: 'https://www.sogou.com/web?query=%s',
+    isBuiltIn: true,
+    isDefault: false,
+    faviconUrl: '/search-engines/sogou.ico',
+  },
+  {
+    name: '360搜索',
+    urlTemplate: 'https://www.so.com/s?q=%s',
+    isBuiltIn: true,
+    isDefault: false,
+    faviconUrl: '/search-engines/360.ico',
+  },
+  {
+    name: '必应中国',
+    urlTemplate: 'https://cn.bing.com/search?q=%s',
+    isBuiltIn: true,
+    isDefault: false,
+    faviconUrl: '/search-engines/cnbing.ico',
+  },
 ];
 
 const writeSearchEngines = makePersistedWriter('adl:browser:searchEngines');
@@ -45,7 +93,10 @@ export const createBrowserSearchEnginesSlice = (
   initializeSearchEngines: () => {
     const existing = get().searchEngines;
     if (existing.length > 0) {
-      console.info('[ADL-SEARCH-ENGINE] initialize: already initialized, defaultSearchEngineId=', get().defaultSearchEngineId);
+      console.info(
+        '[ADL-SEARCH-ENGINE] initialize: already initialized, defaultSearchEngineId=',
+        get().defaultSearchEngineId,
+      );
       return;
     }
     const engines: SearchEngine[] = BUILT_IN_ENGINES.map((e, idx) => ({
@@ -59,7 +110,11 @@ export const createBrowserSearchEnginesSlice = (
     const savedEngine = savedId ? engines.find((e) => e.id === savedId) : undefined;
     const defaultId = savedEngine ? savedId : engines[0].id;
 
-    console.info('[ADL-SEARCH-ENGINE] initialize: built-in engines created, default=', defaultId, savedId ? '(restored)' : '(fallback)');
+    console.info(
+      '[ADL-SEARCH-ENGINE] initialize: built-in engines created, default=',
+      defaultId,
+      savedId ? '(restored)' : '(fallback)',
+    );
     set({ searchEngines: engines, defaultSearchEngineId: defaultId });
   },
 
@@ -68,7 +123,12 @@ export const createBrowserSearchEnginesSlice = (
       const next = state.searchEngines.map((e) => ({ ...e, isDefault: e.id === id }));
       writeSearchEngines(next);
       writeDefaultEngineId(id);
-      console.info('[ADL-SEARCH-ENGINE] setDefaultSearchEngine:', id, 'engines count:', next.length);
+      console.info(
+        '[ADL-SEARCH-ENGINE] setDefaultSearchEngine:',
+        id,
+        'engines count:',
+        next.length,
+      );
       return { searchEngines: next, defaultSearchEngineId: id };
     }),
 

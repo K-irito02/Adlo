@@ -213,7 +213,9 @@
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background-color var(--duration-150) var(--ease-default), color var(--duration-150) var(--ease-default);
+  transition:
+    background-color var(--duration-150) var(--ease-default),
+    color var(--duration-150) var(--ease-default);
 }
 
 .adl-search-engine-popover__action-btn:hover {
