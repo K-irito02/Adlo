@@ -61,12 +61,12 @@ function preloadExternalFavicon(faviconUrl: string, cacheKey: string): void {
 }
 
 /**
- * 站点级 favicon URL（data-URI 优先，无 data-URI 时返回空字符串触发兜底字母）。
+ * 站点级 favicon URL（data-URI 优先，外部 URL 作为兜底）。
  *
  * Chrome/Edge 策略：
  * 1. 优先返回已缓存的 data-URI（立即可用，无网络请求）
- * 2. 若无 data-URI，返回空字符串（组件显示"站点首字母"兜底）
- *    后台预加载外部 favicon → data-URI 落地后下次调用直接返回
+ * 2. 若无 data-URI，返回外部 URL 并在后台启动预加载
+ * 3. 下次调用时预加载完成，直接返回 data-URI
  */
 export function getFaviconUrl(url: string): string {
   const { faviconDataUri, faviconUrl, cacheKey } = getCanonicalOriginFavicon(url);
@@ -79,12 +79,10 @@ export function getFaviconUrl(url: string): string {
     return preloadCache.get(faviconUrl)!;
   }
 
-  // 优先级 3：外部 URL —— 后台预加载为 data-URI，但不返回外部 URL
-  // （外部 URL 会导致子面板切换时 favicon 消失，只保留 data-URI 或兜底字母）
+  // 优先级 3：外部 URL —— 返回外部 URL 并在后台预加载为 data-URI
   if (faviconUrl && faviconUrl.startsWith('http')) {
     preloadExternalFavicon(faviconUrl, cacheKey);
   }
 
-  // 无 data-URI 时返回空字符串，组件显示兜底字母
-  return faviconDataUri || '';
+  return faviconDataUri || faviconUrl;
 }
