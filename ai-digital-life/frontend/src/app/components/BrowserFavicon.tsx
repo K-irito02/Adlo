@@ -43,7 +43,6 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
       faviconUrlRef.current = next;
       setFaviconUrl(next);
       setDegraded(false);
-      console.info(`[ADL-BROWSER-FAVICON] meta update: ${url?.slice(0, 80)} → ${next ? (next.startsWith('data:') ? 'data-URI' : next.slice(0, 80)) : 'empty'}`);
     }
     const r = url ? isSiteMetaResolved(url) : false;
     if (r !== resolvedRef.current) {
@@ -57,7 +56,9 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     if (isSiteMetaCacheReady()) {
       setReady(true);
     }
-    const unsubReady = subscribeSiteMetaReady(() => setReady(true));
+    const unsubReady = subscribeSiteMetaReady(() => {
+      setReady(true);
+    });
     return unsubReady;
   }, []);
 
@@ -82,7 +83,9 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const current = faviconUrl;
   const showImg = Boolean(current) && !degraded;
   const handleError = useCallback(() => {
-    console.warn(`[ADL-BROWSER-FAVICON] img load failed, degrading: ${url?.slice(0, 80)} (src: ${faviconUrlRef.current?.startsWith('data:') ? 'data-URI' : faviconUrlRef.current?.slice(0, 80)})`);
+    console.warn(
+      `[ADL-BROWSER-FAVICON] img load failed, degrading: ${url?.slice(0, 80)} (src: ${faviconUrlRef.current?.startsWith('data:') ? 'data-URI' : faviconUrlRef.current?.slice(0, 80)})`,
+    );
     setDegraded(true);
   }, [url]);
 

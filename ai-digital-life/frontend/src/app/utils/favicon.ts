@@ -74,7 +74,9 @@ export function getFaviconUrl(url: string): string {
   const { faviconDataUri, faviconUrl, cacheKey } = getCanonicalOriginFavicon(url);
 
   // 优先级 1：内存缓存中已有 data-URI
-  if (faviconDataUri) return faviconDataUri;
+  if (faviconDataUri) {
+    return faviconDataUri;
+  }
 
   // 优先级 2：模块级预加载缓存中已有 data-URI
   if (faviconUrl && preloadCache.has(faviconUrl)) {

@@ -314,6 +314,11 @@
                 lastFavicon = fNow;
                 hasFavicon = true;
             }
+            try {
+                console.log('[ADL-META-SEND] handleUrlChanged url=' + u.substring(0, 60) +
+                    ' favicon_found=' + !!fNow +
+                    ' favicon=' + (fNow ? fNow.substring(0, 50) : '(empty)'));
+            } catch(e) {}
             startNavPolling();
         }
 
@@ -349,6 +354,13 @@
             isReporting = true;
             var sendTitle = hasTitle ? lastTitle : '';
             var sendFavicon = hasFavicon ? lastFavicon : '';
+
+            try {
+                console.log('[ADL-META-SEND] reportMeta reason=' + reason +
+                    ' title=' + (sendTitle ? sendTitle.substring(0, 40) : '(empty)') +
+                    ' favicon=' + (sendFavicon ? 'YES(' + sendFavicon.substring(0, 50) + ')' : '(empty)') +
+                    ' hasTitle=' + hasTitle + ' hasFavicon=' + hasFavicon);
+            } catch(e) {}
 
             if (postMessageWorks && (sendTitle || sendFavicon)) {
                 sendViaPostMessage(sendTitle, sendFavicon, u);

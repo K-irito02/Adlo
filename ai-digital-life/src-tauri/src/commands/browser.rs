@@ -340,11 +340,25 @@ async fn wait_for_silent_meta(
     match result {
         Ok(meta) => meta,
         // 总体超时：poll 内部无有效上报到达（channel 全程静默），双键探测兜底。
-        Err(_elapsed) => best_silent_meta(svc, url, None),
+        Err(_elapsed) => {
+            tracing::debug!(
+                req_url = %url,
+                timeout_ms = SILENT_FETCH_TIMEOUT_MS,
+                "[ADL-META-POLL] TOTAL TIMEOUT → fallback to best_silent_meta"
+            );
+            best_silent_meta(svc, url, None)
+        },
     }
 }
 
 /// `wait_for_silent_meta` 的轮询主体（无总体超时，由外层 `timeout` 兜底）。
+///
+/// 策略（favicon 感知部分返回）：
+/// - 首个有效元数据到达时启动 `partial_ms` 计时器
+/// - 若计时器到期前达到**收敛**（标题 + favicon 齐全）→ 立即返回
+/// - 若只有标题无 favicon 且 `partial_ms` 到期 → **不立即返回**，而是延长等待
+///   `FAVICON_ONLY_WAIT_MS`（favicon 通常在标题之后由 Method 4 FaviconChanged 触发）
+/// - 延长期间若 favicon 到达 → 收敛返回；否则等到总体超时或 channel 关闭
 async fn poll_silent_meta(
     rx: &mut tokio::sync::mpsc::UnboundedReceiver<(String, String, String, String)>,
     svc: &PageMetaService,
@@ -353,15 +367,28 @@ async fn poll_silent_meta(
 ) -> PageMeta {
     let round = std::time::Duration::from_millis(d.round_ms);
     let partial_threshold = std::time::Duration::from_millis(d.partial_ms);
+    /// 仅标题无 favicon 时，额外等待 favicon 到达的最长时间（毫秒）。
+    const FAVICON_ONLY_WAIT_MS: u64 = 3000;
+    let favicon_only_threshold = std::time::Duration::from_millis(FAVICON_ONLY_WAIT_MS);
     let mut first_meta_at: Option<std::time::Instant> = None;
-    // 最近一次实际上报的 URL（`sender.Source()`）。重定向后与请求 URL 不同：
-    // `svc.report` 把条目存于上报键下，收敛判定/部分返回/最终读取都必须用它
-    // （L1：此前用请求键 peek 落空 → 空转直到 6s 总体超时后返回空 meta）。
+    let mut favicon_extended = false;
+    // 最近一次实际上报的 URL（`sender.Source()`）。重定向后与请求 URL 不同。
     let mut last_reported: Option<String> = None;
+    let poll_start = std::time::Instant::now();
+    let mut tuple_count: u32 = 0;
+    tracing::debug!(
+        req_url = %url,
+        round_ms = d.round_ms,
+        partial_ms = d.partial_ms,
+        favicon_only_ms = FAVICON_ONLY_WAIT_MS,
+        "[ADL-META-POLL] poll_silent_meta: START"
+    );
     loop {
         let recv = tokio::time::timeout(round, rx.recv()).await;
         match recv {
             Ok(Some((_tab_id, u, title, fav))) => {
+                tuple_count += 1;
+                let elapsed_ms = poll_start.elapsed().as_millis();
                 tracing::debug!(
                     url = %u,
                     req_url = %url,
@@ -369,10 +396,12 @@ async fn poll_silent_meta(
                     title = %title,
                     favicon_len = fav.len(),
                     favicon_full = %fav,
-                    "wait_for_silent_meta: received tuple from silent webview"
+                    elapsed_ms = elapsed_ms,
+                    tuple_count = tuple_count,
+                    "[ADL-META-POLL] received tuple from silent webview"
                 );
                 if let Err(e) = svc.report(&u, &title, &fav, META_SOURCE_COM).await {
-                    tracing::warn!(url = %u, error = %e, "wait_for_silent_meta: report failed");
+                    tracing::warn!(url = %u, error = %e, "[ADL-META-POLL] report failed");
                 }
                 last_reported = Some(u.clone());
                 let peek_key = last_reported.as_deref().unwrap_or(url);
@@ -388,36 +417,97 @@ async fn poll_silent_meta(
                         title_ok,
                         favicon_present = fav_present,
                         converged = title_ok && fav_present,
-                        "wait_for_silent_meta: cache state after report"
+                        elapsed_ms = elapsed_ms,
+                        "[ADL-META-POLL] cache state after report"
                     );
                     if silent_converged(&entry.title, peek_key, &entry.favicon_url) {
                         tracing::debug!(
                             req_url = %url,
                             peek_key = %peek_key,
-                            "wait_for_silent_meta: CONVERGED → return early"
+                            elapsed_ms = elapsed_ms,
+                            "[ADL-META-POLL] CONVERGED → return early"
                         );
                         return page_meta_from_entry(entry, peek_key);
                     }
                     if title_ok || fav_present {
+                        if first_meta_at.is_none() {
+                            tracing::debug!(
+                                req_url = %url,
+                                has_title = title_ok,
+                                has_favicon = fav_present,
+                                elapsed_ms = elapsed_ms,
+                                "[ADL-META-POLL] first_meta_at SET (waiting for other)"
+                            );
+                        }
                         first_meta_at.get_or_insert_with(std::time::Instant::now);
                     }
                 }
-                if first_meta_at.is_some_and(|st| st.elapsed() >= partial_threshold) {
-                    tracing::debug!(
-                        req_url = %url,
-                        "wait_for_silent_meta: partial threshold reached → return partial"
-                    );
-                    return best_silent_meta(svc, url, last_reported.as_deref());
+                // ---- 部分返回逻辑（favicon 感知） ----
+                if let Some(start) = first_meta_at {
+                    let since_first = start.elapsed();
+                    if !favicon_extended && since_first >= partial_threshold {
+                        // partial_ms 到期：检查是否只有标题无 favicon
+                        let peek_url = last_reported.as_deref().unwrap_or(url);
+                        if let Some(entry) = svc.peek(peek_url) {
+                            let title_ok = silent_title_ok(&entry.title, peek_url);
+                            let has_fav = !entry.favicon_url.is_empty();
+                            if title_ok && !has_fav {
+                                // 只有标题无 favicon → 延长等待 favicon 到达
+                                favicon_extended = true;
+                                tracing::debug!(
+                                    req_url = %url,
+                                    elapsed_ms = elapsed_ms,
+                                    "[ADL-META-POLL] partial_ms reached, title-only → extend wait for favicon"
+                                );
+                            } else {
+                                // 无有效标题（不需要等待）或已有 favicon（应已收敛）
+                                tracing::debug!(
+                                    req_url = %url,
+                                    elapsed_ms = elapsed_ms,
+                                    title_ok,
+                                    has_favicon = has_fav,
+                                    "[ADL-META-POLL] partial threshold reached → return partial"
+                                );
+                                return best_silent_meta(svc, url, last_reported.as_deref());
+                            }
+                        }
+                    }
+                    // 延长等待到期：favicon_only_ms 从首个元数据开始算
+                    if favicon_extended && since_first >= partial_threshold + favicon_only_threshold {
+                        tracing::debug!(
+                            req_url = %url,
+                            elapsed_ms = elapsed_ms,
+                            "[ADL-META-POLL] favicon_only extension expired → return partial"
+                        );
+                        return best_silent_meta(svc, url, last_reported.as_deref());
+                    }
                 }
             },
-            Ok(None) => return best_silent_meta(svc, url, last_reported.as_deref()), // channel 已关闭
+            Ok(None) => {
+                tracing::debug!(
+                    req_url = %url,
+                    elapsed_ms = poll_start.elapsed().as_millis(),
+                    tuple_count = tuple_count,
+                    "[ADL-META-POLL] channel CLOSED → return best"
+                );
+                return best_silent_meta(svc, url, last_reported.as_deref());
+            },
             // 单轮无数据收包：
             // - 若早已记录部分元数据且等待已到 `partial_ms` → 立即提前返回部分结果，
             //   而非继续空转直到外层 6s 总体超时（修复前行为）。
             // - 否则继续轮询等待（后续消息或总体超时兜底）。
             Err(_elapsed) => {
-                if first_meta_at.is_some_and(|st| st.elapsed() >= partial_threshold) {
-                    return best_silent_meta(svc, url, last_reported.as_deref());
+                if let Some(start) = first_meta_at {
+                    let since_first = start.elapsed();
+                    if favicon_extended && since_first >= partial_threshold + favicon_only_threshold {
+                        tracing::debug!(
+                            req_url = %url,
+                            elapsed_ms = poll_start.elapsed().as_millis(),
+                            tuple_count = tuple_count,
+                            "[ADL-META-POLL] idle + favicon_only expired → return partial"
+                        );
+                        return best_silent_meta(svc, url, last_reported.as_deref());
+                    }
                 }
             },
         }

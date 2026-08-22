@@ -22,6 +22,16 @@ interface UseBrowserDialogsDeps {
 const FAVICON_SELF_HEAL_THROTTLE_MS = 10 * 60 * 1000;
 const faviconSelfHealAttempts = new Map<string, number>();
 
+/** 延迟后台抓取页面元数据（favicon），用于书签创建后补全缺失的 favicon。 */
+function scheduleFaviconFetch(url: string): void {
+  if (!url) {
+    return;
+  }
+  setTimeout(() => {
+    pageMetaClient.getSilent(url).catch(() => {});
+  }, 2000);
+}
+
 /** 是否应发起该 URL 的 favicon 自愈：窗口内已尝试过则跳过，否则记录本次尝试。 */
 function shouldAttemptFaviconSelfHeal(url: string): boolean {
   const now = Date.now();
@@ -169,6 +179,34 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
             if (titleOk && metaTitle) {
               title = metaTitle;
             }
+            // favicon 首次抓取缺失时，等待后台 data-URI 下载完成（≤4s），使书签
+            // 创建时直接显示真实图标而非兜底字母。
+            if (!meta?.faviconDataUri && titleOk) {
+              const waitForFavicon = new Promise<boolean>((resolve) => {
+                const FAVICON_WAIT_MS = 4000;
+                let resolved = false;
+                const timeout = setTimeout(() => {
+                  if (!resolved) {
+                    resolved = true;
+                    resolve(false);
+                  }
+                }, FAVICON_WAIT_MS);
+                const unsub = pageMetaClient.subscribeUpdated((p) => {
+                  if (p.url === url && p.faviconDataUri && !resolved) {
+                    resolved = true;
+                    clearTimeout(timeout);
+                    unsub();
+                    resolve(true);
+                  }
+                });
+              });
+              const gotFavicon = await waitForFavicon;
+              console.info('[bookmark-new-meta] favicon wait result', {
+                url,
+                gotFavicon,
+                elapsedMs: Date.now() - requestStart,
+              });
+            }
           } catch (err) {
             console.warn('[bookmark-new-meta] silent fetch failed', { url, err: String(err) });
           }
@@ -197,6 +235,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           showToast(msg, 'warning');
           return;
         }
+        scheduleFaviconFetch(url);
         setCreateTabDialog({ open: false });
         pendingFolderIdRef.current = '';
         return;
@@ -458,6 +497,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           }
         }
 
+        scheduleFaviconFetch(pendingBookmark.url);
         showToast(t.browserBookmarkAddedToast, 'success');
         setBookmarkDialogOpen(false);
         setPendingBookmark(null);
@@ -489,6 +529,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           showToast(msg, 'warning');
           return;
         }
+        scheduleFaviconFetch(activeTab.url!);
         showToast(t.browserBookmarkAddedToast, 'success');
         setBookmarkDialogOpen(false);
       } else if (folderPath.startsWith('workspace:')) {
@@ -505,6 +546,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           showToast(msg, 'warning');
           return;
         }
+        scheduleFaviconFetch(activeTab.url!);
         showToast(t.browserBookmarkAddedToast, 'success');
         setBookmarkDialogOpen(false);
       } else {

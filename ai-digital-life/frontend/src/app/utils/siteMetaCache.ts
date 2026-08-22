@@ -98,7 +98,9 @@ function upsertMirror(key: string, entry: SiteMetaCacheEntry): void {
   const prev = memoryCache.get(key);
   memoryCache.set(key, clean);
   if (entry.faviconDataUri && !prev?.faviconDataUri) {
-    console.info(`[site-meta-cache] data-URI backfilled: ${key.slice(0, 80)} (${entry.faviconDataUri.length} chars)`);
+    console.info(
+      `[site-meta-cache] data-URI backfilled: ${key.slice(0, 80)} (${entry.faviconDataUri.length} chars)`,
+    );
   }
   notify(key);
 }
@@ -158,7 +160,9 @@ export function isFaviconConfirmed(url: string): boolean {
   const exactMatch = Boolean(entry && (entry.faviconDataUri || entry.lastOkAt > 0));
   if (exactMatch) return true;
   const originEntry = findCanonicalOriginEntry(url);
-  return Boolean(originEntry && (originEntry.entry.faviconDataUri || originEntry.entry.lastOkAt > 0));
+  return Boolean(
+    originEntry && (originEntry.entry.faviconDataUri || originEntry.entry.lastOkAt > 0),
+  );
 }
 
 export function getCachedFavicon(url: string): string {
@@ -331,32 +335,14 @@ export function applyBroadcastUpdate(payload: PageMetaUpdatedPayload): void {
   const hasData =
     payload.title !== '' || payload.faviconUrl !== '' || payload.faviconDataUri !== '';
   if (!hasData && existing) {
-    console.info('[site-meta-cache] broadcast no-data ignored', {
-      url: payload.url,
-      title: payload.title,
-      faviconUrl: payload.faviconUrl,
-    });
     notify(key);
     return;
   }
-  console.info('[site-meta-cache] broadcast apply', {
-    url: payload.url.slice(0, 80),
-    srcTitle: payload.title,
-    srcFaviconUrl: payload.faviconUrl.slice(0, 80),
-    srcFaviconUrlLen: payload.faviconUrl.length,
-    hasDataUri: Boolean(payload.faviconDataUri),
-    dataUriLen: payload.faviconDataUri?.length ?? 0,
-    hadCache: Boolean(existing),
-    hadExistingDataUri: Boolean(existing?.faviconDataUri),
-  });
   upsertMirror(key, {
     title: payload.title || existing?.title || '',
     titleSource: payload.source || existing?.titleSource || '',
     faviconUrl: payload.faviconUrl || existing?.faviconUrl || '',
-    faviconDataUri:
-      payload.faviconDataUri ||
-      existing?.faviconDataUri ||
-      '',
+    faviconDataUri: payload.faviconDataUri || existing?.faviconDataUri || '',
     fetchedAt: Date.now(),
     lastOkAt: Date.now(),
     nextRetryAt: 0,
