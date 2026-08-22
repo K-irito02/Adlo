@@ -66,12 +66,6 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
   const currentEngine = searchEngines.find((e) => e.id === defaultSearchEngineId);
 
   useEffect(() => {
-    console.info(
-      `[ADL-TOOLBAR] searchQueryDisplay="${searchQueryDisplay}" address="${address.slice(0, 60)}" defaultEngine="${defaultSearchEngineId}"`,
-    );
-  }, [searchQueryDisplay, address, defaultSearchEngineId]);
-
-  useEffect(() => {
     initializeSearchEngines();
   }, [initializeSearchEngines]);
 

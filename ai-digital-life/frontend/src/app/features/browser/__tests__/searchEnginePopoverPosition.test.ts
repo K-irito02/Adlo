@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computePopoverPosition } from './searchEnginePopoverPosition';
+import { computePopoverPosition } from '../searchEnginePopoverPosition';
 
 describe('computePopoverPosition', () => {
   const base = {
@@ -63,5 +63,19 @@ describe('computePopoverPosition', () => {
       anchorBottom: 200.5,
     });
     expect(result.top).toBe(205);
+  });
+
+  it('falls back to left margin when right-aligned would overflow the left edge', () => {
+    // 锚点贴右边缘且 popover 很宽：右对齐后左边缘 anchorRight - popoverWidth 会 < margin，
+    // 回退为左边缘对齐视口左侧并留 margin。
+    const result = computePopoverPosition({
+      anchorLeft: 700,
+      anchorRight: 724,
+      anchorBottom: 150,
+      popoverWidth: 800,
+      viewportWidth: 800,
+    });
+    expect(result.left).toBe(8);
+    expect(result.right).toBeUndefined();
   });
 });

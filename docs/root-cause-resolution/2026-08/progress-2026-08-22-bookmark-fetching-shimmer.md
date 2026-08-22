@@ -56,3 +56,17 @@
 ## [x] 事项 6：全部完成任务收尾（过渡阶段）
 - 状态：已完成（用户确认"所有的、所有的问题和任务都解决完成了"，进入 Phase 4）
 - 记录：所有事项 1-5 均已完成并获用户确认，进入 Phase 4 收尾归档流程（含死代码清理与文档同步）。
+
+## [x] 事项 7：Phase 4 收尾归档（根因验证 + 死代码清理）
+- 状态：已完成
+- 提交：cd0f0a4（搜索引擎弹层对齐与 3 处回归修复），Phase 4 清理后待二次提交。
+- 子代理 A（根因验证，report: `.review-diffs/review-issue-1-rev1.md` → rev2）：
+  - 首轮 8 项验证：核心根因（Tooltip ref 覆盖→锚点 null→亚像素模糊；popover 恒 left→右边缘裁剪）修复正确。修复 3 项【中】（右对齐左缘 clamp / resize 重测 / 测试迁 __tests__/）+ 2 项【低】（魔法数字具名常量 / CSSProperties named import）。
+  - 不修复 3 项（已复核确认）：问题4 `--danger-muted` 未登记 tokens.ts（误报，颜色 token 真源即 themes.css）/ 问题5 居中兜底 translate 未整像素（anchor 修复后不可达兜底，过度防御）/ 问题7 垂直底部溢出（不同 root cause，避免范围蔓延）。
+  - 复审 rev2：全部通过无异议。
+- 子代理 B（死代码清理，report: `.review-diffs/cleanup-issue-1-rev2.md` → rev3 → rev4）：
+  - 首轮 4 处：删除排查期遗留 `[ADL-SEARCH-ENGINE]` favicon 日志 3 处（SearchEnginePopover.tsx）+ `[ADL-TOOLBAR]` 日志（BrowserToolbar.tsx）。主代理验证均非本次变更引入但同属诊断残留，按规则清理。
+  - rev3 复审补 2 处：EngineFavicon effect 死依赖 `engine.name` 移除；browserSearchEnginesSlice.ts 3 处 `[ADL-SEARCH-ENGINE]` 诊断日志删除。
+  - rev4 最终复审：**无剩余问题**；附注 Tooltip.tsx `?? undefined` 冗余已同步清理；另清理 slice 测试未用 `SearchEngine` import。
+- 最终验证：全量前端 240 套件通过 / 1 flaky（useBrowserDialogs 与本次无关，单独重跑 25/25 通过）；typecheck ✅、eslint 0 errors、prettier ✅；slice 测试 9/9 ✅。
+- 收尾：更新归档 README.md 追加本进度条目。

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createBrowserSearchEnginesSlice } from '../browserSearchEnginesSlice';
-import type { BrowserSearchEnginesSlice, SearchEngine } from '../browserSearchEnginesSlice';
+import type { BrowserSearchEnginesSlice } from '../browserSearchEnginesSlice';
 
 function createMockStore() {
   let state: Record<string, unknown> = {};

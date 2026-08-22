@@ -1,4 +1,4 @@
-import type React from 'react';
+import type { CSSProperties } from 'react';
 
 export interface PopoverPositionInput {
   anchorLeft: number;
@@ -8,6 +8,9 @@ export interface PopoverPositionInput {
   viewportWidth: number;
   margin?: number;
 }
+
+const VIEWPORT_MARGIN = 8;
+const VERTICAL_GAP = 4;
 
 /**
  * 计算搜索引擎设置 popover 的定位样式。
@@ -20,12 +23,17 @@ export function computePopoverPosition({
   anchorBottom,
   popoverWidth,
   viewportWidth,
-  margin = 8,
-}: PopoverPositionInput): Pick<React.CSSProperties, 'left' | 'right' | 'top'> {
+  margin = VIEWPORT_MARGIN,
+}: PopoverPositionInput): Pick<CSSProperties, 'left' | 'right' | 'top'> {
   const fitsOnRight = anchorLeft + popoverWidth <= viewportWidth - margin;
-  const top = Math.round(anchorBottom + 4);
+  const top = Math.round(anchorBottom + VERTICAL_GAP);
   if (fitsOnRight) {
     return { left: Math.round(anchorLeft), top };
   }
-  return { right: Math.round(viewportWidth - anchorRight), top };
+  // 右对齐：右边缘对齐锚点右边缘；右对齐后若左边缘会溢出视口左侧，回退为从视口左边缘留边距
+  const rightAlignedLeft = anchorRight - popoverWidth;
+  if (rightAlignedLeft >= margin) {
+    return { right: Math.round(viewportWidth - anchorRight), top };
+  }
+  return { left: margin, top };
 }

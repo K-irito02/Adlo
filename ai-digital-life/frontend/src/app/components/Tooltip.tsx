@@ -124,7 +124,7 @@ export function TooltipTrigger({ children, asChild = false }: TooltipTriggerProp
     };
 
     if (typeof child.type === 'string') {
-      const childRef = (childProps.ref as React.Ref<HTMLElement> | undefined) ?? undefined;
+      const childRef = childProps.ref as React.Ref<HTMLElement> | undefined;
       props.ref = (node: HTMLElement | null) => {
         if (typeof childRef === 'function') {
           childRef(node);

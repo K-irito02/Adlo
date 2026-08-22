@@ -93,10 +93,6 @@ export const createBrowserSearchEnginesSlice = (
   initializeSearchEngines: () => {
     const existing = get().searchEngines;
     if (existing.length > 0) {
-      console.info(
-        '[ADL-SEARCH-ENGINE] initialize: already initialized, defaultSearchEngineId=',
-        get().defaultSearchEngineId,
-      );
       return;
     }
     const engines: SearchEngine[] = BUILT_IN_ENGINES.map((e, idx) => ({
@@ -110,11 +106,6 @@ export const createBrowserSearchEnginesSlice = (
     const savedEngine = savedId ? engines.find((e) => e.id === savedId) : undefined;
     const defaultId = savedEngine ? savedId : engines[0].id;
 
-    console.info(
-      '[ADL-SEARCH-ENGINE] initialize: built-in engines created, default=',
-      defaultId,
-      savedId ? '(restored)' : '(fallback)',
-    );
     set({ searchEngines: engines, defaultSearchEngineId: defaultId });
   },
 
@@ -123,12 +114,6 @@ export const createBrowserSearchEnginesSlice = (
       const next = state.searchEngines.map((e) => ({ ...e, isDefault: e.id === id }));
       writeSearchEngines(next);
       writeDefaultEngineId(id);
-      console.info(
-        '[ADL-SEARCH-ENGINE] setDefaultSearchEngine:',
-        id,
-        'engines count:',
-        next.length,
-      );
       return { searchEngines: next, defaultSearchEngineId: id };
     }),
 

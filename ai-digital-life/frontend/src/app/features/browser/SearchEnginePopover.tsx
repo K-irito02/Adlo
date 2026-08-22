@@ -130,15 +130,21 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
       setPopoverVisible(false);
       return;
     }
-    const raf = requestAnimationFrame(() => {
+    const measure = () => {
       const pop = popoverRef.current;
       if (!pop) {
         return;
       }
       setMeasuredWidth(pop.offsetWidth);
       setPopoverVisible(true);
-    });
-    return () => cancelAnimationFrame(raf);
+    };
+    const raf = requestAnimationFrame(measure);
+    // 窗口尺寸变化后重测宽度，避免 popover 依赖过期宽度定位（右对齐/左对齐切换）
+    window.addEventListener('resize', measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', measure);
+    };
   }, [open, view, editingId]);
 
   useEffect(() => {
@@ -262,9 +268,6 @@ function EngineFavicon({ engine, className }: { engine: SearchEngine; className?
     const controller = new AbortController();
     const timer = setTimeout(() => {
       if (!controller.signal.aborted) {
-        console.warn(
-          `[ADL-SEARCH-ENGINE] favicon preload timeout (${PRELOAD_TIMEOUT_MS}ms): ${engine.name} (${url})`,
-        );
         failedFaviconUrls.add(url);
         setShowFallback(true);
         controller.abort();
@@ -277,13 +280,11 @@ function EngineFavicon({ engine, className }: { engine: SearchEngine; className?
       if (!controller.signal.aborted) {
         loadedFaviconUrls.add(url);
         setShowFallback(false);
-        console.info(`[ADL-SEARCH-ENGINE] favicon loaded: ${engine.name} (${url})`);
       }
     };
     img.onerror = () => {
       clearTimeout(timer);
       if (!controller.signal.aborted) {
-        console.warn(`[ADL-SEARCH-ENGINE] favicon load failed: ${engine.name} (${url})`);
         failedFaviconUrls.add(url);
         setShowFallback(true);
       }
@@ -296,7 +297,7 @@ function EngineFavicon({ engine, className }: { engine: SearchEngine; className?
       img.onload = null;
       img.onerror = null;
     };
-  }, [url, engine.name, isKnownFailed, isKnownLoaded]);
+  }, [url, isKnownFailed, isKnownLoaded]);
 
   if (showFallback || isKnownFailed) {
     return <IconGlobeSearch size={14} decorative />;
