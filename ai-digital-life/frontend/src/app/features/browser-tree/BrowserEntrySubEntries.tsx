@@ -371,7 +371,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
           getNodeTitle={getChildNodeTitle}
           expandLabel={t.expand}
           collapseLabel={t.collapse}
-          flipAnimation={categoryType === 'history'}
+          flipAnimation={false}
         />
       </div>
     ) : null;
