@@ -33,13 +33,16 @@ it('renders fallback icon (not blank) when no cached favicon', () => {
   expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
 });
 
-it('renders img when external URL cached (no data-URI)', () => {
-  // 只有外部 URL 无 data-URI → 显示 img（走浏览器 HTTP 磁盘缓存）
+it('shows fallback letter when only external URL cached (no data-URI)', () => {
+  // 只有外部 URL 无 data-URI → 不显示 img，显示兜底字母（无网络时无法转换为 data-URI）
   mirrorFavicon('https://external.example', 'https://external.example/favicon.ico');
   const { container } = render(<BrowserFavicon url="https://external.example" />);
-  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
-  expect(img).not.toBeNull();
-  expect(img?.src).toBe('https://external.example/favicon.ico');
+  const fallback = container.querySelector(
+    '.adl-browser-tree__link-fallback',
+  ) as HTMLElement | null;
+  expect(fallback).not.toBeNull();
+  expect(fallback?.textContent).toBe('E');
+  expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
 });
 
 it('renders img when data-URI is available', () => {

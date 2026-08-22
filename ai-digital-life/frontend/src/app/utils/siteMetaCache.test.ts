@@ -415,35 +415,6 @@ describe('siteMetaCache memory layer', () => {
     expect(upsertSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('persistFaviconUrl updates mirror AND persists to backend (external URL fallback path)', async () => {
-    const mod = await import('./siteMetaCache');
-    const backend: SiteMetaBackend = mod.createMockSiteMetaBackend();
-    mod.setSiteMetaBackendForTest(backend);
-    await mod.initSiteMetaCache();
-    // 无既有条目 → 仅写入 faviconUrl
-    await mod.persistFaviconUrl('https://youtube.com', 'https://www.youtube.com/favicon.ico');
-    const entry = mod.getCachedSiteMeta('https://youtube.com')!;
-    expect(entry.faviconUrl).toBe('https://www.youtube.com/favicon.ico');
-    expect(entry.faviconDataUri).toBe('');
-    const all = await backend.getAll();
-    expect(all['https://youtube.com/']?.faviconUrl).toBe('https://www.youtube.com/favicon.ico');
-    // 幂等：同 URL 且已成功 → 不重复写
-    const upsertSpy = vi.spyOn(backend, 'upsert');
-    await mod.persistFaviconUrl('https://youtube.com', 'https://www.youtube.com/favicon.ico');
-    expect(upsertSpy).not.toHaveBeenCalled();
-  });
-
-  it('persistFaviconUrl no-ops for empty/data-URI input', async () => {
-    const mod = await import('./siteMetaCache');
-    const backend: SiteMetaBackend = mod.createMockSiteMetaBackend();
-    const upsertSpy = vi.spyOn(backend, 'upsert');
-    mod.setSiteMetaBackendForTest(backend);
-    await mod.initSiteMetaCache();
-    await mod.persistFaviconUrl('https://a.com', '');
-    await mod.persistFaviconUrl('https://a.com', 'data:image/png;base64,AA');
-    expect(upsertSpy).not.toHaveBeenCalled();
-  });
-
   it('isSiteMetaResolvedForTree is origin-level while isSiteMetaResolved is exact', async () => {
     const mod = await import('./siteMetaCache');
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());

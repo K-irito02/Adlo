@@ -6,7 +6,6 @@ import {
   isSiteMetaCacheReady,
   initSiteMetaCache,
   isSiteMetaResolved,
-  persistFaviconUrl,
 } from '../utils/siteMetaCache';
 import { pageMetaClient } from '../utils/pageMetaClient';
 import { IconNewTabPage, type IconSize } from '../icons';
@@ -87,19 +86,6 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     setDegraded(true);
   }, [url]);
 
-  // 外部 URL 成功加载 → 回写 SQLite（Chrome/Edge 式兜底持久化）。
-  // 无网络时浏览器 HTTP 磁盘缓存仍可加载，实现离线显示真实 favicon。
-  const handleLoad = useCallback(() => {
-    const src = faviconUrlRef.current;
-    if (!src || src.startsWith('data:')) {
-      return;
-    }
-    console.info(
-      `[ADL-BROWSER-FAVICON] external favicon loaded & persisted: ${url?.slice(0, 80)} (src: ${src.slice(0, 80)})`,
-    );
-    void persistFaviconUrl(url, src);
-  }, [url]);
-
   // 新标签页（无 URL/about:blank）没有站点 favicon：显示内置"新标签页"图标，
   // 避免空白占位（用户 2026-08-20 报告：open 模式下新建标签页标签图标缺失）。
   if (!url || url === 'about:blank') {
@@ -121,7 +107,6 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
           className="adl-browser-tree__favicon"
           style={{ width: size, height: size, transition: 'opacity 0.15s ease-in-out' }}
           onError={handleError}
-          onLoad={handleLoad}
         />
       )}
       <span
