@@ -97,11 +97,6 @@ function upsertMirror(key: string, entry: SiteMetaCacheEntry): void {
   const clean = clamp(entry);
   const prev = memoryCache.get(key);
   memoryCache.set(key, clean);
-  if (entry.faviconDataUri && !prev?.faviconDataUri) {
-    console.info(
-      `[site-meta-cache] data-URI backfilled: ${key.slice(0, 80)} (${entry.faviconDataUri.length} chars)`,
-    );
-  }
   notify(key);
 }
 

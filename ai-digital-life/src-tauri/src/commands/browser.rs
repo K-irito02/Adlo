@@ -389,13 +389,13 @@ async fn poll_silent_meta(
             Ok(Some((_tab_id, u, title, fav))) => {
                 tuple_count += 1;
                 let elapsed_ms = poll_start.elapsed().as_millis();
-                tracing::debug!(
+                tracing::trace!(
                     url = %u,
                     req_url = %url,
                     title_len = title.len(),
                     title = %title,
                     favicon_len = fav.len(),
-                    favicon_full = %fav,
+                    favicon_preview = %fav.chars().take(40).collect::<String>(),
                     elapsed_ms = elapsed_ms,
                     tuple_count = tuple_count,
                     "[ADL-META-POLL] received tuple from silent webview"
@@ -408,7 +408,7 @@ async fn poll_silent_meta(
                 if let Some(entry) = svc.peek(peek_key) {
                     let title_ok = silent_title_ok(&entry.title, peek_key);
                     let fav_present = !entry.favicon_url.is_empty();
-                    tracing::debug!(
+                    tracing::trace!(
                         req_url = %url,
                         peek_key = %peek_key,
                         stored_title = %entry.title,

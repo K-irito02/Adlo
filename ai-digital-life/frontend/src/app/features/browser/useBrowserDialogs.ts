@@ -66,6 +66,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
     folderId?: string;
   }>({ open: false });
   const pendingFolderIdRef = useRef<string>('');
+  const pendingFaviconCleanupRef = useRef<(() => void) | null>(null);
   const [isCreatingTab, setIsCreatingTab] = useState(false);
 
   const handleSetCreateTabDialog = useCallback(
@@ -122,7 +123,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         // 采用 cache-first + 静默渲染命令（超时由后端静默 tab 自兜底 ≤6s）。
         setIsCreatingTab(true);
         const requestStart = Date.now();
-        console.info('[bookmark-new-meta] start', { url });
         const cached = pageMetaClient.peek(url);
         const cachedTitle = cached?.title?.trim() ?? '';
         if (cachedTitle && !isUnsafeTitle(cachedTitle) && !isPlaceholderTitle(cachedTitle, url)) {
@@ -137,12 +137,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           if (favMissing && shouldAttemptFaviconSelfHeal(url)) {
             void pageMetaClient
               .getSilent(url)
-              .then((meta) => {
-                console.info('[bookmark-new-meta] cache favicon self-heal', {
-                  url,
-                  hasFavicon: Boolean(meta?.faviconDataUri),
-                });
-              })
               .catch((err) =>
                 console.warn('[bookmark-new-meta] favicon self-heal failed', {
                   url,
@@ -150,14 +144,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
                 }),
               );
           }
-          console.info('[bookmark-new-meta] cache hit', {
-            url,
-            cachedTitle,
-            favMissing,
-            cachedFaviconUrl: cached?.faviconUrl,
-            cachedFaviconUrlLen: cached?.faviconUrl?.length ?? 0,
-            cachedHasDataUri: Boolean(cached?.faviconDataUri),
-          });
         } else {
           try {
             // 移除 META_FETCH_TIMEOUT_MS：命令先行返回（≤6s 抓取窗口，创建本身另有
@@ -169,13 +155,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
               Boolean(metaTitle) &&
               !isUnsafeTitle(metaTitle) &&
               !isPlaceholderTitle(metaTitle, url);
-            console.info('[bookmark-new-meta] silent fetched', {
-              url,
-              metaTitle,
-              titleOk,
-              hasFavicon: Boolean(meta?.faviconDataUri),
-              elapsedMs: Date.now() - requestStart,
-            });
             if (titleOk && metaTitle) {
               title = metaTitle;
             }
@@ -199,13 +178,16 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
                     resolve(true);
                   }
                 });
+                pendingFaviconCleanupRef.current = () => {
+                  if (!resolved) {
+                    resolved = true;
+                    clearTimeout(timeout);
+                    unsub();
+                  }
+                };
               });
               const gotFavicon = await waitForFavicon;
-              console.info('[bookmark-new-meta] favicon wait result', {
-                url,
-                gotFavicon,
-                elapsedMs: Date.now() - requestStart,
-              });
+              pendingFaviconCleanupRef.current = null;
             }
           } catch (err) {
             console.warn('[bookmark-new-meta] silent fetch failed', { url, err: String(err) });
@@ -213,7 +195,6 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           if (!title) {
             // 抓取成功但元数据缺失/超时/失败 → 用宿主名占位先保存（后台请求继续刷新缓存）。
             title = hostnameFromUrl(url) || url;
-            console.info('[bookmark-new-meta] fallback hostname', { url, title });
           }
         }
         setIsCreatingTab(false);
@@ -401,6 +382,14 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
     });
     return unsub;
   }, [setPendingBookmark, setBookmarkName, setBookmarkDialogOpen]);
+
+  // 清理 favicon 等待期间的事件订阅，防止组件卸载时 Tauri event listener 泄漏。
+  useEffect(() => {
+    return () => {
+      pendingFaviconCleanupRef.current?.();
+      pendingFaviconCleanupRef.current = null;
+    };
+  }, []);
 
   const handleOpenBookmarkDialog = useCallback(() => {
     if (isBookmarked) {
