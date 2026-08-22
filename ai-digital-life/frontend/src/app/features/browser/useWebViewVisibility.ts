@@ -72,7 +72,8 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
       return;
     }
 
-    const OVERLAY_SELECTOR = '.adl-sidebar-menu, .adl-multitree-entry__menu, .adl-menu__dropdown';
+    const OVERLAY_SELECTOR =
+      '.adl-sidebar-menu, .adl-multitree-entry__menu, .adl-menu__dropdown, .adl-search-engine-popover';
     let rafId: number | null = null;
 
     const checkDomOverlay = () => {

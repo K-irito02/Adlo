@@ -123,16 +123,21 @@ export function TooltipTrigger({ children, asChild = false }: TooltipTriggerProp
       },
     };
 
-    if (!asChild || typeof child.type === 'string') {
-      props.ref = triggerRef;
+    if (typeof child.type === 'string') {
+      const childRef = (childProps.ref as React.Ref<HTMLElement> | undefined) ?? undefined;
+      props.ref = (node: HTMLElement | null) => {
+        if (typeof childRef === 'function') {
+          childRef(node);
+        } else if (childRef && typeof childRef === 'object') {
+          (childRef as React.MutableRefObject<HTMLElement | null>).current = node;
+        }
+      };
     }
 
     return props;
   }, [
     childProps,
     child.type,
-    asChild,
-    triggerRef,
     handleTriggerEnter,
     handleTriggerLeave,
     handleTriggerFocus,

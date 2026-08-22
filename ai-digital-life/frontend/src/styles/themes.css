@@ -178,6 +178,7 @@ html:not(.no-transition) [data-theme] {
   --danger: #dc2626;
   --danger-soft: rgba(220, 38, 38, 0.1);
   --danger-subtle: rgba(220, 38, 38, 0.06);
+  --danger-muted: #e9967a;
   --purple: #7c3aed;
   --purple-soft: rgba(124, 58, 237, 0.1);
   --purple-subtle: rgba(124, 58, 237, 0.06);
@@ -453,6 +454,7 @@ html:not(.no-transition) [data-theme] {
   --danger: #f87171;
   --danger-soft: rgba(248, 113, 113, 0.15);
   --danger-subtle: rgba(248, 113, 113, 0.08);
+  --danger-muted: #e9967a;
 
   /* === Error Toast Severity (dark) === */
   --error-toast-error: #eb7153;

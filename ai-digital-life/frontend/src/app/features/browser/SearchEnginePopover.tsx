@@ -13,6 +13,7 @@ import {
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { SearchEngine } from '@stores/slices/browserSearchEnginesSlice';
+import { computePopoverPosition } from './searchEnginePopoverPosition';
 
 const failedFaviconUrls = new Set<string>();
 const loadedFaviconUrls = new Set<string>();
@@ -40,6 +41,8 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<FormData>({ name: '', urlTemplate: '' });
   const [urlError, setUrlError] = useState(false);
+  const [measuredWidth, setMeasuredWidth] = useState(0);
+  const [popoverVisible, setPopoverVisible] = useState(false);
 
   const searchEngines = useAppStore((s) => s.searchEngines);
   const defaultSearchEngineId = useAppStore((s) => s.defaultSearchEngineId);
@@ -123,6 +126,23 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
 
   useEffect(() => {
     if (!open) {
+      setMeasuredWidth(0);
+      setPopoverVisible(false);
+      return;
+    }
+    const raf = requestAnimationFrame(() => {
+      const pop = popoverRef.current;
+      if (!pop) {
+        return;
+      }
+      setMeasuredWidth(pop.offsetWidth);
+      setPopoverVisible(true);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [open, view, editingId]);
+
+  useEffect(() => {
+    if (!open) {
       return;
     }
 
@@ -162,8 +182,13 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
   const popoverStyle: React.CSSProperties = anchorRect
     ? {
         position: 'fixed',
-        left: anchorRect.left,
-        top: anchorRect.bottom + 4,
+        ...computePopoverPosition({
+          anchorLeft: anchorRect.left,
+          anchorRight: anchorRect.right,
+          anchorBottom: anchorRect.bottom,
+          popoverWidth: measuredWidth,
+          viewportWidth: window.innerWidth,
+        }),
         zIndex: 'var(--z-toast-top)',
       }
     : {
@@ -175,7 +200,11 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
       };
 
   return createPortal(
-    <div ref={popoverRef} className="adl-search-engine-popover" style={popoverStyle}>
+    <div
+      ref={popoverRef}
+      className="adl-search-engine-popover"
+      style={{ ...popoverStyle, visibility: popoverVisible ? 'visible' : 'hidden' }}
+    >
       {view === 'main' ? (
         <SearchEngineMainView
           builtInEngines={builtInEngines}
@@ -421,10 +450,10 @@ function SearchEngineManageView({
               />
             ) : (
               <div className="adl-search-engine-popover__manage-row">
-                <div className="adl-search-engine-popover__manage-info">
-                  <span className="adl-search-engine-popover__name">{engine.name}</span>
-                  <span className="adl-search-engine-popover__url">{engine.urlTemplate}</span>
-                </div>
+                <span className="adl-search-engine-popover__icon">
+                  <EngineFavicon engine={engine} className="adl-search-engine-popover__favicon" />
+                </span>
+                <span className="adl-search-engine-popover__name">{engine.name}</span>
                 <div className="adl-search-engine-popover__manage-actions">
                   <button
                     type="button"
