@@ -95,7 +95,6 @@ function notify(url: string): void {
  */
 function upsertMirror(key: string, entry: SiteMetaCacheEntry): void {
   const clean = clamp(entry);
-  const prev = memoryCache.get(key);
   memoryCache.set(key, clean);
   notify(key);
 }

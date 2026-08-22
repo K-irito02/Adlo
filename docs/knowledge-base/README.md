@@ -8,7 +8,7 @@
 |------|------|--------|
 | [refactoring](./refactoring/) | 重构方法论、组件提取、执行报告、阶段性总结 | 28 |
 | [multi-workspace](./multi-workspace/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 11 |
-| [browser](./browser/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询、导航模式切换、并发回调去重、标题锁定与 Favicon Pin、标签右键菜单与悬停按钮、WebView2 `text-overflow` 剪辑特性、已打开标签模式过滤与多 iframe 状态保持、4模式导航栏重构、双层同步机制、延迟创建、WebView2 原生 COM 事件、历史记录修复、历史标签删除修复、音频指示器、书签对话框 Store 模式、navigateTab 显式调用重构等经验 | 41 |
+| [browser](./browser/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询、导航模式切换、并发回调去重、标题锁定与 Favicon Pin、标签右键菜单与悬停按钮、WebView2 `text-overflow` 剪辑特性、已打开标签模式过滤与多 iframe 状态保持、4模式导航栏重构、双层同步机制、延迟创建、WebView2 原生 COM 事件、历史记录修复、历史标签删除修复、音频指示器、书签对话框 Store 模式、navigateTab 显式调用重构、favicon 时序竞争修复等经验 | 42 |
 | [code-quality](./code-quality/) | 全量代码质量检测与修复经验 | 21 |
 | [browser-automation](./browser-automation/) | 浏览器自动化调试记录与规则经验 | 2 |
 | [interaction](./interaction/) | 跨功能面板的交互/UX 问题修复经验 | 22 |
@@ -156,6 +156,7 @@
 | [browser-history-navigation-2026-08-14.md](./browser/2026-08/browser-history-navigation-2026-08-14.md) | 2026-08-14 历史导航与标题提取修复 | 历史 URL 归一化 + 前端智能回退 + 标题来源门控（provenance）+ can_go_back 原生 IPC 经验（去重窗口 ms 级、异步投递同步通道、注入脚本 IIFE 隔离） |
 | [browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md](./browser/2026-08/browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md) | 2026-08-15 书签去重修复 | 书签去重 (网址,标题) 元组语义 + 标题隔离（store 语义与 UI 判断同步、统一去重规则、元组键清理路径、标题双轨） |
 | [browser-favicon-proxy-removal-and-merge-guard-2026-08-18.md](./browser/2026-08/browser-favicon-proxy-removal-and-merge-guard-2026-08-18.md) | 2026-08-18 favicon 修复 | DDG/Google 代理图标移除 + 镜像合并守卫经验（外部兜底"合法但错误"图标、失败返回最佳已知状态而非空、三端短路路径逐字段对齐、dedup 命中≠失败、IconWorld 继承描边破坏填充图标、图标颜色 token 化） |
+| [browser-favicon-timing-race-2026-08-22.md](./browser/2026-08/browser-favicon-timing-race-2026-08-22.md) | 2026-08-22 favicon 时序竞争修复 | 静默抓取首次返回 title-only 无 favicon 的时序竞争根因与双层防御修复（后端 favicon_extended 延长等待 + 前端 waitForFavicon 事件监听 + 事件监听泄漏修复 + data-URI 泄露防护） |
 
 ### Code quality
 

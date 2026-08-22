@@ -186,7 +186,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
                   }
                 };
               });
-              const gotFavicon = await waitForFavicon;
+              await waitForFavicon;
               pendingFaviconCleanupRef.current = null;
             }
           } catch (err) {
@@ -518,7 +518,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           showToast(msg, 'warning');
           return;
         }
-        scheduleFaviconFetch(activeTab.url!);
+        if (activeTab.url) scheduleFaviconFetch(activeTab.url);
         showToast(t.browserBookmarkAddedToast, 'success');
         setBookmarkDialogOpen(false);
       } else if (folderPath.startsWith('workspace:')) {
@@ -535,7 +535,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
           showToast(msg, 'warning');
           return;
         }
-        scheduleFaviconFetch(activeTab.url!);
+        if (activeTab.url) scheduleFaviconFetch(activeTab.url);
         showToast(t.browserBookmarkAddedToast, 'success');
         setBookmarkDialogOpen(false);
       } else {
