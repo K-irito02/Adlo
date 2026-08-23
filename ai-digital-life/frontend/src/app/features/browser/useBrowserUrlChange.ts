@@ -401,29 +401,31 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       }
 
       const expected = expectedNavigationUrlRef.current;
-      // 消费期望导航：无论本次是否判定为重定向，显式导航的期望值只用一次，
-      // 立即清空，避免陈旧期望污染后续链接点击/后退/前进的 URL 变化。
-      expectedNavigationUrlRef.current = null;
       if (
         expected &&
-        Date.now() - expected.at <= REDIRECT_DETECT_WINDOW_MS &&
-        // 仅处理发起该显式导航的 tab：tabId 为 null 表示"新建 tab"场景（发起时
-        // tab 尚不存在，创建后由 browserOpenTab/browserNavigateActiveTab 生成），
-        // 此时依赖新鲜度窗口 + 跨站判定兜底。绑定 tabId 后，后台 tab 的跨站
-        // 导航（YouTube 自动切集、SPA 轮询等）不会误判为发起 tab 的重定向。
-        (expected.tabId === null || expected.tabId === tabId) &&
-        normalizeUrlForCompare(expected.url) !== normalizedUrl &&
-        !isProbablySameSite(expected.url, url)
+        // 事件 tab 与发起导航的 tab 匹配，或为"新建 tab"场景（tabId 为 null）。
+        // 非发起 tab 的 URL 变化（后台 tab 的 onUrlChanged）不消费期望，等待
+        // 发起 tab 自己的事件到来再处理，避免后台事件误吞期望导致多 tab 漏检。
+        (expected.tabId === null || expected.tabId === tabId)
       ) {
-        // 跨域重定向（如 search.marginalia.nu → marginalia-search.com）：
-        // 参考 Chrome/Edge 导航消化重定向链 ——
-        // 1) 记录重定向映射（方案 B），使 favicon/标题查找能落到最终 origin；
-        // 2) 回写历史条目 URL 为最终 URL（方案 A），历史树直接命中缓存。
-        // 同站重定向（HTTP→HTTPS、www→非 www 等）不需要记录：同 origin canonical
-        // 查找已覆盖，且重设期望会引入"链接点击被误判"的二次误报面。
-        recordRedirect(expected.url, url);
-        const s = useAppStore.getState();
-        s.browserUpdateHistoryUrl(expected.url, url);
+        // 发起 tab（或新建 tab）的事件：消费期望（只用一次），随后判定是否重定向。
+        // 立即清空，避免陈旧期望污染后续链接点击/后退/前进的 URL 变化。
+        expectedNavigationUrlRef.current = null;
+        if (
+          Date.now() - expected.at <= REDIRECT_DETECT_WINDOW_MS &&
+          normalizeUrlForCompare(expected.url) !== normalizedUrl &&
+          !isProbablySameSite(expected.url, url)
+        ) {
+          // 跨域重定向（如 search.marginalia.nu → marginalia-search.com）：
+          // 参考 Chrome/Edge 导航消化重定向链 ——
+          // 1) 记录重定向映射（方案 B），使 favicon/标题查找能落到最终 origin；
+          // 2) 回写历史条目 URL 为最终 URL（方案 A），历史树直接命中缓存。
+          // 同站重定向（HTTP→HTTPS、www→非 www 等）不需要记录：同 origin canonical
+          // 查找已覆盖，且重设期望会引入"链接点击被误判"的二次误报面。
+          recordRedirect(expected.url, url);
+          const s = useAppStore.getState();
+          s.browserUpdateHistoryUrl(expected.url, url);
+        }
       }
 
       setAddress(normalizedUrl);
