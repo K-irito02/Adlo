@@ -55,6 +55,8 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [fetchingNameId, setFetchingNameId] = useState<string | null>(null);
   const fetchingOperationIdRef = useRef(0);
+  const formDataRef = useRef(formData);
+  formDataRef.current = formData;
 
   const searchEngines = useAppStore((s) => s.searchEngines);
   const defaultSearchEngineId = useAppStore((s) => s.defaultSearchEngineId);
@@ -107,7 +109,8 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
   }, [resetForm]);
 
   const handleSave = useCallback(async () => {
-    if (!formData.urlTemplate.includes('%s')) {
+    const currentFormData = formDataRef.current;
+    if (!currentFormData.urlTemplate.includes('%s')) {
       setUrlError(true);
       return;
     }
@@ -116,7 +119,7 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
     let faviconUrl = '';
     let searchUrl = '';
     try {
-      const url = new URL(formData.urlTemplate.replace('%s', 'test'));
+      const url = new URL(currentFormData.urlTemplate.replace('%s', 'test'));
       const domain = url.hostname;
       // 先设置 Google Favicon 作为兜底
       faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
@@ -126,7 +129,7 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
     }
 
     // 先确定初始名称：用户输入 > 域名
-    let initialName = formData.name.trim();
+    let initialName = currentFormData.name.trim();
     if (!initialName && searchUrl) {
       try {
         const url = new URL(searchUrl);
@@ -141,18 +144,18 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
 
     // 先保存并关闭表单（不等待网络请求）
     let savedId = '';
-    const nameToShow = initialName || formData.name.trim();
+    const nameToShow = initialName || currentFormData.name.trim();
     if (editingId === 'new') {
       savedId = addCustomSearchEngine({
         name: nameToShow,
-        urlTemplate: formData.urlTemplate,
+        urlTemplate: currentFormData.urlTemplate,
         faviconUrl,
       });
     } else if (editingId) {
       savedId = editingId;
       updateCustomSearchEngine(editingId, {
         name: nameToShow,
-        urlTemplate: formData.urlTemplate,
+        urlTemplate: currentFormData.urlTemplate,
         faviconUrl,
       });
     }
@@ -161,13 +164,13 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
     // 后台获取真实标题和 favicon 并更新（不阻塞 UI）
     if (savedId && searchUrl) {
       // 如果用户未填写名称，设置为正在获取状态
-      if (!formData.name.trim()) {
+      if (!currentFormData.name.trim()) {
         setFetchingNameId(savedId);
       }
 
       // 递增操作 ID 用于竞态检测
       const operationId = ++fetchingOperationIdRef.current;
-      const userNameInput = formData.name.trim();
+      const userNameInput = currentFormData.name.trim();
 
       void (async () => {
         try {
@@ -201,8 +204,8 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
               updateCustomSearchEngine(savedId, updates);
             }
           }
-        } catch (err) {
-          console.error('[SearchEnginePopover] Failed to fetch page meta:', err);
+        } catch {
+          // favicon/title 获取失败 — 非关键错误，忽略
         } finally {
           // 只有当这是当前操作时才清除加载状态
           if (operationId === fetchingOperationIdRef.current) {
@@ -211,7 +214,7 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
         }
       })();
     }
-  }, [formData, editingId, addCustomSearchEngine, updateCustomSearchEngine, resetForm]);
+  }, [editingId, addCustomSearchEngine, updateCustomSearchEngine, resetForm]);
 
   const handleDelete = useCallback(
     (id: string) => {
@@ -225,6 +228,11 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
       // 如果正在获取中，跳过
       if (fetchingNameId === engine.id) {
         return;
+      }
+
+      // 清除 favicon 缓存，允许重试
+      if (engine.faviconUrl) {
+        failedFaviconUrls.delete(engine.faviconUrl);
       }
 
       // 从 URL 模板提取搜索 URL
@@ -279,8 +287,8 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
               updateCustomSearchEngine(engine.id, updates);
             }
           }
-        } catch (err) {
-          console.error('[SearchEnginePopover] Failed to refresh engine meta:', err);
+        } catch {
+          // favicon/title 获取失败 — 非关键错误，忽略
         } finally {
           // 只有当这是当前操作时才清除加载状态
           if (operationId === fetchingOperationIdRef.current) {
@@ -296,6 +304,13 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
     if (!open) {
       setView('main');
       resetForm();
+      // 清理 favicon 缓存，防止无限增长
+      if (failedFaviconUrls.size > 200) {
+        failedFaviconUrls.clear();
+      }
+      if (loadedFaviconUrls.size > 200) {
+        loadedFaviconUrls.clear();
+      }
     }
   }, [open, resetForm]);
 

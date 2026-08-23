@@ -98,17 +98,17 @@ export const createBrowserSearchEnginesSlice = (
 
     // 从 localStorage 读取已保存的搜索引擎
     const savedEngines = readJson<SearchEngine[]>('adl:browser:searchEngines', []);
-    
+
     if (savedEngines.length > 0) {
       // 使用已保存的搜索引擎
       const savedId = readJson<string>('adl:browser:defaultSearchEngineId', '');
       const savedEngine = savedEngines.find((e) => e.id === savedId);
-      const defaultId = savedEngine ? savedId : savedEngines[0]?.id ?? '';
-      
+      const defaultId = savedEngine ? savedId : (savedEngines[0]?.id ?? '');
+
       set({ searchEngines: savedEngines, defaultSearchEngineId: defaultId });
       return;
     }
-    
+
     // 首次初始化：创建内置引擎列表
     const engines: SearchEngine[] = BUILT_IN_ENGINES.map((e, idx) => ({
       ...e,
@@ -162,14 +162,14 @@ export const createBrowserSearchEnginesSlice = (
     set((state) => {
       const next = state.searchEngines.filter((e) => e.id !== id);
       writeSearchEngines(next);
-      
+
       // 如果删除的是当前选中的引擎，切换到第一个可用引擎
       if (state.defaultSearchEngineId === id) {
-        const newDefaultId = next[0]?.id ?? '';
+        const newDefaultId = next[0]?.id ?? state.searchEngines.find((e) => e.isBuiltIn)?.id ?? '';
         writeDefaultEngineId(newDefaultId);
         return { searchEngines: next, defaultSearchEngineId: newDefaultId };
       }
-      
+
       return { searchEngines: next };
     }),
 
