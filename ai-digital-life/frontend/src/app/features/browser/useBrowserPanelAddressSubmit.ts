@@ -137,6 +137,13 @@ export function useBrowserPanelAddressSubmit({
         finalUrl,
         searchInfo ? `${searchInfo.engineName}: ${searchInfo.query}` : undefined,
       );
+      // O3：无活动 tab 时初始期望 tabId 为 null（任意 tab 事件都可能消费）。
+      // browserNavigateActiveTab 已同步创建 tab 并设为活动，回读新 id 重绑期望，
+      // 避免后台 tab 事件在窗口内抢先消费（与树点击 F7 的行为一致）。
+      const createdTabId = useAppStore.getState().browserActiveTabId;
+      if (createdTabId) {
+        expectedNavigationUrlRef.current = { url: finalUrl, at: Date.now(), tabId: createdTabId };
+      }
     }
 
     if (!useAppStore.getState().isTauri && finalUrl) {
