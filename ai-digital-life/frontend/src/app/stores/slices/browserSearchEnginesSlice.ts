@@ -162,6 +162,14 @@ export const createBrowserSearchEnginesSlice = (
     set((state) => {
       const next = state.searchEngines.filter((e) => e.id !== id);
       writeSearchEngines(next);
+      
+      // 如果删除的是当前选中的引擎，切换到第一个可用引擎
+      if (state.defaultSearchEngineId === id) {
+        const newDefaultId = next[0]?.id ?? '';
+        writeDefaultEngineId(newDefaultId);
+        return { searchEngines: next, defaultSearchEngineId: newDefaultId };
+      }
+      
       return { searchEngines: next };
     }),
 
