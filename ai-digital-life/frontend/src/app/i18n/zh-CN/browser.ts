@@ -54,6 +54,7 @@ export const browserZh = {
 
   // 新建标签对话框
   browserBookmarkName: '书签名称',
+  browserBookmarkNamePlaceholder: '留空自动获取书签名称',
   browserTabUrl: '网址',
 
   // 空标签引导页
@@ -190,4 +191,5 @@ export const browserZh = {
   browserSearchEngineAddTitle: '添加自定义搜索引擎',
   browserSearchEngineFetchingName: '正在获取搜索引擎名称...',
   browserSearchEngineRefresh: '刷新搜索引擎图标与名称',
+  browserSearchEngineNamePlaceholder: '留空自动获取搜索引擎名称',
 } as const;

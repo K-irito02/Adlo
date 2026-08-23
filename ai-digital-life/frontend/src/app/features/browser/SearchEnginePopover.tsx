@@ -711,7 +711,7 @@ function SearchEngineForm({
         <input
           type="text"
           className="adl-search-engine-popover__input"
-          placeholder={t.browserSearchEngineName}
+          placeholder={t.browserSearchEngineNamePlaceholder}
           value={formData.name}
           onChange={(e) => onFormDataChange({ ...formData, name: e.target.value })}
         />

@@ -358,7 +358,7 @@ export function BookmarkToFolderDialog({
               type="text"
               value={bookmarkName ?? ''}
               onChange={handleNameChange}
-              placeholder={t.browserBookmarkName}
+              placeholder={t.browserBookmarkNamePlaceholder}
             />
           </div>
         )}

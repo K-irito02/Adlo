@@ -60,6 +60,7 @@ export const browserEn = {
 
   // Create tab dialog
   browserBookmarkName: 'Bookmark name',
+  browserBookmarkNamePlaceholder: 'Leave empty to auto-fetch name',
   browserTabUrl: 'URL',
 
   // Landing page
@@ -201,4 +202,5 @@ export const browserEn = {
   browserSearchEngineAddTitle: 'Add Custom Search Engine',
   browserSearchEngineFetchingName: 'Fetching search engine name...',
   browserSearchEngineRefresh: 'Refresh search engine icon and name',
+  browserSearchEngineNamePlaceholder: 'Leave empty to auto-fetch name',
 } as const;

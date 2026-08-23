@@ -139,7 +139,7 @@ export function CreateTabDialog({
               type="text"
               value={name}
               onChange={(e) => setName(e.currentTarget.value)}
-              placeholder={t.browserBookmarkName}
+              placeholder={t.browserBookmarkNamePlaceholder}
               disabled={loading}
             />
           </div>
