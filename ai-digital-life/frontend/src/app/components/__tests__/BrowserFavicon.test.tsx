@@ -22,27 +22,28 @@ function mirrorFavicon(url: string, faviconUrl: string, faviconDataUri = '') {
   });
 }
 
-it('renders fallback icon (not blank) when no cached favicon', () => {
-  // 未缓存 → getFaviconUrl 返回 '' → 无 img，占位图标真正可见（非 display:none）
+it('shows spinner when no cached favicon (loading state)', () => {
+  // 未缓存 → getFaviconUrl 返回 '' → 显示 spinner，兜底字母隐藏
   const { container } = render(<BrowserFavicon url="https://uncached.example" />);
   const iconLink = container.querySelector(
     '.adl-browser-tree__link-fallback',
   ) as HTMLElement | null;
   expect(iconLink).not.toBeNull();
-  expect(iconLink?.style.display).not.toBe('none');
+  expect(iconLink?.style.display).toBe('none');
   expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
 });
 
-it('shows fallback letter when only external URL cached (no data-URI)', () => {
-  // 只有外部 URL 无 data-URI → 不显示 img，显示兜底字母（无网络时无法转换为 data-URI）
+it('shows img when only external URL cached (no data-URI)', () => {
+  // 只有外部 URL 无 data-URI → 显示 img（HTTP URL 直接显示），后台预加载转 data-URI
   mirrorFavicon('https://external.example', 'https://external.example/favicon.ico');
   const { container } = render(<BrowserFavicon url="https://external.example" />);
+  const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
+  expect(img).not.toBeNull();
+  expect(img?.src).toContain('https://external.example/favicon.ico');
   const fallback = container.querySelector(
     '.adl-browser-tree__link-fallback',
   ) as HTMLElement | null;
-  expect(fallback).not.toBeNull();
-  expect(fallback?.textContent).toBe('E');
-  expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
+  expect(fallback?.style.display).toBe('none');
 });
 
 it('renders img when data-URI is available', () => {
@@ -71,14 +72,13 @@ it('shows fallback letter when meta resolved with empty faviconUrl', () => {
 });
 
 it('shows empty placeholder (not letter/favicon) while meta fetch has not settled', () => {
-  // 未缓存/未结算：空占位，避免"兜底字母 → 真实图标"的中间态跳动
+  // 未缓存/未结算：spinner 可见，兜底字母隐藏（避免跳动）
   const { container } = render(<BrowserFavicon url="https://never-fetched.example" />);
   const fallback = container.querySelector(
     '.adl-browser-tree__link-fallback',
   ) as HTMLElement | null;
   expect(fallback).not.toBeNull();
-  expect(fallback?.style.display).not.toBe('none');
-  expect(fallback?.textContent).toBe('');
+  expect(fallback?.style.display).toBe('none');
   expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
 });
 
