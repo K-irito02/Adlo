@@ -71,10 +71,12 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
 
   // URL 变化时重置状态：`resolvedFaviconEmpty`/`degraded` 是单向闩锁，
   // 复用组件实例切换 URL 时若不重置，新 URL（未结算）会跳过 spinner 直接
-  // 显示兜底字母（旧 URL 已结算为空的状态残留）。
+  // 显示兜底字母（旧 URL 已结算为空的状态残留）。同时清空 faviconUrl state，
+  // 避免 URL 变化到"永不解析"的目标时残留上一页的旧图标（R3）。
   useEffect(() => {
     setResolvedFaviconEmpty(false);
     setDegraded(false);
+    setFaviconUrl('');
     resolvedRef.current = url ? isSiteMetaResolvedOrRedirected(url) : false;
     faviconUrlRef.current = '';
   }, [url]);
