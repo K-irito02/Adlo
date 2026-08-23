@@ -9,6 +9,7 @@ import {
 } from '../utils/siteMetaCache';
 import { pageMetaClient } from '../utils/pageMetaClient';
 import { IconNewTabPage, type IconSize } from '../icons';
+import { Spinner } from '@components/Spinner';
 
 /**
  * 取站点首字母作为终级兜底：解析 host 首字符，字母转大写；
@@ -82,6 +83,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   // 未命中/未就绪：显示占位图标（非空白）
   const current = faviconUrl;
   const showImg = Boolean(current) && !degraded;
+  const isLoading = !resolved && !current && !degraded;
   const handleError = useCallback(() => {
     setDegraded(true);
   }, []);
@@ -109,11 +111,12 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
           onError={handleError}
         />
       )}
+      {isLoading && <Spinner size="sm" speed="normal" />}
       <span
         className="adl-browser-tree__link-fallback"
-        style={showImg ? { display: 'none' } : undefined}
+        style={showImg || isLoading ? { display: 'none' } : undefined}
       >
-        {showImg ? '' : resolved ? siteInitial(url) : ''}
+        {showImg || isLoading ? '' : resolved ? siteInitial(url) : ''}
       </span>
     </span>
   );
