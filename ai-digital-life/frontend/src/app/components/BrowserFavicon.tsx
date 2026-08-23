@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getFaviconUrl } from '../utils/favicon';
 import {
-  subscribeSiteMeta,
   subscribeSiteMetaGlobal,
   subscribeSiteMetaReady,
   isSiteMetaCacheReady,
@@ -37,7 +36,6 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const [faviconUrl, setFaviconUrl] = useState('');
   const [degraded, setDegraded] = useState(false);
   const faviconUrlRef = useRef('');
-  const resolvedRef = useRef(url ? isSiteMetaResolvedOrRedirected(url) : false);
   const [resolvedFaviconEmpty, setResolvedFaviconEmpty] = useState(false);
 
   const applyMetaUpdate = useCallback(() => {
@@ -48,12 +46,8 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
       setFaviconUrl(next);
       setDegraded(false);
     }
-    const r = url ? isSiteMetaResolvedOrRedirected(url) : false;
-    if (r !== resolvedRef.current) {
-      resolvedRef.current = r;
-    }
     // 已结算但 favicon URL 仍为空，标记为"确认无 favicon"（无条件检查，处理初始已结算场景）
-    if (r && !next) {
+    if (url && isSiteMetaResolvedOrRedirected(url) && !next) {
       setResolvedFaviconEmpty(true);
     }
   }, [url]);
@@ -77,7 +71,6 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     setResolvedFaviconEmpty(false);
     setDegraded(false);
     setFaviconUrl('');
-    resolvedRef.current = url ? isSiteMetaResolvedOrRedirected(url) : false;
     faviconUrlRef.current = '';
   }, [url]);
 
@@ -86,12 +79,12 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     if (!url) {
       return;
     }
-    // 精确 URL 订阅：直接命中的元数据更新立即刷新。
-    const unsubMeta = subscribeSiteMeta(url, applyMetaUpdate);
     // 跨域重定向场景：原始 URL 的精确订阅收不到目标 origin 的元数据广播，
     // 且重定向映射可能在组件挂载后才由导航记录（书签等先渲染场景）。
     // 因此用全局订阅在事件发生时实时计算 getRedirectTarget(url)（而非建立时
     // 一次性捕获），目标数据落地即可刷新（参考 Chromium `page_url_type` 语义）。
+    // 全局订阅的 norm === url 分支已覆盖精确 URL 的镜像更新，无需单独的
+    // subscribeSiteMeta 精确订阅（后者只是幂等的重复调用）。
     const unsubGlobal = subscribeSiteMetaGlobal((updatedUrl) => {
       const norm = normalizeUrlForCache(updatedUrl);
       if (norm === normalizeUrlForCache(url) || getRedirectTarget(url) === norm) {
@@ -105,7 +98,6 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
       }
     });
     return () => {
-      unsubMeta();
       unsubGlobal();
       unsubUpdated();
     };
@@ -118,7 +110,9 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
       return;
     }
     const timer = setTimeout(() => {
-      if (!faviconUrlRef.current && !resolvedRef.current) {
+      // 已结算但 favicon URL 仍为空时标记为"确认无 favicon"（兜底字母）。
+      // 若期间拿到了 favicon（faviconUrlRef 非空）则跳过降级。
+      if (!faviconUrlRef.current) {
         setResolvedFaviconEmpty(true);
       }
     }, 5000);

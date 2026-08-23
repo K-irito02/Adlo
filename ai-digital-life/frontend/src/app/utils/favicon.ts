@@ -2,7 +2,6 @@ import {
   getCanonicalOriginFavicon,
   persistFaviconDataUri,
   getRedirectTarget,
-  normalizeUrlForCache,
 } from './siteMetaCache';
 
 /**
@@ -96,8 +95,10 @@ export function getFaviconUrl(url: string): string {
   // 优先级 4：跨域重定向兜底（参考 Chromium `page_url_type`/重定向链语义）——
   // 原始 URL 无 favicon 时，若存在重定向目标（如 search.marginalia.nu → marginalia-search.com），
   // 用目标的缓存 favicon。避免跨域重定向的历史条目永久 spinner/兜底字母。
+  // getRedirectTarget 保证不返回输入 URL 自身（recordRedirect 守卫 from !== to，
+  // visited-set 断开环），故无需再做不相等的判断。
   const redirectTarget = getRedirectTarget(url);
-  if (redirectTarget && normalizeUrlForCache(redirectTarget) !== normalizeUrlForCache(url)) {
+  if (redirectTarget) {
     const {
       faviconDataUri: targetDataUri,
       faviconUrl: targetFaviconUrl,
