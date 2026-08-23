@@ -102,7 +102,7 @@ description: End-of-work mandatory closing procedures. Invoke when all developme
 powershell -File "ai-digital-life\.cargo\clean-target.ps1" -WhatIf
 ```
 
-脚本按空间阈值触发（`ai-digital-life/target/debug` 超过 30 GB 即全量 `cargo clean`，不按时间窗口判断）。`-WhatIf` 干跑后询问用户是否执行：
+脚本按空间阈值触发（`ai-digital-life/target/debug` 超过 30 GB 即全量 `cargo clean`，不按时间窗口判断）。`-WhatIf` 干跑后询问用户是否执行。清理为**永久删除**：`cargo clean` 直接物理删除构建产物，**不进入回收站/垃圾箱**，无需清空回收站：
 
 ```powershell
 powershell -File "ai-digital-life\.cargo\clean-target.ps1"

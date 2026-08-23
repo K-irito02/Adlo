@@ -4,7 +4,7 @@
 # - 清理脚本（空间阈值触发全量清理：target/debug 超 30GB 即 cargo clean）：
 #     powershell -File .cargo/clean-target.ps1
 # - 全清所有构建产物（下次需完整重建）：
-#     cargo clean
+#     cargo clean（永久删除：直接物理删除，不进入回收站/垃圾箱，无需清空回收站）
 
 [alias]
 # 清理所有构建产物，然后完整重建

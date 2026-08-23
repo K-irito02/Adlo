@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
 统一 Cargo 磁盘护理脚本：target/debug 超过阈值即全量清理构建产物。
 
@@ -6,6 +6,7 @@
 触发条件（命中即执行清理，否则跳过）：
   空间：target/debug 总大小超过 -Threshold（默认 30 GB）
 不按时间窗口判断；超过阈值即执行 cargo clean 全量删除所有构建产物。
+  重要：cargo clean 为永久删除 —— 直接物理删除构建产物，不进入回收站/垃圾箱，无需清空回收站。
   -Full：无视阈值强制全清。 -WhatIf：干跑，只报告不删除。
 
 .EXAMPLE

@@ -138,6 +138,8 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 2. 空间阈值触发全量清理：`target/debug` 超 30 GB → 执行 `clean-target.ps1` 全量 `cargo clean`（不按时间窗口判断）
 3. 手动全清使用 `cargo clean`（或 `cargo prune` 别名 = `clean`）
 
+> 上述清理均为**永久删除**：`cargo clean` / `clean-target.ps1` 直接物理删除构建产物，**不进入回收站/垃圾箱**，无需清空回收站。
+
 ## 相关文件
 
 - [mandatory-testing.md](./mandatory-testing.md) — 测试要求 / 结束验收流程
