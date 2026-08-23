@@ -102,13 +102,13 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
       return;
     }
     
-    // 从 URL 模板提取域名作为 favicon 来源
-    // 使用 Google Favicon 服务（更可靠）
+    // 从 URL 模板提取域名和搜索 URL
     let faviconUrl = '';
     let searchUrl = '';
     try {
       const url = new URL(formData.urlTemplate.replace('%s', 'test'));
       const domain = url.hostname;
+      // 先设置 Google Favicon 作为兜底
       faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
       searchUrl = url.origin;
     } catch {
@@ -147,25 +147,40 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
     }
     resetForm();
     
-    // 后台获取真实标题并更新（不阻塞 UI）
-    if (savedId && searchUrl && !formData.name.trim()) {
+    // 后台获取真实标题和 favicon 并更新（不阻塞 UI）
+    if (savedId && searchUrl) {
       void (async () => {
         try {
           const meta = await pageMetaClient.getSilent(searchUrl);
-          if (meta?.title) {
-            // 清理标题：移除常见的后缀
-            const cleanTitle = meta.title
-              .replace(/\s*[-|–]\s*(Search|搜索引擎|搜索).*$/i, '')
-              .replace(/\s*[-|–]\s*(Welcome to|欢迎访问).*$/i, '')
-              .trim();
+          if (meta) {
+            const updates: { name?: string; faviconUrl?: string } = {};
             
-            // 如果清理后的标题有效，更新名称
-            if (cleanTitle && cleanTitle !== initialName) {
-              updateCustomSearchEngine(savedId, { name: cleanTitle });
+            // 更新 favicon：优先使用 data URI（离线可用），否则使用 URL
+            if (meta.faviconDataUri) {
+              updates.faviconUrl = meta.faviconDataUri;
+            } else if (meta.favicon) {
+              updates.faviconUrl = meta.favicon;
+            }
+            
+            // 更新标题（如果用户未填写）
+            if (!formData.name.trim() && meta.title) {
+              const cleanTitle = meta.title
+                .replace(/\s*[-|–]\s*(Search|搜索引擎|搜索).*$/i, '')
+                .replace(/\s*[-|–]\s*(Welcome to|欢迎访问).*$/i, '')
+                .trim();
+              
+              if (cleanTitle && cleanTitle !== initialName) {
+                updates.name = cleanTitle;
+              }
+            }
+            
+            // 应用更新
+            if (updates.name || updates.faviconUrl) {
+              updateCustomSearchEngine(savedId, updates);
             }
           }
         } catch {
-          // 获取失败，保留初始名称
+          // 获取失败，保留初始数据
         }
       })();
     }
