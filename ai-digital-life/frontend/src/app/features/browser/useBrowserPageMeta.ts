@@ -34,7 +34,9 @@ export function applyBroadcastTitle(
     return true;
   }
   if (source === 'com') {
-    return currentSource === 'com' || currentSource === 'google';
+    // 首次获取元数据时 currentSource 是 undefined，允许更新
+    // 后续更新时，只允许 'com' 或 'google' 来源覆盖
+    return currentSource === undefined || currentSource === 'com' || currentSource === 'google';
   }
   return false;
 }

@@ -280,7 +280,9 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           // switched tabs before this event was processed).
           // 标签 URL 用原始 url（保留 modal_id），使声音/标题能精确关联到
           // 当前视频历史条目（buildHistoryLeafNode 以 t.url === entry.url 精确匹配）。
-          s.browserUpdateTab(tabId, { url, title: '' });
+          // 不清空标题：保留现有标题直到 handlePageMeta/tryPrefetch 到达真实标题，
+          // 避免 URL 变化（如 Bing/DDG 重定向）时标题短暂空白闪烁。
+          s.browserUpdateTab(tabId, { url });
           if (existingEntry) {
             s.browserAddToHistory(url, existingEntry.title);
             s.browserUpdateHistoryTitle(url, existingEntry.title);
@@ -313,41 +315,46 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         const PREFETCH_KEY = 'prefetch-' + normalizedUrl;
 
         const tryPrefetch = (): void => {
-          pageMetaClient.get(normalizedUrl).then((meta) => {
-            if (captureGeneration !== navigationGenerationRef.current) {
-              return;
-            }
+          pageMetaClient
+            .get(normalizedUrl)
+            .then((meta) => {
+              if (captureGeneration !== navigationGenerationRef.current) {
+                return;
+              }
 
-            const existingTimer = fallbackTimeoutsRef.current.get(PREFETCH_KEY);
-            if (existingTimer) {
-              clearTimeout(existingTimer);
-              fallbackTimeoutsRef.current.delete(PREFETCH_KEY);
-            }
-            const existingFallback = fallbackTimeoutsRef.current.get(normalizedUrl);
-            if (existingFallback) {
-              clearTimeout(existingFallback);
-              fallbackTimeoutsRef.current.delete(normalizedUrl);
-            }
-            if (!meta?.title) {
-              // 失败重试由服务端 SWR/失败处理承担（Task 10 移除前端重试）
-              return;
-            }
-            onPageMeta?.(
-              {
-                title: meta.title,
-                favicon: meta.favicon || '',
-                faviconDataUri: meta.faviconDataUri || '',
-                // 传递原始 url（保留 modal_id）：使 handlePageMeta 的 cleanUrl 与标签
-                // URL 精确匹配（exact 分支），从而只更新标题、不把标签 URL 覆盖回
-                // base，维持声音/标题对当前视频条目的精确关联。
-                url,
-                // Tauri 模式导航主路径（onUrlChanged → prefetch → TTL 命中 get）：
-                // 透传真实来源，否则 com 权威条目按 'http' 落地并冻结后续 com 更新（R3 回归）。
-                source: (meta as { source?: MetaSource }).source,
-              },
-              'http',
-            );
-          });
+              const existingTimer = fallbackTimeoutsRef.current.get(PREFETCH_KEY);
+              if (existingTimer) {
+                clearTimeout(existingTimer);
+                fallbackTimeoutsRef.current.delete(PREFETCH_KEY);
+              }
+              const existingFallback = fallbackTimeoutsRef.current.get(normalizedUrl);
+              if (existingFallback) {
+                clearTimeout(existingFallback);
+                fallbackTimeoutsRef.current.delete(normalizedUrl);
+              }
+              if (!meta?.title) {
+                // 失败重试由服务端 SWR/失败处理承担（Task 10 移除前端重试）
+                return;
+              }
+              onPageMeta?.(
+                {
+                  title: meta.title,
+                  favicon: meta.favicon || '',
+                  faviconDataUri: meta.faviconDataUri || '',
+                  // 传递原始 url（保留 modal_id）：使 handlePageMeta 的 cleanUrl 与标签
+                  // URL 精确匹配（exact 分支），从而只更新标题、不把标签 URL 覆盖回
+                  // base，维持声音/标题对当前视频条目的精确关联。
+                  url,
+                  // Tauri 模式导航主路径（onUrlChanged → prefetch → TTL 命中 get）：
+                  // 透传真实来源，否则 com 权威条目按 'http' 落地并冻结后续 com 更新（R3 回归）。
+                  source: (meta as { source?: MetaSource }).source,
+                },
+                'http',
+              );
+            })
+            .catch(() => {
+              // prefetch 失败静默处理，由 fallback 超时机制接管
+            });
         };
 
         tryPrefetch();

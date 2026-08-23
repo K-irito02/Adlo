@@ -32,15 +32,23 @@ export function findInBrowserLookupIndex(
     return exactMatch;
   }
 
-  const looksLikeUrl = /^(about:|[a-z]+:\/\/)/i.test(input) || /[./:]/.test(input);
+  // Chrome/Edge omnibox 行为：只在输入明确是 URL 格式时才在历史记录中查找匹配
+  // 当输入是搜索词时（如"百度"），跳过历史记录匹配，直接触发搜索
+  const looksLikeUrl =
+    /^(about:|[a-z]+:\/\/)/i.test(input) || // 协议前缀
+    /^\d{1,3}(\.\d{1,3}){3}$/.test(input) || // IP 地址
+    /^localhost(:\d+)?/i.test(input) || // localhost
+    /\.[a-z]{2,}$/i.test(input) || // 点号 + TLD（如 .com、.org）
+    /\/$/.test(input); // 以 / 结尾的路径
   if (!looksLikeUrl) {
-    return browserLookupIndex.find(
-      (item) =>
-        item.title.toLowerCase().includes(normalizedInput) ||
-        item.url.toLowerCase().includes(normalizedInput),
-    );
+    // 输入不是 URL 格式，跳过历史记录匹配，返回 undefined 触发搜索
+    return undefined;
   }
-  return undefined;
+  return browserLookupIndex.find(
+    (item) =>
+      item.title.toLowerCase().includes(normalizedInput) ||
+      item.url.toLowerCase().includes(normalizedInput),
+  );
 }
 
 interface UseBrowserSearchOptions {
