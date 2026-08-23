@@ -10,10 +10,12 @@ import {
   IconGlobeSettings,
   IconGlobePlus,
 } from '@icons';
+import { Spinner } from '@components/Spinner';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import type { SearchEngine } from '@stores/slices/browserSearchEnginesSlice';
 import { computePopoverPosition } from './searchEnginePopoverPosition';
+import { pageMetaClient } from '@utils/pageMetaClient';
 
 const failedFaviconUrls = new Set<string>();
 const loadedFaviconUrls = new Set<string>();
@@ -94,7 +96,7 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
     resetForm();
   }, [resetForm]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
     if (!formData.urlTemplate.includes('%s')) {
       setUrlError(true);
       return;
@@ -103,23 +105,57 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
     // 从 URL 模板提取域名作为 favicon 来源
     // 使用 Google Favicon 服务（更可靠）
     let faviconUrl = '';
+    let searchUrl = '';
     try {
       const url = new URL(formData.urlTemplate.replace('%s', 'test'));
       const domain = url.hostname;
       faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+      searchUrl = url.origin;
     } catch {
       // URL 解析失败，不设置 favicon
     }
     
+    // 自动获取搜索引擎名称
+    let engineName = formData.name.trim();
+    if (!engineName && searchUrl) {
+      try {
+        const meta = await pageMetaClient.getSilent(searchUrl);
+        if (meta?.title) {
+          // 清理标题：移除常见的后缀
+          engineName = meta.title
+            .replace(/\s*[-|–]\s*(Search|搜索引擎|搜索).*$/i, '')
+            .replace(/\s*[-|–]\s*(Welcome to|欢迎访问).*$/i, '')
+            .trim();
+        }
+      } catch {
+        // 获取失败，使用兜底名称
+      }
+      
+      // 如果仍然为空，使用域名作为兜底
+      if (!engineName && searchUrl) {
+        try {
+          const url = new URL(searchUrl);
+          engineName = url.hostname.replace('www.', '');
+        } catch {
+          // 忽略
+        }
+      }
+      
+      // 最终兜底：使用随机名称
+      if (!engineName) {
+        engineName = `Search Engine ${Date.now().toString(36).slice(-4).toUpperCase()}`;
+      }
+    }
+    
     if (editingId === 'new') {
       addCustomSearchEngine({ 
-        name: formData.name, 
+        name: engineName, 
         urlTemplate: formData.urlTemplate,
         faviconUrl 
       });
     } else if (editingId) {
       updateCustomSearchEngine(editingId, {
-        name: formData.name,
+        name: engineName,
         urlTemplate: formData.urlTemplate,
         faviconUrl,
       });
@@ -263,30 +299,37 @@ function EngineFavicon({ engine, className }: { engine: SearchEngine; className?
   const isKnownFailed = !url || failedFaviconUrls.has(url);
   const isKnownLoaded = url && loadedFaviconUrls.has(url);
   const [showFallback, setShowFallback] = useState(isKnownFailed);
+  const [isLoading, setIsLoading] = useState(!isKnownFailed && !isKnownLoaded && Boolean(url));
 
   useEffect(() => {
     if (!url) {
       setShowFallback(true);
+      setIsLoading(false);
       return;
     }
     if (url.startsWith('/')) {
       setShowFallback(false);
+      setIsLoading(false);
       return;
     }
     if (isKnownFailed) {
       setShowFallback(true);
+      setIsLoading(false);
       return;
     }
     if (isKnownLoaded) {
       setShowFallback(false);
+      setIsLoading(false);
       return;
     }
 
+    setIsLoading(true);
     const controller = new AbortController();
     const timer = setTimeout(() => {
       if (!controller.signal.aborted) {
         failedFaviconUrls.add(url);
         setShowFallback(true);
+        setIsLoading(false);
         controller.abort();
       }
     }, PRELOAD_TIMEOUT_MS);
@@ -297,6 +340,7 @@ function EngineFavicon({ engine, className }: { engine: SearchEngine; className?
       if (!controller.signal.aborted) {
         loadedFaviconUrls.add(url);
         setShowFallback(false);
+        setIsLoading(false);
       }
     };
     img.onerror = () => {
@@ -304,6 +348,7 @@ function EngineFavicon({ engine, className }: { engine: SearchEngine; className?
       if (!controller.signal.aborted) {
         failedFaviconUrls.add(url);
         setShowFallback(true);
+        setIsLoading(false);
       }
     };
     img.src = url;
@@ -315,6 +360,10 @@ function EngineFavicon({ engine, className }: { engine: SearchEngine; className?
       img.onerror = null;
     };
   }, [url, isKnownFailed, isKnownLoaded]);
+
+  if (isLoading) {
+    return <Spinner size="sm" speed="fast" className={className} />;
+  }
 
   if (showFallback || isKnownFailed) {
     return <IconGlobeSearch size={14} decorative />;
