@@ -6,6 +6,7 @@ import {
   isSiteMetaCacheReady,
   initSiteMetaCache,
   isSiteMetaResolved,
+  normalizeUrlForCache,
 } from '../utils/siteMetaCache';
 import { pageMetaClient } from '../utils/pageMetaClient';
 import { IconNewTabPage, type IconSize } from '../icons';
@@ -70,7 +71,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     }
     const unsubMeta = subscribeSiteMeta(url, applyMetaUpdate);
     const unsubUpdated = pageMetaClient.subscribeUpdated((p) => {
-      if (p.url === url) {
+      if (normalizeUrlForCache(p.url) === normalizeUrlForCache(url)) {
         applyMetaUpdate();
       }
     });

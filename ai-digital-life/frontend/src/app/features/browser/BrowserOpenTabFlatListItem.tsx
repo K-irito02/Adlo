@@ -46,7 +46,7 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
         <button type="button" className="adl-filetree__label" onClick={() => onSelectTab(tab.id)}>
           <span className="adl-filetree__label-content">
             <span className="adl-filetree__label-text">
-              {tab.titleResolved ? tab.title : <ShimmeringText text={t.newTabPage} className="adl-filetree__label-text--loading" />}
+              {tab.titleResolved ? tab.title : <ShimmeringText text={t.newTabPage} />}
             </span>
           </span>
         </button>

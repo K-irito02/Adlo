@@ -122,7 +122,7 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                     }}
                   />
                   <span className="adl-tool-list__title">
-                    {tab.titleResolved ? tab.title : <ShimmeringText text={_t.newTabPage} className="adl-tool-list__title--loading" />}
+                    {tab.titleResolved ? tab.title : <ShimmeringText text={_t.newTabPage} />}
                   </span>
                 </button>
                 <TooltipSimple content={isBookmarked ? _t.unbookmark : _t.close} placement="top">
