@@ -73,6 +73,7 @@ export const createBrowserTabsSlice = (
         workspaceId: workspaceId ?? '',
         title: title?.trim() || '',
         url: url?.trim() || '',
+        titleResolved: false,
         isPinned: false,
         sortOrder: maxSortOrder + 1,
         isPlayingAudio: false,

@@ -232,6 +232,7 @@ export const createBrowserSlice = (
             workspaceId: '',
             title: tabTitle,
             url,
+            titleResolved: false,
             isPinned: false,
             isPlayingAudio: false,
             isAudioMuted: false,
@@ -249,6 +250,7 @@ export const createBrowserSlice = (
                 ...tab,
                 url,
                 title: title || '',
+                titleResolved: false,
               };
             }
             return tab;
