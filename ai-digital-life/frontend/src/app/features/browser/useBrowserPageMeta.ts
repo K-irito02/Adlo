@@ -82,7 +82,7 @@ export function useBrowserPageMeta() {
       const curSource = titleSourceRef.get(tab.id);
       const applied = applyBroadcastTitle(tab, cleanUrl, p.title, p.source, curSource);
       if (applied) {
-        state.browserUpdateTab(tab.id, { title: p.title });
+        state.browserUpdateTab(tab.id, { title: p.title, titleResolved: true });
         titleSourceRef.set(tab.id, p.source);
       }
     }
@@ -133,7 +133,7 @@ export function useBrowserPageMeta() {
           titleSourceRef.get(t.id),
         );
         if (applied) {
-          state.browserUpdateTab(t.id, { title: meta.title });
+          state.browserUpdateTab(t.id, { title: meta.title, titleResolved: true });
           titleSourceRef.set(t.id, effectiveSource);
         }
       }
@@ -153,6 +153,7 @@ export function useBrowserPageMeta() {
       state.browserUpdateTab(activeTab.id, {
         url: cleanUrl,
         title: shouldTitle ? meta.title : activeTab.title,
+        titleResolved: shouldTitle,
       });
       if (shouldTitle) {
         titleSourceRef.set(activeTab.id, effectiveSource);

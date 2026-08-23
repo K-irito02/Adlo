@@ -32,6 +32,7 @@ describe('removeSiteMetaIfUnreferenced', () => {
           workspaceId: 'w',
           title: 'A',
           url: 'https://a.com',
+          titleResolved: false,
           isPinned: false,
           sortOrder: 0,
           isPlayingAudio: false,

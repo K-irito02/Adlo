@@ -10,6 +10,7 @@ function makeTab(id: string, overrides: Partial<BrowserTabState> = {}): BrowserT
     workspaceId: 'ws-1',
     title: id,
     url: `https://${id}.example`,
+    titleResolved: false,
     isPinned: false,
     sortOrder: 0,
     isPlayingAudio: false,

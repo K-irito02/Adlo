@@ -42,6 +42,7 @@ function makeTab(id: string, title: string, url: string, workspaceId: string): B
     title,
     url,
     workspaceId,
+    titleResolved: false,
     isPinned: false,
     sortOrder: 0,
     isPlayingAudio: false,

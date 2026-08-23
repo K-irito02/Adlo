@@ -17,6 +17,7 @@ function makeTab(id: string, url: string, title = 'Old'): BrowserTabState {
     workspaceId: 'ws1',
     title,
     url,
+    titleResolved: false,
     isPinned: false,
     sortOrder: 0,
     isPlayingAudio: false,

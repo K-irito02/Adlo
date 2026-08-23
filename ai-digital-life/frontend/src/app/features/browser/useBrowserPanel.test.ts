@@ -7,6 +7,7 @@ function makeTab(id: string) {
     title: id,
     url: `https://${id}.example`,
     workspaceId: 'ws-1',
+    titleResolved: false,
     isPinned: false,
     isPlayingAudio: false,
     isAudioMuted: false,

@@ -73,6 +73,7 @@ describe('useBrowserPageMeta handlePageMeta http(s) guard (⑩)', () => {
           workspaceId: 'ws1',
           title: '',
           url: 'https://example.com/',
+          titleResolved: false,
           isPinned: false,
           sortOrder: 0,
           isPlayingAudio: false,
