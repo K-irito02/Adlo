@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserFavicon } from '@components/BrowserFavicon';
 import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
 import { useTCopy } from '@i18n/useTCopy';
+import { ShimmeringText } from '@/components/shimmering-text';
 import { useAppStore } from '@stores/slicedStore';
 import { IconClose } from '@icons';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
@@ -44,7 +45,9 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
         />
         <button type="button" className="adl-filetree__label" onClick={() => onSelectTab(tab.id)}>
           <span className="adl-filetree__label-content">
-            <span className="adl-filetree__label-text">{tab.title}</span>
+            <span className="adl-filetree__label-text">
+              {tab.titleResolved ? tab.title : <ShimmeringText text={t.newTabPage} />}
+            </span>
           </span>
         </button>
         <span className="adl-filetree__meta adl-tree-node__meta--inline">

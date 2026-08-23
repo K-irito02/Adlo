@@ -6,6 +6,7 @@ import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { CopyDict } from '@i18n';
 import { useAppStore } from '@stores/slicedStore';
 import { BrowserFavicon } from '@components/BrowserFavicon';
+import { ShimmeringText } from '@/components/shimmering-text';
 
 interface BrowserTabBarProps {
   tabs: BrowserTabState[];
@@ -120,7 +121,9 @@ export const BrowserTabBar = React.memo(function BrowserTabBar({
                       window.digitalLife?.browser?.muteTab?.(tab.id, nextMuted);
                     }}
                   />
-                  <span className="adl-tool-list__title">{tab.title}</span>
+                  <span className="adl-tool-list__title">
+                    {tab.titleResolved ? tab.title : <ShimmeringText text={_t.newTabPage} />}
+                  </span>
                 </button>
                 <TooltipSimple content={isBookmarked ? _t.unbookmark : _t.close} placement="top">
                   <button
