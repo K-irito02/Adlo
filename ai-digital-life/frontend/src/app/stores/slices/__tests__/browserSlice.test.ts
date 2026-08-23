@@ -135,6 +135,22 @@ describe('browserSlice', () => {
     expect(tabs[0].title).toBe('Example');
   });
 
+  it('browserNavigateActiveTab marks real title resolved, placeholder title unresolved (C1)', () => {
+    const { get } = createMockStore();
+    const s = get() as Record<string, unknown>;
+    s.browserTabs = [];
+    s.browserActiveTabId = '';
+    const bs = get() as unknown as BrowserSlice;
+    // 真实标题 → titleResolved: true
+    bs.browserNavigateActiveTab('https://example.com', 'Example');
+    let tabs = get().browserTabs as { titleResolved: boolean; title: string }[];
+    expect(tabs[0].titleResolved).toBe(true);
+    // 占位标题（如搜索 "Google: 搜索词" 也非占位，这里用 URL 占位）→ false
+    bs.browserNavigateActiveTab('https://example.com', 'https://example.com');
+    tabs = get().browserTabs as { titleResolved: boolean; title: string }[];
+    expect(tabs[0].titleResolved).toBe(false);
+  });
+
   it('browserNavigateActiveTab navigates existing tab in place', () => {
     const { get } = createMockStore();
     const s = get() as Record<string, unknown>;

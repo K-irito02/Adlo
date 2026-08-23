@@ -1,5 +1,6 @@
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { MetaSource, PageMeta } from '@shared/ipc/browser';
+import type { ExpectedNavigationRef } from './browserUrlUtils';
 import { useBrowserPageMeta } from './useBrowserPageMeta';
 import { useBrowserMetaSubscription } from './useBrowserMetaSubscription';
 import { useBrowserUrlChange } from './useBrowserUrlChange';
@@ -8,11 +9,7 @@ export interface UseBrowserPanelMetaWiringParams {
   activeTab: BrowserTabState | undefined;
   activeTabRef: React.MutableRefObject<BrowserTabState | undefined>;
   iframeRef: React.MutableRefObject<HTMLIFrameElement | null>;
-  expectedNavigationUrlRef: React.MutableRefObject<{
-    url: string;
-    at: number;
-    tabId: string | null;
-  } | null>;
+  expectedNavigationUrlRef: ExpectedNavigationRef;
   pendingNavigationsRef: React.MutableRefObject<Set<string>>;
   markUrlSeen: (url: string) => void;
   setAddress: (address: string) => void;

@@ -114,6 +114,16 @@ function notify(url: string): void {
 }
 
 /**
+ * 全局订阅（已归一化 key）：每当任意 URL 的元数据镜像更新时触发，
+ * 回调收到**已归一化的 cache key**（upsertMirror/applyBroadcastUpdate 的 key）。
+ * 调用方据此与自身归一化 URL 比较，无需再次 URL 解析（F2 性能优化）。
+ */
+export function subscribeSiteMetaGlobal(callback: (normalizedKey: string) => void): () => void {
+  globalListeners.add(callback);
+  return () => globalListeners.delete(callback);
+}
+
+/**
  * 只读镜像写入口：clamp + 内存 set + notify。
  * 写路径唯一在服务端 PageMetaService——本模块只维护镜像，不触碰后端持久化。
  */
@@ -484,11 +494,6 @@ export function subscribeSiteMeta(url: string, callback: () => void): () => void
       urlListeners.delete(key);
     }
   };
-}
-
-export function subscribeSiteMetaGlobal(callback: (url: string) => void): () => void {
-  globalListeners.add(callback);
-  return () => globalListeners.delete(callback);
 }
 
 export function getSiteMetaCacheStats(): { size: number; ready: boolean } {

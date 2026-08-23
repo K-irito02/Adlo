@@ -141,7 +141,8 @@ export function useBrowserTabs() {
 
   const handleEditSubmit = useCallback(() => {
     if (editingTabId && editValue.trim()) {
-      browserUpdateTab(editingTabId, { title: editValue.trim() });
+      // 用户重命名是确定的真实标题 → 标记已结算，避免扫光持续覆盖自定义标题（M1-D）
+      browserUpdateTab(editingTabId, { title: editValue.trim(), titleResolved: true });
     }
     setEditingTabId(null);
     setEditValue('');

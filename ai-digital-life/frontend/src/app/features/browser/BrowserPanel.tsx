@@ -151,6 +151,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     browserSelectTab,
     browserNavigateInPlace,
     setBrowserNavigateInPlace,
+    getActiveTabId: () => useAppStore.getState().browserActiveTabId,
     expectedNavigationUrlRef,
   });
 

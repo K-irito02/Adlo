@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
 import { isTauriShell } from '@shared/env';
+import type { ExpectedNavigationRef } from './browserUrlUtils';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 interface UseBrowserIframeStateOptions {
@@ -18,9 +19,7 @@ interface UseBrowserIframeStateOptions {
 export function useBrowserIframeState({ activeTab }: UseBrowserIframeStateOptions) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const activeTabRef = useRef(activeTab);
-  const expectedNavigationUrlRef = useRef<{ url: string; at: number; tabId: string | null } | null>(
-    null,
-  );
+  const expectedNavigationUrlRef: ExpectedNavigationRef = useRef(null);
   const validatedUrlsRef = useRef(new Set<string>());
   const recentNavigatedUrlsRef = useRef<Map<string, number>>(new Map());
   const [, forceRender] = useState(0);

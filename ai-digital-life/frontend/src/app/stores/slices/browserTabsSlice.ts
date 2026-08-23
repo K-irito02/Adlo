@@ -68,12 +68,16 @@ export const createBrowserTabsSlice = (
     set((state) => {
       const maxSortOrder =
         state.browserTabs.length > 0 ? Math.max(...state.browserTabs.map((t) => t.sortOrder)) : 0;
+      const tabTitle = title?.trim() || '';
       const tab: BrowserTabState = {
         id: createUiId('browser'),
         workspaceId: workspaceId ?? '',
-        title: title?.trim() || '',
+        title: tabTitle,
         url: url?.trim() || '',
-        titleResolved: false,
+        // 已知真实非占位标题（书签/快捷站点/文件夹恢复）视为已结算，避免闪扫光（M1-E）；
+        // 占位/空标题保持未结算，等真实标题到达。
+        titleResolved:
+          tabTitle !== '' && tabTitle !== (url?.trim() || '') && !/^https?:\/\//i.test(tabTitle),
         isPinned: false,
         sortOrder: maxSortOrder + 1,
         isPlayingAudio: false,

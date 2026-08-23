@@ -46,17 +46,30 @@ function preloadExternalFavicon(faviconUrl: string, cacheKey: string): void {
         return;
       }
       ctx.drawImage(img, 0, 0);
-      canvas.convertToBlob({ type: 'image/png' }).then((blob) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const dataUri = reader.result as string;
-          preloadCache.set(faviconUrl, dataUri);
-          if (cacheKey) {
-            void persistFaviconDataUri(cacheKey, dataUri);
+      canvas
+        .convertToBlob({ type: 'image/png' })
+        .catch(() => {
+          /* canvas 转换失败：跳过，下次再试 */
+        })
+        .then((blob) => {
+          if (!blob) {
+            return;
           }
-        };
-        reader.readAsDataURL(blob);
-      });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            // FileReader 出错时 result 为 null：判空避免把 null 写入 preloadCache
+            // 造成该 favicon 本次会话永久不再重试（F6）
+            if (typeof reader.result !== 'string') {
+              return;
+            }
+            const dataUri = reader.result;
+            preloadCache.set(faviconUrl, dataUri);
+            if (cacheKey) {
+              void persistFaviconDataUri(cacheKey, dataUri);
+            }
+          };
+          reader.readAsDataURL(blob);
+        });
     } catch {
       // Canvas tainted or other error — skip silently
     }

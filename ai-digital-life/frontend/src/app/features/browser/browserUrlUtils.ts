@@ -21,6 +21,21 @@ export function normalizeUrlForCompare(url: string): string {
   }
 }
 
+/**
+ * 显式导航的期望目标：`{url, at, tabId}`。
+ * - `url`：用户显式导航的 URL（地址栏提交/书签历史树点击）
+ * - `at`：设置时间戳，重定向检测据此做 10s 新鲜度门控
+ * - `tabId`：发起导航的目标 tab id；`null` 表示"新建 tab"场景（发起时 tab 尚不存在）
+ * 供 useBrowserUrlChange 检测跨域重定向（Chrome/Edge 重定向链消化语义）。
+ */
+export interface ExpectedNavigation {
+  url: string;
+  at: number;
+  tabId: string | null;
+}
+
+export type ExpectedNavigationRef = React.MutableRefObject<ExpectedNavigation | null>;
+
 export function isProbablySameSite(expected: string, actual: string): boolean {
   try {
     const expectedHost = new URL(expected).hostname;

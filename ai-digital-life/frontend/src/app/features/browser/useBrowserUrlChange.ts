@@ -9,6 +9,7 @@ import {
   isProbablySameSite,
   extractSearchQueryFromUrl,
 } from './browserUrlUtils';
+import type { ExpectedNavigationRef } from './browserUrlUtils';
 import {
   historyDedupKey,
   hasViewIdentityParam,
@@ -42,11 +43,7 @@ interface UseBrowserUrlChangeOptions {
   activeTab?: BrowserTabState;
   activeTabRef: React.MutableRefObject<BrowserTabState | undefined>;
   iframeRef: React.MutableRefObject<HTMLIFrameElement | null>;
-  expectedNavigationUrlRef: React.MutableRefObject<{
-    url: string;
-    at: number;
-    tabId: string | null;
-  } | null>;
+  expectedNavigationUrlRef: ExpectedNavigationRef;
   setAddress: (address: string) => void;
   setSearchQueryDisplay: (query: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
@@ -161,7 +158,8 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           iframeFavicon = iconLink?.href || '';
         }
         if (iframeTitle && iframeTitle !== activeTab.title) {
-          browserUpdateTab(activeTab.id, { title: iframeTitle });
+          // iframe 的 document.title 是真实标题 → 标记已结算（M1-D/C1 自愈路径）
+          browserUpdateTab(activeTab.id, { title: iframeTitle, titleResolved: true });
         }
         if (iframeTitle || iframeFavicon) {
           onPageMeta?.({
@@ -387,10 +385,15 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             : undefined;
           if (curTab) {
             const tabUrlMatches = normalizeUrlForCompare(curTab.url) === normalizedUrl;
+            // 兜底标题（URL 占位）也标记已结算：标题"已确定"为 URL，不显示扫光（M1-D）
             if (!tabUrlMatches) {
-              s.browserUpdateTab(tabId, { url: normalizedUrl, title: normalizedUrl });
+              s.browserUpdateTab(tabId, {
+                url: normalizedUrl,
+                title: normalizedUrl,
+                titleResolved: true,
+              });
             } else if (!curTab.title) {
-              s.browserUpdateTab(curTab.id, { title: normalizedUrl });
+              s.browserUpdateTab(curTab.id, { title: normalizedUrl, titleResolved: true });
             }
           } else {
             s.browserNavigateActiveTab(normalizedUrl);

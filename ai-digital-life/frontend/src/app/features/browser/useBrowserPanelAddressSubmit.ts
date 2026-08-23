@@ -3,6 +3,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { findInBrowserLookupIndex } from './useBrowserSearch';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
 import { isSearchQuery, buildSearchUrl, ensureProtocol } from './browserUrlUtils';
+import type { ExpectedNavigationRef } from './browserUrlUtils';
 import type { MetaSource, PageMeta } from '@shared/ipc/browser';
 import { pageMetaClient } from '@utils/pageMetaClient';
 
@@ -12,11 +13,7 @@ interface UseBrowserPanelAddressSubmitParams {
   setSearchQueryDisplay: (query: string) => void;
   browserLookupIndex: { title: string; url: string }[];
   handleNavigationStart: (url: string) => void;
-  expectedNavigationUrlRef: MutableRefObject<{
-    url: string;
-    at: number;
-    tabId: string | null;
-  } | null>;
+  expectedNavigationUrlRef: ExpectedNavigationRef;
   navigateBrowser: (url: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   setIframeLoadError: Dispatch<SetStateAction<boolean>>;

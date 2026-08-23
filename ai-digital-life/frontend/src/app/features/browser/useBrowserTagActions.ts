@@ -48,7 +48,11 @@ export function useBrowserTagActions(options?: {
       const title = meta?.title || hostnameFromUrl(url);
       if (tab) {
         const shouldApply = applyBroadcastTitle(tab, url, title, 'http', titleSourceRef.get(tabId));
-        browserUpdateTab(tabId, { title: shouldApply ? title : tab.title });
+        // 刷新拿到真实标题并应用 → 标记已结算（M1-D）
+        browserUpdateTab(tabId, {
+          title: shouldApply ? title : tab.title,
+          ...(shouldApply ? { titleResolved: true } : {}),
+        });
         if (shouldApply) {
           titleSourceRef.set(tabId, 'http');
         }

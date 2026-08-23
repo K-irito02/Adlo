@@ -9,7 +9,6 @@ import {
   normalizeUrlForCache,
   getRedirectTarget,
 } from '../utils/siteMetaCache';
-import { pageMetaClient } from '../utils/pageMetaClient';
 import { IconNewTabPage, type IconSize } from '../icons';
 import { Spinner } from '@components/Spinner';
 
@@ -83,23 +82,17 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     // 且重定向映射可能在组件挂载后才由导航记录（书签等先渲染场景）。
     // 因此用全局订阅在事件发生时实时计算 getRedirectTarget(url)（而非建立时
     // 一次性捕获），目标数据落地即可刷新（参考 Chromium `page_url_type` 语义）。
-    // 全局订阅的 norm === url 分支已覆盖精确 URL 的镜像更新，无需单独的
-    // subscribeSiteMeta 精确订阅（后者只是幂等的重复调用）。
-    const unsubGlobal = subscribeSiteMetaGlobal((updatedUrl) => {
-      const norm = normalizeUrlForCache(updatedUrl);
-      if (norm === normalizeUrlForCache(url) || getRedirectTarget(url) === norm) {
-        applyMetaUpdate();
-      }
-    });
-    const unsubUpdated = pageMetaClient.subscribeUpdated((p) => {
-      const norm = normalizeUrlForCache(p.url);
-      if (norm === normalizeUrlForCache(url) || getRedirectTarget(url) === norm) {
+    // 全局订阅覆盖所有镜像写入口（广播 applyBroadcastUpdate→notify、persistFaviconDataUri
+    // 等），回调收到的已是归一化 key（F2），无需再 URL 解析；同次广播只触发一次
+    // applyMetaUpdate，无双重订阅冗余/陈旧读（F3）。
+    const normUrl = normalizeUrlForCache(url);
+    const unsubGlobal = subscribeSiteMetaGlobal((updatedKey) => {
+      if (updatedKey === normUrl || getRedirectTarget(url) === updatedKey) {
         applyMetaUpdate();
       }
     });
     return () => {
       unsubGlobal();
-      unsubUpdated();
     };
   }, [url, ready, applyMetaUpdate]);
 
@@ -124,6 +117,9 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const showImg = Boolean(current) && !degraded;
   // 已结算但 favicon URL 仍为空时继续显示 spinner，避免"加载中 → 兜底字母 → 真实图标"的闪烁
   const isLoading = !current && !degraded && !resolvedFaviconEmpty;
+  // degraded（img 加载失败）时 current 非空但不可显示 → 需显示兜底字母，
+  // 否则图标槽位变空白（H1-A）。兜底字母条件：已确认无 favicon 或已降级。
+  const showLetter = resolvedFaviconEmpty || degraded;
   const handleError = useCallback(() => {
     setDegraded(true);
   }, []);
@@ -156,7 +152,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
         className="adl-browser-tree__link-fallback"
         style={showImg || isLoading ? { display: 'none' } : undefined}
       >
-        {showImg || isLoading ? '' : resolvedFaviconEmpty ? siteInitial(url) : ''}
+        {showImg || isLoading ? '' : showLetter ? siteInitial(url) : ''}
       </span>
     </span>
   );

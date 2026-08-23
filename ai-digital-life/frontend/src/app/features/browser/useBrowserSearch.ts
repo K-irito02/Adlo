@@ -24,25 +24,32 @@ export function findInBrowserLookupIndex(
   input: string,
 ): { title: string; url: string } | undefined {
   const normalizedInput = input.toLowerCase();
-  const exactMatch = browserLookupIndex.find(
-    (item) =>
-      item.title.toLowerCase() === normalizedInput || item.url.toLowerCase() === normalizedInput,
+  const looksLikeUrl =
+    /^(about:|[a-z]+:\/\/)/i.test(input) || // 协议前缀
+    /^\d{1,3}(\.\d{1,3}){3}$/.test(input) || // IP 地址
+    /^localhost(:\d+)?$/i.test(input) || // localhost（$ 锚定，避免 localhostxyz 误判）
+    /\.[a-z]{2,}(:\d+)?(\/\S*)?$/i.test(input) || // 点号 + TLD（含 host:port 如 foo.com:8080）
+    /\/$/.test(input); // 以 / 结尾的路径
+
+  // URL 精确匹配在任何输入上执行（Chrome/Edge omnibox：输入即完整 URL 时优先命中）
+  const exactUrlMatch = browserLookupIndex.find(
+    (item) => item.url.toLowerCase() === normalizedInput,
   );
-  if (exactMatch) {
-    return exactMatch;
+  if (exactUrlMatch) {
+    return exactUrlMatch;
   }
 
   // Chrome/Edge omnibox 行为：只在输入明确是 URL 格式时才在历史记录中查找匹配
   // 当输入是搜索词时（如"百度"），跳过历史记录匹配，直接触发搜索
-  const looksLikeUrl =
-    /^(about:|[a-z]+:\/\/)/i.test(input) || // 协议前缀
-    /^\d{1,3}(\.\d{1,3}){3}$/.test(input) || // IP 地址
-    /^localhost(:\d+)?/i.test(input) || // localhost
-    /\.[a-z]{2,}$/i.test(input) || // 点号 + TLD（如 .com、.org）
-    /\/$/.test(input); // 以 / 结尾的路径
+  // 标题精确匹配同样受 URL 格式门控，避免"输入搜索词命中同名书签/历史"劫持搜索（M1-J）
   if (!looksLikeUrl) {
-    // 输入不是 URL 格式，跳过历史记录匹配，返回 undefined 触发搜索
     return undefined;
+  }
+  const exactTitleMatch = browserLookupIndex.find(
+    (item) => item.title.toLowerCase() === normalizedInput,
+  );
+  if (exactTitleMatch) {
+    return exactTitleMatch;
   }
   return browserLookupIndex.find(
     (item) =>

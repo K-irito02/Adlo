@@ -96,7 +96,17 @@ function hydrateBrowserDefaults(
 
     const persistedTabs = readJson<BrowserTabState[]>(BROWSER_TABS_KEY, []);
     if (persistedTabs.length > 0) {
-      finalTabs = persistedTabs;
+      // 水合归一化：旧持久化数据（或早期会话写入）可能缺少 titleResolved 字段，
+      // 此时按标题真实性补默认值——有真实非占位标题视为已结算，避免恢复的 tab
+      // 全部显示"新建标签页"扫光（H1-B）。真实标题判定与 browserNavigateActiveTab
+      // 的 C1 初始化保持一致。
+      finalTabs = persistedTabs.map((t) => ({
+        ...t,
+        titleResolved:
+          typeof t.titleResolved === 'boolean'
+            ? t.titleResolved
+            : t.title !== '' && t.title !== t.url && !/^https?:\/\//i.test(t.title ?? ''),
+      }));
       finalActiveTabId = readJson<string>(BROWSER_ACTIVE_TAB_KEY, '');
       if (!finalTabs.find((t) => t.id === finalActiveTabId)) {
         finalActiveTabId = finalTabs.length > 0 ? finalTabs[finalTabs.length - 1].id : '';
@@ -232,7 +242,9 @@ export const createBrowserSlice = (
             workspaceId: '',
             title: tabTitle,
             url,
-            titleResolved: false,
+            // 真实非占位标题（如 iframe 模式直接拿到的 document.title）视为已结算，
+            // 避免浏览器模式扫光永久显示（C1）；搜索/地址栏的占位标题保持未结算。
+            titleResolved: tabTitle !== '' && tabTitle !== url && !/^https?:\/\//i.test(tabTitle),
             isPinned: false,
             isPlayingAudio: false,
             isAudioMuted: false,
@@ -244,13 +256,16 @@ export const createBrowserSlice = (
           writeTabs(nextTabs);
           writeActiveTab(nextActiveTabId);
         } else {
+          const tabTitle = title?.trim() || '';
           nextTabs = nextTabs.map((tab) => {
             if (tab.id === state.browserActiveTabId) {
               return {
                 ...tab,
                 url,
                 title: title || '',
-                titleResolved: false,
+                // 同上：真实非占位标题视为已结算，占位标题保持未结算（C1）
+                titleResolved:
+                  tabTitle !== '' && tabTitle !== url && !/^https?:\/\//i.test(tabTitle),
               };
             }
             return tab;

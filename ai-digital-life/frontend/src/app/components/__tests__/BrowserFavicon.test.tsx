@@ -100,7 +100,7 @@ it('image error does not remove cache (no removeCachedSiteMeta call)', () => {
 });
 
 it('shows fallback when img load fails (degraded state)', () => {
-  // 有 data-URI → img 渲染 → 触发错误 → degraded → img 卸载、占位可见
+  // 有 data-URI → img 渲染 → 触发错误 → degraded → img 卸载、占位可见（站点首字母，H1-A）
   mirrorFavicon(
     'https://fail.example',
     'https://fail.example/favicon.ico',
@@ -117,6 +117,8 @@ it('shows fallback when img load fails (degraded state)', () => {
   ) as HTMLElement | null;
   expect(iconLink).not.toBeNull();
   expect(iconLink?.style.display).not.toBe('none');
+  // H1-A 回归拦截：degraded 后兜底字母必须显示站点首字母（而非空白）
+  expect(iconLink?.textContent).toBe('F');
   expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
 });
 

@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import type { ExpectedNavigationRef } from './browserUrlUtils';
 
 export interface UseBrowserPanelHandlersParams {
   browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) => void;
@@ -6,11 +7,8 @@ export interface UseBrowserPanelHandlersParams {
   browserSelectTab: (tabId: string) => void;
   browserNavigateInPlace: boolean;
   setBrowserNavigateInPlace: (value: boolean) => void;
-  expectedNavigationUrlRef: React.MutableRefObject<{
-    url: string;
-    at: number;
-    tabId: string | null;
-  } | null>;
+  getActiveTabId: () => string;
+  expectedNavigationUrlRef: ExpectedNavigationRef;
 }
 
 export interface UseBrowserPanelHandlersResult {
@@ -31,6 +29,7 @@ export function useBrowserPanelHandlers(
     browserSelectTab,
     browserNavigateInPlace,
     setBrowserNavigateInPlace,
+    getActiveTabId,
     expectedNavigationUrlRef,
   } = params;
 
@@ -48,18 +47,26 @@ export function useBrowserPanelHandlers(
         browserSelectTab(tabId);
         return;
       }
-      // 显式导航入口（书签/历史树点击）：记录期望导航 URL，供 onUrlChanged
-      // 检测跨域重定向（Chrome/Edge 重定向链消化语义）。
-      // 本 handler 不引入 store 依赖（测试隔离），tabId 标记 null——由地址栏
-      // 提交路径（绑定真实 tab id）作为主要重定向检测场景；树点击新建标签时
-      // tab 尚未创建，依赖新鲜度窗口 + 跨站判定兜底。
+      // 显式导航入口（书签/历史树点击）：记录期望导航 URL + 目标 tab id，
+      // 供 onUrlChanged 检测跨域重定向（Chrome/Edge 重定向链消化语义）。
+      // - 就地打开：目标即当前活动 tab，绑定真实 id；
+      // - 新建标签：browserOpenTab 同步创建新 tab 并设为活动，创建后读取新 id。
+      // 绑定真实 tabId 后，后台池化 WebView 的跨站事件不会误吞期望（H1-C）。
       expectedNavigationUrlRef.current = { url, at: Date.now(), tabId: null };
       if (browserNavigateInPlace) {
         // "Current tab" mode → navigate within the active tab
+        const activeTabId = getActiveTabId();
+        if (activeTabId) {
+          expectedNavigationUrlRef.current = { url, at: Date.now(), tabId: activeTabId };
+        }
         browserNavigateActiveTab(url);
       } else {
         // "New tab" mode → open a new tab
         browserOpenTab(url, url);
+        const newTabId = getActiveTabId();
+        if (newTabId) {
+          expectedNavigationUrlRef.current = { url, at: Date.now(), tabId: newTabId };
+        }
       }
     },
     [
@@ -67,6 +74,7 @@ export function useBrowserPanelHandlers(
       browserNavigateActiveTab,
       browserSelectTab,
       browserNavigateInPlace,
+      getActiveTabId,
       expectedNavigationUrlRef,
     ],
   );
