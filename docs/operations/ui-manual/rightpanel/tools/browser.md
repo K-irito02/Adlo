@@ -458,6 +458,7 @@ await page.click('.adl-multitree-entry__expand-btn:first-child');
 | 历史分类隐藏 | 已打开标签模式下，历史分类被隐藏 |
 | 切换标签不刷新 | 使用多 iframe 堆叠方案，每个标签的 iframe 保持挂载，切换时仅切换可见性 |
 | 新标签页 favicon（v2026-08-21） | "新建标签页"（无 URL）标签的 favicon 显示内置窗口图标（`IconNewTabPage`，非空白） |
+| 标签加载状态（v2026-08-24） | favicon 未缓存/未结算时显示加载中 spinner；标题未结算时标签栏显示"新建标签页"扫光动效（`titleResolved` 状态机）。favicon 加载失败（degraded）或确认无图标时显示站点首字母兜底 |
 
 **自动化测试：**
 ```javascript
