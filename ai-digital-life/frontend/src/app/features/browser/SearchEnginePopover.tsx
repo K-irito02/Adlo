@@ -9,6 +9,7 @@ import {
   IconGlobeSearch,
   IconGlobeSettings,
   IconGlobePlus,
+  IconRefreshCw,
 } from '@icons';
 import { Spinner } from '@components/Spinner';
 import { useAppStore } from '@stores/slicedStore';
@@ -202,6 +203,70 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
     [deleteCustomSearchEngine],
   );
 
+  const handleRefresh = useCallback(
+    (engine: SearchEngine) => {
+      // 如果正在获取中，跳过
+      if (fetchingNameId === engine.id) {
+        return;
+      }
+
+      // 从 URL 模板提取搜索 URL
+      let searchUrl = '';
+      try {
+        const url = new URL(engine.urlTemplate.replace('%s', 'test'));
+        searchUrl = url.origin;
+      } catch {
+        return;
+      }
+
+      // 设置为正在获取状态
+      setFetchingNameId(engine.id);
+
+      void (async () => {
+        try {
+          const meta = await pageMetaClient.getSilent(searchUrl);
+          if (meta) {
+            const updates: { name?: string; faviconUrl?: string } = {};
+
+            // 更新 favicon：优先使用 data URI（离线可用），否则使用 URL
+            if (meta.faviconDataUri) {
+              updates.faviconUrl = meta.faviconDataUri;
+            } else if (meta.favicon) {
+              updates.faviconUrl = meta.favicon;
+            }
+
+            // 只有当用户没有自定义名称时才更新名称
+            // 这里通过检查名称是否与域名相同来判断
+            const domain = searchUrl
+              .replace('https://', '')
+              .replace('http://', '')
+              .replace('www.', '');
+            if (engine.name === domain && meta.title) {
+              const cleanTitle = meta.title
+                .replace(/\s*[-|–]\s*(Search|搜索引擎|搜索).*$/i, '')
+                .replace(/\s*[-|–]\s*(Welcome to|欢迎访问).*$/i, '')
+                .trim();
+
+              if (cleanTitle) {
+                updates.name = cleanTitle;
+              }
+            }
+
+            // 应用更新
+            if (updates.name || updates.faviconUrl) {
+              updateCustomSearchEngine(engine.id, updates);
+            }
+          }
+        } catch {
+          // 获取失败，保留原有数据
+        } finally {
+          setFetchingNameId(null);
+        }
+      })();
+    },
+    [fetchingNameId, updateCustomSearchEngine],
+  );
+
   useEffect(() => {
     if (!open) {
       setView('main');
@@ -315,6 +380,7 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
           onBack={handleBack}
           onStartEdit={handleStartEdit}
           onStartAdd={handleStartAdd}
+          onRefresh={handleRefresh}
           onDelete={handleDelete}
           onFormDataChange={setFormData}
           onCancel={handleCancel}
@@ -492,6 +558,7 @@ interface SearchEngineManageViewProps {
   onBack: () => void;
   onStartEdit: (engine: SearchEngine) => void;
   onStartAdd: () => void;
+  onRefresh: (engine: SearchEngine) => void;
   onDelete: (id: string) => void;
   onFormDataChange: (data: FormData) => void;
   onCancel: () => void;
@@ -508,6 +575,7 @@ function SearchEngineManageView({
   onBack,
   onStartEdit,
   onStartAdd,
+  onRefresh,
   onDelete,
   onFormDataChange,
   onCancel,
@@ -568,7 +636,17 @@ function SearchEngineManageView({
                   <button
                     type="button"
                     className="adl-search-engine-popover__action-btn"
+                    aria-label={t.browserSearchEngineRefresh}
+                    title={t.browserSearchEngineRefresh}
+                    onClick={() => onRefresh(engine)}
+                  >
+                    <IconRefreshCw size={14} decorative />
+                  </button>
+                  <button
+                    type="button"
+                    className="adl-search-engine-popover__action-btn"
                     aria-label={t.browserSearchEngineEdit}
+                    title={t.browserSearchEngineEdit}
                     onClick={() => onStartEdit(engine)}
                   >
                     <IconPencil size={14} decorative />
@@ -577,6 +655,7 @@ function SearchEngineManageView({
                     type="button"
                     className="adl-search-engine-popover__action-btn adl-search-engine-popover__action-btn--danger"
                     aria-label={t.browserSearchEngineDelete}
+                    title={t.browserSearchEngineDelete}
                     onClick={() => onDelete(engine.id)}
                   >
                     <IconTrash size={14} decorative />

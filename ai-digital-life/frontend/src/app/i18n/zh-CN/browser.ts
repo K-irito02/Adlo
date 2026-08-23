@@ -189,4 +189,5 @@ export const browserZh = {
   browserSearchEngineUrlRequired: '请输入包含 %s 的搜索地址',
   browserSearchEngineAddTitle: '添加自定义搜索引擎',
   browserSearchEngineFetchingName: '正在获取搜索引擎名称...',
+  browserSearchEngineRefresh: '刷新搜索引擎图标与名称',
 } as const;
