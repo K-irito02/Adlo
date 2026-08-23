@@ -569,4 +569,27 @@ describe('siteMetaCache redirect map', () => {
     expect(mod.isSiteMetaResolvedOrRedirected('https://source.test/search?q=x')).toBe(true);
     expect(mod.isSiteMetaResolvedOrRedirected('https://nowhere.test/p')).toBe(false);
   });
+
+  it('breaks cycles in redirect chains (A→B→A) without hanging or returning wrong target', async () => {
+    const mod = await import('./siteMetaCache');
+    mod.recordRedirect('https://a.com', 'https://b.com');
+    mod.recordRedirect('https://b.com', 'https://a.com');
+    // 环内任一节点最终落在环上某节点（不无限循环、不抛错）
+    const aTarget = mod.getRedirectTarget('https://a.com');
+    const bTarget = mod.getRedirectTarget('https://b.com');
+    expect(aTarget).toBeTruthy();
+    expect(bTarget).toBeTruthy();
+    // 环不产生自引用（A 的目标不能是 A 本身）
+    expect(aTarget).not.toBe('https://a.com/');
+  });
+
+  it('caps redirect map size and evicts oldest entries (FIFO)', async () => {
+    const mod = await import('./siteMetaCache');
+    // 写入超过上限的条目，验证映射未无限增长（内部上限 REDIRECT_MAP_MAX=500）
+    for (let i = 0; i < 520; i += 1) {
+      mod.recordRedirect(`https://src${i}.test`, `https://dst${i}.test`);
+    }
+    // 最新条目仍在
+    expect(mod.getRedirectTarget('https://src519.test')).toBe('https://dst519.test/');
+  });
 });

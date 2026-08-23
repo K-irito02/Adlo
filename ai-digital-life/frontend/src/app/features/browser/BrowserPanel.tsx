@@ -335,6 +335,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setSearchQueryDisplay,
     browserLookupIndex,
     handleNavigationStart,
+    expectedNavigationUrlRef,
     navigateBrowser,
     browserNavigateActiveTab: navigateActiveTabExplicit,
     setIframeLoadError,

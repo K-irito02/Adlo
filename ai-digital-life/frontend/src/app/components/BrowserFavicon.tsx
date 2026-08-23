@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { getFaviconUrl } from '../utils/favicon';
 import {
   subscribeSiteMeta,
+  subscribeSiteMetaGlobal,
   subscribeSiteMetaReady,
   isSiteMetaCacheReady,
   initSiteMetaCache,
@@ -68,29 +69,42 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     return unsubReady;
   }, []);
 
+  // URL 变化时重置状态：`resolvedFaviconEmpty`/`degraded` 是单向闩锁，
+  // 复用组件实例切换 URL 时若不重置，新 URL（未结算）会跳过 spinner 直接
+  // 显示兜底字母（旧 URL 已结算为空的状态残留）。
+  useEffect(() => {
+    setResolvedFaviconEmpty(false);
+    setDegraded(false);
+    resolvedRef.current = url ? isSiteMetaResolvedOrRedirected(url) : false;
+    faviconUrlRef.current = '';
+  }, [url]);
+
   useEffect(() => {
     applyMetaUpdate();
     if (!url) {
       return;
     }
+    // 精确 URL 订阅：直接命中的元数据更新立即刷新。
     const unsubMeta = subscribeSiteMeta(url, applyMetaUpdate);
-    // 跨域重定向场景：元数据广播以重定向目标 URL 到达，原始 URL 的订阅收不到，
-    // 额外订阅目标 URL，使 favicon 在目标数据落地后立即刷新（参考 Chromium
-    // `page_url_type`/重定向链语义）。
-    const redirectTarget = getRedirectTarget(url);
-    const unsubTargetMeta =
-      redirectTarget && redirectTarget !== normalizeUrlForCache(url)
-        ? subscribeSiteMeta(redirectTarget, applyMetaUpdate)
-        : () => {};
+    // 跨域重定向场景：原始 URL 的精确订阅收不到目标 origin 的元数据广播，
+    // 且重定向映射可能在组件挂载后才由导航记录（书签等先渲染场景）。
+    // 因此用全局订阅在事件发生时实时计算 getRedirectTarget(url)（而非建立时
+    // 一次性捕获），目标数据落地即可刷新（参考 Chromium `page_url_type` 语义）。
+    const unsubGlobal = subscribeSiteMetaGlobal((updatedUrl) => {
+      const norm = normalizeUrlForCache(updatedUrl);
+      if (norm === normalizeUrlForCache(url) || getRedirectTarget(url) === norm) {
+        applyMetaUpdate();
+      }
+    });
     const unsubUpdated = pageMetaClient.subscribeUpdated((p) => {
       const norm = normalizeUrlForCache(p.url);
-      if (norm === normalizeUrlForCache(url) || (redirectTarget && norm === redirectTarget)) {
+      if (norm === normalizeUrlForCache(url) || getRedirectTarget(url) === norm) {
         applyMetaUpdate();
       }
     });
     return () => {
       unsubMeta();
-      unsubTargetMeta();
+      unsubGlobal();
       unsubUpdated();
     };
   }, [url, ready, applyMetaUpdate]);

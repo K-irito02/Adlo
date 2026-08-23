@@ -6,7 +6,7 @@ export interface UseBrowserPanelHandlersParams {
   browserSelectTab: (tabId: string) => void;
   browserNavigateInPlace: boolean;
   setBrowserNavigateInPlace: (value: boolean) => void;
-  expectedNavigationUrlRef: React.MutableRefObject<string | null>;
+  expectedNavigationUrlRef: React.MutableRefObject<{ url: string; at: number } | null>;
 }
 
 export interface UseBrowserPanelHandlersResult {
@@ -32,23 +32,22 @@ export function useBrowserPanelHandlers(
 
   const pendingNavigationsRef = useRef(new Set<string>());
 
-  const handleNavigationStart = useCallback(
-    (url: string) => {
-      // Track pending navigation so handlePageMeta creates tab only when real title arrives
-      pendingNavigationsRef.current.add(url);
-      // 记录期望导航 URL：onUrlChanged 据此检测重定向（期望 URL 与实际 URL 跨域差异）。
-      // 供 useBrowserUrlChange 的重定向链消化使用（Chrome/Edge 语义）。
-      expectedNavigationUrlRef.current = url;
-    },
-    [expectedNavigationUrlRef],
-  );
+  const handleNavigationStart = useCallback((url: string) => {
+    // Track pending navigation so handlePageMeta creates tab only when real title arrives
+    pendingNavigationsRef.current.add(url);
+  }, []);
 
   const handleOpenTabFromTree = useCallback(
     (url: string, tabId?: string) => {
       if (tabId) {
         // Clicking an existing tab → switch to it (unaffected by toggle)
         browserSelectTab(tabId);
-      } else if (browserNavigateInPlace) {
+        return;
+      }
+      // 显式导航入口（书签/历史树点击）：记录期望导航 URL，供 onUrlChanged
+      // 检测跨域重定向（Chrome/Edge 重定向链消化语义）。切到已有 tab 不设置。
+      expectedNavigationUrlRef.current = { url, at: Date.now() };
+      if (browserNavigateInPlace) {
         // "Current tab" mode → navigate within the active tab
         browserNavigateActiveTab(url);
       } else {
@@ -56,7 +55,13 @@ export function useBrowserPanelHandlers(
         browserOpenTab(url, url);
       }
     },
-    [browserOpenTab, browserNavigateActiveTab, browserSelectTab, browserNavigateInPlace],
+    [
+      browserOpenTab,
+      browserNavigateActiveTab,
+      browserSelectTab,
+      browserNavigateInPlace,
+      expectedNavigationUrlRef,
+    ],
   );
 
   const handleToggleNavigateMode = useCallback(

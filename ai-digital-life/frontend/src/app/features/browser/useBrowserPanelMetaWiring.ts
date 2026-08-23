@@ -8,7 +8,7 @@ export interface UseBrowserPanelMetaWiringParams {
   activeTab: BrowserTabState | undefined;
   activeTabRef: React.MutableRefObject<BrowserTabState | undefined>;
   iframeRef: React.MutableRefObject<HTMLIFrameElement | null>;
-  expectedNavigationUrlRef: React.MutableRefObject<string | null>;
+  expectedNavigationUrlRef: React.MutableRefObject<{ url: string; at: number } | null>;
   pendingNavigationsRef: React.MutableRefObject<Set<string>>;
   markUrlSeen: (url: string) => void;
   setAddress: (address: string) => void;

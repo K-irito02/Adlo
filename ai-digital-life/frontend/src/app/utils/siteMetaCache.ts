@@ -45,9 +45,20 @@ const readyListeners = new Set<() => void>();
  * 时通过本映射落到目标 URL，直接命中缓存，避免"永久 spinner/兜底字母"。
  *
  * 仅内存态（会话级）：重定向关系是导航时的瞬态事实，持久化到 history 由方案 A
- * （历史条目 URL 回写最终 URL）承担。
+ * （历史条目 URL 回写最终 URL）承担。设上限防止无界增长（FIFO 逐出）。
  */
 const redirectMap = new Map<string, string>();
+const REDIRECT_MAP_MAX = 500;
+
+function recordRedirectMapEntry(from: string, to: string): void {
+  redirectMap.set(from, to);
+  if (redirectMap.size > REDIRECT_MAP_MAX) {
+    const oldest = redirectMap.keys().next().value as string | undefined;
+    if (oldest !== undefined) {
+      redirectMap.delete(oldest);
+    }
+  }
+}
 
 let ready = false;
 let initPromise: Promise<void> | null = null;
@@ -263,24 +274,25 @@ export function recordRedirect(originalUrl: string, targetUrl: string): void {
   if (!from || !to || from === to) {
     return;
   }
-  redirectMap.set(from, to);
-  // 链式：若目标本身又是重定向源，直接跳到最终目标（Chrome 重定向链消化语义）
+  recordRedirectMapEntry(from, to);
+  // 链式：若目标本身又是重定向源，直接跳到最终目标（Chrome 重定向链消化语义）。
+  // visited 集合检测真环（A→B→A），避免 8 跳上限误收敛到中间节点。
   let finalTarget = to;
-  let hops = 0;
-  while (hops < 8) {
-    const next = redirectMap.get(finalTarget);
-    if (!next || next === finalTarget) {
-      break;
-    }
+  const visited = new Set([from, to]);
+  let next = redirectMap.get(finalTarget);
+  while (next && !visited.has(next)) {
+    visited.add(next);
     finalTarget = next;
-    hops += 1;
+    next = redirectMap.get(finalTarget);
   }
-  redirectMap.set(from, finalTarget);
+  if (finalTarget !== to) {
+    recordRedirectMapEntry(from, finalTarget);
+  }
 }
 
 /**
  * 返回 URL 已知的重定向目标（normalize 后），无则 undefined。
- * 链式解析：源 → 目标 → 最终目标，最多 8 跳防环。
+ * 链式解析：源 → 目标 → 最终目标，visited 集合检测真环（A→B→A）。
  */
 export function getRedirectTarget(url: string): string | undefined {
   const from = normalizeUrlForCache(url);
@@ -288,14 +300,15 @@ export function getRedirectTarget(url: string): string | undefined {
     return undefined;
   }
   let target = redirectMap.get(from);
-  let hops = 0;
-  while (target && hops < 8) {
-    const next = redirectMap.get(target);
-    if (!next || next === target) {
-      break;
-    }
+  if (!target) {
+    return undefined;
+  }
+  const visited = new Set([from, target]);
+  let next = redirectMap.get(target);
+  while (next && !visited.has(next)) {
+    visited.add(next);
     target = next;
-    hops += 1;
+    next = redirectMap.get(target);
   }
   return target;
 }

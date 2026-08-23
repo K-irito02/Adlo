@@ -7,7 +7,10 @@ function setup(browserNavigateInPlace: boolean) {
   const browserNavigateActiveTab = vi.fn();
   const browserSelectTab = vi.fn();
   const setBrowserNavigateInPlace = vi.fn();
-  const expectedNavigationUrlRef = { current: null } as React.MutableRefObject<string | null>;
+  const expectedNavigationUrlRef = { current: null } as React.MutableRefObject<{
+    url: string;
+    at: number;
+  } | null>;
   const { result } = renderHook(() =>
     useBrowserPanelHandlers({
       browserOpenTab,

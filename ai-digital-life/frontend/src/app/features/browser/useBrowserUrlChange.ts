@@ -23,6 +23,15 @@ import {
 const URL_CHANGE_FALLBACK_MS_NO_TAB = 8000;
 const URL_CHANGE_FALLBACK_MS_WITH_TAB = 15000;
 
+/**
+ * 重定向检测的新鲜度窗口（ms）。`expectedNavigationUrlRef` 只在显式导航入口
+ * （地址栏提交/书签历史树点击）设置，且导航完成后消费清空。窗口内到达的
+ * `onUrlChanged` 若与期望 URL 跨域差异才判定为重定向；窗口外的陈旧期望
+ * （如跨 tab 复用、用户链接跳转）一律忽略，避免"链接点击/后退/前进被误判
+ * 为重定向而删除/改写真实历史条目"（Chrome/Edge 仅对导航发起即重定向判定）。
+ */
+const REDIRECT_DETECT_WINDOW_MS = 10_000;
+
 /** 本地时区日期键（YYYY-MM-DD）：同日判定用（避免跨日时误合并/误抑制）。 */
 function getDayKey(ts: number): string {
   const d = new Date(ts);
@@ -33,7 +42,7 @@ interface UseBrowserUrlChangeOptions {
   activeTab?: BrowserTabState;
   activeTabRef: React.MutableRefObject<BrowserTabState | undefined>;
   iframeRef: React.MutableRefObject<HTMLIFrameElement | null>;
-  expectedNavigationUrlRef: React.MutableRefObject<string | null>;
+  expectedNavigationUrlRef: React.MutableRefObject<{ url: string; at: number } | null>;
   setAddress: (address: string) => void;
   setSearchQueryDisplay: (query: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
@@ -388,18 +397,24 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       }
 
       const expected = expectedNavigationUrlRef.current;
-      if (expected && normalizeUrlForCompare(expected) !== normalizedUrl) {
-        if (isProbablySameSite(expected, url)) {
-          expectedNavigationUrlRef.current = url;
-        } else {
-          // 跨域重定向（如 search.marginalia.nu → marginalia-search.com）：
-          // 参考 Chrome/Edge 导航消化重定向链 ——
-          // 1) 记录重定向映射（方案 B），使 favicon/标题查找能落到最终 origin；
-          // 2) 回写历史条目 URL 为最终 URL（方案 A），历史树直接命中缓存。
-          recordRedirect(expected, url);
-          const s = useAppStore.getState();
-          s.browserUpdateHistoryUrl(expected, url);
-        }
+      // 消费期望导航：无论本次是否判定为重定向，显式导航的期望值只用一次，
+      // 立即清空，避免陈旧期望污染后续链接点击/后退/前进的 URL 变化。
+      expectedNavigationUrlRef.current = null;
+      if (
+        expected &&
+        Date.now() - expected.at <= REDIRECT_DETECT_WINDOW_MS &&
+        normalizeUrlForCompare(expected.url) !== normalizedUrl &&
+        !isProbablySameSite(expected.url, url)
+      ) {
+        // 跨域重定向（如 search.marginalia.nu → marginalia-search.com）：
+        // 参考 Chrome/Edge 导航消化重定向链 ——
+        // 1) 记录重定向映射（方案 B），使 favicon/标题查找能落到最终 origin；
+        // 2) 回写历史条目 URL 为最终 URL（方案 A），历史树直接命中缓存。
+        // 同站重定向（HTTP→HTTPS、www→非 www 等）不需要记录：同 origin canonical
+        // 查找已覆盖，且重设期望会引入"链接点击被误判"的二次误报面。
+        recordRedirect(expected.url, url);
+        const s = useAppStore.getState();
+        s.browserUpdateHistoryUrl(expected.url, url);
       }
 
       setAddress(normalizedUrl);

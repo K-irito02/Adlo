@@ -169,14 +169,27 @@ export const createBrowserHistorySlice = (
       if (matched.length === 0) {
         return state;
       }
-      // 若 newUrl 已有条目（同 dedupKey），删除旧条目避免重复（Chrome/Edge 语义）；
-      // 否则将旧条目 URL 原地更新为最终 URL。
+      // 只作用于最新一条匹配条目（browserHistory 最新在前，matched[0]）：重定向是
+      // 最近一次导航的瞬态事实，更早日期下的同 dedupKey 旧访问保留原始 URL，
+      // 避免历史旧日期下出现"当时并不存在的 URL"（与 browserAddToHistory 当日
+      // 去重语义一致，仅收敛最新条目）。
+      const targetId = matched[0]!.id;
       const hasNew = state.browserHistory.some((h) => historyDedupKey(h.url) === newKey);
+      const oldEntry = matched[0]!;
       const nextHistory = hasNew
-        ? state.browserHistory.filter((h) => historyDedupKey(h.url) !== oldKey)
-        : state.browserHistory.map((h) =>
-            historyDedupKey(h.url) === oldKey ? { ...h, url: newUrl } : h,
-          );
+        ? state.browserHistory
+            // 旧条目若带更优标题（如 "Marginalia: 和平" 引擎前缀标题），覆盖到
+            // 新条目（通常为占位标题），避免真实流程（submit 写入带标题 → 重定向
+            // 后新条目占位）把更优标题丢弃。
+            .map((h) =>
+              historyDedupKey(h.url) === newKey &&
+              isPlaceholderTitle(h.title, h.url) &&
+              !isPlaceholderTitle(oldEntry.title, oldEntry.url)
+                ? { ...h, title: oldEntry.title }
+                : h,
+            )
+            .filter((h) => h.id !== targetId)
+        : state.browserHistory.map((h) => (h.id === targetId ? { ...h, url: newUrl } : h));
       writeHistory(nextHistory);
       return { browserHistory: nextHistory };
     });

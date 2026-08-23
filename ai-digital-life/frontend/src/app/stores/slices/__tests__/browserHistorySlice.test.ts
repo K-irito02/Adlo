@@ -143,4 +143,43 @@ describe('browserHistorySlice — redirect URL rewrite (方案 A)', () => {
     expect(history).toHaveLength(1);
     expect(history[0].url).toBe('https://a.com/page');
   });
+
+  it('preserves the better (engine-prefixed) title when deleting the old entry on redirect', () => {
+    // 真实 marginalia 流程：submit 写入带引擎前缀标题的源条目 → onUrlChanged 写入
+    // 占位标题的最终条目 → 检测块删除源条目。最终条目标题应为引擎前缀标题而非占位。
+    const { get } = createMockStore();
+    const s = get() as unknown as BrowserHistorySlice;
+    s.browserAddToHistory('https://search.marginalia.nu/search?q=x', 'Marginalia: 和平');
+    s.browserAddToHistory(
+      'https://marginalia-search.com/search?q=x',
+      'https://marginalia-search.com/search?q=x',
+    );
+    s.browserUpdateHistoryUrl(
+      'https://search.marginalia.nu/search?q=x',
+      'https://marginalia-search.com/search?q=x',
+    );
+    const history = (get() as unknown as BrowserHistorySlice).browserHistory;
+    expect(history).toHaveLength(1);
+    expect(history[0].url).toBe('https://marginalia-search.com/search?q=x');
+    expect(history[0].title).toBe('Marginalia: 和平');
+  });
+
+  it('only rewrites the newest matching entry, leaving older-date visits untouched', () => {
+    // 最新条目被改写为最终 URL，更早的同 dedupKey 旧访问保留原始 URL。
+    const { get: getState } = createMockStore();
+    const store = getState() as unknown as BrowserHistorySlice;
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    // 手动制造"两条不同时间的同 dedupKey 条目"（最新在前）
+    const state = getState() as unknown as BrowserHistorySlice;
+    state.browserHistory = [
+      { id: 'newest', url: 'https://a.com/page', title: 'A', visitedAt: now },
+      { id: 'older', url: 'https://a.com/page', title: 'Old Visit', visitedAt: now - dayMs },
+    ];
+    store.browserUpdateHistoryUrl('https://a.com/page', 'https://b.com/page');
+    const history = (getState() as unknown as BrowserHistorySlice).browserHistory;
+    expect(history).toHaveLength(2);
+    expect(history[0].url).toBe('https://b.com/page'); // 最新被改写
+    expect(history[1].url).toBe('https://a.com/page'); // 旧日期保留
+  });
 });

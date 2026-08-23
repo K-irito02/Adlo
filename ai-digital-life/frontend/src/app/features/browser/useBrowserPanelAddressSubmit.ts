@@ -12,6 +12,7 @@ interface UseBrowserPanelAddressSubmitParams {
   setSearchQueryDisplay: (query: string) => void;
   browserLookupIndex: { title: string; url: string }[];
   handleNavigationStart: (url: string) => void;
+  expectedNavigationUrlRef: MutableRefObject<{ url: string; at: number } | null>;
   navigateBrowser: (url: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   setIframeLoadError: Dispatch<SetStateAction<boolean>>;
@@ -28,6 +29,7 @@ export function useBrowserPanelAddressSubmit({
   setSearchQueryDisplay,
   browserLookupIndex,
   handleNavigationStart,
+  expectedNavigationUrlRef,
   navigateBrowser,
   browserNavigateActiveTab,
   setIframeLoadError,
@@ -108,6 +110,9 @@ export function useBrowserPanelAddressSubmit({
 
     // Always defer tab creation until real title arrives via handlePageMeta
     handleNavigationStart(finalUrl);
+    // 显式导航入口：记录期望导航 URL，供 onUrlChanged 检测跨域重定向
+    // （Chrome/Edge 重定向链消化语义）。
+    expectedNavigationUrlRef.current = { url: finalUrl, at: Date.now() };
     if (searchInfo) {
       setSearchQueryDisplay(searchInfo.query);
     } else {
@@ -151,6 +156,7 @@ export function useBrowserPanelAddressSubmit({
     setSearchQueryDisplay,
     browserLookupIndex,
     handleNavigationStart,
+    expectedNavigationUrlRef,
     navigateBrowser,
     browserNavigateActiveTab,
     setIframeLoadError,
