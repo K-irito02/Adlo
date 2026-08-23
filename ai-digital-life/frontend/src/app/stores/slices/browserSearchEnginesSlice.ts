@@ -95,6 +95,21 @@ export const createBrowserSearchEnginesSlice = (
     if (existing.length > 0) {
       return;
     }
+
+    // 从 localStorage 读取已保存的搜索引擎
+    const savedEngines = readJson<SearchEngine[]>('adl:browser:searchEngines', []);
+    
+    if (savedEngines.length > 0) {
+      // 使用已保存的搜索引擎
+      const savedId = readJson<string>('adl:browser:defaultSearchEngineId', '');
+      const savedEngine = savedEngines.find((e) => e.id === savedId);
+      const defaultId = savedEngine ? savedId : savedEngines[0]?.id ?? '';
+      
+      set({ searchEngines: savedEngines, defaultSearchEngineId: defaultId });
+      return;
+    }
+    
+    // 首次初始化：创建内置引擎列表
     const engines: SearchEngine[] = BUILT_IN_ENGINES.map((e, idx) => ({
       ...e,
       id: e.name.toLowerCase().replace(/\s+/g, '-'),

@@ -71,6 +71,11 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
 
   const [faviconError, setFaviconError] = useState(false);
 
+  // 当搜索引擎切换时重置 faviconError，确保新引擎的 favicon 能正确显示
+  useEffect(() => {
+    setFaviconError(false);
+  }, [defaultSearchEngineId]);
+
   const handleRefreshClick = () => {
     setIsRefreshing(true);
     handleReload();

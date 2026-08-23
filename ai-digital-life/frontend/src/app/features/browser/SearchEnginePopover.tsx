@@ -99,12 +99,29 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
       setUrlError(true);
       return;
     }
+    
+    // 从 URL 模板提取域名作为 favicon 来源
+    // 使用 Google Favicon 服务（更可靠）
+    let faviconUrl = '';
+    try {
+      const url = new URL(formData.urlTemplate.replace('%s', 'test'));
+      const domain = url.hostname;
+      faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    } catch {
+      // URL 解析失败，不设置 favicon
+    }
+    
     if (editingId === 'new') {
-      addCustomSearchEngine({ name: formData.name, urlTemplate: formData.urlTemplate });
+      addCustomSearchEngine({ 
+        name: formData.name, 
+        urlTemplate: formData.urlTemplate,
+        faviconUrl 
+      });
     } else if (editingId) {
       updateCustomSearchEngine(editingId, {
         name: formData.name,
         urlTemplate: formData.urlTemplate,
+        faviconUrl,
       });
     }
     resetForm();
