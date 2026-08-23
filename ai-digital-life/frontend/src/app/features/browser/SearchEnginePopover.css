@@ -330,3 +330,38 @@
 .adl-search-engine-popover__btn-save:hover {
   background: var(--bg-hover);
 }
+
+.adl-search-engine-popover__fetching-name {
+  background: linear-gradient(
+    90deg,
+    var(--text-muted) 0%,
+    var(--text-muted) 35%,
+    var(--text-primary) 50%,
+    var(--text-muted) 65%,
+    var(--text-muted) 100%
+  );
+  background-size: 300% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: adl-search-engine-text-shimmer 2s ease-in-out infinite;
+}
+
+@keyframes adl-search-engine-text-shimmer {
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adl-search-engine-popover__fetching-name {
+    animation: none;
+    color: var(--text-muted);
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+  }
+}

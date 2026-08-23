@@ -199,4 +199,5 @@ export const browserEn = {
   browserSearchEngineSave: 'Save',
   browserSearchEngineUrlRequired: 'Please enter a search URL containing %s',
   browserSearchEngineAddTitle: 'Add Custom Search Engine',
+  browserSearchEngineFetchingName: 'Fetching search engine name...',
 } as const;

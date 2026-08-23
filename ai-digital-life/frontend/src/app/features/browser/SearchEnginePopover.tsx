@@ -45,6 +45,7 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
   const [urlError, setUrlError] = useState(false);
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const [popoverVisible, setPopoverVisible] = useState(false);
+  const [fetchingNameId, setFetchingNameId] = useState<string | null>(null);
 
   const searchEngines = useAppStore((s) => s.searchEngines);
   const defaultSearchEngineId = useAppStore((s) => s.defaultSearchEngineId);
@@ -101,7 +102,7 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
       setUrlError(true);
       return;
     }
-    
+
     // 从 URL 模板提取域名和搜索 URL
     let faviconUrl = '';
     let searchUrl = '';
@@ -114,8 +115,8 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
     } catch {
       // URL 解析失败，不设置 favicon
     }
-    
-    // 先确定初始名称：用户输入 > 域名 > 随机名称
+
+    // 先确定初始名称：用户输入 > 域名
     let initialName = formData.name.trim();
     if (!initialName && searchUrl) {
       try {
@@ -126,54 +127,60 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
       }
     }
     if (!initialName) {
-      initialName = `Search Engine ${Date.now().toString(36).slice(-4).toUpperCase()}`;
+      initialName = '';
     }
-    
+
     // 先保存并关闭表单（不等待网络请求）
     let savedId = '';
+    const nameToShow = initialName || formData.name.trim();
     if (editingId === 'new') {
-      savedId = addCustomSearchEngine({ 
-        name: initialName, 
+      savedId = addCustomSearchEngine({
+        name: nameToShow,
         urlTemplate: formData.urlTemplate,
-        faviconUrl 
+        faviconUrl,
       });
     } else if (editingId) {
       savedId = editingId;
       updateCustomSearchEngine(editingId, {
-        name: initialName,
+        name: nameToShow,
         urlTemplate: formData.urlTemplate,
         faviconUrl,
       });
     }
     resetForm();
-    
+
     // 后台获取真实标题和 favicon 并更新（不阻塞 UI）
     if (savedId && searchUrl) {
+      // 如果用户未填写名称，设置为正在获取状态
+      if (!formData.name.trim()) {
+        setFetchingNameId(savedId);
+      }
+
       void (async () => {
         try {
           const meta = await pageMetaClient.getSilent(searchUrl);
           if (meta) {
             const updates: { name?: string; faviconUrl?: string } = {};
-            
+
             // 更新 favicon：优先使用 data URI（离线可用），否则使用 URL
             if (meta.faviconDataUri) {
               updates.faviconUrl = meta.faviconDataUri;
             } else if (meta.favicon) {
               updates.faviconUrl = meta.favicon;
             }
-            
+
             // 更新标题（如果用户未填写）
             if (!formData.name.trim() && meta.title) {
               const cleanTitle = meta.title
                 .replace(/\s*[-|–]\s*(Search|搜索引擎|搜索).*$/i, '')
                 .replace(/\s*[-|–]\s*(Welcome to|欢迎访问).*$/i, '')
                 .trim();
-              
-              if (cleanTitle && cleanTitle !== initialName) {
+
+              if (cleanTitle) {
                 updates.name = cleanTitle;
               }
             }
-            
+
             // 应用更新
             if (updates.name || updates.faviconUrl) {
               updateCustomSearchEngine(savedId, updates);
@@ -181,6 +188,8 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
           }
         } catch {
           // 获取失败，保留初始数据
+        } finally {
+          setFetchingNameId(null);
         }
       })();
     }
@@ -302,6 +311,7 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
           editingId={editingId}
           formData={formData}
           urlError={urlError}
+          fetchingNameId={fetchingNameId}
           onBack={handleBack}
           onStartEdit={handleStartEdit}
           onStartAdd={handleStartAdd}
@@ -478,6 +488,7 @@ interface SearchEngineManageViewProps {
   editingId: string | null;
   formData: FormData;
   urlError: boolean;
+  fetchingNameId: string | null;
   onBack: () => void;
   onStartEdit: (engine: SearchEngine) => void;
   onStartAdd: () => void;
@@ -493,6 +504,7 @@ function SearchEngineManageView({
   editingId,
   formData,
   urlError,
+  fetchingNameId,
   onBack,
   onStartEdit,
   onStartAdd,
@@ -543,7 +555,15 @@ function SearchEngineManageView({
                 <span className="adl-search-engine-popover__icon">
                   <EngineFavicon engine={engine} className="adl-search-engine-popover__favicon" />
                 </span>
-                <span className="adl-search-engine-popover__name">{engine.name}</span>
+                <span className="adl-search-engine-popover__name">
+                  {fetchingNameId === engine.id ? (
+                    <span className="adl-search-engine-popover__fetching-name">
+                      {t.browserSearchEngineFetchingName}
+                    </span>
+                  ) : (
+                    engine.name
+                  )}
+                </span>
                 <div className="adl-search-engine-popover__manage-actions">
                   <button
                     type="button"
