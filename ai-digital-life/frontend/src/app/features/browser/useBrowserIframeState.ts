@@ -18,7 +18,9 @@ interface UseBrowserIframeStateOptions {
 export function useBrowserIframeState({ activeTab }: UseBrowserIframeStateOptions) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const activeTabRef = useRef(activeTab);
-  const expectedNavigationUrlRef = useRef<{ url: string; at: number } | null>(null);
+  const expectedNavigationUrlRef = useRef<{ url: string; at: number; tabId: string | null } | null>(
+    null,
+  );
   const validatedUrlsRef = useRef(new Set<string>());
   const recentNavigatedUrlsRef = useRef<Map<string, number>>(new Map());
   const [, forceRender] = useState(0);

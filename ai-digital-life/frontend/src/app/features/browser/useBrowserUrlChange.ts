@@ -42,7 +42,11 @@ interface UseBrowserUrlChangeOptions {
   activeTab?: BrowserTabState;
   activeTabRef: React.MutableRefObject<BrowserTabState | undefined>;
   iframeRef: React.MutableRefObject<HTMLIFrameElement | null>;
-  expectedNavigationUrlRef: React.MutableRefObject<{ url: string; at: number } | null>;
+  expectedNavigationUrlRef: React.MutableRefObject<{
+    url: string;
+    at: number;
+    tabId: string | null;
+  } | null>;
   setAddress: (address: string) => void;
   setSearchQueryDisplay: (query: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
@@ -403,6 +407,11 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       if (
         expected &&
         Date.now() - expected.at <= REDIRECT_DETECT_WINDOW_MS &&
+        // 仅处理发起该显式导航的 tab：tabId 为 null 表示"新建 tab"场景（发起时
+        // tab 尚不存在，创建后由 browserOpenTab/browserNavigateActiveTab 生成），
+        // 此时依赖新鲜度窗口 + 跨站判定兜底。绑定 tabId 后，后台 tab 的跨站
+        // 导航（YouTube 自动切集、SPA 轮询等）不会误判为发起 tab 的重定向。
+        (expected.tabId === null || expected.tabId === tabId) &&
         normalizeUrlForCompare(expected.url) !== normalizedUrl &&
         !isProbablySameSite(expected.url, url)
       ) {

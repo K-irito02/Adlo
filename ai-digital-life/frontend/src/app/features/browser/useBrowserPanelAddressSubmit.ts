@@ -12,7 +12,11 @@ interface UseBrowserPanelAddressSubmitParams {
   setSearchQueryDisplay: (query: string) => void;
   browserLookupIndex: { title: string; url: string }[];
   handleNavigationStart: (url: string) => void;
-  expectedNavigationUrlRef: MutableRefObject<{ url: string; at: number } | null>;
+  expectedNavigationUrlRef: MutableRefObject<{
+    url: string;
+    at: number;
+    tabId: string | null;
+  } | null>;
   navigateBrowser: (url: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   setIframeLoadError: Dispatch<SetStateAction<boolean>>;
@@ -111,8 +115,15 @@ export function useBrowserPanelAddressSubmit({
     // Always defer tab creation until real title arrives via handlePageMeta
     handleNavigationStart(finalUrl);
     // 显式导航入口：记录期望导航 URL，供 onUrlChanged 检测跨域重定向
-    // （Chrome/Edge 重定向链消化语义）。
-    expectedNavigationUrlRef.current = { url: finalUrl, at: Date.now() };
+    // （Chrome/Edge 重定向链消化语义）。绑定目标 tab id：地址栏提交导航的是
+    // 当前活动 tab（无 tab 时 browserNavigateActiveTab 会新建），仅该 tab 的
+    // URL 变化参与检测，避免后台 tab 跨站导航在窗口内误触发历史改写。
+    const activeTabId = useAppStore.getState().browserActiveTabId;
+    expectedNavigationUrlRef.current = {
+      url: finalUrl,
+      at: Date.now(),
+      tabId: activeTabId || null,
+    };
     if (searchInfo) {
       setSearchQueryDisplay(searchInfo.query);
     } else {

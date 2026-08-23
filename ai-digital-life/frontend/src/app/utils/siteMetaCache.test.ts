@@ -591,5 +591,9 @@ describe('siteMetaCache redirect map', () => {
     }
     // 最新条目仍在
     expect(mod.getRedirectTarget('https://src519.test')).toBe('https://dst519.test/');
+    // 最旧条目（src0）已被 FIFO 逐出
+    expect(mod.getRedirectTarget('https://src0.test')).toBeUndefined();
+    // 上限附近仍保留（src20 应还在，因为只超了 20 条）
+    expect(mod.getRedirectTarget('https://src20.test')).toBe('https://dst20.test/');
   });
 });

@@ -10,6 +10,7 @@ function setup(browserNavigateInPlace: boolean) {
   const expectedNavigationUrlRef = { current: null } as React.MutableRefObject<{
     url: string;
     at: number;
+    tabId: string | null;
   } | null>;
   const { result } = renderHook(() =>
     useBrowserPanelHandlers({
@@ -55,5 +56,20 @@ describe('useBrowserPanelHandlers.handleOpenTabFromTree (regression)', () => {
     act(() => result.current.handleOpenTabFromTree('https://x.com', 'tab-1'));
     expect(browserSelectTab).toHaveBeenCalledWith('tab-1');
     expect(browserNavigateActiveTab).not.toHaveBeenCalled();
+  });
+
+  it('records expected navigation URL (with timestamp) on explicit tree open', () => {
+    const { result, expectedNavigationUrlRef } = setup(true);
+    act(() => result.current.handleOpenTabFromTree('https://x.com'));
+    const expected = expectedNavigationUrlRef.current;
+    expect(expected).not.toBeNull();
+    expect(expected?.url).toBe('https://x.com');
+    expect(expected?.at).toBeGreaterThan(0);
+  });
+
+  it('does NOT record expected navigation when switching to an existing tab', () => {
+    const { result, expectedNavigationUrlRef } = setup(true);
+    act(() => result.current.handleOpenTabFromTree('https://x.com', 'tab-1'));
+    expect(expectedNavigationUrlRef.current).toBeNull();
   });
 });

@@ -336,36 +336,6 @@
   transition: opacity 0.15s ease-in-out;
 }
 
-/* Tab title loading shimmer */
-.adl-tool-list__title--loading,
-.adl-filetree__label-text--loading {
-  background: linear-gradient(
-    90deg,
-    var(--color-text) 0%,
-    var(--color-text) 40%,
-    var(--color-text-secondary, var(--color-text)) 50%,
-    var(--color-text) 60%,
-    var(--color-text) 100%
-  );
-  background-size: 300% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: adl-tab-title-shimmer 2s ease-in-out infinite;
-}
-
-@keyframes adl-tab-title-shimmer {
-  0% { background-position: 100% 50%; }
-  100% { background-position: -100% 50%; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .adl-tool-list__title--loading,
-  .adl-filetree__label-text--loading {
-    animation: none;
-  }
-}
-
 /* Active tab highlight in open tab list */
 .adl-filetree__item.is-active > .adl-filetree__row {
   background: var(--bg-hover);
