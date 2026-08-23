@@ -7,6 +7,7 @@ function setup(browserNavigateInPlace: boolean) {
   const browserNavigateActiveTab = vi.fn();
   const browserSelectTab = vi.fn();
   const setBrowserNavigateInPlace = vi.fn();
+  const expectedNavigationUrlRef = { current: null } as React.MutableRefObject<string | null>;
   const { result } = renderHook(() =>
     useBrowserPanelHandlers({
       browserOpenTab,
@@ -14,9 +15,16 @@ function setup(browserNavigateInPlace: boolean) {
       browserSelectTab,
       browserNavigateInPlace,
       setBrowserNavigateInPlace,
+      expectedNavigationUrlRef,
     }),
   );
-  return { result, browserOpenTab, browserNavigateActiveTab, browserSelectTab };
+  return {
+    result,
+    browserOpenTab,
+    browserNavigateActiveTab,
+    browserSelectTab,
+    expectedNavigationUrlRef,
+  };
 }
 
 describe('useBrowserPanelHandlers.handleAlwaysNewTab', () => {

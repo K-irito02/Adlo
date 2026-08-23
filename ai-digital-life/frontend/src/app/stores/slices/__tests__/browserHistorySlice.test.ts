@@ -95,3 +95,52 @@ describe('browserHistorySlice — same-document coalescing', () => {
     expect((get() as unknown as BrowserHistorySlice).browserHistory).toHaveLength(1);
   });
 });
+
+describe('browserHistorySlice — redirect URL rewrite (方案 A)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('rewrites the original history entry URL to the redirect target', () => {
+    const { get } = createMockStore();
+    const s = get() as unknown as BrowserHistorySlice;
+    s.browserAddToHistory(
+      'https://search.marginalia.nu/search?q=%E5%92%8C%E5%B9%B3',
+      'Marginalia: 和平',
+    );
+    const entryId = (get() as unknown as BrowserHistorySlice).browserHistory[0].id;
+    s.browserUpdateHistoryUrl(
+      'https://search.marginalia.nu/search?q=%E5%92%8C%E5%B9%B3',
+      'https://marginalia-search.com/search?q=%E5%92%8C%E5%B9%B3',
+    );
+    const history = (get() as unknown as BrowserHistorySlice).browserHistory;
+    expect(history).toHaveLength(1);
+    expect(history[0].url).toBe('https://marginalia-search.com/search?q=%E5%92%8C%E5%B9%B3');
+    expect(history[0].title).toBe('Marginalia: 和平');
+    expect(history[0].id).toBe(entryId);
+  });
+
+  it('removes the old entry when the redirect target already exists in history', () => {
+    const { get } = createMockStore();
+    const s = get() as unknown as BrowserHistorySlice;
+    s.browserAddToHistory('https://source.test/page', 'Source');
+    s.browserAddToHistory('https://target.test/page', 'Target');
+    s.browserUpdateHistoryUrl('https://source.test/page', 'https://target.test/page');
+    const history = (get() as unknown as BrowserHistorySlice).browserHistory;
+    expect(history).toHaveLength(1);
+    expect(history[0].url).toBe('https://target.test/page');
+  });
+
+  it('is a no-op for same dedupKey or no matching entry', () => {
+    const { get } = createMockStore();
+    const s = get() as unknown as BrowserHistorySlice;
+    s.browserAddToHistory('https://a.com/page', 'A');
+    // 同 dedupKey（尾斜杠归一）→ 视为无变化
+    s.browserUpdateHistoryUrl('https://a.com/page/', 'https://a.com/page');
+    // 无匹配条目 → 无变化
+    s.browserUpdateHistoryUrl('https://no-such.com/x', 'https://b.com/y');
+    const history = (get() as unknown as BrowserHistorySlice).browserHistory;
+    expect(history).toHaveLength(1);
+    expect(history[0].url).toBe('https://a.com/page');
+  });
+});

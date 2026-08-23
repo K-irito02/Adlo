@@ -110,21 +110,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     [navigateActiveTabExplicit],
   );
 
-  const {
-    pendingNavigationsRef,
-    handleNavigationStart,
-    handleOpenTabFromTree,
-    handleToggleNavigateMode,
-    handleAlwaysNewTab,
-    handlePointerDown,
-  } = useBrowserPanelHandlers({
-    browserOpenTab,
-    browserNavigateActiveTab: navigateActiveTabExplicit,
-    browserSelectTab,
-    browserNavigateInPlace,
-    setBrowserNavigateInPlace,
-  });
-
   const activatedTabIdsRef = useRef(new Set<string>());
 
   const {
@@ -152,6 +137,22 @@ export function BrowserPanel(props: BrowserPanelProps) {
     markUrlSeen,
     navigateBrowser,
   } = useBrowserIframeState({ activeTab });
+
+  const {
+    pendingNavigationsRef,
+    handleNavigationStart,
+    handleOpenTabFromTree,
+    handleToggleNavigateMode,
+    handleAlwaysNewTab,
+    handlePointerDown,
+  } = useBrowserPanelHandlers({
+    browserOpenTab,
+    browserNavigateActiveTab: navigateActiveTabExplicit,
+    browserSelectTab,
+    browserNavigateInPlace,
+    setBrowserNavigateInPlace,
+    expectedNavigationUrlRef,
+  });
 
   const { zoomLevel, setZoomLevel } = useBrowserZoomState({ activeTabId: activeTab?.id });
 

@@ -36,6 +36,19 @@ const urlListeners = new Map<string, Set<() => void>>();
 const globalListeners = new Set<(url: string) => void>();
 const readyListeners = new Set<() => void>();
 
+/**
+ * 重定向映射：原始 URL（normalize 后） → 重定向目标 URL（normalize 后）。
+ *
+ * 解决跨域重定向的 favicon/标题查找 miss（参考 Chromium `icon_mapping.page_url_type`
+ * 的 kRedirect 语义）：`search.marginalia.nu/search?q=…` 会 302 到
+ * `marginalia-search.com/search?q=…`，元数据只缓存于目标 origin 下。查找原始 URL
+ * 时通过本映射落到目标 URL，直接命中缓存，避免"永久 spinner/兜底字母"。
+ *
+ * 仅内存态（会话级）：重定向关系是导航时的瞬态事实，持久化到 history 由方案 A
+ * （历史条目 URL 回写最终 URL）承担。
+ */
+const redirectMap = new Map<string, string>();
+
 let ready = false;
 let initPromise: Promise<void> | null = null;
 
@@ -235,6 +248,69 @@ export function getCanonicalOriginFavicon(url: string): {
 
 export function getCachedTitle(url: string): string {
   return memoryCache.get(normalizeUrlForCache(url))?.title ?? '';
+}
+
+/**
+ * 记录导航时的重定向关系：原始 URL → 重定向目标 URL（均 normalize 后存储）。
+ *
+ * 调用时机：导航完成检测到 `expectedNavigationUrl` ≠ 实际 `url` 且非同源时记录。
+ * 仅当两者 normalize 后不同才记录，避免自引用。目标 URL 再次重定向时
+ * 逐跳覆盖，始终指向最终 URL。
+ */
+export function recordRedirect(originalUrl: string, targetUrl: string): void {
+  const from = normalizeUrlForCache(originalUrl);
+  const to = normalizeUrlForCache(targetUrl);
+  if (!from || !to || from === to) {
+    return;
+  }
+  redirectMap.set(from, to);
+  // 链式：若目标本身又是重定向源，直接跳到最终目标（Chrome 重定向链消化语义）
+  let finalTarget = to;
+  let hops = 0;
+  while (hops < 8) {
+    const next = redirectMap.get(finalTarget);
+    if (!next || next === finalTarget) {
+      break;
+    }
+    finalTarget = next;
+    hops += 1;
+  }
+  redirectMap.set(from, finalTarget);
+}
+
+/**
+ * 返回 URL 已知的重定向目标（normalize 后），无则 undefined。
+ * 链式解析：源 → 目标 → 最终目标，最多 8 跳防环。
+ */
+export function getRedirectTarget(url: string): string | undefined {
+  const from = normalizeUrlForCache(url);
+  if (!from) {
+    return undefined;
+  }
+  let target = redirectMap.get(from);
+  let hops = 0;
+  while (target && hops < 8) {
+    const next = redirectMap.get(target);
+    if (!next || next === target) {
+      break;
+    }
+    target = next;
+    hops += 1;
+  }
+  return target;
+}
+
+/**
+ * 该 URL（或其重定向目标）是否已"抓取结算"。
+ * 供 BrowserFavicon 等按精确 URL 判断的场景使用：直接 URL 无 entry 时
+ * 检查重定向目标（跨域重定向场景），命中即视为已结算。
+ */
+export function isSiteMetaResolvedOrRedirected(url: string): boolean {
+  if (memoryCache.has(normalizeUrlForCache(url))) {
+    return true;
+  }
+  const target = getRedirectTarget(url);
+  return Boolean(target && memoryCache.has(target));
 }
 
 /**

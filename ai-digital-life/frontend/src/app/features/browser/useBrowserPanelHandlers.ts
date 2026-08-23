@@ -6,6 +6,7 @@ export interface UseBrowserPanelHandlersParams {
   browserSelectTab: (tabId: string) => void;
   browserNavigateInPlace: boolean;
   setBrowserNavigateInPlace: (value: boolean) => void;
+  expectedNavigationUrlRef: React.MutableRefObject<string | null>;
 }
 
 export interface UseBrowserPanelHandlersResult {
@@ -26,14 +27,21 @@ export function useBrowserPanelHandlers(
     browserSelectTab,
     browserNavigateInPlace,
     setBrowserNavigateInPlace,
+    expectedNavigationUrlRef,
   } = params;
 
   const pendingNavigationsRef = useRef(new Set<string>());
 
-  const handleNavigationStart = useCallback((url: string) => {
-    // Track pending navigation so handlePageMeta creates tab only when real title arrives
-    pendingNavigationsRef.current.add(url);
-  }, []);
+  const handleNavigationStart = useCallback(
+    (url: string) => {
+      // Track pending navigation so handlePageMeta creates tab only when real title arrives
+      pendingNavigationsRef.current.add(url);
+      // 记录期望导航 URL：onUrlChanged 据此检测重定向（期望 URL 与实际 URL 跨域差异）。
+      // 供 useBrowserUrlChange 的重定向链消化使用（Chrome/Edge 语义）。
+      expectedNavigationUrlRef.current = url;
+    },
+    [expectedNavigationUrlRef],
+  );
 
   const handleOpenTabFromTree = useCallback(
     (url: string, tabId?: string) => {

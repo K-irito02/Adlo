@@ -31,6 +31,7 @@ export interface BrowserHistorySlice {
   browserAddToHistory: (url: string, title: string) => void;
   browserClearHistory: () => void;
   browserUpdateHistoryTitle: (url: string, title: string) => void;
+  browserUpdateHistoryUrl: (oldUrl: string, newUrl: string) => void;
   browserDeleteHistoryByLevel: (
     level: 'label' | 'year' | 'month' | 'day',
     nodePath: string,
@@ -142,6 +143,40 @@ export const createBrowserHistorySlice = (
       const nextHistory = state.browserHistory.map((h) =>
         historyDedupKey(h.url) === dedupKey ? { ...h, title } : h,
       );
+      writeHistory(nextHistory);
+      return { browserHistory: nextHistory };
+    });
+  },
+
+  /**
+   * 重定向 URL 回写（方案 A，参考 Chrome/Edge 导航消化重定向链）：
+   * 跨域重定向发生时（如 search.marginalia.nu → marginalia-search.com），
+   * 把历史条目的 URL 更新为最终 URL，使历史树 favicon/标题能按最终 origin 命中
+   * 缓存，避免"永久 spinner/兜底字母"。按 dedupKey 匹配旧 URL，保留原有标题
+   * 与访问时间（与 browserAddToHistory 的去重语义一致）。
+   */
+  browserUpdateHistoryUrl: (oldUrl: string, newUrl: string) => {
+    if (!oldUrl || !newUrl || oldUrl === newUrl) {
+      return;
+    }
+    set((state) => {
+      const oldKey = historyDedupKey(oldUrl);
+      const newKey = historyDedupKey(newUrl);
+      if (oldKey === newKey) {
+        return state;
+      }
+      const matched = state.browserHistory.filter((h) => historyDedupKey(h.url) === oldKey);
+      if (matched.length === 0) {
+        return state;
+      }
+      // 若 newUrl 已有条目（同 dedupKey），删除旧条目避免重复（Chrome/Edge 语义）；
+      // 否则将旧条目 URL 原地更新为最终 URL。
+      const hasNew = state.browserHistory.some((h) => historyDedupKey(h.url) === newKey);
+      const nextHistory = hasNew
+        ? state.browserHistory.filter((h) => historyDedupKey(h.url) !== oldKey)
+        : state.browserHistory.map((h) =>
+            historyDedupKey(h.url) === oldKey ? { ...h, url: newUrl } : h,
+          );
       writeHistory(nextHistory);
       return { browserHistory: nextHistory };
     });

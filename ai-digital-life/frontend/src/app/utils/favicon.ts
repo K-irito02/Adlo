@@ -1,4 +1,9 @@
-import { getCanonicalOriginFavicon, persistFaviconDataUri } from './siteMetaCache';
+import {
+  getCanonicalOriginFavicon,
+  persistFaviconDataUri,
+  getRedirectTarget,
+  normalizeUrlForCache,
+} from './siteMetaCache';
 
 /**
  * 站点级 favicon（Chrome/Edge 式：每个站点一个唯一 favicon）。
@@ -69,6 +74,7 @@ function preloadExternalFavicon(faviconUrl: string, cacheKey: string): void {
  *    后台预加载外部 favicon → data-URI 落地后下次调用优先返回 data-URI
  */
 export function getFaviconUrl(url: string): string {
+  // 直接 URL 查找（含同 origin canonical 回退）
   const { faviconDataUri, faviconUrl, cacheKey } = getCanonicalOriginFavicon(url);
 
   // 优先级 1：内存缓存中已有 data-URI
@@ -85,6 +91,28 @@ export function getFaviconUrl(url: string): string {
   if (faviconUrl && faviconUrl.startsWith('http')) {
     preloadExternalFavicon(faviconUrl, cacheKey);
     return faviconUrl;
+  }
+
+  // 优先级 4：跨域重定向兜底（参考 Chromium `page_url_type`/重定向链语义）——
+  // 原始 URL 无 favicon 时，若存在重定向目标（如 search.marginalia.nu → marginalia-search.com），
+  // 用目标的缓存 favicon。避免跨域重定向的历史条目永久 spinner/兜底字母。
+  const redirectTarget = getRedirectTarget(url);
+  if (redirectTarget && normalizeUrlForCache(redirectTarget) !== normalizeUrlForCache(url)) {
+    const {
+      faviconDataUri: targetDataUri,
+      faviconUrl: targetFaviconUrl,
+      cacheKey: targetCacheKey,
+    } = getCanonicalOriginFavicon(redirectTarget);
+    if (targetDataUri) {
+      return targetDataUri;
+    }
+    if (targetFaviconUrl && preloadCache.has(targetFaviconUrl)) {
+      return preloadCache.get(targetFaviconUrl)!;
+    }
+    if (targetFaviconUrl && targetFaviconUrl.startsWith('http')) {
+      preloadExternalFavicon(targetFaviconUrl, targetCacheKey);
+      return targetFaviconUrl;
+    }
   }
 
   // 无 favicon 时返回空字符串，组件显示兜底字母

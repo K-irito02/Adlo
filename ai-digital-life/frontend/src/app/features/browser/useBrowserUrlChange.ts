@@ -3,6 +3,7 @@ import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { MetaSource, PageMeta } from '@shared/ipc/browser';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import { useAppStore } from '@stores';
+import { recordRedirect } from '@utils/siteMetaCache';
 import {
   normalizeUrlForCompare,
   isProbablySameSite,
@@ -390,6 +391,14 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       if (expected && normalizeUrlForCompare(expected) !== normalizedUrl) {
         if (isProbablySameSite(expected, url)) {
           expectedNavigationUrlRef.current = url;
+        } else {
+          // 跨域重定向（如 search.marginalia.nu → marginalia-search.com）：
+          // 参考 Chrome/Edge 导航消化重定向链 ——
+          // 1) 记录重定向映射（方案 B），使 favicon/标题查找能落到最终 origin；
+          // 2) 回写历史条目 URL 为最终 URL（方案 A），历史树直接命中缓存。
+          recordRedirect(expected, url);
+          const s = useAppStore.getState();
+          s.browserUpdateHistoryUrl(expected, url);
         }
       }
 

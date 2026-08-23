@@ -517,3 +517,56 @@ describe('buildCachedSiteMetaEntry (entry builder)', () => {
     expect(entry.faviconDataUri).toBe('');
   });
 });
+
+describe('siteMetaCache redirect map', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {}, removeItem: () => {} });
+  });
+
+  it('records and resolves a redirect mapping (normalized)', async () => {
+    const mod = await import('./siteMetaCache');
+    mod.recordRedirect(
+      'https://search.marginalia.nu/search?q=%E5%92%8C%E5%B9%B3',
+      'https://marginalia-search.com/search?q=%E5%92%8C%E5%B9%B3',
+    );
+    expect(mod.getRedirectTarget('https://search.marginalia.nu/search?q=%E5%92%8C%E5%B9%B3')).toBe(
+      'https://marginalia-search.com/search?q=%E5%92%8C%E5%B9%B3',
+    );
+  });
+
+  it('ignores self-redirects and empty inputs', async () => {
+    const mod = await import('./siteMetaCache');
+    mod.recordRedirect('https://a.com', 'https://a.com');
+    mod.recordRedirect('', 'https://b.com');
+    mod.recordRedirect('https://a.com', '');
+    expect(mod.getRedirectTarget('https://a.com')).toBeUndefined();
+  });
+
+  it('resolves chained redirects to the final target', async () => {
+    const mod = await import('./siteMetaCache');
+    mod.recordRedirect('https://a.com', 'https://b.com');
+    mod.recordRedirect('https://b.com', 'https://c.com');
+    expect(mod.getRedirectTarget('https://a.com')).toBe('https://c.com/');
+    expect(mod.getRedirectTarget('https://b.com')).toBe('https://c.com/');
+  });
+
+  it('isSiteMetaResolvedOrRedirected returns true when redirect target is resolved', async () => {
+    const mod = await import('./siteMetaCache');
+    mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());
+    await mod.initSiteMetaCache();
+    mod.__mirrorUpsertForTest('https://target.test/search?q=x', {
+      title: 'T',
+      faviconUrl: 'https://target.test/favicon.ico',
+      faviconDataUri: '',
+      fetchedAt: 1,
+      titleSource: '',
+      lastOkAt: 0,
+      nextRetryAt: 0,
+      failCount: 0,
+    });
+    mod.recordRedirect('https://source.test/search?q=x', 'https://target.test/search?q=x');
+    expect(mod.isSiteMetaResolvedOrRedirected('https://source.test/search?q=x')).toBe(true);
+    expect(mod.isSiteMetaResolvedOrRedirected('https://nowhere.test/p')).toBe(false);
+  });
+});

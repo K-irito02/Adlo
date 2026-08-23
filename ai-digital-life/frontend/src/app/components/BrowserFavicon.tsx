@@ -5,8 +5,9 @@ import {
   subscribeSiteMetaReady,
   isSiteMetaCacheReady,
   initSiteMetaCache,
-  isSiteMetaResolved,
+  isSiteMetaResolvedOrRedirected,
   normalizeUrlForCache,
+  getRedirectTarget,
 } from '../utils/siteMetaCache';
 import { pageMetaClient } from '../utils/pageMetaClient';
 import { IconNewTabPage, type IconSize } from '../icons';
@@ -35,7 +36,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const [faviconUrl, setFaviconUrl] = useState('');
   const [degraded, setDegraded] = useState(false);
   const faviconUrlRef = useRef('');
-  const resolvedRef = useRef(url ? isSiteMetaResolved(url) : false);
+  const resolvedRef = useRef(url ? isSiteMetaResolvedOrRedirected(url) : false);
   const [resolvedFaviconEmpty, setResolvedFaviconEmpty] = useState(false);
 
   const applyMetaUpdate = useCallback(() => {
@@ -46,7 +47,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
       setFaviconUrl(next);
       setDegraded(false);
     }
-    const r = url ? isSiteMetaResolved(url) : false;
+    const r = url ? isSiteMetaResolvedOrRedirected(url) : false;
     if (r !== resolvedRef.current) {
       resolvedRef.current = r;
     }
@@ -54,14 +55,6 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     if (r && !next) {
       setResolvedFaviconEmpty(true);
     }
-    // [ADL-DEBUG] favicon debug log
-    console.log('[ADL-DEBUG] BrowserFavicon applyMetaUpdate:', {
-      url: url?.substring(0, 80),
-      resolved: r,
-      faviconUrl: next?.substring(0, 80) || '(empty)',
-      resolvedFaviconEmpty: r && !next,
-      prev: prev?.substring(0, 80) || '(empty)',
-    });
   }, [url]);
 
   useEffect(() => {
@@ -81,17 +74,23 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
       return;
     }
     const unsubMeta = subscribeSiteMeta(url, applyMetaUpdate);
+    // 跨域重定向场景：元数据广播以重定向目标 URL 到达，原始 URL 的订阅收不到，
+    // 额外订阅目标 URL，使 favicon 在目标数据落地后立即刷新（参考 Chromium
+    // `page_url_type`/重定向链语义）。
+    const redirectTarget = getRedirectTarget(url);
+    const unsubTargetMeta =
+      redirectTarget && redirectTarget !== normalizeUrlForCache(url)
+        ? subscribeSiteMeta(redirectTarget, applyMetaUpdate)
+        : () => {};
     const unsubUpdated = pageMetaClient.subscribeUpdated((p) => {
-      if (normalizeUrlForCache(p.url) === normalizeUrlForCache(url)) {
-        console.log('[ADL-DEBUG] BrowserFavicon pageMetaClient updated:', {
-          url: url.substring(0, 80),
-          broadcastUrl: p.url?.substring(0, 80),
-        });
+      const norm = normalizeUrlForCache(p.url);
+      if (norm === normalizeUrlForCache(url) || (redirectTarget && norm === redirectTarget)) {
         applyMetaUpdate();
       }
     });
     return () => {
       unsubMeta();
+      unsubTargetMeta();
       unsubUpdated();
     };
   }, [url, ready, applyMetaUpdate]);
@@ -104,9 +103,6 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     }
     const timer = setTimeout(() => {
       if (!faviconUrlRef.current && !resolvedRef.current) {
-        console.log('[ADL-DEBUG] BrowserFavicon timeout fallback:', {
-          url: url?.substring(0, 80),
-        });
         setResolvedFaviconEmpty(true);
       }
     }, 5000);
@@ -121,18 +117,6 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const handleError = useCallback(() => {
     setDegraded(true);
   }, []);
-
-  // [ADL-DEBUG] favicon render state
-  if (url && !url.startsWith('about:')) {
-    console.log('[ADL-DEBUG] BrowserFavicon render:', {
-      url: url.substring(0, 80),
-      current: current?.substring(0, 80) || '(empty)',
-      showImg,
-      isLoading,
-      resolvedFaviconEmpty,
-      degraded,
-    });
-  }
 
   // 新标签页（无 URL/about:blank）没有站点 favicon：显示内置"新标签页"图标，
   // 避免空白占位（用户 2026-08-20 报告：open 模式下新建标签页标签图标缺失）。
