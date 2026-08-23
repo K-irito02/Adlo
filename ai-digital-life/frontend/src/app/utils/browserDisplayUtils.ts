@@ -88,6 +88,15 @@ export function isPlaceholderTitle(title: string, url: string): boolean {
 }
 
 /**
+ * 是否"真实标题"：非空、非 URL 占位、非裸主机/无 scheme 标签。
+ * 用于 titleResolved 判定（C1/H1/M1 系列）：真实标题视为已结算，占位标题保持
+ * 未结算（等真实标题到达）。与 applyBroadcastTitle 的 isPlaceholderTitle 判定一致。
+ */
+export function isRealTitle(title: string | undefined, url: string): boolean {
+  return Boolean(title && title !== url && !isPlaceholderTitle(title, url));
+}
+
+/**
  * 收藏树节点标题解析（快照优先）：
  * 快照标题非占位（用户自定义）→ 返回快照标题（永不覆盖）；
  * 快照标题为占位（空 / 纯 URL / 裸域名）→ 优先返回服务端 metaTitle（可为空串）。

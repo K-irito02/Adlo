@@ -7,7 +7,7 @@ import {
   BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
 } from './browserSliceShared';
 import type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
-import { historyDedupKey } from '@utils/browserDisplayUtils';
+import { historyDedupKey, isRealTitle } from '@utils/browserDisplayUtils';
 
 // Re-export the tab state types from the shared leaf module so existing
 // consumers (e.g. tests, browserSlice, browserFoldersUtils) keep working
@@ -76,8 +76,7 @@ export const createBrowserTabsSlice = (
         url: url?.trim() || '',
         // 已知真实非占位标题（书签/快捷站点/文件夹恢复）视为已结算，避免闪扫光（M1-E）；
         // 占位/空标题保持未结算，等真实标题到达。
-        titleResolved:
-          tabTitle !== '' && tabTitle !== (url?.trim() || '') && !/^https?:\/\//i.test(tabTitle),
+        titleResolved: isRealTitle(tabTitle, url?.trim() ?? ''),
         isPinned: false,
         sortOrder: maxSortOrder + 1,
         isPlayingAudio: false,

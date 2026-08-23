@@ -14,6 +14,7 @@ import {
   makePersistedWriter,
   makePersistedNumberWriter,
 } from '../shared';
+import { isRealTitle } from '@utils/browserDisplayUtils';
 import { BROWSER_NAVIGATOR_COLLAPSED_KEY, STORAGE_HYDRATION_DELAY_MS } from '../constants';
 
 import type { BrowserTabState } from './browserSliceShared';
@@ -105,7 +106,7 @@ function hydrateBrowserDefaults(
         titleResolved:
           typeof t.titleResolved === 'boolean'
             ? t.titleResolved
-            : t.title !== '' && t.title !== t.url && !/^https?:\/\//i.test(t.title ?? ''),
+            : isRealTitle(t.title, t.url ?? ''),
       }));
       finalActiveTabId = readJson<string>(BROWSER_ACTIVE_TAB_KEY, '');
       if (!finalTabs.find((t) => t.id === finalActiveTabId)) {
@@ -244,7 +245,7 @@ export const createBrowserSlice = (
             url,
             // 真实非占位标题（如 iframe 模式直接拿到的 document.title）视为已结算，
             // 避免浏览器模式扫光永久显示（C1）；搜索/地址栏的占位标题保持未结算。
-            titleResolved: tabTitle !== '' && tabTitle !== url && !/^https?:\/\//i.test(tabTitle),
+            titleResolved: isRealTitle(tabTitle, url),
             isPinned: false,
             isPlayingAudio: false,
             isAudioMuted: false,
@@ -264,8 +265,7 @@ export const createBrowserSlice = (
                 url,
                 title: title || '',
                 // 同上：真实非占位标题视为已结算，占位标题保持未结算（C1）
-                titleResolved:
-                  tabTitle !== '' && tabTitle !== url && !/^https?:\/\//i.test(tabTitle),
+                titleResolved: isRealTitle(tabTitle, url),
               };
             }
             return tab;

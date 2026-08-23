@@ -824,6 +824,7 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
     expect(updateTab).toHaveBeenCalledWith('live-1', {
       title: 'NewName',
       url: 'https://new.com',
+      titleResolved: true,
     });
   });
 });

@@ -321,9 +321,11 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         }
       } else {
         // 普通标签：完整改名 + 更新 url；save-and-open 导航到该标签
+        // 用户重命名是确定真实标题 → 标记已结算（M1-D 一致性，避免 shimmer 遮蔽自定义标题）
         browserUpdateTab(tabId, {
           title: trimmedName || undefined,
           url: trimmedUrl || undefined,
+          ...(trimmedName ? { titleResolved: true } : {}),
         });
         if (mode === 'save-and-open' && trimmedUrl) {
           // D4：显式导航——更新标签 URL 并真正 Navigate 其已入池 WebView

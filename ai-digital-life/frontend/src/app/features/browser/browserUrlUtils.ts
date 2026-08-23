@@ -79,8 +79,8 @@ export function isSearchQuery(input: string): boolean {
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(trimmed)) {
     return false;
   }
-  // localhost → 导航
-  if (/^localhost(:\d+)?/.test(trimmed)) {
+  // localhost → 导航（$ 锚定，避免 localhostxyz 被误判为 URL）
+  if (/^localhost(:\d+)?$/i.test(trimmed)) {
     return false;
   }
   // 含空格 → 搜索

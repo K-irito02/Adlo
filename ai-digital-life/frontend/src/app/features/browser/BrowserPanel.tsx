@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '@shared/env';
+import { isRealTitle } from '@utils/browserDisplayUtils';
 import { useBrowserTabs } from './useBrowserTabs';
 import { useBrowserWebView } from './useBrowserWebView';
 import { useBrowserSearch } from './useBrowserSearch';
@@ -101,7 +102,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
       if (tabId === s.browserActiveTabId) {
         await navigateActiveTabExplicit(url, title);
       } else {
-        s.browserUpdateTab(tabId, { url, ...(title ? { title } : {}) });
+        s.browserUpdateTab(tabId, {
+          url,
+          ...(title ? { title } : {}),
+          // 带真实标题显式导航非活动 tab → 标记已结算（M1-D 一致性）
+          ...(title ? { titleResolved: isRealTitle(title, url) } : {}),
+        });
         if (isTauriShell() && navigationHelpersRef.current.isTabInPool(tabId)) {
           await navigationHelpersRef.current.navigateTabInPool(tabId, url);
         }
