@@ -36,7 +36,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const [degraded, setDegraded] = useState(false);
   const faviconUrlRef = useRef('');
   const resolvedRef = useRef(url ? isSiteMetaResolved(url) : false);
-  const [resolved, setResolved] = useState(resolvedRef.current);
+  const [resolvedFaviconEmpty, setResolvedFaviconEmpty] = useState(false);
 
   const applyMetaUpdate = useCallback(() => {
     const prev = faviconUrlRef.current;
@@ -49,7 +49,10 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     const r = url ? isSiteMetaResolved(url) : false;
     if (r !== resolvedRef.current) {
       resolvedRef.current = r;
-      setResolved(r);
+    }
+    // 已结算但 favicon URL 仍为空，标记为"确认无 favicon"（无条件检查，处理初始已结算场景）
+    if (r && !next) {
+      setResolvedFaviconEmpty(true);
     }
   }, [url]);
 
@@ -84,7 +87,8 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   // 未命中/未就绪：显示占位图标（非空白）
   const current = faviconUrl;
   const showImg = Boolean(current) && !degraded;
-  const isLoading = !resolved && !current && !degraded;
+  // 已结算但 favicon URL 仍为空时继续显示 spinner，避免"加载中 → 兜底字母 → 真实图标"的闪烁
+  const isLoading = !current && !degraded && !resolvedFaviconEmpty;
   const handleError = useCallback(() => {
     setDegraded(true);
   }, []);
@@ -117,7 +121,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
         className="adl-browser-tree__link-fallback"
         style={showImg || isLoading ? { display: 'none' } : undefined}
       >
-        {showImg || isLoading ? '' : resolved ? siteInitial(url) : ''}
+        {showImg || isLoading ? '' : resolvedFaviconEmpty ? siteInitial(url) : ''}
       </span>
     </span>
   );
