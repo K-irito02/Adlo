@@ -33,6 +33,13 @@ interface FormData {
   urlTemplate: string;
 }
 
+function cleanPageTitle(title: string): string {
+  return title
+    .replace(/\s*[-|–]\s*(Search|搜索引擎|搜索).*$/i, '')
+    .replace(/\s*[-|–]\s*(Welcome to|欢迎访问).*$/i, '')
+    .trim();
+}
+
 export const SearchEnginePopover = React.memo(function SearchEnginePopover({
   open,
   onClose,
@@ -47,6 +54,7 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const [popoverVisible, setPopoverVisible] = useState(false);
   const [fetchingNameId, setFetchingNameId] = useState<string | null>(null);
+  const fetchingOperationIdRef = useRef(0);
 
   const searchEngines = useAppStore((s) => s.searchEngines);
   const defaultSearchEngineId = useAppStore((s) => s.defaultSearchEngineId);
@@ -157,9 +165,19 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
         setFetchingNameId(savedId);
       }
 
+      // 递增操作 ID 用于竞态检测
+      const operationId = ++fetchingOperationIdRef.current;
+      const userNameInput = formData.name.trim();
+
       void (async () => {
         try {
           const meta = await pageMetaClient.getSilent(searchUrl);
+
+          // 竞态检测：如果已有更新的操作，放弃本次更新
+          if (operationId !== fetchingOperationIdRef.current) {
+            return;
+          }
+
           if (meta) {
             const updates: { name?: string; faviconUrl?: string } = {};
 
@@ -171,12 +189,8 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
             }
 
             // 更新标题（如果用户未填写）
-            if (!formData.name.trim() && meta.title) {
-              const cleanTitle = meta.title
-                .replace(/\s*[-|–]\s*(Search|搜索引擎|搜索).*$/i, '')
-                .replace(/\s*[-|–]\s*(Welcome to|欢迎访问).*$/i, '')
-                .trim();
-
+            if (!userNameInput && meta.title) {
+              const cleanTitle = cleanPageTitle(meta.title);
               if (cleanTitle) {
                 updates.name = cleanTitle;
               }
@@ -187,10 +201,13 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
               updateCustomSearchEngine(savedId, updates);
             }
           }
-        } catch {
-          // 获取失败，保留初始数据
+        } catch (err) {
+          console.error('[SearchEnginePopover] Failed to fetch page meta:', err);
         } finally {
-          setFetchingNameId(null);
+          // 只有当这是当前操作时才清除加载状态
+          if (operationId === fetchingOperationIdRef.current) {
+            setFetchingNameId(null);
+          }
         }
       })();
     }
@@ -222,9 +239,18 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
       // 设置为正在获取状态
       setFetchingNameId(engine.id);
 
+      // 递增操作 ID 用于竞态检测
+      const operationId = ++fetchingOperationIdRef.current;
+
       void (async () => {
         try {
           const meta = await pageMetaClient.getSilent(searchUrl);
+
+          // 竞态检测：如果已有更新的操作，放弃本次更新
+          if (operationId !== fetchingOperationIdRef.current) {
+            return;
+          }
+
           if (meta) {
             const updates: { name?: string; faviconUrl?: string } = {};
 
@@ -242,11 +268,7 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
               .replace('http://', '')
               .replace('www.', '');
             if (engine.name === domain && meta.title) {
-              const cleanTitle = meta.title
-                .replace(/\s*[-|–]\s*(Search|搜索引擎|搜索).*$/i, '')
-                .replace(/\s*[-|–]\s*(Welcome to|欢迎访问).*$/i, '')
-                .trim();
-
+              const cleanTitle = cleanPageTitle(meta.title);
               if (cleanTitle) {
                 updates.name = cleanTitle;
               }
@@ -257,10 +279,13 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
               updateCustomSearchEngine(engine.id, updates);
             }
           }
-        } catch {
-          // 获取失败，保留原有数据
+        } catch (err) {
+          console.error('[SearchEnginePopover] Failed to refresh engine meta:', err);
         } finally {
-          setFetchingNameId(null);
+          // 只有当这是当前操作时才清除加载状态
+          if (operationId === fetchingOperationIdRef.current) {
+            setFetchingNameId(null);
+          }
         }
       })();
     },
