@@ -115,52 +115,60 @@ export const SearchEnginePopover = React.memo(function SearchEnginePopover({
       // URL 解析失败，不设置 favicon
     }
     
-    // 自动获取搜索引擎名称
-    let engineName = formData.name.trim();
-    if (!engineName && searchUrl) {
+    // 先确定初始名称：用户输入 > 域名 > 随机名称
+    let initialName = formData.name.trim();
+    if (!initialName && searchUrl) {
       try {
-        const meta = await pageMetaClient.getSilent(searchUrl);
-        if (meta?.title) {
-          // 清理标题：移除常见的后缀
-          engineName = meta.title
-            .replace(/\s*[-|–]\s*(Search|搜索引擎|搜索).*$/i, '')
-            .replace(/\s*[-|–]\s*(Welcome to|欢迎访问).*$/i, '')
-            .trim();
-        }
+        const url = new URL(searchUrl);
+        initialName = url.hostname.replace('www.', '');
       } catch {
-        // 获取失败，使用兜底名称
-      }
-      
-      // 如果仍然为空，使用域名作为兜底
-      if (!engineName && searchUrl) {
-        try {
-          const url = new URL(searchUrl);
-          engineName = url.hostname.replace('www.', '');
-        } catch {
-          // 忽略
-        }
-      }
-      
-      // 最终兜底：使用随机名称
-      if (!engineName) {
-        engineName = `Search Engine ${Date.now().toString(36).slice(-4).toUpperCase()}`;
+        // 忽略
       }
     }
+    if (!initialName) {
+      initialName = `Search Engine ${Date.now().toString(36).slice(-4).toUpperCase()}`;
+    }
     
+    // 先保存并关闭表单（不等待网络请求）
+    let savedId = '';
     if (editingId === 'new') {
-      addCustomSearchEngine({ 
-        name: engineName, 
+      savedId = addCustomSearchEngine({ 
+        name: initialName, 
         urlTemplate: formData.urlTemplate,
         faviconUrl 
       });
     } else if (editingId) {
+      savedId = editingId;
       updateCustomSearchEngine(editingId, {
-        name: engineName,
+        name: initialName,
         urlTemplate: formData.urlTemplate,
         faviconUrl,
       });
     }
     resetForm();
+    
+    // 后台获取真实标题并更新（不阻塞 UI）
+    if (savedId && searchUrl && !formData.name.trim()) {
+      void (async () => {
+        try {
+          const meta = await pageMetaClient.getSilent(searchUrl);
+          if (meta?.title) {
+            // 清理标题：移除常见的后缀
+            const cleanTitle = meta.title
+              .replace(/\s*[-|–]\s*(Search|搜索引擎|搜索).*$/i, '')
+              .replace(/\s*[-|–]\s*(Welcome to|欢迎访问).*$/i, '')
+              .trim();
+            
+            // 如果清理后的标题有效，更新名称
+            if (cleanTitle && cleanTitle !== initialName) {
+              updateCustomSearchEngine(savedId, { name: cleanTitle });
+            }
+          }
+        } catch {
+          // 获取失败，保留初始名称
+        }
+      })();
+    }
   }, [formData, editingId, addCustomSearchEngine, updateCustomSearchEngine, resetForm]);
 
   const handleDelete = useCallback(
