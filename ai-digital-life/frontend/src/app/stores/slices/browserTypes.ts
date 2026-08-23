@@ -3,6 +3,7 @@ export interface BrowserTabState {
   workspaceId: string;
   title: string;
   url: string;
+  titleResolved: boolean;
   isPinned: boolean;
   pinnedAt?: number;
   sortOrder: number;
@@ -14,6 +15,7 @@ export interface BrowserTabStateUpdate {
   workspaceId?: string;
   title?: string;
   url?: string;
+  titleResolved?: boolean;
   isPinned?: boolean;
   pinnedAt?: number;
   sortOrder?: number;
