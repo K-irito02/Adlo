@@ -16,6 +16,7 @@ import { ReferenceSettings } from '../../features/reference-manager/ReferenceSet
 import { ModelSettings } from '../../features/model-settings/ModelSettings';
 import { LspSettings } from '../../features/lsp-panel/LspSettings';
 import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSettings';
+import { BrowserPerformanceSettings } from '../../features/browser-settings/BrowserPerformanceSettings';
 import { getDefaultPreferences } from '../../../shared/defaultPreferences';
 import {
   SETTINGS_NAVIGATOR_WIDTH_MIN,
@@ -37,6 +38,7 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   lsp: LspSettings,
   agent: CustomAgentSettings,
   workspace: WorkspaceSettings,
+  browser: BrowserPerformanceSettings,
 };
 
 export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps) {

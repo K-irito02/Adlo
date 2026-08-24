@@ -423,7 +423,8 @@ export type SettingsGroupId =
   | 'permissions'
   | 'references'
   | 'providers'
-  | 'lsp';
+  | 'lsp'
+  | 'browser';
 
 export interface SettingItem {
   id: string;

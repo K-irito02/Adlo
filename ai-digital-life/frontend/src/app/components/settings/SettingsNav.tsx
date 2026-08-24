@@ -19,6 +19,7 @@ const GROUPS: { id: SettingsGroupId; labelKey: keyof CopyDict }[] = [
   { id: 'permissions', labelKey: 'settingsPermissions' },
   { id: 'references', labelKey: 'settingsReferences' },
   { id: 'lsp', labelKey: 'settingsLsp' },
+  { id: 'browser', labelKey: 'settingsBrowser' },
 ];
 
 export function SettingsNav({ activeGroup, onSelectGroup }: SettingsNavProps) {
