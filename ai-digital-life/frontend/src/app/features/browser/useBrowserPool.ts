@@ -98,15 +98,27 @@ export function useBrowserPool() {
 
   const destroyTabWebView = useCallback(
     async (tabId: string) => {
+      // F-M2：先同步从池中移除（isTabInPool 立即 false、rerender、bumpPoolVersion），
+      // 再 await 后端 destroy。否则"destroy 在途用户重激活 → isTabInPool 仍 true →
+      // 创建被跳过 → tab 空白"的竞态。若 destroy 失败则回滚重新加入池。
+      removeFromPool(tabId);
       if (isTauriShell()) {
         const bridge = window.digitalLife?.browser;
         if (bridge) {
-          await bridge.destroyTab(tabId);
+          try {
+            await bridge.destroyTab(tabId);
+          } catch (e) {
+            console.warn('destroyTab failed, re-adding tab to pool:', e);
+            poolSetRef.current.add(tabId);
+            insertionOrderRef.current = insertionOrderRef.current.filter((id) => id !== tabId);
+            insertionOrderRef.current.push(tabId);
+            rerender();
+            bumpPoolVersion();
+          }
         }
       }
-      removeFromPool(tabId);
     },
-    [removeFromPool],
+    [removeFromPool, rerender, bumpPoolVersion],
   );
 
   return {

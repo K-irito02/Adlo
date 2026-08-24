@@ -13,9 +13,27 @@ const OPTIONS: { min: number | null; value: number }[] = [
   { min: 120, value: 120 * MINUTE_MS },
 ];
 
+// F-L2：把存储值映射到可显示的档位值——undefined（AppInfo 未加载）回退到 60 分钟档，
+// 非档位值回退到最近档位，避免闪"Off"或 select 显示空白。
+function nearestSuspendMs(raw: number | undefined): number {
+  if (raw === undefined) {
+    return 60 * MINUTE_MS;
+  }
+  const exact = OPTIONS.find((o) => o.value === raw);
+  if (exact) {
+    return exact.value;
+  }
+  return OPTIONS.reduce(
+    (best, o) => (Math.abs(o.value - raw) < Math.abs(best.value - raw) ? o : best),
+    OPTIONS[0],
+  ).value;
+}
+
 export function BrowserPerformanceSettings() {
   const { t } = useTCopy();
-  const current = useAppStore((s) => s.appInfo?.config?.browserInactiveTabSuspendMs ?? 0);
+  const current = nearestSuspendMs(
+    useAppStore((s) => s.appInfo?.config?.browserInactiveTabSuspendMs),
+  );
 
   const handleChange = (ms: number) => {
     useAppStore.getState().updatePreferences({ browserInactiveTabSuspendMs: ms });

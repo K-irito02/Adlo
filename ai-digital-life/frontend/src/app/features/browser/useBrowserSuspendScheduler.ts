@@ -53,9 +53,12 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
     if (!isVisible) {
       return;
     }
-    const idleMs =
-      useAppStore.getState().appInfo?.config?.browserInactiveTabSuspendMs ?? DEFAULT_IDLE_MS;
+    // F-L1：卸载标记，供异步内存压力 pass 检测以在卸载后及时退出。
+    let disposed = false;
     const tick = () => {
+      // F-H1：每次 tick 读取最新配置（AppInfo 加载/更新后即时生效），无需重挂 effect。
+      const idleMs =
+        useAppStore.getState().appInfo?.config?.browserInactiveTabSuspendMs ?? DEFAULT_IDLE_MS;
       const now = Date.now();
       const state = useAppStore.getState();
       const isProtected = (t: BrowserTabState): boolean => t.isPinned || t.isPlayingAudio;
@@ -69,20 +72,23 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
         );
       };
 
-      for (const id of applyIdlePass({
-        tabs: state.browserTabs,
-        activeTabId: state.browserActiveTabId,
-        inPool: isTabInPool,
-        lastActivatedMs: lastActivatedMsRef.current,
-        idleMs,
-        protected: isProtected,
-        now,
-      })) {
-        if (suspendedThisTick.has(id)) {
-          continue;
+      // F-H2：配置为 0（设置"Off"）时不发起闲置挂起，仅内存压力仍生效。
+      if (idleMs > 0) {
+        for (const id of applyIdlePass({
+          tabs: state.browserTabs,
+          activeTabId: state.browserActiveTabId,
+          inPool: isTabInPool,
+          lastActivatedMs: lastActivatedMsRef.current,
+          idleMs,
+          protected: isProtected,
+          now,
+        })) {
+          if (suspendedThisTick.has(id)) {
+            continue;
+          }
+          suspendedThisTick.add(id);
+          suspendTab(id);
         }
-        suspendedThisTick.add(id);
-        suspendTab(id);
       }
 
       if (isTauriShell()) {
@@ -90,6 +96,10 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
           try {
             let pressured = (await window.digitalLife?.browser?.memoryPressure()) ?? false;
             while (pressured) {
+              // F-L1：卸载后不再继续内存压力挂起。
+              if (disposed) {
+                return;
+              }
               const state2 = useAppStore.getState();
               const candidates = applyIdlePass({
                 tabs: state2.browserTabs,
@@ -101,12 +111,15 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
                 now: Date.now(),
               }).filter((id) => !suspendedThisTick.has(id));
               if (candidates.length === 0) {
-                break;
+                return;
               }
               const target = candidates[0];
               suspendedThisTick.add(target);
               suspendTab(target);
               pressured = (await window.digitalLife?.browser?.memoryPressure()) ?? false;
+              if (disposed) {
+                return;
+              }
             }
           } catch (e) {
             console.warn('memory-pressure pass failed:', e);
@@ -116,6 +129,9 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
     };
     tick();
     const timer = window.setInterval(tick, IDLE_INTERVAL_MS);
-    return () => window.clearInterval(timer);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
   }, [isVisible, removeFromPool, isTabInPool]);
 }

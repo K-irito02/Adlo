@@ -109,7 +109,12 @@ impl BrowserManager {
         let evicted = self.pool.register(tab_id.to_string());
 
         if let Ok(mut handles) = self.handles.lock() {
-            handles.insert(tab_id.to_string(), handle);
+            let key = tab_id.to_string();
+            if let Some(old) = handles.insert(key, handle) {
+                // R-M2：同 tab 已存在旧 handle（重复创建覆盖）时先 close 旧 WebView，
+                // 复用 destroy_tab 的 close 语义，防止旧原生资源泄漏。
+                let _ = old.close();
+            }
         }
 
         tracing::info!(tab_id = tab_id, "browser webview registered for tab");

@@ -73,4 +73,20 @@ describe('applyIdlePass (idle)', () => {
       }),
     ).toEqual(['old']); // never-activated tab is excluded; genuinely-old activated tab still selected
   });
+  // idleMs=0（内存压力 pass）语义：不按闲置时长过滤——即使最近激活的记录 tab 也会被选中。
+  // 这验证 applyIdlePass 保留 idleMs=0 的内存语义；"Off/阈值<=0 不发起闲置挂起"由 hook 层
+  // 以 idleMs > 0 门控实现（见 useBrowserSuspendScheduler tick()），而非在此处改 applyIdlePass。
+  it('idleMs=0 (memory pass) still returns a recently-activated recorded tab', () => {
+    expect(
+      applyIdlePass({
+        tabs: [tab('recent')],
+        activeTabId: 'none',
+        inPool: () => true,
+        lastActivatedMs: { recent: now }, // 刚激活也满足 now - ms >= 0
+        idleMs: 0,
+        protected: (t) => t.isPinned || t.isPlayingAudio,
+        now,
+      }),
+    ).toEqual(['recent']);
+  });
 });

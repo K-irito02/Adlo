@@ -272,19 +272,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
     renameFolderState.open ||
     createDirDialog.open;
 
-  const {
-    primaryRef,
-    removeFromPool,
-    isTabInPool,
-    navigateTabInPool,
-    loadingTabId,
-    poolVersion: _poolVersion,
-  } = useBrowserWebView({
-    activeTab,
-    webViewDisabled: false,
-    isVisible: isBrowserVisible,
-    overlayActive: hasOverlayActive,
-  });
+  const { primaryRef, removeFromPool, isTabInPool, navigateTabInPool, loadingTabId, poolVersion } =
+    useBrowserWebView({
+      activeTab,
+      webViewDisabled: false,
+      isVisible: isBrowserVisible,
+      overlayActive: hasOverlayActive,
+    });
 
   // render 期镜像最新 helper，供显式导航函数运行时读取
   navigationHelpersRef.current = { isTabInPool, navigateTabInPool };
@@ -395,8 +389,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
     if (activeTab?.id) {
       result.delete(activeTab.id);
     }
+    // F-M3：poolVersion 作为"池成员发生增删（含异步 destroy 前的同步移除）"的信号，
+    // 使 evicted 集合在池成员变更时即时刷新，避免依赖 isTabInPool 引用不稳定导致 stale。
+    // （body 不直接读写 poolVersion，但需作为依赖触发重算）
     return result;
-  }, [browserTabs, activeTab?.id, isTabInPool]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- poolVersion 作为池成员变更信号，刻意纳入依赖
+  }, [browserTabs, activeTab?.id, isTabInPool, poolVersion]);
 
   const actionsValue = useBrowserPanelActions(
     {
