@@ -117,16 +117,6 @@ impl BrowserManager {
             "[ADL-DEBUG][webview] create_for_tab"
         );
 
-        if let Some(ref evict_id) = evicted {
-            crate::webview2_audio::cleanup_audio_handler(evict_id);
-            if let Ok(mut handles) = self.handles.lock() {
-                if let Some(evicted_handle) = handles.remove(evict_id) {
-                    let _ = evicted_handle.close();
-                }
-            }
-            tracing::info!(tab_id = evict_id, "evicted LRU tab WebView");
-        }
-
         if let Ok(mut handles) = self.handles.lock() {
             handles.insert(tab_id.to_string(), handle);
         }

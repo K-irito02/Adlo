@@ -937,16 +937,6 @@ pub fn browser_mute_tab(
 }
 
 #[tauri::command]
-pub fn browser_set_tab_protected(
-    state: State<'_, AppState>,
-    tab_id: String,
-    is_protected: bool,
-) -> Result<IpcResult<()>, CommandError> {
-    tracing::info!(tab_id = %tab_id, is_protected, "[ADL-DEBUG][browser] set_tab_protected command");
-    Ok(ipc(state.browser_manager.set_protected(&tab_id, is_protected)))
-}
-
-#[tauri::command]
 pub fn browser_set_color_scheme(
     state: State<'_, AppState>,
     color_scheme: String,
