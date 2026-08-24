@@ -10,7 +10,7 @@ export const mockBrowser: BrowserBridge = {
     _tabId: string,
     _bounds: { x: number; y: number; width: number; height: number }
   ) => Promise.resolve(),
-  setTabProtected: (_tabId: string, _isProtected: boolean) => Promise.resolve(),
+  memoryPressure: () => Promise.resolve(false),
   goBackTab: (_tabId: string) => Promise.resolve(false),
   goForwardTab: (_tabId: string) => Promise.resolve(false),
   canGoBackTab: (_tabId: string) => Promise.resolve(false),

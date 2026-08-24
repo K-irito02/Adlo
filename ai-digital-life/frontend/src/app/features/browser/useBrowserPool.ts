@@ -125,17 +125,11 @@ export function useBrowserPool() {
     }
   }, []);
 
-  const setTabProtected = useCallback(async (tabId: string, isProtected: boolean) => {
+  const setTabProtected = useCallback((tabId: string, isProtected: boolean) => {
     if (isProtected) {
       protectedRef.current.add(tabId);
     } else {
       protectedRef.current.delete(tabId);
-    }
-    if (isTauriShell()) {
-      const bridge = window.digitalLife?.browser;
-      if (bridge) {
-        await bridge.setTabProtected(tabId, isProtected);
-      }
     }
   }, []);
 

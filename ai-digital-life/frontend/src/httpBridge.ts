@@ -790,7 +790,7 @@ export function createHttpBridge({
       destroyTab: () => Promise.resolve(),
       navigateTab: () => Promise.resolve(),
       setTabBounds: () => Promise.resolve(),
-      setTabProtected: () => Promise.resolve(),
+      memoryPressure: () => Promise.resolve(false),
       goBackTab: () => Promise.resolve(false),
       goForwardTab: () => Promise.resolve(false),
       canGoBackTab: () => Promise.resolve(false),
