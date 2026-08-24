@@ -10,7 +10,7 @@ pub struct BrowserPool {
 }
 
 impl BrowserPool {
-    pub fn new(_capacity: usize) -> Self {
+    pub fn new() -> Self {
         Self { inner: Arc::new(Mutex::new(Vec::new())) }
     }
 
@@ -41,10 +41,6 @@ impl BrowserPool {
         lock_pool(&self.inner).first().cloned()
     }
 
-    pub fn is_full(&self) -> bool {
-        false
-    }
-
     pub fn size(&self) -> usize {
         lock_pool(&self.inner).len()
     }
@@ -57,5 +53,11 @@ impl BrowserPool {
     /// Check if a tab_id is in the pool.
     pub fn contains(&self, tab_id: &str) -> bool {
         lock_pool(&self.inner).iter().any(|id| id == tab_id)
+    }
+}
+
+impl Default for BrowserPool {
+    fn default() -> Self {
+        Self::new()
     }
 }

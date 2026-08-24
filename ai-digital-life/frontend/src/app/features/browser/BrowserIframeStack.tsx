@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { SafeIframe } from './SafeIframe';
 import { ErrorBoundary } from '@components/ErrorBoundary';
 import { ExternalLinkError } from './ExternalLinkError';
@@ -25,7 +25,6 @@ export const BrowserIframeStack = memo(function BrowserIframeStack() {
   } = useBrowserPanelState();
   const { handleIframeLoad, handleIframeError } = useBrowserPanelActions();
   const inactiveIframeRef = useRef<HTMLIFrameElement | null>(null);
-  const [evictedTabIds, setEvictedTabIds] = useState<Set<string>>(() => new Set());
   const isTauri = useAppStore((s) => s.isTauri);
 
   useEffect(() => {
@@ -80,16 +79,6 @@ export const BrowserIframeStack = memo(function BrowserIframeStack() {
                 !!tab.url &&
                 tab.url !== 'about:blank' &&
                 validatedUrlsRef.current.has(tab.url);
-              if (!isActive && evictedTabIds.has(tab.id)) {
-                return null;
-              }
-              if (isActive && evictedTabIds.has(tab.id)) {
-                setEvictedTabIds((prev) => {
-                  const next = new Set(prev);
-                  next.delete(tab.id);
-                  return next;
-                });
-              }
               if (!wasActivated && isActive) {
                 activatedTabIdsRef.current.add(tab.id);
               }

@@ -9,8 +9,6 @@ use crate::webview_handle::{Bounds, WebView2EventBridge, WebViewHandle};
 
 pub const BROWSER_WEBVIEW_LABEL: &str = "adl-browser-view";
 
-const DEFAULT_POOL_SIZE: usize = 6;
-
 pub fn webview_label(tab_id: &str) -> String {
     format!("adl-browser-view-{tab_id}")
 }
@@ -55,7 +53,7 @@ pub struct BrowserManager {
 impl BrowserManager {
     pub fn new(store: Arc<SiteMetaCacheStore>) -> Self {
         Self {
-            pool: BrowserPool::new(DEFAULT_POOL_SIZE),
+            pool: BrowserPool::new(),
             handles: Mutex::new(HashMap::new()),
             current_color_scheme: Mutex::new("dark".to_string()),
             site_meta_cache: store.clone(),
@@ -109,13 +107,6 @@ impl BrowserManager {
         tab_id: &str,
     ) -> Result<Option<String>, AppError> {
         let evicted = self.pool.register(tab_id.to_string());
-        // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：WebView 创建/驱逐。
-        tracing::info!(
-            tab_id = tab_id,
-            evicted = ?evicted,
-            pool_size = self.pool.size(),
-            "[ADL-DEBUG][webview] create_for_tab"
-        );
 
         if let Ok(mut handles) = self.handles.lock() {
             handles.insert(tab_id.to_string(), handle);
@@ -140,12 +131,8 @@ impl BrowserManager {
             };
             if let Some(handle) = handle {
                 if entry_id == tab_id {
-                    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：激活 tab（show）。
-                    tracing::info!(tab_id = entry_id, "[ADL-DEBUG][webview] activate_tab show");
                     handle.show()?;
                 } else {
-                    // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：隐藏其它 tab（hide）。
-                    tracing::info!(tab_id = entry_id, "[ADL-DEBUG][webview] activate_tab hide");
                     let _ = handle.hide();
                 }
             }
@@ -172,9 +159,6 @@ impl BrowserManager {
     }
 
     pub fn navigate_tab(&self, tab_id: &str, url: &str) -> Result<(), AppError> {
-        // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：任何 WebView 导航——
-        // 若"新建标签页"后旧 tab 出现 navigate，即为音频恢复播放/页面刷新来源。
-        tracing::info!(tab_id = tab_id, url = url, "[ADL-DEBUG][webview] navigate_tab");
         self.with_handle(tab_id, |handle| {
             handle.navigate(url)?;
             tracing::debug!(
@@ -187,12 +171,6 @@ impl BrowserManager {
     }
 
     pub fn set_tab_bounds(&self, tab_id: &str, bounds: Bounds) -> Result<(), AppError> {
-        // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：WebView 边界（off-screen 隐藏）。
-        tracing::info!(
-            tab_id = tab_id,
-            bounds = ?bounds,
-            "[ADL-DEBUG][webview] set_tab_bounds"
-        );
         self.with_handle(tab_id, |handle| {
             handle.set_bounds(bounds)?;
             Ok(())

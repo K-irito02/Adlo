@@ -2,7 +2,7 @@ use adl_browser::BrowserPool;
 
 #[test]
 fn test_pool_integration_lifecycle() {
-    let pool = BrowserPool::new(6);
+    let pool = BrowserPool::new();
     assert_eq!(pool.register("tab-a".into()), None);
     assert_eq!(pool.register("tab-b".into()), None);
     assert_eq!(pool.register("tab-c".into()), None);
@@ -15,7 +15,7 @@ fn test_pool_integration_lifecycle() {
 
 #[test]
 fn test_pool_registration_never_evicts() {
-    let pool = BrowserPool::new(2);
+    let pool = BrowserPool::new();
     pool.register("a".into());
     pool.register("b".into());
     assert_eq!(pool.register("c".into()), None);
