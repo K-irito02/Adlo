@@ -133,8 +133,14 @@ mod windows_pty_tests {
 
     #[test]
     fn test_exit_code_detection() {
-        // This test only checks exit code, not PTY output,
-        // so it doesn't need the smoke check.
+        // Gate on the same ConPTY availability check as the sibling tests: this
+        // also calls `openpty`, which fails when no interactive/ConPTY session is
+        // available (e.g. the non-interactive `cargo test` process), even though
+        // it only asserts the exit code.
+        if !should_run_pty_tests() {
+            eprintln!("Skipping test_exit_code_detection: set ADL_PTY_TEST=1 to run");
+            return;
+        }
         let pty_system = NativePtySystem::default();
         let pair = pty_system
             .openpty(PtySize { rows: 40, cols: 120, pixel_width: 0, pixel_height: 0 })

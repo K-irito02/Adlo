@@ -65,7 +65,7 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
 
       const suspendTab = (tabId: string) => {
         void removeFromPool(tabId).catch((e) =>
-          console.warn('[ADL-DEBUG][browser] destroyTab failed, tab left in pool:', e),
+          console.warn('destroyTab failed, tab left in pool:', e),
         );
       };
 
@@ -109,7 +109,7 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
               pressured = (await window.digitalLife?.browser?.memoryPressure()) ?? false;
             }
           } catch (e) {
-            console.warn('[ADL-DEBUG][browser] memory-pressure pass failed:', e);
+            console.warn('memory-pressure pass failed:', e);
           }
         })();
       }

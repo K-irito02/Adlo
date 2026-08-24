@@ -152,7 +152,10 @@ fn dispatch_frame(
                         serde_json::json!({ "kind": "created", "sessionId": sid }).to_string();
                     (Some(Message::Text(reply)), Some(sid))
                 },
-                Err(e) => (Some(error_message(None, &e.to_string())), None),
+                Err(e) => {
+                    tracing::error!(error = %e, "pty_ws: PTY session create failed");
+                    (Some(error_message(None, &e.to_string())), None)
+                },
             }
         },
         "input" => {

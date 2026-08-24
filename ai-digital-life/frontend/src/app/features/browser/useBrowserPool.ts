@@ -31,7 +31,6 @@ export function useBrowserPool() {
   const createWebViewForTab = useCallback(
     async (tabId: string, _url: string, colorScheme?: 'light' | 'dark'): Promise<string | null> => {
       if (creatingRef.current.has(tabId)) {
-        console.info('[ADL-DEBUG][browser] createWebViewForTab SKIP in-flight', { tabId });
         return null;
       }
       if (poolSetRef.current.has(tabId)) {
@@ -40,12 +39,6 @@ export function useBrowserPool() {
       creatingRef.current.add(tabId);
       let rustEvicted: string | null = null;
       try {
-        console.info('[ADL-DEBUG][browser] createWebViewForTab ENTER', {
-          tabId,
-          url: _url,
-          poolSizeBefore: poolSetRef.current.size,
-        });
-
         if (isTauriShell()) {
           const bridge = window.digitalLife?.browser;
           if (bridge) {
@@ -57,10 +50,6 @@ export function useBrowserPool() {
         if (rustEvicted) {
           poolSetRef.current.delete(rustEvicted);
           insertionOrderRef.current = insertionOrderRef.current.filter((id) => id !== rustEvicted);
-          console.info('[ADL-DEBUG][browser] tab evicted from WebView pool', {
-            evictedTabId: rustEvicted,
-            newTabId: tabId,
-          });
         }
 
         // Add new tab
@@ -109,7 +98,6 @@ export function useBrowserPool() {
 
   const destroyTabWebView = useCallback(
     async (tabId: string) => {
-      console.info('[ADL-DEBUG][browser] destroyTabWebView', { tabId });
       if (isTauriShell()) {
         const bridge = window.digitalLife?.browser;
         if (bridge) {

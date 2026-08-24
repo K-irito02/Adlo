@@ -778,7 +778,6 @@ pub fn browser_site_meta_remove(
 
 #[tauri::command]
 pub fn browser_memory_pressure() -> Result<IpcResult<bool>, CommandError> {
-    tracing::info!(pressured = system_memory_pressured(), "[ADL-DEBUG][browser] memory_pressure");
     Ok(ipc(Ok(system_memory_pressured())))
 }
 
