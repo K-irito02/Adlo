@@ -57,14 +57,12 @@ describe('useBrowserPool', () => {
 
   it('coalesces concurrent duplicate creation for the same tab', async () => {
     let resolveCreate: ((v: string | null) => void) | undefined;
-    const createForTab = vi
-      .fn()
-      .mockImplementation(
-        () =>
-          new Promise<string | null>((resolve) => {
-            resolveCreate = resolve;
-          }),
-      );
+    const createForTab = vi.fn().mockImplementation(
+      () =>
+        new Promise<string | null>((resolve) => {
+          resolveCreate = resolve;
+        }),
+    );
     setMockBrowser({ createForTab });
 
     const { result } = renderHook(() => useBrowserPool());

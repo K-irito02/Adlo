@@ -197,7 +197,8 @@ export const browserZh = {
 
   // 不活跃标签挂起设置
   browserSettingsSuspendTitle: '不活跃标签挂起时长',
-  browserSettingsSuspendDesc: '不活跃标签闲置超过该时长后自动释放页面（重新打开时重新加载）。设为关闭则仅靠内存压力触发。',
+  browserSettingsSuspendDesc:
+    '不活跃标签闲置超过该时长后自动释放页面（重新打开时重新加载）。设为关闭则仅靠内存压力触发。',
   browserSettingsSuspendOff: '关闭',
   browserSettingsSuspendMin: '{n} 分钟',
 } as const;
