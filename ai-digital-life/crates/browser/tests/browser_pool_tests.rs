@@ -10,8 +10,8 @@ fn test_pool_register_tracks_lru_order() {
     assert_eq!(pool.get_lru(), Some("tab-1".into()));
     pool.touch("tab-1");
     assert_eq!(pool.get_lru(), Some("tab-2".into()));
-    assert_eq!(pool.register("tab-4".into()), Some("tab-2".into()));
-    assert_eq!(pool.size(), 3);
+    assert_eq!(pool.register("tab-4".into()), None);
+    assert_eq!(pool.size(), 4);
 }
 
 #[test]
@@ -19,10 +19,11 @@ fn test_pool_remove_frees_slot() {
     let pool = BrowserPool::new(2);
     pool.register("a".into());
     pool.register("b".into());
-    assert!(pool.is_full());
+    assert_eq!(pool.size(), 2);
     pool.remove("a");
-    assert!(!pool.is_full());
+    assert!(!pool.contains("a"));
     assert_eq!(pool.size(), 1);
+    assert!(pool.contains("b"));
 }
 
 #[test]
@@ -41,4 +42,14 @@ fn test_pool_lru_removes_oldest_even_after_multiple_touches() {
     pool.touch("b");
     pool.touch("a");
     assert_eq!(pool.get_lru(), Some("b".into()));
+}
+
+#[test]
+fn register_never_evicts_after_capacity_removed() {
+    let pool = BrowserPool::new(2);
+    assert_eq!(pool.register("a".into()), None);
+    assert_eq!(pool.register("b".into()), None);
+    // No longer evicts on capacity — "c" registers without evicting "a".
+    assert_eq!(pool.register("c".into()), None);
+    assert_eq!(pool.size(), 3);
 }

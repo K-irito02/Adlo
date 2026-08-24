@@ -14,11 +14,12 @@ fn test_pool_integration_lifecycle() {
 }
 
 #[test]
-fn test_pool_eviction_when_full() {
+fn test_pool_registration_never_evicts() {
     let pool = BrowserPool::new(2);
     pool.register("a".into());
     pool.register("b".into());
-    assert_eq!(pool.register("c".into()), Some("a".into()));
-    assert_eq!(pool.register("d".into()), Some("b".into()));
-    assert_eq!(pool.size(), 2);
+    assert_eq!(pool.register("c".into()), None);
+    assert_eq!(pool.register("d".into()), None);
+    assert_eq!(pool.size(), 4);
+    assert_eq!(pool.get_lru(), Some("a".into()));
 }
