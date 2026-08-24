@@ -1,7 +1,7 @@
 # 浏览器「已打开标签页」挂起策略：闲置时长 + 系统内存压力（Edge 式 + Chrome 式）
 
 - 日期：2026-08-24
-- 状态：设计已获用户认可（分 4 节），待实施
+- 状态：**已实施**（sdd 10 任务全部完成，提交 a7583eea..0d065484；前端全量 1958 用例通过、Rust clippy 0 警告，除 ad-server pty_ws 环境性失败外全绿；待用户 Tauri 实测确认）
 - 关联进度：`docs/root-cause-resolution/2026-08/progress-20260824-browser-tab-design.md`（事项 4）
 
 ## 背景与目标

@@ -156,3 +156,10 @@
 
 ### 设计文档（已落盘）
 - `docs/superpowers/specs/2026-08-24-browser-tab-suspend-dual-strategy-design.md`（4 节架构/数据流/设置/测试，已获用户分节认可并自审）
+- `docs/superpowers/plans/2026-08-24-browser-tab-suspend-dual-strategy.md`（10 任务 sdd 实施计划）
+
+### 事项 4 已实施（2026-08-24，sdd 子代理驱动，10 任务全部完成）
+**实现摘要**：移除固定 WebView 池容量(6/5)；新增 `browser_memory_pressure` Tauri 命令（Windows GlobalMemoryStatusEx，可用<1GiB 或 load>90）；前端 `useBrowserSuspendScheduler`（闲置时长默认 1h + 内存压力双触发，20s tick，同 tick 去重 + 跳过从未激活 tab + 销毁失败 warn）；浏览器 iframe 模式改为按池成员渲染（去容量上限）；清理 `setTabProtected`/protected 死代码；偏好字段 `browserInactiveTabSuspendMs`（默认 3_600_000）端到端贯通 + 设置 UI `BrowserPerformanceSettings`（档位 关/5/15/30/60/120 分钟）+ i18n。
+**验证**：前端全量 lint/tsc 干净 + 242 文件 1958 用例通过；Rust `cargo check/clippy --workspace --all-targets` 0 警告；`cargo test --workspace` 除 `ad-server pty_ws` 2 个 WebSocket 超时用例（预存/环境性，与本特性零重叠）外全绿；补充 config_watcher.rs 测试夹具字段 + prettier 格式。
+**实现 commits**：a7583eea..0d065484（含 8f12c5bf 折入 Task3、各 fix round）。
+**状态**：待用户在 Tauri 实测确认（闲置挂起/内存挂起/设置项/双端）。
