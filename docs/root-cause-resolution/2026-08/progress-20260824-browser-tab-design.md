@@ -137,3 +137,22 @@
 - [x] 事项1（标签上限）：保持无硬性上限（与 Chrome/Edge 一致），无代码改动
 - [x] 事项2（不活跃标签处理）：Discard 语义已具备，LRU 驱逐后展示月亮图标
 - [x] 事项3（Chrome/Edge 一致化）：完整一致化已实施（无上限 + 驱逐豁免 pinned/音频 + 挂起可见指示 + 前后端调试日志）
+
+## 事项 4（进行中）：触发机制改为 Edge 式 + Chrome 式（闲置时长 + 内存压力 双重策略）
+
+### 探索结论
+- 现状：WebView 池固定容量 6（前端 POOL_CAPACITY / Rust DEFAULT_POOL_SIZE 6），满 6 挤最久未用（数量驱动）；Chrome/Edge 是"资源/时间驱动"（Edge 默认闲置 1h，Chrome 内存压力）。
+- **关键约束（已确认代码）**：项目无任何现有闲置追踪 / 内存检测 / freeze 基建（browser crate 中 memory 皆指 site-meta 缓存）。WebView2 无 Chromium 式按标签 freeze API，隐藏标签仍需常驻；要释放其内存只能 close 其 WebView（即现有 LRU 驱逐的同一动作）。
+  → **因此本架构下 "Edge 式休眠" 与 "Chrome 式丢弃" 的落点动作相同：关闭该 WebView + 保留标签（月亮图标）+ 重新激活时重载。** 两者差异只在"何时触发"，无法实现 Edge 的"快速恢复保留内存"假象。
+- 待澄清：是否移除固定池 6（纯双触发）还是保留为兜底上限；闲置阈值；内存压力检测方式与阈值；托管在前后端哪层。
+
+### 澄清结论（brainstorming）
+- 纯双触发（完全移除固定池 6）
+- 闲置默认 1h（Edge 默认），接入设置系统可配置
+- 内存压力=系统可用内存阈值（Rust GlobalMemoryStatusEx）
+- 方案 A：前端统一编排，Rust 提供原语（memoryPressure 查询 + destroy）
+- 双端都启用调度器；内存触发仅 Tauri（浏览器模式 memoryPressure 返回 false）
+- 移除上轮 Rust protected/setTabProtected（保护判定移到前端调度器）
+
+### 设计文档（已落盘）
+- `docs/superpowers/specs/2026-08-24-browser-tab-suspend-dual-strategy-design.md`（4 节架构/数据流/设置/测试，已获用户分节认可并自审）
