@@ -250,6 +250,9 @@ pub async fn app_update_preferences(
         if let Some(v) = patch.workspace_natural_order {
             config.workspace_natural_order = v;
         }
+        if let Some(v) = patch.browser_inactive_tab_suspend_ms {
+            config.browser_inactive_tab_suspend_ms = v;
+        }
     }
     let config_clone =
         state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?.clone();
@@ -298,6 +301,7 @@ pub fn build_app_info(
             workspace_priority_ids: config.workspace_priority_ids.clone(),
             workspace_deferred_ids: config.workspace_deferred_ids.clone(),
             workspace_natural_order: config.workspace_natural_order.clone(),
+            browser_inactive_tab_suspend_ms: config.browser_inactive_tab_suspend_ms,
         },
         current_workspace,
         recent_logs: vec![LogEntrySummary {
@@ -481,6 +485,7 @@ mod workspace_loading_tests {
         assert!(snap.workspace_priority_ids.is_empty());
         assert!(snap.workspace_deferred_ids.is_empty());
         assert!(snap.workspace_natural_order.is_empty());
+        assert_eq!(snap.browser_inactive_tab_suspend_ms, 3_600_000);
     }
 
     #[test]
@@ -500,12 +505,14 @@ mod workspace_loading_tests {
             workspace_priority_ids: vec!["a".into()],
             workspace_deferred_ids: vec!["b".into()],
             workspace_natural_order: vec!["c".into()],
+            browser_inactive_tab_suspend_ms: 3_600_000,
         };
         let json = serde_json::to_string(&snap).unwrap();
         assert!(json.contains("\"maxConcurrentWorkspaces\":4"));
         assert!(json.contains("\"workspacePriorityIds\":[\"a\"]"));
         assert!(json.contains("\"workspaceDeferredIds\":[\"b\"]"));
         assert!(json.contains("\"workspaceNaturalOrder\":[\"c\"]"));
+        assert!(json.contains("\"browserInactiveTabSuspendMs\":3600000"));
     }
 }
 

@@ -98,6 +98,7 @@ describe('buildSidebarViewModel', () => {
         workspacePriorityIds: [],
         workspaceDeferredIds: [],
         workspaceNaturalOrder: [],
+        browserInactiveTabSuspendMs: 3_600_000,
       },
       currentWorkspace: {
         id: 'workspace_live',
@@ -184,6 +185,7 @@ describe('buildSidebarViewModel', () => {
         workspacePriorityIds: [],
         workspaceDeferredIds: [],
         workspaceNaturalOrder: [],
+        browserInactiveTabSuspendMs: 3_600_000,
       },
       currentWorkspace: {
         id: 'workspace_stale_old',
@@ -241,6 +243,7 @@ describe('buildSidebarViewModel', () => {
         workspacePriorityIds: [],
         workspaceDeferredIds: [],
         workspaceNaturalOrder: [],
+        browserInactiveTabSuspendMs: 3_600_000,
       },
       currentWorkspace: {
         id: 'workspace_live',

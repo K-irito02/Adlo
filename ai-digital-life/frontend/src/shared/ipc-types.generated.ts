@@ -67,6 +67,7 @@ export interface AppPreferencePatch {
   workspacePriorityIds?: string[];
   workspaceDeferredIds?: string[];
   workspaceNaturalOrder?: string[];
+  browserInactiveTabSuspendMs?: number;
 }
 
 export interface ConfigSnapshot {
@@ -84,4 +85,5 @@ export interface ConfigSnapshot {
   workspacePriorityIds: string[];
   workspaceDeferredIds: string[];
   workspaceNaturalOrder: string[];
+  browserInactiveTabSuspendMs: number;
 }

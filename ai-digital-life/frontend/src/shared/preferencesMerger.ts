@@ -78,6 +78,9 @@ export function applyPreferencePatch(
   if (patch.workspaceNaturalOrder !== undefined) {
     nextConfig.workspaceNaturalOrder = patch.workspaceNaturalOrder;
   }
+  if (patch.browserInactiveTabSuspendMs !== undefined) {
+    nextConfig.browserInactiveTabSuspendMs = patch.browserInactiveTabSuspendMs;
+  }
 
   return nextConfig;
 }

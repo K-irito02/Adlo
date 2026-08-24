@@ -21,6 +21,7 @@ const baseConfig: ConfigSnapshot = {
   workspacePriorityIds: [],
   workspaceDeferredIds: [],
   workspaceNaturalOrder: [],
+  browserInactiveTabSuspendMs: 3_600_000,
 };
 
 describe('applyPreferencePatch', () => {

@@ -61,6 +61,7 @@ beforeEach(() => {
         workspacePriorityIds: [],
         workspaceDeferredIds: [],
         workspaceNaturalOrder: [],
+        browserInactiveTabSuspendMs: 3_600_000,
       },
       recentLogs: [],
     },

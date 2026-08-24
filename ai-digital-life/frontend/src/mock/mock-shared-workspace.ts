@@ -121,6 +121,7 @@ export const appInfo: AppInfo = {
     workspacePriorityIds: [],
     workspaceDeferredIds: [],
     workspaceNaturalOrder: [],
+    browserInactiveTabSuspendMs: 3_600_000,
   },
   currentWorkspace: {
     id: "workspace-mock-1",

@@ -114,6 +114,7 @@ describe('sendMessage converged round trip (Finding 1)', () => {
       workspacePriorityIds: [],
       workspaceDeferredIds: [],
       workspaceNaturalOrder: [],
+      browserInactiveTabSuspendMs: 3_600_000,
     },
     currentWorkspace: undefined,
     recentLogs: [],

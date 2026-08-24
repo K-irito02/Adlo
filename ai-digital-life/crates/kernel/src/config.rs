@@ -17,6 +17,10 @@ fn default_max_concurrent_workspaces() -> usize {
     6
 }
 
+fn default_browser_inactive_tab_suspend_ms() -> u64 {
+    3_600_000
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 
 pub struct AppConfig {
@@ -65,6 +69,9 @@ pub struct AppConfig {
     /// Default order: newest-added first (user can customize via drag-and-drop).
     #[serde(default)]
     pub workspace_natural_order: Vec<String>,
+    /// Browser 标签页空闲挂起阈值（毫秒）。默认 1 小时，供 tab suspend 调度器读取。
+    #[serde(default = "default_browser_inactive_tab_suspend_ms")]
+    pub browser_inactive_tab_suspend_ms: u64,
     /// User-defined custom OpenAI-compatible providers (persisted across restarts).
     /// API Keys are stored separately in the credential store.
     #[serde(default)]
@@ -105,6 +112,7 @@ impl Default for AppConfig {
             workspace_priority_ids: Vec::new(),
             workspace_deferred_ids: Vec::new(),
             workspace_natural_order: Vec::new(),
+            browser_inactive_tab_suspend_ms: default_browser_inactive_tab_suspend_ms(),
             custom_providers: Vec::new(),
         }
     }
@@ -212,6 +220,7 @@ mod config_extension_tests {
             workspace_priority_ids: vec![],
             workspace_deferred_ids: vec![],
             workspace_natural_order: vec![],
+            browser_inactive_tab_suspend_ms: 3_600_000,
             custom_providers: vec![],
         };
         assert_eq!(config.commands.len(), 1);

@@ -257,6 +257,7 @@ export function createBaseAppInfo(): AppInfo {
       workspacePriorityIds: [],
       workspaceDeferredIds: [],
       workspaceNaturalOrder: [],
+      browserInactiveTabSuspendMs: 3_600_000,
     },
     recentLogs: [
       {

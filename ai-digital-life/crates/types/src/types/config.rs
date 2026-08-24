@@ -215,6 +215,8 @@ pub struct AppPreferencePatch {
     pub workspace_deferred_ids: Option<Vec<String>>,
     #[ts(optional)]
     pub workspace_natural_order: Option<Vec<String>>,
+    #[ts(optional)]
+    pub browser_inactive_tab_suspend_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
@@ -282,10 +284,16 @@ pub struct ConfigSnapshot {
     pub workspace_deferred_ids: Vec<String>,
     #[serde(default)]
     pub workspace_natural_order: Vec<String>,
+    #[serde(default = "default_browser_inactive_tab_suspend_ms")]
+    pub browser_inactive_tab_suspend_ms: u64,
 }
 
 fn default_max_concurrent_workspaces_snapshot() -> usize {
     6
+}
+
+fn default_browser_inactive_tab_suspend_ms() -> u64 {
+    3_600_000
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

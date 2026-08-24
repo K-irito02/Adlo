@@ -64,6 +64,7 @@ function makeAppInfo(pref: ProviderPreferences): AppInfo {
       workspacePriorityIds: [],
       workspaceDeferredIds: [],
       workspaceNaturalOrder: [],
+      browserInactiveTabSuspendMs: 3_600_000,
     },
     currentWorkspace: undefined,
     recentLogs: [],
