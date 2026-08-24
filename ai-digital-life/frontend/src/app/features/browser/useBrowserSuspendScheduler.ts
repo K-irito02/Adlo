@@ -34,7 +34,7 @@ export function applyIdlePass(input: SuspendPassInput): string[] {
 
 interface SchedulerOptions {
   isVisible: boolean;
-  removeFromPool: (tabId: string) => void;
+  removeFromPool: (tabId: string) => Promise<void>;
   isTabInPool: (tabId: string) => boolean;
   activeTabId: string;
 }
@@ -63,6 +63,12 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
       // async inside destroyTabWebView), so isTabInPool may still report them in-pool.
       const suspendedThisTick = new Set<string>();
 
+      const suspendTab = (tabId: string) => {
+        void removeFromPool(tabId).catch((e) =>
+          console.warn('[ADL-DEBUG][browser] destroyTab failed, tab left in pool:', e),
+        );
+      };
+
       for (const id of applyIdlePass({
         tabs: state.browserTabs,
         activeTabId: state.browserActiveTabId,
@@ -76,7 +82,7 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
           continue;
         }
         suspendedThisTick.add(id);
-        removeFromPool(id);
+        suspendTab(id);
       }
 
       if (isTauriShell()) {
@@ -99,7 +105,7 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
               }
               const target = candidates[0];
               suspendedThisTick.add(target);
-              removeFromPool(target);
+              suspendTab(target);
               pressured = (await window.digitalLife?.browser?.memoryPressure()) ?? false;
             }
           } catch (e) {
