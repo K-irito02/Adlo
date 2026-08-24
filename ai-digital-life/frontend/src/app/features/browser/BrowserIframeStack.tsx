@@ -8,8 +8,6 @@ import { BrowserLandingPage } from './browser-landing';
 import { useBrowserPanelState } from './BrowserPanelStateContext';
 import { useBrowserPanelActions } from './BrowserPanelActionsContext';
 
-const IFRAME_POOL_SIZE = 5;
-
 export const BrowserIframeStack = memo(function BrowserIframeStack() {
   const {
     t,
@@ -27,7 +25,6 @@ export const BrowserIframeStack = memo(function BrowserIframeStack() {
   } = useBrowserPanelState();
   const { handleIframeLoad, handleIframeError } = useBrowserPanelActions();
   const inactiveIframeRef = useRef<HTMLIFrameElement | null>(null);
-  const iframeLruOrderRef = useRef<string[]>([]);
   const [evictedTabIds, setEvictedTabIds] = useState<Set<string>>(() => new Set());
   const isTauri = useAppStore((s) => s.isTauri);
 
@@ -65,25 +62,6 @@ export const BrowserIframeStack = memo(function BrowserIframeStack() {
       }
     }
   }, [browserTabs, activatedTabIdsRef]);
-
-  useEffect(() => {
-    if (isTauri || !activeTab) {
-      return;
-    }
-    const tabId = activeTab.id;
-    iframeLruOrderRef.current = iframeLruOrderRef.current.filter((id) => id !== tabId);
-    iframeLruOrderRef.current.push(tabId);
-    while (iframeLruOrderRef.current.length > IFRAME_POOL_SIZE) {
-      const evictId = iframeLruOrderRef.current.shift();
-      if (evictId) {
-        setEvictedTabIds((prev) => {
-          const next = new Set(prev);
-          next.add(evictId);
-          return next;
-        });
-      }
-    }
-  }, [activeTab, isTauri]);
 
   return (
     <>
