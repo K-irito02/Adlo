@@ -25,6 +25,7 @@ export function applyIdlePass(input: SuspendPassInput): string[] {
         t.id !== activeTabId &&
         inPool(t.id) &&
         !isProtected(t) &&
+        lastActivatedMs[t.id] !== undefined &&
         now - (lastActivatedMs[t.id] ?? now) >= idleMs,
     )
     .sort((a, b) => (lastActivatedMs[a.id] ?? 0) - (lastActivatedMs[b.id] ?? 0))
@@ -58,6 +59,9 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
       const now = Date.now();
       const state = useAppStore.getState();
       const isProtected = (t: BrowserTabState): boolean => t.isPinned || t.isPlayingAudio;
+      // Tabs whose removeFromPool was already issued this tick (Set deletion is
+      // async inside destroyTabWebView), so isTabInPool may still report them in-pool.
+      const suspendedThisTick = new Set<string>();
 
       for (const id of applyIdlePass({
         tabs: state.browserTabs,
@@ -68,6 +72,10 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
         protected: isProtected,
         now,
       })) {
+        if (suspendedThisTick.has(id)) {
+          continue;
+        }
+        suspendedThisTick.add(id);
         removeFromPool(id);
       }
 
@@ -85,11 +93,13 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
                 idleMs: 0, // memory pressure: suspend oldest unprotected inactive in-pool tab regardless of idle age
                 protected: isProtected,
                 now: Date.now(),
-              });
+              }).filter((id) => !suspendedThisTick.has(id));
               if (candidates.length === 0) {
                 break;
               }
-              removeFromPool(candidates[0]);
+              const target = candidates[0];
+              suspendedThisTick.add(target);
+              removeFromPool(target);
               pressured = (await window.digitalLife?.browser?.memoryPressure()) ?? false;
             }
           } catch (e) {

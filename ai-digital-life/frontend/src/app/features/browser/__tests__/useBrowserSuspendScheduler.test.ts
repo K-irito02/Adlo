@@ -60,4 +60,17 @@ describe('applyIdlePass (idle)', () => {
       }),
     ).toEqual([]);
   });
+  it('never suspends a tab with no recorded activation (idleMs=0 / memory pass)', () => {
+    expect(
+      applyIdlePass({
+        tabs: [tab('never'), tab('old')],
+        activeTabId: 'none',
+        inPool: () => true,
+        lastActivatedMs: { old: 0 }, // 'never' has no entry
+        idleMs: 0,
+        protected: (t) => t.isPinned || t.isPlayingAudio,
+        now,
+      }),
+    ).toEqual(['old']); // never-activated tab is excluded; genuinely-old activated tab still selected
+  });
 });
