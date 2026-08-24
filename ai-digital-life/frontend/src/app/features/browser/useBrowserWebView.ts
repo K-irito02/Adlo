@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { useBrowserPool } from './useBrowserPool';
+import { useBrowserSuspendScheduler } from './useBrowserSuspendScheduler';
 import { useWebViewBounds } from './useWebViewBounds';
 import { useWebViewLifecycle } from './useWebViewLifecycle';
 import { useWebViewVisibility } from './useWebViewVisibility';
@@ -79,6 +80,13 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     activeTabRef,
     updateWebViewBounds,
     updateWebViewBoundsRef,
+  });
+
+  useBrowserSuspendScheduler({
+    isVisible,
+    removeFromPool,
+    isTabInPool,
+    activeTabId: activeTab?.id ?? '',
   });
 
   return {

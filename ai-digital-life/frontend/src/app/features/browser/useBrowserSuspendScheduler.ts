@@ -1,0 +1,105 @@
+import { useEffect, useRef } from 'react';
+import { useAppStore } from '@stores/slicedStore';
+import { isTauriShell } from '@shared/env';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
+
+const IDLE_INTERVAL_MS = 20_000;
+const DEFAULT_IDLE_MS = 3_600_000;
+
+export interface SuspendPassInput {
+  tabs: BrowserTabState[];
+  activeTabId: string;
+  inPool: (tabId: string) => boolean;
+  lastActivatedMs: Record<string, number>;
+  idleMs: number;
+  protected: (t: BrowserTabState) => boolean;
+  now: number;
+}
+
+/** Return tab IDs (unprotected, inactive, in-pool, idle) ordered oldest-activated-first. */
+export function applyIdlePass(input: SuspendPassInput): string[] {
+  const { tabs, activeTabId, inPool, lastActivatedMs, idleMs, protected: isProtected, now } = input;
+  return tabs
+    .filter(
+      (t) =>
+        t.id !== activeTabId &&
+        inPool(t.id) &&
+        !isProtected(t) &&
+        now - (lastActivatedMs[t.id] ?? now) >= idleMs,
+    )
+    .sort((a, b) => (lastActivatedMs[a.id] ?? 0) - (lastActivatedMs[b.id] ?? 0))
+    .map((t) => t.id);
+}
+
+interface SchedulerOptions {
+  isVisible: boolean;
+  removeFromPool: (tabId: string) => void;
+  isTabInPool: (tabId: string) => boolean;
+  activeTabId: string;
+}
+
+export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
+  const lastActivatedMsRef = useRef<Record<string, number>>({});
+  const { isVisible, removeFromPool, isTabInPool, activeTabId } = opts;
+
+  useEffect(() => {
+    if (activeTabId) {
+      lastActivatedMsRef.current[activeTabId] = Date.now();
+    }
+  }, [activeTabId]);
+
+  useEffect(() => {
+    if (!isVisible) {
+      return;
+    }
+    const idleMs =
+      useAppStore.getState().appInfo?.config?.browserInactiveTabSuspendMs ?? DEFAULT_IDLE_MS;
+    const tick = () => {
+      const now = Date.now();
+      const state = useAppStore.getState();
+      const isProtected = (t: BrowserTabState): boolean => t.isPinned || t.isPlayingAudio;
+
+      for (const id of applyIdlePass({
+        tabs: state.browserTabs,
+        activeTabId: state.browserActiveTabId,
+        inPool: isTabInPool,
+        lastActivatedMs: lastActivatedMsRef.current,
+        idleMs,
+        protected: isProtected,
+        now,
+      })) {
+        removeFromPool(id);
+      }
+
+      if (isTauriShell()) {
+        void (async () => {
+          try {
+            let pressured = (await window.digitalLife?.browser?.memoryPressure()) ?? false;
+            while (pressured) {
+              const state2 = useAppStore.getState();
+              const candidates = applyIdlePass({
+                tabs: state2.browserTabs,
+                activeTabId: state2.browserActiveTabId,
+                inPool: isTabInPool,
+                lastActivatedMs: lastActivatedMsRef.current,
+                idleMs: 0, // memory pressure: suspend oldest unprotected inactive in-pool tab regardless of idle age
+                protected: isProtected,
+                now: Date.now(),
+              });
+              if (candidates.length === 0) {
+                break;
+              }
+              removeFromPool(candidates[0]);
+              pressured = (await window.digitalLife?.browser?.memoryPressure()) ?? false;
+            }
+          } catch (e) {
+            console.warn('[ADL-DEBUG][browser] memory-pressure pass failed:', e);
+          }
+        })();
+      }
+    };
+    tick();
+    const timer = window.setInterval(tick, IDLE_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [isVisible, removeFromPool, isTabInPool]);
+}
