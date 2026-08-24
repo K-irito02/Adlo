@@ -221,7 +221,7 @@
   - 删除 BrowserIframeStack inert 死 `evictedTabIds` state 与恒空分支（去未用 useState import）
   - rustfmt（commit 6d676339）
 - 验证：cargo test adl-browser 全过、clippy adl-browser 0 警告、vitest 9 过、typecheck/eslint 干净。
-- 文档化限制：#6 浏览器模式挂起对 iframe 无释放（browser 模式 pool 不填充、调度器实际 Tauri-only；preview 模式 iframe 较轻，非回归，作为已知限制记录）。
+- 文档化限制：#6 浏览器 preview 模式挂起对 iframe 无释放。具体：内存 pass 由 `isTauriShell()` 门控（仅 Tauri）；idle pass 双端运行，但浏览器模式 WebView 池不填充（`isTabInPool` 恒 false）故无实际挂起，被挂起 tab 的 iframe 仍 `display:none` 常驻。preview 模式 iframe 较轻，属非回归的已知取舍。
 
 ## 全部事项关闭（2026-08-25）
 - [x] 事项1、事项2、事项3、事项4 全部已完成，Phase 4（子代理 A + B 清理 + 修复 + 复评）已收尾，进度关闭。
