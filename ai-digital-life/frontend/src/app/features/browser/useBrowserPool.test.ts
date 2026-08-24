@@ -66,6 +66,32 @@ describe('useBrowserPool', () => {
     expect(result.current.isTabInPool('c')).toBe(true);
   });
 
+  it('coalesces concurrent duplicate creation for the same tab', async () => {
+    let resolveCreate: ((v: string | null) => void) | undefined;
+    const createForTab = vi
+      .fn()
+      .mockImplementation(
+        () =>
+          new Promise<string | null>((resolve) => {
+            resolveCreate = resolve;
+          }),
+      );
+    setMockBrowser({ createForTab });
+
+    const { result } = renderHook(() => useBrowserPool());
+
+    const first = result.current.createWebViewForTab('tab-1', 'https://example.com');
+    const second = result.current.createWebViewForTab('tab-1', 'https://example.com');
+
+    await act(async () => {
+      resolveCreate?.(null);
+      await Promise.all([first, second]);
+    });
+
+    expect(createForTab).toHaveBeenCalledTimes(1);
+    expect(result.current.isTabInPool('tab-1')).toBe(true);
+  });
+
   it('removeFromPool frees a slot', async () => {
     setMockBrowser();
 

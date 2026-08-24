@@ -336,6 +336,20 @@
   transition: opacity 0.15s ease-in-out;
 }
 
+/* Hibernated / loading state indicator for open-tab list items (Edge-style moon) */
+.adl-browser-tab-state {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+  color: var(--text-muted);
+  flex: none;
+}
+.adl-browser-tab-state--loading {
+  color: var(--text-secondary);
+  animation: adl-browser-spin 0.6s linear infinite;
+}
+
 /* Active tab highlight in open tab list */
 .adl-filetree__item.is-active > .adl-filetree__row {
   background: var(--bg-hover);

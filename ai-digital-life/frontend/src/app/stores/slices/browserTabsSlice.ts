@@ -83,6 +83,11 @@ export const createBrowserTabsSlice = (
         isAudioMuted: false,
       };
       const nextTabs = sortTabs([...state.browserTabs, tab]);
+      console.info('[ADL-DEBUG][browser] browserOpenTab', {
+        tabId: tab.id,
+        url: tab.url,
+        openTabCount: nextTabs.length,
+      });
       let nextFolders = state.browserTabFolders;
       let nextTabIdUrlMap = state.browserBookmarkTabIdUrlMap;
       if (folderId) {
@@ -135,6 +140,7 @@ export const createBrowserTabsSlice = (
   },
 
   browserSelectTab: (tabId) => {
+    console.info('[ADL-DEBUG][browser] browserSelectTab', { tabId });
     writeActiveTab(tabId);
     set({ browserActiveTabId: tabId });
   },
@@ -143,6 +149,10 @@ export const createBrowserTabsSlice = (
     set((state) => {
       const filtered = state.browserTabs.filter((tab) => tab.id !== tabId);
       const nextTabs = sortTabs(filtered);
+      console.info('[ADL-DEBUG][browser] browserCloseTab', {
+        tabId,
+        openTabCount: nextTabs.length,
+      });
       const nextActive =
         state.browserActiveTabId === tabId
           ? (nextTabs[nextTabs.length - 1]?.id ?? '')

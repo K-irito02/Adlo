@@ -19,6 +19,8 @@ export function createTauriBrowserBridge(): BrowserBridge {
       tabId: string,
       bounds: { x: number; y: number; width: number; height: number },
     ) => invokeIpc<void>('browser_set_tab_bounds', { tabId, bounds }).then(() => undefined),
+    setTabProtected: (tabId: string, isProtected: boolean) =>
+      invokeIpc<void>('browser_set_tab_protected', { tabId, isProtected }).then(() => undefined),
     goBackTab: (tabId: string) =>
       invokeIpc<boolean>('browser_go_back_tab', { tabId }).then((r) => r.ok && !!r.data),
     goForwardTab: (tabId: string) =>

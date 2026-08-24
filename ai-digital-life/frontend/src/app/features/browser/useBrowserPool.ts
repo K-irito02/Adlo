@@ -17,6 +17,12 @@ const POOL_CAPACITY = 6;
 export function useBrowserPool() {
   const poolSetRef = useRef<Set<string>>(new Set());
   const insertionOrderRef = useRef<string[]>([]);
+  /** Tabs exempt from LRU eviction (pinned / playing audio), browser-mode parity. */
+  const protectedRef = useRef<Set<string>>(new Set());
+  /** Tabs whose WebView creation is currently in flight — guards against
+   *  duplicate concurrent creation for the same tab (URL canonicalization can
+   *  refire the lifecycle effect before the async create completes). */
+  const creatingRef = useRef<Set<string>>(new Set());
   const [, forceUpdate] = useState(0);
   const [poolVersion, setPoolVersion] = useState(0);
   const rerender = useCallback(() => forceUpdate((n) => n + 1), []);
@@ -26,47 +32,77 @@ export function useBrowserPool() {
     return poolSetRef.current.has(tabId);
   }, []);
 
-  /** Evict the oldest entry from the local Set (browser-mode fallback when over capacity). */
+  /** Evict the oldest NON-protected entry from the local Set (browser-mode parity). */
   const evictLocalLRU = useCallback(() => {
-    while (insertionOrderRef.current.length > POOL_CAPACITY) {
-      const oldest = insertionOrderRef.current.shift();
-      if (oldest) {
-        poolSetRef.current.delete(oldest);
+    while (
+      insertionOrderRef.current.length > POOL_CAPACITY &&
+      insertionOrderRef.current.some((id) => !protectedRef.current.has(id))
+    ) {
+      const evictIdx = insertionOrderRef.current.findIndex((id) => !protectedRef.current.has(id));
+      if (evictIdx < 0) {
+        break;
       }
+      const [oldest] = insertionOrderRef.current.splice(evictIdx, 1);
+      poolSetRef.current.delete(oldest);
+      console.info('[ADL-DEBUG][browser] local LRU evicted tab', {
+        tabId: oldest,
+        poolSize: poolSetRef.current.size,
+      });
     }
   }, []);
 
   const createWebViewForTab = useCallback(
     async (tabId: string, _url: string, colorScheme?: 'light' | 'dark'): Promise<string | null> => {
+      if (creatingRef.current.has(tabId)) {
+        console.info('[ADL-DEBUG][browser] createWebViewForTab SKIP in-flight', { tabId });
+        return null;
+      }
+      if (poolSetRef.current.has(tabId)) {
+        return null;
+      }
+      creatingRef.current.add(tabId);
       let rustEvicted: string | null = null;
+      try {
+        console.info('[ADL-DEBUG][browser] createWebViewForTab ENTER', {
+          tabId,
+          url: _url,
+          poolSizeBefore: poolSetRef.current.size,
+        });
 
-      if (isTauriShell()) {
-        const bridge = window.digitalLife?.browser;
-        if (bridge) {
-          rustEvicted = await bridge.createForTab(tabId, _url, colorScheme);
+        if (isTauriShell()) {
+          const bridge = window.digitalLife?.browser;
+          if (bridge) {
+            rustEvicted = await bridge.createForTab(tabId, _url, colorScheme);
+          }
         }
+
+        // Remove evicted (Rust-returned or local-LRU)
+        if (rustEvicted) {
+          poolSetRef.current.delete(rustEvicted);
+          insertionOrderRef.current = insertionOrderRef.current.filter((id) => id !== rustEvicted);
+          console.info('[ADL-DEBUG][browser] tab evicted from WebView pool', {
+            evictedTabId: rustEvicted,
+            newTabId: tabId,
+          });
+        }
+
+        // Add new tab
+        poolSetRef.current.add(tabId);
+        insertionOrderRef.current = insertionOrderRef.current.filter((id) => id !== tabId);
+        insertionOrderRef.current.push(tabId);
+
+        // Enforce capacity locally (relevant in browser mode without Rust pool)
+        if (!isTauriShell()) {
+          evictLocalLRU();
+        }
+
+        rerender();
+        bumpPoolVersion();
+
+        return rustEvicted;
+      } finally {
+        creatingRef.current.delete(tabId);
       }
-
-      // Remove evicted (Rust-returned or local-LRU)
-      if (rustEvicted) {
-        poolSetRef.current.delete(rustEvicted);
-        insertionOrderRef.current = insertionOrderRef.current.filter((id) => id !== rustEvicted);
-      }
-
-      // Add new tab
-      poolSetRef.current.add(tabId);
-      insertionOrderRef.current = insertionOrderRef.current.filter((id) => id !== tabId);
-      insertionOrderRef.current.push(tabId);
-
-      // Enforce capacity locally (relevant in browser mode without Rust pool)
-      if (!isTauriShell()) {
-        evictLocalLRU();
-      }
-
-      rerender();
-      bumpPoolVersion();
-
-      return rustEvicted;
     },
     [rerender, bumpPoolVersion, evictLocalLRU],
   );
@@ -89,10 +125,25 @@ export function useBrowserPool() {
     }
   }, []);
 
+  const setTabProtected = useCallback(async (tabId: string, isProtected: boolean) => {
+    if (isProtected) {
+      protectedRef.current.add(tabId);
+    } else {
+      protectedRef.current.delete(tabId);
+    }
+    if (isTauriShell()) {
+      const bridge = window.digitalLife?.browser;
+      if (bridge) {
+        await bridge.setTabProtected(tabId, isProtected);
+      }
+    }
+  }, []);
+
   const removeFromPool = useCallback(
     (tabId: string) => {
       poolSetRef.current.delete(tabId);
       insertionOrderRef.current = insertionOrderRef.current.filter((id) => id !== tabId);
+      protectedRef.current.delete(tabId);
       rerender();
       bumpPoolVersion();
     },
@@ -101,6 +152,7 @@ export function useBrowserPool() {
 
   const destroyTabWebView = useCallback(
     async (tabId: string) => {
+      console.info('[ADL-DEBUG][browser] destroyTabWebView', { tabId });
       if (isTauriShell()) {
         const bridge = window.digitalLife?.browser;
         if (bridge) {
@@ -118,6 +170,7 @@ export function useBrowserPool() {
     createWebViewForTab,
     activateTabInPool,
     navigateTabInPool,
+    setTabProtected,
     removeFromPool: destroyTabWebView,
     poolVersion,
   };

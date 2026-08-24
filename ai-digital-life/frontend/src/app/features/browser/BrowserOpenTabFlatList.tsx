@@ -9,6 +9,7 @@ interface BrowserOpenTabFlatListProps {
   onSelectTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   evictedTabIds?: ReadonlySet<string>;
+  loadingTabId?: string | null;
 }
 
 export function BrowserOpenTabFlatList({
@@ -17,6 +18,7 @@ export function BrowserOpenTabFlatList({
   onSelectTab,
   onCloseTab,
   evictedTabIds,
+  loadingTabId,
 }: BrowserOpenTabFlatListProps) {
   const { t } = useTCopy();
 
@@ -43,6 +45,7 @@ export function BrowserOpenTabFlatList({
               tab={tab}
               isActive={tab.id === activeTabId}
               isEvicted={evictedTabIds?.has(tab.id) ?? false}
+              isLoading={loadingTabId != null && loadingTabId === tab.id}
               onSelectTab={onSelectTab}
               onCloseTab={onCloseTab}
             />

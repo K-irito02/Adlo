@@ -219,6 +219,7 @@ export function setupPreviewBridge(): void {
         _tabId: string,
         _bounds: { x: number; y: number; width: number; height: number },
       ) => Promise.resolve(),
+      setTabProtected: (_tabId: string, _isProtected: boolean) => Promise.resolve(),
       goBackTab: (_tabId: string) => Promise.resolve(false),
       goForwardTab: (_tabId: string) => Promise.resolve(false),
       canGoBackTab: (_tabId: string) => Promise.resolve(false),

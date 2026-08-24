@@ -1,4 +1,6 @@
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react';
+import { useAppStore } from '@stores/slicedStore';
+import { isTauriShell } from '@shared/env';
 import { useBrowserPool } from './useBrowserPool';
 import { useWebViewBounds } from './useWebViewBounds';
 import { useWebViewLifecycle } from './useWebViewLifecycle';
@@ -34,6 +36,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     createWebViewForTab,
     activateTabInPool,
     navigateTabInPool,
+    setTabProtected,
     removeFromPool,
     poolVersion,
   } = useBrowserPool();
@@ -80,6 +83,29 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     updateWebViewBounds,
     updateWebViewBoundsRef,
   });
+
+  // Sync quasi-protection flags to the Rust WebView pool so pinned / audio tabs
+  // are exempt from LRU eviction — Chrome/Edge protect these from discard.
+  const browserTabs = useAppStore((s) => s.browserTabs);
+  const protectedStateRef = useRef<Map<string, boolean>>(new Map());
+  useEffect(() => {
+    if (!isTauriShell()) {
+      return;
+    }
+    const currentIds = new Set(browserTabs.map((tab) => tab.id));
+    for (const tabId of Array.from(protectedStateRef.current.keys())) {
+      if (!currentIds.has(tabId)) {
+        protectedStateRef.current.delete(tabId);
+      }
+    }
+    for (const tab of browserTabs) {
+      const isProtected = tab.isPinned || tab.isPlayingAudio;
+      if (protectedStateRef.current.get(tab.id) !== isProtected) {
+        protectedStateRef.current.set(tab.id, isProtected);
+        void setTabProtected(tab.id, isProtected);
+      }
+    }
+  }, [browserTabs, setTabProtected]);
 
   return {
     webViewActiveRef,

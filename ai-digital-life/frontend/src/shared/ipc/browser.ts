@@ -46,6 +46,8 @@ export interface BrowserBridge {
     tabId: string,
     bounds: { x: number; y: number; width: number; height: number },
   ) => Promise<void>;
+  /** Mark a tab protected (pinned / playing audio) so it is exempt from LRU eviction. */
+  setTabProtected: (tabId: string, isProtected: boolean) => Promise<void>;
   /** Go back in a specific tab */
   goBackTab: (tabId: string) => Promise<boolean>;
   /** Go forward in a specific tab */

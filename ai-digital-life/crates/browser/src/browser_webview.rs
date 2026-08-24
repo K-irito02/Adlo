@@ -181,6 +181,18 @@ impl BrowserManager {
         Ok(())
     }
 
+    /// Mark a tab as protected (pinned / playing audio) so the LRU pool will
+    /// not evict its WebView, mirroring Chrome/Edge's discard protection.
+    pub fn set_protected(&self, tab_id: &str, is_protected: bool) -> Result<(), AppError> {
+        tracing::info!(
+            tab_id = tab_id,
+            is_protected,
+            "[ADL-DEBUG][webview] set_tab_protected"
+        );
+        self.pool.set_protected(tab_id, is_protected);
+        Ok(())
+    }
+
     pub fn navigate_tab(&self, tab_id: &str, url: &str) -> Result<(), AppError> {
         // [ADL-DEBUG] 临时诊断（Phase 0 验证，Phase 4 清理）：任何 WebView 导航——
         // 若"新建标签页"后旧 tab 出现 navigate，即为音频恢复播放/页面刷新来源。
