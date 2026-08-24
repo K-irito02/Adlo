@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::commands::browser_memory::system_memory_pressured;
 use crate::commands::browser_webview_setup::{
     apply_theme_and_navigate_for_platform, build_silent_webview_builder, build_webview_builder,
     register_webview_with_manager, resolve_window_and_url, setup_webview2_handlers_for_platform,
@@ -773,6 +774,12 @@ pub fn browser_site_meta_remove(
     state.browser_manager.page_meta_service().remove(&urls).map_err(CommandError::from)?;
     tracing::info!(count, "browser_site_meta_remove: site meta cache removed");
     Ok(ipc(Ok(())))
+}
+
+#[tauri::command]
+pub fn browser_memory_pressure() -> Result<IpcResult<bool>, CommandError> {
+    tracing::info!(pressured = system_memory_pressured(), "[ADL-DEBUG][browser] memory_pressure");
+    Ok(ipc(Ok(system_memory_pressured())))
 }
 
 #[tauri::command]

@@ -1,5 +1,6 @@
 pub mod app;
 pub mod browser;
+pub mod browser_memory;
 pub(crate) mod browser_webview_setup;
 pub mod platform;
 pub mod provider;
