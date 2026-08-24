@@ -42,26 +42,15 @@ describe('useBrowserPool', () => {
     expect(result.current.isTabInPool('tab-1')).toBe(true);
   });
 
-  it('evicts LRU tab when pool is full', async () => {
-    const createForTab = vi
-      .fn()
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce('a');
-    setMockBrowser({ createForTab });
-
+  it('does not evict on capacity (unbounded pool)', async () => {
+    setMockBrowser();
     const { result } = renderHook(() => useBrowserPool());
-    await act(async () => {
-      await result.current.createWebViewForTab('a', 'https://a.com');
-    });
-    await act(async () => {
-      await result.current.createWebViewForTab('b', 'https://b.com');
-    });
-    await act(async () => {
-      await result.current.createWebViewForTab('c', 'https://c.com');
-    });
-
-    expect(result.current.isTabInPool('a')).toBe(false);
+    for (const id of ['a', 'b', 'c']) {
+      await act(async () => {
+        await result.current.createWebViewForTab(id, `https://${id}.com`);
+      });
+    }
+    expect(result.current.isTabInPool('a')).toBe(true);
     expect(result.current.isTabInPool('b')).toBe(true);
     expect(result.current.isTabInPool('c')).toBe(true);
   });
