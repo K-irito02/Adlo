@@ -2,26 +2,23 @@
 
 ## 事项
 
-### \[ ] 1：标签页窗口限制（有无上限、如何限制）
+### [x] 1：标签页窗口限制（有无上限、如何限制）
+- 状态：已完成（2026-08-24）
+- 根因：原实现标签列表无上限，但 WebView 池固定容量 6（数量驱动），与 Chrome/Edge 的"资源/时间驱动"不一致
+- 修复：保持无硬性上限（与 Chrome/Edge 一致）；触发挂起改为「闲置时长 + 系统内存压力」双触发，彻底移除数量上限（含 iframe 池上限）
+- 验证：用户 Tauri 实测 poolSizeBefore 0→9 创建永不驱逐；前端 1958 用例 + Rust clippy 0 警告
 
-- 状态：进行中（预检探索完成，待用户确认方向）
-- 根因：
-- 修复：
-- 验证：
+### [x] 2：不活跃标签页窗口的处理方式
+- 状态：已完成（2026-08-24）
+- 根因：原实现为 LRU 固定池驱逐（满 6 丢最久未用、销毁 WebView），Chrome/Edge 为 Discard/Sleeping 语义 + 保护 pinned/音频/活动
+- 修复：对齐 Chrome/Edge——Discard 语义（被驱逐仍留列表+月亮图标+重激活重载）+ 保护规则（pinned/音频/活动不挂起）+ 可见指示器 + 20s 调度器双触发
+- 验证：用户实测闲置 5min 剥离非保护标签、精确跳过音频(YouTube/B站)与活动(抖音)；AppData/ConPTY 环境用例单独处理
 
-### \[ ] 2：不活跃标签页窗口的处理方式
-
-- 状态：进行中（预检探索完成，待用户确认方向）
-- 根因：
-- 修复：
-- 验证：
-
-### \[ ] 3：标签页相关设计优化（参考 Chrome/Edge）
-
-- 状态：待处理
-- 根因：
-- 修复：
-- 验证：
+### [x] 3：标签页相关设计优化（参考 Chrome/Edge）
+- 状态：已完成（2026-08-24）
+- 根因：对照 Chrome/Edge 差距：无挂起可见指示、LRU 驱逐不保护 pinned/音频、无时间/内存维度挂起
+- 修复：完整一致化——挂起可见指示（Edge 月亮图标）、驱逐豁免 pinned/音频、闲置+内存双触发、可配置阈值 + 设置 UI、清理死代码与调试日志
+- 验证：Phase 3/4 全绿（前端 1958 用例、Rust 失败用例全转绿、clippy 0 警告、用户实测通过）
 
 ## 预检探索结论（2026-08-24）
 
@@ -216,4 +213,16 @@
 - 前端全量：242 文件 / 1958 用例通过；typecheck/lint 干净。
 - Rust：之前失败三处全绿；其余二进制此前 `ok`；`cargo check -p ai-digital-life` + clippy ad-server/adl-pty 0 警告。
 - 备注：完整 `cargo test --workspace` 在沙箱下并行/写停顿偶发挂起（环境现象）；此前失败的用例已全部单独验证转绿。
+
+### 5. Phase 4 子代理 A 收尾（root-cause 正式 Phase 4，针对全部 4 事项）
+- 子代理 A（根因/正确性 + 死代码/诊断扫描，报告 phase4-subagentA.md）→ 修复（commit 45ee318c）+ scoped 复评审 PASS（phase4-fix-re-review.md）：
+  - 删除 browser_webview.rs 5 处遗留 `[ADL-DEBUG][webview]` info 日志
+  - 删除 `BrowserPool::is_full`（零引用）、去 `DEFAULT_POOL_SIZE` 死参、`new()` 去参化 + 配套 `impl Default` + 同步 7 处测试调用点
+  - 删除 BrowserIframeStack inert 死 `evictedTabIds` state 与恒空分支（去未用 useState import）
+  - rustfmt（commit 6d676339）
+- 验证：cargo test adl-browser 全过、clippy adl-browser 0 警告、vitest 9 过、typecheck/eslint 干净。
+- 文档化限制：#6 浏览器模式挂起对 iframe 无释放（browser 模式 pool 不填充、调度器实际 Tauri-only；preview 模式 iframe 较轻，非回归，作为已知限制记录）。
+
+## 全部事项关闭（2026-08-25）
+- [x] 事项1、事项2、事项3、事项4 全部已完成，Phase 4（子代理 A + B 清理 + 修复 + 复评）已收尾，进度关闭。
 
