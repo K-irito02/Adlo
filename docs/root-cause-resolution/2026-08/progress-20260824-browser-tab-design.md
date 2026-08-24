@@ -162,4 +162,12 @@
 **实现摘要**：移除固定 WebView 池容量(6/5)；新增 `browser_memory_pressure` Tauri 命令（Windows GlobalMemoryStatusEx，可用<1GiB 或 load>90）；前端 `useBrowserSuspendScheduler`（闲置时长默认 1h + 内存压力双触发，20s tick，同 tick 去重 + 跳过从未激活 tab + 销毁失败 warn）；浏览器 iframe 模式改为按池成员渲染（去容量上限）；清理 `setTabProtected`/protected 死代码；偏好字段 `browserInactiveTabSuspendMs`（默认 3_600_000）端到端贯通 + 设置 UI `BrowserPerformanceSettings`（档位 关/5/15/30/60/120 分钟）+ i18n。
 **验证**：前端全量 lint/tsc 干净 + 242 文件 1958 用例通过；Rust `cargo check/clippy --workspace --all-targets` 0 警告；`cargo test --workspace` 除 `ad-server pty_ws` 2 个 WebSocket 超时用例（预存/环境性，与本特性零重叠）外全绿；补充 config_watcher.rs 测试夹具字段 + prettier 格式。
 **实现 commits**：a7583eea..0d065484（含 8f12c5bf 折入 Task3、各 fix round）。
-**状态**：待用户在 Tauri 实测确认（闲置挂起/内存挂起/设置项/双端）。
+**状态**：✅ 已完成（2026-08-24 用户 Tauri 实测确认，日志审查通过）。
+
+### Phase 3 用户实测日志审查（.adl-logs/debug-logs.txt，2026-08-24 23:24-23:35）
+- ✅ 无数量封顶：poolSizeBefore 0→9，创建永不驱逐。
+- ✅ 重复创建已修复：每 tab 仅一次 createWebViewForTab ENTER。
+- ✅ 闲置挂起生效（阈值≈5 分钟，用户按指示设置）：10 个非保护闲置 tab 逐个/分批 destroyTabWebView。
+- ✅ 保护逻辑精确：未挂起的 3 个恰为 YouTube、B 站（播放音频→受保护）与抖音（活动 tab）；挂起跳过 pinned/音频/活动 成立。
+- ✅ 内存压力本机充足未触发（符合预期）。
+- 无功能性问题；仅良性 `[TAURI] Couldn't find callback id` 与本特性无关；`browserSelectTab` 双日志为前序存在（store 幂等无害，不在本次范围）。
