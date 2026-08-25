@@ -49,9 +49,9 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
     }
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('plugin:shell|open', { path: rec.file_path });
-    } catch {
-      // fallback: ignore
+      await invoke('download_open_file', { filePath: rec.file_path });
+    } catch (err) {
+      console.error('[ADL-DEBUG] download open file failed', err);
     }
   }, []);
 
@@ -61,13 +61,9 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
     }
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('plugin:shell|open', {
-        path:
-          rec.file_path.substring(0, rec.file_path.lastIndexOf('/') + 1) ||
-          rec.file_path.substring(0, rec.file_path.lastIndexOf('\\') + 1),
-      });
-    } catch {
-      // fallback: ignore
+      await invoke('download_show_in_folder', { filePath: rec.file_path });
+    } catch (err) {
+      console.error('[ADL-DEBUG] download show in folder failed', err);
     }
   }, []);
 

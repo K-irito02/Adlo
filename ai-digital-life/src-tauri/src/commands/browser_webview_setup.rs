@@ -88,9 +88,19 @@ pub(super) fn build_webview_builder(
         .on_download(move |_webview, event| {
             match event {
                 tauri::webview::DownloadEvent::Requested { url, destination } => {
+                    tracing::debug!(
+                        url = %url,
+                        destination = %destination.display(),
+                        "on_download: Requested"
+                    );
                     requested_handler(url.to_string(), destination.to_string_lossy().to_string())
                 }
                 tauri::webview::DownloadEvent::Finished { url, path, success } => {
+                    tracing::debug!(
+                        url = %url,
+                        success,
+                        "on_download: Finished"
+                    );
                     handle_download_finished(
                         &app_download,
                         &download_manager,

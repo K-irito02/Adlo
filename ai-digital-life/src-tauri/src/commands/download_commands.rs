@@ -1,4 +1,5 @@
 use crate::commands::ipc;
+use crate::commands::platform::{open_file, open_in_os_file_manager, reveal_in_os_file_manager};
 use crate::error::CommandError;
 use crate::state::AppState;
 use adl_browser::download_manager::get_default_download_path;
@@ -87,6 +88,27 @@ pub fn download_check_disk_space(
 #[tauri::command]
 pub fn download_get_default_path() -> Result<IpcResult<String>, CommandError> {
     Ok(ipc(Ok(get_default_download_path().to_string_lossy().to_string())))
+}
+
+#[tauri::command]
+pub fn download_open_default_folder(
+    state: State<'_, AppState>,
+) -> Result<IpcResult<()>, CommandError> {
+    let path = state.download_manager.get_settings().default_path;
+    open_in_os_file_manager(&path).map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok(ipc(Ok(())))
+}
+
+#[tauri::command]
+pub fn download_open_file(file_path: String) -> Result<IpcResult<()>, CommandError> {
+    open_file(&file_path).map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok(ipc(Ok(())))
+}
+
+#[tauri::command]
+pub fn download_show_in_folder(file_path: String) -> Result<IpcResult<()>, CommandError> {
+    reveal_in_os_file_manager(&file_path).map_err(|e| AppError::Internal(e.to_string()))?;
+    Ok(ipc(Ok(())))
 }
 
 #[cfg(test)]

@@ -72,18 +72,21 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1-5) var(--space-2);
   border-top: 1px solid var(--border-subtle);
 }
 
 .adl-download-menu__footer-btn {
+  flex: 1;
   font-size: var(--text-xs);
   color: var(--text-secondary);
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: var(--space-0-5) var(--space-1);
+  padding: var(--space-1) var(--space-0-5);
   border-radius: var(--radius-sm);
+  text-align: center;
+  white-space: nowrap;
   transition: color var(--duration-150) var(--ease-default);
 }
 

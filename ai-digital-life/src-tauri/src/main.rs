@@ -156,6 +156,10 @@ fn main() {
             commands::download_commands::download_resolve_conflict_path,
             commands::download_commands::download_check_disk_space,
             commands::download_commands::download_get_default_path,
+            commands::download_commands::download_open_default_folder,
+            commands::download_commands::download_open_file,
+            commands::download_commands::download_show_in_folder,
+            commands::platform::workspace_open_in_file_manager,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

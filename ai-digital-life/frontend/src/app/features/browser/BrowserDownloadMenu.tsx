@@ -30,6 +30,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
   const clearDownloadHistory = useAppStore((s) => s.clearDownloadHistory);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
+  const setActiveRightTool = useAppStore((s) => s.setActiveRightTool);
 
   const autoSave = downloadSettings.mode === 'auto';
 
@@ -40,21 +41,18 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
 
   const handleOpenSettings = useCallback(() => {
     setActiveSettingsGroup('browser');
+    setActiveRightTool('settings');
     onClose();
-  }, [setActiveSettingsGroup, onClose]);
+  }, [setActiveSettingsGroup, setActiveRightTool, onClose]);
 
   const handleOpenFolder = useCallback(async () => {
-    const path = downloadSettings.default_path;
-    if (!path) {
-      return;
-    }
     try {
       const { invoke } = await import('@tauri-apps/api/core');
-      await invoke('plugin:shell|open', { path });
-    } catch {
-      // fallback: ignore
+      await invoke('download_open_default_folder');
+    } catch (err) {
+      console.error('[ADL-DEBUG] download open folder failed', err);
     }
-  }, [downloadSettings.default_path]);
+  }, []);
 
   const handleClearHistory = useCallback(async () => {
     await clearDownloadHistory();
