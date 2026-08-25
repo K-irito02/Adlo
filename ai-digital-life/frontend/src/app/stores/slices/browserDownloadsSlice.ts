@@ -97,10 +97,8 @@ export const createBrowserDownloadsSlice = (
 
   subscribeDownloadEvents: () => {
     if (!get().isTauri) {
-      console.log('[ADL-DEBUG] download subscribe skipped: not tauri shell');
       return () => {};
     }
-    console.log('[ADL-DEBUG] download subscribe: registering listeners');
 
     const unsubs: UnlistenFn[] = [];
     let active = true;
@@ -110,7 +108,6 @@ export const createBrowserDownloadsSlice = (
         return;
       }
       const record = event.payload;
-      console.log('[ADL-DEBUG] browser-download-started', record);
       set((state) => ({
         downloads: [record, ...state.downloads],
         activeDownloads: {
@@ -136,7 +133,6 @@ export const createBrowserDownloadsSlice = (
         return;
       }
       const payload = event.payload;
-      console.log('[ADL-DEBUG] browser-download-finished', payload);
       set((state) => {
         const { [payload.id]: _removed, ...rest } = state.activeDownloads;
         return {
@@ -166,7 +162,6 @@ export const createBrowserDownloadsSlice = (
         return;
       }
       const payload = event.payload;
-      console.log('[ADL-DEBUG] browser-download-error', payload);
       set((state) => {
         const { [payload.id]: _removed, ...rest } = state.activeDownloads;
         return {
@@ -192,7 +187,6 @@ export const createBrowserDownloadsSlice = (
 
     return () => {
       active = false;
-      console.log('[ADL-DEBUG] download subscribe: unsubscribing');
       for (const unsub of unsubs) {
         void Promise.resolve(unsub()).catch(() => {});
       }

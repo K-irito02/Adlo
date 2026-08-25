@@ -411,6 +411,8 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     download_db
         .init_schema()
         .map_err(|e| anyhow::anyhow!("failed to init download schema: {e}"))?;
+    adl_migration::run_pending(&download_db)
+        .map_err(|e| anyhow::anyhow!("failed to apply download migrations: {e}"))?;
     let download_manager = adl_browser::download_handler::create_download_manager(download_db);
 
     Ok(AppState {

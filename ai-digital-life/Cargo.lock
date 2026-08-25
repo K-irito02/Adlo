@@ -470,6 +470,7 @@ dependencies = [
  "adl-errors",
  "adl-kernel",
  "adl-logging",
+ "adl-migration",
  "adl-model-gateway",
  "adl-storage",
  "adl-types",

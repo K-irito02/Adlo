@@ -49,8 +49,8 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('download_open_default_folder');
-    } catch (err) {
-      console.error('[ADL-DEBUG] download open folder failed', err);
+    } catch {
+      // fallback: ignore
     }
   }, []);
 
