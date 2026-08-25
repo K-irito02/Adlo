@@ -135,17 +135,31 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
     >
       <div className="adl-download-menu__header">
         <span className="adl-download-menu__title">{t.browserDownloadTitle}</span>
-        {hasAnyDownloads && (
+        <div className="adl-download-menu__header-actions">
           <button
             type="button"
-            className="adl-download-menu__clear-btn"
-            onClick={() => {
-              void clearDownloadHistory();
-            }}
+            className="adl-download-menu__toggle"
+            role="switch"
+            aria-checked={autoSave}
+            title={autoSave ? t.browserDownloadAutoSave : t.browserDownloadAskSave}
+            onClick={handleAutoSaveToggle}
           >
-            {t.browserClearHistory}
+            <span className="adl-download-menu__toggle-track">
+              <span className="adl-download-menu__toggle-thumb" />
+            </span>
           </button>
-        )}
+          {hasAnyDownloads && (
+            <button
+              type="button"
+              className="adl-download-menu__clear-btn"
+              onClick={() => {
+                void clearDownloadHistory();
+              }}
+            >
+              {t.browserClearHistory}
+            </button>
+          )}
+        </div>
       </div>
       <div className="adl-download-menu__search">
         <span className="adl-download-menu__search-icon">
@@ -158,20 +172,6 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
-      </div>
-      <div className="adl-download-menu__auto-save">
-        <button
-          type="button"
-          className={`adl-settings-toggle${autoSave ? ' is-on' : ''}`}
-          role="switch"
-          aria-checked={autoSave}
-          onClick={handleAutoSaveToggle}
-        >
-          <span className="adl-settings-toggle__track">
-            <span className="adl-settings-toggle__thumb" />
-          </span>
-        </button>
-        <span className="adl-download-menu__auto-save-label">{t.browserDownloadAutoSave}</span>
       </div>
       {!hasAnyDownloads ? (
         <div className="adl-download-menu__empty">

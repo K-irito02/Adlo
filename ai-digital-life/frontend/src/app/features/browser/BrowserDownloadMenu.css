@@ -25,6 +25,49 @@
   color: var(--text-primary);
 }
 
+.adl-download-menu__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.adl-download-menu__toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.adl-download-menu__toggle:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-download-menu__toggle-track {
+  display: block;
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--border-default);
+  position: relative;
+  transition: var(--transition-colors);
+}
+
+.adl-download-menu__toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-inverse);
+  transition: var(--transition-transform);
+}
+
+.adl-download-menu__toggle[aria-checked='true'] .adl-download-menu__toggle-thumb {
+  transform: translateX(12px);
+}
+
 .adl-download-menu__clear-btn {
   font-size: var(--text-xs);
   color: var(--text-secondary);
@@ -41,24 +84,26 @@
 }
 
 .adl-download-menu__search {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
+  position: relative;
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
 }
 
 .adl-download-menu__search-icon {
+  position: absolute;
+  left: calc(var(--space-3) + 8px);
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   color: var(--text-muted);
-  flex-shrink: 0;
+  pointer-events: none;
 }
 
 .adl-download-menu__search-input {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
   padding: var(--space-1-5) var(--space-2);
+  padding-left: var(--space-7);
   border: none;
   border-radius: var(--radius-sm);
   background: var(--bg-elevated);
@@ -73,19 +118,6 @@
 
 .adl-download-menu__search-input:focus-visible {
   box-shadow: 0 0 0 var(--focus-ring-width, 2px) var(--focus-ring, rgba(37, 99, 235, 0.15));
-}
-
-.adl-download-menu__auto-save {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.adl-download-menu__auto-save-label {
-  font-size: var(--text-xs);
-  color: var(--text-primary);
 }
 
 .adl-download-menu__list {

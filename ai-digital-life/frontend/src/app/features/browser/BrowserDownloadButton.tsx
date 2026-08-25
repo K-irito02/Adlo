@@ -41,27 +41,14 @@ export const BrowserDownloadButton = React.memo(function BrowserDownloadButton({
       return;
     }
 
-    const handlePointerDown = (e: MouseEvent) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(e.target as Node) &&
-        buttonRef.current &&
-        !buttonRef.current.contains(e.target as Node)
-      ) {
-        setMenuOpen(false);
-      }
-    };
-
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setMenuOpen(false);
       }
     };
 
-    window.addEventListener('mousedown', handlePointerDown);
     window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.removeEventListener('mousedown', handlePointerDown);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [menuOpen]);
@@ -72,7 +59,7 @@ export const BrowserDownloadButton = React.memo(function BrowserDownloadButton({
         <button
           ref={buttonRef}
           type="button"
-          className={`adl-tool-context__iconbtn${menuOpen ? ' is-open' : ''}${className ? ` ${className}` : ''}`}
+          className={`adl-tool-context__iconbtn${className ? ` ${className}` : ''}`}
           onClick={handleToggle}
           aria-label={t.browserDownloadTitle}
           aria-haspopup="menu"

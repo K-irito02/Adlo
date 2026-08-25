@@ -207,6 +207,7 @@ export const browserZh = {
   browserDownloadSearch: '搜索下载记录',
   browserDownloadAutoSave: '自动保存',
   browserDownloadAutoSaveHint: '开启后文件将自动保存到默认目录',
+  browserDownloadAskSave: '每次询问',
 
   // 下载设置
   browserDownloadSettingsTitle: '下载设置',

@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum DownloadStatus {
     InProgress,
     Completed,
@@ -66,6 +67,7 @@ impl Default for DownloadSettings {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
 pub enum DownloadMode {
     Auto,
     Ask,
@@ -94,4 +96,31 @@ pub struct DownloadProgress {
     pub bytes_received: u64,
     pub speed: u64,
     pub estimated_end_time: Option<f64>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn download_status_serializes_as_snake_case() {
+        let s = serde_json::to_string(&DownloadStatus::InProgress).unwrap();
+        assert_eq!(s, "\"in_progress\"");
+    }
+
+    #[test]
+    fn download_mode_serializes_as_snake_case() {
+        let s = serde_json::to_string(&DownloadMode::Auto).unwrap();
+        assert_eq!(s, "\"auto\"");
+        let s2 = serde_json::to_string(&DownloadMode::Ask).unwrap();
+        assert_eq!(s2, "\"ask\"");
+    }
+
+    #[test]
+    fn download_mode_deserializes_from_snake_case() {
+        let mode: DownloadMode = serde_json::from_str("\"auto\"").unwrap();
+        assert_eq!(mode, DownloadMode::Auto);
+        let mode: DownloadMode = serde_json::from_str("\"ask\"").unwrap();
+        assert_eq!(mode, DownloadMode::Ask);
+    }
 }
