@@ -207,6 +207,18 @@ export const browserZh = {
   browserDownloadSearch: '搜索下载记录',
   browserDownloadAutoSave: '自动保存',
   browserDownloadAutoSaveHint: '开启后文件将自动保存到默认目录',
+
+  // 下载设置
+  browserDownloadSettingsTitle: '下载设置',
+  browserDownloadSettingsDesc: '配置默认下载行为',
+  browserDownloadSettingsPath: '默认下载路径',
+  browserDownloadSettingsPathDesc: '下载文件保存的目录',
+  browserDownloadSettingsPathDefault: '系统默认',
+  browserDownloadSettingsChangePath: '更改',
+  browserDownloadSettingsMode: '下载模式',
+  browserDownloadSettingsModeDesc: '选择下载处理方式',
+  browserDownloadSettingsModeAuto: '自动保存',
+  browserDownloadSettingsModeAsk: '每次询问',
   browserDownloadActive: '进行中',
   browserDownloadCompleted: '已完成',
   browserDownloadFailed: '失败',

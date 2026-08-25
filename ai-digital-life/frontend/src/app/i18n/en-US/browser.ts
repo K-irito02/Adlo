@@ -218,6 +218,18 @@ export const browserEn = {
   browserDownloadSearch: 'Search downloads',
   browserDownloadAutoSave: 'Auto-save',
   browserDownloadAutoSaveHint: 'Files will be saved to the default directory',
+
+  // Download Settings
+  browserDownloadSettingsTitle: 'Download Settings',
+  browserDownloadSettingsDesc: 'Configure default download behavior',
+  browserDownloadSettingsPath: 'Default download path',
+  browserDownloadSettingsPathDesc: 'Directory where downloaded files are saved',
+  browserDownloadSettingsPathDefault: 'System default',
+  browserDownloadSettingsChangePath: 'Change',
+  browserDownloadSettingsMode: 'Download mode',
+  browserDownloadSettingsModeDesc: 'Choose how downloads are handled',
+  browserDownloadSettingsModeAuto: 'Auto-save',
+  browserDownloadSettingsModeAsk: 'Ask each time',
   browserDownloadActive: 'In progress',
   browserDownloadCompleted: 'Completed',
   browserDownloadFailed: 'Failed',
