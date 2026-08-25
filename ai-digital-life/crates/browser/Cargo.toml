@@ -8,6 +8,7 @@ workspace = true
 
 [dependencies]
 adl-errors = { path = "../errors" }
+adl-storage = { path = "../storage" }
 rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -17,6 +18,12 @@ url.workspace = true
 urlencoding = "2.1"
 once_cell = "1"
 dirs.workspace = true
+chrono.workspace = true
+uuid.workspace = true
+fs2 = "0.4"
+
+[dev-dependencies]
+adl-migration = { path = "../migration" }
 
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.38"
