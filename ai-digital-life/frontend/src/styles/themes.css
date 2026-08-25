@@ -159,7 +159,7 @@ html:not(.no-transition) [data-theme] {
 
   /* === Semantic Colors (per UI spec) === */
   --color-primary: #2563eb;
-  --color-danger: #dc2626;
+  --color-danger: #e9967a;
   --color-success: #16a34a;
   --color-warning: #d97706;
   --color-info: #2563eb;
@@ -175,16 +175,16 @@ html:not(.no-transition) [data-theme] {
   --warning: #b45309;
   --warning-soft: rgba(180, 83, 9, 0.12);
   --warning-subtle: rgba(180, 83, 9, 0.06);
-  --danger: #dc2626;
-  --danger-soft: rgba(220, 38, 38, 0.1);
-  --danger-subtle: rgba(220, 38, 38, 0.06);
+  --danger: #e9967a;
+  --danger-soft: rgba(233, 150, 122, 0.12);
+  --danger-subtle: rgba(233, 150, 122, 0.08);
   --danger-muted: #e9967a;
   --purple: #7c3aed;
   --purple-soft: rgba(124, 58, 237, 0.1);
   --purple-subtle: rgba(124, 58, 237, 0.06);
 
   /* === Error Toast Severity === */
-  --error-toast-error: #dc2626;
+  --error-toast-error: #e9967a;
   --error-toast-warning: #b45309;
 
   /* === Focus & Interaction === */
@@ -207,7 +207,7 @@ html:not(.no-transition) [data-theme] {
   --shadow-panel-sm: -10px 0 12px var(--bg);
   --shadow-divider: -2px 0 4px -1px rgba(0, 0, 0, 0.486);
   --ring-neutral: rgba(128, 128, 128, 0.12);
-  --ring-error: rgba(239, 68, 68, 0.25);
+  --ring-error: rgba(233, 150, 122, 0.3);
 
   /* === Code & Special === */
   --code-bg: #f6f6f6;
@@ -435,7 +435,7 @@ html:not(.no-transition) [data-theme] {
 
   /* === Semantic Colors (dark variants) === */
   --color-primary: #60a5fa;
-  --color-danger: #f87171;
+  --color-danger: #e9967a;
   --color-success: #4ade80;
   --color-warning: #fbbf24;
   --color-info: #60a5fa;
@@ -451,13 +451,13 @@ html:not(.no-transition) [data-theme] {
   --warning: #fbbf24;
   --warning-soft: rgba(251, 191, 36, 0.15);
   --warning-subtle: rgba(251, 191, 36, 0.08);
-  --danger: #f87171;
-  --danger-soft: rgba(248, 113, 113, 0.15);
-  --danger-subtle: rgba(248, 113, 113, 0.08);
+  --danger: #e9967a;
+  --danger-soft: rgba(233, 150, 122, 0.12);
+  --danger-subtle: rgba(233, 150, 122, 0.08);
   --danger-muted: #e9967a;
 
   /* === Error Toast Severity (dark) === */
-  --error-toast-error: #eb7153;
+  --error-toast-error: #e9967a;
   --error-toast-warning: #f09c42;
   --purple: #c084fc;
   --purple-soft: rgba(192, 132, 252, 0.15);
@@ -483,7 +483,7 @@ html:not(.no-transition) [data-theme] {
   --shadow-panel-sm: -10px 0 12px var(--bg);
   --shadow-divider: -2px 0 4px -1px rgba(0, 0, 0, 0.6);
   --ring-neutral: rgba(128, 128, 128, 0.15);
-  --ring-error: rgba(239, 68, 68, 0.35);
+  --ring-error: rgba(233, 150, 122, 0.3);
 
   /* === Code & Special (dark) === */
   --code-bg: #1a1a1a;
