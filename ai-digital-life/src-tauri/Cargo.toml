@@ -17,6 +17,7 @@ adl-workspace = { path = "../crates/workspace" }
 adl-model-gateway = { path = "../crates/model-gateway" }
 adl-browser = { path = "../crates/browser" }
 adl-logging = { path = "../crates/adl-logging" }
+adl-storage = { path = "../crates/storage" }
 
 tauri = { workspace = true, features = ["unstable"] }
 tauri-plugin-dialog.workspace = true

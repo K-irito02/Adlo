@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use crate::state::AppState;
 use crate::tauri_webview_handle::TauriWebViewHandle;
+use adl_browser::download_handler::{handle_download_finished, setup_download_handler};
 use adl_browser::webview_handle::{EventBridgeRef, WebViewHandle};
 use adl_errors::AppError;
 use tauri::{Emitter, Manager};
@@ -59,6 +60,14 @@ pub(super) fn build_webview_builder(
     let tab_id_owned = tab_id.to_string();
     let init_script = adl_browser::init_script_with_background(color_scheme);
     tracing::debug!(color_scheme, "build_webview_builder: generated init_script with background");
+
+    let download_manager = app_handle
+        .state::<AppState>()
+        .download_manager
+        .clone();
+    let requested_handler = setup_download_handler(app_handle.clone(), download_manager.clone());
+    let app_download = app_handle.clone();
+
     tauri::webview::WebviewBuilder::new(label, tauri::WebviewUrl::External(target))
         .initialization_script(init_script)
         .on_navigation(move |url| {
@@ -79,6 +88,24 @@ pub(super) fn build_webview_builder(
             })
         })
         .on_new_window(move |url, _window_features| new_window_handler(&app_handle, &url))
+        .on_download(move |_webview, event| {
+            match event {
+                tauri::webview::DownloadEvent::Requested { url, destination } => {
+                    requested_handler(url.to_string(), destination.to_string_lossy().to_string())
+                }
+                tauri::webview::DownloadEvent::Finished { url, path, success } => {
+                    handle_download_finished(
+                        &app_download,
+                        &download_manager,
+                        url.as_str(),
+                        path.as_deref(),
+                        success,
+                    );
+                    true
+                }
+                _ => true,
+            }
+        })
 }
 
 /// Build a WebView builder for a **silent** (background, off-screen) tab that does

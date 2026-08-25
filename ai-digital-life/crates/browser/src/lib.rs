@@ -1,7 +1,8 @@
 #![allow(unreachable_pub)]
 
-pub(crate) mod download_manager;
+pub mod download_manager;
 pub mod download_types;
+pub mod download_handler;
 mod browser_events;
 mod browser_meta;
 mod browser_navigation;

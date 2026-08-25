@@ -405,6 +405,14 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         .map_err(|e| anyhow::anyhow!("failed to open site-meta-cache store: {e}"))?;
     let browser_manager = adl_browser::BrowserManager::new(site_meta_cache);
 
+    let download_db_path = data_dir.join("downloads.db");
+    let download_db = adl_storage::Database::open(&download_db_path)
+        .map_err(|e| anyhow::anyhow!("failed to open download database: {e}"))?;
+    download_db
+        .init_schema()
+        .map_err(|e| anyhow::anyhow!("failed to init download schema: {e}"))?;
+    let download_manager = adl_browser::download_handler::create_download_manager(download_db);
+
     Ok(AppState {
         data_dir,
         config: config_arc,
@@ -414,6 +422,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
         started_at: now_ms(),
         provider_registry,
         ad_server,
+        download_manager,
     })
 }
 

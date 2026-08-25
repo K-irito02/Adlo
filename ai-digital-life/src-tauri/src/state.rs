@@ -1,4 +1,5 @@
 use adl_browser::BrowserManager;
+use adl_browser::download_manager::DownloadManager;
 use adl_kernel::config::AppConfig;
 use adl_kernel::events::EventBus;
 use adl_logging::LogManager;
@@ -24,4 +25,5 @@ pub struct AppState {
     /// The spawned `ad-server` child + its discovered base URL (`None` when the
     /// engine could not start → system-only desktop).
     pub ad_server: Arc<AdServerHandle>,
+    pub download_manager: Arc<DownloadManager>,
 }
