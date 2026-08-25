@@ -4,7 +4,6 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 
 use super::download_manager::DownloadManager;
-use super::download_types::DownloadMode;
 
 pub fn setup_download_handler(
     app_handle: AppHandle,
@@ -122,6 +121,7 @@ pub fn create_download_manager(db: adl_storage::Database) -> Arc<DownloadManager
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::download_types::DownloadMode;
 
     fn temp_db(name: &str) -> adl_storage::Database {
         let path = std::env::temp_dir().join(format!("adl-download-handler-{}.db", name));

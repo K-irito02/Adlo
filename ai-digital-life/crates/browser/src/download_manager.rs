@@ -98,11 +98,12 @@ impl DownloadManager {
     /// Resolve an **absolute** download target path from the URL and WebView2's
     /// suggested destination.
     ///
-    /// WebView2's `destination` for some downloads (e.g. binary/app files) can be
-    /// empty or relative. An empty/relative target makes WebView2 silently drop
-    /// the download, so we always fall back to the configured default download
-    /// directory plus a filename derived from the URL. The directory is created
-    /// if missing.
+    /// The target is always anchored into the user-configured default download
+    /// directory (falling back to the OS default). WebView2's `destination`
+    /// points at the system Downloads folder for every download, so we only use
+    /// its **file name** and never its directory — otherwise the user's custom
+    /// default path would be ignored and downloads would keep landing in the
+    /// C-drive Downloads folder. The directory is created if missing.
     pub fn resolve_download_target(&self, url: &str, suggested_path: &str) -> String {
         let settings = self.get_settings();
         let default_dir = if settings.default_path.is_empty() {
@@ -111,18 +112,9 @@ impl DownloadManager {
             PathBuf::from(&settings.default_path)
         };
 
-        let target = if suggested_path.is_empty() {
-            // No suggestion from WebView2 — build from default dir + URL-derived name.
-            default_dir.join(derive_file_name(url, suggested_path))
-        } else {
-            let p = Path::new(suggested_path);
-            if p.is_absolute() && p.file_name().is_some() {
-                p.to_path_buf()
-            } else {
-                // Relative or missing filename — anchor into the default dir.
-                default_dir.join(derive_file_name(url, suggested_path))
-            }
-        };
+        // Take the file name from the suggestion (or URL), but always place it
+        // in the configured default directory.
+        let target = default_dir.join(derive_file_name(url, suggested_path));
 
         let _ = fs::create_dir_all(target.parent().unwrap_or(&default_dir));
         self.resolve_conflict_path(target.to_string_lossy().as_ref())
@@ -606,17 +598,48 @@ mod tests {
     }
 
     #[test]
-    fn resolve_download_target_absolute_suggestion_is_preserved() {
+    fn resolve_download_target_absolute_suggestion_keeps_name_uses_default_dir() {
         let db = temp_db("target-abs");
         let mgr = DownloadManager::new(db);
-        let abs = std::env::temp_dir().join("adl-target-abs.bin");
+        let abs = std::env::temp_dir().join("some-other-dir").join("adl-target-abs.bin");
         let target = mgr.resolve_download_target(
             "https://example.com/data.bin",
             abs.to_str().expect("temp path must be valid UTF-8"),
         );
         let p = Path::new(&target);
+        // The file name is preserved, but the directory is always the default
+        // download dir — not the suggested (C-drive) directory.
         assert_eq!(p.file_name().unwrap().to_str().unwrap(), "adl-target-abs.bin");
+        assert_ne!(
+            p.parent().unwrap(),
+            abs.parent().unwrap(),
+            "download must not use the suggested (system) directory"
+        );
         let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-target-abs.db"));
+    }
+
+    #[test]
+    fn resolve_download_target_uses_configured_default_path() {
+        let db = temp_db("target-custom");
+        let mgr = DownloadManager::new(db.clone());
+        let custom_dir = std::env::temp_dir().join("adl-custom-downloads");
+        let _ = std::fs::create_dir_all(&custom_dir);
+        mgr.update_settings(None, Some(custom_dir.to_string_lossy().to_string()))
+            .expect("update settings");
+
+        // WebView2 suggests a C-drive path; the configured default must win.
+        let suggested = std::env::temp_dir()
+            .join("Downloads")
+            .join("report.pdf")
+            .to_string_lossy()
+            .to_string();
+        let target = mgr.resolve_download_target("https://example.com/report.pdf", &suggested);
+        let p = Path::new(&target);
+        assert_eq!(p.file_name().unwrap().to_str().unwrap(), "report.pdf");
+        assert_eq!(p.parent().unwrap(), custom_dir.as_path(), "must use configured default dir");
+        let _ =
+            std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-target-custom.db"));
+        let _ = std::fs::remove_dir_all(&custom_dir);
     }
 
     #[test]
