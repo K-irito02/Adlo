@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use tauri::{AppHandle, Emitter};
@@ -8,15 +9,21 @@ use super::download_types::DownloadMode;
 pub fn setup_download_handler(
     app_handle: AppHandle,
     download_manager: Arc<DownloadManager>,
-) -> impl Fn(String, String) -> bool + Send + Sync + 'static {
+) -> impl Fn(String, &mut PathBuf) -> bool + Send + Sync + 'static {
     let manager = download_manager;
     let handle = app_handle;
 
-    move |url: String, suggested_path: String| {
+    move |url: String, destination: &mut PathBuf| {
+        let suggested_path = destination.to_string_lossy().to_string();
         tracing::debug!(url = &url, suggested_path = &suggested_path, "download requested");
-        let settings = manager.get_settings();
 
-        if let Err(reason) = manager.check_disk_space(&suggested_path) {
+        // Resolve the absolute target first so we can both persist the record and
+        // point WebView2 at a valid location (empty/relative destinations make
+        // WebView2 silently drop binary/app downloads). Conflict resolution is
+        // applied inside resolve_download_target.
+        let final_path = manager.resolve_download_target(&url, &suggested_path);
+
+        if let Err(reason) = manager.check_disk_space(&final_path) {
             tracing::warn!(url = &url, reason = &reason, "download denied: disk space check failed");
             let _ = handle.emit(
                 "browser-download-error",
@@ -30,10 +37,9 @@ pub fn setup_download_handler(
             return false;
         }
 
-        let final_path = match settings.mode {
-            DownloadMode::Auto => manager.resolve_conflict_path(&suggested_path),
-            DownloadMode::Ask => manager.resolve_conflict_path(&suggested_path),
-        };
+        // Point WebView2 at our resolved absolute target so it actually downloads
+        // there (the assigned path must be absolute).
+        *destination = PathBuf::from(&final_path);
 
         match manager.create_download(&url, &final_path) {
             Ok(record) => {

@@ -93,7 +93,7 @@ pub(super) fn build_webview_builder(
                         destination = %destination.display(),
                         "on_download: Requested"
                     );
-                    requested_handler(url.to_string(), destination.to_string_lossy().to_string())
+                    requested_handler(url.to_string(), destination)
                 }
                 tauri::webview::DownloadEvent::Finished { url, path, success } => {
                     tracing::debug!(

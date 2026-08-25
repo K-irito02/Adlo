@@ -95,6 +95,39 @@ impl DownloadManager {
         unreachable!()
     }
 
+    /// Resolve an **absolute** download target path from the URL and WebView2's
+    /// suggested destination.
+    ///
+    /// WebView2's `destination` for some downloads (e.g. binary/app files) can be
+    /// empty or relative. An empty/relative target makes WebView2 silently drop
+    /// the download, so we always fall back to the configured default download
+    /// directory plus a filename derived from the URL. The directory is created
+    /// if missing.
+    pub fn resolve_download_target(&self, url: &str, suggested_path: &str) -> String {
+        let settings = self.get_settings();
+        let default_dir = if settings.default_path.is_empty() {
+            get_default_download_path()
+        } else {
+            PathBuf::from(&settings.default_path)
+        };
+
+        let target = if suggested_path.is_empty() {
+            // No suggestion from WebView2 — build from default dir + URL-derived name.
+            default_dir.join(derive_file_name(url, suggested_path))
+        } else {
+            let p = Path::new(suggested_path);
+            if p.is_absolute() && p.file_name().is_some() {
+                p.to_path_buf()
+            } else {
+                // Relative or missing filename — anchor into the default dir.
+                default_dir.join(derive_file_name(url, suggested_path))
+            }
+        };
+
+        let _ = fs::create_dir_all(target.parent().unwrap_or(&default_dir));
+        self.resolve_conflict_path(target.to_string_lossy().as_ref())
+    }
+
     pub fn create_download(&self, url: &str, file_path: &str) -> Result<DownloadRecord, String> {
         let file_name = derive_file_name(url, file_path);
         let record = DownloadRecord {
@@ -547,6 +580,43 @@ mod tests {
     #[test]
     fn derive_file_name_no_panic_on_root_path() {
         assert_eq!(derive_file_name("https://example.com/a.bin", "/"), "a.bin");
+    }
+
+    #[test]
+    fn resolve_download_target_empty_suggestion_uses_default_dir() {
+        let db = temp_db("target-empty");
+        let mgr = DownloadManager::new(db.clone());
+        let target = mgr.resolve_download_target("https://example.com/installer.exe", "");
+        let p = Path::new(&target);
+        assert!(p.is_absolute(), "target must be absolute: {target}");
+        assert_eq!(p.file_name().unwrap().to_str().unwrap(), "installer.exe");
+        assert!(p.parent().unwrap().exists(), "default dir should be created");
+        let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-target-empty.db"));
+    }
+
+    #[test]
+    fn resolve_download_target_relative_suggestion_uses_default_dir() {
+        let db = temp_db("target-rel");
+        let mgr = DownloadManager::new(db);
+        let target = mgr.resolve_download_target("https://example.com/app.zip", "app.zip");
+        let p = Path::new(&target);
+        assert!(p.is_absolute(), "target must be absolute: {target}");
+        assert_eq!(p.file_name().unwrap().to_str().unwrap(), "app.zip");
+        let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-target-rel.db"));
+    }
+
+    #[test]
+    fn resolve_download_target_absolute_suggestion_is_preserved() {
+        let db = temp_db("target-abs");
+        let mgr = DownloadManager::new(db);
+        let abs = std::env::temp_dir().join("adl-target-abs.bin");
+        let target = mgr.resolve_download_target(
+            "https://example.com/data.bin",
+            abs.to_str().expect("temp path must be valid UTF-8"),
+        );
+        let p = Path::new(&target);
+        assert_eq!(p.file_name().unwrap().to_str().unwrap(), "adl-target-abs.bin");
+        let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-target-abs.db"));
     }
 
     #[test]
