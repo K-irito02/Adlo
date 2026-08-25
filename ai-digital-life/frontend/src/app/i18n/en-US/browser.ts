@@ -237,6 +237,7 @@ export const browserEn = {
   browserDownloadPaused: 'Paused',
   browserDownloadCanceled: 'Canceled',
   browserDownloadNoRecords: 'No downloads yet',
+  browserDownloadOpenFolder: 'Open folder',
   browserDownloadOpenFile: 'Open file',
   browserDownloadShowInFolder: 'Show in folder',
   browserDownloadDeleteFile: 'Delete file',

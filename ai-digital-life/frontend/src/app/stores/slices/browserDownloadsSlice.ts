@@ -63,7 +63,7 @@ export const createBrowserDownloadsSlice = (
   updateDownloadSettings: async (mode?: string, defaultPath?: string) => {
     const result = await invoke<IpcResult<void>>('download_update_settings', {
       mode: mode ?? null,
-      default_path: defaultPath ?? null,
+      defaultPath: defaultPath ?? null,
     });
     if (result.ok) {
       await get().fetchDownloadSettings();

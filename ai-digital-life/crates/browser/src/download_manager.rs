@@ -53,7 +53,14 @@ impl DownloadManager {
 
     pub fn check_disk_space(&self, path: &str) -> Result<(), String> {
         let path = Path::new(path);
-        let dir = path.parent().unwrap_or(Path::new("/"));
+        let dir = if path.as_os_str().is_empty() {
+            // Empty/root destination (e.g. WebView2 reports no location yet) —
+            // fall back to the default download directory so the check doesn't
+            // fail on an invalid path.
+            &get_default_download_path()
+        } else {
+            path.parent().unwrap_or(Path::new("/"))
+        };
         let stat = fs2::available_space(dir).map_err(|e| format!("Disk check failed: {}", e))?;
         if stat < 10 * 1024 * 1024 {
             return Err("FileNoSpace".to_string());
@@ -89,15 +96,11 @@ impl DownloadManager {
     }
 
     pub fn create_download(&self, url: &str, file_path: &str) -> Result<DownloadRecord, String> {
+        let file_name = derive_file_name(url, file_path);
         let record = DownloadRecord {
             id: Uuid::new_v4().to_string(),
             url: url.to_string(),
-            file_name: Path::new(file_path)
-                .file_stem()
-                .expect("file_path must have a file name")
-                .to_str()
-                .expect("file_name must be valid UTF-8")
-                .to_string(),
+            file_name,
             file_path: file_path.to_string(),
             total_bytes: None,
             bytes_received: 0,
@@ -308,6 +311,33 @@ pub fn get_default_download_path() -> PathBuf {
     app_dir
 }
 
+/// Derive a safe file name for a download record from the target path or URL.
+///
+/// WebView2 can report a destination path with no usable file stem (e.g. an
+/// empty path, a root-relative directory, or a path ending in a separator). A
+/// naive `Path::file_stem().expect(...)` would panic inside the WebView2
+/// download callback thread, silently dropping the download. Instead, fall
+/// back to the last non-empty path segment, then to the URL's path segment,
+/// then to a generic placeholder — never panic.
+fn derive_file_name(url: &str, file_path: &str) -> String {
+    if let Some(name) = Path::new(file_path).file_name().and_then(|s| s.to_str()) {
+        if !name.is_empty() && name != "." && name != ".." {
+            return name.to_string();
+        }
+    }
+
+    if let Some(url_path) = url::Url::parse(url).ok().map(|u| u.path().to_string()) {
+        if !url_path.is_empty() && url_path != "/" {
+            if let Some(segment) = url_path.rsplit('/').find(|s| !s.is_empty() && *s != "." && *s != "..")
+            {
+                return segment.to_string();
+            }
+        }
+    }
+
+    "download".to_string()
+}
+
 #[cfg(target_os = "windows")]
 fn find_non_c_downloads_folder() -> Option<PathBuf> {
     for drive in b'D'..=b'Z' {
@@ -473,6 +503,14 @@ mod tests {
     }
 
     #[test]
+    fn check_disk_space_empty_path_falls_back_to_default() {
+        let db = temp_db("disk-empty");
+        let mgr = DownloadManager::new(db);
+        let result = mgr.check_disk_space("");
+        assert!(result.is_ok(), "empty path should fall back to default dir");
+    }
+
+    #[test]
     fn download_ordering_is_desc() {
         let db = temp_db("order");
         let mgr = DownloadManager::new(db.clone());
@@ -486,9 +524,29 @@ mod tests {
         let list = mgr.list_downloads().expect("list should succeed");
         assert_eq!(list.len(), 2);
         // Most recent first
-        assert_eq!(list[0].file_name, "second");
-        assert_eq!(list[1].file_name, "first");
+        assert_eq!(list[0].file_name, "second.zip");
+        assert_eq!(list[1].file_name, "first.zip");
         let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-order.db"));
+    }
+
+    #[test]
+    fn derive_file_name_uses_path() {
+        assert_eq!(derive_file_name("https://example.com/a.zip", "C:\\tmp\\file.zip"), "file.zip");
+    }
+
+    #[test]
+    fn derive_file_name_uses_url_when_path_has_no_file_name() {
+        assert_eq!(derive_file_name("https://example.com/path/to/report.pdf", ""), "report.pdf");
+    }
+
+    #[test]
+    fn derive_file_name_falls_back_to_placeholder() {
+        assert_eq!(derive_file_name("https://example.com", ""), "download");
+    }
+
+    #[test]
+    fn derive_file_name_no_panic_on_root_path() {
+        assert_eq!(derive_file_name("https://example.com/a.bin", "/"), "a.bin");
     }
 
     #[test]

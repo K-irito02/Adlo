@@ -226,6 +226,7 @@ export const browserZh = {
   browserDownloadPaused: '已暂停',
   browserDownloadCanceled: '已取消',
   browserDownloadNoRecords: '暂无下载记录',
+  browserDownloadOpenFolder: '打开文件夹',
   browserDownloadOpenFile: '打开文件',
   browserDownloadShowInFolder: '在文件夹中显示',
   browserDownloadDeleteFile: '删除文件',

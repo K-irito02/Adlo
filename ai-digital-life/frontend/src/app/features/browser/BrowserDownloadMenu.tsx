@@ -29,6 +29,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
   const downloadSettings = useAppStore((s) => s.downloadSettings);
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
   const clearDownloadHistory = useAppStore((s) => s.clearDownloadHistory);
+  const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
 
   const autoSave = downloadSettings.mode === 'auto';
 
@@ -36,6 +37,28 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
     const newMode = autoSave ? 'ask' : 'auto';
     void updateDownloadSettings(newMode);
   }, [autoSave, updateDownloadSettings]);
+
+  const handleOpenSettings = useCallback(() => {
+    setActiveSettingsGroup('browser');
+    onClose();
+  }, [setActiveSettingsGroup, onClose]);
+
+  const handleOpenFolder = useCallback(async () => {
+    const path = downloadSettings.default_path;
+    if (!path) {
+      return;
+    }
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('plugin:shell|open', { path });
+    } catch {
+      // fallback: ignore
+    }
+  }, [downloadSettings.default_path]);
+
+  const handleClearHistory = useCallback(async () => {
+    await clearDownloadHistory();
+  }, [clearDownloadHistory]);
 
   const filteredDownloads = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -148,17 +171,6 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
               <span className="adl-download-menu__toggle-thumb" />
             </span>
           </button>
-          {hasAnyDownloads && (
-            <button
-              type="button"
-              className="adl-download-menu__clear-btn"
-              onClick={() => {
-                void clearDownloadHistory();
-              }}
-            >
-              {t.browserClearHistory}
-            </button>
-          )}
         </div>
       </div>
       <div className="adl-download-menu__search">
@@ -194,6 +206,29 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
           )}
         </div>
       )}
+      <div className="adl-download-menu__footer">
+        <button
+          type="button"
+          className="adl-download-menu__footer-btn"
+          onClick={handleOpenSettings}
+        >
+          {t.browserDownloadSettingsTitle}
+        </button>
+        <button
+          type="button"
+          className="adl-download-menu__footer-btn"
+          onClick={() => void handleClearHistory()}
+        >
+          {t.browserClearHistory}
+        </button>
+        <button
+          type="button"
+          className="adl-download-menu__footer-btn"
+          onClick={() => void handleOpenFolder()}
+        >
+          {t.browserDownloadOpenFolder}
+        </button>
+      </div>
     </div>,
     document.body,
   );

@@ -424,8 +424,7 @@ export type SettingsGroupId =
   | 'references'
   | 'providers'
   | 'lsp'
-  | 'browser'
-  | 'downloads';
+  | 'browser';
 
 export interface SettingItem {
   id: string;

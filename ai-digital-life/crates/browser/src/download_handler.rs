@@ -13,9 +13,11 @@ pub fn setup_download_handler(
     let handle = app_handle;
 
     move |url: String, suggested_path: String| {
+        tracing::debug!(url = &url, suggested_path = &suggested_path, "download requested");
         let settings = manager.get_settings();
 
         if let Err(reason) = manager.check_disk_space(&suggested_path) {
+            tracing::warn!(url = &url, reason = &reason, "download denied: disk space check failed");
             let _ = handle.emit(
                 "browser-download-error",
                 &serde_json::json!({
@@ -35,10 +37,17 @@ pub fn setup_download_handler(
 
         match manager.create_download(&url, &final_path) {
             Ok(record) => {
+                tracing::debug!(
+                    url = &url,
+                    final_path = &final_path,
+                    record_id = &record.id,
+                    "download record created"
+                );
                 let _ = handle.emit("browser-download-started", &record);
                 true
             },
             Err(reason) => {
+                tracing::warn!(url = &url, reason = &reason, "download record creation failed");
                 let _ = handle.emit(
                     "browser-download-error",
                     &serde_json::json!({
