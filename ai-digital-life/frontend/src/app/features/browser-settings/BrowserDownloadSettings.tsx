@@ -41,7 +41,10 @@ export function BrowserDownloadSettings() {
           </div>
           <small>{t.browserDownloadSettingsPathDesc}</small>
         </div>
-        <div className="adl-settings-row__control" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+        <div
+          className="adl-settings-row__control"
+          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
+        >
           <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
             {isLoadingSettings ? '...' : (defaultPath ?? t.browserDownloadSettingsPathDefault)}
           </span>

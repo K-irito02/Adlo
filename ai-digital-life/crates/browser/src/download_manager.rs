@@ -8,7 +8,9 @@ use uuid::Uuid;
 
 use adl_storage::Database;
 
-use super::download_types::{DownloadMode, DownloadRecord, DownloadProgress, DownloadSettings, DownloadStatus};
+use super::download_types::{
+    DownloadMode, DownloadProgress, DownloadRecord, DownloadSettings, DownloadStatus,
+};
 
 #[allow(dead_code)]
 #[derive(Clone)]
@@ -30,10 +32,7 @@ impl DownloadManager {
     }
 
     pub fn get_settings(&self) -> DownloadSettings {
-        self.settings
-            .lock()
-            .expect("settings mutex should not be poisoned")
-            .clone()
+        self.settings.lock().expect("settings mutex should not be poisoned").clone()
     }
 
     pub fn update_settings(
@@ -41,10 +40,7 @@ impl DownloadManager {
         mode: Option<DownloadMode>,
         default_path: Option<String>,
     ) -> Result<(), String> {
-        let mut settings = self
-            .settings
-            .lock()
-            .expect("settings mutex should not be poisoned");
+        let mut settings = self.settings.lock().expect("settings mutex should not be poisoned");
         if let Some(m) = mode {
             settings.mode = m;
         }
@@ -86,10 +82,7 @@ impl DownloadManager {
             let new_name = format!("{} ({}){}", stem, i, ext);
             let new_path = dir.join(&new_name);
             if !new_path.exists() {
-                return new_path
-                    .to_str()
-                    .expect("new path must be valid UTF-8")
-                    .to_string();
+                return new_path.to_str().expect("new path must be valid UTF-8").to_string();
             }
         }
         unreachable!()
@@ -171,11 +164,7 @@ impl DownloadManager {
         success: bool,
         reason: Option<&str>,
     ) -> Result<(), String> {
-        let status = if success {
-            DownloadStatus::Completed
-        } else {
-            DownloadStatus::Failed
-        };
+        let status = if success { DownloadStatus::Completed } else { DownloadStatus::Failed };
 
         let conn = self.db.conn().map_err(|e| e.to_string())?;
         conn.execute(
@@ -239,11 +228,8 @@ impl DownloadManager {
 
     pub fn remove_record(&self, id: &str) -> Result<(), String> {
         let conn = self.db.conn().map_err(|e| e.to_string())?;
-        conn.execute(
-            "DELETE FROM download_history WHERE id = ?1",
-            rusqlite::params![id],
-        )
-        .map_err(|e| format!("Failed to remove record: {}", e))?;
+        conn.execute("DELETE FROM download_history WHERE id = ?1", rusqlite::params![id])
+            .map_err(|e| format!("Failed to remove record: {}", e))?;
         Ok(())
     }
 
@@ -274,11 +260,9 @@ impl DownloadManager {
 
     fn load_settings(db: &Database) -> Result<DownloadSettings, String> {
         let conn = db.conn().map_err(|e| e.to_string())?;
-        conn.query_row(
-            "SELECT value FROM app_state WHERE key = 'download_settings'",
-            [],
-            |row| row.get::<_, String>(0),
-        )
+        conn.query_row("SELECT value FROM app_state WHERE key = 'download_settings'", [], |row| {
+            row.get::<_, String>(0)
+        })
         .map(|v| serde_json::from_str(&v).unwrap_or_default())
         .map_err(|_| "No settings found".to_string())
     }
@@ -370,9 +354,7 @@ mod tests {
         let list = mgr.list_downloads().expect("list should succeed");
         assert_eq!(list.len(), 1);
         assert_eq!(list[0].id, record.id);
-        let _ = std::fs::remove_file(
-            std::env::temp_dir().join("adl-download-mgr-create-get.db"),
-        );
+        let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-create-get.db"));
     }
 
     #[test]
@@ -383,13 +365,11 @@ mod tests {
             .create_download("https://example.com/file.zip", "/tmp/file.zip")
             .expect("create should succeed");
 
-        mgr.update_progress(&record.id, 512, 1024)
-            .expect("update should succeed");
+        mgr.update_progress(&record.id, 512, 1024).expect("update should succeed");
         let list = mgr.list_downloads().expect("list should succeed");
         assert_eq!(list[0].bytes_received, 512);
 
-        mgr.complete_download(&record.id, true, None)
-            .expect("complete should succeed");
+        mgr.complete_download(&record.id, true, None).expect("complete should succeed");
         let list = mgr.list_downloads().expect("list should succeed");
         assert_eq!(list[0].status, DownloadStatus::Completed);
         assert!(list[0].completed_at.is_some());
@@ -420,8 +400,7 @@ mod tests {
             .create_download("https://example.com/file.zip", "/tmp/file.zip")
             .expect("create should succeed");
 
-        mgr.remove_record(&record.id)
-            .expect("remove should succeed");
+        mgr.remove_record(&record.id).expect("remove should succeed");
         let list = mgr.list_downloads().expect("list should succeed");
         assert!(list.is_empty());
         let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-remove.db"));
@@ -431,10 +410,8 @@ mod tests {
     fn clear_history() {
         let db = temp_db("clear");
         let mgr = DownloadManager::new(db.clone());
-        mgr.create_download("https://example.com/a.zip", "/tmp/a.zip")
-            .expect("create a");
-        mgr.create_download("https://example.com/b.zip", "/tmp/b.zip")
-            .expect("create b");
+        mgr.create_download("https://example.com/a.zip", "/tmp/a.zip").expect("create a");
+        mgr.create_download("https://example.com/b.zip", "/tmp/b.zip").expect("create b");
 
         mgr.clear_history().expect("clear should succeed");
         let list = mgr.list_downloads().expect("list should succeed");
@@ -450,11 +427,8 @@ mod tests {
         let s = mgr.get_settings();
         assert_eq!(s.mode, DownloadMode::Auto);
 
-        mgr.update_settings(
-            Some(DownloadMode::Ask),
-            Some("/custom/path".to_string()),
-        )
-        .expect("update should succeed");
+        mgr.update_settings(Some(DownloadMode::Ask), Some("/custom/path".to_string()))
+            .expect("update should succeed");
         let s2 = mgr.get_settings();
         assert_eq!(s2.mode, DownloadMode::Ask);
         assert_eq!(s2.default_path, "/custom/path");
@@ -481,10 +455,8 @@ mod tests {
         let mgr = DownloadManager::new(db);
         let tmp = std::env::temp_dir().join("adl-conflict-test.txt");
         fs::write(&tmp, "test").expect("write test file");
-        let result = mgr.resolve_conflict_path(
-            tmp.to_str()
-                .expect("temp path must be valid UTF-8"),
-        );
+        let result =
+            mgr.resolve_conflict_path(tmp.to_str().expect("temp path must be valid UTF-8"));
         assert!(result.ends_with("adl-conflict-test (1).txt"));
         let _ = fs::remove_file(&tmp);
         let _ = fs::remove_file(&result);
@@ -495,10 +467,7 @@ mod tests {
         let db = temp_db("disk");
         let mgr = DownloadManager::new(db);
         let result = mgr.check_disk_space(
-            std::env::temp_dir()
-                .join("test.txt")
-                .to_str()
-                .expect("temp path must be valid UTF-8"),
+            std::env::temp_dir().join("test.txt").to_str().expect("temp path must be valid UTF-8"),
         );
         assert!(result.is_ok());
     }

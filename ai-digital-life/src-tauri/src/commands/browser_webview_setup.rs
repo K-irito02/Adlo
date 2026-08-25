@@ -61,10 +61,7 @@ pub(super) fn build_webview_builder(
     let init_script = adl_browser::init_script_with_background(color_scheme);
     tracing::debug!(color_scheme, "build_webview_builder: generated init_script with background");
 
-    let download_manager = app_handle
-        .state::<AppState>()
-        .download_manager
-        .clone();
+    let download_manager = app_handle.state::<AppState>().download_manager.clone();
     let requested_handler = setup_download_handler(app_handle.clone(), download_manager.clone());
     let app_download = app_handle.clone();
 

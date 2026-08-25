@@ -39,17 +39,12 @@ pub fn download_update_settings(
     default_path: Option<String>,
 ) -> Result<IpcResult<()>, CommandError> {
     let mode_enum = mode.as_deref().map(DownloadMode::from_str);
-    state
-        .download_manager
-        .update_settings(mode_enum, default_path)
-        .map_err(map_download_err)?;
+    state.download_manager.update_settings(mode_enum, default_path).map_err(map_download_err)?;
     Ok(ipc(Ok(())))
 }
 
 #[tauri::command]
-pub fn download_clear_history(
-    state: State<'_, AppState>,
-) -> Result<IpcResult<()>, CommandError> {
+pub fn download_clear_history(state: State<'_, AppState>) -> Result<IpcResult<()>, CommandError> {
     state.download_manager.clear_history().map_err(map_download_err)?;
     Ok(ipc(Ok(())))
 }
@@ -59,10 +54,7 @@ pub fn download_delete_file_and_record(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    state
-        .download_manager
-        .delete_file_and_record(&id)
-        .map_err(map_download_err)?;
+    state.download_manager.delete_file_and_record(&id).map_err(map_download_err)?;
     Ok(ipc(Ok(())))
 }
 
@@ -71,10 +63,7 @@ pub fn download_remove_record(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    state
-        .download_manager
-        .remove_record(&id)
-        .map_err(map_download_err)?;
+    state.download_manager.remove_record(&id).map_err(map_download_err)?;
     Ok(ipc(Ok(())))
 }
 
@@ -83,9 +72,7 @@ pub fn download_resolve_conflict_path(
     state: State<'_, AppState>,
     suggested_path: String,
 ) -> Result<IpcResult<String>, CommandError> {
-    Ok(ipc(Ok(
-        state.download_manager.resolve_conflict_path(&suggested_path)
-    )))
+    Ok(ipc(Ok(state.download_manager.resolve_conflict_path(&suggested_path))))
 }
 
 #[tauri::command]
@@ -93,20 +80,13 @@ pub fn download_check_disk_space(
     state: State<'_, AppState>,
     path: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    state
-        .download_manager
-        .check_disk_space(&path)
-        .map_err(map_download_err)?;
+    state.download_manager.check_disk_space(&path).map_err(map_download_err)?;
     Ok(ipc(Ok(())))
 }
 
 #[tauri::command]
 pub fn download_get_default_path() -> Result<IpcResult<String>, CommandError> {
-    Ok(ipc(Ok(
-        get_default_download_path()
-            .to_string_lossy()
-            .to_string(),
-    )))
+    Ok(ipc(Ok(get_default_download_path().to_string_lossy().to_string())))
 }
 
 #[cfg(test)]

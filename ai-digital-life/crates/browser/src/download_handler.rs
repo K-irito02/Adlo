@@ -37,7 +37,7 @@ pub fn setup_download_handler(
             Ok(record) => {
                 let _ = handle.emit("browser-download-started", &record);
                 true
-            }
+            },
             Err(reason) => {
                 let _ = handle.emit(
                     "browser-download-error",
@@ -49,7 +49,7 @@ pub fn setup_download_handler(
                     }),
                 );
                 false
-            }
+            },
         }
     }
 }
@@ -72,9 +72,8 @@ pub fn handle_download_finished(
         None => return,
     };
 
-    let actual_path = path
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|| record.file_path.clone());
+    let actual_path =
+        path.map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| record.file_path.clone());
 
     if success {
         let _ = download_manager.complete_download(&record.id, true, None);
@@ -124,8 +123,7 @@ mod tests {
         let manager = create_download_manager(db);
         let settings = manager.get_settings();
         assert_eq!(settings.mode, DownloadMode::Auto);
-        let _ = std::fs::remove_file(
-            std::env::temp_dir().join("adl-download-handler-manager-arc.db"),
-        );
+        let _ =
+            std::fs::remove_file(std::env::temp_dir().join("adl-download-handler-manager-arc.db"));
     }
 }

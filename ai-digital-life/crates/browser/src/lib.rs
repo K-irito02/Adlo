@@ -1,13 +1,13 @@
 #![allow(unreachable_pub)]
 
-pub mod download_manager;
-pub mod download_types;
-pub mod download_handler;
 mod browser_events;
 mod browser_meta;
 mod browser_navigation;
 mod browser_pool;
 mod browser_webview;
+pub mod download_handler;
+pub mod download_manager;
+pub mod download_types;
 mod meta_cache_bridge;
 mod meta_merge;
 mod page_meta_service;
