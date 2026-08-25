@@ -174,3 +174,9 @@ export {
   type FileOpNotice,
   createFileOpNoticeSlice,
 } from './slices/fileOpNoticeSlice';
+
+// 浏览器下载管理切片
+export {
+  type BrowserDownloadsSlice,
+  createBrowserDownloadsSlice,
+} from './slices/browserDownloadsSlice';

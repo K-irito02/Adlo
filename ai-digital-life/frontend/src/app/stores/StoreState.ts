@@ -77,6 +77,7 @@ import type { ErrorToastSlice } from './slices/errorToastSlice';
 import type { NotificationSlice } from './slices/notificationSlice';
 import type { FileOpNoticeSlice } from './slices/fileOpNoticeSlice';
 import type { PartStreamSlice } from './slices/partStreamSlice';
+import type { BrowserDownloadsSlice } from './slices/browserDownloadsSlice';
 import type { ReferenceConfig } from '@shared/ipc/reference';
 import type { PermissionRule } from '@shared/ipc/permission';
 import type { SnapshotRecord, RevertResult } from '@shared/ipc/snapshot';
@@ -157,6 +158,7 @@ type AllSlices = [
   NotificationSlice,
   FileOpNoticeSlice,
   PartStreamSlice,
+  BrowserDownloadsSlice,
 ];
 
 interface WorkspaceActions {

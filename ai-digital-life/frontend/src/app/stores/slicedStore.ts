@@ -45,6 +45,7 @@ import {
   createNotificationSlice,
   createFileOpNoticeSlice,
   createPartStreamSlice,
+  createBrowserDownloadsSlice,
 } from './slices';
 import { createGitVisSlice } from './slices/gitVisSlice';
 import { hydrateGitHubRepoSlice } from './slices/githubRepoSliceHelpers';
@@ -131,6 +132,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createFileOpNoticeSlice(set, get), // 文件操作提示卡片（右下角警告）
   ...createGitVisSlice(set, get), // Git 可视化数据缓存
   ...createPartStreamSlice(set, get), // Part 渲染状态（S2：messages/parts/status）
+  ...createBrowserDownloadsSlice(set, get), // 浏览器下载管理
 
   // ════════════════════════════════════════════════════════
   // 根级状态
