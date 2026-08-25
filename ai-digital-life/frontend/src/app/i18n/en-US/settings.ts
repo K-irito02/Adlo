@@ -18,6 +18,7 @@ export const settingsEn = {
   settingsReferences: 'References',
   settingsLsp: 'Language Server',
   settingsBrowser: 'Browser',
+  settingsDownloads: 'Downloads',
 
   // Settings section descriptions
   settingsModelsDesc: 'Configure model providers, credentials and enabled models',

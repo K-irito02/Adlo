@@ -18,6 +18,7 @@ export const settingsZh = {
   settingsReferences: '引用',
   settingsLsp: '语言服务',
   settingsBrowser: '浏览器',
+  settingsDownloads: '下载',
 
   // 设置分区描述
   settingsModelsDesc: '配置模型供应商、凭证与启用模型',
