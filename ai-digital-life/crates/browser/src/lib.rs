@@ -1,5 +1,7 @@
 #![allow(unreachable_pub)]
 
+pub mod download_manager;
+pub mod download_types;
 mod browser_events;
 mod browser_meta;
 mod browser_navigation;

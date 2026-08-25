@@ -133,6 +133,29 @@ pub const MIGRATIONS: &[Migration] = &[
                 ON event_log(session_id, seq);
         "#,
     },
+    Migration {
+        version: 7,
+        description: "Add download_history table",
+        sql: r#"
+            CREATE TABLE IF NOT EXISTS download_history (
+                id TEXT PRIMARY KEY,
+                url TEXT NOT NULL,
+                file_name TEXT NOT NULL,
+                file_path TEXT NOT NULL,
+                total_bytes INTEGER,
+                bytes_received INTEGER NOT NULL DEFAULT 0,
+                mime_type TEXT,
+                status TEXT NOT NULL DEFAULT 'in_progress',
+                interrupt_reason TEXT,
+                created_at INTEGER NOT NULL,
+                completed_at INTEGER,
+                source_tab_id TEXT
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_download_history_created ON download_history(created_at);
+            CREATE INDEX IF NOT EXISTS idx_download_history_status ON download_history(status);
+        "#,
+    },
 ];
 
 pub fn current_version(db: &Database) -> Result<i64, AppError> {
@@ -208,7 +231,7 @@ mod tests {
         let result = run_pending(&db);
         assert!(result.is_ok());
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 6);
+        assert_eq!(version, 7);
         let _ = std::fs::remove_file(&path);
     }
 
@@ -222,13 +245,13 @@ mod tests {
         run_pending(&db).unwrap();
         run_pending(&db).unwrap();
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 6);
+        assert_eq!(version, 7);
         let _ = std::fs::remove_file(&path);
     }
 
     #[test]
     fn migration_records_have_correct_structure() {
-        assert_eq!(MIGRATIONS.len(), 6);
+        assert_eq!(MIGRATIONS.len(), 7);
         let m1 = &MIGRATIONS[0];
         assert_eq!(m1.version, 1);
         assert_eq!(m1.description, "Initial schema");
@@ -257,42 +280,46 @@ mod tests {
         assert!(m6.sql.contains("CREATE TABLE IF NOT EXISTS message"));
         assert!(m6.sql.contains("CREATE TABLE IF NOT EXISTS part"));
         assert!(m6.sql.contains("CREATE TABLE IF NOT EXISTS event_log"));
+        let m7 = &MIGRATIONS[6];
+        assert_eq!(m7.version, 7);
+        assert_eq!(m7.description, "Add download_history table");
+        assert!(m7.sql.contains("CREATE TABLE IF NOT EXISTS download_history"));
     }
 
     #[test]
-    fn v6_creates_part_tables() {
+    fn v7_creates_download_history_table() {
         let path =
-            std::env::temp_dir().join(format!("adl-migration-v6-{}.db", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("adl-migration-v7-{}.db", uuid::Uuid::new_v4()));
         let _ = std::fs::remove_file(&path);
         let db = adl_storage::Database::open(&path).unwrap();
         db.init_schema().unwrap();
         run_pending(&db).unwrap();
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 6);
+        assert_eq!(version, 7);
 
         let conn = db.conn().unwrap();
         let count: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('message','part','event_log')",
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='download_history'",
                 [],
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(count, 3, "v6 should create message, part, event_log tables");
+        assert_eq!(count, 1, "v7 should create download_history table");
         let _ = std::fs::remove_file(&path);
     }
 
     #[test]
-    fn run_pending_v6_is_idempotent() {
+    fn run_pending_v7_is_idempotent() {
         let path =
-            std::env::temp_dir().join(format!("adl-migration-v6-idem-{}.db", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("adl-migration-v7-idem-{}.db", uuid::Uuid::new_v4()));
         let _ = std::fs::remove_file(&path);
         let db = adl_storage::Database::open(&path).unwrap();
         db.init_schema().unwrap();
         run_pending(&db).unwrap();
         run_pending(&db).unwrap();
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 6);
+        assert_eq!(version, 7);
         let _ = std::fs::remove_file(&path);
     }
 }
