@@ -147,6 +147,15 @@ fn main() {
             commands::reserved::http_api_get_config,
             commands::reserved::codemode_execute,
             commands::reserved::codemode_get_config,
+            commands::download_commands::download_list,
+            commands::download_commands::download_get_settings,
+            commands::download_commands::download_update_settings,
+            commands::download_commands::download_clear_history,
+            commands::download_commands::download_delete_file_and_record,
+            commands::download_commands::download_remove_record,
+            commands::download_commands::download_resolve_conflict_path,
+            commands::download_commands::download_check_disk_space,
+            commands::download_commands::download_get_default_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
