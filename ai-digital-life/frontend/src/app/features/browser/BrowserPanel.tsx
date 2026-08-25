@@ -26,6 +26,7 @@ import { useBrowserToast } from './useBrowserToast';
 import { useBrowserPanelHandlers } from './useBrowserPanelHandlers';
 import { useBrowserPanelMetaWiring } from './useBrowserPanelMetaWiring';
 import { useBrowserNewTabSubscription } from './useBrowserNewTabSubscription';
+import { useBrowserDownloads } from './useBrowserDownloads';
 import { BrowserPanelActionsCtx } from './BrowserPanelActionsContext';
 import { BrowserPanelStateCtx } from './BrowserPanelStateContext';
 import { useBrowserPanelActions } from './useBrowserPanelActions';
@@ -329,6 +330,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
   useBrowserNewTabSubscription((url) => {
     browserOpenTab(url, undefined, undefined);
   });
+
+  useBrowserDownloads();
 
   const { submitAddress } = useBrowserPanelAddressSubmit({
     address,
