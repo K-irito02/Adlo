@@ -16,6 +16,7 @@ import { CopyButton } from '@components/CopyButton';
 import { BrowserNavModeSwitch } from './BrowserNavModeSwitch';
 import { BrowserMenuDropdown } from './BrowserMenuDropdown';
 import { SearchEnginePopover } from './SearchEnginePopover';
+import { BrowserDownloadButton } from './BrowserDownloadButton';
 import { useBrowserPanelState } from './BrowserPanelStateContext';
 import { useBrowserPanelActions } from './BrowserPanelActionsContext';
 import { useAppStore } from '@stores/slicedStore';
@@ -230,6 +231,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
             <IconSearchEngine size={14} decorative />
           </button>
         </TooltipSimple>
+        <BrowserDownloadButton />
         <BrowserMenuDropdown
           menuOpen={browserMenuOpen}
           menuRef={browserMenuRef}
