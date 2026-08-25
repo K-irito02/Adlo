@@ -8,7 +8,7 @@ import {
   IconPanelLeft,
   IconPanelLeftClose,
   IconRefreshCw,
-  IconTrash,
+  IconDelete,
   IconUnfoldVertical,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
@@ -273,7 +273,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
                   onClick={terminalActions.handleCloseAllTabs}
                   aria-label={t.deleteAll}
                 >
-                  <IconTrash size={14} decorative />
+                  <IconDelete size={14} decorative />
                 </button>
               </TooltipSimple>
             </div>

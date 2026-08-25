@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconFileCode, IconTerminal, IconTrash } from '@icons';
+import { IconFileCode, IconTerminal, IconDelete } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import type { CopyDict } from '@i18n';
@@ -106,7 +106,7 @@ export const TerminalNavigator = React.memo(function TerminalNavigator({
               onClick={onCloseAllTabs}
               aria-label={t.closeAll}
             >
-              <IconTrash size={14} decorative />
+              <IconDelete size={14} decorative />
             </button>
           </TooltipSimple>
         )}

@@ -5,7 +5,7 @@ import {
   IconArrowLeft,
   IconCheck,
   IconPencil,
-  IconTrash,
+  IconDelete,
   IconGlobeSearch,
   IconGlobeSettings,
   IconGlobePlus,
@@ -698,7 +698,7 @@ function SearchEngineManageView({
                     title={t.browserSearchEngineDelete}
                     onClick={() => onDelete(engine.id)}
                   >
-                    <IconTrash size={14} decorative />
+                    <IconDelete size={14} decorative />
                   </button>
                 </div>
               </div>

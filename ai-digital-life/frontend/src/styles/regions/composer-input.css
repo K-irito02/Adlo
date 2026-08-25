@@ -208,7 +208,7 @@
 }
 
 .adl-split-btn__input--error {
-  border-color: var(--danger, #ef4444);
+  border-color: var(--danger, #e9967a);
 }
 
 .adl-split-btn__error {

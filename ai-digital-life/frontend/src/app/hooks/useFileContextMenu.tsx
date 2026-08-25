@@ -7,7 +7,7 @@ import {
   IconFiles,
   IconFolderOpen,
   IconPencil,
-  IconTrash,
+  IconDelete,
   IconUpload,
 } from '../icons';
 import { joinPathSegments } from '../utils/workspacePaths';
@@ -207,7 +207,7 @@ function useFileContextMenu<T extends FileTreeRenderableNode>({
         {
           id: 'delete',
           label: t.fileContextDelete as string,
-          icon: <IconTrash size={14} />,
+          icon: <IconDelete size={14} />,
           danger: true,
           disabled,
           action: (targetNode) => {

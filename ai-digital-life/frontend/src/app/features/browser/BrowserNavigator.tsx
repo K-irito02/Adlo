@@ -1,7 +1,7 @@
 import {
   IconFolderPlus,
   IconFolder,
-  IconTrash,
+  IconDelete,
   IconSearch,
   IconList,
   IconLayoutList,
@@ -231,7 +231,7 @@ export function BrowserNavigator() {
               aria-label={t.browserDeleteAllBookmarks}
               title={t.browserDeleteAllBookmarks}
             >
-              <IconTrash size={14} decorative />
+              <IconDelete size={14} decorative />
             </button>
           </span>
         </div>

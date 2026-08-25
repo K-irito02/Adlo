@@ -6,7 +6,7 @@ import type { TerminalTabState } from '@stores/slices/terminalSlice';
 import type { TerminalProfile } from '@stores/types';
 import {
   IconRefreshCw,
-  IconTrash,
+  IconDelete,
   IconPlus,
   IconMoreVertical,
   IconEyeOff,
@@ -148,7 +148,7 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
                 onClick={handleCloseAllTabsClick}
                 aria-label={t.deleteAll}
               >
-                <IconTrash size={12} decorative />
+                <IconDelete size={12} decorative />
               </button>
             </TooltipSimple>
             <TooltipSimple content={t.terminalCreate} placement="top">

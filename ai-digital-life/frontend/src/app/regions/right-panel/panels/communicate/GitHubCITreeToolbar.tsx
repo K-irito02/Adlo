@@ -4,7 +4,7 @@ import {
   IconFoldVertical,
   IconUnfoldVertical,
   IconRefreshCw,
-  IconTrash,
+  IconDelete,
   IconFiles,
   IconList,
   IconFolderPlus,
@@ -212,7 +212,7 @@ export function GitHubCITreeToolbar({
             }}
             aria-label={t.ciDeleteAllNewDirs}
           >
-            <IconTrash size={14} decorative />
+            <IconDelete size={14} decorative />
           </button>
           {deleteMenuOpen && deleteButtonRef.current
             ? createPortal(

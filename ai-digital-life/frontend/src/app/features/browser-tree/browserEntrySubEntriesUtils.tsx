@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconClose, IconPlus, IconTrash, IconMoreVertical, IconRefreshCw } from '@icons';
+import { IconClose, IconPlus, IconDelete, IconMoreVertical, IconRefreshCw } from '@icons';
 import type { BrowserTreeNode, BrowserCategoryType } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
 import type { CopyDict } from '@i18n';
@@ -29,7 +29,7 @@ export function getChildNodeHoverButtons(
         {
           id: 'delete-self-tabs',
           label: t.browserContextDeleteSelfTabs,
-          icon: <IconTrash size={12} decorative />,
+          icon: <IconDelete size={12} decorative />,
         },
         {
           id: 'more',

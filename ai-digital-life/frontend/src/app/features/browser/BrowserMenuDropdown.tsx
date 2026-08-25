@@ -2,7 +2,7 @@ import React from 'react';
 import {
   IconFolderPlus,
   IconPlus,
-  IconTrash,
+  IconDelete,
   IconRefreshCw,
   IconCpu,
   IconSearch,
@@ -24,9 +24,9 @@ interface BrowserMenuDropdownProps {
 const menuItemIcons: Record<string, React.ReactNode> = {
   'new-tab-folder': <IconFolderPlus size={14} decorative />,
   'new-tab': <IconPlus size={14} decorative />,
-  'clear-history': <IconTrash size={14} decorative />,
-  'clear-cookies': <IconTrash size={14} decorative />,
-  'clear-cache': <IconTrash size={14} decorative />,
+  'clear-history': <IconDelete size={14} decorative />,
+  'clear-cookies': <IconDelete size={14} decorative />,
+  'clear-cache': <IconDelete size={14} decorative />,
   devtools: <IconCpu size={14} decorative />,
   'zoom-in': <IconSearch size={14} decorative />,
   'zoom-out': <IconSearch size={14} decorative />,

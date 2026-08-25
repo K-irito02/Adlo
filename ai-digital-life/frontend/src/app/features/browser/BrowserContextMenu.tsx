@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { IconPin, IconPinOff, IconEdit, IconTrash, IconGlobe, IconCopy, IconCut } from '@icons';
+import { IconPin, IconPinOff, IconEdit, IconDelete, IconGlobe, IconCopy, IconCut } from '@icons';
 import type { ContextMenuState } from './useBrowserContextMenu';
 import { useTCopy } from '@i18n/useTCopy';
 
@@ -95,7 +95,7 @@ export const BrowserContextMenu = React.memo(function BrowserContextMenu({
       <div className="adl-sidebar-menu__sep" role="separator" />
       <button type="button" className="adl-sidebar-menu__item is-danger" onClick={onDelete}>
         <span className="adl-sidebar-menu__icon">
-          <IconTrash size={16} decorative />
+          <IconDelete size={16} decorative />
         </span>
         <span>{t.browserContextDelete}</span>
       </button>

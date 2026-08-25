@@ -8,7 +8,7 @@ import {
   IconMinus,
   IconPencil,
   IconPlus,
-  IconTrash,
+  IconDelete,
   IconUpload,
 } from '@app/icons';
 import { useAppStore } from '@stores/slicedStore';
@@ -113,7 +113,7 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
           items.push({
             id: 'discard',
             label: t.changesDiscard as string,
-            icon: <IconTrash size={14} />,
+            icon: <IconDelete size={14} />,
             danger: true,
             action: async (targetNode) => {
               const s = useAppStore.getState();
@@ -246,7 +246,7 @@ export function useFileContextMenuItems(params: UseFileContextMenuItemsParams) {
       items.push({
         id: 'delete',
         label: t.fileContextDelete as string,
-        icon: <IconTrash size={14} />,
+        icon: <IconDelete size={14} />,
         danger: true,
         disabled: deleted,
         action: (targetNode) => {

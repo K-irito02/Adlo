@@ -219,7 +219,7 @@ function readColors(theme: 'light' | 'dark'): ThemeColors {
     (theme === 'dark' ? 'rgba(74,222,128,0.12)' : 'rgba(34,197,94,0.12)');
   const diffRemoveBg =
     readThemeColor(theme, '--editor-diff-remove-bg') ??
-    (theme === 'dark' ? 'rgba(248,113,113,0.12)' : 'rgba(239,68,68,0.12)');
+    (theme === 'dark' ? 'rgba(233,150,122,0.12)' : 'rgba(233,150,122,0.12)');
 
   return {
     bg,
@@ -409,7 +409,7 @@ function buildHighlightStyle(c: ThemeColors): Extension {
 
 const diffBaseTheme: Extension = EditorView.baseTheme({
   '.cm-deletedLine .cm-gutterElement': {
-    color: 'var(--danger, #f87171)',
+    color: 'var(--danger, #e9967a)',
     backgroundColor: 'var(--editor-diff-remove-bg)',
     opacity: '0.85',
   },

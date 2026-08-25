@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { IconPin, IconPinOff, IconEdit, IconTrash } from '@icons';
+import { IconPin, IconPinOff, IconEdit, IconDelete } from '@icons';
 import type { ContextMenuState } from './useTerminalPanel';
 import { useTCopy } from '@i18n/useTCopy';
 
@@ -54,7 +54,7 @@ export const TerminalContextMenu = React.memo(function TerminalContextMenu({
       <div className="adl-sidebar-menu__sep" role="separator" />
       <button type="button" className="adl-sidebar-menu__item is-danger" onClick={onDelete}>
         <span className="adl-sidebar-menu__icon">
-          <IconTrash size={16} decorative />
+          <IconDelete size={16} decorative />
         </span>
         <span>{t.delete}</span>
       </button>

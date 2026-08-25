@@ -1,4 +1,4 @@
-import { IconPlus, IconTrash } from '@icons';
+import { IconPlus, IconDelete } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 
 interface BrowserNavUtilityButtonsProps {
@@ -57,7 +57,7 @@ export function BrowserNavUtilityButtons({
           aria-label={clearOpenTabsLabel}
           title={clearOpenTabsLabel}
         >
-          <IconTrash size={14} decorative />
+          <IconDelete size={14} decorative />
         </button>
       )}
     </>

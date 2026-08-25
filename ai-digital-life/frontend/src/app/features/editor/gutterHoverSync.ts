@@ -101,7 +101,7 @@ export function gutterHoverSync(): Extension {
         const isRemoveSide = isDeleted || !!deletedChunk;
 
         bgColor = isRemoveSide
-          ? cssVar('--editor-diff-remove-hover', 'rgba(239, 68, 68, 0.35)')
+          ? cssVar('--editor-diff-remove-hover', 'rgba(233, 150, 122, 0.35)')
           : cssVar('--editor-diff-insert-hover', 'rgba(34, 197, 94, 0.35)');
       } else {
         bgColor = cssVar('--editor-hover-bg', 'rgba(255, 255, 255, 0.08)');

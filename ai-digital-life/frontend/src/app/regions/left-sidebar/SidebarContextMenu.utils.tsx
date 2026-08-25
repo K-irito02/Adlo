@@ -11,7 +11,7 @@ import {
   IconPencil,
   IconPin,
   IconPinOff,
-  IconTrash,
+  IconDelete,
 } from '../../icons';
 import type { SessionVisualStatus, SidebarSessionItem } from '../../utils/sidebarViewModel';
 
@@ -120,7 +120,7 @@ export function buildWorkspaceMenuItems(
     {
       id: 'remove',
       label: t.sessionMenuRemove,
-      icon: <IconTrash size={14} decorative />,
+      icon: <IconDelete size={14} decorative />,
       action: () => callbacks.onRemoveWorkspace(workspace.id),
     },
     {
@@ -209,7 +209,7 @@ export function buildSessionMenuItems(
     {
       id: 'delete',
       label: t.sessionMenuDelete,
-      icon: <IconTrash size={14} decorative />,
+      icon: <IconDelete size={14} decorative />,
       danger: true,
       action: () => callbacks.onDelete(),
     },
