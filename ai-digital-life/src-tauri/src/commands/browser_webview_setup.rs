@@ -59,7 +59,7 @@ fn new_window_target(url: &url::Url) -> Option<String> {
 fn new_window_handler(
     app: &tauri::AppHandle,
     url: &url::Url,
-    download_manager: &DownloadManager,
+    _download_manager: &DownloadManager,
 ) -> tauri::webview::NewWindowResponse<tauri::Wry> {
     tracing::info!(
         url = %url,
@@ -69,105 +69,16 @@ fn new_window_handler(
         "[ADL-DL] new_window_handler: ENTER"
     );
 
+    // Download URLs are NOT handled here. When window.open() is called for a
+    // download URL, WebView2 fires BOTH NewWindowRequested AND DownloadStarting.
+    // If we handled downloads here AND in on_download, we'd get duplicate downloads.
+    // All download handling is delegated to the on_download callback which has
+    // proper path resolution, pause state, progress tracking, and duplicate detection.
     if is_download_url(url) {
         tracing::info!(
             url = %url,
-            "[ADL-DL] new_window_handler: download URL detected, routing to download mechanism"
+            "[ADL-DL] new_window_handler: download URL detected, delegating to on_download"
         );
-
-        let url_str = url.to_string();
-        let default_path = download_manager.get_settings().default_path;
-        let target_dir = if default_path.is_empty() {
-            adl_browser::download_manager::get_default_download_path()
-        } else {
-            std::path::PathBuf::from(&default_path)
-        };
-        let _ = std::fs::create_dir_all(&target_dir);
-
-        let file_name = url.path()
-            .rsplit('/')
-            .next()
-            .unwrap_or("download")
-            .to_string();
-        let mut final_path = target_dir.join(&file_name);
-        let resolved = download_manager.resolve_conflict_path(
-            final_path.to_string_lossy().as_ref(),
-        );
-        final_path = std::path::PathBuf::from(resolved);
-
-        match download_manager.create_download(&url_str, final_path.to_string_lossy().as_ref()) {
-            Ok(record) => {
-                tracing::info!(
-                    record_id = &record.id,
-                    file_path = %final_path.display(),
-                    "[ADL-DL] new_window_handler: download record created"
-                );
-                let _ = app.emit("browser-download-started", &record);
-
-                let app_clone = app.clone();
-                let dm_clone = download_manager.clone();
-                let url_clone = url_str.clone();
-                let path_clone = final_path.clone();
-                tracing::info!(
-                    url = %url_clone,
-                    target_dir = %target_dir.display(),
-                    file_name = %file_name,
-                    "[ADL-DL] new_window_handler: spawning download thread"
-                );
-                std::thread::spawn(move || {
-                    tracing::info!(url = %url_clone, "[ADL-DL] download thread: starting reqwest::get");
-                    let rt = tokio::runtime::Runtime::new().expect("failed to create tokio runtime");
-                    rt.block_on(async {
-                        match reqwest::get(&url_clone).await {
-                            Ok(resp) => {
-                                tracing::info!(
-                                    status = %resp.status(),
-                                    content_length = ?resp.content_length(),
-                                    "[ADL-DL] download thread: response received"
-                                );
-                                let bytes = resp.bytes().await.unwrap_or_default();
-                                tracing::info!(
-                                    bytes_len = bytes.len(),
-                                    "[ADL-DL] download thread: bytes fetched, writing to disk"
-                                );
-                                if let Err(e) = std::fs::write(&path_clone, &bytes) {
-                                    tracing::warn!(error = %e, "[ADL-DL] new_window_handler: failed to write file");
-                                    let _ = dm_clone.complete_download(&record.id, false, Some("WriteFailed"));
-                                    let _ = app_clone.emit("browser-download-finished", &serde_json::json!({
-                                        "id": record.id,
-                                        "url": url_clone,
-                                        "success": false,
-                                    }));
-                                    return;
-                                }
-                                tracing::info!(path = %path_clone.display(), "[ADL-DL] download thread: file written successfully");
-                                let _ = dm_clone.complete_download(&record.id, true, None);
-                                tracing::info!(record_id = &record.id, "[ADL-DL] new_window_handler: download completed");
-                                let _ = app_clone.emit("browser-download-finished", &serde_json::json!({
-                                    "id": record.id,
-                                    "url": url_clone,
-                                    "filePath": path_clone.to_string_lossy().to_string(),
-                                    "success": true,
-                                }));
-                            }
-                            Err(e) => {
-                                tracing::warn!(error = %e, url = %url_clone, "[ADL-DL] download thread: reqwest::get failed");
-                                let _ = dm_clone.complete_download(&record.id, false, Some("DownloadFailed"));
-                                let _ = app_clone.emit("browser-download-finished", &serde_json::json!({
-                                    "id": record.id,
-                                    "url": url_clone,
-                                    "success": false,
-                                }));
-                            }
-                        }
-                    });
-                });
-            }
-            Err(e) => {
-                tracing::warn!(error = %e, "[ADL-DL] new_window_handler: failed to create download record");
-            }
-        }
-
         return tauri::webview::NewWindowResponse::Deny;
     }
 
