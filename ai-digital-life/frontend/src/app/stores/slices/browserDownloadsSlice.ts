@@ -5,8 +5,10 @@ import type {
   DownloadRecord,
   DownloadSettings,
   DownloadProgress,
+  DownloadProgressPayload,
   DownloadErrorPayload,
   DownloadFinishedPayload,
+  DownloadIdPayload,
 } from '@shared/ipc/download';
 import type { IpcResult } from '@ai-digital-life/kernel';
 
@@ -23,6 +25,9 @@ export interface BrowserDownloadsSlice {
   clearDownloadHistory: () => Promise<void>;
   deleteDownloadFile: (id: string) => Promise<void>;
   removeDownloadRecord: (id: string) => Promise<void>;
+  pauseDownload: (id: string) => Promise<void>;
+  resumeDownload: (id: string) => Promise<void>;
+  cancelDownload: (id: string) => Promise<void>;
   subscribeDownloadEvents: () => () => void;
 }
 
@@ -92,6 +97,45 @@ export const createBrowserDownloadsSlice = (
       set((state) => ({
         downloads: state.downloads.filter((d) => d.id !== id),
       }));
+    }
+  },
+
+  pauseDownload: async (id: string) => {
+    const result = await invoke<IpcResult<void>>('download_pause', { id });
+    if (result.ok) {
+      set((state) => ({
+        downloads: state.downloads.map((d) =>
+          d.id === id ? { ...d, status: 'paused' as const, interrupt_reason: 'UserPaused' } : d,
+        ),
+      }));
+    }
+  },
+
+  resumeDownload: async (id: string) => {
+    const result = await invoke<IpcResult<void>>('download_resume', { id });
+    if (result.ok) {
+      set((state) => ({
+        downloads: state.downloads.map((d) =>
+          d.id === id ? { ...d, status: 'in_progress' as const, interrupt_reason: null } : d,
+        ),
+      }));
+    }
+  },
+
+  cancelDownload: async (id: string) => {
+    const result = await invoke<IpcResult<void>>('download_cancel', { id });
+    if (result.ok) {
+      set((state) => {
+        const { [id]: _removed, ...rest } = state.activeDownloads;
+        return {
+          activeDownloads: rest,
+          downloads: state.downloads.map((d) =>
+            d.id === id
+              ? { ...d, status: 'canceled' as const, interrupt_reason: 'UserCanceled' }
+              : d,
+          ),
+        };
+      });
     }
   },
 
@@ -173,6 +217,103 @@ export const createBrowserDownloadsSlice = (
                   status: 'failed' as const,
                   interrupt_reason: payload.reason,
                 }
+              : d,
+          ),
+        };
+      });
+    }).then((unsub) => {
+      if (active) {
+        unsubs.push(unsub);
+      } else {
+        void Promise.resolve(unsub()).catch(() => {});
+      }
+    });
+
+    void listen<DownloadProgressPayload>('browser-download-progress', (event) => {
+      if (!active) {
+        return;
+      }
+      const payload = event.payload;
+      set((state) => ({
+        activeDownloads: {
+          ...state.activeDownloads,
+          [payload.id]: {
+            id: payload.id,
+            bytes_received: payload.bytes_received,
+            speed: payload.speed,
+            estimated_end_time: null,
+          },
+        },
+        downloads: state.downloads.map((d) =>
+          d.id === payload.id
+            ? {
+                ...d,
+                bytes_received: payload.bytes_received,
+                total_bytes: payload.total_bytes,
+              }
+            : d,
+        ),
+      }));
+    }).then((unsub) => {
+      if (active) {
+        unsubs.push(unsub);
+      } else {
+        void Promise.resolve(unsub()).catch(() => {});
+      }
+    });
+
+    void listen<DownloadIdPayload>('browser-download-paused', (event) => {
+      if (!active) {
+        return;
+      }
+      const payload = event.payload;
+      set((state) => ({
+        downloads: state.downloads.map((d) =>
+          d.id === payload.id
+            ? { ...d, status: 'paused' as const, interrupt_reason: 'UserPaused' }
+            : d,
+        ),
+      }));
+    }).then((unsub) => {
+      if (active) {
+        unsubs.push(unsub);
+      } else {
+        void Promise.resolve(unsub()).catch(() => {});
+      }
+    });
+
+    void listen<DownloadIdPayload>('browser-download-resumed', (event) => {
+      if (!active) {
+        return;
+      }
+      const payload = event.payload;
+      set((state) => ({
+        downloads: state.downloads.map((d) =>
+          d.id === payload.id
+            ? { ...d, status: 'in_progress' as const, interrupt_reason: null }
+            : d,
+        ),
+      }));
+    }).then((unsub) => {
+      if (active) {
+        unsubs.push(unsub);
+      } else {
+        void Promise.resolve(unsub()).catch(() => {});
+      }
+    });
+
+    void listen<DownloadIdPayload>('browser-download-canceled', (event) => {
+      if (!active) {
+        return;
+      }
+      const payload = event.payload;
+      set((state) => {
+        const { [payload.id]: _removed, ...rest } = state.activeDownloads;
+        return {
+          activeDownloads: rest,
+          downloads: state.downloads.map((d) =>
+            d.id === payload.id
+              ? { ...d, status: 'canceled' as const, interrupt_reason: 'UserCanceled' }
               : d,
           ),
         };

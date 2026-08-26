@@ -5,6 +5,8 @@ import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { computePopoverPosition } from './searchEnginePopoverPosition';
 import { BrowserDownloadItem } from './BrowserDownloadItem';
+import { BrowserDownloadContextMenu } from './BrowserDownloadContextMenu';
+import { useDownloadItemActions } from './useDownloadItemActions';
 import type { DownloadRecord } from '@shared/ipc/download';
 import './BrowserDownloadMenu.css';
 
@@ -24,6 +26,10 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
   const [searchQuery, setSearchQuery] = useState('');
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const [popoverVisible, setPopoverVisible] = useState(false);
+  const [contextMenu, setContextMenu] = useState<{
+    record: DownloadRecord;
+    position: { x: number; y: number };
+  } | null>(null);
 
   const downloads = useAppStore((s) => s.downloads);
   const downloadSettings = useAppStore((s) => s.downloadSettings);
@@ -31,6 +37,14 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
   const clearDownloadHistory = useAppStore((s) => s.clearDownloadHistory);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
   const setActiveRightTool = useAppStore((s) => s.setActiveRightTool);
+
+  const {
+    handleOpenFile,
+    handleShowInFolder,
+    handleDeleteFile,
+    handleRemoveRecord,
+    handleCopyLink,
+  } = useDownloadItemActions();
 
   const autoSave = downloadSettings.mode === 'auto';
 
@@ -82,6 +96,13 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
         (d) => d.status === 'failed' || d.status === 'paused' || d.status === 'canceled',
       ),
     [filteredDownloads],
+  );
+
+  const handleContextMenu = useCallback(
+    (record: DownloadRecord, position: { x: number; y: number }) => {
+      setContextMenu({ record, position });
+    },
+    [],
   );
 
   const hasAnyDownloads = downloads.length > 0;
@@ -191,13 +212,25 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
       ) : (
         <div className="adl-download-menu__list">
           {activeDownloads.length > 0 && (
-            <DownloadGroup label={t.browserDownloadActive} downloads={activeDownloads} />
+            <DownloadGroup
+              label={t.browserDownloadActive}
+              downloads={activeDownloads}
+              onContextMenu={handleContextMenu}
+            />
           )}
           {completedDownloads.length > 0 && (
-            <DownloadGroup label={t.browserDownloadCompleted} downloads={completedDownloads} />
+            <DownloadGroup
+              label={t.browserDownloadCompleted}
+              downloads={completedDownloads}
+              onContextMenu={handleContextMenu}
+            />
           )}
           {failedDownloads.length > 0 && (
-            <DownloadGroup label={t.browserDownloadFailed} downloads={failedDownloads} />
+            <DownloadGroup
+              label={t.browserDownloadFailed}
+              downloads={failedDownloads}
+              onContextMenu={handleContextMenu}
+            />
           )}
           {filteredDownloads.length === 0 && searchQuery && (
             <div className="adl-download-menu__no-results">{t.browserNoSearchResults}</div>
@@ -227,17 +260,37 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
           {t.browserDownloadOpenFolder}
         </button>
       </div>
+      {contextMenu && (
+        <BrowserDownloadContextMenu
+          record={contextMenu.record}
+          position={contextMenu.position}
+          onClose={() => setContextMenu(null)}
+          onOpenFile={handleOpenFile}
+          onShowInFolder={handleShowInFolder}
+          onDeleteFile={handleDeleteFile}
+          onRemoveRecord={handleRemoveRecord}
+          onCopyLink={handleCopyLink}
+        />
+      )}
     </div>,
     document.body,
   );
 });
 
-function DownloadGroup({ label, downloads }: { label: string; downloads: DownloadRecord[] }) {
+function DownloadGroup({
+  label,
+  downloads,
+  onContextMenu,
+}: {
+  label: string;
+  downloads: DownloadRecord[];
+  onContextMenu: (record: DownloadRecord, position: { x: number; y: number }) => void;
+}) {
   return (
     <div className="adl-download-menu__group">
       <div className="adl-download-menu__group-label">{label}</div>
       {downloads.map((record) => (
-        <BrowserDownloadItem key={record.id} record={record} />
+        <BrowserDownloadItem key={record.id} record={record} onContextMenu={onContextMenu} />
       ))}
     </div>
   );

@@ -29,6 +29,13 @@ export interface DownloadProgress {
   estimated_end_time: number | null;
 }
 
+export interface DownloadProgressPayload {
+  id: string;
+  bytes_received: number;
+  total_bytes: number | null;
+  speed: number;
+}
+
 export interface DownloadErrorPayload {
   id: string;
   url: string;
@@ -41,4 +48,8 @@ export interface DownloadFinishedPayload {
   url: string;
   filePath: string;
   success: boolean;
+}
+
+export interface DownloadIdPayload {
+  id: string;
 }

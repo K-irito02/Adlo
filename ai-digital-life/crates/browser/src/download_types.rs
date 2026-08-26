@@ -98,6 +98,29 @@ pub struct DownloadProgress {
     pub estimated_end_time: Option<f64>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DownloadProgressPayload {
+    pub id: String,
+    pub bytes_received: u64,
+    pub total_bytes: Option<u64>,
+    pub speed: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DownloadCancelPayload {
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DownloadPausePayload {
+    pub id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DownloadResumePayload {
+    pub id: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

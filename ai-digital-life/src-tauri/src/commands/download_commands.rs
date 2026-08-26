@@ -6,7 +6,8 @@ use adl_browser::download_manager::get_default_download_path;
 use adl_browser::download_types::{DownloadMode, DownloadRecord, DownloadSettings};
 use adl_errors::AppError;
 use adl_types::IpcResult;
-use tauri::State;
+use tauri::{Emitter, State};
+use std::path::PathBuf;
 
 fn map_download_err(e: String) -> AppError {
     if e.contains("NoSpace") {
@@ -22,7 +23,9 @@ fn map_download_err(e: String) -> AppError {
 pub fn download_list(
     state: State<'_, AppState>,
 ) -> Result<IpcResult<Vec<DownloadRecord>>, CommandError> {
+    tracing::debug!("[ADL-DL] download_list called");
     let records = state.download_manager.list_downloads().map_err(map_download_err)?;
+    tracing::debug!("[ADL-DL] download_list returned {} records", records.len());
     Ok(ipc(Ok(records)))
 }
 
@@ -30,6 +33,7 @@ pub fn download_list(
 pub fn download_get_settings(
     state: State<'_, AppState>,
 ) -> Result<IpcResult<DownloadSettings>, CommandError> {
+    tracing::debug!("[ADL-DL] download_get_settings called");
     Ok(ipc(Ok(state.download_manager.get_settings())))
 }
 
@@ -39,6 +43,11 @@ pub fn download_update_settings(
     mode: Option<String>,
     default_path: Option<String>,
 ) -> Result<IpcResult<()>, CommandError> {
+    tracing::debug!(
+        mode = mode.as_deref(),
+        default_path = default_path.as_deref(),
+        "[ADL-DL] download_update_settings called"
+    );
     let mode_enum = mode.as_deref().map(DownloadMode::from_str);
     state.download_manager.update_settings(mode_enum, default_path).map_err(map_download_err)?;
     Ok(ipc(Ok(())))
@@ -46,6 +55,7 @@ pub fn download_update_settings(
 
 #[tauri::command]
 pub fn download_clear_history(state: State<'_, AppState>) -> Result<IpcResult<()>, CommandError> {
+    tracing::debug!("[ADL-DL] download_clear_history called");
     state.download_manager.clear_history().map_err(map_download_err)?;
     Ok(ipc(Ok(())))
 }
@@ -55,6 +65,7 @@ pub fn download_delete_file_and_record(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<IpcResult<()>, CommandError> {
+    tracing::debug!(id = %id, "[ADL-DL] download_delete_file_and_record called");
     state.download_manager.delete_file_and_record(&id).map_err(map_download_err)?;
     Ok(ipc(Ok(())))
 }
@@ -64,6 +75,7 @@ pub fn download_remove_record(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<IpcResult<()>, CommandError> {
+    tracing::debug!(id = %id, "[ADL-DL] download_remove_record called");
     state.download_manager.remove_record(&id).map_err(map_download_err)?;
     Ok(ipc(Ok(())))
 }
@@ -95,7 +107,12 @@ pub fn download_open_default_folder(
     state: State<'_, AppState>,
 ) -> Result<IpcResult<()>, CommandError> {
     let path = state.download_manager.get_settings().default_path;
-    open_in_os_file_manager(&path).map_err(|e| AppError::Internal(e.to_string()))?;
+    let target = if path.is_empty() {
+        get_default_download_path().to_string_lossy().to_string()
+    } else {
+        path
+    };
+    open_in_os_file_manager(&target).map_err(|e| AppError::Internal(e.to_string()))?;
     Ok(ipc(Ok(())))
 }
 
@@ -106,9 +123,137 @@ pub fn download_open_file(file_path: String) -> Result<IpcResult<()>, CommandErr
 }
 
 #[tauri::command]
-pub fn download_show_in_folder(file_path: String) -> Result<IpcResult<()>, CommandError> {
-    reveal_in_os_file_manager(&file_path).map_err(|e| AppError::Internal(e.to_string()))?;
+pub fn download_show_in_folder(
+    state: State<'_, AppState>,
+    file_path: String,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::debug!(file_path = %file_path, "[ADL-DL] download_show_in_folder called");
+    let trimmed = file_path.trim();
+    if !trimmed.is_empty() {
+        let p = std::path::Path::new(trimmed);
+        if p.exists() {
+            reveal_in_os_file_manager(trimmed).map_err(|e| AppError::Internal(e.to_string()))?;
+            return Ok(ipc(Ok(())));
+        }
+    }
+    let default_path = state.download_manager.get_settings().default_path;
+    let target = if default_path.is_empty() {
+        get_default_download_path().to_string_lossy().to_string()
+    } else {
+        default_path
+    };
+    tracing::debug!(
+        target = %target,
+        "[ADL-DL] file not found or empty, opening default download folder"
+    );
+    open_in_os_file_manager(&target).map_err(|e| AppError::Internal(e.to_string()))?;
     Ok(ipc(Ok(())))
+}
+
+#[tauri::command]
+pub fn download_pause(
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+    id: String,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::debug!(id = %id, "[ADL-DL] download_pause called");
+    state.download_manager.pause_download(&id).map_err(map_download_err)?;
+    let _ = app_handle.emit(
+        "browser-download-paused",
+        &serde_json::json!({ "id": id }),
+    );
+    Ok(ipc(Ok(())))
+}
+
+#[tauri::command]
+pub fn download_resume(
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+    id: String,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::debug!(id = %id, "[ADL-DL] download_resume called");
+    state.download_manager.resume_download(&id).map_err(map_download_err)?;
+    let _ = app_handle.emit(
+        "browser-download-resumed",
+        &serde_json::json!({ "id": id }),
+    );
+    Ok(ipc(Ok(())))
+}
+
+#[tauri::command]
+pub fn download_cancel(
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+    id: String,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::debug!(id = %id, "[ADL-DL] download_cancel called");
+    state.download_manager.cancel_download(&id).map_err(map_download_err)?;
+    let _ = app_handle.emit(
+        "browser-download-canceled",
+        &serde_json::json!({ "id": id }),
+    );
+    Ok(ipc(Ok(())))
+}
+
+#[tauri::command]
+pub fn download_save_blob(
+    state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
+    file_name: String,
+    data_base64: String,
+) -> Result<IpcResult<DownloadRecord>, CommandError> {
+    tracing::debug!(
+        file_name = %file_name,
+        data_len = data_base64.len(),
+        "[ADL-DL] download_save_blob called"
+    );
+
+    let decoded = base64::Engine::decode(
+        &base64::engine::general_purpose::STANDARD,
+        &data_base64,
+    )
+    .map_err(|e| AppError::Internal(format!("base64 decode failed: {e}")))?;
+
+    let default_path = state.download_manager.get_settings().default_path;
+    let target_dir = if default_path.is_empty() {
+        get_default_download_path()
+    } else {
+        PathBuf::from(&default_path)
+    };
+    let _ = std::fs::create_dir_all(&target_dir);
+
+    let mut final_path = target_dir.join(&file_name);
+    let resolved = state.download_manager.resolve_conflict_path(
+        final_path.to_string_lossy().as_ref(),
+    );
+    final_path = PathBuf::from(resolved);
+
+    std::fs::write(&final_path, &decoded)
+        .map_err(|e| AppError::Internal(format!("failed to write file: {e}")))?;
+
+    let url = format!("blob://local/{}", file_name);
+    let record = state
+        .download_manager
+        .create_download(&url, final_path.to_string_lossy().as_ref())
+        .map_err(map_download_err)?;
+
+    let _ = app_handle.emit("browser-download-started", &record);
+
+    let _ = state.download_manager.complete_download(&record.id, true, None);
+
+    tracing::debug!(
+        record_id = &record.id,
+        file_path = %final_path.display(),
+        "[ADL-DL] blob download saved successfully"
+    );
+
+    let _ = app_handle.emit("browser-download-finished", &serde_json::json!({
+        "id": record.id,
+        "url": record.url,
+        "filePath": final_path.to_string_lossy().to_string(),
+        "success": true,
+    }));
+    Ok(ipc(Ok(record)))
 }
 
 #[cfg(test)]

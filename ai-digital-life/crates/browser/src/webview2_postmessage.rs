@@ -68,6 +68,20 @@ mod imp {
                     }
 
                     if let Ok(meta) = serde_json::from_str::<serde_json::Value>(&json_str) {
+                        // Handle download debug logs from init_script.js
+                        if meta.get("type").and_then(|t| t.as_str()) == Some("dl-log") {
+                            let level = meta.get("level").and_then(|v| v.as_str()).unwrap_or("info");
+                            let msg = meta.get("msg").and_then(|v| v.as_str()).unwrap_or("");
+                            let data = meta.get("data");
+                            match level {
+                                "error" => error!("[ADL-DL-JS] {} {:?}", msg, data),
+                                "warn" => warn!("[ADL-DL-JS] {} {:?}", msg, data),
+                                "debug" => debug!("[ADL-DL-JS] {} {:?}", msg, data),
+                                _ => tracing::info!("[ADL-DL-JS] {} {:?}", msg, data),
+                            }
+                            return Ok(());
+                        }
+
                         if let Some(url) = super::open_new_tab_url_from_message(&json_str) {
                             bridge_for_handler.emit_open_new_tab(&url);
                             return Ok(());

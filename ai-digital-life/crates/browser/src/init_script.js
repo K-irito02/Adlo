@@ -1,9 +1,159 @@
 (function() {
+    // ---- JS-TO-RUST LOGGING via chrome.webview.postMessage ----
+    function __adlSendLog(level, msg, data) {
+        try {
+            if (typeof chrome !== 'undefined' && chrome.webview && chrome.webview.postMessage) {
+                chrome.webview.postMessage(JSON.stringify({
+                    type: 'dl-log',
+                    level: level,
+                    msg: msg,
+                    data: data || null
+                }));
+            }
+        } catch(e) {}
+    }
+
     // 检查是否是有效的网页 URL
     function isValidWebUrl(href) {
         if (!href || typeof href !== 'string') return false;
         return href.startsWith('http://') || href.startsWith('https://') || href.startsWith('//');
     }
+
+    function isBlobUrl(href) {
+        return typeof href === 'string' && href.indexOf('blob:') === 0;
+    }
+
+    var DOWNLOAD_EXTENSIONS = /\.(exe|msi|dmg|pkg|deb|rpm|zip|rar|7z|tar|gz|bz2|xz|pdf|apk|ipa|iso|img|cab|msix|appx|bat|cmd|ps1|scr|com|pif|vbs|js|wsf|hta)$/i;
+
+    function isDownloadUrl(url) {
+        if (!url || typeof url !== 'string') return false;
+        if (isBlobUrl(url)) {
+            console.log('[ADL-DL-JS] isDownloadUrl: blob URL detected');
+            __adlSendLog('debug', 'isDownloadUrl: blob URL detected', { url: url });
+            return true;
+        }
+        try {
+            var u = new URL(url, location.href);
+            var path = u.pathname.toLowerCase();
+            if (DOWNLOAD_EXTENSIONS.test(path)) {
+                console.log('[ADL-DL-JS] isDownloadUrl: extension match:', { url: url, path: path });
+                __adlSendLog('debug', 'isDownloadUrl: extension match', { url: url, path: path });
+                return true;
+            }
+            if (/[?&]download[=]/i.test(u.search)) {
+                console.log('[ADL-DL-JS] isDownloadUrl: query param match:', { url: url });
+                __adlSendLog('debug', 'isDownloadUrl: query param match', { url: url });
+                return true;
+            }
+            if (/\/download\//i.test(u.pathname)) {
+                console.log('[ADL-DL-JS] isDownloadUrl: path match:', { url: url });
+                __adlSendLog('debug', 'isDownloadUrl: path match', { url: url });
+                return true;
+            }
+        } catch(e) {}
+        return false;
+    }
+
+    // ---- DOWNLOAD INTERCEPTION HELPERS ----
+    function getFilenameFromUrl(url) {
+        try {
+            var u = new URL(url, location.href);
+            var seg = u.pathname.split('/').pop();
+            if (seg) return decodeURIComponent(seg);
+        } catch(e) {}
+        return 'download';
+    }
+
+    function __adlArrayBufferToBase64(buffer) {
+        var bytes = new Uint8Array(buffer);
+        var binary = '';
+        var chunkSize = 8192;
+        for (var i = 0; i < bytes.length; i += chunkSize) {
+            var chunk = bytes.subarray(i, i + chunkSize);
+            binary += String.fromCharCode.apply(null, chunk);
+        }
+        return btoa(binary);
+    }
+
+    function __adlSaveBlobDownload(filename, base64Data) {
+        try {
+            console.log('[ADL-DL-JS] __adlSaveBlobDownload called:', filename);
+            __adlSendLog('info', '__adlSaveBlobDownload called', { filename: filename });
+            if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+                console.log('[ADL-DL-JS] IPC available, invoking download_save_blob');
+                __adlSendLog('info', 'IPC available, invoking download_save_blob', { filename: filename });
+                window.__TAURI__.core.invoke('download_save_blob', {
+                    fileName: filename,
+                    dataBase64: base64Data,
+                }).then(function() {
+                    console.log('[ADL-DL-JS] download_save_blob succeeded:', filename);
+                }).catch(function(e) {
+                    console.error('[ADL-DL-JS] download_save_blob failed:', e);
+                });
+                return true;
+            }
+        } catch(e) {}
+        return false;
+    }
+
+    // Central download handler: fetch URL content and save via Tauri IPC
+    window.__adlDownloadUrl = function(url, filename) {
+        var fn = filename || getFilenameFromUrl(url);
+        console.log('[ADL-DL-JS] __adlDownloadUrl called:', { url: url, filename: fn });
+        __adlSendLog('info', '__adlDownloadUrl called', { url: url, filename: fn });
+        try {
+            fetch(url, { credentials: 'include' }).then(function(r) {
+                console.log('[ADL-DL-JS] __adlDownloadUrl fetch response:', { url: url, status: r.status, type: r.type });
+                __adlSendLog('info', '__adlDownloadUrl fetch response', { url: url, status: r.status, type: r.type });
+                return r.arrayBuffer();
+            }).then(function(buf) {
+                console.log('[ADL-DL-JS] __adlDownloadUrl bytes received:', buf.byteLength);
+                __adlSendLog('info', '__adlDownloadUrl bytes received', { url: url, bytes: buf.byteLength });
+                var b64 = __adlArrayBufferToBase64(buf);
+                __adlSaveBlobDownload(fn, b64);
+                if (isBlobUrl(url)) {
+                    try { URL.revokeObjectURL(url); } catch(e) {}
+                }
+            }).catch(function(e) {
+                console.error('[ADL-DL-JS] __adlDownloadUrl fetch failed:', { url: url, error: e });
+            });
+        } catch(e) {
+            console.error('[ADL-DL-JS] __adlDownloadUrl error:', { url: url, error: e });
+        }
+    };
+
+    // ---- FETCH OVERRIDE: detect download responses ----
+    var origFetch = window.fetch;
+    window.fetch = function() {
+        var fetchUrl = (arguments[0] && typeof arguments[0] === 'string') ? arguments[0] : (arguments[0] && arguments[0].url) ? arguments[0].url : 'unknown';
+        return origFetch.apply(this, arguments).then(function(response) {
+            try {
+                var cd = response.headers.get('content-disposition') || '';
+                if (cd.indexOf('attachment') !== -1 || cd.indexOf('filename') !== -1) {
+                    var fetchLogData = {
+                        url: fetchUrl,
+                        contentDisposition: cd,
+                        status: response.status
+                    };
+                    console.log('[ADL-DL-JS] fetch override: download response detected', fetchLogData);
+                    __adlSendLog('info', 'fetch override: download response detected', fetchLogData);
+                    var url = (arguments[0] && typeof arguments[0] === 'string') ? arguments[0] : '';
+                    var filename = '';
+                    var fnMatch = cd.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/i);
+                    if (fnMatch) filename = decodeURIComponent(fnMatch[1].replace(/"/g, ''));
+                    if (!filename) filename = getFilenameFromUrl(url);
+                    if (!filename) filename = 'download';
+                    console.log('[ADL-DL-JS] fetch override: saving blob download:', filename);
+                    return response.clone().arrayBuffer().then(function(buf) {
+                        var b64 = __adlArrayBufferToBase64(buf);
+                        __adlSaveBlobDownload(filename, b64);
+                        return response;
+                    });
+                }
+            } catch(e) {}
+            return response;
+        });
+    };
 
     // 处理导航（确保在当前窗口中打开）
     function navigateToUrl(href) {
@@ -40,41 +190,90 @@
         }
     }
     
-    // Click interception: prevent default <a> navigation, then let SPA handlers
-    // observe the event (no stopPropagation). Use event-driven SPA detection:
-    // if the SPA calls history.pushState/replaceState or popstate fires within
-    // NAV_GUARD_TIMEOUT_MS, we skip the fallback; otherwise, we navigate.
-    // Modified clicks (ctrl/meta/shift/middle) are the user's EXPLICIT new-tab
-    // intent and are routed to the open-new-tab channel. Plain clicks on
-    // in-page links (including target="_blank" links) navigate IN-PLACE in the
-    // current tab — single-tab in-page navigation (user decision 2026-08-20),
-    // handled by the SPA nav-guard; back/forward stays single-step via the C1
-    // pushState normalization + frontend smartGoBack (unchanged).
+    // Click interception: intercept download links, route SPA navigation through
+    // nav-guard, and leave non-SPA links alone.
     document.addEventListener('click', function(event) {
         var target = event.target;
-        
+
+        // Log ALL clicks for debugging
+        var clickInfo = {
+            tagName: target.tagName,
+            id: target.id || '',
+            className: (target.className || '').toString().substring(0, 100),
+            text: (target.textContent || '').substring(0, 50),
+            href: target.href || target.getAttribute('data-href') || '',
+            download: target.hasAttribute('download'),
+            onclick: target.onclick ? 'yes' : 'no',
+            parentTag: target.parentElement ? target.parentElement.tagName : ''
+        };
+        console.log('[ADL-DL-JS] CLICK EVENT:', clickInfo);
+        __adlSendLog('info', 'CLICK EVENT', clickInfo);
+
         while (target) {
             if (target.tagName === 'A' && target.href) {
                 var href = target.href;
+
+                // Only intercept blob URLs via JS fetch+IPC (WebView2 can't handle blob: URLs natively).
+                if (isBlobUrl(href)) {
+                    var logData = {
+                        href: href,
+                        isBlob: true,
+                        hasDownload: target.hasAttribute('download'),
+                        isDownloadExt: isDownloadUrl(href),
+                        tagName: target.tagName
+                    };
+                    console.log('[ADL-DL-JS] click intercepted: blob download detected', logData);
+                    __adlSendLog('info', 'click intercepted: blob download detected', logData);
+                    var fn = target.getAttribute('download') || '';
+                    if (!fn) {
+                        try {
+                            var seg = new URL(href).pathname.split('/').pop();
+                            if (seg) fn = decodeURIComponent(seg);
+                        } catch(e) {}
+                    }
+                    if (!fn) fn = 'download';
+                    event.preventDefault();
+                    console.log('[ADL-DL-JS] calling __adlDownloadUrl:', href, fn);
+                    window.__adlDownloadUrl(href, fn);
+                    return;
+                }
+
+                // For <a download> links with http(s) URLs: prevent navigation and trigger
+                // NewWindowRequested via original window.open so new_window_handler can
+                // detect the download URL and route it through the download mechanism.
+                // Must use origOpen (bypass override) to avoid __adlDownloadUrl fetch path.
+                if ((target.hasAttribute('download') || isDownloadUrl(href)) && isValidWebUrl(href)) {
+                    __adlSendLog('info', 'click on download link - routing via origOpen for NewWindowRequest', {
+                        href: href,
+                        hasDownload: target.hasAttribute('download'),
+                        isDownloadExt: isDownloadUrl(href)
+                    });
+                    event.preventDefault();
+                    event.stopPropagation();
+                    origOpen.call(window, href, '_blank');
+                    return;
+                }
+
                 if (isValidWebUrl(href)) {
                     var forcedNewTab = event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
                     if (forcedNewTab) {
-                        // PostMessage available → Rust opens a new tab. Otherwise
-                        // leave the default action so native NewWindowRequested fires.
                         if (__adlTryOpenNewTab(href)) {
                             event.preventDefault();
                         }
                         return;
                     }
                     event.preventDefault();
-                    // Don't stopPropagation — SPA handlers (Vue/React) need the event
                     if (window.__startNavGuard) {
                         window.__startNavGuard(href);
                     }
                     return;
+                } else {
+                    console.log('[ADL-DL-JS] click on <a> but NOT intercepted (invalid URL):', { href: href, tagName: target.tagName, download: target.hasAttribute('download') });
                 }
+            } else if (target.tagName === 'BUTTON' || target.tagName === 'INPUT') {
+                console.log('[ADL-DL-JS] click on non-<a> element:', { tagName: target.tagName, text: target.textContent?.substring(0, 50) });
             }
-            
+
             if (target.tagName === 'AREA' && target.href) {
                 var href = target.href;
                 if (isValidWebUrl(href)) {
@@ -92,18 +291,28 @@
                     return;
                 }
             }
-            
+
             target = target.parentElement;
         }
     }, true);
     
     // 1. 重写 window.open（阻止所有弹窗；http/https 委托原生 NewWindowRequested，
-//    由 Rust new_window_handler 发射 open-new-tab 事件；其它 scheme 直接返回 null）
+    //    由 Rust new_window_handler 发射 open-new-tab 事件；其它 scheme 直接返回 null）
+    //    下载类 URL（.exe/.zip/...）拦截后通过 fetch + IPC 保存，绕过 NewWindowRequested
     var origOpen = window.open;
     window.open = function(url, name, features) {
+        console.log('[ADL-DL-JS] window.open called:', { url: url, name: name });
+        __adlSendLog('info', 'window.open called', { url: url, name: name });
         if (url && isValidWebUrl(url)) {
+            if (isDownloadUrl(url)) {
+                console.log('[ADL-DL-JS] window.open: download URL detected, intercepting:', url);
+                window.__adlDownloadUrl(url);
+                return null;
+            }
+            console.log('[ADL-DL-JS] window.open: non-download URL, delegating to origOpen:', url);
             return origOpen.call(window, url, name, features);
         }
+        console.log('[ADL-DL-JS] window.open: invalid URL, returning null');
         return null;
     };
     
@@ -114,7 +323,14 @@
     const originalReplace = Location.prototype.replace;
 
     Location.prototype.assign = function(url) {
+        console.log('[ADL-DL-JS] location.assign called:', url);
+        __adlSendLog('info', 'location.assign called', { url: url });
         if (url && isValidWebUrl(url)) {
+            if (isDownloadUrl(url)) {
+                console.log('[ADL-DL-JS] location.assign: download URL detected, intercepting:', url);
+                window.__adlDownloadUrl(url);
+                return;
+            }
             originalAssign.call(this, url);
             return;
         }
@@ -122,12 +338,57 @@
     };
 
     Location.prototype.replace = function(url) {
+        console.log('[ADL-DL-JS] location.replace called:', url);
+        __adlSendLog('info', 'location.replace called', { url: url });
         if (url && isValidWebUrl(url)) {
+            if (isDownloadUrl(url)) {
+                console.log('[ADL-DL-JS] location.replace: download URL detected, intercepting:', url);
+                window.__adlDownloadUrl(url);
+                return;
+            }
             originalReplace.call(this, url);
             return;
         }
         return originalReplace.apply(this, arguments);
     };
+
+    // 3. 拦截 window.location.href 赋值（通过 Object.defineProperty）
+    //    注意：直接修改 location.href 无法通过 setter 拦截，但可以拦截通过 Object.defineProperty 定义的 setter
+    //    实际上，window.location.href 赋值会触发 navigation，由 WebView2 的 navigation_handler 处理
+    //    如果下载 URL 通过 location.href 导航，WebView2 应该会触发 DownloadStarting
+    //    但如果不触发，说明下载机制不同
+
+    // 4. 拦截表单提交（下载按钮可能使用表单提交）
+    document.addEventListener('submit', function(event) {
+        var form = event.target;
+        var formInfo = {
+            action: form.action,
+            method: form.method,
+            target: form.target
+        };
+        console.log('[ADL-DL-JS] form submit intercepted:', formInfo);
+        __adlSendLog('info', 'form submit intercepted', formInfo);
+
+        // 检查表单 action 是否为下载 URL
+        if (form.action && isDownloadUrl(form.action)) {
+            console.log('[ADL-DL-JS] form submit: download URL detected, intercepting:', form.action);
+            event.preventDefault();
+            window.__adlDownloadUrl(form.action);
+            return;
+        }
+
+        // 检查表单中是否有隐藏的下载 URL 字段
+        var inputs = form.querySelectorAll('input[type="hidden"], input[name="url"], input[name="download"]');
+        for (var i = 0; i < inputs.length; i++) {
+            var value = inputs[i].value;
+            if (value && isDownloadUrl(value)) {
+                console.log('[ADL-DL-JS] form submit: hidden field contains download URL:', value);
+                event.preventDefault();
+                window.__adlDownloadUrl(value);
+                return;
+            }
+        }
+    }, true);
     
     // ---- SPA NAVIGATION GUARD ----
     // Wraps the meta IIFE's history patches. When a click is intercepted,

@@ -245,6 +245,8 @@ export const browserEn = {
   browserDownloadCopyLink: 'Copy link',
   browserDownloadRetry: 'Retry',
   browserDownloadCancel: 'Cancel download',
+  browserDownloadPause: 'Pause download',
+  browserDownloadResume: 'Resume download',
   browserDownloadSpeed: '{speed}/s',
   browserDownloadOf: '/',
   browserDownloadUnknownSize: 'Unknown size',

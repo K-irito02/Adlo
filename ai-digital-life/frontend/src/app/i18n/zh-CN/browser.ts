@@ -234,6 +234,8 @@ export const browserZh = {
   browserDownloadCopyLink: '复制链接',
   browserDownloadRetry: '重试',
   browserDownloadCancel: '取消下载',
+  browserDownloadPause: '暂停下载',
+  browserDownloadResume: '继续下载',
   browserDownloadSpeed: '{speed}/s',
   browserDownloadOf: '/',
   browserDownloadUnknownSize: '未知大小',

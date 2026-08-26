@@ -4909,9 +4909,15 @@ You may have it installed on another user account, but it is not available for t
     #[cfg(desktop)]
     let context = context.clone();
     webview_builder = webview_builder.with_new_window_req_handler(move |url, features| {
-      let Ok(url) = url.parse() else {
+      let Ok(url) = url.parse::<url::Url>() else {
+        log::info!("[ADL-DL] wry new_window_req_handler: failed to parse URL raw={}, denying", url);
         return wry::NewWindowResponse::Deny;
       };
+      let url_str = url.to_string();
+      log::info!(
+        "[ADL-DL] wry new_window_req_handler: ENTER url={} features={:?}",
+        url_str, features.size
+      );
       let response = new_window_handler(
         url,
         tauri_runtime::webview::NewWindowFeatures::new(
@@ -4928,9 +4934,13 @@ You may have it installed on another user account, but it is not available for t
         ),
       );
       match response {
-        tauri_runtime::webview::NewWindowResponse::Allow => wry::NewWindowResponse::Allow,
+        tauri_runtime::webview::NewWindowResponse::Allow => {
+          log::info!("[ADL-DL] wry new_window_req_handler: response=Allow url={}", url_str);
+          wry::NewWindowResponse::Allow
+        }
         #[cfg(desktop)]
         tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
+          log::info!("[ADL-DL] wry new_window_req_handler: response=Create url={} window_id={:?}", url_str, window_id);
           let windows = &context.main_thread.windows.0;
           let webview = windows
             .borrow()
@@ -4957,7 +4967,10 @@ You may have it installed on another user account, but it is not available for t
             webview: webview.webview(),
           }
         }
-        tauri_runtime::webview::NewWindowResponse::Deny => wry::NewWindowResponse::Deny,
+        tauri_runtime::webview::NewWindowResponse::Deny => {
+          log::info!("[ADL-DL] wry new_window_req_handler: response=Deny url={}", url_str);
+          wry::NewWindowResponse::Deny
+        }
       }
     });
   }
@@ -5010,16 +5023,21 @@ You may have it installed on another user account, but it is not available for t
   if let Some(download_handler) = pending.download_handler {
     let download_handler_ = download_handler.clone();
     webview_builder = webview_builder.with_download_started_handler(move |url, path| {
+      log::info!("[ADL-DL] wry with_download_started_handler: ENTER url={} path={}", url, path.display());
       if let Ok(url) = url.parse() {
-        download_handler_(DownloadEvent::Requested {
+        let result = download_handler_(DownloadEvent::Requested {
           url,
           destination: path,
-        })
+        });
+        log::info!("[ADL-DL] wry with_download_started_handler: handler returned result={}", result);
+        result
       } else {
+        log::warn!("[ADL-DL] wry with_download_started_handler: failed to parse URL raw={}", url);
         false
       }
     });
     webview_builder = webview_builder.with_download_completed_handler(move |url, path, success| {
+      log::info!("[ADL-DL] wry with_download_completed_handler: ENTER url={} success={}", url, success);
       if let Ok(url) = url.parse() {
         download_handler(DownloadEvent::Finished { url, path, success });
       }

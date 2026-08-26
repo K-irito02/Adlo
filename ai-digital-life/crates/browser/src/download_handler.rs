@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Emitter};
 
@@ -8,13 +8,28 @@ use super::download_manager::DownloadManager;
 pub fn setup_download_handler(
     app_handle: AppHandle,
     download_manager: Arc<DownloadManager>,
+    last_record_id: Arc<Mutex<Option<String>>>,
 ) -> impl Fn(String, &mut PathBuf) -> bool + Send + Sync + 'static {
     let manager = download_manager;
     let handle = app_handle;
 
     move |url: String, destination: &mut PathBuf| {
         let suggested_path = destination.to_string_lossy().to_string();
-        tracing::debug!(url = &url, suggested_path = &suggested_path, "download requested");
+        tracing::debug!(url = &url, suggested_path = &suggested_path, "[ADL-DL] download requested");
+
+        // Check if this URL is already being downloaded (prevent duplicates)
+        if let Some(existing) = manager.get_record_by_url(&url) {
+            if existing.status == super::download_types::DownloadStatus::InProgress {
+                tracing::debug!(
+                    url = &url,
+                    existing_id = &existing.id,
+                    "[ADL-DL] duplicate download detected, allowing WebView2 to handle"
+                );
+                // Still allow the download but don't create a new record
+                *destination = PathBuf::from(&existing.file_path);
+                return true;
+            }
+        }
 
         // Resolve the absolute target first so we can both persist the record and
         // point WebView2 at a valid location (empty/relative destinations make
@@ -23,7 +38,7 @@ pub fn setup_download_handler(
         let final_path = manager.resolve_download_target(&url, &suggested_path);
 
         if let Err(reason) = manager.check_disk_space(&final_path) {
-            tracing::warn!(url = &url, reason = &reason, "download denied: disk space check failed");
+            tracing::warn!(url = &url, reason = &reason, "[ADL-DL] download denied: disk space check failed");
             let _ = handle.emit(
                 "browser-download-error",
                 &serde_json::json!({
@@ -46,13 +61,17 @@ pub fn setup_download_handler(
                     url = &url,
                     final_path = &final_path,
                     record_id = &record.id,
-                    "download record created"
+                    "[ADL-DL] download record created"
                 );
+                // Store record ID for progress monitor
+                if let Ok(mut last) = last_record_id.lock() {
+                    *last = Some(record.id.clone());
+                }
                 let _ = handle.emit("browser-download-started", &record);
                 true
             },
             Err(reason) => {
-                tracing::warn!(url = &url, reason = &reason, "download record creation failed");
+                tracing::warn!(url = &url, reason = &reason, "[ADL-DL] download record creation failed");
                 let _ = handle.emit(
                     "browser-download-error",
                     &serde_json::json!({
@@ -75,15 +94,28 @@ pub fn handle_download_finished(
     path: Option<&std::path::Path>,
     success: bool,
 ) {
+    tracing::debug!(
+        url = url,
+        success,
+        path = path.map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
+        "[ADL-DL] download finished event received"
+    );
+
     let records = match download_manager.list_downloads() {
         Ok(r) => r,
-        Err(_) => return,
+        Err(e) => {
+            tracing::warn!(error = %e, "[ADL-DL] failed to list downloads for finished event");
+            return;
+        },
     };
 
     let record = records.iter().find(|r| r.url == url);
     let record = match record {
         Some(r) => r,
-        None => return,
+        None => {
+            tracing::warn!(url = url, "[ADL-DL] no download record found for finished URL");
+            return;
+        },
     };
 
     let actual_path =
@@ -91,6 +123,7 @@ pub fn handle_download_finished(
 
     if success {
         let _ = download_manager.complete_download(&record.id, true, None);
+        tracing::debug!(record_id = &record.id, "[ADL-DL] download completed successfully");
         let _ = app_handle.emit(
             "browser-download-finished",
             &serde_json::json!({
@@ -102,6 +135,7 @@ pub fn handle_download_finished(
         );
     } else {
         let _ = download_manager.complete_download(&record.id, false, Some("DownloadFailed"));
+        tracing::warn!(record_id = &record.id, "[ADL-DL] download failed");
         let _ = app_handle.emit(
             "browser-download-finished",
             &serde_json::json!({
@@ -112,6 +146,101 @@ pub fn handle_download_finished(
             }),
         );
     }
+}
+
+pub fn handle_download_progress(
+    app_handle: &AppHandle,
+    download_manager: &DownloadManager,
+    url: &str,
+    bytes_received: u64,
+    total_bytes: Option<u64>,
+) {
+    let records = match download_manager.list_downloads() {
+        Ok(r) => r,
+        Err(_) => return,
+    };
+
+    let record = records.iter().find(|r| r.url == url);
+    let record = match record {
+        Some(r) => r,
+        None => return,
+    };
+
+    // Update total bytes if we now know it
+    if let Some(total) = total_bytes {
+        let _ = download_manager.update_total_bytes(&record.id, total);
+    }
+
+    // Calculate speed (simple: bytes since last update)
+    let speed = bytes_received.saturating_sub(record.bytes_received);
+
+    // Update progress in manager
+    if let Err(e) = download_manager.update_progress(&record.id, bytes_received, speed) {
+        tracing::warn!(error = %e, record_id = &record.id, "[ADL-DL] failed to update progress");
+        return;
+    }
+
+    tracing::debug!(
+        record_id = &record.id,
+        bytes_received,
+        total_bytes = total_bytes.unwrap_or(0),
+        "[ADL-DL] progress updated"
+    );
+
+    let _ = app_handle.emit(
+        "browser-download-progress",
+        &serde_json::json!({
+            "id": record.id,
+            "bytes_received": bytes_received,
+            "total_bytes": total_bytes,
+            "speed": speed,
+        }),
+    );
+}
+
+pub fn handle_download_pause(
+    app_handle: &AppHandle,
+    download_manager: &DownloadManager,
+    id: &str,
+) {
+    tracing::debug!(record_id = id, "[ADL-DL] pausing download");
+    if let Err(e) = download_manager.pause_download(id) {
+        tracing::warn!(error = %e, record_id = id, "[ADL-DL] failed to pause download");
+    }
+    let _ = app_handle.emit(
+        "browser-download-paused",
+        &serde_json::json!({ "id": id }),
+    );
+}
+
+pub fn handle_download_resume(
+    app_handle: &AppHandle,
+    download_manager: &DownloadManager,
+    id: &str,
+) {
+    tracing::debug!(record_id = id, "[ADL-DL] resuming download");
+    if let Err(e) = download_manager.resume_download(id) {
+        tracing::warn!(error = %e, record_id = id, "[ADL-DL] failed to resume download");
+    }
+    let _ = app_handle.emit(
+        "browser-download-resumed",
+        &serde_json::json!({ "id": id }),
+    );
+}
+
+pub fn handle_download_cancel(
+    app_handle: &AppHandle,
+    download_manager: &DownloadManager,
+    id: &str,
+) {
+    tracing::debug!(record_id = id, "[ADL-DL] canceling download");
+    if let Err(e) = download_manager.cancel_download(id) {
+        tracing::warn!(error = %e, record_id = id, "[ADL-DL] failed to cancel download");
+    }
+    let _ = app_handle.emit(
+        "browser-download-canceled",
+        &serde_json::json!({ "id": id }),
+    );
 }
 
 pub fn create_download_manager(db: adl_storage::Database) -> Arc<DownloadManager> {

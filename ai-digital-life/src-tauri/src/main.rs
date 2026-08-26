@@ -159,6 +159,10 @@ fn main() {
             commands::download_commands::download_open_default_folder,
             commands::download_commands::download_open_file,
             commands::download_commands::download_show_in_folder,
+            commands::download_commands::download_pause,
+            commands::download_commands::download_resume,
+            commands::download_commands::download_cancel,
+            commands::download_commands::download_save_blob,
             commands::platform::workspace_open_in_file_manager,
         ])
         .run(tauri::generate_context!())

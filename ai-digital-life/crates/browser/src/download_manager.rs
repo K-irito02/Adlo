@@ -12,7 +12,6 @@ use super::download_types::{
     DownloadMode, DownloadProgress, DownloadRecord, DownloadSettings, DownloadStatus,
 };
 
-#[allow(dead_code)]
 #[derive(Clone)]
 pub struct DownloadManager {
     db: Database,
@@ -184,6 +183,76 @@ impl DownloadManager {
         )
         .map_err(|e| format!("Failed to update progress: {}", e))?;
         Ok(())
+    }
+
+    pub fn update_total_bytes(&self, id: &str, total: u64) -> Result<(), String> {
+        let conn = self.db.conn().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE download_history SET total_bytes = ?1 WHERE id = ?2",
+            rusqlite::params![total as i64, id],
+        )
+        .map_err(|e| format!("Failed to update total bytes: {}", e))?;
+        Ok(())
+    }
+
+    pub fn pause_download(&self, id: &str) -> Result<(), String> {
+        let conn = self.db.conn().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE download_history SET status = ?1, interrupt_reason = ?2 WHERE id = ?3",
+            rusqlite::params![DownloadStatus::Paused.as_str(), "UserPaused", id],
+        )
+        .map_err(|e| format!("Failed to pause download: {}", e))?;
+        Ok(())
+    }
+
+    pub fn resume_download(&self, id: &str) -> Result<(), String> {
+        let conn = self.db.conn().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE download_history SET status = ?1, interrupt_reason = NULL WHERE id = ?2",
+            rusqlite::params![DownloadStatus::InProgress.as_str(), id],
+        )
+        .map_err(|e| format!("Failed to resume download: {}", e))?;
+        Ok(())
+    }
+
+    pub fn cancel_download(&self, id: &str) -> Result<(), String> {
+        let conn = self.db.conn().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE download_history SET status = ?1, interrupt_reason = ?2 WHERE id = ?3",
+            rusqlite::params![DownloadStatus::Canceled.as_str(), "UserCanceled", id],
+        )
+        .map_err(|e| format!("Failed to cancel download: {}", e))?;
+
+        self.active_downloads
+            .lock()
+            .expect("active_downloads mutex should not be poisoned")
+            .remove(id);
+        Ok(())
+    }
+
+    pub fn get_record_by_url(&self, url: &str) -> Option<DownloadRecord> {
+        let conn = self.db.conn().ok()?;
+        conn.query_row(
+            "SELECT id, url, file_name, file_path, total_bytes, bytes_received, mime_type, status, interrupt_reason, created_at, completed_at, source_tab_id FROM download_history WHERE url = ?1 ORDER BY created_at DESC LIMIT 1",
+            rusqlite::params![url],
+            |row| {
+                Ok(DownloadRecord {
+                    id: row.get(0)?,
+                    url: row.get(1)?,
+                    file_name: row.get(2)?,
+                    file_path: row.get(3)?,
+                    total_bytes: row.get::<_, Option<i64>>(4)?.map(|v| v as u64),
+                    bytes_received: row.get::<_, i64>(5)? as u64,
+                    mime_type: row.get(6)?,
+                    status: DownloadStatus::from_str(&row.get::<_, String>(7)?),
+                    interrupt_reason: row.get(8)?,
+                    created_at: row.get(9)?,
+                    completed_at: row.get(10)?,
+                    source_tab_id: row.get(11)?,
+                })
+            },
+        )
+        .ok()
     }
 
     pub fn complete_download(
