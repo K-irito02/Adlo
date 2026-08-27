@@ -165,12 +165,15 @@ describe('init_script.js new-tab interception markers', () => {
   });
 
   it('routes plain in-page clicks (incl. target=_blank) to the SPA nav-guard', () => {
-    // 定位 __startNavGuard(href) 调用处（非定义处），断言其前置 preventDefault。
+    // 定位 __startNavGuard(href) 调用处（非定义处），断言其前置 preventDefault，
+    // 且从最近的 preventDefault 到该调用之间不含新标签通道（__adlTryOpenNewTab）。
+    // 注：从最后一个 preventDefault 起切块，避免回溯过远误伤更早的强制新标签分支。
     const guardCall = initScript.indexOf('window.__startNavGuard(href)');
     expect(guardCall).toBeGreaterThan(-1);
-    const before = initScript.slice(guardCall - 300, guardCall + 30);
-    expect(before).toContain('event.preventDefault()');
-    expect(before).not.toContain('__adlTryOpenNewTab');
+    const pdBefore = initScript.lastIndexOf('event.preventDefault()', guardCall);
+    const block = initScript.slice(pdBefore, guardCall + 30);
+    expect(block).toContain('event.preventDefault()');
+    expect(block).not.toContain('__adlTryOpenNewTab');
   });
 
   it('does not start the SPA nav-guard in the new-tab path', () => {
@@ -179,12 +182,29 @@ describe('init_script.js new-tab interception markers', () => {
     expect(tail).not.toContain('__startNavGuard');
   });
 
-  it('delegates window.open(http) to the native new-window request', () => {
+  it('delegates window.open(http) to native handling', () => {
+    const marker = 'var origOpen = window.open;';
     const openRewrite = initScript.slice(
-      initScript.indexOf('origOpen') - 100,
-      initScript.indexOf('origOpen') + 300,
+      initScript.indexOf(marker) - 50,
+      initScript.indexOf(marker) + 900,
     );
     expect(openRewrite).toContain('window.open');
     expect(openRewrite).toContain('origOpen');
+  });
+
+  it('resolves relative window.open URLs against the current document (download sites)', () => {
+    // 用户自建网站通过 window.open('/uploads/.../file.exe', '_blank') 触发下载。
+    // Chrome/Edge 会先把相对路径解析为完整 URL 再打开；旧实现将相对路径判为
+    // invalid URL 返回 null 导致下载不触发。回归断言：window.open 重写必须
+    // 用 new URL(rawUrl, location.href) 解析相对路径，且下载 URL 走同文档
+    // location.assign → 原生 DownloadStarting。
+    const marker = 'var origOpen = window.open;';
+    const openRewrite = initScript.slice(initScript.indexOf(marker), initScript.length);
+    expect(openRewrite).toContain('new URL(rawUrl, location.href)');
+    expect(openRewrite).toContain("parsed.protocol === 'http:'");
+    expect(openRewrite).toContain('window.location.assign(resolvedUrl)');
+    expect(openRewrite).toContain(
+      "__adlSendLog('info', 'window.open: download URL routed to same-document native DownloadStarting'",
+    );
   });
 });

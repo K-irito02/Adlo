@@ -45,6 +45,39 @@
 - 待用户实测：再次下载鸣潮同款 `<a download>` 资源，确认菜单有记录/进度、默认路径落盘，并核对上述新日志。
 - ✅ 实测轮次2日志证据（成功）：鸣潮 21:47:15 `click on download link - NOT intercepting` → `on_download: Requested allowed=true` → `starting progress monitor` → 21:47:22 `on_download: Finished success=true path=E:\Test-Workspace-1\WutheringWaves_official_setup_2.6.5.0.exe`；ZZZ(21:47:20)、wallspic(21:48:24)、wallhaven(21:49:43) 均 success=true 落默认路径。无 ERROR/panic/失败。
 
+## [x] 事项 4（用户自建网站相对路径下载失败）：window.open 相对 URL 返回 null 导致下载不触发
+- 状态：✅ 已完成（用户实测轮次3确认成功——xiaogans.online 下载按钮，菜单有记录+进度、成功落默认路径 E:\Test-Workspace-1\aecf3b45898e4893aae3bfd6ef894756.exe）
+- ✅ 实测轮次3日志证据（terminal-logs.txt 22:15）：
+  - 22:15:28.596 `[ADL-DL-JS] window.open called {url:"/uploads/...aecf3b....exe", resolvedUrl:"https://www.xiaogans.online/uploads/...aecf3b....exe", name:"_blank"}`（相对路径→绝对解析成功）
+  - 22:15:28.597 `window.open: download URL routed to same-document native DownloadStarting`
+  - 22:15:28.696 `with_download_started_handler ENTER` → 22:15:28.705 `on_download: Requested ... allowed=true resolved_destination=...` → `starting progress monitor record_id=ff3b0638-...`
+  - 22:19:25.958 `with_download_completed_handler ... success=true`、`on_download: Finished success=true`
+  - 全程无 ERROR/panic；剩余 WARN 均为"silent webview CANCELLED"（设计内行为，非问题）
+- 现象：用户自建网站 https://www.xiaogans.online/products/enhance-vision 点「下载 0.1.1」的 exe，菜单无记录、无进度、不落默认路径；但 Chrome/Edge 打开同一网站下载正常。
+- 根因（terminal-logs.txt 22:02:08）：该网站下载按钮调用 `window.open('/uploads/application/2026/07/06/aecf3b45898e4893aae3bfd6ef894756.exe', '_blank')` 传的是**相对路径**。init_script.js 的 `window.open` override 用 `isValidWebUrl(url)` 判断（只认 http/https/`//` 开头），相对路径判为 **invalid URL → 返回 null**，下载从未触发。Chrome/Edge 会先按当前页把相对路径解析成完整 URL 再打开，所以正常。
+- 修改：
+  - `crates/browser/src/init_script.js` `window.open` override：
+    1. 用 `new URL(rawUrl, location.href)` 把相对/协议相对 URL 解析为绝对 http(s)（仅 http/https 采纳，其余 scheme 保持返回 null），对齐 Chrome/Edge 行为；
+    2. 对**下载 URL**不再走 `origOpen('_blank')`（事项 3 已证明 new_window_handler DENY 会整体取消下载），改为同文档 `window.location.assign(resolvedUrl)` → WebView2 原生 DownloadStarting（与 `<a download>` 强制 `_self` 相同、已验证的成功路径），获得实时进度+记录+默认路径；
+    3. 非下载 URL 仍走 `origOpen.call(resolvedUrl, ...)` 保持新标签语义。
+  - 新增调试日志：`window.open: download URL routed to same-document native DownloadStarting`、日志字段含 `rawUrl`+`resolvedUrl`。
+  - 更新过时前端测试 `frontend/src/app/features/browser/initScriptNavigation.test.ts`（`window.open` 切片断言语义修正 + 新增"相对路径解析/下载走 location.assign"回归断言）。
+- 验证：`node --check init_script.js` 通过；`vitest initScriptNavigation.test.ts` 22/22 通过；`cargo test -p adl-browser` 通过；ESLint/Prettier/tsc 通过。
+- 待用户实测：重开应用（需重编译生效，init_script 为 `include_str!` 内联）→ 打开 xiaogans.online 点下载 → 期望日志出现 `window.open called {rawUrl/resolvedUrl}` 与同文档 DownloadStarting → 菜单有记录/进度、默认路径落盘。
+
+## [ ] 事项 5：审视分析——是否像 Chrome/Edge 般应对所有"资源下载"类型
+- 状态：✅ 已完成（审计结论 + 无代码改动；详见下方审计表）
+- 结论：核心触发路径已全覆盖并对齐 Chrome/Edge（http/s 扩展名、Content-Disposition、window.open 相对/绝对、blob `<a download>` 兜底）；仅 blob 下载的"逐字节进度"以 JS 缓冲侧通道实现（菜单显示 0→100% 快速完成），数据量中等（页面自生成）时与 Chrome/Edge 等效；data:/object-URL 非 `window.open('_blank')` 外化场景极少见，WebView2 原生降级足够。
+- 审计（触发机制 vs 处理）：
+  1. `<a download href=http(s).exe>` → 点击不拦截 → 原生 DownloadStarting（进度/记录/默认路径）✅ 已实测
+  2. 直接点击 `.exe`/`.zip` 链接 → isDownloadUrl → 原生 ✅ 已实测
+  3. `window.open('_blank', 相对/绝对下载URL)` → 相对解析为绝对 → 同文档 location.assign → 原生 ✅ 已实测（事项4）
+  4. 服务端 Content-Disposition:attachment（无扩展名/带 token）→ WebView2 自适应换 DownloadStarting（on_download 不按 is_download_url 门控）✅ 设计覆盖
+  5. `<a download href=blob:...>` → isBlobUrl → JS `__adlDownloadUrl`→`download_save_blob`（建记录+落默认路径；进度为完成瞬间）✅ 保留 JS 兜底
+  6. 页面内 `a.click()` 程序化下载 → 复用于同一 click 拦截 ✅
+  7. `data:`/object-URL 下载链接 → 极少外化，WebView2 原生降级（不成立时无记录）⚠️ 覆盖但不保证进度（低优先级）
+- 处理：本轮不改代码（避免破坏已验证路径）；若需 blob 逐字节进度，建议后续新增"流式 blob 下载 IPC"专项（滚动到 Roadmap）。已提交当前全部变更。
+
 ## [x] 事项 0：预检（探索+确认方向）
 - 状态：✅ 已完成（用户确认方向：统一走原生管线）
-- 备注：预检探索了下载双管线；通过 `AskUserQuestion` 确认"统一走原生管线（推荐）"
+- 注：事项 4 是对事项 2 step 1（window.open 下载 URL fallthrough 到 origOpen）的**修正**——基于事项 3 实证（new_window_handler 对下载 DENY 会整体取消下载），window.open 下载 URL 应改走同文档 location.assign，而非 origOpen('_blank')。

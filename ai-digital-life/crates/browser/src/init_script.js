@@ -285,21 +285,46 @@
     //    对齐 Chrome/Edge 方案。
     var origOpen = window.open;
     window.open = function(url, name, features) {
-        console.log('[ADL-DL-JS] window.open called:', { url: url, name: name });
-        __adlSendLog('info', 'window.open called', { url: url, name: name });
-        if (url && isValidWebUrl(url)) {
-            if (isDownloadUrl(url)) {
-                // 统一走原生管线：仅记录，不拦截，交由 WebView2 原生 DownloadStarting 接管
-                console.log('[ADL-DL-JS] window.open: download URL -> native DownloadStarting (no JS interception):', url);
-                __adlSendLog('info', 'window.open: download URL delegated to native DownloadStarting', { url: url });
-            } else {
-                console.log('[ADL-DL-JS] window.open: non-download URL, delegating to origOpen:', url);
-                __adlSendLog('info', 'window.open: non-download URL delegated to origOpen', { url: url });
+        var rawUrl = url;
+        // Resolve relative / protocol-relative URLs against the current document,
+        // matching Chrome/Edge (they resolve the URL before opening). This is the
+        // root cause of "my website's download does nothing": the site calls
+        // window.open('/uploads/.../file.exe', '_blank') with a RELATIVE path,
+        // which the old gate below rejected as invalid -> returned null, no download.
+        var resolvedUrl = rawUrl;
+        if (typeof rawUrl === 'string' && rawUrl) {
+            try {
+                var parsed = new URL(rawUrl, location.href);
+                // Only adopt resolved http(s); keep non-navigable schemes
+                // (javascript:, data:, mailto:, ...) untouched so they still return null.
+                if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                    resolvedUrl = parsed.href;
+                }
+            } catch (e) {}
+        }
+        console.log('[ADL-DL-JS] window.open called:', { url: rawUrl, resolvedUrl: resolvedUrl, name: name });
+        __adlSendLog('info', 'window.open called', { url: rawUrl, resolvedUrl: resolvedUrl, name: name });
+
+        if (resolvedUrl && isValidWebUrl(resolvedUrl)) {
+            if (isDownloadUrl(resolvedUrl)) {
+                // Download URL (incl. the relative-path case above): do NOT open a
+                // new window. new_window_handler DENYs new windows for download URLs,
+                // and the previous impl proved that cancels the download entirely
+                // (no download_started, no record, no file). Instead navigate the
+                // CURRENT document to the resolved URL -> WebView2 fires native
+                // DownloadStarting (real-time progress + record + default save path),
+                // the identical proven path used by <a download> forced to _self.
+                console.log('[ADL-DL-JS] window.open: download URL -> same-document native DownloadStarting:', resolvedUrl);
+                __adlSendLog('info', 'window.open: download URL routed to same-document native DownloadStarting', { url: resolvedUrl, rawUrl: rawUrl });
+                window.location.assign(resolvedUrl);
+                return null;
             }
-            return origOpen.call(window, url, name, features);
+            console.log('[ADL-DL-JS] window.open: non-download URL, delegating to origOpen:', resolvedUrl);
+            __adlSendLog('info', 'window.open: non-download URL delegated to origOpen', { url: resolvedUrl });
+            return origOpen.call(window, resolvedUrl, name, features);
         }
         console.log('[ADL-DL-JS] window.open: invalid URL, returning null');
-        __adlSendLog('info', 'window.open: invalid URL, returning null', { url: url });
+        __adlSendLog('info', 'window.open: invalid URL, returning null', { url: rawUrl, resolvedUrl: resolvedUrl });
         return null;
     };
     
