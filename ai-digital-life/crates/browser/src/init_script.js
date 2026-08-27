@@ -122,38 +122,13 @@
         }
     };
 
-    // ---- FETCH OVERRIDE: detect download responses ----
-    var origFetch = window.fetch;
-    window.fetch = function() {
-        var fetchUrl = (arguments[0] && typeof arguments[0] === 'string') ? arguments[0] : (arguments[0] && arguments[0].url) ? arguments[0].url : 'unknown';
-        return origFetch.apply(this, arguments).then(function(response) {
-            try {
-                var cd = response.headers.get('content-disposition') || '';
-                if (cd.indexOf('attachment') !== -1 || cd.indexOf('filename') !== -1) {
-                    var fetchLogData = {
-                        url: fetchUrl,
-                        contentDisposition: cd,
-                        status: response.status
-                    };
-                    console.log('[ADL-DL-JS] fetch override: download response detected', fetchLogData);
-                    __adlSendLog('info', 'fetch override: download response detected', fetchLogData);
-                    var url = (arguments[0] && typeof arguments[0] === 'string') ? arguments[0] : '';
-                    var filename = '';
-                    var fnMatch = cd.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/i);
-                    if (fnMatch) filename = decodeURIComponent(fnMatch[1].replace(/"/g, ''));
-                    if (!filename) filename = getFilenameFromUrl(url);
-                    if (!filename) filename = 'download';
-                    console.log('[ADL-DL-JS] fetch override: saving blob download:', filename);
-                    return response.clone().arrayBuffer().then(function(buf) {
-                        var b64 = __adlArrayBufferToBase64(buf);
-                        __adlSaveBlobDownload(filename, b64);
-                        return response;
-                    });
-                }
-            } catch(e) {}
-            return response;
-        });
-    };
+    // ---- FETCH OVERRIDE (REMOVED) ----
+    // The previous fetch override cloned XHR responses with a Content-Disposition
+    // header and base64-saved them via download_save_blob. That buffered entire
+    // files in memory, showed no progress, and silently failed on large files
+    // (Chrome/Edge do NOT auto-download XHR attachment responses — the data
+    // belongs to the page). All http(s) downloads now flow through WebView2's
+    // native DownloadStarting pipeline instead.
 
     // 处理导航（确保在当前窗口中打开）
     function navigateToUrl(href) {
@@ -238,20 +213,27 @@
                     return;
                 }
 
-                // For <a download> links with http(s) URLs: prevent navigation and trigger
-                // NewWindowRequested via original window.open so new_window_handler can
-                // detect the download URL and route it through the download mechanism.
-                // Must use origOpen (bypass override) to avoid __adlDownloadUrl fetch path.
+                // For <a download> / download-ext http(s) links: DO NOT intercept. Align with
+                // Chrome/Edge — WebView2 fires its native DownloadStarting directly, giving us
+                // real-time progress, a download record, and the default save path.
+                // (Previous impl routed these via origOpen('_blank') → new_window_handler DENY,
+                // which cancelled the download entirely: no download_started, no record, no file.)
                 if ((target.hasAttribute('download') || isDownloadUrl(href)) && isValidWebUrl(href)) {
-                    __adlSendLog('info', 'click on download link - routing via origOpen for NewWindowRequest', {
+                    console.log('[ADL-DL-JS] click on download link - NOT intercepting (native DownloadStarting):', href);
+                    __adlSendLog('info', 'click on download link - NOT intercepting (native DownloadStarting)', {
                         href: href,
                         hasDownload: target.hasAttribute('download'),
                         isDownloadExt: isDownloadUrl(href)
                     });
-                    event.preventDefault();
-                    event.stopPropagation();
-                    origOpen.call(window, href, '_blank');
-                    return;
+                    if (target.hasAttribute('download') && target.target && target.target !== '_self') {
+                        // <a download target="_blank"> would open a new window that our
+                        // new_window_handler Denies. Chrome downloads <a download> in place;
+                        // force _self so WebView2 fires DownloadStarting in the same document.
+                        console.log('[ADL-DL-JS] <a download> forced in-place (target -> _self):', target.target);
+                        __adlSendLog('info', '<a download> forced in-place (target -> _self)', { target: target.target });
+                        target.target = '_self';
+                    }
+                    return; // allow default browser action → native DownloadStarting
                 }
 
                 if (isValidWebUrl(href)) {
@@ -296,29 +278,36 @@
         }
     }, true);
     
-    // 1. 重写 window.open（阻止所有弹窗；http/https 委托原生 NewWindowRequested，
-    //    由 Rust new_window_handler 发射 open-new-tab 事件；其它 scheme 直接返回 null）
-    //    下载类 URL（.exe/.zip/...）拦截后通过 fetch + IPC 保存，绕过 NewWindowRequested
+    // 1. 重写 window.open：统一走原生管线。
+    //    http/https 下载 URL 不再走 JS 拦截（__adlDownloadUrl fetch+base64 IPC），
+    //    直接 fallthrough 到原生 origOpen → 触发 NewWindowRequested，由 WebView2
+    //    原生 DownloadStarting 接管（含实时进度、默认保存路径、下载记录）。
+    //    对齐 Chrome/Edge 方案。
     var origOpen = window.open;
     window.open = function(url, name, features) {
         console.log('[ADL-DL-JS] window.open called:', { url: url, name: name });
         __adlSendLog('info', 'window.open called', { url: url, name: name });
         if (url && isValidWebUrl(url)) {
             if (isDownloadUrl(url)) {
-                console.log('[ADL-DL-JS] window.open: download URL detected, intercepting:', url);
-                window.__adlDownloadUrl(url);
-                return null;
+                // 统一走原生管线：仅记录，不拦截，交由 WebView2 原生 DownloadStarting 接管
+                console.log('[ADL-DL-JS] window.open: download URL -> native DownloadStarting (no JS interception):', url);
+                __adlSendLog('info', 'window.open: download URL delegated to native DownloadStarting', { url: url });
+            } else {
+                console.log('[ADL-DL-JS] window.open: non-download URL, delegating to origOpen:', url);
+                __adlSendLog('info', 'window.open: non-download URL delegated to origOpen', { url: url });
             }
-            console.log('[ADL-DL-JS] window.open: non-download URL, delegating to origOpen:', url);
             return origOpen.call(window, url, name, features);
         }
         console.log('[ADL-DL-JS] window.open: invalid URL, returning null');
+        __adlSendLog('info', 'window.open: invalid URL, returning null', { url: url });
         return null;
     };
     
-    // 2. 重写 location.assign 和 location.replace
-    // Note: window.location.href assignments by page JS are NOT intercepted here;
-    // they trigger the native navigation_handler which catches all navigations
+    // 2. 重写 location.assign 和 location.replace：统一走原生管线。
+    //    http/https 下载 URL 不再走 JS 拦截，直接调原生导航 →
+    //    WebView2 原生 DownloadStarting 接管（含实时进度、默认保存路径、下载记录）。
+    //    Note: window.location.href assignments by page JS are NOT intercepted here;
+    //    they trigger the native navigation_handler which catches all navigations
     const originalAssign = Location.prototype.assign;
     const originalReplace = Location.prototype.replace;
 
@@ -327,9 +316,9 @@
         __adlSendLog('info', 'location.assign called', { url: url });
         if (url && isValidWebUrl(url)) {
             if (isDownloadUrl(url)) {
-                console.log('[ADL-DL-JS] location.assign: download URL detected, intercepting:', url);
-                window.__adlDownloadUrl(url);
-                return;
+                // 统一走原生管线：仅记录，不拦截，交由 WebView2 原生 DownloadStarting 接管
+                console.log('[ADL-DL-JS] location.assign: download URL -> native DownloadStarting (no JS interception):', url);
+                __adlSendLog('info', 'location.assign: download URL delegated to native DownloadStarting', { url: url });
             }
             originalAssign.call(this, url);
             return;
@@ -342,9 +331,9 @@
         __adlSendLog('info', 'location.replace called', { url: url });
         if (url && isValidWebUrl(url)) {
             if (isDownloadUrl(url)) {
-                console.log('[ADL-DL-JS] location.replace: download URL detected, intercepting:', url);
-                window.__adlDownloadUrl(url);
-                return;
+                // 统一走原生管线：仅记录，不拦截，交由 WebView2 原生 DownloadStarting 接管
+                console.log('[ADL-DL-JS] location.replace: download URL -> native DownloadStarting (no JS interception):', url);
+                __adlSendLog('info', 'location.replace: download URL delegated to native DownloadStarting', { url: url });
             }
             originalReplace.call(this, url);
             return;
@@ -358,7 +347,10 @@
     //    如果下载 URL 通过 location.href 导航，WebView2 应该会触发 DownloadStarting
     //    但如果不触发，说明下载机制不同
 
-    // 4. 拦截表单提交（下载按钮可能使用表单提交）
+    // 4. 监听表单提交：统一走原生管线。
+    //    http/https 下载 URL 的表单提交不再走 JS 拦截（__adlDownloadUrl fetch+base64 IPC），
+    //    交原生表单提交 → WebView2 原生 DownloadStarting 接管（含实时进度、默认保存路径、下载记录）。
+    //    仅记录日志，不 preventDefault，不触发 JS 下载。对齐 Chrome/Edge 方案。
     document.addEventListener('submit', function(event) {
         var form = event.target;
         var formInfo = {
@@ -366,26 +358,22 @@
             method: form.method,
             target: form.target
         };
-        console.log('[ADL-DL-JS] form submit intercepted:', formInfo);
-        __adlSendLog('info', 'form submit intercepted', formInfo);
+        console.log('[ADL-DL-JS] form submit:', formInfo);
+        __adlSendLog('info', 'form submit', formInfo);
 
-        // 检查表单 action 是否为下载 URL
+        // 仅记录表单 action 是否为下载 URL（不拦截，交原生）
         if (form.action && isDownloadUrl(form.action)) {
-            console.log('[ADL-DL-JS] form submit: download URL detected, intercepting:', form.action);
-            event.preventDefault();
-            window.__adlDownloadUrl(form.action);
-            return;
+            console.log('[ADL-DL-JS] form submit: action is download URL -> native DownloadStarting (no JS interception):', form.action);
+            __adlSendLog('info', 'form submit: action download URL delegated to native', { action: form.action });
         }
 
-        // 检查表单中是否有隐藏的下载 URL 字段
+        // 仅记录表单中隐藏的下载 URL 字段（不拦截，交原生）
         var inputs = form.querySelectorAll('input[type="hidden"], input[name="url"], input[name="download"]');
         for (var i = 0; i < inputs.length; i++) {
             var value = inputs[i].value;
             if (value && isDownloadUrl(value)) {
-                console.log('[ADL-DL-JS] form submit: hidden field contains download URL:', value);
-                event.preventDefault();
-                window.__adlDownloadUrl(value);
-                return;
+                console.log('[ADL-DL-JS] form submit: hidden field contains download URL -> native (no JS interception):', value);
+                __adlSendLog('info', 'form submit: hidden field download URL delegated to native', { value: value });
             }
         }
     }, true);

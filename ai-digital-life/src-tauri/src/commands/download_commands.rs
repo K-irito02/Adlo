@@ -208,34 +208,58 @@ pub fn download_save_blob(
         "[ADL-DL] download_save_blob called"
     );
 
-    let decoded = base64::Engine::decode(
-        &base64::engine::general_purpose::STANDARD,
-        &data_base64,
-    )
-    .map_err(|e| AppError::Internal(format!("base64 decode failed: {e}")))?;
+    let result: Result<DownloadRecord, AppError> = (|| {
+        let decoded = base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            &data_base64,
+        )
+        .map_err(|e| AppError::Internal(format!("base64 decode failed: {e}")))?;
 
-    let default_path = state.download_manager.get_settings().default_path;
-    let target_dir = if default_path.is_empty() {
-        get_default_download_path()
-    } else {
-        PathBuf::from(&default_path)
+        let default_path = state.download_manager.get_settings().default_path;
+        let target_dir = if default_path.is_empty() {
+            get_default_download_path()
+        } else {
+            PathBuf::from(&default_path)
+        };
+        let _ = std::fs::create_dir_all(&target_dir);
+
+        let mut final_path = target_dir.join(&file_name);
+        let resolved = state.download_manager.resolve_conflict_path(
+            final_path.to_string_lossy().as_ref(),
+        );
+        final_path = PathBuf::from(resolved);
+
+        std::fs::write(&final_path, &decoded)
+            .map_err(|e| AppError::Internal(format!("failed to write file: {e}")))?;
+
+        let url = format!("blob://local/{}", file_name);
+        let record = state
+            .download_manager
+            .create_download(&url, final_path.to_string_lossy().as_ref())
+            .map_err(map_download_err)?;
+        Ok(record)
+    })();
+
+    let record = match result {
+        Ok(record) => record,
+        Err(err) => {
+            tracing::warn!(
+                file_name = %file_name,
+                error = %err,
+                "[ADL-DL] download_save_blob FAILED"
+            );
+            let _ = app_handle.emit(
+                "browser-download-error",
+                &serde_json::json!({
+                    "id": "",
+                    "url": format!("blob://local/{}", file_name),
+                    "reason": err.to_string(),
+                    "canRetry": false,
+                }),
+            );
+            return Err(err.into());
+        }
     };
-    let _ = std::fs::create_dir_all(&target_dir);
-
-    let mut final_path = target_dir.join(&file_name);
-    let resolved = state.download_manager.resolve_conflict_path(
-        final_path.to_string_lossy().as_ref(),
-    );
-    final_path = PathBuf::from(resolved);
-
-    std::fs::write(&final_path, &decoded)
-        .map_err(|e| AppError::Internal(format!("failed to write file: {e}")))?;
-
-    let url = format!("blob://local/{}", file_name);
-    let record = state
-        .download_manager
-        .create_download(&url, final_path.to_string_lossy().as_ref())
-        .map_err(map_download_err)?;
 
     let _ = app_handle.emit("browser-download-started", &record);
 
@@ -243,14 +267,14 @@ pub fn download_save_blob(
 
     tracing::debug!(
         record_id = &record.id,
-        file_path = %final_path.display(),
+        file_path = %record.file_path,
         "[ADL-DL] blob download saved successfully"
     );
 
     let _ = app_handle.emit("browser-download-finished", &serde_json::json!({
         "id": record.id,
         "url": record.url,
-        "filePath": final_path.to_string_lossy().to_string(),
+        "filePath": record.file_path,
         "success": true,
     }));
     Ok(ipc(Ok(record)))

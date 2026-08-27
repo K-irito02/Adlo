@@ -160,6 +160,12 @@ pub(super) fn build_webview_builder(
                         "[ADL-DL] on_download: Requested"
                     );
                     let allowed = requested_handler(url.to_string(), destination);
+                    tracing::info!(
+                        url = %url,
+                        allowed,
+                        resolved_destination = %destination.display(),
+                        "[ADL-DL] on_download: Requested handler decision"
+                    );
 
                     // Start progress monitor if download was allowed
                     if allowed {

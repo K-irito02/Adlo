@@ -1,4 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// The MSVC linker prints an informational "creating library .lib/.exp" message
+// for the Tauri import library. Harmless output, not an actual error, so allow
+// the linker_messages lint to avoid a spurious warning on every build.
+#![allow(linker_messages)]
 
 use adl_logging::LogMode;
 use tauri::Manager;
