@@ -51,7 +51,7 @@ pub async fn browser_create_for_tab(
             // setup in apply_theme_and_navigate_for_platform.
             let blank_url = url::Url::parse("about:blank")
                 .map_err(|e| AppError::Internal(format!("failed to parse about:blank: {e}")))?;
-            let webview_builder = build_webview_builder(&label, &tab_id, blank_url, app_inner.clone(), &cs);
+            let webview_builder = build_webview_builder(&label, &tab_id, blank_url, app_inner.clone(), &cs, false);
 
             // Off-screen child attachment + WebView2 handler setup — shared with
             // the silent-tab path so both paths keep identical creation semantics.
@@ -169,7 +169,7 @@ pub fn create_silent_webview(
             let (window, _target) = resolve_window_and_url(&app_inner, &url_owned)?;
             let blank_url = url::Url::parse("about:blank")
                 .map_err(|e| AppError::Internal(format!("failed to parse about:blank: {e}")))?;
-            let webview_builder = build_silent_webview_builder(&label, blank_url, &cs);
+            let webview_builder = build_silent_webview_builder(&label, blank_url, &cs, true);
             attach_webview_child(&window, &label, &tab_id_inner, webview_builder, move || {
                 Arc::new(CachedMetaBridge::new(Some(tx)))
             })?;

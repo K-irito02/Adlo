@@ -110,6 +110,7 @@ pub(super) fn build_webview_builder(
     target: url::Url,
     app_handle: tauri::AppHandle,
     color_scheme: &str,
+    is_silent: bool,
 ) -> tauri::webview::WebviewBuilder<tauri::Wry> {
     let app_nav = app_handle.clone();
     let tab_id_owned = tab_id.to_string();
@@ -120,7 +121,7 @@ pub(super) fn build_webview_builder(
     let last_record_id: std::sync::Arc<std::sync::Mutex<Option<String>>> =
         std::sync::Arc::new(std::sync::Mutex::new(None));
     let requested_handler =
-        setup_download_handler(app_handle.clone(), download_manager.clone(), last_record_id.clone(), false);
+        setup_download_handler(app_handle.clone(), download_manager.clone(), last_record_id.clone(), is_silent);
     let app_download = app_handle.clone();
     let dm_for_monitor = download_manager.clone();
     let last_id_for_monitor = last_record_id.clone();
@@ -318,14 +319,29 @@ pub(super) fn build_silent_webview_builder(
     label: &str,
     target: url::Url,
     color_scheme: &str,
+    is_silent: bool,
 ) -> tauri::webview::WebviewBuilder<tauri::Wry> {
     let init_script = adl_browser::init_script_with_background(color_scheme);
     tracing::debug!(
         color_scheme,
         "build_silent_webview_builder: generated init_script with background"
     );
-    tauri::webview::WebviewBuilder::new(label, tauri::WebviewUrl::External(target))
-        .initialization_script(init_script)
+    let builder = tauri::webview::WebviewBuilder::new(label, tauri::WebviewUrl::External(target))
+        .initialization_script(init_script);
+    if is_silent {
+        // Silent webviews: always cancel downloads unconditionally.
+        builder.on_download(|_webview, event| {
+            if let tauri::webview::DownloadEvent::Requested { url, .. } = event {
+                tracing::warn!(
+                    url = %url,
+                    "[ADL-DL] download_requested: CANCELLED (silent webview)"
+                );
+            }
+            false
+        })
+    } else {
+        builder
+    }
 }
 
 pub(super) fn setup_webview2_handlers_for_platform(
