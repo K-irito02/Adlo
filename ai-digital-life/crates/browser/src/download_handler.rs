@@ -18,15 +18,16 @@ pub fn setup_download_handler(
         // Silent webviews (warmup/meta fetch): cancel ALL downloads unconditionally.
         // Matches Chrome/Edge behavior where background pages never auto-download.
         if is_silent {
-            tracing::warn!(
-                url = &url,
-                "[ADL-DL] download_requested: CANCELLED (silent webview)"
-            );
+            tracing::warn!(url = &url, "[ADL-DL] download_requested: CANCELLED (silent webview)");
             return false;
         }
 
         let suggested_path = destination.to_string_lossy().to_string();
-        tracing::debug!(url = &url, suggested_path = &suggested_path, "[ADL-DL] download requested");
+        tracing::debug!(
+            url = &url,
+            suggested_path = &suggested_path,
+            "[ADL-DL] download requested"
+        );
 
         // Check if this URL is already being downloaded (prevent duplicates)
         if let Some(existing) = manager.get_record_by_url(&url) {
@@ -40,7 +41,7 @@ pub fn setup_download_handler(
                     // Still allow the download but don't create a new record
                     *destination = PathBuf::from(&existing.file_path);
                     return true;
-                }
+                },
                 super::download_types::DownloadStatus::Paused => {
                     tracing::warn!(
                         url = &url,
@@ -55,8 +56,8 @@ pub fn setup_download_handler(
                         }),
                     );
                     return false;
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 
@@ -67,7 +68,11 @@ pub fn setup_download_handler(
         let final_path = manager.resolve_download_target(&url, &suggested_path);
 
         if let Err(reason) = manager.check_disk_space(&final_path) {
-            tracing::warn!(url = &url, reason = &reason, "[ADL-DL] download denied: disk space check failed");
+            tracing::warn!(
+                url = &url,
+                reason = &reason,
+                "[ADL-DL] download denied: disk space check failed"
+            );
             let _ = handle.emit(
                 "browser-download-error",
                 &serde_json::json!({
@@ -100,7 +105,11 @@ pub fn setup_download_handler(
                 true
             },
             Err(reason) => {
-                tracing::warn!(url = &url, reason = &reason, "[ADL-DL] download record creation failed");
+                tracing::warn!(
+                    url = &url,
+                    reason = &reason,
+                    "[ADL-DL] download record creation failed"
+                );
                 let _ = handle.emit(
                     "browser-download-error",
                     &serde_json::json!({
@@ -227,19 +236,12 @@ pub fn handle_download_progress(
     );
 }
 
-pub fn handle_download_pause(
-    app_handle: &AppHandle,
-    download_manager: &DownloadManager,
-    id: &str,
-) {
+pub fn handle_download_pause(app_handle: &AppHandle, download_manager: &DownloadManager, id: &str) {
     tracing::debug!(record_id = id, "[ADL-DL] pausing download");
     if let Err(e) = download_manager.pause_download(id) {
         tracing::warn!(error = %e, record_id = id, "[ADL-DL] failed to pause download");
     }
-    let _ = app_handle.emit(
-        "browser-download-paused",
-        &serde_json::json!({ "id": id }),
-    );
+    let _ = app_handle.emit("browser-download-paused", &serde_json::json!({ "id": id }));
 }
 
 pub fn handle_download_resume(
@@ -251,10 +253,7 @@ pub fn handle_download_resume(
     if let Err(e) = download_manager.resume_download(id) {
         tracing::warn!(error = %e, record_id = id, "[ADL-DL] failed to resume download");
     }
-    let _ = app_handle.emit(
-        "browser-download-resumed",
-        &serde_json::json!({ "id": id }),
-    );
+    let _ = app_handle.emit("browser-download-resumed", &serde_json::json!({ "id": id }));
 }
 
 pub fn handle_download_cancel(
@@ -266,10 +265,7 @@ pub fn handle_download_cancel(
     if let Err(e) = download_manager.cancel_download(id) {
         tracing::warn!(error = %e, record_id = id, "[ADL-DL] failed to cancel download");
     }
-    let _ = app_handle.emit(
-        "browser-download-canceled",
-        &serde_json::json!({ "id": id }),
-    );
+    let _ = app_handle.emit("browser-download-canceled", &serde_json::json!({ "id": id }));
 }
 
 pub fn create_download_manager(db: adl_storage::Database) -> Arc<DownloadManager> {

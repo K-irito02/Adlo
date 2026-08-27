@@ -422,7 +422,8 @@ fn derive_file_name(url: &str, file_path: &str) -> String {
 
     if let Some(url_path) = url::Url::parse(url).ok().map(|u| u.path().to_string()) {
         if !url_path.is_empty() && url_path != "/" {
-            if let Some(segment) = url_path.rsplit('/').find(|s| !s.is_empty() && *s != "." && *s != "..")
+            if let Some(segment) =
+                url_path.rsplit('/').find(|s| !s.is_empty() && *s != "." && *s != "..")
             {
                 return segment.to_string();
             }
@@ -697,11 +698,8 @@ mod tests {
             .expect("update settings");
 
         // WebView2 suggests a C-drive path; the configured default must win.
-        let suggested = std::env::temp_dir()
-            .join("Downloads")
-            .join("report.pdf")
-            .to_string_lossy()
-            .to_string();
+        let suggested =
+            std::env::temp_dir().join("Downloads").join("report.pdf").to_string_lossy().to_string();
         let target = mgr.resolve_download_target("https://example.com/report.pdf", &suggested);
         let p = Path::new(&target);
         assert_eq!(p.file_name().unwrap().to_str().unwrap(), "report.pdf");

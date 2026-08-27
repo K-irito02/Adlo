@@ -6,8 +6,8 @@ use adl_browser::download_manager::get_default_download_path;
 use adl_browser::download_types::{DownloadMode, DownloadRecord, DownloadSettings};
 use adl_errors::AppError;
 use adl_types::IpcResult;
-use tauri::{Emitter, State};
 use std::path::PathBuf;
+use tauri::{Emitter, State};
 
 fn map_download_err(e: String) -> AppError {
     if e.contains("NoSpace") {
@@ -17,6 +17,22 @@ fn map_download_err(e: String) -> AppError {
     } else {
         AppError::Internal(e)
     }
+}
+
+/// 防路径穿越：仅接受不含路径分隔符的单一文件名。
+/// 拒绝空名、`.`、`..` 或含 `/`、`\` 的文件名，杜绝下载落到下载目录之外。
+fn sanitize_download_file_name(file_name: &str) -> Result<String, AppError> {
+    let name = file_name.trim();
+    if name.is_empty()
+        || name == "."
+        || name == ".."
+        || name.contains('/')
+        || name.contains('\\')
+        || name.contains("..")
+    {
+        return Err(AppError::InvalidInput(format!("illegal download file name: {file_name}")));
+    }
+    Ok(name.to_string())
 }
 
 #[tauri::command]
@@ -158,10 +174,7 @@ pub fn download_pause(
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::debug!(id = %id, "[ADL-DL] download_pause called");
     state.download_manager.pause_download(&id).map_err(map_download_err)?;
-    let _ = app_handle.emit(
-        "browser-download-paused",
-        &serde_json::json!({ "id": id }),
-    );
+    let _ = app_handle.emit("browser-download-paused", &serde_json::json!({ "id": id }));
     Ok(ipc(Ok(())))
 }
 
@@ -173,10 +186,7 @@ pub fn download_resume(
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::debug!(id = %id, "[ADL-DL] download_resume called");
     state.download_manager.resume_download(&id).map_err(map_download_err)?;
-    let _ = app_handle.emit(
-        "browser-download-resumed",
-        &serde_json::json!({ "id": id }),
-    );
+    let _ = app_handle.emit("browser-download-resumed", &serde_json::json!({ "id": id }));
     Ok(ipc(Ok(())))
 }
 
@@ -188,10 +198,7 @@ pub fn download_cancel(
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::debug!(id = %id, "[ADL-DL] download_cancel called");
     state.download_manager.cancel_download(&id).map_err(map_download_err)?;
-    let _ = app_handle.emit(
-        "browser-download-canceled",
-        &serde_json::json!({ "id": id }),
-    );
+    let _ = app_handle.emit("browser-download-canceled", &serde_json::json!({ "id": id }));
     Ok(ipc(Ok(())))
 }
 
@@ -209,11 +216,12 @@ pub fn download_save_blob(
     );
 
     let result: Result<DownloadRecord, AppError> = (|| {
-        let decoded = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            &data_base64,
-        )
-        .map_err(|e| AppError::Internal(format!("base64 decode failed: {e}")))?;
+        let decoded =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &data_base64)
+                .map_err(|e| AppError::Internal(format!("base64 decode failed: {e}")))?;
+
+        // 防路径穿越：拒绝包含分隔符或 ".." 的文件名，仅允许普通文件名落到下载目录
+        let file_name = sanitize_download_file_name(&file_name)?;
 
         let default_path = state.download_manager.get_settings().default_path;
         let target_dir = if default_path.is_empty() {
@@ -224,9 +232,8 @@ pub fn download_save_blob(
         let _ = std::fs::create_dir_all(&target_dir);
 
         let mut final_path = target_dir.join(&file_name);
-        let resolved = state.download_manager.resolve_conflict_path(
-            final_path.to_string_lossy().as_ref(),
-        );
+        let resolved =
+            state.download_manager.resolve_conflict_path(final_path.to_string_lossy().as_ref());
         final_path = PathBuf::from(resolved);
 
         std::fs::write(&final_path, &decoded)
@@ -258,7 +265,7 @@ pub fn download_save_blob(
                 }),
             );
             return Err(err.into());
-        }
+        },
     };
 
     let _ = app_handle.emit("browser-download-started", &record);
@@ -271,12 +278,15 @@ pub fn download_save_blob(
         "[ADL-DL] blob download saved successfully"
     );
 
-    let _ = app_handle.emit("browser-download-finished", &serde_json::json!({
-        "id": record.id,
-        "url": record.url,
-        "filePath": record.file_path,
-        "success": true,
-    }));
+    let _ = app_handle.emit(
+        "browser-download-finished",
+        &serde_json::json!({
+            "id": record.id,
+            "url": record.url,
+            "filePath": record.file_path,
+            "success": true,
+        }),
+    );
     Ok(ipc(Ok(record)))
 }
 
@@ -306,5 +316,28 @@ mod tests {
             AppError::Internal(_) => {},
             other => panic!("expected Internal, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn sanitize_download_file_name_accepts_plain_name() {
+        let result = sanitize_download_file_name("report.pdf");
+        assert_eq!(result.unwrap(), "report.pdf");
+    }
+
+    #[test]
+    fn sanitize_download_file_name_rejects_path_traversal() {
+        for bad in
+            ["../../etc/passwd", "..\\..\\Windows\\system.ini", "/abs/path/file.exe", "..", "."]
+        {
+            let result = sanitize_download_file_name(bad);
+            assert!(result.is_err(), "expected reject for {bad:?}");
+        }
+    }
+
+    #[test]
+    fn sanitize_download_file_name_rejects_directory_prefix() {
+        // 含目录前缀的文件名同样一律拒绝（严格契约：仅允许单一文件名）
+        let result = sanitize_download_file_name("downloads/demo.zip");
+        assert!(result.is_err());
     }
 }

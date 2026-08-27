@@ -1,5 +1,22 @@
 # 进度 — 2026-08-27 (下载统一走原生管线)
 
+## [x] 事项 6（Phase 4 收尾）：根因验证 + 死代码清理 + 全量验收
+- 状态：✅ 已完成（Phase 4 收尾归档完成）
+- 待执行：子代理 A 根因验证 → 主代理修复 → 子代理 B 死代码清理 → 全量测试 → 标记完成 → 更新 README
+- 快照：`.review-diffs/issue-1-rev1.diff`（范围 `34238d33..HEAD`，即 unify 原生管线 + 相对 URL 修复的累计变更）
+- 📝 主代理修复（子代理 A rev1 审查发现、主代理转写后修复）：
+  1. **表单 `target="_blank"` 下载归一化**（中风险）：`init_script.js` form submit 处理在 `form.action` 为下载 URL 且 `form.target` 非 `_self` 时，改写 `form.target='_self'`，避免表单提交经 `new_window_handler` 打开新窗口被 DENY 取消下载。新增日志 `[ADL-DL-JS] form submit: download form normalized target`。
+  2. **`download_save_blob` 路径穿越**（中风险）：新增 `sanitize_download_file_name`，仅接受不含 `/`、`\`、`.`、`..` 的单一文件名，杜绝 blob 下载落到默认下载目录之外。
+- 回归测试：`init_script.js` 新增 `initScriptNavigation.test.ts`「download forms with target=_blank to _self」；`download_commands.rs` 新增 `sanitize_download_file_name_*` 4 个用例（普通名通过 / 穿越拒绝 / 目录前缀拒绝）。
+- 子代理 A 报告索引：`.review-diffs/review-issue-1-rev1.md`
+- 全量验收（Phase 4）：
+  - ✅ rustfmt `cargo fmt --all` 通过；clippy `-p ai-digital-life` 0 警告
+  - ✅ `cargo test -p adl-browser` 全测通过（受影响 crate）
+  - ✅ `cargo test --bin ai-digital-life download_commands` 6/6 通过（含新增 4 个 sanitize 用例）
+  - ✅ 前端 `typecheck` 0 errors、`lint`/`format` 通过；`initScriptNavigation.test.ts` 23/23 通过（含新增表单归一化回归）
+  - ⚠️ `cargo test --workspace` 在环境敏感测试（ad-server snapshot/pty 等同前会话已记录需 `#[ignore]` 类）处挂起，CPU 零增长，非本次改动所致；已终止并改受影响 crate 定向全测替代，全部通过
+  - ℹ️ 前端全量测试唯 1 失败为 `useBrowserDialogs`「save-and-open navigate-in-place」既有 flaky（首轮 3 个、次轮 1 个），与本次下载/initScript 改动无关
+
 ## [x] 事项 1：部分资源下载未在"下载按钮菜单卡片"展示进度/记录，且未保存到默认路径
 - 状态：✅ 已完成（用户实测轮次2确认成功——鸣潮/ZZZ/wallspic/wallhaven 全部走原生 on_download 落默认路径）
 - 根因（编码级初步确认）：存在两套并行下载管线——
@@ -65,7 +82,7 @@
 - 验证：`node --check init_script.js` 通过；`vitest initScriptNavigation.test.ts` 22/22 通过；`cargo test -p adl-browser` 通过；ESLint/Prettier/tsc 通过。
 - 待用户实测：重开应用（需重编译生效，init_script 为 `include_str!` 内联）→ 打开 xiaogans.online 点下载 → 期望日志出现 `window.open called {rawUrl/resolvedUrl}` 与同文档 DownloadStarting → 菜单有记录/进度、默认路径落盘。
 
-## [ ] 事项 5：审视分析——是否像 Chrome/Edge 般应对所有"资源下载"类型
+## [x] 事项 5：审视分析——是否像 Chrome/Edge 般应对所有"资源下载"类型
 - 状态：✅ 已完成（审计结论 + 无代码改动；详见下方审计表）
 - 结论：核心触发路径已全覆盖并对齐 Chrome/Edge（http/s 扩展名、Content-Disposition、window.open 相对/绝对、blob `<a download>` 兜底）；仅 blob 下载的"逐字节进度"以 JS 缓冲侧通道实现（菜单显示 0→100% 快速完成），数据量中等（页面自生成）时与 Chrome/Edge 等效；data:/object-URL 非 `window.open('_blank')` 外化场景极少见，WebView2 原生降级足够。
 - 审计（触发机制 vs 处理）：

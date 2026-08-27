@@ -207,4 +207,15 @@ describe('init_script.js new-tab interception markers', () => {
       "__adlSendLog('info', 'window.open: download URL routed to same-document native DownloadStarting'",
     );
   });
+
+  it('normalizes download forms with target=_blank to _self (native DownloadStarting)', () => {
+    // 下载表单 target=_blank 会经 new_window_handler 打开新窗口被 DENY 取消下载。
+    // 回归断言：submit 处理在 action 为下载 URL 且 target 非 _self 时，改写
+    // target='_self' 使其走同文档原生下载管线（与 <a download> 归一化一致）。
+    const marker = "document.addEventListener('submit', function(event)";
+    const formSubmit = initScript.slice(initScript.indexOf(marker), initScript.length);
+    expect(formSubmit).toContain("if (form.target && form.target !== '_self')");
+    expect(formSubmit).toContain("form.target = '_self'");
+    expect(formSubmit).toContain("'form submit: download form normalized target'");
+  });
 });

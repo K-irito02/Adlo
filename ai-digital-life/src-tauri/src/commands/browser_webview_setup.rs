@@ -17,11 +17,9 @@ use adl_errors::AppError;
 use tauri::{Emitter, Manager};
 
 static DOWNLOAD_EXTENSIONS: &[&str] = &[
-    "exe", "msi", "dmg", "pkg", "deb", "rpm",
-    "zip", "rar", "7z", "tar", "gz", "bz2", "xz",
-    "pdf", "apk", "ipa", "iso", "img", "cab",
-    "msix", "appx", "bat", "cmd", "ps1", "scr",
-    "com", "pif", "vbs", "wsf", "hta",
+    "exe", "msi", "dmg", "pkg", "deb", "rpm", "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "pdf",
+    "apk", "ipa", "iso", "img", "cab", "msix", "appx", "bat", "cmd", "ps1", "scr", "com", "pif",
+    "vbs", "wsf", "hta",
 ];
 
 fn is_download_url(url: &url::Url) -> bool {
@@ -120,8 +118,12 @@ pub(super) fn build_webview_builder(
     let download_manager = app_handle.state::<AppState>().download_manager.clone();
     let last_record_id: std::sync::Arc<std::sync::Mutex<Option<String>>> =
         std::sync::Arc::new(std::sync::Mutex::new(None));
-    let requested_handler =
-        setup_download_handler(app_handle.clone(), download_manager.clone(), last_record_id.clone(), is_silent);
+    let requested_handler = setup_download_handler(
+        app_handle.clone(),
+        download_manager.clone(),
+        last_record_id.clone(),
+        is_silent,
+    );
     let app_download = app_handle.clone();
     let dm_for_monitor = download_manager.clone();
     let last_id_for_monitor = last_record_id.clone();
@@ -245,13 +247,12 @@ pub fn start_download_progress_monitor(
                     .and_then(|r| r.into_iter().find(|d| d.id == record_id))
             } else {
                 // Fallback: find by file path
-                download_manager
-                    .list_downloads()
-                    .ok()
-                    .and_then(|r| {
-                        r.into_iter()
-                            .find(|d| d.file_path == file_path && d.status == adl_browser::download_types::DownloadStatus::InProgress)
+                download_manager.list_downloads().ok().and_then(|r| {
+                    r.into_iter().find(|d| {
+                        d.file_path == file_path
+                            && d.status == adl_browser::download_types::DownloadStatus::InProgress
                     })
+                })
             };
 
             let record = match record {
@@ -259,7 +260,7 @@ pub fn start_download_progress_monitor(
                 None => {
                     tracing::trace!(file_path = %file_path, "[ADL-DL] progress monitor: record not found, retrying");
                     continue;
-                }
+                },
             };
 
             // Check if download is still in progress

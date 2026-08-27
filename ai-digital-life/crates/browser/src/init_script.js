@@ -386,10 +386,17 @@
         console.log('[ADL-DL-JS] form submit:', formInfo);
         __adlSendLog('info', 'form submit', formInfo);
 
-        // 仅记录表单 action 是否为下载 URL（不拦截，交原生）
+        // 表单 action 为下载 URL：交原生 DownloadStarting（不 JS 拦截）。
+        // 若 target 非 _self，表单提交会经 new_window_handler 打开新窗口而被 DENY 取消下载，
+        // 故对下载表单归一化 target='_self'，确保走同文档原生下载管线。
         if (form.action && isDownloadUrl(form.action)) {
             console.log('[ADL-DL-JS] form submit: action is download URL -> native DownloadStarting (no JS interception):', form.action);
             __adlSendLog('info', 'form submit: action download URL delegated to native', { action: form.action });
+            if (form.target && form.target !== '_self') {
+                console.log('[ADL-DL-JS] form submit: download form forced in-place (target -> _self):', form.target);
+                __adlSendLog('info', 'form submit: download form normalized target', { from: form.target, to: '_self' });
+                form.target = '_self';
+            }
         }
 
         // 仅记录表单中隐藏的下载 URL 字段（不拦截，交原生）
