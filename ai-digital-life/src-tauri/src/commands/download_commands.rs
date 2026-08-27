@@ -19,20 +19,53 @@ fn map_download_err(e: String) -> AppError {
     }
 }
 
-/// 防路径穿越：仅接受不含路径分隔符的单一文件名。
-/// 拒绝空名、`.`、`..` 或含 `/`、`\` 的文件名，杜绝下载落到下载目录之外。
+/// 防路径穿越 + 平台健壮性：仅接受不含路径分隔符的单一安全文件名。
+/// 拒绝空名、`.`、`..`、含 `/`、`\`、控制字符或 Windows 非法字符/保留设备名的文件名，
+/// 杜绝下载落到下载目录之外或落盘失败。
 fn sanitize_download_file_name(file_name: &str) -> Result<String, AppError> {
-    let name = file_name.trim();
-    if name.is_empty()
-        || name == "."
-        || name == ".."
-        || name.contains('/')
-        || name.contains('\\')
-        || name.contains("..")
-    {
-        return Err(AppError::InvalidInput(format!("illegal download file name: {file_name}")));
+    let reject = |reason: &str| {
+        Err(AppError::InvalidInput(format!("illegal download file name '{file_name}': {reason}")))
+    };
+    let name = file_name.trim().trim_end_matches([' ', '.']);
+    if name.is_empty() {
+        return reject("empty");
+    }
+    if name == "." || name == ".." {
+        return reject("dot entry");
+    }
+    // 路径分隔符会造成穿越；无分隔符时 ".." 无法跳出下载目录，故仅精确拒绝 "." / ".."
+    if name.contains('/') || name.contains('\\') {
+        return reject("path separator");
+    }
+    // 控制字符会污染日志/错误事件回显
+    if name.chars().any(|c| c.is_control()) {
+        return reject("control character");
+    }
+    #[cfg(windows)]
+    if is_windows_illegal(name) {
+        return reject("windows reserved/invalid name");
     }
     Ok(name.to_string())
+}
+
+/// Windows 保留设备名与非法字符校验（仅在文件名净化后的单一 basename 上执行）。
+#[cfg(windows)]
+fn is_windows_illegal(name: &str) -> bool {
+    const INVALID_CHARS: &[char] = &[':', '*', '?', '"', '<', '>', '|'];
+    if name.chars().any(|c| INVALID_CHARS.contains(&c)) {
+        return true;
+    }
+    // 不带扩展名的保留设备名：CON、PRN、AUX、NUL、COM1-9、LPT1-9
+    let stem = name.split('.').next().unwrap_or("");
+    if stem.is_empty() {
+        return false;
+    }
+    const RESERVED: &[&str] = &[
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+        "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    ];
+    let upper = stem.to_ascii_uppercase();
+    RESERVED.contains(&upper.as_str())
 }
 
 #[tauri::command]
@@ -203,7 +236,7 @@ pub fn download_cancel(
 }
 
 #[tauri::command]
-pub fn download_save_blob(
+pub async fn download_save_blob(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
     file_name: String,
@@ -215,15 +248,22 @@ pub fn download_save_blob(
         "[ADL-DL] download_save_blob called"
     );
 
-    let result: Result<DownloadRecord, AppError> = (|| {
+    // 净化文件名（轻量）在此先做，拒绝路径穿越/非法名；随后在 spawn_blocking
+    // 中执行 base64 解码 + 全量落盘，避免大 blob 阻塞主线程（窗口卡顿/未响应）。
+    // file_name 在闭包外保留一份（供日志/错误事件回显），另 clone 一份随闭包 move，
+    // 避免闭包 move 后外层借用失效（E0382）。
+    let file_name = sanitize_download_file_name(&file_name)?;
+    let blob_url = format!("blob://local/{}", file_name);
+    let blob_url_spawn = blob_url.clone();
+    let mgr = state.download_manager.clone();
+    let file_name_spawn = file_name.clone();
+
+    let result = tokio::task::spawn_blocking(move || -> Result<DownloadRecord, AppError> {
         let decoded =
             base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &data_base64)
                 .map_err(|e| AppError::Internal(format!("base64 decode failed: {e}")))?;
 
-        // 防路径穿越：拒绝包含分隔符或 ".." 的文件名，仅允许普通文件名落到下载目录
-        let file_name = sanitize_download_file_name(&file_name)?;
-
-        let default_path = state.download_manager.get_settings().default_path;
+        let default_path = mgr.get_settings().default_path;
         let target_dir = if default_path.is_empty() {
             get_default_download_path()
         } else {
@@ -231,21 +271,20 @@ pub fn download_save_blob(
         };
         let _ = std::fs::create_dir_all(&target_dir);
 
-        let mut final_path = target_dir.join(&file_name);
-        let resolved =
-            state.download_manager.resolve_conflict_path(final_path.to_string_lossy().as_ref());
+        let mut final_path = target_dir.join(&file_name_spawn);
+        let resolved = mgr.resolve_conflict_path(final_path.to_string_lossy().as_ref());
         final_path = PathBuf::from(resolved);
 
         std::fs::write(&final_path, &decoded)
             .map_err(|e| AppError::Internal(format!("failed to write file: {e}")))?;
 
-        let url = format!("blob://local/{}", file_name);
-        let record = state
-            .download_manager
-            .create_download(&url, final_path.to_string_lossy().as_ref())
+        let record = mgr
+            .create_download(&blob_url_spawn, final_path.to_string_lossy().as_ref())
             .map_err(map_download_err)?;
         Ok(record)
-    })();
+    })
+    .await
+    .map_err(|e| map_download_err(format!("download_save_blob spawn_blocking join failed: {e}")))?;
 
     let record = match result {
         Ok(record) => record,
@@ -259,7 +298,7 @@ pub fn download_save_blob(
                 "browser-download-error",
                 &serde_json::json!({
                     "id": "",
-                    "url": format!("blob://local/{}", file_name),
+                    "url": blob_url,
                     "reason": err.to_string(),
                     "canRetry": false,
                 }),
@@ -339,5 +378,29 @@ mod tests {
         // 含目录前缀的文件名同样一律拒绝（严格契约：仅允许单一文件名）
         let result = sanitize_download_file_name("downloads/demo.zip");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn sanitize_download_file_name_accepts_double_dot_in_name() {
+        // F4：文件名中的 ".."（无路径分隔符）不构成穿越，应接受
+        let result = sanitize_download_file_name("report..final.pdf");
+        assert_eq!(result.unwrap(), "report..final.pdf");
+    }
+
+    #[test]
+    fn sanitize_download_file_name_rejects_control_chars() {
+        for bad in ["evil\u{0007}.exe", "a\u{001f}b"] {
+            let result = sanitize_download_file_name(bad);
+            assert!(result.is_err(), "expected reject for {bad:?}");
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn sanitize_download_file_name_rejects_windows_illegal_names() {
+        for bad in ["CON", "NUL.txt", "COM1", "LPT3.log", "a?b", "x<y", "a:b"] {
+            let result = sanitize_download_file_name(bad);
+            assert!(result.is_err(), "expected reject for {bad:?}");
+        }
     }
 }

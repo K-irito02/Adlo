@@ -204,7 +204,10 @@
                         try {
                             var seg = new URL(href).pathname.split('/').pop();
                             if (seg) fn = decodeURIComponent(seg);
-                        } catch(e) {}
+                        } catch(e) {
+                            // Non-parseable blob URL — keep empty name, falls back to 'download'.
+                            console.log('[ADL-DL-JS] blob URL parse failed, fallback name:', href, e);
+                        }
                     }
                     if (!fn) fn = 'download';
                     event.preventDefault();
@@ -225,12 +228,13 @@
                         hasDownload: target.hasAttribute('download'),
                         isDownloadExt: isDownloadUrl(href)
                     });
-                    if (target.hasAttribute('download') && target.target && target.target !== '_self') {
-                        // <a download target="_blank"> would open a new window that our
-                        // new_window_handler Denies. Chrome downloads <a download> in place;
-                        // force _self so WebView2 fires DownloadStarting in the same document.
-                        console.log('[ADL-DL-JS] <a download> forced in-place (target -> _self):', target.target);
-                        __adlSendLog('info', '<a download> forced in-place (target -> _self)', { target: target.target });
+                    if (target.target && target.target !== '_self') {
+                        // Any download link (with or without the `download` attribute) that
+                        // targets a new window would open a tab our new_window_handler Denies,
+                        // which cancels the download entirely. Align with Chrome/Edge — download
+                        // in place: force _self so WebView2 fires DownloadStarting in this document.
+                        console.log('[ADL-DL-JS] download link forced in-place (target -> _self):', target.target);
+                        __adlSendLog('info', 'download link forced in-place (target -> _self)', { target: target.target, hasDownload: target.hasAttribute('download') });
                         target.target = '_self';
                     }
                     return; // allow default browser action → native DownloadStarting
@@ -300,7 +304,11 @@
                 if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
                     resolvedUrl = parsed.href;
                 }
-            } catch (e) {}
+            } catch (e) {
+                // Invalid/throwaway URL — keep the original value (falls through to null).
+                console.log('[ADL-DL-JS] window.open URL parse failed:', rawUrl, e);
+                __adlSendLog('debug', 'window.open URL parse failed', { url: rawUrl });
+            }
         }
         console.log('[ADL-DL-JS] window.open called:', { url: rawUrl, resolvedUrl: resolvedUrl, name: name });
         __adlSendLog('info', 'window.open called', { url: rawUrl, resolvedUrl: resolvedUrl, name: name });
