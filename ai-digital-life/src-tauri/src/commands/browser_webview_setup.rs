@@ -120,7 +120,7 @@ pub(super) fn build_webview_builder(
     let last_record_id: std::sync::Arc<std::sync::Mutex<Option<String>>> =
         std::sync::Arc::new(std::sync::Mutex::new(None));
     let requested_handler =
-        setup_download_handler(app_handle.clone(), download_manager.clone(), last_record_id.clone());
+        setup_download_handler(app_handle.clone(), download_manager.clone(), last_record_id.clone(), false);
     let app_download = app_handle.clone();
     let dm_for_monitor = download_manager.clone();
     let last_id_for_monitor = last_record_id.clone();

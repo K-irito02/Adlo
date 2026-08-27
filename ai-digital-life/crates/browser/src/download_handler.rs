@@ -9,11 +9,22 @@ pub fn setup_download_handler(
     app_handle: AppHandle,
     download_manager: Arc<DownloadManager>,
     last_record_id: Arc<Mutex<Option<String>>>,
+    is_silent: bool,
 ) -> impl Fn(String, &mut PathBuf) -> bool + Send + Sync + 'static {
     let manager = download_manager;
     let handle = app_handle;
 
     move |url: String, destination: &mut PathBuf| {
+        // Silent webviews (warmup/meta fetch): cancel ALL downloads unconditionally.
+        // Matches Chrome/Edge behavior where background pages never auto-download.
+        if is_silent {
+            tracing::warn!(
+                url = &url,
+                "[ADL-DL] download_requested: CANCELLED (silent webview)"
+            );
+            return false;
+        }
+
         let suggested_path = destination.to_string_lossy().to_string();
         tracing::debug!(url = &url, suggested_path = &suggested_path, "[ADL-DL] download requested");
 
