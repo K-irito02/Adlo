@@ -319,17 +319,31 @@ pub(super) fn build_silent_webview_builder(
     label: &str,
     target: url::Url,
     color_scheme: &str,
-    _is_silent: bool,
+    is_silent: bool,
 ) -> tauri::webview::WebviewBuilder<tauri::Wry> {
     let init_script = adl_browser::init_script_with_background(color_scheme);
     tracing::debug!(
         color_scheme,
         "build_silent_webview_builder: generated init_script with background"
     );
-    // Download cancellation is handled by setup_download_handler(is_silent=true)
-    // in build_webview_builder — no need for a separate on_download handler here.
-    tauri::webview::WebviewBuilder::new(label, tauri::WebviewUrl::External(target))
-        .initialization_script(init_script)
+    let builder = tauri::webview::WebviewBuilder::new(label, tauri::WebviewUrl::External(target))
+        .initialization_script(init_script);
+    if is_silent {
+        // Silent webviews: cancel ALL downloads unconditionally.
+        // This is the ONLY download interception point for silent webviews —
+        // build_silent_webview_builder does not go through setup_download_handler.
+        builder.on_download(|_webview, event| {
+            if let tauri::webview::DownloadEvent::Requested { url, .. } = event {
+                tracing::warn!(
+                    url = %url,
+                    "[ADL-DL] download_requested: CANCELLED (silent webview)"
+                );
+            }
+            false
+        })
+    } else {
+        builder
+    }
 }
 
 pub(super) fn setup_webview2_handlers_for_platform(
