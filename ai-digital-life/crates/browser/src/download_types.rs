@@ -58,7 +58,7 @@ pub struct DownloadSettings {
 impl Default for DownloadSettings {
     fn default() -> Self {
         Self {
-            mode: DownloadMode::Auto,
+            mode: DownloadMode::Ask,
             default_path: super::download_manager::get_default_download_path()
                 .to_string_lossy()
                 .to_string(),

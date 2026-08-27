@@ -549,7 +549,7 @@ mod tests {
         let mgr = DownloadManager::new(db.clone());
 
         let s = mgr.get_settings();
-        assert_eq!(s.mode, DownloadMode::Auto);
+        assert_eq!(s.mode, DownloadMode::Ask);
 
         mgr.update_settings(Some(DownloadMode::Ask), Some("/custom/path".to_string()))
             .expect("update should succeed");

@@ -277,7 +277,7 @@ mod tests {
         let db = temp_db("manager-arc");
         let manager = create_download_manager(db);
         let settings = manager.get_settings();
-        assert_eq!(settings.mode, DownloadMode::Auto);
+        assert_eq!(settings.mode, DownloadMode::Ask);
         let _ =
             std::fs::remove_file(std::env::temp_dir().join("adl-download-handler-manager-arc.db"));
     }
