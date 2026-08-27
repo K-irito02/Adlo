@@ -30,15 +30,33 @@ pub fn setup_download_handler(
 
         // Check if this URL is already being downloaded (prevent duplicates)
         if let Some(existing) = manager.get_record_by_url(&url) {
-            if existing.status == super::download_types::DownloadStatus::InProgress {
-                tracing::debug!(
-                    url = &url,
-                    existing_id = &existing.id,
-                    "[ADL-DL] duplicate download detected, allowing WebView2 to handle"
-                );
-                // Still allow the download but don't create a new record
-                *destination = PathBuf::from(&existing.file_path);
-                return true;
+            match existing.status {
+                super::download_types::DownloadStatus::InProgress => {
+                    tracing::debug!(
+                        url = &url,
+                        existing_id = &existing.id,
+                        "[ADL-DL] duplicate download detected, allowing WebView2 to handle"
+                    );
+                    // Still allow the download but don't create a new record
+                    *destination = PathBuf::from(&existing.file_path);
+                    return true;
+                }
+                super::download_types::DownloadStatus::Paused => {
+                    tracing::warn!(
+                        url = &url,
+                        existing_id = &existing.id,
+                        "[ADL-DL] download is paused by user, denying auto-resume"
+                    );
+                    let _ = handle.emit(
+                        "browser-download-paused-blocked",
+                        &serde_json::json!({
+                            "id": existing.id,
+                            "url": url,
+                        }),
+                    );
+                    return false;
+                }
+                _ => {}
             }
         }
 
