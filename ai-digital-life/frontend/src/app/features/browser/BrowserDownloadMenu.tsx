@@ -86,15 +86,20 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
     () => filteredDownloads.filter((d) => d.status === 'in_progress'),
     [filteredDownloads],
   );
+  const pausedDownloads = useMemo(
+    () => filteredDownloads.filter((d) => d.status === 'paused'),
+    [filteredDownloads],
+  );
+  const failedDownloads = useMemo(
+    () => filteredDownloads.filter((d) => d.status === 'failed'),
+    [filteredDownloads],
+  );
   const completedDownloads = useMemo(
     () => filteredDownloads.filter((d) => d.status === 'completed'),
     [filteredDownloads],
   );
-  const failedDownloads = useMemo(
-    () =>
-      filteredDownloads.filter(
-        (d) => d.status === 'failed' || d.status === 'paused' || d.status === 'canceled',
-      ),
+  const canceledDownloads = useMemo(
+    () => filteredDownloads.filter((d) => d.status === 'canceled'),
     [filteredDownloads],
   );
 
@@ -218,10 +223,10 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
               onContextMenu={handleContextMenu}
             />
           )}
-          {completedDownloads.length > 0 && (
+          {pausedDownloads.length > 0 && (
             <DownloadGroup
-              label={t.browserDownloadCompleted}
-              downloads={completedDownloads}
+              label={t.browserDownloadPaused}
+              downloads={pausedDownloads}
               onContextMenu={handleContextMenu}
             />
           )}
@@ -229,6 +234,20 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
             <DownloadGroup
               label={t.browserDownloadFailed}
               downloads={failedDownloads}
+              onContextMenu={handleContextMenu}
+            />
+          )}
+          {completedDownloads.length > 0 && (
+            <DownloadGroup
+              label={t.browserDownloadCompleted}
+              downloads={completedDownloads}
+              onContextMenu={handleContextMenu}
+            />
+          )}
+          {canceledDownloads.length > 0 && (
+            <DownloadGroup
+              label={t.browserDownloadCanceled}
+              downloads={canceledDownloads}
               onContextMenu={handleContextMenu}
             />
           )}
