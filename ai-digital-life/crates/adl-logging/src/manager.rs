@@ -61,14 +61,19 @@ impl LogManager {
             inner: terminal_file.clone(),
         };
 
-        let filter =
+        let stdout_filter =
             || EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+
+        // File layer writes ALL levels (debug+) so diagnostic tracing::debug!
+        // calls are preserved in terminal-logs.txt for post-mortem analysis.
+        let file_filter =
+            || EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug"));
 
         let stdout_layer = fmt::layer()
             .with_timer(CstTime)
             .with_target(true)
             .with_thread_ids(true)
-            .with_filter(filter());
+            .with_filter(stdout_filter());
 
         let file_layer = fmt::layer()
             .with_ansi(false)
@@ -76,7 +81,7 @@ impl LogManager {
             .with_target(true)
             .with_thread_ids(true)
             .with_writer(make_writer)
-            .with_filter(filter());
+            .with_filter(file_filter());
 
         // Tolerate a second init in the same process (integration tests spin up
         // multiple engine instances per binary). The production path calls this

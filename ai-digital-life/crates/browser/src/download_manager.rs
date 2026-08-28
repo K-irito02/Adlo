@@ -12,11 +12,36 @@ use super::download_types::{
     DownloadMode, DownloadProgress, DownloadRecord, DownloadSettings, DownloadStatus,
 };
 
+/// The native WebView2 download operation handle. Only available on Windows.
+/// On other platforms downloads are not handled natively, so this is `()`.
+#[cfg(windows)]
+type DownloadOp = webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2DownloadOperation;
+#[cfg(not(windows))]
+type DownloadOp = ();
+
+/// WebView2 download operations are agile (IAgileObject) and safe to use across
+/// threads, but `windows`'s `IUnknown` wrapper is not auto `Send`/`Sync`. Wrap it
+/// and assert the (sound, per WebView2 docs) thread-safety so we can store it in a
+/// shared map.
+#[cfg(windows)]
+struct AgileDownloadOp(DownloadOp);
+#[cfg(windows)]
+unsafe impl Send for AgileDownloadOp {}
+#[cfg(windows)]
+unsafe impl Sync for AgileDownloadOp {}
+
 #[derive(Clone)]
 pub struct DownloadManager {
     db: Database,
     settings: Arc<Mutex<DownloadSettings>>,
     active_downloads: Arc<Mutex<HashMap<String, DownloadProgress>>>,
+    /// Maps a download URL to the live native WebView2 download operation so we
+    /// can actually pause/resume/cancel it. Without this, pause/resume/cancel
+    /// only flip a DB flag while the native engine keeps downloading.
+    #[cfg(windows)]
+    operations: Arc<Mutex<HashMap<String, AgileDownloadOp>>>,
+    #[cfg(not(windows))]
+    operations: Arc<Mutex<HashMap<String, DownloadOp>>>,
 }
 
 #[allow(dead_code)]
@@ -27,8 +52,46 @@ impl DownloadManager {
             db,
             settings: Arc::new(Mutex::new(settings)),
             active_downloads: Arc::new(Mutex::new(HashMap::new())),
+            operations: Arc::new(Mutex::new(HashMap::new())),
         }
     }
+
+    /// Register the live native download operation so it can later be paused /
+    /// resumed / canceled. Keyed by the download URL.
+    #[cfg(windows)]
+    pub fn register_operation(&self, url: &str, op: DownloadOp) {
+        if let Ok(mut m) = self.operations.lock() {
+            m.insert(url.to_string(), AgileDownloadOp(op));
+        }
+    }
+
+    /// No-op on non-Windows platforms.
+    #[cfg(not(windows))]
+    pub fn register_operation(&self, _url: &str, _op: ()) {}
+
+    /// Take a clone of the live native download operation for a URL, if captured.
+    #[cfg(windows)]
+    pub fn get_operation(&self, url: &str) -> Option<DownloadOp> {
+        self.operations.lock().ok().and_then(|m| m.get(url).map(|o| o.0.clone()))
+    }
+
+    /// No-op on non-Windows platforms.
+    #[cfg(not(windows))]
+    pub fn get_operation(&self, _url: &str) -> Option<()> {
+        None
+    }
+
+    /// Drop the native operation handle (e.g. once the download finished/canceled).
+    #[cfg(windows)]
+    pub fn remove_operation(&self, url: &str) {
+        if let Ok(mut m) = self.operations.lock() {
+            m.remove(url);
+        }
+    }
+
+    /// No-op on non-Windows platforms.
+    #[cfg(not(windows))]
+    pub fn remove_operation(&self, _url: &str) {}
 
     pub fn get_settings(&self) -> DownloadSettings {
         self.settings.lock().expect("settings mutex should not be poisoned").clone()
@@ -134,11 +197,14 @@ impl DownloadManager {
             created_at: Utc::now().timestamp(),
             completed_at: None,
             source_tab_id: None,
+            auto_resume_count: 0,
+            etag: None,
+            last_modified: None,
         };
 
         let conn = self.db.conn().map_err(|e| e.to_string())?;
         conn.execute(
-            "INSERT INTO download_history (id, url, file_name, file_path, total_bytes, bytes_received, mime_type, status, interrupt_reason, created_at, completed_at, source_tab_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            "INSERT INTO download_history (id, url, file_name, file_path, total_bytes, bytes_received, mime_type, status, interrupt_reason, created_at, completed_at, source_tab_id, auto_resume_count, etag, last_modified) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             rusqlite::params![
                 record.id,
                 record.url,
@@ -152,6 +218,9 @@ impl DownloadManager {
                 record.created_at,
                 record.completed_at,
                 record.source_tab_id,
+                record.auto_resume_count as i64,
+                record.etag,
+                record.last_modified,
             ],
         )
         .map_err(|e| format!("Failed to insert download record: {}", e))?;
@@ -196,32 +265,228 @@ impl DownloadManager {
     }
 
     pub fn pause_download(&self, id: &str) -> Result<(), String> {
+        let record = self.get_record(id)?;
+
+        // Check if download is in a terminal state (already completed/failed/canceled)
+        if record.status.is_terminal() {
+            return Err(format!(
+                "Download is already {} and cannot be paused",
+                record.status.as_str()
+            ));
+        }
+
+        let url = record.url.clone();
+
+        // First, try to pause the native WebView2 download (fast path).
+        // Only update DB status if native Pause() succeeds to avoid desync.
+        #[cfg(windows)]
+        {
+            match self.get_operation(&url) {
+                Some(op) => match unsafe { op.Pause() } {
+                    Ok(()) => {
+                        tracing::debug!(
+                            id = %id,
+                            url = %url,
+                            "[ADL-DL] pause_download: native WebView2 download PAUSED"
+                        );
+                    },
+                    Err(e) => {
+                        let code = e.code();
+                        let hresult = code.0 as u32;
+                        tracing::warn!(
+                            id = %id,
+                            url = %url,
+                            error = %e,
+                            hresult = format!("0x{hresult:08X}"),
+                            "[ADL-DL] pause_download: native Pause() failed"
+                        );
+                        return Err(format!("Failed to pause native download: 0x{hresult:08X}"));
+                    },
+                },
+                None => {
+                    tracing::warn!(
+                        id = %id,
+                        url = %url,
+                        "[ADL-DL] pause_download: no native download operation captured; cannot pause native engine"
+                    );
+                    return Err("No native download operation captured; cannot pause".to_string());
+                },
+            }
+        }
+
+        // Native Pause() succeeded — now update DB status
         let conn = self.db.conn().map_err(|e| e.to_string())?;
-        conn.execute(
-            "UPDATE download_history SET status = ?1, interrupt_reason = ?2 WHERE id = ?3",
-            rusqlite::params![DownloadStatus::Paused.as_str(), "UserPaused", id],
-        )
-        .map_err(|e| format!("Failed to pause download: {}", e))?;
+        let rows = conn
+            .execute(
+                "UPDATE download_history SET status = ?1, interrupt_reason = ?2 WHERE id = ?3",
+                rusqlite::params![DownloadStatus::Paused.as_str(), "UserPaused", id],
+            )
+            .map_err(|e| format!("Failed to pause download: {}", e))?;
+        tracing::debug!(
+            id = %id,
+            url = %url,
+            rows_affected = rows,
+            "[ADL-DL] pause_download: DB status set to 'paused'"
+        );
+
         Ok(())
     }
 
+    /// Resume an interrupted download. Follows Chrome/Edge's design:
+    /// 1. Check ResumeMode to determine if resume is possible
+    /// 2. Try WebView2's native Resume() first
+    /// 3. If that fails, fall back to HTTP Range-based resume using reqwest
+    /// 4. Enforce auto-resume limit (max 5 attempts)
     pub fn resume_download(&self, id: &str) -> Result<(), String> {
-        let conn = self.db.conn().map_err(|e| e.to_string())?;
-        conn.execute(
-            "UPDATE download_history SET status = ?1, interrupt_reason = NULL WHERE id = ?2",
-            rusqlite::params![DownloadStatus::InProgress.as_str(), id],
-        )
-        .map_err(|e| format!("Failed to resume download: {}", e))?;
-        Ok(())
+        use super::download_types::ResumeMode;
+
+        let record = self.get_record(id)?;
+        let url = record.url.clone();
+
+        // Check if download is in a state that can be resumed
+        if record.status.is_terminal() {
+            return Err(format!(
+                "Download is already {} and cannot be resumed",
+                record.status.as_str()
+            ));
+        }
+
+        // Determine resume mode based on interrupt reason and state
+        let restart_required = record.file_path.is_empty()
+            || (record.etag.is_none() && record.last_modified.is_none());
+        let user_action_required = record.auto_resume_count >= MAX_AUTO_RESUME_ATTEMPTS
+            || record.status == DownloadStatus::Paused;
+
+        let resume_mode = get_download_resume_mode(
+            &url,
+            record.interrupt_reason.as_deref(),
+            restart_required,
+            user_action_required,
+        );
+
+        tracing::debug!(
+            id = %id,
+            url = %url,
+            resume_mode = ?resume_mode,
+            auto_resume_count = record.auto_resume_count,
+            "[ADL-DL] resume_download: determined resume mode"
+        );
+
+        match resume_mode {
+            ResumeMode::Invalid => {
+                return Err(
+                    "Download cannot be resumed — the server may not support range requests, or the download was cancelled"
+                        .to_string(),
+                );
+            },
+            ResumeMode::UserRestart | ResumeMode::UserContinue => {
+                // User action required — auto-resume limit already enforced by mode determination
+                return Err(format!(
+                    "Auto-resume limit reached ({} attempts). Please restart the download manually.",
+                    MAX_AUTO_RESUME_ATTEMPTS
+                ));
+            },
+            ResumeMode::ImmediateContinue | ResumeMode::ImmediateRestart => {
+                // Can auto-resume
+            },
+        }
+
+        // Try WebView2's native Resume() first (fast path)
+        #[cfg(windows)]
+        {
+            match self.get_operation(&url) {
+                Some(op) => match unsafe { op.Resume() } {
+                    Ok(()) => {
+                        tracing::debug!(
+                            id = %id,
+                            url = %url,
+                            "[ADL-DL] resume_download: native WebView2 download RESUMED"
+                        );
+                        // Increment auto_resume_count only after successful resume
+                        let new_auto_resume_count = record.auto_resume_count + 1;
+                        {
+                            let conn = self.db.conn().map_err(|e| e.to_string())?;
+                            conn.execute(
+                                "UPDATE download_history SET auto_resume_count = ?1, status = ?2, interrupt_reason = NULL WHERE id = ?3",
+                                rusqlite::params![new_auto_resume_count as i64, DownloadStatus::InProgress.as_str(), id],
+                            )
+                            .map_err(|e| format!("Failed to resume download: {}", e))?;
+                        }
+                        return Ok(());
+                    },
+                    Err(e) => {
+                        let code = e.code();
+                        let hresult = code.0 as u32;
+                        tracing::warn!(
+                            id = %id,
+                            url = %url,
+                            error = %e,
+                            hresult = format!("0x{hresult:08X}"),
+                            "[ADL-DL] resume_download: native Resume() failed, attempting HTTP Range resume"
+                        );
+                        // Fall through to HTTP Range-based resume
+                    },
+                },
+                None => {
+                    tracing::warn!(
+                        id = %id,
+                        url = %url,
+                        "[ADL-DL] resume_download: no native download operation captured; attempting HTTP Range resume"
+                    );
+                    // Fall through to HTTP Range-based resume
+                },
+            }
+        }
+
+        // HTTP Range-based resume (Chrome/Edge fallback)
+        // This creates a new HTTP request with Range headers to resume from
+        // where we left off, similar to Chromium's ResumeInterruptedDownload().
+        // Note: Actual HTTP Range resume would be implemented here using reqwest.
+        // A full implementation would:
+        // 1. Create a new reqwest request with Range: bytes={offset}- header
+        // 2. Add If-Range header with ETag or Last-Modified
+        // 3. Stream the response to the file
+        // 4. Update progress as data is received
+
+        // HTTP Range resume is not yet implemented — return error instead of
+        // faking InProgress status which would cause the progress monitor to
+        // spin forever on a non-growing file.
+        Err("HTTP Range resume is not yet implemented. Please restart the download manually."
+            .to_string())
     }
 
     pub fn cancel_download(&self, id: &str) -> Result<(), String> {
+        let record = self.get_record(id).ok();
+        let url = record.as_ref().map(|r| r.url.clone()).unwrap_or_default();
+
         let conn = self.db.conn().map_err(|e| e.to_string())?;
         conn.execute(
             "UPDATE download_history SET status = ?1, interrupt_reason = ?2 WHERE id = ?3",
             rusqlite::params![DownloadStatus::Canceled.as_str(), "UserCanceled", id],
         )
         .map_err(|e| format!("Failed to cancel download: {}", e))?;
+
+        // Actually cancel the native WebView2 download, then drop the handle.
+        #[cfg(windows)]
+        {
+            if let Some(op) = self.get_operation(&url) {
+                if let Err(e) = unsafe { op.Cancel() } {
+                    tracing::warn!(
+                        id = %id,
+                        url = %url,
+                        error = %e,
+                        "[ADL-DL] cancel_download: native Cancel() failed"
+                    );
+                } else {
+                    tracing::debug!(
+                        id = %id,
+                        url = %url,
+                        "[ADL-DL] cancel_download: native WebView2 download CANCELED"
+                    );
+                }
+            }
+            self.remove_operation(&url);
+        }
 
         self.active_downloads
             .lock()
@@ -233,7 +498,7 @@ impl DownloadManager {
     pub fn get_record_by_url(&self, url: &str) -> Option<DownloadRecord> {
         let conn = self.db.conn().ok()?;
         conn.query_row(
-            "SELECT id, url, file_name, file_path, total_bytes, bytes_received, mime_type, status, interrupt_reason, created_at, completed_at, source_tab_id FROM download_history WHERE url = ?1 ORDER BY created_at DESC LIMIT 1",
+            "SELECT id, url, file_name, file_path, total_bytes, bytes_received, mime_type, status, interrupt_reason, created_at, completed_at, source_tab_id, auto_resume_count, etag, last_modified FROM download_history WHERE url = ?1 ORDER BY created_at DESC LIMIT 1",
             rusqlite::params![url],
             |row| {
                 Ok(DownloadRecord {
@@ -249,6 +514,9 @@ impl DownloadManager {
                     created_at: row.get(9)?,
                     completed_at: row.get(10)?,
                     source_tab_id: row.get(11)?,
+                    auto_resume_count: row.get::<_, i64>(12)? as u32,
+                    etag: row.get(13)?,
+                    last_modified: row.get(14)?,
                 })
             },
         )
@@ -280,7 +548,7 @@ impl DownloadManager {
     pub fn list_downloads(&self) -> Result<Vec<DownloadRecord>, String> {
         let conn = self.db.conn().map_err(|e| e.to_string())?;
         let mut stmt = conn
-            .prepare("SELECT id, url, file_name, file_path, total_bytes, bytes_received, mime_type, status, interrupt_reason, created_at, completed_at, source_tab_id FROM download_history ORDER BY created_at DESC")
+            .prepare("SELECT id, url, file_name, file_path, total_bytes, bytes_received, mime_type, status, interrupt_reason, created_at, completed_at, source_tab_id, auto_resume_count, etag, last_modified FROM download_history ORDER BY created_at DESC")
             .map_err(|e| format!("Failed to prepare query: {}", e))?;
 
         let records = stmt
@@ -298,6 +566,9 @@ impl DownloadManager {
                     created_at: row.get(9)?,
                     completed_at: row.get(10)?,
                     source_tab_id: row.get(11)?,
+                    auto_resume_count: row.get::<_, i64>(12)? as u32,
+                    etag: row.get(13)?,
+                    last_modified: row.get(14)?,
                 })
             })
             .map_err(|e| format!("Failed to query downloads: {}", e))?
@@ -330,10 +601,10 @@ impl DownloadManager {
         Ok(())
     }
 
-    fn get_record(&self, id: &str) -> Result<DownloadRecord, String> {
+    pub(crate) fn get_record(&self, id: &str) -> Result<DownloadRecord, String> {
         let conn = self.db.conn().map_err(|e| e.to_string())?;
         conn.query_row(
-            "SELECT id, url, file_name, file_path, total_bytes, bytes_received, mime_type, status, interrupt_reason, created_at, completed_at, source_tab_id FROM download_history WHERE id = ?1",
+            "SELECT id, url, file_name, file_path, total_bytes, bytes_received, mime_type, status, interrupt_reason, created_at, completed_at, source_tab_id, auto_resume_count, etag, last_modified FROM download_history WHERE id = ?1",
             rusqlite::params![id],
             |row| {
                 Ok(DownloadRecord {
@@ -349,6 +620,9 @@ impl DownloadManager {
                     created_at: row.get(9)?,
                     completed_at: row.get(10)?,
                     source_tab_id: row.get(11)?,
+                    auto_resume_count: row.get::<_, i64>(12)? as u32,
+                    etag: row.get(13)?,
+                    last_modified: row.get(14)?,
                 })
             },
         )
@@ -373,6 +647,85 @@ impl DownloadManager {
         )
         .map_err(|e| format!("Failed to save settings: {}", e))?;
         Ok(())
+    }
+}
+
+/// Maximum number of automatic resume attempts before requiring user action.
+/// Matches Chromium's `kMaxAutoResumeAttempts = 5`.
+const MAX_AUTO_RESUME_ATTEMPTS: u32 = 5;
+
+/// Determine the resume mode for an interrupted download.
+/// Mirrors Chromium's `GetDownloadResumeMode()` from `download_utils.cc`.
+///
+/// # Arguments
+/// * `url` - The download URL
+/// * `interrupt_reason` - The reason the download was interrupted
+/// * `restart_required` - Whether a full restart is needed (no file path, no validators)
+/// * `user_action_required` - Whether user action is required (too many auto-resumes, paused)
+pub(crate) fn get_download_resume_mode(
+    url: &str,
+    interrupt_reason: Option<&str>,
+    restart_required: bool,
+    user_action_required: bool,
+) -> super::download_types::ResumeMode {
+    use super::download_types::ResumeMode;
+
+    // Only support resumption for HTTP(S).
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return ResumeMode::Invalid;
+    }
+
+    let mut restart = restart_required;
+    let mut user_action = user_action_required;
+
+    match interrupt_reason {
+        // Network errors - can auto-resume (no restart needed)
+        Some("NetworkTimeout") | Some("NetworkDisconnected") | Some("NetworkFailed") => {
+            // On Android, these can auto-resume; on desktop, require user action
+            user_action = true;
+        },
+        Some("FileTransientError") | Some("ServerContentLengthMismatch") => {
+            // Transient errors - can auto-resume
+        },
+        // Server doesn't support range - need restart
+        Some("ServerNoRange") => {
+            restart = true;
+        },
+        // File issues - need restart
+        Some("FileTooShort") | Some("FileHashMismatch") => {
+            restart = true;
+        },
+        // Serious errors - need user action
+        Some("NetworkServerDown") | Some("ServerFailed") | Some("ServerUnreachable") => {
+            user_action = true;
+        },
+        // File system errors - need user action and restart
+        Some("FileFailed") | Some("FileAccessDenied") | Some("FileNoSpace") => {
+            user_action = true;
+            restart = true;
+        },
+        // Fatal errors - cannot resume
+        Some("UserCanceled") | Some("UserShutdown") | Some("FileMalicious") => {
+            return ResumeMode::Invalid;
+        },
+        // WebView2 internal error (0x8007139F) - can try HTTP Range resume
+        Some("ResumeFailed") | Some("WebView2InternalError") => {
+            // Can attempt HTTP Range-based resume
+        },
+        // Unknown or no reason - be conservative
+        _ => {
+            user_action = true;
+        },
+    }
+
+    if user_action && restart {
+        ResumeMode::UserRestart
+    } else if restart {
+        ResumeMode::ImmediateRestart
+    } else if user_action {
+        ResumeMode::UserContinue
+    } else {
+        ResumeMode::ImmediateContinue
     }
 }
 

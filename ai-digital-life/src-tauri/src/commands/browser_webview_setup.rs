@@ -245,6 +245,7 @@ pub fn start_download_progress_monitor(
         // Wait a moment for the download to start and file to be created
         std::thread::sleep(std::time::Duration::from_millis(1000));
 
+        let mut paused_idle_logged = false;
         loop {
             std::thread::sleep(std::time::Duration::from_millis(500));
 
@@ -272,15 +273,33 @@ pub fn start_download_progress_monitor(
                 },
             };
 
-            // Check if download is still in progress
+            // Keep the monitor alive while the download is paused: the native
+            // WebView2 download is now actually paused (pause_download calls
+            // DownloadOperation.Pause()), so the file size stays put. We idle here
+            // (without emitting progress) and resume reporting once the user resumes.
+            if record.status == adl_browser::download_types::DownloadStatus::Paused {
+                if !paused_idle_logged {
+                    tracing::info!(
+                        record_id = %record.id,
+                        "[ADL-DL] progress monitor: download PAUSED, idling until resumed (native engine is paused)"
+                    );
+                    paused_idle_logged = true;
+                }
+                continue;
+            }
+
+            // Stop only on terminal states (completed / failed / canceled).
             if record.status != adl_browser::download_types::DownloadStatus::InProgress {
-                tracing::debug!(
+                tracing::info!(
                     record_id = %record.id,
                     status = record.status.as_str(),
-                    "[ADL-DL] progress monitor: download no longer in progress, stopping"
+                    "[ADL-DL] progress monitor: download no longer in progress (status={}), stopping",
+                    record.status.as_str()
                 );
                 break;
             }
+
+            paused_idle_logged = false;
 
             // Resolve total_bytes via HTTP HEAD if not yet known (M3: only attempt once)
             if total_bytes_resolved.is_none() && record.total_bytes.is_none() && !head_attempted {
@@ -486,16 +505,20 @@ pub(super) fn setup_webview2_handlers_for_platform(
         let bridge = bridge.clone();
         let tab_id = tab_id.to_string();
         let label = label.to_string();
+        let app_handle = webview.app_handle().clone();
         let _ = webview.with_webview(move |platform_wv| unsafe {
             let controller = platform_wv.controller();
             if let Ok(core) = controller.CoreWebView2() {
-                adl_browser::setup_webview2_handlers(&core, &tab_id, &label, &bridge);
+                let manager = app_handle.state::<AppState>().download_manager.clone();
+                adl_browser::setup_webview2_handlers(&core, &tab_id, &label, &bridge, &manager);
             }
         });
     }
     #[cfg(not(windows))]
     {
-        adl_browser::setup_webview2_handlers(tab_id, label);
+        let app_handle = webview.app_handle().clone();
+        let manager = app_handle.state::<crate::state::AppState>().download_manager.clone();
+        adl_browser::setup_webview2_handlers(tab_id, label, &manager);
     }
 }
 

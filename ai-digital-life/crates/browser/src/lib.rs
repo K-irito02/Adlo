@@ -15,6 +15,7 @@ mod site_meta_cache;
 mod webview2_audio;
 mod webview2_background;
 mod webview2_cleanup;
+mod webview2_download;
 mod webview2_favicon;
 mod webview2_history;
 mod webview2_message;

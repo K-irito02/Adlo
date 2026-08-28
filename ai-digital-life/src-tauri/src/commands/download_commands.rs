@@ -206,7 +206,9 @@ pub fn download_pause(
     id: String,
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::debug!(id = %id, "[ADL-DL] download_pause called");
+
     state.download_manager.pause_download(&id).map_err(map_download_err)?;
+
     let _ = app_handle.emit("browser-download-paused", &serde_json::json!({ "id": id }));
     Ok(ipc(Ok(())))
 }

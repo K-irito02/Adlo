@@ -1,5 +1,22 @@
 use serde::{Deserialize, Serialize};
 
+/// Resume mode determines how a download interruption should be handled.
+/// Mirrors Chromium's `ResumeMode` enum from `download_item_impl.h`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ResumeMode {
+    /// Cannot resume (fatal error or non-HTTP URL).
+    Invalid,
+    /// Auto-resume without user action (network timeout, transient error).
+    ImmediateContinue,
+    /// Auto-restart from beginning without user action (server no range).
+    ImmediateRestart,
+    /// User must confirm to continue (too many auto-resumes).
+    UserContinue,
+    /// User must confirm to restart (fatal error + restart needed).
+    UserRestart,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum DownloadStatus {
@@ -31,6 +48,11 @@ impl DownloadStatus {
             _ => Self::InProgress,
         }
     }
+
+    /// Returns true if the download is in a terminal state (no more progress).
+    pub fn is_terminal(&self) -> bool {
+        matches!(self, Self::Completed | Self::Failed | Self::Canceled)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,6 +69,15 @@ pub struct DownloadRecord {
     pub created_at: i64,
     pub completed_at: Option<i64>,
     pub source_tab_id: Option<String>,
+    /// Number of automatic resume attempts (max 5, like Chromium).
+    #[serde(default)]
+    pub auto_resume_count: u32,
+    /// HTTP ETag validator for range request resumption.
+    #[serde(default)]
+    pub etag: Option<String>,
+    /// HTTP Last-Modified validator for range request resumption.
+    #[serde(default)]
+    pub last_modified: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

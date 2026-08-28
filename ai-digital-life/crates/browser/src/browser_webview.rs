@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::browser_pool::BrowserPool;
+use crate::download_manager::DownloadManager;
 use crate::page_meta_service::PageMetaService;
 use crate::site_meta_cache::SiteMetaCacheStore;
 use crate::webview_handle::{Bounds, WebView2EventBridge, WebViewHandle};
@@ -19,6 +20,7 @@ pub fn setup_webview2_handlers(
     tab_id: &str,
     label: &str,
     bridge: &Arc<dyn WebView2EventBridge>,
+    download_manager: &DownloadManager,
 ) {
     if let Err(e) = crate::webview2_message::setup_webview2_messaging(core, tab_id, bridge) {
         tracing::warn!(tab_id = tab_id, error = %e, "webview2 messaging setup failed");
@@ -37,10 +39,17 @@ pub fn setup_webview2_handlers(
     if let Err(e) = crate::webview2_audio::setup_audio_changed_handler(core, tab_id, bridge) {
         tracing::warn!(tab_id = tab_id, error = %e, "audio handler setup failed");
     }
+    // Capture the native WebView2 download operation so pause/resume/cancel can
+    // actually control the engine instead of only flipping a DB flag.
+    if let Err(e) =
+        crate::webview2_download::setup_download_operation_capture(core, download_manager)
+    {
+        tracing::warn!(tab_id = tab_id, error = %e, "download operation capture setup failed");
+    }
 }
 
 #[cfg(not(windows))]
-pub fn setup_webview2_handlers(_tab_id: &str, _label: &str) {}
+pub fn setup_webview2_handlers(_tab_id: &str, _label: &str, _download_manager: &DownloadManager) {}
 
 pub struct BrowserManager {
     pool: BrowserPool,
