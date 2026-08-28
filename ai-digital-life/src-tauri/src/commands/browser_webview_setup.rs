@@ -359,6 +359,39 @@ pub fn start_download_progress_monitor(
                 speed = speed,
                 "[ADL-DL] progress update emitted"
             );
+
+            // Check if download is complete (file size >= total bytes)
+            if let Some(total) = total_bytes_resolved {
+                if current_bytes >= total && total > 0 {
+                    tracing::debug!(
+                        record_id = %record.id,
+                        bytes_received = current_bytes,
+                        total_bytes = total,
+                        "[ADL-DL] progress monitor: download complete, emitting finish event"
+                    );
+
+                    // Mark as completed in DB
+                    if let Err(e) = download_manager.complete_download(&record.id, true, None) {
+                        tracing::warn!(
+                            record_id = %record.id,
+                            error = %e,
+                            "[ADL-DL] progress monitor: failed to mark download as completed"
+                        );
+                    }
+
+                    // Emit finish event to frontend
+                    let _ = app_handle.emit(
+                        "browser-download-finished",
+                        &serde_json::json!({
+                            "id": record.id,
+                            "success": true,
+                            "filePath": file_path,
+                        }),
+                    );
+
+                    break;
+                }
+            }
         }
 
         tracing::debug!(record_id = %record_id, "[ADL-DL] progress monitor stopped");

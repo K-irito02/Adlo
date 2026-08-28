@@ -179,15 +179,16 @@ export const createBrowserDownloadsSlice = (
       const payload = event.payload;
       set((state) => {
         const { [payload.id]: _removed, ...rest } = state.activeDownloads;
+        const newStatus = payload.success ? 'completed' : 'failed';
         return {
           activeDownloads: rest,
           downloads: state.downloads.map((d) =>
             d.id === payload.id
               ? {
                   ...d,
-                  status: (payload.success ? 'completed' : 'failed') as DownloadRecord['status'],
+                  status: newStatus as DownloadRecord['status'],
                   file_path: payload.filePath,
-                  completed_at: Date.now(),
+                  completed_at: Math.floor(Date.now() / 1000),
                 }
               : d,
           ),

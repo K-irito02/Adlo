@@ -190,17 +190,6 @@
   background: var(--bg-hover);
 }
 
-.adl-download-item__icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  margin-top: 2px;
-  color: var(--text-secondary);
-}
-
 .adl-download-item__content {
   flex: 1;
   min-width: 0;
@@ -265,9 +254,42 @@
 
 .adl-download-item__progress-fill {
   height: 100%;
-  background: var(--accent);
+  background: var(--text-secondary);
   border-radius: 2px;
   transition: width 0.3s ease;
+}
+
+.adl-download-item__progress--active .adl-download-item__progress-bar {
+  position: relative;
+  overflow: hidden;
+  background: var(--text-muted);
+}
+
+.adl-download-item__progress--active .adl-download-item__progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 150%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    transparent 30%,
+    rgba(255, 255, 255, 0.8) 50%,
+    transparent 70%,
+    transparent 100%
+  );
+  animation: adl-download-shine 2s ease-in-out infinite;
+}
+
+@keyframes adl-download-shine {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(200%);
+  }
 }
 
 .adl-download-item__meta {
@@ -286,20 +308,10 @@
   color: var(--text-muted);
 }
 
-.adl-download-item__spinner {
-  animation: adl-spin 1s linear infinite;
-}
-
-.adl-download-item__status--completed {
-  color: var(--success);
-}
-
-.adl-download-item__status--failed {
-  color: var(--danger);
-}
-
-.adl-download-item__status--paused {
-  color: var(--warning);
+.adl-download-item__date {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
 }
 
 @keyframes adl-spin {
@@ -311,21 +323,23 @@
   }
 }
 
-/* Download badge */
+/* Download badge - matches adl-iconstrip__badge style */
 .adl-download-badge {
   position: absolute;
-  top: -2px;
-  right: -2px;
-  min-width: 14px;
-  height: 14px;
+  top: var(--adl-iconstrip-badge-top, 1px);
+  right: var(--adl-iconstrip-badge-right, 1px);
+  min-width: var(--adl-iconstrip-badge-min-width, 14px);
+  height: var(--adl-iconstrip-badge-height, 14px);
   padding: 0 3px;
-  border-radius: 7px;
-  background: var(--accent);
-  color: white;
-  font-size: 9px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--adl-iconstrip-badge-font-size, 9px);
   font-weight: var(--font-semibold);
-  line-height: 14px;
-  text-align: center;
+  color: var(--text-primary);
+  background: var(--bg-active);
+  box-shadow: none;
   pointer-events: none;
 }
 
