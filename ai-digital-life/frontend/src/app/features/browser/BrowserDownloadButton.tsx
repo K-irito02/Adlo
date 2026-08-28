@@ -24,10 +24,7 @@ export const BrowserDownloadButton = React.memo(function BrowserDownloadButton({
   const hasActive = activeCount > 0;
 
   const activeList = downloads.filter((d) => d.status === 'in_progress');
-  const totalBytes = activeList.reduce((sum, d) => {
-    const active = activeDownloads[d.id];
-    return sum + (active?.bytes_received ?? d.bytes_received);
-  }, 0);
+  const totalBytes = activeList.reduce((sum, d) => sum + (d.total_bytes ?? 0), 0);
   const receivedBytes = activeList.reduce((sum, d) => {
     const active = activeDownloads[d.id];
     return sum + (active?.bytes_received ?? d.bytes_received);

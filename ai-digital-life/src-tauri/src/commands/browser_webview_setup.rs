@@ -230,6 +230,7 @@ pub fn start_download_progress_monitor(
         let path = std::path::Path::new(&file_path);
         let mut last_bytes = 0u64;
         let mut last_time = std::time::Instant::now();
+        let mut total_bytes_resolved: Option<u64> = None;
 
         tracing::debug!(record_id = %record_id, file_path = %file_path, "[ADL-DL] progress monitor started");
 
@@ -273,6 +274,32 @@ pub fn start_download_progress_monitor(
                 break;
             }
 
+            // Resolve total_bytes via HTTP HEAD if not yet known
+            if total_bytes_resolved.is_none() && record.total_bytes.is_none() {
+                if let Ok(url) = url::Url::parse(&record.url) {
+                    match fetch_content_length(&url) {
+                        Some(len) if len > 0 => {
+                            tracing::debug!(
+                                record_id = %record.id,
+                                total_bytes = len,
+                                "[ADL-DL] progress monitor: resolved total_bytes via HEAD"
+                            );
+                            let _ = download_manager.update_total_bytes(&record.id, len);
+                            total_bytes_resolved = Some(len);
+                        },
+                        _ => {
+                            tracing::trace!(
+                                record_id = %record.id,
+                                "[ADL-DL] progress monitor: could not resolve total_bytes via HEAD"
+                            );
+                        },
+                    }
+                }
+            }
+            if total_bytes_resolved.is_none() {
+                total_bytes_resolved = record.total_bytes;
+            }
+
             // Get current file size
             let current_bytes = if path.exists() {
                 std::fs::metadata(path).map(|m| m.len()).unwrap_or(0)
@@ -297,7 +324,7 @@ pub fn start_download_progress_monitor(
                 &serde_json::json!({
                     "id": record.id,
                     "bytes_received": current_bytes,
-                    "total_bytes": record.total_bytes,
+                    "total_bytes": total_bytes_resolved.or(record.total_bytes),
                     "speed": speed,
                 }),
             );
@@ -308,6 +335,7 @@ pub fn start_download_progress_monitor(
             tracing::trace!(
                 record_id = %record.id,
                 bytes_received = current_bytes,
+                total_bytes = total_bytes_resolved.unwrap_or(0),
                 speed = speed,
                 "[ADL-DL] progress update emitted"
             );
@@ -315,6 +343,37 @@ pub fn start_download_progress_monitor(
 
         tracing::debug!(record_id = %record_id, "[ADL-DL] progress monitor stopped");
     });
+}
+
+/// Attempt to fetch the Content-Length from a URL via HTTP HEAD request.
+fn fetch_content_length(url: &url::Url) -> Option<u64> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .build()
+        .ok()?;
+
+    let resp = client.head(url.as_str()).send().ok()?;
+    let headers = resp.headers();
+
+    // Try Content-Length first
+    if let Some(val) = headers.get(reqwest::header::CONTENT_LENGTH) {
+        if let Ok(len) = val.to_str().ok()?.trim().parse::<u64>() {
+            return Some(len);
+        }
+    }
+
+    // Fallback: Content-Range header (e.g. "bytes 0-1023/4096")
+    if let Some(val) = headers.get(reqwest::header::CONTENT_RANGE) {
+        let s = val.to_str().ok()?;
+        if let Some(total) = s.split('/').last() {
+            if let Ok(len) = total.trim().parse::<u64>() {
+                return Some(len);
+            }
+        }
+    }
+
+    None
 }
 ///
 /// Unlike `build_webview_builder`, this intentionally omits the `on_navigation`
