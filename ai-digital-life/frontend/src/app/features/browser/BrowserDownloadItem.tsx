@@ -1,13 +1,5 @@
 import React, { useCallback, useRef } from 'react';
-import {
-  IconCheckCircle,
-  IconXCircle,
-  IconLoader,
-  IconPause,
-  IconPlay,
-  IconClose,
-  IconMoreVertical,
-} from '@icons';
+import { IconPause, IconPlay, IconClose, IconMoreVertical } from '@icons';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { formatBytes } from '../../../design-system/html';
@@ -32,8 +24,6 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
 
   const activeProgress = activeDownloads[record.id];
   const isActive = record.status === 'in_progress';
-  const isCompleted = record.status === 'completed';
-  const isFailed = record.status === 'failed';
   const isPaused = record.status === 'paused';
 
   const bytesReceived = activeProgress?.bytes_received ?? record.bytes_received;
@@ -70,43 +60,36 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
     [cancelDownload],
   );
 
-  const statusIcon = (() => {
-    if (isActive) {
-      return <IconLoader size={14} decorative className="adl-download-item__spinner" />;
-    }
-    if (isCompleted) {
-      return (
-        <IconCheckCircle size={14} decorative className="adl-download-item__status--completed" />
-      );
-    }
-    if (isFailed) {
-      return <IconXCircle size={14} decorative className="adl-download-item__status--failed" />;
-    }
-    if (isPaused) {
-      return <IconPause size={14} decorative className="adl-download-item__status--paused" />;
-    }
-    return null;
+  // Status icons removed per user request - partition titles are sufficient
+
+  const formatDate = (timestamp: number) => {
+    // 后端返回的是秒级时间戳，需要转换为毫秒级
+    const date = new Date(timestamp * 1000);
+    return date.toLocaleString(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+  };
+
+  const dateText = (() => {
+    // 优先使用完成时间，回退到创建时间
+    const timestamp = record.completed_at ?? record.created_at;
+    return formatDate(timestamp);
   })();
 
   const statusText = (() => {
     switch (record.status) {
       case 'in_progress':
         return speed > 0 ? t.browserDownloadSpeed.replace('{speed}', formatBytes(speed)) : '';
-      case 'completed':
-        return record.completed_at
-          ? t.browserDownloadCompletedAt.replace(
-              '{time}',
-              new Date(record.completed_at).toLocaleTimeString(),
-            )
-          : t.browserDownloadCompleted;
       case 'failed':
         return record.interrupt_reason
           ? t.browserDownloadFailedReason.replace('{reason}', record.interrupt_reason)
           : t.browserDownloadFailed;
-      case 'paused':
-        return t.browserDownloadPaused;
-      case 'canceled':
-        return t.browserDownloadCanceled;
       default:
         return '';
     }
@@ -124,7 +107,6 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
       role="listitem"
       aria-label={record.file_name}
     >
-      <div className="adl-download-item__icon">{statusIcon}</div>
       <div className="adl-download-item__content">
         <div className="adl-download-item__header">
           <span className="adl-download-item__name" title={record.file_name}>
@@ -187,7 +169,7 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
           </div>
         </div>
         {isActive && (
-          <div className="adl-download-item__progress">
+          <div className="adl-download-item__progress adl-download-item__progress--active">
             <div className="adl-download-item__progress-bar">
               <div
                 className="adl-download-item__progress-fill"
@@ -199,6 +181,7 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
         <div className="adl-download-item__meta">
           <span className="adl-download-item__size">{sizeText}</span>
           {statusText && <span className="adl-download-item__status">{statusText}</span>}
+          <span className="adl-download-item__date">{dateText}</span>
         </div>
       </div>
     </div>

@@ -363,6 +363,22 @@ pub fn start_download_progress_monitor(
             // Check if download is complete (file size >= total bytes)
             if let Some(total) = total_bytes_resolved {
                 if current_bytes >= total && total > 0 {
+                    // Check if already completed by WRY callback to avoid duplicate events
+                    let already_completed = download_manager
+                        .list_downloads()
+                        .ok()
+                        .and_then(|r| r.into_iter().find(|d| d.id == record.id))
+                        .map(|d| d.status == adl_browser::download_types::DownloadStatus::Completed)
+                        .unwrap_or(false);
+
+                    if already_completed {
+                        tracing::debug!(
+                            record_id = %record.id,
+                            "[ADL-DL] progress monitor: already completed by WRY callback, stopping"
+                        );
+                        break;
+                    }
+
                     tracing::debug!(
                         record_id = %record.id,
                         bytes_received = current_bytes,
