@@ -231,6 +231,14 @@ pub fn start_download_progress_monitor(
         let mut last_bytes = 0u64;
         let mut last_time = std::time::Instant::now();
         let mut total_bytes_resolved: Option<u64> = None;
+        let mut head_attempted = false;
+
+        // Create a reusable HTTP client for HEAD requests (M1: avoid per-invocation allocation)
+        let head_client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(10))
+            .redirect(reqwest::redirect::Policy::limited(5))
+            .build()
+            .ok();
 
         tracing::debug!(record_id = %record_id, file_path = %file_path, "[ADL-DL] progress monitor started");
 
@@ -274,18 +282,30 @@ pub fn start_download_progress_monitor(
                 break;
             }
 
-            // Resolve total_bytes via HTTP HEAD if not yet known
-            if total_bytes_resolved.is_none() && record.total_bytes.is_none() {
-                if let Ok(url) = url::Url::parse(&record.url) {
-                    match fetch_content_length(&url) {
+            // Resolve total_bytes via HTTP HEAD if not yet known (M3: only attempt once)
+            if total_bytes_resolved.is_none() && record.total_bytes.is_none() && !head_attempted {
+                head_attempted = true;
+                if let (Some(client), Ok(url)) = (&head_client, url::Url::parse(&record.url)) {
+                    match fetch_content_length(client, &url) {
                         Some(len) if len > 0 => {
-                            tracing::debug!(
-                                record_id = %record.id,
-                                total_bytes = len,
-                                "[ADL-DL] progress monitor: resolved total_bytes via HEAD"
-                            );
-                            let _ = download_manager.update_total_bytes(&record.id, len);
-                            total_bytes_resolved = Some(len);
+                            // M4: only persist if DB write succeeds
+                            match download_manager.update_total_bytes(&record.id, len) {
+                                Ok(()) => {
+                                    tracing::debug!(
+                                        record_id = %record.id,
+                                        total_bytes = len,
+                                        "[ADL-DL] progress monitor: resolved total_bytes via HEAD"
+                                    );
+                                    total_bytes_resolved = Some(len);
+                                },
+                                Err(e) => {
+                                    tracing::warn!(
+                                        record_id = %record.id,
+                                        error = %e,
+                                        "[ADL-DL] progress monitor: failed to persist total_bytes"
+                                    );
+                                },
+                            }
                         },
                         _ => {
                             tracing::trace!(
@@ -346,13 +366,7 @@ pub fn start_download_progress_monitor(
 }
 
 /// Attempt to fetch the Content-Length from a URL via HTTP HEAD request.
-fn fetch_content_length(url: &url::Url) -> Option<u64> {
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .redirect(reqwest::redirect::Policy::limited(5))
-        .build()
-        .ok()?;
-
+fn fetch_content_length(client: &reqwest::blocking::Client, url: &url::Url) -> Option<u64> {
     let resp = client.head(url.as_str()).send().ok()?;
     let headers = resp.headers();
 
