@@ -380,7 +380,7 @@ fn fetch_content_length(client: &reqwest::blocking::Client, url: &url::Url) -> O
     // Fallback: Content-Range header (e.g. "bytes 0-1023/4096")
     if let Some(val) = headers.get(reqwest::header::CONTENT_RANGE) {
         let s = val.to_str().ok()?;
-        if let Some(total) = s.split('/').last() {
+        if let Some(total) = s.split('/').next_back() {
             if let Ok(len) = total.trim().parse::<u64>() {
                 return Some(len);
             }
