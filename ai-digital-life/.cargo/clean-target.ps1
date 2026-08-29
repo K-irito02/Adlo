@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
 统一 Cargo 磁盘护理脚本：target/debug 超过阈值即全量清理构建产物。
 

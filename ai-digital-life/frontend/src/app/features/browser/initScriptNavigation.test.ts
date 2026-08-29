@@ -157,10 +157,13 @@ describe('init_script.js new-tab interception markers', () => {
 
   it('uses the helper ONLY for modified clicks (explicit new-tab intent)', () => {
     expect(initScript).toContain('__adlTryOpenNewTab(href)');
-    // 2026-08-20 用户决策：target="_blank" 的普通点击不再触发新标签（网页内跳转
-    // 就地当前标签导航）；仅修饰键/中键点击保留新标签通道。
-    expect(initScript).not.toContain("linkTarget === '_blank'");
-    expect(initScript).not.toContain("areaTarget === '_blank'");
+    // __adlTryOpenNewTab is only called for modified clicks (ctrl/meta/shift/middle),
+    // NOT for target="_blank" download links (which use origOpen instead).
+    // The download handler uses linkTarget === '_blank' but routes via origOpen, not the helper.
+    const helperUsage = initScript.indexOf('__adlTryOpenNewTab(href))');
+    const helperBlock = initScript.slice(helperUsage - 200, helperUsage);
+    expect(helperBlock).not.toContain("linkTarget === '_blank'");
+    expect(helperBlock).toContain('ctrlKey');
   });
 
   it('routes plain in-page clicks (incl. target=_blank) to the SPA nav-guard', () => {
@@ -218,22 +221,18 @@ describe('init_script.js new-tab interception markers', () => {
     expect(formSubmit).toContain("'form submit: download form normalized target'");
   });
 
-  it('forces any download link with target=_blank to _self, not just <a download>', () => {
-    // F1 回归：点击处理器下载分支仅放行不带 download 属性、靠扩展名命中的链接。
-    // new_window_handler 会 DENY 新窗口下载 → 整体取消。断言 target 归一化
-    // 不再被 hasAttribute('download') 限定，而是对整个下载分支生效。
+  it('routes download links with target=_blank via origOpen (not _self) for new-tab native download', () => {
+    // Download links with target="_blank" now use origOpen() to trigger
+    // NewWindowRequested → new_window_handler → new tab → native DownloadStarting.
+    // This aligns with Chrome/Edge behavior instead of forcing _self.
     const clickMarker =
       "if ((target.hasAttribute('download') || isDownloadUrl(href)) && isValidWebUrl(href))";
     const clickStart = initScript.indexOf(clickMarker);
     expect(clickStart).toBeGreaterThan(-1);
-    // 切片窗口需覆盖到 target.target = '_self'（clickStart 起 1000+ 字符，含新增注释/日志行）
     const clickSection = initScript.slice(clickStart, clickStart + 1400);
-    // 归一化条件已放宽为任何非 _self target，不含 hasAttribute('download') 前置判断
-    expect(clickSection).not.toContain(
-      "if (target.hasAttribute('download') && target.target && target.target !== '_self')",
-    );
-    expect(clickSection).toContain("if (target.target && target.target !== '_self')");
-    expect(clickSection).toContain("target.target = '_self'");
-    expect(clickSection).toContain("'download link forced in-place (target -> _self)'");
+    // The download handler now routes target="_blank" via origOpen, not _self
+    expect(clickSection).toContain("if (linkTarget === '_blank')");
+    expect(clickSection).toContain('origOpen.call(window, href, \'_blank\')');
+    expect(clickSection).not.toContain("target.target = '_self'");
   });
 });
