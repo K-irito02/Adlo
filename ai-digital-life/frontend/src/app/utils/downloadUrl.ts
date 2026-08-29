@@ -83,15 +83,13 @@ const DOWNLOAD_PATH_SEGMENTS = [
   '/generate/',
 ];
 
-const DOWNLOAD_QUERY_PATTERNS = /[?&](download|file|attachment|export|get)=(?:1|true)/i;
-
 export function isDownloadUrl(url: string): boolean {
   if (!url) {
     return false;
   }
 
-  // 1. Query string signals
-  if (DOWNLOAD_QUERY_PATTERNS.test(url)) {
+  // 1. Query string signals — aligned with Rust is_download_url()
+  if (/[?&]download=/i.test(url)) {
     return true;
   }
 
@@ -114,25 +112,6 @@ export function isDownloadUrl(url: string): boolean {
     }
   } catch {
     // Not a valid URL — fall through
-  }
-
-  // 4. Filename-like tail with download params
-  const urlPath = lowerUrl.split('?')[0];
-  if (
-    urlPath.includes('/files/') ||
-    urlPath.includes('/attachments/') ||
-    urlPath.includes('/get/') ||
-    urlPath.includes('/export/') ||
-    urlPath.includes('/generate/')
-  ) {
-    const hasQuery = url.includes('?');
-    if (!hasQuery) {
-      return true;
-    }
-    const queryPart = url.split('?').slice(1).join('?');
-    if (/file=|attachment=|name=|filename=|doc=/i.test(queryPart)) {
-      return true;
-    }
   }
 
   return false;

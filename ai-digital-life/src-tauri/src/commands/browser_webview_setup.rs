@@ -43,13 +43,13 @@ fn is_download_url(url: &url::Url) -> bool {
         return true;
     }
     if path.contains("/download/") {
-        tracing::info!(url = %url, "[ADL-DL] is_download_url: matched /download/ path");
+        tracing::trace!(url = %url, "[ADL-DL] is_download_url: matched /download/ path");
         return true;
     }
     // Additional patterns: common server-side download paths without file extensions
     for pattern in &["/files/", "/attachments/", "/get/", "/export/", "/generate/"] {
         if path.contains(pattern) {
-            tracing::info!(url = %url, pattern = pattern, "[ADL-DL] is_download_url: matched path pattern");
+            tracing::trace!(url = %url, pattern = pattern, "[ADL-DL] is_download_url: matched path pattern");
             return true;
         }
     }
@@ -57,7 +57,7 @@ fn is_download_url(url: &url::Url) -> bool {
     if (query.contains("file=") || query.contains("attachment="))
         && (path.contains("download") || path.contains("files") || path.contains("export"))
     {
-        tracing::info!(url = %url, "[ADL-DL] is_download_url: matched file/attachment query with download path");
+        tracing::trace!(url = %url, "[ADL-DL] is_download_url: matched file/attachment query with download path");
         return true;
     }
     tracing::trace!(url = %url, "[ADL-DL] is_download_url: no match");

@@ -52,13 +52,11 @@
             }
             // Additional patterns: common server-side download paths
             if (/\/(files|attachments|get|export|generate)\//i.test(u.pathname)) {
-                console.log('[ADL-DL-JS] isDownloadUrl: additional path pattern match:', { url: url });
                 __adlSendLog('debug', 'isDownloadUrl: additional path pattern match', { url: url });
                 return true;
             }
             // Query params indicating download, combined with download-related path keywords
             if (/[?&](file|attachment)=/i.test(u.search) && /(download|files|export)/i.test(u.pathname)) {
-                console.log('[ADL-DL-JS] isDownloadUrl: file/attachment query with download path:', { url: url });
                 __adlSendLog('debug', 'isDownloadUrl: file/attachment query with download path', { url: url });
                 return true;
             }
@@ -244,11 +242,9 @@
                     };
                     if (linkTarget === '_blank') {
                         event.preventDefault();
-                        console.log('[ADL-DL-JS] download link target="_blank" → explicit origOpen:', logData);
                         __adlSendLog('info', 'download link target="_blank" → explicit origOpen', logData);
                         origOpen.call(window, href, '_blank');
                     } else {
-                        console.log('[ADL-DL-JS] click on download link - NOT intercepting (native DownloadStarting):', logData);
                         __adlSendLog('info', 'click on download link - NOT intercepting (native DownloadStarting)', logData);
                     }
                     return;
