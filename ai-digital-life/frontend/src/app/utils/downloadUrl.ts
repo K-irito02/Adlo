@@ -95,7 +95,11 @@ export function isDownloadUrl(url: string): boolean {
   const parsed = (() => {
     try {
       const u = new URL(url);
-      return { search: u.search.toLowerCase(), pathname: u.pathname.toLowerCase(), searchParams: u.searchParams };
+      return {
+        search: u.search.toLowerCase(),
+        pathname: u.pathname.toLowerCase(),
+        searchParams: u.searchParams,
+      };
     } catch {
       // Not a valid URL — fall through with empty search/pathname
       return { search: '', pathname: '', searchParams: null };
@@ -105,7 +109,10 @@ export function isDownloadUrl(url: string): boolean {
 
   // 1. `download` must be a standalone query key (case-insensitive), aligned with
   //    Rust `query_pairs()` and JS `searchParams` key scan — not a substring inside a value.
-  if (parsed.searchParams && [...parsed.searchParams.keys()].some((k) => k.toLowerCase() === 'download')) {
+  if (
+    parsed.searchParams &&
+    [...parsed.searchParams.keys()].some((k) => k.toLowerCase() === 'download')
+  ) {
     return true;
   }
 
