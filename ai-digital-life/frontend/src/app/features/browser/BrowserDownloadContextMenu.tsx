@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { IconDownload, IconFolderOpen, IconDelete, IconTrash, IconCopy } from '@icons';
 import { useTCopy } from '@i18n/useTCopy';
@@ -13,6 +13,8 @@ interface BrowserDownloadContextMenuProps {
   onDeleteFile: (record: DownloadRecord) => void;
   onRemoveRecord: (record: DownloadRecord) => void;
   onCopyLink: (record: DownloadRecord) => void;
+  /** Expose the portal DOM element so the parent can exclude it from outside-click detection. */
+  onPortalRef?: (el: HTMLDivElement | null) => void;
 }
 
 export const BrowserDownloadContextMenu = React.memo(function BrowserDownloadContextMenu({
@@ -24,8 +26,61 @@ export const BrowserDownloadContextMenu = React.memo(function BrowserDownloadCon
   onDeleteFile,
   onRemoveRecord,
   onCopyLink,
+  onPortalRef,
 }: BrowserDownloadContextMenuProps) {
   const { t } = useTCopy();
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Boundary detection: shift menu left if it would overflow the right edge
+  useEffect(() => {
+    if (!position || !menuRef.current) {
+      return;
+    }
+    const el = menuRef.current;
+    const rect = el.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    if (rect.right > viewportWidth) {
+      const shift = rect.right - viewportWidth + 8;
+      el.style.left = `${position.x - shift}px`;
+    }
+    // Also ensure it doesn't overflow the bottom
+    if (rect.bottom > window.innerHeight) {
+      const shift = rect.bottom - window.innerHeight + 8;
+      el.style.top = `${position.y - shift}px`;
+    }
+  }, [position]);
+
+  // Click-outside dismiss: close when clicking outside the context menu
+  useEffect(() => {
+    if (!position) {
+      return;
+    }
+    const handleMouseDown = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    // Use mousedown (not click) to match native context menu timing.
+    // Delay listener attachment to avoid closing on the same mousedown that
+    // opened the context menu (the event is still bubbling to window).
+    const timer = setTimeout(() => {
+      window.addEventListener('mousedown', handleMouseDown);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('mousedown', handleMouseDown);
+    };
+  }, [position, onClose]);
+
+  // Expose portal DOM element to parent for outside-click exclusion
+  useEffect(() => {
+    if (onPortalRef && menuRef.current) {
+      onPortalRef(menuRef.current);
+    }
+    return () => {
+      onPortalRef?.(null);
+    };
+  }, [onPortalRef]);
 
   if (!record || !position) {
     return null;
@@ -33,6 +88,7 @@ export const BrowserDownloadContextMenu = React.memo(function BrowserDownloadCon
 
   return createPortal(
     <div
+      ref={menuRef}
       className="adl-sidebar-menu"
       style={{
         position: 'fixed',
@@ -41,7 +97,6 @@ export const BrowserDownloadContextMenu = React.memo(function BrowserDownloadCon
         zIndex: 'var(--z-toast-top)',
       }}
       role="menu"
-      onMouseDown={(e) => e.stopPropagation()}
     >
       {record.status === 'completed' && record.file_path && (
         <>

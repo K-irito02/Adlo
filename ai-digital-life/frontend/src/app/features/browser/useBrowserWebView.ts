@@ -57,7 +57,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     hideWebViewRequestedRef,
   });
 
-  const { loadingTabId } = useWebViewLifecycle({
+  const { loadingTabId, markTabFresh } = useWebViewLifecycle({
     activeTab,
     webViewDisabled,
     isTabInPool,
@@ -99,6 +99,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     activateTabInPool,
     navigateTabInPool,
     loadingTabId,
+    markTabFresh,
     poolVersion,
   };
 }

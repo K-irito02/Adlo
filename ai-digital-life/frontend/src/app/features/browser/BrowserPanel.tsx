@@ -273,7 +273,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     renameFolderState.open ||
     createDirDialog.open;
 
-  const { primaryRef, removeFromPool, isTabInPool, navigateTabInPool, loadingTabId, poolVersion } =
+  const { primaryRef, removeFromPool, isTabInPool, navigateTabInPool, loadingTabId, markTabFresh, poolVersion } =
     useBrowserWebView({
       activeTab,
       webViewDisabled: false,
@@ -329,6 +329,13 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   useBrowserNewTabSubscription((url) => {
     browserOpenTab(url, undefined, undefined);
+    // Mark the newly created tab as fresh (current session) so the lifecycle
+    // hook skips restart download suppression for it — allowing DownloadStarting
+    // to fire when the WebView navigates to a download URL.
+    const freshId = useAppStore.getState().browserActiveTabId;
+    if (freshId) {
+      markTabFresh(freshId);
+    }
   });
 
   useBrowserDownloads();

@@ -19,7 +19,9 @@ use tauri::{Emitter, Manager};
 static DOWNLOAD_EXTENSIONS: &[&str] = &[
     "exe", "msi", "dmg", "pkg", "deb", "rpm", "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "pdf",
     "apk", "ipa", "iso", "img", "cab", "msix", "appx", "bat", "cmd", "ps1", "scr", "com", "pif",
-    "vbs", "wsf", "hta",
+    "vbs", "wsf", "hta", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv", "rtf", "odt",
+    "ods", "odp", "key", "mp3", "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "ogg",
+    "wav", "flac", "aac", "wma", "ttf", "otf", "woff", "woff2", "eot", "svg",
 ];
 
 /// Consecutive polls (~500ms each) a byte-complete file must stay at full size
@@ -42,6 +44,20 @@ fn is_download_url(url: &url::Url) -> bool {
     }
     if path.contains("/download/") {
         tracing::info!(url = %url, "[ADL-DL] is_download_url: matched /download/ path");
+        return true;
+    }
+    // Additional patterns: common server-side download paths without file extensions
+    for pattern in &["/files/", "/attachments/", "/get/", "/export/", "/generate/"] {
+        if path.contains(pattern) {
+            tracing::info!(url = %url, pattern = pattern, "[ADL-DL] is_download_url: matched path pattern");
+            return true;
+        }
+    }
+    // Query params that indicate a download, combined with download-related path keywords
+    if (query.contains("file=") || query.contains("attachment="))
+        && (path.contains("download") || path.contains("files") || path.contains("export"))
+    {
+        tracing::info!(url = %url, "[ADL-DL] is_download_url: matched file/attachment query with download path");
         return true;
     }
     tracing::trace!(url = %url, "[ADL-DL] is_download_url: no match");
@@ -72,16 +88,26 @@ fn new_window_handler(
         "[ADL-DL] new_window_handler: ENTER"
     );
 
-    // Download URLs are NOT handled here. When window.open() is called for a
-    // download URL, WebView2 fires BOTH NewWindowRequested AND DownloadStarting.
-    // If we handled downloads here AND in on_download, we'd get duplicate downloads.
-    // All download handling is delegated to the on_download callback which has
-    // proper path resolution, pause state, progress tracking, and duplicate detection.
+    // Download URLs: open a new tab (matching Chrome/Edge behavior), then
+    // delegate the actual download to on_download. The frontend will auto-close
+    // the new tab once DownloadStarting fires.
     if is_download_url(url) {
-        tracing::info!(
-            url = %url,
-            "[ADL-DL] new_window_handler: download URL detected, delegating to on_download"
-        );
+        if let Some(target) = new_window_target(url) {
+            tracing::info!(
+                url = %url,
+                target = %target,
+                "[ADL-DL] new_window_handler: download URL → opening new tab for download"
+            );
+            let _ = app.emit(
+                "digital-life://browser-open-new-tab",
+                serde_json::json!({ "url": target }),
+            );
+        } else {
+            tracing::info!(
+                url = %url,
+                "[ADL-DL] new_window_handler: download URL with non-http(s) scheme, denying"
+            );
+        }
         return tauri::webview::NewWindowResponse::Deny;
     }
 

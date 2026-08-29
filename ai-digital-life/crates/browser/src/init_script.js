@@ -23,7 +23,7 @@
         return typeof href === 'string' && href.indexOf('blob:') === 0;
     }
 
-    var DOWNLOAD_EXTENSIONS = /\.(exe|msi|dmg|pkg|deb|rpm|zip|rar|7z|tar|gz|bz2|xz|pdf|apk|ipa|iso|img|cab|msix|appx|bat|cmd|ps1|scr|com|pif|vbs|js|wsf|hta)$/i;
+    var DOWNLOAD_EXTENSIONS = /\.(exe|msi|dmg|pkg|deb|rpm|zip|rar|7z|tar|gz|bz2|xz|pdf|apk|ipa|iso|img|cab|msix|appx|bat|cmd|ps1|scr|com|pif|vbs|js|wsf|hta|doc|docx|xls|xlsx|ppt|pptx|csv|rtf|odt|ods|odp|key|mp3|mp4|avi|mkv|mov|wmv|flv|webm|ogg|wav|flac|aac|wma|ttf|otf|woff|woff2|eot|svg)$/i;
 
     function isDownloadUrl(url) {
         if (!url || typeof url !== 'string') return false;
@@ -48,6 +48,18 @@
             if (/\/download\//i.test(u.pathname)) {
                 console.log('[ADL-DL-JS] isDownloadUrl: path match:', { url: url });
                 __adlSendLog('debug', 'isDownloadUrl: path match', { url: url });
+                return true;
+            }
+            // Additional patterns: common server-side download paths
+            if (/\/(files|attachments|get|export|generate)\//i.test(u.pathname)) {
+                console.log('[ADL-DL-JS] isDownloadUrl: additional path pattern match:', { url: url });
+                __adlSendLog('debug', 'isDownloadUrl: additional path pattern match', { url: url });
+                return true;
+            }
+            // Query params indicating download, combined with download-related path keywords
+            if (/[?&](file|attachment)=/i.test(u.search) && /(download|files|export)/i.test(u.pathname)) {
+                console.log('[ADL-DL-JS] isDownloadUrl: file/attachment query with download path:', { url: url });
+                __adlSendLog('debug', 'isDownloadUrl: file/attachment query with download path', { url: url });
                 return true;
             }
         } catch(e) {}
@@ -216,28 +228,30 @@
                     return;
                 }
 
-                // For <a download> / download-ext http(s) links: DO NOT intercept. Align with
-                // Chrome/Edge — WebView2 fires its native DownloadStarting directly, giving us
-                // real-time progress, a download record, and the default save path.
-                // (Previous impl routed these via origOpen('_blank') → new_window_handler DENY,
-                // which cancelled the download entirely: no download_started, no record, no file.)
+                // For <a download> / download-ext http(s) links: align with Chrome/Edge.
+                // WebView2 may not fire NewWindowRequested for <a target="_blank"> clicks
+                // when the default action is suppressed (e.g. by page JS event handlers).
+                // For target="_blank" download links, explicitly call origOpen() to trigger
+                // NewWindowRequested → new_window_handler → open new tab → native DownloadStarting.
+                // For same-tab links (no target="_blank"), let the default action proceed.
                 if ((target.hasAttribute('download') || isDownloadUrl(href)) && isValidWebUrl(href)) {
-                    console.log('[ADL-DL-JS] click on download link - NOT intercepting (native DownloadStarting):', href);
-                    __adlSendLog('info', 'click on download link - NOT intercepting (native DownloadStarting)', {
+                    var linkTarget = (target.target || target.getAttribute('target') || '').toLowerCase();
+                    var logData = {
                         href: href,
                         hasDownload: target.hasAttribute('download'),
-                        isDownloadExt: isDownloadUrl(href)
-                    });
-                    if (target.target && target.target !== '_self') {
-                        // Any download link (with or without the `download` attribute) that
-                        // targets a new window would open a tab our new_window_handler Denies,
-                        // which cancels the download entirely. Align with Chrome/Edge — download
-                        // in place: force _self so WebView2 fires DownloadStarting in this document.
-                        console.log('[ADL-DL-JS] download link forced in-place (target -> _self):', target.target);
-                        __adlSendLog('info', 'download link forced in-place (target -> _self)', { target: target.target, hasDownload: target.hasAttribute('download') });
-                        target.target = '_self';
+                        isDownloadExt: isDownloadUrl(href),
+                        target: linkTarget
+                    };
+                    if (linkTarget === '_blank') {
+                        event.preventDefault();
+                        console.log('[ADL-DL-JS] download link target="_blank" → explicit origOpen:', logData);
+                        __adlSendLog('info', 'download link target="_blank" → explicit origOpen', logData);
+                        origOpen.call(window, href, '_blank');
+                    } else {
+                        console.log('[ADL-DL-JS] click on download link - NOT intercepting (native DownloadStarting):', logData);
+                        __adlSendLog('info', 'click on download link - NOT intercepting (native DownloadStarting)', logData);
                     }
-                    return; // allow default browser action → native DownloadStarting
+                    return;
                 }
 
                 if (isValidWebUrl(href)) {

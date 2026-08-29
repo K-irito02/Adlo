@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { isTauriShell } from '@shared/env';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { getResolvedTheme } from './useBrowserThemeSync';
+import { isDownloadUrl } from '@utils/downloadUrl';
 
 interface UseWebViewLifecycleOptions {
   activeTab?: BrowserTabState;
@@ -48,6 +49,11 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
    *  same-tab URL changes (e.g. "current tab" mode navigation) and call
    *  `navigateTab` instead of just `activateTab`. */
   const tabUrlMapRef = useRef<Map<string, string>>(new Map());
+  /** Tabs created during the current session (not hydrated from restart).
+   *  The isDownloadUrl check is skipped for these tabs so that download links
+   *  clicked in-page (target="_blank") can open a new tab and trigger
+   *  DownloadStarting normally. Only hydrated restart tabs are suppressed. */
+  const freshTabIdsRef = useRef<Set<string>>(new Set());
 
   // When active tab changes: create WebView if not in pool, then activate
   useEffect(() => {
@@ -113,6 +119,21 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
       const currentTabId = tab.id;
       try {
         if (!isTabInPool(currentTabId)) {
+          // Restart suppression: skip WebView creation for download URLs on
+          // hydrated (restart) tabs. Tabs created during the current session
+          // (e.g. from browser-open-new-tab for in-page download links) must
+          // NOT be suppressed — they need a WebView to trigger DownloadStarting.
+          const isFresh = freshTabIdsRef.current.has(currentTabId);
+          if (isFresh) {
+            freshTabIdsRef.current.delete(currentTabId);
+          }
+          if (!isFresh && isDownloadUrl(tab.url)) {
+            console.debug(
+              `[useWebViewLifecycle] skipping WebView creation for download URL (restart suppression): ${tab.url}`,
+            );
+            webViewActiveRef.current = false;
+            return;
+          }
           // Real WebView creation: show loading.
           setLoadingTabId(currentTabId);
           await createWebViewForTab(currentTabId, tab.url, getResolvedTheme());
@@ -168,5 +189,12 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     };
   }, [webViewActiveRef]);
 
-  return { loadingTabId };
+  /** Mark a tab as freshly created (current session, not restart-hydrated).
+   *  Call this immediately after creating a new tab so the lifecycle hook
+   *  knows to skip the restart download suppression for that tab. */
+  const markTabFresh = useCallback((tabId: string) => {
+    freshTabIdsRef.current.add(tabId);
+  }, []);
+
+  return { loadingTabId, markTabFresh };
 }

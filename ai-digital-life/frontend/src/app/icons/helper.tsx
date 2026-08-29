@@ -35,3 +35,25 @@ export const make = (path: React.ReactNode): IconComponent =>
   function IconFn({ size = 16, ...rest }: IconProps) {
     return <svg {...iconProps(size, rest)}>{path}</svg>;
   };
+
+export const makeFilled = (viewBox: string, path: React.ReactNode): IconComponent =>
+  function IconFn({ size = 16, ...rest }: IconProps) {
+    const { title, decorative, className, ...other } = rest;
+    const a11y =
+      decorative || !title
+        ? { 'aria-hidden': true as const, focusable: 'false' as const }
+        : { role: 'img' as const, 'aria-label': title };
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox={viewBox}
+        fill="currentColor"
+        className={['adl-icon', className].filter(Boolean).join(' ')}
+        {...a11y}
+        {...other}
+      >
+        {path}
+      </svg>
+    );
+  };

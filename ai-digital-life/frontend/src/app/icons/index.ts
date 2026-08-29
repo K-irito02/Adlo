@@ -1,5 +1,5 @@
 export type { IconSize, IconProps, IconComponent } from './helper';
-export { make } from './helper';
+export { make, makeFilled } from './helper';
 export {
   IconLogo,
   IconMenu,

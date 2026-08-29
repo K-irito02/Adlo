@@ -30,6 +30,12 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
     record: DownloadRecord;
     position: { x: number; y: number };
   } | null>(null);
+  // Ref to the context menu's portal DOM element, used to exclude it from
+  // the download menu's outside-click detection.
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
+  const handleContextMenuPortalRef = useCallback((el: HTMLDivElement | null) => {
+    contextMenuRef.current = el;
+  }, []);
 
   const downloads = useAppStore((s) => s.downloads);
   const downloadSettings = useAppStore((s) => s.downloadSettings);
@@ -131,14 +137,19 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
 
   useEffect(() => {
     const handlePointerDown = (e: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(e.target as Node) &&
-        menuRef.current &&
-        !menuRef.current.contains(e.target as Node)
-      ) {
-        onClose();
+      // Click inside the download menu → keep open
+      if (popoverRef.current?.contains(e.target as Node)) {
+        return;
       }
+      // Click inside the context menu → keep both open
+      if (contextMenuRef.current?.contains(e.target as Node)) {
+        return;
+      }
+      // Click on the anchor button → keep open (toggle behavior)
+      if (menuRef.current?.contains(e.target as Node)) {
+        return;
+      }
+      onClose();
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -151,7 +162,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
       window.removeEventListener('mousedown', handlePointerDown);
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [onClose, menuRef]);
+  }, [onClose, menuRef, contextMenuRef]);
 
   const anchorRect = anchorRef.current?.getBoundingClientRect();
   const popoverStyle: React.CSSProperties = anchorRect
@@ -289,6 +300,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
           onDeleteFile={handleDeleteFile}
           onRemoveRecord={handleRemoveRecord}
           onCopyLink={handleCopyLink}
+          onPortalRef={handleContextMenuPortalRef}
         />
       )}
     </div>,
