@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { IconDownload, IconFolderOpen, IconDelete, IconTrash, IconCopy } from '@icons';
 import { useTCopy } from '@i18n/useTCopy';
@@ -30,6 +30,7 @@ export const BrowserDownloadContextMenu = React.memo(function BrowserDownloadCon
 }: BrowserDownloadContextMenuProps) {
   const { t } = useTCopy();
   const menuRef = useRef<HTMLDivElement>(null);
+  const EDGE_PADDING = 8;
 
   // Boundary detection: shift menu left if it would overflow the right edge
   useEffect(() => {
@@ -40,12 +41,12 @@ export const BrowserDownloadContextMenu = React.memo(function BrowserDownloadCon
     const rect = el.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     if (rect.right > viewportWidth) {
-      const shift = rect.right - viewportWidth + 8;
+      const shift = rect.right - viewportWidth + EDGE_PADDING;
       el.style.left = `${position.x - shift}px`;
     }
     // Also ensure it doesn't overflow the bottom
     if (rect.bottom > window.innerHeight) {
-      const shift = rect.bottom - window.innerHeight + 8;
+      const shift = rect.bottom - window.innerHeight + EDGE_PADDING;
       el.style.top = `${position.y - shift}px`;
     }
   }, [position]);
@@ -73,7 +74,7 @@ export const BrowserDownloadContextMenu = React.memo(function BrowserDownloadCon
   }, [position, onClose]);
 
   // Expose portal DOM element to parent for outside-click exclusion
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (onPortalRef && menuRef.current) {
       onPortalRef(menuRef.current);
     }

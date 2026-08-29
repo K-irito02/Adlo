@@ -184,8 +184,10 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
 
   // Cleanup on unmount
   useEffect(() => {
+    const freshTabIds = freshTabIdsRef.current;
     return () => {
       webViewActiveRef.current = false;
+      freshTabIds.clear();
     };
   }, [webViewActiveRef]);
 

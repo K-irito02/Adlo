@@ -19,9 +19,9 @@ use tauri::{Emitter, Manager};
 static DOWNLOAD_EXTENSIONS: &[&str] = &[
     "exe", "msi", "dmg", "pkg", "deb", "rpm", "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "pdf",
     "apk", "ipa", "iso", "img", "cab", "msix", "appx", "bat", "cmd", "ps1", "scr", "com", "pif",
-    "vbs", "wsf", "hta", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv", "rtf", "odt",
-    "ods", "odp", "key", "mp3", "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "ogg",
-    "wav", "flac", "aac", "wma", "ttf", "otf", "woff", "woff2", "eot", "svg",
+    "vbs", "wsf", "hta", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv", "rtf", "odt", "ods",
+    "odp", "key", "mp3", "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "ogg", "wav", "flac",
+    "aac", "wma", "ttf", "otf", "woff", "woff2", "eot", "svg",
 ];
 
 /// Consecutive polls (~500ms each) a byte-complete file must stay at full size
@@ -33,13 +33,13 @@ fn is_download_url(url: &url::Url) -> bool {
     let path = url.path().to_lowercase();
     for ext in DOWNLOAD_EXTENSIONS {
         if path.ends_with(&format!(".{ext}")) {
-            tracing::info!(url = %url, ext = ext, "[ADL-DL] is_download_url: matched extension");
+            tracing::trace!(url = %url, ext = ext, "[ADL-DL] is_download_url: matched extension");
             return true;
         }
     }
     let query = url.query().unwrap_or("").to_lowercase();
     if query.contains("download=") || query.contains("download=true") {
-        tracing::info!(url = %url, "[ADL-DL] is_download_url: matched query param");
+        tracing::trace!(url = %url, "[ADL-DL] is_download_url: matched query param");
         return true;
     }
     if path.contains("/download/") {
@@ -98,10 +98,8 @@ fn new_window_handler(
                 target = %target,
                 "[ADL-DL] new_window_handler: download URL → opening new tab for download"
             );
-            let _ = app.emit(
-                "digital-life://browser-open-new-tab",
-                serde_json::json!({ "url": target }),
-            );
+            let _ = app
+                .emit("digital-life://browser-open-new-tab", serde_json::json!({ "url": target }));
         } else {
             tracing::info!(
                 url = %url,

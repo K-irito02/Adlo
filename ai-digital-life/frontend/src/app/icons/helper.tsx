@@ -10,12 +10,14 @@ export interface IconProps extends Omit<React.SVGProps<SVGSVGElement>, 'children
 
 export type IconComponent = (props: IconProps) => React.JSX.Element;
 
+function resolveA11y(title?: string, decorative?: boolean) {
+  return decorative || !title
+    ? { 'aria-hidden': true as const, focusable: 'false' as const }
+    : { role: 'img' as const, 'aria-label': title };
+}
+
 export function iconProps(size: IconSize, rest: IconProps): React.SVGProps<SVGSVGElement> {
   const { title, decorative, className, ...other } = rest;
-  const a11y =
-    decorative || !title
-      ? { 'aria-hidden': true as const, focusable: 'false' as const }
-      : { role: 'img' as const, 'aria-label': title };
   return {
     width: size,
     height: size,
@@ -26,7 +28,7 @@ export function iconProps(size: IconSize, rest: IconProps): React.SVGProps<SVGSV
     strokeLinecap: 'round',
     strokeLinejoin: 'round',
     className: ['adl-icon', className].filter(Boolean).join(' '),
-    ...a11y,
+    ...resolveA11y(title, decorative),
     ...other,
   };
 }
@@ -39,10 +41,6 @@ export const make = (path: React.ReactNode): IconComponent =>
 export const makeFilled = (viewBox: string, path: React.ReactNode): IconComponent =>
   function IconFn({ size = 16, ...rest }: IconProps) {
     const { title, decorative, className, ...other } = rest;
-    const a11y =
-      decorative || !title
-        ? { 'aria-hidden': true as const, focusable: 'false' as const }
-        : { role: 'img' as const, 'aria-label': title };
     return (
       <svg
         width={size}
@@ -50,7 +48,7 @@ export const makeFilled = (viewBox: string, path: React.ReactNode): IconComponen
         viewBox={viewBox}
         fill="currentColor"
         className={['adl-icon', className].filter(Boolean).join(' ')}
-        {...a11y}
+        {...resolveA11y(title, decorative)}
         {...other}
       >
         {path}
