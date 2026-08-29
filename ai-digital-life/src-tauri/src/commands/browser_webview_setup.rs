@@ -45,9 +45,13 @@ fn is_download_url(url: &url::Url) -> bool {
         }
     }
     let query = url.query().unwrap_or("").to_lowercase();
-    // Aligned with JS `u.searchParams.has('download')` (init_script.js) and TS
-    // `searchParams.has('download')` (downloadUrl.ts): `download` must be a standalone
-    // query key, not a substring inside another value (e.g. `?redirect=..?download=1`).
+    // Aligned with JS/TS (init_script.js & downloadUrl.ts): `download` must be a
+    // standalone query key, matched case-insensitively across all standalone keys,
+    // not a `.has(name)` lookup (which is case-sensitive) nor a substring inside
+    // another value (e.g. `?redirect=..?download=1`).
+    // Known boundary: JS/TS `URLSearchParams` split on both `&` and `;`, Rust
+    // `query_pairs()` splits on `&` only — `?a=1;download=1` diverges. Extremely
+    // rare in practice; recorded, not a blocker.
     if url.query_pairs().any(|(k, _)| k.eq_ignore_ascii_case("download")) {
         tracing::trace!(url = %url, "[ADL-DL] is_download_url: matched query key download");
         return true;
