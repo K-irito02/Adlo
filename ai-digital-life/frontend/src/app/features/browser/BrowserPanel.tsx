@@ -273,13 +273,20 @@ export function BrowserPanel(props: BrowserPanelProps) {
     renameFolderState.open ||
     createDirDialog.open;
 
-  const { primaryRef, removeFromPool, isTabInPool, navigateTabInPool, loadingTabId, markTabFresh, poolVersion } =
-    useBrowserWebView({
-      activeTab,
-      webViewDisabled: false,
-      isVisible: isBrowserVisible,
-      overlayActive: hasOverlayActive,
-    });
+  const {
+    primaryRef,
+    removeFromPool,
+    isTabInPool,
+    navigateTabInPool,
+    loadingTabId,
+    markTabFresh,
+    poolVersion,
+  } = useBrowserWebView({
+    activeTab,
+    webViewDisabled: false,
+    isVisible: isBrowserVisible,
+    overlayActive: hasOverlayActive,
+  });
 
   // render 期镜像最新 helper，供显式导航函数运行时读取
   navigationHelpersRef.current = { isTabInPool, navigateTabInPool };
