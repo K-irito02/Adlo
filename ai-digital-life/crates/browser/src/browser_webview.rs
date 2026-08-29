@@ -21,6 +21,7 @@ pub fn setup_webview2_handlers(
     label: &str,
     bridge: &Arc<dyn WebView2EventBridge>,
     download_manager: &DownloadManager,
+    is_silent: bool,
 ) {
     if let Err(e) = crate::webview2_message::setup_webview2_messaging(core, tab_id, bridge) {
         tracing::warn!(tab_id = tab_id, error = %e, "webview2 messaging setup failed");
@@ -41,15 +42,23 @@ pub fn setup_webview2_handlers(
     }
     // Capture the native WebView2 download operation so pause/resume/cancel can
     // actually control the engine instead of only flipping a DB flag.
-    if let Err(e) =
-        crate::webview2_download::setup_download_operation_capture(core, download_manager)
-    {
+    if let Err(e) = crate::webview2_download::setup_download_operation_capture(
+        core,
+        download_manager,
+        is_silent,
+    ) {
         tracing::warn!(tab_id = tab_id, error = %e, "download operation capture setup failed");
     }
 }
 
 #[cfg(not(windows))]
-pub fn setup_webview2_handlers(_tab_id: &str, _label: &str, _download_manager: &DownloadManager) {}
+pub fn setup_webview2_handlers(
+    _tab_id: &str,
+    _label: &str,
+    _download_manager: &DownloadManager,
+    _is_silent: bool,
+) {
+}
 
 pub struct BrowserManager {
     pool: BrowserPool,

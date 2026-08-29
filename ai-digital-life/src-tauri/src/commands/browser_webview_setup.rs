@@ -22,6 +22,11 @@ static DOWNLOAD_EXTENSIONS: &[&str] = &[
     "vbs", "wsf", "hta",
 ];
 
+/// Consecutive polls (~500ms each) a byte-complete file must stay at full size
+/// before the monitor finalizes it when the native op hasn't reported Completed.
+/// Guards against finalizing while the engine is still flushing the tail bytes.
+const FULL_SIZE_STABLE_POLLS: u32 = 2;
+
 fn is_download_url(url: &url::Url) -> bool {
     let path = url.path().to_lowercase();
     for ext in DOWNLOAD_EXTENSIONS {
@@ -245,7 +250,34 @@ pub fn start_download_progress_monitor(
         // Wait a moment for the download to start and file to be created
         std::thread::sleep(std::time::Duration::from_millis(1000));
 
+        // Probe whether the server supports HTTP Range requests (needed for the
+        // native Pause() to actually hold). Cache it on the manager so the
+        // pause command can decide without a blocking network call.
+        let record_url = download_manager
+            .list_downloads()
+            .ok()
+            .and_then(|r| r.into_iter().find(|d| d.id == record_id))
+            .map(|d| d.url)
+            .unwrap_or_default();
+        if let (Some(client), Ok(url)) = (&head_client, url::Url::parse(&record_url)) {
+            if let Some(resumable) = check_server_resumable(client, &url) {
+                download_manager.set_resumability(url.as_str(), resumable);
+                tracing::debug!(
+                    record_id = %record_id,
+                    resumable,
+                    url = url.as_str(),
+                    "[ADL-DL] progress monitor: probed server resumability"
+                );
+            }
+        }
+
         let mut paused_idle_logged = false;
+        let mut cosmetic_pause_logged = false;
+        // Consecutive polls where the file stayed at full size (byte-complete but
+        // the native op hasn't reported Completed — e.g. a pause on a
+        // non-resumable download). Two polls (~1s) confirm the transfer has
+        // finished writing all bytes, so we can finalize regardless of the op.
+        let mut full_size_stable_polls: u32 = 0;
         loop {
             std::thread::sleep(std::time::Duration::from_millis(500));
 
@@ -256,10 +288,13 @@ pub fn start_download_progress_monitor(
                     .ok()
                     .and_then(|r| r.into_iter().find(|d| d.id == record_id))
             } else {
-                // Fallback: find by file path
+                // Fallback: find by file path. `file_path` is the `.crdownload`
+                // temp path WebView2 writes to; the record stores the final path,
+                // so strip the Chrome/Edge-style suffix before matching.
+                let final_lookup = file_path.trim_end_matches(".crdownload");
                 download_manager.list_downloads().ok().and_then(|r| {
                     r.into_iter().find(|d| {
-                        d.file_path == file_path
+                        d.file_path == final_lookup
                             && d.status == adl_browser::download_types::DownloadStatus::InProgress
                     })
                 })
@@ -273,11 +308,22 @@ pub fn start_download_progress_monitor(
                 },
             };
 
-            // Keep the monitor alive while the download is paused: the native
-            // WebView2 download is now actually paused (pause_download calls
-            // DownloadOperation.Pause()), so the file size stays put. We idle here
-            // (without emitting progress) and resume reporting once the user resumes.
-            if record.status == adl_browser::download_types::DownloadStatus::Paused {
+            // A cosmetic pause: the download's server doesn't support Range, so
+            // pause_download skipped the native Pause() and the transfer is still
+            // running. Keep polling so byte-completion is detected and finalized
+            // (instead of idling forever on a paused-but-growing download).
+            let cosmetic_pause = record.status
+                == adl_browser::download_types::DownloadStatus::Paused
+                && download_manager.resumability(&record.url) == Some(false);
+
+            // Otherwise, keep the monitor alive while paused: the native WebView2
+            // download is actually paused (pause_download calls
+            // DownloadOperation.Pause()), so the file size stays put. Idle here
+            // (without emitting progress) and resume reporting once the user
+            // resumes.
+            if record.status == adl_browser::download_types::DownloadStatus::Paused
+                && !cosmetic_pause
+            {
                 if !paused_idle_logged {
                     tracing::info!(
                         record_id = %record.id,
@@ -288,8 +334,19 @@ pub fn start_download_progress_monitor(
                 continue;
             }
 
+            if cosmetic_pause && !cosmetic_pause_logged {
+                tracing::info!(
+                    record_id = %record.id,
+                    "[ADL-DL] progress monitor: non-resumable download PAUSED (cosmetic), transfer continues — polling until completion"
+                );
+                cosmetic_pause_logged = true;
+            }
+
             // Stop only on terminal states (completed / failed / canceled).
-            if record.status != adl_browser::download_types::DownloadStatus::InProgress {
+            // A cosmetic pause is not terminal — the transfer is still running.
+            if record.status != adl_browser::download_types::DownloadStatus::InProgress
+                && !cosmetic_pause
+            {
                 tracing::info!(
                     record_id = %record.id,
                     status = record.status.as_str(),
@@ -398,39 +455,123 @@ pub fn start_download_progress_monitor(
                         break;
                     }
 
-                    tracing::debug!(
-                        record_id = %record.id,
-                        bytes_received = current_bytes,
-                        total_bytes = total,
-                        "[ADL-DL] progress monitor: download complete, emitting finish event"
-                    );
-
-                    // Mark as completed in DB
-                    if let Err(e) = download_manager.complete_download(&record.id, true, None) {
-                        tracing::warn!(
+                    // Fast path: the native operation already reached COMPLETED.
+                    // Finalize immediately (no stability wait needed).
+                    let native_state = download_manager.native_operation_state(&record.url);
+                    if native_state == adl_browser::download_manager::NativeDownloadState::Completed
+                    {
+                        tracing::debug!(
                             record_id = %record.id,
-                            error = %e,
-                            "[ADL-DL] progress monitor: failed to mark download as completed"
+                            bytes_received = current_bytes,
+                            total_bytes = total,
+                            "[ADL-DL] progress monitor: native operation COMPLETED, emitting finish event"
                         );
+
+                        // Mark as completed in DB (complete_download renames the
+                        // `.crdownload` temp to the final path).
+                        if let Err(e) = download_manager.complete_download(&record.id, true, None) {
+                            tracing::warn!(
+                                record_id = %record.id,
+                                error = %e,
+                                "[ADL-DL] progress monitor: failed to mark download as completed"
+                            );
+                        }
+
+                        // Emit finish event to frontend
+                        let _ = app_handle.emit(
+                            "browser-download-finished",
+                            &serde_json::json!({
+                                "id": record.id,
+                                "success": true,
+                                "filePath": file_path.trim_end_matches(".crdownload"),
+                            }),
+                        );
+
+                        break;
                     }
 
-                    // Emit finish event to frontend
-                    let _ = app_handle.emit(
-                        "browser-download-finished",
-                        &serde_json::json!({
-                            "id": record.id,
-                            "success": true,
-                            "filePath": file_path,
-                        }),
-                    );
+                    // The native op has NOT reached Completed yet. This is normal
+                    // while the engine finalizes the last bytes, but it also
+                    // happens permanently for downloads whose Pause() corrupted
+                    // the op (e.g. a non-resumable server): every byte is on disk
+                    // but the op never reports Completed. With the
+                    // Chrome/Edge-style `.crdownload` design, a full-size file is
+                    // genuinely complete — once it has stayed at full size across
+                    // a couple of polls the transfer has finished writing, so we
+                    // finalize (rename to the final path + mark complete), which
+                    // also claims the file out of WebView2's cleanup path.
+                    full_size_stable_polls += 1;
+                    if full_size_stable_polls >= FULL_SIZE_STABLE_POLLS {
+                        tracing::info!(
+                            record_id = %record.id,
+                            native_state = ?native_state,
+                            bytes_received = current_bytes,
+                            total_bytes = total,
+                            "[ADL-DL] progress monitor: file byte-complete and stable, finalizing download"
+                        );
 
-                    break;
+                        // Mark as completed in DB (renames `.crdownload` → final).
+                        if let Err(e) = download_manager.complete_download(&record.id, true, None) {
+                            tracing::warn!(
+                                record_id = %record.id,
+                                error = %e,
+                                "[ADL-DL] progress monitor: failed to mark download as completed"
+                            );
+                        }
+
+                        // Emit finish event to frontend
+                        let _ = app_handle.emit(
+                            "browser-download-finished",
+                            &serde_json::json!({
+                                "id": record.id,
+                                "success": true,
+                                "filePath": file_path.trim_end_matches(".crdownload"),
+                            }),
+                        );
+
+                        break;
+                    }
+
+                    tracing::trace!(
+                        record_id = %record.id,
+                        native_state = ?native_state,
+                        bytes_received = current_bytes,
+                        total_bytes = total,
+                        "[ADL-DL] progress monitor: file size matches total but not yet stable, waiting"
+                    );
+                    continue;
                 }
             }
+            full_size_stable_polls = 0;
         }
 
         tracing::debug!(record_id = %record_id, "[ADL-DL] progress monitor stopped");
     });
+}
+
+/// Probe whether the server supports HTTP Range requests (needed for WebView2's
+/// native Pause() to actually hold). Trusts either an explicit
+/// `Accept-Ranges: bytes` header or a `206 Partial Content` reply to a
+/// HEAD+Range probe — some Range-supporting CDNs (e.g. Tencent video) omit
+/// `Accept-Ranges` on HEAD. Anything else is treated as non-resumable
+/// (conservative — a cosmetic pause is harmless, but calling native Pause() on
+/// a non-resumable download corrupts the operation and loses the file at
+/// shutdown).
+fn check_server_resumable(client: &reqwest::blocking::Client, url: &url::Url) -> Option<bool> {
+    let resp = client.head(url.as_str()).header(reqwest::header::RANGE, "bytes=0-0").send().ok()?;
+    if resp.status() == reqwest::StatusCode::PARTIAL_CONTENT
+        && resp.headers().get(reqwest::header::CONTENT_RANGE).is_some()
+    {
+        return Some(true);
+    }
+    if let Some(ar) = resp.headers().get(reqwest::header::ACCEPT_RANGES) {
+        if let Ok(s) = ar.to_str() {
+            if s.to_ascii_lowercase().contains("bytes") {
+                return Some(true);
+            }
+        }
+    }
+    Some(false)
 }
 
 /// Attempt to fetch the Content-Length from a URL via HTTP HEAD request.
@@ -520,6 +661,7 @@ pub(super) fn setup_webview2_handlers_for_platform(
     tab_id: &str,
     label: &str,
     bridge: EventBridgeRef,
+    is_silent: bool,
 ) {
     #[cfg(windows)]
     {
@@ -531,7 +673,9 @@ pub(super) fn setup_webview2_handlers_for_platform(
             let controller = platform_wv.controller();
             if let Ok(core) = controller.CoreWebView2() {
                 let manager = app_handle.state::<AppState>().download_manager.clone();
-                adl_browser::setup_webview2_handlers(&core, &tab_id, &label, &bridge, &manager);
+                adl_browser::setup_webview2_handlers(
+                    &core, &tab_id, &label, &bridge, &manager, is_silent,
+                );
             }
         });
     }
@@ -539,7 +683,7 @@ pub(super) fn setup_webview2_handlers_for_platform(
     {
         let app_handle = webview.app_handle().clone();
         let manager = app_handle.state::<crate::state::AppState>().download_manager.clone();
-        adl_browser::setup_webview2_handlers(tab_id, label, &manager);
+        adl_browser::setup_webview2_handlers(tab_id, label, &manager, is_silent);
     }
 }
 

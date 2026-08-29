@@ -7,7 +7,18 @@
 pub fn setup_download_operation_capture(
     core: &webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2,
     manager: &crate::download_manager::DownloadManager,
+    is_silent: bool,
 ) -> Result<(), String> {
+    // A silent (background metadata) webview cancels every download it triggers,
+    // so its DownloadOperation handles are always dead. Registering them would
+    // overwrite a genuine paused/in-progress operation for the same URL (the
+    // meta fetch of an installer URL fires DownloadStarting right after the real
+    // transfer paused) — leaving Resume() on a cancelled operation (fails with
+    // 0x8007139F) and a progress monitor that sees a stale INTERRUPTED handle.
+    // Skip the capture entirely for silent webviews.
+    if is_silent {
+        return Ok(());
+    }
     use webview2_com::DownloadStartingEventHandler;
     use webview2_com::Microsoft::Web::WebView2::Win32::{
         ICoreWebView2, ICoreWebView2_4, ICoreWebView2DownloadOperation,

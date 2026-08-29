@@ -147,3 +147,92 @@
 ## 审视发现的其它问题
 - **次要问题（已评估，暂不修改）**：静默 webview 每次触发多个不同 URL 的 DownloadStarting（爱奇艺 4 个），其中与真实 URL 不同的静默操作也会注册进 `operations` 映射且永不清理（无对应记录、URL 含一次性 uuid 不会再复用）→ 轻微内存占用累积（每次下载 ~3-4 个 COM 包装器）。无功能影响。修复需在 webview UI 线程做 DB 查询判断「无记录则不注册」，有阻塞主线程风险，暂不建议。
 - 恢复流程已在本轮完整测试（4 次暂停+恢复全部成功）；「暂停瞬间传输恰好完成 → 直接显示完成」竞态路径由 pause 前原生 State() 检查 + `DownloadPauseResult` 结构化返回覆盖（已对齐 Chrome/Edge 乐观 UI 行为）。
+
+## 根因 7：进度监控线程误报「完成」导致下载文件消失（2026-08-29，汽水音乐缺失）
+- 现象：用户测试 5 个下载，但默认保存路径 `E:\Test-Workspace-1` 下只看到 4 个文件；「汽水音乐（SodaMusic）」之前确实见过，后来自动消失了。
+- 证据（`.adl-logs/terminal-logs.txt` + SQLite downloads 库）：
+  - SodaMusic 记录 `6a1b87c6` 09:53:42 创建，09:53:44 暂停、09:53:56 恢复，09:54:00 监控线程报 `progress monitor: download complete, emitting finish event bytes_received=150602608 total_bytes=150602608`
+  - 该下载**从未**出现 WRY `finished(success=true)` 事件（`with_download_completed_handler: ENTER` 无 success=true 记录）
+  - 09:54:30 webview 销毁（`browser webview destroyed for tab`）
+  - DB 中 5 个下载全部记录为 `completed` 且字节数一致，但 SodaMusic 文件不在磁盘上
+- **根因（根因 7，主因）**：`start_download_progress_monitor` 的完成判定**只看文件大小是否 ≥ total_bytes**（`current_bytes >= total && total > 0`），未校验原生 WebView2 下载操作是否真正达到 `COMPLETED` 状态。暂停/恢复后引擎仍在收尾（或传输被中断、文件恰好在最后字节处中断），文件大小恰好匹配 total 时即被误判完成 → DB 标记 completed + 发出 finish 事件 → 监控线程 `break` 退出。此时原生操作实际**未完成**，webview 销毁时 WebView2 清理了未落定/未完成的文件 → 「DB 记录完成、文件消失」。
+- 修复（`src-tauri/src/commands/browser_webview_setup.rs` 进度监控线程）：
+  - 在「文件大小匹配 total」且未被 WRY 回调标记完成之后，增加原生状态校验：`native_operation_state(url)` 必须为 `Completed`（或 `Unknown` 回退到大小启发式，覆盖非 Windows/未捕获句柄的兜底）才标记完成
+  - 原生状态为 `InProgress` → `continue` 等待下一轮（引擎收尾毫秒级，下一轮即 Completed 或由 WRY finished(true) 完成）；`Interrupted` → 继续等待，由 WRY finished(false) 标记失败，不再伪造完成
+  - 复用 `download_manager.rs` 既有的 `NativeDownloadState` / `native_operation_state()`（与 `handle_download_finished` 的 success=true 守卫同一套校验逻辑）
+- 验收：`cargo fmt` ✓、`cargo clippy --workspace --all-targets --fix -- -D warnings` ✓、`cargo check --workspace` ✓、`cargo test --workspace` ✓
+- 待用户复测：Tauri 桌面端再测「多个下载（含暂停/恢复）」，确认 5 个下载文件全部留在保存路径下，且不再出现「DB 显示完成但文件消失」。
+
+## Phase 4 复测（2026-08-29，用户第五次测试）→ 新根因 8
+- 用户操作：5 个下载（腾讯视频 / 夸克网盘 / 芒果TV / 崩坏星穹铁道 / 汽水音乐），各「暂停→恢复」，部分暂停了 2 次。
+- 复测发现两个新问题：
+  1. **已下载完成（进度条满）的下载仍停留在「进行中」分区/状态**。
+  2. **「已暂停」分区下某个下载（汽水音乐）点击「继续/恢复」无任何反应，一直停留暂停**。
+- 日志证据（`.adl-logs/terminal-logs.txt`）：
+  - 腾讯视频 `7bb8b14f` / 星穹铁道 `07377490` 经 WRY `finished(success=true)` 正常完成（`download completed successfully` + `status=completed`）；芒果TV/夸克仍在下载中。
+  - 汽水音乐 `b3302986` 11:00:56.746 暂停成功（`native WebView2 download PAUSED`）；**11:00:57.075 静默 webview 对同一 URL 再次触发 DownloadStarting**（`download_requested: CANCELLED (silent webview)`）→ 11:00:57.076 `register_operation: captured native download operation`（**覆盖了真实的暂停操作**）。
+  - 之后 6 次恢复（11:01:36 / 11:01:38 / 11:01:47 / 11:02:14 / 11:02:36 / 11:02:39）全部失败：`native Resume() failed ... 组或资源的状态不是执行请求操作的正确状态。 (0x8007139F)` → HTTP Range 回退未实现 → 汽水音乐永远停留在 paused。
+- **根因（根因 8，两个问题的共同主因）**：`setup_download_operation_capture` 对**静默（silent 元数据）webview** 也注册了 DownloadStarting；静默 webview 触发下载后会被取消（dead operation）。因 `register_operation` 只保护 `InProgress` 操作，而**暂停中的操作原生 State()=INTERRUPTED**，守卫不通过 → 静默 dead 操作**覆盖**真实暂停操作。后果：
+  - **恢复失效**：`Resume()` 调用到静默已取消操作 → `0x8007139F` 失败 ×6 → 停留暂停（问题 2）。
+  - **完成卡死**：原生操作被换成 dead 句柄后恒报 INTERRUPTED；配合根因 7 的「标记完成前校验原生状态」，监控线程 `native_state=Interrupted(≠Completed/Unknown)` → `continue` 永不标记完成 → 已满文件停留在「进行中」（问题 1）。（若未加根因 7 校验，则相反地会伪造完成导致文件被清。）
+- 修复（`is_silent` 贯穿）：
+  - `crates/browser/src/webview2_download.rs`：`setup_download_operation_capture(core, manager, is_silent)`，`is_silent=true` 时直接跳过（静默 webview 的所有下载都会被取消，其操作句柄永远无用）。
+  - `crates/browser/src/browser_webview.rs`：`setup_webview2_handlers` 增 `is_silent` 参数并透传（含非 windows 桩）。
+  - `src-tauri/src/commands/browser_webview_setup.rs`：`setup_webview2_handlers_for_platform` 增 `is_silent` 透传。
+  - `src-tauri/src/commands/browser.rs`：`attach_webview_child` 增 `is_silent`；可见 tab 传 `false`（`browser_create_for_tab`），静默走 `true`（`create_silent_webview`）。
+  - 附加收益：修复了此前「审视发现的其它问题」中静默 webview 死操作永不清理的内存累积（静默不再注册任何操作）。
+- 验收：`cargo fmt`、`cargo clippy --workspace --all-targets --fix -- -D warnings`、`cargo check --workspace`、`cargo test`（-p adl-browser 67+5+2+7 全部通过；-p ai-digital-life 70 通过）✓
+
+## 死测试移除（2026-08-29）：`silent_meta_tests::partial_meta_pre_returns_even_when_channel_goes_silent`
+- 现象：`cargo test --workspace` 长时间无输出，定位到 `commands::browser::silent_meta_tests::partial_meta_pre_returns_even_when_channel_goes_silent` **运行超过 60 秒仍未结束**（测试二进制自身无 60s 阈值，属挂死）。
+- 根因（永久无法完成，非偶发）：
+  - `poll_silent_meta`（`src-tauri/src/commands/browser.rs`）只有**单轮 recv 超时**、**无整体时限**；每轮超时走 `Err(idle)` 分支，该分支仅检查 `favicon_extended` 但**永不置位** → 无限空转。
+  - `favicon_extended` 唯一置位点在「收到消息」分支（L463），且要求 `since_first >= partial_ms`；该测试只发一条消息（此时 `since_first≈0`，分支被跳过），此后 channel 保持打开（tx 未 drop）且静默 → 死循环。
+- 为何生产不挂：外层 `fetch_silent_meta` 有 6s 总体超时兜底，测试直接调用内部函数绕过了该兜底。
+- 处置：删除该死测试（保留注释说明），与本次下载修复无关（预先存在）。
+- 验证：删除后 `cargo test -p ai-digital-life` **70 passed / 0 failed / finished in 3.04s**，无任何 "running for over" 卡死；workspace 其余 crate 全部通过。
+- 待用户复测：Tauri 桌面端再测「下载→暂停→（等静默元数据 webview 触发后）→恢复」，确认：暂停的下载恢复后能继续并完成；完成的下载离开「进行中」分区；汽水音乐不再停留暂停。
+
+## Phase 5 复测（2026-08-29，用户第六次测试）→ 新根因 9 + Chrome/Edge 一致方案
+- 用户操作：5 个下载（腾讯视频 / 夸克网盘 / 芒果TV / 崩坏星穹铁道 / 汽水音乐）暂停→恢复。
+- 复测新现象：
+  1. **进度条已满的下载仍停留在「进行中」分区/状态**（DB `in_progress`、`bytes_received == total_bytes`、`completed_at=NULL`）。
+  2. 这些下载的文件在保存路径下可见（运行中），但**关闭 Tauri 后文件自动消失**。
+- 证据（`.adl-logs/terminal-logs.txt` + DB + 目录）：
+  - 芒果/星穹/腾讯经 WRY `finished(success=true)` 正常完成，文件保留；夸克 `5bf1ffad` / 汽水 `7bc4624f` 恢复后 `RESUMED` 但**从未触发完成事件**，DB 卡在 `in_progress`，文件在关闭后从 `E:\Test-Workspace-1` 消失（实测目录只剩 3 个完成的文件）。
+  - 与根因 8 相同判据：夸克/汽水**服务器不支持 Range（不可续传）**——原生 `Pause()` 虽返回 Ok 但传输未真正停止，操作被破坏后永远不报 Completed；应用关闭时 WebView2 环境销毁，删除「未 Completed 操作」的目标文件（`InterruptReason.UserShutdown`：关闭时中断的下载不支持恢复）。
+- 调研结论（对齐 Chrome/Edge/Firefox 最佳实践）：
+  - **Chrome/Edge 用 `.crdownload` 临时文件**：下载中写入 `文件名.crdownload`，仅成功完成时原子重命名（`rename()`）为最终名。最终名文件**永远不会半成品出现**，关闭时被清理的只是明确标记为未完成的临时文件。
+  - **Firefox bug 410289**：明确"不允许暂停无法恢复的下载"（不要假装暂停）。
+  - WebView2 官方：`DownloadOperation.CanResume`（判断中断能否恢复）、`InterruptReason.ServerNoRange`（服务器不支持 Range）。
+- **根因（根因 9，与根因 7 同源深化）**：我们此前直接写最终路径 + 根因 7 的「必须原生 Completed 才标记完成」判定，导致不可续传下载被 Pause 破坏后：进度满但不标记完成（问题 1）、最终名文件在关闭时被 WebView2 删除（问题 2）。根因 7 的诊断（"文件大小达到 total 是误报"）实际是错误的——字节数与 Content-Length 一致即代表字节完整；真正的病灶是**操作生命周期被 Pause 破坏 + 直接写最终路径**。
+- 修复（Chrome/Edge 一致设计，三层）：
+  1. **`.crdownload` 临时文件方案**（`download_handler.rs` / `download_manager.rs`）：
+     - `setup_download_handler` 将 WebView2 目标改为 `{final_path}.crdownload`（含 duplicate 分支）。
+     - `complete_download` 成功时原子重命名 `.crdownload` → 最终路径（文件只有真正完成才以最终名出现，且被重命名后脱离 WebView2 清理路径）。
+     - `delete_file_and_record` 同时清理最终名与 `.crdownload`。
+     - `handle_download_finished` 完成事件向前端发最终路径（非 `.crdownload`），并新增「已完成记录收到 spurious finished(false)」守卫（防止监控提前最终化后 WebView2 销毁时把已完成翻成失败）。
+  2. **字节真相完成判定**（`browser_webview_setup.rs` 监控线程）：`current_bytes >= total` 时——原生已完成 → 立即最终化；原生未完成 → 文件在满大小**稳定 2 轮（~1s）**即最终化（重命名+标记完成），覆盖 Pause 破坏操作的场景。此前「非 Completed/Unknown 就 continue」的严格判定移除。
+  3. **可续传探测 + 装饰性暂停**（`download_manager.rs` / `browser_webview_setup.rs`）：监控线程启动时 HEAD 探测 `Accept-Ranges: bytes` 并缓存；`pause_download` 对不可续传下载**跳过原生 Pause**（仅 DB 标记暂停，UI 展示；传输继续并自然完成、文件保留——与 Firefox 一致的不假装暂停）；监控线程对「装饰性暂停」继续轮询直至字节完成。
+- 验收：`cargo fmt`、`cargo clippy --workspace --all-targets --fix -- -D warnings`、`cargo check --workspace`、`cargo test`（-p adl-browser 全通过；-p ai-digital-life 全通过）✓
+- 待用户复测：Tauri 桌面端再测「暂停→恢复」，确认：① 进度满的下载离开「进行中」分区并显示完成；② 完成后最终路径出现文件、`.crdownload` 消失；③ 关闭应用后已完成的文件保留；④ 下载中途关闭应用只清理 `.crdownload`（符合 Chrome 行为）。
+
+## Phase 5 复测验证（2026-08-29，用户第七次测试）✅ 全部通过
+- 用户操作：5 个下载（腾讯视频 / 夸克网盘 / 芒果TV / 崩坏星穹铁道 / 汽水音乐），其中腾讯（装饰性暂停）、星穹/汽水（真实暂停→恢复）。
+- 日志证据（`.adl-logs/terminal-logs.txt`）：
+  - 探测：腾讯 `resumable=false`（HEAD 无 Accept-Ranges）→ 装饰性暂停（`skipping native Pause (cosmetic pause, transfer continues)`）→ 传输继续并完成（WRY `finished(success=true)`）→ `renamed .crdownload to final path` → completed ✓
+  - 夸克/芒果：字节真相完成判定（`file byte-complete and stable, finalizing`）或 WRY 完成 → 重命名 → completed ✓
+  - 星穹 `6988710a`：真实暂停（`native WebView2 download PAUSED` + 监控 idling）→ 恢复（`RESUMED`）→ 字节真相最终化 → completed ✓；随后 12:43:29 WebView2 触发迟到 `finished(success=false)` → **新守卫生效**：`ignoring spurious finished(false) for an already-completed download (late native interrupt)`，记录保持 completed（未翻成失败）✓
+  - 汽水 `63d7f68e`：真实暂停→恢复→字节真相最终化 → completed ✓
+- 结果核验：
+  - DB：5 个下载全部 `completed` 且 `bytes_received == total_bytes` ✓
+  - 目录 `E:\Test-Workspace-1`：**5 个文件全部保留**（含汽水音乐 150MB），无 `.crdownload` 残留 ✓（此前仅 3 个保留）
+  - 终端日志：**0 ERROR / 0 panic**；5 条 WARN 均为预期的 `download_requested: CANCELLED (silent webview)`（根因 8 正常行为）✓
+  - 前端日志：仅 2 条良性 `Couldn't find callback id`（Tauri 热重载时异步回调，与下载无关，预存在）✓
+- 修复验证结论：`.crdownload` 方案 + 字节真相完成判定 + 装饰性暂停 + 迟到 finished(false) 守卫**全部按预期工作**，根因 7/8/9 彻底解决。
+
+## 审视发现的次要问题（已修复）：可续传探测精度
+- 现象：腾讯视频 `dldir1.qq.com` 支持 Range（此前 12:07 会话真实暂停成功），但 HEAD 不返回 `Accept-Ranges` 头 → 旧探测误判 `resumable=false` → 其暂停退化为装饰性（仍完成、文件保留，但暂停不真正生效）。
+- 修复（`browser_webview_setup.rs` `check_server_resumable`）：HEAD 请求附带 `Range: bytes=0-0`，服务器返回 `206 Partial Content` + `Content-Range` 即判定可续传；仍保留 `Accept-Ranges: bytes` 兜底。仅当有明确证据才判定可续传（保守方向：误判为不可续传只损失"暂停真正生效"，误判为可续传才会破坏操作、丢文件）。
+- 验收：`cargo fmt` ✓、`cargo clippy -p ai-digital-life --all-targets --fix -- -D warnings` ✓、`cargo check -p ai-digital-life` ✓
+- 待用户复测（可选）：确认腾讯视频等站点的暂停重新真正生效（探测应判 resumable=true）。

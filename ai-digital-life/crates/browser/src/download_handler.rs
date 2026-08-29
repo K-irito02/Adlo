@@ -38,8 +38,9 @@ pub fn setup_download_handler(
                         existing_id = &existing.id,
                         "[ADL-DL] duplicate download detected, allowing WebView2 to handle"
                     );
-                    // Still allow the download but don't create a new record
-                    *destination = PathBuf::from(&existing.file_path);
+                    // Still allow the download but don't create a new record.
+                    // Point WebView2 at the same `.crdownload` temp file.
+                    *destination = PathBuf::from(format!("{}.crdownload", existing.file_path));
                     return true;
                 },
                 super::download_types::DownloadStatus::Paused => {
@@ -85,9 +86,12 @@ pub fn setup_download_handler(
             return false;
         }
 
-        // Point WebView2 at our resolved absolute target so it actually downloads
-        // there (the assigned path must be absolute).
-        *destination = PathBuf::from(&final_path);
+        // Point WebView2 at the Chrome/Edge-style `.crdownload` temp path (the
+        // final name is only produced by an atomic rename in complete_download).
+        // This guarantees a half-written download is never visible under its
+        // final name, and a download still in flight at shutdown is only ever
+        // cleaned up as a clearly-incomplete temp file.
+        *destination = PathBuf::from(format!("{final_path}.crdownload"));
 
         match manager.create_download(&url, &final_path) {
             Ok(record) => {
@@ -173,6 +177,19 @@ pub fn handle_download_finished(
         return;
     }
 
+    // A download we already finalized (progress monitor marked it complete once
+    // the file was byte-complete and stable) may still get a late
+    // `finished(success=false)` from WebView2 — e.g. at webview teardown the op
+    // that never reached Completed is interrupted. The download is already done
+    // and the file renamed to its final path; don't flip it to failed.
+    if !success && record.status == super::download_types::DownloadStatus::Completed {
+        tracing::info!(
+            record_id = %record.id,
+            "[ADL-DL] handle_download_finished: ignoring spurious finished(false) for an already-completed download (late native interrupt)"
+        );
+        return;
+    }
+
     // The reverse case: a paused/canceled download receiving finished(success=true)
     // means the native transfer actually completed at the byte level (e.g. the user
     // clicked pause just as the final bytes arrived, so Pause() couldn't undo an
@@ -207,8 +224,9 @@ pub fn handle_download_finished(
     // Drop the native operation handle now that the download has truly ended.
     download_manager.remove_operation(url);
 
-    let actual_path =
-        path.map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| record.file_path.clone());
+    // Report the final (user-facing) path — WebView2 hands us the `.crdownload`
+    // temp path, but complete_download renames it to record.file_path on success.
+    let display_path = record.file_path.clone();
 
     if success {
         let _ = download_manager.complete_download(&record.id, true, None);
@@ -218,7 +236,7 @@ pub fn handle_download_finished(
             &serde_json::json!({
                 "id": record.id,
                 "url": url,
-                "filePath": actual_path,
+                "filePath": display_path,
                 "success": true,
             }),
         );
@@ -230,7 +248,7 @@ pub fn handle_download_finished(
             &serde_json::json!({
                 "id": record.id,
                 "url": url,
-                "filePath": actual_path,
+                "filePath": display_path,
                 "success": false,
             }),
         );

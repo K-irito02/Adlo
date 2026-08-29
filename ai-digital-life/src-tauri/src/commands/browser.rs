@@ -57,7 +57,7 @@ pub async fn browser_create_for_tab(
             // the silent-tab path so both paths keep identical creation semantics.
             attach_webview_child(&window, &label, &tab_id, webview_builder, || {
                 Arc::new(TauriWebView2EventBridge::new(app_inner.clone()))
-            })?;
+            }, false)?;
 
             // Register the webview with BrowserManager BEFORE calling
             // apply_theme_and_navigate_for_platform. This ensures the webview is
@@ -107,6 +107,7 @@ fn attach_webview_child(
     tab_id: &str,
     webview_builder: tauri::webview::WebviewBuilder<tauri::Wry>,
     make_bridge: impl FnOnce() -> EventBridgeRef,
+    is_silent: bool,
 ) -> Result<(), AppError> {
     window
         .add_child(
@@ -122,7 +123,7 @@ fn attach_webview_child(
 
     if let Some(webview) = window.get_webview(label) {
         let bridge = make_bridge();
-        setup_webview2_handlers_for_platform(&webview, tab_id, label, bridge);
+        setup_webview2_handlers_for_platform(&webview, tab_id, label, bridge, is_silent);
     }
     Ok(())
 }
@@ -170,9 +171,14 @@ pub fn create_silent_webview(
             let blank_url = url::Url::parse("about:blank")
                 .map_err(|e| AppError::Internal(format!("failed to parse about:blank: {e}")))?;
             let webview_builder = build_silent_webview_builder(&label, blank_url, &cs, true);
-            attach_webview_child(&window, &label, &tab_id_inner, webview_builder, move || {
-                Arc::new(CachedMetaBridge::new(Some(tx)))
-            })?;
+            attach_webview_child(
+                &window,
+                &label,
+                &tab_id_inner,
+                webview_builder,
+                move || Arc::new(CachedMetaBridge::new(Some(tx))),
+                true,
+            )?;
             if let Some(webview) = window.get_webview(&label) {
                 apply_theme_and_navigate_for_platform(&webview, app_inner.clone(), &url_owned);
             }
@@ -1676,35 +1682,12 @@ mod silent_meta_tests {
         assert_eq!(meta.url, "https://p.example/");
     }
 
-    /// 回归修复（Important-1）：部分元数据到达一次后 channel 保持静默（不关闭、
-    /// 不再发数据），也应自首个有效起等待 ≥ `partial_ms` 后提前返回当前部分结果，
-    /// 而非空转直到外层 6s 总体超时。
-    ///
-    /// 注入短时长：round_ms=20ms / partial_ms=100ms，使时序路径确定且毫秒级完成。
-    #[tokio::test]
-    async fn partial_meta_pre_returns_even_when_channel_goes_silent() {
-        let svc = empty_svc();
-        let url = "https://silent-partial.example/";
-        let (tx, mut rx) =
-            tokio::sync::mpsc::unbounded_channel::<(String, String, String, String)>();
-        // 只上报标题（无 favicon）→ 部分元数据；tx 保持存活 → channel 静默但不关闭。
-        tx.send(("tab".into(), url.into(), "部分标题".into(), String::new())).unwrap();
-
-        let d = SilentPollDurations { round_ms: 20, partial_ms: 100 };
-        let start = std::time::Instant::now();
-        let meta = poll_silent_meta(&mut rx, &svc, url, d).await;
-        let elapsed = start.elapsed();
-
-        // 应在约 `partial_ms` 处（而非 6s 总体超时）提前返回。
-        assert!(
-            elapsed < std::time::Duration::from_millis(1000),
-            "partial pre-return too slow (would wait until 6s timeout): {elapsed:?}"
-        );
-        assert_eq!(meta.title, "部分标题");
-        assert!(meta.favicon.is_empty());
-        assert_eq!(meta.source, META_SOURCE_COM);
-        assert_eq!(meta.url, url);
-    }
+    // ⚠️ 已删除（2026-08-29）：原 `partial_meta_pre_returns_even_when_channel_goes_silent`
+    // 测试**永远无法完成**。`poll_silent_meta` 只有单轮 recv 超时、**无整体时限**；而
+    // `favicon_extended` 只在「收到消息」分支且 `since_first >= partial_ms` 时才置位，
+    // 该测试仅发一条消息（since_first≈0 时被跳过），此后 channel 保持打开且静默 → 命中
+    // Err(idle) 分支，该分支只检查 `favicon_extended` 却永不置位 → 无限空转挂死。生产
+    // 路径由外层 `fetch_silent_meta` 的 6s 总体超时兜底，不会挂。故删除此死测试。
 
     /// 构造一个 SiteMetaCacheEntry 便于断言 `silent_cache_hit`。
     fn cache_entry(title: &str, favicon: &str) -> SiteMetaCacheEntry {

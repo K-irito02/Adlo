@@ -92,6 +92,13 @@ pub struct DownloadManager {
     operations: Arc<Mutex<HashMap<String, AgileDownloadOp>>>,
     #[cfg(not(windows))]
     operations: Arc<Mutex<HashMap<String, DownloadOp>>>,
+    /// Cached per-URL resumability (server supports HTTP Range requests), probed
+    /// on the progress-monitor thread so `pause_download` can decide without a
+    /// blocking network call. A download whose server does not support Range
+    /// cannot actually be paused by WebView2: calling `Pause()` corrupts the
+    /// operation's lifecycle (it never reaches `Completed`, so WebView2 deletes
+    /// the file when the webview/app shuts down). `None` = not probed yet.
+    resumability: Arc<Mutex<HashMap<String, bool>>>,
 }
 
 #[allow(dead_code)]
@@ -103,7 +110,20 @@ impl DownloadManager {
             settings: Arc::new(Mutex::new(settings)),
             active_downloads: Arc::new(Mutex::new(HashMap::new())),
             operations: Arc::new(Mutex::new(HashMap::new())),
+            resumability: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    /// Cache whether the download URL's server supports HTTP Range requests.
+    pub fn set_resumability(&self, url: &str, resumable: bool) {
+        if let Ok(mut m) = self.resumability.lock() {
+            m.insert(url.to_string(), resumable);
+        }
+    }
+
+    /// Return the cached resumability for a URL, if it has been probed.
+    pub fn resumability(&self, url: &str) -> Option<bool> {
+        self.resumability.lock().ok().and_then(|m| m.get(url).copied())
     }
 
     /// Register the live native download operation so it can later be paused /
@@ -397,6 +417,29 @@ impl DownloadManager {
                     "[ADL-DL] pause_download: native operation state unknown; attempting native Pause()"
                 );
             },
+        }
+
+        // A download whose server does not support HTTP Range requests cannot
+        // actually be paused by WebView2: calling Pause() corrupts the operation
+        // (the transfer keeps running but the op never reaches `Completed`, and
+        // WebView2 deletes the file when the webview/app shuts down — the "file
+        // vanished after close" bug). The progress monitor probes resumability
+        // up front and caches it here; when it reports non-resumable, skip the
+        // native Pause() and make the pause cosmetic (UI shows "paused", the
+        // transfer continues and completes normally, preserving the file).
+        if self.resumability(&url) == Some(false) {
+            tracing::info!(
+                id = %id,
+                url = %url,
+                "[ADL-DL] pause_download: server does not support Range (non-resumable); skipping native Pause (cosmetic pause, transfer continues)"
+            );
+            let conn = self.db.conn().map_err(|e| e.to_string())?;
+            conn.execute(
+                "UPDATE download_history SET status = ?1, interrupt_reason = ?2 WHERE id = ?3",
+                rusqlite::params![DownloadStatus::Paused.as_str(), "UserPaused", id],
+            )
+            .map_err(|e| format!("Failed to pause download: {}", e))?;
+            return Ok(DownloadStatus::Paused);
         }
 
         // First, try to pause the native WebView2 download (fast path).
@@ -697,6 +740,35 @@ impl DownloadManager {
     ) -> Result<(), String> {
         let status = if success { DownloadStatus::Completed } else { DownloadStatus::Failed };
 
+        // Chrome/Edge-style: WebView2 writes to `<final>.crdownload`. Only when
+        // the transfer is confirmed complete do we atomically rename it to the
+        // final name. This guarantees the final file never appears half-written,
+        // and a byte-complete-but-unfinalized transfer stays a clearly-incomplete
+        // `.crdownload` (which WebView2 may clean up at shutdown) instead of a
+        // "final file that vanished".
+        if success {
+            if let Ok(record) = self.get_record(id) {
+                let temp = format!("{}.crdownload", record.file_path);
+                let temp_path = Path::new(&temp);
+                let final_path = Path::new(&record.file_path);
+                if temp_path.exists() && !final_path.exists() {
+                    match fs::rename(temp_path, final_path) {
+                        Ok(()) => tracing::debug!(
+                            record_id = %id,
+                            file_path = %record.file_path,
+                            "[ADL-DL] complete_download: renamed .crdownload to final path"
+                        ),
+                        Err(e) => tracing::warn!(
+                            record_id = %id,
+                            error = %e,
+                            temp = temp,
+                            "[ADL-DL] complete_download: failed to rename .crdownload to final path"
+                        ),
+                    }
+                }
+            }
+        }
+
         let conn = self.db.conn().map_err(|e| e.to_string())?;
         conn.execute(
             "UPDATE download_history SET status = ?1, interrupt_reason = ?2, completed_at = ?3 WHERE id = ?4",
@@ -753,9 +825,12 @@ impl DownloadManager {
 
     pub fn delete_file_and_record(&self, id: &str) -> Result<(), String> {
         let record = self.get_record(id)?;
-        if Path::new(&record.file_path).exists() {
-            fs::remove_file(&record.file_path)
-                .map_err(|e| format!("Failed to delete file: {}", e))?;
+        // Remove both the final file and any Chrome/Edge-style `.crdownload` temp.
+        for candidate in [&record.file_path, &format!("{}.crdownload", record.file_path)] {
+            let p = Path::new(candidate);
+            if p.exists() {
+                fs::remove_file(p).map_err(|e| format!("Failed to delete file: {}", e))?;
+            }
         }
         self.remove_record(id)
     }
