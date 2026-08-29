@@ -6,10 +6,16 @@ use std::sync::{Arc, Mutex};
 use chrono::Utc;
 use uuid::Uuid;
 
+#[cfg(windows)]
+use webview2_com::Microsoft::Web::WebView2::Win32::{
+    COREWEBVIEW2_DOWNLOAD_STATE, COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED,
+    COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS, COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED,
+};
+
 use adl_storage::Database;
 
 use super::download_types::{
-    DownloadMode, DownloadProgress, DownloadRecord, DownloadSettings, DownloadStatus,
+    DownloadMode, DownloadProgress, DownloadRecord, DownloadSettings, DownloadStatus, ResumeMode,
 };
 
 /// The native WebView2 download operation handle. Only available on Windows.
@@ -52,23 +58,13 @@ pub enum NativeDownloadState {
 /// silent-webview duplicate).
 #[cfg(windows)]
 fn query_operation_state(op: &DownloadOp) -> NativeDownloadState {
-    use webview2_com::Microsoft::Web::WebView2::Win32::{
-        COREWEBVIEW2_DOWNLOAD_STATE, COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED,
-        COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS, COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED,
-    };
-
     let mut state = COREWEBVIEW2_DOWNLOAD_STATE(0);
     match unsafe { op.State(&mut state) } {
-        Ok(()) => {
-            if state == COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED {
-                NativeDownloadState::Completed
-            } else if state == COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED {
-                NativeDownloadState::Interrupted
-            } else if state == COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS {
-                NativeDownloadState::InProgress
-            } else {
-                NativeDownloadState::Unknown
-            }
+        Ok(()) => match state {
+            s if s == COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED => NativeDownloadState::Completed,
+            s if s == COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED => NativeDownloadState::Interrupted,
+            s if s == COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS => NativeDownloadState::InProgress,
+            _ => NativeDownloadState::Unknown,
         },
         Err(e) => {
             tracing::warn!(
@@ -146,7 +142,7 @@ impl DownloadManager {
                 }
             }
             m.insert(url.to_string(), AgileDownloadOp(op));
-            tracing::info!(
+            tracing::debug!(
                 url = url,
                 "[ADL-DL] register_operation: captured native download operation for pause/resume/cancel"
             );
@@ -424,26 +420,47 @@ impl DownloadManager {
         // (the transfer keeps running but the op never reaches `Completed`, and
         // WebView2 deletes the file when the webview/app shuts down — the "file
         // vanished after close" bug). The progress monitor probes resumability
-        // up front and caches it here; when it reports non-resumable, skip the
-        // native Pause() and make the pause cosmetic (UI shows "paused", the
-        // transfer continues and completes normally, preserving the file).
-        if self.resumability(&url) == Some(false) {
+        // up front and caches it here. Only an explicitly-confirmed-resumable
+        // download gets a native Pause(); anything else (probe failed, probe not
+        // done yet, or confirmed non-resumable) gets a cosmetic pause — the UI
+        // shows "paused", the transfer continues and completes normally,
+        // preserving the file. (Conservative: losing real pause is harmless;
+        // corrupting the op loses the file.)
+        if self.resumability(&url) != Some(true) {
             tracing::info!(
                 id = %id,
                 url = %url,
                 "[ADL-DL] pause_download: server does not support Range (non-resumable); skipping native Pause (cosmetic pause, transfer continues)"
             );
+            // Persist the decision (CosmeticPaused vs UserPaused) in
+            // interrupt_reason so the monitor / finished handler / resume read a
+            // stable flag instead of re-deriving from the mutable resumability
+            // cache (which can flip after the probe completes).
             let conn = self.db.conn().map_err(|e| e.to_string())?;
             conn.execute(
                 "UPDATE download_history SET status = ?1, interrupt_reason = ?2 WHERE id = ?3",
-                rusqlite::params![DownloadStatus::Paused.as_str(), "UserPaused", id],
+                rusqlite::params![DownloadStatus::Paused.as_str(), "CosmeticPaused", id],
             )
             .map_err(|e| format!("Failed to pause download: {}", e))?;
             return Ok(DownloadStatus::Paused);
         }
 
-        // First, try to pause the native WebView2 download (fast path).
-        // Only update DB status if native Pause() succeeds to avoid desync.
+        // Mark the DB as paused BEFORE calling native Pause(): the native
+        // Pause() fires a spurious `finished(success=false)` state change, and if
+        // that event is dispatched before we write `paused` here, the download
+        // would be misclassified as failed and its resume handle dropped. With
+        // the DB written first, the finished handler always sees `Paused` and
+        // ignores the spurious interrupt (mirrors cancel_download's DB-first
+        // order).
+        let conn = self.db.conn().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE download_history SET status = ?1, interrupt_reason = ?2 WHERE id = ?3",
+            rusqlite::params![DownloadStatus::Paused.as_str(), "UserPaused", id],
+        )
+        .map_err(|e| format!("Failed to pause download: {}", e))?;
+
+        // Now pause the native WebView2 download (fast path). On failure, revert
+        // the DB status so the record doesn't stay "paused" falsely.
         #[cfg(windows)]
         {
             match self.get_operation(&url) {
@@ -463,7 +480,11 @@ impl DownloadManager {
                             url = %url,
                             error = %e,
                             hresult = format!("0x{hresult:08X}"),
-                            "[ADL-DL] pause_download: native Pause() failed"
+                            "[ADL-DL] pause_download: native Pause() failed, reverting DB status"
+                        );
+                        let _ = conn.execute(
+                            "UPDATE download_history SET status = ?1, interrupt_reason = NULL WHERE id = ?2",
+                            rusqlite::params![DownloadStatus::InProgress.as_str(), id],
                         );
                         return Err(format!("Failed to pause native download: 0x{hresult:08X}"));
                     },
@@ -472,7 +493,11 @@ impl DownloadManager {
                     tracing::warn!(
                         id = %id,
                         url = %url,
-                        "[ADL-DL] pause_download: no native download operation captured; cannot pause native engine"
+                        "[ADL-DL] pause_download: no native download operation captured; reverting DB status"
+                    );
+                    let _ = conn.execute(
+                        "UPDATE download_history SET status = ?1, interrupt_reason = NULL WHERE id = ?2",
+                        rusqlite::params![DownloadStatus::InProgress.as_str(), id],
                     );
                     return Err("No native download operation captured; cannot pause".to_string());
                 },
@@ -498,21 +523,6 @@ impl DownloadManager {
             },
         }
 
-        // Native Pause() succeeded — now update DB status
-        let conn = self.db.conn().map_err(|e| e.to_string())?;
-        let rows = conn
-            .execute(
-                "UPDATE download_history SET status = ?1, interrupt_reason = ?2 WHERE id = ?3",
-                rusqlite::params![DownloadStatus::Paused.as_str(), "UserPaused", id],
-            )
-            .map_err(|e| format!("Failed to pause download: {}", e))?;
-        tracing::debug!(
-            id = %id,
-            url = %url,
-            rows_affected = rows,
-            "[ADL-DL] pause_download: DB status set to 'paused'"
-        );
-
         Ok(DownloadStatus::Paused)
     }
 
@@ -522,8 +532,6 @@ impl DownloadManager {
     /// 3. If that fails, fall back to HTTP Range-based resume using reqwest
     /// 4. Enforce auto-resume limit (max 5 attempts)
     pub fn resume_download(&self, id: &str) -> Result<(), String> {
-        use super::download_types::ResumeMode;
-
         let record = self.get_record(id)?;
         let url = record.url.clone();
 
@@ -542,6 +550,29 @@ impl DownloadManager {
         // subject to the auto-resume limit (which guards *automatic* retries,
         // not explicit user actions).
         let user_paused = record.status == DownloadStatus::Paused;
+
+        // A cosmetic pause (non-resumable server) never paused the native engine:
+        // the transfer kept running. If it's still in progress there is nothing
+        // to resume — just restore the DB status and let it complete naturally.
+        // Calling native Resume() on a still-running op would only error. The
+        // decision is persisted in interrupt_reason so we don't re-derive it from
+        // the mutable resumability cache (which can flip after the probe).
+        if record.interrupt_reason.as_deref() == Some("CosmeticPaused")
+            && self.native_operation_state(&url) == NativeDownloadState::InProgress
+        {
+            tracing::info!(
+                id = %id,
+                url = %url,
+                "[ADL-DL] resume_download: cosmetic pause, native transfer still in progress — restoring in_progress"
+            );
+            let conn = self.db.conn().map_err(|e| e.to_string())?;
+            conn.execute(
+                "UPDATE download_history SET status = ?1, interrupt_reason = NULL WHERE id = ?2",
+                rusqlite::params![DownloadStatus::InProgress.as_str(), id],
+            )
+            .map_err(|e| format!("Failed to resume download: {}", e))?;
+            return Ok(());
+        }
 
         // Determine resume mode based on interrupt reason and state
         let restart_required = if user_paused {
@@ -568,30 +599,17 @@ impl DownloadManager {
             "[ADL-DL] resume_download: determined resume mode"
         );
 
-        match resume_mode {
-            ResumeMode::Invalid => {
-                return Err(
-                    "Download cannot be resumed — the server may not support range requests, or the download was cancelled"
-                        .to_string(),
-                );
-            },
-            // `resume_download` is only ever invoked by an explicit user action
-            // (the "Resume" button). A "needs user action" mode is therefore
-            // satisfied by this very call — proceed to the native Resume() fast
-            // path instead of blocking. (Previously this branch wrongly reported
-            // "Auto-resume limit reached" for a user-paused download even when
-            // auto_resume_count was 0.)
-            ResumeMode::UserRestart | ResumeMode::UserContinue => {
-                tracing::debug!(
-                    id = %id,
-                    url = %url,
-                    resume_mode = ?resume_mode,
-                    "[ADL-DL] resume_download: user-initiated resume satisfies User* mode, proceeding"
-                );
-            },
-            ResumeMode::ImmediateContinue | ResumeMode::ImmediateRestart => {
-                // Can auto-resume
-            },
+        // Only `Invalid` changes the control flow — every other mode falls through
+        // to the native Resume() fast path. `resume_download` is only ever invoked
+        // by an explicit user action (the "Resume" button), which satisfies any
+        // "needs user action" mode. (Previously the User* branches wrongly
+        // reported "Auto-resume limit reached" for a user-paused download even
+        // when auto_resume_count was 0.)
+        if resume_mode == ResumeMode::Invalid {
+            return Err(
+                "Download cannot be resumed — the server may not support range requests, or the download was cancelled"
+                    .to_string(),
+            );
         }
 
         // Try WebView2's native Resume() first (fast path)
@@ -701,6 +719,24 @@ impl DownloadManager {
             .lock()
             .expect("active_downloads mutex should not be poisoned")
             .remove(id);
+
+        // A canceled download can't be resumed (HTTP Range resume is not
+        // implemented and the native op is gone), so remove the Chrome/Edge-style
+        // `.crdownload` temp to avoid garbage accumulation.
+        if let Some(record) = &record {
+            let temp = format!("{}.crdownload", record.file_path);
+            if Path::new(&temp).exists() {
+                if let Err(e) = fs::remove_file(&temp) {
+                    tracing::warn!(
+                        id = %id,
+                        error = %e,
+                        temp = temp,
+                        "[ADL-DL] cancel_download: failed to remove .crdownload temp"
+                    );
+                }
+            }
+            self.resumability.lock().ok().map(|mut m| m.remove(&record.url));
+        }
         Ok(())
     }
 
@@ -745,25 +781,45 @@ impl DownloadManager {
         // final name. This guarantees the final file never appears half-written,
         // and a byte-complete-but-unfinalized transfer stays a clearly-incomplete
         // `.crdownload` (which WebView2 may clean up at shutdown) instead of a
-        // "final file that vanished".
+        // "final file that vanished". If the rename fails we return an error and
+        // do NOT mark the record completed — otherwise the record would claim
+        // "completed" while only a temp file exists, and the later spurious
+        // finished(false) guard would hide the missing file.
         if success {
             if let Ok(record) = self.get_record(id) {
                 let temp = format!("{}.crdownload", record.file_path);
                 let temp_path = Path::new(&temp);
                 let final_path = Path::new(&record.file_path);
-                if temp_path.exists() && !final_path.exists() {
-                    match fs::rename(temp_path, final_path) {
-                        Ok(()) => tracing::debug!(
-                            record_id = %id,
-                            file_path = %record.file_path,
-                            "[ADL-DL] complete_download: renamed .crdownload to final path"
-                        ),
-                        Err(e) => tracing::warn!(
+                if temp_path.exists() {
+                    if final_path.exists() {
+                        // Already finalized (e.g. re-finalize / duplicate) — drop
+                        // the stale temp file.
+                        if let Err(e) = fs::remove_file(temp_path) {
+                            tracing::warn!(
+                                record_id = %id,
+                                error = %e,
+                                temp = temp,
+                                "[ADL-DL] complete_download: failed to remove stale .crdownload"
+                            );
+                        }
+                    } else if let Err(e) = fs::rename(temp_path, final_path) {
+                        tracing::error!(
                             record_id = %id,
                             error = %e,
                             temp = temp,
-                            "[ADL-DL] complete_download: failed to rename .crdownload to final path"
-                        ),
+                            final_path = %record.file_path,
+                            "[ADL-DL] complete_download: FAILED to rename .crdownload to final path; not marking completed"
+                        );
+                        return Err(format!(
+                            "Failed to finalize download file '{}': {}",
+                            record.file_path, e
+                        ));
+                    } else {
+                        tracing::debug!(
+                            record_id = %id,
+                            file_path = %record.file_path,
+                            "[ADL-DL] complete_download: renamed .crdownload to final path"
+                        );
                     }
                 }
             }
@@ -775,6 +831,12 @@ impl DownloadManager {
             rusqlite::params![status.as_str(), reason, Utc::now().timestamp(), id],
         )
         .map_err(|e| format!("Failed to complete download: {}", e))?;
+
+        // Evict the resumability cache entry once the download has ended (its
+        // URL won't be probed again; keeps the map bounded).
+        if let Ok(record) = self.get_record(id) {
+            self.resumability.lock().ok().map(|mut m| m.remove(&record.url));
+        }
 
         self.active_downloads
             .lock()
@@ -909,8 +971,6 @@ pub(crate) fn get_download_resume_mode(
     restart_required: bool,
     user_action_required: bool,
 ) -> super::download_types::ResumeMode {
-    use super::download_types::ResumeMode;
-
     // Only support resumption for HTTP(S).
     if !url.starts_with("http://") && !url.starts_with("https://") {
         return ResumeMode::Invalid;

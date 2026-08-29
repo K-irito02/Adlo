@@ -72,6 +72,6 @@ pub fn setup_download_operation_capture(
     unsafe { core.add_DownloadStarting(&handler, &mut token) }
         .map_err(|e| format!("add_DownloadStarting failed: {e}"))?;
 
-    tracing::info!("[ADL-DL] setup_download_operation_capture: DownloadStarting handler attached");
+    tracing::debug!("[ADL-DL] setup_download_operation_capture: DownloadStarting handler attached");
     Ok(())
 }

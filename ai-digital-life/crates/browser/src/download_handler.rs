@@ -160,16 +160,21 @@ pub fn handle_download_finished(
         },
     };
 
-    // When a download is paused or canceled via the native WebView2 operation,
-    // WebView2 fires a spurious non-in-progress state that wry reports as a
-    // `finished(success=false)` event. Don't let that overwrite the user-initiated
-    // Paused/Canceled status (the native operation itself handles the real stop).
-    // Also preserve the native operation handle so it can be used for Resume() later.
+    // A download paused/canceled via the native WebView2 operation fires a
+    // spurious `finished(success=false)` interrupt that must not overwrite the
+    // user-initiated Paused/Canceled status, and its operation handle must be
+    // preserved for a later Resume(). A cosmetic pause (non-resumable server)
+    // never called native Pause(), so its finished(false) is a REAL failure and
+    // must fall through to the failure path below. The pause kind is read from
+    // the persisted interrupt_reason (set at pause time), not re-derived from the
+    // mutable resumability cache.
+    let is_real_native_pause = record.status == super::download_types::DownloadStatus::Paused
+        && record.interrupt_reason.as_deref() == Some("UserPaused");
     if !success
-        && (record.status == super::download_types::DownloadStatus::Paused
-            || record.status == super::download_types::DownloadStatus::Canceled)
+        && (record.status == super::download_types::DownloadStatus::Canceled
+            || is_real_native_pause)
     {
-        tracing::info!(
+        tracing::debug!(
             record_id = %record.id,
             status = record.status.as_str(),
             "[ADL-DL] handle_download_finished: ignoring spurious finished(false) for a paused/canceled download (native interrupt)"
@@ -183,9 +188,21 @@ pub fn handle_download_finished(
     // that never reached Completed is interrupted. The download is already done
     // and the file renamed to its final path; don't flip it to failed.
     if !success && record.status == super::download_types::DownloadStatus::Completed {
-        tracing::info!(
+        tracing::debug!(
             record_id = %record.id,
             "[ADL-DL] handle_download_finished: ignoring spurious finished(false) for an already-completed download (late native interrupt)"
+        );
+        return;
+    }
+
+    // The progress monitor may have already finalized this download (byte-truth
+    // completion). A late `finished(success=true)` is then a duplicate — just
+    // release the operation handle instead of re-emitting another finish event.
+    if success && record.status == super::download_types::DownloadStatus::Completed {
+        download_manager.remove_operation(url);
+        tracing::debug!(
+            record_id = %record.id,
+            "[ADL-DL] handle_download_finished: already completed, skipping duplicate finish"
         );
         return;
     }
@@ -229,7 +246,17 @@ pub fn handle_download_finished(
     let display_path = record.file_path.clone();
 
     if success {
-        let _ = download_manager.complete_download(&record.id, true, None);
+        // If finalization (rename .crdownload → final) fails — e.g. a transient
+        // file lock — do NOT report success: the record stays in_progress and the
+        // progress monitor retries the rename on its next poll.
+        if let Err(e) = download_manager.complete_download(&record.id, true, None) {
+            tracing::warn!(
+                record_id = &record.id,
+                error = %e,
+                "[ADL-DL] download finalization failed (rename); progress monitor will retry"
+            );
+            return;
+        }
         tracing::debug!(record_id = &record.id, "[ADL-DL] download completed successfully");
         let _ = app_handle.emit(
             "browser-download-finished",
@@ -253,139 +280,6 @@ pub fn handle_download_finished(
             }),
         );
     }
-}
-
-pub fn handle_download_progress(
-    app_handle: &AppHandle,
-    download_manager: &DownloadManager,
-    url: &str,
-    bytes_received: u64,
-    total_bytes: Option<u64>,
-) {
-    let records = match download_manager.list_downloads() {
-        Ok(r) => r,
-        Err(_) => return,
-    };
-
-    let record = records.iter().find(|r| r.url == url);
-    let record = match record {
-        Some(r) => r,
-        None => return,
-    };
-
-    // Update total bytes if we now know it
-    if let Some(total) = total_bytes {
-        let _ = download_manager.update_total_bytes(&record.id, total);
-    }
-
-    // Calculate speed (simple: bytes since last update)
-    let speed = bytes_received.saturating_sub(record.bytes_received);
-
-    // Update progress in manager
-    if let Err(e) = download_manager.update_progress(&record.id, bytes_received, speed) {
-        tracing::warn!(error = %e, record_id = &record.id, "[ADL-DL] failed to update progress");
-        return;
-    }
-
-    tracing::debug!(
-        record_id = &record.id,
-        bytes_received,
-        total_bytes = total_bytes.unwrap_or(0),
-        "[ADL-DL] progress updated"
-    );
-
-    let _ = app_handle.emit(
-        "browser-download-progress",
-        &serde_json::json!({
-            "id": record.id,
-            "bytes_received": bytes_received,
-            "total_bytes": total_bytes,
-            "speed": speed,
-        }),
-    );
-}
-
-pub fn handle_download_pause(app_handle: &AppHandle, download_manager: &DownloadManager, id: &str) {
-    use super::download_types::DownloadStatus;
-
-    tracing::debug!(record_id = id, "[ADL-DL] pausing download");
-    match download_manager.pause_download(id) {
-        Ok(DownloadStatus::Paused) => {
-            let _ = app_handle.emit("browser-download-paused", &serde_json::json!({ "id": id }));
-        },
-        Ok(DownloadStatus::Completed) => {
-            // The transfer had already finished when the user clicked pause.
-            // Reflect the true state by emitting finished(true) with the real
-            // record details so the frontend shows "completed", not "paused".
-            tracing::info!(
-                record_id = id,
-                "[ADL-DL] pause: download already completed; emitting finished(true)"
-            );
-            let record = download_manager
-                .list_downloads()
-                .ok()
-                .and_then(|rs| rs.into_iter().find(|r| r.id == id));
-            let url = record.as_ref().map(|r| r.url.clone()).unwrap_or_default();
-            let file_path = record.as_ref().map(|r| r.file_path.clone()).unwrap_or_default();
-            let _ = app_handle.emit(
-                "browser-download-finished",
-                &serde_json::json!({
-                    "id": id,
-                    "url": url,
-                    "filePath": file_path,
-                    "success": true,
-                }),
-            );
-        },
-        Ok(_) => {
-            tracing::warn!(record_id = id, "[ADL-DL] pause: unexpected resulting status");
-        },
-        Err(e) => {
-            tracing::warn!(error = %e, record_id = id, "[ADL-DL] failed to pause download");
-            let _ = app_handle.emit(
-                "browser-download-error",
-                &serde_json::json!({
-                    "id": id,
-                    "error": e,
-                }),
-            );
-        },
-    }
-}
-
-pub fn handle_download_resume(
-    app_handle: &AppHandle,
-    download_manager: &DownloadManager,
-    id: &str,
-) {
-    tracing::debug!(record_id = id, "[ADL-DL] resuming download");
-    match download_manager.resume_download(id) {
-        Ok(()) => {
-            let _ = app_handle.emit("browser-download-resumed", &serde_json::json!({ "id": id }));
-        },
-        Err(e) => {
-            tracing::warn!(error = %e, record_id = id, "[ADL-DL] failed to resume download");
-            let _ = app_handle.emit(
-                "browser-download-error",
-                &serde_json::json!({
-                    "id": id,
-                    "error": e,
-                }),
-            );
-        },
-    }
-}
-
-pub fn handle_download_cancel(
-    app_handle: &AppHandle,
-    download_manager: &DownloadManager,
-    id: &str,
-) {
-    tracing::debug!(record_id = id, "[ADL-DL] canceling download");
-    if let Err(e) = download_manager.cancel_download(id) {
-        tracing::warn!(error = %e, record_id = id, "[ADL-DL] failed to cancel download");
-    }
-    let _ = app_handle.emit("browser-download-canceled", &serde_json::json!({ "id": id }));
 }
 
 pub fn create_download_manager(db: adl_storage::Database) -> Arc<DownloadManager> {

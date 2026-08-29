@@ -507,6 +507,17 @@ async fn poll_silent_meta(
             Err(_elapsed) => {
                 if let Some(start) = first_meta_at {
                     let since_first = start.elapsed();
+                    // 部分数据已到、channel 静默且已过 partial_ms：直接返回当前
+                    // 部分结果（对齐文档声明；favicon 延长等待仅适用于收到消息分支）。
+                    if !favicon_extended && since_first >= partial_threshold {
+                        tracing::debug!(
+                            req_url = %url,
+                            elapsed_ms = poll_start.elapsed().as_millis(),
+                            tuple_count = tuple_count,
+                            "[ADL-META-POLL] idle + partial threshold reached → return partial"
+                        );
+                        return best_silent_meta(svc, url, last_reported.as_deref());
+                    }
                     if favicon_extended && since_first >= partial_threshold + favicon_only_threshold
                     {
                         tracing::debug!(
@@ -1682,12 +1693,40 @@ mod silent_meta_tests {
         assert_eq!(meta.url, "https://p.example/");
     }
 
-    // ⚠️ 已删除（2026-08-29）：原 `partial_meta_pre_returns_even_when_channel_goes_silent`
-    // 测试**永远无法完成**。`poll_silent_meta` 只有单轮 recv 超时、**无整体时限**；而
-    // `favicon_extended` 只在「收到消息」分支且 `since_first >= partial_ms` 时才置位，
-    // 该测试仅发一条消息（since_first≈0 时被跳过），此后 channel 保持打开且静默 → 命中
-    // Err(idle) 分支，该分支只检查 `favicon_extended` 却永不置位 → 无限空转挂死。生产
-    // 路径由外层 `fetch_silent_meta` 的 6s 总体超时兜底，不会挂。故删除此死测试。
+    // 回归测试（2026-08-29 恢复）：部分元数据到达一次后 channel 保持静默（不关闭、
+    // 不再发数据），`poll_silent_meta` 应自首个有效起等待 ≥ `partial_ms` 后提前返回
+    // 当前部分结果，而非空转直到外层 6s 总体超时。此行为曾未实现导致测试挂死（后已
+    // 在 Err(idle) 分支实现提前返回）；用 tokio::time::timeout 兜底防 CI 挂起。
+    // 注入短时长：round_ms=20ms / partial_ms=100ms，使时序路径确定且毫秒级完成。
+    #[tokio::test]
+    async fn partial_meta_pre_returns_even_when_channel_goes_silent() {
+        let svc = empty_svc();
+        let url = "https://silent-partial.example/";
+        let (tx, mut rx) =
+            tokio::sync::mpsc::unbounded_channel::<(String, String, String, String)>();
+        // 只上报标题（无 favicon）→ 部分元数据；tx 保持存活 → channel 静默但不关闭。
+        tx.send(("tab".into(), url.into(), "部分标题".into(), String::new())).unwrap();
+
+        let d = SilentPollDurations { round_ms: 20, partial_ms: 100 };
+        let start = std::time::Instant::now();
+        let meta = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            poll_silent_meta(&mut rx, &svc, url, d),
+        )
+        .await
+        .expect("poll_silent_meta should return well before the timeout (no hang)");
+        let elapsed = start.elapsed();
+
+        // 应在约 `partial_ms` 处（而非 6s 总体超时）提前返回。
+        assert!(
+            elapsed < std::time::Duration::from_millis(1000),
+            "partial pre-return too slow (would wait until 6s timeout): {elapsed:?}"
+        );
+        assert_eq!(meta.title, "部分标题");
+        assert!(meta.favicon.is_empty());
+        assert_eq!(meta.source, META_SOURCE_COM);
+        assert_eq!(meta.url, url);
+    }
 
     /// 构造一个 SiteMetaCacheEntry 便于断言 `silent_cache_hit`。
     fn cache_entry(title: &str, favicon: &str) -> SiteMetaCacheEntry {

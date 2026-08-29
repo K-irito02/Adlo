@@ -275,9 +275,12 @@ pub fn start_download_progress_monitor(
         let mut cosmetic_pause_logged = false;
         // Consecutive polls where the file stayed at full size (byte-complete but
         // the native op hasn't reported Completed — e.g. a pause on a
-        // non-resumable download). Two polls (~1s) confirm the transfer has
-        // finished writing all bytes, so we can finalize regardless of the op.
+        // non-resumable download). Two polls (~1s) of an UNCHANGED full-size file
+        // confirm the transfer has finished writing all bytes, so we can finalize
+        // regardless of the op. Comparing adjacent sizes guards against finalizing
+        // a download that is still growing (underestimated Content-Length).
         let mut full_size_stable_polls: u32 = 0;
+        let mut last_full_size: u64 = 0;
         loop {
             std::thread::sleep(std::time::Duration::from_millis(500));
 
@@ -291,7 +294,7 @@ pub fn start_download_progress_monitor(
                 // Fallback: find by file path. `file_path` is the `.crdownload`
                 // temp path WebView2 writes to; the record stores the final path,
                 // so strip the Chrome/Edge-style suffix before matching.
-                let final_lookup = file_path.trim_end_matches(".crdownload");
+                let final_lookup = file_path.strip_suffix(".crdownload").unwrap_or(&file_path);
                 download_manager.list_downloads().ok().and_then(|r| {
                     r.into_iter().find(|d| {
                         d.file_path == final_lookup
@@ -311,10 +314,12 @@ pub fn start_download_progress_monitor(
             // A cosmetic pause: the download's server doesn't support Range, so
             // pause_download skipped the native Pause() and the transfer is still
             // running. Keep polling so byte-completion is detected and finalized
-            // (instead of idling forever on a paused-but-growing download).
+            // (instead of idling forever on a paused-but-growing download). The
+            // pause kind is the persisted interrupt_reason (set at pause time),
+            // not re-derived from the mutable resumability cache.
             let cosmetic_pause = record.status
                 == adl_browser::download_types::DownloadStatus::Paused
-                && download_manager.resumability(&record.url) == Some(false);
+                && record.interrupt_reason.as_deref() == Some("CosmeticPaused");
 
             // Otherwise, keep the monitor alive while paused: the native WebView2
             // download is actually paused (pause_download calls
@@ -347,7 +352,7 @@ pub fn start_download_progress_monitor(
             if record.status != adl_browser::download_types::DownloadStatus::InProgress
                 && !cosmetic_pause
             {
-                tracing::info!(
+                tracing::debug!(
                     record_id = %record.id,
                     status = record.status.as_str(),
                     "[ADL-DL] progress monitor: download no longer in progress (status={}), stopping",
@@ -436,25 +441,12 @@ pub fn start_download_progress_monitor(
                 "[ADL-DL] progress update emitted"
             );
 
-            // Check if download is complete (file size >= total bytes)
+            // Check if download is complete (file size >= total bytes). The
+            // record was fetched at loop-top and any terminal status (including
+            // WRY-completed) already broke the loop, so `record.status` is
+            // InProgress or a cosmetic pause here — no need to re-query it.
             if let Some(total) = total_bytes_resolved {
                 if current_bytes >= total && total > 0 {
-                    // Check if already completed by WRY callback to avoid duplicate events
-                    let already_completed = download_manager
-                        .list_downloads()
-                        .ok()
-                        .and_then(|r| r.into_iter().find(|d| d.id == record.id))
-                        .map(|d| d.status == adl_browser::download_types::DownloadStatus::Completed)
-                        .unwrap_or(false);
-
-                    if already_completed {
-                        tracing::debug!(
-                            record_id = %record.id,
-                            "[ADL-DL] progress monitor: already completed by WRY callback, stopping"
-                        );
-                        break;
-                    }
-
                     // Fast path: the native operation already reached COMPLETED.
                     // Finalize immediately (no stability wait needed).
                     let native_state = download_manager.native_operation_state(&record.url);
@@ -468,13 +460,16 @@ pub fn start_download_progress_monitor(
                         );
 
                         // Mark as completed in DB (complete_download renames the
-                        // `.crdownload` temp to the final path).
+                        // `.crdownload` temp to the final path). On failure
+                        // (transient rename/lock) do NOT report success — retry on
+                        // the next poll instead of leaving a false "completed".
                         if let Err(e) = download_manager.complete_download(&record.id, true, None) {
                             tracing::warn!(
                                 record_id = %record.id,
                                 error = %e,
-                                "[ADL-DL] progress monitor: failed to mark download as completed"
+                                "[ADL-DL] progress monitor: finalization failed (rename), will retry"
                             );
+                            continue;
                         }
 
                         // Emit finish event to frontend
@@ -482,8 +477,9 @@ pub fn start_download_progress_monitor(
                             "browser-download-finished",
                             &serde_json::json!({
                                 "id": record.id,
+                                "url": record.url,
                                 "success": true,
-                                "filePath": file_path.trim_end_matches(".crdownload"),
+                                "filePath": file_path.strip_suffix(".crdownload").unwrap_or(&file_path),
                             }),
                         );
 
@@ -496,11 +492,19 @@ pub fn start_download_progress_monitor(
                     // the op (e.g. a non-resumable server): every byte is on disk
                     // but the op never reports Completed. With the
                     // Chrome/Edge-style `.crdownload` design, a full-size file is
-                    // genuinely complete — once it has stayed at full size across
-                    // a couple of polls the transfer has finished writing, so we
-                    // finalize (rename to the final path + mark complete), which
-                    // also claims the file out of WebView2's cleanup path.
-                    full_size_stable_polls += 1;
+                    // genuinely complete — once it has stayed at the SAME full
+                    // size across a couple of polls the transfer has finished
+                    // writing, so we finalize (rename to the final path + mark
+                    // complete), which also claims the file out of WebView2's
+                    // cleanup path. The adjacent-size comparison prevents
+                    // finalizing a download that is still growing (e.g. an
+                    // underestimated Content-Length).
+                    if current_bytes == last_full_size {
+                        full_size_stable_polls += 1;
+                    } else {
+                        last_full_size = current_bytes;
+                        full_size_stable_polls = 1;
+                    }
                     if full_size_stable_polls >= FULL_SIZE_STABLE_POLLS {
                         tracing::info!(
                             record_id = %record.id,
@@ -511,12 +515,16 @@ pub fn start_download_progress_monitor(
                         );
 
                         // Mark as completed in DB (renames `.crdownload` → final).
+                        // On failure (transient rename/lock) do NOT report success
+                        // — retry on the next poll instead of leaving a false
+                        // "completed".
                         if let Err(e) = download_manager.complete_download(&record.id, true, None) {
                             tracing::warn!(
                                 record_id = %record.id,
                                 error = %e,
-                                "[ADL-DL] progress monitor: failed to mark download as completed"
+                                "[ADL-DL] progress monitor: finalization failed (rename), will retry"
                             );
+                            continue;
                         }
 
                         // Emit finish event to frontend
@@ -524,8 +532,9 @@ pub fn start_download_progress_monitor(
                             "browser-download-finished",
                             &serde_json::json!({
                                 "id": record.id,
+                                "url": record.url,
                                 "success": true,
-                                "filePath": file_path.trim_end_matches(".crdownload"),
+                                "filePath": file_path.strip_suffix(".crdownload").unwrap_or(&file_path),
                             }),
                         );
 
@@ -537,12 +546,14 @@ pub fn start_download_progress_monitor(
                         native_state = ?native_state,
                         bytes_received = current_bytes,
                         total_bytes = total,
+                        full_size_stable_polls,
                         "[ADL-DL] progress monitor: file size matches total but not yet stable, waiting"
                     );
                     continue;
                 }
             }
             full_size_stable_polls = 0;
+            last_full_size = 0;
         }
 
         tracing::debug!(record_id = %record_id, "[ADL-DL] progress monitor stopped");

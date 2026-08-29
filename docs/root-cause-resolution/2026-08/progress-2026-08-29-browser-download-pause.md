@@ -236,3 +236,38 @@
 - 修复（`browser_webview_setup.rs` `check_server_resumable`）：HEAD 请求附带 `Range: bytes=0-0`，服务器返回 `206 Partial Content` + `Content-Range` 即判定可续传；仍保留 `Accept-Ranges: bytes` 兜底。仅当有明确证据才判定可续传（保守方向：误判为不可续传只损失"暂停真正生效"，误判为可续传才会破坏操作、丢文件）。
 - 验收：`cargo fmt` ✓、`cargo clippy -p ai-digital-life --all-targets --fix -- -D warnings` ✓、`cargo check -p ai-digital-life` ✓
 - 待用户复测（可选）：确认腾讯视频等站点的暂停重新真正生效（探测应判 resumable=true）。
+
+## Phase 4 收尾（2026-08-29）— 子代理代码审查与修复
+- 用户确认所有问题/任务解决，进入 Phase 4。生成 diff 快照 `.review-diffs/issue-1-rev1.diff`（fd35af8f..HEAD），并行派发子代理 A（根因验证 ×2）。
+- **子代理报告索引**：
+  - `.review-diffs/review-issue-1-rev1.md`（download_manager.rs + download_handler.rs）
+  - `.review-diffs/review-issue-2-rev1.md`（browser_webview_setup.rs + webview2_download.rs + browser_webview.rs + browser.rs）
+- **主代理验证结论**（逐项核对真实代码，全部确认存在）：
+  - **S1（严重）**：`complete_download` 重命名失败仅记日志仍置 Completed → 原「文件消失」bug 静默复现。→ 修复：重命名失败返回 Err，不置 Completed。
+  - **S2（严重）**：装饰性暂停（不可续传）期间真实失败被 `!success && Paused` 守卫误忽略 → 僵尸 Paused 记录 + 监控 500ms 死循环。→ 修复：装饰性暂停的 finished(false) 视为真实失败走失败路径。
+  - **S3（高）**：`pause_download` 先原生 Pause 后写 DB → 伪 finished(false) 在 DB 更新前到达被误判失败 + 丢 resume 句柄。→ 修复：先写 DB 再原生 Pause（对齐 cancel_download）。
+  - **H1/B（高/中）**：resumability=None（探测未完成/失败）时仍走原生 Pause，违背保守方向。→ 修复：`!= Some(true)` 视为不可续传（装饰性暂停）。
+  - **A（高）**：监控「稳定 2 轮」未比较相邻轮次字节数，total 低估时可能提前 finalize 仍在增长的下载。→ 修复：相邻轮次字节相等才递增稳定计数。
+  - **C（中）**：cosmetic_pause 每轮重推导与 pause_download 决策竞态。→ 随 H1/B 修复（None/false 统一装饰性）基本消除。
+  - **D（中）**：死测试移除掩盖 `poll_silent_meta` Err(idle) 分支「部分数据+静默 channel 提前返回」未实现（文档/代码不一致）。→ 修复：Err 分支补充 partial_threshold 提前返回 + 以带超时方式恢复该回归测试。
+  - **M5/H（中/低）**：监控提前 finalize 后迟到 finished(true) 重复 emit。→ 修复：handle_download_finished 增加 `success && Completed` 去重守卫。
+  - **M6（中）**：装饰性暂停点恢复对仍在传输的 op 调原生 Resume 必然报错。→ 修复：装饰性暂停恢复时若 op 仍 InProgress 仅恢复 DB 状态。
+  - **F（低）**：监控 finished emit 缺 url 字段（IPC 契约不一致）。→ 修复：补 `url`。
+  - **G（低）**：`trim_end_matches` 语义 → 改用 `strip_suffix`。
+  - **M2（中）**：cancel/失败不清理 `.crdownload` 残留 → cancel 时清理。
+  - **M1（中）**：resumability 缓存无淘汰 → 完成/删除时清理对应条目。
+  - **E（中）**：同 URL 并发双下载句柄冲突 → 已知限制（closing-workflow 已 SKIPPED），记录文档化，不修。
+  - **M3（中）**：ResumeMode 机制部分死代码 → 重构有回归风险（resume 流程刚验证），记录理由，不修。
+  - **M4（中）**：Tauri 同步命令内阻塞 rename → 改 async+spawn_blocking 属更大重构，记录理由，不修。
+  - **M7（中）**：启动清理陈旧 `.crdownload` → 增加启动复杂度，记录理由，不修。
+  - L1-L5：minor 风格项，L4（get_record 静默忽略）补日志；L5 use 排序随 fmt 处理；`query_operation_state` if/else-if 改 match；死函数删除（handle_download_progress/pause/resume/cancel）；resume match 折叠；already_completed 冗余查询删除；日志级别校正 → 全部在 Phase 4 子代理循环中实施并复审通过。
+
+## Phase 4 收尾完成（2026-08-29）✅
+- **子代理闭环**：A（根因验证 rev1 → 修复 → rev2 复审 → R1/R1b 修复 → rev3 复审"无严重/高问题，可进入 B"）→ B（死代码清理 rev1 → 修复 → rev2 复审"清理完成，可进入最终验收"）全通过。子代理报告存档于 `.review-diffs/`。
+- **Phase 4 实施修复汇总**：S1（rename 失败返回 Err 不置 Completed）、S2（装饰性暂停失败走真实失败路径）、S3（pause 先写 DB 再原生 Pause）、H1/B（resumability!=Some(true) 视为装饰性）、A（稳定判定比较相邻字节）、C（cosmetic_pause 读持久化 interrupt_reason）、R1（rename 失败三调用点不发假成功+continue 重试）、R1b（装饰性暂停持久化 CosmeticPaused/UserPaused）、M5/H（迟到 finished(true) 去重）、M6（装饰性暂停恢复 no-op）、M2/M1（cancel/完成清理 .crdownload + resumability 缓存）、D（poll_silent_meta Err(idle) 部分提前返回 + 恢复回归测试）、F（flush url 字段）、G（strip_suffix）；清理：删除 4 个死函数、resume match 折叠、already_completed 冗余查询、`query_operation_state` match 化、use 上移三段式、日志级别校正。
+- **最终全量验收（唯一一次）✅**：
+  - Rust：`cargo check --workspace` ✓、`cargo clippy --workspace --all-targets -D warnings` ✓、`cargo fmt --all` ✓、`cargo test --workspace`（92 组全部 ok，含恢复的 `partial_meta_pre_returns_even_when_channel_goes_silent`）✓
+  - 前端：`typecheck` ✓、`lint` ✓、`format` ✓、`test`（242 文件 / 1962 测试）✓
+- **不修记录**：M3（ResumeMode 死代码，HTTP Range resume 有规划，保留脚手架仅作 Invalid 判定）、M4（同步命令内阻塞 rename，改 async+spawn_blocking 属更大重构）、M7（启动清理陈旧 .crdownload，增加启动复杂度）、E（同 URL 并发句柄冲突，文档化已知限制）、J（monitor 两路径 DRY，可选）、K（download_types 预存死类型，非本 diff 引入）。
+- **README 更新**：见 `docs/root-cause-resolution/2026-08/README.md`。
+- 清理 `.review-diffs/` 临时目录。
