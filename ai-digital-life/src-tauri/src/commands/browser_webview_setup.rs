@@ -45,7 +45,9 @@ fn is_download_url(url: &url::Url) -> bool {
         }
     }
     let query = url.query().unwrap_or("").to_lowercase();
-    if query.contains("download=") {
+    // Aligned with JS `[?&]download[=]` (init_script.js) and TS `/download=/` on search:
+    // `download=` must be a query key, not an arbitrary substring inside a value.
+    if query.starts_with("download=") || query.contains("&download=") {
         tracing::trace!(url = %url, "[ADL-DL] is_download_url: matched query param");
         return true;
     }

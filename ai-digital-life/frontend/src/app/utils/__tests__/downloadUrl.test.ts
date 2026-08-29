@@ -35,6 +35,10 @@ describe('isDownloadUrl', () => {
     expect(isDownloadUrl('https://example.com/page.html?download=1')).toBe(true);
   });
 
+  it('does not treat download= inside a fragment as a query signal (query-scope aligned)', () => {
+    expect(isDownloadUrl('https://example.com/page#?download=1')).toBe(false);
+  });
+
   it('detects explicit download path segments', () => {
     expect(isDownloadUrl('https://example.com/download/package')).toBe(true);
     expect(isDownloadUrl('https://example.com/files/readme')).toBe(true);
