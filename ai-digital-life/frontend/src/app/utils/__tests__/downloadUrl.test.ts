@@ -35,6 +35,15 @@ describe('isDownloadUrl', () => {
     expect(isDownloadUrl('https://example.com/page.html?download=1')).toBe(true);
   });
 
+  it('treats download as a standalone query key (case-insensitive)', () => {
+    expect(isDownloadUrl('https://example.com/export?download')).toBe(true);
+    expect(isDownloadUrl('https://example.com/export?DOWNLOAD=1')).toBe(true);
+  });
+
+  it('does not treat download= inside another value as a query key (query-key aligned)', () => {
+    expect(isDownloadUrl('https://example.com/?redirect=https://x?download=1')).toBe(false);
+  });
+
   it('does not treat download= inside a fragment as a query signal (query-scope aligned)', () => {
     expect(isDownloadUrl('https://example.com/page#?download=1')).toBe(false);
   });

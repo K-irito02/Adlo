@@ -45,10 +45,11 @@ fn is_download_url(url: &url::Url) -> bool {
         }
     }
     let query = url.query().unwrap_or("").to_lowercase();
-    // Aligned with JS `[?&]download[=]` (init_script.js) and TS `/download=/` on search:
-    // `download=` must be a query key, not an arbitrary substring inside a value.
-    if query.starts_with("download=") || query.contains("&download=") {
-        tracing::trace!(url = %url, "[ADL-DL] is_download_url: matched query param");
+    // Aligned with JS `u.searchParams.has('download')` (init_script.js) and TS
+    // `searchParams.has('download')` (downloadUrl.ts): `download` must be a standalone
+    // query key, not a substring inside another value (e.g. `?redirect=..?download=1`).
+    if url.query_pairs().any(|(k, _)| k.eq_ignore_ascii_case("download")) {
+        tracing::trace!(url = %url, "[ADL-DL] is_download_url: matched query key download");
         return true;
     }
     if path.contains("/download/") {
@@ -868,6 +869,7 @@ mod tests {
     #[test]
     fn is_download_url_detects_query_and_path_signals() {
         assert!(is_download_url(&url::Url::parse("https://example.com/api?download=1").unwrap()));
+        assert!(is_download_url(&url::Url::parse("https://example.com/api?download").unwrap()));
         assert!(is_download_url(&url::Url::parse("https://example.com/download/package").unwrap()));
         assert!(is_download_url(&url::Url::parse("https://example.com/files/readme").unwrap()));
         assert!(is_download_url(
@@ -876,5 +878,10 @@ mod tests {
         // path keyword in host must not match
         assert!(!is_download_url(&url::Url::parse("https://files.example.com/page").unwrap()));
         assert!(!is_download_url(&url::Url::parse("https://example.com/about").unwrap()));
+        // M1: `download` must be a standalone query key, not a substring inside
+        // another value (e.g. a redirect URL carrying `?download=1` in its value).
+        assert!(!is_download_url(
+            &url::Url::parse("https://example.com/?redirect=https://x?download=1").unwrap()
+        ));
     }
 }

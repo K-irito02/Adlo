@@ -92,18 +92,20 @@ export function isDownloadUrl(url: string): boolean {
 
   // Parse once; both search and pathname are query-scope aligned with Rust/JS
   // (fragments are not part of the query scope, matching `url.query()` / `u.search`).
-  const { search, pathname } = (() => {
+  const parsed = (() => {
     try {
       const u = new URL(url);
-      return { search: u.search.toLowerCase(), pathname: u.pathname.toLowerCase() };
+      return { search: u.search.toLowerCase(), pathname: u.pathname.toLowerCase(), searchParams: u.searchParams };
     } catch {
       // Not a valid URL — fall through with empty search/pathname
-      return { search: '', pathname: '' };
+      return { search: '', pathname: '', searchParams: null };
     }
   })();
+  const { search, pathname } = parsed;
 
-  // 1. Query string signals — aligned with Rust/JS `download=` (must be a query key)
-  if (/[?&]download=/i.test(search)) {
+  // 1. `download` must be a standalone query key (case-insensitive), aligned with
+  //    Rust `query_pairs()` and JS `searchParams` key scan — not a substring inside a value.
+  if (parsed.searchParams && [...parsed.searchParams.keys()].some((k) => k.toLowerCase() === 'download')) {
     return true;
   }
 

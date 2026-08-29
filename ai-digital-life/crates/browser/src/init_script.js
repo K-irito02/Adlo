@@ -43,9 +43,16 @@
                 __adlSendLog('debug', 'isDownloadUrl: extension match', { url: url, path: path });
                 return true;
             }
-            if (/[?&]download[=]/i.test(u.search)) {
-                console.log('[ADL-DL-JS] isDownloadUrl: query param match:', { url: url });
-                __adlSendLog('debug', 'isDownloadUrl: query param match', { url: url });
+            // Aligned with Rust `query_pairs()` (browser_webview_setup.rs) and TS
+            // (downloadUrl.ts): `download` must be a standalone query key (case-insensitive),
+            // not a substring inside another value.
+            var _hasDownloadKey = false;
+            u.searchParams.forEach(function(value, key) {
+                if (key.toLowerCase() === 'download') _hasDownloadKey = true;
+            });
+            if (_hasDownloadKey) {
+                console.log('[ADL-DL-JS] isDownloadUrl: download query key match:', { url: url });
+                __adlSendLog('debug', 'isDownloadUrl: download query key match', { url: url });
                 return true;
             }
             if (/\/download\//i.test(u.pathname)) {
