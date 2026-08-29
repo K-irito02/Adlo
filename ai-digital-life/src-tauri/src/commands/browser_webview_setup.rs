@@ -434,8 +434,29 @@ pub fn start_download_progress_monitor(
 }
 
 /// Attempt to fetch the Content-Length from a URL via HTTP HEAD request.
+///
+/// Only trusts the response if it actually looks like a file download. CDNs and
+/// anti-hotlink layers often answer HEAD with a small HTML/verification page
+/// (e.g. bilibili's CDN returned a 238-byte HTML page for a ~142 MB installer),
+/// whose Content-Length would make the progress monitor declare the download
+/// complete prematurely while the native engine is still writing bytes.
 fn fetch_content_length(client: &reqwest::blocking::Client, url: &url::Url) -> Option<u64> {
     let resp = client.head(url.as_str()).send().ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+    if let Some(ct) = resp.headers().get(reqwest::header::CONTENT_TYPE) {
+        if let Ok(s) = ct.to_str() {
+            let s = s.trim().to_ascii_lowercase();
+            if s.starts_with("text/html")
+                || s.starts_with("application/xhtml")
+                || s.starts_with("text/plain")
+                || s.contains("json")
+            {
+                return None;
+            }
+        }
+    }
     let headers = resp.headers();
 
     // Try Content-Length first

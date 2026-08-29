@@ -9,6 +9,7 @@ import type {
   DownloadErrorPayload,
   DownloadFinishedPayload,
   DownloadIdPayload,
+  DownloadPauseResult,
 } from '@shared/ipc/download';
 import type { IpcResult } from '@ai-digital-life/kernel';
 
@@ -101,41 +102,84 @@ export const createBrowserDownloadsSlice = (
   },
 
   pauseDownload: async (id: string) => {
-    const result = await invoke<IpcResult<void>>('download_pause', { id });
-    if (result.ok) {
-      set((state) => ({
-        downloads: state.downloads.map((d) =>
-          d.id === id ? { ...d, status: 'paused' as const, interrupt_reason: 'UserPaused' } : d,
-        ),
-      }));
+    try {
+      const result = await invoke<IpcResult<DownloadPauseResult>>('download_pause', { id });
+      if (result.ok) {
+        const newStatus = result.data.status;
+        if (newStatus === 'completed') {
+          // The transfer had already finished when pause was clicked (matches
+          // Chrome/Edge). Reflect the true state instead of a misleading pause.
+          console.info(
+            '[ADL-DL] pauseDownload: backend reports download already completed; showing completed',
+          );
+          set((state) => {
+            const { [id]: _removed, ...rest } = state.activeDownloads;
+            return {
+              activeDownloads: rest,
+              downloads: state.downloads.map((d) =>
+                d.id === id
+                  ? {
+                      ...d,
+                      status: 'completed' as const,
+                      completed_at: d.completed_at ?? Math.floor(Date.now() / 1000),
+                    }
+                  : d,
+              ),
+            };
+          });
+        } else {
+          console.info('[ADL-DL] pauseDownload: backend reports download paused');
+          set((state) => ({
+            downloads: state.downloads.map((d) =>
+              d.id === id ? { ...d, status: 'paused' as const, interrupt_reason: 'UserPaused' } : d,
+            ),
+          }));
+        }
+      } else {
+        console.warn('[ADL-DL] pauseDownload: invoke failed', result.error);
+      }
+    } catch (e) {
+      console.error('[ADL-DL] pauseDownload: invoke rejected', e);
     }
   },
 
   resumeDownload: async (id: string) => {
-    const result = await invoke<IpcResult<void>>('download_resume', { id });
-    if (result.ok) {
-      set((state) => ({
-        downloads: state.downloads.map((d) =>
-          d.id === id ? { ...d, status: 'in_progress' as const, interrupt_reason: null } : d,
-        ),
-      }));
+    try {
+      const result = await invoke<IpcResult<void>>('download_resume', { id });
+      if (result.ok) {
+        set((state) => ({
+          downloads: state.downloads.map((d) =>
+            d.id === id ? { ...d, status: 'in_progress' as const, interrupt_reason: null } : d,
+          ),
+        }));
+      } else {
+        console.warn('[ADL-DL] resumeDownload: invoke failed', result.error);
+      }
+    } catch (e) {
+      console.error('[ADL-DL] resumeDownload: invoke rejected', e);
     }
   },
 
   cancelDownload: async (id: string) => {
-    const result = await invoke<IpcResult<void>>('download_cancel', { id });
-    if (result.ok) {
-      set((state) => {
-        const { [id]: _removed, ...rest } = state.activeDownloads;
-        return {
-          activeDownloads: rest,
-          downloads: state.downloads.map((d) =>
-            d.id === id
-              ? { ...d, status: 'canceled' as const, interrupt_reason: 'UserCanceled' }
-              : d,
-          ),
-        };
-      });
+    try {
+      const result = await invoke<IpcResult<void>>('download_cancel', { id });
+      if (result.ok) {
+        set((state) => {
+          const { [id]: _removed, ...rest } = state.activeDownloads;
+          return {
+            activeDownloads: rest,
+            downloads: state.downloads.map((d) =>
+              d.id === id
+                ? { ...d, status: 'canceled' as const, interrupt_reason: 'UserCanceled' }
+                : d,
+            ),
+          };
+        });
+      } else {
+        console.warn('[ADL-DL] cancelDownload: invoke failed', result.error);
+      }
+    } catch (e) {
+      console.error('[ADL-DL] cancelDownload: invoke rejected', e);
     }
   },
 

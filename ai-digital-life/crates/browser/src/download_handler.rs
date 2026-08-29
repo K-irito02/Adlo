@@ -173,6 +173,37 @@ pub fn handle_download_finished(
         return;
     }
 
+    // The reverse case: a paused/canceled download receiving finished(success=true)
+    // means the native transfer actually completed at the byte level (e.g. the user
+    // clicked pause just as the final bytes arrived, so Pause() couldn't undo an
+    // already-finished transfer). Before flipping the record to completed, verify
+    // the native operation really reached the completed state — otherwise we would
+    // clobber the user-initiated Paused/Canceled status with a wrong "completed".
+    if success
+        && (record.status == super::download_types::DownloadStatus::Paused
+            || record.status == super::download_types::DownloadStatus::Canceled)
+    {
+        match download_manager.native_operation_state(url) {
+            super::download_manager::NativeDownloadState::Completed => {
+                tracing::info!(
+                    record_id = %record.id,
+                    status = record.status.as_str(),
+                    "[ADL-DL] handle_download_finished: paused/canceled download truly completed (native state=completed); flipping to completed"
+                );
+                // Fall through to the normal completion path below.
+            },
+            state => {
+                tracing::info!(
+                    record_id = %record.id,
+                    status = record.status.as_str(),
+                    native_state = ?state,
+                    "[ADL-DL] handle_download_finished: received finished(true) for a paused/canceled download but native operation is NOT completed; keeping user intent (paused/canceled)"
+                );
+                return;
+            },
+        }
+    }
+
     // Drop the native operation handle now that the download has truly ended.
     download_manager.remove_operation(url);
 
@@ -257,10 +288,39 @@ pub fn handle_download_progress(
 }
 
 pub fn handle_download_pause(app_handle: &AppHandle, download_manager: &DownloadManager, id: &str) {
+    use super::download_types::DownloadStatus;
+
     tracing::debug!(record_id = id, "[ADL-DL] pausing download");
     match download_manager.pause_download(id) {
-        Ok(()) => {
+        Ok(DownloadStatus::Paused) => {
             let _ = app_handle.emit("browser-download-paused", &serde_json::json!({ "id": id }));
+        },
+        Ok(DownloadStatus::Completed) => {
+            // The transfer had already finished when the user clicked pause.
+            // Reflect the true state by emitting finished(true) with the real
+            // record details so the frontend shows "completed", not "paused".
+            tracing::info!(
+                record_id = id,
+                "[ADL-DL] pause: download already completed; emitting finished(true)"
+            );
+            let record = download_manager
+                .list_downloads()
+                .ok()
+                .and_then(|rs| rs.into_iter().find(|r| r.id == id));
+            let url = record.as_ref().map(|r| r.url.clone()).unwrap_or_default();
+            let file_path = record.as_ref().map(|r| r.file_path.clone()).unwrap_or_default();
+            let _ = app_handle.emit(
+                "browser-download-finished",
+                &serde_json::json!({
+                    "id": id,
+                    "url": url,
+                    "filePath": file_path,
+                    "success": true,
+                }),
+            );
+        },
+        Ok(_) => {
+            tracing::warn!(record_id = id, "[ADL-DL] pause: unexpected resulting status");
         },
         Err(e) => {
             tracing::warn!(error = %e, record_id = id, "[ADL-DL] failed to pause download");

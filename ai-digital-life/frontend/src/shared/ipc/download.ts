@@ -22,6 +22,13 @@ export interface DownloadSettings {
   default_path: string;
 }
 
+/** Result of a user-initiated pause. The backend reflects the true end state:
+ * `paused` if the transfer was actually paused, or `completed` if the transfer
+ * had already finished when pause was requested (matches Chrome/Edge). */
+export interface DownloadPauseResult {
+  status: DownloadStatus;
+}
+
 export interface DownloadProgress {
   id: string;
   bytes_received: number;

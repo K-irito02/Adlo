@@ -30,6 +30,56 @@ unsafe impl Send for AgileDownloadOp {}
 #[cfg(windows)]
 unsafe impl Sync for AgileDownloadOp {}
 
+/// Current state of the native WebView2 download operation. WebView2 has no
+/// `CanPause()` API, so we query `State()` to determine whether a download can
+/// actually be paused (only `InProgress` can be) and to detect the race where a
+/// fast transfer completes between a user's pause click and the native call.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum NativeDownloadState {
+    /// The download is actively receiving bytes and can be paused.
+    InProgress,
+    /// The download is interrupted (e.g. already paused, network error).
+    Interrupted,
+    /// The download has fully completed at the byte level.
+    Completed,
+    /// No native operation is captured, or `State()` could not be queried.
+    Unknown,
+}
+
+/// Query a raw native WebView2 download operation's current state. Shared by
+/// `native_operation_state` (a `CanPause()`-equivalent check before pausing) and
+/// `register_operation` (to avoid overwriting a live operation with a
+/// silent-webview duplicate).
+#[cfg(windows)]
+fn query_operation_state(op: &DownloadOp) -> NativeDownloadState {
+    use webview2_com::Microsoft::Web::WebView2::Win32::{
+        COREWEBVIEW2_DOWNLOAD_STATE, COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED,
+        COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS, COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED,
+    };
+
+    let mut state = COREWEBVIEW2_DOWNLOAD_STATE(0);
+    match unsafe { op.State(&mut state) } {
+        Ok(()) => {
+            if state == COREWEBVIEW2_DOWNLOAD_STATE_COMPLETED {
+                NativeDownloadState::Completed
+            } else if state == COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED {
+                NativeDownloadState::Interrupted
+            } else if state == COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS {
+                NativeDownloadState::InProgress
+            } else {
+                NativeDownloadState::Unknown
+            }
+        },
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "[ADL-DL] query_operation_state: State() query failed"
+            );
+            NativeDownloadState::Unknown
+        },
+    }
+}
+
 #[derive(Clone)]
 pub struct DownloadManager {
     db: Database,
@@ -61,7 +111,25 @@ impl DownloadManager {
     #[cfg(windows)]
     pub fn register_operation(&self, url: &str, op: DownloadOp) {
         if let Ok(mut m) = self.operations.lock() {
+            // Never replace a still-downloading operation. The metadata-preload
+            // "silent webview" also fires DownloadStarting for the same URL, and
+            // its (cancelled) operation would otherwise overwrite the real
+            // download's handle — leaving pause/resume/cancel pointing at a dead
+            // operation that always reports INTERRUPTED.
+            if let Some(existing) = m.get(url) {
+                if query_operation_state(&existing.0) == NativeDownloadState::InProgress {
+                    tracing::debug!(
+                        url = url,
+                        "[ADL-DL] register_operation: keeping existing IN_PROGRESS operation (silent/duplicate DownloadStarting ignored)"
+                    );
+                    return;
+                }
+            }
             m.insert(url.to_string(), AgileDownloadOp(op));
+            tracing::info!(
+                url = url,
+                "[ADL-DL] register_operation: captured native download operation for pause/resume/cancel"
+            );
         }
     }
 
@@ -92,6 +160,25 @@ impl DownloadManager {
     /// No-op on non-Windows platforms.
     #[cfg(not(windows))]
     pub fn remove_operation(&self, _url: &str) {}
+
+    /// Query the live native WebView2 download operation's current state.
+    ///
+    /// Used as a `CanPause()`-equivalent check before pausing (only `InProgress`
+    /// downloads can be paused) and to verify a "finished" event really reflects
+    /// a completed transfer before flipping a paused/canceled record.
+    #[cfg(windows)]
+    pub fn native_operation_state(&self, url: &str) -> NativeDownloadState {
+        let Some(op) = self.get_operation(url) else {
+            return NativeDownloadState::Unknown;
+        };
+        query_operation_state(&op)
+    }
+
+    /// No native operation exists on non-Windows platforms.
+    #[cfg(not(windows))]
+    pub fn native_operation_state(&self, _url: &str) -> NativeDownloadState {
+        NativeDownloadState::Unknown
+    }
 
     pub fn get_settings(&self) -> DownloadSettings {
         self.settings.lock().expect("settings mutex should not be poisoned").clone()
@@ -264,7 +351,7 @@ impl DownloadManager {
         Ok(())
     }
 
-    pub fn pause_download(&self, id: &str) -> Result<(), String> {
+    pub fn pause_download(&self, id: &str) -> Result<DownloadStatus, String> {
         let record = self.get_record(id)?;
 
         // Check if download is in a terminal state (already completed/failed/canceled)
@@ -276,6 +363,41 @@ impl DownloadManager {
         }
 
         let url = record.url.clone();
+
+        // Query the native operation state FIRST (a CanPause()-equivalent check —
+        // WebView2 has no CanPause() API). Never report "paused" for a transfer
+        // that has already completed: mark it completed instead, matching
+        // Chrome/Edge which transition a just-finished download straight to
+        // "Complete".
+        match self.native_operation_state(&url) {
+            NativeDownloadState::Completed => {
+                tracing::info!(
+                    id = %id,
+                    url = %url,
+                    "[ADL-DL] pause_download: native operation already COMPLETED; marking download completed (pause is a no-op)"
+                );
+                self.complete_download(id, true, None).map_err(|e| e.to_string())?;
+                return Ok(DownloadStatus::Completed);
+            },
+            NativeDownloadState::Interrupted => {
+                tracing::warn!(
+                    id = %id,
+                    url = %url,
+                    "[ADL-DL] pause_download: native operation already INTERRUPTED; cannot pause"
+                );
+                return Err("Download is already interrupted and cannot be paused".to_string());
+            },
+            NativeDownloadState::InProgress => {
+                // Proceed to native Pause() below.
+            },
+            NativeDownloadState::Unknown => {
+                tracing::warn!(
+                    id = %id,
+                    url = %url,
+                    "[ADL-DL] pause_download: native operation state unknown; attempting native Pause()"
+                );
+            },
+        }
 
         // First, try to pause the native WebView2 download (fast path).
         // Only update DB status if native Pause() succeeds to avoid desync.
@@ -314,6 +436,25 @@ impl DownloadManager {
             }
         }
 
+        // Native Pause() succeeded. Double-check the native state again: a very
+        // fast transfer can finish between the state check above and Pause()
+        // returning Ok, in which case WebView2 still reports Completed — reflect
+        // that truth instead of lying with "paused".
+        match self.native_operation_state(&url) {
+            NativeDownloadState::Completed => {
+                tracing::info!(
+                    id = %id,
+                    url = %url,
+                    "[ADL-DL] pause_download: transfer completed during pause (native state=completed); marking download completed"
+                );
+                self.complete_download(id, true, None).map_err(|e| e.to_string())?;
+                return Ok(DownloadStatus::Completed);
+            },
+            _ => {
+                // Interrupted/InProgress/Unknown after Pause() → user intent is a pause.
+            },
+        }
+
         // Native Pause() succeeded — now update DB status
         let conn = self.db.conn().map_err(|e| e.to_string())?;
         let rows = conn
@@ -329,7 +470,7 @@ impl DownloadManager {
             "[ADL-DL] pause_download: DB status set to 'paused'"
         );
 
-        Ok(())
+        Ok(DownloadStatus::Paused)
     }
 
     /// Resume an interrupted download. Follows Chrome/Edge's design:
@@ -351,11 +492,22 @@ impl DownloadManager {
             ));
         }
 
+        // A download the user explicitly paused is resumed directly via the
+        // still-alive native WebView2 operation, which continues from the
+        // current byte offset. It needs no ETag/Last-Modified validator (those
+        // only matter for the unimplemented HTTP Range fallback) and is never
+        // subject to the auto-resume limit (which guards *automatic* retries,
+        // not explicit user actions).
+        let user_paused = record.status == DownloadStatus::Paused;
+
         // Determine resume mode based on interrupt reason and state
-        let restart_required = record.file_path.is_empty()
-            || (record.etag.is_none() && record.last_modified.is_none());
-        let user_action_required = record.auto_resume_count >= MAX_AUTO_RESUME_ATTEMPTS
-            || record.status == DownloadStatus::Paused;
+        let restart_required = if user_paused {
+            false
+        } else {
+            record.file_path.is_empty() || (record.etag.is_none() && record.last_modified.is_none())
+        };
+        let user_action_required =
+            !user_paused && record.auto_resume_count >= MAX_AUTO_RESUME_ATTEMPTS;
 
         let resume_mode = get_download_resume_mode(
             &url,
@@ -369,6 +521,7 @@ impl DownloadManager {
             url = %url,
             resume_mode = ?resume_mode,
             auto_resume_count = record.auto_resume_count,
+            user_paused = user_paused,
             "[ADL-DL] resume_download: determined resume mode"
         );
 
@@ -379,12 +532,19 @@ impl DownloadManager {
                         .to_string(),
                 );
             },
+            // `resume_download` is only ever invoked by an explicit user action
+            // (the "Resume" button). A "needs user action" mode is therefore
+            // satisfied by this very call — proceed to the native Resume() fast
+            // path instead of blocking. (Previously this branch wrongly reported
+            // "Auto-resume limit reached" for a user-paused download even when
+            // auto_resume_count was 0.)
             ResumeMode::UserRestart | ResumeMode::UserContinue => {
-                // User action required — auto-resume limit already enforced by mode determination
-                return Err(format!(
-                    "Auto-resume limit reached ({} attempts). Please restart the download manually.",
-                    MAX_AUTO_RESUME_ATTEMPTS
-                ));
+                tracing::debug!(
+                    id = %id,
+                    url = %url,
+                    resume_mode = ?resume_mode,
+                    "[ADL-DL] resume_download: user-initiated resume satisfies User* mode, proceeding"
+                );
             },
             ResumeMode::ImmediateContinue | ResumeMode::ImmediateRestart => {
                 // Can auto-resume
@@ -402,8 +562,14 @@ impl DownloadManager {
                             url = %url,
                             "[ADL-DL] resume_download: native WebView2 download RESUMED"
                         );
-                        // Increment auto_resume_count only after successful resume
-                        let new_auto_resume_count = record.auto_resume_count + 1;
+                        // auto_resume_count only counts *automatic* recoveries
+                        // of interrupted downloads; a user-initiated
+                        // pause/resume cycle must not consume the limit.
+                        let new_auto_resume_count = if user_paused {
+                            record.auto_resume_count
+                        } else {
+                            record.auto_resume_count + 1
+                        };
                         {
                             let conn = self.db.conn().map_err(|e| e.to_string())?;
                             conn.execute(
@@ -712,6 +878,9 @@ pub(crate) fn get_download_resume_mode(
         Some("ResumeFailed") | Some("WebView2InternalError") => {
             // Can attempt HTTP Range-based resume
         },
+        // User-initiated pause — the native operation is still alive, so it is
+        // immediately continuable unless the caller passed other flags.
+        Some("UserPaused") => {},
         // Unknown or no reason - be conservative
         _ => {
             user_action = true;
@@ -807,6 +976,7 @@ fn find_non_c_downloads_folder() -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::download_types::ResumeMode;
 
     fn temp_db(name: &str) -> Database {
         let path = std::env::temp_dir().join(format!("adl-download-mgr-{}.db", name));
@@ -1066,5 +1236,36 @@ mod tests {
     fn non_c_drive_path_preference() {
         let path = get_default_download_path();
         assert!(!path.as_os_str().is_empty());
+    }
+
+    #[test]
+    fn resume_mode_user_paused_is_immediate_continue() {
+        // Regression: a download the user explicitly paused must be immediately
+        // resumable (ImmediateContinue), not gated behind a User* mode that the
+        // caller blocks on. Previously resume_download forced
+        // user_action_required=true for Paused status (and restart_required=true
+        // for missing ETag/Last-Modified validators), which mislabeled a manual
+        // pause/resume as "Auto-resume limit reached (5 attempts)" even when
+        // auto_resume_count was 0.
+        let mode = get_download_resume_mode(
+            "https://example.com/file.zip",
+            Some("UserPaused"),
+            false, // restart_required
+            false, // user_action_required
+        );
+        assert_eq!(mode, ResumeMode::ImmediateContinue);
+    }
+
+    #[test]
+    fn resume_mode_user_paused_passes_flags_through() {
+        // UserPaused alone must not force user_action; the caller's flags pass
+        // through unchanged (e.g. a restart needed for a paused download).
+        let mode = get_download_resume_mode(
+            "https://example.com/file.zip",
+            Some("UserPaused"),
+            true,  // restart_required
+            false, // user_action_required
+        );
+        assert_eq!(mode, ResumeMode::ImmediateRestart);
     }
 }

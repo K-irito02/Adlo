@@ -50,11 +50,9 @@ pub fn setup_download_operation_capture(
             if uri.is_empty() {
                 return Ok(());
             }
+            // The manager logs the capture decision (including when it keeps an
+            // existing IN_PROGRESS operation instead of a silent-webview duplicate).
             manager.register_operation(&uri, op);
-            tracing::info!(
-                url = %uri,
-                "[ADL-DL] setup_download_operation_capture: captured native download operation for pause/resume/cancel"
-            );
             Ok(())
         },
     ));

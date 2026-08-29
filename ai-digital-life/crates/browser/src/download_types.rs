@@ -86,6 +86,16 @@ pub struct DownloadSettings {
     pub default_path: String,
 }
 
+/// Result of a user-initiated pause. Distinguishes a genuine pause from a
+/// no-op pause where the transfer had already completed (the latter is
+/// reflected as `Completed`, matching Chrome/Edge which transition a
+/// just-finished download straight to "Complete").
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DownloadPauseResult {
+    pub status: DownloadStatus,
+}
+
 impl Default for DownloadSettings {
     fn default() -> Self {
         Self {

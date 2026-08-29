@@ -3,7 +3,9 @@ use crate::commands::platform::{open_file, open_in_os_file_manager, reveal_in_os
 use crate::error::CommandError;
 use crate::state::AppState;
 use adl_browser::download_manager::get_default_download_path;
-use adl_browser::download_types::{DownloadMode, DownloadRecord, DownloadSettings};
+use adl_browser::download_types::{
+    DownloadMode, DownloadPauseResult, DownloadRecord, DownloadSettings, DownloadStatus,
+};
 use adl_errors::AppError;
 use adl_types::IpcResult;
 use std::path::PathBuf;
@@ -204,13 +206,50 @@ pub fn download_pause(
     state: State<'_, AppState>,
     app_handle: tauri::AppHandle,
     id: String,
-) -> Result<IpcResult<()>, CommandError> {
+) -> Result<IpcResult<DownloadPauseResult>, CommandError> {
     tracing::debug!(id = %id, "[ADL-DL] download_pause called");
 
-    state.download_manager.pause_download(&id).map_err(map_download_err)?;
+    let status = state.download_manager.pause_download(&id).map_err(map_download_err)?;
 
-    let _ = app_handle.emit("browser-download-paused", &serde_json::json!({ "id": id }));
-    Ok(ipc(Ok(())))
+    // Emit the event matching the actual outcome so the UI reflects the true
+    // state (matches Chrome/Edge: a just-finished download goes straight to
+    // "Complete" instead of showing a misleading "paused").
+    match status {
+        DownloadStatus::Paused => {
+            tracing::info!(id = %id, "[ADL-DL] download_pause: download paused");
+            let _ = app_handle.emit("browser-download-paused", &serde_json::json!({ "id": id }));
+        },
+        DownloadStatus::Completed => {
+            // The transfer had already finished when the user clicked pause.
+            let record = state
+                .download_manager
+                .list_downloads()
+                .ok()
+                .and_then(|rs| rs.into_iter().find(|r| r.id == id));
+            let url = record.as_ref().map(|r| r.url.clone()).unwrap_or_default();
+            let file_path = record.as_ref().map(|r| r.file_path.clone()).unwrap_or_default();
+            tracing::info!(
+                id = %id,
+                url = %url,
+                file_path = %file_path,
+                "[ADL-DL] download_pause: transfer already completed; emitting finished(true)"
+            );
+            let _ = app_handle.emit(
+                "browser-download-finished",
+                &serde_json::json!({
+                    "id": id,
+                    "url": url,
+                    "filePath": file_path,
+                    "success": true,
+                }),
+            );
+        },
+        _ => {
+            tracing::warn!(id = %id, "[ADL-DL] download_pause: unexpected resulting status");
+        },
+    }
+
+    Ok(ipc(Ok(DownloadPauseResult { status })))
 }
 
 #[tauri::command]
