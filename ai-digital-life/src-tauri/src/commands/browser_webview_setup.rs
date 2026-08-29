@@ -22,9 +22,9 @@ use tauri::{Emitter, Manager};
 static DOWNLOAD_EXTENSIONS: &[&str] = &[
     "exe", "msi", "dmg", "pkg", "deb", "rpm", "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "pdf",
     "apk", "ipa", "iso", "img", "cab", "msix", "appx", "bat", "cmd", "ps1", "scr", "com", "pif",
-    "vbs", "js", "wsf", "hta", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv", "rtf", "odt",
-    "ods", "odp", "key", "mp3", "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "ogg", "wav",
-    "flac", "aac", "wma", "ttf", "otf", "woff", "woff2", "eot", "svg",
+    "vbs", "wsf", "hta", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv", "rtf", "odt", "ods",
+    "odp", "key", "mp3", "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "ogg", "wav", "flac",
+    "aac", "wma", "ttf", "otf", "woff", "woff2", "eot", "svg",
 ];
 
 /// Consecutive polls (~500ms each) a byte-complete file must stay at full size
@@ -35,13 +35,17 @@ const FULL_SIZE_STABLE_POLLS: u32 = 2;
 fn is_download_url(url: &url::Url) -> bool {
     let path = url.path().to_lowercase();
     for ext in DOWNLOAD_EXTENSIONS {
-        if path.ends_with(&format!(".{ext}")) {
+        // Allocation-free `.ext` suffix check: the byte before the extension must be `.`.
+        if path.len() > ext.len() + 1
+            && path.as_bytes()[path.len() - ext.len() - 1] == b'.'
+            && path.ends_with(ext)
+        {
             tracing::trace!(url = %url, ext = ext, "[ADL-DL] is_download_url: matched extension");
             return true;
         }
     }
     let query = url.query().unwrap_or("").to_lowercase();
-    if query.contains("download=") || query.contains("download=true") {
+    if query.contains("download=") {
         tracing::trace!(url = %url, "[ADL-DL] is_download_url: matched query param");
         return true;
     }
@@ -847,5 +851,28 @@ mod tests {
         assert_eq!(new_window_target(&ftp), None);
         assert_eq!(new_window_target(&js), None);
         assert_eq!(new_window_target(&data), None);
+    }
+
+    #[test]
+    fn is_download_url_detects_extensions_but_not_js() {
+        assert!(is_download_url(&url::Url::parse("https://cdn.example.com/setup.exe").unwrap()));
+        assert!(is_download_url(&url::Url::parse("https://cdn.example.com/archive.zip").unwrap()));
+        assert!(is_download_url(&url::Url::parse("https://files.example.com/report.pdf").unwrap()));
+        // .js is an inlined web resource, not a download carrier
+        assert!(!is_download_url(&url::Url::parse("https://cdn.example.com/app/main.js").unwrap()));
+        assert!(!is_download_url(&url::Url::parse("https://example.com/index.html").unwrap()));
+    }
+
+    #[test]
+    fn is_download_url_detects_query_and_path_signals() {
+        assert!(is_download_url(&url::Url::parse("https://example.com/api?download=1").unwrap()));
+        assert!(is_download_url(&url::Url::parse("https://example.com/download/package").unwrap()));
+        assert!(is_download_url(&url::Url::parse("https://example.com/files/readme").unwrap()));
+        assert!(is_download_url(
+            &url::Url::parse("https://example.com/api/export?file=catalog").unwrap()
+        ));
+        // path keyword in host must not match
+        assert!(!is_download_url(&url::Url::parse("https://files.example.com/page").unwrap()));
+        assert!(!is_download_url(&url::Url::parse("https://example.com/about").unwrap()));
     }
 }

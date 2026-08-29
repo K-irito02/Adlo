@@ -29,7 +29,6 @@ const DOWNLOAD_EXTENSIONS = new Set([
   'com',
   'pif',
   'vbs',
-  'js',
   'wsf',
   'hta',
   // Archives
@@ -91,21 +90,22 @@ export function isDownloadUrl(url: string): boolean {
     return false;
   }
 
-  const lowerUrl = url.toLowerCase();
-  let pathname = '';
-  try {
-    pathname = new URL(url).pathname.toLowerCase();
-  } catch {
-    // Not a valid URL — fall through to substring heuristics
-  }
+  const pathname = (() => {
+    try {
+      return new URL(url).pathname.toLowerCase();
+    } catch {
+      // Not a valid URL — fall through with empty pathname
+      return '';
+    }
+  })();
 
   // 1. Query string signals — aligned with Rust/JS `download=`
   if (/[?&]download=/i.test(url)) {
     return true;
   }
 
-  // 2. Explicit download path segments
-  if (DOWNLOAD_PATH_SEGMENTS.some((seg) => lowerUrl.includes(seg))) {
+  // 2. Explicit download path segments — aligned with Rust/JS (path-scoped only)
+  if (DOWNLOAD_PATH_SEGMENTS.some((seg) => pathname.includes(seg))) {
     return true;
   }
 
