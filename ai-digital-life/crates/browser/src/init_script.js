@@ -23,6 +23,9 @@
         return typeof href === 'string' && href.indexOf('blob:') === 0;
     }
 
+    // Download-URL extensions shared across the stack. Keep in sync with
+    // src-tauri/src/commands/browser_webview_setup.rs (Rust is_download_url) and
+    // frontend/src/app/utils/downloadUrl.ts (TS isDownloadUrl).
     var DOWNLOAD_EXTENSIONS = /\.(exe|msi|dmg|pkg|deb|rpm|zip|rar|7z|tar|gz|bz2|xz|pdf|apk|ipa|iso|img|cab|msix|appx|bat|cmd|ps1|scr|com|pif|vbs|js|wsf|hta|doc|docx|xls|xlsx|ppt|pptx|csv|rtf|odt|ods|odp|key|mp3|mp4|avi|mkv|mov|wmv|flv|webm|ogg|wav|flac|aac|wma|ttf|otf|woff|woff2|eot|svg)$/i;
 
     function isDownloadUrl(url) {

@@ -73,30 +73,25 @@ export function useBrowserMenus({
     browserNavigateActiveTab,
   );
 
+  // Unified outside-click manager: a single `document` mousedown listener closes
+  // whichever browser popup/menu is open. Both the browser menu and the context
+  // menu share this listener; each only reacts when it is the open one.
   useEffect(() => {
-    if (!browserMenuOpen) {
+    if (!browserMenuOpen && !contextMenu.open) {
       return;
     }
     const handlePointerDown = (event: MouseEvent) => {
       const target = event.target as Node;
-      if (!browserMenuRef.current?.contains(target)) {
+      if (browserMenuOpen && !browserMenuRef.current?.contains(target)) {
         setBrowserMenuOpen(false);
+      }
+      if (contextMenu.open) {
+        setContextMenu((prev) => ({ ...prev, open: false }));
       }
     };
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [browserMenuOpen]);
-
-  useEffect(() => {
-    if (!contextMenu.open) {
-      return;
-    }
-    const handlePointerDown = (_event: MouseEvent) => {
-      setContextMenu((prev) => ({ ...prev, open: false }));
-    };
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
-  }, [contextMenu.open, setContextMenu]);
+  }, [browserMenuOpen, contextMenu.open, setBrowserMenuOpen, setContextMenu]);
 
   const browserMenuItems: BrowserMenuItem[] = [
     { id: 'new-tab-folder', label: t.browserNewTabFolder, disabled: true },

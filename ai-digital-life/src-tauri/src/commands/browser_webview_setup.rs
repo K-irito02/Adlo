@@ -16,12 +16,15 @@ use adl_browser::webview_handle::{EventBridgeRef, WebViewHandle};
 use adl_errors::AppError;
 use tauri::{Emitter, Manager};
 
+/// Download-URL heuristics shared across the stack. This extension list must be
+/// kept in sync with `crates/browser/src/init_script.js` (JS `isDownloadUrl`) and
+/// `frontend/src/app/utils/downloadUrl.ts` (TS `isDownloadUrl`).
 static DOWNLOAD_EXTENSIONS: &[&str] = &[
     "exe", "msi", "dmg", "pkg", "deb", "rpm", "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "pdf",
     "apk", "ipa", "iso", "img", "cab", "msix", "appx", "bat", "cmd", "ps1", "scr", "com", "pif",
-    "vbs", "wsf", "hta", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv", "rtf", "odt", "ods",
-    "odp", "key", "mp3", "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "ogg", "wav", "flac",
-    "aac", "wma", "ttf", "otf", "woff", "woff2", "eot", "svg",
+    "vbs", "js", "wsf", "hta", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "csv", "rtf", "odt",
+    "ods", "odp", "key", "mp3", "mp4", "avi", "mkv", "mov", "wmv", "flv", "webm", "ogg", "wav",
+    "flac", "aac", "wma", "ttf", "otf", "woff", "woff2", "eot", "svg",
 ];
 
 /// Consecutive polls (~500ms each) a byte-complete file must stay at full size

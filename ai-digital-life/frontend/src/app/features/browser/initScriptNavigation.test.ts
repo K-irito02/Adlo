@@ -232,7 +232,7 @@ describe('init_script.js new-tab interception markers', () => {
     const clickSection = initScript.slice(clickStart, clickStart + 1400);
     // The download handler now routes target="_blank" via origOpen, not _self
     expect(clickSection).toContain("if (linkTarget === '_blank')");
-    expect(clickSection).toContain('origOpen.call(window, href, \'_blank\')');
+    expect(clickSection).toContain("origOpen.call(window, href, '_blank')");
     expect(clickSection).not.toContain("target.target = '_self'");
   });
 });

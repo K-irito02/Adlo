@@ -1,6 +1,8 @@
 /**
  * Frontend heuristic to detect download URLs.
- * Mirrors the Rust `is_download_url()` and JS `isDownloadUrl()` in init_script.js.
+ * Mirrors the Rust `is_download_url()` (browser_webview_setup.rs) and JS
+ * `isDownloadUrl()` (crates/browser/src/init_script.js). The extension set and
+ * query/path heuristics below must be kept in sync across all three sites.
  * Used for restart suppression (skip WebView creation for known download URLs).
  */
 
@@ -27,6 +29,7 @@ const DOWNLOAD_EXTENSIONS = new Set([
   'com',
   'pif',
   'vbs',
+  'js',
   'wsf',
   'hta',
   // Archives
@@ -88,30 +91,37 @@ export function isDownloadUrl(url: string): boolean {
     return false;
   }
 
-  // 1. Query string signals — aligned with Rust is_download_url()
+  const lowerUrl = url.toLowerCase();
+  let pathname = '';
+  try {
+    pathname = new URL(url).pathname.toLowerCase();
+  } catch {
+    // Not a valid URL — fall through to substring heuristics
+  }
+
+  // 1. Query string signals — aligned with Rust/JS `download=`
   if (/[?&]download=/i.test(url)) {
     return true;
   }
 
   // 2. Explicit download path segments
-  const lowerUrl = url.toLowerCase();
   if (DOWNLOAD_PATH_SEGMENTS.some((seg) => lowerUrl.includes(seg))) {
     return true;
   }
 
-  // 3. Extension-based detection (ignore fragments and query strings)
-  try {
-    const pathname = new URL(url).pathname;
-    const lastSegment = pathname.split('/').pop() ?? '';
-    const dotIndex = lastSegment.lastIndexOf('.');
-    if (dotIndex !== -1) {
-      const ext = lastSegment.slice(dotIndex + 1).toLowerCase();
-      if (DOWNLOAD_EXTENSIONS.has(ext)) {
-        return true;
-      }
+  // 3. file=/attachment= query param combined with a download-related path
+  if (/[?&](file|attachment)=/i.test(url) && /(download|files|export)/i.test(pathname)) {
+    return true;
+  }
+
+  // 4. Extension-based detection (ignore fragments and query strings)
+  const lastSegment = pathname.split('/').pop() ?? '';
+  const dotIndex = lastSegment.lastIndexOf('.');
+  if (dotIndex !== -1) {
+    const ext = lastSegment.slice(dotIndex + 1).toLowerCase();
+    if (DOWNLOAD_EXTENSIONS.has(ext)) {
+      return true;
     }
-  } catch {
-    // Not a valid URL — fall through
   }
 
   return false;
