@@ -138,10 +138,7 @@ impl DownloadManager {
     pub fn record_resume(&self, id: &str) {
         if let Ok(mut m) = self.resume_timestamps.lock() {
             m.insert(id.to_string(), Instant::now());
-            tracing::debug!(
-                id = id,
-                "[ADL-DL] record_resume: recorded resume timestamp"
-            );
+            tracing::debug!(id = id, "[ADL-DL] record_resume: recorded resume timestamp");
         }
     }
 
@@ -169,10 +166,10 @@ impl DownloadManager {
     pub fn clear_resume_timestamp(&self, id: &str) {
         if let Ok(mut m) = self.resume_timestamps.lock() {
             m.remove(id);
-            tracing::debug!(
-                id = id,
-                "[ADL-DL] clear_resume_timestamp: cleared resume timestamp"
-            );
+            // trace, not debug: this runs several times per resume lifecycle
+            // (trigger, per-terminal-path, cancel, remove_record) and is pure
+            // diagnostic noise at debug level.
+            tracing::trace!(id = id, "[ADL-DL] clear_resume_timestamp: cleared resume timestamp");
         }
     }
 
@@ -192,10 +189,28 @@ impl DownloadManager {
             "[ADL-DL] trigger_range_resume: auto-retrying via HTTP Range after post-resume failure"
         );
 
-        // Get the current file size from the .crdownload as the true offset
-        let current_offset = std::fs::metadata(format!("{}.crdownload", record.file_path))
-            .map(|m| m.len())
-            .unwrap_or(record.bytes_received);
+        // Immediately mark the retry as in-flight: clear the resume timestamp so
+        // a second `finished(success=false)` arriving within the 5s window cannot
+        // spawn a concurrent retry thread appending to the same `.crdownload`
+        // (which would corrupt the file). The retry thread re-clears it on exit
+        // (idempotent).
+        self.clear_resume_timestamp(id);
+
+        // The native WebView2 operation already reported `finished(false)` and is
+        // dead; the retry uses reqwest (RangeResumeDownload), never the native op.
+        // Drop the stale handle now so it does not linger in the operations map.
+        self.remove_operation(&record.url);
+
+        // Get the current file size from the .crdownload as the true offset. If
+        // the metadata call fails (e.g. temp file missing), the DB bytes_received
+        // may lag the real size — falling back to it could corrupt the file with
+        // an overlap. Treat a missing/unreadable temp as non-retryable instead.
+        let current_offset = match std::fs::metadata(format!("{}.crdownload", record.file_path)) {
+            Ok(m) => m.len(),
+            Err(e) => {
+                return Err(format!("Cannot determine resume offset from .crdownload: {}", e));
+            },
+        };
 
         let manager_clone = self.clone();
         let record_id = id.to_string();
@@ -204,60 +219,142 @@ impl DownloadManager {
         let total = record.total_bytes;
         let etag = record.etag.clone();
         let lm = record.last_modified.clone();
+        let source_tab_id = record.source_tab_id.clone();
         let app_handle_clone = app_handle.clone();
 
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new()
-                .expect("failed to create tokio runtime for auto-retry HTTP Range resume");
-            rt.block_on(async {
-                let downloader = RangeResumeDownload::new(
-                    url_clone,
-                    std::path::PathBuf::from(format!("{}.crdownload", file_path)),
-                    current_offset,
-                    total,
-                    etag,
-                    lm,
-                );
+        std::thread::Builder::new()
+            .name(format!("adl-range-resume-{id}"))
+            .spawn(move || {
+                let rt = tokio::runtime::Runtime::new()
+                    .expect("failed to create tokio runtime for auto-retry HTTP Range resume");
+                rt.block_on(async {
+                    let downloader = RangeResumeDownload::new(
+                        url_clone.clone(),
+                        std::path::PathBuf::from(format!("{}.crdownload", file_path)),
+                        current_offset,
+                        total,
+                        etag,
+                        lm,
+                    );
 
-                match downloader.start().await {
-                    Ok(_result) => {
-                        tracing::info!(
-                            record_id = %record_id,
-                            "[ADL-DL] auto-retry HTTP Range resume succeeded"
-                        );
-                        let _ = manager_clone.complete_download(&record_id, true, None);
-                        manager_clone.clear_resume_timestamp(&record_id);
-                        let _ = app_handle_clone.emit(
-                            "browser-download-finished",
-                            &serde_json::json!({
-                                "id": record_id,
-                                "success": true,
-                            }),
-                        );
+                    match downloader.start().await {
+                        Ok(result) => {
+                            // Do not report success if the transfer is not actually
+                            // complete (total known but bytes fall short).
+                            let truly_complete = result.completed || total.is_none();
+                            tracing::info!(
+                                record_id = %record_id,
+                                bytes_received = result.bytes_received,
+                                completed = result.completed,
+                                truly_complete,
+                                "[ADL-DL] auto-retry HTTP Range resume succeeded"
+                            );
+                            if !truly_complete {
+                                tracing::warn!(
+                                    record_id = %record_id,
+                                    bytes_received = result.bytes_received,
+                                    total = total,
+                                    "[ADL-DL] auto-retry HTTP Range resume ended early (incomplete transfer); marking failed"
+                                );
+                                let _ = manager_clone.complete_download(
+                                    &record_id,
+                                    false,
+                                    Some("PostResumeRetryFailed"),
+                                );
+                                // If the user canceled during the retry, respect
+                                // that — don't surface a "failed" event on a
+                                // record the user chose to cancel.
+                                if !manager_clone.is_record_canceled(&record_id) {
+                                    let _ = app_handle_clone.emit(
+                                        "browser-download-error",
+                                        &serde_json::json!({
+                                            "id": record_id,
+                                            "url": url_clone,
+                                            "reason": "Resume retry ended before the file was complete (server closed the stream)",
+                                            "canRetry": true,
+                                            "source_tab_id": source_tab_id,
+                                        }),
+                                    );
+                                }
+                                return;
+                            }
+                            // complete_download's terminal-state guard skips a
+                            // canceled record (returns Err without finalizing);
+                            // only report success when finalization actually
+                            // succeeded AND the record is still Completed.
+                            match manager_clone.complete_download(&record_id, true, None) {
+                                Ok(()) => {
+                                    let _ = app_handle_clone.emit(
+                                        "browser-download-finished",
+                                        &serde_json::json!({
+                                            "id": record_id,
+                                            "url": url_clone,
+                                            "filePath": file_path,
+                                            "success": true,
+                                            "source_tab_id": source_tab_id,
+                                        }),
+                                    );
+                                },
+                                Err(e) => {
+                                    // The record was canceled during the retry
+                                    // (guard refused to finalize) or finalization
+                                    // failed. Do NOT emit success. Clean up the
+                                    // leftover temp file a canceled retry may have
+                                    // recreated. The resume timestamp must be
+                                    // cleared here explicitly: complete_download's
+                                    // rename-failure path returns Err early without
+                                    // reaching its own cleanup.
+                                    let canceled = manager_clone.is_record_canceled(&record_id);
+                                    if canceled {
+                                        tracing::info!(
+                                            record_id = %record_id,
+                                            "[ADL-DL] auto-retry finished but record was canceled; skipping completion and removing temp"
+                                        );
+                                        let _ = std::fs::remove_file(
+                                            format!("{}.crdownload", file_path),
+                                        );
+                                    } else {
+                                        tracing::warn!(
+                                            record_id = %record_id,
+                                            error = %e,
+                                            "[ADL-DL] auto-retry finalization failed; progress monitor will retry"
+                                        );
+                                    }
+                                    manager_clone.clear_resume_timestamp(&record_id);
+                                },
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                record_id = %record_id,
+                                error = %e,
+                                "[ADL-DL] auto-retry HTTP Range resume also failed"
+                            );
+                            let _ = manager_clone.complete_download(
+                                &record_id,
+                                false,
+                                Some("PostResumeRetryFailed"),
+                            );
+                            // If the user canceled during the retry, respect that —
+                            // don't surface a "failed" event on a record the user
+                            // chose to cancel.
+                            if !manager_clone.is_record_canceled(&record_id) {
+                                let _ = app_handle_clone.emit(
+                                    "browser-download-error",
+                                    &serde_json::json!({
+                                        "id": record_id,
+                                        "url": url_clone,
+                                        "reason": format!("Resume retry failed: {}", e),
+                                        "canRetry": true,
+                                        "source_tab_id": source_tab_id,
+                                    }),
+                                );
+                            }
+                        }
                     }
-                    Err(e) => {
-                        tracing::error!(
-                            record_id = %record_id,
-                            error = %e,
-                            "[ADL-DL] auto-retry HTTP Range resume also failed"
-                        );
-                        let _ = manager_clone.complete_download(
-                            &record_id,
-                            false,
-                            Some("PostResumeRetryFailed"),
-                        );
-                        manager_clone.clear_resume_timestamp(&record_id);
-                        let _ = app_handle_clone.emit(
-                            "browser-download-finished",
-                            &serde_json::json!({
-                                "id": record_id,
-                                "success": false,
-                            }),
-                        );
-                    }
-                }
-            });
-        });
+                });
+            })
+            .map_err(|e| format!("Failed to spawn auto-retry thread: {}", e))?;
 
         Ok(())
     }
@@ -425,7 +522,12 @@ impl DownloadManager {
         self.resolve_conflict_path(target.to_string_lossy().as_ref())
     }
 
-    pub fn create_download(&self, url: &str, file_path: &str, source_tab_id: Option<String>) -> Result<DownloadRecord, String> {
+    pub fn create_download(
+        &self,
+        url: &str,
+        file_path: &str,
+        source_tab_id: Option<String>,
+    ) -> Result<DownloadRecord, String> {
         let file_name = derive_file_name(url, file_path);
         let record = DownloadRecord {
             id: Uuid::new_v4().to_string(),
@@ -595,6 +697,20 @@ impl DownloadManager {
                 "[ADL-DL] pause_download: server does not support Range — canceling download for clean restart"
             );
 
+            // Mark the DB as paused BEFORE canceling the native download: the
+            // native Cancel() fires a spurious `finished(success=false)` interrupt,
+            // and if that event is dispatched before the `paused` write lands, the
+            // finished handler would see `InProgress` and misclassify the download
+            // as failed (the NonResumablePaused pseudo-pause guard in
+            // handle_download_finished would not match). Mirrors the DB-first order
+            // used by the UserPaused path below.
+            let conn = self.db.conn().map_err(|e| e.to_string())?;
+            conn.execute(
+                "UPDATE download_history SET status = ?1, interrupt_reason = ?2, bytes_received = 0 WHERE id = ?3",
+                rusqlite::params![DownloadStatus::Paused.as_str(), "NonResumablePaused", id],
+            )
+            .map_err(|e| format!("Failed to pause download: {}", e))?;
+
             // Cancel the native WebView2 download
             #[cfg(windows)]
             if let Some(op) = self.get_operation(&url) {
@@ -604,14 +720,6 @@ impl DownloadManager {
             // Remove the .crdownload temp file
             let crdownload_path = format!("{}.crdownload", record.file_path);
             let _ = std::fs::remove_file(&crdownload_path);
-
-            // Update DB status
-            let conn = self.db.conn().map_err(|e| e.to_string())?;
-            conn.execute(
-                "UPDATE download_history SET status = ?1, interrupt_reason = ?2, bytes_received = 0 WHERE id = ?3",
-                rusqlite::params![DownloadStatus::Paused.as_str(), "NonResumablePaused", id],
-            )
-            .map_err(|e| format!("Failed to pause download: {}", e))?;
 
             // Remove native operation handle
             self.remove_operation(&url);
@@ -864,46 +972,46 @@ impl DownloadManager {
                         "[ADL-DL] resume_download: calling native WebView2 op.Resume()..."
                     );
                     match unsafe { op.Resume() } {
-                    Ok(()) => {
-                        tracing::info!(
-                            id = %id,
-                            url = %url,
-                            "[ADL-DL] resume_download: native WebView2 download RESUMED successfully — recording resume timestamp"
-                        );
-                        // Record resume timestamp so handle_download_finished
-                        // can detect post-resume failures within the 5-second window.
-                        self.record_resume(id);
-                        // auto_resume_count only counts *automatic* recoveries
-                        // of interrupted downloads; a user-initiated
-                        // pause/resume cycle must not consume the limit.
-                        let new_auto_resume_count = if user_paused {
-                            record.auto_resume_count
-                        } else {
-                            record.auto_resume_count + 1
-                        };
-                        {
-                            let conn = self.db.conn().map_err(|e| e.to_string())?;
-                            conn.execute(
+                        Ok(()) => {
+                            tracing::info!(
+                                id = %id,
+                                url = %url,
+                                "[ADL-DL] resume_download: native WebView2 download RESUMED successfully — recording resume timestamp"
+                            );
+                            // Record resume timestamp so handle_download_finished
+                            // can detect post-resume failures within the 5-second window.
+                            self.record_resume(id);
+                            // auto_resume_count only counts *automatic* recoveries
+                            // of interrupted downloads; a user-initiated
+                            // pause/resume cycle must not consume the limit.
+                            let new_auto_resume_count = if user_paused {
+                                record.auto_resume_count
+                            } else {
+                                record.auto_resume_count + 1
+                            };
+                            {
+                                let conn = self.db.conn().map_err(|e| e.to_string())?;
+                                conn.execute(
                                 "UPDATE download_history SET auto_resume_count = ?1, status = ?2, interrupt_reason = NULL WHERE id = ?3",
                                 rusqlite::params![new_auto_resume_count as i64, DownloadStatus::InProgress.as_str(), id],
                             )
                             .map_err(|e| format!("Failed to resume download: {}", e))?;
-                        }
-                        return Ok(());
-                    },
-                    Err(e) => {
-                        let code = e.code();
-                        let hresult = code.0 as u32;
-                        tracing::warn!(
-                            id = %id,
-                            url = %url,
-                            error = %e,
-                            hresult = format!("0x{hresult:08X}"),
-                            "[ADL-DL] resume_download: native Resume() FAILED — falling through to HTTP Range resume"
-                        );
-                        // Fall through to HTTP Range-based resume
-                    },
-                }
+                            }
+                            return Ok(());
+                        },
+                        Err(e) => {
+                            let code = e.code();
+                            let hresult = code.0 as u32;
+                            tracing::warn!(
+                                id = %id,
+                                url = %url,
+                                error = %e,
+                                hresult = format!("0x{hresult:08X}"),
+                                "[ADL-DL] resume_download: native Resume() FAILED — falling through to HTTP Range resume"
+                            );
+                            // Fall through to HTTP Range-based resume
+                        },
+                    }
                 },
                 None => {
                     tracing::warn!(
@@ -926,10 +1034,17 @@ impl DownloadManager {
             "[ADL-DL] resume_download: falling back to HTTP Range resume"
         );
 
-        // Get the current file size from the .crdownload as the true offset
-        let current_offset = std::fs::metadata(format!("{}.crdownload", record.file_path))
-            .map(|m| m.len())
-            .unwrap_or(record.bytes_received);
+        // Get the current file size from the .crdownload as the true offset. If
+        // the metadata call fails (e.g. temp file missing), the DB bytes_received
+        // may lag the real size — falling back to it could corrupt the file with
+        // an overlap. Treat a missing/unreadable temp as non-retryable instead
+        // (mirrors trigger_range_resume).
+        let current_offset = match std::fs::metadata(format!("{}.crdownload", record.file_path)) {
+            Ok(m) => m.len(),
+            Err(e) => {
+                return Err(format!("Cannot determine resume offset from .crdownload: {}", e));
+            },
+        };
 
         let manager_clone = self.clone();
         let record_id = id.to_string();
@@ -938,6 +1053,7 @@ impl DownloadManager {
         let total = record.total_bytes;
         let etag = record.etag.clone();
         let lm = record.last_modified.clone();
+        let source_tab_id = record.source_tab_id.clone();
         let app_handle_clone = app_handle.clone();
 
         std::thread::spawn(move || {
@@ -945,7 +1061,7 @@ impl DownloadManager {
                 .expect("failed to create tokio runtime for HTTP Range resume");
             rt.block_on(async {
                 let downloader = RangeResumeDownload::new(
-                    url_clone,
+                    url_clone.clone(),
                     PathBuf::from(format!("{}.crdownload", file_path)),
                     current_offset,
                     total,
@@ -954,15 +1070,79 @@ impl DownloadManager {
                 );
 
                 match downloader.start().await {
-                    Ok(_result) => {
-                        let _ = manager_clone.complete_download(&record_id, true, None);
-                        let _ = app_handle_clone.emit(
-                            "browser-download-finished",
-                            &serde_json::json!({
-                                "id": record_id,
-                                "success": true,
-                            }),
+                    Ok(result) => {
+                        let truly_complete = result.completed || total.is_none();
+                        tracing::info!(
+                            record_id = %record_id,
+                            bytes_received = result.bytes_received,
+                            completed = result.completed,
+                            truly_complete,
+                            "[ADL-DL] HTTP Range resume succeeded"
                         );
+                        if !truly_complete {
+                            tracing::warn!(
+                                record_id = %record_id,
+                                bytes_received = result.bytes_received,
+                                total = total,
+                                "[ADL-DL] HTTP Range resume ended early (incomplete transfer); marking failed"
+                            );
+                            let _ = manager_clone.complete_download(
+                                &record_id,
+                                false,
+                                Some("DownloadFailed"),
+                            );
+                            // If the user canceled during the resume, respect
+                            // that — don't surface a "failed" event on a record
+                            // the user chose to cancel.
+                            if !manager_clone.is_record_canceled(&record_id) {
+                                let _ = app_handle_clone.emit(
+                                    "browser-download-error",
+                                    &serde_json::json!({
+                                        "id": record_id,
+                                        "url": url_clone,
+                                        "reason": "Resume ended before the file was complete (server closed the stream)",
+                                        "canRetry": true,
+                                        "source_tab_id": source_tab_id,
+                                    }),
+                                );
+                            }
+                            return;
+                        }
+                        // complete_download's terminal-state guard skips a canceled
+                        // record (returns Err without finalizing); only report
+                        // success when finalization actually succeeded.
+                        match manager_clone.complete_download(&record_id, true, None) {
+                            Ok(()) => {
+                                let _ = app_handle_clone.emit(
+                                    "browser-download-finished",
+                                    &serde_json::json!({
+                                        "id": record_id,
+                                        "url": url_clone,
+                                        "filePath": file_path,
+                                        "success": true,
+                                        "source_tab_id": source_tab_id,
+                                    }),
+                                );
+                            },
+                            Err(e) => {
+                                let canceled = manager_clone.is_record_canceled(&record_id);
+                                if canceled {
+                                    tracing::info!(
+                                        record_id = %record_id,
+                                        "[ADL-DL] HTTP Range resume finished but record was canceled; skipping completion and removing temp"
+                                    );
+                                    let _ = std::fs::remove_file(
+                                        format!("{}.crdownload", file_path),
+                                    );
+                                } else {
+                                    tracing::warn!(
+                                        record_id = %record_id,
+                                        error = %e,
+                                        "[ADL-DL] HTTP Range resume finalization failed; progress monitor will retry"
+                                    );
+                                }
+                            },
+                        }
                     }
                     Err(e) => {
                         tracing::error!(
@@ -974,14 +1154,21 @@ impl DownloadManager {
                             false,
                             Some("DownloadFailed"),
                         );
-                        let _ = app_handle_clone.emit(
-                            "browser-download-error",
-                            &serde_json::json!({
-                                "id": record_id,
-                                "reason": format!("Resume failed: {}", e),
-                                "canRetry": true,
-                            }),
-                        );
+                        // If the user canceled during the resume, respect that —
+                        // don't surface a "failed" event on a record the user
+                        // chose to cancel.
+                        if !manager_clone.is_record_canceled(&record_id) {
+                            let _ = app_handle_clone.emit(
+                                "browser-download-error",
+                                &serde_json::json!({
+                                    "id": record_id,
+                                    "url": url_clone,
+                                    "reason": format!("Resume failed: {}", e),
+                                    "canRetry": true,
+                                    "source_tab_id": source_tab_id,
+                                }),
+                            );
+                        }
                     }
                 }
             });
@@ -1102,6 +1289,28 @@ impl DownloadManager {
     ) -> Result<(), String> {
         let status = if success { DownloadStatus::Completed } else { DownloadStatus::Failed };
 
+        // Terminal-state guard: once a download has been canceled, no background
+        // worker — in particular the HTTP Range auto-retry thread — may flip it to
+        // a different state. Otherwise a user's cancel during a retry would be
+        // silently overridden (Canceled → Completed), re-materializing a file the
+        // user deleted. Returns Err so callers can distinguish "not finalized"
+        // (skip emitting success) from a real completion.
+        if let Ok(current) = self.get_record(id) {
+            if current.status == DownloadStatus::Canceled {
+                tracing::info!(
+                    record_id = %id,
+                    current_status = current.status.as_str(),
+                    requested_status = status.as_str(),
+                    "[ADL-DL] complete_download: SKIPPED — record was canceled; not overriding user intent"
+                );
+                self.clear_resume_timestamp(id);
+                return Err(format!(
+                    "download was canceled; not finalizing as {}",
+                    status.as_str()
+                ));
+            }
+        }
+
         // Chrome/Edge-style: WebView2 writes to `<final>.crdownload`. Only when
         // the transfer is confirmed complete do we atomically rename it to the
         // final name. This guarantees the final file never appears half-written,
@@ -1221,6 +1430,10 @@ impl DownloadManager {
         let conn = self.db.conn().map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM download_history", [])
             .map_err(|e| format!("Failed to clear history: {}", e))?;
+        self.resume_timestamps
+            .lock()
+            .map_err(|_| "resume_timestamps mutex poisoned".to_string())?
+            .clear();
         Ok(())
     }
 
@@ -1240,7 +1453,15 @@ impl DownloadManager {
         let conn = self.db.conn().map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM download_history WHERE id = ?1", rusqlite::params![id])
             .map_err(|e| format!("Failed to remove record: {}", e))?;
+        self.clear_resume_timestamp(id);
         Ok(())
+    }
+
+    /// Returns true if the download record exists and is currently canceled.
+    /// Used by background resume workers (which live outside this crate) to
+    /// decide whether finalizing a retry would override a user's cancel.
+    pub fn is_record_canceled(&self, id: &str) -> bool {
+        self.get_record(id).ok().map(|r| r.status == DownloadStatus::Canceled).unwrap_or(false)
     }
 
     pub(crate) fn get_record(&self, id: &str) -> Result<DownloadRecord, String> {
@@ -1747,5 +1968,119 @@ mod tests {
             false, // user_action_required
         );
         assert_eq!(mode, ResumeMode::ImmediateRestart);
+    }
+
+    #[test]
+    fn resume_timestamp_recently_resumed_within_window() {
+        let db = temp_db("ts-recent");
+        let mgr = DownloadManager::new(db);
+        mgr.record_resume("rec-1");
+        assert!(mgr.was_recently_resumed("rec-1", 5), "resume just recorded must be recent");
+        let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-ts-recent.db"));
+    }
+
+    #[test]
+    fn resume_timestamp_not_recent_for_unknown_id() {
+        let db = temp_db("ts-unknown");
+        let mgr = DownloadManager::new(db);
+        assert!(
+            !mgr.was_recently_resumed("missing-id", 5),
+            "unknown id must not be reported as recently resumed"
+        );
+        let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-ts-unknown.db"));
+    }
+
+    #[test]
+    fn resume_timestamp_not_recent_after_clear() {
+        let db = temp_db("ts-clear");
+        let mgr = DownloadManager::new(db);
+        mgr.record_resume("rec-1");
+        assert!(mgr.was_recently_resumed("rec-1", 5));
+        mgr.clear_resume_timestamp("rec-1");
+        assert!(
+            !mgr.was_recently_resumed("rec-1", 5),
+            "cleared timestamp must not be reported as recent"
+        );
+        let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-ts-clear.db"));
+    }
+
+    #[test]
+    fn complete_download_skips_when_record_canceled() {
+        // Regression: the HTTP Range auto-retry thread must not override a user's
+        // cancel during retry. A Canceled record must stay Canceled even if a
+        // background worker calls complete_download(true) — and the call must
+        // return Err so the caller can distinguish "not finalized" from success
+        // and refrain from emitting a fake success event.
+        let db = temp_db("complete-cancel");
+        let mgr = DownloadManager::new(db.clone());
+        let record = mgr
+            .create_download("https://example.com/file.zip", "/tmp/file.zip", None)
+            .expect("create should succeed");
+        mgr.cancel_download(&record.id).expect("cancel should succeed");
+
+        let result = mgr.complete_download(&record.id, true, None);
+        assert!(
+            result.is_err(),
+            "complete_download on a canceled record must return Err (skipped), not Ok"
+        );
+        let list = mgr.list_downloads().expect("list should succeed");
+        assert_eq!(
+            list[0].status,
+            DownloadStatus::Canceled,
+            "canceled download must not be flipped to completed"
+        );
+        let _ =
+            std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-complete-cancel.db"));
+    }
+
+    #[test]
+    fn complete_download_clears_resume_timestamp() {
+        let db = temp_db("complete-ts");
+        let mgr = DownloadManager::new(db.clone());
+        let record = mgr
+            .create_download("https://example.com/file.zip", "/tmp/file.zip", None)
+            .expect("create should succeed");
+        mgr.record_resume(&record.id);
+        assert!(mgr.was_recently_resumed(&record.id, 5));
+        mgr.complete_download(&record.id, true, None).expect("complete should succeed");
+        assert!(
+            !mgr.was_recently_resumed(&record.id, 5),
+            "complete_download must clear the resume timestamp (no leak)"
+        );
+        let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-complete-ts.db"));
+    }
+
+    #[test]
+    fn cancel_download_clears_resume_timestamp() {
+        let db = temp_db("cancel-ts");
+        let mgr = DownloadManager::new(db.clone());
+        let record = mgr
+            .create_download("https://example.com/file.zip", "/tmp/file.zip", None)
+            .expect("create should succeed");
+        mgr.record_resume(&record.id);
+        assert!(mgr.was_recently_resumed(&record.id, 5));
+        mgr.cancel_download(&record.id).expect("cancel should succeed");
+        assert!(
+            !mgr.was_recently_resumed(&record.id, 5),
+            "cancel_download must clear the resume timestamp (no leak)"
+        );
+        let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-cancel-ts.db"));
+    }
+
+    #[test]
+    fn remove_record_clears_resume_timestamp() {
+        let db = temp_db("remove-ts");
+        let mgr = DownloadManager::new(db.clone());
+        let record = mgr
+            .create_download("https://example.com/file.zip", "/tmp/file.zip", None)
+            .expect("create should succeed");
+        mgr.record_resume(&record.id);
+        assert!(mgr.was_recently_resumed(&record.id, 5));
+        mgr.remove_record(&record.id).expect("remove should succeed");
+        assert!(
+            !mgr.was_recently_resumed(&record.id, 5),
+            "remove_record must clear the resume timestamp (no leak)"
+        );
+        let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-remove-ts.db"));
     }
 }

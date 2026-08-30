@@ -45,7 +45,15 @@ impl RangeResumeDownload {
         last_modified: Option<String>,
     ) -> Self {
         let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
+            // Bound the connection setup, NOT the total body read: a large/slow
+            // download legitimately streams for longer than 30s, and a total
+            // `timeout()` here would make every resume of a big file fail. A
+            // per-read idle timeout still guards against a hung connection that
+            // stops sending bytes (firewall/proxy accepting but never writing) —
+            // without it the retry thread would block forever holding the
+            // `.crdownload` handle and the progress monitor would never exit.
+            .connect_timeout(std::time::Duration::from_secs(30))
+            .read_timeout(std::time::Duration::from_secs(30))
             .build()
             .expect("reqwest client should build");
         Self { url, file_path, offset, total_bytes, etag, last_modified, client }
@@ -64,9 +72,8 @@ impl RangeResumeDownload {
             request = request.header("If-Range", lm.as_str());
         }
 
-        let response = request.send().await.map_err(|e| {
-            RangeResumeError::NetworkError(e.to_string())
-        })?;
+        let response =
+            request.send().await.map_err(|e| RangeResumeError::NetworkError(e.to_string()))?;
 
         let status = response.status();
 
@@ -78,21 +85,19 @@ impl RangeResumeDownload {
                 return Err(RangeResumeError::RangeNotSatisfiable);
             }
             if status != reqwest::StatusCode::PARTIAL_CONTENT {
-                return Err(RangeResumeError::InvalidResponse(
-                    format!("Expected 206, got {}", status)
-                ));
+                return Err(RangeResumeError::InvalidResponse(format!(
+                    "Expected 206, got {}",
+                    status
+                )));
             }
         } else if !status.is_success() {
-            return Err(RangeResumeError::NetworkError(
-                format!("HTTP {}", status)
-            ));
+            return Err(RangeResumeError::NetworkError(format!("HTTP {}", status)));
         }
 
-        let resp_etag = response.headers()
-            .get("etag")
-            .and_then(|v| v.to_str().ok())
-            .map(|s| s.to_string());
-        let resp_lm = response.headers()
+        let resp_etag =
+            response.headers().get("etag").and_then(|v| v.to_str().ok()).map(|s| s.to_string());
+        let resp_lm = response
+            .headers()
             .get("last-modified")
             .and_then(|v| v.to_str().ok())
             .map(|s| s.to_string());
@@ -115,16 +120,10 @@ impl RangeResumeDownload {
 
         file.flush().await.map_err(|e| RangeResumeError::FileError(e.to_string()))?;
 
-        let completed = self.total_bytes
-            .map(|total| self.offset + bytes_received >= total)
-            .unwrap_or(false);
+        let completed =
+            self.total_bytes.map(|total| self.offset + bytes_received >= total).unwrap_or(false);
 
-        Ok(RangeResumeResult {
-            bytes_received,
-            completed,
-            etag: resp_etag,
-            last_modified: resp_lm,
-        })
+        Ok(RangeResumeResult { bytes_received, completed, etag: resp_etag, last_modified: resp_lm })
     }
 }
 
@@ -206,7 +205,7 @@ mod tests {
         let result = dl.start().await;
         assert!(result.is_err());
         match result.unwrap_err() {
-            RangeResumeError::NetworkError(_) => {}
+            RangeResumeError::NetworkError(_) => {},
             other => panic!("Expected NetworkError, got {:?}", other),
         }
         // File not created because request failed before file open

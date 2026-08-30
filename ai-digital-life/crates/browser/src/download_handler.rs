@@ -144,7 +144,8 @@ pub fn handle_download_finished(
         success,
         path = path.map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
         "[ADL-DL] handle_download_finished: ENTRY — success={}, url={}",
-        success, url
+        success,
+        url
     );
 
     let records = match download_manager.list_downloads() {
@@ -167,15 +168,21 @@ pub fn handle_download_finished(
     // A download paused/canceled via the native WebView2 operation fires a
     // spurious `finished(success=false)` interrupt that must not overwrite the
     // user-initiated Paused/Canceled status, and its operation handle must be
-    // preserved for a later Resume(). Both Range-capable pauses (native Pause()
-    // call, interrupt_reason="UserPaused") and non-Range pauses (native cancel()
-    // call, interrupt_reason="NonResumablePaused") trigger this spurious event.
-    // The pause kind is read from the persisted interrupt_reason (set at pause
-    // time), not re-derived from the mutable resumability cache.
+    // preserved for a later Resume(). Two pause kinds trigger this spurious
+    // event:
+    //   * Range-capable pauses — native Pause() call (interrupt_reason="UserPaused")
+    //   * non-Range pauses — native cancel() call (interrupt_reason="NonResumablePaused")
+    // A cosmetic pause (interrupt_reason="CosmeticPaused", resumability not yet
+    // probed) NEVER calls native Pause()/Cancel() — the transfer keeps running —
+    // so its finished(false) is a REAL failure and must fall through to the
+    // failure path below (otherwise the record is stuck as Paused and the
+    // progress monitor thread leaks). The pause kind is read from the persisted
+    // interrupt_reason (set at pause time), not re-derived from the mutable
+    // resumability cache.
     let is_native_pseudo_pause = record.status == super::download_types::DownloadStatus::Paused
         && matches!(
             record.interrupt_reason.as_deref(),
-            Some("UserPaused") | Some("NonResumablePaused") | Some("CosmeticPaused")
+            Some("UserPaused") | Some("NonResumablePaused")
         );
     if !success
         && (record.status == super::download_types::DownloadStatus::Canceled
@@ -223,17 +230,24 @@ pub fn handle_download_finished(
             bytes_received = record.bytes_received,
             "[ADL-DL] handle_download_finished: POST-RESUME FAILURE DETECTED — Resume() succeeded but download failed within 5s, auto-retrying via HTTP Range"
         );
-        // Don't remove the operation handle yet — trigger_range_resume needs it
-        // for the fallback thread (it will be removed when the fallback completes).
+        // trigger_range_resume drops the dead native operation handle itself and
+        // spawns a reqwest-based retry thread. Only on failure to even start
+        // (e.g. .crdownload unreadable, thread spawn error) do we fall through
+        // to the normal failure path.
         if let Err(e) = download_manager.trigger_range_resume(&record.id, record, app_handle) {
             tracing::error!(
                 record_id = %record.id,
                 error = %e,
                 "[ADL-DL] handle_download_finished: failed to trigger auto-retry, falling through to normal failure"
             );
-            // If trigger fails, fall through to normal failure handling
-            download_manager.remove_operation(url);
-            let _ = download_manager.complete_download(&record.id, false, Some("PostResumeRetryFailed"));
+            // trigger_range_resume removes the dead native operation handle
+            // before it can return Err, so there is nothing left to clean here.
+            // Fall through to normal failure handling.
+            let _ = download_manager.complete_download(
+                &record.id,
+                false,
+                Some("PostResumeRetryFailed"),
+            );
             let _ = app_handle.emit(
                 "browser-download-finished",
                 &serde_json::json!({
@@ -293,10 +307,6 @@ pub fn handle_download_finished(
 
     // Drop the native operation handle now that the download has truly ended.
     download_manager.remove_operation(url);
-
-    // Report the final (user-facing) path — WebView2 hands us the `.crdownload`
-    // temp path, but complete_download renames it to record.file_path on success.
-    let display_path = record.file_path.clone();
 
     if success {
         // If finalization (rename .crdownload → final) fails — e.g. a transient
