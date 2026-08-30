@@ -61,7 +61,8 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
         useAppStore.getState().appInfo?.config?.browserInactiveTabSuspendMs ?? DEFAULT_IDLE_MS;
       const now = Date.now();
       const state = useAppStore.getState();
-      const isProtected = (t: BrowserTabState): boolean => t.isPinned || t.isPlayingAudio || t.isDownloading;
+      const isProtected = (t: BrowserTabState): boolean =>
+        t.isPinned || t.isPlayingAudio || t.isDownloading;
       // Tabs whose removeFromPool was already issued this tick (Set deletion is
       // async inside destroyTabWebView), so isTabInPool may still report them in-pool.
       const suspendedThisTick = new Set<string>();

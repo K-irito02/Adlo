@@ -93,10 +93,7 @@ describe('applyIdlePass (idle)', () => {
   it('skips downloading tabs when protected includes isDownloading', () => {
     expect(
       applyIdlePass({
-        tabs: [
-          tab('downloading', { isDownloading: true }),
-          tab('ok'),
-        ],
+        tabs: [tab('downloading', { isDownloading: true }), tab('ok')],
         activeTabId: 'none',
         inPool: () => true,
         lastActivatedMs: { downloading: 0, ok: 0 },
