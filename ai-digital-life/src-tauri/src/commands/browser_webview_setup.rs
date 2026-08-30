@@ -6,6 +6,7 @@
 //! cross-platform `adl_browser` crate) and are used only by
 //! `browser_create_for_tab`.
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::state::AppState;
@@ -314,6 +315,7 @@ pub fn start_download_progress_monitor(
         let mut paused_idle_logged = false;
         let mut cosmetic_pause_logged = false;
         let mut non_resumable_paused_logged = false;
+        let mut was_non_resumable_paused: HashSet<String> = HashSet::new();
         // Consecutive polls where the file stayed at full size (byte-complete but
         // the native op hasn't reported Completed — e.g. a pause on a
         // non-resumable download). Two polls (~1s) of an UNCHANGED full-size file
@@ -371,6 +373,10 @@ pub fn start_download_progress_monitor(
                 == adl_browser::download_types::DownloadStatus::Paused
                 && record.interrupt_reason.as_deref() == Some("NonResumablePaused");
 
+            if non_resumable_paused {
+                was_non_resumable_paused.insert(record.id.clone());
+            }
+
             // Otherwise, keep the monitor alive while paused: the native WebView2
             // download is actually paused (pause_download calls
             // DownloadOperation.Pause()), so the file size stays put. Idle here
@@ -412,7 +418,7 @@ pub fn start_download_progress_monitor(
             if record.status == adl_browser::download_types::DownloadStatus::InProgress
                 && record.interrupt_reason.is_none()
                 && record.bytes_received == 0
-                && non_resumable_paused
+                && was_non_resumable_paused.remove(&record.id)
             {
                 tracing::info!(
                     record_id = %record.id,
