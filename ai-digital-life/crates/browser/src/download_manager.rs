@@ -1053,6 +1053,11 @@ impl DownloadManager {
             }
             self.resumability.lock().ok().map(|mut m| m.remove(&record.url));
         }
+
+        // Clear the post-resume tracking entry — the download is now canceled,
+        // so a stale timestamp would otherwise linger forever.
+        self.clear_resume_timestamp(id);
+
         Ok(())
     }
 
@@ -1163,6 +1168,12 @@ impl DownloadManager {
             .lock()
             .expect("active_downloads mutex should not be poisoned")
             .remove(id);
+
+        // Clear the post-resume tracking entry — the download has reached a
+        // terminal state (completed or failed), so a stale timestamp would
+        // otherwise linger forever (unbounded map growth across many resumes).
+        self.clear_resume_timestamp(id);
+
         Ok(())
     }
 
