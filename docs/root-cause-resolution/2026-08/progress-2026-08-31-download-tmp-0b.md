@@ -33,10 +33,14 @@
   - `is_webview2_staging_tmp` 无直接单测（H1 防回归缺口）→ 新增表驱动单测（合法 + 全部拒绝形态 + 大小写变体）
   - `read_dir` 失败静默 → 记 debug；删除前补 `meta.is_file()` 守卫；`remove_file` 的 NotFound 降级 debug（并发清理），其余仍 warn
   - `download_handler.rs` 终态失败日志措辞误导（DB 失败误报为 rename 失败）→ 改为 "rename or DB write failed"
+- **代码审查修复**（closing-workflow Step 2，rev3 → rev4，`download_manager.rs`）：
+  - cleanup 逐条目 `entry.metadata()` 失败静默 → 改 match 记 debug（file/dir/error）；`modified()`/`duration_since()` 注释声明为有意的时钟竞态静默（best-effort 扫描）
+  - `complete_download` 的 `get_record` 失败静默（size 跳过无日志）→ 由 `.ok().and_then()` 改 `match`，Err 分支记 debug（record_id/error）
 - **验证**：
   - `cargo test -p adl-browser --lib download` ✅（46 通过 / 0 失败，含 3 个相关回归测试：大小同步、孤儿清理、GUID 匹配器）
   - `cargo fmt --all` ✅
   - `cargo clippy -p adl-browser --all-targets -- -D warnings` ✅（无警告）
+  - closing-workflow Step 2 多 Agent 审查 rev1→rev4 全部通过（rev4 确认 0 critical / 0 high / 0 medium / 0 low）
 - **待用户实测**：重新构建后，Ask 模式取消下载后确认默认保存路径文件夹不再残留 `.tmp`；下载完成后确认历史列表显示真实大小
 
 ## 备注
