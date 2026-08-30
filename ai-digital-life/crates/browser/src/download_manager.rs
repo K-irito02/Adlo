@@ -442,23 +442,51 @@ impl DownloadManager {
         // actually be paused by WebView2: calling Pause() corrupts the operation
         // (the transfer keeps running but the op never reaches `Completed`, and
         // WebView2 deletes the file when the webview/app shuts down — the "file
-        // vanished after close" bug). The progress monitor probes resumability
-        // up front and caches it here. Only an explicitly-confirmed-resumable
-        // download gets a native Pause(); anything else (probe failed, probe not
-        // done yet, or confirmed non-resumable) gets a cosmetic pause — the UI
-        // shows "paused", the transfer continues and completes normally,
-        // preserving the file. (Conservative: losing real pause is harmless;
-        // corrupting the op loses the file.)
+        // vanished after close" bug). When the server is confirmed non-resumable
+        // (resumability == Some(false)), cancel the download and clean up the temp
+        // file so the user can restart cleanly. If resumability has not been probed
+        // yet (None), fall back to a cosmetic pause — the transfer continues and
+        // completes normally, preserving the file.
+        if self.resumability(&url) == Some(false) {
+            tracing::info!(
+                id = %id,
+                url = %url,
+                "[ADL-DL] pause_download: server does not support Range — canceling download for clean restart"
+            );
+
+            // Cancel the native WebView2 download
+            #[cfg(windows)]
+            if let Some(op) = self.get_operation(&url) {
+                let _ = unsafe { op.Cancel() };
+            }
+
+            // Remove the .crdownload temp file
+            let crdownload_path = format!("{}.crdownload", record.file_path);
+            let _ = std::fs::remove_file(&crdownload_path);
+
+            // Update DB status
+            let conn = self.db.conn().map_err(|e| e.to_string())?;
+            conn.execute(
+                "UPDATE download_history SET status = ?1, interrupt_reason = ?2, bytes_received = 0 WHERE id = ?3",
+                rusqlite::params![DownloadStatus::Paused.as_str(), "NonResumablePaused", id],
+            )
+            .map_err(|e| format!("Failed to pause download: {}", e))?;
+
+            // Remove native operation handle
+            self.remove_operation(&url);
+
+            return Ok(DownloadStatus::Paused);
+        }
+
+        // Resumability not yet probed (None) — cosmetic pause: transfer continues
+        // but UI shows paused. Conservative: losing real pause is harmless;
+        // corrupting the op loses the file.
         if self.resumability(&url) != Some(true) {
             tracing::info!(
                 id = %id,
                 url = %url,
                 "[ADL-DL] pause_download: server does not support Range (non-resumable); skipping native Pause (cosmetic pause, transfer continues)"
             );
-            // Persist the decision (CosmeticPaused vs UserPaused) in
-            // interrupt_reason so the monitor / finished handler / resume read a
-            // stable flag instead of re-deriving from the mutable resumability
-            // cache (which can flip after the probe completes).
             let conn = self.db.conn().map_err(|e| e.to_string())?;
             conn.execute(
                 "UPDATE download_history SET status = ?1, interrupt_reason = ?2 WHERE id = ?3",
