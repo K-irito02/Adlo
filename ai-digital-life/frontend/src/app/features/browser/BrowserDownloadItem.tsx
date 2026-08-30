@@ -1,9 +1,10 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { IconPause, IconPlay, IconClose, IconMoreVertical } from '@icons';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { formatBytes } from '../../../design-system/html';
 import type { DownloadRecord } from '@shared/ipc/download';
+import { BrowserDownloadPauseDialog } from './BrowserDownloadPauseDialog';
 
 interface BrowserDownloadItemProps {
   record: DownloadRecord;
@@ -21,6 +22,9 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
   const pauseDownload = useAppStore((s) => s.pauseDownload);
   const resumeDownload = useAppStore((s) => s.resumeDownload);
   const cancelDownload = useAppStore((s) => s.cancelDownload);
+
+  const [showPauseDialog, setShowPauseDialog] = useState(false);
+  const [pendingRecord, setPendingRecord] = useState<DownloadRecord | null>(null);
 
   const activeProgress = activeDownloads[record.id];
   const isActive = record.status === 'in_progress';
@@ -41,10 +45,28 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
 
   const handlePause = useCallback(
     async (rec: DownloadRecord) => {
-      await pauseDownload(rec.id);
+      if (rec.resumable === false) {
+        setPendingRecord(rec);
+        setShowPauseDialog(true);
+      } else {
+        await pauseDownload(rec.id);
+      }
     },
     [pauseDownload],
   );
+
+  const handlePauseConfirm = useCallback(async () => {
+    if (pendingRecord) {
+      setShowPauseDialog(false);
+      await pauseDownload(pendingRecord.id);
+      setPendingRecord(null);
+    }
+  }, [pauseDownload, pendingRecord]);
+
+  const handlePauseCancel = useCallback(() => {
+    setShowPauseDialog(false);
+    setPendingRecord(null);
+  }, []);
 
   const handleResume = useCallback(
     async (rec: DownloadRecord) => {
@@ -100,90 +122,98 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
     : formatBytes(bytesReceived);
 
   return (
-    <div
-      ref={itemRef}
-      className="adl-download-item"
-      onContextMenu={handleContextMenu}
-      role="listitem"
-      aria-label={record.file_name}
-    >
-      <div className="adl-download-item__content">
-        <div className="adl-download-item__header">
-          <span className="adl-download-item__name" title={record.file_name}>
-            {record.file_name}
-          </span>
-          <div className="adl-download-item__actions">
-            {isActive && (
+    <>
+      <div
+        ref={itemRef}
+        className="adl-download-item"
+        onContextMenu={handleContextMenu}
+        role="listitem"
+        aria-label={record.file_name}
+      >
+        <div className="adl-download-item__content">
+          <div className="adl-download-item__header">
+            <span className="adl-download-item__name" title={record.file_name}>
+              {record.file_name}
+            </span>
+            <div className="adl-download-item__actions">
+              {isActive && (
+                <button
+                  type="button"
+                  className="adl-download-item__action-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handlePause(record);
+                  }}
+                  aria-label={t.browserDownloadPause}
+                  title={t.browserDownloadPause}
+                >
+                  <IconPause size={12} decorative />
+                </button>
+              )}
+              {isPaused && (
+                <button
+                  type="button"
+                  className="adl-download-item__action-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleResume(record);
+                  }}
+                  aria-label={t.browserDownloadResume}
+                  title={t.browserDownloadResume}
+                >
+                  <IconPlay size={12} decorative />
+                </button>
+              )}
+              {(isActive || isPaused) && (
+                <button
+                  type="button"
+                  className="adl-download-item__action-btn adl-download-item__action-btn--danger"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCancel(record);
+                  }}
+                  aria-label={t.browserDownloadCancel}
+                  title={t.browserDownloadCancel}
+                >
+                  <IconClose size={12} decorative />
+                </button>
+              )}
               <button
                 type="button"
-                className="adl-download-item__action-btn"
+                className="adl-download-item__menu-btn"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handlePause(record);
+                  onContextMenu(record, { x: e.clientX, y: e.clientY });
                 }}
-                aria-label={t.browserDownloadPause}
-                title={t.browserDownloadPause}
+                aria-label={t.browserContextMore}
               >
-                <IconPause size={12} decorative />
+                <IconMoreVertical size={14} decorative />
               </button>
-            )}
-            {isPaused && (
-              <button
-                type="button"
-                className="adl-download-item__action-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleResume(record);
-                }}
-                aria-label={t.browserDownloadResume}
-                title={t.browserDownloadResume}
-              >
-                <IconPlay size={12} decorative />
-              </button>
-            )}
-            {(isActive || isPaused) && (
-              <button
-                type="button"
-                className="adl-download-item__action-btn adl-download-item__action-btn--danger"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCancel(record);
-                }}
-                aria-label={t.browserDownloadCancel}
-                title={t.browserDownloadCancel}
-              >
-                <IconClose size={12} decorative />
-              </button>
-            )}
-            <button
-              type="button"
-              className="adl-download-item__menu-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                onContextMenu(record, { x: e.clientX, y: e.clientY });
-              }}
-              aria-label={t.browserContextMore}
-            >
-              <IconMoreVertical size={14} decorative />
-            </button>
-          </div>
-        </div>
-        {isActive && (
-          <div className="adl-download-item__progress adl-download-item__progress--active">
-            <div className="adl-download-item__progress-bar">
-              <div
-                className="adl-download-item__progress-fill"
-                style={{ width: `${Math.min(progress * 100, 100)}%` }}
-              />
             </div>
           </div>
-        )}
-        <div className="adl-download-item__meta">
-          <span className="adl-download-item__size">{sizeText}</span>
-          {statusText && <span className="adl-download-item__status">{statusText}</span>}
-          <span className="adl-download-item__date">{dateText}</span>
+          {isActive && (
+            <div className="adl-download-item__progress adl-download-item__progress--active">
+              <div className="adl-download-item__progress-bar">
+                <div
+                  className="adl-download-item__progress-fill"
+                  style={{ width: `${Math.min(progress * 100, 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+          <div className="adl-download-item__meta">
+            <span className="adl-download-item__size">{sizeText}</span>
+            {statusText && <span className="adl-download-item__status">{statusText}</span>}
+            <span className="adl-download-item__date">{dateText}</span>
+          </div>
         </div>
       </div>
-    </div>
+      <BrowserDownloadPauseDialog
+        open={showPauseDialog}
+        fileName={pendingRecord?.file_name ?? ''}
+        onConfirm={handlePauseConfirm}
+        onCancel={handlePauseCancel}
+      />
+    </>
   );
 });

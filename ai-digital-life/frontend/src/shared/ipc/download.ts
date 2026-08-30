@@ -15,6 +15,8 @@ export interface DownloadRecord {
   created_at: number;
   completed_at: number | null;
   source_tab_id: string | null;
+  /** Whether the server supports range requests for resumption. `null` = unknown. */
+  resumable?: boolean | null;
 }
 
 export interface DownloadSettings {
