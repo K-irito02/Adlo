@@ -166,6 +166,7 @@ pub(super) fn build_webview_builder(
         download_manager.clone(),
         last_record_id.clone(),
         is_silent,
+        Some(tab_id.to_string()),
     );
     let app_download = app_handle.clone();
     let dm_for_monitor = download_manager.clone();
@@ -607,19 +608,38 @@ pub fn start_download_progress_monitor(
 /// a non-resumable download corrupts the operation and loses the file at
 /// shutdown).
 fn check_server_resumable(client: &reqwest::blocking::Client, url: &url::Url) -> Option<bool> {
+    tracing::info!(
+        url = %url,
+        "[ADL-DL] check_server_resumable: probing server Range support..."
+    );
     let resp = client.head(url.as_str()).header(reqwest::header::RANGE, "bytes=0-0").send().ok()?;
-    if resp.status() == reqwest::StatusCode::PARTIAL_CONTENT
-        && resp.headers().get(reqwest::header::CONTENT_RANGE).is_some()
-    {
+    let status = resp.status();
+    let has_content_range = resp.headers().get(reqwest::header::CONTENT_RANGE).is_some();
+    let accept_ranges = resp.headers().get(reqwest::header::ACCEPT_RANGES)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_ascii_lowercase());
+
+    tracing::info!(
+        url = %url,
+        status = %status,
+        has_content_range,
+        accept_ranges = accept_ranges.as_deref().unwrap_or("none"),
+        "[ADL-DL] check_server_resumable: probe response"
+    );
+
+    if status == reqwest::StatusCode::PARTIAL_CONTENT && has_content_range {
+        tracing::info!(url = %url, "[ADL-DL] check_server_resumable: server SUPPORTS Range (206 + Content-Range)");
         return Some(true);
     }
     if let Some(ar) = resp.headers().get(reqwest::header::ACCEPT_RANGES) {
         if let Ok(s) = ar.to_str() {
             if s.to_ascii_lowercase().contains("bytes") {
+                tracing::info!(url = %url, "[ADL-DL] check_server_resumable: server SUPPORTS Range (Accept-Ranges: bytes)");
                 return Some(true);
             }
         }
     }
+    tracing::info!(url = %url, "[ADL-DL] check_server_resumable: server does NOT support Range (non-resumable)");
     Some(false)
 }
 

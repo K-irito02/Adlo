@@ -10,6 +10,7 @@ pub fn setup_download_handler(
     download_manager: Arc<DownloadManager>,
     last_record_id: Arc<Mutex<Option<String>>>,
     is_silent: bool,
+    source_tab_id: Option<String>,
 ) -> impl Fn(String, &mut PathBuf) -> bool + Send + Sync + 'static {
     let manager = download_manager;
     let handle = app_handle;
@@ -93,7 +94,7 @@ pub fn setup_download_handler(
         // cleaned up as a clearly-incomplete temp file.
         *destination = PathBuf::from(format!("{final_path}.crdownload"));
 
-        match manager.create_download(&url, &final_path) {
+        match manager.create_download(&url, &final_path, source_tab_id.clone()) {
             Ok(record) => {
                 tracing::debug!(
                     url = &url,

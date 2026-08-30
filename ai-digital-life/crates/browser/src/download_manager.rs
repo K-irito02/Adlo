@@ -285,7 +285,7 @@ impl DownloadManager {
         self.resolve_conflict_path(target.to_string_lossy().as_ref())
     }
 
-    pub fn create_download(&self, url: &str, file_path: &str) -> Result<DownloadRecord, String> {
+    pub fn create_download(&self, url: &str, file_path: &str, source_tab_id: Option<String>) -> Result<DownloadRecord, String> {
         let file_name = derive_file_name(url, file_path);
         let record = DownloadRecord {
             id: Uuid::new_v4().to_string(),
@@ -299,7 +299,7 @@ impl DownloadManager {
             interrupt_reason: None,
             created_at: Utc::now().timestamp(),
             completed_at: None,
-            source_tab_id: None,
+            source_tab_id,
             auto_resume_count: 0,
             etag: None,
             last_modified: None,
@@ -370,8 +370,21 @@ impl DownloadManager {
     pub fn pause_download(&self, id: &str) -> Result<DownloadStatus, String> {
         let record = self.get_record(id)?;
 
+        tracing::info!(
+            id = %id,
+            url = %record.url,
+            status = record.status.as_str(),
+            interrupt_reason = record.interrupt_reason.as_deref().unwrap_or("none"),
+            "[ADL-DL] pause_download: ENTRY — attempting to pause"
+        );
+
         // Check if download is in a terminal state (already completed/failed/canceled)
         if record.status.is_terminal() {
+            tracing::warn!(
+                id = %id,
+                status = record.status.as_str(),
+                "[ADL-DL] pause_download: REJECTED — download is in terminal state"
+            );
             return Err(format!(
                 "Download is already {} and cannot be paused",
                 record.status.as_str()
@@ -379,6 +392,16 @@ impl DownloadManager {
         }
 
         let url = record.url.clone();
+
+        // Check if native operation handle exists
+        let has_native_op = self.get_operation(&url).is_some();
+        tracing::info!(
+            id = %id,
+            url = %url,
+            has_native_op,
+            resumability_cached = self.resumability(&url).map(|r| r.to_string()).unwrap_or_else(|| "not_probed".to_string()),
+            "[ADL-DL] pause_download: pre-pause state snapshot"
+        );
 
         // Query the native operation state FIRST (a CanPause()-equivalent check —
         // WebView2 has no CanPause() API). Never report "paused" for a transfer
@@ -535,13 +558,41 @@ impl DownloadManager {
         let record = self.get_record(id)?;
         let url = record.url.clone();
 
+        tracing::info!(
+            id = %id,
+            url = %url,
+            status = record.status.as_str(),
+            interrupt_reason = record.interrupt_reason.as_deref().unwrap_or("none"),
+            auto_resume_count = record.auto_resume_count,
+            etag = record.etag.as_deref().unwrap_or("none"),
+            last_modified = record.last_modified.as_deref().unwrap_or("none"),
+            "[ADL-DL] resume_download: ENTRY — attempting to resume"
+        );
+
         // Check if download is in a state that can be resumed
         if record.status.is_terminal() {
+            tracing::warn!(
+                id = %id,
+                status = record.status.as_str(),
+                "[ADL-DL] resume_download: REJECTED — download is in terminal state"
+            );
             return Err(format!(
                 "Download is already {} and cannot be resumed",
                 record.status.as_str()
             ));
         }
+
+        // Check native operation handle availability
+        let has_native_op = self.get_operation(&url).is_some();
+        let native_state = self.native_operation_state(&url);
+        tracing::info!(
+            id = %id,
+            url = %url,
+            has_native_op,
+            native_state = ?native_state,
+            resumability_cached = self.resumability(&url).map(|r| r.to_string()).unwrap_or_else(|| "not_probed".to_string()),
+            "[ADL-DL] resume_download: pre-resume state snapshot"
+        );
 
         // A download the user explicitly paused is resumed directly via the
         // still-alive native WebView2 operation, which continues from the
@@ -616,12 +667,18 @@ impl DownloadManager {
         #[cfg(windows)]
         {
             match self.get_operation(&url) {
-                Some(op) => match unsafe { op.Resume() } {
+                Some(op) => {
+                    tracing::info!(
+                        id = %id,
+                        url = %url,
+                        "[ADL-DL] resume_download: calling native WebView2 op.Resume()..."
+                    );
+                    match unsafe { op.Resume() } {
                     Ok(()) => {
-                        tracing::debug!(
+                        tracing::info!(
                             id = %id,
                             url = %url,
-                            "[ADL-DL] resume_download: native WebView2 download RESUMED"
+                            "[ADL-DL] resume_download: native WebView2 download RESUMED successfully"
                         );
                         // auto_resume_count only counts *automatic* recoveries
                         // of interrupted downloads; a user-initiated
@@ -649,16 +706,17 @@ impl DownloadManager {
                             url = %url,
                             error = %e,
                             hresult = format!("0x{hresult:08X}"),
-                            "[ADL-DL] resume_download: native Resume() failed, attempting HTTP Range resume"
+                            "[ADL-DL] resume_download: native Resume() FAILED — falling through to HTTP Range resume"
                         );
                         // Fall through to HTTP Range-based resume
                     },
+                }
                 },
                 None => {
                     tracing::warn!(
                         id = %id,
                         url = %url,
-                        "[ADL-DL] resume_download: no native download operation captured; attempting HTTP Range resume"
+                        "[ADL-DL] resume_download: NO native download operation captured (handle may have been dropped by WebView2); falling through to HTTP Range resume"
                     );
                     // Fall through to HTTP Range-based resume
                 },
@@ -678,6 +736,13 @@ impl DownloadManager {
         // HTTP Range resume is not yet implemented — return error instead of
         // faking InProgress status which would cause the progress monitor to
         // spin forever on a non-growing file.
+        tracing::error!(
+            id = %id,
+            url = %url,
+            has_native_op,
+            native_state = ?native_state,
+            "[ADL-DL] resume_download: ALL RESUME PATHS EXHAUSTED — native Resume() failed/unavailable, HTTP Range resume not implemented"
+        );
         Err("HTTP Range resume is not yet implemented. Please restart the download manually."
             .to_string())
     }
@@ -1127,7 +1192,7 @@ mod tests {
         let db = temp_db("create-get");
         let mgr = DownloadManager::new(db.clone());
         let record = mgr
-            .create_download("https://example.com/file.zip", "/tmp/file.zip")
+            .create_download("https://example.com/file.zip", "/tmp/file.zip", None)
             .expect("create should succeed");
         assert_eq!(record.url, "https://example.com/file.zip");
         assert_eq!(record.file_path, "/tmp/file.zip");
@@ -1145,7 +1210,7 @@ mod tests {
         let db = temp_db("progress");
         let mgr = DownloadManager::new(db.clone());
         let record = mgr
-            .create_download("https://example.com/file.zip", "/tmp/file.zip")
+            .create_download("https://example.com/file.zip", "/tmp/file.zip", None)
             .expect("create should succeed");
 
         mgr.update_progress(&record.id, 512, 1024).expect("update should succeed");
@@ -1164,7 +1229,7 @@ mod tests {
         let db = temp_db("fail");
         let mgr = DownloadManager::new(db.clone());
         let record = mgr
-            .create_download("https://example.com/file.zip", "/tmp/file.zip")
+            .create_download("https://example.com/file.zip", "/tmp/file.zip", None)
             .expect("create should succeed");
 
         mgr.complete_download(&record.id, false, Some("NetworkError"))
@@ -1180,7 +1245,7 @@ mod tests {
         let db = temp_db("remove");
         let mgr = DownloadManager::new(db.clone());
         let record = mgr
-            .create_download("https://example.com/file.zip", "/tmp/file.zip")
+            .create_download("https://example.com/file.zip", "/tmp/file.zip", None)
             .expect("create should succeed");
 
         mgr.remove_record(&record.id).expect("remove should succeed");
@@ -1193,8 +1258,8 @@ mod tests {
     fn clear_history() {
         let db = temp_db("clear");
         let mgr = DownloadManager::new(db.clone());
-        mgr.create_download("https://example.com/a.zip", "/tmp/a.zip").expect("create a");
-        mgr.create_download("https://example.com/b.zip", "/tmp/b.zip").expect("create b");
+        mgr.create_download("https://example.com/a.zip", "/tmp/a.zip", None).expect("create a");
+        mgr.create_download("https://example.com/b.zip", "/tmp/b.zip", None).expect("create b");
 
         mgr.clear_history().expect("clear should succeed");
         let list = mgr.list_downloads().expect("list should succeed");
@@ -1267,11 +1332,11 @@ mod tests {
     fn download_ordering_is_desc() {
         let db = temp_db("order");
         let mgr = DownloadManager::new(db.clone());
-        mgr.create_download("https://example.com/first.zip", "/tmp/first.zip")
+        mgr.create_download("https://example.com/first.zip", "/tmp/first.zip", None)
             .expect("create first");
         // Small delay to ensure different timestamp
         std::thread::sleep(std::time::Duration::from_millis(10));
-        mgr.create_download("https://example.com/second.zip", "/tmp/second.zip")
+        mgr.create_download("https://example.com/second.zip", "/tmp/second.zip", None)
             .expect("create second");
 
         let list = mgr.list_downloads().expect("list should succeed");

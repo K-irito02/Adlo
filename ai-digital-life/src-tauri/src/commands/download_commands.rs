@@ -207,9 +207,24 @@ pub fn download_pause(
     app_handle: tauri::AppHandle,
     id: String,
 ) -> Result<IpcResult<DownloadPauseResult>, CommandError> {
-    tracing::debug!(id = %id, "[ADL-DL] download_pause called");
+    tracing::info!(id = %id, "[ADL-DL] download_pause called");
 
-    let status = state.download_manager.pause_download(&id).map_err(map_download_err)?;
+    let status = match state.download_manager.pause_download(&id) {
+        Ok(status) => status,
+        Err(e) => {
+            tracing::error!(id = %id, error = %e, "[ADL-DL] download_pause: FAILED");
+            let _ = app_handle.emit(
+                "browser-download-error",
+                &serde_json::json!({
+                    "id": id,
+                    "url": "",
+                    "reason": format!("Pause failed: {}", e),
+                    "canRetry": true,
+                }),
+            );
+            return Err(map_download_err(e).into());
+        },
+    };
 
     // Emit the event matching the actual outcome so the UI reflects the true
     // state (matches Chrome/Edge: a just-finished download goes straight to
@@ -258,10 +273,34 @@ pub fn download_resume(
     app_handle: tauri::AppHandle,
     id: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    tracing::debug!(id = %id, "[ADL-DL] download_resume called");
-    state.download_manager.resume_download(&id).map_err(map_download_err)?;
-    let _ = app_handle.emit("browser-download-resumed", &serde_json::json!({ "id": id }));
-    Ok(ipc(Ok(())))
+    tracing::info!(id = %id, "[ADL-DL] download_resume called");
+    match state.download_manager.resume_download(&id) {
+        Ok(()) => {
+            tracing::info!(id = %id, "[ADL-DL] download_resume: resumed successfully");
+            let _ = app_handle.emit("browser-download-resumed", &serde_json::json!({ "id": id }));
+            Ok(ipc(Ok(())))
+        },
+        Err(e) => {
+            tracing::error!(id = %id, error = %e, "[ADL-DL] download_resume: FAILED");
+            // Emit error event so the frontend can show a toast notification
+            let record = state
+                .download_manager
+                .list_downloads()
+                .ok()
+                .and_then(|rs| rs.into_iter().find(|r| r.id == id));
+            let url = record.as_ref().map(|r| r.url.clone()).unwrap_or_default();
+            let _ = app_handle.emit(
+                "browser-download-error",
+                &serde_json::json!({
+                    "id": id,
+                    "url": url,
+                    "reason": format!("Resume failed: {}", e),
+                    "canRetry": true,
+                }),
+            );
+            Err(map_download_err(e).into())
+        },
+    }
 }
 
 #[tauri::command]
@@ -320,7 +359,7 @@ pub async fn download_save_blob(
             .map_err(|e| AppError::Internal(format!("failed to write file: {e}")))?;
 
         let record = mgr
-            .create_download(&blob_url_spawn, final_path.to_string_lossy().as_ref())
+            .create_download(&blob_url_spawn, final_path.to_string_lossy().as_ref(), None)
             .map_err(map_download_err)?;
         Ok(record)
     })
