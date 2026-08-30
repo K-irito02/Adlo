@@ -377,6 +377,22 @@ pub fn start_download_progress_monitor(
                 was_non_resumable_paused.insert(record.id.clone());
             }
 
+            // Log resume state evaluation for debugging
+            tracing::debug!(
+                record_id = %record.id,
+                status = record.status.as_str(),
+                interrupt_reason = record.interrupt_reason.as_deref().unwrap_or("none"),
+                bytes_received = record.bytes_received,
+                cosmetic_pause,
+                non_resumable_paused,
+                "[ADL-DL] progress monitor: evaluating resume state — status={}, interrupt_reason={}, bytes_received={}, cosmetic_pause={}, non_resumable_paused={}",
+                record.status.as_str(),
+                record.interrupt_reason.as_deref().unwrap_or("none"),
+                record.bytes_received,
+                cosmetic_pause,
+                non_resumable_paused
+            );
+
             // Otherwise, keep the monitor alive while paused: the native WebView2
             // download is actually paused (pause_download calls
             // DownloadOperation.Pause()), so the file size stays put. Idle here

@@ -139,11 +139,12 @@ pub fn handle_download_finished(
     path: Option<&std::path::Path>,
     success: bool,
 ) {
-    tracing::debug!(
+    tracing::info!(
         url = url,
         success,
         path = path.map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
-        "[ADL-DL] download finished event received"
+        "[ADL-DL] handle_download_finished: ENTRY — success={}, url={}",
+        success, url
     );
 
     let records = match download_manager.list_downloads() {
@@ -183,6 +184,7 @@ pub fn handle_download_finished(
         tracing::debug!(
             record_id = %record.id,
             status = record.status.as_str(),
+            interrupt_reason = record.interrupt_reason.as_deref().unwrap_or("none"),
             "[ADL-DL] handle_download_finished: ignoring spurious finished(false) for a paused/canceled download (native interrupt)"
         );
         return;
@@ -198,6 +200,51 @@ pub fn handle_download_finished(
             record_id = %record.id,
             "[ADL-DL] handle_download_finished: ignoring spurious finished(false) for an already-completed download (late native interrupt)"
         );
+        return;
+    }
+
+    // Report the final (user-facing) path — WebView2 hands us the `.crdownload`
+    // temp path, but complete_download renames it to record.file_path on success.
+    let display_path = record.file_path.clone();
+
+    // Post-resume failure detection (Option B): when a download fails within
+    // 5 seconds of a native Resume() call, auto-retry via HTTP Range instead
+    // of marking as failed. This catches the case where WebView2's Resume()
+    // returns Ok(()) but the underlying connection is already broken (TCP
+    // reset, proxy timeout, etc.) — WebView2 only discovers the failure when
+    // it tries to read the next data chunk.
+    if !success
+        && record.status == super::download_types::DownloadStatus::InProgress
+        && download_manager.was_recently_resumed(&record.id, 5)
+    {
+        tracing::info!(
+            record_id = %record.id,
+            url = %url,
+            bytes_received = record.bytes_received,
+            "[ADL-DL] handle_download_finished: POST-RESUME FAILURE DETECTED — Resume() succeeded but download failed within 5s, auto-retrying via HTTP Range"
+        );
+        // Don't remove the operation handle yet — trigger_range_resume needs it
+        // for the fallback thread (it will be removed when the fallback completes).
+        if let Err(e) = download_manager.trigger_range_resume(&record.id, record, app_handle) {
+            tracing::error!(
+                record_id = %record.id,
+                error = %e,
+                "[ADL-DL] handle_download_finished: failed to trigger auto-retry, falling through to normal failure"
+            );
+            // If trigger fails, fall through to normal failure handling
+            download_manager.remove_operation(url);
+            let _ = download_manager.complete_download(&record.id, false, Some("PostResumeRetryFailed"));
+            let _ = app_handle.emit(
+                "browser-download-finished",
+                &serde_json::json!({
+                    "id": record.id,
+                    "url": url,
+                    "filePath": display_path,
+                    "success": false,
+                    "source_tab_id": record.source_tab_id,
+                }),
+            );
+        }
         return;
     }
 

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use chrono::Utc;
 use uuid::Uuid;
@@ -97,6 +98,12 @@ pub struct DownloadManager {
     /// operation's lifecycle (it never reaches `Completed`, so WebView2 deletes
     /// the file when the webview/app shuts down). `None` = not probed yet.
     resumability: Arc<Mutex<HashMap<String, bool>>>,
+    /// Tracks when each download was last resumed via native WebView2 Resume().
+    /// Key: record ID, Value: timestamp when Resume() returned Ok(()).
+    /// Used by handle_download_finished to detect post-resume failures
+    /// (Resume() succeeds but download fails within seconds — indicating a
+    /// broken TCP connection that WebView2 only discovers on next read).
+    resume_timestamps: Arc<Mutex<HashMap<String, Instant>>>,
 }
 
 #[allow(dead_code)]
@@ -109,6 +116,7 @@ impl DownloadManager {
             active_downloads: Arc::new(Mutex::new(HashMap::new())),
             operations: Arc::new(Mutex::new(HashMap::new())),
             resumability: Arc::new(Mutex::new(HashMap::new())),
+            resume_timestamps: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -122,6 +130,136 @@ impl DownloadManager {
     /// Return the cached resumability for a URL, if it has been probed.
     pub fn resumability(&self, url: &str) -> Option<bool> {
         self.resumability.lock().ok().and_then(|m| m.get(url).copied())
+    }
+
+    /// Record that a download was just resumed via native WebView2 Resume().
+    /// Called after Resume() returns Ok(()) so handle_download_finished can
+    /// detect post-resume failures within the 5-second window.
+    pub fn record_resume(&self, id: &str) {
+        if let Ok(mut m) = self.resume_timestamps.lock() {
+            m.insert(id.to_string(), Instant::now());
+            tracing::debug!(
+                id = id,
+                "[ADL-DL] record_resume: recorded resume timestamp"
+            );
+        }
+    }
+
+    /// Check if a download was resumed within the last `window_secs` seconds.
+    /// Returns true if the download failed shortly after a resume attempt.
+    pub fn was_recently_resumed(&self, id: &str, window_secs: u64) -> bool {
+        if let Ok(m) = self.resume_timestamps.lock() {
+            if let Some(ts) = m.get(id) {
+                let recently = ts.elapsed() < std::time::Duration::from_secs(window_secs);
+                tracing::debug!(
+                    id = id,
+                    elapsed_ms = ts.elapsed().as_millis() as u64,
+                    window_ms = window_secs * 1000,
+                    recently,
+                    "[ADL-DL] was_recently_resumed: checking resume window"
+                );
+                return recently;
+            }
+        }
+        false
+    }
+
+    /// Clear the resume timestamp for a download (called after successful
+    /// completion or when auto-retry gives up).
+    pub fn clear_resume_timestamp(&self, id: &str) {
+        if let Ok(mut m) = self.resume_timestamps.lock() {
+            m.remove(id);
+            tracing::debug!(
+                id = id,
+                "[ADL-DL] clear_resume_timestamp: cleared resume timestamp"
+            );
+        }
+    }
+
+    /// Trigger HTTP Range-based resume as a fallback for a failed native Resume().
+    /// This is called by handle_download_finished when a post-resume failure is detected
+    /// (Resume() returned Ok(()) but download failed within 5 seconds).
+    pub fn trigger_range_resume(
+        &self,
+        id: &str,
+        record: &DownloadRecord,
+        app_handle: &tauri::AppHandle,
+    ) -> Result<(), String> {
+        tracing::info!(
+            id = %id,
+            url = %record.url,
+            bytes_received = record.bytes_received,
+            "[ADL-DL] trigger_range_resume: auto-retrying via HTTP Range after post-resume failure"
+        );
+
+        // Get the current file size from the .crdownload as the true offset
+        let current_offset = std::fs::metadata(format!("{}.crdownload", record.file_path))
+            .map(|m| m.len())
+            .unwrap_or(record.bytes_received);
+
+        let manager_clone = self.clone();
+        let record_id = id.to_string();
+        let url_clone = record.url.clone();
+        let file_path = record.file_path.clone();
+        let total = record.total_bytes;
+        let etag = record.etag.clone();
+        let lm = record.last_modified.clone();
+        let app_handle_clone = app_handle.clone();
+
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new()
+                .expect("failed to create tokio runtime for auto-retry HTTP Range resume");
+            rt.block_on(async {
+                let downloader = RangeResumeDownload::new(
+                    url_clone,
+                    std::path::PathBuf::from(format!("{}.crdownload", file_path)),
+                    current_offset,
+                    total,
+                    etag,
+                    lm,
+                );
+
+                match downloader.start().await {
+                    Ok(_result) => {
+                        tracing::info!(
+                            record_id = %record_id,
+                            "[ADL-DL] auto-retry HTTP Range resume succeeded"
+                        );
+                        let _ = manager_clone.complete_download(&record_id, true, None);
+                        manager_clone.clear_resume_timestamp(&record_id);
+                        let _ = app_handle_clone.emit(
+                            "browser-download-finished",
+                            &serde_json::json!({
+                                "id": record_id,
+                                "success": true,
+                            }),
+                        );
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            record_id = %record_id,
+                            error = %e,
+                            "[ADL-DL] auto-retry HTTP Range resume also failed"
+                        );
+                        let _ = manager_clone.complete_download(
+                            &record_id,
+                            false,
+                            Some("PostResumeRetryFailed"),
+                        );
+                        manager_clone.clear_resume_timestamp(&record_id);
+                        let _ = app_handle_clone.emit(
+                            "browser-download-finished",
+                            &serde_json::json!({
+                                "id": record_id,
+                                "success": false,
+                            }),
+                        );
+                    }
+                }
+            });
+        });
+
+        Ok(())
     }
 
     /// Register the live native download operation so it can later be paused /
@@ -730,8 +868,11 @@ impl DownloadManager {
                         tracing::info!(
                             id = %id,
                             url = %url,
-                            "[ADL-DL] resume_download: native WebView2 download RESUMED successfully"
+                            "[ADL-DL] resume_download: native WebView2 download RESUMED successfully — recording resume timestamp"
                         );
+                        // Record resume timestamp so handle_download_finished
+                        // can detect post-resume failures within the 5-second window.
+                        self.record_resume(id);
                         // auto_resume_count only counts *automatic* recoveries
                         // of interrupted downloads; a user-initiated
                         // pause/resume cycle must not consume the limit.
