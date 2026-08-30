@@ -12,7 +12,7 @@ import type {
   DownloadPauseResult,
 } from '@shared/ipc/download';
 import type { IpcResult } from '@ai-digital-life/kernel';
-import type { BrowserTabState } from './browserTypes';
+import { buildTabsById } from './browserFoldersUtils';
 
 export interface BrowserDownloadsSlice {
   downloads: DownloadRecord[];
@@ -138,15 +138,9 @@ export const createBrowserDownloadsSlice = (
         }
       } else {
         console.warn('[ADL-DL] pauseDownload: invoke failed', result.error);
-        get().showToast(
-          `Pause failed: ${result.error ?? 'Unknown error'}`,
-          'error',
-          'download-pause',
-        );
       }
     } catch (e) {
       console.error('[ADL-DL] pauseDownload: invoke rejected', e);
-      get().showToast(`Pause failed: ${String(e)}`, 'error', 'download-pause');
     }
   },
 
@@ -161,15 +155,9 @@ export const createBrowserDownloadsSlice = (
         }));
       } else {
         console.warn('[ADL-DL] resumeDownload: invoke failed', result.error);
-        get().showToast(
-          `Resume failed: ${result.error ?? 'Unknown error'}`,
-          'error',
-          'download-resume',
-        );
       }
     } catch (e) {
       console.error('[ADL-DL] resumeDownload: invoke rejected', e);
-      get().showToast(`Resume failed: ${String(e)}`, 'error', 'download-resume');
     }
   },
 
@@ -228,10 +216,7 @@ export const createBrowserDownloadsSlice = (
             },
           },
           browserTabs: nextTabs,
-          browserTabsById: nextTabs.reduce(
-            (acc, t) => ({ ...acc, [t.id]: t }),
-            {} as Record<string, BrowserTabState>,
-          ),
+          browserTabsById: buildTabsById(nextTabs),
         };
       });
     }).then((unsub) => {
@@ -272,10 +257,7 @@ export const createBrowserDownloadsSlice = (
               : d,
           ),
           browserTabs: nextTabs,
-          browserTabsById: nextTabs.reduce(
-            (acc, t) => ({ ...acc, [t.id]: t }),
-            {} as Record<string, BrowserTabState>,
-          ),
+          browserTabsById: buildTabsById(nextTabs),
         };
       });
     }).then((unsub) => {
@@ -314,16 +296,9 @@ export const createBrowserDownloadsSlice = (
               : d,
           ),
           browserTabs: nextTabs,
-          browserTabsById: nextTabs.reduce(
-            (acc, t) => ({ ...acc, [t.id]: t }),
-            {} as Record<string, BrowserTabState>,
-          ),
+          browserTabsById: buildTabsById(nextTabs),
         };
       });
-      // Show toast notification for download errors (pause/resume failures etc.)
-      if (payload.reason) {
-        get().showToast(payload.reason, 'error', 'download-error');
-      }
     }).then((unsub) => {
       if (active) {
         unsubs.push(unsub);
@@ -429,10 +404,7 @@ export const createBrowserDownloadsSlice = (
               : d,
           ),
           browserTabs: nextTabs,
-          browserTabsById: nextTabs.reduce(
-            (acc, t) => ({ ...acc, [t.id]: t }),
-            {} as Record<string, BrowserTabState>,
-          ),
+          browserTabsById: buildTabsById(nextTabs),
         };
       });
     }).then((unsub) => {
