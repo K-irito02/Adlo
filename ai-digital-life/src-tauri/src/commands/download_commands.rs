@@ -274,7 +274,7 @@ pub fn download_resume(
     id: String,
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::info!(id = %id, "[ADL-DL] download_resume called");
-    match state.download_manager.resume_download(&id) {
+    match state.download_manager.resume_download(&id, &app_handle) {
         Ok(()) => {
             tracing::info!(id = %id, "[ADL-DL] download_resume: resumed successfully");
             let _ = app_handle.emit("browser-download-resumed", &serde_json::json!({ "id": id }));

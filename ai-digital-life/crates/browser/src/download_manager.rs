@@ -13,7 +13,9 @@ use webview2_com::Microsoft::Web::WebView2::Win32::{
 };
 
 use adl_storage::Database;
+use tauri::Emitter;
 
+use super::download_range_resume::RangeResumeDownload;
 use super::download_types::{
     DownloadMode, DownloadProgress, DownloadRecord, DownloadSettings, DownloadStatus, ResumeMode,
 };
@@ -582,7 +584,7 @@ impl DownloadManager {
     /// 2. Try WebView2's native Resume() first
     /// 3. If that fails, fall back to HTTP Range-based resume using reqwest
     /// 4. Enforce auto-resume limit (max 5 attempts)
-    pub fn resume_download(&self, id: &str) -> Result<(), String> {
+    pub fn resume_download(&self, id: &str, app_handle: &tauri::AppHandle) -> Result<(), String> {
         let record = self.get_record(id)?;
         let url = record.url.clone();
 
@@ -773,27 +775,85 @@ impl DownloadManager {
         }
 
         // HTTP Range-based resume (Chrome/Edge fallback)
-        // This creates a new HTTP request with Range headers to resume from
-        // where we left off, similar to Chromium's ResumeInterruptedDownload().
-        // Note: Actual HTTP Range resume would be implemented here using reqwest.
-        // A full implementation would:
-        // 1. Create a new reqwest request with Range: bytes={offset}- header
-        // 2. Add If-Range header with ETag or Last-Modified
-        // 3. Stream the response to the file
-        // 4. Update progress as data is received
-
-        // HTTP Range resume is not yet implemented — return error instead of
-        // faking InProgress status which would cause the progress monitor to
-        // spin forever on a non-growing file.
-        tracing::error!(
+        // When the native WebView2 Resume() fails (e.g. operation handle lost)
+        // or is unavailable, fall back to reqwest-based HTTP Range resume.
+        tracing::info!(
             id = %id,
             url = %url,
-            has_native_op,
-            native_state = ?native_state,
-            "[ADL-DL] resume_download: ALL RESUME PATHS EXHAUSTED — native Resume() failed/unavailable, HTTP Range resume not implemented"
+            bytes_received = record.bytes_received,
+            "[ADL-DL] resume_download: falling back to HTTP Range resume"
         );
-        Err("HTTP Range resume is not yet implemented. Please restart the download manually."
-            .to_string())
+
+        // Get the current file size from the .crdownload as the true offset
+        let current_offset = std::fs::metadata(format!("{}.crdownload", record.file_path))
+            .map(|m| m.len())
+            .unwrap_or(record.bytes_received);
+
+        let manager_clone = self.clone();
+        let record_id = id.to_string();
+        let url_clone = url.clone();
+        let file_path = record.file_path.clone();
+        let total = record.total_bytes;
+        let etag = record.etag.clone();
+        let lm = record.last_modified.clone();
+        let app_handle_clone = app_handle.clone();
+
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Runtime::new()
+                .expect("failed to create tokio runtime for HTTP Range resume");
+            rt.block_on(async {
+                let downloader = RangeResumeDownload::new(
+                    url_clone,
+                    PathBuf::from(format!("{}.crdownload", file_path)),
+                    current_offset,
+                    total,
+                    etag,
+                    lm,
+                );
+
+                match downloader.start().await {
+                    Ok(_result) => {
+                        let _ = manager_clone.complete_download(&record_id, true, None);
+                        let _ = app_handle_clone.emit(
+                            "browser-download-finished",
+                            &serde_json::json!({
+                                "id": record_id,
+                                "success": true,
+                            }),
+                        );
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            error = %e,
+                            "[ADL-DL] HTTP Range resume failed"
+                        );
+                        let _ = manager_clone.complete_download(
+                            &record_id,
+                            false,
+                            Some("DownloadFailed"),
+                        );
+                        let _ = app_handle_clone.emit(
+                            "browser-download-error",
+                            &serde_json::json!({
+                                "id": record_id,
+                                "reason": format!("Resume failed: {}", e),
+                                "canRetry": true,
+                            }),
+                        );
+                    }
+                }
+            });
+        });
+
+        // Update DB status to InProgress
+        let conn = self.db.conn().map_err(|e| e.to_string())?;
+        conn.execute(
+            "UPDATE download_history SET status = ?1, interrupt_reason = NULL WHERE id = ?2",
+            rusqlite::params![DownloadStatus::InProgress.as_str(), id],
+        )
+        .map_err(|e| format!("Failed to resume download: {}", e))?;
+
+        Ok(())
     }
 
     pub fn cancel_download(&self, id: &str) -> Result<(), String> {
