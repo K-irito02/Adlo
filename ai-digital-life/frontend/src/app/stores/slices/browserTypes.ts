@@ -9,6 +9,7 @@ export interface BrowserTabState {
   sortOrder: number;
   isPlayingAudio: boolean;
   isAudioMuted: boolean;
+  isDownloading: boolean;
 }
 
 export interface BrowserTabStateUpdate {
@@ -21,6 +22,7 @@ export interface BrowserTabStateUpdate {
   sortOrder?: number;
   isPlayingAudio?: boolean;
   isAudioMuted?: boolean;
+  isDownloading?: boolean;
 }
 
 export interface BookmarkTabItem {

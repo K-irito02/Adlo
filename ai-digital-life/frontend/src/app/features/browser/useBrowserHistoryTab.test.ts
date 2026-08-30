@@ -13,6 +13,7 @@ function makeTab(id: string, url: string): BrowserTabState {
     isPlayingAudio: false,
     isAudioMuted: false,
     sortOrder: 0,
+    isDownloading: false,
   };
 }
 

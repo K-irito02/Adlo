@@ -496,6 +496,7 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
           sortOrder: 0,
           isPlayingAudio: false,
           isAudioMuted: false,
+          isDownloading: false,
         },
       ],
     });
@@ -755,6 +756,7 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
           sortOrder: 0,
           isPlayingAudio: false,
           isAudioMuted: false,
+          isDownloading: false,
         },
       ],
     });
@@ -797,6 +799,7 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
           sortOrder: 0,
           isPlayingAudio: false,
           isAudioMuted: false,
+          isDownloading: false,
         },
       ],
     });

@@ -15,6 +15,7 @@ function makeTab(id: string, overrides: Partial<BrowserTabState> = {}): BrowserT
     sortOrder: 0,
     isPlayingAudio: false,
     isAudioMuted: false,
+    isDownloading: false,
     ...overrides,
   };
 }

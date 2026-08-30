@@ -78,6 +78,7 @@ describe('useBrowserPageMeta handlePageMeta http(s) guard (⑩)', () => {
           sortOrder: 0,
           isPlayingAudio: false,
           isAudioMuted: false,
+          isDownloading: false,
         },
       ],
       browserActiveTabId: 'tab1',

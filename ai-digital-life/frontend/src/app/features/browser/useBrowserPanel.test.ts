@@ -12,6 +12,7 @@ function makeTab(id: string) {
     isPlayingAudio: false,
     isAudioMuted: false,
     sortOrder: 0,
+    isDownloading: false,
   };
 }
 

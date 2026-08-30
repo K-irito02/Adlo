@@ -12,6 +12,7 @@ const tab = (id: string, patch: Partial<BrowserTabState> = {}): BrowserTabState 
   sortOrder: 0,
   isPlayingAudio: false,
   isAudioMuted: false,
+  isDownloading: false,
   ...patch,
 });
 

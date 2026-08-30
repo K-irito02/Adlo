@@ -17,6 +17,7 @@ function makeTab(id: string, workspaceId: string): BrowserTabState {
     isPlayingAudio: false,
     isAudioMuted: false,
     sortOrder: 0,
+    isDownloading: false,
   };
 }
 

@@ -22,6 +22,7 @@ function makeTab(id: string, url: string, title = 'Old'): BrowserTabState {
     sortOrder: 0,
     isPlayingAudio: false,
     isAudioMuted: false,
+    isDownloading: false,
   };
 }
 

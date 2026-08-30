@@ -37,6 +37,7 @@ describe('removeSiteMetaIfUnreferenced', () => {
           sortOrder: 0,
           isPlayingAudio: false,
           isAudioMuted: false,
+          isDownloading: false,
         },
       ],
     });

@@ -81,6 +81,7 @@ export const createBrowserTabsSlice = (
         sortOrder: maxSortOrder + 1,
         isPlayingAudio: false,
         isAudioMuted: false,
+        isDownloading: false,
       };
       const nextTabs = sortTabs([...state.browserTabs, tab]);
       let nextFolders = state.browserTabFolders;

@@ -250,6 +250,7 @@ export const createBrowserSlice = (
             isPlayingAudio: false,
             isAudioMuted: false,
             sortOrder: maxSortOrder + 1,
+            isDownloading: false,
           };
           nextTabs = [...nextTabs, newTab];
           nextActiveTabId = newTab.id;

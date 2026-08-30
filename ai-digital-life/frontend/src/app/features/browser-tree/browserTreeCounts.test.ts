@@ -47,6 +47,7 @@ function makeTab(id: string, title: string, url: string, workspaceId: string): B
     sortOrder: 0,
     isPlayingAudio: false,
     isAudioMuted: false,
+    isDownloading: false,
   };
 }
 

@@ -12,6 +12,7 @@ import type {
   DownloadPauseResult,
 } from '@shared/ipc/download';
 import type { IpcResult } from '@ai-digital-life/kernel';
+import type { BrowserTabState } from './browserTypes';
 
 export interface BrowserDownloadsSlice {
   downloads: DownloadRecord[];
@@ -137,9 +138,15 @@ export const createBrowserDownloadsSlice = (
         }
       } else {
         console.warn('[ADL-DL] pauseDownload: invoke failed', result.error);
+        get().showToast(
+          `Pause failed: ${result.error ?? 'Unknown error'}`,
+          'error',
+          'download-pause',
+        );
       }
     } catch (e) {
       console.error('[ADL-DL] pauseDownload: invoke rejected', e);
+      get().showToast(`Pause failed: ${String(e)}`, 'error', 'download-pause');
     }
   },
 
@@ -154,9 +161,15 @@ export const createBrowserDownloadsSlice = (
         }));
       } else {
         console.warn('[ADL-DL] resumeDownload: invoke failed', result.error);
+        get().showToast(
+          `Resume failed: ${result.error ?? 'Unknown error'}`,
+          'error',
+          'download-resume',
+        );
       }
     } catch (e) {
       console.error('[ADL-DL] resumeDownload: invoke rejected', e);
+      get().showToast(`Resume failed: ${String(e)}`, 'error', 'download-resume');
     }
   },
 
@@ -196,18 +209,31 @@ export const createBrowserDownloadsSlice = (
         return;
       }
       const record = event.payload;
-      set((state) => ({
-        downloads: [record, ...state.downloads],
-        activeDownloads: {
-          ...state.activeDownloads,
-          [record.id]: {
-            id: record.id,
-            bytes_received: 0,
-            speed: 0,
-            estimated_end_time: null,
+      set((state) => {
+        // Update the source tab's isDownloading flag
+        const nextTabs = record.source_tab_id
+          ? state.browserTabs.map((t) =>
+              t.id === record.source_tab_id ? { ...t, isDownloading: true } : t,
+            )
+          : state.browserTabs;
+        return {
+          downloads: [record, ...state.downloads],
+          activeDownloads: {
+            ...state.activeDownloads,
+            [record.id]: {
+              id: record.id,
+              bytes_received: 0,
+              speed: 0,
+              estimated_end_time: null,
+            },
           },
-        },
-      }));
+          browserTabs: nextTabs,
+          browserTabsById: nextTabs.reduce(
+            (acc, t) => ({ ...acc, [t.id]: t }),
+            {} as Record<string, BrowserTabState>,
+          ),
+        };
+      });
     }).then((unsub) => {
       if (active) {
         unsubs.push(unsub);
@@ -224,6 +250,15 @@ export const createBrowserDownloadsSlice = (
       set((state) => {
         const { [payload.id]: _removed, ...rest } = state.activeDownloads;
         const newStatus = payload.success ? 'completed' : 'failed';
+        // Find the download record to get source_tab_id
+        const downloadRecord = state.downloads.find((d) => d.id === payload.id);
+        const sourceTabId = downloadRecord?.source_tab_id;
+        // Update the source tab's isDownloading flag
+        const nextTabs = sourceTabId
+          ? state.browserTabs.map((t) =>
+              t.id === sourceTabId ? { ...t, isDownloading: false } : t,
+            )
+          : state.browserTabs;
         return {
           activeDownloads: rest,
           downloads: state.downloads.map((d) =>
@@ -235,6 +270,11 @@ export const createBrowserDownloadsSlice = (
                   completed_at: Math.floor(Date.now() / 1000),
                 }
               : d,
+          ),
+          browserTabs: nextTabs,
+          browserTabsById: nextTabs.reduce(
+            (acc, t) => ({ ...acc, [t.id]: t }),
+            {} as Record<string, BrowserTabState>,
           ),
         };
       });
@@ -253,6 +293,15 @@ export const createBrowserDownloadsSlice = (
       const payload = event.payload;
       set((state) => {
         const { [payload.id]: _removed, ...rest } = state.activeDownloads;
+        // Find the download record to get source_tab_id
+        const downloadRecord = state.downloads.find((d) => d.id === payload.id);
+        const sourceTabId = downloadRecord?.source_tab_id;
+        // Update the source tab's isDownloading flag
+        const nextTabs = sourceTabId
+          ? state.browserTabs.map((t) =>
+              t.id === sourceTabId ? { ...t, isDownloading: false } : t,
+            )
+          : state.browserTabs;
         return {
           activeDownloads: rest,
           downloads: state.downloads.map((d) =>
@@ -264,8 +313,17 @@ export const createBrowserDownloadsSlice = (
                 }
               : d,
           ),
+          browserTabs: nextTabs,
+          browserTabsById: nextTabs.reduce(
+            (acc, t) => ({ ...acc, [t.id]: t }),
+            {} as Record<string, BrowserTabState>,
+          ),
         };
       });
+      // Show toast notification for download errors (pause/resume failures etc.)
+      if (payload.reason) {
+        get().showToast(payload.reason, 'error', 'download-error');
+      }
     }).then((unsub) => {
       if (active) {
         unsubs.push(unsub);
@@ -354,12 +412,26 @@ export const createBrowserDownloadsSlice = (
       const payload = event.payload;
       set((state) => {
         const { [payload.id]: _removed, ...rest } = state.activeDownloads;
+        // Find the download record to get source_tab_id
+        const downloadRecord = state.downloads.find((d) => d.id === payload.id);
+        const sourceTabId = downloadRecord?.source_tab_id;
+        // Update the source tab's isDownloading flag
+        const nextTabs = sourceTabId
+          ? state.browserTabs.map((t) =>
+              t.id === sourceTabId ? { ...t, isDownloading: false } : t,
+            )
+          : state.browserTabs;
         return {
           activeDownloads: rest,
           downloads: state.downloads.map((d) =>
             d.id === payload.id
               ? { ...d, status: 'canceled' as const, interrupt_reason: 'UserCanceled' }
               : d,
+          ),
+          browserTabs: nextTabs,
+          browserTabsById: nextTabs.reduce(
+            (acc, t) => ({ ...acc, [t.id]: t }),
+            {} as Record<string, BrowserTabState>,
           ),
         };
       });
