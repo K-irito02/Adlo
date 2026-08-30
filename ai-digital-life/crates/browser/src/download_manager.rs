@@ -136,7 +136,22 @@ fn cleanup_orphaned_tmp_files(file_path: &str, grace_secs: u64) {
         if !is_webview2_staging_tmp(&name) {
             continue;
         }
-        let Ok(meta) = entry.metadata() else { continue };
+        let meta = match entry.metadata() {
+            Ok(meta) => meta,
+            Err(e) => {
+                // The file can vanish between read_dir and metadata (a sibling
+                // cleanup or the user deleting it) — benign, log at debug.
+                // modified()/duration_since() failures are rarer clock-skew
+                // races and intentionally left silent in this best-effort sweep.
+                tracing::debug!(
+                    file = %name,
+                    dir = %dir.display(),
+                    error = %e,
+                    "[ADL-DL] cleanup_orphaned_tmp_files: cannot stat candidate; skipping"
+                );
+                continue;
+            },
+        };
         // A file-like name could still be a directory; never attempt to remove it.
         if !meta.is_file() {
             continue;
@@ -1714,21 +1729,33 @@ impl DownloadManager {
         // terminal state between two progress polls, leaving the DB at 0 or a
         // stale value ("0 B" / size mismatch vs. the file explorer in the UI).
         let final_size = if success {
-            self.get_record(id).ok().and_then(|record| match fs::metadata(&record.file_path) {
-                Ok(meta) => Some(meta.len() as i64),
+            match self.get_record(id) {
+                Ok(record) => match fs::metadata(&record.file_path) {
+                    Ok(meta) => Some(meta.len() as i64),
+                    Err(e) => {
+                        // A successful transfer whose final file is missing/unreadable
+                        // is a strong anomaly — surface it instead of silently recording
+                        // "Completed + 0 B" with no trace.
+                        tracing::warn!(
+                            record_id = %id,
+                            file_path = %record.file_path,
+                            error = %e,
+                            "[ADL-DL] complete_download: cannot stat final file; size sync skipped"
+                        );
+                        None
+                    },
+                },
                 Err(e) => {
-                    // A successful transfer whose final file is missing/unreadable
-                    // is a strong anomaly — surface it instead of silently recording
-                    // "Completed + 0 B" with no trace.
-                    tracing::warn!(
+                    // A read failure on a record this call is already operating on
+                    // is unexpected — log it rather than silently skipping the sync.
+                    tracing::debug!(
                         record_id = %id,
-                        file_path = %record.file_path,
                         error = %e,
-                        "[ADL-DL] complete_download: cannot stat final file; size sync skipped"
+                        "[ADL-DL] complete_download: record lookup failed; size sync skipped"
                     );
                     None
                 },
-            })
+            }
         } else {
             None
         };
