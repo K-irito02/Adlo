@@ -428,7 +428,7 @@ pub fn start_download_progress_monitor(
                 );
 
                 let url_clone = record.url.clone();
-                let path_clone = std::path::PathBuf::from(&record.file_path);
+                let path_clone = std::path::PathBuf::from(format!("{}.crdownload", record.file_path));
                 let manager_clone = download_manager.clone();
                 let record_id_clone = record.id.clone();
                 let app_handle_clone = app_handle.clone();

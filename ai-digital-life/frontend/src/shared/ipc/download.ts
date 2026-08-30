@@ -63,4 +63,5 @@ export interface DownloadFinishedPayload {
 
 export interface DownloadIdPayload {
   id: string;
+  source_tab_id?: string;
 }

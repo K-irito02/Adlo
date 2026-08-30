@@ -305,6 +305,7 @@ impl DownloadManager {
             auto_resume_count: 0,
             etag: None,
             last_modified: None,
+            resumable: None,
         };
 
         let conn = self.db.conn().map_err(|e| e.to_string())?;
@@ -916,7 +917,7 @@ impl DownloadManager {
 
     pub fn get_record_by_url(&self, url: &str) -> Option<DownloadRecord> {
         let conn = self.db.conn().ok()?;
-        conn.query_row(
+        let mut record = conn.query_row(
             "SELECT id, url, file_name, file_path, total_bytes, bytes_received, mime_type, status, interrupt_reason, created_at, completed_at, source_tab_id, auto_resume_count, etag, last_modified FROM download_history WHERE url = ?1 ORDER BY created_at DESC LIMIT 1",
             rusqlite::params![url],
             |row| {
@@ -936,10 +937,15 @@ impl DownloadManager {
                     auto_resume_count: row.get::<_, i64>(12)? as u32,
                     etag: row.get(13)?,
                     last_modified: row.get(14)?,
+                    resumable: None,
                 })
             },
         )
-        .ok()
+        .ok()?;
+
+        record.resumable = self.resumability(&record.url);
+
+        Some(record)
     }
 
     pub fn complete_download(
@@ -1025,7 +1031,7 @@ impl DownloadManager {
             .prepare("SELECT id, url, file_name, file_path, total_bytes, bytes_received, mime_type, status, interrupt_reason, created_at, completed_at, source_tab_id, auto_resume_count, etag, last_modified FROM download_history ORDER BY created_at DESC")
             .map_err(|e| format!("Failed to prepare query: {}", e))?;
 
-        let records = stmt
+        let mut records = stmt
             .query_map([], |row| {
                 Ok(DownloadRecord {
                     id: row.get(0)?,
@@ -1043,11 +1049,18 @@ impl DownloadManager {
                     auto_resume_count: row.get::<_, i64>(12)? as u32,
                     etag: row.get(13)?,
                     last_modified: row.get(14)?,
+                    resumable: None,
                 })
             })
             .map_err(|e| format!("Failed to query downloads: {}", e))?
             .filter_map(|r| r.ok())
-            .collect();
+            .collect::<Vec<_>>();
+
+        // Populate `resumable` from the in-memory cache for each record.
+        let resumability = self.resumability.lock().ok();
+        for record in &mut records {
+            record.resumable = resumability.as_ref().and_then(|m| m.get(&record.url).copied());
+        }
 
         Ok(records)
     }
@@ -1080,7 +1093,7 @@ impl DownloadManager {
 
     pub(crate) fn get_record(&self, id: &str) -> Result<DownloadRecord, String> {
         let conn = self.db.conn().map_err(|e| e.to_string())?;
-        conn.query_row(
+        let mut record = conn.query_row(
             "SELECT id, url, file_name, file_path, total_bytes, bytes_received, mime_type, status, interrupt_reason, created_at, completed_at, source_tab_id, auto_resume_count, etag, last_modified FROM download_history WHERE id = ?1",
             rusqlite::params![id],
             |row| {
@@ -1100,10 +1113,16 @@ impl DownloadManager {
                     auto_resume_count: row.get::<_, i64>(12)? as u32,
                     etag: row.get(13)?,
                     last_modified: row.get(14)?,
+                    resumable: None,
                 })
             },
         )
-        .map_err(|e| format!("Record not found: {}", e))
+        .map_err(|e| format!("Record not found: {}", e))?;
+
+        // Populate resumable from the in-memory cache
+        record.resumable = self.resumability(&record.url);
+
+        Ok(record)
     }
 
     fn load_settings(db: &Database) -> Result<DownloadSettings, String> {

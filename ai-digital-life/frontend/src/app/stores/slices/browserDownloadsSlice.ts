@@ -345,13 +345,25 @@ export const createBrowserDownloadsSlice = (
         return;
       }
       const payload = event.payload;
-      set((state) => ({
-        downloads: state.downloads.map((d) =>
-          d.id === payload.id
-            ? { ...d, status: 'paused' as const, interrupt_reason: 'UserPaused' }
-            : d,
-        ),
-      }));
+      set((state) => {
+        // Find source_tab_id from the download record if not in payload
+        const sourceTabId =
+          payload.source_tab_id ?? state.downloads.find((d) => d.id === payload.id)?.source_tab_id;
+        const nextTabs = sourceTabId
+          ? state.browserTabs.map((t) =>
+              t.id === sourceTabId ? { ...t, isDownloading: false } : t,
+            )
+          : state.browserTabs;
+        return {
+          downloads: state.downloads.map((d) =>
+            d.id === payload.id
+              ? { ...d, status: 'paused' as const, interrupt_reason: 'UserPaused' }
+              : d,
+          ),
+          browserTabs: nextTabs,
+          browserTabsById: buildTabsById(nextTabs),
+        };
+      });
     }).then((unsub) => {
       if (active) {
         unsubs.push(unsub);

@@ -78,6 +78,11 @@ pub struct DownloadRecord {
     /// HTTP Last-Modified validator for range request resumption.
     #[serde(default)]
     pub last_modified: Option<String>,
+    /// Whether the server supports range requests for resumption.
+    /// Populated from the in-memory resumability cache at query time,
+    /// NOT stored in the database (transient probe result).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resumable: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

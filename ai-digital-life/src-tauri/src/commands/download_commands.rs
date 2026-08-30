@@ -213,13 +213,22 @@ pub fn download_pause(
         Ok(status) => status,
         Err(e) => {
             tracing::error!(id = %id, error = %e, "[ADL-DL] download_pause: FAILED");
+            // Fetch the record to include proper url and source_tab_id in the error event
+            let record = state
+                .download_manager
+                .list_downloads()
+                .ok()
+                .and_then(|rs| rs.into_iter().find(|r| r.id == id));
+            let url = record.as_ref().map(|r| r.url.clone()).unwrap_or_default();
+            let source_tab_id = record.as_ref().and_then(|r| r.source_tab_id.clone());
             let _ = app_handle.emit(
                 "browser-download-error",
                 &serde_json::json!({
                     "id": id,
-                    "url": "",
+                    "url": url,
                     "reason": format!("Pause failed: {}", e),
                     "canRetry": true,
+                    "source_tab_id": source_tab_id,
                 }),
             );
             return Err(map_download_err(e).into());
@@ -232,7 +241,19 @@ pub fn download_pause(
     match status {
         DownloadStatus::Paused => {
             tracing::info!(id = %id, "[ADL-DL] download_pause: download paused");
-            let _ = app_handle.emit("browser-download-paused", &serde_json::json!({ "id": id }));
+            let record = state
+                .download_manager
+                .list_downloads()
+                .ok()
+                .and_then(|rs| rs.into_iter().find(|r| r.id == id));
+            let source_tab_id = record.as_ref().and_then(|r| r.source_tab_id.clone());
+            let _ = app_handle.emit(
+                "browser-download-paused",
+                &serde_json::json!({
+                    "id": id,
+                    "source_tab_id": source_tab_id,
+                }),
+            );
         },
         DownloadStatus::Completed => {
             // The transfer had already finished when the user clicked pause.
