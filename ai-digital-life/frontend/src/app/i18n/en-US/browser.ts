@@ -252,9 +252,6 @@ export const browserEn = {
   browserDownloadUnknownSize: 'Unknown size',
   browserDownloadCompletedAt: 'Completed at {time}',
   browserDownloadFailedReason: 'Reason: {reason}',
-  browserDownloadPauseFailed: 'Pause failed: {reason}',
-  browserDownloadResumeFailed: 'Resume failed: {reason}',
-
   // Download pause confirmation dialog
   browserDownloadPauseDialogTitle: 'Server does not support pause',
   browserDownloadPauseDialogDesc:
