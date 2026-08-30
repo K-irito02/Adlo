@@ -1,0 +1,222 @@
+use std::path::PathBuf;
+
+use futures::StreamExt;
+use tokio::io::AsyncWriteExt;
+
+pub struct RangeResumeDownload {
+    pub url: String,
+    pub file_path: PathBuf,
+    pub offset: u64,
+    pub total_bytes: Option<u64>,
+    pub etag: Option<String>,
+    pub last_modified: Option<String>,
+    client: reqwest::Client,
+}
+
+#[derive(Debug)]
+pub struct RangeResumeResult {
+    pub bytes_received: u64,
+    pub completed: bool,
+    pub etag: Option<String>,
+    pub last_modified: Option<String>,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum RangeResumeError {
+    #[error("Server does not support range requests (returned 200 instead of 206)")]
+    ServerNoRange,
+    #[error("Requested range not satisfiable (416)")]
+    RangeNotSatisfiable,
+    #[error("Network error: {0}")]
+    NetworkError(String),
+    #[error("File I/O error: {0}")]
+    FileError(String),
+    #[error("Invalid response: {0}")]
+    InvalidResponse(String),
+}
+
+impl RangeResumeDownload {
+    pub fn new(
+        url: String,
+        file_path: PathBuf,
+        offset: u64,
+        total_bytes: Option<u64>,
+        etag: Option<String>,
+        last_modified: Option<String>,
+    ) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("reqwest client should build");
+        Self { url, file_path, offset, total_bytes, etag, last_modified, client }
+    }
+
+    pub async fn start(&self) -> Result<RangeResumeResult, RangeResumeError> {
+        let mut request = self.client.get(&self.url);
+
+        if self.offset > 0 {
+            request = request.header("Range", format!("bytes={}-", self.offset));
+        }
+
+        if let Some(etag) = &self.etag {
+            request = request.header("If-Range", etag.as_str());
+        } else if let Some(lm) = &self.last_modified {
+            request = request.header("If-Range", lm.as_str());
+        }
+
+        let response = request.send().await.map_err(|e| {
+            RangeResumeError::NetworkError(e.to_string())
+        })?;
+
+        let status = response.status();
+
+        if self.offset > 0 {
+            if status == reqwest::StatusCode::OK {
+                return Err(RangeResumeError::ServerNoRange);
+            }
+            if status == reqwest::StatusCode::RANGE_NOT_SATISFIABLE {
+                return Err(RangeResumeError::RangeNotSatisfiable);
+            }
+            if status != reqwest::StatusCode::PARTIAL_CONTENT {
+                return Err(RangeResumeError::InvalidResponse(
+                    format!("Expected 206, got {}", status)
+                ));
+            }
+        } else if !status.is_success() {
+            return Err(RangeResumeError::NetworkError(
+                format!("HTTP {}", status)
+            ));
+        }
+
+        let resp_etag = response.headers()
+            .get("etag")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+        let resp_lm = response.headers()
+            .get("last-modified")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string());
+
+        let mut file = tokio::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.file_path)
+            .await
+            .map_err(|e| RangeResumeError::FileError(e.to_string()))?;
+
+        let mut stream = response.bytes_stream();
+        let mut bytes_received = 0u64;
+
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|e| RangeResumeError::NetworkError(e.to_string()))?;
+            file.write_all(&chunk).await.map_err(|e| RangeResumeError::FileError(e.to_string()))?;
+            bytes_received += chunk.len() as u64;
+        }
+
+        file.flush().await.map_err(|e| RangeResumeError::FileError(e.to_string()))?;
+
+        let completed = self.total_bytes
+            .map(|total| self.offset + bytes_received >= total)
+            .unwrap_or(false);
+
+        Ok(RangeResumeResult {
+            bytes_received,
+            completed,
+            etag: resp_etag,
+            last_modified: resp_lm,
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn temp_path(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("adl_test_{}", name))
+    }
+
+    #[test]
+    fn error_display_messages() {
+        let e = RangeResumeError::ServerNoRange;
+        assert!(e.to_string().contains("range"));
+
+        let e = RangeResumeError::RangeNotSatisfiable;
+        assert!(e.to_string().contains("416"));
+
+        let e = RangeResumeError::NetworkError("timeout".into());
+        assert!(e.to_string().contains("timeout"));
+
+        let e = RangeResumeError::FileError("permission denied".into());
+        assert!(e.to_string().contains("permission denied"));
+
+        let e = RangeResumeError::InvalidResponse("bad".into());
+        assert!(e.to_string().contains("bad"));
+    }
+
+    #[test]
+    fn new_sets_fields_correctly() {
+        let path = temp_path("new_test");
+        let dl = RangeResumeDownload::new(
+            "https://example.com/file.bin".into(),
+            path.clone(),
+            1024,
+            Some(4096),
+            Some("abc123".into()),
+            Some("Wed, 01 Jan 2025 00:00:00 GMT".into()),
+        );
+        assert_eq!(dl.url, "https://example.com/file.bin");
+        assert_eq!(dl.file_path, path);
+        assert_eq!(dl.offset, 1024);
+        assert_eq!(dl.total_bytes, Some(4096));
+        assert_eq!(dl.etag.as_deref(), Some("abc123"));
+        assert_eq!(dl.last_modified.as_deref(), Some("Wed, 01 Jan 2025 00:00:00 GMT"));
+    }
+
+    #[test]
+    fn new_with_none_validators() {
+        let path = temp_path("none_validators");
+        let dl = RangeResumeDownload::new(
+            "https://example.com/file.bin".into(),
+            path,
+            0,
+            None,
+            None,
+            None,
+        );
+        assert_eq!(dl.offset, 0);
+        assert!(dl.total_bytes.is_none());
+        assert!(dl.etag.is_none());
+        assert!(dl.last_modified.is_none());
+    }
+
+    #[tokio::test]
+    async fn start_returns_network_error_on_connection_refused() {
+        let path = temp_path("net_err");
+        let _ = tokio::fs::remove_file(&path).await;
+        let dl = RangeResumeDownload::new(
+            "http://127.0.0.1:19999/nonexistent".into(),
+            path.clone(),
+            0,
+            None,
+            None,
+            None,
+        );
+        let result = dl.start().await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            RangeResumeError::NetworkError(_) => {}
+            other => panic!("Expected NetworkError, got {:?}", other),
+        }
+        // File not created because request failed before file open
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn error_debug_trait() {
+        let e = RangeResumeError::ServerNoRange;
+        let debug = format!("{:?}", e);
+        assert!(debug.contains("ServerNoRange"));
+    }
+}

@@ -7,6 +7,7 @@ mod browser_pool;
 mod browser_webview;
 pub mod download_handler;
 pub mod download_manager;
+pub mod download_range_resume;
 pub mod download_types;
 mod meta_cache_bridge;
 mod meta_merge;
