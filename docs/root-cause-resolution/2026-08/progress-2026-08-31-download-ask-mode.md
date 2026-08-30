@@ -56,3 +56,41 @@
 
 ## 备注
 - 2026-08-31 用户确认：根因理解正确，直接修复，用原生系统保存对话框，并添加调试日志
+
+## Phase 4 收尾归档（2026-08-31）
+
+### 入口关卡
+- 读取进度文件：事项 1 已完成（用户确认 2026-08-31「所有的、所有的 问题 和 任务 都解决完成了」），无未完成事项 → 进入 Phase 4
+- 主修复提交：`d0df1cb8 fix(download): show native save dialog in Ask mode and clean orphaned operations`
+
+### 第 1 步：根因验证与代码清理（子代理工作流）
+
+#### 子代理 A：根因验证（rev1 → 主代理修复 → rev2 复审 PASS）
+- **rev1 报告**：`.review-diffs/review-issue-1-rev1.md`（快照 `.review-diffs/issue-1-rev1.diff`）
+- **rev1 结论**：两个问题的根因定位正确、修复方向正确，均已通过用户实测验证；核心机制（`blocking_save_file` 阻塞安全分析）经逐行核对成立——patched `send_user_message` 主线程内联 `Message::Task` + 对话框在独立线程 `block_on` 运行，无死锁
+- **rev1 发现（11 项，A1-A5/B1-B3/C1-C3/D1）**：
+  - **修复 3 项**：
+    - A1（注释部分）[中]：主线程冻结 + 依赖 patched 运行时内联行为 → 加 NOTE 注释记录契约（升级 Tauri/换运行时前必看）
+    - A2 [低]：Ask 分支未对自定义 default_path 执行 `create_dir_all` → 补充 `create_dir_all` 与 Auto 分支对齐
+    - C1（注释部分）[中→低]：`remove_operation(url)` 安全性依赖两条不变量 → 注释显式补充「register_operation 从不覆盖 IN_PROGRESS 句柄」前提
+  - **主代理验证后判定不修复（9 项，记 backlog）**：
+    - A3 default_path 相对路径（既有，settings 入口修复，延后）
+    - A4 文件名未清洗 Windows 非法字符（既有，触发概率极低，引入 sanitize 依赖不成比例）
+    - A5 `into_path()` 失败无用户提示（极罕见路径）
+    - B1 两分支 default_dir 逻辑重复（可维护性 nit，第三消费方出现时再抽）
+    - B2 对话框未 set_parent（主线程冻结已使对话框天然模态，动态查窗口有风险）
+    - B3 多标签并发 Ask 多对话框堆叠（设计增强，场景罕见）
+    - C2 success=false+no-record 降 DEBUG 可能掩盖实现缺陷（record 创建失败已 emit browser-download-error 对用户暴露）
+    - C3 主线程冻结期间应用关闭竞态（理论风险，概率极低）
+    - D1 URL 键控 operation + finished 按 URL 匹配 1:N 冲突（既有架构债务，最高优先 backlog）
+- **主代理修复**：落地上述 3 项（`download_handler.rs`：Ask 分支 `create_dir_all` + NOTE 冻结说明；no-record 分支依赖注释）
+- **rev2 复审报告**：`.review-diffs/review-issue-1-rev2.md`（快照 `.review-diffs/issue-1-rev2.diff`）→ **PASS（通过）**：3 项修复全部正确落地、rev2 未引入新问题、9 项未修复项决策合理可接受，无剩余 must-fix 项；升级红线已由 NOTE 注释记录
+
+#### 子代理 B：死代码与冗余清理
+- 状态：待执行（A 通过后启动）
+
+### 第 2 步：标记所有事项为已完成
+- 事项 1 已标记 `已完成`（用户确认 2026-08-31）
+
+### 第 3 步：更新 README.md
+- `docs/root-cause-resolution/2026-08/README.md` 追加本进度记录（Phase 4 全部完成后执行）

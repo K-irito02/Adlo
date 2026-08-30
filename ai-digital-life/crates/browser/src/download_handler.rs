@@ -82,6 +82,16 @@ pub fn setup_download_handler(
             } else {
                 PathBuf::from(&settings.default_path)
             };
+            // The dialog's initial directory must exist, otherwise Windows may
+            // fall back to an arbitrary folder. Mirror the Auto branch's
+            // create_dir_all so both modes behave identically.
+            let _ = std::fs::create_dir_all(&default_dir);
+            // NOTE: blocking_save_file intentionally blocks the WebView2
+            // DownloadStarting callback (main thread) until the dialog closes,
+            // freezing the app UI while the native save dialog is open. This
+            // relies on the patched tauri-runtime-wry's send_user_message
+            // running the dialog task inline on the main thread (no deadlock) —
+            // keep this in mind before upgrading Tauri or switching runtimes.
             tracing::info!(
                 url = &url,
                 file_name = &file_name,
@@ -224,7 +234,10 @@ pub fn handle_download_finished(
             // handler may have registered a now-dead operation handle that we
             // must drop. A record is always created before a transfer proceeds,
             // so "no record" implies no legitimate in-progress download for this
-            // URL — removing the operation is safe.
+            // URL — removing the operation is safe. This also relies on
+            // register_operation never overwriting an IN_PROGRESS handle: if a
+            // dead operation ever replaced a live one for the same URL, this
+            // cleanup could drop the live handle and break pause/resume/cancel.
             download_manager.remove_operation(url);
             if success {
                 tracing::warn!(
