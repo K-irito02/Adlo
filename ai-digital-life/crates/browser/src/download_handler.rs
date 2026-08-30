@@ -395,14 +395,15 @@ pub fn handle_download_finished(
     download_manager.remove_operation(url);
 
     if success {
-        // If finalization (rename .crdownload → final) fails — e.g. a transient
-        // file lock — do NOT report success: the record stays in_progress and the
-        // progress monitor retries the rename on its next poll.
+        // If finalization (rename .crdownload → final, or the terminal-state DB
+        // write) fails — e.g. a transient file lock or storage error — do NOT
+        // report success: the record stays in_progress and the progress monitor
+        // retries the rename on its next poll.
         if let Err(e) = download_manager.complete_download(&record.id, true, None) {
             tracing::warn!(
                 record_id = &record.id,
                 error = %e,
-                "[ADL-DL] download finalization failed (rename); progress monitor will retry"
+                "[ADL-DL] download finalization failed (rename or DB write); progress monitor will retry"
             );
             return;
         }

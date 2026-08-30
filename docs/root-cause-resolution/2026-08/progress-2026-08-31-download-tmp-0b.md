@@ -28,8 +28,13 @@
   - H1：原清理逻辑按 `.tmp` 后缀删除所有旧临时文件，可能误删用户文件 → 增加 `{GUID}.tmp` 形态校验
   - Issue 1（HIGH）：大小同步 DB 失败被 `let _` 静默吞掉且无条件打印成功日志 → 改为事务内 `AppError::Storage` 上报 + 成功日志仅在真正成功后输出
   - Issue 2（M2）：大小写入与状态更新非原子 → 合并进 `db.transaction()` 单一事务
+- **代码审查修复**（closing-workflow Step 2，rev2 → rev3，`download_manager.rs` / `download_handler.rs`）：
+  - 成功分支 `fs::metadata` 失败静默（会残留 "Completed + 0 B" 且无日志）→ 记 `warn`（record_id/file_path/error）；大小跳过时记 debug
+  - `is_webview2_staging_tmp` 无直接单测（H1 防回归缺口）→ 新增表驱动单测（合法 + 全部拒绝形态 + 大小写变体）
+  - `read_dir` 失败静默 → 记 debug；删除前补 `meta.is_file()` 守卫；`remove_file` 的 NotFound 降级 debug（并发清理），其余仍 warn
+  - `download_handler.rs` 终态失败日志措辞误导（DB 失败误报为 rename 失败）→ 改为 "rename or DB write failed"
 - **验证**：
-  - `cargo test -p adl-browser --lib download` ✅（45 通过 / 0 失败，含 2 个相关回归测试）
+  - `cargo test -p adl-browser --lib download` ✅（46 通过 / 0 失败，含 3 个相关回归测试：大小同步、孤儿清理、GUID 匹配器）
   - `cargo fmt --all` ✅
   - `cargo clippy -p adl-browser --all-targets -- -D warnings` ✅（无警告）
 - **待用户实测**：重新构建后，Ask 模式取消下载后确认默认保存路径文件夹不再残留 `.tmp`；下载完成后确认历史列表显示真实大小

@@ -118,7 +118,17 @@ fn is_webview2_staging_tmp(name: &str) -> bool {
 
 fn cleanup_orphaned_tmp_files(file_path: &str, grace_secs: u64) {
     let Some(dir) = Path::new(file_path).parent() else { return };
-    let Ok(entries) = fs::read_dir(dir) else { return };
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            tracing::debug!(
+                dir = %dir.display(),
+                error = %e,
+                "[ADL-DL] cleanup_orphaned_tmp_files: cannot list directory; skipping"
+            );
+            return;
+        },
+    };
     let now = SystemTime::now();
     for entry in entries.flatten() {
         let name = entry.file_name();
@@ -127,6 +137,10 @@ fn cleanup_orphaned_tmp_files(file_path: &str, grace_secs: u64) {
             continue;
         }
         let Ok(meta) = entry.metadata() else { continue };
+        // A file-like name could still be a directory; never attempt to remove it.
+        if !meta.is_file() {
+            continue;
+        }
         let Ok(modified) = meta.modified() else { continue };
         let Ok(age) = now.duration_since(modified) else { continue };
         if age.as_secs() < grace_secs {
@@ -138,6 +152,18 @@ fn cleanup_orphaned_tmp_files(file_path: &str, grace_secs: u64) {
                 dir = %dir.display(),
                 "[ADL-DL] cleanup_orphaned_tmp_files: removed orphaned WebView2 staging temp"
             ),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                // A concurrent sweep (another download in the same directory) may
+                // have already removed the file — benign, log at debug to avoid
+                // misleading "in use" noise. (Directories can't reach here: the
+                // is_file() guard above already skipped them.)
+                tracing::debug!(
+                    file = %name,
+                    dir = %dir.display(),
+                    error = %e,
+                    "[ADL-DL] cleanup_orphaned_tmp_files: remove_file returned NotFound (concurrent cleanup)"
+                );
+            },
             Err(e) => tracing::warn!(
                 file = %name,
                 dir = %dir.display(),
@@ -1688,10 +1714,21 @@ impl DownloadManager {
         // terminal state between two progress polls, leaving the DB at 0 or a
         // stale value ("0 B" / size mismatch vs. the file explorer in the UI).
         let final_size = if success {
-            self.get_record(id)
-                .ok()
-                .and_then(|r| fs::metadata(&r.file_path).ok())
-                .map(|m| m.len() as i64)
+            self.get_record(id).ok().and_then(|record| match fs::metadata(&record.file_path) {
+                Ok(meta) => Some(meta.len() as i64),
+                Err(e) => {
+                    // A successful transfer whose final file is missing/unreadable
+                    // is a strong anomaly — surface it instead of silently recording
+                    // "Completed + 0 B" with no trace.
+                    tracing::warn!(
+                        record_id = %id,
+                        file_path = %record.file_path,
+                        error = %e,
+                        "[ADL-DL] complete_download: cannot stat final file; size sync skipped"
+                    );
+                    None
+                },
+            })
         } else {
             None
         };
@@ -1699,8 +1736,9 @@ impl DownloadManager {
         // Atomically persist the terminal status and, for a successful
         // transfer, the real on-disk size in a single transaction so the record
         // can never end up half-updated (e.g. Completed with bytes_received
-        // still 0). A size-sync failure is surfaced as an error, not silently
-        // swallowed, so a stale "0 B" never lingers undetected.
+        // still 0). A size-sync failure is surfaced (DB write → transaction
+        // error; missing/unreadable final file → warn log), never silently
+        // swallowed, so a stale "0 B" does not linger undetected.
         self.db
             .transaction(|conn| {
                 conn.execute(
@@ -2514,5 +2552,39 @@ mod tests {
         assert!(normal.exists(), "non-.tmp file must never be removed");
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn is_webview2_staging_tmp_matches_only_guid_shape() {
+        // Guard against H1 regression: the matcher must accept only WebView2's
+        // `{8-4-4-4-12 hex}.tmp` staging shape (case-insensitive) and reject every
+        // other naming form, so unrelated user `.tmp` files are never deleted.
+        let accept = [
+            "{11111111-1111-1111-1111-111111111111}.tmp",
+            "{22222222-2222-2222-2222-222222222222}.TMP",
+            "{abcdef12-3456-7890-abcd-ef1234567890}.tmp",
+            "{ABCDEF12-3456-7890-ABCD-EF1234567890}.tmp",
+        ];
+        for name in accept {
+            assert!(is_webview2_staging_tmp(name), "should accept {name}");
+        }
+
+        let reject = [
+            "notes.tmp",
+            "download.tmp",
+            "{11111111-1111-1111-1111-111111111111}",
+            "11111111-1111-1111-1111-111111111111.tmp",
+            "{11111111-1111-1111-1111-11111111111}.tmp",
+            "{11111111-1111-1111-1111-1111111111111}.tmp",
+            "{gggggggg-1111-1111-1111-111111111111}.tmp",
+            "{11111111-1111-1111-1111-11111111111g}.tmp",
+            "{11111111-1111_1111-1111-111111111111}.tmp",
+            "{11111111-1111-1111-1111-111111111111}.tmp.bak",
+            "{11111111-1111-1111-1111-111111111111}.tmp ",
+            "x{11111111-1111-1111-1111-111111111111}.tmp",
+        ];
+        for name in reject {
+            assert!(!is_webview2_staging_tmp(name), "should reject {name}");
+        }
     }
 }
