@@ -12,6 +12,7 @@ use crate::state::AppState;
 use crate::tauri_webview_handle::TauriWebViewHandle;
 use adl_browser::download_handler::{handle_download_finished, setup_download_handler};
 use adl_browser::download_manager::DownloadManager;
+use adl_browser::download_range_resume::RangeResumeDownload;
 use adl_browser::webview_handle::{EventBridgeRef, WebViewHandle};
 use adl_errors::AppError;
 use tauri::{Emitter, Manager};
@@ -312,6 +313,7 @@ pub fn start_download_progress_monitor(
 
         let mut paused_idle_logged = false;
         let mut cosmetic_pause_logged = false;
+        let mut non_resumable_paused_logged = false;
         // Consecutive polls where the file stayed at full size (byte-complete but
         // the native op hasn't reported Completed — e.g. a pause on a
         // non-resumable download). Two polls (~1s) of an UNCHANGED full-size file
@@ -360,6 +362,15 @@ pub fn start_download_progress_monitor(
                 == adl_browser::download_types::DownloadStatus::Paused
                 && record.interrupt_reason.as_deref() == Some("CosmeticPaused");
 
+            // A NonResumablePaused download was paused by canceling the native
+            // WebView2 operation and deleting the temp file. The user can resume
+            // it, which triggers a fresh reqwest download from offset 0. Keep the
+            // monitor alive so it can detect the transition to InProgress and
+            // spawn the new download thread.
+            let mut non_resumable_paused = record.status
+                == adl_browser::download_types::DownloadStatus::Paused
+                && record.interrupt_reason.as_deref() == Some("NonResumablePaused");
+
             // Otherwise, keep the monitor alive while paused: the native WebView2
             // download is actually paused (pause_download calls
             // DownloadOperation.Pause()), so the file size stays put. Idle here
@@ -367,6 +378,7 @@ pub fn start_download_progress_monitor(
             // resumes.
             if record.status == adl_browser::download_types::DownloadStatus::Paused
                 && !cosmetic_pause
+                && !non_resumable_paused
             {
                 if !paused_idle_logged {
                     tracing::info!(
@@ -386,10 +398,98 @@ pub fn start_download_progress_monitor(
                 cosmetic_pause_logged = true;
             }
 
+            if non_resumable_paused && !non_resumable_paused_logged {
+                tracing::info!(
+                    record_id = %record.id,
+                    "[ADL-DL] progress monitor: non-resumable download PAUSED (NonResumablePaused), waiting for user resume"
+                );
+                non_resumable_paused_logged = true;
+            }
+
+            // Detect resume from NonResumablePaused: the download was just
+            // resumed (status=InProgress, interrupt_reason=NULL,
+            // bytes_received=0). Spawn a fresh reqwest download from offset 0.
+            if record.status == adl_browser::download_types::DownloadStatus::InProgress
+                && record.interrupt_reason.is_none()
+                && record.bytes_received == 0
+                && non_resumable_paused
+            {
+                tracing::info!(
+                    record_id = %record.id,
+                    url = %record.url,
+                    file_path = %record.file_path,
+                    "[ADL-DL] progress monitor: NonResumablePaused resumed — spawning fresh reqwest download from offset 0"
+                );
+
+                let url_clone = record.url.clone();
+                let path_clone = std::path::PathBuf::from(&record.file_path);
+                let manager_clone = download_manager.clone();
+                let record_id_clone = record.id.clone();
+                let app_handle_clone = app_handle.clone();
+                let total_for_thread = total_bytes_resolved;
+
+                std::thread::spawn(move || {
+                    let rt = tokio::runtime::Runtime::new()
+                        .expect("failed to create tokio runtime for reqwest re-download");
+                    rt.block_on(async {
+                        let downloader = RangeResumeDownload::new(
+                            url_clone,
+                            path_clone.clone(),
+                            0,
+                            total_for_thread,
+                            None,
+                            None,
+                        );
+
+                        match downloader.start().await {
+                            Ok(result) => {
+                                tracing::info!(
+                                    record_id = %record_id_clone,
+                                    bytes_received = result.bytes_received,
+                                    "[ADL-DL] reqwest re-download completed"
+                                );
+                                let _ = manager_clone.complete_download(&record_id_clone, true, None);
+                                let _ = app_handle_clone.emit(
+                                    "browser-download-finished",
+                                    &serde_json::json!({
+                                        "id": record_id_clone,
+                                        "success": true,
+                                    }),
+                                );
+                            }
+                            Err(e) => {
+                                tracing::error!(
+                                    record_id = %record_id_clone,
+                                    error = %e,
+                                    "[ADL-DL] reqwest re-download failed"
+                                );
+                                let _ = manager_clone.complete_download(
+                                    &record_id_clone,
+                                    false,
+                                    Some("DownloadFailed"),
+                                );
+                                let _ = app_handle_clone.emit(
+                                    "browser-download-error",
+                                    &serde_json::json!({
+                                        "id": record_id_clone,
+                                        "reason": format!("Download failed: {}", e),
+                                        "canRetry": true,
+                                    }),
+                                );
+                            }
+                        }
+                    });
+                });
+
+                non_resumable_paused = false;
+            }
+
             // Stop only on terminal states (completed / failed / canceled).
             // A cosmetic pause is not terminal — the transfer is still running.
+            // NonResumablePaused is handled above (resume spawns a new thread).
             if record.status != adl_browser::download_types::DownloadStatus::InProgress
                 && !cosmetic_pause
+                && !non_resumable_paused
             {
                 tracing::debug!(
                     record_id = %record.id,

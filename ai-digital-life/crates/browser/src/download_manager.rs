@@ -630,6 +630,27 @@ impl DownloadManager {
         // not explicit user actions).
         let user_paused = record.status == DownloadStatus::Paused;
 
+        // A NonResumablePaused download was paused by canceling the native
+        // WebView2 operation and deleting the temp file (Task 6). Resuming
+        // requires starting a fresh reqwest download from offset 0. Update the
+        // DB to InProgress (clearing interrupt_reason and resetting
+        // bytes_received) and let the progress monitor detect the transition to
+        // spawn the new download thread.
+        if record.interrupt_reason.as_deref() == Some("NonResumablePaused") {
+            tracing::info!(
+                id = %id,
+                url = %url,
+                "[ADL-DL] resume_download: non-resumable server — starting fresh download from offset 0"
+            );
+            let conn = self.db.conn().map_err(|e| e.to_string())?;
+            conn.execute(
+                "UPDATE download_history SET status = ?1, interrupt_reason = NULL, bytes_received = 0 WHERE id = ?2",
+                rusqlite::params![DownloadStatus::InProgress.as_str(), id],
+            )
+            .map_err(|e| format!("Failed to resume download: {}", e))?;
+            return Ok(());
+        }
+
         // A cosmetic pause (non-resumable server) never paused the native engine:
         // the transfer kept running. If it's still in progress there is nothing
         // to resume — just restore the DB status and let it complete naturally.
