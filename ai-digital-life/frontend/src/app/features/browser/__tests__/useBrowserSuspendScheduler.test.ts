@@ -90,4 +90,20 @@ describe('applyIdlePass (idle)', () => {
       }),
     ).toEqual(['recent']);
   });
+  it('skips downloading tabs when protected includes isDownloading', () => {
+    expect(
+      applyIdlePass({
+        tabs: [
+          tab('downloading', { isDownloading: true }),
+          tab('ok'),
+        ],
+        activeTabId: 'none',
+        inPool: () => true,
+        lastActivatedMs: { downloading: 0, ok: 0 },
+        idleMs: 5_000,
+        protected: (t) => t.isPinned || t.isPlayingAudio || t.isDownloading,
+        now,
+      }),
+    ).toEqual(['ok']);
+  });
 });
