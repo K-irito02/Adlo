@@ -13,6 +13,7 @@ use webview2_com::Microsoft::Web::WebView2::Win32::{
     COREWEBVIEW2_DOWNLOAD_STATE_IN_PROGRESS, COREWEBVIEW2_DOWNLOAD_STATE_INTERRUPTED,
 };
 
+use adl_errors::AppError;
 use adl_storage::Database;
 use tauri::Emitter;
 
@@ -81,15 +82,40 @@ fn query_operation_state(op: &DownloadOp) -> NativeDownloadState {
 
 /// Remove orphaned WebView2 staging files (`{GUID}.tmp`) that the browser
 /// engine leaves in the destination folder when a transfer ends before it can
-/// rename its staging file to the `.crdownload` target (see
+/// rename its staging file to the final target (see
 /// MicrosoftEdge/WebView2Feedback#3356). These are invisible to our own code
 /// (we only ever write `.crdownload`), but a non-technical user can be confused
 /// by the leftover GUID-named `.tmp` files sitting next to their downloads.
 ///
-/// Safety: only `.tmp` files whose modification time is at least `grace_secs`
-/// old are removed, so a staging file actively being written by another
-/// in-progress download in the same directory is never touched (and on Windows
-/// a still-locked file fails to delete anyway).
+/// Safety: only files whose name matches WebView2's `{GUID}.tmp` staging shape
+/// AND whose modification time is at least `grace_secs` old are removed — an
+/// arbitrary `.tmp` file from another application is never touched, and a
+/// staging file actively being written by an in-progress download in the same
+/// directory is not deleted within the grace window (on Windows a still-locked
+/// file fails to delete anyway, leaving a warn log).
+const TMP_ORPHAN_GRACE_SECS: u64 = 30;
+
+/// Whether `name` matches WebView2's download staging shape `{GUID}.tmp`
+/// (`GUID` = 8-4-4-4-12 hex digits). The `.tmp` extension is matched
+/// case-insensitively because the destination folder may live on a
+/// case-insensitive filesystem (Windows/macOS).
+fn is_webview2_staging_tmp(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    let Some(inner) = lower
+        .strip_prefix('{')
+        .and_then(|n| n.strip_suffix(".tmp"))
+        .and_then(|n| n.strip_suffix('}'))
+    else {
+        return false;
+    };
+    if inner.len() != 36 {
+        return false;
+    }
+    inner.as_bytes().iter().enumerate().all(|(i, b)| {
+        if matches!(i, 8 | 13 | 18 | 23) { *b == b'-' } else { b.is_ascii_hexdigit() }
+    })
+}
+
 fn cleanup_orphaned_tmp_files(file_path: &str, grace_secs: u64) {
     let Some(dir) = Path::new(file_path).parent() else { return };
     let Ok(entries) = fs::read_dir(dir) else { return };
@@ -97,7 +123,7 @@ fn cleanup_orphaned_tmp_files(file_path: &str, grace_secs: u64) {
     for entry in entries.flatten() {
         let name = entry.file_name();
         let name = name.to_string_lossy();
-        if !name.ends_with(".tmp") {
+        if !is_webview2_staging_tmp(&name) {
             continue;
         }
         let Ok(meta) = entry.metadata() else { continue };
@@ -1535,7 +1561,7 @@ impl DownloadManager {
             // WebView2's native Cancel() may leave its staging `{GUID}.tmp`
             // file in the destination folder; clean it up like the `.crdownload`
             // above so no confusing temp garbage remains.
-            cleanup_orphaned_tmp_files(&record.file_path, 30);
+            cleanup_orphaned_tmp_files(&record.file_path, TMP_ORPHAN_GRACE_SECS);
         }
 
         // Clear the post-resume tracking entry — the download is now canceled,
@@ -1654,35 +1680,49 @@ impl DownloadManager {
                         );
                     }
                 }
+            }
+        }
 
-                // Sync bytes_received (and total_bytes) to the actual on-disk
-                // size so the history list shows the real file size. A fast
-                // transfer can reach the terminal state between two progress
-                // polls, leaving the DB at 0 or a stale value ("0 B" / size
-                // mismatch vs. the file explorer in the UI).
-                if let Ok(meta) = fs::metadata(final_path) {
-                    let final_size = meta.len() as i64;
-                    if let Ok(conn) = self.db.conn() {
-                        let _ = conn.execute(
-                            "UPDATE download_history SET bytes_received = ?1, total_bytes = ?1 WHERE id = ?2",
-                            rusqlite::params![final_size, id],
-                        );
-                    }
+        // Capture the actual on-disk size for a successful transfer so the
+        // history list shows the real file size. A fast transfer can reach the
+        // terminal state between two progress polls, leaving the DB at 0 or a
+        // stale value ("0 B" / size mismatch vs. the file explorer in the UI).
+        let final_size = if success {
+            self.get_record(id)
+                .ok()
+                .and_then(|r| fs::metadata(&r.file_path).ok())
+                .map(|m| m.len() as i64)
+        } else {
+            None
+        };
+
+        // Atomically persist the terminal status and, for a successful
+        // transfer, the real on-disk size in a single transaction so the record
+        // can never end up half-updated (e.g. Completed with bytes_received
+        // still 0). A size-sync failure is surfaced as an error, not silently
+        // swallowed, so a stale "0 B" never lingers undetected.
+        self.db
+            .transaction(|conn| {
+                conn.execute(
+                    "UPDATE download_history SET status = ?1, interrupt_reason = ?2, completed_at = ?3 WHERE id = ?4",
+                    rusqlite::params![status.as_str(), reason, Utc::now().timestamp(), id],
+                )
+                .map_err(|e| AppError::Storage(format!("Failed to complete download: {e}")))?;
+                if let Some(final_size) = final_size {
+                    conn.execute(
+                        "UPDATE download_history SET bytes_received = ?1, total_bytes = ?1 WHERE id = ?2",
+                        rusqlite::params![final_size, id],
+                    )
+                    .map_err(|e| AppError::Storage(format!("Failed to sync actual file size: {e}")))?;
                     tracing::debug!(
                         record_id = %id,
                         bytes_received = final_size,
                         "[ADL-DL] complete_download: synced bytes_received/total_bytes to actual file size"
                     );
                 }
-            }
-        }
-
-        let conn = self.db.conn().map_err(|e| e.to_string())?;
-        conn.execute(
-            "UPDATE download_history SET status = ?1, interrupt_reason = ?2, completed_at = ?3 WHERE id = ?4",
-            rusqlite::params![status.as_str(), reason, Utc::now().timestamp(), id],
-        )
-        .map_err(|e| format!("Failed to complete download: {}", e))?;
+                Ok(())
+            })
+            .map_err(|e| e.to_string())?;
 
         // Evict the resumability cache entry once the download has ended (its
         // URL won't be probed again; keeps the map bounded).
@@ -1691,7 +1731,7 @@ impl DownloadManager {
             // WebView2 may leave its staging `{GUID}.tmp` in the destination
             // folder when a transfer ends without renaming it; clean it up so
             // non-technical users don't see confusing temp files.
-            cleanup_orphaned_tmp_files(&record.file_path, 30);
+            cleanup_orphaned_tmp_files(&record.file_path, TMP_ORPHAN_GRACE_SECS);
         }
 
         self.active_downloads
@@ -2438,33 +2478,39 @@ mod tests {
     #[test]
     fn cleanup_orphaned_tmp_files_removes_stale_and_keeps_others() {
         // WebView2 can leave `{GUID}.tmp` staging files in the destination folder
-        // after a canceled/interrupted download. Cleanup must remove stale `.tmp`
-        // files (age >= grace) but never touch recent staging files (age < grace,
-        // i.e. an in-progress download) or any non-`.tmp` file.
+        // after a canceled/interrupted download. Cleanup must remove only stale
+        // WebView2 `{GUID}.tmp` files (age >= grace) while never touching recent
+        // staging files (age < grace, i.e. an in-progress download), arbitrary
+        // `.tmp` files from other applications, or non-`.tmp` files.
         let dir = std::env::temp_dir().join("adl-dl-tmp-cleanup");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("create dir");
 
-        let recent = dir.join("recent.tmp");
-        let stale = dir.join("stale.tmp");
+        let recent = dir.join("{11111111-1111-1111-1111-111111111111}.tmp");
+        let stale = dir.join("{22222222-2222-2222-2222-222222222222}.tmp");
+        let other_tmp = dir.join("notes.tmp");
         let normal = dir.join("final.exe");
         std::fs::write(&recent, b"recent").expect("write recent");
         std::fs::write(&stale, b"stale").expect("write stale");
+        std::fs::write(&other_tmp, b"other").expect("write other");
         std::fs::write(&normal, b"final").expect("write final");
 
         let file_path = dir.join("final.exe");
 
-        // A freshly created `.tmp` file (age ~0) is within a large grace period
-        // and must be preserved.
+        // A freshly created `{GUID}.tmp` file (age ~0) is within a large grace
+        // period and must be preserved.
         cleanup_orphaned_tmp_files(file_path.to_str().unwrap(), 3600);
-        assert!(recent.exists(), "fresh .tmp must be kept when within grace");
-        assert!(stale.exists(), "fresh .tmp must be kept when within grace");
+        assert!(recent.exists(), "fresh WebView2 staging tmp must be kept when within grace");
+        assert!(stale.exists(), "fresh WebView2 staging tmp must be kept when within grace");
+        assert!(other_tmp.exists(), "arbitrary .tmp must never be removed");
         assert!(normal.exists(), "non-.tmp file must never be removed");
 
-        // grace = 0: every `.tmp` file is stale and must be removed.
+        // grace = 0: every `{GUID}.tmp` file is stale and must be removed, but
+        // arbitrary `.tmp` and non-`.tmp` files are still untouched.
         cleanup_orphaned_tmp_files(file_path.to_str().unwrap(), 0);
-        assert!(!recent.exists(), "stale .tmp must be removed when grace is 0");
-        assert!(!stale.exists(), "stale .tmp must be removed when grace is 0");
+        assert!(!recent.exists(), "stale WebView2 staging tmp must be removed when grace is 0");
+        assert!(!stale.exists(), "stale WebView2 staging tmp must be removed when grace is 0");
+        assert!(other_tmp.exists(), "arbitrary .tmp must never be removed");
         assert!(normal.exists(), "non-.tmp file must never be removed");
 
         let _ = std::fs::remove_dir_all(&dir);
