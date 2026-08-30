@@ -166,16 +166,19 @@ pub fn handle_download_finished(
     // A download paused/canceled via the native WebView2 operation fires a
     // spurious `finished(success=false)` interrupt that must not overwrite the
     // user-initiated Paused/Canceled status, and its operation handle must be
-    // preserved for a later Resume(). A cosmetic pause (non-resumable server)
-    // never called native Pause(), so its finished(false) is a REAL failure and
-    // must fall through to the failure path below. The pause kind is read from
-    // the persisted interrupt_reason (set at pause time), not re-derived from the
-    // mutable resumability cache.
-    let is_real_native_pause = record.status == super::download_types::DownloadStatus::Paused
-        && record.interrupt_reason.as_deref() == Some("UserPaused");
+    // preserved for a later Resume(). Both Range-capable pauses (native Pause()
+    // call, interrupt_reason="UserPaused") and non-Range pauses (native cancel()
+    // call, interrupt_reason="NonResumablePaused") trigger this spurious event.
+    // The pause kind is read from the persisted interrupt_reason (set at pause
+    // time), not re-derived from the mutable resumability cache.
+    let is_native_pseudo_pause = record.status == super::download_types::DownloadStatus::Paused
+        && matches!(
+            record.interrupt_reason.as_deref(),
+            Some("UserPaused") | Some("NonResumablePaused") | Some("CosmeticPaused")
+        );
     if !success
         && (record.status == super::download_types::DownloadStatus::Canceled
-            || is_real_native_pause)
+            || is_native_pseudo_pause)
     {
         tracing::debug!(
             record_id = %record.id,
