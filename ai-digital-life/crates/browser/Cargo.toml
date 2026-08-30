@@ -25,6 +25,7 @@ chrono.workspace = true
 uuid.workspace = true
 fs2 = "0.4"
 tauri.workspace = true
+tauri-plugin-dialog.workspace = true
 
 [dev-dependencies]
 adl-migration = { path = "../migration" }

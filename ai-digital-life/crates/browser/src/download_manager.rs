@@ -1886,7 +1886,7 @@ pub fn get_default_download_path() -> PathBuf {
 /// download callback thread, silently dropping the download. Instead, fall
 /// back to the last non-empty path segment, then to the URL's path segment,
 /// then to a generic placeholder — never panic.
-fn derive_file_name(url: &str, file_path: &str) -> String {
+pub(crate) fn derive_file_name(url: &str, file_path: &str) -> String {
     if let Some(name) = Path::new(file_path).file_name().and_then(|s| s.to_str()) {
         if !name.is_empty() && name != "." && name != ".." {
             return name.to_string();

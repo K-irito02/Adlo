@@ -2,8 +2,10 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Emitter};
+use tauri_plugin_dialog::DialogExt;
 
-use super::download_manager::DownloadManager;
+use super::download_manager::{DownloadManager, derive_file_name, get_default_download_path};
+use super::download_types::DownloadMode;
 
 pub fn setup_download_handler(
     app_handle: AppHandle,
@@ -24,9 +26,11 @@ pub fn setup_download_handler(
         }
 
         let suggested_path = destination.to_string_lossy().to_string();
+        let settings = manager.get_settings();
         tracing::debug!(
             url = &url,
             suggested_path = &suggested_path,
+            mode = settings.mode.as_str(),
             "[ADL-DL] download requested"
         );
 
@@ -67,7 +71,60 @@ pub fn setup_download_handler(
         // point WebView2 at a valid location (empty/relative destinations make
         // WebView2 silently drop binary/app downloads). Conflict resolution is
         // applied inside resolve_download_target.
-        let final_path = manager.resolve_download_target(&url, &suggested_path);
+        //
+        // In Ask mode the user picks the save location through the native OS save
+        // dialog; only Auto mode resolves the path to the configured default
+        // directory automatically. A cancelled dialog denies the download.
+        let final_path = if settings.mode == DownloadMode::Ask {
+            let file_name = derive_file_name(&url, &suggested_path);
+            let default_dir = if settings.default_path.is_empty() {
+                get_default_download_path()
+            } else {
+                PathBuf::from(&settings.default_path)
+            };
+            tracing::info!(
+                url = &url,
+                file_name = &file_name,
+                default_dir = %default_dir.display(),
+                "[ADL-DL] ask mode: showing native save dialog"
+            );
+            let picked = handle
+                .dialog()
+                .file()
+                .set_file_name(file_name)
+                .set_directory(&default_dir)
+                .blocking_save_file();
+            match picked {
+                None => {
+                    tracing::info!(
+                        url = &url,
+                        "[ADL-DL] ask mode: save dialog cancelled, download denied"
+                    );
+                    return false;
+                },
+                Some(fp) => match fp.into_path() {
+                    Ok(p) => {
+                        let picked_str = p.to_string_lossy().to_string();
+                        tracing::info!(
+                            url = &url,
+                            picked_path = &picked_str,
+                            "[ADL-DL] ask mode: user selected save path"
+                        );
+                        picked_str
+                    },
+                    Err(e) => {
+                        tracing::warn!(
+                            url = &url,
+                            error = %e,
+                            "[ADL-DL] ask mode: could not resolve picked path, download denied"
+                        );
+                        return false;
+                    },
+                },
+            }
+        } else {
+            manager.resolve_download_target(&url, &suggested_path)
+        };
 
         if let Err(reason) = manager.check_disk_space(&final_path) {
             tracing::warn!(
@@ -160,7 +217,26 @@ pub fn handle_download_finished(
     let record = match record {
         Some(r) => r,
         None => {
-            tracing::warn!(url = url, "[ADL-DL] no download record found for finished URL");
+            // No record usually means the download was denied before a record was
+            // created — e.g. the user cancelled the native save dialog in Ask
+            // mode, or a silent-webview metadata fetch was cancelled. WebView2
+            // still fires DownloadCompleted(false) for those, and the capture
+            // handler may have registered a now-dead operation handle that we
+            // must drop. A record is always created before a transfer proceeds,
+            // so "no record" implies no legitimate in-progress download for this
+            // URL — removing the operation is safe.
+            download_manager.remove_operation(url);
+            if success {
+                tracing::warn!(
+                    url = url,
+                    "[ADL-DL] no download record found for a successful finished URL (download completed but record is missing)"
+                );
+            } else {
+                tracing::debug!(
+                    url = url,
+                    "[ADL-DL] no download record for finished URL (denied/cancelled download, expected)"
+                );
+            }
             return;
         },
     };
