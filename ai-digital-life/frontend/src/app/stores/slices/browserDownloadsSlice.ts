@@ -14,6 +14,36 @@ import type {
 import type { IpcResult } from '@ai-digital-life/kernel';
 import { buildTabsById } from './browserFoldersUtils';
 
+/**
+ * Whether a tab still has at least one active (in_progress) download after a
+ * given download leaves the active set. `isDownloading` is a single boolean, so
+ * clearing it unconditionally when one download finishes would prematurely
+ * unprotect a tab that is concurrently downloading other files. This helper
+ * checks the remaining downloads for the same source tab.
+ */
+export function tabStillDownloading(
+  downloads: DownloadRecord[],
+  sourceTabId: string | null | undefined,
+): boolean {
+  if (!sourceTabId) {
+    return false;
+  }
+  return downloads.some((d) => d.source_tab_id === sourceTabId && d.status === 'in_progress');
+}
+
+/** Recompute the tab's isDownloading from the (already-updated) downloads list. */
+export function updateTabsForDownloadState(
+  tabs: StoreState['browserTabs'],
+  downloads: DownloadRecord[],
+  sourceTabId: string | null | undefined,
+): StoreState['browserTabs'] {
+  if (!sourceTabId) {
+    return tabs;
+  }
+  const stillActive = tabStillDownloading(downloads, sourceTabId);
+  return tabs.map((t) => (t.id === sourceTabId ? { ...t, isDownloading: stillActive } : t));
+}
+
 export interface BrowserDownloadsSlice {
   downloads: DownloadRecord[];
   downloadSettings: DownloadSettings;
@@ -132,7 +162,17 @@ export const createBrowserDownloadsSlice = (
           console.info('[ADL-DL] pauseDownload: backend reports download paused');
           set((state) => ({
             downloads: state.downloads.map((d) =>
-              d.id === id ? { ...d, status: 'paused' as const, interrupt_reason: 'UserPaused' } : d,
+              d.id === id
+                ? {
+                    ...d,
+                    status: 'paused' as const,
+                    // Preserve the backend's interrupt_reason if the record already
+                    // carries it (the paused event will arrive with the true
+                    // backend reason and overwrite this shortly); the backend DB
+                    // is the source of truth.
+                    interrupt_reason: d.interrupt_reason ?? 'UserPaused',
+                  }
+                : d,
             ),
           }));
         }
@@ -148,11 +188,24 @@ export const createBrowserDownloadsSlice = (
     try {
       const result = await invoke<IpcResult<void>>('download_resume', { id });
       if (result.ok) {
-        set((state) => ({
-          downloads: state.downloads.map((d) =>
-            d.id === id ? { ...d, status: 'in_progress' as const, interrupt_reason: null } : d,
-          ),
-        }));
+        set((state) => {
+          // Restore the source tab's isDownloading flag: the paused download is
+          // actively transferring again, so its tab must stay protected from
+          // suspension (the paused handler cleared the flag).
+          const sourceTabId = state.downloads.find((d) => d.id === id)?.source_tab_id;
+          const nextTabs = sourceTabId
+            ? state.browserTabs.map((t) =>
+                t.id === sourceTabId ? { ...t, isDownloading: true } : t,
+              )
+            : state.browserTabs;
+          return {
+            downloads: state.downloads.map((d) =>
+              d.id === id ? { ...d, status: 'in_progress' as const, interrupt_reason: null } : d,
+            ),
+            browserTabs: nextTabs,
+            browserTabsById: buildTabsById(nextTabs),
+          };
+        });
       } else {
         console.warn('[ADL-DL] resumeDownload: invoke failed', result.error);
       }
@@ -238,24 +291,23 @@ export const createBrowserDownloadsSlice = (
         // Find the download record to get source_tab_id
         const downloadRecord = state.downloads.find((d) => d.id === payload.id);
         const sourceTabId = downloadRecord?.source_tab_id;
-        // Update the source tab's isDownloading flag
-        const nextTabs = sourceTabId
-          ? state.browserTabs.map((t) =>
-              t.id === sourceTabId ? { ...t, isDownloading: false } : t,
-            )
-          : state.browserTabs;
+        // Update the downloads list first, then recompute the tab's isDownloading
+        // from the remaining downloads (keeps the flag true if the same tab is
+        // concurrently downloading another file).
+        const nextDownloads = state.downloads.map((d) =>
+          d.id === payload.id
+            ? {
+                ...d,
+                status: newStatus as DownloadRecord['status'],
+                file_path: payload.filePath,
+                completed_at: Math.floor(Date.now() / 1000),
+              }
+            : d,
+        );
+        const nextTabs = updateTabsForDownloadState(state.browserTabs, nextDownloads, sourceTabId);
         return {
           activeDownloads: rest,
-          downloads: state.downloads.map((d) =>
-            d.id === payload.id
-              ? {
-                  ...d,
-                  status: newStatus as DownloadRecord['status'],
-                  file_path: payload.filePath,
-                  completed_at: Math.floor(Date.now() / 1000),
-                }
-              : d,
-          ),
+          downloads: nextDownloads,
           browserTabs: nextTabs,
           browserTabsById: buildTabsById(nextTabs),
         };
@@ -278,23 +330,20 @@ export const createBrowserDownloadsSlice = (
         // Find the download record to get source_tab_id
         const downloadRecord = state.downloads.find((d) => d.id === payload.id);
         const sourceTabId = downloadRecord?.source_tab_id;
-        // Update the source tab's isDownloading flag
-        const nextTabs = sourceTabId
-          ? state.browserTabs.map((t) =>
-              t.id === sourceTabId ? { ...t, isDownloading: false } : t,
-            )
-          : state.browserTabs;
+        // Update the downloads list first, then recompute the tab's isDownloading.
+        const nextDownloads = state.downloads.map((d) =>
+          d.id === payload.id
+            ? {
+                ...d,
+                status: 'failed' as const,
+                interrupt_reason: payload.reason,
+              }
+            : d,
+        );
+        const nextTabs = updateTabsForDownloadState(state.browserTabs, nextDownloads, sourceTabId);
         return {
           activeDownloads: rest,
-          downloads: state.downloads.map((d) =>
-            d.id === payload.id
-              ? {
-                  ...d,
-                  status: 'failed' as const,
-                  interrupt_reason: payload.reason,
-                }
-              : d,
-          ),
+          downloads: nextDownloads,
           browserTabs: nextTabs,
           browserTabsById: buildTabsById(nextTabs),
         };
@@ -349,17 +398,23 @@ export const createBrowserDownloadsSlice = (
         // Find source_tab_id from the download record if not in payload
         const sourceTabId =
           payload.source_tab_id ?? state.downloads.find((d) => d.id === payload.id)?.source_tab_id;
-        const nextTabs = sourceTabId
-          ? state.browserTabs.map((t) =>
-              t.id === sourceTabId ? { ...t, isDownloading: false } : t,
-            )
-          : state.browserTabs;
+        // Update the downloads list first, then recompute the tab's isDownloading
+        // (keeps the flag true if the same tab has other downloads still running).
+        const nextDownloads = state.downloads.map((d) =>
+          d.id === payload.id
+            ? {
+                ...d,
+                status: 'paused' as const,
+                // Prefer the backend's interrupt_reason (UserPaused /
+                // NonResumablePaused / CosmeticPaused) carried in the event;
+                // fall back to the record's existing value, then UserPaused.
+                interrupt_reason: payload.interrupt_reason ?? d.interrupt_reason ?? 'UserPaused',
+              }
+            : d,
+        );
+        const nextTabs = updateTabsForDownloadState(state.browserTabs, nextDownloads, sourceTabId);
         return {
-          downloads: state.downloads.map((d) =>
-            d.id === payload.id
-              ? { ...d, status: 'paused' as const, interrupt_reason: 'UserPaused' }
-              : d,
-          ),
+          downloads: nextDownloads,
           browserTabs: nextTabs,
           browserTabsById: buildTabsById(nextTabs),
         };
@@ -377,13 +432,25 @@ export const createBrowserDownloadsSlice = (
         return;
       }
       const payload = event.payload;
-      set((state) => ({
-        downloads: state.downloads.map((d) =>
-          d.id === payload.id
-            ? { ...d, status: 'in_progress' as const, interrupt_reason: null }
-            : d,
-        ),
-      }));
+      set((state) => {
+        // Restore the source tab's isDownloading flag (the paused handler
+        // cleared it); the download is transferring again so its tab must stay
+        // protected from suspension.
+        const sourceTabId =
+          payload.source_tab_id ?? state.downloads.find((d) => d.id === payload.id)?.source_tab_id;
+        const nextTabs = sourceTabId
+          ? state.browserTabs.map((t) => (t.id === sourceTabId ? { ...t, isDownloading: true } : t))
+          : state.browserTabs;
+        return {
+          downloads: state.downloads.map((d) =>
+            d.id === payload.id
+              ? { ...d, status: 'in_progress' as const, interrupt_reason: null }
+              : d,
+          ),
+          browserTabs: nextTabs,
+          browserTabsById: buildTabsById(nextTabs),
+        };
+      });
     }).then((unsub) => {
       if (active) {
         unsubs.push(unsub);
@@ -402,19 +469,16 @@ export const createBrowserDownloadsSlice = (
         // Find the download record to get source_tab_id
         const downloadRecord = state.downloads.find((d) => d.id === payload.id);
         const sourceTabId = downloadRecord?.source_tab_id;
-        // Update the source tab's isDownloading flag
-        const nextTabs = sourceTabId
-          ? state.browserTabs.map((t) =>
-              t.id === sourceTabId ? { ...t, isDownloading: false } : t,
-            )
-          : state.browserTabs;
+        // Update the downloads list first, then recompute the tab's isDownloading.
+        const nextDownloads = state.downloads.map((d) =>
+          d.id === payload.id
+            ? { ...d, status: 'canceled' as const, interrupt_reason: 'UserCanceled' }
+            : d,
+        );
+        const nextTabs = updateTabsForDownloadState(state.browserTabs, nextDownloads, sourceTabId);
         return {
           activeDownloads: rest,
-          downloads: state.downloads.map((d) =>
-            d.id === payload.id
-              ? { ...d, status: 'canceled' as const, interrupt_reason: 'UserCanceled' }
-              : d,
-          ),
+          downloads: nextDownloads,
           browserTabs: nextTabs,
           browserTabsById: buildTabsById(nextTabs),
         };

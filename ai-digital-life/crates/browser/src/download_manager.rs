@@ -104,6 +104,17 @@ pub struct DownloadManager {
     /// (Resume() succeeds but download fails within seconds — indicating a
     /// broken TCP connection that WebView2 only discovers on next read).
     resume_timestamps: Arc<Mutex<HashMap<String, Instant>>>,
+    /// Record IDs for which a fresh reqwest restart download (from offset 0) is
+    /// currently in flight. Guards against spawning two concurrent restart
+    /// threads appending to the same `.crdownload` (e.g. a fast pause→resume
+    /// cycle observed by both `resume_download` and the progress monitor).
+    non_resumable_restarting: Arc<Mutex<std::collections::HashSet<String>>>,
+    /// Record IDs for which a user-initiated HTTP Range resume thread is
+    /// currently in flight. A dedicated guard (NOT the resume_timestamps map,
+    /// which also feeds post-resume auto-retry detection) so that a
+    /// `finished(false)` arriving during a manual Range resume cannot trigger a
+    /// second concurrent append thread.
+    range_resume_inflight: Arc<Mutex<std::collections::HashSet<String>>>,
 }
 
 #[allow(dead_code)]
@@ -117,6 +128,39 @@ impl DownloadManager {
             operations: Arc::new(Mutex::new(HashMap::new())),
             resumability: Arc::new(Mutex::new(HashMap::new())),
             resume_timestamps: Arc::new(Mutex::new(HashMap::new())),
+            non_resumable_restarting: Arc::new(Mutex::new(std::collections::HashSet::new())),
+            range_resume_inflight: Arc::new(Mutex::new(std::collections::HashSet::new())),
+        }
+    }
+
+    /// Atomically claim the non-resumable restart slot for a record. Returns
+    /// `true` if THIS call won the claim (the record was not already in flight);
+    /// returns `false` if a restart for this record is already running. Used by
+    /// both `resume_download` and the progress monitor so only one restart
+    /// thread is ever spawned per record.
+    pub fn try_claim_non_resumable_restart(&self, id: &str) -> bool {
+        self.non_resumable_restarting.lock().map(|mut m| m.insert(id.to_string())).unwrap_or(false)
+    }
+
+    /// Releases the restart-claim for a record (called when the restart thread
+    /// finishes, so a later resume can restart it again).
+    pub fn release_non_resumable_restart(&self, id: &str) {
+        if let Ok(mut m) = self.non_resumable_restarting.lock() {
+            m.remove(id);
+        }
+    }
+
+    /// Atomically claim the manual HTTP Range resume slot for a record. Returns
+    /// `true` if THIS call won (no manual Range thread already running).
+    pub fn try_claim_range_resume_inflight(&self, id: &str) -> bool {
+        self.range_resume_inflight.lock().map(|mut m| m.insert(id.to_string())).unwrap_or(false)
+    }
+
+    /// Release the manual HTTP Range resume slot (called when the Range thread
+    /// finishes).
+    pub fn release_range_resume_inflight(&self, id: &str) {
+        if let Ok(mut m) = self.range_resume_inflight.lock() {
+            m.remove(id);
         }
     }
 
@@ -176,6 +220,15 @@ impl DownloadManager {
     /// Trigger HTTP Range-based resume as a fallback for a failed native Resume().
     /// This is called by handle_download_finished when a post-resume failure is detected
     /// (Resume() returned Ok(()) but download failed within 5 seconds).
+    ///
+    /// Note: this automatic retry deliberately does NOT increment
+    /// `auto_resume_count` / consult `MAX_AUTO_RESUME_ATTEMPTS`. That limit
+    /// governs Chromium-style *automatic* recovery of interrupted downloads in
+    /// `resume_download`'s native path; the post-resume retry here is already
+    /// rate-limited to at most once per resume (the 5-second resume-timestamp
+    /// window), so a retry storm cannot occur. Incrementing the shared counter
+    /// here would wrongly make a *user-initiated* resume hit the "auto-resume
+    /// limit reached" gate after a few retries.
     pub fn trigger_range_resume(
         &self,
         id: &str,
@@ -355,6 +408,166 @@ impl DownloadManager {
                 });
             })
             .map_err(|e| format!("Failed to spawn auto-retry thread: {}", e))?;
+
+        Ok(())
+    }
+
+    /// Spawn a fresh reqwest download from offset 0 for a NonResumablePaused
+    /// record (the server does not support Range, so a restart is the only
+    /// option). Claims the in-flight slot via `try_claim_non_resumable_restart`
+    /// so both `resume_download` and the progress monitor can race safely
+    /// without spawning two concurrent threads appending to the same temp file.
+    /// The claim is released when the thread terminates.
+    pub fn spawn_non_resumable_restart(
+        &self,
+        record: &DownloadRecord,
+        app_handle: &tauri::AppHandle,
+        total_bytes: Option<u64>,
+    ) -> Result<(), String> {
+        if !self.try_claim_non_resumable_restart(&record.id) {
+            tracing::info!(
+                record_id = %record.id,
+                "[ADL-DL] spawn_non_resumable_restart: already restarting — skipping duplicate"
+            );
+            return Ok(());
+        }
+
+        tracing::info!(
+            record_id = %record.id,
+            url = %record.url,
+            file_path = %record.file_path,
+            "[ADL-DL] spawn_non_resumable_restart: spawning fresh reqwest download from offset 0"
+        );
+
+        let manager_clone = self.clone();
+        let record_id = record.id.clone();
+        let url_clone = record.url.clone();
+        let path_clone = std::path::PathBuf::from(format!("{}.crdownload", record.file_path));
+        let final_path_clone = record.file_path.clone();
+        let source_tab_id = record.source_tab_id.clone();
+        let app_handle_clone = app_handle.clone();
+        let total_for_thread = total_bytes;
+
+        std::thread::Builder::new()
+            .name(format!("adl-restart-{record_id}"))
+            .spawn(move || {
+                let rt = tokio::runtime::Runtime::new()
+                    .expect("failed to create tokio runtime for reqwest re-download");
+                rt.block_on(async {
+                    let downloader = RangeResumeDownload::new(
+                        url_clone.clone(),
+                        path_clone.clone(),
+                        0,
+                        total_for_thread,
+                        None,
+                        None,
+                    );
+
+                    let result = downloader.start().await;
+                    // Release the in-flight claim once the transfer is done so a
+                    // later resume can restart again.
+                    manager_clone.release_non_resumable_restart(&record_id);
+
+                    match result {
+                        Ok(download_result) => {
+                            let truly_complete =
+                                download_result.completed || total_for_thread.is_none();
+                            tracing::info!(
+                                record_id = %record_id,
+                                bytes_received = download_result.bytes_received,
+                                completed = download_result.completed,
+                                truly_complete,
+                                "[ADL-DL] reqwest re-download completed"
+                            );
+                            if !truly_complete {
+                                tracing::warn!(
+                                    record_id = %record_id,
+                                    bytes_received = download_result.bytes_received,
+                                    total = total_for_thread,
+                                    "[ADL-DL] reqwest re-download ended early (incomplete transfer); marking failed"
+                                );
+                                let _ = manager_clone.complete_download(
+                                    &record_id,
+                                    false,
+                                    Some("DownloadFailed"),
+                                );
+                                if !manager_clone.is_record_canceled(&record_id) {
+                                    let _ = app_handle_clone.emit(
+                                        "browser-download-error",
+                                        &serde_json::json!({
+                                            "id": record_id,
+                                            "url": url_clone,
+                                            "reason": "Download ended before the file was complete (server closed the stream)",
+                                            "canRetry": true,
+                                            "source_tab_id": source_tab_id,
+                                        }),
+                                    );
+                                }
+                                return;
+                            }
+                            match manager_clone.complete_download(&record_id, true, None) {
+                                Ok(()) => {
+                                    let _ = app_handle_clone.emit(
+                                        "browser-download-finished",
+                                        &serde_json::json!({
+                                            "id": record_id,
+                                            "url": url_clone,
+                                            "filePath": final_path_clone,
+                                            "success": true,
+                                            "source_tab_id": source_tab_id,
+                                        }),
+                                    );
+                                },
+                                Err(e) => {
+                                    let canceled = manager_clone.is_record_canceled(&record_id);
+                                    if canceled {
+                                        tracing::info!(
+                                            record_id = %record_id,
+                                            "[ADL-DL] re-download finished but record was canceled; skipping completion and removing temp"
+                                        );
+                                        let _ = std::fs::remove_file(&path_clone);
+                                    } else {
+                                        tracing::warn!(
+                                            record_id = %record_id,
+                                            error = %e,
+                                            "[ADL-DL] re-download finalization failed; progress monitor will retry"
+                                        );
+                                    }
+                                },
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!(
+                                record_id = %record_id,
+                                error = %e,
+                                "[ADL-DL] reqwest re-download failed"
+                            );
+                            let _ = manager_clone.complete_download(
+                                &record_id,
+                                false,
+                                Some("DownloadFailed"),
+                            );
+                            if !manager_clone.is_record_canceled(&record_id) {
+                                let _ = app_handle_clone.emit(
+                                    "browser-download-error",
+                                    &serde_json::json!({
+                                        "id": record_id,
+                                        "url": url_clone,
+                                        "reason": format!("Download failed: {}", e),
+                                        "canRetry": true,
+                                        "source_tab_id": source_tab_id,
+                                    }),
+                                );
+                            }
+                        }
+                    }
+                });
+            })
+            .map_err(|e| {
+                // Spawn failed: release the claim so a later resume can retry.
+                self.release_non_resumable_restart(&record.id);
+                format!("Failed to spawn restart download thread: {}", e)
+            })?;
 
         Ok(())
     }
@@ -613,7 +826,7 @@ impl DownloadManager {
     pub fn pause_download(&self, id: &str) -> Result<DownloadStatus, String> {
         let record = self.get_record(id)?;
 
-        tracing::info!(
+        tracing::debug!(
             id = %id,
             url = %record.url,
             status = record.status.as_str(),
@@ -638,7 +851,7 @@ impl DownloadManager {
 
         // Check if native operation handle exists
         let has_native_op = self.get_operation(&url).is_some();
-        tracing::info!(
+        tracing::debug!(
             id = %id,
             url = %url,
             has_native_op,
@@ -835,7 +1048,7 @@ impl DownloadManager {
         let record = self.get_record(id)?;
         let url = record.url.clone();
 
-        tracing::info!(
+        tracing::debug!(
             id = %id,
             url = %url,
             status = record.status.as_str(),
@@ -862,7 +1075,7 @@ impl DownloadManager {
         // Check native operation handle availability
         let has_native_op = self.get_operation(&url).is_some();
         let native_state = self.native_operation_state(&url);
-        tracing::info!(
+        tracing::debug!(
             id = %id,
             url = %url,
             has_native_op,
@@ -883,8 +1096,11 @@ impl DownloadManager {
         // WebView2 operation and deleting the temp file (Task 6). Resuming
         // requires starting a fresh reqwest download from offset 0. Update the
         // DB to InProgress (clearing interrupt_reason and resetting
-        // bytes_received) and let the progress monitor detect the transition to
-        // spawn the new download thread.
+        // bytes_received) and spawn the restart thread DIRECTLY here — not via
+        // the progress monitor — so a fast pause→resume cycle (< one monitor
+        // poll) cannot leave the record stuck InProgress with no download
+        // thread (the monitor only detects the transition when it happened to
+        // observe the Paused state).
         if record.interrupt_reason.as_deref() == Some("NonResumablePaused") {
             tracing::info!(
                 id = %id,
@@ -897,6 +1113,9 @@ impl DownloadManager {
                 rusqlite::params![DownloadStatus::InProgress.as_str(), id],
             )
             .map_err(|e| format!("Failed to resume download: {}", e))?;
+            // total_bytes from the record (may be None if not yet resolved).
+            let total = record.total_bytes;
+            self.spawn_non_resumable_restart(&record, app_handle, total)?;
             return Ok(());
         }
 
@@ -1034,6 +1253,24 @@ impl DownloadManager {
             "[ADL-DL] resume_download: falling back to HTTP Range resume"
         );
 
+        // In-flight guard: reject a duplicate Range thread when one is already
+        // running for this record. A rapid double-click on "Resume" would
+        // otherwise spawn two threads appending to the same `.crdownload` (the
+        // second sees the record already InProgress and re-enters this Range
+        // fallback with an overlapping offset → corrupt file). This uses a
+        // DEDICATED in-flight set, NOT the resume_timestamps map — that map also
+        // feeds post-resume auto-retry detection, so stamping it here would arm
+        // `trigger_range_resume` if a `finished(false)` arrived during the
+        // manual Range download, spawning a second concurrent append thread.
+        if !self.try_claim_range_resume_inflight(id) {
+            tracing::warn!(
+                id = %id,
+                url = %url,
+                "[ADL-DL] resume_download: HTTP Range resume already in flight — rejecting duplicate thread"
+            );
+            return Ok(());
+        }
+
         // Get the current file size from the .crdownload as the true offset. If
         // the metadata call fails (e.g. temp file missing), the DB bytes_received
         // may lag the real size — falling back to it could corrupt the file with
@@ -1042,6 +1279,7 @@ impl DownloadManager {
         let current_offset = match std::fs::metadata(format!("{}.crdownload", record.file_path)) {
             Ok(m) => m.len(),
             Err(e) => {
+                self.release_range_resume_inflight(id);
                 return Err(format!("Cannot determine resume offset from .crdownload: {}", e));
             },
         };
@@ -1056,20 +1294,27 @@ impl DownloadManager {
         let source_tab_id = record.source_tab_id.clone();
         let app_handle_clone = app_handle.clone();
 
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Runtime::new()
-                .expect("failed to create tokio runtime for HTTP Range resume");
-            rt.block_on(async {
-                let downloader = RangeResumeDownload::new(
-                    url_clone.clone(),
-                    PathBuf::from(format!("{}.crdownload", file_path)),
-                    current_offset,
-                    total,
-                    etag,
-                    lm,
-                );
+        std::thread::Builder::new()
+            .name(format!("adl-range-resume-{id}"))
+            .spawn(move || {
+                let rt = tokio::runtime::Runtime::new()
+                    .expect("failed to create tokio runtime for HTTP Range resume");
+                rt.block_on(async {
+                    let downloader = RangeResumeDownload::new(
+                        url_clone.clone(),
+                        PathBuf::from(format!("{}.crdownload", file_path)),
+                        current_offset,
+                        total,
+                        etag,
+                        lm,
+                    );
 
-                match downloader.start().await {
+                    let result = downloader.start().await;
+                    // Release the in-flight guard now that this Range thread is
+                    // done (covers all terminal paths).
+                    manager_clone.release_range_resume_inflight(&record_id);
+
+                    match result {
                     Ok(result) => {
                         let truly_complete = result.completed || total.is_none();
                         tracing::info!(
@@ -1172,7 +1417,12 @@ impl DownloadManager {
                     }
                 }
             });
-        });
+        })
+        .map_err(|e| {
+            // Spawn failed: release the in-flight guard so a later resume can retry.
+            self.release_range_resume_inflight(id);
+            format!("Failed to spawn HTTP Range resume thread: {}", e)
+        })?;
 
         // Update DB status to InProgress
         let conn = self.db.conn().map_err(|e| e.to_string())?;

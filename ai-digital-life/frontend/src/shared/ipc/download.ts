@@ -64,4 +64,6 @@ export interface DownloadFinishedPayload {
 export interface DownloadIdPayload {
   id: string;
   source_tab_id?: string;
+  /** The backend pause kind (UserPaused / NonResumablePaused / CosmeticPaused). */
+  interrupt_reason?: string | null;
 }

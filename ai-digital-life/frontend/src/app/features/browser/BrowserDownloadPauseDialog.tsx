@@ -25,12 +25,20 @@ export function BrowserDownloadPauseDialog({
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        // Register in the CAPTURE phase so this handler runs BEFORE the download
+        // menu/button bubble-phase keydown listeners (which close the whole menu
+        // on Escape). Without capture, the dialog — mounted only after the menu
+        // is already open — registers its listener last, so stopPropagation
+        // would be a no-op and pressing Escape would close the menu too.
+        event.stopPropagation();
+        event.preventDefault();
         onCancel();
       }
     };
-    window.addEventListener('keydown', handleEscape);
+    // Capture phase (true) so we intercept before the menu's bubble-phase listener.
+    window.addEventListener('keydown', handleEscape, true);
     confirmRef.current?.focus();
-    return () => window.removeEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape, true);
   }, [open, onCancel]);
 
   if (!open) {

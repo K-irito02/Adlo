@@ -19,6 +19,7 @@ export const BrowserDownloadButton = React.memo(function BrowserDownloadButton({
 
   const downloads = useAppStore((s) => s.downloads);
   const activeDownloads = useAppStore((s) => s.activeDownloads);
+  const fetchDownloads = useAppStore((s) => s.fetchDownloads);
 
   const activeCount = Object.keys(activeDownloads).length;
   const hasActive = activeCount > 0;
@@ -44,6 +45,13 @@ export const BrowserDownloadButton = React.memo(function BrowserDownloadButton({
       return;
     }
 
+    // Refresh the download list when the menu opens so the `resumable` field
+    // (populated server-side only after the Range probe completes) reaches the
+    // frontend. Without this, a freshly-started download's record — which came
+    // from the `browser-download-started` event — always has `resumable: null`,
+    // so the non-Range pause confirmation dialog would never trigger.
+    void fetchDownloads();
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setMenuOpen(false);
@@ -54,7 +62,7 @@ export const BrowserDownloadButton = React.memo(function BrowserDownloadButton({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [menuOpen]);
+  }, [menuOpen, fetchDownloads]);
 
   return (
     <div ref={menuRef} className="adl-menu" style={{ position: 'relative' }}>

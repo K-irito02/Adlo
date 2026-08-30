@@ -13,7 +13,6 @@ use crate::state::AppState;
 use crate::tauri_webview_handle::TauriWebViewHandle;
 use adl_browser::download_handler::{handle_download_finished, setup_download_handler};
 use adl_browser::download_manager::DownloadManager;
-use adl_browser::download_range_resume::RangeResumeDownload;
 use adl_browser::webview_handle::{EventBridgeRef, WebViewHandle};
 use adl_errors::AppError;
 use tauri::{Emitter, Manager};
@@ -461,135 +460,18 @@ pub fn start_download_progress_monitor(
                     "[ADL-DL] progress monitor: NonResumablePaused resumed — spawning fresh reqwest download from offset 0"
                 );
 
-                let url_clone = record.url.clone();
-                let path_clone =
-                    std::path::PathBuf::from(format!("{}.crdownload", record.file_path));
-                let final_path_clone = record.file_path.clone();
-                let manager_clone = download_manager.clone();
-                let record_id_clone = record.id.clone();
-                let source_tab_id_clone = record.source_tab_id.clone();
-                let app_handle_clone = app_handle.clone();
-                let total_for_thread = total_bytes_resolved;
-
-                std::thread::spawn(move || {
-                    let rt = tokio::runtime::Runtime::new()
-                        .expect("failed to create tokio runtime for reqwest re-download");
-                    rt.block_on(async {
-                        let downloader = RangeResumeDownload::new(
-                            url_clone.clone(),
-                            path_clone.clone(),
-                            0,
-                            total_for_thread,
-                            None,
-                            None,
-                        );
-
-                        match downloader.start().await {
-                            Ok(result) => {
-                                // Do not report success if the transfer is not
-                                // actually complete (total known but bytes fall short).
-                                let truly_complete = result.completed || total_for_thread.is_none();
-                                tracing::info!(
-                                    record_id = %record_id_clone,
-                                    bytes_received = result.bytes_received,
-                                    completed = result.completed,
-                                    truly_complete,
-                                    "[ADL-DL] reqwest re-download completed"
-                                );
-                                if !truly_complete {
-                                    tracing::warn!(
-                                        record_id = %record_id_clone,
-                                        bytes_received = result.bytes_received,
-                                        total = total_for_thread,
-                                        "[ADL-DL] reqwest re-download ended early (incomplete transfer); marking failed"
-                                    );
-                                    let _ = manager_clone.complete_download(
-                                        &record_id_clone,
-                                        false,
-                                        Some("DownloadFailed"),
-                                    );
-                                    // If the user canceled during the re-download,
-                                    // respect that — don't surface a "failed" event
-                                    // on a record the user chose to cancel.
-                                    if !manager_clone.is_record_canceled(&record_id_clone) {
-                                        let _ = app_handle_clone.emit(
-                                            "browser-download-error",
-                                            &serde_json::json!({
-                                                "id": record_id_clone,
-                                                "url": url_clone,
-                                                "reason": "Download ended before the file was complete (server closed the stream)",
-                                                "canRetry": true,
-                                                "source_tab_id": source_tab_id_clone,
-                                            }),
-                                        );
-                                    }
-                                    return;
-                                }
-                                // complete_download's terminal-state guard skips a
-                                // canceled record (returns Err without finalizing);
-                                // only report success when finalization succeeded.
-                                match manager_clone.complete_download(&record_id_clone, true, None) {
-                                    Ok(()) => {
-                                        let _ = app_handle_clone.emit(
-                                            "browser-download-finished",
-                                            &serde_json::json!({
-                                                "id": record_id_clone,
-                                                "url": url_clone,
-                                                "filePath": final_path_clone,
-                                                "success": true,
-                                                "source_tab_id": source_tab_id_clone,
-                                            }),
-                                        );
-                                    },
-                                    Err(e) => {
-                                        let canceled =
-                                            manager_clone.is_record_canceled(&record_id_clone);
-                                        if canceled {
-                                            tracing::info!(
-                                                record_id = %record_id_clone,
-                                                "[ADL-DL] re-download finished but record was canceled; skipping completion and removing temp"
-                                            );
-                                            let _ = std::fs::remove_file(&path_clone);
-                                        } else {
-                                            tracing::warn!(
-                                                record_id = %record_id_clone,
-                                                error = %e,
-                                                "[ADL-DL] re-download finalization failed; progress monitor will retry"
-                                            );
-                                        }
-                                    },
-                                }
-                            }
-                            Err(e) => {
-                                tracing::error!(
-                                    record_id = %record_id_clone,
-                                    error = %e,
-                                    "[ADL-DL] reqwest re-download failed"
-                                );
-                                let _ = manager_clone.complete_download(
-                                    &record_id_clone,
-                                    false,
-                                    Some("DownloadFailed"),
-                                );
-                                // If the user canceled during the re-download,
-                                // respect that — don't surface a "failed" event
-                                // on a record the user chose to cancel.
-                                if !manager_clone.is_record_canceled(&record_id_clone) {
-                                    let _ = app_handle_clone.emit(
-                                        "browser-download-error",
-                                        &serde_json::json!({
-                                            "id": record_id_clone,
-                                            "url": url_clone,
-                                            "reason": format!("Download failed: {}", e),
-                                            "canRetry": true,
-                                            "source_tab_id": source_tab_id_clone,
-                                        }),
-                                    );
-                                }
-                            }
-                        }
-                    });
-                });
+                // Delegate to the manager's shared restart helper, which claims
+                // the in-flight slot (so `resume_download` and this monitor can
+                // race without spawning two threads) and uses the Builder +
+                // truly_complete pattern. The monitor path is a redundant safety
+                // net for resumes the user performs directly; resume_download
+                // also spawns directly so a fast pause→resume (< one poll) is
+                // still covered.
+                let _ = download_manager.spawn_non_resumable_restart(
+                    &record,
+                    &app_handle,
+                    total_bytes_resolved,
+                );
             }
 
             // Stop only on terminal states (completed / failed / canceled).
@@ -727,6 +609,7 @@ pub fn start_download_progress_monitor(
                                 "url": record.url,
                                 "success": true,
                                 "filePath": file_path.strip_suffix(".crdownload").unwrap_or(&file_path),
+                                "source_tab_id": record.source_tab_id,
                             }),
                         );
 
@@ -782,6 +665,7 @@ pub fn start_download_progress_monitor(
                                 "url": record.url,
                                 "success": true,
                                 "filePath": file_path.strip_suffix(".crdownload").unwrap_or(&file_path),
+                                "source_tab_id": record.source_tab_id,
                             }),
                         );
 
@@ -841,14 +725,40 @@ fn check_server_resumable(client: &reqwest::blocking::Client, url: &url::Url) ->
         tracing::info!(url = %url, "[ADL-DL] check_server_resumable: server SUPPORTS Range (206 + Content-Range)");
         return Some(true);
     }
-    if let Some(ar) = resp.headers().get(reqwest::header::ACCEPT_RANGES) {
-        if let Ok(s) = ar.to_str() {
-            if s.to_ascii_lowercase().contains("bytes") {
-                tracing::info!(url = %url, "[ADL-DL] check_server_resumable: server SUPPORTS Range (Accept-Ranges: bytes)");
+    if let Some(ar) = &accept_ranges {
+        if ar.contains("bytes") {
+            tracing::info!(url = %url, "[ADL-DL] check_server_resumable: server SUPPORTS Range (Accept-Ranges: bytes)");
+            return Some(true);
+        }
+    }
+
+    // The HEAD probe was inconclusive (200 without a positive signal). A server
+    // that ignores Range on HEAD but honors it on GET (e.g. a proxy/CDN that
+    // special-cases HEAD) would otherwise be misclassified as non-resumable —
+    // pausing it would delete the partial file and restart from 0. Re-verify
+    // with a GET Range request before declaring the server non-resumable.
+    if let Ok(get_resp) =
+        client.get(url.as_str()).header(reqwest::header::RANGE, "bytes=0-0").send()
+    {
+        let get_status = get_resp.status();
+        let get_content_range = get_resp.headers().get(reqwest::header::CONTENT_RANGE).is_some();
+        let get_accept_ranges = get_resp
+            .headers()
+            .get(reqwest::header::ACCEPT_RANGES)
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_ascii_lowercase());
+        if get_status == reqwest::StatusCode::PARTIAL_CONTENT && get_content_range {
+            tracing::info!(url = %url, "[ADL-DL] check_server_resumable: GET re-verify CONFIRMS Range support (206 + Content-Range)");
+            return Some(true);
+        }
+        if let Some(ar) = &get_accept_ranges {
+            if ar.contains("bytes") {
+                tracing::info!(url = %url, "[ADL-DL] check_server_resumable: GET re-verify CONFIRMS Range support (Accept-Ranges: bytes)");
                 return Some(true);
             }
         }
     }
+
     tracing::info!(url = %url, "[ADL-DL] check_server_resumable: server does NOT support Range (non-resumable)");
     Some(false)
 }

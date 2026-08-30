@@ -247,11 +247,16 @@ pub fn download_pause(
                 .ok()
                 .and_then(|rs| rs.into_iter().find(|r| r.id == id));
             let source_tab_id = record.as_ref().and_then(|r| r.source_tab_id.clone());
+            // Carry the backend's interrupt_reason (UserPaused / NonResumablePaused
+            // / CosmeticPaused) so the frontend reflects the true pause kind
+            // instead of defaulting to UserPaused.
+            let interrupt_reason = record.as_ref().and_then(|r| r.interrupt_reason.clone());
             let _ = app_handle.emit(
                 "browser-download-paused",
                 &serde_json::json!({
                     "id": id,
                     "source_tab_id": source_tab_id,
+                    "interrupt_reason": interrupt_reason,
                 }),
             );
         },
@@ -264,6 +269,7 @@ pub fn download_pause(
                 .and_then(|rs| rs.into_iter().find(|r| r.id == id));
             let url = record.as_ref().map(|r| r.url.clone()).unwrap_or_default();
             let file_path = record.as_ref().map(|r| r.file_path.clone()).unwrap_or_default();
+            let source_tab_id = record.as_ref().and_then(|r| r.source_tab_id.clone());
             tracing::info!(
                 id = %id,
                 url = %url,
@@ -277,6 +283,7 @@ pub fn download_pause(
                     "url": url,
                     "filePath": file_path,
                     "success": true,
+                    "source_tab_id": source_tab_id,
                 }),
             );
         },
@@ -295,20 +302,29 @@ pub fn download_resume(
     id: String,
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::info!(id = %id, "[ADL-DL] download_resume called");
+    // Resolve the record once so both the resumed and error events carry the
+    // same source_tab_id (consistent with the pause/finished event contract).
+    let record = state
+        .download_manager
+        .list_downloads()
+        .ok()
+        .and_then(|rs| rs.into_iter().find(|r| r.id == id));
+    let source_tab_id = record.as_ref().and_then(|r| r.source_tab_id.clone());
     match state.download_manager.resume_download(&id, &app_handle) {
         Ok(()) => {
             tracing::info!(id = %id, "[ADL-DL] download_resume: resumed successfully");
-            let _ = app_handle.emit("browser-download-resumed", &serde_json::json!({ "id": id }));
+            let _ = app_handle.emit(
+                "browser-download-resumed",
+                &serde_json::json!({
+                    "id": id,
+                    "source_tab_id": source_tab_id,
+                }),
+            );
             Ok(ipc(Ok(())))
         },
         Err(e) => {
             tracing::error!(id = %id, error = %e, "[ADL-DL] download_resume: FAILED");
             // Emit error event so the frontend can show a toast notification
-            let record = state
-                .download_manager
-                .list_downloads()
-                .ok()
-                .and_then(|rs| rs.into_iter().find(|r| r.id == id));
             let url = record.as_ref().map(|r| r.url.clone()).unwrap_or_default();
             let _ = app_handle.emit(
                 "browser-download-error",
@@ -317,6 +333,7 @@ pub fn download_resume(
                     "url": url,
                     "reason": format!("Resume failed: {}", e),
                     "canRetry": true,
+                    "source_tab_id": source_tab_id,
                 }),
             );
             Err(map_download_err(e).into())
@@ -332,7 +349,19 @@ pub fn download_cancel(
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::debug!(id = %id, "[ADL-DL] download_cancel called");
     state.download_manager.cancel_download(&id).map_err(map_download_err)?;
-    let _ = app_handle.emit("browser-download-canceled", &serde_json::json!({ "id": id }));
+    let record = state
+        .download_manager
+        .list_downloads()
+        .ok()
+        .and_then(|rs| rs.into_iter().find(|r| r.id == id));
+    let source_tab_id = record.as_ref().and_then(|r| r.source_tab_id.clone());
+    let _ = app_handle.emit(
+        "browser-download-canceled",
+        &serde_json::json!({
+            "id": id,
+            "source_tab_id": source_tab_id,
+        }),
+    );
     Ok(ipc(Ok(())))
 }
 
@@ -425,6 +454,7 @@ pub async fn download_save_blob(
             "url": record.url,
             "filePath": record.file_path,
             "success": true,
+            "source_tab_id": record.source_tab_id,
         }),
     );
     Ok(ipc(Ok(record)))
