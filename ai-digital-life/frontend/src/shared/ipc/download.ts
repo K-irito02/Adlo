@@ -48,6 +48,7 @@ export interface DownloadErrorPayload {
   url: string;
   reason: string;
   canRetry: boolean;
+  source_tab_id?: string;
 }
 
 export interface DownloadFinishedPayload {
@@ -55,6 +56,7 @@ export interface DownloadFinishedPayload {
   url: string;
   filePath: string;
   success: boolean;
+  source_tab_id?: string;
 }
 
 export interface DownloadIdPayload {

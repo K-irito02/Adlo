@@ -82,6 +82,7 @@ pub fn setup_download_handler(
                     "url": url,
                     "reason": reason,
                     "canRetry": false,
+                    "source_tab_id": source_tab_id,
                 }),
             );
             return false;
@@ -122,6 +123,7 @@ pub fn setup_download_handler(
                         "url": url,
                         "reason": reason,
                         "canRetry": false,
+                        "source_tab_id": source_tab_id,
                     }),
                 );
                 false
@@ -266,6 +268,7 @@ pub fn handle_download_finished(
                 "url": url,
                 "filePath": display_path,
                 "success": true,
+                "source_tab_id": record.source_tab_id,
             }),
         );
     } else {
@@ -278,6 +281,7 @@ pub fn handle_download_finished(
                 "url": url,
                 "filePath": display_path,
                 "success": false,
+                "source_tab_id": record.source_tab_id,
             }),
         );
     }
