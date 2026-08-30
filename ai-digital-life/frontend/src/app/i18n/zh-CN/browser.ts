@@ -241,4 +241,12 @@ export const browserZh = {
   browserDownloadUnknownSize: '未知大小',
   browserDownloadCompletedAt: '完成于 {time}',
   browserDownloadFailedReason: '失败原因：{reason}',
+  browserDownloadPauseFailed: '暂停失败：{reason}',
+  browserDownloadResumeFailed: '恢复失败：{reason}',
+
+  // 下载暂停确认对话框
+  browserDownloadPauseDialogTitle: '此服务器不支持暂停',
+  browserDownloadPauseDialogDesc: '当前下载的服务器不支持断点续传。暂停后将从头开始下载。',
+  browserDownloadPauseDialogConfirm: '继续暂停',
+  browserDownloadPauseDialogCancel: '取消',
 } as const;
