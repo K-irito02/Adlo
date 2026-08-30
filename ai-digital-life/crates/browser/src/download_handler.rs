@@ -5,7 +5,6 @@ use tauri::{AppHandle, Emitter};
 use tauri_plugin_dialog::DialogExt;
 
 use super::download_manager::{DownloadManager, derive_file_name, get_default_download_path};
-use super::download_types::DownloadMode;
 
 pub fn setup_download_handler(
     app_handle: AppHandle,
@@ -75,7 +74,7 @@ pub fn setup_download_handler(
         // In Ask mode the user picks the save location through the native OS save
         // dialog; only Auto mode resolves the path to the configured default
         // directory automatically. A cancelled dialog denies the download.
-        let final_path = if settings.mode == DownloadMode::Ask {
+        let final_path = if settings.mode == super::download_types::DownloadMode::Ask {
             let file_name = derive_file_name(&url, &suggested_path);
             let default_dir = if settings.default_path.is_empty() {
                 get_default_download_path()
@@ -206,13 +205,11 @@ pub fn handle_download_finished(
     path: Option<&std::path::Path>,
     success: bool,
 ) {
-    tracing::info!(
+    tracing::debug!(
         url = url,
         success,
         path = path.map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
-        "[ADL-DL] handle_download_finished: ENTRY — success={}, url={}",
-        success,
-        url
+        "[ADL-DL] handle_download_finished: ENTRY"
     );
 
     let records = match download_manager.list_downloads() {
