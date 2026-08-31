@@ -8,6 +8,7 @@ import { BrowserDownloadItem } from './BrowserDownloadItem';
 import { BrowserDownloadContextMenu } from './BrowserDownloadContextMenu';
 import { useDownloadItemActions } from './useDownloadItemActions';
 import type { DownloadRecord } from '@shared/ipc/download';
+
 import './BrowserDownloadMenu.css';
 
 interface BrowserDownloadMenuProps {
@@ -228,39 +229,49 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
       ) : (
         <div className="adl-download-menu__list">
           {activeDownloads.length > 0 && (
-            <DownloadGroup
-              label={t.browserDownloadActive}
-              downloads={activeDownloads}
-              onContextMenu={handleContextMenu}
-            />
+            <div key="active">
+              <DownloadGroup
+                label={t.browserDownloadActive}
+                downloads={activeDownloads}
+                onContextMenu={handleContextMenu}
+              />
+            </div>
           )}
           {pausedDownloads.length > 0 && (
-            <DownloadGroup
-              label={t.browserDownloadPaused}
-              downloads={pausedDownloads}
-              onContextMenu={handleContextMenu}
-            />
+            <div key="paused">
+              <DownloadGroup
+                label={t.browserDownloadPaused}
+                downloads={pausedDownloads}
+                onContextMenu={handleContextMenu}
+              />
+            </div>
           )}
           {failedDownloads.length > 0 && (
-            <DownloadGroup
-              label={t.browserDownloadFailed}
-              downloads={failedDownloads}
-              onContextMenu={handleContextMenu}
-            />
+            <div key="failed">
+              <DownloadGroup
+                label={t.browserDownloadFailed}
+                downloads={failedDownloads}
+                onContextMenu={handleContextMenu}
+              />
+            </div>
           )}
           {completedDownloads.length > 0 && (
-            <DownloadGroup
-              label={t.browserDownloadCompleted}
-              downloads={completedDownloads}
-              onContextMenu={handleContextMenu}
-            />
+            <div key="completed">
+              <DownloadGroup
+                label={t.browserDownloadCompleted}
+                downloads={completedDownloads}
+                onContextMenu={handleContextMenu}
+              />
+            </div>
           )}
           {canceledDownloads.length > 0 && (
-            <DownloadGroup
-              label={t.browserDownloadCanceled}
-              downloads={canceledDownloads}
-              onContextMenu={handleContextMenu}
-            />
+            <div key="canceled">
+              <DownloadGroup
+                label={t.browserDownloadCanceled}
+                downloads={canceledDownloads}
+                onContextMenu={handleContextMenu}
+              />
+            </div>
           )}
           {filteredDownloads.length === 0 && searchQuery && (
             <div className="adl-download-menu__no-results">{t.browserNoSearchResults}</div>

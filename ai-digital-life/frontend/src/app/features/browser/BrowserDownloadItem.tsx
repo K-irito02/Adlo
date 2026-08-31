@@ -5,6 +5,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { formatBytes } from '../../../design-system/html';
 import type { DownloadRecord } from '@shared/ipc/download';
 import { BrowserDownloadPauseDialog } from './BrowserDownloadPauseDialog';
+import { useDownloadItemActions } from './useDownloadItemActions';
 
 interface BrowserDownloadItemProps {
   record: DownloadRecord;
@@ -17,6 +18,9 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
 }: BrowserDownloadItemProps) {
   const { t } = useTCopy();
   const itemRef = useRef<HTMLDivElement>(null);
+  const lastClickTimeRef = useRef(0);
+
+  const { handleOpenFile } = useDownloadItemActions();
 
   const activeDownloads = useAppStore((s) => s.activeDownloads);
   const pauseDownload = useAppStore((s) => s.pauseDownload);
@@ -82,6 +86,23 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
     [cancelDownload],
   );
 
+  const handleClick = useCallback(
+    (_e: React.MouseEvent) => {
+      const now = Date.now();
+      if (now - lastClickTimeRef.current < 300) {
+        // 防止重复快速点击
+        return;
+      }
+      lastClickTimeRef.current = now;
+      console.log('[ADL-DEBUG] Download item clicked:', record.file_name, 'status:', record.status);
+      if (record.status === 'completed' || record.status === 'failed') {
+        // 只有已完成或失败的下载才尝试打开文件
+        void handleOpenFile(record);
+      }
+    },
+    [record, handleOpenFile],
+  );
+
   // Status icons removed per user request - partition titles are sufficient
 
   const formatDate = (timestamp: number) => {
@@ -127,6 +148,7 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
         ref={itemRef}
         className="adl-download-item"
         onContextMenu={handleContextMenu}
+        onClick={handleClick}
         role="listitem"
         aria-label={record.file_name}
       >
