@@ -1,6 +1,6 @@
 import React from 'react';
-import { IconChevronDown, IconChevronRight, FileBadgeIcon } from '@icons';
-import { getFileTreeVisualSpec } from './fileTreeVisuals';
+import { IconChevronDown, IconChevronRight } from '@icons';
+import { FileIcon } from '@shared/file-icon';
 
 interface TreeRowProps {
   name: string;
@@ -34,9 +34,7 @@ export const TreeRow = React.memo(function TreeRow({
   className,
   style,
 }: TreeRowProps) {
-  const fileVisual = isDir
-    ? undefined
-    : getFileTreeVisualSpec({ name, path, kind: 'file' as const });
+  // File icon is rendered directly by FileIcon component (no visual spec needed)
 
   return (
     <li
@@ -70,11 +68,8 @@ export const TreeRow = React.memo(function TreeRow({
           </button>
         ) : (
           <span className="adl-tree-node__icon-before">
-            <span
-              className={`adl-filetree__file-icon adl-filetree__file-icon--${fileVisual?.tone ?? 'default'}`}
-              aria-hidden="true"
-            >
-              <FileBadgeIcon variant={fileVisual?.icon ?? 'badge'} size={14} decorative />
+            <span className="adl-filetree__file-icon" aria-hidden="true">
+              <FileIcon fileName={name} size={16} />
             </span>
           </span>
         )}

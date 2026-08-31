@@ -54,29 +54,6 @@ export {
   IconFileTree,
 } from './file';
 export {
-  IconBadgeTypescript,
-  IconBadgeJavascript,
-  IconBadgePython,
-  IconBadgeSystems,
-  IconBadgeMarkup,
-  IconBadgeStyle,
-  IconBadgeData,
-  IconBadgeScript,
-  IconBadgeConfig,
-  IconBadgeDoc,
-  IconBadgeText,
-  IconBadgeSheet,
-  IconBadgeSlide,
-  IconBadgeImage,
-  IconBadgeAudio,
-  IconBadgeVideo,
-  IconBadgeArchive,
-  IconBadgeDatabase,
-  IconBadgeFont,
-  FileBadgeIcon,
-} from './badges';
-export type { FileBadgeVariant } from './badges';
-export {
   IconPlus,
   IconCopy,
   IconEdit,

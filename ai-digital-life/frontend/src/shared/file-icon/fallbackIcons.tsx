@@ -5,7 +5,7 @@ import { make, type IconComponent } from '@icons/helper';
  * Fallback SVG icons for file extensions not covered by
  * react-symbols or react-file-icon.
  *
- * These are cold/niche extensions that rarely appear in downloads.
+ * These are cold/niche extensions that rarely appear.
  * Uses the project's existing SVG icon convention (currentColor, 24x24 viewBox).
  */
 

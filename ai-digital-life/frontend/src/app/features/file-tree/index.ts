@@ -6,7 +6,6 @@ export type {
   FileTreeContextMenuItem,
   FlattenedTreeNode,
 } from './fileTree.utils';
-export { getFileTreeVisualSpec } from './fileTreeVisuals';
 export { CustomScrollArea } from './CustomScrollArea';
 export { TreeNodeRow } from './TreeNodeRow';
 export { useVirtualList } from './hooks/useVirtualList';

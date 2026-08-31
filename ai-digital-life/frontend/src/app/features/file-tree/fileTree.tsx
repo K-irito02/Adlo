@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { IconAlertTriangle, IconCircle, FileBadgeIcon } from '@icons';
-import { getFileTreeVisualSpec } from './fileTreeVisuals';
+import { IconAlertTriangle, IconCircle } from '@icons';
+import { FileIcon } from '@shared/file-icon';
 import { CustomScrollArea } from './CustomScrollArea';
 import { TreeNodeRow } from './TreeNodeRow';
 import { ContextMenu } from '@components/ContextMenu';
@@ -78,7 +78,7 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   const isHovered = node.path === hoveredPath;
   const isDirty = dirtyPaths?.has(node.path) ?? false;
   const isExternal = node.path === externalChangePath;
-  const fileVisual = isDirectory ? undefined : getFileTreeVisualSpec(node);
+  // File icon is rendered directly by FileIcon component (no visual spec needed)
   const customMeta = renderMeta?.(node);
   const customCount = renderCount?.(node);
   const customIconBefore = renderIconBefore?.(node);
@@ -153,11 +153,8 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
         isDirectory ? undefined : customIconBefore ? (
           customIconBefore
         ) : (
-          <span
-            className={`adl-filetree__file-icon adl-filetree__file-icon--${fileVisual?.tone ?? 'default'}`}
-            aria-hidden="true"
-          >
-            <FileBadgeIcon variant={fileVisual?.icon ?? 'badge'} size={14} decorative />
+          <span className="adl-filetree__file-icon" aria-hidden="true">
+            <FileIcon fileName={node.name} size={16} />
           </span>
         )
       }
