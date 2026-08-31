@@ -5,11 +5,12 @@ import {
   defaultStyles,
   type DefaultExtensionType,
 } from 'react-file-icon';
+import { type IconSize } from '@icons/helper';
 import { FALLBACK_EXTENSION_MAP, IconFallbackUnknown } from './DownloadFileFallbackIcons';
 
 interface DownloadFileIconProps {
   fileName: string;
-  size?: number;
+  size?: IconSize;
   className?: string;
 }
 
@@ -30,17 +31,17 @@ function extractExtension(fileName: string): string {
  * 3. react-symbols (programming, images, audio/video, database, config — 300+ icons)
  * 4. Generic unknown file icon (completely unmatched)
  */
-export function DownloadFileIcon({ fileName, size = 20, className }: DownloadFileIconProps) {
+export function DownloadFileIcon({ fileName, size = 16, className }: DownloadFileIconProps) {
   const extension = useMemo(() => extractExtension(fileName), [fileName]);
 
   if (!extension) {
-    return <IconFallbackUnknown size={size as 20} className={className} decorative />;
+    return <IconFallbackUnknown size={size} className={className} decorative />;
   }
 
   // Tier 1: Project fallback — cold/niche extensions
   const FallbackIcon = FALLBACK_EXTENSION_MAP[extension];
   if (FallbackIcon) {
-    return <FallbackIcon size={size as 20} className={className} decorative />;
+    return <FallbackIcon size={size} className={className} decorative />;
   }
 
   // Tier 2: react-file-icon — office documents and other themed extensions
