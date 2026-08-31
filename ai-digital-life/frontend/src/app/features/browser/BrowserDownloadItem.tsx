@@ -94,7 +94,6 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
         return;
       }
       lastClickTimeRef.current = now;
-      console.log('[ADL-DEBUG] Download item clicked:', record.file_name, 'status:', record.status);
       if (record.status === 'completed' || record.status === 'failed') {
         // 只有已完成或失败的下载才尝试打开文件
         void handleOpenFile(record);

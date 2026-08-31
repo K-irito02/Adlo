@@ -229,7 +229,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
       ) : (
         <div className="adl-download-menu__list">
           {activeDownloads.length > 0 && (
-            <div key="active">
+            <div>
               <DownloadGroup
                 label={t.browserDownloadActive}
                 downloads={activeDownloads}
@@ -238,7 +238,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
             </div>
           )}
           {pausedDownloads.length > 0 && (
-            <div key="paused">
+            <div>
               <DownloadGroup
                 label={t.browserDownloadPaused}
                 downloads={pausedDownloads}
@@ -247,7 +247,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
             </div>
           )}
           {failedDownloads.length > 0 && (
-            <div key="failed">
+            <div>
               <DownloadGroup
                 label={t.browserDownloadFailed}
                 downloads={failedDownloads}
@@ -256,7 +256,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
             </div>
           )}
           {completedDownloads.length > 0 && (
-            <div key="completed">
+            <div>
               <DownloadGroup
                 label={t.browserDownloadCompleted}
                 downloads={completedDownloads}
@@ -265,7 +265,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
             </div>
           )}
           {canceledDownloads.length > 0 && (
-            <div key="canceled">
+            <div>
               <DownloadGroup
                 label={t.browserDownloadCanceled}
                 downloads={canceledDownloads}

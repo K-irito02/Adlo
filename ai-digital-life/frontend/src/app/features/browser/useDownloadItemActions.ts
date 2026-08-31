@@ -13,8 +13,8 @@ export function useDownloadItemActions() {
     try {
       const { invoke } = await import('@tauri-apps/api/core');
       await invoke('download_open_file', { filePath: rec.file_path });
-    } catch {
-      // fallback: ignore
+    } catch (err) {
+      console.warn('[ADL] Failed to open file:', err);
     }
   }, []);
 
