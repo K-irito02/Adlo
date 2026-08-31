@@ -1,6 +1,10 @@
 import React, { useMemo } from 'react';
 import { FileIcon as ReactSymbolsFileIcon } from '@react-symbols/icons/utils';
-import { FileIcon as ReactFileIcon, defaultStyles, type DefaultExtensionType } from 'react-file-icon';
+import {
+  FileIcon as ReactFileIcon,
+  defaultStyles,
+  type DefaultExtensionType,
+} from 'react-file-icon';
 import { FALLBACK_EXTENSION_MAP, IconFallbackUnknown } from './DownloadFileFallbackIcons';
 
 interface DownloadFileIconProps {
@@ -11,7 +15,9 @@ interface DownloadFileIconProps {
 
 function extractExtension(fileName: string): string {
   const lastDot = fileName.lastIndexOf('.');
-  if (lastDot <= 0) return '';
+  if (lastDot <= 0) {
+    return '';
+  }
   return fileName.slice(lastDot + 1).toLowerCase();
 }
 
@@ -56,11 +62,6 @@ export function DownloadFileIcon({ fileName, size = 20, className }: DownloadFil
   // Tier 3: react-symbols — broadest coverage (programming, images, media, etc.)
   // Falls back to its own DefaultFileIcon for truly unknown extensions
   return (
-    <ReactSymbolsFileIcon
-      fileName={fileName}
-      width={size}
-      height={size}
-      className={className}
-    />
+    <ReactSymbolsFileIcon fileName={fileName} width={size} height={size} className={className} />
   );
 }

@@ -154,7 +154,11 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
       >
         <div className="adl-download-item__content">
           <div className="adl-download-item__header">
-            <DownloadFileIcon fileName={record.file_name} size={16} className="adl-download-item__file-icon" />
+            <DownloadFileIcon
+              fileName={record.file_name}
+              size={16}
+              className="adl-download-item__file-icon"
+            />
             <span className="adl-download-item__name" title={record.file_name}>
               {record.file_name}
             </span>
