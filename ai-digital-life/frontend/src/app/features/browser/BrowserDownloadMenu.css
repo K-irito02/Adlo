@@ -207,6 +207,18 @@
   gap: var(--space-1);
 }
 
+.adl-download-item__file-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.adl-download-item__file-icon img,
+.adl-download-item__file-icon svg {
+  display: block;
+}
+
 .adl-download-item__name {
   flex: 1;
   min-width: 0;
