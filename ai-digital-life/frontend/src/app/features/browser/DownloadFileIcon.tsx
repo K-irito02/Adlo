@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { FileIcon as ReactSymbolsFileIcon } from '@react-symbols/icons/utils';
 import { FileIcon as ReactFileIcon, defaultStyles, type DefaultExtensionType } from 'react-file-icon';
-import 'react-file-icon/dist/styles.css';
 import { FALLBACK_EXTENSION_MAP, IconFallbackUnknown } from './DownloadFileFallbackIcons';
 
 interface DownloadFileIconProps {
