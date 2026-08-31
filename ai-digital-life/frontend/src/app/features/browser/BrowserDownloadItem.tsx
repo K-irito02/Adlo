@@ -5,6 +5,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { formatBytes } from '../../../design-system/html';
 import type { DownloadRecord } from '@shared/ipc/download';
 import { BrowserDownloadPauseDialog } from './BrowserDownloadPauseDialog';
+import { DownloadFileIcon } from './DownloadFileIcon';
 import { useDownloadItemActions } from './useDownloadItemActions';
 
 interface BrowserDownloadItemProps {
@@ -153,6 +154,7 @@ export const BrowserDownloadItem = React.memo(function BrowserDownloadItem({
       >
         <div className="adl-download-item__content">
           <div className="adl-download-item__header">
+            <DownloadFileIcon fileName={record.file_name} size={16} className="adl-download-item__file-icon" />
             <span className="adl-download-item__name" title={record.file_name}>
               {record.file_name}
             </span>
