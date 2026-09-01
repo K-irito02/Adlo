@@ -1,5 +1,6 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, makePersistedWriter } from '../shared';
+import { invokeIpc } from '../../../tauri-bridge/tauri-shared';
 import {
   BROWSER_SHORTCUTS_KEY,
   BROWSER_LOCAL_PORTS_KEY,
@@ -38,6 +39,7 @@ export interface BrowserLandingSlice {
   browserDeleteLocalPort: (id: string) => void;
   browserReorderLocalPorts: (ids: string[]) => void;
   browserSetPortScanning: (scanning: boolean) => void;
+  browserScanPorts: (ports: number[]) => Promise<void>;
   browserSetBgConfig: (config: BackgroundConfig) => void;
   browserResetBgConfig: () => void;
 }
@@ -162,6 +164,45 @@ export const createBrowserLandingSlice = (
     }),
 
   browserSetPortScanning: (scanning) => set({ browserPortScanning: scanning }),
+
+  browserScanPorts: async (ports) => {
+    set({ browserPortScanning: true });
+    try {
+      const result = await invokeIpc<{ port: number; isOpen: boolean; responseTimeMs: number }[]>(
+        'browser_scan_ports',
+        { ports },
+      );
+      if (!result.ok) {
+        console.warn('[browserScanPorts] IPC error:', result.error);
+        return;
+      }
+      const openPorts = result.data.filter((p) => p.isOpen);
+      const current = _get().browserLocalPorts;
+      const existingKeys = new Set(current.map((p) => `${p.host}:${p.port}`));
+      const maxSortOrder = current.length > 0 ? Math.max(...current.map((p) => p.sortOrder)) : 0;
+
+      const newPorts: LocalPort[] = openPorts
+        .filter((p) => !existingKeys.has(`localhost:${p.port}`))
+        .map((p, idx) => ({
+          id: createUiId('localport'),
+          host: 'localhost',
+          port: p.port,
+          isAutoDiscovered: true,
+          lastAliveAt: Date.now(),
+          sortOrder: maxSortOrder + idx + 1,
+        }));
+
+      if (newPorts.length > 0) {
+        const next = [...current, ...newPorts];
+        writeLocalPorts(next);
+        set({ browserLocalPorts: next });
+      }
+    } catch (e) {
+      console.warn('[browserScanPorts] failed:', e);
+    } finally {
+      set({ browserPortScanning: false });
+    }
+  },
 
   browserSetBgConfig: (config) => {
     writeBgConfig(config);

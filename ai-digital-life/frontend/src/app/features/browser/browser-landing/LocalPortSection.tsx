@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { createUiId } from '@stores/shared';
 import type { LocalPort } from '@stores/slices/browserSlice';
 import './LocalPortSection.css';
+import { RefreshButton } from '../../git-visualization/RefreshButton';
 
 interface LocalPortSectionProps {
   t: Record<string, string>;
@@ -22,7 +23,6 @@ export function LocalPortSection({
 }: LocalPortSectionProps) {
   const {
     browserLocalPorts,
-    browserPortScanning,
     browserSetLocalPorts,
     browserReorderLocalPorts,
     browserSetPortScanning,
@@ -49,40 +49,41 @@ export function LocalPortSection({
       return;
     }
     scanningRef.current = true;
-    browserSetPortScanning(true);
 
     try {
-      let discovered: { host: string; port: number }[] = [];
+      const store = useAppStore.getState();
 
-      if (useAppStore.getState().isTauri) {
-        // Tauri 模式：暂不支持服务端扫描，保持端口列表不变
+      if (store.isTauri) {
+        await store.browserScanPorts([3000, 5000, 8080, 8000, 3001, 5173, 4200, 9000, 4000, 8888]);
       } else {
+        browserSetPortScanning(true);
         const response = await fetch(SCAN_API);
         if (response.ok) {
           const result = await response.json();
           if (result.ok && Array.isArray(result.data)) {
-            discovered = result.data;
+            const discovered: { host: string; port: number }[] = result.data;
+            const existingKeys = new Set(browserLocalPorts.map((p) => `${p.host}:${p.port}`));
+            const maxSortOrder =
+              browserLocalPorts.length > 0
+                ? Math.max(...browserLocalPorts.map((p) => p.sortOrder))
+                : 0;
+
+            const newPorts = discovered
+              .filter((p) => !existingKeys.has(`${p.host}:${p.port}`))
+              .map((p, idx) => ({
+                id: createUiId('localport'),
+                host: p.host,
+                port: p.port,
+                isAutoDiscovered: true,
+                lastAliveAt: Date.now(),
+                sortOrder: maxSortOrder + idx + 1,
+              }));
+
+            if (newPorts.length > 0) {
+              browserSetLocalPorts([...browserLocalPorts, ...newPorts]);
+            }
           }
         }
-      }
-
-      const existingKeys = new Set(browserLocalPorts.map((p) => `${p.host}:${p.port}`));
-      const maxSortOrder =
-        browserLocalPorts.length > 0 ? Math.max(...browserLocalPorts.map((p) => p.sortOrder)) : 0;
-
-      const newPorts = discovered
-        .filter((p) => !existingKeys.has(`${p.host}:${p.port}`))
-        .map((p, idx) => ({
-          id: createUiId('localport'),
-          host: p.host,
-          port: p.port,
-          isAutoDiscovered: true,
-          lastAliveAt: Date.now(),
-          sortOrder: maxSortOrder + idx + 1,
-        }));
-
-      if (newPorts.length > 0) {
-        browserSetLocalPorts([...browserLocalPorts, ...newPorts]);
       }
     } catch (e) {
       console.warn('[LocalPortSection] port scan failed:', e);
@@ -98,10 +99,6 @@ export function LocalPortSection({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only: initial port scan; scanPorts is stable via useCallback and reads latest state from stores
   }, []);
-
-  const handleRefresh = useCallback(() => {
-    scanPorts();
-  }, [scanPorts]);
 
   const handleDragStart = useCallback((e: React.DragEvent, id: string) => {
     e.dataTransfer.effectAllowed = 'move';
@@ -157,16 +154,11 @@ export function LocalPortSection({
     <div className="adl-local-port-section">
       <div className="adl-local-port-section__header">
         <span className="adl-local-port-section__title">{t.browserLocalPorts}</span>
-        <button
-          type="button"
+        <RefreshButton
+          onRefresh={scanPorts}
+          label={t.browserRefreshPorts}
           className="adl-local-port-section__refresh"
-          onClick={handleRefresh}
-          disabled={browserPortScanning}
-          aria-label={t.browserRefreshPorts}
-          title={t.browserRefreshPorts}
-        >
-          ↻
-        </button>
+        />
       </div>
       <div className="adl-local-port-section__items">
         {sortedPorts.map((port) => (
