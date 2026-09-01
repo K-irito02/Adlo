@@ -50,6 +50,35 @@ pnpm --dir frontend run test:e2e:workspace  # 验证工作区恢复
 
 详细说明见 [AGENTS.md](./AGENTS.md#双端一致性) 和前端 `frontend/e2e/` 目录。
 
+## 端口扫描功能
+
+本项目实现了本地端口扫描功能，用于检测和分析本地服务的端口状态。
+
+### 功能说明
+
+- **端口扫描** (`browser_scan_ports`): 批量扫描指定端口列表，返回每个端口的开放状态和响应时间
+- **端口详情** (`browser_get_port_details`): 获取单个端口的详细信息，包括进程信息
+
+### 使用示例
+
+```typescript
+// 扫描多个端口
+const ports = [80, 443, 3000, 8080];
+const results = await invoke('browser_scan_ports', { ports });
+// results: [{ port: 80, isOpen: true, responseTimeMs: 12 }, ...]
+
+// 获取端口详情
+const details = await invoke('browser_get_port_details', { port: 3000 });
+// details: { port: 3000, isOpen: true, protocol: 'TCP', localAddress: '127.0.0.1:3000', processes: [...] }
+```
+
+### 安全限制
+
+- 单次扫描最多 100 个端口
+- 端口号不能为 0
+- 端口列表不能为空
+- 扫描仅限于本地主机 (127.0.0.1)
+
 ## 技术栈
 
 | 层 | 选型 |
