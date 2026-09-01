@@ -481,6 +481,7 @@ dependencies = [
  "adl-workspace",
  "anyhow",
  "base64 0.22.1",
+ "futures",
  "reqwest",
  "serde",
  "serde_json",
