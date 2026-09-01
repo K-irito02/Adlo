@@ -22,7 +22,9 @@ const writeLocalPorts = makePersistedWriter(BROWSER_LOCAL_PORTS_KEY);
 const writeBgConfig = makePersistedWriter(BROWSER_BG_CONFIG_KEY);
 const writeConfiguredPorts = makePersistedWriter(BROWSER_CONFIGURED_PORTS_KEY);
 
-const DEFAULT_CONFIGURED_PORTS = [3000, 5000, 8080, 8000, 3001, 5173, 4200, 9000];
+const DEFAULT_CONFIGURED_PORTS = [
+  3000, 3001, 3080, 4173, 5000, 5173, 8080, 8000, 4200, 9000, 9229, 2718,
+];
 
 export interface BrowserLandingSlice {
   browserShortcuts: ShortcutSite[];
@@ -179,16 +181,22 @@ export const createBrowserLandingSlice = (
 
   browserScanPorts: async (ports) => {
     set({ browserPortScanning: true });
+    console.log('[ADL-DEBUG] browserScanPorts starting, ports:', ports);
     try {
       const result = await invokeIpc<{ port: number; isOpen: boolean; responseTimeMs: number }[]>(
         'browser_scan_ports',
         { ports },
       );
       if (!result.ok) {
-        console.warn('[browserScanPorts] IPC error:', result.error);
+        console.warn('[ADL-DEBUG] browserScanPorts IPC error:', result.error);
         return;
       }
       const openPorts = result.data.filter((p) => p.isOpen);
+      console.log('[ADL-DEBUG] browserScanPorts result:', {
+        scanned: ports.length,
+        open: openPorts.length,
+        openPorts: openPorts.map((p) => p.port),
+      });
       const current = _get().browserLocalPorts;
       const existingKeys = new Set(current.map((p) => `${p.host}:${p.port}`));
       const maxSortOrder = current.length > 0 ? Math.max(...current.map((p) => p.sortOrder)) : 0;

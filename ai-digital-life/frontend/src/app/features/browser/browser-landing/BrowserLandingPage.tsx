@@ -8,6 +8,7 @@ import { LocalPortSection } from './LocalPortSection';
 import { AddShortcutDialog } from './AddShortcutDialog';
 import { AddManualPortDialog } from './AddManualPortDialog';
 import { BackgroundSettingsDialog } from './BackgroundSettingsDialog';
+import { PortConfigDialog } from './PortConfigDialog';
 import type { ShortcutSite, LocalPort } from '@stores/slices/browserSlice';
 import { ContextMenu } from '@components/ContextMenu';
 import './BrowserLandingPage.css';
@@ -62,6 +63,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
   const [renamePortValue, setRenamePortValue] = useState('');
 
   const [bgSettingsOpen, setBgSettingsOpen] = useState(false);
+  const [portConfigOpen, setPortConfigOpen] = useState(false);
 
   const [portDetailsOpen, setPortDetailsOpen] = useState(false);
   const [portDetails, setPortDetails] = useState<{
@@ -72,7 +74,6 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
     processes: { pid: number; name: string; command: string }[];
     processError: string | null;
   } | null>(null);
-  const [portDetailsLoading, setPortDetailsLoading] = useState(false);
 
   const handleOpenUrl = useCallback(
     (url: string) => {
@@ -157,9 +158,8 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
     }
     const portNum = portMenu.port.port;
     handleContextMenuClose();
-    setPortDetailsLoading(true);
-    setPortDetailsOpen(true);
     try {
+      console.log('[ADL-DEBUG] Port details requested for port:', portNum);
       const result = await invokeIpc<{
         port: number;
         isOpen: boolean;
@@ -169,8 +169,11 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
         processError: string | null;
       }>('browser_get_port_details', { port: portNum });
       if (result.ok) {
+        console.log('[ADL-DEBUG] Port details loaded:', result.data);
         setPortDetails(result.data);
+        setPortDetailsOpen(true);
       } else {
+        console.warn('[ADL-DEBUG] Port details IPC error:', result.error);
         setPortDetails({
           port: portNum,
           isOpen: false,
@@ -179,8 +182,10 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
           processes: [],
           processError: null,
         });
+        setPortDetailsOpen(true);
       }
-    } catch {
+    } catch (e) {
+      console.warn('[ADL-DEBUG] Port details failed:', e);
       setPortDetails({
         port: portNum,
         isOpen: false,
@@ -189,8 +194,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
         processes: [],
         processError: null,
       });
-    } finally {
-      setPortDetailsLoading(false);
+      setPortDetailsOpen(true);
     }
   }, [portMenu.port, handleContextMenuClose]);
 
@@ -230,11 +234,6 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
 
   const portContextMenuItems = [
     {
-      id: 'details',
-      label: t.browserViewDetails,
-      action: handleViewPortDetailsFromMenu,
-    },
-    {
       id: 'rename',
       label: t.browserLabelPort,
       action: handleRenamePortFromMenu,
@@ -244,6 +243,11 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
       label: t.browserDelete,
       danger: true as const,
       action: handleDeletePortFromMenu,
+    },
+    {
+      id: 'details',
+      label: t.browserViewDetails,
+      action: handleViewPortDetailsFromMenu,
     },
   ];
 
@@ -268,13 +272,17 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
         <button
           type="button"
           className="adl-browser-landing__footer-btn"
+          onClick={() => setPortConfigOpen(true)}
+        >
+          {t.browserPortSettings}
+        </button>
+        <span className="adl-browser-landing__footer-divider" />
+        <button
+          type="button"
+          className="adl-browser-landing__footer-btn"
           onClick={() => setBgSettingsOpen(true)}
         >
           {t.browserCustomBg}
-        </button>
-        <span className="adl-browser-landing__footer-divider" />
-        <button type="button" className="adl-browser-landing__footer-btn" onClick={handleAddClick}>
-          {t.browserAddShortcut}
         </button>
       </div>
 
@@ -302,6 +310,8 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
         t={t}
         onClose={() => setBgSettingsOpen(false)}
       />
+
+      <PortConfigDialog open={portConfigOpen} t={t} onClose={() => setPortConfigOpen(false)} />
 
       {shortcutMenu.open && shortcutMenu.site && (
         <ContextMenu
@@ -349,11 +359,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
               </button>
             </div>
             <div className="adl-prompt-modal__body">
-              {portDetailsLoading ? (
-                <div className="adl-browser-landing__port-details-loading">
-                  {t.browserPortScanning}
-                </div>
-              ) : portDetails ? (
+              {portDetails ? (
                 <div className="adl-browser-landing__port-details">
                   <div className="adl-browser-landing__port-details-row">
                     <span className="adl-browser-landing__port-details-label">
@@ -422,18 +428,6 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
                   </div>
                 </div>
               ) : null}
-            </div>
-            <div className="adl-prompt-modal__actions adl-prompt-modal__actions--fill">
-              <button
-                type="button"
-                className="adl-btn adl-btn--primary adl-btn--square"
-                onClick={() => {
-                  setPortDetailsOpen(false);
-                  setPortDetails(null);
-                }}
-              >
-                {t.browserClose}
-              </button>
             </div>
           </div>
         </div>

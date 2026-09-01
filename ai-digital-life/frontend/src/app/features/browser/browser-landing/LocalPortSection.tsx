@@ -51,6 +51,7 @@ export function LocalPortSection({
 
     try {
       const store = useAppStore.getState();
+      console.log('[ADL-DEBUG] LocalPortSection scanPorts, isTauri:', store.isTauri);
 
       if (store.isTauri) {
         await store.browserScanPorts(store.browserConfiguredPorts);

@@ -118,9 +118,3 @@
   font-style: italic;
 }
 
-.adl-browser-landing__port-details-loading {
-  text-align: center;
-  padding: 20px;
-  font-size: 13px;
-  color: var(--text-muted);
-}
