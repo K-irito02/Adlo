@@ -168,6 +168,7 @@ fn main() {
             commands::download_commands::download_cancel,
             commands::download_commands::download_save_blob,
             commands::platform::workspace_open_in_file_manager,
+            commands::port_scan::browser_scan_ports,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
