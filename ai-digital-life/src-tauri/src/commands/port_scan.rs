@@ -11,6 +11,7 @@ use adl_types::IpcResult;
 
 const SCAN_TIMEOUT_MS: u64 = 300;
 const MAX_CONCURRENCY: usize = 10;
+const MAX_PORTS_PER_SCAN: usize = 100;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,15 +33,49 @@ async fn scan_single_port(port: u16) -> ScannedPort {
     ScannedPort { port, is_open, response_time_ms: start.elapsed().as_millis() as u64 }
 }
 
+fn validate_ports(ports: &[u16]) -> Result<(), CommandError> {
+    if ports.is_empty() {
+        return Err(CommandError::from(AppError::Internal(
+            "port list is empty".to_string(),
+        )));
+    }
+    if ports.len() > MAX_PORTS_PER_SCAN {
+        return Err(CommandError::from(AppError::Internal(format!(
+            "port list too long: {} exceeds maximum of {}",
+            ports.len(),
+            MAX_PORTS_PER_SCAN
+        ))));
+    }
+    for &port in ports {
+        if port == 0 {
+            return Err(CommandError::from(AppError::Internal(
+                "invalid port number: 0".to_string(),
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Scans a list of TCP ports on localhost (127.0.0.1) for connectivity.
 ///
 /// Deduplicates and sorts input ports. Returns results sorted by port number.
 /// Each port is probed with a 300ms timeout, up to 10 concurrent connections.
 #[tauri::command]
 pub async fn browser_scan_ports(ports: Vec<u16>) -> Result<IpcResult<Vec<ScannedPort>>, CommandError> {
+    let scan_start = Instant::now();
+
+    validate_ports(&ports)?;
+
     let mut unique_ports: Vec<u16> =
         ports.into_iter().collect::<std::collections::HashSet<_>>().into_iter().collect();
     unique_ports.sort();
+
+    let port_count = unique_ports.len();
+    tracing::debug!(
+        port_count,
+        unique_count = port_count,
+        "browser_scan_ports: starting scan"
+    );
 
     let mut results: Vec<ScannedPort> = stream::iter(unique_ports)
         .map(scan_single_port)
@@ -49,6 +84,16 @@ pub async fn browser_scan_ports(ports: Vec<u16>) -> Result<IpcResult<Vec<Scanned
         .await;
 
     results.sort_by_key(|p| p.port);
+
+    let elapsed_ms = scan_start.elapsed().as_millis() as u64;
+    let open_count = results.iter().filter(|p| p.is_open).count();
+    tracing::debug!(
+        port_count,
+        open_count,
+        elapsed_ms,
+        "browser_scan_ports: completed"
+    );
+
     Ok(ipc(Ok(results)))
 }
 
@@ -274,10 +319,28 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn scan_ports_empty_input() {
-        let ipc_result = browser_scan_ports(vec![]).await.unwrap();
-        let results = unwrap_ipc(ipc_result);
-        assert!(results.is_empty());
+    async fn scan_ports_empty_input_returns_error() {
+        let result = browser_scan_ports(vec![]).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("empty"), "unexpected error: {}", err.message);
+    }
+
+    #[tokio::test]
+    async fn scan_ports_too_many_returns_error() {
+        let ports: Vec<u16> = (0..101).map(|i| i + 1).collect();
+        let result = browser_scan_ports(ports).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("too long"), "unexpected error: {}", err.message);
+    }
+
+    #[tokio::test]
+    async fn scan_ports_zero_port_returns_error() {
+        let result = browser_scan_ports(vec![0, 8080]).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.message.contains("invalid port"), "unexpected error: {}", err.message);
     }
 
     #[tokio::test]
