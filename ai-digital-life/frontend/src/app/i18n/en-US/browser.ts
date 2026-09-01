@@ -86,8 +86,6 @@ export const browserEn = {
   browserAddPortTitle: 'Add port',
   browserCancel: 'Cancel',
   browserClose: 'Close',
-  browserLoading: 'Loading',
-  browserHibernated: 'Hibernated (inactive tab; reopens with a reload)',
   browserCustomBg: 'Custom background',
   browserManageShortcuts: 'Add shortcut',
   browserBgSettings: 'Custom background',

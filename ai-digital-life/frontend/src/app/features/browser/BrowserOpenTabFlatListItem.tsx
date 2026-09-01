@@ -4,7 +4,7 @@ import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
 import { useTCopy } from '@i18n/useTCopy';
 import { ShimmeringText } from '@/components/shimmering-text';
 import { useAppStore } from '@stores/slicedStore';
-import { IconClose, IconMoon } from '@icons';
+import { IconClose } from '@icons';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 interface BrowserOpenTabFlatListItemProps {
@@ -45,23 +45,6 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
             window.digitalLife?.browser?.muteTab?.(tab.id, nextMuted);
           }}
         />
-        {isLoading ? (
-          <span
-            className="adl-browser-tab-state adl-browser-tab-state--loading"
-            title={t.browserLoading}
-            aria-label={t.browserLoading}
-          >
-            <IconMoon size={12} decorative />
-          </span>
-        ) : isEvicted ? (
-          <span
-            className="adl-browser-tab-state adl-browser-tab-state--hibernated"
-            title={t.browserHibernated}
-            aria-label={t.browserHibernated}
-          >
-            <IconMoon size={12} decorative />
-          </span>
-        ) : null}
         <button type="button" className="adl-filetree__label" onClick={() => onSelectTab(tab.id)}>
           <span className="adl-filetree__label-content">
             <span className="adl-filetree__label-text">

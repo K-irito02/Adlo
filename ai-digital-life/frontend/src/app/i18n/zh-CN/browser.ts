@@ -80,8 +80,6 @@ export const browserZh = {
   browserAddPortTitle: '添加端口',
   browserCancel: '取消',
   browserClose: '关闭',
-  browserLoading: '正在加载',
-  browserHibernated: '已挂起（不活跃标签，重新打开将重新加载）',
   browserCustomBg: '自定义背景',
   browserManageShortcuts: '添加快捷站点',
   browserBgSettings: '自定义背景',
