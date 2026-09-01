@@ -29,7 +29,6 @@ export function LocalPortSection({
   } = useAppStore(
     useShallow((state) => ({
       browserLocalPorts: state.browserLocalPorts,
-      browserPortScanning: state.browserPortScanning,
       browserSetLocalPorts: state.browserSetLocalPorts,
       browserReorderLocalPorts: state.browserReorderLocalPorts,
       browserSetPortScanning: state.browserSetPortScanning,
