@@ -122,6 +122,7 @@ export function PortConfigDialog({ open, t, onClose }: PortConfigDialogProps) {
               type="number"
               min={1}
               max={65535}
+              step={1}
               placeholder={t.browserPortSettingsPlaceholder}
               value={inputValue}
               onChange={(e) => {
