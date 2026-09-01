@@ -2,9 +2,8 @@ import { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
+import { DEFAULT_CONFIGURED_PORTS } from '@stores/slices/browserSliceShared';
 import './PortConfigDialog.css';
-
-const DEFAULT_PORTS = [3000, 3001, 3080, 4173, 5000, 5173, 8080, 8000, 4200, 9000, 9229, 2718];
 
 interface PortConfigDialogProps {
   open: boolean;
@@ -52,7 +51,7 @@ export function PortConfigDialog({ open, t, onClose }: PortConfigDialogProps) {
   }, []);
 
   const handleReset = useCallback(() => {
-    setPorts([...DEFAULT_PORTS]);
+    setPorts([...DEFAULT_CONFIGURED_PORTS]);
     setInputValue('');
     setError(null);
   }, []);

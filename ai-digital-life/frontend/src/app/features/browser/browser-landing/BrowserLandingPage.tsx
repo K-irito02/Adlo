@@ -159,7 +159,6 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
     const portNum = portMenu.port.port;
     handleContextMenuClose();
     try {
-      console.log('[ADL-DEBUG] Port details requested for port:', portNum);
       const result = await invokeIpc<{
         port: number;
         isOpen: boolean;
@@ -169,11 +168,9 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
         processError: string | null;
       }>('browser_get_port_details', { port: portNum });
       if (result.ok) {
-        console.log('[ADL-DEBUG] Port details loaded:', result.data);
         setPortDetails(result.data);
         setPortDetailsOpen(true);
       } else {
-        console.warn('[ADL-DEBUG] Port details IPC error:', result.error);
         setPortDetails({
           port: portNum,
           isOpen: false,
@@ -184,8 +181,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
         });
         setPortDetailsOpen(true);
       }
-    } catch (e) {
-      console.warn('[ADL-DEBUG] Port details failed:', e);
+    } catch {
       setPortDetails({
         port: portNum,
         isOpen: false,
@@ -329,7 +325,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
         />
       )}
 
-      {portDetailsOpen && (
+      {portDetailsOpen && portDetails && (
         <div
           className="adl-prompt-modal"
           onClick={() => {
@@ -359,75 +355,73 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
               </button>
             </div>
             <div className="adl-prompt-modal__body">
-              {portDetails ? (
-                <div className="adl-browser-landing__port-details">
-                  <div className="adl-browser-landing__port-details-row">
-                    <span className="adl-browser-landing__port-details-label">
-                      {t.browserPortDetailsPort}
-                    </span>
-                    <span className="adl-browser-landing__port-details-value">
-                      {portDetails.port}
-                    </span>
-                  </div>
-                  <div className="adl-browser-landing__port-details-row">
-                    <span className="adl-browser-landing__port-details-label">
-                      {t.browserPortDetailsStatus}
-                    </span>
-                    <span
-                      className={`adl-browser-landing__port-details-value ${
-                        portDetails.isOpen
-                          ? 'adl-browser-landing__port-details-value--open'
-                          : 'adl-browser-landing__port-details-value--closed'
-                      }`}
-                    >
-                      {portDetails.isOpen
-                        ? t.browserPortDetailsStatusOpen
-                        : t.browserPortDetailsStatusClosed}
-                    </span>
-                  </div>
-                  <div className="adl-browser-landing__port-details-row">
-                    <span className="adl-browser-landing__port-details-label">
-                      {t.browserPortDetailsProtocol}
-                    </span>
-                    <span className="adl-browser-landing__port-details-value">
-                      {portDetails.protocol}
-                    </span>
-                  </div>
-                  <div className="adl-browser-landing__port-details-row">
-                    <span className="adl-browser-landing__port-details-label">
-                      {t.browserPortDetailsLocalAddress}
-                    </span>
-                    <span className="adl-browser-landing__port-details-value">
-                      {portDetails.localAddress}
-                    </span>
-                  </div>
-                  <div className="adl-browser-landing__port-details-section">
-                    <span className="adl-browser-landing__port-details-label">
-                      {t.browserPortDetailsProcesses}
-                    </span>
-                    {portDetails.processes.length > 0 ? (
-                      <div className="adl-browser-landing__port-details-processes">
-                        {portDetails.processes.map((proc) => (
-                          <div key={proc.pid} className="adl-browser-landing__port-details-process">
-                            <span className="adl-browser-landing__port-details-process-name">
-                              {proc.name}
-                            </span>
-                            <span className="adl-browser-landing__port-details-process-pid">
-                              PID: {proc.pid}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="adl-browser-landing__port-details-no-process">
-                        {portDetails.processError
-                          ? t.browserPortDetailsPermissionError
-                          : t.browserPortDetailsNoProcess}
-                      </div>
-                    )}
-                  </div>
+              <div className="adl-browser-landing__port-details">
+                <div className="adl-browser-landing__port-details-row">
+                  <span className="adl-browser-landing__port-details-label">
+                    {t.browserPortDetailsPort}
+                  </span>
+                  <span className="adl-browser-landing__port-details-value">
+                    {portDetails.port}
+                  </span>
                 </div>
-              ) : null}
+                <div className="adl-browser-landing__port-details-row">
+                  <span className="adl-browser-landing__port-details-label">
+                    {t.browserPortDetailsStatus}
+                  </span>
+                  <span
+                    className={`adl-browser-landing__port-details-value ${
+                      portDetails.isOpen
+                        ? 'adl-browser-landing__port-details-value--open'
+                        : 'adl-browser-landing__port-details-value--closed'
+                    }`}
+                  >
+                    {portDetails.isOpen
+                      ? t.browserPortDetailsStatusOpen
+                      : t.browserPortDetailsStatusClosed}
+                  </span>
+                </div>
+                <div className="adl-browser-landing__port-details-row">
+                  <span className="adl-browser-landing__port-details-label">
+                    {t.browserPortDetailsProtocol}
+                  </span>
+                  <span className="adl-browser-landing__port-details-value">
+                    {portDetails.protocol}
+                  </span>
+                </div>
+                <div className="adl-browser-landing__port-details-row">
+                  <span className="adl-browser-landing__port-details-label">
+                    {t.browserPortDetailsLocalAddress}
+                  </span>
+                  <span className="adl-browser-landing__port-details-value">
+                    {portDetails.localAddress}
+                  </span>
+                </div>
+                <div className="adl-browser-landing__port-details-section">
+                  <span className="adl-browser-landing__port-details-label">
+                    {t.browserPortDetailsProcesses}
+                  </span>
+                  {portDetails.processes.length > 0 ? (
+                    <div className="adl-browser-landing__port-details-processes">
+                      {portDetails.processes.map((proc) => (
+                        <div key={proc.pid} className="adl-browser-landing__port-details-process">
+                          <span className="adl-browser-landing__port-details-process-name">
+                            {proc.name}
+                          </span>
+                          <span className="adl-browser-landing__port-details-process-pid">
+                            PID: {proc.pid}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="adl-browser-landing__port-details-no-process">
+                      {portDetails.processError
+                        ? t.browserPortDetailsPermissionError
+                        : t.browserPortDetailsNoProcess}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -35,3 +35,8 @@ export const BROWSER_SHORTCUTS_KEY = 'adl-ui:browser-shortcuts';
 export const BROWSER_LOCAL_PORTS_KEY = 'adl-ui:browser-local-ports';
 export const BROWSER_BG_CONFIG_KEY = 'adl-ui:browser-bg-config';
 export const BROWSER_CONFIGURED_PORTS_KEY = 'adl-ui:browser-configured-ports';
+
+/** Default list of ports to scan for local development servers. */
+export const DEFAULT_CONFIGURED_PORTS = [
+  3000, 3001, 3080, 4173, 5000, 5173, 8080, 8000, 4200, 9000, 9229, 2718,
+];
