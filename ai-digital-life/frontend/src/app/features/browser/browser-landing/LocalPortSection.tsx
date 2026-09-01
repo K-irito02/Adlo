@@ -53,7 +53,7 @@ export function LocalPortSection({
       const store = useAppStore.getState();
 
       if (store.isTauri) {
-        await store.browserScanPorts([3000, 5000, 8080, 8000, 3001, 5173, 4200, 9000, 4000, 8888]);
+        await store.browserScanPorts(store.browserConfiguredPorts);
       } else {
         browserSetPortScanning(true);
         const response = await fetch(SCAN_API);

@@ -1,10 +1,11 @@
 import type { StoreState } from '../StoreState';
-import { createUiId, makePersistedWriter } from '../shared';
+import { createUiId, makePersistedWriter, readJson } from '../shared';
 import { invokeIpc } from '../../../tauri-bridge/tauri-shared';
 import {
   BROWSER_SHORTCUTS_KEY,
   BROWSER_LOCAL_PORTS_KEY,
   BROWSER_BG_CONFIG_KEY,
+  BROWSER_CONFIGURED_PORTS_KEY,
 } from './browserSliceShared';
 import type {
   ShortcutSite,
@@ -19,12 +20,16 @@ export type { ShortcutSite, LocalPort, BackgroundMode, BackgroundFit, Background
 const writeShortcuts = makePersistedWriter(BROWSER_SHORTCUTS_KEY);
 const writeLocalPorts = makePersistedWriter(BROWSER_LOCAL_PORTS_KEY);
 const writeBgConfig = makePersistedWriter(BROWSER_BG_CONFIG_KEY);
+const writeConfiguredPorts = makePersistedWriter(BROWSER_CONFIGURED_PORTS_KEY);
+
+const DEFAULT_CONFIGURED_PORTS = [3000, 5000, 8080, 8000, 3001, 5173, 4200, 9000];
 
 export interface BrowserLandingSlice {
   browserShortcuts: ShortcutSite[];
   browserLocalPorts: LocalPort[];
   browserPortScanning: boolean;
   browserBgConfig: BackgroundConfig;
+  browserConfiguredPorts: number[];
 
   browserAddShortcut: (site: Omit<ShortcutSite, 'id' | 'sortOrder' | 'createdAt'>) => string;
   browserRenameShortcut: (id: string, name: string) => void;
@@ -42,6 +47,9 @@ export interface BrowserLandingSlice {
   browserScanPorts: (ports: number[]) => Promise<void>;
   browserSetBgConfig: (config: BackgroundConfig) => void;
   browserResetBgConfig: () => void;
+  browserSetConfiguredPorts: (ports: number[]) => void;
+  browserAddConfiguredPort: (port: number) => void;
+  browserRemoveConfiguredPort: (port: number) => void;
 }
 
 export const createBrowserLandingSlice = (
@@ -52,6 +60,10 @@ export const createBrowserLandingSlice = (
   browserLocalPorts: [],
   browserPortScanning: false,
   browserBgConfig: { mode: 'default', fit: 'cover' },
+  browserConfiguredPorts: readJson<number[]>(
+    BROWSER_CONFIGURED_PORTS_KEY,
+    DEFAULT_CONFIGURED_PORTS,
+  ),
 
   browserAddShortcut: (site) => {
     let id = '';
@@ -213,5 +225,35 @@ export const createBrowserLandingSlice = (
     const defaultConfig: BackgroundConfig = { mode: 'default', fit: 'cover' };
     writeBgConfig(defaultConfig);
     set({ browserBgConfig: defaultConfig });
+  },
+
+  browserSetConfiguredPorts: (ports) => {
+    const unique = [...new Set(ports.filter((p) => Number.isFinite(p) && p > 0 && p <= 65535))];
+    writeConfiguredPorts(unique);
+    set({ browserConfiguredPorts: unique });
+  },
+
+  browserAddConfiguredPort: (port) => {
+    set((state) => {
+      if (
+        !Number.isFinite(port) ||
+        port <= 0 ||
+        port > 65535 ||
+        state.browserConfiguredPorts.includes(port)
+      ) {
+        return state;
+      }
+      const next = [...state.browserConfiguredPorts, port];
+      writeConfiguredPorts(next);
+      return { browserConfiguredPorts: next };
+    });
+  },
+
+  browserRemoveConfiguredPort: (port) => {
+    set((state) => {
+      const next = state.browserConfiguredPorts.filter((p) => p !== port);
+      writeConfiguredPorts(next);
+      return { browserConfiguredPorts: next };
+    });
   },
 });
