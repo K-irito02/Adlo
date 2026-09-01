@@ -70,6 +70,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
     protocol: string;
     localAddress: string;
     processes: { pid: number; name: string; command: string }[];
+    processError: string | null;
   } | null>(null);
   const [portDetailsLoading, setPortDetailsLoading] = useState(false);
 
@@ -165,6 +166,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
         protocol: string;
         localAddress: string;
         processes: { pid: number; name: string; command: string }[];
+        processError: string | null;
       }>('browser_get_port_details', { port: portNum });
       if (result.ok) {
         setPortDetails(result.data);
@@ -175,6 +177,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
           protocol: 'TCP',
           localAddress: `127.0.0.1:${portNum}`,
           processes: [],
+          processError: null,
         });
       }
     } catch {
@@ -184,6 +187,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
         protocol: 'TCP',
         localAddress: `127.0.0.1:${portNum}`,
         processes: [],
+        processError: null,
       });
     } finally {
       setPortDetailsLoading(false);
@@ -410,9 +414,11 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
                       </div>
                     ) : (
                       <div className="adl-browser-landing__port-details-no-process">
-                        {portDetails.isOpen
-                          ? t.browserPortDetailsNoProcess
-                          : t.browserPortDetailsPermissionError}
+                        {portDetails.processError
+                          ? t.browserPortDetailsPermissionError
+                          : portDetails.isOpen
+                            ? t.browserPortDetailsNoProcess
+                            : t.browserPortDetailsPermissionError}
                       </div>
                     )}
                   </div>

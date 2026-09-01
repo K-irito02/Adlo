@@ -68,6 +68,7 @@ pub struct PortDetails {
     pub protocol: String,
     pub local_address: String,
     pub processes: Vec<PortProcessInfo>,
+    pub process_error: Option<String>,
 }
 
 #[cfg(target_os = "windows")]
@@ -194,10 +195,13 @@ pub async fn browser_get_port_details(port: u16) -> Result<IpcResult<PortDetails
             .is_ok_and(|r| r.is_ok())
     };
 
-    let processes = if is_open {
-        get_port_process_info(port).await.unwrap_or_default()
+    let (processes, process_error) = if is_open {
+        match get_port_process_info(port).await {
+            Ok(list) => (list, None),
+            Err(e) => (Vec::new(), Some(e.to_string())),
+        }
     } else {
-        Vec::new()
+        (Vec::new(), None)
     };
 
     let details = PortDetails {
@@ -206,6 +210,7 @@ pub async fn browser_get_port_details(port: u16) -> Result<IpcResult<PortDetails
         protocol: "TCP".to_string(),
         local_address: format!("127.0.0.1:{port}"),
         processes,
+        process_error,
     };
 
     Ok(ipc(Ok(details)))
@@ -296,6 +301,7 @@ mod tests {
                 name: "node".to_string(),
                 command: String::new(),
             }],
+            process_error: None,
         };
         let json = serde_json::to_string(&details).unwrap();
         let back: PortDetails = serde_json::from_str(&json).unwrap();
@@ -304,6 +310,7 @@ mod tests {
         assert_eq!(back.protocol, "TCP");
         assert_eq!(back.processes.len(), 1);
         assert_eq!(back.processes[0].pid, 1234);
+        assert!(back.process_error.is_none());
     }
 
     #[test]
@@ -314,6 +321,7 @@ mod tests {
             protocol: "TCP".to_string(),
             local_address: "127.0.0.1:3000".to_string(),
             processes: vec![],
+            process_error: None,
         };
         let json = serde_json::to_string(&details).unwrap();
         assert!(json.contains("is_open") || json.contains("isOpen"), "json: {json}");
@@ -321,6 +329,7 @@ mod tests {
             json.contains("localAddress") || json.contains("local_address"),
             "json: {json}"
         );
+        assert!(json.contains("processError") || json.contains("process_error"), "json: {json}");
     }
 
     #[tokio::test]
