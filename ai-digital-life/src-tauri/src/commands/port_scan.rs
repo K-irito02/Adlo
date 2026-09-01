@@ -1,8 +1,12 @@
 use std::time::Instant;
 
+use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
-use tokio::task::JoinSet;
+
+use crate::error::CommandError;
+use super::ipc;
+use adl_types::IpcResult;
 
 const SCAN_TIMEOUT_MS: u64 = 300;
 const MAX_CONCURRENCY: usize = 10;
@@ -13,23 +17,6 @@ pub struct ScannedPort {
     pub port: u16,
     pub is_open: bool,
     pub response_time_ms: u64,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PortDetails {
-    pub port: u16,
-    pub is_open: bool,
-    pub response_time_ms: u64,
-}
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProcessInfo {
-    pub pid: Option<u32>,
-    pub name: Option<String>,
 }
 
 async fn scan_single_port(port: u16) -> ScannedPort {
@@ -44,30 +31,24 @@ async fn scan_single_port(port: u16) -> ScannedPort {
     ScannedPort { port, is_open, response_time_ms: start.elapsed().as_millis() as u64 }
 }
 
+/// Scans a list of TCP ports on localhost (127.0.0.1) for connectivity.
+///
+/// Deduplicates and sorts input ports. Returns results sorted by port number.
+/// Each port is probed with a 300ms timeout, up to 10 concurrent connections.
 #[tauri::command]
-pub async fn browser_scan_ports(ports: Vec<u16>) -> Result<Vec<ScannedPort>, String> {
+pub async fn browser_scan_ports(ports: Vec<u16>) -> Result<IpcResult<Vec<ScannedPort>>, CommandError> {
     let mut unique_ports: Vec<u16> =
         ports.into_iter().collect::<std::collections::HashSet<_>>().into_iter().collect();
     unique_ports.sort();
 
-    let mut results = Vec::with_capacity(unique_ports.len());
-    let mut join_set = JoinSet::new();
-
-    for port in unique_ports {
-        join_set.spawn(scan_single_port(port));
-        if join_set.len() >= MAX_CONCURRENCY {
-            if let Some(Ok(scanned)) = join_set.join_next().await {
-                results.push(scanned);
-            }
-        }
-    }
-
-    while let Some(Ok(scanned)) = join_set.join_next().await {
-        results.push(scanned);
-    }
+    let mut results: Vec<ScannedPort> = stream::iter(unique_ports)
+        .map(scan_single_port)
+        .buffer_unordered(MAX_CONCURRENCY)
+        .collect()
+        .await;
 
     results.sort_by_key(|p| p.port);
-    Ok(results)
+    Ok(ipc(Ok(results)))
 }
 
 #[cfg(test)]
@@ -111,24 +92,34 @@ mod tests {
         drop(listener);
     }
 
+    fn unwrap_ipc(result: IpcResult<Vec<ScannedPort>>) -> Vec<ScannedPort> {
+        match result {
+            IpcResult::Ok { data, .. } => data,
+            other => panic!("expected IpcResult::Ok, got {other:?}"),
+        }
+    }
+
     #[tokio::test]
     async fn scan_ports_dedupes_and_sorts() {
         let ports = vec![3001, 3000, 3001, 3000];
-        let results = browser_scan_ports(ports).await.unwrap();
+        let ipc_result = browser_scan_ports(ports).await.unwrap();
+        let results = unwrap_ipc(ipc_result);
         let port_numbers: Vec<u16> = results.iter().map(|p| p.port).collect();
         assert_eq!(port_numbers, vec![3000, 3001]);
     }
 
     #[tokio::test]
     async fn scan_ports_empty_input() {
-        let results = browser_scan_ports(vec![]).await.unwrap();
+        let ipc_result = browser_scan_ports(vec![]).await.unwrap();
+        let results = unwrap_ipc(ipc_result);
         assert!(results.is_empty());
     }
 
     #[tokio::test]
     async fn scan_ports_returns_sorted_results() {
         let ports = vec![9003, 9001, 9002];
-        let results = browser_scan_ports(ports).await.unwrap();
+        let ipc_result = browser_scan_ports(ports).await.unwrap();
+        let results = unwrap_ipc(ipc_result);
         let port_numbers: Vec<u16> = results.iter().map(|p| p.port).collect();
         assert_eq!(port_numbers, vec![9001, 9002, 9003]);
     }
