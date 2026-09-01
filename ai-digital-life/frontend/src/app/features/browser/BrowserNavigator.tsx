@@ -8,6 +8,8 @@ import {
   IconFoldVertical,
   IconUnfoldVertical,
 } from '@icons';
+import { useState } from 'react';
+import { ConfirmDialog } from '@components/ConfirmDialog';
 import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { useNavigatorResize } from '@hooks/useNavigatorResize';
@@ -24,6 +26,7 @@ import { useShallow } from 'zustand/react/shallow';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 
 export function BrowserNavigator() {
+  const [deleteBookmarksConfirmOpen, setDeleteBookmarksConfirmOpen] = useState(false);
   const {
     t,
     navigatorTitle,
@@ -227,7 +230,7 @@ export function BrowserNavigator() {
             <button
               type="button"
               className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={() => handleClearTabDirectories()}
+              onClick={() => setDeleteBookmarksConfirmOpen(true)}
               aria-label={t.browserDeleteAllBookmarks}
               title={t.browserDeleteAllBookmarks}
             >
@@ -401,6 +404,20 @@ export function BrowserNavigator() {
         currentWidth={browserNavigatorWidth}
         onPointerDown={handleNavigatorResizeStart}
       />
+      {deleteBookmarksConfirmOpen ? (
+        <ConfirmDialog
+          title={t.browserDeleteAllBookmarksConfirmTitle as string}
+          message={t.browserDeleteAllBookmarksConfirmMessage as string}
+          confirmLabel={t.browserDeleteAllBookmarksConfirmAction as string}
+          cancelLabel={t.cancel as string}
+          danger
+          onConfirm={() => {
+            setDeleteBookmarksConfirmOpen(false);
+            handleClearTabDirectories();
+          }}
+          onCancel={() => setDeleteBookmarksConfirmOpen(false)}
+        />
+      ) : null}
     </aside>
   );
 }
