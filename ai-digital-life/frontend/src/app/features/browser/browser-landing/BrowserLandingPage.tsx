@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
+import { invokeIpc } from '../../../../tauri-bridge/tauri-shared';
 import { BackgroundLayer } from './BackgroundLayer';
 import { ShortcutGrid } from './ShortcutGrid';
 import { LocalPortSection } from './LocalPortSection';
@@ -61,6 +62,16 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
   const [renamePortValue, setRenamePortValue] = useState('');
 
   const [bgSettingsOpen, setBgSettingsOpen] = useState(false);
+
+  const [portDetailsOpen, setPortDetailsOpen] = useState(false);
+  const [portDetails, setPortDetails] = useState<{
+    port: number;
+    isOpen: boolean;
+    protocol: string;
+    localAddress: string;
+    processes: { pid: number; name: string; command: string }[];
+  } | null>(null);
+  const [portDetailsLoading, setPortDetailsLoading] = useState(false);
 
   const handleOpenUrl = useCallback(
     (url: string) => {
@@ -139,6 +150,46 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
     handleContextMenuClose();
   }, [portMenu.port, browserDeleteLocalPort, handleContextMenuClose]);
 
+  const handleViewPortDetailsFromMenu = useCallback(async () => {
+    if (!portMenu.port) {
+      return;
+    }
+    const portNum = portMenu.port.port;
+    handleContextMenuClose();
+    setPortDetailsLoading(true);
+    setPortDetailsOpen(true);
+    try {
+      const result = await invokeIpc<{
+        port: number;
+        isOpen: boolean;
+        protocol: string;
+        localAddress: string;
+        processes: { pid: number; name: string; command: string }[];
+      }>('browser_get_port_details', { port: portNum });
+      if (result.ok) {
+        setPortDetails(result.data);
+      } else {
+        setPortDetails({
+          port: portNum,
+          isOpen: false,
+          protocol: 'TCP',
+          localAddress: `127.0.0.1:${portNum}`,
+          processes: [],
+        });
+      }
+    } catch {
+      setPortDetails({
+        port: portNum,
+        isOpen: false,
+        protocol: 'TCP',
+        localAddress: `127.0.0.1:${portNum}`,
+        processes: [],
+      });
+    } finally {
+      setPortDetailsLoading(false);
+    }
+  }, [portMenu.port, handleContextMenuClose]);
+
   const handleRenamePortSubmit = useCallback(() => {
     if (renamePortId) {
       browserUpdateLocalPort(renamePortId, { label: renamePortValue.trim() || undefined });
@@ -175,8 +226,13 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
 
   const portContextMenuItems = [
     {
+      id: 'details',
+      label: t.browserViewDetails,
+      action: handleViewPortDetailsFromMenu,
+    },
+    {
       id: 'rename',
-      label: t.browserRename,
+      label: t.browserLabelPort,
       action: handleRenamePortFromMenu,
     },
     {
@@ -259,6 +315,126 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
         />
       )}
 
+      {portDetailsOpen && (
+        <div
+          className="adl-prompt-modal"
+          onClick={() => {
+            setPortDetailsOpen(false);
+            setPortDetails(null);
+          }}
+        >
+          <div
+            className="adl-prompt-modal__panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t.browserPortDetailsTitle}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="adl-prompt-modal__header">
+              {t.browserPortDetailsTitle}
+              <button
+                type="button"
+                className="adl-prompt-modal__header-close"
+                onClick={() => {
+                  setPortDetailsOpen(false);
+                  setPortDetails(null);
+                }}
+                aria-label={t.browserClose}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="adl-prompt-modal__body">
+              {portDetailsLoading ? (
+                <div className="adl-browser-landing__port-details-loading">
+                  {t.browserPortScanning}
+                </div>
+              ) : portDetails ? (
+                <div className="adl-browser-landing__port-details">
+                  <div className="adl-browser-landing__port-details-row">
+                    <span className="adl-browser-landing__port-details-label">
+                      {t.browserPortDetailsPort}
+                    </span>
+                    <span className="adl-browser-landing__port-details-value">
+                      {portDetails.port}
+                    </span>
+                  </div>
+                  <div className="adl-browser-landing__port-details-row">
+                    <span className="adl-browser-landing__port-details-label">
+                      {t.browserPortDetailsStatus}
+                    </span>
+                    <span
+                      className={`adl-browser-landing__port-details-value ${
+                        portDetails.isOpen
+                          ? 'adl-browser-landing__port-details-value--open'
+                          : 'adl-browser-landing__port-details-value--closed'
+                      }`}
+                    >
+                      {portDetails.isOpen
+                        ? t.browserPortDetailsStatusOpen
+                        : t.browserPortDetailsStatusClosed}
+                    </span>
+                  </div>
+                  <div className="adl-browser-landing__port-details-row">
+                    <span className="adl-browser-landing__port-details-label">
+                      {t.browserPortDetailsProtocol}
+                    </span>
+                    <span className="adl-browser-landing__port-details-value">
+                      {portDetails.protocol}
+                    </span>
+                  </div>
+                  <div className="adl-browser-landing__port-details-row">
+                    <span className="adl-browser-landing__port-details-label">
+                      {t.browserPortDetailsLocalAddress}
+                    </span>
+                    <span className="adl-browser-landing__port-details-value">
+                      {portDetails.localAddress}
+                    </span>
+                  </div>
+                  <div className="adl-browser-landing__port-details-section">
+                    <span className="adl-browser-landing__port-details-label">
+                      {t.browserPortDetailsProcesses}
+                    </span>
+                    {portDetails.processes.length > 0 ? (
+                      <div className="adl-browser-landing__port-details-processes">
+                        {portDetails.processes.map((proc) => (
+                          <div key={proc.pid} className="adl-browser-landing__port-details-process">
+                            <span className="adl-browser-landing__port-details-process-name">
+                              {proc.name}
+                            </span>
+                            <span className="adl-browser-landing__port-details-process-pid">
+                              PID: {proc.pid}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="adl-browser-landing__port-details-no-process">
+                        {portDetails.isOpen
+                          ? t.browserPortDetailsNoProcess
+                          : t.browserPortDetailsPermissionError}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <div className="adl-prompt-modal__actions adl-prompt-modal__actions--fill">
+              <button
+                type="button"
+                className="adl-btn adl-btn--primary adl-btn--square"
+                onClick={() => {
+                  setPortDetailsOpen(false);
+                  setPortDetails(null);
+                }}
+              >
+                {t.browserClose}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {renamePortId && (
         <div
           className="adl-prompt-modal"
@@ -271,11 +447,11 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
             className="adl-prompt-modal__panel"
             role="dialog"
             aria-modal="true"
-            aria-label={t.browserRename}
+            aria-label={t.browserLabelPort}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="adl-prompt-modal__header">
-              {t.browserRename}
+              {t.browserLabelPort}
               <button
                 type="button"
                 className="adl-prompt-modal__header-close"

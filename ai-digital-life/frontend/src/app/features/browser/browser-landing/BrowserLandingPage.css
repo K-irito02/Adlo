@@ -49,3 +49,78 @@
   height: 12px;
   background: var(--border-subtle);
 }
+
+.adl-browser-landing__port-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.adl-browser-landing__port-details-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.adl-browser-landing__port-details-label {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.adl-browser-landing__port-details-value {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.adl-browser-landing__port-details-value--open {
+  color: var(--color-success);
+}
+
+.adl-browser-landing__port-details-value--closed {
+  color: var(--color-error);
+}
+
+.adl-browser-landing__port-details-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.adl-browser-landing__port-details-processes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.adl-browser-landing__port-details-process {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+}
+
+.adl-browser-landing__port-details-process-name {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.adl-browser-landing__port-details-process-pid {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.adl-browser-landing__port-details-no-process {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.adl-browser-landing__port-details-loading {
+  text-align: center;
+  padding: 20px;
+  font-size: 13px;
+  color: var(--text-muted);
+}

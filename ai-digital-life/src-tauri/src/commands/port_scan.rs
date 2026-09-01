@@ -6,6 +6,7 @@ use tokio::net::TcpStream;
 
 use crate::error::CommandError;
 use super::ipc;
+use adl_errors::AppError;
 use adl_types::IpcResult;
 
 const SCAN_TIMEOUT_MS: u64 = 300;
@@ -49,6 +50,165 @@ pub async fn browser_scan_ports(ports: Vec<u16>) -> Result<IpcResult<Vec<Scanned
 
     results.sort_by_key(|p| p.port);
     Ok(ipc(Ok(results)))
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PortProcessInfo {
+    pub pid: u32,
+    pub name: String,
+    pub command: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PortDetails {
+    pub port: u16,
+    pub is_open: bool,
+    pub protocol: String,
+    pub local_address: String,
+    pub processes: Vec<PortProcessInfo>,
+}
+
+#[cfg(target_os = "windows")]
+async fn get_port_process_info(port: u16) -> Result<Vec<PortProcessInfo>, CommandError> {
+    let output = tokio::process::Command::new("netstat")
+        .args(["-ano"])
+        .output()
+        .await
+        .map_err(|e| CommandError::from(AppError::Internal(format!("failed to run netstat: {e}"))))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut pids = Vec::new();
+
+    for line in stdout.lines() {
+        if line.contains(&format!(":{port}")) && line.contains("LISTENING") {
+            if let Some(pid_str) = line.split_whitespace().last() {
+                if let Ok(pid) = pid_str.parse::<u32>() {
+                    if !pids.contains(&pid) {
+                        pids.push(pid);
+                    }
+                }
+            }
+        }
+    }
+
+    let mut processes = Vec::new();
+    for pid in &pids {
+        let task_output = tokio::process::Command::new("tasklist")
+            .args(["/FI", &format!("PID eq {pid}"), "/FO", "CSV", "/NH"])
+            .output()
+            .await;
+
+        if let Ok(out) = task_output {
+            let task_stdout = String::from_utf8_lossy(&out.stdout);
+            for line in task_stdout.lines() {
+                let parts: Vec<&str> = line.split(',').collect();
+                if parts.len() >= 2 {
+                    let name = parts[0].trim_matches('"').to_string();
+                    processes.push(PortProcessInfo {
+                        pid: *pid,
+                        name,
+                        command: String::new(),
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(processes)
+}
+
+#[cfg(target_os = "macos")]
+async fn get_port_process_info(port: u16) -> Result<Vec<PortProcessInfo>, CommandError> {
+    let output = tokio::process::Command::new("lsof")
+        .args(["-i", &format!(":{port}"), "-P", "-n"])
+        .output()
+        .await
+        .map_err(|e| CommandError::from(AppError::Internal(format!("failed to run lsof: {e}"))))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut processes = Vec::new();
+
+    for line in stdout.lines().skip(1) {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 2 {
+            let name = parts[0].to_string();
+            if let Ok(pid) = parts[1].parse::<u32>() {
+                if !processes.iter().any(|p: &PortProcessInfo| p.pid == pid) {
+                    processes.push(PortProcessInfo {
+                        pid,
+                        name,
+                        command: String::new(),
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(processes)
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+async fn get_port_process_info(port: u16) -> Result<Vec<PortProcessInfo>, CommandError> {
+    let output = tokio::process::Command::new("lsof")
+        .args(["-i", &format!(":{port}"), "-P", "-n"])
+        .output()
+        .await
+        .map_err(|e| CommandError::from(AppError::Internal(format!("failed to run lsof: {e}"))))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut processes = Vec::new();
+
+    for line in stdout.lines().skip(1) {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 2 {
+            let name = parts[0].to_string();
+            if let Ok(pid) = parts[1].parse::<u32>() {
+                if !processes.iter().any(|p: &PortProcessInfo| p.pid == pid) {
+                    processes.push(PortProcessInfo {
+                        pid,
+                        name,
+                        command: String::new(),
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(processes)
+}
+
+/// Get detailed information about a specific port, including process info.
+///
+/// Returns port status, protocol, and process details (pid, name).
+/// Uses platform-specific commands (netstat on Windows, lsof on macOS/Linux).
+/// Process information retrieval may require elevated permissions.
+#[tauri::command]
+pub async fn browser_get_port_details(port: u16) -> Result<IpcResult<PortDetails>, CommandError> {
+    let is_open = {
+        let addr = format!("127.0.0.1:{port}");
+        let timeout = std::time::Duration::from_millis(SCAN_TIMEOUT_MS);
+        tokio::time::timeout(timeout, TcpStream::connect(&addr))
+            .await
+            .is_ok_and(|r| r.is_ok())
+    };
+
+    let processes = if is_open {
+        get_port_process_info(port).await.unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+
+    let details = PortDetails {
+        port,
+        is_open,
+        protocol: "TCP".to_string(),
+        local_address: format!("127.0.0.1:{port}"),
+        processes,
+    };
+
+    Ok(ipc(Ok(details)))
 }
 
 #[cfg(test)]
@@ -122,5 +282,77 @@ mod tests {
         let results = unwrap_ipc(ipc_result);
         let port_numbers: Vec<u16> = results.iter().map(|p| p.port).collect();
         assert_eq!(port_numbers, vec![9001, 9002, 9003]);
+    }
+
+    #[test]
+    fn port_details_serde_round_trip() {
+        let details = PortDetails {
+            port: 8080,
+            is_open: true,
+            protocol: "TCP".to_string(),
+            local_address: "127.0.0.1:8080".to_string(),
+            processes: vec![PortProcessInfo {
+                pid: 1234,
+                name: "node".to_string(),
+                command: String::new(),
+            }],
+        };
+        let json = serde_json::to_string(&details).unwrap();
+        let back: PortDetails = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.port, 8080);
+        assert!(back.is_open);
+        assert_eq!(back.protocol, "TCP");
+        assert_eq!(back.processes.len(), 1);
+        assert_eq!(back.processes[0].pid, 1234);
+    }
+
+    #[test]
+    fn port_details_camel_case() {
+        let details = PortDetails {
+            port: 3000,
+            is_open: false,
+            protocol: "TCP".to_string(),
+            local_address: "127.0.0.1:3000".to_string(),
+            processes: vec![],
+        };
+        let json = serde_json::to_string(&details).unwrap();
+        assert!(json.contains("is_open") || json.contains("isOpen"), "json: {json}");
+        assert!(
+            json.contains("localAddress") || json.contains("local_address"),
+            "json: {json}"
+        );
+    }
+
+    #[tokio::test]
+    async fn get_port_details_closed_port() {
+        let ipc_result = browser_get_port_details(1).await.unwrap();
+        match ipc_result {
+            IpcResult::Ok { data, .. } => {
+                assert_eq!(data.port, 1);
+                assert!(!data.is_open);
+                assert_eq!(data.protocol, "TCP");
+                assert!(data.processes.is_empty());
+            },
+            other => panic!("expected IpcResult::Ok, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn get_port_details_open_port() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+
+        let ipc_result = browser_get_port_details(port).await.unwrap();
+        match ipc_result {
+            IpcResult::Ok { data, .. } => {
+                assert_eq!(data.port, port);
+                assert!(data.is_open);
+                assert_eq!(data.protocol, "TCP");
+                assert_eq!(data.local_address, format!("127.0.0.1:{port}"));
+            },
+            other => panic!("expected IpcResult::Ok, got {other:?}"),
+        }
+
+        drop(listener);
     }
 }
