@@ -416,9 +416,7 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
                       <div className="adl-browser-landing__port-details-no-process">
                         {portDetails.processError
                           ? t.browserPortDetailsPermissionError
-                          : portDetails.isOpen
-                            ? t.browserPortDetailsNoProcess
-                            : t.browserPortDetailsPermissionError}
+                          : t.browserPortDetailsNoProcess}
                       </div>
                     )}
                   </div>

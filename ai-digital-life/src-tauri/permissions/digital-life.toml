@@ -61,5 +61,7 @@ commands.allow = [
   "http_api_get_status",
   "http_api_get_config",
   "codemode_execute",
-  "codemode_get_config"
+  "codemode_get_config",
+  "browser_scan_ports",
+  "browser_get_port_details"
 ]
