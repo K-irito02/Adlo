@@ -48,9 +48,11 @@ export function useHintCard(
   const handleCardMouseLeave = useCallback(
     (e: React.MouseEvent) => {
       const related = e.relatedTarget as Node | null;
+      const triggerNode = triggerRef?.current ?? null;
       const isToTrigger =
-        related &&
-        (triggerRef?.current?.contains(related) || related.contains?.(triggerRef?.current));
+        !!related &&
+        !!triggerNode &&
+        (triggerNode.contains(related) || related.contains(triggerNode));
       if (isToTrigger) {
         return;
       }

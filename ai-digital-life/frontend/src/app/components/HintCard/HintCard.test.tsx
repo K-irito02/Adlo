@@ -3,7 +3,17 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { HintCard } from './HintCard';
 
 function makeRect(left: number, top: number): DOMRect {
-  return { left, top, right: left + 16, bottom: top + 16, width: 16, height: 16, x: left, y: top, toJSON() {} };
+  return {
+    left,
+    top,
+    right: left + 16,
+    bottom: top + 16,
+    width: 16,
+    height: 16,
+    x: left,
+    y: top,
+    toJSON() {},
+  };
 }
 
 describe('HintCard', () => {

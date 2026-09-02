@@ -3,7 +3,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useHintCard } from './useHintCard';
 
 function makeRect(left: number, top: number): DOMRect {
-  return { left, top, right: left + 16, bottom: top + 16, width: 16, height: 16, x: left, y: top, toJSON() {} };
+  return {
+    left,
+    top,
+    right: left + 16,
+    bottom: top + 16,
+    width: 16,
+    height: 16,
+    x: left,
+    y: top,
+    toJSON() {},
+  };
 }
 
 describe('useHintCard', () => {
@@ -24,7 +34,10 @@ describe('useHintCard', () => {
     act(() => {
       result.current.showHint('test hint', makeRect(100, 100));
     });
-    expect(result.current.hintState).toMatchObject({ content: 'test hint', triggerRect: { left: 100, top: 100, width: 16, height: 16 } });
+    expect(result.current.hintState).toMatchObject({
+      content: 'test hint',
+      triggerRect: { left: 100, top: 100, width: 16, height: 16 },
+    });
   });
 
   it('hideHint clears state', () => {

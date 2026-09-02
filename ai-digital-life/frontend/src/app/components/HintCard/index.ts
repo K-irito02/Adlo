@@ -5,4 +5,8 @@ export type { HintCardTriggerProps } from './HintCardTrigger';
 export { useHintCard } from './useHintCard';
 export type { HintState } from './useHintCard';
 export { computePosition } from './hintCardPosition';
-export type { Placement, HintCardPositionOptions, HintCardPositionResult } from './hintCardPosition';
+export type {
+  Placement,
+  HintCardPositionOptions,
+  HintCardPositionResult,
+} from './hintCardPosition';
