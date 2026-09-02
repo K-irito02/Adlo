@@ -1,0 +1,57 @@
+import { render, screen, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { HintCard } from './HintCard';
+
+function makeRect(left: number, top: number): DOMRect {
+  return { left, top, right: left + 16, bottom: top + 16, width: 16, height: 16, x: left, y: top, toJSON() {} };
+}
+
+describe('HintCard', () => {
+  beforeEach(() => {
+    vi.stubGlobal('innerWidth', 1200);
+    vi.stubGlobal('innerHeight', 800);
+  });
+
+  it('renders nothing when not visible', () => {
+    const { container } = render(
+      <HintCard visible={false} triggerRect={makeRect(100, 100)}>
+        hint text
+      </HintCard>,
+    );
+    expect(container.innerHTML).toBe('');
+  });
+
+  it('renders card with string content', async () => {
+    await act(async () => {
+      render(
+        <HintCard visible triggerRect={makeRect(100, 100)}>
+          hello world
+        </HintCard>,
+      );
+    });
+    expect(screen.getByText('hello world')).toBeTruthy();
+  });
+
+  it('parses bullet lines from string', async () => {
+    await act(async () => {
+      render(
+        <HintCard visible triggerRect={makeRect(100, 100)}>
+          {'· item one\n· item two'}
+        </HintCard>,
+      );
+    });
+    expect(screen.getByText('item one')).toBeTruthy();
+    expect(screen.getByText('item two')).toBeTruthy();
+  });
+
+  it('renders ReactNode content directly', async () => {
+    await act(async () => {
+      render(
+        <HintCard visible triggerRect={makeRect(100, 100)}>
+          <div data-testid="custom">custom content</div>
+        </HintCard>,
+      );
+    });
+    expect(screen.getByTestId('custom')).toBeTruthy();
+  });
+});
