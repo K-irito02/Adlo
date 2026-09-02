@@ -9,6 +9,7 @@ export interface HintState {
 export function useHintCard(closeDelayMs: number = HINT_CLOSE_DELAY_MS) {
   const [hintState, setHintState] = useState<HintState | null>(null);
   const closeTimerRef = useRef<number | undefined>(undefined);
+  const isMouseOverCardRef = useRef(false);
 
   const cancelClose = useCallback(() => {
     if (closeTimerRef.current !== undefined) {
@@ -33,16 +34,20 @@ export function useHintCard(closeDelayMs: number = HINT_CLOSE_DELAY_MS) {
   const scheduleHide = useCallback(() => {
     cancelClose();
     closeTimerRef.current = window.setTimeout(() => {
-      setHintState(null);
+      if (!isMouseOverCardRef.current) {
+        setHintState(null);
+      }
       closeTimerRef.current = undefined;
     }, closeDelayMs);
   }, [cancelClose, closeDelayMs]);
 
   const handleCardMouseEnter = useCallback(() => {
+    isMouseOverCardRef.current = true;
     cancelClose();
   }, [cancelClose]);
 
   const handleCardMouseLeave = useCallback(() => {
+    isMouseOverCardRef.current = false;
     scheduleHide();
   }, [scheduleHide]);
 

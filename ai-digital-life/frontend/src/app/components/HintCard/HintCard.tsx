@@ -50,6 +50,10 @@ export function HintCard({
   const cardRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<HintCardPositionResult | null>(null);
 
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
   const recompute = useCallback(() => {
     if (!triggerRect || !cardRef.current) {
       return;
@@ -106,6 +110,7 @@ export function HintCard({
         }
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
+        onMouseDown={handleMouseDown}
       >
         {content}
       </div>

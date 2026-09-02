@@ -22,6 +22,7 @@ export function HintCardTrigger({
   const [triggerRect, setTriggerRect] = useState<DOMRect | null>(null);
   const hoverTimerRef = useRef<number | undefined>(undefined);
   const closeTimerRef = useRef<number | undefined>(undefined);
+  const isMouseOverCardRef = useRef(false);
 
   const cancelHoverTimer = useCallback(() => {
     if (hoverTimerRef.current !== undefined) {
@@ -39,10 +40,9 @@ export function HintCardTrigger({
 
   const measureTrigger = useCallback(() => {
     const el = triggerRef.current;
-    if (!el) return;
-    // If the child is absolutely positioned (e.g. position: absolute), its
-    // getBoundingClientRect is accurate but the parent wrapper may be zero-sized.
-    // Prefer measuring the first child element; fall back to the wrapper.
+    if (!el) {
+      return;
+    }
     const child = el.firstElementChild as HTMLElement | null;
     const rect = child?.getBoundingClientRect() ?? el.getBoundingClientRect();
     if (rect) {
@@ -62,7 +62,12 @@ export function HintCardTrigger({
 
   const scheduleClose = useCallback(() => {
     cancelClose();
-    closeTimerRef.current = window.setTimeout(hide, HINT_CLOSE_DELAY_MS);
+    closeTimerRef.current = window.setTimeout(() => {
+      if (!isMouseOverCardRef.current) {
+        hide();
+      }
+      closeTimerRef.current = undefined;
+    }, HINT_CLOSE_DELAY_MS);
   }, [cancelClose, hide]);
 
   const handleMouseEnter = useCallback(() => {
@@ -98,7 +103,6 @@ export function HintCardTrigger({
     };
   }, [cancelHoverTimer, cancelClose]);
 
-  // Re-measure trigger rect after card becomes visible (layout may have shifted)
   useLayoutEffect(() => {
     if (visible) {
       measureTrigger();
@@ -106,10 +110,12 @@ export function HintCardTrigger({
   }, [visible, measureTrigger]);
 
   const handleCardMouseEnter = useCallback(() => {
+    isMouseOverCardRef.current = true;
     cancelClose();
   }, [cancelClose]);
 
   const handleCardMouseLeave = useCallback(() => {
+    isMouseOverCardRef.current = false;
     scheduleClose();
   }, [scheduleClose]);
 
