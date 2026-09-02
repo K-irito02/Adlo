@@ -50,7 +50,7 @@ export const browserEn = {
   browserOpenTabs: 'Open Tabs',
   browserCreateDir: 'New Directory',
   browserCreateDirHint:
-    '• When a directory is selected, creates a subdirectory under it.\n• When no directory is selected, creates a top-level directory under "Custom Directory".',
+    '· When a directory is selected, creates a subdirectory under it.\n· When no directory is selected, creates a top-level directory under "Custom Directory".',
   browserDeleteHistoryYearLabel: 'Delete all history · Year',
   browserDeleteHistoryMonthLabel: 'Delete all history · Month',
   browserDeleteHistoryDayLabel: 'Delete all history · Day',

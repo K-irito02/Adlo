@@ -47,7 +47,7 @@ export const browserZh = {
   browserOpenTabs: '已打开标签页',
   browserCreateDir: '新建目录',
   browserCreateDirHint:
-    '• 当选中某个目录时，点击此按钮会在该目录下新建子目录。\n• 当未选中任何目录时，会在"非工作区目录"分类下新建顶级目录。',
+    '· 当选中某个目录时，点击此按钮会在该目录下新建子目录。\n· 当未选中任何目录时，会在"非工作区目录"分类下新建顶级目录。',
   browserNoContent: '暂无内容',
   browserTabDir: '标签目录',
   browserRenamePrompt: '重命名',

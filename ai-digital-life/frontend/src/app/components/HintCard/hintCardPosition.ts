@@ -141,7 +141,7 @@ const FLIP_MAP: Record<string, Placement> = {
   right: 'left',
 };
 
-const AUTO_PRIORITY: Placement[] = ['top', 'right', 'bottom', 'left'];
+const AUTO_PRIORITY: Placement[] = ['right', 'bottom', 'top', 'left'];
 
 export function computePosition(options: HintCardPositionOptions): HintCardPositionResult {
   const {

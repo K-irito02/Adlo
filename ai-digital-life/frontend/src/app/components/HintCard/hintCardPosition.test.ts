@@ -41,10 +41,10 @@ describe('computePosition', () => {
     expect(result.card.left).toBe(500 + 16 + 5);
   });
 
-  it('auto: prefers top when space available', () => {
+  it('auto: prefers right when space available', () => {
     const trigger = makeRect(500, 400);
     const result = computePosition({ triggerRect: trigger, cardWidth: 200, cardHeight: 100 });
-    expect(result.placement).toBe('top');
+    expect(result.placement).toBe('right');
   });
 
   it('auto: flips to right when no space on top', () => {

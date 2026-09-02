@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
 import { HintCard } from './HintCard';
 import type { Placement } from './hintCardPosition';
 
@@ -18,8 +18,8 @@ export function HintCardTrigger({
   children,
 }: HintCardTriggerProps) {
   const triggerRef = useRef<HTMLSpanElement>(null);
-  const triggerRectRef = useRef<DOMRect | null>(null);
   const [visible, setVisible] = useState(false);
+  const [triggerRect, setTriggerRect] = useState<DOMRect | null>(null);
   const hoverTimerRef = useRef<number | undefined>(undefined);
   const closeTimerRef = useRef<number | undefined>(undefined);
 
@@ -37,20 +37,23 @@ export function HintCardTrigger({
     }
   }, []);
 
+  const measureTrigger = useCallback(() => {
+    const el = triggerRef.current;
+    const rect = (el?.querySelector('button') ?? el)?.getBoundingClientRect();
+    if (rect) {
+      setTriggerRect(rect);
+    }
+  }, []);
+
   const hide = useCallback(() => {
     setVisible(false);
-    triggerRectRef.current = null;
+    setTriggerRect(null);
   }, []);
 
   const show = useCallback(() => {
-    const el = triggerRef.current;
-    const rect = (el?.querySelector('button') ?? el)?.getBoundingClientRect();
-    if (!rect) {
-      return;
-    }
-    triggerRectRef.current = rect;
+    measureTrigger();
     setVisible(true);
-  }, []);
+  }, [measureTrigger]);
 
   const scheduleClose = useCallback(() => {
     cancelClose();
@@ -75,8 +78,13 @@ export function HintCardTrigger({
   const handleClick = useCallback(() => {
     cancelHoverTimer();
     cancelClose();
-    setVisible((v) => !v);
-  }, [cancelHoverTimer, cancelClose]);
+    setVisible((v) => {
+      if (!v) {
+        measureTrigger();
+      }
+      return !v;
+    });
+  }, [cancelHoverTimer, cancelClose, measureTrigger]);
 
   useEffect(() => {
     return () => {
@@ -84,6 +92,13 @@ export function HintCardTrigger({
       cancelClose();
     };
   }, [cancelHoverTimer, cancelClose]);
+
+  // Re-measure trigger rect after card becomes visible (layout may have shifted)
+  useLayoutEffect(() => {
+    if (visible) {
+      measureTrigger();
+    }
+  }, [visible, measureTrigger]);
 
   const handleCardMouseEnter = useCallback(() => {
     cancelClose();
@@ -104,7 +119,7 @@ export function HintCardTrigger({
       {children}
       <HintCard
         visible={visible}
-        triggerRect={triggerRectRef.current}
+        triggerRect={triggerRect}
         placement={placement}
         onMouseEnter={handleCardMouseEnter}
         onMouseLeave={handleCardMouseLeave}
