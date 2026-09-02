@@ -69,22 +69,6 @@ export function useBrowserTreeEntryMenu({
     [showHintCard],
   );
 
-  const handleShowTabHint = useCallback(
-    (e: React.MouseEvent, hintText: string) => {
-      const buttonEl = (e.target as HTMLElement).closest('button');
-      const originalTitle = buttonEl?.getAttribute('title');
-      if (originalTitle) {
-        buttonEl?.setAttribute('data-original-title', originalTitle);
-        buttonEl?.removeAttribute('title');
-      }
-      const btnRect = buttonEl?.getBoundingClientRect();
-      if (btnRect) {
-        showHintCard(hintText, btnRect);
-      }
-    },
-    [showHintCard],
-  );
-
   const handleMenuItemClick = useCallback(
     (action: () => void) => () => {
       action();
@@ -330,7 +314,7 @@ export function useBrowserTreeEntryMenu({
                 {item.hint ? (
                   <span
                     className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
-                    onMouseEnter={(e) => handleShowTabHint(e, item.hint!)}
+                    onMouseEnter={(e) => handleShowHint(e, item.hint!)}
                     onMouseLeave={scheduleHide}
                   >
                     !

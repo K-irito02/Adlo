@@ -72,7 +72,7 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
       window.removeEventListener('keydown', handleEscape);
       hideHint();
     };
-  }, [onClose]);
+  }, [onClose, hideHint]);
 
   const nonSeparatorItems = items.filter((item) => !item.separator);
   const firstItemIndex = nonSeparatorItems.findIndex((item) => !item.disabled);

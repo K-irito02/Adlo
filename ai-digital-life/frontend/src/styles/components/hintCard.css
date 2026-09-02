@@ -41,7 +41,7 @@
 /* --- 箭头填充三角 --- */
 .hint-card__arrow {
   position: fixed;
-  z-index: 99999;
+  z-index: 100001;
   pointer-events: none;
   width: 0;
   height: 0;
@@ -70,7 +70,7 @@
 /* --- 箭头描边三角 --- */
 .hint-card__arrow-border {
   position: fixed;
-  z-index: 99998;
+  z-index: 100000;
   pointer-events: none;
   width: 0;
   height: 0;

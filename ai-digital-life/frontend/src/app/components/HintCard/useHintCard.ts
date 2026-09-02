@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { HINT_CLOSE_DELAY_MS } from './HintCardTrigger';
 
 export interface HintState {
@@ -58,6 +58,12 @@ export function useHintCard(
     },
     [scheduleHide, triggerRef],
   );
+
+  useEffect(() => {
+    return () => {
+      cancelClose();
+    };
+  }, [cancelClose]);
 
   return {
     hintState,
