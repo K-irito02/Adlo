@@ -4,11 +4,10 @@ interface MenuHintItemProps {
   label: string;
   hint: string;
   onClick: () => void;
-  menuId?: string;
   danger?: boolean;
 }
 
-export function MenuHintItem({ label, hint, onClick, menuId, danger }: MenuHintItemProps) {
+export function MenuHintItem({ label, hint, onClick, danger }: MenuHintItemProps) {
   const { hintState, showHint: showHintCard, scheduleHide, hintCardProps } = useHintCard();
 
   return (
@@ -32,17 +31,7 @@ export function MenuHintItem({ label, hint, onClick, menuId, danger }: MenuHintI
             }
 
             const buttonRect = buttonEl?.getBoundingClientRect();
-            let menuCard: HTMLElement | null = null;
-            if (menuId) {
-              menuCard = document.querySelector(`[data-menu-id="${menuId}"]`);
-            }
-            if (!menuCard) {
-              menuCard = document.querySelector('[data-menu-id="github-delete-all-menu"]');
-            }
-            if (!menuCard) {
-              menuCard = document.querySelector('[data-menu-id^="github-"]');
-            }
-            if (buttonRect && menuCard) {
+            if (buttonRect) {
               showHintCard(hint, buttonRect);
             }
           }}

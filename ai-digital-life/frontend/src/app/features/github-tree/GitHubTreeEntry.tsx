@@ -263,7 +263,6 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                   label={item.label!}
                   hint={item.hint}
                   onClick={() => handleMenuClick(item.action!)}
-                  menuId={menuId}
                   danger={item.danger}
                 />
               ) : (

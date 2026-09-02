@@ -207,7 +207,6 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
                 label={item.label}
                 hint={item.hint}
                 onClick={() => handleChildMenuClick(item.action)}
-                menuId="github-child-menu"
                 danger={item.danger}
               />
             ) : (
