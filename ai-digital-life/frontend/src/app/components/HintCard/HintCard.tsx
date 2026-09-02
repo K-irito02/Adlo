@@ -8,7 +8,7 @@ export interface HintCardProps {
   placement?: Placement;
   forcePlacement?: boolean;
   onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
+  onMouseLeave?: (e: React.MouseEvent) => void;
   children: React.ReactNode;
 }
 
@@ -51,6 +51,10 @@ export function HintCard({
   const [pos, setPos] = useState<HintCardPositionResult | null>(null);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
+  const handleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
   }, []);
 
@@ -111,6 +115,7 @@ export function HintCard({
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         onMouseDown={handleMouseDown}
+        onClick={handleClick}
       >
         {content}
       </div>

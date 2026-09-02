@@ -47,12 +47,11 @@ export function useHintCard(
 
   const handleCardMouseLeave = useCallback(
     (e: React.MouseEvent) => {
-      // If the mouse is moving to the trigger element, do NOT schedule close.
-      if (triggerRef?.current?.contains(e.relatedTarget as Node)) {
-        return;
-      }
-      // Also check if relatedTarget is the trigger element itself (not just a child).
-      if (e.relatedTarget === triggerRef?.current) {
+      const related = e.relatedTarget as Node | null;
+      const isToTrigger =
+        related &&
+        (triggerRef?.current?.contains(related) || related.contains?.(triggerRef?.current));
+      if (isToTrigger) {
         return;
       }
       scheduleHide();

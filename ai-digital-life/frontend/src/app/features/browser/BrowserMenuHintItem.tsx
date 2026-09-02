@@ -23,10 +23,12 @@ export function BrowserMenuHintItem({
   menuRef,
 }: BrowserMenuHintItemProps) {
   const triggerRef = useRef<HTMLSpanElement>(null);
-  const { hintState, showHint: showHintCard, scheduleHide, hintCardProps } = useHintCard(
-    undefined,
-    triggerRef,
-  );
+  const {
+    hintState,
+    showHint: showHintCard,
+    scheduleHide,
+    hintCardProps,
+  } = useHintCard(undefined, triggerRef);
 
   const handleShowHint = (e: React.MouseEvent) => {
     e.stopPropagation();
