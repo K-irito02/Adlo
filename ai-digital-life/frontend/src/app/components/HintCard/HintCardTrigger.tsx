@@ -39,7 +39,12 @@ export function HintCardTrigger({
 
   const measureTrigger = useCallback(() => {
     const el = triggerRef.current;
-    const rect = (el?.querySelector('button') ?? el)?.getBoundingClientRect();
+    if (!el) return;
+    // If the child is absolutely positioned (e.g. position: absolute), its
+    // getBoundingClientRect is accurate but the parent wrapper may be zero-sized.
+    // Prefer measuring the first child element; fall back to the wrapper.
+    const child = el.firstElementChild as HTMLElement | null;
+    const rect = child?.getBoundingClientRect() ?? el.getBoundingClientRect();
     if (rect) {
       setTriggerRect(rect);
     }
