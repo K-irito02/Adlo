@@ -79,6 +79,11 @@
   height: 8px;
   border-radius: 50%;
   background: var(--color-success);
+  transition: background var(--duration-150);
+}
+
+.adl-local-port-card__dot--unhealthy {
+  background: var(--danger);
 }
 
 .adl-local-port-card__address {

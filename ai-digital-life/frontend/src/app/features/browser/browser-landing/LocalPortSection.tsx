@@ -38,10 +38,11 @@ export function LocalPortSection({
   const [dragOverPortId, setDragOverPortId] = useState<string | null>(null);
   const scanningRef = useRef(false);
 
-  const sortedPorts = useMemo(
-    () => [...browserLocalPorts].sort((a, b) => a.sortOrder - b.sortOrder),
-    [browserLocalPorts],
-  );
+  const sortedPorts = useMemo(() => {
+    const sorted = [...browserLocalPorts].sort((a, b) => a.sortOrder - b.sortOrder);
+    console.log('[ADL-DEBUG] LocalPortSection: sorted ports:', sorted.map(p => ({ port: p.port, healthy: p.healthy, lastAliveAt: p.lastAliveAt })));
+    return sorted;
+  }, [browserLocalPorts]);
 
   const scanPorts = useCallback(async () => {
     if (scanningRef.current) {
@@ -55,18 +56,29 @@ export function LocalPortSection({
       if (store.isTauri) {
         await store.browserScanPorts(store.browserConfiguredPorts);
       } else {
+        console.log('[ADL-DEBUG] scanPorts (browser mode): starting scan');
         browserSetPortScanning(true);
         const response = await fetch(SCAN_API);
         if (response.ok) {
           const result = await response.json();
           if (result.ok && Array.isArray(result.data)) {
             const discovered: { host: string; port: number }[] = result.data;
+            console.log('[ADL-DEBUG] scanPorts (browser mode): discovered ports:', discovered);
             const existingKeys = new Set(browserLocalPorts.map((p) => `${p.host}:${p.port}`));
             const maxSortOrder =
               browserLocalPorts.length > 0
                 ? Math.max(...browserLocalPorts.map((p) => p.sortOrder))
                 : 0;
 
+            // Update health status for existing ports
+            const discoveredPortSet = new Set(discovered.map(p => p.port));
+            const updatedCurrent = browserLocalPorts.map(p => {
+              const isHealthy = discoveredPortSet.has(p.port);
+              console.log(`[ADL-DEBUG] scanPorts (browser mode): port ${p.port} health check: isHealthy=${isHealthy}, previous healthy=${p.healthy}`);
+              return { ...p, healthy: isHealthy, lastAliveAt: isHealthy ? Date.now() : p.lastAliveAt };
+            });
+
+            // Add new ports
             const newPorts = discovered
               .filter((p) => !existingKeys.has(`${p.host}:${p.port}`))
               .map((p, idx) => ({
@@ -74,18 +86,19 @@ export function LocalPortSection({
                 host: p.host,
                 port: p.port,
                 isAutoDiscovered: true,
+                healthy: true,
                 lastAliveAt: Date.now(),
                 sortOrder: maxSortOrder + idx + 1,
               }));
 
-            if (newPorts.length > 0) {
-              browserSetLocalPorts([...browserLocalPorts, ...newPorts]);
-            }
+            const next = [...updatedCurrent, ...newPorts];
+            console.log('[ADL-DEBUG] scanPorts (browser mode): final ports state:', next.map(p => ({ port: p.port, healthy: p.healthy })));
+            browserSetLocalPorts(next);
           }
         }
       }
     } catch (e) {
-      console.warn('[LocalPortSection] port scan failed:', e);
+      console.warn('[ADL-DEBUG] scanPorts: failed:', e);
     } finally {
       scanningRef.current = false;
       browserSetPortScanning(false);
@@ -189,7 +202,7 @@ export function LocalPortSection({
               }
             }}
           >
-            <span className="adl-local-port-card__dot" />
+            <span className={`adl-local-port-card__dot${port.healthy === false ? ' adl-local-port-card__dot--unhealthy' : ''}`} />
             <span className="adl-local-port-card__address" title={`${port.host}:${port.port}`}>
               {port.host}:{port.port}
             </span>

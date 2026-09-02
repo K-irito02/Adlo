@@ -80,6 +80,7 @@ export interface LocalPort {
   port: number;
   label?: string;
   isAutoDiscovered: boolean;
+  healthy: boolean;
   lastAliveAt: number;
   sortOrder: number;
 }
