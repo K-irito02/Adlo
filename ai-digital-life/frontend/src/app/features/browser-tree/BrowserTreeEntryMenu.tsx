@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from '@stores/slicedStore';
 import { handleBookmarkToggle } from './browserEntrySubEntriesUtils';
-import { HINT_CLOSE_DELAY_MS } from '../../components/HintCardTrigger';
-import { renderHintCard } from '../../utils/renderHintCard';
+import { useHintCard, HintCard } from '../../components/HintCard';
 import type { BrowserTreeNode } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
 import type { CopyDict } from '@i18n';
@@ -46,93 +45,44 @@ export function useBrowserTreeEntryMenu({
   entryMenuItems,
   t,
 }: UseBrowserTreeEntryMenuInput): BrowserTreeEntryMenuSlots {
-  const hintElementsRef = useRef<HTMLElement[]>([]);
-  const closeTimerRef = useRef<number | undefined>(undefined);
+  const {
+    hintState,
+    showHint: showHintCard,
+    hideHint,
+    scheduleHide,
+    hintCardProps,
+  } = useHintCard();
 
-  const hideHint = useCallback(() => {
-    if (closeTimerRef.current) {
-      window.clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = undefined;
-    }
-    hintElementsRef.current.forEach((el) => el.remove());
-    hintElementsRef.current = [];
-  }, []);
-
-  const scheduleHideHint = useCallback(() => {
-    if (closeTimerRef.current) {
-      window.clearTimeout(closeTimerRef.current);
-    }
-    closeTimerRef.current = window.setTimeout(hideHint, HINT_CLOSE_DELAY_MS);
-  }, [hideHint]);
-
-  const showHint = useCallback(
+  const handleShowHint = useCallback(
     (e: React.MouseEvent, hintText: string) => {
-      if (closeTimerRef.current) {
-        window.clearTimeout(closeTimerRef.current);
-        closeTimerRef.current = undefined;
-      }
       const buttonEl = (e.target as HTMLElement).closest('button');
-      const menuEl = document.querySelector(`[data-menu-id="${menuId}"]`) as HTMLElement | null;
       const originalTitle = buttonEl?.getAttribute('title');
       if (originalTitle) {
         buttonEl?.setAttribute('data-original-title', originalTitle);
         buttonEl?.removeAttribute('title');
       }
       const btnRect = buttonEl?.getBoundingClientRect();
-      const menuRect = menuEl?.getBoundingClientRect();
-      if (btnRect && menuRect && menuEl) {
-        hintElementsRef.current.forEach((el) => el.remove());
-        hintElementsRef.current = renderHintCard({
-          content: hintText,
-          buttonRect: btnRect,
-          menuRect,
-          onCardMouseEnter: () => {
-            if (closeTimerRef.current) {
-              window.clearTimeout(closeTimerRef.current);
-              closeTimerRef.current = undefined;
-            }
-          },
-          onCardMouseLeave: scheduleHideHint,
-        });
+      if (btnRect) {
+        showHintCard(hintText, btnRect);
       }
     },
-    [menuId, scheduleHideHint],
+    [showHintCard],
   );
 
-  const showTabHint = useCallback(
+  const handleShowTabHint = useCallback(
     (e: React.MouseEvent, hintText: string) => {
-      if (closeTimerRef.current) {
-        window.clearTimeout(closeTimerRef.current);
-        closeTimerRef.current = undefined;
-      }
       const buttonEl = (e.target as HTMLElement).closest('button');
-      const menuEl = document.querySelector(
-        '[data-menu-id="browser-tab-context-menu"]',
-      ) as HTMLElement | null;
       const originalTitle = buttonEl?.getAttribute('title');
       if (originalTitle) {
         buttonEl?.setAttribute('data-original-title', originalTitle);
         buttonEl?.removeAttribute('title');
       }
       const btnRect = buttonEl?.getBoundingClientRect();
-      const menuRect = menuEl?.getBoundingClientRect();
-      if (btnRect && menuRect && menuEl) {
-        hintElementsRef.current.forEach((el) => el.remove());
-        hintElementsRef.current = renderHintCard({
-          content: hintText,
-          buttonRect: btnRect,
-          menuRect,
-          onCardMouseEnter: () => {
-            if (closeTimerRef.current) {
-              window.clearTimeout(closeTimerRef.current);
-              closeTimerRef.current = undefined;
-            }
-          },
-          onCardMouseLeave: scheduleHideHint,
-        });
+      if (btnRect) {
+        showHintCard(hintText, btnRect);
       }
     },
-    [scheduleHideHint],
+    [showHintCard],
   );
 
   const handleMenuItemClick = useCallback(
@@ -172,11 +122,7 @@ export function useBrowserTreeEntryMenu({
     return () => {
       window.removeEventListener('mousedown', handler);
       window.removeEventListener('keydown', escHandler);
-      if (closeTimerRef.current) {
-        window.clearTimeout(closeTimerRef.current);
-      }
-      hintElementsRef.current.forEach((el) => el.remove());
-      hintElementsRef.current = [];
+      hideHint();
     };
   }, [menuOpen, menuId, setMenuOpen, hideHint, entryBtnRef]);
 
@@ -213,178 +159,190 @@ export function useBrowserTreeEntryMenu({
     return () => {
       window.removeEventListener('mousedown', handler);
       window.removeEventListener('keydown', escHandler);
-      if (closeTimerRef.current) {
-        window.clearTimeout(closeTimerRef.current);
-      }
-      hintElementsRef.current.forEach((el) => el.remove());
-      hintElementsRef.current = [];
+      hideHint();
     };
   }, [contextMenuForTab, setContextMenuForTab, hideHint]);
 
   const entryMenuSlot =
     menuOpen && menuPosition
       ? createPortal(
-          <div
-            className="adl-multitree-entry__menu"
-            role="menu"
-            data-menu-id={menuId}
-            style={{ top: menuPosition.top, left: menuPosition.left }}
-          >
-            {entryMenuItems.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
-                role="menuitem"
-                onClick={handleMenuItemClick(item.action)}
-              >
-                <span>{item.label}</span>
-                {item.hint ? (
-                  <span
-                    className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
-                    onMouseEnter={(e) => showHint(e, item.hint!)}
-                    onMouseLeave={scheduleHideHint}
-                  >
-                    !
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>,
+          <>
+            <div
+              className="adl-multitree-entry__menu"
+              role="menu"
+              data-menu-id={menuId}
+              style={{ top: menuPosition.top, left: menuPosition.left }}
+            >
+              {entryMenuItems.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
+                  role="menuitem"
+                  onClick={handleMenuItemClick(item.action)}
+                >
+                  <span>{item.label}</span>
+                  {item.hint ? (
+                    <span
+                      className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
+                      onMouseEnter={(e) => handleShowHint(e, item.hint!)}
+                      onMouseLeave={scheduleHide}
+                    >
+                      !
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+            <HintCard {...hintCardProps} placement="right">
+              {hintState?.content}
+            </HintCard>
+          </>,
           document.body,
         )
       : null;
 
   const tabContextMenuSlot = contextMenuForTab
     ? createPortal(
-        <div
-          className="adl-multitree-entry__menu"
-          role="menu"
-          data-menu-id="browser-tab-context-menu"
-          style={{ top: contextMenuForTab.y, left: contextMenuForTab.x }}
-        >
-          {[
-            {
-              id: 'open-current',
-              label: t.browserContextOpenCurrent,
-              action: () => {
-                if (contextMenuForTab.node.tabId) {
-                  callbacks.onOpenTabInCurrentTab(contextMenuForTab.node.tabId);
-                }
-                setContextMenuForTab(null);
+        <>
+          <div
+            className="adl-multitree-entry__menu"
+            role="menu"
+            data-menu-id="browser-tab-context-menu"
+            style={{ top: contextMenuForTab.y, left: contextMenuForTab.x }}
+          >
+            {[
+              {
+                id: 'open-current',
+                label: t.browserContextOpenCurrent,
+                action: () => {
+                  if (contextMenuForTab.node.tabId) {
+                    callbacks.onOpenTabInCurrentTab(contextMenuForTab.node.tabId);
+                  }
+                  setContextMenuForTab(null);
+                },
               },
-            },
-            {
-              id: 'open-new',
-              label: t.browserContextOpenNewTab,
-              action: () => {
-                if (contextMenuForTab.node.url) {
-                  callbacks.onOpenTabInNewTab(
-                    contextMenuForTab.node.url,
-                    contextMenuForTab.node.isSavedBookmark
-                      ? undefined
-                      : contextMenuForTab.node.name,
-                  );
-                }
-                setContextMenuForTab(null);
+              {
+                id: 'open-new',
+                label: t.browserContextOpenNewTab,
+                action: () => {
+                  if (contextMenuForTab.node.url) {
+                    callbacks.onOpenTabInNewTab(
+                      contextMenuForTab.node.url,
+                      contextMenuForTab.node.isSavedBookmark
+                        ? undefined
+                        : contextMenuForTab.node.name,
+                    );
+                  }
+                  setContextMenuForTab(null);
+                },
               },
-            },
-            {
-              id: 'refresh',
-              label: t.browserRefreshMeta,
-              hint: t.browserRefreshMetaHint,
-              action: () => {
-                if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
-                  callbacks.onRefreshTab(contextMenuForTab.node.tabId, contextMenuForTab.node.url);
-                }
-                setContextMenuForTab(null);
-              },
-            },
-            {
-              id: 'edit',
-              label: t.browserContextEdit,
-              action: () => {
-                if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
-                  callbacks.onEditTab(
-                    contextMenuForTab.node.tabId,
-                    contextMenuForTab.node.name,
-                    contextMenuForTab.node.url,
-                  );
-                }
-                setContextMenuForTab(null);
-              },
-            },
-            {
-              id: 'copy-link',
-              label: t.browserContextCopyLink,
-              action: () => {
-                if (contextMenuForTab.node.url) {
-                  callbacks.onCopyTabLink(contextMenuForTab.node.url);
-                }
-                setContextMenuForTab(null);
-              },
-            },
-            {
-              id: 'bookmark-toggle',
-              label:
-                contextMenuForTab.node.url &&
-                useAppStore
-                  .getState()
-                  .browserBookmarks.some(
-                    (b) =>
-                      b.url === contextMenuForTab.node.url &&
-                      b.title === contextMenuForTab.node.name,
-                  )
-                  ? t.browserUnbookmark
-                  : t.browserBookmark,
-              action: () => {
-                handleBookmarkToggle(
-                  contextMenuForTab.node.url ?? '',
-                  contextMenuForTab.node.name,
-                  contextMenuForTab.node.tabId,
-                );
-                setContextMenuForTab(null);
-              },
-            },
-            {
-              id: 'delete',
-              label: t.browserContextDelete,
-              danger: true,
-              action: () => {
-                if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
-                  if (contextMenuForTab.node.isSavedBookmark) {
-                    callbacks.onRemoveBookmarkTab?.(
+              {
+                id: 'refresh',
+                label: t.browserRefreshMeta,
+                hint: t.browserRefreshMetaHint,
+                action: () => {
+                  if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
+                    callbacks.onRefreshTab(
                       contextMenuForTab.node.tabId,
                       contextMenuForTab.node.url,
                     );
-                  } else {
-                    callbacks.onDeleteTab(contextMenuForTab.node.tabId, contextMenuForTab.node.url);
                   }
-                }
-                setContextMenuForTab(null);
+                  setContextMenuForTab(null);
+                },
               },
-            },
-          ].map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
-              role="menuitem"
-              onClick={handleTabMenuAction(item.action)}
-            >
-              <span>{item.label}</span>
-              {item.hint ? (
-                <span
-                  className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
-                  onMouseEnter={(e) => showTabHint(e, item.hint!)}
-                  onMouseLeave={scheduleHideHint}
-                >
-                  !
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>,
+              {
+                id: 'edit',
+                label: t.browserContextEdit,
+                action: () => {
+                  if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
+                    callbacks.onEditTab(
+                      contextMenuForTab.node.tabId,
+                      contextMenuForTab.node.name,
+                      contextMenuForTab.node.url,
+                    );
+                  }
+                  setContextMenuForTab(null);
+                },
+              },
+              {
+                id: 'copy-link',
+                label: t.browserContextCopyLink,
+                action: () => {
+                  if (contextMenuForTab.node.url) {
+                    callbacks.onCopyTabLink(contextMenuForTab.node.url);
+                  }
+                  setContextMenuForTab(null);
+                },
+              },
+              {
+                id: 'bookmark-toggle',
+                label:
+                  contextMenuForTab.node.url &&
+                  useAppStore
+                    .getState()
+                    .browserBookmarks.some(
+                      (b) =>
+                        b.url === contextMenuForTab.node.url &&
+                        b.title === contextMenuForTab.node.name,
+                    )
+                    ? t.browserUnbookmark
+                    : t.browserBookmark,
+                action: () => {
+                  handleBookmarkToggle(
+                    contextMenuForTab.node.url ?? '',
+                    contextMenuForTab.node.name,
+                    contextMenuForTab.node.tabId,
+                  );
+                  setContextMenuForTab(null);
+                },
+              },
+              {
+                id: 'delete',
+                label: t.browserContextDelete,
+                danger: true,
+                action: () => {
+                  if (contextMenuForTab.node.tabId && contextMenuForTab.node.url) {
+                    if (contextMenuForTab.node.isSavedBookmark) {
+                      callbacks.onRemoveBookmarkTab?.(
+                        contextMenuForTab.node.tabId,
+                        contextMenuForTab.node.url,
+                      );
+                    } else {
+                      callbacks.onDeleteTab(
+                        contextMenuForTab.node.tabId,
+                        contextMenuForTab.node.url,
+                      );
+                    }
+                  }
+                  setContextMenuForTab(null);
+                },
+              },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
+                role="menuitem"
+                onClick={handleTabMenuAction(item.action)}
+              >
+                <span>{item.label}</span>
+                {item.hint ? (
+                  <span
+                    className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
+                    onMouseEnter={(e) => handleShowTabHint(e, item.hint!)}
+                    onMouseLeave={scheduleHide}
+                  >
+                    !
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </div>
+          <HintCard {...hintCardProps} placement="right">
+            {hintState?.content}
+          </HintCard>
+        </>,
         document.body,
       )
     : null;
