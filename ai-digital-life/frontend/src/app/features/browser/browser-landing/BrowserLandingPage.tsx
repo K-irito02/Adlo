@@ -169,11 +169,17 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
         processError: string | null;
       }>('browser_get_port_details', { port: portNum });
       if (result.ok) {
-        console.log('[ADL-DEBUG] handleViewPortDetailsFromMenu: port details received:', result.data);
+        console.log(
+          '[ADL-DEBUG] handleViewPortDetailsFromMenu: port details received:',
+          result.data,
+        );
         setPortDetails(result.data);
         setPortDetailsOpen(true);
       } else {
-        console.warn('[ADL-DEBUG] handleViewPortDetailsFromMenu: IPC error, defaulting to closed:', result.error);
+        console.warn(
+          '[ADL-DEBUG] handleViewPortDetailsFromMenu: IPC error, defaulting to closed:',
+          result.error,
+        );
         setPortDetails({
           port: portNum,
           isOpen: false,
@@ -185,7 +191,10 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
         setPortDetailsOpen(true);
       }
     } catch (e) {
-      console.warn('[ADL-DEBUG] handleViewPortDetailsFromMenu: exception, defaulting to closed:', e);
+      console.warn(
+        '[ADL-DEBUG] handleViewPortDetailsFromMenu: exception, defaulting to closed:',
+        e,
+      );
       setPortDetails({
         port: portNum,
         isOpen: false,

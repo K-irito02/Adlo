@@ -40,7 +40,10 @@ export function LocalPortSection({
 
   const sortedPorts = useMemo(() => {
     const sorted = [...browserLocalPorts].sort((a, b) => a.sortOrder - b.sortOrder);
-    console.log('[ADL-DEBUG] LocalPortSection: sorted ports:', sorted.map(p => ({ port: p.port, healthy: p.healthy, lastAliveAt: p.lastAliveAt })));
+    console.log(
+      '[ADL-DEBUG] LocalPortSection: sorted ports:',
+      sorted.map((p) => ({ port: p.port, healthy: p.healthy, lastAliveAt: p.lastAliveAt })),
+    );
     return sorted;
   }, [browserLocalPorts]);
 
@@ -71,11 +74,17 @@ export function LocalPortSection({
                 : 0;
 
             // Update health status for existing ports
-            const discoveredPortSet = new Set(discovered.map(p => p.port));
-            const updatedCurrent = browserLocalPorts.map(p => {
+            const discoveredPortSet = new Set(discovered.map((p) => p.port));
+            const updatedCurrent = browserLocalPorts.map((p) => {
               const isHealthy = discoveredPortSet.has(p.port);
-              console.log(`[ADL-DEBUG] scanPorts (browser mode): port ${p.port} health check: isHealthy=${isHealthy}, previous healthy=${p.healthy}`);
-              return { ...p, healthy: isHealthy, lastAliveAt: isHealthy ? Date.now() : p.lastAliveAt };
+              console.log(
+                `[ADL-DEBUG] scanPorts (browser mode): port ${p.port} health check: isHealthy=${isHealthy}, previous healthy=${p.healthy}`,
+              );
+              return {
+                ...p,
+                healthy: isHealthy,
+                lastAliveAt: isHealthy ? Date.now() : p.lastAliveAt,
+              };
             });
 
             // Add new ports
@@ -92,7 +101,10 @@ export function LocalPortSection({
               }));
 
             const next = [...updatedCurrent, ...newPorts];
-            console.log('[ADL-DEBUG] scanPorts (browser mode): final ports state:', next.map(p => ({ port: p.port, healthy: p.healthy })));
+            console.log(
+              '[ADL-DEBUG] scanPorts (browser mode): final ports state:',
+              next.map((p) => ({ port: p.port, healthy: p.healthy })),
+            );
             browserSetLocalPorts(next);
           }
         }
@@ -202,7 +214,9 @@ export function LocalPortSection({
               }
             }}
           >
-            <span className={`adl-local-port-card__dot${port.healthy === false ? ' adl-local-port-card__dot--unhealthy' : ''}`} />
+            <span
+              className={`adl-local-port-card__dot${port.healthy === false ? ' adl-local-port-card__dot--unhealthy' : ''}`}
+            />
             <span className="adl-local-port-card__address" title={`${port.host}:${port.port}`}>
               {port.host}:{port.port}
             </span>
