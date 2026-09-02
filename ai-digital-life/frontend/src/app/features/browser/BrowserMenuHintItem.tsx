@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useHintCard, HintCard } from '../../components/HintCard';
 
 interface BrowserMenuHintItemProps {
@@ -22,7 +22,11 @@ export function BrowserMenuHintItem({
   onClose,
   menuRef,
 }: BrowserMenuHintItemProps) {
-  const { hintState, showHint: showHintCard, scheduleHide, hintCardProps } = useHintCard();
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const { hintState, showHint: showHintCard, scheduleHide, hintCardProps } = useHintCard(
+    undefined,
+    triggerRef,
+  );
 
   const handleShowHint = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -63,6 +67,7 @@ export function BrowserMenuHintItem({
         <span>{label}</span>
         {hint ? (
           <span
+            ref={triggerRef}
             className="adl-menu-item__hint"
             onMouseEnter={handleShowHint}
             onMouseLeave={scheduleHide}

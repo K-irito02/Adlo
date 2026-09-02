@@ -6,10 +6,12 @@ export interface HintState {
   triggerRect: DOMRect;
 }
 
-export function useHintCard(closeDelayMs: number = HINT_CLOSE_DELAY_MS) {
+export function useHintCard(
+  closeDelayMs: number = HINT_CLOSE_DELAY_MS,
+  triggerRef?: React.RefObject<HTMLElement | null>,
+) {
   const [hintState, setHintState] = useState<HintState | null>(null);
   const closeTimerRef = useRef<number | undefined>(undefined);
-  const isMouseOverCardRef = useRef(false);
 
   const cancelClose = useCallback(() => {
     if (closeTimerRef.current !== undefined) {
@@ -34,22 +36,29 @@ export function useHintCard(closeDelayMs: number = HINT_CLOSE_DELAY_MS) {
   const scheduleHide = useCallback(() => {
     cancelClose();
     closeTimerRef.current = window.setTimeout(() => {
-      if (!isMouseOverCardRef.current) {
-        setHintState(null);
-      }
+      setHintState(null);
       closeTimerRef.current = undefined;
     }, closeDelayMs);
   }, [cancelClose, closeDelayMs]);
 
   const handleCardMouseEnter = useCallback(() => {
-    isMouseOverCardRef.current = true;
     cancelClose();
   }, [cancelClose]);
 
-  const handleCardMouseLeave = useCallback(() => {
-    isMouseOverCardRef.current = false;
-    scheduleHide();
-  }, [scheduleHide]);
+  const handleCardMouseLeave = useCallback(
+    (e: React.MouseEvent) => {
+      // If the mouse is moving to the trigger element, do NOT schedule close.
+      if (triggerRef?.current?.contains(e.relatedTarget as Node)) {
+        return;
+      }
+      // Also check if relatedTarget is the trigger element itself (not just a child).
+      if (e.relatedTarget === triggerRef?.current) {
+        return;
+      }
+      scheduleHide();
+    },
+    [scheduleHide, triggerRef],
+  );
 
   return {
     hintState,

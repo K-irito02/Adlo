@@ -22,7 +22,6 @@ export function HintCardTrigger({
   const [triggerRect, setTriggerRect] = useState<DOMRect | null>(null);
   const hoverTimerRef = useRef<number | undefined>(undefined);
   const closeTimerRef = useRef<number | undefined>(undefined);
-  const isMouseOverCardRef = useRef(false);
 
   const cancelHoverTimer = useCallback(() => {
     if (hoverTimerRef.current !== undefined) {
@@ -62,12 +61,7 @@ export function HintCardTrigger({
 
   const scheduleClose = useCallback(() => {
     cancelClose();
-    closeTimerRef.current = window.setTimeout(() => {
-      if (!isMouseOverCardRef.current) {
-        hide();
-      }
-      closeTimerRef.current = undefined;
-    }, HINT_CLOSE_DELAY_MS);
+    closeTimerRef.current = window.setTimeout(hide, HINT_CLOSE_DELAY_MS);
   }, [cancelClose, hide]);
 
   const handleMouseEnter = useCallback(() => {
@@ -110,14 +104,20 @@ export function HintCardTrigger({
   }, [visible, measureTrigger]);
 
   const handleCardMouseEnter = useCallback(() => {
-    isMouseOverCardRef.current = true;
     cancelClose();
   }, [cancelClose]);
 
-  const handleCardMouseLeave = useCallback(() => {
-    isMouseOverCardRef.current = false;
-    scheduleClose();
-  }, [scheduleClose]);
+  const handleCardMouseLeave = useCallback(
+    (e: React.MouseEvent) => {
+      // If the mouse is moving to the trigger element (or a child of it),
+      // do NOT schedule close — the trigger's onMouseEnter will handle it.
+      if (triggerRef.current?.contains(e.relatedTarget as Node)) {
+        return;
+      }
+      scheduleClose();
+    },
+    [scheduleClose],
+  );
 
   return (
     <span
