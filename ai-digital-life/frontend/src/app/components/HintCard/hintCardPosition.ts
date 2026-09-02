@@ -21,7 +21,7 @@ const VIEWPORT_MARGIN = 4;
 const ARROW_FILL_HALF = 4;
 const ARROW_BORDER_HALF = 5;
 const ARROW_FILL_H = 5;
-const ARROW_OVERLAP = 1;
+const ARROW_OVERLAP = 2;
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(Math.max(value, min), max);

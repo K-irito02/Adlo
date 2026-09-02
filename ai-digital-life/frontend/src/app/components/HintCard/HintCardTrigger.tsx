@@ -14,7 +14,7 @@ export interface HintCardTriggerProps {
 export function HintCardTrigger({
   content,
   placement = 'auto',
-  longHoverMs = 600,
+  longHoverMs = 300,
   children,
 }: HintCardTriggerProps) {
   const triggerRef = useRef<HTMLSpanElement>(null);
