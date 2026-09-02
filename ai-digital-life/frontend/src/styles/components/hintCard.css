@@ -1,0 +1,121 @@
+/* HintCard — 统一信息提示卡片样式 */
+
+.hint-card {
+  position: fixed;
+  z-index: 100000;
+  max-width: min(480px, 90vw);
+  width: max-content;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  padding: var(--space-2) var(--space-3);
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-break: loose;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: auto;
+  user-select: text;
+}
+
+.hint-card[data-placement="top"]    { border-width: 0 1px 1px 1px; }
+.hint-card[data-placement="bottom"] { border-width: 1px 1px 0 1px; }
+.hint-card[data-placement="left"]   { border-width: 1px 0 1px 1px; }
+.hint-card[data-placement="right"]  { border-width: 1px 1px 1px 0; }
+
+.hint-card[data-state="open"] {
+  transition: opacity var(--duration-150, 150ms) var(--ease-enter, ease-in);
+  opacity: 1;
+}
+.hint-card[data-state="closed"] {
+  transition: opacity var(--duration-100, 100ms) var(--ease-exit, ease-out);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* --- 箭头填充三角 --- */
+.hint-card__arrow {
+  position: fixed;
+  z-index: 99999;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+.hint-card__arrow[data-placement="top"] {
+  border-top: 5px solid var(--bg-card);
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+}
+.hint-card__arrow[data-placement="bottom"] {
+  border-bottom: 5px solid var(--bg-card);
+  border-right: 4px solid transparent;
+  border-left: 4px solid transparent;
+}
+.hint-card__arrow[data-placement="left"] {
+  border-left: 5px solid var(--bg-card);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+.hint-card__arrow[data-placement="right"] {
+  border-right: 5px solid var(--bg-card);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+
+/* --- 箭头描边三角 --- */
+.hint-card__arrow-border {
+  position: fixed;
+  z-index: 99998;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+.hint-card__arrow-border[data-placement="top"] {
+  border-top: 6px solid var(--border-default);
+  border-right: 5px solid transparent;
+  border-left: 5px solid transparent;
+}
+.hint-card__arrow-border[data-placement="bottom"] {
+  border-bottom: 6px solid var(--border-default);
+  border-right: 5px solid transparent;
+  border-left: 5px solid transparent;
+}
+.hint-card__arrow-border[data-placement="left"] {
+  border-left: 6px solid var(--border-default);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.hint-card__arrow-border[data-placement="right"] {
+  border-right: 6px solid var(--border-default);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+
+/* --- 列点样式 --- */
+.hint-card__bullet-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.hint-card__bullet {
+  flex-shrink: 0;
+  transform: translateY(-0.03em);
+  line-height: 1;
+}
+.hint-card__bullet-text {
+  flex: 1;
+  min-width: 0;
+}
+.hint-card__line {
+  white-space: pre-line;
+}
+
+/* --- Reduced motion --- */
+@media (prefers-reduced-motion: reduce) {
+  .hint-card { transition: none !important; }
+}
