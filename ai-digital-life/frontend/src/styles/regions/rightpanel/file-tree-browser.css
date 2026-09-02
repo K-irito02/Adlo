@@ -79,17 +79,17 @@
 }
 
 .adl-multitree-entry.is-highlighted {
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  background: var(--bg-hover);
   border-radius: var(--radius-md);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+  box-shadow: 0 0 0 2px var(--border-default);
 }
 
 /* 当前选中（活动）工作区：突出显示，便于新建文件/文件夹时确认落点 */
 .adl-multitree-entry.is-current .adl-multitree-entry__header {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--bg-hover);
 }
 .adl-multitree-entry.is-current .adl-multitree-entry__name {
-  color: var(--accent);
+  color: var(--text-primary);
   font-weight: var(--font-semibold);
 }
 .adl-multitree-entry.is-current .adl-multitree-entry__header::before {
@@ -100,10 +100,10 @@
   bottom: 4px;
   width: 3px;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: var(--accent);
+  background: var(--text-primary);
 }
 .adl-multitree-entry.is-current .adl-multitree-entry__header:hover {
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  background: var(--bg-active);
 }
 
 .adl-multitree-entry__header {

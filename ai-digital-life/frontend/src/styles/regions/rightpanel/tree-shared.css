@@ -26,16 +26,16 @@
    此时仍需显示淡蓝弱选中以标识"被当前编辑器打开"，故弱选中样式优先于强选中（!important）。 */
 .adl-tree-node.is-weak-selected:not(.is-context-menu-target) > .adl-tree-node__row,
 .adl-filetree__item.is-weak-selected:not(.is-context-menu-target) > .adl-filetree__row {
-  background: color-mix(in srgb, var(--accent) 8%, transparent) !important;
+  background: var(--bg-hover) !important;
   color: var(--text-primary) !important;
-  box-shadow: inset 2px 0 0 0 var(--accent);
+  box-shadow: inset 2px 0 0 0 var(--text-secondary);
 }
 
 /* 弱选中 + 悬停：保留左侧强调色条，同时叠加悬停反馈 */
 .adl-tree-node.is-weak-selected.is-hovered:not(.is-context-menu-target) > .adl-tree-node__row,
 .adl-filetree__item.is-weak-selected.is-hovered:not(.is-context-menu-target) > .adl-filetree__row {
-  background: color-mix(in srgb, var(--accent) 8%, var(--bg-hover)) !important;
-  box-shadow: inset 2px 0 0 0 var(--accent);
+  background: var(--bg-active) !important;
+  box-shadow: inset 2px 0 0 0 var(--text-secondary);
 }
 
 .adl-tree-node.is-hovered:not(.is-selected):not(.is-context-menu-target) > .adl-tree-node__row,
