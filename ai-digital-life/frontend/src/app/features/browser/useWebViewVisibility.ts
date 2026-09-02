@@ -9,6 +9,20 @@ import type { BrowserTabState } from '@stores/slices/browserSlice';
  */
 const HIDDEN_WEBVIEW_OFFSCREEN_COORD = 32767;
 
+/**
+ * DOM 悬浮层选择器：当这些悬浮层（菜单、下拉、确认对话框等，多经 portal 渲染到
+ * body）与 WebView 区域相交时，需将原生 WebView 移出屏幕，否则原生 HWND 会盖在
+ * HTML 悬浮层之上。此为「WebView2 窗口遮挡悬浮层」问题的统一处理方案。
+ */
+export const WEBVIEW_OVERLAY_SELECTOR = [
+  '.adl-sidebar-menu',
+  '.adl-multitree-entry__menu',
+  '.adl-menu__dropdown',
+  '.adl-search-engine-popover',
+  '.adl-download-menu',
+  '.adl-confirm-overlay',
+].join(', ');
+
 interface UseWebViewVisibilityOptions {
   isVisible: boolean;
   overlayActive: boolean;
@@ -72,12 +86,10 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
       return;
     }
 
-    const OVERLAY_SELECTOR =
-      '.adl-sidebar-menu, .adl-multitree-entry__menu, .adl-menu__dropdown, .adl-search-engine-popover, .adl-download-menu';
     let rafId: number | null = null;
 
     const checkDomOverlay = () => {
-      const overlays = document.querySelectorAll(OVERLAY_SELECTOR);
+      const overlays = document.querySelectorAll(WEBVIEW_OVERLAY_SELECTOR);
       const primaryEl = primaryRef.current;
 
       let hasOverlap = false;
