@@ -296,7 +296,7 @@ describe('GitVisualizationView', () => {
     fireEvent.click(helpTrigger!);
     await vi.waitFor(
       () => {
-        const card = document.body.querySelector('.adl-sub-hint-card');
+        const card = document.body.querySelector('.hint-card');
         expect(card).toBeTruthy();
         expect(card!.textContent).toContain('Branch Graph Guide');
         expect(card!.textContent).toContain('Lanes body');
