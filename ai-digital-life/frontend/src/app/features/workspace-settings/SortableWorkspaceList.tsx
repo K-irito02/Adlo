@@ -3,7 +3,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { IconMenu, IconClose } from '../../icons';
 import { IconCircleHelp } from '../../icons/status';
-import { HintCardTrigger } from '../../components/HintCardTrigger';
+import { HintCardTrigger } from '../../components/HintCard';
 import type { CopyDict } from '../../i18n';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
 

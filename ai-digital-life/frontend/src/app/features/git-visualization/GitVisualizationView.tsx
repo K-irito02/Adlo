@@ -20,7 +20,7 @@ import { useChartData } from './hooks/useChartData';
 import { useYearBounds } from './hooks/useYearBounds';
 import { RefreshButton } from './RefreshButton';
 import { TimeRangeSelector } from './TimeRangeSelector';
-import { HintCardTrigger } from '../../components/HintCardTrigger';
+import { HintCardTrigger } from '../../components/HintCard';
 import { IconCircleHelp } from '../../icons/status';
 import { CHART_IDS } from './chartIds';
 import type { GitVisCommitStats } from '@shared/ipc';

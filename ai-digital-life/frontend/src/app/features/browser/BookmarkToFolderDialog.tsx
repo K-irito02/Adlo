@@ -11,7 +11,7 @@ import {
 } from '@icons';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import type { FileTreeRenderableNode } from '@features/file-tree/fileTree.utils';
-import { HintCardTrigger } from '../../components/HintCardTrigger';
+import { HintCardTrigger } from '../../components/HintCard';
 
 interface BookmarkToFolderDialogProps {
   open: boolean;

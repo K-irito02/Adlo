@@ -9,7 +9,7 @@ import { DndContext, pointerWithin, type CollisionDetection } from '@dnd-kit/cor
 import { useWorkspaceDnd } from './useWorkspaceDnd';
 import { SortableWorkspaceList } from './SortableWorkspaceList';
 import { DragOverlayPortal } from '../../components/drag/DragOverlayPortal';
-import { HintCardTrigger } from '../../components/HintCardTrigger';
+import { HintCardTrigger } from '../../components/HintCard';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
 
 export function WorkspaceSettings() {
