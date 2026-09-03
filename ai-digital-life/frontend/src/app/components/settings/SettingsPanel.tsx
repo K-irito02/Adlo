@@ -11,7 +11,6 @@ import { KeybindSettings } from './KeybindSettings';
 import { CommandSettings } from '../../features/command-editor/CommandSettings';
 import { PermissionSettings } from '../../features/permission-settings/PermissionSettings';
 import { ReferenceSettings } from '../../features/reference-manager/ReferenceSettings';
-import { ModelSettings } from '../../features/model-settings/ModelSettings';
 import { LspSettings } from '../../features/lsp-panel/LspSettings';
 import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSettings';
 import { BrowserSettings } from '../../features/browser-settings/BrowserSettings';
@@ -31,7 +30,6 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   commands: CommandSettings,
   permissions: PermissionSettings,
   references: ReferenceSettings,
-  providers: ModelSettings,
   lsp: LspSettings,
   workspace: WorkspaceSettings,
   browser: BrowserSettings,

@@ -10,7 +10,6 @@ export const settingsEn = {
   settingsGeneral: 'General',
   settingsWorkspace: 'Workspace',
   settingsShortcuts: 'Shortcuts',
-  settingsModels: 'Models',
   settingsCommands: 'Custom Commands',
   settingsPermissions: 'Permission Rules',
   settingsReferences: 'References',
@@ -18,7 +17,6 @@ export const settingsEn = {
   settingsBrowser: 'Browser',
 
   // Settings section descriptions
-  settingsModelsDesc: 'Configure model providers, credentials and enabled models',
   settingsReferencesDesc: 'Manage reference materials and documentation',
 
   // Common settings

@@ -10,7 +10,6 @@ export const settingsZh = {
   settingsGeneral: '通用',
   settingsWorkspace: '工作区',
   settingsShortcuts: '快捷键',
-  settingsModels: '模型',
   settingsCommands: '自定义命令',
   settingsPermissions: '权限规则',
   settingsReferences: '引用',
@@ -18,7 +17,6 @@ export const settingsZh = {
   settingsBrowser: '浏览器',
 
   // 设置分区描述
-  settingsModelsDesc: '配置模型供应商、凭证与启用模型',
   settingsReferencesDesc: '管理参考材料和文档',
 
   // 通用设置项

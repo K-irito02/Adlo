@@ -19,10 +19,10 @@ describe('/model slash command', () => {
     useAppStore.setState({ activeRightTool: 'files', activeSettingsGroup: 'general' });
   });
 
-  it('opens the settings tool with the providers group', async () => {
+  it('opens the settings tool with the general group', async () => {
     await useAppStore.getState().sendMessage('/model');
     expect(useAppStore.getState().activeRightTool).toBe('settings');
-    expect(useAppStore.getState().activeSettingsGroup).toBe('providers');
+    expect(useAppStore.getState().activeSettingsGroup).toBe('general');
   });
 });
 
