@@ -1,15 +1,7 @@
 export const approvalEn = {
   approvals: 'Approvals',
-  approvalPolicy: 'Approval Policy',
   approve: 'Approve',
-  riskLow: 'Low risk',
-  riskMedium: 'Medium risk',
-  riskHigh: 'High risk',
-  approvalDecided: 'Decided',
   approvalApproved: 'Approved',
   approvalRejected: 'Rejected',
-  approvalImpact: 'Impact',
-  approvalViewDetail: 'View details',
-  approvalHideDetail: 'Hide details',
   approvalPendingCount: 'Pending',
 } as const;

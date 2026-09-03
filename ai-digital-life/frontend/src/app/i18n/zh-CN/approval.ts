@@ -1,15 +1,7 @@
 export const approvalZh = {
   approvals: '待审批',
-  approvalPolicy: '审批策略',
   approve: '批准',
-  riskLow: '低风险',
-  riskMedium: '中风险',
-  riskHigh: '高风险',
-  approvalDecided: '已决策',
   approvalApproved: '已批准',
   approvalRejected: '已拒绝',
-  approvalImpact: '影响范围',
-  approvalViewDetail: '查看详情',
-  approvalHideDetail: '收起详情',
   approvalPendingCount: '待审批',
 } as const;
