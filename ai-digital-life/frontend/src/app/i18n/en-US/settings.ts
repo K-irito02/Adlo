@@ -10,12 +10,8 @@ export const settingsEn = {
   settingsGeneral: 'General',
   settingsWorkspace: 'Workspace',
   settingsShortcuts: 'Shortcuts',
-  settingsReferences: 'References',
   settingsLsp: 'Language Server',
   settingsBrowser: 'Browser',
-
-  // Settings section descriptions
-  settingsReferencesDesc: 'Manage reference materials and documentation',
 
   // Common settings
   settingsLanguage: 'Language',

@@ -10,12 +10,8 @@ export const settingsZh = {
   settingsGeneral: '通用',
   settingsWorkspace: '工作区',
   settingsShortcuts: '快捷键',
-  settingsReferences: '引用',
   settingsLsp: '语言服务',
   settingsBrowser: '浏览器',
-
-  // 设置分区描述
-  settingsReferencesDesc: '管理参考材料和文档',
 
   // 通用设置项
   settingsLanguage: '语言',
