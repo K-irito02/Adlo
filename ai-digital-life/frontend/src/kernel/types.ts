@@ -413,12 +413,7 @@ export interface AuditEntry {
   detail?: string;
 }
 
-export type SettingsGroupId =
-  | 'general'
-  | 'workspace'
-  | 'shortcuts'
-  | 'lsp'
-  | 'browser';
+export type SettingsGroupId = 'general' | 'workspace' | 'shortcuts' | 'browser';
 
 export interface SettingItem {
   id: string;

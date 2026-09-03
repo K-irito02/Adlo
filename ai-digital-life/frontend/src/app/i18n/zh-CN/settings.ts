@@ -10,7 +10,6 @@ export const settingsZh = {
   settingsGeneral: '通用',
   settingsWorkspace: '工作区',
   settingsShortcuts: '快捷键',
-  settingsLsp: '语言服务',
   settingsBrowser: '浏览器',
 
   // 通用设置项

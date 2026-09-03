@@ -8,7 +8,6 @@ import { TooltipSimple } from '../Tooltip';
 import { SettingsNav } from './SettingsNav';
 import { SettingsControls } from './SettingsControls';
 import { KeybindSettings } from './KeybindSettings';
-import { LspSettings } from '../../features/lsp-panel/LspSettings';
 import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSettings';
 import { BrowserSettings } from '../../features/browser-settings/BrowserSettings';
 import { getDefaultPreferences } from '../../../shared/defaultPreferences';
@@ -24,7 +23,6 @@ interface SettingsPanelProps {
 
 const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>> = {
   shortcuts: KeybindSettings,
-  lsp: LspSettings,
   workspace: WorkspaceSettings,
   browser: BrowserSettings,
 };

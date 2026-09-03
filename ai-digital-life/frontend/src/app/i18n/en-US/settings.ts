@@ -10,7 +10,6 @@ export const settingsEn = {
   settingsGeneral: 'General',
   settingsWorkspace: 'Workspace',
   settingsShortcuts: 'Shortcuts',
-  settingsLsp: 'Language Server',
   settingsBrowser: 'Browser',
 
   // Common settings

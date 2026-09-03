@@ -12,7 +12,6 @@ const GROUPS: { id: SettingsGroupId; labelKey: keyof CopyDict }[] = [
   { id: 'general', labelKey: 'settingsGeneral' },
   { id: 'workspace', labelKey: 'settingsWorkspace' },
   { id: 'shortcuts', labelKey: 'settingsShortcuts' },
-  { id: 'lsp', labelKey: 'settingsLsp' },
   { id: 'browser', labelKey: 'settingsBrowser' },
 ];
 
