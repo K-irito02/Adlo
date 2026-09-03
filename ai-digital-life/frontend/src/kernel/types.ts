@@ -415,7 +415,6 @@ export interface AuditEntry {
 
 export type SettingsGroupId =
   | 'general'
-  | 'agent'
   | 'workspace'
   | 'shortcuts'
   | 'mcp'

@@ -10,7 +10,6 @@ import { SettingsControls } from './SettingsControls';
 import { KeybindSettings } from './KeybindSettings';
 import { McpSettings } from '../../features/mcp/McpSettings';
 import { CommandSettings } from '../../features/command-editor/CommandSettings';
-import { CustomAgentSettings } from '../../features/custom-agent/CustomAgentSettings';
 import { PermissionSettings } from '../../features/permission-settings/PermissionSettings';
 import { ReferenceSettings } from '../../features/reference-manager/ReferenceSettings';
 import { ModelSettings } from '../../features/model-settings/ModelSettings';
@@ -36,7 +35,6 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   references: ReferenceSettings,
   providers: ModelSettings,
   lsp: LspSettings,
-  agent: CustomAgentSettings,
   workspace: WorkspaceSettings,
   browser: BrowserSettings,
 };

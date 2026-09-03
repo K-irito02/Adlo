@@ -10,7 +10,6 @@ interface SettingsNavProps {
 
 const GROUPS: { id: SettingsGroupId; labelKey: keyof CopyDict }[] = [
   { id: 'general', labelKey: 'settingsGeneral' },
-  { id: 'agent', labelKey: 'settingsAgent' },
   { id: 'workspace', labelKey: 'settingsWorkspace' },
   { id: 'shortcuts', labelKey: 'settingsShortcuts' },
   { id: 'mcp', labelKey: 'settingsMcp' },

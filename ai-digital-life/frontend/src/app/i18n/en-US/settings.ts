@@ -8,7 +8,6 @@ export const settingsEn = {
 
   // Group labels
   settingsGeneral: 'General',
-  settingsAgent: 'Agent',
   settingsWorkspace: 'Workspace',
   settingsShortcuts: 'Shortcuts',
   settingsMcp: 'MCP Servers',
@@ -22,7 +21,6 @@ export const settingsEn = {
   // Settings section descriptions
   settingsModelsDesc: 'Configure model providers, credentials and enabled models',
   settingsReferencesDesc: 'Manage reference materials and documentation',
-  settingsAgentDesc: 'Configure custom agent behaviors and presets',
 
   // Common settings
   settingsLanguage: 'Language',

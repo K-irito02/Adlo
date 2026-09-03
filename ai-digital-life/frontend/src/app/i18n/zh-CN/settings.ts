@@ -8,7 +8,6 @@ export const settingsZh = {
 
   // 分组标签
   settingsGeneral: '通用',
-  settingsAgent: '智能体',
   settingsWorkspace: '工作区',
   settingsShortcuts: '快捷键',
   settingsMcp: 'MCP 服务器',
@@ -22,7 +21,6 @@ export const settingsZh = {
   // 设置分区描述
   settingsModelsDesc: '配置模型供应商、凭证与启用模型',
   settingsReferencesDesc: '管理参考材料和文档',
-  settingsAgentDesc: '配置自定义智能体行为和预设',
 
   // 通用设置项
   settingsLanguage: '语言',
